@@ -18,7 +18,7 @@ public interface IUsableAdministratorService
     Task<bool> HasUsableAdministratorSignInAsync(AuthSettings policy, CancellationToken ct);
 
     /// <summary>
-    /// Remote-access view: local-only accounts do not count, and an administrator must also have saved recovery codes.
+    /// Remote-access view: an administrator must also have saved recovery codes.
     /// </summary>
     Task<UsableAdministratorStatus> EvaluateForRemoteAsync(CancellationToken ct);
 }

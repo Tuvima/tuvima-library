@@ -73,13 +73,10 @@ public static class DashboardAuthenticationEndpoints
                 return Results.Redirect("/setup");
             }
 
-            Guid? profileId = Guid.TryParse(form["profileId"].ToString(), out var parsed) ? parsed : null;
             var issued = await identity.LoginAsync(new LocalLoginRequest
             {
-                Email = profileId is null ? form["email"].ToString() : null,
-                Password = profileId is null ? form["password"].ToString() : null,
-                ProfileId = profileId,
-                Pin = profileId is null ? null : form["pin"].ToString(),
+                Email = form["email"].ToString(),
+                Password = form["password"].ToString(),
                 DeviceId = deviceId,
                 DeviceName = deviceName,
                 Client = "Tuvima Library Dashboard",
@@ -424,7 +421,6 @@ public static class DashboardAuthenticationEndpoints
               <label>Password<input type="password" name="password" autocomplete="current-password" required></label><button>Sign in</button></form>
               <p><a href="/auth/recover">Forgot your password?</a></p>
               {(showPasskey ? "<button type=\"button\" id=\"passkey-login\">Sign in with a passkey</button><p id=\"passkey-message\" class=\"supporting\"></p>" : string.Empty)}
-              <details><summary>Sign in with a local profile</summary><form method="post"><input type="hidden" name="__RequestVerificationToken" value="{H(token)}"><input type="hidden" name="action" value="login"><input type="hidden" name="returnUrl" value="{H(returnUrl)}"><label>Profile ID<input name="profileId" required></label><label>PIN (if configured)<input type="password" inputmode="numeric" name="pin"></label><button>Continue</button></form></details>
               {externalButtons}
               {(showPasskey ? passkeyScript : string.Empty)}
               """;

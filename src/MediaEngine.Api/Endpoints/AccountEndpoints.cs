@@ -44,21 +44,14 @@ public static class AccountEndpoints
 
             var policy = providerConfiguration.LoadWithSecrets();
             var network = configuration.LoadNetwork();
-            var hasPassword = !account.IsLocalOnly && await identities.GetAccountCredentialAsync(
+            var hasPassword = await identities.GetAccountCredentialAsync(
                 account.Id, AccountCredentialKind.Password, ct).ConfigureAwait(false) is not null;
-            var passkeys = account.IsLocalOnly
-                ? []
-                : await users.GetPasskeysAsync(account).ConfigureAwait(false);
-            var linkedLogins = account.IsLocalOnly
-                ? []
-                : await externalLogins.GetByAccountAsync(account.Id, ct).ConfigureAwait(false);
-            var hasProfilePin = account.IsLocalOnly && await identities.GetCredentialAsync(
-                authority.ActiveProfileId!.Value, ProfileCredentialKind.ProfilePin, ct).ConfigureAwait(false) is not null;
+            var passkeys = await users.GetPasskeysAsync(account).ConfigureAwait(false);
+            var linkedLogins = await externalLogins.GetByAccountAsync(account.Id, ct).ConfigureAwait(false);
 
             var passkeyReady = policy.PasskeySignInEnabled
-                && !AuthenticationEndpoints.IsLocalOnlyMode(policy)
                 && AuthenticationEndpoints.IsCanonicalOriginReady(network);
-            var externalAvailable = !account.IsLocalOnly && AuthenticationEndpoints.AllowsClient(
+            var externalAvailable = AuthenticationEndpoints.AllowsClient(
                 configuration.LoadNetwork(), originalClientIngress, originalClientIsHttps,
                 AuthenticationEndpoints.IsExternalSignInEnabled(policy));
             var availableProviders = externalAvailable
@@ -75,7 +68,7 @@ public static class AccountEndpoints
                 : [];
 
             var methods = AttachedAuthenticationMethods(
-                account.IsLocalOnly, hasProfilePin, hasPassword, passkeys.Count > 0, linkedLogins.Count > 0);
+                hasPassword, passkeys.Count > 0, linkedLogins.Count > 0);
 
             var capabilities = new AccountSecurityCapabilitiesResponse(
                 hasPassword,
@@ -83,13 +76,13 @@ public static class AccountEndpoints
                 linkedLogins.Count > 0,
                 hasPassword && AuthenticationEndpoints.AllowsClient(
                     configuration.LoadNetwork(), originalClientIngress, originalClientIsHttps,
-                    policy.PasswordSignInEnabled && !AuthenticationEndpoints.IsLocalOnlyMode(policy)),
-                !account.IsLocalOnly && AuthenticationEndpoints.IsPasskeyAvailable(
+                    policy.PasswordSignInEnabled),
+                AuthenticationEndpoints.IsPasskeyAvailable(
                     policy, configuration.LoadNetwork(), originalClientIngress, originalClientIsHttps),
                 passkeyReady,
                 availableProviders.Count > 0,
                 availableProviders);
-            return Results.Ok(new AccountSelfServiceResponse(account.Id, account.Email, account.IsLocalOnly,
+            return Results.Ok(new AccountSelfServiceResponse(account.Id, account.Email,
                 authority.ActiveProfileId.GetValueOrDefault(), defaultId, grants, methods, capabilities));
         }).Produces<AccountSelfServiceResponse>();
 
@@ -146,17 +139,10 @@ public static class AccountEndpoints
     }
 
     internal static IReadOnlyList<string> AttachedAuthenticationMethods(
-        bool isLocalOnly,
-        bool hasProfilePin,
         bool hasPassword,
         bool hasPasskeys,
         bool hasExternalLogins)
     {
-        if (isLocalOnly)
-        {
-            return hasProfilePin ? ["profile_pin"] : ["profile_entry"];
-        }
-
         var methods = new List<string>(3);
         if (hasPassword)
         {
@@ -237,7 +223,7 @@ public static class AccountEndpoints
             IConfigurationLoader configuration,
             CancellationToken ct) => await ExecuteAsync(async () =>
         {
-            var command = new CreateAccountAccessCommand(request.Email, request.IsLocalOnly,
+            var command = new CreateAccountAccessCommand(request.Email,
                 request.IsAdministrator, request.ProfileId,
                 request.NewProfile is null ? null : new NewAccountProfileCommand(
                     request.NewProfile.DisplayName, request.NewProfile.AvatarColor),
@@ -256,7 +242,7 @@ public static class AccountEndpoints
             CancellationToken ct) => await ExecuteAsync(async () =>
         {
             var value = await mutations.UpdateAsync(await resolver.ResolveAsync(http, ct), accountId,
-                new UpdateAccountAccessCommand(request.Email, request.IsLocalOnly,
+                new UpdateAccountAccessCommand(request.Email,
                     request.IsEnabled, request.IsAdministrator), ct);
             return Results.Ok(await MapAccount(value, accounts, identities, profiles, configuration, ct));
         })).RequireAdministratorOrApplication(ApplicationPermissionIds.IdentityUsersWrite)
@@ -424,7 +410,7 @@ public static class AccountEndpoints
             .ToDictionary(library => Guid.Parse(library.Id), library => library.Name);
         var sessions = await identities.GetSessionsAsync(account.Id, ct);
         var lastActiveAt = sessions.Count == 0 ? (DateTimeOffset?)null : sessions.Max(session => session.LastSeenAt);
-        return new AccountAccessResponse(account.Id, account.Email, account.IsLocalOnly,
+        return new AccountAccessResponse(account.Id, account.Email,
             account.IsEnabled, account.IsAdministrator, account.AuthorizationVersion,
             (await accounts.GetFeatureGrantsAsync(account.Id, ct))
                 .Select(feature => new AccountFeatureGrantDto(feature.Value, true)).ToList(),

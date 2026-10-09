@@ -18,13 +18,12 @@ public sealed class AccountEndpointContractTests
     public void SelfServiceAuthenticationMethods_ReflectOnlyAttachedCredentials()
     {
         Assert.Equal(["password"], AccountEndpoints.AttachedAuthenticationMethods(
-            false, false, true, false, false));
+            true, false, false));
         Assert.Equal(["passkey", "external"], AccountEndpoints.AttachedAuthenticationMethods(
-            false, false, false, true, true));
-        Assert.Equal(["profile_entry"], AccountEndpoints.AttachedAuthenticationMethods(
-            true, false, true, true, true));
-        Assert.Equal(["profile_pin"], AccountEndpoints.AttachedAuthenticationMethods(
-            true, true, false, false, false));
+            false, true, true));
+        Assert.Equal(["password", "passkey", "external"], AccountEndpoints.AttachedAuthenticationMethods(
+            true, true, true));
+        Assert.Empty(AccountEndpoints.AttachedAuthenticationMethods(false, false, false));
     }
 
     [Fact]

@@ -23,7 +23,7 @@ An account signs in. A profile holds personal history, preferences, and View Per
 
 Invitations work once. Their lifetime comes from **Users & Access → Authentication**; the default is seven days, but administrators can change it.
 
-A local-only account has no email or password. It can enter only through an explicitly trusted local path when policy permits. With no trusted local networks configured, only this computer qualifies. Local-only access never grants administration by itself.
+Every account needs an email address to sign in. Someone who does not need their own sign-in is added as a profile in an existing household instead, and is opened by switching profiles.
 
 ## Protect admin settings
 

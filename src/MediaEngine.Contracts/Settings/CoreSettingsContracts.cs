@@ -13,7 +13,6 @@ public sealed class AuthSettingsDto
     [JsonPropertyName("password_sign_in_enabled")] public bool PasswordSignInEnabled { get; init; }
     [JsonPropertyName("passkey_sign_in_enabled")] public bool PasskeySignInEnabled { get; init; }
     [JsonPropertyName("external_sign_in_enabled")] public bool ExternalSignInEnabled { get; init; }
-    [JsonPropertyName("allow_local_only_accounts")] public bool AllowLocalOnlyAccounts { get; init; }
     [JsonPropertyName("trusted_local_networks")] public List<string> TrustedLocalNetworks { get; init; } = [];
     [JsonPropertyName("invitation_lifetime_hours")] public int InvitationLifetimeHours { get; init; }
     [JsonPropertyName("session_lifetime_hours")] public int SessionLifetimeHours { get; init; }
@@ -90,7 +89,6 @@ public sealed class UpdateAuthSettingsRequest
     [JsonPropertyName("password_sign_in_enabled")] public bool PasswordSignInEnabled { get; init; }
     [JsonPropertyName("passkey_sign_in_enabled")] public bool PasskeySignInEnabled { get; init; }
     [JsonPropertyName("external_sign_in_enabled")] public bool ExternalSignInEnabled { get; init; }
-    [JsonPropertyName("allow_local_only_accounts")] public bool AllowLocalOnlyAccounts { get; init; }
     [JsonPropertyName("trusted_local_networks")] public List<string> TrustedLocalNetworks { get; init; } = [];
     [JsonPropertyName("invitation_lifetime_hours")] public int InvitationLifetimeHours { get; init; }
     [JsonPropertyName("session_lifetime_hours")] public int SessionLifetimeHours { get; init; }

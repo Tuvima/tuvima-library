@@ -157,8 +157,7 @@ var authSettings = dashboardConfig.LoadCore().Auth;
 builder.Services.AddSingleton(authSettings.PasswordReset);
 builder.Services.AddSingleton<PasswordResetEmailSender>();
 var externalSignInAllowed =
-    !string.Equals(authSettings.Mode, "Local", StringComparison.OrdinalIgnoreCase) &&
-    !string.Equals(authSettings.Mode, "DisabledLocalOnly", StringComparison.OrdinalIgnoreCase);
+    !string.Equals(authSettings.Mode, "Local", StringComparison.OrdinalIgnoreCase);
 var configuredExternalProviders = externalSignInAllowed
     ? authSettings.ExternalProviders.Where(provider => provider.Enabled).ToArray()
     : [];

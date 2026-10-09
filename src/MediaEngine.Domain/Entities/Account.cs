@@ -8,7 +8,6 @@ public sealed class Account
     public Guid Id { get; set; }
     public string? Email { get; set; }
     public string? NormalizedEmail { get; set; }
-    public bool IsLocalOnly { get; set; }
     public bool IsEnabled { get; set; } = true;
     public bool IsAdministrator { get; set; }
     public long AuthorizationVersion { get; set; } = 1;

@@ -51,7 +51,6 @@ public sealed class FirstPartyIdentityServiceTests : IDisposable
             "owner@example.com", "correct horse battery staple", "Owner", "device", "Browser", "Dashboard", pin: "0123");
         var credential = await _identities.GetCredentialAsync(issued.Profile.Id, MediaEngine.Domain.Entities.ProfileCredentialKind.ProfilePin);
         Assert.NotNull(credential);
-        Assert.False((await _service.AuthenticatePinAsync(issued.Profile.Id, "0123", "pin-device", "Browser", "Dashboard")).Succeeded);
         Assert.NotEmpty(issued.RecoveryCodes);
         Assert.True(await _service.IsAdministratorConfiguredAsync());
         Assert.Single(await _accounts.GetAllAsync());
@@ -386,62 +385,33 @@ public sealed class FirstPartyIdentityServiceTests : IDisposable
         Assert.True(remote.Succeeded);
     }
 
-    [Fact]
-    public async Task LocalOnlyAccount_CanEnterWithoutPinAndRequiresPinAfterOneIsConfigured()
+    [Theory]
+    [InlineData("ProfileEntry")]
+    [InlineData("ProfilePin")]
+    public async Task SessionsFromRetiredProfileSignIn_AreNeverAccepted(string retiredMethod)
     {
-        await _service.BootstrapAdministratorAsync(
+        var bootstrap = await _service.BootstrapAdministratorAsync(
             "owner@example.com", "correct horse battery staple", "Owner", "browser-1", "Living room", "Dashboard");
-        var profile = new Profile
+        const string token = "retired-profile-sign-in-token";
+        var now = _clock.GetUtcNow();
+        await _identities.InsertSessionAsync(new AuthSession
         {
             Id = Guid.NewGuid(),
-            DisplayName = "Kids",
-            AvatarColor = "#7C4DFF",
-            Role = ProfileRole.RestrictedProfile,
-            CreatedAt = DateTimeOffset.UtcNow,
-        };
-        await InsertProfileAsync(profile);
+            AccountId = bootstrap.Account.Id,
+            ActiveProfileId = bootstrap.Profile.Id,
+            TokenHash = HashToken(token),
+            DeviceId = "tablet",
+            DeviceName = "Kids tablet",
+            Client = "Dashboard",
+            AuthenticationMethod = retiredMethod,
+            IssuedIngress = ClientIngress.HomeNetwork,
+            SecurityStamp = "profile-entry:none",
+            CreatedAt = now,
+            LastSeenAt = now,
+            ExpiresAt = now.AddDays(1),
+        });
 
-        var localAccount = new Account
-        {
-            Id = Guid.NewGuid(),
-            IsLocalOnly = true,
-            IsEnabled = true,
-            AuthorizationVersion = 1,
-            CreatedAt = _clock.GetUtcNow(),
-            UpdatedAt = _clock.GetUtcNow(),
-        };
-        await _accounts.CreateAccountAsync(
-            localAccount,
-            new AccountProfileGrant
-            {
-                AccountId = localAccount.Id,
-                ProfileId = profile.Id,
-                IsDefault = true,
-                IsEnabled = true,
-                AuthorizationVersion = 1,
-                GrantedAt = _clock.GetUtcNow(),
-            },
-            new HashSet<MediaEngine.Domain.Authorization.AccountFeatureId>(),
-            new HashSet<Guid>());
-
-        var passwordlessLogin = await _service.AuthenticatePinAsync(
-            profile.Id, string.Empty, "tablet", "Kids tablet", "Dashboard");
-        Assert.True(passwordlessLogin.Succeeded);
-        Assert.Equal("ProfileEntry", passwordlessLogin.IssuedSession!.Session.AuthenticationMethod);
-        Assert.NotNull(await _service.ValidateSessionAsync(passwordlessLogin.IssuedSession.PlaintextToken));
-
-        await _service.SetProfilePinAsync(profile.Id, "2468");
-        Assert.Null(await _service.ValidateSessionAsync(passwordlessLogin.IssuedSession.PlaintextToken));
-        Assert.False((await _service.AuthenticatePinAsync(
-            profile.Id, "0000", "tablet", "Kids tablet", "Dashboard")).Succeeded);
-        var pinLogin = await _service.AuthenticatePinAsync(
-            profile.Id, "2468", "tablet", "Kids tablet", "Dashboard");
-        Assert.True(pinLogin.Succeeded);
-        Assert.Equal("ProfilePin", pinLogin.IssuedSession!.Session.AuthenticationMethod);
-
-        await _service.SetProfilePinAsync(profile.Id, null);
-        Assert.Null(await _identities.GetCredentialAsync(profile.Id, ProfileCredentialKind.ProfilePin));
-        Assert.Null(await _service.ValidateSessionAsync(pinLogin.IssuedSession.PlaintextToken));
+        Assert.Null(await _service.ValidateSessionAsync(token));
     }
 
     [Fact]
@@ -554,35 +524,6 @@ public sealed class FirstPartyIdentityServiceTests : IDisposable
 
             await _service.SwitchActiveProfileAsync(session.PlaintextToken, kid.Id, "2468");
         }
-    }
-
-    [Fact]
-    public async Task ProfilePinSignIn_OnlyRemoteFailuresCountOrLock()
-    {
-        var (_, kid) = await SessionWithPinProfileAsync(ClientIngress.HomeNetwork);
-        await InsertLocalOnlyAccountForAsync(kid);
-
-        for (var index = 0; index < 20; index++)
-        {
-            Assert.False((await _service.AuthenticatePinAsync(
-                kid.Id, "0000", $"home-{index}", "Living room", "Dashboard", ingress: ClientIngress.HomeNetwork)).Succeeded);
-        }
-
-        Assert.True((await _service.AuthenticatePinAsync(
-            kid.Id, "2468", "home-ok", "Living room", "Dashboard", ingress: ClientIngress.HomeNetwork)).Succeeded);
-
-        AuthenticationAttemptResult? last = null;
-        for (var index = 0; index < 5; index++)
-        {
-            last = await _service.AuthenticatePinAsync(
-                kid.Id, "0000", $"away-{index}", "Phone", "Dashboard", ingress: ClientIngress.Remote);
-        }
-
-        Assert.True(last!.LockedOut);
-        Assert.True((await _service.AuthenticatePinAsync(
-            kid.Id, "2468", "home-again", "Living room", "Dashboard", ingress: ClientIngress.HomeNetwork)).Succeeded);
-        Assert.False((await _service.AuthenticatePinAsync(
-            kid.Id, "2468", "away-ok", "Phone", "Dashboard", ingress: ClientIngress.Remote)).Succeeded);
     }
 
     [Fact]
@@ -902,32 +843,6 @@ public sealed class FirstPartyIdentityServiceTests : IDisposable
         Assert.NotNull(await _service.ValidateSessionAsync(accepted.PlaintextToken));
         await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
             _service.AcceptInvitationAsync(token, "different password", "other", "Other", "Dashboard"));
-    }
-
-    private Task InsertLocalOnlyAccountForAsync(Profile profile)
-    {
-        var localAccount = new Account
-        {
-            Id = Guid.NewGuid(),
-            IsLocalOnly = true,
-            IsEnabled = true,
-            AuthorizationVersion = 1,
-            CreatedAt = _clock.GetUtcNow(),
-            UpdatedAt = _clock.GetUtcNow(),
-        };
-        return _accounts.CreateAccountAsync(
-            localAccount,
-            new AccountProfileGrant
-            {
-                AccountId = localAccount.Id,
-                ProfileId = profile.Id,
-                IsDefault = true,
-                IsEnabled = true,
-                AuthorizationVersion = 1,
-                GrantedAt = _clock.GetUtcNow(),
-            },
-            new HashSet<MediaEngine.Domain.Authorization.AccountFeatureId>(),
-            new HashSet<Guid>());
     }
 
     private Task InsertProfileAsync(Profile profile)

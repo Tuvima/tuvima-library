@@ -89,20 +89,6 @@ public sealed class UsableAdministratorServiceTests
         });
     }
 
-    [Fact]
-    public async Task LocalOnlyAdministratorDoesNotCountForRemoteAccess()
-    {
-        await WithServiceAsync(async (service, accounts, identities) =>
-        {
-            var admin = await CreateAdministratorAsync(accounts, isLocalOnly: true);
-            await AddRecoveryCodeAsync(identities, admin);
-
-            var status = await service.EvaluateForRemoteAsync(new AuthSettings(), CancellationToken.None);
-
-            Assert.False(status.HasUsableAdministrator);
-        });
-    }
-
     private static async Task WithServiceAsync(
         Func<UsableAdministratorService, AccountRepository, IdentityRepository, Task> test)
     {
@@ -132,19 +118,18 @@ public sealed class UsableAdministratorServiceTests
     }
 
     private static async Task<Account> CreateAdministratorAsync(
-        AccountRepository accounts, bool isEnabled = true, bool isLocalOnly = false)
+        AccountRepository accounts, bool isEnabled = true)
     {
         var account = new Account
         {
             Id = Guid.NewGuid(),
-            Email = isLocalOnly ? null : $"{Guid.NewGuid():N}@example.com",
+            Email = $"{Guid.NewGuid():N}@example.com",
             IsEnabled = isEnabled,
             IsAdministrator = true,
-            IsLocalOnly = isLocalOnly,
             CreatedAt = Now,
             UpdatedAt = Now,
         };
-        account.NormalizedEmail = account.Email?.ToUpperInvariant();
+        account.NormalizedEmail = account.Email!.ToUpperInvariant();
         var profileId = Guid.NewGuid();
         await accounts.CreateAccountAsync(account, new AccountProfileGrant
         {

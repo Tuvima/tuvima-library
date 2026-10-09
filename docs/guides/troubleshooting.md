@@ -63,7 +63,7 @@ The Dashboard retries credentials on later requests and detects replacement. Do 
 
 Check the active account, profile grant, and **Users & Access → Authentication** settings.
 
-Local-only accounts need an explicitly trusted local entry path. Remote account access needs remote sign-in enabled and a secure path. Administrator settings require account eligibility and an administrator-enabled active grant; optional grant PIN protection may also need unlocking.
+Remote account access needs remote sign-in enabled and a secure path. Administrator settings require account eligibility and an administrator-enabled active grant; optional grant PIN protection may also need unlocking.
 
 Use [account recovery](account-security.md) if your password and authenticators are unavailable. A request from localhost alone never grants administration.
 

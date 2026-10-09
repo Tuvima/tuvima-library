@@ -39,9 +39,7 @@ public sealed class RegisteredExternalProvidersSnapshot
             return true;
         }
 
-        var externalAllowed =
-            !string.Equals(mode, "Local", StringComparison.OrdinalIgnoreCase) &&
-            !string.Equals(mode, "DisabledLocalOnly", StringComparison.OrdinalIgnoreCase);
+        var externalAllowed = !string.Equals(mode, "Local", StringComparison.OrdinalIgnoreCase);
         var current = saved
             .Where(provider => externalAllowed && provider.Enabled)
             .GroupBy(provider => provider.Id, StringComparer.OrdinalIgnoreCase)

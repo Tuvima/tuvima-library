@@ -142,7 +142,7 @@ public sealed class PasswordResetEmailSenderTests
             return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
             {
                 Content = JsonContent.Create(new AccountSelfServiceResponse(
-                    Guid.NewGuid(), email, false, Guid.NewGuid(), Guid.NewGuid(), [], ["password"],
+                    Guid.NewGuid(), email, Guid.NewGuid(), Guid.NewGuid(), [], ["password"],
                     new AccountSecurityCapabilitiesResponse(
                         true, false, false, true, true, true, false, []))),
             });

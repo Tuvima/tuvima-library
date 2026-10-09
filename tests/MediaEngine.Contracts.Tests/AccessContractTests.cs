@@ -92,14 +92,14 @@ public sealed class AccessContractTests
     }
 
     [Fact]
-    public void LocalOnlyAccountIdentityDoesNotInventAnEmail()
+    public void AccountIdentityCarriesItsEmailAndNoLocalOnlyFlag()
     {
         var response = new AccountAccessResponse(
-            Guid.NewGuid(), null, true, true, false, 1, [], [], [],
+            Guid.NewGuid(), "owner@example.com", true, false, 1, [], [], [],
             DateTimeOffset.UtcNow, DateTimeOffset.UtcNow, null);
         var json = JsonSerializer.Serialize(response);
 
-        Assert.Contains("\"email\":null", json, StringComparison.Ordinal);
-        Assert.Contains("\"is_local_only\":true", json, StringComparison.Ordinal);
+        Assert.Contains("\"email\":\"owner@example.com\"", json, StringComparison.Ordinal);
+        Assert.DoesNotContain("local_only", json, StringComparison.Ordinal);
     }
 }

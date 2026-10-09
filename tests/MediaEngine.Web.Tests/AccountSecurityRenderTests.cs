@@ -85,7 +85,6 @@ public sealed class AccountSecurityRenderTests : AsyncBunitContext
                 "/access/self-service" => JsonResponse(new AccountSelfServiceResponse(
                     Guid.NewGuid(),
                     "owner@example.test",
-                    false,
                     Guid.NewGuid(),
                     Guid.NewGuid(),
                     [],

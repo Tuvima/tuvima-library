@@ -207,6 +207,11 @@ builder.Services.AddSingleton<IDatabaseConnection>(_ =>
     var database = new DatabaseConnection(dbPath);
     database.InitializeSchema();
     database.RunStartupChecks();
+    foreach (var note in database.StartupNotes)
+    {
+        Log.Information("Data store migration: {Detail}", note);
+    }
+
     return database;
 });
 

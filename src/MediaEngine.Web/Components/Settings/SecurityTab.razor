@@ -24,7 +24,6 @@
                 <label class="app-field__label">Authentication mode</label>
                 <AppNativeSelect Value="@_mode" OnChange="ChangeMode">
                     <option value="Local">Local account sign-in</option>
-                    <option value="DisabledLocalOnly">Local-only entry</option>
                     <option value="Optional">Optional sign-in</option>
                     <option value="Required">Sign-in required</option>
                 </AppNativeSelect>
@@ -41,10 +40,6 @@
                               Value="@(_externalSignInEnabled && ExternalCapableMode)"
                               ValueChanged="value => _externalSignInEnabled = value"
                               Disabled="@(!ExternalCapableMode)" />
-                <AppSwitchRow Label="Local-only accounts"
-                              Description="Allow local-only profile entry from this computer. Remote clients remain ineligible."
-                              Value="@_allowLocalOnlyAccounts"
-                              ValueChanged="value => _allowLocalOnlyAccounts = value" />
                 <AppTextField T="string" @bind-Value="_trustedLocalNetworks"
                               Label="Trusted local networks"
                               HelpText="Optional comma-separated CIDR ranges. With none configured, only this computer is local." />
@@ -176,7 +171,6 @@
     private bool _passwordSignInEnabled;
     private bool _passkeySignInEnabled;
     private bool _externalSignInEnabled;
-    private bool _allowLocalOnlyAccounts;
     private string _trustedLocalNetworks = string.Empty;
     private string _invitationLifetimeHours = "168";
     private string _sessionLifetimeHours = "336";
@@ -205,9 +199,7 @@
             ? "Ready"
             : !_passkeySignInEnabled
                 ? "Enable passkey sign-in."
-                : _mode == "DisabledLocalOnly"
-                    ? "Choose Local, Optional, or Required authentication mode."
-                    : CanonicalOriginStatus;
+                : CanonicalOriginStatus;
     private string RecoveryStatus => _authSettings is null
         ? "Unavailable"
         : _authSettings.RecoveryDeliveryReady
@@ -231,7 +223,6 @@
         _passwordSignInEnabled = value.PasswordSignInEnabled;
         _passkeySignInEnabled = value.PasskeySignInEnabled;
         _externalSignInEnabled = value.ExternalSignInEnabled;
-        _allowLocalOnlyAccounts = value.AllowLocalOnlyAccounts;
         _trustedLocalNetworks = string.Join(", ", value.TrustedLocalNetworks);
         _invitationLifetimeHours = value.InvitationLifetimeHours.ToString();
         _sessionLifetimeHours = value.SessionLifetimeHours.ToString();
@@ -256,8 +247,7 @@
             Snackbar.Add("Enter valid invitation and session policy values.", AppSeverity.Error);
             return;
         }
-        if (!_passwordSignInEnabled && !_passkeySignInEnabled &&
-            !_externalSignInEnabled && !_allowLocalOnlyAccounts)
+        if (!_passwordSignInEnabled && !_passkeySignInEnabled && !_externalSignInEnabled)
         {
             Snackbar.Add("Keep at least one account sign-in method enabled.", AppSeverity.Error);
             return;
@@ -273,7 +263,6 @@
                 PasswordSignInEnabled = _passwordSignInEnabled,
                 PasskeySignInEnabled = _passkeySignInEnabled,
                 ExternalSignInEnabled = _externalSignInEnabled,
-                AllowLocalOnlyAccounts = _allowLocalOnlyAccounts,
                 TrustedLocalNetworks = _trustedLocalNetworks.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList(),
                 InvitationLifetimeHours = invitations,
                 SessionLifetimeHours = sessions,

@@ -180,8 +180,8 @@ public sealed class PlaybackTelemetryRepositoryTests : IDisposable
         connection.Execute("""
             INSERT OR IGNORE INTO profiles(id,display_name,avatar_color,role,created_at)
             VALUES(@profile,'Viewer','#000000','RestrictedProfile',@now);
-            INSERT OR IGNORE INTO accounts(id,email,normalized_email,is_local_only,is_enabled,is_administrator,authorization_version,created_at,updated_at)
-            VALUES(@account,@email,@normalized,0,1,0,1,@now,@now);
+            INSERT OR IGNORE INTO accounts(id,email,normalized_email,is_enabled,is_administrator,authorization_version,created_at,updated_at)
+            VALUES(@account,@email,@normalized,1,0,1,@now,@now);
             INSERT INTO works(id,media_type,work_kind,is_catalog_only,ownership)
             VALUES(@work,@mediaType,'standalone',0,'Owned');
             INSERT INTO editions(id,work_id) VALUES(@edition,@work);

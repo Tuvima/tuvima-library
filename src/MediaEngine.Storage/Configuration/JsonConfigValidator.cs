@@ -261,9 +261,9 @@ public static class JsonConfigValidator
 
     private static void ValidateAuthentication(AuthSettings auth, List<string> errors)
     {
-        if (!Allowed(auth.Mode, "Local", "DisabledLocalOnly", "Optional", "Required"))
+        if (!Allowed(auth.Mode, "Local", "Optional", "Required"))
         {
-            errors.Add("auth.mode must be one of Local, DisabledLocalOnly, Optional, or Required.");
+            errors.Add("auth.mode must be one of Local, Optional, or Required. The old local-only entry mode was retired because every sign-in now has an email.");
         }
 
         var ids = new HashSet<string>(StringComparer.OrdinalIgnoreCase);

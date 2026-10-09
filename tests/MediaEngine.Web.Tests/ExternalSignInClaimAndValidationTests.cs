@@ -108,7 +108,6 @@ public sealed class ExternalSignInClaimAndValidationTests
         };
 
         Assert.False(snapshot.DiffersFrom([saved], "Local"));
-        Assert.False(snapshot.DiffersFrom([saved], "DisabledLocalOnly"));
         Assert.True(snapshot.DiffersFrom([saved], "Required"));
 
         snapshot.MarkSecretChanged();

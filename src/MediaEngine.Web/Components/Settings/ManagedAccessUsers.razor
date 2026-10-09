@@ -39,7 +39,6 @@
                         <div class="access-users__identity" role="cell">
                             <strong>@AccountLabel(account)</strong>
                             <div class="access-users__badges">
-                                @if (account.IsLocalOnly) { <AppChip Text="Local only" /> }
                                 @if (account.IsAdministrator) { <AppChip Text="Administrator" Tone="AppUiTone.Primary" /> }
                             </div>
                         </div>
@@ -94,13 +93,9 @@
                     <AppText Typo="AppTypo.subtitle1">Account</AppText>
                     @if (_editing is null)
                     {
-                        <AppAlert Severity="AppSeverity.Info">This creates a local-only account. It can sign in through access allowed by the configured trusted-local policy. Use Invite user for an email account.</AppAlert>
+                        <AppAlert Severity="AppSeverity.Info">Every account signs in with an email. After creating it, use Invite user to give this person a link to set their password.</AppAlert>
                     }
-                    else
-                    {
-                        <AppTextField @bind-Value="_email" Label="Email" Disabled="@_localOnly" FullWidth="true" />
-                        <AppChip Text="@(_localOnly ? "Local only" : "Remote capable")" />
-                    }
+                    <AppTextField @bind-Value="_email" Label="Email" FullWidth="true" />
                     <AppSwitchRow @bind-Value="_administrator" Disabled="@_saving" Label="Administrator eligible" Description="Each profile grant still decides where administrator settings are available." />
                     @if (_editing is not null) { <AppSwitchRow @bind-Value="_enabled" Disabled="@_saving" Label="Account enabled" Description="Disabling the account revokes its access and sessions." /> }
                 </section>
@@ -243,7 +238,6 @@
     private bool _loading = true;
     private bool _open;
     private bool _saving;
-    private bool _localOnly;
     private bool _administrator;
     private bool _enabled = true;
     private bool _newProfileDefault;
@@ -258,7 +252,7 @@
     private bool _restoreFocus;
 
     private bool CanManage => Session.HasAction("access.manage");
-    private bool CanSaveAccount => (_localOnly || !string.IsNullOrWhiteSpace(_email)) && (_editing is not null || !string.IsNullOrWhiteSpace(_profileName));
+    private bool CanSaveAccount => !string.IsNullOrWhiteSpace(_email) && (_editing is not null || !string.IsNullOrWhiteSpace(_profileName));
     private string EditingLabel => _editing is null ? string.Empty : AccountLabel(_editing);
     private string DrawerTitle => _mode switch
     {
@@ -283,7 +277,6 @@
     {
         ResetDrawer(UserDrawerMode.Account);
         _editing = null;
-        _localOnly = true;
         _featureIds.UnionWith(ManagedAccessUserPermissions.Features.Select(feature => feature.Id));
         _libraryIds.UnionWith(_libraries.Select(library => library.Id));
         _open = true;
@@ -335,7 +328,6 @@
     {
         _editing = account;
         _email = account.Email ?? string.Empty;
-        _localOnly = account.IsLocalOnly;
         _administrator = account.IsAdministrator;
         _enabled = account.IsEnabled;
         _featureIds.UnionWith(account.FeatureGrants.Where(grant => grant.Allowed).Select(grant => grant.Feature));
@@ -358,7 +350,7 @@
         _protectionOptions.Clear();
         _email = _profileName = _grantProfile = _error = _drawerMessage = string.Empty;
         _profileColor = "#7C4DFF";
-        _administrator = _localOnly = _newProfileDefault = false;
+        _administrator = _newProfileDefault = false;
         _enabled = true;
     }
 
@@ -371,7 +363,7 @@
             ClearMessages();
             if (_editing is null)
             {
-                var result = await Identity.CreateManagedAccountResultAsync(new(null, true, _administrator, null,
+                var result = await Identity.CreateManagedAccountResultAsync(new(_email.Trim(), _administrator, null,
                     new(_profileName.Trim(), _profileColor), _featureIds.Order().ToArray(), _libraryIds.Order().ToArray()));
                 if (!IsCurrentMutation(generation))
                     return;
@@ -390,7 +382,7 @@
             else
             {
                 var result = await Identity.UpdateManagedAccountResultAsync(_editing.Id,
-                    new(_editing.IsLocalOnly ? null : _email.Trim(), _editing.IsLocalOnly, _enabled, _administrator));
+                    new(_email.Trim(), _enabled, _administrator));
                 if (!IsCurrentMutation(generation))
                     return;
                 if (result.Succeeded && result.Value is not null)
@@ -452,7 +444,7 @@
         try
         {
             var result = await Identity.UpdateManagedAccountResultAsync(account.Id,
-                new(account.Email, account.IsLocalOnly, !account.IsEnabled, account.IsAdministrator));
+                new(account.Email, !account.IsEnabled, account.IsAdministrator));
             if (!IsCurrentMutation(generation))
                 return;
             if (result.Succeeded && result.Value is not null)
@@ -812,7 +804,7 @@
     private string ProfileAvatarColor(Guid id) => _profiles.FirstOrDefault(profile => profile.Id == id)?.AvatarColor ?? "#7C4DFF";
     private string Pin(Guid id) => _pins.GetValueOrDefault(id, "");
     private string ProtectionOption(Guid id) => _protectionOptions.GetValueOrDefault(id, "FixedDuration:30");
-    private static string AccountLabel(AccountAccessResponse account) => account.Email ?? "Local-only account";
+    private static string AccountLabel(AccountAccessResponse account) => account.Email ?? "Account";
     private static string Initials(string value) => string.Concat(value.Split(' ', StringSplitOptions.RemoveEmptyEntries).Take(2).Select(part => char.ToUpperInvariant(part[0])));
     private void ClearMessages() => _error = _drawerMessage = string.Empty;
 

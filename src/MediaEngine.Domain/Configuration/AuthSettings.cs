@@ -19,9 +19,6 @@ public sealed class AuthSettings
     [JsonPropertyName("external_sign_in_enabled")]
     public bool ExternalSignInEnabled { get; set; } = true;
 
-    [JsonPropertyName("allow_local_only_accounts")]
-    public bool AllowLocalOnlyAccounts { get; set; } = true;
-
     [JsonPropertyName("trusted_local_networks")]
     public List<string> TrustedLocalNetworks { get; set; } = [];
 

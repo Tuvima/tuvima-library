@@ -19,8 +19,6 @@ public sealed class LocalLoginRequest
 {
     [JsonPropertyName("email")] public string? Email { get; init; }
     [JsonPropertyName("password")] public string? Password { get; init; }
-    [JsonPropertyName("profile_id")] public Guid? ProfileId { get; init; }
-    [JsonPropertyName("pin")] public string? Pin { get; init; }
     [JsonPropertyName("device_id")] public string DeviceId { get; init; } = string.Empty;
     [JsonPropertyName("device_name")] public string DeviceName { get; init; } = string.Empty;
     [JsonPropertyName("client")] public string Client { get; init; } = "Dashboard";
@@ -180,7 +178,6 @@ public sealed class AccountResponse
 {
     [JsonPropertyName("id")] public Guid Id { get; init; }
     [JsonPropertyName("email")] public string? Email { get; init; }
-    [JsonPropertyName("is_local_only")] public bool IsLocalOnly { get; init; }
     [JsonPropertyName("is_enabled")] public bool IsEnabled { get; init; }
     [JsonPropertyName("profile_ids")] public IReadOnlyList<Guid> ProfileIds { get; init; } = [];
     [JsonPropertyName("default_profile_id")] public Guid? DefaultProfileId { get; init; }

@@ -210,6 +210,10 @@ The one personal-media space owned by an enabled profile. Multiple folder or dev
 
 Separate household-owned View storage containing accepted contributions. Shared access does not grant access to every profile's Personal Space.
 
+### Account
+
+A sign-in, always identified by an email address. An account can open the profiles it has been granted. Someone who does not need their own sign-in is a profile in another account's household, not an account.
+
 ### Profile
 
 The identity whose progress, bookmarks, reactions, preferences, and Personal Space you are using. An account can switch only among profiles it is permitted to access.
