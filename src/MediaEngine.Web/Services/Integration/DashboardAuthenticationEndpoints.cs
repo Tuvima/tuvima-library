@@ -38,6 +38,8 @@ public static class DashboardAuthenticationEndpoints
             var tokens = antiforgery.GetAndStoreTokens(context);
             var deviceId = EnsureDeviceCookie(context);
             var methods = await identity.GetSignInMethodsAsync(context.RequestAborted).ConfigureAwait(false);
+            // Only asked on this computer; anywhere else the Engine never says the account exists.
+            var thisComputerName = await identity.GetThisComputerAccountNameAsync(context.RequestAborted).ConfigureAwait(false);
             return Results.Content(
                 LoginPage(
                     tokens.RequestToken ?? string.Empty,
@@ -45,7 +47,8 @@ public static class DashboardAuthenticationEndpoints
                     externalProviders,
                     deviceId,
                     SafeReturnUrl(returnUrl),
-                    PasskeyOriginGate.IsPublicOrigin(context)),
+                    PasskeyOriginGate.IsPublicOrigin(context),
+                    thisComputerName: thisComputerName),
                 "text/html",
                 Encoding.UTF8);
         }).AllowAnonymous();
@@ -77,20 +80,32 @@ public static class DashboardAuthenticationEndpoints
                 return Results.Redirect("/setup");
             }
 
-            var issued = await identity.LoginAsync(new LocalLoginRequest
-            {
-                Email = form["email"].ToString(),
-                Password = form["password"].ToString(),
-                DeviceId = deviceId,
-                DeviceName = deviceName,
-                Client = "Tuvima Library Dashboard",
-                OriginalClientIngress = context.ClientIngress(),
-                OriginalClientIsHttps = context.Request.IsHttps,
-            }, context.RequestAborted).ConfigureAwait(false);
+            var continueOnThisComputer = action.Equals("this-computer", StringComparison.OrdinalIgnoreCase);
+            var issued = continueOnThisComputer
+                ? await identity.SignInThisComputerAsync(new ThisComputerSignInRequest
+                {
+                    DeviceId = deviceId,
+                    DeviceName = deviceName,
+                    Client = "Tuvima Library Dashboard",
+                }, context.RequestAborted).ConfigureAwait(false)
+                : await identity.LoginAsync(new LocalLoginRequest
+                {
+                    Email = form["email"].ToString(),
+                    Password = form["password"].ToString(),
+                    DeviceId = deviceId,
+                    DeviceName = deviceName,
+                    Client = "Tuvima Library Dashboard",
+                    OriginalClientIngress = context.ClientIngress(),
+                    OriginalClientIsHttps = context.Request.IsHttps,
+                }, context.RequestAborted).ConfigureAwait(false);
 
             if (issued is null)
             {
-                return Results.Content(LoginFailurePage("Sign in failed. Check your credentials and try again."), "text/html", Encoding.UTF8, StatusCodes.Status401Unauthorized);
+                return Results.Content(
+                    LoginFailurePage(continueOnThisComputer
+                        ? "This computer can't continue without a password right now. Sign in with your email and password instead."
+                        : "Sign in failed. Check your credentials and try again."),
+                    "text/html", Encoding.UTF8, StatusCodes.Status401Unauthorized);
             }
 
             await context.SignInAsync(
@@ -413,7 +428,8 @@ public static class DashboardAuthenticationEndpoints
         string deviceId,
         string returnUrl,
         bool atPublicOrigin,
-        string? message = null)
+        string? message = null,
+        string? thisComputerName = null)
     {
         methods ??= new SignInMethodsResponse(true, false, [], true);
         var showPasskey = methods.Passkey && atPublicOrigin;
@@ -436,10 +452,18 @@ public static class DashboardAuthenticationEndpoints
               <label>Password<input type="password" name="password" autocomplete="current-password" required></label><button>Sign in</button></form>
               <p><a href="/auth/recover">Forgot your password?</a></p>
               """;
+        var continueAs = string.IsNullOrWhiteSpace(thisComputerName)
+            ? string.Empty
+            : $"""
+              <form method="post"><input type="hidden" name="__RequestVerificationToken" value="{H(token)}"><input type="hidden" name="action" value="this-computer"><input type="hidden" name="returnUrl" value="{H(returnUrl)}">
+              <button id="continue-on-this-computer">Continue as {H(thisComputerName)}</button></form>
+              <p class="supporting">This computer only. Add a password later to use Tuvima on other devices.</p>
+              """;
         var form = $"""
               <p class="eyebrow">Tuvima Library</p>
               <h1>Sign in to Tuvima Library</h1>
               {(message is null ? string.Empty : $"<p class=\"error\" role=\"alert\">{H(message)}</p>")}
+              {continueAs}
               {(methods.Password ? passwordForm : "<p class=\"supporting\">Password sign-in isn't available from here.</p>")}
               {(showPasskey ? "<button type=\"button\" id=\"passkey-login\">Sign in with a passkey</button><p id=\"passkey-message\" class=\"supporting\"></p>" : string.Empty)}
               {externalButtons}

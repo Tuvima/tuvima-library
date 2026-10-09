@@ -1,0 +1,29 @@
+@namespace MediaEngine.Web.Components.Navigation
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@using Microsoft.AspNetCore.Components.Authorization
+
+@if (_thisComputerOnly)
+{
+    <aside class="this-computer-banner @(Stacked ? "this-computer-banner--stacked" : null)" role="status" aria-live="polite">
+        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.AdminPanelSettings" Size="AppSize.Small" />
+        <span>This computer only. Add a password to use Tuvima on your phone or TV.</span>
+        <AppButton Label="Secure account" Href="@SecureAccountHref" ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Primary" />
+    </aside>
+}
+
+@code {
+    /// <summary>Until the securing flow lands, Secure account opens the account settings.</summary>
+    public const string SecureAccountHref = "/settings/account";
+
+    /// <summary>True when another banner already sits under the top bar, so this one sits below it.</summary>
+    [Parameter] public bool Stacked { get; set; }
+
+    private bool _thisComputerOnly;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var user = (await AuthenticationStateProvider.GetAuthenticationStateAsync()).User;
+        _thisComputerOnly = user.Identity?.IsAuthenticated == true
+            && user.FindFirst("tuvima:authentication_method")?.Value == ThisComputerRequests.AuthenticationMethod;
+    }
+}

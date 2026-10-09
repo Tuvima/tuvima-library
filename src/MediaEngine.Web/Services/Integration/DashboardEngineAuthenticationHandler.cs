@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using MediaEngine.Web.Services.Configuration;
 
 namespace MediaEngine.Web.Services.Integration;
 
@@ -35,6 +36,12 @@ public sealed class DashboardEngineAuthenticationHandler(
         if (!string.IsNullOrWhiteSpace(token))
         {
             request.Headers.TryAddWithoutValidation(SessionHeader, token);
+            // A request-path call (no circuit) says where the visitor is, so a this-computer-only session keeps working.
+            var context = httpContextAccessor.HttpContext;
+            var classifier = context?.RequestServices?.GetService<IngressClassifier>();
+            ThisComputerRequests.AddIngress(
+                request,
+                session.LastIngress ?? (context is not null && classifier is not null ? classifier.Classify(context).ToWireValue() : null));
         }
 
         return base.SendAsync(request, cancellationToken);

@@ -60,6 +60,7 @@
                                              PinConfirmation="@_pinConfirmation" PinConfirmationChanged="@((string? value) => _pinConfirmation = value ?? string.Empty)"
                                              RecoveryCodes="@_recoveryCodes"
                                              AdministratorConfigured="@(_status.AdministratorConfigured)" Busy="@_busy" CreateAdministrator="CreateAdministratorAsync"
+                                             ThisComputerAvailable="@ThisComputerAvailable" SignInMode="@_signInMode" SignInModeChanged="SignInModeChangedAsync" Notice="@_signInNotice"
                                              SignIn="SignIn" Back="GoBackAsync" ShowReturnToCurrentStep="@(CurrentStep != WorkflowStep)" ReturnToCurrentStep="ReturnToCurrentStep" />
                     break;
                 case "media-locations":
@@ -118,6 +119,10 @@
     // The Dashboard's own classification of this visitor, set by the host page. Never read from the browser.
     [CascadingParameter(Name = "ClientIngress")]
     public string? ClientIngress { get; set; }
+
+    // True when the visitor's request carried forwarding headers (a tunnel or proxy on this computer may be relaying them).
+    [CascadingParameter(Name = "ClientForwarded")]
+    public bool ClientForwarded { get; set; }
 
     // The visitor's connection address, set by the host page. Used only to limit setup-code and password guesses.
     [CascadingParameter(Name = "ClientAddress")]
@@ -365,7 +370,37 @@
     private void CancelRestore() { _showRestore = false; _backup = null; }
     private async Task UploadBackupAsync(InputFileChangeEventArgs args) { _busy = true; try { await using var stream = args.File.OpenReadStream(2L * 1024 * 1024 * 1024); _backup = await ApiClient.UploadSetupBackupAsync(stream, args.File.Name, _setupSession ?? string.Empty); if (_backup is null) Snackbar.Add("The backup failed validation.", AppSeverity.Error); } finally { _busy = false; } }
     private async Task ConfirmRestoreAsync() { if (_backup is null || _setupSession is null) return; _busy = true; var result = await ApiClient.ConfirmSetupRestoreAsync(_backup.OperationId, _setupSession); _busy = false; if (result is null) Snackbar.Add("The restore could not be scheduled.", AppSeverity.Error); else Snackbar.Add("Restore scheduled. Tuvima Library is restarting.", AppSeverity.Info); }
-    private async Task CreateAdministratorAsync() { if (_setupSession is null || !PasswordsMatch) { Snackbar.Add("Enter the same password twice.", AppSeverity.Error); return; } if (!TryCountGuess()) { Snackbar.Add(_guessRefusal, AppSeverity.Error); return; } _busy = true; var result = await ApiClient.CreateSetupAdministratorAsync(new SetupAdministratorRequest { Email = _email, Password = _password, Pin = string.IsNullOrEmpty(_pin) ? null : _pin, DisplayName = _displayName, DeviceId = Guid.NewGuid().ToString("D"), DeviceName = "Setup browser" }, _setupSession); _busy = false; if (result is null) Snackbar.Add("The administrator could not be created.", AppSeverity.Error); else { await ClearSetupSessionAsync(); if (result.RecoveryCodes.Count > 0) _recoveryCodes = result.RecoveryCodes; else SignIn(); } }
+    // The no-password start is offered only to a visitor on the computer that runs Tuvima: not a container, not another
+    // device, and not someone a tunnel or proxy on this computer may be relaying. The Engine checks all of this again.
+    private bool ThisComputerAvailable =>
+        MediaEngine.Web.Services.Configuration.IngressClassifierExtensions.FromWireValue(ClientIngress) == MediaEngine.Web.Services.Configuration.IngressKind.ThisComputer
+        && !ClientForwarded
+        && _preflight?.RunningInContainer != true;
+    private bool UsesThisComputer => ThisComputerAvailable && _signInMode == SetupSignInModes.ThisComputer;
+    private string _signInMode = string.Empty;
+    private string? _signInNotice;
+    private Task SignInModeChangedAsync(string mode) { _signInMode = mode; _signInNotice = null; return Task.CompletedTask; }
+    private async Task CreateAdministratorAsync()
+    {
+        if (_setupSession is null || !PasswordsMatch) { Snackbar.Add("Enter the same password twice.", AppSeverity.Error); return; }
+        if (!TryCountGuess()) { Snackbar.Add(_guessRefusal, AppSeverity.Error); return; }
+        _busy = true;
+        var result = await ApiClient.CreateSetupAdministratorAsync(new SetupAdministratorRequest
+        {
+            SignIn = UsesThisComputer ? SetupSignInModes.ThisComputer : SetupSignInModes.Password,
+            OriginalClientIngress = ClientIngress ?? ClientIngressValues.Remote,
+            Email = _email, Password = UsesThisComputer ? string.Empty : _password,
+            Pin = UsesThisComputer || string.IsNullOrEmpty(_pin) ? null : _pin,
+            DisplayName = _displayName, DeviceId = Guid.NewGuid().ToString("D"), DeviceName = "Setup browser",
+        }, _setupSession);
+        _busy = false;
+        if (result is null)
+        {
+            if (UsesThisComputer) _signInNotice = "Starting without a password only works on the computer that runs Tuvima. Choose another way to set a password instead.";
+            else Snackbar.Add("The administrator could not be created.", AppSeverity.Error);
+        }
+        else { await ClearSetupSessionAsync(); if (result.RecoveryCodes.Count > 0) _recoveryCodes = result.RecoveryCodes; else SignIn(); }
+    }
     private async Task ClearSetupSessionAsync() { _setupSession = null; try { await Storage.DeleteAsync(SetupSessionKey); } catch { _setupSession = null; } }
     private void SignIn() => Navigation.NavigateTo("/auth/login?returnUrl=%2Fsetup", forceLoad: true);
     private async Task ValidateMediaAsync() { _busy = true; _media = await ApiClient.ValidateSetupMediaLocationsAsync(_setupSession); _busy = false; if (_media?.Passed == true) { _readiness = null; await ReloadAsync(); } }

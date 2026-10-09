@@ -52,7 +52,19 @@ public sealed class DashboardCircuitHttpClientFactory(
                 }
             }
 
-            return base.SendAsync(request, cancellationToken);
+            ThisComputerRequests.AddIngress(request, session.LastIngress);
+            return SendAndWatchAsync(request, cancellationToken);
+        }
+
+        private async Task<HttpResponseMessage> SendAndWatchAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            var response = await base.SendAsync(request, cancellationToken).ConfigureAwait(false);
+            if (await ThisComputerRequests.IsSecureAccountRefusalAsync(response, cancellationToken).ConfigureAwait(false))
+            {
+                session.NotifySecureAccountRequired();
+            }
+
+            return response;
         }
     }
 }

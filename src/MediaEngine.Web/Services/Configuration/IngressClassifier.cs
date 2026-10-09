@@ -185,4 +185,13 @@ public static class IngressClassifierExtensions
     /// <summary>Where this request came from, as the Engine's wire value.</summary>
     public static string ClientIngress(this HttpContext context) =>
         context.RequestServices.GetRequiredService<IngressClassifier>().Classify(context).ToWireValue();
+
+    /// <summary>
+    /// True when the visitor's own request carried forwarding headers. A tunnel or proxy running on this computer looks
+    /// like loopback, so the Engine does not offer the no-password sign-in to a visitor it may be relaying.
+    /// </summary>
+    public static bool WasForwarded(this HttpContext context) =>
+        context.Request.Headers.ContainsKey("X-Forwarded-For")
+        || context.Request.Headers.ContainsKey("Forwarded")
+        || context.Request.Headers.ContainsKey("Via");
 }

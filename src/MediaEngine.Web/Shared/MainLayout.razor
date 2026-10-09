@@ -16,6 +16,7 @@
 @inject DashboardIdentityClient Identity
 @inject AuthenticationStateProvider AuthenticationStateProvider
 @inject NavigationManager Nav
+@inject IAppToastService Toasts
 @inject IStringLocalizer<SharedStrings> L
 @inject ILogger<MainLayout> Logger
 @implements IAsyncDisposable
@@ -37,6 +38,7 @@
 <AppDialogHost />
 <AppToastHost />
 <ActivityNotificationHost Enabled="@CanViewSystemActivity" />
+<ThisComputerOnlyBanner Stacked="@ShouldShowEngineStatusBanner" />
 
 @if (!DeviceContext.IsFeatureDisabled("command_palette"))
 {
@@ -303,6 +305,7 @@
         Playback.Changed += OnPlaybackChanged;
         ContextSidebar.Changed += OnContextSidebarChanged;
         _session.OnAuthorityChanged += OnAuthorityChanged;
+        _session.OnSecureAccountRequired += OnSecureAccountRequired;
         SyncLocationState();
     }
 
@@ -703,6 +706,7 @@
         Orchestrator.OnProfileChanged -= OnProfileChanged;
         Orchestrator.OnEngineConnectionStateChanged -= OnEngineConnectionStateChanged;
         _session.OnAuthorityChanged -= OnAuthorityChanged;
+        _session.OnSecureAccountRequired -= OnSecureAccountRequired;
         _authorityRefreshCancellation.Cancel();
         try
         {
@@ -734,6 +738,17 @@
         }
 
         _dotNetRef?.Dispose();
+    }
+
+    // The Engine says an action waits until the account has a password: say so plainly and point to Secure account.
+    private void OnSecureAccountRequired()
+    {
+        if (_disposed) return;
+        _ = InvokeAsync(() => Toasts.Add("Add a password to your account first.", AppSeverity.Warning, options =>
+        {
+            options.Action = "Secure account";
+            options.OnClick = _ => { Nav.NavigateTo(ThisComputerOnlyBanner.SecureAccountHref); return Task.CompletedTask; };
+        }));
     }
 
     private bool ShouldShowEngineStatusBanner =>

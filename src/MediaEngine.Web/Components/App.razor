@@ -32,7 +32,7 @@
 </head>
 
 <body>
-    <Routes @rendermode="new InteractiveServerRenderMode(prerender: false)" ClientIngress="@Ingress" ClientAddress="@Address" ClientSignInRefusal="@SignInRefusal" />
+    <Routes @rendermode="new InteractiveServerRenderMode(prerender: false)" ClientIngress="@Ingress" ClientAddress="@Address" ClientSignInRefusal="@SignInRefusal" ClientForwarded="@Forwarded" />
     <ReconnectModal />
     <script src="@Assets["vendor/hls/hls.min.js"]"></script>
     <script src="@Assets["app.js"]"></script>
@@ -51,6 +51,9 @@
     private string Ingress => HttpContext?.ClientIngress() ?? ClientIngressValues.Remote;
 
     // The connection address, classified and limited by the Dashboard (never read from a browser header).
+    // A tunnel or proxy on this computer looks like loopback; the no-password start is not offered to a visitor it may be relaying.
+    private bool Forwarded => HttpContext?.WasForwarded() ?? false;
+
     private string? Address => HttpContext?.Connection.RemoteIpAddress?.ToString();
 
     // Why sign-in and setup cannot work from here, if they cannot (see SignInAttemptLimiter.PlaceRefusal).
