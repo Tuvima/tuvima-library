@@ -574,9 +574,9 @@ public sealed class FirstPartyIdentityService(
             throw new ArgumentException(PasswordRuleMessage);
         }
     }
-    private static void RejectPasswordMatchingIdentity(string password, string email, string? displayName)
+    private static void RejectPasswordMatchingIdentity(string password, string? email, string? displayName)
     {
-        if (string.Equals(password, email.Trim(), StringComparison.OrdinalIgnoreCase)
+        if ((!string.IsNullOrWhiteSpace(email) && string.Equals(password, email.Trim(), StringComparison.OrdinalIgnoreCase))
             || (!string.IsNullOrWhiteSpace(displayName) && string.Equals(password, displayName.Trim(), StringComparison.OrdinalIgnoreCase)))
         {
             throw new ArgumentException(PasswordRuleMessage);
