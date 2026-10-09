@@ -2,6 +2,7 @@ using System.Security.Cryptography;
 using System.Text;
 using Dapper;
 using MediaEngine.Domain.Aggregates;
+using MediaEngine.Domain.Authorization;
 using MediaEngine.Domain.Configuration;
 using MediaEngine.Domain.Entities;
 using MediaEngine.Domain.Enums;
@@ -635,6 +636,65 @@ public sealed class FirstPartyIdentityServiceTests : IDisposable
             profile.NavigationConfig,
         });
         return Task.CompletedTask;
+    }
+
+    [Fact]
+    public async Task HomeSession_IsRefusedFromOutsideButStillValidAtHome()
+    {
+        await _service.BootstrapAdministratorAsync(
+            "owner@example.com", "correct horse battery staple", "Owner", "browser-1", "Living room", "Dashboard");
+        var home = (await _service.AuthenticatePasswordAsync(
+            "owner@example.com", "correct horse battery staple", "browser-2", "Office", "Dashboard",
+            ingress: ClientIngress.HomeNetwork)).IssuedSession!;
+
+        Assert.Equal(ClientIngress.HomeNetwork, home.Session.IssuedIngress);
+        Assert.Null(await _service.ValidateSessionAsync(home.PlaintextToken, currentIngress: ClientIngress.Remote));
+        Assert.NotNull(await _service.ValidateSessionAsync(home.PlaintextToken, currentIngress: ClientIngress.HomeNetwork));
+        Assert.NotNull(await _service.ValidateSessionAsync(home.PlaintextToken, currentIngress: ClientIngress.ThisComputer));
+        // Refusing it from outside did not revoke it.
+        Assert.Null((await _identities.GetSessionByTokenHashAsync(HashToken(home.PlaintextToken)))!.RevokedAt);
+    }
+
+    [Fact]
+    public async Task RemoteSession_StaysValidFromHomeAndFromOutside()
+    {
+        await _service.BootstrapAdministratorAsync(
+            "owner@example.com", "correct horse battery staple", "Owner", "browser-1", "Living room", "Dashboard");
+        var remote = (await _service.AuthenticatePasswordAsync(
+            "owner@example.com", "correct horse battery staple", "browser-3", "Phone", "Dashboard",
+            ingress: ClientIngress.Remote)).IssuedSession!;
+
+        Assert.NotNull(await _service.ValidateSessionAsync(remote.PlaintextToken, currentIngress: ClientIngress.Remote));
+        Assert.NotNull(await _service.ValidateSessionAsync(remote.PlaintextToken, currentIngress: ClientIngress.HomeNetwork));
+    }
+
+    [Fact]
+    public async Task SessionIssuedWithUnknownIngress_IsStoredAsRemote()
+    {
+        await _service.BootstrapAdministratorAsync(
+            "owner@example.com", "correct horse battery staple", "Owner", "browser-1", "Living room", "Dashboard");
+        var issued = (await _service.AuthenticatePasswordAsync(
+            "owner@example.com", "correct horse battery staple", "browser-4", "Tablet", "Dashboard",
+            ingress: "not-a-real-place")).IssuedSession!;
+
+        Assert.Equal(ClientIngress.Remote, issued.Session.IssuedIngress);
+    }
+
+    [Fact]
+    public void SessionIngressMigration_IsIdempotentAndDefaultsExistingRowsToHome()
+    {
+        using (var connection = _database.CreateConnection())
+        {
+            var column = connection.QuerySingle<string>(
+                "SELECT dflt_value FROM pragma_table_info('auth_sessions') WHERE name = 'issued_ingress';");
+            Assert.Equal("'home_network'", column);
+        }
+
+        // Running the startup checks again must not fail or duplicate the column.
+        _database.RunStartupChecks();
+        using var again = _database.CreateConnection();
+        Assert.Equal(1, again.ExecuteScalar<int>(
+            "SELECT COUNT(*) FROM pragma_table_info('auth_sessions') WHERE name = 'issued_ingress';"));
     }
 
     public void Dispose()

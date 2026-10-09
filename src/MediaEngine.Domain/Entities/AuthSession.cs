@@ -11,6 +11,8 @@ public sealed class AuthSession
     public string DeviceName { get; set; } = string.Empty;
     public string Client { get; set; } = string.Empty;
     public string AuthenticationMethod { get; set; } = string.Empty;
+    /// <summary>Where the sign-in came from (<see cref="Authorization.ClientIngress"/>); home sessions are home-only.</summary>
+    public string IssuedIngress { get; set; } = Authorization.ClientIngress.HomeNetwork;
     public string SecurityStamp { get; set; } = string.Empty;
     public DateTimeOffset CreatedAt { get; set; }
     public DateTimeOffset LastSeenAt { get; set; }

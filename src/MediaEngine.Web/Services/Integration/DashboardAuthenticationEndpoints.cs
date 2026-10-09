@@ -77,7 +77,7 @@ public static class DashboardAuthenticationEndpoints
                 DeviceId = deviceId,
                 DeviceName = deviceName,
                 Client = "Tuvima Library Dashboard",
-                OriginalClientIsLocal = context.IsLocalIngress(),
+                OriginalClientIngress = context.ClientIngress(),
                 OriginalClientIsHttps = context.Request.IsHttps,
             }, context.RequestAborted).ConfigureAwait(false);
 
@@ -135,7 +135,7 @@ public static class DashboardAuthenticationEndpoints
                 var email = form["email"].ToString();
                 var resetToken = await identity.BeginPasswordResetAsync(new BeginPasswordResetRequest(
                     email,
-                    context.IsLocalIngress(),
+                    context.ClientIngress(),
                     context.Request.IsHttps), context.RequestAborted).ConfigureAwait(false);
                 if (resetToken is not null)
                 {
@@ -152,7 +152,7 @@ public static class DashboardAuthenticationEndpoints
                     Email = form["email"].ToString(),
                     RecoveryCode = form["recoveryCode"].ToString(),
                     NewPassword = form["newPassword"].ToString(),
-                    OriginalClientIsLocal = context.IsLocalIngress(),
+                    OriginalClientIngress = context.ClientIngress(),
                     OriginalClientIsHttps = context.Request.IsHttps,
                 }, context.RequestAborted).ConfigureAwait(false);
                 if (codes is null)
@@ -191,7 +191,7 @@ public static class DashboardAuthenticationEndpoints
             await antiforgery.ValidateRequestAsync(context).ConfigureAwait(false); var form = await context.Request.ReadFormAsync(context.RequestAborted).ConfigureAwait(false);
             var ok = await identity.CompletePasswordResetAsync(new ResetPasswordTokenRequest(
                 form["token"].ToString(), form["newPassword"].ToString(),
-                context.IsLocalIngress(), context.Request.IsHttps), context.RequestAborted).ConfigureAwait(false);
+                context.ClientIngress(), context.Request.IsHttps), context.RequestAborted).ConfigureAwait(false);
             return Results.Content(ok ? Shell("<h1>Password changed</h1><p><a class=\"button\" href=\"/auth/login\">Sign in</a></p>") : LoginFailurePage("That reset link is invalid or expired."), "text/html", Encoding.UTF8, ok ? StatusCodes.Status200OK : StatusCodes.Status400BadRequest);
         }).AllowAnonymous();
 
@@ -208,7 +208,7 @@ public static class DashboardAuthenticationEndpoints
         app.MapPost("/auth/invite", async (HttpContext context, DashboardConfigurationReader configuration,
             DashboardIdentityClient identity, IAntiforgery antiforgery) =>
         {
-            await antiforgery.ValidateRequestAsync(context).ConfigureAwait(false); var form = await context.Request.ReadFormAsync(context.RequestAborted).ConfigureAwait(false); var issued = await identity.AcceptInvitationAsync(new AcceptAccountInvitationRequest(form["token"].ToString(), form["password"].ToString(), form["deviceId"].ToString(), SanitizeDeviceName(context.Request.Headers.UserAgent.ToString()), context.IsLocalIngress(), context.Request.IsHttps), context.RequestAborted).ConfigureAwait(false);
+            await antiforgery.ValidateRequestAsync(context).ConfigureAwait(false); var form = await context.Request.ReadFormAsync(context.RequestAborted).ConfigureAwait(false); var issued = await identity.AcceptInvitationAsync(new AcceptAccountInvitationRequest(form["token"].ToString(), form["password"].ToString(), form["deviceId"].ToString(), SanitizeDeviceName(context.Request.Headers.UserAgent.ToString()), context.ClientIngress(), context.Request.IsHttps), context.RequestAborted).ConfigureAwait(false);
             if (issued is null)
             {
                 return Results.Content(LoginFailurePage("That invitation is invalid, expired, or already used."), "text/html", Encoding.UTF8, StatusCodes.Status400BadRequest);
@@ -219,12 +219,12 @@ public static class DashboardAuthenticationEndpoints
 
         app.MapPost("/auth/passkeys/login/options", async (BeginPasskeyLoginRequest request, HttpContext context,
             DashboardConfigurationReader configuration, DashboardIdentityClient identity, CancellationToken ct) =>
-            await identity.GetPasskeyLoginOptionsAsync(request.Email, context.IsLocalIngress(), context.Request.IsHttps, ct).ConfigureAwait(false) is { } result ? Results.Ok(result) : Results.BadRequest()).AllowAnonymous();
+            await identity.GetPasskeyLoginOptionsAsync(request.Email, context.ClientIngress(), context.Request.IsHttps, ct).ConfigureAwait(false) is { } result ? Results.Ok(result) : Results.BadRequest()).AllowAnonymous();
 
         app.MapPost("/auth/passkeys/login/complete", async (CompletePasskeyLoginRequest request, HttpContext context,
             DashboardConfigurationReader configuration, DashboardIdentityClient identity, CancellationToken ct) =>
         {
-            request = request with { OriginalClientIsLocal = context.IsLocalIngress(), OriginalClientIsHttps = context.Request.IsHttps };
+            request = request with { OriginalClientIngress = context.ClientIngress(), OriginalClientIsHttps = context.Request.IsHttps };
             var issued = await identity.CompletePasskeyLoginAsync(request, ct).ConfigureAwait(false); if (issued is null)
             {
                 return Results.Unauthorized();

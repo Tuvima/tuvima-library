@@ -44,13 +44,18 @@ public sealed class AccountAccessMutationService(
                 Id = profileId,
                 DisplayName = NormalizeDisplayName(requestedProfile.DisplayName),
                 AvatarColor = NormalizeAvatarColor(requestedProfile.AvatarColor),
-                Role = ProfileRole.RestrictedProfile,
+                // The profile that carries an administrator account is a standard profile; child profiles never administer.
+                Role = command.IsAdministrator ? ProfileRole.StandardUser : ProfileRole.RestrictedProfile,
                 CreatedAt = clock.GetUtcNow(),
             };
         }
-        else if (await profiles.GetByIdAsync(profileId, ct).ConfigureAwait(false) is null)
+        else if (await profiles.GetByIdAsync(profileId, ct).ConfigureAwait(false) is not { } existingProfile)
         {
             throw new KeyNotFoundException("Profile not found.");
+        }
+        else if (command.IsAdministrator && existingProfile.Role == ProfileRole.RestrictedProfile)
+        {
+            throw new InvalidOperationException("Child profiles can't be administrators.");
         }
         ValidateLibraries(command.Libraries);
 
@@ -294,6 +299,12 @@ public sealed class AccountAccessMutationService(
         if (await profiles.GetByIdAsync(grant.ProfileId, ct).ConfigureAwait(false) is null)
         {
             throw new KeyNotFoundException("Profile not found.");
+        }
+
+        if (grant.AdminEnabled &&
+            await profiles.GetByIdAsync(grant.ProfileId, ct).ConfigureAwait(false) is { Role: ProfileRole.RestrictedProfile })
+        {
+            throw new InvalidOperationException("Child profiles can't be administrators.");
         }
 
         grant.GrantedAt = clock.GetUtcNow();

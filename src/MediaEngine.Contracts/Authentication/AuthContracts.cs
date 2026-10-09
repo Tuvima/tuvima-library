@@ -24,7 +24,7 @@ public sealed class LocalLoginRequest
     [JsonPropertyName("device_id")] public string DeviceId { get; init; } = string.Empty;
     [JsonPropertyName("device_name")] public string DeviceName { get; init; } = string.Empty;
     [JsonPropertyName("client")] public string Client { get; init; } = "Dashboard";
-    [JsonPropertyName("original_client_is_local")] public bool OriginalClientIsLocal { get; init; }
+    [JsonPropertyName("original_client_ingress")] public string OriginalClientIngress { get; init; } = ClientIngressValues.Remote;
     [JsonPropertyName("original_client_is_https")] public bool OriginalClientIsHttps { get; init; }
 }
 
@@ -34,7 +34,7 @@ public sealed class ExternalSessionRequest
     [JsonPropertyName("device_id")] public string DeviceId { get; init; } = string.Empty;
     [JsonPropertyName("device_name")] public string DeviceName { get; init; } = string.Empty;
     [JsonPropertyName("client")] public string Client { get; init; } = "Dashboard";
-    [JsonPropertyName("original_client_is_local")] public bool OriginalClientIsLocal { get; init; }
+    [JsonPropertyName("original_client_ingress")] public string OriginalClientIngress { get; init; } = ClientIngressValues.Remote;
     [JsonPropertyName("original_client_is_https")] public bool OriginalClientIsHttps { get; init; }
 }
 
@@ -108,7 +108,7 @@ public sealed class RecoverPasswordRequest
     [JsonPropertyName("email")] public string Email { get; init; } = string.Empty;
     [JsonPropertyName("recovery_code")] public string RecoveryCode { get; init; } = string.Empty;
     [JsonPropertyName("new_password")] public string NewPassword { get; init; } = string.Empty;
-    [JsonPropertyName("original_client_is_local")] public bool OriginalClientIsLocal { get; init; }
+    [JsonPropertyName("original_client_ingress")] public string OriginalClientIngress { get; init; } = ClientIngressValues.Remote;
     [JsonPropertyName("original_client_is_https")] public bool OriginalClientIsHttps { get; init; }
 }
 
@@ -125,13 +125,13 @@ public sealed record RevokeOtherSessionsResponse(
 
 public sealed record BeginPasswordResetRequest(
     [property: JsonPropertyName("email")] string Email,
-    [property: JsonPropertyName("original_client_is_local")] bool OriginalClientIsLocal = false,
+    [property: JsonPropertyName("original_client_ingress")] string OriginalClientIngress = ClientIngressValues.Remote,
     [property: JsonPropertyName("original_client_is_https")] bool OriginalClientIsHttps = false);
 public sealed record BeginPasswordResetResponse([property: JsonPropertyName("token")] string? Token);
 public sealed record ResetPasswordTokenRequest(
     [property: JsonPropertyName("token")] string Token,
     [property: JsonPropertyName("new_password")] string NewPassword,
-    [property: JsonPropertyName("original_client_is_local")] bool OriginalClientIsLocal = false,
+    [property: JsonPropertyName("original_client_ingress")] string OriginalClientIngress = ClientIngressValues.Remote,
     [property: JsonPropertyName("original_client_is_https")] bool OriginalClientIsHttps = false);
 
 public sealed record PasskeyOptionsResponse(
@@ -139,23 +139,23 @@ public sealed record PasskeyOptionsResponse(
     [property: JsonPropertyName("state")] string State);
 public sealed record BeginPasskeyLoginRequest(
     [property: JsonPropertyName("email")] string? Email,
-    [property: JsonPropertyName("original_client_is_local")] bool OriginalClientIsLocal = false,
+    [property: JsonPropertyName("original_client_ingress")] string OriginalClientIngress = ClientIngressValues.Remote,
     [property: JsonPropertyName("original_client_is_https")] bool OriginalClientIsHttps = false);
 public sealed record BeginPasskeyRegistrationRequest(
-    [property: JsonPropertyName("original_client_is_local")] bool OriginalClientIsLocal = false,
+    [property: JsonPropertyName("original_client_ingress")] string OriginalClientIngress = ClientIngressValues.Remote,
     [property: JsonPropertyName("original_client_is_https")] bool OriginalClientIsHttps = false);
 public sealed record CompletePasskeyLoginRequest(
     [property: JsonPropertyName("credential_json")] string CredentialJson,
     [property: JsonPropertyName("state")] string State,
     [property: JsonPropertyName("device_id")] string DeviceId,
     [property: JsonPropertyName("device_name")] string DeviceName,
-    [property: JsonPropertyName("original_client_is_local")] bool OriginalClientIsLocal = false,
+    [property: JsonPropertyName("original_client_ingress")] string OriginalClientIngress = ClientIngressValues.Remote,
     [property: JsonPropertyName("original_client_is_https")] bool OriginalClientIsHttps = false);
 public sealed record CompletePasskeyRegistrationRequest(
     [property: JsonPropertyName("credential_json")] string CredentialJson,
     [property: JsonPropertyName("state")] string State,
     [property: JsonPropertyName("name")] string Name,
-    [property: JsonPropertyName("original_client_is_local")] bool OriginalClientIsLocal = false,
+    [property: JsonPropertyName("original_client_ingress")] string OriginalClientIngress = ClientIngressValues.Remote,
     [property: JsonPropertyName("original_client_is_https")] bool OriginalClientIsHttps = false);
 public sealed record CompletePasskeyElevationRequest(
     [property: JsonPropertyName("credential_json")] string CredentialJson,
@@ -210,7 +210,7 @@ public sealed record AcceptAccountInvitationRequest(
     [property: JsonPropertyName("password")] string Password,
     [property: JsonPropertyName("device_id")] string DeviceId,
     [property: JsonPropertyName("device_name")] string DeviceName,
-    [property: JsonPropertyName("original_client_is_local")] bool OriginalClientIsLocal = false,
+    [property: JsonPropertyName("original_client_ingress")] string OriginalClientIngress = ClientIngressValues.Remote,
     [property: JsonPropertyName("original_client_is_https")] bool OriginalClientIsHttps = false);
 
 public sealed class LinkAccountExternalLoginRequest

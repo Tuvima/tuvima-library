@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Sockets;
+using MediaEngine.Contracts.Authentication;
 using MediaEngine.Domain.Configuration;
 
 namespace MediaEngine.Web.Services.Configuration;
@@ -144,7 +145,15 @@ public sealed class IngressClassifier
 
 public static class IngressClassifierExtensions
 {
-    /// <summary>True when the request came from this computer or the home network (not <see cref="IngressKind.Remote"/>).</summary>
-    public static bool IsLocalIngress(this HttpContext context) =>
-        context.RequestServices.GetRequiredService<IngressClassifier>().Classify(context) != IngressKind.Remote;
+    /// <summary>The wire value (<c>this_computer</c>, <c>home_network</c> or <c>remote</c>) sent to the Engine.</summary>
+    public static string ToWireValue(this IngressKind kind) => kind switch
+    {
+        IngressKind.ThisComputer => ClientIngressValues.ThisComputer,
+        IngressKind.HomeNetwork => ClientIngressValues.HomeNetwork,
+        _ => ClientIngressValues.Remote,
+    };
+
+    /// <summary>Where this request came from, as the Engine's wire value.</summary>
+    public static string ClientIngress(this HttpContext context) =>
+        context.RequestServices.GetRequiredService<IngressClassifier>().Classify(context).ToWireValue();
 }

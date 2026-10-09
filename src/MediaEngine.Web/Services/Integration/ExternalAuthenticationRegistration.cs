@@ -262,7 +262,7 @@ public static partial class ExternalAuthenticationRegistration
             DeviceId = deviceId!,
             DeviceName = context.Request.Headers.UserAgent.ToString(),
             Client = $"Tuvima Library Dashboard {protocol}",
-            OriginalClientIsLocal = context.IsLocalIngress(),
+            OriginalClientIngress = context.ClientIngress(),
             OriginalClientIsHttps = context.Request.IsHttps,
         };
         var issued = await identity.CreateExternalSessionAsync(request, context.RequestAborted).ConfigureAwait(false);

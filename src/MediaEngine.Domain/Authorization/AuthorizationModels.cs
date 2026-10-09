@@ -18,7 +18,8 @@ public sealed record RequestAuthority(
     long ApplicationAuthorizationVersion = 0,
     bool AccountIsAdministrator = false,
     bool GrantAdminEnabled = false,
-    bool ApplicationIsAdministrator = false)
+    bool ApplicationIsAdministrator = false,
+    bool ActiveProfileIsRestricted = false)
 {
     public bool HasHumanContext =>
         PrincipalKind is PrincipalKind.Human or PrincipalKind.DelegatedUserClient &&
@@ -30,7 +31,7 @@ public sealed record RequestAuthority(
 
     public bool IsEffectiveAdministrator =>
         IsAuthenticated && HasHumanContext && HasValidHumanPrincipal && AccountEnabled && GrantEnabled &&
-        AccountIsAdministrator && GrantAdminEnabled;
+        AccountIsAdministrator && GrantAdminEnabled && !ActiveProfileIsRestricted;
 
     public bool IsAdministratorApplication =>
         IsAuthenticated && PrincipalKind == PrincipalKind.ServiceApplication &&

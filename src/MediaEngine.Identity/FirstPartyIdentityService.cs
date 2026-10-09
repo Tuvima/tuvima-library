@@ -33,7 +33,7 @@ public sealed class FirstPartyIdentityService(
     public Task<bool> IsAdministratorConfiguredAsync(CancellationToken ct = default) =>
         identities.IsAdministratorBootstrapCompletedAsync(ct);
 
-    public async Task<SessionIssueResult> BootstrapAdministratorAsync(string email, string password, string displayName, string deviceId, string deviceName, string client, CancellationToken ct = default, string? pin = null)
+    public async Task<SessionIssueResult> BootstrapAdministratorAsync(string email, string password, string displayName, string deviceId, string deviceName, string client, CancellationToken ct = default, string? pin = null, string ingress = ClientIngress.HomeNetwork)
     {
         await bootstrapGate.WaitAsync(ct).ConfigureAwait(false);
         try
@@ -71,7 +71,7 @@ public sealed class FirstPartyIdentityService(
 
             await identities.UpsertAccountCredentialAsync(credential, ct).ConfigureAwait(false);
             var codes = await ReplaceRecoveryCodesAsync(account.Id, ct).ConfigureAwait(false);
-            var issued = await IssueSessionAsync(account, profile, credential.SecurityStamp, "Password", deviceId, deviceName, client, ct).ConfigureAwait(false);
+            var issued = await IssueSessionAsync(account, profile, credential.SecurityStamp, "Password", deviceId, deviceName, client, ingress, ct).ConfigureAwait(false);
             await AuditAsync(account.Id, profile.Id, issued.Session.Id, "administrator_bootstrap", true, null, ct).ConfigureAwait(false);
             return issued with { RecoveryCodes = codes };
         }
@@ -81,16 +81,16 @@ public sealed class FirstPartyIdentityService(
         }
     }
 
-    public async Task<AuthenticationAttemptResult> AuthenticatePasswordAsync(string email, string password, string deviceId, string deviceName, string client, CancellationToken ct = default)
+    public async Task<AuthenticationAttemptResult> AuthenticatePasswordAsync(string email, string password, string deviceId, string deviceName, string client, CancellationToken ct = default, string ingress = ClientIngress.HomeNetwork)
     {
         Account? account;
         try { account = await accounts.GetByNormalizedEmailAsync(NormalizeEmail(email), ct).ConfigureAwait(false); }
         catch (ArgumentException) { account = null; }
         var credential = account is null ? null : await identities.GetAccountCredentialAsync(account.Id, AccountCredentialKind.Password, ct).ConfigureAwait(false);
-        return await AuthenticateAccountAsync(account, credential, password, deviceId, deviceName, client, ct).ConfigureAwait(false);
+        return await AuthenticateAccountAsync(account, credential, password, deviceId, deviceName, client, ingress, ct).ConfigureAwait(false);
     }
 
-    public async Task<AuthenticationAttemptResult> AuthenticatePinAsync(Guid profileId, string pin, string deviceId, string deviceName, string client, CancellationToken ct = default)
+    public async Task<AuthenticationAttemptResult> AuthenticatePinAsync(Guid profileId, string pin, string deviceId, string deviceName, string client, CancellationToken ct = default, string ingress = ClientIngress.HomeNetwork)
     {
         var accountId = await accounts.GetLocalOnlyAccountIdForProfileAsync(profileId, ct).ConfigureAwait(false);
         var account = accountId is null ? null : await accounts.GetByIdAsync(accountId.Value, ct).ConfigureAwait(false);
@@ -104,32 +104,32 @@ public sealed class FirstPartyIdentityService(
             }
 
             var issued = await IssueSessionAsync(account, profile, "profile-entry:none", "ProfileEntry",
-                deviceId, deviceName, client, ct).ConfigureAwait(false);
+                deviceId, deviceName, client, ingress, ct).ConfigureAwait(false);
             await AuditAsync(account.Id, profile.Id, issued.Session.Id, "login_local", true,
                 "ProfileEntry", ct).ConfigureAwait(false);
             return new(true, false, null, issued);
         }
-        return await AuthenticateProfileAsync(account, credential, pin, deviceId, deviceName, client, ct).ConfigureAwait(false);
+        return await AuthenticateProfileAsync(account, credential, pin, deviceId, deviceName, client, ingress, ct).ConfigureAwait(false);
     }
 
-    public async Task<SessionIssueResult> CreateExternalSessionAsync(Guid accountId, string provider, string deviceId, string deviceName, string client, CancellationToken ct = default)
+    public async Task<SessionIssueResult> CreateExternalSessionAsync(Guid accountId, string provider, string deviceId, string deviceName, string client, CancellationToken ct = default, string ingress = ClientIngress.HomeNetwork)
     {
         var account = await accounts.GetByIdAsync(accountId, ct).ConfigureAwait(false) ?? throw new KeyNotFoundException($"Account '{accountId}' was not found.");
         var profile = await GetDefaultProfileAsync(account.Id, ct).ConfigureAwait(false);
-        var issued = await IssueSessionAsync(account, profile, $"external:{provider.Trim().ToLowerInvariant()}", "Oidc", deviceId, deviceName, client, ct).ConfigureAwait(false);
+        var issued = await IssueSessionAsync(account, profile, $"external:{provider.Trim().ToLowerInvariant()}", "Oidc", deviceId, deviceName, client, ingress, ct).ConfigureAwait(false);
         await AuditAsync(account.Id, profile.Id, issued.Session.Id, "login_oidc", true, provider, ct).ConfigureAwait(false);
         return issued;
     }
 
-    public async Task<SessionIssueResult> CreatePasskeySessionAsync(Guid accountId, string deviceId, string deviceName, string client, CancellationToken ct = default)
+    public async Task<SessionIssueResult> CreatePasskeySessionAsync(Guid accountId, string deviceId, string deviceName, string client, CancellationToken ct = default, string ingress = ClientIngress.HomeNetwork)
     {
         var account = await accounts.GetByIdAsync(accountId, ct).ConfigureAwait(false) ?? throw new KeyNotFoundException("Account was not found.");
         var profile = await GetDefaultProfileAsync(accountId, ct).ConfigureAwait(false);
-        var issued = await IssueSessionAsync(account, profile, "passkey", "Passkey", deviceId, deviceName, client, ct).ConfigureAwait(false);
+        var issued = await IssueSessionAsync(account, profile, "passkey", "Passkey", deviceId, deviceName, client, ingress, ct).ConfigureAwait(false);
         await AuditAsync(account.Id, profile.Id, issued.Session.Id, "login_passkey", true, null, ct).ConfigureAwait(false); return issued;
     }
 
-    public async Task<SessionIssueResult> AcceptInvitationAsync(string token, string password, string deviceId, string deviceName, string client, CancellationToken ct = default)
+    public async Task<SessionIssueResult> AcceptInvitationAsync(string token, string password, string deviceId, string deviceName, string client, CancellationToken ct = default, string ingress = ClientIngress.HomeNetwork)
     {
         ValidatePassword(password); if (string.IsNullOrWhiteSpace(token))
         {
@@ -149,11 +149,11 @@ public sealed class FirstPartyIdentityService(
         }
 
         var credential = NewAccountCredential(account.Id, password); await identities.UpsertAccountCredentialAsync(credential, ct).ConfigureAwait(false);
-        var profile = await GetDefaultProfileAsync(account.Id, ct).ConfigureAwait(false); var issued = await IssueSessionAsync(account, profile, credential.SecurityStamp, "Password", deviceId, deviceName, client, ct).ConfigureAwait(false);
+        var profile = await GetDefaultProfileAsync(account.Id, ct).ConfigureAwait(false); var issued = await IssueSessionAsync(account, profile, credential.SecurityStamp, "Password", deviceId, deviceName, client, ingress, ct).ConfigureAwait(false);
         await AuditAsync(account.Id, profile.Id, issued.Session.Id, "invitation_accepted", true, null, ct).ConfigureAwait(false); return issued;
     }
 
-    public async Task<SessionValidationResult?> ValidateSessionAsync(string plaintextToken, bool touch = true, CancellationToken ct = default)
+    public async Task<SessionValidationResult?> ValidateSessionAsync(string plaintextToken, bool touch = true, CancellationToken ct = default, string? currentIngress = null)
     {
         if (string.IsNullOrWhiteSpace(plaintextToken))
         {
@@ -163,6 +163,13 @@ public sealed class FirstPartyIdentityService(
         var now = UtcNow;
         var session = await identities.GetSessionByTokenHashAsync(HashToken(plaintextToken), ct).ConfigureAwait(false);
         if (session is null || !session.IsActive(now))
+        {
+            return null;
+        }
+
+        // A session made at home only works from home. The session stays valid (it works again back at home).
+        // A null currentIngress means an internal, already-admitted caller that does not carry a request origin.
+        if (currentIngress is not null && !ClientIngress.SessionMayContinue(session.IssuedIngress, currentIngress))
         {
             return null;
         }
@@ -370,7 +377,7 @@ public sealed class FirstPartyIdentityService(
     public async Task<bool> ValidateServiceCredentialAsync(string plaintextToken, CancellationToken ct = default) =>
         !string.IsNullOrWhiteSpace(plaintextToken) && await identities.GetServiceCredentialByHashAsync(HashToken(plaintextToken), ct).ConfigureAwait(false) is not null;
 
-    private async Task<AuthenticationAttemptResult> AuthenticateAccountAsync(Account? account, AccountCredential? credential, string secret, string deviceId, string deviceName, string client, CancellationToken ct)
+    private async Task<AuthenticationAttemptResult> AuthenticateAccountAsync(Account? account, AccountCredential? credential, string secret, string deviceId, string deviceName, string client, string ingress, CancellationToken ct)
     {
         var now = UtcNow;
         if (account is null || !account.IsEnabled || credential is null) { await AuditAsync(account?.Id, null, null, "login_failed", false, "unknown_credential", ct).ConfigureAwait(false); return new(false, false, "Invalid credentials.", null); }
@@ -383,11 +390,11 @@ public sealed class FirstPartyIdentityService(
         if (rehash) { credential.SecretHash = Hash(credential, secret); credential.UpdatedAt = now; await identities.UpsertAccountCredentialAsync(credential, ct).ConfigureAwait(false); }
         await identities.UpdateAccountCredentialAttemptAsync(credential.Id, 0, null, now, ct).ConfigureAwait(false);
         var profile = await GetDefaultProfileAsync(account.Id, ct).ConfigureAwait(false);
-        var issued = await IssueSessionAsync(account, profile, credential.SecurityStamp, "Password", deviceId, deviceName, client, ct).ConfigureAwait(false);
+        var issued = await IssueSessionAsync(account, profile, credential.SecurityStamp, "Password", deviceId, deviceName, client, ingress, ct).ConfigureAwait(false);
         await AuditAsync(account.Id, profile.Id, issued.Session.Id, "login_local", true, "Password", ct).ConfigureAwait(false); return new(true, false, null, issued);
     }
 
-    private async Task<AuthenticationAttemptResult> AuthenticateProfileAsync(Account? account, ProfileCredential? credential, string secret, string deviceId, string deviceName, string client, CancellationToken ct)
+    private async Task<AuthenticationAttemptResult> AuthenticateProfileAsync(Account? account, ProfileCredential? credential, string secret, string deviceId, string deviceName, string client, string ingress, CancellationToken ct)
     {
         var now = UtcNow;
         if (account is null || credential is null)
@@ -404,7 +411,7 @@ public sealed class FirstPartyIdentityService(
         if (rehash) { credential.SecretHash = Hash(credential, secret); credential.UpdatedAt = now; await identities.UpsertCredentialAsync(credential, ct).ConfigureAwait(false); }
         await identities.UpdateCredentialAttemptAsync(credential.Id, 0, null, now, ct).ConfigureAwait(false);
         var profile = await profiles.GetByIdAsync(credential.ProfileId, ct).ConfigureAwait(false) ?? throw new InvalidOperationException("Profile is unavailable.");
-        var issued = await IssueSessionAsync(account, profile, credential.SecurityStamp, "ProfilePin", deviceId, deviceName, client, ct).ConfigureAwait(false); return new(true, false, null, issued);
+        var issued = await IssueSessionAsync(account, profile, credential.SecurityStamp, "ProfilePin", deviceId, deviceName, client, ingress, ct).ConfigureAwait(false); return new(true, false, null, issued);
     }
 
     private async Task<Profile> GetDefaultProfileAsync(Guid accountId, CancellationToken ct)
@@ -413,7 +420,7 @@ public sealed class FirstPartyIdentityService(
         return id != Guid.Empty && await profiles.GetByIdAsync(id, ct).ConfigureAwait(false) is { } profile ? profile : throw new InvalidOperationException("The account has no available profile.");
     }
 
-    private async Task<SessionIssueResult> IssueSessionAsync(Account account, Profile profile, string stamp, string method, string deviceId, string deviceName, string client, CancellationToken ct)
+    private async Task<SessionIssueResult> IssueSessionAsync(Account account, Profile profile, string stamp, string method, string deviceId, string deviceName, string client, string ingress, CancellationToken ct)
     {
         var gate = sessionIssueLocks.GetOrAdd(account.Id, static _ => new SemaphoreSlim(1, 1));
         await gate.WaitAsync(ct).ConfigureAwait(false);
@@ -444,6 +451,7 @@ public sealed class FirstPartyIdentityService(
                 DeviceName = Sanitize(deviceName, 100, "Unknown device"),
                 Client = Sanitize(client, 200, "Dashboard"),
                 AuthenticationMethod = method,
+                IssuedIngress = ClientIngress.Parse(ingress),
                 SecurityStamp = stamp,
                 CreatedAt = now,
                 LastSeenAt = now,

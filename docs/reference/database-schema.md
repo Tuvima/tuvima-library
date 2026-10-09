@@ -627,6 +627,21 @@ User profiles for multi-user support.
 | `role` | TEXT | |
 | `created_at` | TEXT | Timestamp |
 
+### auth_sessions
+
+Revocable, device-scoped sign-in sessions. A session remembers where it started.
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | BLOB | GUID, primary key |
+| `account_id` | BLOB | Owning account |
+| `active_profile_id` | BLOB | Profile in use |
+| `token_hash` | TEXT | Hash of the session token (unique); the token itself is never stored |
+| `authentication_method` | TEXT | `Password`, `Passkey`, `Oidc`, `ProfilePin`, `ProfileEntry` |
+| `issued_ingress` | TEXT | Where the sign-in came from: `this_computer`, `home_network` or `remote`. Default `home_network`, so rows from before this column existed are treated as home-only (fails closed). Added by the idempotent startup migration. |
+| `created_at`, `last_seen_at`, `expires_at` | TEXT | Timestamps |
+| `revoked_at`, `revoked_reason` | TEXT | NULL while active |
+
 ---
 
 ## Operations

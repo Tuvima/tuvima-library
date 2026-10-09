@@ -178,6 +178,35 @@ public sealed class AuthorizationFoundationTests
     }
 
     [Fact]
+    public void RestrictedProfileNeverHasAdministratorAuthorityEvenWithAnAdminEnabledGrant()
+    {
+        var authority = new RequestAuthority(
+            PrincipalKind.Human, true, Guid.NewGuid(), Guid.NewGuid(),
+            AccountEnabled: true, GrantEnabled: true,
+            AccountIsAdministrator: true, GrantAdminEnabled: true);
+
+        Assert.True(authority.IsEffectiveAdministrator);
+        Assert.False((authority with { ActiveProfileIsRestricted = true }).IsEffectiveAdministrator);
+    }
+
+    [Theory]
+    [InlineData("this_computer", "this_computer", true)]
+    [InlineData("home_network", "home_network", true)]
+    [InlineData("home_network", "this_computer", true)]
+    [InlineData("this_computer", "home_network", true)]
+    [InlineData("home_network", "remote", false)]
+    [InlineData("this_computer", "remote", false)]
+    [InlineData("remote", "remote", true)]
+    [InlineData("remote", "home_network", true)]
+    [InlineData("home_network", null, false)]
+    [InlineData("home_network", "anything-else", false)]
+    [InlineData(null, "remote", true)]
+    public void SessionsMadeAtHomeOnlyContinueAtHome(string? issued, string? current, bool expected)
+    {
+        Assert.Equal(expected, ClientIngress.SessionMayContinue(issued, current));
+    }
+
+    [Fact]
     public void EffectiveAdministratorRequiresACompleteEnabledHumanBinding()
     {
         var accountId = Guid.NewGuid();

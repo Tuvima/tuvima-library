@@ -14,6 +14,9 @@ public sealed class DashboardSessionAccessor
     public Guid? ActiveProfileId { get; private set; }
     public Guid? SessionId { get; private set; }
     public long Revision { get; private set; }
+
+    /// <summary>The ingress (<c>this_computer</c>, <c>home_network</c>, <c>remote</c>) of the last request that validated this session.</summary>
+    public string? LastIngress { get; set; }
     public DashboardAuthorityResponse? Authority { get; private set; }
 
     public void Set(string? token, Guid? accountId, Guid? activeProfileId, Guid? sessionId, DashboardAuthorityResponse? authority)

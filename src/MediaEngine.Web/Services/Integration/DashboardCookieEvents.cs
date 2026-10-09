@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using MediaEngine.Contracts.Authentication;
+using MediaEngine.Web.Services.Configuration;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 
@@ -18,7 +19,10 @@ public sealed class DashboardCookieEvents(
             return;
         }
 
-        var validation = await identity.ValidateCookieAsync(token, context.HttpContext.RequestAborted).ConfigureAwait(false);
+        // Where this request came from. A session made at home is refused (without being erased) when it is
+        // used from outside; the Engine makes that call using this value.
+        var ingress = context.HttpContext.ClientIngress();
+        var validation = await identity.ValidateCookieAsync(token, ingress, context.HttpContext.RequestAborted).ConfigureAwait(false);
         var validated = validation.Response;
         if (validated is null)
         {
@@ -32,6 +36,7 @@ public sealed class DashboardCookieEvents(
             return;
         }
 
+        session.LastIngress = ingress;
         session.Set(token, validated.AccountId, validated.ActiveProfileId, validated.SessionId, validated.Authority);
         // The server projection carries live account, grant, unlock, and capability
         // state. Replacing the principal on every validation prevents a retained

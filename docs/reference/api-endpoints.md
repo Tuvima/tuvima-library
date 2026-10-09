@@ -595,6 +595,7 @@ These routes belong to the Access replacement under final integration. Inbound c
 
 | Method | Engine path | Responsibility |
 |---|---|---|
+| POST | `/auth/session/validate` | Dashboard-only (service credential). Sends `X-Tuvima-Client-Ingress` (`this_computer`, `home_network` or `remote`; missing or unknown means `remote`). A session that was made at home or on this computer answers `401` with `{"reason":"sign_in_again_here"}` when the header says `remote`; the session is not revoked and works again at home. A session made from outside stays valid anywhere the door rule allows. |
 | GET/POST/PUT | `/access/accounts` and `/{accountId}` | Managed account lifecycle and explicit account grants |
 | GET/POST/PUT/DELETE | `/access/applications` and `/{applicationId}` | Application identity and registered permissions |
 | POST/DELETE | `/access/applications/{applicationId}/credentials` and `/{credentialId}` | One-time credential issuance and revocation |

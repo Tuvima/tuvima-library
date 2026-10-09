@@ -36,7 +36,7 @@ if (args.Length >= 3 && args[2] is "--complete" or "--probe")
     using var response = await client.PostAsJsonAsync("/auth/login", new
     {
         email = loginEmail, password = loginPassword, device_id = Guid.NewGuid().ToString("D"), device_name = "Isolated smoke fixture",
-        client = "Dashboard", original_client_is_local = true, original_client_is_https = false,
+        client = "Dashboard", original_client_ingress = "home_network", original_client_is_https = false,
     });
     response.EnsureSuccessStatusCode();
     using var session = JsonDocument.Parse(await response.Content.ReadAsStringAsync());

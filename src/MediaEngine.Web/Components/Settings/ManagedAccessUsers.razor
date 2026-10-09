@@ -135,7 +135,7 @@
                                 <AppButton Label="Rename" Size="AppControlSize.Compact" Disabled="@(string.IsNullOrWhiteSpace(ProfileName(grant)) || ProfileName(grant) == grant.DisplayName)" OnClick="@(() => RenameProfile(grant))" />
                             </div>
                             <AppSwitchRow Value="@grant.IsDefault" ValueChanged="@((bool value) => SaveGrant(grant, value, grant.AdminEnabled))" Disabled="@grant.IsDefault" Label="Default profile" />
-                            @if (_editing.IsAdministrator)
+                            @if (_editing.IsAdministrator && !grant.IsRestricted)
                             {
                                 <AppSwitchRow Value="@grant.AdminEnabled" ValueChanged="@((bool value) => SaveGrant(grant, grant.IsDefault, value))" Disabled="@_saving" Label="Allow admin dashboard" Description="This setting applies only to this account's use of the profile." />
                                 @if (grant.AdminEnabled)

@@ -4,6 +4,7 @@ using MediaEngine.Api.Http;
 using MediaEngine.Api.Security;
 using MediaEngine.Api.Services.ReadServices;
 using MediaEngine.Contracts.Authentication;
+using MediaEngine.Domain.Authorization;
 using MediaEngine.Domain.Configuration;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Entities;
@@ -31,12 +32,12 @@ public static class AuthenticationEndpoints
             if (request.ProfileId is { } profileId)
             {
                 result = await identity.AuthenticatePinAsync(profileId, request.Pin ?? string.Empty,
-                    request.DeviceId, request.DeviceName, request.Client, ct).ConfigureAwait(false);
+                    request.DeviceId, request.DeviceName, request.Client, ct, ClientIngress.Parse(request.OriginalClientIngress)).ConfigureAwait(false);
             }
             else
             {
                 result = await identity.AuthenticatePasswordAsync(request.Email ?? string.Empty, request.Password ?? string.Empty,
-                    request.DeviceId, request.DeviceName, request.Client, ct).ConfigureAwait(false);
+                    request.DeviceId, request.DeviceName, request.Client, ct, ClientIngress.Parse(request.OriginalClientIngress)).ConfigureAwait(false);
             }
 
             return result.Succeeded && result.IssuedSession is not null
@@ -117,7 +118,7 @@ public static class AuthenticationEndpoints
 
                 await externalLogins.RecordLoginAsync(linked.Id, ct).ConfigureAwait(false);
                 return Results.Ok(await ToResponseAsync(await identity.CreateExternalSessionAsync(
-                    linked.AccountId, verified.Provider, request.DeviceId, request.DeviceName, request.Client, ct).ConfigureAwait(false), projector, ct));
+                    linked.AccountId, verified.Provider, request.DeviceId, request.DeviceName, request.Client, ct, ClientIngress.Parse(request.OriginalClientIngress)).ConfigureAwait(false), projector, ct));
             }
             catch (KeyNotFoundException ex) { return ApiErrors.NotFound(ex.Message); }
         }).WithName("CreateExternalSession")
@@ -125,7 +126,7 @@ public static class AuthenticationEndpoints
           .AdmitClient<ExternalSessionRequest>(
               (services, request) => AllowsClient(
                   services.GetRequiredService<IConfigurationLoader>().LoadNetwork(),
-                  request.OriginalClientIsLocal, request.OriginalClientIsHttps,
+                  request.OriginalClientIngress, request.OriginalClientIsHttps,
                   IsExternalSignInEnabled(services.GetRequiredService<AuthenticationProviderConfigurationService>().LoadWithSecrets())),
               () => Results.Unauthorized())
           .RequireAuthorization(AuthPolicies.DashboardService);
@@ -187,21 +188,37 @@ public static class AuthenticationEndpoints
             IConfigurationLoader configuration, IFirstPartyIdentityService identity, DashboardAuthorityProjector projector, CancellationToken ct) =>
         {
             var policy = configuration.LoadCore().Auth;
-            if (!AllowsClient(configuration.LoadNetwork(), request.OriginalClientIsLocal, request.OriginalClientIsHttps,
+            if (!AllowsClient(configuration.LoadNetwork(), request.OriginalClientIngress, request.OriginalClientIsHttps,
                 policy.PasswordSignInEnabled && !IsLocalOnlyMode(policy)))
             {
                 return Results.Unauthorized();
             }
 
-            try { return Results.Ok(await ToResponseAsync(await identity.AcceptInvitationAsync(request.Token, request.Password, request.DeviceId, request.DeviceName, "Tuvima Dashboard", ct).ConfigureAwait(false), projector, ct)); }
+            try { return Results.Ok(await ToResponseAsync(await identity.AcceptInvitationAsync(request.Token, request.Password, request.DeviceId, request.DeviceName, "Tuvima Dashboard", ct, ClientIngress.Parse(request.OriginalClientIngress)).ConfigureAwait(false), projector, ct)); }
             catch (ArgumentException ex) { return ApiErrors.BadRequest(ex.Message); }
             catch (UnauthorizedAccessException) { return Results.Unauthorized(); }
         }).WithName("AcceptAccountInvitation").Produces<AuthSessionResponse>().RequireRateLimiting("authentication").RequireAuthorization(AuthPolicies.DashboardService);
 
         group.MapPost("/session/validate", async (HttpRequest request, IFirstPartyIdentityService identity, DashboardAuthorityProjector projector, CancellationToken ct) =>
         {
-            var session = await identity.ValidateSessionAsync(request.Headers[TuvimaAuthDefaults.SessionHeader].ToString(), true, ct).ConfigureAwait(false);
-            return session is null ? Results.Unauthorized() : Results.Ok(await ToValidationResponseAsync(session, projector, ct));
+            // Only the Dashboard (the service credential) may say where the browser is. Any other caller, or a
+            // missing header, is treated as outside the home, so the rule fails closed.
+            var isDashboard = request.HttpContext.User.HasClaim(TuvimaClaimTypes.DashboardService, "true");
+            var currentIngress = isDashboard
+                ? ClientIngress.Parse(request.Headers[ClientIngressValues.ValidateHeader].ToString())
+                : ClientIngress.Remote;
+            var session = await identity.ValidateSessionAsync(request.Headers[TuvimaAuthDefaults.SessionHeader].ToString(), true, ct, currentIngress).ConfigureAwait(false);
+            if (session is not null)
+            {
+                return Results.Ok(await ToValidationResponseAsync(session, projector, ct));
+            }
+
+            // A home session used from outside is not revoked; it is only unusable here. Tell the Dashboard
+            // apart from a dead session so the sign-in cookie is kept for when the person is home again.
+            var wrongPlace = await identity.ValidateSessionAsync(request.Headers[TuvimaAuthDefaults.SessionHeader].ToString(), false, ct).ConfigureAwait(false) is not null;
+            return wrongPlace
+                ? Results.Json(new { reason = ClientIngressValues.SignInAgainHere }, statusCode: StatusCodes.Status401Unauthorized)
+                : Results.Unauthorized();
         }).Produces<SessionValidationResponse>().RequireAuthorization(AuthPolicies.DashboardService);
 
         group.MapGet("/sessions", async (ClaimsPrincipal user, IFirstPartyIdentityService identity,
@@ -263,7 +280,7 @@ public static class AuthenticationEndpoints
             IConfigurationLoader configuration, IFirstPartyIdentityService identity, CancellationToken ct) =>
         {
             var policy = configuration.LoadCore().Auth;
-            if (!AllowsClient(configuration.LoadNetwork(), request.OriginalClientIsLocal, request.OriginalClientIsHttps,
+            if (!AllowsClient(configuration.LoadNetwork(), request.OriginalClientIngress, request.OriginalClientIsHttps,
                 policy.PasswordSignInEnabled && !IsLocalOnlyMode(policy)))
             {
                 return Results.Unauthorized();
@@ -282,7 +299,7 @@ public static class AuthenticationEndpoints
             IConfigurationLoader configuration, IFirstPartyIdentityService identity, CancellationToken ct) =>
         {
             var policy = configuration.LoadCore().Auth;
-            if (!AllowsClient(configuration.LoadNetwork(), request.OriginalClientIsLocal, request.OriginalClientIsHttps,
+            if (!AllowsClient(configuration.LoadNetwork(), request.OriginalClientIngress, request.OriginalClientIsHttps,
                 policy.PasswordSignInEnabled && !IsLocalOnlyMode(policy)))
             {
                 return Results.Accepted(value: new BeginPasswordResetResponse(null));
@@ -296,7 +313,7 @@ public static class AuthenticationEndpoints
             IConfigurationLoader configuration, IFirstPartyIdentityService identity, CancellationToken ct) =>
         {
             var policy = configuration.LoadCore().Auth;
-            if (!AllowsClient(configuration.LoadNetwork(), request.OriginalClientIsLocal, request.OriginalClientIsHttps,
+            if (!AllowsClient(configuration.LoadNetwork(), request.OriginalClientIngress, request.OriginalClientIsHttps,
                 policy.PasswordSignInEnabled && !IsLocalOnlyMode(policy)))
             {
                 return Results.Unauthorized();
@@ -320,7 +337,7 @@ public static class AuthenticationEndpoints
         }).Produces<PasskeyOptionsResponse>()
           .AdmitClient<BeginPasskeyLoginRequest>(
               (services, request) => IsPasskeyPermittedFor(
-                  services.GetRequiredService<IConfigurationLoader>(), request.OriginalClientIsLocal, request.OriginalClientIsHttps),
+                  services.GetRequiredService<IConfigurationLoader>(), request.OriginalClientIngress, request.OriginalClientIsHttps),
               () => Results.Unauthorized())
           .RequireRateLimiting("authentication").RequireAuthorization(AuthPolicies.DashboardService);
 
@@ -328,7 +345,7 @@ public static class AuthenticationEndpoints
             IConfigurationLoader configuration, IPasskeyHandler<Account> passkeys, UserManager<Account> users, IFirstPartyIdentityService identity, DashboardAuthorityProjector projector, CancellationToken ct) =>
         {
             var policy = configuration.LoadCore().Auth;
-            if (!IsPasskeyAvailable(policy, configuration.LoadNetwork(), request.OriginalClientIsLocal, request.OriginalClientIsHttps))
+            if (!IsPasskeyAvailable(policy, configuration.LoadNetwork(), request.OriginalClientIngress, request.OriginalClientIsHttps))
             {
                 return Results.Unauthorized();
             }
@@ -340,7 +357,7 @@ public static class AuthenticationEndpoints
             }
 
             await users.AddOrUpdatePasskeyAsync(result.User, result.Passkey).ConfigureAwait(false);
-            return Results.Ok(await ToResponseAsync(await identity.CreatePasskeySessionAsync(result.User.Id, request.DeviceId, request.DeviceName, "Tuvima Dashboard", ct).ConfigureAwait(false), projector, ct));
+            return Results.Ok(await ToResponseAsync(await identity.CreatePasskeySessionAsync(result.User.Id, request.DeviceId, request.DeviceName, "Tuvima Dashboard", ct, ClientIngress.Parse(request.OriginalClientIngress)).ConfigureAwait(false), projector, ct));
         }).Produces<AuthSessionResponse>().RequireRateLimiting("authentication").RequireAuthorization(AuthPolicies.DashboardService);
 
         group.MapPost("/passkeys/registration/options", async (BeginPasskeyRegistrationRequest request,
@@ -348,7 +365,7 @@ public static class AuthenticationEndpoints
             IAccountRepository accounts, IPasskeyHandler<Account> passkeys, CancellationToken ct) =>
         {
             var policy = configuration.LoadCore().Auth;
-            if (!IsPasskeyAvailable(policy, configuration.LoadNetwork(), request.OriginalClientIsLocal, request.OriginalClientIsHttps))
+            if (!IsPasskeyAvailable(policy, configuration.LoadNetwork(), request.OriginalClientIngress, request.OriginalClientIsHttps))
             {
                 return Results.Unauthorized();
             }
@@ -369,7 +386,7 @@ public static class AuthenticationEndpoints
             CancellationToken ct) =>
         {
             var policy = configuration.LoadCore().Auth;
-            if (!IsPasskeyAvailable(policy, configuration.LoadNetwork(), request.OriginalClientIsLocal, request.OriginalClientIsHttps))
+            if (!IsPasskeyAvailable(policy, configuration.LoadNetwork(), request.OriginalClientIngress, request.OriginalClientIsHttps))
             {
                 return Results.Unauthorized();
             }
@@ -540,13 +557,13 @@ public static class AuthenticationEndpoints
     {
         var policy = configuration.LoadCore().Auth;
         var methodEnabled = request.ProfileId.HasValue
-            ? policy.AllowLocalOnlyAccounts && request.OriginalClientIsLocal
+            ? policy.AllowLocalOnlyAccounts && ClientIngress.IsLocal(request.OriginalClientIngress)
             : policy.PasswordSignInEnabled && !IsLocalOnlyMode(policy);
-        return AllowsClient(configuration.LoadNetwork(), request.OriginalClientIsLocal, request.OriginalClientIsHttps, methodEnabled);
+        return AllowsClient(configuration.LoadNetwork(), request.OriginalClientIngress, request.OriginalClientIsHttps, methodEnabled);
     }
 
-    private static bool IsPasskeyPermittedFor(IConfigurationLoader configuration, bool originalClientIsLocal, bool originalClientIsHttps) =>
-        IsPasskeyAvailable(configuration.LoadCore().Auth, configuration.LoadNetwork(), originalClientIsLocal, originalClientIsHttps);
+    private static bool IsPasskeyPermittedFor(IConfigurationLoader configuration, string? originalClientIngress, bool originalClientIsHttps) =>
+        IsPasskeyAvailable(configuration.LoadCore().Auth, configuration.LoadNetwork(), originalClientIngress, originalClientIsHttps);
 
     /// <summary>
     /// The one door rule for sign-in. A client on this computer or the home network is allowed whenever the method is
@@ -554,18 +571,30 @@ public static class AuthenticationEndpoints
     /// </summary>
     internal static bool AllowsClient(
         NetworkSettings network,
-        bool originalClientIsLocal,
+        string? originalClientIngress,
         bool originalClientIsHttps,
-        bool methodEnabled) =>
-        methodEnabled &&
-        (originalClientIsLocal || (network.AllowsInternet && originalClientIsHttps));
+        bool methodEnabled)
+    {
+        var ingress = ClientIngress.Parse(originalClientIngress);
+        return methodEnabled
+            && ClientIngress.Rank(ingress) <= WhoCanConnectRank(network.WhoCanConnect)
+            && (ingress != ClientIngress.Remote || originalClientIsHttps);
+    }
+
+    // An unknown setting is the most restrictive (fail closed), matching the Dashboard's ExposurePolicy.
+    private static int WhoCanConnectRank(string? whoCanConnect) => whoCanConnect?.Trim().ToLowerInvariant() switch
+    {
+        WhoCanConnectModes.Anywhere => 2,
+        WhoCanConnectModes.HomeNetwork => 1,
+        _ => 0,
+    };
 
     internal static bool IsPasskeyAvailable(
         AuthSettings policy,
         NetworkSettings network,
-        bool originalClientIsLocal,
+        string? originalClientIngress,
         bool originalClientIsHttps) =>
-        AllowsClient(network, originalClientIsLocal, originalClientIsHttps,
+        AllowsClient(network, originalClientIngress, originalClientIsHttps,
             policy.PasskeySignInEnabled && !IsLocalOnlyMode(policy) && IsCanonicalOriginReady(policy));
 
     internal static bool IsConfiguredProvider(AuthSettings policy, string providerId, string issuer)
