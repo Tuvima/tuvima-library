@@ -18,7 +18,8 @@ public sealed record DashboardServiceCredentialOptions(string ConfigDirectory)
 public sealed class DashboardServiceCredentialBootstrapper(
     IIdentityRepository identities,
     IDataProtectionProvider protectionProvider,
-    DashboardServiceCredentialOptions options)
+    DashboardServiceCredentialOptions options,
+    DashboardServiceCredentialRecognizer recognizer)
 {
     public async Task EnsureAsync(CancellationToken ct = default)
     {
@@ -38,6 +39,7 @@ public sealed class DashboardServiceCredentialBootstrapper(
                 throw new InvalidOperationException("The Dashboard service credential bundle does not match the Engine database.");
             }
 
+            recognizer.Remember(token);
             return;
         }
 
@@ -62,6 +64,7 @@ public sealed class DashboardServiceCredentialBootstrapper(
         var temporaryPath = path + ".tmp-" + Guid.NewGuid().ToString("N");
         await File.WriteAllTextAsync(temporaryPath, JsonSerializer.Serialize(bundleToWrite), ct).ConfigureAwait(false);
         File.Move(temporaryPath, path, overwrite: true);
+        recognizer.Remember(plaintext);
     }
 
     private static string HashToken(string value) =>

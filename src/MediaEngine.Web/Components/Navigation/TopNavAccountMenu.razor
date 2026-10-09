@@ -276,6 +276,9 @@
             case ProfileSwitchStatus.NotFound:
                 _switchError = "That profile is no longer available.";
                 break;
+            case ProfileSwitchStatus.TooManyAttempts:
+                _switchError = "Too many attempts. Try again later.";
+                break;
             default:
                 _switchError = "The profile could not be switched. Try again.";
                 break;

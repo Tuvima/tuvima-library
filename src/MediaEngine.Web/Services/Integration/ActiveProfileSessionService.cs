@@ -145,6 +145,7 @@ public sealed class ActiveProfileSessionService : IDisposable
                     DashboardProfileSwitchStatus.PinRequired => ProfileSwitchStatus.PinRequired,
                     DashboardProfileSwitchStatus.Forbidden => ProfileSwitchStatus.Forbidden,
                     DashboardProfileSwitchStatus.NotFound => ProfileSwitchStatus.NotFound,
+                    DashboardProfileSwitchStatus.TooManyAttempts => ProfileSwitchStatus.TooManyAttempts,
                     _ => ProfileSwitchStatus.Failed,
                 });
             }

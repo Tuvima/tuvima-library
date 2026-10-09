@@ -468,6 +468,13 @@ public static class AuthenticationEndpoints
                     httpRequest.Headers[TuvimaAuthDefaults.SessionHeader].ToString(), request.ProfileId, request.Secret, ct).ConfigureAwait(false);
                 return Results.Ok(await ToValidationResponseAsync(result, projector, ct));
             }
+            catch (ProfilePinLockedException)
+            {
+                return Results.Problem(
+                    title: "Too many attempts",
+                    detail: "Too many attempts. Try again later.",
+                    statusCode: StatusCodes.Status429TooManyRequests);
+            }
             catch (ProfilePinRequiredException)
             {
                 return Results.Problem(

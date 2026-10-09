@@ -50,6 +50,11 @@ public static class DashboardAuthenticationEndpoints
         app.MapPost("/auth/login", async (HttpContext context, DashboardIdentityClient identity,
             DashboardConfigurationReader configuration, IAntiforgery antiforgery) =>
         {
+            if (RejectIfTooManyAttempts(context) is { } limited)
+            {
+                return limited;
+            }
+
             var invalidForm = await RefreshInvalidLoginFormAsync(context, antiforgery, externalProviders).ConfigureAwait(false);
             if (invalidForm is not null)
             {
@@ -126,6 +131,11 @@ public static class DashboardAuthenticationEndpoints
         app.MapPost("/auth/recover", async (HttpContext context, DashboardIdentityClient identity,
             DashboardConfigurationReader configuration, PasswordResetEmailSender emailSender, IAntiforgery antiforgery) =>
         {
+            if (RejectIfTooManyAttempts(context) is { } limited)
+            {
+                return limited;
+            }
+
             await antiforgery.ValidateRequestAsync(context).ConfigureAwait(false);
             var form = await context.Request.ReadFormAsync(context.RequestAborted).ConfigureAwait(false);
             var action = form["action"].ToString();
@@ -188,6 +198,11 @@ public static class DashboardAuthenticationEndpoints
         app.MapPost("/auth/reset", async (HttpContext context, DashboardConfigurationReader configuration,
             DashboardIdentityClient identity, IAntiforgery antiforgery) =>
         {
+            if (RejectIfTooManyAttempts(context) is { } limited)
+            {
+                return limited;
+            }
+
             await antiforgery.ValidateRequestAsync(context).ConfigureAwait(false); var form = await context.Request.ReadFormAsync(context.RequestAborted).ConfigureAwait(false);
             var ok = await identity.CompletePasswordResetAsync(new ResetPasswordTokenRequest(
                 form["token"].ToString(), form["newPassword"].ToString(),
@@ -208,6 +223,11 @@ public static class DashboardAuthenticationEndpoints
         app.MapPost("/auth/invite", async (HttpContext context, DashboardConfigurationReader configuration,
             DashboardIdentityClient identity, IAntiforgery antiforgery) =>
         {
+            if (RejectIfTooManyAttempts(context) is { } limited)
+            {
+                return limited;
+            }
+
             await antiforgery.ValidateRequestAsync(context).ConfigureAwait(false); var form = await context.Request.ReadFormAsync(context.RequestAborted).ConfigureAwait(false); var issued = await identity.AcceptInvitationAsync(new AcceptAccountInvitationRequest(form["token"].ToString(), form["password"].ToString(), form["deviceId"].ToString(), SanitizeDeviceName(context.Request.Headers.UserAgent.ToString()), context.ClientIngress(), context.Request.IsHttps), context.RequestAborted).ConfigureAwait(false);
             if (issued is null)
             {
@@ -219,11 +239,23 @@ public static class DashboardAuthenticationEndpoints
 
         app.MapPost("/auth/passkeys/login/options", async (BeginPasskeyLoginRequest request, HttpContext context,
             DashboardConfigurationReader configuration, DashboardIdentityClient identity, CancellationToken ct) =>
-            await identity.GetPasskeyLoginOptionsAsync(request.Email, context.ClientIngress(), context.Request.IsHttps, ct).ConfigureAwait(false) is { } result ? Results.Ok(result) : Results.BadRequest()).AllowAnonymous();
+        {
+            if (RejectIfTooManyAttempts(context, json: true) is { } limited)
+            {
+                return limited;
+            }
+
+            return await identity.GetPasskeyLoginOptionsAsync(request.Email, context.ClientIngress(), context.Request.IsHttps, ct).ConfigureAwait(false) is { } result ? Results.Ok(result) : Results.BadRequest();
+        }).AllowAnonymous();
 
         app.MapPost("/auth/passkeys/login/complete", async (CompletePasskeyLoginRequest request, HttpContext context,
             DashboardConfigurationReader configuration, DashboardIdentityClient identity, CancellationToken ct) =>
         {
+            if (RejectIfTooManyAttempts(context, json: true) is { } limited)
+            {
+                return limited;
+            }
+
             request = request with { OriginalClientIngress = context.ClientIngress(), OriginalClientIsHttps = context.Request.IsHttps };
             var issued = await identity.CompletePasskeyLoginAsync(request, ct).ConfigureAwait(false); if (issued is null)
             {
@@ -372,7 +404,7 @@ public static class DashboardAuthenticationEndpoints
                 $"<p><a class=\"button\" href=\"/auth/external/{Uri.EscapeDataString(provider.Id)}?returnUrl={Uri.EscapeDataString(returnUrl)}\">Continue with {H(provider.DisplayName)}</a></p>"));
         var passkeyScript = $$$"""
               <script>
-              document.getElementById('passkey-login').addEventListener('click',async()=>{const message=document.getElementById('passkey-message');try{if(!window.PublicKeyCredential||!PublicKeyCredential.parseRequestOptionsFromJSON)throw new Error('This browser does not support passkeys.');const start=await fetch('/auth/passkeys/login/options',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:document.getElementById('signin-email').value||null})});if(!start.ok)throw new Error('Passkey sign-in is unavailable.');const data=await start.json();const credential=await navigator.credentials.get({publicKey:PublicKeyCredential.parseRequestOptionsFromJSON(JSON.parse(data.options_json))});const finish=await fetch('/auth/passkeys/login/complete',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({credential_json:JSON.stringify(credential.toJSON()),state:data.state,device_id:{{{JsonSerializer.Serialize(deviceId)}}},device_name:navigator.userAgent})});if(!finish.ok)throw new Error('Passkey sign-in failed.');location.href={{{JsonSerializer.Serialize(returnUrl)}}};}catch(error){message.textContent=error.message;}});
+              document.getElementById('passkey-login').addEventListener('click',async()=>{const message=document.getElementById('passkey-message');try{if(!window.PublicKeyCredential||!PublicKeyCredential.parseRequestOptionsFromJSON)throw new Error('This browser does not support passkeys.');const start=await fetch('/auth/passkeys/login/options',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:document.getElementById('signin-email').value||null})});if(start.status===429)throw new Error('Too many attempts. Try again in a minute.');if(!start.ok)throw new Error('Passkey sign-in is unavailable.');const data=await start.json();const credential=await navigator.credentials.get({publicKey:PublicKeyCredential.parseRequestOptionsFromJSON(JSON.parse(data.options_json))});const finish=await fetch('/auth/passkeys/login/complete',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({credential_json:JSON.stringify(credential.toJSON()),state:data.state,device_id:{{{JsonSerializer.Serialize(deviceId)}}},device_name:navigator.userAgent})});if(finish.status===429)throw new Error('Too many attempts. Try again in a minute.');if(!finish.ok)throw new Error('Passkey sign-in failed.');location.href={{{JsonSerializer.Serialize(returnUrl)}}};}catch(error){message.textContent=error.message;}});
               </script>
               """;
         var form = $"""
@@ -430,6 +462,35 @@ public static class DashboardAuthenticationEndpoints
         return account?.Email is { Length: > 0 } email
             && await emailSender.SendTestAsync(email, ct).ConfigureAwait(false);
     }
+    /// <summary>
+    /// Counts one anonymous sign-in attempt for the caller's address. Returns the 429 response (with
+    /// <c>Retry-After</c> and a plain message) when that address has used up its allowance for the minute.
+    /// </summary>
+    public static IResult? RejectIfTooManyAttempts(HttpContext context, bool json = false)
+    {
+        var limiter = context.RequestServices.GetRequiredService<SignInAttemptLimiter>();
+        if (limiter.TryAcquire(context, out var retryAfter))
+        {
+            return null;
+        }
+
+        context.Response.Headers.RetryAfter = Math.Max(1, (int)Math.Ceiling(retryAfter.TotalSeconds))
+            .ToString(System.Globalization.CultureInfo.InvariantCulture);
+        if (json)
+        {
+            return Results.Problem(
+                title: "Too many attempts",
+                detail: SignInAttemptLimiter.TooManyAttemptsMessage,
+                statusCode: StatusCodes.Status429TooManyRequests);
+        }
+
+        return Results.Content(
+            LoginFailurePage(SignInAttemptLimiter.TooManyAttemptsMessage),
+            "text/html",
+            Encoding.UTF8,
+            StatusCodes.Status429TooManyRequests);
+    }
+
     private static string LoginFailurePage(string message) => Shell($"<h1>Unable to continue</h1><p>{H(message)}</p><p><a href=\"/auth/login\">Return to sign in</a></p>");
     private static IResult EngineUnavailableResult(string returnUrl) => Results.Content(
         EngineUnavailablePage(returnUrl),

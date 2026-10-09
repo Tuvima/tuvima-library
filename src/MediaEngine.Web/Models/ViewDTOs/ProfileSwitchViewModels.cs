@@ -6,6 +6,7 @@ public enum ProfileSwitchStatus
     PinRequired,
     Forbidden,
     NotFound,
+    TooManyAttempts,
     Failed,
 }
 
