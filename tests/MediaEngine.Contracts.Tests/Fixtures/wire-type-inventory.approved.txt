@@ -3,7 +3,7 @@
 # Compatibility is enforced separately by wire-compatibility.approved.txt.
 # Serializer: System.Text.Json JsonSerializerDefaults.Web; DefaultIgnoreCondition=Never
 # Regenerate intentionally with TUVIMA_UPDATE_WIRE_SNAPSHOT=1.
-# scopes: contracts=920; api=0; web-client=86
+# scopes: contracts=921; api=0; web-client=86
 
 [contracts] MediaEngine.Contracts.Activity.ActivityBatchInsightsDto
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -1298,6 +1298,13 @@
   kind=class | converter=default | number-handling=default | unmapped=default
   Pin: System.String | json=pin | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   sample={"pin":"sample"}
+
+[contracts] MediaEngine.Contracts.Authentication.SignInMethodsResponse
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Password: System.Boolean | json=password | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Passkey: System.Boolean | json=passkey | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  ExternalProviders: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Authentication.AccountExternalProviderResponse> | json=external_providers | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  InvitationCode: System.Boolean | json=invitation_code | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
 
 [contracts] MediaEngine.Contracts.Authentication.SwitchProfileRequest
   kind=class | converter=default | number-handling=default | unmapped=default
