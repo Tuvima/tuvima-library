@@ -70,6 +70,77 @@ public sealed class DashboardIdentityClient(
             : null;
     }
 
+    /// <summary>
+    /// The name of the account that can continue without a password on this computer, or null. Only asked of a visitor on
+    /// this computer who is not behind a tunnel or proxy; everyone else is never told the account exists.
+    /// </summary>
+    public async Task<string?> GetThisComputerAccountNameAsync(CancellationToken ct = default)
+    {
+        using var request = ThisComputerRequest(HttpMethod.Get);
+        if (request is null)
+        {
+            return null;
+        }
+
+        try
+        {
+            using var response = await Client.SendAsync(request, ct).ConfigureAwait(false);
+            return response.IsSuccessStatusCode
+                ? (await response.Content.ReadFromJsonAsync<ThisComputerAccountResponse>(cancellationToken: ct).ConfigureAwait(false))?.DisplayName
+                : null;
+        }
+        catch (Exception exception) when (exception is HttpRequestException or JsonException or NotSupportedException
+            || (exception is OperationCanceledException && !ct.IsCancellationRequested))
+        {
+            logger?.LogWarning(exception, "Dashboard this-computer account check could not reach the Engine");
+            return null;
+        }
+    }
+
+    /// <summary>Signs in the this-computer account without a password. Null when it is not offered from here.</summary>
+    public async Task<AuthSessionResponse?> SignInThisComputerAsync(ThisComputerSignInRequest body, CancellationToken ct = default)
+    {
+        using var request = ThisComputerRequest(HttpMethod.Post);
+        if (request is null)
+        {
+            return null;
+        }
+
+        request.Content = JsonContent.Create(body);
+        try
+        {
+            using var response = await Client.SendAsync(request, ct).ConfigureAwait(false);
+            return response.IsSuccessStatusCode
+                ? await response.Content.ReadFromJsonAsync<AuthSessionResponse>(cancellationToken: ct).ConfigureAwait(false)
+                : null;
+        }
+        catch (Exception exception) when (exception is HttpRequestException or JsonException or NotSupportedException
+            || (exception is OperationCanceledException && !ct.IsCancellationRequested))
+        {
+            logger?.LogWarning(exception, "Dashboard this-computer sign-in could not reach the Engine");
+            return null;
+        }
+    }
+
+    // Built only for a visitor on this computer; the Engine also needs to know when a proxy or tunnel may be relaying them.
+    private HttpRequestMessage? ThisComputerRequest(HttpMethod method)
+    {
+        var context = contextAccessor?.HttpContext;
+        if (context is null || IngressClassifierExtensions.FromWireValue(CurrentIngress(context)) != IngressKind.ThisComputer)
+        {
+            return null;
+        }
+
+        var request = new HttpRequestMessage(method, "/auth/this-computer");
+        request.Headers.TryAddWithoutValidation(ClientIngressValues.ValidateHeader, ClientIngressValues.ThisComputer);
+        if (context.WasForwarded())
+        {
+            request.Headers.TryAddWithoutValidation(ClientIngressValues.ForwardedHeader, "true");
+        }
+
+        return request;
+    }
+
     public async Task<SessionValidationResponse?> ValidateAsync(string sessionToken, CancellationToken ct = default)
     {
         using var request = new HttpRequestMessage(HttpMethod.Post, "/auth/session/validate");

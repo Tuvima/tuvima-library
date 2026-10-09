@@ -14,7 +14,7 @@ public partial interface IEngineApiClient
     /// </summary>
     Task<SetupBeginOutcome> BeginSetupAsync(SetupBeginRequest request, CancellationToken ct = default);
     Task<SetupPreflightDto?> RunSetupPreflightAsync(string? setupSession, CancellationToken ct = default);
-    Task<SetupAdministratorResponse?> CreateSetupAdministratorAsync(SetupAdministratorRequest request, string setupSession, CancellationToken ct = default);
+    Task<SetupAdministratorOutcome> CreateSetupAdministratorAsync(SetupAdministratorRequest request, string setupSession, CancellationToken ct = default);
     Task<SetupMediaLocationsDto?> ValidateSetupMediaLocationsAsync(string? setupSession, CancellationToken ct = default);
     Task<LibrariesConfigurationDto?> GetSetupLibrariesAsync(string? setupSession, CancellationToken ct = default);
     Task<LibrariesConfigurationDto?> UpdateSetupLibrariesAsync(UpdateLibrariesRequest request, string? setupSession, CancellationToken ct = default);
@@ -33,4 +33,7 @@ public partial interface IEngineApiClient
 /// <summary>What the Engine said to a request to start setup.</summary>
 /// <param name="Started">The new setup session, or null when setup did not start.</param>
 /// <param name="Refusal">Why the Engine refused (code needed, code wrong, or not on the home network), when it did.</param>
+/// <summary>The created administrator, or why not: <see cref="Code"/> is the Engine's problem code (for example <c>not_available_here</c>) when it gave one.</summary>
+public sealed record SetupAdministratorOutcome(SetupAdministratorResponse? Created, string? Code);
+
 public sealed record SetupBeginOutcome(SetupStartResponse? Started, SetupBeginRefusalDto? Refusal);

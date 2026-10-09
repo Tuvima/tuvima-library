@@ -1,4 +1,5 @@
 @namespace MediaEngine.Web.Components.Setup
+@using MediaEngine.Contracts.Setup
 
 <div class="setup-stage-content">
     <div class="setup-stage__heading"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.AdminPanelSettings" /><div><h2 id="setup-stage-title">Administrator</h2><p>Create the account that manages this Tuvima Library server.</p></div></div>
@@ -15,6 +16,34 @@
     {
         <AppAlert Tone="AppUiTone.Success">The administrator account is configured.</AppAlert>
         <SetupStageFooter Back="Back" ShowReturnToCurrentStep="ShowReturnToCurrentStep" ReturnToCurrentStep="ReturnToCurrentStep" />
+    }
+    else if (ThisComputerAvailable && string.IsNullOrEmpty(SignInMode))
+    {
+        <div class="setup-choice-grid" role="group" aria-label="How will you sign in?">
+            <AppChoiceCard Class="setup-choice-card" Icon="@AppMaterialIcons.Outlined.AdminPanelSettings" Title="Use on this computer"
+                           Description="Recommended. Just your name and email. Add a password later to use Tuvima on other devices."
+                           OnClick="@(() => SignInModeChanged.InvokeAsync(SetupSignInModes.ThisComputer))" />
+            <AppChoiceCard Class="setup-choice-card" Icon="@AppMaterialIcons.Outlined.Visibility" Title="Set a password now"
+                           Description="Use Tuvima on your other devices from the start."
+                           OnClick="@(() => SignInModeChanged.InvokeAsync(SetupSignInModes.Password))" />
+        </div>
+        <SetupStageFooter Back="Back" ShowReturnToCurrentStep="ShowReturnToCurrentStep" ReturnToCurrentStep="ReturnToCurrentStep" />
+    }
+    else if (ThisComputerOnly)
+    {
+        <div class="setup-form-grid">
+            <AppTextField Label="Display name" Value="@DisplayName" ValueChanged="DisplayNameChanged" />
+            <AppTextField Label="Email" Value="@Email" ValueChanged="EmailChanged" />
+        </div>
+        <small>Tuvima will work on this computer only. Add a password later to use it on your phone or TV. Your details stay on your Tuvima Library server.</small>
+        @if (!string.IsNullOrEmpty(Notice))
+        {
+            <AppAlert Tone="AppUiTone.Warning">@Notice</AppAlert>
+        }
+        <SetupStageFooter Back="Back" ShowReturnToCurrentStep="ShowReturnToCurrentStep" ReturnToCurrentStep="ReturnToCurrentStep">
+            <AppButton Label="Choose another way" ButtonStyle="AppButtonStyle.Text" OnClick="@(() => SignInModeChanged.InvokeAsync(string.Empty))" />
+            <AppButton Label="Create administrator" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Loading="@Busy" Disabled="@(Busy || string.IsNullOrWhiteSpace(Email) || string.IsNullOrWhiteSpace(DisplayName))" OnClick="CreateAdministrator" />
+        </SetupStageFooter>
     }
     else
     {
@@ -59,6 +88,17 @@
     [Parameter] public EventCallback<string?> PasswordConfirmationChanged { get; set; }
     [Parameter] public IReadOnlyList<string> RecoveryCodes { get; set; } = [];
     [Parameter] public bool AdministratorConfigured { get; set; }
+
+    /// <summary>True only on the computer that runs Tuvima (never a container or another device): the no-password start is offered.</summary>
+    [Parameter] public bool ThisComputerAvailable { get; set; }
+
+    /// <summary><c>this_computer</c> or <c>password</c> once chosen; empty while the two choices are shown.</summary>
+    [Parameter] public string SignInMode { get; set; } = string.Empty;
+    [Parameter] public EventCallback<string> SignInModeChanged { get; set; }
+
+    /// <summary>A plain-language reason the last attempt did not work, shown above the buttons.</summary>
+    [Parameter] public string? Notice { get; set; }
+    private bool ThisComputerOnly => ThisComputerAvailable && SignInMode == SetupSignInModes.ThisComputer;
     [Parameter] public bool Busy { get; set; }
     [Parameter] public EventCallback CreateAdministrator { get; set; }
     [Parameter] public EventCallback SignIn { get; set; }

@@ -1,6 +1,7 @@
 ﻿<CascadingValue Name="ClientIngress" Value="ClientIngress" IsFixed="true">
 <CascadingValue Name="ClientAddress" Value="ClientAddress" IsFixed="true">
 <CascadingValue Name="ClientSignInRefusal" Value="ClientSignInRefusal" IsFixed="true">
+<CascadingValue Name="ClientForwarded" Value="ClientForwarded" IsFixed="true">
 <Router AppAssembly="typeof(Program).Assembly" NotFoundPage="typeof(Pages.NotFound)">
     <Found Context="routeData">
         <ErrorBoundary>
@@ -22,6 +23,7 @@
 </CascadingValue>
 </CascadingValue>
 </CascadingValue>
+</CascadingValue>
 
 @code {
     /// <summary>The Dashboard's classification of this visitor, set once by the host page and shared with every screen.</summary>
@@ -32,4 +34,7 @@
 
     /// <summary>Why sign-in and setup cannot work from this visitor's address, set once by the host page; null when they can.</summary>
     [Parameter] public string? ClientSignInRefusal { get; set; }
+
+    /// <summary>True when the visitor's request carried forwarding headers, set once by the host page.</summary>
+    [Parameter] public bool ClientForwarded { get; set; }
 }

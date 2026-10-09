@@ -16,6 +16,7 @@
 @inject DashboardIdentityClient Identity
 @inject AuthenticationStateProvider AuthenticationStateProvider
 @inject NavigationManager Nav
+@inject IAppToastService Toasts
 @inject IStringLocalizer<SharedStrings> L
 @inject ILogger<MainLayout> Logger
 @implements IAsyncDisposable
@@ -37,6 +38,7 @@
 <AppDialogHost />
 <AppToastHost />
 <ActivityNotificationHost Enabled="@CanViewSystemActivity" />
+<ThisComputerOnlyBanner VisibleChanged="OnThisComputerBannerChanged" />
 
 @if (!DeviceContext.IsFeatureDisabled("command_palette"))
 {
@@ -46,7 +48,7 @@
 <a class="skip-to-content" href="#main-content">@L["Layout_SkipToContent"]</a>
 
 <AppCssElement Tag="div" Class="layout-accent-scope" @onclick="CloseOpenShellMenus">
-<div class="playback-app-frame">
+<div class="@(_thisComputerBanner ? "playback-app-frame playback-app-frame--with-banner" : "playback-app-frame")">
 <AppCssElement Tag="div" Class="playback-app-frame__variables">
 <AppLayout Class="@LayoutShellClass">
     <AppAppBar Fixed="false" Elevation="0" Dense="true" Class="@AppBarClass">
@@ -303,6 +305,7 @@
         Playback.Changed += OnPlaybackChanged;
         ContextSidebar.Changed += OnContextSidebarChanged;
         _session.OnAuthorityChanged += OnAuthorityChanged;
+        _session.OnSecureAccountRequired += OnSecureAccountRequired;
         SyncLocationState();
     }
 
@@ -703,6 +706,7 @@
         Orchestrator.OnProfileChanged -= OnProfileChanged;
         Orchestrator.OnEngineConnectionStateChanged -= OnEngineConnectionStateChanged;
         _session.OnAuthorityChanged -= OnAuthorityChanged;
+        _session.OnSecureAccountRequired -= OnSecureAccountRequired;
         _authorityRefreshCancellation.Cancel();
         try
         {
@@ -734,6 +738,20 @@
         }
 
         _dotNetRef?.Dispose();
+    }
+
+    private bool _thisComputerBanner;
+    private void OnThisComputerBannerChanged(bool visible) { _thisComputerBanner = visible; StateHasChanged(); }
+
+    // The Engine says an action waits until the account has a password: say so plainly and point to Secure account.
+    private void OnSecureAccountRequired()
+    {
+        if (_disposed) return;
+        _ = InvokeAsync(() => Toasts.Add("Add a password to your account first.", AppSeverity.Warning, options =>
+        {
+            options.Action = "Secure account";
+            options.OnClick = _ => { Nav.NavigateTo(ThisComputerOnlyBanner.SecureAccountHref); return Task.CompletedTask; };
+        }));
     }
 
     private bool ShouldShowEngineStatusBanner =>
@@ -852,7 +870,7 @@
 
     .layout-shell__engine-banner {
         position: fixed;
-        top: 56px;
+        top: calc(56px + var(--tl-this-computer-banner-offset, 0px));
         left: 0;
         right: 0;
         z-index: 1100;

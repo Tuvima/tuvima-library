@@ -9,6 +9,14 @@ public sealed class DashboardSessionAccessor
     private long _refreshGeneration;
     private bool _hasEstablishedSessionState;
     public event Action? OnAuthorityChanged;
+
+    /// <summary>
+    /// Raised when the Engine refuses an action with <c>secure_account_first</c>: the account still works only on this
+    /// computer, so the screen can say so and point to Secure account instead of showing a bare failure.
+    /// </summary>
+    public event Action? OnSecureAccountRequired;
+
+    public void NotifySecureAccountRequired() => OnSecureAccountRequired?.Invoke();
     public string? SessionToken { get; private set; }
     public Guid? AccountId { get; private set; }
     public Guid? ActiveProfileId { get; private set; }

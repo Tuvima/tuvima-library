@@ -657,3 +657,17 @@
         font-size: 1.25rem;
     }
 }
+
+/* Room for the "This computer only" banner: the banner is pinned to the top, so the whole shell moves down by its height. */
+.playback-app-frame--with-banner {
+    --tl-this-computer-banner-height: 2.5rem;
+    --tl-this-computer-banner-offset: calc(var(--tl-this-computer-banner-height) + env(safe-area-inset-top, 0px));
+    padding-top: var(--tl-this-computer-banner-offset);
+    scroll-padding-top: calc(var(--tl-this-computer-banner-height) + env(safe-area-inset-top, 0px));
+}
+
+@media (max-width: 40rem) {
+    .playback-app-frame--with-banner {
+        --tl-this-computer-banner-height: 3.75rem;
+    }
+}

@@ -1,0 +1,27 @@
+/* Pinned to the very top; the shell pads its content by the same height (see MainLayout.razor.css). */
+.this-computer-banner {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 1090;
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: .25rem .75rem;
+    height: calc(var(--tl-this-computer-banner-height, 2.5rem) + env(safe-area-inset-top, 0px));
+    padding: env(safe-area-inset-top, 0px) max(1rem, env(safe-area-inset-right, 0px)) 0 max(1rem, env(safe-area-inset-left, 0px));
+    overflow: hidden;
+    border-bottom: 1px solid var(--tl-accent-primary-border);
+    color: var(--tl-text-primary);
+    background: color-mix(in srgb, var(--tl-accent-primary) 22%, var(--tl-bg-surface-raised));
+    font-size: .85rem;
+}
+
+@media (max-width: 40rem) {
+    .this-computer-banner {
+        --tl-this-computer-banner-height: 3.75rem;
+    }
+}
