@@ -5,9 +5,9 @@ public sealed class SettingsBreadcrumbGuardrailTests
     [Fact]
     public void SettingsShell_OwnsRouteAwareBreadcrumbsAndIngestionHeaderAction()
     {
-        var settings = Read(@"src\MediaEngine.Web\Components\Pages\Settings.razor");
-        var settingsCss = Read(@"src\MediaEngine.Web\Components\Pages\Settings.razor.css");
-        var metadata = Read(@"src\MediaEngine.Web\Components\Settings\MetadataSettingsPage.razor");
+        var settings = Read(@"src/MediaEngine.Web/Components/Pages/Settings.razor");
+        var settingsCss = Read(@"src/MediaEngine.Web/Components/Pages/Settings.razor.css");
+        var metadata = Read(@"src/MediaEngine.Web/Components/Settings/MetadataSettingsPage.razor");
 
         Assert.Contains("<AppBreadcrumbs Class=\"settings-breadcrumbs\">", settings, StringComparison.Ordinal);
         Assert.Contains("aria-current=\"page\"", settings, StringComparison.Ordinal);

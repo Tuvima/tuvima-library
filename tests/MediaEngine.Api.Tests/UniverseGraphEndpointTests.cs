@@ -29,7 +29,7 @@ public sealed class UniverseGraphEndpointTests
     public void GraphRoute_UsesBatchedReadsInsteadOfPerNodeRepositoryCalls()
     {
         var source = File.ReadAllText(GetRepoFilePath(
-            @"src\MediaEngine.Api\Endpoints\UniverseGraphEndpoints.cs"));
+            @"src/MediaEngine.Api/Endpoints/UniverseGraphEndpoints.cs"));
         var start = source.IndexOf("group.MapGet(\"/universe/{qid}/graph\"", StringComparison.Ordinal);
         var end = source.IndexOf("group.MapPost(\"/universe/entity/{qid}/deep-enrich\"", start, StringComparison.Ordinal);
         Assert.True(start >= 0 && end > start);
@@ -67,7 +67,7 @@ public sealed class UniverseGraphEndpointTests
     public void GraphRoute_MapsScopedFactAndAppearanceFields()
     {
         var source = File.ReadAllText(GetRepoFilePath(
-            @"src\MediaEngine.Api\Endpoints\UniverseGraphEndpoints.cs"));
+            @"src/MediaEngine.Api/Endpoints/UniverseGraphEndpoints.cs"));
         var start = source.IndexOf("group.MapGet(\"/universe/{qid}/graph\"", StringComparison.Ordinal);
         var end = source.IndexOf("group.MapPost(\"/universe/entity/{qid}/deep-enrich\"", start, StringComparison.Ordinal);
         Assert.True(start >= 0 && end > start);

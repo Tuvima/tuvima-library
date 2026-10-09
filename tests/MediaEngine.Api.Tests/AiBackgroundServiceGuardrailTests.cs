@@ -8,7 +8,7 @@ public sealed class AiBackgroundServiceGuardrailTests
     [InlineData("DescriptionIntelligenceBatchService.cs")]
     public void AiWorkers_UseExplicitDependenciesAndDurableFeatureOutcomes(string fileName)
     {
-        var source = File.ReadAllText(GetRepoFilePath($@"src\MediaEngine.Api\Services\{fileName}"));
+        var source = File.ReadAllText(GetRepoFilePath($@"src/MediaEngine.Api/Services/{fileName}"));
 
         Assert.DoesNotContain("IServiceScopeFactory", source, StringComparison.Ordinal);
         Assert.DoesNotContain("GetRequiredService<", source, StringComparison.Ordinal);
@@ -23,7 +23,7 @@ public sealed class AiBackgroundServiceGuardrailTests
     [InlineData("DescriptionIntelligenceBatchService.cs")]
     public void LaunchAiWorkers_GateBeforeScanning(string fileName)
     {
-        var source = File.ReadAllText(GetRepoFilePath($@"src\MediaEngine.Api\Services\{fileName}"));
+        var source = File.ReadAllText(GetRepoFilePath($@"src/MediaEngine.Api/Services/{fileName}"));
         var gate = source.IndexOf("_featureGate.CanExecute", StringComparison.Ordinal);
         var scan = source.IndexOf("GetPageAsync", StringComparison.Ordinal);
         if (scan < 0)
@@ -45,7 +45,7 @@ public sealed class AiBackgroundServiceGuardrailTests
                      "DescriptionIntelligenceBatchService.cs",
                  })
         {
-            var source = File.ReadAllText(GetRepoFilePath($@"src\MediaEngine.Api\Services\{fileName}"));
+            var source = File.ReadAllText(GetRepoFilePath($@"src/MediaEngine.Api/Services/{fileName}"));
             Assert.Contains("ReplaceAiFeatureAsync", source, StringComparison.Ordinal);
             Assert.DoesNotContain("new CanonicalValue", source, StringComparison.Ordinal);
         }
@@ -55,7 +55,7 @@ public sealed class AiBackgroundServiceGuardrailTests
     public void EngineRegistersFeatureAndTastePersistenceContracts()
     {
         var source = File.ReadAllText(GetRepoFilePath(
-            @"src\MediaEngine.Api\DependencyInjection\TuvimaStorageServiceCollectionExtensions.cs"));
+            @"src/MediaEngine.Api/DependencyInjection/TuvimaStorageServiceCollectionExtensions.cs"));
 
         Assert.Contains("IAiFeaturePersistenceRepository", source, StringComparison.Ordinal);
         Assert.Contains("ITasteProfileRepository, TasteProfileRepository", source, StringComparison.Ordinal);
@@ -64,7 +64,7 @@ public sealed class AiBackgroundServiceGuardrailTests
     [Fact]
     public void StartupDownloadsOnlySelectedTextAndExplicitAudioPack()
     {
-        var source = File.ReadAllText(GetRepoFilePath(@"src\MediaEngine.Api\Services\ModelAutoDownloadService.cs"));
+        var source = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Api/Services/ModelAutoDownloadService.cs"));
 
         Assert.Contains("DownloadIfNeededAsync(AiModelRole.TextQuality", source, StringComparison.Ordinal);
         Assert.Contains("if (_settings.AudioPackEnabled)", source, StringComparison.Ordinal);

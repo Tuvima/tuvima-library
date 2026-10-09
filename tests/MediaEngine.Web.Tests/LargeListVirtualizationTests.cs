@@ -5,7 +5,7 @@ public sealed class LargeListVirtualizationTests
     [Fact]
     public void ListenSongTable_UsesVirtualizeForLargeTrackLists()
     {
-        var source = File.ReadAllText(GetRepoFilePath(@"src\MediaEngine.Web\Components\Listen\ListenSongTable.razor"));
+        var source = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Web/Components/Listen/ListenSongTable.razor"));
 
         Assert.Contains("<Virtualize Items=\"@DisplayTracks\"", source, StringComparison.Ordinal);
         Assert.Contains("@key=\"track.Id\"", source, StringComparison.Ordinal);

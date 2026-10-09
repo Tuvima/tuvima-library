@@ -27,7 +27,7 @@ public sealed class IntegrationTestEndpointsTests : IDisposable
     [Fact]
     public void Program_MapsIntegrationTestEndpointsOnlyInDevelopment()
     {
-        var source = File.ReadAllText(GetRepoFilePath(@"src\MediaEngine.Api\DependencyInjection\ApiEndpointRouteBuilderExtensions.cs"));
+        var source = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Api/DependencyInjection/ApiEndpointRouteBuilderExtensions.cs"));
         var developmentGuard = "if (app.Environment.IsDevelopment())";
         var guardIndex = source.IndexOf(developmentGuard, StringComparison.Ordinal);
         var mapIndex = source.IndexOf("app.MapIntegrationTestEndpoints();", StringComparison.Ordinal);
@@ -43,7 +43,7 @@ public sealed class IntegrationTestEndpointsTests : IDisposable
     [Fact]
     public void IntegrationTestEndpoints_RegisterOnlyUnderDevRouteGroup()
     {
-        var source = File.ReadAllText(GetRepoFilePath(@"src\MediaEngine.Api\DevSupport\IntegrationTestEndpoints.cs"));
+        var source = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Api/DevSupport/IntegrationTestEndpoints.cs"));
 
         Assert.Contains("app.MapGroup(\"/dev\")", source, StringComparison.Ordinal);
         Assert.Contains("group.MapPost(\"/integration-test\", RunIntegrationTestAsync)", source, StringComparison.Ordinal);
@@ -61,9 +61,9 @@ public sealed class IntegrationTestEndpointsTests : IDisposable
     [Fact]
     public void DevelopmentTools_UseIntentEndpointsAndPreserveConfigurationByDefault()
     {
-        var endpoints = File.ReadAllText(GetRepoFilePath(@"src\MediaEngine.Api\DevSupport\DevSeedEndpoints.cs"));
-        var reset = File.ReadAllText(GetRepoFilePath(@"src\MediaEngine.Api\DevSupport\DevHarnessResetService.cs"));
-        var service = File.ReadAllText(GetRepoFilePath(@"src\MediaEngine.Api\DevSupport\DevelopmentTestService.cs"));
+        var endpoints = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Api/DevSupport/DevSeedEndpoints.cs"));
+        var reset = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Api/DevSupport/DevHarnessResetService.cs"));
+        var service = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Api/DevSupport/DevelopmentTestService.cs"));
 
         Assert.Contains("group.MapPost(\"/reset-and-seed\"", endpoints, StringComparison.Ordinal);
         Assert.Contains("group.MapPost(\"/reset-library-data\"", endpoints, StringComparison.Ordinal);
@@ -86,7 +86,7 @@ public sealed class IntegrationTestEndpointsTests : IDisposable
     [Fact]
     public void StandardFixtureSet_IsSmallDeterministicAndStructurallyRepresentative()
     {
-        var source = File.ReadAllText(GetRepoFilePath(@"src\MediaEngine.Api\DevSupport\DevSeedEndpoints.cs"));
+        var source = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Api/DevSupport/DevSeedEndpoints.cs"));
 
         Assert.Contains("StandardBookTitles", source, StringComparison.Ordinal);
         Assert.Contains("\"Leviathan Wakes\"", source, StringComparison.Ordinal);
@@ -158,7 +158,7 @@ public sealed class IntegrationTestEndpointsTests : IDisposable
     [Fact]
     public void RunFullIntegration_DefaultsToGeneratedStateAndSupportsExplicitFullWipe()
     {
-        var source = File.ReadAllText(GetRepoFilePath(@"tools\Run-FullIntegration.ps1"));
+        var source = File.ReadAllText(GetRepoFilePath("tools/Run-FullIntegration.ps1"));
 
         Assert.Contains("[ValidateSet(\"generated-state\", \"full\")]", source, StringComparison.Ordinal);
         Assert.Contains("[string]$WipeScope = \"generated-state\"", source, StringComparison.Ordinal);
@@ -175,8 +175,8 @@ public sealed class IntegrationTestEndpointsTests : IDisposable
     [Fact]
     public void ViewPhotoHarness_IsDevelopmentOnlyAndKeepsLicenseAndPeopleProvenance()
     {
-        var endpoints = File.ReadAllText(GetRepoFilePath(@"src\MediaEngine.Api\DevSupport\DevSeedEndpoints.cs"));
-        var harness = File.ReadAllText(GetRepoFilePath(@"src\MediaEngine.Api\DevSupport\ViewPhotoHarnessService.cs"));
+        var endpoints = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Api/DevSupport/DevSeedEndpoints.cs"));
+        var harness = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Api/DevSupport/ViewPhotoHarnessService.cs"));
 
         Assert.Contains("group.MapPost(\"/view-photo-harness\"", endpoints, StringComparison.Ordinal);
         Assert.Contains("Wikimedia Commons", harness, StringComparison.Ordinal);
@@ -199,7 +199,7 @@ public sealed class IntegrationTestEndpointsTests : IDisposable
     [Fact]
     public void SetupPreflight_UsesCanonicalStorageResolversForEmptyDataRoot()
     {
-        var source = File.ReadAllText(GetRepoFilePath(@"src\MediaEngine.Api\Services\SetupPreflightService.cs"));
+        var source = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Api/Services/SetupPreflightService.cs"));
 
         Assert.Contains("new AssetPathService(", source, StringComparison.Ordinal);
         Assert.Contains("core.DataRoot).DataRoot", source, StringComparison.Ordinal);
@@ -213,7 +213,7 @@ public sealed class IntegrationTestEndpointsTests : IDisposable
     [Fact]
     public void DevHarnessReset_RecreatesConfiguredSourceFoldersAfterWipe()
     {
-        var source = File.ReadAllText(GetRepoFilePath(@"src\MediaEngine.Api\DevSupport\DevHarnessResetService.cs"));
+        var source = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Api/DevSupport/DevHarnessResetService.cs"));
 
         Assert.Contains("EnsureConfiguredSourcePathsExist(details)", source, StringComparison.Ordinal);
         Assert.Contains("EnsureConfiguredSourcePathsExist(details ?? [])", source, StringComparison.Ordinal);
@@ -224,7 +224,7 @@ public sealed class IntegrationTestEndpointsTests : IDisposable
     [Fact]
     public void IntegrationHarness_TracksStageAwareWaitBudgetsAndOwnedCounts()
     {
-        var source = File.ReadAllText(GetRepoFilePath(@"src\MediaEngine.Api\DevSupport\IntegrationTestEndpoints.cs"));
+        var source = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Api/DevSupport/IntegrationTestEndpoints.cs"));
 
         Assert.Contains("ResolveIngestionWaitPlan", source, StringComparison.Ordinal);
         Assert.Contains("IngestionWaitStages", source, StringComparison.Ordinal);
@@ -240,8 +240,8 @@ public sealed class IntegrationTestEndpointsTests : IDisposable
     [Fact]
     public void IntegrationHarness_UsesMusicBrainzAsMusicIdentityAndAppleAsEnrichment()
     {
-        var source = File.ReadAllText(GetRepoFilePath(@"src\MediaEngine.Api\DevSupport\IntegrationTestEndpoints.cs"));
-        var seedSource = File.ReadAllText(GetRepoFilePath(@"src\MediaEngine.Api\DevSupport\DevSeedEndpoints.cs"));
+        var source = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Api/DevSupport/IntegrationTestEndpoints.cs"));
+        var seedSource = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Api/DevSupport/DevSeedEndpoints.cs"));
 
         Assert.Contains("[\"music\"] = [\"musicbrainz\", \"apple_api\"]", source, StringComparison.Ordinal);
         Assert.Contains("(\"Bohemian Rhapsody\", \"Queen\", \"musicbrainz\", \"Music identity\"", source, StringComparison.Ordinal);
@@ -254,8 +254,8 @@ public sealed class IntegrationTestEndpointsTests : IDisposable
     [Fact]
     public void IntegrationHarness_SeedsAndValidatesRepeatCreatorsAndCrossMediaPeople()
     {
-        var source = File.ReadAllText(GetRepoFilePath(@"src\MediaEngine.Api\DevSupport\IntegrationTestEndpoints.cs"));
-        var seedSource = File.ReadAllText(GetRepoFilePath(@"src\MediaEngine.Api\DevSupport\DevSeedEndpoints.cs"));
+        var source = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Api/DevSupport/IntegrationTestEndpoints.cs"));
+        var seedSource = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Api/DevSupport/DevSeedEndpoints.cs"));
 
         Assert.Contains("\"The Expanse books/audiobooks/TV\"", source, StringComparison.Ordinal);
         Assert.Contains("[\"books\", \"audiobooks\", \"tv\"]", source, StringComparison.Ordinal);
@@ -284,8 +284,8 @@ public sealed class IntegrationTestEndpointsTests : IDisposable
     [Fact]
     public void IntegrationHarness_ReportShowsUtf8IssueCategoriesAndProviderProvenance()
     {
-        var source = File.ReadAllText(GetRepoFilePath(@"src\MediaEngine.Api\DevSupport\IntegrationTestEndpoints.cs"));
-        var script = File.ReadAllText(GetRepoFilePath(@"tools\Run-FullIntegration.ps1"));
+        var source = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Api/DevSupport/IntegrationTestEndpoints.cs"));
+        var script = File.ReadAllText(GetRepoFilePath("tools/Run-FullIntegration.ps1"));
 
         Assert.Contains("text/html; charset=utf-8", source, StringComparison.Ordinal);
         Assert.Contains("File.WriteAllTextAsync(filePath, html, Encoding.UTF8, ct)", source, StringComparison.Ordinal);
@@ -320,7 +320,7 @@ public sealed class IntegrationTestEndpointsTests : IDisposable
     [Fact]
     public void IntegrationHarness_ReadsCurrentSchemaGuidBlobs()
     {
-        var source = File.ReadAllText(GetRepoFilePath(@"src\MediaEngine.Api\DevSupport\IntegrationTestEndpoints.cs"));
+        var source = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Api/DevSupport/IntegrationTestEndpoints.cs"));
 
         Assert.Contains("TryReadCurrentGuid", source, StringComparison.Ordinal);
         Assert.Contains("GuidSql.FromDb(value)", source, StringComparison.Ordinal);
@@ -345,8 +345,8 @@ public sealed class IntegrationTestEndpointsTests : IDisposable
     [Fact]
     public void IntegrationHarness_PreflightsManifestDrivenIdentityExpectations()
     {
-        var source = File.ReadAllText(GetRepoFilePath(@"src\MediaEngine.Api\DevSupport\IntegrationTestEndpoints.cs"));
-        var seedSource = File.ReadAllText(GetRepoFilePath(@"src\MediaEngine.Api\DevSupport\DevSeedEndpoints.cs"));
+        var source = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Api/DevSupport/IntegrationTestEndpoints.cs"));
+        var seedSource = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Api/DevSupport/DevSeedEndpoints.cs"));
 
         Assert.Contains("BuildExpectationPreflight", source, StringComparison.Ordinal);
         Assert.Contains("ExpectedIdentityStatus", seedSource, StringComparison.Ordinal);
@@ -359,7 +359,7 @@ public sealed class IntegrationTestEndpointsTests : IDisposable
     [Fact]
     public void IntegrationHarness_DoesNotAcceptQidNoMatchForExpectedFixtures()
     {
-        var source = File.ReadAllText(GetRepoFilePath(@"src\MediaEngine.Api\DevSupport\IntegrationTestEndpoints.cs"));
+        var source = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Api/DevSupport/IntegrationTestEndpoints.cs"));
 
         Assert.Contains("expectsIdentification", source, StringComparison.Ordinal);
         Assert.Contains("? hasQid && exactQidMatches", source, StringComparison.Ordinal);

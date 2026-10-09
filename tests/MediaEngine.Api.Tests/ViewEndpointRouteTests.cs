@@ -106,9 +106,9 @@ public sealed class ViewEndpointRouteTests
     public void AdministratorSourceRoutesRequireTheUnlockedAdministratorPolicy()
     {
         var endpoint = File.ReadAllText(FindRepoRoot() +
-            @"\src\MediaEngine.Api\Endpoints\ViewEndpoints.cs");
+            @"/src/MediaEngine.Api/Endpoints/ViewEndpoints.cs");
         var extensions = File.ReadAllText(FindRepoRoot() +
-            @"\src\MediaEngine.Api\Security\RequestAuthorityServices.cs");
+            @"/src/MediaEngine.Api/Security/RequestAuthorityServices.cs");
 
         Assert.Equal(10, Count(endpoint, ".RequireEffectiveAdministrator();"));
         Assert.Contains("bool surfaceUnlock = true", extensions, StringComparison.Ordinal);

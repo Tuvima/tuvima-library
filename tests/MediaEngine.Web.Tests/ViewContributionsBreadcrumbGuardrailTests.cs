@@ -5,7 +5,7 @@ public sealed class ViewContributionsBreadcrumbGuardrailTests
     [Fact]
     public void ContributionsPage_PreservesSharedLibraryBreadcrumbHierarchy()
     {
-        var source = Read(@"src\MediaEngine.Web\Components\Pages\ViewContributionsPage.razor");
+        var source = Read(@"src/MediaEngine.Web/Components/Pages/ViewContributionsPage.razor");
 
         Assert.Contains("<AppBreadcrumbs Class=\"view-contributions-breadcrumbs\">", source, StringComparison.Ordinal);
         Assert.Contains("<a href=\"/view\">View</a>", source, StringComparison.Ordinal);

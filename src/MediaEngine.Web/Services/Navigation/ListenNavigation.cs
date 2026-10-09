@@ -27,7 +27,8 @@ public static class ListenNavigation
         if (string.Equals(path, MusicHomeRoute, StringComparison.OrdinalIgnoreCase))
         {
             var query = System.Web.HttpUtility.ParseQueryString(
-                Uri.TryCreate(normalizedRoute, UriKind.Absolute, out var absolute)
+                normalizedRoute?.StartsWith('/') != true
+                && Uri.TryCreate(normalizedRoute, UriKind.Absolute, out var absolute)
                     ? absolute.Query
                     : normalizedRoute?.Contains('?') == true
                         ? normalizedRoute[(normalizedRoute.IndexOf('?'))..]
@@ -69,7 +70,7 @@ public static class ListenNavigation
             return null;
         }
 
-        return Uri.TryCreate(route, UriKind.Absolute, out var absoluteRoute)
+        return !route.StartsWith('/') && Uri.TryCreate(route, UriKind.Absolute, out var absoluteRoute)
             ? absoluteRoute.PathAndQuery
             : route;
     }

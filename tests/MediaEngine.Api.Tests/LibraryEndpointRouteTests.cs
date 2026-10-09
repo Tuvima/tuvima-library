@@ -7,7 +7,7 @@ public sealed class LibraryEndpointRouteTests
     [Fact]
     public void LibraryEndpoints_ExposeWorkFeedForHomePage()
     {
-        var source = File.ReadAllText(GetRepoFilePath(@"src\MediaEngine.Api\Endpoints\LibraryEndpoints.cs"));
+        var source = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Api/Endpoints/LibraryEndpoints.cs"));
 
         Assert.Contains("group.MapGet(\"/works\", async (", source, StringComparison.Ordinal);
         Assert.Contains(".WithName(\"GetLibraryWorks\")", source, StringComparison.Ordinal);
@@ -17,8 +17,8 @@ public sealed class LibraryEndpointRouteTests
     [Fact]
     public void LibraryOverview_DelegatesOperationalAggregatesToReadService()
     {
-        var source = File.ReadAllText(GetRepoFilePath(@"src\MediaEngine.Api\Endpoints\LibraryEndpoints.cs"));
-        var serviceSource = File.ReadAllText(GetRepoFilePath(@"src\MediaEngine.Api\Services\ReadServices\LibraryOverviewReadService.cs"));
+        var source = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Api/Endpoints/LibraryEndpoints.cs"));
+        var serviceSource = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Api/Services/ReadServices/LibraryOverviewReadService.cs"));
 
         Assert.Contains("ILibraryOverviewReadService overviewReadService", source, StringComparison.Ordinal);
         Assert.Contains("overviewReadService.GetOverviewAggregatesAsync(ct)", source, StringComparison.Ordinal);
@@ -30,8 +30,8 @@ public sealed class LibraryEndpointRouteTests
     [Fact]
     public void LibraryEndpoints_HomeFeedUsesSharedVisibilityPredicateAndRichArtworkFields()
     {
-        var source = File.ReadAllText(GetRepoFilePath(@"src\MediaEngine.Api\Endpoints\LibraryEndpoints.cs"));
-        var serviceSource = File.ReadAllText(GetRepoFilePath(@"src\MediaEngine.Api\Services\ReadServices\LibraryWorkFeedReadService.cs"));
+        var source = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Api/Endpoints/LibraryEndpoints.cs"));
+        var serviceSource = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Api/Services/ReadServices/LibraryWorkFeedReadService.cs"));
 
         Assert.Contains("ILibraryWorkFeedReadService workFeedReadService", source, StringComparison.Ordinal);
         Assert.Contains("workFeedReadService.GetWorksAsync(page, ct, allowedWorkIds)", source, StringComparison.Ordinal);
@@ -53,8 +53,8 @@ public sealed class LibraryEndpointRouteTests
     [Fact]
     public void LibraryEndpoints_BatchEditRoutesFieldsByLineageScope()
     {
-        var source = File.ReadAllText(GetRepoFilePath(@"src\MediaEngine.Api\Endpoints\LibraryEndpoints.cs"));
-        var serviceSource = File.ReadAllText(GetRepoFilePath(@"src\MediaEngine.Api\Services\ReadServices\LibraryCurationReadService.cs"));
+        var source = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Api/Endpoints/LibraryEndpoints.cs"));
+        var serviceSource = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Api/Services/ReadServices/LibraryCurationReadService.cs"));
 
         Assert.Contains("curationReadService.ResolveBatchEditTargetsAsync(", source, StringComparison.Ordinal);
         Assert.Contains("ClaimScopeCatalog.IsParentScoped(key, mediaType)", serviceSource, StringComparison.Ordinal);
@@ -65,7 +65,7 @@ public sealed class LibraryEndpointRouteTests
     [Fact]
     public void LibraryEndpoints_DelegateDatabaseAccessToTypedServices()
     {
-        var source = File.ReadAllText(GetRepoFilePath(@"src\MediaEngine.Api\Endpoints\LibraryEndpoints.cs"));
+        var source = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Api/Endpoints/LibraryEndpoints.cs"));
 
         Assert.DoesNotContain("IDatabaseConnection", source, StringComparison.Ordinal);
         Assert.DoesNotContain("CreateConnection", source, StringComparison.Ordinal);

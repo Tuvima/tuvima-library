@@ -49,7 +49,7 @@ public sealed class CollectionAssignmentServiceTests
     [Fact]
     public void CollectionAssignment_UsesSeriesAsShelfAndDoesNotFallbackToBroadUniverse()
     {
-        var source = File.ReadAllText(GetRepoFilePath(@"src\MediaEngine.Providers\Services\CollectionAssignmentService.cs"));
+        var source = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Providers/Services/CollectionAssignmentService.cs"));
         var resolveStart = source.IndexOf("private static ShelfIdentity? ResolveShelfIdentity", StringComparison.Ordinal);
         Assert.True(resolveStart >= 0);
 
@@ -70,11 +70,11 @@ public sealed class CollectionAssignmentServiceTests
     [Fact]
     public void CollectionAssignment_SupportsProviderBackedShelfIdentityBeforeQidUpgrade()
     {
-        var source = File.ReadAllText(GetRepoFilePath(@"src\MediaEngine.Providers\Services\CollectionAssignmentService.cs"));
+        var source = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Providers/Services/CollectionAssignmentService.cs"));
 
         Assert.Contains("Task<CollectionAssignmentResult> AssignAsync", source, StringComparison.Ordinal);
         Assert.Contains("AssignWorkToCollectionAsync(workId.Value, collection.Id, ct)", source, StringComparison.Ordinal);
-        Assert.Contains("internal sealed record ShelfIdentity", File.ReadAllText(GetRepoFilePath(@"src\MediaEngine.Providers\Models\ShelfIdentity.cs")), StringComparison.Ordinal);
+        Assert.Contains("internal sealed record ShelfIdentity", File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Providers/Models/ShelfIdentity.cs")), StringComparison.Ordinal);
         Assert.Contains("FindByRuleHashAsync(shelf.ProviderKey", source, StringComparison.Ordinal);
         Assert.Contains("collection.RuleHash, shelf.ProviderKey", source, StringComparison.Ordinal);
         Assert.Contains("tmdb:collection:{tmdbCollectionId}", source, StringComparison.Ordinal);
@@ -91,7 +91,7 @@ public sealed class CollectionAssignmentServiceTests
     [Fact]
     public void CollectionAssignment_UsesArrayBackedBasedOnForCrossMediaRollups()
     {
-        var source = File.ReadAllText(GetRepoFilePath(@"src\MediaEngine.Providers\Services\CollectionAssignmentService.cs"));
+        var source = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Providers/Services/CollectionAssignmentService.cs"));
 
         Assert.Contains("MergeArrayBackedRelationshipHintsAsync", source, StringComparison.Ordinal);
         Assert.Contains("GetAllByEntityAsync(entityId", source, StringComparison.Ordinal);
@@ -104,9 +104,9 @@ public sealed class CollectionAssignmentServiceTests
     [Fact]
     public void CollectionFinalization_IsSharedByQidAndRetainedRetailPaths()
     {
-        var quickHydration = File.ReadAllText(GetRepoFilePath(@"src\MediaEngine.Providers\Workers\QuickHydrationWorker.cs"));
+        var quickHydration = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Providers/Workers/QuickHydrationWorker.cs"));
         var wikidataBridge = ReadWorkerSource("WikidataBridgeWorker");
-        var finalizer = File.ReadAllText(GetRepoFilePath(@"src\MediaEngine.Providers\Services\CollectionFinalizationService.cs"));
+        var finalizer = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Providers/Services/CollectionFinalizationService.cs"));
 
         Assert.Contains("CollectionFinalizationService", quickHydration, StringComparison.Ordinal);
         Assert.Contains("CollectionFinalizationReason.QuickHydration", quickHydration, StringComparison.Ordinal);
@@ -120,7 +120,7 @@ public sealed class CollectionAssignmentServiceTests
     public void TmdbAdapter_AddsMovieCollectionClaimsForWatchShelves()
     {
         var adapter = ReadAdapterSource("ConfigDrivenAdapter");
-        var config = File.ReadAllText(GetRepoFilePath(@"config\providers\tmdb.json"));
+        var config = File.ReadAllText(GetRepoFilePath(@"config/providers/tmdb.json"));
 
         Assert.Contains("AddTmdbMovieCollectionClaims", adapter, StringComparison.Ordinal);
         Assert.Contains("belongs_to_collection", adapter, StringComparison.Ordinal);
@@ -132,7 +132,7 @@ public sealed class CollectionAssignmentServiceTests
     [Fact]
     public void SeriesManifestHydration_UsesImmediateSeriesBeforeBroaderCollectionFallback()
     {
-        var source = File.ReadAllText(GetRepoFilePath(@"src\MediaEngine.Providers\Services\WikidataSeriesManifestHydrationService.cs"));
+        var source = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Providers/Services/WikidataSeriesManifestHydrationService.cs"));
         var resolveStart = source.IndexOf("internal static IReadOnlyList<SeriesManifestCandidate> ResolveClaimedSeriesManifestCandidates", StringComparison.Ordinal);
         Assert.True(resolveStart >= 0);
 
@@ -267,7 +267,7 @@ public sealed class CollectionAssignmentServiceTests
     [Fact]
     public void SeriesManifestHydration_ExpandsParentCollectionManifests()
     {
-        var source = File.ReadAllText(GetRepoFilePath(@"src\MediaEngine.Providers\Services\WikidataSeriesManifestHydrationService.cs"));
+        var source = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Providers/Services/WikidataSeriesManifestHydrationService.cs"));
         var normalizedSource = source.Replace("\r\n", "\n", StringComparison.Ordinal);
 
         Assert.Contains("relinked,\n                        seriesQid", normalizedSource, StringComparison.Ordinal);
@@ -406,7 +406,7 @@ public sealed class CollectionAssignmentServiceTests
             ["Q127367", "Q164963", "Q131074", "Q107210110", "Q125858982"],
             filtered.Select(item => item.Qid));
 
-        var source = File.ReadAllText(GetRepoFilePath(@"src\MediaEngine.Providers\Services\WikidataSeriesManifestHydrationService.cs"));
+        var source = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Providers/Services/WikidataSeriesManifestHydrationService.cs"));
         Assert.DoesNotContain("KnownMovieSeriesItemQids", source, StringComparison.Ordinal);
         Assert.DoesNotContain("tuvima-known-film-trilogy", source, StringComparison.Ordinal);
         Assert.Contains("fact.Scope == SeriesManifestItemScope.MainSequence", source, StringComparison.Ordinal);
@@ -417,8 +417,8 @@ public sealed class CollectionAssignmentServiceTests
 
     private static string ReadAdapterSource(string adapterName)
     {
-        var facade = GetRepoFilePath($@"src\MediaEngine.Providers\Adapters\{adapterName}.cs");
-        var internals = GetRepoFilePath(@"src\MediaEngine.Providers\Adapters\Internals");
+        var facade = GetRepoFilePath($@"src/MediaEngine.Providers/Adapters/{adapterName}.cs");
+        var internals = GetRepoFilePath(@"src/MediaEngine.Providers/Adapters/Internals");
         return string.Join(
             Environment.NewLine,
             new[] { facade }
@@ -430,8 +430,8 @@ public sealed class CollectionAssignmentServiceTests
 
     private static string ReadWorkerSource(string workerName)
     {
-        var facade = GetRepoFilePath($@"src\MediaEngine.Providers\Workers\{workerName}.cs");
-        var internals = GetRepoFilePath(@"src\MediaEngine.Providers\Workers\Internals");
+        var facade = GetRepoFilePath($@"src/MediaEngine.Providers/Workers/{workerName}.cs");
+        var internals = GetRepoFilePath(@"src/MediaEngine.Providers/Workers/Internals");
         return string.Join(
             Environment.NewLine,
             new[] { facade }

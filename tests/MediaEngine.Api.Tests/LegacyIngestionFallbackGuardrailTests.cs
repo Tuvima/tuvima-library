@@ -64,8 +64,12 @@ public sealed class LegacyIngestionFallbackGuardrailTests
     {
         const string explicitRejection = """
         foreach (var name in new[] { "TUVIMA_DB_PATH", "TUVIMA_LIBRARY_ROOT", "TUVIMA_WATCH_FOLDER" })
+        {
             if (!string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable(name)))
+            {
                 throw new InvalidOperationException($"Remove {name}: real-media mode uses the validated configuration only.");
+            }
+        }
         """;
         // Remove only the exact rejection statement, then reject every other use.
         var normalized = string.Join('\n', text.ReplaceLineEndings("\n").Split('\n').Select(line => line.Trim()));

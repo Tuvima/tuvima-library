@@ -5,16 +5,16 @@ public sealed class IngestionBatchHistoryGuardrailTests
     [Fact]
     public void Ingestion_UsesItemPreviewAndRetainsPagedBatchDiagnostics()
     {
-        var ingestion = Read(@"src\MediaEngine.Web\Components\Settings\IngestionTasksTab.razor");
-        var history = Read(@"src\MediaEngine.Web\Components\Settings\IngestionBatchHistory.razor");
-        var historyCss = Read(@"src\MediaEngine.Web\Components\Settings\IngestionBatchHistory.razor.css");
-        var batchDisplay = Read(@"src\MediaEngine.Web\Components\Settings\IngestionBatchDisplay.cs");
-        var pagedMedia = Read(@"src\MediaEngine.Web\Components\Settings\IngestionMediaPagedView.razor");
-        var drawer = Read(@"src\MediaEngine.Web\Components\Settings\IngestionMediaDrawer.razor");
-        var cardCss = Read(@"src\MediaEngine.Web\Components\Settings\IngestionMediaCard.razor.css");
-        var drawerCss = Read(@"src\MediaEngine.Web\Components\Settings\IngestionMediaDrawer.razor.css");
-        var settings = Read(@"src\MediaEngine.Web\Components\Pages\Settings.razor");
-        var settingsNav = Read(@"src\MediaEngine.Web\Models\ViewDTOs\SettingsNav.cs");
+        var ingestion = Read(@"src/MediaEngine.Web/Components/Settings/IngestionTasksTab.razor");
+        var history = Read(@"src/MediaEngine.Web/Components/Settings/IngestionBatchHistory.razor");
+        var historyCss = Read(@"src/MediaEngine.Web/Components/Settings/IngestionBatchHistory.razor.css");
+        var batchDisplay = Read(@"src/MediaEngine.Web/Components/Settings/IngestionBatchDisplay.cs");
+        var pagedMedia = Read(@"src/MediaEngine.Web/Components/Settings/IngestionMediaPagedView.razor");
+        var drawer = Read(@"src/MediaEngine.Web/Components/Settings/IngestionMediaDrawer.razor");
+        var cardCss = Read(@"src/MediaEngine.Web/Components/Settings/IngestionMediaCard.razor.css");
+        var drawerCss = Read(@"src/MediaEngine.Web/Components/Settings/IngestionMediaDrawer.razor.css");
+        var settings = Read(@"src/MediaEngine.Web/Components/Pages/Settings.razor");
+        var settingsNav = Read(@"src/MediaEngine.Web/Models/ViewDTOs/SettingsNav.cs");
 
         Assert.Contains("<IngestionRecentlyAddedPreview", ingestion, StringComparison.Ordinal);
         Assert.DoesNotContain("<IngestionBatchHistory", ingestion, StringComparison.Ordinal);

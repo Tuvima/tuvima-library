@@ -5,7 +5,7 @@ public sealed class Phase6SettingsConfigurationTests
     [Fact]
     public void ConfigurationDirectoryLoader_PersistsAdminSettingsSources()
     {
-        var source = ReadRepoFile(@"src\MediaEngine.Storage\ConfigurationDirectoryLoader.cs");
+        var source = ReadRepoFile(@"src/MediaEngine.Storage/ConfigurationDirectoryLoader.cs");
 
         Assert.Contains("SaveCore", source, StringComparison.Ordinal);
         Assert.Contains("SaveProvider", source, StringComparison.Ordinal);
@@ -18,8 +18,8 @@ public sealed class Phase6SettingsConfigurationTests
     [Fact]
     public void ProviderSecrets_AreNotReturnedAsPlaintextInStatusDto()
     {
-        var endpoint = ReadRepoFile(@"src\MediaEngine.Api\Endpoints\SettingsEndpoints.cs");
-        var webDto = ReadRepoFile(@"src\MediaEngine.Contracts\Settings\ProviderSettingsContracts.cs");
+        var endpoint = ReadRepoFile(@"src/MediaEngine.Api/Endpoints/SettingsEndpoints.cs");
+        var webDto = ReadRepoFile(@"src/MediaEngine.Contracts/Settings/ProviderSettingsContracts.cs");
 
         Assert.Contains("HasApiKey", endpoint, StringComparison.Ordinal);
         Assert.Contains("HasApiKey", webDto, StringComparison.Ordinal);

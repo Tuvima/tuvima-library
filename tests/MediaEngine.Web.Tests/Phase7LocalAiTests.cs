@@ -5,7 +5,7 @@ public sealed class Phase7LocalAiTests
     [Fact]
     public void LocalAiOverview_RendersRealHealthAndResources()
     {
-        var source = ReadRepoFile(@"src\MediaEngine.Web\Components\Settings\LocalAiSettingsTab.razor");
+        var source = ReadRepoFile(@"src/MediaEngine.Web/Components/Settings/LocalAiSettingsTab.razor");
 
         Assert.Contains("GetAiStatusAsync", source, StringComparison.Ordinal);
         Assert.Contains("GetAiProfileAsync", source, StringComparison.Ordinal);
@@ -22,7 +22,7 @@ public sealed class Phase7LocalAiTests
     [Fact]
     public void ModelsTab_RendersEngineModelStatusesAndLifecycleActions()
     {
-        var source = ReadRepoFile(@"src\MediaEngine.Web\Components\Settings\ModelsTab.razor");
+        var source = ReadRepoFile(@"src/MediaEngine.Web/Components/Settings/ModelsTab.razor");
 
         Assert.Contains("GetAiModelStatusesAsync", source, StringComparison.Ordinal);
         Assert.Contains("StartAiModelDownloadAsync", source, StringComparison.Ordinal);
@@ -40,7 +40,7 @@ public sealed class Phase7LocalAiTests
     [Fact]
     public void AiFeatures_LoadFromConfigAndExplainDependencies()
     {
-        var source = ReadRepoFile(@"src\MediaEngine.Web\Components\Settings\AiFeaturesTab.razor");
+        var source = ReadRepoFile(@"src/MediaEngine.Web/Components/Settings/AiFeaturesTab.razor");
 
         Assert.Contains("GetAiConfigAsync", source, StringComparison.Ordinal);
         Assert.Contains("SaveAiConfigAsync", source, StringComparison.Ordinal);
@@ -54,8 +54,8 @@ public sealed class Phase7LocalAiTests
     [Fact]
     public void AudiobookChapterNamingAutomation_IsRemoved()
     {
-        var shell = ReadRepoFile(@"src\MediaEngine.Web\Components\MediaEditor\SharedMediaEditorShell.razor");
-        var code = ReadRepoFile(@"src\MediaEngine.Web\Components\MediaEditor\SharedMediaEditorShell.razor.cs");
+        var shell = ReadRepoFile(@"src/MediaEngine.Web/Components/MediaEditor/SharedMediaEditorShell.razor");
+        var code = ReadRepoFile(@"src/MediaEngine.Web/Components/MediaEditor/SharedMediaEditorShell.razor.cs");
 
         Assert.DoesNotContain("Suggest chapter names", shell, StringComparison.Ordinal);
         Assert.DoesNotContain("SuggestAudiobookChapterNamesAsync", code, StringComparison.Ordinal);
@@ -65,8 +65,8 @@ public sealed class Phase7LocalAiTests
     [Fact]
     public void ScheduleAndVocabulary_LoadAndSaveAiConfig()
     {
-        var schedule = ReadRepoFile(@"src\MediaEngine.Web\Components\Settings\AiScheduleTab.razor");
-        var vocabulary = ReadRepoFile(@"src\MediaEngine.Web\Components\Settings\VibeVocabularyTab.razor");
+        var schedule = ReadRepoFile(@"src/MediaEngine.Web/Components/Settings/AiScheduleTab.razor");
+        var vocabulary = ReadRepoFile(@"src/MediaEngine.Web/Components/Settings/VibeVocabularyTab.razor");
 
         Assert.Contains("GetAiConfigAsync", schedule, StringComparison.Ordinal);
         Assert.Contains("SaveAiConfigAsync", schedule, StringComparison.Ordinal);
@@ -80,8 +80,8 @@ public sealed class Phase7LocalAiTests
     [Fact]
     public void AdvancedSettings_UseTheSharedUrlBackedSubsectionNavigationOnly()
     {
-        var localAi = ReadRepoFile(@"src\MediaEngine.Web\Components\Settings\LocalAiSettingsTab.razor");
-        var plugins = ReadRepoFile(@"src\MediaEngine.Web\Components\Settings\PluginSettingsTab.razor");
+        var localAi = ReadRepoFile(@"src/MediaEngine.Web/Components/Settings/LocalAiSettingsTab.razor");
+        var plugins = ReadRepoFile(@"src/MediaEngine.Web/Components/Settings/PluginSettingsTab.razor");
 
         Assert.Contains("NormalizedSubsection", localAi, StringComparison.Ordinal);
         Assert.Contains("NormalizedSubsection", plugins, StringComparison.Ordinal);
@@ -94,7 +94,7 @@ public sealed class Phase7LocalAiTests
     [Fact]
     public void LocalAiOverview_SurfacesUsefulControlsAndLinksTechnicalDetails()
     {
-        var source = ReadRepoFile(@"src\MediaEngine.Web\Components\Settings\LocalAiSettingsTab.razor");
+        var source = ReadRepoFile(@"src/MediaEngine.Web/Components/Settings/LocalAiSettingsTab.razor");
 
         Assert.Contains("DeviceContext.IsMobile", source, StringComparison.Ordinal);
         Assert.DoesNotContain("Local AI is partially available", source, StringComparison.Ordinal);
@@ -109,7 +109,7 @@ public sealed class Phase7LocalAiTests
     [Fact]
     public void PluginOverview_UsesInstalledTableAndLinksAdvancedOperations()
     {
-        var source = ReadRepoFile(@"src\MediaEngine.Web\Components\Settings\PluginSettingsTab.razor");
+        var source = ReadRepoFile(@"src/MediaEngine.Web/Components/Settings/PluginSettingsTab.razor");
 
         Assert.Contains("@InstalledPluginsPanel()", source, StringComparison.Ordinal);
         Assert.Contains("@AdvancedPluginLinks()", source, StringComparison.Ordinal);

@@ -55,7 +55,8 @@ public sealed class AdministratorSurfaceGateTests : AsyncBunitContext
         cut.WaitForAssertion(() => Assert.Contains("protected-settings", cut.Markup));
         Assert.Equal(1, handler.Unlocks);
         Assert.Equal(1, handler.Validations);
-        Assert.DoesNotContain("1234", cut.Markup);
+        // Generated element ids are hex, so only an isolated "1234" would be the PIN leaking.
+        Assert.DoesNotMatch(@"(?<![0-9a-fA-F])1234(?![0-9a-fA-F])", cut.Markup);
     }
 
     [Fact]
@@ -67,7 +68,8 @@ public sealed class AdministratorSurfaceGateTests : AsyncBunitContext
         await cut.InvokeAsync(() => cut.FindAll("button").Single(button => button.TextContent.Contains("Unlock settings")).Click());
         cut.WaitForAssertion(() => Assert.Contains("Engine is unavailable", cut.Markup));
         Assert.DoesNotContain("protected-settings", cut.Markup);
-        Assert.DoesNotContain("1234", cut.Markup);
+        // Generated element ids are hex, so only an isolated "1234" would be the PIN leaking.
+        Assert.DoesNotMatch(@"(?<![0-9a-fA-F])1234(?![0-9a-fA-F])", cut.Markup);
         handler.FailUnlock = false;
         handler.Unlocked = true;
         await cut.InvokeAsync(() => cut.Find("input[aria-label='Administrator PIN']").Input("5678"));

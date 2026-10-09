@@ -6,8 +6,8 @@ public sealed class IngestionLifecycleGuardrailTests
     public void IngestionEngine_ReusesTrackedOperationsBeforeCreatingBatches()
     {
         var source = ReadIngestionEngineSource();
-        var contract = ReadRepoSource(@"src\MediaEngine.Domain\Contracts\IMediaOperationRepository.cs");
-        var watcher = ReadRepoSource(@"src\MediaEngine.Ingestion\FileWatcher.cs");
+        var contract = ReadRepoSource(@"src/MediaEngine.Domain/Contracts/IMediaOperationRepository.cs");
+        var watcher = ReadRepoSource(@"src/MediaEngine.Ingestion/FileWatcher.cs");
 
         Assert.Contains("GetByIdempotencyKeyAsync", contract, StringComparison.Ordinal);
         Assert.Contains("GetActiveBySourcePathAsync", contract, StringComparison.Ordinal);
@@ -59,7 +59,7 @@ public sealed class IngestionLifecycleGuardrailTests
 
     private static string ReadIngestionEngineSource()
     {
-        var enginePath = FindRepoFile(@"src\MediaEngine.Ingestion\IngestionEngine.cs");
+        var enginePath = FindRepoFile(@"src/MediaEngine.Ingestion/IngestionEngine.cs");
         return string.Join(
             Environment.NewLine,
             Directory.EnumerateFiles(

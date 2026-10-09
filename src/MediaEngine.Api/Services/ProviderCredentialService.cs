@@ -121,7 +121,7 @@ public sealed class ProviderCredentialService
             || probe.Path.StartsWith("//", StringComparison.Ordinal)
             || probe.Path.Contains('#')
             || probe.Path.Contains('\\')
-            || Uri.TryCreate(probe.Path, UriKind.Absolute, out _))
+            || (Uri.TryCreate(probe.Path, UriKind.Absolute, out var absoluteProbe) && !absoluteProbe.IsFile))
         {
             return Failure("probe_unavailable", "This provider has an invalid authentication check path.");
         }

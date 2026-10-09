@@ -2838,7 +2838,7 @@ public sealed partial class PlaybackSessionController
         }
 
         var candidate = streamUrl.Trim();
-        if (Uri.TryCreate(candidate, UriKind.Absolute, out var absolute))
+        if (!candidate.StartsWith('/') && Uri.TryCreate(candidate, UriKind.Absolute, out var absolute))
         {
             candidate = absolute.PathAndQuery;
         }

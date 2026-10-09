@@ -5,11 +5,11 @@ public sealed class OperationsRecentlyAddedGuardrailTests
     [Fact]
     public void Administration_ConsolidatesLiveHistoryAndReviewWithoutParallelEditors()
     {
-        var operations = Read(@"src\MediaEngine.Web\Components\Pages\Operations.razor");
-        var recent = Read(@"src\MediaEngine.Web\Components\Pages\RecentlyAddedPageContent.razor");
-        var ingestion = Read(@"src\MediaEngine.Web\Components\Settings\IngestionTasksTab.razor");
-        var card = Read(@"src\MediaEngine.Web\Components\Settings\IngestionMediaCard.razor");
-        var settings = Read(@"src\MediaEngine.Web\Components\Pages\Settings.razor");
+        var operations = Read(@"src/MediaEngine.Web/Components/Pages/Operations.razor");
+        var recent = Read(@"src/MediaEngine.Web/Components/Pages/RecentlyAddedPageContent.razor");
+        var ingestion = Read(@"src/MediaEngine.Web/Components/Settings/IngestionTasksTab.razor");
+        var card = Read(@"src/MediaEngine.Web/Components/Settings/IngestionMediaCard.razor");
+        var settings = Read(@"src/MediaEngine.Web/Components/Pages/Settings.razor");
 
         Assert.Contains("@page \"/operations/ingestion\"", operations, StringComparison.Ordinal);
         Assert.Contains("@page \"/operations/recently-added\"", operations, StringComparison.Ordinal);

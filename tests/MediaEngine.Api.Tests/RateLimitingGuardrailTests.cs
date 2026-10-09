@@ -5,7 +5,7 @@ public sealed class RateLimitingGuardrailTests
     [Fact]
     public void Program_RunsRateLimiterBeforeAuthentication()
     {
-        var source = Read(@"src\MediaEngine.Api\Program.cs");
+        var source = Read(@"src/MediaEngine.Api/Program.cs");
 
         var rateLimiterIndex = source.IndexOf("app.UseRateLimiter();", StringComparison.Ordinal);
         var authenticationIndex = source.IndexOf("app.UseAuthentication();", StringComparison.Ordinal);
@@ -20,8 +20,8 @@ public sealed class RateLimitingGuardrailTests
     [Fact]
     public void IntercomNegotiation_RequiresPurposeTokenAfterRateLimiting()
     {
-        var source = Read(@"src\MediaEngine.Api\Program.cs");
-        var middleware = Read(@"src\MediaEngine.Api\Security\IntercomTokenAuthenticationMiddleware.cs");
+        var source = Read(@"src/MediaEngine.Api/Program.cs");
+        var middleware = Read(@"src/MediaEngine.Api/Security/IntercomTokenAuthenticationMiddleware.cs");
 
         var rateLimiterIndex = source.IndexOf("app.UseRateLimiter();", StringComparison.Ordinal);
         var intercomIndex = source.IndexOf("app.UseMiddleware<IntercomTokenAuthenticationMiddleware>();", StringComparison.Ordinal);
@@ -35,7 +35,7 @@ public sealed class RateLimitingGuardrailTests
     [Fact]
     public void Program_RegistersAGlobalRateLimiterDefault()
     {
-        var source = Read(@"src\MediaEngine.Api\Program.cs");
+        var source = Read(@"src/MediaEngine.Api/Program.cs");
 
         var addRateLimiterIndex = source.IndexOf("AddRateLimiter(options =>", StringComparison.Ordinal);
         Assert.True(addRateLimiterIndex >= 0, "builder.Services.AddRateLimiter(options => ...) was not found in Program.cs.");
@@ -57,7 +57,7 @@ public sealed class RateLimitingGuardrailTests
     public void GeneralLimiter_AllowsDashboardRequestFanOutAndAdvertisesRetryTiming()
     {
         var defaults = new MediaEngine.Domain.Configuration.RateLimitingSettings();
-        var source = Read(@"src\MediaEngine.Api\Program.cs");
+        var source = Read(@"src/MediaEngine.Api/Program.cs");
 
         Assert.True(defaults.General.PermitLimit >= 600);
         Assert.Contains("options.OnRejected", source, StringComparison.Ordinal);

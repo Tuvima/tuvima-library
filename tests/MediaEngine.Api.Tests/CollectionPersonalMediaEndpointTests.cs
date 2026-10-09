@@ -74,9 +74,9 @@ public sealed class CollectionPersonalMediaEndpointTests
     public void Routes_RequireTrustedProfiles_AdminWrites_AndCountFreeViewerProjection()
     {
         var endpoints = File.ReadAllText(GetRepoFilePath(
-            @"src\MediaEngine.Api\Endpoints\CollectionPersonalMediaEndpoints.cs"));
+            @"src/MediaEngine.Api/Endpoints/CollectionPersonalMediaEndpoints.cs"));
         var service = File.ReadAllText(GetRepoFilePath(
-            @"src\MediaEngine.Api\Services\Collections\CollectionPersonalMediaService.cs"));
+            @"src/MediaEngine.Api/Services/Collections/CollectionPersonalMediaService.cs"));
 
         Assert.Contains("IViewRequestProfileContext profileContext", endpoints, StringComparison.Ordinal);
         Assert.Contains("GetCollectionPersonalMediaSources", endpoints, StringComparison.Ordinal);

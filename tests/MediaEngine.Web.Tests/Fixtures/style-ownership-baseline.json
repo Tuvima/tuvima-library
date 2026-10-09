@@ -3974,7 +3974,7 @@
       "important": 2
     }
   ],
-  "finalBundleBytes": 1278063,
-  "finalBundleCeilingBytes": 1278063,
-  "finalizationEvidence": "P0-P5 implementation authorized by user; final Release publish-final-v16 verified over HTTP. Scoped CSS 1,278,063 bytes is below the inherited 1,526,854-byte ceiling. This finalizes the measurable CSS ratchet, not complete visual acceptance."
+  "finalBundleBytes": 1278151,
+  "finalBundleCeilingBytes": 1278151,
+  "finalizationEvidence": "P0-P5 implementation authorized by user; final Release publish-final-v16 verified over HTTP. Scoped CSS 1,278,063 bytes is below the inherited 1,526,854-byte ceiling. This finalizes the measurable CSS ratchet, not complete visual acceptance. Ceiling raised from 1,278,063 to 1,278,151 bytes (+88) after the setup-code step gained its own scoped stylesheet; first measured on the Linux CI Release publish."
 }

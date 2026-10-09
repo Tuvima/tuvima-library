@@ -25,7 +25,8 @@ public static class EngineImageProxyPath
             return value;
         }
 
-        if (Uri.TryCreate(value, UriKind.Absolute, out var absolute))
+        // A rooted "/path" parses as a file:// URI on Linux, so only treat non-rooted values as absolute.
+        if (!value.StartsWith('/') && Uri.TryCreate(value, UriKind.Absolute, out var absolute))
         {
             if (engineBaseAddress is not null
                 && HasSameOrigin(absolute, engineBaseAddress)

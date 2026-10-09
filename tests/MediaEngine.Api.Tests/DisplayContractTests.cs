@@ -108,8 +108,8 @@ public sealed class DisplayContractTests
     [Fact]
     public void DisplayEndpoints_AreVersionedConsumerEndpointsAndMappedInProgram()
     {
-        var endpointSource = File.ReadAllText(GetRepoFilePath(@"src\MediaEngine.Api\Endpoints\DisplayEndpoints.cs"));
-        var programSource = File.ReadAllText(GetRepoFilePath(@"src\MediaEngine.Api\DependencyInjection\ApiEndpointRouteBuilderExtensions.cs"));
+        var endpointSource = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Api/Endpoints/DisplayEndpoints.cs"));
+        var programSource = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Api/DependencyInjection/ApiEndpointRouteBuilderExtensions.cs"));
 
         Assert.Contains("app.MapGroup(\"/api/v1/display\")", endpointSource, StringComparison.Ordinal);
         Assert.Contains("group.MapGet(\"/home\"", endpointSource, StringComparison.Ordinal);
@@ -125,9 +125,9 @@ public sealed class DisplayContractTests
     [Fact]
     public void DisplayBrowse_LaneRequestsUseRichConsumerPageComposition()
     {
-        var source = File.ReadAllText(GetRepoFilePath(@"src\MediaEngine.Api\Services\Display\DisplayComposerService.cs"));
-        var cardBuilderSource = File.ReadAllText(GetRepoFilePath(@"src\MediaEngine.Api\Services\Display\DisplayCardBuilder.cs"));
-        var shelfBuilderSource = File.ReadAllText(GetRepoFilePath(@"src\MediaEngine.Api\Services\Display\DisplayShelfBuilder.cs"));
+        var source = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Api/Services/Display/DisplayComposerService.cs"));
+        var cardBuilderSource = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Api/Services/Display/DisplayCardBuilder.cs"));
+        var shelfBuilderSource = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Api/Services/Display/DisplayShelfBuilder.cs"));
 
         Assert.Contains("BuildLaneAsync(normalizedLane, includeCatalog, profileId, ct)", source, StringComparison.Ordinal);
         Assert.Contains("DisplayShelfBuilder", source, StringComparison.Ordinal);
@@ -146,8 +146,8 @@ public sealed class DisplayContractTests
     public void WebBrowseSurfaces_UseDisplayApiAndMediaTiles()
     {
         var clientSource = ReadEngineApiClientSources("IEngineApiClient*.cs");
-        var composerSource = File.ReadAllText(GetRepoFilePath(@"src\MediaEngine.Web\Services\MediaTiles\MediaTileComposerService.cs"));
-        var browseShellSource = File.ReadAllText(GetRepoFilePath(@"src\MediaEngine.Web\Components\Browse\MediaBrowseShell.razor"));
+        var composerSource = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Web/Services/MediaTiles/MediaTileComposerService.cs"));
+        var browseShellSource = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Web/Components/Browse/MediaBrowseShell.razor"));
 
         Assert.Contains("GetDisplayBrowseAsync", clientSource, StringComparison.Ordinal);
         Assert.Contains("GetDisplayBrowseAsync(lane: \"read\"", composerSource, StringComparison.Ordinal);
@@ -162,8 +162,8 @@ public sealed class DisplayContractTests
     [Fact]
     public void DisplayProjection_ExposesSizedArtworkFields()
     {
-        var workProjection = File.ReadAllText(GetRepoFilePath(@"src\MediaEngine.Api\Services\Display\DisplayWorkProjectionReader.cs"));
-        var journeyProjection = File.ReadAllText(GetRepoFilePath(@"src\MediaEngine.Api\Services\Display\DisplayJourneyProjectionReader.cs"));
+        var workProjection = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Api/Services/Display/DisplayWorkProjectionReader.cs"));
+        var journeyProjection = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Api/Services/Display/DisplayJourneyProjectionReader.cs"));
 
         Assert.Contains("entity_id = AssetId AND key IN ('cover_url', 'cover', 'poster_url', 'poster', 'episode_still_url', 'episode_still', 'still_url', 'still')", workProjection, StringComparison.Ordinal);
         Assert.Contains("entity_id = WorkId AND key IN ('cover_url', 'cover', 'poster_url', 'poster', 'episode_still_url', 'episode_still', 'still_url', 'still')", workProjection, StringComparison.Ordinal);
@@ -183,8 +183,8 @@ public sealed class DisplayContractTests
     [Fact]
     public void DisplayProjections_UseSharedVisibilityRulesForCatalogAndContinueRows()
     {
-        var workProjection = File.ReadAllText(GetRepoFilePath(@"src\MediaEngine.Api\Services\Display\DisplayWorkProjectionReader.cs"));
-        var journeyProjection = File.ReadAllText(GetRepoFilePath(@"src\MediaEngine.Api\Services\Display\DisplayJourneyProjectionReader.cs"));
+        var workProjection = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Api/Services/Display/DisplayWorkProjectionReader.cs"));
+        var journeyProjection = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Api/Services/Display/DisplayJourneyProjectionReader.cs"));
 
         Assert.Contains("HomeVisibilitySql.VisibleWorkPredicate(\"w.id\", \"w.curator_state\", \"w.is_catalog_only\")", workProjection, StringComparison.Ordinal);
         Assert.Contains("HomeVisibilitySql.VisibleWorkPredicate(\"w.id\", \"w.curator_state\", \"w.is_catalog_only\")", journeyProjection, StringComparison.Ordinal);
@@ -197,7 +197,7 @@ public sealed class DisplayContractTests
 
     private static string ReadEngineApiClientSources(string pattern)
     {
-        var directory = GetRepoFilePath(@"src\MediaEngine.Web\Services\Integration");
+        var directory = GetRepoFilePath(@"src/MediaEngine.Web/Services/Integration");
         return string.Join(
             "\n",
             Directory.EnumerateFiles(directory, pattern)

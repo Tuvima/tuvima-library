@@ -39,6 +39,13 @@ public sealed class ProgressiveHlsTests
         await inspection.StoreInspectionAsync(asset, "hash", 100, 120, "mp4", System.Text.Json.JsonSerializer.Serialize(new MediaProbeResult { Height = 360, Duration = TimeSpan.FromSeconds(120), SubtitleLanguages = ["en"] }));
         var service = new AdaptiveHlsService(packages, new MediaAssetRepository(db), new TextTrackRepository(db), ffmpeg, config, new Lifetime(), NullLogger<AdaptiveHlsService>.Instance, inspection);
         var first = await service.EnsurePackageAsync(asset, "hash", []);
+        // The service answers "preparing" after one second and the player asks again; a loaded CI runner can
+        // take longer than that to write the first segment, so ask again like the player does.
+        for (var attempt = 0; attempt < 40 && first.Status == "preparing"; attempt++)
+        {
+            await Task.Delay(250);
+            first = await service.EnsurePackageAsync(asset, "hash", []);
+        }
         try
         {
             Assert.Equal("streaming", first.Status);

@@ -982,7 +982,12 @@ public sealed class WireContractSnapshotTests
             return shapeId;
         }
 
-        private string BuildDefinition(Type type, ShapeDirection direction)
+        // Shape IDs are hashes of these definitions. The approved fixtures were generated on Windows, where
+        // AppendLine writes CRLF, so the definition text is pinned to CRLF to give the same IDs on every OS.
+        private string BuildDefinition(Type type, ShapeDirection direction) =>
+            BuildDefinitionCore(type, direction).ReplaceLineEndings("\r\n");
+
+        private string BuildDefinitionCore(Type type, ShapeDirection direction)
         {
             var builder = new StringBuilder();
             builder.Append("direction=")

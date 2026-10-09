@@ -19,8 +19,8 @@ public sealed class ReconciliationAdapterTitleLanguageTests
 
     private static string ReadAdapterSource(string adapterName)
     {
-        var facade = GetRepoFilePath($@"src\MediaEngine.Providers\Adapters\{adapterName}.cs");
-        var internals = GetRepoFilePath(@"src\MediaEngine.Providers\Adapters\Internals");
+        var facade = GetRepoFilePath($@"src/MediaEngine.Providers/Adapters/{adapterName}.cs");
+        var internals = GetRepoFilePath(@"src/MediaEngine.Providers/Adapters/Internals");
         return string.Join(
             Environment.NewLine,
             new[] { facade }

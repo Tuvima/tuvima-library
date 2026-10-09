@@ -8,8 +8,8 @@ public sealed class PersonAndWorkEndpointRouteTests
     public void PersonEndpoints_ExposeRichPersonShellAndLibraryCredits()
     {
         var source =
-            File.ReadAllText(GetRepoFilePath(@"src\MediaEngine.Api\Endpoints\PersonEndpoints.cs"))
-            + File.ReadAllText(GetRepoFilePath(@"src\MediaEngine.Contracts\Persons\PersonResponses.cs"));
+            File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Api/Endpoints/PersonEndpoints.cs"))
+            + File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Contracts/Persons/PersonResponses.cs"));
 
         Assert.Contains("group.MapGet(\"/{id:guid}/library-credits\"", source, StringComparison.Ordinal);
         Assert.Contains("IPersonCreditReadService personCreditReadService", source, StringComparison.Ordinal);
@@ -28,8 +28,8 @@ public sealed class PersonAndWorkEndpointRouteTests
     [Fact]
     public void CharacterRoleQuery_UsesStoredWorkQidInsteadOfInferringFirstWork()
     {
-        var endpointSource = File.ReadAllText(GetRepoFilePath(@"src\MediaEngine.Api\Endpoints\CharacterEndpoints.cs"));
-        var querySource = File.ReadAllText(GetRepoFilePath(@"src\MediaEngine.Api\Services\ReadServices\PersonCreditReadService.cs"));
+        var endpointSource = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Api/Endpoints/CharacterEndpoints.cs"));
+        var querySource = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Api/Services/ReadServices/PersonCreditReadService.cs"));
 
         Assert.Contains("group.MapGet(\"/persons/{personId:guid}/character-roles\"", endpointSource, StringComparison.Ordinal);
         Assert.Contains("group.MapGet(\"/portraits/{portraitId:guid}\"", endpointSource, StringComparison.Ordinal);
@@ -46,10 +46,10 @@ public sealed class PersonAndWorkEndpointRouteTests
     [Fact]
     public void WorkAndCollectionCastEndpoints_ShareTheSameCastCreditShape()
     {
-        var workEndpointSource = File.ReadAllText(GetRepoFilePath(@"src\MediaEngine.Api\Endpoints\WorkEndpoints.cs"));
-        var collectionEndpointSource = File.ReadAllText(GetRepoFilePath(@"src\MediaEngine.Api\Endpoints\CollectionEndpoints.cs"));
-        var dtoSource = File.ReadAllText(GetRepoFilePath(@"src\MediaEngine.Contracts\Collections\CollectionGroups.cs"));
-        var programSource = File.ReadAllText(GetRepoFilePath(@"src\MediaEngine.Api\DependencyInjection\ApiEndpointRouteBuilderExtensions.cs"));
+        var workEndpointSource = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Api/Endpoints/WorkEndpoints.cs"));
+        var collectionEndpointSource = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Api/Endpoints/CollectionEndpoints.cs"));
+        var dtoSource = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Contracts/Collections/CollectionGroups.cs"));
+        var programSource = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Api/DependencyInjection/ApiEndpointRouteBuilderExtensions.cs"));
 
         Assert.Contains("group.MapGet(\"/{workId:guid}/cast\"", workEndpointSource, StringComparison.Ordinal);
         Assert.Contains("personCreditReadService.BuildForWorkAsync(workId, ct)", workEndpointSource, StringComparison.Ordinal);
@@ -61,7 +61,7 @@ public sealed class PersonAndWorkEndpointRouteTests
     [Fact]
     public void CastCreditQuery_QualifiesWorkIdentityColumns()
     {
-        var querySource = File.ReadAllText(GetRepoFilePath(@"src\MediaEngine.Api\Services\ReadServices\PersonCreditReadService.cs"));
+        var querySource = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Api/Services/ReadServices/PersonCreditReadService.cs"));
 
         Assert.Contains("SELECT w.id AS WorkId", querySource, StringComparison.Ordinal);
         Assert.Contains(")                                      AS WorkQid", querySource, StringComparison.Ordinal);
@@ -74,10 +74,10 @@ public sealed class PersonAndWorkEndpointRouteTests
         // The album-track manifest logic moved out of the endpoint file into
         // AlbumTrackManifestService in stage 5A; scan both as one surface.
         var endpointSource =
-            File.ReadAllText(GetRepoFilePath(@"src\MediaEngine.Api\Endpoints\CollectionEndpoints.cs"))
-            + File.ReadAllText(GetRepoFilePath(@"src\MediaEngine.Api\Services\Collections\AlbumTrackManifestService.cs"))
-            + File.ReadAllText(GetRepoFilePath(@"src\MediaEngine.Providers\Services\AppleAlbumManifestJson.cs"));
-        var dtoSource = File.ReadAllText(GetRepoFilePath(@"src\MediaEngine.Contracts\Collections\CollectionGroups.cs"));
+            File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Api/Endpoints/CollectionEndpoints.cs"))
+            + File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Api/Services/Collections/AlbumTrackManifestService.cs"))
+            + File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Providers/Services/AppleAlbumManifestJson.cs"));
+        var dtoSource = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Contracts/Collections/CollectionGroups.cs"));
 
         Assert.Contains("PrimaryColor", dtoSource, StringComparison.Ordinal);
         Assert.Contains("SecondaryColor", dtoSource, StringComparison.Ordinal);
@@ -94,8 +94,8 @@ public sealed class PersonAndWorkEndpointRouteTests
     [Fact]
     public void WorkEndpoints_ExposeReadOnlyWorkAndEditionIdentitySurfaces()
     {
-        var workEndpointSource = File.ReadAllText(GetRepoFilePath(@"src\MediaEngine.Api\Endpoints\WorkEndpoints.cs"));
-        var dtoSource = File.ReadAllText(GetRepoFilePath(@"src\MediaEngine.Contracts\Collections\LegacyCollectionContracts.cs"));
+        var workEndpointSource = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Api/Endpoints/WorkEndpoints.cs"));
+        var dtoSource = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Contracts/Collections/LegacyCollectionContracts.cs"));
 
         Assert.Contains("group.MapGet(\"/{workId:guid}\", async (", workEndpointSource, StringComparison.Ordinal);
         Assert.Contains(".WithName(\"GetWorkDetail\")", workEndpointSource, StringComparison.Ordinal);
@@ -109,8 +109,8 @@ public sealed class PersonAndWorkEndpointRouteTests
     [Fact]
     public void PersonAndUniverseEndpoints_PreferLocalHeadshotRoutes()
     {
-        var personSource = File.ReadAllText(GetRepoFilePath(@"src\MediaEngine.Api\Endpoints\PersonEndpoints.cs"));
-        var graphSource = File.ReadAllText(GetRepoFilePath(@"src\MediaEngine.Api\Endpoints\UniverseGraphEndpoints.cs"));
+        var personSource = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Api/Endpoints/PersonEndpoints.cs"));
+        var graphSource = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Api/Endpoints/UniverseGraphEndpoints.cs"));
 
         Assert.Contains("ApiImageUrls.BuildPersonHeadshotUrl", personSource, StringComparison.Ordinal);
         Assert.Contains("ApiImageUrls.BuildPersonHeadshotUrl", graphSource, StringComparison.Ordinal);
@@ -119,7 +119,7 @@ public sealed class PersonAndWorkEndpointRouteTests
     [Fact]
     public void UniverseCastEndpoint_UsesTypedBatchedPersonRepositoryRead()
     {
-        var graphSource = File.ReadAllText(GetRepoFilePath(@"src\MediaEngine.Api\Endpoints\UniverseGraphEndpoints.cs"));
+        var graphSource = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Api/Endpoints/UniverseGraphEndpoints.cs"));
 
         Assert.Contains("IPersonRepository personRepo", graphSource, StringComparison.Ordinal);
         Assert.Contains("personRepo.GetCharacterPerformersAsync(", graphSource, StringComparison.Ordinal);

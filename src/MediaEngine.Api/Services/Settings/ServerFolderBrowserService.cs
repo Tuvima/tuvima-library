@@ -254,7 +254,8 @@ public sealed class ServerFolderBrowserService(
         }
 
         var relative = NormalizeRelative(relativePath);
-        if (Path.IsPathRooted(relative) || RelativeSegments(relative).Any(segment => segment == ".."))
+        if (Path.IsPathRooted(relative) || RelativeSegments(relative).Any(segment => segment == "..")
+            || relative.Split('\\').Any(segment => segment == ".."))
         {
             throw new ServerFolderAccessException("Folder navigation cannot leave the approved storage location.");
         }

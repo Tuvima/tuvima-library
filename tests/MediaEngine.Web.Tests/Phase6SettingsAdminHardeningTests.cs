@@ -6,7 +6,7 @@ public sealed class Phase6SettingsAdminHardeningTests
     [Fact]
     public void SystemOverview_RemainsConciseAndRoutesProcessingToIngestion()
     {
-        var source = ReadRepoFile(@"src\MediaEngine.Web\Components\Settings\OverviewTab.razor");
+        var source = ReadRepoFile(@"src/MediaEngine.Web/Components/Settings/OverviewTab.razor");
 
         Assert.Contains("System exceptions", source, StringComparison.Ordinal);
         Assert.DoesNotContain("System Status", source, StringComparison.Ordinal);
@@ -27,9 +27,9 @@ public sealed class Phase6SettingsAdminHardeningTests
     [Fact]
     public void SharedPresentation_DefinesReusableMediaAndActivityColors()
     {
-        var media = ReadRepoFile(@"src\MediaEngine.Web\Components\Shared\AppMediaPresentation.cs");
-        var activity = ReadRepoFile(@"src\MediaEngine.Web\Components\Shared\AppActivityPresentation.cs");
-        var iconTile = ReadRepoFile(@"src\MediaEngine.Web\Components\Shared\AppIconTile.razor");
+        var media = ReadRepoFile(@"src/MediaEngine.Web/Components/Shared/AppMediaPresentation.cs");
+        var activity = ReadRepoFile(@"src/MediaEngine.Web/Components/Shared/AppActivityPresentation.cs");
+        var iconTile = ReadRepoFile(@"src/MediaEngine.Web/Components/Shared/AppIconTile.razor");
 
         Assert.Contains("--tl-media-books", media, StringComparison.Ordinal);
         Assert.Contains("--tl-media-audiobooks", media, StringComparison.Ordinal);
@@ -44,10 +44,10 @@ public sealed class Phase6SettingsAdminHardeningTests
     [Fact]
     public void SystemOverview_UsesTheCompactReferenceSizingRhythm()
     {
-        var overview = ReadRepoFile(@"src\MediaEngine.Web\Components\Settings\OverviewTab.razor");
-        var styles = ReadRepoFile(@"src\MediaEngine.Web\Components\Settings\OverviewTab.razor.css");
-        var settingsStyles = ReadRepoFile(@"src\MediaEngine.Web\Components\Pages\Settings.razor.css");
-        var iconTile = ReadRepoFile(@"src\MediaEngine.Web\Components\Shared\AppIconTile.razor");
+        var overview = ReadRepoFile(@"src/MediaEngine.Web/Components/Settings/OverviewTab.razor");
+        var styles = ReadRepoFile(@"src/MediaEngine.Web/Components/Settings/OverviewTab.razor.css");
+        var settingsStyles = ReadRepoFile(@"src/MediaEngine.Web/Components/Pages/Settings.razor.css");
+        var iconTile = ReadRepoFile(@"src/MediaEngine.Web/Components/Shared/AppIconTile.razor");
 
         Assert.Contains("admin-overview-card--attention admin-attention-strip", overview, StringComparison.Ordinal);
         Assert.Contains("padding: 18px", styles, StringComparison.Ordinal);
@@ -68,7 +68,7 @@ public sealed class Phase6SettingsAdminHardeningTests
     [Fact]
     public void SettingsShell_OmitsRedundantEngineBadgeAndKeepsUnavailableState()
     {
-        var source = ReadRepoFile(@"src\MediaEngine.Web\Components\Pages\Settings.razor");
+        var source = ReadRepoFile(@"src/MediaEngine.Web/Components/Pages/Settings.razor");
 
         Assert.DoesNotContain("GetHeaderStatusLabel", source, StringComparison.Ordinal);
         Assert.DoesNotContain("Engine online", source, StringComparison.Ordinal);
@@ -80,7 +80,7 @@ public sealed class Phase6SettingsAdminHardeningTests
     [Fact]
     public void SettingsNav_ClassifiesAdminSectionsWithTruthStatuses()
     {
-        var source = ReadRepoFile(@"src\MediaEngine.Web\Models\ViewDTOs\SettingsNav.cs");
+        var source = ReadRepoFile(@"src/MediaEngine.Web/Models/ViewDTOs/SettingsNav.cs");
 
         Assert.Contains("SettingsStatusKind.Live", source, StringComparison.Ordinal);
         Assert.Contains("SettingsStatusKind.Partial", source, StringComparison.Ordinal);
@@ -93,9 +93,9 @@ public sealed class Phase6SettingsAdminHardeningTests
     [Fact]
     public void LibrariesTab_RendersCataloguedLibrariesAndViewRootAdministration()
     {
-        var source = ReadRepoFile(@"src\MediaEngine.Web\Components\Settings\LibrariesTab.razor");
-        var nav = ReadRepoFile(@"src\MediaEngine.Web\Models\ViewDTOs\SettingsNav.cs");
-        var settings = ReadRepoFile(@"src\MediaEngine.Web\Components\Pages\Settings.razor");
+        var source = ReadRepoFile(@"src/MediaEngine.Web/Components/Settings/LibrariesTab.razor");
+        var nav = ReadRepoFile(@"src/MediaEngine.Web/Models/ViewDTOs/SettingsNav.cs");
+        var settings = ReadRepoFile(@"src/MediaEngine.Web/Components/Pages/Settings.razor");
 
         Assert.DoesNotContain("aria-label=\"Media Management sections\"", source, StringComparison.Ordinal);
         Assert.Contains("new(SettingsSection.Libraries", nav, StringComparison.Ordinal);
@@ -103,7 +103,7 @@ public sealed class Phase6SettingsAdminHardeningTests
         Assert.DoesNotContain("<SettingsSubsectionNav", settings, StringComparison.Ordinal);
 
         Assert.Contains("All libraries", source, StringComparison.Ordinal);
-        Assert.Contains("Personal Space", ReadRepoFile(@"src\MediaEngine.Web\Components\Settings\ViewLibrarySettings.razor"), StringComparison.Ordinal);
+        Assert.Contains("Personal Space", ReadRepoFile(@"src/MediaEngine.Web/Components/Settings/ViewLibrarySettings.razor"), StringComparison.Ordinal);
         Assert.DoesNotContain("Import folders", source, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("Choose a media area", source, StringComparison.Ordinal);
         Assert.Contains("new(\"all\", \"All\"", source, StringComparison.Ordinal);
@@ -139,10 +139,10 @@ public sealed class Phase6SettingsAdminHardeningTests
     [Fact]
     public void WatchTv_UsesSharedBrowseShellAndDirectShowDetails()
     {
-        var watchPage = ReadRepoFile(@"src\MediaEngine.Web\Components\Pages\WatchPage.razor");
-        var lanePage = ReadRepoFile(@"src\MediaEngine.Web\Components\Pages\MediaLanePage.razor");
-        var browseShell = ReadRepoFile(@"src\MediaEngine.Web\Components\Browse\MediaBrowseShell.razor");
-        var queryBuilder = ReadRepoFile(@"src\MediaEngine.Web\Components\Browse\BrowseQueryBuilder.cs");
+        var watchPage = ReadRepoFile(@"src/MediaEngine.Web/Components/Pages/WatchPage.razor");
+        var lanePage = ReadRepoFile(@"src/MediaEngine.Web/Components/Pages/MediaLanePage.razor");
+        var browseShell = ReadRepoFile(@"src/MediaEngine.Web/Components/Browse/MediaBrowseShell.razor");
+        var queryBuilder = ReadRepoFile(@"src/MediaEngine.Web/Components/Browse/BrowseQueryBuilder.cs");
 
         Assert.Contains("<MediaLanePage Title=\"Watch\"", watchPage, StringComparison.Ordinal);
         Assert.Contains("<MediaBrowseShell Tab=\"@Tab\"", lanePage, StringComparison.Ordinal);
@@ -157,8 +157,8 @@ public sealed class Phase6SettingsAdminHardeningTests
     [Fact]
     public void MetadataSettings_DoesNotUseHardcodedFallbackAsLiveConfig()
     {
-        var source = ReadRepoFile(@"src\MediaEngine.Web\Components\Settings\MetadataSettingsPage.razor")
-                     + ReadRepoFile(@"src\MediaEngine.Web\Services\Integration\MetadataSettingsStateService.cs");
+        var source = ReadRepoFile(@"src/MediaEngine.Web/Components/Settings/MetadataSettingsPage.razor")
+                     + ReadRepoFile(@"src/MediaEngine.Web/Services/Integration/MetadataSettingsStateService.cs");
 
         Assert.Contains("No sample provider state is being shown", source, StringComparison.Ordinal);
         Assert.DoesNotContain("Load sample chain", source, StringComparison.Ordinal);
@@ -175,8 +175,8 @@ public sealed class Phase6SettingsAdminHardeningTests
     [Fact]
     public void MetadataSettings_ReadsConfiguredPipelinesAndExplainsCanonicalResponsibilities()
     {
-        var page = ReadRepoFile(@"src\MediaEngine.Web\Components\Settings\MetadataSettingsPage.razor");
-        var state = ReadRepoFile(@"src\MediaEngine.Web\Services\Integration\MetadataSettingsStateService.cs");
+        var page = ReadRepoFile(@"src/MediaEngine.Web/Components/Settings/MetadataSettingsPage.razor");
+        var state = ReadRepoFile(@"src/MediaEngine.Web/Services/Integration/MetadataSettingsStateService.cs");
 
         Assert.Contains("GetPipelinesAsync", state, StringComparison.Ordinal);
         Assert.Contains("BuildFlow(mediaType, pipelines, providers)", state, StringComparison.Ordinal);
@@ -203,7 +203,7 @@ public sealed class Phase6SettingsAdminHardeningTests
         foreach (var icon in expectedIcons)
         {
             Assert.True(
-                File.Exists(GetRepoPath($@"src\MediaEngine.Web\wwwroot\images\providers\{icon}")),
+                File.Exists(GetRepoPath($@"src/MediaEngine.Web/wwwroot/images/providers/{icon}")),
                 $"Expected provider icon asset {icon} to exist.");
         }
 
@@ -220,7 +220,7 @@ public sealed class Phase6SettingsAdminHardeningTests
 
         foreach (var config in providerConfigs)
         {
-            var configJson = ReadRepoFile($@"config\providers\{config}");
+            var configJson = ReadRepoFile($@"config/providers/{config}");
             Assert.Contains("\"icon\"", configJson, StringComparison.Ordinal);
             Assert.Contains("images/providers/", configJson, StringComparison.Ordinal);
         }
@@ -229,8 +229,8 @@ public sealed class Phase6SettingsAdminHardeningTests
     [Fact]
     public void MetadataSettings_UseTheDedicatedTwoSurfaceExperience()
     {
-        var settings = ReadRepoFile(@"src\MediaEngine.Web\Components\Pages\Settings.razor");
-        var nav = ReadRepoFile(@"src\MediaEngine.Web\Models\ViewDTOs\SettingsNav.cs");
+        var settings = ReadRepoFile(@"src/MediaEngine.Web/Components/Pages/Settings.razor");
+        var nav = ReadRepoFile(@"src/MediaEngine.Web/Models/ViewDTOs/SettingsNav.cs");
         var metadataTabPath = Path.GetFullPath(Path.Combine(
             AppContext.BaseDirectory,
             "..",
@@ -238,7 +238,7 @@ public sealed class Phase6SettingsAdminHardeningTests
             "..",
             "..",
             "..",
-            @"src\MediaEngine.Web\Components\Settings\MetadataMatchingTab.razor"));
+            @"src/MediaEngine.Web/Components/Settings/MetadataMatchingTab.razor"));
 
         Assert.False(File.Exists(metadataTabPath));
         Assert.DoesNotContain("MetadataMatchingTab", settings, StringComparison.Ordinal);
@@ -253,8 +253,8 @@ public sealed class Phase6SettingsAdminHardeningTests
     [Fact]
     public void AccessSettings_SeparatesAccountsFromProfiles()
     {
-        var source = ReadRepoFile(@"src\MediaEngine.Web\Components\Settings\UsersAccessSettingsTab.razor");
-        var users = ReadRepoFile(@"src\MediaEngine.Web\Components\Settings\ManagedAccessUsers.razor");
+        var source = ReadRepoFile(@"src/MediaEngine.Web/Components/Settings/UsersAccessSettingsTab.razor");
+        var users = ReadRepoFile(@"src/MediaEngine.Web/Components/Settings/ManagedAccessUsers.razor");
 
         Assert.Contains("<ManagedAccessApplications />", source, StringComparison.Ordinal);
         Assert.Contains("Authentication", source, StringComparison.Ordinal);
@@ -270,9 +270,9 @@ public sealed class Phase6SettingsAdminHardeningTests
     [Fact]
     public void DeliveryPluginsAndLocalAi_AreTruthLabeled()
     {
-        var delivery = ReadRepoFile(@"src\MediaEngine.Web\Components\Settings\PlaybackDeliverySettingsTab.razor");
-        var plugins = ReadRepoFile(@"src\MediaEngine.Web\Components\Settings\PluginSettingsTab.razor");
-        var localAi = ReadRepoFile(@"src\MediaEngine.Web\Components\Settings\LocalAiSettingsTab.razor");
+        var delivery = ReadRepoFile(@"src/MediaEngine.Web/Components/Settings/PlaybackDeliverySettingsTab.razor");
+        var plugins = ReadRepoFile(@"src/MediaEngine.Web/Components/Settings/PluginSettingsTab.razor");
+        var localAi = ReadRepoFile(@"src/MediaEngine.Web/Components/Settings/LocalAiSettingsTab.razor");
 
         Assert.Contains("Variant Storage", delivery, StringComparison.Ordinal);
         Assert.Contains("Diagnostics", delivery, StringComparison.Ordinal);

@@ -68,8 +68,8 @@ public sealed class SourceMutationIntegrationTests
     [Fact]
     public void FilesystemMutationCallsites_AreGuardedByResolvedSourcePolicy()
     {
-        var autoOrganize = ReadRepoSource(@"src\MediaEngine.Ingestion\AutoOrganizeService.cs");
-        var writeBack = ReadRepoSource(@"src\MediaEngine.Ingestion\Services\WriteBackService.cs");
+        var autoOrganize = ReadRepoSource(@"src/MediaEngine.Ingestion/AutoOrganizeService.cs");
+        var writeBack = ReadRepoSource(@"src/MediaEngine.Ingestion/Services/WriteBackService.cs");
 
         Assert.Contains("if (!CanMoveBetween(asset.FilePathRoot, destPath))", autoOrganize, StringComparison.Ordinal);
         Assert.Contains("if (!CanMoveBetween(asset.FilePathRoot, newDest))", autoOrganize, StringComparison.Ordinal);

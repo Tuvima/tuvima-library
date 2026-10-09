@@ -22,8 +22,8 @@ public sealed class NetworkSettingsUiTests
     [Fact]
     public void FirstRunUsesTheVersionedSetupWorkflow()
     {
-        var setup = Read(@"src\MediaEngine.Web\Components\Pages\SetupPage.razor");
-        var media = Read(@"src\MediaEngine.Web\Components\Setup\SetupMediaStage.razor");
+        var setup = Read(@"src/MediaEngine.Web/Components/Pages/SetupPage.razor");
+        var media = Read(@"src/MediaEngine.Web/Components/Setup/SetupMediaStage.razor");
 
         Assert.Contains("@page \"/setup\"", setup, StringComparison.Ordinal);
         Assert.Contains("UploadBackupAsync", setup, StringComparison.Ordinal);
@@ -35,9 +35,9 @@ public sealed class NetworkSettingsUiTests
     [Fact]
     public void RetiredNetworkWizardFlagAndSetupCompletionFieldAreRemoved()
     {
-        var layout = Read(@"src\MediaEngine.Web\Shared\MainLayout.razor");
-        var appSettings = Read(@"src\MediaEngine.Web\appsettings.json");
-        var network = Read(@"src\MediaEngine.Contracts\Settings\NetworkSettingsContracts.cs");
+        var layout = Read(@"src/MediaEngine.Web/Shared/MainLayout.razor");
+        var appSettings = Read(@"src/MediaEngine.Web/appsettings.json");
+        var network = Read(@"src/MediaEngine.Contracts/Settings/NetworkSettingsContracts.cs");
 
         Assert.DoesNotContain("NetworkSetupWizardEnabled", layout, StringComparison.Ordinal);
         Assert.DoesNotContain("NetworkSetupWizardEnabled", appSettings, StringComparison.Ordinal);
@@ -47,8 +47,8 @@ public sealed class NetworkSettingsUiTests
     [Fact]
     public void RemoteAccessOffersOnlySupportedSecurePathsAndKeepsRouterToolsAdvanced()
     {
-        var remote = Read(@"src\MediaEngine.Web\Components\Settings\RemoteAccessSettingsPanel.razor");
-        var advanced = Read(@"src\MediaEngine.Web\Components\Settings\AdvancedNetworkSettingsPanel.razor");
+        var remote = Read(@"src/MediaEngine.Web/Components/Settings/RemoteAccessSettingsPanel.razor");
+        var advanced = Read(@"src/MediaEngine.Web/Components/Settings/AdvancedNetworkSettingsPanel.razor");
 
         Assert.Contains("Local network only — Default", remote, StringComparison.Ordinal);
         Assert.Contains("Tailscale Serve", remote, StringComparison.Ordinal);
@@ -64,12 +64,12 @@ public sealed class NetworkSettingsUiTests
     [Fact]
     public void ConnectionTestDialogOwnsItsPortalRenderedLayoutAndCannotOverflowHorizontally()
     {
-        var dialog = Read(@"src\MediaEngine.Web\Components\Settings\NetworkTestDialog.razor");
-        var dialogStyles = Read(@"src\MediaEngine.Web\Components\Settings\NetworkTestDialog.razor.css");
-        var dialogHost = Read(@"src\MediaEngine.Web\Components\Shared\AppDialog.razor");
-        var shellStyles = Read(@"src\MediaEngine.Web\Components\Shared\AppDialogShell.razor.css");
-        var appStyles = Read(@"src\MediaEngine.Web\wwwroot\app.css");
-        var settingsStyles = Read(@"src\MediaEngine.Web\Components\Settings\NetworkRemoteAccessSettings.razor.css");
+        var dialog = Read(@"src/MediaEngine.Web/Components/Settings/NetworkTestDialog.razor");
+        var dialogStyles = Read(@"src/MediaEngine.Web/Components/Settings/NetworkTestDialog.razor.css");
+        var dialogHost = Read(@"src/MediaEngine.Web/Components/Shared/AppDialog.razor");
+        var shellStyles = Read(@"src/MediaEngine.Web/Components/Shared/AppDialogShell.razor.css");
+        var appStyles = Read(@"src/MediaEngine.Web/wwwroot/app.css");
+        var settingsStyles = Read(@"src/MediaEngine.Web/Components/Settings/NetworkRemoteAccessSettings.razor.css");
 
         Assert.Contains("network-test-dialog__content", dialog, StringComparison.Ordinal);
         Assert.Contains("grid-template-columns: auto minmax(0, 1fr)", dialogStyles, StringComparison.Ordinal);
@@ -85,7 +85,7 @@ public sealed class NetworkSettingsUiTests
     [Fact]
     public void DashboardHonorsForwardedHeadersOnlyFromConfiguredProxyAddresses()
     {
-        var source = Read(@"src\MediaEngine.Web\Program.cs");
+        var source = Read(@"src/MediaEngine.Web/Program.cs");
 
         Assert.Contains("ForwardedHeaderConfiguration.Configure", source, StringComparison.Ordinal);
         Assert.DoesNotContain("app.UseForwardedHeaders()", source, StringComparison.Ordinal);

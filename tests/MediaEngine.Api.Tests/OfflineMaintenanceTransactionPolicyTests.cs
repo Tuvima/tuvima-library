@@ -26,12 +26,12 @@ public sealed class OfflineMaintenanceTransactionPolicyTests
         {
             Assert.Contains("Pooling = false", source);
             Assert.Contains("ProcessInstanceLease.DashboardLeaseName", source);
-            Assert.Contains("if (!dashboard.IsAcquired) throw", source);
+            Assert.Matches(@"if \(!dashboard\.IsAcquired\)\s*\{?\s*throw", source);
             Assert.Contains("RequireSeparate", source);
             Assert.Contains("library-before.db", source);
             Assert.Contains("BackupDatabase", source);
         }
-        Assert.Contains("if (!engine.IsAcquired) throw", repair);
+        Assert.Matches(@"if \(!engine\.IsAcquired\)\s*\{?\s*throw", repair);
         Assert.Contains("ProcessInstanceLease.EngineLeaseName", repair);
         Assert.Contains("A protected real-media run is required.", repair);
         Assert.Contains("RealMediaHarness.ValidateConfiguration(configDirectory, run);", repair);

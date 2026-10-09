@@ -20,7 +20,7 @@ public sealed class ProblemDetailsGuardrailTests
     [Fact]
     public void Program_RegistersStructuredSafeExceptionHandling()
     {
-        var source = Read(@"src\MediaEngine.Api\Program.cs");
+        var source = Read(@"src/MediaEngine.Api/Program.cs");
 
         Assert.Contains("builder.Services.AddProblemDetails", source, StringComparison.Ordinal);
         Assert.Contains("app.UseExceptionHandler", source, StringComparison.Ordinal);
