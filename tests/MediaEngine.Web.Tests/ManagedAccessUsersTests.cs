@@ -20,6 +20,8 @@ public sealed class ManagedAccessUsersTests : AsyncBunitContext
         Services.AddSingleton<IHttpClientFactory>(new ClientFactory(_handler));
         Services.AddScoped<DashboardIdentityClient>();
         Services.AddScoped(_ => AdministratorSession());
+        Services.AddScoped<IItsYouConfirmer>(_ => new ConfirmedActionRunnerTests.SpyConfirmer(confirmed: false));
+        Services.AddScoped<ConfirmedActionRunner>();
     }
 
     [Fact]
@@ -188,6 +190,22 @@ public sealed class ManagedAccessUsersTests : AsyncBunitContext
     }
 
     [Fact]
+    public void TwoStep_OffersTheResetOnlyForAccountsThatHaveIt()
+    {
+        var without = RenderUsers();
+        without.Find("button[aria-label='Actions for owner@example.test']").Click();
+        without.WaitForAssertion(() => Assert.Contains(without.FindAll("button"), button => button.TextContent.Trim() == "Set temporary password"));
+        Assert.DoesNotContain(without.FindAll("button"), button => button.TextContent.Trim() == "Turn off two-step codes");
+        Assert.DoesNotContain("Two-step codes", without.Markup);
+
+        _handler.HasTwoStep = true;
+        var with = RenderUsers();
+        Assert.Contains("Two-step codes", with.Markup);
+        with.Find("button[aria-label='Actions for owner@example.test']").Click();
+        with.WaitForAssertion(() => Assert.Contains(with.FindAll("button"), button => button.TextContent.Trim() == "Turn off two-step codes"));
+    }
+
+    [Fact]
     public void DeleteAccount_UsesDeletionEndpoint_AndExplainsThatFilesAreKept()
     {
         var cut = RenderUsers();
@@ -236,6 +254,7 @@ public sealed class ManagedAccessUsersTests : AsyncBunitContext
     {
         public const string InvitationCode = "KQ7M4-XH2TA";
         public bool TemporaryPasswordSet { get; set; }
+        public bool HasTwoStep { get; set; }
         public Guid AccountId { get; } = Guid.NewGuid();
         public Guid OwnerProfileId { get; } = Guid.NewGuid();
         public AccessLibraryOptionDto Library { get; } = new(Guid.NewGuid(), "Books", "Books", "read");
@@ -347,7 +366,8 @@ public sealed class ManagedAccessUsersTests : AsyncBunitContext
                 [new(Library.Id, Library.DisplayName, true)], grants,
                 DateTimeOffset.UtcNow.AddYears(-1), DateTimeOffset.UtcNow, DateTimeOffset.UtcNow.AddMinutes(-2),
                 MustChangePassword: TemporaryPasswordSet,
-                TemporaryPasswordExpiresAt: TemporaryPasswordSet ? DateTimeOffset.UtcNow.AddDays(7) : null);
+                TemporaryPasswordExpiresAt: TemporaryPasswordSet ? DateTimeOffset.UtcNow.AddDays(7) : null,
+                HasTwoStep: HasTwoStep);
         }
 
         private AccountProfileGrantDto Grant(Guid id, string name, bool isDefault) =>

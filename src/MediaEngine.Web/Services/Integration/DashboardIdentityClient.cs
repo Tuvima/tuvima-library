@@ -8,7 +8,8 @@ using MediaEngine.Web.Services.Configuration;
 namespace MediaEngine.Web.Services.Integration;
 
 /// <summary>The result of a sign-in style call: the new session, or the Engine's status and (for some refusals) its plain-language reason.</summary>
-public sealed record DashboardSessionAttempt(AuthSessionResponse? Session, HttpStatusCode Status, string? Detail);
+/// <param name="TwoStepToken">Set (with no session) when the password was right but the account also needs a code from its authenticator app.</param>
+public sealed record DashboardSessionAttempt(AuthSessionResponse? Session, HttpStatusCode Status, string? Detail, string? TwoStepToken = null);
 
 public sealed class DashboardIdentityClient(
     IHttpClientFactory clients,
@@ -617,8 +618,37 @@ public sealed class DashboardIdentityClient(
     public Task<DashboardAccessMutationResult<AccountAccessResponse>> SetTemporaryPasswordResultAsync(Guid accountId, SetTemporaryPasswordRequest request, CancellationToken ct = default) =>
         SendMutationAsync<SetTemporaryPasswordRequest, AccountAccessResponse>(HttpMethod.Post, $"/access/accounts/{accountId:D}/temporary-password", request, ct);
 
+    /// <summary>Finishes a password sign-in that asked for a code from the authenticator app (or a recovery code).</summary>
+    public async Task<DashboardSessionAttempt> CompleteTwoStepSignInAsync(CompleteTwoStepSignInRequest request, CancellationToken ct = default)
+    {
+        using var response = await Client.PostAsJsonAsync("/auth/two-step/verify", request, ct).ConfigureAwait(false);
+        return await ReadSessionAttemptAsync(response, ct).ConfigureAwait(false);
+    }
+
+    /// <summary>Starts setting up two-step codes: the key to show as a QR code and as text.</summary>
+    public Task<DashboardAccessMutationResult<TwoStepSetupResponse>> BeginTwoStepSetupResultAsync(CancellationToken ct = default) =>
+        SendMutationAsync<object, TwoStepSetupResponse>(HttpMethod.Post, "/auth/two-step/setup", new { }, ct);
+
+    /// <summary>Turns two-step codes on once the first code from the app matches; the Engine answers with new recovery codes.</summary>
+    public Task<DashboardAccessMutationResult<RecoveryCodesResponse>> EnableTwoStepResultAsync(string code, CancellationToken ct = default) =>
+        SendMutationAsync<EnableTwoStepRequest, RecoveryCodesResponse>(HttpMethod.Post, "/auth/two-step/enable", new EnableTwoStepRequest { Code = code }, ct);
+
+    /// <summary>Turns two-step codes off with a current code or a recovery code.</summary>
+    public Task<DashboardAccessMutationResult> DisableTwoStepResultAsync(string code, CancellationToken ct = default) =>
+        SendMutationAsync(HttpMethod.Post, "/auth/two-step/disable", new DisableTwoStepRequest { Code = code }, ct);
+
+    /// <summary>An administrator turns two-step codes off for someone who lost their phone and recovery codes.</summary>
+    public Task<DashboardAccessMutationResult<AccountAccessResponse>> ResetAccountTwoStepResultAsync(Guid accountId, CancellationToken ct = default) =>
+        SendMutationAsync<object, AccountAccessResponse>(HttpMethod.Post, $"/access/accounts/{accountId:D}/two-step/reset", new { }, ct);
+
     private static async Task<DashboardSessionAttempt> ReadSessionAttemptAsync(HttpResponseMessage response, CancellationToken ct)
     {
+        if (response.StatusCode == HttpStatusCode.Accepted)
+        {
+            var pending = await response.Content.ReadFromJsonAsync<TwoStepRequiredResponse>(cancellationToken: ct).ConfigureAwait(false);
+            return new DashboardSessionAttempt(null, response.StatusCode, null, pending?.PendingToken);
+        }
+
         if (response.IsSuccessStatusCode)
         {
             return new DashboardSessionAttempt(

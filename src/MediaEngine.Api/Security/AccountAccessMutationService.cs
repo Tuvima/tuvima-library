@@ -133,6 +133,35 @@ public sealed class AccountAccessMutationService(
             accountId, null, ct).ConfigureAwait(false);
     }
 
+    public async Task ResetTwoStepAsync(
+        RequestAuthority actor,
+        Guid accountId,
+        CancellationToken ct = default)
+    {
+        await RequireWriteAsync(actor, ct).ConfigureAwait(false);
+        var target = await accounts.GetByIdAsync(accountId, ct).ConfigureAwait(false)
+            ?? throw new KeyNotFoundException("Account not found.");
+        if (actor.AccountId == accountId)
+        {
+            throw new InvalidOperationException("Use Account > Security to turn off your own two-step codes.");
+        }
+
+        // Switching off an administrator's second sign-in step needs a person who is an unlocked administrator.
+        if (target.IsAdministrator
+            && (actor.PrincipalKind != PrincipalKind.Human || !actor.AccountIsAdministrator || !actor.GrantAdminEnabled))
+        {
+            throw new UnauthorizedAccessException("Only an unlocked administrator can turn off an administrator's two-step codes.");
+        }
+
+        if (!await firstParty.ResetTwoStepAsync(accountId, "administrator_reset", ct).ConfigureAwait(false))
+        {
+            throw new InvalidOperationException("Two-step codes are not on for this account.");
+        }
+
+        await ChangedAsync(actor, "account.two_step_reset", "account", accountId.ToString("D"),
+            accountId, null, ct).ConfigureAwait(false);
+    }
+
     public async Task<Account> UpdateAsync(
         RequestAuthority actor,
         Guid accountId,

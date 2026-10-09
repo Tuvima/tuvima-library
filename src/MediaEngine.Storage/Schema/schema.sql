@@ -1816,6 +1816,32 @@ CREATE TABLE IF NOT EXISTS password_reset_challenges (
     consumed_at TEXT
 );
 
+-- Optional two-step sign-in with a free authenticator app (TOTP, RFC 6238). A row with enabled_at NULL is a setup
+-- the person has not confirmed yet. last_used_step blocks reusing a code.
+CREATE TABLE IF NOT EXISTS account_two_step (
+    account_id      BLOB NOT NULL PRIMARY KEY REFERENCES accounts(id) ON DELETE CASCADE,
+    secret_protected TEXT NOT NULL,
+    created_at      TEXT NOT NULL,
+    enabled_at      TEXT,
+    last_used_step  INTEGER NOT NULL DEFAULT 0
+);
+
+-- The half-finished sign-in between a correct password and the authenticator code.
+CREATE TABLE IF NOT EXISTS two_step_challenges (
+    id              BLOB NOT NULL PRIMARY KEY,
+    account_id      BLOB NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+    token_hash      TEXT NOT NULL UNIQUE,
+    ingress         TEXT NOT NULL,
+    device_id       TEXT NOT NULL,
+    device_name     TEXT NOT NULL,
+    client          TEXT NOT NULL,
+    security_stamp  TEXT NOT NULL DEFAULT '',
+    failed_attempts INTEGER NOT NULL DEFAULT 0,
+    created_at      TEXT NOT NULL,
+    expires_at      TEXT NOT NULL,
+    consumed_at     TEXT
+);
+
 -- Server-issued identities for Dashboard, television, mobile and future
 -- clients. Request fields and browser storage are never identity authorities.
 CREATE TABLE IF NOT EXISTS client_devices (

@@ -662,6 +662,14 @@ User profiles for multi-user support.
 | `role` | TEXT | |
 | `created_at` | TEXT | Timestamp |
 
+### account_two_step
+
+One row per account that started optional two-step codes. `account_id` (primary key, references `accounts`), `secret_protected` (the authenticator key, encrypted with Data Protection), `created_at`, `enabled_at` (null while setup is unconfirmed), `last_used_step` (the last accepted 30-second step, so a code cannot be reused).
+
+### two_step_challenges
+
+Pending second-step sign-ins. `token_hash` (SHA-256 of the one-time token), `account_id`, `ingress`, `device_id`, `device_name`, `client`, `failed_attempts`, `created_at`, `expires_at` (5 minutes), `consumed_at`.
+
 ### auth_sessions
 
 Revocable, device-scoped sign-in sessions. A session remembers where it started.

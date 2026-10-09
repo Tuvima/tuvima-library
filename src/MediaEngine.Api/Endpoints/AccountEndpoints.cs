@@ -104,7 +104,8 @@ public static class AccountEndpoints
                     policy, configuration.LoadNetwork(), originalClientIngress, originalClientIsHttps),
                 passkeyReady,
                 availableProviders.Count > 0,
-                availableProviders);
+                availableProviders,
+                await identities.GetAccountTwoStepAsync(account.Id, ct) is { IsEnabled: true });
             return Results.Ok(new AccountSelfServiceResponse(account.Id, account.Email,
                 authority.ActiveProfileId.GetValueOrDefault(), defaultId, grants, methods, capabilities));
         }).Produces<AccountSelfServiceResponse>();
@@ -292,6 +293,29 @@ public static class AccountEndpoints
         })).RequireSecuredAccount()
            .RequireAdministratorOrApplication(ApplicationPermissionIds.IdentityUsersWrite)
            .WithName("SetAccountTemporaryPassword")
+           .Produces<AccountAccessResponse>();
+
+        // Someone lost their phone and their recovery codes: an administrator turns their two-step codes off so they can
+        // sign in with their password and set them up again. It is audited and needs a recent sign-in.
+        group.MapPost("/{accountId:guid}/two-step/reset", async (Guid accountId,
+            HttpContext http, IRequestAuthorityResolver resolver, IAccountAccessMutationService mutations,
+            IAccountRepository accounts, IIdentityRepository identities, IProfileRepository profiles,
+            IConfigurationLoader configuration,
+            [FromServices] RecentSignInGuard recentSignIn,
+            CancellationToken ct) => await ExecuteAsync(async () =>
+        {
+            if (await recentSignIn.RefuseHumanIfStaleAsync(http.User, ct).ConfigureAwait(false) is { } stale)
+            {
+                return stale;
+            }
+
+            await mutations.ResetTwoStepAsync(await resolver.ResolveAsync(http, ct), accountId, ct);
+            var account = await accounts.GetByIdAsync(accountId, ct)
+                ?? throw new KeyNotFoundException("Account not found.");
+            return Results.Ok(await MapAccount(account, accounts, identities, profiles, configuration, ct));
+        })).RequireSecuredAccount()
+           .RequireAdministratorOrApplication(ApplicationPermissionIds.IdentityUsersWrite)
+           .WithName("ResetAccountTwoStep")
            .Produces<AccountAccessResponse>();
 
         group.MapPut("/{accountId:guid}", async (Guid accountId, UpdateManagedAccountRequest request,
@@ -583,6 +607,7 @@ public static class AccountEndpoints
                     id, libraryNames.GetValueOrDefault(id, "Unavailable library"), true)).ToList(),
             await MapGrants(account.Id, accounts, profiles, ct), account.CreatedAt, account.UpdatedAt,
             lastActiveAt, account.HouseholdId, account.MustChangePassword, account.TemporaryPasswordExpiresAt,
+            await identities.GetAccountTwoStepAsync(account.Id, ct) is { IsEnabled: true },
             account.GrantsInheritFromAccountId);
     }
 

@@ -25,6 +25,14 @@ docker exec -it --user 0 tuvima-library /app/admin/tuvima-admin auth reset-passw
 
 Enter the new password at its interactive prompt. Recovery revokes sessions and rotates recovery codes. It is not callable through the Dashboard or Engine HTTP connection. See [account recovery](account-security.md) for source and host commands.
 
+If someone loses their authenticator app and their recovery codes, turn their two-step codes off from the host:
+
+```bash
+docker exec -it --user 0 tuvima-library /app/admin/tuvima-admin auth reset-two-step --email someone@example.com
+```
+
+They can turn two-step codes back on from Account > Security. The reset is recorded in the audit log.
+
 ## Follow active work
 
 Open Operations at `/settings/ingestion`, shown as **Live Ingestion** in the Settings sidebar. It shows the current run, queued work, provider waits, outcomes, and the three newest batches. Use search and outcome filters for history; **Show older** appends another page. Open a batch to browse its media.

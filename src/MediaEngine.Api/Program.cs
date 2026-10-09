@@ -388,6 +388,7 @@ builder.Services.AddSingleton(new DashboardServiceCredentialOptions(configDirect
 builder.Services.AddSingleton<DashboardServiceCredentialRecognizer>();
 builder.Services.AddSingleton<DashboardServiceCredentialBootstrapper>();
 builder.Services.AddSingleton<IntercomTokenService>();
+builder.Services.AddSingleton<MediaEngine.Identity.Contracts.ITwoStepSecretProtector, DataProtectionTwoStepSecretProtector>();
 builder.Services.AddSingleton<IntercomConnectionLimiter>();
 builder.Services.AddAuthentication(TuvimaAuthDefaults.Scheme)
     .AddScheme<AuthenticationSchemeOptions, TuvimaAuthenticationHandler>(TuvimaAuthDefaults.Scheme, _ => { });

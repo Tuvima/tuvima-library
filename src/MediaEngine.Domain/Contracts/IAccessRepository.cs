@@ -138,6 +138,8 @@ public interface IAccountAccessMutationService
     Task<Account> UpdateAsync(RequestAuthority actor, Guid accountId, UpdateAccountAccessCommand command, CancellationToken ct = default);
     /// <summary>Gives an existing account a new temporary password; the person must choose their own at next sign-in.</summary>
     Task SetTemporaryPasswordAsync(RequestAuthority actor, Guid accountId, string temporaryPassword, CancellationToken ct = default);
+    /// <summary>Turns two-step codes off for someone who lost their authenticator app and recovery codes. Audited.</summary>
+    Task ResetTwoStepAsync(RequestAuthority actor, Guid accountId, CancellationToken ct = default);
     Task DeleteAsync(RequestAuthority actor, Guid accountId, CancellationToken ct = default);
     Task<IssuedAccountInvitation> IssueInvitationAsync(
         RequestAuthority actor,

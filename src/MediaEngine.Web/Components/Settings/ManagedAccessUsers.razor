@@ -4,6 +4,8 @@
 @using MediaEngine.Web.Services.Ui
 @inject DashboardIdentityClient Identity
 @inject DashboardSessionAccessor Session
+@inject ConfirmedActionRunner Confirmed
+@inject IAppDialogService Dialogs
 
 <SettingsSectionPanel Title="Users" Description="Accounts control access. Profiles retain each person's library experience and history." Icon="@AppMaterialIcons.Outlined.Group">
     @if (!CanManage)
@@ -81,6 +83,7 @@
                             <div class="access-users__badges">
                                 @if (account.IsAdministrator) { <AppChip Text="Administrator" Tone="AppUiTone.Primary" /> }
                                 @if (account.MustChangePassword) { <AppChip Text="Temporary password" Tone="AppUiTone.Warning" /> }
+                                @if (account.HasTwoStep) { <AppChip Text="Two-step codes" Tone="AppUiTone.Success" /> }
                             </div>
                         </div>
                         <div class="access-profile-chips" role="cell">
@@ -106,6 +109,10 @@
                                     <AppButton Label="Manage profiles" FullWidth="true" ButtonStyle="AppButtonStyle.Text" role="menuitem" OnClick="@(() => OpenProfiles(account))" />
                                     <AppButton Label="Account details" FullWidth="true" ButtonStyle="AppButtonStyle.Text" role="menuitem" OnClick="@(() => EditAccount(account))" />
                                     <AppButton Label="Set temporary password" FullWidth="true" ButtonStyle="AppButtonStyle.Text" role="menuitem" OnClick="@(() => OpenTemporaryPassword(account))" />
+                                    @if (account.HasTwoStep)
+                                    {
+                                        <AppButton Label="Turn off two-step codes" FullWidth="true" ButtonStyle="AppButtonStyle.Text" role="menuitem" OnClick="@(() => ResetTwoStep(account))" />
+                                    }
                                     <AppButton Label="@(account.IsEnabled ? "Disable user" : "Enable user")" FullWidth="true" ButtonStyle="AppButtonStyle.Text" role="menuitem" OnClick="@(() => ToggleEnabled(account))" />
                                     <AppButton Label="Delete user" FullWidth="true" ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Error" Class="access-action-menu__danger" role="menuitem" OnClick="@(() => ConfirmDelete(account))" />
                                 </div>
@@ -1035,6 +1042,40 @@
             {
                 _error = result.Failure == DashboardAccessMutationFailure.Validation
                     ? "That password isn't allowed. Use at least 12 characters, avoid common passwords, and don't use their email address."
+                    : Message(result.Failure);
+            }
+        }
+        finally
+        {
+            EndMutation(generation);
+        }
+    }
+
+    // For someone who lost their phone and their recovery codes. The Engine records who did this.
+    private async Task ResetTwoStep(AccountAccessResponse account)
+    {
+        _actionAccountId = null;
+        if (await Dialogs.ShowMessageBoxAsync($"Turn off two-step codes for {AccountLabel(account)}?",
+                "They can sign in with just their password until they turn two-step codes on again. This is recorded in the activity log.",
+                yesText: "Turn off", cancelText: "Cancel") != true)
+            return;
+        if (!TryBeginMutation(out var generation))
+            return;
+        try
+        {
+            ClearMessages();
+            var result = await Confirmed.RunAsync(() => Identity.ResetAccountTwoStepResultAsync(account.Id));
+            if (!IsCurrentMutation(generation))
+                return;
+            if (result.Succeeded && result.Value is not null)
+            {
+                ReplaceAccount(result.Value);
+                _notice = $"Two-step codes are off for {AccountLabel(result.Value)}.";
+            }
+            else
+            {
+                _error = result.Failure == DashboardAccessMutationFailure.ConfirmItsYou
+                    ? "Nothing was changed. Confirm it's you to continue."
                     : Message(result.Failure);
             }
         }
