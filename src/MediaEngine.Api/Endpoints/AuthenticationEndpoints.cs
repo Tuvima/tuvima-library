@@ -255,7 +255,7 @@ public static class AuthenticationEndpoints
 
             // A home session used from outside is not revoked; it is only unusable here. Tell the Dashboard
             // apart from a dead session so the sign-in cookie is kept for when the person is home again.
-            var wrongPlace = await identity.ValidateSessionAsync(request.Headers[TuvimaAuthDefaults.SessionHeader].ToString(), false, ct).ConfigureAwait(false) is not null;
+            var wrongPlace = await identity.ValidateSessionAsync(request.Headers[TuvimaAuthDefaults.SessionHeader].ToString(), false, ct, ClientIngress.ThisComputer).ConfigureAwait(false) is not null;
             return wrongPlace
                 ? Results.Json(new { reason = ClientIngressValues.SignInAgainHere }, statusCode: StatusCodes.Status401Unauthorized)
                 : Results.Unauthorized();

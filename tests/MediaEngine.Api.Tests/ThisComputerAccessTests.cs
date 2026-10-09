@@ -1,3 +1,4 @@
+using System.Reflection;
 using System.Security.Claims;
 using System.Text.Json;
 using MediaEngine.Api.Endpoints;
@@ -333,7 +334,7 @@ public sealed class ThisComputerAccessTests : IDisposable
 
         foreach (var wider in new[] { WhoCanConnectModes.HomeNetwork, WhoCanConnectModes.Anywhere })
         {
-            var response = await SendAsync(app, "PUT", "/settings/network", new { who_can_connect = wider });
+            var response = await SendAsync(app, "PUT", "/settings/network/", new { who_can_connect = wider });
 
             AssertSecureAccountFirst(response);
             Assert.Equal(WhoCanConnectModes.ThisComputer, _configuration.LoadNetwork().WhoCanConnect);
@@ -349,7 +350,7 @@ public sealed class ThisComputerAccessTests : IDisposable
         _configuration.SaveNetwork(network);
         await using var app = BuildNetworkApplication();
 
-        var response = await SendAsync(app, "PUT", "/settings/network", new
+        var response = await SendAsync(app, "PUT", "/settings/network/", new
         {
             who_can_connect = WhoCanConnectModes.ThisComputer,
             native_app_access = new { enabled = true },
@@ -367,7 +368,7 @@ public sealed class ThisComputerAccessTests : IDisposable
         _configuration.SaveNetwork(network);
         await using var app = BuildNetworkApplication();
 
-        var keep = await SendAsync(app, "PUT", "/settings/network", new { who_can_connect = WhoCanConnectModes.ThisComputer });
+        var keep = await SendAsync(app, "PUT", "/settings/network/", new { who_can_connect = WhoCanConnectModes.ThisComputer });
         // Resetting would put the door back to the home network, which is wider than this computer.
         var reset = await SendAsync(app, "POST", "/network/reset");
 
@@ -386,7 +387,7 @@ public sealed class ThisComputerAccessTests : IDisposable
         _configuration.SaveNetwork(network);
         await using var app = BuildNetworkApplication();
 
-        var response = await SendAsync(app, "PUT", "/settings/network", new { who_can_connect = WhoCanConnectModes.HomeNetwork });
+        var response = await SendAsync(app, "PUT", "/settings/network/", new { who_can_connect = WhoCanConnectModes.HomeNetwork });
 
         Assert.Equal(StatusCodes.Status200OK, response.Status);
         Assert.Equal(WhoCanConnectModes.HomeNetwork, _configuration.LoadNetwork().WhoCanConnect);
@@ -533,7 +534,7 @@ public sealed class ThisComputerAccessTests : IDisposable
         builder.Services.AddRateLimiter(_ => { });
         builder.Services.AddSingleton<IConfigurationLoader>(_configuration);
         builder.Services.AddSingleton(CreateGate());
-        builder.Services.AddSingleton<ClientAuthorizationService>(_ => null!);
+        builder.Services.AddSingleton(new ClientAuthorizationService(null!, null!, null!, null!, TimeProvider.System));
         var app = builder.Build();
         app.MapClientAuthorizationEndpoints();
         return app;
@@ -544,16 +545,16 @@ public sealed class ThisComputerAccessTests : IDisposable
         var builder = WebApplication.CreateBuilder();
         builder.Services.AddAuthorization();
         builder.Services.AddSingleton(CreateGate());
-        builder.Services.AddSingleton<IRequestAuthorityResolver>(_ => null!);
+        builder.Services.AddSingleton(Unused<IRequestAuthorityResolver>());
         builder.Services.AddSingleton<ISelfServiceAuthorizationService>(_ => null!);
-        builder.Services.AddSingleton<IAccountRepository>(_ => null!);
-        builder.Services.AddSingleton<IIdentityRepository>(_ => null!);
-        builder.Services.AddSingleton<IProfileRepository>(_ => null!);
+        builder.Services.AddSingleton<IAccountRepository>(_accounts);
+        builder.Services.AddSingleton<IIdentityRepository>(_identities);
+        builder.Services.AddSingleton<IProfileRepository>(new ProfileRepository(_database));
         builder.Services.AddSingleton<IAccountExternalLoginService>(_ => null!);
         builder.Services.AddSingleton<IAccountSignInMethodRepository>(_ => null!);
         builder.Services.AddSingleton<IAuthorizationAuditWriter>(_ => null!);
         builder.Services.AddSingleton<IGrantAdminUnlockService>(_ => null!);
-        builder.Services.AddSingleton<IAccountAccessMutationService>(_ => null!);
+        builder.Services.AddSingleton(Unused<IAccountAccessMutationService>());
         builder.Services.AddSingleton<IConfigurationLoader>(_configuration);
         builder.Services.AddSingleton<AuthenticationPolicyMutationGate>();
         builder.Services.AddSingleton<AuthenticationProviderConfigurationService>();
@@ -665,6 +666,15 @@ public sealed class ThisComputerAccessTests : IDisposable
         {
             // Best-effort test cleanup.
         }
+    }
+
+    /// <summary>A stand-in that is never called: the request is refused before the handler uses it.</summary>
+    private static T Unused<T>() where T : class => DispatchProxy.Create<T, UnusedProxy>();
+
+    private class UnusedProxy : DispatchProxy
+    {
+        protected override object? Invoke(MethodInfo? targetMethod, object?[]? args) =>
+            throw new NotSupportedException("This service must not be used when the request is refused.");
     }
 
     private sealed class RequestBodyDetectionFeature : IHttpRequestBodyDetectionFeature
