@@ -240,7 +240,7 @@ public static class DashboardAuthenticationEndpoints
         app.MapPost("/auth/passkeys/login/options", async (BeginPasskeyLoginRequest request, HttpContext context,
             DashboardConfigurationReader configuration, DashboardIdentityClient identity, CancellationToken ct) =>
         {
-            if (RejectIfTooManyAttempts(context) is { } limited)
+            if (RejectIfTooManyAttempts(context, json: true) is { } limited)
             {
                 return limited;
             }
@@ -251,7 +251,7 @@ public static class DashboardAuthenticationEndpoints
         app.MapPost("/auth/passkeys/login/complete", async (CompletePasskeyLoginRequest request, HttpContext context,
             DashboardConfigurationReader configuration, DashboardIdentityClient identity, CancellationToken ct) =>
         {
-            if (RejectIfTooManyAttempts(context) is { } limited)
+            if (RejectIfTooManyAttempts(context, json: true) is { } limited)
             {
                 return limited;
             }
@@ -404,7 +404,7 @@ public static class DashboardAuthenticationEndpoints
                 $"<p><a class=\"button\" href=\"/auth/external/{Uri.EscapeDataString(provider.Id)}?returnUrl={Uri.EscapeDataString(returnUrl)}\">Continue with {H(provider.DisplayName)}</a></p>"));
         var passkeyScript = $$$"""
               <script>
-              document.getElementById('passkey-login').addEventListener('click',async()=>{const message=document.getElementById('passkey-message');try{if(!window.PublicKeyCredential||!PublicKeyCredential.parseRequestOptionsFromJSON)throw new Error('This browser does not support passkeys.');const start=await fetch('/auth/passkeys/login/options',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:document.getElementById('signin-email').value||null})});if(!start.ok)throw new Error('Passkey sign-in is unavailable.');const data=await start.json();const credential=await navigator.credentials.get({publicKey:PublicKeyCredential.parseRequestOptionsFromJSON(JSON.parse(data.options_json))});const finish=await fetch('/auth/passkeys/login/complete',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({credential_json:JSON.stringify(credential.toJSON()),state:data.state,device_id:{{{JsonSerializer.Serialize(deviceId)}}},device_name:navigator.userAgent})});if(!finish.ok)throw new Error('Passkey sign-in failed.');location.href={{{JsonSerializer.Serialize(returnUrl)}}};}catch(error){message.textContent=error.message;}});
+              document.getElementById('passkey-login').addEventListener('click',async()=>{const message=document.getElementById('passkey-message');try{if(!window.PublicKeyCredential||!PublicKeyCredential.parseRequestOptionsFromJSON)throw new Error('This browser does not support passkeys.');const start=await fetch('/auth/passkeys/login/options',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:document.getElementById('signin-email').value||null})});if(start.status===429)throw new Error('Too many attempts. Try again in a minute.');if(!start.ok)throw new Error('Passkey sign-in is unavailable.');const data=await start.json();const credential=await navigator.credentials.get({publicKey:PublicKeyCredential.parseRequestOptionsFromJSON(JSON.parse(data.options_json))});const finish=await fetch('/auth/passkeys/login/complete',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({credential_json:JSON.stringify(credential.toJSON()),state:data.state,device_id:{{{JsonSerializer.Serialize(deviceId)}}},device_name:navigator.userAgent})});if(finish.status===429)throw new Error('Too many attempts. Try again in a minute.');if(!finish.ok)throw new Error('Passkey sign-in failed.');location.href={{{JsonSerializer.Serialize(returnUrl)}}};}catch(error){message.textContent=error.message;}});
               </script>
               """;
         var form = $"""
@@ -466,7 +466,7 @@ public static class DashboardAuthenticationEndpoints
     /// Counts one anonymous sign-in attempt for the caller's address. Returns the 429 response (with
     /// <c>Retry-After</c> and a plain message) when that address has used up its allowance for the minute.
     /// </summary>
-    public static IResult? RejectIfTooManyAttempts(HttpContext context)
+    public static IResult? RejectIfTooManyAttempts(HttpContext context, bool json = false)
     {
         var limiter = context.RequestServices.GetRequiredService<SignInAttemptLimiter>();
         if (limiter.TryAcquire(context, out var retryAfter))
@@ -476,6 +476,14 @@ public static class DashboardAuthenticationEndpoints
 
         context.Response.Headers.RetryAfter = Math.Max(1, (int)Math.Ceiling(retryAfter.TotalSeconds))
             .ToString(System.Globalization.CultureInfo.InvariantCulture);
+        if (json)
+        {
+            return Results.Problem(
+                title: "Too many attempts",
+                detail: SignInAttemptLimiter.TooManyAttemptsMessage,
+                statusCode: StatusCodes.Status429TooManyRequests);
+        }
+
         return Results.Content(
             LoginFailurePage(SignInAttemptLimiter.TooManyAttemptsMessage),
             "text/html",

@@ -483,6 +483,124 @@ public sealed class FirstPartyIdentityServiceTests : IDisposable
         Assert.Equal(profile.Id, switched.ActiveProfile.Id);
     }
 
+    private async Task<(SessionIssueResult Session, Profile Kid)> SessionWithPinProfileAsync(string ingress)
+    {
+        var bootstrap = await _service.BootstrapAdministratorAsync(
+            "owner@example.com", "correct horse battery staple", "Owner", "browser-1", "Living room", "Dashboard",
+            ingress: ingress);
+        var kid = new Profile
+        {
+            Id = Guid.NewGuid(),
+            DisplayName = "Kids",
+            AvatarColor = "#7C4DFF",
+            Role = ProfileRole.RestrictedProfile,
+            CreatedAt = DateTimeOffset.UtcNow,
+        };
+        await InsertProfileAsync(kid);
+        await _accounts.GrantProfileAsync(new AccountProfileGrant
+        {
+            AccountId = bootstrap.Account.Id,
+            ProfileId = kid.Id,
+            GrantedAt = DateTimeOffset.UtcNow,
+        });
+        await _service.SetProfilePinAsync(kid.Id, "2468");
+        return (bootstrap, kid);
+    }
+
+    [Fact]
+    public async Task SwitchProfilePinGuesses_FromARemoteSession_LockAfterFiveFailures()
+    {
+        var (session, kid) = await SessionWithPinProfileAsync(ClientIngress.Remote);
+
+        for (var index = 0; index < 4; index++)
+        {
+            await Assert.ThrowsAsync<ProfilePinRequiredException>(() =>
+                _service.SwitchActiveProfileAsync(session.PlaintextToken, kid.Id, "0000"));
+        }
+
+        await Assert.ThrowsAsync<ProfilePinLockedException>(() =>
+            _service.SwitchActiveProfileAsync(session.PlaintextToken, kid.Id, "0000"));
+        await Assert.ThrowsAsync<ProfilePinLockedException>(() =>
+            _service.SwitchActiveProfileAsync(session.PlaintextToken, kid.Id, "2468"));
+    }
+
+    [Fact]
+    public async Task SwitchProfilePinGuesses_FromAHomeSession_NeverLock()
+    {
+        var (session, kid) = await SessionWithPinProfileAsync(ClientIngress.HomeNetwork);
+
+        for (var index = 0; index < 20; index++)
+        {
+            await Assert.ThrowsAsync<ProfilePinRequiredException>(() =>
+                _service.SwitchActiveProfileAsync(session.PlaintextToken, kid.Id, "0000"));
+        }
+
+        var switched = await _service.SwitchActiveProfileAsync(session.PlaintextToken, kid.Id, "2468");
+        Assert.Equal(kid.Id, switched.ActiveProfile.Id);
+    }
+
+    [Fact]
+    public async Task SwitchProfilePin_RemoteSuccessResetsTheFailureCount()
+    {
+        var (session, kid) = await SessionWithPinProfileAsync(ClientIngress.Remote);
+
+        for (var round = 0; round < 3; round++)
+        {
+            for (var index = 0; index < 4; index++)
+            {
+                await Assert.ThrowsAsync<ProfilePinRequiredException>(() =>
+                    _service.SwitchActiveProfileAsync(session.PlaintextToken, kid.Id, "0000"));
+            }
+
+            await _service.SwitchActiveProfileAsync(session.PlaintextToken, kid.Id, "2468");
+        }
+    }
+
+    [Fact]
+    public async Task ProfilePinSignIn_OnlyRemoteFailuresCountOrLock()
+    {
+        var (_, kid) = await SessionWithPinProfileAsync(ClientIngress.HomeNetwork);
+        await InsertLocalOnlyAccountForAsync(kid);
+
+        for (var index = 0; index < 20; index++)
+        {
+            Assert.False((await _service.AuthenticatePinAsync(
+                kid.Id, "0000", $"home-{index}", "Living room", "Dashboard", ingress: ClientIngress.HomeNetwork)).Succeeded);
+        }
+
+        Assert.True((await _service.AuthenticatePinAsync(
+            kid.Id, "2468", "home-ok", "Living room", "Dashboard", ingress: ClientIngress.HomeNetwork)).Succeeded);
+
+        AuthenticationAttemptResult? last = null;
+        for (var index = 0; index < 5; index++)
+        {
+            last = await _service.AuthenticatePinAsync(
+                kid.Id, "0000", $"away-{index}", "Phone", "Dashboard", ingress: ClientIngress.Remote);
+        }
+
+        Assert.True(last!.LockedOut);
+        Assert.True((await _service.AuthenticatePinAsync(
+            kid.Id, "2468", "home-again", "Living room", "Dashboard", ingress: ClientIngress.HomeNetwork)).Succeeded);
+        Assert.False((await _service.AuthenticatePinAsync(
+            kid.Id, "2468", "away-ok", "Phone", "Dashboard", ingress: ClientIngress.Remote)).Succeeded);
+    }
+
+    [Fact]
+    public async Task UnspecifiedIngress_IsTreatedAsRemote()
+    {
+        await _service.BootstrapAdministratorAsync(
+            "owner@example.com", "correct horse battery staple", "Owner", "browser-1", "Living room", "Dashboard");
+
+        AuthenticationAttemptResult? last = null;
+        for (var index = 0; index < 5; index++)
+        {
+            last = await _service.AuthenticatePasswordAsync(
+                "owner@example.com", "wrong password", $"browser-{index}", "Unknown", "Dashboard");
+        }
+
+        Assert.True(last!.LockedOut);
+    }
+
     [Fact]
     public async Task LocalPassword_AllowsEightCharacters()
     {
@@ -678,6 +796,32 @@ public sealed class FirstPartyIdentityServiceTests : IDisposable
         Assert.NotNull(await _service.ValidateSessionAsync(accepted.PlaintextToken));
         await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
             _service.AcceptInvitationAsync(token, "different password", "other", "Other", "Dashboard"));
+    }
+
+    private Task InsertLocalOnlyAccountForAsync(Profile profile)
+    {
+        var localAccount = new Account
+        {
+            Id = Guid.NewGuid(),
+            IsLocalOnly = true,
+            IsEnabled = true,
+            AuthorizationVersion = 1,
+            CreatedAt = _clock.GetUtcNow(),
+            UpdatedAt = _clock.GetUtcNow(),
+        };
+        return _accounts.CreateAccountAsync(
+            localAccount,
+            new AccountProfileGrant
+            {
+                AccountId = localAccount.Id,
+                ProfileId = profile.Id,
+                IsDefault = true,
+                IsEnabled = true,
+                AuthorizationVersion = 1,
+                GrantedAt = _clock.GetUtcNow(),
+            },
+            new HashSet<MediaEngine.Domain.Authorization.AccountFeatureId>(),
+            new HashSet<Guid>());
     }
 
     private Task InsertProfileAsync(Profile profile)

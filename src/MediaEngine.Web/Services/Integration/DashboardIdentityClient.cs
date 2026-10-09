@@ -12,7 +12,8 @@ public sealed class DashboardIdentityClient(
     IHttpContextAccessor? contextAccessor = null,
     ILogger<DashboardIdentityClient>? logger = null,
     IngressClassifier? ingress = null,
-    OpenScreenRegistry? openScreens = null)
+    OpenScreenRegistry? openScreens = null,
+    SignInAttemptLimiter? signInLimiter = null)
 {
     private readonly object _initialAuthorityGate = new();
     private Task<DashboardAuthorityResponse?>? _initialAuthorityTask;
@@ -766,8 +767,20 @@ public sealed class DashboardIdentityClient(
             : null;
     }
 
+    /// <summary>Wrong-PIN guesses allowed per minute for one target profile, whoever is guessing.</summary>
+    public const int ProfilePinAttemptsPerMinute = 10;
+
     public async Task<DashboardProfileSwitchResult> SwitchProfileAsync(SwitchProfileRequest request, CancellationToken ct = default)
     {
+        // A PIN attempt (the request carries a secret) counts against the target profile. Home sessions are not
+        // locked out by the Engine, so this is what stops a quick guess run from a signed-in home device.
+        if (!string.IsNullOrEmpty(request.Secret)
+            && signInLimiter is not null
+            && !signInLimiter.TryAcquireKey("switch-pin:" + request.ProfileId.ToString("N"), ProfilePinAttemptsPerMinute, out _))
+        {
+            return new DashboardProfileSwitchResult(DashboardProfileSwitchStatus.TooManyAttempts);
+        }
+
         using var response = await Client.PostAsJsonAsync("/auth/session/switch-profile", request, ct).ConfigureAwait(false);
         if (response.IsSuccessStatusCode)
         {
@@ -782,6 +795,7 @@ public sealed class DashboardIdentityClient(
             HttpStatusCode.PreconditionRequired => new DashboardProfileSwitchResult(DashboardProfileSwitchStatus.PinRequired),
             HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden => new DashboardProfileSwitchResult(DashboardProfileSwitchStatus.Forbidden),
             HttpStatusCode.NotFound => new DashboardProfileSwitchResult(DashboardProfileSwitchStatus.NotFound),
+            HttpStatusCode.TooManyRequests => new DashboardProfileSwitchResult(DashboardProfileSwitchStatus.TooManyAttempts),
             _ => new DashboardProfileSwitchResult(DashboardProfileSwitchStatus.Failed),
         };
     }
@@ -830,6 +844,7 @@ public enum DashboardProfileSwitchStatus
     PinRequired,
     Forbidden,
     NotFound,
+    TooManyAttempts,
     Failed,
 }
 

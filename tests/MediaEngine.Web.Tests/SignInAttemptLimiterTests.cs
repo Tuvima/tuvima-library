@@ -74,15 +74,94 @@ public sealed class SignInAttemptLimiterTests
     }
 
     [Fact]
-    public void RequestWithoutConnectionInformation_IsTreatedAsRemote()
+    public void AddressThatCannotBePlaced_SharesOneRemoteKey()
     {
         var limiter = Limiter(new ManualClock());
-        for (var index = 0; index < 5; index++)
+        for (var index = 0; index < SignInAttemptLimiter.RemotePerMinute; index++)
         {
-            Assert.True(limiter.TryAcquire(null, out _));
+            Assert.True(limiter.TryAcquire((IPAddress?)null, IngressKind.Remote, out _));
         }
 
-        Assert.False(limiter.TryAcquire(null, out _));
+        Assert.False(limiter.TryAcquire((IPAddress?)null, IngressKind.Remote, out _));
+    }
+
+    [Fact]
+    public void RemoteIpv6_IsKeyedByItsSlash64()
+    {
+        var limiter = Limiter(new ManualClock());
+        for (var index = 0; index < SignInAttemptLimiter.RemotePerMinute; index++)
+        {
+            Assert.True(limiter.TryAcquire(IPAddress.Parse($"2001:db8:1:2::{index + 1}"), IngressKind.Remote, out _));
+        }
+
+        Assert.False(limiter.TryAcquire(IPAddress.Parse("2001:db8:1:2:ffff::9"), IngressKind.Remote, out _));
+        Assert.True(limiter.TryAcquire(IPAddress.Parse("2001:db8:1:3::1"), IngressKind.Remote, out _));
+    }
+
+    [Fact]
+    public void AllRemoteVisitorsTogether_AreCappedSoHomeSignInsKeepAShare()
+    {
+        var limiter = Limiter(new ManualClock());
+        var granted = 0;
+        for (var index = 0; index < 400; index++)
+        {
+            var address = IPAddress.Parse($"198.51.{index / 200}.{index % 200 + 1}");
+            if (limiter.TryAcquire(address, IngressKind.Remote, out _))
+            {
+                granted++;
+            }
+        }
+
+        Assert.Equal(SignInAttemptLimiter.RemoteTotalPerMinute, granted);
+        Assert.True(limiter.TryAcquire(IPAddress.Parse("192.168.1.20"), IngressKind.HomeNetwork, out _));
+    }
+
+    [Fact]
+    public void ExpiredEntries_AreSweptOncePerWindow()
+    {
+        var clock = new ManualClock();
+        var limiter = Limiter(clock);
+        for (var index = 0; index < 50; index++)
+        {
+            Assert.True(limiter.TryAcquire(IPAddress.Parse($"192.168.5.{index + 1}"), IngressKind.HomeNetwork, out _));
+        }
+
+        Assert.Equal(50, limiter.TrackedKeyCount);
+        clock.Now += TimeSpan.FromSeconds(30);
+        limiter.TryAcquire(IPAddress.Parse("192.168.9.9"), IngressKind.HomeNetwork, out _);
+        Assert.Equal(51, limiter.TrackedKeyCount);
+
+        clock.Now += TimeSpan.FromSeconds(61);
+        limiter.TryAcquire(IPAddress.Parse("192.168.9.10"), IngressKind.HomeNetwork, out _);
+        Assert.Equal(1, limiter.TrackedKeyCount);
+    }
+
+    [Fact]
+    public void TableIsCapped_NewAddressesAreRefusedWhileExistingOnesKeepWorking()
+    {
+        var limiter = Limiter(new ManualClock());
+        var first = IPAddress.Parse("10.0.0.1");
+        Assert.True(limiter.TryAcquire(first, IngressKind.HomeNetwork, out _));
+        for (var index = 0; limiter.TrackedKeyCount < SignInAttemptLimiter.MaxTrackedKeys; index++)
+        {
+            limiter.TryAcquireKey($"fill-{index}", 10, out _);
+        }
+
+        Assert.False(limiter.TryAcquire(IPAddress.Parse("10.9.9.9"), IngressKind.HomeNetwork, out _));
+        Assert.True(limiter.TryAcquire(first, IngressKind.HomeNetwork, out _));
+    }
+
+    [Fact]
+    public void KeyedAttempts_AreLimitedPerKey()
+    {
+        var limiter = Limiter(new ManualClock());
+        for (var index = 0; index < 10; index++)
+        {
+            Assert.True(limiter.TryAcquireKey("switch-pin:a", 10, out _));
+        }
+
+        Assert.False(limiter.TryAcquireKey("switch-pin:a", 10, out _));
+        Assert.True(limiter.TryAcquireKey("switch-pin:b", 10, out _));
     }
 
     [Fact]

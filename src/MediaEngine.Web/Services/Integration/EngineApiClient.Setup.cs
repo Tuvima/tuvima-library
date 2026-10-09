@@ -20,7 +20,8 @@ public sealed partial class EngineApiClient
 
     private bool SetupAttemptAllowed(string step)
     {
-        if (SetupAttemptLimiter is null || SetupAttemptLimiter.TryAcquire(SetupHttpContextAccessor?.HttpContext, out _))
+        var context = SetupHttpContextAccessor?.HttpContext;
+        if (SetupAttemptLimiter is null || context is null || SetupAttemptLimiter.TryAcquire(context, out _))
         {
             return true;
         }
