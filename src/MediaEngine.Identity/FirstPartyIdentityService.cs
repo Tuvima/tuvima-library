@@ -785,6 +785,8 @@ public sealed class FirstPartyIdentityService(
         await MarkPendingAsync(issued, profilePending, ct).ConfigureAwait(false);
         await AuditAsync(account.Id, profile.Id, issued.Session.Id, "login_local", true, "Password+TwoStep", ct).ConfigureAwait(false);
         return new AuthenticationAttemptResult(true, false, null, issued);
+    }
+
     public async Task<Guid?> GetDeviceProfilePreferenceAsync(Guid accountId, Guid sessionId, CancellationToken ct = default)
     {
         var session = await OwnSessionAsync(accountId, sessionId, ct).ConfigureAwait(false);
@@ -1057,6 +1059,8 @@ public sealed class FirstPartyIdentityService(
                 var wait = count < 3 ? TimeSpan.Zero : TimeSpan.FromSeconds(Math.Min(60, 5 * Math.Pow(2, count - 3)));
                 return (count, now.Add(wait));
             });
+    }
+
     /// <summary>
     /// Picks the profile a new session starts in. A device that was set to "always open as" a person starts there;
     /// when that person has a PIN the session starts in the default profile and the picker asks for the PIN instead,
