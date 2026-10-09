@@ -5,6 +5,16 @@ namespace MediaEngine.Contracts.Authentication;
 public sealed record AuthBootstrapStatusResponse(
     [property: JsonPropertyName("administrator_configured")] bool AdministratorConfigured);
 
+/// <summary>
+/// What a visitor can use to sign in from where they are right now. Deliberately holds no account, email or
+/// profile information: it is answered before anyone has signed in.
+/// </summary>
+public sealed record SignInMethodsResponse(
+    [property: JsonPropertyName("password")] bool Password,
+    [property: JsonPropertyName("passkey")] bool Passkey,
+    [property: JsonPropertyName("external_providers")] IReadOnlyList<AccountExternalProviderResponse> ExternalProviders,
+    [property: JsonPropertyName("invitation_code")] bool InvitationCode);
+
 public sealed class BootstrapAdministratorRequest
 {
     [JsonPropertyName("email")] public string Email { get; init; } = string.Empty;

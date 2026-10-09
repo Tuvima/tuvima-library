@@ -1098,6 +1098,12 @@ MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.SetGra
 MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.SetProfilePinRequest
   Pin: System.String | nullability=not-null | accessors=get,init
 
+MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.SignInMethodsResponse
+  Password: System.Boolean | nullability=not-null | accessors=get,init
+  Passkey: System.Boolean | nullability=not-null | accessors=get,init
+  ExternalProviders: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Authentication.AccountExternalProviderResponse> | nullability=not-null | accessors=get,init
+  InvitationCode: System.Boolean | nullability=not-null | accessors=get,init
+
 MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.SwitchProfileRequest
   ProfileId: System.Guid | nullability=not-null | accessors=get,init
   Secret: System.String | nullability=nullable | accessors=get,init

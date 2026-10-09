@@ -133,13 +133,28 @@ public sealed class PairingAndPasskeyEndpointTests : IDisposable
         context.Response.Body = new MemoryStream();
 
         var result = await DashboardAuthenticationEndpoints.RefreshInvalidLoginFormAsync(
-            context, provider.GetRequiredService<IAntiforgery>(), []);
+            context, provider.GetRequiredService<IAntiforgery>(), [],
+            () => Task.FromResult<MediaEngine.Contracts.Authentication.SignInMethodsResponse?>(
+                new MediaEngine.Contracts.Authentication.SignInMethodsResponse(true, true, [], true)));
         await result!.ExecuteAsync(context);
         context.Response.Body.Position = 0;
         var html = Encoding.UTF8.GetString(((MemoryStream)context.Response.Body).ToArray());
 
         Assert.Contains("name=\"password\"", html);
         Assert.Equal(atPublicOrigin, html.Contains("id=\"passkey-login\"", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task InviteWithoutAToken_AsksForTheCodeInsteadOfRedirecting()
+    {
+        await using var dashboard = await StartAsync(_ => { }, engine: null, withAuthEndpoints: true);
+        using var client = new HttpClient(new HttpClientHandler { AllowAutoRedirect = false });
+
+        using var response = await client.GetAsync(new Uri(dashboard.Address, "/auth/invite"));
+        var html = await response.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Contains("name=\"token\"", html);
     }
 
     private void SetPublicAddress(string address) =>

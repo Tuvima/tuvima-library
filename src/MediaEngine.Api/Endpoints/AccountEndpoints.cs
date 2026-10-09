@@ -51,21 +51,8 @@ public static class AccountEndpoints
 
             var passkeyReady = policy.PasskeySignInEnabled
                 && AuthenticationEndpoints.IsCanonicalOriginReady(network);
-            var externalAvailable = AuthenticationEndpoints.AllowsClient(
-                configuration.LoadNetwork(), originalClientIngress, originalClientIsHttps,
-                AuthenticationEndpoints.IsExternalSignInEnabled(policy));
-            var availableProviders = externalAvailable
-                ? policy.ExternalProviders
-                    .Where(provider => provider.Enabled && AuthenticationEndpoints.IsConfiguredProvider(
-                        policy,
-                        network,
-                        provider.Id,
-                        provider.Kind.Equals(ExternalAuthProviderKinds.OpenIdConnect, StringComparison.OrdinalIgnoreCase)
-                            ? string.IsNullOrWhiteSpace(provider.Issuer) ? provider.Authority : provider.Issuer
-                            : provider.Issuer))
-                    .Select(provider => new AccountExternalProviderResponse(provider.Id, provider.DisplayName))
-                    .ToList()
-                : [];
+            var availableProviders = AuthenticationEndpoints.AvailableExternalProviders(
+                policy, network, originalClientIngress, originalClientIsHttps);
 
             var methods = AttachedAuthenticationMethods(
                 hasPassword, passkeys.Count > 0, linkedLogins.Count > 0);
