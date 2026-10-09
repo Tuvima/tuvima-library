@@ -28,6 +28,8 @@ public sealed class AuthenticationPolicyTests
         Assert.All(result, session => Assert.Null(session.RevokedAt));
     }
 
+    private static NetworkSettings Network(string whoCanConnect) => new() { WhoCanConnect = whoCanConnect };
+
     [Fact]
     public void PasskeyAvailability_RequiresPolicyCanonicalOriginAndAllowedClient()
     {
@@ -35,45 +37,40 @@ public sealed class AuthenticationPolicyTests
         {
             Mode = "Optional",
             PasskeySignInEnabled = true,
-            AllowRemoteSignIn = false,
             PasswordReset = new PasswordResetDeliverySettings { PublicBaseUrl = "https://library.example" },
         };
 
-        Assert.True(AuthenticationEndpoints.IsPasskeyAvailable(policy, true, false));
-        Assert.False(AuthenticationEndpoints.IsPasskeyAvailable(policy, false, true));
-        policy.AllowRemoteSignIn = true;
-        policy.RequireHttpsRemote = true;
-        Assert.False(AuthenticationEndpoints.IsPasskeyAvailable(policy, false, false));
-        Assert.True(AuthenticationEndpoints.IsPasskeyAvailable(policy, false, true));
+        var home = Network(WhoCanConnectModes.HomeNetwork);
+        var anywhere = Network(WhoCanConnectModes.Anywhere);
+        Assert.True(AuthenticationEndpoints.IsPasskeyAvailable(policy, home, true, false));
+        Assert.False(AuthenticationEndpoints.IsPasskeyAvailable(policy, home, false, true));
+        Assert.False(AuthenticationEndpoints.IsPasskeyAvailable(policy, anywhere, false, false));
+        Assert.True(AuthenticationEndpoints.IsPasskeyAvailable(policy, anywhere, false, true));
         policy.PasswordReset.PublicBaseUrl = string.Empty;
-        Assert.False(AuthenticationEndpoints.IsPasskeyAvailable(policy, true, true));
+        Assert.False(AuthenticationEndpoints.IsPasskeyAvailable(policy, anywhere, true, true));
     }
 
     [Fact]
-    public void ClientPolicy_DeniesDisabledAndUntrustedLocalOnlyMethods()
+    public void ClientPolicy_DeniesDisabledMethodsAndRemoteClientsBelowAnywhere()
     {
-        var policy = new AuthSettings
-        {
-            AllowRemoteSignIn = false,
-            RequireHttpsRemote = true,
-        };
+        var home = Network(WhoCanConnectModes.HomeNetwork);
 
-        Assert.False(AuthenticationEndpoints.AllowsClient(policy, true, true, methodEnabled: false));
-        Assert.False(AuthenticationEndpoints.AllowsClient(policy, false, true, methodEnabled: true));
-        Assert.True(AuthenticationEndpoints.AllowsClient(policy, true, false, methodEnabled: true));
+        Assert.False(AuthenticationEndpoints.AllowsClient(home, true, true, methodEnabled: false));
+        Assert.False(AuthenticationEndpoints.AllowsClient(home, false, true, methodEnabled: true));
+        Assert.True(AuthenticationEndpoints.AllowsClient(home, true, false, methodEnabled: true));
     }
 
-    [Fact]
-    public void ClientPolicy_RequiresHttpsForRemoteSignInWhenConfigured()
+    [Theory]
+    [InlineData(WhoCanConnectModes.ThisComputer, false, true, false)]
+    [InlineData(WhoCanConnectModes.HomeNetwork, false, true, false)]
+    [InlineData(WhoCanConnectModes.Anywhere, false, false, false)]
+    [InlineData(WhoCanConnectModes.Anywhere, false, true, true)]
+    [InlineData(WhoCanConnectModes.ThisComputer, true, false, true)]
+    [InlineData(WhoCanConnectModes.HomeNetwork, true, false, true)]
+    [InlineData(WhoCanConnectModes.Anywhere, true, false, true)]
+    public void ClientPolicy_RemoteSignInNeedsAnywhereAndHttps(string setting, bool local, bool https, bool expected)
     {
-        var policy = new AuthSettings
-        {
-            AllowRemoteSignIn = true,
-            RequireHttpsRemote = true,
-        };
-
-        Assert.False(AuthenticationEndpoints.AllowsClient(policy, false, false, methodEnabled: true));
-        Assert.True(AuthenticationEndpoints.AllowsClient(policy, false, true, methodEnabled: true));
+        Assert.Equal(expected, AuthenticationEndpoints.AllowsClient(Network(setting), local, https, methodEnabled: true));
     }
 
     [Theory]

@@ -31,8 +31,8 @@ public static class NetworkEndpoints
         {
             var current = configuration.LoadNetwork();
             var proposed = NetworkContractMapper.ToStorage(request);
-            // App access rides on the verified secure remote path: turning remote access off turns it off too.
-            if (!proposed.Remote.Enabled)
+            // App access rides on the verified secure path: anything below "Anywhere" turns it off too.
+            if (!proposed.AllowsInternet)
             {
                 proposed.NativeAppAccess.Enabled = false;
             }
@@ -43,7 +43,7 @@ public static class NetworkEndpoints
 
             try
             {
-                if (proposed.Remote.Enabled)
+                if (proposed.AllowsInternet)
                 {
                     var result = await readiness.EvaluateAsync(proposed.Remote, ct).ConfigureAwait(false);
                     if (!result.Ready)
@@ -51,7 +51,7 @@ public static class NetworkEndpoints
                         var blockers = string.Join(" ", result.Checks
                             .Where(check => check.Status == "failed")
                             .Select(check => check.Detail));
-                        return ApiErrors.Conflict($"Remote access was not enabled. {blockers}");
+                        return ApiErrors.Conflict($"Anywhere was not enabled. {blockers}");
                     }
                 }
                 configuration.SaveNetwork(proposed);

@@ -161,11 +161,23 @@ public sealed class ConfigurationDirectoryLoader : IConfigurationLoader, IDispos
 
     /// <inheritdoc/>
     public NetworkSettings LoadNetwork() =>
-        LoadFile<NetworkSettings>(NetworkFileName) ?? new();
+        TurnAppAccessOffBelowAnywhere(LoadFile<NetworkSettings>(NetworkFileName) ?? new());
 
     /// <inheritdoc/>
     public void SaveNetwork(NetworkSettings settings) =>
-        SaveFile(NetworkFileName, settings);
+        SaveFile(NetworkFileName, TurnAppAccessOffBelowAnywhere(settings));
+
+    // App access needs the secure "Anywhere" path. A file that has it on without that is corrected here
+    // instead of rejected, so the Engine never fails to load its network settings.
+    private static NetworkSettings TurnAppAccessOffBelowAnywhere(NetworkSettings settings)
+    {
+        if (settings.NativeAppAccess.Enabled && !settings.AllowsInternet)
+        {
+            settings.NativeAppAccess.Enabled = false;
+        }
+
+        return settings;
+    }
 
     /// <inheritdoc/>
     public FieldPriorityConfiguration LoadFieldPriorities() =>

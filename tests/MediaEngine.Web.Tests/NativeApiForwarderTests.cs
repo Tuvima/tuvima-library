@@ -112,7 +112,7 @@ public sealed class NativeApiForwarderTests
     }
 
     [Fact]
-    public void NetworkSettingsGate_IsOffUnlessAppAccessAndRemoteAccessAreBothOn()
+    public void NetworkSettingsGate_IsOffUnlessAppAccessIsOnAndWhoCanConnectIsAnywhere()
     {
         var dir = Path.Combine(Path.GetTempPath(), "tuvima-gate-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(dir);
@@ -128,9 +128,10 @@ public sealed class NativeApiForwarderTests
             var gate = new NetworkSettingsNativeAppAccessGate(new DashboardConfigurationReader(dir), dir);
             Assert.False(gate.IsEnabled); // no file
             Assert.False(Read("{}"));
-            Assert.False(Read("{\"native_app_access\":{\"enabled\":true}}")); // remote access off
-            Assert.False(Read("{\"remote\":{\"enabled\":true}}")); // app access off
-            Assert.True(Read("{\"remote\":{\"enabled\":true},\"native_app_access\":{\"enabled\":true}}"));
+            Assert.False(Read("{\"native_app_access\":{\"enabled\":true}}")); // who can connect is not anywhere
+            Assert.False(Read("{\"who_can_connect\":\"anywhere\"}")); // app access off
+            Assert.False(Read("{\"who_can_connect\":\"home_network\",\"native_app_access\":{\"enabled\":true}}"));
+            Assert.True(Read("{\"who_can_connect\":\"anywhere\",\"native_app_access\":{\"enabled\":true}}"));
             Assert.False(Read("{ not json")); // fails closed
         }
         finally
@@ -148,9 +149,9 @@ public sealed class NativeApiForwarderTests
         {
             var path = Path.Combine(dir, "network.json");
             var gate = new NetworkSettingsNativeAppAccessGate(new DashboardConfigurationReader(dir), dir);
-            File.WriteAllText(path, "{\"remote\":{\"enabled\":true},\"native_app_access\":{\"enabled\":true}}");
+            File.WriteAllText(path, "{\"who_can_connect\":\"anywhere\",\"native_app_access\":{\"enabled\":true}}");
             Assert.True(gate.IsEnabled);
-            File.WriteAllText(path, "{\"remote\":{\"enabled\":true},\"native_app_access\":{\"enabled\":false}}");
+            File.WriteAllText(path, "{\"who_can_connect\":\"anywhere\",\"native_app_access\":{\"enabled\":false}}");
             File.SetLastWriteTimeUtc(path, DateTime.UtcNow.AddMinutes(1));
             Assert.False(gate.IsEnabled);
         }

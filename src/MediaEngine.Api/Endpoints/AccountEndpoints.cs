@@ -32,6 +32,7 @@ public static class AccountEndpoints
             IAccountExternalLoginService externalLogins,
             Microsoft.AspNetCore.Identity.UserManager<Account> users,
             AuthenticationProviderConfigurationService providerConfiguration,
+            IConfigurationLoader configuration,
             CancellationToken ct) =>
         {
             var authority = await RequireSelfAsync(http, resolver, decisions, ct);
@@ -57,7 +58,7 @@ public static class AccountEndpoints
                 && !AuthenticationEndpoints.IsLocalOnlyMode(policy)
                 && AuthenticationEndpoints.IsCanonicalOriginReady(policy);
             var externalAvailable = !account.IsLocalOnly && AuthenticationEndpoints.AllowsClient(
-                policy, originalClientIsLocal, originalClientIsHttps,
+                configuration.LoadNetwork(), originalClientIsLocal, originalClientIsHttps,
                 AuthenticationEndpoints.IsExternalSignInEnabled(policy));
             var availableProviders = externalAvailable
                 ? policy.ExternalProviders
@@ -79,10 +80,10 @@ public static class AccountEndpoints
                 passkeys.Count > 0,
                 linkedLogins.Count > 0,
                 hasPassword && AuthenticationEndpoints.AllowsClient(
-                    policy, originalClientIsLocal, originalClientIsHttps,
+                    configuration.LoadNetwork(), originalClientIsLocal, originalClientIsHttps,
                     policy.PasswordSignInEnabled && !AuthenticationEndpoints.IsLocalOnlyMode(policy)),
                 !account.IsLocalOnly && AuthenticationEndpoints.IsPasskeyAvailable(
-                    policy, originalClientIsLocal, originalClientIsHttps),
+                    policy, configuration.LoadNetwork(), originalClientIsLocal, originalClientIsHttps),
                 passkeyReady,
                 availableProviders.Count > 0,
                 availableProviders);

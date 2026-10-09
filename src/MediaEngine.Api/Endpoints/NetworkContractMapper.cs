@@ -8,6 +8,7 @@ internal static class NetworkContractMapper
     public static NetworkSettingsDto ToContract(NetworkSettings settings) => new()
     {
         SchemaVersion = settings.SchemaVersion,
+        WhoCanConnect = settings.WhoCanConnect,
         Local = new LocalNetworkSettingsDto
         {
             Port = settings.Local.Port,
@@ -20,7 +21,6 @@ internal static class NetworkContractMapper
         },
         Remote = new RemoteNetworkSettingsDto
         {
-            Enabled = settings.Remote.Enabled,
             ConnectionMode = settings.Remote.ConnectionMode,
             AutomaticRouterConfiguration = settings.Remote.AutomaticRouterConfiguration,
             ExternalPort = settings.Remote.ExternalPort,
@@ -43,6 +43,7 @@ internal static class NetworkContractMapper
     public static NetworkSettings ToStorage(NetworkSettingsDto dto) => new()
     {
         SchemaVersion = dto.SchemaVersion,
+        WhoCanConnect = Normalize(dto.WhoCanConnect),
         Local = new LocalNetworkSettings
         {
             Port = dto.Local.Port,
@@ -59,7 +60,6 @@ internal static class NetworkContractMapper
         },
         Remote = new RemoteNetworkSettings
         {
-            Enabled = dto.Remote.Enabled,
             ConnectionMode = Normalize(dto.Remote.ConnectionMode),
             AutomaticRouterConfiguration = dto.Remote.AutomaticRouterConfiguration,
             ExternalPort = dto.Remote.ExternalPort,

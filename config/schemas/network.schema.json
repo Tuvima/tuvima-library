@@ -6,6 +6,7 @@
   "required": ["schema_version", "local", "remote", "streaming"],
   "properties": {
     "schema_version": { "const": "3.0" },
+    "who_can_connect": { "enum": ["this_computer", "home_network", "anywhere"] },
     "local": {
       "type": "object",
       "additionalProperties": false,
@@ -28,9 +29,8 @@
     "remote": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["enabled", "connection_mode", "automatic_router_configuration", "trusted_proxies", "trusted_proxy_networks"],
+      "required": ["connection_mode", "automatic_router_configuration", "trusted_proxies", "trusted_proxy_networks"],
       "properties": {
-        "enabled": { "type": "boolean" },
         "connection_mode": { "enum": ["local-only", "tailscale", "direct-only", "custom"] },
         "automatic_router_configuration": { "type": "boolean" },
         "external_port": { "type": ["integer", "null"], "minimum": 1, "maximum": 65535 },

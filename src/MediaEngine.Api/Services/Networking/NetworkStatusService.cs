@@ -38,7 +38,7 @@ public sealed class NetworkStatusService
         var tailscale = _runtime.GetRemoteProvider("tailscale");
         var topology = _topology.GetSnapshot();
         var mappingState = EffectiveMappingState(mapping, _timeProvider.GetUtcNow());
-        var remoteState = !settings.Remote.Enabled
+        var remoteState = !settings.AllowsInternet
             ? "disabled"
             : settings.Remote.ConnectionMode == NetworkConnectionModes.Tailscale
                 && tailscale is { State: RemoteProviderState.Connected, SecureHttps: true }
@@ -46,7 +46,7 @@ public sealed class NetworkStatusService
             : remoteTest?.Status == "passed"
                 ? "available"
                 : remoteTest?.Status == "failed" ? "needs-attention" : "unavailable";
-        var connectionType = !settings.Remote.Enabled
+        var connectionType = !settings.AllowsInternet
             ? "local-only"
             : settings.Remote.ConnectionMode switch
             {
@@ -62,11 +62,11 @@ public sealed class NetworkStatusService
                                                 && uri.Scheme == Uri.UriSchemeHttps => "enabled",
             NetworkConnectionModes.DirectOnly when remoteTest?.Status == "passed" => "enabled",
             NetworkConnectionModes.Tailscale when tailscale is { State: RemoteProviderState.Connected, SecureHttps: true } => "enabled",
-            _ when !settings.Remote.Enabled => "not-configured",
+            _ when !settings.AllowsInternet => "not-configured",
             _ => "needs-attention",
         };
         var localState = addresses.Count == 0 ? "unavailable" : "healthy";
-        var allGood = localState == "healthy" && (!settings.Remote.Enabled || remoteState == "available");
+        var allGood = localState == "healthy" && (!settings.AllowsInternet || remoteState == "available");
 
         return new NetworkRuntimeStatusDto
         {
@@ -108,12 +108,12 @@ public sealed class NetworkStatusService
             UptimeSeconds = Math.Max(0, (long)(DateTimeOffset.UtcNow - _startedAt).TotalSeconds),
             Ipv6Available = addresses.Any(address => address.AddressFamily == "ipv6"),
             CgnatSuspected = IsPrivateOrCarrierGradeAddress(mapping?.PublicAddress),
-            Headline = allGood ? "Everything looks good" : BuildHeadline(localState, remoteState, settings.Remote.Enabled),
+            Headline = allGood ? "Everything looks good" : BuildHeadline(localState, remoteState, settings.AllowsInternet),
             Guidance = allGood
-                ? settings.Remote.Enabled
+                ? settings.AllowsInternet
                     ? "Your server is accessible locally and through its configured remote path."
                     : "Your server is accessible on your local network. Remote access is turned off."
-                : BuildGuidance(localState, remoteState, settings.Remote.Enabled),
+                : BuildGuidance(localState, remoteState, settings.AllowsInternet),
             Bandwidth = CopyBandwidth(_runtime.Bandwidth, settings.Streaming.ReservedUploadMbps),
             HardwareAcceleration = _configuration.LoadTranscoding().HardwareAcceleration,
         };

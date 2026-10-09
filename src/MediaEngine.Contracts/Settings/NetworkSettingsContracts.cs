@@ -5,6 +5,7 @@ namespace MediaEngine.Contracts.Settings;
 public sealed class NetworkSettingsDto
 {
     [JsonPropertyName("schema_version")] public string SchemaVersion { get; set; } = "3.0";
+    [JsonPropertyName("who_can_connect")] public string WhoCanConnect { get; set; } = "home_network";
     [JsonPropertyName("local")] public LocalNetworkSettingsDto Local { get; set; } = new();
     [JsonPropertyName("remote")] public RemoteNetworkSettingsDto Remote { get; set; } = new();
     [JsonPropertyName("streaming")] public NetworkStreamingSettingsDto Streaming { get; set; } = new();
@@ -29,7 +30,6 @@ public sealed class LocalNetworkSettingsDto
 
 public sealed class RemoteNetworkSettingsDto
 {
-    [JsonPropertyName("enabled")] public bool Enabled { get; set; }
     [JsonPropertyName("connection_mode")] public string ConnectionMode { get; set; } = "local-only";
     [JsonPropertyName("automatic_router_configuration")] public bool AutomaticRouterConfiguration { get; set; }
     [JsonPropertyName("external_port")] public int? ExternalPort { get; set; }

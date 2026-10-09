@@ -49,7 +49,7 @@ public sealed class SettingsServerAdministrationTests
         Assert.DoesNotContain("SettingsSectionHeader", source, StringComparison.Ordinal);
 
         var security = ReadRepoFile(@"src\MediaEngine.Web\Components\Settings\SecurityTab.razor");
-        Assert.Contains("Remote access and sessions", security, StringComparison.Ordinal);
+        Assert.Contains("Who can connect and sessions", security, StringComparison.Ordinal);
         Assert.Contains("Trusted local networks", security, StringComparison.Ordinal);
         Assert.Contains("UpdateExternalAuthProviderAsync", security, StringComparison.Ordinal);
         Assert.Contains("Disabled=\"@(!ExternalCapableMode)\"", security, StringComparison.Ordinal);
