@@ -7023,6 +7023,7 @@ MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.LocalNetworkSettin
   DiscoveryEnabled: System.Boolean | nullability=not-null | accessors=get,set
   PreferredServerName: System.String | nullability=not-null | accessors=get,set
   Ipv6Enabled: System.Boolean | nullability=not-null | accessors=get,set
+  AllowedHostnames: System.Collections.Generic.List<System.String> | nullability=not-null | accessors=get,set
 
 MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.MediaTypeConfigurationDto
   Version: System.String | nullability=not-null | accessors=get,set
@@ -7366,6 +7367,7 @@ MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.RemoteNetworkSetti
   ExternalPort: System.Int32? | nullability=nullable | accessors=get,set
   TlsTerminationPort: System.Int32? | nullability=nullable | accessors=get,set
   PublicHostname: System.String | nullability=nullable | accessors=get,set
+  ProxyPort: System.Int32? | nullability=nullable | accessors=get,set
   TrustedProxies: System.Collections.Generic.List<System.String> | nullability=not-null | accessors=get,set
   TrustedProxyNetworks: System.Collections.Generic.List<System.String> | nullability=not-null | accessors=get,set
 
