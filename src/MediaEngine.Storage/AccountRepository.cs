@@ -28,7 +28,8 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
         db.ExecuteWriteAsync((conn, tx, token) =>
         {
             token.ThrowIfCancellationRequested();
-            account.HouseholdId = ResolveAccountHousehold(conn, tx, account, null, account.Email);
+            // Without a named household the account stays unplaced until its first profile grant, when it joins
+            // that profile's household.
             InsertAccount(conn, tx, account);
         }, ct);
 

@@ -78,7 +78,8 @@ public sealed class HouseholdsTests : IDisposable
 
         using (var database = Open(path))
         {
-            Assert.Single(database.StartupNotes, note => note.Contains("'Shared'", StringComparison.Ordinal));
+            Assert.Single(database.StartupNotes, note => note.Contains("was granted to", StringComparison.Ordinal));
+            Assert.Single(database.StartupNotes, note => note.StartsWith("Removed", StringComparison.Ordinal));
         }
 
         Assert.Equal(1, Scalar(path, """

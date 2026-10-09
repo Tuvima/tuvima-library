@@ -397,7 +397,8 @@ internal sealed class SchemaMigrator
                 using (var find = conn.CreateCommand())
                 {
                     find.Transaction = transaction;
-                    find.CommandText = "SELECT id, display_name FROM profiles WHERE household_id IS NULL ORDER BY created_at, id;";
+                    find.CommandText = "SELECT id, display_name FROM profiles WHERE household_id IS NULL AND id <> @seed ORDER BY created_at, id;";
+                    find.Parameters.Add("@seed", SqliteType.Blob).Value = GuidSql.ToBlob(Guid.Parse("00000000-0000-0000-0000-000000000001"));
                     using var reader = find.ExecuteReader();
                     while (reader.Read())
                     {
