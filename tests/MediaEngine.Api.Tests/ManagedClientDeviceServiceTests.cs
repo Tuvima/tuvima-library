@@ -41,7 +41,9 @@ public sealed class ManagedClientDeviceServiceTests : IDisposable
         var memberPhone = await PairAsync(OtherAccountId, "Member phone", "mobile");
 
         var all = await _service.ListAsync(Administrator());
-        Assert.Equal([ownerTv.DeviceId, memberPhone.DeviceId], all.Select(device => device.Id).Order());
+        Assert.Equal(
+            new[] { ownerTv.DeviceId, memberPhone.DeviceId }.Order(),
+            all.Select(device => device.Id).Order());
         var phone = Assert.Single(all, device => device.Id == memberPhone.DeviceId);
         Assert.Equal("member@example.com", phone.AccountDisplayName);
         Assert.Equal("mobile", phone.Platform);
