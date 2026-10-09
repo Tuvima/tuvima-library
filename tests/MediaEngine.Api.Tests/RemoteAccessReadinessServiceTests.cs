@@ -163,6 +163,8 @@ public sealed class RemoteAccessReadinessServiceTests
 
         public Task<UsableAdministratorStatus> EvaluateForRemoteAsync(CancellationToken ct) =>
             Task.FromResult(new UsableAdministratorStatus(usable, recoveryCodes, bypassDisabled));
+
+        public Task<bool> OnlyThisComputerAdministratorsAsync(CancellationToken ct) => Task.FromResult(false);
     }
 
     private sealed class FakeTopology(NetworkTopologySnapshot snapshot) : INetworkTopologyService

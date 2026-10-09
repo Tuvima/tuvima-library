@@ -21,4 +21,10 @@ public interface IUsableAdministratorService
     /// Remote-access view: an administrator must also have saved recovery codes.
     /// </summary>
     Task<UsableAdministratorStatus> EvaluateForRemoteAsync(CancellationToken ct);
+
+    /// <summary>
+    /// True while at least one enabled administrator has no password or passkey yet (it works only on this computer)
+    /// and no other enabled administrator exists. Actions that would let others in wait until this is false.
+    /// </summary>
+    Task<bool> OnlyThisComputerAdministratorsAsync(CancellationToken ct);
 }

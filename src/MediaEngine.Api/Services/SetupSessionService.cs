@@ -19,6 +19,9 @@ public sealed class SetupSessionService(
 {
     public const string SessionHeader = "X-Tuvima-Setup-Session";
     private readonly SemaphoreSlim _gate = new(1, 1);
+    // Where the current setup session began. Kept in memory: after a restart the person simply begins again.
+    private string? _currentSessionHash;
+    private string _currentSessionIngress = ClientIngress.Remote;
 
     /// <summary>
     /// Starts setup. A visitor on this computer needs nothing; a visitor on the home network needs the
@@ -71,6 +74,8 @@ public sealed class SetupSessionService(
                         });
             }
 
+            _currentSessionHash = sessionHash;
+            _currentSessionIngress = ingress;
             return SetupBeginResult.Success(new SetupStartResponse(
                 plaintextSession,
                 expires,
@@ -81,6 +86,13 @@ public sealed class SetupSessionService(
             _gate.Release();
         }
     }
+
+    /// <summary>True when the setup session identified by <paramref name="token"/> was begun from this computer.</summary>
+    public bool BeganFromThisComputer(string? token) =>
+        !string.IsNullOrWhiteSpace(token)
+        && _currentSessionHash is not null
+        && string.Equals(_currentSessionHash, Convert.ToHexStringLower(Hash(token)), StringComparison.Ordinal)
+        && _currentSessionIngress == ClientIngress.ThisComputer;
 
     public async Task<bool> ValidateSessionAsync(string? token, CancellationToken ct)
     {

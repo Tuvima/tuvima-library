@@ -1,3 +1,4 @@
+using MediaEngine.Api.Services;
 using MediaEngine.Api.Services.Security;
 using MediaEngine.Domain.Contracts;
 
@@ -8,6 +9,8 @@ public static class TuvimaSecurityServiceCollectionExtensions
     public static IServiceCollection AddTuvimaSecurity(this IServiceCollection services)
     {
         services.AddScoped<IUsableAdministratorService, UsableAdministratorService>();
+        services.AddScoped<SecureAccountGate>();
+        services.AddSingleton<IContainerProbe, EnvironmentContainerProbe>();
         return services;
     }
 }

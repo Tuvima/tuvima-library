@@ -2,6 +2,7 @@ using System.Security.Claims;
 using MediaEngine.Api.Http;
 using MediaEngine.Api.Security;
 using MediaEngine.Api.Services;
+using MediaEngine.Api.Services.Security;
 using MediaEngine.Api.Services.Settings;
 using MediaEngine.Contracts.Settings;
 using MediaEngine.Contracts.Setup;
@@ -107,8 +108,8 @@ public static class SetupEndpoints
 
         group.MapPost("/administrator", async (
             SetupAdministratorRequest request, HttpContext context, ClaimsPrincipal user,
-            SetupSessionService sessions, IFirstPartyIdentityService identity,
-            OnboardingRepository onboarding, CancellationToken ct) =>
+            SetupSessionService sessions, IFirstPartyIdentityService identity, IConfigurationLoader configuration,
+            IContainerProbe container, OnboardingRepository onboarding, CancellationToken ct) =>
         {
             if (!await AuthorizedAsync(context, user, sessions, ct).ConfigureAwait(false))
             {
@@ -122,9 +123,52 @@ public static class SetupEndpoints
             }
             try
             {
-                var issued = await identity.BootstrapAdministratorAsync(
-                    request.Email, request.Password, request.DisplayName,
-                    request.DeviceId, request.DeviceName, "Tuvima Setup", ct, request.Pin).ConfigureAwait(false);
+                var signIn = string.IsNullOrWhiteSpace(request.SignIn)
+                    ? SetupSignInModes.Password
+                    : request.SignIn.Trim().ToLowerInvariant();
+                if (signIn is not (SetupSignInModes.Password or SetupSignInModes.ThisComputer))
+                {
+                    return ApiErrors.BadRequest("Choose how this administrator will sign in.");
+                }
+
+                SessionIssueResult issued;
+                if (signIn == SetupSignInModes.ThisComputer)
+                {
+                    // Desktop only, and only from this computer: begin with a name and email, add a password later.
+                    // Both where setup began and where this request comes from must be this computer.
+                    if (!sessions.BeganFromThisComputer(context.Request.Headers[SetupSessionService.SessionHeader].ToString())
+                        || !ThisComputerAccess.IsAvailable(request.OriginalClientIngress, container.IsContainer()))
+                    {
+                        return ApiErrors.Conflict(
+                            SetupAdministratorRefusalCodes.NotAvailableHere,
+                            "Starting without a password is only offered on the computer that runs Tuvima, not on a server or NAS.");
+                    }
+
+                    if (!string.IsNullOrEmpty(request.Password))
+                    {
+                        return ApiErrors.BadRequest("Leave the password empty to use Tuvima on this computer only.");
+                    }
+
+                    if (string.IsNullOrWhiteSpace(request.Email) || string.IsNullOrWhiteSpace(request.DisplayName))
+                    {
+                        return ApiErrors.BadRequest("Enter a name and an email address.");
+                    }
+
+                    // Close the door first: if anything below fails, Tuvima is left more closed, never more open.
+                    var network = configuration.LoadNetwork();
+                    network.WhoCanConnect = WhoCanConnectModes.ThisComputer;
+                    network.NativeAppAccess.Enabled = false;
+                    configuration.SaveNetwork(network);
+                    issued = await identity.BootstrapThisComputerAdministratorAsync(
+                        request.Email, request.DisplayName, request.DeviceId, request.DeviceName, "Tuvima Setup", ct, request.Pin).ConfigureAwait(false);
+                }
+                else
+                {
+                    issued = await identity.BootstrapAdministratorAsync(
+                        request.Email, request.Password, request.DisplayName,
+                        request.DeviceId, request.DeviceName, "Tuvima Setup", ct, request.Pin).ConfigureAwait(false);
+                }
+
                 await onboarding.SetStepAsync(
                     "administrator", "passed", "Administrator account and initial profile created.",
                     null, issued.Profile.Id, ct).ConfigureAwait(false);
@@ -335,7 +379,7 @@ public static class SetupEndpoints
             try
             {
                 var result = backups.ConfirmUploadedRestore(operationId, onboarding);
-                if (string.Equals(Environment.GetEnvironmentVariable("DOTNET_RUNNING_IN_CONTAINER"), "true", StringComparison.OrdinalIgnoreCase))
+                if (ContainerEnvironment.IsContainer())
                 {
                     _ = Task.Run(async () =>
                     {

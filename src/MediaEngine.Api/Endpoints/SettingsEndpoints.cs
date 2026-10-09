@@ -2,6 +2,7 @@ using MediaEngine.Api.Http;
 using MediaEngine.Api.Models;
 using MediaEngine.Api.Security;
 using MediaEngine.Api.Services;
+using MediaEngine.Api.Services.Security;
 using MediaEngine.Contracts.Artwork;
 using MediaEngine.Domain;
 using MediaEngine.Domain.Authorization;
@@ -118,6 +119,7 @@ public static class SettingsEndpoints
             IUsableAdministratorService usableAdministrators,
             AuthenticationProviderConfigurationService providerConfiguration,
             AuthenticationPolicyMutationGate mutationGate,
+            SecureAccountGate secureAccount,
             CancellationToken ct) =>
         {
             using var mutation = await mutationGate.EnterAsync(ct).ConfigureAwait(false);
@@ -155,6 +157,13 @@ public static class SettingsEndpoints
 
             var core = configLoader.LoadCore();
             var auth = core.Auth;
+            // Turning on linked sign-in lets others in, so it waits until the account has a password or passkey.
+            if (request.ExternalSignInEnabled && !auth.ExternalSignInEnabled
+                && await secureAccount.IsLockedAsync(ct).ConfigureAwait(false))
+            {
+                return SecureAccountGate.Refusal();
+            }
+
             auth.Mode = request.Mode;
             auth.LocalhostBypass = request.LocalhostBypass;
             auth.PasswordSignInEnabled = request.PasswordSignInEnabled;
@@ -194,12 +203,18 @@ public static class SettingsEndpoints
             AuthenticationProviderConfigurationService providerConfiguration,
             AuthenticationPolicyMutationGate mutationGate,
             IUsableAdministratorService usableAdministrators,
+            SecureAccountGate secureAccount,
             CancellationToken ct) =>
         {
             var error = ValidateExternalProvider(providerId, request);
             if (error is not null)
             {
                 return ApiErrors.BadRequest(error);
+            }
+
+            if (request.Enabled && await secureAccount.IsLockedAsync(ct).ConfigureAwait(false))
+            {
+                return SecureAccountGate.Refusal();
             }
 
             using var mutation = await mutationGate.EnterAsync(ct).ConfigureAwait(false);

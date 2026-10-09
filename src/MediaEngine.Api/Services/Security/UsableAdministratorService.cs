@@ -29,6 +29,13 @@ public sealed class UsableAdministratorService(
         return false;
     }
 
+    public async Task<bool> OnlyThisComputerAdministratorsAsync(CancellationToken ct)
+    {
+        var administrators = (await EnabledAdministratorsAsync(ct).ConfigureAwait(false)).ToArray();
+        return administrators.Any(account => account.IsThisComputerOnly)
+            && administrators.All(account => account.IsThisComputerOnly);
+    }
+
     public Task<UsableAdministratorStatus> EvaluateForRemoteAsync(CancellationToken ct) =>
         EvaluateForRemoteAsync(providerConfiguration.LoadWithSecrets(), ct);
 
@@ -38,7 +45,8 @@ public sealed class UsableAdministratorService(
         var recovery = false;
         foreach (var account in await EnabledAdministratorsAsync(ct).ConfigureAwait(false))
         {
-            if (!await IsUsableAsync(policy, account, ct).ConfigureAwait(false))
+            // A this-computer-only account has no password or passkey, so it never makes remote access ready.
+            if (account.IsThisComputerOnly || !await IsUsableAsync(policy, account, ct).ConfigureAwait(false))
             {
                 continue;
             }
@@ -59,6 +67,12 @@ public sealed class UsableAdministratorService(
 
     private async Task<bool> IsUsableAsync(AuthSettings policy, Account account, CancellationToken ct)
     {
+        // Signs in on this computer without a password, whatever the sign-in policy says, so policy changes can't lock it out.
+        if (account.IsThisComputerOnly)
+        {
+            return true;
+        }
+
         var grants = (await accounts.GetGrantsAsync(account.Id, ct).ConfigureAwait(false))
             .Where(grant => grant.IsEnabled && grant.AdminEnabled)
             .ToArray();

@@ -2,6 +2,7 @@ using System.Security.Claims;
 using System.Text.Json;
 using MediaEngine.Api.Http;
 using MediaEngine.Api.Security;
+using MediaEngine.Api.Services.Security;
 using MediaEngine.Contracts.Authentication;
 using MediaEngine.Domain.Configuration;
 using MediaEngine.Domain.Contracts;
@@ -94,8 +95,15 @@ public static class ClientAuthorizationEndpoints
             PairingDecisionRequest request,
             ClaimsPrincipal user,
             ClientAuthorizationService authorization,
+            SecureAccountGate secureAccount,
             CancellationToken ct) =>
         {
+            // Approving a device lets it in from elsewhere, so it waits until the account has a password or passkey.
+            if (request.Approved && await secureAccount.IsLockedAsync(ct).ConfigureAwait(false))
+            {
+                return SecureAccountGate.Refusal();
+            }
+
             try
             {
                 var profileId = RequiredGuidClaim(user, TuvimaClaimTypes.ActiveProfileId);

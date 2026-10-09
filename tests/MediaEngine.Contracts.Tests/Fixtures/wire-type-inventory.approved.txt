@@ -3,7 +3,7 @@
 # Compatibility is enforced separately by wire-compatibility.approved.txt.
 # Serializer: System.Text.Json JsonSerializerDefaults.Web; DefaultIgnoreCondition=Never
 # Regenerate intentionally with TUVIMA_UPDATE_WIRE_SNAPSHOT=1.
-# scopes: contracts=921; api=0; web-client=86
+# scopes: contracts=923; api=0; web-client=86
 
 [contracts] MediaEngine.Contracts.Activity.ActivityBatchInsightsDto
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -1311,6 +1311,17 @@
   ProfileId: System.Guid | json=profile_id | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Secret: System.String | json=secret | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   sample={"profile_id":"11111111-2222-3333-4444-555555555555","secret":"sample"}
+
+[contracts] MediaEngine.Contracts.Authentication.ThisComputerAccountResponse
+  kind=class | converter=default | number-handling=default | unmapped=default
+  DisplayName: System.String | json=display_name | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+
+[contracts] MediaEngine.Contracts.Authentication.ThisComputerSignInRequest
+  kind=class | converter=default | number-handling=default | unmapped=default
+  DeviceId: System.String | json=device_id | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  DeviceName: System.String | json=device_name | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Client: System.String | json=client | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"device_id":"sample","device_name":"sample","client":"sample"}
 
 [contracts] MediaEngine.Contracts.Authentication.TuvimaDiscoveryResponse
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -9042,13 +9053,15 @@
 
 [contracts] MediaEngine.Contracts.Setup.SetupAdministratorRequest
   kind=class | converter=default | number-handling=default | unmapped=default
+  SignIn: System.String | json=sign_in | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  OriginalClientIngress: System.String | json=original_client_ingress | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Pin: System.String | json=pin | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Email: System.String | json=email | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Password: System.String | json=password | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   DisplayName: System.String | json=display_name | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   DeviceId: System.String | json=device_id | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   DeviceName: System.String | json=device_name | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  sample={"pin":"sample","email":"sample","password":"sample","display_name":"sample","device_id":"sample","device_name":"sample"}
+  sample={"sign_in":"sample","original_client_ingress":"sample","pin":"sample","email":"sample","password":"sample","display_name":"sample","device_id":"sample","device_name":"sample"}
 
 [contracts] MediaEngine.Contracts.Setup.SetupAdministratorResponse
   kind=class | converter=default | number-handling=default | unmapped=default

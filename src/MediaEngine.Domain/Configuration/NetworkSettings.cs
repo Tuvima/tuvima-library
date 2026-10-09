@@ -134,6 +134,14 @@ public static class WhoCanConnectModes
     public const string Anywhere = "anywhere";
 
     public static readonly IReadOnlyList<string> All = [ThisComputer, HomeNetwork, Anywhere];
+
+    /// <summary>How far the door is open: 0 this computer, 1 home network, 2 anywhere. Unknown is the most closed.</summary>
+    public static int Rank(string? mode) => mode?.Trim().ToLowerInvariant() switch
+    {
+        Anywhere => 2,
+        HomeNetwork => 1,
+        _ => 0,
+    };
 }
 
 public static class NetworkBindModes

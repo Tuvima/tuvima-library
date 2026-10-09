@@ -19,6 +19,19 @@ public sealed class Account
     /// for it"; the data store fills it in when the account is saved.
     /// </summary>
     public Guid? HouseholdId { get; set; }
+
+    /// <summary>
+    /// True for an account that was set up on this computer without a password. It can only be used in a browser
+    /// on that same computer until the owner adds a password or passkey. Changed only through
+    /// <see cref="MarkThisComputerOnly"/> and <see cref="ClearThisComputerOnly"/>.
+    /// </summary>
+    public bool IsThisComputerOnly { get; private set; }
+
+    /// <summary>Marks the account as usable only on this computer (no password has been set yet).</summary>
+    public void MarkThisComputerOnly() => IsThisComputerOnly = true;
+
+    /// <summary>Lifts the this-computer-only limit once the account has a password or passkey of its own.</summary>
+    public void ClearThisComputerOnly() => IsThisComputerOnly = false;
 }
 
 public sealed class AccountProfileGrant

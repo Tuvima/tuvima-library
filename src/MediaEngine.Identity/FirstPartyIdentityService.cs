@@ -22,6 +22,8 @@ public sealed class FirstPartyIdentityService(
     TimeProvider timeProvider,
     IAuthenticationPolicyProvider authenticationPolicy) : IFirstPartyIdentityService, IHostAdministratorRecoveryService
 {
+    private const string ThisComputerMethod = "ThisComputer";
+    private const string ThisComputerStamp = "this_computer";
     private const int MaxFailedAttempts = 5;
     private const int MinimumPasswordLength = 12;
     private const int MaximumPasswordLength = 128;
@@ -37,8 +39,45 @@ public sealed class FirstPartyIdentityService(
     public Task<bool> IsAdministratorConfiguredAsync(CancellationToken ct = default) =>
         identities.IsAdministratorBootstrapCompletedAsync(ct);
 
-    public async Task<SessionIssueResult> BootstrapAdministratorAsync(string email, string password, string displayName, string deviceId, string deviceName, string client, CancellationToken ct = default, string? pin = null, string ingress = ClientIngress.Remote)
+    public Task<SessionIssueResult> BootstrapAdministratorAsync(string email, string password, string displayName, string deviceId, string deviceName, string client, CancellationToken ct = default, string? pin = null, string ingress = ClientIngress.Remote) =>
+        BootstrapCoreAsync(email, password, displayName, deviceId, deviceName, client, pin, ingress, ct);
+
+    /// <summary>
+    /// Desktop "use on this computer" start: the administrator has a name and an email but no password, so the
+    /// account works only on this computer until it is secured. The session is issued from this computer.
+    /// </summary>
+    public Task<SessionIssueResult> BootstrapThisComputerAdministratorAsync(string email, string displayName, string deviceId, string deviceName, string client, CancellationToken ct = default, string? pin = null) =>
+        BootstrapCoreAsync(email, null, displayName, deviceId, deviceName, client, pin, ClientIngress.ThisComputer, ct);
+
+    public async Task<SessionIssueResult?> SignInThisComputerAccountAsync(string deviceId, string deviceName, string client, CancellationToken ct = default)
     {
+        var account = await FindThisComputerAccountAsync(ct).ConfigureAwait(false);
+        if (account is null)
+        {
+            return null;
+        }
+
+        var profile = await GetDefaultProfileAsync(account.Id, ct).ConfigureAwait(false);
+        var issued = await IssueSessionAsync(account, profile, ThisComputerStamp, ThisComputerMethod, deviceId, deviceName, client, ClientIngress.ThisComputer, ct).ConfigureAwait(false);
+        await AuditAsync(account.Id, profile.Id, issued.Session.Id, "login_this_computer", true, null, ct).ConfigureAwait(false);
+        return issued;
+    }
+
+    public async Task<string?> GetThisComputerAccountNameAsync(CancellationToken ct = default)
+    {
+        var account = await FindThisComputerAccountAsync(ct).ConfigureAwait(false);
+        return account is null ? null : (await GetDefaultProfileAsync(account.Id, ct).ConfigureAwait(false)).DisplayName;
+    }
+
+    private async Task<Account?> FindThisComputerAccountAsync(CancellationToken ct) =>
+        (await accounts.GetAllAsync(ct).ConfigureAwait(false))
+            .Where(account => account.IsEnabled && account.IsThisComputerOnly)
+            .OrderBy(account => account.CreatedAt)
+            .FirstOrDefault();
+
+    private async Task<SessionIssueResult> BootstrapCoreAsync(string email, string? password, string displayName, string deviceId, string deviceName, string client, string? pin, string ingress, CancellationToken ct)
+    {
+        var withPassword = password is not null;
         await bootstrapGate.WaitAsync(ct).ConfigureAwait(false);
         try
         {
@@ -47,14 +86,22 @@ public sealed class FirstPartyIdentityService(
                 throw new InvalidOperationException("The administrator has already been configured.");
             }
 
-            ValidatePassword(password);
+            if (withPassword)
+            {
+                ValidatePassword(password!);
+            }
+
             if (!string.IsNullOrEmpty(pin))
             {
                 ValidatePin(pin);
             }
 
             var normalizedEmail = NormalizeEmail(email);
-            RejectPasswordMatchingIdentity(password, email, displayName);
+            if (withPassword)
+            {
+                RejectPasswordMatchingIdentity(password!, email, displayName);
+            }
+
             var profile = await profiles.GetByIdAsync(Profile.SeedProfileId, ct).ConfigureAwait(false)
                 ?? throw new InvalidOperationException("The seeded administrator profile is unavailable.");
             profile.DisplayName = string.IsNullOrWhiteSpace(displayName) ? "Administrator" : displayName.Trim();
@@ -65,15 +112,28 @@ public sealed class FirstPartyIdentityService(
 
             var now = UtcNow;
             var account = new Account { Id = Account.SeedAccountId, Email = email.Trim(), NormalizedEmail = normalizedEmail, IsEnabled = true, IsAdministrator = true, AuthorizationVersion = 1, CreatedAt = now, UpdatedAt = now };
+            if (!withPassword)
+            {
+                account.MarkThisComputerOnly();
+            }
+
             await accounts.CreateAccountAsync(account,
                 new AccountProfileGrant { AccountId = account.Id, ProfileId = profile.Id, IsDefault = true, IsEnabled = true, AdminEnabled = true, AuthorizationVersion = 1, GrantedAt = now },
                 AccountFeatureId.All.ToHashSet(), new HashSet<Guid>(), ct).ConfigureAwait(false);
-            var credential = NewAccountCredential(account.Id, password);
             if (!string.IsNullOrEmpty(pin))
             {
                 await SetProfilePinAsync(profile.Id, pin, ct).ConfigureAwait(false);
             }
 
+            if (!withPassword)
+            {
+                // No password and so no recovery codes: the account is reachable only from this computer.
+                var local = await IssueSessionAsync(account, profile, ThisComputerStamp, ThisComputerMethod, deviceId, deviceName, client, ClientIngress.ThisComputer, ct).ConfigureAwait(false);
+                await AuditAsync(account.Id, profile.Id, local.Session.Id, "administrator_bootstrap_this_computer", true, null, ct).ConfigureAwait(false);
+                return local;
+            }
+
+            var credential = NewAccountCredential(account.Id, password!);
             await identities.UpsertAccountCredentialAsync(credential, ct).ConfigureAwait(false);
             var codes = await ReplaceRecoveryCodesAsync(account.Id, ct).ConfigureAwait(false);
             var issued = await IssueSessionAsync(account, profile, credential.SecurityStamp, "Password", deviceId, deviceName, client, ingress, ct).ConfigureAwait(false);
@@ -161,6 +221,14 @@ public sealed class FirstPartyIdentityService(
         var account = await accounts.GetByIdAsync(session.AccountId, ct).ConfigureAwait(false);
         var active = await profiles.GetByIdAsync(session.ActiveProfileId, ct).ConfigureAwait(false);
         if (account is null || !account.IsEnabled || active is null || !await accounts.HasProfileAccessAsync(account.Id, active.Id, ct).ConfigureAwait(false))
+        {
+            return null;
+        }
+
+        // An account that has no password yet works only on this computer, not even from the home network.
+        // Callers that do not say where the request came from count as outside for this kind of account.
+        var effectiveIngress = currentIngress ?? (account.IsThisComputerOnly ? ClientIngress.Remote : null);
+        if (effectiveIngress is not null && !ClientIngress.SessionMayContinue(session.IssuedIngress, effectiveIngress, account.IsThisComputerOnly))
         {
             return null;
         }

@@ -629,6 +629,7 @@ One row per person who signs in. Every account has an email: there are no email-
 | `authorization_version` | INTEGER | Bumped whenever access changes, so open sessions re-check |
 | `created_at`, `updated_at` | TEXT | Timestamps |
 | `household_id` | BLOB | The household the account belongs to (see `households`). Filled by the startup migration and by the repository when an account is saved, so it is set on every account the Engine writes. |
+| `this_computer_only` | INTEGER | 1 for an account that was started on this computer without a password. It can be used only in a browser on that computer (never from the home network), counts as no remote sign-in, and blocks the actions that would let others in (see Security). Defaults to 0; added by an idempotent startup migration. |
 
 ### households
 

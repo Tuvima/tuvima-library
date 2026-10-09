@@ -1585,7 +1585,8 @@ CREATE TABLE IF NOT EXISTS accounts (
     authorization_version INTEGER NOT NULL DEFAULT 1 CHECK (authorization_version > 0),
     created_at       TEXT NOT NULL,
     updated_at       TEXT NOT NULL,
-    household_id     BLOB REFERENCES households(id)
+    household_id     BLOB REFERENCES households(id),
+    this_computer_only INTEGER NOT NULL DEFAULT 0 CHECK (this_computer_only IN (0, 1))
 );
 CREATE UNIQUE INDEX IF NOT EXISTS ux_accounts_normalized_email
     ON accounts(normalized_email);

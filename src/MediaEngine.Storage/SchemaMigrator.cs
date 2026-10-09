@@ -1195,6 +1195,9 @@ internal sealed class SchemaMigrator
     {
         var addedMembershipMode = AddColumnIfMissing(conn, "collections", "membership_mode",
             "ALTER TABLE collections ADD COLUMN membership_mode TEXT NOT NULL DEFAULT 'Smart';");
+        // An account made on this computer without a password works only on this computer until it is secured.
+        AddColumnIfMissing(conn, "accounts", "this_computer_only",
+            "ALTER TABLE accounts ADD COLUMN this_computer_only INTEGER NOT NULL DEFAULT 0 CHECK (this_computer_only IN (0, 1));");
         // Sessions remember where they started; existing rows become home-only, which fails closed.
         AddColumnIfMissing(conn, "auth_sessions", "issued_ingress",
             "ALTER TABLE auth_sessions ADD COLUMN issued_ingress TEXT NOT NULL DEFAULT 'home_network';");

@@ -139,7 +139,8 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
                is_enabled AS IsEnabled,
                is_administrator AS IsAdministrator, authorization_version AS AuthorizationVersion,
                created_at AS CreatedAt, updated_at AS UpdatedAt,
-               household_id AS HouseholdId
+               household_id AS HouseholdId,
+               this_computer_only AS ThisComputerOnly
         FROM accounts
         """;
 
@@ -154,9 +155,21 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
         CreatedAt = account.CreatedAt.ToString("O"),
         UpdatedAt = account.UpdatedAt.ToString("O"),
         account.HouseholdId,
+        ThisComputerOnly = account.IsThisComputerOnly ? 1 : 0,
     };
 
-    private static Account Map(AccountRow row) => new()
+    private static Account Map(AccountRow row)
+    {
+        var account = MapFields(row);
+        if (row.ThisComputerOnly)
+        {
+            account.MarkThisComputerOnly();
+        }
+
+        return account;
+    }
+
+    private static Account MapFields(AccountRow row) => new()
     {
         Id = row.Id,
         Email = row.Email,
@@ -180,6 +193,7 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
         public string CreatedAt { get; set; } = string.Empty;
         public string UpdatedAt { get; set; } = string.Empty;
         public Guid? HouseholdId { get; set; }
+        public bool ThisComputerOnly { get; set; }
     }
     private sealed class InvitationRow { public Guid Id { get; set; } public Guid AccountId { get; set; } public string TokenHash { get; set; } = ""; public string CreatedAt { get; set; } = ""; public string ExpiresAt { get; set; } = ""; public string? ConsumedAt { get; set; } }
 
@@ -684,7 +698,7 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
             "DELETE FROM grant_admin_unlocks WHERE session_id=@sessionId;",
             new { sessionId }, transaction), ct);
 
-    private static void InsertAccount(System.Data.IDbConnection c, System.Data.IDbTransaction tx, Account a) => c.Execute("INSERT INTO accounts(id,email,normalized_email,is_enabled,is_administrator,authorization_version,created_at,updated_at,household_id) VALUES(@Id,@Email,@NormalizedEmail,@IsEnabled,@IsAdministrator,@AuthorizationVersion,@CreatedAt,@UpdatedAt,@HouseholdId);", Parameters(a), tx);
+    private static void InsertAccount(System.Data.IDbConnection c, System.Data.IDbTransaction tx, Account a) => c.Execute("INSERT INTO accounts(id,email,normalized_email,is_enabled,is_administrator,authorization_version,created_at,updated_at,household_id,this_computer_only) VALUES(@Id,@Email,@NormalizedEmail,@IsEnabled,@IsAdministrator,@AuthorizationVersion,@CreatedAt,@UpdatedAt,@HouseholdId,@ThisComputerOnly);", Parameters(a), tx);
     private static void InsertGrant(System.Data.IDbConnection c, System.Data.IDbTransaction tx, AccountProfileGrant g)
     {
         JoinHousehold(c, tx, g.AccountId, g.ProfileId, g.GrantedAt);

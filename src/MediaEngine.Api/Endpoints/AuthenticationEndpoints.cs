@@ -38,6 +38,38 @@ public static class AuthenticationEndpoints
             .Produces<SignInMethodsResponse>()
             .RequireAuthorization(AuthPolicies.DashboardService);
 
+        // Sign in again on the computer that runs Tuvima, without a password, for an account that was started with
+        // just a name and email. Only a visitor on this computer (the Dashboard says so in the ingress header) is
+        // ever told the account exists; everyone else gets the same plain 404 as when there is no such account.
+        group.MapGet("/this-computer", async (HttpRequest request, IFirstPartyIdentityService identity, CancellationToken ct) =>
+        {
+            var name = ComesFromThisComputer(request)
+                ? await identity.GetThisComputerAccountNameAsync(ct).ConfigureAwait(false)
+                : null;
+            return name is null
+                ? ApiErrors.NotFound("Not found.")
+                : Results.Ok(new ThisComputerAccountResponse(name));
+        })
+        .WithName("GetThisComputerAccount")
+        .Produces<ThisComputerAccountResponse>()
+        .ProducesProblem(StatusCodes.Status404NotFound)
+        .RequireAuthorization(AuthPolicies.DashboardService);
+
+        group.MapPost("/this-computer", async (ThisComputerSignInRequest body, HttpRequest request,
+            IFirstPartyIdentityService identity, DashboardAuthorityProjector projector, CancellationToken ct) =>
+        {
+            var issued = ComesFromThisComputer(request)
+                ? await identity.SignInThisComputerAccountAsync(body.DeviceId, body.DeviceName, body.Client, ct).ConfigureAwait(false)
+                : null;
+            return issued is null
+                ? ApiErrors.NotFound("Not found.")
+                : Results.Ok(await ToResponseAsync(issued, projector, ct));
+        })
+        .WithName("SignInThisComputer")
+        .Produces<AuthSessionResponse>()
+        .ProducesProblem(StatusCodes.Status404NotFound)
+        .RequireAuthorization(AuthPolicies.DashboardService);
+
         group.MapPost("/login", async (LocalLoginRequest request, IFirstPartyIdentityService identity,
             DashboardAuthorityProjector projector, CancellationToken ct) =>
         {
@@ -223,7 +255,7 @@ public static class AuthenticationEndpoints
 
             // A home session used from outside is not revoked; it is only unusable here. Tell the Dashboard
             // apart from a dead session so the sign-in cookie is kept for when the person is home again.
-            var wrongPlace = await identity.ValidateSessionAsync(request.Headers[TuvimaAuthDefaults.SessionHeader].ToString(), false, ct).ConfigureAwait(false) is not null;
+            var wrongPlace = await identity.ValidateSessionAsync(request.Headers[TuvimaAuthDefaults.SessionHeader].ToString(), false, ct, ClientIngress.ThisComputer).ConfigureAwait(false) is not null;
             return wrongPlace
                 ? Results.Json(new { reason = ClientIngressValues.SignInAgainHere }, statusCode: StatusCodes.Status401Unauthorized)
                 : Results.Unauthorized();
@@ -562,6 +594,21 @@ public static class AuthenticationEndpoints
                 ? await next(invocation).ConfigureAwait(false)
                 : refusal();
         });
+
+    /// <summary>Only the Dashboard (service credential) may say where the browser is; a missing header counts as remote.</summary>
+    private static bool ComesFromThisComputer(HttpRequest request) =>
+        request.HttpContext.User.HasClaim(TuvimaClaimTypes.DashboardService, "true")
+        && ClientIngress.Parse(request.Headers[ClientIngressValues.ValidateHeader].ToString()) == ClientIngress.ThisComputer
+        && !WasForwarded(request);
+
+    /// <summary>
+    /// A tunnel such as cloudflared or ngrok on this computer looks like loopback, so a visitor whose request carried
+    /// forwarding headers (seen by the Dashboard, which says so in a header, or by the Engine itself) is not trusted.
+    /// </summary>
+    private static bool WasForwarded(HttpRequest request) =>
+        string.Equals(request.Headers[ClientIngressValues.ForwardedHeader].ToString(), "true", StringComparison.OrdinalIgnoreCase)
+        || request.Headers.ContainsKey("X-Forwarded-For")
+        || request.Headers.ContainsKey("Forwarded");
 
     private static bool IsLoginPermittedFor(IConfigurationLoader configuration, LocalLoginRequest request)
     {

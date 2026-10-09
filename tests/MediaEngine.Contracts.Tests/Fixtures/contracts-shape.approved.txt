@@ -1108,6 +1108,14 @@ MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.Switch
   ProfileId: System.Guid | nullability=not-null | accessors=get,init
   Secret: System.String | nullability=nullable | accessors=get,init
 
+MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.ThisComputerAccountResponse
+  DisplayName: System.String | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.ThisComputerSignInRequest
+  DeviceId: System.String | nullability=not-null | accessors=get,init
+  DeviceName: System.String | nullability=not-null | accessors=get,init
+  Client: System.String | nullability=not-null | accessors=get,init
+
 MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.TuvimaDiscoveryResponse
   Product: System.String | nullability=not-null | accessors=get,init
   ServerId: System.String | nullability=not-null | accessors=get,init
@@ -7633,7 +7641,11 @@ MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.ViewStorageSummary
   Sources: System.Int32 | nullability=not-null | accessors=get,init
   Items: System.Int32 | nullability=not-null | accessors=get,init
 
+MediaEngine.Contracts.Setup.MediaEngine.Contracts.Setup.SetupAdministratorRefusalCodes
+
 MediaEngine.Contracts.Setup.MediaEngine.Contracts.Setup.SetupAdministratorRequest
+  SignIn: System.String | nullability=not-null | accessors=get,init
+  OriginalClientIngress: System.String | nullability=not-null | accessors=get,init
   Pin: System.String | nullability=nullable | accessors=get,init
   Email: System.String | nullability=not-null | accessors=get,init
   Password: System.String | nullability=not-null | accessors=get,init
@@ -7715,6 +7727,8 @@ MediaEngine.Contracts.Setup.MediaEngine.Contracts.Setup.SetupRestoreConfirmation
   Scheduled: System.Boolean | nullability=not-null | accessors=get,init
   RestartRequired: System.Boolean | nullability=not-null | accessors=get,init
   Message: System.String | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Setup.MediaEngine.Contracts.Setup.SetupSignInModes
 
 MediaEngine.Contracts.Setup.MediaEngine.Contracts.Setup.SetupStartResponse
   SetupSessionToken: System.String | nullability=not-null | accessors=get,init

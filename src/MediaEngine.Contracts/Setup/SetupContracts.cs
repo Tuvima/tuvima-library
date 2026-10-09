@@ -84,8 +84,26 @@ public sealed record SetupPreflightDto(
     [property: JsonPropertyName("ffmpeg_status")] string FfmpegStatus,
     [property: JsonPropertyName("checks")] IReadOnlyList<SetupPathCheckDto> Checks);
 
+/// <summary>How the first administrator will sign in. <see cref="Password"/> is the default.</summary>
+public static class SetupSignInModes
+{
+    /// <summary>A password is set during setup (the default).</summary>
+    public const string Password = "password";
+
+    /// <summary>Desktop only: no password yet; the account works only on this computer until it is secured.</summary>
+    public const string ThisComputer = "this_computer";
+}
+
+public static class SetupAdministratorRefusalCodes
+{
+    /// <summary>The chosen sign-in way is not offered from here (not on this computer, or a container install).</summary>
+    public const string NotAvailableHere = "not_available_here";
+}
+
 public sealed class SetupAdministratorRequest
 {
+    [JsonPropertyName("sign_in")] public string SignIn { get; init; } = SetupSignInModes.Password;
+    [JsonPropertyName("original_client_ingress")] public string OriginalClientIngress { get; init; } = ClientIngressValues.Remote;
     [JsonPropertyName("pin")] public string? Pin { get; init; }
     [JsonPropertyName("email")] public string Email { get; init; } = string.Empty;
     [JsonPropertyName("password")] public string Password { get; init; } = string.Empty;
