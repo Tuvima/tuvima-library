@@ -16,6 +16,7 @@ public sealed class AuthenticationSettingsInteractionTests : AsyncBunitContext
 {
     private AuthSettingsDto _settings = ReadySettings();
     private int _saveCalls;
+    private RegisteredExternalProvidersSnapshot _registered = new([]);
     private TaskCompletionSource _saveStarted = new(TaskCreationOptions.RunContinuationsAsynchronously);
     private CancellationToken _saveToken;
     private bool _throwOnSave;
@@ -40,6 +41,7 @@ public sealed class AuthenticationSettingsInteractionTests : AsyncBunitContext
                     : WaitForCancellationAsync(_saveToken);
             });
         }));
+        Services.AddSingleton(_ => _registered);
         Services.AddSingleton<IHttpClientFactory>(new StaticHttpClientFactory());
         Services.AddScoped<DashboardIdentityClient>();
         Services.AddSingleton(new PasswordResetDeliverySettings { Mode = "Disabled" });
@@ -62,6 +64,34 @@ public sealed class AuthenticationSettingsInteractionTests : AsyncBunitContext
         Assert.False(button.HasAttribute("disabled"));
         Assert.Contains("current signed-in account", cut.Markup, StringComparison.Ordinal);
         Assert.Empty(cut.FindAll("input[type='email']"));
+    }
+
+    [Fact]
+    public void ProviderRestartNotice_AppearsOnlyWhenSavedProvidersDifferFromStartup()
+    {
+        var cut = Render<SecurityTab>();
+        cut.WaitForElement(".security-settings__facts");
+        Assert.DoesNotContain("Restart Tuvima Library to apply sign-in provider changes.", cut.Markup, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ProviderRestartNotice_ShownWhenSavedProviderIsNotRegistered()
+    {
+        _settings = ReadySettings(new ExternalAuthProviderDto
+        {
+            Id = "idp",
+            Kind = "oidc",
+            Enabled = true,
+            DisplayName = "IdP",
+            ClientId = "c",
+            Authority = "https://idp.example",
+            Scopes = ["openid"],
+        });
+
+        var cut = Render<SecurityTab>();
+        cut.WaitForElement(".security-settings__facts");
+
+        Assert.Contains("Restart Tuvima Library to apply sign-in provider changes.", cut.Markup, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -106,8 +136,9 @@ public sealed class AuthenticationSettingsInteractionTests : AsyncBunitContext
         return null;
     }
 
-    private static AuthSettingsDto ReadySettings() => new()
+    private static AuthSettingsDto ReadySettings(params ExternalAuthProviderDto[] providers) => new()
     {
+        ExternalProviders = [.. providers],
         Mode = "Required",
         PasswordSignInEnabled = true,
         PasskeySignInEnabled = true,

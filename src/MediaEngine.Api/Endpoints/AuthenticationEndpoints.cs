@@ -564,10 +564,7 @@ public static class AuthenticationEndpoints
             return false;
         }
 
-        var configuredIssuer = provider.Kind.Equals(ExternalAuthProviderKinds.OpenIdConnect, StringComparison.OrdinalIgnoreCase)
-            ? provider.Issuer.Length > 0 ? provider.Issuer : provider.Authority
-            : provider.Issuer;
-        return configuredIssuer.TrimEnd('/').Equals(issuer.Trim().TrimEnd('/'), StringComparison.Ordinal);
+        return ExternalIssuerMatcher.Matches(provider.Issuer, provider.Authority, issuer);
     }
 
     internal static bool IsExternalSignInEnabled(AuthSettings policy) =>

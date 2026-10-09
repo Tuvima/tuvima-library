@@ -5,6 +5,7 @@
 @inject PasswordResetEmailSender PasswordResetEmails
 @inject IAppToastService Snackbar
 @inject ILogger<SecurityTab> Logger
+@inject RegisteredExternalProvidersSnapshot RegisteredProviders
 
 <div class="tl-page security-settings">
     <SettingsSectionPanel Title="@PanelTitle" Description="@PanelDescription" Icon="@PanelIcon">
@@ -97,6 +98,12 @@
                 <div class="app-field__help mt-2">Sends only to the email address on your current signed-in account.</div>
             }
             <h3 class="mt-5">External providers</h3>
+            @if (ProvidersNeedRestart)
+            {
+                <AppAlert Tone="AppUiTone.Warning" Class="mb-3" aria-live="polite">
+                    Restart Tuvima Library to apply sign-in provider changes.
+                </AppAlert>
+            }
             @foreach (var provider in _providerEditors)
             {
                 <div class="security-settings__provider">
@@ -185,6 +192,8 @@
     private string _maximumActiveSessions = "20";
     private readonly List<ProviderEditor> _providerEditors = [];
 
+    private bool ProvidersNeedRestart =>
+        _authSettings is not null && RegisteredProviders.DiffersFrom(_authSettings.ExternalProviders, _authSettings.Mode);
     private string PanelTitle => "Authentication";
     private string PanelDescription => "Control how people sign in, remote access, sessions, and provider readiness.";
     private string PanelIcon => AppMaterialIcons.Outlined.AdminPanelSettings;
@@ -359,6 +368,10 @@
             {
                 Snackbar.Add("Provider settings could not be saved.", AppSeverity.Error);
                 return;
+            }
+            if (!string.IsNullOrWhiteSpace(provider.ClientSecret) || provider.ClearClientSecret)
+            {
+                RegisteredProviders.MarkSecretChanged();
             }
             Apply(saved);
             Snackbar.Add("Provider saved. Restart the Engine and Dashboard before using the new provider configuration.", AppSeverity.Success);

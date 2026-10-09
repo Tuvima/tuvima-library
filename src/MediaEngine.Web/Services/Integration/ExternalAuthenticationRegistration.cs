@@ -99,8 +99,8 @@ public static partial class ExternalAuthenticationRegistration
                     provider,
                     issuer,
                     subject,
-                    context.Principal?.FindFirstValue(ClaimTypes.Email),
-                    context.Principal?.FindFirstValue(ClaimTypes.Name),
+                    ReadOidcEmail(context.Principal),
+                    ReadOidcName(context.Principal),
                     "OIDC").ConfigureAwait(false);
                 if (issued is null)
                 {
@@ -270,6 +270,16 @@ public static partial class ExternalAuthenticationRegistration
         return issued;
     }
 
+    // MapInboundClaims is false, so OIDC claims keep their JWT names; fall back to the
+    // mapped ClaimTypes names for providers/handlers that still produce them.
+    internal static string? ReadOidcEmail(ClaimsPrincipal? principal) =>
+        principal?.FindFirstValue("email") ?? principal?.FindFirstValue(ClaimTypes.Email);
+
+    internal static string? ReadOidcName(ClaimsPrincipal? principal) =>
+        principal?.FindFirstValue("name")
+        ?? principal?.FindFirstValue("preferred_username")
+        ?? principal?.FindFirstValue(ClaimTypes.Name);
+
     private static string ExternalPurpose(AuthenticationProperties? properties) =>
         properties?.Items.TryGetValue("tuvima:external-purpose", out var purpose) == true
             && purpose == ExternalIdentityTransactionPurposes.Link
@@ -291,6 +301,12 @@ public static partial class ExternalAuthenticationRegistration
         if (provider.Kind.Equals(ExternalAuthProviderKinds.OpenIdConnect, StringComparison.OrdinalIgnoreCase))
         {
             RequireHttps(provider.Authority, provider.Id, "authority");
+            var tenantError = ExternalIssuerMatcher.GetMicrosoftTenantError(provider.Authority);
+            if (tenantError is not null)
+            {
+                throw new InvalidOperationException($"OIDC provider '{provider.Id}': {tenantError}");
+            }
+
             if (!provider.Scopes.Contains("openid", StringComparer.Ordinal))
             {
                 throw new InvalidOperationException($"OIDC provider '{provider.Id}' must request the openid scope.");
