@@ -18,6 +18,37 @@ public sealed class NetworkConfigurationTests
     }
 
     [Fact]
+    public void NativeAppAccess_IsOffByDefault_AndNeedsRemoteAccessToBeSaved()
+    {
+        Assert.False(new NetworkSettings().NativeAppAccess.Enabled);
+
+        var path = CreateTempDirectory();
+        try
+        {
+            var loader = new ConfigurationDirectoryLoader(path);
+            var withoutRemote = new NetworkSettings { NativeAppAccess = new NativeAppAccessSettings { Enabled = true } };
+            var ex = Assert.Throws<ConfigValidationException>(() => loader.SaveNetwork(withoutRemote));
+            Assert.Contains(ex.ValidationMessages, m => m.Contains("native_app_access", StringComparison.Ordinal));
+
+            loader.SaveNetwork(new NetworkSettings
+            {
+                Remote = new RemoteNetworkSettings
+                {
+                    Enabled = true,
+                    ConnectionMode = NetworkConnectionModes.Custom,
+                    PublicHostname = "https://media.example.test",
+                },
+                NativeAppAccess = new NativeAppAccessSettings { Enabled = true },
+            });
+            Assert.True(loader.LoadNetwork().NativeAppAccess.Enabled);
+        }
+        finally
+        {
+            Directory.Delete(path, recursive: true);
+        }
+    }
+
+    [Fact]
     public void SaveNetwork_RoundTripsDesiredState()
     {
         var path = CreateTempDirectory();

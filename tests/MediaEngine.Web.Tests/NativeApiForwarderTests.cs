@@ -3,6 +3,7 @@ using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using MediaEngine.Contracts.Authentication;
 using MediaEngine.Web.Endpoints;
+using MediaEngine.Web.Services.Configuration;
 using MediaEngine.Web.Services.Integration;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
@@ -111,16 +112,52 @@ public sealed class NativeApiForwarderTests
     }
 
     [Fact]
-    public async Task ConfigurationGate_IsOffUnlessExplicitlyEnabled()
+    public void NetworkSettingsGate_IsOffUnlessAppAccessAndRemoteAccessAreBothOn()
     {
-        static bool Read(string? value) => new ConfigurationNativeAppAccessGate(new ConfigurationBuilder()
-            .AddInMemoryCollection(value is null ? [] : new Dictionary<string, string?> { ["NativeAppAccess:Enabled"] = value })
-            .Build()).IsEnabled;
+        var dir = Path.Combine(Path.GetTempPath(), "tuvima-gate-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(dir);
+        try
+        {
+            bool Read(string json)
+            {
+                File.WriteAllText(Path.Combine(dir, "network.json"), json);
+                // A fresh gate per case so the change-detection cache cannot hide a parse.
+                return new NetworkSettingsNativeAppAccessGate(new DashboardConfigurationReader(dir), dir).IsEnabled;
+            }
 
-        Assert.False(Read(null));
-        Assert.False(Read("false"));
-        Assert.True(Read("true"));
-        await Task.CompletedTask;
+            var gate = new NetworkSettingsNativeAppAccessGate(new DashboardConfigurationReader(dir), dir);
+            Assert.False(gate.IsEnabled); // no file
+            Assert.False(Read("{}"));
+            Assert.False(Read("{\"native_app_access\":{\"enabled\":true}}")); // remote access off
+            Assert.False(Read("{\"remote\":{\"enabled\":true}}")); // app access off
+            Assert.True(Read("{\"remote\":{\"enabled\":true},\"native_app_access\":{\"enabled\":true}}"));
+            Assert.False(Read("{ not json")); // fails closed
+        }
+        finally
+        {
+            Directory.Delete(dir, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void NetworkSettingsGate_PicksUpAChangeWithoutRestart()
+    {
+        var dir = Path.Combine(Path.GetTempPath(), "tuvima-gate-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(dir);
+        try
+        {
+            var path = Path.Combine(dir, "network.json");
+            var gate = new NetworkSettingsNativeAppAccessGate(new DashboardConfigurationReader(dir), dir);
+            File.WriteAllText(path, "{\"remote\":{\"enabled\":true},\"native_app_access\":{\"enabled\":true}}");
+            Assert.True(gate.IsEnabled);
+            File.WriteAllText(path, "{\"remote\":{\"enabled\":true},\"native_app_access\":{\"enabled\":false}}");
+            File.SetLastWriteTimeUtc(path, DateTime.UtcNow.AddMinutes(1));
+            Assert.False(gate.IsEnabled);
+        }
+        finally
+        {
+            Directory.Delete(dir, recursive: true);
+        }
     }
 
     [Fact]
