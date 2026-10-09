@@ -35,6 +35,20 @@ public sealed class IdentityRepository(IDatabaseConnection db) : IIdentityReposi
         return Task.CompletedTask;
     }
 
+    public Task<int> IncrementAccountCredentialFailureAsync(Guid credentialId, int lockoutThreshold, DateTimeOffset lockedUntil, CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+        using var conn = db.CreateConnection();
+        return Task.FromResult(conn.ExecuteScalar<int>(
+            """
+            UPDATE account_credentials
+            SET failed_attempt_count = failed_attempt_count + 1,
+                locked_until = CASE WHEN failed_attempt_count + 1 >= @lockoutThreshold THEN @lockedUntil ELSE locked_until END
+            WHERE id = @credentialId
+            RETURNING failed_attempt_count;
+            """, new { credentialId, lockoutThreshold, lockedUntil = lockedUntil.ToString("O") }));
+    }
+
     public Task UpdateAccountCredentialAttemptAsync(Guid credentialId, int failedAttemptCount, DateTimeOffset? lockedUntil, DateTimeOffset? lastUsedAt, CancellationToken ct = default) =>
         UpdateAttemptAsync("account_credentials", credentialId, failedAttemptCount, lockedUntil, lastUsedAt, ct);
 
@@ -287,9 +301,9 @@ public sealed class IdentityRepository(IDatabaseConnection db) : IIdentityReposi
         ct.ThrowIfCancellationRequested();
         using var conn = db.CreateConnection();
         conn.Execute("""
-            INSERT INTO two_step_challenges (id, account_id, token_hash, ingress, device_id, device_name, client, failed_attempts, created_at, expires_at, consumed_at)
-            VALUES (@Id, @AccountId, @TokenHash, @Ingress, @DeviceId, @DeviceName, @Client, @FailedAttempts, @CreatedAt, @ExpiresAt, NULL);
-            """, new { challenge.Id, challenge.AccountId, challenge.TokenHash, challenge.Ingress, challenge.DeviceId, challenge.DeviceName, challenge.Client, challenge.FailedAttempts, CreatedAt = challenge.CreatedAt.ToString("O"), ExpiresAt = challenge.ExpiresAt.ToString("O") });
+            INSERT INTO two_step_challenges (id, account_id, token_hash, ingress, device_id, device_name, client, security_stamp, failed_attempts, created_at, expires_at, consumed_at)
+            VALUES (@Id, @AccountId, @TokenHash, @Ingress, @DeviceId, @DeviceName, @Client, @SecurityStamp, @FailedAttempts, @CreatedAt, @ExpiresAt, NULL);
+            """, new { challenge.Id, challenge.AccountId, challenge.TokenHash, challenge.Ingress, challenge.DeviceId, challenge.DeviceName, challenge.Client, challenge.SecurityStamp, challenge.FailedAttempts, CreatedAt = challenge.CreatedAt.ToString("O"), ExpiresAt = challenge.ExpiresAt.ToString("O") });
         return Task.CompletedTask;
     }
 
@@ -298,7 +312,7 @@ public sealed class IdentityRepository(IDatabaseConnection db) : IIdentityReposi
         ct.ThrowIfCancellationRequested();
         using var conn = db.CreateConnection();
         var row = conn.QueryFirstOrDefault<TwoStepChallengeRow>(
-            "SELECT id AS Id, account_id AS AccountId, token_hash AS TokenHash, ingress AS Ingress, device_id AS DeviceId, device_name AS DeviceName, client AS Client, failed_attempts AS FailedAttempts, created_at AS CreatedAt, expires_at AS ExpiresAt, consumed_at AS ConsumedAt FROM two_step_challenges WHERE token_hash=@tokenHash AND consumed_at IS NULL AND expires_at>@now LIMIT 1;",
+            "SELECT id AS Id, account_id AS AccountId, token_hash AS TokenHash, ingress AS Ingress, device_id AS DeviceId, device_name AS DeviceName, client AS Client, security_stamp AS SecurityStamp, failed_attempts AS FailedAttempts, created_at AS CreatedAt, expires_at AS ExpiresAt, consumed_at AS ConsumedAt FROM two_step_challenges WHERE token_hash=@tokenHash AND consumed_at IS NULL AND expires_at>@now LIMIT 1;",
             new { tokenHash, now = now.ToString("O") });
         return Task.FromResult(row is null ? null : Map(row));
     }
@@ -312,12 +326,15 @@ public sealed class IdentityRepository(IDatabaseConnection db) : IIdentityReposi
             new { challengeId, consumedAt = consumedAt.ToString("O") }) > 0);
     }
 
-    public Task<int> RecordTwoStepChallengeFailureAsync(Guid challengeId, CancellationToken ct = default)
+    public Task<int> RecordTwoStepChallengeFailureAsync(Guid challengeId, int maxAttempts, CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested();
         using var conn = db.CreateConnection();
-        conn.Execute("UPDATE two_step_challenges SET failed_attempts=failed_attempts+1 WHERE id=@challengeId;", new { challengeId });
-        return Task.FromResult(conn.ExecuteScalar<int>("SELECT failed_attempts FROM two_step_challenges WHERE id=@challengeId;", new { challengeId }));
+        // One statement, and it stops counting at the cap, so a flood of parallel guesses cannot push past it.
+        var count = conn.ExecuteScalar<int?>(
+            "UPDATE two_step_challenges SET failed_attempts=failed_attempts+1 WHERE id=@challengeId AND failed_attempts<@maxAttempts RETURNING failed_attempts;",
+            new { challengeId, maxAttempts });
+        return Task.FromResult(count ?? maxAttempts);
     }
 
     public Task InvalidateTwoStepChallengesAsync(Guid accountId, CancellationToken ct = default)
@@ -359,7 +376,7 @@ public sealed class IdentityRepository(IDatabaseConnection db) : IIdentityReposi
     private static PasswordRecoveryCode Map(RecoveryRow r) => new() { Id = r.Id, AccountId = r.AccountId, CodeHash = r.CodeHash, CreatedAt = DateTimeOffset.Parse(r.CreatedAt), ExpiresAt = DateTimeOffset.Parse(r.ExpiresAt), ConsumedAt = ParseNullable(r.ConsumedAt) };
     private static PasswordResetChallenge Map(PasswordResetRow r) => new() { Id = r.Id, AccountId = r.AccountId, TokenHash = r.TokenHash, CreatedAt = DateTimeOffset.Parse(r.CreatedAt), ExpiresAt = DateTimeOffset.Parse(r.ExpiresAt), ConsumedAt = ParseNullable(r.ConsumedAt) };
     private static AccountTwoStep Map(TwoStepRow r) => new() { AccountId = r.AccountId, SecretProtected = r.SecretProtected, CreatedAt = DateTimeOffset.Parse(r.CreatedAt), EnabledAt = ParseNullable(r.EnabledAt), LastUsedStep = r.LastUsedStep };
-    private static TwoStepChallenge Map(TwoStepChallengeRow r) => new() { Id = r.Id, AccountId = r.AccountId, TokenHash = r.TokenHash, Ingress = r.Ingress, DeviceId = r.DeviceId, DeviceName = r.DeviceName, Client = r.Client, FailedAttempts = r.FailedAttempts, CreatedAt = DateTimeOffset.Parse(r.CreatedAt), ExpiresAt = DateTimeOffset.Parse(r.ExpiresAt), ConsumedAt = ParseNullable(r.ConsumedAt) };
+    private static TwoStepChallenge Map(TwoStepChallengeRow r) => new() { Id = r.Id, AccountId = r.AccountId, TokenHash = r.TokenHash, Ingress = r.Ingress, DeviceId = r.DeviceId, DeviceName = r.DeviceName, Client = r.Client, SecurityStamp = r.SecurityStamp, FailedAttempts = r.FailedAttempts, CreatedAt = DateTimeOffset.Parse(r.CreatedAt), ExpiresAt = DateTimeOffset.Parse(r.ExpiresAt), ConsumedAt = ParseNullable(r.ConsumedAt) };
     private static ServiceCredential Map(ServiceRow r) => new() { Id = r.Id, Purpose = r.Purpose, KeyId = r.KeyId, TokenHash = r.TokenHash, CreatedAt = DateTimeOffset.Parse(r.CreatedAt), LastUsedAt = ParseNullable(r.LastUsedAt), RevokedAt = ParseNullable(r.RevokedAt) };
     private static DateTimeOffset? ParseNullable(string? v) => string.IsNullOrWhiteSpace(v) ? null : DateTimeOffset.Parse(v);
 
@@ -369,6 +386,6 @@ public sealed class IdentityRepository(IDatabaseConnection db) : IIdentityReposi
     private sealed class RecoveryRow { public Guid Id { get; set; } public Guid AccountId { get; set; } public string CodeHash { get; set; } = ""; public string CreatedAt { get; set; } = ""; public string ExpiresAt { get; set; } = ""; public string? ConsumedAt { get; set; } }
     private sealed class PasswordResetRow { public Guid Id { get; set; } public Guid AccountId { get; set; } public string TokenHash { get; set; } = ""; public string CreatedAt { get; set; } = ""; public string ExpiresAt { get; set; } = ""; public string? ConsumedAt { get; set; } }
     private sealed class TwoStepRow { public Guid AccountId { get; set; } public string SecretProtected { get; set; } = ""; public string CreatedAt { get; set; } = ""; public string? EnabledAt { get; set; } public long LastUsedStep { get; set; } }
-    private sealed class TwoStepChallengeRow { public Guid Id { get; set; } public Guid AccountId { get; set; } public string TokenHash { get; set; } = ""; public string Ingress { get; set; } = ""; public string DeviceId { get; set; } = ""; public string DeviceName { get; set; } = ""; public string Client { get; set; } = ""; public int FailedAttempts { get; set; } public string CreatedAt { get; set; } = ""; public string ExpiresAt { get; set; } = ""; public string? ConsumedAt { get; set; } }
+    private sealed class TwoStepChallengeRow { public Guid Id { get; set; } public Guid AccountId { get; set; } public string TokenHash { get; set; } = ""; public string Ingress { get; set; } = ""; public string DeviceId { get; set; } = ""; public string DeviceName { get; set; } = ""; public string Client { get; set; } = ""; public string SecurityStamp { get; set; } = ""; public int FailedAttempts { get; set; } public string CreatedAt { get; set; } = ""; public string ExpiresAt { get; set; } = ""; public string? ConsumedAt { get; set; } }
     private sealed class ServiceRow { public Guid Id { get; set; } public string Purpose { get; set; } = ""; public string KeyId { get; set; } = ""; public string TokenHash { get; set; } = ""; public string CreatedAt { get; set; } = ""; public string? LastUsedAt { get; set; } public string? RevokedAt { get; set; } }
 }

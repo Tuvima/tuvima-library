@@ -6,6 +6,8 @@ public interface IIdentityRepository
 {
     Task<AccountCredential?> GetAccountCredentialAsync(Guid accountId, AccountCredentialKind kind, CancellationToken ct = default);
     Task UpsertAccountCredentialAsync(AccountCredential credential, CancellationToken ct = default);
+    /// <summary>Adds one failed attempt in a single statement (so parallel bad guesses all count), locking at the threshold. Returns the new count.</summary>
+    Task<int> IncrementAccountCredentialFailureAsync(Guid credentialId, int lockoutThreshold, DateTimeOffset lockedUntil, CancellationToken ct = default);
     Task UpdateAccountCredentialAttemptAsync(Guid credentialId, int failedAttemptCount, DateTimeOffset? lockedUntil, DateTimeOffset? lastUsedAt, CancellationToken ct = default);
     Task<ProfileCredential?> GetCredentialAsync(Guid profileId, ProfileCredentialKind kind, CancellationToken ct = default);
     Task UpsertCredentialAsync(ProfileCredential credential, CancellationToken ct = default);
@@ -49,7 +51,7 @@ public interface IIdentityRepository
     Task<TwoStepChallenge?> GetActiveTwoStepChallengeAsync(string tokenHash, DateTimeOffset now, CancellationToken ct = default);
     Task<bool> ConsumeTwoStepChallengeAsync(Guid challengeId, DateTimeOffset consumedAt, CancellationToken ct = default);
     /// <summary>Counts one wrong code against the challenge and returns how many wrong codes it has had.</summary>
-    Task<int> RecordTwoStepChallengeFailureAsync(Guid challengeId, CancellationToken ct = default);
+    Task<int> RecordTwoStepChallengeFailureAsync(Guid challengeId, int maxAttempts, CancellationToken ct = default);
     Task InvalidateTwoStepChallengesAsync(Guid accountId, CancellationToken ct = default);
 
     Task<ServiceCredential?> GetActiveServiceCredentialAsync(string purpose, CancellationToken ct = default);

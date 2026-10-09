@@ -40,6 +40,7 @@ public sealed class FirstPartyIdentityService(
     private static readonly TimeSpan PasswordResetLifetime = TimeSpan.FromMinutes(30);
     private readonly ConcurrentDictionary<Guid, SemaphoreSlim> sessionIssueLocks = new();
     private readonly SemaphoreSlim bootstrapGate = new(1, 1);
+    private readonly ConcurrentDictionary<Guid, (int Count, DateTimeOffset BlockedUntil)> homeSecondFactorFailures = new();
 
     public Task<bool> IsAdministratorConfiguredAsync(CancellationToken ct = default) =>
         identities.IsAdministratorBootstrapCompletedAsync(ct);
@@ -583,7 +584,7 @@ public sealed class FirstPartyIdentityService(
         // With two-step codes on, the password alone is not enough to prove it is them.
         if (await identities.GetAccountTwoStepAsync(accountId, ct).ConfigureAwait(false) is { IsEnabled: true } twoStep)
         {
-            if (!await VerifySecondFactorAsync(accountId, twoStep, twoStepCode, ct).ConfigureAwait(false))
+            if (SecondFactorBackedOff(accountId, countsTowardLockout) || !await VerifySecondFactorAsync(accountId, twoStep, twoStepCode, ct).ConfigureAwait(false))
             {
                 await RecordSecondFactorFailureAsync(credential, countsTowardLockout, sessionId, ct).ConfigureAwait(false);
                 return false;
@@ -681,7 +682,7 @@ public sealed class FirstPartyIdentityService(
             return false;
         }
 
-        if (!await VerifySecondFactorAsync(accountId, twoStep, codeOrRecoveryCode, ct).ConfigureAwait(false))
+        if (SecondFactorBackedOff(accountId, countsTowardLockout) || !await VerifySecondFactorAsync(accountId, twoStep, codeOrRecoveryCode, ct).ConfigureAwait(false))
         {
             await RecordSecondFactorFailureAsync(credential, countsTowardLockout, sessionId, ct).ConfigureAwait(false);
             return false;
@@ -743,7 +744,9 @@ public sealed class FirstPartyIdentityService(
         var account = await accounts.GetByIdAsync(challenge.AccountId, ct).ConfigureAwait(false);
         var credential = await identities.GetAccountCredentialAsync(challenge.AccountId, AccountCredentialKind.Password, ct).ConfigureAwait(false);
         var twoStep = await identities.GetAccountTwoStepAsync(challenge.AccountId, ct).ConfigureAwait(false);
-        if (account is null || !account.IsEnabled || credential is null || twoStep is not { IsEnabled: true })
+        // A changed password rotates the stamp, which ends any sign-in that was waiting for its code.
+        if (account is null || !account.IsEnabled || credential is null || twoStep is not { IsEnabled: true }
+            || !StampMatches(credential.SecurityStamp, challenge.SecurityStamp))
         {
             await identities.ConsumeTwoStepChallengeAsync(challenge.Id, now, ct).ConfigureAwait(false);
             return invalid;
@@ -755,10 +758,10 @@ public sealed class FirstPartyIdentityService(
             return new AuthenticationAttemptResult(false, true, "Too many attempts. Try again later.", null);
         }
 
-        if (!await VerifySecondFactorAsync(challenge.AccountId, twoStep, codeOrRecoveryCode, ct).ConfigureAwait(false))
+        if (SecondFactorBackedOff(challenge.AccountId, countsTowardLockout) || !await VerifySecondFactorAsync(challenge.AccountId, twoStep, codeOrRecoveryCode, ct).ConfigureAwait(false))
         {
             await RecordSecondFactorFailureAsync(credential, countsTowardLockout, null, ct).ConfigureAwait(false);
-            if (await identities.RecordTwoStepChallengeFailureAsync(challenge.Id, ct).ConfigureAwait(false) >= MaxTwoStepChallengeAttempts)
+            if (await identities.RecordTwoStepChallengeFailureAsync(challenge.Id, MaxTwoStepChallengeAttempts, ct).ConfigureAwait(false) >= MaxTwoStepChallengeAttempts)
             {
                 await identities.ConsumeTwoStepChallengeAsync(challenge.Id, now, ct).ConfigureAwait(false);
             }
@@ -876,7 +879,7 @@ public sealed class FirstPartyIdentityService(
         {
             // A right password is only the first step. The failure count is deliberately not cleared here: it is
             // cleared when the code is right too, so guessing codes cannot be restarted by re-entering the password.
-            var token = await BeginTwoStepChallengeAsync(account, deviceId, deviceName, client, ingress, ct).ConfigureAwait(false);
+            var token = await BeginTwoStepChallengeAsync(account, credential.SecurityStamp, deviceId, deviceName, client, ingress, ct).ConfigureAwait(false);
             await AuditAsync(account.Id, null, null, "login_two_step_required", true, null, ct).ConfigureAwait(false);
             return new(false, false, null, null, token);
         }
@@ -887,7 +890,7 @@ public sealed class FirstPartyIdentityService(
         await AuditAsync(account.Id, profile.Id, issued.Session.Id, "login_local", true, "Password", ct).ConfigureAwait(false); return new(true, false, null, issued);
     }
 
-    private async Task<string> BeginTwoStepChallengeAsync(Account account, string deviceId, string deviceName, string client, string ingress, CancellationToken ct)
+    private async Task<string> BeginTwoStepChallengeAsync(Account account, string securityStamp, string deviceId, string deviceName, string client, string ingress, CancellationToken ct)
     {
         var token = RandomToken(32);
         var now = UtcNow;
@@ -902,6 +905,7 @@ public sealed class FirstPartyIdentityService(
             DeviceId = Sanitize(deviceId, 100, "unknown"),
             DeviceName = Sanitize(deviceName, 100, "Unknown device"),
             Client = Sanitize(client, 200, "Dashboard"),
+            SecurityStamp = securityStamp,
             CreatedAt = now,
             ExpiresAt = now.Add(TwoStepChallengeLifetime),
         }, ct).ConfigureAwait(false);
@@ -925,6 +929,17 @@ public sealed class FirstPartyIdentityService(
     /// code (which is used up). Anything else, including a missing code, is a no.
     /// </summary>
     private async Task<bool> VerifySecondFactorAsync(Guid accountId, AccountTwoStep twoStep, string? input, CancellationToken ct)
+    {
+        var accepted = await IsSecondFactorAcceptedAsync(accountId, twoStep, input, ct).ConfigureAwait(false);
+        if (accepted)
+        {
+            homeSecondFactorFailures.TryRemove(accountId, out _);
+        }
+
+        return accepted;
+    }
+
+    private async Task<bool> IsSecondFactorAcceptedAsync(Guid accountId, AccountTwoStep twoStep, string? input, CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(input))
         {
@@ -955,16 +970,45 @@ public sealed class FirstPartyIdentityService(
             await AuditAsync(credential.AccountId, null, sessionId, "two_step_failed", false, null, ct).ConfigureAwait(false);
         }
 
-        if (!countsTowardLockout || credential is null)
+        if (credential is null)
         {
             return;
         }
 
-        var failures = credential.FailedAttemptCount + 1;
-        DateTimeOffset? locked = failures >= MaxFailedAttempts ? UtcNow.Add(LockoutDuration) : null;
-        await identities.UpdateAccountCredentialAttemptAsync(credential.Id, failures, locked, null, ct).ConfigureAwait(false);
+        if (!countsTowardLockout)
+        {
+            NoteHomeSecondFactorFailure(credential.AccountId);
+            return;
+        }
+
+        // Counted in the data store in one step so parallel wrong codes cannot slip under the limit.
+        var lockedUntil = UtcNow.Add(LockoutDuration);
+        var failures = await identities.IncrementAccountCredentialFailureAsync(credential.Id, MaxFailedAttempts, lockedUntil, ct).ConfigureAwait(false);
         credential.FailedAttemptCount = failures;
-        credential.LockedUntil = locked;
+        credential.LockedUntil = failures >= MaxFailedAttempts ? lockedUntil : credential.LockedUntil;
+    }
+
+    /// <summary>
+    /// Home and this-computer mistakes never lock the account, but repeated wrong codes slow down: from the third in a
+    /// row, new attempts are refused for a few seconds (5, 10, 20, up to 60), the same shape as the PIN back-off.
+    /// </summary>
+    private bool SecondFactorBackedOff(Guid accountId, bool countsTowardLockout) =>
+        !countsTowardLockout
+        && homeSecondFactorFailures.TryGetValue(accountId, out var state)
+        && state.BlockedUntil > UtcNow;
+
+    private void NoteHomeSecondFactorFailure(Guid accountId)
+    {
+        var now = UtcNow;
+        homeSecondFactorFailures.AddOrUpdate(
+            accountId,
+            _ => (1, now),
+            (_, state) =>
+            {
+                var count = state.Count + 1;
+                var wait = count < 3 ? TimeSpan.Zero : TimeSpan.FromSeconds(Math.Min(60, 5 * Math.Pow(2, count - 3)));
+                return (count, now.Add(wait));
+            });
     }
 
     private async Task<Profile> GetDefaultProfileAsync(Guid accountId, CancellationToken ct)

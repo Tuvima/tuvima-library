@@ -1824,6 +1824,7 @@ CREATE TABLE IF NOT EXISTS two_step_challenges (
     device_id       TEXT NOT NULL,
     device_name     TEXT NOT NULL,
     client          TEXT NOT NULL,
+    security_stamp  TEXT NOT NULL DEFAULT '',
     failed_attempts INTEGER NOT NULL DEFAULT 0,
     created_at      TEXT NOT NULL,
     expires_at      TEXT NOT NULL,

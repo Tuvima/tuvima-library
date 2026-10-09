@@ -13,6 +13,8 @@ public sealed class TwoStepChallenge
     public string DeviceId { get; set; } = string.Empty;
     public string DeviceName { get; set; } = string.Empty;
     public string Client { get; set; } = string.Empty;
+    /// <summary>The password's security stamp when the challenge began; a changed password makes the challenge stale.</summary>
+    public string SecurityStamp { get; set; } = string.Empty;
     public int FailedAttempts { get; set; }
     public DateTimeOffset CreatedAt { get; set; }
     public DateTimeOffset ExpiresAt { get; set; }

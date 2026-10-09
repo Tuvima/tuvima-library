@@ -278,6 +278,43 @@ public sealed class TwoStepSignInTests : IDisposable
     }
 
     [Fact]
+    public async Task AChangedPassword_EndsASignInThatWasWaitingForItsCode()
+    {
+        var owner = await SignUpAsync();
+        var secret = await TurnOnAsync(owner.Account.Id);
+        _clock.Advance(TimeSpan.FromSeconds(31));
+        var pending = await _service.AuthenticatePasswordAsync(Email, Password, "d", "Phone", "Dashboard");
+
+        await _service.ChangePasswordAsync(owner.Account.Id, "a different long password 42");
+
+        Assert.False((await _service.CompleteTwoStepSignInAsync(pending.TwoStepToken!, CodeFor(secret))).Succeeded);
+    }
+
+    [Fact]
+    public async Task RepeatedWrongCodesAtHome_SlowDownWithoutLocking()
+    {
+        var owner = await SignUpAsync();
+        var secret = await TurnOnAsync(owner.Account.Id);
+        _clock.Advance(TimeSpan.FromSeconds(31));
+
+        for (var attempt = 0; attempt < 3; attempt++)
+        {
+            var pending = await _service.AuthenticatePasswordAsync(Email, Password, "d", "Phone", "Dashboard", ingress: ClientIngress.HomeNetwork);
+            Assert.False((await _service.CompleteTwoStepSignInAsync(pending.TwoStepToken!, "000000", ingress: ClientIngress.HomeNetwork)).Succeeded);
+        }
+
+        // The right code is refused during the short pause, and accepted once it has passed.
+        var during = await _service.AuthenticatePasswordAsync(Email, Password, "d", "Phone", "Dashboard", ingress: ClientIngress.HomeNetwork);
+        var refused = await _service.CompleteTwoStepSignInAsync(during.TwoStepToken!, CodeFor(secret), ingress: ClientIngress.HomeNetwork);
+        Assert.False(refused.Succeeded);
+        Assert.False(refused.LockedOut);
+
+        _clock.Advance(TimeSpan.FromMinutes(2));
+        var after = await _service.AuthenticatePasswordAsync(Email, Password, "d", "Phone", "Dashboard", ingress: ClientIngress.HomeNetwork);
+        Assert.True((await _service.CompleteTwoStepSignInAsync(after.TwoStepToken!, CodeFor(secret), ingress: ClientIngress.HomeNetwork)).Succeeded);
+    }
+
+    [Fact]
     public async Task ARecoveryCode_ReplacesTheAppCodeOnce()
     {
         var owner = await SignUpAsync();
