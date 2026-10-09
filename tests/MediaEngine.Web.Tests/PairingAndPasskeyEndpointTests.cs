@@ -165,6 +165,8 @@ public sealed class PairingAndPasskeyEndpointTests : IDisposable
         {
             builder.Services.AddAuthentication().AddCookie();
             builder.Services.AddAuthorization();
+            builder.Services.AddSingleton(new MediaEngine.Domain.Configuration.PasswordResetDeliverySettings());
+            builder.Services.AddSingleton<PasswordResetEmailSender>();
             builder.Services.AddHttpClient();
             builder.Services.AddHttpClient("EngineIdentity", client => client.BaseAddress = new Uri("http://127.0.0.1:1"));
             builder.Services.AddSingleton(new SignInAttemptLimiter(new IngressClassifier(proxyPort: null, trustedLocalNetworks: null)));
