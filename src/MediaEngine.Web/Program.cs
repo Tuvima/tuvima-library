@@ -235,9 +235,9 @@ builder.Services.AddSingleton<StreamingServiceLogoResolver>();
 
 // ── Engine API HTTP Client ────────────────────────────────────────────────────
 // TUVIMA_ENGINE_URL: override the Engine address — essential for Docker where
-// the Dashboard and Engine run as separate processes or in separate containers.
-// Example: "http://engine:61495" (service name in docker-compose) or
-//          "http://192.168.1.50:61495" (fixed LAN IP for Unraid).
+// the Dashboard and Engine run as separate processes. The Engine only answers to
+// loopback host names (its AllowedHosts is localhost;127.0.0.1;[::1]), so use
+// "http://127.0.0.1:61495", "http://localhost:61495" or "http://[::1]:61495".
 var apiBase = Environment.GetEnvironmentVariable("TUVIMA_ENGINE_URL")
            ?? builder.Configuration["Engine:BaseUrl"]
            ?? "http://localhost:61495";

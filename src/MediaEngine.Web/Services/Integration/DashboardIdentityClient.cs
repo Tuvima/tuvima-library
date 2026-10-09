@@ -499,12 +499,10 @@ public sealed class DashboardIdentityClient(
 
     private async Task<TResponse?> SendPasskeyAsync<TRequest, TResponse>(string path, TRequest body, CancellationToken ct)
     { using var request = PasskeyRequest(HttpMethod.Post, path, body); using var response = await Client.SendAsync(request, ct).ConfigureAwait(false); return response.IsSuccessStatusCode ? await response.Content.ReadFromJsonAsync<TResponse>(cancellationToken: ct).ConfigureAwait(false) : default; }
-    private HttpRequestMessage PasskeyRequest<T>(HttpMethod method, string path, T body)
-    {
-        var request = new HttpRequestMessage(method, path) { Content = JsonContent.Create(body) }; var inbound = contextAccessor?.HttpContext?.Request;
-        if (inbound is not null) { request.Headers.Host = inbound.Host.Value; request.Headers.TryAddWithoutValidation("Origin", $"{inbound.Scheme}://{inbound.Host.Value}"); }
-        return request;
-    }
+    // The Engine answers only to its own loopback name and takes the passkey domain and origin from the
+    // public address, so the visitor's Host and Origin are deliberately not forwarded.
+    internal static HttpRequestMessage PasskeyRequest<T>(HttpMethod method, string path, T body) =>
+        new(method, path) { Content = JsonContent.Create(body) };
 
     // Prefer the place the session was last seen; with neither that nor a request context the caller is treated as
     // remote, the stricter side.
