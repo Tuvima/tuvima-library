@@ -2,6 +2,7 @@ using Dapper;
 using MediaEngine.Domain.Aggregates;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Entities;
+using MediaEngine.Storage.Contracts;
 
 namespace MediaEngine.Storage;
 
