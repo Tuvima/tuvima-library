@@ -75,7 +75,10 @@ public partial class SharedMediaEditorShell
     protected string ContextRootLabel => NavigatorRootNode?.Label ?? StaticHeaderScope?.Label ?? "Item";
     private string? StaticHeaderProviderUrl(MediaEditorIdentitySummaryDto identity)
     {
-        if (string.IsNullOrWhiteSpace(identity.ProviderItemId)) return null;
+        if (string.IsNullOrWhiteSpace(identity.ProviderItemId))
+        {
+            return null;
+        }
         var provider = NormalizeProviderKey(identity.ProviderName);
         var key = provider switch
         {

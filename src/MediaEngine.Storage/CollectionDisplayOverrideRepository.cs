@@ -13,14 +13,23 @@ public sealed class CollectionDisplayOverrideRepository(IDatabaseConnection db)
             var row = connection.QuerySingleOrDefault<OverrideRow>(new CommandDefinition(
                 "SELECT display_overrides_json AS Json FROM collections WHERE id = @id;",
                 new { id = collectionId }, transaction, cancellationToken: token));
-            if (row is null) return false;
+            if (row is null)
+            {
+                return false;
+            }
             var values = string.IsNullOrWhiteSpace(row.Json)
                 ? new Dictionary<string, string>()
                 : JsonSerializer.Deserialize<Dictionary<string, string>>(row.Json) ?? [];
             foreach (var (key, value) in fields)
             {
-                if (string.IsNullOrWhiteSpace(value)) values.Remove(key);
-                else values[key] = value.Trim();
+                if (string.IsNullOrWhiteSpace(value))
+                {
+                    values.Remove(key);
+                }
+                else
+                {
+                    values[key] = value.Trim();
+                }
             }
             return connection.Execute(new CommandDefinition(
                 "UPDATE collections SET display_overrides_json = @json WHERE id = @id;",

@@ -1,11 +1,11 @@
-using MediaEngine.Web.Services.Ui;
-using MediaEngine.Web.Components.Shared;
 using System.Reflection;
 using Bunit;
 using MediaEngine.Contracts.Metadata;
 using MediaEngine.Web.Components.MediaEditor;
+using MediaEngine.Web.Components.Shared;
 using MediaEngine.Web.Services.Editing;
 using MediaEngine.Web.Services.Integration;
+using MediaEngine.Web.Services.Ui;
 using MediaEngine.Web.Tests.Support;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Configuration;
@@ -356,14 +356,18 @@ public sealed class EditorDetailsInlineSaveTests : AsyncBunitContext
         protected override object? Invoke(MethodInfo? targetMethod, object?[]? args)
         {
             if (targetMethod?.Name == "get_Options")
+            {
                 return CurrentOptions;
+            }
             if (targetMethod?.Name == "SetOptionsAsync")
             {
                 CurrentOptions = (AppDialogOptions)args![0]!;
                 return Task.CompletedTask;
             }
             if (targetMethod?.ReturnType == typeof(Task))
+            {
                 return Task.CompletedTask;
+            }
             return targetMethod?.ReturnType.IsValueType == true
                 ? Activator.CreateInstance(targetMethod.ReturnType)
                 : null;

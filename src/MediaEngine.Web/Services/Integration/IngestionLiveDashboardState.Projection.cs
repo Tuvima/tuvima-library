@@ -1,9 +1,9 @@
 using System.Globalization;
 using MediaEngine.Contracts.Realtime;
 using MediaEngine.Domain.Services;
+using MediaEngine.Web.Components.Shared;
 using MediaEngine.Web.Models.ViewDTOs;
 using MediaEngine.Web.Services.Formatting;
-using MediaEngine.Web.Components.Shared;
 using MediaEngine.Web.Services.Ui;
 
 namespace MediaEngine.Web.Services.Integration;

@@ -53,7 +53,8 @@ public sealed class EngineApiClientEnvelopeGuardrailTests
                 {
                     Content = new StringContent("WEBVTT\n\n00:00:01.000 --> 00:00:02.000\nHello"),
                 };
-        })) { BaseAddress = new Uri("http://localhost:61495/") };
+        }))
+        { BaseAddress = new Uri("http://localhost:61495/") };
         var client = new MediaEngine.Web.Services.Integration.EngineApiClient(
             http, Microsoft.Extensions.Logging.Abstractions.NullLogger<MediaEngine.Web.Services.Integration.EngineApiClient>.Instance);
 
@@ -92,7 +93,8 @@ public sealed class EngineApiClientEnvelopeGuardrailTests
                 5 => throw new IOException("Connection ended before a response."),
                 _ => throw new OperationCanceledException("The request was canceled."),
             };
-        })) { BaseAddress = new Uri("http://localhost:61495/") };
+        }))
+        { BaseAddress = new Uri("http://localhost:61495/") };
         var client = new MediaEngine.Web.Services.Integration.EngineApiClient(
             http, Microsoft.Extensions.Logging.Abstractions.NullLogger<MediaEngine.Web.Services.Integration.EngineApiClient>.Instance);
         var workId = Guid.NewGuid();

@@ -59,7 +59,9 @@ public static class EngineImageProxyPath
             && segments[2].Equals("tvdb-match", StringComparison.OrdinalIgnoreCase)
             && segments[3].Equals("previews", StringComparison.OrdinalIgnoreCase)
             && segments[4].Length == 32 && segments[4].All(Uri.IsHexDigit))
+        {
             return true;
+        }
 
         if (segments.Length == 3
             && segments[0].Equals("stream", StringComparison.OrdinalIgnoreCase)

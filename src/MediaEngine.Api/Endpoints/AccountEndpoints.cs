@@ -154,9 +154,18 @@ public static class AccountEndpoints
         }
 
         var methods = new List<string>(3);
-        if (hasPassword) methods.Add("password");
-        if (hasPasskeys) methods.Add("passkey");
-        if (hasExternalLogins) methods.Add("external");
+        if (hasPassword)
+        {
+            methods.Add("password");
+        }
+        if (hasPasskeys)
+        {
+            methods.Add("passkey");
+        }
+        if (hasExternalLogins)
+        {
+            methods.Add("external");
+        }
         return methods;
     }
 

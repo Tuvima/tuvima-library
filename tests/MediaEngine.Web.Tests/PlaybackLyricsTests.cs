@@ -10,14 +10,14 @@ namespace MediaEngine.Web.Tests;
 public sealed class PlaybackLyricsTests
 {
     [Theory]
-    [InlineData("[offset:+250]",9.75)]
-    [InlineData("[offset:-500]",10.5)]
-    [InlineData("[offset:100]\n[offset:250]",9.75)]
-    public void OffsetAppliesToEveryLeadingTimestampAndMetadataIsNotRendered(string metadata,double expected)
+    [InlineData("[offset:+250]", 9.75)]
+    [InlineData("[offset:-500]", 10.5)]
+    [InlineData("[offset:100]\n[offset:250]", 9.75)]
+    public void OffsetAppliesToEveryLeadingTimestampAndMetadataIsNotRendered(string metadata, double expected)
     {
-        var lines=PlaybackLyricsParser.Parse($"{metadata}\n[00:10][00:12.50]Repeat\nPlain text");
-        Assert.Equal(3,lines.Count); Assert.Equal(expected,lines[0].StartSeconds);
-        Assert.Equal(expected+2.5,lines[1].StartSeconds); Assert.Null(lines[2].StartSeconds);
+        var lines = PlaybackLyricsParser.Parse($"{metadata}\n[00:10][00:12.50]Repeat\nPlain text");
+        Assert.Equal(3, lines.Count); Assert.Equal(expected, lines[0].StartSeconds);
+        Assert.Equal(expected + 2.5, lines[1].StartSeconds); Assert.Null(lines[2].StartSeconds);
     }
 
     [Fact]
@@ -129,10 +129,18 @@ public sealed class PlaybackLyricsTests
         using var services = new ServiceCollection().AddSingleton(new PlaybackLyricsSelectionOwner(playback, api)).BuildServiceProvider();
         var owner = new ListenPlaybackCommandOwner(services, playback);
         var snapshot = playback.CreateSnapshot();
-        var command = new ListenPlaybackCommandDto { Action = ListenPlaybackPresentationActions.SelectLyrics,
-            CommandId = Guid.NewGuid(), SenderId = Guid.NewGuid(), RecipientId = owner.RecipientId,
-            ProfileId = snapshot.ProfileId, WorkId = snapshot.Queue[0].WorkId, ExpectedAssetId = snapshot.Queue[0].AssetId,
-            ExpectedPlaybackRequestVersion = snapshot.PlaybackRequestVersion, LyricTrackId = track };
+        var command = new ListenPlaybackCommandDto
+        {
+            Action = ListenPlaybackPresentationActions.SelectLyrics,
+            CommandId = Guid.NewGuid(),
+            SenderId = Guid.NewGuid(),
+            RecipientId = owner.RecipientId,
+            ProfileId = snapshot.ProfileId,
+            WorkId = snapshot.Queue[0].WorkId,
+            ExpectedAssetId = snapshot.Queue[0].AssetId,
+            ExpectedPlaybackRequestVersion = snapshot.PlaybackRequestVersion,
+            LyricTrackId = track
+        };
         var first = owner.HandleAsync(command); var duplicate = owner.HandleAsync(command);
         preferences.ActiveProfileId = Guid.NewGuid();
         pending.SetResult([new() { Id = track, Kind = "Lyrics" }]);
@@ -180,8 +188,13 @@ public sealed class PlaybackLyricsTests
         stub.SetHandler(nameof(IEngineApiClient.GetTextTracksAsync), _ => Task.FromResult<IReadOnlyList<TextTrackDto>>([new() { Id = track, Kind = "Lyrics", IsPreferred = true }]));
         stub.SetHandler(nameof(IEngineApiClient.GetTextTrackContentAsync), args => content?.Invoke(args) ?? Task.FromResult<string?>("Static lyrics"));
     });
-    private static ListenPlaybackSnapshot Snapshot() => new() { ProfileId = Guid.NewGuid(), CurrentIndex = 0, PlaybackRequestVersion = 9,
-        Queue = [new() { WorkId = Guid.NewGuid(), AssetId = Guid.NewGuid(), MediaType = "Music", Title = "Song", StreamUrl = "stream://song" }] };
+    private static ListenPlaybackSnapshot Snapshot() => new()
+    {
+        ProfileId = Guid.NewGuid(),
+        CurrentIndex = 0,
+        PlaybackRequestVersion = 9,
+        Queue = [new() { WorkId = Guid.NewGuid(), AssetId = Guid.NewGuid(), MediaType = "Music", Title = "Song", StreamUrl = "stream://song" }]
+    };
     private sealed class Sink : IPlaybackCommandSink, IPlaybackLyricsSelectionSink
     {
         public bool Supports(string action, ListenPlaybackSnapshot snapshot) => true;

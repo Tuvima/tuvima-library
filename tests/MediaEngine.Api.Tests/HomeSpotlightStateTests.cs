@@ -1,6 +1,6 @@
 using MediaEngine.Api.Services.Display;
-using MediaEngine.Contracts.Display;
 using MediaEngine.Contracts.Details;
+using MediaEngine.Contracts.Display;
 
 namespace MediaEngine.Api.Tests;
 
@@ -12,13 +12,18 @@ public sealed class HomeSpotlightStateTests
         var tv = Episode(Guid.NewGuid(), 5, "TV owned");
         DisplayWorkRow Work(string type, string title) => new()
         {
-            WorkId = Guid.NewGuid(), AssetId = Guid.NewGuid(), MediaType = type, Title = title,
-            IsIdentityReady = true, CreatedAt = DateTimeOffset.UtcNow, BackgroundUrl = "/background.jpg",
+            WorkId = Guid.NewGuid(),
+            AssetId = Guid.NewGuid(),
+            MediaType = type,
+            Title = title,
+            IsIdentityReady = true,
+            CreatedAt = DateTimeOffset.UtcNow,
+            BackgroundUrl = "/background.jpg",
         };
         var movies = Enumerable.Range(0, 8).Select(i => Work("Movie", "Movie " + i)).ToList();
         var book = Work("Book", "Book"); var audio = Work("Audiobook", "Audiobook");
         var track = Work("Music", "Track"); track.RootWorkId = Guid.NewGuid(); track.Album = "Album"; track.Artist = "Artist";
-        var home = await Composer(new Repository([tv, ..movies, book, audio, track], [])).BuildHomeAsync();
+        var home = await Composer(new Repository([tv, .. movies, book, audio, track], [])).BuildHomeAsync();
         Assert.Equal(5, home.Spotlights.Count);
         Assert.Single(home.Spotlights, h => h.Subject == DisplaySubjectKind.TvShow);
         Assert.Single(home.Spotlights, h => h.MediaType == "Movie");
@@ -183,11 +188,23 @@ public sealed class HomeSpotlightStateTests
     [InlineData("Music", 42, DisplayContinuationState.Unstarted)]
     public void LongFormStateAndSavedTimingAreExplicitMusicHasNoProgress(string kind, double percent, DisplayContinuationState expected)
     {
-        var row = new DisplayJourneyRow { WorkId = Guid.NewGuid(), AssetId = Guid.NewGuid(), MediaType = kind, ProgressPct = percent,
-            PositionSeconds = 300, DurationSeconds = 900, Runtime = "200", Title = "Title" };
+        var row = new DisplayJourneyRow
+        {
+            WorkId = Guid.NewGuid(),
+            AssetId = Guid.NewGuid(),
+            MediaType = kind,
+            ProgressPct = percent,
+            PositionSeconds = 300,
+            DurationSeconds = 900,
+            Runtime = "200",
+            Title = "Title"
+        };
         var card = new DisplayCardBuilder().FromJourney(row, "home");
         Assert.Equal(expected, card.ContinuationState);
-        if (kind == "Music") Assert.Null(card.Progress);
+        if (kind == "Music")
+        {
+            Assert.Null(card.Progress);
+        }
         else
         {
             Assert.Equal(600, card.Progress!.RemainingSeconds);
@@ -198,19 +215,42 @@ public sealed class HomeSpotlightStateTests
 
     private static DisplayWorkRow Episode(Guid show, int number, string title) => new()
     {
-        WorkId = Guid.NewGuid(), AssetId = Guid.NewGuid(), RootWorkId = show, MediaType = "TV", WorkKind = "child",
-        IsIdentityReady = true, Title = title, ShowName = "The Show", SeasonNumber = "2", EpisodeNumber = number.ToString(),
-        RootBackgroundUrl = "/show.jpg", RootDescription = "Show synopsis", Description = $"Synopsis for {title}",
-        EpisodeStillUrl = $"/episode-{number}.jpg", BackgroundUrl = $"/episode-{number}.jpg", CreatedAt = DateTimeOffset.UtcNow,
+        WorkId = Guid.NewGuid(),
+        AssetId = Guid.NewGuid(),
+        RootWorkId = show,
+        MediaType = "TV",
+        WorkKind = "child",
+        IsIdentityReady = true,
+        Title = title,
+        ShowName = "The Show",
+        SeasonNumber = "2",
+        EpisodeNumber = number.ToString(),
+        RootBackgroundUrl = "/show.jpg",
+        RootDescription = "Show synopsis",
+        Description = $"Synopsis for {title}",
+        EpisodeStillUrl = $"/episode-{number}.jpg",
+        BackgroundUrl = $"/episode-{number}.jpg",
+        CreatedAt = DateTimeOffset.UtcNow,
     };
 
     private static DisplayJourneyRow State(Guid profile, DisplayWorkRow episode, double percent) => new()
     {
-        ProfileId = profile, WorkId = episode.WorkId, RootWorkId = episode.RootWorkId, AssetId = episode.AssetId,
-        MediaType = "TV", ProgressPct = percent, LastAccessed = DateTimeOffset.UtcNow, Title = episode.Title,
-        ShowName = episode.ShowName, SeasonNumber = episode.SeasonNumber, EpisodeNumber = episode.EpisodeNumber,
-        BackgroundUrl = episode.BackgroundUrl, EpisodeStillUrl = episode.EpisodeStillUrl,
-        Description = episode.Description, PositionSeconds = 300, DurationSeconds = 900,
+        ProfileId = profile,
+        WorkId = episode.WorkId,
+        RootWorkId = episode.RootWorkId,
+        AssetId = episode.AssetId,
+        MediaType = "TV",
+        ProgressPct = percent,
+        LastAccessed = DateTimeOffset.UtcNow,
+        Title = episode.Title,
+        ShowName = episode.ShowName,
+        SeasonNumber = episode.SeasonNumber,
+        EpisodeNumber = episode.EpisodeNumber,
+        BackgroundUrl = episode.BackgroundUrl,
+        EpisodeStillUrl = episode.EpisodeStillUrl,
+        Description = episode.Description,
+        PositionSeconds = 300,
+        DurationSeconds = 900,
     };
     private static DisplayComposerService Composer(Repository repository)
     {

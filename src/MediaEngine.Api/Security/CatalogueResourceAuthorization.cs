@@ -588,7 +588,9 @@ internal sealed class CatalogueAssetAccessFilter(ApplicationPermissionId permiss
         var access = await service.EvaluateAssetAsync(
             context.HttpContext, assetId, permission, context.HttpContext.RequestAborted).ConfigureAwait(false);
         if (access == CatalogueResourceAccess.Allowed && await IngestionEditGuard.IsLockedAsync(context.HttpContext, permission, assetId))
+        {
             return IngestionEditGuard.Conflict();
+        }
         return access switch
         {
             CatalogueResourceAccess.Allowed => await next(context),
@@ -642,7 +644,9 @@ internal sealed class CatalogueEntityAccessFilter(
         var access = await service.EvaluateEntityAsync(
             context.HttpContext, entityType, entityId, permission, context.HttpContext.RequestAborted).ConfigureAwait(false);
         if (access == CatalogueResourceAccess.Allowed && await IngestionEditGuard.IsLockedAsync(context.HttpContext, permission, entityId))
+        {
             return IngestionEditGuard.Conflict();
+        }
         return access switch
         {
             CatalogueResourceAccess.Allowed => await next(context),
@@ -708,7 +712,9 @@ internal sealed class CatalogueAnyEntityAccessFilter(
             ? await service.EvaluateArtworkLinkAsync(context.HttpContext, entityId, permission, context.HttpContext.RequestAborted).ConfigureAwait(false)
             : await service.EvaluateAnyEntityAsync(context.HttpContext, entityId, permission, context.HttpContext.RequestAborted).ConfigureAwait(false);
         if (access == CatalogueResourceAccess.Allowed && await IngestionEditGuard.IsLockedAsync(context.HttpContext, permission, entityId))
+        {
             return IngestionEditGuard.Conflict();
+        }
         return access switch
         {
             CatalogueResourceAccess.Allowed => await next(context),

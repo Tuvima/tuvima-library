@@ -14,7 +14,10 @@ public static class PlaybackIdentityNavigation
 {
     public static string? Route(ListenQueueItem? item, string? kind, Guid id)
     {
-        if (item is null || id == Guid.Empty) return null;
+        if (item is null || id == Guid.Empty)
+        {
+            return null;
+        }
         return kind switch
         {
             "album" when item.AlbumWorkId == id => ListenPlaybackIdentityRoutes.Album(item),
@@ -42,13 +45,19 @@ public sealed class PlaybackIdentityNavigationOwner(PlaybackSessionController pl
             && command.ExpectedPlaybackRequestVersion == snapshot.PlaybackRequestVersion
             && playback.PlaybackRequestVersion == snapshot.PlaybackRequestVersion
             && playback.CurrentItem?.WorkId == item.WorkId && playback.CurrentItem?.AssetId == item.AssetId;
-        if (!Current() || command.IdentityId is not Guid id || PlaybackIdentityNavigation.Route(item, command.IdentityKind, id) is not { } route) return null;
+        if (!Current() || command.IdentityId is not Guid id || PlaybackIdentityNavigation.Route(item, command.IdentityKind, id) is not { } route)
+        {
+            return null;
+        }
         try
         {
             if (command.IdentityKind == "playlist")
             {
                 var collection = await api.GetCollectionSummaryAsync(id, command.ProfileId, ct);
-                if (collection is null || collection.Id != id || !collection.CollectionType.Equals("Playlist", StringComparison.OrdinalIgnoreCase)) return null;
+                if (collection is null || collection.Id != id || !collection.CollectionType.Equals("Playlist", StringComparison.OrdinalIgnoreCase))
+                {
+                    return null;
+                }
             }
             else
             {
@@ -60,9 +69,15 @@ public sealed class PlaybackIdentityNavigationOwner(PlaybackSessionController pl
                     "collection" => DetailEntityType.Collection,
                     _ => (DetailEntityType?)null,
                 };
-                if (type is null) return null;
+                if (type is null)
+                {
+                    return null;
+                }
                 var detail = await api.GetDetailPageAsync(type.Value, id, DetailPresentationContext.Listen, profileId: command.ProfileId, ct: ct);
-                if (detail is null || !Guid.TryParse(detail.Id, out var returnedId) || returnedId != id || detail.EntityType != type) return null;
+                if (detail is null || !Guid.TryParse(detail.Id, out var returnedId) || returnedId != id || detail.EntityType != type)
+                {
+                    return null;
+                }
             }
         }
         catch (Exception) { return null; }

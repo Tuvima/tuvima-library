@@ -25,18 +25,25 @@ public static class ViewEndpoints
             IViewRequestProfileContext identity, IAccountAccessDecisionService accounts, CancellationToken ct) =>
         {
             var authority = await identity.ResolveAuthorityAsync(ct);
-            if (!authority.IsAuthenticated) return Unauthenticated();
+            if (!authority.IsAuthenticated)
+            {
+                return Unauthenticated();
+            }
             var normalizedArea = string.IsNullOrWhiteSpace(area) ? "view" : area.Trim().ToLowerInvariant();
             var config = configuration.LoadLibraries();
             var candidates = new List<(string Label, string Path)>();
             if (normalizedArea == "view")
             {
                 if (!(await accounts.EvaluateFeatureAsync(authority, AccountFeatureId.View, ct)).IsAllowed)
+                {
                     return Results.Forbid();
+                }
                 var location = config.StorageLocations.FirstOrDefault(value =>
                     string.Equals(value.Id, config.ViewStorage.StorageLocationId, StringComparison.OrdinalIgnoreCase));
                 if (location is not null)
+                {
                     candidates.Add(("View", Path.Combine(location.Path, config.ViewStorage.RelativeRoot)));
+                }
             }
             else
             {
@@ -48,7 +55,10 @@ public static class ViewEndpoints
                     var feature = library.Area.ToLowerInvariant() switch { "read" => AccountFeatureId.Read, "watch" => AccountFeatureId.Watch, "listen" => AccountFeatureId.Listen, _ => AccountFeatureId.View };
                     if (!Guid.TryParse(library.Id, out var libraryId)
                         || !(await accounts.EvaluateFeatureAsync(authority, feature, ct)).IsAllowed
-                        || !(await accounts.EvaluateLibraryAsync(authority, libraryId, ct)).IsAllowed) continue;
+                        || !(await accounts.EvaluateLibraryAsync(authority, libraryId, ct)).IsAllowed)
+                    {
+                        continue;
+                    }
                     candidates.AddRange(library.Sources.Where(source => !string.IsNullOrWhiteSpace(source.Path)).Select(source => (library.Name, source.Path)));
                 }
             }
@@ -438,10 +448,16 @@ public static class ViewEndpoints
         {
             var decision = await AuthorizeItemAsync(id, ViewResourceKind.Thumbnail, ViewResourceAction.Read,
                 scope, scopeProfileId, identity, preferences, authorization, ct);
-            if (!decision.IsAllowed) return Access(decision.Outcome);
+            if (!decision.IsAllowed)
+            {
+                return Access(decision.Outcome);
+            }
             var file = decision.Scope is null ? null : await resources.ResolveContentAsync(
                 id, LocalAssetFileRoles.Primary, decision.Scope, ct);
-            if (file is null || !File.Exists(file.FilePath)) return Missing();
+            if (file is null || !File.Exists(file.FilePath))
+            {
+                return Missing();
+            }
             var preview = await thumbnails.GetOrCreatePreviewAsync(id, file, ct);
             return preview is null ? StreamEndpoints.CreateArtworkPlaceholderResult() : Results.File(preview, "image/jpeg");
         }).WithName("GetViewItemPreview").Produces(StatusCodes.Status200OK).RequireRateLimiting("view_images");
@@ -457,10 +473,16 @@ public static class ViewEndpoints
             IViewResourceAuthorizationService authorization, ILocalAssetRepository assets, CancellationToken ct) =>
         {
             var decision = await AuthorizeOwnedItemAsync(id, identity, authorization, ct);
-            if (!decision.IsAllowed) return Access(decision.Outcome);
+            if (!decision.IsAllowed)
+            {
+                return Access(decision.Outcome);
+            }
             try
             {
-                if (!await assets.UpdateDescriptionAsync(id, request.Description, ct)) return Missing();
+                if (!await assets.UpdateDescriptionAsync(id, request.Description, ct))
+                {
+                    return Missing();
+                }
                 return Results.Ok(assets.Find(id, ct));
             }
             catch (ArgumentException exception) { return ApiErrors.BadRequest(exception.Message); }
@@ -471,10 +493,16 @@ public static class ViewEndpoints
             IViewResourceAuthorizationService authorization, ILocalAssetRepository assets, CancellationToken ct) =>
         {
             var decision = await AuthorizeOwnedItemAsync(id, identity, authorization, ct);
-            if (!decision.IsAllowed) return Access(decision.Outcome);
+            if (!decision.IsAllowed)
+            {
+                return Access(decision.Outcome);
+            }
             try
             {
-                if (!await assets.UpdateCapturedAtAsync(id, request.CapturedAt, request.ResetToEmbedded, ct)) return Missing();
+                if (!await assets.UpdateCapturedAtAsync(id, request.CapturedAt, request.ResetToEmbedded, ct))
+                {
+                    return Missing();
+                }
                 return Results.Ok(assets.Find(id, ct));
             }
             catch (ArgumentException exception) { return ApiErrors.BadRequest(exception.Message); }
@@ -485,7 +513,10 @@ public static class ViewEndpoints
             IViewResourceAuthorizationService authorization, ILocalAssetRepository assets, CancellationToken ct) =>
         {
             var decision = await AuthorizeOwnedItemAsync(id, identity, authorization, ct);
-            if (!decision.IsAllowed) return Access(decision.Outcome);
+            if (!decision.IsAllowed)
+            {
+                return Access(decision.Outcome);
+            }
             try
             {
                 await assets.ReplaceTagsAsync(id, request.Tags ?? [], ct);
@@ -499,7 +530,10 @@ public static class ViewEndpoints
             IViewRequestProfileContext identity, ILocalAssetRepository assets, CancellationToken ct) =>
         {
             var authority = await identity.ResolveAuthorityAsync(ct);
-            if (authority.ActiveProfileId is not { } profileId) return Unauthenticated();
+            if (authority.ActiveProfileId is not { } profileId)
+            {
+                return Unauthenticated();
+            }
             var take = PagedRequest.From(null, limit, defaultLimit: 20, maxLimit: 100).Limit;
             return Results.Ok(assets.GetTagSuggestions(profileId, q, take, ct));
         }).WithName("GetViewTagSuggestions").Produces<IReadOnlyList<string>>();
@@ -510,7 +544,10 @@ public static class ViewEndpoints
             ViewDiscoveryService discovery, CancellationToken ct) =>
         {
             var decision = await AuthorizeOwnedItemAsync(id, identity, authorization, ct);
-            if (!decision.IsAllowed) return Access(decision.Outcome);
+            if (!decision.IsAllowed)
+            {
+                return Access(decision.Outcome);
+            }
             try
             {
                 var selected = (request.People ?? []).Where(value => !string.IsNullOrWhiteSpace(value))
@@ -521,7 +558,9 @@ public static class ViewEndpoints
                         new ViewDiscoveryRequest(ViewScopeRequest.Mine, 100, person), ct);
                     if (candidates.Page?.Items.Any(candidate =>
                             string.Equals(candidate.DisplayName, person, StringComparison.OrdinalIgnoreCase)) != true)
+                    {
                         return ApiErrors.BadRequest($"'{person}' is not an identified person in this View library.");
+                    }
                 }
                 await assets.ReplacePeopleAsync(id, selected, ct);
                 return Results.Ok(assets.Find(id, ct));
@@ -535,13 +574,19 @@ public static class ViewEndpoints
             IViewResourceAuthorizationService authorization, ILocalAssetRepository assets, CancellationToken ct) =>
         {
             var decision = await AuthorizeOwnedItemAsync(id, identity, authorization, ct);
-            if (!decision.IsAllowed) return Access(decision.Outcome);
+            if (!decision.IsAllowed)
+            {
+                return Access(decision.Outcome);
+            }
             try
             {
                 var update = new LocalAssetLocationUpdate(request.Latitude, request.Longitude,
                     request.Name, request.City, request.Region, request.Country,
                     request.CountryCode, request.ResetToEmbedded);
-                if (!await assets.UpdateLocationAsync(id, update, ct)) return Missing();
+                if (!await assets.UpdateLocationAsync(id, update, ct))
+                {
+                    return Missing();
+                }
                 return Results.Ok(assets.Find(id, ct));
             }
             catch (ArgumentException exception) { return ApiErrors.BadRequest(exception.Message); }

@@ -1325,16 +1325,28 @@ public sealed class IngestionPresentationReadService : IIngestionPresentationRea
         IReadOnlyCollection<string> identityStates,
         string availability)
     {
-        if (availability is "review" or "failed") return "blocked";
-        if (matching.Any(operation => operation.Status is "retry_waiting" or "failed_retryable" or "interrupted")) return "retry";
+        if (availability is "review" or "failed")
+        {
+            return "blocked";
+        }
+        if (matching.Any(operation => operation.Status is "retry_waiting" or "failed_retryable" or "interrupted"))
+        {
+            return "retry";
+        }
         if (identityStates.Any(state => state.Equals("Queued", StringComparison.OrdinalIgnoreCase)
                                         || state.Equals("RetailSearching", StringComparison.OrdinalIgnoreCase)
-                                        || state.Equals("BridgeSearching", StringComparison.OrdinalIgnoreCase))) return "active";
+                                        || state.Equals("BridgeSearching", StringComparison.OrdinalIgnoreCase)))
+        {
+            return "active";
+        }
         if (identityStates.Any(state => state.Equals("RetailMatched", StringComparison.OrdinalIgnoreCase)
                                         || state.Equals("QidResolved", StringComparison.OrdinalIgnoreCase)
                                         || IsIdentityEnriching(state)
                                         || state.Equals("Ready", StringComparison.OrdinalIgnoreCase)
-                                        || state.Equals("ReadyWithoutUniverse", StringComparison.OrdinalIgnoreCase))) return "complete";
+                                        || state.Equals("ReadyWithoutUniverse", StringComparison.OrdinalIgnoreCase)))
+        {
+            return "complete";
+        }
         return ResolveGateState(matching, availability);
     }
 

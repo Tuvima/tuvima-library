@@ -1,6 +1,6 @@
-using MediaEngine.Domain.Enums;
 using MediaEngine.AI.Configuration;
 using MediaEngine.AI.Infrastructure;
+using MediaEngine.Domain.Enums;
 using Whisper.net;
 
 namespace MediaEngine.AI.Whisper;

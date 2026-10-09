@@ -1,10 +1,10 @@
 using System.Globalization;
 using MediaEngine.Domain;
 using MediaEngine.Web.Components.LibraryItems;
+using MediaEngine.Web.Components.Shared;
 using MediaEngine.Web.Models.ViewDTOs;
 using MediaEngine.Web.Services.Integration;
 using MediaEngine.Web.Services.Theming;
-using MediaEngine.Web.Components.Shared;
 using MediaEngine.Web.Services.Ui;
 
 namespace MediaEngine.Web.Components.Library;

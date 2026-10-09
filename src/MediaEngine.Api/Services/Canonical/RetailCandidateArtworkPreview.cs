@@ -32,23 +32,37 @@ internal static class RetailCandidateArtworkPreview
         if (!Uri.TryCreate(sourceUrl, UriKind.Absolute, out var source)
             || source.Scheme != Uri.UriSchemeHttps
             || !allowedHost(source))
+        {
             return null;
+        }
 
         var key = $"retail-preview:{source}";
-        if (cache.TryGetValue<string>(key, out var cached)) return cached;
+        if (cache.TryGetValue<string>(key, out var cached))
+        {
+            return cached;
+        }
 
         try
         {
             using var client = httpFactory.CreateClient("cover_download");
             using var response = await client.GetAsync(source, HttpCompletionOption.ResponseHeadersRead, ct);
-            if (!response.IsSuccessStatusCode) return null;
+            if (!response.IsSuccessStatusCode)
+            {
+                return null;
+            }
             var bytes = await BoundedHttpContent.ReadImageAsync(response.Content, ct);
             using var bitmap = SKBitmap.Decode(bytes);
-            if (bitmap is null || bitmap.Width < 1 || bitmap.Height < 1) return null;
+            if (bitmap is null || bitmap.Width < 1 || bitmap.Height < 1)
+            {
+                return null;
+            }
             var width = Math.Min(bitmap.Width, 180);
             var height = Math.Max(1, (int)Math.Round(bitmap.Height * width / (double)bitmap.Width));
             using var resized = bitmap.Resize(new SKImageInfo(width, height), SKSamplingOptions.Default);
-            if (resized is null) return null;
+            if (resized is null)
+            {
+                return null;
+            }
             using var image = SKImage.FromBitmap(resized);
             using var encoded = image.Encode(SKEncodedImageFormat.Jpeg, 78);
             var preview = $"data:image/jpeg;base64,{Convert.ToBase64String(encoded.ToArray())}";
@@ -80,7 +94,10 @@ internal static class RetailCandidateArtworkPreview
 
     internal static string? NormalizePreviewSource(string? providerName, string? sourceUrl)
     {
-        if (string.IsNullOrWhiteSpace(sourceUrl)) return null;
+        if (string.IsNullOrWhiteSpace(sourceUrl))
+        {
+            return null;
+        }
         var provider = (providerName ?? string.Empty).Trim().ToLowerInvariant().Replace('-', '_');
         return provider switch
         {

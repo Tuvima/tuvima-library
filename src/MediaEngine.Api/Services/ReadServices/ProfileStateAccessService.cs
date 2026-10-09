@@ -13,7 +13,9 @@ public sealed class ProfileStateAccessService(
     {
         var profile = await profiles.GetByIdAsync(profileId, ct).ConfigureAwait(false);
         if (profile is null)
+        {
             return ProfileStateAccessScope.Empty;
+        }
 
         var works = await display.LoadWorksAsync(ct).ConfigureAwait(false);
         var workIds = works.Select(row => row.WorkId)

@@ -51,9 +51,13 @@ public sealed class ProviderCredentialService
     {
         var provider = _configuration.LoadProvider(providerName);
         if (provider is null)
+        {
             return Failure("provider_not_found", "The provider is not available.");
+        }
         if (!provider.Enabled)
+        {
             return Failure("disabled", "Enable the provider before testing its connection.");
+        }
 
         ProviderCredentialOperationResultDto result;
         if (provider.Onboarding?.AuthenticationProbe is null
@@ -151,7 +155,9 @@ public sealed class ProviderCredentialService
                 ["apikey"] = effectiveCredentials["api_key"],
             };
             if (effectiveCredentials.TryGetValue("pin", out var pin) && !string.IsNullOrWhiteSpace(pin))
+            {
                 login["pin"] = pin;
+            }
             request.Content = JsonContent.Create(login);
         }
         else
@@ -175,14 +181,18 @@ public sealed class ProviderCredentialService
                     var body = await response.Content.ReadFromJsonAsync<JsonNode>(cancellationToken: ct)
                         .ConfigureAwait(false);
                     if (string.IsNullOrWhiteSpace(body?["data"]?["token"]?.GetValue<string>()))
+                    {
                         return Failure("invalid_credential", "TheTVDB did not return a usable access token.");
+                    }
                 }
                 if (string.Equals(provider.Name, "subdl", StringComparison.OrdinalIgnoreCase))
                 {
                     var account = await ReadSubdlAccountAsync(response, ct).ConfigureAwait(false);
                     if (account is null)
+                    {
                         return Failure("provider_outage", "SubDL returned an unreadable account response.",
-                            (int)stopwatch.ElapsedMilliseconds);
+                                (int)stopwatch.ElapsedMilliseconds);
+                    }
 
                     return new ProviderCredentialOperationResultDto
                     {
@@ -584,17 +594,25 @@ public sealed class ProviderCredentialService
     {
         if (!response.Headers.TryGetValues("X-RateLimit-Reset", out var values)
             || values.FirstOrDefault() is not { } rawReset)
+        {
             return null;
+        }
 
         long seconds;
         if (long.TryParse(rawReset, out var numericReset))
+        {
             seconds = numericReset > DateTimeOffset.UtcNow.ToUnixTimeSeconds()
-                ? numericReset - DateTimeOffset.UtcNow.ToUnixTimeSeconds()
-                : numericReset;
+                    ? numericReset - DateTimeOffset.UtcNow.ToUnixTimeSeconds()
+                    : numericReset;
+        }
         else if (DateTimeOffset.TryParse(rawReset, out var dateReset))
+        {
             seconds = (long)Math.Ceiling((dateReset - DateTimeOffset.UtcNow).TotalSeconds);
+        }
         else
+        {
             return null;
+        }
 
         return seconds is > 0 and <= 604800 ? (int)seconds : null;
     }
@@ -609,15 +627,21 @@ public sealed class ProviderCredentialService
             || plan.ValueKind != JsonValueKind.Object
             || !document.RootElement.TryGetProperty("usage", out var usage)
             || usage.ValueKind != JsonValueKind.Object)
+        {
             return null;
+        }
 
         var searchRemaining = ReadRemaining(usage, "search");
         var downloadRemaining = ReadRemaining(usage, "downloads");
         var quantities = new List<string>();
         if (searchRemaining is not null)
+        {
             quantities.Add($"{searchRemaining.Value:N0} searches remaining");
+        }
         if (downloadRemaining is not null)
+        {
             quantities.Add($"{downloadRemaining.Value:N0} downloads remaining");
+        }
 
         return quantities.Count == 0
             ? "SubDL accepted the key."
@@ -631,7 +655,9 @@ public sealed class ProviderCredentialService
             || !bucket.TryGetProperty("remaining", out var remaining)
             || remaining.ValueKind != JsonValueKind.Number
             || !remaining.TryGetInt32(out var count))
+        {
             return null;
+        }
 
         return count >= 0 ? count : null;
     }
@@ -661,7 +687,9 @@ public sealed class ProviderCredentialService
     {
         const int maxBytes = 16 * 1024;
         if (response.Content.Headers.ContentLength is > maxBytes)
+        {
             return null;
+        }
 
         await using var stream = await response.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);
         var buffer = new byte[maxBytes + 1];
@@ -669,7 +697,10 @@ public sealed class ProviderCredentialService
         while (total < buffer.Length)
         {
             var read = await stream.ReadAsync(buffer.AsMemory(total), ct).ConfigureAwait(false);
-            if (read == 0) break;
+            if (read == 0)
+            {
+                break;
+            }
             total += read;
         }
 

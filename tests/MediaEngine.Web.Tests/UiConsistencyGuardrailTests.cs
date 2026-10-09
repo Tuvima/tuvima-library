@@ -98,7 +98,9 @@ public sealed partial class UiConsistencyGuardrailTests
         };
 
         foreach (var (path, expected) in expectations)
+        {
             Assert.Contains(expected, Read(path), StringComparison.Ordinal);
+        }
     }
 
     [Fact]

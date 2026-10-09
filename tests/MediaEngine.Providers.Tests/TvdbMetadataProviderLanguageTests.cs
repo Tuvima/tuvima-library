@@ -20,7 +20,8 @@ public sealed class TvdbMetadataProviderLanguageTests : IDisposable
         var loader = new ConfigurationDirectoryLoader(_directory);
         loader.SaveProvider(new ProviderConfiguration
         {
-            Name = "tvdb", Enabled = true,
+            Name = "tvdb",
+            Enabled = true,
             Endpoints = new Dictionary<string, string> { ["api"] = "https://api4.thetvdb.com/v4" },
             HttpClient = new HttpClientConfig { ApiKey = "installation-key" },
         });
@@ -30,7 +31,9 @@ public sealed class TvdbMetadataProviderLanguageTests : IDisposable
 
         var shows = await provider.SearchAsync(new ProviderLookupRequest
         {
-            EntityType = EntityType.Work, MediaType = MediaType.TV, ShowName = "Solo Leveling",
+            EntityType = EntityType.Work,
+            MediaType = MediaType.TV,
+            ShowName = "Solo Leveling",
         });
         var show = Assert.Single(shows);
         Assert.Equal("Solo Leveling", show.Title);
@@ -39,8 +42,11 @@ public sealed class TvdbMetadataProviderLanguageTests : IDisposable
 
         var episodes = await provider.SearchAsync(new ProviderLookupRequest
         {
-            EntityType = EntityType.Work, MediaType = MediaType.TV,
-            ShowName = "Solo Leveling", SeasonNumber = "1", EpisodeNumber = "1",
+            EntityType = EntityType.Work,
+            MediaType = MediaType.TV,
+            ShowName = "Solo Leveling",
+            SeasonNumber = "1",
+            EpisodeNumber = "1",
         });
         var episode = Assert.Single(episodes);
         Assert.Equal("I'm Used to It", episode.Title);
@@ -51,8 +57,11 @@ public sealed class TvdbMetadataProviderLanguageTests : IDisposable
 
         var claims = await provider.FetchAsync(new ProviderLookupRequest
         {
-            EntityType = EntityType.MediaAsset, MediaType = MediaType.TV,
-            ShowName = "Solo Leveling", SeasonNumber = "1", EpisodeNumber = "1",
+            EntityType = EntityType.MediaAsset,
+            MediaType = MediaType.TV,
+            ShowName = "Solo Leveling",
+            SeasonNumber = "1",
+            EpisodeNumber = "1",
         });
         Assert.Contains(claims, claim => claim.Key == "show_name" && claim.Value == "Solo Leveling");
         Assert.Contains(claims, claim => claim.Key == "episode_title" && claim.Value == "I'm Used to It");

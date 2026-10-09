@@ -1,4 +1,4 @@
-﻿// ──────────────────────────────────────────────────────────────────────────────
+// ──────────────────────────────────────────────────────────────────────────────
 // GenerateTestEpubs — Creates a full test library spanning the configured
 // watch roots and exercising every major ingestion edge case.
 //
@@ -487,10 +487,15 @@ for (int i = 0; i < epubs.Length; i++)
     {
         byte[]? cover = null;
         if (spec.IncludeCover && ffmpegPath is not null)
+        {
             cover = GeneratePng(ffmpegPath, tempDir, spec.CoverHex, 400, 600);
+        }
 
         CreateEpub(outPath, spec, cover);
-        if (spec.FileName == "dune.epub") duneEpubPath = outPath;
+        if (spec.FileName == "dune.epub")
+        {
+            duneEpubPath = outPath;
+        }
         generatedFiles.Add((outPath, finalPath));
 
         var label = $"[{num,2}] {spec.FileName,-46}";
@@ -599,7 +604,9 @@ foreach (var (num, spec) in extraBookSeries)
     {
         byte[]? cover = null;
         if (spec.IncludeCover && ffmpegPath is not null)
+        {
             cover = GeneratePng(ffmpegPath, tempDir, spec.CoverHex, 400, 600);
+        }
 
         CreateEpub(outPath, spec, cover);
         generatedFiles.Add((outPath, finalPath));
@@ -1209,7 +1216,10 @@ Console.WriteLine($"━━━ Copying {generatedFiles.Count} files to watch fold
 foreach (var (src, dst) in generatedFiles)
 {
     var dir = Path.GetDirectoryName(dst);
-    if (dir is not null) Directory.CreateDirectory(dir);
+    if (dir is not null)
+    {
+        Directory.CreateDirectory(dir);
+    }
     File.Copy(src, dst, overwrite: true);
 }
 Console.WriteLine($"  ✓  {generatedFiles.Count} files copied to {watchRoot}");
@@ -1360,7 +1370,10 @@ File.WriteAllText(manifestPath, manifestJson);
 Console.WriteLine();
 Console.WriteLine($"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
 Console.WriteLine($"  Generated : {total} / {(large ? "138" : "53")}");
-if (failed > 0) Console.WriteLine($"  Failed    : {failed}");
+if (failed > 0)
+{
+    Console.WriteLine($"  Failed    : {failed}");
+}
 Console.WriteLine($"  Manifest  : {manifestPath}");
 Console.WriteLine();
 Console.WriteLine("Next steps:");
@@ -1397,15 +1410,24 @@ static string? FindFfmpeg()
     for (int i = 0; i < 8; i++)
     {
         var candidate = Path.Combine(dir, "tools", "ffmpeg", "ffmpeg.exe");
-        if (File.Exists(candidate)) return candidate;
+        if (File.Exists(candidate))
+        {
+            return candidate;
+        }
         var parent = Directory.GetParent(dir);
-        if (parent is null) break;
+        if (parent is null)
+        {
+            break;
+        }
         dir = parent.FullName;
     }
     foreach (var p in (Environment.GetEnvironmentVariable("PATH") ?? "").Split(Path.PathSeparator))
     {
         var candidate = Path.Combine(p.Trim(), "ffmpeg.exe");
-        if (File.Exists(candidate)) return candidate;
+        if (File.Exists(candidate))
+        {
+            return candidate;
+        }
     }
     return null;
 }
@@ -1415,7 +1437,10 @@ static byte[]? GeneratePng(string ffmpegPath, string tempDir, string hex, int wi
     var outFile = Path.Combine(tempDir, $"cover_{Guid.NewGuid():N}.png");
     var args = $"-y -f lavfi -i \"color=c={hex}:s={width}x{height}:r=1\" -vframes 1 \"{outFile}\"";
     RunFfmpeg(ffmpegPath, args);
-    if (!File.Exists(outFile)) return null;
+    if (!File.Exists(outFile))
+    {
+        return null;
+    }
     var bytes = File.ReadAllBytes(outFile);
     File.Delete(outFile);
     return bytes;
@@ -1432,13 +1457,27 @@ static void CreateM4b(string ffmpegPath, string tempDir, string outPath, M4bSpec
         $"-c:a aac -b:a 32k \"{silentFile}\"");
 
     if (cover is not null && coverFile is not null)
+    {
         File.WriteAllBytes(coverFile, cover);
+    }
 
     var metaArgs = new StringBuilder();
-    if (!string.IsNullOrWhiteSpace(spec.Title))       metaArgs.Append($" -metadata title={Q(spec.Title)}");
-    if (!string.IsNullOrWhiteSpace(spec.Artist))      metaArgs.Append($" -metadata artist={Q(spec.Artist)}");
-    if (!string.IsNullOrWhiteSpace(spec.AlbumArtist)) metaArgs.Append($" -metadata album_artist={Q(spec.AlbumArtist)}");
-    if (!string.IsNullOrWhiteSpace(spec.Album))       metaArgs.Append($" -metadata album={Q(spec.Album)}");
+    if (!string.IsNullOrWhiteSpace(spec.Title))
+    {
+        metaArgs.Append($" -metadata title={Q(spec.Title)}");
+    }
+    if (!string.IsNullOrWhiteSpace(spec.Artist))
+    {
+        metaArgs.Append($" -metadata artist={Q(spec.Artist)}");
+    }
+    if (!string.IsNullOrWhiteSpace(spec.AlbumArtist))
+    {
+        metaArgs.Append($" -metadata album_artist={Q(spec.AlbumArtist)}");
+    }
+    if (!string.IsNullOrWhiteSpace(spec.Album))
+    {
+        metaArgs.Append($" -metadata album={Q(spec.Album)}");
+    }
     if (!string.IsNullOrWhiteSpace(spec.Narrator))
     {
         // Write narrator to the Composers tag (TagLib primary extraction path)
@@ -1446,9 +1485,18 @@ static void CreateM4b(string ffmpegPath, string tempDir, string outPath, M4bSpec
         metaArgs.Append($" -metadata composer={Q(spec.Narrator)}");
         metaArgs.Append($" -metadata comment={Q("Narrated by " + spec.Narrator)}");
     }
-    if (!string.IsNullOrWhiteSpace(spec.Year))        metaArgs.Append($" -metadata date={Q(spec.Year)}");
-    if (!string.IsNullOrWhiteSpace(spec.Genre))       metaArgs.Append($" -metadata genre={Q(spec.Genre)}");
-    if (!string.IsNullOrWhiteSpace(spec.TrackNum))    metaArgs.Append($" -metadata track={Q(spec.TrackNum)}");
+    if (!string.IsNullOrWhiteSpace(spec.Year))
+    {
+        metaArgs.Append($" -metadata date={Q(spec.Year)}");
+    }
+    if (!string.IsNullOrWhiteSpace(spec.Genre))
+    {
+        metaArgs.Append($" -metadata genre={Q(spec.Genre)}");
+    }
+    if (!string.IsNullOrWhiteSpace(spec.TrackNum))
+    {
+        metaArgs.Append($" -metadata track={Q(spec.TrackNum)}");
+    }
 
     string inputArgs, mapArgs, dispArgs;
     if (coverFile is not null)
@@ -1469,7 +1517,10 @@ static void CreateM4b(string ffmpegPath, string tempDir, string outPath, M4bSpec
         $"-movflags +faststart \"{outPath}\"");
 
     TryDelete(silentFile);
-    if (coverFile is not null) TryDelete(coverFile);
+    if (coverFile is not null)
+    {
+        TryDelete(coverFile);
+    }
 }
 
 static void RunFfmpeg(string ffmpegPath, string args)
@@ -1486,7 +1537,10 @@ static void RunFfmpeg(string ffmpegPath, string args)
     var stderrTask = p.StandardError.ReadToEndAsync();
     bool exited = p.WaitForExit(120_000);
     Task.WaitAll(stdoutTask, stderrTask);
-    if (!exited) throw new Exception("FFmpeg timed out after 120 seconds");
+    if (!exited)
+    {
+        throw new Exception("FFmpeg timed out after 120 seconds");
+    }
     if (p.ExitCode != 0)
     {
         var err = stderrTask.Result;
@@ -1615,7 +1669,9 @@ static void WriteMp4Mdat(Stream stream)
 static void WriteMp4StringAtom(Stream stream, string atomName, string value)
 {
     if (string.IsNullOrWhiteSpace(value))
+    {
         return;
+    }
 
     var valueBytes = Encoding.UTF8.GetBytes(value);
     var dataSize = 8 + 8 + valueBytes.Length;
@@ -1661,7 +1717,9 @@ static void CreateMinimalMp3(string outPath, MusicSpec spec)
 static void WriteId3TextFrame(Stream stream, string frameId, string value)
 {
     if (string.IsNullOrWhiteSpace(value))
+    {
         return;
+    }
 
     var bytes = Encoding.Latin1.GetBytes(value);
     var dataSize = 1 + bytes.Length;
@@ -1691,7 +1749,10 @@ static void WriteBigEndian32(Stream stream, int value)
 
 static void CreateCbz(string outPath, ComicSpec spec)
 {
-    if (File.Exists(outPath)) File.Delete(outPath);
+    if (File.Exists(outPath))
+    {
+        File.Delete(outPath);
+    }
 
     using var fs = new FileStream(outPath, FileMode.Create);
     using var zip = new ZipArchive(fs, ZipArchiveMode.Create, leaveOpen: false);
@@ -1715,13 +1776,19 @@ static void CreateCbz(string outPath, ComicSpec spec)
 
 static void CreateEpub(string outputPath, EpubSpec spec, byte[]? coverBytes)
 {
-    if (File.Exists(outputPath)) File.Delete(outputPath);
+    if (File.Exists(outputPath))
+    {
+        File.Delete(outputPath);
+    }
 
     using var fs  = new FileStream(outputPath, FileMode.Create);
     using var zip = new ZipArchive(fs, ZipArchiveMode.Create, leaveOpen: false);
 
     var mime = zip.CreateEntry("mimetype", CompressionLevel.NoCompression);
-    using (var w = new StreamWriter(mime.Open(), Encoding.ASCII)) w.Write("application/epub+zip");
+    using (var w = new StreamWriter(mime.Open(), Encoding.ASCII))
+    {
+        w.Write("application/epub+zip");
+    }
 
     AddText(zip, "META-INF/container.xml", """
         <?xml version="1.0" encoding="UTF-8"?>
@@ -1748,7 +1815,9 @@ static void CreateEpub(string outputPath, EpubSpec spec, byte[]? coverBytes)
         ? $"""<dc:creator opf:role="aut">{Esc(spec.Author)}</dc:creator>"""
         : "";
     if (spec.SecondAuthor is not null)
+    {
         authorXml += $"\n        <dc:creator opf:role=\"aut\">{Esc(spec.SecondAuthor)}</dc:creator>";
+    }
 
     var titleXml     = !string.IsNullOrWhiteSpace(spec.Title)
         ? $"<dc:title>{Esc(spec.Title)}</dc:title>"

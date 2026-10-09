@@ -25,17 +25,17 @@ public sealed class PlaybackSessionControllerTests
                         new() {Index=1,AssetId=second,Title="Original part two",StartSeconds=0,EndSeconds=90}],
         };
         await service.PlayAudiobookAsync(book);
-        Assert.Equal("Original part one",service.CurrentChapter!.Title);
+        Assert.Equal("Original part one", service.CurrentChapter!.Title);
         await service.SetPlaybackRateAsync(1.75d);
         await service.CompleteCurrentAsync();
-        Assert.Equal(second,service.CurrentItem!.AssetId);
+        Assert.Equal(second, service.CurrentItem!.AssetId);
         Assert.Equal(1.75d, service.PlaybackRate);
-        Assert.Equal($"/engine-stream/{second:D}",service.CurrentBrowserStreamUrl);
-        Assert.Equal("Original part two",service.CurrentChapter!.Title);
+        Assert.Equal($"/engine-stream/{second:D}", service.CurrentBrowserStreamUrl);
+        Assert.Equal("Original part two", service.CurrentChapter!.Title);
         await service.PlayAudiobookChapterAsync(0);
-        Assert.Equal(first,service.CurrentItem!.AssetId);
+        Assert.Equal(first, service.CurrentItem!.AssetId);
         Assert.Equal(1.75d, service.PlaybackRate);
-        Assert.Equal($"/engine-stream/{first:D}",service.CurrentBrowserStreamUrl);
+        Assert.Equal($"/engine-stream/{first:D}", service.CurrentBrowserStreamUrl);
 
         await service.PlayAudiobookAsync(CreateAudiobookItem("Different book", "stream://different-book"));
         Assert.Equal(1.25d, service.PlaybackRate);
@@ -122,7 +122,10 @@ public sealed class PlaybackSessionControllerTests
         var playback = new PlaybackSessionController(null!, null!, preferences: new ActiveProfilePlaybackPreferences(profileId));
         playback.RestoreState(new ListenPlaybackSnapshot
         {
-            Queue = [item], CurrentIndex = 0, Experience = PlayerExperienceModes.Audiobook, DurationSeconds = 21,
+            Queue = [item],
+            CurrentIndex = 0,
+            Experience = PlayerExperienceModes.Audiobook,
+            DurationSeconds = 21,
         });
         playback.SleepTimerNativePositionRequested += (_, _) => Task.FromResult<double?>(0);
         playback.SleepTimerNativeArmRequested += _ => Task.FromResult(true);
@@ -155,7 +158,9 @@ public sealed class PlaybackSessionControllerTests
         var playback = new PlaybackSessionController(null!, null!);
         playback.RestoreState(new ListenPlaybackSnapshot
         {
-            Queue = [first, second], CurrentIndex = 0, Experience = PlayerExperienceModes.Music,
+            Queue = [first, second],
+            CurrentIndex = 0,
+            Experience = PlayerExperienceModes.Music,
         });
         var endedAsset = first.AssetId!.Value;
         var endedRequest = playback.PlaybackRequestVersion;
@@ -181,8 +186,11 @@ public sealed class PlaybackSessionControllerTests
         var playback = new PlaybackSessionController(null!, null!);
         playback.RestoreState(new ListenPlaybackSnapshot
         {
-            Queue = [item], CurrentIndex = 0, Experience = PlayerExperienceModes.Music,
-            IsPlaying = true, CurrentTimeSeconds = 203,
+            Queue = [item],
+            CurrentIndex = 0,
+            Experience = PlayerExperienceModes.Music,
+            IsPlaying = true,
+            CurrentTimeSeconds = 203,
         });
         var endedAsset = item.AssetId!.Value;
         var endedRequest = playback.PlaybackRequestVersion;
@@ -217,7 +225,9 @@ public sealed class PlaybackSessionControllerTests
         playback.Changed += _ =>
         {
             if (playback.CurrentItem?.AssetId == secondAsset && continuationProjection is null)
+            {
                 continuationProjection = playback.State;
+            }
         };
 
         var continuation = playback.PlayAudiobookChapterAsync(book, book.Chapters[1]);
@@ -292,8 +302,11 @@ public sealed class PlaybackSessionControllerTests
         var playback = new PlaybackSessionController(null!, null!, preferences: new ActiveProfilePlaybackPreferences(profileId));
         playback.RestoreState(new ListenPlaybackSnapshot
         {
-            Queue = [item], CurrentIndex = 0, Experience = PlayerExperienceModes.Audiobook,
-            CurrentTimeSeconds = 130, DurationSeconds = 360,
+            Queue = [item],
+            CurrentIndex = 0,
+            Experience = PlayerExperienceModes.Audiobook,
+            CurrentTimeSeconds = 130,
+            DurationSeconds = 360,
         });
         playback.SleepTimerNativePositionRequested += (_, _) => Task.FromResult<double?>(130);
         playback.SleepTimerNativeArmRequested += _ => Task.FromResult(true);
@@ -325,12 +338,16 @@ public sealed class PlaybackSessionControllerTests
         var preferences = new MutableActiveProfilePlaybackPreferences(originalProfileId);
         var item = CreateAudiobookItem("Book", "stream://book") with
         {
-            WorkId = workId, AudiobookWorkId = workId, AssetId = assetId,
+            WorkId = workId,
+            AudiobookWorkId = workId,
+            AssetId = assetId,
         };
         var playback = new PlaybackSessionController(null!, null!, preferences: preferences);
         playback.RestoreState(new ListenPlaybackSnapshot
         {
-            Queue = [item], CurrentIndex = 0, Experience = PlayerExperienceModes.Audiobook,
+            Queue = [item],
+            CurrentIndex = 0,
+            Experience = PlayerExperienceModes.Audiobook,
         });
         var nativeStates = new List<AudiobookSleepTimerStateDto>();
         playback.SleepTimerNativeArmRequested += state =>
@@ -373,7 +390,9 @@ public sealed class PlaybackSessionControllerTests
         var playback = new PlaybackSessionController(null!, null!, preferences: preferences);
         playback.RestoreState(new ListenPlaybackSnapshot
         {
-            Queue = [item], CurrentIndex = 0, Experience = PlayerExperienceModes.Audiobook,
+            Queue = [item],
+            CurrentIndex = 0,
+            Experience = PlayerExperienceModes.Audiobook,
         });
         var candidateStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var candidateBinding = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -482,7 +501,9 @@ public sealed class PlaybackSessionControllerTests
         var playback = new PlaybackSessionController(null!, null!, preferences: new ActiveProfilePlaybackPreferences(profileId));
         playback.RestoreState(new ListenPlaybackSnapshot
         {
-            Queue = [item], CurrentIndex = 0, Experience = PlayerExperienceModes.Audiobook,
+            Queue = [item],
+            CurrentIndex = 0,
+            Experience = PlayerExperienceModes.Audiobook,
         });
         var rejectNextBinding = false;
         playback.SleepTimerNativeArmRequested += state => Task.FromResult(!rejectNextBinding);
@@ -517,7 +538,9 @@ public sealed class PlaybackSessionControllerTests
         var playback = new PlaybackSessionController(null!, null!, preferences: new ActiveProfilePlaybackPreferences(profileId));
         playback.RestoreState(new ListenPlaybackSnapshot
         {
-            Queue = [item], CurrentIndex = 0, Experience = PlayerExperienceModes.Audiobook,
+            Queue = [item],
+            CurrentIndex = 0,
+            Experience = PlayerExperienceModes.Audiobook,
         });
         var firstBinding = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var bindings = new List<AudiobookSleepTimerStateDto>();
@@ -919,7 +942,10 @@ public sealed class PlaybackSessionControllerTests
         var item = CreateAudiobookItem("Current book", "stream://book");
         service.RestoreState(new ListenPlaybackSnapshot
         {
-            Queue = [item], CurrentIndex = 0, PlaybackRate = 8d, IsPlaying = true,
+            Queue = [item],
+            CurrentIndex = 0,
+            PlaybackRate = 8d,
+            IsPlaying = true,
         });
 
         Assert.Equal(1.333d, service.PlaybackRate);
@@ -1096,9 +1122,14 @@ public sealed class PlaybackSessionControllerTests
         var owner = new ListenPlaybackCommandOwner(services, playback);
         var command = new ListenPlaybackCommandDto
         {
-            CommandId = Guid.NewGuid(), SenderId = Guid.NewGuid(), RecipientId = owner.RecipientId,
-            Action = ListenPlaybackCommandActions.SetSpeed, ProfileId = profileId, WorkId = item.WorkId,
-            ExpectedAssetId = item.AssetId, ExpectedPlaybackRequestVersion = playback.PlaybackRequestVersion,
+            CommandId = Guid.NewGuid(),
+            SenderId = Guid.NewGuid(),
+            RecipientId = owner.RecipientId,
+            Action = ListenPlaybackCommandActions.SetSpeed,
+            ProfileId = profileId,
+            WorkId = item.WorkId,
+            ExpectedAssetId = item.AssetId,
+            ExpectedPlaybackRequestVersion = playback.PlaybackRequestVersion,
             Value = 1.75d,
         };
 
@@ -1490,14 +1521,23 @@ public sealed class PlaybackSessionControllerTests
         await handler.Entered.Task.WaitAsync(TimeSpan.FromSeconds(5));
         service.ClosePlayer();
         var replacement = CreateQueueItem("New music", "stream://new");
-        if (replace) await service.PlayQueueItemAsync(replacement);
+        if (replace)
+        {
+            await service.PlayQueueItemAsync(replacement);
+        }
         handler.Response.SetResult(new HttpResponseMessage(HttpStatusCode.OK)
         {
             Content = JsonContent.Create(new PlaybackManifestDto { HlsStatus = "streaming", RecommendedDelivery = PlaybackDeliveryModes.Hls, HlsUrl = "/stream/hls/old/master.m3u8" }),
         });
         await start.WaitAsync(TimeSpan.FromSeconds(5));
-        if (replace) Assert.Equal(replacement.WorkId, service.CurrentItem!.WorkId);
-        else Assert.Empty(service.Queue);
+        if (replace)
+        {
+            Assert.Equal(replacement.WorkId, service.CurrentItem!.WorkId);
+        }
+        else
+        {
+            Assert.Empty(service.Queue);
+        }
         Assert.False(service.IsVideoMode);
     }
 
@@ -1531,7 +1571,9 @@ public sealed class PlaybackSessionControllerTests
         service.Changed += _ =>
         {
             if (service.IsVideoMode && firstVideoProjection is null)
+            {
                 firstVideoProjection = service.State;
+            }
         };
         var oldRequest = service.PlayVideoAsync(CreateVideoItem("Old video", "stream://old-video"));
         await preferences.FirstCallEntered.Task.WaitAsync(TimeSpan.FromSeconds(5));
@@ -1577,7 +1619,10 @@ public sealed class PlaybackSessionControllerTests
         PlaybackTransportCommand? startCommand = null;
         service.TransportCommandRequested += command =>
         {
-            if (command.Action == "start") startCommand = command;
+            if (command.Action == "start")
+            {
+                startCommand = command;
+            }
             return Task.CompletedTask;
         };
 
@@ -2193,11 +2238,14 @@ public sealed class PlaybackSessionControllerTests
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken ct)
         {
             if (request.RequestUri?.AbsolutePath.EndsWith($"/read/resolve/{workId:D}", StringComparison.OrdinalIgnoreCase) == true)
+            {
                 return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
                 {
                     Content = JsonContent.Create(new { assetId }),
                 });
+            }
             if (request.RequestUri?.AbsolutePath.EndsWith($"/playback/{assetId:D}/manifest", StringComparison.OrdinalIgnoreCase) == true)
+            {
                 return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
                 {
                     Content = JsonContent.Create(new PlaybackManifestDto
@@ -2208,6 +2256,7 @@ public sealed class PlaybackSessionControllerTests
                         DirectStreamUrl = $"/media/assets/{assetId:D}/stream",
                     }),
                 });
+            }
             return Task.FromResult(new HttpResponseMessage(HttpStatusCode.NotFound));
         }
     }

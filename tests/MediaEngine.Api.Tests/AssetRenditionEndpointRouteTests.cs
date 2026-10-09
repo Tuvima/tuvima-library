@@ -32,7 +32,9 @@ public sealed class AssetRenditionEndpointRouteTests
         while (directory is not null)
         {
             if (File.Exists(Path.Combine(directory.FullName, "MediaEngine.slnx")))
+            {
                 return directory.FullName;
+            }
             directory = directory.Parent;
         }
         throw new DirectoryNotFoundException("Repository root not found.");

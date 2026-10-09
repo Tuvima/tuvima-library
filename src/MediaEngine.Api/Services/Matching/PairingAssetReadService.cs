@@ -69,7 +69,9 @@ public sealed class PairingAssetReadService(IDatabaseConnection db)
             WHERE ma.id IN @assetIds AND ma.status = 'Normal' AND ma.is_orphaned = 0
               AND w.ownership = 'Owned';
             """, new { assetIds = batch.Select(GuidSql.ToBlob).ToArray() }, cancellationToken: ct)))
+            {
                 found[row.AssetId] = row;
+            }
         }
         return found;
     }

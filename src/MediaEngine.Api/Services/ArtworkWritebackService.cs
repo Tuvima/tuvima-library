@@ -33,20 +33,31 @@ public sealed class ArtworkWritebackService(
     {
         ct.ThrowIfCancellationRequested();
         var asset = LoadAsset(mediaAssetId);
-        if (asset is null) return null;
+        if (asset is null)
+        {
+            return null;
+        }
 
         var settings = configuration.LoadConfig<WriteBackConfiguration>(string.Empty, "writeback")
             ?? new WriteBackConfiguration();
         if (!settings.Enabled || !settings.ArtworkEnabled)
+        {
             return Status(asset, "Disabled", reason: "Artwork file write-back is disabled.");
+        }
         if (!ArtworkEmbeddingSupport.CanEmbed(asset.FilePath))
+        {
             return Status(asset, "Unsupported", reason: "This file format does not support verified artwork embedding.");
+        }
         if (!File.Exists(asset.FilePath))
+        {
             return Status(asset, "Missing", reason: "The media file is unavailable.");
+        }
 
         var source = libraries.ResolveSourceForPath(asset.FilePath);
         if (source is null)
+        {
             return Status(asset, "Disabled", reason: "This file has no configured library source.");
+        }
         var decision = mutationGate.Evaluate(new SourceMutationRequest
         {
             Source = FileSourceMutationPolicyFactory.Create(
@@ -55,7 +66,9 @@ public sealed class ArtworkWritebackService(
             Path = asset.FilePath,
         });
         if (!decision.Allowed)
+        {
             return Status(asset, "Disabled", reason: decision.Reason);
+        }
 
         // TV episode stills are not file-cover inheritance. The season-poster
         // request falls back to the show's CoverArt through the shared resolver.
@@ -63,7 +76,9 @@ public sealed class ArtworkWritebackService(
             ? "SeasonPoster" : "CoverArt";
         var selection = await artwork.GetEffectiveWorkArtworkAsync(asset.WorkId, "Primary", sourceType, ct);
         if (selection?.Variant is not { } variant)
+        {
             return Status(asset, "NoArtwork", reason: "No preferred parent cover is available.");
+        }
 
         var imagePath = LoadArtworkPath(variant.ArtworkAssetId);
         var image = imagePath is not null && File.Exists(imagePath) ? new FileInfo(imagePath) : null;
@@ -100,27 +115,39 @@ public sealed class ArtworkWritebackService(
         {
             var status = await GetStatusAsync(mediaAssetId, ct);
             if (status is null || status.Status is "Disabled" or "Unsupported" or "Missing" or "NoArtwork" or "Embedded")
+            {
                 return status;
+            }
             if (status.Status == "Failed" && !retry)
+            {
                 return status;
+            }
 
             var asset = LoadAsset(mediaAssetId)!;
             var imagePath = LoadArtworkPath(status.DesiredArtworkAssetId!.Value);
             if (string.IsNullOrWhiteSpace(imagePath) || !File.Exists(imagePath))
+            {
                 return await FailAsync(status, "The selected managed artwork file is unavailable.", ct);
+            }
             var bytes = await File.ReadAllBytesAsync(imagePath, ct);
             if (bytes.Length == 0 || bytes.Length > 16 * 1024 * 1024)
+            {
                 return await FailAsync(status, "The selected artwork cannot be embedded at this size.", ct);
+            }
             var tagger = taggers.FirstOrDefault(item => item is AudioMetadataTagger && item.CanHandle(asset.FilePath));
             if (tagger is null)
+            {
                 return status with { Status = "Unsupported", Reason = "No verified audio artwork writer is registered." };
+            }
 
             await SaveStateAsync(status, "writing", null, null, incrementAttempt: true, ct);
             try
             {
                 await tagger.WriteCoverArtAsync(asset.FilePath, bytes, ct);
                 if (!ArtworkEmbeddingSupport.VerifyFrontCover(asset.FilePath, bytes))
+                {
                     throw new InvalidDataException("The saved cover could not be verified in the media file.");
+                }
                 var file = new FileInfo(asset.FilePath);
                 await SaveStateAsync(status, "embedded", file.LastWriteTimeUtc.ToString("O"), file.Length,
                     incrementAttempt: false, ct);
@@ -144,7 +171,10 @@ public sealed class ArtworkWritebackService(
     {
         var settings = configuration.LoadConfig<WriteBackConfiguration>(string.Empty, "writeback")
             ?? new WriteBackConfiguration();
-        if (!settings.Enabled || !settings.ArtworkEnabled) return 0;
+        if (!settings.Enabled || !settings.ArtworkEnabled)
+        {
+            return 0;
+        }
         using var connection = database.CreateConnection();
         var ids = (await connection.QueryAsync<Guid>(new CommandDefinition("""
             SELECT ma.id FROM media_assets ma
@@ -217,19 +247,19 @@ public sealed class ArtworkWritebackService(
                     file_size_bytes = excluded.file_size_bytes,
                     updated_at = excluded.updated_at;
                 """, new
-                {
-                    mediaAssetId = status.MediaAssetId,
-                    desiredArtworkAssetId = status.DesiredArtworkAssetId,
-                    desiredVersion = status.DesiredVersion,
-                    embeddedArtworkAssetId = state == "embedded" ? status.DesiredArtworkAssetId : null,
-                    state,
-                    attempts = incrementAttempt ? 1 : 0,
-                    incrementAttempt = incrementAttempt ? 1 : 0,
-                    error,
-                    fileModifiedUtc,
-                    fileSizeBytes,
-                    updatedAt = DateTimeOffset.UtcNow.ToString("O"),
-                }, transaction);
+            {
+                mediaAssetId = status.MediaAssetId,
+                desiredArtworkAssetId = status.DesiredArtworkAssetId,
+                desiredVersion = status.DesiredVersion,
+                embeddedArtworkAssetId = state == "embedded" ? status.DesiredArtworkAssetId : null,
+                state,
+                attempts = incrementAttempt ? 1 : 0,
+                incrementAttempt = incrementAttempt ? 1 : 0,
+                error,
+                fileModifiedUtc,
+                fileSizeBytes,
+                updatedAt = DateTimeOffset.UtcNow.ToString("O"),
+            }, transaction);
         }, ct);
     }
 
@@ -267,7 +297,10 @@ public sealed class ArtworkWritebackService(
             SELECT medium_path AS MediumPath, original_path AS OriginalPath
             FROM artwork_assets WHERE id = @id LIMIT 1;
             """, new { id });
-        if (paths is null) return null;
+        if (paths is null)
+        {
+            return null;
+        }
         return File.Exists(paths.MediumPath) ? paths.MediumPath : paths.OriginalPath;
     }
 

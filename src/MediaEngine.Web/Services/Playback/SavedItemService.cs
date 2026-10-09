@@ -32,7 +32,9 @@ public sealed class SavedItemService(IEngineApiClient apiClient)
             ? await apiClient.RemoveSavedItemAsync(entityKind, entityId, ct)
             : await apiClient.SaveItemAsync(entityKind, entityId, ct) is not null;
         if (!succeeded)
+        {
             return null;
+        }
 
         Changed?.Invoke();
         return current with { IsSaved = !current.IsSaved };

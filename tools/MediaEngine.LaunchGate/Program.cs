@@ -2,16 +2,22 @@ using System.Text.Json;
 using Microsoft.Data.Sqlite;
 
 if (args.Length < 2)
+{
     return Usage();
+}
 
 var command = args[0].ToLowerInvariant();
 var options = ParseOptions(args.Skip(1).ToArray());
 if (!options.TryGetValue("db", out var databasePath))
+{
     return Usage();
+}
 
 databasePath = Path.GetFullPath(databasePath);
 if (!File.Exists(databasePath))
+{
     throw new FileNotFoundException("Launch-gate database was not found.", databasePath);
+}
 
 return command switch
 {
@@ -24,7 +30,9 @@ return command switch
 static int Snapshot(string databasePath, IReadOnlyDictionary<string, string> options)
 {
     if (!options.TryGetValue("to", out var targetPath))
+    {
         return Usage();
+    }
 
     targetPath = Path.GetFullPath(targetPath);
     Directory.CreateDirectory(Path.GetDirectoryName(targetPath)
@@ -50,7 +58,9 @@ static int Prepare(string databasePath, IReadOnlyDictionary<string, string> opti
 {
     if (!options.TryGetValue("from", out var sourceRoot)
         || !options.TryGetValue("to", out var targetRoot))
+    {
         return Usage();
+    }
 
     sourceRoot = Path.TrimEndingDirectorySeparator(Path.GetFullPath(sourceRoot));
     targetRoot = Path.TrimEndingDirectorySeparator(Path.GetFullPath(targetRoot));
@@ -139,7 +149,10 @@ static int CountRows(SqliteConnection connection, string sql)
     command.CommandText = sql;
     using var reader = command.ExecuteReader();
     var count = 0;
-    while (reader.Read()) count++;
+    while (reader.Read())
+    {
+        count++;
+    }
     return count;
 }
 
@@ -149,7 +162,9 @@ static Dictionary<string, string> ParseOptions(string[] values)
     for (var index = 0; index < values.Length; index += 2)
     {
         if (index + 1 >= values.Length || !values[index].StartsWith("--", StringComparison.Ordinal))
+        {
             throw new ArgumentException("Launch-gate options must use --name value pairs.");
+        }
         result[values[index][2..]] = values[index + 1];
     }
     return result;

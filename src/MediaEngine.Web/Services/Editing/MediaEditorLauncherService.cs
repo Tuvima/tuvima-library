@@ -1,7 +1,7 @@
 using MediaEngine.Contracts.Universe;
 using MediaEngine.Web.Components.MediaEditor;
-using MediaEngine.Web.Services.Integration;
 using MediaEngine.Web.Components.Shared;
+using MediaEngine.Web.Services.Integration;
 using MediaEngine.Web.Services.Ui;
 
 namespace MediaEngine.Web.Services.Editing;
@@ -41,7 +41,9 @@ public sealed class MediaEditorLauncherService
         // Legacy batch launches must not silently choose a representative
         // item or fan an editor change out across several owned works.
         if (request.Mode == SharedMediaEditorMode.Batch || request.EntityIds.Count > 1)
+        {
             return false;
+        }
 
         if (string.Equals(request.LaunchEntityKind, "Person", StringComparison.OrdinalIgnoreCase))
         {

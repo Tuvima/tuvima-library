@@ -19,8 +19,8 @@ using MediaEngine.Domain.Entities;
 using MediaEngine.Domain.Enums;
 using MediaEngine.Domain.Models;
 using MediaEngine.Domain.Services;
-using MediaEngine.Providers.Helpers;
 using MediaEngine.Providers.Contracts;
+using MediaEngine.Providers.Helpers;
 using MediaEngine.Providers.Models;
 using MediaEngine.Providers.Services;
 using MediaEngine.Providers.Workers;
@@ -832,50 +832,73 @@ public static class ItemCanonicalEndpoints
         {
             var context = await itemCanonicalData.ResolveWorkAssetContextAsync(entityId, ct);
             if (context is null)
+            {
                 return ApiErrors.NotFound($"No current media asset or work target found for {entityId}.");
+            }
             if (string.IsNullOrWhiteSpace(request.ProviderName) || string.IsNullOrWhiteSpace(request.ProviderItemId)
                 || !Guid.TryParse(request.ProviderId, out var providerId))
+            {
                 return ApiErrors.BadRequest("Provider name, provider item ID, and a valid provider ID are required for a retail preview.");
+            }
             if (!IsRetailProviderAllowed(context.MediaType, request.ProviderName, providerId))
+            {
                 return ApiErrors.BadRequest("Television retail matches must use TheTVDB. Match the show to TheTVDB before selecting a season or episode.");
+            }
 
             var policy = ResolveTargetPolicy(context.MediaType, request.TargetKind, request.TargetFieldGroup);
             if (policy is null)
+            {
                 return ApiErrors.BadRequest($"Unsupported target field group '{request.TargetFieldGroup}' for media type '{context.MediaType}'.");
+            }
             if (!IsRetailCandidateCompatible(policy, request.ProviderName, request.ProviderItemId, request.BridgeIds, out var incompatibility))
+            {
                 return ApiErrors.BadRequest(incompatibility!);
+            }
 
             var lineage = await workRepo.GetLineageByAssetAsync(context.AssetId, ct);
             if (lineage is null)
+            {
                 return ApiErrors.NotFound($"No work lineage found for {entityId}.");
+            }
             var selectedFields = GetSelectedRetailFields(policy, request.RequiredFields, request.SuggestedFields);
             var selectedBridgeIds = GetSelectedRetailBridgeIds(policy, request.BridgeIds);
             if (IsGenericTvChildPolicy(policy))
             {
                 var (tvdbVerification, verifiedShowName) = await VerifyTvdbEpisodeMoveAsync(tvdb, request.ProviderItemId,
                     selectedBridgeIds, selectedFields, ct);
-                if (tvdbVerification is not null) return tvdbVerification;
+                if (tvdbVerification is not null)
+                {
+                    return tvdbVerification;
+                }
                 selectedFields[MetadataFieldConstants.ShowName] = verifiedShowName!;
             }
             var relationVerification = await VerifyProviderParentChildRelationAsync(
                 policy, request.ProviderName, selectedBridgeIds, lineage, bridgeIdRepo, context,
                 musicBrainz, apple, externalProviders, ct);
             if (relationVerification is not null)
+            {
                 return relationVerification;
+            }
 
             var identityTarget = ResolvePolicyIdentityTarget(context.AssetId, lineage, policy);
             var currentRevision = await GetIdentityRevisionAsync(canonicalRepo, identityTarget, ct);
             if (HasStaleExpectedRevision(request.ExpectedIdentityRevision, currentRevision))
+            {
                 return ApiErrors.Conflict("This retail match changed while the item was open. Reload and review it again.");
+            }
 
             var alignmentEntityId = await itemCanonicalData.ResolveWorkIdForAssetAsync(context.AssetId, ct) ?? context.AssetId;
             var hierarchyRequest = BuildHierarchyAlignmentRequest(policy, selectedFields, request.ProviderName, request.ProviderItemId, request.BridgeIds)
                 ?? new MembershipPreviewRequest(null, null, null, null);
             var hierarchy = await hierarchyAlignment.PreviewAsync(alignmentEntityId, hierarchyRequest, ct);
             if (hierarchy is null)
+            {
                 return ApiErrors.NotFound($"No hierarchy target found for {entityId}.");
+            }
             if (RequiresExpectedRevision(hierarchy) && string.IsNullOrWhiteSpace(request.ExpectedIdentityRevision))
+            {
                 return ApiErrors.BadRequest("Include expected_identity_revision before confirming a parent move.");
+            }
 
             return Results.Ok(ToRetailMatchMovePreview(entityId, identityTarget, currentRevision, request.ExpectedIdentityRevision, lineage, hierarchy));
         })
@@ -949,18 +972,22 @@ public static class ItemCanonicalEndpoints
             if (policy.MediaType == MediaType.TV.ToString() && policy.TargetFieldGroup == "show")
             {
                 if (!tvdb.IsConfigured())
+                {
                     return ApiErrors.BadRequest("Connect TheTVDB in Settings before matching a show.");
+                }
                 try
                 {
                     var remoteSeries = await tvdb.GetSeriesAsync(request.ProviderItemId, ct);
                     if (!IsTvdbSeriesRecord(remoteSeries, request.ProviderItemId))
+                    {
                         return ApiErrors.BadRequest("The selected TheTVDB series is no longer available. Search again before applying it.");
+                    }
                 }
                 catch (Exception ex) when (ex is not OperationCanceledException)
                 {
                     loggerFactory.CreateLogger("RetailShowMatch").LogWarning(ex,
                         "Could not verify TheTVDB series {SeriesId} before applying a match", request.ProviderItemId);
-                return ApiErrors.Problem(StatusCodes.Status502BadGateway, "TheTVDB verification is unavailable.", "Try matching the show again later.");
+                    return ApiErrors.Problem(StatusCodes.Status502BadGateway, "TheTVDB verification is unavailable.", "Try matching the show again later.");
                 }
             }
 
@@ -989,7 +1016,10 @@ public static class ItemCanonicalEndpoints
             {
                 var (tvdbVerification, verifiedShowName) = await VerifyTvdbEpisodeMoveAsync(tvdb, request.ProviderItemId,
                     selectedBridgeIds, selectedFields, ct);
-                if (tvdbVerification is not null) return tvdbVerification;
+                if (tvdbVerification is not null)
+                {
+                    return tvdbVerification;
+                }
                 selectedFields[MetadataFieldConstants.ShowName] = verifiedShowName!;
             }
 
@@ -1752,14 +1782,20 @@ public static class ItemCanonicalEndpoints
             var series = !string.IsNullOrWhiteSpace(queryOverride)
                 ? queryOverride.Trim()
                 : draftFields.GetValueOrDefault(MetadataFieldConstants.Series);
-            if (string.IsNullOrWhiteSpace(series)) return null;
+            if (string.IsNullOrWhiteSpace(series))
+            {
+                return null;
+            }
             return new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
             {
                 [MetadataFieldConstants.Series] = series,
                 ["container_search"] = "true",
             };
         }
-        if (!string.IsNullOrWhiteSpace(queryOverride) || draftFields.Count == 0) return null;
+        if (!string.IsNullOrWhiteSpace(queryOverride) || draftFields.Count == 0)
+        {
+            return null;
+        }
         return BuildRetailScopeFields(policy, draftFields);
     }
 
@@ -1793,28 +1829,28 @@ public static class ItemCanonicalEndpoints
         CanonicalTargetPolicy policy,
         IReadOnlyDictionary<string, string> fields,
         string? fallbackTitle) => policy.TargetFieldGroup switch
-    {
-        "show" => fields.GetValueOrDefault(MetadataFieldConstants.ShowName) ?? fallbackTitle,
-        "album" => fields.GetValueOrDefault(MetadataFieldConstants.Album) ?? fallbackTitle,
-        "series" => fields.GetValueOrDefault(MetadataFieldConstants.Series) ?? fallbackTitle,
-        "artist" => fields.GetValueOrDefault(MetadataFieldConstants.Artist) ?? fallbackTitle,
-        "narrator" => fields.GetValueOrDefault(MetadataFieldConstants.Narrator) ?? fallbackTitle,
-        "show_episode" => fields.GetValueOrDefault(MetadataFieldConstants.EpisodeTitle)
-                          ?? fields.GetValueOrDefault(MetadataFieldConstants.Title)
-                          ?? fallbackTitle,
-        _ => fields.GetValueOrDefault(MetadataFieldConstants.Title) ?? fallbackTitle,
-    };
+        {
+            "show" => fields.GetValueOrDefault(MetadataFieldConstants.ShowName) ?? fallbackTitle,
+            "album" => fields.GetValueOrDefault(MetadataFieldConstants.Album) ?? fallbackTitle,
+            "series" => fields.GetValueOrDefault(MetadataFieldConstants.Series) ?? fallbackTitle,
+            "artist" => fields.GetValueOrDefault(MetadataFieldConstants.Artist) ?? fallbackTitle,
+            "narrator" => fields.GetValueOrDefault(MetadataFieldConstants.Narrator) ?? fallbackTitle,
+            "show_episode" => fields.GetValueOrDefault(MetadataFieldConstants.EpisodeTitle)
+                              ?? fields.GetValueOrDefault(MetadataFieldConstants.Title)
+                              ?? fallbackTitle,
+            _ => fields.GetValueOrDefault(MetadataFieldConstants.Title) ?? fallbackTitle,
+        };
 
     private static string? ResolveRetailScopeAuthor(
         CanonicalTargetPolicy policy,
         IReadOnlyDictionary<string, string> fields,
         string? fallbackAuthor) => policy.TargetFieldGroup switch
-    {
-        "album" or "track" or "artist" => fields.GetValueOrDefault(MetadataFieldConstants.Artist)
-                                               ?? fields.GetValueOrDefault("album_artist")
-                                               ?? fallbackAuthor,
-        _ => fields.GetValueOrDefault(MetadataFieldConstants.Author) ?? fallbackAuthor,
-    };
+        {
+            "album" or "track" or "artist" => fields.GetValueOrDefault(MetadataFieldConstants.Artist)
+                                                   ?? fields.GetValueOrDefault("album_artist")
+                                                   ?? fallbackAuthor,
+            _ => fields.GetValueOrDefault(MetadataFieldConstants.Author) ?? fallbackAuthor,
+        };
 
     internal static bool IsRetailCandidateCompatible(
         CanonicalTargetPolicy policy,
@@ -1908,12 +1944,16 @@ public static class ItemCanonicalEndpoints
             && selectedBridgeIds.TryGetValue(BridgeIdKeys.AppleMusicId, out var trackId))
         {
             if (!selectedBridgeIds.TryGetValue(BridgeIdKeys.AppleMusicCollectionId, out var collectionId))
+            {
                 return ApiErrors.Conflict("This Apple Music track result has no album ID. Choose a track from an album result.");
+            }
             try
             {
                 var tracks = await apple.FetchAlbumTracksAsync(collectionId, "us", "en", ct);
                 if (!tracks.Any(track => track["trackId"]?.ToString() == trackId))
+                {
                     return ApiErrors.Conflict("The selected Apple Music track is not part of this album.");
+                }
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
@@ -2271,7 +2311,9 @@ public static class ItemCanonicalEndpoints
         CancellationToken ct)
     {
         if (!tvdb.IsConfigured())
+        {
             return (ApiErrors.BadRequest("Connect TheTVDB in Settings before moving an episode."), null);
+        }
         if (!bridgeIds.TryGetValue(BridgeIdKeys.TvdbId, out var seriesId)
             || !bridgeIds.TryGetValue(BridgeIdKeys.TvdbEpisodeId, out var episodeId)
             || !string.Equals(episodeId, candidateId, StringComparison.Ordinal)
@@ -2282,7 +2324,9 @@ public static class ItemCanonicalEndpoints
             || !int.TryParse(seasonText, out var seasonNumber)
             || !fields.TryGetValue(MetadataFieldConstants.EpisodeNumber, out var episodeText)
             || !int.TryParse(episodeText, out var episodeNumber))
+        {
             return (ApiErrors.Conflict("Choose a TheTVDB episode result with an exact show, season, and episode identity."), null);
+        }
 
         try
         {
@@ -2291,11 +2335,16 @@ public static class ItemCanonicalEndpoints
             var orderedEpisodes = await tvdb.GetAllEpisodesAsync(seriesId, "default", language: "eng", ct: ct);
             var error = ValidateTvdbEpisodeMoveEvidence(seriesId, episodeId, seasonNumber, episodeNumber,
                 show, episode, orderedEpisodes);
-            if (error is not null) return (error, null);
+            if (error is not null)
+            {
+                return (error, null);
+            }
             var translation = await tvdb.GetSeriesTranslationAsync(seriesId, ct: ct);
             var verifiedShowName = translation?["name"]?.ToString() ?? show?["name"]?.ToString();
             if (string.IsNullOrWhiteSpace(verifiedShowName))
+            {
                 return (ApiErrors.Conflict("TheTVDB did not provide a verified show name for this episode."), null);
+            }
             return (null, verifiedShowName);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
@@ -2317,7 +2366,9 @@ public static class ItemCanonicalEndpoints
         static string? Value(System.Text.Json.Nodes.JsonNode? node, string key) => node?[key]?.ToString();
         if (show is null || episode is null || Value(show, "id") != seriesId
             || Value(episode, "id") != episodeId || Value(episode, "seriesId") != seriesId)
+        {
             return ApiErrors.Conflict("The selected TheTVDB episode does not belong to that show.");
+        }
 
         var season = MetadataEndpoints.FindDefaultTvdbSeason(show, seasonNumber);
         var ordered = orderedEpisodes.FirstOrDefault(node => Value(node, "id") == episodeId);
@@ -2326,7 +2377,9 @@ public static class ItemCanonicalEndpoints
             || Value(episode, "seasonNumber") != seasonNumber.ToString(System.Globalization.CultureInfo.InvariantCulture)
             || Value(episode, "number") != episodeNumber.ToString(System.Globalization.CultureInfo.InvariantCulture)
             || Value(ordered, "number") != episodeNumber.ToString(System.Globalization.CultureInfo.InvariantCulture))
+        {
             return ApiErrors.Conflict("The selected episode is outside that show's default season and episode order.");
+        }
         return null;
     }
 

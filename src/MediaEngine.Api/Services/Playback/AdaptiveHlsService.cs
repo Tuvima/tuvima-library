@@ -62,10 +62,14 @@ public sealed class AdaptiveHlsService
         var profileKey = BuildProfileKey(settings.AdaptiveHls);
         var existing = await _packages.FindAsync(assetId, sourceHash, profileKey, ct).ConfigureAwait(false);
         if (existing is { Status: "failed" })
+        {
             return new AdaptiveHlsPreparation(existing.Id, "failed", existing.LastError);
+        }
         if (existing is not null && _preparations.ContainsKey(existing.Id)
             && File.Exists(Path.Combine(existing.RootPath, "master.m3u8")))
+        {
             return new AdaptiveHlsPreparation(existing.Id, "streaming", null);
+        }
         if (existing is { Status: "ready" } && File.Exists(Path.Combine(existing.RootPath, "master.m3u8")))
         {
             await _packages.TouchAsync(existing.Id, ct).ConfigureAwait(false);
@@ -93,10 +97,15 @@ public sealed class AdaptiveHlsService
             while (!task.IsCompleted && DateTimeOffset.UtcNow < deadline)
             {
                 if (File.Exists(Path.Combine(package.RootPath, "master.m3u8")))
+                {
                     return new AdaptiveHlsPreparation(package.Id, "streaming", null);
+                }
                 await Task.Delay(250, ct).ConfigureAwait(false);
             }
-            if (!task.IsCompleted) return new AdaptiveHlsPreparation(package.Id, "preparing", null);
+            if (!task.IsCompleted)
+            {
+                return new AdaptiveHlsPreparation(package.Id, "preparing", null);
+            }
             await task.ConfigureAwait(false);
         }
         catch (TimeoutException)
@@ -540,7 +549,10 @@ public sealed class AdaptiveHlsService
     private static bool HasPublishedSegment(string directory)
     {
         var playlist = Path.Combine(directory, "index.m3u8");
-        if (!File.Exists(playlist)) return false;
+        if (!File.Exists(playlist))
+        {
+            return false;
+        }
         try
         {
             return File.ReadLines(playlist).Any(line => !line.StartsWith('#') && !string.IsNullOrWhiteSpace(line)

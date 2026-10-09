@@ -7,14 +7,18 @@ public static class MediaEditorPairingTargetSelector
     public static string? GetTargetId(SearchRetailCandidateDto candidate, string mediaType)
     {
         if (string.Equals(mediaType, "TV", StringComparison.OrdinalIgnoreCase))
+        {
             return candidate.ProviderName?.Contains("tvdb", StringComparison.OrdinalIgnoreCase) == true
-                && !string.IsNullOrWhiteSpace(candidate.ProviderItemId)
-                && candidate.ProviderItemId.All(char.IsDigit)
-                ? candidate.ProviderItemId : null;
+                    && !string.IsNullOrWhiteSpace(candidate.ProviderItemId)
+                    && candidate.ProviderItemId.All(char.IsDigit)
+                    ? candidate.ProviderItemId : null;
+        }
 
         if (!string.Equals(mediaType, "Music", StringComparison.OrdinalIgnoreCase)
             || candidate.ProviderName?.Contains("musicbrainz", StringComparison.OrdinalIgnoreCase) != true)
+        {
             return null;
+        }
 
         var scopedReleaseId = (candidate.ExtraFields ?? [])
             .FirstOrDefault(pair => pair.Key.Equals("musicbrainz_release_id", StringComparison.OrdinalIgnoreCase)

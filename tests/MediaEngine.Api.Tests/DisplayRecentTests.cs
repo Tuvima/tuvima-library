@@ -8,9 +8,17 @@ public sealed class DisplayRecentTests
 {
     private static readonly DateTimeOffset Added = new(2026, 10, 3, 12, 0, 0, TimeSpan.Zero);
     [Theory]
-    [InlineData(null, "all")][InlineData("ALL", "all")][InlineData("watch", "watch")][InlineData("read", "read")][InlineData("listen", "listen")][InlineData("view", "view")]
+    [InlineData(null, "all")]
+    [InlineData("ALL", "all")]
+    [InlineData("watch", "watch")]
+    [InlineData("read", "read")]
+    [InlineData("listen", "listen")]
+    [InlineData("view", "view")]
     public void TypesAreExplicit(string? input, string expected) => Assert.Equal(expected, DisplayRecentCursor.NormalizeType(input));
-    [Theory][InlineData("")][InlineData("bad")][InlineData("watchlist")]
+    [Theory]
+    [InlineData("")]
+    [InlineData("bad")]
+    [InlineData("watchlist")]
     public void UnknownTypesRejected(string input) => Assert.Throws<ArgumentException>(() => DisplayRecentCursor.NormalizeType(input));
     [Fact]
     public void CursorBindsProfileFilterAndVersion()
@@ -21,12 +29,17 @@ public sealed class DisplayRecentTests
         Assert.Throws<ArgumentException>(() => DisplayRecentCursor.Decode(cursor, "view", profile));
         Assert.Throws<ArgumentException>(() => DisplayRecentCursor.Decode(cursor, "all", Guid.NewGuid()));
         foreach (var value in new[] { "", "junk", Convert.ToBase64String("{}"u8.ToArray()), Convert.ToBase64String(JsonSerializer.SerializeToUtf8Bytes(new { Version = 2, Type = "all", ProfileId = profile, AddedAt = Added, Key = "view:" + Guid.NewGuid().ToString("N") })) })
+        {
             Assert.Throws<ArgumentException>(() => DisplayRecentCursor.Decode(value, "all", profile));
+        }
         var invalid = DisplayRecentCursor.Encode("view", profile, new(Added, "catalogue:" + Guid.NewGuid().ToString("N")));
         Assert.Throws<ArgumentException>(() => DisplayRecentCursor.Decode(invalid, "view", profile));
         Assert.Throws<ArgumentException>(() => DisplayRecentCursor.Decode(DisplayRecentCursor.Encode("all", profile, new(Added, "view:wrong")), "all", profile));
     }
-    [Theory][InlineData(2, 15, 1)][InlineData(15, 2, 4)][InlineData(9, 9, 3)]
+    [Theory]
+    [InlineData(2, 15, 1)]
+    [InlineData(15, 2, 4)]
+    [InlineData(9, 9, 3)]
     public void LastEmittedBoundaryPreservesTiesAndSourceHeavyPages(int catalogueCount, int viewCount, int limit)
     {
         var profile = Guid.NewGuid();
@@ -40,13 +53,21 @@ public sealed class DisplayRecentTests
                 .OrderByDescending(i => i.AddedAt).ThenBy(i => i.Key, StringComparer.Ordinal).Take(limit + 1));
             var page = DisplayRecentCursor.Page("all", profile, candidates, limit);
             emitted.AddRange(page.Items.Select(i => i.Key));
-            if (!page.HasMore) break;
+            if (!page.HasMore)
+            {
+                break;
+            }
             boundary = DisplayRecentCursor.Decode(page.NextCursor, "all", profile);
         }
         Assert.Equal(all.OrderByDescending(i => i.AddedAt).ThenBy(i => i.Key, StringComparer.Ordinal).Select(i => i.Key), emitted);
         Assert.Equal(all.Count, emitted.Distinct().Count());
     }
-    [Theory][InlineData("all", 4)][InlineData("watch", 1)][InlineData("read", 1)][InlineData("listen", 2)][InlineData("view", 0)]
+    [Theory]
+    [InlineData("all", 4)]
+    [InlineData("watch", 1)]
+    [InlineData("read", 1)]
+    [InlineData("listen", 2)]
+    [InlineData("view", 0)]
     public void CatalogueFiltersAndStructuralIdentities(string type, int count)
     {
         var show = Guid.NewGuid(); var album = Guid.NewGuid();

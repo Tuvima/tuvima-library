@@ -59,7 +59,10 @@ public sealed class RemediationControlInteractionTests : AsyncBunitContext
         Assert.Equal(1.25, changes[^1]);
         await cut.Find("button[aria-label='Reset playback speed to 1×']").ClickAsync();
         Assert.Equal(1, changes[^1]);
-        foreach (var bad in new[] { "NaN", "Infinity", "broken" }) await cut.Find("input").InputAsync(new ChangeEventArgs { Value = bad });
+        foreach (var bad in new[] { "NaN", "Infinity", "broken" })
+        {
+            await cut.Find("input").InputAsync(new ChangeEventArgs { Value = bad });
+        }
         Assert.Equal(2, changes.Count);
     }
 
@@ -93,11 +96,11 @@ public sealed class RemediationControlInteractionTests : AsyncBunitContext
     [Fact]
     public async Task HoverAndFocusBeforeClickDoNotCloseTheRatingChoices()
     {
-        var cut=Render<MediaRateControl>();
-        await cut.Find(".media-rate-control").TriggerEventAsync("onpointerenter",new PointerEventArgs { PointerType="mouse" });
-        await cut.Find(".media-rate-control").TriggerEventAsync("onfocusin",new FocusEventArgs());
+        var cut = Render<MediaRateControl>();
+        await cut.Find(".media-rate-control").TriggerEventAsync("onpointerenter", new PointerEventArgs { PointerType = "mouse" });
+        await cut.Find(".media-rate-control").TriggerEventAsync("onfocusin", new FocusEventArgs());
         await cut.Find("button[aria-label=Rate]").ClickAsync();
-        Assert.Equal("true",cut.Find("button[aria-label=Rate]").GetAttribute("aria-expanded"));
+        Assert.Equal("true", cut.Find("button[aria-label=Rate]").GetAttribute("aria-expanded"));
     }
 
 }

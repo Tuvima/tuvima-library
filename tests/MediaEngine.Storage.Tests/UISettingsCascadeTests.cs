@@ -25,7 +25,7 @@ public class UISettingsCascadeTests
 
         Assert.Equal("web", result.DeviceClass);
         Assert.True(result.DarkMode);
-        Assert.Equal("#8B5CF6", result.AccentColor);
+        Assert.Equal("#8852FC", result.AccentColor);
         Assert.Equal(12, result.BorderRadius);
         Assert.Equal("pa-4", result.ContentPadding);
         Assert.True(result.Features.CommandPalette);
@@ -247,7 +247,7 @@ public class UISettingsCascadeTests
         var result = resolver.Resolve("web", "nonexistent_profile");
 
         Assert.True(result.DarkMode);
-        Assert.Equal("#8B5CF6", result.AccentColor);
+        Assert.Equal("#8852FC", result.AccentColor);
     }
 }
 

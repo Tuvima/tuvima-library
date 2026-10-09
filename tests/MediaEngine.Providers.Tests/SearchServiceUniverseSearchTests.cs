@@ -332,7 +332,10 @@ public sealed class SearchServiceUniverseSearchTests
             CancellationToken ct = default)
         {
             SearchCount++;
-            if (FailSearch) throw new HttpRequestException("Unavailable");
+            if (FailSearch)
+            {
+                throw new HttpRequestException("Unavailable");
+            }
             return Task.FromResult<IReadOnlyList<SearchResultItem>>(
             [
                 new SearchResultItem(

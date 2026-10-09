@@ -1,6 +1,6 @@
-using MediaEngine.Web.Components.Shared;
 using Bunit;
 using MediaEngine.Web.Components.MediaEditor.Sections;
+using MediaEngine.Web.Components.Shared;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Rendering;
 using Microsoft.Extensions.DependencyInjection;

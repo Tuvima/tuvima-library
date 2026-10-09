@@ -1,6 +1,6 @@
 using MediaEngine.Web.Models.ViewDTOs;
-using MediaEngine.Web.Services.Theming;
 using MediaEngine.Web.Services.Integration;
+using MediaEngine.Web.Services.Theming;
 using MediaEngine.Web.Tests.Support;
 
 namespace MediaEngine.Web.Tests;

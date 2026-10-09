@@ -35,7 +35,9 @@ public sealed class MediaEditorOwnedChildBrowserSession
         {
             CheckedAssetIds.Add(assetId);
             if (!string.IsNullOrWhiteSpace(selectionRevision))
+            {
                 CheckedSelectionRevisions.TryAdd(assetId, selectionRevision);
+            }
         }
         else { CheckedAssetIds.Remove(assetId); CheckedSelectionRevisions.Remove(assetId); }
         RangeAnchorAssetId = assetId;
@@ -43,10 +45,16 @@ public sealed class MediaEditorOwnedChildBrowserSession
 
     public void SelectVisible(bool isChecked)
     {
-        if (Result is null) return;
+        if (Result is null)
+        {
+            return;
+        }
         foreach (var item in Result.Items)
         {
-            if (isChecked) SetChecked(item.AssetId, true, item.SelectionRevision);
+            if (isChecked)
+            {
+                SetChecked(item.AssetId, true, item.SelectionRevision);
+            }
             else { CheckedAssetIds.Remove(item.AssetId); CheckedSelectionRevisions.Remove(item.AssetId); }
         }
     }
@@ -69,7 +77,9 @@ public sealed class MediaEditorOwnedChildBrowserSession
         }
 
         for (var index = Math.Min(start, end); index <= Math.Max(start, end); index++)
+        {
             SetChecked(items[index].AssetId, true, items[index].SelectionRevision);
+        }
     }
 
     public void ClearSelection()
@@ -87,7 +97,9 @@ public sealed class MediaEditorOwnedChildBrowserSession
         if (snapshot.ParentEntityId != ParentEntityId || snapshot.Count != ids.Count
             || ids.Contains(Guid.Empty) || snapshot.Items.Any(item => string.IsNullOrWhiteSpace(item.SelectionRevision))
             || combinedCount > maximum)
+        {
             return false;
+        }
         foreach (var item in snapshot.Items)
         {
             CheckedAssetIds.Add(item.AssetId);

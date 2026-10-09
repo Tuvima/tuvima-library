@@ -1,9 +1,9 @@
 using MediaEngine.Contracts.Settings;
 using MediaEngine.Domain;
-using MediaEngine.Web.Models.ViewDTOs;
-using Microsoft.Extensions.Caching.Memory;
 using MediaEngine.Web.Components.Shared;
+using MediaEngine.Web.Models.ViewDTOs;
 using MediaEngine.Web.Services.Ui;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace MediaEngine.Web.Services.Integration;
 
