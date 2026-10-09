@@ -21,8 +21,8 @@
     }
     else
     {
-        <div class="apps-devices__table-wrap">
-            <AppTable Class="apps-devices__table">
+        <div>
+            <AppTable>
                 <thead>
                     <tr>
                         <th>Device</th>
@@ -37,9 +37,9 @@
                     @foreach (var device in _devices)
                     {
                         <tr @key="device.Id">
-                            <td>@device.DeviceName<span class="apps-devices__sub">@device.ClientName</span></td>
+                            <td>@device.DeviceName<small>@device.ClientName</small></td>
                             <td>@PlatformLabel(device.Platform)</td>
-                            <td>@device.AccountDisplayName<span class="apps-devices__sub">@device.ProfileName</span></td>
+                            <td>@device.AccountDisplayName<small>@device.ProfileName</small></td>
                             <td>@device.PairedAt.LocalDateTime.ToString("d")</td>
                             <td>@device.LastSeenAt.LocalDateTime.ToString("g")</td>
                             <td>

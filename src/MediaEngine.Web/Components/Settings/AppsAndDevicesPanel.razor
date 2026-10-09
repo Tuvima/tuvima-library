@@ -37,13 +37,15 @@
             }
             else
             {
-                <div class="apps-devices__address">
-                    <code>@Settings.Remote.PublicHostname</code>
-                    <AppButton Label="Copy" StartIcon="@AppMaterialIcons.Outlined.ContentCopy"
-                               Size="AppControlSize.Compact" OnClick="CopyAddressAsync" />
-                </div>
+                <dl class="network-facts">
+                    <div><dt>Address</dt><dd>@Settings.Remote.PublicHostname</dd></div>
+                </dl>
             }
             <div class="network-card-actions">
+                @if (!string.IsNullOrWhiteSpace(Settings.Remote.PublicHostname))
+                {
+                    <AppButton Label="Copy" StartIcon="@AppMaterialIcons.Outlined.ContentCopy" OnClick="CopyAddressAsync" />
+                }
                 <AppButton Label="Test" StartIcon="@AppMaterialIcons.Outlined.Science" OnClick="TestAsync" />
             </div>
         </SettingsSectionPanel>
