@@ -554,6 +554,7 @@ MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.Accoun
   HouseholdId: System.Guid? | nullability=nullable | accessors=get,init
   MustChangePassword: System.Boolean | nullability=not-null | accessors=get,init
   TemporaryPasswordExpiresAt: System.DateTimeOffset? | nullability=nullable | accessors=get,init
+  HasTwoStep: System.Boolean | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.AccountExternalLoginDto
   Id: System.Guid | nullability=not-null | accessors=get,init
@@ -618,6 +619,7 @@ MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.Accoun
   PasskeyReady: System.Boolean | nullability=not-null | accessors=get,init
   ExternalSignInAvailable: System.Boolean | nullability=not-null | accessors=get,init
   AvailableExternalProviders: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Authentication.AccountExternalProviderResponse> | nullability=not-null | accessors=get,init
+  HasTwoStep: System.Boolean | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.AccountSelfServiceResponse
   AccountId: System.Guid | nullability=not-null | accessors=get,init
@@ -853,10 +855,17 @@ MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.Comple
   OriginalClientIngress: System.String | nullability=not-null | accessors=get,init
   OriginalClientIsHttps: System.Boolean | nullability=not-null | accessors=get,init
 
+MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.CompleteTwoStepSignInRequest
+  PendingToken: System.String | nullability=not-null | accessors=get,init
+  Code: System.String | nullability=not-null | accessors=get,init
+  OriginalClientIngress: System.String | nullability=not-null | accessors=get,init
+  OriginalClientIsHttps: System.Boolean | nullability=not-null | accessors=get,init
+
 MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.ConfirmItsYouRequest
   Password: System.String | nullability=nullable | accessors=get,init
   CredentialJson: System.String | nullability=nullable | accessors=get,init
   State: System.String | nullability=nullable | accessors=get,init
+  TwoStepCode: System.String | nullability=nullable | accessors=get,init
 
 MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.CreateAccountInvitationRequest
   Email: System.String | nullability=not-null | accessors=get,init
@@ -945,8 +954,14 @@ MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.Device
   ExpiresAt: System.DateTimeOffset | nullability=not-null | accessors=get,init
   RevokedAt: System.DateTimeOffset? | nullability=nullable | accessors=get,init
 
+MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.DisableTwoStepRequest
+  Code: System.String | nullability=not-null | accessors=get,init
+
 MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.ElevateAdministratorRequest
   Secret: System.String | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.EnableTwoStepRequest
+  Code: System.String | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.ExternalIdentityTransactionPurposes
 
@@ -1177,6 +1192,14 @@ MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.Tuvima
   TokenEndpoint: System.String | nullability=not-null | accessors=get,init
   VerificationUri: System.String | nullability=not-null | accessors=get,init
   Capabilities: System.Collections.Generic.IReadOnlyList<System.String> | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.TwoStepRequiredResponse
+  TwoStepRequired: System.Boolean | nullability=not-null | accessors=get,init
+  PendingToken: System.String | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.TwoStepSetupResponse
+  Secret: System.String | nullability=not-null | accessors=get,init
+  OtpAuthUri: System.String | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.UpdateApplicationRequest
   Name: System.String | nullability=not-null | accessors=get,init

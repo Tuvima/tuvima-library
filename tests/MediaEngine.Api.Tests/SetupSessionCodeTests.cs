@@ -266,7 +266,13 @@ public sealed class SetupSessionCodeTests : IDisposable
         public Task ValidateSecureThisComputerAccountAsync(Guid accountId, string? password, CancellationToken ct = default) => throw new NotSupportedException();
         public Task<SessionIssueResult> SecureThisComputerAccountAsync(Guid accountId, string? password, bool hasPasskey, string deviceId, string deviceName, string client, CancellationToken ct = default) => throw new NotSupportedException();
         public Task<bool> IsRecentlyAuthenticatedAsync(Guid sessionId, CancellationToken ct = default) => throw new NotSupportedException();
-        public Task<bool> ConfirmWithPasswordAsync(Guid accountId, Guid sessionId, string password, CancellationToken ct = default) => throw new NotSupportedException();
+        public Task<bool> ConfirmWithPasswordAsync(Guid accountId, Guid sessionId, string password, CancellationToken ct = default, string? twoStepCode = null) => throw new NotSupportedException();
+        public Task<bool> IsTwoStepEnabledAsync(Guid accountId, CancellationToken ct = default) => throw new NotSupportedException();
+        public Task<TwoStepEnrollment> BeginTwoStepSetupAsync(Guid accountId, CancellationToken ct = default) => throw new NotSupportedException();
+        public Task<IReadOnlyList<string>> EnableTwoStepAsync(Guid accountId, string code, CancellationToken ct = default) => throw new NotSupportedException();
+        public Task<bool> DisableTwoStepAsync(Guid accountId, Guid sessionId, string codeOrRecoveryCode, CancellationToken ct = default) => throw new NotSupportedException();
+        public Task<bool> ResetTwoStepAsync(Guid accountId, string reason, CancellationToken ct = default) => throw new NotSupportedException();
+        public Task<AuthenticationAttemptResult> CompleteTwoStepSignInAsync(string pendingToken, string codeOrRecoveryCode, CancellationToken ct = default, string ingress = ClientIngress.Remote) => throw new NotSupportedException();
         public Task<bool> ConfirmSessionAsync(Guid accountId, Guid sessionId, string method, CancellationToken ct = default) => throw new NotSupportedException();
         public Task SetProfilePinAsync(Guid profileId, string? pin, CancellationToken ct = default) => throw new NotSupportedException();
         public Task<SessionValidationResult> SwitchActiveProfileAsync(string sessionToken, Guid targetProfileId, string? pin, CancellationToken ct = default) => throw new NotSupportedException();
