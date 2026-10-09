@@ -33,6 +33,8 @@ internal sealed class SchemaMigrator
         EnsureAssetRenditionSchema(conn);
         var sessionsGainedIngress = !ColumnExists(conn, "auth_sessions", "issued_ingress");
         EnsureCurrentColumns(conn);
+        EnsureHouseholdAdministrators(conn);
+        EnsurePerHouseholdSharedLibrary(conn);
         if (sessionsGainedIngress)
         {
             // Runs once, in the same upgrade that introduces the child-profile rule.
@@ -426,6 +428,156 @@ internal sealed class SchemaMigrator
             }
         });
         _notes.AddRange(notes);
+    }
+
+    /// <summary>
+    /// Household administrators. Adds <c>households.primary_account_id</c> and <c>accounts.household_admin</c>. One time,
+    /// when the flag column first appears, each household's main sign-in (its oldest enabled one) becomes its primary
+    /// account and household administrator, and every server administrator also administers their own household.
+    /// Later starts never promote anyone again, so a server administrator can take the role away for good.
+    /// </summary>
+    private void EnsureHouseholdAdministrators(SqliteConnection conn)
+    {
+        var addedPrimary = AddColumnIfMissing(conn, "households", "primary_account_id",
+            "ALTER TABLE households ADD COLUMN primary_account_id BLOB REFERENCES accounts(id) ON DELETE SET NULL;");
+        var addedFlag = AddColumnIfMissing(conn, "accounts", "household_admin",
+            "ALTER TABLE accounts ADD COLUMN household_admin INTEGER NOT NULL DEFAULT 0 CHECK (household_admin IN (0, 1));");
+        if (!addedPrimary && !addedFlag)
+        {
+            return;
+        }
+
+        DatabaseConnection.ExecuteStartupTransaction(conn, transaction =>
+        {
+            using var primary = conn.CreateCommand();
+            primary.Transaction = transaction;
+            primary.CommandText = """
+                UPDATE households SET primary_account_id = (
+                    SELECT a.id FROM accounts a
+                    WHERE a.household_id = households.id AND a.grants_inherit_from_account_id IS NULL
+                    ORDER BY a.is_enabled DESC, a.created_at, a.id LIMIT 1)
+                WHERE primary_account_id IS NULL;
+                """;
+            primary.ExecuteNonQuery();
+
+            if (!addedFlag)
+            {
+                return;
+            }
+
+            using var admins = conn.CreateCommand();
+            admins.Transaction = transaction;
+            admins.CommandText = """
+                UPDATE accounts SET household_admin = 1
+                WHERE household_admin = 0 AND grants_inherit_from_account_id IS NULL AND household_id IS NOT NULL
+                  AND (is_administrator = 1
+                       OR id IN (SELECT primary_account_id FROM households WHERE primary_account_id IS NOT NULL));
+                """;
+            admins.ExecuteNonQuery();
+        });
+    }
+
+    /// <summary>
+    /// The Shared library used to be one row for the whole server. It is now one row per household. One time, the
+    /// existing row moves to the server administrator's household (else the oldest household) and keeps its library
+    /// identity, so everything already shared stays where it is. A server with no household yet simply starts empty.
+    /// The scope triggers that named the single row are recreated without that condition.
+    /// </summary>
+    private void EnsurePerHouseholdSharedLibrary(SqliteConnection conn)
+    {
+        if (!ColumnExists(conn, "view_shared_library", "singleton_key"))
+        {
+            return;
+        }
+
+        Guid? owner = null;
+        using (var find = conn.CreateCommand())
+        {
+            find.CommandText = """
+                SELECT COALESCE(
+                    (SELECT household_id FROM accounts
+                     WHERE is_administrator = 1 AND is_enabled = 1 AND household_id IS NOT NULL
+                     ORDER BY created_at, id LIMIT 1),
+                    (SELECT id FROM households ORDER BY created_at, id LIMIT 1));
+                """;
+            if (find.ExecuteScalar() is { } value and not DBNull)
+            {
+                owner = GuidSql.FromDb(value);
+            }
+        }
+
+        var scopeTriggers = new List<(string Name, string Sql)>();
+        foreach (var name in new[]
+                 {
+                     "trg_view_sources_scope_insert", "trg_view_sources_scope_update",
+                     "trg_local_items_scope_insert", "trg_local_items_scope_update",
+                 })
+        {
+            using var read = conn.CreateCommand();
+            read.CommandText = "SELECT sql FROM sqlite_master WHERE type = 'trigger' AND name = @name;";
+            read.Parameters.AddWithValue("@name", name);
+            if (read.ExecuteScalar() is string sql)
+            {
+                scopeTriggers.Add((name, sql.Replace("s.singleton_key=1 AND ", string.Empty, StringComparison.Ordinal)));
+            }
+        }
+
+        DatabaseConnection.ExecuteStartupTransaction(conn, transaction =>
+        {
+            void Run(string commandText, Action<SqliteCommand>? bind = null)
+            {
+                using var command = conn.CreateCommand();
+                command.Transaction = transaction;
+                command.CommandText = commandText;
+                bind?.Invoke(command);
+                command.ExecuteNonQuery();
+            }
+
+            Run("""
+                CREATE TEMP TABLE shared_library_legacy AS
+                SELECT library_id, created_at, updated_at FROM view_shared_library WHERE singleton_key = 1;
+                DROP TRIGGER IF EXISTS trg_view_shared_library_collision_insert;
+                DROP TRIGGER IF EXISTS trg_view_shared_library_identity_immutable;
+                DROP TRIGGER IF EXISTS trg_view_shared_library_delete;
+                DROP TRIGGER IF EXISTS trg_view_sources_scope_insert;
+                DROP TRIGGER IF EXISTS trg_view_sources_scope_update;
+                DROP TRIGGER IF EXISTS trg_local_items_scope_insert;
+                DROP TRIGGER IF EXISTS trg_local_items_scope_update;
+                DROP TABLE view_shared_library;
+                CREATE TABLE view_shared_library (
+                    household_id BLOB NOT NULL PRIMARY KEY REFERENCES households(id),
+                    library_id BLOB NOT NULL UNIQUE,
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL
+                );
+                CREATE TRIGGER IF NOT EXISTS trg_view_shared_library_collision_insert
+                BEFORE INSERT ON view_shared_library WHEN EXISTS (
+                    SELECT 1 FROM view_personal_spaces WHERE library_id=NEW.library_id)
+                BEGIN SELECT RAISE(ABORT,'Shared library identity cannot be used by a Personal Space'); END;
+                CREATE TRIGGER IF NOT EXISTS trg_view_shared_library_identity_immutable
+                BEFORE UPDATE OF library_id ON view_shared_library WHEN NEW.library_id<>OLD.library_id
+                BEGIN SELECT RAISE(ABORT,'Shared library identity is immutable'); END;
+                CREATE TRIGGER IF NOT EXISTS trg_view_shared_library_delete
+                BEFORE DELETE ON view_shared_library
+                BEGIN SELECT RAISE(ABORT,'Shared library identity cannot be deleted'); END;
+                """);
+            if (owner is { } householdId)
+            {
+                Run("""
+                    INSERT INTO view_shared_library (household_id, library_id, created_at, updated_at)
+                    SELECT @household, library_id, created_at, updated_at FROM shared_library_legacy LIMIT 1;
+                    """, command => command.Parameters.Add("@household", SqliteType.Blob).Value = GuidSql.ToBlob(householdId));
+            }
+
+            Run("DROP TABLE shared_library_legacy;");
+            foreach (var (_, sql) in scopeTriggers)
+            {
+                Run(sql);
+            }
+        });
+        _notes.Add(owner is null
+            ? "The Shared library is now one per household; no household existed yet, so it starts empty."
+            : "The Shared library is now one per household; the existing one moved to the server administrator's household.");
     }
 
     private static void RebuildAccountsTable(SqliteConnection conn)

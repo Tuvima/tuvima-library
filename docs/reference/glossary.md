@@ -218,7 +218,11 @@ The one personal-media space owned by an enabled profile. Multiple folder or dev
 
 ### Shared Library
 
-Separate household-owned View storage containing accepted contributions. Shared access does not grant access to every profile's Personal Space.
+Separate household-owned View storage containing accepted contributions. Each household has its own, and people only ever see their own household's. Shared access does not grant access to every profile's Personal Space.
+
+### Household administrator
+
+The person who looks after one household: adds and removes people, gives people their own sign-ins, sets PINs, and hands out libraries and features the household already has. They never reach another household or the server's settings, which stay with the **server administrator**.
 
 ### Account
 

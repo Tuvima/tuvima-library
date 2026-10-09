@@ -367,15 +367,13 @@ public sealed class LocalAssetRepositoryTests : IDisposable
     [Fact]
     public async Task SharedRegistration_PersistsServerScopeAndRejectsPersonalSource()
     {
-        Guid sharedLibraryId;
+        var sharedLibraryId = (await new ViewSharedLibraryRepository(_database).GetAsync()).LibraryId;
         var sharedSourceId = Guid.NewGuid();
         var personalLibraryId = Guid.NewGuid();
         var personalOwner = await CreateOwnership(personalLibraryId);
         var personalSourceId = Guid.NewGuid();
         using (var connection = _database.CreateConnection())
         {
-            sharedLibraryId = connection.QuerySingle<Guid>(
-                "SELECT library_id FROM view_shared_library WHERE singleton_key=1;");
             connection.Execute("""
                 INSERT INTO view_sources
                     (id,scope_kind,personal_space_id,library_id,source_type,name,source_key,

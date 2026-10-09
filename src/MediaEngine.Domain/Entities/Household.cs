@@ -13,7 +13,7 @@ public sealed class Household
     /// <summary>The plain message shown when a household is full.</summary>
     public const string FullMessage = "A household can have up to 8 people.";
 
-    public Household(Guid id, string name, DateTimeOffset createdAt)
+    public Household(Guid id, string name, DateTimeOffset createdAt, Guid? primaryAccountId = null)
     {
         if (string.IsNullOrWhiteSpace(name))
         {
@@ -23,11 +23,18 @@ public sealed class Household
         Id = id;
         Name = name.Trim();
         CreatedAt = createdAt;
+        PrimaryAccountId = primaryAccountId;
     }
 
     public Guid Id { get; }
     public string Name { get; }
     public DateTimeOffset CreatedAt { get; }
+
+    /// <summary>
+    /// The sign-in the server administrator created for this household. Its library and feature access is the most
+    /// the household's administrator can hand out. <see langword="null"/> until the household has a main sign-in.
+    /// </summary>
+    public Guid? PrimaryAccountId { get; }
 
     /// <summary>The default name for the household an account starts, for example "Sam's household".</summary>
     public static string DefaultNameFor(string? displayName) =>

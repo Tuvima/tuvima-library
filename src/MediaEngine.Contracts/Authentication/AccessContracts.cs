@@ -18,7 +18,11 @@ public sealed record AccountAccessResponse(
     [property: JsonPropertyName("must_change_password")] bool MustChangePassword = false,
     [property: JsonPropertyName("temporary_password_expires_at")] DateTimeOffset? TemporaryPasswordExpiresAt = null,
     [property: JsonPropertyName("has_two_step")] bool HasTwoStep = false,
-    [property: JsonPropertyName("grants_inherit_from_account_id")] Guid? GrantsInheritFromAccountId = null);
+    [property: JsonPropertyName("grants_inherit_from_account_id")] Guid? GrantsInheritFromAccountId = null,
+    [property: JsonPropertyName("household_admin")] bool HouseholdAdmin = false);
+
+public sealed record SetHouseholdAdminRequest(
+    [property: JsonPropertyName("household_admin")] bool HouseholdAdmin);
 
 public sealed record AccountFeatureGrantDto(
     [property: JsonPropertyName("feature")] string Feature,

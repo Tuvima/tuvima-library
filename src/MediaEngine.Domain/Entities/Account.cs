@@ -47,6 +47,27 @@ public sealed class Account
     public bool IsTemporaryPasswordExpired(DateTimeOffset now) =>
         MustChangePassword && TemporaryPasswordExpiresAt is { } expires && expires <= now;
 
+    /// <summary>
+    /// True for the person who looks after one household (add and remove people, give own sign-ins, PINs, hand out
+    /// what the household already has). It never reaches another household or the server's settings. Changed only
+    /// through <see cref="MakeHouseholdAdmin"/> and <see cref="RemoveHouseholdAdmin"/>.
+    /// </summary>
+    public bool HouseholdAdmin { get; private set; }
+
+    /// <summary>Makes this sign-in the administrator of its own household. A person's own sign-in never qualifies.</summary>
+    public void MakeHouseholdAdmin()
+    {
+        if (GrantsInheritFromAccountId is not null)
+        {
+            throw new InvalidOperationException("A person's own sign-in can't be a household administrator.");
+        }
+
+        HouseholdAdmin = true;
+    }
+
+    /// <summary>Takes household administration away from this sign-in.</summary>
+    public void RemoveHouseholdAdmin() => HouseholdAdmin = false;
+
     /// <summary>Marks the account as usable only on this computer (no password has been set yet).</summary>
     public void MarkThisComputerOnly() => IsThisComputerOnly = true;
 

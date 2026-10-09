@@ -4,6 +4,7 @@ using System.Text.Json;
 using Dapper;
 using MediaEngine.Api.Services.LocalAssets;
 using MediaEngine.Contracts.LocalAssets;
+using MediaEngine.Storage;
 using MediaEngine.Storage.Contracts;
 
 namespace MediaEngine.Api.Services.View;
@@ -38,7 +39,7 @@ public sealed class ViewSharedTransferService(
             "SELECT COUNT(*) FROM view_shared_assets WHERE item_id = @itemId OR origin_item_id = @itemId;",
             new { itemId }, cancellationToken: ct)) > 0;
         return new ViewSharedTransferPreviewDto(itemId, move ? "move" : "copy", files.Count,
-            files.Sum(file => file.ByteSize), DestinationRoot(item, kind, folderName), kind, move, promoted);
+            files.Sum(file => file.ByteSize), DestinationRoot(item, kind, folderName, ct), kind, move, promoted);
     }
 
     public async Task<ViewSharedTransferResultDto> ExecuteAsync(Guid itemId, Guid actorProfileId,
@@ -58,6 +59,7 @@ public sealed class ViewSharedTransferService(
 
             var item = assets.Find(itemId, ct)!;
             var files = GetFiles(itemId, ct);
+            var timelineRoot = Path.Combine(SharedRootFor(item.OwnerProfileId, ct), "Timeline");
             if (preview.AlreadyShared && existing?.State == "cleanup_pending")
             {
                 return await FinishCleanupAsync(item, existing, ct);
@@ -106,8 +108,16 @@ public sealed class ViewSharedTransferService(
                 // Publish Shared Library ownership only after every group member is verified at its final path.
                 await WriteAsync((connection, transaction) =>
                 {
-                    var sharedLibraryId = connection.QuerySingle<Guid>(
-                        "SELECT library_id FROM view_shared_library WHERE singleton_key=1;", transaction: transaction);
+                    // A contribution lands in its submitter's household library, created the first time it is needed.
+                    var householdId = (item.OwnerProfileId is { } ownerId
+                            ? connection.QuerySingleOrDefault<Guid?>(
+                                "SELECT household_id FROM profiles WHERE id=@ownerId;", new { ownerId }, transaction)
+                            : null)
+                        ?? connection.QuerySingleOrDefault<Guid?>(
+                            "SELECT household_id FROM profiles WHERE id=@actorProfileId;", new { actorProfileId }, transaction)
+                        // A person with no household (only possible before any account exists) shares into the server's own.
+                        ?? ViewSharedLibraryRepository.EnsureServerHousehold(connection, transaction);
+                    var sharedLibraryId = ViewSharedLibraryRepository.EnsureLibraryId(connection, transaction, householdId);
                     var sourceKey = preview.DestinationKind == "timeline"
                         ? "shared:timeline"
                         : "shared:folder:" + SanitizeFolderName(folderName).ToLowerInvariant();
@@ -133,7 +143,7 @@ public sealed class ViewSharedTransferService(
                             name = preview.DestinationKind == "timeline" ? "Timeline" : SanitizeFolderName(folderName),
                             relativePath = Path.GetRelativePath(storage.GetRootPath(),
                                     preview.DestinationKind == "timeline"
-                                        ? Path.Combine(storage.GetSharedRoot(), "Timeline")
+                                        ? timelineRoot
                                         : preview.DestinationRoot)
                                 .Replace(Path.DirectorySeparatorChar, '/'),
                             now,
@@ -411,15 +421,37 @@ public sealed class ViewSharedTransferService(
         File.Move(staging, planned.Destination);
     }
 
-    private string DestinationRoot(LocalAssetDto item, string kind, string? folderName)
+    /// <summary>
+    /// Where a household's shared files live on disk. The server's own household keeps the original Shared folder; every
+    /// other household gets its own folder inside it, so one household's files are never indexed into another's library.
+    /// </summary>
+    private string SharedRootFor(Guid? ownerProfileId, CancellationToken ct)
     {
+        if (ownerProfileId is not { } owner)
+        {
+            return storage.GetSharedRoot();
+        }
+
+        using var connection = database.CreateConnection();
+        var household = connection.QueryFirstOrDefault<Guid?>(new CommandDefinition(
+            "SELECT household_id FROM profiles WHERE id = @owner;", new { owner }, cancellationToken: ct));
+        var server = connection.QueryFirstOrDefault<Guid?>(new CommandDefinition(
+            $"SELECT {ViewSharedLibraryRepository.ServerHouseholdSql};", cancellationToken: ct));
+        return household is not { } householdId || householdId == server
+            ? storage.GetSharedRoot()
+            : Path.Combine(storage.GetSharedRoot(), "Households", householdId.ToString("N", CultureInfo.InvariantCulture));
+    }
+
+    private string DestinationRoot(LocalAssetDto item, string kind, string? folderName, CancellationToken ct)
+    {
+        var sharedRoot = SharedRootFor(item.OwnerProfileId, ct);
         if (kind == "folder")
         {
-            return Path.Combine(storage.GetSharedRoot(), "Folders", SanitizeFolderName(folderName));
+            return Path.Combine(sharedRoot, "Folders", SanitizeFolderName(folderName));
         }
 
         var date = (item.CapturedAt ?? item.CreatedAt).ToLocalTime();
-        return Path.Combine(storage.GetSharedRoot(), "Timeline", date.Year.ToString("0000", CultureInfo.InvariantCulture),
+        return Path.Combine(sharedRoot, "Timeline", date.Year.ToString("0000", CultureInfo.InvariantCulture),
             date.ToString("MM - MMM", CultureInfo.InvariantCulture));
     }
 

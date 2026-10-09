@@ -42,7 +42,7 @@ public sealed class ViewScopeResolver(IViewScopeStore store) : IViewScopeResolve
             ViewScopeKind.Mine when callerState is not null => Personal(ViewScopeKind.Mine, callerState),
             ViewScopeKind.Shared when callerState?.Policy.AccessSharedLibrary == true
                 || caller.PrincipalKind == PrincipalKind.ServiceApplication =>
-                await SharedAsync(ct).ConfigureAwait(false),
+                await SharedAsync(callerState?.Policy.ProfileId, ct).ConfigureAwait(false),
             ViewScopeKind.Profile when requested.ProfileId is { } targetId =>
                 ResolveProfile(caller, callerState, enabledProfiles, targetId),
             _ => null,
@@ -63,9 +63,9 @@ public sealed class ViewScopeResolver(IViewScopeStore store) : IViewScopeResolve
     private static bool IsUsable(ViewScopeStoreEntry? profile) =>
         profile is { Policy.ViewEnabled: true, PersonalSpace: not null };
 
-    private async Task<ResolvedViewScope?> SharedAsync(CancellationToken ct)
+    private async Task<ResolvedViewScope?> SharedAsync(Guid? callerProfileId, CancellationToken ct)
     {
-        var libraryId = await store.GetSharedLibraryIdAsync(ct).ConfigureAwait(false);
+        var libraryId = await store.GetSharedLibraryIdAsync(callerProfileId, ct).ConfigureAwait(false);
         return libraryId is { } id && id != Guid.Empty
             ? new(ViewScopeKind.Shared, null, new HashSet<Guid> { id })
             : null;
@@ -103,7 +103,7 @@ public sealed class ViewScopeResolver(IViewScopeStore store) : IViewScopeResolve
                 .Select(profile => Option(ViewScopeKind.Profile, profile)));
         }
 
-        if (await store.GetSharedLibraryIdAsync(ct).ConfigureAwait(false) is not null
+        if (await store.GetSharedLibraryIdAsync(active?.Policy.ProfileId, ct).ConfigureAwait(false) is not null
             && (active?.Policy.AccessSharedLibrary == true || caller.HasApplicationContext))
         {
             result.Add(new ViewScopeOption(ViewScopeKind.Shared, null, "Shared Library"));

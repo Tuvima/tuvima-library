@@ -14,7 +14,7 @@ public sealed class HouseholdRepository(IDatabaseConnection db) : IHouseholdRepo
         ct.ThrowIfCancellationRequested();
         using var conn = db.CreateConnection();
         var row = conn.QueryFirstOrDefault<HouseholdRow>(
-            "SELECT id AS Id, name AS Name, created_at AS CreatedAt FROM households WHERE id = @householdId LIMIT 1;",
+            "SELECT id AS Id, name AS Name, created_at AS CreatedAt, primary_account_id AS PrimaryAccountId FROM households WHERE id = @householdId LIMIT 1;",
             new { householdId });
         return Task.FromResult(row is null ? null : Map(row));
     }
@@ -24,7 +24,7 @@ public sealed class HouseholdRepository(IDatabaseConnection db) : IHouseholdRepo
         ct.ThrowIfCancellationRequested();
         using var conn = db.CreateConnection();
         var row = conn.QueryFirstOrDefault<HouseholdRow>("""
-            SELECT h.id AS Id, h.name AS Name, h.created_at AS CreatedAt
+            SELECT h.id AS Id, h.name AS Name, h.created_at AS CreatedAt, h.primary_account_id AS PrimaryAccountId
             FROM accounts a JOIN households h ON h.id = a.household_id
             WHERE a.id = @accountId LIMIT 1;
             """, new { accountId });
@@ -62,32 +62,48 @@ public sealed class HouseholdRepository(IDatabaseConnection db) : IHouseholdRepo
         var rows = conn.Query<AccountRow>("""
             SELECT id AS Id, email AS Email, normalized_email AS NormalizedEmail, is_enabled AS IsEnabled,
                    is_administrator AS IsAdministrator, authorization_version AS AuthorizationVersion,
-                   created_at AS CreatedAt, updated_at AS UpdatedAt, household_id AS HouseholdId
+                   created_at AS CreatedAt, updated_at AS UpdatedAt, household_id AS HouseholdId,
+                   household_admin AS HouseholdAdmin, grants_inherit_from_account_id AS GrantsInheritFromAccountId
             FROM accounts WHERE household_id = @householdId
             ORDER BY created_at, id;
-            """, new { householdId }).Select(row => new Account
+            """, new { householdId }).ToList();
+        var accounts = new List<Account>(rows.Count);
+        foreach (var row in rows)
         {
-            Id = row.Id,
-            Email = row.Email,
-            NormalizedEmail = row.NormalizedEmail,
-            IsEnabled = row.IsEnabled,
-            IsAdministrator = row.IsAdministrator,
-            AuthorizationVersion = row.AuthorizationVersion,
-            CreatedAt = DateTimeOffset.Parse(row.CreatedAt, System.Globalization.CultureInfo.InvariantCulture),
-            UpdatedAt = DateTimeOffset.Parse(row.UpdatedAt, System.Globalization.CultureInfo.InvariantCulture),
-            HouseholdId = row.HouseholdId,
-        }).ToList();
-        return Task.FromResult<IReadOnlyList<Account>>(rows);
+            var account = new Account
+            {
+                Id = row.Id,
+                Email = row.Email,
+                NormalizedEmail = row.NormalizedEmail,
+                IsEnabled = row.IsEnabled,
+                IsAdministrator = row.IsAdministrator,
+                AuthorizationVersion = row.AuthorizationVersion,
+                CreatedAt = DateTimeOffset.Parse(row.CreatedAt, System.Globalization.CultureInfo.InvariantCulture),
+                UpdatedAt = DateTimeOffset.Parse(row.UpdatedAt, System.Globalization.CultureInfo.InvariantCulture),
+                HouseholdId = row.HouseholdId,
+                GrantsInheritFromAccountId = row.GrantsInheritFromAccountId,
+            };
+            if (row.HouseholdAdmin && row.GrantsInheritFromAccountId is null)
+            {
+                account.MakeHouseholdAdmin();
+            }
+
+            accounts.Add(account);
+        }
+
+        return Task.FromResult<IReadOnlyList<Account>>(accounts);
     }
 
     private static Household Map(HouseholdRow row) =>
-        new(row.Id, row.Name, DateTimeOffset.Parse(row.CreatedAt, System.Globalization.CultureInfo.InvariantCulture));
+        new(row.Id, row.Name, DateTimeOffset.Parse(row.CreatedAt, System.Globalization.CultureInfo.InvariantCulture),
+            row.PrimaryAccountId);
 
     private sealed class HouseholdRow
     {
         public Guid Id { get; set; }
         public string Name { get; set; } = string.Empty;
         public string CreatedAt { get; set; } = string.Empty;
+        public Guid? PrimaryAccountId { get; set; }
     }
 
     private sealed class ProfileRow
@@ -113,5 +129,7 @@ public sealed class HouseholdRepository(IDatabaseConnection db) : IHouseholdRepo
         public string CreatedAt { get; set; } = string.Empty;
         public string UpdatedAt { get; set; } = string.Empty;
         public Guid? HouseholdId { get; set; }
+        public bool HouseholdAdmin { get; set; }
+        public Guid? GrantsInheritFromAccountId { get; set; }
     }
 }

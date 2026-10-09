@@ -242,6 +242,8 @@ folders remain available in Folders and opt in explicitly.
 validated absolute prefix used by the timeline query; the most-specific
 ancestor rule wins over the source default.
 
+`view_shared_library` holds one Shared Library per household (`household_id` is the primary key, `library_id` is unique and immutable), created the first time the household needs it. The server's own Shared Library is the one that belongs to the server administrator's household. Upgrade: a data store from before household administrators had one row for the whole server; the startup migration moves that row, keeping its library identity, to the server administrator's household and recreates the View scope triggers without the single-row condition. A personal space can never use any Shared Library's identity. Shared files of the server's household stay in the original Shared folder; other households' files live under `Shared/Households/<id>` so one household's files are never indexed into another's library.
+
 `view_shared_assets` marks accepted items whose verified originals are owned by
 the Shared Library while retaining the original profile as provenance. This marker
 does not expose the original profile's other private assets.
@@ -633,6 +635,7 @@ One row per person who signs in. Every account has an email: there are no email-
 | `this_computer_only` | INTEGER | 1 for an account that was started on this computer without a password. It can be used only in a browser on that computer (never from the home network), counts as no remote sign-in, and blocks the actions that would let others in (see Security). Defaults to 0; added by an idempotent startup migration. |
 | `must_change_password` | INTEGER | 1 while the password is one an administrator chose. The person can then do nothing except choose their own password, check their session and sign out; the Engine refuses everything else with 403 `password_change_required`. Defaults to 0; added by an idempotent startup migration. |
 | `temporary_password_expires_at` | TEXT | When an administrator-set temporary password stops working; null when none is set. Sessions of an account whose temporary password has run out stop validating. |
+| `household_admin` | INTEGER | 1 when the account looks after its own household (a **household administrator**). It never reaches another household or the server's settings. A person's own sign-in (`grants_inherit_from_account_id` set) can never have it. Defaults to 0; added by an idempotent startup migration, and a household's first main sign-in gets it when the household is created. |
 
 ### households
 
@@ -643,6 +646,7 @@ A household is the group of people (profiles) who live together and the sign-ins
 | `id` | BLOB | GUID, primary key |
 | `name` | TEXT | Display name, for example `Alex's household` |
 | `created_at` | TEXT | Timestamp |
+| `primary_account_id` | BLOB | The household's main sign-in (the one the server administrator set up; household administrators can only hand out what it holds). Set when the first main sign-in is saved; re-pointed to the next oldest enabled main sign-in when it is deleted. Null only for a household with no main sign-in. |
 
 **Upgrade.** The idempotent startup migration adds `household_id` to `accounts` and `profiles`, then gives every account without one its own household (named after the account's default profile) and moves every profile granted to an account into that account's household. A profile granted to two accounts joins the household of the account where it is the default grant, otherwise the oldest account; the startup log notes each such profile. Re-running changes nothing. Only the seeded Owner profile can be without a household, and only until the first administrator account is created.
 

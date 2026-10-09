@@ -7,6 +7,8 @@ public interface IAccountRepository : IAccessRepository, IAccountAccessMutationR
     Task<Account?> GetByIdAsync(Guid id, CancellationToken ct = default);
     Task<Account?> GetByNormalizedEmailAsync(string normalizedEmail, CancellationToken ct = default);
     Task<IReadOnlyList<Account>> GetAllAsync(CancellationToken ct = default);
+    /// <summary>The household's primary sign-in (the one the server administrator set up), or null when it has none.</summary>
+    Task<Guid?> GetHouseholdPrimaryAccountIdAsync(Guid householdId, CancellationToken ct = default);
     Task InsertAsync(Account account, CancellationToken ct = default);
     Task<bool> UpdateAsync(Account account, CancellationToken ct = default);
     Task GrantProfileAsync(AccountProfileGrant grant, CancellationToken ct = default);

@@ -19,7 +19,9 @@ public sealed record RequestAuthority(
     bool AccountIsAdministrator = false,
     bool GrantAdminEnabled = false,
     bool ApplicationIsAdministrator = false,
-    bool ActiveProfileIsRestricted = false)
+    bool ActiveProfileIsRestricted = false,
+    Guid? AccountHouseholdId = null,
+    bool AccountIsHouseholdAdmin = false)
 {
     public bool HasHumanContext =>
         PrincipalKind is PrincipalKind.Human or PrincipalKind.DelegatedUserClient &&
@@ -32,6 +34,15 @@ public sealed record RequestAuthority(
     public bool IsEffectiveAdministrator =>
         IsAuthenticated && HasHumanContext && HasValidHumanPrincipal && AccountEnabled && GrantEnabled &&
         AccountIsAdministrator && GrantAdminEnabled && !ActiveProfileIsRestricted;
+
+    /// <summary>
+    /// A person (never an app) who looks after their own household: an enabled sign-in flagged as household
+    /// administrator, acting from a person who is not a child profile. It says nothing about which household an
+    /// action targets; compare <see cref="AccountHouseholdId"/> with the target.
+    /// </summary>
+    public bool IsEffectiveHouseholdAdministrator =>
+        IsAuthenticated && PrincipalKind == PrincipalKind.Human && HasHumanContext && AccountEnabled && GrantEnabled &&
+        AccountIsHouseholdAdmin && HasValue(AccountHouseholdId) && !ActiveProfileIsRestricted;
 
     public bool IsAdministratorApplication =>
         IsAuthenticated && PrincipalKind == PrincipalKind.ServiceApplication &&

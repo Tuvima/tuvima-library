@@ -1,10 +1,11 @@
 namespace MediaEngine.Domain.PersonalMedia;
 
-/// <summary>The singleton server-owned Shared View library.</summary>
+/// <summary>A household's Shared View library. Each household has exactly one.</summary>
 public sealed record ViewSharedLibrary(
     Guid LibraryId,
     DateTimeOffset CreatedAt,
-    DateTimeOffset UpdatedAt);
+    DateTimeOffset UpdatedAt,
+    Guid HouseholdId = default);
 
 /// <summary>A source owned by the Shared library itself, without a profile or Personal Space.</summary>
 public sealed record ViewSharedSource(

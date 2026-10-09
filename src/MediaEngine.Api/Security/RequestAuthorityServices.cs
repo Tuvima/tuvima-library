@@ -63,7 +63,9 @@ public sealed class RequestAuthorityResolver(
             account?.IsAdministrator == true,
             grant?.AdminEnabled == true,
             application?.IsAdministrator == true,
-            activeProfile?.Role == ProfileRole.RestrictedProfile);
+            activeProfile?.Role == ProfileRole.RestrictedProfile,
+            account?.HouseholdId,
+            account?.HouseholdAdmin == true);
     }
 
     private static Guid? ClaimGuid(ClaimsPrincipal user, string type) =>
@@ -560,9 +562,17 @@ public sealed class ApplicationPermissionHandler(
     }
 }
 
-public sealed class AdministratorOrApplicationRequirement(ApplicationPermissionId permission) : IAuthorizationRequirement
+public sealed class AdministratorOrApplicationRequirement(
+    ApplicationPermissionId permission,
+    bool allowHouseholdAdministrator = false) : IAuthorizationRequirement
 {
     public ApplicationPermissionId Permission { get; } = permission;
+
+    /// <summary>
+    /// When true, a household administrator (who is not a server administrator) may also pass. The action itself must then
+    /// still check that the target is in that administrator's own household.
+    /// </summary>
+    public bool AllowHouseholdAdministrator { get; } = allowHouseholdAdministrator;
 }
 
 public sealed class HumanOrApplicationPermissionRequirement(ApplicationPermissionId permission)
@@ -632,7 +642,9 @@ public sealed class AdministratorOrApplicationHandler(
         if (authority.PrincipalKind == PrincipalKind.Human)
         {
             if ((await administrators.EvaluateAdministratorAsync(
-                    authority, true, http.RequestAborted).ConfigureAwait(false)).IsAllowed)
+                    authority, true, http.RequestAborted).ConfigureAwait(false)).IsAllowed ||
+                requirement.AllowHouseholdAdministrator && !authority.IsEffectiveAdministrator &&
+                authority.IsEffectiveHouseholdAdministrator)
             {
                 context.Succeed(requirement);
             }
@@ -697,6 +709,18 @@ public static class AuthorityEndpointExtensions
         builder.RequireAuthorization(new AuthorizationPolicyBuilder()
             .RequireAuthenticatedUser()
             .AddRequirements(new AdministratorOrApplicationRequirement(permission))
+            .Build());
+
+    /// <summary>
+    /// Like <see cref="RequireAdministratorOrApplication(RouteHandlerBuilder, ApplicationPermissionId)"/> but a household
+    /// administrator also passes. Use only for actions the service limits to the administrator's own household.
+    /// </summary>
+    public static RouteHandlerBuilder RequireAdministratorHouseholdOrApplication(
+        this RouteHandlerBuilder builder,
+        ApplicationPermissionId permission) =>
+        builder.RequireAuthorization(new AuthorizationPolicyBuilder()
+            .RequireAuthenticatedUser()
+            .AddRequirements(new AdministratorOrApplicationRequirement(permission, allowHouseholdAdministrator: true))
             .Build());
 
     public static RouteHandlerBuilder RequireHumanOrApplicationPermission(

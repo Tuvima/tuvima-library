@@ -369,9 +369,7 @@ public sealed class ViewSharedTransferServiceTests
 
         public Guid SharedLibraryId()
         {
-            using var connection = _database.CreateConnection();
-            return connection.QuerySingle<Guid>(
-                "SELECT library_id FROM view_shared_library WHERE singleton_key=1;");
+            return new ViewSharedLibraryRepository(_database).GetAsync().GetAwaiter().GetResult().LibraryId;
         }
 
         public Guid SharedSourceId(string sourceKey)

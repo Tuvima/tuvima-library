@@ -321,6 +321,7 @@ public sealed class AccessRepositoryTests : IDisposable
     [Fact]
     public void ViewScopeParentsAndSharedIdentity_CannotBeMutatedIntoInvalidState()
     {
+        new ViewSharedLibraryRepository(_database).GetAsync().GetAwaiter().GetResult();
         using var connection = _database.CreateConnection();
         var spaceId = Guid.NewGuid();
         var libraryId = Guid.NewGuid();
@@ -332,10 +333,10 @@ public sealed class AccessRepositoryTests : IDisposable
             "UPDATE view_personal_spaces SET library_id=@other WHERE id=@spaceId;",
             new { other = Guid.NewGuid(), spaceId }));
         Assert.Throws<SqliteException>(() => connection.Execute(
-            "UPDATE view_shared_library SET library_id=@other WHERE singleton_key=1;",
+            "UPDATE view_shared_library SET library_id=@other;",
             new { other = Guid.NewGuid() }));
         Assert.Throws<SqliteException>(() => connection.Execute(
-            "DELETE FROM view_shared_library WHERE singleton_key=1;"));
+            "DELETE FROM view_shared_library;"));
     }
 
     private void InsertProfile(Profile profile)
