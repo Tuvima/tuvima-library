@@ -1,0 +1,8 @@
+.apps-devices__table-wrap {
+    overflow-x: auto;
+}
+
+.apps-devices__table-wrap ::deep small {
+    display: block;
+    color: var(--tl-text-secondary);
+}

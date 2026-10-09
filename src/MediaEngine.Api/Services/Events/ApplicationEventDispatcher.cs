@@ -16,7 +16,8 @@ internal sealed record ApplicationEventSubscriber(
     RequestAuthority Authority,
     IReadOnlySet<ApplicationPermissionId> Consent,
     IReadOnlySet<string> EventTypes,
-    IReadOnlySet<Guid> LibraryIds);
+    IReadOnlySet<Guid> LibraryIds,
+    HubCallerContext? Connection = null);
 
 public sealed class ApplicationEventDispatcher(
     IHubContext<ApplicationEventsHub> hub,
@@ -165,9 +166,23 @@ public sealed class ApplicationEventDispatcher(
     /// </summary>
     public async Task NotifyDeviceRevokedAsync(Guid deviceId, CancellationToken ct = default)
     {
-        foreach (var subscription in _subscriptions.Values.Where(value => value.Subscriber.Authority.DeviceId == deviceId).ToArray())
+        List<Subscription> revoked;
+        await _ordering.WaitAsync(ct).ConfigureAwait(false);
+        try
         {
-            Remove(subscription);
+            revoked = _subscriptions.Values.Where(value => value.Subscriber.Authority.DeviceId == deviceId).ToList();
+            foreach (var subscription in revoked)
+            {
+                Remove(subscription);
+            }
+        }
+        finally
+        {
+            _ordering.Release();
+        }
+
+        foreach (var subscription in revoked)
+        {
             try
             {
                 using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
@@ -182,6 +197,9 @@ public sealed class ApplicationEventDispatcher(
                     "Best-effort device revoked notification failed for connection {ConnectionId}.",
                     subscription.Subscriber.ConnectionId);
             }
+
+            // Close the connection too, so the app cannot keep a socket open or subscribe again on it.
+            subscription.Subscriber.Connection?.Abort();
         }
     }
 

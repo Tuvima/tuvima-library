@@ -65,6 +65,7 @@ public sealed class NetworkSettingsUiTests
     public void AppsAndDevicesPanelGatesTheSwitchOnAnywhereAndListsPairedDevices()
     {
         var panel = Read(@"src/MediaEngine.Web/Components/Settings/AppsAndDevicesPanel.razor");
+        var devices = Read(@"src/MediaEngine.Web/Components/Settings/PairedDevicesSection.razor");
         var host = Read(@"src/MediaEngine.Web/Components/Settings/NetworkRemoteAccessSettings.razor");
         var account = Read(@"src/MediaEngine.Web/Components/Settings/AccountSettingsTab.razor");
 
@@ -73,9 +74,12 @@ public sealed class NetworkSettingsUiTests
         Assert.Contains("Apps connect over the internet address. Set Who can connect to Anywhere first.", panel, StringComparison.Ordinal);
         Assert.Contains("Address to type in the app", panel, StringComparison.Ordinal);
         Assert.Contains("TestRemoteNetworkAsync", panel, StringComparison.Ordinal);
-        Assert.Contains("<AppTable", panel, StringComparison.Ordinal);
-        Assert.Contains("RevokeManagedDeviceAsync", panel, StringComparison.Ordinal);
-        Assert.Contains("Revoke this device?", panel, StringComparison.Ordinal);
+        Assert.Contains("secure_account_first", panel, StringComparison.Ordinal);
+        Assert.Contains("<PairedDevicesSection", panel, StringComparison.Ordinal);
+        Assert.Contains("<AppTable", devices, StringComparison.Ordinal);
+        Assert.Contains("RevokeManagedDeviceAsync", devices, StringComparison.Ordinal);
+        Assert.Contains("Revoke this device?", devices, StringComparison.Ordinal);
+        Assert.Contains("<PairedDevicesSection", account, StringComparison.Ordinal);
         Assert.Contains("<AppsAndDevicesPanel", host, StringComparison.Ordinal);
         Assert.Contains("Settings &gt; Network &gt; Apps &amp; devices", account, StringComparison.Ordinal);
     }

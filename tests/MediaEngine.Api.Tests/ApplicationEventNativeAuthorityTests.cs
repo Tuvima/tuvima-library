@@ -76,6 +76,22 @@ public sealed class ApplicationEventNativeAuthorityTests : IDisposable
     }
 
     [Fact]
+    public async Task Subscribe_IsRefusedAfterTheDeviceIsRevoked()
+    {
+        var fixture = await CreateSubscriptionAsync();
+        var authority = fixture.Subscriber.Authority;
+        IReadOnlySet<string> types = new HashSet<string>(StringComparer.Ordinal) { "library.item_added" };
+        IReadOnlySet<Guid> libraries = new HashSet<Guid> { _libraryId };
+        Assert.True(await fixture.Authorizer.CanSubscribeAsync(
+            authority, fixture.Subscriber.Consent, types.ToList(), libraries, CancellationToken.None));
+
+        await _clients.RevokeDeviceByIdAsync(authority.DeviceId!.Value, _clock.GetUtcNow(), "test_revoke");
+
+        Assert.False(await fixture.Authorizer.CanSubscribeAsync(
+            authority, fixture.Subscriber.Consent, types.ToList(), libraries, CancellationToken.None));
+    }
+
+    [Fact]
     public async Task Delivery_DeniesExpiredExactNativeToken()
     {
         var fixture = await CreateSubscriptionAsync();

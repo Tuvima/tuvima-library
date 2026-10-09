@@ -188,7 +188,10 @@
                     }
                 </Actions>
                 <ChildContent>
-                    <p class="account-security-settings__apps-note">Phones and TVs are under <a href="/settings/network/apps">Settings &gt; Network &gt; Apps &amp; devices</a>.</p>
+                    @if (Session.Authority?.EffectiveAdministrator == true)
+                    {
+                        <p class="account-security-settings__apps-note">Phones and TVs are under <a href="/settings/network/apps">Settings &gt; Network &gt; Apps &amp; devices</a>.</p>
+                    }
                     @if (_sessionsLoading)
                     {
                         <AppSkeleton Height="128px" aria-label="Loading devices and sessions" />
@@ -236,6 +239,11 @@
                     }
                 </ChildContent>
             </SettingsSectionPanel>
+
+            @if (Session.Authority?.EffectiveAdministrator != true)
+            {
+                <PairedDevicesSection />
+            }
 
             @if (Capabilities.HasPassword)
             {

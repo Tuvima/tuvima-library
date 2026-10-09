@@ -1,0 +1,142 @@
+@namespace MediaEngine.Web.Components.Settings
+@using MediaEngine.Contracts.Authentication
+@using MediaEngine.Web.Services.Integration
+@inject DashboardIdentityClient Identity
+@inject IAppToastService Snackbar
+
+<SettingsSectionPanel Title="Paired devices" Icon="@AppMaterialIcons.Outlined.Devices"
+                      Description="Phones and TVs signed in to Tuvima. Revoke one to sign it out at once.">
+    @if (_loading)
+    {
+        <AppSkeleton Size="AppControlSize.Compact" />
+    }
+    else if (_loadFailed)
+    {
+        <AppAlert Tone="AppUiTone.Error">Paired devices could not be loaded. Try again in a moment.</AppAlert>
+    }
+    else if (_devices.Count == 0)
+    {
+        <AppEmptyState Class="app-page-state--compact" Title="No phones or TVs paired"
+                       Message="Open a Tuvima app and choose this server to pair it." />
+    }
+    else
+    {
+        <div class="apps-devices__table-wrap">
+            <AppTable Class="apps-devices__table">
+                <thead>
+                    <tr>
+                        <th>Device</th>
+                        <th>Type</th>
+                        <th>Belongs to</th>
+                        <th>Paired</th>
+                        <th>Last seen</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var device in _devices)
+                    {
+                        <tr @key="device.Id">
+                            <td>@device.DeviceName<small>@device.ClientName</small></td>
+                            <td>@PlatformLabel(device.Platform)</td>
+                            <td>@device.AccountDisplayName<small>@device.ProfileName</small></td>
+                            <td>@device.PairedAt.LocalDateTime.ToString("d")</td>
+                            <td>@device.LastSeenAt.LocalDateTime.ToString("g")</td>
+                            <td>
+                                <AppButton Label="Revoke" ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Error"
+                                           Size="AppControlSize.Compact" OnClick="@(() => AskRevoke(device))" />
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </AppTable>
+        </div>
+    }
+</SettingsSectionPanel>
+
+<AppDialog Visible="@(_pendingRevoke is not null)"
+           VisibleChanged="@(_ => CancelRevoke())"
+           Title="Revoke this device?"
+           Subtitle="@(_pendingRevoke is null ? null : $"{_pendingRevoke.DeviceName} will be signed out and has to be paired again.")"
+           Icon="@AppMaterialIcons.Outlined.Devices"
+           Size="Small">
+    <ChildContent>
+        <p>It stops working straight away. Nothing is deleted from your library.</p>
+    </ChildContent>
+    <FooterContent>
+        <div class="network-test-dialog__actions">
+            <AppButton Label="Cancel" OnClick="CancelRevoke" />
+            <AppButton Label="Revoke" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Error"
+                       Disabled="@_revoking" OnClick="ConfirmRevokeAsync" />
+        </div>
+    </FooterContent>
+</AppDialog>
+
+@code {
+    private List<ManagedClientDeviceDto> _devices = [];
+    private ManagedClientDeviceDto? _pendingRevoke;
+    private bool _loading = true;
+    private bool _loadFailed;
+    private bool _revoking;
+
+    protected override async Task OnInitializedAsync() => await LoadDevicesAsync();
+
+    private async Task LoadDevicesAsync()
+    {
+        _loading = true;
+        _loadFailed = false;
+        try
+        {
+            _devices = await Identity.GetManagedDevicesAsync();
+        }
+        catch (Exception)
+        {
+            // The panel shows its own "could not be loaded" message; the rest of the page stays usable.
+            _loadFailed = true;
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private void AskRevoke(ManagedClientDeviceDto device) => _pendingRevoke = device;
+
+    private void CancelRevoke() => _pendingRevoke = null;
+
+    private async Task ConfirmRevokeAsync()
+    {
+        if (_pendingRevoke is not { } device)
+            return;
+
+        _revoking = true;
+        try
+        {
+            var result = await Identity.RevokeManagedDeviceAsync(device.Id);
+            if (result.Succeeded)
+            {
+                Snackbar.Add($"{device.DeviceName} was revoked.", AppSeverity.Success);
+            }
+            else
+            {
+                Snackbar.Add("That device could not be revoked.", AppSeverity.Error);
+            }
+        }
+        finally
+        {
+            _revoking = false;
+            _pendingRevoke = null;
+        }
+
+        await LoadDevicesAsync();
+    }
+
+    private static string PlatformLabel(string platform) => platform switch
+    {
+        "mobile" => "Phone or tablet",
+        "television" => "TV",
+        "automotive" => "Car",
+        "web" => "Browser",
+        _ => platform,
+    };
+}

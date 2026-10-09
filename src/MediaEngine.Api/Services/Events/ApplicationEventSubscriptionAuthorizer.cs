@@ -44,6 +44,13 @@ public sealed class ApplicationEventSubscriptionAuthorizer(
             return false;
         }
 
+        // A revoked device cannot subscribe, even on a connection it opened before the revoke.
+        if (authority.DeviceId is { } deviceId &&
+            (await clients.GetDeviceAsync(deviceId, ct).ConfigureAwait(false))?.IsActive != true)
+        {
+            return false;
+        }
+
         if (!(await authorization.EvaluateAsync(authority,
                 new(ApplicationPermissionIds.EventsSubscribe), null, ct).ConfigureAwait(false)).IsAllowed)
         {

@@ -172,12 +172,3 @@
     overflow-wrap: anywhere;
     color: var(--tl-text-primary);
 }
-
-.network-settings ::deep .apps-devices__table-wrap {
-    overflow-x: auto;
-}
-
-.network-settings ::deep .apps-devices__table small {
-    display: block;
-    color: var(--tl-text-secondary);
-}
