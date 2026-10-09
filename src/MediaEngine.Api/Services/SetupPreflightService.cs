@@ -61,8 +61,7 @@ public sealed class SetupPreflightService(
             catch when (!ct.IsCancellationRequested) { ffmpegStatus = "probe-failed"; }
         }
 
-        var inContainer = string.Equals(Environment.GetEnvironmentVariable("DOTNET_RUNNING_IN_CONTAINER"), "true", StringComparison.OrdinalIgnoreCase)
-            || !string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("TUVIMA_CONTAINER_NETWORK_MODE"));
+        var inContainer = ContainerEnvironment.IsContainer();
         return new SetupPreflightDto(
             checks.All(check => check.Status == "passed"),
             inContainer,

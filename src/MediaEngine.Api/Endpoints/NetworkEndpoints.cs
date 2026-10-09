@@ -1,6 +1,7 @@
 using MediaEngine.Api.Http;
 using MediaEngine.Api.Security;
 using MediaEngine.Api.Services.Networking;
+using MediaEngine.Api.Services.Security;
 using MediaEngine.Contracts.Settings;
 using MediaEngine.Domain.Authorization;
 using MediaEngine.Domain.Configuration;
@@ -27,10 +28,19 @@ public static class NetworkEndpoints
             NetworkSettingsDto request,
             IConfigurationLoader configuration,
             RemoteAccessReadinessService readiness,
+            SecureAccountGate secureAccount,
             CancellationToken ct) =>
         {
             var current = configuration.LoadNetwork();
             var proposed = NetworkContractMapper.ToStorage(request);
+            // Until the account has a password or passkey, Tuvima stays on this computer: no wider door, no app access.
+            if ((SecureAccountGate.Raises(current.WhoCanConnect, proposed.WhoCanConnect)
+                    || (proposed.NativeAppAccess.Enabled && !current.NativeAppAccess.Enabled))
+                && await secureAccount.IsLockedAsync(ct).ConfigureAwait(false))
+            {
+                return SecureAccountGate.Refusal();
+            }
+
             // The strict public-address rule applies when saving, so a hand-edited older value never stops startup.
             if (!string.IsNullOrWhiteSpace(proposed.Remote.PublicHostname)
                 && !PublicAddress.IsValid(proposed.Remote.PublicHostname))
@@ -177,9 +187,18 @@ public static class NetworkEndpoints
         .Produces<NetworkRuntimeStatusDto>()
         .RequireAdministratorOrApplication(ApplicationPermissionIds.NetworkConfigWrite);
 
-        network.MapPost("/reset", (IConfigurationLoader configuration) =>
+        network.MapPost("/reset", async (
+            IConfigurationLoader configuration,
+            SecureAccountGate secureAccount,
+            CancellationToken ct) =>
         {
             var defaults = new NetworkSettings();
+            if (SecureAccountGate.Raises(configuration.LoadNetwork().WhoCanConnect, defaults.WhoCanConnect)
+                && await secureAccount.IsLockedAsync(ct).ConfigureAwait(false))
+            {
+                return SecureAccountGate.Refusal();
+            }
+
             configuration.SaveNetwork(defaults);
             return Results.Ok(NetworkContractMapper.ToContract(defaults));
         })

@@ -7,12 +7,7 @@ public sealed record NetworkTopologyProbe(
     public static NetworkTopologyProbe Capture()
     {
         var declared = Environment.GetEnvironmentVariable("TUVIMA_CONTAINER_NETWORK_MODE")?.Trim().ToLowerInvariant();
-        var inContainer = string.Equals(
-                Environment.GetEnvironmentVariable("DOTNET_RUNNING_IN_CONTAINER"),
-                "true",
-                StringComparison.OrdinalIgnoreCase)
-            || File.Exists("/.dockerenv");
-        return new NetworkTopologyProbe(inContainer, declared);
+        return new NetworkTopologyProbe(ContainerEnvironment.IsContainer(), declared);
     }
 }
 

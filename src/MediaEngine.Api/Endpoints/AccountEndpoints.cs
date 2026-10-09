@@ -1,6 +1,7 @@
 using MediaEngine.Api.Http;
 using MediaEngine.Api.Security;
 using MediaEngine.Api.Services.ReadServices;
+using MediaEngine.Api.Services.Security;
 using MediaEngine.Contracts.Authentication;
 using MediaEngine.Domain.Authorization;
 using MediaEngine.Domain.Configuration;
@@ -219,7 +220,8 @@ public static class AccountEndpoints
             var account = await mutations.CreateAsync(await resolver.ResolveAsync(http, ct), command, ct);
             return Results.Created($"/access/accounts/{account.Id:D}",
                 await MapAccount(account, accounts, identities, profiles, configuration, ct));
-        })).RequireAdministratorOrApplication(ApplicationPermissionIds.IdentityUsersWrite)
+        })).RequireSecuredAccount()
+           .RequireAdministratorOrApplication(ApplicationPermissionIds.IdentityUsersWrite)
            .Produces<AccountAccessResponse>(StatusCodes.Status201Created);
 
         group.MapPut("/{accountId:guid}", async (Guid accountId, UpdateManagedAccountRequest request,
@@ -308,7 +310,8 @@ public static class AccountEndpoints
                     request.DefaultProfileId, request.NewHouseholdPersonName), ct);
             return Results.Ok(new AccountInvitationResponse(
                 issued.AccountId, issued.PlaintextToken, issued.ExpiresAt));
-        })).RequireAdministratorOrApplication(ApplicationPermissionIds.IdentityUsersWrite)
+        })).RequireSecuredAccount()
+           .RequireAdministratorOrApplication(ApplicationPermissionIds.IdentityUsersWrite)
            .Produces<AccountInvitationResponse>();
     }
 

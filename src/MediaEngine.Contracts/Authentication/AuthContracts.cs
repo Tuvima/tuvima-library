@@ -25,6 +25,18 @@ public sealed class BootstrapAdministratorRequest
     [JsonPropertyName("client")] public string Client { get; init; } = "Dashboard";
 }
 
+/// <summary>Asks the Engine to sign in the account that works only on this computer (no password).</summary>
+public sealed class ThisComputerSignInRequest
+{
+    [JsonPropertyName("device_id")] public string DeviceId { get; init; } = string.Empty;
+    [JsonPropertyName("device_name")] public string DeviceName { get; init; } = string.Empty;
+    [JsonPropertyName("client")] public string Client { get; init; } = "Dashboard";
+}
+
+/// <summary>Whose account would be signed in on this computer. Only ever answered to a visitor on this computer.</summary>
+public sealed record ThisComputerAccountResponse(
+    [property: JsonPropertyName("display_name")] string DisplayName);
+
 public sealed class LocalLoginRequest
 {
     [JsonPropertyName("email")] public string? Email { get; init; }

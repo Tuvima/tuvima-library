@@ -189,6 +189,7 @@ public sealed class SetupSessionCodeTests : IDisposable
         builder.Services.AddSingleton<ServerFolderBrowserService>(_ => null!);
         builder.Services.AddSingleton<SetupMediaLocationValidationService>(_ => null!);
         builder.Services.AddSingleton<SetupPreflightService>(_ => null!);
+        builder.Services.AddSingleton<IContainerProbe>(_ => null!);
         await using var app = builder.Build();
         app.MapSetupEndpoints();
         var endpoint = Assert.Single(((IEndpointRouteBuilder)app).DataSources
@@ -243,6 +244,9 @@ public sealed class SetupSessionCodeTests : IDisposable
     {
         public Task<bool> IsAdministratorConfiguredAsync(CancellationToken ct = default) => Task.FromResult(administratorConfigured);
         public Task<SessionIssueResult> BootstrapAdministratorAsync(string email, string password, string displayName, string deviceId, string deviceName, string client, CancellationToken ct = default, string? pin = null, string ingress = ClientIngress.HomeNetwork) => throw new NotSupportedException();
+        public Task<SessionIssueResult> BootstrapThisComputerAdministratorAsync(string email, string displayName, string deviceId, string deviceName, string client, CancellationToken ct = default) => throw new NotSupportedException();
+        public Task<SessionIssueResult?> SignInThisComputerAccountAsync(string deviceId, string deviceName, string client, CancellationToken ct = default) => throw new NotSupportedException();
+        public Task<string?> GetThisComputerAccountNameAsync(CancellationToken ct = default) => throw new NotSupportedException();
         public Task<AuthenticationAttemptResult> AuthenticatePasswordAsync(string email, string password, string deviceId, string deviceName, string client, CancellationToken ct = default, string ingress = ClientIngress.HomeNetwork) => throw new NotSupportedException();
         public Task<SessionIssueResult> CreateExternalSessionAsync(Guid accountId, string provider, string deviceId, string deviceName, string client, CancellationToken ct = default, string ingress = ClientIngress.HomeNetwork) => throw new NotSupportedException();
         public Task<SessionIssueResult> CreatePasskeySessionAsync(Guid accountId, string deviceId, string deviceName, string client, CancellationToken ct = default, string ingress = ClientIngress.HomeNetwork) => throw new NotSupportedException();

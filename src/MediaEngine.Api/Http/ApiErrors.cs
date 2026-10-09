@@ -43,6 +43,17 @@ public static class ApiErrors
             statusCode: StatusCodes.Status409Conflict,
             title: "Conflict.");
 
+    /// <summary>
+    /// 409 Conflict that also carries a stable machine-readable <c>code</c> (for example
+    /// <c>secure_account_first</c>) next to the human <c>detail</c>, so the Dashboard can react without parsing text.
+    /// </summary>
+    public static IResult Conflict(string code, string detail) =>
+        Results.Problem(
+            detail: detail,
+            statusCode: StatusCodes.Status409Conflict,
+            title: "Conflict.",
+            extensions: new Dictionary<string, object?> { ["code"] = code });
+
     /// <summary>422 Unprocessable Entity as an RFC 7807 problem body.</summary>
     public static IResult Unprocessable(string detail) =>
         Results.Problem(
