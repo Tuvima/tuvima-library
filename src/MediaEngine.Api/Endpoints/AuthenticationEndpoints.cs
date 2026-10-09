@@ -25,6 +25,19 @@ public static class AuthenticationEndpoints
             .Produces<AuthBootstrapStatusResponse>()
             .RequireAuthorization(AuthPolicies.DashboardService);
 
+        // One call per sign-in page load; nothing is cached. The Dashboard says where the visitor is (header) and
+        // whether they came over HTTPS (query); every answer uses the same rules the sign-in actions enforce.
+        group.MapGet("/sign-in-methods", (HttpRequest request, bool? https, IConfigurationLoader configuration,
+            AuthenticationProviderConfigurationService providerConfiguration) =>
+            Results.Ok(BuildSignInMethods(
+                providerConfiguration.LoadWithSecrets(),
+                configuration.LoadNetwork(),
+                request.Headers[ClientIngressValues.ValidateHeader].ToString(),
+                https == true)))
+            .WithName("GetSignInMethods")
+            .Produces<SignInMethodsResponse>()
+            .RequireAuthorization(AuthPolicies.DashboardService);
+
         group.MapPost("/login", async (LocalLoginRequest request, IFirstPartyIdentityService identity,
             DashboardAuthorityProjector projector, CancellationToken ct) =>
         {
@@ -615,6 +628,36 @@ public static class AuthenticationEndpoints
 
         return ExternalIssuerMatcher.Matches(provider.Issuer, provider.Authority, issuer);
     }
+
+    internal static SignInMethodsResponse BuildSignInMethods(
+        AuthSettings policy,
+        NetworkSettings network,
+        string? originalClientIngress,
+        bool originalClientIsHttps) =>
+        new(
+            AllowsClient(network, originalClientIngress, originalClientIsHttps, policy.PasswordSignInEnabled),
+            IsPasskeyAvailable(policy, network, originalClientIngress, originalClientIsHttps),
+            AvailableExternalProviders(policy, network, originalClientIngress, originalClientIsHttps),
+            AllowsClient(network, originalClientIngress, originalClientIsHttps, true));
+
+    /// <summary>The configured sign-in providers a visitor may use from where they are.</summary>
+    internal static List<AccountExternalProviderResponse> AvailableExternalProviders(
+        AuthSettings policy,
+        NetworkSettings network,
+        string? originalClientIngress,
+        bool originalClientIsHttps) =>
+        AllowsClient(network, originalClientIngress, originalClientIsHttps, IsExternalSignInEnabled(policy))
+            ? policy.ExternalProviders
+                .Where(provider => provider.Enabled && IsConfiguredProvider(
+                    policy,
+                    network,
+                    provider.Id,
+                    provider.Kind.Equals(ExternalAuthProviderKinds.OpenIdConnect, StringComparison.OrdinalIgnoreCase)
+                        ? string.IsNullOrWhiteSpace(provider.Issuer) ? provider.Authority : provider.Issuer
+                        : provider.Issuer))
+                .Select(provider => new AccountExternalProviderResponse(provider.Id, provider.DisplayName))
+                .ToList()
+            : [];
 
     internal static bool IsExternalSignInEnabled(AuthSettings policy) =>
         policy.ExternalSignInEnabled && policy.Mode is "Optional" or "Required";

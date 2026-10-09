@@ -37,9 +37,11 @@ public static class DashboardAuthenticationEndpoints
 
             var tokens = antiforgery.GetAndStoreTokens(context);
             var deviceId = EnsureDeviceCookie(context);
+            var methods = await identity.GetSignInMethodsAsync(context.RequestAborted).ConfigureAwait(false);
             return Results.Content(
                 LoginPage(
                     tokens.RequestToken ?? string.Empty,
+                    methods,
                     externalProviders,
                     deviceId,
                     SafeReturnUrl(returnUrl),
@@ -56,7 +58,9 @@ public static class DashboardAuthenticationEndpoints
                 return limited;
             }
 
-            var invalidForm = await RefreshInvalidLoginFormAsync(context, antiforgery, externalProviders).ConfigureAwait(false);
+            var invalidForm = await RefreshInvalidLoginFormAsync(
+                context, antiforgery, externalProviders,
+                () => identity.GetSignInMethodsAsync(context.RequestAborted)).ConfigureAwait(false);
             if (invalidForm is not null)
             {
                 return invalidForm;
@@ -186,7 +190,8 @@ public static class DashboardAuthenticationEndpoints
         {
             if (string.IsNullOrWhiteSpace(token))
             {
-                return Results.Redirect("/auth/login");
+                // Someone who was handed a code rather than a link: ask for it, then continue with the same page.
+                return Results.Content(Shell("<p class=\"eyebrow\">Tuvima Library invitation</p><h1>Enter your invitation code</h1><form method=\"get\" action=\"/auth/invite\"><label>Invitation code<input name=\"token\" autocomplete=\"off\" spellcheck=\"false\" required autofocus></label><button>Continue</button></form><p><a href=\"/auth/login\">Back to sign in</a></p>"), "text/html", Encoding.UTF8);
             }
 
             var anti = antiforgery.GetAndStoreTokens(context).RequestToken ?? string.Empty;
@@ -347,7 +352,8 @@ public static class DashboardAuthenticationEndpoints
     internal static async Task<IResult?> RefreshInvalidLoginFormAsync(
         HttpContext context,
         IAntiforgery antiforgery,
-        IReadOnlyList<RegisteredExternalAuthProvider> externalProviders)
+        IReadOnlyList<RegisteredExternalAuthProvider> externalProviders,
+        Func<Task<SignInMethodsResponse?>>? loadMethods = null)
     {
         if (await antiforgery.IsRequestValidAsync(context).ConfigureAwait(false))
         {
@@ -357,11 +363,12 @@ public static class DashboardAuthenticationEndpoints
         // Reject the submitted credentials. The framework replaces an unreadable
         // cookie token and issues a matching request token for a new submission.
         var tokens = antiforgery.GetAndStoreTokens(context);
+        var methods = loadMethods is null ? null : await loadMethods().ConfigureAwait(false);
         var form = context.Request.HasFormContentType
             ? await context.Request.ReadFormAsync(context.RequestAborted).ConfigureAwait(false)
             : null;
         return Results.Content(
-            LoginPage(tokens.RequestToken ?? string.Empty, externalProviders,
+            LoginPage(tokens.RequestToken ?? string.Empty, methods, externalProviders,
                 EnsureDeviceCookie(context), SafeReturnUrl(form?["returnUrl"].ToString()),
                 PasskeyOriginGate.IsPublicOrigin(context),
                 "This sign-in form expired. Please enter your details again."),
@@ -395,33 +402,48 @@ public static class DashboardAuthenticationEndpoints
     private static string SanitizeDeviceName(string value) =>
         string.IsNullOrWhiteSpace(value) ? "Browser" : value.Length <= 100 ? value : value[..100];
 
-    private static string LoginPage(
+    /// <summary>
+    /// Shows only the sign-in methods the Engine says work here. When the Engine could not answer, falls back to the
+    /// password form alone (the safe, always-working choice) rather than offering buttons that may fail.
+    /// </summary>
+    internal static string LoginPage(
         string token,
-        IReadOnlyList<RegisteredExternalAuthProvider> externalProviders,
+        SignInMethodsResponse? methods,
+        IReadOnlyList<RegisteredExternalAuthProvider> registeredProviders,
         string deviceId,
         string returnUrl,
-        bool showPasskey,
+        bool atPublicOrigin,
         string? message = null)
     {
+        methods ??= new SignInMethodsResponse(true, false, [], true);
+        var showPasskey = methods.Passkey && atPublicOrigin;
+        var externalProviders = registeredProviders
+            .Where(provider => methods.ExternalProviders.Any(allowed =>
+                string.Equals(allowed.Id, provider.Id, StringComparison.OrdinalIgnoreCase)))
+            .ToList();
         var externalButtons = string.Join(
             string.Empty,
             externalProviders.Select(provider =>
                 $"<p><a class=\"button\" href=\"/auth/external/{Uri.EscapeDataString(provider.Id)}?returnUrl={Uri.EscapeDataString(returnUrl)}\">Continue with {H(provider.DisplayName)}</a></p>"));
         var passkeyScript = $$$"""
               <script>
-              document.getElementById('passkey-login').addEventListener('click',async()=>{const message=document.getElementById('passkey-message');try{if(!window.PublicKeyCredential||!PublicKeyCredential.parseRequestOptionsFromJSON)throw new Error('This browser does not support passkeys.');const start=await fetch('/auth/passkeys/login/options',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:document.getElementById('signin-email').value||null})});if(start.status===429)throw new Error('Too many attempts. Try again in a minute.');if(!start.ok)throw new Error('Passkey sign-in is unavailable.');const data=await start.json();const credential=await navigator.credentials.get({publicKey:PublicKeyCredential.parseRequestOptionsFromJSON(JSON.parse(data.options_json))});const finish=await fetch('/auth/passkeys/login/complete',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({credential_json:JSON.stringify(credential.toJSON()),state:data.state,device_id:{{{JsonSerializer.Serialize(deviceId)}}},device_name:navigator.userAgent})});if(finish.status===429)throw new Error('Too many attempts. Try again in a minute.');if(!finish.ok)throw new Error('Passkey sign-in failed.');location.href={{{JsonSerializer.Serialize(returnUrl)}}};}catch(error){message.textContent=error.message;}});
+              document.getElementById('passkey-login').addEventListener('click',async()=>{const message=document.getElementById('passkey-message');try{if(!window.PublicKeyCredential||!PublicKeyCredential.parseRequestOptionsFromJSON)throw new Error('This browser does not support passkeys.');const start=await fetch('/auth/passkeys/login/options',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:(document.getElementById('signin-email')?.value)||null})});if(start.status===429)throw new Error('Too many attempts. Try again in a minute.');if(!start.ok)throw new Error('Passkey sign-in is unavailable.');const data=await start.json();const credential=await navigator.credentials.get({publicKey:PublicKeyCredential.parseRequestOptionsFromJSON(JSON.parse(data.options_json))});const finish=await fetch('/auth/passkeys/login/complete',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({credential_json:JSON.stringify(credential.toJSON()),state:data.state,device_id:{{{JsonSerializer.Serialize(deviceId)}}},device_name:navigator.userAgent})});if(finish.status===429)throw new Error('Too many attempts. Try again in a minute.');if(!finish.ok)throw new Error('Passkey sign-in failed.');location.href={{{JsonSerializer.Serialize(returnUrl)}}};}catch(error){message.textContent=error.message;}});
               </script>
+              """;
+        var passwordForm = $"""
+              <form method="post"><input type="hidden" name="__RequestVerificationToken" value="{H(token)}"><input type="hidden" name="action" value="login"><input type="hidden" name="returnUrl" value="{H(returnUrl)}">
+              <label>Email<input id="signin-email" type="email" name="email" autocomplete="username" required autofocus></label>
+              <label>Password<input type="password" name="password" autocomplete="current-password" required></label><button>Sign in</button></form>
+              <p><a href="/auth/recover">Forgot your password?</a></p>
               """;
         var form = $"""
               <p class="eyebrow">Tuvima Library</p>
               <h1>Sign in to Tuvima Library</h1>
               {(message is null ? string.Empty : $"<p class=\"error\" role=\"alert\">{H(message)}</p>")}
-              <form method="post"><input type="hidden" name="__RequestVerificationToken" value="{H(token)}"><input type="hidden" name="action" value="login"><input type="hidden" name="returnUrl" value="{H(returnUrl)}">
-              <label>Email<input id="signin-email" type="email" name="email" autocomplete="username" required autofocus></label>
-              <label>Password<input type="password" name="password" autocomplete="current-password" required></label><button>Sign in</button></form>
-              <p><a href="/auth/recover">Forgot your password?</a></p>
+              {(methods.Password ? passwordForm : "<p class=\"supporting\">Password sign-in isn't available from here.</p>")}
               {(showPasskey ? "<button type=\"button\" id=\"passkey-login\">Sign in with a passkey</button><p id=\"passkey-message\" class=\"supporting\"></p>" : string.Empty)}
               {externalButtons}
+              {(methods.InvitationCode ? "<p class=\"supporting\"><a href=\"/auth/invite\">Have an invitation code?</a></p>" : string.Empty)}
               {(showPasskey ? passkeyScript : string.Empty)}
               """;
 

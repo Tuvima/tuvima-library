@@ -133,7 +133,9 @@ public sealed class PairingAndPasskeyEndpointTests : IDisposable
         context.Response.Body = new MemoryStream();
 
         var result = await DashboardAuthenticationEndpoints.RefreshInvalidLoginFormAsync(
-            context, provider.GetRequiredService<IAntiforgery>(), []);
+            context, provider.GetRequiredService<IAntiforgery>(), [],
+            () => Task.FromResult<MediaEngine.Contracts.Authentication.SignInMethodsResponse?>(
+                new MediaEngine.Contracts.Authentication.SignInMethodsResponse(true, true, [], true)));
         await result!.ExecuteAsync(context);
         context.Response.Body.Position = 0;
         var html = Encoding.UTF8.GetString(((MemoryStream)context.Response.Body).ToArray());

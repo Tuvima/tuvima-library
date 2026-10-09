@@ -24,6 +24,34 @@ public sealed class DashboardIdentityClient(
     public async Task<AuthBootstrapStatusResponse?> GetBootstrapStatusAsync(CancellationToken ct = default) =>
         await GetAsync<AuthBootstrapStatusResponse>("/auth/bootstrap/status", ct).ConfigureAwait(false);
 
+    /// <summary>
+    /// Asks the Engine which sign-in methods work for this visitor, from where they are. One call per page load,
+    /// nothing cached. Null means the Engine could not answer.
+    /// </summary>
+    public async Task<SignInMethodsResponse?> GetSignInMethodsAsync(CancellationToken ct = default)
+    {
+        var (clientIngress, isHttps) = GetOriginalClientContext();
+        try
+        {
+            using var request = new HttpRequestMessage(HttpMethod.Get, $"/auth/sign-in-methods?https={(isHttps ? "true" : "false")}");
+            request.Headers.TryAddWithoutValidation(ClientIngressValues.ValidateHeader, clientIngress);
+            using var response = await Client.SendAsync(request, ct).ConfigureAwait(false);
+            return response.IsSuccessStatusCode
+                ? await response.Content.ReadFromJsonAsync<SignInMethodsResponse>(cancellationToken: ct).ConfigureAwait(false)
+                : null;
+        }
+        catch (HttpRequestException exception)
+        {
+            logger?.LogWarning(exception, "Dashboard sign-in methods request could not reach the Engine");
+            return null;
+        }
+        catch (OperationCanceledException exception) when (!ct.IsCancellationRequested)
+        {
+            logger?.LogWarning(exception, "Dashboard sign-in methods request timed out");
+            return null;
+        }
+    }
+
     public async Task<AuthSessionResponse?> LoginAsync(LocalLoginRequest request, CancellationToken ct = default)
     {
         using var response = await Client.PostAsJsonAsync("/auth/login", request, ct).ConfigureAwait(false);
