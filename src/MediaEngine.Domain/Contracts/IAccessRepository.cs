@@ -48,6 +48,11 @@ public interface IAccountAccessMutationRepository
     Task RevokeGrantAsync(Guid accountId, Guid profileId, CancellationToken ct = default);
     Task ReplaceAccountAccessAsync(Guid accountId, IReadOnlySet<AccountFeatureId> features, IReadOnlySet<Guid> libraries, DateTimeOffset changedAt, CancellationToken ct = default);
     Task SetAdminProtectionAsync(GrantAdminProtection protection, CancellationToken ct = default);
+    /// <summary>
+    /// Makes an account the administrator of its household (or takes that away). Making one also names it the
+    /// household's primary account when the household has none. Raises the account's authorization version.
+    /// </summary>
+    Task<bool> SetHouseholdAdminAsync(Guid accountId, bool isHouseholdAdmin, DateTimeOffset changedAt, CancellationToken ct = default);
     Task<GrantAdminProtection> RecordAdminProtectionFailureAsync(Guid accountId, Guid profileId, DateTimeOffset lockedUntilAfterLimit, CancellationToken ct = default);
     Task ResetAdminProtectionAttemptsAsync(Guid accountId, Guid profileId, CancellationToken ct = default);
     Task SetAdminUnlockAsync(GrantAdminUnlock unlock, CancellationToken ct = default);
@@ -167,4 +172,8 @@ public interface IAccountAccessMutationService
     Task UpsertGrantAsync(RequestAuthority actor, AccountProfileGrant grant, CancellationToken ct = default);
     Task RevokeGrantAsync(RequestAuthority actor, Guid accountId, Guid profileId, CancellationToken ct = default);
     Task SetAdminProtectionAsync(RequestAuthority actor, Guid accountId, Guid profileId, GrantAdminProtectionCommand command, CancellationToken ct = default);
+    /// <summary>Makes a main sign-in the administrator of its household, or takes that away. Only a server administrator may.</summary>
+    Task SetHouseholdAdminAsync(RequestAuthority actor, Guid accountId, bool isHouseholdAdmin, CancellationToken ct = default);
+    /// <summary>Sets or clears a person's PIN. A household administrator may only do this for their own household.</summary>
+    Task SetProfilePinAsync(RequestAuthority actor, Guid profileId, string? pin, CancellationToken ct = default);
 }

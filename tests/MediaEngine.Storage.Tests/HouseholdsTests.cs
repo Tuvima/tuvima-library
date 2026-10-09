@@ -396,6 +396,174 @@ public sealed class HouseholdsTests : IDisposable
         return path;
     }
 
+    // ── Household administrators and per-household Shared libraries (B11a) ────
+
+    [Fact]
+    public void HouseholdAdministratorBackfill_MakesEachHouseholdsFirstSignInItsAdministrator_OnlyOnce()
+    {
+        var path = CreateLegacyDatabase(raw =>
+        {
+            SeedAccount(raw, FirstAccount, "first@example.com", "2026-01-01T00:00:00.0000000+00:00");
+            SeedAccount(raw, SecondAccount, "second@example.com", "2026-01-02T00:00:00.0000000+00:00");
+            SeedProfile(raw, FirstProfile, "Alex");
+            SeedProfile(raw, SecondProfile, "Sam");
+            SeedGrant(raw, FirstAccount, FirstProfile, isDefault: true);
+            SeedGrant(raw, SecondAccount, SecondProfile, isDefault: true);
+        });
+
+        Open(path).Dispose();
+        SqliteConnection.ClearAllPools();
+
+        foreach (var account in new[] { FirstAccount, SecondAccount })
+        {
+            Assert.Equal(1, Scalar(path, "SELECT household_admin FROM accounts WHERE id=@a;", ("@a", account)));
+            Assert.Equal(1, Scalar(path, """
+                SELECT COUNT(*) FROM households h JOIN accounts a ON a.household_id = h.id
+                WHERE a.id = @a AND h.primary_account_id = a.id;
+                """, ("@a", account)));
+        }
+
+        // An administrator who later removed the flag does not get it back on the next start.
+        using (var raw = new SqliteConnection($"Data Source={path};Pooling=False"))
+        {
+            raw.Open();
+            Exec(raw, "UPDATE accounts SET household_admin = 0 WHERE id = @a;", ("@a", SecondAccount));
+        }
+
+        Open(path).Dispose();
+        SqliteConnection.ClearAllPools();
+        Assert.Equal(0, Scalar(path, "SELECT household_admin FROM accounts WHERE id=@a;", ("@a", SecondAccount)));
+        Assert.Equal(1, Scalar(path, "SELECT household_admin FROM accounts WHERE id=@a;", ("@a", FirstAccount)));
+    }
+
+    [Fact]
+    public void ServerAdministratorsBecomeAdministratorsOfTheirOwnHousehold_OnUpgrade()
+    {
+        var path = CreateLegacyDatabase(raw =>
+        {
+            SeedAccount(raw, FirstAccount, "first@example.com", "2026-01-01T00:00:00.0000000+00:00");
+            SeedAccount(raw, SecondAccount, "second@example.com", "2026-01-02T00:00:00.0000000+00:00");
+            Exec(raw, "UPDATE accounts SET is_administrator = 1 WHERE id = @a;", ("@a", SecondAccount));
+            SeedProfile(raw, FirstProfile, "Alex");
+            SeedProfile(raw, SecondProfile, "Sam");
+            SeedGrant(raw, FirstAccount, FirstProfile, isDefault: true);
+            SeedGrant(raw, SecondAccount, SecondProfile, isDefault: true);
+        });
+
+        Open(path).Dispose();
+        SqliteConnection.ClearAllPools();
+
+        // The server administrator never loses (and now also holds) household administration for their own household.
+        Assert.Equal(1, Scalar(path, "SELECT household_admin FROM accounts WHERE id=@a AND is_administrator=1;", ("@a", SecondAccount)));
+    }
+
+    [Fact]
+    public void TheSingleSharedLibrary_MovesToTheServerAdministratorsHousehold_AndKeepsItsIdentity()
+    {
+        var library = Guid.NewGuid();
+        var path = CreateLegacyDatabase(raw =>
+        {
+            SeedAccount(raw, FirstAccount, "first@example.com", "2026-01-01T00:00:00.0000000+00:00");
+            SeedAccount(raw, SecondAccount, "second@example.com", "2026-01-02T00:00:00.0000000+00:00");
+            Exec(raw, "UPDATE accounts SET is_administrator = 1 WHERE id = @a;", ("@a", SecondAccount));
+            SeedProfile(raw, FirstProfile, "Alex");
+            SeedProfile(raw, SecondProfile, "Sam");
+            SeedGrant(raw, FirstAccount, FirstProfile, isDefault: true);
+            SeedGrant(raw, SecondAccount, SecondProfile, isDefault: true);
+
+            // The old shape: one row for the whole server.
+            Exec(raw, """
+                DROP TRIGGER IF EXISTS trg_view_shared_library_collision_insert;
+                DROP TRIGGER IF EXISTS trg_view_shared_library_identity_immutable;
+                DROP TRIGGER IF EXISTS trg_view_shared_library_delete;
+                DROP TABLE view_shared_library;
+                CREATE TABLE view_shared_library (
+                    singleton_key INTEGER NOT NULL PRIMARY KEY CHECK (singleton_key = 1),
+                    library_id BLOB NOT NULL UNIQUE,
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL
+                );
+                INSERT INTO view_shared_library (singleton_key, library_id, created_at, updated_at)
+                VALUES (1, @library, '2026-01-01T00:00:00.0000000+00:00', '2026-01-01T00:00:00.0000000+00:00');
+                """, ("@library", library));
+        });
+
+        Open(path).Dispose();
+        SqliteConnection.ClearAllPools();
+
+        Assert.Equal(1, Scalar(path, "SELECT COUNT(*) FROM view_shared_library;"));
+        Assert.Equal(0, Scalar(path, "SELECT COUNT(*) FROM pragma_table_info('view_shared_library') WHERE name = 'singleton_key';"));
+        Assert.Equal(1, Scalar(path, """
+            SELECT COUNT(*) FROM view_shared_library v JOIN accounts a ON a.household_id = v.household_id
+            WHERE a.id = @a AND v.library_id = @library;
+            """, ("@a", SecondAccount), ("@library", library)));
+
+        // A second start leaves it alone.
+        Open(path).Dispose();
+        SqliteConnection.ClearAllPools();
+        Assert.Equal(1, Scalar(path, "SELECT COUNT(*) FROM view_shared_library;"));
+    }
+
+    [Fact]
+    public void TheSingleSharedLibrary_WithNoHouseholdYet_GetsOneMadeForIt_AndNothingSharedIsOrphaned()
+    {
+        var library = Guid.NewGuid();
+        var path = CreateLegacyDatabase(raw => Exec(raw, """
+            DROP TRIGGER IF EXISTS trg_view_shared_library_collision_insert;
+            DROP TRIGGER IF EXISTS trg_view_shared_library_identity_immutable;
+            DROP TRIGGER IF EXISTS trg_view_shared_library_delete;
+            DROP TABLE view_shared_library;
+            CREATE TABLE view_shared_library (
+                singleton_key INTEGER NOT NULL PRIMARY KEY CHECK (singleton_key = 1),
+                library_id BLOB NOT NULL UNIQUE,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            );
+            INSERT INTO view_shared_library (singleton_key, library_id, created_at, updated_at)
+            VALUES (1, @library, '2026-01-01T00:00:00.0000000+00:00', '2026-01-01T00:00:00.0000000+00:00');
+            """, ("@library", library)));
+
+        // Startup must not crash, and must keep the library identity for anything already shared.
+        Open(path).Dispose();
+        SqliteConnection.ClearAllPools();
+        Assert.Equal(1, Scalar(path, "SELECT COUNT(*) FROM households;"));
+        Assert.Equal(1, Scalar(path, """
+            SELECT COUNT(*) FROM view_shared_library v JOIN households h ON h.id = v.household_id
+            WHERE v.library_id = @library;
+            """, ("@library", library)));
+
+        Open(path).Dispose();
+        SqliteConnection.ClearAllPools();
+        Assert.Equal(1, Scalar(path, "SELECT COUNT(*) FROM households;"));
+    }
+
+    [Fact]
+    public async Task EachHousehold_GetsItsOwnSharedLibrary_AndTheServerOneBelongsToTheServerAdministrator()
+    {
+        var path = NewPath();
+        using var database = Open(path);
+        var older = Guid.NewGuid();
+        var newer = Guid.NewGuid();
+        using (var raw = new SqliteConnection($"Data Source={path};Pooling=False"))
+        {
+            raw.Open();
+            Exec(raw, "INSERT INTO households(id,name,created_at) VALUES(@h,'Older','2026-01-01T00:00:00.0000000+00:00');", ("@h", older));
+            Exec(raw, "INSERT INTO households(id,name,created_at) VALUES(@h,'Newer','2026-02-01T00:00:00.0000000+00:00');", ("@h", newer));
+        }
+
+        var libraries = new ViewSharedLibraryRepository(database);
+        var first = await libraries.EnsureForHouseholdAsync(older);
+        var second = await libraries.EnsureForHouseholdAsync(newer);
+
+        Assert.NotEqual(first.LibraryId, second.LibraryId);
+        Assert.Equal(older, first.HouseholdId);
+        Assert.Equal(first.LibraryId, (await libraries.EnsureForHouseholdAsync(older)).LibraryId);
+
+        // With no server administrator yet, the server's own is the oldest household's.
+        Assert.Equal(first.LibraryId, (await libraries.GetAsync()).LibraryId);
+        await Assert.ThrowsAsync<KeyNotFoundException>(() => libraries.EnsureForHouseholdAsync(Guid.NewGuid()));
+    }
+
     private static DatabaseConnection Open(string path)
     {
         DapperConfiguration.Configure();

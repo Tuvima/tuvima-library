@@ -660,7 +660,9 @@ public static class AuthenticationEndpoints
             };
         }).WithName("DeletePasskey").Produces(StatusCodes.Status204NoContent).RequireAuthorization(AuthPolicies.HumanSelfService);
 
-        group.MapPut("/profiles/{profileId:guid}/pin", async (Guid profileId, SetProfilePinRequest request, ClaimsPrincipal user, IFirstPartyIdentityService identity,
+        // A server administrator can set any person's PIN; a household administrator only for people in their own household. People only, never applications.
+        group.MapPut("/profiles/{profileId:guid}/pin", async (Guid profileId, SetProfilePinRequest request, HttpContext http, ClaimsPrincipal user,
+            [FromServices] IRequestAuthorityResolver authorities, [FromServices] IAccountAccessMutationService mutations,
             [FromServices] RecentSignInGuard recentSignIn, CancellationToken ct) =>
         {
             if (await recentSignIn.RefuseIfStaleAsync(user, ct).ConfigureAwait(false) is { } stale)
@@ -668,10 +670,16 @@ public static class AuthenticationEndpoints
                 return stale;
             }
 
-            try { await identity.SetProfilePinAsync(profileId, request.Pin, ct).ConfigureAwait(false); return Results.NoContent(); }
+            try
+            {
+                await mutations.SetProfilePinAsync(await authorities.ResolveAsync(http, ct).ConfigureAwait(false), profileId, request.Pin, ct).ConfigureAwait(false);
+                return Results.NoContent();
+            }
             catch (ArgumentException ex) { return ApiErrors.BadRequest(ex.Message); }
             catch (KeyNotFoundException ex) { return ApiErrors.NotFound(ex.Message); }
-        }).WithName("SetProfilePin").Produces(StatusCodes.Status204NoContent).RequireAuthorization(AuthPolicies.Administrator);
+            catch (UnauthorizedAccessException ex) { return ApiErrors.Forbidden(ex.Message); }
+        }).WithName("SetProfilePin").Produces(StatusCodes.Status204NoContent)
+          .RequireEffectiveAdministratorOrHouseholdAdministrator();
 
         group.MapPost("/session/switch-profile", async (SwitchProfileRequest request, HttpRequest httpRequest, IFirstPartyIdentityService identity, DashboardAuthorityProjector projector, CancellationToken ct) =>
         {

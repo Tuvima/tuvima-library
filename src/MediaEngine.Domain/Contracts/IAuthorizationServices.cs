@@ -34,6 +34,19 @@ public interface IAccountAccessDecisionService
         RequestAuthority authority,
         bool requireSurfaceUnlock,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Whether the caller may act as a household administrator (for their own household only; the caller still checks
+    /// the target household). The default allows an effective household administrator; the real service also applies
+    /// the administrator PIN when the person has turned protection on.
+    /// </summary>
+    ValueTask<AuthorizationDecision> EvaluateHouseholdAdministratorAsync(
+        RequestAuthority authority,
+        bool requireSurfaceUnlock,
+        CancellationToken cancellationToken = default) =>
+        ValueTask.FromResult(authority.IsEffectiveHouseholdAdministrator
+            ? AuthorizationDecision.Allow()
+            : AuthorizationDecision.Deny(AuthorizationDenialReason.AdministratorRequired));
 }
 
 public interface ISelfServiceAuthorizationService

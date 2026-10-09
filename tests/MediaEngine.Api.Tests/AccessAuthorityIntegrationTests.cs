@@ -204,7 +204,7 @@ public sealed class AccessAuthorityIntegrationTests : IDisposable
             AvatarColor = "#123456",
             Role = ProfileRole.RestrictedProfile,
             CreatedAt = _clock.GetUtcNow(),
-        });
+        }, (await _accounts.GetByIdAsync(_accountId))!.HouseholdId);
         await _accounts.UpsertGrantAsync(new AccountProfileGrant
         {
             AccountId = _accountId,

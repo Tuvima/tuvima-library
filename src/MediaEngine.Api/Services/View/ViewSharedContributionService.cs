@@ -222,7 +222,12 @@ public sealed class ViewSharedContributionService(
         using var connection = database.CreateConnection();
         var ids = connection.Query<Guid>(new CommandDefinition("""
             SELECT id FROM view_shared_contributions
-             WHERE (@review = 1 OR submitted_by_profile_id = @actorProfileId)
+             WHERE ((@review = 1 AND EXISTS (
+                        -- A reviewer only sees what people in their own household submitted.
+                        SELECT 1 FROM profiles submitter JOIN profiles reviewer ON reviewer.household_id = submitter.household_id
+                         WHERE submitter.id = view_shared_contributions.submitted_by_profile_id
+                           AND reviewer.id = @actorProfileId))
+                    OR submitted_by_profile_id = @actorProfileId)
                AND (@status IS NULL OR status = @status)
              ORDER BY CASE status WHEN 'pending' THEN 0 ELSE 1 END, submitted_at DESC
              LIMIT @take OFFSET @offset;
@@ -258,7 +263,8 @@ public sealed class ViewSharedContributionService(
         var policy = await policies.GetPolicyAsync(actorProfileId, ct);
         using var connection = database.CreateConnection();
         var contribution = Read(connection, contributionId, ct) ?? throw new KeyNotFoundException();
-        var canReview = policy.ReviewSharedLibraryContributions;
+        var canReview = policy.ReviewSharedLibraryContributions
+            && SubmitterIsInHousehold(connection, contribution.SubmittedByProfileId, actorProfileId);
         if ((requireReview && !canReview)
             || (!canReview && contribution.SubmittedByProfileId != actorProfileId))
         {
@@ -267,6 +273,14 @@ public sealed class ViewSharedContributionService(
 
         return contribution;
     }
+
+    /// <summary>True when the person who submitted (when known) lives in the same household as the reviewer.</summary>
+    private static bool SubmitterIsInHousehold(System.Data.IDbConnection connection, Guid? submitterProfileId, Guid reviewerProfileId) =>
+        submitterProfileId is { } submitter
+        && connection.ExecuteScalar<int>("""
+            SELECT COUNT(*) FROM profiles s JOIN profiles r ON r.household_id = s.household_id
+             WHERE s.id = @submitter AND r.id = @reviewerProfileId;
+            """, new { submitter, reviewerProfileId }) > 0;
 
     public async Task<ViewSharedContributionDto> CancelAsync(
         RequestAuthority authority, Guid contributionId, int expectedRevision,

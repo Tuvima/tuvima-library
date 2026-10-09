@@ -63,7 +63,10 @@ public sealed class AccountCreationGuardrailTests
         var rest = source[index..];
         var next = Regex.Match(rest[call.Length..], @"\.Map(Get|Post|Put|Delete|Patch|Group)\(");
         var registration = next.Success ? rest[..(call.Length + next.Index)] : rest;
-        Assert.Contains("RequireAdministratorOrApplication(", registration, StringComparison.Ordinal);
+        Assert.True(
+            registration.Contains("RequireAdministratorOrApplication(", StringComparison.Ordinal) ||
+            registration.Contains("RequireAdministratorHouseholdOrApplication(", StringComparison.Ordinal),
+            "The route must demand an administrator (or, for household actions, a household administrator).");
     }
 
     [Fact]

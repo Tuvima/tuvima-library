@@ -5,18 +5,131 @@ using MediaEngine.Storage.Contracts;
 
 namespace MediaEngine.Storage;
 
+/// <summary>
+/// Shared libraries: one per household, created the first time it is needed. The server's own Shared library is the
+/// one that belongs to the server administrator's household (else the oldest household).
+/// </summary>
 public sealed class ViewSharedLibraryRepository(IDatabaseConnection database) : IViewSharedLibraryRepository
 {
-    public Task<ViewSharedLibrary> GetAsync(CancellationToken ct = default)
+    /// <summary>SQL for the server's own household: the server administrator's, else the oldest.</summary>
+    public const string ServerHouseholdSql = """
+        COALESCE(
+            (SELECT household_id FROM accounts
+              WHERE is_administrator = 1 AND is_enabled = 1 AND household_id IS NOT NULL
+              ORDER BY created_at, id LIMIT 1),
+            (SELECT id FROM households ORDER BY created_at, id LIMIT 1))
+        """;
+
+    private const string LibrarySelect = """
+        SELECT household_id AS HouseholdId, library_id AS LibraryId, created_at AS CreatedAt, updated_at AS UpdatedAt
+          FROM view_shared_library
+        """;
+
+    public async Task<ViewSharedLibrary> GetAsync(CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested();
+        LibraryRow? row;
+        Guid? household;
+        using (var connection = database.CreateConnection())
+        {
+            row = connection.QueryFirstOrDefault<LibraryRow>(new CommandDefinition(
+                $"{LibrarySelect} WHERE household_id = {ServerHouseholdSql};", cancellationToken: ct));
+            household = row is null
+                ? connection.QueryFirstOrDefault<Guid?>(new CommandDefinition(
+                    $"SELECT {ServerHouseholdSql};", cancellationToken: ct))
+                : null;
+        }
+
+        if (row is not null)
+        {
+            return Map(row);
+        }
+
+        if (household is { } serverHousehold)
+        {
+            return await EnsureForHouseholdAsync(serverHousehold, ct).ConfigureAwait(false);
+        }
+
+        return await database.ExecuteWriteAsync((connection, transaction, token) =>
+        {
+            token.ThrowIfCancellationRequested();
+            return Map(EnsureRow(connection, transaction, EnsureServerHousehold(connection, transaction)));
+        }, ct).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Finds the server's own household, creating a plain "Household" when none exists yet (a server with no accounts
+    /// still needs somewhere for shared items to belong).
+    /// </summary>
+    public static Guid EnsureServerHousehold(System.Data.IDbConnection connection, System.Data.IDbTransaction transaction)
+    {
+        var existing = connection.QueryFirstOrDefault<Guid?>($"SELECT {ServerHouseholdSql};", transaction: transaction);
+        if (existing is { } household)
+        {
+            return household;
+        }
+
+        var created = Guid.NewGuid();
+        connection.Execute(
+            "INSERT INTO households(id,name,created_at) VALUES(@created,'Household',@now);",
+            new { created, now = DateTimeOffset.UtcNow.ToString("O") }, transaction);
+        return created;
+    }
+
+    public Task<ViewSharedLibrary?> FindForHouseholdAsync(Guid householdId, CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+        ValidateId(householdId, nameof(householdId));
         using var connection = database.CreateConnection();
-        var row = connection.QuerySingle<LibraryRow>(new CommandDefinition("""
-            SELECT library_id AS LibraryId, created_at AS CreatedAt, updated_at AS UpdatedAt
-              FROM view_shared_library WHERE singleton_key = 1;
-            """, cancellationToken: ct));
-        return Task.FromResult(new ViewSharedLibrary(
-            row.LibraryId, ParseDate(row.CreatedAt), ParseDate(row.UpdatedAt)));
+        var row = connection.QueryFirstOrDefault<LibraryRow>(new CommandDefinition(
+            $"{LibrarySelect} WHERE household_id = @householdId;", new { householdId }, cancellationToken: ct));
+        return Task.FromResult(row is null ? null : Map(row));
+    }
+
+    public async Task<ViewSharedLibrary> EnsureForHouseholdAsync(Guid householdId, CancellationToken ct = default)
+    {
+        ValidateId(householdId, nameof(householdId));
+        if (await FindForHouseholdAsync(householdId, ct).ConfigureAwait(false) is { } existing)
+        {
+            return existing;
+        }
+
+        return await database.ExecuteWriteAsync((connection, transaction, token) =>
+        {
+            token.ThrowIfCancellationRequested();
+            return Map(EnsureRow(connection, transaction, householdId));
+        }, ct).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Finds the household's Shared library inside an open transaction, creating it when it does not exist yet.
+    /// Returns the library identity.
+    /// </summary>
+    public static Guid EnsureLibraryId(System.Data.IDbConnection connection, System.Data.IDbTransaction transaction, Guid householdId) =>
+        EnsureRow(connection, transaction, householdId).LibraryId;
+
+    private static LibraryRow EnsureRow(System.Data.IDbConnection connection, System.Data.IDbTransaction transaction, Guid householdId)
+    {
+        var row = connection.QueryFirstOrDefault<LibraryRow>(
+            $"{LibrarySelect} WHERE household_id = @householdId;", new { householdId }, transaction);
+        if (row is not null)
+        {
+            return row;
+        }
+
+        if (connection.ExecuteScalar<int>(
+                "SELECT COUNT(*) FROM households WHERE id = @householdId;", new { householdId }, transaction) == 0)
+        {
+            throw new KeyNotFoundException("Household not found.");
+        }
+
+        var now = DateTimeOffset.UtcNow.ToString("O");
+        connection.Execute("""
+            INSERT INTO view_shared_library (household_id, library_id, created_at, updated_at)
+            VALUES (@householdId, @libraryId, @now, @now);
+            """, new { householdId, libraryId = Guid.NewGuid(), now }, transaction);
+        return connection.QuerySingle<LibraryRow>(
+            $"{LibrarySelect} WHERE household_id = @householdId;", new { householdId }, transaction);
     }
 
     public Task<IReadOnlyList<ViewSharedSource>> GetSourcesAsync(CancellationToken ct = default)
@@ -58,12 +171,12 @@ public sealed class ViewSharedLibraryRepository(IDatabaseConnection database) : 
         return database.ExecuteWriteAsync((connection, transaction, token) =>
         {
             token.ThrowIfCancellationRequested();
-            var sharedLibraryId = connection.QuerySingle<Guid>(new CommandDefinition(
-                "SELECT library_id FROM view_shared_library WHERE singleton_key = 1;",
-                transaction: transaction, cancellationToken: token));
-            if (source.LibraryId != sharedLibraryId)
+            var isSharedLibrary = connection.ExecuteScalar<int>(new CommandDefinition(
+                "SELECT COUNT(*) FROM view_shared_library WHERE library_id = @LibraryId;",
+                new { source.LibraryId }, transaction, cancellationToken: token)) > 0;
+            if (!isSharedLibrary)
             {
-                throw new InvalidOperationException("A Shared source must use the singleton Shared library identity.");
+                throw new InvalidOperationException("A Shared source must use a household's Shared library identity.");
             }
 
             var id = source.Id == Guid.Empty ? Guid.NewGuid() : source.Id;
@@ -183,8 +296,12 @@ public sealed class ViewSharedLibraryRepository(IDatabaseConnection database) : 
         }
     }
 
+    private static ViewSharedLibrary Map(LibraryRow row) => new(
+        row.LibraryId, ParseDate(row.CreatedAt), ParseDate(row.UpdatedAt), row.HouseholdId);
+
     private sealed class LibraryRow
     {
+        public Guid HouseholdId { get; init; }
         public Guid LibraryId { get; init; }
         public string CreatedAt { get; init; } = string.Empty;
         public string UpdatedAt { get; init; } = string.Empty;

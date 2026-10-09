@@ -158,6 +158,7 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
                is_administrator AS IsAdministrator, authorization_version AS AuthorizationVersion,
                created_at AS CreatedAt, updated_at AS UpdatedAt,
                household_id AS HouseholdId,
+               household_admin AS HouseholdAdmin,
                grants_inherit_from_account_id AS GrantsInheritFromAccountId,
                this_computer_only AS ThisComputerOnly,
                must_change_password AS MustChangePassword,
@@ -176,6 +177,7 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
         CreatedAt = account.CreatedAt.ToString("O"),
         UpdatedAt = account.UpdatedAt.ToString("O"),
         account.HouseholdId,
+        HouseholdAdmin = account.HouseholdAdmin ? 1 : 0,
         account.GrantsInheritFromAccountId,
         ThisComputerOnly = account.IsThisComputerOnly ? 1 : 0,
         MustChangePassword = account.MustChangePassword ? 1 : 0,
@@ -188,6 +190,12 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
         if (row.ThisComputerOnly)
         {
             account.MarkThisComputerOnly();
+        }
+
+        // A person's own sign-in never administers a household, whatever a stray row says.
+        if (row.HouseholdAdmin && row.GrantsInheritFromAccountId is null)
+        {
+            account.MakeHouseholdAdmin();
         }
 
         return account;
@@ -222,6 +230,7 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
         public string CreatedAt { get; set; } = string.Empty;
         public string UpdatedAt { get; set; } = string.Empty;
         public Guid? HouseholdId { get; set; }
+        public bool HouseholdAdmin { get; set; }
         public Guid? GrantsInheritFromAccountId { get; set; }
         public bool ThisComputerOnly { get; set; }
         public bool MustChangePassword { get; set; }
@@ -276,6 +285,15 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
                       AND other.grants_inherit_from_account_id IS NULL AND other.is_enabled=1
                     ORDER BY other.created_at LIMIT 1)
                 WHERE grants_inherit_from_account_id=@accountId;
+                """, new { accountId }, transaction);
+            // A household whose main sign-in goes away hands "primary" to its next main sign-in (or none).
+            connection.Execute("""
+                UPDATE households SET primary_account_id=(
+                    SELECT other.id FROM accounts other
+                    WHERE other.household_id=households.id AND other.id<>@accountId
+                      AND other.grants_inherit_from_account_id IS NULL AND other.is_enabled=1
+                    ORDER BY other.created_at LIMIT 1)
+                WHERE primary_account_id=@accountId;
                 """, new { accountId }, transaction);
             connection.Execute("DELETE FROM accounts WHERE id=@accountId;", new { accountId }, transaction);
         }, ct);
@@ -366,6 +384,7 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
             InsertAccount(connection, transaction, account);
             InsertGrant(connection, transaction, initialGrant);
             ReplaceAccess(connection, transaction, account.Id, features, libraries, account.UpdatedAt);
+            EnsureHouseholdPrimary(connection, transaction, account.Id);
         }, ct);
 
     public Task CreateInvitedAccountAsync(
@@ -408,7 +427,7 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
 
             account.HouseholdId ??= profileHouseholds.Count == 1
                 ? profileHouseholds[0]
-                : CreateHousehold(connection, transaction, newProfile?.DisplayName ?? account.Email, account.CreatedAt);
+                : CreateOrAdoptHousehold(connection, transaction, newProfile?.DisplayName ?? account.Email, account);
             if (newProfile is not null)
             {
                 InsertProfileRow(connection, transaction, newProfile, account.HouseholdId.Value);
@@ -432,6 +451,8 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
                 CreatedAt = Iso(invitation.CreatedAt),
                 ExpiresAt = Iso(invitation.ExpiresAt),
             }, transaction);
+            // Someone invited from outside starts a household of their own and looks after it.
+            EnsureHouseholdPrimary(connection, transaction, account.Id);
         }, ct);
 
     public Task CreateManagedProfileAsync(
@@ -675,6 +696,46 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
                 """, new { accountId, now = Iso(DateTimeOffset.UtcNow) }, transaction);
         }, ct);
 
+    public Task<Guid?> GetHouseholdPrimaryAccountIdAsync(Guid householdId, CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+        using var conn = db.CreateConnection();
+        var id = conn.QuerySingleOrDefault<Guid?>(
+            "SELECT primary_account_id FROM households WHERE id=@householdId;", new { householdId });
+        return Task.FromResult(id);
+    }
+
+    public Task<bool> SetHouseholdAdminAsync(Guid accountId, bool isHouseholdAdmin, DateTimeOffset changedAt, CancellationToken ct = default) =>
+        db.ExecuteWriteAsync((connection, transaction, token) =>
+        {
+            token.ThrowIfCancellationRequested();
+            var account = connection.QuerySingleOrDefault<(Guid? HouseholdId, bool Follows)>(
+                "SELECT household_id AS HouseholdId, (grants_inherit_from_account_id IS NOT NULL) AS Follows FROM accounts WHERE id=@accountId;",
+                new { accountId }, transaction);
+            if (account.HouseholdId is null)
+            {
+                return false;
+            }
+
+            if (isHouseholdAdmin && account.Follows)
+            {
+                throw new InvalidOperationException("A person's own sign-in can't be a household administrator.");
+            }
+
+            var changed = connection.Execute("""
+                UPDATE accounts SET household_admin=@flag, authorization_version=authorization_version+1, updated_at=@now
+                WHERE id=@accountId AND household_admin<>@flag;
+                """, new { accountId, flag = isHouseholdAdmin ? 1 : 0, now = Iso(changedAt) }, transaction);
+            if (isHouseholdAdmin)
+            {
+                connection.Execute(
+                    "UPDATE households SET primary_account_id=@accountId WHERE id=@household AND primary_account_id IS NULL;",
+                    new { accountId, household = account.HouseholdId.Value }, transaction);
+            }
+
+            return changed > 0;
+        }, ct);
+
     public Task ReplaceAccountAccessAsync(Guid accountId, IReadOnlySet<AccountFeatureId> features,
         IReadOnlySet<Guid> libraries, DateTimeOffset changedAt, CancellationToken ct = default) =>
         db.ExecuteWriteAsync((connection, transaction, token) =>
@@ -770,7 +831,7 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
             "DELETE FROM grant_admin_unlocks WHERE session_id=@sessionId;",
             new { sessionId }, transaction), ct);
 
-    private static void InsertAccount(System.Data.IDbConnection c, System.Data.IDbTransaction tx, Account a) => c.Execute("INSERT INTO accounts(id,email,normalized_email,is_enabled,is_administrator,authorization_version,created_at,updated_at,household_id,grants_inherit_from_account_id,this_computer_only,must_change_password,temporary_password_expires_at) VALUES(@Id,@Email,@NormalizedEmail,@IsEnabled,@IsAdministrator,@AuthorizationVersion,@CreatedAt,@UpdatedAt,@HouseholdId,@GrantsInheritFromAccountId,@ThisComputerOnly,@MustChangePassword,@TemporaryPasswordExpiresAt);", Parameters(a), tx);
+    private static void InsertAccount(System.Data.IDbConnection c, System.Data.IDbTransaction tx, Account a) => c.Execute("INSERT INTO accounts(id,email,normalized_email,is_enabled,is_administrator,authorization_version,created_at,updated_at,household_id,household_admin,grants_inherit_from_account_id,this_computer_only,must_change_password,temporary_password_expires_at) VALUES(@Id,@Email,@NormalizedEmail,@IsEnabled,@IsAdministrator,@AuthorizationVersion,@CreatedAt,@UpdatedAt,@HouseholdId,@HouseholdAdmin,@GrantsInheritFromAccountId,@ThisComputerOnly,@MustChangePassword,@TemporaryPasswordExpiresAt);", Parameters(a), tx);
     private static void InsertGrant(System.Data.IDbConnection c, System.Data.IDbTransaction tx, AccountProfileGrant g)
     {
         JoinHousehold(c, tx, g.AccountId, g.ProfileId, g.GrantedAt);
@@ -865,6 +926,31 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
         return id;
     }
 
+    /// <summary>
+    /// The first main sign-in a household gets (never a person's own sign-in, which follows another) becomes its
+    /// primary account and its household administrator. Later sign-ins leave that alone.
+    /// </summary>
+    private static void EnsureHouseholdPrimary(System.Data.IDbConnection c, System.Data.IDbTransaction tx, Guid accountId)
+    {
+        var householdId = HouseholdOfAccount(c, tx, accountId);
+        if (householdId is null)
+        {
+            return;
+        }
+
+        var named = c.Execute("""
+            UPDATE households SET primary_account_id=@accountId
+            WHERE id=@householdId AND primary_account_id IS NULL
+              AND EXISTS (SELECT 1 FROM accounts WHERE id=@accountId AND grants_inherit_from_account_id IS NULL);
+            """, new { accountId, householdId = householdId.Value }, tx);
+        if (named > 0)
+        {
+            // A brand-new account has no open sessions to re-check, so its authorization version stays as created.
+            c.Execute("UPDATE accounts SET household_admin=1 WHERE id=@accountId;",
+                new { accountId }, tx);
+        }
+    }
+
     private static Guid? HouseholdOfAccount(System.Data.IDbConnection c, System.Data.IDbTransaction tx, Guid accountId) =>
         c.QueryFirstOrDefault<Guid?>("SELECT household_id FROM accounts WHERE id=@accountId;", new { accountId }, tx);
 
@@ -897,7 +983,29 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
         }
 
         var fromProfile = profileId is { } p ? HouseholdOfProfile(c, tx, p) : null;
-        return fromProfile ?? CreateHousehold(c, tx, name, account.CreatedAt);
+        return fromProfile ?? CreateOrAdoptHousehold(c, tx, name, account);
+    }
+
+    /// <summary>
+    /// A new household for <paramref name="account"/>. The first server administrator joins the server's still-empty
+    /// household (made by the Shared Library upgrade, or by the first shared item) instead of leaving it as a phantom.
+    /// </summary>
+    private static Guid CreateOrAdoptHousehold(
+        System.Data.IDbConnection c, System.Data.IDbTransaction tx, string? name, Account account)
+    {
+        if (account.IsAdministrator &&
+            c.QueryFirstOrDefault<Guid?>("""
+                SELECT h.id FROM households h
+                WHERE NOT EXISTS (SELECT 1 FROM accounts a WHERE a.household_id = h.id)
+                  AND NOT EXISTS (SELECT 1 FROM profiles p WHERE p.household_id = h.id)
+                  AND EXISTS (SELECT 1 FROM view_shared_library v WHERE v.household_id = h.id)
+                ORDER BY h.created_at, h.id LIMIT 1;
+                """, transaction: tx) is { } empty)
+        {
+            return empty;
+        }
+
+        return CreateHousehold(c, tx, name, account.CreatedAt);
     }
 
     /// <summary>

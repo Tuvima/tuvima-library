@@ -63,7 +63,9 @@ public sealed class RequestAuthorityResolver(
             account?.IsAdministrator == true,
             grant?.AdminEnabled == true,
             application?.IsAdministrator == true,
-            activeProfile?.Role == ProfileRole.RestrictedProfile);
+            activeProfile?.Role == ProfileRole.RestrictedProfile,
+            account?.HouseholdId,
+            account?.HouseholdAdmin == true);
     }
 
     private static Guid? ClaimGuid(ClaimsPrincipal user, string type) =>
@@ -193,6 +195,28 @@ public sealed class AccountAccessDecisionService(
             return AuthorizationDecision.Allow();
         }
 
+        var state = await unlocks.GetStateAsync(authority, ct).ConfigureAwait(false);
+        return !state.ProtectionEnabled || state.IsUnlocked
+            ? AuthorizationDecision.Allow()
+            : AuthorizationDecision.Deny(AuthorizationDenialReason.AdministratorUnlockRequired);
+    }
+
+    public async ValueTask<AuthorizationDecision> EvaluateHouseholdAdministratorAsync(
+        RequestAuthority authority,
+        bool requireSurfaceUnlock,
+        CancellationToken ct = default)
+    {
+        if (AuthorityValidity.ValidateHuman(authority) is not null || !authority.IsEffectiveHouseholdAdministrator)
+        {
+            return AuthorizationDecision.Deny(AuthorizationDenialReason.AdministratorRequired);
+        }
+
+        if (!requireSurfaceUnlock)
+        {
+            return AuthorizationDecision.Allow();
+        }
+
+        // Same rule as a server administrator: when the person turned on their administrator PIN, it must be unlocked.
         var state = await unlocks.GetStateAsync(authority, ct).ConfigureAwait(false);
         return !state.ProtectionEnabled || state.IsUnlocked
             ? AuthorizationDecision.Allow()
@@ -471,7 +495,7 @@ public sealed class GrantAdminUnlockService(
 
     private static (Guid Account, Guid Profile) RequireHuman(RequestAuthority authority)
     {
-        if (!authority.IsEffectiveAdministrator ||
+        if (!(authority.IsEffectiveAdministrator || authority.IsEffectiveHouseholdAdministrator) ||
             authority.AccountId is not { } account ||
             authority.ActiveProfileId is not { } profile)
         {
@@ -482,9 +506,13 @@ public sealed class GrantAdminUnlockService(
     }
 }
 
-public sealed class EffectiveAdministratorRequirement(bool surfaceUnlock) : IAuthorizationRequirement
+public sealed class EffectiveAdministratorRequirement(bool surfaceUnlock, bool allowHouseholdAdministrator = false)
+    : IAuthorizationRequirement
 {
     public bool SurfaceUnlock { get; } = surfaceUnlock;
+
+    /// <summary>When true a household administrator (not a server administrator) passes too.</summary>
+    public bool AllowHouseholdAdministrator { get; } = allowHouseholdAdministrator;
 }
 
 public sealed class EffectiveAdministratorHandler(
@@ -502,6 +530,9 @@ public sealed class EffectiveAdministratorHandler(
 
         var authority = await resolver.ResolveAsync(http, http.RequestAborted).ConfigureAwait(false);
         if ((await decisions.EvaluateAdministratorAsync(
+                authority, requirement.SurfaceUnlock, http.RequestAborted).ConfigureAwait(false)).IsAllowed ||
+            requirement.AllowHouseholdAdministrator && !authority.IsEffectiveAdministrator &&
+            (await decisions.EvaluateHouseholdAdministratorAsync(
                 authority, requirement.SurfaceUnlock, http.RequestAborted).ConfigureAwait(false)).IsAllowed)
         {
             context.Succeed(requirement);
@@ -560,9 +591,17 @@ public sealed class ApplicationPermissionHandler(
     }
 }
 
-public sealed class AdministratorOrApplicationRequirement(ApplicationPermissionId permission) : IAuthorizationRequirement
+public sealed class AdministratorOrApplicationRequirement(
+    ApplicationPermissionId permission,
+    bool allowHouseholdAdministrator = false) : IAuthorizationRequirement
 {
     public ApplicationPermissionId Permission { get; } = permission;
+
+    /// <summary>
+    /// When true, a household administrator (who is not a server administrator) may also pass. The action itself must then
+    /// still check that the target is in that administrator's own household.
+    /// </summary>
+    public bool AllowHouseholdAdministrator { get; } = allowHouseholdAdministrator;
 }
 
 public sealed class HumanOrApplicationPermissionRequirement(ApplicationPermissionId permission)
@@ -632,6 +671,9 @@ public sealed class AdministratorOrApplicationHandler(
         if (authority.PrincipalKind == PrincipalKind.Human)
         {
             if ((await administrators.EvaluateAdministratorAsync(
+                    authority, true, http.RequestAborted).ConfigureAwait(false)).IsAllowed ||
+                requirement.AllowHouseholdAdministrator && !authority.IsEffectiveAdministrator &&
+                (await administrators.EvaluateHouseholdAdministratorAsync(
                     authority, true, http.RequestAborted).ConfigureAwait(false)).IsAllowed)
             {
                 context.Succeed(requirement);
@@ -675,6 +717,15 @@ public static class AuthorityEndpointExtensions
         bool surfaceUnlock = true) =>
         builder.RequireAuthorization(surfaceUnlock ? AuthPolicies.Administrator : AuthPolicies.AdministratorEligibility);
 
+    /// <summary>The administrator-unlock routes also serve a household administrator who turned on their PIN.</summary>
+    public static RouteHandlerBuilder RequireEffectiveAdministratorOrHouseholdAdministrator(
+        this RouteHandlerBuilder builder,
+        bool surfaceUnlock = true) =>
+        builder.RequireAuthorization(new AuthorizationPolicyBuilder()
+            .RequireAuthenticatedUser()
+            .AddRequirements(new EffectiveAdministratorRequirement(surfaceUnlock, allowHouseholdAdministrator: true))
+            .Build());
+
     public static RouteHandlerBuilder RequireApplicationPermission(
         this RouteHandlerBuilder builder,
         ApplicationPermissionId permission) =>
@@ -697,6 +748,18 @@ public static class AuthorityEndpointExtensions
         builder.RequireAuthorization(new AuthorizationPolicyBuilder()
             .RequireAuthenticatedUser()
             .AddRequirements(new AdministratorOrApplicationRequirement(permission))
+            .Build());
+
+    /// <summary>
+    /// Like <see cref="RequireAdministratorOrApplication(RouteHandlerBuilder, ApplicationPermissionId)"/> but a household
+    /// administrator also passes. Use only for actions the service limits to the administrator's own household.
+    /// </summary>
+    public static RouteHandlerBuilder RequireAdministratorHouseholdOrApplication(
+        this RouteHandlerBuilder builder,
+        ApplicationPermissionId permission) =>
+        builder.RequireAuthorization(new AuthorizationPolicyBuilder()
+            .RequireAuthenticatedUser()
+            .AddRequirements(new AdministratorOrApplicationRequirement(permission, allowHouseholdAdministrator: true))
             .Build());
 
     public static RouteHandlerBuilder RequireHumanOrApplicationPermission(

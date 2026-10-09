@@ -748,8 +748,9 @@ CREATE TABLE IF NOT EXISTS view_sources (
         OR (scope_kind = 'shared' AND personal_space_id IS NULL))
 );
 
+-- One Shared library per household; each household's library is created when it is first needed.
 CREATE TABLE IF NOT EXISTS view_shared_library (
-    singleton_key INTEGER NOT NULL PRIMARY KEY CHECK (singleton_key = 1),
+    household_id BLOB NOT NULL PRIMARY KEY REFERENCES households(id),
     library_id BLOB NOT NULL UNIQUE,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL
@@ -776,9 +777,6 @@ BEGIN SELECT RAISE(ABORT,'Shared library identity is immutable'); END;
 CREATE TRIGGER IF NOT EXISTS trg_view_shared_library_delete
 BEFORE DELETE ON view_shared_library
 BEGIN SELECT RAISE(ABORT,'Shared library identity cannot be deleted'); END;
-INSERT OR IGNORE INTO view_shared_library(singleton_key, library_id, created_at, updated_at)
-VALUES (1, X'00000000000000000000000000000003',
-    strftime('%Y-%m-%dT%H:%M:%fZ','now'), strftime('%Y-%m-%dT%H:%M:%fZ','now'));
 
 -- Timeline inclusion is separate from source registration. Browser uploads
 -- participate by default; additional folders opt in explicitly.
@@ -1562,7 +1560,8 @@ CREATE TABLE IF NOT EXISTS playback_segments (
 CREATE TABLE IF NOT EXISTS households (
     id         BLOB NOT NULL PRIMARY KEY,
     name       TEXT NOT NULL,
-    created_at TEXT NOT NULL
+    created_at TEXT NOT NULL,
+    primary_account_id BLOB REFERENCES accounts(id) ON DELETE SET NULL
 );
 
 CREATE TABLE IF NOT EXISTS profiles (
@@ -1586,6 +1585,7 @@ CREATE TABLE IF NOT EXISTS accounts (
     created_at       TEXT NOT NULL,
     updated_at       TEXT NOT NULL,
     household_id     BLOB REFERENCES households(id),
+    household_admin  INTEGER NOT NULL DEFAULT 0 CHECK (household_admin IN (0, 1)),
     grants_inherit_from_account_id BLOB REFERENCES accounts(id) ON DELETE SET NULL,
     this_computer_only INTEGER NOT NULL DEFAULT 0 CHECK (this_computer_only IN (0, 1)),
     must_change_password INTEGER NOT NULL DEFAULT 0 CHECK (must_change_password IN (0, 1)),
@@ -1624,16 +1624,16 @@ CREATE TABLE IF NOT EXISTS account_feature_grants (
 );
 
 CREATE TRIGGER IF NOT EXISTS trg_view_sources_scope_insert BEFORE INSERT ON view_sources BEGIN
-    SELECT CASE WHEN NEW.scope_kind='personal' AND NOT EXISTS (SELECT 1 FROM view_personal_spaces s WHERE s.id=NEW.personal_space_id AND s.library_id=NEW.library_id) THEN RAISE(ABORT,'personal View source must match its Personal Space library') WHEN NEW.scope_kind='shared' AND NOT EXISTS (SELECT 1 FROM view_shared_library s WHERE s.singleton_key=1 AND s.library_id=NEW.library_id) THEN RAISE(ABORT,'Shared View source must match the Shared library') END;
+    SELECT CASE WHEN NEW.scope_kind='personal' AND NOT EXISTS (SELECT 1 FROM view_personal_spaces s WHERE s.id=NEW.personal_space_id AND s.library_id=NEW.library_id) THEN RAISE(ABORT,'personal View source must match its Personal Space library') WHEN NEW.scope_kind='shared' AND NOT EXISTS (SELECT 1 FROM view_shared_library s WHERE s.library_id=NEW.library_id) THEN RAISE(ABORT,'Shared View source must match the Shared library') END;
 END;
 CREATE TRIGGER IF NOT EXISTS trg_view_sources_scope_update BEFORE UPDATE OF scope_kind,personal_space_id,library_id ON view_sources BEGIN
-    SELECT CASE WHEN NEW.scope_kind='personal' AND NOT EXISTS (SELECT 1 FROM view_personal_spaces s WHERE s.id=NEW.personal_space_id AND s.library_id=NEW.library_id) THEN RAISE(ABORT,'personal View source must match its Personal Space library') WHEN NEW.scope_kind='shared' AND NOT EXISTS (SELECT 1 FROM view_shared_library s WHERE s.singleton_key=1 AND s.library_id=NEW.library_id) THEN RAISE(ABORT,'Shared View source must match the Shared library') END;
+    SELECT CASE WHEN NEW.scope_kind='personal' AND NOT EXISTS (SELECT 1 FROM view_personal_spaces s WHERE s.id=NEW.personal_space_id AND s.library_id=NEW.library_id) THEN RAISE(ABORT,'personal View source must match its Personal Space library') WHEN NEW.scope_kind='shared' AND NOT EXISTS (SELECT 1 FROM view_shared_library s WHERE s.library_id=NEW.library_id) THEN RAISE(ABORT,'Shared View source must match the Shared library') END;
 END;
 CREATE TRIGGER IF NOT EXISTS trg_local_items_scope_insert BEFORE INSERT ON local_items BEGIN
-    SELECT CASE WHEN NEW.scope_kind='personal' AND NOT EXISTS (SELECT 1 FROM view_personal_spaces s WHERE s.id=NEW.personal_space_id AND s.library_id=NEW.library_id AND s.owner_profile_id=NEW.owner_profile_id) THEN RAISE(ABORT,'personal View item must match its owner and Personal Space library') WHEN NEW.scope_kind='shared' AND NOT EXISTS (SELECT 1 FROM view_shared_library s WHERE s.singleton_key=1 AND s.library_id=NEW.library_id) THEN RAISE(ABORT,'Shared View item must match the Shared library') END;
+    SELECT CASE WHEN NEW.scope_kind='personal' AND NOT EXISTS (SELECT 1 FROM view_personal_spaces s WHERE s.id=NEW.personal_space_id AND s.library_id=NEW.library_id AND s.owner_profile_id=NEW.owner_profile_id) THEN RAISE(ABORT,'personal View item must match its owner and Personal Space library') WHEN NEW.scope_kind='shared' AND NOT EXISTS (SELECT 1 FROM view_shared_library s WHERE s.library_id=NEW.library_id) THEN RAISE(ABORT,'Shared View item must match the Shared library') END;
 END;
 CREATE TRIGGER IF NOT EXISTS trg_local_items_scope_update BEFORE UPDATE OF scope_kind,personal_space_id,owner_profile_id,library_id ON local_items BEGIN
-    SELECT CASE WHEN NEW.scope_kind='personal' AND NOT EXISTS (SELECT 1 FROM view_personal_spaces s WHERE s.id=NEW.personal_space_id AND s.library_id=NEW.library_id AND s.owner_profile_id=NEW.owner_profile_id) THEN RAISE(ABORT,'personal View item must match its owner and Personal Space library') WHEN NEW.scope_kind='shared' AND NOT EXISTS (SELECT 1 FROM view_shared_library s WHERE s.singleton_key=1 AND s.library_id=NEW.library_id) THEN RAISE(ABORT,'Shared View item must match the Shared library') END;
+    SELECT CASE WHEN NEW.scope_kind='personal' AND NOT EXISTS (SELECT 1 FROM view_personal_spaces s WHERE s.id=NEW.personal_space_id AND s.library_id=NEW.library_id AND s.owner_profile_id=NEW.owner_profile_id) THEN RAISE(ABORT,'personal View item must match its owner and Personal Space library') WHEN NEW.scope_kind='shared' AND NOT EXISTS (SELECT 1 FROM view_shared_library s WHERE s.library_id=NEW.library_id) THEN RAISE(ABORT,'Shared View item must match the Shared library') END;
 END;
 CREATE UNIQUE INDEX IF NOT EXISTS ux_view_sources_personal_key ON view_sources(personal_space_id, source_key)
     WHERE scope_kind = 'personal' AND source_key IS NOT NULL;
