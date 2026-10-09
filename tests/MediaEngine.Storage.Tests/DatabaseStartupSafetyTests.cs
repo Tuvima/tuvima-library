@@ -382,6 +382,8 @@ public sealed class DatabaseStartupSafetyTests
             ("device_pairing_requests", "account_id"),
             ("device_pairing_requests", "profile_id"),
             ("device_pairing_requests", "approved_by_profile_id"),
+            ("device_profile_preferences", "account_id"),
+            ("device_profile_preferences", "profile_id"),
             ("editions", "work_id"),
             ("encode_jobs", "id"),
             ("encode_jobs", "asset_id"),

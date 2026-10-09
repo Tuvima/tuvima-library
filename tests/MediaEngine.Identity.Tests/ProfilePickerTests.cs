@@ -130,8 +130,12 @@ public sealed class ProfilePickerTests : IDisposable
         await _service.SetDeviceProfilePreferenceAsync(owner.Account.Id, laptop.Session.Id, mary.Id);
         var stranger = new Account
         {
-            Id = Guid.NewGuid(), Email = "stranger@example.com", NormalizedEmail = "STRANGER@EXAMPLE.COM",
-            IsEnabled = true, CreatedAt = DateTimeOffset.UtcNow, UpdatedAt = DateTimeOffset.UtcNow,
+            Id = Guid.NewGuid(),
+            Email = "stranger@example.com",
+            NormalizedEmail = "STRANGER@EXAMPLE.COM",
+            IsEnabled = true,
+            CreatedAt = DateTimeOffset.UtcNow,
+            UpdatedAt = DateTimeOffset.UtcNow,
         };
         await _accounts.InsertAsync(stranger);
         var outsider = new Profile { Id = Guid.NewGuid(), DisplayName = "Outsider", AvatarColor = "#111111", Role = ProfileRole.StandardUser, CreatedAt = DateTimeOffset.UtcNow };
@@ -175,7 +179,9 @@ public sealed class ProfilePickerTests : IDisposable
             await InsertProfileAsync(profile);
             await _accounts.GrantProfileAsync(new AccountProfileGrant
             {
-                AccountId = owner.Account.Id, ProfileId = profile.Id, GrantedAt = DateTimeOffset.UtcNow.AddMinutes(index + 1),
+                AccountId = owner.Account.Id,
+                ProfileId = profile.Id,
+                GrantedAt = DateTimeOffset.UtcNow.AddMinutes(index + 1),
             });
         }
 
@@ -212,8 +218,13 @@ public sealed class ProfilePickerTests : IDisposable
             VALUES(@Id,@DisplayName,@AvatarColor,@AvatarImagePath,@Role,@CreatedAt,@NavigationConfig);
             """, new
         {
-            profile.Id, profile.DisplayName, profile.AvatarColor, profile.AvatarImagePath,
-            Role = profile.Role.ToString(), CreatedAt = profile.CreatedAt.ToString("O"), profile.NavigationConfig,
+            profile.Id,
+            profile.DisplayName,
+            profile.AvatarColor,
+            profile.AvatarImagePath,
+            Role = profile.Role.ToString(),
+            CreatedAt = profile.CreatedAt.ToString("O"),
+            profile.NavigationConfig,
         });
         return Task.CompletedTask;
     }
