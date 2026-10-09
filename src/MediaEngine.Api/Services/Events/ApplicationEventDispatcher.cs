@@ -22,7 +22,7 @@ public sealed class ApplicationEventDispatcher(
     IHubContext<ApplicationEventsHub> hub,
     IApplicationEventRepository repository,
     IServiceScopeFactory scopes,
-    ILogger<ApplicationEventDispatcher> logger)
+    ILogger<ApplicationEventDispatcher> logger) : MediaEngine.Api.Security.IDeviceRevocationNotifier
 {
     internal const int QueueCapacity = 128;
     private const int ReplayPageSize = 128;
@@ -156,6 +156,32 @@ public sealed class ApplicationEventDispatcher(
         finally
         {
             _ordering.Release();
+        }
+    }
+
+    /// <summary>
+    /// Sends <see cref="ApplicationEventClientMethods.Revoked"/> to every live connection of a revoked device and
+    /// closes it, so the app signs out now instead of at its next request.
+    /// </summary>
+    public async Task NotifyDeviceRevokedAsync(Guid deviceId, CancellationToken ct = default)
+    {
+        foreach (var subscription in _subscriptions.Values.Where(value => value.Subscriber.Authority.DeviceId == deviceId).ToArray())
+        {
+            Remove(subscription);
+            try
+            {
+                using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
+                timeout.CancelAfter(SendTimeout);
+                await hub.Clients.Client(subscription.Subscriber.ConnectionId).SendAsync(
+                    ApplicationEventClientMethods.Revoked, timeout.Token).ConfigureAwait(false);
+            }
+            catch (Exception exception) when (exception is not OperationCanceledException || !ct.IsCancellationRequested)
+            {
+                // Best effort: the device's tokens are already revoked, so a missed notice only delays its sign-out.
+                logger.LogDebug(exception,
+                    "Best-effort device revoked notification failed for connection {ConnectionId}.",
+                    subscription.Subscriber.ConnectionId);
+            }
         }
     }
 

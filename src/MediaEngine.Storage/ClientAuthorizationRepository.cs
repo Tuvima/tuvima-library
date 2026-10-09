@@ -225,14 +225,30 @@ public sealed class ClientAuthorizationRepository(IDatabaseConnection db) : ICli
                 """, new { deviceId, capabilitiesJson, now = Iso(now) }, tx) == 1;
         }, ct);
 
+    public Task<IReadOnlyList<ClientDevice>> GetActiveDevicesAsync(Guid? accountId, CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+        using var conn = db.CreateConnection();
+        var rows = conn.Query<DeviceRow>(
+            DeviceSelect + " WHERE revoked_at IS NULL AND (@accountId IS NULL OR account_id = @accountId) ORDER BY last_seen_at DESC;",
+            new { accountId });
+        return Task.FromResult<IReadOnlyList<ClientDevice>>(rows.Select(MapDevice).ToList());
+    }
+
     public Task<bool> RevokeDeviceAsync(Guid deviceId, Guid profileId, DateTimeOffset now, string reason, CancellationToken ct = default) =>
+        RevokeDeviceCoreAsync(deviceId, profileId, now, reason, ct);
+
+    public Task<bool> RevokeDeviceByIdAsync(Guid deviceId, DateTimeOffset now, string reason, CancellationToken ct = default) =>
+        RevokeDeviceCoreAsync(deviceId, null, now, reason, ct);
+
+    private Task<bool> RevokeDeviceCoreAsync(Guid deviceId, Guid? profileId, DateTimeOffset now, string reason, CancellationToken ct) =>
         db.ExecuteWriteAsync((conn, tx, token) =>
         {
             token.ThrowIfCancellationRequested();
             var changed = conn.Execute("""
                 UPDATE client_devices
                 SET revoked_at = @now, revoked_reason = @reason
-                WHERE id = @deviceId AND profile_id = @profileId AND revoked_at IS NULL;
+                WHERE id = @deviceId AND (@profileId IS NULL OR profile_id = @profileId) AND revoked_at IS NULL;
                 """, new { deviceId, profileId, now = Iso(now), reason }, tx);
             if (changed == 1)
             {

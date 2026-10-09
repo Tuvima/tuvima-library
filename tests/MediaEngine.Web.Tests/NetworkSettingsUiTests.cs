@@ -10,11 +10,11 @@ namespace MediaEngine.Web.Tests;
 public sealed class NetworkSettingsUiTests
 {
     [Fact]
-    public void NetworkNavigationUsesCanonicalFiveSectionRoutes()
+    public void NetworkNavigationUsesCanonicalSectionRoutes()
     {
         var subsections = SettingsNav.GetSubsections(SettingsSection.Network).ToArray();
 
-        Assert.Equal(["overview", "local", "remote", "streaming", "advanced"], subsections.Select(item => item.Slug));
+        Assert.Equal(["overview", "local", "remote", "apps", "streaming", "advanced"], subsections.Select(item => item.Slug));
         Assert.Equal("/settings/network/overview", SettingsNav.RouteFor(SettingsSection.Network));
         Assert.Equal("/settings/network/remote", SettingsNav.RouteFor(SettingsSection.Network, "remote"));
     }
@@ -59,6 +59,25 @@ public sealed class NetworkSettingsUiTests
         Assert.Contains("Port Forwarding &amp; Router Mapping", advanced, StringComparison.Ordinal);
         Assert.Contains("PCP, NAT-PMP, and UPnP", advanced, StringComparison.Ordinal);
         Assert.Contains("ManualPortForwardingDialog", advanced, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void AppsAndDevicesPanelGatesTheSwitchOnAnywhereAndListsPairedDevices()
+    {
+        var panel = Read(@"src/MediaEngine.Web/Components/Settings/AppsAndDevicesPanel.razor");
+        var host = Read(@"src/MediaEngine.Web/Components/Settings/NetworkRemoteAccessSettings.razor");
+        var account = Read(@"src/MediaEngine.Web/Components/Settings/AccountSettingsTab.razor");
+
+        Assert.Contains("Disabled=\"@(!AllowsInternet || _saving)\"", panel, StringComparison.Ordinal);
+        Assert.Contains("Settings.WhoCanConnect == \"anywhere\"", panel, StringComparison.Ordinal);
+        Assert.Contains("Apps connect over the internet address. Set Who can connect to Anywhere first.", panel, StringComparison.Ordinal);
+        Assert.Contains("Address to type in the app", panel, StringComparison.Ordinal);
+        Assert.Contains("TestRemoteNetworkAsync", panel, StringComparison.Ordinal);
+        Assert.Contains("<AppTable", panel, StringComparison.Ordinal);
+        Assert.Contains("RevokeManagedDeviceAsync", panel, StringComparison.Ordinal);
+        Assert.Contains("Revoke this device?", panel, StringComparison.Ordinal);
+        Assert.Contains("<AppsAndDevicesPanel", host, StringComparison.Ordinal);
+        Assert.Contains("Settings &gt; Network &gt; Apps &amp; devices", account, StringComparison.Ordinal);
     }
 
     [Fact]

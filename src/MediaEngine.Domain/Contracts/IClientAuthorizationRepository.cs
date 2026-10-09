@@ -19,4 +19,10 @@ public interface IClientAuthorizationRepository
     Task<ClientDevice?> GetDeviceAsync(Guid deviceId, CancellationToken ct = default);
     Task<bool> UpdateCapabilitiesAsync(Guid deviceId, string capabilitiesJson, DateTimeOffset now, CancellationToken ct = default);
     Task<bool> RevokeDeviceAsync(Guid deviceId, Guid profileId, DateTimeOffset now, string reason, CancellationToken ct = default);
+
+    /// <summary>Active (not revoked) devices; every account's when <paramref name="accountId"/> is null.</summary>
+    Task<IReadOnlyList<ClientDevice>> GetActiveDevicesAsync(Guid? accountId, CancellationToken ct = default);
+
+    /// <summary>Revokes a device and all of its tokens whichever profile it was paired under.</summary>
+    Task<bool> RevokeDeviceByIdAsync(Guid deviceId, DateTimeOffset now, string reason, CancellationToken ct = default);
 }
