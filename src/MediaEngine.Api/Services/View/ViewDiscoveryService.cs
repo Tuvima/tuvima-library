@@ -140,7 +140,9 @@ public sealed class ViewDiscoveryService(
     {
         var decision = await AuthorizeAsync(scope, ct).ConfigureAwait(false);
         if (!decision.IsAllowed || decision.Scope is null)
+        {
             return new ViewAtlasResult(decision.Outcome);
+        }
 
         var page = repository.QueryAtlas(new ViewAtlasDiscoveryQuery(
             decision.Scope.LibraryIds,
@@ -187,9 +189,13 @@ public sealed class ViewDiscoveryService(
     {
         var decision = await AuthorizeAsync(scope, ct).ConfigureAwait(false);
         if (!decision.IsAllowed || decision.Scope is null)
+        {
             return new ViewPlaceMediaResult(decision.Outcome);
+        }
         if (assets is null)
+        {
             throw new InvalidOperationException("The asset repository is unavailable.");
+        }
 
         var page = repository.QueryPlaceAssets(new ViewPlaceAssetDiscoveryQuery(
             decision.Scope.LibraryIds,

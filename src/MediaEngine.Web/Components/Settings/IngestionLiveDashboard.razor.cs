@@ -1,10 +1,10 @@
 using System.Globalization;
+using MediaEngine.Web.Components.Shared;
 using MediaEngine.Web.Models.ViewDTOs;
 using MediaEngine.Web.Services.Formatting;
 using MediaEngine.Web.Services.Integration;
-using Microsoft.AspNetCore.Components;
-using MediaEngine.Web.Components.Shared;
 using MediaEngine.Web.Services.Ui;
+using Microsoft.AspNetCore.Components;
 
 namespace MediaEngine.Web.Components.Settings;
 

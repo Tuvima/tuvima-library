@@ -222,7 +222,9 @@ public sealed class MetadataHarvestingService : BackgroundService, IMetadataHarv
         {
             if (request.MediaType == MediaType.TV
                 && string.Equals(provider.Name, "tmdb", StringComparison.OrdinalIgnoreCase))
+            {
                 continue;
+            }
 
             if (!provider.CanHandle(request.MediaType) || !provider.CanHandle(request.EntityType))
             {

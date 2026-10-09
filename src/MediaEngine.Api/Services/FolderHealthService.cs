@@ -133,7 +133,10 @@ public sealed class FolderHealthService : BackgroundService
             }
 
             // Existing-library and unknown paths are never tested by creating files.
-            if (!allowWriteProbe) return new FolderState(true, hasRead, false);
+            if (!allowWriteProbe)
+            {
+                return new FolderState(true, hasRead, false);
+            }
 
             // Write probes are limited to explicitly writable managed sources.
             bool hasWrite;

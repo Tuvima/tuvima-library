@@ -1,3 +1,4 @@
+using Dapper;
 using MediaEngine.Api.Services.Details;
 using MediaEngine.Api.Services.ReadServices;
 using MediaEngine.Application.ReadModels;
@@ -8,7 +9,6 @@ using MediaEngine.Contracts.Search;
 using MediaEngine.Domain.Entities;
 using MediaEngine.Domain.Models;
 using MediaEngine.Storage;
-using Dapper;
 
 namespace MediaEngine.Api.Tests;
 

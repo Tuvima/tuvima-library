@@ -1,6 +1,6 @@
 using MediaEngine.Contracts.Metadata;
-using MediaEngine.Web.Services.Editing;
 using MediaEngine.Web.Components.Shared;
+using MediaEngine.Web.Services.Editing;
 using MediaEngine.Web.Services.Ui;
 
 namespace MediaEngine.Web.Components.MediaEditor;
@@ -59,7 +59,9 @@ public partial class SharedMediaEditorShell
     protected async Task NavigateToDetailsLinkAsync(string location)
     {
         if (string.IsNullOrWhiteSpace(location) || _detailsInlineSaving)
+        {
             return;
+        }
 
         if (_navigationGuard.Intercept(location, HasPendingNavigationChanges))
         {
@@ -94,7 +96,9 @@ public partial class SharedMediaEditorShell
     protected Task BeginDetailsInlineEditAsync(MediaEditorDetailsFieldPresentation field)
     {
         if (_detailsInlineSaving || IsInheritedDetailsField(field) || !field.CanOverride || ActiveScope?.CanEditFields != true)
+        {
             return Task.CompletedTask;
+        }
 
         _detailsInlineFieldKey = field.Key;
         _detailsInlineBaseline = field.RawValue ?? field.Value ?? string.Empty;
@@ -119,7 +123,9 @@ public partial class SharedMediaEditorShell
     protected async Task SaveDetailsInlineFieldAsync(MediaEditorDetailsFieldPresentation field)
     {
         if (!IsDetailsInlineEditing(field.Key) || _detailsInlineSaving || ActiveScope is null)
+        {
             return;
+        }
 
         var selectedScope = ActiveScope;
         var entityId = selectedScope.FieldEntityId;
@@ -167,14 +173,20 @@ public partial class SharedMediaEditorShell
                         return;
                     }
                     if (CurrentEntityId == entityId)
+                    {
                         _profilePreferencesByWork[entityId] = preferences;
+                    }
                 }
 
                 var profileOverrides = new Dictionary<string, string>(preferences.DisplayOverrides, StringComparer.OrdinalIgnoreCase);
                 if (string.IsNullOrWhiteSpace(value))
+                {
                     profileOverrides.Remove(overrideKey);
+                }
                 else
+                {
                     profileOverrides[overrideKey] = value;
+                }
                 saved = await SaveProfileEditorPreferencesAsync(
                     entityId,
                     profileOverrides,
@@ -196,7 +208,9 @@ public partial class SharedMediaEditorShell
                     {
                         snapshot.DisplayOverrides[overrideKey] = value;
                         if (_editorContext is not null)
+                        {
                             _editorContext.DisplayOverrides[overrideKey] = value;
+                        }
                     }
                 }
             }
@@ -244,7 +258,9 @@ public partial class SharedMediaEditorShell
     protected async Task RevertDetailsInlineFieldAsync(MediaEditorDetailsFieldPresentation field)
     {
         if (_detailsInlineSaving || ActiveScope is null || IsInheritedDetailsField(field) || !field.CanRevert)
+        {
             return;
+        }
 
         _detailsInlineFieldKey = field.Key;
         _detailsInlineBaseline = field.RawValue ?? field.Value ?? string.Empty;
@@ -304,7 +320,9 @@ public partial class SharedMediaEditorShell
     protected async Task SynchronizeDetailsDialogEscapeAsync()
     {
         if (DialogContext is null)
+        {
             return;
+        }
 
         if (HasPendingDetailsInlineEdit && !_detailsDialogEscapeSuppressed)
         {

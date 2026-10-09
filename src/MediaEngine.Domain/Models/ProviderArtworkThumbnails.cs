@@ -5,9 +5,14 @@ public static class ProviderArtworkThumbnails
     // Unknown providers must not load a full-size original into a picker tile.
     public static string ForCover(string url)
     {
-        if (!Uri.TryCreate(url, UriKind.Absolute, out var uri)) return string.Empty;
+        if (!Uri.TryCreate(url, UriKind.Absolute, out var uri))
+        {
+            return string.Empty;
+        }
         if (uri.Host.Equals("covers.openlibrary.org", StringComparison.OrdinalIgnoreCase))
+        {
             return System.Text.RegularExpressions.Regex.Replace(url, "-[LMS]\\.jpg", "-M.jpg", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+        }
         if (uri.Host.Equals("m.media-amazon.com", StringComparison.OrdinalIgnoreCase)
             || uri.Host.Equals("images-na.ssl-images-amazon.com", StringComparison.OrdinalIgnoreCase))
         {

@@ -1,5 +1,5 @@
-using MediaEngine.Domain.Models;
 using MediaEngine.Contracts.Display;
+using MediaEngine.Domain.Models;
 
 namespace MediaEngine.Web.Models.ViewDTOs;
 

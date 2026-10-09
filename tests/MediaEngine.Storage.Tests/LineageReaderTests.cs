@@ -226,16 +226,18 @@ public sealed class LineageReaderTests : IDisposable
         });
         await personRepo.LinkToMediaAssetAsync(assetId, person.Id, "Director");
         using (var conn = _db.CreateConnection())
-        using (var command = conn.CreateCommand())
         {
-            command.CommandText = """
-                INSERT INTO canonical_value_arrays (entity_id, key, ordinal, value, value_qid)
-                VALUES ($workId, 'director', 0, $name, $qid);
-                """;
-            command.Parameters.AddWithValue("$workId", GuidSql.ToBlob(workId));
-            command.Parameters.AddWithValue("$name", person.Name);
-            command.Parameters.AddWithValue("$qid", person.WikidataQid);
-            command.ExecuteNonQuery();
+            using (var command = conn.CreateCommand())
+            {
+                command.CommandText = """
+                    INSERT INTO canonical_value_arrays (entity_id, key, ordinal, value, value_qid)
+                    VALUES ($workId, 'director', 0, $name, $qid);
+                    """;
+                command.Parameters.AddWithValue("$workId", GuidSql.ToBlob(workId));
+                command.Parameters.AddWithValue("$name", person.Name);
+                command.Parameters.AddWithValue("$qid", person.WikidataQid);
+                command.ExecuteNonQuery();
+            }
         }
 
         var evaluator = new CollectionRuleEvaluator(_db);

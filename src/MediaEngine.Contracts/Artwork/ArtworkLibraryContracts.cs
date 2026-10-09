@@ -201,7 +201,9 @@ public static class ArtworkRoleCatalog
         var normalizedGroup = groupKind?.Trim() ?? string.Empty;
 
         if (normalizedEntity.Equals("Edition", StringComparison.OrdinalIgnoreCase))
+        {
             return [new("Primary", "CoverArt", "cover", IsDefault: true)];
+        }
 
         if (normalizedEntity.Equals("Person", StringComparison.OrdinalIgnoreCase))
         {
@@ -257,7 +259,10 @@ public static class ArtworkRoleCatalog
                 new("Primary", "CoverArt", "cover", IsDefault: true),
                 new("Background", "Background", "background"),
             };
-            if (Has(advertisedAssetTypes, "Logo")) roles.Add(new("Logo", "Logo", "logo"));
+            if (Has(advertisedAssetTypes, "Logo"))
+            {
+                roles.Add(new("Logo", "Logo", "logo"));
+            }
             return roles;
         }
 

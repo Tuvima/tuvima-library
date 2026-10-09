@@ -249,23 +249,25 @@ public sealed class MediaEditorOwnedChildScaleTests
             var showId = Guid.NewGuid();
             var libraryId = Guid.NewGuid().ToString("D");
             using (var connection = database.CreateConnection())
-            using (var transaction = connection.BeginTransaction())
             {
-                connection.Execute("INSERT INTO works (id, media_type, work_kind, ownership) VALUES (@showId, 'TV', 'parent', 'Owned');", new { showId }, transaction);
-                for (var index = 1; index <= 1000; index++)
+                using (var transaction = connection.BeginTransaction())
                 {
-                    var episodeId = Guid.NewGuid();
-                    var editionId = Guid.NewGuid();
-                    var assetId = Guid.NewGuid();
-                    connection.Execute("""
-                        INSERT INTO works (id, media_type, work_kind, parent_work_id, ordinal, ownership)
-                        VALUES (@episodeId, 'TV', 'child', @showId, @index, 'Owned');
-                        INSERT INTO editions (id, work_id, format_label) VALUES (@editionId, @episodeId, 'MKV');
-                        INSERT INTO media_assets (id, edition_id, content_hash, file_path_root, library_id)
-                        VALUES (@assetId, @editionId, @hash, @filePath, @libraryId);
-                        """, new { episodeId, showId, index, editionId, assetId, hash = $"hash-{index}", filePath = $"/fixtures/original_episode_{index:D4}.mkv", libraryId }, transaction);
+                    connection.Execute("INSERT INTO works (id, media_type, work_kind, ownership) VALUES (@showId, 'TV', 'parent', 'Owned');", new { showId }, transaction);
+                    for (var index = 1; index <= 1000; index++)
+                    {
+                        var episodeId = Guid.NewGuid();
+                        var editionId = Guid.NewGuid();
+                        var assetId = Guid.NewGuid();
+                        connection.Execute("""
+                            INSERT INTO works (id, media_type, work_kind, parent_work_id, ordinal, ownership)
+                            VALUES (@episodeId, 'TV', 'child', @showId, @index, 'Owned');
+                            INSERT INTO editions (id, work_id, format_label) VALUES (@editionId, @episodeId, 'MKV');
+                            INSERT INTO media_assets (id, edition_id, content_hash, file_path_root, library_id)
+                            VALUES (@assetId, @editionId, @hash, @filePath, @libraryId);
+                            """, new { episodeId, showId, index, editionId, assetId, hash = $"hash-{index}", filePath = $"/fixtures/original_episode_{index:D4}.mkv", libraryId }, transaction);
+                    }
+                    transaction.Commit();
                 }
-                transaction.Commit();
             }
 
             var reader = new MediaEditorOwnedChildReadService(database);

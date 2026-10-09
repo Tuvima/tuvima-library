@@ -16,7 +16,10 @@ public static class PlaybackSnapshotStream
         CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(options);
-        if (reference is null) return null;
+        if (reference is null)
+        {
+            return null;
+        }
 
         try
         {

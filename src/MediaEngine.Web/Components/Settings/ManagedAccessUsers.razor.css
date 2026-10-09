@@ -84,7 +84,7 @@
     place-items: center;
     border-radius: 50%;
     color: white;
-    background: var(--app-accent, #7c4dff);
+    background: var(--app-accent, #8852FC);
     font-size: var(--tl-font-size-xs);
     font-weight: 800;
 }
@@ -141,7 +141,7 @@
 
 .access-action-menu ::deep .app-button:hover,
 .access-action-menu ::deep .app-button:focus-visible {
-    background: color-mix(in srgb, var(--app-accent, #7c4dff) 13%, transparent);
+    background: color-mix(in srgb, var(--app-accent, #8852FC) 13%, transparent);
     outline: none;
 }
 
@@ -244,7 +244,7 @@
     display: grid;
     gap: .6rem;
     padding: .75rem;
-    border-left: 2px solid var(--app-accent, #7c4dff);
+    border-left: 2px solid var(--app-accent, #8852FC);
 }
 
 .access-native-input {

@@ -36,15 +36,24 @@ public sealed class AdapterFallbackTests
     public async Task AppleBooks_AutomaticMatch_RequiresEditionEvidence(string? language, bool accepted)
     {
         var config = LoadExampleConfig("apple_api");
-        var payload = JsonSerializer.Serialize(new { results = new[] { new {
+        var payload = JsonSerializer.Serialize(new
+        {
+            results = new[] { new {
             trackId = 123, trackName = "Regretting You", artistName = "Colleen Hoover", language
-        } } });
+        } }
+        });
         var adapter = new ConfigDrivenAdapter(config,
             BuildFactory(config.Name, new RoutingStubHttpMessageHandler(_ => JsonResponse(payload))),
             NullLogger<ConfigDrivenAdapter>.Instance, NullProviderHealthMonitor.Instance);
-        var request = new ProviderLookupRequest {
-            EntityId = Guid.NewGuid(), EntityType = EntityType.Work, MediaType = MediaType.Books,
-            Title = "Regretting You", Author = "Colleen Hoover", FileLanguage = "en", Language = "en",
+        var request = new ProviderLookupRequest
+        {
+            EntityId = Guid.NewGuid(),
+            EntityType = EntityType.Work,
+            MediaType = MediaType.Books,
+            Title = "Regretting You",
+            Author = "Colleen Hoover",
+            FileLanguage = "en",
+            Language = "en",
             BaseUrl = "https://itunes.apple.com"
         };
         var claims = await adapter.FetchAsync(request);
@@ -58,9 +67,13 @@ public sealed class AdapterFallbackTests
         var config = LoadExampleConfig("apple_api");
         var adapter = new ConfigDrivenAdapter(config, BuildFactory(config.Name, HttpStatusCode.ServiceUnavailable),
             NullLogger<ConfigDrivenAdapter>.Instance, NullProviderHealthMonitor.Instance);
-        await Assert.ThrowsAsync<AggregateException>(() => adapter.SearchAsync(new ProviderLookupRequest {
-            EntityId = Guid.NewGuid(), EntityType = EntityType.Work, MediaType = MediaType.Books,
-            Title = "A book", BaseUrl = "https://itunes.apple.com"
+        await Assert.ThrowsAsync<AggregateException>(() => adapter.SearchAsync(new ProviderLookupRequest
+        {
+            EntityId = Guid.NewGuid(),
+            EntityType = EntityType.Work,
+            MediaType = MediaType.Books,
+            Title = "A book",
+            BaseUrl = "https://itunes.apple.com"
         }));
     }
 
@@ -73,9 +86,14 @@ public sealed class AdapterFallbackTests
                 JsonResponse(request.RequestUri!.AbsolutePath.Contains("lookup") ? "{\"results\":[]}" :
                     "{\"results\":[{\"trackId\":1,\"trackName\":\"First\"},{\"trackId\":2,\"trackName\":\"Second\"}]}"))),
             NullLogger<ConfigDrivenAdapter>.Instance, NullProviderHealthMonitor.Instance);
-        var results = await adapter.SearchAsync(new ProviderLookupRequest {
-            EntityId = Guid.NewGuid(), EntityType = EntityType.Work, MediaType = MediaType.Books,
-            Title = "A book", Isbn = "9781542016421", BaseUrl = "https://itunes.apple.com"
+        var results = await adapter.SearchAsync(new ProviderLookupRequest
+        {
+            EntityId = Guid.NewGuid(),
+            EntityType = EntityType.Work,
+            MediaType = MediaType.Books,
+            Title = "A book",
+            Isbn = "9781542016421",
+            BaseUrl = "https://itunes.apple.com"
         }, 10);
         Assert.Equal(2, results.Count);
     }

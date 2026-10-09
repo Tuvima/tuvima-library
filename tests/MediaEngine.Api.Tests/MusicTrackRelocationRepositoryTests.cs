@@ -21,8 +21,16 @@ public sealed class MusicTrackRelocationRepositoryTests
                 INSERT INTO bridge_ids(id,entity_id,id_type,id_value) VALUES(@assetBridge,@asset,'musicbrainz_release_id',@oldRelease);
                 INSERT INTO canonical_values(entity_id,key,value,last_scored_at,winning_provider_id)
                 VALUES(@work,'description','Source album description',datetime('now'),@manual);
-                """, new { work = fixture.Work, album = fixture.Album, manual = WellKnownProviders.UserManual,
-                    id = Guid.NewGuid(), asset = fixture.Asset, assetBridge = Guid.NewGuid(), oldRelease = Guid.NewGuid().ToString("D") });
+                """, new
+            {
+                work = fixture.Work,
+                album = fixture.Album,
+                manual = WellKnownProviders.UserManual,
+                id = Guid.NewGuid(),
+                asset = fixture.Asset,
+                assetBridge = Guid.NewGuid(),
+                oldRelease = Guid.NewGuid().ToString("D")
+            });
         }
         var repository = new MusicTrackRelocationRepository(fixture.Database);
         var result = await repository.CommitAsync(fixture.Move);
@@ -75,10 +83,12 @@ public sealed class MusicTrackRelocationRepositoryTests
     {
         using var fixture = new Fixture();
         using (var conn = fixture.Database.CreateConnection())
+        {
             conn.Execute("""
-                INSERT INTO identity_jobs(id,entity_id,entity_type,media_type,state,pass,lease_owner,lease_expires_at)
-                VALUES(@id,@asset,'MediaAsset','Music','RetailMatched','Quick','worker',@expires);
-                """, new { id = Guid.NewGuid(), asset = fixture.Asset, expires = DateTimeOffset.UtcNow.AddMinutes(5).ToString("O") });
+                    INSERT INTO identity_jobs(id,entity_id,entity_type,media_type,state,pass,lease_owner,lease_expires_at)
+                    VALUES(@id,@asset,'MediaAsset','Music','RetailMatched','Quick','worker',@expires);
+                    """, new { id = Guid.NewGuid(), asset = fixture.Asset, expires = DateTimeOffset.UtcNow.AddMinutes(5).ToString("O") });
+        }
         var result = await new MusicTrackRelocationRepository(fixture.Database).CommitAsync(fixture.Move);
         Assert.Equal(MediaEditorCommitOutcome.Conflict, result.Outcome);
         using var verify = fixture.Database.CreateConnection();

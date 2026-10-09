@@ -10,12 +10,18 @@ public static class PlaybackVideoRuntime
     /// </summary>
     public static string? NormalizeLibraryDetailRuntime(string? runtime)
     {
-        if (string.IsNullOrWhiteSpace(runtime)) return null;
+        if (string.IsNullOrWhiteSpace(runtime))
+        {
+            return null;
+        }
 
         var value = runtime.Trim();
         if (double.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out var minutes))
         {
-            if (!double.IsFinite(minutes) || minutes <= 0) return null;
+            if (!double.IsFinite(minutes) || minutes <= 0)
+            {
+                return null;
+            }
             return $"{minutes.ToString("0.###", CultureInfo.InvariantCulture)}:00";
         }
 
@@ -26,7 +32,10 @@ public static class PlaybackVideoRuntime
     public static string? FormatQueueRuntime(string? runtime)
     {
         var seconds = PlaybackTimeParser.TryParseDurationSeconds(runtime);
-        if (seconds is not > 0) return null;
+        if (seconds is not > 0)
+        {
+            return null;
+        }
         return seconds.Value < 60
             ? PlaybackTimeParser.FormatDuration(seconds.Value)
             : $"{Math.Round(seconds.Value / 60d, MidpointRounding.AwayFromZero):0} min";

@@ -33,7 +33,9 @@ public sealed class AppDialogParameters<TComponent> : AppDialogParameters
     public void Add<TValue>(Expression<Func<TComponent, TValue>> expression, TValue value)
     {
         if (expression.Body is not MemberExpression member)
+        {
             throw new ArgumentException("A component parameter property is required.", nameof(expression));
+        }
         Add(member.Member.Name, value);
     }
 }
@@ -104,20 +106,36 @@ public sealed class AppDialogService : IAppDialogService, IDisposable
     internal void NotifyChanged() => Changed?.Invoke();
     public void SetFrameVisibility(Guid id, bool visible)
     {
-        if (visible) { if (_visibleFrames.Contains(id)) return; _visibleFrames.Add(id); }
-        else if (!_visibleFrames.Remove(id)) return;
+        if (visible)
+        {
+            if (_visibleFrames.Contains(id))
+            {
+                return;
+            }
+            _visibleFrames.Add(id);
+        }
+        else if (!_visibleFrames.Remove(id))
+        {
+            return;
+        }
         Changed?.Invoke();
     }
     internal void Complete(AppDialogEntry entry, AppDialogResult? result)
     {
-        if (!_dialogs.Remove(entry)) return;
+        if (!_dialogs.Remove(entry))
+        {
+            return;
+        }
         entry.Complete(result);
         Changed?.Invoke();
     }
     public void Dispose()
     {
         _disposed = true;
-        foreach (var dialog in _dialogs) dialog.Complete(AppDialogResult.Cancel());
+        foreach (var dialog in _dialogs)
+        {
+            dialog.Complete(AppDialogResult.Cancel());
+        }
         _dialogs.Clear();
         _visibleFrames.Clear();
         Changed = null;
@@ -144,16 +162,40 @@ public sealed class AppDialogEntry : IAppDialogReference, IAppDialogContext
     public Task CancelAsync() => CloseAsync(AppDialogResult.Cancel());
     public async Task CloseAsync(AppDialogResult? result = null)
     {
-        if (_closing || _result.Task.IsCompleted) return;
+        if (_closing || _result.Task.IsCompleted)
+        {
+            return;
+        }
         _closing = true;
-        try { if (_guard is null || await _guard()) _owner.Complete(this, result ?? AppDialogResult.Cancel()); }
+        try
+        {
+            if (_guard is null || await _guard())
+            {
+                _owner.Complete(this, result ?? AppDialogResult.Cancel());
+            }
+        }
         finally { _closing = false; }
     }
     public Task SetOptionsAsync(AppDialogOptions options) { Options = options; _owner.NotifyChanged(); return Task.CompletedTask; }
-    public Task SetPresentationClassAsync(string? value) { if (PresentationClass == value) return Task.CompletedTask; PresentationClass = value; _owner.NotifyChanged(); return Task.CompletedTask; }
+    public Task SetPresentationClassAsync(string? value)
+    {
+        if (PresentationClass == value)
+        {
+            return Task.CompletedTask;
+        }
+        PresentationClass = value; _owner.NotifyChanged(); return Task.CompletedTask;
+    }
     public void SetCloseGuard(Func<Task<bool>>? guard) => _guard = guard;
     public IDisposable RegisterCloseGuard(Func<Task<bool>> guard) { _guard = guard; return new GuardRegistration(this, guard); }
     internal void Complete(AppDialogResult? result) => _result.TrySetResult(result);
     private sealed class GuardRegistration(AppDialogEntry context, Func<Task<bool>> guard) : IDisposable
-    { public void Dispose() { if (context._guard == guard) context._guard = null; } }
+    {
+        public void Dispose()
+        {
+            if (context._guard == guard)
+            {
+                context._guard = null;
+            }
+        }
+    }
 }

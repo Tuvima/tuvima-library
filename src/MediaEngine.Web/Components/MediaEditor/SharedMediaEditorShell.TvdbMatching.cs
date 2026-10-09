@@ -23,7 +23,10 @@ public partial class SharedMediaEditorShell
 
     protected void BeginTvdbCrossShowSearch()
     {
-        if (EditorMediaType != "TV" || ActiveScope?.ScopeId != "episode") return;
+        if (EditorMediaType != "TV" || ActiveScope?.ScopeId != "episode")
+        {
+            return;
+        }
         _tvdbCrossShowSearch = true;
         _tvdbCandidates = null;
         _selectedTvdbCandidate = null;
@@ -60,7 +63,10 @@ public partial class SharedMediaEditorShell
 
     protected async Task SearchTvdbScopedMatchesAsync()
     {
-        if (!IsTvdbScopedMatching || ActiveScope is null || _tvdbSearchPending) return;
+        if (!IsTvdbScopedMatching || ActiveScope is null || _tvdbSearchPending)
+        {
+            return;
+        }
         _tvdbSearchCancellation?.Cancel();
         _tvdbSearchCancellation?.Dispose();
         var cancel = new CancellationTokenSource();
@@ -72,12 +78,17 @@ public partial class SharedMediaEditorShell
         {
             var result = await ApiClient.GetTvdbScopedMatchCandidatesAsync(
                 CanonicalEndpointEntityId, ActiveScope.ScopeId, seasonNumber: null, ct: cancel.Token);
-            if (cancel.IsCancellationRequested) return;
+            if (cancel.IsCancellationRequested)
+            {
+                return;
+            }
             _tvdbCandidates = result;
             if (result is null)
+            {
                 _tvdbSearchError = string.IsNullOrWhiteSpace(ApiClient.LastError)
-                    ? "TheTVDB candidates could not be loaded."
-                    : ApiClient.LastError;
+                        ? "TheTVDB candidates could not be loaded."
+                        : ApiClient.LastError;
+            }
         }
         catch (OperationCanceledException) when (cancel.IsCancellationRequested)
         {
@@ -86,9 +97,11 @@ public partial class SharedMediaEditorShell
         catch (Exception)
         {
             if (!cancel.IsCancellationRequested)
+            {
                 _tvdbSearchError = string.IsNullOrWhiteSpace(ApiClient.LastError)
-                    ? "TheTVDB candidates could not be loaded. Try again."
-                    : ApiClient.LastError;
+                        ? "TheTVDB candidates could not be loaded. Try again."
+                        : ApiClient.LastError;
+            }
         }
         finally
         {
@@ -118,7 +131,10 @@ public partial class SharedMediaEditorShell
 
     protected async Task OpenEpisodePlacementCorrectionAsync()
     {
-        if (EditorMediaType != "TV" || ActiveScope?.ScopeId != "episode") return;
+        if (EditorMediaType != "TV" || ActiveScope?.ScopeId != "episode")
+        {
+            return;
+        }
         _resumeEpisodeMatchAfterPlacement = true;
         _scrollToEpisodePlacement = true;
         await OpenDetailsTabAsync();
@@ -127,7 +143,9 @@ public partial class SharedMediaEditorShell
     protected async Task LoadTvdbPlacementSeasonsAsync()
     {
         if (EditorMediaType != "TV" || ActiveScope?.ScopeId != "episode" || _tvdbPlacementSeasonsPending)
+        {
             return;
+        }
 
         var showKey = BuildScopedFieldKey("show_name");
         _selectedMembershipSuggestions.TryGetValue(showKey, out var selectedShow);
@@ -144,7 +162,9 @@ public partial class SharedMediaEditorShell
             _tvdbPlacementSeasons = await ApiClient.GetTvdbScopedMatchCandidatesAsync(
                 CanonicalEndpointEntityId, "season", seasonNumber: null, seriesId: selectedShowId);
             if (_tvdbPlacementSeasons is null)
+            {
                 Snackbar.Add(ApiClient.LastError ?? "TheTVDB seasons could not be loaded.", AppSeverity.Error);
+            }
         }
         finally
         {
@@ -160,7 +180,10 @@ public partial class SharedMediaEditorShell
 
     private async Task<bool> ResumeEpisodeMatchAfterPlacementAsync(bool appliedMembershipMove)
     {
-        if (!_resumeEpisodeMatchAfterPlacement || !appliedMembershipMove) return false;
+        if (!_resumeEpisodeMatchAfterPlacement || !appliedMembershipMove)
+        {
+            return false;
+        }
         _resumeEpisodeMatchAfterPlacement = false;
         await LoadSingleItemAsync(CurrentEntityId, resetEditorState: true, preferredScopeId: "episode");
         await SelectTabInternalAsync("links");
@@ -174,7 +197,10 @@ public partial class SharedMediaEditorShell
     protected async Task ApplyTvdbScopedMatchAsync()
     {
         if (ActiveScope is null || _tvdbCandidates is null || _selectedTvdbCandidate is null
-            || !CanSelectTvdbCandidates || _tvdbApplyPending || IsDirty) return;
+            || !CanSelectTvdbCandidates || _tvdbApplyPending || IsDirty)
+        {
+            return;
+        }
         _tvdbApplyPending = true;
         try
         {

@@ -12,7 +12,10 @@ public sealed class SharedAiRuntimeTests
     public void RequiredNativeVersionsMatchPinnedManagedPackages()
     {
         var directory = new DirectoryInfo(AppContext.BaseDirectory);
-        while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "Directory.Packages.props"))) directory = directory.Parent;
+        while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "Directory.Packages.props")))
+        {
+            directory = directory.Parent;
+        }
         Assert.NotNull(directory);
         var versions = XDocument.Load(Path.Combine(directory.FullName, "Directory.Packages.props"));
         string? Version(string id) => versions.Descendants("PackageVersion").Single(x => (string?)x.Attribute("Include") == id).Attribute("Version")?.Value;
@@ -64,8 +67,12 @@ public sealed class SharedAiRuntimeTests
         Directory.CreateDirectory(Path.GetDirectoryName(artifact)!);
         File.WriteAllText(artifact, "model");
         using (SharedModelArtifact.AcquireRead(artifact))
-        using (SharedModelArtifact.AcquireRead(artifact))
-            Assert.Throws<IOException>(() => SharedModelArtifact.AcquireWrite(artifact));
+        {
+            using (SharedModelArtifact.AcquireRead(artifact))
+            {
+                Assert.Throws<IOException>(() => SharedModelArtifact.AcquireWrite(artifact));
+            }
+        }
         using (SharedModelArtifact.AcquireWrite(artifact))
         {
             Assert.Throws<IOException>(() => SharedModelArtifact.AcquireRead(artifact));

@@ -9,7 +9,9 @@ internal sealed partial class DetailCompositionOrchestrator
 {
     private static DetailAction BuildRestartAction(string? route) => new()
     {
-        Key = "play-from-beginning", Label = "Restart from beginning", Icon = "restart_alt",
+        Key = "play-from-beginning",
+        Label = "Restart from beginning",
+        Icon = "restart_alt",
         Route = route is null ? null : Microsoft.AspNetCore.WebUtilities.QueryHelpers.AddQueryString(route, "restart", "true"),
     };
 
@@ -23,7 +25,9 @@ internal sealed partial class DetailCompositionOrchestrator
         var actions = new List<DetailAction>();
         var primary = model.PrimaryActions.FirstOrDefault();
         if (model.Progress?.Percent is > 0 && primary is not null)
+        {
             actions.Add(BuildRestartAction(primary.Route));
+        }
         var media = PersonalStatusPolicy.MediaTypeFor(model.EntityType);
         if (media != MediaType.Unknown && Guid.TryParse(model.Id, out var id))
         {

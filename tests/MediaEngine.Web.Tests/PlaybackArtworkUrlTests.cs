@@ -12,7 +12,7 @@ public sealed class PlaybackArtworkUrlTests
         var queued = PlaybackArtworkUrl.AudiobookCover(bookId, cover);
         Assert.Equal(cover + "?size=m", queued);
         Assert.Equal(cover + "?size=s", PlaybackArtworkUrl.ForItem(new ListenQueueItem
-            { WorkId = Guid.NewGuid(), AudiobookWorkId = bookId, MediaType = "Audiobooks", CoverUrl = queued }, "s"));
+        { WorkId = Guid.NewGuid(), AudiobookWorkId = bookId, MediaType = "Audiobooks", CoverUrl = queued }, "s"));
     }
 
     [Theory]
@@ -22,8 +22,14 @@ public sealed class PlaybackArtworkUrlTests
     public void RestoredRecordingCoverUsesCanonicalBookIdentityWithoutRequestingTheOriginal(string legacy)
     {
         var bookId = Guid.NewGuid();
-        var item = new ListenQueueItem { WorkId = Guid.NewGuid(), AudiobookWorkId = bookId,
-            AssetId = Guid.Parse("22222222-2222-2222-2222-222222222222"), MediaType = "Audiobooks", CoverUrl = legacy };
+        var item = new ListenQueueItem
+        {
+            WorkId = Guid.NewGuid(),
+            AudiobookWorkId = bookId,
+            AssetId = Guid.Parse("22222222-2222-2222-2222-222222222222"),
+            MediaType = "Audiobooks",
+            CoverUrl = legacy
+        };
         Assert.Equal($"/engine-image/stream/entity/work/{bookId:D}/cover?size=m", PlaybackArtworkUrl.ForItem(item));
         Assert.Equal($"/engine-image/stream/entity/work/{item.WorkId:D}/cover?size=m", PlaybackArtworkUrl.ForItem(item with { MediaType = "Music" }));
         Assert.Null(PlaybackArtworkUrl.ForItem(item with { WorkId = Guid.Empty, AudiobookWorkId = null }));

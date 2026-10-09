@@ -490,10 +490,12 @@ public sealed class ViewSharedTransferService(
     {
         await using (var input = new FileStream(file.Source, FileMode.Open, FileAccess.Read, FileShare.Read,
             81920, FileOptions.Asynchronous | FileOptions.SequentialScan))
-        await using (var output = new FileStream(staging, FileMode.CreateNew, FileAccess.Write, FileShare.None,
-            81920, FileOptions.Asynchronous | FileOptions.WriteThrough))
         {
-            await input.CopyToAsync(output, ct);
+            await using (var output = new FileStream(staging, FileMode.CreateNew, FileAccess.Write, FileShare.None,
+                81920, FileOptions.Asynchronous | FileOptions.WriteThrough))
+            {
+                await input.CopyToAsync(output, ct);
+            }
         }
 
         if (!await IsVerifiedAsync(staging, file.ContentHash, file.ByteSize, ct))

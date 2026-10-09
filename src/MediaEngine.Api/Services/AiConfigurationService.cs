@@ -1,8 +1,8 @@
+using System.Text.Json;
 using Cronos;
 using MediaEngine.AI.Configuration;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Services;
-using System.Text.Json;
 
 namespace MediaEngine.Api.Services;
 
@@ -66,9 +66,13 @@ public sealed class AiConfigurationService : IDisposable
             var persisted = JsonSerializer.Deserialize<AiSettings>(JsonSerializer.Serialize(_current, MediaEngineJson.Web), MediaEngineJson.Web)!;
             var configured = _loader.LoadAi<AiSettings>();
             if (!string.IsNullOrEmpty(Environment.GetEnvironmentVariable("TUVIMA_MODELS_DIR")))
+            {
                 persisted.ModelsDirectory = configured?.ModelsDirectory ?? new AiSettings().ModelsDirectory;
+            }
             if (!string.IsNullOrEmpty(Environment.GetEnvironmentVariable("TUVIMA_AI_RUNTIME_DIR")))
+            {
                 persisted.NativeRuntimeDirectory = configured?.NativeRuntimeDirectory ?? "";
+            }
             _loader.SaveAi(persisted);
 
             var previous = _changed;

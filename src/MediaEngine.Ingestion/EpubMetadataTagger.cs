@@ -89,7 +89,9 @@ public sealed class EpubMetadataTagger : BackedUpMetadataTagger, IMetadataTagger
     public MetadataTaggerCapabilities GetCapabilities(string filePath)
     {
         if (!CanHandle(filePath))
+        {
             throw new NotSupportedException($"EpubTagger cannot handle {Path.GetExtension(filePath)}.");
+        }
         return new MetadataTaggerCapabilities(".epub", ["title", "author", "publisher", "year"],
             canWriteArtwork: true, Version, acceptsCustomOpfFields: true);
     }
@@ -121,7 +123,9 @@ public sealed class EpubMetadataTagger : BackedUpMetadataTagger, IMetadataTagger
             {
                 var readback = await VerifyTagsAsync(filePath, tags, ct).ConfigureAwait(false);
                 if (!readback.IsVerified)
+                {
                     throw new InvalidDataException(readback.Reason ?? "EPUB metadata read-back failed.");
+                }
             }
 
             // Remove backup on success.
@@ -141,23 +145,31 @@ public sealed class EpubMetadataTagger : BackedUpMetadataTagger, IMetadataTagger
     {
         ct.ThrowIfCancellationRequested();
         if (tags.Keys.Any(key => !VerifiedKeys.Contains(key)))
+        {
             return MetadataTagReadbackResult.Unverified("One or more requested EPUB fields has no proven read-back.");
+        }
 
         try
         {
             using var zip = ZipFile.OpenRead(filePath);
             var opfEntry = zip.GetEntry(FindOpfEntryName(zip));
             if (opfEntry is null)
+            {
                 return MetadataTagReadbackResult.Unverified("EPUB package document is absent.");
+            }
 
             XDocument opf;
             await using (var stream = opfEntry.Open())
+            {
                 opf = await XDocument.LoadAsync(stream, LoadOptions.None, ct).ConfigureAwait(false);
+            }
 
             var metadata = opf.Descendants(OpfNs + "metadata").FirstOrDefault()
                 ?? opf.Descendants("metadata").FirstOrDefault();
             if (metadata is null)
+            {
                 return MetadataTagReadbackResult.Unverified("EPUB metadata element is absent.");
+            }
 
             var mismatches = new List<string>();
             foreach (var (key, expected) in tags)
@@ -173,7 +185,9 @@ public sealed class EpubMetadataTagger : BackedUpMetadataTagger, IMetadataTagger
                 };
                 var actual = metadata.Element(name)?.Value;
                 if (!string.Equals(Normalize(expected), Normalize(actual), StringComparison.Ordinal))
+                {
                     mismatches.Add(key);
+                }
             }
 
             return mismatches.Count == 0
@@ -213,7 +227,9 @@ public sealed class EpubMetadataTagger : BackedUpMetadataTagger, IMetadataTagger
             await PatchCoverAsync(filePath, imageData, mime, ct).ConfigureAwait(false);
 
             if (!await VerifyCoverAsync(filePath, imageData, mime, ct).ConfigureAwait(false))
+            {
                 throw new InvalidDataException("EPUB cover manifest or image did not match after writing.");
+            }
 
             var backup = filePath + BackupSuffix;
             File.Delete(backup);
@@ -240,40 +256,42 @@ public sealed class EpubMetadataTagger : BackedUpMetadataTagger, IMetadataTagger
         {
             // Copy all entries to the temp file, replacing the OPF entry.
             using (var srcZip = ZipFile.OpenRead(epubPath))
-            using (var destZip = ZipFile.Open(temp, ZipArchiveMode.Create))
             {
-                string opfEntryName = FindOpfEntryName(srcZip);
-
-                foreach (var entry in srcZip.Entries)
+                using (var destZip = ZipFile.Open(temp, ZipArchiveMode.Create))
                 {
-                    ct.ThrowIfCancellationRequested();
+                    string opfEntryName = FindOpfEntryName(srcZip);
 
-                    if (entry.FullName.Equals(opfEntryName, StringComparison.OrdinalIgnoreCase))
+                    foreach (var entry in srcZip.Entries)
                     {
-                        // Read, patch, re-write OPF XML.
-                        XDocument opf;
-                        await using (var stream = entry.Open())
+                        ct.ThrowIfCancellationRequested();
+
+                        if (entry.FullName.Equals(opfEntryName, StringComparison.OrdinalIgnoreCase))
                         {
-                            opf = await XDocument.LoadAsync(stream, LoadOptions.None, ct)
-                                                  .ConfigureAwait(false);
+                            // Read, patch, re-write OPF XML.
+                            XDocument opf;
+                            await using (var stream = entry.Open())
+                            {
+                                opf = await XDocument.LoadAsync(stream, LoadOptions.None, ct)
+                                                      .ConfigureAwait(false);
+                            }
+
+                            ApplyTagsToOpf(opf, tags);
+
+                            var newEntry = destZip.CreateEntry(entry.FullName, CompressionLevel.Optimal);
+                            newEntry.LastWriteTime = DateTimeOffset.UtcNow;
+                            await using var writer = newEntry.Open();
+                            await writer.WriteAsync(
+                                Encoding.UTF8.GetBytes(opf.ToString()), ct).ConfigureAwait(false);
                         }
-
-                        ApplyTagsToOpf(opf, tags);
-
-                        var newEntry = destZip.CreateEntry(entry.FullName, CompressionLevel.Optimal);
-                        newEntry.LastWriteTime = DateTimeOffset.UtcNow;
-                        await using var writer = newEntry.Open();
-                        await writer.WriteAsync(
-                            Encoding.UTF8.GetBytes(opf.ToString()), ct).ConfigureAwait(false);
-                    }
-                    else
-                    {
-                        // Copy entry verbatim.
-                        var newEntry = destZip.CreateEntry(entry.FullName, CompressionLevel.NoCompression);
-                        newEntry.LastWriteTime = entry.LastWriteTime;
-                        await using var src = entry.Open();
-                        await using var dest = newEntry.Open();
-                        await src.CopyToAsync(dest, ct).ConfigureAwait(false);
+                        else
+                        {
+                            // Copy entry verbatim.
+                            var newEntry = destZip.CreateEntry(entry.FullName, CompressionLevel.NoCompression);
+                            newEntry.LastWriteTime = entry.LastWriteTime;
+                            await using var src = entry.Open();
+                            await using var dest = newEntry.Open();
+                            await src.CopyToAsync(dest, ct).ConfigureAwait(false);
+                        }
                     }
                 }
             }
@@ -301,72 +319,74 @@ public sealed class EpubMetadataTagger : BackedUpMetadataTagger, IMetadataTagger
         try
         {
             using (var srcZip = ZipFile.OpenRead(epubPath))
-            using (var destZip = ZipFile.Open(temp, ZipArchiveMode.Create))
             {
-                string opfEntryName = FindOpfEntryName(srcZip);
-                string coverEntryName = FindCoverEntryName(srcZip, opfEntryName) ?? "OEBPS/cover.jpg";
-                string ext = mime switch
+                using (var destZip = ZipFile.Open(temp, ZipArchiveMode.Create))
                 {
-                    "image/png" => "png",
-                    "image/gif" => "gif",
-                    _ => "jpg",
-                };
-
-                // Normalise the cover entry name to use the correct extension.
-                string finalCoverName = Path.ChangeExtension(coverEntryName, ext);
-
-                XDocument? opf = null;
-
-                foreach (var entry in srcZip.Entries)
-                {
-                    ct.ThrowIfCancellationRequested();
-
-                    if (entry.FullName.Equals(opfEntryName, StringComparison.OrdinalIgnoreCase))
+                    string opfEntryName = FindOpfEntryName(srcZip);
+                    string coverEntryName = FindCoverEntryName(srcZip, opfEntryName) ?? "OEBPS/cover.jpg";
+                    string ext = mime switch
                     {
-                        await using (var stream = entry.Open())
-                        {
-                            opf = await XDocument.LoadAsync(stream, LoadOptions.None, ct)
-                                                  .ConfigureAwait(false);
-                        }
+                        "image/png" => "png",
+                        "image/gif" => "gif",
+                        _ => "jpg",
+                    };
 
-                        // Update cover item href in OPF manifest.
-                        if (opf is not null)
-                        {
-                            UpdateCoverManifestEntry(opf, GetOpfRelativeHref(opfEntryName, finalCoverName), mime);
-                        }
+                    // Normalise the cover entry name to use the correct extension.
+                    string finalCoverName = Path.ChangeExtension(coverEntryName, ext);
 
-                        var newEntry = destZip.CreateEntry(entry.FullName, CompressionLevel.Optimal);
-                        newEntry.LastWriteTime = DateTimeOffset.UtcNow;
-                        await using var writer = newEntry.Open();
-                        await writer.WriteAsync(
-                            Encoding.UTF8.GetBytes(opf!.ToString()), ct).ConfigureAwait(false);
+                    XDocument? opf = null;
+
+                    foreach (var entry in srcZip.Entries)
+                    {
+                        ct.ThrowIfCancellationRequested();
+
+                        if (entry.FullName.Equals(opfEntryName, StringComparison.OrdinalIgnoreCase))
+                        {
+                            await using (var stream = entry.Open())
+                            {
+                                opf = await XDocument.LoadAsync(stream, LoadOptions.None, ct)
+                                                      .ConfigureAwait(false);
+                            }
+
+                            // Update cover item href in OPF manifest.
+                            if (opf is not null)
+                            {
+                                UpdateCoverManifestEntry(opf, GetOpfRelativeHref(opfEntryName, finalCoverName), mime);
+                            }
+
+                            var newEntry = destZip.CreateEntry(entry.FullName, CompressionLevel.Optimal);
+                            newEntry.LastWriteTime = DateTimeOffset.UtcNow;
+                            await using var writer = newEntry.Open();
+                            await writer.WriteAsync(
+                                Encoding.UTF8.GetBytes(opf!.ToString()), ct).ConfigureAwait(false);
+                        }
+                        else if (entry.FullName.Equals(coverEntryName, StringComparison.OrdinalIgnoreCase))
+                        {
+                            // Replace the old cover image.
+                            var newEntry = destZip.CreateEntry(finalCoverName, CompressionLevel.NoCompression);
+                            newEntry.LastWriteTime = DateTimeOffset.UtcNow;
+                            await using var writer = newEntry.Open();
+                            await writer.WriteAsync(imageData, ct).ConfigureAwait(false);
+                        }
+                        else
+                        {
+                            var newEntry = destZip.CreateEntry(entry.FullName, CompressionLevel.NoCompression);
+                            newEntry.LastWriteTime = entry.LastWriteTime;
+                            await using var src = entry.Open();
+                            await using var dest = newEntry.Open();
+                            await src.CopyToAsync(dest, ct).ConfigureAwait(false);
+                        }
                     }
-                    else if (entry.FullName.Equals(coverEntryName, StringComparison.OrdinalIgnoreCase))
+
+                    // If no existing cover entry was found, add a new one.
+                    if (!srcZip.Entries.Any(e =>
+                            e.FullName.Equals(coverEntryName, StringComparison.OrdinalIgnoreCase)))
                     {
-                        // Replace the old cover image.
-                        var newEntry = destZip.CreateEntry(finalCoverName, CompressionLevel.NoCompression);
-                        newEntry.LastWriteTime = DateTimeOffset.UtcNow;
-                        await using var writer = newEntry.Open();
+                        var coverEntry = destZip.CreateEntry(finalCoverName, CompressionLevel.NoCompression);
+                        coverEntry.LastWriteTime = DateTimeOffset.UtcNow;
+                        await using var writer = coverEntry.Open();
                         await writer.WriteAsync(imageData, ct).ConfigureAwait(false);
                     }
-                    else
-                    {
-                        var newEntry = destZip.CreateEntry(entry.FullName, CompressionLevel.NoCompression);
-                        newEntry.LastWriteTime = entry.LastWriteTime;
-                        await using var src = entry.Open();
-                        await using var dest = newEntry.Open();
-                        await src.CopyToAsync(dest, ct).ConfigureAwait(false);
-                    }
-                }
-
-                // If no existing cover entry was found, add a new one.
-                if (!srcZip.Entries.Any(e =>
-                        e.FullName.Equals(coverEntryName, StringComparison.OrdinalIgnoreCase)))
-                {
-                    var coverEntry = destZip.CreateEntry(finalCoverName, CompressionLevel.NoCompression);
-                    coverEntry.LastWriteTime = DateTimeOffset.UtcNow;
-                    await using var writer = coverEntry.Open();
-                    await writer.WriteAsync(imageData, ct).ConfigureAwait(false);
                 }
             }
 
@@ -389,23 +409,36 @@ public sealed class EpubMetadataTagger : BackedUpMetadataTagger, IMetadataTagger
             using var zip = ZipFile.OpenRead(epubPath);
             var opfName = FindOpfEntryName(zip);
             var opfEntry = zip.GetEntry(opfName);
-            if (opfEntry is null) return false;
+            if (opfEntry is null)
+            {
+                return false;
+            }
 
             XDocument opf;
             await using (var stream = opfEntry.Open())
+            {
                 opf = await XDocument.LoadAsync(stream, LoadOptions.None, ct).ConfigureAwait(false);
+            }
 
             var manifest = opf.Descendants(OpfNs + "manifest").FirstOrDefault()
                 ?? opf.Descendants("manifest").FirstOrDefault();
             var cover = manifest?.Elements().FirstOrDefault(e =>
                 (e.Attribute("id")?.Value ?? string.Empty).Contains("cover", StringComparison.OrdinalIgnoreCase));
             if (cover is null || !string.Equals(cover.Attribute("media-type")?.Value, mime, StringComparison.Ordinal))
+            {
                 return false;
+            }
             var href = cover.Attribute("href")?.Value;
-            if (string.IsNullOrWhiteSpace(href)) return false;
+            if (string.IsNullOrWhiteSpace(href))
+            {
+                return false;
+            }
             var entryName = ResolveOpfHref(opfName, href);
             var imageEntry = zip.GetEntry(entryName);
-            if (imageEntry is null) return false;
+            if (imageEntry is null)
+            {
+                return false;
+            }
             await using var imageStream = imageEntry.Open();
             using var buffer = new MemoryStream();
             await imageStream.CopyToAsync(buffer, ct).ConfigureAwait(false);
@@ -520,7 +553,9 @@ public sealed class EpubMetadataTagger : BackedUpMetadataTagger, IMetadataTagger
         var root = Path.Combine(Path.GetTempPath(), "tuvima-epub-entry-root");
         var combined = Path.GetFullPath(Path.Combine(root, opfDir, href.Replace('/', Path.DirectorySeparatorChar)));
         if (!combined.StartsWith(root + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
+        {
             throw new InvalidDataException("EPUB cover href leaves the archive root.");
+        }
         return Path.GetRelativePath(root, combined).Replace('\\', '/');
     }
 

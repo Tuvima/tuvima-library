@@ -261,19 +261,28 @@ public sealed class RepositoryTests : IDisposable
         var editionId = await CreateTestEditionAsync();
         var original = new MediaAsset
         {
-            Id = Guid.NewGuid(), EditionId = editionId,
-            ContentHash = $"original_{Guid.NewGuid():N}", FilePathRoot = "/movies/title-4k.mkv",
+            Id = Guid.NewGuid(),
+            EditionId = editionId,
+            ContentHash = $"original_{Guid.NewGuid():N}",
+            FilePathRoot = "/movies/title-4k.mkv",
         };
         var mobile = new MediaAsset
         {
-            Id = Guid.NewGuid(), EditionId = editionId,
-            ContentHash = $"mobile_{Guid.NewGuid():N}", FilePathRoot = "/movies/title-mobile.mp4",
+            Id = Guid.NewGuid(),
+            EditionId = editionId,
+            ContentHash = $"mobile_{Guid.NewGuid():N}",
+            FilePathRoot = "/movies/title-mobile.mp4",
             RenditionPurpose = RenditionPurpose.Mobile,
             DerivedFromAssetId = original.Id,
             EncoderProfileVersion = "mobile-h264-v3",
-            Width = 1920, Height = 1080, BitrateBitsPerSecond = 4_500_000,
-            VideoCodec = "h264", AudioCodec = "aac", DynamicRange = "SDR",
-            AudioLayout = "stereo", RenditionGeneratedAt = DateTimeOffset.UtcNow,
+            Width = 1920,
+            Height = 1080,
+            BitrateBitsPerSecond = 4_500_000,
+            VideoCodec = "h264",
+            AudioCodec = "aac",
+            DynamicRange = "SDR",
+            AudioLayout = "stereo",
+            RenditionGeneratedAt = DateTimeOffset.UtcNow,
             SourceFingerprint = original.ContentHash,
         };
 
@@ -297,12 +306,27 @@ public sealed class RepositoryTests : IDisposable
         var repo = new MediaAssetRepository(_db);
         var editionId = await CreateTestEditionAsync();
         var otherEditionId = await CreateTestEditionAsync();
-        var source = new MediaAsset { Id = Guid.NewGuid(), EditionId = editionId,
-            ContentHash = $"source_{Guid.NewGuid():N}", FilePathRoot = "/source.mkv" };
-        var derived = new MediaAsset { Id = Guid.NewGuid(), EditionId = editionId,
-            ContentHash = $"derived_{Guid.NewGuid():N}", FilePathRoot = "/derived.mp4" };
-        var other = new MediaAsset { Id = Guid.NewGuid(), EditionId = otherEditionId,
-            ContentHash = $"other_{Guid.NewGuid():N}", FilePathRoot = "/other.mkv" };
+        var source = new MediaAsset
+        {
+            Id = Guid.NewGuid(),
+            EditionId = editionId,
+            ContentHash = $"source_{Guid.NewGuid():N}",
+            FilePathRoot = "/source.mkv"
+        };
+        var derived = new MediaAsset
+        {
+            Id = Guid.NewGuid(),
+            EditionId = editionId,
+            ContentHash = $"derived_{Guid.NewGuid():N}",
+            FilePathRoot = "/derived.mp4"
+        };
+        var other = new MediaAsset
+        {
+            Id = Guid.NewGuid(),
+            EditionId = otherEditionId,
+            ContentHash = $"other_{Guid.NewGuid():N}",
+            FilePathRoot = "/other.mkv"
+        };
         await repo.InsertAsync(source);
         await repo.InsertAsync(derived);
         await repo.InsertAsync(other);
@@ -1654,17 +1678,19 @@ public sealed class RepositoryTests : IDisposable
         await repo.CreateAsync(job);
 
         using (var conn = _db.CreateConnection())
-        using (var cmd = conn.CreateCommand())
         {
-            cmd.CommandText = """
-                UPDATE identity_jobs
-                SET attempt_count = 5,
-                    updated_at = @updatedAt
-                WHERE id = @id;
-            """;
-            cmd.Parameters.AddWithValue("@updatedAt", DateTimeOffset.UtcNow.AddMinutes(-10).ToString("O"));
-            cmd.Parameters.Add("@id", Microsoft.Data.Sqlite.SqliteType.Blob).Value = GuidSql.ToBlob(job.Id);
-            cmd.ExecuteNonQuery();
+            using (var cmd = conn.CreateCommand())
+            {
+                cmd.CommandText = """
+                    UPDATE identity_jobs
+                    SET attempt_count = 5,
+                        updated_at = @updatedAt
+                    WHERE id = @id;
+                """;
+                cmd.Parameters.AddWithValue("@updatedAt", DateTimeOffset.UtcNow.AddMinutes(-10).ToString("O"));
+                cmd.Parameters.Add("@id", Microsoft.Data.Sqlite.SqliteType.Blob).Value = GuidSql.ToBlob(job.Id);
+                cmd.ExecuteNonQuery();
+            }
         }
 
         var reclaimed = await repo.ReclaimStuckJobsAsync(
@@ -1739,21 +1765,23 @@ public sealed class RepositoryTests : IDisposable
         await repo.CreateAsync(universeJob);
 
         using (var conn = _db.CreateConnection())
-        using (var cmd = conn.CreateCommand())
         {
-            cmd.CommandText = """
-                UPDATE identity_jobs
-                SET updated_at = @updatedAt
-                WHERE id = @id;
-                """;
-            cmd.Parameters.AddWithValue(
-                "@updatedAt",
-                DateTimeOffset.UtcNow.AddMinutes(-10).ToString("O"));
-            var idParameter = cmd.Parameters.Add("@id", Microsoft.Data.Sqlite.SqliteType.Blob);
-            foreach (var id in new[] { hydratingJob.Id, universeJob.Id })
+            using (var cmd = conn.CreateCommand())
             {
-                idParameter.Value = GuidSql.ToBlob(id);
-                cmd.ExecuteNonQuery();
+                cmd.CommandText = """
+                    UPDATE identity_jobs
+                    SET updated_at = @updatedAt
+                    WHERE id = @id;
+                    """;
+                cmd.Parameters.AddWithValue(
+                    "@updatedAt",
+                    DateTimeOffset.UtcNow.AddMinutes(-10).ToString("O"));
+                var idParameter = cmd.Parameters.Add("@id", Microsoft.Data.Sqlite.SqliteType.Blob);
+                foreach (var id in new[] { hydratingJob.Id, universeJob.Id })
+                {
+                    idParameter.Value = GuidSql.ToBlob(id);
+                    cmd.ExecuteNonQuery();
+                }
             }
         }
 

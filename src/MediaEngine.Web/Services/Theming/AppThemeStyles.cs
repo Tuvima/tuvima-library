@@ -1,4 +1,5 @@
 namespace MediaEngine.Web.Services.Theming;
+
 internal static class AppThemeStyles
 {
     public const string Dashboard = @"<style class='tl-theme-provider'>

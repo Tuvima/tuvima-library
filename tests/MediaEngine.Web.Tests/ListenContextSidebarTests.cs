@@ -1,7 +1,7 @@
 using System.Text.Json;
-using MediaEngine.Domain.Services;
 using Bunit;
 using MediaEngine.Contracts.Playback;
+using MediaEngine.Domain.Services;
 using MediaEngine.Web.Components.Listen;
 using MediaEngine.Web.Components.Shared;
 using MediaEngine.Web.Services.Integration;
@@ -230,7 +230,10 @@ public sealed class ListenContextSidebarTests : AsyncBunitContext
         Assert.Equal(current.AssetId, heartbeat.AssetId);
         Assert.False(playback.IsPlaying);
         Assert.True(playback.HasQueue);
-        if (startSuccessor) await cut.InvokeAsync(() => playback.PlayIndexAsync(1));
+        if (startSuccessor)
+        {
+            await cut.InvokeAsync(() => playback.PlayIndexAsync(1));
+        }
         persisted.SetResult(null);
         await close;
         if (startSuccessor)
@@ -238,7 +241,10 @@ public sealed class ListenContextSidebarTests : AsyncBunitContext
             Assert.Equal(successor.WorkId, playback.CurrentItem?.WorkId);
             Assert.DoesNotContain(JSInterop.Invocations, invocation => invocation.Identifier == "listenPlayback.finalizeAudioClose");
         }
-        else Assert.False(playback.HasQueue);
+        else
+        {
+            Assert.False(playback.HasQueue);
+        }
     }
 
     [Fact]
@@ -469,7 +475,8 @@ public sealed class ListenContextSidebarTests : AsyncBunitContext
         Assert.NotEqual("audio-chapters", transientTools.OpenToolId);
         var selector = phoneFull.FindComponent<PlaybackSleepTimerControl>().FindComponent<AppSelect>();
         await selector.Find(".tl-select-trigger").ClickAsync();
-        cut.WaitForAssertion(() => {
+        cut.WaitForAssertion(() =>
+        {
             Assert.True(selector.Instance.Open);
             Assert.StartsWith("app-select-", transientTools.OpenToolId);
             Assert.Equal("false", speed.Find("button").GetAttribute("aria-expanded"));
@@ -479,7 +486,8 @@ public sealed class ListenContextSidebarTests : AsyncBunitContext
         Assert.True(playback.IsPlaying);
         Assert.Equal(120, playback.CurrentTimeSeconds);
         await cut.Find(".playback-full__modes button[aria-label='Chapters']").ClickAsync();
-        cut.WaitForAssertion(() => {
+        cut.WaitForAssertion(() =>
+        {
             Assert.Contains("playback-full__middle", cut.Markup);
             Assert.Equal("history", workspace.For(playback).ActivePanelKey);
             Assert.Empty(cut.FindAll(".listen-player-panel"));
@@ -811,7 +819,9 @@ public sealed class ListenContextSidebarTests : AsyncBunitContext
         public ValueTask<TValue> InvokeAsync<TValue>(string identifier, CancellationToken cancellationToken, object?[]? args)
         {
             if (identifier == "import")
+            {
                 return ValueTask.FromResult((TValue)(object)new NoopJsObjectReference());
+            }
 
             if (identifier == "listenPlayback.setAudiobookSleepTimer"
                 && args is { Length: >= 2 }

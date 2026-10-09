@@ -11,12 +11,18 @@ public sealed class TmdbRetailClient
 {
     public async Task<JsonNode?> FetchPersonDetailsAsync(int personId, string apiKey, CancellationToken ct)
     {
-        if (personId <= 0 || string.IsNullOrWhiteSpace(apiKey)) return null;
+        if (personId <= 0 || string.IsNullOrWhiteSpace(apiKey))
+        {
+            return null;
+        }
         using var client = _httpFactory.CreateClient("tmdb");
         var url = $"https://api.themoviedb.org/3/person/{personId}?api_key={Uri.EscapeDataString(apiKey)}";
         using var response = await _rateLimiter.ExecuteAsync("tmdb", ProviderRateLimitDefaults.Tmdb,
             token => client.GetAsync(url, token), ct).ConfigureAwait(false);
-        if (response.StatusCode == HttpStatusCode.NotFound) return null;
+        if (response.StatusCode == HttpStatusCode.NotFound)
+        {
+            return null;
+        }
         response.EnsureSuccessStatusCode();
         return await response.Content.ReadFromJsonAsync<JsonNode>(cancellationToken: ct).ConfigureAwait(false);
     }

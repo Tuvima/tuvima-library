@@ -1,6 +1,6 @@
 using System.Reflection;
-using MediaEngine.Contracts.Metadata;
 using MediaEngine.Contracts.Matching;
+using MediaEngine.Contracts.Metadata;
 using MediaEngine.Contracts.Search;
 using MediaEngine.Web.Components.MediaEditor;
 

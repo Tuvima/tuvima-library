@@ -43,20 +43,29 @@ public sealed class MediaEditorSelectionHistoryRouteTests
             var firstLibrary = Guid.NewGuid();
             var secondLibrary = Guid.NewGuid();
             using (var connection = database.CreateConnection())
+            {
                 connection.Execute("""
-                    INSERT INTO works(id, media_type, work_kind, ownership)
-                    VALUES(@show, 'TV', 'parent', 'Owned');
-                    INSERT INTO works(id, media_type, work_kind, parent_work_id, ownership)
-                    VALUES(@episode, 'TV', 'child', @show, 'Owned');
-                    INSERT INTO editions(id, work_id) VALUES(@edition, @episode);
-                    INSERT INTO media_assets(id, edition_id, content_hash, file_path_root, library_id)
-                    VALUES(@first, @edition, @firstHash, 'C:/fixture/first.mkv', @firstLibrary),
-                          (@second, @edition, @secondHash, 'C:/fixture/second.mkv', @secondLibrary);
-                    """, new { show, episode, edition, first, second,
-                        firstHash = Guid.NewGuid().ToString("N"),
-                        secondHash = Guid.NewGuid().ToString("N"),
-                        firstLibrary = firstLibrary.ToString("D"),
-                        secondLibrary = secondLibrary.ToString("D") });
+                        INSERT INTO works(id, media_type, work_kind, ownership)
+                        VALUES(@show, 'TV', 'parent', 'Owned');
+                        INSERT INTO works(id, media_type, work_kind, parent_work_id, ownership)
+                        VALUES(@episode, 'TV', 'child', @show, 'Owned');
+                        INSERT INTO editions(id, work_id) VALUES(@edition, @episode);
+                        INSERT INTO media_assets(id, edition_id, content_hash, file_path_root, library_id)
+                        VALUES(@first, @edition, @firstHash, 'C:/fixture/first.mkv', @firstLibrary),
+                              (@second, @edition, @secondHash, 'C:/fixture/second.mkv', @secondLibrary);
+                        """, new
+                {
+                    show,
+                    episode,
+                    edition,
+                    first,
+                    second,
+                    firstHash = Guid.NewGuid().ToString("N"),
+                    secondHash = Guid.NewGuid().ToString("N"),
+                    firstLibrary = firstLibrary.ToString("D"),
+                    secondLibrary = secondLibrary.ToString("D")
+                });
+            }
 
             var access = new LibraryAccess(firstLibrary);
             var actor = new RequestAuthority(PrincipalKind.Human, true,
@@ -101,10 +110,12 @@ public sealed class MediaEditorSelectionHistoryRouteTests
             Assert.Empty(emptyBody.Items);
 
             using (var connection = database.CreateConnection())
+            {
                 connection.Execute("""
-                    INSERT INTO system_activity(entity_id, entity_type, action_type, detail)
-                    VALUES(@asset, 'MediaAsset', 'MetadataEdited', 'Reviewed file');
-                    """, new { asset = first });
+                        INSERT INTO system_activity(entity_id, entity_type, action_type, detail)
+                        VALUES(@asset, 'MediaAsset', 'MetadataEdited', 'Reviewed file');
+                        """, new { asset = first });
+            }
             using var loaded = await client.PostAsJsonAsync(
                 $"/metadata/{show:D}/owned-children/history",
                 new MediaEditorSelectionHistoryRequestDto([first]));
@@ -114,7 +125,9 @@ public sealed class MediaEditorSelectionHistoryRouteTests
             Assert.Equal(first, Assert.Single(loadedBody.Items).EntityId);
 
             using (var connection = database.CreateConnection())
+            {
                 connection.Execute("DROP TABLE system_activity;");
+            }
             using var unavailable = await client.PostAsJsonAsync(
                 $"/metadata/{show:D}/owned-children/history",
                 new MediaEditorSelectionHistoryRequestDto([first]));

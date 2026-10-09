@@ -74,7 +74,10 @@ public sealed partial class IngestionEngine
         }
 
         asset.ContentHash = hash.Hash.Hex;
-        if (_playbackInspection is not null) await _playbackInspection.InspectAsync(asset, ct);
+        if (_playbackInspection is not null)
+        {
+            await _playbackInspection.InspectAsync(asset, ct);
+        }
         return new(
             assetId,
             "Updated",
@@ -97,7 +100,9 @@ public sealed partial class IngestionEngine
             var result = await _processors.ProcessAsync(filePath, ct).ConfigureAwait(false);
             if (_libraryFolderResolver?.ResolveForPath(filePath)?.MediaTypes.Contains(MediaType.Audiobooks) == true
                 && _libraryFolderResolver.ResolveSourcePath(filePath) is { } audiobookSource)
+            {
                 result = Services.AudiobookFolderHints.Apply(result, audiobookSource);
+            }
             if (result.IsCorrupt)
             {
                 _logger.LogWarning(

@@ -202,7 +202,10 @@ internal sealed partial class DetailCompositionOrchestrator
             var collectionOverrides = ParseDisplayOverrides(await overridesConnection.ExecuteScalarAsync<string?>(
                 new CommandDefinition("SELECT display_overrides_json FROM collections WHERE id = @collectionId;",
                     new { collectionId }, cancellationToken: ct)));
-            foreach (var (key, value) in collectionOverrides) displayOverrides[key] = value;
+            foreach (var (key, value) in collectionOverrides)
+            {
+                displayOverrides[key] = value;
+            }
         }
         var values = MergeCanonicalMaps(collectionValues, rootValues);
         foreach (var (key, value) in displayOverrides.Where(pair => DetailDisplayOverrideCatalog.IsAllowed(pair.Key)))

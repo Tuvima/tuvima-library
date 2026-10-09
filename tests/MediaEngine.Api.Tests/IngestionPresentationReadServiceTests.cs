@@ -506,8 +506,13 @@ public sealed class IngestionPresentationReadServiceTests : IDisposable
         Assert.Single((await presentation.GetSnapshotAsync()).RecentDays);
         await new MediaOperationRepository(_db).EnsureAsync(new MediaEngine.Domain.Entities.MediaOperation
         {
-            OperationType = "enrichment.people", OperationKind = "enrichment", BatchId = batch,
-            EntityId = asset, Status = "queued", QueueName = "people", IdempotencyKey = "test:people",
+            OperationType = "enrichment.people",
+            OperationKind = "enrichment",
+            BatchId = batch,
+            EntityId = asset,
+            Status = "queued",
+            QueueName = "people",
+            IdempotencyKey = "test:people",
         });
         var enriching = (await service.GetProgressAsync(batch))!;
         Assert.False(enriching.IsComplete);

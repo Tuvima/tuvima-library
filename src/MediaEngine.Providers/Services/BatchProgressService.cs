@@ -223,7 +223,9 @@ public sealed class BatchProgressService
 
         if (snapshot.OutstandingOperations > 0 && snapshot.QueuedJobs + snapshot.RetailSearching
             + snapshot.RetailMatched + snapshot.BridgeSearching + snapshot.QidResolved + snapshot.Hydrating == 0)
+        {
             return "Enriching";
+        }
 
         if (snapshot.Hydrating > 0)
         {

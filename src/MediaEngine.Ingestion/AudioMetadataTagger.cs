@@ -129,7 +129,9 @@ public sealed class AudioMetadataTagger : BackedUpMetadataTagger, IMetadataTagge
     public MetadataTaggerCapabilities GetCapabilities(string filePath)
     {
         if (!CanHandle(filePath))
+        {
             throw new NotSupportedException($"AudioTagger cannot handle {Path.GetExtension(filePath)}.");
+        }
         var extension = Path.GetExtension(filePath);
         return new MetadataTaggerCapabilities(
             extension,
@@ -161,107 +163,109 @@ public sealed class AudioMetadataTagger : BackedUpMetadataTagger, IMetadataTagge
             using (var file = TagLib.File.Create(filePath))
             {
 
-            if (CustomIdKeys.Any(tags.ContainsKey)
-                && file.GetTag(TagLib.TagTypes.Id3v2, false) is not TagLib.Id3v2.Tag
-                && file.GetTag(TagLib.TagTypes.Apple, false) is not TagLib.Mpeg4.AppleTag
-                && file.GetTag(TagLib.TagTypes.Xiph, false) is not TagLib.Ogg.XiphComment)
-            {
-                throw new NotSupportedException(
-                    $"This audio container has no supported Tuvima identifier tag for {Path.GetExtension(filePath)}.");
-            }
-
-            if (tags.TryGetValue("title", out var title))
-            {
-                file.Tag.Title = title;
-            }
-
-            if (tags.TryGetValue("author", out var author))
-            {
-                file.Tag.Performers = [author];
-            }
-
-            if (tags.TryGetValue("artist", out var artist))
-            {
-                file.Tag.Performers = [artist];
-            }
-
-            if (tags.TryGetValue("album", out var albumName))
-            {
-                file.Tag.Album = albumName;
-            }
-
-            if (tags.TryGetValue("track_number", out var trackStr) && uint.TryParse(trackStr, out var trackNo))
-            {
-                file.Tag.Track = trackNo;
-            }
-
-            if (tags.TryGetValue("narrator", out var narrator))
-            {
-                // Write narrator to TXXX:NARRATOR — the same custom frame that
-                // AudioProcessor reads as its primary narrator source.
-                if (file.TagTypes.HasFlag(TagLib.TagTypes.Id3v2) &&
-                    file.GetTag(TagLib.TagTypes.Id3v2) is TagLib.Id3v2.Tag id3v2)
+                if (CustomIdKeys.Any(tags.ContainsKey)
+                    && file.GetTag(TagLib.TagTypes.Id3v2, false) is not TagLib.Id3v2.Tag
+                    && file.GetTag(TagLib.TagTypes.Apple, false) is not TagLib.Mpeg4.AppleTag
+                    && file.GetTag(TagLib.TagTypes.Xiph, false) is not TagLib.Ogg.XiphComment)
                 {
-                    var frame = TagLib.Id3v2.UserTextInformationFrame.Get(id3v2, "NARRATOR", true);
-                    frame.Text = [narrator];
+                    throw new NotSupportedException(
+                        $"This audio container has no supported Tuvima identifier tag for {Path.GetExtension(filePath)}.");
                 }
-                else
+
+                if (tags.TryGetValue("title", out var title))
                 {
-                    // Non-ID3 formats (M4A, FLAC, OGG): use Composers as fallback
-                    // since AudioProcessor checks Composers for narrator on these formats.
-                    file.Tag.Composers = [narrator];
+                    file.Tag.Title = title;
                 }
-            }
 
-            if (tags.TryGetValue("series", out var series))
-            {
-                file.Tag.Album = series;
-            }
-
-            if (tags.TryGetValue("series_position", out var pos) && uint.TryParse(pos, out var trackNum))
-            {
-                file.Tag.Track = trackNum;
-            }
-
-            if (tags.TryGetValue("genre", out var genre))
-            {
-                file.Tag.Genres = [genre];
-            }
-
-            if (tags.TryGetValue("description", out var desc))
-            {
-                file.Tag.Comment = desc;
-            }
-
-            if (tags.TryGetValue("year", out var yearStr) && uint.TryParse(yearStr, out var year))
-            {
-                file.Tag.Year = year;
-            }
-
-            if (tags.TryGetValue("publisher", out var publisher))
-            {
-                // TagLib doesn't have a dedicated publisher property;
-                // store in the first available custom field.
-                file.Tag.Publisher = publisher;
-            }
-
-            // Custom identifier fields — round-trippable on re-ingest.
-            foreach (var key in CustomIdKeys)
-            {
-                if (tags.TryGetValue(key, out var idValue))
+                if (tags.TryGetValue("author", out var author))
                 {
-                    WriteCustomId(file, key, idValue);
+                    file.Tag.Performers = [author];
                 }
-            }
 
-            file.Save();
+                if (tags.TryGetValue("artist", out var artist))
+                {
+                    file.Tag.Performers = [artist];
+                }
+
+                if (tags.TryGetValue("album", out var albumName))
+                {
+                    file.Tag.Album = albumName;
+                }
+
+                if (tags.TryGetValue("track_number", out var trackStr) && uint.TryParse(trackStr, out var trackNo))
+                {
+                    file.Tag.Track = trackNo;
+                }
+
+                if (tags.TryGetValue("narrator", out var narrator))
+                {
+                    // Write narrator to TXXX:NARRATOR — the same custom frame that
+                    // AudioProcessor reads as its primary narrator source.
+                    if (file.TagTypes.HasFlag(TagLib.TagTypes.Id3v2) &&
+                        file.GetTag(TagLib.TagTypes.Id3v2) is TagLib.Id3v2.Tag id3v2)
+                    {
+                        var frame = TagLib.Id3v2.UserTextInformationFrame.Get(id3v2, "NARRATOR", true);
+                        frame.Text = [narrator];
+                    }
+                    else
+                    {
+                        // Non-ID3 formats (M4A, FLAC, OGG): use Composers as fallback
+                        // since AudioProcessor checks Composers for narrator on these formats.
+                        file.Tag.Composers = [narrator];
+                    }
+                }
+
+                if (tags.TryGetValue("series", out var series))
+                {
+                    file.Tag.Album = series;
+                }
+
+                if (tags.TryGetValue("series_position", out var pos) && uint.TryParse(pos, out var trackNum))
+                {
+                    file.Tag.Track = trackNum;
+                }
+
+                if (tags.TryGetValue("genre", out var genre))
+                {
+                    file.Tag.Genres = [genre];
+                }
+
+                if (tags.TryGetValue("description", out var desc))
+                {
+                    file.Tag.Comment = desc;
+                }
+
+                if (tags.TryGetValue("year", out var yearStr) && uint.TryParse(yearStr, out var year))
+                {
+                    file.Tag.Year = year;
+                }
+
+                if (tags.TryGetValue("publisher", out var publisher))
+                {
+                    // TagLib doesn't have a dedicated publisher property;
+                    // store in the first available custom field.
+                    file.Tag.Publisher = publisher;
+                }
+
+                // Custom identifier fields — round-trippable on re-ingest.
+                foreach (var key in CustomIdKeys)
+                {
+                    if (tags.TryGetValue(key, out var idValue))
+                    {
+                        WriteCustomId(file, key, idValue);
+                    }
+                }
+
+                file.Save();
             }
 
             if (CanVerifyAllRequestedTags(filePath, tags))
             {
                 var readback = VerifyTagsAsync(filePath, tags, ct).GetAwaiter().GetResult();
                 if (!readback.IsVerified)
+                {
                     throw new InvalidDataException(readback.Reason ?? "Audio metadata read-back failed.");
+                }
             }
 
             // Backup cleanup — success.
@@ -288,14 +292,18 @@ public sealed class AudioMetadataTagger : BackedUpMetadataTagger, IMetadataTagge
             && (!uint.TryParse(track, out var trackNumber)
                 || !uint.TryParse(position, out var positionNumber)
                 || trackNumber != positionNumber))
+        {
             throw new NotSupportedException("track_number and series_position share one audio tag and must agree.");
+        }
 
         void CheckTextAlias(string first, string second)
         {
             if (tags.TryGetValue(first, out var firstValue)
                 && tags.TryGetValue(second, out var secondValue)
                 && !string.Equals(NormalizeValue(firstValue), NormalizeValue(secondValue), StringComparison.Ordinal))
+            {
                 throw new NotSupportedException($"{first} and {second} share one audio tag and must agree.");
+            }
         }
     }
 
@@ -313,14 +321,20 @@ public sealed class AudioMetadataTagger : BackedUpMetadataTagger, IMetadataTagge
         var xiphAudio = extension.Equals(".flac", StringComparison.OrdinalIgnoreCase)
             || extension.Equals(".ogg", StringComparison.OrdinalIgnoreCase);
         if (!mp3 && !appleAudio && !xiphAudio)
+        {
             return Task.FromResult(MetadataTagReadbackResult.Unverified(
-                "Metadata read-back is not proven for this audio format."));
+                    "Metadata read-back is not proven for this audio format."));
+        }
         if (appleAudio && tags.Keys.Any(key => !VerifiedAppleAudioKeys.Contains(key)))
+        {
             return Task.FromResult(MetadataTagReadbackResult.Unverified(
-                "One or more requested Apple audio fields has no proven read-back."));
+                    "One or more requested Apple audio fields has no proven read-back."));
+        }
         if (xiphAudio && tags.Keys.Any(key => !VerifiedXiphAudioKeys.Contains(key)))
+        {
             return Task.FromResult(MetadataTagReadbackResult.Unverified(
-                "One or more requested Xiph audio fields has no proven read-back."));
+                    "One or more requested Xiph audio fields has no proven read-back."));
+        }
 
         try
         {
@@ -328,17 +342,25 @@ public sealed class AudioMetadataTagger : BackedUpMetadataTagger, IMetadataTagge
             // disposed its writer. Inspect the physical tag family directly.
             using var file = TagLib.File.Create(filePath);
             if (xiphAudio && !IsProvenXiphContainer(file, extension))
+            {
                 return Task.FromResult(MetadataTagReadbackResult.Unverified(
-                    "This FLAC or OGG codec has no proven metadata read-back."));
+                        "This FLAC or OGG codec has no proven metadata read-back."));
+            }
             var id3 = mp3 ? file.GetTag(TagLib.TagTypes.Id3v2, false) as TagLib.Id3v2.Tag : null;
             var apple = appleAudio ? file.GetTag(TagLib.TagTypes.Apple, false) as TagLib.Mpeg4.AppleTag : null;
             var xiph = xiphAudio ? file.GetTag(TagLib.TagTypes.Xiph, false) as TagLib.Ogg.XiphComment : null;
             if (mp3 && id3 is null)
+            {
                 return Task.FromResult(MetadataTagReadbackResult.Unverified("ID3v2 metadata is absent."));
+            }
             if (appleAudio && apple is null)
+            {
                 return Task.FromResult(MetadataTagReadbackResult.Unverified("Apple audio metadata is absent."));
+            }
             if (xiphAudio && xiph is null)
+            {
                 return Task.FromResult(MetadataTagReadbackResult.Unverified("Xiph audio metadata is absent."));
+            }
 
             var mismatches = new List<string>();
             foreach (var (key, expected) in tags)
@@ -384,7 +406,9 @@ public sealed class AudioMetadataTagger : BackedUpMetadataTagger, IMetadataTagge
                       && uint.TryParse(actual, out var savedNumber) && number == savedNumber
                     : string.Equals(NormalizeValue(expected), NormalizeValue(actual), StringComparison.Ordinal);
                 if (!equal)
+                {
                     mismatches.Add(key);
+                }
             }
 
             return Task.FromResult(mismatches.Count == 0
@@ -451,10 +475,14 @@ public sealed class AudioMetadataTagger : BackedUpMetadataTagger, IMetadataTagge
         }
 
         if (!GetCapabilities(filePath).CanWriteArtwork)
+        {
             throw new NotSupportedException($"AudioTagger cannot verify artwork embedding in {Path.GetExtension(filePath)}.");
+        }
 
         if (imageData.Length == 0)
+        {
             throw new ArgumentException("Artwork bytes cannot be empty.", nameof(imageData));
+        }
 
         WithBackup(
             filePath,
@@ -469,8 +497,8 @@ public sealed class AudioMetadataTagger : BackedUpMetadataTagger, IMetadataTagge
                     .ToList();
                 retainedPictures.Add(new TagLib.Picture(new TagLib.ByteVector(imageData))
                 {
-                    Type        = TagLib.PictureType.FrontCover,
-                    MimeType    = imageData.Length >= 8 && imageData.AsSpan(0, 8).SequenceEqual(new byte[] { 137, 80, 78, 71, 13, 10, 26, 10 })
+                    Type = TagLib.PictureType.FrontCover,
+                    MimeType = imageData.Length >= 8 && imageData.AsSpan(0, 8).SequenceEqual(new byte[] { 137, 80, 78, 71, 13, 10, 26, 10 })
                         ? "image/png" : "image/jpeg",
                     Description = "Cover",
                 });
@@ -479,7 +507,9 @@ public sealed class AudioMetadataTagger : BackedUpMetadataTagger, IMetadataTagge
             }
 
             if (!ArtworkEmbeddingSupport.VerifyFrontCover(filePath, imageData))
+            {
                 throw new InvalidDataException("Audio front cover could not be verified after writing.");
+            }
 
             var backupPath = filePath + BackupSuffix;
             if (File.Exists(backupPath))

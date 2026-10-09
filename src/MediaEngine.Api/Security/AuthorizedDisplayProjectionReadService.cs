@@ -62,7 +62,10 @@ internal sealed class AuthorizedDisplayProjectionReadService(
     internal async Task<IReadOnlyList<DisplayWorkRow>> FilterRecentWorksAsync(IReadOnlyList<DisplayWorkRow> rows, Guid? profileId, CancellationToken ct)
     {
         var scope = await ResolveScopeAsync(ct).ConfigureAwait(false);
-        if (!scope.IsValid || profileId is null || profileId != scope.Authority.ActiveProfileId) return [];
+        if (!scope.IsValid || profileId is null || profileId != scope.Authority.ActiveProfileId)
+        {
+            return [];
+        }
         return rows.Where(row => Allows(row.LibraryId, row.MediaType, scope)).ToList();
     }
 
@@ -85,7 +88,10 @@ internal sealed class AuthorizedDisplayProjectionReadService(
     public async Task<IReadOnlyList<DisplayJourneyRow>> LoadStatesAsync(Guid? profileId, string? lane, CancellationToken ct)
     {
         var scope = await ResolveScopeAsync(ct).ConfigureAwait(false);
-        if (!scope.IsValid || profileId is null || profileId != scope.Authority.ActiveProfileId) return [];
+        if (!scope.IsValid || profileId is null || profileId != scope.Authority.ActiveProfileId)
+        {
+            return [];
+        }
         return (await inner.LoadStatesAsync(profileId, lane, ct).ConfigureAwait(false))
             .Where(row => row.ProfileId == profileId && Allows(row.LibraryId, row.MediaType, scope)).ToList();
     }

@@ -235,7 +235,9 @@ public static class StreamEndpoints
                 && !imageUrl.StartsWith($"/stream/entity/{entityType}/", StringComparison.OrdinalIgnoreCase))
             {
                 if (NormalizeArtworkSize(size) is { } rendition && imageUrl.StartsWith("/stream/artwork/", StringComparison.OrdinalIgnoreCase))
+                {
                     imageUrl = Microsoft.AspNetCore.WebUtilities.QueryHelpers.AddQueryString(imageUrl, "size", rendition);
+                }
                 return Results.Redirect(imageUrl);
             }
 

@@ -1,7 +1,7 @@
-using Dapper;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using Dapper;
 using MediaEngine.Application.ReadModels;
 using MediaEngine.Application.Services;
 using MediaEngine.Domain;
@@ -41,18 +41,22 @@ public sealed class MediaEditorOwnedChildReadService(IDatabaseConnection db) : I
     {
         ct.ThrowIfCancellationRequested();
         if (assetIds.Count == 0 || assetIds.Count > 1000 || assetIds.Contains(Guid.Empty))
+        {
             return Task.FromResult<IReadOnlyDictionary<Guid, string>>(new Dictionary<Guid, string>());
+        }
 
         return db.ExecuteReadAsync<IReadOnlyDictionary<Guid, string>>((connection, transaction, token) =>
         {
-        var parentWorkId = ResolveParentWorkId(connection, parentEntityId, transaction);
-        if (parentWorkId is null)
-            return new Dictionary<Guid, string>();
-        var rows = new List<OwnedChildRow>(assetIds.Count);
-        foreach (var batch in assetIds.Distinct().Chunk(400))
-        {
-            ct.ThrowIfCancellationRequested();
-            rows.AddRange(connection.Query<OwnedChildRow>(new CommandDefinition("""
+            var parentWorkId = ResolveParentWorkId(connection, parentEntityId, transaction);
+            if (parentWorkId is null)
+            {
+                return new Dictionary<Guid, string>();
+            }
+            var rows = new List<OwnedChildRow>(assetIds.Count);
+            foreach (var batch in assetIds.Distinct().Chunk(400))
+            {
+                ct.ThrowIfCancellationRequested();
+                rows.AddRange(connection.Query<OwnedChildRow>(new CommandDefinition("""
                 SELECT ma.id AS AssetId, e.id AS EditionId, w.id AS WorkId,
                        w.parent_work_id AS ParentWorkId,
                        COALESCE(grandparent.id, parent.id, w.id) AS RootWorkId,
@@ -69,10 +73,10 @@ public sealed class MediaEditorOwnedChildReadService(IDatabaseConnection db) : I
                 WHERE ma.id IN @assetIds AND ma.status = 'Normal'
                   AND ma.is_orphaned = 0 AND w.ownership = 'Owned';
                 """, new { assetIds = batch.Select(GuidSql.ToBlob).ToArray() },
-                transaction, cancellationToken: ct)));
-        }
-        var revisions = GetSelectionRevisions(connection, rows, ct, transaction);
-        return revisions;
+                    transaction, cancellationToken: ct)));
+            }
+            var revisions = GetSelectionRevisions(connection, rows, ct, transaction);
+            return revisions;
         }, ct);
     }
 
@@ -81,7 +85,10 @@ public sealed class MediaEditorOwnedChildReadService(IDatabaseConnection db) : I
         ct.ThrowIfCancellationRequested();
         using var connection = db.CreateConnection();
         var parentWorkId = ResolveParentWorkId(connection, parentEntityId);
-        if (parentWorkId is null) return [];
+        if (parentWorkId is null)
+        {
+            return [];
+        }
         return (await connection.QueryAsync<MediaEditorAssetAccessSegment>(new CommandDefinition("""
             WITH RECURSIVE work_tree(id) AS (
                 SELECT @parentWorkId
@@ -119,14 +126,14 @@ public sealed class MediaEditorOwnedChildReadService(IDatabaseConnection db) : I
 
         return db.ExecuteReadAsync<MediaEditorOwnedChildSearchEnvelope?>((connection, transaction, token) =>
         {
-        var parentWorkId = ResolveParentWorkId(connection, parentEntityId, transaction);
+            var parentWorkId = ResolveParentWorkId(connection, parentEntityId, transaction);
 
-        if (parentWorkId is not { } resolvedParentWorkId || resolvedParentWorkId == Guid.Empty)
-        {
-            return null;
-        }
+            if (parentWorkId is not { } resolvedParentWorkId || resolvedParentWorkId == Guid.Empty)
+            {
+                return null;
+            }
 
-        var rootWorkId = connection.QueryFirstOrDefault<Guid?>("""
+            var rootWorkId = connection.QueryFirstOrDefault<Guid?>("""
             SELECT COALESCE(grandparent.id, parent.id, work.id)
             FROM works work
             LEFT JOIN works parent ON parent.id = work.parent_work_id
@@ -134,60 +141,60 @@ public sealed class MediaEditorOwnedChildReadService(IDatabaseConnection db) : I
             WHERE work.id = @resolvedParentWorkId;
             """, new { resolvedParentWorkId }, transaction) ?? resolvedParentWorkId;
 
-        var normalizedQuery = (query ?? string.Empty).Trim();
-        var normalizedMatchStatus = NormalizeFilter(matchStatus, "matched", "unmatched");
-        var normalizedFileStatus = string.IsNullOrWhiteSpace(fileStatus) ? null : fileStatus.Trim();
-        var parameters = new
-        {
-            parentWorkId = resolvedParentWorkId,
-            rootWorkId,
-            query = normalizedQuery,
-            season,
-            disc,
-            volume,
-            matchStatus = normalizedMatchStatus,
-            fileStatus = normalizedFileStatus,
-            applySegmentFilter = allowedSegments is not null ? 1 : 0,
-            allowedSegments = allowedSegments?.Count > 0 ? allowedSegments : ["<none>"],
-            limit = pageSize,
-            offset = (page - 1) * pageSize,
-        };
+            var normalizedQuery = (query ?? string.Empty).Trim();
+            var normalizedMatchStatus = NormalizeFilter(matchStatus, "matched", "unmatched");
+            var normalizedFileStatus = string.IsNullOrWhiteSpace(fileStatus) ? null : fileStatus.Trim();
+            var parameters = new
+            {
+                parentWorkId = resolvedParentWorkId,
+                rootWorkId,
+                query = normalizedQuery,
+                season,
+                disc,
+                volume,
+                matchStatus = normalizedMatchStatus,
+                fileStatus = normalizedFileStatus,
+                applySegmentFilter = allowedSegments is not null ? 1 : 0,
+                allowedSegments = allowedSegments?.Count > 0 ? allowedSegments : ["<none>"],
+                limit = pageSize,
+                offset = (page - 1) * pageSize,
+            };
 
-        var totalCount = connection.QuerySingle<int>(BuildCountSql(), parameters, transaction);
-        var rows = connection.Query<OwnedChildRow>(BuildRowsSql(), parameters, transaction).ToList();
-        var selectionRevisions = GetSelectionRevisions(connection, rows, ct, transaction);
-        var items = rows.Select(row => new MediaEditorOwnedChildEnvelope(
-            row.AssetId,
-            row.WorkId,
-            row.ParentWorkId,
-            row.RootWorkId,
-            string.IsNullOrWhiteSpace(row.MatchedTitle) ? GetFileName(row.SourceFilePath) : row.MatchedTitle,
-            row.MatchedTitle,
-            row.MatchedNumber,
-            GetFileName(row.SourceFilePath),
-            row.SourceFilePath,
-            row.MatchState,
-            row.FileState,
-            row.SeasonNumber,
-            row.DiscNumber,
-            row.VolumeNumber,
-            row.EditionId,
-            row.EditionLabel,
-            row.EditionAssetCount,
-            row.WorkEditionCount,
-            !row.HasEditionMetadata && !row.HasEditionArtwork
-                && !HasMeaningfulEditionLabel(row.EditionLabel),
-            row.WorkId,
-            row.HasEditionArtwork ? row.EditionId
-                : row.MediaType == "Music" ? row.RootWorkId : row.WorkId,
-            row.HasEditionMetadata ? row.EditionId : row.WorkId,
-            "asset",
-            row.EditionReleaseId,
-            row.ParentWorkId,
-            selectionRevisions[row.AssetId])).ToList();
+            var totalCount = connection.QuerySingle<int>(BuildCountSql(), parameters, transaction);
+            var rows = connection.Query<OwnedChildRow>(BuildRowsSql(), parameters, transaction).ToList();
+            var selectionRevisions = GetSelectionRevisions(connection, rows, ct, transaction);
+            var items = rows.Select(row => new MediaEditorOwnedChildEnvelope(
+                row.AssetId,
+                row.WorkId,
+                row.ParentWorkId,
+                row.RootWorkId,
+                string.IsNullOrWhiteSpace(row.MatchedTitle) ? GetFileName(row.SourceFilePath) : row.MatchedTitle,
+                row.MatchedTitle,
+                row.MatchedNumber,
+                GetFileName(row.SourceFilePath),
+                row.SourceFilePath,
+                row.MatchState,
+                row.FileState,
+                row.SeasonNumber,
+                row.DiscNumber,
+                row.VolumeNumber,
+                row.EditionId,
+                row.EditionLabel,
+                row.EditionAssetCount,
+                row.WorkEditionCount,
+                !row.HasEditionMetadata && !row.HasEditionArtwork
+                    && !HasMeaningfulEditionLabel(row.EditionLabel),
+                row.WorkId,
+                row.HasEditionArtwork ? row.EditionId
+                    : row.MediaType == "Music" ? row.RootWorkId : row.WorkId,
+                row.HasEditionMetadata ? row.EditionId : row.WorkId,
+                "asset",
+                row.EditionReleaseId,
+                row.ParentWorkId,
+                selectionRevisions[row.AssetId])).ToList();
 
-        return new MediaEditorOwnedChildSearchEnvelope(
-            parentEntityId, page, pageSize, totalCount, items);
+            return new MediaEditorOwnedChildSearchEnvelope(
+                parentEntityId, page, pageSize, totalCount, items);
         }, ct);
     }
 
@@ -205,41 +212,45 @@ public sealed class MediaEditorOwnedChildReadService(IDatabaseConnection db) : I
         ct.ThrowIfCancellationRequested();
         return db.ExecuteReadAsync<MediaEditorOwnedChildSelectionSnapshotEnvelope?>((connection, transaction, token) =>
         {
-        var parentWorkId = ResolveParentWorkId(connection, parentEntityId, transaction);
-        if (parentWorkId is not { } resolvedParentWorkId || resolvedParentWorkId == Guid.Empty)
-            return null;
+            var parentWorkId = ResolveParentWorkId(connection, parentEntityId, transaction);
+            if (parentWorkId is not { } resolvedParentWorkId || resolvedParentWorkId == Guid.Empty)
+            {
+                return null;
+            }
 
-        var rootWorkId = connection.QueryFirstOrDefault<Guid?>("""
+            var rootWorkId = connection.QueryFirstOrDefault<Guid?>("""
             SELECT COALESCE(grandparent.id, parent.id, work.id)
             FROM works work
             LEFT JOIN works parent ON parent.id = work.parent_work_id
             LEFT JOIN works grandparent ON grandparent.id = parent.parent_work_id
             WHERE work.id = @resolvedParentWorkId;
             """, new { resolvedParentWorkId }, transaction) ?? resolvedParentWorkId;
-        var parameters = new
-        {
-            parentWorkId = resolvedParentWorkId,
-            rootWorkId,
-            query = (query ?? string.Empty).Trim(),
-            season,
-            disc,
-            volume,
-            matchStatus = NormalizeFilter(matchStatus, "matched", "unmatched"),
-            fileStatus = string.IsNullOrWhiteSpace(fileStatus) ? null : fileStatus.Trim(),
-            applySegmentFilter = 1,
-            allowedSegments = allowedSegments.Count > 0 ? allowedSegments : ["<none>"],
-            limit = 1001,
-            offset = 0,
-        };
-        var rows = connection.Query<OwnedChildRow>(
-            new CommandDefinition(BuildRowsSql(), parameters, transaction, cancellationToken: ct)).ToList();
-        if (rows.Count > 1000)
-            return new(parentEntityId, true, []);
+            var parameters = new
+            {
+                parentWorkId = resolvedParentWorkId,
+                rootWorkId,
+                query = (query ?? string.Empty).Trim(),
+                season,
+                disc,
+                volume,
+                matchStatus = NormalizeFilter(matchStatus, "matched", "unmatched"),
+                fileStatus = string.IsNullOrWhiteSpace(fileStatus) ? null : fileStatus.Trim(),
+                applySegmentFilter = 1,
+                allowedSegments = allowedSegments.Count > 0 ? allowedSegments : ["<none>"],
+                limit = 1001,
+                offset = 0,
+            };
+            var rows = connection.Query<OwnedChildRow>(
+                new CommandDefinition(BuildRowsSql(), parameters, transaction, cancellationToken: ct)).ToList();
+            if (rows.Count > 1000)
+            {
+                return new(parentEntityId, true, []);
+            }
 
-        var revisions = GetSelectionRevisions(connection, rows, ct, transaction);
-        var items = rows.Select(row => new MediaEditorOwnedChildSelectionItemEnvelope(
-            row.AssetId, revisions[row.AssetId], row.LibraryId, row.MediaType)).ToList();
-        return new(parentEntityId, false, items);
+            var revisions = GetSelectionRevisions(connection, rows, ct, transaction);
+            var items = rows.Select(row => new MediaEditorOwnedChildSelectionItemEnvelope(
+                row.AssetId, revisions[row.AssetId], row.LibraryId, row.MediaType)).ToList();
+            return new(parentEntityId, false, items);
         }, ct);
     }
 
@@ -277,7 +288,10 @@ public sealed class MediaEditorOwnedChildReadService(IDatabaseConnection db) : I
 
     private static bool HasMeaningfulEditionLabel(string? label)
     {
-        if (string.IsNullOrWhiteSpace(label)) return false;
+        if (string.IsNullOrWhiteSpace(label))
+        {
+            return false;
+        }
         var value = label.Trim().ToLowerInvariant();
         return new[] { "edition", "release", "cut", "version", "printing", "variant",
             "remaster", "narrat", "translation", "illustrated", "deluxe", "anniversary" }
@@ -310,7 +324,9 @@ public sealed class MediaEditorOwnedChildReadService(IDatabaseConnection db) : I
                 transaction, cancellationToken: ct)))
             {
                 if (!identities.TryGetValue(identity.EntityId, out var pieces))
+                {
                     identities[identity.EntityId] = pieces = [];
+                }
                 pieces.Add(identity);
             }
         }

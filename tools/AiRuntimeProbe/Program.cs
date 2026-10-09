@@ -15,7 +15,10 @@ if (args.Contains("--whisper"))
 {
     var path = runtime.EnsureWhisper();
     var info = Whisper.net.WhisperFactory.GetRuntimeInfo();
-    if (string.IsNullOrWhiteSpace(info)) throw new InvalidOperationException("Whisper returned no native runtime information.");
+    if (string.IsNullOrWhiteSpace(info))
+    {
+        throw new InvalidOperationException("Whisper returned no native runtime information.");
+    }
     var modules = Process.GetCurrentProcess().Modules.Cast<ProcessModule>()
         .Where(module => module.ModuleName.Equals("whisper.dll", StringComparison.OrdinalIgnoreCase)
             || module.ModuleName.Contains("ggml", StringComparison.OrdinalIgnoreCase)).ToArray();
@@ -23,13 +26,18 @@ if (args.Contains("--whisper"))
     {
         Console.WriteLine($"Loaded module: {module.FileName}");
         if (settings.NativeRuntimeDirectory != "bundled" && !module.FileName.StartsWith(runtime.Root + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
+        {
             throw new InvalidOperationException("Whisper module loaded outside the configured runtime installation.");
+        }
     }
     Console.WriteLine($"Whisper wrapper/native load succeeded: {path}\n{info}");
     return;
 }
 var selectedPath = runtime.EnsureLlama(args.Contains("--cpu") ? false : null);
-if (args.Contains("--cuda") && runtime.LoadedBackend != "cuda") throw new InvalidOperationException("CUDA validation selected CPU fallback.");
+if (args.Contains("--cuda") && runtime.LoadedBackend != "cuda")
+{
+    throw new InvalidOperationException("CUDA validation selected CPU fallback.");
+}
 var inventory = new ModelInventory(settings, NullLogger<ModelInventory>.Instance);
 var model = inventory.GetModelPath(MediaEngine.Domain.Enums.AiModelRole.TextQuality);
 using var lease = SharedModelArtifact.AcquireRead(model);
@@ -43,8 +51,14 @@ var parameters = new ModelParams(model)
 using var weights = LLamaWeights.LoadFromFile(parameters);
 var executor = new StatelessExecutor(weights, parameters) { ApplyTemplate = true };
 var response = "";
-await foreach (var token in executor.InferAsync("Reply with the word ready. /no_think", new InferenceParams { MaxTokens = 32 })) response += token;
-if (string.IsNullOrWhiteSpace(response)) throw new InvalidOperationException("Inference returned no output.");
+await foreach (var token in executor.InferAsync("Reply with the word ready. /no_think", new InferenceParams { MaxTokens = 32 }))
+{
+    response += token;
+}
+if (string.IsNullOrWhiteSpace(response))
+{
+    throw new InvalidOperationException("Inference returned no output.");
+}
 Console.WriteLine($"Backend: {runtime.LoadedBackend}\nLibrary: {selectedPath}\nModel: {model}\nResponse: {response}");
 foreach (ProcessModule module in Process.GetCurrentProcess().Modules)
 {
@@ -55,6 +69,8 @@ foreach (ProcessModule module in Process.GetCurrentProcess().Modules)
     {
         Console.WriteLine($"Loaded module: {module.FileName}");
         if (settings.NativeRuntimeDirectory != "bundled" && !module.FileName.StartsWith(runtime.Root + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
+        {
             throw new InvalidOperationException("AI module loaded outside the configured runtime installation.");
+        }
     }
 }
