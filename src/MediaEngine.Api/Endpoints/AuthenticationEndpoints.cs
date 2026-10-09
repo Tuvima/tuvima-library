@@ -662,7 +662,7 @@ public static class AuthenticationEndpoints
 
         // A server administrator can set any person's PIN; a household administrator only for people in their own household. People only, never applications.
         group.MapPut("/profiles/{profileId:guid}/pin", async (Guid profileId, SetProfilePinRequest request, HttpContext http, ClaimsPrincipal user,
-            IRequestAuthorityResolver authorities, IAccountAccessMutationService mutations,
+            [FromServices] IRequestAuthorityResolver authorities, [FromServices] IAccountAccessMutationService mutations,
             [FromServices] RecentSignInGuard recentSignIn, CancellationToken ct) =>
         {
             if (await recentSignIn.RefuseIfStaleAsync(user, ct).ConfigureAwait(false) is { } stale)

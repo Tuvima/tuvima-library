@@ -945,7 +945,8 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
             """, new { accountId, householdId = householdId.Value }, tx);
         if (named > 0)
         {
-            c.Execute("UPDATE accounts SET household_admin=1, authorization_version=authorization_version+1 WHERE id=@accountId;",
+            // A brand-new account has no open sessions to re-check, so its authorization version stays as created.
+            c.Execute("UPDATE accounts SET household_admin=1 WHERE id=@accountId;",
                 new { accountId }, tx);
         }
     }
