@@ -10,6 +10,9 @@ services:
     environment:
       TUVIMA_TAILSCALE_HEALTH_URL: http://127.0.0.1:9002/healthz
       TUVIMA_TAILSCALE_URL: ${TUVIMA_TAILSCALE_URL:?Set the private HTTPS tailnet address}
+      # Tailscale Serve (serve.json) proxies to this port. The Dashboard treats everything arriving on it as
+      # remote and trusts forwarded headers only there, so tailnet visitors never look like "this computer".
+      TUVIMA_PROXY_PORT: "5017"
 
   tailscale:
     image: tailscale/tailscale:stable

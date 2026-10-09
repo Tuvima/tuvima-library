@@ -105,6 +105,89 @@ public sealed class IngressClassifierTests
         Assert.Equal(IPAddress.Parse("203.0.113.50"), context.Connection.RemoteIpAddress);
     }
 
+    [Fact]
+    public void MainPortConnectionFromAConfiguredProxy_IsRemote_NotHomeNetwork()
+    {
+        var classifier = new IngressClassifier(null, [], ["192.168.1.5"], ["172.20.0.0/16"]);
+
+        Assert.Equal(IngressKind.Remote, classifier.Classify(IPAddress.Parse("192.168.1.5"), MainPort));
+        Assert.Equal(IngressKind.Remote, classifier.Classify(IPAddress.Parse("::ffff:192.168.1.5"), MainPort));
+        Assert.Equal(IngressKind.Remote, classifier.Classify(IPAddress.Parse("172.20.3.4"), MainPort));
+        Assert.Equal(IngressKind.HomeNetwork, classifier.Classify(IPAddress.Parse("192.168.1.6"), MainPort));
+        Assert.Equal(IngressKind.ThisComputer, classifier.Classify(IPAddress.Loopback, MainPort));
+    }
+
+    [Fact]
+    public void TrustedLocalNetwork_InMappedIpv6Form_StillMatchesIpv4Clients()
+    {
+        var classifier = new IngressClassifier(null, ["::ffff:203.0.113.0/120"]);
+
+        Assert.Equal(IngressKind.HomeNetwork, classifier.Classify(IPAddress.Parse("203.0.113.9"), MainPort));
+        Assert.Equal(IngressKind.Remote, classifier.Classify(IPAddress.Parse("203.0.114.9"), MainPort));
+    }
+
+    [Fact]
+    public void ProxyPort_ResolvesFromEnvironmentThenSettingsThenTailscaleDefault()
+    {
+        var network = new NetworkSettings();
+
+        Assert.Null(ProxyPortConfiguration.Resolve(network, null, null));
+        Assert.Equal(5017, ProxyPortConfiguration.Resolve(network, null, "https://x.ts.net"));
+        Assert.Equal(6000, ProxyPortConfiguration.Resolve(network, "6000", "https://x.ts.net"));
+        Assert.Null(ProxyPortConfiguration.Resolve(network, "nonsense", null));
+        Assert.Null(ProxyPortConfiguration.Resolve(network, "5016", null));
+
+        network.Remote.ProxyPort = 7000;
+        Assert.Equal(7000, ProxyPortConfiguration.Resolve(network, null, "https://x.ts.net"));
+        Assert.Equal(6000, ProxyPortConfiguration.Resolve(network, "6000", null));
+    }
+
+    [Theory]
+    [InlineData("http://+:5017", 5017, true)]
+    [InlineData("http://*:5017/", 5017, true)]
+    [InlineData("http://0.0.0.0:5016;http://[::]:5017", 5017, true)]
+    [InlineData("http://localhost:5016", 5017, false)]
+    [InlineData("http://0.0.0.0:50170", 5017, false)]
+    public void UrlsContainPort_RecognisesCommonBindingForms(string urls, int port, bool expected)
+    {
+        Assert.Equal(expected, ProxyPortConfiguration.UrlsContainPort(urls, port));
+    }
+
+    [Fact]
+    public void ProxyPortBinding_StaysOnLoopbackUnlessANonLoopbackProxyIsTrusted()
+    {
+        Assert.Equal("http://localhost:5017", ProxyPortConfiguration.BindUrl(new RemoteNetworkSettings(), 5017));
+        Assert.Equal("http://localhost:5017", ProxyPortConfiguration.BindUrl(
+            new RemoteNetworkSettings { TrustedProxies = ["127.0.0.1", "::1"] }, 5017));
+        Assert.Equal("http://0.0.0.0:5017", ProxyPortConfiguration.BindUrl(
+            new RemoteNetworkSettings { TrustedProxies = ["172.20.0.2"] }, 5017));
+        Assert.Equal("http://0.0.0.0:5017", ProxyPortConfiguration.BindUrl(
+            new RemoteNetworkSettings { TrustedProxyNetworks = ["172.21.0.0/24"] }, 5017));
+    }
+
+    [Fact]
+    public void TailscalePreset_ProxiesToThePresetProxyPort()
+    {
+        var root = FindRepoRoot();
+        var serve = File.ReadAllText(Path.Combine(root, "deploy", "tailscale", "config", "serve.json"));
+        var compose = File.ReadAllText(Path.Combine(root, "deploy", "tailscale", "docker-compose.tailscale.yml"));
+
+        Assert.Contains($"http://127.0.0.1:{ProxyPortConfiguration.TailscalePresetPort}", serve, StringComparison.Ordinal);
+        Assert.DoesNotContain("127.0.0.1:5016", serve, StringComparison.Ordinal);
+        Assert.Contains($"TUVIMA_PROXY_PORT: \"{ProxyPortConfiguration.TailscalePresetPort}\"", compose, StringComparison.Ordinal);
+    }
+
+    private static string FindRepoRoot()
+    {
+        var directory = new DirectoryInfo(AppContext.BaseDirectory);
+        while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "MediaEngine.slnx")))
+        {
+            directory = directory.Parent;
+        }
+
+        return directory?.FullName ?? throw new DirectoryNotFoundException("Repository root was not found.");
+    }
+
     private static async Task<HttpContext> RunPipelineAsync(int localPort, string remote, string? forwardedFor)
     {
         var services = new ServiceCollection();

@@ -3,7 +3,7 @@
 This optional Compose overlay runs the official Tailscale image beside Tuvima.
 It does not add VPN code to the Tuvima image and it does not publish the Engine.
 Tailscale Serve terminates private tailnet HTTPS and proxies only the Dashboard
-at `127.0.0.1:5016` in the shared network namespace. Funnel is explicitly off.
+at `127.0.0.1:5017` (the Dashboard's proxy port, set by `TUVIMA_PROXY_PORT`) in the shared network namespace. Visitors arriving on that port are always treated as remote. Funnel is explicitly off.
 
 ## Configure
 

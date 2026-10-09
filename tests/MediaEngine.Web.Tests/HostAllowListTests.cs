@@ -25,6 +25,11 @@ public sealed class HostAllowListTests
     [InlineData("my-nas")]
     [InlineData("nas.lan:5016")]
     [InlineData("anything.local")]
+    [InlineData("router.internal")]
+    [InlineData("box.localdomain")]
+    [InlineData("fritz.box")]
+    [InlineData("my.fritz.box")]
+    [InlineData("tv.home")]
     public async Task AllowedHosts_PassThrough(string host)
     {
         var (status, _) = await SendAsync(host);
@@ -38,6 +43,7 @@ public sealed class HostAllowListTests
     [InlineData("localhost.evil.example")]
     [InlineData("evil.local.example")]
     [InlineData("nas.example.com")]
+    [InlineData("evilfritz.box.example")]
     [InlineData("")]
     public async Task UnknownHosts_AreRefusedWithAHelpfulMessage(string host)
     {

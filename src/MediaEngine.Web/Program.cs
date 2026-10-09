@@ -114,26 +114,33 @@ var networkSettings = dashboardConfig.LoadNetwork();
 // configuration. Explicit host configuration (launchSettings, ASPNETCORE_URLS,
 // container settings) remains authoritative for development and orchestration.
 var explicitUrls = builder.Configuration["urls"] ?? Environment.GetEnvironmentVariable("ASPNETCORE_URLS");
-var proxyPort = networkSettings.Remote.ProxyPort;
+var tailscaleUrl = Environment.GetEnvironmentVariable("TUVIMA_TAILSCALE_URL");
+var proxyPort = ProxyPortConfiguration.Resolve(
+    networkSettings,
+    Environment.GetEnvironmentVariable("TUVIMA_PROXY_PORT"),
+    tailscaleUrl);
+var proxyUrl = proxyPort is int proxyPortValue ? ProxyPortConfiguration.BindUrl(networkSettings.Remote, proxyPortValue) : null;
 if (string.IsNullOrWhiteSpace(explicitUrls))
 {
-    builder.WebHost.UseUrls(proxyPort is int proxy
-        ? $"http://0.0.0.0:{networkSettings.Local.Port};http://0.0.0.0:{proxy}"
-        : $"http://0.0.0.0:{networkSettings.Local.Port}");
+    builder.WebHost.UseUrls(proxyUrl is null
+        ? $"http://0.0.0.0:{networkSettings.Local.Port}"
+        : $"http://0.0.0.0:{networkSettings.Local.Port};{proxyUrl}");
 }
-else if (proxyPort is int explicitProxy
-    && !explicitUrls.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-        .Any(url => url.EndsWith($":{explicitProxy}", StringComparison.Ordinal)))
+else if (proxyUrl is not null && !ProxyPortConfiguration.UrlsContainPort(explicitUrls, proxyPort!.Value))
 {
     // Explicit hosting settings stay authoritative; the optional proxy port is only added on top.
-    builder.WebHost.UseUrls($"{explicitUrls};http://0.0.0.0:{explicitProxy}");
+    builder.WebHost.UseUrls($"{explicitUrls};{proxyUrl}");
 }
 
 // One answer to "is this request local?" and one list of Host names the Dashboard answers to.
-builder.Services.AddSingleton<IngressClassifier>();
+builder.Services.AddSingleton(new IngressClassifier(
+    proxyPort,
+    dashboardConfig.LoadCore().Auth.TrustedLocalNetworks,
+    networkSettings.Remote.TrustedProxies,
+    networkSettings.Remote.TrustedProxyNetworks));
 builder.Services.AddSingleton(new HostAllowList(
     networkSettings,
-    Environment.GetEnvironmentVariable("TUVIMA_TAILSCALE_URL"),
+    tailscaleUrl,
     Environment.MachineName));
 
 builder.Services.Configure<ForwardedHeadersOptions>(options =>
@@ -141,7 +148,7 @@ builder.Services.Configure<ForwardedHeadersOptions>(options =>
     ForwardedHeaderConfiguration.Configure(
         options,
         networkSettings.Remote,
-        Environment.GetEnvironmentVariable("TUVIMA_TAILSCALE_URL"));
+        tailscaleUrl);
 });
 
 var authSettings = dashboardConfig.LoadCore().Auth;
@@ -385,6 +392,14 @@ builder.Services.AddScoped<DeviceContextService>();
 
 // ── Build ─────────────────────────────────────────────────────────────────────
 var app = builder.Build();
+
+if (proxyPort is null
+    && (networkSettings.Remote.TrustedProxies.Count > 0 || networkSettings.Remote.TrustedProxyNetworks.Count > 0))
+{
+    app.Logger.LogWarning(
+        "Trusted proxies are configured but no proxy port is set (remote.proxy_port). Forwarded headers are ignored " +
+        "on the main port, so point the reverse proxy at a proxy port or its visitors will look like home-network devices.");
+}
 
 // Forwarded scheme/client information must be established before HSTS,
 // redirection, authentication, and URL generation. Forwarded headers are honoured

@@ -4,7 +4,7 @@ using MediaEngine.Domain.Configuration;
 namespace MediaEngine.Web.Services.Configuration;
 
 /// <summary>
-/// The Host names the Dashboard answers to: IP addresses, home-network names (single-label, .local, .lan, .home.arpa),
+/// The Host names the Dashboard answers to: IP addresses, home-network names (single-label, .local, .lan, .home.arpa, .internal, ...),
 /// and the configured names. Anything else is refused so a malicious website cannot reach
 /// the Dashboard through DNS rebinding (a hostile name that resolves to this computer).
 /// </summary>
@@ -51,17 +51,21 @@ public sealed class HostAllowList
         return _names.Contains(name) || IsPrivateNetworkName(name);
     }
 
+    private static readonly string[] PrivateSuffixes =
+    [
+        ".local", ".lan", ".home.arpa", ".internal", ".localhost", ".localdomain", ".home", ".fritz.box",
+    ];
+
     /// <summary>
     /// Names that only resolve inside a home network and cannot be registered publicly: a single label
-    /// ("nas", "tuvima") or a name ending in .local, .lan or .home.arpa. This keeps a NAS or container
-    /// reachable by the machine's own name without configuration while a rebinding name such as
+    /// ("nas", "tuvima") or a name ending in .local, .lan, .home.arpa, .internal, .localhost, .localdomain, .home or fritz.box. This keeps a NAS or
+    /// container reachable by the machine's own name without configuration while a rebinding name such as
     /// "evil.example" is still refused.
     /// </summary>
     private static bool IsPrivateNetworkName(string name) =>
         !name.Contains('.')
-        || name.EndsWith(".local", StringComparison.OrdinalIgnoreCase)
-        || name.EndsWith(".lan", StringComparison.OrdinalIgnoreCase)
-        || name.EndsWith(".home.arpa", StringComparison.OrdinalIgnoreCase);
+        || name.Equals("fritz.box", StringComparison.OrdinalIgnoreCase)
+        || PrivateSuffixes.Any(suffix => name.EndsWith(suffix, StringComparison.OrdinalIgnoreCase));
 
     private void AddWithLocalSuffix(string? name)
     {

@@ -26,20 +26,37 @@ public sealed class IngressClassifier
 {
     private readonly int? _proxyPort;
     private readonly IReadOnlyList<System.Net.IPNetwork> _trustedNetworks;
+    private readonly IReadOnlyList<IPAddress> _proxyAddresses;
+    private readonly IReadOnlyList<System.Net.IPNetwork> _proxyNetworks;
 
-    public IngressClassifier(DashboardConfigurationReader configuration)
-        : this(configuration.LoadNetwork().Remote.ProxyPort, configuration.LoadCore().Auth.TrustedLocalNetworks)
-    {
-    }
-
-    public IngressClassifier(int? proxyPort, IEnumerable<string>? trustedLocalNetworks)
+    /// <param name="proxyPort">The dedicated proxy port, or null when none is configured.</param>
+    /// <param name="trustedLocalNetworks"><c>auth.trusted_local_networks</c>: extra ranges that count as the home network.</param>
+    /// <param name="trustedProxies">
+    /// Configured reverse-proxy addresses/networks. A connection straight from one of them on the main port is a
+    /// proxy relaying a visitor whose address is hidden (forwarded headers are not honoured there), so it is Remote.
+    /// </param>
+    public IngressClassifier(
+        int? proxyPort,
+        IEnumerable<string>? trustedLocalNetworks,
+        IEnumerable<string>? trustedProxies = null,
+        IEnumerable<string>? trustedProxyNetworks = null)
     {
         _proxyPort = proxyPort;
-        _trustedNetworks = (trustedLocalNetworks ?? [])
+        _trustedNetworks = ParseNetworks(trustedLocalNetworks);
+        _proxyNetworks = ParseNetworks(trustedProxyNetworks);
+        _proxyAddresses = (trustedProxies ?? [])
+            .Select(value => IPAddress.TryParse(value, out var address)
+                ? (address.IsIPv4MappedToIPv6 ? address.MapToIPv4() : address)
+                : null)
+            .OfType<IPAddress>()
+            .ToArray();
+    }
+
+    private static System.Net.IPNetwork[] ParseNetworks(IEnumerable<string>? values) =>
+        (values ?? [])
             .Select(value => System.Net.IPNetwork.TryParse(value, out var network) ? (System.Net.IPNetwork?)network : null)
             .OfType<System.Net.IPNetwork>()
             .ToArray();
-    }
 
     public IngressKind Classify(HttpContext context)
     {
@@ -69,7 +86,12 @@ public sealed class IngressClassifier
             return IngressKind.ThisComputer;
         }
 
-        if (IsPrivate(address) || IsTrusted(address))
+        if (IsConfiguredProxy(address))
+        {
+            return IngressKind.Remote;
+        }
+
+        if (IsPrivate(address) || IsInAny(_trustedNetworks, address))
         {
             return IngressKind.HomeNetwork;
         }
@@ -77,12 +99,25 @@ public sealed class IngressClassifier
         return IngressKind.Remote;
     }
 
-    private bool IsTrusted(IPAddress address)
+    private bool IsConfiguredProxy(IPAddress address) =>
+        _proxyAddresses.Any(proxy => proxy.Equals(address)) || IsInAny(_proxyNetworks, address);
+
+    private static bool IsInAny(IReadOnlyList<System.Net.IPNetwork> networks, IPAddress address)
     {
-        foreach (var network in _trustedNetworks)
+        foreach (var network in networks)
         {
-            if (network.BaseAddress.AddressFamily == address.AddressFamily && network.Contains(address))
+            if (network.BaseAddress.AddressFamily == address.AddressFamily)
             {
+                if (network.Contains(address))
+                {
+                    return true;
+                }
+            }
+            else if (network.BaseAddress.AddressFamily == AddressFamily.InterNetworkV6
+                && address.AddressFamily == AddressFamily.InterNetwork
+                && network.Contains(address.MapToIPv6()))
+            {
+                // An IPv4 address against an IPv4-mapped IPv6 range such as ::ffff:10.0.0.0/104.
                 return true;
             }
         }
