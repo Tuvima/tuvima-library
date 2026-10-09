@@ -21,6 +21,13 @@ public sealed class Account
     public Guid? HouseholdId { get; set; }
 
     /// <summary>
+    /// When set, this account has no feature or library access of its own: it follows the access of the named
+    /// account (a person's own sign-in follows the household's main sign-in). Read at use time, so later changes to
+    /// the household's access reach the person without being copied.
+    /// </summary>
+    public Guid? GrantsInheritFromAccountId { get; set; }
+
+    /// <summary>
     /// True for an account that was set up on this computer without a password. It can only be used in a browser
     /// on that same computer until the owner adds a password or passkey. Changed only through
     /// <see cref="MarkThisComputerOnly"/> and <see cref="ClearThisComputerOnly"/>.

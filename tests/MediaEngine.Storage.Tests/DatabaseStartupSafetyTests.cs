@@ -506,6 +506,7 @@ public sealed class DatabaseStartupSafetyTests
             ("audiobook_listen_history", "asset_id"),
             ("accounts", "id"),
             ("accounts", "household_id"),
+            ("accounts", "grants_inherit_from_account_id"),
             ("households", "id"),
             ("profiles", "household_id"),
             ("account_profile_grants", "account_id"),

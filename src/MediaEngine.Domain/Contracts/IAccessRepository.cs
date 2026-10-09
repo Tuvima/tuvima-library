@@ -34,6 +34,12 @@ public interface IAccountAccessMutationRepository
         MediaEngine.Domain.Aggregates.Profile profile,
         AccountProfileGrant targetGrant,
         CancellationToken ct = default);
+    /// <summary>Adds a person to a household, opened by the given sign-ins (none of them as default). Refused when the household is full.</summary>
+    Task CreateHouseholdPersonAsync(
+        MediaEngine.Domain.Aggregates.Profile profile,
+        Guid householdId,
+        IReadOnlyList<AccountProfileGrant> grants,
+        CancellationToken ct = default);
     Task UpdateManagedProfileAsync(
         MediaEngine.Domain.Aggregates.Profile profile,
         CancellationToken ct = default);
@@ -109,6 +115,23 @@ public sealed record CreateManagedProfileCommand(
     bool IsDefault);
 public sealed record UpdateManagedProfileCommand(string DisplayName, string? AvatarColor);
 
+/// <summary>A new person in a household: a child person gets the restricted role; a PIN is optional.</summary>
+public sealed record AddHouseholdPersonCommand(
+    Guid HouseholdId,
+    string DisplayName,
+    string? AvatarColor,
+    bool IsChild,
+    string? Pin);
+
+/// <summary>
+/// Gives a person in a household their own email sign-in. With <paramref name="TemporaryPassword"/> the
+/// administrator chooses the first password; without it the person gets an invitation to choose their own.
+/// </summary>
+public sealed record GiveOwnSignInCommand(Guid ProfileId, string Email, string? TemporaryPassword);
+
+/// <summary>The sign-in just made, and its invitation when one was chosen.</summary>
+public sealed record GivenOwnSignIn(Account Account, IssuedAccountInvitation? Invitation);
+
 public interface IAccountAccessMutationService
 {
     Task<Account> CreateAsync(RequestAuthority actor, CreateAccountAccessCommand command, CancellationToken ct = default);
@@ -132,6 +155,14 @@ public interface IAccountAccessMutationService
         UpdateManagedProfileCommand command,
         CancellationToken ct = default);
     Task DeleteProfileAsync(RequestAuthority actor, Guid profileId, CancellationToken ct = default);
+    /// <summary>Adds a person to a household. The household's main sign-ins can open them; the person has no sign-in of their own yet.</summary>
+    Task<MediaEngine.Domain.Aggregates.Profile> AddHouseholdPersonAsync(
+        RequestAuthority actor, AddHouseholdPersonCommand command, CancellationToken ct = default);
+    /// <summary>Gives a person their own sign-in. It opens only that person, is never an administrator, and follows the household's library access.</summary>
+    Task<GivenOwnSignIn> GiveOwnSignInAsync(
+        RequestAuthority actor, GiveOwnSignInCommand command, CancellationToken ct = default);
+    /// <summary>Removes a person's own sign-in. The person and everything they own stay in the household.</summary>
+    Task RemoveOwnSignInAsync(RequestAuthority actor, Guid accountId, CancellationToken ct = default);
     Task ReplaceAccessAsync(RequestAuthority actor, Guid accountId, IReadOnlySet<AccountFeatureId> features, IReadOnlySet<Guid> libraries, CancellationToken ct = default);
     Task UpsertGrantAsync(RequestAuthority actor, AccountProfileGrant grant, CancellationToken ct = default);
     Task RevokeGrantAsync(RequestAuthority actor, Guid accountId, Guid profileId, CancellationToken ct = default);

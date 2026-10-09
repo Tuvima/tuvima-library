@@ -105,6 +105,12 @@ Artwork copied into Tuvima Library's managed `.data/assets` store and served bac
 through Engine media URLs. Provider image URLs are source inputs, not stable UI
 display URLs.
 
+## O
+
+### Own sign-in
+
+An email sign-in that belongs to one person in a household and opens straight to them, without the profile picker. The person stays in the household. An own sign-in is never an administrator, and it follows the library and lane access of the household's main sign-in, so later changes to the household reach the person. An administrator gives it from **Settings → Users & Access → People** and can remove it at any time; removing it keeps the person and everything they have saved.
+
 ## P
 
 ### Priority Cascade

@@ -555,6 +555,7 @@ MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.Accoun
   MustChangePassword: System.Boolean | nullability=not-null | accessors=get,init
   TemporaryPasswordExpiresAt: System.DateTimeOffset? | nullability=nullable | accessors=get,init
   HasTwoStep: System.Boolean | nullability=not-null | accessors=get,init
+  GrantsInheritFromAccountId: System.Guid? | nullability=nullable | accessors=get,init
 
 MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.AccountExternalLoginDto
   Id: System.Guid | nullability=not-null | accessors=get,init
@@ -629,6 +630,12 @@ MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.Accoun
   Profiles: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Authentication.AccountProfileGrantDto> | nullability=not-null | accessors=get,init
   AuthenticationMethods: System.Collections.Generic.IReadOnlyList<System.String> | nullability=not-null | accessors=get,init
   SecurityCapabilities: MediaEngine.Contracts.Authentication.AccountSecurityCapabilitiesResponse | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.AddHouseholdPersonRequest
+  DisplayName: System.String | nullability=not-null | accessors=get,init
+  AvatarColor: System.String | nullability=nullable | accessors=get,init
+  IsChild: System.Boolean | nullability=not-null | accessors=get,init
+  Pin: System.String | nullability=nullable | accessors=get,init
 
 MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.AdministratorElevationResponse
   Elevated: System.Boolean | nullability=not-null | accessors=get,init
@@ -982,6 +989,16 @@ MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.Extern
   OriginalClientIngress: System.String | nullability=not-null | accessors=get,init
   OriginalClientIsHttps: System.Boolean | nullability=not-null | accessors=get,init
 
+MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.GiveOwnSignInRequest
+  Email: System.String | nullability=not-null | accessors=get,init
+  TemporaryPassword: System.String | nullability=nullable | accessors=get,init
+
+MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.GiveOwnSignInResponse
+  AccountId: System.Guid | nullability=not-null | accessors=get,init
+  Email: System.String | nullability=nullable | accessors=get,init
+  Invitation: MediaEngine.Contracts.Authentication.AccountInvitationResponse | nullability=nullable | accessors=get,init
+  TemporaryPasswordExpiresAt: System.DateTimeOffset? | nullability=nullable | accessors=get,init
+
 MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.GrantAdminProtectionDto
   Enabled: System.Boolean | nullability=not-null | accessors=get,init
   UnlockMode: System.String | nullability=not-null | accessors=get,init
@@ -1034,6 +1051,7 @@ MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.Manage
   AvatarPath: System.String | nullability=nullable | accessors=get,init
   CreatedAt: System.DateTimeOffset | nullability=not-null | accessors=get,init
   HouseholdId: System.Guid? | nullability=nullable | accessors=get,init
+  IsRestricted: System.Boolean | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.NewAccountProfileRequest
   DisplayName: System.String | nullability=not-null | accessors=get,init

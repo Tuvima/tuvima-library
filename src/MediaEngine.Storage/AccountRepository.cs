@@ -158,6 +158,7 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
                is_administrator AS IsAdministrator, authorization_version AS AuthorizationVersion,
                created_at AS CreatedAt, updated_at AS UpdatedAt,
                household_id AS HouseholdId,
+               grants_inherit_from_account_id AS GrantsInheritFromAccountId,
                this_computer_only AS ThisComputerOnly,
                must_change_password AS MustChangePassword,
                temporary_password_expires_at AS TemporaryPasswordExpiresAt
@@ -175,6 +176,7 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
         CreatedAt = account.CreatedAt.ToString("O"),
         UpdatedAt = account.UpdatedAt.ToString("O"),
         account.HouseholdId,
+        account.GrantsInheritFromAccountId,
         ThisComputerOnly = account.IsThisComputerOnly ? 1 : 0,
         MustChangePassword = account.MustChangePassword ? 1 : 0,
         TemporaryPasswordExpiresAt = account.TemporaryPasswordExpiresAt?.ToString("O"),
@@ -202,6 +204,7 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
         CreatedAt = DateTimeOffset.Parse(row.CreatedAt),
         UpdatedAt = DateTimeOffset.Parse(row.UpdatedAt),
         HouseholdId = row.HouseholdId,
+        GrantsInheritFromAccountId = row.GrantsInheritFromAccountId,
         MustChangePassword = row.MustChangePassword,
         TemporaryPasswordExpiresAt = string.IsNullOrWhiteSpace(row.TemporaryPasswordExpiresAt)
             ? null
@@ -219,6 +222,7 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
         public string CreatedAt { get; set; } = string.Empty;
         public string UpdatedAt { get; set; } = string.Empty;
         public Guid? HouseholdId { get; set; }
+        public Guid? GrantsInheritFromAccountId { get; set; }
         public bool ThisComputerOnly { get; set; }
         public bool MustChangePassword { get; set; }
         public string? TemporaryPasswordExpiresAt { get; set; }
@@ -264,6 +268,15 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
                 throw new InvalidOperationException("The final effective administrator account cannot be deleted.");
             }
 
+            // People whose access followed this account follow the household's next main sign-in instead.
+            connection.Execute("""
+                UPDATE accounts SET grants_inherit_from_account_id=(
+                    SELECT other.id FROM accounts other
+                    WHERE other.household_id=accounts.household_id AND other.id<>@accountId
+                      AND other.grants_inherit_from_account_id IS NULL AND other.is_enabled=1
+                    ORDER BY other.created_at LIMIT 1)
+                WHERE grants_inherit_from_account_id=@accountId;
+                """, new { accountId }, transaction);
             connection.Execute("DELETE FROM accounts WHERE id=@accountId;", new { accountId }, transaction);
         }, ct);
 
@@ -276,13 +289,13 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
     public Task<IReadOnlySet<AccountFeatureId>> GetFeatureGrantsAsync(Guid accountId, CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested(); using var conn = db.CreateConnection();
-        return Task.FromResult<IReadOnlySet<AccountFeatureId>>(conn.Query<string>("SELECT feature_id FROM account_feature_grants WHERE account_id=@accountId;", new { accountId }).Select(x => new AccountFeatureId(x)).ToFrozenSet());
+        return Task.FromResult<IReadOnlySet<AccountFeatureId>>(conn.Query<string>("SELECT feature_id FROM account_feature_grants WHERE account_id=COALESCE((SELECT grants_inherit_from_account_id FROM accounts WHERE id=@accountId),@accountId);", new { accountId }).Select(x => new AccountFeatureId(x)).ToFrozenSet());
     }
 
     public Task<IReadOnlySet<Guid>> GetLibraryGrantsAsync(Guid accountId, CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested(); using var conn = db.CreateConnection();
-        return Task.FromResult<IReadOnlySet<Guid>>(conn.Query<Guid>("SELECT library_id FROM account_library_grants WHERE account_id=@accountId;", new { accountId }).ToFrozenSet());
+        return Task.FromResult<IReadOnlySet<Guid>>(conn.Query<Guid>("SELECT library_id FROM account_library_grants WHERE account_id=COALESCE((SELECT grants_inherit_from_account_id FROM accounts WHERE id=@accountId),@accountId);", new { accountId }).ToFrozenSet());
     }
 
     public async Task<bool> HasFeatureGrantAsync(Guid accountId, AccountFeatureId feature, CancellationToken ct = default) =>
@@ -466,6 +479,37 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
             UPDATE accounts SET authorization_version=authorization_version+1,updated_at=@now
             WHERE id=@accountId;
             """, new { accountId = targetGrant.AccountId, now = Iso(profile.CreatedAt) }, transaction);
+    }, ct);
+
+    public Task CreateHouseholdPersonAsync(
+        Profile profile,
+        Guid householdId,
+        IReadOnlyList<AccountProfileGrant> grants,
+        CancellationToken ct = default) => db.ExecuteWriteAsync((connection, transaction, token) =>
+    {
+        token.ThrowIfCancellationRequested();
+        if (connection.ExecuteScalar<int>("SELECT COUNT(*) FROM households WHERE id=@householdId;",
+                new { householdId }, transaction) == 0)
+        {
+            throw new KeyNotFoundException("Household not found.");
+        }
+
+        if (grants.Any(grant => grant.ProfileId != profile.Id || grant.IsDefault || !grant.IsEnabled || grant.AdminEnabled
+            || HouseholdOfAccount(connection, transaction, grant.AccountId) != householdId))
+        {
+            throw new InvalidOperationException("A new person can only be opened by sign-ins in their own household.");
+        }
+
+        RequireRoom(connection, transaction, householdId);
+        InsertProfileRow(connection, transaction, profile, householdId);
+        foreach (var grant in grants)
+        {
+            InsertGrantRow(connection, transaction, grant);
+            connection.Execute("""
+                UPDATE accounts SET authorization_version=authorization_version+1,updated_at=@now
+                WHERE id=@accountId;
+                """, new { accountId = grant.AccountId, now = Iso(profile.CreatedAt) }, transaction);
+        }
     }, ct);
 
     public Task UpdateManagedProfileAsync(Profile profile, CancellationToken ct = default) =>
@@ -726,7 +770,7 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
             "DELETE FROM grant_admin_unlocks WHERE session_id=@sessionId;",
             new { sessionId }, transaction), ct);
 
-    private static void InsertAccount(System.Data.IDbConnection c, System.Data.IDbTransaction tx, Account a) => c.Execute("INSERT INTO accounts(id,email,normalized_email,is_enabled,is_administrator,authorization_version,created_at,updated_at,household_id,this_computer_only,must_change_password,temporary_password_expires_at) VALUES(@Id,@Email,@NormalizedEmail,@IsEnabled,@IsAdministrator,@AuthorizationVersion,@CreatedAt,@UpdatedAt,@HouseholdId,@ThisComputerOnly,@MustChangePassword,@TemporaryPasswordExpiresAt);", Parameters(a), tx);
+    private static void InsertAccount(System.Data.IDbConnection c, System.Data.IDbTransaction tx, Account a) => c.Execute("INSERT INTO accounts(id,email,normalized_email,is_enabled,is_administrator,authorization_version,created_at,updated_at,household_id,grants_inherit_from_account_id,this_computer_only,must_change_password,temporary_password_expires_at) VALUES(@Id,@Email,@NormalizedEmail,@IsEnabled,@IsAdministrator,@AuthorizationVersion,@CreatedAt,@UpdatedAt,@HouseholdId,@GrantsInheritFromAccountId,@ThisComputerOnly,@MustChangePassword,@TemporaryPasswordExpiresAt);", Parameters(a), tx);
     private static void InsertGrant(System.Data.IDbConnection c, System.Data.IDbTransaction tx, AccountProfileGrant g)
     {
         JoinHousehold(c, tx, g.AccountId, g.ProfileId, g.GrantedAt);

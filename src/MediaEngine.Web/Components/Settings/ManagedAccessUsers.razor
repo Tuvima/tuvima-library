@@ -22,6 +22,45 @@
             <AppButton Label="Invite user" StartIcon="@AppMaterialIcons.Outlined.Mail" OnClick="OpenInvitation" />
             <AppButton Label="New user" StartIcon="@AppMaterialIcons.Outlined.PersonAdd" Tone="AppUiTone.Primary" ButtonStyle="AppButtonStyle.Filled" OnClick="NewUser" />
         </div>
+        @if (!_loading && Households.Count > 0)
+        {
+            <section class="access-form-section" aria-label="People in each household">
+                <AppText Typo="AppTypo.subtitle1">People</AppText>
+                <small>Everyone in a household shares its library. A person can also have their own sign-in that opens straight to them.</small>
+                @foreach (var household in Households)
+                {
+                    <div class="access-toolbar">
+                        <strong>@household.Label · @household.People.Count of 8</strong>
+                        <AppButton Label="Add person" StartIcon="@AppMaterialIcons.Outlined.PersonAdd" Disabled="@(household.People.Count >= 8)" OnClick="@(() => OpenAddPerson(household.Id))" />
+                    </div>
+                    <div class="access-users" role="table" aria-label="@($"People in {household.Label}")" @key="household.Id">
+                        @foreach (var person in household.People)
+                        {
+                            <div class="access-users__row" role="row" @key="person.Profile.Id">
+                                <div class="access-users__identity" role="cell">
+                                    <strong>@person.Profile.DisplayName</strong>
+                                    <div class="access-users__badges">
+                                        @if (person.Profile.IsRestricted) { <AppChip Text="Child" Tone="AppUiTone.Primary" /> }
+                                    </div>
+                                </div>
+                                <div role="cell">
+                                    @if (person.OwnSignIn is { } ownSignIn)
+                                    {
+                                        <span>@AccountLabel(ownSignIn)</span>
+                                        <AppButton Label="Remove sign-in" Size="AppControlSize.Compact" Tone="AppUiTone.Error" ButtonStyle="AppButtonStyle.Text" OnClick="@(() => ConfirmRemoveOwnSignIn(person))" />
+                                    }
+                                    else
+                                    {
+                                        <small>Uses the household sign-in</small>
+                                        <AppButton Label="@($"Give {person.Profile.DisplayName} their own sign-in")" Size="AppControlSize.Compact" ButtonStyle="AppButtonStyle.Text" OnClick="@(() => OpenOwnSignIn(person.Profile))" />
+                                    }
+                                </div>
+                            </div>
+                        }
+                    </div>
+                }
+            </section>
+        }
         @if (_loading)
         {
             <AppProgressBar Indeterminate="true" aria-label="Loading users" />
@@ -63,7 +102,10 @@
                             @if (_actionAccountId == account.Id)
                             {
                                 <div class="access-action-menu" role="menu">
-                                    <AppButton Label="Edit permissions" FullWidth="true" ButtonStyle="AppButtonStyle.Text" role="menuitem" OnClick="@(() => OpenPermissions(account))" />
+                                    @if (account.GrantsInheritFromAccountId is null)
+                                    {
+                                        <AppButton Label="Edit permissions" FullWidth="true" ButtonStyle="AppButtonStyle.Text" role="menuitem" OnClick="@(() => OpenPermissions(account))" />
+                                    }
                                     <AppButton Label="Manage profiles" FullWidth="true" ButtonStyle="AppButtonStyle.Text" role="menuitem" OnClick="@(() => OpenProfiles(account))" />
                                     <AppButton Label="Account details" FullWidth="true" ButtonStyle="AppButtonStyle.Text" role="menuitem" OnClick="@(() => EditAccount(account))" />
                                     <AppButton Label="Set temporary password" FullWidth="true" ButtonStyle="AppButtonStyle.Text" role="menuitem" OnClick="@(() => OpenTemporaryPassword(account))" />
@@ -247,6 +289,50 @@
                     </section>
                 }
             }
+            else if (_mode == UserDrawerMode.AddPerson)
+            {
+                <section class="access-form-section">
+                    <AppText Typo="AppTypo.subtitle1">Add a person</AppText>
+                    <small>They join this household and share its library. You can give them their own sign-in afterwards.</small>
+                    <AppTextField @bind-Value="_profileName" Label="Name" FullWidth="true" />
+                    <AppSwitchRow @bind-Value="_personIsChild" Disabled="@_saving" Label="Child profile" Description="A child profile is restricted: it can't open settings and can't be an administrator." />
+                    <AppTextField InputType="AppInputType.Password" @bind-Value="_personPin" Label="PIN (optional)" HelpText="4 to 12 digits. Asked before switching into this person." FullWidth="true" />
+                </section>
+            }
+            else if (_mode == UserDrawerMode.OwnSignIn && _targetProfile is not null)
+            {
+                @if (_invitation is not null)
+                {
+                    <InvitationShare Code="@_invitation.Code" ExpiresAt="@_invitation.ExpiresAt" PublicAddress="@_invitation.PublicAddress" />
+                }
+                else if (!string.IsNullOrEmpty(_issuedTemporaryPassword))
+                {
+                    <TemporaryPasswordShare Password="@_issuedTemporaryPassword" ExpiresAt="@_issuedTemporaryPasswordExpiresAt" />
+                }
+                else
+                {
+                    <section class="access-form-section">
+                        <AppText Typo="AppTypo.subtitle1">Give @_targetProfile.DisplayName their own sign-in</AppText>
+                        <small>It opens straight to @_targetProfile.DisplayName, who stays in the household with the same library access. This sign-in is never an administrator.</small>
+                        <AppTextField @bind-Value="_email" Label="Email" FullWidth="true" />
+                        <AppSegmentedControl Options="@SignInChoices" Value="@_signInMethod" ValueChanged="SetSignInMethod" AriaLabel="How will they sign in?" />
+                        @if (_signInMethod == TemporaryPasswordMethod)
+                        {
+                            <small>You choose a password and tell them. They must choose their own the first time they sign in.</small>
+                            <AppTextField @bind-Value="_temporaryPassword" Label="Temporary password" HelpText="At least 12 characters, not a common password." FullWidth="true" />
+                            <AppButton Label="Generate" Size="AppControlSize.Compact" StartIcon="@AppMaterialIcons.Outlined.AutoAwesome" OnClick="GeneratePassword" />
+                        }
+                        else
+                        {
+                            <small>You get a code, a link and a QR code to hand over. They use it to choose their own password.</small>
+                        }
+                    </section>
+                }
+            }
+            else if (_mode == UserDrawerMode.RemoveOwnSignIn && _targetProfile is not null && _targetAccount is not null)
+            {
+                <AppAlert Severity="AppSeverity.Warning">Remove @AccountLabel(_targetAccount)? @_targetProfile.DisplayName stays in the household with everything they have saved. This sign-in, its sessions and its paired devices stop working.</AppAlert>
+            }
             else if (_mode == UserDrawerMode.Delete && _editing is not null)
             {
                 <AppAlert Severity="AppSeverity.Warning">Delete @AccountLabel(_editing)? This revokes the account and its profile grants. Personal media files are kept.</AppAlert>
@@ -259,6 +345,9 @@
             else if (_mode == UserDrawerMode.TemporaryPassword && string.IsNullOrEmpty(_issuedTemporaryPassword)) { <AppButton Label="Set temporary password" Tone="AppUiTone.Primary" ButtonStyle="AppButtonStyle.Filled" Disabled="@(_saving || string.IsNullOrWhiteSpace(_temporaryPassword))" OnClick="SetTemporaryPassword" /> }
             else if (_mode == UserDrawerMode.Permissions) { <AppButton Label="Save permissions" Tone="AppUiTone.Primary" ButtonStyle="AppButtonStyle.Filled" Disabled="@_saving" OnClick="SavePermissions" /> }
             else if (_mode == UserDrawerMode.Invitation && _invitation is null) { <AppButton Label="Create invitation" Tone="AppUiTone.Primary" ButtonStyle="AppButtonStyle.Filled" Disabled="@(_saving || string.IsNullOrWhiteSpace(_email) || _invitationProfiles.Count == 0)" OnClick="CreateInvitation" /> }
+            else if (_mode == UserDrawerMode.AddPerson) { <AppButton Label="Add person" Tone="AppUiTone.Primary" ButtonStyle="AppButtonStyle.Filled" Disabled="@(_saving || string.IsNullOrWhiteSpace(_profileName))" OnClick="AddPerson" /> }
+            else if (_mode == UserDrawerMode.OwnSignIn && !ShowingResult) { <AppButton Label="Create sign-in" Tone="AppUiTone.Primary" ButtonStyle="AppButtonStyle.Filled" Disabled="@(_saving || !CanCreateOwnSignIn)" OnClick="GiveOwnSignIn" /> }
+            else if (_mode == UserDrawerMode.RemoveOwnSignIn) { <AppButton Label="Remove sign-in" Tone="AppUiTone.Error" ButtonStyle="AppButtonStyle.Filled" Disabled="@_saving" OnClick="RemoveOwnSignIn" /> }
             else if (_mode == UserDrawerMode.Delete) { <AppButton Label="Delete user" Tone="AppUiTone.Error" ButtonStyle="AppButtonStyle.Filled" Disabled="@_saving" OnClick="DeleteAccount" /> }
         </footer>
     </div>
@@ -300,6 +389,11 @@
     private string _temporaryPassword = string.Empty;
     private string _issuedTemporaryPassword = string.Empty;
     private DateTimeOffset? _issuedTemporaryPasswordExpiresAt;
+    private Guid? _householdId;
+    private ManagedProfileResponse? _targetProfile;
+    private AccountAccessResponse? _targetAccount;
+    private bool _personIsChild;
+    private string _personPin = string.Empty;
     private ElementReference _returnFocus;
     private bool _restoreFocus;
 
@@ -313,6 +407,27 @@
 
     private bool CanManage => Session.HasAction("access.manage");
     private bool ShowingCreatedResult => _editing is null && (_invitation is not null || !string.IsNullOrEmpty(_issuedTemporaryPassword));
+    private bool CanCreateOwnSignIn => !string.IsNullOrWhiteSpace(_email)
+        && (_signInMethod != TemporaryPasswordMethod || !string.IsNullOrWhiteSpace(_temporaryPassword));
+    private IReadOnlyList<HouseholdView> Households => _profiles
+        .Where(profile => profile.HouseholdId is not null)
+        .GroupBy(profile => profile.HouseholdId!.Value)
+        .Select(group =>
+        {
+            var members = _accounts.Where(account => account.HouseholdId == group.Key).ToList();
+            var main = members.Where(account => account.GrantsInheritFromAccountId is null).OrderBy(account => account.CreatedAt).FirstOrDefault();
+            var people = group.OrderBy(profile => profile.CreatedAt)
+                .Select(profile => new PersonView(profile, members.FirstOrDefault(account =>
+                    account.GrantsInheritFromAccountId is not null
+                    && account.ProfileGrants.Count(grant => grant.IsEnabled) == 1
+                    && account.ProfileGrants.Any(grant => grant.IsEnabled && grant.ProfileId == profile.Id))))
+                .ToList();
+            return new HouseholdView(group.Key, main?.Email is { } email ? $"{email}'s household" : "Household", people);
+        })
+        .OrderBy(household => household.Label, StringComparer.CurrentCultureIgnoreCase)
+        .ToList();
+    private sealed record PersonView(ManagedProfileResponse Profile, AccountAccessResponse? OwnSignIn);
+    private sealed record HouseholdView(Guid Id, string Label, IReadOnlyList<PersonView> People);
     private bool ShowingResult => ShowingCreatedResult
         || (_mode == UserDrawerMode.Invitation && _invitation is not null)
         || (_mode == UserDrawerMode.TemporaryPassword && !string.IsNullOrEmpty(_issuedTemporaryPassword));
@@ -322,6 +437,9 @@
     private string EditingLabel => _editing is null ? string.Empty : AccountLabel(_editing);
     private string DrawerTitle => _mode switch
     {
+        UserDrawerMode.AddPerson => "Add person",
+        UserDrawerMode.OwnSignIn => $"Own sign-in · {_targetProfile?.DisplayName}",
+        UserDrawerMode.RemoveOwnSignIn => $"Remove sign-in · {_targetProfile?.DisplayName}",
         UserDrawerMode.Permissions => $"Permissions · {EditingLabel}",
         UserDrawerMode.Profiles => $"Profiles · {EditingLabel}",
         UserDrawerMode.Invitation => "Invite user",
@@ -383,6 +501,142 @@
         _open = true;
     }
 
+    private void OpenAddPerson(Guid householdId)
+    {
+        ResetDrawer(UserDrawerMode.AddPerson);
+        _editing = null;
+        _householdId = householdId;
+        _open = true;
+    }
+
+    private void OpenOwnSignIn(ManagedProfileResponse profile)
+    {
+        ResetDrawer(UserDrawerMode.OwnSignIn);
+        _editing = null;
+        _targetProfile = profile;
+        _open = true;
+    }
+
+    private void ConfirmRemoveOwnSignIn(PersonView person)
+    {
+        ResetDrawer(UserDrawerMode.RemoveOwnSignIn);
+        _editing = null;
+        _targetProfile = person.Profile;
+        _targetAccount = person.OwnSignIn;
+        _open = true;
+    }
+
+    private async Task AddPerson()
+    {
+        if (_householdId is not { } householdId)
+            return;
+        if (!TryBeginMutation(out var generation))
+            return;
+        try
+        {
+            ClearMessages();
+            var result = await Identity.AddHouseholdPersonResultAsync(householdId,
+                new AddHouseholdPersonRequest(_profileName.Trim(), null, _personIsChild,
+                    string.IsNullOrWhiteSpace(_personPin) ? null : _personPin.Trim()));
+            if (!IsCurrentMutation(generation))
+                return;
+            if (result.Succeeded && result.Value is not null)
+            {
+                await ReloadAll(generation);
+                if (!IsCurrentMutation(generation))
+                    return;
+                _notice = $"{result.Value.DisplayName} was added to the household.";
+                Close();
+            }
+            else
+            {
+                _error = PersonMessage(result.Failure);
+            }
+        }
+        finally
+        {
+            EndMutation(generation);
+        }
+    }
+
+    private async Task GiveOwnSignIn()
+    {
+        if (_targetProfile is not { } profile)
+            return;
+        if (!TryBeginMutation(out var generation))
+            return;
+        try
+        {
+            ClearMessages();
+            var useTemporaryPassword = _signInMethod == TemporaryPasswordMethod;
+            var result = await Identity.GiveOwnSignInResultAsync(profile.Id,
+                new GiveOwnSignInRequest(_email.Trim(), useTemporaryPassword ? _temporaryPassword : null));
+            if (!IsCurrentMutation(generation))
+                return;
+            if (result.Succeeded && result.Value is not null)
+            {
+                if (useTemporaryPassword)
+                {
+                    _issuedTemporaryPassword = _temporaryPassword;
+                    _issuedTemporaryPasswordExpiresAt = result.Value.TemporaryPasswordExpiresAt;
+                    _temporaryPassword = string.Empty;
+                }
+                else
+                {
+                    _invitation = result.Value.Invitation;
+                }
+
+                _notice = $"{profile.DisplayName} now has their own sign-in.";
+                await ReloadAll(generation);
+            }
+            else
+            {
+                _error = result.Failure == DashboardAccessMutationFailure.Validation
+                    ? "Check the email, and if you chose a password use at least 12 characters that are not common and not their email address."
+                    : PersonMessage(result.Failure);
+            }
+        }
+        finally
+        {
+            EndMutation(generation);
+        }
+    }
+
+    private async Task RemoveOwnSignIn()
+    {
+        if (_targetProfile is not { } profile || _targetAccount is not { } account)
+            return;
+        if (!TryBeginMutation(out var generation))
+            return;
+        try
+        {
+            ClearMessages();
+            var result = await Identity.RemoveOwnSignInResultAsync(account.Id);
+            if (!IsCurrentMutation(generation))
+                return;
+            if (result.Succeeded)
+            {
+                await ReloadAll(generation);
+                if (!IsCurrentMutation(generation))
+                    return;
+                _notice = $"{profile.DisplayName}'s own sign-in was removed. {profile.DisplayName} stays in the household.";
+                Close();
+            }
+            else
+            {
+                _error = PersonMessage(result.Failure);
+            }
+        }
+        finally
+        {
+            EndMutation(generation);
+        }
+    }
+
+    private static string PersonMessage(DashboardAccessMutationFailure failure) => failure == DashboardAccessMutationFailure.Conflict
+        ? "That can't be done right now. A household holds up to 8 people, an email can only have one sign-in, and a person needs at least one way in."
+        : Message(failure);
+
     private void SetSignInMethod(string method) => _signInMethod = method == TemporaryPasswordMethod ? TemporaryPasswordMethod : InvitationMethod;
 
     private void GeneratePassword() => _temporaryPassword = TemporaryPasswordGenerator.Generate();
@@ -433,6 +687,11 @@
         _profileColor = "#7C4DFF";
         _administrator = _newProfileDefault = false;
         _enabled = true;
+        _householdId = null;
+        _targetProfile = null;
+        _targetAccount = null;
+        _personIsChild = false;
+        _personPin = string.Empty;
     }
 
     private async Task SaveAccount()
@@ -1055,5 +1314,8 @@
         Invitation,
         TemporaryPassword,
         Delete,
+        AddPerson,
+        OwnSignIn,
+        RemoveOwnSignIn,
     }
 }
