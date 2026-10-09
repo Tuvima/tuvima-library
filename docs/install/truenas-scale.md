@@ -48,6 +48,16 @@ TrueNAS performs basic YAML validation but does not validate application-specifi
 
 Retain mappings for `/library`, `/config`, `/db`, `/models`, `/artwork-cache`, `/backups`, and `/transcode`. Reuse them when updating the container. An existing read-only media folder needs a separate mapping.
 
+## Claim your server
+
+First-run setup is protected by a one-time setup code, so only someone who can reach the server itself can claim it.
+
+- Opening `/setup` from the same computer that runs Tuvima Library needs no code.
+- Opening it from another device on your home network asks for a setup code. On the server, run `docker exec -it <container> tuvima-admin setup code` for Docker, Unraid, Synology, QNAP and TrueNAS. On Windows, open a terminal as administrator in the install folder and run `tuvima-admin setup code`.
+- The code has eight characters (for example `ABCD-EFGH`), works once, and expires after 30 minutes. A newer code replaces an older one, and five wrong tries cancel it.
+- Setup is never available over the internet. Visitors from outside see "Setup has to be finished from your home network."
+- Once the administrator exists, setup closes for good and `tuvima-admin setup code` refuses to run.
+
 ## Next steps
 
 - [Add your first library](../tutorials/first-library.md).

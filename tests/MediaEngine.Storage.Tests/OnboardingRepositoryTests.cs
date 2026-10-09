@@ -32,7 +32,7 @@ public sealed class OnboardingRepositoryTests : IDisposable
         Assert.Equal(1, workflow.WorkflowVersion);
         Assert.Equal("administrator", workflow.CurrentStep);
         Assert.Equal("passed", workflow.Steps.Single(step => step.Key == "preflight").Status);
-        Assert.True(await _repository.ValidateSessionAsync("session-hash", CancellationToken.None));
+        Assert.False(await _repository.ValidateSessionAsync("session-hash", CancellationToken.None));
         Assert.True(await _repository.ValidateSessionAsync("other-hash", CancellationToken.None));
     }
 

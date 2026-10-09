@@ -642,6 +642,19 @@ Revocable, device-scoped sign-in sessions. A session remembers where it started.
 | `created_at`, `last_seen_at`, `expires_at` | TEXT | Timestamps |
 | `revoked_at`, `revoked_reason` | TEXT | NULL while active |
 
+### setup_codes
+
+One-time codes that let a person on the home network start first-run setup (`tuvima-admin setup code`). Only a hash is stored. At most one code is active; creating a new one invalidates the others.
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | BLOB | GUID, primary key |
+| `code_hash` | TEXT | SHA-256 (hex) of the normalised 8-character code; the code itself is never stored |
+| `created_at`, `expires_at` | TEXT | Timestamps; a code lives 30 minutes |
+| `failed_attempts` | INTEGER | Wrong tries; the fifth invalidates the code |
+| `consumed_at` | TEXT | Set when the code is used (single use) |
+| `invalidated_at` | TEXT | Set when a newer code replaces it or it is retired after too many wrong tries |
+
 ---
 
 ## Operations

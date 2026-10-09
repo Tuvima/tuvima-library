@@ -98,7 +98,17 @@ Build on the Docker host that will run the container. For a separate NAS host, t
 2. Create the first administrator account and profile. Save the one-time recovery codes outside this server.
 3. Continue through setup. You can add media folders later.
 
-No claim token from container logs is required. The first reachable browser can create the administrator until that account exists. Afterward, setup requires administrator authentication.
+No claim token from container logs is required. From another device on your home network, setup asks for a one-time code (see [Claim your server](#claim-your-server)). Afterward, setup requires administrator authentication.
+
+## Claim your server
+
+First-run setup is protected by a one-time setup code, so only someone who can reach the server itself can claim it.
+
+- Opening `/setup` from the same computer that runs Tuvima Library needs no code.
+- Opening it from another device on your home network asks for a setup code. On the server, run `docker exec -it <container> tuvima-admin setup code` for Docker, Unraid, Synology, QNAP and TrueNAS. On Windows, open a terminal as administrator in the install folder and run `tuvima-admin setup code`.
+- The code has eight characters (for example `ABCD-EFGH`), works once, and expires after 30 minutes. A newer code replaces an older one, and five wrong tries cancel it.
+- Setup is never available over the internet. Visitors from outside see "Setup has to be finished from your home network."
+- Once the administrator exists, setup closes for good and `tuvima-admin setup code` refuses to run.
 
 ## Check startup
 

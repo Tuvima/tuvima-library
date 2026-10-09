@@ -117,6 +117,32 @@ public sealed class IngressClassifierTests
         Assert.Equal(IngressKind.ThisComputer, classifier.Classify(IPAddress.Loopback, MainPort));
     }
 
+    [Theory]
+    [InlineData("127.0.0.1", null)]
+    [InlineData("::1", null)]
+    [InlineData("127.0.0.1", "127.0.0.0/8")]
+    public void MainPortConnectionFromALoopbackProxy_IsRemote_NotThisComputer(string proxyAddress, string? proxyNetwork)
+    {
+        var classifier = new IngressClassifier(
+            null,
+            [],
+            proxyNetwork is null ? new[] { proxyAddress } : Array.Empty<string>(),
+            proxyNetwork is null ? Array.Empty<string>() : new[] { proxyNetwork });
+
+        Assert.Equal(IngressKind.Remote, classifier.Classify(IPAddress.Parse(proxyAddress), MainPort));
+    }
+
+    [Fact]
+    public async Task LoopbackProxyOnTheMainPort_WithAPublicForwardedFor_IsNotThisComputer()
+    {
+        var context = await RunPipelineAsync(MainPort, "127.0.0.1", forwardedFor: "8.8.8.8");
+
+        var classifier = new IngressClassifier(ProxyPort, [], ["127.0.0.1"]);
+
+        Assert.NotEqual(IngressKind.ThisComputer, classifier.Classify(context));
+        Assert.Equal(IngressKind.Remote, classifier.Classify(context));
+    }
+
     [Fact]
     public void TrustedLocalNetwork_InMappedIpv6Form_StillMatchesIpv4Clients()
     {

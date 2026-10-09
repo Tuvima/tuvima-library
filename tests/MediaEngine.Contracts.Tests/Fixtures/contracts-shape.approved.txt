@@ -7657,6 +7657,16 @@ MediaEngine.Contracts.Setup.MediaEngine.Contracts.Setup.SetupBackupInspectionDto
   ConfigurationFiles: System.Int32 | nullability=not-null | accessors=get,init
   Warning: System.String | nullability=not-null | accessors=get,init
 
+MediaEngine.Contracts.Setup.MediaEngine.Contracts.Setup.SetupBeginRefusalDto
+  Reason: System.String | nullability=not-null | accessors=get,init
+  Message: System.String | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Setup.MediaEngine.Contracts.Setup.SetupBeginRefusalReasons
+
+MediaEngine.Contracts.Setup.MediaEngine.Contracts.Setup.SetupBeginRequest
+  SetupCode: System.String | nullability=nullable | accessors=get,init
+  OriginalClientIngress: System.String | nullability=not-null | accessors=get,init
+
 MediaEngine.Contracts.Setup.MediaEngine.Contracts.Setup.SetupCapabilityDto
   Key: System.String | nullability=not-null | accessors=get,init
   Label: System.String | nullability=not-null | accessors=get,init

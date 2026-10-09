@@ -55,6 +55,17 @@ public static class TuvimaAdminApplication
 
         using var database = new DatabaseConnection(fullDatabasePath);
         var identities = new IdentityRepository(database);
+        if (options.Command == AdminCommand.SetupCode)
+        {
+            var setupCommand = new SetupCodeCommand(
+                authorizer,
+                identities.IsAdministratorBootstrapCompletedAsync,
+                new SetupCodeRepository(database),
+                console,
+                TimeProvider.System);
+            return await setupCommand.ExecuteAsync(ct).ConfigureAwait(false);
+        }
+
         var accounts = new AccountRepository(database);
         var profiles = new ProfileRepository(database);
         using var configuration = new ConfigurationDirectoryLoader(configDirectory);
@@ -79,15 +90,26 @@ public static class TuvimaAdminApplication
         console.WriteLine(string.Empty);
         console.WriteLine("Usage:");
         console.WriteLine("  tuvima-admin auth reset-password [--email <address>] [--config-dir <path>]");
+        console.WriteLine("  tuvima-admin setup code [--config-dir <path>]");
         console.WriteLine(string.Empty);
         console.WriteLine("The command requires elevated host privileges and prompts securely for the new password.");
         console.WriteLine("It revokes every session and rotates all recovery codes for the administrator.");
+        console.WriteLine(string.Empty);
+        console.WriteLine("'setup code' prints a one-time code (valid 30 minutes) that lets you start first-run setup");
+        console.WriteLine("from another device on your home network. It is refused once an administrator exists.");
     }
 
-    private sealed record AdminCommandOptions(
+    internal enum AdminCommand
+    {
+        ResetPassword,
+        SetupCode,
+    }
+
+    internal sealed record AdminCommandOptions(
         bool ShowHelp,
         string? Email,
-        string? ConfigDirectory)
+        string? ConfigDirectory,
+        AdminCommand Command = AdminCommand.ResetPassword)
     {
         public static bool TryParse(
             IReadOnlyList<string> args,
@@ -102,7 +124,14 @@ public static class TuvimaAdminApplication
                 return true;
             }
 
-            if (args.Count < 2
+            var command = AdminCommand.ResetPassword;
+            if (args.Count >= 2
+                && args[0].Equals("setup", StringComparison.OrdinalIgnoreCase)
+                && args[1].Equals("code", StringComparison.OrdinalIgnoreCase))
+            {
+                command = AdminCommand.SetupCode;
+            }
+            else if (args.Count < 2
                 || !args[0].Equals("auth", StringComparison.OrdinalIgnoreCase)
                 || !args[1].Equals("reset-password", StringComparison.OrdinalIgnoreCase))
             {
@@ -116,7 +145,7 @@ public static class TuvimaAdminApplication
             {
                 if (args[index] is "--help" or "-h")
                 {
-                    options = new(true, email, configDirectory);
+                    options = new(true, email, configDirectory, command);
                     return true;
                 }
 
@@ -142,7 +171,13 @@ public static class TuvimaAdminApplication
                 }
             }
 
-            options = new(false, email, configDirectory);
+            if (command == AdminCommand.SetupCode && email is not null)
+            {
+                error = "'setup code' does not take --email.";
+                return false;
+            }
+
+            options = new(false, email, configDirectory, command);
             return true;
         }
     }

@@ -662,6 +662,18 @@ internal sealed class SchemaMigrator
             CREATE INDEX IF NOT EXISTS idx_onboarding_sessions_active
                 ON onboarding_sessions(workflow_version, expires_at, revoked_at);
 
+            CREATE TABLE IF NOT EXISTS setup_codes (
+                id BLOB NOT NULL PRIMARY KEY,
+                code_hash TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                expires_at TEXT NOT NULL,
+                failed_attempts INTEGER NOT NULL DEFAULT 0,
+                consumed_at TEXT,
+                invalidated_at TEXT
+            );
+            CREATE INDEX IF NOT EXISTS idx_setup_codes_active
+                ON setup_codes(consumed_at, invalidated_at, expires_at);
+
             CREATE TABLE IF NOT EXISTS onboarding_restore_operations (
                 id BLOB NOT NULL PRIMARY KEY,
                 workflow_version INTEGER NOT NULL REFERENCES onboarding_workflows(workflow_version) ON DELETE CASCADE,

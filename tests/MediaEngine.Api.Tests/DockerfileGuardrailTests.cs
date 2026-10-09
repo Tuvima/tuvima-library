@@ -199,6 +199,9 @@ public sealed class DockerfileGuardrailTests
         Assert.Contains("Application startup refused to continue as root", entrypoint);
         Assert.Contains("dotnet publish src/MediaEngine.Admin/MediaEngine.Admin.csproj", dockerfile);
         Assert.Contains("COPY --from=build /app/admin", dockerfile);
+        Assert.Contains("/usr/local/bin/tuvima-admin", dockerfile);
+        Assert.Contains("exec /app/admin/tuvima-admin", dockerfile);
+        Assert.Contains("tuvima-admin setup code", entrypoint);
         Assert.Contains("HEALTHCHECK", dockerfile);
         Assert.Contains("61495/health/live", dockerfile);
         Assert.Contains("5016/health/live", dockerfile);

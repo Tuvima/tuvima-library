@@ -68,7 +68,7 @@ if (args.Length >= 3 && args[2] is "--complete" or "--probe")
     Console.WriteLine("Completed disposable setup with media folders and providers deferred.");
     return;
 }
-using var beginResponse = await client.PostAsJsonAsync("/setup/v1/begin", new { });
+using var beginResponse = await client.PostAsJsonAsync("/setup/v1/begin", new { original_client_ingress = "this_computer" });
 beginResponse.EnsureSuccessStatusCode();
 using var begin = JsonDocument.Parse(await beginResponse.Content.ReadAsStringAsync());
 var setupSession = begin.RootElement.GetProperty("setup_session_token").GetString()
