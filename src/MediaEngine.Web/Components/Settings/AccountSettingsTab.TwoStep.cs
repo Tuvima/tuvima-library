@@ -22,7 +22,11 @@ public partial class AccountSettingsTab
 
     private async Task BeginTwoStepSetupAsync()
     {
-        if (_busy || _disposed) return;
+        if (_busy || _disposed)
+        {
+            return;
+        }
+
         _busy = _twoStepWorking = true;
         try
         {
@@ -46,7 +50,11 @@ public partial class AccountSettingsTab
 
     private async Task EnableTwoStepAsync()
     {
-        if (_busy || _disposed || string.IsNullOrWhiteSpace(_twoStepCode)) return;
+        if (_busy || _disposed || string.IsNullOrWhiteSpace(_twoStepCode))
+        {
+            return;
+        }
+
         _busy = _twoStepWorking = true;
         try
         {
@@ -84,7 +92,11 @@ public partial class AccountSettingsTab
     // Confirming it's you comes first, so a code typed for that step is not reused for turning off.
     private async Task StartTurnOffTwoStepAsync()
     {
-        if (_busy || _disposed) return;
+        if (_busy || _disposed)
+        {
+            return;
+        }
+
         _busy = true;
         try
         {
@@ -99,7 +111,11 @@ public partial class AccountSettingsTab
 
     private async Task DisableTwoStepAsync()
     {
-        if (_busy || _disposed || string.IsNullOrWhiteSpace(_twoStepDisableCode)) return;
+        if (_busy || _disposed || string.IsNullOrWhiteSpace(_twoStepDisableCode))
+        {
+            return;
+        }
+
         _busy = _twoStepWorking = true;
         try
         {
@@ -134,8 +150,18 @@ public partial class AccountSettingsTab
 
     private async Task OnTwoStepKeyDownAsync(KeyboardEventArgs args)
     {
-        if (args.Key != "Enter") return;
-        if (_twoStepSetup is not null) await EnableTwoStepAsync();
-        else if (_twoStepTurningOff) await DisableTwoStepAsync();
+        if (args.Key != "Enter")
+        {
+            return;
+        }
+
+        if (_twoStepSetup is not null)
+        {
+            await EnableTwoStepAsync();
+        }
+        else if (_twoStepTurningOff)
+        {
+            await DisableTwoStepAsync();
+        }
     }
 }

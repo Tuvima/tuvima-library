@@ -3,7 +3,7 @@
 # Compatibility is enforced separately by wire-compatibility.approved.txt.
 # Serializer: System.Text.Json JsonSerializerDefaults.Web; DefaultIgnoreCondition=Never
 # Regenerate intentionally with TUVIMA_UPDATE_WIRE_SNAPSHOT=1.
-# scopes: contracts=929; api=0; web-client=86
+# scopes: contracts=934; api=0; web-client=86
 
 [contracts] MediaEngine.Contracts.Activity.ActivityBatchInsightsDto
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -652,6 +652,7 @@
   HouseholdId: System.Guid? | json=household_id | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   MustChangePassword: System.Boolean | json=must_change_password | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   TemporaryPasswordExpiresAt: System.DateTimeOffset? | json=temporary_password_expires_at | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  HasTwoStep: System.Boolean | json=has_two_step | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
 
 [contracts] MediaEngine.Contracts.Authentication.AccountExternalLoginDto
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -727,6 +728,7 @@
   PasskeyReady: System.Boolean | json=passkey_ready | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   ExternalSignInAvailable: System.Boolean | json=external_sign_in_available | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   AvailableExternalProviders: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Authentication.AccountExternalProviderResponse> | json=available_external_providers | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  HasTwoStep: System.Boolean | json=has_two_step | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
 
 [contracts] MediaEngine.Contracts.Authentication.AccountSelfServiceResponse
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -998,12 +1000,21 @@
   OriginalClientIngress: System.String | json=original_client_ingress | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   OriginalClientIsHttps: System.Boolean | json=original_client_is_https | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
 
+[contracts] MediaEngine.Contracts.Authentication.CompleteTwoStepSignInRequest
+  kind=class | converter=default | number-handling=default | unmapped=default
+  PendingToken: System.String | json=pending_token | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Code: System.String | json=code | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  OriginalClientIngress: System.String | json=original_client_ingress | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  OriginalClientIsHttps: System.Boolean | json=original_client_is_https | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"pending_token":"sample","code":"sample","original_client_ingress":"sample","original_client_is_https":true}
+
 [contracts] MediaEngine.Contracts.Authentication.ConfirmItsYouRequest
   kind=class | converter=default | number-handling=default | unmapped=default
   Password: System.String | json=password | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   CredentialJson: System.String | json=credential_json | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   State: System.String | json=state | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  sample={"password":"sample","credential_json":"sample","state":"sample"}
+  TwoStepCode: System.String | json=two_step_code | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"password":"sample","credential_json":"sample","state":"sample","two_step_code":"sample"}
 
 [contracts] MediaEngine.Contracts.Authentication.CreateAccountInvitationRequest
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -1108,10 +1119,20 @@
   RevokedAt: System.DateTimeOffset? | json=revoked_at | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   sample={"id":"11111111-2222-3333-4444-555555555555","account_id":"11111111-2222-3333-4444-555555555555","active_profile_id":"11111111-2222-3333-4444-555555555555","device_id":"sample","device_name":"sample","client":"sample","authentication_method":"sample","created_at":"2025-01-02T03:04:05+00:00","last_seen_at":"2025-01-02T03:04:05+00:00","expires_at":"2025-01-02T03:04:05+00:00","revoked_at":"2025-01-02T03:04:05+00:00"}
 
+[contracts] MediaEngine.Contracts.Authentication.DisableTwoStepRequest
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Code: System.String | json=code | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"code":"sample"}
+
 [contracts] MediaEngine.Contracts.Authentication.ElevateAdministratorRequest
   kind=class | converter=default | number-handling=default | unmapped=default
   Secret: System.String | json=secret | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   sample={"secret":"sample"}
+
+[contracts] MediaEngine.Contracts.Authentication.EnableTwoStepRequest
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Code: System.String | json=code | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"code":"sample"}
 
 [contracts] MediaEngine.Contracts.Authentication.ExternalIdentityTransactionResponse
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -1394,6 +1415,16 @@
   VerificationUri: System.String | json=verification_uri | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Capabilities: System.Collections.Generic.IReadOnlyList<System.String> | json=capabilities | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   sample={"product":"sample","server_id":"sample","server_name":"sample","api_base_url":"sample","supported_api_versions":[],"device_authorization_endpoint":"sample","token_endpoint":"sample","verification_uri":"sample","capabilities":[]}
+
+[contracts] MediaEngine.Contracts.Authentication.TwoStepRequiredResponse
+  kind=class | converter=default | number-handling=default | unmapped=default
+  TwoStepRequired: System.Boolean | json=two_step_required | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  PendingToken: System.String | json=pending_token | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+
+[contracts] MediaEngine.Contracts.Authentication.TwoStepSetupResponse
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Secret: System.String | json=secret | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  OtpAuthUri: System.String | json=otpauth_uri | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
 
 [contracts] MediaEngine.Contracts.Authentication.UpdateApplicationRequest
   kind=class | converter=default | number-handling=default | unmapped=default
