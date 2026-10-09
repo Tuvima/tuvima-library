@@ -2,7 +2,7 @@
     overflow-x: auto;
 }
 
-.apps-devices__table-wrap ::deep small {
+.apps-devices__sub {
     display: block;
     color: var(--tl-text-secondary);
 }

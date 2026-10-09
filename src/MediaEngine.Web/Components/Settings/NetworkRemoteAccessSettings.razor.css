@@ -159,16 +159,3 @@
     .network-settings ::deep .network-danger-row { align-items: stretch; flex-direction: column; }
     .network-settings ::deep .network-advanced-card__body { padding-left: 14px; }
 }
-
-.network-settings ::deep .apps-devices__address {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: var(--tl-space-3, 12px);
-}
-
-.network-settings ::deep .apps-devices__address code {
-    min-width: 0;
-    overflow-wrap: anywhere;
-    color: var(--tl-text-primary);
-}

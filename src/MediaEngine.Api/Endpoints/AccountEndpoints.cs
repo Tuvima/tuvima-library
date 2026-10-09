@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Mvc;
 using MediaEngine.Api.Http;
 using MediaEngine.Api.Security;
 using MediaEngine.Api.Services.ReadServices;
@@ -32,7 +33,7 @@ public static class AccountEndpoints
     {
         var devices = access.MapGroup("/devices").RequireHumanSelfService();
         devices.MapGet("/", async (HttpContext http, IRequestAuthorityResolver resolver,
-            ISelfServiceAuthorizationService decisions, ManagedClientDeviceService service,
+            ISelfServiceAuthorizationService decisions, [FromServices] ManagedClientDeviceService service,
             CancellationToken ct) =>
         {
             var authority = await RequireSelfAsync(http, resolver, decisions, ct);
@@ -43,7 +44,7 @@ public static class AccountEndpoints
 
         devices.MapDelete("/{deviceId:guid}", async (Guid deviceId, HttpContext http,
             IRequestAuthorityResolver resolver, ISelfServiceAuthorizationService decisions,
-            ManagedClientDeviceService service, CancellationToken ct) =>
+            [FromServices] ManagedClientDeviceService service, CancellationToken ct) =>
         {
             var authority = await RequireSelfAsync(http, resolver, decisions, ct);
             return await service.RevokeAsync(authority, deviceId, ct) switch
