@@ -23,10 +23,11 @@ public sealed class DashboardCookieValidationTests
     [Fact]
     public async Task HomeSessionUsedFromOutside_IsRefusedWithoutErasingTheCookie()
     {
-        using var http = new HttpClient(new Handler(_ => new HttpResponseMessage(HttpStatusCode.Unauthorized)
+        var handler = new Handler(_ => new HttpResponseMessage(HttpStatusCode.Unauthorized)
         {
             Content = JsonContent.Create(new { reason = ClientIngressValues.SignInAgainHere }),
-        })) { BaseAddress = new Uri("http://localhost") };
+        });
+        using var http = new HttpClient(handler) { BaseAddress = new Uri("http://localhost") };
         var identity = new DashboardIdentityClient(new Factory(http));
 
         var result = await identity.ValidateCookieAsync("test-session", ClientIngressValues.Remote);
@@ -39,11 +40,12 @@ public sealed class DashboardCookieValidationTests
     public async Task ValidationTellsTheEngineWhereTheRequestCameFrom()
     {
         string? sent = null;
-        using var http = new HttpClient(new Handler(request =>
+        var handler = new Handler(request =>
         {
             sent = request.Headers.TryGetValues(ClientIngressValues.ValidateHeader, out var values) ? values.Single() : null;
             return new HttpResponseMessage(HttpStatusCode.ServiceUnavailable);
-        })) { BaseAddress = new Uri("http://localhost") };
+        });
+        using var http = new HttpClient(handler) { BaseAddress = new Uri("http://localhost") };
         var identity = new DashboardIdentityClient(new Factory(http));
 
         await identity.ValidateCookieAsync("test-session", ClientIngressValues.HomeNetwork);

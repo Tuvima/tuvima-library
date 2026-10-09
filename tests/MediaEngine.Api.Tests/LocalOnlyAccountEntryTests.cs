@@ -146,8 +146,12 @@ public sealed class LocalOnlyAccountEntryTests
                     var refused = await Assert.ThrowsAsync<InvalidOperationException>(() => mutations.UpsertGrantAsync(
                         actor, new AccountProfileGrant
                         {
-                            AccountId = child.Id, ProfileId = childProfileId, IsDefault = true,
-                            IsEnabled = true, AdminEnabled = true, AuthorizationVersion = 1,
+                            AccountId = child.Id,
+                            ProfileId = childProfileId,
+                            IsDefault = true,
+                            IsEnabled = true,
+                            AdminEnabled = true,
+                            AuthorizationVersion = 1,
                         }));
                     Assert.Equal("Child profiles can't be administrators.", refused.Message);
 
