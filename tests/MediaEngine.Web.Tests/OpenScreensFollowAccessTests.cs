@@ -398,7 +398,7 @@ public sealed class OpenScreensFollowAccessTests : IDisposable
         ], "test"));
 
     private static AccountAccessResponse AccountResponse(bool isEnabled) =>
-        new(Guid.NewGuid(), "a@example.test", false, isEnabled, false, 1, [], [], [], DateTimeOffset.UtcNow, DateTimeOffset.UtcNow, null);
+        new(Guid.NewGuid(), "a@example.test", isEnabled, false, 1, [], [], [], DateTimeOffset.UtcNow, DateTimeOffset.UtcNow, null);
 
     private static OpenScreen Screen(Guid account, string ingress, Guid? profile = null, Guid? session = null) =>
         new(Guid.NewGuid(), account, profile ?? Guid.NewGuid(), session ?? Guid.NewGuid(), OpenScreenRegistry.HashToken("token"), ingress);

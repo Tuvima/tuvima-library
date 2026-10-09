@@ -304,7 +304,7 @@ public sealed class ManagedAccessUsersTests : AsyncBunitContext
                 grants.Add(Grant(KidsProfileId, "Kids", false));
             }
 
-            return new(AccountId, Email, false, true, true, 1,
+            return new(AccountId, Email, true, true, 1,
                 [new("read", true), new("watch", true), new("listen", true), new("view", true)],
                 [new(Library.Id, Library.DisplayName, true)], grants,
                 DateTimeOffset.UtcNow.AddYears(-1), DateTimeOffset.UtcNow, DateTimeOffset.UtcNow.AddMinutes(-2));

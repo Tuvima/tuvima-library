@@ -133,7 +133,7 @@ public sealed class DashboardAccessMutationTests
     }
 
     private static CreateManagedAccountRequest CreateAccountRequest() =>
-        new("person@example.test", false, false, Guid.NewGuid(), null, [], []);
+        new("person@example.test", false, Guid.NewGuid(), null, [], []);
 
     private static DashboardIdentityClient Client(Func<HttpRequestMessage, HttpResponseMessage> response) =>
         new(new TestClientFactory(new DelegateHandler(response)));
