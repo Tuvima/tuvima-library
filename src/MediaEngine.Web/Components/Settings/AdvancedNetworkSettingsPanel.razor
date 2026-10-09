@@ -32,17 +32,13 @@
             <p class="network-supporting-copy">@(Status?.TopologyDetail ?? "Topology has not been inspected.")</p>
             <p class="network-supporting-copy">@(Status?.MappingDetail ?? "Router mapping has not been attempted.")</p>
 
-            <AppTextField T="string" @bind-Value="Settings.Remote.PublicHostname" Label="Public HTTPS address" Placeholder="https://tuvima.example.com" HelpText="Used for passkeys, linked sign-in and reset links" />
+            <p class="network-supporting-copy">The public address now lives on <a href="/settings/network/remote">Remote Access</a>. Turn on Anywhere there once the checklist is ready.</p>
             <AppTextField T="string" @bind-Value="_tlsPortText" Label="Local TLS reverse-proxy port" HelpText="The local Caddy/nginx/Traefik HTTPS listener. Never use the Dashboard HTTP port." />
             <AppTextField T="string" @bind-Value="_externalPortText" Label="External HTTPS port" HelpText="Normally 443." />
             <AppSwitchRow Label="Manage router mapping automatically"
                           Description="Try PCP, NAT-PMP, then UPnP for the explicitly configured TLS listener."
                           Value="@Settings.Remote.AutomaticRouterConfiguration"
                           ValueChanged="ChangeRouterAutomationAsync" />
-            <AppSwitchRow Label="Enable direct remote access"
-                          Description="Available only after authentication, topology, the TLS listener, and the public HTTPS route are verified."
-                          Value="@DirectRemoteEnabled"
-                          ValueChanged="ChangeDirectEnabledAsync" />
             <div class="network-card-actions">
                 <AppButton Label="Save direct settings" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" OnClick="SaveRouterSettingsAsync" />
                 <AppButton Label="Set up manually" StartIcon="@AppMaterialIcons.Outlined.Tune" OnClick="OpenManual" />
@@ -117,7 +113,6 @@
     private string? _tlsPortText;
     private string? _externalPortText;
 
-    private bool DirectRemoteEnabled => Settings.WhoCanConnect == "anywhere" && Settings.Remote.ConnectionMode == "direct-only";
     private string InternalAddress => Status?.LocalAddresses.FirstOrDefault(address => address.AddressFamily == "ipv4")?.Address
         ?? Status?.LocalAddresses.FirstOrDefault()?.Address
         ?? "Unavailable";
@@ -162,21 +157,6 @@
         Settings.Remote.TlsTerminationPort = tlsPort;
         Settings.Remote.ExternalPort = externalPort;
         return true;
-    }
-
-    private async Task ChangeDirectEnabledAsync(bool value)
-    {
-        if (value)
-        {
-            var readiness = await ApiClient.GetRemoteAccessReadinessAsync();
-            if (readiness?.Ready != true)
-            {
-                Snackbar.Add("Direct remote access remains off until every security check passes.", AppSeverity.Warning);
-                return;
-            }
-        }
-        Settings.WhoCanConnect = value ? "anywhere" : (Settings.WhoCanConnect == "anywhere" ? "home_network" : Settings.WhoCanConnect);
-        await SaveRequested.InvokeAsync();
     }
 
     private async Task SaveProxySettingsAsync()

@@ -1,5 +1,6 @@
 @namespace MediaEngine.Web.Components.Settings
 @using MediaEngine.Contracts.Settings
+@using MediaEngine.Web.Models.ViewDTOs
 @using MediaEngine.Web.Services.Integration
 @inject IEngineApiClient ApiClient
 
@@ -14,7 +15,7 @@
                           Icon="@AppMaterialIcons.Outlined.WifiTethering">
         <div class="network-status-grid">
             @StatusCard("Local Access", Status?.LocalAccess ?? "Unavailable", "Devices on your network can reach Tuvima Library.", AppMaterialIcons.Outlined.Home)
-            @StatusCard("Remote Access", Status?.RemoteAccess ?? "Unavailable", Settings.WhoCanConnect == "anywhere" ? "Access away from home." : "Remote access is turned off.", AppMaterialIcons.Outlined.Public)
+            @StatusCard("Who can connect", RemoteAccessChecklist.WhoCanConnectSummary(Settings.WhoCanConnect), Settings.WhoCanConnect == "anywhere" ? "Also reachable from the internet." : "Nothing from the internet.", AppMaterialIcons.Outlined.Public)
             @StatusCard("Connection", Display(Status?.ConnectionType), "The active route to your server.", AppMaterialIcons.Outlined.Cable)
             @StatusCard("Secure Connection", Display(Status?.SecureConnection), "Remote connections must use a trusted secure path.", AppMaterialIcons.Outlined.VerifiedUser)
         </div>
