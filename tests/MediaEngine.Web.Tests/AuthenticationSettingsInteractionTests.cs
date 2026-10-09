@@ -4,6 +4,7 @@ using MediaEngine.Contracts.Settings;
 using MediaEngine.Domain.Configuration;
 using MediaEngine.Web.Components.Settings;
 using MediaEngine.Web.Components.Shared;
+using MediaEngine.Web.Services.Configuration;
 using MediaEngine.Web.Services.Integration;
 using MediaEngine.Web.Tests.Support;
 using Microsoft.AspNetCore.Components.Web;
@@ -45,6 +46,7 @@ public sealed class AuthenticationSettingsInteractionTests : AsyncBunitContext
         Services.AddSingleton<IHttpClientFactory>(new StaticHttpClientFactory());
         Services.AddScoped<DashboardIdentityClient>();
         Services.AddSingleton(new PasswordResetDeliverySettings { Mode = "Disabled" });
+        Services.AddSingleton(new DashboardConfigurationReader(Path.Combine(Path.GetTempPath(), $"tuvima-no-config-{Guid.NewGuid():N}")));
         Services.AddSingleton<PasswordResetEmailSender>();
         Services.AddScoped<UniverseStateContainer>();
         Services.AddScoped<ActiveProfileSessionService>();
@@ -145,13 +147,13 @@ public sealed class AuthenticationSettingsInteractionTests : AsyncBunitContext
         InvitationLifetimeHours = 168,
         SessionLifetimeHours = 336,
         MaximumActiveSessions = 20,
+        PublicAddress = "https://library.example.test",
         CanonicalOriginReady = true,
         PasskeyReady = true,
         RecoveryDeliveryReady = true,
         PasswordReset = new PasswordResetDeliveryDto
         {
             Mode = "Smtp",
-            PublicBaseUrl = "https://library.example.test",
             SmtpHost = "smtp.example.test",
             SmtpPort = 587,
             FromAddress = "library@example.test",

@@ -65,7 +65,7 @@ dotnet format MediaEngine.slnx --verify-no-changes --no-restore
 dotnet list MediaEngine.slnx package --vulnerable --include-transitive
 ```
 
-After an intended Engine-to-Dashboard contract change, regenerate the approved fixtures with `pwsh -File tools/Update-ContractFixtures.ps1` and commit the changed `tests/MediaEngine.Contracts.Tests/Fixtures/*.approved.txt` files.
+After an intended Engine-to-Dashboard contract change, regenerate the approved fixtures with `powershell -ExecutionPolicy Bypass -File tools\Update-ContractFixtures.ps1` (works in Windows PowerShell 5.1 and PowerShell 7) and commit the changed `tests/MediaEngine.Contracts.Tests/Fixtures/*.approved.txt` files.
 
 CI excludes tests marked `Category=LiveProvider`; ordinary tests should not depend on a live provider or paid credential. Use the current workflow as the source for coverage and Release CSS checks.
 

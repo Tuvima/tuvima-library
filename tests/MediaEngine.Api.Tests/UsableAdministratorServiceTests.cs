@@ -115,7 +115,7 @@ public sealed class UsableAdministratorServiceTests
             var identities = new IdentityRepository(database);
             var external = new AccountExternalLoginService(new AccountExternalLoginRepository(database), accounts);
             var service = new UsableAdministratorService(
-                accounts, identities, external, null!, null!, new FixedTime(Now));
+                accounts, identities, external, null!, null!, null!, new FixedTime(Now));
             await test(service, accounts, identities);
         }
         finally

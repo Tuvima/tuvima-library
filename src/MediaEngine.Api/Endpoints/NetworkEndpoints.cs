@@ -31,6 +31,12 @@ public static class NetworkEndpoints
         {
             var current = configuration.LoadNetwork();
             var proposed = NetworkContractMapper.ToStorage(request);
+            // The strict public-address rule applies when saving, so a hand-edited older value never stops startup.
+            if (!string.IsNullOrWhiteSpace(proposed.Remote.PublicHostname)
+                && !PublicAddress.IsValid(proposed.Remote.PublicHostname))
+            {
+                return ApiErrors.BadRequest(PublicAddress.RuleMessage);
+            }
             // App access rides on the verified secure path: anything below "Anywhere" turns it off too.
             if (!proposed.AllowsInternet)
             {

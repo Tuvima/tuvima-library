@@ -73,14 +73,13 @@
             </AppAlert>
 
             <dl class="security-settings__facts mt-5">
-                <div><dt>Canonical origin</dt><dd>@CanonicalOriginStatus</dd></div>
+                <div><dt>Public address</dt><dd>@CanonicalOriginStatus <a href="/settings/network/remote">Change it in Network settings</a></dd></div>
                 <div><dt>Passkeys</dt><dd>@PasskeyStatus</dd></div>
                 <div><dt>Recovery delivery</dt><dd>@RecoveryStatus</dd></div>
             </dl>
             @if (_authSettings.PasswordReset.Configured)
             {
                 <dl class="security-settings__facts mt-5">
-                    <div><dt>Public URL</dt><dd>@_authSettings.PasswordReset.PublicBaseUrl</dd></div>
                     <div><dt>SMTP server</dt><dd>@_authSettings.PasswordReset.SmtpHost:@_authSettings.PasswordReset.SmtpPort</dd></div>
                     <div><dt>From</dt><dd>@_authSettings.PasswordReset.FromAddress</dd></div>
                     <div><dt>SMTP state</dt><dd>@(_authSettings.PasswordReset.Ready ? "Ready" : "Configured, not ready")</dd></div>
@@ -196,10 +195,10 @@
     private string CanonicalOriginStatus => _authSettings is null
         ? "Unavailable"
         : _authSettings.CanonicalOriginReady
-            ? _authSettings.PasswordReset.PublicBaseUrl
-            : string.IsNullOrWhiteSpace(_authSettings.PasswordReset.PublicBaseUrl)
-                ? "Set the Dashboard public URL for sign-in callbacks."
-                : "Use an absolute HTTPS URL, or a loopback URL for local use.";
+            ? _authSettings.PublicAddress
+            : string.IsNullOrWhiteSpace(_authSettings.PublicAddress)
+                ? "Not set. Set the public address in Network settings for passkeys, linked sign-in and reset links."
+                : "Use an https address with no path (http is allowed only for localhost).";
     private string PasskeyStatus => _authSettings is null
         ? "Unavailable"
         : _authSettings.PasskeyReady
