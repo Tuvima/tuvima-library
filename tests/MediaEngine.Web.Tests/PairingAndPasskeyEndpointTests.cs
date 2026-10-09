@@ -144,6 +144,19 @@ public sealed class PairingAndPasskeyEndpointTests : IDisposable
         Assert.Equal(atPublicOrigin, html.Contains("id=\"passkey-login\"", StringComparison.Ordinal));
     }
 
+    [Fact]
+    public async Task InviteWithoutAToken_AsksForTheCodeInsteadOfRedirecting()
+    {
+        await using var dashboard = await StartAsync(_ => { }, engine: null, withAuthEndpoints: true);
+        using var client = new HttpClient(new HttpClientHandler { AllowAutoRedirect = false });
+
+        using var response = await client.GetAsync(new Uri(dashboard.Address, "/auth/invite"));
+        var html = await response.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Contains("name=\"token\"", html);
+    }
+
     private void SetPublicAddress(string address) =>
         File.WriteAllText(
             Path.Combine(_configDirectory, "network.json"),

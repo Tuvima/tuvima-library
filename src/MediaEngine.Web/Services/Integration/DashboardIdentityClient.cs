@@ -50,6 +50,16 @@ public sealed class DashboardIdentityClient(
             logger?.LogWarning(exception, "Dashboard sign-in methods request timed out");
             return null;
         }
+        catch (JsonException exception)
+        {
+            logger?.LogWarning(exception, "Dashboard sign-in methods response was malformed");
+            return null;
+        }
+        catch (NotSupportedException exception)
+        {
+            logger?.LogWarning(exception, "Dashboard sign-in methods response had an unsupported content type");
+            return null;
+        }
     }
 
     public async Task<AuthSessionResponse?> LoginAsync(LocalLoginRequest request, CancellationToken ct = default)

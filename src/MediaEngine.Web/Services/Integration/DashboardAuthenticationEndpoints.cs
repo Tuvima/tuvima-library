@@ -190,8 +190,7 @@ public static class DashboardAuthenticationEndpoints
         {
             if (string.IsNullOrWhiteSpace(token))
             {
-                // Someone who was handed a code rather than a link: ask for it, then continue with the same page.
-                return Results.Content(Shell("<p class=\"eyebrow\">Tuvima Library invitation</p><h1>Enter your invitation code</h1><form method=\"get\" action=\"/auth/invite\"><label>Invitation code<input name=\"token\" autocomplete=\"off\" spellcheck=\"false\" required autofocus></label><button>Continue</button></form><p><a href=\"/auth/login\">Back to sign in</a></p>"), "text/html", Encoding.UTF8);
+                return Results.Redirect("/auth/login");
             }
 
             var anti = antiforgery.GetAndStoreTokens(context).RequestToken ?? string.Empty;
@@ -217,7 +216,8 @@ public static class DashboardAuthenticationEndpoints
         {
             if (string.IsNullOrWhiteSpace(token))
             {
-                return Results.Redirect("/auth/login");
+                // Someone who was handed a code rather than a link: ask for it, then continue with the same page.
+                return Results.Content(Shell("<p class=\"eyebrow\">Tuvima Library invitation</p><h1>Enter your invitation code</h1><form method=\"get\" action=\"/auth/invite\"><label>Invitation code<input name=\"token\" autocomplete=\"off\" spellcheck=\"false\" required autofocus></label><button>Continue</button></form><p><a href=\"/auth/login\">Back to sign in</a></p>"), "text/html", Encoding.UTF8);
             }
 
             var anti = antiforgery.GetAndStoreTokens(context).RequestToken ?? string.Empty; var device = EnsureDeviceCookie(context);
