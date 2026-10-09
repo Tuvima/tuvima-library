@@ -11,11 +11,11 @@ public sealed class Stage5BResidualUiTests
         Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", ".."));
 
     [Theory]
-    [InlineData(@"src\MediaEngine.Web\Components\Collections\CollectionsPage.razor")]
-    [InlineData(@"src\MediaEngine.Web\Components\Pages\EpubReader.razor")]
-    [InlineData(@"src\MediaEngine.Web\Components\Pages\ForMe.razor")]
-    [InlineData(@"src\MediaEngine.Web\Components\Pages\Settings.razor")]
-    [InlineData(@"src\MediaEngine.Web\Components\Pages\WatchPlayerPage.razor")]
+    [InlineData(@"src/MediaEngine.Web/Components/Collections/CollectionsPage.razor")]
+    [InlineData(@"src/MediaEngine.Web/Components/Pages/EpubReader.razor")]
+    [InlineData(@"src/MediaEngine.Web/Components/Pages/ForMe.razor")]
+    [InlineData(@"src/MediaEngine.Web/Components/Pages/Settings.razor")]
+    [InlineData(@"src/MediaEngine.Web/Components/Pages/WatchPlayerPage.razor")]
     public void PageSizedLoadingStates_UseAppPageState(string relativePath)
     {
         var source = Read(relativePath);
@@ -26,9 +26,9 @@ public sealed class Stage5BResidualUiTests
     }
 
     [Theory]
-    [InlineData(@"src\MediaEngine.Web\Components\Pages\EpubReader.razor")]
-    [InlineData(@"src\MediaEngine.Web\Components\Pages\ForMe.razor")]
-    [InlineData(@"src\MediaEngine.Web\Components\Pages\WatchPlayerPage.razor")]
+    [InlineData(@"src/MediaEngine.Web/Components/Pages/EpubReader.razor")]
+    [InlineData(@"src/MediaEngine.Web/Components/Pages/ForMe.razor")]
+    [InlineData(@"src/MediaEngine.Web/Components/Pages/WatchPlayerPage.razor")]
     public void RetryableFailures_KeepRicherAppErrorState(string relativePath)
     {
         var source = Read(relativePath);
@@ -58,14 +58,14 @@ public sealed class Stage5BResidualUiTests
     {
         Assert.False(File.Exists(Path.Combine(
             RepoRoot,
-            @"src\MediaEngine.Web\Models\ProviderAccentMap.cs")));
+            @"src/MediaEngine.Web/Models/ProviderAccentMap.cs")));
         Assert.False(File.Exists(Path.Combine(
             RepoRoot,
-            @"src\MediaEngine.Web\Components\Shared\ProviderDisplayNames.cs")));
+            @"src/MediaEngine.Web/Components/Shared/ProviderDisplayNames.cs")));
 
         var productionSources = Directory
             .EnumerateFiles(
-                Path.Combine(RepoRoot, @"src\MediaEngine.Web"),
+                Path.Combine(RepoRoot, @"src/MediaEngine.Web"),
                 "*.*",
                 SearchOption.AllDirectories)
             .Where(path => path.EndsWith(".cs", StringComparison.OrdinalIgnoreCase)
@@ -77,7 +77,7 @@ public sealed class Stage5BResidualUiTests
     }
 
     [Theory]
-    [InlineData(@"src\MediaEngine.Web\Services\MediaTiles\CollectionSurfaceTileComposer.cs")]
+    [InlineData(@"src/MediaEngine.Web/Services/MediaTiles/CollectionSurfaceTileComposer.cs")]
     public void ResidualTileCallers_DelegateArtworkSelection(string relativePath)
     {
         var source = Read(relativePath);

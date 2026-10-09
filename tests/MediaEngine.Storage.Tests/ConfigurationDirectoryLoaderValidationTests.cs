@@ -125,7 +125,7 @@ public sealed class ConfigurationDirectoryLoaderValidationTests
                 {
                     Id = "media",
                     Label = "Media",
-                    Path = @"C:\",
+                    Path = Drive,
                     AllowWrite = true,
                 },
             ],
@@ -152,7 +152,7 @@ public sealed class ConfigurationDirectoryLoaderValidationTests
                         new LibrarySourceConfig
                         {
                             Id = "44444444-aaaa-4444-8444-444444444444",
-                            Path = @"C:\media\home-movies",
+                            Path = P(Drive, "media/home-movies"),
                             Role = LibrarySourceRoles.PrimaryDestination,
                             ManagementMode = LibrarySourceManagementModes.ManagedByTuvima,
                             AccessMode = LibrarySourceAccessModes.Writable,
@@ -163,7 +163,7 @@ public sealed class ConfigurationDirectoryLoaderValidationTests
                         new LibrarySourceConfig
                         {
                             Id = "44444444-bbbb-4444-8444-444444444444",
-                            Path = @"D:\archive\home-movies",
+                            Path = P(OtherDrive, "archive/home-movies"),
                             Role = LibrarySourceRoles.Secondary,
                             ManagementMode = LibrarySourceManagementModes.ExistingLibrary,
                             AccessMode = LibrarySourceAccessModes.ReadOnly,
@@ -193,7 +193,7 @@ public sealed class ConfigurationDirectoryLoaderValidationTests
         Assert.Equal(LibraryMetadataPolicies.Enriched, roundTrip.MetadataPolicy);
         Assert.Equal(["Movies"], roundTrip.MediaTypes);
         Assert.Equal(2, roundTrip.Sources.Count);
-        Assert.Equal(@"C:\media\home-movies", roundTrip.PrimaryDestination?.Path);
+        Assert.Equal(P(Drive, "media/home-movies"), roundTrip.PrimaryDestination?.Path);
         Assert.True(roundTrip.PrimaryDestination?.AllowsFileMutation);
         Assert.False(roundTrip.Sources[1].AllowsFileMutation);
         Assert.False(loader.LoadLibraries().PersonalLibraryPolicy.AllowMobileBackup);
@@ -226,14 +226,14 @@ public sealed class ConfigurationDirectoryLoaderValidationTests
             {
                 Id = "media",
                 Label = "Media",
-                Path = @"C:\",
+                Path = Drive,
                 AllowWrite = false,
             },
         ];
         config.ViewStorage = new ViewStorageConfig
         {
             StorageLocationId = "media",
-            RelativeRoot = @"..\outside",
+            RelativeRoot = "../outside",
         };
 
         var ex = Assert.Throws<ConfigValidationException>(() => loader.SaveLibraries(config));
@@ -254,11 +254,11 @@ public sealed class ConfigurationDirectoryLoaderValidationTests
                 CreateValidPersonalLibrary(
                     "11111111-1111-4111-8111-111111111111",
                     "11111111-aaaa-4111-8111-111111111111",
-                    @"C:\media\phone"),
+                    P(Drive, "media/phone")),
                 CreateValidPersonalLibrary(
                     "22222222-2222-4222-8222-222222222222",
                     "22222222-aaaa-4222-8222-222222222222",
-                    @"D:\media\archive"),
+                    P(OtherDrive, "media/archive")),
             ],
         };
 
@@ -290,7 +290,7 @@ public sealed class ConfigurationDirectoryLoaderValidationTests
                         new LibrarySourceConfig
                         {
                             Id = "aaaaaaaa-bbbb-4aaa-8aaa-aaaaaaaaaaaa",
-                            Path = @"C:\media\home-videos",
+                            Path = P(Drive, "media/home-videos"),
                             ManagementMode = LibrarySourceManagementModes.ManagedByTuvima,
                             AccessMode = LibrarySourceAccessModes.Writable,
                         },
@@ -345,7 +345,7 @@ public sealed class ConfigurationDirectoryLoaderValidationTests
         config.Libraries[0].Sources.Add(new LibrarySourceConfig
         {
             Id = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
-            Path = @"C:\media\movies\archive",
+            Path = P(Drive, "media/movies/archive"),
             ManagementMode = LibrarySourceManagementModes.ExistingLibrary,
             AccessMode = LibrarySourceAccessModes.Writable,
             WritebackOverride = true,
@@ -609,6 +609,14 @@ public sealed class ConfigurationDirectoryLoaderValidationTests
         Assert.Contains(false, seen);
     }
 
+    // Paths must be rooted for the OS the tests run on: validation uses Path.IsPathFullyQualified.
+    private static string Drive => OperatingSystem.IsWindows() ? @"C:\" : "/";
+
+    private static string OtherDrive => OperatingSystem.IsWindows() ? @"D:\" : "/mnt/d";
+
+    private static string P(string root, string relative) =>
+        System.IO.Path.Combine(root, relative.Replace('/', System.IO.Path.DirectorySeparatorChar));
+
     private static LibrariesConfiguration CreateValidCataloguedLibrary() => new()
     {
         Libraries =
@@ -628,7 +636,7 @@ public sealed class ConfigurationDirectoryLoaderValidationTests
                     new LibrarySourceConfig
                     {
                         Id = "aaaaaaaa-bbbb-4aaa-8aaa-aaaaaaaaaaaa",
-                        Path = @"C:\media\movies",
+                        Path = P(Drive, "media/movies"),
                         Role = LibrarySourceRoles.PrimaryDestination,
                         ManagementMode = LibrarySourceManagementModes.ManagedByTuvima,
                         AccessMode = LibrarySourceAccessModes.Writable,

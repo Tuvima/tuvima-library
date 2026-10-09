@@ -5,7 +5,7 @@ public sealed class DashboardReliabilityGuardrailTests
     [Fact]
     public void Routes_WrapsRoutedPagesInErrorBoundary()
     {
-        var source = Read(@"src\MediaEngine.Web\Components\Routes.razor");
+        var source = Read(@"src/MediaEngine.Web/Components/Routes.razor");
 
         Assert.Contains("<ErrorBoundary>", source, StringComparison.Ordinal);
         Assert.Contains("<AppErrorState", source, StringComparison.Ordinal);
@@ -15,8 +15,8 @@ public sealed class DashboardReliabilityGuardrailTests
     [Fact]
     public void ReconnectModal_AutomaticallyRecoversAfterADevelopmentRestart()
     {
-        var markup = Read(@"src\MediaEngine.Web\Components\Layout\ReconnectModal.razor");
-        var script = Read(@"src\MediaEngine.Web\Components\Layout\ReconnectModal.razor.js");
+        var markup = Read(@"src/MediaEngine.Web/Components/Layout/ReconnectModal.razor");
+        var script = Read(@"src/MediaEngine.Web/Components/Layout/ReconnectModal.razor.js");
 
         Assert.Contains("Tuvima Library will keep retrying", markup, StringComparison.Ordinal);
         Assert.Contains("scheduleAutoRetry()", script, StringComparison.Ordinal);
@@ -28,14 +28,14 @@ public sealed class DashboardReliabilityGuardrailTests
     }
 
     [Theory]
-    [InlineData(@"src\MediaEngine.Web\Components\Universe\PosterSwimlane.razor", "@key=\"item.Id\"")]
-    [InlineData(@"src\MediaEngine.Web\Components\MediaTiles\MediaTileGrid.razor", "@key=\"item.RenderKey\"")]
-    [InlineData(@"src\MediaEngine.Web\Components\Library\LibraryConfigurableTable.razor", "@key=\"item.EntityId\"")]
-    [InlineData(@"src\MediaEngine.Web\Shared\MainLayout.razor", "@key=\"link.Path\"")]
-    [InlineData(@"src\MediaEngine.Web\Components\Settings\SettingsReviewQueueTab.razor", "@key=\"item.Id\"")]
-    [InlineData(@"src\MediaEngine.Web\Components\Settings\IngestionBatchHistory.razor", "@key=\"operation.BatchId\"")]
-    [InlineData(@"src\MediaEngine.Web\Components\Settings\IngestionLiveDashboard.razor", "@key=\"StageDetailKey(detail)\"")]
-    [InlineData(@"src\MediaEngine.Web\Components\Settings\ProviderTesterToolTab.razor", "@key=\"resultKey\"")]
+    [InlineData(@"src/MediaEngine.Web/Components/Universe/PosterSwimlane.razor", "@key=\"item.Id\"")]
+    [InlineData(@"src/MediaEngine.Web/Components/MediaTiles/MediaTileGrid.razor", "@key=\"item.RenderKey\"")]
+    [InlineData(@"src/MediaEngine.Web/Components/Library/LibraryConfigurableTable.razor", "@key=\"item.EntityId\"")]
+    [InlineData(@"src/MediaEngine.Web/Shared/MainLayout.razor", "@key=\"link.Path\"")]
+    [InlineData(@"src/MediaEngine.Web/Components/Settings/SettingsReviewQueueTab.razor", "@key=\"item.Id\"")]
+    [InlineData(@"src/MediaEngine.Web/Components/Settings/IngestionBatchHistory.razor", "@key=\"operation.BatchId\"")]
+    [InlineData(@"src/MediaEngine.Web/Components/Settings/IngestionLiveDashboard.razor", "@key=\"StageDetailKey(detail)\"")]
+    [InlineData(@"src/MediaEngine.Web/Components/Settings/ProviderTesterToolTab.razor", "@key=\"resultKey\"")]
     public void HighRiskListComponents_UseStableKeys(string relativePath, string expectedKey)
     {
         var source = Read(relativePath);
@@ -46,7 +46,7 @@ public sealed class DashboardReliabilityGuardrailTests
     [Fact]
     public void ReviewQueue_KeepsExistingRowsVisibleDuringRefresh()
     {
-        var source = Read(@"src\MediaEngine.Web\Components\Settings\SettingsReviewQueueTab.razor");
+        var source = Read(@"src/MediaEngine.Web/Components/Settings/SettingsReviewQueueTab.razor");
         var normalized = source.ReplaceLineEndings("\n");
 
         Assert.Contains("_loading && _items.Count == 0", source, StringComparison.Ordinal);
@@ -60,7 +60,7 @@ public sealed class DashboardReliabilityGuardrailTests
     [Fact]
     public void HomeDiscovery_DebouncesBroadRealtimeReloads()
     {
-        var source = Read(@"src\MediaEngine.Web\Components\Pages\LibraryBrowsePage.razor");
+        var source = Read(@"src/MediaEngine.Web/Components/Pages/LibraryBrowsePage.razor");
 
         Assert.Contains("LastStateChangeRequiresSnapshotRefresh", source, StringComparison.Ordinal);
         Assert.Contains("ScheduleRefresh", source, StringComparison.Ordinal);
@@ -71,7 +71,7 @@ public sealed class DashboardReliabilityGuardrailTests
     [Fact]
     public void IngestionDashboard_DoesNotClearOperationDetailsWhenRowsAreSkipped()
     {
-        var source = Read(@"src\MediaEngine.Web\Services\Integration\IngestionLiveDashboardState.cs");
+        var source = Read(@"src/MediaEngine.Web/Services/Integration/IngestionLiveDashboardState.cs");
 
         Assert.Contains("LoadSnapshotAsync", source, StringComparison.Ordinal);
         Assert.Contains("_loadInProgress", source, StringComparison.Ordinal);
@@ -82,7 +82,7 @@ public sealed class DashboardReliabilityGuardrailTests
     [Fact]
     public void BrowseShell_DetailedRoutesDoNotRenderHero()
     {
-        var source = Read(@"src\MediaEngine.Web\Components\Browse\MediaBrowseShell.razor");
+        var source = Read(@"src/MediaEngine.Web/Components/Browse/MediaBrowseShell.razor");
         var normalized = source.ReplaceLineEndings("\n");
 
         Assert.DoesNotContain("<MediaBrowseHero", source, StringComparison.Ordinal);
@@ -94,7 +94,7 @@ public sealed class DashboardReliabilityGuardrailTests
     [Fact]
     public void BrowseShell_ReloadsWhenLayoutModeChanges()
     {
-        var source = Read(@"src\MediaEngine.Web\Components\Browse\MediaBrowseShell.razor");
+        var source = Read(@"src/MediaEngine.Web/Components/Browse/MediaBrowseShell.razor");
 
         Assert.Contains("LayoutToggleClass(LibraryLayoutMode.Card)", source, StringComparison.Ordinal);
         Assert.Contains("LayoutToggleClass(LibraryLayoutMode.List)", source, StringComparison.Ordinal);
@@ -105,9 +105,9 @@ public sealed class DashboardReliabilityGuardrailTests
     [Fact]
     public void WatchAndReadDefaultTabsKeepExplicitBrowseRoutes()
     {
-        var browseShell = Read(@"src\MediaEngine.Web\Components\Browse\MediaBrowseShell.razor");
-        var watchPage = Read(@"src\MediaEngine.Web\Components\Pages\WatchPage.razor");
-        var readPage = Read(@"src\MediaEngine.Web\Components\Pages\ReadPage.razor");
+        var browseShell = Read(@"src/MediaEngine.Web/Components/Browse/MediaBrowseShell.razor");
+        var watchPage = Read(@"src/MediaEngine.Web/Components/Pages/WatchPage.razor");
+        var readPage = Read(@"src/MediaEngine.Web/Components/Pages/ReadPage.razor");
 
         Assert.Contains("&& !Preset.UseExplicitDefaultTabRoute", browseShell, StringComparison.Ordinal);
         Assert.Contains("UseExplicitDefaultTabRoute = true", watchPage, StringComparison.Ordinal);
@@ -117,7 +117,7 @@ public sealed class DashboardReliabilityGuardrailTests
     [Fact]
     public void BrowseShell_UsesDisplayCardsForTvShowCardView()
     {
-        var source = Read(@"src\MediaEngine.Web\Components\Browse\MediaBrowseShell.razor");
+        var source = Read(@"src/MediaEngine.Web/Components/Browse/MediaBrowseShell.razor");
 
         Assert.Contains("IsTvShowsGrouping", source, StringComparison.Ordinal);
         Assert.Contains("IsTvShowsGrouping && !UseListLayout", source, StringComparison.Ordinal);
@@ -128,7 +128,7 @@ public sealed class DashboardReliabilityGuardrailTests
     [Fact]
     public void BrowseShell_NormalizesMediaTypeWhenFilteringContainerGroups()
     {
-        var source = Read(@"src\MediaEngine.Web\Components\Browse\MediaBrowseShell.razor");
+        var source = Read(@"src/MediaEngine.Web/Components/Browse/MediaBrowseShell.razor");
 
         Assert.Contains(".Where(group => MediaTypeMatches(group.PrimaryMediaType, mediaType))", source, StringComparison.Ordinal);
         Assert.Contains("NormalizeEditorMediaType(candidate)", source, StringComparison.Ordinal);
@@ -139,7 +139,7 @@ public sealed class DashboardReliabilityGuardrailTests
     [Fact]
     public void BrowseShell_BindsSortValueInsteadOfLiteralFieldName()
     {
-        var source = Read(@"src\MediaEngine.Web\Components\Browse\MediaBrowseShell.razor");
+        var source = Read(@"src/MediaEngine.Web/Components/Browse/MediaBrowseShell.razor");
 
         Assert.Contains("Value=\"@_sortBy\"", source, StringComparison.Ordinal);
         Assert.DoesNotContain("Value=\"_sortBy\"", source, StringComparison.Ordinal);
@@ -148,8 +148,8 @@ public sealed class DashboardReliabilityGuardrailTests
     [Fact]
     public void CinematicHeroCarousel_UsesSelectableTimedDashes()
     {
-        var source = Read(@"src\MediaEngine.Web\Components\Cinematic\CinematicHeroCarousel.razor");
-        var styles = Read(@"src\MediaEngine.Web\Components\Cinematic\CinematicHeroCarousel.razor.css");
+        var source = Read(@"src/MediaEngine.Web/Components/Cinematic/CinematicHeroCarousel.razor");
+        var styles = Read(@"src/MediaEngine.Web/Components/Cinematic/CinematicHeroCarousel.razor.css");
 
         Assert.Contains("cinematic-hero-carousel__timeline", source, StringComparison.Ordinal);
         Assert.Contains("cinematic-hero-carousel__dash-fill", source, StringComparison.Ordinal);
@@ -167,9 +167,9 @@ public sealed class DashboardReliabilityGuardrailTests
     [Fact]
     public void CinematicLandingHero_UsesDetailBackdropFitMaskAndLayeredFade()
     {
-        var surface = Read(@"src\MediaEngine.Web\Components\Cinematic\CinematicHeroSurface.razor");
-        var surfaceStyles = Read(@"src\MediaEngine.Web\Components\Cinematic\CinematicHeroSurface.razor.css");
-        var carouselStyles = Read(@"src\MediaEngine.Web\Components\Cinematic\CinematicHeroCarousel.razor.css");
+        var surface = Read(@"src/MediaEngine.Web/Components/Cinematic/CinematicHeroSurface.razor");
+        var surfaceStyles = Read(@"src/MediaEngine.Web/Components/Cinematic/CinematicHeroSurface.razor.css");
+        var carouselStyles = Read(@"src/MediaEngine.Web/Components/Cinematic/CinematicHeroCarousel.razor.css");
 
         Assert.Contains("class=\"cinematic-hero-surface-scope\"", surface, StringComparison.Ordinal);
         Assert.Contains(".cinematic-hero-surface-scope ::deep .cinematic-hero-surface", surfaceStyles, StringComparison.Ordinal);
@@ -193,9 +193,9 @@ public sealed class DashboardReliabilityGuardrailTests
     [Fact]
     public void CinematicLandingHero_UsesDetailContentWithExplicitCarouselContext()
     {
-        var carousel = Read(@"src\MediaEngine.Web\Components\Cinematic\CinematicHeroCarousel.razor");
-        var detail = Read(@"src\MediaEngine.Web\Components\Details\DetailHero.razor");
-        var content = Read(@"src\MediaEngine.Web\Components\Details\DetailHeroContent.razor");
+        var carousel = Read(@"src/MediaEngine.Web/Components/Cinematic/CinematicHeroCarousel.razor");
+        var detail = Read(@"src/MediaEngine.Web/Components/Details/DetailHero.razor");
+        var content = Read(@"src/MediaEngine.Web/Components/Details/DetailHeroContent.razor");
 
         Assert.Contains("<DetailHeroContent", carousel, StringComparison.Ordinal);
         Assert.Contains("<DetailHeroContent", detail, StringComparison.Ordinal);
@@ -216,9 +216,9 @@ public sealed class DashboardReliabilityGuardrailTests
     [Fact]
     public void SharedHeroContent_CentersTheIdentityStackWithoutClippingMetadata()
     {
-        var actionRow = Read(@"src\MediaEngine.Web\Components\Details\HeroActionRow.razor");
-        var sharedStyles = Read(@"src\MediaEngine.Web\Components\Details\DetailHeroContent.razor.css");
-        var detailStyles = Read(@"src\MediaEngine.Web\Components\Details\DetailPage.razor.css");
+        var actionRow = Read(@"src/MediaEngine.Web/Components/Details/HeroActionRow.razor");
+        var sharedStyles = Read(@"src/MediaEngine.Web/Components/Details/DetailHeroContent.razor.css");
+        var detailStyles = Read(@"src/MediaEngine.Web/Components/Details/DetailPage.razor.css");
 
         Assert.Contains("PrimaryActions.Skip(1)", actionRow, StringComparison.Ordinal);
         Assert.Contains("align-items: center", sharedStyles, StringComparison.Ordinal);
@@ -229,17 +229,17 @@ public sealed class DashboardReliabilityGuardrailTests
         Assert.Contains("min-height: clamp(5rem, 15svh, 8rem)", sharedStyles, StringComparison.Ordinal);
         Assert.Contains("max-height: clamp(4.75rem, 13svh, 7.25rem)", sharedStyles, StringComparison.Ordinal);
         Assert.Contains("align-items: center", detailStyles, StringComparison.Ordinal);
-        Assert.Contains("flex-wrap: nowrap", Read(@"src\MediaEngine.Web\Components\Details\HeroGenreList.razor.css"), StringComparison.Ordinal);
+        Assert.Contains("flex-wrap: nowrap", Read(@"src/MediaEngine.Web/Components/Details/HeroGenreList.razor.css"), StringComparison.Ordinal);
     }
 
     [Fact]
     public void DetailAndLanePagesUseSurfaceNavigationWhileHomeFlowsDirectlyIntoShelves()
     {
-        var detailTabs = Read(@"src\MediaEngine.Web\Components\Details\DetailTabs.razor");
-        var mediaHub = Read(@"src\MediaEngine.Web\Components\MediaHub\MediaHubPage.razor");
-        var home = Read(@"src\MediaEngine.Web\Components\Pages\LibraryBrowsePage.razor");
-        var navigationStyles = Read(@"src\MediaEngine.Web\Components\Cinematic\SurfaceNavigationBar.razor.css");
-        var carouselStyles = Read(@"src\MediaEngine.Web\Components\Cinematic\CinematicHeroCarousel.razor.css");
+        var detailTabs = Read(@"src/MediaEngine.Web/Components/Details/DetailTabs.razor");
+        var mediaHub = Read(@"src/MediaEngine.Web/Components/MediaHub/MediaHubPage.razor");
+        var home = Read(@"src/MediaEngine.Web/Components/Pages/LibraryBrowsePage.razor");
+        var navigationStyles = Read(@"src/MediaEngine.Web/Components/Cinematic/SurfaceNavigationBar.razor.css");
+        var carouselStyles = Read(@"src/MediaEngine.Web/Components/Cinematic/CinematicHeroCarousel.razor.css");
 
         Assert.Contains("<SurfaceNavigationBar", detailTabs, StringComparison.Ordinal);
         Assert.Contains("<SurfaceNavigationBar", mediaHub, StringComparison.Ordinal);
@@ -258,7 +258,7 @@ public sealed class DashboardReliabilityGuardrailTests
     [Fact]
     public void WatchLandingSpotlights_UseTvShowCardsInsteadOfEpisodeContinueCards()
     {
-        var source = Read(@"src\MediaEngine.Web\Services\MediaTiles\MediaTileComposerService.cs");
+        var source = Read(@"src/MediaEngine.Web/Services/MediaTiles/MediaTileComposerService.cs");
 
         Assert.Contains("string.Equals(page.Key, \"watch\"", source, StringComparison.Ordinal);
         Assert.Contains("!string.Equals(card.MediaType, \"TV\"", source, StringComparison.Ordinal);
@@ -269,8 +269,8 @@ public sealed class DashboardReliabilityGuardrailTests
     [Fact]
     public void IngestionDashboard_ExplainsIconMeaningWithSimpleTooltips()
     {
-        var source = Read(@"src\MediaEngine.Web\Components\Settings\IngestionLiveDashboard.razor")
-                     + Read(@"src\MediaEngine.Web\Components\Settings\IngestionLiveDashboard.razor.cs");
+        var source = Read(@"src/MediaEngine.Web/Components/Settings/IngestionLiveDashboard.razor")
+                     + Read(@"src/MediaEngine.Web/Components/Settings/IngestionLiveDashboard.razor.cs");
 
         Assert.Contains("AppTooltip Text=\"Reload the latest ingestion status.\"", source, StringComparison.Ordinal);
         Assert.Contains("AppTooltip Text=\"Start a new scan of the watched folders.\"", source, StringComparison.Ordinal);
@@ -293,7 +293,7 @@ public sealed class DashboardReliabilityGuardrailTests
     [Fact]
     public void AppErrorState_ProvidesTitleMessageAndRetryAffordance()
     {
-        var source = Read(@"src\MediaEngine.Web\Components\Shared\AppErrorState.razor");
+        var source = Read(@"src/MediaEngine.Web/Components/Shared/AppErrorState.razor");
 
         Assert.Contains("[Parameter] public string? Title", source, StringComparison.Ordinal);
         Assert.Contains("[Parameter] public string? Message", source, StringComparison.Ordinal);

@@ -5,7 +5,7 @@ public sealed class TypographySystemGuardTests
     [Fact]
     public void Tokens_DefineTheUiAndBrandFontRoles()
     {
-        var tokens = ReadRepoFile(@"src\MediaEngine.Web\wwwroot\tuvima.tokens.css");
+        var tokens = ReadRepoFile(@"src/MediaEngine.Web/wwwroot/tuvima.tokens.css");
 
         Assert.Contains("--font-ui: \"Segoe UI Variable\", \"Segoe UI\", system-ui, -apple-system,", tokens, StringComparison.Ordinal);
         Assert.Contains("--font-brand: \"Montserrat\", sans-serif;", tokens, StringComparison.Ordinal);
@@ -15,7 +15,7 @@ public sealed class TypographySystemGuardTests
     [Fact]
     public void GlobalStyles_UseTheUiFontWithoutRemoteInterfaceFonts()
     {
-        var styles = ReadRepoFile(@"src\MediaEngine.Web\wwwroot\app.css");
+        var styles = ReadRepoFile(@"src/MediaEngine.Web/wwwroot/app.css");
 
         Assert.Contains("font-family: var(--font-ui);", styles, StringComparison.Ordinal);
         Assert.Contains("--app-font-sans: var(--font-ui);", styles, StringComparison.Ordinal);
@@ -27,7 +27,7 @@ public sealed class TypographySystemGuardTests
     [Fact]
     public void NativeTheme_UsesTheCompleteSystemUiStack()
     {
-        var theme = ReadRepoFile(@"src\MediaEngine.Web\wwwroot\tuvima.tokens.css");
+        var theme = ReadRepoFile(@"src/MediaEngine.Web/wwwroot/tuvima.tokens.css");
 
         foreach (var family in new[]
                  {
@@ -44,7 +44,7 @@ public sealed class TypographySystemGuardTests
     [Fact]
     public void Montserrat_IsLimitedToBrandTokensFontLoadingAndReaderChoice()
     {
-        var webRoot = RepoPath(@"src\MediaEngine.Web");
+        var webRoot = RepoPath(@"src/MediaEngine.Web");
         var allowedFiles = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
             @"wwwroot\tuvima.tokens.css",
@@ -77,7 +77,7 @@ public sealed class TypographySystemGuardTests
             .Where(file => file.Content.Contains("Nunito", StringComparison.OrdinalIgnoreCase)
                            || file.Content.Contains("Roboto", StringComparison.OrdinalIgnoreCase)
                            || file.Content.Contains("fonts.googleapis.com", StringComparison.OrdinalIgnoreCase))
-            .Select(file => Path.GetRelativePath(RepoPath(@"src\MediaEngine.Web"), file.Path))
+            .Select(file => Path.GetRelativePath(RepoPath(@"src/MediaEngine.Web"), file.Path))
             .ToArray();
 
         Assert.Empty(violations);
@@ -93,7 +93,7 @@ public sealed class TypographySystemGuardTests
                 .Matches(File.ReadAllText(path), @"font-weight:\s*(?<weight>\d+)")
                 .Select(match => new
                 {
-                    Path = Path.GetRelativePath(RepoPath(@"src\MediaEngine.Web"), path),
+                    Path = Path.GetRelativePath(RepoPath(@"src/MediaEngine.Web"), path),
                     Weight = int.Parse(match.Groups["weight"].Value, System.Globalization.CultureInfo.InvariantCulture),
                 }))
             .Where(match => match.Weight % 100 != 0)
@@ -106,7 +106,7 @@ public sealed class TypographySystemGuardTests
     [Fact]
     public void OperatingSystemInterfaceFonts_AreNotBundled()
     {
-        var fontsRoot = RepoPath(@"src\MediaEngine.Web\wwwroot\fonts");
+        var fontsRoot = RepoPath(@"src/MediaEngine.Web/wwwroot/fonts");
         var prohibitedNames = new[] { "Segoe", "SFPro", "SF-Pro", "Roboto" };
 
         var violations = Directory
@@ -121,7 +121,7 @@ public sealed class TypographySystemGuardTests
 
     private static IEnumerable<string> EnumerateApplicationStyleSources()
     {
-        var webRoot = RepoPath(@"src\MediaEngine.Web");
+        var webRoot = RepoPath(@"src/MediaEngine.Web");
 
         return Directory
             .EnumerateFiles(webRoot, "*", SearchOption.AllDirectories)

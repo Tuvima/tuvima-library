@@ -6,8 +6,8 @@ public sealed class ViewProfileSettingsUiTests
     [Fact]
     public void UsersSettings_UsesSharedControlsAndTruthfulViewManagement()
     {
-        var users = ReadRepoFile(@"src\MediaEngine.Web\Components\Settings\ManagedAccessUsers.razor");
-        var view = ReadRepoFile(@"src\MediaEngine.Web\Components\Settings\ViewLibrarySettings.razor");
+        var users = ReadRepoFile(@"src/MediaEngine.Web/Components/Settings/ManagedAccessUsers.razor");
+        var view = ReadRepoFile(@"src/MediaEngine.Web/Components/Settings/ViewLibrarySettings.razor");
 
         Assert.Contains("GetViewProfileSourcesAsync", view, StringComparison.Ordinal);
         Assert.Contains("AppDialogParameters<ServerFolderPicker>", view, StringComparison.Ordinal);

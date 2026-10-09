@@ -5,8 +5,8 @@ public sealed class SettingsServerAdministrationTests
     [Fact]
     public void Delivery_HasAUsefulRootAndUrlBackedAdvancedSections()
     {
-        var source = ReadRepoFile(@"src\MediaEngine.Web\Components\Settings\PlaybackDeliverySettingsTab.razor");
-        var jobs = ReadRepoFile(@"src\MediaEngine.Web\Components\Settings\OfflineDownloadsTab.razor");
+        var source = ReadRepoFile(@"src/MediaEngine.Web/Components/Settings/PlaybackDeliverySettingsTab.razor");
+        var jobs = ReadRepoFile(@"src/MediaEngine.Web/Components/Settings/OfflineDownloadsTab.razor");
 
         Assert.Contains("data-delivery-section", source, StringComparison.Ordinal);
         Assert.Contains("Playback and Delivery overview", source, StringComparison.Ordinal);
@@ -25,8 +25,8 @@ public sealed class SettingsServerAdministrationTests
     [Fact]
     public void Delivery_UsesEngineBackedSettingsJobsAndDiagnostics()
     {
-        var settings = ReadRepoFile(@"src\MediaEngine.Web\Components\Settings\EncodeSettingsTab.razor");
-        var jobs = ReadRepoFile(@"src\MediaEngine.Web\Components\Settings\OfflineDownloadsTab.razor");
+        var settings = ReadRepoFile(@"src/MediaEngine.Web/Components/Settings/EncodeSettingsTab.razor");
+        var jobs = ReadRepoFile(@"src/MediaEngine.Web/Components/Settings/OfflineDownloadsTab.razor");
 
         Assert.Contains("GetTranscodingSettingsAsync", settings, StringComparison.Ordinal);
         Assert.Contains("SaveTranscodingSettingsAsync", settings, StringComparison.Ordinal);
@@ -39,7 +39,7 @@ public sealed class SettingsServerAdministrationTests
     [Fact]
     public void Access_HasAUsefulRootAndUrlBackedAdvancedSections()
     {
-        var source = ReadRepoFile(@"src\MediaEngine.Web\Components\Settings\UsersAccessSettingsTab.razor");
+        var source = ReadRepoFile(@"src/MediaEngine.Web/Components/Settings/UsersAccessSettingsTab.razor");
 
         Assert.Contains("data-access-section", source, StringComparison.Ordinal);
         Assert.Contains("case \"authentication\"", source, StringComparison.Ordinal);
@@ -48,7 +48,7 @@ public sealed class SettingsServerAdministrationTests
         Assert.Contains("<ManagedAccessApplications />", source, StringComparison.Ordinal);
         Assert.DoesNotContain("SettingsSectionHeader", source, StringComparison.Ordinal);
 
-        var security = ReadRepoFile(@"src\MediaEngine.Web\Components\Settings\SecurityTab.razor");
+        var security = ReadRepoFile(@"src/MediaEngine.Web/Components/Settings/SecurityTab.razor");
         Assert.Contains("Who can connect and sessions", security, StringComparison.Ordinal);
         Assert.Contains("Trusted local networks", security, StringComparison.Ordinal);
         Assert.Contains("UpdateExternalAuthProviderAsync", security, StringComparison.Ordinal);
@@ -58,8 +58,8 @@ public sealed class SettingsServerAdministrationTests
     [Fact]
     public void Access_DoesNotPresentDerivedIdsOrCreationDatesAsRuntimeStatus()
     {
-        var users = ReadRepoFile(@"src\MediaEngine.Web\Components\Settings\ManagedAccessUsers.razor");
-        var applications = ReadRepoFile(@"src\MediaEngine.Web\Components\Settings\ManagedAccessApplications.razor");
+        var users = ReadRepoFile(@"src/MediaEngine.Web/Components/Settings/ManagedAccessUsers.razor");
+        var applications = ReadRepoFile(@"src/MediaEngine.Web/Components/Settings/ManagedAccessApplications.razor");
 
         Assert.Contains("Last active", users, StringComparison.Ordinal);
         Assert.Contains("Manage profiles", users, StringComparison.Ordinal);
@@ -71,7 +71,7 @@ public sealed class SettingsServerAdministrationTests
     [Fact]
     public void BackupRestore_ExplainsStagingAndRestartSemantics()
     {
-        var source = ReadRepoFile(@"src\MediaEngine.Web\Components\Settings\BackupRecoveryPanel.razor");
+        var source = ReadRepoFile(@"src/MediaEngine.Web/Components/Settings/BackupRecoveryPanel.razor");
 
         Assert.Contains("validates and stages", source, StringComparison.Ordinal);
         Assert.Contains("Restart the Engine to apply it", source, StringComparison.Ordinal);

@@ -5,8 +5,8 @@ public sealed class DevHarnessSettingsTests
     [Fact]
     public void SettingsShell_RendersTemporaryDevHarnessTab()
     {
-        var source = ReadRepoFile(@"src\MediaEngine.Web\Components\Pages\Settings.razor");
-        var nav = ReadRepoFile(@"src\MediaEngine.Web\Models\ViewDTOs\SettingsNav.cs");
+        var source = ReadRepoFile(@"src/MediaEngine.Web/Components/Pages/Settings.razor");
+        var nav = ReadRepoFile(@"src/MediaEngine.Web/Models/ViewDTOs/SettingsNav.cs");
 
         Assert.Contains("case SettingsSection.DevHarness", source, StringComparison.Ordinal);
         Assert.Contains("RenderInternalTool(", source, StringComparison.Ordinal);
@@ -19,7 +19,7 @@ public sealed class DevHarnessSettingsTests
     [Fact]
     public void DevHarnessTab_ExposesIntentBasedResetSeedAndRescanWorkflow()
     {
-        var source = ReadRepoFile(@"src\MediaEngine.Web\Components\Settings\DevHarnessTab.razor");
+        var source = ReadRepoFile(@"src/MediaEngine.Web/Components/Settings/DevHarnessTab.razor");
         var client = ReadEngineApiClientSources("IEngineApiClient*.cs");
         var implementation = ReadEngineApiClientSources("EngineApiClient*.cs");
 
@@ -61,8 +61,8 @@ public sealed class DevHarnessSettingsTests
     [Fact]
     public void RealMediaControlsKeepDedicatedActionColumnsAcrossBreakpoints()
     {
-        var css = ReadRepoFile(@"src\MediaEngine.Web\Components\Settings\DevHarnessTab.razor.css");
-        var source = ReadRepoFile(@"src\MediaEngine.Web\Components\Settings\DevHarnessTab.razor");
+        var css = ReadRepoFile(@"src/MediaEngine.Web/Components/Settings/DevHarnessTab.razor.css");
+        var source = ReadRepoFile(@"src/MediaEngine.Web/Components/Settings/DevHarnessTab.razor");
         Assert.Contains("grid-template-columns: minmax(0, 1fr) auto auto", css);
         Assert.Contains("align-items: center", css);
         Assert.Contains("max-width: 960px", css);

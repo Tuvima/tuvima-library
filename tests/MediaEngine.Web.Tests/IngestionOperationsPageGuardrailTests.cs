@@ -16,11 +16,11 @@ public sealed class IngestionOperationsPageGuardrailTests
     [Fact]
     public void IngestionTab_UsesCentralLiveDashboardStateAndComponents()
     {
-        var source = File.ReadAllText(GetRepoFilePath(@"src\MediaEngine.Web\Components\Settings\IngestionTasksTab.razor"));
-        var scanAction = File.ReadAllText(GetRepoFilePath(@"src\MediaEngine.Web\Components\Settings\IngestionScanAction.razor"));
-        var styles = File.ReadAllText(GetRepoFilePath(@"src\MediaEngine.Web\Components\Settings\IngestionTasksTab.razor.css"));
+        var source = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Web/Components/Settings/IngestionTasksTab.razor"));
+        var scanAction = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Web/Components/Settings/IngestionScanAction.razor"));
+        var styles = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Web/Components/Settings/IngestionTasksTab.razor.css"));
         var stateSource = ReadIngestionDashboardStateSource();
-        var orchestratorSource = File.ReadAllText(GetRepoFilePath(@"src\MediaEngine.Web\Services\Integration\UIOrchestratorService.cs"));
+        var orchestratorSource = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Web/Services/Integration/UIOrchestratorService.cs"));
 
         Assert.Contains("IngestionLiveDashboardState", source, StringComparison.Ordinal);
         Assert.Contains("<IngestionMediaCard", source, StringComparison.Ordinal);
@@ -37,7 +37,7 @@ public sealed class IngestionOperationsPageGuardrailTests
         Assert.Contains("ingestion-summary-breathe", styles, StringComparison.Ordinal);
         Assert.Contains("ingestion-progress-shimmer", styles, StringComparison.Ordinal);
         Assert.Contains("prefers-reduced-motion: reduce", styles, StringComparison.Ordinal);
-        Assert.Contains("Items completed in this ingestion run.", File.ReadAllText(GetRepoFilePath(@"src\MediaEngine.Web\Components\Settings\IngestionRecentlyAddedPreview.razor")), StringComparison.Ordinal);
+        Assert.Contains("Items completed in this ingestion run.", File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Web/Components/Settings/IngestionRecentlyAddedPreview.razor")), StringComparison.Ordinal);
         Assert.DoesNotContain("Processing details", source, StringComparison.Ordinal);
         Assert.Contains("Dashboard.BatchProgress", source, StringComparison.Ordinal);
         Assert.DoesNotContain("file checks complete", source, StringComparison.Ordinal);
@@ -871,12 +871,12 @@ public sealed class IngestionOperationsPageGuardrailTests
     [Fact]
     public void IngestionRealtimeProgress_ReflectsQuickHydrationTransitions()
     {
-        var workerSource = File.ReadAllText(GetRepoFilePath(@"src\MediaEngine.Providers\Workers\QuickHydrationWorker.cs"));
-        var progressSource = File.ReadAllText(GetRepoFilePath(@"src\MediaEngine.Providers\Services\BatchProgressService.cs"));
-        var progressRepositorySource = File.ReadAllText(GetRepoFilePath(@"src\MediaEngine.Storage\IngestionBatchRepository.cs"));
+        var workerSource = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Providers/Workers/QuickHydrationWorker.cs"));
+        var progressSource = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Providers/Services/BatchProgressService.cs"));
+        var progressRepositorySource = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Storage/IngestionBatchRepository.cs"));
         var normalizedProgressSource = progressSource.Replace("\r\n", "\n", StringComparison.Ordinal);
         var stateSource = ReadIngestionDashboardStateSource();
-        var operationsSource = File.ReadAllText(GetRepoFilePath(@"src\MediaEngine.Api\Services\IngestionOperationsStatusService.cs"));
+        var operationsSource = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Api/Services/IngestionOperationsStatusService.cs"));
 
         Assert.Contains("EmitBatchProgressAsync(job.IngestionRunId", workerSource, StringComparison.Ordinal);
         Assert.Contains("'UniverseEnriching'", progressRepositorySource, StringComparison.Ordinal);
@@ -897,7 +897,7 @@ public sealed class IngestionOperationsPageGuardrailTests
     [Fact]
     public void IngestionSummary_UsesUnmatchedAriaAttributesWithoutConflictingWithAppPanelCapture()
     {
-        var source = File.ReadAllText(GetRepoFilePath(@"src\MediaEngine.Web\Components\Settings\IngestionTasksTab.razor"));
+        var source = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Web/Components/Settings/IngestionTasksTab.razor"));
 
         Assert.Contains("aria-live=\"polite\"", source, StringComparison.Ordinal);
         Assert.DoesNotContain("AdditionalAttributes=", source, StringComparison.Ordinal);
@@ -1506,8 +1506,8 @@ public sealed class IngestionOperationsPageGuardrailTests
     }
 
     private static string ReadIngestionDashboardStateSource() =>
-        File.ReadAllText(GetRepoFilePath(@"src\MediaEngine.Web\Services\Integration\IngestionLiveDashboardState.cs"))
-        + File.ReadAllText(GetRepoFilePath(@"src\MediaEngine.Web\Services\Integration\IngestionLiveDashboardState.Projection.cs"));
+        File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Web/Services/Integration/IngestionLiveDashboardState.cs"))
+        + File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Web/Services/Integration/IngestionLiveDashboardState.Projection.cs"));
 
     private static string GetRepoFilePath(string relativePath, [CallerFilePath] string sourceFile = "")
     {
@@ -1530,7 +1530,7 @@ public sealed class IngestionDashboardRenderTests : AsyncBunitContext
     [Fact]
     public void IngestionOperationsStatusService_UsesDomainSpecificWorkerPreviewSources()
     {
-        var source = File.ReadAllText(GetRepoFilePath(@"src\MediaEngine.Api\Services\IngestionOperationsStatusService.cs"));
+        var source = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Api/Services/IngestionOperationsStatusService.cs"));
 
         Assert.Contains("ReadArtworkWorkerRowsAsync", source, StringComparison.Ordinal);
         Assert.Contains("ReadSeriesWorkerRowsAsync", source, StringComparison.Ordinal);
@@ -2429,8 +2429,8 @@ public sealed class IngestionDashboardRenderTests : AsyncBunitContext
     }
 
     private static string ReadIngestionDashboardStateSource() =>
-        File.ReadAllText(GetRepoFilePath(@"src\MediaEngine.Web\Services\Integration\IngestionLiveDashboardState.cs"))
-        + File.ReadAllText(GetRepoFilePath(@"src\MediaEngine.Web\Services\Integration\IngestionLiveDashboardState.Projection.cs"));
+        File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Web/Services/Integration/IngestionLiveDashboardState.cs"))
+        + File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Web/Services/Integration/IngestionLiveDashboardState.Projection.cs"));
 
     private static string GetRepoFilePath(string relativePath, [CallerFilePath] string sourceFile = "")
     {

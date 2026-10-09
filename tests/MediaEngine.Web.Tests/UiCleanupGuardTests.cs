@@ -5,7 +5,7 @@ public sealed class UiCleanupGuardTests
     [Fact]
     public void SettingsLibraries_UsesSharedClassesForCardsAndPreview()
     {
-        var source = ReadRepoFile(@"src\MediaEngine.Web\Components\Settings\LibrariesTab.razor");
+        var source = ReadRepoFile(@"src/MediaEngine.Web/Components/Settings/LibrariesTab.razor");
 
         Assert.Contains("<AppCard", source, StringComparison.Ordinal);
         Assert.Contains("Density=\"AppSurfaceDensity.Compact\"", source, StringComparison.Ordinal);
@@ -22,7 +22,7 @@ public sealed class UiCleanupGuardTests
     [Fact]
     public void ApplicationsAccess_UsesSharedControlsAndScopedCredentialCode()
     {
-        var source = ReadRepoFile(@"src\MediaEngine.Web\Components\Settings\ManagedAccessApplications.razor");
+        var source = ReadRepoFile(@"src/MediaEngine.Web/Components/Settings/ManagedAccessApplications.razor");
 
         Assert.Contains("<AppButton", source, StringComparison.Ordinal);
         Assert.Contains("access-credential-secret", source, StringComparison.Ordinal);
@@ -34,7 +34,7 @@ public sealed class UiCleanupGuardTests
     [Fact]
     public void BrowseShell_DelegatesQueryAndArtworkRules()
     {
-        var source = ReadRepoFile(@"src\MediaEngine.Web\Components\Browse\MediaBrowseShell.razor");
+        var source = ReadRepoFile(@"src/MediaEngine.Web/Components/Browse/MediaBrowseShell.razor");
 
         Assert.Contains("BrowseQueryBuilder.Read", source, StringComparison.Ordinal);
         Assert.Contains("BrowseArtworkRules.ResolveWideArtwork", source, StringComparison.Ordinal);
