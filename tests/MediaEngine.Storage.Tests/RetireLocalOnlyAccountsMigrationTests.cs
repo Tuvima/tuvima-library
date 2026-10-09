@@ -129,7 +129,7 @@ public sealed class RetireLocalOnlyAccountsMigrationTests : IDisposable
         Assert.Contains("tuvima-admin", failure.Message, StringComparison.Ordinal);
         Assert.Equal(2, Scalar(path, "SELECT COUNT(*) FROM accounts;"));
         Assert.Equal(1, Scalar(path, "SELECT COUNT(*) FROM pragma_table_info('accounts') WHERE name = 'is_local_only';"));
-        Assert.Equal(1, Scalar(path, "SELECT COUNT(*) FROM account_profile_grants WHERE account_id = @a;", ("@a", LocalAccount)));
+        Assert.Equal(2, Scalar(path, "SELECT COUNT(*) FROM account_profile_grants WHERE account_id = @a;", ("@a", LocalAccount)));
     }
 
     [Fact]
