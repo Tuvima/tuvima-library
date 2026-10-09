@@ -8,8 +8,17 @@ public sealed partial class EngineApiClient
     public Task<NetworkSettingsDto?> GetNetworkSettingsAsync(CancellationToken ct = default) =>
         GetAsync<NetworkSettingsDto>("GET /settings/network", "/settings/network", ct: ct);
 
-    public async Task<NetworkSettingsDto?> UpdateNetworkSettingsAsync(NetworkSettingsDto settings, CancellationToken ct = default) =>
-        await PutAsync("PUT /settings/network", "/settings/network", settings, ct: ct) ? settings : null;
+    public async Task<NetworkSettingsDto?> UpdateNetworkSettingsAsync(NetworkSettingsDto settings, CancellationToken ct = default)
+    {
+        if (!await PutAsync("PUT /settings/network", "/settings/network", settings, ct: ct))
+        {
+            return null;
+        }
+
+        // Lowering "who can connect" sends screens open from farther away to sign-in at once.
+        _openScreens?.CloseWhereIngressNotAllowed(settings.WhoCanConnect);
+        return settings;
+    }
 
     public Task<NetworkRuntimeStatusDto?> GetNetworkRuntimeStatusAsync(CancellationToken ct = default) =>
         GetAsync<NetworkRuntimeStatusDto>("GET /network/status", "/network/status", ct: ct);
@@ -40,8 +49,16 @@ public sealed partial class EngineApiClient
             new PortAvailabilityRequest { Port = port },
             ct);
 
-    public Task<NetworkSettingsDto?> ResetNetworkSettingsAsync(CancellationToken ct = default) =>
-        PostNetworkAsync<NetworkSettingsDto>("POST /network/reset", "/network/reset", new { }, ct);
+    public async Task<NetworkSettingsDto?> ResetNetworkSettingsAsync(CancellationToken ct = default)
+    {
+        var reset = await PostNetworkAsync<NetworkSettingsDto>("POST /network/reset", "/network/reset", new { }, ct);
+        if (reset is not null)
+        {
+            _openScreens?.CloseWhereIngressNotAllowed(reset.WhoCanConnect);
+        }
+
+        return reset;
+    }
 
     public Task<NetworkRuntimeStatusDto?> RenewNetworkRouterMappingAsync(CancellationToken ct = default) =>
         PostNetworkAsync<NetworkRuntimeStatusDto>("POST /network/router/renew", "/network/router/renew", new { }, ct);

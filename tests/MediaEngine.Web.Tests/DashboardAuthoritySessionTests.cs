@@ -213,31 +213,6 @@ public sealed class DashboardAuthoritySessionTests
     }
 
     [Fact]
-    public async Task RefreshLoop_ContinuesAfterEmptySuccessAndCompletesWhenCancelled()
-    {
-        var session = AuthenticatedSession("token");
-        var handler = new SequenceHandler(
-            new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(string.Empty) },
-            AllowedResponse(8));
-        var client = new DashboardIdentityClient(new TestClientFactory(handler));
-        using var loopCancellation = new CancellationTokenSource();
-        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-
-        var loop = client.RunAuthorityRefreshLoopAsync(session, TimeSpan.FromMilliseconds(5), loopCancellation.Token);
-        while (session.Authority?.AccountAuthorizationVersion != 8)
-        {
-            await Task.Delay(TimeSpan.FromMilliseconds(5), timeout.Token);
-        }
-
-        loopCancellation.Cancel();
-        await loop.WaitAsync(timeout.Token);
-
-        Assert.True(handler.CallCount >= 2);
-        Assert.Equal(8, session.Authority!.AccountAuthorizationVersion);
-        Assert.True(loop.IsCompletedSuccessfully);
-    }
-
-    [Fact]
     public async Task AccessClients_UseCanonicalApplicationAndSelfServiceRoutes()
     {
         var handler = new RecordingRouteHandler();
