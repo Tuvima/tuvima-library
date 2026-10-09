@@ -188,7 +188,8 @@ public static class ClientAuthorizationEndpoints
                     title: "Too many attempts",
                     detail: "Too many attempts. Try again later.",
                     statusCode: StatusCodes.Status429TooManyRequests),
-                BackupProfileOutcome.ProfileNotFound => ApiErrors.NotFound("That person isn't in this household."),
+                BackupProfileOutcome.ProfileNotFound => ApiErrors.Forbidden("That person isn't in this household."),
+                BackupProfileOutcome.Forbidden => ApiErrors.Forbidden("Only the paired app can choose whose photos it backs up."),
                 _ => ApiErrors.NotFound("Device not found or revoked."),
             };
         })
@@ -196,6 +197,7 @@ public static class ClientAuthorizationEndpoints
         .Produces(StatusCodes.Status204NoContent)
         .ProducesProblem(StatusCodes.Status428PreconditionRequired)
         .ProducesProblem(StatusCodes.Status429TooManyRequests)
+        .ProducesProblem(StatusCodes.Status403Forbidden)
         .ProducesProblem(StatusCodes.Status404NotFound);
 
         devices.MapDelete("/{deviceId:guid}", async (

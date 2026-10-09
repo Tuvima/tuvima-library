@@ -91,6 +91,39 @@ public sealed class PhoneBackupProfileTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task ABrowserCarryingAnyDeviceId_IsNotAPhone()
+    {
+        await _service.SetByAdministratorAsync(_adminOfHome, _phoneId, _mary.Id);
+
+        var forged = new RequestAuthority(PrincipalKind.Human, true, _homeOwner.Id, _jim.Id, DeviceId: Guid.NewGuid());
+        var withRealPhoneId = new RequestAuthority(PrincipalKind.Human, true, _homeOwner.Id, _jim.Id, DeviceId: _phoneId);
+
+        Assert.Equal(_jim.Id, (await _service.ResolveUploadTargetAsync(forged, _jim.Id)).ProfileId);
+        Assert.Equal(_jim.Id, (await _service.ResolveUploadTargetAsync(withRealPhoneId, _jim.Id)).ProfileId);
+        Assert.Equal(BackupProfileOutcome.Forbidden, await _service.SetFromDeviceAsync(withRealPhoneId, _phoneId, _jim.Id, null));
+    }
+
+    [Fact]
+    public async Task APhone_CannotChooseForAnotherAccountsDevice_OrUseItsTarget()
+    {
+        await _service.SetByAdministratorAsync(_serverAdmin, _phoneId, _mary.Id);
+        var otherAccountPhone = new RequestAuthority(
+            PrincipalKind.DelegatedUserClient, true, _adminOfOther.AccountId, _bea.Id, DeviceId: _phoneId);
+
+        Assert.Equal(BackupProfileOutcome.Forbidden, await _service.SetFromDeviceAsync(otherAccountPhone, _phoneId, _bea.Id, null));
+        Assert.Null((await _service.ResolveUploadTargetAsync(otherAccountPhone, _bea.Id)).ProfileId);
+        Assert.Equal(BackupProfileOutcome.Forbidden, await _service.SetFromDeviceAsync(PhoneAuthority(_mary.Id), Guid.NewGuid(), _mary.Id, null));
+    }
+
+    [Fact]
+    public async Task AStoredTargetOutsideTheHousehold_IsNotUsed()
+    {
+        Assert.True(await _devices.SetBackupProfileAsync(_phoneId, _bea.Id));
+
+        Assert.Null((await _service.ResolveUploadTargetAsync(PhoneAuthority(_jim.Id), _jim.Id)).ProfileId);
+    }
+
+    [Fact]
     public async Task APhoneWithNoChosenPerson_HasNoUploadTarget()
     {
         var target = await _service.ResolveUploadTargetAsync(PhoneAuthority(_jim.Id), _jim.Id);

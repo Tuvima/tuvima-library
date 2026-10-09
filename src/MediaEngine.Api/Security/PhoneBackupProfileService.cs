@@ -10,6 +10,7 @@ public enum BackupProfileOutcome
     Changed,
     DeviceNotFound,
     ProfileNotFound,
+    Forbidden,
     PinRequired,
     Locked,
 }
@@ -39,25 +40,45 @@ public sealed class PhoneBackupProfileService(
     /// </summary>
     public async Task<BackupTarget> ResolveUploadTargetAsync(RequestAuthority authority, Guid browsingProfileId, CancellationToken ct = default)
     {
-        if (authority.DeviceId is not { } deviceId)
+        // Dashboard sessions also carry a device id that the browser supplies, so only a paired app's own token counts.
+        if (!IsPairedApp(authority))
         {
             return new BackupTarget(browsingProfileId);
         }
 
-        var device = await devices.GetDeviceAsync(deviceId, ct).ConfigureAwait(false);
-        return device is { IsActive: true, BackupProfileId: { } backupProfileId }
-            ? new BackupTarget(backupProfileId)
-            : new BackupTarget(null);
+        var device = await devices.GetDeviceAsync(authority.DeviceId!.Value, ct).ConfigureAwait(false);
+        if (device is { IsActive: true, BackupProfileId: { } backupProfileId } && device.AccountId == authority.AccountId &&
+            await InHouseholdAsync(device.AccountId, backupProfileId, ct).ConfigureAwait(false))
+        {
+            return new BackupTarget(backupProfileId);
+        }
+
+        return new BackupTarget(null);
     }
+
+    /// <summary>A paired app's own bearer token, as opposed to a signed-in browser.</summary>
+    private static bool IsPairedApp(RequestAuthority authority) =>
+        authority.PrincipalKind == PrincipalKind.DelegatedUserClient && authority.DeviceId is not null && authority.AccountId is not null;
 
     /// <summary>The phone itself chooses. The person must be in the phone's household, and their PIN is needed when they have one.</summary>
     public async Task<BackupProfileOutcome> SetFromDeviceAsync(
         RequestAuthority authority, Guid deviceId, Guid profileId, string? pin, CancellationToken ct = default)
     {
+        // Only the paired app itself, for its own device, may choose; a browser can't name a phone.
+        if (!IsPairedApp(authority) || authority.DeviceId != deviceId)
+        {
+            return BackupProfileOutcome.Forbidden;
+        }
+
         var device = await devices.GetDeviceAsync(deviceId, ct).ConfigureAwait(false);
         if (device is null || !device.IsActive)
         {
             return BackupProfileOutcome.DeviceNotFound;
+        }
+
+        if (device.AccountId != authority.AccountId)
+        {
+            return BackupProfileOutcome.Forbidden;
         }
 
         if (!await InHouseholdAsync(device.AccountId, profileId, ct).ConfigureAwait(false))
