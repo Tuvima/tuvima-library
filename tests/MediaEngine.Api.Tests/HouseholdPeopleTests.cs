@@ -207,11 +207,18 @@ public sealed class HouseholdPeopleTests
             new UpdateAccountAccessCommand("mary@example.com", true, IsAdministrator: true)));
         await Assert.ThrowsAsync<InvalidOperationException>(() => mutations.UpsertGrantAsync(actor, new AccountProfileGrant
         {
-            AccountId = given.Id, ProfileId = mary.Id, IsEnabled = true, AdminEnabled = true, AuthorizationVersion = 1,
+            AccountId = given.Id,
+            ProfileId = mary.Id,
+            IsEnabled = true,
+            AdminEnabled = true,
+            AuthorizationVersion = 1,
         }));
         await Assert.ThrowsAsync<InvalidOperationException>(() => mutations.UpsertGrantAsync(actor, new AccountProfileGrant
         {
-            AccountId = given.Id, ProfileId = ownerProfileId, IsEnabled = true, AuthorizationVersion = 1,
+            AccountId = given.Id,
+            ProfileId = ownerProfileId,
+            IsEnabled = true,
+            AuthorizationVersion = 1,
         }));
 
         // The only main sign-in cannot be deleted or disabled while Mary's follows it.
