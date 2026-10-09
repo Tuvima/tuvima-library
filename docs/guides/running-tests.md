@@ -113,6 +113,10 @@ dotnet test --collect:"XPlat Code Coverage"
 
 Coverage reports land in `tests/*/TestResults/`.
 
+### Tests must pass on Linux and Windows
+
+CI runs on Linux (`ubuntu-latest`) while many contributors work on Windows, so every test has to pass on both. Build file paths with `Path.Combine` or forward slashes (never `@"src\MediaEngine..."`), pick OS-appropriate roots for absolute paths (for example `OperatingSystem.IsWindows() ? @"C:\" : "/"`), and compare text after normalising line endings. Use `OperatingSystem.IsWindows()` only for behaviour that is genuinely Windows-specific, assert the Linux equivalent instead of skipping, and write the reason in the pull request. A rooted URL such as `/stream/x` parses as a `file://` address on Linux, so treat values that start with `/` as relative before calling `Uri.TryCreate(..., UriKind.Absolute, ...)`.
+
 ### Dashboard guardrail suites
 
 These tests are intentionally about preventing regressions, not only checking one feature:
