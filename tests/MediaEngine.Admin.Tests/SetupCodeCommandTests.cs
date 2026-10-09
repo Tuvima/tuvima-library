@@ -82,6 +82,33 @@ public sealed class SetupCodeCommandTests : IDisposable
         Assert.Null(_codes.NewestStoredHash());
     }
 
+    [Fact]
+    public void SetupCode_ParsesWithAndWithoutConfigDir()
+    {
+        Assert.True(TuvimaAdminApplication.AdminCommandOptions.TryParse(["setup", "code"], out var plain, out _));
+        Assert.Equal(TuvimaAdminApplication.AdminCommand.SetupCode, plain.Command);
+        Assert.Null(plain.ConfigDirectory);
+
+        Assert.True(TuvimaAdminApplication.AdminCommandOptions.TryParse(["setup", "code", "--config-dir", "/config"], out var withDir, out _));
+        Assert.Equal(TuvimaAdminApplication.AdminCommand.SetupCode, withDir.Command);
+        Assert.Equal("/config", withDir.ConfigDirectory);
+    }
+
+    [Fact]
+    public void SetupCode_RefusesEmail()
+    {
+        Assert.False(TuvimaAdminApplication.AdminCommandOptions.TryParse(["setup", "code", "--email", "a@b.c"], out _, out var error));
+        Assert.Contains("--email", error, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ResetPassword_StillParses()
+    {
+        Assert.True(TuvimaAdminApplication.AdminCommandOptions.TryParse(["auth", "reset-password", "--email", "a@b.c"], out var options, out _));
+        Assert.Equal(TuvimaAdminApplication.AdminCommand.ResetPassword, options.Command);
+        Assert.Equal("a@b.c", options.Email);
+    }
+
     private SetupCodeCommand Command(CapturingConsole console, bool administratorExists) =>
         new(new SystemHostRecoveryAuthorizer(new AllowedProbe()),
             _ => Task.FromResult(administratorExists),

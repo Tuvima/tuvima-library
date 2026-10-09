@@ -14,7 +14,6 @@ namespace MediaEngine.Api.Services;
 /// </summary>
 public sealed class SetupSessionService(
     OnboardingRepository repository,
-    SetupCodeRepository setupCodes,
     IFirstPartyIdentityService identity,
     TimeProvider timeProvider)
 {
@@ -44,19 +43,25 @@ public sealed class SetupSessionService(
                     "Setup has to be finished from your home network.");
             }
 
-            if (ingress != ClientIngress.ThisComputer)
+            var codeRequired = ingress != ClientIngress.ThisComputer;
+            if (codeRequired && string.IsNullOrWhiteSpace(setupCode))
             {
-                if (string.IsNullOrWhiteSpace(setupCode))
-                {
-                    return SetupBeginResult.Refused(
-                        SetupBeginRefusalReasons.CodeRequired,
-                        "Enter the setup code from your server to continue.");
-                }
+                return SetupBeginResult.Refused(
+                    SetupBeginRefusalReasons.CodeRequired,
+                    "Enter the setup code from your server to continue.");
+            }
 
-                var check = await setupCodes.VerifyAndConsumeAsync(setupCode, timeProvider.GetUtcNow(), ct).ConfigureAwait(false);
-                if (check != SetupCodeCheck.Accepted)
-                {
-                    return SetupBeginResult.Refused(
+            var plaintextSession = Token(32);
+            var sessionHash = Convert.ToHexStringLower(Hash(plaintextSession));
+            var expires = timeProvider.GetUtcNow().AddHours(12);
+            // The code is used up in the same transaction that starts the session.
+            var (started, check) = await repository.TryBeginAsync(
+                sessionHash, Guid.NewGuid(), expires, setupCode, codeRequired, timeProvider.GetUtcNow(), ct).ConfigureAwait(false);
+            if (!started)
+            {
+                return check is null || check == SetupCodeCheck.Accepted
+                    ? SetupBeginResult.AlreadyConfigured
+                    : SetupBeginResult.Refused(
                         SetupBeginRefusalReasons.CodeInvalid,
                         check switch
                         {
@@ -64,15 +69,6 @@ public sealed class SetupSessionService(
                             SetupCodeCheck.TooManyAttempts => "Too many wrong codes. Generate a new setup code on your server.",
                             _ => "There is no valid setup code. Generate a new one on your server.",
                         });
-                }
-            }
-
-            var plaintextSession = Token(32);
-            var sessionHash = Convert.ToHexStringLower(Hash(plaintextSession));
-            var expires = timeProvider.GetUtcNow().AddHours(12);
-            if (!await repository.TryBeginAsync(sessionHash, Guid.NewGuid(), expires, ct).ConfigureAwait(false))
-            {
-                return SetupBeginResult.AlreadyConfigured;
             }
 
             return SetupBeginResult.Success(new SetupStartResponse(

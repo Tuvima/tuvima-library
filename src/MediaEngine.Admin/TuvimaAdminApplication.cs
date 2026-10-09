@@ -99,13 +99,13 @@ public static class TuvimaAdminApplication
         console.WriteLine("from another device on your home network. It is refused once an administrator exists.");
     }
 
-    private enum AdminCommand
+    internal enum AdminCommand
     {
         ResetPassword,
         SetupCode,
     }
 
-    private sealed record AdminCommandOptions(
+    internal sealed record AdminCommandOptions(
         bool ShowHelp,
         string? Email,
         string? ConfigDirectory,

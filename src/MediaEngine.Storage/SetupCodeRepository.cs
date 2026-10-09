@@ -86,10 +86,21 @@ public sealed class SetupCodeRepository(IDatabaseConnection database)
     /// Checks the offered code against the active one in constant time. A match uses the code up; the
     /// <see cref="MaxFailedAttempts"/>th wrong try retires it so it cannot be guessed further.
     /// </summary>
-    public Task<SetupCodeCheck> VerifyAndConsumeAsync(string? offered, DateTimeOffset now, CancellationToken ct)
+    public Task<SetupCodeCheck> VerifyAndConsumeAsync(string? offered, DateTimeOffset now, CancellationToken ct) =>
+        database.ExecuteWriteAsync(
+            (connection, transaction, _) => VerifyAndConsume(connection, transaction, offered, now), ct);
+
+    /// <summary>
+    /// The same check inside a transaction the caller already holds, so the code can be used up in the same
+    /// commit as whatever it unlocks (starting a setup session).
+    /// </summary>
+    internal static SetupCodeCheck VerifyAndConsume(
+        Microsoft.Data.Sqlite.SqliteConnection connection,
+        Microsoft.Data.Sqlite.SqliteTransaction transaction,
+        string? offered,
+        DateTimeOffset now)
     {
         var offeredHash = Encoding.UTF8.GetBytes(Hash(Normalize(offered)));
-        return database.ExecuteWriteAsync((connection, transaction, _) =>
         {
             var active = connection.QuerySingleOrDefault<ActiveCodeRow>("""
                 SELECT id AS Id, code_hash AS CodeHash, expires_at AS ExpiresAt, failed_attempts AS FailedAttempts
@@ -120,7 +131,7 @@ public sealed class SetupCodeRepository(IDatabaseConnection database)
                 WHERE id = @id;
                 """, new { failed, exhausted = exhausted ? 1 : 0, now = now.ToString("O"), id = active.Id }, transaction);
             return exhausted ? SetupCodeCheck.TooManyAttempts : SetupCodeCheck.Wrong;
-        }, ct);
+        }
     }
 
     /// <summary>The stored hash of the newest code, for tests that check nothing readable is kept.</summary>

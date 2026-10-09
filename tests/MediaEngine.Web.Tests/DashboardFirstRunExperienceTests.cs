@@ -51,6 +51,10 @@ public sealed class DashboardFirstRunExperienceTests
         Assert.Contains("HttpContext?.ClientIngress()", host, StringComparison.Ordinal);
         Assert.Contains("OriginalClientIngress = ClientIngress ?? ClientIngressValues.Remote", setup, StringComparison.Ordinal);
         Assert.Contains("SuppressSessionToken", setupClient, StringComparison.Ordinal);
+        // The code step must not hold the wizard's _busy flag, or the first step never loads after the code is accepted.
+        Assert.Contains("_codeBusy = true", setup, StringComparison.Ordinal);
+        Assert.Contains("Busy=\"@_codeBusy\"", setup, StringComparison.Ordinal);
+        Assert.DoesNotContain("_busy = true;\n        try { await ReloadAsync(); }", setup.Replace("\r\n", "\n"), StringComparison.Ordinal);
     }
 
     [Fact]

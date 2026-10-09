@@ -1,9 +1,17 @@
+using System.Text.Json;
+using MediaEngine.Api.Endpoints;
 using MediaEngine.Api.Services;
 using MediaEngine.Contracts.Authentication;
 using MediaEngine.Contracts.Setup;
 using MediaEngine.Domain.Authorization;
 using MediaEngine.Identity.Contracts;
 using MediaEngine.Storage;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Http.Features;
+using Microsoft.AspNetCore.Http.Metadata;
+using Microsoft.AspNetCore.Routing;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace MediaEngine.Api.Tests;
 
@@ -23,7 +31,7 @@ public sealed class SetupSessionCodeTests : IDisposable
         _database.InitializeSchema();
         _database.RunStartupChecks();
         _codes = new SetupCodeRepository(_database);
-        _sessions = new SetupSessionService(new OnboardingRepository(_database), _codes, new NoAdministratorIdentity(), _time);
+        _sessions = new SetupSessionService(new OnboardingRepository(_database), new NoAdministratorIdentity(), _time);
     }
 
     [Fact]
@@ -125,13 +133,76 @@ public sealed class SetupSessionCodeTests : IDisposable
     public async Task AfterAnAdministratorExists_BeginIsConflictNotCodeFlow()
     {
         var sessions = new SetupSessionService(
-            new OnboardingRepository(_database), _codes, new NoAdministratorIdentity(administratorConfigured: true), _time);
+            new OnboardingRepository(_database), new NoAdministratorIdentity(administratorConfigured: true), _time);
 
         var result = await sessions.BeginAsync(ClientIngress.ThisComputer, null, CancellationToken.None);
 
         Assert.True(result.IsAlreadyConfigured);
         Assert.Null(result.Started);
         Assert.Null(result.Refusal);
+    }
+
+    [Fact]
+    public async Task BeginEndpoint_WithoutABody_IsTreatedAsRemote()
+    {
+        var (status, body) = await PostBeginAsync(requestBody: null);
+
+        Assert.Equal(StatusCodes.Status403Forbidden, status);
+        Assert.Equal(SetupBeginRefusalReasons.RemoteRefused, body.GetProperty("reason").GetString());
+    }
+
+    [Fact]
+    public async Task BeginEndpoint_HomeNetworkWithoutACode_Returns403WithTheReason()
+    {
+        var (status, body) = await PostBeginAsync(new SetupBeginRequest { OriginalClientIngress = ClientIngress.HomeNetwork });
+
+        Assert.Equal(StatusCodes.Status403Forbidden, status);
+        Assert.Equal(SetupBeginRefusalReasons.CodeRequired, body.GetProperty("reason").GetString());
+        Assert.False(string.IsNullOrWhiteSpace(body.GetProperty("message").GetString()));
+    }
+
+    [Fact]
+    public async Task BeginEndpoint_ThisComputer_ReturnsTheSetupSession()
+    {
+        var (status, body) = await PostBeginAsync(new SetupBeginRequest { OriginalClientIngress = ClientIngress.ThisComputer });
+
+        Assert.Equal(StatusCodes.Status200OK, status);
+        Assert.False(string.IsNullOrWhiteSpace(body.GetProperty("setup_session_token").GetString()));
+    }
+
+    private async Task<(int Status, JsonElement Body)> PostBeginAsync(SetupBeginRequest? requestBody)
+    {
+        var builder = WebApplication.CreateBuilder();
+        builder.Services.AddAuthorization();
+        builder.Services.AddRateLimiter(_ => { });
+        builder.Services.AddSingleton(_sessions);
+        await using var app = builder.Build();
+        app.MapSetupEndpoints();
+        var endpoint = Assert.Single(((IEndpointRouteBuilder)app).DataSources
+            .SelectMany(source => source.Endpoints)
+            .OfType<RouteEndpoint>(), candidate =>
+                candidate.RoutePattern.RawText == "/setup/v1/begin" &&
+                candidate.Metadata.GetMetadata<IHttpMethodMetadata>()?.HttpMethods.Contains("POST") == true);
+        var bytes = requestBody is null ? [] : JsonSerializer.SerializeToUtf8Bytes(requestBody);
+        var responseBody = new MemoryStream();
+        var context = new DefaultHttpContext
+        {
+            RequestServices = app.Services,
+            Request = { Method = "POST", Path = "/setup/v1/begin", ContentType = "application/json", ContentLength = bytes.Length, Body = new MemoryStream(bytes) },
+            Response = { Body = responseBody },
+        };
+        context.Features.Set<IHttpRequestBodyDetectionFeature>(new BodyDetection(bytes.Length > 0));
+
+        await endpoint.RequestDelegate!(context);
+
+        responseBody.Position = 0;
+        using var document = await JsonDocument.ParseAsync(responseBody);
+        return (context.Response.StatusCode, document.RootElement.Clone());
+    }
+
+    private sealed class BodyDetection(bool canHaveBody) : IHttpRequestBodyDetectionFeature
+    {
+        public bool CanHaveBody => canHaveBody;
     }
 
     public void Dispose()
