@@ -113,11 +113,28 @@ var networkSettings = dashboardConfig.LoadNetwork();
 // Installed/service deployments use the user-facing network port from the shared
 // configuration. Explicit host configuration (launchSettings, ASPNETCORE_URLS,
 // container settings) remains authoritative for development and orchestration.
-if (string.IsNullOrWhiteSpace(builder.Configuration["urls"])
-    && string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("ASPNETCORE_URLS")))
+var explicitUrls = builder.Configuration["urls"] ?? Environment.GetEnvironmentVariable("ASPNETCORE_URLS");
+var proxyPort = networkSettings.Remote.ProxyPort;
+if (string.IsNullOrWhiteSpace(explicitUrls))
 {
-    builder.WebHost.UseUrls($"http://0.0.0.0:{networkSettings.Local.Port}");
+    builder.WebHost.UseUrls(proxyPort is int proxy
+        ? $"http://0.0.0.0:{networkSettings.Local.Port};http://0.0.0.0:{proxy}"
+        : $"http://0.0.0.0:{networkSettings.Local.Port}");
 }
+else if (proxyPort is int explicitProxy
+    && !explicitUrls.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+        .Any(url => url.EndsWith($":{explicitProxy}", StringComparison.Ordinal)))
+{
+    // Explicit hosting settings stay authoritative; the optional proxy port is only added on top.
+    builder.WebHost.UseUrls($"{explicitUrls};http://0.0.0.0:{explicitProxy}");
+}
+
+// One answer to "is this request local?" and one list of Host names the Dashboard answers to.
+builder.Services.AddSingleton<IngressClassifier>();
+builder.Services.AddSingleton(new HostAllowList(
+    networkSettings,
+    Environment.GetEnvironmentVariable("TUVIMA_TAILSCALE_URL"),
+    Environment.MachineName));
 
 builder.Services.Configure<ForwardedHeadersOptions>(options =>
 {
@@ -370,9 +387,11 @@ builder.Services.AddScoped<DeviceContextService>();
 var app = builder.Build();
 
 // Forwarded scheme/client information must be established before HSTS,
-// redirection, authentication, and URL generation. Only loopback plus the
-// explicitly configured proxy addresses/networks are trusted.
-app.UseForwardedHeaders();
+// redirection, authentication, and URL generation. Forwarded headers are honoured
+// only on the dedicated proxy port (remote.proxy_port), from loopback plus the
+// explicitly configured proxy addresses/networks; the main port ignores them.
+app.UseForwardedHeadersOnProxyPort(proxyPort);
+app.UseHostAllowList();
 app.UseWebSockets();
 app.UseResponseCompression();
 if (app.Environment.IsDevelopment() && !string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("TUVIMA_HOME_MEDIA_QA")))
@@ -389,7 +408,8 @@ if (!app.Environment.IsDevelopment())
 app.UseStatusCodePagesWithReExecute("/not-found", createScopeForStatusCodePages: true);
 app.Use(async (context, next) =>
 {
-    if (!context.Request.IsHttps && !ForwardedHeaderConfiguration.IsLocalNetworkClient(context.Connection.RemoteIpAddress))
+    if (!context.Request.IsHttps
+        && context.RequestServices.GetRequiredService<IngressClassifier>().Classify(context) == IngressKind.Remote)
     {
         context.Response.StatusCode = StatusCodes.Status426UpgradeRequired;
         await context.Response.WriteAsync("Remote access requires a verified HTTPS or tunnel path.");

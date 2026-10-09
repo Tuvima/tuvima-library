@@ -88,9 +88,10 @@ public sealed class NetworkSettingsUiTests
         var source = Read(@"src\MediaEngine.Web\Program.cs");
 
         Assert.Contains("ForwardedHeaderConfiguration.Configure", source, StringComparison.Ordinal);
-        Assert.Contains("app.UseForwardedHeaders()", source, StringComparison.Ordinal);
+        Assert.DoesNotContain("app.UseForwardedHeaders()", source, StringComparison.Ordinal);
+        Assert.Contains("app.UseForwardedHeadersOnProxyPort(proxyPort)", source, StringComparison.Ordinal);
         Assert.True(
-            source.IndexOf("app.UseForwardedHeaders()", StringComparison.Ordinal)
+            source.IndexOf("app.UseForwardedHeadersOnProxyPort(proxyPort)", StringComparison.Ordinal)
             < source.IndexOf("app.UseHsts()", StringComparison.Ordinal));
     }
 
@@ -112,17 +113,6 @@ public sealed class NetworkSettingsUiTests
         Assert.Contains(System.Net.IPNetwork.Parse("::ffff:172.21.0.0/120"), options.KnownIPNetworks);
         Assert.Contains("library.example.test", options.AllowedHosts);
         Assert.Contains("tuvima.example.ts.net", options.AllowedHosts);
-    }
-
-    [Theory]
-    [InlineData("127.0.0.1", true)]
-    [InlineData("192.168.1.20", true)]
-    [InlineData("172.18.0.3", true)]
-    [InlineData("100.100.10.20", false)]
-    [InlineData("203.0.113.10", false)]
-    public void RemoteHttpsBoundaryDoesNotTreatTailnetOrPublicAddressesAsLocal(string value, bool expected)
-    {
-        Assert.Equal(expected, ForwardedHeaderConfiguration.IsLocalNetworkClient(IPAddress.Parse(value)));
     }
 
     private static string Read(string relativePath) => File.ReadAllText(

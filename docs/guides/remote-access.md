@@ -41,9 +41,17 @@ site is:
 
 ```text
 tuvima.example.com {
-    reverse_proxy 127.0.0.1:5016
+    reverse_proxy 127.0.0.1:5017
 }
 ```
+
+Point a same-machine proxy at the **proxy port**, not the main Dashboard port.
+Set `remote.proxy_port` (here `5017`) in `config/network.json`; the Dashboard
+then also listens on it, treats everything arriving there as remote, and trusts
+forwarded headers only there. A proxy aimed at port 5016 would make every
+visitor look like a person sitting at this computer to the Dashboard's local
+checks. Add your hostname to `local.allowed_hostnames` unless it is already the
+`remote.public_hostname`.
 
 Then:
 

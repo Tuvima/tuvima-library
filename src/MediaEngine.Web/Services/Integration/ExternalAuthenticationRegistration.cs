@@ -212,7 +212,6 @@ public static partial class ExternalAuthenticationRegistration
         }
 
         var identity = context.RequestServices.GetRequiredService<DashboardIdentityClient>();
-        var authPolicy = context.RequestServices.GetRequiredService<DashboardConfigurationReader>().LoadCore().Auth;
         var transaction = await identity.BeginExternalIdentityTransactionAsync(new BeginExternalIdentityTransactionRequest
         {
             Purpose = purpose,
@@ -263,7 +262,7 @@ public static partial class ExternalAuthenticationRegistration
             DeviceId = deviceId!,
             DeviceName = context.Request.Headers.UserAgent.ToString(),
             Client = $"Tuvima Library Dashboard {protocol}",
-            OriginalClientIsLocal = DashboardAuthenticationEndpoints.IsLocalClient(context, authPolicy),
+            OriginalClientIsLocal = context.IsLocalIngress(),
             OriginalClientIsHttps = context.Request.IsHttps,
         };
         var issued = await identity.CreateExternalSessionAsync(request, context.RequestAborted).ConfigureAwait(false);

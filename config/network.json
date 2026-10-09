@@ -6,7 +6,8 @@
     "interface_id": null,
     "discovery_enabled": true,
     "preferred_server_name": "tuvima",
-    "ipv6_enabled": true
+    "ipv6_enabled": true,
+    "allowed_hostnames": []
   },
   "remote": {
     "enabled": false,
@@ -15,6 +16,7 @@
     "external_port": null,
     "tls_termination_port": null,
     "public_hostname": null,
+    "proxy_port": null,
     "trusted_proxies": [],
     "trusted_proxy_networks": []
   },

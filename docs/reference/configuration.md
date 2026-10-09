@@ -28,6 +28,19 @@ All configuration lives in the `config/` directory as individual JSON files grou
 
 ---
 
+## config/network.json (request origin and host names)
+
+Desired network state. Only the fields that decide where a Dashboard request may come from are listed here; the Settings > Network pages own the rest.
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `local.allowed_hostnames` | string[] | `[]` | Extra host names (name only: no `https://`, port or path; at most 32) the Dashboard answers to. IP addresses, `localhost`, this computer's name, `local.preferred_server_name` (each also as `<name>.local`), the host of `remote.public_hostname` and `TUVIMA_TAILSCALE_URL` are always allowed. Any other `Host` gets a 400 "This address isn't allowed for Tuvima Library" (this blocks DNS-rebinding attacks). `/health/live` is exempt. |
+| `remote.proxy_port` | int or null | `null` (off) | Optional second Dashboard port for a reverse proxy on the same machine (Caddy, Tailscale Serve). Must differ from `local.port`. Everything arriving on it counts as Remote, and `X-Forwarded-*` headers are honoured only on this port (from loopback plus `trusted_proxies` / `trusted_proxy_networks`). On the main port those headers are ignored. Restart the Dashboard after changing it. |
+
+A request's origin is classified once, by the connection address and port: **This computer** (loopback), **Home network** (10/8, 172.16/12, 192.168/16, 169.254/16, IPv6 fe80::/10 and fc00::/7, plus `auth.trusted_local_networks` in `config/core.json`) or **Remote** (everything else, including Tailscale 100.64/10 addresses and anything on the proxy port). Docker's default bridge gateway (172.17.0.1) counts as Home network, so a published container port can look local to the Dashboard; use `proxy_port` for proxies.
+
+---
+
 ## config/core.json
 
 Core Engine settings. Most changes are read at startup. Ingestion sources and destinations come from `config/libraries.json`; Settings > Libraries saves that model and asks the running Engine to hot-swap watchers.

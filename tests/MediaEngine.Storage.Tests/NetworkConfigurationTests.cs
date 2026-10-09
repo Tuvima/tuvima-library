@@ -141,6 +141,105 @@ public sealed class NetworkConfigurationTests
         }
     }
 
+    [Fact]
+    public void ProxyPortAndAllowedHostnames_DefaultToOffAndEmpty()
+    {
+        var settings = new NetworkSettings();
+
+        Assert.Null(settings.Remote.ProxyPort);
+        Assert.Empty(settings.Local.AllowedHostnames);
+    }
+
+    [Fact]
+    public void ProxyPortAndAllowedHostnames_RoundTrip()
+    {
+        var path = CreateTempDirectory();
+        try
+        {
+            var loader = new ConfigurationDirectoryLoader(path);
+            var settings = new NetworkSettings();
+            settings.Remote.ProxyPort = 5017;
+            settings.Local.AllowedHostnames = ["media.home.arpa", "nas"];
+            loader.SaveNetwork(settings);
+
+            var loaded = loader.LoadNetwork();
+            Assert.Equal(5017, loaded.Remote.ProxyPort);
+            Assert.Equal(["media.home.arpa", "nas"], loaded.Local.AllowedHostnames);
+        }
+        finally
+        {
+            Directory.Delete(path, recursive: true);
+        }
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(70000)]
+    [InlineData(5016)]
+    public void ProxyPort_MustBeAValidPortDifferentFromTheMainPort(int port)
+    {
+        var path = CreateTempDirectory();
+        try
+        {
+            var loader = new ConfigurationDirectoryLoader(path);
+            var settings = new NetworkSettings();
+            settings.Remote.ProxyPort = port;
+
+            var exception = Assert.Throws<ConfigValidationException>(() => loader.SaveNetwork(settings));
+
+            Assert.Contains("remote.proxy_port", exception.Message, StringComparison.Ordinal);
+        }
+        finally
+        {
+            Directory.Delete(path, recursive: true);
+        }
+    }
+
+    [Theory]
+    [InlineData("https://evil.example")]
+    [InlineData("host:5016")]
+    [InlineData("a/b")]
+    [InlineData("-bad.example")]
+    [InlineData("")]
+    public void AllowedHostnames_MustBePlainHostnames(string value)
+    {
+        var path = CreateTempDirectory();
+        try
+        {
+            var loader = new ConfigurationDirectoryLoader(path);
+            var settings = new NetworkSettings();
+            settings.Local.AllowedHostnames = [value];
+
+            var exception = Assert.Throws<ConfigValidationException>(() => loader.SaveNetwork(settings));
+
+            Assert.Contains("local.allowed_hostnames", exception.Message, StringComparison.Ordinal);
+        }
+        finally
+        {
+            Directory.Delete(path, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void AllowedHostnames_AreCappedAtThirtyTwo()
+    {
+        var path = CreateTempDirectory();
+        try
+        {
+            var loader = new ConfigurationDirectoryLoader(path);
+            var settings = new NetworkSettings();
+            settings.Local.AllowedHostnames = Enumerable.Range(0, 33).Select(i => $"host{i}.example").ToList();
+
+            var exception = Assert.Throws<ConfigValidationException>(() => loader.SaveNetwork(settings));
+
+            Assert.Contains("at most 32", exception.Message, StringComparison.Ordinal);
+        }
+        finally
+        {
+            Directory.Delete(path, recursive: true);
+        }
+    }
+
     private static string CreateTempDirectory()
     {
         var path = Path.Combine(Path.GetTempPath(), $"tuvima-network-tests-{Guid.NewGuid():N}");

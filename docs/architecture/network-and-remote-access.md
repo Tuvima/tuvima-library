@@ -115,5 +115,11 @@ Reachability never grants authentication. Forwarded host, scheme, and
 client-address headers are accepted only from exact proxy IP addresses in
 `trusted_proxies` or explicit CIDR entries in `trusted_proxy_networks`, with one
 forwarding hop allowed. The middleware runs before HSTS, redirection,
-authentication, and URL generation. Requests from non-local clients are rejected
-before authentication when the effective scheme is not HTTPS.
+authentication, and URL generation. Forwarded headers are honoured only on the
+optional proxy port (`remote.proxy_port`); on the main Dashboard port they are
+ignored. One `IngressClassifier` decides whether a request is from this
+computer, the home network, or remote (anything on the proxy port is remote),
+and requests classified as remote are rejected before authentication when the
+effective scheme is not HTTPS. A `Host` allow-list (`local.allowed_hostnames`
+plus the machine, server and public names) refuses unknown host names to block
+DNS rebinding.

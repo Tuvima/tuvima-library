@@ -15,7 +15,9 @@ public static class ForwardedHeaderConfiguration
             | ForwardedHeaders.XForwardedProto
             | ForwardedHeaders.XForwardedHost;
         options.ForwardLimit = 1;
+        // Applies only on the proxy port (see Program.cs), so a same-machine proxy is trusted there and nowhere else.
         AddProxy(options, IPAddress.Loopback);
+        AddProxy(options, IPAddress.IPv6Loopback);
 
         foreach (var address in remote.TrustedProxies)
         {
@@ -54,6 +56,15 @@ public static class ForwardedHeaderConfiguration
         }
     }
 
+    /// <summary>
+    /// Applies forwarded headers only to requests that arrived on the dedicated proxy port. On every other port
+    /// (including the main one) an <c>X-Forwarded-*</c> header from the network is simply ignored.
+    /// </summary>
+    public static IApplicationBuilder UseForwardedHeadersOnProxyPort(this IApplicationBuilder app, int? proxyPort) =>
+        app.UseWhen(
+            context => proxyPort is int port && context.Connection.LocalPort == port,
+            branch => branch.UseForwardedHeaders());
+
     private static void AddProxy(ForwardedHeadersOptions options, IPAddress address)
     {
         if (!options.KnownProxies.Contains(address))
@@ -69,30 +80,5 @@ public static class ForwardedHeaderConfiguration
                 options.KnownProxies.Add(mapped);
             }
         }
-    }
-
-    public static bool IsLocalNetworkClient(IPAddress? address)
-    {
-        if (address is null || IPAddress.IsLoopback(address))
-        {
-            return true;
-        }
-
-        if (address.IsIPv4MappedToIPv6)
-        {
-            address = address.MapToIPv4();
-        }
-
-        if (address.AddressFamily != System.Net.Sockets.AddressFamily.InterNetwork)
-        {
-            return address.IsIPv6LinkLocal || address.IsIPv6SiteLocal;
-        }
-
-        var bytes = address.GetAddressBytes();
-        return bytes[0] == 10
-            || bytes[0] == 127
-            || bytes[0] == 192 && bytes[1] == 168
-            || bytes[0] == 172 && bytes[1] is >= 16 and <= 31
-            || bytes[0] == 169 && bytes[1] == 254;
     }
 }
