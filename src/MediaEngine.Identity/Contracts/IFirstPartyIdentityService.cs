@@ -21,7 +21,7 @@ public interface IFirstPartyIdentityService
     Task<bool> IsAdministratorConfiguredAsync(CancellationToken ct = default);
     Task<SessionIssueResult> BootstrapAdministratorAsync(string email, string password, string displayName, string deviceId, string deviceName, string client, CancellationToken ct = default, string? pin = null, string ingress = ClientIngress.Remote);
     /// <summary>Creates the first administrator with a name and email but no password; it works only on this computer until secured.</summary>
-    Task<SessionIssueResult> BootstrapThisComputerAdministratorAsync(string email, string displayName, string deviceId, string deviceName, string client, CancellationToken ct = default);
+    Task<SessionIssueResult> BootstrapThisComputerAdministratorAsync(string email, string displayName, string deviceId, string deviceName, string client, CancellationToken ct = default, string? pin = null);
     /// <summary>Signs in the this-computer-only account without a password; <c>null</c> when there is no such account.</summary>
     Task<SessionIssueResult?> SignInThisComputerAccountAsync(string deviceId, string deviceName, string client, CancellationToken ct = default);
     /// <summary>The display name of the this-computer-only account, or <c>null</c> when there is none.</summary>

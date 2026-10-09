@@ -46,8 +46,8 @@ public sealed class FirstPartyIdentityService(
     /// Desktop "use on this computer" start: the administrator has a name and an email but no password, so the
     /// account works only on this computer until it is secured. The session is issued from this computer.
     /// </summary>
-    public Task<SessionIssueResult> BootstrapThisComputerAdministratorAsync(string email, string displayName, string deviceId, string deviceName, string client, CancellationToken ct = default) =>
-        BootstrapCoreAsync(email, null, displayName, deviceId, deviceName, client, null, ClientIngress.ThisComputer, ct);
+    public Task<SessionIssueResult> BootstrapThisComputerAdministratorAsync(string email, string displayName, string deviceId, string deviceName, string client, CancellationToken ct = default, string? pin = null) =>
+        BootstrapCoreAsync(email, null, displayName, deviceId, deviceName, client, pin, ClientIngress.ThisComputer, ct);
 
     public async Task<SessionIssueResult?> SignInThisComputerAccountAsync(string deviceId, string deviceName, string client, CancellationToken ct = default)
     {
@@ -226,7 +226,9 @@ public sealed class FirstPartyIdentityService(
         }
 
         // An account that has no password yet works only on this computer, not even from the home network.
-        if (currentIngress is not null && !ClientIngress.SessionMayContinue(session.IssuedIngress, currentIngress, account.IsThisComputerOnly))
+        // Callers that do not say where the request came from count as outside for this kind of account.
+        var effectiveIngress = currentIngress ?? (account.IsThisComputerOnly ? ClientIngress.Remote : null);
+        if (effectiveIngress is not null && !ClientIngress.SessionMayContinue(session.IssuedIngress, effectiveIngress, account.IsThisComputerOnly))
         {
             return null;
         }

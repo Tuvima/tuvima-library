@@ -598,7 +598,17 @@ public static class AuthenticationEndpoints
     /// <summary>Only the Dashboard (service credential) may say where the browser is; a missing header counts as remote.</summary>
     private static bool ComesFromThisComputer(HttpRequest request) =>
         request.HttpContext.User.HasClaim(TuvimaClaimTypes.DashboardService, "true")
-        && ClientIngress.Parse(request.Headers[ClientIngressValues.ValidateHeader].ToString()) == ClientIngress.ThisComputer;
+        && ClientIngress.Parse(request.Headers[ClientIngressValues.ValidateHeader].ToString()) == ClientIngress.ThisComputer
+        && !WasForwarded(request);
+
+    /// <summary>
+    /// A tunnel such as cloudflared or ngrok on this computer looks like loopback, so a visitor whose request carried
+    /// forwarding headers (seen by the Dashboard, which says so in a header, or by the Engine itself) is not trusted.
+    /// </summary>
+    private static bool WasForwarded(HttpRequest request) =>
+        string.Equals(request.Headers[ClientIngressValues.ForwardedHeader].ToString(), "true", StringComparison.OrdinalIgnoreCase)
+        || request.Headers.ContainsKey("X-Forwarded-For")
+        || request.Headers.ContainsKey("Forwarded");
 
     private static bool IsLoginPermittedFor(IConfigurationLoader configuration, LocalLoginRequest request)
     {

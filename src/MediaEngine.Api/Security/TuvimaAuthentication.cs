@@ -122,7 +122,13 @@ public sealed class TuvimaAuthenticationHandler(
             if (Request.Headers.TryGetValue(TuvimaAuthDefaults.SessionHeader, out var sessionValues)
                 && !string.IsNullOrWhiteSpace(sessionValues.ToString()))
             {
-                session = await identity.ValidateSessionAsync(sessionValues.ToString(), true, Context.RequestAborted).ConfigureAwait(false);
+                // The Dashboard says where the visitor is when it knows; an account that works only on this computer
+                // is refused when it does not.
+                var claimedIngress = Request.Headers.TryGetValue(ClientIngressValues.ValidateHeader, out var ingressValues)
+                    && !string.IsNullOrWhiteSpace(ingressValues.ToString())
+                    ? ClientIngress.Parse(ingressValues.ToString())
+                    : null;
+                session = await identity.ValidateSessionAsync(sessionValues.ToString(), true, Context.RequestAborted, claimedIngress).ConfigureAwait(false);
                 if (session is null)
                 {
                     return AuthenticateResult.Fail("Invalid or revoked user session.");

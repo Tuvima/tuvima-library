@@ -216,6 +216,41 @@ public sealed class ThisComputerAccessTests : IDisposable
     }
 
     [Fact]
+    public async Task SignInAgain_IsRefusedWhenTheRequestWasForwarded()
+    {
+        await _identity.BootstrapThisComputerAdministratorAsync("owner@example.com", "Owner", "d", "Browser", "Dashboard");
+        await using var app = BuildAuthenticationApplication();
+
+        var dashboardSaidForwarded = await SendAsync(app, "GET", "/auth/this-computer", ingress: ClientIngress.ThisComputer,
+            extraHeaders: new() { [ClientIngressValues.ForwardedHeader] = "true" });
+        var engineSawForwarding = await SendAsync(app, "GET", "/auth/this-computer", ingress: ClientIngress.ThisComputer,
+            extraHeaders: new() { ["X-Forwarded-For"] = "203.0.113.9" });
+
+        Assert.Equal(StatusCodes.Status404NotFound, dashboardSaidForwarded.Status);
+        Assert.Equal(StatusCodes.Status404NotFound, engineSawForwarding.Status);
+    }
+
+    [Fact]
+    public async Task Setup_ThisComputer_IsRefusedWhenSetupBeganOnTheHomeNetwork()
+    {
+        await new SetupCodeRepository(_database).IssueAsync("ABCD-EFGH", DateTimeOffset.UtcNow, CancellationToken.None);
+        var begun = await _setupSessions.BeginAsync(ClientIngress.HomeNetwork, "ABCD-EFGH", CancellationToken.None);
+        var token = Assert.IsType<SetupStartResponse>(begun.Started).SetupSessionToken;
+        await using var app = BuildSetupApplication();
+
+        var response = await SendAsync(app, "POST", "/setup/v1/administrator", new SetupAdministratorRequest
+        {
+            SignIn = SetupSignInModes.ThisComputer,
+            Email = "owner@example.com",
+            DisplayName = "Owner",
+            OriginalClientIngress = ClientIngress.ThisComputer,
+        }, setupToken: token);
+
+        Assert.Equal(StatusCodes.Status409Conflict, response.Status);
+        Assert.False(await _identity.IsAdministratorConfiguredAsync());
+    }
+
+    [Fact]
     public async Task SignInAgain_IsNotOfferedToCallersWithoutTheDashboardCredential()
     {
         await _identity.BootstrapThisComputerAdministratorAsync("owner@example.com", "Owner", "d", "Browser", "Dashboard");
@@ -537,7 +572,8 @@ public sealed class ThisComputerAccessTests : IDisposable
         string? ingress = null,
         bool dashboard = true,
         string? setupToken = null,
-        string? sessionToken = null)
+        string? sessionToken = null,
+        Dictionary<string, string>? extraHeaders = null)
     {
         var endpoint = Assert.Single(((IEndpointRouteBuilder)app).DataSources
             .SelectMany(source => source.Endpoints)
@@ -573,6 +609,11 @@ public sealed class ThisComputerAccessTests : IDisposable
         if (ingress is not null)
         {
             context.Request.Headers[ClientIngressValues.ValidateHeader] = ingress;
+        }
+
+        foreach (var (name, value) in extraHeaders ?? [])
+        {
+            context.Request.Headers[name] = value;
         }
 
         if (setupToken is not null)

@@ -136,6 +136,7 @@ public static class NetworkEndpoints
             INetworkDiagnosticsService diagnostics,
             IConfigurationLoader configuration,
             RouterPortMappingCoordinator routerMappings,
+            SecureAccountGate secureAccount,
             CancellationToken ct) =>
         {
             var availability = await diagnostics.CheckPortAvailabilityAsync(request.Port, ct);
@@ -149,8 +150,10 @@ public static class NetworkEndpoints
             try
             {
                 configuration.SaveNetwork(current);
+                // Opening a router port lets others in, so it waits until the account has a password or passkey.
                 if (current.Remote.AutomaticRouterConfiguration
-                    && current.Remote.ConnectionMode == NetworkConnectionModes.DirectOnly)
+                    && current.Remote.ConnectionMode == NetworkConnectionModes.DirectOnly
+                    && !await secureAccount.IsLockedAsync(ct))
                 {
                     await routerMappings.EnsureMappingAsync(ct);
                 }
@@ -182,6 +185,7 @@ public static class NetworkEndpoints
             await routerMappings.EnsureMappingAsync(ct);
             return Results.Ok(status.GetStatus());
         })
+        .RequireSecuredAccount()
         .WithName("RenewNetworkRouterMapping")
         .WithSummary("Renew or recreate the Tuvima-owned router mapping now.")
         .Produces<NetworkRuntimeStatusDto>()

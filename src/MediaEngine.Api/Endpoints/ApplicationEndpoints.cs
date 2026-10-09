@@ -1,6 +1,7 @@
 using MediaEngine.Api.Http;
 using MediaEngine.Api.Security;
 using MediaEngine.Api.Services;
+using MediaEngine.Api.Services.Security;
 using MediaEngine.Contracts.Authentication;
 using MediaEngine.Domain.Authorization;
 
@@ -71,6 +72,7 @@ public static class ApplicationEndpoints
                 authorityResolver,
                 (authority, token) => service.CreateApplicationAsync(authority, request, token),
                 ct))
+            .RequireSecuredAccount()
             .WithName("CreateApplication")
             .WithSummary("Create an Application with validated permissions.")
             .Produces<ApplicationResponse>()
@@ -163,6 +165,7 @@ public static class ApplicationEndpoints
                 authorityResolver,
                 (authority, token) => service.IssueCredentialAsync(authority, applicationId, request, token),
                 ct))
+            .RequireSecuredAccount()
             .WithName("IssueApplicationCredential")
             .WithSummary("Issue a one-time plaintext credential for an enabled Application.")
             .Produces<ApplicationCredentialIssuedResponse>()
@@ -188,6 +191,7 @@ public static class ApplicationEndpoints
                     request,
                     token),
                 ct))
+            .RequireSecuredAccount()
             .WithName("RotateApplicationCredential")
             .WithSummary("Atomically revoke one credential and issue its replacement.")
             .Produces<ApplicationCredentialIssuedResponse>()

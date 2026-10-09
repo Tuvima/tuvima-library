@@ -135,7 +135,9 @@ public static class SetupEndpoints
                 if (signIn == SetupSignInModes.ThisComputer)
                 {
                     // Desktop only, and only from this computer: begin with a name and email, add a password later.
-                    if (!ThisComputerAccess.IsAvailable(request.OriginalClientIngress, container.IsContainer()))
+                    // Both where setup began and where this request comes from must be this computer.
+                    if (!sessions.BeganFromThisComputer(context.Request.Headers[SetupSessionService.SessionHeader].ToString())
+                        || !ThisComputerAccess.IsAvailable(request.OriginalClientIngress, container.IsContainer()))
                     {
                         return ApiErrors.Conflict(
                             SetupAdministratorRefusalCodes.NotAvailableHere,
@@ -158,7 +160,7 @@ public static class SetupEndpoints
                     network.NativeAppAccess.Enabled = false;
                     configuration.SaveNetwork(network);
                     issued = await identity.BootstrapThisComputerAdministratorAsync(
-                        request.Email, request.DisplayName, request.DeviceId, request.DeviceName, "Tuvima Setup", ct).ConfigureAwait(false);
+                        request.Email, request.DisplayName, request.DeviceId, request.DeviceName, "Tuvima Setup", ct, request.Pin).ConfigureAwait(false);
                 }
                 else
                 {

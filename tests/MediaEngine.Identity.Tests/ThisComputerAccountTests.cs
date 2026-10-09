@@ -79,10 +79,20 @@ public sealed class ThisComputerAccountTests : IDisposable
     }
 
     [Fact]
-    public async Task Session_StillWorksForInternalCallersThatCarryNoOrigin()
+    public async Task Session_WithNoStatedOrigin_IsRefusedForThisKindOfAccount()
     {
         var issued = await _service.BootstrapThisComputerAdministratorAsync(
             "owner@example.com", "Owner", "device", "Browser", "Dashboard");
+
+        Assert.Null(await _service.ValidateSessionAsync(issued.PlaintextToken, touch: false));
+    }
+
+    [Fact]
+    public async Task Session_WithNoStatedOrigin_StillWorksForAnAccountWithAPassword()
+    {
+        var issued = await _service.BootstrapAdministratorAsync(
+            "owner@example.com", "correct horse battery staple", "Owner", "device", "Browser", "Dashboard",
+            ingress: ClientIngress.ThisComputer);
 
         Assert.NotNull(await _service.ValidateSessionAsync(issued.PlaintextToken, touch: false));
     }
