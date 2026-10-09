@@ -6830,11 +6830,9 @@ MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.AdaptiveHlsSetting
 MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.AuthSettingsDto
   Mode: System.String | nullability=not-null | accessors=get,init
   LocalhostBypass: System.Boolean | nullability=not-null | accessors=get,init
-  RequireHttpsRemote: System.Boolean | nullability=not-null | accessors=get,init
   PasswordSignInEnabled: System.Boolean | nullability=not-null | accessors=get,init
   PasskeySignInEnabled: System.Boolean | nullability=not-null | accessors=get,init
   ExternalSignInEnabled: System.Boolean | nullability=not-null | accessors=get,init
-  AllowRemoteSignIn: System.Boolean | nullability=not-null | accessors=get,init
   AllowLocalOnlyAccounts: System.Boolean | nullability=not-null | accessors=get,init
   TrustedLocalNetworks: System.Collections.Generic.List<System.String> | nullability=not-null | accessors=get,init
   InvitationLifetimeHours: System.Int32 | nullability=not-null | accessors=get,init
@@ -7100,6 +7098,7 @@ MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.NetworkRuntimeStat
 
 MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.NetworkSettingsDto
   SchemaVersion: System.String | nullability=not-null | accessors=get,set
+  WhoCanConnect: System.String | nullability=not-null | accessors=get,set
   Local: MediaEngine.Contracts.Settings.LocalNetworkSettingsDto | nullability=not-null | accessors=get,set
   Remote: MediaEngine.Contracts.Settings.RemoteNetworkSettingsDto | nullability=not-null | accessors=get,set
   Streaming: MediaEngine.Contracts.Settings.NetworkStreamingSettingsDto | nullability=not-null | accessors=get,set
@@ -7361,7 +7360,6 @@ MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.RemoteAccessReadin
   Checks: System.Collections.Generic.List<MediaEngine.Contracts.Settings.NetworkTestCheckDto> | nullability=not-null | accessors=get,set
 
 MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.RemoteNetworkSettingsDto
-  Enabled: System.Boolean | nullability=not-null | accessors=get,set
   ConnectionMode: System.String | nullability=not-null | accessors=get,set
   AutomaticRouterConfiguration: System.Boolean | nullability=not-null | accessors=get,set
   ExternalPort: System.Int32? | nullability=nullable | accessors=get,set
@@ -7576,11 +7574,9 @@ MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.UIShellSettingsCon
 MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.UpdateAuthSettingsRequest
   Mode: System.String | nullability=not-null | accessors=get,init
   LocalhostBypass: System.Boolean | nullability=not-null | accessors=get,init
-  RequireHttpsRemote: System.Boolean | nullability=not-null | accessors=get,init
   PasswordSignInEnabled: System.Boolean | nullability=not-null | accessors=get,init
   PasskeySignInEnabled: System.Boolean | nullability=not-null | accessors=get,init
   ExternalSignInEnabled: System.Boolean | nullability=not-null | accessors=get,init
-  AllowRemoteSignIn: System.Boolean | nullability=not-null | accessors=get,init
   AllowLocalOnlyAccounts: System.Boolean | nullability=not-null | accessors=get,init
   TrustedLocalNetworks: System.Collections.Generic.List<System.String> | nullability=not-null | accessors=get,init
   InvitationLifetimeHours: System.Int32 | nullability=not-null | accessors=get,init
