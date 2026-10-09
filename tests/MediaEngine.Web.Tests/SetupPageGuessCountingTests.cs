@@ -13,6 +13,19 @@ public sealed class SetupPageGuessCountingTests
         Assert.DoesNotContain("\"unknown\" key", source, StringComparison.Ordinal);
     }
 
+    // The Engine refuses setup from every remote caller, with or without a code. The page must say so itself,
+    // before any Engine call, so a remote visitor never spends the Engine's shared Dashboard allowance.
+    [Fact]
+    public void RemoteVisitor_IsRefusedByThePageBeforeAnyEngineCall()
+    {
+        var source = File.ReadAllText(FindSetupPage()).Replace("\r\n", "\n");
+
+        var remoteCheck = source.IndexOf("== MediaEngine.Web.Services.Configuration.IngressKind.Remote", StringComparison.Ordinal);
+        var firstEngineCall = source.IndexOf("await ApiClient.BeginSetupAsync", StringComparison.Ordinal);
+        Assert.True(remoteCheck > 0, "The page no longer checks for a remote visitor.");
+        Assert.True(remoteCheck < firstEngineCall, "The remote check must come before BeginSetupAsync.");
+    }
+
     private static string FindSetupPage()
     {
         for (var directory = new DirectoryInfo(AppContext.BaseDirectory); directory is not null; directory = directory.Parent)

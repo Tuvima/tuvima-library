@@ -41,7 +41,7 @@ Desired network state. Only the fields that decide where a Dashboard request may
 
 `local.allowed_hostnames`, `remote.proxy_port`, `auth.trusted_local_networks` and the trusted proxy lists are read at startup: restart the Dashboard after changing them.
 
-A request's origin is classified once, by the connection address and port: **This computer** (loopback), **Home network** (10/8, 172.16/12, 192.168/16, 169.254/16, IPv6 fe80::/10 and fc00::/7, plus `auth.trusted_local_networks` in `config/core.json`) or **Remote** (everything else, including Tailscale 100.64/10 addresses and anything on the proxy port). A connection arriving on the main port straight from a configured trusted proxy is treated as Remote (the visitor behind it is hidden there). Docker's default bridge gateway (172.17.0.1) counts as Home network, so a published container port can look local to the Dashboard; use `proxy_port` for proxies.
+A request's origin is classified once, by the connection address and port: **This computer** (loopback), **Home network** (10/8, 172.16/12, 192.168/16, 169.254/16, IPv6 fe80::/10 and fc00::/7, plus `auth.trusted_local_networks` in `config/core.json`) or **Remote** (everything else, including Tailscale 100.64/10 addresses and anything on the proxy port). A connection arriving on the main port straight from a configured trusted proxy is treated as Remote (the visitor behind it is hidden there), and sign-in and setup are refused for it with a "use the proxy port" message, with one warning in the Dashboard log; point the proxy at `remote.proxy_port` instead. Docker's default bridge gateway (172.17.0.1) counts as Home network, so a published container port can look local to the Dashboard; use `proxy_port` for proxies.
 
 ---
 

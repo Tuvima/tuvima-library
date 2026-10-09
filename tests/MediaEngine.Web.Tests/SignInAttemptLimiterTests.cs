@@ -145,7 +145,7 @@ public sealed class SignInAttemptLimiterTests
         Assert.Null(limiter.PlaceRefusal(viaProxyPort));
         Assert.Equal(SignInAttemptResult.Allowed, limiter.Acquire(viaProxyPort, out _));
 
-        // Someone on a different computer or the owner on this one, connecting straight to the main port.
+        // A visitor connecting straight to the main port (no trusted proxy is configured here), such as the owner on this computer.
         Assert.Null(new SignInAttemptLimiter(new IngressClassifier(5017, null), new ManualClock(), logger).PlaceRefusal(ProxyContext(5016)));
         Assert.Empty(logger.Entries);
     }

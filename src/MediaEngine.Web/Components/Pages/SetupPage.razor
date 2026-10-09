@@ -208,6 +208,19 @@
                     return;
                 }
 
+                if (MediaEngine.Web.Services.Configuration.IngressClassifierExtensions.FromWireValue(ClientIngress)
+                    == MediaEngine.Web.Services.Configuration.IngressKind.Remote)
+                {
+                    // The Engine refuses setup from anywhere remote, with or without a code. Saying so here means a
+                    // remote visitor never spends the Engine's shared Dashboard allowance that home setup relies on.
+                    _remoteRefused = true;
+                    _codeRequired = false;
+                    _codeMessage = null;
+                    _loading = false;
+                    StateHasChanged();
+                    return;
+                }
+
                 // Only a submitted code is a guess. Loading the page, or starting with no code, checks nothing the
                 // visitor could be guessing at, so it must not use up their allowance.
                 if (submittedCode.Length > 0 && !TryCountGuess())

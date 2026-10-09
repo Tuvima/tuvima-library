@@ -116,6 +116,30 @@ public sealed class ProfileSwitchLimitTests
     }
 
     [Fact]
+    public async Task WithoutAnHttpContext_TheSessionsKnownIngressDecidesWhichBucketIsUsed()
+    {
+        var limiter = NewLimiter();
+        var remoteHandler = new CountingHandler(PinRequired);
+        var homeHandler = new CountingHandler(PinRequired);
+        // A Blazor circuit has no HttpContext; the session remembers where it was last seen.
+        DashboardIdentityClient CircuitClient(CountingHandler handler) => new(new Factory(handler), new FixedAccessor(null!), ingress: Classifier, signInLimiter: limiter);
+        var remote = CircuitClient(remoteHandler);
+        var home = CircuitClient(homeHandler);
+
+        for (var index = 0; index < DashboardIdentityClient.ProfilePinAttemptsPerMinute; index++)
+        {
+            Assert.Equal(DashboardProfileSwitchStatus.PinRequired,
+                (await remote.SwitchProfileAsync(new SwitchProfileRequest { ProfileId = Profile, Secret = "0000" }, default, ClientIngressValues.Remote)).Status);
+        }
+
+        Assert.Equal(DashboardProfileSwitchStatus.TooManyAttempts,
+            (await remote.SwitchProfileAsync(new SwitchProfileRequest { ProfileId = Profile, Secret = "0000" }, default, ClientIngressValues.Remote)).Status);
+        Assert.Equal(DashboardProfileSwitchStatus.PinRequired,
+            (await home.SwitchProfileAsync(new SwitchProfileRequest { ProfileId = Profile, Secret = "2468" }, default, ClientIngressValues.HomeNetwork)).Status);
+        Assert.Equal(1, homeHandler.Calls);
+    }
+
+    [Fact]
     public async Task EngineTooManyAttempts_MapsToTooManyAttempts()
     {
         var limiter = NewLimiter();
