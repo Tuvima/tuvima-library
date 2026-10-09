@@ -27,6 +27,7 @@ public sealed partial class EngineApiClient : IEngineApiClient, IDisposable
 {
     private readonly HttpClient _http;
     private readonly IActiveProfileAccessor? _progressProfile;
+    private readonly OpenScreenRegistry? _openScreens;
     private readonly UserProgressChangeNotifier? _progressChanges;
     private readonly ILogger<EngineApiClient> _logger;
     private readonly StreamingServiceLogoResolver _streamingServiceLogos;
@@ -40,10 +41,12 @@ public sealed partial class EngineApiClient : IEngineApiClient, IDisposable
         StreamingServiceLogoResolver? streamingServiceLogos = null,
         ILoggerFactory? loggerFactory = null,
         EngineApiFailureState? failureState = null,
-        IActiveProfileAccessor? progressProfile = null)
+        IActiveProfileAccessor? progressProfile = null,
+        OpenScreenRegistry? openScreens = null)
     {
         _http = http;
         _progressProfile = progressProfile;
+        _openScreens = openScreens;
         _logger = logger;
         _streamingServiceLogos = streamingServiceLogos ?? new StreamingServiceLogoResolver();
         _failureState = failureState ?? new EngineApiFailureState();
@@ -53,8 +56,9 @@ public sealed partial class EngineApiClient : IEngineApiClient, IDisposable
     }
 
     internal EngineApiClient(HttpClient http, ILogger<EngineApiClient> logger, UserProgressChangeNotifier progressChanges,
-        IActiveProfileAccessor? progressProfile = null, StreamingServiceLogoResolver? streamingServiceLogos = null, ILoggerFactory? loggerFactory = null, EngineApiFailureState? failureState = null)
-        : this(http, logger, streamingServiceLogos, loggerFactory, failureState, progressProfile) => _progressChanges = progressChanges;
+        IActiveProfileAccessor? progressProfile = null, StreamingServiceLogoResolver? streamingServiceLogos = null, ILoggerFactory? loggerFactory = null, EngineApiFailureState? failureState = null,
+        OpenScreenRegistry? openScreens = null)
+        : this(http, logger, streamingServiceLogos, loggerFactory, failureState, progressProfile, openScreens) => _progressChanges = progressChanges;
 
     public string ToAbsoluteEngineUrl(string value) => AbsoluteUrl(value);
 

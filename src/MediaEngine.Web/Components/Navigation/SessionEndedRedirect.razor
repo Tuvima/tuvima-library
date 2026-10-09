@@ -1,0 +1,26 @@
+@implements IDisposable
+@inject AuthenticationStateProvider Authentication
+@inject NavigationManager Navigation
+@inject ILogger<SessionEndedRedirect> Logger
+@using Microsoft.AspNetCore.Components.Authorization
+
+@* Sends an open screen to the sign-in page the moment its sign-in is gone (removed, signed out, or no longer allowed here). *@
+
+@code {
+    protected override void OnInitialized() => Authentication.AuthenticationStateChanged += OnAuthenticationStateChanged;
+
+    private async void OnAuthenticationStateChanged(Task<AuthenticationState> state)
+    {
+        try
+        {
+            if ((await state).User.Identity?.IsAuthenticated == true) return;
+            await InvokeAsync(() => Navigation.NavigateTo("/auth/login", forceLoad: true));
+        }
+        catch (Exception exception)
+        {
+            Logger.LogWarning(exception, "Could not send a signed-out screen to the sign-in page.");
+        }
+    }
+
+    public void Dispose() => Authentication.AuthenticationStateChanged -= OnAuthenticationStateChanged;
+}

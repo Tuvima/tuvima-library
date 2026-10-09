@@ -22,6 +22,8 @@ using MediaEngine.Web.Services.Theming;
 using MediaEngine.Web.Services.Ui;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Components.Authorization;
+using Microsoft.AspNetCore.Components.Server.Circuits;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.HttpOverrides;
@@ -218,6 +220,10 @@ builder.Services.AddAuthorization(options =>
         .Build();
 });
 builder.Services.AddCascadingAuthenticationState();
+// Open screens re-check their sign-in every minute and can be closed at once after a big access change.
+builder.Services.AddSingleton<OpenScreenRegistry>();
+builder.Services.AddScoped<AuthenticationStateProvider, SessionRevalidatingAuthenticationStateProvider>();
+builder.Services.AddScoped<CircuitHandler, OpenScreenCircuitHandler>();
 
 PaletteProvider.Initialize(dashboardConfig.LoadPalette());
 builder.Services.AddHostedService<DashboardPaletteReloadService>();
@@ -279,7 +285,8 @@ builder.Services.AddScoped<EngineApiClient>(services => new EngineApiClient(
     services.GetRequiredService<IActiveProfileAccessor>(),
     services.GetService<StreamingServiceLogoResolver>(),
     services.GetService<ILoggerFactory>(),
-    services.GetService<EngineApiFailureState>()));
+    services.GetService<EngineApiFailureState>(),
+    services.GetService<OpenScreenRegistry>()));
 builder.Services.AddScoped<IEngineApiClient>(services => services.GetRequiredService<EngineApiClient>());
 builder.Services.AddScoped<EngineApiFailureState>();
 builder.Services.AddHttpClient("EngineViewMedia", ConfigureEngineClient)
