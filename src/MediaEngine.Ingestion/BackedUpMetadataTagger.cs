@@ -77,7 +77,9 @@ public abstract class BackedUpMetadataTagger
         {
             onFailure(ex);
             if (backupCreated)
+            {
                 RestoreBackup(sourceBackupPath: backupPath, destinationOriginalPath: filePath);
+            }
             throw;
         }
     }
@@ -106,7 +108,9 @@ public abstract class BackedUpMetadataTagger
         {
             onFailure(ex);
             if (backupCreated)
+            {
                 RestoreBackup(sourceBackupPath: backupPath, destinationOriginalPath: filePath);
+            }
             throw;
         }
     }
@@ -114,16 +118,24 @@ public abstract class BackedUpMetadataTagger
     private static void EnsureBackupCapacity(string filePath)
     {
         var root = Path.GetPathRoot(Path.GetFullPath(filePath));
-        if (string.IsNullOrWhiteSpace(root)) return;
+        if (string.IsNullOrWhiteSpace(root))
+        {
+            return;
+        }
 
         try
         {
             var drive = new DriveInfo(root);
-            if (!drive.IsReady) return;
+            if (!drive.IsReady)
+            {
+                return;
+            }
             const long reserve = 16L * 1024 * 1024;
             var required = new FileInfo(filePath).Length;
             if (drive.AvailableFreeSpace < required || drive.AvailableFreeSpace - required < reserve)
+            {
                 throw new IOException("There is not enough free space to make a recoverable media backup.");
+            }
         }
         catch (ArgumentException)
         {

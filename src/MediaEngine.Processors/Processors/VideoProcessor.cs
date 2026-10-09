@@ -291,7 +291,10 @@ public sealed class VideoProcessor : IMediaProcessor
             {
                 var hints = MediaEngine.Domain.Services.ReleaseTitleHints.Parse(basicTitle);
                 claims.Add(Claim("title", hints.Title ?? basicTitle, 0.50));
-                if (hints.Year is not null) claims.Add(Claim("year", hints.Year, 0.50));
+                if (hints.Year is not null)
+                {
+                    claims.Add(Claim("year", hints.Year, 0.50));
+                }
             }
         }
 

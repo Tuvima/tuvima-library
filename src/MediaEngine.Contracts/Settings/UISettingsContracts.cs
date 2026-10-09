@@ -11,7 +11,7 @@ public sealed class ResolvedUISettingsDto
     public bool DarkMode { get; set; } = true;
 
     [JsonPropertyName("accent_color")]
-    public string AccentColor { get; set; } = "#8B5CF6";
+    public string AccentColor { get; set; } = "#8852FC";
 
     [JsonPropertyName("content_padding")]
     public string ContentPadding { get; set; } = "pa-4";
@@ -44,7 +44,7 @@ public sealed class UIGlobalSettingsDto
     public bool DarkMode { get; set; } = true;
 
     [JsonPropertyName("accent_color")]
-    public string AccentColor { get; set; } = "#8B5CF6";
+    public string AccentColor { get; set; } = "#8852FC";
 
     [JsonPropertyName("content_padding")]
     public string ContentPadding { get; set; } = "pa-4";

@@ -1,6 +1,6 @@
 using Bunit;
-using MediaEngine.Web.Components.Listen;
 using MediaEngine.Web.Components.Details;
+using MediaEngine.Web.Components.Listen;
 using MediaEngine.Web.Components.Shared;
 using MediaEngine.Web.Services.Playback;
 using Microsoft.Extensions.DependencyInjection;

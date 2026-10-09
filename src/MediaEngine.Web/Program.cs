@@ -3,9 +3,10 @@ using System.Net;
 using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
-using MediaEngine.Domain.Models;
 using MediaEngine.Contracts.Startup;
+using MediaEngine.Domain.Models;
 using MediaEngine.Web.Components;
+using MediaEngine.Web.Components.Shared;
 using MediaEngine.Web.Endpoints;
 using MediaEngine.Web.Models.ViewDTOs;
 using MediaEngine.Web.Services.Branding;
@@ -18,6 +19,7 @@ using MediaEngine.Web.Services.Narration;
 using MediaEngine.Web.Services.Navigation;
 using MediaEngine.Web.Services.Playback;
 using MediaEngine.Web.Services.Theming;
+using MediaEngine.Web.Services.Ui;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.DataProtection;
@@ -27,8 +29,6 @@ using Microsoft.AspNetCore.Localization;
 using Microsoft.AspNetCore.ResponseCompression;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Hosting.WindowsServices;
-using MediaEngine.Web.Components.Shared;
-using MediaEngine.Web.Services.Ui;
 
 using var processInstanceLease = ProcessInstanceLease.TryAcquire(ProcessInstanceLease.DashboardLeaseName);
 if (!processInstanceLease.IsAcquired)
@@ -284,7 +284,11 @@ builder.Services.AddHttpClient("EngineArtwork", ConfigureEngineClient)
     .AddHttpMessageHandler<DashboardEngineAuthenticationHandler>();
 builder.Services.AddHttpClient("EngineIdentity", ConfigureEngineClient)
     .AddHttpMessageHandler<DashboardEngineAuthenticationHandler>();
-builder.Services.AddHttpClient("ClientApiProxy", client => client.BaseAddress = new Uri(apiBase));
+// The app door never carries the Dashboard's service credential. No cookies are stored or replayed
+// between apps, and Engine redirects are handed back instead of followed.
+builder.Services.AddSingleton<INativeAppAccessGate>(new NetworkSettingsNativeAppAccessGate(dashboardConfig, configDir));
+builder.Services.AddSingleton<NativeAppPairingThrottle>();
+builder.Services.AddClientApiProxyClient(new Uri(apiBase));
 builder.Services.AddHealthChecks()
     .AddCheck<DashboardEngineHealthCheck>("engine_liveness", tags: ["readiness"]);
 
@@ -299,7 +303,7 @@ builder.Services.AddScoped<MediaEditorLauncherService>();
 builder.Services.AddScoped<CollectionEditorLauncherService>();
 builder.Services.AddScoped<GalleryEditorLauncherService>();
 builder.Services.AddScoped<MediaTileComposerService>();
- builder.Services.AddScoped<RecentViewAssetAdapter>();
+builder.Services.AddScoped<RecentViewAssetAdapter>();
 builder.Services.AddScoped<SavedItemService>();
 builder.Services.AddScoped<MediaReactionService>();
 builder.Services.AddSingleton(dashboardConfig.LoadPlaybackClientSettings());
@@ -372,7 +376,9 @@ app.UseForwardedHeaders();
 app.UseWebSockets();
 app.UseResponseCompression();
 if (app.Environment.IsDevelopment() && !string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("TUVIMA_HOME_MEDIA_QA")))
+{
     app.UseMiddleware<MediaEngine.Web.Services.HomeMediaQaTextMiddleware>();
+}
 
 if (!app.Environment.IsDevelopment())
 {

@@ -1,5 +1,6 @@
 using MediaEngine.Domain.Services;
 namespace MediaEngine.Domain.Tests;
+
 public class IsbnValidationTests
 {
     [Theory]

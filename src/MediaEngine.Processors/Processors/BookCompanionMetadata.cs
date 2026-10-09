@@ -13,7 +13,10 @@ internal static class BookCompanionMetadata
         var named = Path.ChangeExtension(filePath, ".opf");
         var calibre = Path.Combine(Path.GetDirectoryName(filePath)!, "metadata.opf");
         var path = File.Exists(named) ? named : calibre;
-        if (!File.Exists(path)) return null;
+        if (!File.Exists(path))
+        {
+            return null;
+        }
         try
         {
             using var reader = XmlReader.Create(path, new XmlReaderSettings
@@ -47,15 +50,23 @@ internal static class BookCompanionMetadata
                 value = uuid.ToString("D");
             }
             else if (scheme is "asin" or "amazon" && value.Length == 10 && value.All(char.IsAsciiLetterOrDigit))
+            {
                 key = "asin";
+            }
             else if (scheme == "goodreads" && value.Length > 0 && value.All(char.IsAsciiDigit))
+            {
                 key = "goodreads_id";
+            }
             else if (scheme == "google" && value.Length > 0)
+            {
                 key = "google_books_id";
+            }
 
             // Calibre's numeric row ID is local to one database, never a book identity.
             if (key is not null && !claims.Any(claim => claim.Key == key && claim.Value == value))
+            {
                 claims.Add(ProcessorClaimFactory.Create(key, value, 0.9));
+            }
         }
     }
 }

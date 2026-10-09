@@ -54,12 +54,14 @@ public sealed class AudioMetadataReadbackTests
                 new MediaTypeExtensionCatalog());
             await tagger.WriteTagsAsync(path, new Dictionary<string, string>
             {
-                ["title"] = "Saved title", ["album"] = "Saved album",
+                ["title"] = "Saved title",
+                ["album"] = "Saved album",
             });
 
             var mismatched = await tagger.VerifyTagsAsync(path, new Dictionary<string, string>
             {
-                ["title"] = "Different title", ["album"] = "Saved album",
+                ["title"] = "Different title",
+                ["album"] = "Saved album",
             });
             Assert.False(mismatched.IsVerified);
             Assert.Contains("title", mismatched.Reason);
@@ -141,8 +143,13 @@ public sealed class AudioMetadataReadbackTests
 
     private static void DeleteFixture(string path)
     {
-        if (File.Exists(path)) File.Delete(path);
+        if (File.Exists(path))
+        {
+            File.Delete(path);
+        }
         if (File.Exists(path + BackedUpMetadataTagger.BackupSuffix))
+        {
             File.Delete(path + BackedUpMetadataTagger.BackupSuffix);
+        }
     }
 }

@@ -242,9 +242,13 @@ public sealed class AudiobookBookmarkDialogTests : AsyncBunitContext
             SavedNote = note;
             var result = PendingSave is null ? SaveResult : await PendingSave.Task;
             if (result.Outcome == AudiobookBookmarkOperationOutcome.Success && result.Value is { } bookmark)
+            {
                 _saved = [bookmark with { Note = note }];
+            }
             else if (result.Outcome == AudiobookBookmarkOperationOutcome.Unknown)
+            {
                 _unknown = true;
+            }
             Changed?.Invoke(context.DialogId);
             return result;
         }

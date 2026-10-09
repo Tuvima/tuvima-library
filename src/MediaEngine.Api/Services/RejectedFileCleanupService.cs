@@ -30,10 +30,21 @@ public sealed class RejectedFileCleanupService : BackgroundService
         try
         {
             if (!IsSameOrChild(rejectedDirectory, filePath)
-                || string.Equals(Path.GetFullPath(filePath), Path.GetFullPath(rejectedDirectory), StringComparison.OrdinalIgnoreCase)) return false;
-            if (File.Exists(filePath) && (File.GetAttributes(filePath) & FileAttributes.ReparsePoint) != 0) return false;
+                || string.Equals(Path.GetFullPath(filePath), Path.GetFullPath(rejectedDirectory), StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+            if (File.Exists(filePath) && (File.GetAttributes(filePath) & FileAttributes.ReparsePoint) != 0)
+            {
+                return false;
+            }
             for (var directory = new DirectoryInfo(Path.GetDirectoryName(Path.GetFullPath(filePath))!); directory is not null; directory = directory.Parent)
-                if (directory.Exists && (directory.Attributes & FileAttributes.ReparsePoint) != 0) return false;
+            {
+                if (directory.Exists && (directory.Attributes & FileAttributes.ReparsePoint) != 0)
+                {
+                    return false;
+                }
+            }
             return true;
         }
         catch (Exception ex) when (ex is ArgumentException or IOException or UnauthorizedAccessException or NotSupportedException)
@@ -158,33 +169,35 @@ public sealed class RejectedFileCleanupService : BackgroundService
         var expiredAssets = new List<(Guid AssetId, string FilePath, Guid? WorkId, Guid? CollectionId, string? WorkTitle)>();
 
         using (var conn = _db.CreateConnection())
-        using (var cmd = conn.CreateCommand())
         {
-            cmd.CommandText = """
-                SELECT ma.id         AS AssetId,
-                       ma.file_path_root AS FilePath,
-                       e.work_id     AS WorkId,
-                       w.collection_id      AS CollectionId,
-                       cv.value      AS WorkTitle
-                FROM works w
-                INNER JOIN editions e ON e.work_id = w.id
-                INNER JOIN media_assets ma ON ma.edition_id = e.id
-                LEFT JOIN canonical_values cv ON cv.entity_id = ma.id AND cv.key = 'title'
-                WHERE w.curator_state = 'rejected'
-                  AND w.rejected_at IS NOT NULL
-                  AND w.rejected_at <= @cutoff
-                """;
-            cmd.Parameters.AddWithValue("@cutoff", cutoff);
-
-            using var reader = cmd.ExecuteReader();
-            while (reader.Read())
+            using (var cmd = conn.CreateCommand())
             {
-                expiredAssets.Add((
-                    AssetId: GuidSql.FromDb(reader.GetValue(0)),
-                    FilePath: reader.GetString(1),
-                    WorkId: reader.IsDBNull(2) ? null : GuidSql.FromDb(reader.GetValue(2)),
-                    CollectionId: reader.IsDBNull(3) ? null : GuidSql.FromDb(reader.GetValue(3)),
-                    WorkTitle: reader.IsDBNull(4) ? null : reader.GetString(4)));
+                cmd.CommandText = """
+                    SELECT ma.id         AS AssetId,
+                           ma.file_path_root AS FilePath,
+                           e.work_id     AS WorkId,
+                           w.collection_id      AS CollectionId,
+                           cv.value      AS WorkTitle
+                    FROM works w
+                    INNER JOIN editions e ON e.work_id = w.id
+                    INNER JOIN media_assets ma ON ma.edition_id = e.id
+                    LEFT JOIN canonical_values cv ON cv.entity_id = ma.id AND cv.key = 'title'
+                    WHERE w.curator_state = 'rejected'
+                      AND w.rejected_at IS NOT NULL
+                      AND w.rejected_at <= @cutoff
+                    """;
+                cmd.Parameters.AddWithValue("@cutoff", cutoff);
+
+                using var reader = cmd.ExecuteReader();
+                while (reader.Read())
+                {
+                    expiredAssets.Add((
+                        AssetId: GuidSql.FromDb(reader.GetValue(0)),
+                        FilePath: reader.GetString(1),
+                        WorkId: reader.IsDBNull(2) ? null : GuidSql.FromDb(reader.GetValue(2)),
+                        CollectionId: reader.IsDBNull(3) ? null : GuidSql.FromDb(reader.GetValue(3)),
+                        WorkTitle: reader.IsDBNull(4) ? null : reader.GetString(4)));
+                }
             }
         }
 
@@ -234,20 +247,24 @@ public sealed class RejectedFileCleanupService : BackgroundService
 
                 // 2. Clear curator_state and remove any remaining review_queue entries.
                 using (var conn = _db.CreateConnection())
-                using (var cmd = conn.CreateCommand())
                 {
-                    cmd.CommandText = "DELETE FROM review_queue WHERE entity_id = @assetId";
-                    cmd.Parameters.Add("@assetId", SqliteType.Blob).Value = GuidSql.ToBlob(assetId);
-                    cmd.ExecuteNonQuery();
+                    using (var cmd = conn.CreateCommand())
+                    {
+                        cmd.CommandText = "DELETE FROM review_queue WHERE entity_id = @assetId";
+                        cmd.Parameters.Add("@assetId", SqliteType.Blob).Value = GuidSql.ToBlob(assetId);
+                        cmd.ExecuteNonQuery();
+                    }
                 }
 
                 // 3. Remove the media_asset (CASCADE handles metadata_claims, canonical_values).
                 using (var conn = _db.CreateConnection())
-                using (var cmd = conn.CreateCommand())
                 {
-                    cmd.CommandText = "DELETE FROM media_assets WHERE id = @assetId";
-                    cmd.Parameters.Add("@assetId", SqliteType.Blob).Value = GuidSql.ToBlob(assetId);
-                    cmd.ExecuteNonQuery();
+                    using (var cmd = conn.CreateCommand())
+                    {
+                        cmd.CommandText = "DELETE FROM media_assets WHERE id = @assetId";
+                        cmd.Parameters.Add("@assetId", SqliteType.Blob).Value = GuidSql.ToBlob(assetId);
+                        cmd.ExecuteNonQuery();
+                    }
                 }
 
                 // 4. Remove the edition if it has no remaining assets.

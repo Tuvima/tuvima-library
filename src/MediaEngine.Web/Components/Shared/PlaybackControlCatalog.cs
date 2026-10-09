@@ -1,6 +1,6 @@
+using MediaEngine.Web.Components.Shared;
 using MediaEngine.Web.Services.Formatting;
 using MediaEngine.Web.Services.Playback;
-using MediaEngine.Web.Components.Shared;
 using MediaEngine.Web.Services.Ui;
 
 namespace MediaEngine.Web.Components.Shared;
@@ -116,8 +116,14 @@ public static class PlaybackControlCatalog
             new(PlaybackControlKey.Timeline, "Playback position", "Playback position", AppMaterialIcons.Outlined.Timeline, PlaybackControlPlacement.Timeline, "seek"),
         };
 
-        if (state.CanPrevious) controls.Add(PreviousNext(experience, isNext: false));
-        if (state.CanNext) controls.Add(Next(experience));
+        if (state.CanPrevious)
+        {
+            controls.Add(PreviousNext(experience, isNext: false));
+        }
+        if (state.CanNext)
+        {
+            controls.Add(Next(experience));
+        }
 
         if (experience is PlaybackExperience.Audiobook or PlaybackExperience.Video)
         {
@@ -130,7 +136,9 @@ public static class PlaybackControlCatalog
         if (surface == PlaybackControlSurface.PictureInPicture)
         {
             if (experience == PlaybackExperience.Video)
+            {
                 controls.Add(new(PlaybackControlKey.Resume, "Restore", "Restore video", string.Empty, PlaybackControlPlacement.Utility, "restore-video"));
+            }
             return controls.Where(control => control.Key is PlaybackControlKey.PlayPause or PlaybackControlKey.Timeline or PlaybackControlKey.SkipBack or PlaybackControlKey.SkipForward or PlaybackControlKey.Resume).ToList();
         }
 
@@ -187,7 +195,8 @@ public static class PlaybackControlCatalog
                 "Chapters",
                 "chapters",
                 state,
-                IsDisabled: true) with { AriaLabel = "Chapters unavailable; no timed chapters were found" });
+                IsDisabled: true) with
+            { AriaLabel = "Chapters unavailable; no timed chapters were found" });
         }
 
         var order = new[]
@@ -263,15 +272,24 @@ public static class PlaybackControlCatalog
         switch (experience)
         {
             case PlaybackExperience.Music:
-                if (state.HasQueue) controls.Add(Tool(PlaybackControlKey.Queue, "Queue", "queue", state));
+                if (state.HasQueue)
+                {
+                    controls.Add(Tool(PlaybackControlKey.Queue, "Queue", "queue", state));
+                }
                 controls.Add(Tool(PlaybackControlKey.History, "History", "history", state));
-                if (state.HasLyrics || state.CanFindLyrics) controls.Add(Tool(PlaybackControlKey.Lyrics, "Lyrics", "lyrics", state));
+                if (state.HasLyrics || state.CanFindLyrics)
+                {
+                    controls.Add(Tool(PlaybackControlKey.Lyrics, "Lyrics", "lyrics", state));
+                }
                 controls.Add(new(PlaybackControlKey.Shuffle, "Shuffle", state.IsShuffleEnabled ? "Shuffle on" : "Shuffle off", string.Empty, PlaybackControlPlacement.ToolStrip, "shuffle", IsActive: state.IsShuffleEnabled));
                 controls.Add(new(PlaybackControlKey.Repeat, "Repeat", state.RepeatMode == "one" ? "Repeat one" : state.IsRepeatEnabled ? "Repeat all" : "Repeat off", string.Empty, PlaybackControlPlacement.ToolStrip, "repeat", IsActive: state.IsRepeatEnabled));
                 break;
             case PlaybackExperience.Audiobook:
                 controls.Add(Tool(PlaybackControlKey.Speed, "Speed", "speed", state, ValueText: DisplayFormat.FormatSpeedControl(state.PlaybackRate)));
-                if (state.HasChapters) controls.Add(Tool(PlaybackControlKey.Chapters, "Chapters", "chapters", state));
+                if (state.HasChapters)
+                {
+                    controls.Add(Tool(PlaybackControlKey.Chapters, "Chapters", "chapters", state));
+                }
                 controls.Add(Tool(PlaybackControlKey.History, "History", "history", state));
                 controls.Add(Tool(PlaybackControlKey.Bookmarks, "Bookmark", "bookmark-dialog", state));
                 var sleepTimer = new PlaybackControlDefinition(
@@ -298,13 +316,34 @@ public static class PlaybackControlCatalog
                 break;
             case PlaybackExperience.Video:
                 controls.Add(Tool(PlaybackControlKey.Speed, "Speed", "speed", state, ValueText: DisplayFormat.FormatSpeedControl(state.PlaybackRate)));
-                if (state.HasChapters) controls.Add(Tool(PlaybackControlKey.Chapters, "Chapters", "chapters", state));
-                if (state.IsTvEpisode && state.HasQueue) controls.Add(Tool(PlaybackControlKey.Queue, "Next Up", "queue", state));
-                if (state.HasCaptions || state.CanFindCaptions) controls.Add(Tool(PlaybackControlKey.Captions, "Captions", "captions", state));
-                if (state.HasAudioTracks) controls.Add(Tool(PlaybackControlKey.AudioTrack, "Audio", "audio-track", state));
-                if (state.HasQualityOptions) controls.Add(Tool(PlaybackControlKey.Quality, "Quality", "quality", state));
-                if (state.CanFullscreen) controls.Add(new(PlaybackControlKey.Fullscreen, "Fullscreen", "Fullscreen", string.Empty, PlaybackControlPlacement.Utility, "fullscreen"));
-                if (state.CanPictureInPicture) controls.Add(new(PlaybackControlKey.PictureInPicture, "PiP", "Picture in picture", string.Empty, PlaybackControlPlacement.Utility, "picture-in-picture"));
+                if (state.HasChapters)
+                {
+                    controls.Add(Tool(PlaybackControlKey.Chapters, "Chapters", "chapters", state));
+                }
+                if (state.IsTvEpisode && state.HasQueue)
+                {
+                    controls.Add(Tool(PlaybackControlKey.Queue, "Next Up", "queue", state));
+                }
+                if (state.HasCaptions || state.CanFindCaptions)
+                {
+                    controls.Add(Tool(PlaybackControlKey.Captions, "Captions", "captions", state));
+                }
+                if (state.HasAudioTracks)
+                {
+                    controls.Add(Tool(PlaybackControlKey.AudioTrack, "Audio", "audio-track", state));
+                }
+                if (state.HasQualityOptions)
+                {
+                    controls.Add(Tool(PlaybackControlKey.Quality, "Quality", "quality", state));
+                }
+                if (state.CanFullscreen)
+                {
+                    controls.Add(new(PlaybackControlKey.Fullscreen, "Fullscreen", "Fullscreen", string.Empty, PlaybackControlPlacement.Utility, "fullscreen"));
+                }
+                if (state.CanPictureInPicture)
+                {
+                    controls.Add(new(PlaybackControlKey.PictureInPicture, "PiP", "Picture in picture", string.Empty, PlaybackControlPlacement.Utility, "picture-in-picture"));
+                }
                 break;
         }
     }

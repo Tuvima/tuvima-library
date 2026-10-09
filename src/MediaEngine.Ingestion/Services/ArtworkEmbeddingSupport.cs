@@ -22,7 +22,9 @@ public static class ArtworkEmbeddingSupport
         {
             if (picture.Type == TagLib.PictureType.FrontCover
                 && picture.Data.Data.AsSpan().SequenceEqual(expected))
+            {
                 return true;
+            }
         }
         return false;
     }

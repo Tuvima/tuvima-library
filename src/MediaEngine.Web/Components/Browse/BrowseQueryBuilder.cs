@@ -47,7 +47,10 @@ public static class BrowseQueryBuilder
 
     public static LibraryLayoutMode ResolveLayout(string? requestedLayout, BrowseTabPreset tab, string grouping)
     {
-        if (grouping == "timeline") return LibraryLayoutMode.Card;
+        if (grouping == "timeline")
+        {
+            return LibraryLayoutMode.Card;
+        }
         if (grouping is "tracks" or "songs")
         {
             return LibraryLayoutMode.List;

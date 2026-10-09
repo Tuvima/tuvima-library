@@ -656,11 +656,15 @@ public sealed class HierarchyAlignmentService(IDatabaseConnection db, IHydration
                 var byIdentity = FindTvdbShowById(conn, verifiedId, tx);
                 var byName = FindParentByKey(conn, plan.MediaType, plan.RequestedParentKey, tx);
                 if (byName.HasValue && byName != byIdentity)
+                {
                     return new ResolvedMoveTarget("conflict", null, BuildTelevisionTargetPath(plan), false, false,
-                        "A different local show already uses this name.",
-                        "Resolve the existing show's TheTVDB identity before moving the episode.");
+                            "A different local show already uses this name.",
+                            "Resolve the existing show's TheTVDB identity before moving the episode.");
+                }
                 if (plan.SelectedPrimaryTargetId.HasValue && plan.SelectedPrimaryTargetId != byIdentity)
+                {
                     return IncompatibleTarget("show");
+                }
                 showId = byIdentity;
             }
             else

@@ -197,7 +197,9 @@ internal sealed class ArtworkScopeService(
         }
 
         if (discoveryOnly && MetadataEndpoints.NormalizeEditorMediaType(scope.MediaType) == "Comics")
+        {
             return new ProviderArtworkRefreshTarget(representativeAssetId, null, null, null);
+        }
 
         var lineage = await workRepo.GetLineageByAssetAsync(representativeAssetId.Value, ct);
         var qidCandidateIds = new List<Guid>();

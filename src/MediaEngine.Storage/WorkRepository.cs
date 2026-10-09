@@ -408,7 +408,10 @@ public sealed class WorkRepository : IWorkRepository
         {
             token.ThrowIfCancellationRequested();
             var found = conn.QueryFirstOrDefault<Guid?>("SELECT id FROM works WHERE media_type='Audiobooks' AND parent_key=@recordingKey AND work_kind!='parent' LIMIT 1", new { recordingKey }, tx);
-            if (found.HasValue) return found.Value;
+            if (found.HasValue)
+            {
+                return found.Value;
+            }
             var id = Guid.NewGuid();
             conn.Execute("INSERT INTO works (id,media_type,work_kind,parent_key,parent_work_id,ordinal_sort) VALUES (@id,'Audiobooks',@kind,@recordingKey,@seriesId,@ordinalSort)",
                 new { id, recordingKey, seriesId, ordinalSort, kind = seriesId.HasValue ? "child" : "standalone" }, tx);

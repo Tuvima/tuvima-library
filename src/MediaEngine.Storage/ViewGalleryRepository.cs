@@ -410,7 +410,9 @@ public sealed class ViewGalleryRepository(IDatabaseConnection database) : IViewG
         CancellationToken ct)
     {
         if (!playlistId.HasValue)
+        {
             return;
+        }
 
         var isAccessiblePlaylist = connection.ExecuteScalar<long>(new CommandDefinition("""
             SELECT COUNT(1)
@@ -421,7 +423,9 @@ public sealed class ViewGalleryRepository(IDatabaseConnection database) : IViewG
                AND (scope = 'library' OR profile_id = @ownerProfileId);
             """, new { playlistId, ownerProfileId }, transaction, cancellationToken: ct)) != 0;
         if (!isAccessiblePlaylist)
+        {
             throw new ArgumentException("Gallery soundtrack must be an accessible, enabled playlist.");
+        }
     }
 
     private static void Validate(CreateViewGalleryCommand command)

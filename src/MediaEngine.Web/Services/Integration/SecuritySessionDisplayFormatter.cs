@@ -42,25 +42,64 @@ public static class SecuritySessionDisplayFormatter
 
     private static string? Browser(string value)
     {
-        if (value.Contains("Edg/", StringComparison.OrdinalIgnoreCase)) return "Edge";
-        if (value.Contains("OPR/", StringComparison.OrdinalIgnoreCase)) return "Opera";
-        if (value.Contains("Firefox/", StringComparison.OrdinalIgnoreCase)) return "Firefox";
-        if (value.Contains("CriOS/", StringComparison.OrdinalIgnoreCase)) return "Chrome";
-        if (value.Contains("Chrome/", StringComparison.OrdinalIgnoreCase)) return "Chrome";
-        if (value.Contains("FxiOS/", StringComparison.OrdinalIgnoreCase)) return "Firefox";
-        if (value.Contains("Safari/", StringComparison.OrdinalIgnoreCase)) return "Safari";
+        if (value.Contains("Edg/", StringComparison.OrdinalIgnoreCase))
+        {
+            return "Edge";
+        }
+        if (value.Contains("OPR/", StringComparison.OrdinalIgnoreCase))
+        {
+            return "Opera";
+        }
+        if (value.Contains("Firefox/", StringComparison.OrdinalIgnoreCase))
+        {
+            return "Firefox";
+        }
+        if (value.Contains("CriOS/", StringComparison.OrdinalIgnoreCase))
+        {
+            return "Chrome";
+        }
+        if (value.Contains("Chrome/", StringComparison.OrdinalIgnoreCase))
+        {
+            return "Chrome";
+        }
+        if (value.Contains("FxiOS/", StringComparison.OrdinalIgnoreCase))
+        {
+            return "Firefox";
+        }
+        if (value.Contains("Safari/", StringComparison.OrdinalIgnoreCase))
+        {
+            return "Safari";
+        }
         return null;
     }
 
     private static string? Platform(string value)
     {
-        if (value.Contains("iPhone", StringComparison.OrdinalIgnoreCase)) return "iPhone";
-        if (value.Contains("iPad", StringComparison.OrdinalIgnoreCase)) return "iPad";
-        if (value.Contains("Android", StringComparison.OrdinalIgnoreCase)) return "Android";
-        if (value.Contains("Windows", StringComparison.OrdinalIgnoreCase)) return "Windows";
+        if (value.Contains("iPhone", StringComparison.OrdinalIgnoreCase))
+        {
+            return "iPhone";
+        }
+        if (value.Contains("iPad", StringComparison.OrdinalIgnoreCase))
+        {
+            return "iPad";
+        }
+        if (value.Contains("Android", StringComparison.OrdinalIgnoreCase))
+        {
+            return "Android";
+        }
+        if (value.Contains("Windows", StringComparison.OrdinalIgnoreCase))
+        {
+            return "Windows";
+        }
         if (value.Contains("Macintosh", StringComparison.OrdinalIgnoreCase)
-            || value.Contains("Mac OS X", StringComparison.OrdinalIgnoreCase)) return "macOS";
-        if (value.Contains("Linux", StringComparison.OrdinalIgnoreCase)) return "Linux";
+            || value.Contains("Mac OS X", StringComparison.OrdinalIgnoreCase))
+        {
+            return "macOS";
+        }
+        if (value.Contains("Linux", StringComparison.OrdinalIgnoreCase))
+        {
+            return "Linux";
+        }
         return null;
     }
 

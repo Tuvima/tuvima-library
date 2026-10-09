@@ -13,20 +13,35 @@ public sealed class DetailComposerServiceTests
     [Fact]
     public void OwnedManifestPositionAndFinalNormalizationPreserveEpisodeStateAndDistinctCounts()
     {
-        var show=Guid.NewGuid();var work=Guid.NewGuid();var asset=Guid.NewGuid();
-        var context=new MediaEngine.Contracts.Display.DisplayEpisodeContextDto(show,work,asset,"Show","Episode",1,5,MediaEngine.Contracts.Display.DisplayContinuationState.Completed,3000,3000);
-        var item=new SequenceItemViewModel {Id=work.ToString("D"),Title="Episode",EntityType=DetailEntityType.TvEpisode,IsOwned=true,EpisodeContext=context,ProgressState=LibraryProgressState.Completed,ProgressPercent=100,PositionSeconds=3000,DurationSeconds=3000,RemainingSeconds=0,ProgressLabel="Watched",
-            EpisodeStillUrl="/stream/artwork/actual",EpisodeStillWidthPx=1920,EpisodeStillHeightPx=1080};
-        var items=new List<SequenceItemViewModel>{item};
-        Assert.True(InvokePrivate<bool>("TryApplyManifestPositionToOwnedItem",items,new SeriesManifestItemRecord {SeriesQid="QTestShow",ItemQid="QTestEpisode",OrderSource="SeriesOrdinal",LinkedWorkId=work,RawOrdinal="5",ParsedOrdinal=5,MembershipScope="MainSequence"},5d,5d,work,false));
-        var normalized=InvokePrivate<List<SequenceItemViewModel>>("NormalizeSequenceItems",items,DetailEntityType.TvEpisode);
-        var result=Assert.Single(normalized);Assert.Equal(5,result.PositionNumber);Assert.Same(context,result.EpisodeContext);
-        Assert.Equal(item.EpisodeStillUrl,result.EpisodeStillUrl);Assert.Equal(1920,result.EpisodeStillWidthPx);Assert.Equal(1080,result.EpisodeStillHeightPx);
-        Assert.Equal(100,result.ProgressPercent);Assert.Equal(3000,result.PositionSeconds);Assert.Equal(3000,result.DurationSeconds);Assert.Equal(0,result.RemainingSeconds);Assert.Equal("Watched",result.ProgressLabel);
+        var show = Guid.NewGuid(); var work = Guid.NewGuid(); var asset = Guid.NewGuid();
+        var context = new MediaEngine.Contracts.Display.DisplayEpisodeContextDto(show, work, asset, "Show", "Episode", 1, 5, MediaEngine.Contracts.Display.DisplayContinuationState.Completed, 3000, 3000);
+        var item = new SequenceItemViewModel
+        {
+            Id = work.ToString("D"),
+            Title = "Episode",
+            EntityType = DetailEntityType.TvEpisode,
+            IsOwned = true,
+            EpisodeContext = context,
+            ProgressState = LibraryProgressState.Completed,
+            ProgressPercent = 100,
+            PositionSeconds = 3000,
+            DurationSeconds = 3000,
+            RemainingSeconds = 0,
+            ProgressLabel = "Watched",
+            EpisodeStillUrl = "/stream/artwork/actual",
+            EpisodeStillWidthPx = 1920,
+            EpisodeStillHeightPx = 1080
+        };
+        var items = new List<SequenceItemViewModel> { item };
+        Assert.True(InvokePrivate<bool>("TryApplyManifestPositionToOwnedItem", items, new SeriesManifestItemRecord { SeriesQid = "QTestShow", ItemQid = "QTestEpisode", OrderSource = "SeriesOrdinal", LinkedWorkId = work, RawOrdinal = "5", ParsedOrdinal = 5, MembershipScope = "MainSequence" }, 5d, 5d, work, false));
+        var normalized = InvokePrivate<List<SequenceItemViewModel>>("NormalizeSequenceItems", items, DetailEntityType.TvEpisode);
+        var result = Assert.Single(normalized); Assert.Equal(5, result.PositionNumber); Assert.Same(context, result.EpisodeContext);
+        Assert.Equal(item.EpisodeStillUrl, result.EpisodeStillUrl); Assert.Equal(1920, result.EpisodeStillWidthPx); Assert.Equal(1080, result.EpisodeStillHeightPx);
+        Assert.Equal(100, result.ProgressPercent); Assert.Equal(3000, result.PositionSeconds); Assert.Equal(3000, result.DurationSeconds); Assert.Equal(0, result.RemainingSeconds); Assert.Equal("Watched", result.ProgressLabel);
         normalized.Add(result);
-        var method=DetailComposerImplementationType.GetMethod("BuildSequenceGroups",System.Reflection.BindingFlags.NonPublic|System.Reflection.BindingFlags.Static)!;
-        var groups=Assert.IsAssignableFrom<IReadOnlyList<SequenceGroupViewModel>>(method.Invoke(null,[normalized,"Season",null]));
-        Assert.Equal(1,Assert.Single(groups).OwnedCount);Assert.Equal(1,groups[0].CompletedCount);
+        var method = DetailComposerImplementationType.GetMethod("BuildSequenceGroups", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)!;
+        var groups = Assert.IsAssignableFrom<IReadOnlyList<SequenceGroupViewModel>>(method.Invoke(null, [normalized, "Season", null]));
+        Assert.Equal(1, Assert.Single(groups).OwnedCount); Assert.Equal(1, groups[0].CompletedCount);
     }
     [Theory]
     [InlineData("/watch/player/123", "/watch/player/123?restart=true")]

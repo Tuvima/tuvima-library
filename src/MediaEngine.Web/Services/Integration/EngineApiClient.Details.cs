@@ -294,12 +294,30 @@ public sealed partial class EngineApiClient
         try
         {
             var parts = new List<string> { $"page={Math.Max(1, page)}", $"pageSize={Math.Clamp(pageSize, 1, 100)}" };
-            if (!string.IsNullOrWhiteSpace(query)) parts.Add($"q={Uri.EscapeDataString(query.Trim())}");
-            if (season.HasValue) parts.Add($"season={season.Value}");
-            if (disc.HasValue) parts.Add($"disc={disc.Value}");
-            if (volume.HasValue) parts.Add($"volume={volume.Value}");
-            if (!string.IsNullOrWhiteSpace(matchStatus)) parts.Add($"matchStatus={Uri.EscapeDataString(matchStatus)}");
-            if (!string.IsNullOrWhiteSpace(fileStatus)) parts.Add($"fileStatus={Uri.EscapeDataString(fileStatus)}");
+            if (!string.IsNullOrWhiteSpace(query))
+            {
+                parts.Add($"q={Uri.EscapeDataString(query.Trim())}");
+            }
+            if (season.HasValue)
+            {
+                parts.Add($"season={season.Value}");
+            }
+            if (disc.HasValue)
+            {
+                parts.Add($"disc={disc.Value}");
+            }
+            if (volume.HasValue)
+            {
+                parts.Add($"volume={volume.Value}");
+            }
+            if (!string.IsNullOrWhiteSpace(matchStatus))
+            {
+                parts.Add($"matchStatus={Uri.EscapeDataString(matchStatus)}");
+            }
+            if (!string.IsNullOrWhiteSpace(fileStatus))
+            {
+                parts.Add($"fileStatus={Uri.EscapeDataString(fileStatus)}");
+            }
             return await _http.GetFromJsonAsync<MediaEditorOwnedChildSearchDto>($"/metadata/{entityId}/owned-children?{string.Join("&", parts)}", ct);
         }
         catch (OperationCanceledException) { return null; }
@@ -318,14 +336,35 @@ public sealed partial class EngineApiClient
         {
             LastError = null;
             var parts = new List<string>();
-            if (!string.IsNullOrWhiteSpace(query)) parts.Add($"q={Uri.EscapeDataString(query.Trim())}");
-            if (season.HasValue) parts.Add($"season={season.Value}");
-            if (disc.HasValue) parts.Add($"disc={disc.Value}");
-            if (volume.HasValue) parts.Add($"volume={volume.Value}");
-            if (!string.IsNullOrWhiteSpace(matchStatus)) parts.Add($"matchStatus={Uri.EscapeDataString(matchStatus)}");
-            if (!string.IsNullOrWhiteSpace(fileStatus)) parts.Add($"fileStatus={Uri.EscapeDataString(fileStatus)}");
+            if (!string.IsNullOrWhiteSpace(query))
+            {
+                parts.Add($"q={Uri.EscapeDataString(query.Trim())}");
+            }
+            if (season.HasValue)
+            {
+                parts.Add($"season={season.Value}");
+            }
+            if (disc.HasValue)
+            {
+                parts.Add($"disc={disc.Value}");
+            }
+            if (volume.HasValue)
+            {
+                parts.Add($"volume={volume.Value}");
+            }
+            if (!string.IsNullOrWhiteSpace(matchStatus))
+            {
+                parts.Add($"matchStatus={Uri.EscapeDataString(matchStatus)}");
+            }
+            if (!string.IsNullOrWhiteSpace(fileStatus))
+            {
+                parts.Add($"fileStatus={Uri.EscapeDataString(fileStatus)}");
+            }
             var path = $"/metadata/{entityId}/owned-children/selection-snapshot";
-            if (parts.Count > 0) path += $"?{string.Join("&", parts)}";
+            if (parts.Count > 0)
+            {
+                path += $"?{string.Join("&", parts)}";
+            }
             using var request = new HttpRequestMessage(HttpMethod.Get, path);
             using var response = await _http.SendAsync(request, ct);
             if (!response.IsSuccessStatusCode)
@@ -369,7 +408,9 @@ public sealed partial class EngineApiClient
                 {
                     using var problem = JsonDocument.Parse(body);
                     if (problem.RootElement.TryGetProperty("detail", out var property))
+                    {
                         detail = property.GetString() ?? body;
+                    }
                 }
                 catch (JsonException) { }
                 LastError = string.IsNullOrWhiteSpace(detail)
@@ -420,7 +461,9 @@ public sealed partial class EngineApiClient
             using var json = JsonDocument.Parse(body);
             if (json.RootElement.TryGetProperty("detail", out var detail)
                 && detail.ValueKind == JsonValueKind.String)
+            {
                 return detail.GetString() ?? response.ReasonPhrase ?? "The episode search failed.";
+            }
         }
         catch (JsonException) { }
         return string.IsNullOrWhiteSpace(body) ? response.ReasonPhrase ?? "The episode search failed." : body;
@@ -581,7 +624,10 @@ public sealed partial class EngineApiClient
                 {
                     var receipt = JsonSerializer.Deserialize<MediaEditorPairingSaveResultDto>(body,
                         MediaEngine.Domain.Services.MediaEngineJson.Web);
-                    if (!string.IsNullOrWhiteSpace(receipt?.Outcome)) return receipt;
+                    if (!string.IsNullOrWhiteSpace(receipt?.Outcome))
+                    {
+                        return receipt;
+                    }
                 }
                 catch (JsonException) { }
             }
@@ -591,7 +637,9 @@ public sealed partial class EngineApiClient
             {
                 using var problem = JsonDocument.Parse(body);
                 if (problem.RootElement.TryGetProperty("detail", out var property))
+                {
                     detail = property.GetString() ?? body;
+                }
             }
             catch (JsonException) { }
             LastError = string.IsNullOrWhiteSpace(detail)

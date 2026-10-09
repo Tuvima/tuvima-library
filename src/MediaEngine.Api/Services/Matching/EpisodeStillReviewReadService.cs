@@ -27,7 +27,10 @@ public sealed class EpisodeStillReviewReadService(IDatabaseConnection db)
 
     public bool HasCurrentOwnedAsset(Guid ownerWorkId, string scope)
     {
-        if (scope is not ("TvShow" or "TvSeason")) return false;
+        if (scope is not ("TvShow" or "TvSeason"))
+        {
+            return false;
+        }
         using var connection = db.CreateConnection();
         return connection.ExecuteScalar<int>("""
             SELECT EXISTS(
@@ -57,13 +60,17 @@ public sealed class EpisodeStillReviewReadService(IDatabaseConnection db)
         {
             if (row.Status != "Normal" || row.IsOrphaned
                 || !Guid.TryParse(row.LibraryId, out var libraryId) || libraryId == Guid.Empty)
+            {
                 return null;
+            }
             affected[row.AssetId] = libraryId;
         }
         foreach (var item in chosen.Where(item => item.Target.WorkId == ownerWorkId))
         {
             if (!Guid.TryParse(item.Source.LibraryIdValue, out var libraryId) || libraryId == Guid.Empty)
+            {
                 return null;
+            }
             affected[item.Source.AssetId] = libraryId;
         }
         return affected.OrderBy(item => item.Key)
@@ -79,7 +86,10 @@ public sealed class EpisodeStillReviewReadService(IDatabaseConnection db)
         Guid ownerWorkId, string scope,
         IReadOnlyList<(PairingAssetRow Source, TvPairingLocalTarget Target)> chosen)
     {
-        if (scope is not ("TvShow" or "TvSeason")) return null;
+        if (scope is not ("TvShow" or "TvSeason"))
+        {
+            return null;
+        }
         using var connection = db.CreateConnection();
         var existing = connection.Query<SharedImpactRow>("""
             SELECT a.id AS AssetId, a.library_id AS LibraryId,
@@ -104,7 +114,9 @@ public sealed class EpisodeStillReviewReadService(IDatabaseConnection db)
                 || row.Status != "Normal" || row.IsOrphaned
                 || !Guid.TryParse(row.LibraryId, out var libraryId)
                 || libraryId == Guid.Empty)
+            {
                 return null;
+            }
             result[row.AssetId] = libraryId;
         }
         foreach (var item in chosen)
@@ -115,12 +127,17 @@ public sealed class EpisodeStillReviewReadService(IDatabaseConnection db)
             var targetInScope = scope == "TvShow"
                 ? item.Target.ShowWorkId == ownerWorkId
                 : item.Target.SeasonWorkId == ownerWorkId;
-            if (sourceInScope) result.Remove(item.Source.AssetId);
+            if (sourceInScope)
+            {
+                result.Remove(item.Source.AssetId);
+            }
             if (targetInScope)
             {
                 if (!Guid.TryParse(item.Source.LibraryIdValue, out var libraryId)
                     || libraryId == Guid.Empty)
+                {
                     return null;
+                }
                 result[item.Source.AssetId] = libraryId;
             }
         }

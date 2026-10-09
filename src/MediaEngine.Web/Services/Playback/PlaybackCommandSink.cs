@@ -22,10 +22,19 @@ public static class PlaybackCommandCapabilities
 
     public static bool Supports(string action, ListenPlaybackSnapshot snapshot)
     {
-        if (action is ListenPlaybackCommandActions.CloseBookmarkDialog or ListenPlaybackCommandActions.CancelDeleteBookmark) return true;
-        if (snapshot.IsDismissed || snapshot.CurrentIndex < 0 || snapshot.CurrentIndex >= snapshot.Queue.Count) return false;
+        if (action is ListenPlaybackCommandActions.CloseBookmarkDialog or ListenPlaybackCommandActions.CancelDeleteBookmark)
+        {
+            return true;
+        }
+        if (snapshot.IsDismissed || snapshot.CurrentIndex < 0 || snapshot.CurrentIndex >= snapshot.Queue.Count)
+        {
+            return false;
+        }
         var experience = snapshot.Queue[snapshot.CurrentIndex].PlaybackExperience;
-        if (IsBookmark(action)) return experience == PlaybackExperience.Audiobook;
+        if (IsBookmark(action))
+        {
+            return experience == PlaybackExperience.Audiobook;
+        }
         return action switch
         {
             ListenPlaybackCommandActions.TogglePlay or ListenPlaybackCommandActions.Play or ListenPlaybackCommandActions.Pause
@@ -69,13 +78,18 @@ public abstract class PlaybackCommandSink(Guid ownerRecipientId, Guid senderId, 
     private async Task<ListenPlaybackCommandReplyDto?> SendCoreAsync(ListenPlaybackSnapshot snapshot,
         ListenPlaybackCommandDto command, CancellationToken ct = default)
     {
-        if (ownerRecipientId == Guid.Empty || senderId == Guid.Empty) return null;
+        if (ownerRecipientId == Guid.Empty || senderId == Guid.Empty)
+        {
+            return null;
+        }
         var current = snapshot.CurrentIndex >= 0 && snapshot.CurrentIndex < snapshot.Queue.Count ? snapshot.Queue[snapshot.CurrentIndex] : null;
         var bookmark = PlaybackCommandCapabilities.IsBookmark(command.Action);
         var targetId = command.QueueEntryId;
         if (command.Action is ListenPlaybackCommandActions.PlayIndex or ListenPlaybackCommandActions.RemoveUpcoming
             && targetId is null && command.Index is int index && index >= 0 && index < snapshot.Queue.Count)
+        {
             targetId = snapshot.Queue[index].QueueEntryId;
+        }
 
         // Bookmark drafts keep the captured lease and generation supplied by their existing bridge.
         var request = command with
@@ -96,10 +110,12 @@ public abstract class PlaybackCommandSink(Guid ownerRecipientId, Guid senderId, 
 }
 
 public sealed class DirectPlaybackCommandSink(ListenPlaybackCommandOwner owner)
-    : PlaybackCommandSink(owner.RecipientId, owner.RecipientId, new OwnerPlaybackCommandChannel(owner)) { }
+    : PlaybackCommandSink(owner.RecipientId, owner.RecipientId, new OwnerPlaybackCommandChannel(owner))
+{ }
 
 public sealed class BroadcastPlaybackCommandSink(Guid ownerRecipientId, Guid senderId, IListenPlaybackCommandChannel channel)
-    : PlaybackCommandSink(ownerRecipientId, senderId, channel) { }
+    : PlaybackCommandSink(ownerRecipientId, senderId, channel)
+{ }
 
 /// <summary>Direct transport dispatches exactly the same envelope as a remote host.</summary>
 public sealed class OwnerPlaybackCommandChannel(ListenPlaybackCommandOwner owner) : IListenPlaybackCommandChannel
