@@ -21,6 +21,8 @@ public sealed class ProfilePickerTests
     [InlineData("//evil.example")]
     [InlineData("/\\evil.example")]
     [InlineData("javascript:alert(1)")]
+    [InlineData("/watch\t//evil.example")]
+    [InlineData("/watch\n/x")]
     public void PickerAddress_NeverFollowsAnotherSite(string returnUrl)
     {
         Assert.Null(ProfilePickerRoute.SafeReturnUrl(returnUrl));

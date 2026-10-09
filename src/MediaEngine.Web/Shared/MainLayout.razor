@@ -581,6 +581,13 @@
             if (_disposed) return;
             var principal = (await AuthenticationStateProvider.GetAuthenticationStateAsync()).User;
             if (_disposed) return;
+            if (principal.HasClaim(DashboardPrincipalFactory.ProfilePendingClaim, "true"))
+            {
+                // A remembered person needs their PIN: nothing else opens until someone is picked.
+                Nav.NavigateTo(ProfilePickerRoute.For(null), forceLoad: true, replace: true);
+                return;
+            }
+
             _session.InitializeFromPrincipal(principal);
             await Identity.EnsureInitialAuthorityAsync(_session, _authorityRefreshCancellation.Token);
         }

@@ -812,6 +812,7 @@ public static class AuthenticationEndpoints
         ExpiresAt = issued.Session.ExpiresAt,
         RecoveryCodes = issued.RecoveryCodes,
         ChooseProfile = issued.ChooseProfile,
+        ProfilePending = issued.Session.ProfilePending,
     };
 
     private static async Task<SessionValidationResponse> ToValidationResponseAsync(SessionValidationResult result, DashboardAuthorityProjector projector, CancellationToken ct) => new()
@@ -823,6 +824,7 @@ public static class AuthenticationEndpoints
         Authority = await projector.ProjectAsync(result.Account.Id, result.ActiveProfile.Id, result.Session.Id, ct),
         AuthenticationMethod = result.Session.AuthenticationMethod,
         ExpiresAt = result.Session.ExpiresAt,
+        ProfilePending = result.Session.ProfilePending,
     };
 
     private static Guid RequiredGuidClaim(ClaimsPrincipal user, string type) =>

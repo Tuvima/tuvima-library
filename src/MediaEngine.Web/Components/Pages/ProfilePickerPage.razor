@@ -82,6 +82,11 @@
             }
         </div>
 
+        <form method="post" action="/auth/logout" class="who-signout">
+            <AntiforgeryToken />
+            <AppNativeButton Type="submit" Class="who-link">Sign out</AppNativeButton>
+        </form>
+
         @if (ShowPinReminder)
         {
             <p class="who-note" role="note">Set PINs on adult profiles so children can't switch into them.</p>
@@ -236,10 +241,8 @@
         _error = null;
         try
         {
-            // Staying in the profile the session already opened in needs no switch unless it has a PIN.
-            var outcome = profile.Id == _active?.Id && !profile.HasPin
-                ? new ProfileSwitchOutcome(ProfileSwitchStatus.Succeeded, profile)
-                : await Orchestrator.SetActiveProfileAsync(profile.Id, pin);
+            // Always switch, even to the profile already open: that is what tells the Engine someone has been picked.
+            var outcome = await Orchestrator.SetActiveProfileAsync(profile.Id, pin);
             if (!outcome.Succeeded)
             {
                 _pin = string.Empty;

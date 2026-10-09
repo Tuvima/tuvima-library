@@ -3837,3 +3837,16 @@ input[type="reset"],
 
 .compact-continue__item:is(:hover,:focus-visible) .app-progress-bar__track { height:6px; }
 .compact-continue__item:is(:hover,:focus-visible) .app-progress-bar__fill { background:var(--tl-accent-primary-hover); }
+
+/* "Who's using Tuvima?" controls. The page renders them through shared native controls, so their roots are styled here. */
+.who-card { display: grid; justify-items: center; align-content: start; gap: 10px; width: clamp(110px, 22vw, 190px); padding: 12px; color: var(--tl-text-primary); border: 2px solid transparent; border-radius: 14px; background: transparent; font: inherit; cursor: pointer; transition: border-color 140ms ease, background-color 140ms ease, transform 140ms ease; }
+.who-card:hover:not(:disabled), .who-card:focus-visible { border-color: var(--tl-accent-primary); background: color-mix(in srgb, var(--tl-bg-surface-elevated) 80%, transparent); outline: none; transform: translateY(-2px); }
+.who-card:disabled { cursor: wait; opacity: .6; }
+.who-check__box { width: 20px; height: 20px; accent-color: var(--tl-accent-primary); }
+.who-link { min-height: 44px; padding: 0 8px; color: var(--tl-accent-primary); border: 0; background: none; font: inherit; text-decoration: underline; cursor: pointer; }
+.who-button { min-height: 44px; padding: 0 20px; color: var(--tl-text-primary); border: 1px solid var(--tl-border-strong); border-radius: var(--tl-radius-md); background: transparent; font: inherit; font-weight: 600; cursor: pointer; }
+.who-button--primary { color: #fff; border-color: transparent; background: var(--tl-accent-primary); }
+.who-button:disabled { cursor: not-allowed; opacity: .55; }
+.who-dialog__input { box-sizing: border-box; width: 100%; min-height: 48px; padding: 0 14px; color: var(--tl-text-primary); border: 1px solid var(--tl-border-strong); border-radius: var(--tl-radius-md); background: var(--tl-bg-base); font: inherit; font-size: 1.2rem; letter-spacing: .3em; text-align: center; }
+.who-dialog__input:focus-visible { border-color: var(--tl-accent-primary); outline: none; box-shadow: 0 0 0 3px color-mix(in srgb, var(--tl-accent-primary) 25%, transparent); }
+@media (max-width: 640px) { .who-card { width: calc(50% - 14px); } }

@@ -14,6 +14,7 @@ public static class ProfilePickerRoute
     /// <summary>Only same-site paths are followed after choosing a profile, never another site.</summary>
     public static string? SafeReturnUrl(string? value) =>
         !string.IsNullOrWhiteSpace(value) && value.StartsWith('/') && !value.StartsWith("//", StringComparison.Ordinal)
+        && !value.Any(char.IsControl)
         && !value.StartsWith("/\\", StringComparison.Ordinal)
             ? value
             : null;

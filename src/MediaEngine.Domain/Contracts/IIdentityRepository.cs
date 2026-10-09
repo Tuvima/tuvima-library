@@ -22,6 +22,9 @@ public interface IIdentityRepository
     Task<bool> MarkSessionAuthenticatedAsync(Guid sessionId, DateTimeOffset authenticatedAt, CancellationToken ct = default);
     Task<bool> UpdateActiveProfileAsync(Guid sessionId, Guid activeProfileId, CancellationToken ct = default);
 
+    /// <summary>Marks the session as still needing the person to pick who is using Tuvima; the next profile switch clears it.</summary>
+    Task MarkSessionProfilePendingAsync(Guid sessionId, CancellationToken ct = default);
+
     /// <summary>The profile this account always opens as on this device, or <c>null</c> when none is set.</summary>
     Task<Guid?> GetDeviceProfilePreferenceAsync(Guid accountId, string deviceId, CancellationToken ct = default);
     Task SetDeviceProfilePreferenceAsync(Guid accountId, string deviceId, Guid profileId, DateTimeOffset updatedAt, CancellationToken ct = default);

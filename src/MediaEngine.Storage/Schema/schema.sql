@@ -1731,7 +1731,8 @@ CREATE TABLE IF NOT EXISTS auth_sessions (
     expires_at            TEXT NOT NULL,
     authenticated_at      TEXT,
     revoked_at            TEXT,
-    revoked_reason        TEXT
+    revoked_reason        TEXT,
+    profile_pending       INTEGER NOT NULL DEFAULT 0
 );
 
 CREATE INDEX IF NOT EXISTS idx_auth_sessions_account_active

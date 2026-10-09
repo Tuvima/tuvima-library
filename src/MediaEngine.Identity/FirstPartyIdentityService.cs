@@ -158,8 +158,9 @@ public sealed class FirstPartyIdentityService(
     public async Task<SessionIssueResult> CreateExternalSessionAsync(Guid accountId, string provider, string deviceId, string deviceName, string client, CancellationToken ct = default, string ingress = ClientIngress.Remote)
     {
         var account = await accounts.GetByIdAsync(accountId, ct).ConfigureAwait(false) ?? throw new KeyNotFoundException($"Account '{accountId}' was not found.");
-        var (profile, chooseProfile) = await ResolveStartingProfileAsync(account.Id, deviceId, ct).ConfigureAwait(false);
+        var (profile, chooseProfile, profilePending) = await ResolveStartingProfileAsync(account.Id, deviceId, ct).ConfigureAwait(false);
         var issued = (await IssueSessionAsync(account, profile, $"external:{provider.Trim().ToLowerInvariant()}", "Oidc", deviceId, deviceName, client, ingress, ct).ConfigureAwait(false)) with { ChooseProfile = chooseProfile };
+        await MarkPendingAsync(issued, profilePending, ct).ConfigureAwait(false);
         await AuditAsync(account.Id, profile.Id, issued.Session.Id, "login_oidc", true, provider, ct).ConfigureAwait(false);
         return issued;
     }
@@ -167,8 +168,9 @@ public sealed class FirstPartyIdentityService(
     public async Task<SessionIssueResult> CreatePasskeySessionAsync(Guid accountId, string deviceId, string deviceName, string client, CancellationToken ct = default, string ingress = ClientIngress.Remote)
     {
         var account = await accounts.GetByIdAsync(accountId, ct).ConfigureAwait(false) ?? throw new KeyNotFoundException("Account was not found.");
-        var (profile, chooseProfile) = await ResolveStartingProfileAsync(accountId, deviceId, ct).ConfigureAwait(false);
+        var (profile, chooseProfile, profilePending) = await ResolveStartingProfileAsync(accountId, deviceId, ct).ConfigureAwait(false);
         var issued = (await IssueSessionAsync(account, profile, "passkey", "Passkey", deviceId, deviceName, client, ingress, ct).ConfigureAwait(false)) with { ChooseProfile = chooseProfile };
+        await MarkPendingAsync(issued, profilePending, ct).ConfigureAwait(false);
         await AuditAsync(account.Id, profile.Id, issued.Session.Id, "login_passkey", true, null, ct).ConfigureAwait(false); return issued;
     }
 
@@ -609,6 +611,7 @@ public sealed class FirstPartyIdentityService(
 
         await accounts.ClearAdminUnlockAsync(current.Session.Id, ct).ConfigureAwait(false);
         current.Session.ActiveProfileId = target.Id;
+        current.Session.ProfilePending = false;
         await AuditAsync(current.Account.Id, target.Id, current.Session.Id, "active_profile_changed", true, target.Id.ToString("D"), ct).ConfigureAwait(false);
         return new SessionValidationResult(current.Session, current.Account, target, target);
     }
@@ -639,8 +642,9 @@ public sealed class FirstPartyIdentityService(
 
         if (rehash) { credential.SecretHash = Hash(credential, secret); credential.UpdatedAt = now; await identities.UpsertAccountCredentialAsync(credential, ct).ConfigureAwait(false); }
         await identities.UpdateAccountCredentialAttemptAsync(credential.Id, countsTowardLockout ? 0 : credential.FailedAttemptCount, countsTowardLockout ? null : credential.LockedUntil, now, ct).ConfigureAwait(false);
-        var (profile, chooseProfile) = await ResolveStartingProfileAsync(account.Id, deviceId, ct).ConfigureAwait(false);
+        var (profile, chooseProfile, profilePending) = await ResolveStartingProfileAsync(account.Id, deviceId, ct).ConfigureAwait(false);
         var issued = (await IssueSessionAsync(account, profile, credential.SecurityStamp, "Password", deviceId, deviceName, client, ingress, ct).ConfigureAwait(false)) with { ChooseProfile = chooseProfile };
+        await MarkPendingAsync(issued, profilePending, ct).ConfigureAwait(false);
         await AuditAsync(account.Id, profile.Id, issued.Session.Id, "login_local", true, "Password", ct).ConfigureAwait(false); return new(true, false, null, issued);
     }
 
@@ -649,23 +653,33 @@ public sealed class FirstPartyIdentityService(
     /// when that person has a PIN the session starts in the default profile and the picker asks for the PIN instead,
     /// so a PIN is never skipped. <c>Choose</c> is true when the person should see "Who's using Tuvima?".
     /// </summary>
-    private async Task<(Profile Profile, bool Choose)> ResolveStartingProfileAsync(Guid accountId, string deviceId, CancellationToken ct)
+    private async Task<(Profile Profile, bool Choose, bool Pending)> ResolveStartingProfileAsync(Guid accountId, string deviceId, CancellationToken ct)
     {
         var fallback = await GetDefaultProfileAsync(accountId, ct).ConfigureAwait(false);
         var granted = await accounts.GetProfileIdsAsync(accountId, ct).ConfigureAwait(false);
         if (granted.Count <= 1)
         {
-            return (fallback, false);
+            return (fallback, false, false);
         }
 
         var preferredId = await identities.GetDeviceProfilePreferenceAsync(accountId, Sanitize(deviceId, 100, "unknown"), ct).ConfigureAwait(false);
         if (preferredId is { } id && granted.Contains(id) && await profiles.GetByIdAsync(id, ct).ConfigureAwait(false) is { } preferred)
         {
             var hasPin = await identities.GetCredentialAsync(id, ProfileCredentialKind.ProfilePin, ct).ConfigureAwait(false) is not null;
-            return hasPin ? (fallback, true) : (preferred, false);
+            return hasPin ? (fallback, true, true) : (preferred, false, false);
         }
 
-        return (fallback, true);
+        return (fallback, true, false);
+    }
+
+    /// <summary>A remembered profile with a PIN leaves the session unfinished until the person picks someone (see <see cref="AuthSession.ProfilePending"/>).</summary>
+    private async Task MarkPendingAsync(SessionIssueResult issued, bool pending, CancellationToken ct)
+    {
+        if (pending)
+        {
+            await identities.MarkSessionProfilePendingAsync(issued.Session.Id, ct).ConfigureAwait(false);
+            issued.Session.ProfilePending = true;
+        }
     }
 
     private async Task<Profile> GetDefaultProfileAsync(Guid accountId, CancellationToken ct)

@@ -86,6 +86,11 @@ public sealed class ProfilePickerTests : IDisposable
         Assert.True(again.ChooseProfile);
         Assert.Equal(owner.Profile.Id, again.ActiveProfile.Id);
         Assert.Equal(mary.Id, await _service.GetDeviceProfilePreferenceAsync(owner.Account.Id, again.Session.Id));
+
+        // The session stays "not yet chosen" until the person is switched to someone, with their PIN.
+        Assert.True((await _service.ValidateSessionAsync(again.PlaintextToken))!.Session.ProfilePending);
+        await _service.SwitchActiveProfileAsync(again.PlaintextToken, mary.Id, "2468");
+        Assert.False((await _service.ValidateSessionAsync(again.PlaintextToken))!.Session.ProfilePending);
     }
 
     [Fact]

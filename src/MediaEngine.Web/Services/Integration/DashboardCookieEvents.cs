@@ -51,15 +51,18 @@ public static class DashboardPrincipalFactory
     /// <summary>Claim carrying where the cookie's last request came from, so a Blazor circuit can re-check from the same place.</summary>
     public const string ClientIngressClaim = "tuvima:client_ingress";
 
+    /// <summary>Present while the person must still pick who is using Tuvima; the layout sends every page to the picker.</summary>
+    public const string ProfilePendingClaim = "tuvima:profile_pending";
+
     public static ClaimsPrincipal Create(AuthSessionResponse response, string ingress) =>
         CreateCore(response.SessionId, response.AccountId, response.ActiveProfileId, response.DisplayName,
-            response.Authority, response.AuthenticationMethod, response.SessionToken, ingress);
+            response.Authority, response.AuthenticationMethod, response.SessionToken, ingress, response.ProfilePending);
 
     public static ClaimsPrincipal Create(SessionValidationResponse response, string token, string ingress) =>
         CreateCore(response.SessionId, response.AccountId, response.ActiveProfileId, response.DisplayName,
-            response.Authority, response.AuthenticationMethod, token, ingress);
+            response.Authority, response.AuthenticationMethod, token, ingress, response.ProfilePending);
 
-    private static ClaimsPrincipal CreateCore(Guid sessionId, Guid accountId, Guid activeProfileId, string name, DashboardAuthorityResponse authority, string method, string token, string ingress)
+    private static ClaimsPrincipal CreateCore(Guid sessionId, Guid accountId, Guid activeProfileId, string name, DashboardAuthorityResponse authority, string method, string token, string ingress, bool profilePending = false)
     {
         var claims = new List<Claim>
         {
@@ -75,6 +78,11 @@ public static class DashboardPrincipalFactory
             new Claim("tuvima:account_authorization_version", authority.AccountAuthorizationVersion.ToString(System.Globalization.CultureInfo.InvariantCulture)),
             new Claim("tuvima:grant_authorization_version", authority.GrantAuthorizationVersion.ToString(System.Globalization.CultureInfo.InvariantCulture)),
         };
+        if (profilePending)
+        {
+            claims.Add(new Claim(ProfilePendingClaim, "true"));
+        }
+
         claims.AddRange(authority.NavigationCapabilities.Select(capability => new Claim("tuvima:navigation", capability)));
         claims.AddRange(authority.ActionCapabilities.Select(capability => new Claim("tuvima:action", capability)));
         return new ClaimsPrincipal(new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme));

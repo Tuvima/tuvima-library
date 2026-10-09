@@ -21,6 +21,8 @@ public sealed class AuthSession
     public DateTimeOffset AuthenticatedAt { get; set; }
     public DateTimeOffset? RevokedAt { get; set; }
     public string? RevokedReason { get; set; }
+    /// <summary>True until the person has picked who is using Tuvima, when the device's remembered profile needs its PIN. The Dashboard sends every page to the picker meanwhile.</summary>
+    public bool ProfilePending { get; set; }
 
     public bool IsActive(DateTimeOffset now) => RevokedAt is null && ExpiresAt > now;
 }
