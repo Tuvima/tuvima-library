@@ -1,6 +1,9 @@
 using System.Text.Json;
 using MediaEngine.Api.Endpoints;
 using MediaEngine.Api.Services;
+using MediaEngine.Api.Services.Settings;
+using MediaEngine.Domain.Contracts;
+using MediaEngine.Ingestion.Contracts;
 using MediaEngine.Contracts.Authentication;
 using MediaEngine.Contracts.Setup;
 using MediaEngine.Domain.Authorization;
@@ -176,6 +179,16 @@ public sealed class SetupSessionCodeTests : IDisposable
         builder.Services.AddAuthorization();
         builder.Services.AddRateLimiter(_ => { });
         builder.Services.AddSingleton(_sessions);
+        // The other setup routes are mapped too; their services only need to be known so they bind as services, not bodies.
+        builder.Services.AddSingleton<IConfigurationLoader>(_ => null!);
+        builder.Services.AddSingleton<IFileOrganizer>(_ => null!);
+        builder.Services.AddSingleton<IFirstPartyIdentityService>(_ => null!);
+        builder.Services.AddSingleton<OnboardingRepository>(_ => null!);
+        builder.Services.AddSingleton<ProviderCredentialService>(_ => null!);
+        builder.Services.AddSingleton<DatabaseBackupService>(_ => null!);
+        builder.Services.AddSingleton<ServerFolderBrowserService>(_ => null!);
+        builder.Services.AddSingleton<SetupMediaLocationValidationService>(_ => null!);
+        builder.Services.AddSingleton<SetupPreflightService>(_ => null!);
         await using var app = builder.Build();
         app.MapSetupEndpoints();
         var endpoint = Assert.Single(((IEndpointRouteBuilder)app).DataSources
