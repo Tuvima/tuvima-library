@@ -310,8 +310,14 @@ public static class AuthenticationEndpoints
         }).WithName(PasswordChangeRequiredMiddleware.RevokeSessionEndpoint).Produces(StatusCodes.Status204NoContent).RequireAuthorization(AuthPolicies.HumanSelfService);
 
         group.MapPost("/password/change-temporary", async (ChangeTemporaryPasswordRequest request, ClaimsPrincipal user,
-            IFirstPartyIdentityService identity, DashboardAuthorityProjector projector, CancellationToken ct) =>
+            IFirstPartyIdentityService identity, DashboardAuthorityProjector projector, IConfigurationLoader configuration, CancellationToken ct) =>
         {
+            if (!AllowsClient(configuration.LoadNetwork(), request.OriginalClientIngress, request.OriginalClientIsHttps,
+                configuration.LoadCore().Auth.PasswordSignInEnabled))
+            {
+                return Results.Unauthorized();
+            }
+
             try
             {
                 var issued = await identity.ChangeTemporaryPasswordAsync(

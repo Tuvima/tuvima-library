@@ -33,7 +33,7 @@ This page sets a password only; passkeys can be added afterwards in **Settings â
 
 ### Temporary password
 
-Choose **Set a temporary password** to type one yourself or press **Generate** for a random 16-character one. It is shown once, with a **Copy** button. The first time the person signs in with it, Tuvima asks them to choose their own password and nothing else works until they do. Choosing a new one signs out every other device. A temporary password stops working after the same lifetime as an invitation; after that the person sees "Ask your administrator for a new temporary password." and you can set another from the user's actions menu (**Set temporary password**), which also signs them out everywhere.
+Choose **Set a temporary password** to type one yourself or press **Generate** for a random 16-character one. It is shown once, with a **Copy** button. The first time the person signs in with it, Tuvima asks them to choose their own password and nothing else works until they do. Choosing a new one signs out every other device. A temporary password stops working after 7 days; after that the person sees "Ask your administrator for a new temporary password." and you can set another from the user's actions menu (**Set temporary password**), which also signs them out everywhere.
 
 Every account needs an email address to sign in. Someone who does not need their own sign-in is added as a profile in an existing household instead, and is opened by switching profiles.
 

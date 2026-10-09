@@ -113,9 +113,18 @@ public sealed class AccountAccessMutationService(
         CancellationToken ct = default)
     {
         await RequireWriteAsync(actor, ct).ConfigureAwait(false);
-        if (await accounts.GetByIdAsync(accountId, ct).ConfigureAwait(false) is null)
+        var target = await accounts.GetByIdAsync(accountId, ct).ConfigureAwait(false)
+            ?? throw new KeyNotFoundException("Account not found.");
+        if (actor.AccountId == accountId)
         {
-            throw new KeyNotFoundException("Account not found.");
+            throw new InvalidOperationException("Use Account > Security to change your own password.");
+        }
+
+        // Taking over an administrator's sign-in needs a person who is an unlocked administrator, not an application.
+        if (target.IsAdministrator
+            && (actor.PrincipalKind != PrincipalKind.Human || !actor.AccountIsAdministrator || !actor.GrantAdminEnabled))
+        {
+            throw new UnauthorizedAccessException("Only an unlocked administrator can set an administrator's temporary password.");
         }
 
         await firstParty.SetTemporaryPasswordAsync(
@@ -490,8 +499,8 @@ public sealed class AccountAccessMutationService(
         1,
         720));
 
-    /// <summary>A temporary password lasts as long as an invitation.</summary>
-    private DateTimeOffset TemporaryPasswordExpiry() => clock.GetUtcNow().Add(InvitationLifetime());
+    /// <summary>A temporary password lasts seven days, independent of the invitation lifetime.</summary>
+    private DateTimeOffset TemporaryPasswordExpiry() => clock.GetUtcNow().Add(TemporaryPasswordPolicy.Lifetime);
 
     private void ValidateLibraries(IReadOnlySet<Guid> libraryIds)
     {

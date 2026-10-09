@@ -135,6 +135,7 @@ public sealed class ChangeTemporaryPasswordRequest
     [JsonPropertyName("device_id")] public string DeviceId { get; init; } = string.Empty;
     [JsonPropertyName("device_name")] public string DeviceName { get; init; } = string.Empty;
     [JsonPropertyName("original_client_ingress")] public string OriginalClientIngress { get; init; } = ClientIngressValues.Remote;
+    [JsonPropertyName("original_client_is_https")] public bool OriginalClientIsHttps { get; init; }
 }
 
 /// <summary>Wording and codes shared by the Engine and the Dashboard for temporary passwords.</summary>

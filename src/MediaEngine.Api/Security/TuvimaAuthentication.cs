@@ -104,6 +104,12 @@ public sealed class TuvimaAuthenticationHandler(
             };
             claims.AddRange(ClientAuthorizationService.SplitScopes(client.Token.Scopes)
                 .Select(scope => new Claim(TuvimaClaimTypes.Scope, scope)));
+            if (client.Account.MustChangePassword)
+            {
+                // A paired app cannot be used to get around choosing a new password first.
+                claims.Add(new Claim(TuvimaClaimTypes.PasswordChangeRequired, "true"));
+            }
+
             return Success(claims);
         }
 

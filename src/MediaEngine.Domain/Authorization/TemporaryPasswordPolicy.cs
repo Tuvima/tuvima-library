@@ -9,6 +9,9 @@ public static class TemporaryPasswordPolicy
     /// <summary>Length of a generated temporary password.</summary>
     public const int GeneratedLength = 16;
 
+    /// <summary>How long an administrator-set temporary password works.</summary>
+    public static readonly TimeSpan Lifetime = TimeSpan.FromDays(7);
+
     /// <summary>Error code for every Engine action other than choosing a new password while a temporary password is in force.</summary>
     public const string PasswordChangeRequiredCode = "password_change_required";
 

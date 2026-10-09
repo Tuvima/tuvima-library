@@ -330,6 +330,7 @@ public static class DashboardAuthenticationEndpoints
                 DeviceId = EnsureDeviceCookie(context),
                 DeviceName = SanitizeDeviceName(context.Request.Headers.UserAgent.ToString()),
                 OriginalClientIngress = context.ClientIngress(),
+                OriginalClientIsHttps = context.Request.IsHttps,
             }, context.RequestAborted).ConfigureAwait(false);
             if (attempt.Session is not { } issued)
             {
