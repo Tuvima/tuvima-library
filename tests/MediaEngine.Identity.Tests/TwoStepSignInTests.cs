@@ -83,14 +83,20 @@ public sealed class TwoStepSignInTests : IDisposable
     }
 
     [Fact]
-    public async Task Setup_NeedsAPassword_AndCannotRestartOnceOn()
+    public async Task Setup_NeedsAPassword()
     {
         var thisComputerOnly = await _service.BootstrapThisComputerAdministratorAsync(Email, "Owner", "d", "Browser", "Dashboard");
-        await Assert.ThrowsAsync<InvalidOperationException>(() => _service.BeginTwoStepSetupAsync(thisComputerOnly.Account.Id));
 
-        var other = await _service.BootstrapAdministratorAsync("other@example.com", Password, "Other", "d", "Browser", "Dashboard");
-        await TurnOnAsync(other.Account.Id);
-        await Assert.ThrowsAsync<InvalidOperationException>(() => _service.BeginTwoStepSetupAsync(other.Account.Id));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => _service.BeginTwoStepSetupAsync(thisComputerOnly.Account.Id));
+    }
+
+    [Fact]
+    public async Task Setup_CannotRestartOnceOn()
+    {
+        var owner = await SignUpAsync();
+        await TurnOnAsync(owner.Account.Id);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => _service.BeginTwoStepSetupAsync(owner.Account.Id));
     }
 
     [Fact]
