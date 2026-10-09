@@ -1,20 +1,20 @@
 using System.Net.Http.Json;
 using MediaEngine.Contracts.Settings;
 using MediaEngine.Domain.Configuration;
-using MediaEngine.Identity.Contracts;
+using MediaEngine.Domain.Contracts;
 
 namespace MediaEngine.Api.Services.Networking;
 
 public sealed class RemoteAccessReadinessService
 {
-    private readonly IRemoteAuthenticationReadiness _authentication;
+    private readonly IUsableAdministratorService _authentication;
     private readonly INetworkTopologyService _topology;
     private readonly IReadOnlyDictionary<string, IRemoteConnectivityProvider> _providers;
     private readonly HttpClient _http;
     private readonly ILogger<RemoteAccessReadinessService> _logger;
 
     public RemoteAccessReadinessService(
-        IRemoteAuthenticationReadiness authentication,
+        IUsableAdministratorService authentication,
         INetworkTopologyService topology,
         IEnumerable<IRemoteConnectivityProvider> providers,
         HttpClient http,
@@ -30,17 +30,19 @@ public sealed class RemoteAccessReadinessService
     public async Task<RemoteAccessReadinessDto> EvaluateAsync(RemoteNetworkSettings settings, CancellationToken ct)
     {
         var checks = new List<NetworkTestCheckDto>();
-        var authentication = await _authentication.GetAsync(ct).ConfigureAwait(false);
-        var administratorConfigured = authentication.AdministratorConfigured;
+        var administrators = await _authentication.EvaluateForRemoteAsync(ct).ConfigureAwait(false);
+        var authenticationReady = administrators.HasUsableAdministrator && administrators.HasRecoveryCodes;
         checks.Add(Check(
             "authentication",
             "Tuvima sign-in",
-            administratorConfigured,
-            administratorConfigured
-                ? "An administrator account is configured and Dashboard authentication is required."
-                : "Complete first-run administrator setup from the Dashboard on the Tuvima host before enabling remote access."));
+            authenticationReady,
+            !administrators.HasUsableAdministrator
+                ? "No administrator can sign in yet. Add a password or passkey to an administrator account."
+                : !administrators.HasRecoveryCodes
+                    ? "Save recovery codes for an administrator before opening Tuvima to the internet."
+                    : "An administrator can sign in and has saved recovery codes."));
 
-        var bypassDisabled = authentication.LocalhostBypassDisabled;
+        var bypassDisabled = administrators.LocalhostBypassDisabled;
         checks.Add(Check(
             "authentication-bypass",
             "Authentication bypass",
@@ -158,13 +160,4 @@ public sealed class RemoteAccessReadinessService
         public string Nonce { get; set; } = string.Empty;
         public bool Secure { get; set; }
     }
-}
-
-public sealed class RemoteAuthenticationReadiness(
-    IFirstPartyIdentityService identity,
-    MediaEngine.Domain.Contracts.IConfigurationLoader configuration) : IRemoteAuthenticationReadiness
-{
-    public async Task<RemoteAuthenticationSnapshot> GetAsync(CancellationToken ct) => new(
-        await identity.IsAdministratorConfiguredAsync(ct).ConfigureAwait(false),
-        !configuration.LoadCore().Auth.LocalhostBypass);
 }

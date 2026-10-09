@@ -189,6 +189,14 @@ public sealed class IdentityRepository(IDatabaseConnection db) : IIdentityReposi
         return Task.FromResult(row is null ? null : Map(row));
     }
 
+    public Task<int> CountActiveRecoveryCodesAsync(Guid accountId, DateTimeOffset now, CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested(); using var conn = db.CreateConnection();
+        return Task.FromResult(conn.ExecuteScalar<int>(
+            "SELECT COUNT(*) FROM password_recovery_codes WHERE account_id=@accountId AND consumed_at IS NULL AND expires_at>@now;",
+            new { accountId, now = now.ToString("O") }));
+    }
+
     public Task<bool> ConsumeRecoveryCodeAsync(Guid codeId, DateTimeOffset consumedAt, CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested(); using var conn = db.CreateConnection();

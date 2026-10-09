@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using MediaEngine.Api.Services.Networking;
+using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Configuration;
 using Microsoft.Extensions.Logging.Abstractions;
 
@@ -14,7 +15,7 @@ public sealed class RemoteAccessReadinessServiceTests
         var provider = new FakeProvider(new RemoteProviderSnapshot(
             "tailscale", "Tailscale", RemoteProviderState.Connected,
             "https://tuvima.example.ts.net", "Serve is active.", SecureHttps: true));
-        var ready = Create(new FakeAuthentication(true, true), [provider]);
+        var ready = Create(new FakeAuthentication(true, true, true), [provider]);
 
         var passed = await ready.EvaluateAsync(new RemoteNetworkSettings
         {
@@ -24,7 +25,7 @@ public sealed class RemoteAccessReadinessServiceTests
         Assert.True(passed.Ready);
         Assert.All(passed.Checks, check => Assert.Equal("passed", check.Status));
 
-        var unclaimed = Create(new FakeAuthentication(false, true), [provider]);
+        var unclaimed = Create(new FakeAuthentication(false, false, true), [provider]);
         var blocked = await unclaimed.EvaluateAsync(new RemoteNetworkSettings
         {
             ConnectionMode = NetworkConnectionModes.Tailscale,
@@ -32,6 +33,36 @@ public sealed class RemoteAccessReadinessServiceTests
 
         Assert.False(blocked.Ready);
         Assert.Contains(blocked.Checks, check => check.Key == "authentication" && check.Status == "failed");
+    }
+
+    [Fact]
+    public async Task UsableAdministratorWithoutRecoveryCodesFailsWithRecoveryMessage()
+    {
+        var provider = new FakeProvider(new RemoteProviderSnapshot(
+            "tailscale", "Tailscale", RemoteProviderState.Connected,
+            "https://tuvima.example.ts.net", "Serve is active.", SecureHttps: true));
+        var service = Create(new FakeAuthentication(true, false, true), [provider]);
+
+        var result = await service.EvaluateAsync(new RemoteNetworkSettings
+        {
+            ConnectionMode = NetworkConnectionModes.Tailscale,
+        }, CancellationToken.None);
+
+        var check = Assert.Single(result.Checks, c => c.Key == "authentication");
+        Assert.Equal("failed", check.Status);
+        Assert.Equal("Save recovery codes for an administrator before opening Tuvima to the internet.", check.Detail);
+    }
+
+    [Fact]
+    public async Task NoUsableAdministratorFailsWithSignInMessage()
+    {
+        var service = Create(new FakeAuthentication(false, false, true), []);
+
+        var result = await service.EvaluateAsync(new RemoteNetworkSettings(), CancellationToken.None);
+
+        var check = Assert.Single(result.Checks, c => c.Key == "authentication");
+        Assert.Equal("failed", check.Status);
+        Assert.Equal("No administrator can sign in yet. Add a password or passkey to an administrator account.", check.Detail);
     }
 
     [Fact]
@@ -46,7 +77,7 @@ public sealed class RemoteAccessReadinessServiceTests
                 Content = JsonContent.Create(new { product = "Tuvima Library", nonce, secure = true }),
             });
         });
-        var service = Create(new FakeAuthentication(true, true), [], handler);
+        var service = Create(new FakeAuthentication(true, true, true), [], handler);
 
         var result = await service.EvaluateAsync(new RemoteNetworkSettings
         {
@@ -62,7 +93,7 @@ public sealed class RemoteAccessReadinessServiceTests
     public async Task DirectMappingFailsClosedInDockerBridgeTopology()
     {
         var service = Create(
-            new FakeAuthentication(true, true),
+            new FakeAuthentication(true, true, true),
             [],
             topology: new NetworkTopologySnapshot(
                 "docker-bridge", false, "docker0 is not the LAN gateway.", "172.18.0.1", "eth0"));
@@ -79,7 +110,7 @@ public sealed class RemoteAccessReadinessServiceTests
     }
 
     private static RemoteAccessReadinessService Create(
-        IRemoteAuthenticationReadiness authentication,
+        IUsableAdministratorService authentication,
         IEnumerable<IRemoteConnectivityProvider> providers,
         HttpMessageHandler? handler = null,
         NetworkTopologySnapshot? topology = null) => new(
@@ -89,10 +120,13 @@ public sealed class RemoteAccessReadinessServiceTests
             new HttpClient(handler ?? new StubHandler(_ => Task.FromResult(new HttpResponseMessage(HttpStatusCode.NotFound)))),
             NullLogger<RemoteAccessReadinessService>.Instance);
 
-    private sealed class FakeAuthentication(bool administratorConfigured, bool bypassDisabled) : IRemoteAuthenticationReadiness
+    private sealed class FakeAuthentication(bool usable, bool recoveryCodes, bool bypassDisabled) : IUsableAdministratorService
     {
-        public Task<RemoteAuthenticationSnapshot> GetAsync(CancellationToken ct) =>
-            Task.FromResult(new RemoteAuthenticationSnapshot(administratorConfigured, bypassDisabled));
+        public Task<bool> HasUsableAdministratorSignInAsync(MediaEngine.Domain.Configuration.AuthSettings policy, CancellationToken ct) =>
+            Task.FromResult(usable);
+
+        public Task<UsableAdministratorStatus> EvaluateForRemoteAsync(CancellationToken ct) =>
+            Task.FromResult(new UsableAdministratorStatus(usable, recoveryCodes, bypassDisabled));
     }
 
     private sealed class FakeTopology(NetworkTopologySnapshot snapshot) : INetworkTopologyService

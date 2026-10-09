@@ -115,10 +115,7 @@ public static class SettingsEndpoints
 
         grp.MapPut("/security/auth", async (UpdateAuthSettingsRequest request,
             IConfigurationLoader configLoader,
-            IAccountRepository accounts,
-            IIdentityRepository identities,
-            IAccountExternalLoginService externalLogins,
-            Microsoft.AspNetCore.Identity.UserManager<MediaEngine.Domain.Entities.Account> users,
+            IUsableAdministratorService usableAdministrators,
             AuthenticationProviderConfigurationService providerConfiguration,
             AuthenticationPolicyMutationGate mutationGate,
             CancellationToken ct) =>
@@ -180,8 +177,7 @@ public static class SettingsEndpoints
             prospective.InvitationLifetimeHours = auth.InvitationLifetimeHours;
             prospective.SessionLifetimeHours = auth.SessionLifetimeHours;
             prospective.MaximumActiveSessions = auth.MaximumActiveSessions;
-            if (!await HasUsableAdministratorSignInAsync(
-                    prospective, accounts, identities, externalLogins, users, ct).ConfigureAwait(false))
+            if (!await usableAdministrators.HasUsableAdministratorSignInAsync(prospective, ct).ConfigureAwait(false))
             {
                 return ApiErrors.Conflict("The policy must leave at least one enabled administrator with a usable sign-in method.");
             }
@@ -199,10 +195,7 @@ public static class SettingsEndpoints
             IConfigurationLoader configLoader,
             AuthenticationProviderConfigurationService providerConfiguration,
             AuthenticationPolicyMutationGate mutationGate,
-            IAccountRepository accounts,
-            IIdentityRepository identities,
-            IAccountExternalLoginService externalLogins,
-            Microsoft.AspNetCore.Identity.UserManager<MediaEngine.Domain.Entities.Account> users,
+            IUsableAdministratorService usableAdministrators,
             CancellationToken ct) =>
         {
             var error = ValidateExternalProvider(providerId, request);
@@ -223,8 +216,7 @@ public static class SettingsEndpoints
             authWithSecrets.ExternalProviders.RemoveAll(candidate =>
                 candidate.Id.Equals(providerId, StringComparison.OrdinalIgnoreCase));
             authWithSecrets.ExternalProviders.Add(provider);
-            if (!await HasUsableAdministratorSignInAsync(
-                    authWithSecrets, accounts, identities, externalLogins, users, ct).ConfigureAwait(false))
+            if (!await usableAdministrators.HasUsableAdministratorSignInAsync(authWithSecrets, ct).ConfigureAwait(false))
             {
                 return ApiErrors.Conflict("The provider change would remove the last usable administrator sign-in method.");
             }
@@ -245,10 +237,7 @@ public static class SettingsEndpoints
             IConfigurationLoader configLoader,
             AuthenticationProviderConfigurationService providerConfiguration,
             AuthenticationPolicyMutationGate mutationGate,
-            IAccountRepository accounts,
-            IIdentityRepository identities,
-            IAccountExternalLoginService externalLogins,
-            Microsoft.AspNetCore.Identity.UserManager<MediaEngine.Domain.Entities.Account> users,
+            IUsableAdministratorService usableAdministrators,
             CancellationToken ct) =>
         {
             using var mutation = await mutationGate.EnterAsync(ct).ConfigureAwait(false);
@@ -261,8 +250,7 @@ public static class SettingsEndpoints
                 return ApiErrors.NotFound("Authentication provider not found.");
             }
 
-            if (!await HasUsableAdministratorSignInAsync(
-                    authWithSecrets, accounts, identities, externalLogins, users, ct).ConfigureAwait(false))
+            if (!await usableAdministrators.HasUsableAdministratorSignInAsync(authWithSecrets, ct).ConfigureAwait(false))
             {
                 return ApiErrors.Conflict("The provider change would remove the last usable administrator sign-in method.");
             }
@@ -1721,73 +1709,6 @@ public static class SettingsEndpoints
                 };
             }).ToList(),
         };
-    }
-
-    internal static async Task<bool> HasUsableAdministratorSignInAsync(
-        AuthSettings policy,
-        IAccountRepository accounts,
-        IIdentityRepository identities,
-        IAccountExternalLoginService externalLogins,
-        Microsoft.AspNetCore.Identity.UserManager<MediaEngine.Domain.Entities.Account> users,
-        CancellationToken ct)
-    {
-        foreach (var account in (await accounts.GetAllAsync(ct).ConfigureAwait(false))
-                     .Where(account => account.IsEnabled && account.IsAdministrator))
-        {
-            var grants = (await accounts.GetGrantsAsync(account.Id, ct).ConfigureAwait(false))
-                .Where(grant => grant.IsEnabled && grant.AdminEnabled)
-                .ToArray();
-            if (grants.Length == 0)
-            {
-                continue;
-            }
-
-            if (account.IsLocalOnly)
-            {
-                if (!policy.AllowLocalOnlyAccounts)
-                {
-                    continue;
-                }
-
-                foreach (var grant in grants)
-                {
-                    if (await accounts.GetLocalOnlyAccountIdForProfileAsync(grant.ProfileId, ct)
-                            .ConfigureAwait(false) == account.Id)
-                    {
-                        return true;
-                    }
-                }
-                continue;
-            }
-
-            var localOnlyMode = policy.Mode.Equals("DisabledLocalOnly", StringComparison.OrdinalIgnoreCase);
-            if (!localOnlyMode && policy.PasswordSignInEnabled &&
-                await identities.GetAccountCredentialAsync(
-                    account.Id,
-                    MediaEngine.Domain.Entities.AccountCredentialKind.Password,
-                    ct).ConfigureAwait(false) is not null)
-            {
-                return true;
-            }
-
-            if (!localOnlyMode && policy.PasskeySignInEnabled &&
-                AuthenticationEndpoints.IsCanonicalOriginReady(policy) &&
-                (await users.GetPasskeysAsync(account).ConfigureAwait(false)).Count > 0)
-            {
-                return true;
-            }
-
-            if (policy.Mode is "Optional" or "Required" && policy.ExternalSignInEnabled)
-            {
-                var linked = await externalLogins.GetByAccountAsync(account.Id, ct).ConfigureAwait(false);
-                if (linked.Any(login => AuthenticationEndpoints.IsConfiguredProvider(
-                        policy, login.Provider, login.Issuer)))
-                {
-                    return true;
-                }
-            }
-        }
-        return false;
     }
 
     private static string? ValidateExternalProvider(string providerId, UpdateExternalAuthProviderRequest request)
