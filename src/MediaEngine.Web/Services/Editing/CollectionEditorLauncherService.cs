@@ -1,6 +1,6 @@
 using MediaEngine.Web.Components.Collections;
-using MediaEngine.Web.Services.Integration;
 using MediaEngine.Web.Components.Shared;
+using MediaEngine.Web.Services.Integration;
 using MediaEngine.Web.Services.Ui;
 
 namespace MediaEngine.Web.Services.Editing;

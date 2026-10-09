@@ -35,6 +35,12 @@ address, exact/CIDR trusted proxies, and remote-streaming policy. Supported
 remote modes are `tailscale`, `custom`, and the advanced `direct-only` mode.
 The removed `secure-provider` placeholder is rejected.
 
+`native_app_access.enabled` (default `false`) switches the Dashboard's paired-app
+door on or off. It can only be saved as `true` while remote access is enabled,
+and turning remote access off or resetting network settings turns it off too.
+The Dashboard re-reads the file when it changes and treats a missing or
+unreadable file as off.
+
 Observed state stays in memory: usable interfaces, topology, current
 Tuvima-owned router mapping, public address, latest tests, measured bandwidth,
 and provider state. The API never writes those observations into configuration.

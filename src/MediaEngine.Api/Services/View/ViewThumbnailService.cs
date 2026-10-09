@@ -94,7 +94,10 @@ public sealed class ViewThumbnailService(
         }
         finally
         {
-            if (decodeSlot) _decodeSlots.Release();
+            if (decodeSlot)
+            {
+                _decodeSlots.Release();
+            }
             gate.Release();
         }
     }

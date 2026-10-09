@@ -1,0 +1,2 @@
+# Match .editorconfig (end_of_line = crlf) so "dotnet format --verify-no-changes" passes on Linux CI checkouts.
+*.cs text eol=crlf

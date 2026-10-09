@@ -35,13 +35,19 @@ public static partial class PlaybackLyricsParser
         foreach (var raw in (text ?? string.Empty).Replace("\r", string.Empty).Split('\n'))
         {
             var value = raw.Trim();
-            if (value.Length == 0 || Metadata().IsMatch(value)) continue;
+            if (value.Length == 0 || Metadata().IsMatch(value))
+            {
+                continue;
+            }
             var matches = Timestamp().Matches(value);
             if (matches.Count == 0 || matches[0].Index != 0) { lines.Add(new(InlineMarkup().Replace(value, ""), null)); continue; }
             var end = 0; var stamps = new List<double>();
             foreach (Match match in matches)
             {
-                if (match.Index != end) break;
+                if (match.Index != end)
+                {
+                    break;
+                }
                 end += match.Length; stamps.Add(Time(match) - offset);
             }
             var content = value[end..].Trim();
@@ -57,11 +63,17 @@ public static partial class PlaybackLyricsParser
                 {
                     var tag = wordTags[i]; var next = i + 1 < wordTags.Length ? wordTags[i + 1] : null;
                     var segment = content[(tag.Index + tag.Length)..(next?.Index ?? content.Length)];
-                    if (segment.Length == 0) continue;
+                    if (segment.Length == 0)
+                    {
+                        continue;
+                    }
                     parsed.Add(new(segment, Time(tag) - offset, next is null ? null : Time(next) - offset,
                         next is not null && string.IsNullOrWhiteSpace(content[(next.Index + next.Length)..])));
                 }
-                if (parsed.Count > 0) words = parsed;
+                if (parsed.Count > 0)
+                {
+                    words = parsed;
+                }
             }
             foreach (var stamp in stamps)
             {
@@ -74,7 +86,10 @@ public static partial class PlaybackLyricsParser
         for (var i = 0; i < ordered.Count; i++)
         {
             var line = ordered[i];
-            if (line.Words is not { Count: > 0 } words || words[^1].EndSeconds is not null) continue;
+            if (line.Words is not { Count: > 0 } words || words[^1].EndSeconds is not null)
+            {
+                continue;
+            }
             var next = ordered.Skip(i + 1).FirstOrDefault(other => other.StartSeconds > words[^1].StartSeconds)?.StartSeconds;
             var updated = words.ToArray(); updated[^1] = updated[^1] with { EndSeconds = next };
             ordered[i] = line with { Words = updated };
@@ -88,24 +103,44 @@ public static class PlaybackLyricsTimeline
     public static IReadOnlyList<PlaybackLyricLine> Build(IReadOnlyList<PlaybackLyricLine> lines, double duration, ListenPlaybackClientSettings settings)
     {
         var sung = lines.Where(line => !line.IsInstrumental && line.StartSeconds is not null).OrderBy(line => line.StartSeconds).ToArray();
-        if (sung.Length == 0) return lines.Where(line => !line.IsInstrumental).ToArray();
+        if (sung.Length == 0)
+        {
+            return lines.Where(line => !line.IsInstrumental).ToArray();
+        }
         var gaps = new List<(double Start, double End)>();
         var first = sung[0].StartSeconds!.Value;
-        if (first >= settings.LyricsIntroMinSeconds) gaps.Add((0, first));
+        if (first >= settings.LyricsIntroMinSeconds)
+        {
+            gaps.Add((0, first));
+        }
         foreach (var marker in lines.Where(line => line.IsInstrumental && line.StartSeconds is not null))
         {
             var start = marker.StartSeconds!.Value;
             var next = sung.FirstOrDefault(line => line.StartSeconds > start)?.StartSeconds ?? (duration > start ? duration : (double?)null);
-            if (next is double end && end - start >= settings.LyricsInstrumentalMinSeconds) gaps.Add((start, end));
+            if (next is double end && end - start >= settings.LyricsInstrumentalMinSeconds)
+            {
+                gaps.Add((start, end));
+            }
         }
         for (var i = 0; i < sung.Length - 1; i++)
+        {
             if (sung[i].Words?.LastOrDefault() is { ExplicitEnd: true, EndSeconds: double end }
-                && sung[i + 1].StartSeconds is double next && next - end >= settings.LyricsWordGapMinSeconds) gaps.Add((end, next));
+                    && sung[i + 1].StartSeconds is double next && next - end >= settings.LyricsWordGapMinSeconds)
+            {
+                gaps.Add((end, next));
+            }
+        }
         var merged = new List<(double Start, double End)>();
         foreach (var gap in gaps.OrderBy(gap => gap.Start))
         {
-            if (merged.Count > 0 && gap.Start <= merged[^1].End) merged[^1] = (merged[^1].Start, Math.Max(merged[^1].End, gap.End));
-            else merged.Add(gap);
+            if (merged.Count > 0 && gap.Start <= merged[^1].End)
+            {
+                merged[^1] = (merged[^1].Start, Math.Max(merged[^1].End, gap.End));
+            }
+            else
+            {
+                merged.Add(gap);
+            }
         }
         return lines.Where(line => !line.IsInstrumental).Concat(merged.Select(gap => new PlaybackLyricLine("", gap.Start, IsInstrumental: true, EndSeconds: gap.End)))
             .OrderBy(line => line.StartSeconds ?? double.MaxValue).ToArray();
@@ -153,24 +188,42 @@ public sealed class PlaybackLyricsPresenter(IEngineApiClient api) : IDisposable
     public async Task EnsureAsync(ListenPlaybackSnapshot snapshot, IPlaybackCommandSink commands)
     {
         Observe(snapshot, commands);
-        if (_identity is not { } identity) return;
+        if (_identity is not { } identity)
+        {
+            return;
+        }
         var generation = _generation;
         if (!_tracksLoaded)
         {
-            if (Loading) return;
+            if (Loading)
+            {
+                return;
+            }
             Loading = true; Changed?.Invoke();
             try
             {
                 var tracks = await api.GetTextTracksAsync(identity.AssetId, _reads.Token);
-                if (!Current(identity, generation)) return;
+                if (!Current(identity, generation))
+                {
+                    return;
+                }
                 Tracks = tracks.Where(track => track.Id != Guid.Empty && track.Kind.Equals("Lyrics", StringComparison.OrdinalIgnoreCase))
                     .DistinctBy(track => track.Id).ToArray();
                 _tracksLoaded = true;
             }
             catch (Exception) { if (Current(identity, generation)) { Status = "Lyrics could not be loaded."; _tracksLoaded = true; } }
-            finally { if (Current(identity, generation)) Loading = false; }
+            finally
+            {
+                if (Current(identity, generation))
+                {
+                    Loading = false;
+                }
+            }
         }
-        if (!Current(identity, generation)) return;
+        if (!Current(identity, generation))
+        {
+            return;
+        }
         var projected = _projectedChoice;
         var choice = projected is Guid p && Tracks.Any(track => track.Id == p) ? p
             : SelectedTrackId is Guid previous && Tracks.Any(track => track.Id == previous) ? previous
@@ -179,11 +232,19 @@ public sealed class PlaybackLyricsPresenter(IEngineApiClient api) : IDisposable
         {
             Lines = []; SelectedTrackId = null; _contentLoaded = true;
             if (snapshot.LyricsSelection is { } old && commands is IPlaybackLyricsSelectionSink selectionSink)
+            {
                 await selectionSink.SelectLyricsAsync(snapshot, old.TrackId, _reads.Token);
-            if (Current(identity, generation)) Changed?.Invoke();
+            }
+            if (Current(identity, generation))
+            {
+                Changed?.Invoke();
+            }
             return;
         }
-        if (SelectedTrackId == selected && (_contentLoaded || Loading)) return;
+        if (SelectedTrackId == selected && (_contentLoaded || Loading))
+        {
+            return;
+        }
         if (projected != selected && commands is IPlaybackLyricsSelectionSink owner)
         {
             SelectedTrackId = selected; Loading = true;
@@ -191,7 +252,10 @@ public sealed class PlaybackLyricsPresenter(IEngineApiClient api) : IDisposable
             try
             {
                 var reply = await owner.SelectLyricsAsync(snapshot, selected, _reads.Token);
-                if (!Current(identity, generation) || selection != _selectionGeneration) return;
+                if (!Current(identity, generation) || selection != _selectionGeneration)
+                {
+                    return;
+                }
                 if (reply?.BooleanResult != true)
                 {
                     Lines = []; Loading = false; Status = "That lyrics version is unavailable.";
@@ -205,7 +269,10 @@ public sealed class PlaybackLyricsPresenter(IEngineApiClient api) : IDisposable
                 return;
             }
         }
-        if (!Current(identity, generation)) return;
+        if (!Current(identity, generation))
+        {
+            return;
+        }
         await LoadContentAsync(identity, generation, selected);
     }
 
@@ -217,19 +284,34 @@ public sealed class PlaybackLyricsPresenter(IEngineApiClient api) : IDisposable
         try
         {
             var content = await api.GetTextTrackContentAsync(identity.AssetId, selected, _reads.Token);
-            if (!Fresh()) return;
+            if (!Fresh())
+            {
+                return;
+            }
             Lines = PlaybackLyricsParser.Parse(content);
-            if (content is null) Status = "That lyrics version is unavailable.";
+            if (content is null)
+            {
+                Status = "That lyrics version is unavailable.";
+            }
             _contentLoaded = true;
         }
-        catch (Exception) { if (Fresh()) Status = "That lyrics version is unavailable."; }
+        catch (Exception)
+        {
+            if (Fresh())
+            {
+                Status = "That lyrics version is unavailable.";
+            }
+        }
         finally { if (Fresh()) { Loading = false; Changed?.Invoke(); } }
     }
 
     public async Task SelectAsync(Guid trackId)
     {
         if (_identity is not { } identity || _commands is not IPlaybackLyricsSelectionSink owner
-            || !Tracks.Any(track => track.Id == trackId)) return;
+            || !Tracks.Any(track => track.Id == trackId))
+        {
+            return;
+        }
         var generation = _generation; var selection = ++_selectionGeneration;
         _projectedChoice = trackId;
         SelectedTrackId = trackId; Lines = []; Loading = true; _contentLoaded = false;
@@ -237,7 +319,10 @@ public sealed class PlaybackLyricsPresenter(IEngineApiClient api) : IDisposable
         try
         {
             var reply = await owner.SelectLyricsAsync(_snapshot, trackId, _reads.Token);
-            if (!Current(identity, generation) || selection != _selectionGeneration) return;
+            if (!Current(identity, generation) || selection != _selectionGeneration)
+            {
+                return;
+            }
             if (reply?.BooleanResult != true)
             { Loading = false; Status = "Playback changed before the lyrics choice arrived."; Changed?.Invoke(); return; }
             await LoadContentAsync(identity, generation, trackId);
@@ -251,48 +336,87 @@ public sealed class PlaybackLyricsPresenter(IEngineApiClient api) : IDisposable
 
     public async Task PreferAsync()
     {
-        if (_identity is not { } identity || SelectedTrackId is not Guid track || !Tracks.Any(item => item.Id == track)) return;
+        if (_identity is not { } identity || SelectedTrackId is not Guid track || !Tracks.Any(item => item.Id == track))
+        {
+            return;
+        }
         var generation = _generation; var selection = _selectionGeneration;
         bool Fresh() => Current(identity, generation) && selection == _selectionGeneration && SelectedTrackId == track;
         try
         {
             var saved = await api.SetPreferredTextTrackAsync(identity.AssetId, track, _reads.Token);
-            if (!Fresh()) return;
+            if (!Fresh())
+            {
+                return;
+            }
             if (saved)
             {
                 var tracks = await api.GetTextTracksAsync(identity.AssetId, _reads.Token);
-                if (!Fresh()) return;
+                if (!Fresh())
+                {
+                    return;
+                }
                 Tracks = tracks.Where(item => item.Id != Guid.Empty && item.Kind.Equals("Lyrics", StringComparison.OrdinalIgnoreCase)).DistinctBy(item => item.Id).ToArray();
                 if (!Tracks.Any(item => item.Id == track))
                 {
                     Lines = []; SelectedTrackId = null; _contentLoaded = false;
-                    if (_commands is not null) await EnsureAsync(_snapshot, _commands);
+                    if (_commands is not null)
+                    {
+                        await EnsureAsync(_snapshot, _commands);
+                    }
                     return;
                 }
             }
             Status = saved ? "Preferred lyrics saved." : "Could not save preferred lyrics.";
         }
-        catch (Exception) { if (Fresh()) Status = "Could not save preferred lyrics."; }
-        finally { if (Fresh()) Changed?.Invoke(); }
+        catch (Exception)
+        {
+            if (Fresh())
+            {
+                Status = "Could not save preferred lyrics.";
+            }
+        }
+        finally
+        {
+            if (Fresh())
+            {
+                Changed?.Invoke();
+            }
+        }
     }
 
     public async Task RefreshAsync()
     {
-        if (Refreshing || _identity is not { } identity || _commands is null) return;
+        if (Refreshing || _identity is not { } identity || _commands is null)
+        {
+            return;
+        }
         var generation = _generation; var selection = _selectionGeneration;
         Refreshing = true; Status = null; Changed?.Invoke();
         bool Fresh() => Current(identity, generation) && selection == _selectionGeneration;
         try
         {
             var result = await api.RefreshTextTracksAsync(identity.AssetId, "lyrics", _reads.Token);
-            if (!Fresh()) return;
+            if (!Fresh())
+            {
+                return;
+            }
             var message = result?.message ?? "Lyrics search could not start.";
             _tracksLoaded = false; _contentLoaded = false;
             var selectedBeforeReload = SelectedTrackId;
             await EnsureAsync(_snapshot, _commands);
-            if (Current(identity, generation) && SelectedTrackId == selectedBeforeReload && _contentLoaded) Status = message;
+            if (Current(identity, generation) && SelectedTrackId == selectedBeforeReload && _contentLoaded)
+            {
+                Status = message;
+            }
         }
-        catch (Exception) { if (Fresh()) Status = "Lyrics search could not start."; }
+        catch (Exception)
+        {
+            if (Fresh())
+            {
+                Status = "Lyrics search could not start.";
+            }
+        }
         finally { if (Current(identity, generation)) { Refreshing = false; Changed?.Invoke(); } }
     }
 

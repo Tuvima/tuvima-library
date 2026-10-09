@@ -132,7 +132,9 @@ public sealed partial class EngineApiClient
         var state = await PostAsync<PlayerHeartbeatDto, PlayerStateDto>("POST /api/v1/player/heartbeat", "/api/v1/player/heartbeat", request, ct: ct);
         if (state is not null && profile is { } id && id != Guid.Empty && _progressProfile?.ProfileId == id
             && state.ProfileId == id && (request.ProfileId is null || request.ProfileId == id) && request.AssetId is { } assetId)
+        {
             _progressChanges?.Publish(id, assetId);
+        }
         return state;
     }
 
@@ -630,7 +632,9 @@ public sealed partial class EngineApiClient
             if (resp.StatusCode == System.Net.HttpStatusCode.NotFound)
             {
                 if (profile is { } missingProfileId && _progressProfile?.ProfileId == missingProfileId)
+                {
                     _progressRevisions.TryRemove((missingProfileId, assetId), out _);
+                }
                 return null;
             }
 

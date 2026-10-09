@@ -13,7 +13,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.weight
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Button
@@ -303,6 +302,6 @@ private fun mobileCardDetailTarget(card: com.tuvima.library.core.DisplayCard): P
         action.webUrl?.takeIf { "/details/" in it }?.split('/')?.filter(String::isNotBlank)?.takeIf { it.size >= 2 }
             ?.let { it[it.size - 2] to it.last() }
     }?.let { return it }
-    if (card.collectionId != null) return "collection" to card.collectionId
+    card.collectionId?.let { return "collection" to it }
     return mobileDetailEntityType(card.mediaType) to (card.workId ?: card.id)
 }

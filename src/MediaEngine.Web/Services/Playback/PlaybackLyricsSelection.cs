@@ -37,11 +37,17 @@ public sealed class PlaybackLyricsSelectionOwner(PlaybackSessionController playb
             && command.ProfileId == profile && command.WorkId == identity.WorkId
             && command.ExpectedAssetId == identity.AssetId && command.ExpectedPlaybackRequestVersion == identity.RequestVersion
             && identity == PlaybackLyricsIdentity.From(playback.CreateSnapshot());
-        if (!Current() || command.LyricTrackId is not Guid trackId || trackId == Guid.Empty) return false;
+        if (!Current() || command.LyricTrackId is not Guid trackId || trackId == Guid.Empty)
+        {
+            return false;
+        }
         IReadOnlyList<TextTrackDto> tracks;
         try { tracks = await api.GetTextTracksAsync(identity!.AssetId, ct); }
         catch (Exception) { return false; }
-        if (!Current()) return false;
+        if (!Current())
+        {
+            return false;
+        }
         if (!tracks.Any(track => track.Id == trackId && track.Kind.Equals("Lyrics", StringComparison.OrdinalIgnoreCase)))
         {
             playback.SetLyricsSelection(null);

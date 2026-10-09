@@ -47,7 +47,10 @@ public sealed class OfflineMaintenanceTransactionPolicyTests
     private static string Root()
     {
         var directory = new DirectoryInfo(AppContext.BaseDirectory);
-        while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "MediaEngine.slnx"))) directory = directory.Parent;
+        while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "MediaEngine.slnx")))
+        {
+            directory = directory.Parent;
+        }
         return directory?.FullName ?? throw new InvalidOperationException("Repository not found.");
     }
 }

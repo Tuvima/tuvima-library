@@ -8,6 +8,12 @@ public sealed class NetworkSettingsDto
     [JsonPropertyName("local")] public LocalNetworkSettingsDto Local { get; set; } = new();
     [JsonPropertyName("remote")] public RemoteNetworkSettingsDto Remote { get; set; } = new();
     [JsonPropertyName("streaming")] public NetworkStreamingSettingsDto Streaming { get; set; } = new();
+    [JsonPropertyName("native_app_access")] public NativeAppAccessSettingsDto NativeAppAccess { get; set; } = new();
+}
+
+public sealed class NativeAppAccessSettingsDto
+{
+    [JsonPropertyName("enabled")] public bool Enabled { get; set; }
 }
 
 public sealed class LocalNetworkSettingsDto

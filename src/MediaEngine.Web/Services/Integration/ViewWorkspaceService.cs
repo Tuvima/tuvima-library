@@ -77,9 +77,14 @@ public sealed class ViewWorkspaceService(IEngineApiClient api)
     public async Task<bool> SetViewerInfoOpenAsync(bool open, CancellationToken ct = default)
     {
         if (Preferences is not null)
+        {
             Preferences = Preferences with { ViewerInfoOpen = open };
+        }
         var saved = await api.UpdateViewPreferencesAsync(ScopeKind, ScopeProfileId, Density, open, ct);
-        if (saved is null) return false;
+        if (saved is null)
+        {
+            return false;
+        }
         Preferences = saved;
         return true;
     }

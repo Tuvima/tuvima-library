@@ -17,7 +17,10 @@ public sealed class DisplayJourneyProjectionReader
     public Task<IReadOnlyList<DisplayJourneyRow>> LoadAsync(Guid? profileId, string? lane, CancellationToken ct, bool includeCompleted = false)
     {
         ct.ThrowIfCancellationRequested();
-        if (profileId is null || profileId == Guid.Empty) return Task.FromResult<IReadOnlyList<DisplayJourneyRow>>([]);
+        if (profileId is null || profileId == Guid.Empty)
+        {
+            return Task.FromResult<IReadOnlyList<DisplayJourneyRow>>([]);
+        }
         using var conn = _db.CreateConnection();
         var visibleWorkPredicate = HomeVisibilitySql.VisibleWorkPredicate("w.id", "w.curator_state", "w.is_catalog_only");
         var visibleAssetPredicate = HomeVisibilitySql.VisibleAssetPathPredicate("ma.file_path_root");

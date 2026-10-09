@@ -6,7 +6,10 @@ public static class OwnedEpisodeQueuePlanner
 {
     public static IReadOnlyList<Guid> NextPlayableCandidates(SequencePlacementViewModel? sequence, Guid currentWorkId, int limit = 3)
     {
-        if (sequence is null || limit <= 0) return [];
+        if (sequence is null || limit <= 0)
+        {
+            return [];
+        }
         var items = sequence.OrderedItems;
         var currentIndex = -1;
         for (var index = 0; index < items.Count; index++)
@@ -18,7 +21,10 @@ public static class OwnedEpisodeQueuePlanner
             }
         }
 
-        if (currentIndex < 0) return [];
+        if (currentIndex < 0)
+        {
+            return [];
+        }
         return items.Skip(currentIndex + 1)
             .Where(item => item.IsOwned && item.EntityType == DetailEntityType.TvEpisode)
             .Select(item => Guid.TryParse(item.Id, out var id) ? id : Guid.Empty)

@@ -1,5 +1,5 @@
-using System.Security.Cryptography;
 using System.Security.AccessControl;
+using System.Security.Cryptography;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using MediaEngine.Contracts.Startup;
@@ -36,15 +36,21 @@ public static class RealMediaHarness
     public static void RequireSeparate(string source, string output)
     {
         if (Contains(source, output) || Contains(output, source))
+        {
             throw new InvalidOperationException($"Protected source and output overlap: {source}; {output}");
+        }
         RejectReparseAncestors(output);
     }
 
     public static void RejectReparseAncestors(string path)
     {
         for (var entry = new DirectoryInfo(Path.GetFullPath(path)); entry is not null; entry = entry.Parent)
+        {
             if (entry.Exists && (entry.Attributes & FileAttributes.ReparsePoint) != 0)
+            {
                 throw new InvalidOperationException($"Reparse-point path is not permitted: {entry.FullName}");
+            }
+        }
     }
 
     public static IEnumerable<FileSystemInfo> Enumerate(string root)
@@ -57,9 +63,14 @@ public static class RealMediaHarness
             foreach (var entry in directory.EnumerateFileSystemInfos())
             {
                 if ((entry.Attributes & FileAttributes.ReparsePoint) != 0)
+                {
                     throw new InvalidOperationException($"Reparse-point entry is not permitted: {entry.FullName}");
+                }
                 yield return entry;
-                if (entry is DirectoryInfo child) pending.Push(child);
+                if (entry is DirectoryInfo child)
+                {
+                    pending.Push(child);
+                }
             }
         }
     }
@@ -83,11 +94,17 @@ public static class RealMediaHarness
                 if (hash)
                 {
                     digest = Convert.ToHexString(await SHA256.HashDataAsync(stream, ct));
-                    if (++count % 25 == 0) Console.WriteLine($"Source verification: {count} files hashed.");
+                    if (++count % 25 == 0)
+                    {
+                        Console.WriteLine($"Source verification: {count} files hashed.");
+                    }
                 }
             }
             entry.Refresh();
-            if (before != Describe(root, entry)) throw new IOException($"Source changed during verification: {entry.FullName}");
+            if (before != Describe(root, entry))
+            {
+                throw new IOException($"Source changed during verification: {entry.FullName}");
+            }
             result.Add(before with { Sha256 = digest });
         }
         return result;
@@ -100,7 +117,10 @@ public static class RealMediaHarness
 
     private static string? SecurityDescriptor(FileSystemInfo entry)
     {
-        if (!OperatingSystem.IsWindows()) return null;
+        if (!OperatingSystem.IsWindows())
+        {
+            return null;
+        }
         FileSystemSecurity security = entry is FileInfo file ? file.GetAccessControl() : ((DirectoryInfo)entry).GetAccessControl();
         return security.GetSecurityDescriptorSddlForm(AccessControlSections.Access | AccessControlSections.Owner | AccessControlSections.Group);
     }
@@ -120,27 +140,47 @@ public static class RealMediaHarness
 
     public static void ValidateConfiguration(string directory, RealMediaRun run)
     {
-        if (run.Phase != "Ready") throw new InvalidOperationException("Real-media preparation is incomplete; workers must remain stopped.");
+        if (run.Phase != "Ready")
+        {
+            throw new InvalidOperationException("Real-media preparation is incomplete; workers must remain stopped.");
+        }
         if (ConfigHash(directory) != run.ConfigurationHash)
+        {
             throw new InvalidOperationException("Real-media configuration changed. Revalidate offline before starting workers.");
+        }
         var libraries = JsonSerializer.Deserialize<LibrariesConfiguration>(File.ReadAllText(Path.Combine(directory, "libraries.json")))!;
         ValidateSources(libraries, run.SourceRoot);
         var core = JsonSerializer.Deserialize<CoreConfiguration>(File.ReadAllText(Path.Combine(directory, "core.json")))!;
-        if (!string.IsNullOrWhiteSpace(core.DataRoot)) RequireSeparate(run.SourceRoot, core.DataRoot);
+        if (!string.IsNullOrWhiteSpace(core.DataRoot))
+        {
+            RequireSeparate(run.SourceRoot, core.DataRoot);
+        }
         var transcoding = JsonNode.Parse(File.ReadAllText(Path.Combine(directory, "transcoding.json")))!;
         var variantCache = transcoding["variant_cache_path"]?.GetValue<string>();
-        if (!string.IsNullOrWhiteSpace(variantCache)) RequireSeparate(run.SourceRoot, Path.GetFullPath(variantCache));
+        if (!string.IsNullOrWhiteSpace(variantCache))
+        {
+            RequireSeparate(run.SourceRoot, Path.GetFullPath(variantCache));
+        }
         foreach (var path in new[] { run.OutputDirectory, run.DatabasePath, run.LibraryRoot, directory, Path.GetTempPath() })
+        {
             RequireSeparate(run.SourceRoot, path);
+        }
         foreach (var name in new[] { "TUVIMA_DB_PATH", "TUVIMA_LIBRARY_ROOT", "TUVIMA_WATCH_FOLDER" })
+        {
             if (!string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable(name)))
+            {
                 throw new InvalidOperationException($"Remove {name}: real-media mode uses the validated configuration only.");
+            }
+        }
     }
 
     public static void ValidateSources(LibrariesConfiguration libraries, string sourceRoot)
     {
         var errors = MediaEngine.Storage.Configuration.JsonConfigValidator.Validate(libraries, "libraries.json");
-        if (errors.Count > 0) throw new InvalidOperationException(string.Join("; ", errors));
+        if (errors.Count > 0)
+        {
+            throw new InvalidOperationException(string.Join("; ", errors));
+        }
         var sources = libraries.Libraries.SelectMany(l => l.Sources).ToArray();
         if (sources.Length != CatalogueFolders.Length || libraries.Libraries.Count != CatalogueFolders.Length
             || sources.Any(s => s.ManagementMode != LibrarySourceManagementModes.ExistingLibrary
@@ -148,24 +188,40 @@ public static class RealMediaHarness
             || CatalogueFolders.Any(folder => sources.Count(s => string.Equals(Path.GetFullPath(s.Path), Path.Combine(sourceRoot, folder), StringComparison.OrdinalIgnoreCase)) != 1)
             || libraries.PersonalLibraryPolicy.AllowBrowserUpload || libraries.PersonalLibraryPolicy.AllowConnectedDeviceImport
             || libraries.Libraries.Any(l => l.PrimaryDestinationSourceId is not null || l.AcceptedIntakeModes.Count != 0))
+        {
             throw new InvalidOperationException("Real-media mode requires exactly the five approved read-only catalogue sources, with uploads and alternate intake disabled.");
+        }
     }
 
     public static async Task PrepareAsync(string configDirectory, string sourceRoot, string outputDirectory, Guid? profileId)
     {
         using var dashboard = ProcessInstanceLease.TryAcquire(ProcessInstanceLease.DashboardLeaseName);
-        if (!dashboard.IsAcquired) throw new InvalidOperationException("Stop the Dashboard before preparing real media.");
+        if (!dashboard.IsAcquired)
+        {
+            throw new InvalidOperationException("Stop the Dashboard before preparing real media.");
+        }
         configDirectory = Path.GetFullPath(configDirectory);
         sourceRoot = Path.TrimEndingDirectorySeparator(Path.GetFullPath(sourceRoot));
         outputDirectory = Path.GetFullPath(outputDirectory);
         foreach (var folder in CatalogueFolders.Concat(ViewFolders))
-            if (!Directory.Exists(Path.Combine(sourceRoot, folder))) throw new DirectoryNotFoundException(folder);
+        {
+            if (!Directory.Exists(Path.Combine(sourceRoot, folder)))
+            {
+                throw new DirectoryNotFoundException(folder);
+            }
+        }
         var corePath = Path.Combine(configDirectory, "core.json");
         var core = JsonNode.Parse(File.ReadAllText(corePath))!.AsObject();
         var libraryRoot = Path.GetFullPath(core["library_root"]!.GetValue<string>());
         var database = Path.GetFullPath(TuvimaDataPathResolver.ResolveDatabasePath(configDirectory, null, null));
-        foreach (var path in new[] { configDirectory, outputDirectory, libraryRoot, database }) RequireSeparate(sourceRoot, path);
-        if (Directory.Exists(outputDirectory)) throw new InvalidOperationException("Use a new report directory for each preparation.");
+        foreach (var path in new[] { configDirectory, outputDirectory, libraryRoot, database })
+        {
+            RequireSeparate(sourceRoot, path);
+        }
+        if (Directory.Exists(outputDirectory))
+        {
+            throw new InvalidOperationException("Use a new report directory for each preparation.");
+        }
         Directory.CreateDirectory(outputDirectory);
 
         using var connection = new SqliteConnection(new SqliteConnectionStringBuilder { DataSource = database, Mode = SqliteOpenMode.ReadWrite, Pooling = false }.ToString());
@@ -175,16 +231,27 @@ public static class RealMediaHarness
         {
             command.CommandText = "SELECT id FROM profiles ORDER BY created_at";
             using var reader = command.ExecuteReader();
-            while (reader.Read()) profiles.Add(GuidSql.FromDb(reader[0]));
+            while (reader.Read())
+            {
+                profiles.Add(GuidSql.FromDb(reader[0]));
+            }
         }
         if (profileId is null && profiles.Count != 1)
+        {
             throw new InvalidOperationException("Specify -ProfileId when more than one profile exists. No reset has occurred.");
+        }
         var selectedProfile = profileId ?? profiles.Single();
-        if (!profiles.Contains(selectedProfile)) throw new InvalidOperationException("The selected profile does not exist.");
+        if (!profiles.Contains(selectedProfile))
+        {
+            throw new InvalidOperationException("The selected profile does not exist.");
+        }
 
-        using var observer = new FileSystemWatcher(sourceRoot) { IncludeSubdirectories = true,
+        using var observer = new FileSystemWatcher(sourceRoot)
+        {
+            IncludeSubdirectories = true,
             NotifyFilter = NotifyFilters.FileName | NotifyFilters.DirectoryName | NotifyFilters.Size | NotifyFilters.LastWrite | NotifyFilters.Attributes | NotifyFilters.Security,
-            InternalBufferSize = 64 * 1024 };
+            InternalBufferSize = 64 * 1024
+        };
         var changed = 0;
         observer.Changed += (_, _) => Interlocked.Exchange(ref changed, 1);
         observer.Created += (_, _) => Interlocked.Exchange(ref changed, 1);
@@ -194,7 +261,10 @@ public static class RealMediaHarness
         observer.EnableRaisingEvents = true;
         var baseline = await SnapshotAsync(sourceRoot, true);
         Save(Path.Combine(outputDirectory, "source-baseline.json"), baseline);
-        if (changed != 0) throw new IOException("Source activity during baseline; reset aborted.");
+        if (changed != 0)
+        {
+            throw new IOException("Source activity during baseline; reset aborted.");
+        }
         Console.WriteLine($"Baseline: {baseline.Count(e => !e.IsDirectory)} files. Preparing source-preserving reset.");
 
         using (var backup = new SqliteConnection($"Data Source={Path.Combine(outputDirectory, "library-before.db")}"))
@@ -203,12 +273,20 @@ public static class RealMediaHarness
             connection.BackupDatabase(backup);
         }
         foreach (var name in new[] { "libraries.json", "core.json", "writeback.json", SettingsFile })
-            if (File.Exists(Path.Combine(configDirectory, name))) File.Copy(Path.Combine(configDirectory, name), Path.Combine(outputDirectory, name + ".before"));
+        {
+            if (File.Exists(Path.Combine(configDirectory, name)))
+            {
+                File.Copy(Path.Combine(configDirectory, name), Path.Combine(outputDirectory, name + ".before"));
+            }
+        }
         var run = new RealMediaRun(sourceRoot, outputDirectory, libraryRoot, database, selectedProfile, "Preparing", "", DateTimeOffset.UtcNow);
         Save(Path.Combine(configDirectory, SettingsFile), run);
         var libraries = JsonSerializer.Deserialize<LibrariesConfiguration>(File.ReadAllText(Path.Combine(configDirectory, "libraries.json")))!;
         libraries.Libraries = libraries.Libraries.Where(l => CatalogueFolders.Contains(l.Category?.ToLowerInvariant())).ToList();
-        if (libraries.Libraries.Count != 5) throw new InvalidOperationException("Expected one configured library per real catalogue category.");
+        if (libraries.Libraries.Count != 5)
+        {
+            throw new InvalidOperationException("Expected one configured library per real catalogue category.");
+        }
         foreach (var library in libraries.Libraries)
         {
             var folder = library.Category!.ToLowerInvariant();
@@ -226,20 +304,37 @@ public static class RealMediaHarness
         libraries.PersonalLibraryPolicy.AllowConnectedDeviceImport = false;
         libraries.PersonalLibraryPolicy.AllowMobileBackup = false;
         libraries.PersonalLibraryPolicy.AllowExistingFolderAttachment = true;
-        core["storage_policy"] = new JsonObject { ["mode"] = "Centralized", ["artwork_export"] = false,
-            ["subtitle_export"] = false, ["metadata_sidecar_export"] = false, ["cleanup_managed_local_artwork"] = false,
-            ["export_profile"] = new JsonObject { ["name"] = "real-media-read-only", ["artwork"] = false,
-                ["preferred_subtitles"] = false, ["metadata_sidecars"] = false } };
+        core["storage_policy"] = new JsonObject
+        {
+            ["mode"] = "Centralized",
+            ["artwork_export"] = false,
+            ["subtitle_export"] = false,
+            ["metadata_sidecar_export"] = false,
+            ["cleanup_managed_local_artwork"] = false,
+            ["export_profile"] = new JsonObject
+            {
+                ["name"] = "real-media-read-only",
+                ["artwork"] = false,
+                ["preferred_subtitles"] = false,
+                ["metadata_sidecars"] = false
+            }
+        };
         // A fresh derived-data namespace avoids deleting any mixed legacy folder or original.
         core["data_root"] = Path.Combine(libraryRoot, ".data", "real-media", Path.GetFileName(outputDirectory));
         ValidateSources(libraries, sourceRoot);
         var coreErrors = MediaEngine.Storage.Configuration.JsonConfigValidator.Validate(
             JsonSerializer.Deserialize<CoreConfiguration>(core.ToJsonString())!, "core.json");
-        if (coreErrors.Count > 0) throw new InvalidOperationException(string.Join("; ", coreErrors));
+        if (coreErrors.Count > 0)
+        {
+            throw new InvalidOperationException(string.Join("; ", coreErrors));
+        }
         Save(Path.Combine(configDirectory, "libraries.json"), libraries);
         File.WriteAllText(corePath, core.ToJsonString(Json));
         ResetDatabase(connection);
-        if (changed != 0) throw new IOException("Source activity during preparation. Workers remain blocked.");
+        if (changed != 0)
+        {
+            throw new IOException("Source activity during preparation. Workers remain blocked.");
+        }
         run = run with { Phase = "Ready", ConfigurationHash = ConfigHash(configDirectory) };
         Save(Path.Combine(configDirectory, SettingsFile), run);
         Save(Path.Combine(outputDirectory, "run.json"), run);
@@ -257,7 +352,13 @@ public static class RealMediaHarness
             command.Transaction = transaction;
             command.CommandText = "SELECT name FROM pragma_table_list WHERE schema='main' AND type IN ('table','virtual') AND name NOT LIKE 'sqlite_%'";
             var tables = new List<string>();
-            using (var reader = command.ExecuteReader()) while (reader.Read()) tables.Add(reader.GetString(0));
+            using (var reader = command.ExecuteReader())
+            {
+                while (reader.Read())
+                {
+                    tables.Add(reader.GetString(0));
+                }
+            }
             foreach (var table in tables.Where(t => !DevHarnessResetService.PreserveForRealMediaReset(t)))
             {
                 command.CommandText = $"DELETE FROM \"{table.Replace("\"", "\"\"")}\"";
@@ -265,7 +366,12 @@ public static class RealMediaHarness
             }
             command.CommandText = "PRAGMA foreign_key_check";
             using (var reader = command.ExecuteReader())
-                if (reader.Read()) throw new InvalidOperationException($"Reset would leave dangling references in {reader.GetString(0)}.");
+            {
+                if (reader.Read())
+                {
+                    throw new InvalidOperationException($"Reset would leave dangling references in {reader.GetString(0)}.");
+                }
+            }
             transaction.Commit();
         }
         finally
@@ -284,7 +390,10 @@ public static class RealMediaHarness
     public static async Task RecordDirectoryProbeRecoveryAsync(string configDirectory)
     {
         using var dashboard = ProcessInstanceLease.TryAcquire(ProcessInstanceLease.DashboardLeaseName);
-        if (!dashboard.IsAcquired) throw new InvalidOperationException("Stop the Dashboard before recording recovery.");
+        if (!dashboard.IsAcquired)
+        {
+            throw new InvalidOperationException("Stop the Dashboard before recording recovery.");
+        }
         var run = Load(configDirectory) ?? throw new InvalidOperationException("No protected run.");
         ValidateConfiguration(configDirectory, run);
         var original = JsonSerializer.Deserialize<List<RealMediaFile>>(await File.ReadAllTextAsync(Path.Combine(run.OutputDirectory, "source-baseline.json")))!;
@@ -301,22 +410,36 @@ public static class RealMediaHarness
             var after = actual.SingleOrDefault(e => e.Path == path);
             if (before is null || after is null || !before.IsDirectory || !probeFolders.Contains(path)
                 || before with { LastWriteUtc = after.LastWriteUtc } != after)
+            {
                 throw new IOException($"Recovery rejected: change is not an evidenced directory-probe timestamp: {path}");
+            }
         }
-        Save(Path.Combine(run.OutputDirectory, "directory-probe-recovery.json"), new {
-            recorded_at = DateTimeOffset.UtcNow, original_files_preserved = true,
-            original_preservation_passed = false, directory_timestamp_changes = differences,
-            explanation = "Health probes created/deleted temporary files. The original baseline and failure evidence are retained. No source timestamps were restored. Monitoring resumes against the current directory timestamps only." });
+        Save(Path.Combine(run.OutputDirectory, "directory-probe-recovery.json"), new
+        {
+            recorded_at = DateTimeOffset.UtcNow,
+            original_files_preserved = true,
+            original_preservation_passed = false,
+            directory_timestamp_changes = differences,
+            explanation = "Health probes created/deleted temporary files. The original baseline and failure evidence are retained. No source timestamps were restored. Monitoring resumes against the current directory timestamps only."
+        });
         Save(Path.Combine(run.OutputDirectory, "monitoring-baseline.json"), actual);
         Console.WriteLine($"Original file hashes, names, attributes and security unchanged. {differences.Length} directory timestamp changes recorded; original preservation violation remains in the report.");
     }
 
     private static void RejectHardLinks(FileStream stream)
     {
-        if (!OperatingSystem.IsWindows()) return;
+        if (!OperatingSystem.IsWindows())
+        {
+            return;
+        }
         if (!GetFileInformationByHandle(stream.SafeFileHandle, out var info))
+        {
             throw new IOException("Cannot verify source file link identity.");
-        if (info.NumberOfLinks != 1) throw new IOException("Hard-linked originals require an explicit alias audit before this harness can run.");
+        }
+        if (info.NumberOfLinks != 1)
+        {
+            throw new IOException("Hard-linked originals require an explicit alias audit before this harness can run.");
+        }
     }
 
     [System.Runtime.InteropServices.DllImport("kernel32.dll", SetLastError = true)]

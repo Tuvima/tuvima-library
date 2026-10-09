@@ -1,6 +1,6 @@
-using MediaEngine.Web.Components.Shared;
 using Bunit;
 using MediaEngine.Web.Components.Rules;
+using MediaEngine.Web.Components.Shared;
 using MediaEngine.Web.Models.ViewDTOs;
 using Microsoft.AspNetCore.Components;
 using Microsoft.Extensions.DependencyInjection;

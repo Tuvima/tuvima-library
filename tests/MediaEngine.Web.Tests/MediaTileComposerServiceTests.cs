@@ -679,7 +679,8 @@ public sealed class MediaTileComposerServiceTests
                 Facts = cards[0].Facts,
             },
             Shelves: [new DisplayShelfDto("continue", "Jump Back In", null, cards, null)],
-            Catalog: cards) { Spotlights = cards.Take(5).Reverse().Select(card => new DisplayHeroDto(card.Title,card.Subtitle,"Featured Content",card.Artwork,card.Progress,card.Actions) { Id=card.Id, Facts=card.Facts }).ToList() };
+            Catalog: cards)
+        { Spotlights = cards.Take(5).Reverse().Select(card => new DisplayHeroDto(card.Title, card.Subtitle, "Featured Content", card.Artwork, card.Progress, card.Actions) { Id = card.Id, Facts = card.Facts }).ToList() };
 
         var mapped = MediaTileComposerService.FromDisplayPage(page);
 

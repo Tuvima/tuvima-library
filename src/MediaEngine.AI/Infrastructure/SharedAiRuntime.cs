@@ -47,7 +47,10 @@ public sealed class SharedAiRuntime(AiSettings settings, ILogger<SharedAiRuntime
             var cpu = Avx512F.IsSupported ? "avx512" : Avx2.IsSupported ? "avx2" : Avx.IsSupported ? "avx" : "noavx";
             var cuda = useCuda ?? new GpuBackendDetector(Microsoft.Extensions.Logging.Abstractions.NullLogger<GpuBackendDetector>.Instance).Detect().Backend == "cuda";
             var candidates = new List<(string Path, string Backend)>();
-            if (cuda) candidates.Add((Path.Combine(native, "cuda12", library), "cuda"));
+            if (cuda)
+            {
+                candidates.Add((Path.Combine(native, "cuda12", library), "cuda"));
+            }
             candidates.Add((Path.Combine(native, cpu, library), "cpu"));
             candidates.Add((Path.Combine(native, library), "cpu"));
             foreach (var candidate in candidates.Where(candidate => File.Exists(candidate.Path)))
@@ -61,7 +64,9 @@ public sealed class SharedAiRuntime(AiSettings settings, ILogger<SharedAiRuntime
                         {
                             VerifyManifest(nvidia, "12.8.1", "win-x64");
                             foreach (var name in new[] { "cudart64_12.dll", "cublasLt64_12.dll", "cublas64_12.dll" })
+                            {
                                 NativeLibrary.Load(Path.Combine(nvidia, "bin", name));
+                            }
                         }
                         // CUDA packages omit ggml-cpu; load the matching CPU package's implementation.
                         NativeLibrary.Load(Path.Combine(native, "cuda12", "ggml-base.dll"));
@@ -106,7 +111,10 @@ public sealed class SharedAiRuntime(AiSettings settings, ILogger<SharedAiRuntime
             ValidateInstallation(root, WhisperVersion);
             var library = OperatingSystem.IsWindows() ? "whisper.dll" : OperatingSystem.IsMacOS() ? "libwhisper.dylib" : "libwhisper.so";
             var path = Path.Combine(root, "runtimes", RuntimeInformation.RuntimeIdentifier, library);
-            if (!File.Exists(path)) throw new FileNotFoundException("Install the optional Whisper runtime with tools/Install-AiRuntime.ps1 -Whisper.", path);
+            if (!File.Exists(path))
+            {
+                throw new FileNotFoundException("Install the optional Whisper runtime with tools/Install-AiRuntime.ps1 -Whisper.", path);
+            }
             // Whisper 1.9.1 takes the parent of this hint, then appends runtimes/<rid>.
             // Supply a file-shaped hint at the component root, not the native DLL itself.
             RuntimeOptions.LibraryPath = Path.Combine(root, "Whisper.net.dll");
@@ -121,20 +129,31 @@ public sealed class SharedAiRuntime(AiSettings settings, ILogger<SharedAiRuntime
 
     private void ValidateInstallation(string root, string version)
     {
-        if (settings.NativeRuntimeDirectory == "bundled") return;
+        if (settings.NativeRuntimeDirectory == "bundled")
+        {
+            return;
+        }
         VerifyManifest(root, version, RuntimeInformation.RuntimeIdentifier);
     }
 
     public static void VerifyManifest(string root, string version, string rid)
     {
         var manifest = Path.Combine(root, "manifest.json");
-        if (!File.Exists(manifest)) throw new FileNotFoundException("Shared AI runtime is not installed. Run tools/Install-AiRuntime.ps1 with the configured runtime directory.", manifest);
+        if (!File.Exists(manifest))
+        {
+            throw new FileNotFoundException("Shared AI runtime is not installed. Run tools/Install-AiRuntime.ps1 with the configured runtime directory.", manifest);
+        }
         using var document = JsonDocument.Parse(File.ReadAllText(manifest));
         var data = document.RootElement;
         if (data.GetProperty("version").GetString() != version || data.GetProperty("rid").GetString() != rid)
+        {
             throw new InvalidDataException($"AI runtime version/platform mismatch in {manifest}; expected {version}/{rid}.");
+        }
         var files = data.GetProperty("files").EnumerateArray().ToArray();
-        if (files.Length == 0) throw new InvalidDataException($"Empty AI runtime manifest: {manifest}");
+        if (files.Length == 0)
+        {
+            throw new InvalidDataException($"Empty AI runtime manifest: {manifest}");
+        }
         foreach (var file in files)
         {
             var path = Path.GetFullPath(Path.Combine(root, file.GetProperty("path").GetString()!));
@@ -142,7 +161,9 @@ public sealed class SharedAiRuntime(AiSettings settings, ILogger<SharedAiRuntime
             using var stream = File.OpenRead(path);
             if (stream.Length != file.GetProperty("size").GetInt64()
                 || !Convert.ToHexString(SHA256.HashData(stream)).Equals(file.GetProperty("sha256").GetString(), StringComparison.OrdinalIgnoreCase))
+            {
                 throw new InvalidDataException($"Shared AI runtime verification failed: {path}");
+            }
         }
     }
 
@@ -150,6 +171,8 @@ public sealed class SharedAiRuntime(AiSettings settings, ILogger<SharedAiRuntime
     {
         var prefix = Path.GetFullPath(root).TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar;
         if (!path.StartsWith(prefix, OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal))
+        {
             throw new InvalidOperationException("AI runtime path changed or escaped its installation. Restart the Engine after changing runtime configuration.");
+        }
     }
 }

@@ -1,5 +1,5 @@
-using MediaEngine.Contracts.Playback;
 using MediaEngine.Contracts.Details;
+using MediaEngine.Contracts.Playback;
 using MediaEngine.Web.Services.Integration;
 using MediaEngine.Web.Services.Playback;
 using MediaEngine.Web.Tests.Support;
@@ -62,7 +62,10 @@ public sealed class PlaybackCommandSinkTests
             command with { CommandId = Guid.NewGuid(), ExpectedAssetId = Guid.NewGuid() },
             command with { CommandId = Guid.NewGuid(), ExpectedPlaybackRequestVersion = null },
             command with { CommandId = Guid.NewGuid(), ProfileId = null },
-        }) Assert.Equal(AudiobookBookmarkOperationOutcomes.DefiniteFailure, (await owner.HandleAsync(invalid))?.Outcome);
+        })
+        {
+            Assert.Equal(AudiobookBookmarkOperationOutcomes.DefiniteFailure, (await owner.HandleAsync(invalid))?.Outcome);
+        }
         preferences.ActiveProfileId = null;
         Assert.Equal(AudiobookBookmarkOperationOutcomes.DefiniteFailure,
             (await owner.HandleAsync(command with { CommandId = Guid.NewGuid(), ProfileId = null }))?.Outcome);
@@ -118,7 +121,9 @@ public sealed class PlaybackCommandSinkTests
         Assert.True(PlaybackCommandCapabilities.Supports(ListenPlaybackCommandActions.TogglePlay, snapshot));
         foreach (var action in new[] { ListenPlaybackCommandActions.ClosePlayer, ListenPlaybackCommandActions.PopupClosed,
             ListenPlaybackCommandActions.SetTab, ListenPlaybackCommandActions.TogglePanel, "collapse", "window-close", ListenPlaybackPresentationActions.NavigateIdentity, ListenPlaybackPresentationActions.RegisterPopup })
+        {
             Assert.False(PlaybackCommandCapabilities.Supports(action, snapshot));
+        }
         Assert.Equal(mediaType == "Audiobooks", PlaybackCommandCapabilities.Supports(ListenPlaybackCommandActions.SetSleepTimer, snapshot));
     }
 
@@ -127,9 +132,16 @@ public sealed class PlaybackCommandSinkTests
     {
         var channel = new RecordingChannel();
         var sink = new BroadcastPlaybackCommandSink(Guid.NewGuid(), Guid.NewGuid(), channel);
-        var context = new ListenPlaybackCommandDto { Action = ListenPlaybackCommandActions.CloseBookmarkDialog,
-            DialogId = Guid.NewGuid(), SessionLeaseId = Guid.NewGuid(), OwnerGeneration = 9,
-            ProfileId = Guid.NewGuid(), WorkId = Guid.NewGuid(), ExpectedAssetId = Guid.NewGuid() };
+        var context = new ListenPlaybackCommandDto
+        {
+            Action = ListenPlaybackCommandActions.CloseBookmarkDialog,
+            DialogId = Guid.NewGuid(),
+            SessionLeaseId = Guid.NewGuid(),
+            OwnerGeneration = 9,
+            ProfileId = Guid.NewGuid(),
+            WorkId = Guid.NewGuid(),
+            ExpectedAssetId = Guid.NewGuid()
+        };
         await sink.SendAsync(new ListenPlaybackSnapshot { IsDismissed = true, CurrentIndex = -1 }, context);
         var request = Assert.Single(channel.Commands);
         Assert.Equal(context.SessionLeaseId, request.SessionLeaseId);
@@ -144,9 +156,14 @@ public sealed class PlaybackCommandSinkTests
     [InlineData(true)]
     public async Task VideoStartsPreserveRealNormalizedChaptersForFreshAndSuppliedManifests(bool supplied)
     {
-        var manifest = new PlaybackManifestDto { DirectPlaySupported = true, DirectStreamUrl = "/stream/video", Chapters =
+        var manifest = new PlaybackManifestDto
+        {
+            DirectPlaySupported = true,
+            DirectStreamUrl = "/stream/video",
+            Chapters =
             [new() { Index = 2, Title = "Credits", StartSeconds = 90, EndSeconds = 100 },
-             new() { Index = 1, Title = "First scene", StartSeconds = 0, EndSeconds = 90 }] };
+             new() { Index = 1, Title = "First scene", StartSeconds = 0, EndSeconds = 90 }]
+        };
         var api = EngineApiClientStub.Create(stub => stub.SetHandler(nameof(IEngineApiClient.GetPlaybackManifestAsync), _ => Task.FromResult<PlaybackManifestDto?>(manifest)));
         var playback = new PlaybackSessionController(null!, api);
         var video = Song() with { MediaType = "Movie", StreamUrl = null, Manifest = supplied ? manifest : null };
@@ -180,8 +197,12 @@ public sealed class PlaybackCommandSinkTests
         playback.RestoreState(playback.CreateSnapshot() with { History = [recorded] });
         using var services = new ServiceCollection().AddSingleton<IUserPlaybackPreferencesAccessor>(preferences).BuildServiceProvider();
         var sink = new DirectPlaybackCommandSink(new ListenPlaybackCommandOwner(services, playback));
-        var reply = await sink.SendAsync(playback.CreateSnapshot(), new() { Action = ListenPlaybackCommandActions.PlayHistory,
-            QueueEntryId = recorded.QueueEntryId, QueueItem = new() { WorkId = recorded.WorkId, AssetId = recorded.AssetId, Title = "Untrusted title", MediaType = "Music" } });
+        var reply = await sink.SendAsync(playback.CreateSnapshot(), new()
+        {
+            Action = ListenPlaybackCommandActions.PlayHistory,
+            QueueEntryId = recorded.QueueEntryId,
+            QueueItem = new() { WorkId = recorded.WorkId, AssetId = recorded.AssetId, Title = "Untrusted title", MediaType = "Music" }
+        });
         Assert.Equal(AudiobookBookmarkOperationOutcomes.Success, reply?.Outcome);
         Assert.Equal("Recorded title", playback.CurrentItem?.Title);
         Assert.Equal(artistId, playback.CurrentItem?.ArtistPersonId);
@@ -212,7 +233,9 @@ public sealed class PlaybackCommandSinkTests
         foreach (var invalid in new[] { command with { CommandId = Guid.NewGuid(), IdentityId = Guid.NewGuid() },
             command with { CommandId = Guid.NewGuid(), IdentityKind = "https://untrusted.example/" },
             command with { CommandId = Guid.NewGuid(), ExpectedPlaybackRequestVersion = 6 } })
+        {
             Assert.False((await owner.HandleAsync(invalid))?.BooleanResult);
+        }
         Assert.Equal(1, reads);
     }
 
@@ -232,8 +255,14 @@ public sealed class PlaybackCommandSinkTests
         var navigated = false;
         owner.NavigateIdentityAsync = (_, _) => { navigated = true; return Task.FromResult(true); };
         var task = owner.HandleAsync(Envelope(owner, playback, ListenPlaybackPresentationActions.NavigateIdentity) with { IdentityKind = "album", IdentityId = album });
-        if (profileLoss) preferences.ActiveProfileId = null;
-        else playback.RestoreState(playback.CreateSnapshot() with { PlaybackRequestVersion = 8 });
+        if (profileLoss)
+        {
+            preferences.ActiveProfileId = null;
+        }
+        else
+        {
+            playback.RestoreState(playback.CreateSnapshot() with { PlaybackRequestVersion = 8 });
+        }
         pending.SetResult(new() { Id = album.ToString("D"), EntityType = DetailEntityType.MusicAlbum });
         Assert.False((await task)?.BooleanResult);
         Assert.False(navigated);
@@ -280,9 +309,14 @@ public sealed class PlaybackCommandSinkTests
     }
     private static ListenPlaybackCommandDto Envelope(ListenPlaybackCommandOwner owner, PlaybackSessionController playback, string action) => new()
     {
-        CommandId = Guid.NewGuid(), SenderId = Guid.NewGuid(), RecipientId = owner.RecipientId,
-        Action = action, ProfileId = playback.ActiveProfileId, WorkId = playback.CurrentItem!.WorkId,
-        ExpectedAssetId = playback.CurrentItem.AssetId, ExpectedPlaybackRequestVersion = playback.PlaybackRequestVersion,
+        CommandId = Guid.NewGuid(),
+        SenderId = Guid.NewGuid(),
+        RecipientId = owner.RecipientId,
+        Action = action,
+        ProfileId = playback.ActiveProfileId,
+        WorkId = playback.CurrentItem!.WorkId,
+        ExpectedAssetId = playback.CurrentItem.AssetId,
+        ExpectedPlaybackRequestVersion = playback.PlaybackRequestVersion,
     };
     private sealed class Preferences(Guid profile) : IUserPlaybackPreferencesAccessor
     {

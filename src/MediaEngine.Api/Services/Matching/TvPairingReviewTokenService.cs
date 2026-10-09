@@ -44,7 +44,10 @@ public sealed class TvPairingReviewTokenService(IMemoryCache cache)
 
     public TvPairingReviewSnapshot? Get(string token)
     {
-        if (token.Length != 48 || !token.All(Uri.IsHexDigit)) return null;
+        if (token.Length != 48 || !token.All(Uri.IsHexDigit))
+        {
+            return null;
+        }
         return cache.TryGetValue<TvPairingReviewSnapshot>(Key(token), out var snapshot)
             && snapshot?.ExpiresAt > DateTimeOffset.UtcNow ? snapshot : null;
     }

@@ -30,7 +30,7 @@ public sealed class PaletteConfiguration
 
 public sealed class ThemePalette
 {
-    [JsonPropertyName("primary")] public string Primary { get; set; } = "#8B5CF6";
+    [JsonPropertyName("primary")] public string Primary { get; set; } = "#8852FC";
     [JsonPropertyName("secondary")] public string Secondary { get; set; } = "#9CA3AF";
     [JsonPropertyName("background")] public string Background { get; set; } = "#080B14";
     [JsonPropertyName("surface")] public string Surface { get; set; } = "#0C1020";

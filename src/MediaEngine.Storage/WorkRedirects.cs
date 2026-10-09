@@ -12,7 +12,10 @@ public static class WorkRedirects
         {
             var value = connection.QueryFirstOrDefault<string>(
                 "SELECT value FROM canonical_values WHERE entity_id=@id AND key='merged_into_work_id'", new { id });
-            if (!Guid.TryParse(value, out var target)) return id;
+            if (!Guid.TryParse(value, out var target))
+            {
+                return id;
+            }
             id = target;
         }
         throw new InvalidOperationException("A work redirect cycle was found.");

@@ -444,7 +444,10 @@ public sealed class MediaEditorDetailsPresenterTests
     private static IEnumerable<MediaEditorDetailsFieldPresentation> All(MediaEditorDetailsPresentation presentation)
     {
         var fields = presentation.Facts.Concat(presentation.Fields).Concat(presentation.AdditionalFields);
-        if (presentation.Heading is { } heading) fields = fields.Append(heading);
+        if (presentation.Heading is { } heading)
+        {
+            fields = fields.Append(heading);
+        }
         return presentation.Synopsis is { } synopsis ? fields.Append(synopsis) : fields;
     }
 

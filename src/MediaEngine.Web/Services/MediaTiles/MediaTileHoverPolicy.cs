@@ -13,9 +13,18 @@ public static class MediaTileHoverPolicy
 
     public static MediaTileHoverMode Resolve(MediaTileViewModel item, MediaTileHoverMode? requested, bool isHomeSurface = false)
     {
-        if (requested == MediaTileHoverMode.None) return MediaTileHoverMode.None;
-        if (requested == MediaTileHoverMode.Overlay && item.MediaKind is "Movie" or "TV") return MediaTileHoverMode.Overlay;
-        if (!isHomeSurface || requested == MediaTileHoverMode.GlowOnly || item.MediaKind is not ("Movie" or "TV")) return MediaTileHoverMode.GlowOnly;
+        if (requested == MediaTileHoverMode.None)
+        {
+            return MediaTileHoverMode.None;
+        }
+        if (requested == MediaTileHoverMode.Overlay && item.MediaKind is "Movie" or "TV")
+        {
+            return MediaTileHoverMode.Overlay;
+        }
+        if (!isHomeSurface || requested == MediaTileHoverMode.GlowOnly || item.MediaKind is not ("Movie" or "TV"))
+        {
+            return MediaTileHoverMode.GlowOnly;
+        }
         return requested == MediaTileHoverMode.Overlay ? MediaTileHoverMode.Overlay : MediaTileHoverMode.Expanded;
     }
 }

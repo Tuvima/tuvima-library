@@ -9,10 +9,10 @@ using MediaEngine.Domain.Constants;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Entities;
 using MediaEngine.Domain.Services;
+using MediaEngine.Providers.Helpers;
 using MediaEngine.Providers.Services;
 using MediaEngine.Storage.Contracts;
 using Microsoft.Extensions.Caching.Memory;
-using MediaEngine.Providers.Helpers;
 using SkiaSharp;
 
 namespace MediaEngine.Api.Endpoints;
@@ -35,22 +35,37 @@ public static partial class MetadataEndpoints
             if (token.Length != 32 || !token.All(Uri.IsHexDigit)
                 || !cache.TryGetValue<TvdbPreviewEntry>($"tvdb-preview:{token}", out var entry)
                 || entry is null || entry.EntityId != entityId)
+            {
                 return ApiErrors.NotFound("TheTVDB image preview is no longer available.");
+            }
             if (await resources.EvaluateEntityAsync(http, "Work", entry.OwnerWorkId,
                     ApplicationPermissionIds.MetadataRead, ct) != CatalogueResourceAccess.Allowed)
+            {
                 return ApiErrors.NotFound("TheTVDB image preview is not available for this item.");
+            }
             if (!TryNormalizeTvdbImageUrl(entry.SourceUrl, out var source))
+            {
                 return ApiErrors.NotFound("TheTVDB image source is unavailable.");
+            }
             using var client = httpFactory.CreateClient("cover_download");
             using var response = await client.GetAsync(source, HttpCompletionOption.ResponseHeadersRead, ct);
-            if (!response.IsSuccessStatusCode) return ApiErrors.NotFound("TheTVDB image source is unavailable.");
+            if (!response.IsSuccessStatusCode)
+            {
+                return ApiErrors.NotFound("TheTVDB image source is unavailable.");
+            }
             var bytes = await BoundedHttpContent.ReadImageAsync(response.Content, ct);
             using var bitmap = SKBitmap.Decode(bytes);
-            if (bitmap is null || bitmap.Width < 1 || bitmap.Height < 1) return ApiErrors.NotFound("TheTVDB image source is invalid.");
+            if (bitmap is null || bitmap.Width < 1 || bitmap.Height < 1)
+            {
+                return ApiErrors.NotFound("TheTVDB image source is invalid.");
+            }
             var width = Math.Min(bitmap.Width, 320);
             var height = Math.Max(1, (int)Math.Round(bitmap.Height * (width / (double)bitmap.Width)));
             using var resized = bitmap.Resize(new SKImageInfo(width, height), SKSamplingOptions.Default);
-            if (resized is null) return ApiErrors.NotFound("TheTVDB image source cannot be previewed.");
+            if (resized is null)
+            {
+                return ApiErrors.NotFound("TheTVDB image source cannot be previewed.");
+            }
             using var image = SKImage.FromBitmap(resized);
             using var encoded = image.Encode(SKEncodedImageFormat.Jpeg, 82);
             http.Response.Headers.CacheControl = "private, max-age=900";
@@ -67,28 +82,43 @@ public static partial class MetadataEndpoints
         {
             var resolved = await ResolveTvdbMatchScopeAsync(entityId, scopeId, http, canonicals,
                 library, editor, resources, ApplicationPermissionIds.MetadataRead, ct);
-            if (resolved is null) return ApiErrors.NotFound("TV match scope was not found.");
-            if (!tvdb.IsConfigured()) return ApiErrors.BadRequest("Connect TheTVDB in Settings before searching TV matches.");
+            if (resolved is null)
+            {
+                return ApiErrors.NotFound("TV match scope was not found.");
+            }
+            if (!tvdb.IsConfigured())
+            {
+                return ApiErrors.BadRequest("Connect TheTVDB in Settings before searching TV matches.");
+            }
 
             var (scope, root, seasonScope) = resolved.Value;
             var rootValues = BuildLatestCanonicalMap(await canonicals.GetByEntityAsync(root.FieldEntityId, ct));
             if (seriesId is not null && (scopeId != "season" || !seriesId.All(char.IsDigit)))
+            {
                 return ApiErrors.BadRequest("Choose a valid TheTVDB show before browsing its seasons.");
+            }
             var showId = seriesId ?? GetCanonicalValue(rootValues, BridgeIdKeys.TvdbId);
             if (string.IsNullOrWhiteSpace(showId))
+            {
                 return ApiErrors.BadRequest("Match this show to TheTVDB before matching its seasons or episodes.");
+            }
 
             var scopeValues = BuildLatestCanonicalMap(await canonicals.GetByEntityAsync(scope.FieldEntityId, ct));
             var localEpisode = ParseTvdbNumber(GetCanonicalValue(scopeValues, MetadataFieldConstants.EpisodeNumber));
             try
             {
                 var show = await tvdb.GetSeriesAsync(showId, ct);
-                if (show is null) return ApiErrors.BadRequest("The matched TheTVDB show is no longer available.");
+                if (show is null)
+                {
+                    return ApiErrors.BadRequest("The matched TheTVDB show is no longer available.");
+                }
                 var seasonScopeValues = scope.ScopeId == "season"
                     ? scopeValues
                     : await LoadTvdbSeasonScopeValuesAsync(seasonScope, canonicals, ct);
                 if (seasonType is not null && !string.Equals(seasonType, "default", StringComparison.OrdinalIgnoreCase))
+                {
                     return ApiErrors.BadRequest("Season and episode matching uses the show's default TheTVDB order.");
+                }
                 const string selectedSeasonType = "default";
                 var localSeason = ParseTvdbNumber(GetCanonicalValue(seasonScopeValues, MetadataFieldConstants.SeasonNumber))
                     ?? ParseTvdbNumber(GetCanonicalValue(scopeValues, MetadataFieldConstants.SeasonNumber))
@@ -114,7 +144,10 @@ public static partial class MetadataEndpoints
                     {
                         var id = TvdbText(node, "id")!;
                         var number = ParseTvdbNumber(TvdbText(node, "number"));
-                        if (number is null) continue;
+                        if (number is null)
+                        {
+                            continue;
+                        }
                         var english = await tvdb.GetSeasonTranslationAsync(id, ct: ct);
                         var detail = string.IsNullOrWhiteSpace(TvdbText(node, "image"))
                             ? await tvdb.GetSeasonAsync(id, ct) : null;
@@ -130,18 +163,28 @@ public static partial class MetadataEndpoints
                 else
                 {
                     if (localSeason is null)
+                    {
                         return ApiErrors.Conflict("This episode needs a season number in Match & Identity before episodes can be listed.");
+                    }
                     if (seasonNumber is { } requested && requested != localSeason)
+                    {
                         return ApiErrors.BadRequest("Episodes can only be selected from this item's current season.");
+                    }
                     if (!availableSeasons.Contains(localSeason.Value))
+                    {
                         return ApiErrors.Conflict($"Season {localSeason} is not available for this show in TheTVDB's default order.");
+                    }
                     var selectedSeason = localSeason.Value;
                     var sourceSeason = FindDefaultTvdbSeason(show, selectedSeason)!;
                     if (!string.IsNullOrWhiteSpace(seasonScopeValues.GetValueOrDefault(BridgeIdKeys.TvdbSeasonId))
                         && confirmedSeason is null)
+                    {
                         return ApiErrors.Conflict("This season's existing TheTVDB match is outside the default order. Correct its season match first.");
+                    }
                     if (confirmedSeason is not null && TvdbText(confirmedSeason, "id") != TvdbText(sourceSeason, "id"))
+                    {
                         return ApiErrors.Conflict("This season is matched to a different TheTVDB season. Correct its season match first.");
+                    }
                     var episodes = await tvdb.GetAllEpisodesAsync(showId, selectedSeasonType, language: "eng", ct: ct);
                     var selectedEpisodes = episodes
                         .Where(node => ParseTvdbNumber(TvdbText(node, "seasonNumber")) == selectedSeason)
@@ -199,20 +242,32 @@ public static partial class MetadataEndpoints
         {
             var resolved = await ResolveTvdbMatchScopeAsync(entityId, scopeId, http, canonicals,
                 library, editor, resources, ApplicationPermissionIds.MetadataWrite, ct);
-            if (resolved is null) return ApiErrors.NotFound("TV match scope was not found.");
-            if (!tvdb.IsConfigured()) return ApiErrors.BadRequest("Connect TheTVDB in Settings before matching TV items.");
+            if (resolved is null)
+            {
+                return ApiErrors.NotFound("TV match scope was not found.");
+            }
+            if (!tvdb.IsConfigured())
+            {
+                return ApiErrors.BadRequest("Connect TheTVDB in Settings before matching TV items.");
+            }
             var (scope, root, seasonScope) = resolved.Value;
             var rootValues = BuildLatestCanonicalMap(await canonicals.GetByEntityAsync(root.FieldEntityId, ct));
             var showId = GetCanonicalValue(rootValues, BridgeIdKeys.TvdbId);
             if (string.IsNullOrWhiteSpace(showId) || !string.Equals(showId, request.SeriesId, StringComparison.Ordinal))
+            {
                 return ApiErrors.Conflict("The show match changed. Reload the editor and select a result again.");
+            }
             if (string.IsNullOrWhiteSpace(request.CandidateId) || !request.CandidateId.All(char.IsDigit))
+            {
                 return ApiErrors.BadRequest("Select a valid TheTVDB result.");
+            }
 
             var current = BuildLatestCanonicalMap(await canonicals.GetByEntityAsync(scope.FieldEntityId, ct));
             var revision = GetCanonicalValue(current, MetadataFieldConstants.IdentityRevision) ?? string.Empty;
             if (!string.Equals(revision, request.ExpectedRevision, StringComparison.Ordinal))
+            {
                 return ApiErrors.Conflict("This match changed while the picker was open. Reload and review it again.");
+            }
 
             try
             {
@@ -222,13 +277,17 @@ public static partial class MetadataEndpoints
                     : await LoadTvdbSeasonScopeValuesAsync(seasonScope, canonicals, ct);
                 if (request.SeasonType is not null
                     && !string.Equals(request.SeasonType, "default", StringComparison.OrdinalIgnoreCase))
+                {
                     return ApiErrors.BadRequest("Season and episode matching uses the show's default TheTVDB order.");
+                }
                 const string selectedSeasonType = "default";
                 var remote = scope.ScopeId == "season"
                     ? await tvdb.GetSeasonAsync(request.CandidateId, ct)
                     : await tvdb.GetEpisodeAsync(request.CandidateId, ct);
                 if (show is null || remote is null)
+                {
                     return ApiErrors.BadRequest("The selected TheTVDB result is no longer available.");
+                }
                 JsonNode? confirmedSeason = null;
                 JsonNode? orderedEpisode = null;
                 if (scope.ScopeId == "episode")
@@ -237,10 +296,14 @@ public static partial class MetadataEndpoints
                         ?? ParseTvdbNumber(GetCanonicalValue(current, MetadataFieldConstants.SeasonNumber))
                         ?? ParseOwnedSeasonNumber(scope);
                     if (ownedSeason is null)
+                    {
                         return ApiErrors.Conflict("This episode needs a season number in Match & Identity before it can be matched.");
+                    }
                     var sourceSeason = FindDefaultTvdbSeason(show, ownedSeason.Value);
                     if (sourceSeason is null)
+                    {
                         return ApiErrors.Conflict($"Season {ownedSeason} is not available for this show in TheTVDB's default order.");
+                    }
                     var confirmedSeasonId = seasonScopeValues.GetValueOrDefault(BridgeIdKeys.TvdbSeasonId);
                     if (!string.IsNullOrWhiteSpace(confirmedSeasonId))
                     {
@@ -248,12 +311,16 @@ public static partial class MetadataEndpoints
                             TvdbText(node, "id") == confirmedSeasonId
                             && IsTvdbSeasonInOrder(node, show, selectedSeasonType));
                         if (confirmedSeason is null || TvdbText(confirmedSeason, "id") != TvdbText(sourceSeason, "id"))
+                        {
                             return ApiErrors.Conflict("This season is matched to a different TheTVDB season. Correct its season match first.");
+                        }
                     }
                     orderedEpisode = (await tvdb.GetAllEpisodesAsync(showId, selectedSeasonType, language: "eng", ct: ct))
                         .FirstOrDefault(node => TvdbText(node, "id") == request.CandidateId);
                     if (!IsTvdbEpisodeInSeason(orderedEpisode, sourceSeason))
+                    {
                         return ApiErrors.Conflict("The selected episode belongs to a different season than this item.");
+                    }
                 }
                 var belongsToShow = scope.ScopeId == "season"
                     ? show["seasons"]?.AsArray().Any(node =>
@@ -262,7 +329,9 @@ public static partial class MetadataEndpoints
                     : TvdbText(remote, "seriesId") == showId
                         && orderedEpisode is not null;
                 if (!belongsToShow)
+                {
                     return ApiErrors.BadRequest("The selected result is outside this show's default TheTVDB order.");
+                }
 
                 var english = scope.ScopeId == "season"
                     ? await tvdb.GetSeasonTranslationAsync(request.CandidateId, ct: ct)
@@ -281,34 +350,50 @@ public static partial class MetadataEndpoints
                 };
                 if ((TvdbText(english, "name") ?? (scope.ScopeId == "season"
                         ? SeasonLabel(ParseTvdbNumber(TvdbText(remote, "number")) ?? 0) : null)) is { Length: > 0 } title)
+                {
                     values[scope.ScopeId == "season" ? MetadataFieldConstants.Title : MetadataFieldConstants.EpisodeTitle] = title;
+                }
                 if (TvdbText(english, "overview") is { Length: > 0 } description)
+                {
                     values[MetadataFieldConstants.Description] = description;
+                }
                 if (TvdbText(remote, "number") is { Length: > 0 } number)
+                {
                     values[scope.ScopeId == "season" ? "tvdb_source_season_number" : "tvdb_source_episode_number"] = number;
+                }
                 if (scope.ScopeId == "episode" && TvdbText(remote, "seasonNumber") is { Length: > 0 } remoteSeason)
+                {
                     values["tvdb_source_season_number"] = remoteSeason;
+                }
 
                 await claims.InsertBatchAsync(values.Where(pair => pair.Key != MetadataFieldConstants.IdentityRevision)
                     .Select(pair => new MetadataClaim
                     {
-                        Id = Guid.NewGuid(), EntityId = scope.FieldEntityId,
+                        Id = Guid.NewGuid(),
+                        EntityId = scope.FieldEntityId,
                         ProviderId = WellKnownProviders.Tvdb,
                         DecisionSourceProviderId = WellKnownProviders.UserManual,
-                        ClaimKey = pair.Key, ClaimValue = pair.Value,
-                        ClaimedAt = now, Confidence = 1,
+                        ClaimKey = pair.Key,
+                        ClaimValue = pair.Value,
+                        ClaimedAt = now,
+                        Confidence = 1,
                     }).ToList(), ct);
                 await canonicals.UpsertBatchAsync(values.Select(pair => new CanonicalValue
                 {
-                    EntityId = scope.FieldEntityId, Key = pair.Key, Value = pair.Value,
+                    EntityId = scope.FieldEntityId,
+                    Key = pair.Key,
+                    Value = pair.Value,
                     LastScoredAt = now,
                     WinningProviderId = pair.Key == MetadataFieldConstants.IdentityRevision
                         ? WellKnownProviders.UserManual : WellKnownProviders.Tvdb,
                 }).ToList(), ct);
                 await bridges.UpsertAsync(new BridgeIdEntry
                 {
-                    EntityId = scope.FieldEntityId, IdType = idKey,
-                    IdValue = request.CandidateId, ProviderId = "tvdb", CreatedAt = now,
+                    EntityId = scope.FieldEntityId,
+                    IdType = idKey,
+                    IdValue = request.CandidateId,
+                    ProviderId = "tvdb",
+                    CreatedAt = now,
                 }, ct);
                 try
                 {
@@ -339,15 +424,24 @@ public static partial class MetadataEndpoints
             TvdbRetailClient tvdb, CancellationToken ct) =>
         {
             var root = await ResolveTvdbRootScopeAsync(entityId, http, canonicals, library, editor, resources, ApplicationPermissionIds.MetadataRead, ct);
-            if (root is null) return ApiErrors.NotFound("TV show match scope was not found.");
+            if (root is null)
+            {
+                return ApiErrors.NotFound("TV show match scope was not found.");
+            }
             var values = BuildLatestCanonicalMap(await canonicals.GetByEntityAsync(root.FieldEntityId, ct));
             var showId = values.GetValueOrDefault(BridgeIdKeys.TvdbId);
-            if (string.IsNullOrWhiteSpace(showId) || !tvdb.IsConfigured()) return ApiErrors.BadRequest("Match this show to TheTVDB before selecting an episode order.");
+            if (string.IsNullOrWhiteSpace(showId) || !tvdb.IsConfigured())
+            {
+                return ApiErrors.BadRequest("Match this show to TheTVDB before selecting an episode order.");
+            }
             try
             {
                 var show = await tvdb.GetSeriesAsync(showId, ct);
                 var requested = ResolveTvdbSeasonType(seasonType, EmptyTvdbScopeValues, values, show);
-                if (show is null || requested is null) return ApiErrors.BadRequest("Select a supported TheTVDB episode order.");
+                if (show is null || requested is null)
+                {
+                    return ApiErrors.BadRequest("Select a supported TheTVDB episode order.");
+                }
                 return Results.Ok(await BuildTvdbShowOrderPreviewAsync(root.FieldEntityId, showId, show, values, requested, canonicals, works, tvdb, ct));
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
@@ -365,20 +459,38 @@ public static partial class MetadataEndpoints
             CatalogueResourceAuthorizationService resources, TvdbRetailClient tvdb, CancellationToken ct) =>
         {
             var root = await ResolveTvdbRootScopeAsync(entityId, http, canonicals, library, editor, resources, ApplicationPermissionIds.MetadataWrite, ct);
-            if (root is null) return ApiErrors.NotFound("TV show match scope was not found.");
+            if (root is null)
+            {
+                return ApiErrors.NotFound("TV show match scope was not found.");
+            }
             var values = BuildLatestCanonicalMap(await canonicals.GetByEntityAsync(root.FieldEntityId, ct));
             var revision = values.GetValueOrDefault(MetadataFieldConstants.IdentityRevision) ?? string.Empty;
-            if (!string.Equals(revision, request.ExpectedRevision, StringComparison.Ordinal)) return ApiErrors.Conflict("This show match changed while the order picker was open. Reload and review it again.");
+            if (!string.Equals(revision, request.ExpectedRevision, StringComparison.Ordinal))
+            {
+                return ApiErrors.Conflict("This show match changed while the order picker was open. Reload and review it again.");
+            }
             var showId = values.GetValueOrDefault(BridgeIdKeys.TvdbId);
-            if (string.IsNullOrWhiteSpace(showId) || !tvdb.IsConfigured()) return ApiErrors.BadRequest("Match this show to TheTVDB before selecting an episode order.");
+            if (string.IsNullOrWhiteSpace(showId) || !tvdb.IsConfigured())
+            {
+                return ApiErrors.BadRequest("Match this show to TheTVDB before selecting an episode order.");
+            }
             try
             {
                 var show = await tvdb.GetSeriesAsync(showId, ct);
                 var requested = ResolveTvdbSeasonType(request.SeasonType, EmptyTvdbScopeValues, values, show);
-                if (show is null || requested is null) return ApiErrors.BadRequest("Select a supported TheTVDB episode order.");
+                if (show is null || requested is null)
+                {
+                    return ApiErrors.BadRequest("Select a supported TheTVDB episode order.");
+                }
                 var preview = await BuildTvdbShowOrderPreviewAsync(root.FieldEntityId, showId, show, values, requested, canonicals, works, tvdb, ct);
-                if (!preview.CanApply) return ApiErrors.Conflict(preview.BlockingMessage ?? "Existing TVDB matches must be rematched before changing the episode order.");
-                if (preview.CurrentSeasonType == requested) return Results.Ok(new TvdbShowOrderResultDto(requested, revision, "This show already uses the selected TheTVDB episode order."));
+                if (!preview.CanApply)
+                {
+                    return ApiErrors.Conflict(preview.BlockingMessage ?? "Existing TVDB matches must be rematched before changing the episode order.");
+                }
+                if (preview.CurrentSeasonType == requested)
+                {
+                    return Results.Ok(new TvdbShowOrderResultDto(requested, revision, "This show already uses the selected TheTVDB episode order."));
+                }
                 var now = DateTimeOffset.UtcNow; var newRevision = Guid.NewGuid().ToString("N");
                 await claims.InsertBatchAsync([new MetadataClaim { Id = Guid.NewGuid(), EntityId = root.FieldEntityId, ProviderId = WellKnownProviders.Tvdb, DecisionSourceProviderId = WellKnownProviders.UserManual, ClaimKey = TvdbSeasonTypeKey, ClaimValue = requested, ClaimedAt = now, Confidence = 1 }], ct);
                 await canonicals.UpsertBatchAsync([new CanonicalValue { EntityId = root.FieldEntityId, Key = TvdbSeasonTypeKey, Value = requested, LastScoredAt = now, WinningProviderId = WellKnownProviders.Tvdb }, new CanonicalValue { EntityId = root.FieldEntityId, Key = MetadataFieldConstants.IdentityRevision, Value = newRevision, LastScoredAt = now, WinningProviderId = WellKnownProviders.UserManual }], ct);
@@ -400,13 +512,22 @@ public static partial class MetadataEndpoints
         CatalogueResourceAuthorizationService resources, ApplicationPermissionId permission,
         CancellationToken ct)
     {
-        if (scopeId is not ("season" or "episode")) return null;
+        if (scopeId is not ("season" or "episode"))
+        {
+            return null;
+        }
         var context = await ResolveEditorScopeContextAsync(entityId, canonicals, library, editor, ct);
-        if (context is null || NormalizeEditorMediaType(context.MediaType) != "TV") return null;
+        if (context is null || NormalizeEditorMediaType(context.MediaType) != "TV")
+        {
+            return null;
+        }
         var scope = context.Scopes.FirstOrDefault(item => item.ScopeId == scopeId);
         var root = context.Scopes.FirstOrDefault(item => item.ScopeId == "series");
         if (scope is null || root is null || !await HasEditorScopeAccessAsync(
-                http, resources, scope, permission, ct)) return null;
+                http, resources, scope, permission, ct))
+        {
+            return null;
+        }
         return (scope, root, context.Scopes.FirstOrDefault(item => item.ScopeId == "season"));
     }
 
@@ -417,7 +538,10 @@ public static partial class MetadataEndpoints
         CancellationToken ct)
     {
         var context = await ResolveEditorScopeContextAsync(entityId, canonicals, library, editor, ct);
-        if (context is null || NormalizeEditorMediaType(context.MediaType) != "TV") return null;
+        if (context is null || NormalizeEditorMediaType(context.MediaType) != "TV")
+        {
+            return null;
+        }
         var root = context.Scopes.FirstOrDefault(item => item.ScopeId == "series");
         return root is not null && await HasEditorScopeAccessAsync(http, resources, root, permission, ct)
             ? root : null;
@@ -445,7 +569,9 @@ public static partial class MetadataEndpoints
               ?? "default"
             : requested.Trim().ToLowerInvariant();
         if (!SupportedTvdbSeasonTypes.Contains(type, StringComparer.Ordinal))
+        {
             return null;
+        }
         return type == "default" || GetAvailableTvdbSeasonTypes(show).Contains(type, StringComparer.Ordinal)
             ? type : null;
     }
@@ -485,7 +611,10 @@ public static partial class MetadataEndpoints
             {
                 var episodeValues = BuildLatestCanonicalMap(await canonicals.GetByEntityAsync(episode.WorkId, ct));
                 var episodeId = episodeValues.GetValueOrDefault(BridgeIdKeys.TvdbEpisodeId);
-                if (string.IsNullOrWhiteSpace(episodeId)) continue;
+                if (string.IsNullOrWhiteSpace(episodeId))
+                {
+                    continue;
+                }
 
                 targetEpisodes ??= await tvdb.GetAllEpisodesAsync(seriesId, requestedSeasonType, language: "eng", ct: ct);
                 var targetEpisode = targetEpisodes.FirstOrDefault(node => TvdbText(node, "id") == episodeId);
@@ -525,7 +654,9 @@ public static partial class MetadataEndpoints
     internal static bool IsTvdbSeasonInOrder(JsonNode? season, JsonNode? show, string seasonType)
     {
         if (string.Equals(seasonType, "default", StringComparison.Ordinal))
+        {
             return IsDefaultTvdbSeason(season, show);
+        }
         return string.Equals(GetTvdbSeasonType(season), seasonType, StringComparison.Ordinal);
     }
 
@@ -534,7 +665,9 @@ public static partial class MetadataEndpoints
         var episodeSeasonId = TvdbText(episode, "seasonId");
         var confirmedSeasonId = TvdbText(season, "id");
         if (!string.IsNullOrWhiteSpace(episodeSeasonId) && !string.IsNullOrWhiteSpace(confirmedSeasonId))
+        {
             return string.Equals(episodeSeasonId, confirmedSeasonId, StringComparison.Ordinal);
+        }
 
         return ParseTvdbNumber(TvdbText(episode, "seasonNumber")) is { } episodeSeason
             && ParseTvdbNumber(TvdbText(season, "number")) is { } confirmedSeason
@@ -556,7 +689,9 @@ public static partial class MetadataEndpoints
         {
             var normalized = value.Trim().ToLowerInvariant();
             if (SupportedTvdbSeasonTypes.Contains(normalized, StringComparer.Ordinal))
+            {
                 return normalized;
+            }
         }
 
         var id = type is JsonObject ? TvdbText(type, "id") : null;
@@ -571,7 +706,10 @@ public static partial class MetadataEndpoints
     internal static string? CreateTvdbPreviewUrl(IMemoryCache cache, Guid entityId,
         Guid ownerId, string? sourceUrl)
     {
-        if (!TryNormalizeTvdbImageUrl(sourceUrl, out var source)) return null;
+        if (!TryNormalizeTvdbImageUrl(sourceUrl, out var source))
+        {
+            return null;
+        }
         var token = Guid.NewGuid().ToString("N");
         cache.Set($"tvdb-preview:{token}", new TvdbPreviewEntry(entityId, ownerId, source.ToString()),
             TimeSpan.FromMinutes(15));
@@ -581,7 +719,10 @@ public static partial class MetadataEndpoints
     internal static bool TryNormalizeTvdbImageUrl(string? sourceUrl, out Uri source)
     {
         source = null!;
-        if (string.IsNullOrWhiteSpace(sourceUrl) || sourceUrl.Any(char.IsControl)) return false;
+        if (string.IsNullOrWhiteSpace(sourceUrl) || sourceUrl.Any(char.IsControl))
+        {
+            return false;
+        }
 
         var trimmed = sourceUrl.Trim();
         string rawPath;
@@ -590,26 +731,40 @@ public static partial class MetadataEndpoints
             if (trimmed.StartsWith("//", StringComparison.Ordinal)
                 || trimmed.Contains('\\')
                 || trimmed.Contains('?')
-                || trimmed.Contains('#')) return false;
+                || trimmed.Contains('#'))
+            {
+                return false;
+            }
             rawPath = trimmed;
         }
         else
         {
             var schemeDelimiter = trimmed.IndexOf("://", StringComparison.Ordinal);
-            if (schemeDelimiter <= 0) return false;
+            if (schemeDelimiter <= 0)
+            {
+                return false;
+            }
             var pathStart = trimmed.IndexOf('/', schemeDelimiter + 3);
             rawPath = pathStart < 0 ? "/" : trimmed[pathStart..];
             var queryStart = rawPath.IndexOfAny(['?', '#']);
-            if (queryStart >= 0) rawPath = rawPath[..queryStart];
+            if (queryStart >= 0)
+            {
+                rawPath = rawPath[..queryStart];
+            }
         }
 
-        if (HasTvdbPathTraversal(rawPath)) return false;
+        if (HasTvdbPathTraversal(rawPath))
+        {
+            return false;
+        }
 
         Uri? normalized;
         if (trimmed.StartsWith("/banners/", StringComparison.Ordinal))
         {
             if (!Uri.TryCreate($"https://artworks.thetvdb.com{trimmed}", UriKind.Absolute, out normalized))
+            {
                 return false;
+            }
         }
         else if (!Uri.TryCreate(trimmed, UriKind.Absolute, out normalized))
         {
@@ -632,7 +787,10 @@ public static partial class MetadataEndpoints
             for (var attempt = 0; attempt < 4; attempt++)
             {
                 var next = Uri.UnescapeDataString(decoded);
-                if (string.Equals(next, decoded, StringComparison.Ordinal)) break;
+                if (string.Equals(next, decoded, StringComparison.Ordinal))
+                {
+                    break;
+                }
                 decoded = next;
             }
         }
@@ -641,7 +799,10 @@ public static partial class MetadataEndpoints
             return true;
         }
 
-        if (decoded.Contains('\\')) return true;
+        if (decoded.Contains('\\'))
+        {
+            return true;
+        }
         return decoded.Split('/', StringSplitOptions.RemoveEmptyEntries)
             .Any(segment => segment is "." or "..");
     }
@@ -650,7 +811,10 @@ public static partial class MetadataEndpoints
     private static int? ParseOwnedSeasonNumber(EditorScopeResolution scope)
     {
         var text = scope.ScopeId == "season" ? scope.DisplayTitle : scope.DisplaySubtitle;
-        if (string.IsNullOrWhiteSpace(text)) return null;
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            return null;
+        }
         var match = System.Text.RegularExpressions.Regex.Match(text,
             @"\bSeason\s+(\d+)\b", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
         return match.Success ? ParseTvdbNumber(match.Groups[1].Value) : null;

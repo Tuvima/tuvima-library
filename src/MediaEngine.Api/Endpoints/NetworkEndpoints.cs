@@ -31,6 +31,11 @@ public static class NetworkEndpoints
         {
             var current = configuration.LoadNetwork();
             var proposed = NetworkContractMapper.ToStorage(request);
+            // App access rides on the verified secure remote path: turning remote access off turns it off too.
+            if (!proposed.Remote.Enabled)
+            {
+                proposed.NativeAppAccess.Enabled = false;
+            }
             if (proposed.Local.Port != current.Local.Port)
             {
                 return ApiErrors.Conflict("Use the Change Port action so Tuvima can check the new port before saving it.");

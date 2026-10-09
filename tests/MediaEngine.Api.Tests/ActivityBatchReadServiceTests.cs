@@ -169,20 +169,22 @@ public sealed class ActivityBatchReadServiceTests : IDisposable
         var batchId = Guid.NewGuid();
         var now = DateTimeOffset.UtcNow;
         using (var conn = _db.CreateConnection())
-        using (var cmd = conn.CreateCommand())
         {
-            cmd.CommandText = """
-                INSERT INTO ingestion_batches (
-                    id, status, source_path, category, files_total, files_processed,
-                    files_registered, files_review, files_no_match, files_failed,
-                    started_at, completed_at, created_at, updated_at)
-                VALUES (
-                    $batchId, 'completed', 'C:/watch/books', 'Books', 7, 7,
-                    0, 0, 0, 0, $now, $now, $now, $now);
-                """;
-            AddGuid(cmd, "$batchId", batchId);
-            cmd.Parameters.AddWithValue("$now", now.ToString("O"));
-            cmd.ExecuteNonQuery();
+            using (var cmd = conn.CreateCommand())
+            {
+                cmd.CommandText = """
+                    INSERT INTO ingestion_batches (
+                        id, status, source_path, category, files_total, files_processed,
+                        files_registered, files_review, files_no_match, files_failed,
+                        started_at, completed_at, created_at, updated_at)
+                    VALUES (
+                        $batchId, 'completed', 'C:/watch/books', 'Books', 7, 7,
+                        0, 0, 0, 0, $now, $now, $now, $now);
+                    """;
+                AddGuid(cmd, "$batchId", batchId);
+                cmd.Parameters.AddWithValue("$now", now.ToString("O"));
+                cmd.ExecuteNonQuery();
+            }
         }
 
         var service = new ActivityBatchReadService(_db);
@@ -207,20 +209,22 @@ public sealed class ActivityBatchReadServiceTests : IDisposable
         var batchId = Guid.NewGuid();
         var now = DateTimeOffset.UtcNow;
         using (var conn = _db.CreateConnection())
-        using (var cmd = conn.CreateCommand())
         {
-            cmd.CommandText = """
-                INSERT INTO ingestion_batches (
-                    id, status, source_path, category, files_total, files_processed,
-                    files_registered, files_review, files_no_match, files_failed,
-                    started_at, completed_at, created_at, updated_at)
-                VALUES (
-                    $batchId, 'interrupted', 'C:/watch/mixed', 'Mixed', 38, 12,
-                    0, 0, 0, 0, $now, $now, $now, $now);
-                """;
-            AddGuid(cmd, "$batchId", batchId);
-            cmd.Parameters.AddWithValue("$now", now.ToString("O"));
-            cmd.ExecuteNonQuery();
+            using (var cmd = conn.CreateCommand())
+            {
+                cmd.CommandText = """
+                    INSERT INTO ingestion_batches (
+                        id, status, source_path, category, files_total, files_processed,
+                        files_registered, files_review, files_no_match, files_failed,
+                        started_at, completed_at, created_at, updated_at)
+                    VALUES (
+                        $batchId, 'interrupted', 'C:/watch/mixed', 'Mixed', 38, 12,
+                        0, 0, 0, 0, $now, $now, $now, $now);
+                    """;
+                AddGuid(cmd, "$batchId", batchId);
+                cmd.Parameters.AddWithValue("$now", now.ToString("O"));
+                cmd.ExecuteNonQuery();
+            }
         }
 
         var batch = await new ActivityBatchReadService(_db).GetBatchAsync(batchId);

@@ -79,7 +79,10 @@ public sealed partial class EngineApiClient
         AddQuery(query, "scopeProfileId", options.Scope == ViewScopeKind.Profile
             ? options.ScopeProfileId?.ToString("D") : null);
         AddQuery(query, "q", options.Search?.Trim());
-        foreach (var kind in options.Kinds ?? []) AddQuery(query, "kind", kind);
+        foreach (var kind in options.Kinds ?? [])
+        {
+            AddQuery(query, "kind", kind);
+        }
         AddQuery(query, "favorite", options.FavoritesOnly ? "true" : null);
         AddQuery(query, "hidden", options.HiddenOnly ? "true" : null);
         AddQuery(query, "lifecycle", options.Lifecycle);

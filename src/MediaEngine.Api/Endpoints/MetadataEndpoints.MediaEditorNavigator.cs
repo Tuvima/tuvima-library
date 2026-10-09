@@ -1,7 +1,7 @@
 using MediaEngine.Api.Http;
 using MediaEngine.Api.Security;
-using MediaEngine.Api.Services.ReadServices;
 using MediaEngine.Api.Services.Canonical;
+using MediaEngine.Api.Services.ReadServices;
 using MediaEngine.Application.ReadModels;
 using MediaEngine.Contracts.Metadata;
 using MediaEngine.Domain.Authorization;
@@ -70,7 +70,9 @@ public static partial class MetadataEndpoints
             {
                 if (await catalogueAuthorization.EvaluateAssetAsync(http, segment.RepresentativeAssetId, ApplicationPermissionIds.MetadataRead, ct)
                     == CatalogueResourceAccess.Allowed)
+                {
                     allowedSegments.Add(segment.Key);
+                }
             }
             var result = await ownedChildReadService.SearchAsync(
                 entityId, q, page ?? 1, pageSize ?? 50, season, disc, volume,
@@ -105,15 +107,21 @@ public static partial class MetadataEndpoints
             {
                 if (await catalogueAuthorization.EvaluateAssetAsync(http, segment.RepresentativeAssetId,
                         ApplicationPermissionIds.MetadataRead, ct) == CatalogueResourceAccess.Allowed)
+                {
                     allowedSegments.Add(segment.Key);
+                }
             }
 
             var snapshot = await ownedChildReadService.SnapshotMatchingAsync(
                 entityId, q, season, disc, volume, matchStatus, fileStatus, ct, allowedSegments);
             if (snapshot is null)
+            {
                 return ApiErrors.NotFound($"Editor parent {entityId} not found.");
+            }
             if (snapshot.ExceedsLimit)
+            {
                 return ApiErrors.Conflict("More than 1,000 files match. Narrow the filters and try again.");
+            }
 
             // Access can change while the read transaction runs. Check each included
             // library/media segment again before releasing its frozen asset list.
@@ -121,7 +129,9 @@ public static partial class MetadataEndpoints
             {
                 if (await catalogueAuthorization.EvaluateAssetAsync(http, segment.First().AssetId,
                         ApplicationPermissionIds.MetadataRead, ct) != CatalogueResourceAccess.Allowed)
+                {
                     return ApiErrors.Forbidden("Access to one or more selected files changed.");
+                }
             }
 
             return Results.Ok(new MediaEditorOwnedChildSelectionSnapshotDto

@@ -31,7 +31,10 @@ public sealed class ViewTimelineScrubberTests : AsyncBunitContext
     public void ResponsiveMonthsStayInTheRailAndUseTouchSizedHorizontalControls()
     {
         var root = new DirectoryInfo(AppContext.BaseDirectory);
-        while (root is not null && !File.Exists(Path.Combine(root.FullName, "MediaEngine.slnx"))) root = root.Parent;
+        while (root is not null && !File.Exists(Path.Combine(root.FullName, "MediaEngine.slnx")))
+        {
+            root = root.Parent;
+        }
         var css = File.ReadAllText(Path.Combine(root!.FullName, "src/MediaEngine.Web/Components/Shared/AppTimelineNavigator.razor.css"));
         Assert.Contains("flex:none;flex-direction:column;align-items:stretch", css);
         Assert.Contains("max-width:calc(100vw - 2rem)", css);

@@ -5,10 +5,19 @@ namespace MediaEngine.Storage.Tests;
 
 public sealed class RetailMatrixValidationTests
 {
-    private static Dictionary<string, MediaTypePipeline> Valid() => new() { ["Books"] = new() { Scoring = new() { Scopes = new()
+    private static Dictionary<string, MediaTypePipeline> Valid() => new()
     {
-        ["default"] = new() { Fields = new() { ["title"] = new() { Weight = .5, IfMissing = "zero" }, ["author"] = new() { Weight = .5, IfMissing = "zero-if-file-has" } }, Gates = ["format"] }
-    } } } };
+        ["Books"] = new()
+        {
+            Scoring = new()
+            {
+                Scopes = new()
+                {
+                    ["default"] = new() { Fields = new() { ["title"] = new() { Weight = .5, IfMissing = "zero" }, ["author"] = new() { Weight = .5, IfMissing = "zero-if-file-has" } }, Gates = ["format"] }
+                }
+            }
+        }
+    };
 
     [Fact]
     public void ValidMatrixPasses() => Assert.Empty(JsonConfigValidator.Validate(Valid(), "pipelines.json"));
@@ -23,7 +32,8 @@ public sealed class RetailMatrixValidationTests
     public void InvalidMatrixIsRejected(string defect)
     {
         var config = Valid(); var scopes = config["Books"].Scoring.Scopes; var matrix = scopes["default"];
-        switch (defect) {
+        switch (defect)
+        {
             case "weight": matrix.Fields["title"].Weight = .4; break;
             case "missing": matrix.Fields["author"].IfMissing = "ignore"; break;
             case "genre": matrix.Bonuses["genre"] = .1; break;

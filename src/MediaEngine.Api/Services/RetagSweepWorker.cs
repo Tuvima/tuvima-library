@@ -190,7 +190,9 @@ public sealed class RetagSweepWorker : BackgroundService
                     if (ex is NotSupportedException or FormatException)
                     {
                         if (expected.TryGetValue(stale.MediaType, out var expectedHash))
+                        {
                             await _assetRepo.MarkWritebackUnsupportedAsync(stale.AssetId, expectedHash, ex.Message, ct);
+                        }
                         totalTerminal++;
                         _logger.LogInformation("RetagSweepWorker: unsupported write-back request for {Path}: {Reason}",
                             stale.FilePathRoot, ex.Message);

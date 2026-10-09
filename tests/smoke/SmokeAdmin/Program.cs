@@ -4,14 +4,18 @@ using System.Text.Json;
 using Microsoft.AspNetCore.DataProtection;
 
 if (args.Length is not (2 or 3 or 4))
+{
     throw new ArgumentException("Usage: SmokeAdmin <fixture-root> <engine-url> [--complete|--probe <path>]");
+}
 
 var root = Path.GetFullPath(args[0]);
 var tempRoot = Path.GetFullPath(Path.GetTempPath());
 if (!root.StartsWith(Path.Combine(tempRoot, "tuvima-smoke-"), StringComparison.OrdinalIgnoreCase)
     || Path.GetDirectoryName(root.TrimEnd(Path.DirectorySeparatorChar))?.TrimEnd(Path.DirectorySeparatorChar)
        != tempRoot.TrimEnd(Path.DirectorySeparatorChar))
+{
     throw new InvalidOperationException("The fixture must be an isolated tuvima-smoke directory directly under temp.");
+}
 
 var credentialPath = Path.Combine(root, "config", ".secrets", "dashboard-engine.credential.json");
 using var bundle = JsonDocument.Parse(await File.ReadAllTextAsync(credentialPath));
@@ -41,7 +45,10 @@ if (args.Length >= 3 && args[2] is "--complete" or "--probe")
     client.DefaultRequestHeaders.TryAddWithoutValidation("X-Tuvima-Session", token);
     if (args[2] == "--probe")
     {
-        if (args.Length != 4 || !args[3].StartsWith('/')) throw new ArgumentException("Probe requires an API path.");
+        if (args.Length != 4 || !args[3].StartsWith('/'))
+        {
+            throw new ArgumentException("Probe requires an API path.");
+        }
         using var probe = await client.GetAsync(args[3]);
         var body = await probe.Content.ReadAsStringAsync();
         var limit = Environment.GetEnvironmentVariable("TUVIMA_SMOKE_FULL_PROBE") == "1" ? 8000 : 350;
@@ -85,7 +92,9 @@ using var adminResponse = await client.SendAsync(adminRequest);
 adminResponse.EnsureSuccessStatusCode();
 using var result = JsonDocument.Parse(await adminResponse.Content.ReadAsStringAsync());
 if (!result.RootElement.GetProperty("created").GetBoolean())
+{
     throw new InvalidOperationException("Disposable administrator was not created.");
+}
 
 await File.WriteAllTextAsync(loginPath, JsonSerializer.Serialize(new { email, password }));
 Console.WriteLine("Created disposable administrator. Login is stored only in the fixture's smoke-login.json.");

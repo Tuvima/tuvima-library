@@ -102,7 +102,10 @@ public sealed class SharedEntityEditorEndpointRouteTests
     private static string RepoFile(string relative, [System.Runtime.CompilerServices.CallerFilePath] string sourceFile = "")
     {
         var directory = new DirectoryInfo(Path.GetDirectoryName(sourceFile)!);
-        while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "MediaEngine.slnx"))) directory = directory.Parent;
+        while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "MediaEngine.slnx")))
+        {
+            directory = directory.Parent;
+        }
         Assert.NotNull(directory);
         return Path.Combine(directory!.FullName, relative);
     }

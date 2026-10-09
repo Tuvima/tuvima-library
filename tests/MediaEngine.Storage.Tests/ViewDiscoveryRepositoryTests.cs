@@ -181,9 +181,13 @@ public sealed class ViewDiscoveryRepositoryTests : IDisposable
         var owner = await CreateOwnership();
         var start = new DateTimeOffset(2000, 1, 1, 0, 0, 0, TimeSpan.Zero);
         for (var i = 0; i < 520; i++)
+        {
             await AddAsset(owner, $"Missing {i}", null, null, null, start.AddDays(i));
+        }
         for (var i = 0; i < 200; i++)
+        {
             await AddAsset(owner, $"Mapped {i}", 47.6062, -122.3321, "Seattle", start.AddDays(i * 45), i % 5 == 0 ? "video" : "image");
+        }
         var atlas = _discovery.QueryAtlas(new ViewAtlasDiscoveryQuery([owner.LibraryId], TimelineResolution: "day"));
         Assert.Equal(520, atlas.UnmappedAssetCount);
         Assert.Equal(200, atlas.MappedAssetCount);
@@ -196,7 +200,10 @@ public sealed class ViewDiscoveryRepositoryTests : IDisposable
         {
             var page = _assets.QueryTimeline(new LocalAssetTimelineQuery([owner.LibraryId], Limit: 100,
                 BeforeEffectiveAt: cursor?.EffectiveAt, BeforeItemId: cursor?.ItemId, WithoutLocation: true));
-            foreach (var item in page.Items) Assert.True(ids.Add(item.Id));
+            foreach (var item in page.Items)
+            {
+                Assert.True(ids.Add(item.Id));
+            }
             cursor = page.NextCursor;
         } while (cursor is not null);
         Assert.Equal(520, ids.Count);

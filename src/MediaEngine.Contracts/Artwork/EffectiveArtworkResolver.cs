@@ -21,9 +21,13 @@ public static class EffectiveArtworkResolver
         ArgumentNullException.ThrowIfNull(work);
         ArgumentNullException.ThrowIfNull(workParents);
         if (!string.Equals(edition.EntityType, "Edition", StringComparison.Ordinal))
+        {
             throw new ArgumentException("The first artwork scope must be a verified Edition.", nameof(edition));
+        }
         if (!string.Equals(work.EntityType, "Work", StringComparison.Ordinal))
+        {
             throw new ArgumentException("The Edition's parent scope must be a Work.", nameof(work));
+        }
 
         var editionCover = Preferred(edition, "Primary", "CoverArt");
         return editionCover is not null
@@ -42,13 +46,17 @@ public static class EffectiveArtworkResolver
 
         var own = Preferred(child, role, sourceAssetType);
         if (own is not null)
+        {
             return new(own, child.EntityType, child.EntityId, IsInherited: false);
+        }
 
         // An episode still is a child-specific image, never a season/show cover.
         // Similarly, a season poster must not be used as an episode still.
         if (string.Equals(sourceAssetType, "EpisodeStill", StringComparison.OrdinalIgnoreCase)
             || string.Equals(role, "Still", StringComparison.OrdinalIgnoreCase))
+        {
             return new(null, child.EntityType, child.EntityId, IsInherited: false);
+        }
 
         foreach (var parent in parents)
         {
@@ -60,7 +68,9 @@ public static class EffectiveArtworkResolver
                     _ => null,
                 });
             if (inherited is not null)
+            {
                 return new(inherited, parent.EntityType, parent.EntityId, IsInherited: true);
+            }
         }
 
         return new(null, child.EntityType, child.EntityId, IsInherited: false);

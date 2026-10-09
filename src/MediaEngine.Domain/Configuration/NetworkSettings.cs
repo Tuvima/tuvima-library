@@ -20,6 +20,19 @@ public sealed class NetworkSettings
 
     [JsonPropertyName("streaming")]
     public NetworkStreamingSettings Streaming { get; set; } = new();
+
+    [JsonPropertyName("native_app_access")]
+    public NativeAppAccessSettings NativeAppAccess { get; set; } = new();
+}
+
+/// <summary>
+/// Whether phone, TV and tablet apps may reach this Library through the Dashboard. Off by default, and it can
+/// only be on while remote access (and therefore a verified secure HTTPS path) is on.
+/// </summary>
+public sealed class NativeAppAccessSettings
+{
+    [JsonPropertyName("enabled")]
+    public bool Enabled { get; set; }
 }
 
 public sealed class LocalNetworkSettings

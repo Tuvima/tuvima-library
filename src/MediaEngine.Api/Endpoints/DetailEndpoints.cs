@@ -69,7 +69,9 @@ public static class DetailEndpoints
                 authority.ActiveProfileId, actionAuthorization, authorizedAssetIds, authorizedWorks);
             var compositionMs = timing.Elapsed.TotalMilliseconds - projectionMs;
             if (detail is not null)
+            {
                 await readiness.ApplyAsync(detail, ct);
+            }
             httpContext.RequestServices.GetRequiredService<ILoggerFactory>().CreateLogger("DetailPerformance")
                 .LogInformation("Detail {Type}: projection {ProjectionMs:F0} ms, composition {CompositionMs:F0} ms, total {TotalMs:F0} ms",
                     parsedType, projectionMs, compositionMs, timing.Elapsed.TotalMilliseconds);

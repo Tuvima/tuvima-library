@@ -655,12 +655,12 @@ public sealed class ArtworkLibraryReadService(
 
     private static IOrderedEnumerable<ArtworkLibraryItemDto> OrderItems(
         IEnumerable<ArtworkLibraryItemDto> items, string sort) => sort switch
-    {
-        "title-desc" => items.OrderByDescending(item => item.DisplayTitle, StringComparer.OrdinalIgnoreCase).ThenBy(item => item.EntityId),
-        "year-newest" => items.OrderByDescending(item => item.Year, StringComparer.OrdinalIgnoreCase).ThenBy(item => item.DisplayTitle, StringComparer.OrdinalIgnoreCase),
-        "images-most" => items.OrderByDescending(item => item.VariantCount).ThenBy(item => item.DisplayTitle, StringComparer.OrdinalIgnoreCase),
-        _ => items.OrderBy(item => item.DisplayTitle, StringComparer.OrdinalIgnoreCase).ThenBy(item => item.EntityId),
-    };
+        {
+            "title-desc" => items.OrderByDescending(item => item.DisplayTitle, StringComparer.OrdinalIgnoreCase).ThenBy(item => item.EntityId),
+            "year-newest" => items.OrderByDescending(item => item.Year, StringComparer.OrdinalIgnoreCase).ThenBy(item => item.DisplayTitle, StringComparer.OrdinalIgnoreCase),
+            "images-most" => items.OrderByDescending(item => item.VariantCount).ThenBy(item => item.DisplayTitle, StringComparer.OrdinalIgnoreCase),
+            _ => items.OrderBy(item => item.DisplayTitle, StringComparer.OrdinalIgnoreCase).ThenBy(item => item.EntityId),
+        };
 
     private static bool IsMediaType(string? value, string expected) =>
         string.Equals(NormalizeMediaType(value), NormalizeMediaType(expected), StringComparison.OrdinalIgnoreCase);

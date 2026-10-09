@@ -23,9 +23,13 @@ public sealed class ListenPlaybackCommandOwner(IServiceProvider services, Playba
         CancellationToken ct = default)
     {
         if (command.RecipientId != RecipientId || command.CommandId == Guid.Empty || command.SenderId == Guid.Empty)
+        {
             return null;
+        }
         if (IsBookmarkAction(command.Action))
+        {
             return await services.GetRequiredService<AudiobookBookmarkCommandDispatcher>().HandleAsync(command, ct).ConfigureAwait(false);
+        }
         if (command.Action is ListenPlaybackPresentationActions.SelectLyrics or ListenPlaybackPresentationActions.NavigateIdentity
             or ListenPlaybackPresentationActions.RegisterPopup or ListenPlaybackCommandActions.PopupClosed)
         {
@@ -33,15 +37,23 @@ public sealed class ListenPlaybackCommandOwner(IServiceProvider services, Playba
             try
             {
                 var key = (command.SenderId, command.CommandId);
-                if (_presentationReplies.TryGetValue(key, out var previous)) return previous;
+                if (_presentationReplies.TryGetValue(key, out var previous))
+                {
+                    return previous;
+                }
                 var accepted = false;
                 if (command.Action == ListenPlaybackPresentationActions.SelectLyrics)
+                {
                     accepted = await services.GetRequiredService<PlaybackLyricsSelectionOwner>()
-                        .SelectAsync(RecipientId, command, ct).ConfigureAwait(false);
+                            .SelectAsync(RecipientId, command, ct).ConfigureAwait(false);
+                }
                 else if (command.Action == ListenPlaybackPresentationActions.NavigateIdentity && NavigateIdentityAsync is { } navigate)
                 {
                     var route = await services.GetRequiredService<PlaybackIdentityNavigationOwner>().ResolveAsync(command, ct).ConfigureAwait(false);
-                    if (route is not null) accepted = await navigate(command, route).ConfigureAwait(false);
+                    if (route is not null)
+                    {
+                        accepted = await navigate(command, route).ConfigureAwait(false);
+                    }
                 }
                 else if (command.Action == ListenPlaybackPresentationActions.RegisterPopup && command.PopupWindowId is { } window
                     && window != Guid.Empty && command.OwnerGeneration > _lastPopupRegistrationGeneration
@@ -59,10 +71,17 @@ public sealed class ListenPlaybackCommandOwner(IServiceProvider services, Playba
                     playback.SetPopupOpen(false);
                     accepted = true;
                 }
-                var reply = new ListenPlaybackCommandReplyDto { CommandId = command.CommandId,
-                    RecipientId = command.SenderId, BooleanResult = accepted,
-                    Outcome = accepted ? AudiobookBookmarkOperationOutcomes.Success : AudiobookBookmarkOperationOutcomes.DefiniteFailure };
-                if (_presentationReplies.Count >= 256) _presentationReplies.Remove(_presentationReplies.Keys.First());
+                var reply = new ListenPlaybackCommandReplyDto
+                {
+                    CommandId = command.CommandId,
+                    RecipientId = command.SenderId,
+                    BooleanResult = accepted,
+                    Outcome = accepted ? AudiobookBookmarkOperationOutcomes.Success : AudiobookBookmarkOperationOutcomes.DefiniteFailure
+                };
+                if (_presentationReplies.Count >= 256)
+                {
+                    _presentationReplies.Remove(_presentationReplies.Keys.First());
+                }
                 _presentationReplies[key] = reply;
                 return reply;
             }
@@ -72,11 +91,17 @@ public sealed class ListenPlaybackCommandOwner(IServiceProvider services, Playba
         try
         {
             var key = (command.SenderId, command.CommandId);
-            if (_completed.TryGetValue(key, out var previous)) return previous;
+            if (_completed.TryGetValue(key, out var previous))
+            {
+                return previous;
+            }
             var reply = await DispatchTransportAsync(command, ct).ConfigureAwait(false);
             _completed[key] = reply;
             _completedOrder.Enqueue(key);
-            while (_completedOrder.Count > 256) _completed.Remove(_completedOrder.Dequeue());
+            while (_completedOrder.Count > 256)
+            {
+                _completed.Remove(_completedOrder.Dequeue());
+            }
             return reply;
         }
         finally { _transportGate.Release(); }
@@ -95,8 +120,10 @@ public sealed class ListenPlaybackCommandOwner(IServiceProvider services, Playba
                 || playback.CurrentItem is not { } current
                 || current.WorkId != workId || current.AssetId != assetId
                 || playback.PlaybackRequestVersion != version || playback.IsDismissed)
+            {
                 return Reply(command, AudiobookBookmarkOperationOutcomes.DefiniteFailure,
-                    "Playback changed before this action arrived. Try again for the current item.");
+                        "Playback changed before this action arrived. Try again for the current item.");
+            }
 
             if (command.Action is ListenPlaybackCommandActions.PlayIndex or ListenPlaybackCommandActions.RemoveUpcoming)
             {
@@ -104,8 +131,10 @@ public sealed class ListenPlaybackCommandOwner(IServiceProvider services, Playba
                     ? playback.Queue.Select((item, index) => (item, index)).FirstOrDefault(row => row.item.QueueEntryId == entryId)
                     : default;
                 if (target.item is null || command.Action == ListenPlaybackCommandActions.RemoveUpcoming && target.index <= playback.CurrentIndex)
+                {
                     return Reply(command, AudiobookBookmarkOperationOutcomes.DefiniteFailure,
-                        "That queue item is no longer available as displayed.");
+                            "That queue item is no longer available as displayed.");
+                }
                 command = command with { Index = target.index };
             }
         }
@@ -140,7 +169,9 @@ public sealed class ListenPlaybackCommandOwner(IServiceProvider services, Playba
         {
             var preferences = services.GetService<IUserPlaybackPreferencesAccessor>();
             if (command.Value is not double requestedRate || !PlaybackRatePolicy.IsValid(requestedRate))
+            {
                 return Reply(command, AudiobookBookmarkOperationOutcomes.DefiniteFailure, "The requested playback speed is invalid.");
+            }
 
             if (preferences?.ActiveProfileId is not Guid activeProfile
                 || command.ProfileId != activeProfile
@@ -187,7 +218,10 @@ public sealed class ListenPlaybackCommandOwner(IServiceProvider services, Playba
             {
                 case ListenPlaybackCommandActions.ListOutputs:
                 case ListenPlaybackCommandActions.SetOutputDevice:
-                    if (!playback.OutputSupported) return Reply(command, AudiobookBookmarkOperationOutcomes.DefiniteFailure, "Output selection is unavailable in this browser.");
+                    if (!playback.OutputSupported)
+                    {
+                        return Reply(command, AudiobookBookmarkOperationOutcomes.DefiniteFailure, "Output selection is unavailable in this browser.");
+                    }
                     var js = services.GetRequiredService<IJSRuntime>();
                     var output = command.Action == ListenPlaybackCommandActions.ListOutputs
                         ? await js.InvokeAsync<AudioOutputStateDto>("listenOutput.list", ct)
@@ -195,10 +229,17 @@ public sealed class ListenPlaybackCommandOwner(IServiceProvider services, Playba
                     if (command.ProfileId != services.GetService<IUserPlaybackPreferencesAccessor>()?.ActiveProfileId
                         || command.WorkId != playback.CurrentItem?.WorkId || command.ExpectedAssetId != playback.CurrentItem?.AssetId
                         || command.ExpectedPlaybackRequestVersion != playback.PlaybackRequestVersion || playback.IsDismissed)
+                    {
                         return Reply(command, AudiobookBookmarkOperationOutcomes.DefiniteFailure, "Playback changed before output selection completed.");
-                    return new() { CommandId = command.CommandId, RecipientId = command.SenderId, AudioOutput = output,
+                    }
+                    return new()
+                    {
+                        CommandId = command.CommandId,
+                        RecipientId = command.SenderId,
+                        AudioOutput = output,
                         Outcome = output.Message is null ? AudiobookBookmarkOperationOutcomes.Success : AudiobookBookmarkOperationOutcomes.DefiniteFailure,
-                        Message = output.Message };
+                        Message = output.Message
+                    };
                 case ListenPlaybackCommandActions.ReorderUpcoming when command.QueueEntryId is Guid occurrence
                     && command.Index is int destination && command.ExpectedQueueRevision is long revision:
                     await playback.MoveUpcomingAsync(occurrence, destination, revision, ct).ConfigureAwait(false);
@@ -207,7 +248,10 @@ public sealed class ListenPlaybackCommandOwner(IServiceProvider services, Playba
                     playback.ClearMusicHistory();
                     break;
                 case ListenPlaybackCommandActions.Play:
-                    if (!playback.IsPlaying || playback.NeedsUserGestureToStart) await playback.DispatchAsync(PlaybackCommand.TogglePlay(), ct).ConfigureAwait(false);
+                    if (!playback.IsPlaying || playback.NeedsUserGestureToStart)
+                    {
+                        await playback.DispatchAsync(PlaybackCommand.TogglePlay(), ct).ConfigureAwait(false);
+                    }
                     break;
                 case ListenPlaybackCommandActions.PlayChapter when command.ChapterIndex is int chapterIndex:
                     await playback.PlayAudiobookChapterAsync(chapterIndex, ct).ConfigureAwait(false);
@@ -221,7 +265,9 @@ public sealed class ListenPlaybackCommandOwner(IServiceProvider services, Playba
                         item.WorkId == queueItem.WorkId && item.AssetId == queueItem.AssetId
                         && (command.QueueEntryId is null || item.QueueEntryId == command.QueueEntryId));
                     if (historyItem is null)
+                    {
                         return Reply(command, AudiobookBookmarkOperationOutcomes.DefiniteFailure, "That played track is no longer available in this session.");
+                    }
                     await playback.PlayQueueItemAsync(historyItem, historyItem.Album ?? historyItem.Title, ct).ConfigureAwait(false);
                     break;
                 case ListenPlaybackCommandActions.ToggleShuffle:
@@ -306,14 +352,14 @@ public sealed class ListenPlaybackCommandOwner(IServiceProvider services, Playba
     private ListenPlaybackCommandReplyDto Reply(ListenPlaybackCommandDto command, string outcome, string? message = null,
         AudiobookSleepTimerStateDto? sleepTimerState = null,
         AudiobookSleepTimerAvailabilityDto? sleepTimerAvailability = null) => new()
-    {
-        CommandId = command.CommandId,
-        RecipientId = command.SenderId,
-        Outcome = outcome,
-        Message = message,
-        SleepTimerState = sleepTimerState,
-        SleepTimerAvailability = sleepTimerAvailability,
-    };
+        {
+            CommandId = command.CommandId,
+            RecipientId = command.SenderId,
+            Outcome = outcome,
+            Message = message,
+            SleepTimerState = sleepTimerState,
+            SleepTimerAvailability = sleepTimerAvailability,
+        };
 }
 
 public sealed class PlaybackAudiobookBookmarkAuthoritySource(
@@ -327,35 +373,58 @@ public sealed class PlaybackAudiobookBookmarkAuthoritySource(
         if (preferences.ActiveProfileId != context.ProfileId || !playback.IsAudiobookMode
             || playback.AudiobookBookSessionLeaseId != context.SessionLeaseId
             || (playback.CurrentItem?.AudiobookWorkId ?? playback.CurrentItem?.WorkId) != context.WorkId)
+        {
             return new HashSet<Guid>();
+        }
 
         var authorized = new HashSet<Guid>();
         foreach (var item in playback.Queue.Where(item => (item.AudiobookWorkId ?? item.WorkId) == context.WorkId
                      && MediaKindClassifier.IsAudiobook(item.MediaType)))
         {
-            if (item.AssetId is Guid assetId && assetId != Guid.Empty) authorized.Add(assetId);
-            if (item.Manifest is { } manifest && item.AssetId == manifest.AssetId) authorized.Add(manifest.AssetId);
+            if (item.AssetId is Guid assetId && assetId != Guid.Empty)
+            {
+                authorized.Add(assetId);
+            }
+            if (item.Manifest is { } manifest && item.AssetId == manifest.AssetId)
+            {
+                authorized.Add(manifest.AssetId);
+            }
             foreach (var chapter in item.Chapters)
             {
-                if (chapter.AssetId is Guid chapterAsset && chapterAsset != Guid.Empty) authorized.Add(chapterAsset);
+                if (chapter.AssetId is Guid chapterAsset && chapterAsset != Guid.Empty)
+                {
+                    authorized.Add(chapterAsset);
+                }
             }
         }
 
         var history = await api.GetAudiobookListenHistoryAsync(context.WorkId, context.ProfileId, 250, ct)
             .ConfigureAwait(false);
         foreach (var row in history.Where(row => row.ProfileId == context.ProfileId && row.WorkId == context.WorkId))
-            if (row.AssetId != Guid.Empty) authorized.Add(row.AssetId);
+        {
+            if (row.AssetId != Guid.Empty)
+            {
+                authorized.Add(row.AssetId);
+            }
+        }
 
         var saved = await api.GetAudiobookBookmarksWithOutcomeAsync(context.WorkId, context.ProfileId, ct)
             .ConfigureAwait(false);
         if (saved.Outcome == AudiobookBookmarkOperationOutcome.Success && saved.Value is not null)
         {
             foreach (var row in saved.Value.Where(row => row.ProfileId == context.ProfileId && row.WorkId == context.WorkId))
-                if (row.AssetId != Guid.Empty) authorized.Add(row.AssetId);
+            {
+                if (row.AssetId != Guid.Empty)
+                {
+                    authorized.Add(row.AssetId);
+                }
+            }
         }
 
         if (playback.CurrentItem?.AssetId is Guid currentAsset && currentAsset != Guid.Empty)
+        {
             authorized.Add(currentAsset);
+        }
         return authorized;
     }
 }
@@ -384,11 +453,16 @@ public sealed class PlaybackAudiobookBookmarkNativeOwner(
         CancellationToken ct = default)
     {
         if (context.ExpectedAssetId is not Guid assetId || !await IsCurrentSourceAsync(context, assetId, ct).ConfigureAwait(false))
+        {
             return null;
+        }
 
         var expectedRequestVersion = playback.PlaybackRequestVersion;
         var expectedSourceUrl = playback.CurrentBrowserStreamUrl;
-        if (string.IsNullOrWhiteSpace(expectedSourceUrl)) return null;
+        if (string.IsNullOrWhiteSpace(expectedSourceUrl))
+        {
+            return null;
+        }
 
         AudiobookBookmarkNativeCaptureDto? metrics;
         try
@@ -406,7 +480,9 @@ public sealed class PlaybackAudiobookBookmarkNativeOwner(
             || !await IsCurrentSourceAsync(context, assetId, ct).ConfigureAwait(false)
             || !double.IsFinite(metrics.PositionSeconds) || metrics.PositionSeconds < 0
             || metrics.DurationSeconds is double duration && (!double.IsFinite(duration) || duration <= 0))
+        {
             return null;
+        }
 
         var item = playback.CurrentItem;
         PlaybackChapterDto? chapter = null;
@@ -416,7 +492,10 @@ public sealed class PlaybackAudiobookBookmarkNativeOwner(
                 && double.IsFinite(candidate.StartSeconds) && candidate.StartSeconds >= 0
                 && candidate.EndSeconds is double end && double.IsFinite(end) && end > candidate.StartSeconds
                 && metrics.PositionSeconds >= candidate.StartSeconds && metrics.PositionSeconds < end).ToArray();
-            if (matching.Length == 1) chapter = matching[0];
+            if (matching.Length == 1)
+            {
+                chapter = matching[0];
+            }
         }
 
         return new AudiobookBookmarkCaptureObservation(assetId, metrics.PositionSeconds, metrics.DurationSeconds, chapter);
@@ -427,11 +506,15 @@ public sealed class PlaybackAudiobookBookmarkNativeOwner(
     {
         if (bookmark.ProfileId != context.ProfileId || bookmark.WorkId != context.WorkId || bookmark.AssetId == Guid.Empty
             || !await IsCurrentSessionAsync(context, ct).ConfigureAwait(false))
+        {
             return AudiobookBookmarkOperationResult<bool>.Failed("The bookmark does not belong to this audiobook session.");
+        }
         var authorizedAssets = await authority.GetAuthorizedAssetIdsAsync(context, ct).ConfigureAwait(false);
         if (!authorizedAssets.Contains(bookmark.AssetId)
             || !await IsCurrentSessionAsync(context, ct).ConfigureAwait(false))
+        {
             return AudiobookBookmarkOperationResult<bool>.Failed("The saved audio source is no longer authorized.");
+        }
         var previousRequestVersion = playback.PlaybackRequestVersion;
         await playback.PlayAudiobookBookmarkAsync(bookmark, ct).ConfigureAwait(false);
         var requestVersion = playback.PlaybackRequestVersion;
@@ -466,16 +549,22 @@ public sealed class PlaybackAudiobookBookmarkNativeOwner(
             || draft.SessionLeaseId != context.SessionLeaseId || !double.IsFinite(draft.PositionSeconds)
             || draft.PositionSeconds < 0 || draft.AssetId == Guid.Empty
             || !await IsCurrentSessionAsync(context, ct).ConfigureAwait(false))
+        {
             return AudiobookBookmarkOperationResult<bool>.Failed("The captured position is invalid.");
+        }
 
         var authorizedAssets = await authority.GetAuthorizedAssetIdsAsync(context, ct).ConfigureAwait(false);
         if (!authorizedAssets.Contains(draft.AssetId)
             || !await IsCurrentSessionAsync(context, ct).ConfigureAwait(false))
+        {
             return AudiobookBookmarkOperationResult<bool>.Failed("The captured audio source is no longer authorized.");
+        }
 
         var previousRequestVersion = playback.PlaybackRequestVersion;
         if (!await playback.PreviewCapturedAudiobookDraftAsync(context, draft, ct).ConfigureAwait(false))
+        {
             return AudiobookBookmarkOperationResult<bool>.Failed("The captured source could not be previewed.");
+        }
 
         var requestVersion = playback.PlaybackRequestVersion;
         var streamUrl = playback.CurrentBrowserStreamUrl;

@@ -1,3 +1,5 @@
+using System.Security.Cryptography;
+using System.Text;
 using MediaEngine.Api.Http;
 using MediaEngine.Api.Security;
 using MediaEngine.Api.Services.Display;
@@ -12,8 +14,6 @@ using MediaEngine.Domain.Entities;
 using MediaEngine.Domain.Enums;
 using MediaEngine.Domain.Models;
 using MediaEngine.Domain.Services;
-using System.Security.Cryptography;
-using System.Text;
 
 namespace MediaEngine.Api.Endpoints;
 
@@ -23,7 +23,7 @@ public static class SharedEntityEditorEndpoints
     private sealed record Category(string Id, string Label);
     // Ordered client contract; unlike a set this cannot drift between runs.
     private static readonly IReadOnlyList<Category> Categories =
-    [ new("Character", "Character"), new("Location", "Places"), new("Organization", "Groups"), new("Event", "Event"), new("Object", "Object") ];
+    [new("Character", "Character"), new("Location", "Places"), new("Organization", "Groups"), new("Event", "Event"), new("Object", "Object")];
 
     public static IEndpointRouteBuilder MapSharedEntityEditorEndpoints(this IEndpointRouteBuilder app)
     {
@@ -69,7 +69,10 @@ public static class SharedEntityEditorEndpoints
 
     private static async Task<IResult> GetCategorySummariesAsync(string qid, HttpContext http, INarrativeRootRepository roots, IFictionalEntityRepository entities, IDisplayProjectionReadService display, CatalogueResourceAuthorizationService authorization, CancellationToken ct)
     {
-        if (await AuthorizedRootAsync(qid, http, roots, entities, display, authorization, ApplicationPermissionIds.MetadataRead, ct) is null) return ApiErrors.NotFound("Universe not found.");
+        if (await AuthorizedRootAsync(qid, http, roots, entities, display, authorization, ApplicationPermissionIds.MetadataRead, ct) is null)
+        {
+            return ApiErrors.NotFound("Universe not found.");
+        }
         var visible = await VisibleWorksAsync(display, ct);
         var items = new List<SharedEntityCategorySummaryDto>(Categories.Count);
         foreach (var category in Categories)
@@ -82,9 +85,15 @@ public static class SharedEntityEditorEndpoints
 
     private static async Task<IResult> GetSelectorAsync(string qid, string? category, string? search, int? offset, int? limit, HttpContext http, INarrativeRootRepository roots, IFictionalEntityRepository entities, IDisplayProjectionReadService display, CatalogueResourceAuthorizationService authorization, CancellationToken ct)
     {
-        if (await AuthorizedRootAsync(qid, http, roots, entities, display, authorization, ApplicationPermissionIds.MetadataRead, ct) is null) return ApiErrors.NotFound("Universe not found.");
+        if (await AuthorizedRootAsync(qid, http, roots, entities, display, authorization, ApplicationPermissionIds.MetadataRead, ct) is null)
+        {
+            return ApiErrors.NotFound("Universe not found.");
+        }
         var selected = ResolveCategory(category);
-        if (category is not null && selected is null) return ApiErrors.BadRequest("Unsupported entity category.");
+        if (category is not null && selected is null)
+        {
+            return ApiErrors.BadRequest("Unsupported entity category.");
+        }
         var request = PagedRequest.From(offset, limit, defaultLimit: 50, maxLimit: 100);
         var page = await entities.SearchVisibleByUniverseAsync(qid, await VisibleWorksAsync(display, ct), selected?.Id, search, request.Offset, request.Limit, ct);
         return Results.Ok(new SharedEntitySelectorPageDto(page.Items.Select(ToSelector).ToList(), request.Offset, request.Limit, page.Total, request.Offset + page.Items.Count < page.Total));
@@ -99,8 +108,14 @@ public static class SharedEntityEditorEndpoints
     private static async Task<IResult> UpdateUniverseDetailsAsync(string qid, SharedEntityDetailsUpdateRequest request, HttpContext http, INarrativeRootRepository roots, IFictionalEntityRepository entities, IEntityTimelineRepository timeline, IDisplayProjectionReadService display, CatalogueResourceAuthorizationService authorization, CancellationToken ct)
     {
         var root = await AuthorizedRootAsync(qid, http, roots, entities, display, authorization, ApplicationPermissionIds.MetadataWrite, ct);
-        if (root is null) return ApiErrors.NotFound("Universe not found.");
-        if (string.IsNullOrWhiteSpace(request.label)) return ApiErrors.BadRequest("A label is required.");
+        if (root is null)
+        {
+            return ApiErrors.NotFound("Universe not found.");
+        }
+        if (string.IsNullOrWhiteSpace(request.label))
+        {
+            return ApiErrors.BadRequest("A label is required.");
+        }
         await roots.UpdateUserDetailsAsync(root.Qid, request.label, request.description, ct);
         await RecordEditorEventAsync(timeline, RootHistoryId(root.Qid), "Universe", "user_field_edit", "Universe details edited in shared editor.", ct);
         return Results.Ok(ToRootDetails((await roots.FindByQidAsync(root.Qid, ct))!));
@@ -115,7 +130,10 @@ public static class SharedEntityEditorEndpoints
     private static async Task<IResult> UpdateUniverseArtworkAsync(string qid, SharedEntityArtworkUpdateRequest request, HttpContext http, INarrativeRootRepository roots, IFictionalEntityRepository entities, IEntityAssetRepository assets, IEntityTimelineRepository timeline, IDisplayProjectionReadService display, CatalogueResourceAuthorizationService authorization, CancellationToken ct)
     {
         var root = await AuthorizedRootAsync(qid, http, roots, entities, display, authorization, ApplicationPermissionIds.MetadataWrite, ct);
-        if (root is null) return ApiErrors.NotFound("Universe not found.");
+        if (root is null)
+        {
+            return ApiErrors.NotFound("Universe not found.");
+        }
         var response = await UpsertUserArtworkAsync(root.Qid, SharedEntityEditorTargetKinds.Universe, request, assets, ct);
         await RecordEditorEventAsync(timeline, RootHistoryId(root.Qid), "Universe", "user_artwork_edit", "Universe artwork selected in shared editor.", ct);
         return response;
@@ -124,14 +142,20 @@ public static class SharedEntityEditorEndpoints
     private static async Task<IResult> UploadUniverseArtworkAsync(string qid, string assetType, HttpRequest request, HttpContext http, INarrativeRootRepository roots, IFictionalEntityRepository entities, IEntityAssetRepository assets, IEntityTimelineRepository timeline, ArtworkScopeService artworkScope, IDisplayProjectionReadService display, CatalogueResourceAuthorizationService authorization, CancellationToken ct)
     {
         var root = await AuthorizedRootAsync(qid, http, roots, entities, display, authorization, ApplicationPermissionIds.MetadataWrite, ct);
-        if (root is null) return ApiErrors.NotFound("Universe not found.");
+        if (root is null)
+        {
+            return ApiErrors.NotFound("Universe not found.");
+        }
         return await UploadArtworkAsync(root.Qid, SharedEntityEditorTargetKinds.Universe, RootHistoryId(root.Qid), assetType, request, assets, timeline, artworkScope, ct);
     }
 
     private static async Task<IResult> GetEntityContextAsync(string qid, Guid id, HttpContext http, INarrativeRootRepository roots, IFictionalEntityRepository entities, IDisplayProjectionReadService display, CatalogueResourceAuthorizationService authorization, CancellationToken ct)
     {
         var entity = await AuthorizedEntityAsync(qid, id, http, entities, display, authorization, ApplicationPermissionIds.MetadataRead, ct);
-        if (entity is null) return ApiErrors.NotFound("Entity not found.");
+        if (entity is null)
+        {
+            return ApiErrors.NotFound("Entity not found.");
+        }
         var root = await roots.FindByQidAsync(qid, ct);
         return Results.Ok(ToEntityContext(entity, qid, root?.Label ?? qid));
     }
@@ -139,13 +163,19 @@ public static class SharedEntityEditorEndpoints
     private static async Task<IResult> GetUniverseHistoryAsync(string qid, HttpContext http, INarrativeRootRepository roots, IFictionalEntityRepository entities, IEntityTimelineRepository timeline, IDisplayProjectionReadService display, CatalogueResourceAuthorizationService authorization, CancellationToken ct)
     {
         var root = await AuthorizedRootAsync(qid, http, roots, entities, display, authorization, ApplicationPermissionIds.MetadataRead, ct);
-        if (root is null) return ApiErrors.NotFound("Universe not found.");
+        if (root is null)
+        {
+            return ApiErrors.NotFound("Universe not found.");
+        }
         return Results.Ok((await timeline.GetEventsByEntityAsync(RootHistoryId(root.Qid), ct)).Select(evt => new SharedEntityHistoryEntryDto(evt.Id, evt.EventType, evt.OccurredAt, evt.Detail)));
     }
 
     private static async Task<IResult> GetUniverseRelationshipsAsync(string qid, HttpContext http, INarrativeRootRepository roots, IFictionalEntityRepository entities, IEntityRelationshipRepository relationships, IDisplayProjectionReadService display, CatalogueResourceAuthorizationService authorization, CancellationToken ct)
     {
-        if (await AuthorizedRootAsync(qid, http, roots, entities, display, authorization, ApplicationPermissionIds.MetadataRead, ct) is null) return ApiErrors.NotFound("Universe not found.");
+        if (await AuthorizedRootAsync(qid, http, roots, entities, display, authorization, ApplicationPermissionIds.MetadataRead, ct) is null)
+        {
+            return ApiErrors.NotFound("Universe not found.");
+        }
         var visible = await VisibleWorksAsync(display, ct);
         var entityQids = (await LoadAllVisibleEntitiesAsync(qid, entities, visible, ct)).Select(entity => entity.WikidataQid).ToHashSet(StringComparer.OrdinalIgnoreCase);
         var rows = await relationships.GetByUniverseAsync(entityQids, ct);
@@ -154,7 +184,10 @@ public static class SharedEntityEditorEndpoints
 
     private static async Task<IResult> GetUniverseTimelineAsync(string qid, HttpContext http, INarrativeRootRepository roots, IFictionalEntityRepository entities, IEntityRelationshipRepository relationships, ICanonicalValueRepository canonicals, IDisplayProjectionReadService display, CatalogueResourceAuthorizationService authorization, CancellationToken ct)
     {
-        if (await AuthorizedRootAsync(qid, http, roots, entities, display, authorization, ApplicationPermissionIds.MetadataRead, ct) is null) return ApiErrors.NotFound("Universe not found.");
+        if (await AuthorizedRootAsync(qid, http, roots, entities, display, authorization, ApplicationPermissionIds.MetadataRead, ct) is null)
+        {
+            return ApiErrors.NotFound("Universe not found.");
+        }
         var visible = await VisibleWorksAsync(display, ct);
         var allEntities = await LoadAllVisibleEntitiesAsync(qid, entities, visible, ct);
         var links = await entities.GetWorkLinksAsync(allEntities.Select(entity => entity.Id), ct);
@@ -166,7 +199,10 @@ public static class SharedEntityEditorEndpoints
 
     private static async Task<IResult> GetUniverseSourcesAsync(string qid, HttpContext http, INarrativeRootRepository roots, IFictionalEntityRepository entities, IEntityRelationshipRepository relationships, IPluginLoreRepository pluginLore, IDisplayProjectionReadService display, CatalogueResourceAuthorizationService authorization, CancellationToken ct)
     {
-        if (await AuthorizedRootAsync(qid, http, roots, entities, display, authorization, ApplicationPermissionIds.MetadataRead, ct) is null) return ApiErrors.NotFound("Universe not found.");
+        if (await AuthorizedRootAsync(qid, http, roots, entities, display, authorization, ApplicationPermissionIds.MetadataRead, ct) is null)
+        {
+            return ApiErrors.NotFound("Universe not found.");
+        }
         var visible = await VisibleWorksAsync(display, ct);
         var allEntities = await LoadAllVisibleEntitiesAsync(qid, entities, visible, ct);
         var links = await entities.GetWorkLinksAsync(allEntities.Select(entity => entity.Id), ct);
@@ -177,14 +213,20 @@ public static class SharedEntityEditorEndpoints
 
     private static async Task<IResult> GetUniverseEnrichmentAsync(string qid, HttpContext http, INarrativeRootRepository roots, IFictionalEntityRepository entities, IDisplayProjectionReadService display, CatalogueResourceAuthorizationService authorization, CancellationToken ct)
     {
-        if (await AuthorizedRootAsync(qid, http, roots, entities, display, authorization, ApplicationPermissionIds.MetadataRead, ct) is null) return ApiErrors.NotFound("Universe not found.");
+        if (await AuthorizedRootAsync(qid, http, roots, entities, display, authorization, ApplicationPermissionIds.MetadataRead, ct) is null)
+        {
+            return ApiErrors.NotFound("Universe not found.");
+        }
         var page = await entities.SearchVisibleByUniverseAsync(qid, await VisibleWorksAsync(display, ct), null, null, 0, 1, ct);
         return Results.Ok(new SharedEntityEnrichmentStatusDto(page.Total == 0 ? "pending" : "available", null, null));
     }
 
     private static async Task<IResult> RefreshUniverseAsync(string qid, HttpContext http, INarrativeRootRepository roots, IFictionalEntityRepository entities, IDisplayProjectionReadService display, CatalogueResourceAuthorizationService authorization, IMetadataHarvestingService harvesting, CancellationToken ct)
     {
-        if (await AuthorizedRootAsync(qid, http, roots, entities, display, authorization, ApplicationPermissionIds.MetadataEnrichmentRun, ct) is null) return ApiErrors.NotFound("Universe not found.");
+        if (await AuthorizedRootAsync(qid, http, roots, entities, display, authorization, ApplicationPermissionIds.MetadataEnrichmentRun, ct) is null)
+        {
+            return ApiErrors.NotFound("Universe not found.");
+        }
         await harvesting.EnqueueAsync(new HarvestRequest { EntityId = Guid.Empty, EntityType = EntityType.Character, MediaType = MediaType.Unknown, Hints = new Dictionary<string, string> { ["trigger_type"] = "universe_sweep", ["universe_qid"] = qid, ["requested_by"] = "shared_editor" } }, ct);
         return Results.Ok(new SharedEntityRefreshDto(true, "Universe enrichment refresh queued."));
     }
@@ -198,8 +240,14 @@ public static class SharedEntityEditorEndpoints
     private static async Task<IResult> UpdateEntityDetailsAsync(string qid, Guid id, SharedEntityDetailsUpdateRequest request, HttpContext http, IFictionalEntityRepository entities, IEntityTimelineRepository timeline, IDisplayProjectionReadService display, CatalogueResourceAuthorizationService authorization, CancellationToken ct)
     {
         var entity = await AuthorizedEntityAsync(qid, id, http, entities, display, authorization, ApplicationPermissionIds.MetadataWrite, ct);
-        if (entity is null) return ApiErrors.NotFound("Entity not found.");
-        if (string.IsNullOrWhiteSpace(request.label)) return ApiErrors.BadRequest("A label is required.");
+        if (entity is null)
+        {
+            return ApiErrors.NotFound("Entity not found.");
+        }
+        if (string.IsNullOrWhiteSpace(request.label))
+        {
+            return ApiErrors.BadRequest("A label is required.");
+        }
         await entities.UpdateUserDetailsAsync(entity.Id, request.label, request.description, ct);
         await RecordEditorEventAsync(timeline, entity.Id, SharedEntityEditorTargetKinds.FictionalEntity, "user_field_edit", "Fictional entity details edited in shared editor.", ct);
         return Results.Ok(ToEntityDetails((await entities.FindByIdAsync(entity.Id, ct))!, qid));
@@ -214,7 +262,10 @@ public static class SharedEntityEditorEndpoints
     private static async Task<IResult> UpdateEntityArtworkAsync(string qid, Guid id, SharedEntityArtworkUpdateRequest request, HttpContext http, IFictionalEntityRepository entities, IEntityAssetRepository assets, IEntityTimelineRepository timeline, IDisplayProjectionReadService display, CatalogueResourceAuthorizationService authorization, CancellationToken ct)
     {
         var entity = await AuthorizedEntityAsync(qid, id, http, entities, display, authorization, ApplicationPermissionIds.MetadataWrite, ct);
-        if (entity is null) return ApiErrors.NotFound("Entity not found.");
+        if (entity is null)
+        {
+            return ApiErrors.NotFound("Entity not found.");
+        }
         var response = await UpsertUserArtworkAsync(entity.Id.ToString(), SharedEntityEditorTargetKinds.FictionalEntity, request, assets, ct);
         await RecordEditorEventAsync(timeline, entity.Id, SharedEntityEditorTargetKinds.FictionalEntity, "user_artwork_edit", "Fictional entity artwork selected in shared editor.", ct);
         return response;
@@ -223,14 +274,20 @@ public static class SharedEntityEditorEndpoints
     private static async Task<IResult> UploadEntityArtworkAsync(string qid, Guid id, string assetType, HttpRequest request, HttpContext http, IFictionalEntityRepository entities, IEntityAssetRepository assets, IEntityTimelineRepository timeline, ArtworkScopeService artworkScope, IDisplayProjectionReadService display, CatalogueResourceAuthorizationService authorization, CancellationToken ct)
     {
         var entity = await AuthorizedEntityAsync(qid, id, http, entities, display, authorization, ApplicationPermissionIds.MetadataWrite, ct);
-        if (entity is null) return ApiErrors.NotFound("Entity not found.");
+        if (entity is null)
+        {
+            return ApiErrors.NotFound("Entity not found.");
+        }
         return await UploadArtworkAsync(entity.Id.ToString(), SharedEntityEditorTargetKinds.FictionalEntity, entity.Id, assetType, request, assets, timeline, artworkScope, ct);
     }
 
     private static async Task<IResult> GetAppearancesAsync(string qid, Guid id, HttpContext http, IFictionalEntityRepository entities, IDisplayProjectionReadService display, CatalogueResourceAuthorizationService authorization, CancellationToken ct)
     {
         var entity = await AuthorizedEntityAsync(qid, id, http, entities, display, authorization, ApplicationPermissionIds.MetadataRead, ct);
-        if (entity is null) return ApiErrors.NotFound("Entity not found.");
+        if (entity is null)
+        {
+            return ApiErrors.NotFound("Entity not found.");
+        }
         var visible = await VisibleWorksAsync(display, ct);
         return Results.Ok((await entities.GetWorkLinksAsync(entity.Id, ct)).Where(link => visible.Contains(link.WorkQid)).Select(link => new SharedEntityAppearanceDto(link.WorkQid, link.WorkLabel, link.LinkType, link.AppearanceRole, link.WorkContext, link.AnchorKind, link.AnchorValue, link.NarrativeTimeIndex, link.StartTime, link.EndTime, link.SpoilerForWorkQid, link.Provenance)));
     }
@@ -238,7 +295,10 @@ public static class SharedEntityEditorEndpoints
     private static async Task<IResult> GetRelationshipsAsync(string qid, Guid id, HttpContext http, IFictionalEntityRepository entities, IEntityRelationshipRepository relationships, IDisplayProjectionReadService display, CatalogueResourceAuthorizationService authorization, CancellationToken ct)
     {
         var entity = await AuthorizedEntityAsync(qid, id, http, entities, display, authorization, ApplicationPermissionIds.MetadataRead, ct);
-        if (entity is null) return ApiErrors.NotFound("Entity not found.");
+        if (entity is null)
+        {
+            return ApiErrors.NotFound("Entity not found.");
+        }
         var visible = await VisibleWorksAsync(display, ct);
         return Results.Ok((await relationships.GetByEntityAsync(entity.WikidataQid, ct)).Where(row => string.IsNullOrWhiteSpace(row.ContextWorkQid) || visible.Contains(row.ContextWorkQid!)).Select(row => new SharedEntityRelationshipDto(row.StatementKey, row.SubjectQid, row.RelationshipTypeValue, row.ObjectQid, row.Provenance, row.ContextWorkQid, row.Qualifiers.Select(q => new UniverseGraphQualifierDto(q.QualifierType, q.Value, q.ValueKind, q.Provenance, q.IsSupplemental, q.SourceProvider, q.Confidence)).ToList())));
     }
@@ -246,7 +306,10 @@ public static class SharedEntityEditorEndpoints
     private static async Task<IResult> GetTimelineAsync(string qid, Guid id, HttpContext http, IFictionalEntityRepository entities, IEntityRelationshipRepository relationships, ICanonicalValueRepository canonicals, IDisplayProjectionReadService display, CatalogueResourceAuthorizationService authorization, CancellationToken ct)
     {
         var entity = await AuthorizedEntityAsync(qid, id, http, entities, display, authorization, ApplicationPermissionIds.MetadataRead, ct);
-        if (entity is null) return ApiErrors.NotFound("Entity not found.");
+        if (entity is null)
+        {
+            return ApiErrors.NotFound("Entity not found.");
+        }
         var visible = await VisibleWorksAsync(display, ct);
         var appearances = (await entities.GetWorkLinksAsync(entity.Id, ct)).Where(link => visible.Contains(link.WorkQid) && (!string.IsNullOrWhiteSpace(link.NarrativeTimeIndex) || !string.IsNullOrWhiteSpace(link.StartTime) || !string.IsNullOrWhiteSpace(link.EndTime))).Select(link => new SharedEntityTimelineEntryDto("appearance", link.NarrativeTimeIndex ?? link.WorkLabel ?? link.WorkQid, link.StartTime, link.EndTime, link.WorkQid, link.Provenance));
         return Results.Ok(appearances.Concat(RelationshipTimeline(await relationships.GetByEntityAsync(entity.WikidataQid, ct), visible)).Concat(CanonicalTimeline(entity, await canonicals.GetByEntityAsync(entity.Id, ct))));
@@ -255,7 +318,10 @@ public static class SharedEntityEditorEndpoints
     private static async Task<IResult> GetSourcesAsync(string qid, Guid id, HttpContext http, IFictionalEntityRepository entities, IEntityRelationshipRepository relationships, IPluginLoreRepository pluginLore, IDisplayProjectionReadService display, CatalogueResourceAuthorizationService authorization, CancellationToken ct)
     {
         var entity = await AuthorizedEntityAsync(qid, id, http, entities, display, authorization, ApplicationPermissionIds.MetadataRead, ct);
-        if (entity is null) return ApiErrors.NotFound("Entity not found.");
+        if (entity is null)
+        {
+            return ApiErrors.NotFound("Entity not found.");
+        }
         var visible = await VisibleWorksAsync(display, ct);
         var appearances = (await entities.GetWorkLinksAsync(entity.Id, ct)).Where(link => visible.Contains(link.WorkQid)).Select(link => new SharedEntitySourceDto("appearance", link.AppearanceKey ?? link.WorkQid, link.Provenance, link.SourceProvider, link.WorkQid, link.IsSupplemental, link.Confidence));
         return Results.Ok(appearances.Concat(RelationshipSources(await relationships.GetByEntityAsync(entity.WikidataQid, ct), visible)).Concat(await SupplementalSourcesAsync(qid, entity.WikidataQid, pluginLore, ct)));
@@ -264,7 +330,10 @@ public static class SharedEntityEditorEndpoints
     private static async Task<IResult> GetHistoryAsync(string qid, Guid id, HttpContext http, IFictionalEntityRepository entities, IEntityTimelineRepository timeline, IDisplayProjectionReadService display, CatalogueResourceAuthorizationService authorization, CancellationToken ct)
     {
         var entity = await AuthorizedEntityAsync(qid, id, http, entities, display, authorization, ApplicationPermissionIds.MetadataRead, ct);
-        if (entity is null) return ApiErrors.NotFound("Entity not found.");
+        if (entity is null)
+        {
+            return ApiErrors.NotFound("Entity not found.");
+        }
         return Results.Ok((await timeline.GetEventsByEntityAsync(entity.Id, ct)).Select(evt => new SharedEntityHistoryEntryDto(evt.Id, evt.EventType, evt.OccurredAt, evt.Detail)));
     }
 
@@ -277,7 +346,10 @@ public static class SharedEntityEditorEndpoints
     private static async Task<IResult> RefreshEntityAsync(string qid, Guid id, HttpContext http, IFictionalEntityRepository entities, IDisplayProjectionReadService display, CatalogueResourceAuthorizationService authorization, IMetadataHarvestingService harvesting, CancellationToken ct)
     {
         var entity = await AuthorizedEntityAsync(qid, id, http, entities, display, authorization, ApplicationPermissionIds.MetadataEnrichmentRun, ct);
-        if (entity is null) return ApiErrors.NotFound("Entity not found.");
+        if (entity is null)
+        {
+            return ApiErrors.NotFound("Entity not found.");
+        }
         await harvesting.EnqueueAsync(new HarvestRequest
         {
             EntityId = entity.Id,
@@ -296,7 +368,10 @@ public static class SharedEntityEditorEndpoints
     private static async Task<NarrativeRoot?> AuthorizedRootAsync(string qid, HttpContext http, INarrativeRootRepository roots, IFictionalEntityRepository entities, IDisplayProjectionReadService display, CatalogueResourceAuthorizationService authorization, ApplicationPermissionId permission, CancellationToken ct)
     {
         var root = await roots.FindByQidAsync(qid, ct);
-        if (root is null) return null;
+        if (root is null)
+        {
+            return null;
+        }
         // A root may be valid before Stage 3 has discovered its first entity. Authorize
         // through the owned work that carries its canonical narrative provenance, never
         // merely because a caller supplied a raw root QID.
@@ -314,32 +389,56 @@ public static class SharedEntityEditorEndpoints
     private static async Task<FictionalEntity?> AuthorizedEntityAsync(string qid, Guid id, HttpContext http, IFictionalEntityRepository entities, IDisplayProjectionReadService display, CatalogueResourceAuthorizationService authorization, ApplicationPermissionId permission, CancellationToken ct)
     {
         var entity = await entities.FindByIdAsync(id, ct);
-        if (entity is null || !string.Equals(entity.FictionalUniverseQid, qid, StringComparison.OrdinalIgnoreCase) || await authorization.EvaluateEntityAsync(http, SharedEntityEditorTargetKinds.FictionalEntity, id, permission, ct) != CatalogueResourceAccess.Allowed) return null;
+        if (entity is null || !string.Equals(entity.FictionalUniverseQid, qid, StringComparison.OrdinalIgnoreCase) || await authorization.EvaluateEntityAsync(http, SharedEntityEditorTargetKinds.FictionalEntity, id, permission, ct) != CatalogueResourceAccess.Allowed)
+        {
+            return null;
+        }
         return (await entities.SearchVisibleByUniverseAsync(qid, await VisibleWorksAsync(display, ct), null, entity.WikidataQid, 0, 1, ct)).Items.Any(item => item.Id == id) ? entity : null;
     }
 
     private static async Task<IResult> UpsertUserArtworkAsync(string entityId, string entityType, SharedEntityArtworkUpdateRequest request, IEntityAssetRepository assets, CancellationToken ct)
     {
         var normalizedType = ArtworkScopeService.NormalizeUploadedArtworkType(request.asset_type);
-        if (normalizedType is null || string.IsNullOrWhiteSpace(request.image_url) || !Uri.TryCreate(request.image_url, UriKind.Absolute, out var uri) || (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps)) return ApiErrors.BadRequest("Artwork must use a supported type and an absolute HTTP(S) URL.");
+        if (normalizedType is null || string.IsNullOrWhiteSpace(request.image_url) || !Uri.TryCreate(request.image_url, UriKind.Absolute, out var uri) || (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps))
+        {
+            return ApiErrors.BadRequest("Artwork must use a supported type and an absolute HTTP(S) URL.");
+        }
         var asset = new EntityAsset { EntityId = entityId, EntityType = entityType, AssetTypeValue = normalizedType, ImageUrl = request.image_url, SourceProvider = "user_upload", IsUserOverride = true, IsPreferred = request.preferred, OwnerScope = entityType };
         await assets.UpsertAsync(asset, ct);
-        if (request.preferred) await assets.SetPreferredAsync(asset.Id, ct);
+        if (request.preferred)
+        {
+            await assets.SetPreferredAsync(asset.Id, ct);
+        }
         return Results.Ok(ToArtwork(await assets.GetByEntityAsync(entityId, null, ct)));
     }
 
     private static async Task<IResult> UploadArtworkAsync(string entityId, string entityType, Guid ownerId, string assetType, HttpRequest request, IEntityAssetRepository assets, IEntityTimelineRepository timeline, ArtworkScopeService artworkScope, CancellationToken ct)
     {
         var normalizedType = ArtworkScopeService.NormalizeUploadedArtworkType(assetType);
-        if (normalizedType is null) return ApiErrors.BadRequest("Unsupported artwork type.");
-        if (!request.HasFormContentType) return ApiErrors.BadRequest("Expected multipart form data.");
+        if (normalizedType is null)
+        {
+            return ApiErrors.BadRequest("Unsupported artwork type.");
+        }
+        if (!request.HasFormContentType)
+        {
+            return ApiErrors.BadRequest("Expected multipart form data.");
+        }
         var file = (await request.ReadFormAsync(ct)).Files.FirstOrDefault();
-        if (file is null || file.Length == 0) return ApiErrors.BadRequest("No file provided.");
-        if (file.Length > BoundedHttpContent.MaximumImageBytes || !ArtworkScopeService.IsArtworkUploadAllowed(file.ContentType, normalizedType)) return ApiErrors.BadRequest("Artwork must be a JPEG or PNG image no larger than 20 MB.");
+        if (file is null || file.Length == 0)
+        {
+            return ApiErrors.BadRequest("No file provided.");
+        }
+        if (file.Length > BoundedHttpContent.MaximumImageBytes || !ArtworkScopeService.IsArtworkUploadAllowed(file.ContentType, normalizedType))
+        {
+            return ApiErrors.BadRequest("Artwork must be a JPEG or PNG image no larger than 20 MB.");
+        }
         var variantId = Guid.NewGuid();
         var localPath = artworkScope.BuildArtworkUploadPath(entityType, ownerId, normalizedType, variantId, file.ContentType);
         AssetPathService.EnsureDirectory(localPath);
-        await using (var input = file.OpenReadStream()) await BoundedHttpContent.CopyImageToFileAtomicallyAsync(input, localPath, ct);
+        await using (var input = file.OpenReadStream())
+        {
+            await BoundedHttpContent.CopyImageToFileAtomicallyAsync(input, localPath, ct);
+        }
         var asset = new EntityAsset { Id = variantId, EntityId = entityId, EntityType = entityType, AssetTypeValue = normalizedType, ImageUrl = $"/stream/artwork/{variantId}", LocalImagePath = localPath, SourceProvider = "user_upload", OwnerScope = entityType, IsPreferred = true, IsUserOverride = true, CreatedAt = DateTimeOffset.UtcNow };
         await assets.UpsertAsync(asset, ct);
         await assets.SetPreferredAsync(asset.Id, ct);
@@ -370,7 +469,10 @@ public static class SharedEntityEditorEndpoints
             new(SharedEntityEditorSections.Relationships, true, false),
             new(SharedEntityEditorSections.Timeline, true, false),
         };
-        if (subtype is "Organization" or "Event") capabilities.Add(new(SharedEntityEditorSections.Appearances, true, false, "Refreshed from enrichment."));
+        if (subtype is "Organization" or "Event")
+        {
+            capabilities.Add(new(SharedEntityEditorSections.Appearances, true, false, "Refreshed from enrichment."));
+        }
         capabilities.Add(new(SharedEntityEditorSections.Sources, true, false));
         capabilities.Add(new(SharedEntityEditorSections.History, true, false));
         capabilities.Add(new(SharedEntityEditorSections.Enrichment, true, false));
@@ -387,7 +489,10 @@ public static class SharedEntityEditorEndpoints
             var page = await entities.SearchVisibleByUniverseAsync(universeQid, visibleWorks, null, null, offset, pageSize, ct);
             result.AddRange(page.Items);
             offset += page.Items.Count;
-            if (offset >= page.Total || page.Items.Count == 0) return result;
+            if (offset >= page.Total || page.Items.Count == 0)
+            {
+                return result;
+            }
         }
     }
     private static IEnumerable<SharedEntityTimelineEntryDto> RelationshipTimeline(IEnumerable<EntityRelationship> rows, IReadOnlySet<string> visibleWorks) => rows.Where(row => string.IsNullOrWhiteSpace(row.ContextWorkQid) || visibleWorks.Contains(row.ContextWorkQid!)).SelectMany(row =>
@@ -421,12 +526,18 @@ public static class SharedEntityEditorEndpoints
             var sourceIds = new HashSet<Guid>();
             foreach (var entity in await pluginLore.GetEntitiesAsync(universeQid, approvedOnly: true, ct))
             {
-                if (string.Equals(entity.WikidataQid, entityQid, StringComparison.OrdinalIgnoreCase)) sourceIds.Add(entity.SourceId);
+                if (string.Equals(entity.WikidataQid, entityQid, StringComparison.OrdinalIgnoreCase))
+                {
+                    sourceIds.Add(entity.SourceId);
+                }
             }
             foreach (var relationship in await pluginLore.GetRelationshipsAsync(universeQid, approvedOnly: true, ct))
             {
                 if (string.Equals(relationship.SubjectQid, entityQid, StringComparison.OrdinalIgnoreCase)
-                    || string.Equals(relationship.ObjectQid, entityQid, StringComparison.OrdinalIgnoreCase)) sourceIds.Add(relationship.SourceId);
+                    || string.Equals(relationship.ObjectQid, entityQid, StringComparison.OrdinalIgnoreCase))
+                {
+                    sourceIds.Add(relationship.SourceId);
+                }
             }
             sources = sources.Where(source => sourceIds.Contains(source.Id)).ToList();
         }
