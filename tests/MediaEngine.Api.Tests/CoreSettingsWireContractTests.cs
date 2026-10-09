@@ -175,7 +175,6 @@ public sealed class CoreSettingsWireContractTests
         {
             Mode = "Required",
             LocalhostBypass = false,
-            RequireHttpsRemote = true,
             ExternalProviders =
             [
                 new ExternalAuthProviderDto

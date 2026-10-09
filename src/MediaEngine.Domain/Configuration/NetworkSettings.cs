@@ -12,6 +12,18 @@ public sealed class NetworkSettings
     [JsonPropertyName("schema_version")]
     public string SchemaVersion { get; set; } = "3.0";
 
+    /// <summary>
+    /// The one door rule: how far from this computer a visitor may be. One of <see cref="WhoCanConnectModes"/>.
+    /// Replaces the old separate remote on/off switch and the sign-in remote toggles.
+    /// </summary>
+    [JsonPropertyName("who_can_connect")]
+    public string WhoCanConnect { get; set; } = WhoCanConnectModes.HomeNetwork;
+
+    /// <summary>True only when <see cref="WhoCanConnect"/> is <see cref="WhoCanConnectModes.Anywhere"/>.</summary>
+    [JsonIgnore]
+    public bool AllowsInternet =>
+        string.Equals(WhoCanConnect, WhoCanConnectModes.Anywhere, StringComparison.OrdinalIgnoreCase);
+
     [JsonPropertyName("local")]
     public LocalNetworkSettings Local { get; set; } = new();
 
@@ -27,7 +39,7 @@ public sealed class NetworkSettings
 
 /// <summary>
 /// Whether phone, TV and tablet apps may reach this Library through the Dashboard. Off by default, and it can
-/// only be on while remote access (and therefore a verified secure HTTPS path) is on.
+/// only be on while who-can-connect is Anywhere (and therefore a verified secure HTTPS path).
 /// </summary>
 public sealed class NativeAppAccessSettings
 {
@@ -65,9 +77,6 @@ public sealed class LocalNetworkSettings
 
 public sealed class RemoteNetworkSettings
 {
-    [JsonPropertyName("enabled")]
-    public bool Enabled { get; set; }
-
     [JsonPropertyName("connection_mode")]
     public string ConnectionMode { get; set; } = NetworkConnectionModes.LocalOnly;
 
@@ -110,6 +119,15 @@ public sealed class NetworkStreamingSettings
 
     [JsonPropertyName("concurrent_remote_streams")]
     public string ConcurrentRemoteStreams { get; set; } = RemoteStreamConcurrencyModes.Automatic;
+}
+
+public static class WhoCanConnectModes
+{
+    public const string ThisComputer = "this_computer";
+    public const string HomeNetwork = "home_network";
+    public const string Anywhere = "anywhere";
+
+    public static readonly IReadOnlyList<string> All = [ThisComputer, HomeNetwork, Anywhere];
 }
 
 public static class NetworkBindModes

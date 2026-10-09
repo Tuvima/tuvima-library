@@ -50,7 +50,6 @@ contain public client IDs but must not contain client secrets.
   "auth": {
     "mode": "Required",
     "localhost_bypass": false,
-    "require_https_remote": true,
     "external_providers": [
       {
         "id": "google",

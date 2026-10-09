@@ -31,7 +31,7 @@ public static class AuthenticationEndpoints
             var methodEnabled = request.ProfileId.HasValue
                 ? policy.AllowLocalOnlyAccounts && request.OriginalClientIsLocal
                 : policy.PasswordSignInEnabled && !IsLocalOnlyMode(policy);
-            if (!AllowsClient(policy, request.OriginalClientIsLocal, request.OriginalClientIsHttps, methodEnabled))
+            if (!AllowsClient(configuration.LoadNetwork(), request.OriginalClientIsLocal, request.OriginalClientIsHttps, methodEnabled))
             {
                 return ApiErrors.Problem(StatusCodes.Status401Unauthorized,
                     "Authentication failed.", "This sign-in method is unavailable for this connection.");
@@ -99,12 +99,13 @@ public static class AuthenticationEndpoints
             IFirstPartyIdentityService identity,
             IAccountExternalLoginService externalLogins,
             AuthenticationProviderConfigurationService providerConfiguration,
+            IConfigurationLoader configuration,
             ExternalIdentityTransactionService transactions,
             DashboardAuthorityProjector projector,
             CancellationToken ct) =>
         {
             var policy = providerConfiguration.LoadWithSecrets();
-            if (!AllowsClient(policy, request.OriginalClientIsLocal, request.OriginalClientIsHttps,
+            if (!AllowsClient(configuration.LoadNetwork(), request.OriginalClientIsLocal, request.OriginalClientIsHttps,
                     IsExternalSignInEnabled(policy)))
             {
                 return Results.Unauthorized();
@@ -192,7 +193,7 @@ public static class AuthenticationEndpoints
             IConfigurationLoader configuration, IFirstPartyIdentityService identity, DashboardAuthorityProjector projector, CancellationToken ct) =>
         {
             var policy = configuration.LoadCore().Auth;
-            if (!AllowsClient(policy, request.OriginalClientIsLocal, request.OriginalClientIsHttps,
+            if (!AllowsClient(configuration.LoadNetwork(), request.OriginalClientIsLocal, request.OriginalClientIsHttps,
                 policy.PasswordSignInEnabled && !IsLocalOnlyMode(policy)))
             {
                 return Results.Unauthorized();
@@ -268,7 +269,7 @@ public static class AuthenticationEndpoints
             IConfigurationLoader configuration, IFirstPartyIdentityService identity, CancellationToken ct) =>
         {
             var policy = configuration.LoadCore().Auth;
-            if (!AllowsClient(policy, request.OriginalClientIsLocal, request.OriginalClientIsHttps,
+            if (!AllowsClient(configuration.LoadNetwork(), request.OriginalClientIsLocal, request.OriginalClientIsHttps,
                 policy.PasswordSignInEnabled && !IsLocalOnlyMode(policy)))
             {
                 return Results.Unauthorized();
@@ -287,7 +288,7 @@ public static class AuthenticationEndpoints
             IConfigurationLoader configuration, IFirstPartyIdentityService identity, CancellationToken ct) =>
         {
             var policy = configuration.LoadCore().Auth;
-            if (!AllowsClient(policy, request.OriginalClientIsLocal, request.OriginalClientIsHttps,
+            if (!AllowsClient(configuration.LoadNetwork(), request.OriginalClientIsLocal, request.OriginalClientIsHttps,
                 policy.PasswordSignInEnabled && !IsLocalOnlyMode(policy)))
             {
                 return Results.Accepted(value: new BeginPasswordResetResponse(null));
@@ -301,7 +302,7 @@ public static class AuthenticationEndpoints
             IConfigurationLoader configuration, IFirstPartyIdentityService identity, CancellationToken ct) =>
         {
             var policy = configuration.LoadCore().Auth;
-            if (!AllowsClient(policy, request.OriginalClientIsLocal, request.OriginalClientIsHttps,
+            if (!AllowsClient(configuration.LoadNetwork(), request.OriginalClientIsLocal, request.OriginalClientIsHttps,
                 policy.PasswordSignInEnabled && !IsLocalOnlyMode(policy)))
             {
                 return Results.Unauthorized();
@@ -316,7 +317,7 @@ public static class AuthenticationEndpoints
             IConfigurationLoader configuration, IAccountRepository accounts, IPasskeyHandler<Account> passkeys, CancellationToken ct) =>
         {
             var policy = configuration.LoadCore().Auth;
-            if (!IsPasskeyAvailable(policy, request.OriginalClientIsLocal, request.OriginalClientIsHttps))
+            if (!IsPasskeyAvailable(policy, configuration.LoadNetwork(), request.OriginalClientIsLocal, request.OriginalClientIsHttps))
             {
                 return Results.Unauthorized();
             }
@@ -334,7 +335,7 @@ public static class AuthenticationEndpoints
             IConfigurationLoader configuration, IPasskeyHandler<Account> passkeys, UserManager<Account> users, IFirstPartyIdentityService identity, DashboardAuthorityProjector projector, CancellationToken ct) =>
         {
             var policy = configuration.LoadCore().Auth;
-            if (!IsPasskeyAvailable(policy, request.OriginalClientIsLocal, request.OriginalClientIsHttps))
+            if (!IsPasskeyAvailable(policy, configuration.LoadNetwork(), request.OriginalClientIsLocal, request.OriginalClientIsHttps))
             {
                 return Results.Unauthorized();
             }
@@ -354,7 +355,7 @@ public static class AuthenticationEndpoints
             IAccountRepository accounts, IPasskeyHandler<Account> passkeys, CancellationToken ct) =>
         {
             var policy = configuration.LoadCore().Auth;
-            if (!IsPasskeyAvailable(policy, request.OriginalClientIsLocal, request.OriginalClientIsHttps))
+            if (!IsPasskeyAvailable(policy, configuration.LoadNetwork(), request.OriginalClientIsLocal, request.OriginalClientIsHttps))
             {
                 return Results.Unauthorized();
             }
@@ -375,7 +376,7 @@ public static class AuthenticationEndpoints
             CancellationToken ct) =>
         {
             var policy = configuration.LoadCore().Auth;
-            if (!IsPasskeyAvailable(policy, request.OriginalClientIsLocal, request.OriginalClientIsHttps))
+            if (!IsPasskeyAvailable(policy, configuration.LoadNetwork(), request.OriginalClientIsLocal, request.OriginalClientIsHttps))
             {
                 return Results.Unauthorized();
             }
@@ -526,20 +527,24 @@ public static class AuthenticationEndpoints
         })
         .ToList();
 
+    /// <summary>
+    /// The one door rule for sign-in. A client on this computer or the home network is allowed whenever the method is
+    /// enabled; a client from outside is allowed only when "who can connect" is Anywhere, and only over HTTPS.
+    /// </summary>
     internal static bool AllowsClient(
-        AuthSettings policy,
+        NetworkSettings network,
         bool originalClientIsLocal,
         bool originalClientIsHttps,
         bool methodEnabled) =>
         methodEnabled &&
-        (originalClientIsLocal ||
-         (policy.AllowRemoteSignIn && (!policy.RequireHttpsRemote || originalClientIsHttps)));
+        (originalClientIsLocal || (network.AllowsInternet && originalClientIsHttps));
 
     internal static bool IsPasskeyAvailable(
         AuthSettings policy,
+        NetworkSettings network,
         bool originalClientIsLocal,
         bool originalClientIsHttps) =>
-        AllowsClient(policy, originalClientIsLocal, originalClientIsHttps,
+        AllowsClient(network, originalClientIsLocal, originalClientIsHttps,
             policy.PasskeySignInEnabled && !IsLocalOnlyMode(policy) && IsCanonicalOriginReady(policy));
 
     internal static bool IsConfiguredProvider(AuthSettings policy, string providerId, string issuer)

@@ -143,6 +143,11 @@ public static class JsonConfigValidator
             }
         }
 
+        if (!Allowed(settings.WhoCanConnect, [.. WhoCanConnectModes.All]))
+        {
+            errors.Add("who_can_connect must be this_computer, home_network or anywhere.");
+        }
+
         if (!Allowed(settings.Remote.ConnectionMode,
                 NetworkConnectionModes.LocalOnly,
                 NetworkConnectionModes.Tailscale,
@@ -152,9 +157,9 @@ public static class JsonConfigValidator
             errors.Add("remote.connection_mode is unsupported.");
         }
 
-        if (settings.Remote.Enabled && settings.Remote.ConnectionMode == NetworkConnectionModes.LocalOnly)
+        if (settings.AllowsInternet && settings.Remote.ConnectionMode == NetworkConnectionModes.LocalOnly)
         {
-            errors.Add("remote.connection_mode must select tailscale, custom, or direct-only when remote access is enabled.");
+            errors.Add("remote.connection_mode must select tailscale, custom, or direct-only when who_can_connect is anywhere.");
         }
 
         if (settings.Remote.ExternalPort is < 1 or > 65535)
@@ -221,9 +226,9 @@ public static class JsonConfigValidator
             errors.Add("streaming.concurrent_remote_streams must be automatic.");
         }
 
-        if (settings.NativeAppAccess.Enabled && !settings.Remote.Enabled)
+        if (settings.NativeAppAccess.Enabled && !settings.AllowsInternet)
         {
-            errors.Add("native_app_access.enabled requires remote access to be enabled first, so apps only connect over a verified secure HTTPS path.");
+            errors.Add("native_app_access.enabled requires who_can_connect to be anywhere first, so apps only connect over a verified secure HTTPS path.");
         }
     }
 

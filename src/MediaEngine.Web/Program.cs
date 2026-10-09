@@ -309,6 +309,7 @@ builder.Services.AddHttpClient("EngineArtwork", ConfigureEngineClient)
     .AddHttpMessageHandler<DashboardEngineAuthenticationHandler>();
 builder.Services.AddHttpClient("EngineIdentity", ConfigureEngineClient)
     .AddHttpMessageHandler<DashboardEngineAuthenticationHandler>();
+builder.Services.AddSingleton(new ExposureSettingsReader(dashboardConfig, configDir));
 // The app door never carries the Dashboard's service credential. No cookies are stored or replayed
 // between apps, and Engine redirects are handed back instead of followed.
 builder.Services.AddSingleton<INativeAppAccessGate>(new NetworkSettingsNativeAppAccessGate(dashboardConfig, configDir));
@@ -408,6 +409,7 @@ if (proxyPort is null
 // explicitly configured proxy addresses/networks; the main port ignores them.
 app.UseForwardedHeadersOnProxyPort(proxyPort);
 app.UseHostAllowList();
+app.UseExposurePolicy();
 app.UseWebSockets();
 app.UseResponseCompression();
 if (app.Environment.IsDevelopment() && !string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("TUVIMA_HOME_MEDIA_QA")))
@@ -422,18 +424,6 @@ if (!app.Environment.IsDevelopment())
 }
 
 app.UseStatusCodePagesWithReExecute("/not-found", createScopeForStatusCodePages: true);
-app.Use(async (context, next) =>
-{
-    if (!context.Request.IsHttps
-        && context.RequestServices.GetRequiredService<IngressClassifier>().Classify(context) == IngressKind.Remote)
-    {
-        context.Response.StatusCode = StatusCodes.Status426UpgradeRequired;
-        await context.Response.WriteAsync("Remote access requires a verified HTTPS or tunnel path.");
-        return;
-    }
-
-    await next();
-});
 app.UseHttpsRedirection();
 app.UseRequestLocalization();
 app.UseAuthentication();

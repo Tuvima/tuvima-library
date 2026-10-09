@@ -29,14 +29,14 @@ knowledge.
 ## Source of truth
 
 Desired state lives in `config/network.json` and is validated against
-`config/schemas/network.schema.json`. Schema 2.0 includes the Dashboard port,
+`config/schemas/network.schema.json`. `who_can_connect` (`this_computer`, `home_network` or `anywhere`) is the single door rule that replaces the old remote on/off switch and the sign-in remote toggles: the Dashboard's exposure policy refuses any request from farther away than it allows, before routing, authentication or static files. Schema 2.0 includes the Dashboard port,
 binding, local discovery, remote mode, advanced router automation, custom HTTPS
 address, exact/CIDR trusted proxies, and remote-streaming policy. Supported
 remote modes are `tailscale`, `custom`, and the advanced `direct-only` mode.
 The removed `secure-provider` placeholder is rejected.
 
 `native_app_access.enabled` (default `false`) switches the Dashboard's paired-app
-door on or off. It can only be saved as `true` while remote access is enabled,
+door on or off. It can only be saved as `true` while `who_can_connect` is `anywhere`,
 and turning remote access off or resetting network settings turns it off too.
 The Dashboard re-reads the file when it changes and treats a missing or
 unreadable file as off.

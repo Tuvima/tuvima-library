@@ -54,7 +54,7 @@ View has its own feature and resource policies. Private access resolves the exac
 
 ## Authentication and recovery
 
-Settings > Access contains Users, Applications, and Authentication. Authentication controls local passwords, passkeys, remote sign-in, invitation policy, local-only access, session policy, and external providers. Readiness is derived from real configuration; unavailable sign-in methods carry reasons. Verified external identities use provider, canonical issuer, and immutable subject. Email alone never silently links an identity. See [external authentication](../guides/external-authentication.md).
+The network's **Who can connect** setting (`config/network.json`, Settings > Network) is the one door rule: the Dashboard's exposure policy runs right after the host allow-list and refuses any request from farther away than it allows, and Engine sign-in admits a remote client only under *Anywhere* over HTTPS. Settings > Access contains Users, Applications, and Authentication. Authentication controls local passwords, passkeys, invitation policy, local-only access, session policy, and external providers. Readiness is derived from real configuration; unavailable sign-in methods carry reasons. Verified external identities use provider, canonical issuer, and immutable subject. Email alone never silently links an identity. See [external authentication](../guides/external-authentication.md).
 
 Administrator password recovery uses one-time recovery codes or the elevated host command:
 

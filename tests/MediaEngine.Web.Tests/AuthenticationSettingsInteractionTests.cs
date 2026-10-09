@@ -142,8 +142,6 @@ public sealed class AuthenticationSettingsInteractionTests : AsyncBunitContext
         Mode = "Required",
         PasswordSignInEnabled = true,
         PasskeySignInEnabled = true,
-        AllowRemoteSignIn = true,
-        RequireHttpsRemote = true,
         InvitationLifetimeHours = 168,
         SessionLifetimeHours = 336,
         MaximumActiveSessions = 20,

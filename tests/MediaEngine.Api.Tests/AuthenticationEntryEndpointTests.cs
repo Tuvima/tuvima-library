@@ -31,7 +31,6 @@ public sealed class AuthenticationEntryEndpointTests
             var core = configuration.LoadCore();
             core.Auth.Mode = "DisabledLocalOnly";
             core.Auth.AllowLocalOnlyAccounts = true;
-            core.Auth.AllowRemoteSignIn = true;
             configuration.SaveCore(core);
             var identity = new TrackingIdentityService();
             await using var app = BuildApplication(configuration, identity);
@@ -121,7 +120,6 @@ public sealed class AuthenticationEntryEndpointTests
             var core = configuration.LoadCore();
             core.Auth.Mode = "Required";
             core.Auth.PasswordSignInEnabled = true;
-            core.Auth.AllowRemoteSignIn = false;
             configuration.SaveCore(core);
             var identity = new TrackingIdentityService();
             await using var app = BuildApplication(configuration, identity);
@@ -165,7 +163,6 @@ public sealed class AuthenticationEntryEndpointTests
             var core = configuration.LoadCore();
             core.Auth.Mode = "Required";
             core.Auth.PasswordSignInEnabled = true;
-            core.Auth.AllowRemoteSignIn = false;
             configuration.SaveCore(core);
             var identity = new TrackingIdentityService();
             await using var app = BuildApplication(configuration, identity);

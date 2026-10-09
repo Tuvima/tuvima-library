@@ -9,6 +9,15 @@
         <div><h3>Remote Access</h3><p>Use a verified private HTTPS path. Tuvima Library sign-in is always required.</p></div>
     </header>
 
+    <SettingsSectionPanel Title="Who can connect" Icon="@AppMaterialIcons.Outlined.Public"
+                          Description="One rule for every sign-in, page and app. Remote visitors always need a secure HTTPS path.">
+        <div class="network-mode-list" role="radiogroup" aria-label="Who can connect">
+            @Who("this_computer", "This computer", "Only this computer can open Tuvima Library.")
+            @Who("home_network", "Home network", "Devices on your home network can connect. Nothing from the internet.")
+            @Who("anywhere", "Anywhere", "Also reachable from the internet over a verified HTTPS path. Sign-in is always required.")
+        </div>
+    </SettingsSectionPanel>
+
     <SettingsSectionPanel Title="Access" Icon="@AppMaterialIcons.Outlined.Public"
                           Description="Local access works without router, DNS, or certificate setup.">
         <div class="network-mode-list" role="radiogroup" aria-label="Remote connection mode">
@@ -44,7 +53,7 @@
     @if (Settings.Remote.ConnectionMode != "local-only")
     {
         <SettingsSectionPanel Title="Security Check" Icon="@AppMaterialIcons.Outlined.VerifiedUser"
-                              Description="Remote access stays off until every required check passes.">
+                              Description="Anywhere stays unavailable until every required check passes.">
             @if (_readiness is null)
             {
                 <AppSkeleton Size="AppControlSize.Compact" />
@@ -58,9 +67,6 @@
                     }
                 </dl>
             }
-            <AppSwitchRow Label="Enable Remote Access"
-                          Description="Requires Tuvima Library authentication and the verified secure path above."
-                          Value="@Settings.Remote.Enabled" ValueChanged="ChangeEnabledAsync" />
             <div class="network-card-actions">
                 <AppButton Label="Check again" StartIcon="@AppMaterialIcons.Outlined.Refresh" OnClick="RefreshReadinessAsync" />
                 <AppButton Label="Test remote access" StartIcon="@AppMaterialIcons.Outlined.Science" OnClick="TestRemoteAsync" />
@@ -95,26 +101,39 @@
         <span><strong>@title</strong><small>@description</small></span>
     </label>;
 
-    private async Task ChangeEnabledAsync(bool value)
+    private RenderFragment Who(string value, string title, string description) => @<label class="network-mode-option">
+        <AppNativeInput Type="radio" Name="who-can-connect" Value="@value"
+                        Checked="@(Settings.WhoCanConnect == value)"
+                        OnChange="@(_ => ChangeWhoCanConnectAsync(value))" />
+        <span><strong>@title</strong><small>@description</small></span>
+    </label>;
+
+    private async Task ChangeWhoCanConnectAsync(string value)
     {
-        if (value)
+        if (value == "anywhere")
         {
             await RefreshReadinessAsync();
             if (_readiness?.Ready != true)
             {
-                Snackbar.Add("Remote access remains off until every security check passes.", AppSeverity.Warning);
+                Snackbar.Add("Anywhere stays off until every security check passes.", AppSeverity.Warning);
                 return;
             }
         }
 
-        Settings.Remote.Enabled = value;
+        Settings.WhoCanConnect = value;
         await SaveRequested.InvokeAsync();
         await StatusRefreshRequested.InvokeAsync();
     }
 
+    private void StepDownFromAnywhere()
+    {
+        if (Settings.WhoCanConnect == "anywhere")
+            Settings.WhoCanConnect = "home_network";
+    }
+
     private async Task ChangeModeAsync(string value)
     {
-        Settings.Remote.Enabled = false;
+        StepDownFromAnywhere();
         Settings.Remote.ConnectionMode = value;
         if (value != "direct-only")
             Settings.Remote.AutomaticRouterConfiguration = false;
@@ -125,7 +144,7 @@
 
     private async Task SaveAddressAsync()
     {
-        Settings.Remote.Enabled = false;
+        StepDownFromAnywhere();
         await SaveRequested.InvokeAsync();
         await RefreshReadinessAsync();
     }

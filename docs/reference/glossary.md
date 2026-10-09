@@ -178,6 +178,11 @@ A larger world or franchise that can connect multiple shelves. Tuvima uses unive
 
 ## W
 
+### Who can connect
+
+The single setting under Settings > Network that decides how far from the server a visitor may be: **This computer**, **Home network** or **Anywhere**. It applies to every page, sign-in and app connection. Anywhere still requires a secure HTTPS path and sign-in.
+
+
 ### Wikidata
 
 The canonical identity and structured-fact authority used after provider bridge IDs make resolution precise enough.

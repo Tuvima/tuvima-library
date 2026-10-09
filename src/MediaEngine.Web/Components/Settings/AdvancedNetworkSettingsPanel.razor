@@ -117,7 +117,7 @@
     private string? _tlsPortText;
     private string? _externalPortText;
 
-    private bool DirectRemoteEnabled => Settings.Remote.Enabled && Settings.Remote.ConnectionMode == "direct-only";
+    private bool DirectRemoteEnabled => Settings.WhoCanConnect == "anywhere" && Settings.Remote.ConnectionMode == "direct-only";
     private string InternalAddress => Status?.LocalAddresses.FirstOrDefault(address => address.AddressFamily == "ipv4")?.Address
         ?? Status?.LocalAddresses.FirstOrDefault()?.Address
         ?? "Unavailable";
@@ -132,7 +132,8 @@
 
     private async Task ChangeRouterAutomationAsync(bool value)
     {
-        Settings.Remote.Enabled = false;
+        if (Settings.WhoCanConnect == "anywhere")
+            Settings.WhoCanConnect = "home_network";
         Settings.Remote.ConnectionMode = "direct-only";
         Settings.Remote.AutomaticRouterConfiguration = value;
         if (value && !ApplyPortText())
@@ -144,7 +145,8 @@
     {
         if (!ApplyPortText())
             return;
-        Settings.Remote.Enabled = false;
+        if (Settings.WhoCanConnect == "anywhere")
+            Settings.WhoCanConnect = "home_network";
         Settings.Remote.ConnectionMode = "direct-only";
         await SaveRequested.InvokeAsync();
     }
@@ -173,7 +175,7 @@
                 return;
             }
         }
-        Settings.Remote.Enabled = value;
+        Settings.WhoCanConnect = value ? "anywhere" : (Settings.WhoCanConnect == "anywhere" ? "home_network" : Settings.WhoCanConnect);
         await SaveRequested.InvokeAsync();
     }
 

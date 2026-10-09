@@ -11,7 +11,8 @@ public sealed class AuthenticationSettingsUiTests
         Assert.Contains("UpdateAuthSettingsAsync", component, StringComparison.Ordinal);
         Assert.Contains("Password sign-in", component, StringComparison.Ordinal);
         Assert.Contains("Passkey sign-in", component, StringComparison.Ordinal);
-        Assert.Contains("Allow remote sign-in", component, StringComparison.Ordinal);
+        Assert.Contains("Who can connect is set under Settings &gt; Network.", component, StringComparison.Ordinal);
+        Assert.DoesNotContain("Allow remote sign-in", component, StringComparison.Ordinal);
         Assert.Contains("Session lifetime (hours)", component, StringComparison.Ordinal);
         Assert.Contains("Maximum active sessions per account", component, StringComparison.Ordinal);
         Assert.Contains("Trusted local networks", component, StringComparison.Ordinal);

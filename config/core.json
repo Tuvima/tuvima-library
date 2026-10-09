@@ -26,7 +26,6 @@
   "auth": {
     "mode": "Local",
     "localhost_bypass": false,
-    "require_https_remote": false,
     "external_providers": [],
     "password_reset": {
       "mode": "Disabled",

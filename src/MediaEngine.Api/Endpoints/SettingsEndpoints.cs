@@ -160,11 +160,9 @@ public static class SettingsEndpoints
             var auth = core.Auth;
             auth.Mode = request.Mode;
             auth.LocalhostBypass = request.LocalhostBypass;
-            auth.RequireHttpsRemote = request.RequireHttpsRemote;
             auth.PasswordSignInEnabled = request.PasswordSignInEnabled;
             auth.PasskeySignInEnabled = request.PasskeySignInEnabled;
             auth.ExternalSignInEnabled = request.ExternalSignInEnabled;
-            auth.AllowRemoteSignIn = request.AllowRemoteSignIn;
             auth.AllowLocalOnlyAccounts = request.AllowLocalOnlyAccounts;
             auth.TrustedLocalNetworks = request.TrustedLocalNetworks
                 .Select(value => value.Trim()).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
@@ -174,11 +172,9 @@ public static class SettingsEndpoints
             var prospective = providerConfiguration.LoadWithSecrets();
             prospective.Mode = auth.Mode;
             prospective.LocalhostBypass = auth.LocalhostBypass;
-            prospective.RequireHttpsRemote = auth.RequireHttpsRemote;
             prospective.PasswordSignInEnabled = auth.PasswordSignInEnabled;
             prospective.PasskeySignInEnabled = auth.PasskeySignInEnabled;
             prospective.ExternalSignInEnabled = auth.ExternalSignInEnabled;
-            prospective.AllowRemoteSignIn = auth.AllowRemoteSignIn;
             prospective.AllowLocalOnlyAccounts = auth.AllowLocalOnlyAccounts;
             prospective.TrustedLocalNetworks = auth.TrustedLocalNetworks;
             prospective.InvitationLifetimeHours = auth.InvitationLifetimeHours;
@@ -1660,11 +1656,9 @@ public static class SettingsEndpoints
         {
             Mode = auth.Mode,
             LocalhostBypass = auth.LocalhostBypass,
-            RequireHttpsRemote = auth.RequireHttpsRemote,
             PasswordSignInEnabled = auth.PasswordSignInEnabled,
             PasskeySignInEnabled = auth.PasskeySignInEnabled,
             ExternalSignInEnabled = auth.ExternalSignInEnabled,
-            AllowRemoteSignIn = auth.AllowRemoteSignIn,
             AllowLocalOnlyAccounts = auth.AllowLocalOnlyAccounts,
             TrustedLocalNetworks = auth.TrustedLocalNetworks,
             InvitationLifetimeHours = auth.InvitationLifetimeHours,

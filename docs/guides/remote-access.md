@@ -62,15 +62,15 @@ Then:
 4. Restart the Dashboard so the proxy trust boundary is applied.
 5. Select **HTTPS reverse proxy**, enter the HTTPS address, and choose
    **Save and verify**.
-6. Enable remote access only after every Security Check is ready.
+6. Choose **Anywhere** under **Who can connect** only after every Security Check is ready.
 
 Tuvima ignores forwarded headers from untrusted peers. Never enable a framework
 or hosting option that trusts forwarded headers from every address.
 
 ## Check account access
 
-1. Open **Settings → Users & Access → Authentication** and allow remote sign-in only when you intend to use it.
-2. Require HTTPS for remote credentials.
+1. Open **Settings → Network** and set **Who can connect** to **Anywhere** only when you intend to use remote access. Remote sign-in always requires HTTPS.
+2. Under **Settings → Users & Access → Authentication**, choose the sign-in methods you want to allow.
 3. In **Users & Access → Users**, grant the intended account only the profiles, features, and libraries it should reach.
 4. Test with that account from the remote device.
 

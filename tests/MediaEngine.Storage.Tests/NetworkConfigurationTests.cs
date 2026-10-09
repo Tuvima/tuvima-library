@@ -12,7 +12,8 @@ public sealed class NetworkConfigurationTests
         var settings = new NetworkSettings();
 
         Assert.Equal("3.0", settings.SchemaVersion);
-        Assert.False(settings.Remote.Enabled);
+        Assert.Equal(WhoCanConnectModes.HomeNetwork, settings.WhoCanConnect);
+        Assert.False(settings.AllowsInternet);
         Assert.Equal(NetworkConnectionModes.LocalOnly, settings.Remote.ConnectionMode);
         Assert.False(settings.Remote.AutomaticRouterConfiguration);
     }
@@ -32,15 +33,32 @@ public sealed class NetworkConfigurationTests
 
             loader.SaveNetwork(new NetworkSettings
             {
+                WhoCanConnect = WhoCanConnectModes.Anywhere,
                 Remote = new RemoteNetworkSettings
                 {
-                    Enabled = true,
                     ConnectionMode = NetworkConnectionModes.Custom,
                     PublicHostname = "https://media.example.test",
                 },
                 NativeAppAccess = new NativeAppAccessSettings { Enabled = true },
             });
             Assert.True(loader.LoadNetwork().NativeAppAccess.Enabled);
+        }
+        finally
+        {
+            Directory.Delete(path, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void SaveNetwork_RejectsUnknownWhoCanConnect()
+    {
+        var path = CreateTempDirectory();
+        try
+        {
+            var loader = new ConfigurationDirectoryLoader(path);
+            var ex = Assert.Throws<ConfigValidationException>(() =>
+                loader.SaveNetwork(new NetworkSettings { WhoCanConnect = "everyone" }));
+            Assert.Contains("who_can_connect", ex.Message, StringComparison.Ordinal);
         }
         finally
         {
@@ -57,6 +75,7 @@ public sealed class NetworkConfigurationTests
             var loader = new ConfigurationDirectoryLoader(path);
             loader.SaveNetwork(new NetworkSettings
             {
+                WhoCanConnect = WhoCanConnectModes.Anywhere,
                 Local = new LocalNetworkSettings
                 {
                     Port = 8096,
@@ -65,7 +84,6 @@ public sealed class NetworkConfigurationTests
                 },
                 Remote = new RemoteNetworkSettings
                 {
-                    Enabled = true,
                     ConnectionMode = NetworkConnectionModes.Custom,
                     PublicHostname = "https://media.example.test",
                 },
@@ -99,10 +117,10 @@ public sealed class NetworkConfigurationTests
             var loader = new ConfigurationDirectoryLoader(path);
             var settings = new NetworkSettings
             {
+                WhoCanConnect = WhoCanConnectModes.Anywhere,
                 Local = new LocalNetworkSettings { Port = 0 },
                 Remote = new RemoteNetworkSettings
                 {
-                    Enabled = true,
                     ConnectionMode = NetworkConnectionModes.Custom,
                     PublicHostname = "http://media.example.test",
                     TrustedProxies = ["not-an-ip"],

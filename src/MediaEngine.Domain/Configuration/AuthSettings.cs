@@ -10,9 +10,6 @@ public sealed class AuthSettings
     [JsonPropertyName("localhost_bypass")]
     public bool LocalhostBypass { get; set; }
 
-    [JsonPropertyName("require_https_remote")]
-    public bool RequireHttpsRemote { get; set; }
-
     [JsonPropertyName("password_sign_in_enabled")]
     public bool PasswordSignInEnabled { get; set; } = true;
 
@@ -21,9 +18,6 @@ public sealed class AuthSettings
 
     [JsonPropertyName("external_sign_in_enabled")]
     public bool ExternalSignInEnabled { get; set; } = true;
-
-    [JsonPropertyName("allow_remote_sign_in")]
-    public bool AllowRemoteSignIn { get; set; } = true;
 
     [JsonPropertyName("allow_local_only_accounts")]
     public bool AllowLocalOnlyAccounts { get; set; } = true;

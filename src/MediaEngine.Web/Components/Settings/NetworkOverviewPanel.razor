@@ -14,7 +14,7 @@
                           Icon="@AppMaterialIcons.Outlined.WifiTethering">
         <div class="network-status-grid">
             @StatusCard("Local Access", Status?.LocalAccess ?? "Unavailable", "Devices on your network can reach Tuvima Library.", AppMaterialIcons.Outlined.Home)
-            @StatusCard("Remote Access", Status?.RemoteAccess ?? "Unavailable", Settings.Remote.Enabled ? "Access away from home." : "Remote access is turned off.", AppMaterialIcons.Outlined.Public)
+            @StatusCard("Remote Access", Status?.RemoteAccess ?? "Unavailable", Settings.WhoCanConnect == "anywhere" ? "Access away from home." : "Remote access is turned off.", AppMaterialIcons.Outlined.Public)
             @StatusCard("Connection", Display(Status?.ConnectionType), "The active route to your server.", AppMaterialIcons.Outlined.Cable)
             @StatusCard("Secure Connection", Display(Status?.SecureConnection), "Remote connections must use a trusted secure path.", AppMaterialIcons.Outlined.VerifiedUser)
         </div>
@@ -52,7 +52,7 @@
     private NetworkTestResultDto? _testResult;
 
     private bool NetworkIsHealthy => Status?.LocalAccess == "healthy"
-        && (!Settings.Remote.Enabled || Status.RemoteAccess == "available")
+        && (Settings.WhoCanConnect != "anywhere" || Status.RemoteAccess == "available")
         && Status.SecureConnection is not "unavailable";
 
     private string RouterSummary => Status?.MappingStatus == "active"
@@ -68,7 +68,7 @@
         _testDialogOpen = true;
         _testing = true;
         _testResult = null;
-        _testResult = Settings.Remote.Enabled
+        _testResult = Settings.WhoCanConnect == "anywhere"
             ? await ApiClient.TestRemoteNetworkAsync()
             : await ApiClient.TestLocalNetworkAsync();
         _testing = false;

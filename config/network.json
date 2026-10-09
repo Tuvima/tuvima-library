@@ -1,5 +1,6 @@
 {
   "schema_version": "3.0",
+  "who_can_connect": "home_network",
   "local": {
     "port": 5016,
     "bind_mode": "automatic",
@@ -10,7 +11,6 @@
     "allowed_hostnames": []
   },
   "remote": {
-    "enabled": false,
     "connection_mode": "local-only",
     "automatic_router_configuration": false,
     "external_port": null,

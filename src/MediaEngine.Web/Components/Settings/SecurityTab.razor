@@ -53,17 +53,11 @@
                               HelpText="1 to 720 hours. New invitations use this lifetime." />
             </div>
 
-            <h3 class="mt-5">Remote access and sessions</h3>
+            <h3 class="mt-5">Who can connect and sessions</h3>
+            <AppAlert Tone="AppUiTone.Info" Class="mb-3">
+                Who can connect is set under Settings &gt; Network.
+            </AppAlert>
             <div class="security-settings__controls">
-                <AppSwitchRow Label="Allow remote sign-in"
-                              Description="Permit account sign-in from clients beyond this computer."
-                              Value="@_allowRemoteSignIn"
-                              ValueChanged="value => _allowRemoteSignIn = value" />
-                <AppSwitchRow Label="Require HTTPS for remote sign-in"
-                              Description="Reject remote credentials and passkeys on an unencrypted connection."
-                              Value="@_requireHttpsRemote"
-                              ValueChanged="value => _requireHttpsRemote = value"
-                              Disabled="@(!_allowRemoteSignIn)" />
                 <AppTextField T="string" @bind-Value="_sessionLifetimeHours"
                               Label="Session lifetime (hours)"
                               HelpText="1 to 8760 hours. New sessions use this lifetime." />
@@ -180,11 +174,9 @@
     private AuthSettingsDto? _authSettings;
     private string _mode = "Local";
     private bool _localhostBypass;
-    private bool _requireHttpsRemote;
     private bool _passwordSignInEnabled;
     private bool _passkeySignInEnabled;
     private bool _externalSignInEnabled;
-    private bool _allowRemoteSignIn;
     private bool _allowLocalOnlyAccounts;
     private string _trustedLocalNetworks = string.Empty;
     private string _invitationLifetimeHours = "168";
@@ -237,11 +229,9 @@
         if (value is null) return;
         _mode = value.Mode;
         _localhostBypass = value.LocalhostBypass;
-        _requireHttpsRemote = value.RequireHttpsRemote;
         _passwordSignInEnabled = value.PasswordSignInEnabled;
         _passkeySignInEnabled = value.PasskeySignInEnabled;
         _externalSignInEnabled = value.ExternalSignInEnabled;
-        _allowRemoteSignIn = value.AllowRemoteSignIn;
         _allowLocalOnlyAccounts = value.AllowLocalOnlyAccounts;
         _trustedLocalNetworks = string.Join(", ", value.TrustedLocalNetworks);
         _invitationLifetimeHours = value.InvitationLifetimeHours.ToString();
@@ -281,11 +271,9 @@
             {
                 Mode = _mode,
                 LocalhostBypass = _localhostBypass,
-                RequireHttpsRemote = _requireHttpsRemote,
                 PasswordSignInEnabled = _passwordSignInEnabled,
                 PasskeySignInEnabled = _passkeySignInEnabled,
                 ExternalSignInEnabled = _externalSignInEnabled,
-                AllowRemoteSignIn = _allowRemoteSignIn,
                 AllowLocalOnlyAccounts = _allowLocalOnlyAccounts,
                 TrustedLocalNetworks = _trustedLocalNetworks.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList(),
                 InvitationLifetimeHours = invitations,
