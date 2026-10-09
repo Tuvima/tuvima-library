@@ -49,7 +49,7 @@ Continue with [Your first library](../tutorials/first-library.md).
 | Media tools | FFmpeg and FFprobe, included with the app |
 | Shortcuts | **Open Tuvima Library** in the Start menu, plus an optional desktop shortcut |
 
-Only the Dashboard should be reachable from other devices. Keep port `61495` blocked in Windows Firewall.
+The Engine listens only on this computer, so other devices reach Tuvima Library through the Dashboard on port `5016` only. Keep port `61495` blocked in Windows Firewall as an extra safeguard.
 
 ## Update or uninstall
 
