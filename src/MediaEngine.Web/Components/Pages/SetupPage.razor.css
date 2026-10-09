@@ -87,5 +87,3 @@
     ::deep .setup-checks article > .app-status-badge { grid-column: 2; justify-self: start; }
 
 }
-::deep .setup-code-help { display: grid; gap: 8px; color: var(--tl-text-secondary); }
-::deep .setup-code-help pre { margin: 0; padding: 12px 16px; overflow-x: auto; border: 1px solid var(--tl-border-subtle); border-radius: 8px; }
