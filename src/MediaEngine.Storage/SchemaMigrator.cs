@@ -19,6 +19,7 @@ internal sealed class SchemaMigrator
         EnsureMediaEditorCommitSchema(conn);
         EnsureAssetRenditionSchema(conn);
         EnsureCurrentColumns(conn);
+        PromoteRestrictedAdministratorProfiles(conn);
         EnsureCurrentIndexes(conn);
         using (var recordingIndex = conn.CreateCommand())
         {
@@ -980,6 +981,26 @@ internal sealed class SchemaMigrator
         cmd.Parameters.AddWithValue("@color", "#7C4DFF");
         cmd.Parameters.AddWithValue("@role", "Administrator");
         cmd.Parameters.AddWithValue("@created", DateTimeOffset.UtcNow.ToString("O"));
+        cmd.ExecuteNonQuery();
+    }
+
+    /// <summary>
+    /// A child (restricted) profile never has administrator authority, and profiles used to be created restricted
+    /// by default even for administrator accounts. Promote those to standard profiles so the rule cannot lock an
+    /// administrator out of their own server. Idempotent: it only touches rows that still match.
+    /// </summary>
+    private static void PromoteRestrictedAdministratorProfiles(SqliteConnection conn)
+    {
+        using var cmd = conn.CreateCommand();
+        cmd.CommandText = """
+            UPDATE profiles SET role = 'StandardUser'
+            WHERE role = 'RestrictedProfile'
+              AND id IN (
+                  SELECT g.profile_id
+                  FROM account_profile_grants g
+                  JOIN accounts a ON a.id = g.account_id
+                  WHERE a.is_administrator = 1);
+            """;
         cmd.ExecuteNonQuery();
     }
 

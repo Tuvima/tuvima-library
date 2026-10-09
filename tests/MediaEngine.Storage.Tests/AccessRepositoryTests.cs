@@ -406,6 +406,37 @@ public sealed class AccessRepositoryTests : IDisposable
         UpdatedAt = _now,
     };
 
+    [Fact]
+    public async Task StartupMigration_PromotesRestrictedProfilesOfAdministratorsOnly_AndIsIdempotent()
+    {
+        var admin = NewAdministrator("admin@example.com");
+        var adminProfile = NewProfile(Guid.NewGuid(), "Admin profile");
+        adminProfile.Role = ProfileRole.RestrictedProfile;
+        InsertProfile(adminProfile);
+        await _accounts.CreateAccountAsync(
+            admin,
+            Grant(admin.Id, adminProfile.Id, isDefault: true, administrator: true),
+            AccountFeatureId.All.ToHashSet(),
+            new HashSet<Guid>());
+
+        var member = NewAdministrator("member@example.com");
+        member.IsAdministrator = false;
+        var childProfile = NewProfile(Guid.NewGuid(), "Child");
+        childProfile.Role = ProfileRole.RestrictedProfile;
+        InsertProfile(childProfile);
+        await _accounts.CreateAccountAsync(
+            member,
+            Grant(member.Id, childProfile.Id, isDefault: true),
+            new HashSet<AccountFeatureId>(),
+            new HashSet<Guid>());
+
+        _database.RunStartupChecks();
+        _database.RunStartupChecks();
+
+        Assert.Equal(ProfileRole.StandardUser, (await _profiles.GetByIdAsync(adminProfile.Id))!.Role);
+        Assert.Equal(ProfileRole.RestrictedProfile, (await _profiles.GetByIdAsync(childProfile.Id))!.Role);
+    }
+
     public void Dispose()
     {
         _database.Dispose();
