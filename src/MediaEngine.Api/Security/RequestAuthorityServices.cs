@@ -2,6 +2,7 @@ using System.Security.Claims;
 using MediaEngine.Domain.Authorization;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Entities;
+using MediaEngine.Domain.Enums;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using DomainAuthorizationEvaluator = MediaEngine.Domain.Contracts.IAuthorizationEvaluator;
@@ -15,7 +16,8 @@ public interface IRequestAuthorityResolver
 
 public sealed class RequestAuthorityResolver(
     IAccountRepository accounts,
-    IApplicationRepository applications) : IRequestAuthorityResolver
+    IApplicationRepository applications,
+    IProfileRepository profiles) : IRequestAuthorityResolver
 {
     public async ValueTask<RequestAuthority> ResolveAsync(HttpContext context, CancellationToken ct = default)
     {
@@ -45,6 +47,11 @@ public sealed class RequestAuthorityResolver(
             ? await applications.GetApplicationAsync(applicationKey, ct).ConfigureAwait(false)
             : null;
 
+        // A child (restricted) profile never gets administrator authority, whatever its grant says.
+        var activeProfile = profileId is { } activeProfileKey
+            ? await profiles.GetByIdAsync(activeProfileKey, ct).ConfigureAwait(false)
+            : null;
+
         return new RequestAuthority(
             kind, true, accountId, profileId, applicationId, sessionId, deviceId,
             account?.IsEnabled == true,
@@ -55,7 +62,8 @@ public sealed class RequestAuthorityResolver(
             application?.AuthorizationVersion ?? 0,
             account?.IsAdministrator == true,
             grant?.AdminEnabled == true,
-            application?.IsAdministrator == true);
+            application?.IsAdministrator == true,
+            activeProfile?.Role == ProfileRole.RestrictedProfile);
     }
 
     private static Guid? ClaimGuid(ClaimsPrincipal user, string type) =>

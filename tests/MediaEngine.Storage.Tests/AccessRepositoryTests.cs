@@ -406,6 +406,54 @@ public sealed class AccessRepositoryTests : IDisposable
         UpdatedAt = _now,
     };
 
+    [Fact]
+    public async Task StartupMigration_PromotesOnlyAnAdministratorsOwnRestrictedProfile_OnceOnly()
+    {
+        var admin = NewAdministrator("admin@example.com");
+        var adminProfile = NewProfile(Guid.NewGuid(), "Admin profile");
+        adminProfile.Role = ProfileRole.RestrictedProfile;
+        InsertProfile(adminProfile);
+        await _accounts.CreateAccountAsync(
+            admin,
+            Grant(admin.Id, adminProfile.Id, isDefault: true, administrator: true),
+            AccountFeatureId.All.ToHashSet(),
+            new HashSet<Guid>());
+
+        var member = NewAdministrator("member@example.com");
+        member.IsAdministrator = false;
+        var childProfile = NewProfile(Guid.NewGuid(), "Child");
+        childProfile.Role = ProfileRole.RestrictedProfile;
+        InsertProfile(childProfile);
+        await _accounts.CreateAccountAsync(
+            member,
+            Grant(member.Id, childProfile.Id, isDefault: true),
+            new HashSet<AccountFeatureId>(),
+            new HashSet<Guid>());
+        // The child's profile is also shared with the administrator parent, who uses it as their default.
+        await _accounts.UpsertGrantAsync(Grant(admin.Id, childProfile.Id, administrator: true));
+
+        // Simulate a data store from before the session-origin column existed.
+        using (var connection = _database.CreateConnection())
+        {
+            connection.Execute("ALTER TABLE auth_sessions DROP COLUMN issued_ingress;");
+        }
+
+        _database.RunStartupChecks();
+
+        Assert.Equal(ProfileRole.StandardUser, (await _profiles.GetByIdAsync(adminProfile.Id))!.Role);
+        Assert.Equal(ProfileRole.RestrictedProfile, (await _profiles.GetByIdAsync(childProfile.Id))!.Role);
+
+        // It ran once: a restriction set later is not undone by the next startup.
+        using (var connection = _database.CreateConnection())
+        {
+            connection.Execute("UPDATE profiles SET role = 'RestrictedProfile' WHERE id = @id;", new { id = adminProfile.Id });
+        }
+
+        _database.RunStartupChecks();
+
+        Assert.Equal(ProfileRole.RestrictedProfile, (await _profiles.GetByIdAsync(adminProfile.Id))!.Role);
+    }
+
     public void Dispose()
     {
         _database.Dispose();

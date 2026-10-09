@@ -1718,6 +1718,7 @@ CREATE TABLE IF NOT EXISTS auth_sessions (
     device_name           TEXT NOT NULL,
     client                TEXT NOT NULL,
     authentication_method TEXT NOT NULL,
+    issued_ingress        TEXT NOT NULL DEFAULT 'home_network',
     security_stamp        TEXT NOT NULL,
     created_at            TEXT NOT NULL,
     last_seen_at          TEXT NOT NULL,

@@ -25,7 +25,7 @@ public static class AccountEndpoints
     private static void MapSelfService(RouteGroupBuilder access)
     {
         var self = access.MapGroup("/self-service").RequireHumanSelfService();
-        self.MapGet("/", async (bool originalClientIsLocal, bool originalClientIsHttps,
+        self.MapGet("/", async (string? originalClientIngress, bool originalClientIsHttps,
             HttpContext http, IRequestAuthorityResolver resolver,
             ISelfServiceAuthorizationService decisions, IAccountRepository accounts,
             IProfileRepository profiles, IIdentityRepository identities,
@@ -59,7 +59,7 @@ public static class AccountEndpoints
                 && !AuthenticationEndpoints.IsLocalOnlyMode(policy)
                 && AuthenticationEndpoints.IsCanonicalOriginReady(network);
             var externalAvailable = !account.IsLocalOnly && AuthenticationEndpoints.AllowsClient(
-                configuration.LoadNetwork(), originalClientIsLocal, originalClientIsHttps,
+                configuration.LoadNetwork(), originalClientIngress, originalClientIsHttps,
                 AuthenticationEndpoints.IsExternalSignInEnabled(policy));
             var availableProviders = externalAvailable
                 ? policy.ExternalProviders
@@ -82,10 +82,10 @@ public static class AccountEndpoints
                 passkeys.Count > 0,
                 linkedLogins.Count > 0,
                 hasPassword && AuthenticationEndpoints.AllowsClient(
-                    configuration.LoadNetwork(), originalClientIsLocal, originalClientIsHttps,
+                    configuration.LoadNetwork(), originalClientIngress, originalClientIsHttps,
                     policy.PasswordSignInEnabled && !AuthenticationEndpoints.IsLocalOnlyMode(policy)),
                 !account.IsLocalOnly && AuthenticationEndpoints.IsPasskeyAvailable(
-                    policy, configuration.LoadNetwork(), originalClientIsLocal, originalClientIsHttps),
+                    policy, configuration.LoadNetwork(), originalClientIngress, originalClientIsHttps),
                 passkeyReady,
                 availableProviders.Count > 0,
                 availableProviders);
@@ -454,7 +454,8 @@ public static class AccountEndpoints
                     protection?.UnlockMode ?? AdminUnlockMode.FixedDuration.ToString(),
                     protection?.UnlockMinutes, protection?.ProtectionVersion ?? 0,
                     protection?.LockedUntil > DateTimeOffset.UtcNow, protection?.LockedUntil),
-                grant.AuthorizationVersion, grant.GrantedAt));
+                grant.AuthorizationVersion, grant.GrantedAt,
+                profile.Role == MediaEngine.Domain.Enums.ProfileRole.RestrictedProfile));
         }
         return result;
     }

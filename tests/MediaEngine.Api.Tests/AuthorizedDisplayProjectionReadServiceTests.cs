@@ -1051,7 +1051,7 @@ public sealed class AuthorizedDisplayProjectionReadServiceTests : IDisposable
         await InsertAssetForWorkAsync(denied.WorkId, denied.AssetId, Guid.Parse(denied.LibraryId!), "Denied", createWork: true);
         var context = HumanContext(account, MediaEngine.Domain.Aggregates.Profile.SeedProfileId);
         using var services = new ServiceCollection()
-            .AddSingleton<IRequestAuthorityResolver>(new RequestAuthorityResolver(_accounts, _applications))
+            .AddSingleton<IRequestAuthorityResolver>(new RequestAuthorityResolver(_accounts, _applications, new ProfileRepository(_database)))
             .AddSingleton(CreateService(context, new StubRawProjection([allowed, denied], [])))
             .BuildServiceProvider();
         context.RequestServices = services;
@@ -1274,7 +1274,7 @@ public sealed class AuthorizedDisplayProjectionReadServiceTests : IDisposable
         return new AuthorizedDisplayProjectionReadService(
             raw,
             accessor,
-            new RequestAuthorityResolver(_accounts, _applications),
+            new RequestAuthorityResolver(_accounts, _applications, new ProfileRepository(_database)),
             _accounts,
             evaluator,
             _database);
@@ -1291,7 +1291,7 @@ public sealed class AuthorizedDisplayProjectionReadServiceTests : IDisposable
                 TimeProvider.System));
         return new CatalogueResourceAuthorizationService(
             _database,
-            new RequestAuthorityResolver(_accounts, _applications),
+            new RequestAuthorityResolver(_accounts, _applications, new ProfileRepository(_database)),
             decisions,
             new AuthorizationEvaluator(
                 decisions,

@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using MediaEngine.Contracts.Authentication;
+using MediaEngine.Web.Services.Configuration;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 
@@ -18,7 +19,10 @@ public sealed class DashboardCookieEvents(
             return;
         }
 
-        var validation = await identity.ValidateCookieAsync(token, context.HttpContext.RequestAborted).ConfigureAwait(false);
+        // Where this request came from. A session made at home is refused (without being erased) when it is
+        // used from outside; the Engine makes that call using this value.
+        var ingress = context.HttpContext.ClientIngress();
+        var validation = await identity.ValidateCookieAsync(token, ingress, context.HttpContext.RequestAborted).ConfigureAwait(false);
         var validated = validation.Response;
         if (validated is null)
         {
@@ -32,26 +36,30 @@ public sealed class DashboardCookieEvents(
             return;
         }
 
+        session.LastIngress = ingress;
         session.Set(token, validated.AccountId, validated.ActiveProfileId, validated.SessionId, validated.Authority);
         // The server projection carries live account, grant, unlock, and capability
         // state. Replacing the principal on every validation prevents a retained
         // cookie claim from outliving an access or protection mutation.
-        context.ReplacePrincipal(DashboardPrincipalFactory.Create(validated, token));
+        context.ReplacePrincipal(DashboardPrincipalFactory.Create(validated, token, ingress));
         context.ShouldRenew = true;
     }
 }
 
 public static class DashboardPrincipalFactory
 {
-    public static ClaimsPrincipal Create(AuthSessionResponse response) =>
-        CreateCore(response.SessionId, response.AccountId, response.ActiveProfileId, response.DisplayName,
-            response.Authority, response.AuthenticationMethod, response.SessionToken);
+    /// <summary>Claim carrying where the cookie's last request came from, so a Blazor circuit can re-check from the same place.</summary>
+    public const string ClientIngressClaim = "tuvima:client_ingress";
 
-    public static ClaimsPrincipal Create(SessionValidationResponse response, string token) =>
+    public static ClaimsPrincipal Create(AuthSessionResponse response, string ingress) =>
         CreateCore(response.SessionId, response.AccountId, response.ActiveProfileId, response.DisplayName,
-            response.Authority, response.AuthenticationMethod, token);
+            response.Authority, response.AuthenticationMethod, response.SessionToken, ingress);
 
-    private static ClaimsPrincipal CreateCore(Guid sessionId, Guid accountId, Guid activeProfileId, string name, DashboardAuthorityResponse authority, string method, string token)
+    public static ClaimsPrincipal Create(SessionValidationResponse response, string token, string ingress) =>
+        CreateCore(response.SessionId, response.AccountId, response.ActiveProfileId, response.DisplayName,
+            response.Authority, response.AuthenticationMethod, token, ingress);
+
+    private static ClaimsPrincipal CreateCore(Guid sessionId, Guid accountId, Guid activeProfileId, string name, DashboardAuthorityResponse authority, string method, string token, string ingress)
     {
         var claims = new List<Claim>
         {
@@ -63,6 +71,7 @@ public static class DashboardPrincipalFactory
             new Claim("tuvima:session_id", sessionId.ToString("D")),
             new Claim("tuvima:authentication_method", method),
             new Claim(DashboardEngineAuthenticationHandler.SessionTokenClaim, token),
+            new Claim(ClientIngressClaim, ingress),
             new Claim("tuvima:account_authorization_version", authority.AccountAuthorizationVersion.ToString(System.Globalization.CultureInfo.InvariantCulture)),
             new Claim("tuvima:grant_authorization_version", authority.GrantAuthorizationVersion.ToString(System.Globalization.CultureInfo.InvariantCulture)),
         };

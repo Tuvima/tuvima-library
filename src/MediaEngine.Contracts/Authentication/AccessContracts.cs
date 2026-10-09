@@ -58,7 +58,8 @@ public sealed record AccountProfileGrantDto(
     [property: JsonPropertyName("admin_enabled")] bool AdminEnabled,
     [property: JsonPropertyName("admin_protection")] GrantAdminProtectionDto AdminProtection,
     [property: JsonPropertyName("authorization_version")] long AuthorizationVersion,
-    [property: JsonPropertyName("granted_at")] DateTimeOffset GrantedAt);
+    [property: JsonPropertyName("granted_at")] DateTimeOffset GrantedAt,
+    [property: JsonPropertyName("is_restricted")] bool IsRestricted = false);
 
 public sealed record GrantAdminProtectionDto(
     [property: JsonPropertyName("enabled")] bool Enabled,

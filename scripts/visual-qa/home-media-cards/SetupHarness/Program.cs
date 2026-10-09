@@ -73,7 +73,7 @@ if (!status.AdministratorConfigured)
 var issued = await SendAsync<AuthSessionResponse>(HttpMethod.Post, "/auth/login", new LocalLoginRequest
 {
     Email = auth["email"], Password = auth["password"], DeviceId = "home-media-qa", DeviceName = "Disposable acceptance fixture",
-    OriginalClientIsLocal = true, OriginalClientIsHttps = engine.Scheme == "https", Client = "Home QA harness",
+    OriginalClientIngress = "home_network", OriginalClientIsHttps = engine.Scheme == "https", Client = "Home QA harness",
 });
 auth["sessionToken"] = issued.SessionToken;
 auth["accountId"] = issued.AccountId.ToString("D");

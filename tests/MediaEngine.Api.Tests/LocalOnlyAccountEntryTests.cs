@@ -105,6 +105,90 @@ public sealed class LocalOnlyAccountEntryTests
         }
     }
 
+    [Fact]
+    public async Task ChildProfilesCannotBeAdministrators_ButAnAdministratorsOwnProfileCan()
+    {
+        var databasePath = Path.Combine(Path.GetTempPath(), $"tuvima-child-admin-{Guid.NewGuid():N}.db");
+        var configPath = Path.Combine(Path.GetTempPath(), $"tuvima-child-admin-{Guid.NewGuid():N}");
+        try
+        {
+            using (var database = new DatabaseConnection(databasePath))
+            {
+                using (var configuration = new ConfigurationDirectoryLoader(configPath))
+                {
+                    database.InitializeSchema();
+                    var accounts = new AccountRepository(database);
+                    var profiles = new ProfileRepository(database);
+                    var mutations = new AccountAccessMutationService(
+                        accounts,
+                        new IdentityRepository(database),
+                        profiles,
+                        configuration,
+                        new AllowAdministratorDecisions(),
+                        new AllowEvaluator(),
+                        new PasswordHasher<GrantAdminProtection>(),
+                        new NoOpInvalidation(),
+                        new NoOpAudit(),
+                        TimeProvider.System);
+                    var actor = new RequestAuthority(
+                        PrincipalKind.Human, true, AccountId: Guid.NewGuid(), ActiveProfileId: Guid.NewGuid(),
+                        SessionId: Guid.NewGuid(), AccountEnabled: true, GrantEnabled: true,
+                        AccountIsAdministrator: true, GrantAdminEnabled: true);
+
+                    var child = await mutations.CreateAsync(actor, new CreateAccountAccessCommand(
+                        "child@example.com", IsLocalOnly: false, IsAdministrator: false, ProfileId: null,
+                        NewProfile: new NewAccountProfileCommand("Child", "#7C4DFF"),
+                        Features: new HashSet<AccountFeatureId>(), Libraries: new HashSet<Guid>()));
+                    var childProfileId = Assert.Single(await accounts.GetGrantsAsync(child.Id)).ProfileId;
+                    Assert.Equal(MediaEngine.Domain.Enums.ProfileRole.RestrictedProfile,
+                        (await profiles.GetByIdAsync(childProfileId))!.Role);
+
+                    var refused = await Assert.ThrowsAsync<InvalidOperationException>(() => mutations.UpsertGrantAsync(
+                        actor, new AccountProfileGrant
+                        {
+                            AccountId = child.Id,
+                            ProfileId = childProfileId,
+                            IsDefault = true,
+                            IsEnabled = true,
+                            AdminEnabled = true,
+                            AuthorizationVersion = 1,
+                        }));
+                    Assert.Equal("Child profiles can't be administrators.", refused.Message);
+
+                    var promoted = await Assert.ThrowsAsync<InvalidOperationException>(() => mutations.UpdateAsync(
+                        actor, child.Id, new UpdateAccountAccessCommand(
+                            "child@example.com", IsLocalOnly: false, IsEnabled: true, IsAdministrator: true)));
+                    Assert.Equal("Child profiles can't be administrators.", promoted.Message);
+
+                    var admin = await mutations.CreateAsync(actor, new CreateAccountAccessCommand(
+                        "admin@example.com", IsLocalOnly: false, IsAdministrator: true, ProfileId: null,
+                        NewProfile: new NewAccountProfileCommand("Parent", "#7C4DFF"),
+                        Features: new HashSet<AccountFeatureId>(), Libraries: new HashSet<Guid>()));
+                    var adminGrant = Assert.Single(await accounts.GetGrantsAsync(admin.Id));
+                    Assert.True(adminGrant.AdminEnabled);
+                    Assert.Equal(MediaEngine.Domain.Enums.ProfileRole.StandardUser,
+                        (await profiles.GetByIdAsync(adminGrant.ProfileId))!.Role);
+                }
+            }
+        }
+        finally
+        {
+            Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
+            foreach (var path in new[] { databasePath, $"{databasePath}-wal", $"{databasePath}-shm" })
+            {
+                if (File.Exists(path))
+                {
+                    File.Delete(path);
+                }
+            }
+
+            if (Directory.Exists(configPath))
+            {
+                Directory.Delete(configPath, recursive: true);
+            }
+        }
+    }
+
     private sealed class AllowAdministratorDecisions : IAccountAccessDecisionService
     {
         public ValueTask<AuthorizationDecision> EvaluateFeatureAsync(RequestAuthority authority, AccountFeatureId feature,

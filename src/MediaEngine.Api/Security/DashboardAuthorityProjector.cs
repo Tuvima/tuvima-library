@@ -25,6 +25,7 @@ public sealed class DashboardAuthorityProjector(
             throw new UnauthorizedAccessException("Account or active profile grant is disabled.");
         }
 
+        var activeProfile = await profiles.GetByIdAsync(profileId, ct).ConfigureAwait(false);
         var authority = new RequestAuthority(
             PrincipalKind.Human,
             true,
@@ -36,7 +37,8 @@ public sealed class DashboardAuthorityProjector(
             AccountAuthorizationVersion: account.AuthorizationVersion,
             GrantAuthorizationVersion: activeGrant.AuthorizationVersion,
             AccountIsAdministrator: account.IsAdministrator,
-            GrantAdminEnabled: activeGrant.AdminEnabled);
+            GrantAdminEnabled: activeGrant.AdminEnabled,
+            ActiveProfileIsRestricted: activeProfile?.Role == MediaEngine.Domain.Enums.ProfileRole.RestrictedProfile);
 
         GrantAdminUnlockState? unlock = authority.IsEffectiveAdministrator
             ? await unlocks.GetStateAsync(authority, ct).ConfigureAwait(false)

@@ -14,6 +14,9 @@ public sealed class DashboardSessionAccessor
     public Guid? ActiveProfileId { get; private set; }
     public Guid? SessionId { get; private set; }
     public long Revision { get; private set; }
+
+    /// <summary>The ingress (<c>this_computer</c>, <c>home_network</c>, <c>remote</c>) of the last request that validated this session.</summary>
+    public string? LastIngress { get; set; }
     public DashboardAuthorityResponse? Authority { get; private set; }
 
     public void Set(string? token, Guid? accountId, Guid? activeProfileId, Guid? sessionId, DashboardAuthorityResponse? authority)
@@ -60,6 +63,8 @@ public sealed class DashboardSessionAccessor
                 ParseGuid(principal.FindFirstValue("tuvima:active_profile_id")),
                 ParseGuid(principal.FindFirstValue("tuvima:session_id")),
                 null);
+            // A circuit has no request of its own, so it re-checks from where the cookie last validated.
+            LastIngress = principal.FindFirstValue(DashboardPrincipalFactory.ClientIngressClaim);
         }
         changedHandler?.Invoke();
         return true;

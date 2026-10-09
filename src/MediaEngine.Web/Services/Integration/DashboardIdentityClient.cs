@@ -34,6 +34,7 @@ public sealed class DashboardIdentityClient(
     {
         using var request = new HttpRequestMessage(HttpMethod.Post, "/auth/session/validate");
         request.Headers.TryAddWithoutValidation(DashboardEngineAuthenticationHandler.SessionHeader, sessionToken);
+        request.Headers.TryAddWithoutValidation(ClientIngressValues.ValidateHeader, CurrentIngress(contextAccessor?.HttpContext));
         using var response = await Client.SendAsync(request, ct).ConfigureAwait(false);
         return response.StatusCode == HttpStatusCode.Unauthorized || !response.IsSuccessStatusCode
             ? null
@@ -50,14 +51,16 @@ public sealed class DashboardIdentityClient(
             return null;
         }
 
-        var result = await ValidateDetailedAsync(refresh.Snapshot.SessionToken, ct).ConfigureAwait(false);
+        var result = await ValidateDetailedAsync(
+            refresh.Snapshot.SessionToken, session.LastIngress ?? CurrentIngress(contextAccessor?.HttpContext), ct).ConfigureAwait(false);
         if (result.Invalid)
         {
             session.ClearIfCurrent(refresh);
             return null;
         }
-        if (result.Unusable)
+        if (result.Unusable || result.WrongPlace)
         {
+            // Unusable, or a home session seen from outside: drop any stale capabilities but keep the sign-in.
             session.ClearAuthorityIfCurrent(refresh);
             return null;
         }
@@ -149,23 +152,41 @@ public sealed class DashboardIdentityClient(
         catch (OperationCanceledException) when (ct.IsCancellationRequested) { }
     }
 
-    private async Task<(SessionValidationResponse? Response, bool Invalid, bool Unusable)> ValidateDetailedAsync(
+    private static async Task<bool> IsSignInAgainHereAsync(HttpResponseMessage response, CancellationToken ct)
+    {
+        try
+        {
+            var body = await response.Content.ReadFromJsonAsync<JsonElement>(cancellationToken: ct).ConfigureAwait(false);
+            return body.ValueKind == JsonValueKind.Object
+                && body.TryGetProperty("reason", out var reason)
+                && reason.GetString() == ClientIngressValues.SignInAgainHere;
+        }
+        catch (JsonException) { return false; } // A plain 401 has no JSON body: the session really is invalid.
+        catch (NotSupportedException) { return false; } // Same: non-JSON content type.
+    }
+
+    private async Task<(SessionValidationResponse? Response, bool Invalid, bool Unusable, bool WrongPlace)> ValidateDetailedAsync(
         string sessionToken,
+        string currentIngress,
         CancellationToken ct)
     {
         try
         {
             using var request = new HttpRequestMessage(HttpMethod.Post, "/auth/session/validate");
             request.Headers.TryAddWithoutValidation(DashboardEngineAuthenticationHandler.SessionHeader, sessionToken);
+            request.Headers.TryAddWithoutValidation(ClientIngressValues.ValidateHeader, currentIngress);
             using var response = await Client.SendAsync(request, ct).ConfigureAwait(false);
             if (response.StatusCode == HttpStatusCode.Unauthorized)
             {
-                return (null, true, false);
+                // A home session used from outside is refused for this request only. It is not "invalid",
+                // so the sign-in cookie is kept for when the person is back at home.
+                var wrongPlace = await IsSignInAgainHereAsync(response, ct).ConfigureAwait(false);
+                return (null, !wrongPlace, false, wrongPlace);
             }
 
             if (!response.IsSuccessStatusCode)
             {
-                return (null, false, false);
+                return (null, false, false, false);
             }
 
             var validation = await response.Content
@@ -174,24 +195,24 @@ public sealed class DashboardIdentityClient(
             if (validation is null)
             {
                 logger?.LogWarning("Dashboard authority validation returned an empty success response.");
-                return (null, false, true);
+                return (null, false, true, false);
             }
-            return (validation, false, false);
+            return (validation, false, false, false);
         }
         catch (JsonException exception)
         {
             logger?.LogWarning(exception,
                 "Dashboard authority validation returned a malformed success response.");
-            return (null, false, true);
+            return (null, false, true, false);
         }
         catch (NotSupportedException exception)
         {
             logger?.LogWarning(exception,
                 "Dashboard authority validation returned an unsupported success response.");
-            return (null, false, true);
+            return (null, false, true, false);
         }
-        catch (HttpRequestException) { return (null, false, false); }
-        catch (OperationCanceledException) when (!ct.IsCancellationRequested) { return (null, false, false); }
+        catch (HttpRequestException) { return (null, false, false, false); }
+        catch (OperationCanceledException) when (!ct.IsCancellationRequested) { return (null, false, false, false); }
     }
 
     public async Task<IReadOnlyList<string>?> RecoverAsync(RecoverPasswordRequest request, CancellationToken ct = default)
@@ -221,12 +242,12 @@ public sealed class DashboardIdentityClient(
     private string SelfServicePath()
     {
         var original = GetOriginalClientContext();
-        return $"/access/self-service?originalClientIsLocal={original.IsLocal.ToString().ToLowerInvariant()}&originalClientIsHttps={original.IsHttps.ToString().ToLowerInvariant()}";
+        return $"/access/self-service?originalClientIngress={Uri.EscapeDataString(original.Ingress)}&originalClientIsHttps={original.IsHttps.ToString().ToLowerInvariant()}";
     }
 
-    public async Task<(SessionValidationResponse? Response, bool Invalid)> ValidateCookieAsync(string token, CancellationToken ct = default)
+    public async Task<(SessionValidationResponse? Response, bool Invalid)> ValidateCookieAsync(string token, string currentIngress, CancellationToken ct = default)
     {
-        var result = await ValidateDetailedAsync(token, ct).ConfigureAwait(false);
+        var result = await ValidateDetailedAsync(token, currentIngress, ct).ConfigureAwait(false);
         return (result.Response, result.Invalid);
     }
 
@@ -430,20 +451,20 @@ public sealed class DashboardIdentityClient(
     public Task<DashboardAccessMutationResult> UnlinkExternalLoginResultAsync(Guid id, CancellationToken ct = default) =>
         SendMutationAsync(HttpMethod.Delete, $"/access/self-service/external-logins/{id:D}", ct);
 
-    public Task<PasskeyOptionsResponse?> GetPasskeyLoginOptionsAsync(string? email, bool isLocal, bool isHttps, CancellationToken ct = default) =>
-        SendPasskeyAsync<BeginPasskeyLoginRequest, PasskeyOptionsResponse>("/auth/passkeys/login/options", new(email, isLocal, isHttps), ct);
+    public Task<PasskeyOptionsResponse?> GetPasskeyLoginOptionsAsync(string? email, string clientIngress, bool isHttps, CancellationToken ct = default) =>
+        SendPasskeyAsync<BeginPasskeyLoginRequest, PasskeyOptionsResponse>("/auth/passkeys/login/options", new(email, clientIngress, isHttps), ct);
     public Task<AuthSessionResponse?> CompletePasskeyLoginAsync(CompletePasskeyLoginRequest body, CancellationToken ct = default) =>
         SendPasskeyAsync<CompletePasskeyLoginRequest, AuthSessionResponse>("/auth/passkeys/login/complete", body, ct);
     public Task<PasskeyOptionsResponse?> GetPasskeyRegistrationOptionsAsync(CancellationToken ct = default)
     {
         var original = GetOriginalClientContext();
         return SendPasskeyAsync<BeginPasskeyRegistrationRequest, PasskeyOptionsResponse>(
-            "/auth/passkeys/registration/options", new(original.IsLocal, original.IsHttps), ct);
+            "/auth/passkeys/registration/options", new(original.Ingress, original.IsHttps), ct);
     }
     public async Task<bool> CompletePasskeyRegistrationAsync(CompletePasskeyRegistrationRequest body, CancellationToken ct = default)
     {
         var original = GetOriginalClientContext();
-        body = body with { OriginalClientIsLocal = original.IsLocal, OriginalClientIsHttps = original.IsHttps };
+        body = body with { OriginalClientIngress = original.Ingress, OriginalClientIsHttps = original.IsHttps };
         using var request = PasskeyRequest(HttpMethod.Post, "/auth/passkeys/registration/complete", body);
         using var response = await Client.SendAsync(request, ct).ConfigureAwait(false);
         return response.IsSuccessStatusCode;
@@ -463,17 +484,21 @@ public sealed class DashboardIdentityClient(
         return request;
     }
 
-    private (bool IsLocal, bool IsHttps) GetOriginalClientContext()
+    // No classifier or no request means the caller cannot be placed, so it is treated as remote (fail closed).
+    private string CurrentIngress(HttpContext? context) =>
+        context is not null && ingress is not null
+            ? ingress.Classify(context).ToWireValue()
+            : ClientIngressValues.Remote;
+
+    private (string Ingress, bool IsHttps) GetOriginalClientContext()
     {
         var context = contextAccessor?.HttpContext;
         if (context is null)
         {
-            return (false, false);
+            return (ClientIngressValues.Remote, false);
         }
 
-        // No classifier means the request cannot be placed, so it is treated as remote.
-        var isLocal = ingress is not null && ingress.Classify(context) != IngressKind.Remote;
-        return (isLocal, context.Request.IsHttps);
+        return (CurrentIngress(context), context.Request.IsHttps);
     }
 
     private async Task<DashboardAccessMutationResult<TResponse>> SendMutationAsync<TRequest, TResponse>(

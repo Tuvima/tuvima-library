@@ -41,7 +41,7 @@ public sealed class AuthenticationEntryEndpointTests
                 DeviceId = "remote-browser",
                 DeviceName = "Remote browser",
                 Client = "Tuvima Dashboard",
-                OriginalClientIsLocal = false,
+                OriginalClientIngress = ClientIngressValues.Remote,
                 OriginalClientIsHttps = true,
             });
 
@@ -125,17 +125,17 @@ public sealed class AuthenticationEntryEndpointTests
             await using var app = BuildApplication(configuration, identity);
 
             var invitation = await InvokeAsync(app, "/auth/invitations/accept",
-                new AcceptAccountInvitationRequest("invitation", "password", "browser", "Browser", false, true));
+                new AcceptAccountInvitationRequest("invitation", "password", "browser", "Browser", ClientIngressValues.Remote, true));
             var recovery = await InvokeAsync(app, "/auth/password/recover", new RecoverPasswordRequest
             {
                 Email = "person@example.com",
                 RecoveryCode = "code",
                 NewPassword = "replacement",
-                OriginalClientIsLocal = false,
+                OriginalClientIngress = ClientIngressValues.Remote,
                 OriginalClientIsHttps = true,
             });
             var resetComplete = await InvokeAsync(app, "/auth/password/reset/complete",
-                new ResetPasswordTokenRequest("reset", "replacement", false, true));
+                new ResetPasswordTokenRequest("reset", "replacement", ClientIngressValues.Remote, true));
 
             Assert.True(invitation.StatusCode == StatusCodes.Status401Unauthorized, await DescribeAsync(invitation));
             Assert.True(recovery.StatusCode == StatusCodes.Status401Unauthorized, await DescribeAsync(recovery));
@@ -168,7 +168,7 @@ public sealed class AuthenticationEntryEndpointTests
             await using var app = BuildApplication(configuration, identity);
 
             var response = await InvokeAsync(app, "/auth/password/reset/begin",
-                new BeginPasswordResetRequest("person@example.com", false, true));
+                new BeginPasswordResetRequest("person@example.com", ClientIngressValues.Remote, true));
 
             Assert.True(response.StatusCode == StatusCodes.Status202Accepted, await DescribeAsync(response));
             response.Body.Position = 0;
@@ -271,7 +271,7 @@ public sealed class AuthenticationEntryEndpointTests
         public int ProfileEntryCalls { get; private set; }
 
         public Task<SessionIssueResult> AcceptInvitationAsync(string token, string password, string deviceId,
-            string deviceName, string client, CancellationToken ct = default)
+            string deviceName, string client, CancellationToken ct = default, string ingress = ClientIngress.HomeNetwork)
         {
             AcceptInvitationCalls++;
             throw new InvalidOperationException("Denied requests must not reach identity issuance.");
@@ -297,16 +297,16 @@ public sealed class AuthenticationEntryEndpointTests
         }
 
         public Task<bool> IsAdministratorConfiguredAsync(CancellationToken ct = default) => throw NotSupported();
-        public Task<SessionIssueResult> BootstrapAdministratorAsync(string email, string password, string displayName, string deviceId, string deviceName, string client, CancellationToken ct = default, string? pin = null) => throw NotSupported();
-        public Task<AuthenticationAttemptResult> AuthenticatePasswordAsync(string email, string password, string deviceId, string deviceName, string client, CancellationToken ct = default) => throw NotSupported();
-        public Task<AuthenticationAttemptResult> AuthenticatePinAsync(Guid profileId, string pin, string deviceId, string deviceName, string client, CancellationToken ct = default)
+        public Task<SessionIssueResult> BootstrapAdministratorAsync(string email, string password, string displayName, string deviceId, string deviceName, string client, CancellationToken ct = default, string? pin = null, string ingress = ClientIngress.HomeNetwork) => throw NotSupported();
+        public Task<AuthenticationAttemptResult> AuthenticatePasswordAsync(string email, string password, string deviceId, string deviceName, string client, CancellationToken ct = default, string ingress = ClientIngress.HomeNetwork) => throw NotSupported();
+        public Task<AuthenticationAttemptResult> AuthenticatePinAsync(Guid profileId, string pin, string deviceId, string deviceName, string client, CancellationToken ct = default, string ingress = ClientIngress.HomeNetwork)
         {
             ProfileEntryCalls++;
             throw new InvalidOperationException("Denied requests must not reach local profile entry.");
         }
-        public Task<SessionIssueResult> CreateExternalSessionAsync(Guid accountId, string provider, string deviceId, string deviceName, string client, CancellationToken ct = default) => throw NotSupported();
-        public Task<SessionIssueResult> CreatePasskeySessionAsync(Guid accountId, string deviceId, string deviceName, string client, CancellationToken ct = default) => throw NotSupported();
-        public Task<SessionValidationResult?> ValidateSessionAsync(string plaintextToken, bool touch = true, CancellationToken ct = default) => throw NotSupported();
+        public Task<SessionIssueResult> CreateExternalSessionAsync(Guid accountId, string provider, string deviceId, string deviceName, string client, CancellationToken ct = default, string ingress = ClientIngress.HomeNetwork) => throw NotSupported();
+        public Task<SessionIssueResult> CreatePasskeySessionAsync(Guid accountId, string deviceId, string deviceName, string client, CancellationToken ct = default, string ingress = ClientIngress.HomeNetwork) => throw NotSupported();
+        public Task<SessionValidationResult?> ValidateSessionAsync(string plaintextToken, bool touch = true, CancellationToken ct = default, string? currentIngress = null) => throw NotSupported();
         public Task<IReadOnlyList<AuthSession>> GetSessionsAsync(Guid accountId, CancellationToken ct = default) => throw NotSupported();
         public Task<bool> RevokeSessionAsync(Guid sessionId, string reason, CancellationToken ct = default) => throw NotSupported();
         public Task<int> RevokeOtherSessionsAsync(Guid accountId, Guid currentSessionId, string reason, CancellationToken ct = default) => throw NotSupported();

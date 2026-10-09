@@ -108,7 +108,7 @@ public static partial class ExternalAuthenticationRegistration
                     return;
                 }
 
-                context.Principal = DashboardPrincipalFactory.Create(issued);
+                context.Principal = DashboardPrincipalFactory.Create(issued, context.HttpContext.ClientIngress());
                 context.Properties ??= new AuthenticationProperties();
                 context.Properties.IsPersistent = true;
                 context.Properties.ExpiresUtc = issued.ExpiresAt;
@@ -180,7 +180,7 @@ public static partial class ExternalAuthenticationRegistration
                     return;
                 }
 
-                context.Principal = DashboardPrincipalFactory.Create(issued);
+                context.Principal = DashboardPrincipalFactory.Create(issued, context.HttpContext.ClientIngress());
                 context.Properties.IsPersistent = true;
                 context.Properties.ExpiresUtc = issued.ExpiresAt;
             };
@@ -262,7 +262,7 @@ public static partial class ExternalAuthenticationRegistration
             DeviceId = deviceId!,
             DeviceName = context.Request.Headers.UserAgent.ToString(),
             Client = $"Tuvima Library Dashboard {protocol}",
-            OriginalClientIsLocal = context.IsLocalIngress(),
+            OriginalClientIngress = context.ClientIngress(),
             OriginalClientIsHttps = context.Request.IsHttps,
         };
         var issued = await identity.CreateExternalSessionAsync(request, context.RequestAborted).ConfigureAwait(false);

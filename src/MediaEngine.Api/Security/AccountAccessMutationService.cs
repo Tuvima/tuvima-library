@@ -44,13 +44,18 @@ public sealed class AccountAccessMutationService(
                 Id = profileId,
                 DisplayName = NormalizeDisplayName(requestedProfile.DisplayName),
                 AvatarColor = NormalizeAvatarColor(requestedProfile.AvatarColor),
-                Role = ProfileRole.RestrictedProfile,
+                // The profile that carries an administrator account is a standard profile; child profiles never administer.
+                Role = command.IsAdministrator ? ProfileRole.StandardUser : ProfileRole.RestrictedProfile,
                 CreatedAt = clock.GetUtcNow(),
             };
         }
-        else if (await profiles.GetByIdAsync(profileId, ct).ConfigureAwait(false) is null)
+        else if (await profiles.GetByIdAsync(profileId, ct).ConfigureAwait(false) is not { } existingProfile)
         {
             throw new KeyNotFoundException("Profile not found.");
+        }
+        else if (command.IsAdministrator && existingProfile.Role == ProfileRole.RestrictedProfile)
+        {
+            throw new InvalidOperationException("Child profiles can't be administrators.");
         }
         ValidateLibraries(command.Libraries);
 
@@ -94,6 +99,16 @@ public sealed class AccountAccessMutationService(
         await RequireWriteAsync(actor, ct).ConfigureAwait(false);
         var account = await accounts.GetByIdAsync(accountId, ct).ConfigureAwait(false)
             ?? throw new KeyNotFoundException("Account not found.");
+        if (command.IsAdministrator && !account.IsAdministrator)
+        {
+            var defaultProfileId = await accounts.GetDefaultProfileIdAsync(accountId, ct).ConfigureAwait(false);
+            if (defaultProfileId is { } defaultId &&
+                await profiles.GetByIdAsync(defaultId, ct).ConfigureAwait(false) is { Role: ProfileRole.RestrictedProfile })
+            {
+                throw new InvalidOperationException("Child profiles can't be administrators.");
+            }
+        }
+
         var email = NormalizeEmail(command.Email, command.IsLocalOnly);
         account.Email = email;
         account.NormalizedEmail = email?.ToUpperInvariant();
@@ -294,6 +309,12 @@ public sealed class AccountAccessMutationService(
         if (await profiles.GetByIdAsync(grant.ProfileId, ct).ConfigureAwait(false) is null)
         {
             throw new KeyNotFoundException("Profile not found.");
+        }
+
+        if (grant.AdminEnabled &&
+            await profiles.GetByIdAsync(grant.ProfileId, ct).ConfigureAwait(false) is { Role: ProfileRole.RestrictedProfile })
+        {
+            throw new InvalidOperationException("Child profiles can't be administrators.");
         }
 
         grant.GrantedAt = clock.GetUtcNow();

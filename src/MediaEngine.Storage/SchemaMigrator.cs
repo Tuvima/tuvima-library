@@ -18,7 +18,14 @@ internal sealed class SchemaMigrator
         EnsureArtworkWritebackSchema(conn);
         EnsureMediaEditorCommitSchema(conn);
         EnsureAssetRenditionSchema(conn);
+        var sessionsGainedIngress = !ColumnExists(conn, "auth_sessions", "issued_ingress");
         EnsureCurrentColumns(conn);
+        if (sessionsGainedIngress)
+        {
+            // Runs once, in the same upgrade that introduces the child-profile rule.
+            PromoteRestrictedAdministratorProfiles(conn);
+        }
+
         EnsureCurrentIndexes(conn);
         using (var recordingIndex = conn.CreateCommand())
         {
@@ -736,6 +743,9 @@ internal sealed class SchemaMigrator
     {
         var addedMembershipMode = AddColumnIfMissing(conn, "collections", "membership_mode",
             "ALTER TABLE collections ADD COLUMN membership_mode TEXT NOT NULL DEFAULT 'Smart';");
+        // Sessions remember where they started; existing rows become home-only, which fails closed.
+        AddColumnIfMissing(conn, "auth_sessions", "issued_ingress",
+            "ALTER TABLE auth_sessions ADD COLUMN issued_ingress TEXT NOT NULL DEFAULT 'home_network';");
         AddColumnIfMissing(conn, "collections", "primary_area",
             "ALTER TABLE collections ADD COLUMN primary_area TEXT NOT NULL DEFAULT 'Mixed';");
         var addedOwnerKind = AddColumnIfMissing(conn, "collections", "owner_kind",
@@ -977,6 +987,41 @@ internal sealed class SchemaMigrator
         cmd.Parameters.AddWithValue("@color", "#7C4DFF");
         cmd.Parameters.AddWithValue("@role", "Administrator");
         cmd.Parameters.AddWithValue("@created", DateTimeOffset.UtcNow.ToString("O"));
+        cmd.ExecuteNonQuery();
+    }
+
+    private static bool ColumnExists(SqliteConnection conn, string table, string column)
+    {
+        using var cmd = conn.CreateCommand();
+        cmd.CommandText = $"SELECT COUNT(*) FROM pragma_table_info('{table}') WHERE name = @column;";
+        cmd.Parameters.AddWithValue("@column", column);
+        return Convert.ToInt32(cmd.ExecuteScalar(), System.Globalization.CultureInfo.InvariantCulture) > 0;
+    }
+
+    /// <summary>
+    /// A child (restricted) profile never has administrator authority, and profiles used to be created restricted
+    /// by default even for administrator accounts. One time, promote the profile an administrator actually uses as
+    /// an administrator (default, admin-enabled grant) and that no non-administrator also has, so the new rule cannot
+    /// lock an administrator out. A child profile shared with a parent stays restricted.
+    /// </summary>
+    private static void PromoteRestrictedAdministratorProfiles(SqliteConnection conn)
+    {
+        using var cmd = conn.CreateCommand();
+        cmd.CommandText = """
+            UPDATE profiles SET role = 'StandardUser'
+            WHERE role = 'RestrictedProfile'
+              AND id IN (
+                  SELECT g.profile_id
+                  FROM account_profile_grants g
+                  JOIN accounts a ON a.id = g.account_id
+                  WHERE a.is_administrator = 1
+                    AND g.is_default = 1
+                    AND g.admin_enabled = 1
+                    AND NOT EXISTS (
+                        SELECT 1 FROM account_profile_grants o
+                        JOIN accounts oa ON oa.id = o.account_id
+                        WHERE o.profile_id = g.profile_id AND oa.is_administrator = 0));
+            """;
         cmd.ExecuteNonQuery();
     }
 
