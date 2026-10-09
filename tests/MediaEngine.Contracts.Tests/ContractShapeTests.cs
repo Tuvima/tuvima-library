@@ -11,22 +11,7 @@ public sealed class ContractShapeTests
     public void PublicContractShape_MatchesApprovedFixture()
     {
         var actual = BuildContractShape();
-        var fixturePath = GetFixturePath();
-
-        if (string.Equals(
-                Environment.GetEnvironmentVariable("TUVIMA_UPDATE_CONTRACT_SHAPE"),
-                "1",
-                StringComparison.Ordinal))
-        {
-            File.WriteAllText(
-                fixturePath,
-                actual,
-                new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
-        }
-
-        var expected = File.ReadAllText(fixturePath).ReplaceLineEndings("\n");
-
-        Assert.Equal(expected, actual);
+        SnapshotFixture.Verify("contracts-shape.approved.txt", actual, "TUVIMA_UPDATE_CONTRACT_SHAPE");
     }
 
     private static string BuildContractShape()
@@ -137,12 +122,4 @@ public sealed class ContractShapeTests
         return $"{typeDefinitionName}<{arguments}>";
     }
 
-    private static string GetFixturePath() =>
-        Path.GetFullPath(Path.Combine(
-            AppContext.BaseDirectory,
-            "..",
-            "..",
-            "..",
-            "Fixtures",
-            "contracts-shape.approved.txt"));
 }

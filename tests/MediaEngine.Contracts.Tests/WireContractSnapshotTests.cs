@@ -45,38 +45,14 @@ public sealed class WireContractSnapshotTests
     public void EngineClientWireCompatibility_MatchesApprovedFixture()
     {
         var actual = BuildClientCompatibilitySnapshot();
-        var fixturePath = GetFixturePath("wire-compatibility.approved.txt");
-
-        // This is an explicit maintainer workflow, never an automatic approval.
-        // It makes a deliberate contract migration reviewable as a normal diff.
-        if (string.Equals(
-                Environment.GetEnvironmentVariable("TUVIMA_UPDATE_WIRE_SNAPSHOT"),
-                "1",
-                StringComparison.Ordinal))
-        {
-            File.WriteAllText(fixturePath, actual, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
-        }
-
-        var expected = File.ReadAllText(fixturePath).ReplaceLineEndings("\n");
-        Assert.Equal(expected, actual);
+        SnapshotFixture.Verify("wire-compatibility.approved.txt", actual, "TUVIMA_UPDATE_WIRE_SNAPSHOT");
     }
 
     [Fact]
     public void ExportedWireTypeInventory_MatchesApprovedFixture()
     {
         var actual = BuildTypeInventory();
-        var fixturePath = GetFixturePath("wire-type-inventory.approved.txt");
-
-        if (string.Equals(
-                Environment.GetEnvironmentVariable("TUVIMA_UPDATE_WIRE_SNAPSHOT"),
-                "1",
-                StringComparison.Ordinal))
-        {
-            File.WriteAllText(fixturePath, actual, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
-        }
-
-        var expected = File.ReadAllText(fixturePath).ReplaceLineEndings("\n");
-        Assert.Equal(expected, actual);
+        SnapshotFixture.Verify("wire-type-inventory.approved.txt", actual, "TUVIMA_UPDATE_WIRE_SNAPSHOT");
     }
 
     [Fact]
@@ -976,15 +952,6 @@ public sealed class WireContractSnapshotTests
         var arguments = string.Join(", ", type.GetGenericArguments().Select(GetFriendlyTypeName));
         return $"{typeDefinitionName.Replace('+', '.')}<{arguments}>";
     }
-
-    private static string GetFixturePath(string fileName) =>
-        Path.GetFullPath(Path.Combine(
-            AppContext.BaseDirectory,
-            "..",
-            "..",
-            "..",
-            "Fixtures",
-            fileName));
 
     private sealed class WireShapeCatalog
     {
