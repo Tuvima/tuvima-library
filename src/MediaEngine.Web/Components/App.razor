@@ -1,4 +1,6 @@
-﻿<!DOCTYPE html>
+﻿@using MediaEngine.Contracts.Authentication
+@using MediaEngine.Web.Services.Configuration
+<!DOCTYPE html>
 <html lang="en" translate="no">
 
 <head>
@@ -30,7 +32,7 @@
 </head>
 
 <body>
-    <Routes @rendermode="new InteractiveServerRenderMode(prerender: false)" />
+    <Routes @rendermode="new InteractiveServerRenderMode(prerender: false)" ClientIngress="@Ingress" />
     <ReconnectModal />
     <script src="@Assets["vendor/hls/hls.min.js"]"></script>
     <script src="@Assets["app.js"]"></script>
@@ -40,3 +42,11 @@
 </body>
 
 </html>
+
+@code {
+    // Classified here, where the real connection is visible. Blazor protects root-component parameters, so the
+    // browser cannot change this value on its way into the interactive circuit.
+    [CascadingParameter] private HttpContext? HttpContext { get; set; }
+
+    private string Ingress => HttpContext?.ClientIngress() ?? ClientIngressValues.Remote;
+}

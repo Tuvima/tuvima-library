@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using MediaEngine.Contracts.Authentication;
 
 namespace MediaEngine.Contracts.Setup;
 
@@ -28,6 +29,34 @@ public sealed record SetupStatusDto(
     [property: JsonPropertyName("requires_authentication")] bool RequiresAuthentication,
     [property: JsonPropertyName("administrator_configured")] bool AdministratorConfigured,
     [property: JsonPropertyName("steps")] IReadOnlyList<SetupStepStatusDto> Steps);
+
+/// <summary>
+/// Starts first-run setup. <c>original_client_ingress</c> is the Dashboard's own classification of the visitor
+/// (never a browser-supplied value); a missing or unknown value is treated as <c>remote</c>.
+/// <c>setup_code</c> is the code printed by <c>tuvima-admin setup code</c>; it is not needed from this computer.
+/// </summary>
+public sealed class SetupBeginRequest
+{
+    [JsonPropertyName("setup_code")] public string? SetupCode { get; init; }
+    [JsonPropertyName("original_client_ingress")] public string OriginalClientIngress { get; init; } = ClientIngressValues.Remote;
+}
+
+/// <summary>Why the Engine refused to start setup (HTTP 403 body of <c>POST /setup/v1/begin</c>).</summary>
+public sealed record SetupBeginRefusalDto(
+    [property: JsonPropertyName("reason")] string Reason,
+    [property: JsonPropertyName("message")] string Message);
+
+public static class SetupBeginRefusalReasons
+{
+    /// <summary>The visitor is on the home network and has not supplied a setup code.</summary>
+    public const string CodeRequired = "setup_code_required";
+
+    /// <summary>A code was supplied but is wrong, expired, used, or replaced.</summary>
+    public const string CodeInvalid = "setup_code_invalid";
+
+    /// <summary>The visitor is outside the home network; setup is never done over the internet.</summary>
+    public const string RemoteRefused = "setup_remote_refused";
+}
 
 public sealed record SetupStartResponse(
     [property: JsonPropertyName("setup_session_token")] string SetupSessionToken,

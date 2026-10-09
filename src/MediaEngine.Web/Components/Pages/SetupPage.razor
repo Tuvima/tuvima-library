@@ -1,6 +1,7 @@
 @page "/setup"
 @attribute [Microsoft.AspNetCore.Authorization.AllowAnonymous]
 @layout MediaEngine.Web.Shared.SetupWizardLayout
+@using MediaEngine.Contracts.Authentication
 @using MediaEngine.Contracts.Setup
 @using MediaEngine.Contracts.Settings
 @using MediaEngine.Web.Components.Setup
@@ -24,6 +25,14 @@
     else if (_status is null)
     {
         <AppPageState Kind="AppPageStateKind.Error" Title="Setup is unavailable" Message="The Engine did not return setup status. Check the container logs and retry." />
+    }
+    else if (_codeRequired || _remoteRefused)
+    {
+        <section class="setup-stage" aria-labelledby="setup-stage-title">
+            <SetupCodeStage Remote="@_remoteRefused" Message="@_codeMessage" Code="@_setupCode"
+                            CodeChanged="@((string? value) => _setupCode = value ?? string.Empty)"
+                            Busy="@_busy" Submit="SubmitSetupCodeAsync" />
+        </section>
     }
     else
     {
@@ -93,9 +102,16 @@
     private bool _showLibraryWizard;
     private bool _authenticated;
     private bool _setupSessionReadyForCircuit;
+    private bool _codeRequired, _remoteRefused;
+    private string _setupCode = string.Empty;
+    private string? _codeMessage;
     private string? _selectedStep;
     private bool _providersLoaded;
     private SetupLocaleDto? _locale;
+
+    // The Dashboard's own classification of this visitor, set by the host page. Never read from the browser.
+    [CascadingParameter(Name = "ClientIngress")]
+    public string? ClientIngress { get; set; }
 
     [SupplyParameterFromQuery(Name = "step")]
     public string? RequestedStep { get; set; }
@@ -144,20 +160,46 @@
         _status = await ApiClient.GetSetupStatusAsync();
         if (_status?.RequiresSetupStart == true && !_authenticated && !_setupSessionReadyForCircuit)
         {
-            var started = await ApiClient.BeginSetupAsync();
-            if (started is not null)
+            if (!string.IsNullOrWhiteSpace(_setupSession)
+                && await ApiClient.GetSetupLocaleAsync(_setupSession) is not null)
             {
-                _setupSession = started.SetupSessionToken;
-                await Storage.SetAsync(SetupSessionKey, _setupSession);
-                _status = started.Status;
+                // The session kept in this browser is still valid, so no new code is needed.
                 _setupSessionReadyForCircuit = true;
             }
             else
             {
-                _preflightError = "Setup could not start. The server rejected the request or could not be reached. Retry the checks.";
-                _loading = false;
-                StateHasChanged();
-                return;
+                var submittedCode = _setupCode.Trim();
+                var outcome = await ApiClient.BeginSetupAsync(new SetupBeginRequest
+                {
+                    OriginalClientIngress = ClientIngress ?? ClientIngressValues.Remote,
+                    SetupCode = submittedCode.Length == 0 ? null : submittedCode,
+                });
+                if (outcome.Started is { } started)
+                {
+                    _setupSession = started.SetupSessionToken;
+                    await Storage.SetAsync(SetupSessionKey, _setupSession);
+                    _status = started.Status;
+                    _setupSessionReadyForCircuit = true;
+                    _codeRequired = _remoteRefused = false;
+                    _codeMessage = null;
+                    _setupCode = string.Empty;
+                }
+                else if (outcome.Refusal is { } refusal)
+                {
+                    _remoteRefused = refusal.Reason == SetupBeginRefusalReasons.RemoteRefused;
+                    _codeRequired = !_remoteRefused;
+                    _codeMessage = submittedCode.Length == 0 ? null : refusal.Message;
+                    _loading = false;
+                    StateHasChanged();
+                    return;
+                }
+                else
+                {
+                    _preflightError = "Setup could not start. The server rejected the request or could not be reached. Retry the checks.";
+                    _loading = false;
+                    StateHasChanged();
+                    return;
+                }
             }
         }
         _loading = false;
@@ -178,6 +220,13 @@
         StateHasChanged();
         await EnsureCurrentStageDataAsync();
         StateHasChanged();
+    }
+
+    private async Task SubmitSetupCodeAsync()
+    {
+        _busy = true;
+        try { await ReloadAsync(); }
+        finally { _busy = false; }
     }
 
     private async Task EnsureCurrentStageDataAsync()

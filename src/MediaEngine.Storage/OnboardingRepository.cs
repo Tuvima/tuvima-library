@@ -63,6 +63,12 @@ public sealed class OnboardingRepository(IDatabaseConnection database)
                 return false;
             }
 
+            // Only one setup session is active at a time: a new begin ends any earlier one.
+            connection.Execute("""
+                UPDATE onboarding_sessions SET revoked_at = @now
+                WHERE workflow_version = @version AND revoked_at IS NULL;
+                """, new { now, version = CurrentVersion }, transaction);
+
             connection.Execute("""
                 INSERT INTO onboarding_sessions
                     (id, workflow_version, token_hash, created_at, expires_at, last_used_at)

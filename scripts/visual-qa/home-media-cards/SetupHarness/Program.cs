@@ -56,7 +56,7 @@ using var http = new HttpClient(serviceHandler) { BaseAddress = engine };
 var status = await SendAsync<SetupStatusDto>(HttpMethod.Get, "/setup/v1/status");
 if (!status.AdministratorConfigured)
 {
-    var begin = await SendAsync<SetupStartResponse>(HttpMethod.Post, "/setup/v1/begin", new { });
+    var begin = await SendAsync<SetupStartResponse>(HttpMethod.Post, "/setup/v1/begin", new { original_client_ingress = "this_computer" });
     auth["setupSession"] = begin.SetupSessionToken;
     await SavePrivateAsync(secretsPath, auth);
     var preflight = await SendAsync<SetupPreflightDto>(HttpMethod.Post, "/setup/v1/preflight", new { });

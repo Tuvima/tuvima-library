@@ -53,6 +53,7 @@ if [ -z "$(find /config -mindepth 1 -maxdepth 1 -print -quit 2>/dev/null)" ]; th
     echo "[Tuvima] /config is empty; seeding distributable defaults."
     cp -a /app/default-config/. /config/
     cp -a /app/docker-config/. /config/
+    echo "[Tuvima] To finish setup from another device, run: docker exec -it <container> tuvima-admin setup code"
 fi
 
 for required_config in core.json libraries.json ai.json pipelines.json transcoding.json network.json; do

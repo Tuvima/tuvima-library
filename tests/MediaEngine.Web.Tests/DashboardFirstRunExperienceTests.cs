@@ -33,6 +33,27 @@ public sealed class DashboardFirstRunExperienceTests
     }
 
     [Fact]
+    public void FirstRunSetup_AsksForTheServerCodeBeforeTheWizardWhenRequired()
+    {
+        var setup = Read("src/MediaEngine.Web/Components/Pages/SetupPage.razor");
+        var codeStage = Read("src/MediaEngine.Web/Components/Setup/SetupCodeStage.razor");
+        var host = Read("src/MediaEngine.Web/Components/App.razor");
+        var setupClient = Read("src/MediaEngine.Web/Services/Integration/EngineApiClient.Setup.cs");
+
+        Assert.Contains("Enter the setup code from your server", codeStage, StringComparison.Ordinal);
+        Assert.Contains("docker exec -it &lt;container&gt; tuvima-admin setup code", codeStage, StringComparison.Ordinal);
+        Assert.Contains("tuvima-admin setup code", codeStage, StringComparison.Ordinal);
+        Assert.Contains("Setup has to be finished from your home network.", codeStage, StringComparison.Ordinal);
+        Assert.Contains("<SetupCodeStage", setup, StringComparison.Ordinal);
+        Assert.Contains("SetupBeginRefusalReasons.RemoteRefused", setup, StringComparison.Ordinal);
+        // The ingress comes from the Dashboard's classifier through a protected root-component parameter,
+        // never from anything the browser sends.
+        Assert.Contains("HttpContext?.ClientIngress()", host, StringComparison.Ordinal);
+        Assert.Contains("OriginalClientIngress = ClientIngress ?? ClientIngressValues.Remote", setup, StringComparison.Ordinal);
+        Assert.Contains("SuppressSessionToken", setupClient, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Login_SeparatesUnavailableEngineFromAnExplicitFirstRun()
     {
         var dashboard = Read("src/MediaEngine.Web/Services/Integration/DashboardAuthenticationEndpoints.cs");

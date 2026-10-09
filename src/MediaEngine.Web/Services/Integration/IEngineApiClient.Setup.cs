@@ -8,7 +8,11 @@ public partial interface IEngineApiClient
     Task<SetupLocaleDto?> GetSetupLocaleAsync(string? setupSession, CancellationToken ct = default);
     Task<SetupLocaleDto?> SaveSetupLocaleAsync(SetupLocaleDto locale, string? setupSession, CancellationToken ct = default);
     Task<SetupStatusDto?> GetSetupStatusAsync(CancellationToken ct = default);
-    Task<SetupStartResponse?> BeginSetupAsync(CancellationToken ct = default);
+    /// <summary>
+    /// Starts setup. <paramref name="request"/> carries the Dashboard's own ingress classification and, when the
+    /// visitor is not on this computer, the setup code they typed.
+    /// </summary>
+    Task<SetupBeginOutcome> BeginSetupAsync(SetupBeginRequest request, CancellationToken ct = default);
     Task<SetupPreflightDto?> RunSetupPreflightAsync(string? setupSession, CancellationToken ct = default);
     Task<SetupAdministratorResponse?> CreateSetupAdministratorAsync(SetupAdministratorRequest request, string setupSession, CancellationToken ct = default);
     Task<SetupMediaLocationsDto?> ValidateSetupMediaLocationsAsync(string? setupSession, CancellationToken ct = default);
@@ -25,3 +29,8 @@ public partial interface IEngineApiClient
     Task<SetupReadinessDto?> GetSetupReadinessAsync(string? setupSession, CancellationToken ct = default);
     Task<SetupStatusDto?> CompleteSetupAsync(string? setupSession, CancellationToken ct = default);
 }
+
+/// <summary>What the Engine said to a request to start setup.</summary>
+/// <param name="Started">The new setup session, or null when setup did not start.</param>
+/// <param name="Refusal">Why the Engine refused (code needed, code wrong, or not on the home network), when it did.</param>
+public sealed record SetupBeginOutcome(SetupStartResponse? Started, SetupBeginRefusalDto? Refusal);

@@ -72,13 +72,20 @@ public static class SetupEndpoints
             catch (ArgumentException) { return ApiErrors.BadRequest("The language or country is not recognized."); }
         }).Produces<SetupLocaleDto>();
 
-        group.MapPost("/begin", async (SetupSessionService sessions, CancellationToken ct) =>
+        group.MapPost("/begin", async (SetupBeginRequest? request, SetupSessionService sessions, CancellationToken ct) =>
         {
-            var result = await sessions.BeginAsync(ct).ConfigureAwait(false);
-            return result is null
-                ? ApiErrors.Conflict("Setup has already been secured by an administrator account.")
-                : Results.Ok(result);
+            // The Dashboard (service credential) classifies the visitor; a missing value counts as remote.
+            var result = await sessions.BeginAsync(request?.OriginalClientIngress, request?.SetupCode, ct).ConfigureAwait(false);
+            if (result.Started is not null)
+            {
+                return Results.Ok(result.Started);
+            }
+
+            return result.Refusal is not null
+                ? Results.Json(result.Refusal, statusCode: StatusCodes.Status403Forbidden)
+                : ApiErrors.Conflict("Setup has already been secured by an administrator account.");
         }).Produces<SetupStartResponse>()
+            .Produces<SetupBeginRefusalDto>(StatusCodes.Status403Forbidden)
             .RequireRateLimiting("authentication");
 
         group.MapPost("/preflight", async (

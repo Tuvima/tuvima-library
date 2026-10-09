@@ -137,6 +137,11 @@ COPY --from=build /app/engine    ./engine
 COPY --from=build /app/dashboard ./dashboard
 COPY --from=build /app/admin      ./admin
 
+# Host administration on PATH, with the container's config and data-store locations as defaults:
+#   docker exec -it <container> tuvima-admin setup code
+RUN printf '%s\n' '#!/bin/sh' 'export TUVIMA_CONFIG_DIR="${TUVIMA_CONFIG_DIR:-/config}" TUVIMA_DB_PATH="${TUVIMA_DB_PATH:-/db/library.db}"; exec /app/admin/tuvima-admin "$@"' > /usr/local/bin/tuvima-admin \
+ && chmod 755 /usr/local/bin/tuvima-admin
+
 # Copy only the distributable defaults admitted by .dockerignore. The entrypoint
 # seeds these into an empty /config volume and overlays container path defaults.
 COPY --from=build /src/config/ ./default-config/
