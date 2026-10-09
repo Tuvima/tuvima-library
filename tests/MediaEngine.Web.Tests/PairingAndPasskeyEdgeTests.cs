@@ -44,4 +44,32 @@ public sealed class PairingAndPasskeyEdgeTests
         Assert.Null(request.Headers.Host);
         Assert.False(request.Headers.Contains("Origin"));
     }
+
+    [Theory]
+    [InlineData("https", "tuvima.example.com", true)]
+    [InlineData("https", "TUVIMA.example.com:443", true)]
+    [InlineData("http", "tuvima.example.com", false)]
+    [InlineData("https", "localhost:7062", false)]
+    [InlineData("http", "192.168.1.20:5016", false)]
+    [InlineData("https", "evil.example", false)]
+    public void PasskeyOfferedOnlyAtThePublicOrigin(string scheme, string host, bool offered)
+    {
+        var context = new DefaultHttpContext();
+        context.Request.Scheme = scheme;
+        context.Request.Host = new HostString(host);
+        var network = new NetworkSettings();
+        network.Remote.PublicHostname = "https://tuvima.example.com";
+
+        Assert.Equal(offered, PasskeyOriginGate.IsPublicOrigin(context.Request, network));
+    }
+
+    [Fact]
+    public void PasskeyNeverOfferedWithoutAPublicAddress()
+    {
+        var context = new DefaultHttpContext();
+        context.Request.Scheme = "https";
+        context.Request.Host = new HostString("localhost", 7062);
+
+        Assert.False(PasskeyOriginGate.IsPublicOrigin(context.Request, new NetworkSettings()));
+    }
 }

@@ -42,7 +42,8 @@ public static class DashboardAuthenticationEndpoints
                     tokens.RequestToken ?? string.Empty,
                     externalProviders,
                     deviceId,
-                    SafeReturnUrl(returnUrl)),
+                    SafeReturnUrl(returnUrl),
+                    PasskeyOriginGate.IsPublicOrigin(context)),
                 "text/html",
                 Encoding.UTF8);
         }).AllowAnonymous();
@@ -245,6 +246,11 @@ public static class DashboardAuthenticationEndpoints
                 return limited;
             }
 
+            if (!PasskeyOriginGate.IsPublicOrigin(context))
+            {
+                return Results.BadRequest();
+            }
+
             return await identity.GetPasskeyLoginOptionsAsync(request.Email, context.ClientIngress(), context.Request.IsHttps, ct).ConfigureAwait(false) is { } result ? Results.Ok(result) : Results.BadRequest();
         }).AllowAnonymous();
 
@@ -267,7 +273,7 @@ public static class DashboardAuthenticationEndpoints
         }).AllowAnonymous();
 
         app.MapPost("/auth/passkeys/registration/options", async (HttpContext context, DashboardIdentityClient identity, IAntiforgery antiforgery, CancellationToken ct) =>
-        { await antiforgery.ValidateRequestAsync(context).ConfigureAwait(false); return await identity.GetPasskeyRegistrationOptionsAsync(ct).ConfigureAwait(false) is { } result ? Results.Ok(result) : Results.BadRequest(); });
+        { await antiforgery.ValidateRequestAsync(context).ConfigureAwait(false); if (!PasskeyOriginGate.IsPublicOrigin(context)) { return Results.BadRequest(); } return await identity.GetPasskeyRegistrationOptionsAsync(ct).ConfigureAwait(false) is { } result ? Results.Ok(result) : Results.BadRequest(); });
 
         app.MapPost("/auth/passkeys/registration/complete", async (CompletePasskeyRegistrationRequest request, HttpContext context, DashboardIdentityClient identity, IAntiforgery antiforgery, CancellationToken ct) =>
         { await antiforgery.ValidateRequestAsync(context).ConfigureAwait(false); return await identity.CompletePasskeyRegistrationAsync(request, ct).ConfigureAwait(false) ? Results.NoContent() : Results.BadRequest(); });
@@ -360,6 +366,7 @@ public static class DashboardAuthenticationEndpoints
         return Results.Content(
             LoginPage(tokens.RequestToken ?? string.Empty, externalProviders,
                 EnsureDeviceCookie(context), SafeReturnUrl(form?["returnUrl"].ToString()),
+                PasskeyOriginGate.IsPublicOrigin(context),
                 "This sign-in form expired. Please enter your details again."),
             "text/html", Encoding.UTF8, StatusCodes.Status400BadRequest);
     }
@@ -396,6 +403,7 @@ public static class DashboardAuthenticationEndpoints
         IReadOnlyList<RegisteredExternalAuthProvider> externalProviders,
         string deviceId,
         string returnUrl,
+        bool showPasskey,
         string? message = null)
     {
         var externalButtons = string.Join(
@@ -415,10 +423,10 @@ public static class DashboardAuthenticationEndpoints
               <label>Email<input id="signin-email" type="email" name="email" autocomplete="username" required autofocus></label>
               <label>Password<input type="password" name="password" autocomplete="current-password" required></label><button>Sign in</button></form>
               <p><a href="/auth/recover">Forgot your password?</a></p>
-              <button type="button" id="passkey-login">Sign in with a passkey</button><p id="passkey-message" class="supporting"></p>
+              {(showPasskey ? "<button type=\"button\" id=\"passkey-login\">Sign in with a passkey</button><p id=\"passkey-message\" class=\"supporting\"></p>" : string.Empty)}
               <details><summary>Sign in with a local profile</summary><form method="post"><input type="hidden" name="__RequestVerificationToken" value="{H(token)}"><input type="hidden" name="action" value="login"><input type="hidden" name="returnUrl" value="{H(returnUrl)}"><label>Profile ID<input name="profileId" required></label><label>PIN (if configured)<input type="password" inputmode="numeric" name="pin"></label><button>Continue</button></form></details>
               {externalButtons}
-              {passkeyScript}
+              {(showPasskey ? passkeyScript : string.Empty)}
               """;
 
         return Shell(form);
