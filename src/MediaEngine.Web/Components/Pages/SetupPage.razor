@@ -385,7 +385,7 @@
         if (_setupSession is null || !PasswordsMatch) { Snackbar.Add("Enter the same password twice.", AppSeverity.Error); return; }
         if (!TryCountGuess()) { Snackbar.Add(_guessRefusal, AppSeverity.Error); return; }
         _busy = true;
-        var result = await ApiClient.CreateSetupAdministratorAsync(new SetupAdministratorRequest
+        var outcome = await ApiClient.CreateSetupAdministratorAsync(new SetupAdministratorRequest
         {
             SignIn = UsesThisComputer ? SetupSignInModes.ThisComputer : SetupSignInModes.Password,
             OriginalClientIngress = ClientForwarded ? ClientIngressValues.Remote : (ClientIngress ?? ClientIngressValues.Remote),
@@ -394,9 +394,10 @@
             DisplayName = _displayName, DeviceId = Guid.NewGuid().ToString("D"), DeviceName = "Setup browser",
         }, _setupSession);
         _busy = false;
+        var result = outcome.Created;
         if (result is null)
         {
-            if (UsesThisComputer) _signInNotice = "The account could not be created. Starting without a password only works on the computer that runs Tuvima, so you can also choose another way and set a password.";
+            if (UsesThisComputer && outcome.Code == SetupAdministratorRefusalCodes.NotAvailableHere) _signInNotice = "Starting without a password only works on the computer that runs Tuvima. Choose another way to set a password instead.";
             else Snackbar.Add("The administrator could not be created.", AppSeverity.Error);
         }
         else { await ClearSetupSessionAsync(); if (result.RecoveryCodes.Count > 0) _recoveryCodes = result.RecoveryCodes; else SignIn(); }

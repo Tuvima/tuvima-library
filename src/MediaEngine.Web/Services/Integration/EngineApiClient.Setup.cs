@@ -48,8 +48,46 @@ public sealed partial class EngineApiClient
     public Task<SetupPreflightDto?> RunSetupPreflightAsync(string? setupSession, CancellationToken ct = default) =>
         SetupSendAsync<SetupPreflightDto>(HttpMethod.Post, "/setup/v1/preflight", JsonContent.Create(new { }), setupSession, ct);
 
-    public Task<SetupAdministratorResponse?> CreateSetupAdministratorAsync(SetupAdministratorRequest request, string setupSession, CancellationToken ct = default) =>
-        SetupSendAsync<SetupAdministratorResponse>(HttpMethod.Post, "/setup/v1/administrator", JsonContent.Create(request), setupSession, ct);
+    public async Task<SetupAdministratorOutcome> CreateSetupAdministratorAsync(SetupAdministratorRequest request, string setupSession, CancellationToken ct = default)
+    {
+        try
+        {
+            using var message = new HttpRequestMessage(HttpMethod.Post, "/setup/v1/administrator") { Content = JsonContent.Create(request) };
+            message.Headers.TryAddWithoutValidation("X-Tuvima-Setup-Session", setupSession);
+            message.Options.Set(DashboardEngineAuthenticationHandler.SuppressSessionToken, true);
+            using var response = await _http.SendAsync(message, HttpCompletionOption.ResponseHeadersRead, ct);
+            if (response.IsSuccessStatusCode)
+            {
+                return new SetupAdministratorOutcome(await response.Content.ReadFromJsonAsync<SetupAdministratorResponse>(cancellationToken: ct), null);
+            }
+
+            _logger.LogWarning("Setup request POST /setup/v1/administrator failed with {Status}", response.StatusCode);
+            string? code = null;
+            if (response.StatusCode == System.Net.HttpStatusCode.Conflict)
+            {
+                try
+                {
+                    using var body = System.Text.Json.JsonDocument.Parse(await response.Content.ReadAsStringAsync(ct));
+                    code = body.RootElement.ValueKind == System.Text.Json.JsonValueKind.Object
+                        && body.RootElement.TryGetProperty("code", out var value) && value.ValueKind == System.Text.Json.JsonValueKind.String
+                        ? value.GetString()
+                        : null;
+                }
+                catch (System.Text.Json.JsonException)
+                {
+                    // Not a problem body (for example a proxy page): there is simply no code to report.
+                }
+            }
+
+            return new SetupAdministratorOutcome(null, code);
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested) { return new SetupAdministratorOutcome(null, null); }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Setup request POST /setup/v1/administrator failed");
+            return new SetupAdministratorOutcome(null, null);
+        }
+    }
 
     public Task<SetupMediaLocationsDto?> ValidateSetupMediaLocationsAsync(string? setupSession, CancellationToken ct = default) =>
         SetupSendAsync<SetupMediaLocationsDto>(HttpMethod.Post, "/setup/v1/media-locations/validate", JsonContent.Create(new { }), setupSession, ct);
