@@ -5,7 +5,7 @@ public sealed class ProfileEndpointRouteTests
     [Fact]
     public void ProfileEndpoints_ExposeUserOverviewWithoutUsingUnfilteredActivity()
     {
-        var source = File.ReadAllText(GetRepoFilePath(@"src\MediaEngine.Api\Endpoints\ProfileEndpoints.cs"));
+        var source = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Api/Endpoints/ProfileEndpoints.cs"));
 
         Assert.Contains("group.MapGet(\"/{id:guid}/overview\"", source, StringComparison.Ordinal);
         Assert.Contains("GetProfileOverview", source, StringComparison.Ordinal);
@@ -16,7 +16,7 @@ public sealed class ProfileEndpointRouteTests
         Assert.DoesNotContain("FROM user_states us", source, StringComparison.Ordinal);
         Assert.DoesNotContain("GetSystemStatus", source, StringComparison.Ordinal);
 
-        var serviceSource = File.ReadAllText(GetRepoFilePath(@"src\MediaEngine.Api\Services\ReadServices\ProfileOverviewReadService.cs"));
+        var serviceSource = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Api/Services/ReadServices/ProfileOverviewReadService.cs"));
         Assert.Contains("GetRecentByProfileAsync(profileId, 20, ct)", serviceSource, StringComparison.Ordinal);
         Assert.Contains("FROM user_states us", serviceSource, StringComparison.Ordinal);
         Assert.Contains("RecentlyAddedItems = recentlyAdded", serviceSource, StringComparison.Ordinal);
@@ -26,7 +26,7 @@ public sealed class ProfileEndpointRouteTests
     [Fact]
     public void SystemActivityRepository_HasProfileScopedQuery()
     {
-        var source = File.ReadAllText(GetRepoFilePath(@"src\MediaEngine.Storage\SystemActivityRepository.cs"));
+        var source = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Storage/SystemActivityRepository.cs"));
 
         Assert.Contains("GetRecentByProfileAsync", source, StringComparison.Ordinal);
         Assert.Contains("WHERE  profile_id = @profileId", source, StringComparison.Ordinal);
@@ -35,10 +35,10 @@ public sealed class ProfileEndpointRouteTests
     [Fact]
     public void ReadersAndPlayers_SaveProgressMetadataForOverviewStats()
     {
-        var watchSource = File.ReadAllText(GetRepoFilePath(@"src\MediaEngine.Web\Components\Pages\WatchPlayerPage.razor"));
-        var videoHostSource = File.ReadAllText(GetRepoFilePath(@"src\MediaEngine.Web\Components\Watch\VideoPlaybackHost.razor"));
-        var playerServiceSource = File.ReadAllText(GetRepoFilePath(@"src\MediaEngine.Api\Services\Playback\PlayerService.cs"));
-        var readerSource = File.ReadAllText(GetRepoFilePath(@"src\MediaEngine.Web\Components\Pages\EpubReader.razor"));
+        var watchSource = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Web/Components/Pages/WatchPlayerPage.razor"));
+        var videoHostSource = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Web/Components/Watch/VideoPlaybackHost.razor"));
+        var playerServiceSource = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Api/Services/Playback/PlayerService.cs"));
+        var readerSource = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Web/Components/Pages/EpubReader.razor"));
 
         Assert.Contains("Playback.PlayVideoAsync", watchSource, StringComparison.Ordinal);
         Assert.Contains("Playback.ReportHeartbeatAsync", videoHostSource, StringComparison.Ordinal);
@@ -50,7 +50,7 @@ public sealed class ProfileEndpointRouteTests
     [Fact]
     public void ViewPolicyEndpoints_AreProfileScopedAndAdministratorOnly()
     {
-        var source = File.ReadAllText(GetRepoFilePath(@"src\MediaEngine.Api\Endpoints\ProfileEndpoints.cs"));
+        var source = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Api/Endpoints/ProfileEndpoints.cs"));
 
         var getStart = source.IndexOf("group.MapGet(\"/{id:guid}/settings/view\"", StringComparison.Ordinal);
         var putStart = source.IndexOf("group.MapPut(\"/{id:guid}/settings/view\"", StringComparison.Ordinal);

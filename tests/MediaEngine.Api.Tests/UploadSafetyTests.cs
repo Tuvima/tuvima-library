@@ -12,8 +12,8 @@ public sealed class UploadSafetyTests
     [Fact]
     public void UploadEndpoints_KeepViewAndCatalogueIntakeSeparated()
     {
-        var source = File.ReadAllText(GetRepoFilePath(@"src\MediaEngine.Api\Endpoints\IngestionEndpoints.cs"));
-        var view = File.ReadAllText(GetRepoFilePath(@"src\MediaEngine.Api\Endpoints\ViewEndpoints.cs"));
+        var source = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Api/Endpoints/IngestionEndpoints.cs"));
+        var view = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Api/Endpoints/ViewEndpoints.cs"));
 
         Assert.Contains("form[\"destinationLibraryId\"]", source, StringComparison.Ordinal);
         Assert.Contains("library.PrimaryDestination", source, StringComparison.Ordinal);

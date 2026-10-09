@@ -5,7 +5,7 @@ public sealed class NetworkEndpointRouteTests
     [Fact]
     public void NetworkAdministrationRoutesUseExplicitPermissionsAndPortWorkflow()
     {
-        var source = Read(@"src\MediaEngine.Api\Endpoints\NetworkEndpoints.cs");
+        var source = Read(@"src/MediaEngine.Api/Endpoints/NetworkEndpoints.cs");
 
         Assert.Contains("MapGroup(\"/settings/network\")", source, StringComparison.Ordinal);
         Assert.Contains("RequireAdministratorOrApplication(ApplicationPermissionIds.NetworkStatusRead)", source, StringComparison.Ordinal);
@@ -19,8 +19,8 @@ public sealed class NetworkEndpointRouteTests
     [Fact]
     public void RouterCoordinatorUsesProtocolPriorityAndOwnedCleanup()
     {
-        var source = Read(@"src\MediaEngine.Api\Services\Networking\RouterPortMappingCoordinator.cs");
-        var registration = Read(@"src\MediaEngine.Api\DependencyInjection\TuvimaNetworkServiceCollectionExtensions.cs");
+        var source = Read(@"src/MediaEngine.Api/Services/Networking/RouterPortMappingCoordinator.cs");
+        var registration = Read(@"src/MediaEngine.Api/DependencyInjection/TuvimaNetworkServiceCollectionExtensions.cs");
 
         Assert.Contains("OrderBy(mapper => mapper.Priority)", source, StringComparison.Ordinal);
         Assert.Contains("RemoveActiveMappingAsync", source, StringComparison.Ordinal);
@@ -34,8 +34,8 @@ public sealed class NetworkEndpointRouteTests
     [Fact]
     public void PlaybackManifestAcceptsConnectionFactsAndAppliesNetworkPolicy()
     {
-        var endpoints = Read(@"src\MediaEngine.Api\Endpoints\PlaybackEndpoints.cs");
-        var playback = Read(@"src\MediaEngine.Api\Services\Playback\PlaybackCapabilitiesService.cs");
+        var endpoints = Read(@"src/MediaEngine.Api/Endpoints/PlaybackEndpoints.cs");
+        var playback = Read(@"src/MediaEngine.Api/Services/Playback/PlaybackCapabilitiesService.cs");
 
         Assert.Contains("NetworkConnectionClassifier classifier", endpoints, StringComparison.Ordinal);
         Assert.Contains("ShouldUseAdaptiveRemoteDelivery", playback, StringComparison.Ordinal);

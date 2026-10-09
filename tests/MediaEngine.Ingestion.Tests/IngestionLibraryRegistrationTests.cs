@@ -18,13 +18,13 @@ public sealed class IngestionLibraryRegistrationTests
     [Fact]
     public void IngestionProject_IsInternalLibraryWithoutStandaloneHostFiles()
     {
-        string projectPath = GetRepoFilePath(@"src\MediaEngine.Ingestion\MediaEngine.Ingestion.csproj");
+        string projectPath = GetRepoFilePath(@"src/MediaEngine.Ingestion/MediaEngine.Ingestion.csproj");
         string project = File.ReadAllText(projectPath);
 
         Assert.Contains("Sdk=\"Microsoft.NET.Sdk\"", project, StringComparison.Ordinal);
         Assert.DoesNotContain("Microsoft.NET.Sdk.Worker", project, StringComparison.Ordinal);
-        Assert.False(File.Exists(GetRepoFilePath(@"src\MediaEngine.Ingestion\Program.cs")));
-        Assert.False(File.Exists(GetRepoFilePath(@"src\MediaEngine.Ingestion\appsettings.json")));
+        Assert.False(File.Exists(GetRepoFilePath(@"src/MediaEngine.Ingestion/Program.cs")));
+        Assert.False(File.Exists(GetRepoFilePath(@"src/MediaEngine.Ingestion/appsettings.json")));
     }
 
     [Fact]

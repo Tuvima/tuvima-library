@@ -7,7 +7,7 @@ public sealed class SettingsEndpointRouteTests
     [Fact]
     public void SystemEndpoints_ExposeNonDestructiveRestoreValidation()
     {
-        var source = File.ReadAllText(GetRepoFilePath(@"src\MediaEngine.Api\Endpoints\SystemEndpoints.cs"));
+        var source = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Api/Endpoints/SystemEndpoints.cs"));
 
         Assert.Contains("MapPost(\"/system/backups/validate\"", source, StringComparison.Ordinal);
         Assert.Contains("backups.ValidateRestore(request.FileName)", source, StringComparison.Ordinal);
@@ -23,7 +23,7 @@ public sealed class SettingsEndpointRouteTests
     [Fact]
     public void OrganizationTemplatePreview_IsReadOnlyEndpointBesideExplicitSave()
     {
-        var source = File.ReadAllText(GetRepoFilePath(@"src\MediaEngine.Api\Endpoints\SettingsEndpoints.cs"));
+        var source = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Api/Endpoints/SettingsEndpoints.cs"));
 
         Assert.Contains("grp.MapPost(\"/organization-template/preview\"", source, StringComparison.Ordinal);
         Assert.Contains(".WithName(\"PreviewOrganizationTemplate\")", source, StringComparison.Ordinal);
@@ -40,7 +40,7 @@ public sealed class SettingsEndpointRouteTests
     [Fact]
     public void ProfileEndpoints_ExposePlaybackSettingsRoutes()
     {
-        var source = File.ReadAllText(GetRepoFilePath(@"src\MediaEngine.Api\Endpoints\ProfileEndpoints.cs"));
+        var source = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Api/Endpoints/ProfileEndpoints.cs"));
 
         Assert.Contains("MapGet(\"/{id:guid}/settings/playback\"", source, StringComparison.Ordinal);
         Assert.Contains("MapPut(\"/{id:guid}/settings/playback\"", source, StringComparison.Ordinal);
@@ -52,7 +52,7 @@ public sealed class SettingsEndpointRouteTests
     [Fact]
     public void SettingsEndpoints_ExposePhase6AdminControlRoutes()
     {
-        var source = File.ReadAllText(GetRepoFilePath(@"src\MediaEngine.Api\Endpoints\SettingsEndpoints.cs"));
+        var source = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Api/Endpoints/SettingsEndpoints.cs"));
 
         Assert.DoesNotContain("grp.MapGet(\"/folders\"", source, StringComparison.Ordinal);
         Assert.DoesNotContain("grp.MapPut(\"/folders\"", source, StringComparison.Ordinal);
@@ -89,7 +89,7 @@ public sealed class SettingsEndpointRouteTests
     [Fact]
     public void ProviderSettingsWrites_KeepCredentialsOutOfProviderManifests()
     {
-        var source = File.ReadAllText(GetRepoFilePath(@"src\MediaEngine.Api\Endpoints\SettingsEndpoints.cs"));
+        var source = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Api/Endpoints/SettingsEndpoints.cs"));
 
         Assert.DoesNotContain("SaveProviderSecrets", source, StringComparison.Ordinal);
         Assert.DoesNotContain("request.ApiKey", source, StringComparison.Ordinal);
@@ -102,7 +102,7 @@ public sealed class SettingsEndpointRouteTests
     [Fact]
     public void ProviderSettingsStatus_DoesNotRunLiveExternalProbesOnPageLoad()
     {
-        var source = File.ReadAllText(GetRepoFilePath(@"src\MediaEngine.Api\Endpoints\SettingsEndpoints.cs"));
+        var source = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Api/Endpoints/SettingsEndpoints.cs"));
         var start = source.IndexOf("grp.MapGet(\"/providers\", async", StringComparison.Ordinal);
         var end = source.IndexOf(".WithName(\"GetProviderStatus\")", StringComparison.Ordinal);
 

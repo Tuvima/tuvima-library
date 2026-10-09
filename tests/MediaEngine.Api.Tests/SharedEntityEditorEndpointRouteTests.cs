@@ -9,7 +9,7 @@ public sealed class SharedEntityEditorEndpointRouteTests
     [Fact]
     public void SharedEditorRoutes_DeclareGraphTargetsPermissionsAndMultipartUploads()
     {
-        var source = File.ReadAllText(RepoFile(@"src\MediaEngine.Api\Endpoints\SharedEntityEditorEndpoints.cs"));
+        var source = File.ReadAllText(RepoFile(@"src/MediaEngine.Api/Endpoints/SharedEntityEditorEndpoints.cs"));
         Assert.Contains("/entity-editor", source, StringComparison.Ordinal);
         Assert.Contains("/universes/{qid}/entities/{id:guid}/context", source, StringComparison.Ordinal);
         Assert.Contains("/universes/{qid}/artwork/{assetType}/upload", source, StringComparison.Ordinal);
@@ -25,7 +25,7 @@ public sealed class SharedEntityEditorEndpointRouteTests
     [Fact]
     public void SharedEditorContracts_HaveStableGraphSectionsAndBreadcrumb()
     {
-        var source = File.ReadAllText(RepoFile(@"src\MediaEngine.Contracts\Universe\SharedEntityEditorContracts.cs"));
+        var source = File.ReadAllText(RepoFile(@"src/MediaEngine.Contracts/Universe/SharedEntityEditorContracts.cs"));
         Assert.Contains("public const string Universe = \"Universe\"", source, StringComparison.Ordinal);
         Assert.Contains("public const string FictionalEntity = \"FictionalEntity\"", source, StringComparison.Ordinal);
         Assert.Contains("public const string Artwork = \"artwork\"", source, StringComparison.Ordinal);
@@ -36,7 +36,7 @@ public sealed class SharedEntityEditorEndpointRouteTests
     [Fact]
     public void RootGraphProjections_PageAuthorizedEntities_AndExposeFactQualifierProvenanceAndTime()
     {
-        var source = File.ReadAllText(RepoFile(@"src\MediaEngine.Api\Endpoints\SharedEntityEditorEndpoints.cs"));
+        var source = File.ReadAllText(RepoFile(@"src/MediaEngine.Api/Endpoints/SharedEntityEditorEndpoints.cs"));
 
         Assert.Contains("LoadAllVisibleEntitiesAsync", source, StringComparison.Ordinal);
         Assert.Contains("const int pageSize = 100", source, StringComparison.Ordinal);

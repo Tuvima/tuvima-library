@@ -5,7 +5,7 @@ public sealed class IngestionPipelineCharacterizationTests
     [Fact]
     public void Restart_ResumesIncompleteRegistrationBeforeFingerprintShortcut()
     {
-        var source = ReadRepoSource(@"src\MediaEngine.Ingestion\IngestionEngine.Watching.cs");
+        var source = ReadRepoSource(@"src/MediaEngine.Ingestion/IngestionEngine.Watching.cs");
         var recovery = Find(source, "var trackedOperation = await GetTrackedIngestionOperationAsync");
         var fingerprint = Find(source, "if (fingerprintIsCurrent)");
         Assert.True(recovery < fingerprint);
@@ -15,7 +15,7 @@ public sealed class IngestionPipelineCharacterizationTests
     [Fact]
     public void Restart_RepairsMissingIdentityWithoutChangingSourceOrBypassingLocalPolicy()
     {
-        var source = ReadRepoSource(@"src\MediaEngine.Ingestion\IngestionEngine.Pipeline.cs");
+        var source = ReadRepoSource(@"src/MediaEngine.Ingestion/IngestionEngine.Pipeline.cs");
         var recovery = Find(source, "var missingIdentityJob = context.Library?.BypassesExternalIdentity != true");
         var refresh = Find(source, "if (contentChanged || missingIdentityJob)", recovery);
         var fail = Find(source, "if (missingIdentityJob && !metadataRefreshed)", refresh);
@@ -50,7 +50,7 @@ public sealed class IngestionPipelineCharacterizationTests
     [Fact]
     public void CandidatePipeline_DefersOrganizationUntilRetailIdentityWork()
     {
-        var source = ReadRepoSource(@"src\MediaEngine.Ingestion\IngestionEngine.Pipeline.cs");
+        var source = ReadRepoSource(@"src/MediaEngine.Ingestion/IngestionEngine.Pipeline.cs");
         var pipelineStart = Find(source, "private async Task RunOrganizeStageAsync");
         var pipelineEnd = Find(source, "private async Task RunWriteBackStageAsync", pipelineStart);
         var pipeline = source[pipelineStart..pipelineEnd];
@@ -67,7 +67,7 @@ public sealed class IngestionPipelineCharacterizationTests
     [Fact]
     public void CandidatePipeline_CreatesReviewBeforeIdentityJob()
     {
-        var source = ReadRepoSource(@"src\MediaEngine.Ingestion\IngestionEngine.Pipeline.cs");
+        var source = ReadRepoSource(@"src/MediaEngine.Ingestion/IngestionEngine.Pipeline.cs");
         var gate = Find(source, "_gate.Evaluate(");
         var review = Find(source, "CreateIngestionReviewItemAsync(", gate);
         var identityJob = Find(source, "_identityJobRepo.CreateAsync", review);
@@ -79,7 +79,7 @@ public sealed class IngestionPipelineCharacterizationTests
     [Fact]
     public void CandidatePipeline_PreservesIdentityJobWhenWriteBackFails()
     {
-        var source = ReadRepoSource(@"src\MediaEngine.Ingestion\IngestionEngine.Pipeline.cs");
+        var source = ReadRepoSource(@"src/MediaEngine.Ingestion/IngestionEngine.Pipeline.cs");
         var deferredFailure = Find(source, "context.DeferredWriteBackFailure = ex;");
         var identityJob = Find(source, "_identityJobRepo.CreateAsync", deferredFailure);
         var rethrow = Find(source, ".Capture(context.DeferredWriteBackFailure)", identityJob);
@@ -91,7 +91,7 @@ public sealed class IngestionPipelineCharacterizationTests
     [Fact]
     public void IngestionEngine_FacadeAndImplementationFilesStayWithinSizeRatchets()
     {
-        var mainPath = FindRepoFile(@"src\MediaEngine.Ingestion\IngestionEngine.cs");
+        var mainPath = FindRepoFile(@"src/MediaEngine.Ingestion/IngestionEngine.cs");
         Assert.True(
             File.ReadLines(mainPath).Count() < 500,
             "IngestionEngine.cs must remain a small public facade.");
@@ -111,7 +111,7 @@ public sealed class IngestionPipelineCharacterizationTests
 
     private static string ReadIngestionEngineSources()
     {
-        var mainPath = FindRepoFile(@"src\MediaEngine.Ingestion\IngestionEngine.cs");
+        var mainPath = FindRepoFile(@"src/MediaEngine.Ingestion/IngestionEngine.cs");
         var pipelinePath = Path.Combine(
             Path.GetDirectoryName(mainPath)!,
             "IngestionEngine.Pipeline.cs");

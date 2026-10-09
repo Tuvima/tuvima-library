@@ -10,11 +10,11 @@ public sealed class CollectionEndpointRouteTests
         // Response shaping moved out of the endpoint file into
         // CollectionResponseFormatting in stage 5A; scan both as one surface.
         var source =
-            File.ReadAllText(GetRepoFilePath(@"src\MediaEngine.Api\Endpoints\CollectionEndpoints.cs"))
-            + File.ReadAllText(GetRepoFilePath(@"src\MediaEngine.Api\Services\Collections\CollectionResponseFormatting.cs"));
-        var browseReadServiceSource = File.ReadAllText(GetRepoFilePath(@"src\MediaEngine.Api\Services\ReadServices\CollectionBrowseReadService.cs"));
+            File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Api/Endpoints/CollectionEndpoints.cs"))
+            + File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Api/Services/Collections/CollectionResponseFormatting.cs"));
+        var browseReadServiceSource = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Api/Services/ReadServices/CollectionBrowseReadService.cs"));
 
-        var readServiceSource = File.ReadAllText(GetRepoFilePath(@"src\MediaEngine.Api\Services\ReadServices\CollectionMediaLookupReadService.cs"));
+        var readServiceSource = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Api/Services/ReadServices/CollectionMediaLookupReadService.cs"));
         Assert.Contains("ICollectionBrowseReadService browseReadService", source, StringComparison.Ordinal);
         Assert.Contains("ICollectionSearchReadService searchReadService", source, StringComparison.Ordinal);
         Assert.Contains("ICollectionMediaLookupReadService mediaLookupReadService", source, StringComparison.Ordinal);
@@ -47,7 +47,7 @@ public sealed class CollectionEndpointRouteTests
         Assert.Contains("AS EarliestYear", browseReadServiceSource, StringComparison.Ordinal);
         Assert.Contains("AS LatestYear", browseReadServiceSource, StringComparison.Ordinal);
 
-        var accessPolicySource = File.ReadAllText(GetRepoFilePath(@"src\MediaEngine.Api\Models\CollectionAccessPolicy.cs"));
+        var accessPolicySource = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Api/Models/CollectionAccessPolicy.cs"));
         Assert.Contains("Smart", accessPolicySource, StringComparison.Ordinal);
         Assert.Contains("PlaylistFolder", accessPolicySource, StringComparison.Ordinal);
         Assert.Contains("ApiErrors.Forbidden(\"The active profile cannot edit this collection.\")", source, StringComparison.Ordinal);
@@ -56,8 +56,8 @@ public sealed class CollectionEndpointRouteTests
     [Fact]
     public void CollectionSearch_UsesSqlBackedQueryInsteadOfLoadingAllCollections()
     {
-        var source = File.ReadAllText(GetRepoFilePath(@"src\MediaEngine.Api\Endpoints\CollectionEndpoints.cs"));
-        var serviceSource = File.ReadAllText(GetRepoFilePath(@"src\MediaEngine.Api\Services\ReadServices\CollectionSearchReadService.cs"));
+        var source = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Api/Endpoints/CollectionEndpoints.cs"));
+        var serviceSource = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Api/Services/ReadServices/CollectionSearchReadService.cs"));
         var searchStart = source.IndexOf("group.MapGet(\"/search\"", StringComparison.Ordinal);
         var nextRoute = source.IndexOf("group.MapGet(\"/parents\"", StringComparison.Ordinal);
 
@@ -76,7 +76,7 @@ public sealed class CollectionEndpointRouteTests
     [Fact]
     public void SystemViewGroups_UseTypedGuidParametersForGuidBlobStorage()
     {
-        var source = File.ReadAllText(GetRepoFilePath(@"src\MediaEngine.Api\Services\ReadServices\CollectionBrowseReadService.cs"));
+        var source = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Api/Services/ReadServices/CollectionBrowseReadService.cs"));
 
         Assert.Contains("WHERE w.id IN @WorkIds", source, StringComparison.Ordinal);
         Assert.Contains("WorkIds = workIds.Select(GuidSql.ToBlob).ToArray()", source, StringComparison.Ordinal);
@@ -86,13 +86,13 @@ public sealed class CollectionEndpointRouteTests
     [Fact]
     public void TvSystemViewsExposeRootWorkIdsForWatchShowDetails()
     {
-        var collectionSource = File.ReadAllText(GetRepoFilePath(@"src\MediaEngine.Api\Endpoints\CollectionEndpoints.cs"));
-        var browseSource = File.ReadAllText(GetRepoFilePath(@"src\MediaEngine.Api\Services\ReadServices\CollectionBrowseReadService.cs"));
-        var lookupSource = File.ReadAllText(GetRepoFilePath(@"src\MediaEngine.Api\Services\ReadServices\CollectionMediaLookupReadService.cs"));
-        var detailsSource = File.ReadAllText(GetRepoFilePath(@"src\MediaEngine.Api\Endpoints\DetailEndpoints.cs"));
+        var collectionSource = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Api/Endpoints/CollectionEndpoints.cs"));
+        var browseSource = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Api/Services/ReadServices/CollectionBrowseReadService.cs"));
+        var lookupSource = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Api/Services/ReadServices/CollectionMediaLookupReadService.cs"));
+        var detailsSource = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Api/Endpoints/DetailEndpoints.cs"));
         var composerSource = ReadDetailComposerSource();
-        var watchPageSource = File.ReadAllText(GetRepoFilePath(@"src\MediaEngine.Web\Components\Pages\UnifiedDetailPage.razor"));
-        var detailRouteRequestSource = File.ReadAllText(GetRepoFilePath(@"src\MediaEngine.Web\Components\Details\DetailRouteRequest.cs"));
+        var watchPageSource = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Web/Components/Pages/UnifiedDetailPage.razor"));
+        var detailRouteRequestSource = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Web/Components/Details/DetailRouteRequest.cs"));
 
         Assert.Contains("group.MapGet(\"/system-views\"", collectionSource, StringComparison.Ordinal);
         Assert.Contains("groupField", collectionSource, StringComparison.Ordinal);
@@ -109,7 +109,7 @@ public sealed class CollectionEndpointRouteTests
     [Fact]
     public void ContentGroups_ResolveArtworkThroughManagedStreamUrls()
     {
-        var source = File.ReadAllText(GetRepoFilePath(@"src\MediaEngine.Api\Endpoints\CollectionEndpoints.cs"));
+        var source = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Api/Endpoints/CollectionEndpoints.cs"));
 
         Assert.Contains("using MediaEngine.Api.Services.Display;", source, StringComparison.Ordinal);
         Assert.Contains("DisplayArtworkUrlResolver.Resolve(value, assetId, streamKind, state)", source, StringComparison.Ordinal);
@@ -120,8 +120,8 @@ public sealed class CollectionEndpointRouteTests
     [Fact]
     public void CollectionReadRoutes_DelegateMigratedProjectionSqlToReadServices()
     {
-        var endpointSource = File.ReadAllText(GetRepoFilePath(@"src\MediaEngine.Api\Endpoints\CollectionEndpoints.cs"));
-        var registrations = File.ReadAllText(GetRepoFilePath(@"src\MediaEngine.Api\DependencyInjection\ApiReadServiceCollectionExtensions.cs"));
+        var endpointSource = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Api/Endpoints/CollectionEndpoints.cs"));
+        var registrations = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Api/DependencyInjection/ApiReadServiceCollectionExtensions.cs"));
 
         Assert.Contains("ICollectionBrowseReadService browseReadService", endpointSource, StringComparison.Ordinal);
         Assert.Contains("ICollectionSearchReadService searchReadService", endpointSource, StringComparison.Ordinal);
@@ -144,11 +144,11 @@ public sealed class CollectionEndpointRouteTests
     [Fact]
     public void CollectionCatalog_ClassifiesCollectionsServerSide()
     {
-        var endpointSource = File.ReadAllText(GetRepoFilePath(@"src\MediaEngine.Api\Endpoints\CollectionEndpoints.cs"));
-        var catalogReadServiceSource = File.ReadAllText(GetRepoFilePath(@"src\MediaEngine.Api\Services\ReadServices\CollectionCatalogReadService.cs"));
-        var mapperSource = File.ReadAllText(GetRepoFilePath(@"src\MediaEngine.Api\Models\ManagedCollectionMapper.cs"));
+        var endpointSource = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Api/Endpoints/CollectionEndpoints.cs"));
+        var catalogReadServiceSource = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Api/Services/ReadServices/CollectionCatalogReadService.cs"));
+        var mapperSource = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Api/Models/ManagedCollectionMapper.cs"));
         var source = endpointSource + catalogReadServiceSource + mapperSource;
-        var dtoSource = File.ReadAllText(GetRepoFilePath(@"src\MediaEngine.Contracts\Collections\ManagedCollections.cs"));
+        var dtoSource = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Contracts/Collections/ManagedCollections.cs"));
 
         Assert.Contains("MapGet(\"/catalog\"", endpointSource, StringComparison.Ordinal);
         Assert.DoesNotContain("/management-catalog", endpointSource, StringComparison.Ordinal);
@@ -250,7 +250,7 @@ public sealed class CollectionEndpointRouteTests
         Assert.Contains("TotalCount", dtoSource, StringComparison.Ordinal);
         Assert.DoesNotContain("Title     = title ?? $\"Work", source, StringComparison.Ordinal);
 
-        var lookupSource = File.ReadAllText(GetRepoFilePath(@"src\MediaEngine.Api\Services\ReadServices\CollectionMediaLookupReadService.cs"));
+        var lookupSource = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Api/Services/ReadServices/CollectionMediaLookupReadService.cs"));
         Assert.Contains("WHEN w.work_kind = 'child' THEN COALESCE(gp.id, p.id, w.id)", lookupSource, StringComparison.Ordinal);
         Assert.Contains("BuildLookupRoute(row)", lookupSource, StringComparison.Ordinal);
         Assert.Contains(".GroupBy(row => row.WorkId)", lookupSource, StringComparison.Ordinal);
@@ -262,7 +262,7 @@ public sealed class CollectionEndpointRouteTests
     private static string ReadDetailComposerSource()
     {
         var detailsRoot = Path.GetDirectoryName(
-            GetRepoFilePath(@"src\MediaEngine.Api\Services\Details\DetailComposerService.cs"))!;
+            GetRepoFilePath(@"src/MediaEngine.Api/Services/Details/DetailComposerService.cs"))!;
         return string.Join(
             "\n",
             new[] { Path.Combine(detailsRoot, "DetailComposerService.cs") }

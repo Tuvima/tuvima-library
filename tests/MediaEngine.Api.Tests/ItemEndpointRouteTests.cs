@@ -8,7 +8,7 @@ public sealed class ItemEndpointRouteTests
     [Fact]
     public void LibraryItemEndpoints_UseLibraryItemsRootWithoutDuplicateItemsSegment()
     {
-        var source = File.ReadAllText(GetRepoFilePath(@"src\MediaEngine.Api\Endpoints\LibraryItemEndpoints.cs"));
+        var source = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Api/Endpoints/LibraryItemEndpoints.cs"));
 
         Assert.Contains("var group = app.MapGroup(\"/library/items\")", source, StringComparison.Ordinal);
         Assert.Contains("group.MapGet(\"\", async (", source, StringComparison.Ordinal);
@@ -22,7 +22,7 @@ public sealed class ItemEndpointRouteTests
     [Fact]
     public void Program_MapsLibraryItemEndpointsOnly()
     {
-        var source = File.ReadAllText(GetRepoFilePath(@"src\MediaEngine.Api\DependencyInjection\ApiEndpointRouteBuilderExtensions.cs"));
+        var source = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Api/DependencyInjection/ApiEndpointRouteBuilderExtensions.cs"));
         var oldSurface = "Reg" + "istry";
 
         Assert.Contains("MapLibraryItemEndpoints", source, StringComparison.Ordinal);
@@ -57,7 +57,7 @@ public sealed class ItemEndpointRouteTests
     [Fact]
     public void ItemCanonicalEndpoints_AreGenericItemEndpointsUnderLibraryItems()
     {
-        var source = File.ReadAllText(GetRepoFilePath(@"src\MediaEngine.Api\Endpoints\ItemCanonicalEndpoints.cs"));
+        var source = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Api/Endpoints/ItemCanonicalEndpoints.cs"));
 
         Assert.Contains("public static class ItemCanonicalEndpoints", source, StringComparison.Ordinal);
         Assert.Contains("MapItemCanonicalEndpoints", source, StringComparison.Ordinal);
@@ -70,17 +70,17 @@ public sealed class ItemEndpointRouteTests
         Assert.Contains("group.MapPost(\"/{entityId:guid}/retail-match-preview\", async (", source, StringComparison.Ordinal);
         Assert.Contains("group.MapPost(\"/{entityId:guid}/retail-match\", async (", source, StringComparison.Ordinal);
         Assert.Contains("group.MapPost(\"/{entityId:guid}/wikidata-match\", async (", source, StringComparison.Ordinal);
-        Assert.Contains("expected_identity_revision", File.ReadAllText(GetRepoFilePath(@"src\MediaEngine.Contracts\Matching\MatchingDtos.cs")), StringComparison.Ordinal);
+        Assert.Contains("expected_identity_revision", File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Contracts/Matching/MatchingDtos.cs")), StringComparison.Ordinal);
         Assert.Contains("IsGenericTvChildPolicy(policy)", source, StringComparison.Ordinal);
     }
 
     [Fact]
     public void ItemEditorEndpoints_ResolveCurrentMediaAssetOrWorkTargets()
     {
-        var canonical = File.ReadAllText(GetRepoFilePath(@"src\MediaEngine.Api\Endpoints\ItemCanonicalEndpoints.cs"));
-        var canonicalData = File.ReadAllText(GetRepoFilePath(@"src\MediaEngine.Storage\ItemCanonicalRepository.cs"));
-        var libraryItems = File.ReadAllText(GetRepoFilePath(@"src\MediaEngine.Api\Endpoints\LibraryItemEndpoints.cs"));
-        var libraryItemData = File.ReadAllText(GetRepoFilePath(@"src\MediaEngine.Storage\LibraryItemCurationRepository.cs"));
+        var canonical = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Api/Endpoints/ItemCanonicalEndpoints.cs"));
+        var canonicalData = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Storage/ItemCanonicalRepository.cs"));
+        var libraryItems = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Api/Endpoints/LibraryItemEndpoints.cs"));
+        var libraryItemData = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Storage/LibraryItemCurationRepository.cs"));
 
         Assert.Contains("ResolveWorkAssetContextAsync", canonical, StringComparison.Ordinal);
         Assert.Contains("No current media asset or work target found", canonical, StringComparison.Ordinal);
@@ -95,8 +95,8 @@ public sealed class ItemEndpointRouteTests
     [Fact]
     public void ItemCanonicalEndpoints_RouteManualWritesByLineageScope()
     {
-        var source = File.ReadAllText(GetRepoFilePath(@"src\MediaEngine.Api\Endpoints\ItemCanonicalEndpoints.cs"));
-        var canonicalData = File.ReadAllText(GetRepoFilePath(@"src\MediaEngine.Storage\ItemCanonicalRepository.cs"));
+        var source = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Api/Endpoints/ItemCanonicalEndpoints.cs"));
+        var canonicalData = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Storage/ItemCanonicalRepository.cs"));
 
         Assert.Contains("IWorkRepository workRepo", source, StringComparison.Ordinal);
         Assert.Contains("ResolveScopedTarget(context.AssetId, lineage, key)", source, StringComparison.Ordinal);
@@ -108,7 +108,7 @@ public sealed class ItemEndpointRouteTests
     [Fact]
     public void ItemCanonicalEndpoints_UseTypedDataServiceInsteadOfDirectDatabaseAccess()
     {
-        var source = File.ReadAllText(GetRepoFilePath(@"src\MediaEngine.Api\Endpoints\ItemCanonicalEndpoints.cs"));
+        var source = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Api/Endpoints/ItemCanonicalEndpoints.cs"));
 
         // ClearStaleIdsAsync (the caller of itemCanonicalData.DeleteIdentityArtifactsAsync) was
         // extracted into CanonicalCandidateBuilder as part of Stage 5A wave 2 (packet f2, Job 3
@@ -116,7 +116,7 @@ public sealed class ItemEndpointRouteTests
         // The endpoint file still injects and calls the typed data service directly for its own
         // work (ResolveWorkAssetContextAsync); the identity-artifact deletion call now lives in
         // the extracted service, so it is asserted there instead.
-        var candidateBuilder = File.ReadAllText(GetRepoFilePath(@"src\MediaEngine.Api\Services\Canonical\CanonicalCandidateBuilder.cs"));
+        var candidateBuilder = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Api/Services/Canonical/CanonicalCandidateBuilder.cs"));
 
         Assert.Contains("IItemCanonicalRepository itemCanonicalData", source, StringComparison.Ordinal);
         Assert.Contains("itemCanonicalData.ResolveWorkAssetContextAsync", source, StringComparison.Ordinal);
@@ -132,8 +132,8 @@ public sealed class ItemEndpointRouteTests
     [Fact]
     public void ItemCanonicalEndpoints_SupportRetailAndWikidataSearchModes()
     {
-        var source = File.ReadAllText(GetRepoFilePath(@"src\MediaEngine.Api\Endpoints\ItemCanonicalEndpoints.cs"));
-        var models = File.ReadAllText(GetRepoFilePath(@"src\MediaEngine.Contracts\Matching\MatchingDtos.cs"));
+        var source = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Api/Endpoints/ItemCanonicalEndpoints.cs"));
+        var models = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Contracts/Matching/MatchingDtos.cs"));
 
         Assert.Contains("SearchMode", models, StringComparison.Ordinal);
         Assert.Contains("\"retail_only\"", source, StringComparison.Ordinal);
@@ -146,7 +146,7 @@ public sealed class ItemEndpointRouteTests
     [Fact]
     public void ItemCanonicalEndpoints_ManualWikidataReplacementQueuesAssetEnrichment()
     {
-        var source = File.ReadAllText(GetRepoFilePath(@"src\MediaEngine.Api\Endpoints\ItemCanonicalEndpoints.cs"));
+        var source = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Api/Endpoints/ItemCanonicalEndpoints.cs"));
 
         Assert.DoesNotContain("pipeline.RunSynchronousAsync(new HarvestRequest", source, StringComparison.Ordinal);
         Assert.Contains("await pipeline.EnqueueAsync(new HarvestRequest", source, StringComparison.Ordinal);
@@ -159,8 +159,8 @@ public sealed class ItemEndpointRouteTests
     [Fact]
     public void ItemCanonicalEndpoints_WikidataReplacementAppliesAcceptedCanonicalCandidateFields()
     {
-        var source = File.ReadAllText(GetRepoFilePath(@"src\MediaEngine.Api\Endpoints\ItemCanonicalEndpoints.cs"));
-        var contracts = File.ReadAllText(GetRepoFilePath(@"src\MediaEngine.Contracts\Matching\MatchingDtos.cs"));
+        var source = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Api/Endpoints/ItemCanonicalEndpoints.cs"));
+        var contracts = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Contracts/Matching/MatchingDtos.cs"));
         var route = source[source.IndexOf("/{entityId:guid}/wikidata-match", StringComparison.Ordinal)..];
 
         Assert.Contains("AcceptedSuggestedKeys", contracts, StringComparison.Ordinal);
@@ -176,7 +176,7 @@ public sealed class ItemEndpointRouteTests
     [Fact]
     public void ItemCanonicalEndpoints_RetailReplacementQueuesBeforeOptionalProviderSideEffects()
     {
-        var source = File.ReadAllText(GetRepoFilePath(@"src\MediaEngine.Api\Endpoints\ItemCanonicalEndpoints.cs"));
+        var source = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Api/Endpoints/ItemCanonicalEndpoints.cs"));
         var retailRoute = source[source.IndexOf("/{entityId:guid}/retail-match", StringComparison.Ordinal)..];
         retailRoute = retailRoute[..retailRoute.IndexOf("/{entityId:guid}/wikidata-match", StringComparison.Ordinal)];
 
@@ -224,13 +224,13 @@ public sealed class ItemEndpointRouteTests
             .Where(path =>
             {
                 var relative = Path.GetRelativePath(root, path);
-                return !relative.StartsWith(@"src\MediaEngine.Contracts\Details\", StringComparison.OrdinalIgnoreCase)
-                    && !relative.StartsWith(@"src\MediaEngine.Api\Services\Details\", StringComparison.OrdinalIgnoreCase)
-                    && !relative.StartsWith(@"src\MediaEngine.Web\Components\Details\", StringComparison.OrdinalIgnoreCase)
-                    && !relative.StartsWith(@"src\MediaEngine.Domain\Capabilities\", StringComparison.OrdinalIgnoreCase)
-                    && !relative.Equals(@"src\MediaEngine.Api\Services\ReviewQueueRouter.cs", StringComparison.OrdinalIgnoreCase)
-                    && !relative.Equals(@"src\MediaEngine.Api\Program.cs", StringComparison.OrdinalIgnoreCase)
-                    && !relative.Equals(@"src\MediaEngine.Api\DependencyInjection\TuvimaStorageServiceCollectionExtensions.cs", StringComparison.OrdinalIgnoreCase)
+                return !relative.StartsWith(@"src/MediaEngine.Contracts/Details/", StringComparison.OrdinalIgnoreCase)
+                    && !relative.StartsWith(@"src/MediaEngine.Api/Services/Details/", StringComparison.OrdinalIgnoreCase)
+                    && !relative.StartsWith(@"src/MediaEngine.Web/Components/Details/", StringComparison.OrdinalIgnoreCase)
+                    && !relative.StartsWith(@"src/MediaEngine.Domain/Capabilities/", StringComparison.OrdinalIgnoreCase)
+                    && !relative.Equals(@"src/MediaEngine.Api/Services/ReviewQueueRouter.cs", StringComparison.OrdinalIgnoreCase)
+                    && !relative.Equals(@"src/MediaEngine.Api/Program.cs", StringComparison.OrdinalIgnoreCase)
+                    && !relative.Equals(@"src/MediaEngine.Api/DependencyInjection/TuvimaStorageServiceCollectionExtensions.cs", StringComparison.OrdinalIgnoreCase)
                     && !relative.Equals(@"tests\MediaEngine.Web.Tests\UnifiedDetailComponentTests.cs", StringComparison.OrdinalIgnoreCase);
             })
             .Where(path => ContainsRemovedLibraryItemSurface(File.ReadAllText(path)))

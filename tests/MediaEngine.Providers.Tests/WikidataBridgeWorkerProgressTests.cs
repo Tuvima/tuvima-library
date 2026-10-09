@@ -86,7 +86,7 @@ public sealed class WikidataBridgeWorkerProgressTests
 
     private static string ReadWorkerSource(string workerName)
     {
-        var workers = GetRepoFilePath(@"src\MediaEngine.Providers\Workers");
+        var workers = GetRepoFilePath(@"src/MediaEngine.Providers/Workers");
         return string.Join(
             Environment.NewLine,
             new[] { Path.Combine(workers, $"{workerName}.cs") }

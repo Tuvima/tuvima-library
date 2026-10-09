@@ -220,7 +220,7 @@ public sealed class Phase6SettingsAdminHardeningTests
 
         foreach (var config in providerConfigs)
         {
-            var configJson = ReadRepoFile($@"config\providers\{config}");
+            var configJson = ReadRepoFile($@"config/providers/{config}");
             Assert.Contains("\"icon\"", configJson, StringComparison.Ordinal);
             Assert.Contains("images/providers/", configJson, StringComparison.Ordinal);
         }

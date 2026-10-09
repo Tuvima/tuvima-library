@@ -5,7 +5,7 @@ public sealed class ActivityEndpointTests
     [Fact]
     public void ActivityEndpoints_ResolvePlaceholderPersonNamesBeforeReturningFeed()
     {
-        var source = File.ReadAllText(GetRepoFilePath(@"src\MediaEngine.Api\Endpoints\ActivityEndpoints.cs"));
+        var source = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Api/Endpoints/ActivityEndpoints.cs"));
 
         Assert.Contains("ResolveActivityPersonNameAsync", source, StringComparison.Ordinal);
         Assert.Contains("personRepo.FindByIdAsync", source, StringComparison.Ordinal);
@@ -17,10 +17,10 @@ public sealed class ActivityEndpointTests
     [Fact]
     public void ActivityEndpoints_ExposeBatchFirstAuditContract()
     {
-        var endpoints = File.ReadAllText(GetRepoFilePath(@"src\MediaEngine.Api\Endpoints\ActivityEndpoints.cs"));
-        var service = File.ReadAllText(GetRepoFilePath(@"src\MediaEngine.Api\Services\ReadServices\ActivityBatchReadService.cs"));
+        var endpoints = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Api/Endpoints/ActivityEndpoints.cs"));
+        var service = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Api/Services/ReadServices/ActivityBatchReadService.cs"));
         var registrations = File.ReadAllText(GetRepoFilePath(
-            @"src\MediaEngine.Api\DependencyInjection\ApiReadServiceCollectionExtensions.cs"));
+            @"src/MediaEngine.Api/DependencyInjection/ApiReadServiceCollectionExtensions.cs"));
 
         Assert.Contains("IActivityBatchReadService", endpoints, StringComparison.Ordinal);
         Assert.Contains("\"/batches\"", endpoints, StringComparison.Ordinal);

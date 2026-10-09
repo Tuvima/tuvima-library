@@ -5,8 +5,8 @@ public sealed class Phase7AiEndpointGuardrailTests
     [Fact]
     public void AiEndpoints_ParseEveryConfiguredRoleAndDeclareTypedPermissions()
     {
-        var source = ReadRepoFile(@"src\MediaEngine.Api\Endpoints\AiEndpoints.cs");
-        var roleSource = ReadRepoFile(@"src\MediaEngine.Domain\Enums\AiModelRole.cs");
+        var source = ReadRepoFile(@"src/MediaEngine.Api/Endpoints/AiEndpoints.cs");
+        var roleSource = ReadRepoFile(@"src/MediaEngine.Domain/Enums/AiModelRole.cs");
 
         Assert.Contains("TryParseModelRole", source, StringComparison.Ordinal);
         Assert.Contains("AiModelDefinitions.ToRoleKey", source, StringComparison.Ordinal);
@@ -25,8 +25,8 @@ public sealed class Phase7AiEndpointGuardrailTests
     [Fact]
     public void AiConfigSave_ValidatesBeforePersisting()
     {
-        var endpoint = ReadRepoFile(@"src\MediaEngine.Api\Endpoints\AiEndpoints.cs");
-        var store = ReadRepoFile(@"src\MediaEngine.Api\Services\AiConfigurationService.cs");
+        var endpoint = ReadRepoFile(@"src/MediaEngine.Api/Endpoints/AiEndpoints.cs");
+        var store = ReadRepoFile(@"src/MediaEngine.Api/Services/AiConfigurationService.cs");
 
         Assert.Contains("configurationStore.Save", endpoint, StringComparison.Ordinal);
         Assert.Contains("ValidationProblem", endpoint, StringComparison.Ordinal);
@@ -38,7 +38,7 @@ public sealed class Phase7AiEndpointGuardrailTests
     [Fact]
     public void AiModelStatus_ExposesSelectedRuntimeFactsWithoutExperimentEndpoints()
     {
-        var source = ReadRepoFile(@"src\MediaEngine.Api\Endpoints\AiEndpoints.cs");
+        var source = ReadRepoFile(@"src/MediaEngine.Api/Endpoints/AiEndpoints.cs");
 
         Assert.DoesNotContain("/benchmark/suites", source, StringComparison.Ordinal);
         Assert.Contains("SelectionRationale", source, StringComparison.Ordinal);
@@ -56,7 +56,7 @@ public sealed class Phase7AiEndpointGuardrailTests
     [Fact]
     public void AiOperations_ReturnTypedProblemsWithoutRawExceptionDetails()
     {
-        var source = ReadRepoFile(@"src\MediaEngine.Api\Endpoints\AiEndpoints.cs");
+        var source = ReadRepoFile(@"src/MediaEngine.Api/Endpoints/AiEndpoints.cs");
 
         Assert.Contains("unknown-model-role", source, StringComparison.Ordinal);
         Assert.DoesNotContain("evaluation-failed", source, StringComparison.Ordinal);

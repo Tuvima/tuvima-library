@@ -45,7 +45,7 @@ public sealed class NetworkConnectionClassifierTests
     [Fact]
     public void ClassifierSourceExplicitlyForbidsAuthorizationUse()
     {
-        var source = File.ReadAllText(GetRepoFilePath(@"src\MediaEngine.Api\Services\Networking\NetworkConnectionClassifier.cs"));
+        var source = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Api/Services/Networking/NetworkConnectionClassifier.cs"));
 
         Assert.Contains("must not be", source, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("authentication", source, StringComparison.OrdinalIgnoreCase);

@@ -47,10 +47,10 @@ public sealed class TypographySystemGuardTests
         var webRoot = RepoPath(@"src/MediaEngine.Web");
         var allowedFiles = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
-            @"wwwroot\tuvima.tokens.css",
-            @"wwwroot\app.css",
-            @"Components\Playback\ReaderSettingsPanel.razor",
-            @"Components\Pages\EpubReader.razor",
+            "wwwroot/tuvima.tokens.css",
+            "wwwroot/app.css",
+            "Components/Playback/ReaderSettingsPanel.razor",
+            "Components/Pages/EpubReader.razor",
         };
 
         var violations = Directory
@@ -62,7 +62,7 @@ public sealed class TypographySystemGuardTests
                            && !path.Contains($"{Path.DirectorySeparatorChar}obj{Path.DirectorySeparatorChar}", StringComparison.OrdinalIgnoreCase)
                            && !path.Contains($"wwwroot{Path.DirectorySeparatorChar}lib{Path.DirectorySeparatorChar}", StringComparison.OrdinalIgnoreCase))
             .Where(path => File.ReadAllText(path).Contains("Montserrat", StringComparison.OrdinalIgnoreCase))
-            .Select(path => Path.GetRelativePath(webRoot, path))
+            .Select(path => Path.GetRelativePath(webRoot, path).Replace('\\', '/'))
             .Where(path => !allowedFiles.Contains(path))
             .ToArray();
 
