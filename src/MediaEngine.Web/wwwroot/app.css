@@ -3837,3 +3837,12 @@ input[type="reset"],
 
 .compact-continue__item:is(:hover,:focus-visible) .app-progress-bar__track { height:6px; }
 .compact-continue__item:is(:hover,:focus-visible) .app-progress-bar__fill { background:var(--tl-accent-primary-hover); }
+
+.invitation-qr {
+    width: 11rem;
+    max-width: 100%;
+    margin: 0.75rem 0;
+    padding: 0.5rem;
+    border-radius: 0.5rem;
+    background: #fff;
+}

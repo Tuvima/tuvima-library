@@ -240,20 +240,14 @@ public static class AuthenticationEndpoints
         }).WithName("AcceptAccountInvitation").Produces<AuthSessionResponse>().RequireRateLimiting("authentication").RequireAuthorization(AuthPolicies.DashboardService);
 
         group.MapPost("/invitations/preview", async (PreviewAccountInvitationRequest request,
-            IConfigurationLoader configuration, IFirstPartyIdentityService identity, CancellationToken ct) =>
+            IFirstPartyIdentityService identity, CancellationToken ct) =>
         {
-            var policy = configuration.LoadCore().Auth;
-            if (!AllowsClient(configuration.LoadNetwork(), request.OriginalClientIngress, request.OriginalClientIsHttps,
-                policy.PasswordSignInEnabled))
-            {
-                return Results.Unauthorized();
-            }
-
             // A wrong, used or expired code all look the same, so a guess learns nothing.
             return await identity.PreviewInvitationAsync(request.Code, ct).ConfigureAwait(false) is { } preview
                 ? Results.Ok(new AccountInvitationPreviewResponse(preview.Email, preview.ExpiresAt))
                 : ApiErrors.NotFound("That invitation is invalid, expired, or already used.");
-        }).WithName("PreviewAccountInvitation").Produces<AccountInvitationPreviewResponse>().RequireRateLimiting("authentication").RequireAuthorization(AuthPolicies.DashboardService);
+        }).WithName("PreviewAccountInvitation").Produces<AccountInvitationPreviewResponse>().RequireRateLimiting("authentication")
+          .AdmitClient<PreviewAccountInvitationRequest>(IsPasswordSignInAdmitted, () => Results.Unauthorized()).RequireAuthorization(AuthPolicies.DashboardService);
 
         group.MapPost("/session/validate", async (HttpRequest request, IFirstPartyIdentityService identity, DashboardAuthorityProjector projector, CancellationToken ct) =>
         {
@@ -310,14 +304,8 @@ public static class AuthenticationEndpoints
         }).WithName(PasswordChangeRequiredMiddleware.RevokeSessionEndpoint).Produces(StatusCodes.Status204NoContent).RequireAuthorization(AuthPolicies.HumanSelfService);
 
         group.MapPost("/password/change-temporary", async (ChangeTemporaryPasswordRequest request, ClaimsPrincipal user,
-            IFirstPartyIdentityService identity, DashboardAuthorityProjector projector, IConfigurationLoader configuration, CancellationToken ct) =>
+            IFirstPartyIdentityService identity, DashboardAuthorityProjector projector, CancellationToken ct) =>
         {
-            if (!AllowsClient(configuration.LoadNetwork(), request.OriginalClientIngress, request.OriginalClientIsHttps,
-                configuration.LoadCore().Auth.PasswordSignInEnabled))
-            {
-                return Results.Unauthorized();
-            }
-
             try
             {
                 var issued = await identity.ChangeTemporaryPasswordAsync(
@@ -332,7 +320,9 @@ public static class AuthenticationEndpoints
             {
                 return ApiErrors.Problem(StatusCodes.Status401Unauthorized, "Password not changed.", ex.Message);
             }
-        }).WithName(PasswordChangeRequiredMiddleware.ChangeTemporaryPasswordEndpoint).Produces<AuthSessionResponse>().RequireRateLimiting("authentication").RequireAuthorization(AuthPolicies.HumanSelfService);
+        }).WithName(PasswordChangeRequiredMiddleware.ChangeTemporaryPasswordEndpoint).Produces<AuthSessionResponse>().RequireRateLimiting("authentication")
+          .AdmitClient<ChangeTemporaryPasswordRequest>(IsPasswordSignInAdmitted, () => Results.Unauthorized())
+          .RequireAuthorization(AuthPolicies.HumanSelfService);
 
         group.MapPost("/password/change", async (ChangePasswordRequest request, ClaimsPrincipal user, IFirstPartyIdentityService identity, CancellationToken ct) =>
         {
@@ -652,6 +642,19 @@ public static class AuthenticationEndpoints
         string.Equals(request.Headers[ClientIngressValues.ForwardedHeader].ToString(), "true", StringComparison.OrdinalIgnoreCase)
         || request.Headers.ContainsKey("X-Forwarded-For")
         || request.Headers.ContainsKey("Forwarded");
+
+    private static bool IsPasswordSignInAdmitted(IServiceProvider services, PreviewAccountInvitationRequest request) =>
+        IsPasswordSignInAdmitted(services, request.OriginalClientIngress, request.OriginalClientIsHttps);
+
+    private static bool IsPasswordSignInAdmitted(IServiceProvider services, ChangeTemporaryPasswordRequest request) =>
+        IsPasswordSignInAdmitted(services, request.OriginalClientIngress, request.OriginalClientIsHttps);
+
+    private static bool IsPasswordSignInAdmitted(IServiceProvider services, string? originalClientIngress, bool originalClientIsHttps)
+    {
+        var configuration = services.GetRequiredService<IConfigurationLoader>();
+        return AllowsClient(configuration.LoadNetwork(), originalClientIngress, originalClientIsHttps,
+            configuration.LoadCore().Auth.PasswordSignInEnabled);
+    }
 
     private static bool IsLoginPermittedFor(IConfigurationLoader configuration, LocalLoginRequest request)
     {
