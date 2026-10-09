@@ -20,15 +20,23 @@ public sealed class MediaFileWriteIntentRepository(IDatabaseConnection database)
                    OR (status='writing' AND lease_expires_at < @now)
                 ORDER BY updated_at, asset_id LIMIT 1;
                 """, new { now = now.ToString("O") }, transaction);
-            if (row is null) return null;
+            if (row is null)
+            {
+                return null;
+            }
             var changed = connection.Execute("""
                 UPDATE media_file_write_intents
                 SET status='writing', attempts=attempts+1, lease_expires_at=@leaseUntil,
                     updated_at=@now
                 WHERE asset_id=@AssetId AND generation=@Generation
                   AND (status='pending' OR (status='writing' AND lease_expires_at < @now));
-                """, new { row.AssetId, row.Generation, now = now.ToString("O"),
-                    leaseUntil = now.Add(lease).ToString("O") }, transaction);
+                """, new
+            {
+                row.AssetId,
+                row.Generation,
+                now = now.ToString("O"),
+                leaseUntil = now.Add(lease).ToString("O")
+            }, transaction);
             return changed == 1 ? row with { Status = "writing", Attempts = row.Attempts + 1 } : null;
         }, ct);
 
@@ -36,7 +44,9 @@ public sealed class MediaFileWriteIntentRepository(IDatabaseConnection database)
         string? error = null, CancellationToken ct = default)
     {
         if (status is not ("verified" or "blocked" or "unsupported" or "failed" or "pending"))
+        {
             throw new ArgumentOutOfRangeException(nameof(status));
+        }
         return database.ExecuteWriteAsync((connection, transaction, token) =>
         {
             token.ThrowIfCancellationRequested();
@@ -44,8 +54,14 @@ public sealed class MediaFileWriteIntentRepository(IDatabaseConnection database)
                 UPDATE media_file_write_intents
                 SET status=@status, lease_expires_at=NULL, last_error=@error, updated_at=@now
                 WHERE asset_id=@assetId AND generation=@generation AND status='writing';
-                """, new { assetId, generation, status, error,
-                    now = DateTimeOffset.UtcNow.ToString("O") }, transaction) == 1;
+                """, new
+            {
+                assetId,
+                generation,
+                status,
+                error,
+                now = DateTimeOffset.UtcNow.ToString("O")
+            }, transaction) == 1;
         }, ct);
     }
 }

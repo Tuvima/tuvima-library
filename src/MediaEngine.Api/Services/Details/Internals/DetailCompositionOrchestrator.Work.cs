@@ -44,7 +44,9 @@ internal sealed partial class DetailCompositionOrchestrator
         CancellationToken ct)
     {
         using (var redirectConnection = _db.CreateConnection())
+        {
             workId = WorkRedirects.Resolve(redirectConnection, workId);
+        }
         if (authorizedAssetIds is { Count: 0 })
         {
             return null;
@@ -490,9 +492,18 @@ internal sealed partial class DetailCompositionOrchestrator
             pair => pair.Key,
             pair => pair.Value,
             StringComparer.OrdinalIgnoreCase);
-        if (Override("genre") is { } genre) displayFields[MetadataFieldConstants.Genre] = genre;
-        if (Override("content_rating") is { } contentRating) displayFields["content_rating"] = contentRating;
-        if (Override("language") is { } language) displayFields[MetadataFieldConstants.Language] = language;
+        if (Override("genre") is { } genre)
+        {
+            displayFields[MetadataFieldConstants.Genre] = genre;
+        }
+        if (Override("content_rating") is { } contentRating)
+        {
+            displayFields["content_rating"] = contentRating;
+        }
+        if (Override("language") is { } language)
+        {
+            displayFields[MetadataFieldConstants.Language] = language;
+        }
         if (displayOverrides.TryGetValue(MetadataFieldConstants.CustomTags, out var customTags))
         {
             displayFields[MetadataFieldConstants.CustomTags] = customTags.Trim();

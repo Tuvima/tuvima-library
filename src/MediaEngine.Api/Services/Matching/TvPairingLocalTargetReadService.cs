@@ -22,7 +22,10 @@ public sealed class TvPairingLocalTargetReadService(IDatabaseConnection db)
               AND w.parent_work_id IS NULL AND identity.id_value=@tvdbSeriesId;
             """, new { tvdbSeriesId, seriesKey = BridgeIdKeys.TvdbId },
             cancellationToken: ct)).ToArray();
-        if (shows.Length != 1) return null;
+        if (shows.Length != 1)
+        {
+            return null;
+        }
         return (shows[0], Resolve(shows[0], tvdbSeriesId, catalogue, ct));
     }
 
@@ -65,10 +68,15 @@ public sealed class TvPairingLocalTargetReadService(IDatabaseConnection db)
                 WHERE show.id = @showWorkId AND showIdentity.id_value = @tvdbSeriesId
                   AND episode.media_type = 'TV' AND episode.work_kind IN ('child', 'catalog')
                   AND episodeIdentity.id_value IN @ids;
-                """, new { showWorkId, tvdbSeriesId, ids,
-                    revisionKey = MetadataFieldConstants.IdentityRevision,
-                    episodeKey = BridgeIdKeys.TvdbEpisodeId,
-                    seriesKey = BridgeIdKeys.TvdbId }, cancellationToken: ct)));
+                """, new
+            {
+                showWorkId,
+                tvdbSeriesId,
+                ids,
+                revisionKey = MetadataFieldConstants.IdentityRevision,
+                episodeKey = BridgeIdKeys.TvdbEpisodeId,
+                seriesKey = BridgeIdKeys.TvdbId
+            }, cancellationToken: ct)));
         }
 
         return found.GroupBy(row => row.EpisodeId, StringComparer.Ordinal)

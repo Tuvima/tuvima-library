@@ -29,10 +29,14 @@ public sealed class TvdbMetadataProvider(
             || !int.TryParse(request.SeasonNumber, out var season)
             || !int.TryParse(request.EpisodeNumber, out var episode)
             || !client.IsConfigured())
+        {
             return [];
+        }
         if (request.Hints?.GetValueOrDefault(MetadataFieldConstants.IdentityProvider) is { } source
             && !source.Equals(Name, StringComparison.OrdinalIgnoreCase))
+        {
             return [];
+        }
 
         try
         {
@@ -42,10 +46,14 @@ public sealed class TvdbMetadataProvider(
                 ? await client.GetSeriesAsync(confirmedShowId, ct).ConfigureAwait(false)
                 : await FindShowAsync(showName, ct).ConfigureAwait(false);
             if (show is null)
+            {
                 return [];
+            }
             var showId = Id(show);
             if (showId is null)
+            {
                 return [];
+            }
             show = await client.GetSeriesAsync(showId, ct).ConfigureAwait(false) ?? show;
             var showEnglish = await client.GetSeriesTranslationAsync(showId, ct: ct).ConfigureAwait(false);
 
@@ -54,10 +62,14 @@ public sealed class TvdbMetadataProvider(
                 ? await client.GetEpisodeAsync(confirmedEpisodeId, ct).ConfigureAwait(false)
                 : await FindEpisodeAsync(showId, season, episode, ct).ConfigureAwait(false);
             if (match is null)
+            {
                 return [];
+            }
             if (!string.IsNullOrWhiteSpace(confirmedEpisodeId)
                 && Text(match, "seriesId") != showId)
+            {
                 return [];
+            }
             var episodeId = Id(match);
             var episodeEnglish = episodeId is null ? null
                 : await client.GetEpisodeTranslationAsync(episodeId, ct: ct).ConfigureAwait(false);
@@ -74,9 +86,13 @@ public sealed class TvdbMetadataProvider(
             Add(BridgeIdKeys.TvdbEpisodeId, episodeId, 1);
             Add("air_date", Text(match, "aired"), .9);
             if (Text(show, "firstAired") is { Length: >= 4 } premiered)
+            {
                 Add("year", premiered[..4], .85);
+            }
             else
+            {
                 Add("year", Text(show, "year"), .8);
+            }
             if (show["characters"] is JsonArray characters)
             {
                 foreach (var character in characters.Where(node => node is not null))
@@ -87,7 +103,9 @@ public sealed class TvdbMetadataProvider(
                     if (string.IsNullOrWhiteSpace(personName)
                         || string.IsNullOrWhiteSpace(personId)
                         || !string.Equals(role, "Actor", StringComparison.OrdinalIgnoreCase))
+                    {
                         continue;
+                    }
                     Add(MetadataFieldConstants.CastMember, personName, .9);
                     Add("cast_member_character", Text(character, "name"), .85);
                     Add("cast_member_tvdb_id", personId, .95);
@@ -100,7 +118,9 @@ public sealed class TvdbMetadataProvider(
             void Add(string key, string? value, double confidence)
             {
                 if (!string.IsNullOrWhiteSpace(value))
+                {
                     claims.Add(new ProviderClaim(key, value, confidence));
+                }
             }
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
@@ -116,13 +136,17 @@ public sealed class TvdbMetadataProvider(
         CancellationToken ct = default)
     {
         if (!CanHandle(request.MediaType) || !client.IsConfigured())
+        {
             return [];
+        }
 
         try
         {
             var showName = request.ShowName ?? request.Series ?? request.Title;
             if (string.IsNullOrWhiteSpace(showName))
+            {
                 return [];
+            }
             var response = await client.SearchSeriesAsync(showName, ct).ConfigureAwait(false);
             var shows = response?.AsArray().Where(node => node is not null)
                 .Take(Math.Clamp(limit, 1, 25)).ToList() ?? [];
@@ -133,7 +157,10 @@ public sealed class TvdbMetadataProvider(
                 foreach (var show in shows)
                 {
                     var showId = Id(show);
-                    if (showId is null) continue;
+                    if (showId is null)
+                    {
+                        continue;
+                    }
                     JsonNode? english = null;
                     try { english = await client.GetSeriesTranslationAsync(showId, ct: ct).ConfigureAwait(false); }
                     catch (Exception ex) when (ex is not OperationCanceledException)
@@ -143,7 +170,10 @@ public sealed class TvdbMetadataProvider(
                     var title = Text(english, "name")
                         ?? Text(show?["translations"], "eng")
                         ?? Text(show, "name");
-                    if (string.IsNullOrWhiteSpace(title)) continue;
+                    if (string.IsNullOrWhiteSpace(title))
+                    {
+                        continue;
+                    }
                     var year = Text(show, "year")
                         ?? (Text(show, "first_air_time") is { Length: >= 4 } firstAir
                             ? firstAir[..4] : null);
@@ -176,7 +206,9 @@ public sealed class TvdbMetadataProvider(
             {
                 var showId = Id(show);
                 if (showId is null)
+                {
                     continue;
+                }
                 var showEnglish = await client.GetSeriesTranslationAsync(showId, ct: ct).ConfigureAwait(false);
                 var englishShowName = Text(showEnglish, "name")
                     ?? Text(show?["translations"], "eng")
@@ -185,13 +217,19 @@ public sealed class TvdbMetadataProvider(
                 foreach (var episode in episodes)
                 {
                     if (episode is null || Number(episode, "seasonNumber") != season)
+                    {
                         continue;
+                    }
                     if (int.TryParse(request.EpisodeNumber, out var requestedNumber)
                         && Number(episode, "number") != requestedNumber)
+                    {
                         continue;
+                    }
                     var episodeId = Id(episode);
                     if (episodeId is null)
+                    {
                         continue;
+                    }
                     var english = await client.GetEpisodeTranslationAsync(episodeId, ct: ct).ConfigureAwait(false);
                     results.Add(new SearchResultItem(
                         Text(english, "name") ?? $"Episode {Number(episode, "number")}",
@@ -208,7 +246,9 @@ public sealed class TvdbMetadataProvider(
                             ["episode_title"] = Text(english, "name") ?? "",
                         }));
                     if (results.Count >= limit)
+                    {
                         return results;
+                    }
                 }
             }
             return results;
@@ -223,17 +263,26 @@ public sealed class TvdbMetadataProvider(
     private async Task<JsonNode?> FindShowAsync(string? name, CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(name))
+        {
             return null;
+        }
         var results = await client.SearchSeriesAsync(name, ct).ConfigureAwait(false);
         var shows = results?.AsArray().Where(node => node is not null).Take(10).ToList() ?? [];
         foreach (var show in shows)
         {
             if (string.Equals(Text(show, "name"), name, StringComparison.OrdinalIgnoreCase))
+            {
                 return show;
-            if (Id(show) is not { } id) continue;
+            }
+            if (Id(show) is not { } id)
+            {
+                continue;
+            }
             var english = await client.GetSeriesTranslationAsync(id, ct: ct).ConfigureAwait(false);
             if (string.Equals(Text(english, "name"), name, StringComparison.OrdinalIgnoreCase))
+            {
                 return show;
+            }
         }
         return shows.Count == 1 ? shows[0] : null;
     }
@@ -255,14 +304,19 @@ public sealed class TvdbMetadataProvider(
                 && source.Scheme == Uri.UriSchemeHttps
                 && (source.Host.Equals("thetvdb.com", StringComparison.OrdinalIgnoreCase)
                     || source.Host.EndsWith(".thetvdb.com", StringComparison.OrdinalIgnoreCase)))
+            {
                 return source.ToString();
+            }
         }
         return null;
     }
     private static string? Id(JsonNode? node)
     {
         var remote = Text(node, "tvdb_id");
-        if (!string.IsNullOrWhiteSpace(remote) && remote.All(char.IsDigit)) return remote;
+        if (!string.IsNullOrWhiteSpace(remote) && remote.All(char.IsDigit))
+        {
+            return remote;
+        }
         var id = Text(node, "id");
         return !string.IsNullOrWhiteSpace(id) && id.All(char.IsDigit) ? id : null;
     }

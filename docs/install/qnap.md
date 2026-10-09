@@ -13,7 +13,7 @@ Run Tuvima Library as a Container Station application from Compose YAML. Keep th
 
 Allow 10–20 minutes for folder and container setup, plus downloads. Menu labels can vary by Container Station version.
 
-Before creating folders, [check image access](docker.md#before-you-start). Public access has not been confirmed as of October 8, 2026. If a pull is unavailable, use the [local source-build fallback](docker.md#build-the-image-from-source) and load that image on the NAS before creating the application.
+Tuvima Library uses the published `ghcr.io/tuvima/tuvima_library:latest` image. If the NAS cannot download it, use the [local source-build path](docker.md#build-the-image-from-source) and load that image on the NAS before creating the application.
 
 ## Prepare storage
 

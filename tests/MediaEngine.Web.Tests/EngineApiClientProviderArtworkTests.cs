@@ -19,7 +19,8 @@ public sealed class EngineApiClientProviderArtworkTests
             {
                 Content = new StringContent("""{"items":[],"message":null,"page":2,"pageSize":25,"totalCount":60,"hasMore":true}""", Encoding.UTF8, "application/json"),
             };
-        })) { BaseAddress = new Uri("http://localhost:61495") };
+        }))
+        { BaseAddress = new Uri("http://localhost:61495") };
         var client = new EngineApiClient(http, NullLogger<EngineApiClient>.Instance);
 
         var result = await client.DiscoverProviderArtworkAsync(Guid.Parse("11111111-1111-1111-1111-111111111111"),

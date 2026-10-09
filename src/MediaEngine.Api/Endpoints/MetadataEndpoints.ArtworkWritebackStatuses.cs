@@ -1,5 +1,5 @@
-using MediaEngine.Api.Security;
 using MediaEngine.Api.Http;
+using MediaEngine.Api.Security;
 using MediaEngine.Api.Services;
 using MediaEngine.Contracts.Artwork;
 using MediaEngine.Domain.Authorization;
@@ -21,7 +21,9 @@ public static partial class MetadataEndpoints
         {
             if (request.MediaAssetIds is null || request.MediaAssetIds.Count is < 1 or > 100
                 || request.MediaAssetIds.Any(id => id == Guid.Empty))
+            {
                 return ApiErrors.BadRequest("Provide between 1 and 100 media asset IDs.");
+            }
 
             var ids = request.MediaAssetIds.Distinct().ToArray();
             var statuses = new List<ArtworkWritebackStatusDto>(ids.Length);
@@ -29,9 +31,14 @@ public static partial class MetadataEndpoints
             {
                 var access = await authorization.EvaluateAssetAsync(http, id, ApplicationPermissionIds.MetadataRead, ct);
                 if (access != CatalogueResourceAccess.Allowed)
+                {
                     return ApiErrors.NotFound("One or more owned files were not found.");
+                }
                 var status = await writeback.GetStatusAsync(id, ct);
-                if (status is null) return ApiErrors.NotFound("One or more owned files were not found.");
+                if (status is null)
+                {
+                    return ApiErrors.NotFound("One or more owned files were not found.");
+                }
                 statuses.Add(status);
             }
             return Results.Ok(statuses);

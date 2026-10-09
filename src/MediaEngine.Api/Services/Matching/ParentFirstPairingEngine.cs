@@ -78,10 +78,14 @@ public static class ParentFirstPairingEngine
     {
         ArgumentNullException.ThrowIfNull(request);
         if (string.IsNullOrWhiteSpace(request.Provider) || string.IsNullOrWhiteSpace(request.ParentId))
+        {
             throw new ArgumentException("A provider and exact target parent are required.", nameof(request));
+        }
         if (request.MediaKind == PairingMediaKind.TvEpisode
             && !string.Equals(request.Order, "default", StringComparison.OrdinalIgnoreCase))
+        {
             throw new ArgumentException("TV pairing uses TheTVDB default order.", nameof(request));
+        }
 
         var catalogue = request.Catalogue
             .Where(child => child.ParentId.Equals(request.ParentId, StringComparison.OrdinalIgnoreCase)
@@ -99,9 +103,11 @@ public static class ParentFirstPairingEngine
         var combinedByName = request.MediaKind == PairingMediaKind.TvEpisode
             && EpisodePatterns.SeasonEpisode().Match(Path.GetFileNameWithoutExtension(asset.FileName)).Groups["ep2"].Success;
         if (asset.IsCombined || combinedByName || asset.IsSplitPart)
+        {
             return new PairingRow(asset, null, [], PairingBand.Review, false,
-                asset.IsCombined || combinedByName ? "Combined media needs an explicit supported multi-child mapping."
-                    : "Split media needs an explicit supported part mapping.");
+                    asset.IsCombined || combinedByName ? "Combined media needs an explicit supported multi-child mapping."
+                        : "Split media needs an explicit supported part mapping.");
+        }
 
         var ranked = catalogue.Select(child => Score(asset, child, request.MediaKind))
             .Where(item => item.Score > 0)
@@ -109,16 +115,24 @@ public static class ParentFirstPairingEngine
             .ThenBy(item => item.Child.ChildId, StringComparer.Ordinal)
             .ToArray();
         if (ranked.Length == 0)
+        {
             return new PairingRow(asset, null, [], request.CatalogueComplete ? PairingBand.NoMatch : PairingBand.Review,
-                false, request.CatalogueComplete ? "No child has supporting evidence."
-                    : "The catalogue may be incomplete; refresh before ruling out a match.");
+                    false, request.CatalogueComplete ? "No child has supporting evidence."
+                        : "The catalogue may be incomplete; refresh before ruling out a match.");
+        }
 
         var top = ranked[0];
         var next = ranked.Skip(1).FirstOrDefault();
         var ambiguous = next is not null && top.Score - next.Score < AmbiguityMargin;
         var conflicts = top.Conflicts.ToList();
-        if (ambiguous) conflicts.Add("Another catalogue child has similarly strong evidence.");
-        if (!request.CatalogueComplete) conflicts.Add("The catalogue is incomplete; other candidates may be missing.");
+        if (ambiguous)
+        {
+            conflicts.Add("Another catalogue child has similarly strong evidence.");
+        }
+        if (!request.CatalogueComplete)
+        {
+            conflicts.Add("The catalogue is incomplete; other candidates may be missing.");
+        }
 
         var band = conflicts.Count > 0 ? PairingBand.Review : top.Band;
         var proposed = new PairingCandidate(top.Child, band, top.Reasons, conflicts);
@@ -145,7 +159,9 @@ public static class ParentFirstPairingEngine
 
         var sourceTitle = asset.Title;
         if (string.IsNullOrWhiteSpace(sourceTitle))
+        {
             sourceTitle = ExtractFileTitle(asset.FileName, kind);
+        }
         if (!string.IsNullOrWhiteSpace(sourceTitle))
         {
             var normalized = NormalizeTitle(sourceTitle);
@@ -163,7 +179,9 @@ public static class ParentFirstPairingEngine
                 reasons.Add("The titles partly agree.");
             }
             else if (asset.Title is not null || sourceTitle != asset.FileName)
+            {
                 conflicts.Add("The source title disagrees with this catalogue title.");
+            }
         }
 
         var numbered = false;
@@ -175,10 +193,18 @@ public static class ParentFirstPairingEngine
             var filenameMatch = EpisodePatterns.SeasonEpisode().Match(Path.GetFileNameWithoutExtension(asset.FileName));
             if (filenameMatch.Success)
             {
-                if (int.TryParse(filenameMatch.Groups["season"].Value, out var filenameSeason)) season ??= filenameSeason;
-                if (int.TryParse(filenameMatch.Groups["ep1"].Value, out var filenameEpisode)) episode ??= filenameEpisode;
+                if (int.TryParse(filenameMatch.Groups["season"].Value, out var filenameSeason))
+                {
+                    season ??= filenameSeason;
+                }
+                if (int.TryParse(filenameMatch.Groups["ep1"].Value, out var filenameEpisode))
+                {
+                    episode ??= filenameEpisode;
+                }
                 if (filenameMatch.Groups["ep2"].Success)
+                {
                     conflicts.Add("The filename names more than one episode.");
+                }
             }
             if (season.HasValue && episode.HasValue)
             {
@@ -189,7 +215,9 @@ public static class ParentFirstPairingEngine
                     reasons.Add("Season and episode numbers match the default TheTVDB order.");
                 }
                 else
+                {
                     positionDisagrees = true;
+                }
             }
             if (asset.AbsoluteNumber.HasValue && child.AbsoluteNumber.HasValue
                 && asset.AbsoluteNumber == child.AbsoluteNumber)
@@ -207,7 +235,9 @@ public static class ParentFirstPairingEngine
                 reasons.Add("Disc and release-track positions match this exact release.");
             }
             else
+            {
                 positionDisagrees = true;
+            }
         }
 
         if (asset.Duration.HasValue && child.Duration.HasValue)
@@ -219,7 +249,9 @@ public static class ParentFirstPairingEngine
                 reasons.Add("Durations agree within three seconds.");
             }
             else if (difference > 30)
+            {
                 conflicts.Add("Durations differ by more than thirty seconds.");
+            }
         }
         if (asset.Date.HasValue && child.Date.HasValue && asset.Date == child.Date)
         {
@@ -231,9 +263,11 @@ public static class ParentFirstPairingEngine
         // remain separate candidates and must be selected by position/context.
         var hasTitle = reasons.Any(reason => reason.StartsWith("The title", StringComparison.Ordinal));
         if (positionDisagrees && (scopedIdMatch || hasTitle))
+        {
             conflicts.Add(kind == PairingMediaKind.TvEpisode
-                ? "The source season or episode number disagrees with this candidate."
-                : "The source disc or track number disagrees with this release-track candidate.");
+                    ? "The source season or episode number disagrees with this candidate."
+                    : "The source disc or track number disagrees with this release-track candidate.");
+        }
         var band = scopedIdMatch && conflicts.Count == 0 ? PairingBand.Exact
             : numbered && score >= 60 && (hasTitle || string.IsNullOrWhiteSpace(sourceTitle)) ? PairingBand.Strong
             : !numbered && hasTitle && score >= 75 ? PairingBand.Strong
@@ -247,16 +281,24 @@ public static class ParentFirstPairingEngine
         if (kind == PairingMediaKind.TvEpisode)
         {
             var match = EpisodePatterns.SeasonEpisode().Match(stem);
-            if (!match.Success) return null;
+            if (!match.Success)
+            {
+                return null;
+            }
             var after = stem[(match.Index + match.Length)..].Trim(' ', '.', '_', '-');
             if (after is "4K" or "720p" or "1080p" or "2160p"
                 || after.StartsWith("1080p.", StringComparison.OrdinalIgnoreCase)
                 || after.StartsWith("2160p.", StringComparison.OrdinalIgnoreCase))
+            {
                 return null;
+            }
             return after.Length > 0 ? after : null;
         }
         var index = 0;
-        while (index < stem.Length && (char.IsDigit(stem[index]) || stem[index] is ' ' or '-' or '_' or '.')) index++;
+        while (index < stem.Length && (char.IsDigit(stem[index]) || stem[index] is ' ' or '-' or '_' or '.'))
+        {
+            index++;
+        }
         return index > 0 && index < stem.Length ? stem[index..] : null;
     }
 
@@ -264,7 +306,9 @@ public static class ParentFirstPairingEngine
     {
         var builder = new StringBuilder(value.Length);
         foreach (var character in value.Normalize(NormalizationForm.FormKC))
+        {
             builder.Append(char.IsLetterOrDigit(character) ? char.ToLowerInvariant(character) : ' ');
+        }
         return string.Join(' ', builder.ToString().Split(' ', StringSplitOptions.RemoveEmptyEntries));
     }
 
@@ -300,7 +344,9 @@ public static class ParentFirstCatalogueAdapters
             || !root.TryGetProperty("source", out var source)
             || source.GetString() != "musicbrainz_release"
             || !root.TryGetProperty("tracks", out var tracks) || tracks.ValueKind != JsonValueKind.Array)
+        {
             return [];
+        }
         return tracks.EnumerateArray().Select(track =>
             {
                 var disc = ReadInt(track, "disc_number");

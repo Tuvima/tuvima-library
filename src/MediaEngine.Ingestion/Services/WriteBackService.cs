@@ -223,7 +223,9 @@ public sealed class WriteBackService : IWriteBackOutcomeService
             {
                 var fingerprint = await _assetHasher.ComputeAsync(asset.FilePathRoot, ct);
                 if (!await _assetRepo.UpdateContentHashAsync(assetId, fingerprint.Hex, ct))
+                {
                     throw new IOException("The verified file fingerprint belongs to another asset.");
+                }
                 if (_fileHashCache is not null)
                 {
                     var file = new FileInfo(asset.FilePathRoot);
@@ -239,9 +241,13 @@ public sealed class WriteBackService : IWriteBackOutcomeService
                 && !string.IsNullOrEmpty(hash))
             {
                 if (readback.IsVerified)
+                {
                     await _assetRepo.UpdateWritebackHashAsync(assetId, hash, ct);
+                }
                 else
+                {
                     await _assetRepo.MarkWritebackUnverifiedAsync(assetId, hash, ct);
+                }
             }
 
             _logger.LogInformation("WriteBack: {Result} {Count} fields on {Path} (trigger: {Trigger}){Reason}",
@@ -266,7 +272,9 @@ public sealed class WriteBackService : IWriteBackOutcomeService
         {
             if (_hashState?.CurrentHashes.TryGetValue(mediaType, out var hash) == true
                 && !string.IsNullOrEmpty(hash))
+            {
                 await _assetRepo.MarkWritebackUnsupportedAsync(assetId, hash, ex.Message, ct);
+            }
             _logger.LogWarning(ex, "WriteBack: unsupported field request for {Path}", asset.FilePathRoot);
             return WriteBackOutcome.Unsupported(ex.Message);
         }

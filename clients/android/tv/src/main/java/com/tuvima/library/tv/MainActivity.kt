@@ -379,12 +379,26 @@ private fun parseDetail(json: JSONObject): TvDetail {
     )
 }
 
+private fun detailEntityType(mediaType: String): String {
+    val value = mediaType.lowercase()
+    return when {
+        "movie" in value -> "movie"
+        "episode" in value -> "tvEpisode"
+        "tv" in value -> "tvShow"
+        "audiobook" in value -> "audiobook"
+        "book" in value -> "book"
+        "comic" in value -> "comicIssue"
+        "music" in value -> "musicAlbum"
+        else -> "work"
+    }
+}
+
 private fun cardDetailTarget(card: DisplayCard): Pair<String, String> {
     card.actions.firstNotNullOfOrNull { action ->
         action.webUrl?.takeIf { "/details/" in it }?.split('/')?.filter(String::isNotBlank)?.takeIf { it.size >= 2 }
             ?.let { it[it.size - 2] to it.last() }
     }?.let { return it }
-    if (card.collectionId != null) return "collection" to card.collectionId
+    card.collectionId?.let { return "collection" to it }
     return detailEntityType(card.mediaType) to (card.workId ?: card.id)
 }
 

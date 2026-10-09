@@ -8,141 +8,145 @@
 
 **One library. Every story.**
 
-Your books, films, shows, music, audiobooks, comics, and personal media—together in one library you control.
+Your books, films, shows, music, audiobooks, comics and personal media, together in one private library that understands how they connect.
 
-[AGPLv3](LICENSE) · [Docker setup](https://tuvima.github.io/tuvima_library/install/docker/) · [Documentation](https://tuvima.github.io/tuvima_library/) · [Early Access](https://tuvima.github.io/tuvima_library/product/status/)
+[![License: AGPLv3](https://img.shields.io/badge/License-AGPLv3-blue.svg)](LICENSE)
+[![Status: Early Access](https://img.shields.io/badge/status-Early%20Access-8852FC.svg)](https://tuvima.github.io/tuvima_library/product/status/)
+[![Docs](https://img.shields.io/badge/docs-tuvima.github.io-8852FC.svg)](https://tuvima.github.io/tuvima_library/)
+[![Docker](https://img.shields.io/badge/docker-ghcr.io-2496ED.svg)](https://tuvima.github.io/tuvima_library/install/docker/)
 
-**[Install](https://tuvima.github.io/tuvima_library/tutorials/getting-started/)** · **[Documentation](https://tuvima.github.io/tuvima_library/)** · **[Product Status](https://tuvima.github.io/tuvima_library/product/status/)** · **[Issues](https://github.com/Tuvima/tuvima_library/issues)**
+**[Install](https://tuvima.github.io/tuvima_library/tutorials/getting-started/)** · **[Documentation](https://tuvima.github.io/tuvima_library/)** · **[What's ready](https://tuvima.github.io/tuvima_library/product/status/)** · **[Report an issue](https://github.com/Tuvima/tuvima_library/issues)**
 
 </div>
 
-## What is Tuvima Library?
+---
 
-Your media may be spread across folders, drives and formats. Tuvima Library identifies the files you own, adds metadata and artwork, and brings related works together. You can explore a story through its books, screen adaptations, music, creators and series without keeping those connections in your head.
+## Your stories are scattered. Tuvima Library brings them together.
 
-The Engine builds the local catalog. The Dashboard gives you a place to browse, search, read, watch and listen. Personal files have their own View space and do not need a retail identity to belong.
+A single story often lives in five places: the ebook in one folder, the audiobook in another app, the film on a hard drive, the comic adaptation in a reader, and the soundtrack somewhere in your music. Each app shows its own slice. None of them knows they belong together.
 
-## Highlights
+Tuvima Library starts with the story instead of the file type. Point it at your folders and it identifies what you own, adds artwork and details, and connects the book, the film, the audiobook and the soundtrack into one place you can browse, read, watch and listen. It runs entirely on your own computer or server. No cloud account, no subscription, nothing leaving your home unless you choose it.
 
-- **Every format in one library.** Browse books, comics, films, TV, music and audiobooks through Read, Watch and Listen.
-- **Universes connect the story.** Trusted relationships connect owned works, series, adaptations and people across formats.
-- **Reading and playback built in.** Open a book or start audio and video from its detail page, with progress where supported.
-- **A Personal Space for your own media.** View organizes photos, short videos, documents and other local files separately from catalog matching.
-- **Identification with a human fallback.** The Engine reads file metadata and uses configured providers; uncertain items go to the Review Queue.
-- **Local control.** Your catalog and media stay on your machine. Network-backed features have separate privacy considerations.
+## Why people choose Tuvima Library
+
+- **Every format in one library.** Books, comics, movies, TV, music and audiobooks live together, organised into **Read**, **Watch** and **Listen**. You don't need a separate app for each.
+- **Your stories, connected.** Tuvima links a novel to its film adaptation, its audiobook narration and its soundtrack, and groups them into a Universe you can explore. *Dune* becomes one place: the novels, the films, the audiobooks and the score.
+- **Read, watch and listen built in.** Read EPUBs in the browser. Play music with lyrics and a queue. Listen to audiobooks with chapters, bookmarks, speed and a sleep timer. Watch films and shows with subtitles and Up Next. **Continue Across Media** puts your unfinished book, show and audiobook in one row.
+- **It organises itself, and asks when it isn't sure.** Tuvima reads each file's metadata, checks trusted catalogues and open knowledge from Wikidata and Wikipedia, and fills in titles, artwork, series order, cast and creators. When a match is uncertain, it goes to a **Review Queue** instead of being silently guessed.
+- **A private space for personal media.** **View** gives every profile its own Personal Space for photos, home videos and documents, with a timeline, folders, galleries and favourites. Personal files never go to online catalogues.
+- **Made for households.** Accounts, profiles, optional profile PINs and per-library access let each person keep their own progress, lists and favourites.
+- **Free and open source, for good.** There is no premium tier, no feature paywall and no product telemetry. The AGPLv3 license keeps the source open, so your library never depends on one company staying in business.
+
+## How Tuvima Library compares to Plex and other apps
+
+Plex, Jellyfin, Emby, Audiobookshelf, Kavita and calibre are excellent at what they were designed for. Most were built around one kind of media. Tuvima Library was built around the story, across every kind of media you own.
+
+**If you use Plex, Jellyfin or Emby today, Tuvima Library gives you:**
+
+- **Books, comics and audiobooks as first-class media**, not add-ons or workarounds next to your movies and music.
+- **Connections across formats.** Your library knows that a film is based on a book you own, that an audiobook narrates it, and that an album is its soundtrack.
+- **No outside account.** Plex requires a Plex account and sells premium features through Plex Pass. Tuvima Library needs no account with anyone, and every feature is free.
+- **Identification you can see and correct.** Tuvima shows how confident it is about each match. You fix mistakes in place from the item's own page, without renaming files to satisfy a scanner.
+
+| Kind of app | Examples | What they do really well | What Tuvima Library adds |
+| --- | --- | --- | --- |
+| Media servers | [Plex](https://www.plex.tv/), [Jellyfin](https://jellyfin.org/), [Emby](https://emby.media/) | Polished video and music streaming, transcoding, live TV and apps on many devices | Books, comics and audiobooks in the same library, connected to their films, shows and soundtracks |
+| Media centres | [Kodi](https://kodi.tv/about/) | Flexible, customisable playback on a TV | A shared, server-side catalogue of every work, person, series and collection you own |
+| Reading libraries | [calibre](https://calibre-ebook.com/about), [Kavita](https://www.kavitareader.com/), [Komga](https://komga.org/) | Ebook management, conversion and dedicated comic and manga readers | Your reading next to its audiobooks, screen adaptations and creators |
+| Audio libraries | [Audiobookshelf](https://www.audiobookshelf.org/), [Navidrome](https://www.navidrome.org/) | Focused audiobook, podcast and music playback with mobile apps | Each audiobook or album linked to its source work, other formats and wider series |
+| Download automation | [Sonarr](https://sonarr.tv/), [Radarr](https://radarr.video/), [Lidarr](https://lidarr.audio/) | Monitoring releases and organising new downloads | Understanding what you already own and how it all fits together |
+
+**You don't have to replace anything.** Tuvima Library can watch the same folders your other apps use, as read-only sources it never changes. Automation tools can keep feeding it files, and specialist apps can stay on the devices where they shine.
+
+**Where others are ahead today.** Tuvima Library is in Early Access. It runs in your web browser, and native TV and phone apps are still in development. If you depend on living-room TV apps, live TV or long-established remote streaming, Plex and Jellyfin are more mature today. Many people run Tuvima alongside them.
+
+## What we mean by a Universe
+
+A **Universe** is the map of a creative world. It connects the works you own (books, comics, audiobooks, films, TV and music) with the series they belong to, the adaptations between them, and the people who made them: authors, directors, narrators, performers and composers.
+
+Owning a film trilogy gives you a tidy shelf in Watch. Owning the novels, the films, the audiobooks and the score gives you a Universe that brings them all together. Tuvima builds these connections only from trusted evidence, such as shared identifiers in Wikidata, never from similar titles alone.
+
+Learn more in [How Universes and Series work](https://tuvima.github.io/tuvima_library/explanation/how-universes-work/).
 
 ## Quick start
 
-Docker Compose is the maintained container setup. Anonymous access to its configured registry image could not be confirmed on October 8, 2026 (the registry required authentication). Check the [image access and local-build options](https://tuvima.github.io/tuvima_library/install/docker/#image-availability) first, or [run from source](https://tuvima.github.io/tuvima_library/install/from-source/).
+The recommended way to run Tuvima Library is Docker Compose. Download the maintained configuration:
 
-If you have access to the configured image, install Docker with Compose and download the maintained configuration:
-
-~~~sh
+```sh
 curl -fsSL https://raw.githubusercontent.com/Tuvima/tuvima_library/main/docker-compose.yml -o docker-compose.yml
-~~~
+```
 
-Open that file and change its host folder paths before starting. Keep the mounts for your library, configuration, database, models, artwork/cache, backups and transcode workspace. Set the user/group IDs to match the folders on your host, and choose your timezone.
+Edit the folder paths under `volumes` to point at your media and app-data folders, set your timezone and user/group IDs, then start it:
 
-~~~sh
+```sh
 docker compose up -d
-~~~
+```
 
-Open **http://YOUR-SERVER:5016**. The Engine's internal port is not published by the standard Compose setup. Follow first-run setup, save your recovery codes, and add media folders when you are ready.
+Open **http://YOUR-SERVER:5016**, create your administrator account, save your recovery codes, and add your media folders. The [Docker guide](https://tuvima.github.io/tuvima_library/install/docker/) explains every setting, and what to do if your host can't download the image.
 
-Image pulls and optional model downloads depend on your connection and hardware. See the [Docker guide](https://tuvima.github.io/tuvima_library/install/docker/) for storage, permissions, updates and troubleshooting.
+Other ways to install:
 
-- **Windows installer:** no installer release is published yet. See [Windows installation status](https://tuvima.github.io/tuvima_library/install/windows/) before choosing this route.
-- **NAS:** [Unraid](https://tuvima.github.io/tuvima_library/install/unraid/) · [Synology](https://tuvima.github.io/tuvima_library/install/synology/) · [QNAP](https://tuvima.github.io/tuvima_library/install/qnap/) · [TrueNAS SCALE](https://tuvima.github.io/tuvima_library/install/truenas-scale/).
-- **From source:** use the [.NET setup guide](https://tuvima.github.io/tuvima_library/install/from-source/).
+- **Windows 10 or 11:** the [Windows installer](https://tuvima.github.io/tuvima_library/install/windows/) (Early Access) runs Tuvima as Windows services.
+- **NAS:** step-by-step guides for [Unraid](https://tuvima.github.io/tuvima_library/install/unraid/), [Synology](https://tuvima.github.io/tuvima_library/install/synology/), [QNAP](https://tuvima.github.io/tuvima_library/install/qnap/) and [TrueNAS SCALE](https://tuvima.github.io/tuvima_library/install/truenas-scale/).
+- **From source:** for developers and evaluators, see [Run from source](https://tuvima.github.io/tuvima_library/install/from-source/).
 
-## Find your way around
+## Private by design
 
-| Area | What you can do |
-| --- | --- |
-| Home | Discover the library, continue across media and find recent additions. |
-| For Me | Open your saved items, Favorites, progress and personal collections, playlists and galleries. |
-| Read, Watch, Listen | Browse a media lane and open an item to read or play. |
-| View | Browse your personal files, folders, galleries, named people and available locations. |
-| Collections | Explore trusted automatic groups or collections someone has created. |
-| Search | Search across media, people and groups without losing your current page. |
-| Details and editing | Learn about one item and correct its metadata in context. |
-| Review and administration | Resolve uncertain matches or manage the server, according to your access. |
+- Your media, catalogue, artwork and optional AI models stay on your own machine.
+- No Tuvima account, no subscription and no built-in tracking.
+- Online metadata, artwork, lyrics and subtitle services are contacted only when they are configured and needed.
+- Optional local AI improves matching and descriptions entirely on your hardware.
+- Uncertain matches are shown to you, never silently treated as correct.
 
-For a guided introduction, read the [Dashboard tour](https://tuvima.github.io/tuvima_library/guides/dashboard-tour/).
-
-## How Tuvima Library compares
-
-Different tools can serve different parts of a collection. These categories explain Tuvima Library's focus; they are not a feature-by-feature compatibility promise.
-
-| Kind of tool | Examples | Where Tuvima Library fits |
-| --- | --- | --- |
-| Media servers | [Plex](https://www.plex.tv/), [Jellyfin](https://jellyfin.org/), [Emby](https://emby.media/) | Connect screen media with reading, audio and the wider creative world. |
-| Media centers | [Kodi](https://kodi.tv/about/) | Maintain a shared catalog of owned works and relationships behind the browsing experience. |
-| Reading libraries | [calibre](https://calibre-ebook.com/about), [Kavita](https://www.kavitareader.com/), [Komga](https://komga.org/) | Place reading alongside adaptations, audiobooks and music. |
-| Audio libraries | [Audiobookshelf](https://www.audiobookshelf.org/), [Navidrome](https://www.navidrome.org/) | Connect recordings to their works, creators and other owned formats. |
-| Acquisition automation | [Sonarr](https://sonarr.tv/), [Radarr](https://radarr.video/), [Lidarr](https://lidarr.audio/) | Begin with files already available to you and organize their identity and relationships. |
-
-These tools do not always need to be replaced. Automation tools can prepare files that Tuvima watches, while specialist players may remain useful on particular devices.
-
-Tuvima Library's purpose is to make the connections between owned works part of the library itself. Matching narrative positions between a book and an audiobook remains a future goal, not a current playback promise.
-
-## Built around ownership and privacy
-
-- Your media, catalog, managed artwork and optional AI inference live on your host.
-- No Tuvima-hosted account or subscription is required; local sign-in protects your installation.
-- The product has no built-in telemetry pipeline.
-- Configured metadata, artwork, lyrics, subtitle and model services can make external requests.
-- View's Places map can request external map styling/tiles and has a local fallback. Local-first does not mean every screen is network-free.
-- Low-confidence matches remain visible for human review.
-- The project is free and open source, with no premium feature tier.
-
-Read [Privacy and Local-First Behavior](https://tuvima.github.io/tuvima_library/explanation/privacy-local-first/) before choosing network-backed features.
+Some features, such as maps in View, can load data from the internet. [Privacy and local-first behavior](https://tuvima.github.io/tuvima_library/explanation/privacy-local-first/) explains exactly what connects where.
 
 ## Powered by open knowledge
 
-[Wikidata](https://www.wikidata.org/wiki/Wikidata:Introduction) supplies structured identities and relationships. [Wikipedia](https://en.wikipedia.org/wiki/Wikipedia:About) supplies readable context. Tuvima connects these sources to trusted media identities while preserving attribution and distinguishing outside knowledge from files you own.
+[Wikidata](https://www.wikidata.org/wiki/Wikidata:Introduction) gives Tuvima Library structured identities and relationships: which works form a series, which film adapts which book, who wrote, directed or performed. [Wikipedia](https://en.wikipedia.org/wiki/Wikipedia:About) adds the readable history and context. Tuvima attributes both and keeps outside knowledge clearly separate from the files you own.
 
-These projects are maintained by communities. You can [contribute to Wikipedia](https://en.wikipedia.org/wiki/Wikipedia:Contributing_to_Wikipedia), [participate in Wikidata](https://www.wikidata.org/wiki/Wikidata:Contribute), or [support Wikimedia](https://donate.wikimedia.org/).
+Both are built by volunteers. You can [contribute to Wikipedia](https://en.wikipedia.org/wiki/Wikipedia:Contributing_to_Wikipedia), [help with Wikidata](https://www.wikidata.org/wiki/Wikidata:Contribute) or [support Wikimedia](https://donate.wikimedia.org/).
 
 ## Why I built Tuvima Library
 
-I enjoyed Plex, Audiobookshelf and other media tools, but I still had to remember how the book, audiobook, adaptation and soundtrack connected. Whispersync suggested the kind of continuity I wanted for media I owned myself.
+I loved Plex, Audiobookshelf and the other tools in my setup, but I was still the one who had to remember how everything connected. The book was in one app, its audiobook in another, the film adaptation somewhere else and the soundtrack somewhere else again. I wanted to read a few chapters at home and pick up the audiobook in the car, the way Kindle and Audible do for the books they sell, but for media I owned myself.
 
-That grew into a wider idea: a library that understands a story, not just its files. The name comes from **túvima**, a Quenya word recorded as “discoverable.” Tuvima Library is the library I wanted for myself, built in the hope that it can become that library for others too.
+That grew into a bigger idea: a library that understands the story, not just the files. The name comes from **túvima**, a word in Tolkien's Quenya recorded as meaning "discoverable". Tuvima Library is the library I wanted for myself, built in the hope that it becomes that library for you too.
 
-[Read the full story and longer-term vision](https://tuvima.github.io/tuvima_library/product/story/).
+[Read the full story and where it's heading](https://tuvima.github.io/tuvima_library/product/story/).
 
 ## Project status
 
-Tuvima Library is Early Access and under active development. The Engine and Dashboard are usable, while some experiences and deployment paths still have limitations. Check [Product Status](https://tuvima.github.io/tuvima_library/product/status/) and the [Beta Roadmap](https://tuvima.github.io/tuvima_library/product/beta-roadmap/) before relying on a particular feature.
+Tuvima Library is in **Early Access** and under active development. Browsing, reading, playback, editing, personal media, profiles and library management work today. Cross-format position syncing between ebooks and audiobooks, native device apps and richer recommendations are on the way. See [Product Status](https://tuvima.github.io/tuvima_library/product/status/) and the [Beta Roadmap](https://tuvima.github.io/tuvima_library/product/beta-roadmap/) for details.
 
 ## Documentation
 
-| Your goal | Start here |
+| I want to… | Start here |
 | --- | --- |
-| Use Tuvima | [Getting started](https://tuvima.github.io/tuvima_library/tutorials/getting-started/), [Dashboard tour](https://tuvima.github.io/tuvima_library/guides/dashboard-tour/) |
-| Run a server | [Install](https://tuvima.github.io/tuvima_library/install/docker/), [Library settings](https://tuvima.github.io/tuvima_library/guides/library-settings/), [Troubleshooting](https://tuvima.github.io/tuvima_library/guides/troubleshooting/) |
-| Build plugins or providers | [Build a plugin](https://tuvima.github.io/tuvima_library/guides/building-a-plugin/), [Add a provider](https://tuvima.github.io/tuvima_library/guides/adding-a-provider/) |
-| Contribute | [Contributing](CONTRIBUTING.md), [Developer setup](https://tuvima.github.io/tuvima_library/tutorials/dev-setup/), [Technical overview](https://tuvima.github.io/tuvima_library/architecture/technical-overview/) |
+| Use Tuvima Library | [Getting started](https://tuvima.github.io/tuvima_library/tutorials/getting-started/) · [Find your way around](https://tuvima.github.io/tuvima_library/guides/dashboard-tour/) |
+| Run a server | [Install with Docker](https://tuvima.github.io/tuvima_library/install/docker/) · [Library settings](https://tuvima.github.io/tuvima_library/guides/library-settings/) · [Troubleshooting](https://tuvima.github.io/tuvima_library/guides/troubleshooting/) |
+| Build plugins or providers | [Build a plugin](https://tuvima.github.io/tuvima_library/guides/building-a-plugin/) · [Add a provider](https://tuvima.github.io/tuvima_library/guides/adding-a-provider/) |
+| Contribute code or docs | [Contributing](CONTRIBUTING.md) · [Developer setup](https://tuvima.github.io/tuvima_library/tutorials/dev-setup/) · [Technical overview](https://tuvima.github.io/tuvima_library/architecture/technical-overview/) |
 
 ## Contributing
 
-Bugs, documentation fixes, provider integrations, plugins and code contributions are welcome. Start with [CONTRIBUTING.md](CONTRIBUTING.md) and the [Code of Conduct](CODE_OF_CONDUCT.md).
+Bug reports, documentation fixes, metadata providers, plugins and code are all welcome. Start with [CONTRIBUTING.md](CONTRIBUTING.md) and the [Code of Conduct](CODE_OF_CONDUCT.md).
 
 ## Security
 
-Read [SECURITY.md](SECURITY.md) before reporting a possible vulnerability. Keep sensitive details out of public issues.
+Please report vulnerabilities privately, as described in [SECURITY.md](SECURITY.md). Don't post security details in public issues.
 
 ## Community
 
-Use [Issues](https://github.com/Tuvima/tuvima_library/issues) for questions, ideas and reproducible non-security bugs.
+Use [Issues](https://github.com/Tuvima/tuvima_library/issues) for questions, ideas and bug reports.
 
 ## License
 
-Tuvima Library is licensed under the [GNU AGPLv3](LICENSE). Its source remains available so people can inspect, modify and share the software under those terms. See [license guidance](https://tuvima.github.io/tuvima_library/product/license/) and [third-party notices](THIRD-PARTY-NOTICES.md).
+Tuvima Library is free and open-source software under the [GNU AGPLv3](LICENSE). Anyone can run, study, improve and share it, and anyone who offers a modified version over a network must share their changes too. See [what the license means for you](https://tuvima.github.io/tuvima_library/product/license/) and the [third-party notices](THIRD-PARTY-NOTICES.md).
+
+---
 
 <div align="center">
 
-**One library. Every story.**
+**You already own the stories. Tuvima Library makes them easier to find, understand and enjoy.**
 
 </div>

@@ -112,10 +112,18 @@ public sealed partial class ReconciliationAdapter
                     {
                         var artistProperties = await ExtendAsync(artistQids, ["P434"], ct).ConfigureAwait(false);
                         foreach (var properties in artistProperties.Values)
+                        {
                             if (properties.TryGetValue("P434", out var artistIds))
+                            {
                                 foreach (var artistId in artistIds)
+                                {
                                     if (!string.IsNullOrWhiteSpace(artistId.Value?.RawValue))
+                                    {
                                         claims.Add(new ProviderClaim("musicbrainz_artist_id", artistId.Value.RawValue, 1));
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
             }

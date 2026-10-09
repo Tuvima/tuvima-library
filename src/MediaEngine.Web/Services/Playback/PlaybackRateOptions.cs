@@ -43,16 +43,25 @@ public static class PlaybackRateOptions
     /// <summary>Uses the round-trip representation so a current rate is never rounded in the wire value.</summary>
     public static string ToWireValue(double rate)
     {
-        if (!IsValid(rate)) throw new ArgumentOutOfRangeException(nameof(rate));
+        if (!IsValid(rate))
+        {
+            throw new ArgumentOutOfRangeException(nameof(rate));
+        }
         return rate.ToString("R", CultureInfo.InvariantCulture);
     }
 
     /// <summary>Creates the compact user-facing value, for example <c>1.25x</c>.</summary>
     public static string FormatLabel(double rate)
     {
-        if (!IsValid(rate)) throw new ArgumentOutOfRangeException(nameof(rate));
+        if (!IsValid(rate))
+        {
+            throw new ArgumentOutOfRangeException(nameof(rate));
+        }
         var exact = ToWireValue(rate);
-        if (!exact.Contains(".", StringComparison.Ordinal)) exact += ".0";
+        if (!exact.Contains(".", StringComparison.Ordinal))
+        {
+            exact += ".0";
+        }
         return $"{exact}x";
     }
 

@@ -24,8 +24,13 @@ public sealed class MediaFileWriteIntentRepositoryTests : IDisposable
             INSERT INTO media_file_write_intents
                 (asset_id,generation,operation_token,trigger,status,attempts,created_at,updated_at)
             VALUES(@asset,1,'op-1','editor_commit','pending',0,@now,@now);
-            """, new { asset = _asset, edition, hash = Guid.NewGuid().ToString("N"),
-                now = DateTimeOffset.UtcNow.ToString("O") });
+            """, new
+        {
+            asset = _asset,
+            edition,
+            hash = Guid.NewGuid().ToString("N"),
+            now = DateTimeOffset.UtcNow.ToString("O")
+        });
     }
 
     [Fact]
@@ -38,11 +43,13 @@ public sealed class MediaFileWriteIntentRepositoryTests : IDisposable
         Assert.Equal(1, first.Attempts);
 
         using (var connection = _database.CreateConnection())
+        {
             connection.Execute("""
-                UPDATE media_file_write_intents
-                SET generation=2, operation_token='op-2', status='pending', lease_expires_at=NULL
-                WHERE asset_id=@asset;
-                """, new { asset = _asset });
+                    UPDATE media_file_write_intents
+                    SET generation=2, operation_token='op-2', status='pending', lease_expires_at=NULL
+                    WHERE asset_id=@asset;
+                    """, new { asset = _asset });
+        }
 
         Assert.False(await repository.CompleteAsync(_asset, 1, "verified"));
         var latest = await repository.ClaimNextAsync(TimeSpan.FromMinutes(1));

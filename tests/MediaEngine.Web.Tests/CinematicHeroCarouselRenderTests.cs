@@ -57,8 +57,13 @@ public sealed class CinematicHeroCarouselRenderTests : AsyncBunitContext
     {
         var hero = new DiscoveryHeroViewModel
         {
-            Title = "Movie", MediaKind = "Movie", PrimaryActionLabel = "Resume", ProgressPct = 40,
-            ContinuationState = state, PrimaryNavigationUrl = "/watch/asset", StatusText = "40% watched",
+            Title = "Movie",
+            MediaKind = "Movie",
+            PrimaryActionLabel = "Resume",
+            ProgressPct = 40,
+            ContinuationState = state,
+            PrimaryNavigationUrl = "/watch/asset",
+            StatusText = "40% watched",
         };
         var cut = Render<CinematicHeroCarousel>(p => p.Add(c => c.Items, [hero]));
         Assert.Equal(expected ? "Continue Watching" : "Featured Content", cut.Find(".cinematic-hero-carousel__context").TextContent);
@@ -70,10 +75,16 @@ public sealed class CinematicHeroCarouselRenderTests : AsyncBunitContext
     {
         var hero = new DiscoveryHeroViewModel
         {
-            Title = "The Show", Subtitle = "S2 E6 · The Next Chapter", Description = "Episode synopsis",
-            Tagline = "Show tagline", MediaKind = "TV", Subject = DisplaySubjectKind.TvShow,
-            ContinuationState = DisplayContinuationState.Unstarted, PrimaryActionLabel = "Watch S2 E6",
-            LogoUrl = "/show-logo.png", PrimaryNavigationUrl = "/watch/episode",
+            Title = "The Show",
+            Subtitle = "S2 E6 · The Next Chapter",
+            Description = "Episode synopsis",
+            Tagline = "Show tagline",
+            MediaKind = "TV",
+            Subject = DisplaySubjectKind.TvShow,
+            ContinuationState = DisplayContinuationState.Unstarted,
+            PrimaryActionLabel = "Watch S2 E6",
+            LogoUrl = "/show-logo.png",
+            PrimaryNavigationUrl = "/watch/episode",
             EpisodeContext = new(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), "The Show", "The Next Chapter", 2, 6,
                 DisplayContinuationState.Unstarted, null, null),
         };
@@ -159,8 +170,14 @@ public sealed class CinematicHeroCarouselRenderTests : AsyncBunitContext
         Assert.EndsWith("?size=m", image.GetAttribute("src"));
         var set = image.GetAttribute("srcset");
         Assert.Contains(smallWidth, set);
-        if (mediumWidth is not null) Assert.Contains(mediumWidth, set);
-        if (largeWidth is not null) Assert.Contains(largeWidth, set);
+        if (mediumWidth is not null)
+        {
+            Assert.Contains(mediumWidth, set);
+        }
+        if (largeWidth is not null)
+        {
+            Assert.Contains(largeWidth, set);
+        }
         Assert.DoesNotContain("2160w", set);
     }
 
@@ -180,11 +197,16 @@ public sealed class CinematicHeroCarouselRenderTests : AsyncBunitContext
     public void NativeButtonStylesCrossTheComponentScopeBoundary()
     {
         var folder = new DirectoryInfo(AppContext.BaseDirectory);
-        while (folder is not null && !File.Exists(Path.Combine(folder.FullName, "MediaEngine.slnx"))) folder = folder.Parent;
+        while (folder is not null && !File.Exists(Path.Combine(folder.FullName, "MediaEngine.slnx")))
+        {
+            folder = folder.Parent;
+        }
         Assert.NotNull(folder);
         var css = File.ReadAllText(Path.Combine(folder.FullName, "src/MediaEngine.Web/Components/Cinematic/CinematicHeroCarousel.razor.css"));
         foreach (var selector in new[] { "__control {", "__control--previous {", "__control--next {", "__control--pause {", "__timeline-item {", "__timeline-item.is-active {" })
+        {
             Assert.Contains(".cinematic-hero-carousel ::deep .cinematic-hero-carousel" + selector, css);
+        }
         Assert.Contains("height: var(--tl-touch-target-min, 48px)", css);
         Assert.Contains("width: var(--tl-touch-target-min, 48px)", css);
     }
@@ -192,25 +214,28 @@ public sealed class CinematicHeroCarouselRenderTests : AsyncBunitContext
     [Fact]
     public void EnlargedPhoneTextRetainsFivePositionTargetsAndAReadableResumeAction()
     {
-        var heroes=Enumerable.Range(1,5).Select(i=>new DiscoveryHeroViewModel {Title=$"Book {i}",MediaKind="Book",Genres=["Adventure","Science Fiction"],PrimaryActionLabel="Continue Reading",PrimaryNavigationUrl="/read/book",ContinuationState=DisplayContinuationState.InProgress,ProgressPct=42}).ToList();
-        var cut=Render<CinematicHeroCarousel>(p=>p.Add(c=>c.Items,heroes));
-        Assert.Equal(5,cut.FindAll(".cinematic-hero-carousel__timeline-item").Count);
-        Assert.Contains("Continue Reading",cut.Find(".tl-detail-action--primary").TextContent);
+        var heroes = Enumerable.Range(1, 5).Select(i => new DiscoveryHeroViewModel { Title = $"Book {i}", MediaKind = "Book", Genres = ["Adventure", "Science Fiction"], PrimaryActionLabel = "Continue Reading", PrimaryNavigationUrl = "/read/book", ContinuationState = DisplayContinuationState.InProgress, ProgressPct = 42 }).ToList();
+        var cut = Render<CinematicHeroCarousel>(p => p.Add(c => c.Items, heroes));
+        Assert.Equal(5, cut.FindAll(".cinematic-hero-carousel__timeline-item").Count);
+        Assert.Contains("Continue Reading", cut.Find(".tl-detail-action--primary").TextContent);
         Assert.Equal(new[] { "Adventure", "Science Fiction" }, cut.FindAll(".tl-detail-hero-genre").Select(genre => genre.TextContent.Trim()));
-        var folder=new DirectoryInfo(AppContext.BaseDirectory);
-        while(folder is not null && !File.Exists(Path.Combine(folder.FullName,"MediaEngine.slnx"))) folder=folder.Parent;
+        var folder = new DirectoryInfo(AppContext.BaseDirectory);
+        while (folder is not null && !File.Exists(Path.Combine(folder.FullName, "MediaEngine.slnx")))
+        {
+            folder = folder.Parent;
+        }
         Assert.NotNull(folder);
-        var css=File.ReadAllText(Path.Combine(folder.FullName,"src/MediaEngine.Web/Components/Cinematic/CinematicHeroCarousel.razor.css"));
-        Assert.Contains("padding-left: calc(var(--tl-safe-area-left, 0px) + 56px)",css);
-        Assert.Contains("grid-template-columns: minmax(0, 1fr)",css);
-        Assert.Contains("flex: 0 0 48px",css);
-        Assert.Contains("max-width: calc(100% - 16px)",css);
-        Assert.Contains(".cinematic-hero-carousel ::deep .tl-detail-metadata-stack",css);
-        Assert.Contains(".cinematic-hero-carousel ::deep .tl-detail-hero-genres",css);
-        Assert.Contains(".cinematic-hero-carousel ::deep .tl-detail-hero-genre",css);
-        Assert.Contains("flex-wrap: wrap;",css);
-        Assert.Contains("overflow-wrap: anywhere;",css);
-        Assert.DoesNotContain("+ 3.75rem",css);
+        var css = File.ReadAllText(Path.Combine(folder.FullName, "src/MediaEngine.Web/Components/Cinematic/CinematicHeroCarousel.razor.css"));
+        Assert.Contains("padding-left: calc(var(--tl-safe-area-left, 0px) + 56px)", css);
+        Assert.Contains("grid-template-columns: minmax(0, 1fr)", css);
+        Assert.Contains("flex: 0 0 48px", css);
+        Assert.Contains("max-width: calc(100% - 16px)", css);
+        Assert.Contains(".cinematic-hero-carousel ::deep .tl-detail-metadata-stack", css);
+        Assert.Contains(".cinematic-hero-carousel ::deep .tl-detail-hero-genres", css);
+        Assert.Contains(".cinematic-hero-carousel ::deep .tl-detail-hero-genre", css);
+        Assert.Contains("flex-wrap: wrap;", css);
+        Assert.Contains("overflow-wrap: anywhere;", css);
+        Assert.DoesNotContain("+ 3.75rem", css);
     }
 
     private static DiscoveryHeroViewModel Hero(string title) => new() { Title = title, MediaKind = "Movie", PrimaryActionLabel = "Watch" };

@@ -3,9 +3,9 @@ using System.Text;
 using MediaEngine.Contracts.Collections;
 using MediaEngine.Domain.Services;
 using MediaEngine.Web.Components.Shared;
+using MediaEngine.Web.Components.Shared;
 using MediaEngine.Web.Models.ViewDTOs;
 using MediaEngine.Web.Services.Navigation;
-using MediaEngine.Web.Components.Shared;
 using MediaEngine.Web.Services.Ui;
 
 namespace MediaEngine.Web.Services.MediaTiles;

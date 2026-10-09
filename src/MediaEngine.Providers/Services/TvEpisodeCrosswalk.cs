@@ -36,26 +36,41 @@ public sealed class TvEpisodeCrosswalk(
         var expectedShowId = PositiveId(expectedTmdbShowId);
         if (tvdbShowId is null || tvdbEpisodeId is null
             || (!string.IsNullOrWhiteSpace(expectedTmdbShowId) && expectedShowId is null))
+        {
             return null;
+        }
 
         try
         {
             // Reload before reading the cache: removing or disabling a key must
             // stop access immediately, and rotation must revalidate evidence.
             var config = configuration.LoadProvider("tmdb");
-            if (config?.Enabled == false) return null;
+            if (config?.Enabled == false)
+            {
+                return null;
+            }
             var apiKey = config?.HttpClient?.ApiKeyOverride;
-            if (string.IsNullOrWhiteSpace(apiKey)) apiKey = config?.HttpClient?.ApiKey;
             if (string.IsNullOrWhiteSpace(apiKey))
+            {
+                apiKey = config?.HttpClient?.ApiKey;
+            }
+            if (string.IsNullOrWhiteSpace(apiKey))
+            {
                 apiKey = await providerConfiguration.GetDecryptedValueAsync(
-                    WellKnownProviders.Tmdb.ToString(), "api_key", ct).ConfigureAwait(false);
-            if (string.IsNullOrWhiteSpace(apiKey)) return null;
+                        WellKnownProviders.Tmdb.ToString(), "api_key", ct).ConfigureAwait(false);
+            }
+            if (string.IsNullOrWhiteSpace(apiKey))
+            {
+                return null;
+            }
 
             var credentialHash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(apiKey)));
             var cacheKey = $"{tvdbShowId}:{tvdbEpisodeId}:{expectedShowId}:{identity.Order}:{credentialHash}";
             if (_cache.TryGetValue(cacheKey, out var cached)
                 && cached.VerifiedAt is { } verifiedAt && DateTimeOffset.UtcNow - verifiedAt < CacheLifetime)
+            {
                 return cached;
+            }
 
             using var client = httpFactory.CreateClient("tmdb");
             var showResults = await FetchAsync(client,
@@ -63,12 +78,16 @@ public sealed class TvEpisodeCrosswalk(
             var show = UniqueResult(showResults, "tv_results");
             var tmdbShowId = PositiveId(show?["id"]?.ToString());
             if (tmdbShowId is null || (expectedShowId is not null && expectedShowId != tmdbShowId))
+            {
                 return null;
+            }
 
             var showExternalIds = await FetchAsync(client,
                 $"/tv/{tmdbShowId}/external_ids", apiKey, ct).ConfigureAwait(false);
             if (PositiveId(showExternalIds?["tvdb_id"]?.ToString()) != tvdbShowId)
+            {
                 return null;
+            }
 
             var episodeResults = await FetchAsync(client,
                 $"/find/{tvdbEpisodeId}?external_source=tvdb_id", apiKey, ct).ConfigureAwait(false);
@@ -77,18 +96,25 @@ public sealed class TvEpisodeCrosswalk(
             if (tmdbEpisodeId is null || PositiveId(episode?["show_id"]?.ToString()) != tmdbShowId
                 || !TryPosition(episode?["season_number"], out var season)
                 || !TryPosition(episode?["episode_number"], out var number) || number == 0)
+            {
                 return null;
+            }
 
             var episodeExternalIds = await FetchAsync(client,
                 $"/tv/{tmdbShowId}/season/{season}/episode/{number}/external_ids", apiKey, ct)
                 .ConfigureAwait(false);
             if (PositiveId(episodeExternalIds?["id"]?.ToString()) != tmdbEpisodeId
                 || PositiveId(episodeExternalIds?["tvdb_id"]?.ToString()) != tvdbEpisodeId)
+            {
                 return null;
+            }
 
             var result = new TmdbEpisodeIdentity(tmdbShowId, tmdbEpisodeId, season, number,
                 VerifiedAt: DateTimeOffset.UtcNow);
-            if (_cache.Count >= 1000) _cache.Clear();
+            if (_cache.Count >= 1000)
+            {
+                _cache.Clear();
+            }
             _cache[cacheKey] = result;
             return result;
         }
@@ -110,7 +136,10 @@ public sealed class TvEpisodeCrosswalk(
         var url = $"https://api.themoviedb.org/3{path}{separator}api_key={Uri.EscapeDataString(apiKey)}";
         using var response = await rateLimiter.ExecuteAsync("tmdb", ProviderRateLimitDefaults.Tmdb,
             token => client.GetAsync(url, token), ct).ConfigureAwait(false);
-        if (response.StatusCode == HttpStatusCode.NotFound) return null;
+        if (response.StatusCode == HttpStatusCode.NotFound)
+        {
+            return null;
+        }
         response.EnsureSuccessStatusCode();
         return await response.Content.ReadFromJsonAsync<JsonNode>(cancellationToken: ct).ConfigureAwait(false);
     }

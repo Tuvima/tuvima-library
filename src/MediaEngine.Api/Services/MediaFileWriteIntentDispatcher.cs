@@ -19,7 +19,9 @@ public sealed class MediaFileWriteIntentDispatcher(
             try
             {
                 if (!await DispatchOnceAsync(stoppingToken))
+                {
                     await Task.Delay(TimeSpan.FromSeconds(2), stoppingToken);
+                }
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
             {
@@ -37,7 +39,9 @@ public sealed class MediaFileWriteIntentDispatcher(
     {
         var intent = await intents.ClaimNextAsync(LeaseDuration, ct);
         if (intent is null)
+        {
             return false;
+        }
 
         WriteBackOutcome outcome;
         try
@@ -73,16 +77,16 @@ public sealed class MediaFileWriteIntentDispatcher(
 
     internal static (string Status, string? Error) MapCompletion(
         MediaFileWriteIntent intent, WriteBackOutcome outcome) => outcome.Kind switch
-    {
-        WriteBackOutcomeKind.Verified => ("verified", null),
-        WriteBackOutcomeKind.Blocked => ("blocked", outcome.Reason),
-        WriteBackOutcomeKind.Unsupported => ("unsupported", outcome.Reason),
-        WriteBackOutcomeKind.Unverified when intent.Attempts < MaxAttempts =>
-            ("pending", outcome.Reason ?? "Physical read-back was unverified."),
-        WriteBackOutcomeKind.Failed when intent.Attempts < MaxAttempts =>
-            ("pending", outcome.Reason ?? "Write-back failed."),
-        WriteBackOutcomeKind.Unverified =>
-            ("failed", outcome.Reason ?? "Physical read-back remained unverified."),
-        _ => ("failed", outcome.Reason ?? "Write-back failed."),
-    };
+        {
+            WriteBackOutcomeKind.Verified => ("verified", null),
+            WriteBackOutcomeKind.Blocked => ("blocked", outcome.Reason),
+            WriteBackOutcomeKind.Unsupported => ("unsupported", outcome.Reason),
+            WriteBackOutcomeKind.Unverified when intent.Attempts < MaxAttempts =>
+                ("pending", outcome.Reason ?? "Physical read-back was unverified."),
+            WriteBackOutcomeKind.Failed when intent.Attempts < MaxAttempts =>
+                ("pending", outcome.Reason ?? "Write-back failed."),
+            WriteBackOutcomeKind.Unverified =>
+                ("failed", outcome.Reason ?? "Physical read-back remained unverified."),
+            _ => ("failed", outcome.Reason ?? "Write-back failed."),
+        };
 }

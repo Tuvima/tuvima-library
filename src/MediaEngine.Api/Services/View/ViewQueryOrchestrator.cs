@@ -84,7 +84,9 @@ public sealed class ViewQueryOrchestrator(
         }
 
         if (request.SortByAddedAt && request.Cursor is not null)
+        {
             throw new ArgumentException("Added-at queries use an explicit composite boundary.", nameof(request));
+        }
 
         var decision = await authorization.AuthorizeAsync(
             await profileContext.ResolveAuthorityAsync(ct).ConfigureAwait(false),

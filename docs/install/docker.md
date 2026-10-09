@@ -11,21 +11,11 @@ status: current
 
 Run Tuvima Library on a Docker host and keep your catalogue through container updates. Allow about 10 minutes for configuration, plus image downloads or a source build and optional AI downloads.
 
-## Image availability
-
-As of October 8, 2026, public access to `ghcr.io/tuvima/tuvima_library:latest` has not been confirmed. Check image access before setting up storage. If a pull is unavailable, use the [local source-build fallback](#build-the-image-from-source).
-
 ## Before you start
 
 Use Docker Engine with the Compose plugin, or Docker Desktop with Linux containers. The image workflow targets Linux AMD64 and ARM64.
 
-Check access to the image named in the maintained Compose file:
-
-```bash
-docker pull ghcr.io/tuvima/tuvima_library:latest
-```
-
-Only sign in to GHCR if your account has already been granted package access. Signing in does not establish that a public image exists or grant access by itself.
+Tuvima Library is published as `ghcr.io/tuvima/tuvima_library:latest`, built from the main code line. If your host cannot download it, [build the image from source](#build-the-image-from-source) instead.
 
 Choose a managed media folder and six application folders. Give the container's user access to them before starting.
 
@@ -62,7 +52,7 @@ Keep user-owned originals separate from `/library` if Tuvima must not change the
 4. Set `TUVIMA_UID` and `TUVIMA_GID` to the numeric user and group that own those folders. On Linux or a NAS, `id USERNAME` shows these numbers.
 5. Keep `TUVIMA_UMASK: "0002"` if new files should be writable by that group. Use a stricter mask when your host policy requires one.
 6. Set `TZ` to your timezone, such as `America/Chicago`. Set `TUVIMA_CORS_ORIGINS` to the Dashboard origin your devices use, such as `http://192.168.1.50:5016`.
-7. If the image access check passed, validate, download, and start:
+7. Validate the file, download the image, and start:
 
    ```bash
    docker compose config --quiet
@@ -75,7 +65,7 @@ Only Dashboard port `5016` is published. Keep Engine port `61495` internal; do n
 
 ## Build the image from source
 
-Use this path if the registry pull is unavailable. You need Git, Docker with Linux containers, and internet access for base images, NuGet packages, and FFmpeg. The repository Dockerfile includes the .NET SDK; a host .NET installation is not required for this build.
+Use this path if you prefer to build locally or your host cannot download the published image. You need Git, Docker with Linux containers, and internet access for base images, NuGet packages, and FFmpeg. The repository Dockerfile includes the .NET SDK; a host .NET installation is not required for this build.
 
 1. Clone a clean checkout and build from its root:
 
@@ -101,8 +91,6 @@ Use this path if the registry pull is unavailable. You need Git, Docker with Lin
    ```
 
 Build on the Docker host that will run the container. For a separate NAS host, transfer the built image with `docker save` and `docker load`, or build from the checkout on that NAS. Select the same local tag in its app editor and disable automatic pulls. If the NAS editor cannot use local images without pulling, deploy this Compose file from the NAS shell instead.
-
-This source-build path follows the committed Dockerfile. It has not been exercised on this documentation review host, which has no Docker CLI.
 
 ## Complete first-run setup
 

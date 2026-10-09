@@ -10,19 +10,33 @@ public static class AppActivityPresentation
         var value = $"{actionType} {entityType}".ToLowerInvariant();
 
         if (ContainsAny(value, "clean", "purge", "delete", "remove"))
+        {
             return new("Cleanup", AppIcons.Cleanup, "var(--tl-status-success)");
+        }
         if (ContainsAny(value, "metadata", "reconcil", "canonical", "enrich", "hydrat", "provider", "artwork"))
+        {
             return new("Metadata", AppIcons.Metadata, "var(--tl-status-info)");
+        }
         if (ContainsAny(value, "maintenance", "prun", "vacuum", "repair"))
+        {
             return new("Maintenance", AppIcons.Maintenance, "var(--tl-accent-primary)");
+        }
         if (ContainsAny(value, "backup", "restore", "recovery"))
+        {
             return new("Backup", AppIcons.Backup, "var(--tl-media-audiobooks)");
+        }
         if (ContainsAny(value, "review", "provisional", "reject", "warning", "fail", "error"))
+        {
             return new("Review", AppIcons.Review, "var(--tl-status-warning)");
+        }
         if (ContainsAny(value, "ingest", "import", "scan", "mediaadded", "file"))
+        {
             return new("Ingestion", AppIcons.Ingestion, "var(--tl-media-books)");
+        }
         if (ContainsAny(value, "server", "startup", "started", "system"))
+        {
             return new("System", AppIcons.System, "var(--tl-status-success)");
+        }
 
         return new("Library", AppIcons.Activity, "var(--tl-text-secondary)");
     }

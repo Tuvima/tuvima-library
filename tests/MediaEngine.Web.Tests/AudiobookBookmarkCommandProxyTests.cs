@@ -87,9 +87,13 @@ public sealed class ListenPlaybackCommandActionsClientTests
         var context = Context();
         var draft = new AudiobookBookmarkDraftPayloadDto
         {
-            DraftGeneration = 7, ProfileId = context.ProfileId, WorkId = context.WorkId,
-            SessionLeaseId = context.SessionLeaseId, AssetId = context.ExpectedAssetId!.Value,
-            PositionSeconds = 42, CapturedAt = DateTimeOffset.UtcNow,
+            DraftGeneration = 7,
+            ProfileId = context.ProfileId,
+            WorkId = context.WorkId,
+            SessionLeaseId = context.SessionLeaseId,
+            AssetId = context.ExpectedAssetId!.Value,
+            PositionSeconds = 42,
+            CapturedAt = DateTimeOffset.UtcNow,
         };
         var channel = new ReplyChannel((command, _) =>
         {
@@ -162,13 +166,13 @@ public sealed class ListenPlaybackCommandActionsClientTests
     private static ListenPlaybackCommandReplyDto Reply(ListenPlaybackCommandDto command,
         AudiobookBookmarkDialogSnapshotDto? snapshot = null,
         IReadOnlyList<AudiobookBookmarkDto>? bookmarks = null) => new()
-    {
-        CommandId = command.CommandId,
-        RecipientId = command.SenderId,
-        Outcome = AudiobookBookmarkOperationOutcomes.Success,
-        BookmarkSnapshot = snapshot,
-        Bookmarks = bookmarks,
-    };
+        {
+            CommandId = command.CommandId,
+            RecipientId = command.SenderId,
+            Outcome = AudiobookBookmarkOperationOutcomes.Success,
+            BookmarkSnapshot = snapshot,
+            Bookmarks = bookmarks,
+        };
 
     private sealed class ReplyChannel(Func<ListenPlaybackCommandDto, CancellationToken, Task<ListenPlaybackCommandReplyDto?>> handler)
         : IListenPlaybackCommandChannel

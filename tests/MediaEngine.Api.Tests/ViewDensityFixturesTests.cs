@@ -21,7 +21,9 @@ public sealed class ViewDensityFixturesTests
         Assert.Equal(72, samples.Count(sample => sample.City == "Chicago"));
         Assert.Equal(16, samples.Select(sample => sample.LocationName).Distinct().Count());
         foreach (var group in samples.GroupBy(sample => sample.LocationName))
+        {
             Assert.Equal(group.Count(), group.Select(sample => (sample.Latitude, sample.Longitude)).Distinct().Count());
+        }
         Assert.Equal(24, samples.Count(sample => sample.LocationName == "Naperville, United States"));
         Assert.Equal(12, samples.Count(sample => sample.LocationName == "Paris, France"));
         Assert.All(samples, sample => { Assert.InRange(sample.Latitude, -90, 90); Assert.InRange(sample.Longitude, -180, 180); });

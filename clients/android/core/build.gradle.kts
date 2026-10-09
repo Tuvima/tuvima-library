@@ -1,11 +1,10 @@
 plugins {
     id("com.android.library")
-    id("org.jetbrains.kotlin.android")
 }
 
 android {
     namespace = "com.tuvima.library.core"
-    compileSdk = 36
+    compileSdk = 37
 
     defaultConfig {
         minSdk = 28

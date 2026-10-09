@@ -26,24 +26,39 @@ public sealed class ContextSidebarPreferences(
 
     public async Task<bool> SaveAsync(string context, ContextSidebarLayoutDto layout, CancellationToken ct = default)
     {
-        if (string.IsNullOrWhiteSpace(context) || context.Length > 64) return false;
+        if (string.IsNullOrWhiteSpace(context) || context.Length > 64)
+        {
+            return false;
+        }
         var initial = await accessor.GetAsync(ct);
-        if (initial is null) return false;
+        if (initial is null)
+        {
+            return false;
+        }
         var targetProfileId = initial.ProfileId;
         var generation = accessor.Generation;
         await _saveGate.WaitAsync(ct);
         try
         {
-            if (generation != accessor.Generation || accessor.ActiveProfileId is { } beforeWriteProfile && beforeWriteProfile != targetProfileId) return false;
+            if (generation != accessor.Generation || accessor.ActiveProfileId is { } beforeWriteProfile && beforeWriteProfile != targetProfileId)
+            {
+                return false;
+            }
             var settings = await orchestrator.GetPlaybackSettingsAsync(ct);
             if (settings is null || settings.ProfileId != targetProfileId
-                || generation != accessor.Generation || accessor.ActiveProfileId is { } beforePostProfile && beforePostProfile != targetProfileId) return false;
+                || generation != accessor.Generation || accessor.ActiveProfileId is { } beforePostProfile && beforePostProfile != targetProfileId)
+            {
+                return false;
+            }
             settings.ContextSidebars ??= new Dictionary<string, ContextSidebarLayoutDto>(StringComparer.OrdinalIgnoreCase);
             settings.ContextSidebars[context] = Copy(layout);
             var saved = await orchestrator.SavePlaybackSettingsAsync(settings, ct);
             var active = await accessor.GetAsync(ct);
             if (saved is null || saved.ProfileId != targetProfileId || active?.ProfileId != targetProfileId
-                || generation != accessor.Generation || accessor.ActiveProfileId is { } afterPostProfile && afterPostProfile != targetProfileId) return false;
+                || generation != accessor.Generation || accessor.ActiveProfileId is { } afterPostProfile && afterPostProfile != targetProfileId)
+            {
+                return false;
+            }
             accessor.UpdateCache(saved);
             return true;
         }

@@ -1,9 +1,9 @@
-using MediaEngine.Web.Components.Shared;
 using System.Buffers.Binary;
 using System.Text.Json;
 using Bunit;
 using MediaEngine.Contracts.Details;
 using MediaEngine.Web.Components.Details;
+using MediaEngine.Web.Components.Shared;
 using MediaEngine.Web.Services.Branding;
 
 namespace MediaEngine.Web.Tests;

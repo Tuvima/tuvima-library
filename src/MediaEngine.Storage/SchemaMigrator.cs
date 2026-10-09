@@ -1,6 +1,6 @@
+using Dapper;
 using MediaEngine.Domain;
 using Microsoft.Data.Sqlite;
-using Dapper;
 
 namespace MediaEngine.Storage;
 
@@ -815,7 +815,9 @@ internal sealed class SchemaMigrator
         var addedEmbeddedCapturedAt = AddColumnIfMissing(conn, "local_items", "embedded_captured_at", "ALTER TABLE local_items ADD COLUMN embedded_captured_at TEXT;");
         AddColumnIfMissing(conn, "local_items", "captured_at_user_override", "ALTER TABLE local_items ADD COLUMN captured_at_user_override INTEGER NOT NULL DEFAULT 0;");
         if (addedEmbeddedCapturedAt)
+        {
             conn.Execute("UPDATE local_items SET embedded_captured_at = captured_at WHERE captured_at IS NOT NULL;");
+        }
         if (addedLocationOverride || addedEmbeddedLatitude || addedEmbeddedLongitude)
         {
             using var localLocationBackfill = conn.CreateCommand();
@@ -1186,7 +1188,10 @@ internal sealed class SchemaMigrator
         inspect.CommandText = "SELECT sql FROM sqlite_master WHERE type='table' AND name='entity_assets';";
         var tableSql = inspect.ExecuteScalar() as string;
         if (string.IsNullOrWhiteSpace(tableSql)
-            || tableSql.Contains("'Edition'", StringComparison.Ordinal)) return;
+            || tableSql.Contains("'Edition'", StringComparison.Ordinal))
+        {
+            return;
+        }
 
         // Keep canonical and legacy preference stores in step. A canonical-only
         // Edition link would be invisible to readers still using entity_assets.

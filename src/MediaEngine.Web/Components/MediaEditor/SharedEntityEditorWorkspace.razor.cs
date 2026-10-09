@@ -92,7 +92,9 @@ public partial class SharedEntityEditorWorkspace : IDisposable
     protected override async Task OnParametersSetAsync()
     {
         if (_initialized)
+        {
             return;
+        }
         _initialized = true;
         _target = InitialTarget;
         await LoadTargetAsync();
@@ -120,7 +122,9 @@ public partial class SharedEntityEditorWorkspace : IDisposable
     public async Task<bool> SaveAsync()
     {
         if (!_dirty)
+        {
             return true;
+        }
         return await SaveDetailsAsync();
     }
 
@@ -161,20 +165,26 @@ public partial class SharedEntityEditorWorkspace : IDisposable
             await ContextChanged.InvokeAsync(_context);
             var sections = ReadableCapabilities.Select(capability => capability.section).ToHashSet(StringComparer.OrdinalIgnoreCase);
             if (!sections.Contains(_activeSection))
+            {
                 _activeSection = sections.FirstOrDefault() ?? SharedEntityEditorSections.Details;
+            }
             _details = await ApiClient.GetSharedEntityDetailsAsync(_target);
             _label = _details?.label ?? _context.label;
             _description = _details?.description ?? string.Empty;
             _savedLabel = _label;
             _savedDescription = _description;
             if (sections.Contains(SharedEntityEditorSections.Artwork))
+            {
                 _artwork = await ApiClient.GetSharedEntityArtworkAsync(_target);
+            }
             if (IsUniverse)
             {
                 _categories = await ApiClient.GetSharedEntityCategoriesAsync(_target.UniverseQid);
                 _selectedCategory ??= _categories.FirstOrDefault()?.category;
                 if (_categories.Count > 0)
+                {
                     await LoadSelectorPageAsync(reset: true);
+                }
             }
             else
             {
@@ -182,7 +192,9 @@ public partial class SharedEntityEditorWorkspace : IDisposable
                 await LoadSelectorPageAsync(reset: true);
             }
             if (sections.Contains(SharedEntityEditorSections.Enrichment))
+            {
                 _enrichment = await ApiClient.GetSharedEntityEnrichmentAsync(_target);
+            }
             await LoadProjectionAsync(_activeSection);
         }
         catch (Exception ex)
@@ -233,7 +245,9 @@ public partial class SharedEntityEditorWorkspace : IDisposable
     private async Task SelectSectionAsync(string section)
     {
         if (!ReadableCapabilities.Any(capability => string.Equals(capability.section, section, StringComparison.OrdinalIgnoreCase)))
+        {
             return;
+        }
         _activeSection = section;
         _error = null;
         await LoadProjectionAsync(section);
@@ -270,7 +284,9 @@ public partial class SharedEntityEditorWorkspace : IDisposable
         var focusTarget = _popoverAnchorId;
         await InvokeAsync(StateHasChanged);
         if (!string.IsNullOrWhiteSpace(focusTarget))
+        {
             await JS.InvokeVoidAsync("tuvimaFocusById", focusTarget);
+        }
     }
 
     private Task OnSelectorKeyDown(KeyboardEventArgs args) =>
@@ -308,7 +324,9 @@ public partial class SharedEntityEditorWorkspace : IDisposable
     private async Task LoadSelectorPageAsync(bool reset, CancellationToken cancellationToken = default)
     {
         if (_target is null)
+        {
             return;
+        }
         if (reset)
         {
             _selectorOffset = 0;
@@ -338,7 +356,9 @@ public partial class SharedEntityEditorWorkspace : IDisposable
     private async Task RequestTargetSwitchAsync(SharedEntityEditorTargetDto target)
     {
         if (SameTarget(_target, target))
+        {
             return;
+        }
         if (_dirty)
         {
             _pendingTarget = target;
@@ -357,7 +377,9 @@ public partial class SharedEntityEditorWorkspace : IDisposable
     private async Task DiscardAndSwitchAsync()
     {
         if (_pendingTarget is null)
+        {
             return;
+        }
         _target = _pendingTarget;
         await LoadTargetAsync();
     }
@@ -366,7 +388,9 @@ public partial class SharedEntityEditorWorkspace : IDisposable
     {
         var target = _pendingTarget;
         if (target is null || !await SaveAsync())
+        {
             return;
+        }
         _target = target;
         await LoadTargetAsync();
     }
@@ -374,7 +398,9 @@ public partial class SharedEntityEditorWorkspace : IDisposable
     private async Task<bool> SaveDetailsAsync()
     {
         if (!_dirty || !_detailsEditable)
+        {
             return true;
+        }
         _saving = true;
         _error = null;
         _message = null;
@@ -403,7 +429,9 @@ public partial class SharedEntityEditorWorkspace : IDisposable
     {
         var file = args.File;
         if (file is null || !_artworkEditable)
+        {
             return;
+        }
         if (file.ContentType is not ("image/jpeg" or "image/png"))
         {
             _error = "Choose a JPEG or PNG image.";
@@ -452,7 +480,9 @@ public partial class SharedEntityEditorWorkspace : IDisposable
     private async Task OnCategoryItemKeyDown(KeyboardEventArgs args, string currentCategory)
     {
         if (_categories.Count == 0 || args.Key is not ("ArrowLeft" or "ArrowRight" or "Home" or "End"))
+        {
             return;
+        }
         var index = _categories.ToList().FindIndex(category => category.category == currentCategory);
         index = args.Key switch
         {
@@ -502,6 +532,8 @@ public partial class SharedEntityEditorWorkspace : IDisposable
         _searchCts?.Cancel();
         _searchCts?.Dispose();
         if (_popoverPositioned)
+        {
             _ = JS.InvokeVoidAsync("tuvimaRemoveSharedEntityPopoverPosition", "see-selector-popover");
+        }
     }
 }

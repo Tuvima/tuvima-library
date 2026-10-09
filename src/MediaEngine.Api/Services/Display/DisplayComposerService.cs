@@ -123,7 +123,8 @@ public sealed partial class DisplayComposerService
                     .Concat(tvShowCards.Select(card => card with { TileTextMode = "coverOnly" }))
                     .Concat(musicAlbumCards)
                     .ToList()
-                : []) { Spotlights = spotlights };
+                : [])
+        { Spotlights = spotlights };
     }
 
     public async Task<DisplayPageDto> BuildBrowseAsync(
@@ -277,7 +278,8 @@ public sealed partial class DisplayComposerService
             var page = ordered.Skip(Math.Max(0, offset)).Take(Math.Clamp(limit <= 0 ? 48 : limit, 1, 200)).ToList();
             return new DisplayPageDto("browse-timeline", "Timeline", null, null, [], includeCatalog ? page : [])
             {
-                TotalCount = ordered.Count, Facets = facets,
+                TotalCount = ordered.Count,
+                Facets = facets,
                 Timeline = ordered.Select((card, index) => new { Year = Math.Max(0, card.SortYear), Index = index })
                     .GroupBy(item => item.Year).Select(group => new DisplayTimelinePeriodDto(group.Key, group.Count(), group.Min(item => item.Index))).ToList()
             };

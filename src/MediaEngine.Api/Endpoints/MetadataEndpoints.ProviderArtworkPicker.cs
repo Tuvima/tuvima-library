@@ -9,8 +9,8 @@ using MediaEngine.Domain.Constants;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Models;
 using MediaEngine.Domain.Services;
-using MediaEngine.Storage.Contracts;
 using MediaEngine.Providers.Services;
+using MediaEngine.Storage.Contracts;
 using Microsoft.Extensions.Caching.Memory;
 
 namespace MediaEngine.Api.Endpoints;
@@ -45,41 +45,61 @@ public static partial class MetadataEndpoints
             ICanonicalValueRepository canonicals, ArtworkAssetService assets, IMemoryCache cache, CancellationToken ct) =>
         {
             var scope = await ResolveProviderPickerScopeAsync(http, entityId, scopeId);
-            if (scope is null) return ApiErrors.NotFound("Artwork scope not found.");
+            if (scope is null)
+            {
+                return ApiErrors.NotFound("Artwork scope not found.");
+            }
             var sourceType = role switch { "Primary" => scopeId == "episode" ? "EpisodeStill" : scopeId == "season" ? "SeasonPoster" : "CoverArt", "Background" => scopeId == "season" ? "SeasonThumb" : "Background", "Logo" => "Logo", _ => "" };
             if (sourceType.Length == 0 || !(ArtworkScopeService.IsProviderArtworkRefreshSupported(scope) || (NormalizeEditorMediaType(scope.MediaType) == "Comics" && scopeId == "series")))
+            {
                 return Results.Ok(new ProviderArtworkDiscoveryDto([], "Provider discovery is not available for this artwork type. Use Match & Identity to check the item's identity."));
+            }
             var requestContext = await ResolveProviderArtworkRequestContextAsync(scope, role, sourceType, canonicals, ct);
             if (requestContext is null)
+            {
                 return Results.Ok(new ProviderArtworkDiscoveryDto([], "No confirmed provider identity is available for this exact artwork scope. Use Match & Identity first."));
+            }
             if (!MatchesProviderArtworkRequestContext(requestContext, sourceAssetType, provider, providerItemId, releaseId, orderContext))
+            {
                 return Results.Ok(new ProviderArtworkDiscoveryDto([], "The selected artwork context changed. Reload this artwork role before contacting its provider.", Context: requestContext));
+            }
             var target = await scopes.ResolveProviderArtworkRefreshTargetAsync(scope, ct, discoveryOnly: true);
             if (target.Skipped is not null || target.RepresentativeAssetId is not { } assetId)
+            {
                 return Results.Ok(new ProviderArtworkDiscoveryDto([], target.Skipped?.Message ?? "No provider identity is available. Use Match & Identity first."));
+            }
             if (await http.RequestServices.GetRequiredService<CatalogueResourceAuthorizationService>().EvaluateAssetAsync(
                     http, assetId, ApplicationPermissionIds.MetadataEnrichmentRun, ct) != CatalogueResourceAccess.Allowed)
+            {
                 return ApiErrors.NotFound("Artwork scope not found.");
+            }
             ProviderArtworkDiscovery discovery;
             string? attributionUrl = null;
             if (requestContext.Provider == "tvdb")
             {
                 if (!tvdb.IsConfigured())
+                {
                     return Results.Ok(new ProviderArtworkDiscoveryDto([], "Connect TheTVDB in Settings to browse its artwork."));
+                }
                 var found = await DiscoverTvdbArtworkAsync(scope, requestContext.ProviderItemId, tvdb, ct);
                 discovery = new(found.Where(item => item.Role == role).Select(item => item.Candidate with
-                    {
-                        ThumbnailUrl = CreateTvdbPreviewUrl(cache, entityId, scope.FieldEntityId,
+                {
+                    ThumbnailUrl = CreateTvdbPreviewUrl(cache, entityId, scope.FieldEntityId,
                             item.Candidate.ThumbnailUrl.Length > 0 ? item.Candidate.ThumbnailUrl : item.Candidate.Url) ?? string.Empty,
-                    }).ToList(),
+                }).ToList(),
                     "Artwork from TheTVDB. Select images to add to managed artwork.");
                 attributionUrl = $"https://thetvdb.com/{scopeId switch { "season" => "seasons", "episode" => "episodes", _ => "series" }}/{requestContext.ProviderItemId}";
             }
             else if (!string.IsNullOrWhiteSpace(target.CoverUrl))
+            {
                 discovery = role == "Primary"
-                    ? new([new("metadata-cover", "Metadata provider", target.CoverUrl, ProviderArtworkThumbnails.ForCover(target.CoverUrl), null, null)])
-                    : new([], "This metadata provider only supplies cover artwork.");
-            else discovery = await images.DiscoverArtworkAsync(assetId, scopeId, role, ct);
+                        ? new([new("metadata-cover", "Metadata provider", target.CoverUrl, ProviderArtworkThumbnails.ForCover(target.CoverUrl), null, null)])
+                        : new([], "This metadata provider only supplies cover artwork.");
+            }
+            else
+            {
+                discovery = await images.DiscoverArtworkAsync(assetId, scopeId, role, ct);
+            }
             var deduplicated = discovery.Items
                 .Where(candidate => !string.IsNullOrWhiteSpace(candidate.Id) && !string.IsNullOrWhiteSpace(candidate.Url))
                 .DistinctBy(candidate => candidate.Id, StringComparer.OrdinalIgnoreCase)
@@ -109,20 +129,35 @@ public static partial class MetadataEndpoints
             IMemoryCache cache, CancellationToken ct) =>
         {
             var scope = await ResolveProviderPickerScopeAsync(http, entityId, scopeId);
-            if (scope is null) return ApiErrors.NotFound("Artwork scope not found.");
+            if (scope is null)
+            {
+                return ApiErrors.NotFound("Artwork scope not found.");
+            }
             var target = await scopes.ResolveProviderArtworkRefreshTargetAsync(scope, ct, discoveryOnly: true);
-            if (target.Skipped is not null) return ApiErrors.BadRequest(target.Skipped.Message ?? "Provider access is unavailable.");
+            if (target.Skipped is not null)
+            {
+                return ApiErrors.BadRequest(target.Skipped.Message ?? "Provider access is unavailable.");
+            }
             if (target.RepresentativeAssetId is not { } assetId || await http.RequestServices.GetRequiredService<CatalogueResourceAuthorizationService>().EvaluateAssetAsync(
                     http, assetId, ApplicationPermissionIds.MetadataEnrichmentRun, ct) != CatalogueResourceAccess.Allowed)
+            {
                 return ApiErrors.NotFound("Artwork scope not found.");
-            if (request.CandidateIds.Count is < 1 or > 150) return ApiErrors.BadRequest("Select between 1 and 150 images.");
+            }
+            if (request.CandidateIds.Count is < 1 or > 150)
+            {
+                return ApiErrors.BadRequest("Select between 1 and 150 images.");
+            }
             if (!cache.TryGetValue<ProviderPickerSession>(ProviderPickerKey(entityId, scopeId, role), out var session) || session is null
                 || session.OwnerId != (scope.ArtworkOwnerEntityId ?? scope.FieldEntityId))
+            {
                 return ApiErrors.BadRequest("Artwork results expired. Reload the provider gallery and try again.");
+            }
             var currentContext = await ResolveProviderArtworkRequestContextAsync(
                 scope, role, session.SourceAssetType, canonicals, ct);
             if (currentContext is null || currentContext != session.Context)
+            {
                 return ApiErrors.Conflict("The provider identity or selected artwork context changed. Reload the provider gallery before importing.");
+            }
             return Results.Ok(await assets.ImportProviderCandidatesAsync(session.OwnerType, session.OwnerId,
                 session.Role, session.SourceAssetType, session.Title, session.MediaType, session.Items, request.CandidateIds, ct));
         }).WithName("ImportSelectedProviderArtwork")
@@ -157,7 +192,10 @@ public static partial class MetadataEndpoints
     {
         var values = BuildLatestCanonicalMap(await canonicals.GetByEntityAsync(scope.FieldEntityId, ct));
         var provider = GetCanonicalValue(values, MetadataFieldConstants.IdentityProvider)?.Trim().ToLowerInvariant();
-        if (string.IsNullOrWhiteSpace(provider)) return null;
+        if (string.IsNullOrWhiteSpace(provider))
+        {
+            return null;
+        }
         var mediaType = NormalizeEditorMediaType(scope.MediaType);
         var idKey = (mediaType, scope.ScopeId, provider) switch
         {
@@ -183,7 +221,10 @@ public static partial class MetadataEndpoints
                 GetCanonicalValue(values, BridgeIdKeys.Isbn),
                 GetCanonicalValue(values, BridgeIdKeys.Asin))
             : null;
-        if (string.IsNullOrWhiteSpace(providerId)) return null;
+        if (string.IsNullOrWhiteSpace(providerId))
+        {
+            return null;
+        }
         var release = StringHelpers.FirstNonBlank(
             GetCanonicalValue(values, BridgeIdKeys.MusicBrainzReleaseId),
             GetCanonicalValue(values, "edition_release_id"));

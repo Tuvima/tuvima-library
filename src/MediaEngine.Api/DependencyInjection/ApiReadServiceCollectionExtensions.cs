@@ -1,7 +1,7 @@
 using MediaEngine.Api.Services;
 using MediaEngine.Api.Services.Collections;
-using MediaEngine.Api.Services.ReadServices;
 using MediaEngine.Api.Services.Matching;
+using MediaEngine.Api.Services.ReadServices;
 using MediaEngine.Application.Services;
 using MediaEngine.Storage;
 

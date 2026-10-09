@@ -154,7 +154,10 @@ public sealed partial class EngineApiClient
         Guid workId, string role, string? sourceAssetType = null, CancellationToken ct = default)
     {
         var path = $"/api/v1/display/artwork/works/{workId:D}/effective?role={Uri.EscapeDataString(role)}";
-        if (!string.IsNullOrWhiteSpace(sourceAssetType)) path += $"&sourceAssetType={Uri.EscapeDataString(sourceAssetType)}";
+        if (!string.IsNullOrWhiteSpace(sourceAssetType))
+        {
+            path += $"&sourceAssetType={Uri.EscapeDataString(sourceAssetType)}";
+        }
         var selection = await GetAsync<EffectiveArtworkSelection>("GET /api/v1/display/artwork/works/{workId}/effective", path, ct: ct);
         return selection?.Variant is { } variant
             ? selection with { Variant = variant with { ContentUrl = AbsoluteUrl(variant.ContentUrl), ThumbnailUrl = AbsoluteUrl(variant.ThumbnailUrl) } }
@@ -168,8 +171,11 @@ public sealed partial class EngineApiClient
             "GET /api/v1/display/artwork/media-assets/{assetId}/effective-cover",
             $"/api/v1/display/artwork/media-assets/{assetId:D}/effective-cover", ct: ct);
         return selection?.Variant is { } variant
-            ? selection with { Variant = variant with
-                { ContentUrl = AbsoluteUrl(variant.ContentUrl), ThumbnailUrl = AbsoluteUrl(variant.ThumbnailUrl) } }
+            ? selection with
+            {
+                Variant = variant with
+                { ContentUrl = AbsoluteUrl(variant.ContentUrl), ThumbnailUrl = AbsoluteUrl(variant.ThumbnailUrl) }
+            }
             : selection;
     }
 
@@ -181,7 +187,10 @@ public sealed partial class EngineApiClient
     public async Task<IReadOnlyList<ArtworkWritebackStatusDto>> GetArtworkWritebackStatusesAsync(
         IReadOnlyList<Guid> mediaAssetIds, CancellationToken ct = default)
     {
-        if (mediaAssetIds.Count is < 1 or > 100) return [];
+        if (mediaAssetIds.Count is < 1 or > 100)
+        {
+            return [];
+        }
         return await PostAsync<ArtworkWritebackStatusesRequestDto, List<ArtworkWritebackStatusDto>>(
             "Artwork statuses for media page", "/metadata/artwork-writeback/statuses",
             new ArtworkWritebackStatusesRequestDto(mediaAssetIds), ct: ct) ?? [];
@@ -213,7 +222,10 @@ public sealed partial class EngineApiClient
     {
         var response = await _http.PostAsJsonAsync(
             $"/api/v1/display/artwork/entities/{Uri.EscapeDataString(entityType)}/{entityId:D}/links", request, ct);
-        if (!response.IsSuccessStatusCode) return null;
+        if (!response.IsSuccessStatusCode)
+        {
+            return null;
+        }
         var result = await response.Content.ReadFromJsonAsync<ArtworkEntityWorkspaceDto>(cancellationToken: ct);
         return result is null ? null : NormalizeWorkspace(result);
     }
@@ -223,7 +235,10 @@ public sealed partial class EngineApiClient
     {
         var response = await _http.PostAsJsonAsync(
             $"/api/v1/display/artwork/entities/{Uri.EscapeDataString(entityType)}/{entityId:D}/from-url", request, ct);
-        if (!response.IsSuccessStatusCode) return null;
+        if (!response.IsSuccessStatusCode)
+        {
+            return null;
+        }
         var result = await response.Content.ReadFromJsonAsync<ArtworkAssetDto>(cancellationToken: ct);
         return result is null ? null : NormalizeAsset(result);
     }
@@ -239,13 +254,28 @@ public sealed partial class EngineApiClient
         fileContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(GetImageContentType(fileName));
         content.Add(fileContent, "file", fileName);
         content.Add(new StringContent(role), "role");
-        if (!string.IsNullOrWhiteSpace(entityLabel)) content.Add(new StringContent(entityLabel), "entityLabel");
-        if (!string.IsNullOrWhiteSpace(mediaType)) content.Add(new StringContent(mediaType), "mediaType");
-        if (!string.IsNullOrWhiteSpace(year)) content.Add(new StringContent(year), "year");
-        if (!string.IsNullOrWhiteSpace(sourceAssetType)) content.Add(new StringContent(sourceAssetType), "sourceAssetType");
+        if (!string.IsNullOrWhiteSpace(entityLabel))
+        {
+            content.Add(new StringContent(entityLabel), "entityLabel");
+        }
+        if (!string.IsNullOrWhiteSpace(mediaType))
+        {
+            content.Add(new StringContent(mediaType), "mediaType");
+        }
+        if (!string.IsNullOrWhiteSpace(year))
+        {
+            content.Add(new StringContent(year), "year");
+        }
+        if (!string.IsNullOrWhiteSpace(sourceAssetType))
+        {
+            content.Add(new StringContent(sourceAssetType), "sourceAssetType");
+        }
         var response = await _http.PostAsync(
             $"/api/v1/display/artwork/entities/{Uri.EscapeDataString(entityType)}/{entityId:D}/upload", content, ct);
-        if (!response.IsSuccessStatusCode) return null;
+        if (!response.IsSuccessStatusCode)
+        {
+            return null;
+        }
         var result = await response.Content.ReadFromJsonAsync<ArtworkAssetDto>(cancellationToken: ct);
         return result is null ? null : NormalizeAsset(result);
     }
@@ -274,13 +304,20 @@ public sealed partial class EngineApiClient
     private static void AddQuery(List<string> query, string key, string? value)
     {
         if (!string.IsNullOrWhiteSpace(value))
+        {
             query.Add($"{Uri.EscapeDataString(key)}={Uri.EscapeDataString(value)}");
+        }
     }
 
     private static void AddQuery(List<string> query, string key, IEnumerable<string>? values)
     {
-        if (values is null) return;
+        if (values is null)
+        {
+            return;
+        }
         foreach (var value in values)
+        {
             AddQuery(query, key, value);
+        }
     }
 }

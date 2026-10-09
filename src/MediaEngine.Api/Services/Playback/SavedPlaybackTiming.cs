@@ -8,11 +8,17 @@ internal static class SavedPlaybackTiming
 {
     internal static (double? PositionSeconds, double? DurationSeconds) Read(string? json)
     {
-        if (string.IsNullOrWhiteSpace(json)) return (null, null);
+        if (string.IsNullOrWhiteSpace(json))
+        {
+            return (null, null);
+        }
         try
         {
             using var document = JsonDocument.Parse(json);
-            if (document.RootElement.ValueKind != JsonValueKind.Object) return (null, null);
+            if (document.RootElement.ValueKind != JsonValueKind.Object)
+            {
+                return (null, null);
+            }
             return (ReadNumber(document.RootElement, "position_seconds", allowZero: true),
                 ReadNumber(document.RootElement, "duration_seconds", allowZero: false));
         }
@@ -24,7 +30,10 @@ internal static class SavedPlaybackTiming
 
     private static double? ReadNumber(JsonElement root, string key, bool allowZero)
     {
-        if (!root.TryGetProperty(key, out var value)) return null;
+        if (!root.TryGetProperty(key, out var value))
+        {
+            return null;
+        }
         var text = value.ValueKind switch
         {
             JsonValueKind.Number => value.GetRawText(),

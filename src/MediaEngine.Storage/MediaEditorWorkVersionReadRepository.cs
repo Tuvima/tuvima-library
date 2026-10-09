@@ -20,7 +20,10 @@ public sealed class MediaEditorWorkVersionReadRepository(IDatabaseConnection db)
                 FROM media_assets ma JOIN editions e ON e.id = ma.edition_id WHERE ma.id = @id
                 LIMIT 1;
                 """, new { id = GuidSql.ToBlob(launchEntityId) }, transaction, cancellationToken: ct));
-            if (launch is null) return null;
+            if (launch is null)
+            {
+                return null;
+            }
 
             var workTitle = connection.QuerySingleOrDefault<string>(new CommandDefinition("""
                 SELECT COALESCE((SELECT value FROM canonical_values WHERE entity_id = w.id AND key = 'title' LIMIT 1), '')
@@ -77,10 +80,15 @@ public sealed class MediaEditorWorkVersionReadRepository(IDatabaseConnection db)
     private static string BuildTechnicalLabel(string path, string? persistedFormatLabel)
     {
         var extension = Path.GetExtension(path).TrimStart('.').ToUpperInvariant();
-        if (string.IsNullOrWhiteSpace(persistedFormatLabel)) return extension;
+        if (string.IsNullOrWhiteSpace(persistedFormatLabel))
+        {
+            return extension;
+        }
         if (string.IsNullOrWhiteSpace(extension)
             || string.Equals(persistedFormatLabel, extension, StringComparison.OrdinalIgnoreCase))
+        {
             return persistedFormatLabel;
+        }
         return $"{persistedFormatLabel} · {extension}";
     }
 

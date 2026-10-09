@@ -39,9 +39,12 @@ public sealed class AutomaticCollectionMembershipTests : BunitContext
         var cut = Render<AutomaticCollectionMembership>(parameters => parameters.Add(component => component.Model,
             new DetailPageViewModel
             {
-                SequencePlacement = new SequencePlacementViewModel { OrderedItems = [
+                SequencePlacement = new SequencePlacementViewModel
+                {
+                    OrderedItems = [
                     new SequenceItemViewModel { Id = Guid.NewGuid().ToString(), Title = "Film", EntityType = DetailEntityType.Movie, IsOwned = true },
-                    new SequenceItemViewModel { Title = "Missing film", EntityType = DetailEntityType.Movie, IsOwned = false } ] },
+                    new SequenceItemViewModel { Title = "Missing film", EntityType = DetailEntityType.Movie, IsOwned = false } ]
+                },
             }));
         Assert.Equal("Watch membership", Assert.Single(cut.FindAll("section")).GetAttribute("aria-label"));
         Assert.Single(cut.FindAll("a"));
@@ -53,15 +56,20 @@ public sealed class AutomaticCollectionMembershipTests : BunitContext
     {
         var id = Guid.NewGuid();
         var cut = Render<AutomaticCollectionMembership>(parameters => parameters.Add(component => component.Model,
-            new DetailPageViewModel { MediaGroups = [new MediaGroupingViewModel { Items = [
+            new DetailPageViewModel
+            {
+                MediaGroups = [new MediaGroupingViewModel { Items = [
                 new MediaGroupingItemViewModel { Id = id.ToString(), EntityType = DetailEntityType.Book,
-                    Title = "Book", ArtworkUrl = $"/engine-image/stream/{Guid.NewGuid():D}/cover" } ] }] }));
+                    Title = "Book", ArtworkUrl = $"/engine-image/stream/{Guid.NewGuid():D}/cover" } ] }]
+            }));
         Assert.Equal($"/engine-image/stream/entity/work/{id:D}/cover?size=s", cut.Find("img").GetAttribute("src"));
     }
 
     private static MediaGroupingItemViewModel Item(DetailEntityType type, string title) => new()
     {
-        Id = Guid.NewGuid().ToString(), EntityType = type, Title = title,
+        Id = Guid.NewGuid().ToString(),
+        EntityType = type,
+        Title = title,
         ArtworkUrl = $"/engine-image/stream/artwork/{Guid.NewGuid():D}",
     };
 }

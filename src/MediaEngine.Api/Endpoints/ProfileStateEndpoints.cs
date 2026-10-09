@@ -41,10 +41,14 @@ public static class ProfileStateEndpoints
             CancellationToken ct) =>
         {
             if (!TryKind(entityKind, out var kind))
+            {
                 return ApiErrors.BadRequest("Unknown profile entity kind.");
+            }
             var profileId = RequireProfileId(user);
             if (!(await access.ResolveAsync(profileId, ct)).Allows(kind, entityId))
+            {
                 return Results.NoContent();
+            }
             var item = await repository.GetSavedItemAsync(profileId, kind, entityId, ct);
             return item is null ? Results.NoContent() : Results.Ok(ToDto(item));
         })
@@ -62,12 +66,16 @@ public static class ProfileStateEndpoints
             CancellationToken ct) =>
         {
             if (!TryKind(entityKind, out var kind))
+            {
                 return ApiErrors.BadRequest("Unknown profile entity kind.");
+            }
             try
             {
                 var profileId = RequireProfileId(user);
                 if (!(await access.ResolveAsync(profileId, ct)).Allows(kind, entityId))
+                {
                     return ApiErrors.NotFound($"{kind} '{entityId:D}' is unavailable to the active profile.");
+                }
                 var item = await repository.SaveItemAsync(profileId, kind, entityId, ct: ct);
                 return Results.Ok(new ProfileStateMutationDto(kind, entityId, true, null, item.SavedAt));
             }
@@ -86,7 +94,9 @@ public static class ProfileStateEndpoints
             CancellationToken ct) =>
         {
             if (!TryKind(entityKind, out var kind))
+            {
                 return ApiErrors.BadRequest("Unknown profile entity kind.");
+            }
             var profileId = RequireProfileId(user);
             await repository.RemoveSavedItemAsync(profileId, kind, entityId, ct);
             return Results.NoContent();
@@ -119,10 +129,14 @@ public static class ProfileStateEndpoints
             CancellationToken ct) =>
         {
             if (!TryKind(entityKind, out var kind))
+            {
                 return ApiErrors.BadRequest("Unknown profile entity kind.");
+            }
             var profileId = RequireProfileId(user);
             if (!(await access.ResolveAsync(profileId, ct)).Allows(kind, entityId))
+            {
                 return Results.NoContent();
+            }
             var item = await repository.GetReactionAsync(profileId, kind, entityId, ct);
             return item is null ? Results.NoContent() : Results.Ok(ToDto(item));
         })
@@ -141,14 +155,20 @@ public static class ProfileStateEndpoints
             CancellationToken ct) =>
         {
             if (!TryKind(entityKind, out var kind))
+            {
                 return ApiErrors.BadRequest("Unknown profile entity kind.");
+            }
             if (!Enum.TryParse<ProfileReactionKind>(reaction, true, out var reactionKind))
+            {
                 return ApiErrors.BadRequest("Unknown reaction kind.");
+            }
             try
             {
                 var profileId = RequireProfileId(user);
                 if (!(await access.ResolveAsync(profileId, ct)).Allows(kind, entityId))
+                {
                     return ApiErrors.NotFound($"{kind} '{entityId:D}' is unavailable to the active profile.");
+                }
                 var item = await repository.SetReactionAsync(profileId, kind, entityId, reactionKind, ct);
                 return Results.Ok(new ProfileStateMutationDto(kind, entityId, false, item.Reaction, item.UpdatedAt));
             }
@@ -166,7 +186,9 @@ public static class ProfileStateEndpoints
             CancellationToken ct) =>
         {
             if (!TryKind(entityKind, out var kind))
+            {
                 return ApiErrors.BadRequest("Unknown profile entity kind.");
+            }
             var profileId = RequireProfileId(user);
             await repository.RemoveReactionAsync(profileId, kind, entityId, ct);
             return Results.NoContent();

@@ -39,38 +39,40 @@ public sealed class UniversalSearchReadServiceTests : IDisposable
         var editionId = Guid.NewGuid();
         var assetId = Guid.NewGuid();
         using (var conn = _db.CreateConnection())
-        using (var cmd = conn.CreateCommand())
         {
-            cmd.CommandText = """
-                INSERT INTO persons (id, name, biography, occupation, created_at)
-                VALUES ($personId, 'Aurora Drift', 'Electronic musician and composer.', 'Musician', $createdAt);
-
-                INSERT INTO person_roles (person_id, role)
-                VALUES ($personId, 'Artist');
-
-                INSERT INTO collections (id, display_name, collection_type, description, profile_id, created_at)
-                VALUES ($playlistId, 'Aurora Drift Favorites', 'Playlist', 'A saved listening queue.', $profileId, $createdAt);
-                INSERT INTO works (id, collection_id, media_type, work_kind)
-                VALUES ($workId, $playlistId, 'Music', 'standalone');
-                INSERT INTO editions (id, work_id) VALUES ($editionId, $workId);
-                INSERT INTO media_assets (id, edition_id, content_hash, file_path_root)
-                VALUES ($assetId, $editionId, 'aurora-search', 'C:/music/aurora.flac');
-                INSERT INTO person_media_links (media_asset_id, person_id, role)
-                VALUES ($assetId, $personId, 'Artist');
-                INSERT INTO canonical_value_arrays (entity_id, key, ordinal, value)
-                VALUES ($workId, 'artist', 0, 'Aurora Drift');
-                INSERT INTO collection_items (id, collection_id, work_id)
-                VALUES ($itemId, $playlistId, $workId);
-                """;
-            cmd.Parameters.AddWithValue("$personId", GuidSql.ToBlob(personId));
-            cmd.Parameters.AddWithValue("$playlistId", GuidSql.ToBlob(playlistId));
-            cmd.Parameters.AddWithValue("$profileId", GuidSql.ToBlob(Profile.SeedProfileId));
-            cmd.Parameters.AddWithValue("$workId", GuidSql.ToBlob(workId));
-            cmd.Parameters.AddWithValue("$editionId", GuidSql.ToBlob(editionId));
-            cmd.Parameters.AddWithValue("$assetId", GuidSql.ToBlob(assetId));
-            cmd.Parameters.AddWithValue("$itemId", GuidSql.ToBlob(Guid.NewGuid()));
-            cmd.Parameters.AddWithValue("$createdAt", DateTimeOffset.UtcNow.ToString("O"));
-            cmd.ExecuteNonQuery();
+            using (var cmd = conn.CreateCommand())
+            {
+                cmd.CommandText = """
+                    INSERT INTO persons (id, name, biography, occupation, created_at)
+                    VALUES ($personId, 'Aurora Drift', 'Electronic musician and composer.', 'Musician', $createdAt);
+    
+                    INSERT INTO person_roles (person_id, role)
+                    VALUES ($personId, 'Artist');
+    
+                    INSERT INTO collections (id, display_name, collection_type, description, profile_id, created_at)
+                    VALUES ($playlistId, 'Aurora Drift Favorites', 'Playlist', 'A saved listening queue.', $profileId, $createdAt);
+                    INSERT INTO works (id, collection_id, media_type, work_kind)
+                    VALUES ($workId, $playlistId, 'Music', 'standalone');
+                    INSERT INTO editions (id, work_id) VALUES ($editionId, $workId);
+                    INSERT INTO media_assets (id, edition_id, content_hash, file_path_root)
+                    VALUES ($assetId, $editionId, 'aurora-search', 'C:/music/aurora.flac');
+                    INSERT INTO person_media_links (media_asset_id, person_id, role)
+                    VALUES ($assetId, $personId, 'Artist');
+                    INSERT INTO canonical_value_arrays (entity_id, key, ordinal, value)
+                    VALUES ($workId, 'artist', 0, 'Aurora Drift');
+                    INSERT INTO collection_items (id, collection_id, work_id)
+                    VALUES ($itemId, $playlistId, $workId);
+                    """;
+                cmd.Parameters.AddWithValue("$personId", GuidSql.ToBlob(personId));
+                cmd.Parameters.AddWithValue("$playlistId", GuidSql.ToBlob(playlistId));
+                cmd.Parameters.AddWithValue("$profileId", GuidSql.ToBlob(Profile.SeedProfileId));
+                cmd.Parameters.AddWithValue("$workId", GuidSql.ToBlob(workId));
+                cmd.Parameters.AddWithValue("$editionId", GuidSql.ToBlob(editionId));
+                cmd.Parameters.AddWithValue("$assetId", GuidSql.ToBlob(assetId));
+                cmd.Parameters.AddWithValue("$itemId", GuidSql.ToBlob(Guid.NewGuid()));
+                cmd.Parameters.AddWithValue("$createdAt", DateTimeOffset.UtcNow.ToString("O"));
+                cmd.ExecuteNonQuery();
+            }
         }
 
         var service = CreateService(new StubDisplayProjection(
@@ -431,39 +433,41 @@ public sealed class UniversalSearchReadServiceTests : IDisposable
         var assetId = Guid.NewGuid();
         var personId = Guid.NewGuid();
         using (var conn = _db.CreateConnection())
-        using (var cmd = conn.CreateCommand())
         {
-            cmd.CommandText = """
-                INSERT INTO works (id, media_type, work_kind)
-                VALUES ($workId, 'Books', 'standalone');
-
-                INSERT INTO editions (id, work_id, format_label)
-                VALUES ($editionId, $workId, 'EPUB');
-
-                INSERT INTO media_assets (id, edition_id, content_hash, file_path_root)
-                VALUES ($assetId, $editionId, 'dune-search-hash', 'C:/library/books/Dune.epub');
-
-                INSERT INTO canonical_values (entity_id, key, value, last_scored_at)
-                VALUES
-                    ($assetId, 'title', 'Dune', $now),
-                    ($assetId, 'original_publication_year', '1965', $now),
-                    ($assetId, 'description', 'A desert world and a dangerous inheritance.', $now),
-                    ($assetId, 'rating', '4.8', $now);
-
-                INSERT INTO persons (id, name, created_at)
-                VALUES ($personId, 'Frank Herbert', $now);
-
-                INSERT INTO person_media_links (media_asset_id, person_id, role)
-                VALUES ($assetId, $personId, 'Author');
-                INSERT INTO canonical_value_arrays (entity_id, key, ordinal, value)
-                VALUES ($workId, 'author', 0, 'Frank Herbert');
-                """;
-            cmd.Parameters.AddWithValue("$workId", GuidSql.ToBlob(workId));
-            cmd.Parameters.AddWithValue("$editionId", GuidSql.ToBlob(editionId));
-            cmd.Parameters.AddWithValue("$assetId", GuidSql.ToBlob(assetId));
-            cmd.Parameters.AddWithValue("$personId", GuidSql.ToBlob(personId));
-            cmd.Parameters.AddWithValue("$now", DateTimeOffset.UtcNow.ToString("O"));
-            cmd.ExecuteNonQuery();
+            using (var cmd = conn.CreateCommand())
+            {
+                cmd.CommandText = """
+                    INSERT INTO works (id, media_type, work_kind)
+                    VALUES ($workId, 'Books', 'standalone');
+    
+                    INSERT INTO editions (id, work_id, format_label)
+                    VALUES ($editionId, $workId, 'EPUB');
+    
+                    INSERT INTO media_assets (id, edition_id, content_hash, file_path_root)
+                    VALUES ($assetId, $editionId, 'dune-search-hash', 'C:/library/books/Dune.epub');
+    
+                    INSERT INTO canonical_values (entity_id, key, value, last_scored_at)
+                    VALUES
+                        ($assetId, 'title', 'Dune', $now),
+                        ($assetId, 'original_publication_year', '1965', $now),
+                        ($assetId, 'description', 'A desert world and a dangerous inheritance.', $now),
+                        ($assetId, 'rating', '4.8', $now);
+    
+                    INSERT INTO persons (id, name, created_at)
+                    VALUES ($personId, 'Frank Herbert', $now);
+    
+                    INSERT INTO person_media_links (media_asset_id, person_id, role)
+                    VALUES ($assetId, $personId, 'Author');
+                    INSERT INTO canonical_value_arrays (entity_id, key, ordinal, value)
+                    VALUES ($workId, 'author', 0, 'Frank Herbert');
+                    """;
+                cmd.Parameters.AddWithValue("$workId", GuidSql.ToBlob(workId));
+                cmd.Parameters.AddWithValue("$editionId", GuidSql.ToBlob(editionId));
+                cmd.Parameters.AddWithValue("$assetId", GuidSql.ToBlob(assetId));
+                cmd.Parameters.AddWithValue("$personId", GuidSql.ToBlob(personId));
+                cmd.Parameters.AddWithValue("$now", DateTimeOffset.UtcNow.ToString("O"));
+                cmd.ExecuteNonQuery();
+            }
         }
 
         var results = await new CollectionSearchReadService(_db).SearchAsync("Frank Herbert", CancellationToken.None);

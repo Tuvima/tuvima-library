@@ -45,7 +45,10 @@ public sealed class HomeMediaQaTextMiddlewareTests : IDisposable
 
     public void Dispose()
     {
-        if (Directory.Exists(_root)) Directory.Delete(_root, recursive: true);
+        if (Directory.Exists(_root))
+        {
+            Directory.Delete(_root, recursive: true);
+        }
     }
 
     private sealed class ProductionEnvironment : IWebHostEnvironment

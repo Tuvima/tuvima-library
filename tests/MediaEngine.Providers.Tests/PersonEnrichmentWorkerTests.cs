@@ -3,8 +3,8 @@ using System.Text;
 using Dapper;
 using MediaEngine.Domain;
 using MediaEngine.Domain.Configuration;
-using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Constants;
+using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Entities;
 using MediaEngine.Domain.Enums;
 using MediaEngine.Domain.Models;
@@ -156,7 +156,9 @@ public sealed class PersonEnrichmentWorkerTests : IDisposable
         var personRepo = new PersonRepository(_db);
         var person = await personRepo.CreateAsync(new Person
         {
-            Name = "TV Actor", WikidataQid = "Q12345", Roles = ["Actor"],
+            Name = "TV Actor",
+            WikidataQid = "Q12345",
+            Roles = ["Actor"],
         });
         var claims = new MetadataClaimRepository(_db);
         await claims.InsertBatchAsync(
@@ -182,7 +184,8 @@ public sealed class PersonEnrichmentWorkerTests : IDisposable
         var loader = new ConfigurationDirectoryLoader(configDir);
         loader.SaveProvider(new MediaEngine.Domain.Configuration.ProviderConfiguration
         {
-            Name = "tvdb", Enabled = true,
+            Name = "tvdb",
+            Enabled = true,
             Endpoints = new Dictionary<string, string> { ["api"] = "https://api4.thetvdb.com/v4" },
             HttpClient = new HttpClientConfig { ApiKey = "installation-key" },
         });

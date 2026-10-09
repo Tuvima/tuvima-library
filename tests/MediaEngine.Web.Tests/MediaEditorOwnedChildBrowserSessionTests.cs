@@ -113,7 +113,7 @@ public sealed class MediaEditorOwnedChildBrowserSessionTests
         {
             ParentEntityId = parent,
             Items = items.Select(item => new MediaEditorOwnedChildSelectionItemDto
-                { AssetId = item.Id, SelectionRevision = item.Revision }).ToList(),
+            { AssetId = item.Id, SelectionRevision = item.Revision }).ToList(),
             Count = items.Count(),
         };
 

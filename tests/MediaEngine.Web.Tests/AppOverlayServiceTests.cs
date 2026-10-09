@@ -35,11 +35,25 @@ public sealed class AppOverlayServiceTests
         var allowed = false;
         var attempts = 0;
         using var guard = context.RegisterCloseGuard(() => { attempts++; return Task.FromResult(allowed); });
-        if (success) await context.CloseAsync(AppDialogResult.Ok(true)); else await context.CancelAsync();
+        if (success)
+        {
+            await context.CloseAsync(AppDialogResult.Ok(true));
+        }
+        else
+        {
+            await context.CancelAsync();
+        }
         Assert.False(reference.Result.IsCompleted);
         Assert.Single(service.Dialogs);
         allowed = true;
-        if (success) await context.CloseAsync(AppDialogResult.Ok(true)); else await context.CancelAsync();
+        if (success)
+        {
+            await context.CloseAsync(AppDialogResult.Ok(true));
+        }
+        else
+        {
+            await context.CancelAsync();
+        }
         Assert.Equal(2, attempts);
         Assert.Equal(!success, (await reference.Result)!.Canceled);
     }
@@ -72,7 +86,14 @@ public sealed class AppOverlayServiceTests
         var dialog = Assert.Single(service.Dialogs);
         Assert.Equal("Keep changes?", dialog.Parameters[nameof(AppMessageBox.Message)]);
         Assert.Equal("Cancel", dialog.Parameters[nameof(AppMessageBox.CancelText)]);
-        if (answer.HasValue) await dialog.CloseAsync(AppDialogResult.Ok(answer.Value)); else await dialog.CancelAsync();
+        if (answer.HasValue)
+        {
+            await dialog.CloseAsync(AppDialogResult.Ok(answer.Value));
+        }
+        else
+        {
+            await dialog.CancelAsync();
+        }
         Assert.Equal(answer, await pending);
     }
 

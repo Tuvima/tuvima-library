@@ -20,10 +20,14 @@ public sealed record AudiobookPlaybackProjection(
         double currentRecordingDurationSeconds)
     {
         if (!double.IsFinite(currentTimeSeconds) || currentTimeSeconds < 0)
+        {
             currentTimeSeconds = 0;
+        }
 
         if (chapters is null || chapters.Count == 0)
+        {
             return CreateCurrentRecording(currentTimeSeconds, currentRecordingDurationSeconds, null, 0);
+        }
 
         var assetParts = chapters
             .Where(chapter => chapter.AssetId.HasValue)
@@ -40,8 +44,10 @@ public sealed record AudiobookPlaybackProjection(
             && (!chapter.EndSeconds.HasValue || currentTimeSeconds < chapter.EndSeconds.Value));
 
         if (assetParts.Count <= 1)
+        {
             return CreateCurrentRecording(currentTimeSeconds, currentRecordingDurationSeconds, activeChapter,
-                chapterCount);
+                    chapterCount);
+        }
 
         if (chapters.Any(chapter => !chapter.AssetId.HasValue)
             || assetParts.Any(group => group.Any(chapter =>
@@ -57,13 +63,18 @@ public sealed record AudiobookPlaybackProjection(
 
         var totalSeconds = assetParts.Sum(group => group.Max(chapter => chapter.EndSeconds!.Value));
         if (!double.IsFinite(totalSeconds) || totalSeconds <= 0)
+        {
             return CreateCurrentRecording(currentTimeSeconds, currentRecordingDurationSeconds, activeChapter,
-                chapterCount);
+                    chapterCount);
+        }
 
         var elapsedBeforeCurrent = 0d;
         foreach (var part in assetParts)
         {
-            if (part.Key == currentId) break;
+            if (part.Key == currentId)
+            {
+                break;
+            }
             elapsedBeforeCurrent += part.Max(chapter => chapter.EndSeconds!.Value);
         }
 
@@ -82,7 +93,9 @@ public sealed record AudiobookPlaybackProjection(
         int activeChapterCount)
     {
         if (!double.IsFinite(durationSeconds) || durationSeconds <= 0)
+        {
             return null;
+        }
 
         return new AudiobookPlaybackProjection(
             "Current recording",

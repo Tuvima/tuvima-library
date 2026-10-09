@@ -42,14 +42,20 @@ public sealed class MetadataTaggerCapabilities
         ArgumentNullException.ThrowIfNull(tags);
         var unsupported = tags.Keys.Where(key => !CanWriteField(key)).ToArray();
         if (unsupported.Length != 0)
+        {
             throw new NotSupportedException($"{Format} cannot write: {string.Join(", ", unsupported)}.");
+        }
 
         foreach (var (key, value) in tags)
         {
             if (_unsignedFields.Contains(key) && !uint.TryParse(value, out _))
+            {
                 throw new FormatException($"{Format} requires an unsigned number for {key}.");
+            }
             if (_integerFields.Contains(key) && !int.TryParse(value, out _))
+            {
                 throw new FormatException($"{Format} requires an integer for {key}.");
+            }
         }
     }
 }
