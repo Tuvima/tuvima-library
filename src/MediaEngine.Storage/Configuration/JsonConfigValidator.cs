@@ -212,6 +212,11 @@ public static class JsonConfigValidator
 
     private static void ValidateAuthentication(AuthSettings auth, List<string> errors)
     {
+        if (!Allowed(auth.Mode, "Local", "DisabledLocalOnly", "Optional", "Required"))
+        {
+            errors.Add("auth.mode must be one of Local, DisabledLocalOnly, Optional, or Required.");
+        }
+
         var ids = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         for (var index = 0; index < auth.ExternalProviders.Count; index++)
         {
