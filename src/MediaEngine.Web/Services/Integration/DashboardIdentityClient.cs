@@ -7,6 +7,9 @@ using MediaEngine.Web.Services.Configuration;
 
 namespace MediaEngine.Web.Services.Integration;
 
+/// <summary>The result of a sign-in style call: the new session, or the Engine's status and (for some refusals) its plain-language reason.</summary>
+public sealed record DashboardSessionAttempt(AuthSessionResponse? Session, HttpStatusCode Status, string? Detail);
+
 public sealed class DashboardIdentityClient(
     IHttpClientFactory clients,
     IHttpContextAccessor? contextAccessor = null,
@@ -559,8 +562,72 @@ public sealed class DashboardIdentityClient(
         using var response = await Client.DeleteAsync("/access/admin-unlock", ct).ConfigureAwait(false);
         return response.IsSuccessStatusCode;
     }
-    public async Task<AuthSessionResponse?> AcceptInvitationAsync(AcceptAccountInvitationRequest request, CancellationToken ct = default)
-    { using var response = await Client.PostAsJsonAsync("/auth/invitations/accept", request, ct).ConfigureAwait(false); return response.IsSuccessStatusCode ? await response.Content.ReadFromJsonAsync<AuthSessionResponse>(cancellationToken: ct).ConfigureAwait(false) : null; }
+    public async Task<AuthSessionResponse?> AcceptInvitationAsync(AcceptAccountInvitationRequest request, CancellationToken ct = default) =>
+        (await AcceptInvitationDetailedAsync(request, ct).ConfigureAwait(false)).Session;
+
+    /// <summary>Uses an invitation code to set a first password. A refused password comes back with the Engine's reason.</summary>
+    public async Task<DashboardSessionAttempt> AcceptInvitationDetailedAsync(AcceptAccountInvitationRequest request, CancellationToken ct = default)
+    {
+        using var response = await Client.PostAsJsonAsync("/auth/invitations/accept", request, ct).ConfigureAwait(false);
+        return await ReadSessionAttemptAsync(response, ct).ConfigureAwait(false);
+    }
+
+    /// <summary>Sign in with email and password; keeps the Engine's reason so an expired temporary password can be explained.</summary>
+    public async Task<DashboardSessionAttempt> LoginDetailedAsync(LocalLoginRequest request, CancellationToken ct = default)
+    {
+        using var response = await Client.PostAsJsonAsync("/auth/login", request, ct).ConfigureAwait(false);
+        return await ReadSessionAttemptAsync(response, ct).ConfigureAwait(false);
+    }
+
+    /// <summary>Looks at an invitation code without using it; <c>null</c> when it is wrong, used, expired or not allowed from here.</summary>
+    public async Task<AccountInvitationPreviewResponse?> PreviewInvitationAsync(PreviewAccountInvitationRequest request, CancellationToken ct = default)
+    {
+        using var response = await Client.PostAsJsonAsync("/auth/invitations/preview", request, ct).ConfigureAwait(false);
+        return response.IsSuccessStatusCode
+            ? await response.Content.ReadFromJsonAsync<AccountInvitationPreviewResponse>(cancellationToken: ct).ConfigureAwait(false)
+            : null;
+    }
+
+    /// <summary>Replaces a temporary password with the person's own; the Engine answers with a fresh session.</summary>
+    public async Task<DashboardSessionAttempt> ChangeTemporaryPasswordAsync(ChangeTemporaryPasswordRequest request, CancellationToken ct = default)
+    {
+        using var response = await Client.PostAsJsonAsync("/auth/password/change-temporary", request, ct).ConfigureAwait(false);
+        return await ReadSessionAttemptAsync(response, ct).ConfigureAwait(false);
+    }
+
+    /// <summary>An administrator gives an existing person a new temporary password.</summary>
+    public Task<DashboardAccessMutationResult<AccountAccessResponse>> SetTemporaryPasswordResultAsync(Guid accountId, SetTemporaryPasswordRequest request, CancellationToken ct = default) =>
+        SendMutationAsync<SetTemporaryPasswordRequest, AccountAccessResponse>(HttpMethod.Post, $"/access/accounts/{accountId:D}/temporary-password", request, ct);
+
+    private static async Task<DashboardSessionAttempt> ReadSessionAttemptAsync(HttpResponseMessage response, CancellationToken ct)
+    {
+        if (response.IsSuccessStatusCode)
+        {
+            return new DashboardSessionAttempt(
+                await response.Content.ReadFromJsonAsync<AuthSessionResponse>(cancellationToken: ct).ConfigureAwait(false),
+                response.StatusCode,
+                null);
+        }
+
+        string? detail = null;
+        try
+        {
+            using var document = await JsonDocument.ParseAsync(
+                await response.Content.ReadAsStreamAsync(ct).ConfigureAwait(false), cancellationToken: ct).ConfigureAwait(false);
+            if (document.RootElement.ValueKind == JsonValueKind.Object
+                && document.RootElement.TryGetProperty("detail", out var value)
+                && value.ValueKind == JsonValueKind.String)
+            {
+                detail = value.GetString();
+            }
+        }
+        catch (JsonException)
+        {
+            // The answer was not a problem document; the caller shows its own generic message instead.
+        }
+
+        return new DashboardSessionAttempt(null, response.StatusCode, detail);
+    }
 
     public async Task<ExternalIdentityTransactionResponse?> BeginExternalIdentityTransactionAsync(
         BeginExternalIdentityTransactionRequest request,

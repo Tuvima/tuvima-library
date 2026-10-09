@@ -14,7 +14,9 @@ public sealed record AccountAccessResponse(
     [property: JsonPropertyName("created_at")] DateTimeOffset CreatedAt,
     [property: JsonPropertyName("updated_at")] DateTimeOffset UpdatedAt,
     [property: JsonPropertyName("last_active_at")] DateTimeOffset? LastActiveAt,
-    [property: JsonPropertyName("household_id")] Guid? HouseholdId = null);
+    [property: JsonPropertyName("household_id")] Guid? HouseholdId = null,
+    [property: JsonPropertyName("must_change_password")] bool MustChangePassword = false,
+    [property: JsonPropertyName("temporary_password_expires_at")] DateTimeOffset? TemporaryPasswordExpiresAt = null);
 
 public sealed record AccountFeatureGrantDto(
     [property: JsonPropertyName("feature")] string Feature,
@@ -76,7 +78,12 @@ public sealed record CreateManagedAccountRequest(
     [property: JsonPropertyName("profile_id")] Guid? ProfileId,
     [property: JsonPropertyName("new_profile")] NewAccountProfileRequest? NewProfile,
     [property: JsonPropertyName("feature_ids")] IReadOnlyList<string> FeatureIds,
-    [property: JsonPropertyName("library_ids")] IReadOnlyList<Guid> LibraryIds);
+    [property: JsonPropertyName("library_ids")] IReadOnlyList<Guid> LibraryIds,
+    [property: JsonPropertyName("temporary_password")] string? TemporaryPassword = null);
+
+/// <summary>An administrator sets a new temporary password for a person; they must choose their own at next sign-in.</summary>
+public sealed record SetTemporaryPasswordRequest(
+    [property: JsonPropertyName("temporary_password")] string TemporaryPassword);
 
 public sealed record NewAccountProfileRequest(
     [property: JsonPropertyName("display_name")] string DisplayName,

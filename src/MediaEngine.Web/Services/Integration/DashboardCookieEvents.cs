@@ -51,15 +51,18 @@ public static class DashboardPrincipalFactory
     /// <summary>Claim carrying where the cookie's last request came from, so a Blazor circuit can re-check from the same place.</summary>
     public const string ClientIngressClaim = "tuvima:client_ingress";
 
+    /// <summary>Claim present while the person is signed in with an administrator-set temporary password and must choose their own.</summary>
+    public const string PasswordChangeRequiredClaim = "tuvima:password_change_required";
+
     public static ClaimsPrincipal Create(AuthSessionResponse response, string ingress) =>
         CreateCore(response.SessionId, response.AccountId, response.ActiveProfileId, response.DisplayName,
-            response.Authority, response.AuthenticationMethod, response.SessionToken, ingress);
+            response.Authority, response.AuthenticationMethod, response.SessionToken, ingress, response.PasswordChangeRequired);
 
     public static ClaimsPrincipal Create(SessionValidationResponse response, string token, string ingress) =>
         CreateCore(response.SessionId, response.AccountId, response.ActiveProfileId, response.DisplayName,
-            response.Authority, response.AuthenticationMethod, token, ingress);
+            response.Authority, response.AuthenticationMethod, token, ingress, response.PasswordChangeRequired);
 
-    private static ClaimsPrincipal CreateCore(Guid sessionId, Guid accountId, Guid activeProfileId, string name, DashboardAuthorityResponse authority, string method, string token, string ingress)
+    private static ClaimsPrincipal CreateCore(Guid sessionId, Guid accountId, Guid activeProfileId, string name, DashboardAuthorityResponse authority, string method, string token, string ingress, bool passwordChangeRequired)
     {
         var claims = new List<Claim>
         {
@@ -75,6 +78,11 @@ public static class DashboardPrincipalFactory
             new Claim("tuvima:account_authorization_version", authority.AccountAuthorizationVersion.ToString(System.Globalization.CultureInfo.InvariantCulture)),
             new Claim("tuvima:grant_authorization_version", authority.GrantAuthorizationVersion.ToString(System.Globalization.CultureInfo.InvariantCulture)),
         };
+        if (passwordChangeRequired)
+        {
+            claims.Add(new Claim(PasswordChangeRequiredClaim, "true"));
+        }
+
         claims.AddRange(authority.NavigationCapabilities.Select(capability => new Claim("tuvima:navigation", capability)));
         claims.AddRange(authority.ActionCapabilities.Select(capability => new Claim("tuvima:action", capability)));
         return new ClaimsPrincipal(new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme));

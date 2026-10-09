@@ -9,6 +9,7 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.Authentication.OpenIdConnect" />
     <PackageReference Include="Microsoft.AspNetCore.SignalR.Client" />
+    <PackageReference Include="QRCoder" />
     <PackageReference Include="NUglify" PrivateAssets="all" IncludeAssets="build;buildTransitive" GeneratePathProperty="true" />
     <!-- Windows Service: integrates with SCM when running as installed service. No-op elsewhere. -->
     <PackageReference Include="Microsoft.Extensions.Hosting.WindowsServices" />

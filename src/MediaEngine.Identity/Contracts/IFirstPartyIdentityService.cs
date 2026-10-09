@@ -14,6 +14,9 @@ public sealed record SessionIssueResult(
 
 public sealed record SessionValidationResult(AuthSession Session, Account Account, Profile Profile, Profile ActiveProfile);
 
+/// <summary>Whose sign-in an invitation code would create, and until when the code works.</summary>
+public sealed record InvitationPreview(string Email, DateTimeOffset ExpiresAt);
+
 public sealed record AuthenticationAttemptResult(bool Succeeded, bool LockedOut, string? Error, SessionIssueResult? IssuedSession);
 
 public interface IFirstPartyIdentityService
@@ -29,7 +32,19 @@ public interface IFirstPartyIdentityService
     Task<AuthenticationAttemptResult> AuthenticatePasswordAsync(string email, string password, string deviceId, string deviceName, string client, CancellationToken ct = default, string ingress = ClientIngress.Remote);
     Task<SessionIssueResult> CreateExternalSessionAsync(Guid accountId, string provider, string deviceId, string deviceName, string client, CancellationToken ct = default, string ingress = ClientIngress.Remote);
     Task<SessionIssueResult> CreatePasskeySessionAsync(Guid accountId, string deviceId, string deviceName, string client, CancellationToken ct = default, string ingress = ClientIngress.Remote);
-    Task<SessionIssueResult> AcceptInvitationAsync(string token, string password, string deviceId, string deviceName, string client, CancellationToken ct = default, string ingress = ClientIngress.Remote);
+    /// <summary>Looks at an invitation code without using it up; <c>null</c> when it is wrong, used or expired.</summary>
+    Task<InvitationPreview?> PreviewInvitationAsync(string code, CancellationToken ct = default);
+    /// <summary>
+    /// Gives the account an administrator-chosen password that works only to choose a password of its own, until
+    /// <paramref name="expiresAt"/>. Every existing session of the account ends.
+    /// </summary>
+    Task SetTemporaryPasswordAsync(Guid accountId, string password, DateTimeOffset expiresAt, CancellationToken ct = default);
+    /// <summary>
+    /// Replaces a temporary password with the person's own, ends all of the account's sessions and returns a new
+    /// normal one.
+    /// </summary>
+    Task<SessionIssueResult> ChangeTemporaryPasswordAsync(Guid accountId, string currentPassword, string newPassword, string deviceId, string deviceName, string client, CancellationToken ct = default, string ingress = ClientIngress.Remote);
+    Task<SessionIssueResult> AcceptInvitationAsync(string code, string password, string deviceId, string deviceName, string client, CancellationToken ct = default, string ingress = ClientIngress.Remote);
     /// <param name="currentIngress">Where the request came from (<see cref="ClientIngress"/>). A home session is refused from outside. <c>null</c> means an internal caller whose request was already admitted, so no origin check is made.</param>
     Task<SessionValidationResult?> ValidateSessionAsync(string plaintextToken, bool touch = true, CancellationToken ct = default, string? currentIngress = null);
     Task<IReadOnlyList<AuthSession>> GetSessionsAsync(Guid accountId, CancellationToken ct = default);

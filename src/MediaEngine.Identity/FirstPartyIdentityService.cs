@@ -172,14 +172,98 @@ public sealed class FirstPartyIdentityService(
         await AuditAsync(account.Id, profile.Id, issued.Session.Id, "login_passkey", true, null, ct).ConfigureAwait(false); return issued;
     }
 
-    public async Task<SessionIssueResult> AcceptInvitationAsync(string token, string password, string deviceId, string deviceName, string client, CancellationToken ct = default, string ingress = ClientIngress.Remote)
+    public async Task<InvitationPreview?> PreviewInvitationAsync(string code, CancellationToken ct = default)
     {
-        ValidatePassword(password); if (string.IsNullOrWhiteSpace(token))
+        if (InvitationCode.Normalize(code) is not { } normalized)
+        {
+            return null;
+        }
+
+        var invitation = await accounts.GetActiveInvitationAsync(InvitationCode.Hash(normalized), UtcNow, ct).ConfigureAwait(false);
+        var account = invitation is null ? null : await accounts.GetByIdAsync(invitation.AccountId, ct).ConfigureAwait(false);
+        if (invitation is null || account is null || !account.IsEnabled || string.IsNullOrWhiteSpace(account.Email)
+            || await identities.GetAccountCredentialAsync(account.Id, AccountCredentialKind.Password, ct).ConfigureAwait(false) is not null)
+        {
+            return null;
+        }
+
+        return new InvitationPreview(account.Email, invitation.ExpiresAt);
+    }
+
+    public async Task SetTemporaryPasswordAsync(Guid accountId, string password, DateTimeOffset expiresAt, CancellationToken ct = default)
+    {
+        var account = await accounts.GetByIdAsync(accountId, ct).ConfigureAwait(false) ?? throw new KeyNotFoundException("Account not found.");
+        if (account.IsThisComputerOnly)
+        {
+            throw new InvalidOperationException("This account works only on this computer. Add a password of its own first.");
+        }
+
+        ValidatePassword(password);
+        await RejectPasswordMatchingAccountAsync(accountId, password, ct).ConfigureAwait(false);
+        var credential = await identities.GetAccountCredentialAsync(accountId, AccountCredentialKind.Password, ct).ConfigureAwait(false);
+        if (credential is null)
+        {
+            credential = NewAccountCredential(accountId, password);
+        }
+        else
+        {
+            credential.SecretHash = Hash(credential, password); credential.SecurityStamp = NewSecurityStamp(); credential.UpdatedAt = UtcNow; credential.FailedAttemptCount = 0; credential.LockedUntil = null;
+        }
+
+        await identities.UpsertAccountCredentialAsync(credential, ct).ConfigureAwait(false);
+        await accounts.SetTemporaryPasswordStateAsync(accountId, true, expiresAt, UtcNow, ct).ConfigureAwait(false);
+        await identities.RevokeAccountSessionsAsync(accountId, UtcNow, "temporary_password_set", null, ct).ConfigureAwait(false);
+        await AuditAsync(accountId, null, null, "temporary_password_set", true, null, ct).ConfigureAwait(false);
+    }
+
+    public async Task<SessionIssueResult> ChangeTemporaryPasswordAsync(Guid accountId, string currentPassword, string newPassword, string deviceId, string deviceName, string client, CancellationToken ct = default, string ingress = ClientIngress.Remote)
+    {
+        var account = await accounts.GetByIdAsync(accountId, ct).ConfigureAwait(false) ?? throw new UnauthorizedAccessException("The session is no longer valid.");
+        if (!account.MustChangePassword)
+        {
+            throw new InvalidOperationException("This account does not have a temporary password.");
+        }
+
+        if (account.IsTemporaryPasswordExpired(UtcNow))
+        {
+            throw new UnauthorizedAccessException(TemporaryPasswordPolicy.ExpiredMessage);
+        }
+
+        ValidatePassword(newPassword);
+        var credential = await identities.GetAccountCredentialAsync(accountId, AccountCredentialKind.Password, ct).ConfigureAwait(false)
+            ?? throw new InvalidOperationException("This account does not have a local password.");
+        if (!Verify(credential, currentPassword, out _))
+        {
+            throw new UnauthorizedAccessException("The current password is incorrect.");
+        }
+
+        if (string.Equals(currentPassword, newPassword, StringComparison.Ordinal))
+        {
+            throw new ArgumentException("Choose a password that is different from the temporary one.");
+        }
+
+        await RejectPasswordMatchingAccountAsync(accountId, newPassword, ct).ConfigureAwait(false);
+        credential.SecretHash = Hash(credential, newPassword); credential.SecurityStamp = NewSecurityStamp(); credential.UpdatedAt = UtcNow; credential.FailedAttemptCount = 0; credential.LockedUntil = null;
+        await identities.UpsertAccountCredentialAsync(credential, ct).ConfigureAwait(false);
+        await accounts.SetTemporaryPasswordStateAsync(accountId, false, null, UtcNow, ct).ConfigureAwait(false);
+        await identities.RevokeAccountSessionsAsync(accountId, UtcNow, "password_changed", null, ct).ConfigureAwait(false);
+
+        var refreshed = await accounts.GetByIdAsync(accountId, ct).ConfigureAwait(false) ?? account;
+        var profile = await GetDefaultProfileAsync(accountId, ct).ConfigureAwait(false);
+        var issued = await IssueSessionAsync(refreshed, profile, credential.SecurityStamp, "Password", deviceId, deviceName, client, ingress, ct).ConfigureAwait(false);
+        await AuditAsync(accountId, profile.Id, issued.Session.Id, "temporary_password_changed", true, null, ct).ConfigureAwait(false);
+        return issued;
+    }
+
+    public async Task<SessionIssueResult> AcceptInvitationAsync(string code, string password, string deviceId, string deviceName, string client, CancellationToken ct = default, string ingress = ClientIngress.Remote)
+    {
+        ValidatePassword(password);
+        if (InvitationCode.Normalize(code) is not { } normalizedCode)
         {
             throw new UnauthorizedAccessException("The invitation is invalid or expired.");
         }
 
-        var invitation = await accounts.GetActiveInvitationAsync(HashToken(token), UtcNow, ct).ConfigureAwait(false) ?? throw new UnauthorizedAccessException("The invitation is invalid or expired.");
+        var invitation = await accounts.GetActiveInvitationAsync(InvitationCode.Hash(normalizedCode), UtcNow, ct).ConfigureAwait(false) ?? throw new UnauthorizedAccessException("The invitation is invalid or expired.");
         var account = await accounts.GetByIdAsync(invitation.AccountId, ct).ConfigureAwait(false) ?? throw new UnauthorizedAccessException("The invitation is invalid or expired.");
         if (!account.IsEnabled || await identities.GetAccountCredentialAsync(account.Id, AccountCredentialKind.Password, ct).ConfigureAwait(false) is not null)
         {
@@ -221,6 +305,12 @@ public sealed class FirstPartyIdentityService(
         var account = await accounts.GetByIdAsync(session.AccountId, ct).ConfigureAwait(false);
         var active = await profiles.GetByIdAsync(session.ActiveProfileId, ct).ConfigureAwait(false);
         if (account is null || !account.IsEnabled || active is null || !await accounts.HasProfileAccessAsync(account.Id, active.Id, ct).ConfigureAwait(false))
+        {
+            return null;
+        }
+
+        // A temporary password that has run out takes its sessions with it.
+        if (account.IsTemporaryPasswordExpired(now))
         {
             return null;
         }
@@ -305,6 +395,7 @@ public sealed class FirstPartyIdentityService(
         // preserved current password session valid on its next validation.
         credential.SecretHash = Hash(credential, newPassword); credential.UpdatedAt = UtcNow; credential.FailedAttemptCount = 0; credential.LockedUntil = null;
         await identities.UpsertAccountCredentialAsync(credential, ct).ConfigureAwait(false);
+        await ClearTemporaryPasswordAsync(accountId, ct).ConfigureAwait(false);
         await identities.RevokeAccountSessionsAsync(accountId, UtcNow, "password_changed", currentSessionId, ct).ConfigureAwait(false);
         await AuditAsync(accountId, null, currentSessionId, "password_changed", true, null, ct).ConfigureAwait(false);
     }
@@ -478,6 +569,13 @@ public sealed class FirstPartyIdentityService(
             if (fresh is not null) { credential.FailedAttemptCount = fresh.FailedAttemptCount; credential.LockedUntil = fresh.LockedUntil; }
         }
 
+        if (account.IsTemporaryPasswordExpired(now))
+        {
+            // Said only after the password itself was right, so a guesser learns nothing from it.
+            await AuditAsync(account.Id, null, null, "login_failed", false, "temporary_password_expired", ct).ConfigureAwait(false);
+            return new(false, false, TemporaryPasswordPolicy.ExpiredMessage, null);
+        }
+
         if (rehash) { credential.SecretHash = Hash(credential, secret); credential.UpdatedAt = now; await identities.UpsertAccountCredentialAsync(credential, ct).ConfigureAwait(false); }
         await identities.UpdateAccountCredentialAttemptAsync(credential.Id, countsTowardLockout ? 0 : credential.FailedAttemptCount, countsTowardLockout ? null : credential.LockedUntil, now, ct).ConfigureAwait(false);
         var profile = await GetDefaultProfileAsync(account.Id, ct).ConfigureAwait(false);
@@ -547,7 +645,16 @@ public sealed class FirstPartyIdentityService(
     }
 
     private async Task ReplacePasswordAsync(Guid accountId, AccountCredential credential, string password, string reason, CancellationToken ct)
-    { credential.SecretHash = Hash(credential, password); credential.SecurityStamp = NewSecurityStamp(); credential.UpdatedAt = UtcNow; credential.FailedAttemptCount = 0; credential.LockedUntil = null; await identities.UpsertAccountCredentialAsync(credential, ct).ConfigureAwait(false); await identities.RevokeAccountSessionsAsync(accountId, UtcNow, reason, null, ct).ConfigureAwait(false); await AuditAsync(accountId, null, null, reason, true, null, ct).ConfigureAwait(false); }
+    { credential.SecretHash = Hash(credential, password); credential.SecurityStamp = NewSecurityStamp(); credential.UpdatedAt = UtcNow; credential.FailedAttemptCount = 0; credential.LockedUntil = null; await identities.UpsertAccountCredentialAsync(credential, ct).ConfigureAwait(false); await ClearTemporaryPasswordAsync(accountId, ct).ConfigureAwait(false); await identities.RevokeAccountSessionsAsync(accountId, UtcNow, reason, null, ct).ConfigureAwait(false); await AuditAsync(accountId, null, null, reason, true, null, ct).ConfigureAwait(false); }
+
+    /// <summary>A password the person chose (or recovered) replaces any temporary one.</summary>
+    private async Task ClearTemporaryPasswordAsync(Guid accountId, CancellationToken ct)
+    {
+        if (await accounts.GetByIdAsync(accountId, ct).ConfigureAwait(false) is { MustChangePassword: true })
+        {
+            await accounts.SetTemporaryPasswordStateAsync(accountId, false, null, UtcNow, ct).ConfigureAwait(false);
+        }
+    }
 
     private async Task<IReadOnlyList<string>> ReplaceRecoveryCodesAsync(Guid accountId, CancellationToken ct)
     { var now = UtcNow; var plaintext = Enumerable.Range(0, 10).Select(_ => RecoveryCode()).ToArray(); var rows = plaintext.Select(code => new PasswordRecoveryCode { Id = Guid.NewGuid(), AccountId = accountId, CodeHash = HashToken(NormalizeRecoveryCode(code)), CreatedAt = now, ExpiresAt = now.Add(RecoveryLifetime) }).ToArray(); await identities.DeleteRecoveryCodesAsync(accountId, ct).ConfigureAwait(false); await identities.InsertRecoveryCodesAsync(rows, ct).ConfigureAwait(false); return plaintext; }

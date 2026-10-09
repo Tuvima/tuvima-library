@@ -89,6 +89,9 @@ public sealed class AuthSessionResponse
     [JsonPropertyName("authentication_method")] public string AuthenticationMethod { get; init; } = string.Empty;
     [JsonPropertyName("expires_at")] public DateTimeOffset ExpiresAt { get; init; }
     [JsonPropertyName("recovery_codes")] public IReadOnlyList<string> RecoveryCodes { get; init; } = [];
+
+    /// <summary>True while the account is signed in with an administrator-set temporary password: the person must choose their own first.</summary>
+    [JsonPropertyName("password_change_required")] public bool PasswordChangeRequired { get; init; }
 }
 
 public sealed class SessionValidationResponse
@@ -100,6 +103,7 @@ public sealed class SessionValidationResponse
     [JsonPropertyName("authority")] public required DashboardAuthorityResponse Authority { get; init; }
     [JsonPropertyName("authentication_method")] public string AuthenticationMethod { get; init; } = string.Empty;
     [JsonPropertyName("expires_at")] public DateTimeOffset ExpiresAt { get; init; }
+    [JsonPropertyName("password_change_required")] public bool PasswordChangeRequired { get; init; }
 }
 
 public sealed class DeviceSessionResponse
@@ -121,6 +125,26 @@ public sealed class ChangePasswordRequest
 {
     [JsonPropertyName("current_password")] public string CurrentPassword { get; init; } = string.Empty;
     [JsonPropertyName("new_password")] public string NewPassword { get; init; } = string.Empty;
+}
+
+/// <summary>Chooses the person's own password in place of an administrator-set temporary one; the Engine answers with a fresh session.</summary>
+public sealed class ChangeTemporaryPasswordRequest
+{
+    [JsonPropertyName("current_password")] public string CurrentPassword { get; init; } = string.Empty;
+    [JsonPropertyName("new_password")] public string NewPassword { get; init; } = string.Empty;
+    [JsonPropertyName("device_id")] public string DeviceId { get; init; } = string.Empty;
+    [JsonPropertyName("device_name")] public string DeviceName { get; init; } = string.Empty;
+    [JsonPropertyName("original_client_ingress")] public string OriginalClientIngress { get; init; } = ClientIngressValues.Remote;
+}
+
+/// <summary>Wording and codes shared by the Engine and the Dashboard for temporary passwords.</summary>
+public static class TemporaryPasswords
+{
+    /// <summary>403 error code for every action other than choosing a new password while a temporary password is in force.</summary>
+    public const string PasswordChangeRequiredCode = MediaEngine.Domain.Authorization.TemporaryPasswordPolicy.PasswordChangeRequiredCode;
+
+    /// <summary>Shown when a temporary password has run out.</summary>
+    public const string ExpiredMessage = MediaEngine.Domain.Authorization.TemporaryPasswordPolicy.ExpiredMessage;
 }
 
 public sealed class RecoverPasswordRequest
@@ -222,12 +246,29 @@ public sealed class CreateAccountInvitationRequest
     /// <summary>Invite someone outside the household: they start a household of their own with this first person.</summary>
     [JsonPropertyName("new_household_person_name")] public string? NewHouseholdPersonName { get; init; }
 }
+/// <summary>
+/// A new invitation. <c>code</c> is shown as <c>XXXXX-XXXXX</c> and is never available again. <c>public_address</c>
+/// is the one public address (<c>network.remote.public_hostname</c>) when it is set; the invitation link is built on it.
+/// </summary>
 public sealed record AccountInvitationResponse(
     [property: JsonPropertyName("account_id")] Guid AccountId,
-    [property: JsonPropertyName("token")] string Token,
+    [property: JsonPropertyName("code")] string Code,
+    [property: JsonPropertyName("expires_at")] DateTimeOffset ExpiresAt,
+    [property: JsonPropertyName("public_address")] string? PublicAddress = null);
+
+/// <summary>Asks whether an invitation code is good, without using it up.</summary>
+public sealed record PreviewAccountInvitationRequest(
+    [property: JsonPropertyName("code")] string Code,
+    [property: JsonPropertyName("original_client_ingress")] string OriginalClientIngress = ClientIngressValues.Remote,
+    [property: JsonPropertyName("original_client_is_https")] bool OriginalClientIsHttps = false);
+
+/// <summary>What the person sees before setting a password: whose sign-in they are about to create.</summary>
+public sealed record AccountInvitationPreviewResponse(
+    [property: JsonPropertyName("email")] string Email,
     [property: JsonPropertyName("expires_at")] DateTimeOffset ExpiresAt);
+
 public sealed record AcceptAccountInvitationRequest(
-    [property: JsonPropertyName("token")] string Token,
+    [property: JsonPropertyName("code")] string Code,
     [property: JsonPropertyName("password")] string Password,
     [property: JsonPropertyName("device_id")] string DeviceId,
     [property: JsonPropertyName("device_name")] string DeviceName,

@@ -234,10 +234,26 @@ public static class AuthenticationEndpoints
                 return Results.Unauthorized();
             }
 
-            try { return Results.Ok(await ToResponseAsync(await identity.AcceptInvitationAsync(request.Token, request.Password, request.DeviceId, request.DeviceName, "Tuvima Dashboard", ct, ClientIngress.Parse(request.OriginalClientIngress)).ConfigureAwait(false), projector, ct)); }
+            try { return Results.Ok(await ToResponseAsync(await identity.AcceptInvitationAsync(request.Code, request.Password, request.DeviceId, request.DeviceName, "Tuvima Dashboard", ct, ClientIngress.Parse(request.OriginalClientIngress)).ConfigureAwait(false), projector, ct)); }
             catch (ArgumentException ex) { return ApiErrors.BadRequest(ex.Message); }
             catch (UnauthorizedAccessException) { return Results.Unauthorized(); }
         }).WithName("AcceptAccountInvitation").Produces<AuthSessionResponse>().RequireRateLimiting("authentication").RequireAuthorization(AuthPolicies.DashboardService);
+
+        group.MapPost("/invitations/preview", async (PreviewAccountInvitationRequest request,
+            IConfigurationLoader configuration, IFirstPartyIdentityService identity, CancellationToken ct) =>
+        {
+            var policy = configuration.LoadCore().Auth;
+            if (!AllowsClient(configuration.LoadNetwork(), request.OriginalClientIngress, request.OriginalClientIsHttps,
+                policy.PasswordSignInEnabled))
+            {
+                return Results.Unauthorized();
+            }
+
+            // A wrong, used or expired code all look the same, so a guess learns nothing.
+            return await identity.PreviewInvitationAsync(request.Code, ct).ConfigureAwait(false) is { } preview
+                ? Results.Ok(new AccountInvitationPreviewResponse(preview.Email, preview.ExpiresAt))
+                : ApiErrors.NotFound("That invitation is invalid, expired, or already used.");
+        }).WithName("PreviewAccountInvitation").Produces<AccountInvitationPreviewResponse>().RequireRateLimiting("authentication").RequireAuthorization(AuthPolicies.DashboardService);
 
         group.MapPost("/session/validate", async (HttpRequest request, IFirstPartyIdentityService identity, DashboardAuthorityProjector projector, CancellationToken ct) =>
         {
@@ -259,7 +275,7 @@ public static class AuthenticationEndpoints
             return wrongPlace
                 ? Results.Json(new { reason = ClientIngressValues.SignInAgainHere }, statusCode: StatusCodes.Status401Unauthorized)
                 : Results.Unauthorized();
-        }).Produces<SessionValidationResponse>().RequireAuthorization(AuthPolicies.DashboardService);
+        }).WithName(PasswordChangeRequiredMiddleware.ValidateSessionEndpoint).Produces<SessionValidationResponse>().RequireAuthorization(AuthPolicies.DashboardService);
 
         group.MapGet("/sessions", async (ClaimsPrincipal user, IFirstPartyIdentityService identity,
             TimeProvider clock, CancellationToken ct) =>
@@ -291,7 +307,26 @@ public static class AuthenticationEndpoints
             }
 
             return await identity.RevokeSessionAsync(sessionId, "user_revoked", ct).ConfigureAwait(false) ? Results.NoContent() : ApiErrors.NotFound("Session not found.");
-        }).WithName("RevokeAuthSession").Produces(StatusCodes.Status204NoContent).RequireAuthorization(AuthPolicies.HumanSelfService);
+        }).WithName(PasswordChangeRequiredMiddleware.RevokeSessionEndpoint).Produces(StatusCodes.Status204NoContent).RequireAuthorization(AuthPolicies.HumanSelfService);
+
+        group.MapPost("/password/change-temporary", async (ChangeTemporaryPasswordRequest request, ClaimsPrincipal user,
+            IFirstPartyIdentityService identity, DashboardAuthorityProjector projector, CancellationToken ct) =>
+        {
+            try
+            {
+                var issued = await identity.ChangeTemporaryPasswordAsync(
+                    RequiredGuidClaim(user, TuvimaClaimTypes.AccountId), request.CurrentPassword, request.NewPassword,
+                    request.DeviceId, request.DeviceName, "Tuvima Dashboard", ct,
+                    ClientIngress.Parse(request.OriginalClientIngress)).ConfigureAwait(false);
+                return Results.Ok(await ToResponseAsync(issued, projector, ct));
+            }
+            catch (ArgumentException ex) { return ApiErrors.BadRequest(ex.Message); }
+            catch (InvalidOperationException ex) { return ApiErrors.Conflict(ex.Message); }
+            catch (UnauthorizedAccessException ex)
+            {
+                return ApiErrors.Problem(StatusCodes.Status401Unauthorized, "Password not changed.", ex.Message);
+            }
+        }).WithName(PasswordChangeRequiredMiddleware.ChangeTemporaryPasswordEndpoint).Produces<AuthSessionResponse>().RequireRateLimiting("authentication").RequireAuthorization(AuthPolicies.HumanSelfService);
 
         group.MapPost("/password/change", async (ChangePasswordRequest request, ClaimsPrincipal user, IFirstPartyIdentityService identity, CancellationToken ct) =>
         {
@@ -541,6 +576,7 @@ public static class AuthenticationEndpoints
         AuthenticationMethod = issued.Session.AuthenticationMethod,
         ExpiresAt = issued.Session.ExpiresAt,
         RecoveryCodes = issued.RecoveryCodes,
+        PasswordChangeRequired = issued.Account.MustChangePassword,
     };
 
     private static async Task<SessionValidationResponse> ToValidationResponseAsync(SessionValidationResult result, DashboardAuthorityProjector projector, CancellationToken ct) => new()
@@ -552,6 +588,7 @@ public static class AuthenticationEndpoints
         Authority = await projector.ProjectAsync(result.Account.Id, result.ActiveProfile.Id, result.Session.Id, ct),
         AuthenticationMethod = result.Session.AuthenticationMethod,
         ExpiresAt = result.Session.ExpiresAt,
+        PasswordChangeRequired = result.Account.MustChangePassword,
     };
 
     private static Guid RequiredGuidClaim(ClaimsPrincipal user, string type) =>

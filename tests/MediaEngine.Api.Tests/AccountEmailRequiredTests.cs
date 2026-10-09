@@ -25,6 +25,14 @@ public sealed class AccountEmailRequiredTests
                     var accounts = new AccountRepository(database);
                     var identities = new IdentityRepository(database);
                     var profiles = new ProfileRepository(database);
+                    var firstParty = new FirstPartyIdentityService(
+                        new IdentityRepository(database),
+                        accounts,
+                        new ProfileRepository(database),
+                        new PasswordHasher<AccountCredential>(),
+                        new PasswordHasher<ProfileCredential>(),
+                        TimeProvider.System,
+                        new ConfigurationAuthenticationPolicyProvider(configuration));
                     var mutations = new AccountAccessMutationService(
                         accounts,
                         identities,
@@ -35,6 +43,7 @@ public sealed class AccountEmailRequiredTests
                         new PasswordHasher<GrantAdminProtection>(),
                         new NoOpInvalidation(),
                         new NoOpAudit(),
+                        firstParty,
                         TimeProvider.System);
                     var actor = new RequestAuthority(
                         PrincipalKind.Human,
@@ -90,10 +99,10 @@ public sealed class AccountEmailRequiredTests
                     Assert.InRange(invitation.ExpiresAt - DateTimeOffset.UtcNow,
                         TimeSpan.FromHours(2.9), TimeSpan.FromHours(3.1));
                     var invited = await identity.AcceptInvitationAsync(
-                        invitation.PlaintextToken, "invited password", "browser", "Browser", "Dashboard");
+                        invitation.Code, "invited password", "browser", "Browser", "Dashboard");
                     Assert.Equal(invitation.AccountId, invited.Account.Id);
                     await Assert.ThrowsAsync<UnauthorizedAccessException>(() => identity.AcceptInvitationAsync(
-                        invitation.PlaintextToken, "other password", "other", "Other", "Dashboard"));
+                        invitation.Code, "other password", "other", "Other", "Dashboard"));
                 }
             }
         }
@@ -129,6 +138,14 @@ public sealed class AccountEmailRequiredTests
                     database.InitializeSchema();
                     var accounts = new AccountRepository(database);
                     var households = new HouseholdRepository(database);
+                    var firstParty = new FirstPartyIdentityService(
+                        new IdentityRepository(database),
+                        accounts,
+                        new ProfileRepository(database),
+                        new PasswordHasher<AccountCredential>(),
+                        new PasswordHasher<ProfileCredential>(),
+                        TimeProvider.System,
+                        new ConfigurationAuthenticationPolicyProvider(configuration));
                     var mutations = new AccountAccessMutationService(
                         accounts,
                         new IdentityRepository(database),
@@ -139,6 +156,7 @@ public sealed class AccountEmailRequiredTests
                         new PasswordHasher<GrantAdminProtection>(),
                         new NoOpInvalidation(),
                         new NoOpAudit(),
+                        firstParty,
                         TimeProvider.System);
                     var actor = new RequestAuthority(
                         PrincipalKind.Human,
@@ -214,6 +232,14 @@ public sealed class AccountEmailRequiredTests
                     database.InitializeSchema();
                     var accounts = new AccountRepository(database);
                     var profiles = new ProfileRepository(database);
+                    var firstParty = new FirstPartyIdentityService(
+                        new IdentityRepository(database),
+                        accounts,
+                        new ProfileRepository(database),
+                        new PasswordHasher<AccountCredential>(),
+                        new PasswordHasher<ProfileCredential>(),
+                        TimeProvider.System,
+                        new ConfigurationAuthenticationPolicyProvider(configuration));
                     var mutations = new AccountAccessMutationService(
                         accounts,
                         new IdentityRepository(database),
@@ -224,6 +250,7 @@ public sealed class AccountEmailRequiredTests
                         new PasswordHasher<GrantAdminProtection>(),
                         new NoOpInvalidation(),
                         new NoOpAudit(),
+                        firstParty,
                         TimeProvider.System);
                     var actor = new RequestAuthority(
                         PrincipalKind.Human, true, AccountId: Guid.NewGuid(), ActiveProfileId: Guid.NewGuid(),
