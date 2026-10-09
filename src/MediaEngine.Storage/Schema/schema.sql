@@ -1733,11 +1733,21 @@ CREATE TABLE IF NOT EXISTS auth_sessions (
     expires_at            TEXT NOT NULL,
     authenticated_at      TEXT,
     revoked_at            TEXT,
-    revoked_reason        TEXT
+    revoked_reason        TEXT,
+    profile_pending       INTEGER NOT NULL DEFAULT 0
 );
 
 CREATE INDEX IF NOT EXISTS idx_auth_sessions_account_active
     ON auth_sessions(account_id, revoked_at, expires_at);
+
+-- "Always open as this person on this device": one row per signed-in account and browser/device.
+CREATE TABLE IF NOT EXISTS device_profile_preferences (
+    account_id BLOB NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+    device_id  TEXT NOT NULL,
+    profile_id BLOB NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+    updated_at TEXT NOT NULL,
+    PRIMARY KEY (account_id, device_id)
+);
 
 CREATE TABLE IF NOT EXISTS grant_admin_unlocks (
     session_id BLOB NOT NULL PRIMARY KEY REFERENCES auth_sessions(id) ON DELETE CASCADE,

@@ -22,6 +22,22 @@ internal static class ProfileContractMapper
             : $"/profiles/{profile.Id:D}/avatar",
     };
 
+    internal static ProfileResponseDto ToResponse(Profile profile, bool hasPin)
+    {
+        var dto = ToResponse(profile);
+        return new ProfileResponseDto
+        {
+            Id = dto.Id,
+            DisplayName = dto.DisplayName,
+            AvatarColor = dto.AvatarColor,
+            Role = dto.Role,
+            CreatedAt = dto.CreatedAt,
+            NavigationConfig = dto.NavigationConfig,
+            AvatarImageUrl = dto.AvatarImageUrl,
+            HasPin = hasPin,
+        };
+    }
+
     internal static AccountExternalLoginDto ToResponse(AccountExternalLogin login) => new()
     {
         Id = login.Id,

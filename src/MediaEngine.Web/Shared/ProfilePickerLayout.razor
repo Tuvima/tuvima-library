@@ -1,0 +1,13 @@
+@namespace MediaEngine.Web.Shared
+@inherits LayoutComponentBase
+@inject ThemeService ThemeService
+
+<AppThemeProvider />
+<MediaEngine.Web.Components.Navigation.SessionEndedRedirect />
+<AppPopoverHost />
+<AppDialogHost />
+<AppToastHost />
+
+<main class="profile-picker-layout">
+    @Body
+</main>

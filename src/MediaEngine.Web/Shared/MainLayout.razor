@@ -118,8 +118,7 @@
                                    Profiles="@_profiles"
                                    ReviewCount="@_reviewCount"
                                    CanViewReview="@CanViewReview"
-                                   ShowSignOut="true"
-                                   ProfileSwitchRequested="SwitchProfileAsync" />
+                                   ShowSignOut="true" />
             </span>
         </AppStack>
     </AppAppBar>
@@ -582,6 +581,13 @@
             if (_disposed) return;
             var principal = (await AuthenticationStateProvider.GetAuthenticationStateAsync()).User;
             if (_disposed) return;
+            if (principal.HasClaim(DashboardPrincipalFactory.ProfilePendingClaim, "true"))
+            {
+                // A remembered person needs their PIN: nothing else opens until someone is picked.
+                Nav.NavigateTo(ProfilePickerRoute.For(null), forceLoad: true, replace: true);
+                return;
+            }
+
             _session.InitializeFromPrincipal(principal);
             await Identity.EnsureInitialAuthorityAsync(_session, _authorityRefreshCancellation.Token);
         }
@@ -622,24 +628,6 @@
         {
             Logger.LogWarning(ex, "Failed to load active profile for layout shell.");
         }
-    }
-
-    private async Task<ProfileSwitchOutcome> SwitchProfileAsync(Guid profileId, string? secret)
-    {
-        var outcome = await Orchestrator.SetActiveProfileAsync(profileId, secret);
-        if (!outcome.Succeeded)
-        {
-            return outcome;
-        }
-
-        await LoadActiveProfileAsync();
-        await LoadReviewCountAsync();
-        StateHasChanged();
-        // A profile switch changes the authenticated role and every profile-scoped
-        // data source. Rebuild the request/circuit so cookie validation renews the
-        // principal and no already-mounted page can retain the previous profile.
-        Nav.NavigateTo("/", forceLoad: true, replace: true);
-        return outcome;
     }
 
     private async Task LoadReviewCountAsync()

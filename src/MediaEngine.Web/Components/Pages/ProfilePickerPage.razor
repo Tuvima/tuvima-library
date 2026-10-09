@@ -1,0 +1,337 @@
+@page "/who"
+@layout MediaEngine.Web.Shared.ProfilePickerLayout
+@namespace MediaEngine.Web.Components.Pages
+@using Microsoft.AspNetCore.Components.Authorization
+@using MediaEngine.Web.Models.ViewDTOs
+@using MediaEngine.Web.Services.Integration
+@inject UIOrchestratorService Orchestrator
+@inject DashboardSessionAccessor Session
+@inject DashboardIdentityClient Identity
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject NavigationManager Navigation
+@inject ILogger<ProfilePickerPage> Logger
+
+<PageTitle>Who's using Tuvima? - Tuvima Library</PageTitle>
+
+<section class="who-page" aria-labelledby="who-title">
+    <h1 id="who-title" class="who-page__title">Who's using Tuvima?</h1>
+
+    @if (_loading)
+    {
+        <p class="who-page__status" role="status">Loading profiles…</p>
+    }
+    else if (_profiles.Count == 0)
+    {
+        <p class="who-page__status" role="alert">Your profiles could not be loaded.</p>
+        <AppNativeButton Type="button" Class="who-button who-button--primary" OnClick="LoadAsync">Try again</AppNativeButton>
+    }
+    else
+    {
+        <ul class="who-grid">
+            @foreach (var profile in _profiles)
+            {
+                <li @key="profile.Id">
+                    <AppNativeButton Type="button"
+                                     Class="who-card"
+                                     Disabled="@_busy"
+                                     AriaLabel="@CardLabel(profile)"
+                                     OnClick="@(() => ChooseAsync(profile))">
+                        @if (!string.IsNullOrWhiteSpace(profile.AvatarImageUrl))
+                        {
+                            <img class="who-card__avatar" src="@profile.AvatarImageUrl" alt="" loading="lazy" decoding="async" />
+                        }
+                        else
+                        {
+                            <svg class="who-card__avatar" viewBox="0 0 100 100" aria-hidden="true" focusable="false">
+                                <circle cx="50" cy="50" r="50" fill="@AvatarFill(profile)" />
+                                <text x="50" y="52" text-anchor="middle" dominant-baseline="central" font-size="44" font-weight="700" fill="@AvatarInk(profile)">@Initial(profile)</text>
+                            </svg>
+                        }
+                        <span class="who-card__name">@profile.DisplayName</span>
+                        <span class="who-card__tags">
+                            @if (profile.HasPin)
+                            {
+                                <span class="who-tag">
+                                    <svg class="who-tag__icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path fill="currentColor" d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z" /></svg>
+                                    PIN
+                                </span>
+                            }
+                            @if (profile.IsRestricted)
+                            {
+                                <span class="who-tag">Child</span>
+                            }
+                        </span>
+                    </AppNativeButton>
+                </li>
+            }
+        </ul>
+
+        @if (!string.IsNullOrWhiteSpace(_error) && _pending is null)
+        {
+            <p class="who-page__error" role="alert">@_error</p>
+        }
+
+        <div class="who-options">
+            <label class="who-check">
+                <AppNativeInput Type="checkbox" Class="who-check__box" Checked="@_alwaysOpen" OnChange="OnAlwaysOpenChanged" Disabled="@_busy" />
+                <span>Always open as this person on this device</span>
+            </label>
+            @if (PreferredProfile is { } preferred)
+            {
+                <AppNativeButton Type="button" Class="who-link" Disabled="@_busy" OnClick="StopAlwaysOpeningAsync">Stop always opening as @preferred.DisplayName</AppNativeButton>
+            }
+        </div>
+
+        <form method="post" action="/auth/logout" class="who-signout">
+            <AntiforgeryToken />
+            <AppNativeButton Type="submit" Class="who-link">Sign out</AppNativeButton>
+        </form>
+
+        @if (ShowPinReminder)
+        {
+            <p class="who-note" role="note">Set PINs on adult profiles so children can't switch into them.</p>
+        }
+    }
+
+    @if (_pending is not null)
+    {
+        <div class="who-backdrop">
+            <div class="who-dialog" role="dialog" aria-modal="true" aria-labelledby="who-pin-title">
+                <h2 id="who-pin-title" class="who-dialog__title">Enter @_pending.DisplayName's PIN</h2>
+                <AppNativeInput Type="password"
+                                Class="who-dialog__input"
+                                Value="@_pin"
+                                ValueChanged="@(value => _pin = value?.ToString() ?? string.Empty)"
+                                OnKeyDown="OnPinKeyDownAsync"
+                                AriaLabel="Profile PIN"
+                                autocomplete="current-password"
+                                inputmode="numeric"
+                                autofocus="autofocus" />
+                @if (!string.IsNullOrWhiteSpace(_error))
+                {
+                    <p class="who-page__error" role="alert">@_error</p>
+                }
+                <div class="who-dialog__actions">
+                    <AppNativeButton Type="button" Class="who-button" Disabled="@_busy" OnClick="CancelPin">Cancel</AppNativeButton>
+                    <AppNativeButton Type="button" Class="who-button who-button--primary" Disabled="@(_busy || string.IsNullOrWhiteSpace(_pin))" OnClick="SubmitPinAsync">
+                        @(_busy ? "Checking…" : "Continue")
+                    </AppNativeButton>
+                </div>
+            </div>
+        </div>
+    }
+</section>
+
+@code {
+    /// <summary>Where to go once someone is chosen (a same-site path only).</summary>
+    [Parameter, SupplyParameterFromQuery(Name = "returnUrl")] public string? ReturnUrl { get; set; }
+
+    private List<ProfileViewModel> _profiles = [];
+    private ProfileViewModel? _active;
+    private Guid? _preferredId;
+    private ProfileViewModel? _pending;
+    private bool _loading = true;
+    private bool _busy;
+    private bool _alwaysOpen;
+    private bool _isAdministrator;
+    private string _pin = string.Empty;
+    private string? _error;
+
+    private string Destination => ProfilePickerRoute.SafeReturnUrl(ReturnUrl) ?? "/";
+
+    private ProfileViewModel? PreferredProfile => _preferredId is { } id ? _profiles.FirstOrDefault(profile => profile.Id == id) : null;
+
+    // Q4: a gentle reminder for administrators, never a block.
+    private bool ShowPinReminder => _isAdministrator
+        && _profiles.Any(profile => profile.IsRestricted)
+        && _profiles.Any(profile => !profile.IsRestricted && !profile.HasPin);
+
+    protected override Task OnInitializedAsync() => LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        _error = null;
+        try
+        {
+            var principal = (await AuthenticationStateProvider.GetAuthenticationStateAsync()).User;
+            Session.InitializeFromPrincipal(principal);
+            await Identity.EnsureInitialAuthorityAsync(Session);
+            _isAdministrator = Session.Authority?.EffectiveAdministrator == true;
+            _profiles = await Orchestrator.GetProfilesAsync();
+            _active = await Orchestrator.GetActiveProfileAsync();
+            if (_profiles.Count == 1)
+            {
+                // Nobody to choose between.
+                Navigation.NavigateTo(Destination, forceLoad: true, replace: true);
+                return;
+            }
+
+            _preferredId = await Identity.GetDeviceProfilePreferenceAsync();
+            _alwaysOpen = _preferredId is not null;
+        }
+        catch (Exception exception)
+        {
+            Logger.LogWarning(exception, "Could not load the profile picker.");
+            _profiles = [];
+        }
+        finally
+        {
+            _loading = false;
+        }
+
+        // This device always opens as someone with a PIN: ask for it once instead of skipping it.
+        if (PreferredProfile is { HasPin: true } preferred && preferred.Id != _active?.Id)
+        {
+            _alwaysOpen = true;
+            BeginPin(preferred);
+        }
+    }
+
+    private Task ChooseAsync(ProfileViewModel profile)
+    {
+        _error = null;
+        if (profile.HasPin)
+        {
+            BeginPin(profile);
+            return Task.CompletedTask;
+        }
+
+        return SwitchAsync(profile, null);
+    }
+
+    private void BeginPin(ProfileViewModel profile)
+    {
+        _pending = profile;
+        _pin = string.Empty;
+        _error = null;
+    }
+
+    private void CancelPin()
+    {
+        _pending = null;
+        _pin = string.Empty;
+        _error = null;
+    }
+
+    private async Task OnPinKeyDownAsync(KeyboardEventArgs args)
+    {
+        if (args.Key == "Enter")
+        {
+            await SubmitPinAsync();
+        }
+        else if (args.Key == "Escape")
+        {
+            CancelPin();
+        }
+    }
+
+    private Task SubmitPinAsync() => _pending is { } profile && !string.IsNullOrWhiteSpace(_pin)
+        ? SwitchAsync(profile, _pin)
+        : Task.CompletedTask;
+
+    private async Task SwitchAsync(ProfileViewModel profile, string? pin)
+    {
+        if (_busy)
+        {
+            return;
+        }
+
+        _busy = true;
+        _error = null;
+        try
+        {
+            // Always switch, even to the profile already open: that is what tells the Engine someone has been picked.
+            var outcome = await Orchestrator.SetActiveProfileAsync(profile.Id, pin);
+            if (!outcome.Succeeded)
+            {
+                _pin = string.Empty;
+                _error = outcome.Status switch
+                {
+                    ProfileSwitchStatus.PinRequired => _pending is null ? null : "That PIN didn't work. Try again.",
+                    ProfileSwitchStatus.Forbidden => "This account can't use that profile.",
+                    ProfileSwitchStatus.NotFound => "That profile is no longer available.",
+                    ProfileSwitchStatus.TooManyAttempts => "Too many attempts. Try again in a minute.",
+                    _ => "That profile couldn't be opened. Try again.",
+                };
+                if (outcome.Status == ProfileSwitchStatus.PinRequired && _pending is null)
+                {
+                    BeginPin(profile);
+                }
+
+                return;
+            }
+
+            await RememberChoiceAsync(profile);
+            // A profile switch changes the signed-in role and every profile-scoped data source, so rebuild the circuit.
+            Navigation.NavigateTo(Destination, forceLoad: true, replace: true);
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private async Task RememberChoiceAsync(ProfileViewModel profile)
+    {
+        try
+        {
+            if (_alwaysOpen)
+            {
+                await Identity.SetDeviceProfilePreferenceAsync(profile.Id);
+            }
+            else if (_preferredId is not null)
+            {
+                await Identity.ClearDeviceProfilePreferenceAsync();
+            }
+        }
+        catch (Exception exception)
+        {
+            // Failing to remember the choice must not stop someone from getting in.
+            Logger.LogWarning(exception, "Could not save the always-open-as choice for this device.");
+        }
+    }
+
+    private async Task StopAlwaysOpeningAsync()
+    {
+        _busy = true;
+        try
+        {
+            var cleared = await Identity.ClearDeviceProfilePreferenceAsync();
+            if (cleared.Succeeded)
+            {
+                _preferredId = null;
+                _alwaysOpen = false;
+            }
+            else
+            {
+                _error = "That couldn't be changed. Try again.";
+            }
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private void OnAlwaysOpenChanged(ChangeEventArgs args) => _alwaysOpen = args.Value is true;
+
+    private static string Initial(ProfileViewModel profile) =>
+        string.IsNullOrWhiteSpace(profile.DisplayName) ? "?" : profile.DisplayName.Trim()[..1].ToUpperInvariant();
+
+    private static string AvatarFill(ProfileViewModel profile) =>
+        System.Text.RegularExpressions.Regex.IsMatch(profile.AvatarColor ?? string.Empty, "^#[0-9a-fA-F]{6}$") ? profile.AvatarColor! : "#8852FC";
+
+    // Dark or light lettering, whichever reads better on the profile's colour.
+    private static string AvatarInk(ProfileViewModel profile)
+    {
+        var hex = AvatarFill(profile);
+        var red = Convert.ToInt32(hex.Substring(1, 2), 16);
+        var green = Convert.ToInt32(hex.Substring(3, 2), 16);
+        var blue = Convert.ToInt32(hex.Substring(5, 2), 16);
+        return (0.299 * red) + (0.587 * green) + (0.114 * blue) > 160 ? "#1b1b1f" : "#ffffff";
+    }
+
+    private static string CardLabel(ProfileViewModel profile) =>
+        profile.HasPin ? $"{profile.DisplayName}, needs a PIN" : profile.DisplayName;
+}

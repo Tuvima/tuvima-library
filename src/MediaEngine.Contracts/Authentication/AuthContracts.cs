@@ -89,6 +89,10 @@ public sealed class AuthSessionResponse
     [JsonPropertyName("authentication_method")] public string AuthenticationMethod { get; init; } = string.Empty;
     [JsonPropertyName("expires_at")] public DateTimeOffset ExpiresAt { get; init; }
     [JsonPropertyName("recovery_codes")] public IReadOnlyList<string> RecoveryCodes { get; init; } = [];
+    /// <summary>True when the account has several profiles and this device is not set to "always open as" one, so the Dashboard shows "Who's using Tuvima?".</summary>
+    [JsonPropertyName("choose_profile")] public bool ChooseProfile { get; init; }
+    /// <summary>True while the person must still pick who is using Tuvima before using any other page.</summary>
+    [JsonPropertyName("profile_pending")] public bool ProfilePending { get; init; }
 
     /// <summary>True while the account is signed in with an administrator-set temporary password: the person must choose their own first.</summary>
     [JsonPropertyName("password_change_required")] public bool PasswordChangeRequired { get; init; }
@@ -103,6 +107,7 @@ public sealed class SessionValidationResponse
     [JsonPropertyName("authority")] public required DashboardAuthorityResponse Authority { get; init; }
     [JsonPropertyName("authentication_method")] public string AuthenticationMethod { get; init; } = string.Empty;
     [JsonPropertyName("expires_at")] public DateTimeOffset ExpiresAt { get; init; }
+    [JsonPropertyName("profile_pending")] public bool ProfilePending { get; init; }
     [JsonPropertyName("password_change_required")] public bool PasswordChangeRequired { get; init; }
 }
 
@@ -321,6 +326,13 @@ public sealed class SwitchProfileRequest
     [JsonPropertyName("profile_id")] public Guid ProfileId { get; init; }
     [JsonPropertyName("secret")] public string? Secret { get; init; }
 }
+
+/// <summary>The profile this device always opens as, or <c>null</c> when none is set.</summary>
+public sealed record DeviceProfilePreferenceResponse(
+    [property: JsonPropertyName("profile_id")] Guid? ProfileId);
+
+public sealed record SetDeviceProfilePreferenceRequest(
+    [property: JsonPropertyName("profile_id")] Guid ProfileId);
 
 public sealed record RecoveryCodesResponse(
     [property: JsonPropertyName("recovery_codes")] IReadOnlyList<string> RecoveryCodes);
