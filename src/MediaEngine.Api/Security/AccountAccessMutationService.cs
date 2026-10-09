@@ -60,13 +60,12 @@ public sealed class AccountAccessMutationService(
         ValidateLibraries(command.Libraries);
 
         var now = clock.GetUtcNow();
-        var email = NormalizeEmail(command.Email, command.IsLocalOnly);
+        var email = NormalizeEmail(command.Email);
         var account = new Account
         {
             Id = Guid.NewGuid(),
             Email = email,
-            NormalizedEmail = email?.ToUpperInvariant(),
-            IsLocalOnly = command.IsLocalOnly,
+            NormalizedEmail = email.ToUpperInvariant(),
             IsEnabled = true,
             IsAdministrator = command.IsAdministrator,
             AuthorizationVersion = 1,
@@ -109,10 +108,9 @@ public sealed class AccountAccessMutationService(
             }
         }
 
-        var email = NormalizeEmail(command.Email, command.IsLocalOnly);
+        var email = NormalizeEmail(command.Email);
         account.Email = email;
-        account.NormalizedEmail = email?.ToUpperInvariant();
-        account.IsLocalOnly = command.IsLocalOnly;
+        account.NormalizedEmail = email.ToUpperInvariant();
         account.IsEnabled = command.IsEnabled;
         account.IsAdministrator = command.IsAdministrator;
         account.UpdatedAt = clock.GetUtcNow();
@@ -140,7 +138,7 @@ public sealed class AccountAccessMutationService(
         CancellationToken ct = default)
     {
         await RequireWriteAsync(actor, ct).ConfigureAwait(false);
-        var email = NormalizeEmail(command.Email, false)!;
+        var email = NormalizeEmail(command.Email);
         var profileIds = command.ProfileIds.Distinct().ToArray();
         if (profileIds.Length is 0 or > 8)
         {
@@ -168,7 +166,6 @@ public sealed class AccountAccessMutationService(
             Id = Guid.NewGuid(),
             Email = email,
             NormalizedEmail = email.ToUpperInvariant(),
-            IsLocalOnly = false,
             IsEnabled = true,
             IsAdministrator = false,
             AuthorizationVersion = 1,
@@ -177,7 +174,7 @@ public sealed class AccountAccessMutationService(
         };
         if (isExisting)
         {
-            if (account.IsLocalOnly || !account.IsEnabled ||
+            if (!account.IsEnabled ||
                 await identities.GetAccountCredentialAsync(
                     account.Id, AccountCredentialKind.Password, ct).ConfigureAwait(false) is not null)
             {
@@ -462,17 +459,8 @@ public sealed class AccountAccessMutationService(
             new Dictionary<string, string?> { ["changed"] = "true" }), ct).ConfigureAwait(false);
     }
 
-    private static string? NormalizeEmail(string? raw, bool localOnly)
+    private static string NormalizeEmail(string? raw)
     {
-        if (localOnly)
-        {
-            if (!string.IsNullOrWhiteSpace(raw))
-            {
-                throw new ArgumentException("Local-only accounts cannot have an email.");
-            }
-
-            return null;
-        }
         if (string.IsNullOrWhiteSpace(raw))
         {
             throw new ArgumentException("Email is required.");

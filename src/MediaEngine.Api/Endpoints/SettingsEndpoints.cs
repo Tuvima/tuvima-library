@@ -121,7 +121,7 @@ public static class SettingsEndpoints
             CancellationToken ct) =>
         {
             using var mutation = await mutationGate.EnterAsync(ct).ConfigureAwait(false);
-            if (request.Mode is not ("Local" or "DisabledLocalOnly" or "Optional" or "Required"))
+            if (request.Mode is not ("Local" or "Optional" or "Required"))
             {
                 return ApiErrors.BadRequest("Authentication mode is invalid.");
             }
@@ -148,7 +148,7 @@ public static class SettingsEndpoints
             }
 
             if (!request.PasswordSignInEnabled && !request.PasskeySignInEnabled &&
-                !request.ExternalSignInEnabled && !request.AllowLocalOnlyAccounts)
+                !request.ExternalSignInEnabled)
             {
                 return ApiErrors.BadRequest("At least one account sign-in method must remain enabled.");
             }
@@ -160,7 +160,6 @@ public static class SettingsEndpoints
             auth.PasswordSignInEnabled = request.PasswordSignInEnabled;
             auth.PasskeySignInEnabled = request.PasskeySignInEnabled;
             auth.ExternalSignInEnabled = request.ExternalSignInEnabled;
-            auth.AllowLocalOnlyAccounts = request.AllowLocalOnlyAccounts;
             auth.TrustedLocalNetworks = request.TrustedLocalNetworks
                 .Select(value => value.Trim()).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
             auth.InvitationLifetimeHours = request.InvitationLifetimeHours;
@@ -172,7 +171,6 @@ public static class SettingsEndpoints
             prospective.PasswordSignInEnabled = auth.PasswordSignInEnabled;
             prospective.PasskeySignInEnabled = auth.PasskeySignInEnabled;
             prospective.ExternalSignInEnabled = auth.ExternalSignInEnabled;
-            prospective.AllowLocalOnlyAccounts = auth.AllowLocalOnlyAccounts;
             prospective.TrustedLocalNetworks = auth.TrustedLocalNetworks;
             prospective.InvitationLifetimeHours = auth.InvitationLifetimeHours;
             prospective.SessionLifetimeHours = auth.SessionLifetimeHours;
@@ -1647,16 +1645,13 @@ public static class SettingsEndpoints
             PasswordSignInEnabled = auth.PasswordSignInEnabled,
             PasskeySignInEnabled = auth.PasskeySignInEnabled,
             ExternalSignInEnabled = auth.ExternalSignInEnabled,
-            AllowLocalOnlyAccounts = auth.AllowLocalOnlyAccounts,
             TrustedLocalNetworks = auth.TrustedLocalNetworks,
             InvitationLifetimeHours = auth.InvitationLifetimeHours,
             SessionLifetimeHours = auth.SessionLifetimeHours,
             MaximumActiveSessions = auth.MaximumActiveSessions,
             PublicAddress = network.Remote.PublicHostname ?? string.Empty,
             CanonicalOriginReady = canonicalOriginReady,
-            PasskeyReady = auth.PasskeySignInEnabled
-                && !auth.Mode.Equals("DisabledLocalOnly", StringComparison.OrdinalIgnoreCase)
-                && canonicalOriginReady,
+            PasskeyReady = auth.PasskeySignInEnabled && canonicalOriginReady,
             RecoveryDeliveryReady = recoveryReady,
             RestartRequired = restartRequired,
             PasswordReset = new MediaEngine.Contracts.Settings.PasswordResetDeliveryDto

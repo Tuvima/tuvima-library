@@ -640,7 +640,6 @@
   kind=class | converter=default | number-handling=default | unmapped=default
   Id: System.Guid | json=id | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Email: System.String | json=email | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  IsLocalOnly: System.Boolean | json=is_local_only | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   IsEnabled: System.Boolean | json=is_enabled | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   IsAdministrator: System.Boolean | json=is_administrator | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   AuthorizationVersion: System.Int64 | json=authorization_version | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
@@ -704,11 +703,10 @@
   kind=class | converter=default | number-handling=default | unmapped=default
   Id: System.Guid | json=id | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Email: System.String | json=email | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  IsLocalOnly: System.Boolean | json=is_local_only | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   IsEnabled: System.Boolean | json=is_enabled | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   ProfileIds: System.Collections.Generic.IReadOnlyList<System.Guid> | json=profile_ids | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   DefaultProfileId: System.Guid? | json=default_profile_id | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  sample={"id":"11111111-2222-3333-4444-555555555555","email":"sample","is_local_only":true,"is_enabled":true,"profile_ids":[],"default_profile_id":"11111111-2222-3333-4444-555555555555"}
+  sample={"id":"11111111-2222-3333-4444-555555555555","email":"sample","is_enabled":true,"profile_ids":[],"default_profile_id":"11111111-2222-3333-4444-555555555555"}
 
 [contracts] MediaEngine.Contracts.Authentication.AccountSecurityCapabilitiesResponse
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -725,7 +723,6 @@
   kind=class | converter=default | number-handling=default | unmapped=default
   AccountId: System.Guid | json=account_id | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Email: System.String | json=email | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  IsLocalOnly: System.Boolean | json=is_local_only | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   ActiveProfileId: System.Guid | json=active_profile_id | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   DefaultProfileId: System.Guid | json=default_profile_id | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Profiles: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Authentication.AccountProfileGrantDto> | json=profiles | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
@@ -1012,7 +1009,6 @@
 [contracts] MediaEngine.Contracts.Authentication.CreateManagedAccountRequest
   kind=class | converter=default | number-handling=default | unmapped=default
   Email: System.String | json=email | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  IsLocalOnly: System.Boolean | json=is_local_only | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   IsAdministrator: System.Boolean | json=is_administrator | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   ProfileId: System.Guid? | json=profile_id | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   NewProfile: MediaEngine.Contracts.Authentication.NewAccountProfileRequest | json=new_profile | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
@@ -1137,14 +1133,12 @@
   kind=class | converter=default | number-handling=default | unmapped=default
   Email: System.String | json=email | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Password: System.String | json=password | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  ProfileId: System.Guid? | json=profile_id | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  Pin: System.String | json=pin | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   DeviceId: System.String | json=device_id | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   DeviceName: System.String | json=device_name | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Client: System.String | json=client | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   OriginalClientIngress: System.String | json=original_client_ingress | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   OriginalClientIsHttps: System.Boolean | json=original_client_is_https | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  sample={"email":"sample","password":"sample","profile_id":"11111111-2222-3333-4444-555555555555","pin":"sample","device_id":"sample","device_name":"sample","client":"sample","original_client_ingress":"sample","original_client_is_https":true}
+  sample={"email":"sample","password":"sample","device_id":"sample","device_name":"sample","client":"sample","original_client_ingress":"sample","original_client_is_https":true}
 
 [contracts] MediaEngine.Contracts.Authentication.ManagedProfileResponse
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -1332,7 +1326,6 @@
 [contracts] MediaEngine.Contracts.Authentication.UpdateManagedAccountRequest
   kind=class | converter=default | number-handling=default | unmapped=default
   Email: System.String | json=email | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  IsLocalOnly: System.Boolean | json=is_local_only | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   IsEnabled: System.Boolean | json=is_enabled | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   IsAdministrator: System.Boolean | json=is_administrator | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
 
@@ -8071,7 +8064,6 @@
   PasswordSignInEnabled: System.Boolean | json=password_sign_in_enabled | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   PasskeySignInEnabled: System.Boolean | json=passkey_sign_in_enabled | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   ExternalSignInEnabled: System.Boolean | json=external_sign_in_enabled | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  AllowLocalOnlyAccounts: System.Boolean | json=allow_local_only_accounts | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   TrustedLocalNetworks: System.Collections.Generic.List<System.String> | json=trusted_local_networks | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   InvitationLifetimeHours: System.Int32 | json=invitation_lifetime_hours | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   SessionLifetimeHours: System.Int32 | json=session_lifetime_hours | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
@@ -8083,7 +8075,7 @@
   RestartRequired: System.Boolean | json=restart_required | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   ExternalProviders: System.Collections.Generic.List<MediaEngine.Contracts.Settings.ExternalAuthProviderDto> | json=external_providers | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   PasswordReset: MediaEngine.Contracts.Settings.PasswordResetDeliveryDto | json=password_reset | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  sample={"mode":"sample","localhost_bypass":true,"password_sign_in_enabled":true,"passkey_sign_in_enabled":true,"external_sign_in_enabled":true,"allow_local_only_accounts":true,"trusted_local_networks":[],"invitation_lifetime_hours":7,"session_lifetime_hours":7,"maximum_active_sessions":7,"public_address":"sample","canonical_origin_ready":true,"passkey_ready":true,"recovery_delivery_ready":true,"restart_required":true,"external_providers":[],"password_reset":null}
+  sample={"mode":"sample","localhost_bypass":true,"password_sign_in_enabled":true,"passkey_sign_in_enabled":true,"external_sign_in_enabled":true,"trusted_local_networks":[],"invitation_lifetime_hours":7,"session_lifetime_hours":7,"maximum_active_sessions":7,"public_address":"sample","canonical_origin_ready":true,"passkey_ready":true,"recovery_delivery_ready":true,"restart_required":true,"external_providers":[],"password_reset":null}
 
 [contracts] MediaEngine.Contracts.Settings.BrowseServerFoldersRequest
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -8972,12 +8964,11 @@
   PasswordSignInEnabled: System.Boolean | json=password_sign_in_enabled | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   PasskeySignInEnabled: System.Boolean | json=passkey_sign_in_enabled | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   ExternalSignInEnabled: System.Boolean | json=external_sign_in_enabled | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  AllowLocalOnlyAccounts: System.Boolean | json=allow_local_only_accounts | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   TrustedLocalNetworks: System.Collections.Generic.List<System.String> | json=trusted_local_networks | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   InvitationLifetimeHours: System.Int32 | json=invitation_lifetime_hours | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   SessionLifetimeHours: System.Int32 | json=session_lifetime_hours | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   MaximumActiveSessions: System.Int32 | json=maximum_active_sessions | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  sample={"mode":"sample","localhost_bypass":true,"password_sign_in_enabled":true,"passkey_sign_in_enabled":true,"external_sign_in_enabled":true,"allow_local_only_accounts":true,"trusted_local_networks":[],"invitation_lifetime_hours":7,"session_lifetime_hours":7,"maximum_active_sessions":7}
+  sample={"mode":"sample","localhost_bypass":true,"password_sign_in_enabled":true,"passkey_sign_in_enabled":true,"external_sign_in_enabled":true,"trusted_local_networks":[],"invitation_lifetime_hours":7,"session_lifetime_hours":7,"maximum_active_sessions":7}
 
 [contracts] MediaEngine.Contracts.Settings.UpdateExternalAuthProviderRequest
   kind=class | converter=default | number-handling=default | unmapped=default

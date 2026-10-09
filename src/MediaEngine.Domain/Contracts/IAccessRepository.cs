@@ -69,7 +69,6 @@ public interface IApplicationRepository
 
 public sealed record CreateAccountAccessCommand(
     string? Email,
-    bool IsLocalOnly,
     bool IsAdministrator,
     Guid? ProfileId,
     NewAccountProfileCommand? NewProfile,
@@ -80,7 +79,6 @@ public sealed record NewAccountProfileCommand(string DisplayName, string? Avatar
 
 public sealed record UpdateAccountAccessCommand(
     string? Email,
-    bool IsLocalOnly,
     bool IsEnabled,
     bool IsAdministrator);
 

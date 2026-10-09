@@ -65,7 +65,7 @@ public sealed class AuthenticationSettingsUiTests
         Assert.Contains("Recovery codes", account, StringComparison.Ordinal);
         Assert.Contains("Capabilities.HasPassword", account, StringComparison.Ordinal);
         Assert.Contains("Capabilities.CanRegisterPasskey", account, StringComparison.Ordinal);
-        Assert.Contains("private bool ShowPasskeys => !_account!.IsLocalOnly;", account, StringComparison.Ordinal);
+        Assert.DoesNotContain("IsLocalOnly", account, StringComparison.Ordinal);
         Assert.Contains("Passkeys are unavailable from this connection", account, StringComparison.Ordinal);
         Assert.Contains("Sign out all other sessions", account, StringComparison.Ordinal);
         Assert.Contains("ShowMessageBoxAsync", account, StringComparison.Ordinal);

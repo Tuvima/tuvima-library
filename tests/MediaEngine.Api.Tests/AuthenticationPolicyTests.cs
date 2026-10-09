@@ -126,7 +126,6 @@ public sealed class AuthenticationPolicyTests
 
     [Theory]
     [InlineData("Local", false)]
-    [InlineData("DisabledLocalOnly", false)]
     [InlineData("Optional", true)]
     [InlineData("Required", true)]
     public void ExternalSignIn_RequiresAnExternalCapableMode(string mode, bool expected)

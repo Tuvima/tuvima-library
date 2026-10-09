@@ -233,7 +233,8 @@ public sealed class AccessRepositoryTests : IDisposable
         var target = new Account
         {
             Id = Guid.NewGuid(),
-            IsLocalOnly = true,
+            Email = "target@example.test",
+            NormalizedEmail = "TARGET@EXAMPLE.TEST",
             IsEnabled = true,
             AuthorizationVersion = 1,
             CreatedAt = _now,
@@ -257,25 +258,21 @@ public sealed class AccessRepositoryTests : IDisposable
         Assert.Null(await _accounts.GetGrantAsync(target.Id, profile.Id));
     }
 
-    [Theory]
-    [InlineData(false, "remote@example.com")]
-    [InlineData(true, null)]
-    public async Task AccountCreation_WithNewDefaultProfile_IsAtomicAndDoesNotShareAnExistingProfile(
-        bool localOnly,
-        string? email)
+    [Fact]
+    public async Task AccountCreation_WithNewDefaultProfile_IsAtomicAndDoesNotShareAnExistingProfile()
     {
+        const string email = "remote@example.com";
         var account = new Account
         {
             Id = Guid.NewGuid(),
             Email = email,
-            NormalizedEmail = email?.ToUpperInvariant(),
-            IsLocalOnly = localOnly,
+            NormalizedEmail = email.ToUpperInvariant(),
             IsEnabled = true,
             AuthorizationVersion = 1,
             CreatedAt = _now,
             UpdatedAt = _now,
         };
-        var profile = NewProfile(Guid.NewGuid(), localOnly ? "Local user" : "Remote user");
+        var profile = NewProfile(Guid.NewGuid(), "Remote user");
 
         await _accounts.CreateAccountAsync(
             account,
@@ -296,7 +293,8 @@ public sealed class AccessRepositoryTests : IDisposable
         var account = new Account
         {
             Id = Guid.NewGuid(),
-            IsLocalOnly = true,
+            Email = "access@example.test",
+            NormalizedEmail = "ACCESS@EXAMPLE.TEST",
             IsEnabled = true,
             AuthorizationVersion = 1,
             CreatedAt = _now,

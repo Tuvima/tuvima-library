@@ -14,7 +14,6 @@ public interface IAccountRepository : IAccessRepository, IAccountAccessMutationR
     Task<bool> HasProfileAccessAsync(Guid accountId, Guid profileId, CancellationToken ct = default);
     Task<IReadOnlyList<Guid>> GetProfileIdsAsync(Guid accountId, CancellationToken ct = default);
     Task<Guid?> GetDefaultProfileIdAsync(Guid accountId, CancellationToken ct = default);
-    Task<Guid?> GetLocalOnlyAccountIdForProfileAsync(Guid profileId, CancellationToken ct = default);
     Task InsertInvitationAsync(AccountInvitation invitation, CancellationToken ct = default);
     Task<AccountInvitation?> GetActiveInvitationAsync(string tokenHash, DateTimeOffset now, CancellationToken ct = default);
     Task<bool> ConsumeInvitationAsync(Guid invitationId, DateTimeOffset consumedAt, CancellationToken ct = default);

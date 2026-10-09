@@ -6,9 +6,21 @@ namespace MediaEngine.Storage;
 
 internal sealed class SchemaMigrator
 {
+    /// <summary>The most profiles one account's household can hold.</summary>
+    internal const int MaximumProfilesPerAccount = 8;
+
+    private readonly List<string> _notes = [];
+
+    /// <summary>
+    /// One line for each change a startup migration made to existing data (for example a profile that moved),
+    /// so the host can write them to its log. Empty when nothing was changed.
+    /// </summary>
+    public IReadOnlyList<string> Notes => _notes;
+
     public void RunStartupTasks(SqliteConnection conn)
     {
         EnsureIdentitySchema(conn);
+        RetireLocalOnlyAccounts(conn);
         EnsureOnboardingSchema(conn);
         EnsureProviderConnectionCheckSchema(conn);
         EnsureAdaptiveDeliverySchema(conn);
@@ -45,6 +57,227 @@ internal sealed class SchemaMigrator
         SeedMetadataProviders(conn);
         SeedDefaultProfile(conn);
         MigrateLegacyProfileLists(conn);
+    }
+
+    /// <summary>
+    /// Every account signs in with an email, so email-less "local-only" accounts are retired. Each one's profiles
+    /// move into the household of the server administrator account (history stays attached to the profile), the
+    /// local-only account and its sessions are removed, and <c>accounts</c> is rebuilt with a required email and
+    /// without the <c>is_local_only</c> column. Safe to run on every startup: once the column is gone it does nothing.
+    /// </summary>
+    private void RetireLocalOnlyAccounts(SqliteConnection conn)
+    {
+        if (!ColumnExists(conn, "accounts", "is_local_only"))
+        {
+            return;
+        }
+
+        MoveLocalOnlyProfilesToAdministrator(conn);
+        RebuildAccountsTable(conn);
+    }
+
+    private void MoveLocalOnlyProfilesToAdministrator(SqliteConnection conn)
+    {
+        var movedNotes = new List<string>();
+        DatabaseConnection.ExecuteStartupTransaction(conn, transaction =>
+        {
+            bool hasLocalOnly;
+            using (var count = conn.CreateCommand())
+            {
+                count.Transaction = transaction;
+                count.CommandText = "SELECT COUNT(*) FROM accounts WHERE is_local_only = 1;";
+                hasLocalOnly = Convert.ToInt32(count.ExecuteScalar(), System.Globalization.CultureInfo.InvariantCulture) > 0;
+            }
+
+            if (!hasLocalOnly)
+            {
+                return;
+            }
+
+            // Profiles that someone could still open through an enabled grant on a local-only account.
+            var movingRows = new List<(Guid ProfileId, string Name, Guid FromAccountId)>();
+            using (var read = conn.CreateCommand())
+            {
+                read.Transaction = transaction;
+                read.CommandText = """
+                    SELECT DISTINCT p.id, p.display_name, a.id
+                    FROM account_profile_grants g
+                    JOIN accounts a ON a.id = g.account_id
+                    JOIN profiles p ON p.id = g.profile_id
+                    WHERE a.is_local_only = 1 AND g.is_enabled = 1
+                    ORDER BY p.display_name, p.id, a.id;
+                    """;
+                using var reader = read.ExecuteReader();
+                while (reader.Read())
+                {
+                    movingRows.Add((GuidSql.FromDb(reader.GetValue(0)), reader.GetString(1), GuidSql.FromDb(reader.GetValue(2))));
+                }
+            }
+
+            if (movingRows.Count > 0)
+            {
+                MoveProfiles(conn, transaction, movingRows, movedNotes);
+            }
+
+            using var cleanup = conn.CreateCommand();
+            cleanup.Transaction = transaction;
+            cleanup.CommandText = """
+                DELETE FROM auth_sessions WHERE account_id IN (SELECT id FROM accounts WHERE is_local_only = 1);
+                DELETE FROM accounts WHERE is_local_only = 1;
+                """;
+            cleanup.ExecuteNonQuery();
+        });
+        _notes.AddRange(movedNotes);
+    }
+
+    private static void MoveProfiles(
+        SqliteConnection conn,
+        SqliteTransaction transaction,
+        List<(Guid ProfileId, string Name, Guid FromAccountId)> movingRows,
+        List<string> notes)
+    {
+        Guid administratorId;
+        string administratorEmail;
+        using (var find = conn.CreateCommand())
+        {
+            find.Transaction = transaction;
+            find.CommandText = """
+                SELECT id, email FROM accounts
+                WHERE is_local_only = 0 AND is_administrator = 1 AND is_enabled = 1
+                ORDER BY created_at, id
+                LIMIT 1;
+                """;
+            using var reader = find.ExecuteReader();
+            if (!reader.Read())
+            {
+                throw new InvalidOperationException(
+                    "Startup stopped: email-less local-only accounts were found, but no enabled administrator account with an email exists to take over their profiles ("
+                    + string.Join(", ", movingRows.Select(row => $"'{row.Name}'").Distinct())
+                    + "). Nothing was changed. Run `tuvima-admin auth reset-password --email <address>` for an administrator account, then start the Engine again.");
+            }
+
+            administratorId = GuidSql.FromDb(reader.GetValue(0));
+            administratorEmail = reader.GetString(1);
+        }
+
+        var held = new HashSet<Guid>();
+        using (var existing = conn.CreateCommand())
+        {
+            existing.Transaction = transaction;
+            existing.CommandText = "SELECT profile_id FROM account_profile_grants WHERE account_id = @account;";
+            existing.Parameters.Add("@account", SqliteType.Blob).Value = GuidSql.ToBlob(administratorId);
+            using var reader = existing.ExecuteReader();
+            while (reader.Read())
+            {
+                held.Add(GuidSql.FromDb(reader.GetValue(0)));
+            }
+        }
+
+        var toMove = movingRows
+            .Where(row => !held.Contains(row.ProfileId))
+            .Select(row => (row.ProfileId, row.Name))
+            .Distinct()
+            .ToList();
+        if (held.Count + toMove.Count > MaximumProfilesPerAccount)
+        {
+            throw new InvalidOperationException(
+                $"Startup stopped: moving the profiles of email-less local-only accounts ({string.Join(", ", toMove.Select(profile => $"'{profile.Name}'"))}) "
+                + $"into the administrator account {administratorEmail} would give it {held.Count + toMove.Count} profiles, and a household holds at most {MaximumProfilesPerAccount}. "
+                + "Nothing was changed. Delete profiles you no longer use (with the previous release, or from a restored copy of your data store), then start the Engine again. "
+                + $"If you are locked out of {administratorEmail}, `tuvima-admin auth reset-password --email {administratorEmail}` restores sign-in.");
+        }
+
+        var now = DateTimeOffset.UtcNow.ToString("O");
+        foreach (var profile in toMove)
+        {
+            using var grant = conn.CreateCommand();
+            grant.Transaction = transaction;
+            grant.CommandText = """
+                INSERT OR IGNORE INTO account_profile_grants
+                    (account_id, profile_id, is_default, is_enabled, admin_enabled, authorization_version, granted_at)
+                VALUES (@account, @profile, 0, 1, 0, 1, @grantedAt);
+                """;
+            grant.Parameters.Add("@account", SqliteType.Blob).Value = GuidSql.ToBlob(administratorId);
+            grant.Parameters.Add("@profile", SqliteType.Blob).Value = GuidSql.ToBlob(profile.ProfileId);
+            grant.Parameters.AddWithValue("@grantedAt", now);
+            grant.ExecuteNonQuery();
+        }
+
+        if (toMove.Count > 0)
+        {
+            using var bump = conn.CreateCommand();
+            bump.Transaction = transaction;
+            bump.CommandText = "UPDATE accounts SET authorization_version = authorization_version + 1, updated_at = @now WHERE id = @account;";
+            bump.Parameters.Add("@account", SqliteType.Blob).Value = GuidSql.ToBlob(administratorId);
+            bump.Parameters.AddWithValue("@now", now);
+            bump.ExecuteNonQuery();
+        }
+
+        // Only profiles that were actually granted to the administrator get a note; ones already in the household did not move.
+        foreach (var row in movingRows.Where(row => !held.Contains(row.ProfileId)))
+        {
+            notes.Add(
+                $"Retired email-less account {row.FromAccountId:D}: profile '{row.Name}' ({row.ProfileId:D}) now belongs to administrator account {administratorEmail}.");
+        }
+    }
+
+    private static void RebuildAccountsTable(SqliteConnection conn)
+    {
+        // SQLite cannot change a column to NOT NULL or drop a column used in a CHECK, so the table is rebuilt.
+        // Foreign keys must be off while the old table is dropped, or ON DELETE CASCADE would erase every grant,
+        // credential and session that points at it. They are restored afterwards.
+        bool foreignKeysWereOn;
+        using (var read = conn.CreateCommand())
+        {
+            read.CommandText = "PRAGMA foreign_keys;";
+            foreignKeysWereOn = Convert.ToInt32(read.ExecuteScalar(), System.Globalization.CultureInfo.InvariantCulture) != 0;
+        }
+
+        SetForeignKeys(conn, false);
+        try
+        {
+            DatabaseConnection.ExecuteStartupTransaction(conn, transaction =>
+            {
+                using var cmd = conn.CreateCommand();
+                cmd.Transaction = transaction;
+                cmd.CommandText = """
+                    CREATE TABLE accounts_rebuild (
+                        id               BLOB NOT NULL PRIMARY KEY,
+                        email            TEXT NOT NULL,
+                        normalized_email TEXT NOT NULL,
+                        is_enabled       INTEGER NOT NULL DEFAULT 1 CHECK (is_enabled IN (0, 1)),
+                        is_administrator INTEGER NOT NULL DEFAULT 0 CHECK (is_administrator IN (0, 1)),
+                        authorization_version INTEGER NOT NULL DEFAULT 1 CHECK (authorization_version > 0),
+                        created_at       TEXT NOT NULL,
+                        updated_at       TEXT NOT NULL
+                    );
+
+                    INSERT INTO accounts_rebuild
+                        (id, email, normalized_email, is_enabled, is_administrator, authorization_version, created_at, updated_at)
+                    SELECT id, email, normalized_email, is_enabled, is_administrator, authorization_version, created_at, updated_at
+                    FROM accounts;
+
+                    DROP TABLE accounts;
+                    ALTER TABLE accounts_rebuild RENAME TO accounts;
+                    CREATE UNIQUE INDEX IF NOT EXISTS ux_accounts_normalized_email ON accounts(normalized_email);
+
+                    INSERT OR IGNORE INTO schema_migrations (migration_id, applied_at)
+                    VALUES ('006_accounts_always_have_email', strftime('%Y-%m-%dT%H:%M:%fZ','now'));
+                    """;
+                cmd.ExecuteNonQuery();
+            });
+        }
+        finally
+        {
+            SetForeignKeys(conn, foreignKeysWereOn);
+        }
+    }
+
+    private static void SetForeignKeys(SqliteConnection conn, bool enabled)
+    {
+        using var cmd = conn.CreateCommand();
+        cmd.CommandText = enabled ? "PRAGMA foreign_keys = ON;" : "PRAGMA foreign_keys = OFF;";
+        cmd.ExecuteNonQuery();
     }
 
     private static void EnsureAssetRenditionSchema(SqliteConnection conn)

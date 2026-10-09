@@ -29,8 +29,8 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
         ct.ThrowIfCancellationRequested();
         using var conn = db.CreateConnection();
         conn.Execute("""
-            INSERT INTO accounts (id, email, normalized_email, is_local_only, is_enabled, is_administrator, authorization_version, created_at, updated_at)
-            VALUES (@Id, @Email, @NormalizedEmail, @IsLocalOnly, @IsEnabled, @IsAdministrator, @AuthorizationVersion, @CreatedAt, @UpdatedAt);
+            INSERT INTO accounts (id, email, normalized_email, is_enabled, is_administrator, authorization_version, created_at, updated_at)
+            VALUES (@Id, @Email, @NormalizedEmail, @IsEnabled, @IsAdministrator, @AuthorizationVersion, @CreatedAt, @UpdatedAt);
             """, Parameters(account));
         return Task.CompletedTask;
     }
@@ -41,7 +41,7 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
         using var conn = db.CreateConnection();
         return Task.FromResult(conn.Execute("""
             UPDATE accounts SET email = @Email, normalized_email = @NormalizedEmail,
-                is_local_only = @IsLocalOnly, is_enabled = @IsEnabled, is_administrator = @IsAdministrator,
+                is_enabled = @IsEnabled, is_administrator = @IsAdministrator,
                 authorization_version = authorization_version + 1, updated_at = @UpdatedAt
             WHERE id = @Id;
             """, Parameters(account)) > 0);
@@ -118,19 +118,6 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
         return Task.FromResult(value);
     }
 
-    public Task<Guid?> GetLocalOnlyAccountIdForProfileAsync(Guid profileId, CancellationToken ct = default)
-    {
-        ct.ThrowIfCancellationRequested();
-        using var conn = db.CreateConnection();
-        var value = conn.QueryFirstOrDefault<Guid?>("""
-            SELECT a.id FROM accounts a
-            JOIN account_profile_grants g ON g.account_id = a.id
-            WHERE g.profile_id = @profileId AND g.is_enabled = 1 AND a.is_local_only = 1 AND a.is_enabled = 1
-            GROUP BY g.profile_id HAVING COUNT(*) = 1;
-            """, new { profileId });
-        return Task.FromResult(value);
-    }
-
     public Task InsertInvitationAsync(AccountInvitation invitation, CancellationToken ct = default)
     { ct.ThrowIfCancellationRequested(); using var conn = db.CreateConnection(); conn.Execute("INSERT INTO account_invitations(id,account_id,token_hash,created_at,expires_at,consumed_at) VALUES(@Id,@AccountId,@TokenHash,@CreatedAt,@ExpiresAt,@ConsumedAt);", new { invitation.Id, invitation.AccountId, invitation.TokenHash, CreatedAt = invitation.CreatedAt.ToString("O"), ExpiresAt = invitation.ExpiresAt.ToString("O"), ConsumedAt = invitation.ConsumedAt?.ToString("O") }); return Task.CompletedTask; }
 
@@ -150,7 +137,7 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
 
     private const string Select = """
         SELECT id AS Id, email AS Email, normalized_email AS NormalizedEmail,
-               is_local_only AS IsLocalOnly, is_enabled AS IsEnabled,
+               is_enabled AS IsEnabled,
                is_administrator AS IsAdministrator, authorization_version AS AuthorizationVersion,
                created_at AS CreatedAt, updated_at AS UpdatedAt
         FROM accounts
@@ -161,7 +148,6 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
         account.Id,
         account.Email,
         account.NormalizedEmail,
-        IsLocalOnly = account.IsLocalOnly ? 1 : 0,
         IsEnabled = account.IsEnabled ? 1 : 0,
         IsAdministrator = account.IsAdministrator ? 1 : 0,
         account.AuthorizationVersion,
@@ -174,7 +160,6 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
         Id = row.Id,
         Email = row.Email,
         NormalizedEmail = row.NormalizedEmail,
-        IsLocalOnly = row.IsLocalOnly,
         IsEnabled = row.IsEnabled,
         IsAdministrator = row.IsAdministrator,
         AuthorizationVersion = row.AuthorizationVersion,
@@ -187,7 +172,6 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
         public Guid Id { get; set; }
         public string? Email { get; set; }
         public string? NormalizedEmail { get; set; }
-        public bool IsLocalOnly { get; set; }
         public bool IsEnabled { get; set; }
         public bool IsAdministrator { get; set; }
         public long AuthorizationVersion { get; set; }
@@ -219,7 +203,7 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
             throw new InvalidOperationException("An enabled account must retain an enabled profile grant.");
         }
 
-        conn.Execute("UPDATE accounts SET email=@Email,normalized_email=@NormalizedEmail,is_local_only=@IsLocalOnly,is_enabled=@IsEnabled,is_administrator=@IsAdministrator,authorization_version=authorization_version+1,updated_at=@UpdatedAt WHERE id=@Id;", Parameters(account), tx);
+        conn.Execute("UPDATE accounts SET email=@Email,normalized_email=@NormalizedEmail,is_enabled=@IsEnabled,is_administrator=@IsAdministrator,authorization_version=authorization_version+1,updated_at=@UpdatedAt WHERE id=@Id;", Parameters(account), tx);
     }, ct);
 
     public Task DeleteAccountAsync(Guid accountId, CancellationToken ct = default) =>
@@ -458,10 +442,6 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
                     EXISTS(SELECT 1 FROM account_credentials c WHERE c.account_id=a.id)
                     OR EXISTS(SELECT 1 FROM account_passkeys p WHERE p.account_id=a.id)
                     OR EXISTS(SELECT 1 FROM account_external_logins e WHERE e.account_id=a.id)
-                    OR (a.is_local_only=1 AND EXISTS(
-                        SELECT 1 FROM account_profile_grants lg
-                        JOIN profile_credentials pc ON pc.profile_id=lg.profile_id
-                        WHERE lg.account_id=a.id AND lg.is_enabled=1))
                   );
                 """, new { profileId }, transaction) > 0;
             var administratorsRemaining = connection.ExecuteScalar<int>("""
@@ -472,10 +452,6 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
                     EXISTS(SELECT 1 FROM account_credentials c WHERE c.account_id=a.id)
                     OR EXISTS(SELECT 1 FROM account_passkeys p WHERE p.account_id=a.id)
                     OR EXISTS(SELECT 1 FROM account_external_logins e WHERE e.account_id=a.id)
-                    OR (a.is_local_only=1 AND EXISTS(
-                        SELECT 1 FROM account_profile_grants lg
-                        JOIN profile_credentials pc ON pc.profile_id=lg.profile_id
-                        WHERE lg.account_id=a.id AND lg.is_enabled=1))
                   );
                 """, new { profileId }, transaction);
             if (removesAdministrator && administratorsRemaining == 0)
@@ -676,7 +652,7 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
             "DELETE FROM grant_admin_unlocks WHERE session_id=@sessionId;",
             new { sessionId }, transaction), ct);
 
-    private static void InsertAccount(System.Data.IDbConnection c, System.Data.IDbTransaction tx, Account a) => c.Execute("INSERT INTO accounts(id,email,normalized_email,is_local_only,is_enabled,is_administrator,authorization_version,created_at,updated_at) VALUES(@Id,@Email,@NormalizedEmail,@IsLocalOnly,@IsEnabled,@IsAdministrator,@AuthorizationVersion,@CreatedAt,@UpdatedAt);", Parameters(a), tx);
+    private static void InsertAccount(System.Data.IDbConnection c, System.Data.IDbTransaction tx, Account a) => c.Execute("INSERT INTO accounts(id,email,normalized_email,is_enabled,is_administrator,authorization_version,created_at,updated_at) VALUES(@Id,@Email,@NormalizedEmail,@IsEnabled,@IsAdministrator,@AuthorizationVersion,@CreatedAt,@UpdatedAt);", Parameters(a), tx);
     private static void InsertGrant(System.Data.IDbConnection c, System.Data.IDbTransaction tx, AccountProfileGrant g) => c.Execute("INSERT INTO account_profile_grants(account_id,profile_id,is_default,is_enabled,admin_enabled,authorization_version,granted_at) VALUES(@AccountId,@ProfileId,@IsDefault,@IsEnabled,@AdminEnabled,@AuthorizationVersion,@GrantedAt) ON CONFLICT(account_id,profile_id) DO UPDATE SET is_default=excluded.is_default,is_enabled=excluded.is_enabled,admin_enabled=excluded.admin_enabled,authorization_version=account_profile_grants.authorization_version+1;", new { g.AccountId, g.ProfileId, IsDefault = g.IsDefault ? 1 : 0, IsEnabled = g.IsEnabled ? 1 : 0, AdminEnabled = g.AdminEnabled ? 1 : 0, g.AuthorizationVersion, GrantedAt = Iso(g.GrantedAt) }, tx);
     private static void ReplaceAccess(System.Data.IDbConnection c, System.Data.IDbTransaction tx, Guid accountId, IReadOnlySet<AccountFeatureId> features, IReadOnlySet<Guid> libraries, DateTimeOffset at)
     {
@@ -717,10 +693,6 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
                 EXISTS(SELECT 1 FROM account_credentials c WHERE c.account_id=a.id)
                 OR EXISTS(SELECT 1 FROM account_passkeys p WHERE p.account_id=a.id)
                 OR EXISTS(SELECT 1 FROM account_external_logins e WHERE e.account_id=a.id)
-                OR (a.is_local_only=1 AND EXISTS(
-                    SELECT 1 FROM account_profile_grants lg
-                    JOIN profile_credentials pc ON pc.profile_id=lg.profile_id
-                    WHERE lg.account_id=a.id AND lg.is_enabled=1))
               );
             """, new { accountId, profileId }, transaction) > 0;
 
@@ -737,10 +709,6 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
                 EXISTS(SELECT 1 FROM account_credentials c WHERE c.account_id=a.id)
                 OR EXISTS(SELECT 1 FROM account_passkeys p WHERE p.account_id=a.id)
                 OR EXISTS(SELECT 1 FROM account_external_logins e WHERE e.account_id=a.id)
-                OR (a.is_local_only=1 AND EXISTS(
-                    SELECT 1 FROM account_profile_grants lg
-                    JOIN profile_credentials pc ON pc.profile_id=lg.profile_id
-                    WHERE lg.account_id=a.id AND lg.is_enabled=1))
               );
             """, new { accountId }, transaction) > 0;
     private const string GrantSelect = "SELECT account_id AS AccountId,profile_id AS ProfileId,is_default AS IsDefault,is_enabled AS IsEnabled,admin_enabled AS AdminEnabled,authorization_version AS AuthorizationVersion,granted_at AS GrantedAt FROM account_profile_grants";

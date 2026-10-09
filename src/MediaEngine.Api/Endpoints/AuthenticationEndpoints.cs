@@ -28,17 +28,8 @@ public static class AuthenticationEndpoints
         group.MapPost("/login", async (LocalLoginRequest request, IFirstPartyIdentityService identity,
             DashboardAuthorityProjector projector, CancellationToken ct) =>
         {
-            AuthenticationAttemptResult result;
-            if (request.ProfileId is { } profileId)
-            {
-                result = await identity.AuthenticatePinAsync(profileId, request.Pin ?? string.Empty,
-                    request.DeviceId, request.DeviceName, request.Client, ct, ClientIngress.Parse(request.OriginalClientIngress)).ConfigureAwait(false);
-            }
-            else
-            {
-                result = await identity.AuthenticatePasswordAsync(request.Email ?? string.Empty, request.Password ?? string.Empty,
-                    request.DeviceId, request.DeviceName, request.Client, ct, ClientIngress.Parse(request.OriginalClientIngress)).ConfigureAwait(false);
-            }
+            var result = await identity.AuthenticatePasswordAsync(request.Email ?? string.Empty, request.Password ?? string.Empty,
+                request.DeviceId, request.DeviceName, request.Client, ct, ClientIngress.Parse(request.OriginalClientIngress)).ConfigureAwait(false);
 
             return result.Succeeded && result.IssuedSession is not null
                 ? Results.Ok(await ToResponseAsync(result.IssuedSession, projector, ct))
@@ -193,7 +184,7 @@ public static class AuthenticationEndpoints
         {
             var policy = configuration.LoadCore().Auth;
             if (!AllowsClient(configuration.LoadNetwork(), request.OriginalClientIngress, request.OriginalClientIsHttps,
-                policy.PasswordSignInEnabled && !IsLocalOnlyMode(policy)))
+                policy.PasswordSignInEnabled))
             {
                 return Results.Unauthorized();
             }
@@ -285,7 +276,7 @@ public static class AuthenticationEndpoints
         {
             var policy = configuration.LoadCore().Auth;
             if (!AllowsClient(configuration.LoadNetwork(), request.OriginalClientIngress, request.OriginalClientIsHttps,
-                policy.PasswordSignInEnabled && !IsLocalOnlyMode(policy)))
+                policy.PasswordSignInEnabled))
             {
                 return Results.Unauthorized();
             }
@@ -304,7 +295,7 @@ public static class AuthenticationEndpoints
         {
             var policy = configuration.LoadCore().Auth;
             if (!AllowsClient(configuration.LoadNetwork(), request.OriginalClientIngress, request.OriginalClientIsHttps,
-                policy.PasswordSignInEnabled && !IsLocalOnlyMode(policy)))
+                policy.PasswordSignInEnabled))
             {
                 return Results.Accepted(value: new BeginPasswordResetResponse(null));
             }
@@ -318,7 +309,7 @@ public static class AuthenticationEndpoints
         {
             var policy = configuration.LoadCore().Auth;
             if (!AllowsClient(configuration.LoadNetwork(), request.OriginalClientIngress, request.OriginalClientIsHttps,
-                policy.PasswordSignInEnabled && !IsLocalOnlyMode(policy)))
+                policy.PasswordSignInEnabled))
             {
                 return Results.Unauthorized();
             }
@@ -375,10 +366,6 @@ public static class AuthenticationEndpoints
             }
 
             var account = await accounts.GetByIdAsync(RequiredGuidClaim(user, TuvimaClaimTypes.AccountId), ct).ConfigureAwait(false) ?? throw new UnauthorizedAccessException();
-            if (account.IsLocalOnly)
-            {
-                return Results.Unauthorized();
-            }
             var entity = new PasskeyUserEntity { Id = account.Id.ToString("D"), Name = account.Email ?? account.Id.ToString("D"), DisplayName = account.Email ?? "Tuvima account" };
             var result = await passkeys.MakeCreationOptionsAsync(entity, context).ConfigureAwait(false);
             return Results.Ok(new PasskeyOptionsResponse(result.CreationOptionsJson, result.AttestationState ?? string.Empty));
@@ -396,10 +383,6 @@ public static class AuthenticationEndpoints
             }
 
             var account = await accounts.GetByIdAsync(RequiredGuidClaim(user, TuvimaClaimTypes.AccountId), ct).ConfigureAwait(false) ?? throw new UnauthorizedAccessException();
-            if (account.IsLocalOnly)
-            {
-                return Results.Unauthorized();
-            }
             var result = await passkeys.PerformAttestationAsync(new PasskeyAttestationContext { HttpContext = context, CredentialJson = request.CredentialJson, AttestationState = request.State }).ConfigureAwait(false);
             if (!result.Succeeded || result.Passkey is null || result.UserEntity?.Id != account.Id.ToString("D"))
             {
@@ -570,10 +553,7 @@ public static class AuthenticationEndpoints
     private static bool IsLoginPermittedFor(IConfigurationLoader configuration, LocalLoginRequest request)
     {
         var policy = configuration.LoadCore().Auth;
-        var methodEnabled = request.ProfileId.HasValue
-            ? policy.AllowLocalOnlyAccounts && ClientIngress.IsLocal(request.OriginalClientIngress)
-            : policy.PasswordSignInEnabled && !IsLocalOnlyMode(policy);
-        return AllowsClient(configuration.LoadNetwork(), request.OriginalClientIngress, request.OriginalClientIsHttps, methodEnabled);
+        return AllowsClient(configuration.LoadNetwork(), request.OriginalClientIngress, request.OriginalClientIsHttps, policy.PasswordSignInEnabled);
     }
 
     private static bool IsPasskeyPermittedFor(IConfigurationLoader configuration, string? originalClientIngress, bool originalClientIsHttps) =>
@@ -609,7 +589,7 @@ public static class AuthenticationEndpoints
         string? originalClientIngress,
         bool originalClientIsHttps) =>
         AllowsClient(network, originalClientIngress, originalClientIsHttps,
-            policy.PasskeySignInEnabled && !IsLocalOnlyMode(policy) && IsCanonicalOriginReady(network));
+            policy.PasskeySignInEnabled && IsCanonicalOriginReady(network));
 
     internal static bool IsConfiguredProvider(AuthSettings policy, NetworkSettings network, string providerId, string issuer)
     {
@@ -638,9 +618,6 @@ public static class AuthenticationEndpoints
 
     internal static bool IsExternalSignInEnabled(AuthSettings policy) =>
         policy.ExternalSignInEnabled && policy.Mode is "Optional" or "Required";
-
-    internal static bool IsLocalOnlyMode(AuthSettings policy) =>
-        policy.Mode.Equals("DisabledLocalOnly", StringComparison.OrdinalIgnoreCase);
 
     /// <summary>The one public address (<c>network.remote.public_hostname</c>) is set and valid.</summary>
     internal static bool IsCanonicalOriginReady(NetworkSettings network) => network.HasValidPublicAddress();
@@ -671,32 +648,14 @@ public static class AuthenticationEndpoints
             return false;
         }
 
-        if (account.IsLocalOnly)
-        {
-            if (!policy.AllowLocalOnlyAccounts)
-            {
-                return false;
-            }
-
-            foreach (var grant in grants)
-            {
-                if (await accounts.GetLocalOnlyAccountIdForProfileAsync(grant.ProfileId, ct)
-                        .ConfigureAwait(false) == account.Id)
-                {
-                    return true;
-                }
-            }
-            return false;
-        }
-
-        if (!IsLocalOnlyMode(policy) && policy.PasswordSignInEnabled &&
+        if (policy.PasswordSignInEnabled &&
             await identities.GetAccountCredentialAsync(accountId, AccountCredentialKind.Password, ct)
                 .ConfigureAwait(false) is not null)
         {
             return true;
         }
 
-        if (!IsLocalOnlyMode(policy) && policy.PasskeySignInEnabled && IsCanonicalOriginReady(network))
+        if (policy.PasskeySignInEnabled && IsCanonicalOriginReady(network))
         {
             var passkeys = await users.GetPasskeysAsync(account).ConfigureAwait(false);
             if (passkeys.Any(passkey => excludedPasskeyCredentialId is null ||

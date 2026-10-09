@@ -21,7 +21,6 @@ public interface IFirstPartyIdentityService
     Task<bool> IsAdministratorConfiguredAsync(CancellationToken ct = default);
     Task<SessionIssueResult> BootstrapAdministratorAsync(string email, string password, string displayName, string deviceId, string deviceName, string client, CancellationToken ct = default, string? pin = null, string ingress = ClientIngress.Remote);
     Task<AuthenticationAttemptResult> AuthenticatePasswordAsync(string email, string password, string deviceId, string deviceName, string client, CancellationToken ct = default, string ingress = ClientIngress.Remote);
-    Task<AuthenticationAttemptResult> AuthenticatePinAsync(Guid profileId, string pin, string deviceId, string deviceName, string client, CancellationToken ct = default, string ingress = ClientIngress.Remote);
     Task<SessionIssueResult> CreateExternalSessionAsync(Guid accountId, string provider, string deviceId, string deviceName, string client, CancellationToken ct = default, string ingress = ClientIngress.Remote);
     Task<SessionIssueResult> CreatePasskeySessionAsync(Guid accountId, string deviceId, string deviceName, string client, CancellationToken ct = default, string ingress = ClientIngress.Remote);
     Task<SessionIssueResult> AcceptInvitationAsync(string token, string password, string deviceId, string deviceName, string client, CancellationToken ct = default, string ingress = ClientIngress.Remote);

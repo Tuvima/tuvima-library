@@ -8,13 +8,13 @@ using Microsoft.AspNetCore.Identity;
 
 namespace MediaEngine.Api.Tests;
 
-public sealed class LocalOnlyAccountEntryTests
+public sealed class AccountEmailRequiredTests
 {
     [Fact]
-    public async Task ManagedAccountCreation_ProducesUsablePasswordlessLocalEntry()
+    public async Task ManagedAccountCreation_RequiresAnEmail_AndCannotSignInWithoutACredential()
     {
-        var databasePath = Path.Combine(Path.GetTempPath(), $"tuvima-local-entry-{Guid.NewGuid():N}.db");
-        var configPath = Path.Combine(Path.GetTempPath(), $"tuvima-local-entry-{Guid.NewGuid():N}");
+        var databasePath = Path.Combine(Path.GetTempPath(), $"tuvima-email-required-{Guid.NewGuid():N}.db");
+        var configPath = Path.Combine(Path.GetTempPath(), $"tuvima-email-required-{Guid.NewGuid():N}");
         try
         {
             using (var database = new DatabaseConnection(databasePath))
@@ -47,9 +47,19 @@ public sealed class LocalOnlyAccountEntryTests
                         AccountIsAdministrator: true,
                         GrantAdminEnabled: true);
 
+                    foreach (var missing in new string?[] { null, "", "   " })
+                    {
+                        await Assert.ThrowsAsync<ArgumentException>(() => mutations.CreateAsync(actor, new CreateAccountAccessCommand(
+                            missing,
+                            IsAdministrator: false,
+                            ProfileId: null,
+                            NewProfile: new NewAccountProfileCommand("Nameless", "#7C4DFF"),
+                            Features: new HashSet<AccountFeatureId>(),
+                            Libraries: new HashSet<Guid>())));
+                    }
+
                     var account = await mutations.CreateAsync(actor, new CreateAccountAccessCommand(
-                        null,
-                        IsLocalOnly: true,
+                        "household@example.com",
                         IsAdministrator: false,
                         ProfileId: null,
                         NewProfile: new NewAccountProfileCommand("Household", "#7C4DFF"),
@@ -65,12 +75,12 @@ public sealed class LocalOnlyAccountEntryTests
                         TimeProvider.System,
                         new ConfigurationAuthenticationPolicyProvider(configuration));
 
-                    var result = await identity.AuthenticatePinAsync(
-                        profileId, string.Empty, "living-room", "Living room", "Dashboard");
-
-                    Assert.True(result.Succeeded);
-                    Assert.Equal(account.Id, result.IssuedSession?.Account.Id);
-                    Assert.Equal("ProfileEntry", result.IssuedSession?.Session.AuthenticationMethod);
+                    // A new account has no credential yet, so nothing can sign in as it.
+                    var attempt = await identity.AuthenticatePasswordAsync(
+                        "household@example.com", string.Empty, "living-room", "Living room", "Dashboard");
+                    Assert.False(attempt.Succeeded);
+                    Assert.Null(attempt.IssuedSession);
+                    Assert.Empty(await identity.GetSessionsAsync(account.Id));
 
                     var core = configuration.LoadCore();
                     core.Auth.InvitationLifetimeHours = 3;
@@ -136,7 +146,7 @@ public sealed class LocalOnlyAccountEntryTests
                         AccountIsAdministrator: true, GrantAdminEnabled: true);
 
                     var child = await mutations.CreateAsync(actor, new CreateAccountAccessCommand(
-                        "child@example.com", IsLocalOnly: false, IsAdministrator: false, ProfileId: null,
+                        "child@example.com", IsAdministrator: false, ProfileId: null,
                         NewProfile: new NewAccountProfileCommand("Child", "#7C4DFF"),
                         Features: new HashSet<AccountFeatureId>(), Libraries: new HashSet<Guid>()));
                     var childProfileId = Assert.Single(await accounts.GetGrantsAsync(child.Id)).ProfileId;
@@ -157,11 +167,11 @@ public sealed class LocalOnlyAccountEntryTests
 
                     var promoted = await Assert.ThrowsAsync<InvalidOperationException>(() => mutations.UpdateAsync(
                         actor, child.Id, new UpdateAccountAccessCommand(
-                            "child@example.com", IsLocalOnly: false, IsEnabled: true, IsAdministrator: true)));
+                            "child@example.com", IsEnabled: true, IsAdministrator: true)));
                     Assert.Equal("Child profiles can't be administrators.", promoted.Message);
 
                     var admin = await mutations.CreateAsync(actor, new CreateAccountAccessCommand(
-                        "admin@example.com", IsLocalOnly: false, IsAdministrator: true, ProfileId: null,
+                        "admin@example.com", IsAdministrator: true, ProfileId: null,
                         NewProfile: new NewAccountProfileCommand("Parent", "#7C4DFF"),
                         Features: new HashSet<AccountFeatureId>(), Libraries: new HashSet<Guid>()));
                     var adminGrant = Assert.Single(await accounts.GetGrantsAsync(admin.Id));

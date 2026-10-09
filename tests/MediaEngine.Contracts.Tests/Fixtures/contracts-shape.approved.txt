@@ -542,7 +542,6 @@ MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.Access
 MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.AccountAccessResponse
   Id: System.Guid | nullability=not-null | accessors=get,init
   Email: System.String | nullability=nullable | accessors=get,init
-  IsLocalOnly: System.Boolean | nullability=not-null | accessors=get,init
   IsEnabled: System.Boolean | nullability=not-null | accessors=get,init
   IsAdministrator: System.Boolean | nullability=not-null | accessors=get,init
   AuthorizationVersion: System.Int64 | nullability=not-null | accessors=get,init
@@ -598,7 +597,6 @@ MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.Accoun
 MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.AccountResponse
   Id: System.Guid | nullability=not-null | accessors=get,init
   Email: System.String | nullability=nullable | accessors=get,init
-  IsLocalOnly: System.Boolean | nullability=not-null | accessors=get,init
   IsEnabled: System.Boolean | nullability=not-null | accessors=get,init
   ProfileIds: System.Collections.Generic.IReadOnlyList<System.Guid> | nullability=not-null | accessors=get,init
   DefaultProfileId: System.Guid? | nullability=nullable | accessors=get,init
@@ -616,7 +614,6 @@ MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.Accoun
 MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.AccountSelfServiceResponse
   AccountId: System.Guid | nullability=not-null | accessors=get,init
   Email: System.String | nullability=nullable | accessors=get,init
-  IsLocalOnly: System.Boolean | nullability=not-null | accessors=get,init
   ActiveProfileId: System.Guid | nullability=not-null | accessors=get,init
   DefaultProfileId: System.Guid | nullability=not-null | accessors=get,init
   Profiles: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Authentication.AccountProfileGrantDto> | nullability=not-null | accessors=get,init
@@ -863,7 +860,6 @@ MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.Create
 
 MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.CreateManagedAccountRequest
   Email: System.String | nullability=nullable | accessors=get,init
-  IsLocalOnly: System.Boolean | nullability=not-null | accessors=get,init
   IsAdministrator: System.Boolean | nullability=not-null | accessors=get,init
   ProfileId: System.Guid? | nullability=nullable | accessors=get,init
   NewProfile: MediaEngine.Contracts.Authentication.NewAccountProfileRequest | nullability=nullable | accessors=get,init
@@ -969,8 +965,6 @@ MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.LinkAc
 MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.LocalLoginRequest
   Email: System.String | nullability=nullable | accessors=get,init
   Password: System.String | nullability=nullable | accessors=get,init
-  ProfileId: System.Guid? | nullability=nullable | accessors=get,init
-  Pin: System.String | nullability=nullable | accessors=get,init
   DeviceId: System.String | nullability=not-null | accessors=get,init
   DeviceName: System.String | nullability=not-null | accessors=get,init
   Client: System.String | nullability=not-null | accessors=get,init
@@ -1125,7 +1119,6 @@ MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.Update
 
 MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.UpdateManagedAccountRequest
   Email: System.String | nullability=nullable | accessors=get,init
-  IsLocalOnly: System.Boolean | nullability=not-null | accessors=get,init
   IsEnabled: System.Boolean | nullability=not-null | accessors=get,init
   IsAdministrator: System.Boolean | nullability=not-null | accessors=get,init
 
@@ -6836,7 +6829,6 @@ MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.AuthSettingsDto
   PasswordSignInEnabled: System.Boolean | nullability=not-null | accessors=get,init
   PasskeySignInEnabled: System.Boolean | nullability=not-null | accessors=get,init
   ExternalSignInEnabled: System.Boolean | nullability=not-null | accessors=get,init
-  AllowLocalOnlyAccounts: System.Boolean | nullability=not-null | accessors=get,init
   TrustedLocalNetworks: System.Collections.Generic.List<System.String> | nullability=not-null | accessors=get,init
   InvitationLifetimeHours: System.Int32 | nullability=not-null | accessors=get,init
   SessionLifetimeHours: System.Int32 | nullability=not-null | accessors=get,init
@@ -7580,7 +7572,6 @@ MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.UpdateAuthSettings
   PasswordSignInEnabled: System.Boolean | nullability=not-null | accessors=get,init
   PasskeySignInEnabled: System.Boolean | nullability=not-null | accessors=get,init
   ExternalSignInEnabled: System.Boolean | nullability=not-null | accessors=get,init
-  AllowLocalOnlyAccounts: System.Boolean | nullability=not-null | accessors=get,init
   TrustedLocalNetworks: System.Collections.Generic.List<System.String> | nullability=not-null | accessors=get,init
   InvitationLifetimeHours: System.Int32 | nullability=not-null | accessors=get,init
   SessionLifetimeHours: System.Int32 | nullability=not-null | accessors=get,init

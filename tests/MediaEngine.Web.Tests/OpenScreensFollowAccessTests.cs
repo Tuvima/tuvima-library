@@ -295,7 +295,7 @@ public sealed class OpenScreensFollowAccessTests : IDisposable
     public async Task DisablingAnAccount_ClosesThatAccountsScreens()
     {
         var f = new Fixture(body: AccountResponse(isEnabled: false));
-        await f.Identity.UpdateManagedAccountResultAsync(f.AccountA, new UpdateManagedAccountRequest("a@example.test", false, IsEnabled: false, false));
+        await f.Identity.UpdateManagedAccountResultAsync(f.AccountA, new UpdateManagedAccountRequest("a@example.test", IsEnabled: false, false));
         Assert.Equal(["a1", "a2"], f.Closed());
     }
 
@@ -303,7 +303,7 @@ public sealed class OpenScreensFollowAccessTests : IDisposable
     public async Task EditingAnAccountThatStaysEnabled_ClosesNothing()
     {
         var f = new Fixture(body: AccountResponse(isEnabled: true));
-        await f.Identity.UpdateManagedAccountResultAsync(f.AccountA, new UpdateManagedAccountRequest("a@example.test", false, IsEnabled: true, false));
+        await f.Identity.UpdateManagedAccountResultAsync(f.AccountA, new UpdateManagedAccountRequest("a@example.test", IsEnabled: true, false));
         Assert.Empty(f.Closed());
     }
 
@@ -398,7 +398,7 @@ public sealed class OpenScreensFollowAccessTests : IDisposable
         ], "test"));
 
     private static AccountAccessResponse AccountResponse(bool isEnabled) =>
-        new(Guid.NewGuid(), "a@example.test", false, isEnabled, false, 1, [], [], [], DateTimeOffset.UtcNow, DateTimeOffset.UtcNow, null);
+        new(Guid.NewGuid(), "a@example.test", isEnabled, false, 1, [], [], [], DateTimeOffset.UtcNow, DateTimeOffset.UtcNow, null);
 
     private static OpenScreen Screen(Guid account, string ingress, Guid? profile = null, Guid? session = null) =>
         new(Guid.NewGuid(), account, profile ?? Guid.NewGuid(), session ?? Guid.NewGuid(), OpenScreenRegistry.HashToken("token"), ingress);

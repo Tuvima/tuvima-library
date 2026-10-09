@@ -77,7 +77,7 @@ or hosting option that trusts forwarded headers from every address.
 3. In **Users & Access → Users**, grant the intended account only the profiles, features, and libraries it should reach.
 4. Test with that account from the remote device.
 
-A working tunnel or proxy does not grant library access. Local-only accounts remain ineligible for a fresh remote session.
+A working tunnel or proxy does not grant library access.
 
 ## Advanced port forwarding
 

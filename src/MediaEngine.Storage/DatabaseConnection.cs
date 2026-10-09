@@ -52,6 +52,11 @@ public sealed class DatabaseConnection : IDatabaseConnection
         _maintenanceService = maintenanceService;
     }
 
+    /// <summary>
+    /// Lines describing data a startup migration changed (such as profiles moved between accounts), for the host to log.
+    /// </summary>
+    public IReadOnlyList<string> StartupNotes => _schemaMigrator.Notes;
+
     /// <inheritdoc/>
     public SqliteConnection Open()
     {

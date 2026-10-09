@@ -33,7 +33,6 @@ public sealed class ShippedCoreConfigurationTests
 
     [Theory]
     [InlineData("Local")]
-    [InlineData("DisabledLocalOnly")]
     [InlineData("optional")]
     [InlineData("Required")]
     public void CoreAuthentication_AcceptsKnownModes(string mode)
@@ -48,13 +47,14 @@ public sealed class ShippedCoreConfigurationTests
     [Theory]
     [InlineData("Anonymous")]
     [InlineData("")]
+    [InlineData("DisabledLocalOnly")]
     public void CoreAuthentication_RejectsUnknownModes(string mode)
     {
         var core = new CoreConfiguration { Auth = new AuthSettings { Mode = mode } };
 
         var errors = JsonConfigValidator.Validate(core, "core.json");
 
-        Assert.Contains(errors, error => error == "auth.mode must be one of Local, DisabledLocalOnly, Optional, or Required.");
+        Assert.Contains(errors, error => error.StartsWith("auth.mode must be one of Local, Optional, or Required.", StringComparison.Ordinal));
     }
 
     private static CoreConfiguration LoadThroughLoader(string relativePath)

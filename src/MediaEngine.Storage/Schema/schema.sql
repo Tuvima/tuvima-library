@@ -1571,19 +1571,16 @@ CREATE TABLE IF NOT EXISTS profiles (
 
 CREATE TABLE IF NOT EXISTS accounts (
     id               BLOB NOT NULL PRIMARY KEY,
-    email            TEXT,
-    normalized_email TEXT,
-    is_local_only    INTEGER NOT NULL DEFAULT 0 CHECK (is_local_only IN (0, 1)),
+    email            TEXT NOT NULL,
+    normalized_email TEXT NOT NULL,
     is_enabled       INTEGER NOT NULL DEFAULT 1 CHECK (is_enabled IN (0, 1)),
     is_administrator INTEGER NOT NULL DEFAULT 0 CHECK (is_administrator IN (0, 1)),
     authorization_version INTEGER NOT NULL DEFAULT 1 CHECK (authorization_version > 0),
     created_at       TEXT NOT NULL,
-    updated_at       TEXT NOT NULL,
-    CHECK ((is_local_only = 1 AND email IS NULL AND normalized_email IS NULL)
-        OR (is_local_only = 0 AND email IS NOT NULL AND normalized_email IS NOT NULL))
+    updated_at       TEXT NOT NULL
 );
 CREATE UNIQUE INDEX IF NOT EXISTS ux_accounts_normalized_email
-    ON accounts(normalized_email) WHERE normalized_email IS NOT NULL;
+    ON accounts(normalized_email);
 
 CREATE TABLE IF NOT EXISTS account_profile_grants (
     account_id BLOB NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,

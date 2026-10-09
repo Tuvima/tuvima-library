@@ -21,7 +21,7 @@ public sealed class UsableAdministratorService(
     {
         foreach (var account in await EnabledAdministratorsAsync(ct).ConfigureAwait(false))
         {
-            if (await IsUsableAsync(policy, account, includeLocalOnly: true, ct).ConfigureAwait(false))
+            if (await IsUsableAsync(policy, account, ct).ConfigureAwait(false))
             {
                 return true;
             }
@@ -38,7 +38,7 @@ public sealed class UsableAdministratorService(
         var recovery = false;
         foreach (var account in await EnabledAdministratorsAsync(ct).ConfigureAwait(false))
         {
-            if (!await IsUsableAsync(policy, account, includeLocalOnly: false, ct).ConfigureAwait(false))
+            if (!await IsUsableAsync(policy, account, ct).ConfigureAwait(false))
             {
                 continue;
             }
@@ -57,7 +57,7 @@ public sealed class UsableAdministratorService(
         (await accounts.GetAllAsync(ct).ConfigureAwait(false))
             .Where(account => account.IsEnabled && account.IsAdministrator);
 
-    private async Task<bool> IsUsableAsync(AuthSettings policy, Account account, bool includeLocalOnly, CancellationToken ct)
+    private async Task<bool> IsUsableAsync(AuthSettings policy, Account account, CancellationToken ct)
     {
         var grants = (await accounts.GetGrantsAsync(account.Id, ct).ConfigureAwait(false))
             .Where(grant => grant.IsEnabled && grant.AdminEnabled)
@@ -67,33 +67,14 @@ public sealed class UsableAdministratorService(
             return false;
         }
 
-        if (account.IsLocalOnly)
-        {
-            if (!includeLocalOnly || !policy.AllowLocalOnlyAccounts)
-            {
-                return false;
-            }
-
-            foreach (var grant in grants)
-            {
-                if (await accounts.GetLocalOnlyAccountIdForProfileAsync(grant.ProfileId, ct)
-                        .ConfigureAwait(false) == account.Id)
-                {
-                    return true;
-                }
-            }
-            return false;
-        }
-
-        var localOnlyMode = policy.Mode.Equals("DisabledLocalOnly", StringComparison.OrdinalIgnoreCase);
-        if (!localOnlyMode && policy.PasswordSignInEnabled &&
+        if (policy.PasswordSignInEnabled &&
             await identities.GetAccountCredentialAsync(account.Id, AccountCredentialKind.Password, ct)
                 .ConfigureAwait(false) is not null)
         {
             return true;
         }
 
-        if (!localOnlyMode && policy.PasskeySignInEnabled &&
+        if (policy.PasskeySignInEnabled &&
             AuthenticationEndpoints.IsCanonicalOriginReady(configuration.LoadNetwork()) &&
             (await users.GetPasskeysAsync(account).ConfigureAwait(false)).Count > 0)
         {

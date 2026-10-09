@@ -95,28 +95,6 @@ public sealed class FirstPartyIdentityService(
         return await AuthenticateAccountAsync(account, credential, password, deviceId, deviceName, client, ingress, ct).ConfigureAwait(false);
     }
 
-    public async Task<AuthenticationAttemptResult> AuthenticatePinAsync(Guid profileId, string pin, string deviceId, string deviceName, string client, CancellationToken ct = default, string ingress = ClientIngress.Remote)
-    {
-        var accountId = await accounts.GetLocalOnlyAccountIdForProfileAsync(profileId, ct).ConfigureAwait(false);
-        var account = accountId is null ? null : await accounts.GetByIdAsync(accountId.Value, ct).ConfigureAwait(false);
-        var credential = await identities.GetCredentialAsync(profileId, ProfileCredentialKind.ProfilePin, ct).ConfigureAwait(false);
-        if (account is not null && credential is null)
-        {
-            var profile = await profiles.GetByIdAsync(profileId, ct).ConfigureAwait(false);
-            if (profile is null)
-            {
-                return new(false, false, "Invalid credentials.", null);
-            }
-
-            var issued = await IssueSessionAsync(account, profile, "profile-entry:none", "ProfileEntry",
-                deviceId, deviceName, client, ingress, ct).ConfigureAwait(false);
-            await AuditAsync(account.Id, profile.Id, issued.Session.Id, "login_local", true,
-                "ProfileEntry", ct).ConfigureAwait(false);
-            return new(true, false, null, issued);
-        }
-        return await AuthenticateProfileAsync(account, credential, pin, deviceId, deviceName, client, ingress, ct).ConfigureAwait(false);
-    }
-
     public async Task<SessionIssueResult> CreateExternalSessionAsync(Guid accountId, string provider, string deviceId, string deviceName, string client, CancellationToken ct = default, string ingress = ClientIngress.Remote)
     {
         var account = await accounts.GetByIdAsync(accountId, ct).ConfigureAwait(false) ?? throw new KeyNotFoundException($"Account '{accountId}' was not found.");
@@ -143,7 +121,7 @@ public sealed class FirstPartyIdentityService(
 
         var invitation = await accounts.GetActiveInvitationAsync(HashToken(token), UtcNow, ct).ConfigureAwait(false) ?? throw new UnauthorizedAccessException("The invitation is invalid or expired.");
         var account = await accounts.GetByIdAsync(invitation.AccountId, ct).ConfigureAwait(false) ?? throw new UnauthorizedAccessException("The invitation is invalid or expired.");
-        if (account.IsLocalOnly || !account.IsEnabled || await identities.GetAccountCredentialAsync(account.Id, AccountCredentialKind.Password, ct).ConfigureAwait(false) is not null)
+        if (!account.IsEnabled || await identities.GetAccountCredentialAsync(account.Id, AccountCredentialKind.Password, ct).ConfigureAwait(false) is not null)
         {
             throw new UnauthorizedAccessException("The invitation is invalid or expired.");
         }
@@ -195,21 +173,11 @@ public sealed class FirstPartyIdentityService(
                 return null;
             }
         }
-        else if (session.AuthenticationMethod.Equals("ProfilePin", StringComparison.OrdinalIgnoreCase))
+        else if (session.AuthenticationMethod is "ProfilePin" or "ProfileEntry")
         {
-            var credential = await identities.GetCredentialAsync(active.Id, ProfileCredentialKind.ProfilePin, ct).ConfigureAwait(false);
-            if (!StampMatches(credential?.SecurityStamp, session.SecurityStamp))
-            {
-                return null;
-            }
-        }
-        else if (session.AuthenticationMethod.Equals("ProfileEntry", StringComparison.OrdinalIgnoreCase))
-        {
-            if (!account.IsLocalOnly || await identities.GetCredentialAsync(
-                    active.Id, ProfileCredentialKind.ProfilePin, ct).ConfigureAwait(false) is not null)
-            {
-                return null;
-            }
+            // Retired sign-in methods: a profile PIN only switches profiles inside a session that an account
+            // sign-in already made, so a session that claims to have started from one is never accepted.
+            return null;
         }
 
         if (touch && now - session.LastSeenAt >= TimeSpan.FromMinutes(1))
@@ -294,7 +262,7 @@ public sealed class FirstPartyIdentityService(
         Account? account;
         try { account = await accounts.GetByNormalizedEmailAsync(NormalizeEmail(email), ct).ConfigureAwait(false); }
         catch (ArgumentException) { return null; }
-        if (account is null || account.IsLocalOnly || !account.IsEnabled || await identities.GetAccountCredentialAsync(account.Id, AccountCredentialKind.Password, ct).ConfigureAwait(false) is null)
+        if (account is null || !account.IsEnabled || await identities.GetAccountCredentialAsync(account.Id, AccountCredentialKind.Password, ct).ConfigureAwait(false) is null)
         {
             return null;
         }
@@ -447,35 +415,6 @@ public sealed class FirstPartyIdentityService(
         var profile = await GetDefaultProfileAsync(account.Id, ct).ConfigureAwait(false);
         var issued = await IssueSessionAsync(account, profile, credential.SecurityStamp, "Password", deviceId, deviceName, client, ingress, ct).ConfigureAwait(false);
         await AuditAsync(account.Id, profile.Id, issued.Session.Id, "login_local", true, "Password", ct).ConfigureAwait(false); return new(true, false, null, issued);
-    }
-
-    private async Task<AuthenticationAttemptResult> AuthenticateProfileAsync(Account? account, ProfileCredential? credential, string secret, string deviceId, string deviceName, string client, string ingress, CancellationToken ct)
-    {
-        var now = UtcNow;
-        if (account is null || credential is null)
-        {
-            return new(false, false, "Invalid credentials.", null);
-        }
-
-        // Only internet attempts count toward, or are blocked by, the lockout; home and
-        // this-computer attempts are throttled per client address by the Dashboard instead.
-        var countsTowardLockout = ClientIngress.Parse(ingress) == ClientIngress.Remote;
-        if (countsTowardLockout && credential.LockedUntil is { } until && until > now)
-        {
-            return new(false, true, "Too many attempts. Try again later.", null);
-        }
-
-        if (!Verify(credential, secret, out var rehash)) { if (!countsTowardLockout) { return new(false, false, "Invalid credentials.", null); } var failures = credential.FailedAttemptCount + 1; DateTimeOffset? locked = failures >= MaxFailedAttempts ? now.Add(LockoutDuration) : null; await identities.UpdateCredentialAttemptAsync(credential.Id, failures, locked, null, ct).ConfigureAwait(false); return new(false, locked is not null, "Invalid credentials.", null); }
-        if (!countsTowardLockout)
-        {
-            var fresh = await identities.GetCredentialAsync(credential.ProfileId, ProfileCredentialKind.ProfilePin, ct).ConfigureAwait(false);
-            if (fresh is not null) { credential.FailedAttemptCount = fresh.FailedAttemptCount; credential.LockedUntil = fresh.LockedUntil; }
-        }
-
-        if (rehash) { credential.SecretHash = Hash(credential, secret); credential.UpdatedAt = now; await identities.UpsertCredentialAsync(credential, ct).ConfigureAwait(false); }
-        await identities.UpdateCredentialAttemptAsync(credential.Id, countsTowardLockout ? 0 : credential.FailedAttemptCount, countsTowardLockout ? null : credential.LockedUntil, now, ct).ConfigureAwait(false);
-        var profile = await profiles.GetByIdAsync(credential.ProfileId, ct).ConfigureAwait(false) ?? throw new InvalidOperationException("Profile is unavailable.");
-        var issued = await IssueSessionAsync(account, profile, credential.SecurityStamp, "ProfilePin", deviceId, deviceName, client, ingress, ct).ConfigureAwait(false); return new(true, false, null, issued);
     }
 
     private async Task<Profile> GetDefaultProfileAsync(Guid accountId, CancellationToken ct)

@@ -22,22 +22,23 @@ namespace MediaEngine.Api.Tests;
 public sealed class AuthenticationEntryEndpointTests
 {
     [Fact]
-    public async Task PasswordlessProfileEntry_RemoteClientNeverReachesIdentityService()
+    public async Task PasswordLogin_RemoteClientNeverReachesIdentityServiceWhenRemoteSignInIsOff()
     {
         var configPath = Path.Combine(Path.GetTempPath(), $"tuvima-auth-entry-{Guid.NewGuid():N}");
         try
         {
             using var configuration = new ConfigurationDirectoryLoader(configPath);
             var core = configuration.LoadCore();
-            core.Auth.Mode = "DisabledLocalOnly";
-            core.Auth.AllowLocalOnlyAccounts = true;
+            core.Auth.Mode = "Local";
+            core.Auth.PasswordSignInEnabled = true;
             configuration.SaveCore(core);
             var identity = new TrackingIdentityService();
             await using var app = BuildApplication(configuration, identity);
 
             var response = await InvokeAsync(app, "/auth/login", new LocalLoginRequest
             {
-                ProfileId = Guid.NewGuid(),
+                Email = "owner@example.com",
+                Password = "correct horse battery staple",
                 DeviceId = "remote-browser",
                 DeviceName = "Remote browser",
                 Client = "Tuvima Dashboard",
@@ -46,7 +47,7 @@ public sealed class AuthenticationEntryEndpointTests
             });
 
             Assert.True(response.StatusCode == StatusCodes.Status401Unauthorized, await DescribeAsync(response));
-            Assert.Equal(0, identity.ProfileEntryCalls);
+            Assert.Equal(0, identity.PasswordLoginCalls);
         }
         finally
         {
@@ -55,6 +56,17 @@ public sealed class AuthenticationEntryEndpointTests
                 Directory.Delete(configPath, recursive: true);
             }
         }
+    }
+
+    [Fact]
+    public void LoginRequest_CarriesOnlyAnEmailAndPassword()
+    {
+        var names = typeof(LocalLoginRequest).GetProperties().Select(property => property.Name).ToHashSet();
+
+        Assert.Contains("Email", names);
+        Assert.Contains("Password", names);
+        Assert.DoesNotContain("ProfileId", names);
+        Assert.DoesNotContain("Pin", names);
     }
 
     [Fact]
@@ -268,7 +280,7 @@ public sealed class AuthenticationEntryEndpointTests
         public int RecoveryCodeResetCalls { get; private set; }
         public int BeginPasswordResetCalls { get; private set; }
         public int TokenResetCalls { get; private set; }
-        public int ProfileEntryCalls { get; private set; }
+        public int PasswordLoginCalls { get; private set; }
 
         public Task<SessionIssueResult> AcceptInvitationAsync(string token, string password, string deviceId,
             string deviceName, string client, CancellationToken ct = default, string ingress = ClientIngress.HomeNetwork)
@@ -298,11 +310,10 @@ public sealed class AuthenticationEntryEndpointTests
 
         public Task<bool> IsAdministratorConfiguredAsync(CancellationToken ct = default) => throw NotSupported();
         public Task<SessionIssueResult> BootstrapAdministratorAsync(string email, string password, string displayName, string deviceId, string deviceName, string client, CancellationToken ct = default, string? pin = null, string ingress = ClientIngress.HomeNetwork) => throw NotSupported();
-        public Task<AuthenticationAttemptResult> AuthenticatePasswordAsync(string email, string password, string deviceId, string deviceName, string client, CancellationToken ct = default, string ingress = ClientIngress.HomeNetwork) => throw NotSupported();
-        public Task<AuthenticationAttemptResult> AuthenticatePinAsync(Guid profileId, string pin, string deviceId, string deviceName, string client, CancellationToken ct = default, string ingress = ClientIngress.HomeNetwork)
+        public Task<AuthenticationAttemptResult> AuthenticatePasswordAsync(string email, string password, string deviceId, string deviceName, string client, CancellationToken ct = default, string ingress = ClientIngress.HomeNetwork)
         {
-            ProfileEntryCalls++;
-            throw new InvalidOperationException("Denied requests must not reach local profile entry.");
+            PasswordLoginCalls++;
+            throw new InvalidOperationException("Denied requests must not reach password sign-in.");
         }
         public Task<SessionIssueResult> CreateExternalSessionAsync(Guid accountId, string provider, string deviceId, string deviceName, string client, CancellationToken ct = default, string ingress = ClientIngress.HomeNetwork) => throw NotSupported();
         public Task<SessionIssueResult> CreatePasskeySessionAsync(Guid accountId, string deviceId, string deviceName, string client, CancellationToken ct = default, string ingress = ClientIngress.HomeNetwork) => throw NotSupported();

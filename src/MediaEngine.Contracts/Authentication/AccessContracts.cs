@@ -5,7 +5,6 @@ namespace MediaEngine.Contracts.Authentication;
 public sealed record AccountAccessResponse(
     [property: JsonPropertyName("id")] Guid Id,
     [property: JsonPropertyName("email")] string? Email,
-    [property: JsonPropertyName("is_local_only")] bool IsLocalOnly,
     [property: JsonPropertyName("is_enabled")] bool IsEnabled,
     [property: JsonPropertyName("is_administrator")] bool IsAdministrator,
     [property: JsonPropertyName("authorization_version")] long AuthorizationVersion,
@@ -71,7 +70,6 @@ public sealed record GrantAdminProtectionDto(
 
 public sealed record CreateManagedAccountRequest(
     [property: JsonPropertyName("email")] string? Email,
-    [property: JsonPropertyName("is_local_only")] bool IsLocalOnly,
     [property: JsonPropertyName("is_administrator")] bool IsAdministrator,
     [property: JsonPropertyName("profile_id")] Guid? ProfileId,
     [property: JsonPropertyName("new_profile")] NewAccountProfileRequest? NewProfile,
@@ -84,7 +82,6 @@ public sealed record NewAccountProfileRequest(
 
 public sealed record UpdateManagedAccountRequest(
     [property: JsonPropertyName("email")] string? Email,
-    [property: JsonPropertyName("is_local_only")] bool IsLocalOnly,
     [property: JsonPropertyName("is_enabled")] bool IsEnabled,
     [property: JsonPropertyName("is_administrator")] bool IsAdministrator);
 
@@ -113,7 +110,6 @@ public sealed record GrantAdminUnlockResponse(
 public sealed record AccountSelfServiceResponse(
     [property: JsonPropertyName("account_id")] Guid AccountId,
     [property: JsonPropertyName("email")] string? Email,
-    [property: JsonPropertyName("is_local_only")] bool IsLocalOnly,
     [property: JsonPropertyName("active_profile_id")] Guid ActiveProfileId,
     [property: JsonPropertyName("default_profile_id")] Guid DefaultProfileId,
     [property: JsonPropertyName("profiles")] IReadOnlyList<AccountProfileGrantDto> Profiles,

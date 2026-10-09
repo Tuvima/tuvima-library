@@ -53,26 +53,4 @@ public sealed class OriginalClientContextTests
     }
 
     private static IngressKind Classify(HttpContext context) => new IngressClassifier(null, []).Classify(context);
-
-    [Fact]
-    public void LocalProfileSignIn_DoesNotRequireAConfiguredPin()
-    {
-        var source = File.ReadAllText(Path.Combine(
-            FindRepoRoot(),
-            "src", "MediaEngine.Web", "Services", "Integration", "DashboardAuthenticationEndpoints.cs"));
-
-        Assert.Contains("PIN (if configured)", source, StringComparison.Ordinal);
-        Assert.DoesNotContain("name=\"pin\" required", source, StringComparison.Ordinal);
-    }
-
-    private static string FindRepoRoot()
-    {
-        var directory = new DirectoryInfo(AppContext.BaseDirectory);
-        while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "MediaEngine.slnx")))
-        {
-            directory = directory.Parent;
-        }
-
-        return directory?.FullName ?? throw new DirectoryNotFoundException("Repository root was not found.");
-    }
 }
