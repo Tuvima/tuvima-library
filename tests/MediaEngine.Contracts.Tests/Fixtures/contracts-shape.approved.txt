@@ -739,6 +739,8 @@ MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.AuthSe
   AuthenticationMethod: System.String | nullability=not-null | accessors=get,init
   ExpiresAt: System.DateTimeOffset | nullability=not-null | accessors=get,init
   RecoveryCodes: System.Collections.Generic.IReadOnlyList<System.String> | nullability=not-null | accessors=get,init
+  ChooseProfile: System.Boolean | nullability=not-null | accessors=get,init
+  ProfilePending: System.Boolean | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.AuthorizationAuditEntryResponse
   EventType: System.String | nullability=not-null | accessors=get,init
@@ -914,6 +916,9 @@ MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.Device
   VerificationUriComplete: System.String | nullability=not-null | accessors=get,init
   ExpiresIn: System.Int32 | nullability=not-null | accessors=get,init
   Interval: System.Int32 | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.DeviceProfilePreferenceResponse
+  ProfileId: System.Guid? | nullability=nullable | accessors=get,init
 
 MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.DeviceSessionResponse
   Id: System.Guid | nullability=not-null | accessors=get,init
@@ -1098,6 +1103,7 @@ MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.Sessio
   Authority: MediaEngine.Contracts.Authentication.DashboardAuthorityResponse | nullability=not-null | accessors=get,init
   AuthenticationMethod: System.String | nullability=not-null | accessors=get,init
   ExpiresAt: System.DateTimeOffset | nullability=not-null | accessors=get,init
+  ProfilePending: System.Boolean | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.SetAccountProfileGrantAccessRequest
   IsDefault: System.Boolean | nullability=not-null | accessors=get,init
@@ -1111,6 +1117,9 @@ MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.SetApp
 
 MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.SetApplicationPermissionsRequest
   PermissionIds: System.Collections.Generic.IReadOnlyList<System.String> | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.SetDeviceProfilePreferenceRequest
+  ProfileId: System.Guid | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.SetGrantAdminProtectionRequest
   Enabled: System.Boolean | nullability=not-null | accessors=get,init
@@ -6180,6 +6189,7 @@ MediaEngine.Contracts.Profiles.MediaEngine.Contracts.Profiles.ProfileResponseDto
   CreatedAt: System.DateTimeOffset | nullability=not-null | accessors=get,init
   NavigationConfig: System.String | nullability=nullable | accessors=get,init
   AvatarImageUrl: System.String | nullability=nullable | accessors=get,init
+  HasPin: System.Boolean | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.Profiles.MediaEngine.Contracts.Profiles.TasteProfileBuildResponse
   Status: MediaEngine.Contracts.Profiles.TasteProfileBuildStatusDto | nullability=not-null | accessors=get,init
