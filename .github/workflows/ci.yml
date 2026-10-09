@@ -48,10 +48,13 @@ jobs:
             echo "=== ${received##*/} differs from approved (first 120 diff lines) ==="
             diff -u "${received/.received./.approved.}" "$received" | head -120 || true
           done
-          echo "=== native MediaInfo libraries (test output and NuGet cache) ==="
-          find tests/MediaEngine.Api.Tests/bin ~/.nuget/packages/mediainfo.core.native* -iname '*mediainfo*.so*' 2>/dev/null | head -20
-          lib="$(find tests/MediaEngine.Api.Tests/bin -iname '*mediainfo*.so*' -print -quit 2>/dev/null)"
-          [ -n "$lib" ] && ldd "$lib" || true
+          echo "=== MediaInfo native libraries copied to the Api test output ==="
+          find tests/MediaEngine.Api.Tests/bin -iname '*mediainfo*' 2>/dev/null | head -10
+          echo "=== loader dependencies of the packaged debian-x64 and ubuntu.22.04-x64 builds ==="
+          for rid in debian-x64 ubuntu.22.04-x64; do
+            lib=~/.nuget/packages/mediainfo.core.native/*/runtimes/$rid/native/libmediainfo.so
+            for l in $lib; do echo "--- $l"; ldd "$l" 2>&1 | grep -E 'not found|=> /' | head -12 || true; done
+          done
           grep -E '^(ID|VERSION_ID)=' /etc/os-release
 
       - name: Enforce coverage threshold
