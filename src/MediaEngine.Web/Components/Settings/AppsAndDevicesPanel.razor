@@ -1,0 +1,132 @@
+@namespace MediaEngine.Web.Components.Settings
+@using MediaEngine.Contracts.Authentication
+@using MediaEngine.Contracts.Settings
+@using MediaEngine.Web.Services.Integration
+@inject IEngineApiClient ApiClient
+@inject IAppToastService Snackbar
+@inject IJSRuntime JS
+
+<div class="network-panel apps-devices">
+    <header class="network-panel__heading">
+        <div><h3>Apps &amp; devices</h3><p>Let the Tuvima apps on phones and TVs connect, and see which ones are paired.</p></div>
+    </header>
+
+    <SettingsSectionPanel Title="Allow apps" Icon="@AppMaterialIcons.Outlined.Devices"
+                          Description="Phones and TVs connect over your internet address and sign in with a paired code.">
+        <AppSwitchRow Label="Allow apps to connect"
+                      Value="@Settings.NativeAppAccess.Enabled"
+                      ValueChanged="SetAppAccessAsync"
+                      Disabled="@(!AllowsInternet || _saving)" />
+        @if (_secureAccountFirst)
+        {
+            <AppAlert Tone="AppUiTone.Warning">Secure your account first: add a password or passkey, then turn apps on. <a href="/settings/account">Open your account</a></AppAlert>
+        }
+        @if (!AllowsInternet)
+        {
+            <AppAlert Tone="AppUiTone.Info">Apps connect over the internet address. Set Who can connect to Anywhere first. <a href="/settings/network/remote">Open Remote Access</a></AppAlert>
+        }
+    </SettingsSectionPanel>
+
+    @if (Settings.NativeAppAccess.Enabled && AllowsInternet)
+    {
+        <SettingsSectionPanel Title="Address to type in the app" Icon="@AppMaterialIcons.Outlined.Language"
+                              Description="Enter this in the app when it asks for your server.">
+            @if (string.IsNullOrWhiteSpace(Settings.Remote.PublicHostname))
+            {
+                <AppAlert Tone="AppUiTone.Warning">No internet address is set yet. <a href="/settings/network/remote">Set it in Remote Access</a></AppAlert>
+            }
+            else
+            {
+                <dl class="network-facts">
+                    <div><dt>Address</dt><dd>@Settings.Remote.PublicHostname</dd></div>
+                </dl>
+            }
+            <div class="network-card-actions">
+                @if (!string.IsNullOrWhiteSpace(Settings.Remote.PublicHostname))
+                {
+                    <AppButton Label="Copy" StartIcon="@AppMaterialIcons.Outlined.ContentCopy" OnClick="CopyAddressAsync" />
+                }
+                <AppButton Label="Test" StartIcon="@AppMaterialIcons.Outlined.Science" OnClick="TestAsync" />
+            </div>
+        </SettingsSectionPanel>
+    }
+
+    <PairedDevicesSection />
+</div>
+
+<NetworkTestDialog @bind-Visible="_testDialogOpen" Busy="@_testing" Result="@_testResult" />
+
+@code {
+    [Parameter, EditorRequired] public NetworkSettingsDto Settings { get; set; } = new();
+    [Parameter] public NetworkRuntimeStatusDto? Status { get; set; }
+    [Parameter] public EventCallback StatusRefreshRequested { get; set; }
+
+    private NetworkTestResultDto? _testResult;
+    private bool _saving;
+    private bool _testing;
+    private bool _testDialogOpen;
+    private bool _secureAccountFirst;
+
+    private bool AllowsInternet => Settings.WhoCanConnect == "anywhere";
+
+    private async Task SetAppAccessAsync(bool enabled)
+    {
+        _saving = true;
+        _secureAccountFirst = false;
+        try
+        {
+            // Save a fresh copy with only this switch changed, so unrelated unsaved edits elsewhere are not saved too.
+            var fresh = await ApiClient.GetNetworkSettingsAsync();
+            if (fresh is null)
+            {
+                Snackbar.Add("App access could not be changed.", AppSeverity.Error);
+                return;
+            }
+
+            fresh.NativeAppAccess.Enabled = enabled;
+            if (await ApiClient.UpdateNetworkSettingsAsync(fresh) is null)
+            {
+                var error = ApiClient.LastError;
+                if (error is not null && (error.Contains("secure_account_first", StringComparison.Ordinal)
+                    || error.Contains("password or passkey", StringComparison.OrdinalIgnoreCase)))
+                {
+                    _secureAccountFirst = true;
+                }
+                else
+                {
+                    Snackbar.Add(error ?? "App access could not be changed.", AppSeverity.Error);
+                }
+                return;
+            }
+
+            Settings.NativeAppAccess.Enabled = enabled;
+            Snackbar.Add(enabled ? "Apps can connect." : "Apps can no longer connect.", AppSeverity.Success);
+            await StatusRefreshRequested.InvokeAsync();
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+
+    private async Task CopyAddressAsync()
+    {
+        await JS.InvokeVoidAsync("navigator.clipboard.writeText", Settings.Remote.PublicHostname);
+        Snackbar.Add("Address copied.", AppSeverity.Success);
+    }
+
+    private async Task TestAsync()
+    {
+        _testResult = null;
+        _testing = true;
+        _testDialogOpen = true;
+        try
+        {
+            _testResult = await ApiClient.TestRemoteNetworkAsync();
+        }
+        finally
+        {
+            _testing = false;
+        }
+    }
+}

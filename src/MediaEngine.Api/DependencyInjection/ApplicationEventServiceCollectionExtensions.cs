@@ -18,6 +18,8 @@ public static class ApplicationEventServiceCollectionExtensions
         services.AddSingleton<IApplicationEventDeliveryAuthorizer, ApplicationEventDeliveryAuthorizer>();
         services.AddScoped<ApplicationEventSubscriptionAuthorizer>();
         services.AddSingleton<ApplicationEventDispatcher>();
+        services.AddSingleton<MediaEngine.Api.Security.IDeviceRevocationNotifier>(
+            provider => provider.GetRequiredService<ApplicationEventDispatcher>());
         services.AddSingleton<IApplicationEventProducer, ApplicationEventProducer>();
         services.AddSingleton<IApplicationEventResourceResolver, ApplicationEventResourceResolver>();
         services.AddSingleton<ApplicationEventProjectionPublisher>();

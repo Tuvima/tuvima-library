@@ -65,6 +65,27 @@ public sealed class AccountEndpointContractTests
         Assert.DoesNotContain(endpoints, endpoint => Methods(endpoint).Contains("POST"));
     }
 
+    [Fact]
+    public async Task ManagedDeviceRoutes_AreSelfServiceSoEveryoneSeesOnlyWhatTheyMay()
+    {
+        var builder = WebApplication.CreateBuilder();
+        AddEndpointServices(builder.Services);
+        await using var app = builder.Build();
+        app.MapAccountEndpoints();
+
+        var endpoints = ((IEndpointRouteBuilder)app).DataSources
+            .SelectMany(source => source.Endpoints)
+            .OfType<RouteEndpoint>()
+            .ToArray();
+        foreach (var (route, method) in new[] { ("/access/devices/", "GET"), ("/access/devices/{deviceId:guid}", "DELETE") })
+        {
+            var endpoint = Assert.Single(endpoints, candidate =>
+                candidate.RoutePattern.RawText == route && Methods(candidate).Contains(method));
+            Assert.Contains(endpoint.Metadata.OfType<AuthorityRequirementMetadata>(),
+                metadata => metadata.Requirement == "human_self_service");
+        }
+    }
+
     private static void AssertPolicy(RouteEndpoint[] endpoints, string route, string method,
         ApplicationPermissionId permission)
     {

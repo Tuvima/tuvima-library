@@ -284,6 +284,13 @@ public sealed class DashboardIdentityClient(
     public Task<AccountAccessResponse?> GetManagedAccountAsync(Guid accountId, CancellationToken ct = default) =>
         GetAsync<AccountAccessResponse>($"/access/accounts/{accountId:D}", ct);
 
+    /// <summary>Paired phones and TVs: every device for an administrator, only your own otherwise.</summary>
+    public async Task<List<ManagedClientDeviceDto>> GetManagedDevicesAsync(CancellationToken ct = default) =>
+        await GetAsync<List<ManagedClientDeviceDto>>("/access/devices", ct).ConfigureAwait(false) ?? [];
+
+    public Task<DashboardAccessMutationResult> RevokeManagedDeviceAsync(Guid deviceId, CancellationToken ct = default) =>
+        SendMutationAsync(HttpMethod.Delete, $"/access/devices/{deviceId:D}", ct);
+
     public async Task<List<ManagedProfileResponse>> GetManagedProfilesAsync(CancellationToken ct = default) =>
         await GetAsync<List<ManagedProfileResponse>>("/access/profiles", ct).ConfigureAwait(false) ?? [];
 

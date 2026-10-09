@@ -79,6 +79,17 @@ or hosting option that trusts forwarded headers from every address.
 
 A working tunnel or proxy does not grant library access.
 
+## Let phone and TV apps connect
+
+Apps ride on the same internet address as the browser. Open **Settings → Network → Apps & devices**:
+
+1. **Allow apps to connect** is available once **Who can connect** is **Anywhere**. Below that the switch stays off and says why.
+2. **Address to type in the app** shows your public address with a **Copy** button. Type it into the app when it asks for your server.
+3. **Test** runs the same remote check as the Remote Access page.
+4. **Paired devices** lists each paired phone or TV with who it belongs to and when it was last seen. **Revoke** signs one out straight away; it has to be paired again. An administrator sees every device, and anyone else sees only their own.
+
+Allowing apps, like opening Tuvima to the internet, waits until your account has a password or passkey.
+
 ## Advanced port forwarding
 
 Port forwarding, PCP, NAT-PMP, and UPnP live under **Advanced**. They are useful

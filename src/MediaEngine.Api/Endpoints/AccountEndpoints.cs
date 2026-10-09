@@ -8,6 +8,7 @@ using MediaEngine.Domain.Configuration;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Entities;
 using MediaEngine.Identity.Contracts;
+using Microsoft.AspNetCore.Mvc;
 
 namespace MediaEngine.Api.Endpoints;
 
@@ -20,7 +21,41 @@ public static class AccountEndpoints
         MapAdministratorUnlock(access);
         MapManagedAccounts(access);
         MapManagedProfiles(access);
+        MapManagedDevices(access);
         return app;
+    }
+
+    /// <summary>
+    /// Paired phones and TVs for the Apps &amp; devices panel: administrators see every device, anyone else only their
+    /// own account's. Revoking ends the device's tokens and tells a connected app to sign out.
+    /// </summary>
+    private static void MapManagedDevices(RouteGroupBuilder access)
+    {
+        var devices = access.MapGroup("/devices").RequireHumanSelfService();
+        devices.MapGet("/", async (HttpContext http, IRequestAuthorityResolver resolver,
+            ISelfServiceAuthorizationService decisions, [FromServices] ManagedClientDeviceService service,
+            CancellationToken ct) =>
+        {
+            var authority = await RequireSelfAsync(http, resolver, decisions, ct);
+            return Results.Ok(await service.ListAsync(authority, ct));
+        })
+        .WithName("ListManagedClientDevices")
+        .Produces<IReadOnlyList<ManagedClientDeviceDto>>();
+
+        devices.MapDelete("/{deviceId:guid}", async (Guid deviceId, HttpContext http,
+            IRequestAuthorityResolver resolver, ISelfServiceAuthorizationService decisions,
+            [FromServices] ManagedClientDeviceService service, CancellationToken ct) =>
+        {
+            var authority = await RequireSelfAsync(http, resolver, decisions, ct);
+            return await service.RevokeAsync(authority, deviceId, ct) switch
+            {
+                ManagedDeviceRevokeOutcome.Revoked => Results.NoContent(),
+                ManagedDeviceRevokeOutcome.Forbidden => ApiErrors.Forbidden("That device belongs to another account."),
+                _ => ApiErrors.NotFound("Device not found or already revoked."),
+            };
+        })
+        .WithName("RevokeManagedClientDevice")
+        .Produces(StatusCodes.Status204NoContent);
     }
 
     private static void MapSelfService(RouteGroupBuilder access)

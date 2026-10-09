@@ -246,6 +246,7 @@ public static class SettingsNav
                 new("overview", "Overview", AppMaterialIcons.Outlined.Dashboard),
                 new("local", "Local Network", AppMaterialIcons.Outlined.Lan),
                 new("remote", "Remote Access", AppMaterialIcons.Outlined.Public),
+                new("apps", "Apps & devices", AppMaterialIcons.Outlined.Devices),
                 new("streaming", "Streaming", AppMaterialIcons.Outlined.Stream),
                 new("advanced", "Advanced", AppMaterialIcons.Outlined.Tune),
             ],

@@ -37,7 +37,8 @@ public sealed class ApplicationEventsHub(
             authority,
             consent,
             types.ToHashSet(StringComparer.Ordinal),
-            libraries), request.AfterEventId, ct).ConfigureAwait(false);
+            libraries,
+            Context), request.AfterEventId, ct).ConfigureAwait(false);
     }
 
     private static Guid? ClaimGuid(ClaimsPrincipal user, string type) =>
