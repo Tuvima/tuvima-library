@@ -31,6 +31,13 @@ public sealed class ProfileSwitchLimitTests
         public HttpClient CreateClient(string name) => new(handler, false) { BaseAddress = new Uri("http://engine.test") };
     }
 
+    // HttpContextAccessor keeps its context in shared async-local state, so two clients built in one test would
+    // see each other's request. A fixed accessor keeps each client on its own caller.
+    private sealed class FixedAccessor(HttpContext context) : IHttpContextAccessor
+    {
+        public HttpContext? HttpContext { get; set; } = context;
+    }
+
     private static DashboardIdentityClient Client(CountingHandler handler, SignInAttemptLimiter limiter, string address)
     {
         var context = new DefaultHttpContext();
@@ -38,7 +45,7 @@ public sealed class ProfileSwitchLimitTests
         context.Connection.LocalPort = 5016;
         return new DashboardIdentityClient(
             new Factory(handler),
-            new HttpContextAccessor { HttpContext = context },
+            new FixedAccessor(context),
             ingress: Classifier,
             signInLimiter: limiter);
     }

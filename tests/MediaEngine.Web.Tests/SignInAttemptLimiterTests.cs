@@ -263,8 +263,11 @@ public sealed class SignInAttemptLimiterTests
     [Fact]
     public void LoopbackReverseProxy_IsRemote_SoItsVisitorsCountTowardLockoutAndGetTheStricterLimit()
     {
-        var classifier = new IngressClassifier(proxyPort: null, trustedLocalNetworks: null, trustedProxies: ["127.0.0.1"]);
+        // A proxy on this computer, connecting to the proxy port (on the main port it is refused instead; see
+        // TrustedProxyOnTheMainPort_IsRefusedWithUseTheProxyPort_AndWarnedAboutOncePerProcess).
+        var classifier = new IngressClassifier(proxyPort: 5017, trustedLocalNetworks: null, trustedProxies: ["127.0.0.1"]);
         var context = Context("127.0.0.1");
+        context.Connection.LocalPort = 5017;
 
         Assert.Equal(IngressKind.Remote, classifier.Classify(context));
         Assert.Equal(MediaEngine.Contracts.Authentication.ClientIngressValues.Remote, classifier.Classify(context).ToWireValue());
