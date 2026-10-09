@@ -27,13 +27,6 @@ public sealed record NetworkTopologySnapshot(
     string? GatewayAddress,
     string? InterfaceName);
 
-public sealed record RemoteAuthenticationSnapshot(bool AdministratorConfigured, bool LocalhostBypassDisabled);
-
-public interface IRemoteAuthenticationReadiness
-{
-    Task<RemoteAuthenticationSnapshot> GetAsync(CancellationToken ct);
-}
-
 public interface INetworkDiagnosticsService
 {
     Task<NetworkTestResultDto> TestLocalAsync(CancellationToken ct);
