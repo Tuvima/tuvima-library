@@ -14,8 +14,14 @@ public sealed partial class EngineApiClient
     public Task<SharedEntitySelectorPageDto?> GetSharedEntitySelectorPageAsync(string universeQid, string? category, string? search, int offset, int limit, CancellationToken ct = default)
     {
         var query = new List<string> { $"offset={Math.Max(0, offset)}", $"limit={Math.Clamp(limit, 1, 100)}" };
-        if (!string.IsNullOrWhiteSpace(category)) query.Add($"category={Escape(category)}");
-        if (!string.IsNullOrWhiteSpace(search)) query.Add($"search={Escape(search.Trim())}");
+        if (!string.IsNullOrWhiteSpace(category))
+        {
+            query.Add($"category={Escape(category)}");
+        }
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            query.Add($"search={Escape(search.Trim())}");
+        }
         return GetSharedEntityAsync<SharedEntitySelectorPageDto>($"/entity-editor/universes/{Escape(universeQid)}/entities?{string.Join("&", query)}", ct);
     }
 
@@ -67,8 +73,14 @@ public sealed partial class EngineApiClient
             }
 
             var value = await response.Content.ReadFromJsonAsync<T>(cancellationToken: ct).ConfigureAwait(false);
-            if (value is null) LastError = $"GET {path} returned an empty response.";
-            else ClearFailure(path);
+            if (value is null)
+            {
+                LastError = $"GET {path} returned an empty response.";
+            }
+            else
+            {
+                ClearFailure(path);
+            }
             return value;
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested) { return default; }
@@ -89,8 +101,14 @@ public sealed partial class EngineApiClient
             }
 
             var value = await response.Content.ReadFromJsonAsync<T>(cancellationToken: ct).ConfigureAwait(false);
-            if (value is null) LastError = $"{method} {path} returned an empty response.";
-            else ClearFailure(path);
+            if (value is null)
+            {
+                LastError = $"{method} {path} returned an empty response.";
+            }
+            else
+            {
+                ClearFailure(path);
+            }
             return value;
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested) { return default; }
@@ -130,8 +148,14 @@ public sealed partial class EngineApiClient
             }
 
             var value = await response.Content.ReadFromJsonAsync<List<SharedEntityArtworkDto>>(cancellationToken: ct).ConfigureAwait(false);
-            if (value is null) LastError = $"POST {path} returned an empty response.";
-            else ClearFailure(path);
+            if (value is null)
+            {
+                LastError = $"POST {path} returned an empty response.";
+            }
+            else
+            {
+                ClearFailure(path);
+            }
             return value;
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested) { return null; }

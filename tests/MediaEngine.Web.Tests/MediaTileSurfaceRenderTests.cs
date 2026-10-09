@@ -1,6 +1,6 @@
-using MediaEngine.Web.Components.Shared;
 using Bunit;
 using MediaEngine.Web.Components.MediaTiles;
+using MediaEngine.Web.Components.Shared;
 using MediaEngine.Web.Models.ViewDTOs;
 using MediaEngine.Web.Services.Integration;
 using MediaEngine.Web.Services.Playback;
@@ -59,51 +59,75 @@ public sealed class MediaTileSurfaceRenderTests : AsyncBunitContext
     [InlineData(true, 3)]
     public void ContinueGroupsKeepMediaPartitionedAndOmitEmptySections(bool mixed, int expectedGroups)
     {
-        MediaTileViewModel Item(string kind, MediaTileShape shape) => new() {
-            Id=Guid.NewGuid(), WorkId=Guid.NewGuid(), Title=$"Continue {kind}", Creator="Fixture creator",
-            MediaKind=kind, Shape=shape, TileImageUrl="/art.jpg", ProgressPct=42,
-            DetailsNavigationUrl="/details/work/fixture", HoverMode=MediaTileHoverMode.GlowOnly };
-        var items=new List<MediaTileViewModel> { Item("Book",MediaTileShape.Portrait) };
-        if (mixed) { items.Add(Item("TV",MediaTileShape.Landscape)); items.Add(Item("Audiobook",MediaTileShape.Square)); }
-        var cut=Render<ContinueAcrossMediaSection>(p=>p.Add(c=>c.Shelf,new MediaTileShelfViewModel { Items=items }));
-        Assert.Equal(expectedGroups,cut.FindAll(".continue-group").Count);
+        MediaTileViewModel Item(string kind, MediaTileShape shape) => new()
+        {
+            Id = Guid.NewGuid(),
+            WorkId = Guid.NewGuid(),
+            Title = $"Continue {kind}",
+            Creator = "Fixture creator",
+            MediaKind = kind,
+            Shape = shape,
+            TileImageUrl = "/art.jpg",
+            ProgressPct = 42,
+            DetailsNavigationUrl = "/details/work/fixture",
+            HoverMode = MediaTileHoverMode.GlowOnly
+        };
+        var items = new List<MediaTileViewModel> { Item("Book", MediaTileShape.Portrait) };
+        if (mixed) { items.Add(Item("TV", MediaTileShape.Landscape)); items.Add(Item("Audiobook", MediaTileShape.Square)); }
+        var cut = Render<ContinueAcrossMediaSection>(p => p.Add(c => c.Shelf, new MediaTileShelfViewModel { Items = items }));
+        Assert.Equal(expectedGroups, cut.FindAll(".continue-group").Count);
         Assert.Single(cut.FindAll(".continue-reading article"));
-        if (mixed) {
+        if (mixed)
+        {
             Assert.Single(cut.FindAll(".continue-watching article.is-landscape"));
             Assert.Single(cut.FindAll(".continue-listening article.is-square"));
-        } else {
+        }
+        else
+        {
             Assert.Empty(cut.FindAll(".continue-watching")); Assert.Empty(cut.FindAll(".continue-listening"));
         }
-        Assert.Equal(items.Count,cut.FindAll("article a").Count);
+        Assert.Equal(items.Count, cut.FindAll("article a").Count);
         Assert.Empty(cut.FindAll(".media-tile-progress-caption"));
-        Assert.DoesNotContain("42%",cut.Find(".continue-reading article").TextContent);
-        Assert.Contains("Fixture creator",cut.Find(".continue-reading article").TextContent);
+        Assert.DoesNotContain("42%", cut.Find(".continue-reading article").TextContent);
+        Assert.Contains("Fixture creator", cut.Find(".continue-reading article").TextContent);
     }
 
     [Fact]
     public void EpisodeCardHasOneDetailLinkVisibleIdentityAndAccessibleSavedProgress()
     {
-        var show=Guid.NewGuid();var episode=Guid.NewGuid();var asset=Guid.NewGuid();
-        var item=new MediaTileViewModel {
-            Id=episode, WorkId=episode, AssetId=asset, Title="The episode", Subtitle="S2 E5", MediaKind="TV",
-            Subject=MediaEngine.Contracts.Display.DisplaySubjectKind.TvEpisode,
-            ContinuationState=MediaEngine.Contracts.Display.DisplayContinuationState.InProgress,
-            Shape=MediaTileShape.Landscape, SurfaceKind=MediaTileSurfaceKind.BannerLandscape,
-            TileImageUrl="/episode-small.jpg", HoverImageUrl="/episode-medium.jpg", BackgroundUrl="/episode-medium.jpg",
-            HoverLayout=MediaTileHoverLayout.BannerPopover, HoverMode=MediaTileHoverMode.Expanded,
-            Description="This episode's short synopsis.", ProgressPct=42, RemainingSeconds=600,
-            DetailsNavigationUrl=MediaEngine.Contracts.Details.TvEpisodeDetailRoute.Build(show,episode,"watch"),
+        var show = Guid.NewGuid(); var episode = Guid.NewGuid(); var asset = Guid.NewGuid();
+        var item = new MediaTileViewModel
+        {
+            Id = episode,
+            WorkId = episode,
+            AssetId = asset,
+            Title = "The episode",
+            Subtitle = "S2 E5",
+            MediaKind = "TV",
+            Subject = MediaEngine.Contracts.Display.DisplaySubjectKind.TvEpisode,
+            ContinuationState = MediaEngine.Contracts.Display.DisplayContinuationState.InProgress,
+            Shape = MediaTileShape.Landscape,
+            SurfaceKind = MediaTileSurfaceKind.BannerLandscape,
+            TileImageUrl = "/episode-small.jpg",
+            HoverImageUrl = "/episode-medium.jpg",
+            BackgroundUrl = "/episode-medium.jpg",
+            HoverLayout = MediaTileHoverLayout.BannerPopover,
+            HoverMode = MediaTileHoverMode.Expanded,
+            Description = "This episode's short synopsis.",
+            ProgressPct = 42,
+            RemainingSeconds = 600,
+            DetailsNavigationUrl = MediaEngine.Contracts.Details.TvEpisodeDetailRoute.Build(show, episode, "watch"),
         };
-        var cut=Render<MediaTile>(p=>p.Add(c=>c.Item,item).Add(c=>c.IsHomeSurface,true).Add(c=>c.ShowCompactCaption,true));
-        var link=Assert.Single(cut.FindAll("a"));Assert.Equal(item.DetailsNavigationUrl,link.GetAttribute("href"));
-        Assert.Contains("S2 E5",cut.Find(".media-tile-episode-caption").TextContent);
+        var cut = Render<MediaTile>(p => p.Add(c => c.Item, item).Add(c => c.IsHomeSurface, true).Add(c => c.ShowCompactCaption, true));
+        var link = Assert.Single(cut.FindAll("a")); Assert.Equal(item.DetailsNavigationUrl, link.GetAttribute("href"));
+        Assert.Contains("S2 E5", cut.Find(".media-tile-episode-caption").TextContent);
         Assert.Empty(cut.FindAll(".media-tile-progress-caption"));
-        Assert.Contains("10 min remaining",cut.Find("[role=progressbar]").GetAttribute("aria-valuetext"));
+        Assert.Contains("10 min remaining", cut.Find("[role=progressbar]").GetAttribute("aria-valuetext"));
         Assert.Empty(cut.FindAll(".media-tile-hover-description"));
-        Assert.Same(link,cut.Find(".media-tile-episode-caption").Closest("a"));
+        Assert.Same(link, cut.Find(".media-tile-episode-caption").Closest("a"));
         link.Click();
-        Assert.EndsWith(item.DetailsNavigationUrl,Services.GetRequiredService<Microsoft.AspNetCore.Components.NavigationManager>().Uri);
-        Assert.DoesNotContain("button",cut.Find("article").InnerHtml,StringComparison.OrdinalIgnoreCase);
+        Assert.EndsWith(item.DetailsNavigationUrl, Services.GetRequiredService<Microsoft.AspNetCore.Components.NavigationManager>().Uri);
+        Assert.DoesNotContain("button", cut.Find("article").InnerHtml, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -1247,9 +1271,17 @@ public sealed class MediaTileSurfaceRenderTests : AsyncBunitContext
     [InlineData("TV")]
     public void ContinueWatchCardsUseStillAndOneFixedOverlayWithoutJavascriptHover(string kind)
     {
-        var item = new MediaTileViewModel { Id = Guid.NewGuid(), Title = "Continue title", MediaKind = kind,
-            Shape = MediaTileShape.Landscape, TileImageUrl = "/episode-still.jpg", HoverImageUrl = "/background.jpg",
-            DetailsNavigationUrl = "/details/work/continue", Subtitle = "S1 E2" };
+        var item = new MediaTileViewModel
+        {
+            Id = Guid.NewGuid(),
+            Title = "Continue title",
+            MediaKind = kind,
+            Shape = MediaTileShape.Landscape,
+            TileImageUrl = "/episode-still.jpg",
+            HoverImageUrl = "/background.jpg",
+            DetailsNavigationUrl = "/details/work/continue",
+            Subtitle = "S1 E2"
+        };
         var cut = Render<ContinueAcrossMediaSection>(p => p.Add(c => c.Shelf, new MediaTileShelfViewModel { Items = [item] }));
         Assert.Contains("is-hover-overlay", cut.Find("article").ClassList);
         Assert.Equal("/episode-still.jpg", cut.Find(".media-tile-image").GetAttribute("src"));
@@ -1263,12 +1295,18 @@ public sealed class MediaTileSurfaceRenderTests : AsyncBunitContext
     public void ContinueEpisodeOverlaySeparatesEpisodeIdentityFromShowCaption()
     {
         var show = Guid.NewGuid(); var episode = Guid.NewGuid(); var asset = Guid.NewGuid();
-        var item = new MediaTileViewModel { Id = episode, Title = "Solo Leveling", MediaKind = "TV",
+        var item = new MediaTileViewModel
+        {
+            Id = episode,
+            Title = "Solo Leveling",
+            MediaKind = "TV",
             Subject = MediaEngine.Contracts.Display.DisplaySubjectKind.TvEpisode,
-            Shape = MediaTileShape.Landscape, TileImageUrl = "/still.jpg",
+            Shape = MediaTileShape.Landscape,
+            TileImageUrl = "/still.jpg",
             EpisodeContext = new(show, episode, asset, "Solo Leveling", "I am Used to It", 1, 1,
                 MediaEngine.Contracts.Display.DisplayContinuationState.InProgress, 120, 1440),
-            DetailsNavigationUrl = "/details/tvshow/episode" };
+            DetailsNavigationUrl = "/details/tvshow/episode"
+        };
         var cut = Render<ContinueWatchingOrListeningTile>(p => p.Add(c => c.Item, item).Add(c => c.IsHomeSurface, true));
         var overlay = cut.Find(".media-tile-static-hover").TextContent;
         Assert.Contains("S1 E1", overlay);
@@ -1289,9 +1327,17 @@ public sealed class MediaTileSurfaceRenderTests : AsyncBunitContext
     [InlineData("TV")]
     public void OnlyHomeWatchDiscoveryRegistersExpansion(string kind)
     {
-        var item = new MediaTileViewModel { Id = Guid.NewGuid(), Title = "Title", MediaKind = kind,
-            Shape = MediaTileShape.Portrait, TileImageUrl = "/cover.jpg", HoverImageUrl = "/background.jpg",
-            HoverMode = MediaTileHoverMode.Expanded, DetailsNavigationUrl = "/details/work/title" };
+        var item = new MediaTileViewModel
+        {
+            Id = Guid.NewGuid(),
+            Title = "Title",
+            MediaKind = kind,
+            Shape = MediaTileShape.Portrait,
+            TileImageUrl = "/cover.jpg",
+            HoverImageUrl = "/background.jpg",
+            HoverMode = MediaTileHoverMode.Expanded,
+            DetailsNavigationUrl = "/details/work/title"
+        };
         var watch = Render<MediaTile>(p => p.Add(c => c.Item, item));
         Assert.Empty(watch.FindAll(".media-tile-hover-panel"));
         Assert.Contains("is-hover-glow-only", watch.Find("article").ClassList);
@@ -1304,9 +1350,17 @@ public sealed class MediaTileSurfaceRenderTests : AsyncBunitContext
     [Fact]
     public void ContinueKeepsFixedArtworkAndAccessibleProgressWithoutVisiblePercentage()
     {
-        var item = new MediaTileViewModel { Id = Guid.NewGuid(), Title = "Continue movie", MediaKind = "Movie",
-            Shape = MediaTileShape.Landscape, TileImageUrl = "/background.jpg", ProgressPct = 41, ContinuationState = MediaEngine.Contracts.Display.DisplayContinuationState.InProgress,
-            DetailsNavigationUrl = "/details/work/continue" };
+        var item = new MediaTileViewModel
+        {
+            Id = Guid.NewGuid(),
+            Title = "Continue movie",
+            MediaKind = "Movie",
+            Shape = MediaTileShape.Landscape,
+            TileImageUrl = "/background.jpg",
+            ProgressPct = 41,
+            ContinuationState = MediaEngine.Contracts.Display.DisplayContinuationState.InProgress,
+            DetailsNavigationUrl = "/details/work/continue"
+        };
         var cut = Render<ContinueAcrossMediaSection>(p => p.Add(c => c.Shelf, new MediaTileShelfViewModel { Items = [item] }));
         Assert.Empty(cut.FindAll(".media-tile-continue-progress"));
         Assert.Equal("41", cut.Find("[role=progressbar]").GetAttribute("aria-valuenow"));

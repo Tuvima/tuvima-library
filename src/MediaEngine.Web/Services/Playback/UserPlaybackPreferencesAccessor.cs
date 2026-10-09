@@ -16,7 +16,16 @@ public sealed class UserPlaybackPreferencesAccessor : IUserPlaybackPreferencesAc
         _orchestrator.OnProfileChanged += Invalidate;
     }
 
-    public long Generation { get { lock (_sync) return _generation; } }
+    public long Generation
+    {
+        get
+        {
+            lock (_sync)
+            {
+                return _generation;
+            }
+        }
+    }
     public Guid? ActiveProfileId => _orchestrator.ActivePlaybackProfileId;
 
     public async Task<UserPlaybackSettingsDto?> GetAsync(CancellationToken ct = default)
@@ -24,14 +33,20 @@ public sealed class UserPlaybackPreferencesAccessor : IUserPlaybackPreferencesAc
         long generation;
         lock (_sync)
         {
-            if (_cached is not null && _cached.ProfileId == ActiveProfileId) return _cached;
+            if (_cached is not null && _cached.ProfileId == ActiveProfileId)
+            {
+                return _cached;
+            }
             generation = _generation;
         }
 
         var loaded = await _orchestrator.GetPlaybackSettingsAsync(ct);
         lock (_sync)
         {
-            if (generation != _generation || loaded?.ProfileId != ActiveProfileId) return null;
+            if (generation != _generation || loaded?.ProfileId != ActiveProfileId)
+            {
+                return null;
+            }
             _cached = loaded;
             return _cached;
         }
@@ -41,7 +56,10 @@ public sealed class UserPlaybackPreferencesAccessor : IUserPlaybackPreferencesAc
     {
         lock (_sync)
         {
-            if (settings.ProfileId == ActiveProfileId) _cached = settings;
+            if (settings.ProfileId == ActiveProfileId)
+            {
+                _cached = settings;
+            }
         }
     }
 

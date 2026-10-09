@@ -1,6 +1,6 @@
 using System.IO.Compression;
-using System.Xml.Linq;
 using System.Text.RegularExpressions;
+using System.Xml.Linq;
 using MediaEngine.Domain;
 using MediaEngine.Domain.Enums;
 using MediaEngine.Processors.Contracts;

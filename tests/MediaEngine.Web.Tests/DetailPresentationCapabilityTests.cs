@@ -1,7 +1,7 @@
-using MediaEngine.Web.Components.Shared;
 using Bunit;
 using MediaEngine.Contracts.Details;
 using MediaEngine.Web.Components.Details;
+using MediaEngine.Web.Components.Shared;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace MediaEngine.Web.Tests;

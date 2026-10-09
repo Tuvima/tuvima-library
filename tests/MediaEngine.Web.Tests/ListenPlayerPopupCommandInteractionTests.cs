@@ -1,9 +1,9 @@
-using MediaEngine.Web.Components.Shared;
-using Bunit;
 using System.Text;
 using System.Text.Json;
+using Bunit;
 using MediaEngine.Contracts.Playback;
 using MediaEngine.Web.Components.Pages;
+using MediaEngine.Web.Components.Shared;
 using MediaEngine.Web.Services.Integration;
 using MediaEngine.Web.Services.Playback;
 using MediaEngine.Web.Services.Theming;
@@ -235,9 +235,15 @@ public sealed class ListenPlayerPopupCommandInteractionTests : AsyncBunitContext
 
         public async ValueTask<Stream> OpenReadStreamAsync(long maxAllowedSize = 512_000, CancellationToken cancellationToken = default)
         {
-            if (payload.LongLength > maxAllowedSize) throw new InvalidDataException("The stream exceeds the maximum size.");
+            if (payload.LongLength > maxAllowedSize)
+            {
+                throw new InvalidDataException("The stream exceeds the maximum size.");
+            }
             ReadStarted.TrySetResult();
-            if (readGate is not null) await readGate.WaitAsync(cancellationToken);
+            if (readGate is not null)
+            {
+                await readGate.WaitAsync(cancellationToken);
+            }
             return new MemoryStream(payload, writable: false);
         }
 

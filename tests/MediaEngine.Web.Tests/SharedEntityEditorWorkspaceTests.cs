@@ -271,7 +271,9 @@ public sealed class SharedEntityEditorWorkspaceTests : AsyncBunitContext
             new("private", false, true),
         };
         if (category is "Organization" or "Event")
+        {
             capabilities.Insert(3, new(SharedEntityEditorSections.Appearances, true, false));
+        }
         return capabilities;
     }
 
@@ -281,7 +283,9 @@ public sealed class SharedEntityEditorWorkspaceTests : AsyncBunitContext
     {
         var directory = new DirectoryInfo(AppContext.BaseDirectory);
         while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "MediaEngine.slnx")))
+        {
             directory = directory.Parent;
+        }
         Assert.NotNull(directory);
         return File.ReadAllText(Path.Combine(directory!.FullName, relativePath));
     }

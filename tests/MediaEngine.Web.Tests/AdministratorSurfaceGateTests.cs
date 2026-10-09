@@ -1,11 +1,11 @@
-using MediaEngine.Web.Services.Ui;
-using MediaEngine.Web.Components.Shared;
 using System.Net;
 using System.Net.Http.Json;
 using Bunit;
 using MediaEngine.Contracts.Authentication;
 using MediaEngine.Web.Components.Settings;
+using MediaEngine.Web.Components.Shared;
 using MediaEngine.Web.Services.Integration;
+using MediaEngine.Web.Services.Ui;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace MediaEngine.Web.Tests;

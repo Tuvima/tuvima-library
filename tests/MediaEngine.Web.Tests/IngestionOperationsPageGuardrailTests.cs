@@ -1,10 +1,10 @@
-using MediaEngine.Web.Components.Shared;
 using System.Runtime.CompilerServices;
 using System.Text.RegularExpressions;
 using Bunit;
 using MediaEngine.Contracts.Realtime;
 using MediaEngine.Domain.Enums;
 using MediaEngine.Web.Components.Settings;
+using MediaEngine.Web.Components.Shared;
 using MediaEngine.Web.Models.ViewDTOs;
 using MediaEngine.Web.Services.Integration;
 using Microsoft.Extensions.DependencyInjection;

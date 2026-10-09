@@ -190,7 +190,7 @@ public sealed class SearchService : ISearchService
                 {
                     var scores = _retailScoring.ScoreCandidate(
                         fileHints, c.Label, c.Author, c.Year, mediaType,
-                        extendedMetadata: new CandidateExtendedMetadata { Signals = c.MediaTypeMetadata ?? new Dictionary<string,string>() });
+                        extendedMetadata: new CandidateExtendedMetadata { Signals = c.MediaTypeMetadata ?? new Dictionary<string, string>() });
                     c.MatchScores = ToFieldMatchResult(scores);
                 }
                 candidates = candidates.OrderByDescending(c => c.MatchScores?.CompositeScore ?? 0.0).ToList();

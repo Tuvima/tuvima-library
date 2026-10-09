@@ -447,7 +447,9 @@ public sealed class ProviderCredentialServiceTests : IDisposable
         {
             if (Directory.Exists(Path.Combine(directory.FullName, ".git"))
                 || File.Exists(Path.Combine(directory.FullName, ".git")))
+            {
                 return directory.FullName;
+            }
             directory = directory.Parent;
         }
 
@@ -516,12 +518,18 @@ public sealed class ProviderCredentialServiceTests : IDisposable
             LastRequestUri = request.RequestUri;
             LastAuthorization = request.Headers.Authorization;
             if (Failure is not null)
+            {
                 return Task.FromException<HttpResponseMessage>(Failure);
+            }
             var response = new HttpResponseMessage(StatusCode);
             if (ResponseBody is not null)
+            {
                 response.Content = new StringContent(ResponseBody);
+            }
             if (ResetSeconds is not null)
+            {
                 response.Headers.TryAddWithoutValidation("X-RateLimit-Reset", ResetSeconds.Value.ToString());
+            }
             return Task.FromResult(response);
         }
     }

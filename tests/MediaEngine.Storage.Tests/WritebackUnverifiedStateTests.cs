@@ -1,6 +1,6 @@
 using Dapper;
-using MediaEngine.Domain.Entities;
 using MediaEngine.Domain.Aggregates;
+using MediaEngine.Domain.Entities;
 using MediaEngine.Domain.Enums;
 using MediaEngine.Storage.Services;
 
@@ -41,7 +41,9 @@ public sealed class WritebackUnverifiedStateTests
                 Status = AssetStatus.Normal,
             });
             using (var connection = db.CreateConnection())
+            {
                 connection.Execute("UPDATE media_assets SET writeback_fields_hash='old' WHERE id=@assetId", new { assetId });
+            }
 
             var current = new Dictionary<string, string> { ["Music"] = "config-v1" };
             Assert.Contains(await repository.GetStaleForRetagAsync(current, 10, 0), row => row.AssetId == assetId);

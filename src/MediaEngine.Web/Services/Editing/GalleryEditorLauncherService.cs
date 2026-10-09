@@ -22,7 +22,9 @@ public sealed class GalleryEditorLauncherService(IAppDialogService dialogService
             });
 
         if (dialog is null)
+        {
             return false;
+        }
 
         var result = await dialog.Result;
         return result is not null && !result.Canceled;

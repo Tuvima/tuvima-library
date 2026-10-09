@@ -264,12 +264,18 @@ public static class ClientApiEdgeEndpoints
             return;
         }
 
-        if (NativeApiForwardPolicy.IsAnonymousPairingAction(context.Request.Method, clientPath)
+        if (NativeApiForwardPolicy.IsStartPairing(context.Request.Method, clientPath)
             && context.RequestServices.GetService<NativeAppPairingThrottle>() is { } throttle
             && !throttle.TryAcquire(context.Connection.RemoteIpAddress?.ToString() ?? "unknown"))
         {
             context.Response.Headers.RetryAfter = "60";
             context.Response.StatusCode = StatusCodes.Status429TooManyRequests;
+            await context.Response.WriteAsJsonAsync(new OAuthErrorResponse
+            {
+                Error = "temporarily_unavailable",
+                ErrorDescription = "Too many pairing requests. Try again in a minute.",
+                Interval = 60,
+            }, ct);
             return;
         }
 

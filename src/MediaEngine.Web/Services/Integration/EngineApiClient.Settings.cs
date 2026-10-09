@@ -503,10 +503,10 @@ public sealed partial class EngineApiClient
         {
             return await response.Content.ReadFromJsonAsync<ProviderCredentialOperationResultDto>(
                 cancellationToken: ct) ?? new ProviderCredentialOperationResultDto
-            {
-                Status = "engine_error",
-                Message = "The Engine returned an empty provider result.",
-            };
+                {
+                    Status = "engine_error",
+                    Message = "The Engine returned an empty provider result.",
+                };
         }
         catch (JsonException)
         {

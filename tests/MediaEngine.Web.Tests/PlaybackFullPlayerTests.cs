@@ -24,13 +24,14 @@ public sealed class PlaybackFullPlayerTests : AsyncBunitContext
     [Fact]
     public void PopupHasAnInlineHorizontalVolumeAndMusicModeControls()
     {
-        var cut=Render<PlaybackFullPlayer>(p=>p.Add(c=>c.Snapshot,Snapshot()).Add(c=>c.Commands,new Sink()).Add(c=>c.IsPopup,true));
+        var cut = Render<PlaybackFullPlayer>(p => p.Add(c => c.Snapshot, Snapshot()).Add(c => c.Commands, new Sink()).Add(c => c.IsPopup, true));
         Assert.Single(cut.FindAll(".playback-full__volume input[aria-orientation='horizontal']"));
         Assert.Equal("0:37", cut.Find(".playback-full__timeline .playback-seek-rail__start").TextContent);
         Assert.Equal("3:00", cut.Find(".playback-full__timeline .playback-seek-rail__end").TextContent);
         Assert.Empty(cut.FindAll("input[aria-orientation='vertical']"));
         Assert.Single(cut.FindAll("button[aria-label='Turn shuffle on']"));
-        foreach (var label in new[] { "Lyrics", "Queue" }) {
+        foreach (var label in new[] { "Lyrics", "Queue" })
+        {
             var button = cut.Find($".playback-full__modes button[aria-label='{label}']");
             Assert.Equal(string.Empty, button.TextContent.Trim());
             Assert.Equal(label, button.ParentElement!.GetAttribute("data-playback-tooltip"));
@@ -201,8 +202,12 @@ public sealed class PlaybackFullPlayerTests : AsyncBunitContext
     {
         var snapshot = Snapshot();
         var asset = snapshot.Queue[0].AssetId;
-        snapshot = snapshot with { Experience = PlayerExperienceModes.Audiobook, Queue = [snapshot.Queue[0] with
-            { MediaType = "Audiobooks", AudiobookWorkId = Guid.NewGuid(), Chapters = [new() { Index = 0, AssetId = asset, Title = "Source intro", StartSeconds = 0, EndSeconds = 30 }, new() { Index = 1, AssetId = asset, Title = "Source chapter", StartSeconds = 30, EndSeconds = 90 }] }] };
+        snapshot = snapshot with
+        {
+            Experience = PlayerExperienceModes.Audiobook,
+            Queue = [snapshot.Queue[0] with
+            { MediaType = "Audiobooks", AudiobookWorkId = Guid.NewGuid(), Chapters = [new() { Index = 0, AssetId = asset, Title = "Source intro", StartSeconds = 0, EndSeconds = 30 }, new() { Index = 1, AssetId = asset, Title = "Source chapter", StartSeconds = 30, EndSeconds = 90 }] }]
+        };
         var bookmarks = 0;
         var cut = Render<PlaybackFullPlayer>(p => p.Add(x => x.Snapshot, snapshot).Add(x => x.Commands, new Sink()).Add(x => x.BookmarkRequested, _ => bookmarks++));
         Assert.Single(cut.FindAll("input[aria-label='Playback position']"));
@@ -291,10 +296,18 @@ public sealed class PlaybackFullPlayerTests : AsyncBunitContext
 
     private static Task Activate(IRenderedComponent<PlaybackFullPlayer> cut, PlaybackControlKey key) =>
         cut.Find($".playback-full__modes button[aria-label='{key}']").ClickAsync();
-    private static ListenPlaybackSnapshot Snapshot() => new() { ProfileId = Guid.NewGuid(), PlaybackRequestVersion = 11, CurrentIndex = 0,
-        CurrentTimeSeconds = 37, DurationSeconds = 180, PlaybackRate = 1.25, IsPlaying = false,
+    private static ListenPlaybackSnapshot Snapshot() => new()
+    {
+        ProfileId = Guid.NewGuid(),
+        PlaybackRequestVersion = 11,
+        CurrentIndex = 0,
+        CurrentTimeSeconds = 37,
+        DurationSeconds = 180,
+        PlaybackRate = 1.25,
+        IsPlaying = false,
         SleepTimerState = new() { Mode = AudiobookSleepTimerModes.Timer, DeadlineUtc = DateTimeOffset.UtcNow.AddMinutes(30), TimerGeneration = 8 },
-        Queue = [new() { WorkId = Guid.NewGuid(), AssetId = Guid.NewGuid(), MediaType = "Music", Title = "Current", Duration = "3:00" }, new() { WorkId = Guid.NewGuid(), AssetId = Guid.NewGuid(), MediaType = "Music", Title = "Upcoming" }] };
+        Queue = [new() { WorkId = Guid.NewGuid(), AssetId = Guid.NewGuid(), MediaType = "Music", Title = "Current", Duration = "3:00" }, new() { WorkId = Guid.NewGuid(), AssetId = Guid.NewGuid(), MediaType = "Music", Title = "Upcoming" }]
+    };
     private sealed class Sink : IPlaybackCommandSink, IPlaybackIdentityNavigationSink
     {
         public List<(ListenPlaybackSnapshot Snapshot, ListenPlaybackCommandDto Command)> Commands { get; } = [];

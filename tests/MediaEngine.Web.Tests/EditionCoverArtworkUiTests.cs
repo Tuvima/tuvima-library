@@ -26,7 +26,9 @@ public sealed class EditionCoverArtworkUiTests
         while (directory is not null)
         {
             if (Directory.Exists(Path.Combine(directory.FullName, "src", "MediaEngine.Web")))
+            {
                 return directory.FullName;
+            }
             directory = directory.Parent;
         }
 

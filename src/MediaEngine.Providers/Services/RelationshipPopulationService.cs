@@ -374,11 +374,11 @@ public sealed class RelationshipPopulationService : IRelationshipPopulationServi
         string claimKey,
         string configuredTargetType,
         string? sourceEntityType) => claimKey switch
-    {
-        "part_of_qid" when sourceEntityType is FictionalEntityType.Event or FictionalEntityType.Object => sourceEntityType,
-        "has_parts_qid" when sourceEntityType == FictionalEntityType.Object => FictionalEntityType.Object,
-        _ => configuredTargetType,
-    };
+        {
+            "part_of_qid" when sourceEntityType is FictionalEntityType.Event or FictionalEntityType.Object => sourceEntityType,
+            "has_parts_qid" when sourceEntityType == FictionalEntityType.Object => FictionalEntityType.Object,
+            _ => configuredTargetType,
+        };
 
     /// <summary>
     /// Ensures a fictional entity record exists for the given QID.

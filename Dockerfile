@@ -48,11 +48,14 @@ RUN dotnet restore src/MediaEngine.Admin/MediaEngine.Admin.csproj -a $TARGETARCH
 # Copy remaining source and config, then publish both projects.
 COPY src/ src/
 COPY config/ config/
+# Shared brand images are static web assets of the Dashboard (see MediaEngine.Web.csproj).
+COPY assets/images/ assets/images/
 
 RUN dotnet publish src/MediaEngine.Api/MediaEngine.Api.csproj \
     --configuration Release \
     --arch $TARGETARCH \
     --output /app/engine \
+    -p:TuvimaKeepAllRuntimeAssets=true \
     -p:TuvimaContainerBuild=true \
     --no-restore
 
@@ -60,16 +63,20 @@ RUN dotnet publish src/MediaEngine.Web/MediaEngine.Web.csproj \
     --configuration Release \
     --arch $TARGETARCH \
     --output /app/dashboard \
+    -p:TuvimaKeepAllRuntimeAssets=true \
     --no-restore
 
 RUN dotnet publish src/MediaEngine.Admin/MediaEngine.Admin.csproj \
     --configuration Release \
     --arch $TARGETARCH \
     --output /app/admin \
+    -p:TuvimaKeepAllRuntimeAssets=true \
     --no-restore
 
 # Some native-package build targets copy their complete RID catalog even during
-# a targeted publish. Keep only the selected Linux runtime tree in each image.
+# a targeted publish, which the runtime-output guard rejects. Publish with the
+# guard relaxed (TuvimaKeepAllRuntimeAssets) and keep only the selected Linux
+# runtime tree in each image here instead.
 RUN case "$TARGETARCH" in \
       amd64) target_rid="linux-x64" ;; \
       arm64) target_rid="linux-arm64" ;; \
@@ -99,17 +106,18 @@ RUN apt-get update \
       xz-utils \
  && rm -rf /var/lib/apt/lists/*
 
-# Use the same immutable GPL build family as the Windows installer. Checksums
-# are published on the upstream GitHub release and recorded in tools/ffmpeg/README.md.
+# Static GPL build from the FFmpeg 9.0 release line, taken from BtbN's rolling
+# "latest" release. Dated autobuild releases are pruned upstream, so a pinned URL
+# eventually returns 404; the rolling tag keeps the container build working at
+# the cost of an unpinned (non-reproducible) FFmpeg patch level.
 RUN case "$TARGETARCH" in \
-      amd64) ffmpeg_platform="linux64"; ffmpeg_sha="be5f44d1062386b2a9b4ed75fa1af03873e2bbc1ae82842ef4d479c8e05a76de" ;; \
-      arm64) ffmpeg_platform="linuxarm64"; ffmpeg_sha="1cb67f7fd3de30bf2ae28b7ab9727dc3a84f1aeef9f791b309023f9d7ac0aff5" ;; \
+      amd64) ffmpeg_platform="linux64" ;; \
+      arm64) ffmpeg_platform="linuxarm64" ;; \
       *) echo "Unsupported FFmpeg architecture: $TARGETARCH" >&2; exit 1 ;; \
     esac \
- && ffmpeg_archive="ffmpeg-n9.0.1-11-ge47273f4d9-${ffmpeg_platform}-gpl-9.0.tar.xz" \
- && ffmpeg_url="https://github.com/BtbN/FFmpeg-Builds/releases/download/autobuild-2026-08-28-17-08/${ffmpeg_archive}" \
+ && ffmpeg_archive="ffmpeg-n9.0-latest-${ffmpeg_platform}-gpl-9.0.tar.xz" \
+ && ffmpeg_url="https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/${ffmpeg_archive}" \
  && curl --fail --location --retry 3 "$ffmpeg_url" --output /tmp/tuvima-ffmpeg.tar.xz \
- && echo "$ffmpeg_sha  /tmp/tuvima-ffmpeg.tar.xz" | sha256sum --check --strict \
  && mkdir -p /tmp/tuvima-ffmpeg-extract /usr/share/licenses/tuvima-ffmpeg \
  && tar -xJf /tmp/tuvima-ffmpeg.tar.xz -C /tmp/tuvima-ffmpeg-extract \
  && install -m 0755 "$(find /tmp/tuvima-ffmpeg-extract -type f -path '*/bin/ffmpeg' -print -quit)" /usr/bin/ffmpeg \

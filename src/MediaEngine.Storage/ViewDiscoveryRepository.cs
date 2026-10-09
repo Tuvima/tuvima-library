@@ -351,14 +351,20 @@ public sealed class ViewDiscoveryRepository(IDatabaseConnection database) : IVie
     {
         ArgumentNullException.ThrowIfNull(query);
         if (string.IsNullOrWhiteSpace(query.PlaceKey) || query.PlaceKey.Length > 300)
+        {
             throw new ArgumentException("A valid place key is required.", nameof(query));
+        }
         if (query.Offset < 0 || query.Limit is < 1 or > 500)
+        {
             throw new ArgumentOutOfRangeException(nameof(query), "Place media paging is invalid.");
+        }
 
         var libraries = ValidateAtlas(query.AuthorizedLibraryIds, query.Limit, null, query.Year,
             query.MediaKind, query.From, query.To, "year");
         if (libraries.Length == 0 && !query.IncludeSharedLibraryAssets)
+        {
             return new ViewPlaceAssetDiscoveryPage(string.Empty, [], 0, false);
+        }
 
         var parameters = new DynamicParameters(new
         {
@@ -403,7 +409,10 @@ public sealed class ViewDiscoveryRepository(IDatabaseConnection database) : IVie
             """, parameters, cancellationToken: ct)).ToList();
         var total = rows.FirstOrDefault()?.TotalCount ?? 0;
         var hasMore = rows.Count > query.Limit;
-        if (hasMore) rows.RemoveAt(rows.Count - 1);
+        if (hasMore)
+        {
+            rows.RemoveAt(rows.Count - 1);
+        }
         return new ViewPlaceAssetDiscoveryPage(
             rows.FirstOrDefault()?.PlaceName ?? string.Empty,
             rows.Select(row => row.AssetId).ToList(),
@@ -556,20 +565,37 @@ public sealed class ViewDiscoveryRepository(IDatabaseConnection database) : IVie
         string? timelineResolution)
     {
         ArgumentNullException.ThrowIfNull(authorizedLibraryIds);
-        if (limit is < 1 or > 50000) throw new ArgumentOutOfRangeException(nameof(limit));
-        if (search?.Length > 200) throw new ArgumentOutOfRangeException(nameof(search));
-        if (year is < 1800 or > 9999) throw new ArgumentOutOfRangeException(nameof(year));
+        if (limit is < 1 or > 50000)
+        {
+            throw new ArgumentOutOfRangeException(nameof(limit));
+        }
+        if (search?.Length > 200)
+        {
+            throw new ArgumentOutOfRangeException(nameof(search));
+        }
+        if (year is < 1800 or > 9999)
+        {
+            throw new ArgumentOutOfRangeException(nameof(year));
+        }
         var normalizedKind = mediaKind?.Trim().ToLowerInvariant();
         if (!string.IsNullOrWhiteSpace(normalizedKind)
             && normalizedKind is not ("image" or "video"))
+        {
             throw new ArgumentException("Atlas media kind must be image or video.", nameof(mediaKind));
+        }
         if (from.HasValue && to.HasValue && from > to)
+        {
             throw new ArgumentException("Atlas date range is invalid.", nameof(from));
+        }
         var normalizedResolution = timelineResolution?.Trim().ToLowerInvariant();
         if (normalizedResolution is not ("year" or "month" or "day"))
+        {
             throw new ArgumentException("Atlas timeline resolution must be year, month, or day.", nameof(timelineResolution));
+        }
         if (authorizedLibraryIds.Any(id => id == Guid.Empty))
+        {
             throw new ArgumentException("Authorized library IDs cannot be empty.", nameof(authorizedLibraryIds));
+        }
         return authorizedLibraryIds.Distinct().ToArray();
     }
 
@@ -597,7 +623,9 @@ public sealed class ViewDiscoveryRepository(IDatabaseConnection database) : IVie
     private static void AddLibraries(DynamicParameters parameters, IReadOnlyList<Guid> libraries)
     {
         for (var index = 0; index < libraries.Count; index++)
+        {
             parameters.Add($"LibraryId{index}", GuidSql.ToBlob(libraries[index]), DbType.Binary);
+        }
     }
 
     private static string LibraryPredicate(string alias, int count) =>

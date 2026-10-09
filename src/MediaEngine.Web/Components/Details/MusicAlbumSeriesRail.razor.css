@@ -14,7 +14,7 @@
 
 .tl-music-album-series-rail h2 {
     margin: 0;
-    color: var(--tl-accent-primary, #a78bfa);
+    color: var(--tl-accent-primary, #8852FC);
     font-size: clamp(1.2rem, 1.35vw, 1.65rem);
 }
 

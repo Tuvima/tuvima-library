@@ -17,12 +17,10 @@ Get Tuvima Library running, create your administrator account, and open the Dash
 | --- | --- |
 | Docker host or Docker Desktop | [Docker Compose](../install/docker.md), the recommended starting path |
 | Synology, Unraid, TrueNAS SCALE, or QNAP | [Synology](../install/synology.md), [Unraid](../install/unraid.md), [TrueNAS](../install/truenas-scale.md), or [QNAP](../install/qnap.md) |
-| Windows installer | [Check availability](../install/windows.md); no published installer is available as of October 8, 2026 |
+| Windows 10 or 11 PC | [Windows installer](../install/windows.md) (Early Access) |
 | Development or source evaluation | [Run from source](../install/from-source.md) |
 
 ## Start with Docker
-
-Public access to the configured image has not been confirmed as of October 8, 2026. First [check image access](../install/docker.md#before-you-start). If a pull is unavailable, follow the [local source-build fallback](../install/docker.md#build-the-image-from-source), then return to account setup below.
 
 1. Install Docker with Compose.
 2. Download the maintained configuration in a new deployment folder:
@@ -50,7 +48,7 @@ Public access to the configured image has not been confirmed as of October 8, 20
    | `/backups` | Recovery archives |
    | `/transcode` | Prepared playback files |
 
-5. If the image access check passed, start Tuvima:
+5. Start Tuvima:
 
    ```bash
    docker compose config --quiet
@@ -60,6 +58,8 @@ Public access to the configured image has not been confirmed as of October 8, 20
    ```
 
 6. Open `http://SERVER-IP:5016/setup`. Use `localhost` only from the Docker host itself.
+
+If the image download is refused, [build the image from source](../install/docker.md#build-the-image-from-source) and continue with account setup below.
 
 Only the Dashboard is published. Leave Engine port `61495` internal.
 

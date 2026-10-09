@@ -209,7 +209,9 @@ public sealed class TextTrackEnrichmentWorker
                     var canAutoPrefer = kind != TextTrackKind.Lyrics || saved.TimingMode != "Line"
                         || candidate.DurationMatchScore is null or >= 0.8;
                     if (existingPreferred is null && canAutoPrefer)
+                    {
                         await _trackRepo.SetPreferredAsync(saved.Id, ct).ConfigureAwait(false);
+                    }
                     if (existingPreferred is null && kind == TextTrackKind.Subtitles
                         && _assetPaths.ShouldKeepPreferredSubtitlesLocal
                         && _textTrackExportService is not null)
@@ -438,7 +440,10 @@ public sealed class TextTrackEnrichmentWorker
         {
             string? ScopedBridge(Guid entityId, string key)
             {
-                if (!bridgeGroups.TryGetValue(entityId, out var entries)) return null;
+                if (!bridgeGroups.TryGetValue(entityId, out var entries))
+                {
+                    return null;
+                }
                 var distinct = entries.Where(entry => string.Equals(entry.IdType, key, StringComparison.OrdinalIgnoreCase))
                     .Select(entry => entry.IdValue.Trim()).Where(value => value.Length > 0)
                     .Distinct(StringComparer.OrdinalIgnoreCase).ToList();
@@ -450,7 +455,9 @@ public sealed class TextTrackEnrichmentWorker
                 var tmdb = ScopedBridge(lineage.WorkId, BridgeIdKeys.TmdbId);
                 var imdb = ScopedBridge(lineage.WorkId, BridgeIdKeys.ImdbId);
                 if (!string.IsNullOrWhiteSpace(tmdb) || !string.IsNullOrWhiteSpace(imdb))
+                {
                     subtitleContext = new SubtitleLookupContext(Movie: new MovieSubtitleIdentity(imdb, tmdb));
+                }
             }
             else if (mediaType == MediaType.TV)
             {

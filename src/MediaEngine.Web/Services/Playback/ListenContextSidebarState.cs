@@ -21,7 +21,10 @@ public sealed class ListenContextSidebarState : IDisposable
     {
         this.preferences = preferences;
         _orchestrator = orchestrator;
-        if (_orchestrator is not null) _orchestrator.OnProfileChanged += HandleProfileChanged;
+        if (_orchestrator is not null)
+        {
+            _orchestrator.OnProfileChanged += HandleProfileChanged;
+        }
     }
 
     public ContextSidebarLayoutDto For(PlaybackSessionController playback) => Layout(Context(playback));
@@ -38,11 +41,16 @@ public sealed class ListenContextSidebarState : IDisposable
             saved.Open = false;
             loaded[context] = saved;
         }
-        if (generation != Volatile.Read(ref _profileGeneration)) return;
+        if (generation != Volatile.Read(ref _profileGeneration))
+        {
+            return;
+        }
         foreach (var pair in loaded)
         {
             if (_contextVersions.GetValueOrDefault(pair.Key) == versions.GetValueOrDefault(pair.Key))
+            {
                 _layouts[pair.Key] = pair.Value;
+            }
         }
         _loaded = true;
         PersistenceMessage = null;
@@ -52,10 +60,15 @@ public sealed class ListenContextSidebarState : IDisposable
     public async Task TogglePanelAsync(PlaybackSessionController playback, string key)
     {
         var context = Context(playback);
-        if (!Allowed(context, key)) return;
+        if (!Allowed(context, key))
+        {
+            return;
+        }
         var layout = ContextSidebarPreferences.Copy(Layout(context));
         if (layout.Open && string.Equals(layout.ActivePanelKey, key, StringComparison.OrdinalIgnoreCase))
+        {
             layout.Open = false;
+        }
         else
         {
             layout.Open = true;
@@ -66,7 +79,10 @@ public sealed class ListenContextSidebarState : IDisposable
 
     public async Task OpenPanelAsync(string context, string key)
     {
-        if (!Allowed(context, key)) return;
+        if (!Allowed(context, key))
+        {
+            return;
+        }
         var layout = ContextSidebarPreferences.Copy(Layout(context));
         layout.Open = true;
         layout.ActivePanelKey = key;
@@ -90,7 +106,10 @@ public sealed class ListenContextSidebarState : IDisposable
 
     private ContextSidebarLayoutDto Layout(string context)
     {
-        if (_layouts.TryGetValue(context, out var layout)) return layout;
+        if (_layouts.TryGetValue(context, out var layout))
+        {
+            return layout;
+        }
         layout = ContextSidebarPreferences.Default(context);
         layout.Open = false;
         _layouts[context] = layout;
@@ -106,11 +125,20 @@ public sealed class ListenContextSidebarState : IDisposable
         _layouts[context] = ContextSidebarPreferences.Copy(layout);
         PersistenceMessage = null;
         Changed?.Invoke();
-        if (!_loaded) return true;
+        if (!_loaded)
+        {
+            return true;
+        }
         var saved = await preferences.SaveAsync(context, layout, ct).ConfigureAwait(false);
         if (generation != Volatile.Read(ref _profileGeneration)
-            || _contextVersions.GetValueOrDefault(context) != operation) return false;
-        if (!saved) PersistenceMessage = "The panel changed here but could not be saved to this profile.";
+            || _contextVersions.GetValueOrDefault(context) != operation)
+        {
+            return false;
+        }
+        if (!saved)
+        {
+            PersistenceMessage = "The panel changed here but could not be saved to this profile.";
+        }
         Changed?.Invoke();
         return saved;
     }
@@ -140,6 +168,9 @@ public sealed class ListenContextSidebarState : IDisposable
 
     public void Dispose()
     {
-        if (_orchestrator is not null) _orchestrator.OnProfileChanged -= HandleProfileChanged;
+        if (_orchestrator is not null)
+        {
+            _orchestrator.OnProfileChanged -= HandleProfileChanged;
+        }
     }
 }

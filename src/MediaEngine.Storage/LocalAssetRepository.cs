@@ -466,7 +466,10 @@ public sealed class LocalAssetRepository(IDatabaseConnection database) : ILocalA
             SearchExpression = searchExpression,
             query.TimelineEligibleOnly,
         });
-        if (query.WithoutLocation) parameters.Add("SearchExpression", null);
+        if (query.WithoutLocation)
+        {
+            parameters.Add("SearchExpression", null);
+        }
         parameters.AddDynamicParams(smartRule.Parameters);
         for (var index = 0; index < libraryIds.Length; index++)
         {
@@ -977,13 +980,18 @@ public sealed class LocalAssetRepository(IDatabaseConnection database) : ILocalA
 
     public Task ReplacePeopleAsync(Guid itemId, IReadOnlyCollection<string> people, CancellationToken ct = default)
     {
-        if (itemId == Guid.Empty) throw new ArgumentException("Item ID is required.", nameof(itemId));
+        if (itemId == Guid.Empty)
+        {
+            throw new ArgumentException("Item ID is required.", nameof(itemId));
+        }
         ArgumentNullException.ThrowIfNull(people);
         return database.ExecuteWriteAsync((connection, transaction, token) =>
         {
             token.ThrowIfCancellationRequested();
             if (connection.ExecuteScalar<long>("SELECT COUNT(*) FROM local_items WHERE id=@itemId;", new { itemId }, transaction) == 0)
+            {
                 throw new InvalidOperationException($"Local item '{itemId:D}' does not exist.");
+            }
             connection.Execute("""
                 DELETE FROM local_item_annotations
                  WHERE item_id=@itemId AND annotation_kind='person_name' AND source='user_assignment';
@@ -1008,7 +1016,10 @@ public sealed class LocalAssetRepository(IDatabaseConnection database) : ILocalA
         int limit,
         CancellationToken ct = default)
     {
-        if (profileId == Guid.Empty) throw new ArgumentException("Profile ID is required.", nameof(profileId));
+        if (profileId == Guid.Empty)
+        {
+            throw new ArgumentException("Profile ID is required.", nameof(profileId));
+        }
         var take = Math.Clamp(limit, 1, 100);
         var searchPattern = string.IsNullOrWhiteSpace(search) ? null : $"%{search.Trim()}%";
         using var connection = database.CreateConnection();
@@ -1036,9 +1047,15 @@ public sealed class LocalAssetRepository(IDatabaseConnection database) : ILocalA
 
     public Task<bool> UpdateDescriptionAsync(Guid itemId, string? description, CancellationToken ct = default)
     {
-        if (itemId == Guid.Empty) throw new ArgumentException("Item ID is required.", nameof(itemId));
+        if (itemId == Guid.Empty)
+        {
+            throw new ArgumentException("Item ID is required.", nameof(itemId));
+        }
         var normalized = string.IsNullOrWhiteSpace(description) ? null : description.Trim();
-        if (normalized?.Length > 4000) throw new ArgumentException("Description cannot exceed 4000 characters.", nameof(description));
+        if (normalized?.Length > 4000)
+        {
+            throw new ArgumentException("Description cannot exceed 4000 characters.", nameof(description));
+        }
         return database.ExecuteWriteAsync((connection, transaction, token) =>
         {
             token.ThrowIfCancellationRequested();
@@ -1047,7 +1064,10 @@ public sealed class LocalAssetRepository(IDatabaseConnection database) : ILocalA
                    SET description = @normalized, updated_at = @now
                  WHERE item_id = @itemId;
                 """, new { itemId, normalized, now = DateTimeOffset.UtcNow }, transaction) > 0;
-            if (changed) RebuildSearchDocument(connection, transaction, itemId);
+            if (changed)
+            {
+                RebuildSearchDocument(connection, transaction, itemId);
+            }
             return changed;
         }, ct);
     }
@@ -1058,9 +1078,14 @@ public sealed class LocalAssetRepository(IDatabaseConnection database) : ILocalA
         bool resetToEmbedded,
         CancellationToken ct = default)
     {
-        if (itemId == Guid.Empty) throw new ArgumentException("Item ID is required.", nameof(itemId));
+        if (itemId == Guid.Empty)
+        {
+            throw new ArgumentException("Item ID is required.", nameof(itemId));
+        }
         if (!resetToEmbedded && capturedAt is null)
+        {
             throw new ArgumentException("A captured date is required unless the embedded date is being restored.", nameof(capturedAt));
+        }
         return database.ExecuteWriteAsync((connection, transaction, token) =>
         {
             token.ThrowIfCancellationRequested();
@@ -1077,19 +1102,33 @@ public sealed class LocalAssetRepository(IDatabaseConnection database) : ILocalA
                 ResetToEmbedded = resetToEmbedded ? 1 : 0,
                 now = DateTimeOffset.UtcNow,
             }, transaction) > 0;
-            if (changed) RebuildSearchDocument(connection, transaction, itemId);
+            if (changed)
+            {
+                RebuildSearchDocument(connection, transaction, itemId);
+            }
             return changed;
         }, ct);
     }
 
     public Task<bool> UpdateLocationAsync(Guid itemId, LocalAssetLocationUpdate update, CancellationToken ct = default)
     {
-        if (itemId == Guid.Empty) throw new ArgumentException("Item ID is required.", nameof(itemId));
+        if (itemId == Guid.Empty)
+        {
+            throw new ArgumentException("Item ID is required.", nameof(itemId));
+        }
         ArgumentNullException.ThrowIfNull(update);
         if (!update.ResetToEmbedded && (update.Latitude.HasValue != update.Longitude.HasValue))
+        {
             throw new ArgumentException("Latitude and longitude must be supplied together.", nameof(update));
-        if (update.Latitude is < -90 or > 90) throw new ArgumentOutOfRangeException(nameof(update.Latitude));
-        if (update.Longitude is < -180 or > 180) throw new ArgumentOutOfRangeException(nameof(update.Longitude));
+        }
+        if (update.Latitude is < -90 or > 90)
+        {
+            throw new ArgumentOutOfRangeException(nameof(update.Latitude));
+        }
+        if (update.Longitude is < -180 or > 180)
+        {
+            throw new ArgumentOutOfRangeException(nameof(update.Longitude));
+        }
         return database.ExecuteWriteAsync((connection, transaction, token) =>
         {
             token.ThrowIfCancellationRequested();
@@ -1121,7 +1160,10 @@ public sealed class LocalAssetRepository(IDatabaseConnection database) : ILocalA
                 ResetToEmbedded = update.ResetToEmbedded ? 1 : 0,
                 now = DateTimeOffset.UtcNow,
             }, transaction) > 0;
-            if (changed) RebuildSearchDocument(connection, transaction, itemId);
+            if (changed)
+            {
+                RebuildSearchDocument(connection, transaction, itemId);
+            }
             return changed;
         }, ct);
     }

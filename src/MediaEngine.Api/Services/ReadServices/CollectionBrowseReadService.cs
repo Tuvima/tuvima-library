@@ -71,19 +71,21 @@ public sealed class CollectionBrowseReadService(
 
         var libraryWorkIds = new HashSet<Guid>();
         using (var conn = db.CreateConnection())
-        using (var cmd = conn.CreateCommand())
         {
-            cmd.CommandText = """
-                SELECT DISTINCT e.work_id
-                FROM editions e
-                INNER JOIN media_assets ma ON ma.edition_id = e.id
-                WHERE ma.file_path_root NOT LIKE '%/.data/staging/%'
-                  AND ma.file_path_root NOT LIKE '%\.data\staging\%'
-                """;
-            using var reader = await cmd.ExecuteReaderAsync(ct);
-            while (await reader.ReadAsync(ct))
+            using (var cmd = conn.CreateCommand())
             {
-                libraryWorkIds.Add(GuidSql.FromDb(reader.GetValue(0)));
+                cmd.CommandText = """
+                    SELECT DISTINCT e.work_id
+                    FROM editions e
+                    INNER JOIN media_assets ma ON ma.edition_id = e.id
+                    WHERE ma.file_path_root NOT LIKE '%/.data/staging/%'
+                      AND ma.file_path_root NOT LIKE '%\.data\staging\%'
+                    """;
+                using var reader = await cmd.ExecuteReaderAsync(ct);
+                while (await reader.ReadAsync(ct))
+                {
+                    libraryWorkIds.Add(GuidSql.FromDb(reader.GetValue(0)));
+                }
             }
         }
 

@@ -1,4 +1,3 @@
-using MediaEngine.Web.Services.Ui;
 using System.Net;
 using System.Reflection;
 using System.Text;
@@ -6,6 +5,7 @@ using MediaEngine.Contracts.Universe;
 using MediaEngine.Web.Components.MediaEditor;
 using MediaEngine.Web.Services.Editing;
 using MediaEngine.Web.Services.Integration;
+using MediaEngine.Web.Services.Ui;
 using Microsoft.Extensions.Logging.Abstractions;
 
 namespace MediaEngine.Web.Tests;

@@ -1,5 +1,5 @@
-using MediaEngine.Contracts.Display;
 using MediaEngine.Contracts.Details;
+using MediaEngine.Contracts.Display;
 using MediaEngine.Domain.Services;
 using MediaEngine.Web.Models.ViewDTOs;
 using MediaEngine.Web.Services.Branding;
@@ -375,7 +375,9 @@ public sealed class MediaTileComposerService
     private static string ResolveCardDetailsNavigationUrl(DisplayCardDto card)
     {
         if (card.Subject == DisplaySubjectKind.TvEpisode && card.EpisodeContext is { } episode)
+        {
             return TvEpisodeDetailRoute.Build(episode.ShowWorkId, episode.EpisodeWorkId, "watch");
+        }
 
         // Album cards may carry a track-resume action as well as their album action.
         // The card itself always opens the album detail; playback stays inside that surface.

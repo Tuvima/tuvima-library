@@ -1,5 +1,5 @@
-using MediaEngine.Api.Security;
 using MediaEngine.Api.Http;
+using MediaEngine.Api.Security;
 using MediaEngine.Api.Services;
 using MediaEngine.Contracts.Artwork;
 using MediaEngine.Domain.Authorization;

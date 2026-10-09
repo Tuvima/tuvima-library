@@ -1,7 +1,7 @@
-using MediaEngine.Web.Components.Shared;
 using Bunit;
 using MediaEngine.Contracts.Collections;
 using MediaEngine.Web.Components.Collections;
+using MediaEngine.Web.Components.Shared;
 using MediaEngine.Web.Services.Integration;
 using Microsoft.Extensions.DependencyInjection;
 

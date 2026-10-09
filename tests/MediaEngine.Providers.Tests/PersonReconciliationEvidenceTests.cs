@@ -83,13 +83,13 @@ public sealed class PersonReconciliationEvidenceTests
         IReadOnlyList<string> occupations,
         bool isGroup = false,
         IReadOnlyList<string>? notableWorks = null) => new()
-    {
-        Found = true,
-        Qid = qid,
-        CanonicalName = "Same Name",
-        Score = 1,
-        IsGroup = isGroup,
-        Occupations = occupations,
-        NotableWorks = notableWorks ?? [],
-    };
+        {
+            Found = true,
+            Qid = qid,
+            CanonicalName = "Same Name",
+            Score = 1,
+            IsGroup = isGroup,
+            Occupations = occupations,
+            NotableWorks = notableWorks ?? [],
+        };
 }

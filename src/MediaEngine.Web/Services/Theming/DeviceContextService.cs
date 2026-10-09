@@ -68,7 +68,10 @@ public sealed class DeviceContextService
         OnChanged?.Invoke();
 
         var resolved = await ResolveSettingsOrFallbackAsync(DeviceClass, profileId);
-        if (version != _settingsRequestVersion) return;
+        if (version != _settingsRequestVersion)
+        {
+            return;
+        }
 
         Settings = resolved ?? CreateFallbackSettings(DeviceClass);
         Settings.DeviceClass = DeviceClass;
@@ -81,7 +84,10 @@ public sealed class DeviceContextService
     public async Task SwitchDeviceAsync(string deviceClass, string? profileId = null)
     {
         var nextClass = NormalizeResponsiveDeviceClass(deviceClass);
-        if (string.Equals(DeviceClass, nextClass, StringComparison.OrdinalIgnoreCase)) return;
+        if (string.Equals(DeviceClass, nextClass, StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
 
         var version = ++_settingsRequestVersion;
         DeviceClass = nextClass;
@@ -91,7 +97,10 @@ public sealed class DeviceContextService
 
         var resolved = await ResolveSettingsOrFallbackAsync(nextClass, profileId);
         if (version != _settingsRequestVersion
-            || !string.Equals(DeviceClass, nextClass, StringComparison.OrdinalIgnoreCase)) return;
+            || !string.Equals(DeviceClass, nextClass, StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
 
         Settings = resolved ?? CreateFallbackSettings(nextClass);
         Settings.DeviceClass = nextClass;

@@ -11,10 +11,12 @@ public sealed class ProcessInstanceLeaseTests
         var leaseName = $"TuvimaLibrary.Tests.{Guid.NewGuid():N}";
 
         using (var first = ProcessInstanceLease.TryAcquire(leaseName))
-        using (var second = ProcessInstanceLease.TryAcquire(leaseName))
         {
-            Assert.True(first.IsAcquired);
-            Assert.False(second.IsAcquired);
+            using (var second = ProcessInstanceLease.TryAcquire(leaseName))
+            {
+                Assert.True(first.IsAcquired);
+                Assert.False(second.IsAcquired);
+            }
         }
 
         using var replacement = ProcessInstanceLease.TryAcquire(leaseName);

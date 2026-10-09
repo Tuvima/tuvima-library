@@ -33,7 +33,7 @@ final class CarPlaySceneDelegate: UIResponder, CPTemplateApplicationSceneDelegat
                 items: [CPInformationItem(title: "Pairing required", detail: "Connect and pair this iPhone before using CarPlay.")],
                 actions: []
             )
-            interfaceController?.setRootTemplate(unavailable, animated: true)
+            _ = try? await interfaceController?.setRootTemplate(unavailable, animated: true)
             return
         }
         let definitions = [
@@ -53,7 +53,7 @@ final class CarPlaySceneDelegate: UIResponder, CPTemplateApplicationSceneDelegat
             }
             return item
         }
-        interfaceController?.setRootTemplate(
+        _ = try? await interfaceController?.setRootTemplate(
             CPListTemplate(title: "Listen", sections: [CPListSection(items: items)]),
             animated: true
         )
@@ -89,7 +89,7 @@ final class CarPlaySceneDelegate: UIResponder, CPTemplateApplicationSceneDelegat
                 }
                 return item
             }
-            interfaceController?.pushTemplate(
+            _ = try? await interfaceController?.pushTemplate(
                 CPListTemplate(title: title, sections: [CPListSection(items: Array(items.prefix(100)))]),
                 animated: true
             )
@@ -97,7 +97,7 @@ final class CarPlaySceneDelegate: UIResponder, CPTemplateApplicationSceneDelegat
             let template = CPAlertTemplate(titleVariants: ["Tuvima could not load \(title)."], actions: [
                 CPAlertAction(title: "OK", style: .default) { _ in }
             ])
-            interfaceController?.presentTemplate(template, animated: true)
+            _ = try? await interfaceController?.presentTemplate(template, animated: true)
         }
     }
 }
