@@ -238,7 +238,7 @@
 [method] CreateSetupAdministratorAsync
   input request | default=required | shape=5c0cfeba122bf7ec9fb375d594fe272be8519df0ec9055912d53a0836e45b1e7
   input setupSession | default=required | shape=5f8e496050a6b44f36ce0029250d28a6669af25673d426cd41838f3f7808990c
-  response | shape=6c2ce7fffc6fa55835ad92ae45c3aa9e3d723a04db5bf533669f764606d63cf8
+  response | shape=41acd7b334ac2d5f1f0cfffbc820c39c9d7e0d1d5ba0130fc88659dd717a3dc8
 
 [method] CreateViewGalleryAsync
   input request | default=required | shape=f8fef3e79345b1ab8f38110dac61c43be25d016299e49e50bfe4dd5994b45460
@@ -4545,6 +4545,11 @@ property=seasonNumber | nullability=nullable | accessors=get,init | required=no 
 property=episodeNumber | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=b28ab3a0a6b029545a251283d742d4d55a1da8f0fab2bf889100c89ca82e6f33
 property=isMapped | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=5799371b53eca3a30e5c58a05a5fc21ebcff4b2ea3a11a74d123b45ada034677
 property=message | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=b7f71ed495bd93896e800be27ce47fe57bc5e91c260a23941824ad675096d219
+
+[shape] 41acd7b334ac2d5f1f0cfffbc820c39c9d7e0d1d5ba0130fc88659dd717a3dc8
+direction=read | kind=object | converter=default | number-handling=default | unmapped=default | polymorphism=none
+property=created | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=6c2ce7fffc6fa55835ad92ae45c3aa9e3d723a04db5bf533669f764606d63cf8
+property=code | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=b7f71ed495bd93896e800be27ce47fe57bc5e91c260a23941824ad675096d219
 
 [shape] 423a05cc987d3aff5ab79184dae8bc04c314bd915cb326f96486453ebd287c7e
 direction=read | kind=array | item=b321501dbf2eab96d4d678168f39c09e0480c6f860286c868f8ac7e6164f6576
