@@ -80,6 +80,7 @@ public static class TuvimaStorageServiceCollectionExtensions
         services.AddSingleton<IAccountRepository>(sp => sp.GetRequiredService<AccountRepository>());
         services.AddSingleton<IAccessRepository>(sp => sp.GetRequiredService<AccountRepository>());
         services.AddSingleton<IAccountAccessMutationRepository>(sp => sp.GetRequiredService<AccountRepository>());
+        services.AddSingleton<IHouseholdRepository, HouseholdRepository>();
         services.AddSingleton<IApplicationRepository, ApplicationRepository>();
         services.AddSingleton<IIdentityRepository, IdentityRepository>();
         services.AddSingleton<IAccountSignInMethodRepository, AccountSignInMethodRepository>();

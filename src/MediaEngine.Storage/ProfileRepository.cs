@@ -34,7 +34,8 @@ public sealed class ProfileRepository : IProfileRepository
                    avatar_image_path AS AvatarImagePath,
                    role         AS Role,
                    created_at   AS CreatedAt,
-                   navigation_config AS NavigationConfig
+                   navigation_config AS NavigationConfig,
+                   household_id AS HouseholdId
             FROM   profiles
             ORDER  BY created_at ASC;
             """).AsList();
@@ -55,7 +56,8 @@ public sealed class ProfileRepository : IProfileRepository
                    avatar_image_path AS AvatarImagePath,
                    role         AS Role,
                    created_at   AS CreatedAt,
-                   navigation_config AS NavigationConfig
+                   navigation_config AS NavigationConfig,
+                   household_id AS HouseholdId
             FROM   profiles
             WHERE  id = @id
             LIMIT  1;
@@ -100,6 +102,7 @@ public sealed class ProfileRepository : IProfileRepository
         public string Role { get; set; } = string.Empty;
         public string CreatedAt { get; set; } = string.Empty;
         public string? NavigationConfig { get; set; }
+        public Guid? HouseholdId { get; set; }
     }
 
     private static Profile MapRow(ProfileRow r) => new()
@@ -111,5 +114,6 @@ public sealed class ProfileRepository : IProfileRepository
         Role = Enum.Parse<ProfileRole>(r.Role),
         CreatedAt = DateTimeOffset.Parse(r.CreatedAt),
         NavigationConfig = r.NavigationConfig,
+        HouseholdId = r.HouseholdId,
     };
 }

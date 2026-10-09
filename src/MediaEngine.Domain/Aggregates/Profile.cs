@@ -48,4 +48,10 @@ public sealed class Profile
     /// The Engine stores it as-is; the Dashboard interprets the structure.
     /// </summary>
     public string? NavigationConfig { get; set; }
+
+    /// <summary>
+    /// The household this profile belongs to. A profile belongs to exactly one household. Only the seeded Owner
+    /// profile can be without one, and only until the first administrator account is created.
+    /// </summary>
+    public Guid? HouseholdId { get; set; }
 }

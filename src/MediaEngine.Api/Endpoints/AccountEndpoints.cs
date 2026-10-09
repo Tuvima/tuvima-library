@@ -318,7 +318,7 @@ public static class AccountEndpoints
         {
             var issued = await mutations.IssueInvitationAsync(await resolver.ResolveAsync(http, ct),
                 new IssueAccountInvitationCommand(request.Email, request.ProfileIds,
-                    request.DefaultProfileId), ct);
+                    request.DefaultProfileId, request.NewHouseholdPersonName), ct);
             return Results.Ok(new AccountInvitationResponse(
                 issued.AccountId, issued.PlaintextToken, issued.ExpiresAt));
         })).RequireAdministratorOrApplication(ApplicationPermissionIds.IdentityUsersWrite)
@@ -418,7 +418,7 @@ public static class AccountEndpoints
                 .Select(id => new AccountLibraryGrantDto(
                     id, libraryNames.GetValueOrDefault(id, "Unavailable library"), true)).ToList(),
             await MapGrants(account.Id, accounts, profiles, ct), account.CreatedAt, account.UpdatedAt,
-            lastActiveAt);
+            lastActiveAt, account.HouseholdId);
     }
 
     private static async Task<IReadOnlyList<AccountProfileGrantDto>> MapGrants(Guid accountId,
@@ -448,7 +448,7 @@ public static class AccountEndpoints
 
     private static ManagedProfileResponse MapProfile(MediaEngine.Domain.Aggregates.Profile profile) =>
         new(profile.Id, profile.DisplayName, profile.AvatarColor, profile.AvatarImagePath,
-            profile.CreatedAt);
+            profile.CreatedAt, profile.HouseholdId);
 
     private static ValueTask WriteAuditAsync(IAuthorizationAuditWriter audit, TimeProvider clock,
         RequestAuthority authority, string eventType, Guid loginId, CancellationToken ct) =>

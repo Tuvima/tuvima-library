@@ -197,6 +197,8 @@ public sealed class CreateAccountInvitationRequest
     [JsonPropertyName("email")] public string Email { get; init; } = string.Empty;
     [JsonPropertyName("profile_ids")] public IReadOnlyList<Guid> ProfileIds { get; init; } = [];
     [JsonPropertyName("default_profile_id")] public Guid? DefaultProfileId { get; init; }
+    /// <summary>Invite someone outside the household: they start a household of their own with this first person.</summary>
+    [JsonPropertyName("new_household_person_name")] public string? NewHouseholdPersonName { get; init; }
 }
 public sealed record AccountInvitationResponse(
     [property: JsonPropertyName("account_id")] Guid AccountId,

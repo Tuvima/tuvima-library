@@ -1559,6 +1559,12 @@ CREATE TABLE IF NOT EXISTS playback_segments (
     updated_at    TEXT NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS households (
+    id         BLOB NOT NULL PRIMARY KEY,
+    name       TEXT NOT NULL,
+    created_at TEXT NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS profiles (
     id           BLOB NOT NULL PRIMARY KEY,  -- UUID
     display_name TEXT NOT NULL,
@@ -1567,7 +1573,8 @@ CREATE TABLE IF NOT EXISTS profiles (
     role         TEXT NOT NULL DEFAULT 'RestrictedProfile'
                      CHECK (role IN ('Administrator', 'StandardUser', 'RestrictedProfile')),
     created_at   TEXT NOT NULL
-, navigation_config TEXT);
+, navigation_config TEXT
+, household_id BLOB REFERENCES households(id));
 
 CREATE TABLE IF NOT EXISTS accounts (
     id               BLOB NOT NULL PRIMARY KEY,
@@ -1577,7 +1584,8 @@ CREATE TABLE IF NOT EXISTS accounts (
     is_administrator INTEGER NOT NULL DEFAULT 0 CHECK (is_administrator IN (0, 1)),
     authorization_version INTEGER NOT NULL DEFAULT 1 CHECK (authorization_version > 0),
     created_at       TEXT NOT NULL,
-    updated_at       TEXT NOT NULL
+    updated_at       TEXT NOT NULL,
+    household_id     BLOB REFERENCES households(id)
 );
 CREATE UNIQUE INDEX IF NOT EXISTS ux_accounts_normalized_email
     ON accounts(normalized_email);

@@ -13,7 +13,8 @@ public sealed record AccountAccessResponse(
     [property: JsonPropertyName("profile_grants")] IReadOnlyList<AccountProfileGrantDto> ProfileGrants,
     [property: JsonPropertyName("created_at")] DateTimeOffset CreatedAt,
     [property: JsonPropertyName("updated_at")] DateTimeOffset UpdatedAt,
-    [property: JsonPropertyName("last_active_at")] DateTimeOffset? LastActiveAt);
+    [property: JsonPropertyName("last_active_at")] DateTimeOffset? LastActiveAt,
+    [property: JsonPropertyName("household_id")] Guid? HouseholdId = null);
 
 public sealed record AccountFeatureGrantDto(
     [property: JsonPropertyName("feature")] string Feature,
@@ -35,7 +36,8 @@ public sealed record ManagedProfileResponse(
     [property: JsonPropertyName("display_name")] string DisplayName,
     [property: JsonPropertyName("avatar_color")] string AvatarColor,
     [property: JsonPropertyName("avatar_path")] string? AvatarPath,
-    [property: JsonPropertyName("created_at")] DateTimeOffset CreatedAt);
+    [property: JsonPropertyName("created_at")] DateTimeOffset CreatedAt,
+    [property: JsonPropertyName("household_id")] Guid? HouseholdId = null);
 
 public sealed record CreateManagedProfileRequest(
     [property: JsonPropertyName("account_id")] Guid AccountId,

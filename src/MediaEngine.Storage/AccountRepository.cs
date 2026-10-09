@@ -24,16 +24,13 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
         return Task.FromResult<IReadOnlyList<Account>>(rows);
     }
 
-    public Task InsertAsync(Account account, CancellationToken ct = default)
-    {
-        ct.ThrowIfCancellationRequested();
-        using var conn = db.CreateConnection();
-        conn.Execute("""
-            INSERT INTO accounts (id, email, normalized_email, is_enabled, is_administrator, authorization_version, created_at, updated_at)
-            VALUES (@Id, @Email, @NormalizedEmail, @IsEnabled, @IsAdministrator, @AuthorizationVersion, @CreatedAt, @UpdatedAt);
-            """, Parameters(account));
-        return Task.CompletedTask;
-    }
+    public Task InsertAsync(Account account, CancellationToken ct = default) =>
+        db.ExecuteWriteAsync((conn, tx, token) =>
+        {
+            token.ThrowIfCancellationRequested();
+            account.HouseholdId = ResolveAccountHousehold(conn, tx, account, null, account.Email);
+            InsertAccount(conn, tx, account);
+        }, ct);
 
     public Task<bool> UpdateAsync(Account account, CancellationToken ct = default)
     {
@@ -52,6 +49,7 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
         return db.ExecuteWriteAsync((conn, transaction, token) =>
         {
             token.ThrowIfCancellationRequested();
+            JoinHousehold(conn, transaction, grant.AccountId, grant.ProfileId, grant.GrantedAt);
             if (grant.IsDefault)
             {
                 conn.Execute("UPDATE account_profile_grants SET is_default = 0 WHERE account_id = @accountId;",
@@ -139,7 +137,8 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
         SELECT id AS Id, email AS Email, normalized_email AS NormalizedEmail,
                is_enabled AS IsEnabled,
                is_administrator AS IsAdministrator, authorization_version AS AuthorizationVersion,
-               created_at AS CreatedAt, updated_at AS UpdatedAt
+               created_at AS CreatedAt, updated_at AS UpdatedAt,
+               household_id AS HouseholdId
         FROM accounts
         """;
 
@@ -153,6 +152,7 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
         account.AuthorizationVersion,
         CreatedAt = account.CreatedAt.ToString("O"),
         UpdatedAt = account.UpdatedAt.ToString("O"),
+        account.HouseholdId,
     };
 
     private static Account Map(AccountRow row) => new()
@@ -165,6 +165,7 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
         AuthorizationVersion = row.AuthorizationVersion,
         CreatedAt = DateTimeOffset.Parse(row.CreatedAt),
         UpdatedAt = DateTimeOffset.Parse(row.UpdatedAt),
+        HouseholdId = row.HouseholdId,
     };
 
     private sealed class AccountRow
@@ -177,6 +178,7 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
         public long AuthorizationVersion { get; set; }
         public string CreatedAt { get; set; } = string.Empty;
         public string UpdatedAt { get; set; } = string.Empty;
+        public Guid? HouseholdId { get; set; }
     }
     private sealed class InvitationRow { public Guid Id { get; set; } public Guid AccountId { get; set; } public string TokenHash { get; set; } = ""; public string CreatedAt { get; set; } = ""; public string ExpiresAt { get; set; } = ""; public string? ConsumedAt { get; set; } }
 
@@ -275,12 +277,19 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
                 throw new InvalidOperationException("The initial profile grant must be enabled and default.");
             }
 
+            // The account's household: the one it names, else the one its existing profile is in, else a new one.
+            var existingName = newProfile?.DisplayName ?? connection.QueryFirstOrDefault<string>(
+                "SELECT display_name FROM profiles WHERE id=@ProfileId;", initialGrant, transaction);
+            account.HouseholdId = ResolveAccountHousehold(
+                connection, transaction, account, newProfile is null ? initialGrant.ProfileId : null, existingName ?? account.Email);
             if (newProfile is not null)
             {
+                RequireRoom(connection, transaction, account.HouseholdId.Value);
+                newProfile.HouseholdId = account.HouseholdId;
                 connection.Execute("""
                     INSERT INTO profiles
-                        (id,display_name,avatar_color,avatar_image_path,role,created_at,navigation_config)
-                    VALUES(@Id,@DisplayName,@AvatarColor,@AvatarImagePath,@Role,@CreatedAt,@NavigationConfig);
+                        (id,display_name,avatar_color,avatar_image_path,role,created_at,navigation_config,household_id)
+                    VALUES(@Id,@DisplayName,@AvatarColor,@AvatarImagePath,@Role,@CreatedAt,@NavigationConfig,@HouseholdId);
                     """, new
                 {
                     newProfile.Id,
@@ -290,6 +299,7 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
                     Role = newProfile.Role.ToString(),
                     CreatedAt = Iso(newProfile.CreatedAt),
                     newProfile.NavigationConfig,
+                    newProfile.HouseholdId,
                 }, transaction);
             }
             else if (connection.ExecuteScalar<int>("SELECT COUNT(*) FROM profiles WHERE id=@ProfileId;",
@@ -306,7 +316,8 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
         Account account,
         IReadOnlyList<AccountProfileGrant> grants,
         AccountInvitation invitation,
-        CancellationToken ct = default) =>
+        CancellationToken ct = default,
+        Profile? newProfile = null) =>
         db.ExecuteWriteAsync((connection, transaction, token) =>
         {
             token.ThrowIfCancellationRequested();
@@ -319,6 +330,32 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
             if (invitation.AccountId != account.Id || string.IsNullOrWhiteSpace(invitation.TokenHash))
             {
                 throw new InvalidOperationException("Invitation identity is invalid.");
+            }
+
+            if (newProfile is not null && (grants.Count != 1 || grants[0].ProfileId != newProfile.Id))
+            {
+                throw new InvalidOperationException("A new person's invitation must open exactly that person.");
+            }
+
+            // Someone outside the household starts a household of their own. Existing people keep their household.
+            var profileHouseholds = new List<Guid>();
+            if (newProfile is null)
+            {
+                profileHouseholds.AddRange(grants
+                    .Select(grant => HouseholdOfProfile(connection, transaction, grant.ProfileId))
+                    .Where(household => household is not null).Select(household => household!.Value).Distinct());
+            }
+            if (profileHouseholds.Count > 1)
+            {
+                throw new InvalidOperationException(CrossHouseholdMessage);
+            }
+
+            account.HouseholdId ??= profileHouseholds.Count == 1
+                ? profileHouseholds[0]
+                : CreateHousehold(connection, transaction, newProfile?.DisplayName ?? account.Email, account.CreatedAt);
+            if (newProfile is not null)
+            {
+                InsertProfileRow(connection, transaction, newProfile, account.HouseholdId.Value);
             }
 
             InsertAccount(connection, transaction, account);
@@ -357,7 +394,7 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
             targetGrant, transaction);
         if (grantCount >= 8)
         {
-            throw new InvalidOperationException("An account can have at most eight profile grants.");
+            throw new InvalidOperationException(Household.FullMessage);
         }
 
         if (!targetGrant.IsDefault && grantCount == 0)
@@ -365,19 +402,13 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
             throw new InvalidOperationException("The first profile grant must be the default.");
         }
 
-        connection.Execute("""
-            INSERT INTO profiles(id,display_name,avatar_color,avatar_image_path,role,created_at,navigation_config)
-            VALUES(@Id,@DisplayName,@AvatarColor,@AvatarImagePath,@Role,@CreatedAt,@NavigationConfig);
-            """, new
-        {
-            profile.Id,
-            profile.DisplayName,
-            profile.AvatarColor,
-            profile.AvatarImagePath,
-            Role = profile.Role.ToString(),
-            CreatedAt = Iso(profile.CreatedAt),
-            profile.NavigationConfig,
-        }, transaction);
+        // The new person joins the account's household; a household holds up to eight people.
+        var householdId = HouseholdOfAccount(connection, transaction, targetGrant.AccountId)
+            ?? CreateHousehold(connection, transaction, null, profile.CreatedAt);
+        connection.Execute("UPDATE accounts SET household_id=@householdId WHERE id=@AccountId AND household_id IS NULL;",
+            new { householdId, targetGrant.AccountId }, transaction);
+        RequireRoom(connection, transaction, householdId);
+        InsertProfileRow(connection, transaction, profile, householdId);
         if (targetGrant.IsDefault)
         {
             connection.Execute("""
@@ -474,7 +505,7 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
                 grant, transaction);
             if (prior is null && count >= 8)
             {
-                throw new InvalidOperationException("An account can have at most eight profile grants.");
+                throw new InvalidOperationException(Household.FullMessage);
             }
 
             if (grant.IsDefault && !grant.IsEnabled)
@@ -652,8 +683,14 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
             "DELETE FROM grant_admin_unlocks WHERE session_id=@sessionId;",
             new { sessionId }, transaction), ct);
 
-    private static void InsertAccount(System.Data.IDbConnection c, System.Data.IDbTransaction tx, Account a) => c.Execute("INSERT INTO accounts(id,email,normalized_email,is_enabled,is_administrator,authorization_version,created_at,updated_at) VALUES(@Id,@Email,@NormalizedEmail,@IsEnabled,@IsAdministrator,@AuthorizationVersion,@CreatedAt,@UpdatedAt);", Parameters(a), tx);
-    private static void InsertGrant(System.Data.IDbConnection c, System.Data.IDbTransaction tx, AccountProfileGrant g) => c.Execute("INSERT INTO account_profile_grants(account_id,profile_id,is_default,is_enabled,admin_enabled,authorization_version,granted_at) VALUES(@AccountId,@ProfileId,@IsDefault,@IsEnabled,@AdminEnabled,@AuthorizationVersion,@GrantedAt) ON CONFLICT(account_id,profile_id) DO UPDATE SET is_default=excluded.is_default,is_enabled=excluded.is_enabled,admin_enabled=excluded.admin_enabled,authorization_version=account_profile_grants.authorization_version+1;", new { g.AccountId, g.ProfileId, IsDefault = g.IsDefault ? 1 : 0, IsEnabled = g.IsEnabled ? 1 : 0, AdminEnabled = g.AdminEnabled ? 1 : 0, g.AuthorizationVersion, GrantedAt = Iso(g.GrantedAt) }, tx);
+    private static void InsertAccount(System.Data.IDbConnection c, System.Data.IDbTransaction tx, Account a) => c.Execute("INSERT INTO accounts(id,email,normalized_email,is_enabled,is_administrator,authorization_version,created_at,updated_at,household_id) VALUES(@Id,@Email,@NormalizedEmail,@IsEnabled,@IsAdministrator,@AuthorizationVersion,@CreatedAt,@UpdatedAt,@HouseholdId);", Parameters(a), tx);
+    private static void InsertGrant(System.Data.IDbConnection c, System.Data.IDbTransaction tx, AccountProfileGrant g)
+    {
+        JoinHousehold(c, tx, g.AccountId, g.ProfileId, g.GrantedAt);
+        InsertGrantRow(c, tx, g);
+    }
+
+    private static void InsertGrantRow(System.Data.IDbConnection c, System.Data.IDbTransaction tx, AccountProfileGrant g) => c.Execute("INSERT INTO account_profile_grants(account_id,profile_id,is_default,is_enabled,admin_enabled,authorization_version,granted_at) VALUES(@AccountId,@ProfileId,@IsDefault,@IsEnabled,@AdminEnabled,@AuthorizationVersion,@GrantedAt) ON CONFLICT(account_id,profile_id) DO UPDATE SET is_default=excluded.is_default,is_enabled=excluded.is_enabled,admin_enabled=excluded.admin_enabled,authorization_version=account_profile_grants.authorization_version+1;", new { g.AccountId, g.ProfileId, IsDefault = g.IsDefault ? 1 : 0, IsEnabled = g.IsEnabled ? 1 : 0, AdminEnabled = g.AdminEnabled ? 1 : 0, g.AuthorizationVersion, GrantedAt = Iso(g.GrantedAt) }, tx);
     private static void ReplaceAccess(System.Data.IDbConnection c, System.Data.IDbTransaction tx, Guid accountId, IReadOnlySet<AccountFeatureId> features, IReadOnlySet<Guid> libraries, DateTimeOffset at)
     {
         c.Execute("DELETE FROM account_feature_grants WHERE account_id=@accountId;DELETE FROM account_library_grants WHERE account_id=@accountId;", new { accountId }, tx); foreach (var f in features)
@@ -711,6 +748,107 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
                 OR EXISTS(SELECT 1 FROM account_external_logins e WHERE e.account_id=a.id)
               );
             """, new { accountId }, transaction) > 0;
+    private static void InsertProfileRow(
+        System.Data.IDbConnection connection, System.Data.IDbTransaction transaction, Profile profile, Guid householdId)
+    {
+        profile.HouseholdId = householdId;
+        connection.Execute("""
+            INSERT INTO profiles(id,display_name,avatar_color,avatar_image_path,role,created_at,navigation_config,household_id)
+            VALUES(@Id,@DisplayName,@AvatarColor,@AvatarImagePath,@Role,@CreatedAt,@NavigationConfig,@HouseholdId);
+            """, new
+        {
+            profile.Id,
+            profile.DisplayName,
+            profile.AvatarColor,
+            profile.AvatarImagePath,
+            Role = profile.Role.ToString(),
+            CreatedAt = Iso(profile.CreatedAt),
+            profile.NavigationConfig,
+            profile.HouseholdId,
+        }, transaction);
+    }
+
+    private const string CrossHouseholdMessage = "A sign-in can only open people from its own household.";
+
+    private static Guid CreateHousehold(System.Data.IDbConnection c, System.Data.IDbTransaction tx, string? name, DateTimeOffset at)
+    {
+        var id = Guid.NewGuid();
+        c.Execute("INSERT INTO households(id,name,created_at) VALUES(@id,@name,@at);",
+            new { id, name = Household.DefaultNameFor(name), at = Iso(at) }, tx);
+        return id;
+    }
+
+    private static Guid? HouseholdOfAccount(System.Data.IDbConnection c, System.Data.IDbTransaction tx, Guid accountId) =>
+        c.QueryFirstOrDefault<Guid?>("SELECT household_id FROM accounts WHERE id=@accountId;", new { accountId }, tx);
+
+    private static Guid? HouseholdOfProfile(System.Data.IDbConnection c, System.Data.IDbTransaction tx, Guid profileId) =>
+        c.QueryFirstOrDefault<Guid?>("SELECT household_id FROM profiles WHERE id=@profileId;", new { profileId }, tx);
+
+    private static void RequireRoom(System.Data.IDbConnection c, System.Data.IDbTransaction tx, Guid householdId)
+    {
+        if (c.ExecuteScalar<int>("SELECT COUNT(*) FROM profiles WHERE household_id=@householdId;", new { householdId }, tx) >= Household.MaximumProfiles)
+        {
+            throw new InvalidOperationException(Household.FullMessage);
+        }
+    }
+
+    /// <summary>
+    /// The household a new account belongs to: the one it already names, else the one of the profile it is opening
+    /// (<paramref name="profileId"/>), else a new household named after <paramref name="name"/>.
+    /// </summary>
+    private static Guid ResolveAccountHousehold(
+        System.Data.IDbConnection c, System.Data.IDbTransaction tx, Account account, Guid? profileId, string? name)
+    {
+        if (account.HouseholdId is { } named)
+        {
+            if (c.ExecuteScalar<int>("SELECT COUNT(*) FROM households WHERE id=@named;", new { named }, tx) == 0)
+            {
+                throw new KeyNotFoundException("Household not found.");
+            }
+
+            return named;
+        }
+
+        var fromProfile = profileId is { } p ? HouseholdOfProfile(c, tx, p) : null;
+        return fromProfile ?? CreateHousehold(c, tx, name, account.CreatedAt);
+    }
+
+    /// <summary>
+    /// Keeps an account and a profile in one household. A profile without a household (only the seeded Owner,
+    /// before the first administrator exists) joins the account's household, and counts towards its limit of
+    /// eight. Two different households are refused.
+    /// </summary>
+    private static void JoinHousehold(
+        System.Data.IDbConnection c, System.Data.IDbTransaction tx, Guid accountId, Guid profileId, DateTimeOffset at)
+    {
+        var accountHousehold = HouseholdOfAccount(c, tx, accountId);
+        var profileHousehold = HouseholdOfProfile(c, tx, profileId);
+        if (accountHousehold is { } a && profileHousehold is { } p)
+        {
+            if (a != p)
+            {
+                throw new InvalidOperationException(CrossHouseholdMessage);
+            }
+
+            return;
+        }
+
+        if (accountHousehold is null && profileHousehold is null)
+        {
+            var created = CreateHousehold(c, tx, null, at);
+            c.Execute("UPDATE accounts SET household_id=@created WHERE id=@accountId;", new { created, accountId }, tx);
+            c.Execute("UPDATE profiles SET household_id=@created WHERE id=@profileId;", new { created, profileId }, tx);
+        }
+        else if (accountHousehold is null)
+        {
+            c.Execute("UPDATE accounts SET household_id=@profileHousehold WHERE id=@accountId;", new { profileHousehold, accountId }, tx);
+        }
+        else
+        {
+            RequireRoom(c, tx, accountHousehold.Value);
+            c.Execute("UPDATE profiles SET household_id=@accountHousehold WHERE id=@profileId;", new { accountHousehold, profileId }, tx);
+        }
+    }
     private const string GrantSelect = "SELECT account_id AS AccountId,profile_id AS ProfileId,is_default AS IsDefault,is_enabled AS IsEnabled,admin_enabled AS AdminEnabled,authorization_version AS AuthorizationVersion,granted_at AS GrantedAt FROM account_profile_grants";
     private static AccountProfileGrant MapGrant(GrantRow r) => new() { AccountId = r.AccountId, ProfileId = r.ProfileId, IsDefault = r.IsDefault, IsEnabled = r.IsEnabled, AdminEnabled = r.AdminEnabled, AuthorizationVersion = r.AuthorizationVersion, GrantedAt = ParseRequired(r.GrantedAt) };
     private static GrantAdminProtection MapProtection(ProtectionRow r) => new() { AccountId = r.AccountId, ProfileId = r.ProfileId, IsEnabled = r.IsEnabled, UnlockMode = r.UnlockMode, UnlockMinutes = r.UnlockMinutes, PinHash = r.PinHash, HashScheme = r.HashScheme, FailedAttemptCount = r.FailedAttemptCount, LockedUntil = Parse(r.LockedUntil), ProtectionVersion = r.ProtectionVersion, UpdatedAt = ParseRequired(r.UpdatedAt) };

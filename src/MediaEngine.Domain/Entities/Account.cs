@@ -13,6 +13,12 @@ public sealed class Account
     public long AuthorizationVersion { get; set; } = 1;
     public DateTimeOffset CreatedAt { get; set; }
     public DateTimeOffset UpdatedAt { get; set; }
+
+    /// <summary>
+    /// The household this account belongs to. <see langword="null"/> on a new account means "start a new household
+    /// for it"; the data store fills it in when the account is saved.
+    /// </summary>
+    public Guid? HouseholdId { get; set; }
 }
 
 public sealed class AccountProfileGrant

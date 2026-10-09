@@ -67,6 +67,10 @@ Follow-up metadata work after basic identity is known, such as artwork, people, 
 
 ## H
 
+### Household
+
+The people who live together and the sign-ins that open them. A household holds up to 8 people (profiles), and each sign-in opens only people from its own household. The first household is created when the owner finishes setup. Someone invited from outside starts a household of their own.
+
 ### Hydration
 
 The identity enrichment process after ingestion. Retail providers gather practical matches and bridge IDs; Wikidata resolution uses those IDs to find canonical identity when possible.

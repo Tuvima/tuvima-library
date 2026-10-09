@@ -551,6 +551,7 @@ MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.Accoun
   CreatedAt: System.DateTimeOffset | nullability=not-null | accessors=get,init
   UpdatedAt: System.DateTimeOffset | nullability=not-null | accessors=get,init
   LastActiveAt: System.DateTimeOffset? | nullability=nullable | accessors=get,init
+  HouseholdId: System.Guid? | nullability=nullable | accessors=get,init
 
 MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.AccountExternalLoginDto
   Id: System.Guid | nullability=not-null | accessors=get,init
@@ -841,6 +842,7 @@ MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.Create
   Email: System.String | nullability=not-null | accessors=get,init
   ProfileIds: System.Collections.Generic.IReadOnlyList<System.Guid> | nullability=not-null | accessors=get,init
   DefaultProfileId: System.Guid? | nullability=nullable | accessors=get,init
+  NewHouseholdPersonName: System.String | nullability=nullable | accessors=get,init
 
 MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.CreateAccountRequest
   Email: System.String | nullability=nullable | accessors=get,init
@@ -977,6 +979,7 @@ MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.Manage
   AvatarColor: System.String | nullability=not-null | accessors=get,init
   AvatarPath: System.String | nullability=nullable | accessors=get,init
   CreatedAt: System.DateTimeOffset | nullability=not-null | accessors=get,init
+  HouseholdId: System.Guid? | nullability=nullable | accessors=get,init
 
 MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.NewAccountProfileRequest
   DisplayName: System.String | nullability=not-null | accessors=get,init
