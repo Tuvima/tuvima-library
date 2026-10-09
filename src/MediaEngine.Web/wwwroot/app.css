@@ -3858,3 +3858,18 @@ input[type="reset"],
     border-radius: 0.5rem;
     background: #fff;
 }
+
+/* Network > Remote Access: the plain-English checklist next to "Who can connect". */
+.network-checklist-title { margin: 16px 0 8px; font-size: var(--tl-font-size-sm); }
+.network-checklist { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.network-checklist__item { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 12px; align-items: start; padding: 10px 12px; border: 1px solid var(--tl-border-subtle); border-radius: var(--tl-radius-md, 10px); }
+.network-checklist__item.is-blocked { border-color: var(--tl-palette-warning); }
+.network-checklist__state { font-size: var(--tl-font-size-xs); font-weight: 600; white-space: nowrap; }
+.network-checklist__item.is-passed .network-checklist__state { color: var(--tl-status-success); }
+.network-checklist__item.is-blocked .network-checklist__state { color: var(--tl-palette-warning); }
+.network-checklist__text { display: grid; gap: 2px; min-width: 0; overflow-wrap: anywhere; }
+.network-checklist__text small { color: var(--tl-text-muted); }
+.network-checklist__fix { white-space: nowrap; }
+@media (max-width: 640px) {
+    .network-checklist__item { grid-template-columns: 1fr; gap: 4px; }
+}

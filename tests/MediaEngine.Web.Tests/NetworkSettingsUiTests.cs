@@ -138,6 +138,65 @@ public sealed class NetworkSettingsUiTests
         Assert.Contains("tuvima.example.ts.net", options.AllowedHosts);
     }
 
+    [Fact]
+    public void WhoCanConnectOffersThreePlainChoicesAndAnywhereWaitsForTheChecklist()
+    {
+        var remote = Read(@"src/MediaEngine.Web/Components/Settings/RemoteAccessSettingsPanel.razor");
+
+        Assert.Contains("Only a browser on this computer.", remote, StringComparison.Ordinal);
+        Assert.Contains("Devices on your home Wi-Fi or network.", remote, StringComparison.Ordinal);
+        Assert.Contains("Also from the internet, through a secure address.", remote, StringComparison.Ordinal);
+        Assert.Contains("!AnywhereReady", remote, StringComparison.Ordinal);
+        Assert.Contains("Disabled=\"@(disabled && Settings.WhoCanConnect != value)\"", remote, StringComparison.Ordinal);
+        Assert.Contains("Fix: @item.FixLabel", remote, StringComparison.Ordinal);
+        Assert.Contains("Test remote access", remote, StringComparison.Ordinal);
+        Assert.Contains("ThisComputerRequests.SecureAccountFirstCode", remote, StringComparison.Ordinal);
+        Assert.DoesNotContain("Security Check", remote, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void RemoteAccessHasNoSecondOnOffSwitchAndOverviewShowsWhoCanConnect()
+    {
+        var advanced = Read(@"src/MediaEngine.Web/Components/Settings/AdvancedNetworkSettingsPanel.razor");
+        var overview = Read(@"src/MediaEngine.Web/Components/Settings/NetworkOverviewPanel.razor");
+
+        Assert.DoesNotContain("Enable direct remote access", advanced, StringComparison.Ordinal);
+        Assert.DoesNotContain("Settings.Remote.PublicHostname", advanced, StringComparison.Ordinal);
+        Assert.Contains("WhoCanConnectSummary", overview, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ChecklistUsesPlainLabelsAndFixLinks()
+    {
+        var readiness = new MediaEngine.Contracts.Settings.RemoteAccessReadinessDto
+        {
+            Checks =
+            [
+                new() { Key = "authentication", Status = "failed", Detail = "Save recovery codes for an administrator before opening Tuvima to the internet." },
+                new() { Key = "public-address", Status = "failed", Detail = "Set the public address." },
+                new() { Key = "https-endpoint", Status = "passed", Detail = "Verified." },
+            ],
+        };
+
+        var items = RemoteAccessChecklist.Build(readiness);
+
+        Assert.Equal(["An administrator can sign in", "Recovery codes saved", "Public address set", "Secure connection"], items.Select(i => i.Label));
+        Assert.True(items[0].Passed);
+        Assert.False(items[1].Passed);
+        Assert.Equal(RemoteAccessChecklist.AccountHref, items[1].FixHref);
+        Assert.Equal(RemoteAccessChecklist.PublicAddressHref, items[2].FixHref);
+        Assert.True(items[3].Passed);
+
+        var noAdmin = new MediaEngine.Contracts.Settings.RemoteAccessReadinessDto
+        {
+            Checks = [new() { Key = "authentication", Status = "failed", Detail = "No administrator can sign in yet. Add a password or passkey to an administrator account." }],
+        };
+        var noAdminItems = RemoteAccessChecklist.Build(noAdmin);
+        Assert.False(noAdminItems[0].Passed);
+        Assert.Equal(RemoteAccessChecklist.UsersHref, noAdminItems[0].FixHref);
+        Assert.Equal("This computer only", RemoteAccessChecklist.WhoCanConnectSummary("this_computer"));
+    }
+
     private static string Read(string relativePath) => File.ReadAllText(
         Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", relativePath)));
 }
