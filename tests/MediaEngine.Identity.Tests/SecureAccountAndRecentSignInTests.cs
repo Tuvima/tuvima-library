@@ -1,6 +1,7 @@
 using MediaEngine.Domain.Authorization;
 using MediaEngine.Domain.Configuration;
 using MediaEngine.Domain.Entities;
+using MediaEngine.Identity.Contracts;
 using MediaEngine.Storage;
 using Microsoft.AspNetCore.Identity;
 
