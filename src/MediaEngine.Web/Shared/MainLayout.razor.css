@@ -661,12 +661,9 @@
 /* Room for the "This computer only" banner: the banner is pinned to the top, so the whole shell moves down by its height. */
 .playback-app-frame--with-banner {
     --tl-this-computer-banner-height: 2.5rem;
-    padding-top: calc(var(--tl-this-computer-banner-height) + env(safe-area-inset-top, 0px));
+    --tl-this-computer-banner-offset: calc(var(--tl-this-computer-banner-height) + env(safe-area-inset-top, 0px));
+    padding-top: var(--tl-this-computer-banner-offset);
     scroll-padding-top: calc(var(--tl-this-computer-banner-height) + env(safe-area-inset-top, 0px));
-}
-
-.playback-app-frame--with-banner ::deep .layout-shell__engine-banner {
-    top: calc(56px + var(--tl-this-computer-banner-height) + env(safe-area-inset-top, 0px));
 }
 
 @media (max-width: 40rem) {
