@@ -7,6 +7,20 @@ public sealed class NativeMediaRuntimeTests
     [Fact]
     public void SelectedNativeRuntime_ParsesWaveAudio()
     {
+        if (OperatingSystem.IsLinux())
+        {
+            // MediaInfo.Core.Native has no generic linux-x64 asset: it ships only distro-named builds
+            // (ubuntu.22.04-x64, debian-x64, ...), which the .NET host loads only when its own RID names
+            // that exact distro. Portable Linux runtimes report linux-x64, so parsing cannot be exercised
+            // here; instead prove the build output still carries those libraries (the runtime filter in
+            // Directory.Build.targets once dropped them, leaving nothing to load on any distro).
+            var libraries = Directory.GetFiles(
+                Path.Combine(AppContext.BaseDirectory, "runtimes"), "libmediainfo.so", SearchOption.AllDirectories);
+            Assert.NotEmpty(libraries);
+            Assert.Contains(libraries, path => path.Contains("debian-x64", StringComparison.Ordinal));
+            return;
+        }
+
         // Real parsing catches missing native libraries and their dependencies;
         // the wrapper can otherwise return empty metadata without throwing.
         using var stream = new MemoryStream();
