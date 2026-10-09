@@ -290,7 +290,7 @@ builder.Services.AddScoped<EngineApiClient>(services => new EngineApiClient(
 {
     SetupAttemptLimiter = services.GetService<SignInAttemptLimiter>(),
     SetupHttpContextAccessor = services.GetService<IHttpContextAccessor>(),
-}));
+}});
 builder.Services.AddScoped<IEngineApiClient>(services => services.GetRequiredService<EngineApiClient>());
 builder.Services.AddScoped<EngineApiFailureState>();
 builder.Services.AddHttpClient("EngineViewMedia", ConfigureEngineClient)
