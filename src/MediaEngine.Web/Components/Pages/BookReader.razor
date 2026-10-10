@@ -252,6 +252,10 @@
     {
         if (!_disposing && !_disposed && _state == "ready")
         {
+            // Nothing more to save while the error screen is up; Try again saves the place first and starts over.
+            _saveTimer?.Dispose();
+            _saveTimer = null;
+            _reading.Stop();
             ShowError(code, message);
         }
 

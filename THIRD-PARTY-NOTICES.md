@@ -27,7 +27,7 @@ QRCoder 1.6.0 draws the QR code that Users & Access shows with an invitation lin
 
 ## foliate-js (book and comic reader)
 
-The in-browser book reader uses a pinned, unmodified copy of foliate-js (commit `78914aef`) under `src/MediaEngine.Web/wwwroot/lib/foliate-js/`, to open EPUB and comic (CBZ) files and keep standard reading positions. Copyright (c) 2022 John Factotum, MIT License (`src/MediaEngine.Web/wwwroot/lib/foliate-js/LICENSE`). It bundles zip.js (@zip.js/zip.js), copyright (c) 2022 Gildas Lormeau, BSD 3-Clause License, retained in `licenses/zip.js-BSD-3-Clause.txt`. Project: <https://github.com/johnfactotum/foliate-js>.
+The in-browser book reader uses a pinned copy of foliate-js (commit `78914aef`, with one documented one-line safety patch per frame file; see its `PINNED.md`) under `src/MediaEngine.Web/wwwroot/lib/foliate-js/`, to open EPUB and comic (CBZ) files and keep standard reading positions. Copyright (c) 2022 John Factotum, MIT License (`src/MediaEngine.Web/wwwroot/lib/foliate-js/LICENSE`). It bundles zip.js (@zip.js/zip.js), copyright (c) 2022 Gildas Lormeau, BSD 3-Clause License, retained in `licenses/zip.js-BSD-3-Clause.txt`. Project: <https://github.com/johnfactotum/foliate-js>.
 
 ## SecLists common-password list (password rules)
 

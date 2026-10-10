@@ -60,24 +60,27 @@ async function withBook(contextOptions, options, body) {
     }
 }
 
-const imageLoads = (frame, selector) => frame.evaluate(async selector => {
-    const el = document.querySelector(selector);
-    const load = src => new Promise(resolve => {
-        const image = new Image();
-        image.onload = () => resolve(image.naturalWidth);
-        image.onerror = () => resolve(0);
-        image.src = src;
-    });
-    const style = getComputedStyle(el).backgroundImage;
-    const bg = /url\("?(blob:[^")]+)"?\)/.exec(style)?.[1];
-    return {
-        naturalWidth: el.naturalWidth ?? null,
-        complete: el.complete ?? null,
-        backgroundBlob: bg ?? null,
-        backgroundWidth: bg ? await load(bg) : null,
-        svgHref: el.getAttribute?.('xlink:href') ?? el.getAttribute?.('href') ?? null,
-    };
-}, selector);
+// The book frames cannot run scripts (that is the point), so anything asynchronous is done from the page around them.
+const imageLoads = async (page, frame, selector) => {
+    const info = await frame.evaluate(selector => {
+        const el = document.querySelector(selector);
+        const style = getComputedStyle(el).backgroundImage;
+        return {
+            naturalWidth: el.naturalWidth ?? null,
+            complete: el.complete ?? null,
+            backgroundBlob: /url\("?(blob:[^")]+)"?\)/.exec(style)?.[1] ?? null,
+            svgHref: el.getAttribute?.('xlink:href') ?? el.getAttribute?.('href') ?? null,
+        };
+    }, selector);
+    info.backgroundWidth = info.backgroundBlob ? await pictureWidth(page, info.backgroundBlob) : null;
+    return info;
+};
+const pictureWidth = (page, src) => page.evaluate(src => new Promise(resolve => {
+    const image = new Image();
+    image.onload = () => resolve(image.naturalWidth);
+    image.onerror = () => resolve(0);
+    image.src = src;
+}), src);
 
 console.log('Opening the regression book');
 
@@ -98,19 +101,17 @@ await check('opens a never-read book at the start with no error', () => withBook
 await check('pictures, stylesheets, url() and SVG <image> all show (old reader: 401 / 404 / stripped)', () => withBook(phone, {}, async ({ page }) => {
     await page.evaluate(() => window.br.goTo(1));
     const frame = await frameWith(page, '#relative-img');
-    const rel = await imageLoads(frame, '#relative-img');
+    const rel = await imageLoads(page, frame, '#relative-img');
     assert(rel.complete && rel.naturalWidth === 120, `relative image not loaded: ${JSON.stringify(rel)}`);
-    const abs = await imageLoads(frame, '#absolute-img');
+    const abs = await imageLoads(page, frame, '#absolute-img');
     assert(abs.complete && abs.naturalWidth === 120, `absolute-path image not loaded: ${JSON.stringify(abs)}`);
     for (const selector of ['#inline-style-bg', '#sheet-bg', '#style-block-bg']) {
-        const info = await imageLoads(frame, selector);
+        const info = await imageLoads(page, frame, selector);
         assert(info.backgroundBlob && info.backgroundWidth === 16, `${selector} url() did not load: ${JSON.stringify(info)}`);
     }
-    const svg = await imageLoads(frame, '#svg-image');
+    const svg = await imageLoads(page, frame, '#svg-image');
     assert(svg.svgHref?.startsWith('blob:'), `SVG <image> kept href ${svg.svgHref}`);
-    const svgWidth = await frame.evaluate(href => new Promise(resolve => {
-        const image = new Image(); image.onload = () => resolve(image.naturalWidth); image.onerror = () => resolve(0); image.src = href;
-    }), svg.svgHref);
+    const svgWidth = await pictureWidth(page, svg.svgHref);
     assert(svgWidth === 120, `SVG <image> target does not load (${svgWidth})`);
     const sheetLinked = await frame.evaluate(() => getComputedStyle(document.querySelector('.hero')).color);
     assert(sheetLinked === 'rgb(18, 52, 86)', `linked stylesheet not applied (${sheetLinked})`);
@@ -133,7 +134,7 @@ await check('a genuinely missing picture is just missing (no auth error, nothing
     await page.evaluate(() => window.br.goTo(1));
     const frame = await frameWith(page, '#missing-img');
     await sleep(500);
-    const info = await imageLoads(frame, '#missing-img');
+    const info = await imageLoads(page, frame, '#missing-img');
     assert(info.naturalWidth === 0, 'a missing picture claims to be loaded');
     const bad = server.log.filter(e => e.status === 401 || e.path.includes('missing'));
     assert(bad.length === 0, `unexpected requests: ${JSON.stringify(bad)}`);
@@ -229,17 +230,19 @@ await check('tap zones, keys and swipe turn pages; the centre toggles the bars',
     // library reads, so the touch events are built in the page with real screen positions instead.
     count = await relocationCount(page);
     const frame = bookFrames(page).at(-1);
-    await frame.evaluate(async () => {
-        const target = document.body;
+    const frameElement = await frame.frameElement();
+    await page.evaluate(async el => {
+        const win = el.contentWindow;
+        const target = win.document.body;
         const fire = (type, x) => {
-            const touch = new Touch({ identifier: 1, target, clientX: x, clientY: 420, screenX: x, screenY: 420 });
+            const touch = new win.Touch({ identifier: 1, target, clientX: x, clientY: 420, screenX: x, screenY: 420 });
             const list = type === 'touchend' ? [] : [touch];
-            target.dispatchEvent(new TouchEvent(type, { bubbles: true, cancelable: true, touches: list, targetTouches: list, changedTouches: [touch] }));
+            target.dispatchEvent(new win.TouchEvent(type, { bubbles: true, cancelable: true, touches: list, targetTouches: list, changedTouches: [touch] }));
         };
         fire('touchstart', 320);
         for (let x = 320; x >= 80; x -= 40) { fire('touchmove', x); await new Promise(r => setTimeout(r, 16)); }
         fire('touchend', 80);
-    });
+    }, frameElement);
     await nextRelocation(page, count);
     await sleep(900);                                   // let the page settle into place (scroll, then snap)
     const afterSwipe = await lastRelocation(page);
@@ -354,6 +357,24 @@ await check('hostile SVG pages, SVG frames, odd page types: nothing runs, harmle
     assert(chapter.csp.includes("frame-src 'none'"), 'the chapter CSP allows frames');
     seen.push('chapter');
 
+    // The frame itself must not be allowed to run scripts, whatever the clean-up did (defence in depth).
+    const sandbox = await (await frame.frameElement()).getAttribute('sandbox');
+    assert(sandbox !== null && !/allow-scripts/.test(sandbox), `book frames may run scripts: sandbox="${sandbox}"`);
+    const ran = await page.evaluate(async sandbox => {
+        const html = '<html xmlns="http://www.w3.org/1999/xhtml"><body><p id="p" onclick="window.__raw=\'handler\'">x</p><script>window.__raw=\'inline\';</script><img src="x:y" onerror="window.__raw=\'onerror\'"/></body></html>';
+        const url = URL.createObjectURL(new Blob([html], { type: 'application/xhtml+xml' }));
+        const iframe = document.createElement('iframe');
+        iframe.setAttribute('sandbox', sandbox);
+        document.body.append(iframe);
+        await new Promise(resolve => { iframe.onload = resolve; iframe.src = url; });
+        iframe.contentDocument.getElementById('p').dispatchEvent(new MouseEvent('click'));
+        await new Promise(r => setTimeout(r, 300));
+        const result = iframe.contentWindow.__raw ?? null;
+        iframe.remove();
+        return result;
+    }, sandbox);
+    assert(ran === null, `an unhardened page ran script in the book frame sandbox: ${ran}`);
+
     // The hostile SVG as a book page of its own: harmless text stays, everything active is gone.
     for (const [index, name] of [[1, 'harmless svg'], [2, 'hostile svg']]) {
         await page.evaluate(i => window.br.goTo(i), index);
@@ -390,6 +411,25 @@ await check('hostile SVG pages, SVG frames, odd page types: nothing runs, harmle
     assert(broken.scripts === 0 && broken.refresh === 0, `broken page: ${JSON.stringify(broken)}`);
     seen.push('xml-typed and broken pages');
 
+    // Media types with parameters / stray spaces, a stylesheet instruction (XSLT), DOCTYPE entities and a noscript trick.
+    for (const [index, selector] of [[5, '#param1-text'], [6, '#param2-text'], [7, '#param3-text'], [8, '#param4-text']]) {
+        await page.evaluate(i => window.br.goTo(i), index);
+        await sleep(700);
+        const f = await frameWith(page, selector);
+        const doc = await f.evaluate(() => ({
+            scripts: document.querySelectorAll('script').length,
+            instructions: Array.from(document.childNodes).filter(n => n.nodeType === Node.PROCESSING_INSTRUCTION_NODE).length,
+            doctype: !!document.doctype && document.doctype.internalSubset ? 1 : 0,
+            refresh: document.querySelectorAll('meta[http-equiv="refresh" i]').length,
+            noscript: document.querySelectorAll('noscript').length,
+            csp: !!document.querySelector('meta[http-equiv="Content-Security-Policy"]'),
+            svg: document.documentElement.localName === 'svg',
+        }));
+        assert(doc.scripts === 0 && doc.instructions === 0 && doc.doctype === 0 && doc.refresh === 0 && doc.noscript === 0, `${selector}: ${JSON.stringify(doc)}`);
+        assert(doc.csp && !doc.svg, `${selector}: shown without a policy or as a bare SVG: ${JSON.stringify(doc)}`);
+        seen.push(selector.slice(1));
+    }
+
     const pwned = await pwnedEverywhere(page);
     assert(pwned.length === 0, `book code ran: ${pwned.join(' | ')}`);
     assert(outside.log.length === 0, `the book reached the outside: ${JSON.stringify(outside.log)}`);
@@ -400,26 +440,57 @@ await check('hostile SVG pages, SVG frames, odd page types: nothing runs, harmle
 await check('hardenSvg / hardenResource / hardenPage fail closed', async () => {
     const context = await browser.newContext(desktop);
     const { page } = await openCheckPage(context, server.origin);
-    const out = await page.evaluate(() => {
+    const out = await page.evaluate(async () => {
         const svgNs = 'xmlns="http://www.w3.org/2000/svg"';
+        const bad = '<svg ' + svgNs + ' onload="x()"><script>window.__x=1</script><circle r="1"/></svg>';
+        const xhtml = '<html xmlns="http://www.w3.org/1999/xhtml"><body><script>window.__x=1</script><p>hi</p></body></html>';
+        const types = ['application/xhtml+xml;charset=utf-8', 'application/xhtml+xml ', ' Application/XHTML+XML', 'text/html;x=1', 'image/svg+xml;x=1', 'IMAGE/SVG+XML '];
+        const parameterised = {};
+        for (const type of types) {
+            const body = /svg/i.test(type) ? bad : xhtml;
+            const asPage = await window.br.hardenResource(new Blob([body], { type }), type, true);
+            const asResource = await window.br.hardenResource(new Blob([body], { type }), type, false);
+            parameterised[type] = { page: asPage.data, pageType: asPage.type, resource: asResource.data, resourceType: asResource.type };
+        }
         return {
+            normalized: window.br.normalizeType(' Application/XHTML+xml ; charset=UTF-8 '),
             broken: window.br.hardenSvg('<svg ' + svgNs + '><script>1</svg'),
             notSvg: window.br.hardenSvg('<html xmlns="http://www.w3.org/1999/xhtml"><body><script>1</script></body></html>'),
-            clean: window.br.hardenSvg('<svg ' + svgNs + ' onload="x()"><script>1</script><circle r="1"/></svg>'),
-            xml: window.br.hardenResource('<x/>', 'text/xml'),
-            xmlBlob: window.br.hardenResource(new Blob(['<x/>']), 'application/xml'),
-            xmlPage: window.br.hardenResource('<x/>', 'text/xml', true),
-            image: window.br.hardenResource(new Uint8Array([1, 2]), 'image/png'),
-            css: window.br.hardenResource('a{}', 'text/css'),
-            brokenXhtml: window.br.hardenResource('<html><body><p>one<script>1</script></body>', 'application/xhtml+xml'),
+            clean: window.br.hardenSvg(bad),
+            xml: await window.br.hardenResource('<x/>', 'text/xml'),
+            xmlBlob: await window.br.hardenResource(new Blob(['<x/>']), 'application/xml; charset=utf-8'),
+            xmlPage: await window.br.hardenResource('<x/>', 'text/xml', true),
+            noType: await window.br.hardenResource(new Blob(['<x/>']), '', false),
+            noTypePage: await window.br.hardenResource(new Blob(['<x/>']), undefined, true),
+            image: await window.br.hardenResource(new Uint8Array([1, 2]), 'IMAGE/PNG; q=1'),
+            font: await window.br.hardenResource(new Uint8Array([1]), 'font/woff2'),
+            css: await window.br.hardenResource('a{}', 'text/css'),
+            text: await window.br.hardenResource('hello', 'text/plain'),
+            xsl: await window.br.hardenResource(new Blob(['<x/>']), 'application/xslt+xml'),
+            parameterised,
+            brokenXhtml: await window.br.hardenResource('<html><body><p>one<script>1</script></body>', 'application/xhtml+xml'),
+            instructions: await window.br.hardenResource('<?xml version="1.0"?><?xml-stylesheet type="text/xsl" href="data:text/xml,x"?><!DOCTYPE html [<!ENTITY a "b">]><html xmlns="http://www.w3.org/1999/xhtml"><head></head><body><p>x</p></body></html>', 'application/xhtml+xml'),
+            noscript: await window.br.hardenResource('<html><body><noscript><!--</noscript><meta http-equiv="refresh" content="0;url=http://e.example"/>--></noscript><xmp><meta http-equiv="refresh" content="0;url=http://e.example"/></xmp><p>ok</p></body></html>', 'text/html'),
             cssClean: window.br.hardenPage('<html xmlns="http://www.w3.org/1999/xhtml"><head><style>@import url(https://e.example/x.css); a{background:url(https://e.example/y.png)} b{background:url(blob:http://a/1)}</style></head><body style="background:url(http://e.example/z)"><meta http-equiv="refresh" content="0;url=http://e.example"/><iframe src="blob:http://a/2"></iframe></body></html>', 'application/xhtml+xml'),
         };
     });
+    assert(out.normalized === 'application/xhtml+xml', `normalizeType: ${out.normalized}`);
     assert(out.broken === null && out.notSvg === null, 'a broken or non-SVG file was let through');
     assert(out.clean && !/script|onload/.test(out.clean) && /circle/.test(out.clean), `clean svg: ${out.clean}`);
-    assert(out.xml.data === '' && out.xmlBlob.data === '' && /safely/.test(out.xmlPage.data), 'an XML-typed document was let through');
-    assert(out.image.data.length === 2 && out.css.data === 'a{}', 'ordinary resources were altered');
+    assert(out.xml.type === 'application/octet-stream' && out.xmlBlob.type === 'application/octet-stream' && /safely/.test(out.xmlPage.data), 'an XML-typed document was let through');
+    assert(out.xsl.type === 'application/octet-stream', `an XSLT document kept its type: ${out.xsl.type}`);
+    assert(out.noType.data === '' && out.noType.type === 'application/octet-stream' && /safely/.test(out.noTypePage.data), 'a missing type was let through');
+    assert(out.image.type === 'image/png' && out.image.data.length === 2 && out.font.type === 'font/woff2' && out.css.data === 'a{}', 'ordinary resources were altered');
+    assert(out.text.type === 'application/octet-stream', `text/plain kept its type: ${out.text.type}`);
+    // Every spelling of a page type must be cleaned and re-typed plainly, as a page and as a resource.
+    for (const [type, v] of Object.entries(out.parameterised)) {
+        assert(!/<script|onload/i.test(v.page) && !/<script|onload/i.test(v.resource), `${JSON.stringify(type)} kept a script`);
+        assert(!/[;\s]/.test(v.pageType.trim()) && !/;/.test(v.resourceType), `${JSON.stringify(type)} kept a parameter: ${v.pageType} / ${v.resourceType}`);
+        assert(/Content-Security-Policy/.test(v.page), `${JSON.stringify(type)} page has no policy`);
+    }
     assert(out.brokenXhtml.type === 'text/html' && !/<script/i.test(out.brokenXhtml.data) && /one/.test(out.brokenXhtml.data), `broken xhtml: ${JSON.stringify(out.brokenXhtml)}`);
+    assert(!/<\?|DOCTYPE|ENTITY|xsl/i.test(out.instructions.data.replace(/^<\?xml[^>]*\?>/, '')), `instructions or doctype remain: ${out.instructions.data}`);
+    assert(!/noscript|xmp|refresh/i.test(out.noscript.data), `noscript/xmp/refresh remain: ${out.noscript.data}`);
     assert(!/e\.example/.test(out.cssClean) && /blob:http:\/\/a\/1/.test(out.cssClean), `css: ${out.cssClean}`);
     assert(!/refresh|<iframe/i.test(out.cssClean), `refresh or iframe remains: ${out.cssClean}`);
     await context.close();

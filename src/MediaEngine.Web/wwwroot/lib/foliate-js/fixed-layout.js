@@ -81,9 +81,9 @@ export class FixedLayout extends HTMLElement {
             display: 'none',
             overflow: 'hidden',
         })
-        // `allow-scripts` is needed for events because of WebKit bug
-        // https://bugs.webkit.org/show_bug.cgi?id=218086
-        iframe.setAttribute('sandbox', 'allow-same-origin allow-scripts')
+        // TUVIMA LOCAL PATCH (see PINNED.md): `allow-scripts` removed so a script in a book can never run.
+        // Upstream keeps it for WebKit bug https://bugs.webkit.org/show_bug.cgi?id=218086 (events in sandboxed frames).
+        iframe.setAttribute('sandbox', 'allow-same-origin')
         iframe.setAttribute('scrolling', 'no')
         iframe.setAttribute('part', 'filter')
         this.#root.append(element)

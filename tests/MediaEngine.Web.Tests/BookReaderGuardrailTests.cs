@@ -72,11 +72,33 @@ public sealed class BookReaderGuardrailTests
         Assert.Contains("hardenPageDetailed", adapter);
         Assert.Contains("hardenSvg", adapter);
         Assert.Contains("hardenSvgAsPage", adapter);
-        Assert.Contains("isDocumentType", adapter);
+        // Types are compared in one plain form ("application/xhtml+xml; charset=utf-8" is the same type), and only a
+        // short list of picture/font/sound/video/style types may ever be handed to the browser as they are.
+        Assert.Contains("normalizeType", adapter);
+        Assert.Contains("SAFE_TYPES", adapter);
+        Assert.Contains("application/octet-stream", adapter);
+        Assert.Contains("stripInstructions", adapter);
         Assert.Contains("iframe, frame, frameset, object, embed, applet, base", adapter);
         // A page that cannot be parsed is replaced, never passed through as it was.
         Assert.Contains("BLOCKED_PAGE", adapter);
         Assert.DoesNotContain("return text;", adapter);
+    }
+
+    [Fact]
+    public void BookFrames_AreNotAllowedToRunScripts()
+    {
+        foreach (var file in new[] { "paginator.js", "fixed-layout.js" })
+        {
+            var source = Read($"{Web}/wwwroot/lib/foliate-js/{file}");
+            Assert.Contains("setAttribute('sandbox', 'allow-same-origin')", source);
+            Assert.DoesNotContain("allow-scripts')", source);
+            Assert.Contains("TUVIMA LOCAL PATCH", source);
+        }
+
+        // The patch is recorded where the next person upgrading the library will look.
+        var pinned = Read($"{Web}/wwwroot/lib/foliate-js/PINNED.md");
+        Assert.Contains("Local patch", pinned);
+        Assert.Contains("allow-scripts", pinned);
     }
 
     [Fact]

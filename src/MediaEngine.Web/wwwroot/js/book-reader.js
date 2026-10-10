@@ -94,6 +94,11 @@ class RangedFile extends BlobReader {
         if (res.status === 206) {
             const m = /^bytes (\d+)-(\d+)\/(\d+)$/.exec(res.headers.get('Content-Range') ?? '');
             if (!m) throw new ReaderError('unavailable', 'The library sent an unreadable range answer.');
+            const [first, last, total] = [Number(m[1]), Number(m[2]), Number(m[3])];
+            // The tail asked for is the last TAIL_BYTES of the file (all of it when the file is smaller).
+            if (last !== total - 1 || first !== Math.max(0, total - TAIL_BYTES)) {
+                throw new ReaderError('unavailable', 'The library sent a different part of the book than asked for.');
+            }
             const bytes = new Uint8Array(await res.arrayBuffer());
             if (bytes.length !== Number(m[2]) - Number(m[1]) + 1) {
                 throw new ReaderError('unavailable', 'The library sent an incomplete part of the book.');
@@ -312,8 +317,18 @@ const HTML_TYPE = 'text/html';
 const SVG_TYPE = 'image/svg+xml';
 const SVG_NS = 'http://www.w3.org/2000/svg';
 const isXhtmlOrHtml = type => type === XHTML_TYPE || type === HTML_TYPE;
-// Types a browser would render as a document. Anything of these kinds that is not hardened below is refused.
-const isDocumentType = type => /(^|\/|\+)(x?html|xml)$/i.test(type ?? '') || /^text\/(html|xml)/i.test(type ?? '');
+
+/** "Application/XHTML+xml ; charset=utf-8 " -> "application/xhtml+xml". Everything below compares only this form. */
+export const normalizeType = type => String(type ?? '').split(';')[0].trim().toLowerCase();
+
+// The only kinds of file a book may hand the browser as a picture, font, sound, video or style sheet. Everything else
+// that is not a hardened page becomes an opaque download, so it can never be opened as a document.
+const SAFE_TYPES = /^(image\/(?!svg)[a-z0-9.+-]+|font\/[a-z0-9.+-]+|audio\/[a-z0-9.+-]+|video\/[a-z0-9.+-]+|text\/css)$/;
+const SAFE_APPLICATION_TYPES = new Set([
+    'application/font-woff', 'application/font-woff2', 'application/font-sfnt', 'application/x-font-ttf', 'application/x-font-otf',
+    'application/x-font-opentype', 'application/vnd.ms-opentype', 'application/vnd.ms-fontobject', 'application/ogg',
+]);
+const isSafeResourceType = type => SAFE_TYPES.test(type) || SAFE_APPLICATION_TYPES.has(type);
 
 const COMPACT_CHARS = new RegExp('[\\u0000-\\u0020\\u007f-\\u009f\\u2028\\u2029]+', 'g');
 const compact = value => String(value ?? '').replace(COMPACT_CHARS, '').toLowerCase();
@@ -330,8 +345,18 @@ function cleanCss(css) {
         .replace(/expression\s*\(/gi, '(');
 }
 
+/** Processing instructions (xml-stylesheet can run XSLT, which can rewrite the whole page) and the DOCTYPE never survive. */
+function stripInstructions(doc) {
+    const walker = doc.createTreeWalker(doc, NodeFilter.SHOW_PROCESSING_INSTRUCTION);
+    const found = [];
+    while (walker.nextNode()) found.push(walker.currentNode);
+    for (const node of found) node.remove();
+    doc.doctype?.remove();
+}
+
 /** Shared: scripts, handlers and script URLs go in every kind of document. */
 function stripActiveContent(doc) {
+    stripInstructions(doc);
     for (const el of Array.from(doc.querySelectorAll('script'))) el.remove();
     for (const el of doc.querySelectorAll('*')) {
         for (const attr of Array.from(el.attributes)) {
@@ -359,7 +384,8 @@ export function hardenPageDetailed(text, mediaType) {
 
     stripActiveContent(doc);
     // No nested documents, plug-ins or redirects: a frame would be a document this clean-up never sees.
-    for (const el of Array.from(doc.querySelectorAll('iframe, frame, frameset, object, embed, applet, base'))) el.remove();
+    // (noscript, noembed, noframes and xmp are raw text in HTML, which can hide markup from this clean-up.)
+    for (const el of Array.from(doc.querySelectorAll('iframe, frame, frameset, object, embed, applet, base, noscript, noembed, noframes, xmp, plaintext'))) el.remove();
     for (const el of Array.from(doc.querySelectorAll('meta[http-equiv]'))) {
         if (/^(refresh|set-cookie|content-security-policy|x-frame-options)$/i.test(el.getAttribute('http-equiv'))) el.remove();
     }
@@ -420,13 +446,6 @@ export function hardenSvg(text) {
     }
     for (const el of doc.querySelectorAll('style')) el.textContent = cleanCss(el.textContent);
     for (const el of doc.querySelectorAll('[style]')) el.setAttribute('style', cleanCss(el.getAttribute('style')));
-    // xml-stylesheet instructions can pull in a stylesheet from anywhere; keep only the ones inside the book.
-    for (const node of Array.from(doc.childNodes)) {
-        if (node.nodeType === Node.PROCESSING_INSTRUCTION_NODE) {
-            const href = /href\s*=\s*["']([^"']*)["']/i.exec(node.data)?.[1];
-            if (node.target !== 'xml-stylesheet' || (href !== undefined && !isLocalUrl(href))) node.remove();
-        }
-    }
     return new XMLSerializer().serializeToString(doc);
 }
 
@@ -450,26 +469,36 @@ export function hardenSvgAsPage(text) {
 
 /**
  * What happens to one resource the library has read from the book, just before it becomes a blob: address.
- * `asPage` is true for the book's own pages (spine items), which are the only documents a frame ever shows.
+ * `asPage` is true for the book's own pages (spine items), which are the only documents a frame ever shows:
+ * those are XHTML, HTML or SVG and always pass through the hardening, whatever their data looks like (text or a Blob)
+ * and however their type was spelled; anything else is replaced by a plain notice.
+ * Every other resource must be a picture, font, sound, video or style sheet; anything else is an opaque download.
  */
-export function hardenResource(data, mediaType, asPage = false) {
-    // Refused: a plain notice where a page was expected (an empty document would break the page layout), nothing otherwise.
-    const refused = () => (asPage ? { data: BLOCKED_PAGE, type: XHTML_TYPE } : { data: '', type: mediaType });
-    if (typeof data !== 'string') {
-        // Binary data is only safe if a browser would never open it as a document.
-        return isDocumentType(mediaType) ? refused() : { data, type: mediaType };
+export async function hardenResource(data, mediaType, asPage = false) {
+    const type = normalizeType(mediaType);
+    const isPageType = isXhtmlOrHtml(type) || type === SVG_TYPE;
+    if (!isPageType) {
+        if (asPage || !type) return asPage ? { data: BLOCKED_PAGE, type: XHTML_TYPE } : { data: '', type: 'application/octet-stream' };
+        return { data, type: isSafeResourceType(type) ? type : 'application/octet-stream' };
     }
-    if (isXhtmlOrHtml(mediaType)) {
-        const { text, type } = hardenPageDetailed(data, mediaType);
-        return { data: text, type };
+
+    // From here the data is a document: read it as text whatever form it arrived in.
+    let text;
+    if (typeof data === 'string') text = data;
+    else if (data instanceof Blob) text = await data.text();
+    else if (data instanceof ArrayBuffer || ArrayBuffer.isView(data)) text = new TextDecoder().decode(data);
+    else return asPage ? { data: BLOCKED_PAGE, type: XHTML_TYPE } : { data: '', type: 'application/octet-stream' };
+
+    if (isXhtmlOrHtml(type)) {
+        const { text: page, type: pageType } = hardenPageDetailed(text, type);
+        return { data: page, type: pageType };
     }
-    if (mediaType === SVG_TYPE && asPage) {
-        const { text, type } = hardenSvgAsPage(data);
-        return { data: text, type };
+    if (asPage) {
+        const { text: page, type: pageType } = hardenSvgAsPage(text);
+        return { data: page, type: pageType };
     }
-    if (mediaType === SVG_TYPE) return { data: hardenSvg(data) ?? '', type: mediaType };   // a picture: unsafe ones become empty
-    if (isDocumentType(mediaType)) return refused();   // some other XML/HTML flavour
-    return { data, type: mediaType };
+    const svg = hardenSvg(text);   // a picture: an unsafe one becomes an empty file
+    return { data: svg ?? '', type: svg === null ? 'application/octet-stream' : SVG_TYPE };
 }
 
 function secureBook(book) {
@@ -477,17 +506,21 @@ function secureBook(book) {
     if (!target) throw new ReaderError('unsupported', 'This book cannot be shown safely.');
     // The book's own pages (the only things a frame ever shows) are hardened as pages; pictures, styles and fonts as resources.
     const pages = new Set((book.sections ?? []).map(section => section.id));
+    // Type spellings such as "application/xhtml+xml; charset=utf-8" would slip past the library's exact comparisons
+    // (and so past its resource rewriting); say each one once, plainly, before anything is loaded.
+    for (const item of book.resources?.manifest ?? []) item.mediaType = normalizeType(item.mediaType);
     // Never load script files at all.
     target.addEventListener('load', ({ detail }) => {
         if (detail.isScript) detail.allow = false;
     });
     target.addEventListener('data', ({ detail }) => {
         const mediaType = detail.type;
+        const asPage = pages.has(detail.name);
         const outcome = Promise.resolve(detail.data).then(
-            data => hardenResource(data, mediaType, pages.has(detail.name)),
+            data => hardenResource(data, mediaType, asPage),
             error => {
                 console.error(new Error('Failed to load ' + detail.name, { cause: error }));
-                return pages.has(detail.name) ? { data: BLOCKED_PAGE, type: XHTML_TYPE } : { data: '', type: mediaType };
+                return asPage ? { data: BLOCKED_PAGE, type: XHTML_TYPE } : { data: '', type: 'application/octet-stream' };
             });
         detail.data = outcome.then(r => r.data);
         detail.type = outcome.then(r => r.type);

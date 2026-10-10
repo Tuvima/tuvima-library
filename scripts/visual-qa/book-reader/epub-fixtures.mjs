@@ -221,9 +221,14 @@ export function buildHostileEpub(file) {
         ['xmlbad', 'text/bad.xml', 'text/xml'],
         ['broken', 'text/broken.xhtml', 'application/xhtml+xml'],
         ['evil', 'images/evil.svg', 'image/svg+xml'],
+        // Media types written with parameters or stray spaces: the library compares types exactly, so these used to skip its checks.
+        ['param1', 'text/param1.xhtml', 'application/xhtml+xml;charset=utf-8'],
+        ['param2', 'text/param2.svg', 'image/svg+xml;x=1'],
+        ['param3', 'text/param3.xhtml', ' Application/XHTML+xml '],
+        ['param4', 'text/param4.xhtml', 'application/xhtml+xml'],
         ['pic', 'images/pic.png', 'image/png'],
     ].map(([id, href, type]) => `<item id="${id}" href="${href}" media-type="${type}"/>`).join('');
-    const spine = ['ch1', 'svgok', 'svgbad', 'xmlbad', 'broken'].map(id => `<itemref idref="${id}"/>`).join('');
+    const spine = ['ch1', 'svgok', 'svgbad', 'xmlbad', 'broken', 'param1', 'param2', 'param3', 'param4'].map(id => `<itemref idref="${id}"/>`).join('');
     zip.add('OEBPS/content.opf', `<?xml version="1.0" encoding="utf-8"?>
 <package xmlns="http://www.idpf.org/2007/opf" version="3.0" unique-identifier="bookid">
 <metadata xmlns:dc="http://purl.org/dc/elements/1.1/"><dc:identifier id="bookid">urn:uuid:99999999-2222-3333-4444-555555555555</dc:identifier><dc:title>Hostile Fixture</dc:title><dc:creator>Test Author</dc:creator><dc:language>en</dc:language><meta property="dcterms:modified">2026-10-10T00:00:00Z</meta></metadata>
@@ -252,6 +257,14 @@ export function buildHostileEpub(file) {
     zip.add('OEBPS/text/bad.xml', `<?xml version="1.0"?>
 <html xmlns="http://www.w3.org/1999/xhtml"><body><p id="xml-text">xml typed page</p><script>${pwn('xml-spine')}</script></body></html>`);
     zip.add('OEBPS/text/broken.xhtml', `<html><head><meta http-equiv="refresh" content="0;url=https://example.org/gone"/></head><body><p id="broken-text">Not well formed <b>xhtml<p>second <script>${pwn('broken-script')}</script></body>`);
+    const xhtmlWithScript = (name, id) => `<?xml version="1.0"?>
+<?xml-stylesheet type="text/xsl" href="data:text/xml;base64,PGE+"?>
+<!DOCTYPE html [<!ENTITY e "entity">]>
+<html xmlns="http://www.w3.org/1999/xhtml"><head><title>${name}</title></head><body><p id="${id}">${name} text</p><script>${pwn(name + '-script')}</script><p onclick="${pwn(name + '-onclick')}">x</p><noscript><!--</noscript><meta http-equiv="refresh" content="0;url=https://example.org/gone"/>--></noscript></body></html>`;
+    zip.add('OEBPS/text/param1.xhtml', xhtmlWithScript('param1', 'param1-text'));
+    zip.add('OEBPS/text/param3.xhtml', xhtmlWithScript('param3', 'param3-text'));
+    zip.add('OEBPS/text/param4.xhtml', xhtmlWithScript('param4', 'param4-text'));
+    zip.add('OEBPS/text/param2.svg', bad('param2').replace('<text id="visible-text"', '<text id="param2-text"'));
     zip.add('OEBPS/text/ch1.xhtml', xhtml('Chapter', `
 <h1 id="hostile-title">Hostile chapter</h1>
 <p>${paragraph(7, 6)}</p>
