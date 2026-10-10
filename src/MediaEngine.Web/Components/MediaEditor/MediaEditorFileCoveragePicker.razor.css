@@ -46,7 +46,6 @@
 .sme-file-coverage__chip:focus-within { border-color: var(--tl-accent-primary); box-shadow: 0 0 0 1px var(--tl-accent-primary); }
 .sme-file-coverage__chip.is-selected { border-color: var(--tl-accent-primary-border); background: var(--tl-accent-primary-soft); }
 .sme-file-coverage__chip.is-locked { cursor: default; opacity: .7; }
-.sme-file-coverage__chip input { flex: 0 0 auto; width: 1rem; height: 1rem; accent-color: var(--tl-accent-primary); }
 .sme-file-coverage__number { flex: 0 0 auto; font-weight: 600; }
 .sme-file-coverage__title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--tl-text-secondary); }
 

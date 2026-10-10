@@ -17,15 +17,15 @@
             {
                 var checkedNow = _selected.Contains(episode.WorkId);
                 var locked = episode.IsHost || episode.OwnedByOtherFile || (!checkedNow && atLimit) || _saving;
-                <label class="sme-file-coverage__chip @(checkedNow ? "is-selected" : string.Empty) @(locked ? "is-locked" : string.Empty)"
-                       title="@ChipTitle(episode, atLimit, coverage.MaxEpisodes)">
-                    <input type="checkbox"
-                           checked="@checkedNow"
-                           disabled="@locked"
-                           @onchange="@(args => Toggle(episode.WorkId, args.Value is true))" />
-                    <span class="sme-file-coverage__number">@(episode.EpisodeNumber is { } number ? $"E{number}" : "E?")</span>
-                    <span class="sme-file-coverage__title">@episode.Title</span>
-                </label>
+                <div class="sme-file-coverage__chip @(checkedNow ? "is-selected" : string.Empty) @(locked ? "is-locked" : string.Empty)"
+                     title="@ChipTitle(episode, atLimit, coverage.MaxEpisodes)">
+                    <AppCheckbox Value="@checkedNow"
+                                 Disabled="@locked"
+                                 ValueChanged="@(isChecked => Toggle(episode.WorkId, isChecked))">
+                        <span class="sme-file-coverage__number">@(episode.EpisodeNumber is { } number ? $"E{number}" : "E?")</span>
+                        <span class="sme-file-coverage__title">@episode.Title</span>
+                    </AppCheckbox>
+                </div>
             }
         </div>
         @if (atLimit)

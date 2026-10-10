@@ -53,7 +53,7 @@ public sealed class MediaEditorFileCoverageRouteTests
             builder.Services.AddSingleton<IDatabaseConnection>(database);
             builder.Services.AddSingleton<IRequestAuthorityResolver>(new FixedAuthorityResolver(actor));
             builder.Services.AddSingleton<IAccountAccessDecisionService>(new AllowLibraryAccess(ownLibrary));
-            builder.Services.AddSingleton<IAuthorizationEvaluator, AllowEvaluator>();
+            builder.Services.AddSingleton<MediaEngine.Domain.Contracts.IAuthorizationEvaluator, AllowEvaluator>();
             builder.Services.AddScoped<CatalogueResourceAuthorizationService>();
             builder.Services.AddSingleton<MediaEditorFileCoverageRepository>();
             await using var app = builder.Build();
@@ -130,7 +130,7 @@ public sealed class MediaEditorFileCoverageRouteTests
             => ValueTask.FromResult(AuthorizationDecision.Allow());
     }
 
-    private sealed class AllowEvaluator : IAuthorizationEvaluator
+    private sealed class AllowEvaluator : MediaEngine.Domain.Contracts.IAuthorizationEvaluator
     {
         public ValueTask<AuthorizationDecision> EvaluateAsync(RequestAuthority authority,
             AuthorizationRequirement requirement, ResourceAuthorizationContext? resource,
