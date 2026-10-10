@@ -683,6 +683,9 @@ User profiles for multi-user support.
 | Column | Type | Notes |
 |---|---|---|
 | `household_id` | BLOB | The household the profile belongs to (see `households`) |
+| `avatar_color` | TEXT | Avatar circle colour, `#RRGGBB`. The profile editor offers a fixed palette of 12 swatches. |
+| `avatar_image_path` | TEXT | Path of an uploaded avatar photo; NULL when none. A photo wins over an icon. |
+| `avatar_icon` | TEXT | Key of a built-in illustrated icon drawn on `avatar_color` (`cat`, `fox`, `owl`, `bear`, `panda`, `penguin`, `robot`, `rocket`, `planet`, `moon`, `crown`, `ghost`); NULL shows the person's initial. Added by an idempotent startup migration. |
 
 | Column | Type | Notes |
 |---|---|---|

@@ -158,7 +158,8 @@ public sealed partial class EngineApiClient
         profile.CreatedAt,
         profile.NavigationConfig,
         NormalizeOptionalUrl(profile.AvatarImageUrl),
-        profile.HasPin);
+        profile.HasPin,
+        profile.AvatarIcon);
 
     private ProfileOverviewViewModel MapProfileOverview(ProfileOverviewResponseDto overview) => new()
     {

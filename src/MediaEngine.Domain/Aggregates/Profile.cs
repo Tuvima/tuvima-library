@@ -32,6 +32,12 @@ public sealed class Profile
     /// </summary>
     public string AvatarColor { get; set; } = "#7C4DFF";
 
+    /// <summary>
+    /// Key of a built-in illustrated avatar icon (see <see cref="ProfileAvatarIcons"/>), drawn on the avatar colour.
+    /// <see langword="null"/> means the initial is shown instead.
+    /// </summary>
+    public string? AvatarIcon { get; set; }
+
     /// <summary>Absolute path to the uploaded avatar image, when one has been stored.</summary>
     public string? AvatarImagePath { get; set; }
 

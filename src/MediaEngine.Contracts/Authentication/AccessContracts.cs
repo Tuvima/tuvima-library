@@ -46,14 +46,16 @@ public sealed record ManagedProfileResponse(
     [property: JsonPropertyName("avatar_path")] string? AvatarPath,
     [property: JsonPropertyName("created_at")] DateTimeOffset CreatedAt,
     [property: JsonPropertyName("household_id")] Guid? HouseholdId = null,
-    [property: JsonPropertyName("is_restricted")] bool IsRestricted = false);
+    [property: JsonPropertyName("is_restricted")] bool IsRestricted = false,
+    [property: JsonPropertyName("avatar_icon")] string? AvatarIcon = null);
 
 /// <summary>Adds a person to a household. A child person is a restricted profile; the PIN is optional.</summary>
 public sealed record AddHouseholdPersonRequest(
     [property: JsonPropertyName("display_name")] string DisplayName,
     [property: JsonPropertyName("avatar_color")] string? AvatarColor,
     [property: JsonPropertyName("is_child")] bool IsChild,
-    [property: JsonPropertyName("pin")] string? Pin);
+    [property: JsonPropertyName("pin")] string? Pin,
+    [property: JsonPropertyName("avatar_icon")] string? AvatarIcon = null);
 
 /// <summary>
 /// Gives a person their own sign-in. Send <c>temporary_password</c> to choose their first password; leave it out to
@@ -78,7 +80,8 @@ public sealed record CreateManagedProfileRequest(
 
 public sealed record UpdateManagedProfileRequest(
     [property: JsonPropertyName("display_name")] string DisplayName,
-    [property: JsonPropertyName("avatar_color")] string? AvatarColor);
+    [property: JsonPropertyName("avatar_color")] string? AvatarColor,
+    [property: JsonPropertyName("avatar_icon")] string? AvatarIcon = null);
 
 public sealed record AccountProfileGrantDto(
     [property: JsonPropertyName("account_id")] Guid AccountId,

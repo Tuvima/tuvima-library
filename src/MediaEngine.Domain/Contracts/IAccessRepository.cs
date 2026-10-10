@@ -118,7 +118,7 @@ public sealed record CreateManagedProfileCommand(
     string DisplayName,
     string? AvatarColor,
     bool IsDefault);
-public sealed record UpdateManagedProfileCommand(string DisplayName, string? AvatarColor);
+public sealed record UpdateManagedProfileCommand(string DisplayName, string? AvatarColor, string? AvatarIcon = null);
 
 /// <summary>A new person in a household: a child person gets the restricted role; a PIN is optional.</summary>
 public sealed record AddHouseholdPersonCommand(
@@ -126,7 +126,8 @@ public sealed record AddHouseholdPersonCommand(
     string DisplayName,
     string? AvatarColor,
     bool IsChild,
-    string? Pin);
+    string? Pin,
+    string? AvatarIcon = null);
 
 /// <summary>
 /// Gives a person in a household their own email sign-in. With <paramref name="TemporaryPassword"/> the

@@ -37,7 +37,7 @@ public sealed class HouseholdRepository(IDatabaseConnection db) : IHouseholdRepo
         using var conn = db.CreateConnection();
         var rows = conn.Query<ProfileRow>("""
             SELECT id AS Id, display_name AS DisplayName, avatar_color AS AvatarColor,
-                   avatar_image_path AS AvatarImagePath, role AS Role, created_at AS CreatedAt,
+                   avatar_image_path AS AvatarImagePath, avatar_icon AS AvatarIcon, role AS Role, created_at AS CreatedAt,
                    navigation_config AS NavigationConfig, household_id AS HouseholdId
             FROM profiles WHERE household_id = @householdId
             ORDER BY created_at, id;
@@ -47,6 +47,7 @@ public sealed class HouseholdRepository(IDatabaseConnection db) : IHouseholdRepo
             DisplayName = row.DisplayName,
             AvatarColor = row.AvatarColor,
             AvatarImagePath = row.AvatarImagePath,
+            AvatarIcon = row.AvatarIcon,
             Role = Enum.Parse<MediaEngine.Domain.Enums.ProfileRole>(row.Role),
             CreatedAt = DateTimeOffset.Parse(row.CreatedAt, System.Globalization.CultureInfo.InvariantCulture),
             NavigationConfig = row.NavigationConfig,
@@ -112,6 +113,7 @@ public sealed class HouseholdRepository(IDatabaseConnection db) : IHouseholdRepo
         public string DisplayName { get; set; } = string.Empty;
         public string AvatarColor { get; set; } = string.Empty;
         public string? AvatarImagePath { get; set; }
+        public string? AvatarIcon { get; set; }
         public string Role { get; set; } = string.Empty;
         public string CreatedAt { get; set; } = string.Empty;
         public string? NavigationConfig { get; set; }

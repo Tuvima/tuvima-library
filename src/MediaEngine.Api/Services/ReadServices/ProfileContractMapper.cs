@@ -20,6 +20,7 @@ internal static class ProfileContractMapper
         AvatarImageUrl = string.IsNullOrWhiteSpace(profile.AvatarImagePath)
             ? null
             : $"/profiles/{profile.Id:D}/avatar",
+        AvatarIcon = profile.AvatarIcon,
     };
 
     internal static ProfileResponseDto ToResponse(Profile profile, bool hasPin)
@@ -34,6 +35,7 @@ internal static class ProfileContractMapper
             CreatedAt = dto.CreatedAt,
             NavigationConfig = dto.NavigationConfig,
             AvatarImageUrl = dto.AvatarImageUrl,
+            AvatarIcon = dto.AvatarIcon,
             HasPin = hasPin,
         };
     }

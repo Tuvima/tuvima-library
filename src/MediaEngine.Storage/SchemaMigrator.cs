@@ -34,6 +34,8 @@ internal sealed class SchemaMigrator
         var sessionsGainedIngress = !ColumnExists(conn, "auth_sessions", "issued_ingress");
         EnsureCurrentColumns(conn);
         EnsureHouseholdAdministrators(conn);
+        AddColumnIfMissing(conn, "profiles", "avatar_icon",
+            "ALTER TABLE profiles ADD COLUMN avatar_icon TEXT;");
         EnsurePerHouseholdSharedLibrary(conn);
         RetireSharedLibraryCuratorFlag(conn);
         if (sessionsGainedIngress)

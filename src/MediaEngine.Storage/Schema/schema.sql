@@ -1587,6 +1587,7 @@ CREATE TABLE IF NOT EXISTS profiles (
     display_name TEXT NOT NULL,
     avatar_color TEXT NOT NULL DEFAULT '#7C4DFF',
     avatar_image_path TEXT,
+    avatar_icon  TEXT,
     role         TEXT NOT NULL DEFAULT 'RestrictedProfile'
                      CHECK (role IN ('Administrator', 'StandardUser', 'RestrictedProfile')),
     created_at   TEXT NOT NULL
