@@ -612,8 +612,23 @@ public sealed partial class RetailMatchWorker
         bestCandidate = SelectIdentityCandidateWhenConfigured(allCandidates, bestCandidate, pipeline);
         bestScore = bestCandidate?.ScoreTotal ?? 0.0;
 
+        // A file naming several episodes (S01E01E02) links to all of them only when the
+        // whole run exists at the TV provider; otherwise it goes to Review.
+        string? rangeReviewReason = null;
+        if (mediaType == MediaType.TV && bestCandidate is { Outcome: "AutoAccepted" })
+        {
+            rangeReviewReason = await LinkEpisodeRangeAsync(job, hints, bestCandidate, lineage, ct)
+                .ConfigureAwait(false);
+            if (rangeReviewReason is not null)
+            {
+                _logger.LogInformation(
+                    "TV multi-episode file for entity {EntityId} needs review: {Reason}",
+                    job.EntityId, rangeReviewReason);
+            }
+        }
+
         // Determine final job state based on best candidate
-        if (bestCandidate is not null && bestCandidate.Outcome == "AutoAccepted")
+        if (bestCandidate is not null && bestCandidate.Outcome == "AutoAccepted" && rangeReviewReason is null)
         {
             await _jobRepo.SetSelectedCandidateAsync(job.Id, bestCandidate.Id, ct);
             await _jobRepo.UpdateStateAsync(job.Id, IdentityJobState.RetailMatched, ct: ct);
@@ -648,7 +663,8 @@ public sealed partial class RetailMatchWorker
                     job.EntityId);
             }
         }
-        else if (bestCandidate is not null && bestCandidate.Outcome == "Ambiguous")
+        else if (bestCandidate is not null
+            && (bestCandidate.Outcome == "Ambiguous" || rangeReviewReason is not null))
         {
             await _jobRepo.SetSelectedCandidateAsync(job.Id, bestCandidate.Id, ct);
             await _jobRepo.UpdateStateAsync(job.Id, IdentityJobState.RetailMatchedNeedsReview, ct: ct);
@@ -708,6 +724,112 @@ public sealed partial class RetailMatchWorker
             _logger.LogInformation(
                 "No retail match for entity {EntityId} — {CandidateCount} candidates evaluated, best score: {Score:F2}",
                 job.EntityId, allCandidates.Count, bestScore);
+        }
+    }
+
+    /// <summary>
+    /// Links a multi-episode file to every episode it covers. The file stays attached to its
+    /// first episode; one coverage row per episode is written. Returns null when the file is
+    /// a single episode or was linked, otherwise the reason it must go to Review.
+    /// </summary>
+    private async Task<string?> LinkEpisodeRangeAsync(
+        IdentityJob job,
+        IReadOnlyDictionary<string, string> hints,
+        RetailMatchCandidate candidate,
+        WorkLineage? lineage,
+        CancellationToken ct)
+    {
+        if (!hints.TryGetValue(MetadataFieldConstants.EpisodeEnd, out var episodeEnd)
+            || string.IsNullOrWhiteSpace(episodeEnd))
+        {
+            return null;
+        }
+
+        var firstText = hints.GetValueOrDefault(MetadataFieldConstants.EpisodeNumber)
+            ?? hints.GetValueOrDefault("episode");
+        var seasonText = hints.GetValueOrDefault(MetadataFieldConstants.SeasonNumber)
+            ?? hints.GetValueOrDefault("season");
+        int? first = int.TryParse(firstText, out var firstValue) ? firstValue : null;
+
+        IReadOnlySet<int>? providerEpisodes = null;
+        if (first.HasValue
+            && int.TryParse(seasonText, out var season)
+            && ReadTvdbSeriesId(candidate.BridgeIdsJson) is { } seriesId
+            && _rangeCatalogue is not null)
+        {
+            try
+            {
+                providerEpisodes = await _rangeCatalogue
+                    .GetSeasonEpisodeNumbersAsync(seriesId, season, ct).ConfigureAwait(false);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                _logger.LogWarning(ex,
+                    "TV: could not read the provider's season list to verify a multi-episode file (entity {EntityId})",
+                    job.EntityId);
+            }
+        }
+
+        var decision = TvEpisodeRangeCoverage.Evaluate(first, episodeEnd, providerEpisodes);
+        if (decision.Kind == EpisodeRangeKind.NotARange)
+        {
+            return null;
+        }
+
+        if (decision.Kind == EpisodeRangeKind.NeedsReview)
+        {
+            return decision.Reason;
+        }
+
+        if (_coverageRepo is null
+            || lineage is null
+            || lineage.ParentWorkId is not { } seasonWorkId
+            || !string.Equals(job.EntityType, "MediaAsset", StringComparison.OrdinalIgnoreCase))
+        {
+            return "The file cannot be linked to its other episodes yet.";
+        }
+
+        try
+        {
+            var rows = new List<MediaAssetCoverage>();
+            for (var index = 0; index < decision.Episodes.Count; index++)
+            {
+                var episode = decision.Episodes[index];
+                var workId = index == 0
+                    ? lineage.WorkId
+                    : await _workRepo.GetOrCreateChildAsync(MediaType.TV, seasonWorkId, episode, episode, ct)
+                        .ConfigureAwait(false);
+                rows.Add(new MediaAssetCoverage(
+                    job.EntityId, workId, index + 1, null, null, MediaAssetCoverage.SourceFilename));
+            }
+
+            await _coverageRepo.ReplaceForAssetAsync(job.EntityId, rows, ct).ConfigureAwait(false);
+            return null;
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _logger.LogWarning(ex,
+                "TV: could not record the episodes covered by file {EntityId}", job.EntityId);
+            return "The episodes covered by this file could not be recorded.";
+        }
+    }
+
+    private static string? ReadTvdbSeriesId(string? bridgeIdsJson)
+    {
+        if (string.IsNullOrWhiteSpace(bridgeIdsJson))
+        {
+            return null;
+        }
+
+        try
+        {
+            var value = JsonNode.Parse(bridgeIdsJson)?[BridgeIdKeys.TvdbId]?.ToString();
+            return string.IsNullOrWhiteSpace(value) ? null : value;
+        }
+        catch (JsonException)
+        {
+            // A malformed bridge-id blob only means the series id is unknown; the file goes to Review.
+            return null;
         }
     }
 
