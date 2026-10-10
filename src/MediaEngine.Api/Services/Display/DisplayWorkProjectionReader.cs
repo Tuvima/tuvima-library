@@ -543,7 +543,7 @@ public sealed class DisplayWorkProjectionReader
         using var conn = _db.CreateConnection();
         var sql = BuildSql(detailId.HasValue, lean, groups is not null);
 
-        var rows = (await conn.QueryAsync<DisplayWorkRow>(new CommandDefinition(sql, new { limit, detailId, rootIds = groups?.RootIds.ToArray() ?? Array.Empty<Guid>(), workIds = groups?.WorkIds.ToArray() ?? Array.Empty<Guid>() }, cancellationToken: ct))).ToList();
+        var rows = (await conn.QueryAsync<DisplayWorkRow>(new CommandDefinition(sql, new { limit, detailId, rootIds = (groups?.RootIds ?? []).Select(GuidSql.ToBlob).ToArray(), workIds = (groups?.WorkIds ?? []).Select(GuidSql.ToBlob).ToArray() }, cancellationToken: ct))).ToList();
         var pseudonymNames = conn.Query<string>(new CommandDefinition(
                 "SELECT name FROM persons WHERE is_pseudonym = 1 AND NULLIF(TRIM(name), '') IS NOT NULL;",
                 cancellationToken: ct))
