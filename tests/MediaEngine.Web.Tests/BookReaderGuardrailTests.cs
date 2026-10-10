@@ -191,7 +191,9 @@ public sealed class BookReaderGuardrailTests
         var page = Read($"{Web}/Components/Pages/BookReader.razor");
 
         Assert.Contains("Api.CreateHighlightAsync(AssetId, selection.Cfi", page);
-        Assert.DoesNotContain("StartOffset =", page);
+        // New highlights go through the client call, which writes no offsets; the page never builds the request itself.
+        // (ReplaceHighlight copies the retired offsets of an existing row unchanged because the wire type is not a record.)
+        Assert.DoesNotContain("CreateReaderHighlightRequestDto", page);
         // Rows from the retired reader (no range) and bookmarks that are not CFIs are never handed to the script.
         Assert.Contains("!string.IsNullOrWhiteSpace(mark.CfiRange)", page);
         Assert.Contains("StartsWith(\"epubcfi(\"", page);
