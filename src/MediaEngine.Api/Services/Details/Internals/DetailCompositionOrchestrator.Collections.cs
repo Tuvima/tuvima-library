@@ -30,6 +30,39 @@ namespace MediaEngine.Api.Services.Details.Internals;
 
 internal sealed partial class DetailCompositionOrchestrator
 {
+    /// <summary>
+    /// Adds each owned TV episode's description, still and air date. One batched read covers the whole show
+    /// (not about nine statements per episode); the value maps are returned so the playback episode can reuse its own.
+    /// </summary>
+    private async Task<(IReadOnlyList<CollectionWorkSummary> Episodes, Dictionary<Guid, Dictionary<string, string>> ValueMaps)> EnrichTvEpisodesAsync(
+        IReadOnlyList<CollectionWorkSummary> works,
+        IReadOnlyDictionary<Guid, SequenceRow> actualStills,
+        CancellationToken ct)
+    {
+        var episodeIds = works.Select(work => Guid.Parse(work.Id)).ToList();
+        var episodeValueMaps = await LoadWorkAndAssetCanonicalMapsAsync(episodeIds, ct);
+        var episodeOverrides = await LoadWorkDisplayOverridesBatchAsync(episodeIds, ct);
+        var episodes = new List<CollectionWorkSummary>();
+        foreach (var episode in works)
+        {
+            var episodeId = Guid.Parse(episode.Id);
+            var episodeValues = episodeValueMaps[episodeId];
+            var overrides = episodeOverrides[episodeId];
+            episodes.Add(episode with
+            {
+                Description = FirstText(ResolveDisplayOverride(overrides, "description"),
+                    GetValue(episodeValues, MetadataFieldConstants.EpisodeDescription)),
+                BackgroundUrl = GetValue(episodeValues, "episode_still_url"),
+                EpisodeStillUrl = actualStills.GetValueOrDefault(episodeId)?.EpisodeStillAssetId is Guid stillId ? $"/stream/artwork/{stillId:D}" : null,
+                EpisodeStillWidthPx = actualStills.GetValueOrDefault(episodeId)?.EpisodeStillWidthPx,
+                EpisodeStillHeightPx = actualStills.GetValueOrDefault(episodeId)?.EpisodeStillHeightPx,
+                Year = FirstText(GetValue(episodeValues, "air_date"), GetValue(episodeValues, "release_date")),
+            });
+        }
+
+        return (episodes, episodeValueMaps);
+    }
+
     private async Task<DetailPageViewModel?> BuildCollectionAsync(
         Guid collectionId,
         DetailEntityType entityType,
@@ -235,28 +268,7 @@ internal sealed partial class DetailCompositionOrchestrator
                     ORDER BY ea.is_preferred DESC, ea.is_user_override DESC, ea.updated_at DESC LIMIT 1)
                 WHERE w.id IN @ownedIds
                 """, new { ownedIds }, cancellationToken: ct))).ToDictionary(row => row.WorkId);
-            // One batched read for the whole show, not about nine statements per episode.
-            var episodeIds = works.Select(work => Guid.Parse(work.Id)).ToList();
-            episodeValueMaps = await LoadWorkAndAssetCanonicalMapsAsync(episodeIds, ct);
-            var episodeOverrides = await LoadWorkDisplayOverridesBatchAsync(episodeIds, ct);
-            var episodes = new List<CollectionWorkSummary>();
-            foreach (var episode in works)
-            {
-                var episodeId = Guid.Parse(episode.Id);
-                var episodeValues = episodeValueMaps[episodeId];
-                var overrides = episodeOverrides[episodeId];
-                episodes.Add(episode with
-                {
-                    Description = FirstText(ResolveDisplayOverride(overrides, "description"),
-                        GetValue(episodeValues, MetadataFieldConstants.EpisodeDescription)),
-                    BackgroundUrl = GetValue(episodeValues, "episode_still_url"),
-                    EpisodeStillUrl = actualStills.GetValueOrDefault(episodeId)?.EpisodeStillAssetId is Guid stillId ? $"/stream/artwork/{stillId:D}" : null,
-                    EpisodeStillWidthPx = actualStills.GetValueOrDefault(episodeId)?.EpisodeStillWidthPx,
-                    EpisodeStillHeightPx = actualStills.GetValueOrDefault(episodeId)?.EpisodeStillHeightPx,
-                    Year = FirstText(GetValue(episodeValues, "air_date"), GetValue(episodeValues, "release_date")),
-                });
-            }
-            works = episodes;
+            (works, episodeValueMaps) = await EnrichTvEpisodesAsync(works, actualStills, ct);
         }
 
         var tvInProgressEpisode = entityType == DetailEntityType.TvShow

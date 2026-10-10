@@ -1,5 +1,9 @@
+using System.Reflection;
+using System.Text.Json;
 using Dapper;
+using MediaEngine.Contracts.Details;
 using MediaEngine.Api.Services.Details.Internals;
+using MediaEngine.Domain.Aggregates;
 using MediaEngine.Storage;
 using MediaEngine.Storage.Contracts;
 using Microsoft.Data.Sqlite;
@@ -81,6 +85,70 @@ public sealed class EpisodeBatchLoadingTests : IDisposable
     }
 
     [Fact]
+    public async Task TvShowEpisodesGetTheSameDescriptionStillDateAndPlaybackPillsAsTheOldPerEpisodeLoop()
+    {
+        var show = Guid.NewGuid();
+        using (var connection = _db.CreateConnection())
+        {
+            connection.Execute(
+                "INSERT INTO works(id,media_type,work_kind,curator_state) VALUES (@show,'TV','parent','accepted');",
+                new { show });
+            InsertValue(connection, null, show, "cover_url", "https://img/show.jpg");
+        }
+
+        var episodes = SeedEpisodes(30, show);
+        var composer = new DetailCompositionOrchestrator(_db, null!, null!, null!, null!, null!, null!, null!);
+        var orchestrator = typeof(DetailCompositionOrchestrator);
+        var nonPublic = BindingFlags.Instance | BindingFlags.NonPublic;
+
+        // The same call the show details page makes to list its episodes.
+        var load = (Task)orchestrator.GetMethod("LoadCollectionWorksAsync", nonPublic)!
+            .Invoke(composer, [Guid.Empty, show, CancellationToken.None, null, Profile.SeedProfileId, null])!;
+        await load;
+        var works = load.GetType().GetProperty("Result")!.GetValue(load)!;
+        Assert.Equal(episodes.Count, ((System.Collections.IEnumerable)works).Cast<object>().Count());
+
+        var stillRow = orchestrator.GetNestedType("SequenceRow", BindingFlags.NonPublic)!;
+        var noStills = Activator.CreateInstance(typeof(Dictionary<,>).MakeGenericType(typeof(Guid), stillRow))!;
+        var enrich = (Task)orchestrator.GetMethod("EnrichTvEpisodesAsync", nonPublic)!
+            .Invoke(composer, [works, noStills, CancellationToken.None])!;
+        await enrich;
+        var outcome = enrich.GetType().GetProperty("Result")!.GetValue(enrich)!;
+        var enriched = ((System.Collections.IEnumerable)outcome.GetType().GetField("Item1")!.GetValue(outcome)!).Cast<object>().ToList();
+        var valueMaps = (Dictionary<Guid, Dictionary<string, string>>)outcome.GetType().GetField("Item2")!.GetValue(outcome)!;
+        Assert.Equal(episodes.Count, enriched.Count);
+
+        static T Read<T>(object summary, string property) => (T)summary.GetType().GetProperty(property)!.GetValue(summary)!;
+        foreach (var episode in enriched)
+        {
+            var id = Guid.Parse(Read<string>(episode, "Id"));
+            var legacyValues = await composer.LoadWorkAndAssetCanonicalMapAsync(id, CancellationToken.None);
+            var legacyOverrides = await composer.LoadWorkDisplayOverridesAsync(id, CancellationToken.None);
+            var expectedDescription = legacyOverrides.TryGetValue("description", out var overridden) && !string.IsNullOrWhiteSpace(overridden)
+                ? overridden.Trim()
+                : legacyValues.GetValueOrDefault("episode_description");
+            Assert.Equal(expectedDescription, Read<string?>(episode, "Description"));
+            Assert.Equal(legacyValues.GetValueOrDefault("episode_still_url"), Read<string?>(episode, "BackgroundUrl"));
+            Assert.Equal(legacyValues.GetValueOrDefault("air_date") ?? legacyValues.GetValueOrDefault("release_date"), Read<string?>(episode, "Year"));
+            Assert.Equal(Normalize(legacyValues), Normalize(valueMaps[id]));
+        }
+
+        Assert.Contains(enriched, episode => Read<string?>(episode, "Description")?.StartsWith("Override", StringComparison.Ordinal) == true);
+        Assert.Contains(enriched, episode => Read<string?>(episode, "Year") is not null);
+
+        // The playback pills read the playback episode's own map, which now comes from the batch.
+        var pills = orchestrator.GetMethod("BuildCollectionMetadata", BindingFlags.Static | BindingFlags.NonPublic)!;
+        IReadOnlyList<MetadataPill> PillsFor(object playbackEpisode, IReadOnlyDictionary<string, string> playbackValues) =>
+            (IReadOnlyList<MetadataPill>)pills.Invoke(null,
+                [DetailEntityType.TvShow, outcome.GetType().GetField("Item1")!.GetValue(outcome), new Dictionary<string, string>(), playbackEpisode, playbackValues])!;
+        var playback = enriched.First(episode => Guid.Parse(Read<string>(episode, "Id")) == episodes[3]);
+        var fromBatch = PillsFor(playback, valueMaps[episodes[3]]);
+        var fromLegacy = PillsFor(playback, await composer.LoadWorkAndAssetCanonicalMapAsync(episodes[3], CancellationToken.None));
+        Assert.NotEmpty(fromBatch);
+        Assert.Equal(JsonSerializer.Serialize(fromLegacy), JsonSerializer.Serialize(fromBatch));
+    }
+
+    [Fact]
     public async Task ReadingAThousandEpisodesUsesAFlatNumberOfStatements()
     {
         var episodes = SeedEpisodes(1000);
@@ -99,7 +167,7 @@ public sealed class EpisodeBatchLoadingTests : IDisposable
     /// Seeds standalone TV episodes with deliberately uneven data: extra editions and assets, orphaned assets,
     /// conflicting keys between asset and work, packed and multi-valued genres, blank subtitles, bad override JSON.
     /// </summary>
-    private List<Guid> SeedEpisodes(int count)
+    private List<Guid> SeedEpisodes(int count, Guid? show = null)
     {
         var ids = new List<Guid>(count);
         using var connection = _db.CreateConnection();
@@ -110,8 +178,12 @@ public sealed class EpisodeBatchLoadingTests : IDisposable
             ids.Add(work);
             var overrides = i % 5 == 0 ? $"{{\"description\":\"Override {i}\"}}" : i % 7 == 0 ? "{broken" : null;
             connection.Execute(
-                "INSERT INTO works(id,media_type,work_kind,curator_state,display_overrides_json) VALUES (@work,'TV','standalone','accepted',@overrides);",
-                new { work, overrides }, transaction);
+                "INSERT INTO works(id,media_type,work_kind,parent_work_id,curator_state,display_overrides_json) VALUES (@work,'TV',@kind,@show,'accepted',@overrides);",
+                new { work, overrides, show, kind = show is null ? "standalone" : "child" }, transaction);
+            if (show is not null)
+            {
+                InsertValue(connection, transaction, work, "cover_url", $"https://img/cover-{i}.jpg");
+            }
 
             var firstEdition = Guid.NewGuid();
             var firstAsset = Guid.NewGuid();
@@ -154,6 +226,15 @@ public sealed class EpisodeBatchLoadingTests : IDisposable
                 InsertValue(connection, transaction, firstEdition, "subtitle", i % 6 == 0 ? string.Empty : $"Subtitle {i}");
             }
 
+            if (i % 8 == 2)
+            {
+                // Two Normal assets in one edition; the one with the lower id wins shared keys.
+                var sibling = Guid.NewGuid();
+                InsertAsset(connection, transaction, sibling, firstEdition, "Normal", $"sibling-{work:N}");
+                InsertValue(connection, transaction, sibling, "title", $"Sibling asset title {i}");
+                InsertValue(connection, transaction, sibling, "audio_codec", "aac");
+            }
+
             if (i % 9 == 0)
             {
                 var orphaned = Guid.NewGuid();
@@ -176,6 +257,15 @@ public sealed class EpisodeBatchLoadingTests : IDisposable
                 InsertClaim(connection, transaction, firstAsset, "genre", "Drama|Thriller", 0.8, "2026-01-02");
             }
 
+            if (i % 6 == 1)
+            {
+                // Tied on confidence and date: the claim id breaks the tie the same way on both paths.
+                InsertClaim(connection, transaction, firstAsset, "duration_seconds", "111", 0.5, "2026-01-06");
+                InsertClaim(connection, transaction, firstAsset, "duration_seconds", "222", 0.5, "2026-01-06");
+                InsertClaim(connection, transaction, work, "genre", "Mystery", 0.4, "2026-01-07");
+                InsertClaim(connection, transaction, work, "genre", "Horror", 0.4, "2026-01-07");
+            }
+
             if (i % 4 == 1)
             {
                 InsertClaim(connection, transaction, work, "genre", "Comedy|Action", 0.7, "2026-01-04");
@@ -192,7 +282,7 @@ public sealed class EpisodeBatchLoadingTests : IDisposable
             "INSERT INTO media_assets(id,edition_id,content_hash,file_path_root,status) VALUES (@asset,@edition,@hash,@path,@status);",
             new { asset, edition, hash, path = $"C:/qa/{hash}.mkv", status }, transaction);
 
-    private static void InsertValue(SqliteConnection connection, SqliteTransaction transaction, Guid entity, string key, string value) =>
+    private static void InsertValue(SqliteConnection connection, SqliteTransaction? transaction, Guid entity, string key, string value) =>
         connection.Execute(
             "INSERT INTO canonical_values(entity_id,key,value,last_scored_at) VALUES (@entity,@key,@value,'2026-01-01');",
             new { entity, key, value }, transaction);

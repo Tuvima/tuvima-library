@@ -347,7 +347,7 @@ internal sealed partial class DetailCompositionOrchestrator
         using var conn = _db.CreateConnection();
         var entityIdBlob = GuidSql.ToBlob(entityId);
         var rows = await conn.QueryAsync<CanonicalPair>(new CommandDefinition(
-            "SELECT key AS Key, value AS Value FROM canonical_values WHERE entity_id = @entityId;",
+            "SELECT key AS Key, value AS Value FROM canonical_values WHERE entity_id = @entityId ORDER BY key;",
             new { entityId = entityIdBlob },
             cancellationToken: ct));
         var arrayRows = await conn.QueryAsync<CanonicalPair>(new CommandDefinition(
@@ -466,7 +466,7 @@ internal sealed partial class DetailCompositionOrchestrator
             WHERE entity_id = @entityId
               AND claim_key IN ('duration_sec', 'duration_seconds', 'genre')
               AND NULLIF(CAST(claim_value AS TEXT), '') IS NOT NULL
-            ORDER BY confidence DESC, claimed_at DESC;
+            ORDER BY confidence DESC, claimed_at DESC, id;
             """,
             new { entityId = GuidSql.ToBlob(entityId) },
             cancellationToken: ct));
