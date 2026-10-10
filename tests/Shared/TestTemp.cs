@@ -131,6 +131,10 @@ internal static class TestTemp
         var outcome = "cleanup threw before finishing";
         try
         {
+            // Progress lines locate a hang or kill inside the cleanup (a "cleanup begin" without a later outcome).
+            AppendLog($"{DateTime.UtcNow:O} pid {Environment.ProcessId} cleanup begin");
+            ReleaseSqlitePools();
+            AppendLog($"{DateTime.UtcNow:O} pid {Environment.ProcessId} pools released");
             DeleteDirectory(RunRoot);
 
             // The test host's console is often gone at exit, so leave a one-line trace beside the run folders.
