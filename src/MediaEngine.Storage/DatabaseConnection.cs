@@ -178,6 +178,8 @@ public sealed class DatabaseConnection : IDatabaseConnection
     {
         _connection?.Dispose();
         _connection = null;
+        // Release pooled handles so the data file can be moved or deleted after shutdown.
+        _connectionFactory.ClearPool();
         _writeLock.Dispose();
     }
 }
