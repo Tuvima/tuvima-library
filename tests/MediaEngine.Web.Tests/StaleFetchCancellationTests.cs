@@ -77,7 +77,7 @@ public sealed class StaleFetchCancellationTests : AsyncBunitContext
         var cut = Render<DetailRouteHost>(p => p.Add(c => c.Request, request));
         cut.WaitForAssertion(() => Assert.Single(_detailTokens));
 
-        cut.Dispose();
+        cut.Instance.Dispose();
 
         Assert.True(_detailTokens[0].IsCancellationRequested);
     }
@@ -89,7 +89,7 @@ public sealed class StaleFetchCancellationTests : AsyncBunitContext
         cut.WaitForAssertion(() => Assert.Single(_recentTokens));
         Assert.False(_recentTokens[0].IsCancellationRequested);
 
-        cut.Dispose();
+        cut.Instance.Dispose();
 
         Assert.True(_recentTokens[0].IsCancellationRequested);
     }
