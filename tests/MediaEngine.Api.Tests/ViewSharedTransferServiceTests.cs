@@ -374,7 +374,7 @@ public sealed class ViewSharedTransferServiceTests
         await fixture.Policies.SavePolicyAsync((await fixture.Policies.GetPolicyAsync(childId)) with { SubmitToSharedLibrary = true });
 
         var preview = await fixture.Contributions.PreviewAsync(
-            child, new ViewSharedContributionPreviewRequest([indexed.ItemId]));
+            child, new ViewSharedContributionPreviewRequest([indexed!.ItemId]));
         Assert.Single(preview.Items);
     }
 
