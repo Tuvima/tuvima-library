@@ -141,6 +141,44 @@ public sealed class ProfilePersonalMediaRepositoryTests : IDisposable
         Assert.Equal(1, Count("SELECT COUNT(*) FROM view_folder_timeline_policies WHERE updated_by_profile_id IS NULL", new { }));
     }
 
+    [Fact]
+    public async Task AnOlderTimelinePolicyTable_IsUpgradedOnce_KeepingItsRows()
+    {
+        var person = Person("Maya");
+        var other = Person("Sam");
+        Photo(other, "/data/Profiles/sam/b.jpg", managed: true);
+        var source = Query<Guid>("SELECT id FROM view_sources WHERE personal_space_id IN (SELECT id FROM view_personal_spaces WHERE owner_profile_id=@other)", new { other });
+
+        // The shape every earlier install has: the person is a required reference with no ON DELETE action.
+        Execute("""
+            DROP TABLE view_folder_timeline_policies;
+            CREATE TABLE view_folder_timeline_policies (
+                source_id           BLOB NOT NULL REFERENCES view_sources(id) ON DELETE CASCADE,
+                relative_path       TEXT NOT NULL,
+                absolute_path       TEXT NOT NULL,
+                include_in_timeline INTEGER NOT NULL CHECK (include_in_timeline IN (0, 1)),
+                updated_by_profile_id BLOB NOT NULL REFERENCES profiles(id),
+                updated_at          TEXT NOT NULL,
+                PRIMARY KEY (source_id, relative_path)
+            );
+            INSERT INTO view_folder_timeline_policies
+                (source_id,relative_path,absolute_path,include_in_timeline,updated_by_profile_id,updated_at)
+            VALUES (@source,'Trips','/data/Trips',1,@person,@now);
+            """, new { source, person, now = Now.ToString("O") });
+
+        _database.RunStartupChecks();
+        _database.RunStartupChecks();
+
+        Assert.Equal(0, Count("SELECT \"notnull\" FROM pragma_table_info('view_folder_timeline_policies') WHERE name='updated_by_profile_id'", new { }));
+        Assert.Equal("SET NULL", Query<string>("SELECT on_delete FROM pragma_foreign_key_list('view_folder_timeline_policies') WHERE \"from\"='updated_by_profile_id'", new { }));
+        Assert.Equal("CASCADE", Query<string>("SELECT on_delete FROM pragma_foreign_key_list('view_folder_timeline_policies') WHERE \"from\"='source_id'", new { }));
+        Assert.Equal(1, Count("SELECT COUNT(*) FROM view_folder_timeline_policies WHERE relative_path='Trips' AND updated_by_profile_id=@person", new { person }));
+
+        await _accounts.DeleteManagedProfileAsync(person);
+
+        Assert.Equal(1, Count("SELECT COUNT(*) FROM view_folder_timeline_policies WHERE relative_path='Trips' AND updated_by_profile_id IS NULL", new { }));
+    }
+
     private Guid Person(string name)
     {
         var id = Guid.NewGuid();
