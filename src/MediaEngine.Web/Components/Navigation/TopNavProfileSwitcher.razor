@@ -11,10 +11,10 @@
     @if (_pending is { } pending)
     {
         <div class="profile-switcher profile-switcher--pin">
-            <button type="button" class="profile-switcher__back" @onclick="CancelPin" disabled="@_busy">
+            <AppNativeButton Type="button" Class="profile-switcher__back" OnClick="CancelPin" Disabled="@_busy">
                 <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true"><path fill="currentColor" d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z" /></svg>
                 <span>Back</span>
-            </button>
+            </AppNativeButton>
             <span class="profile-switcher__who">
                 <span class="profile-switcher__avatar"><ProfileAvatar DisplayName="@pending.DisplayName" ImageUrl="@pending.AvatarImageUrl" Color="@pending.AvatarColor" Icon="@pending.AvatarIcon" /></span>
                 <strong>@pending.DisplayName</strong>
@@ -24,7 +24,7 @@
             {
                 <p class="profile-switcher__error" role="alert">@_error</p>
             }
-            <button type="button" class="profile-switcher__go" disabled="@(_busy || _pin.Length == 0)" @onclick="SubmitPinAsync">Open profile</button>
+            <AppNativeButton Type="button" Class="profile-switcher__go" Disabled="@(_busy || _pin.Length == 0)" OnClick="SubmitPinAsync">Open profile</AppNativeButton>
         </div>
     }
     else
@@ -32,8 +32,8 @@
         <div class="profile-switcher" role="group" aria-label="Switch to another profile">
             @foreach (var profile in Others)
             {
-                <button type="button" class="profile-switcher__item" role="menuitem" disabled="@_busy"
-                        aria-label="@ItemLabel(profile)" @key="profile.Id" @onclick="@(() => ChooseAsync(profile))">
+                <AppNativeButton Type="button" Class="profile-switcher__item" role="menuitem" Disabled="@_busy"
+                                 AriaLabel="@ItemLabel(profile)" @key="profile.Id" OnClick="@(() => ChooseAsync(profile))">
                     <span class="profile-switcher__avatar"><ProfileAvatar DisplayName="@profile.DisplayName" ImageUrl="@profile.AvatarImageUrl" Color="@profile.AvatarColor" Icon="@profile.AvatarIcon" /></span>
                     <span class="profile-switcher__name">@profile.DisplayName</span>
                     @if (profile.IsRestricted)
@@ -44,7 +44,7 @@
                     {
                         <svg class="profile-switcher__lock" viewBox="0 0 24 24" focusable="false" aria-hidden="true"><path fill="currentColor" d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z" /></svg>
                     }
-                </button>
+                </AppNativeButton>
             }
             @if (_error is not null)
             {

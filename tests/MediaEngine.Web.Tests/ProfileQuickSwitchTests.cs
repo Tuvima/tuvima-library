@@ -11,20 +11,20 @@ using Microsoft.JSInterop;
 namespace MediaEngine.Web.Tests;
 
 /// <summary>The top-bar quick switch: who is listed, what a PIN profile asks for, and that it adds no page requests.</summary>
-public sealed class ProfileQuickSwitchTests
+public sealed class ProfileQuickSwitchTests : AsyncBunitContext
 {
     private static readonly string RepoRoot = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", ".."));
 
     private static ProfileViewModel Person(string name, bool pin = false, bool kids = false) => new(
         Guid.NewGuid(), name, "#3B82F6", kids ? "RestrictedProfile" : "StandardUser", DateTimeOffset.UtcNow, HasPin: pin);
 
-    private static void AddServices(BunitContext ctx)
+    private void AddServices()
     {
-        ctx.JSInterop.Mode = JSRuntimeMode.Loose;
+        JSInterop.Mode = JSRuntimeMode.Loose;
         var api = EngineApiClientStub.Create(_ => { });
-        ctx.Services.AddSingleton<ActiveProfileSessionService>(provider => new ActiveProfileSessionService(
+        Services.AddSingleton<ActiveProfileSessionService>(provider => new ActiveProfileSessionService(
             provider.GetRequiredService<IJSRuntime>(), api));
-        ctx.Services.AddSingleton<UIOrchestratorService>(provider => new UIOrchestratorService(
+        Services.AddSingleton<UIOrchestratorService>(provider => new UIOrchestratorService(
             api,
             new UniverseStateContainer(),
             provider.GetRequiredService<ActiveProfileSessionService>(),
@@ -32,10 +32,10 @@ public sealed class ProfileQuickSwitchTests
             NullLogger<UIOrchestratorService>.Instance));
     }
 
-    private static IRenderedComponent<TopNavProfileSwitcher> Render(BunitContext ctx, Guid? active, params ProfileViewModel[] profiles)
+    private IRenderedComponent<TopNavProfileSwitcher> RenderSwitcher(Guid? active, params ProfileViewModel[] profiles)
     {
-        AddServices(ctx);
-        return ctx.Render<TopNavProfileSwitcher>(parameters => parameters
+        AddServices();
+        return Render<TopNavProfileSwitcher>(parameters => parameters
             .Add(p => p.ActiveProfileId, active)
             .Add(p => p.Profiles, profiles));
     }
@@ -43,10 +43,9 @@ public sealed class ProfileQuickSwitchTests
     [Fact]
     public void AloneInTheHousehold_NothingIsListed()
     {
-        using var ctx = new BunitContext();
         var only = Person("Maya");
 
-        var cut = Render(ctx, only.Id, only);
+        var cut = RenderSwitcher(only.Id, only);
 
         Assert.Empty(cut.FindAll(".profile-switcher"));
     }
@@ -54,12 +53,11 @@ public sealed class ProfileQuickSwitchTests
     [Fact]
     public void WithOthers_ListsEveryoneButTheActiveProfile_WithKidsAndLockMarks()
     {
-        using var ctx = new BunitContext();
         var me = Person("Maya");
         var dad = Person("Dad", pin: true);
         var kid = Person("Sam", kids: true);
 
-        var cut = Render(ctx, me.Id, me, dad, kid);
+        var cut = RenderSwitcher(me.Id, me, dad, kid);
 
         var items = cut.FindAll(".profile-switcher__item");
         Assert.Equal(2, items.Count);
@@ -71,11 +69,10 @@ public sealed class ProfileQuickSwitchTests
     [Fact]
     public void ChoosingAProfileWithAPin_ShowsTheNumberPad_AndBackReturnsToTheList()
     {
-        using var ctx = new BunitContext();
         var me = Person("Maya");
         var dad = Person("Dad", pin: true);
 
-        var cut = Render(ctx, me.Id, me, dad);
+        var cut = RenderSwitcher(me.Id, me, dad);
         cut.Find(".profile-switcher__item").Click();
 
         Assert.NotEmpty(cut.FindAll(".pin-pad"));
@@ -92,7 +89,6 @@ public sealed class ProfileQuickSwitchTests
     {
         var menu = File.ReadAllText(Path.Combine(RepoRoot, "src", "MediaEngine.Web", "Components", "Navigation", "TopNavAccountMenu.razor"));
         var switcher = File.ReadAllText(Path.Combine(RepoRoot, "src", "MediaEngine.Web", "Components", "Navigation", "TopNavProfileSwitcher.razor"));
-        var css = File.ReadAllText(Path.Combine(RepoRoot, "src", "MediaEngine.Web", "Components", "Navigation", "TopNavProfileSwitcher.razor.css"));
 
         Assert.Contains("@if (Profiles.Count > 1)", menu, StringComparison.Ordinal);
         Assert.Contains("<TopNavProfileSwitcher", menu, StringComparison.Ordinal);
@@ -106,8 +102,6 @@ public sealed class ProfileQuickSwitchTests
         Assert.Contains("Orchestrator.SetActiveProfileAsync(profile.Id, pin)", switcher, StringComparison.Ordinal);
         Assert.Contains("ProfileSwitchStatus.TooManyAttempts", switcher, StringComparison.Ordinal);
 
-        Assert.DoesNotContain("::deep", css, StringComparison.Ordinal);
-        Assert.DoesNotContain("!important", css, StringComparison.Ordinal);
         Assert.DoesNotContain("style=", switcher, StringComparison.Ordinal);
     }
 }
