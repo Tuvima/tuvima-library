@@ -593,7 +593,8 @@ public static class AccountEndpoints
 
             var profile = await mutations.AddHouseholdPersonAsync(await resolver.ResolveAsync(http, ct),
                 new AddHouseholdPersonCommand(householdId, request.DisplayName, request.AvatarColor,
-                    request.IsChild, request.Pin, request.AvatarIcon), ct);
+                    request.IsChild, request.Pin, request.AvatarIcon, request.ContentLimit,
+                    request.ContentLimitAllowUnrated), ct);
             return Results.Created($"/access/profiles/{profile.Id:D}", MapProfile(profile));
         })).RequireAdministratorHouseholdOrApplication(ApplicationPermissionIds.IdentityUsersWrite)
            .WithName("AddHouseholdPerson").Produces<ManagedProfileResponse>(StatusCodes.Status201Created);
@@ -635,7 +636,8 @@ public static class AccountEndpoints
             }
 
             var profile = await mutations.UpdateProfileAsync(await resolver.ResolveAsync(http, ct),
-                profileId, new UpdateManagedProfileCommand(request.DisplayName, request.AvatarColor, request.AvatarIcon), ct);
+                profileId, new UpdateManagedProfileCommand(request.DisplayName, request.AvatarColor, request.AvatarIcon,
+                    request.ContentLimit, request.ContentLimitAllowUnrated), ct);
             return Results.Ok(MapProfile(profile));
         })).RequireAdministratorHouseholdOrApplication(ApplicationPermissionIds.IdentityUsersWrite)
            .Produces<ManagedProfileResponse>();
@@ -796,7 +798,7 @@ public static class AccountEndpoints
         new(profile.Id, profile.DisplayName, profile.AvatarColor, profile.AvatarImagePath,
             profile.CreatedAt, profile.HouseholdId,
             profile.Role == MediaEngine.Domain.Enums.ProfileRole.RestrictedProfile,
-            profile.AvatarIcon);
+            profile.AvatarIcon, profile.ContentLimit, profile.ContentLimitAllowUnrated);
 
     private static ValueTask WriteAuditAsync(IAuthorizationAuditWriter audit, TimeProvider clock,
         RequestAuthority authority, string eventType, Guid loginId, CancellationToken ct) =>

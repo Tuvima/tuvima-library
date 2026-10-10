@@ -36,6 +36,10 @@ internal sealed class SchemaMigrator
         EnsureHouseholdAdministrators(conn);
         AddColumnIfMissing(conn, "profiles", "avatar_icon",
             "ALTER TABLE profiles ADD COLUMN avatar_icon TEXT;");
+        AddColumnIfMissing(conn, "profiles", "content_limit",
+            "ALTER TABLE profiles ADD COLUMN content_limit TEXT CHECK (content_limit IS NULL OR content_limit IN ('G', 'PG', 'PG-13', 'R'));");
+        AddColumnIfMissing(conn, "profiles", "content_limit_allow_unrated",
+            "ALTER TABLE profiles ADD COLUMN content_limit_allow_unrated INTEGER NOT NULL DEFAULT 0 CHECK (content_limit_allow_unrated IN (0, 1));");
         EnsureTimelinePolicySurvivesProfileRemoval(conn);
         EnsurePerHouseholdSharedLibrary(conn);
         RetireSharedLibraryCuratorFlag(conn);

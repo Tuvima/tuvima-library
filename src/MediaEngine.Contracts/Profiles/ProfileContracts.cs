@@ -30,6 +30,14 @@ public sealed class ProfileResponseDto
     [JsonPropertyName("avatar_icon")]
     public string? AvatarIcon { get; init; }
 
+    /// <summary>The highest rating this profile may see (G, PG, PG-13 or R); null means Everything.</summary>
+    [JsonPropertyName("content_limit")]
+    public string? ContentLimit { get; init; }
+
+    /// <summary>True when items with no rating stay visible although a content limit is set.</summary>
+    [JsonPropertyName("content_limit_allow_unrated")]
+    public bool ContentLimitAllowUnrated { get; init; }
+
     /// <summary>True when switching to this profile needs its PIN. Filled in by the profile list only.</summary>
     [JsonPropertyName("has_pin")]
     public bool HasPin { get; init; }

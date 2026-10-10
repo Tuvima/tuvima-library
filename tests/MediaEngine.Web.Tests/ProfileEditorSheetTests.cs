@@ -79,6 +79,64 @@ public sealed class ProfileEditorSheetTests
     }
 
     [Fact]
+    public void ContentLimit_OffersFiveChoices_AndDefaultsToEverythingForAnAdult()
+    {
+        using var ctx = new BunitContext();
+        ProfileEditorResult? result = null;
+        var cut = Render(ctx, saved: r => result = r);
+
+        var choices = cut.FindAll("[aria-label='Content limit'] button[role='radio']");
+        Assert.Equal(["Everything", "G", "PG", "PG-13", "R"], choices.Select(choice => choice.TextContent.Trim()));
+        Assert.Equal("true", choices[0].GetAttribute("aria-checked"));
+        Assert.Empty(cut.FindAll("input[aria-label='Show items with no rating']"));
+
+        cut.Find("input.profile-editor__name").Input("Sam");
+        cut.Find("button.who-button--primary").Click();
+
+        Assert.Equal(string.Empty, result!.ContentLimit);
+        Assert.False(result.ContentLimitAllowUnrated);
+    }
+
+    [Fact]
+    public void ContentLimit_NewKidsProfilesStartOnPg_UntilAParentChoosesOtherwise()
+    {
+        using var ctx = new BunitContext();
+        ProfileEditorResult? result = null;
+        var cut = Render(ctx, saved: r => result = r);
+
+        cut.Find("input.profile-editor__name").Input("Sam");
+        cut.Find("input[aria-label='Kids profile']").Change(true);
+        Assert.Equal("true", cut.FindAll("[aria-label='Content limit'] button[role='radio']")[2].GetAttribute("aria-checked"));
+
+        // PG-13 for an eight-year-old is the parent's call; switching Kids off afterwards does not undo it.
+        cut.FindAll("[aria-label='Content limit'] button[role='radio']")[3].Click();
+        cut.Find("input[aria-label='Show items with no rating']").Change(true);
+        cut.Find("input[aria-label='Kids profile']").Change(false);
+        cut.Find("button.who-button--primary").Click();
+
+        Assert.Equal("PG-13", result!.ContentLimit);
+        Assert.True(result.ContentLimitAllowUnrated);
+    }
+
+    [Fact]
+    public void ContentLimit_EditingShowsTheSavedLimit_AndEverythingClearsIt()
+    {
+        using var ctx = new BunitContext();
+        ProfileEditorResult? result = null;
+        var existing = Existing(kids: true) with { ContentLimit = "R", ContentLimitAllowUnrated = true };
+        var cut = Render(ctx, existing, saved: r => result = r);
+
+        Assert.Equal("true", cut.FindAll("[aria-label='Content limit'] button[role='radio']")[4].GetAttribute("aria-checked"));
+        Assert.True(cut.Find("input[aria-label='Show items with no rating']").HasAttribute("checked"));
+
+        cut.FindAll("[aria-label='Content limit'] button[role='radio']")[0].Click();
+        cut.Find("button.who-button--primary").Click();
+
+        Assert.Equal(string.Empty, result!.ContentLimit);
+        Assert.False(result.ContentLimitAllowUnrated);
+    }
+
+    [Fact]
     public void TheEditor_OffersTwelveSwatchesTwelveIconsAndTheInitial()
     {
         using var ctx = new BunitContext();

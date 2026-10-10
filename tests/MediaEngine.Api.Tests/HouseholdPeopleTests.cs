@@ -55,6 +55,46 @@ public sealed class HouseholdPeopleTests
     }
 
     [Fact]
+    public async Task ContentLimit_NewKidsStartOnPg_IsIndependentOfTheKidsLabel_AndKeepsUntilChanged()
+    {
+        await using var fixture = await Fixture.CreateAsync();
+        var (mutations, households, actor) = (fixture.Mutations, fixture.Households, fixture.Actor);
+        var owner = await fixture.CreateOwnerAsync();
+        var household = (await households.GetForAccountAsync(owner.Id))!;
+
+        var kid = await mutations.AddHouseholdPersonAsync(actor,
+            new AddHouseholdPersonCommand(household.Id, "Mary", null, IsChild: true, Pin: null));
+        var grownUp = await mutations.AddHouseholdPersonAsync(actor,
+            new AddHouseholdPersonCommand(household.Id, "Sam", null, IsChild: false, Pin: null));
+        var olderKid = await mutations.AddHouseholdPersonAsync(actor,
+            new AddHouseholdPersonCommand(household.Id, "Tom", null, IsChild: true, Pin: null, ContentLimit: "PG-13", ContentLimitAllowUnrated: true));
+        var freeKid = await mutations.AddHouseholdPersonAsync(actor,
+            new AddHouseholdPersonCommand(household.Id, "Ann", null, IsChild: true, Pin: null, ContentLimit: ""));
+
+        Assert.Equal("PG", kid.ContentLimit);
+        Assert.Null(grownUp.ContentLimit);
+        Assert.Equal("PG-13", olderKid.ContentLimit);
+        Assert.True(olderKid.ContentLimitAllowUnrated);
+        Assert.Null(freeKid.ContentLimit);
+        await Assert.ThrowsAnyAsync<ArgumentException>(() => mutations.AddHouseholdPersonAsync(actor,
+            new AddHouseholdPersonCommand(household.Id, "Bad", null, false, null, ContentLimit: "NC-17")));
+
+        // An adult can be limited, and a rename that leaves the limit out keeps it.
+        await mutations.UpdateProfileAsync(actor, grownUp.Id,
+            new UpdateManagedProfileCommand("Sam", null, null, ContentLimit: "R"));
+        await mutations.UpdateProfileAsync(actor, grownUp.Id, new UpdateManagedProfileCommand("Samuel", null));
+        var stored = (await households.ListProfilesAsync(household.Id)).Single(profile => profile.Id == grownUp.Id);
+        Assert.Equal("Samuel", stored.DisplayName);
+        Assert.Equal("R", stored.ContentLimit);
+
+        await mutations.UpdateProfileAsync(actor, grownUp.Id,
+            new UpdateManagedProfileCommand("Samuel", null, null, ContentLimit: "", ContentLimitAllowUnrated: true));
+        stored = (await households.ListProfilesAsync(household.Id)).Single(profile => profile.Id == grownUp.Id);
+        Assert.Null(stored.ContentLimit);
+        Assert.True(stored.ContentLimitAllowUnrated);
+    }
+
+    [Fact]
     public async Task OwnSignIn_OpensStraightIntoThePerson_FollowsHouseholdAccess_AndIsNeverAnAdministrator()
     {
         await using var fixture = await Fixture.CreateAsync();

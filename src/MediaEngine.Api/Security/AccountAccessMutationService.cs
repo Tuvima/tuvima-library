@@ -410,6 +410,11 @@ public sealed class AccountAccessMutationService(
             DisplayName = name,
             AvatarColor = color,
             AvatarIcon = ProfileAvatarIcons.Normalize(command.AvatarIcon),
+            // Left out, a Kids profile starts on PG; an explicit blank means Everything.
+            ContentLimit = command.ContentLimit is null
+                ? (command.IsChild ? ProfileContentLimits.KidsDefault : null)
+                : ProfileContentLimits.Normalize(command.ContentLimit),
+            ContentLimitAllowUnrated = command.ContentLimitAllowUnrated,
             Role = command.IsChild ? ProfileRole.RestrictedProfile : ProfileRole.StandardUser,
             CreatedAt = now,
         };
@@ -625,9 +630,27 @@ public sealed class AccountAccessMutationService(
             profile.AvatarIcon = ProfileAvatarIcons.Normalize(command.AvatarIcon);
         }
 
+        var limitBefore = (profile.ContentLimit, profile.ContentLimitAllowUnrated);
+        if (command.ContentLimit is not null)
+        {
+            // Omitted keeps the current limit; an empty string means Everything.
+            profile.ContentLimit = ProfileContentLimits.Normalize(command.ContentLimit);
+        }
+
+        if (command.ContentLimitAllowUnrated is { } allowUnrated)
+        {
+            profile.ContentLimitAllowUnrated = allowUnrated;
+        }
+
         await accounts.UpdateManagedProfileAsync(profile, ct).ConfigureAwait(false);
         await ChangedAsync(actor, "profile.updated", "profile", profile.Id.ToString("D"),
             actor.AccountId ?? Guid.Empty, profile.Id, ct).ConfigureAwait(false);
+        if (limitBefore != (profile.ContentLimit, profile.ContentLimitAllowUnrated))
+        {
+            await ChangedAsync(actor, "profile.content_limit_changed", "profile", profile.Id.ToString("D"),
+                actor.AccountId ?? Guid.Empty, profile.Id, ct).ConfigureAwait(false);
+        }
+
         return profile;
     }
 
