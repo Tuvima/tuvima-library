@@ -237,6 +237,8 @@
                 try
                 {
                     var requestedProfile = (await Orchestrator.GetActiveProfileAsync())?.Id;
+                    // Disposal can land during the profile await; read the token only while still alive.
+                    if (_disposed) return;
                     var nextPage = await MediaTiles.BuildHomeAsync(requestedProfile, _pageCts.Token);
                     if (_disposed) return;
                     if (Orchestrator.ActivePlaybackProfileId != requestedProfile)

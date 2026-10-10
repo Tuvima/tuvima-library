@@ -707,6 +707,7 @@
         _loadFailed = false;
         _loadError = null;
         _loading = true;
+        var loadVersion = ++_browseLoadVersion;
         if (!_hasLoadedOnce)
             StateHasChanged();
 
@@ -760,10 +761,14 @@
         }
         finally
         {
-            _loading = false;
+            // A superseded load must not clear the flag for the newer one.
+            if (loadVersion == _browseLoadVersion)
+                _loading = false;
             _hasLoadedOnce = true;
         }
     }
+
+    private int _browseLoadVersion;
 
     private Task ReloadAsync() => LoadBrowseContentAsync();
 
