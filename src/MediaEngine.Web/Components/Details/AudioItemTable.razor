@@ -288,6 +288,7 @@
     [Parameter] public RenderFragment? CompactToolbarLeadingContent { get; set; }
 
     private readonly HashSet<Guid> _favoriteIds = [];
+    private Guid? _favoritesProfileId;
     private readonly List<AudioTableColumn> _columns = [];
     private string _modeKey = string.Empty;
     private string _sortColumn = "track";
@@ -344,11 +345,21 @@
         }
 
         var profile = await Orchestrator.GetActiveProfileAsync();
-        _favoriteIds.Clear();
-        if (!IsAudiobook)
+        if (IsAudiobook)
         {
-            _favoriteIds.UnionWith(await Reactions.GetFavoriteWorkIdsAsync(profile?.Id));
+            _favoriteIds.Clear();
+            _favoritesProfileId = null;
+            return;
         }
+
+        // Favourites are one profile-wide read (every reaction the profile has), so fetch it once
+        // per profile for this table; toggles keep _favoriteIds current locally.
+        if (_favoritesProfileId is { } loadedFor && loadedFor == profile?.Id)
+            return;
+
+        _favoriteIds.Clear();
+        _favoriteIds.UnionWith(await Reactions.GetFavoriteWorkIdsAsync(profile?.Id));
+        _favoritesProfileId = profile?.Id;
     }
 
     private static IReadOnlyList<AudioTableColumn> MusicColumns() =>
