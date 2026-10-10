@@ -24,7 +24,7 @@ public static class EngineBookProxyPath
     public static bool TryParseBrowserPath(string? path, out Guid assetId)
     {
         assetId = Guid.Empty;
-        if (string.IsNullOrEmpty(path) || path.AsSpan().IndexOfAny('?', '#', '%', '\\') >= 0)
+        if (string.IsNullOrEmpty(path) || path.IndexOfAny(['?', '#', '%', '\\']) >= 0)
         {
             return false;
         }
