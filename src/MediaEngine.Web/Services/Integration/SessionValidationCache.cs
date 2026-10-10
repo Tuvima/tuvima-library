@@ -100,9 +100,12 @@ public sealed class SessionValidationCache(TimeProvider? clock = null, TimeSpan?
                 if (_entries.TryGetValue(key, out var current) && ReferenceEquals(current, entry))
                 {
                     var now = _clock.GetUtcNow();
-                    // Only a valid check is kept, never past the session's own end, and never if anything changed meanwhile.
+                    // Only a valid check is kept, never past the session's own end or an administrator unlock's end,
+                    // and never if anything changed meanwhile.
                     if (generation == _generation && result.Response is { } response && !result.Invalid
-                        && Earliest(now + _lifetime, response.ExpiresAt) is var expires && expires > now)
+                        && Earliest(Earliest(now + _lifetime, response.ExpiresAt),
+                            response.Authority.AdministratorUnlockExpiresAt ?? DateTimeOffset.MaxValue) is var expires
+                        && expires > now)
                     {
                         entry.ExpiresAt = expires;
                     }

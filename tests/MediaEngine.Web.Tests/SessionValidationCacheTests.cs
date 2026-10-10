@@ -186,6 +186,22 @@ public sealed class SessionValidationCacheTests : IDisposable
     }
 
     [Fact]
+    public async Task ACheckIsNeverKeptPastAnAdministratorUnlocksEnd()
+    {
+        var engine = new EngineSpy { AdministratorUnlockEndsAt = _clock.GetUtcNow().AddSeconds(2) };
+        var identity = CreateIdentity(engine, out _);
+
+        await identity.ValidateCookieAsync("token", Home);
+        _clock.Advance(TimeSpan.FromSeconds(1));
+        await identity.ValidateCookieAsync("token", Home);
+        Assert.Equal(1, engine.Calls);
+
+        _clock.Advance(TimeSpan.FromSeconds(1));
+        await identity.ValidateCookieAsync("token", Home);
+        Assert.Equal(2, engine.Calls);
+    }
+
+    [Fact]
     public async Task OneRequestGivingUp_DoesNotCancelTheCheckOthersAreWaitingOn()
     {
         var gate = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -322,6 +338,7 @@ public sealed class SessionValidationCacheTests : IDisposable
         public bool ChangeCallsAreNotGated { get; set; }
         public Func<HttpRequestMessage, HttpResponseMessage>? RespondWith { get; set; }
         public DateTimeOffset? SessionEndsAt { get; set; }
+        public DateTimeOffset? AdministratorUnlockEndsAt { get; set; }
         public TimeProvider? Clock { get; set; }
 
         public async Task WaitForCallsAsync(int expected)
@@ -355,7 +372,7 @@ public sealed class SessionValidationCacheTests : IDisposable
         {
             var profile = Guid.NewGuid();
             var authority = new DashboardAuthorityResponse(
-                profile, profile, true, true, 1, 1, true, true, null, 1, [], ["settings.administration"], ["access.manage"]);
+                profile, profile, true, true, 1, 1, true, true, AdministratorUnlockEndsAt, 1, [], ["settings.administration"], ["access.manage"]);
             return new HttpResponseMessage(HttpStatusCode.OK)
             {
                 Content = JsonContent.Create(new SessionValidationResponse
