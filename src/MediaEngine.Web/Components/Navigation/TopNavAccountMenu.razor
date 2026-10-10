@@ -55,13 +55,15 @@
 
                 @if (Profiles.Count > 1)
                 {
+                    <TopNavProfileSwitcher ActiveProfileId="@ActiveProfileId" Profiles="@Profiles" />
+
                     <a class="top-nav-account-menu__item"
                        href="@ProfilePickerRoute.Path"
                        role="menuitem"
                        @onclick="CloseMenu">
                         <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.People"
                                  Class="top-nav-account-menu__item-icon" />
-                        <span>@L["TopBar_SwitchProfile"]</span>
+                        <span>Who's watching?</span>
                     </a>
                 }
 

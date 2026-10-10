@@ -1,0 +1,151 @@
+.profile-switcher {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+    max-height: min(18rem, 45dvh);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+}
+
+.profile-switcher--pin {
+    max-height: none;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.25rem 0.25rem 0.5rem;
+}
+
+.profile-switcher__item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    width: 100%;
+    min-height: var(--tl-touch-target-min, 48px);
+    padding: 0.4rem 0.65rem;
+    border: 0;
+    border-radius: var(--tl-radius-md, 8px);
+    color: var(--app-text-primary, #dbe4ed);
+    background: transparent;
+    font-family: var(--font-ui);
+    font-size: 0.94rem;
+    font-weight: 600;
+    text-align: left;
+    cursor: pointer;
+}
+
+.profile-switcher__item:hover,
+.profile-switcher__item:focus-visible {
+    color: #fff;
+    background: rgba(136, 82, 252, 0.16);
+}
+
+.profile-switcher__item:focus-visible,
+.profile-switcher__back:focus-visible,
+.profile-switcher__go:focus-visible {
+    outline: 2px solid var(--tl-focus-ring);
+    outline-offset: -2px;
+}
+
+.profile-switcher__item:disabled {
+    opacity: 0.6;
+    cursor: default;
+}
+
+.profile-switcher__avatar {
+    display: block;
+    flex: 0 0 auto;
+    width: 2.2rem;
+    height: 2.2rem;
+    overflow: hidden;
+    border-radius: 999px;
+}
+
+.profile-switcher__name {
+    min-width: 0;
+    flex: 1 1 auto;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.profile-switcher__tag {
+    flex: 0 0 auto;
+    padding: 0.1rem 0.45rem;
+    border-radius: 999px;
+    color: #fff;
+    background: rgba(136, 82, 252, 0.45);
+    font-size: 0.72rem;
+    font-weight: 700;
+}
+
+.profile-switcher__lock {
+    flex: 0 0 auto;
+    width: 1rem;
+    height: 1rem;
+    color: var(--app-text-muted, #aab0bc);
+}
+
+.profile-switcher__who {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    color: var(--app-text-primary, #f4f5f7);
+}
+
+.profile-switcher__back {
+    align-self: flex-start;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    min-height: var(--tl-touch-target-min, 48px);
+    padding: 0 0.6rem;
+    border: 0;
+    border-radius: var(--tl-radius-md, 8px);
+    color: var(--app-text-muted, #aab0bc);
+    background: transparent;
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.profile-switcher__back svg {
+    width: 1.1rem;
+    height: 1.1rem;
+}
+
+.profile-switcher__go {
+    width: 100%;
+    min-height: var(--tl-touch-target-min, 48px);
+    border: 0;
+    border-radius: var(--tl-radius-md, 8px);
+    color: #fff;
+    background: var(--tl-accent-primary, #8852fc);
+    font: inherit;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.profile-switcher__go:disabled {
+    opacity: 0.5;
+    cursor: default;
+}
+
+.profile-switcher__error {
+    margin: 0.25rem 0.5rem;
+    color: var(--tl-status-warning, #fbbf24);
+    font-size: 0.85rem;
+    text-align: center;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+    .profile-switcher__item {
+        transition: background-color 120ms ease;
+    }
+}
+
+@media (min-width: 1600px) {
+    .profile-switcher__item,
+    .profile-switcher__back,
+    .profile-switcher__go {
+        min-height: 56px;
+    }
+}
