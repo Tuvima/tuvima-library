@@ -1,11 +1,12 @@
 using Dapper;
+using MediaEngine.Api.Security;
 using MediaEngine.Api.Services.View;
 using MediaEngine.Contracts.Paging;
 using MediaEngine.Domain.Aggregates;
 using MediaEngine.Domain.Authorization;
+using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Enums;
 using MediaEngine.Domain.PersonalMedia;
-using MediaEngine.Api.Security;
 using MediaEngine.Storage;
 
 namespace MediaEngine.Api.Tests;

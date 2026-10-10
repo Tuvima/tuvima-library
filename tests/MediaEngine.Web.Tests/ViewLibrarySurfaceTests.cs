@@ -287,9 +287,9 @@ public sealed class ViewLibrarySurfaceTests
         var workspace = Read("src/MediaEngine.Web/Services/Integration/ViewWorkspaceService.cs");
         var client = Read("src/MediaEngine.Web/Services/Integration/EngineApiClient.View.cs");
 
-        Assert.Contains("ScopeKind == ViewScopeKind.Profile", workspace, StringComparison.Ordinal);
-        Assert.Contains("options.Scope == ViewScopeKind.Profile", client, StringComparison.Ordinal);
-        Assert.Contains("scope == ViewScopeKind.Profile", client, StringComparison.Ordinal);
+        Assert.Contains("ScopeKind.CarriesProfileId()", workspace, StringComparison.Ordinal);
+        Assert.Contains("options.Scope.CarriesProfileId()", client, StringComparison.Ordinal);
+        Assert.Contains("scope.CarriesProfileId()", client, StringComparison.Ordinal);
     }
 
     [Fact]

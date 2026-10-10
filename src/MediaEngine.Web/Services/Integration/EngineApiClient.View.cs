@@ -12,7 +12,7 @@ public sealed partial class EngineApiClient
         GetAsync<ViewScopeResolutionDto>("GET /view/scopes", "/view/scopes", new Dictionary<string, string?>
         {
             ["scope"] = scope.HasValue ? ScopeValue(scope.Value) : null,
-            ["scopeProfileId"] = scope.CarriesProfileId() ? scopeProfileId?.ToString("D") : null,
+            ["scopeProfileId"] = scope is { } scopeKind && scopeKind.CarriesProfileId() ? scopeProfileId?.ToString("D") : null,
         }, ct: ct);
 
     public Task<ViewPreferencesDto?> GetViewPreferencesAsync(CancellationToken ct = default) =>
