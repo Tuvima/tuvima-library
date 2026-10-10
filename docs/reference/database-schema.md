@@ -142,6 +142,10 @@ files are never split or altered.
 
 **Primary key:** (`asset_id`, `work_id`). **Unique:** (`asset_id`, `position`). **Indices:** `work_id`
 
+### work_owned_assets (view)
+
+Every (`work_id`, `edition_id`, `asset_id`) an owned work is reached through: its own files, plus files that cover it through `media_asset_coverage`. A covered episode resolves to the host file's edition; the file is still one file, so file counts must use `COUNT(DISTINCT asset_id)` while episode counts use `COUNT(DISTINCT work_id)`. `is_covered` is 1 for the extra rows contributed by coverage. Read services that decide whether a work is owned or which file represents it join this view instead of `editions` + `media_assets`.
+
 ### collection_items
 
 Links works to collections (Series to Universe relationships).

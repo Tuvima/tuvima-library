@@ -39,8 +39,8 @@ public sealed class CollectionMediaLookupReadService(IDatabaseConnection db) : I
             representative_assets AS (
                 SELECT work_tree.RootWorkId AS WorkId, MIN(ma.id) AS AssetId
                 FROM work_tree
-                INNER JOIN editions e ON e.work_id = work_tree.WorkId
-                INNER JOIN media_assets ma ON ma.edition_id = e.id
+                INNER JOIN work_owned_assets woa ON woa.work_id = work_tree.WorkId
+                INNER JOIN media_assets ma ON ma.id = woa.asset_id
                 GROUP BY work_tree.RootWorkId
             )
             SELECT w.id AS WorkId,
@@ -199,8 +199,8 @@ public sealed class CollectionMediaLookupReadService(IDatabaseConnection db) : I
                 SELECT work_descendants.root_id AS WorkId,
                        MIN(ma.id) AS AssetId
                 FROM work_descendants
-                INNER JOIN editions e ON e.work_id = work_descendants.work_id
-                INNER JOIN media_assets ma ON ma.edition_id = e.id
+                INNER JOIN work_owned_assets woa ON woa.work_id = work_descendants.work_id
+                INNER JOIN media_assets ma ON ma.id = woa.asset_id
                 WHERE {visibleAssetPredicate}
                 GROUP BY work_descendants.root_id
             )
@@ -351,8 +351,8 @@ public sealed class CollectionMediaLookupReadService(IDatabaseConnection db) : I
                 SELECT work_tree.RootWorkId AS WorkId,
                        MIN(ma.id) AS AssetId
                 FROM work_tree
-                INNER JOIN editions e ON e.work_id = work_tree.WorkId
-                INNER JOIN media_assets ma ON ma.edition_id = e.id
+                INNER JOIN work_owned_assets woa ON woa.work_id = work_tree.WorkId
+                INNER JOIN media_assets ma ON ma.id = woa.asset_id
                 WHERE {visibleAssetPredicate}
                 GROUP BY work_tree.RootWorkId
             )

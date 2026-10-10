@@ -2991,6 +2991,22 @@ CREATE UNIQUE INDEX IF NOT EXISTS ux_identity_jobs_entity_pass_active
 CREATE UNIQUE INDEX IF NOT EXISTS ux_media_operations_idempotency
 ON media_operations(idempotency_key);
 
+-- Every (work, edition, file) an owned work is reached through: its own files plus
+-- files that cover it as an additional episode of a combined file. A covered
+-- episode resolves to the host file's edition; the file itself is still one file,
+-- so file counts must use DISTINCT asset_id. Single-episode files appear once.
+DROP VIEW IF EXISTS work_owned_assets;
+CREATE VIEW work_owned_assets AS
+SELECT e.work_id AS work_id, e.id AS edition_id, ma.id AS asset_id, 0 AS is_covered
+FROM editions e
+INNER JOIN media_assets ma ON ma.edition_id = e.id
+UNION ALL
+SELECT c.work_id, e.id, c.asset_id, 1
+FROM media_asset_coverage c
+INNER JOIN media_assets ma ON ma.id = c.asset_id
+INNER JOIN editions e ON e.id = ma.edition_id
+WHERE c.work_id <> e.work_id;
+
 -- Presentation-facing person credits must follow the same ordered canonical
 -- contributor source used by detail pages. person_media_links intentionally
 -- remains the broader enrichment graph and can include assistant directors,

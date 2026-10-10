@@ -157,9 +157,9 @@ internal sealed partial class DetailCompositionOrchestrator
             LEFT JOIN collection_items ci ON ci.work_id = w.id AND ci.collection_id = @collectionId
             LEFT JOIN media_assets ma ON ma.id = (
                 SELECT candidate.id FROM media_assets candidate
-                JOIN editions edition ON edition.id=candidate.edition_id
+                JOIN work_owned_assets woa ON woa.asset_id=candidate.id
                 LEFT JOIN user_states progress ON progress.asset_id=candidate.id AND progress.user_id=@defaultOwnerUserId
-                WHERE edition.work_id=w.id
+                WHERE woa.work_id=w.id
                   AND candidate.status='Normal'
                   AND candidate.is_orphaned=0
                   AND (@restrictAssets = 0 OR candidate.id IN @authorizedAssetIds)
