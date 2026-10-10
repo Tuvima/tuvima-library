@@ -187,7 +187,8 @@ public static class ReadEndpoints
         // ── The book file itself, with byte ranges ───────────────────────
 
         // A browser reader opens the book (or comic) file directly and reads only the parts it
-        // needs, so this serves the file with HTTP range support. Access is the same asset gate
+        // needs, so this serves the file with HTTP range support (and counts it against its own,
+        // per-session "reader_files" limit, not the shared per-address streaming one). Access is the same asset gate
         // as every other reader call; a different kind of file (video, audio, ...) is never
         // served from here, even to someone who may read the library.
         group.MapGet("/{assetId:guid}/file", async (
@@ -238,7 +239,7 @@ public static class ReadEndpoints
         .Produces(StatusCodes.Status416RangeNotSatisfiable)
         .RequireClientScope(ClientApiScopes.LibraryRead)
         .RequireCatalogueAssetAccess(ApplicationPermissionIds.LibraryRead)
-        .RequireRateLimiting("streaming");
+        .RequireRateLimiting("reader_files");
 
         // ── Full-text search ─────────────────────────────────────────────
 

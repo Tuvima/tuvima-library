@@ -47,7 +47,7 @@ public sealed class ReadBookFileEndpointTests : IDisposable
     }
 
     [Fact]
-    public async Task RouteRequiresLibraryReadScopeAssetAccessAndTheStreamingLimit()
+    public async Task RouteRequiresLibraryReadScopeAssetAccessAndItsOwnReaderLimit()
     {
         await using var app = await StartAsync(Guid.NewGuid());
         var endpoint = app.Routes.Single(route => route.RoutePattern.RawText == "/read/{assetId:guid}/file");
@@ -57,7 +57,7 @@ public sealed class ReadBookFileEndpointTests : IDisposable
         Assert.Contains(endpoint.Metadata.OfType<CatalogueAssetAccessMetadata>(),
             metadata => metadata.Permission == ApplicationPermissionIds.LibraryRead.Value);
         Assert.Contains(endpoint.Metadata.OfType<EnableRateLimitingAttribute>(),
-            attribute => attribute.PolicyName == "streaming");
+            attribute => attribute.PolicyName == "reader_files");
     }
 
     [Fact]

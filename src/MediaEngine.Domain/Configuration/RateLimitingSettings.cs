@@ -17,6 +17,14 @@ public sealed class RateLimitingSettings
     public RateLimitPolicy Streaming { get; set; } = new() { PermitLimit = 100, WindowMinutes = 1 };
 
     /// <summary>
+    /// Book and comic file reads (<c>/read/{id}/file</c>). A browser reader fetches many small byte ranges
+    /// per book, and the Dashboard forwards every person's reads from one address, so this is counted per
+    /// signed-in session (per address for any other caller) and is far higher than <see cref="Streaming"/>.
+    /// </summary>
+    [JsonPropertyName("reader_files")]
+    public RateLimitPolicy ReaderFiles { get; set; } = new() { PermitLimit = 600, WindowMinutes = 1 };
+
+    /// <summary>
     /// General API: default limit for all other endpoints. Dashboard routes fan
     /// out into many parallel reads, so this protects against floods without
     /// throttling ordinary navigation and artwork-rich page loads.

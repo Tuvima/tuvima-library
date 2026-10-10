@@ -1,4 +1,5 @@
 using System.Net;
+using System.Security.Claims;
 
 namespace MediaEngine.Web.Services.Integration;
 
@@ -50,6 +51,14 @@ public static class EngineBookProxyEndpoint
             return;
         }
 
+        // The Engine decides what this person may read from their session. Without one there is nobody to
+        // authorise as, so say so here instead of calling the Engine with the Dashboard's own credential alone.
+        if (string.IsNullOrWhiteSpace(context.User.FindFirstValue(DashboardEngineAuthenticationHandler.SessionTokenClaim)))
+        {
+            context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+            return;
+        }
+
         using var request = new HttpRequestMessage(HttpMethod.Get, EngineBookProxyPath.ToEnginePath(assetId));
         foreach (var name in ForwardedRequestHeaders)
         {
@@ -91,6 +100,13 @@ public static class EngineBookProxyEndpoint
 
             if (status == StatusCodes.Status404NotFound)
             {
+                if (response.StatusCode == HttpStatusCode.Forbidden)
+                {
+                    // Refusals read as "not found" to the browser; keep the real reason for whoever investigates.
+                    loggerFactory.CreateLogger(nameof(EngineBookProxyEndpoint))
+                        .LogDebug("The Engine refused book file {AssetId}; answered 404.", assetId);
+                }
+
                 return;
             }
 

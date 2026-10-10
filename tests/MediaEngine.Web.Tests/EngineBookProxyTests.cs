@@ -2,9 +2,12 @@ using System.Net;
 using System.Net.Http.Headers;
 using System.Security.Claims;
 using System.Text.Encodings.Web;
+using System.Text.Json;
+using MediaEngine.Contracts.Authentication;
 using MediaEngine.Web.Services.Integration;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Hosting.Server;
 using Microsoft.AspNetCore.Hosting.Server.Features;
@@ -281,7 +284,71 @@ public sealed class EngineBookProxyTests
         Assert.Empty(engine.Requests);
     }
 
+    [Fact]
+    public async Task RealClientChain_SendsTheSessionFromTheCookieClaimAndTheServiceCredential()
+    {
+        await using var engine = await StartEngineAsync();
+        await using var dashboard = await StartDashboardAsync(engine.Address, realHandlers: true);
+
+        using var response = await dashboard.SendAsync(Request(new RangeHeaderValue(0, 99)));
+
+        Assert.Equal(HttpStatusCode.PartialContent, response.StatusCode);
+        var seen = Assert.Single(engine.Requests);
+        Assert.Equal(SessionTokenFromClaim, seen.Session);
+        Assert.Equal(ServiceSecret, seen.ServiceKey);
+    }
+
+    [Fact]
+    public async Task RealClientChain_NeverForwardsBrowserSuppliedSessionOrServiceKey()
+    {
+        await using var engine = await StartEngineAsync();
+        await using var dashboard = await StartDashboardAsync(engine.Address, realHandlers: true);
+        var request = Request(null);
+        request.Headers.TryAddWithoutValidation("X-Tuvima-Session", "browser-session");
+        request.Headers.TryAddWithoutValidation("X-Tuvima-Service-Key", "browser-service-key");
+        request.Headers.TryAddWithoutValidation(ViewProfileAssertionHandler.ProfileHeader, Guid.NewGuid().ToString("D"));
+
+        using var response = await dashboard.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var seen = Assert.Single(engine.Requests);
+        Assert.Equal(SessionTokenFromClaim, seen.Session);
+        Assert.Equal(ServiceSecret, seen.ServiceKey);
+    }
+
+    [Fact]
+    public async Task ASignedInCookieWithoutAnEngineSession_IsTurnedAwayBeforeTheEngineIsCalled()
+    {
+        await using var engine = await StartEngineAsync();
+        await using var dashboard = await StartDashboardAsync(engine.Address, realHandlers: true);
+        var request = Request(null);
+        request.Headers.Remove(SignedInHeader);
+        request.Headers.TryAddWithoutValidation(SignedInHeader, NoSessionClaim);
+
+        using var response = await dashboard.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+        Assert.Empty(await response.Content.ReadAsByteArrayAsync());
+        Assert.Empty(engine.Requests);
+    }
+
+    [Fact]
+    public async Task AnUnavailableServiceCredential_FailsClosedWithoutReachingTheEngine()
+    {
+        await using var engine = await StartEngineAsync();
+        await using var dashboard = await StartDashboardAsync(engine.Address, realHandlers: true, writeCredential: false);
+
+        using var response = await dashboard.SendAsync(Request(null));
+
+        Assert.Equal(HttpStatusCode.BadGateway, response.StatusCode);
+        Assert.Empty(await response.Content.ReadAsByteArrayAsync());
+        Assert.Empty(engine.Requests);
+    }
+
     private const string SignedInHeader = "X-Test-Signed-In";
+    private const string NoSessionClaim = "no-session";
+    private const string SessionTokenFromClaim = "session-token-from-claim";
+    private const string ServiceSecret = "dashboard-service-secret";
 
     private static HttpRequestMessage Request(RangeHeaderValue? range)
     {
@@ -291,7 +358,12 @@ public sealed class EngineBookProxyTests
         return request;
     }
 
-    private static async Task<Dashboard> StartDashboardAsync(Uri engine)
+    /// <param name="realHandlers">
+    /// Wires the production Engine client chain (service credential from a protected bundle on disk,
+    /// session from the signed-in cookie's claim, obsolete View assertions stripped) instead of a bare client.
+    /// </param>
+    /// <param name="writeCredential">With <paramref name="realHandlers"/>: false leaves the credential bundle missing.</param>
+    private static async Task<Dashboard> StartDashboardAsync(Uri engine, bool realHandlers = false, bool writeCredential = true)
     {
         var builder = WebApplication.CreateBuilder();
         builder.WebHost.UseUrls("http://127.0.0.1:0");
@@ -299,14 +371,50 @@ public sealed class EngineBookProxyTests
         builder.Services.AddAuthentication("test")
             .AddScheme<AuthenticationSchemeOptions, SignedInHandler>("test", _ => { });
         builder.Services.AddAuthorization();
-        builder.Services.AddHttpClient("EngineApi", client => client.BaseAddress = engine);
+        string? tempDirectory = null;
+        if (realHandlers)
+        {
+            tempDirectory = Path.Combine(Path.GetTempPath(), $"tuvima-book-proxy-{Guid.NewGuid():N}");
+            var configDirectory = Path.Combine(tempDirectory, "config");
+            var protection = DataProtectionProvider.Create(Directory.CreateDirectory(Path.Combine(tempDirectory, "keys")));
+            if (writeCredential)
+            {
+                Directory.CreateDirectory(Path.Combine(configDirectory, ".secrets"));
+                var bundle = new DashboardServiceCredentialBundle(
+                    Guid.NewGuid().ToString("N"),
+                    protection.CreateProtector("Tuvima.DashboardEngineCredential.v1").Protect(ServiceSecret),
+                    DateTimeOffset.UtcNow);
+                File.WriteAllText(
+                    Path.Combine(configDirectory, ".secrets", "dashboard-engine.credential.json"),
+                    JsonSerializer.Serialize(bundle));
+            }
+
+            builder.Services.AddHttpContextAccessor();
+            builder.Services.AddSingleton(protection);
+            builder.Services.AddSingleton(new DashboardServiceCredentialProviderOptions(configDirectory));
+            builder.Services.AddSingleton<DashboardServiceCredentialProvider>();
+            builder.Services.AddScoped<DashboardSessionAccessor>();
+            builder.Services.AddScoped<ActiveProfileAccessor>();
+            builder.Services.AddScoped<IActiveProfileAccessor>(services => services.GetRequiredService<ActiveProfileAccessor>());
+            builder.Services.AddTransient<DashboardEngineAuthenticationHandler>();
+            builder.Services.AddTransient<ViewProfileAssertionHandler>(services => new ViewProfileAssertionHandler(
+                services.GetRequiredService<IActiveProfileAccessor>()));
+            builder.Services.AddHttpClient("EngineApi", client => client.BaseAddress = engine)
+                .AddHttpMessageHandler<DashboardEngineAuthenticationHandler>()
+                .AddHttpMessageHandler<ViewProfileAssertionHandler>();
+        }
+        else
+        {
+            builder.Services.AddHttpClient("EngineApi", client => client.BaseAddress = engine);
+        }
+
         var app = builder.Build();
         app.UseAuthentication();
         app.UseAuthorization();
         app.MapEngineBookProxy();
         await app.StartAsync();
         var addresses = app.Services.GetRequiredService<IServer>().Features.Get<IServerAddressesFeature>();
-        return new Dashboard(app, new Uri(addresses!.Addresses.Single()));
+        return new Dashboard(app, new Uri(addresses!.Addresses.Single()), tempDirectory);
     }
 
     private static async Task<Engine> StartEngineAsync(
@@ -331,7 +439,9 @@ public sealed class EngineBookProxyTests
                     context.Request.Headers.IfNoneMatch.ToString().NullIfEmpty(),
                     context.Request.Headers.Cookie.ToString().NullIfEmpty(),
                     context.Request.Headers.Authorization.ToString().NullIfEmpty(),
-                    context.Request.Headers["X-Api-Key"].ToString().NullIfEmpty()));
+                    context.Request.Headers["X-Api-Key"].ToString().NullIfEmpty(),
+                    context.Request.Headers["X-Tuvima-Service-Key"].ToString().NullIfEmpty(),
+                    context.Request.Headers["X-Tuvima-Session"].ToString().NullIfEmpty()));
             }
 
             if (forcedStatus is { } status)
@@ -371,7 +481,9 @@ public sealed class EngineBookProxyTests
         string? IfNoneMatch,
         string? Cookie,
         string? Authorization,
-        string? ApiKey);
+        string? ApiKey,
+        string? ServiceKey,
+        string? Session);
 
     private sealed class SignedInHandler(
         IOptionsMonitor<AuthenticationSchemeOptions> options,
@@ -379,12 +491,23 @@ public sealed class EngineBookProxyTests
         UrlEncoder encoder)
         : AuthenticationHandler<AuthenticationSchemeOptions>(options, logger, encoder)
     {
-        protected override Task<AuthenticateResult> HandleAuthenticateAsync() =>
-            Task.FromResult(Request.Headers.ContainsKey(SignedInHeader)
-                ? AuthenticateResult.Success(new AuthenticationTicket(
-                    new ClaimsPrincipal(new ClaimsIdentity([new Claim(ClaimTypes.NameIdentifier, "reader")], Scheme.Name)),
-                    Scheme.Name))
-                : AuthenticateResult.NoResult());
+        protected override Task<AuthenticateResult> HandleAuthenticateAsync()
+        {
+            if (!Request.Headers.TryGetValue(SignedInHeader, out var mode))
+            {
+                return Task.FromResult(AuthenticateResult.NoResult());
+            }
+
+            // "no-session" is a signed-in person whose cookie carries no Engine session token.
+            var claims = new List<Claim> { new(ClaimTypes.NameIdentifier, "reader") };
+            if (mode != NoSessionClaim)
+            {
+                claims.Add(new Claim(DashboardEngineAuthenticationHandler.SessionTokenClaim, SessionTokenFromClaim));
+            }
+
+            return Task.FromResult(AuthenticateResult.Success(new AuthenticationTicket(
+                new ClaimsPrincipal(new ClaimsIdentity(claims, Scheme.Name)), Scheme.Name)));
+        }
     }
 
     private sealed class Engine(WebApplication app, Uri address, List<SeenRequest> seen) : IAsyncDisposable
@@ -409,7 +532,7 @@ public sealed class EngineBookProxyTests
         }
     }
 
-    private sealed class Dashboard(WebApplication app, Uri address) : IAsyncDisposable
+    private sealed class Dashboard(WebApplication app, Uri address, string? tempDirectory) : IAsyncDisposable
     {
         private readonly HttpClient _client = new() { BaseAddress = address };
 
@@ -420,6 +543,10 @@ public sealed class EngineBookProxyTests
             _client.Dispose();
             await app.StopAsync();
             await app.DisposeAsync();
+            if (tempDirectory is not null && Directory.Exists(tempDirectory))
+            {
+                Directory.Delete(tempDirectory, recursive: true);
+            }
         }
     }
 }

@@ -314,6 +314,9 @@ builder.Services.AddSingleton<IConfigurationLoader>(configLoader);
                     PermitLimit = rateLimits.Streaming.PermitLimit,
                     Window = TimeSpan.FromMinutes(rateLimits.Streaming.WindowMinutes),
                 }));
+        // A reader fetches many byte ranges per book; count them per signed-in session, not per shared Dashboard address.
+        options.AddPolicy("reader_files", context =>
+            ReaderFileRateLimitPartition.For(context, rateLimits.ReaderFiles, rateLimits.Streaming));
         // HLS uses many short segment/playlist requests. Bound simultaneous work
         // instead of exhausting the ordinary file-stream start quota mid-film.
         options.AddPolicy("adaptive_streaming", context =>
