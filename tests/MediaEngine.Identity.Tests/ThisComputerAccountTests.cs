@@ -3,6 +3,7 @@ using MediaEngine.Domain.Configuration;
 using MediaEngine.Domain.Entities;
 using MediaEngine.Identity.Contracts;
 using MediaEngine.Storage;
+using MediaEngine.TestSupport;
 using Microsoft.AspNetCore.Identity;
 
 namespace MediaEngine.Identity.Tests;
@@ -154,20 +155,7 @@ public sealed class ThisComputerAccountTests : IDisposable
     public void Dispose()
     {
         _database.Dispose();
-        foreach (var path in new[] { _databasePath, $"{_databasePath}-wal", $"{_databasePath}-shm" })
-        {
-            try
-            {
-                if (File.Exists(path))
-                {
-                    File.Delete(path);
-                }
-            }
-            catch
-            {
-                // Best-effort test cleanup.
-            }
-        }
+        TestTemp.DeleteDatabase(_databasePath);
     }
 
     private sealed class FixedPolicy : IAuthenticationPolicyProvider

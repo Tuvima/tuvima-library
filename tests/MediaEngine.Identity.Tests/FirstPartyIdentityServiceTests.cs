@@ -8,6 +8,7 @@ using MediaEngine.Domain.Entities;
 using MediaEngine.Domain.Enums;
 using MediaEngine.Identity.Contracts;
 using MediaEngine.Storage;
+using MediaEngine.TestSupport;
 using Microsoft.AspNetCore.Identity;
 
 namespace MediaEngine.Identity.Tests;
@@ -1086,24 +1087,7 @@ public sealed class FirstPartyIdentityServiceTests : IDisposable
     public void Dispose()
     {
         _database.Dispose();
-        TryDelete(_databasePath);
-        TryDelete($"{_databasePath}-wal");
-        TryDelete($"{_databasePath}-shm");
-    }
-
-    private static void TryDelete(string path)
-    {
-        try
-        {
-            if (File.Exists(path))
-            {
-                File.Delete(path);
-            }
-        }
-        catch
-        {
-            // Best-effort test cleanup.
-        }
+        TestTemp.DeleteDatabase(_databasePath);
     }
 
     private static string HashToken(string value) =>
