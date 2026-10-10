@@ -307,11 +307,11 @@ export const BOOK_CSP = [
     "style-src blob: 'unsafe-inline'",
 ].join('; ');
 
-// foliate-js shows every chapter in an iframe that is sandboxed with allow-same-origin AND allow-scripts (the
-// library needs allow-scripts for events in WebKit). That means a script that runs inside a chapter would run with
-// the Dashboard's own rights. So nothing a book ships may ever become a live document unless it has been made safe
-// first: XHTML/HTML gets the CSP above plus a clean-up, SVG (which cannot carry a CSP) gets a stricter clean-up,
-// and every other kind of document is refused.
+// Book frames are sandboxed without scripts (a documented one-line patch to the pinned foliate-js, see PINNED.md), so
+// the browser itself refuses to run book code. This is the second layer, in case that is ever undone or a frame is
+// missed: nothing a book ships may become a live document unless it has been made safe first. XHTML/HTML gets the
+// CSP above plus a clean-up, SVG (which cannot carry a CSP) gets a stricter clean-up, and every other kind of
+// document is refused.
 const XHTML_TYPE = 'application/xhtml+xml';
 const HTML_TYPE = 'text/html';
 const SVG_TYPE = 'image/svg+xml';
@@ -339,7 +339,11 @@ const URL_ATTRS = ['href', 'src', 'data', 'poster', 'action', 'formaction', 'xli
 
 /** Blocks anything in CSS that would load from outside the book. */
 function cleanCss(css) {
-    return String(css ?? '')
+    const raw = String(css ?? '');
+    // CSS escapes (u\72l(...)) can spell url( or @import without the letters; when decoding reveals one, clean the decoded text.
+    const decoded = raw.replace(/\\([0-9a-f]{1,6})\s?|\\([^\n])/gi, (_, hex, ch) => (hex ? String.fromCodePoint(Math.min(parseInt(hex, 16) || 0xfffd, 0x10ffff)) : ch));
+    const text = decoded !== raw && /url\(|@import|expression\(/i.test(decoded) ? decoded : raw;
+    return text
         .replace(/@import[^;{]*(;|(?=\{)|$)/gi, '')
         .replace(/url\(\s*(['"]?)\s*(?![#]|blob:|data:image\/)[^)'"]*\1\s*\)/gi, 'none')
         .replace(/expression\s*\(/gi, '(');
