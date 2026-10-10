@@ -10,15 +10,15 @@
             @foreach (var swatch in ProfileAvatarPalette.Swatches)
             {
                 var selected = string.Equals(swatch.Hex, Color, StringComparison.OrdinalIgnoreCase);
-                <button type="button"
-                        class="avatar-picker__option avatar-picker__option--swatch @(selected ? "is-selected" : null)"
+                <AppNativeButton Type="button"
+                        Class="@("avatar-picker__option avatar-picker__option--swatch" + (selected ? " is-selected" : ""))"
                         role="radio"
                         aria-checked="@(selected ? "true" : "false")"
-                        aria-label="@swatch.Name"
-                        disabled="@Disabled"
-                        @onclick="@(() => ColorChanged.InvokeAsync(swatch.Hex))">
+                        AriaLabel="@swatch.Name"
+                        Disabled="@Disabled"
+                        OnClick="@(() => ColorChanged.InvokeAsync(swatch.Hex))">
                     <svg viewBox="0 0 100 100" aria-hidden="true" focusable="false"><circle cx="50" cy="50" r="50" fill="@swatch.Hex" /></svg>
-                </button>
+                </AppNativeButton>
             }
         </div>
     </div>
@@ -26,27 +26,27 @@
     <div class="avatar-picker__group" role="radiogroup" aria-label="Avatar icon">
         <h3 class="avatar-picker__heading">Icon</h3>
         <div class="avatar-picker__grid">
-            <button type="button"
-                    class="avatar-picker__option @(Icon is null && !HasPhoto ? "is-selected" : null)"
+            <AppNativeButton Type="button"
+                    Class="@("avatar-picker__option" + (Icon is null && !HasPhoto ? " is-selected" : ""))"
                     role="radio"
                     aria-checked="@(Icon is null && !HasPhoto ? "true" : "false")"
-                    aria-label="Initial letter"
-                    disabled="@Disabled"
-                    @onclick="@(() => IconChanged.InvokeAsync(null))">
+                    AriaLabel="Initial letter"
+                    Disabled="@Disabled"
+                    OnClick="@(() => IconChanged.InvokeAsync(null))">
                 <ProfileAvatar DisplayName="@DisplayName" Color="@Color" />
-            </button>
+            </AppNativeButton>
             @foreach (var key in ProfileAvatarIcons.All)
             {
                 var selected = string.Equals(key, Icon, StringComparison.Ordinal) && !HasPhoto;
-                <button type="button"
-                        class="avatar-picker__option @(selected ? "is-selected" : null)"
+                <AppNativeButton Type="button"
+                        Class="@("avatar-picker__option" + (selected ? " is-selected" : ""))"
                         role="radio"
                         aria-checked="@(selected ? "true" : "false")"
-                        aria-label="@key"
-                        disabled="@Disabled"
-                        @onclick="@(() => IconChanged.InvokeAsync(key))">
+                        AriaLabel="@key"
+                        Disabled="@Disabled"
+                        OnClick="@(() => IconChanged.InvokeAsync(key))">
                     <ProfileAvatar DisplayName="@DisplayName" Color="@Color" Icon="@key" />
-                </button>
+                </AppNativeButton>
             }
         </div>
     </div>
