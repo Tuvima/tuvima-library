@@ -1,0 +1,7 @@
+<Project>
+  <Import Project="$([MSBuild]::GetPathOfFileAbove('Directory.Build.props', '$(MSBuildThisFileDirectory)../'))" />
+  <!-- Every test project gets the shared private-temp-folder helper (tests/Shared/TestTemp.cs). -->
+  <ItemGroup Condition="'$(IsTestProject)' == 'true'">
+    <Compile Include="$(MSBuildThisFileDirectory)Shared/TestTemp.cs" Link="Shared/TestTemp.cs" />
+  </ItemGroup>
+</Project>
