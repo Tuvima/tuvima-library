@@ -49,6 +49,8 @@ public sealed partial class RetailMatchWorker
     private readonly IBridgeIdRepository _bridgeIdRepo;
     private readonly IWorkRepository _workRepo;
     private readonly ITvEpisodeCreditRepository? _episodeCredits;
+    private readonly IMediaAssetCoverageRepository? _coverageRepo;
+    private readonly ITvEpisodeRangeCatalogue? _rangeCatalogue;
     private readonly WorkClaimRouter _claimRouter;
     private readonly IHttpClientFactory _httpFactory;
     private readonly PostPipelineService _postPipeline;
@@ -112,7 +114,9 @@ public sealed partial class RetailMatchWorker
         ImageDownloadCoordinator? imageDownloadCoordinator = null,
         ITvEpisodeCreditRepository? episodeCredits = null,
         IMediaOperationRepository? operations = null,
-        TvdbRetailClient? tvdbClient = null)
+        TvdbRetailClient? tvdbClient = null,
+        IMediaAssetCoverageRepository? coverageRepo = null,
+        ITvEpisodeRangeCatalogue? rangeCatalogue = null)
     {
         _jobRepo = jobRepo;
         _candidateRepo = candidateRepo;
@@ -149,6 +153,8 @@ public sealed partial class RetailMatchWorker
             new ProviderRateLimiterCoordinator(),
             NullLogger<TmdbRetailClient>.Instance);
         _tvdbClient = tvdbClient;
+        _coverageRepo = coverageRepo;
+        _rangeCatalogue = rangeCatalogue ?? (tvdbClient is null ? null : new TvdbEpisodeRangeCatalogue(tvdbClient));
         _candidateScorer = candidateScorer ?? new RetailCandidateScorer();
         _coverArtWorker = coverArtWorker;
         _musicBrainzReleaseClient = musicBrainzReleaseClient;
