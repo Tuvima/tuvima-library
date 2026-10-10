@@ -230,6 +230,7 @@ public sealed class ParentFirstArtworkRouteTests
         {
             Database = new DatabaseConnection(_dbPath);
             Database.InitializeSchema();
+            Database.RunStartupChecks();
             Access = new MutableLibraryAccess(MainLibrary);
         }
 
@@ -298,7 +299,7 @@ public sealed class ParentFirstArtworkRouteTests
         private async Task StartAsync()
         {
             var actor = new RequestAuthority(PrincipalKind.Human, true,
-                AccountId: Guid.NewGuid(), ActiveProfileId: Guid.NewGuid(), SessionId: Guid.NewGuid(),
+                AccountId: Guid.NewGuid(), ActiveProfileId: MediaEngine.Domain.Aggregates.Profile.SeedProfileId, SessionId: Guid.NewGuid(),
                 AccountEnabled: true, GrantEnabled: true);
             var builder = WebApplication.CreateBuilder(new WebApplicationOptions { EnvironmentName = "Development" });
             builder.Logging.ClearProviders();

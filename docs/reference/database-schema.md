@@ -691,6 +691,8 @@ User profiles for multi-user support.
 | `avatar_color` | TEXT | Avatar circle colour, `#RRGGBB`. The profile editor offers a fixed palette of 12 swatches. |
 | `avatar_image_path` | TEXT | Path of an uploaded avatar photo; NULL when none. A photo wins over an icon. |
 | `avatar_icon` | TEXT | Key of a built-in illustrated icon drawn on `avatar_color` (`cat`, `fox`, `owl`, `bear`, `panda`, `penguin`, `robot`, `rocket`, `planet`, `moon`, `crown`, `ghost`); NULL shows the person's initial. Added by an idempotent startup migration. |
+| `content_limit` | TEXT | The highest rating this person may see: `G`, `PG`, `PG-13` or `R` (CHECK-constrained). NULL means Everything. Set by a household administrator and independent of `role`. Enforced by the Engine in every list, search, detail page, Continue Watching and player. Added by an idempotent startup migration. |
+| `content_limit_allow_unrated` | INTEGER | 1 keeps items with no recognised rating visible although a `content_limit` is set; 0 (the default) hides them. Added by an idempotent startup migration. |
 
 | Column | Type | Notes |
 |---|---|---|

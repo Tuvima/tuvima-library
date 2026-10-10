@@ -515,6 +515,59 @@ public sealed partial class EngineApiClient
         }
     }
 
+    public async Task<MediaEditorFileCoverageDto?> GetMediaEditorFileCoverageAsync(
+        Guid entityId, Guid assetId, CancellationToken ct = default)
+    {
+        try
+        {
+            LastError = null;
+            using var response = await _http.GetAsync($"/metadata/{entityId}/file-coverage?assetId={assetId}", ct);
+            if (!response.IsSuccessStatusCode)
+            {
+                // A file that is not a TV episode answers 404: the picker simply stays hidden.
+                LastError = response.StatusCode == HttpStatusCode.NotFound
+                    ? null
+                    : await ReadMediaEditorPairingErrorAsync(response, ct);
+                return null;
+            }
+            return await response.Content.ReadFromJsonAsync<MediaEditorFileCoverageDto>(ct);
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested) { return null; }
+        catch (Exception ex)
+        {
+            LastError = ex.Message;
+            _logger.LogWarning(ex, "GET /metadata/{EntityId}/file-coverage failed", entityId);
+            return null;
+        }
+    }
+
+    public async Task<MediaEditorFileCoverageDto?> SaveMediaEditorFileCoverageAsync(
+        Guid entityId, MediaEditorFileCoverageSaveRequestDto request, CancellationToken ct = default)
+    {
+        try
+        {
+            LastError = null;
+            using var message = new HttpRequestMessage(HttpMethod.Put, $"/metadata/{entityId}/file-coverage")
+            {
+                Content = JsonContent.Create(request),
+            };
+            using var response = await _http.SendAsync(message, ct);
+            if (!response.IsSuccessStatusCode)
+            {
+                LastError = await ReadMediaEditorPairingErrorAsync(response, ct);
+                return null;
+            }
+            return await response.Content.ReadFromJsonAsync<MediaEditorFileCoverageDto>(ct);
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested) { return null; }
+        catch (Exception ex)
+        {
+            LastError = ex.Message;
+            _logger.LogWarning(ex, "PUT /metadata/{EntityId}/file-coverage failed", entityId);
+            return null;
+        }
+    }
+
     public async Task<MediaEditorPairingArtworkPreviewDto?> PreviewMediaEditorPairingArtworkAsync(
         Guid entityId, MediaEditorPairingArtworkPreviewRequestDto request, CancellationToken ct = default)
     {

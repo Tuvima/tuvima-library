@@ -177,7 +177,7 @@ public sealed class MetadataResourceAdmissionTests : IDisposable
             PrincipalKind.DelegatedUserClient,
             true,
             AccountId: Guid.NewGuid(),
-            ActiveProfileId: Guid.NewGuid(),
+            ActiveProfileId: MediaEngine.Domain.Aggregates.Profile.SeedProfileId,
             ApplicationId: Guid.NewGuid(),
             DeviceId: Guid.NewGuid(),
             AccountEnabled: true,

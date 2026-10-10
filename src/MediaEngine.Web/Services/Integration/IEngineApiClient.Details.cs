@@ -90,6 +90,14 @@ public partial interface IEngineApiClient
     Task<MediaEditorPairingSaveResultDto?> SaveMusicTrackMoveAsync(
         Guid entityId, MusicTrackMoveSaveRequest request, CancellationToken ct = default);
 
+    /// <summary>Episodes a TV file covers, plus the other episodes of its season it could cover.</summary>
+    Task<MediaEditorFileCoverageDto?> GetMediaEditorFileCoverageAsync(
+        Guid entityId, Guid assetId, CancellationToken ct = default);
+
+    /// <summary>Replace the full list of episodes one TV file covers.</summary>
+    Task<MediaEditorFileCoverageDto?> SaveMediaEditorFileCoverageAsync(
+        Guid entityId, MediaEditorFileCoverageSaveRequestDto request, CancellationToken ct = default);
+
     /// <summary>Review one managed episode still and the complete post-pairing file impact.</summary>
     Task<MediaEditorPairingArtworkPreviewDto?> PreviewMediaEditorPairingArtworkAsync(
         Guid entityId, MediaEditorPairingArtworkPreviewRequestDto request, CancellationToken ct = default);

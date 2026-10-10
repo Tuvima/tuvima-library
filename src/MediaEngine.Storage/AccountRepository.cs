@@ -363,8 +363,8 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
                 newProfile.HouseholdId = account.HouseholdId;
                 connection.Execute("""
                     INSERT INTO profiles
-                        (id,display_name,avatar_color,avatar_image_path,avatar_icon,role,created_at,navigation_config,household_id)
-                    VALUES(@Id,@DisplayName,@AvatarColor,@AvatarImagePath,@AvatarIcon,@Role,@CreatedAt,@NavigationConfig,@HouseholdId);
+                        (id,display_name,avatar_color,avatar_image_path,avatar_icon,content_limit,content_limit_allow_unrated,role,created_at,navigation_config,household_id)
+                    VALUES(@Id,@DisplayName,@AvatarColor,@AvatarImagePath,@AvatarIcon,@ContentLimit,@ContentLimitAllowUnrated,@Role,@CreatedAt,@NavigationConfig,@HouseholdId);
                     """, new
                 {
                     newProfile.Id,
@@ -372,6 +372,8 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
                     newProfile.AvatarColor,
                     newProfile.AvatarImagePath,
                     newProfile.AvatarIcon,
+                    newProfile.ContentLimit,
+                    newProfile.ContentLimitAllowUnrated,
                     Role = newProfile.Role.ToString(),
                     CreatedAt = Iso(newProfile.CreatedAt),
                     newProfile.NavigationConfig,
@@ -540,7 +542,8 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
         {
             token.ThrowIfCancellationRequested();
             var changed = connection.Execute("""
-                UPDATE profiles SET display_name=@DisplayName,avatar_color=@AvatarColor,avatar_icon=@AvatarIcon
+                UPDATE profiles SET display_name=@DisplayName,avatar_color=@AvatarColor,avatar_icon=@AvatarIcon,
+                    content_limit=@ContentLimit,content_limit_allow_unrated=@ContentLimitAllowUnrated
                 WHERE id=@Id;
                 """, profile, transaction);
             if (changed != 1)
@@ -917,8 +920,8 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
     {
         profile.HouseholdId = householdId;
         connection.Execute("""
-            INSERT INTO profiles(id,display_name,avatar_color,avatar_image_path,avatar_icon,role,created_at,navigation_config,household_id)
-            VALUES(@Id,@DisplayName,@AvatarColor,@AvatarImagePath,@AvatarIcon,@Role,@CreatedAt,@NavigationConfig,@HouseholdId);
+            INSERT INTO profiles(id,display_name,avatar_color,avatar_image_path,avatar_icon,content_limit,content_limit_allow_unrated,role,created_at,navigation_config,household_id)
+            VALUES(@Id,@DisplayName,@AvatarColor,@AvatarImagePath,@AvatarIcon,@ContentLimit,@ContentLimitAllowUnrated,@Role,@CreatedAt,@NavigationConfig,@HouseholdId);
             """, new
         {
             profile.Id,
@@ -926,6 +929,8 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
             profile.AvatarColor,
             profile.AvatarImagePath,
             profile.AvatarIcon,
+            profile.ContentLimit,
+            profile.ContentLimitAllowUnrated,
             Role = profile.Role.ToString(),
             CreatedAt = Iso(profile.CreatedAt),
             profile.NavigationConfig,

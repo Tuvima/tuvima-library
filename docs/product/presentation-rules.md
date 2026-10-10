@@ -33,7 +33,7 @@ Current presentation rules: the Collections landing route is labeled **Discovery
 
 Canonical book, comic, and movie series containers show their sequence rail directly on Overview. Source numbering stays above each cover, connectors appear behind number nodes only between proven consecutive positions, and the current item uses a stronger purple frame glow without `This book`, `This movie`, or `Up next` labels. Completion remains a separate check state, and `aria-current` preserves accessible current-item context. Missing-item visibility inherits its media default from `config/ui/library-preferences.json`; the database stores only explicit profile-and-series overrides, which can be removed to restore config inheritance.
 
-`MainLayout` exposes My List as the active profile's saved shortlist and delegates account actions to `TopNavAccountMenu`. Needs Review lives inside that permission-aware menu rather than in a standalone bell. `SystemActivityIndicator` uses `ShellActivityState` to combine playback, ingestion, AI download/parsing, enrichment, and durable-operation activity into one circular progress surface, using success green for its icon and ring while work is active and hiding when idle. The account menu offers Sign out for the current session, including local accounts.
+`MainLayout` exposes My List as the active profile's saved shortlist and delegates account actions to `TopNavAccountMenu`. Needs Review lives inside that permission-aware menu rather than in a standalone bell. `SystemActivityIndicator` uses `ShellActivityState` to combine playback, ingestion, AI download/parsing, enrichment, and durable-operation activity into one circular progress surface, using success green for its icon and ring while work is active and hiding when idle. The account menu offers Sign out for the current session, including local accounts. A Kids profile (restricted role) gets the simpler Kids shell: the top bar and phone dock keep only Watch, Listen and Read (plus Home on the dock) and My List, tiles are larger with rounder corners (`.layout-kids` tokens in `wwwroot/app.css`), the account menu drops Profile settings, Settings and Needs Review and shows a *Kids* badge. Content limits are separate and not part of the shell.
 
 ## TV episode routing and heroes
 
@@ -51,6 +51,19 @@ logos, compact facts, actions, and description, and show at most two linked genr
 on their own non-wrapping line. Movie heroes
 use the movie description without a synopsis heading. The watch utility row does
 not repeat a Show details action.
+
+### One file, several episodes: the editor picker
+
+When one video file holds several episodes of a season, the editor's Matching tab
+shows a **This file covers** picker for that episode's file. Each episode of the
+season is a tappable chip (`E2 · Title`); the file's own episode is always ticked and
+locked, episodes that already have their own file are locked, and a file covers at
+most six episodes, all within one season. **Save episodes** replaces the list in one
+step, answers the file's pending combined-media Review item, and records a History
+entry; saving the same list again changes nothing. Single-episode files see no change
+beyond the picker staying out of the way when the season has one episode. On phones
+the chips stack full width with 44px touch targets and the actions stay reachable
+inside the modal.
 
 ## Current Collections and linked-identity clarifications
 
@@ -190,6 +203,12 @@ The page appears straight after a password, passkey or provider sign-in when the
 Administrators (server or household) see a *Manage profiles* button under the grid, and an *Add profile* tile while the household has fewer than eight people. Kids (restricted) profiles never see either, and nobody else does: the Engine only lets administrators change people. *Manage profiles* turns the grid into edit mode: every face shows a pencil, tapping one opens the profile editor sheet (name, colour, icon or photo, PIN, delete) instead of opening the profile, and *Done* returns to normal. The page also opens in this mode at `/who?manage=1`, and with the Add profile sheet open at `/who?add=1`; both stay on the page even for a one-person household.
 
 Adding creates a household person (optionally a Kids profile and a PIN) and then uploads the chosen photo. Saving an existing person changes name, colour and icon first, then the PIN (set, change or remove), then the photo (a new photo, or removal when a colour or icon replaces it). A Kids profile can't be switched to an adult one afterwards. Delete is offered for everyone except the last profile, the Owner profile and the profile that is open right now. Deleting asks what to do with the person's personal photos: keep them in the household's Shared Library (the default, in a folder and tag named *From <name> <date>*; managed files move, linked originals are copied and left where they are) or delete them. Habits (likes, My List, progress, bookmarks, taste picks) are always removed and library files are never touched. If any photo can't be kept, nothing is removed. Every change needs a recent sign-in (the usual *Confirm it's you* prompt) and, when administrator protection is on, the administrator PIN, which the page asks for once and then repeats the change.
+
+### Content limit per profile (October 10 2026)
+
+Every profile has its own *What can this person watch?* setting, chosen by an administrator in the profile editor: Everything, G, PG, PG-13 or R. It is separate from the Kids label, so a parent can allow an eight-year-old PG-13 or limit an adult. A new Kids profile starts on PG, everyone else on Everything. The editor shows the choice as five pills with a one-line explanation, plus a *Show items with no rating* switch (off by default) because music, personal videos and some imports carry no rating.
+
+The Engine enforces the limit, not the screens. Ratings from every vocabulary (film G to NC-17, TV-Y to TV-MA, UK and plain ages such as 12, 15, 18, and book or comic labels such as Everyone, Teen, Mature) are placed on one ladder; anything above the profile's step, and anything unrated unless allowed, is removed before a list, search, Home shelf, collection, Continue Watching row, detail page, file, stream or player queue is built. A TV episode takes its rating from the episode, then its show. A change applies on the person's next request. A limited item is reported as not found. Changing the limit needs the same sign-in checks and administrator PIN as any other profile change.
 
 ### Dashboard UI bugfix policy (October 6 2026)
 
