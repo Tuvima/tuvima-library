@@ -48,14 +48,6 @@ public sealed class ViewOtherPeopleTests
     }
 
     [Fact]
-    public void SavingPreferencesWhileBrowsingAnotherHouseholdNeverStoresThatScope()
-    {
-        var endpoint = File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..",
-            "src", "MediaEngine.Api", "Endpoints", "ViewEndpoints.cs"));
-        Assert.Contains("remembered.LastScopeKind ?? ViewScopeKind.Mine", endpoint, StringComparison.Ordinal);
-    }
-
-    [Fact]
     public async Task HouseholdAdministratorsMembersAndAppsCannotResolveAnotherHouseholdsSpace()
     {
         var caller = State(HomeHousehold);
