@@ -115,7 +115,6 @@ public sealed class AuthorizedDisplayProjectionReadServiceTests : IDisposable
                     INSERT INTO works(id,media_type,work_kind,parent_work_id,curator_state) VALUES(@work,'TV','child',@show,'accepted');
                     INSERT INTO editions(id,work_id) VALUES(@edition,@work);
                     INSERT INTO media_assets(id,edition_id,content_hash,file_path_root,presented_at,library_id) VALUES(@asset,@edition,@hash,@path,CURRENT_TIMESTAMP,@library);
-                    INSERT INTO work_owned_assets(work_id,edition_id,asset_id) VALUES(@work,@edition,@asset);
                     INSERT INTO canonical_values(entity_id,key,value,last_scored_at) VALUES
                       (@asset,'title','Episode',CURRENT_TIMESTAMP),(@asset,'season_number',@season,CURRENT_TIMESTAMP),(@asset,'episode_number',@ep,CURRENT_TIMESTAMP),(@work,'episode_number',@ep,CURRENT_TIMESTAMP);
                     """, new { work, edition, asset, show, hash = asset.ToString("N"), path = $"C:/library/{asset:N}.mkv", library = library.ToString("D"), season = (i / 100 + 1).ToString(), ep = (i % 100 + 1).ToString() }, tx);
