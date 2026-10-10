@@ -294,6 +294,8 @@ public sealed class DisplayCardBuilder
             .ThenByDescending(work => !string.IsNullOrWhiteSpace(work.RootBackgroundUrl) || !string.IsNullOrWhiteSpace(work.RootBannerUrl))
             .ThenByDescending(work => !string.IsNullOrWhiteSpace(work.BackgroundUrl) || !string.IsNullOrWhiteSpace(work.BannerUrl))
             .ThenByDescending(work => work.CreatedAt)
+            .ThenBy(work => work.WorkId)
+            .ThenBy(work => work.AssetId)
             .First();
         var artwork = RootArtworkFor(representative);
         var title = StringHelpers.FirstNonBlank(representative.ShowName, representative.Series, representative.Title, representative.CollectionTitle) ?? "TV Show";
