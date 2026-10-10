@@ -190,9 +190,9 @@ public sealed class AuthorizedDisplayProjectionReadServiceTests : IDisposable
                     INSERT INTO editions(id,work_id) VALUES(@edition,@work);
                     INSERT INTO media_assets(id,edition_id,content_hash,file_path_root,presented_at,library_id) VALUES(@asset,@edition,@hash,@path,@at,@library);
                     INSERT INTO canonical_values(entity_id,key,value,last_scored_at) VALUES(@asset,'title',@title,CURRENT_TIMESTAMP),(@asset,'season_number',@season,CURRENT_TIMESTAMP),(@asset,'episode_number',@episode,CURRENT_TIMESTAMP);
-                    """, new { work, show, edition, asset, hash = asset.ToString("N"), path = $"C:/library/{asset:N}.mkv", at = new DateTime(2026, 1, 1).AddDays(i % 7).ToString("yyyy-MM-dd HH:mm:ss"), library = library.ToString("D"), title = $"Episode {i}", season, episode });
+                    """, new { work, show, edition, asset, hash = asset.ToString("N"), path = $"C:/library/{asset:N}.mkv", at = i == 35 ? null : new DateTime(2026, 1, 1).AddDays(i % 7).ToString("yyyy-MM-dd HH:mm:ss"), library = library.ToString("D"), title = $"Episode {i}", season, episode });
             }
-            // One finished episode and one half-watched episode, neither at the start or end of the show.
+            // Episode 35 has no added time (it counts as newest). One finished and one half-watched episode sit mid-show.
             connection.Execute("""INSERT INTO user_states(user_id,asset_id,progress_pct,last_accessed,extended_properties) VALUES (@profile,@done,100,'2026-02-01 10:00:00','{}'),(@profile,@current,40,'2026-02-02 10:00:00','{"position_seconds":300,"duration_seconds":900}');""", new { profile, done = assets[7], current = assets[22] });
         }
         var states = await new DisplayJourneyProjectionReader(_database).LoadAsync(profile, null, default, includeCompleted: true);

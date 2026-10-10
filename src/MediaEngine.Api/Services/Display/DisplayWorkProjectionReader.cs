@@ -554,7 +554,7 @@ public sealed class DisplayWorkProjectionReader
         var displayYearSql = MediaDateSql.DisplayOriginalYear("WorkId", "RootWorkId", "AssetId", "MediaType", "projection_credits");
         var sql = $"""
             WITH projection_credits AS (SELECT * FROM primary_person_media_credits WHERE 0),
-            episode_assets AS (
+            show_assets AS (
                 SELECT
                     w.id AS WorkId,
                     ma.library_id AS LibraryId,
@@ -573,6 +573,22 @@ public sealed class DisplayWorkProjectionReader
                   AND {visibleWorkPredicate}
                   AND {visibleAssetPredicate}
                   AND COALESCE(gp.id, p.id, w.id) IN @rootIds
+            ),
+            asset_dates AS (
+                SELECT entity_id, MIN(claimed_at) AS claimed_at
+                FROM metadata_claims WHERE entity_id IN (SELECT AssetId FROM show_assets) GROUP BY entity_id
+            ),
+            episode_assets AS (
+                -- Same choice of file and same added time as the full projection (ranked_assets).
+                SELECT
+                    sa.*,
+                    MIN(mc.claimed_at) OVER (PARTITION BY sa.WorkId, sa.LibraryId) AS CreatedAt,
+                    ROW_NUMBER() OVER (
+                        PARTITION BY sa.WorkId, sa.LibraryId
+                        ORDER BY CASE WHEN mc.claimed_at IS NULL THEN 1 ELSE 0 END, mc.claimed_at ASC, sa.AssetId
+                    ) AS AssetRank
+                FROM show_assets sa
+                LEFT JOIN asset_dates mc ON mc.entity_id = sa.AssetId
             )
             SELECT
                 LibraryId,
@@ -581,6 +597,7 @@ public sealed class DisplayWorkProjectionReader
                 MediaType,
                 RootWorkId,
                 AssetId,
+                COALESCE(CreatedAt, CURRENT_TIMESTAMP) AS CreatedAt,
                 CASE WHEN {IngestionAvailability.UpdatingWorkPredicate("WorkId")} THEN 1 ELSE 0 END AS IsUpdatingDetails,
                 COALESCE(
                     (SELECT value FROM canonical_values WHERE entity_id = WorkId AND key IN ('content_rating', 'certification') LIMIT 1),
@@ -596,6 +613,7 @@ public sealed class DisplayWorkProjectionReader
                 (SELECT value FROM canonical_values WHERE entity_id = AssetId AND key = 'season_number' LIMIT 1) AS SeasonNumber,
                 (SELECT value FROM canonical_values WHERE entity_id = AssetId AND key = 'episode_number' LIMIT 1) AS EpisodeNumber
             FROM episode_assets
+            WHERE AssetRank = 1
             ORDER BY WorkId, LibraryId, AssetId;
             """;
         using var conn = _db.CreateConnection();
