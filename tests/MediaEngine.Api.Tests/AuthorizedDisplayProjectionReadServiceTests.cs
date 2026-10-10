@@ -193,7 +193,7 @@ public sealed class AuthorizedDisplayProjectionReadServiceTests : IDisposable
                     """, new { work, show, edition, asset, hash = asset.ToString("N"), path = $"C:/library/{asset:N}.mkv", at = i == 35 ? null : new DateTime(2026, 1, 1).AddDays(i % 7).ToString("yyyy-MM-dd HH:mm:ss"), library = library.ToString("D"), title = $"Episode {i}", season, episode });
             }
             // Episode 35 has no added time, only a metadata claim dated later than every other episode (a fixed time, so both reads agree).
-            connection.Execute("INSERT INTO metadata_claims(id,entity_id,provider_id,claim_key,claim_value,confidence,claimed_at) VALUES(@id,@asset,@provider,'title','Episode 35',1.0,'2026-03-01 00:00:00');", new { id = Guid.NewGuid(), asset = assets[35], provider = Guid.NewGuid() });
+            connection.Execute("INSERT INTO metadata_providers(id,name,version,is_enabled) VALUES(@provider,'recent-test','1',1);INSERT INTO metadata_claims(id,entity_id,provider_id,claim_key,claim_value,confidence,claimed_at) VALUES(@id,@asset,@provider,'title','Episode 35',1.0,'2026-03-01 00:00:00');", new { id = Guid.NewGuid(), asset = assets[35], provider = Guid.NewGuid() });
             // One finished episode and one half-watched episode sit mid-show.
             connection.Execute("""INSERT INTO user_states(user_id,asset_id,progress_pct,last_accessed,extended_properties) VALUES (@profile,@done,100,'2026-02-01 10:00:00','{}'),(@profile,@current,40,'2026-02-02 10:00:00','{"position_seconds":300,"duration_seconds":900}');""", new { profile, done = assets[7], current = assets[22] });
         }
