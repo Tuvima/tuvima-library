@@ -152,7 +152,7 @@ public sealed class AuthorizedDisplayProjectionReadServiceTests : IDisposable
                 """).ToDictionary(a => (a.WorkId, a.LibraryId), a => a.AddedAt);
             foreach (var row in expectedRows)
             {
-                if (row.LibraryId is { } lib && additions.TryGetValue((row.WorkId, lib), out var at)) { row.CreatedAt = at; }
+                if (row.LibraryId is { } lib && additions.TryGetValue((row.WorkId, lib), out var at) && at is { } added) { row.CreatedAt = added; }
             }
             foreach (var take in new[] { 1, 2, 3, 5, 100 })
             {
@@ -209,7 +209,7 @@ public sealed class AuthorizedDisplayProjectionReadServiceTests : IDisposable
                 """).ToDictionary(a => (a.WorkId, a.LibraryId), a => a.AddedAt);
             foreach (var row in expectedRows)
             {
-                if (row.LibraryId is { } lib && additions.TryGetValue((row.WorkId, lib), out var at)) { row.CreatedAt = at; }
+                if (row.LibraryId is { } lib && additions.TryGetValue((row.WorkId, lib), out var at) && at is { } added) { row.CreatedAt = added; }
             }
         }
         var expected = RecentCatalogueReadService.Compose(expectedRows, new DisplayCardBuilder(), "all", null, 10, progress);
@@ -1843,7 +1843,7 @@ public sealed class AuthorizedDisplayProjectionReadServiceTests : IDisposable
     {
         public Guid WorkId { get; init; }
         public string LibraryId { get; init; } = string.Empty;
-        public DateTimeOffset AddedAt { get; init; }
+        public DateTimeOffset? AddedAt { get; init; }
     }
 
     private sealed class StubRawProjection(
