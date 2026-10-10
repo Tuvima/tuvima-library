@@ -564,7 +564,7 @@ public sealed class PlayerService
     private static void AddQueueItem(List<PlayerQueueItemDto> items, PlayerQueueItemDto item, Guid? startWorkId)
     {
         var shared = item.AssetId.HasValue && IsVideo(item.MediaType)
-            ? items.FindIndex(existing => existing.AssetId == item.AssetId)
+            ? items.FindIndex(existing => existing.AssetId == item.AssetId && existing.WorkId != item.WorkId)
             : -1;
         if (shared < 0)
         {
@@ -689,7 +689,9 @@ public sealed class PlayerService
                    (SELECT c.start_seconds FROM media_asset_coverage c
                     WHERE c.asset_id = ma.id AND c.work_id = w.id) AS CoverageStartSeconds,
                    (SELECT us.progress_pct FROM user_states us
-                    WHERE us.asset_id = ma.id AND us.user_id = @profileId) AS FileProgressPct
+                    WHERE us.asset_id = ma.id AND us.user_id = @profileId) AS FileProgressPct,
+                   (SELECT CAST(json_extract(us.extended_properties, '$.position_seconds') AS REAL) FROM user_states us
+                    WHERE us.asset_id = ma.id AND us.user_id = @profileId) AS FilePositionSeconds
             FROM works w
             INNER JOIN work_owned_assets woa ON woa.work_id = w.id
             INNER JOIN media_assets ma ON ma.id = woa.asset_id
@@ -741,13 +743,22 @@ public sealed class PlayerService
     }
 
     /// <summary>
-    /// Where a combined file should open for this episode: its known start inside the file, but
-    /// only when the profile has nothing to resume (new or finished), so saved progress always wins.
+    /// Where a combined file should open for this episode: its known start inside the file, unless
+    /// the profile already saved a position at or past that start (they are watching this episode).
+    /// A new or finished file opens at the episode start.
     /// </summary>
-    private static double? StartOffsetFor(PlayableWorkRow row) =>
-        row.CoverageStartSeconds is > 0 && row.FileProgressPct is null or <= 0 or >= 99.5
+    private static double? StartOffsetFor(PlayableWorkRow row)
+    {
+        if (row.CoverageStartSeconds is not > 0)
+        {
+            return null;
+        }
+
+        var untouched = row.FileProgressPct is null or <= 0 or >= 99.5;
+        return untouched || row.FilePositionSeconds is not { } saved || saved < row.CoverageStartSeconds
             ? row.CoverageStartSeconds
             : null;
+    }
 
     private async Task<PlayerStateDto> EnrichStateAsync(PlayerStateDto state, CancellationToken ct)
     {
@@ -1285,5 +1296,6 @@ public sealed class PlayerService
         public string? Duration { get; init; }
         public double? CoverageStartSeconds { get; init; }
         public double? FileProgressPct { get; init; }
+        public double? FilePositionSeconds { get; init; }
     }
 }

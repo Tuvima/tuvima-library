@@ -1336,11 +1336,19 @@ public sealed class AuthorizedDisplayProjectionReadServiceTests : IDisposable
         Assert.Equal([combined.WorkId, next.WorkId], fromStart.Select(item => item.WorkId).ToArray());
         Assert.Null(fromStart[0].PositionSeconds);
 
+        // Partial progress inside episode 1 still opens episode 2 at its own start.
         using (var connection = _database.CreateConnection())
         {
             connection.Execute(
-                "INSERT INTO user_states(user_id, asset_id, progress_pct, last_accessed) VALUES (@profile, @asset, 40, CURRENT_TIMESTAMP);",
+                "INSERT INTO user_states(user_id, asset_id, progress_pct, last_accessed, extended_properties) VALUES (@profile, @asset, 20, CURRENT_TIMESTAMP, '{\"position_seconds\":600}');",
                 new { profile, asset = combined.AssetId });
+        }
+        Assert.Equal(1500, (await player.ResolveQueueItemsAsync(request, profile, default))[0].PositionSeconds);
+
+        // Progress already inside episode 2 is resumed, not reset to its start.
+        using (var connection = _database.CreateConnection())
+        {
+            connection.Execute("UPDATE user_states SET progress_pct = 60, extended_properties = '{\"position_seconds\":2400}' WHERE asset_id = @asset;", new { asset = combined.AssetId });
         }
         Assert.Null((await player.ResolveQueueItemsAsync(request, profile, default))[0].PositionSeconds);
 
@@ -1349,6 +1357,33 @@ public sealed class AuthorizedDisplayProjectionReadServiceTests : IDisposable
             connection.Execute("UPDATE user_states SET progress_pct = 100 WHERE asset_id = @asset;", new { asset = combined.AssetId });
         }
         Assert.Equal(1500, (await player.ResolveQueueItemsAsync(request, profile, default))[0].PositionSeconds);
+    }
+
+    [Fact]
+    public async Task QueueKeepsIntentionalRepeatsOfASingleEpisodeFile()
+    {
+        var account = Guid.NewGuid();
+        var library = Guid.NewGuid();
+        var profile = MediaEngine.Domain.Aggregates.Profile.SeedProfileId;
+        await CreateHumanAsync(account, new HashSet<AccountFeatureId> { AccountFeatureId.Watch }, new HashSet<Guid> { library });
+        var single = await InsertOwnedWorkWithIdAsync(library, "Movie night", "TV");
+        var context = HumanContext(account, profile);
+        using var services = new ServiceCollection()
+            .AddSingleton<IRequestAuthorityResolver>(new RequestAuthorityResolver(_accounts, _applications, new ProfileRepository(_database)))
+            .AddSingleton(CreateService(context, new StubRawProjection(
+                [new() { WorkId = single.WorkId, AssetId = single.AssetId, LibraryId = library.ToString("D"), MediaType = "TV" }], [])))
+            .BuildServiceProvider();
+        context.RequestServices = services;
+        var player = new PlayerService(
+            null!, null!, _database, null!, null!, null!, null!, null!, null!,
+            new PlayerCatalogueScope(new HttpContextAccessor { HttpContext = context }), null!);
+
+        var queue = await player.ResolveQueueItemsAsync(new PlayerQueueMutationDto
+        {
+            Items = [new() { WorkId = single.WorkId }, new() { WorkId = single.WorkId }],
+        }, profile, default);
+
+        Assert.Equal(2, queue.Count);
     }
 
     private AuthorizedDisplayProjectionReadService CreateService(
