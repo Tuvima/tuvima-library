@@ -72,6 +72,23 @@ internal static class TestTemp
                 Directory.Delete(path, recursive: true);
             }
         }, path);
+
+        // A recursive delete stops at the first locked file; remove everything that is not locked so only
+        // the genuinely held files remain for the next run's sweep.
+        if (Directory.Exists(path))
+        {
+            foreach (var file in Directory.EnumerateFiles(path, "*", SearchOption.AllDirectories))
+            {
+                try
+                {
+                    File.Delete(file);
+                }
+                catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+                {
+                    // Still held open by a live handle; reported through cleanup.log and removed by the next sweep.
+                }
+            }
+        }
     }
 
     internal static void SweepStaleRuns(string baseDir, DateTime utcNow, Func<int, bool> isRunning)
@@ -99,9 +116,38 @@ internal static class TestTemp
 
     private static void CleanupRun()
     {
-        if (RunRoot.Length > 0)
+        if (RunRoot.Length == 0)
         {
-            DeleteDirectory(RunRoot);
+            return;
+        }
+
+        DeleteDirectory(RunRoot);
+
+        // The test host's console is often gone at exit, so leave a one-line trace beside the run folders.
+        // A folder that survives here is deleted by the next test process's sweep once its file handles are gone.
+        var remaining = Directory.Exists(RunRoot)
+            ? Directory.EnumerateFiles(RunRoot, "*", SearchOption.AllDirectories).Take(3).ToList()
+            : new List<string>();
+        AppendLog(remaining.Count == 0
+            ? $"{DateTime.UtcNow:O} pid {Environment.ProcessId} cleaned {RunRoot}"
+            : $"{DateTime.UtcNow:O} pid {Environment.ProcessId} LEFT {RunRoot} (e.g. {string.Join("; ", remaining)})");
+    }
+
+    private static void AppendLog(string line)
+    {
+        try
+        {
+            var log = Path.Combine(Path.GetDirectoryName(RunRoot)!, "cleanup.log");
+            if (File.Exists(log) && new FileInfo(log).Length > 100_000)
+            {
+                File.Delete(log);
+            }
+
+            File.AppendAllText(log, line + Environment.NewLine);
+        }
+        catch (IOException exception)
+        {
+            Console.Error.WriteLine($"[TestTemp] Could not write cleanup.log: {exception.Message}");
         }
     }
 
