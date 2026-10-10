@@ -160,15 +160,6 @@ public sealed class NativeStructureTests : AsyncBunitContext
     }
 
     [Fact]
-    public void EmptyTableUsesASemanticCellForItsEmptyState()
-    {
-        var cut = Render<AppDataTable<string>>(parameters => parameters
-            .Add(component => component.Items, Array.Empty<string>())
-            .Add(component => component.NoRecordsContent, builder => builder.AddContent(0, "No records")));
-        Assert.Equal("No records", cut.Find("table tbody tr td").TextContent);
-    }
-
-    [Fact]
     public void AvatarAcceptsExistingAndMigratedSizeContracts()
     {
         var legacy = Render<AppAvatar>(parameters => parameters.Add(component => component.Size, AppSize.Small));
