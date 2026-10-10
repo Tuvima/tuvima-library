@@ -34,13 +34,14 @@ public sealed class MediaEditorFileCoverageRouteTests
         try
         {
             database.InitializeSchema();
+            database.RunStartupChecks();
             var ownLibrary = Guid.NewGuid();
             var otherLibrary = Guid.NewGuid();
             var own = SeedEpisodeFile(database, ownLibrary);
             var foreign = SeedEpisodeFile(database, otherLibrary);
 
             var actor = new RequestAuthority(PrincipalKind.Human, true,
-                AccountId: Guid.NewGuid(), ActiveProfileId: Guid.NewGuid(), SessionId: Guid.NewGuid(),
+                AccountId: Guid.NewGuid(), ActiveProfileId: MediaEngine.Domain.Aggregates.Profile.SeedProfileId, SessionId: Guid.NewGuid(),
                 AccountEnabled: true, GrantEnabled: true);
             var builder = WebApplication.CreateBuilder(new WebApplicationOptions { EnvironmentName = "Development" });
             builder.Logging.ClearProviders();

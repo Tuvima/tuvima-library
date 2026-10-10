@@ -165,6 +165,7 @@ internal sealed partial class DetailCompositionOrchestrator
                 DurationSeconds = item.DurationSeconds,
                 RemainingSeconds = item.RemainingSeconds,
                 ProgressLabel = item.ProgressLabel,
+                CoveredWith = item.CoveredWith,
             };
         }
 
@@ -572,6 +573,7 @@ internal sealed partial class DetailCompositionOrchestrator
             DurationSeconds = item.DurationSeconds,
             RemainingSeconds = item.RemainingSeconds,
             ProgressLabel = item.ProgressLabel,
+            CoveredWith = item.CoveredWith,
         };
         return true;
     }
@@ -631,6 +633,7 @@ internal sealed partial class DetailCompositionOrchestrator
             DurationSeconds = item.DurationSeconds,
             RemainingSeconds = item.RemainingSeconds,
             ProgressLabel = item.ProgressLabel,
+            CoveredWith = item.CoveredWith,
         };
         return true;
     }
