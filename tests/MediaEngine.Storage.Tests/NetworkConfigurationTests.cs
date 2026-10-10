@@ -1,6 +1,7 @@
 using MediaEngine.Domain.Configuration;
 using MediaEngine.Storage;
 using MediaEngine.Storage.Configuration;
+using MediaEngine.TestSupport;
 
 namespace MediaEngine.Storage.Tests;
 
@@ -41,7 +42,7 @@ public sealed class NetworkConfigurationTests
         }
         finally
         {
-            Directory.Delete(path, recursive: true);
+            TestTemp.DeleteDirectory(path);
         }
     }
 
@@ -61,7 +62,7 @@ public sealed class NetworkConfigurationTests
         }
         finally
         {
-            Directory.Delete(path, recursive: true);
+            TestTemp.DeleteDirectory(path);
         }
     }
 
@@ -77,7 +78,7 @@ public sealed class NetworkConfigurationTests
         }
         finally
         {
-            Directory.Delete(path, recursive: true);
+            TestTemp.DeleteDirectory(path);
         }
     }
 
@@ -108,7 +109,7 @@ public sealed class NetworkConfigurationTests
         }
         finally
         {
-            Directory.Delete(path, recursive: true);
+            TestTemp.DeleteDirectory(path);
         }
     }
 
@@ -125,7 +126,7 @@ public sealed class NetworkConfigurationTests
         }
         finally
         {
-            Directory.Delete(path, recursive: true);
+            TestTemp.DeleteDirectory(path);
         }
     }
 
@@ -167,7 +168,7 @@ public sealed class NetworkConfigurationTests
         }
         finally
         {
-            Directory.Delete(path, recursive: true);
+            TestTemp.DeleteDirectory(path);
         }
     }
 
@@ -198,7 +199,7 @@ public sealed class NetworkConfigurationTests
         }
         finally
         {
-            Directory.Delete(path, recursive: true);
+            TestTemp.DeleteDirectory(path);
         }
     }
 
@@ -218,7 +219,7 @@ public sealed class NetworkConfigurationTests
         }
         finally
         {
-            Directory.Delete(path, recursive: true);
+            TestTemp.DeleteDirectory(path);
         }
     }
 
@@ -249,7 +250,7 @@ public sealed class NetworkConfigurationTests
         }
         finally
         {
-            Directory.Delete(path, recursive: true);
+            TestTemp.DeleteDirectory(path);
         }
     }
 
@@ -272,7 +273,7 @@ public sealed class NetworkConfigurationTests
         }
         finally
         {
-            Directory.Delete(path, recursive: true);
+            TestTemp.DeleteDirectory(path);
         }
     }
 
@@ -297,7 +298,7 @@ public sealed class NetworkConfigurationTests
         }
         finally
         {
-            Directory.Delete(path, recursive: true);
+            TestTemp.DeleteDirectory(path);
         }
     }
 
@@ -317,7 +318,7 @@ public sealed class NetworkConfigurationTests
         }
         finally
         {
-            Directory.Delete(path, recursive: true);
+            TestTemp.DeleteDirectory(path);
         }
     }
 

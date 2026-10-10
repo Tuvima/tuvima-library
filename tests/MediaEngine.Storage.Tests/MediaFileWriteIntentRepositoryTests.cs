@@ -1,4 +1,5 @@
 using Dapper;
+using MediaEngine.TestSupport;
 
 namespace MediaEngine.Storage.Tests;
 
@@ -61,7 +62,7 @@ public sealed class MediaFileWriteIntentRepositoryTests : IDisposable
 
     public void Dispose()
     {
-        try { _database.Dispose(); } catch { }
-        try { File.Delete(_path); } catch { }
+        _database.Dispose();
+        TestTemp.DeleteDatabase(_path);
     }
 }

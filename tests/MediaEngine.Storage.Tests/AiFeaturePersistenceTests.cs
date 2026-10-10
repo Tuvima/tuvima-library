@@ -5,6 +5,7 @@ using MediaEngine.Domain.Entities;
 using MediaEngine.Domain.Jobs;
 using MediaEngine.Domain.Models;
 using MediaEngine.Storage;
+using MediaEngine.TestSupport;
 
 namespace MediaEngine.Storage.Tests;
 
@@ -487,14 +488,7 @@ public sealed class AiFeaturePersistenceTests : IDisposable
     public void Dispose()
     {
         _db.Dispose();
-        try
-        {
-            File.Delete(_dbPath);
-        }
-        catch (IOException)
-        {
-            // Best-effort cleanup of a test-owned temporary file.
-        }
+        TestTemp.DeleteDatabase(_dbPath);
     }
 
     private static AiFeatureWriteRequest Request(

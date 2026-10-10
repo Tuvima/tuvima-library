@@ -1,4 +1,5 @@
 using Dapper;
+using MediaEngine.TestSupport;
 
 namespace MediaEngine.Storage.Tests;
 
@@ -30,6 +31,6 @@ public sealed class IngestionAvailabilityTests
         Assert.False(await IngestionAvailability.IsUpdatingAsync(db, work));
         Assert.False(await IngestionAvailability.IsUpdatingAsync(db, second));
         db.Dispose();
-        try { File.Delete(path); } catch (IOException) { /* SQLite may retain a pooled handle until test-host exit. */ }
+        TestTemp.DeleteDatabase(path);
     }
 }

@@ -2,6 +2,7 @@ using System.Text.Json;
 using MediaEngine.Domain.Authorization;
 using MediaEngine.Domain.Events;
 using MediaEngine.Storage;
+using MediaEngine.TestSupport;
 using Microsoft.Data.Sqlite;
 
 namespace MediaEngine.Storage.Tests;
@@ -103,20 +104,6 @@ public sealed class ApplicationEventRepositoryTests : IDisposable
     public void Dispose()
     {
         _database.Dispose();
-        SqliteConnection.ClearAllPools();
-        if (File.Exists(_path))
-        {
-            File.Delete(_path);
-        }
-
-        if (File.Exists(_path + "-wal"))
-        {
-            File.Delete(_path + "-wal");
-        }
-
-        if (File.Exists(_path + "-shm"))
-        {
-            File.Delete(_path + "-shm");
-        }
+        TestTemp.DeleteDatabase(_path);
     }
 }

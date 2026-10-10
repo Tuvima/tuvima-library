@@ -1,5 +1,6 @@
 using Dapper;
 using MediaEngine.Domain;
+using MediaEngine.TestSupport;
 using Microsoft.Data.Sqlite;
 
 namespace MediaEngine.Storage.Tests;
@@ -992,6 +993,6 @@ public sealed class MediaEditorCommitRepositoryTests : IDisposable
     public void Dispose()
     {
         _database.Dispose();
-        try { File.Delete(_path); } catch { }
+        TestTemp.DeleteDatabase(_path);
     }
 }

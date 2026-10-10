@@ -1,4 +1,5 @@
 using Dapper;
+using MediaEngine.TestSupport;
 
 namespace MediaEngine.Storage.Tests;
 
@@ -336,6 +337,6 @@ public sealed class MediaEditorEditionArtworkRepositoryTests : IDisposable
 
     public void Dispose()
     {
-        try { File.Delete(_path); } catch { }
+        TestTemp.DeleteDatabase(_path);
     }
 }

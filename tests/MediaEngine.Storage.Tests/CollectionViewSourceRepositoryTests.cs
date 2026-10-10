@@ -1,6 +1,7 @@
 using Dapper;
 using MediaEngine.Domain.PersonalMedia;
 using MediaEngine.Storage.Contracts;
+using MediaEngine.TestSupport;
 using Microsoft.Data.Sqlite;
 
 namespace MediaEngine.Storage.Tests;
@@ -272,14 +273,6 @@ public sealed class CollectionViewSourceRepositoryTests : IDisposable
     public void Dispose()
     {
         _database.Dispose();
-        using (var pool = new SqliteConnection($"Data Source={_path}"))
-        {
-            SqliteConnection.ClearPool(pool);
-        }
-
-        if (File.Exists(_path))
-        {
-            File.Delete(_path);
-        }
+        TestTemp.DeleteDatabase(_path);
     }
 }

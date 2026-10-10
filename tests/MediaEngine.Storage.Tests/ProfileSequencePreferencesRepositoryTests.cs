@@ -1,5 +1,6 @@
 using Dapper;
 using MediaEngine.Storage;
+using MediaEngine.TestSupport;
 
 namespace MediaEngine.Storage.Tests;
 
@@ -88,13 +89,6 @@ public sealed class ProfileSequencePreferencesRepositoryTests : IDisposable
     public void Dispose()
     {
         _database.Dispose();
-        try
-        {
-            File.Delete(_databasePath);
-        }
-        catch (IOException)
-        {
-            // Best-effort cleanup of a test-owned temporary database.
-        }
+        TestTemp.DeleteDatabase(_databasePath);
     }
 }

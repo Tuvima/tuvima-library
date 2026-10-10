@@ -3,6 +3,7 @@ using MediaEngine.Domain.Aggregates;
 using MediaEngine.Domain.Constants;
 using MediaEngine.Domain.Entities;
 using MediaEngine.Domain.Enums;
+using MediaEngine.TestSupport;
 
 namespace MediaEngine.Storage.Tests;
 
@@ -22,8 +23,8 @@ public sealed class SeriesManifestRepositoryTests : IDisposable
 
     public void Dispose()
     {
-        try { _db.Dispose(); } catch { }
-        try { File.Delete(_dbPath); } catch { }
+        _db.Dispose();
+        TestTemp.DeleteDatabase(_dbPath);
     }
 
     [Fact]

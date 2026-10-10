@@ -4,6 +4,7 @@ using MediaEngine.Domain;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Entities;
 using MediaEngine.Storage;
+using MediaEngine.TestSupport;
 using Microsoft.Data.Sqlite;
 
 namespace MediaEngine.Storage.Tests;
@@ -1341,21 +1342,6 @@ public sealed class DatabaseStartupSafetyTests
             {
                 DatabaseStartupSafetyTests.TryDelete(backup);
             }
-        }
-    }
-
-    private static void TryDelete(string path)
-    {
-        try
-        {
-            if (File.Exists(path))
-            {
-                File.Delete(path);
-            }
-        }
-        catch
-        {
-            // Test cleanup is best effort; failure should not hide the test assertion result.
         }
     }
 }

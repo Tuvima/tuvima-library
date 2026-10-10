@@ -2,6 +2,7 @@ using System.Text.Json;
 using MediaEngine.Domain.Configuration;
 using MediaEngine.Storage;
 using MediaEngine.Storage.Configuration;
+using MediaEngine.TestSupport;
 
 namespace MediaEngine.Storage.Tests;
 
@@ -69,7 +70,7 @@ public sealed class ShippedCoreConfigurationTests
         }
         finally
         {
-            Directory.Delete(directory, recursive: true);
+            TestTemp.DeleteDirectory(directory);
         }
     }
 

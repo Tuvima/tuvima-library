@@ -1,3 +1,4 @@
+using MediaEngine.TestSupport;
 using Microsoft.Data.Sqlite;
 
 namespace MediaEngine.Storage.Tests;
@@ -131,16 +132,9 @@ public sealed class SharedLibraryCuratorRetirementTests : IDisposable
 
     public void Dispose()
     {
-        SqliteConnection.ClearAllPools();
         foreach (var path in _paths)
         {
-            foreach (var file in new[] { path, $"{path}-wal", $"{path}-shm" })
-            {
-                if (File.Exists(file))
-                {
-                    File.Delete(file);
-                }
-            }
+            TestTemp.DeleteDatabase(path);
         }
     }
 }

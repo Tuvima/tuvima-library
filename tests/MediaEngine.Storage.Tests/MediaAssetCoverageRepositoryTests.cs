@@ -1,6 +1,7 @@
 using Dapper;
 using MediaEngine.Domain.Entities;
 using MediaEngine.Storage;
+using MediaEngine.TestSupport;
 
 namespace MediaEngine.Storage.Tests;
 
@@ -174,9 +175,7 @@ public sealed class MediaAssetCoverageRepositoryTests : IDisposable
     public void Dispose()
     {
         _db.Dispose();
-        TryDelete(_dbPath);
-        TryDelete($"{_dbPath}-wal");
-        TryDelete($"{_dbPath}-shm");
+        TestTemp.DeleteDatabase(_dbPath);
     }
 
     private Guid CreateEpisode()
@@ -205,20 +204,5 @@ public sealed class MediaAssetCoverageRepositoryTests : IDisposable
             VALUES (@assetId, @editionId, @contentHash, @path, 'Normal');
             """, new { assetId, editionId, contentHash = $"hash_{assetId:N}", path = $"/library/{assetId:N}.mkv" });
         return (assetId, workId);
-    }
-
-    private static void TryDelete(string path)
-    {
-        try
-        {
-            if (File.Exists(path))
-            {
-                File.Delete(path);
-            }
-        }
-        catch
-        {
-            // Test cleanup is best effort and must not hide assertion failures.
-        }
     }
 }

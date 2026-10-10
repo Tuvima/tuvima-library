@@ -1,3 +1,4 @@
+using MediaEngine.TestSupport;
 using Microsoft.Data.Sqlite;
 
 namespace MediaEngine.Storage.Tests;
@@ -24,10 +25,8 @@ public sealed class DatabaseConnectionTransactionTests : IDisposable
 
     public void Dispose()
     {
-        try { _db.Dispose(); } catch { }
-        TryDelete(_dbPath);
-        TryDelete($"{_dbPath}-wal");
-        TryDelete($"{_dbPath}-shm");
+        _db.Dispose();
+        TestTemp.DeleteDatabase(_dbPath);
     }
 
     [Fact]
@@ -149,21 +148,6 @@ public sealed class DatabaseConnectionTransactionTests : IDisposable
         cmd.Parameters.AddWithValue("$path", path);
         return cmd.ExecuteScalar() as string;
     }
-
-    private static void TryDelete(string path)
-    {
-        try
-        {
-            if (File.Exists(path))
-            {
-                File.Delete(path);
-            }
-        }
-        catch
-        {
-            // Test cleanup is best effort; failure should not hide the test assertion result.
-        }
-    }
 }
 
 public sealed class DatabaseConnectionDisposeTests
@@ -199,21 +183,7 @@ public sealed class DatabaseConnectionDisposeTests
         }
         finally
         {
-            SqliteConnection.ClearAllPools();
-            if (File.Exists(path))
-            {
-                File.Delete(path);
-            }
-
-            if (File.Exists($"{path}-wal"))
-            {
-                File.Delete($"{path}-wal");
-            }
-
-            if (File.Exists($"{path}-shm"))
-            {
-                File.Delete($"{path}-shm");
-            }
+            TestTemp.DeleteDatabase(path);
         }
     }
 }

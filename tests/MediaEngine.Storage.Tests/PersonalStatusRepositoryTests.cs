@@ -2,6 +2,7 @@ using Dapper;
 using MediaEngine.Domain.Entities;
 using MediaEngine.Domain.Enums;
 using MediaEngine.Domain.Models;
+using MediaEngine.TestSupport;
 namespace MediaEngine.Storage.Tests;
 
 public sealed class PersonalStatusRepositoryTests : IDisposable
@@ -10,7 +11,7 @@ public sealed class PersonalStatusRepositoryTests : IDisposable
     private readonly DatabaseConnection db;
     private readonly Guid profile = Guid.NewGuid();
     public PersonalStatusRepositoryTests() { DapperConfiguration.Configure(); db = new(path); db.InitializeSchema(); }
-    public void Dispose() { using (var conn = db.CreateConnection()) { Microsoft.Data.Sqlite.SqliteConnection.ClearPool(conn); } db.Dispose(); File.Delete(path); }
+    public void Dispose() { db.Dispose(); TestTemp.DeleteDatabase(path); }
     private (Guid work, Guid asset) Add(MediaType media, Guid? parent = null)
     {
         var work = Guid.NewGuid(); var edition = Guid.NewGuid(); var asset = Guid.NewGuid();
