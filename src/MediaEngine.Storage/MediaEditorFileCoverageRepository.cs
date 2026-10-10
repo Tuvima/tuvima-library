@@ -197,7 +197,7 @@ public sealed class MediaEditorFileCoverageRepository(IDatabaseConnection databa
             FROM works w
             WHERE w.parent_work_id = @seasonId AND w.media_type = 'TV' AND w.work_kind = 'child'
             ORDER BY w.ordinal_sort, w.ordinal;
-            """, new { seasonId = host.SeasonId }, tx).ToList();
+            """, new { assetId, seasonId = host.SeasonId }, tx).ToList();
 
         var list = episodes.Select(row => new FileCoverageEpisode(
             row.WorkId,
