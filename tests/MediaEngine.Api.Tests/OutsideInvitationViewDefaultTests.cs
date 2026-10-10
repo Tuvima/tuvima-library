@@ -30,9 +30,10 @@ public sealed class OutsideInvitationViewDefaultTests
     {
         var root = Path.Combine(Path.GetTempPath(), $"tuvima-view-default-{Guid.NewGuid():N}");
         Directory.CreateDirectory(root);
+        DatabaseConnection? database = null;
         try
         {
-            var database = new DatabaseConnection(Path.Combine(root, "accounts.db"));
+            database = new DatabaseConnection(Path.Combine(root, "accounts.db"));
             database.InitializeSchema();
             var accounts = new AccountRepository(database);
             var now = DateTimeOffset.UtcNow;
@@ -77,6 +78,7 @@ public sealed class OutsideInvitationViewDefaultTests
         }
         finally
         {
+            database?.Dispose();
             Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
             Directory.Delete(root, recursive: true);
         }

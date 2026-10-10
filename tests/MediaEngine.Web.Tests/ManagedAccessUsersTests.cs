@@ -171,7 +171,7 @@ public sealed class ManagedAccessUsersTests : AsyncBunitContext
         var cut = RenderUsers();
         cut.FindAll("button").Single(button => button.TextContent.Trim() == "Invite user").Click();
         cut.Find("input[type='text']").Input("friend@example.test");
-        cut.Find("input[type='checkbox']").Change(true);
+        cut.Find(".access-drawer__body input[type='checkbox']").Change(true);
         cut.FindAll("button").Single(button => button.TextContent.Trim() == "Create invitation").Click();
 
         cut.WaitForAssertion(() =>
