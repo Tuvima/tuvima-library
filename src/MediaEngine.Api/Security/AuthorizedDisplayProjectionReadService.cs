@@ -84,6 +84,20 @@ internal sealed class AuthorizedDisplayProjectionReadService(
         return rows.Where(row => Allows(row.LibraryId, row.MediaType, row.ContentRating, scope)).ToList();
     }
 
+    /// <summary>
+    /// Narrows a light candidate list to what the profile's libraries and features allow. Content ratings are
+    /// only known on full rows, so they are checked later; this never drops something the full check would keep.
+    /// </summary>
+    internal async Task<IReadOnlyList<RecentCandidate>> FilterRecentCandidatesAsync(IReadOnlyList<RecentCandidate> candidates, Guid? profileId, CancellationToken ct)
+    {
+        var scope = await ResolveScopeAsync(ct).ConfigureAwait(false);
+        if (!scope.IsValid || profileId is null || profileId != scope.Authority.ActiveProfileId)
+        {
+            return [];
+        }
+        return candidates.Where(candidate => AllowsLibraryAndFeature(candidate.LibraryId, candidate.MediaType, scope)).ToList();
+    }
+
     public async Task<IReadOnlyList<DisplayWorkRow>> LoadHomeWorksAsync(CancellationToken ct) =>
         FilterWorks(await inner.LoadHomeWorksAsync(ct).ConfigureAwait(false), await ResolveScopeAsync(ct).ConfigureAwait(false));
 
@@ -208,13 +222,11 @@ internal sealed class AuthorizedDisplayProjectionReadService(
                 .ToList()
             : [];
 
-    private static bool Allows(string? libraryId, string mediaType, string? contentRating, CatalogueScope scope)
-    {
-        if (!scope.Content.Allows(contentRating))
-        {
-            return false;
-        }
+    private static bool Allows(string? libraryId, string mediaType, string? contentRating, CatalogueScope scope) =>
+        scope.Content.Allows(contentRating) && AllowsLibraryAndFeature(libraryId, mediaType, scope);
 
+    private static bool AllowsLibraryAndFeature(string? libraryId, string mediaType, CatalogueScope scope)
+    {
         if (!scope.Features.Contains(FeatureFor(mediaType)))
         {
             return false;

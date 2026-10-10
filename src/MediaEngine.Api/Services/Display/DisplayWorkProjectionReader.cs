@@ -6,6 +6,19 @@ using MediaEngine.Storage.Contracts;
 
 namespace MediaEngine.Api.Services.Display;
 
+internal sealed class RecentCandidate
+{
+    public Guid WorkId { get; init; }
+    public Guid RootWorkId { get; init; }
+    public Guid? CollectionId { get; init; }
+    public string? LibraryId { get; init; }
+    public string MediaType { get; init; } = string.Empty;
+    public DateTimeOffset? AddedAt { get; init; }
+}
+
+/// <summary>The roots (shows, albums) and individual works whose rows a recent page needs.</summary>
+public sealed record DisplayRecentGroupFilter(IReadOnlyCollection<Guid> RootIds, IReadOnlyCollection<Guid> WorkIds);
+
 public sealed class DisplayWorkProjectionReader
 {
     private readonly IDatabaseConnection _db;
@@ -19,7 +32,7 @@ public sealed class DisplayWorkProjectionReader
         _logger = logger;
     }
 
-    internal static string BuildSql(bool hasDetail)
+    internal static string BuildSql(bool hasDetail, bool lean = false, bool hasGroupFilter = false)
     {
         var visibleWorkPredicate = HomeVisibilitySql.VisibleWorkPredicate("w.id", "w.curator_state", "w.is_catalog_only");
         var visibleAssetPredicate = HomeVisibilitySql.VisibleAssetPathPredicate("ma.file_path_root");
@@ -33,6 +46,11 @@ public sealed class DisplayWorkProjectionReader
                     WHERE credit.media_asset_id = ma.id
                       AND (credit.person_name = person.name COLLATE NOCASE
                            OR (NULLIF(credit.person_qid, '') IS NOT NULL AND credit.person_qid = person.wikidata_qid))))
+            """ : "";
+        // Recent pages only load the shows, albums and works that can appear on the page.
+        var groupPredicate = hasGroupFilter ? """
+            AND ((CASE WHEN w.media_type = 'Music' THEN COALESCE(p.id, w.id) ELSE COALESCE(gp.id, p.id, w.id) END) IN @rootIds
+                 OR w.id IN @workIds)
             """ : "";
         var displayYearSql = MediaDateSql.DisplayOriginalYear(
             "WorkId",
@@ -77,6 +95,7 @@ public sealed class DisplayWorkProjectionReader
                   AND {visibleWorkPredicate}
                   AND {visibleAssetPredicate}
                   {detailPredicate}
+                  {groupPredicate}
             ),
             canonical_artist_credits AS (
                 SELECT
@@ -260,7 +279,7 @@ public sealed class DisplayWorkProjectionReader
                     (SELECT value FROM canonical_values WHERE entity_id = RootWorkId AND key IN ('publisher', 'imprint') LIMIT 1),
                     (SELECT value FROM canonical_values WHERE entity_id = AssetId AND key IN ('publisher', 'imprint') LIMIT 1)
                 ) AS Publisher,
-                (SELECT group_concat(value, '; ')
+                /*search-only:begin*/(SELECT group_concat(value, '; ')
                  FROM (
                     SELECT DISTINCT value
                     FROM (
@@ -316,7 +335,7 @@ public sealed class DisplayWorkProjectionReader
                     ) publisherValues
                     WHERE NULLIF(TRIM(value), '') IS NOT NULL
                     ORDER BY value COLLATE NOCASE
-                 )) AS SearchPublisher,
+                 ))/*search-only:end*/ AS SearchPublisher,
                 COALESCE(
                     (SELECT group_concat(value, '; ') FROM (SELECT value FROM canonical_value_arrays WHERE entity_id = WorkId AND key = 'director' ORDER BY ordinal)),
                     (SELECT group_concat(value, '; ') FROM (SELECT value FROM canonical_value_arrays WHERE entity_id = RootWorkId AND key = 'director' ORDER BY ordinal)),
@@ -327,7 +346,7 @@ public sealed class DisplayWorkProjectionReader
                     (SELECT value FROM canonical_values WHERE entity_id = WorkId AND key IN ('network', 'studio', 'broadcaster', 'streaming_service', 'platform') LIMIT 1),
                     (SELECT value FROM canonical_values WHERE entity_id = AssetId AND key IN ('network', 'studio', 'broadcaster', 'streaming_service', 'platform') LIMIT 1)
                 ) AS Network,
-                COALESCE(
+                /*search-only:begin*/COALESCE(
                     (SELECT group_concat(value, '; ') FROM (SELECT value FROM canonical_value_arrays WHERE entity_id = WorkId AND key IN ('network', 'studio', 'broadcaster', 'streaming_service', 'platform') ORDER BY ordinal)),
                     (SELECT value FROM canonical_values WHERE entity_id = WorkId AND key IN ('network', 'studio', 'broadcaster', 'streaming_service', 'platform') LIMIT 1),
                     (SELECT group_concat(value, '; ') FROM (SELECT value FROM canonical_value_arrays WHERE entity_id = EditionId AND key IN ('network', 'studio', 'broadcaster', 'streaming_service', 'platform') ORDER BY ordinal)),
@@ -336,8 +355,8 @@ public sealed class DisplayWorkProjectionReader
                     (SELECT value FROM canonical_values WHERE entity_id = AssetId AND key IN ('network', 'studio', 'broadcaster', 'streaming_service', 'platform') LIMIT 1),
                     (SELECT group_concat(value, '; ') FROM (SELECT value FROM canonical_value_arrays WHERE entity_id = RootWorkId AND key IN ('network', 'studio', 'broadcaster', 'streaming_service', 'platform') ORDER BY ordinal)),
                     (SELECT value FROM canonical_values WHERE entity_id = RootWorkId AND key IN ('network', 'studio', 'broadcaster', 'streaming_service', 'platform') LIMIT 1)
-                ) AS SearchNetwork,
-                COALESCE(
+                ) /*search-only:end*/ AS SearchNetwork,
+                /*search-only:begin*/COALESCE(
                     (SELECT group_concat(value, '; ') FROM (SELECT value FROM canonical_value_arrays WHERE entity_id = WorkId AND key = 'country_of_origin' ORDER BY ordinal)),
                     (SELECT value FROM canonical_values WHERE entity_id = WorkId AND key = 'country_of_origin' LIMIT 1),
                     (SELECT group_concat(value, '; ') FROM (SELECT value FROM canonical_value_arrays WHERE entity_id = EditionId AND key = 'country_of_origin' ORDER BY ordinal)),
@@ -346,8 +365,8 @@ public sealed class DisplayWorkProjectionReader
                     (SELECT value FROM canonical_values WHERE entity_id = AssetId AND key = 'country_of_origin' LIMIT 1),
                     (SELECT group_concat(value, '; ') FROM (SELECT value FROM canonical_value_arrays WHERE entity_id = RootWorkId AND key = 'country_of_origin' ORDER BY ordinal)),
                     (SELECT value FROM canonical_values WHERE entity_id = RootWorkId AND key = 'country_of_origin' LIMIT 1)
-                ) AS CountryOfOrigin,
-                COALESCE(
+                ) /*search-only:end*/ AS CountryOfOrigin,
+                /*search-only:begin*/COALESCE(
                     (SELECT group_concat(value, '; ') FROM (SELECT value FROM canonical_value_arrays WHERE entity_id = WorkId AND key = 'franchise' ORDER BY ordinal)),
                     (SELECT value FROM canonical_values WHERE entity_id = WorkId AND key = 'franchise' LIMIT 1),
                     (SELECT group_concat(value, '; ') FROM (SELECT value FROM canonical_value_arrays WHERE entity_id = EditionId AND key = 'franchise' ORDER BY ordinal)),
@@ -356,7 +375,7 @@ public sealed class DisplayWorkProjectionReader
                     (SELECT value FROM canonical_values WHERE entity_id = AssetId AND key = 'franchise' LIMIT 1),
                     (SELECT group_concat(value, '; ') FROM (SELECT value FROM canonical_value_arrays WHERE entity_id = RootWorkId AND key = 'franchise' ORDER BY ordinal)),
                     (SELECT value FROM canonical_values WHERE entity_id = RootWorkId AND key = 'franchise' LIMIT 1)
-                ) AS Franchise,
+                ) /*search-only:end*/ AS Franchise,
                 COALESCE(
                     (SELECT value FROM canonical_values WHERE entity_id = RootWorkId AND key IN ('source_service', 'source_platform') LIMIT 1),
                     (SELECT value FROM canonical_values WHERE entity_id = WorkId AND key IN ('source_service', 'source_platform') LIMIT 1),
@@ -477,16 +496,54 @@ public sealed class DisplayWorkProjectionReader
             ORDER BY CreatedAt DESC
             LIMIT @limit;
             """;
-        return sql;
+        // Search-only columns are never shown on a card, so list pages skip their per-row lookups.
+        return lean
+            ? System.Text.RegularExpressions.Regex.Replace(sql, @"/\*search-only:begin\*/.*?/\*search-only:end\*/", "NULL", System.Text.RegularExpressions.RegexOptions.Singleline)
+            : sql;
     }
 
-    public async Task<IReadOnlyList<DisplayWorkRow>> LoadAsync(CancellationToken ct, int limit = int.MaxValue, Guid? detailId = null)
+    /// <summary>
+    /// Light listing of every visible (work, library) pair with the timestamp the recent shelf sorts it by.
+    /// A null <see cref="RecentCandidate.AddedAt"/> means the full projection derives the time from metadata claims.
+    /// </summary>
+    internal async Task<IReadOnlyList<RecentCandidate>> LoadRecentCandidatesAsync(CancellationToken ct)
+    {
+        var visibleWorkPredicate = HomeVisibilitySql.VisibleWorkPredicate("w.id", "w.curator_state", "w.is_catalog_only");
+        var visibleAssetPredicate = HomeVisibilitySql.VisibleAssetPathPredicate("ma.file_path_root");
+        using var conn = _db.CreateConnection();
+        var sql = $"""
+            SELECT
+                w.id AS WorkId,
+                ma.library_id AS LibraryId,
+                w.collection_id AS CollectionId,
+                w.media_type AS MediaType,
+                CASE
+                    WHEN w.media_type = 'Music' THEN COALESCE(p.id, w.id)
+                    ELSE COALESCE(gp.id, p.id, w.id)
+                END AS RootWorkId,
+                MAX(CASE WHEN own.work_id = w.id THEN ma.presented_at END) AS AddedAt
+            FROM works w
+            INNER JOIN work_owned_assets woa ON woa.work_id = w.id
+            INNER JOIN media_assets ma ON ma.id = woa.asset_id
+            INNER JOIN editions own ON own.id = ma.edition_id
+            LEFT JOIN works p ON p.id = w.parent_work_id
+            LEFT JOIN works gp ON gp.id = p.parent_work_id
+            WHERE w.work_kind != 'parent'
+              AND ma.status = 'Normal' AND ma.is_orphaned = 0
+              AND {visibleWorkPredicate}
+              AND {visibleAssetPredicate}
+            GROUP BY w.id, ma.library_id;
+            """;
+        return (await conn.QueryAsync<RecentCandidate>(new CommandDefinition(sql, cancellationToken: ct))).ToList();
+    }
+
+    public async Task<IReadOnlyList<DisplayWorkRow>> LoadAsync(CancellationToken ct, int limit = int.MaxValue, Guid? detailId = null, DisplayRecentGroupFilter? groups = null, bool lean = false)
     {
         var startedAt = Stopwatch.GetTimestamp();
         using var conn = _db.CreateConnection();
-        var sql = BuildSql(detailId.HasValue);
+        var sql = BuildSql(detailId.HasValue, lean, groups is not null);
 
-        var rows = (await conn.QueryAsync<DisplayWorkRow>(new CommandDefinition(sql, new { limit, detailId }, cancellationToken: ct))).ToList();
+        var rows = (await conn.QueryAsync<DisplayWorkRow>(new CommandDefinition(sql, new { limit, detailId, rootIds = groups?.RootIds.ToArray() ?? Array.Empty<Guid>(), workIds = groups?.WorkIds.ToArray() ?? Array.Empty<Guid>() }, cancellationToken: ct))).ToList();
         var pseudonymNames = conn.Query<string>(new CommandDefinition(
                 "SELECT name FROM persons WHERE is_pseudonym = 1 AND NULLIF(TRIM(name), '') IS NOT NULL;",
                 cancellationToken: ct))

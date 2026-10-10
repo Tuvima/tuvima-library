@@ -98,47 +98,72 @@ public sealed class AuthorizedDisplayProjectionReadServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task ProfileRecentCatalogueWithLargeShow()
+    public async Task RecentLoadsOnlyLeadingShowsYetMatchesFullProjection()
     {
         var account = Guid.NewGuid(); var library = Guid.NewGuid();
         await CreateHumanAsync(account, new HashSet<AccountFeatureId> { AccountFeatureId.Read, AccountFeatureId.Watch, AccountFeatureId.Listen }, new HashSet<Guid> { library });
-        for (var i = 0; i < 5; i++) { await InsertOwnedWorkWithIdAsync(library, $"Book {i}"); }
-        var show = Guid.NewGuid();
+        var profile = MediaEngine.Domain.Aggregates.Profile.SeedProfileId;
+        var stamp = new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero);
+        string At(int day) => stamp.AddDays(day).ToString("yyyy-MM-dd HH:mm:ss");
         using (var connection = _database.CreateConnection())
         {
-            connection.Execute("INSERT INTO works(id,media_type,work_kind,curator_state) VALUES(@show,'TV','parent','accepted');", new { show });
-            using var tx = connection.BeginTransaction();
-            for (var i = 0; i < 1000; i++)
+            void Unit(string mediaType, Guid? parent, string title, string at, string? season = null, string? episode = null)
             {
                 var work = Guid.NewGuid(); var edition = Guid.NewGuid(); var asset = Guid.NewGuid();
                 connection.Execute("""
-                    INSERT INTO works(id,media_type,work_kind,parent_work_id,curator_state) VALUES(@work,'TV','child',@show,'accepted');
+                    INSERT INTO works(id,media_type,work_kind,parent_work_id,curator_state) VALUES(@work,@mediaType,@kind,@parent,'accepted');
                     INSERT INTO editions(id,work_id) VALUES(@edition,@work);
-                    INSERT INTO media_assets(id,edition_id,content_hash,file_path_root,presented_at,library_id) VALUES(@asset,@edition,@hash,@path,CURRENT_TIMESTAMP,@library);
-                    INSERT INTO canonical_values(entity_id,key,value,last_scored_at) VALUES
-                      (@asset,'title','Episode',CURRENT_TIMESTAMP),(@asset,'season_number',@season,CURRENT_TIMESTAMP),(@asset,'episode_number',@ep,CURRENT_TIMESTAMP),(@work,'episode_number',@ep,CURRENT_TIMESTAMP);
-                    """, new { work, edition, asset, show, hash = asset.ToString("N"), path = $"C:/library/{asset:N}.mkv", library = library.ToString("D"), season = (i / 100 + 1).ToString(), ep = (i % 100 + 1).ToString() }, tx);
+                    INSERT INTO media_assets(id,edition_id,content_hash,file_path_root,presented_at,library_id) VALUES(@asset,@edition,@hash,@path,@at,@library);
+                    INSERT INTO canonical_values(entity_id,key,value,last_scored_at) VALUES(@asset,'title',@title,CURRENT_TIMESTAMP);
+                    """, new { work, mediaType, kind = parent is null ? "standalone" : "child", parent, edition, asset, hash = asset.ToString("N"), path = $"C:/library/{asset:N}.{(mediaType == "Book" ? "epub" : mediaType == "Music" ? "mp3" : "mkv")}", at, library = library.ToString("D"), title });
+                if (season is not null)
+                {
+                    connection.Execute("""
+                        INSERT INTO canonical_values(entity_id,key,value,last_scored_at) VALUES(@asset,'season_number',@season,CURRENT_TIMESTAMP),(@asset,'episode_number',@episode,CURRENT_TIMESTAMP);
+                        """, new { asset, season, episode });
+                }
             }
-            tx.Commit();
+            Guid Parent(string mediaType, string title)
+            {
+                var id = Guid.NewGuid();
+                connection.Execute("INSERT INTO works(id,media_type,work_kind,curator_state) VALUES(@id,@mediaType,'parent','accepted');INSERT INTO canonical_values(entity_id,key,value,last_scored_at) VALUES(@id,'title',@title,CURRENT_TIMESTAMP);", new { id, mediaType, title });
+                return id;
+            }
+            var bigShow = Parent("TV", "Big show"); var newShow = Parent("TV", "New show"); var oldShow = Parent("TV", "Old show"); var album = Parent("Music", "Album");
+            for (var i = 0; i < 30; i++) { Unit("TV", bigShow, "Big episode", At(10 + i % 3), "1", (i + 1).ToString()); }
+            for (var i = 0; i < 5; i++) { Unit("TV", newShow, "New episode", At(40 + i), "1", (i + 1).ToString()); }
+            for (var i = 0; i < 3; i++) { Unit("TV", oldShow, "Old episode", At(1 + i), "1", (i + 1).ToString()); }
+            for (var i = 0; i < 3; i++) { Unit("Music", album, "Track", At(25 + i)); }
+            for (var i = 0; i < 6; i++) { Unit("Book", null, $"Book {i}", At(5 + i * 7)); }
         }
-        var profile = MediaEngine.Domain.Aggregates.Profile.SeedProfileId;
-        var authorization = CreateService(HumanContext(account, profile), new StubRawProjection([], []));
+
         var reader = new DisplayWorkProjectionReader(_database);
-        var sw = System.Diagnostics.Stopwatch.StartNew();
-        var rows = await reader.LoadAsync(default);
-        var tReader = sw.ElapsedMilliseconds; sw.Restart();
-        await authorization.FilterRecentWorksAsync(rows, profile, default);
-        var tFilter = sw.ElapsedMilliseconds; sw.Restart();
+        var authorization = CreateService(HumanContext(account, profile), new StubRawProjection([], []));
         var recent = new RecentCatalogueReadService(reader, authorization, new DisplayCardBuilder(), _database);
-        var items = await recent.LoadAsync("all", profile, null, 19, default);
-        var tTotal = sw.ElapsedMilliseconds; sw.Restart();
-        var composed = RecentCatalogueReadService.Compose(rows, new DisplayCardBuilder(), "all", null, 19);
-        var tCompose = sw.ElapsedMilliseconds;
-        sw.Restart(); await reader.LoadAsync(default, 1); var tLimit1 = sw.ElapsedMilliseconds; sw.Restart();
-        await reader.LoadAsync(default, 10); var tLimit10 = sw.ElapsedMilliseconds; sw.Restart();
-        await reader.LoadAsync(default, int.MaxValue, show); var tDetail = sw.ElapsedMilliseconds;
-        var sqlPath = Path.Combine(Path.GetTempPath(), "h2-recent.sql"); File.WriteAllText(sqlPath, DisplayWorkProjectionReader.BuildSql(false));
-        Assert.Fail($"PROFILE sql={sqlPath} limit1={tLimit1}ms limit10={tLimit10}ms detail={tDetail}ms rows={rows.Count} reader={tReader}ms filter={tFilter}ms total={tTotal}ms compose={tCompose}ms items={items.Count}/{composed.Count}");
+        var options = new System.Text.Json.JsonSerializerOptions();
+        foreach (var type in new[] { "all", "watch", "read", "listen" })
+        {
+            var expectedRows = (await authorization.FilterRecentWorksAsync(await reader.LoadAsync(default), profile, default)).ToList();
+            using var connection = _database.CreateConnection();
+            var additions = connection.Query<RecentAdditionRow>("""
+                SELECT e.work_id AS WorkId, ma.library_id AS LibraryId, MAX(ma.presented_at) AS AddedAt FROM media_assets ma JOIN editions e ON e.id = ma.edition_id
+                WHERE ma.status = 'Normal' AND ma.is_orphaned = 0 GROUP BY e.work_id, ma.library_id;
+                """).ToDictionary(a => (a.WorkId, a.LibraryId), a => a.AddedAt);
+            foreach (var row in expectedRows)
+            {
+                if (row.LibraryId is { } lib && additions.TryGetValue((row.WorkId, lib), out var at)) { row.CreatedAt = at; }
+            }
+            foreach (var take in new[] { 1, 2, 3, 5, 100 })
+            {
+                var expected = RecentCatalogueReadService.Compose(expectedRows, new DisplayCardBuilder(), type, null, take);
+                var actual = await recent.LoadAsync(type, profile, null, take, default);
+                Assert.Equal(System.Text.Json.JsonSerializer.Serialize(expected, options), System.Text.Json.JsonSerializer.Serialize(actual, options));
+            }
+        }
+        // The whole shelf: new show first, big show before the older books and album.
+        var all = await recent.LoadAsync("all", profile, null, 100, default);
+        Assert.Equal(10, all.Count);
+        Assert.Equal("New show", all[0].Catalogue!.Title);
     }
 
     [Fact]
@@ -1758,6 +1783,13 @@ public sealed class AuthorizedDisplayProjectionReadServiceTests : IDisposable
         _database.Dispose();
         SqliteConnection.ClearAllPools();
         try { File.Delete(_databasePath); } catch { }
+    }
+
+    private sealed class RecentAdditionRow
+    {
+        public Guid WorkId { get; init; }
+        public string LibraryId { get; init; } = string.Empty;
+        public DateTimeOffset AddedAt { get; init; }
     }
 
     private sealed class StubRawProjection(
