@@ -225,8 +225,16 @@ foreach ($name in $templateFiles) {
     Copy-Item -LiteralPath (Join-Path $repoRoot (Join-Path 'config' $name)) -Destination (Join-Path $paths.Config $name)
 }
 New-Item -ItemType Directory -Force -Path (Join-Path $paths.Config 'ui') | Out-Null
+# library-preferences.json is gitignored (per-machine), so a clean checkout or worktree may not have it; write defaults when absent.
 foreach ($name in 'global.json', 'palette.json', 'library-preferences.json', 'playback-client.json') {
-    Copy-Item -LiteralPath (Join-Path $repoRoot (Join-Path 'config\ui' $name)) -Destination (Join-Path $paths.Config (Join-Path 'ui' $name))
+    $source = Join-Path $repoRoot (Join-Path 'config\ui' $name)
+    $target = Join-Path $paths.Config (Join-Path 'ui' $name)
+    if (Test-Path -LiteralPath $source) {
+        Copy-Item -LiteralPath $source -Destination $target
+    } elseif ($name -eq 'library-preferences.json') {
+        # An empty object loads as the built-in defaults; the settings endpoint requires the file to exist.
+        Set-Content -NoNewline -LiteralPath $target -Value '{}'
+    }
 }
 New-Item -ItemType Directory -Force -Path (Join-Path $paths.Config 'providers') | Out-Null
 Copy-Item -LiteralPath (Join-Path $repoRoot 'config\providers\wikidata_reconciliation.json') `
@@ -260,7 +268,7 @@ Set-JsonFile (Join-Path $paths.Config 'network.json') {
     param($network)
     $network.local.port = $DashboardPort
     $network.local.discovery_enabled = $false
-    $network.remote.enabled = $false
+    $network.remote.connection_mode = 'local-only'
 }
 Set-JsonFile (Join-Path $paths.Config 'libraries.json') {
     param($libraries)
