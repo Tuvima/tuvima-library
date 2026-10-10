@@ -238,15 +238,15 @@ public sealed class ViewSharedContributionService(
              ORDER BY CASE status WHEN 'pending' THEN 0 ELSE 1 END, submitted_at DESC
              LIMIT @take OFFSET @offset;
             """, new
-            {
-                review = review ? 1 : 0,
-                serverReviewer = reviewer.Kind == ReviewerKind.Server ? 1 : 0,
-                reviewerHousehold = reviewer.HouseholdId,
-                actorProfileId,
-                status = normalizedStatus,
-                take = limit + 1,
-                offset,
-            },
+        {
+            review = review ? 1 : 0,
+            serverReviewer = reviewer.Kind == ReviewerKind.Server ? 1 : 0,
+            reviewerHousehold = reviewer.HouseholdId,
+            actorProfileId,
+            status = normalizedStatus,
+            take = limit + 1,
+            offset,
+        },
             cancellationToken: ct)).ToList();
         var hasMore = ids.Count > limit;
         if (hasMore)
