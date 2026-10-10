@@ -1646,7 +1646,8 @@ internal sealed class SchemaMigrator
                    SET access_shared_library = 1,
                        submit_to_shared_library = CASE
                            WHEN profile_id IN (SELECT id FROM profiles WHERE role = 'RestrictedProfile') THEN 0
-                           ELSE 1 END;
+                           ELSE 1 END
+                 WHERE profile_id IN (SELECT id FROM profiles WHERE household_id IS NOT NULL);
                 ALTER TABLE profile_view_policies DROP COLUMN review_shared_library_contributions;
                 """;
             cmd.ExecuteNonQuery();

@@ -39,7 +39,8 @@ public sealed record ViewResourceDescriptor(
     Guid? LibraryId,
     IReadOnlySet<Guid>? SharedWithProfileIds = null,
     IReadOnlySet<Guid>? ContributingProfileIds = null,
-    bool IsSharedLibraryAsset = false);
+    bool IsSharedLibraryAsset = false,
+    bool Hidden = false);
 
 public sealed record ViewResourceRequest(
     ViewScopeRequest Scope,
@@ -173,6 +174,13 @@ public sealed class ViewResourceAuthorizationService(
 
         if (resource.LibraryId is not { } libraryId
             || !resolution.Scope.ContainsLibrary(libraryId))
+        {
+            return ViewAccessDecision.NotFound(resolution.Scope);
+        }
+
+        // Someone else's hidden photo stays hidden from the rest of the household, even by direct link.
+        if (resolution.Scope.Kind == ViewScopeKind.Profile && resource.Hidden
+            && resource.OwnerProfileId != caller.ActiveProfileId)
         {
             return ViewAccessDecision.NotFound(resolution.Scope);
         }

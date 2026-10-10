@@ -473,6 +473,89 @@ public sealed class ViewSharedTransferServiceTests
         }
     }
 
+    [Fact]
+    public async Task ServerAdministratorReviewsAnyHousehold_AndOtherHouseholdAccessIsAudited()
+    {
+        using var fixture = new Fixture();
+        var maryId = Guid.NewGuid();
+        var eveId = Guid.NewGuid();
+        var otherHousehold = Guid.NewGuid();
+        await fixture.InsertProfileAsync(new Profile { Id = maryId, DisplayName = "Mary", Role = ProfileRole.StandardUser });
+        await fixture.InsertProfileAsync(new Profile { Id = eveId, DisplayName = "Eve", Role = ProfileRole.StandardUser }, otherHousehold);
+        var marySpace = await fixture.Storage.EnsurePersonalSpaceAsync(maryId);
+        var eveSpace = await fixture.Storage.EnsurePersonalSpaceAsync(eveId);
+        var maryItem = (await fixture.Library.IndexPathAsync(marySpace.LibraryId,
+            fixture.WriteManagedFor(marySpace, "mary.jpg", [1, 2])))!.ItemId;
+        var eveItem = (await fixture.Library.IndexPathAsync(eveSpace.LibraryId,
+            fixture.WriteManagedFor(eveSpace, "eve.jpg", [3, 4])))!.ItemId;
+        var maryContribution = await SubmitAsync(fixture, fixture.Person(maryId), maryItem, "mary-key");
+        var eveContribution = await SubmitAsync(fixture, fixture.Person(eveId), eveItem, "eve-key");
+
+        // A server administrator whose own household is Mary's.
+        var server = fixture.Authority with { AccountHouseholdId = ProfileTestData.TestHouseholdId };
+        var list = await fixture.Contributions.ListAsync(server, "review", "pending", 0, 20);
+        Assert.Equal(2, list.Items.Count);
+
+        // Same household: nothing to audit.
+        await fixture.Contributions.GetRequiredAsync(server, maryContribution.Id, true);
+        Assert.Empty(fixture.Audit.Events);
+
+        // Another household: open and decide each leave a record naming that household.
+        await fixture.Contributions.GetRequiredAsync(server, eveContribution.Id, true);
+        await fixture.Contributions.DecideAsync(server, eveContribution.Id,
+            new ViewSharedContributionDecisionRequest("declined", eveContribution.Revision));
+
+        Assert.Equal(["open", "decide"],
+            fixture.Audit.Events.Select(value => value.Changes["action"]));
+        Assert.All(fixture.Audit.Events, value =>
+        {
+            Assert.Equal("view.admin_other_household_contribution", value.EventType);
+            Assert.Equal(otherHousehold.ToString("D"), value.Changes["household_id"]);
+        });
+
+        // A household administrator only lists their own household's contributions.
+        var householdAdministrator = fixture.HouseholdAdministrator(ProfileTestData.TestHouseholdId);
+        var own = await fixture.Contributions.ListAsync(householdAdministrator, "review", null, 0, 20);
+        Assert.Equal(maryContribution.Id, Assert.Single(own.Items).Id);
+    }
+
+    [Fact]
+    public async Task AHiddenPhotoStaysHiddenFromTheRestOfTheHousehold_EvenByDirectLink()
+    {
+        using var fixture = new Fixture();
+        var maryId = Guid.NewGuid();
+        var jimId = Guid.NewGuid();
+        await fixture.InsertProfileAsync(new Profile { Id = maryId, DisplayName = "Mary", Role = ProfileRole.StandardUser });
+        await fixture.InsertProfileAsync(new Profile { Id = jimId, DisplayName = "Jim", Role = ProfileRole.StandardUser });
+        var marySpace = await fixture.Storage.EnsurePersonalSpaceAsync(maryId);
+        await fixture.Storage.EnsurePersonalSpaceAsync(jimId);
+        var item = (await fixture.Library.IndexPathAsync(marySpace.LibraryId,
+            fixture.WriteManagedFor(marySpace, "private.jpg", [9, 9])))!.ItemId;
+        await fixture.SetHiddenAsync(item);
+        var authorization = fixture.NewAuthorization();
+
+        foreach (var kind in new[] { ViewResourceKind.Asset, ViewResourceKind.Thumbnail, ViewResourceKind.Original })
+        {
+            var jimsView = await authorization.AuthorizeAsync(fixture.Person(jimId),
+                new ViewResourceRequest(ViewScopeRequest.ForProfile(maryId), kind, item));
+            Assert.Equal(ViewAccessOutcome.NotFound, jimsView.Outcome);
+            var marysView = await authorization.AuthorizeAsync(fixture.Person(maryId),
+                new ViewResourceRequest(ViewScopeRequest.Mine, kind, item));
+            Assert.True(marysView.IsAllowed);
+        }
+
+        await Assert.ThrowsAsync<KeyNotFoundException>(() => fixture.Contributions.PreviewAsync(
+            fixture.Person(jimId), new ViewSharedContributionPreviewRequest([item])));
+    }
+
+    private static async Task<ViewSharedContributionDto> SubmitAsync(
+        Fixture fixture, RequestAuthority person, Guid itemId, string key)
+    {
+        var preview = await fixture.Contributions.PreviewAsync(person, new ViewSharedContributionPreviewRequest([itemId]));
+        return await fixture.Contributions.SubmitAsync(person, new ViewSharedContributionSubmitRequest(
+            [itemId], "timeline", null, null, preview.PreviewRevision, key));
+    }
+
     private sealed class StubProfileContext(RequestAuthority authority) : IViewRequestProfileContext
     {
         public ValueTask<RequestAuthority> ResolveAuthorityAsync(CancellationToken ct = default) =>
@@ -533,8 +616,9 @@ public sealed class ViewSharedTransferServiceTests
             Policies = new ViewProfileRepository(_database);
             Authorization = new TestAllowAuthorizationEvaluator();
             Decisions = new AdministratorDecisions();
+            Audit = new RecordingAuditWriter();
             Contributions = new ViewSharedContributionService(_database, _assets, Policies, Transfers,
-                Authorization, new ViewSharedContributionQueue(), Decisions);
+                Authorization, new ViewSharedContributionQueue(), Decisions, Audit);
             Folders = new ViewFolderService(_database, _spaces, Profiles, _assets, Storage);
         }
 
@@ -585,6 +669,9 @@ public sealed class ViewSharedTransferServiceTests
         public ViewSharedTransferService Transfers { get; }
         public TestAllowAuthorizationEvaluator Authorization { get; }
         public AdministratorDecisions Decisions { get; }
+        public RecordingAuditWriter Audit { get; }
+
+        public Task SetHiddenAsync(Guid itemId) => _assets.SetFlagsAsync(itemId, null, true);
         public ViewProfileRepository Policies { get; }
         public ViewSharedContributionService Contributions { get; }
         public ViewFolderService Folders { get; }

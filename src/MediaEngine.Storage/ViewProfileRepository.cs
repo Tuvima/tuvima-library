@@ -26,10 +26,12 @@ public sealed class ViewProfileRepository(IDatabaseConnection database) : IViewP
         }
 
         // No saved row yet: a child (restricted) profile cannot send items to the Shared Library until allowed.
-        var restricted = connection.ExecuteScalar<long>(new CommandDefinition(
-            "SELECT COUNT(1) FROM profiles WHERE id = @profileId AND role = 'RestrictedProfile';",
-            new { profileId }, cancellationToken: ct)) != 0;
-        return Task.FromResult(ViewProfilePolicy.Default(profileId, restricted));
+        // A profile that belongs to no household (only possible before any account exists) has no Shared Library to open.
+        var profile = connection.QuerySingleOrDefault<ProfileRow>(new CommandDefinition(
+            "SELECT role AS Role, household_id AS HouseholdId FROM profiles WHERE id = @profileId;",
+            new { profileId }, cancellationToken: ct));
+        return Task.FromResult(ViewProfilePolicy.Default(
+            profileId, profile?.Role == "RestrictedProfile", profile?.HouseholdId is not null));
     }
 
     public Task<bool> SavePolicyAsync(ViewProfilePolicy policy, CancellationToken ct = default)
@@ -210,6 +212,12 @@ public sealed class ViewProfileRepository(IDatabaseConnection database) : IViewP
         public long SubmitToSharedLibrary { get; init; }
         public long ShareGalleries { get; init; }
         public string? UpdatedAt { get; init; }
+    }
+
+    private sealed class ProfileRow
+    {
+        public string? Role { get; init; }
+        public Guid? HouseholdId { get; init; }
     }
 
     private sealed class PreferencesRow

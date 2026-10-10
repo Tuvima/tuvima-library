@@ -67,3 +67,14 @@ internal sealed class AdministratorDecisions : IAccountAccessDecisionService
             : AuthorizationDecision.Deny(AuthorizationDenialReason.AdministratorRequired));
     }
 }
+
+internal sealed class RecordingAuditWriter : IAuthorizationAuditWriter
+{
+    public List<AuthorizationAuditEvent> Events { get; } = [];
+
+    public ValueTask WriteAsync(AuthorizationAuditEvent auditEvent, CancellationToken cancellationToken = default)
+    {
+        Events.Add(auditEvent);
+        return ValueTask.CompletedTask;
+    }
+}

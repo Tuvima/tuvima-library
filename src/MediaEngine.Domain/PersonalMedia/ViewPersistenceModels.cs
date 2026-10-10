@@ -27,8 +27,8 @@ public sealed record ViewProfilePolicy(
     /// household's Shared Library. A child (restricted) profile cannot send items until a household administrator
     /// allows it. Reviewing contributions is not a per-profile setting; household administrators do it.
     /// </summary>
-    public static ViewProfilePolicy Default(Guid profileId, bool restricted = false) =>
-        new(profileId, true, true, !restricted, false, null);
+    public static ViewProfilePolicy Default(Guid profileId, bool restricted = false, bool inHousehold = true) =>
+        new(profileId, true, inHousehold, inHousehold && !restricted, false, null);
 }
 
 public sealed record ViewProfilePreferences(

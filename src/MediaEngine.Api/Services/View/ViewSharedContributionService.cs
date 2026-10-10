@@ -16,7 +16,8 @@ public sealed class ViewSharedContributionService(
     ViewSharedTransferService transfers,
     IAuthorizationEvaluator authorization,
     IViewSharedContributionQueue queue,
-    IAccountAccessDecisionService decisions)
+    IAccountAccessDecisionService decisions,
+    IAuthorizationAuditWriter audit)
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
@@ -227,16 +228,25 @@ public sealed class ViewSharedContributionService(
         using var connection = database.CreateConnection();
         var ids = connection.Query<Guid>(new CommandDefinition("""
             SELECT id FROM view_shared_contributions
-             WHERE ((@review = 1 AND EXISTS (
-                        -- A reviewer only sees what people in their own household submitted.
-                        SELECT 1 FROM profiles submitter JOIN profiles reviewer ON reviewer.household_id = submitter.household_id
+             WHERE ((@review = 1 AND (@serverReviewer = 1 OR EXISTS (
+                        -- A household administrator only sees what people in their own household submitted.
+                        SELECT 1 FROM profiles submitter
                          WHERE submitter.id = view_shared_contributions.submitted_by_profile_id
-                           AND reviewer.id = @actorProfileId))
+                           AND submitter.household_id = @reviewerHousehold)))
                     OR submitted_by_profile_id = @actorProfileId)
                AND (@status IS NULL OR status = @status)
              ORDER BY CASE status WHEN 'pending' THEN 0 ELSE 1 END, submitted_at DESC
              LIMIT @take OFFSET @offset;
-            """, new { review = review ? 1 : 0, actorProfileId, status = normalizedStatus, take = limit + 1, offset },
+            """, new
+            {
+                review = review ? 1 : 0,
+                serverReviewer = reviewer.Kind == ReviewerKind.Server ? 1 : 0,
+                reviewerHousehold = reviewer.HouseholdId,
+                actorProfileId,
+                status = normalizedStatus,
+                take = limit + 1,
+                offset,
+            },
             cancellationToken: ct)).ToList();
         var hasMore = ids.Count > limit;
         if (hasMore)
@@ -258,23 +268,30 @@ public sealed class ViewSharedContributionService(
         CancellationToken ct = default)
     {
         var (actorProfileId, reviewer) = await RequireActorAsync(authority, requireReview, lookupReviewer: true, ct);
-        return await GetRequiredForProfileAsync(actorProfileId, contributionId, requireReview, reviewer, ct);
+        return await GetRequiredForProfileAsync(actorProfileId, contributionId, requireReview, reviewer, ct,
+            (authority, "open"));
     }
 
-    private Task<ViewSharedContributionDto> GetRequiredForProfileAsync(
-        Guid actorProfileId, Guid contributionId, bool requireReview, Reviewer reviewer, CancellationToken ct)
+    /// <param name="audited">
+    /// Set on the first read of a request. When a server administrator reaches into another household's
+    /// contribution it is recorded (who, what, which household), the same way "Other people" viewing is.
+    /// </param>
+    private async Task<ViewSharedContributionDto> GetRequiredForProfileAsync(
+        Guid actorProfileId, Guid contributionId, bool requireReview, Reviewer reviewer, CancellationToken ct,
+        (RequestAuthority Authority, string Action)? audited = null)
     {
         ct.ThrowIfCancellationRequested();
         using var connection = database.CreateConnection();
         var contribution = Read(connection, contributionId, ct) ?? throw new KeyNotFoundException();
+        var submitterHousehold = contribution.SubmittedByProfileId is { } submitter
+            ? connection.QuerySingleOrDefault<Guid?>(
+                "SELECT household_id FROM profiles WHERE id = @submitter;", new { submitter })
+            : null;
         var canReview = reviewer.Kind switch
         {
             ReviewerKind.Server => true,
             // A household administrator reviews what people in their own household submitted, nothing else.
-            ReviewerKind.Household => contribution.SubmittedByProfileId is { } submitter
-                && reviewer.HouseholdId is { } household
-                && connection.QuerySingleOrDefault<Guid?>(
-                    "SELECT household_id FROM profiles WHERE id = @submitter;", new { submitter }) == household,
+            ReviewerKind.Household => submitterHousehold is { } household && household == reviewer.HouseholdId,
             _ => false,
         };
         if ((requireReview && !canReview)
@@ -283,7 +300,24 @@ public sealed class ViewSharedContributionService(
             throw new KeyNotFoundException("This contribution is unavailable.");
         }
 
-        return Task.FromResult(contribution);
+        if (audited is { } access && reviewer.Kind == ReviewerKind.Server && submitterHousehold != reviewer.HouseholdId)
+        {
+            await audit.WriteAsync(new AuthorizationAuditEvent(
+                "view.admin_other_household_contribution",
+                DateTimeOffset.UtcNow,
+                access.Authority.AccountId,
+                access.Authority.ActiveProfileId,
+                null,
+                "view_shared_contribution",
+                contributionId.ToString("D"),
+                new Dictionary<string, string?>
+                {
+                    ["action"] = access.Action,
+                    ["household_id"] = submitterHousehold?.ToString("D"),
+                }), ct);
+        }
+
+        return contribution;
     }
 
     /// <summary>True when both profiles live in the same household (a profile with no household matches nobody).</summary>
@@ -345,7 +379,8 @@ public sealed class ViewSharedContributionService(
         CancellationToken ct = default)
     {
         var (actorProfileId, reviewer) = await RequireActorAsync(authority, review: true, lookupReviewer: true, ct);
-        var current = await GetRequiredForProfileAsync(actorProfileId, contributionId, true, reviewer, ct);
+        var current = await GetRequiredForProfileAsync(actorProfileId, contributionId, true, reviewer, ct,
+            (authority, "decide"));
         if (current.Status != "pending")
         {
             throw new InvalidOperationException("This contribution is no longer pending.");
@@ -407,7 +442,8 @@ public sealed class ViewSharedContributionService(
         CancellationToken ct = default)
     {
         var (actorProfileId, reviewer) = await RequireActorAsync(authority, review: true, lookupReviewer: true, ct);
-        var current = await GetRequiredForProfileAsync(actorProfileId, contributionId, true, reviewer, ct);
+        var current = await GetRequiredForProfileAsync(actorProfileId, contributionId, true, reviewer, ct,
+            (authority, "retry"));
         if (current.Status != "accepted")
         {
             throw new InvalidOperationException("Only an accepted contribution can be retried.");

@@ -264,14 +264,17 @@ public sealed class ViewPersistenceRepositoryTests : IDisposable
             [firstOwner.LibraryId, secondOwner.LibraryId], Lifecycle: LocalAssetLifecycleFilter.Trashed)).Items).Id);
     }
 
+    private static readonly Guid TestHousehold = new("7e57a000-0000-0000-0000-000000000002");
+
     private Guid InsertProfile(string name, string role = "RestrictedProfile")
     {
         var id = Guid.NewGuid();
         using var connection = _database.CreateConnection();
         connection.Execute("""
-            INSERT INTO profiles (id, display_name, avatar_color, role, created_at)
-            VALUES (@id, @name, '#7C4DFF', @role, @now);
-            """, new { id, name, role, now = DateTimeOffset.UtcNow });
+            INSERT OR IGNORE INTO households (id, name, created_at) VALUES (@household, 'Test household', @now);
+            INSERT INTO profiles (id, display_name, avatar_color, role, created_at, household_id)
+            VALUES (@id, @name, '#7C4DFF', @role, @now, @household);
+            """, new { id, name, role, now = DateTimeOffset.UtcNow, household = TestHousehold });
         return id;
     }
 

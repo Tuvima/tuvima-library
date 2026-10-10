@@ -17,6 +17,7 @@ public sealed class SharedLibraryCuratorRetirementTests : IDisposable
         var path = NewPath();
         var adult = Guid.NewGuid();
         var child = Guid.NewGuid();
+        var loose = Guid.NewGuid();
         using (var database = new DatabaseConnection(path))
         {
             database.InitializeSchema();
@@ -29,8 +30,10 @@ public sealed class SharedLibraryCuratorRetirementTests : IDisposable
             Exec(raw, "ALTER TABLE profile_view_policies ADD COLUMN review_shared_library_contributions INTEGER NOT NULL DEFAULT 0;");
             SeedProfile(raw, adult, "Adult", "StandardUser");
             SeedProfile(raw, child, "Child", "RestrictedProfile");
+            SeedProfile(raw, loose, "No household", "StandardUser", inHousehold: false);
             SeedPolicy(raw, adult);
             SeedPolicy(raw, child);
+            SeedPolicy(raw, loose);
         }
 
         SqliteConnection.ClearAllPools();
@@ -47,6 +50,9 @@ public sealed class SharedLibraryCuratorRetirementTests : IDisposable
         Assert.Equal(1, Scalar(path, "SELECT submit_to_shared_library FROM profile_view_policies WHERE profile_id = @id;", ("@id", adult)));
         Assert.Equal(1, Scalar(path, "SELECT access_shared_library FROM profile_view_policies WHERE profile_id = @id;", ("@id", child)));
         Assert.Equal(0, Scalar(path, "SELECT submit_to_shared_library FROM profile_view_policies WHERE profile_id = @id;", ("@id", child)));
+
+        // A profile with no household has no Shared Library to open, so it keeps what it had.
+        Assert.Equal(0, Scalar(path, "SELECT access_shared_library FROM profile_view_policies WHERE profile_id = @id;", ("@id", loose)));
 
         // A household administrator later turns a setting off; a second start must not undo it.
         using (var raw = new SqliteConnection($"Data Source={path};Pooling=False"))
@@ -72,9 +78,23 @@ public sealed class SharedLibraryCuratorRetirementTests : IDisposable
         return path;
     }
 
-    private static void SeedProfile(SqliteConnection raw, Guid id, string name, string role) => Exec(raw,
-        "INSERT INTO profiles(id, display_name, role, created_at) VALUES(@id, @name, @role, @now);",
-        ("@id", id), ("@name", name), ("@role", role), ("@now", DateTimeOffset.UtcNow.ToString("O")));
+    private static readonly Guid Household = Guid.Parse("7e57a000-0000-0000-0000-000000000003");
+
+    private static void SeedProfile(SqliteConnection raw, Guid id, string name, string role, bool inHousehold = true)
+    {
+        Exec(raw, "INSERT OR IGNORE INTO households(id, name, created_at) VALUES(@h, 'Test', @now);",
+            ("@h", Household), ("@now", DateTimeOffset.UtcNow.ToString("O")));
+        if (inHousehold)
+        {
+            Exec(raw, "INSERT INTO profiles(id, display_name, role, created_at, household_id) VALUES(@id, @name, @role, @now, @h);",
+                ("@id", id), ("@name", name), ("@role", role), ("@now", DateTimeOffset.UtcNow.ToString("O")), ("@h", Household));
+        }
+        else
+        {
+            Exec(raw, "INSERT INTO profiles(id, display_name, role, created_at) VALUES(@id, @name, @role, @now);",
+                ("@id", id), ("@name", name), ("@role", role), ("@now", DateTimeOffset.UtcNow.ToString("O")));
+        }
+    }
 
     private static void SeedPolicy(SqliteConnection raw, Guid profileId) => Exec(raw, """
         INSERT INTO profile_view_policies

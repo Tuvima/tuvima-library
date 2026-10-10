@@ -124,7 +124,8 @@ public sealed class ViewResourcePersistenceService(
             item.OwnerProfileId,
             item.LibraryId,
             explicitProfiles,
-            IsSharedLibraryAsset: isSharedLibraryAsset);
+            IsSharedLibraryAsset: isSharedLibraryAsset,
+            Hidden: item.Hidden);
     }
 
     private async Task<IReadOnlySet<Guid>> GetExplicitAssetRecipientsAsync(
