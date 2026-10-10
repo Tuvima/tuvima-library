@@ -587,6 +587,24 @@ CREATE TABLE IF NOT EXISTS media_assets (
     rendition_source_fingerprint TEXT,
     CHECK(derived_from_asset_id IS NULL OR derived_from_asset_id != id));
 
+-- Lists every episode a single physical file covers (for example S01E01E02.mkv).
+-- The file stays attached to its first episode via editions; single-episode files
+-- have no rows here. Original files are never split or altered.
+CREATE TABLE IF NOT EXISTS media_asset_coverage (
+    asset_id      BLOB NOT NULL REFERENCES media_assets(id) ON DELETE CASCADE,
+    work_id       BLOB NOT NULL REFERENCES works(id) ON DELETE CASCADE,
+    position      INTEGER NOT NULL CHECK (position >= 1),
+    start_seconds REAL,
+    end_seconds   REAL,
+    source        TEXT NOT NULL
+                      CHECK (source IN ('filename', 'chapters', 'manual', 'provider_runtime')),
+    PRIMARY KEY (asset_id, work_id),
+    UNIQUE (asset_id, position),
+    CHECK (start_seconds IS NULL OR start_seconds >= 0),
+    CHECK (end_seconds IS NULL OR start_seconds IS NULL OR end_seconds >= start_seconds)
+);
+CREATE INDEX IF NOT EXISTS idx_media_asset_coverage_work ON media_asset_coverage(work_id);
+
 -- An editor commit and its file-sync intent are recorded in the same transaction
 -- as the owned-file reassociation. A retry of the same operation token reads this
 -- receipt instead of applying the edit twice.

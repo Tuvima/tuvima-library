@@ -124,6 +124,24 @@ A single file on disk.
 
 **Indices:** `fingerprint`, `edition_id`, `status`
 
+### media_asset_coverage
+
+Lists every episode a single physical file covers, for example `Show S01E01E02.mkv`.
+The file stays attached to its first episode through `editions`; this table adds the
+rest. Single-episode files have no rows, so existing behaviour is unchanged. Source
+files are never split or altered.
+
+| Column | Type | Notes |
+|---|---|---|
+| `asset_id` | BLOB | FK -> `media_assets.id`, cascade delete |
+| `work_id` | BLOB | FK -> `works.id`, cascade delete: the covered episode |
+| `position` | INTEGER | Order within the file, starting at 1 |
+| `start_seconds` | REAL | Optional start of the episode inside the file |
+| `end_seconds` | REAL | Optional end of the episode inside the file |
+| `source` | TEXT | `filename`, `chapters`, `manual` or `provider_runtime` |
+
+**Primary key:** (`asset_id`, `work_id`). **Unique:** (`asset_id`, `position`). **Indices:** `work_id`
+
 ### collection_items
 
 Links works to collections (Series to Universe relationships).
