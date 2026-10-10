@@ -285,7 +285,7 @@ public sealed class HouseholdPeopleTests
                 new NoOpInvalidation(),
                 new NoOpAudit(),
                 fixture.Identity,
-                TimeProvider.System);
+                new NoProfilePhotos(), TimeProvider.System);
             return Task.FromResult(fixture);
         }
 

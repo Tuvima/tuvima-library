@@ -267,7 +267,8 @@ folders remain available in Folders and opt in explicitly.
 `view_folder_pins` stores profile-private shortcuts by source and relative path.
 `view_folder_timeline_policies` stores source-owner branch rules with the
 validated absolute prefix used by the timeline query; the most-specific
-ancestor rule wins over the source default.
+ancestor rule wins over the source default. `updated_by_profile_id` is optional and
+clears itself (`ON DELETE SET NULL`) when that person is removed.
 
 `view_shared_library` holds one Shared Library per household (`household_id` is the primary key, `library_id` is unique and immutable), created the first time the household needs it. The server's own Shared Library is the one that belongs to the server administrator's household. Upgrade: a data store from before household administrators had one row for the whole server; the startup migration moves that row, keeping its library identity, to the server administrator's household and recreates the View scope triggers without the single-row condition. A personal space can never use any Shared Library's identity. Shared files of the server's household stay in the original Shared folder; other households' files live under `Shared/Households/<id>` so one household's files are never indexed into another's library.
 

@@ -231,6 +231,51 @@ public sealed class HouseholdAdministratorTests
     }
 
     [Fact]
+    public async Task RemovingAPerson_PassesThePhotoChoiceOn_KeepingPhotosByDefault()
+    {
+        await using var world = await World.CreateAsync();
+        var first = await world.Mutations.AddHouseholdPersonAsync(world.AdminOfA,
+            new AddHouseholdPersonCommand(world.A.Id, "Temp one", null, false, null));
+        var second = await world.Mutations.AddHouseholdPersonAsync(world.AdminOfA,
+            new AddHouseholdPersonCommand(world.A.Id, "Temp two", null, false, null));
+
+        await world.Mutations.DeleteProfileAsync(world.AdminOfA, first.Id);
+        await world.Mutations.DeleteProfileAsync(world.AdminOfA, second.Id, ProfilePhotoDisposition.Delete);
+
+        Assert.Equal(2, world.Photos.Prepared.Count);
+        Assert.Equal(first.Id, world.Photos.Prepared[0].ProfileId);
+        Assert.Equal(ProfilePhotoDisposition.MoveToShared, world.Photos.Prepared[0].Photos);
+        Assert.Equal(second.Id, world.Photos.Prepared[1].ProfileId);
+        Assert.Equal(ProfilePhotoDisposition.Delete, world.Photos.Prepared[1].Photos);
+    }
+
+    [Fact]
+    public async Task APersonWhoCannotBeRemoved_KeepsTheirPhotos()
+    {
+        await using var world = await World.CreateAsync();
+
+        // The server administrator's only profile is also the last administrator: the removal rules refuse it.
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            world.Mutations.DeleteProfileAsync(world.ServerAdmin, world.ServerAdmin.ActiveProfileId!.Value));
+
+        Assert.Empty(world.Photos.Prepared);
+    }
+
+    [Fact]
+    public async Task HouseholdAdministrator_CannotChangeOrRemoveAPersonOfAnotherHousehold()
+    {
+        await using var world = await World.CreateAsync();
+
+        await world.Mutations.RequireCanChangeProfileAsync(world.AdminOfA, world.A.Person.Id);
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
+            world.Mutations.RequireCanChangeProfileAsync(world.AdminOfA, world.B.Person.Id));
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
+            world.Mutations.DeleteProfileAsync(world.AdminOfA, world.B.Person.Id, ProfilePhotoDisposition.Delete));
+
+        Assert.Empty(world.Photos.Prepared);
+    }
+
+    [Fact]
     public async Task TheFirstServerAdministrator_JoinsTheHouseholdThatAlreadyHoldsTheSharedLibrary()
     {
         await using var world = await World.CreateAsync(sharedLibraryFirst: true);
@@ -288,6 +333,7 @@ public sealed class HouseholdAdministratorTests
         public Place B { get; private set; } = null!;
 
         public RealAdministratorDecisions Decisions { get; } = new();
+        public NoProfilePhotos Photos { get; } = new();
         public DatabaseConnection Database => _database;
 
         public static async Task<World> CreateAsync(bool sharedLibraryFirst = false)
@@ -319,6 +365,7 @@ public sealed class HouseholdAdministratorTests
                 new NoOpInvalidation(),
                 new NoOpAudit(),
                 identity,
+                world.Photos,
                 TimeProvider.System);
 
             if (sharedLibraryFirst)

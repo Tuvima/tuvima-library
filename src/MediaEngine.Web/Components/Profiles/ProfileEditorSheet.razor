@@ -80,7 +80,18 @@
             @if (_confirmingDelete)
             {
                 <div class="profile-editor__confirm" role="alertdialog" aria-label="Confirm delete">
-                    <p><strong>Delete @(string.IsNullOrWhiteSpace(Profile?.DisplayName) ? "this profile" : Profile!.DisplayName)?</strong> Their likes, My List, progress and bookmarks are removed. Library files are never touched.</p>
+                    <p><strong>Delete @(string.IsNullOrWhiteSpace(Profile?.DisplayName) ? "this profile" : Profile!.DisplayName)?</strong> Their likes, My List, progress, bookmarks and taste picks are removed. Library files are never touched.</p>
+                    <fieldset class="profile-editor__photos" disabled="@Saving">
+                        <legend>What about their personal photos?</legend>
+                        <label class="profile-editor__choice">
+                            <AppNativeInput Type="radio" Name="profile-photos" Class="who-check__box" Checked="@_keepPhotos" AriaLabel="Keep their photos in the Shared Library" Disabled="@Saving" OnChange="KeepPhotos" />
+                            <span><strong>Keep them in the Shared Library</strong><small>Tagged "From @(Profile?.DisplayName)" with today's date.</small></span>
+                        </label>
+                        <label class="profile-editor__choice">
+                            <AppNativeInput Type="radio" Name="profile-photos" Class="who-check__box" Checked="@(!_keepPhotos)" AriaLabel="Delete their photos" Disabled="@Saving" OnChange="DeletePhotos" />
+                            <span><strong>Delete them</strong><small>This can't be undone.</small></span>
+                        </label>
+                    </fieldset>
                     <div class="profile-editor__row">
                         <AppNativeButton Type="button" Class="who-button" Disabled="@Saving" OnClick="CancelDelete">Keep profile</AppNativeButton>
                         <AppNativeButton Type="button" Class="who-button who-button--danger" Disabled="@Saving" OnClick="ConfirmDeleteAsync">Delete</AppNativeButton>
@@ -118,6 +129,7 @@
     private bool _removePin;
     private bool _removePhoto;
     private bool _confirmingDelete;
+    private bool _keepPhotos = true;
     private byte[]? _newPhoto;
     private string? _newPhotoName;
     private string? _newPhotoPreview;
@@ -141,8 +153,8 @@
     /// <summary>Raised with the person's choices when Save or Add is pressed.</summary>
     [Parameter] public EventCallback<ProfileEditorResult> OnSave { get; set; }
 
-    /// <summary>Raised after the person confirms deleting the profile.</summary>
-    [Parameter] public EventCallback OnDelete { get; set; }
+    /// <summary>Raised after the person confirms deleting the profile. The value is true to keep their personal photos in the Shared Library, false to delete them.</summary>
+    [Parameter] public EventCallback<bool> OnDelete { get; set; }
 
     /// <summary>Raised when the sheet is dismissed without saving.</summary>
     [Parameter] public EventCallback OnClose { get; set; }
@@ -214,6 +226,7 @@
         _removePin = false;
         _removePhoto = false;
         _confirmingDelete = false;
+        _keepPhotos = true;
         _newPhoto = null;
         _newPhotoName = null;
         _newPhotoPreview = null;
@@ -328,7 +341,11 @@
 
     private void CancelDelete() => _confirmingDelete = false;
 
-    private Task ConfirmDeleteAsync() => OnDelete.InvokeAsync();
+    private void KeepPhotos() => _keepPhotos = true;
+
+    private void DeletePhotos() => _keepPhotos = false;
+
+    private Task ConfirmDeleteAsync() => OnDelete.InvokeAsync(_keepPhotos);
 
     private Task CloseAsync() => Saving ? Task.CompletedTask : OnClose.InvokeAsync();
 

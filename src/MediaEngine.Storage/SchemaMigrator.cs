@@ -36,6 +36,7 @@ internal sealed class SchemaMigrator
         EnsureHouseholdAdministrators(conn);
         AddColumnIfMissing(conn, "profiles", "avatar_icon",
             "ALTER TABLE profiles ADD COLUMN avatar_icon TEXT;");
+        EnsureTimelinePolicySurvivesProfileRemoval(conn);
         EnsurePerHouseholdSharedLibrary(conn);
         RetireSharedLibraryCuratorFlag(conn);
         if (sessionsGainedIngress)
@@ -1651,6 +1652,51 @@ internal sealed class SchemaMigrator
                            ELSE 1 END
                  WHERE profile_id IN (SELECT id FROM profiles WHERE household_id IS NOT NULL);
                 ALTER TABLE profile_view_policies DROP COLUMN review_shared_library_contributions;
+                """;
+            cmd.ExecuteNonQuery();
+        });
+    }
+
+    /// <summary>
+    /// A Shared Library folder's "show in timeline" choice remembers who last changed it. That used to be a required
+    /// reference to the person, which stopped anyone who had ever made the choice from being removed. The reference is
+    /// now optional and clears itself when the person is removed. Rebuilds the table once; does nothing afterwards.
+    /// </summary>
+    private static void EnsureTimelinePolicySurvivesProfileRemoval(SqliteConnection conn)
+    {
+        bool stillRequired;
+        using (var read = conn.CreateCommand())
+        {
+            read.CommandText = "SELECT \"notnull\" FROM pragma_table_info('view_folder_timeline_policies') WHERE name='updated_by_profile_id';";
+            var result = read.ExecuteScalar();
+            stillRequired = result is not null && Convert.ToInt32(result, System.Globalization.CultureInfo.InvariantCulture) != 0;
+        }
+
+        if (!stillRequired)
+        {
+            return;
+        }
+
+        DatabaseConnection.ExecuteStartupTransaction(conn, transaction =>
+        {
+            using var cmd = conn.CreateCommand();
+            cmd.Transaction = transaction;
+            cmd.CommandText = """
+                CREATE TABLE view_folder_timeline_policies_rebuild (
+                    source_id           BLOB NOT NULL REFERENCES view_sources(id) ON DELETE CASCADE,
+                    relative_path       TEXT NOT NULL,
+                    absolute_path       TEXT NOT NULL,
+                    include_in_timeline INTEGER NOT NULL CHECK (include_in_timeline IN (0, 1)),
+                    updated_by_profile_id BLOB REFERENCES profiles(id) ON DELETE SET NULL,
+                    updated_at          TEXT NOT NULL,
+                    PRIMARY KEY (source_id, relative_path)
+                );
+                INSERT INTO view_folder_timeline_policies_rebuild
+                    (source_id, relative_path, absolute_path, include_in_timeline, updated_by_profile_id, updated_at)
+                SELECT source_id, relative_path, absolute_path, include_in_timeline, updated_by_profile_id, updated_at
+                FROM view_folder_timeline_policies;
+                DROP TABLE view_folder_timeline_policies;
+                ALTER TABLE view_folder_timeline_policies_rebuild RENAME TO view_folder_timeline_policies;
                 """;
             cmd.ExecuteNonQuery();
         });

@@ -3,10 +3,12 @@ using MediaEngine.Api.Security;
 using MediaEngine.Api.Services.ReadServices;
 using MediaEngine.Api.Services.Security;
 using MediaEngine.Contracts.Authentication;
+using MediaEngine.Contracts.Profiles;
 using MediaEngine.Domain.Authorization;
 using MediaEngine.Domain.Configuration;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Entities;
+using MediaEngine.Domain.Services;
 using MediaEngine.Identity.Contracts;
 using Microsoft.AspNetCore.Mvc;
 
@@ -624,22 +626,74 @@ public static class AccountEndpoints
 
         profiles.MapPut("/{profileId:guid}", async (Guid profileId,
             UpdateManagedProfileRequest request, HttpContext http, IRequestAuthorityResolver resolver,
-            IAccountAccessMutationService mutations, CancellationToken ct) => await ExecuteAsync(async () =>
+            IAccountAccessMutationService mutations, [FromServices] RecentSignInGuard recentSignIn,
+            CancellationToken ct) => await ExecuteAsync(async () =>
         {
+            if (await recentSignIn.RefuseHumanIfStaleAsync(http.User, ct).ConfigureAwait(false) is { } stale)
+            {
+                return stale;
+            }
+
             var profile = await mutations.UpdateProfileAsync(await resolver.ResolveAsync(http, ct),
                 profileId, new UpdateManagedProfileCommand(request.DisplayName, request.AvatarColor, request.AvatarIcon), ct);
             return Results.Ok(MapProfile(profile));
         })).RequireAdministratorHouseholdOrApplication(ApplicationPermissionIds.IdentityUsersWrite)
            .Produces<ManagedProfileResponse>();
 
-        profiles.MapDelete("/{profileId:guid}", async (Guid profileId, HttpContext http,
+        // ?photos=move (the default) keeps the person's personal photos in the household's Shared Library; ?photos=delete removes them.
+        profiles.MapDelete("/{profileId:guid}", async (Guid profileId, [FromQuery] string? photos, HttpContext http,
             IRequestAuthorityResolver resolver, IAccountAccessMutationService mutations,
-            CancellationToken ct) => await ExecuteAsync(async () =>
+            [FromServices] RecentSignInGuard recentSignIn, CancellationToken ct) => await ExecuteAsync(async () =>
         {
-            await mutations.DeleteProfileAsync(await resolver.ResolveAsync(http, ct), profileId, ct);
+            var disposition = photos?.Trim().ToLowerInvariant() switch
+            {
+                null or "" or "move" => ProfilePhotoDisposition.MoveToShared,
+                "delete" => ProfilePhotoDisposition.Delete,
+                _ => throw new ArgumentException("photos must be 'move' or 'delete'."),
+            };
+            if (await recentSignIn.RefuseHumanIfStaleAsync(http.User, ct).ConfigureAwait(false) is { } stale)
+            {
+                return stale;
+            }
+
+            await mutations.DeleteProfileAsync(await resolver.ResolveAsync(http, ct), profileId, disposition, ct);
             return Results.NoContent();
         })).RequireAdministratorHouseholdOrApplication(ApplicationPermissionIds.IdentityUsersWrite)
+           .WithName("DeleteManagedProfile")
            .Produces(StatusCodes.Status204NoContent);
+
+        // A photo for someone else's profile: the existing /profiles/{id}/avatar only lets people change their own.
+        profiles.MapPost("/{profileId:guid}/avatar", async (Guid profileId, HttpContext http,
+            IRequestAuthorityResolver resolver, IAccountAccessMutationService mutations, [FromServices] IProfileService profileService,
+            [FromServices] TuvimaDataPaths dataPaths, [FromServices] RecentSignInGuard recentSignIn,
+            CancellationToken ct) => await ExecuteAsync(async () =>
+        {
+            if (await recentSignIn.RefuseHumanIfStaleAsync(http.User, ct).ConfigureAwait(false) is { } stale)
+            {
+                return stale;
+            }
+
+            await mutations.RequireCanChangeProfileAsync(await resolver.ResolveAsync(http, ct), profileId, ct);
+            return await ProfileEndpoints.UploadProfileAvatarAsync(profileId, http.Request, profileService, dataPaths, ct);
+        })).RequireAdministratorHouseholdOrApplication(ApplicationPermissionIds.IdentityUsersWrite)
+           .WithName("UploadManagedProfileAvatar")
+           .DisableAntiforgery()
+           .Produces<ProfileResponseDto>();
+
+        profiles.MapDelete("/{profileId:guid}/avatar", async (Guid profileId, HttpContext http,
+            IRequestAuthorityResolver resolver, IAccountAccessMutationService mutations, [FromServices] IProfileService profileService,
+            [FromServices] RecentSignInGuard recentSignIn, CancellationToken ct) => await ExecuteAsync(async () =>
+        {
+            if (await recentSignIn.RefuseHumanIfStaleAsync(http.User, ct).ConfigureAwait(false) is { } stale)
+            {
+                return stale;
+            }
+
+            await mutations.RequireCanChangeProfileAsync(await resolver.ResolveAsync(http, ct), profileId, ct);
+            return await ProfileEndpoints.RemoveProfileAvatarAsync(profileId, profileService, ct);
+        })).RequireAdministratorHouseholdOrApplication(ApplicationPermissionIds.IdentityUsersWrite)
+           .WithName("RemoveManagedProfileAvatar")
+           .Produces<ProfileResponseDto>();
     }
 
     /// <summary>

@@ -42,7 +42,7 @@ public sealed class TwoStepResetTests : IDisposable
             accounts, identities, profiles, _configuration,
             new AllowDecisions(), new AllowEvaluator(),
             new PasswordHasher<GrantAdminProtection>(),
-            new NoOpInvalidation(), _audit, _firstParty, TimeProvider.System);
+            new NoOpInvalidation(), _audit, _firstParty, new NoProfilePhotos(), TimeProvider.System);
     }
 
     [Fact]

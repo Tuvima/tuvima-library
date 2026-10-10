@@ -51,7 +51,7 @@ public sealed class PhoneBackupProfileTests : IAsyncLifetime
         var decisions = new RealAdministratorDecisions();
         var mutations = new AccountAccessMutationService(
             accounts, identities, profiles, _configuration, decisions, new AllowEvaluator(),
-            new PasswordHasher<GrantAdminProtection>(), new NoOpInvalidation(), new NoOpAudit(), _identity, TimeProvider.System);
+            new PasswordHasher<GrantAdminProtection>(), new NoOpInvalidation(), new NoOpAudit(), _identity, new NoProfilePhotos(), TimeProvider.System);
         _devices = new ClientAuthorizationRepository(_database);
         _service = new PhoneBackupProfileService(_devices, accounts, profiles, _identity, decisions, new NoOpAudit(), TimeProvider.System);
 

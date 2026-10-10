@@ -43,6 +43,8 @@ public interface IAccountAccessMutationRepository
     Task UpdateManagedProfileAsync(
         MediaEngine.Domain.Aggregates.Profile profile,
         CancellationToken ct = default);
+    /// <summary>Throws the same errors as <see cref="DeleteManagedProfileAsync"/> would, without removing anything.</summary>
+    Task ValidateManagedProfileRemovalAsync(Guid profileId, CancellationToken ct = default);
     Task DeleteManagedProfileAsync(Guid profileId, CancellationToken ct = default);
     Task UpsertGrantAsync(AccountProfileGrant grant, CancellationToken ct = default);
     Task RevokeGrantAsync(Guid accountId, Guid profileId, CancellationToken ct = default);
@@ -160,7 +162,17 @@ public interface IAccountAccessMutationService
         Guid profileId,
         UpdateManagedProfileCommand command,
         CancellationToken ct = default);
-    Task DeleteProfileAsync(RequestAuthority actor, Guid profileId, CancellationToken ct = default);
+    /// <summary>
+    /// Removes a person. Their habits (likes, My List, progress, bookmarks, taste) always go; <paramref name="photos"/> decides
+    /// what happens to their personal photos. Library files are never touched.
+    /// </summary>
+    Task DeleteProfileAsync(
+        RequestAuthority actor,
+        Guid profileId,
+        ProfilePhotoDisposition photos = ProfilePhotoDisposition.MoveToShared,
+        CancellationToken ct = default);
+    /// <summary>Throws unless the actor may change this person (their photo, for example); a missing person and another household's person look the same.</summary>
+    Task RequireCanChangeProfileAsync(RequestAuthority actor, Guid profileId, CancellationToken ct = default);
     /// <summary>Adds a person to a household. The household's main sign-ins can open them; the person has no sign-in of their own yet.</summary>
     Task<MediaEngine.Domain.Aggregates.Profile> AddHouseholdPersonAsync(
         RequestAuthority actor, AddHouseholdPersonCommand command, CancellationToken ct = default);

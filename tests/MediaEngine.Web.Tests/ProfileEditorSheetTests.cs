@@ -19,7 +19,7 @@ public sealed class ProfileEditorSheetTests
         BunitContext ctx,
         ProfileViewModel? profile = null,
         Action<ProfileEditorResult>? saved = null,
-        Action? deleted = null,
+        Action<bool>? deleted = null,
         Action? closed = null,
         bool canDelete = true,
         bool saving = false,
@@ -33,7 +33,7 @@ public sealed class ProfileEditorSheetTests
             .Add(p => p.Saving, saving)
             .Add(p => p.Error, error)
             .Add(p => p.OnSave, EventCallback.Factory.Create<ProfileEditorResult>(Owner, result => saved?.Invoke(result)))
-            .Add(p => p.OnDelete, EventCallback.Factory.Create(Owner, () => deleted?.Invoke()))
+            .Add(p => p.OnDelete, EventCallback.Factory.Create<bool>(Owner, keepPhotos => deleted?.Invoke(keepPhotos)))
             .Add(p => p.OnClose, EventCallback.Factory.Create(Owner, () => closed?.Invoke())));
     }
 
@@ -156,15 +156,46 @@ public sealed class ProfileEditorSheetTests
     public void Delete_AsksBeforeItDeletes()
     {
         using var ctx = new BunitContext();
-        var deletes = 0;
-        var cut = Render(ctx, Existing(), deleted: () => deletes++);
+        var deletes = new List<bool>();
+        var cut = Render(ctx, Existing(), deleted: deletes.Add);
 
         cut.Find("button.profile-editor__delete").Click();
-        Assert.Equal(0, deletes);
+        Assert.Empty(deletes);
         Assert.Contains("Delete Maya?", cut.Markup);
 
         cut.Find(".profile-editor__confirm button.who-button--danger").Click();
-        Assert.Equal(1, deletes);
+        Assert.Single(deletes);
+    }
+
+    [Fact]
+    public void Delete_KeepsPersonalPhotosInTheSharedLibraryUnlessToldOtherwise()
+    {
+        using var ctx = new BunitContext();
+        var deletes = new List<bool>();
+        var cut = Render(ctx, Existing(), deleted: deletes.Add);
+
+        cut.Find("button.profile-editor__delete").Click();
+        var choices = cut.FindAll(".profile-editor__confirm input[type=radio]");
+        Assert.Equal(2, choices.Count);
+        Assert.True(choices[0].HasAttribute("checked"));
+        Assert.Contains("From Maya", cut.Find(".profile-editor__confirm").TextContent);
+
+        cut.Find(".profile-editor__confirm button.who-button--danger").Click();
+        Assert.Equal(new[] { true }, deletes);
+    }
+
+    [Fact]
+    public void Delete_CanDeleteThePersonalPhotosInstead()
+    {
+        using var ctx = new BunitContext();
+        var deletes = new List<bool>();
+        var cut = Render(ctx, Existing(), deleted: deletes.Add);
+
+        cut.Find("button.profile-editor__delete").Click();
+        cut.FindAll(".profile-editor__confirm input[type=radio]")[1].Change(true);
+        cut.Find(".profile-editor__confirm button.who-button--danger").Click();
+
+        Assert.Equal(new[] { false }, deletes);
     }
 
     [Fact]
