@@ -19,14 +19,12 @@ public sealed class DisplayWorkProjectionReader
         _logger = logger;
     }
 
-    public async Task<IReadOnlyList<DisplayWorkRow>> LoadAsync(CancellationToken ct, int limit = int.MaxValue, Guid? detailId = null)
+    internal static string BuildSql(bool hasDetail)
     {
-        var startedAt = Stopwatch.GetTimestamp();
-        using var conn = _db.CreateConnection();
         var visibleWorkPredicate = HomeVisibilitySql.VisibleWorkPredicate("w.id", "w.curator_state", "w.is_catalog_only");
         var visibleAssetPredicate = HomeVisibilitySql.VisibleAssetPathPredicate("ma.file_path_root");
         var visibleEditionAssetPredicate = HomeVisibilitySql.VisibleAssetPathPredicate("editionAsset.file_path_root");
-        var detailPredicate = detailId.HasValue ? """
+        var detailPredicate = hasDetail ? """
             AND (w.id = @detailId OR p.id = @detailId OR gp.id = @detailId
                 OR w.collection_id = (SELECT collection_id FROM works WHERE id = @detailId)
                 OR EXISTS (
@@ -479,6 +477,14 @@ public sealed class DisplayWorkProjectionReader
             ORDER BY CreatedAt DESC
             LIMIT @limit;
             """;
+        return sql;
+    }
+
+    public async Task<IReadOnlyList<DisplayWorkRow>> LoadAsync(CancellationToken ct, int limit = int.MaxValue, Guid? detailId = null)
+    {
+        var startedAt = Stopwatch.GetTimestamp();
+        using var conn = _db.CreateConnection();
+        var sql = BuildSql(detailId.HasValue);
 
         var rows = (await conn.QueryAsync<DisplayWorkRow>(new CommandDefinition(sql, new { limit, detailId }, cancellationToken: ct))).ToList();
         var pseudonymNames = conn.Query<string>(new CommandDefinition(

@@ -137,7 +137,8 @@ public sealed class AuthorizedDisplayProjectionReadServiceTests : IDisposable
         sw.Restart(); await reader.LoadAsync(default, 1); var tLimit1 = sw.ElapsedMilliseconds; sw.Restart();
         await reader.LoadAsync(default, 10); var tLimit10 = sw.ElapsedMilliseconds; sw.Restart();
         await reader.LoadAsync(default, int.MaxValue, show); var tDetail = sw.ElapsedMilliseconds;
-        Assert.Fail($"PROFILE limit1={tLimit1}ms limit10={tLimit10}ms detail={tDetail}ms rows={rows.Count} reader={tReader}ms filter={tFilter}ms total={tTotal}ms compose={tCompose}ms items={items.Count}/{composed.Count}");
+        var sqlPath = Path.Combine(Path.GetTempPath(), "h2-recent.sql"); File.WriteAllText(sqlPath, DisplayWorkProjectionReader.BuildSql(false));
+        Assert.Fail($"PROFILE sql={sqlPath} limit1={tLimit1}ms limit10={tLimit10}ms detail={tDetail}ms rows={rows.Count} reader={tReader}ms filter={tFilter}ms total={tTotal}ms compose={tCompose}ms items={items.Count}/{composed.Count}");
     }
 
     [Fact]
