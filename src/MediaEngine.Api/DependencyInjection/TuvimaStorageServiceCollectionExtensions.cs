@@ -49,6 +49,9 @@ public static class TuvimaStorageServiceCollectionExtensions
         services.AddSingleton<IViewScopeStore, ViewScopePersistenceService>();
         services.AddSingleton<IViewScopeResolver, ViewScopeResolver>();
         services.AddSingleton<IViewResourceStore, ViewResourcePersistenceService>();
+        services.AddSingleton<ViewOtherPeopleService>();
+        services.AddSingleton<IViewOtherPeopleAuditor>(sp => sp.GetRequiredService<ViewOtherPeopleService>());
+        services.AddSingleton<IViewOtherPeopleService>(sp => sp.GetRequiredService<ViewOtherPeopleService>());
         services.AddScoped<IViewResourceAuthorizationService, ViewResourceAuthorizationService>();
         services.AddSingleton<IViewAssetQueryBackend, ViewAssetQueryService>();
         services.AddSingleton<IViewSmartGalleryQueryService, ViewSmartGalleryQueryService>();

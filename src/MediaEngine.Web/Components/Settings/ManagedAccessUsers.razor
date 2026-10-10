@@ -48,6 +48,9 @@
                                     <AppButton Label="Libraries & lanes" Size="AppControlSize.Compact" ButtonStyle="AppButtonStyle.Text" OnClick="@(() => OpenPermissions(account))" />
                                     <AppButton Label="Set temporary password" Size="AppControlSize.Compact" ButtonStyle="AppButtonStyle.Text" OnClick="@(() => OpenTemporaryPassword(account))" />
                                 </div>
+                                <AppSwitchRow Label="Can use View" Value="@CanUseView(account)" Disabled="@_saving"
+                                              AriaLabel="@($"{AccountLabel(account)} can use View")"
+                                              ValueChanged="@((bool value) => SetCanUseView(account, value))" />
                             </div>
                         }
                     </section>
@@ -115,6 +118,12 @@
                                     @if (account.MustChangePassword) { <AppChip Text="Temporary password" Tone="AppUiTone.Warning" /> }
                                     @if (account.HasTwoStep) { <AppChip Text="Two-step codes" Tone="AppUiTone.Success" /> }
                                 </div>
+                                @if (account.GrantsInheritFromAccountId is null)
+                                {
+                                    <AppSwitchRow Label="Can use View" Value="@CanUseView(account)" Disabled="@_saving"
+                                                  AriaLabel="@($"{AccountLabel(account)} can use View")"
+                                                  ValueChanged="@((bool value) => SetCanUseView(account, value))" />
+                                }
                             </div>
                             <div class="access-profile-chips" role="cell">
                                 @foreach (var grant in account.ProfileGrants.Take(8))
@@ -219,7 +228,7 @@
                         <AppTextField @bind-Value="_profileName" Label="Profile name" FullWidth="true" />
                         <AppTextField @bind-Value="_profileColor" Label="Avatar color" HelpText="Use a color such as #7C4DFF." FullWidth="true" />
                     </section>
-                    <ManagedAccessUserPermissions FeatureIds="_featureIds" LibraryIds="_libraryIds" Libraries="_libraries" FeatureChanged="ToggleFeature" LibraryChanged="ToggleLibrary" />
+                    <ManagedAccessUserPermissions ViewStartsOff="true" FeatureIds="_featureIds" LibraryIds="_libraryIds" Libraries="_libraries" FeatureChanged="ToggleFeature" LibraryChanged="ToggleLibrary" />
                 }
             }
             else if (_mode == UserDrawerMode.Permissions && _editing is not null)
@@ -547,7 +556,8 @@
     {
         ResetDrawer(UserDrawerMode.Account);
         _editing = null;
-        _featureIds.UnionWith(ManagedAccessUserPermissions.Features.Select(feature => feature.Id));
+        // Someone outside your household starts with View off; switch it on from their row once you know them.
+        _featureIds.UnionWith(ManagedAccessUserPermissions.Features.Select(feature => feature.Id).Where(id => id != "view"));
         _libraryIds.UnionWith(_libraries.Select(library => library.Id));
         _open = true;
     }
@@ -1017,6 +1027,45 @@
                     return;
                 _notice = $"Permissions for {label} were saved.";
                 Close();
+            }
+            else
+            {
+                _error = GuardedMessage(result.Failure);
+            }
+        }
+        finally
+        {
+            EndMutation(generation);
+        }
+    }
+
+    private static bool CanUseView(AccountAccessResponse account) =>
+        account.FeatureGrants.Any(grant => grant.Allowed && grant.Feature == "view");
+
+    // The quick "Can use View" switch: the same access save as Edit permissions, changing only the View lane.
+    private async Task SetCanUseView(AccountAccessResponse account, bool value)
+    {
+        if (!TryBeginMutation(out var generation))
+            return;
+        try
+        {
+            ClearMessages();
+            var features = account.FeatureGrants.Where(grant => grant.Allowed).Select(grant => grant.Feature).ToHashSet();
+            if (value)
+                features.Add("view");
+            else
+                features.Remove("view");
+            var libraries = account.LibraryGrants.Where(grant => grant.Allowed).Select(grant => grant.LibraryId);
+            var result = await Identity.ReplaceManagedAccountAccessResultAsync(account.Id,
+                new(features.Order().ToArray(), libraries.Order().ToArray()));
+            if (!IsCurrentMutation(generation))
+                return;
+            if (result.Succeeded)
+            {
+                await ReloadAll(generation);
+                if (!IsCurrentMutation(generation))
+                    return;
+                _notice = $"{AccountLabel(account)} {(value ? "can now use" : "can no longer use")} View.";
             }
             else
             {

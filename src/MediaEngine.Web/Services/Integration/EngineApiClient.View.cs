@@ -12,11 +12,21 @@ public sealed partial class EngineApiClient
         GetAsync<ViewScopeResolutionDto>("GET /view/scopes", "/view/scopes", new Dictionary<string, string?>
         {
             ["scope"] = scope.HasValue ? ScopeValue(scope.Value) : null,
-            ["scopeProfileId"] = scope == ViewScopeKind.Profile ? scopeProfileId?.ToString("D") : null,
+            ["scopeProfileId"] = scope.CarriesProfileId() ? scopeProfileId?.ToString("D") : null,
         }, ct: ct);
 
     public Task<ViewPreferencesDto?> GetViewPreferencesAsync(CancellationToken ct = default) =>
         GetAsync<ViewPreferencesDto>("GET /view/preferences", "/view/preferences", ct: ct);
+
+    public Task<ViewOtherPeopleDto?> GetViewOtherPeopleAsync(CancellationToken ct = default) =>
+        GetAsync<ViewOtherPeopleDto>("GET /view/other-people", "/view/other-people", ct: ct);
+
+    public Task<ViewPhotoViewsPageDto?> GetViewPhotoViewsAsync(int offset = 0, int limit = 25, CancellationToken ct = default) =>
+        GetAsync<ViewPhotoViewsPageDto>("GET /view/photo-views", "/view/photo-views", new Dictionary<string, string?>
+        {
+            ["offset"] = offset.ToString(System.Globalization.CultureInfo.InvariantCulture),
+            ["limit"] = limit.ToString(System.Globalization.CultureInfo.InvariantCulture),
+        }, ct: ct);
 
     public Task<LibraryCapacityDto?> GetLibraryCapacityAsync(string area, CancellationToken ct = default) =>
         GetAsync<LibraryCapacityDto>("GET /view/library-capacity", "/view/library-capacity", new Dictionary<string, string?>
@@ -33,7 +43,7 @@ public sealed partial class EngineApiClient
             {
                 Content = JsonContent.Create(new ViewPreferencesRequest(
                     ScopeValue(scope),
-                    scope == ViewScopeKind.Profile ? scopeProfileId : null,
+                    scope.CarriesProfileId() ? scopeProfileId : null,
                     timelineDensity,
                     viewerInfoOpen)),
             };
@@ -50,7 +60,7 @@ public sealed partial class EngineApiClient
     {
         var query = new List<string>();
         AddQuery(query, "scope", ScopeValue(options.Scope));
-        AddQuery(query, "scopeProfileId", options.Scope == ViewScopeKind.Profile
+        AddQuery(query, "scopeProfileId", options.Scope.CarriesProfileId()
             ? options.ScopeProfileId?.ToString("D") : null);
         AddQuery(query, "cursor", options.Cursor);
         AddQuery(query, "anchorBefore", options.AnchorBefore?.ToString("O", System.Globalization.CultureInfo.InvariantCulture));
@@ -76,7 +86,7 @@ public sealed partial class EngineApiClient
     {
         var query = new List<string>();
         AddQuery(query, "scope", ScopeValue(options.Scope));
-        AddQuery(query, "scopeProfileId", options.Scope == ViewScopeKind.Profile
+        AddQuery(query, "scopeProfileId", options.Scope.CarriesProfileId()
             ? options.ScopeProfileId?.ToString("D") : null);
         AddQuery(query, "q", options.Search?.Trim());
         foreach (var kind in options.Kinds ?? [])
@@ -94,14 +104,14 @@ public sealed partial class EngineApiClient
         GetAsync<LocalAssetDto>("GET /view/items/{id}", $"/view/items/{itemId:D}", new Dictionary<string, string?>
         {
             ["scope"] = ScopeValue(scope),
-            ["scopeProfileId"] = scope == ViewScopeKind.Profile ? scopeProfileId?.ToString("D") : null,
+            ["scopeProfileId"] = scope.CarriesProfileId() ? scopeProfileId?.ToString("D") : null,
         }, ct: ct);
 
     public Task<ViewFolderPageDto?> GetViewFoldersAsync(ViewFolderQueryOptions options, CancellationToken ct = default)
     {
         var query = new List<string>();
         AddQuery(query, "scope", ScopeValue(options.Scope));
-        AddQuery(query, "scopeProfileId", options.Scope == ViewScopeKind.Profile ? options.ScopeProfileId?.ToString("D") : null);
+        AddQuery(query, "scopeProfileId", options.Scope.CarriesProfileId() ? options.ScopeProfileId?.ToString("D") : null);
         AddQuery(query, "sourceId", options.SourceId?.ToString("D"));
         AddQuery(query, "path", options.RelativePath);
         AddQuery(query, "recursive", options.IncludeDescendants ? "true" : null);
@@ -333,7 +343,7 @@ public sealed partial class EngineApiClient
     {
         var query = new List<string>();
         AddQuery(query, "scope", ScopeValue(options.Scope));
-        AddQuery(query, "scopeProfileId", options.Scope == ViewScopeKind.Profile
+        AddQuery(query, "scopeProfileId", options.Scope.CarriesProfileId()
             ? options.ScopeProfileId?.ToString("D") : null);
         AddQuery(query, "q", options.Search?.Trim());
         AddQuery(query, "cursor", options.Cursor);
@@ -343,7 +353,7 @@ public sealed partial class EngineApiClient
     private static Dictionary<string, string?> AtlasQuery(ViewAtlasQueryOptions options) => new()
     {
         ["scope"] = ScopeValue(options.Scope),
-        ["scopeProfileId"] = options.Scope == ViewScopeKind.Profile ? options.ScopeProfileId?.ToString("D") : null,
+        ["scopeProfileId"] = options.Scope.CarriesProfileId() ? options.ScopeProfileId?.ToString("D") : null,
         ["q"] = options.Search?.Trim(),
         ["year"] = options.Year?.ToString(System.Globalization.CultureInfo.InvariantCulture),
         ["kind"] = options.MediaKind,

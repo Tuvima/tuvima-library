@@ -302,7 +302,7 @@ public static class AccountEndpoints
                 request.IsAdministrator, request.ProfileId,
                 request.NewProfile is null ? null : new NewAccountProfileCommand(
                     request.NewProfile.DisplayName, request.NewProfile.AvatarColor),
-                request.FeatureIds.Select(id => new AccountFeatureId(id)).ToHashSet(),
+                FeaturesForNewAccount(request.FeatureIds, request.NewProfile is not null),
                 request.LibraryIds.ToHashSet(),
                 request.TemporaryPassword);
             var account = await mutations.CreateAsync(await resolver.ResolveAsync(http, ct), command, ct);
@@ -641,6 +641,17 @@ public static class AccountEndpoints
         })).RequireAdministratorHouseholdOrApplication(ApplicationPermissionIds.IdentityUsersWrite)
            .Produces(StatusCodes.Status204NoContent);
     }
+
+    /// <summary>
+    /// A person invited into a brand-new household is outside everyone else's household, so View starts off (D16).
+    /// An administrator switches it on afterwards, per person, once they know the person.
+    /// </summary>
+    internal static HashSet<AccountFeatureId> FeaturesForNewAccount(IEnumerable<string> requested, bool startsNewHousehold) =>
+        requested
+            .Where(id => !startsNewHousehold
+                || !string.Equals(id, AccountFeatureId.View.Value, StringComparison.OrdinalIgnoreCase))
+            .Select(id => new AccountFeatureId(id))
+            .ToHashSet();
 
     /// <summary>
     /// The household a household administrator is limited to, or <see langword="null"/> for a server administrator or a

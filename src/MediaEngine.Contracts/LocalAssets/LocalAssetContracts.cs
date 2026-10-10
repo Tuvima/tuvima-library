@@ -103,7 +103,8 @@ public sealed record ViewScopeOptionDto(
 
 public sealed record ViewScopeResolutionDto(
     [property: JsonPropertyName("scope")] ViewResolvedScopeDto Scope,
-    [property: JsonPropertyName("available_scopes")] IReadOnlyList<ViewScopeOptionDto> AvailableScopes);
+    [property: JsonPropertyName("available_scopes")] IReadOnlyList<ViewScopeOptionDto> AvailableScopes,
+    [property: JsonPropertyName("can_browse_other_people")] bool CanBrowseOtherPeople = false);
 
 public sealed record ViewPreferencesDto(
     [property: JsonPropertyName("profile_id")] Guid ProfileId,

@@ -62,6 +62,16 @@ A household administrator accepts or declines the batch (so can a server adminis
 
 Open the scope picker at the top of Photos, Places or Folders. Your own space stays first, then a **Household** group lists each person in your household by name, then the Shared Library. You can open, search and share from anyone's space in your household, but you cannot edit, hide, move or delete their photos, and their hidden photos stay hidden. People in other households never appear, and none of their photos, counts, map pins or contributions are visible to you.
 
+## See other households as a server administrator
+
+Server administrators have an **Other people** group in the scope picker. It lists every other household, each person in it, and the household's Shared Library. Everything there is read-only: you cannot edit, hide, move, delete or send anything, hidden photos stay hidden, and household administrators and members never see the group. When the administrator screens are locked with a PIN, unlock them first.
+
+Every time you open someone's space or a household's Shared Library, Tuvima records it. The household's owner sees the date, your name and what you opened under **Account > Who viewed your photos**. The same space is recorded at most once an hour.
+
+## Switch View on for a person
+
+People outside your household start with **View** off. Open **Settings > Users & Access** and use the **Can use View** switch on their row when you want them to use it. People in your own household keep whatever you chose when you added them.
+
 ## Browse People and Places
 
 People shows named or reviewed people annotations and their sources. If no usable names exist, it explains that state. It does not claim to run face recognition.

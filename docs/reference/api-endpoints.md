@@ -149,13 +149,17 @@ be within the configured short skew window, and are not browser credentials.
 
 Browser-supplied profile, library, Gallery, scope-profile, or asset IDs are
 never treated as authority. Friendly Shared, Mine, and permitted Profile scopes
-are resolved by the Engine before any asset, Gallery, People, Places,
+(plus `scope=othershared&scopeProfileId=…` for a server administrator reading another household's Shared Library, read-only and
+never saved as the last scope; any look at another household is recorded as `view.other_household_opened`, at most once an hour
+per viewer and space) are resolved by the Engine before any asset, Gallery, People, Places,
 thumbnail, original-file, or personal-media Collection query runs. Direct
 unauthorized identifiers return the same not-found shape as missing resources.
 
 | Method | Path | Description | Auth |
 |---|---|---|---|
 | GET | `/view/scopes` | Resolve the selected/default scope and return only authorized labeled scope options | Required + trusted profile |
+| GET | `/view/other-people` | List other households and their people for read-only browsing ("Other people"); never includes the caller's own household | Server administrator signed in as a person (household administrators, members and apps get 403) |
+| GET | `/view/photo-views` | Page the times a server administrator opened your photos, newest first (the whole household for a household administrator, your own photos otherwise) | Required |
 | GET, PUT | `/view/preferences` | Read or persist the active profile's last scope and timeline density | Required + trusted profile |
 | GET | `/view/assets` | Cursor-page authorized mixed local assets by scope, search, kind, state, or Gallery | Required + scope read |
 | GET | `/view/folders` | Page authorized source roots or one indexed folder hierarchy with URL-backed path breadcrumb, scoped search, and optional descendants | Required + scope read |

@@ -19,10 +19,28 @@
 {
     <option value="@ScopeValue(scope)">@scope.Label</option>
 }
+@* Server administrators only: other households, read-only. Each look is recorded for that household. *@
+@if (OtherPeople is { Households.Count: > 0 })
+{
+    @foreach (var household in OtherPeople.Households)
+    {
+        <optgroup label="@($"Other people · {household.Name}")">
+            @foreach (var person in household.People.Where(value => value.HasPersonalSpace))
+            {
+                <option value="@($"{ViewScopeKind.Profile}:{person.ProfileId:D}")">@person.DisplayName</option>
+            }
+            @if (household.People.Count > 0)
+            {
+                <option value="@($"{ViewScopeKind.OtherShared}:{household.People[0].ProfileId:D}")">Shared Library</option>
+            }
+        </optgroup>
+    }
+}
 
 @code {
     [Parameter, EditorRequired] public IReadOnlyList<ViewScopeOptionDto> Scopes { get; set; } = [];
+    [Parameter] public ViewOtherPeopleDto? OtherPeople { get; set; }
 
     private static string ScopeValue(ViewScopeOptionDto scope) =>
-        $"{scope.Kind}:{(scope.Kind == ViewScopeKind.Profile ? scope.ProfileId?.ToString("D") : null)}";
+        $"{scope.Kind}:{(scope.Kind.CarriesProfileId() ? scope.ProfileId?.ToString("D") : null)}";
 }

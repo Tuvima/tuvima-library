@@ -37,7 +37,7 @@ public sealed class ViewMediaEngineClient(HttpClient http) : IViewMediaEngineCli
         {
             path += $"&role={RoleValue(grant.ResourceRole)}";
         }
-        if (grant.ScopeKind == ViewScopeKind.Profile && grant.ScopeProfileId.HasValue)
+        if (grant.ScopeKind.CarriesProfileId() && grant.ScopeProfileId.HasValue)
         {
             path += $"&scopeProfileId={grant.ScopeProfileId.Value:D}";
         }

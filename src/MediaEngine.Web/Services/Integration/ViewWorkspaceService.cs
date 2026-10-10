@@ -10,12 +10,21 @@ public sealed class ViewWorkspaceService(IEngineApiClient api)
 
     public ViewScopeResolutionDto? Scopes { get; private set; }
     public ViewPreferencesDto? Preferences { get; private set; }
+    /// <summary>Other households a server administrator can open (read-only); empty for everyone else.</summary>
+    public ViewOtherPeopleDto? OtherPeople { get; private set; }
     public ViewScopeKind ScopeKind => Scopes?.Scope.Kind ?? Preferences?.Scope ?? ViewScopeKind.Shared;
     // A resolved Mine scope carries the owner profile as response context, but
     // scopeProfileId is a request discriminator only for explicit Profile scope.
-    public Guid? ScopeProfileId => ScopeKind == ViewScopeKind.Profile
+    public Guid? ScopeProfileId => ScopeKind.CarriesProfileId()
         ? Scopes?.Scope.ProfileId ?? Preferences?.ScopeProfileId
         : null;
+    /// <summary>True when <paramref name="profileId"/> is a person in another household (browsed read-only through "Other people").</summary>
+    public bool IsOtherPerson(Guid? profileId) => OtherPersonName(profileId) is not null;
+
+    public string? OtherPersonName(Guid? profileId) => profileId is { } id
+        ? OtherPeople?.Households.SelectMany(household => household.People).FirstOrDefault(person => person.ProfileId == id)?.DisplayName
+        : null;
+
     public ViewTimelineDensity Density => Preferences?.TimelineDensity ?? ViewTimelineDensity.Comfortable;
     public bool ViewerInfoOpen => Preferences?.ViewerInfoOpen ?? true;
     public IReadOnlyList<ViewGalleryDto> OwnedGalleries { get; private set; } = [];
@@ -28,6 +37,7 @@ public sealed class ViewWorkspaceService(IEngineApiClient api)
         _galleriesLoaded = false;
         Scopes = null;
         Preferences = null;
+        OtherPeople = null;
         OwnedGalleries = [];
         SharedGalleries = [];
         PendingNewGalleryItems = [];
@@ -45,12 +55,16 @@ public sealed class ViewWorkspaceService(IEngineApiClient api)
         await Task.WhenAll(preferencesTask, scopesTask);
         Preferences = await preferencesTask;
         Scopes = await scopesTask;
+        if (Scopes?.CanBrowseOtherPeople == true)
+        {
+            OtherPeople = await api.GetViewOtherPeopleAsync(ct);
+        }
         _initialized = true;
     }
 
     public async Task<bool> SelectScopeAsync(ViewScopeKind kind, Guid? profileId, CancellationToken ct = default)
     {
-        profileId = kind == ViewScopeKind.Profile ? profileId : null;
+        profileId = kind.CarriesProfileId() ? profileId : null;
         var saved = await api.UpdateViewPreferencesAsync(kind, profileId, Density, ViewerInfoOpen, ct);
         if (saved is null)
         {

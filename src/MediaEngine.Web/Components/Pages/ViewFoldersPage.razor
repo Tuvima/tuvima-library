@@ -15,7 +15,7 @@
         <HeaderActions>
             @if (Workspace.Scopes is not null)
             {
-                <label><span>Scope</span><AppNativeSelect Value="@SelectedScopeValue" OnChange="ScopeChangedAsync" aria-label="Authorized folder scope"><ViewScopeOptions Scopes="@Workspace.Scopes.AvailableScopes" /></AppNativeSelect></label>
+                <label><span>Scope</span><AppNativeSelect Value="@SelectedScopeValue" OnChange="ScopeChangedAsync" aria-label="Authorized folder scope"><ViewScopeOptions Scopes="@Workspace.Scopes.AvailableScopes" OtherPeople="@Workspace.OtherPeople" /></AppNativeSelect></label>
             }
         </HeaderActions>
         <ChildContent>
@@ -228,7 +228,7 @@
         if (await Workspace.SelectScopeAsync(kind, profile)) { if (SourceId is null) await LoadAsync(); else OpenRoot(); }
     }
     private string SelectedScopeValue => ScopeValue(Workspace.ScopeKind, Workspace.ScopeProfileId);
-    private static string ScopeValue(ViewScopeKind kind, Guid? profile) => $"{kind}:{(kind == ViewScopeKind.Profile ? profile?.ToString("D") : null)}";
+    private static string ScopeValue(ViewScopeKind kind, Guid? profile) => $"{kind}:{(kind.CarriesProfileId() ? profile?.ToString("D") : null)}";
     private string ThumbnailUrl(LocalAssetDto item)
     {
         if (!_profileId.HasValue) return string.Empty;

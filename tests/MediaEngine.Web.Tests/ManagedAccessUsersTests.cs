@@ -41,6 +41,32 @@ public sealed class ManagedAccessUsersTests : AsyncBunitContext
     }
 
     [Fact]
+    public void CanUseViewSwitch_SavesOnlyTheViewLane()
+    {
+        var cut = RenderUsers();
+
+        cut.Find("input[aria-label='owner@example.test can use View']").Change(false);
+
+        cut.WaitForAssertion(() => Assert.Contains("can no longer use View", cut.Markup));
+        var request = Assert.Single(_handler.Requests, request => request.Path.EndsWith("/access", StringComparison.Ordinal));
+        var payload = JsonSerializer.Deserialize<ReplaceAccountAccessRequest>(request.Body, JsonOptions)!;
+        Assert.Equal(["listen", "read", "watch"], payload.FeatureIds.Order());
+        Assert.Equal([_handler.Library.Id], payload.LibraryIds);
+    }
+
+    [Fact]
+    public void InvitingSomeoneOutsideTheHousehold_DoesNotOfferViewBecauseItStartsOff()
+    {
+        var cut = RenderUsers();
+
+        cut.FindAll("button").Single(button => button.TextContent.Trim() == "Invite someone outside your household").Click();
+
+        cut.WaitForAssertion(() => Assert.Contains("View starts off for people outside your household", cut.Markup));
+        Assert.Empty(cut.FindAll("input[aria-label='View']"));
+        Assert.NotEmpty(cut.FindAll("input[aria-label='Watch']"));
+    }
+
+    [Fact]
     public void UserTable_RendersLongEmailAndEightDistinctProfileChipsWithoutRoleTier()
     {
         _handler.Email = "a.very.long.household.account.identity@example.test";

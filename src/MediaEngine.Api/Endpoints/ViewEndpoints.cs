@@ -108,7 +108,11 @@ public static class ViewEndpoints
 
             var result = await resolver.ResolveAsync(authority, requested,
                 allowStaleSelectionFallback: string.IsNullOrWhiteSpace(scope), ct);
-            return result is null ? Missing() : Results.Ok(ToContract(result));
+            return result is null ? Missing() : Results.Ok(ToContract(result) with
+            {
+                // Only a server administrator signed in as a person sees "Other people" in the scope picker.
+                CanBrowseOtherPeople = authority.PrincipalKind == PrincipalKind.Human && authority.IsEffectiveAdministrator,
+            });
         }).WithName("GetViewScopes").Produces<ViewScopeResolutionDto>();
 
         group.MapGet("/preferences", async (IViewRequestProfileContext identity,
@@ -154,10 +158,18 @@ public static class ViewEndpoints
                     return Missing();
                 }
 
-                var value = new ViewProfilePreferences(profileId,
-                    resolution.Scope.Kind,
-                    PreferenceScopeProfileId(resolution.Scope.Kind, resolution.Scope.ProfileId),
-                    request.TimelineDensity, DateTimeOffset.UtcNow, request.ViewerInfoOpen);
+                // Looking at another household through "Other people" is never remembered as the last scope, so
+                // signing in again never reopens (and records) someone else's photos by itself.
+                var remembered = resolution.Scope.IsOtherHousehold
+                    ? await repository.GetPreferencesAsync(profileId, ct)
+                    : null;
+                var value = remembered is not null
+                    ? new ViewProfilePreferences(profileId, remembered.LastScopeKind, remembered.LastScopeProfileId,
+                        request.TimelineDensity, DateTimeOffset.UtcNow, request.ViewerInfoOpen)
+                    : new ViewProfilePreferences(profileId,
+                        resolution.Scope.Kind,
+                        PreferenceScopeProfileId(resolution.Scope.Kind, resolution.Scope.ProfileId),
+                        request.TimelineDensity, DateTimeOffset.UtcNow, request.ViewerInfoOpen);
                 await repository.SavePreferencesAsync(value, ct);
                 return Results.Ok(ToContract(value));
             }
@@ -741,6 +753,41 @@ public static class ViewEndpoints
         }).WithName("AddViewItemsDirectlyToSharedLibrary").Produces<ViewSharedContributionDto>();
 
         MapGalleries(group);
+
+        // "Other people": the households a server administrator can open, read-only. Opening one is recorded.
+        group.MapGet("/other-people", async (IViewRequestProfileContext identity,
+            IViewOtherPeopleService otherPeople, CancellationToken ct) =>
+        {
+            var authority = await identity.ResolveAuthorityAsync(ct);
+            if (!authority.IsAuthenticated)
+            {
+                return Unauthenticated();
+            }
+
+            // Server administrators only, signed in as a person: not household administrators, members or apps.
+            return authority.PrincipalKind != PrincipalKind.Human || !authority.IsEffectiveAdministrator
+                ? ApiErrors.Forbidden("Only a server administrator can see other households.")
+                : Results.Ok(await otherPeople.ListAsync(authority, ct));
+        }).WithName("GetViewOtherPeople")
+            .WithSummary("List other households and their people for a server administrator (read-only browsing).")
+            .RequireEffectiveAdministrator()
+            .Produces<ViewOtherPeopleDto>();
+
+        // "Who viewed your photos": the audit trail of server administrators opening this household's photos.
+        group.MapGet("/photo-views", async (int? offset, int? limit, IViewRequestProfileContext identity,
+            IViewOtherPeopleService otherPeople, CancellationToken ct) =>
+        {
+            var authority = await identity.ResolveAuthorityAsync(ct);
+            if (!authority.HasHumanContext)
+            {
+                return Unauthenticated();
+            }
+
+            return Results.Ok(await otherPeople.ListViewsAsync(authority,
+                PagedRequest.From(offset, limit, defaultLimit: 25, maxLimit: 100), ct));
+        }).WithName("GetViewPhotoViews")
+            .WithSummary("Page who opened the caller's photos (the whole household for a household administrator).")
+            .Produces<ViewPhotoViewsPageDto>();
 
         group.MapGet("/share-targets", async (IViewRequestProfileContext identity,
             IViewResourceAuthorizationService authorization,
@@ -1400,7 +1447,8 @@ public static class ViewEndpoints
             null or "" or "mine" => ViewScopeRequest.Mine,
             "shared" => ViewScopeRequest.Shared,
             "profile" when profileId.HasValue => ViewScopeRequest.ForProfile(profileId.Value),
-            _ => throw new ArgumentException("Scope must be mine, shared, or profile with scopeProfileId."),
+            "othershared" when profileId.HasValue => ViewScopeRequest.ForOtherShared(profileId.Value),
+            _ => throw new ArgumentException("Scope must be mine, shared, profile or othershared with scopeProfileId."),
         };
 
     private static LocalAssetLifecycleFilter ParseLifecycle(string? value) =>
@@ -1426,10 +1474,12 @@ public static class ViewEndpoints
 
     private static ViewScopeResolutionDto ToContract(ViewScopeResolution value) =>
         new(
-            new ViewResolvedScopeDto(
-                value.Scope.Kind,
-                value.Scope.ProfileId,
-                value.Scope.WasFallback),
+            value.Scope.IsOtherHousehold && value.Scope.Kind == ViewScopeKind.Shared
+                ? new ViewResolvedScopeDto(ViewScopeKind.OtherShared, value.Scope.OtherViaProfileId, false)
+                : new ViewResolvedScopeDto(
+                    value.Scope.Kind,
+                    value.Scope.ProfileId,
+                    value.Scope.WasFallback),
             value.AvailableScopes
                 .Select(option => new ViewScopeOptionDto(
                     option.Kind,

@@ -146,21 +146,26 @@ public static class ViewDiscoveryEndpoints
             "shared" => ViewScopeKind.Shared,
             "mine" => ViewScopeKind.Mine,
             "profile" => ViewScopeKind.Profile,
-            _ => throw new ArgumentException("View scope must be shared, mine, or profile.", nameof(value)),
+            "othershared" => ViewScopeKind.OtherShared,
+            _ => throw new ArgumentException("View scope must be shared, mine, profile, or othershared.", nameof(value)),
         };
-        if (kind == ViewScopeKind.Profile && profileId is null)
+        if (kind.CarriesProfileId() && profileId is null)
         {
             throw new ArgumentException("Profile scope requires scopeProfileId.", nameof(profileId));
         }
 
-        if (kind != ViewScopeKind.Profile && profileId is not null)
+        if (!kind.CarriesProfileId() && profileId is not null)
         {
             throw new ArgumentException("scopeProfileId is valid only for profile scope.", nameof(profileId));
         }
 
-        return kind == ViewScopeKind.Profile
-            ? ViewScopeRequest.ForProfile(profileId!.Value)
-            : kind == ViewScopeKind.Mine ? ViewScopeRequest.Mine : ViewScopeRequest.Shared;
+        return kind switch
+        {
+            ViewScopeKind.Profile => ViewScopeRequest.ForProfile(profileId!.Value),
+            ViewScopeKind.OtherShared => ViewScopeRequest.ForOtherShared(profileId!.Value),
+            ViewScopeKind.Mine => ViewScopeRequest.Mine,
+            _ => ViewScopeRequest.Shared,
+        };
     }
 
     private static IResult ToResult(ViewPlacesResult result) => result.Outcome switch
