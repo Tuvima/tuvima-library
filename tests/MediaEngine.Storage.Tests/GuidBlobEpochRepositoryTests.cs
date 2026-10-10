@@ -3,6 +3,7 @@ using MediaEngine.Domain.Aggregates;
 using MediaEngine.Domain.Entities;
 using MediaEngine.Domain.Enums;
 using MediaEngine.Storage;
+using MediaEngine.TestSupport;
 
 namespace MediaEngine.Storage.Tests;
 
@@ -244,9 +245,7 @@ public sealed class GuidBlobEpochRepositoryTests : IDisposable
     public void Dispose()
     {
         _db.Dispose();
-        TryDelete(_dbPath);
-        TryDelete($"{_dbPath}-wal");
-        TryDelete($"{_dbPath}-shm");
+        TestTemp.DeleteDatabase(_dbPath);
     }
 
     private Guid CreateCollection()
@@ -299,20 +298,5 @@ public sealed class GuidBlobEpochRepositoryTests : IDisposable
             new { key });
         Assert.Equal("blob", storage.StorageType);
         Assert.Equal(16, storage.Length);
-    }
-
-    private static void TryDelete(string path)
-    {
-        try
-        {
-            if (File.Exists(path))
-            {
-                File.Delete(path);
-            }
-        }
-        catch
-        {
-            // Test cleanup is best effort and must not hide assertion failures.
-        }
     }
 }

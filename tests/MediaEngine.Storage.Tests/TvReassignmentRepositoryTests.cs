@@ -4,6 +4,7 @@ using MediaEngine.Domain.Constants;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Enums;
 using MediaEngine.Storage.Services;
+using MediaEngine.TestSupport;
 
 namespace MediaEngine.Storage.Tests;
 
@@ -37,7 +38,7 @@ public sealed class TvReassignmentRepositoryTests : IDisposable
     public void Dispose()
     {
         try { _db.Dispose(); } catch { /* temp database cleanup is best effort */ }
-        try { File.Delete(_dbPath); } catch { /* temp database cleanup is best effort */ }
+        TestTemp.DeleteDatabase(_dbPath);
     }
 
     [Fact]

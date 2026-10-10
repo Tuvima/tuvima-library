@@ -4,4 +4,11 @@
   <ItemGroup Condition="'$(IsTestProject)' == 'true'">
     <Compile Include="$(MSBuildThisFileDirectory)Shared/TestTemp.cs" Link="Shared/TestTemp.cs" />
   </ItemGroup>
+  <!-- Run the temp-folder cleanup from the xUnit framework lifecycle, not only at process exit. -->
+  <ItemGroup Condition="'$(IsTestProject)' == 'true'">
+    <AssemblyAttribute Include="Xunit.TestFrameworkAttribute">
+      <_Parameter1>MediaEngine.TestSupport.TestTempFramework</_Parameter1>
+      <_Parameter2>$(AssemblyName)</_Parameter2>
+    </AssemblyAttribute>
+  </ItemGroup>
 </Project>

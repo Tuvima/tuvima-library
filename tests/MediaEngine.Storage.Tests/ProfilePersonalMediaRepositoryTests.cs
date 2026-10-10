@@ -1,5 +1,6 @@
 using Dapper;
 using MediaEngine.Domain.Enums;
+using MediaEngine.TestSupport;
 using Microsoft.Data.Sqlite;
 
 namespace MediaEngine.Storage.Tests;
@@ -264,12 +265,7 @@ public sealed class ProfilePersonalMediaRepositoryTests : IDisposable
     public void Dispose()
     {
         _database.Dispose();
-        using (var pool = new SqliteConnection($"Data Source={_databasePath}"))
-        {
-            SqliteConnection.ClearPool(pool);
-        }
-
         // Best-effort cleanup of the temporary data store; a locked file must not fail the test run.
-        try { File.Delete(_databasePath); } catch (IOException) { }
+        TestTemp.DeleteDatabase(_databasePath);
     }
 }

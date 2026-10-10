@@ -1,6 +1,7 @@
 using Dapper;
 using MediaEngine.Domain.Enums;
 using MediaEngine.Storage;
+using MediaEngine.TestSupport;
 
 namespace MediaEngine.Storage.Tests;
 
@@ -151,7 +152,6 @@ public sealed class ProfileStateRepositoryTests : IDisposable
     public void Dispose()
     {
         _database.Dispose();
-        try { File.Delete(_databasePath); }
-        catch (IOException) { }
+        TestTemp.DeleteDatabase(_databasePath);
     }
 }

@@ -1,6 +1,7 @@
 using MediaEngine.Domain.Configuration;
 using MediaEngine.Storage;
 using MediaEngine.Storage.Configuration;
+using MediaEngine.TestSupport;
 
 namespace MediaEngine.Storage.Tests;
 
@@ -708,7 +709,7 @@ public sealed class ConfigurationDirectoryLoaderValidationTests
         {
             if (Directory.Exists(Path))
             {
-                Directory.Delete(Path, recursive: true);
+                TestTemp.DeleteDirectory(Path);
             }
         }
     }

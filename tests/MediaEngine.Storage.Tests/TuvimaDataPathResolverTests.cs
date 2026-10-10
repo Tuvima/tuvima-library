@@ -1,4 +1,5 @@
 using System.Text.Json;
+using MediaEngine.TestSupport;
 
 namespace MediaEngine.Storage.Tests;
 
@@ -64,7 +65,7 @@ public sealed class TuvimaDataPathResolverTests : IDisposable
     {
         if (Directory.Exists(_configDirectory))
         {
-            Directory.Delete(_configDirectory, recursive: true);
+            TestTemp.DeleteDirectory(_configDirectory);
         }
     }
 

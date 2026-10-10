@@ -1,5 +1,6 @@
 using Dapper;
 using MediaEngine.Storage;
+using MediaEngine.TestSupport;
 using Microsoft.Data.Sqlite;
 
 namespace MediaEngine.Storage.Tests;
@@ -155,12 +156,7 @@ public sealed class MetadataEditorRepositoryTests : IDisposable
     public void Dispose()
     {
         _database.Dispose();
-        using (var pool = new SqliteConnection($"Data Source={_databasePath}"))
-        {
-            SqliteConnection.ClearPool(pool);
-        }
-
-        File.Delete(_databasePath);
+        TestTemp.DeleteDatabase(_databasePath);
     }
 
     private sealed record SeededHierarchy(

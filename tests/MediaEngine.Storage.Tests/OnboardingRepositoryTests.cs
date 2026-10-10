@@ -1,4 +1,5 @@
 using MediaEngine.Storage;
+using MediaEngine.TestSupport;
 
 namespace MediaEngine.Storage.Tests;
 
@@ -74,14 +75,6 @@ public sealed class OnboardingRepositoryTests : IDisposable
     public void Dispose()
     {
         _database.Dispose();
-        using (var pool = new Microsoft.Data.Sqlite.SqliteConnection($"Data Source={_databasePath}"))
-        {
-            Microsoft.Data.Sqlite.SqliteConnection.ClearPool(pool);
-        }
-
-        if (File.Exists(_databasePath))
-        {
-            File.Delete(_databasePath);
-        }
+        TestTemp.DeleteDatabase(_databasePath);
     }
 }

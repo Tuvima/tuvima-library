@@ -1,5 +1,6 @@
 using MediaEngine.Domain.Entities;
 using MediaEngine.Domain.Models;
+using MediaEngine.TestSupport;
 using Microsoft.Data.Sqlite;
 
 namespace MediaEngine.Storage.Tests;
@@ -86,12 +87,7 @@ public sealed class ApplicationWebhookRepositoryTests : IDisposable
 
     public void Dispose()
     {
-        using (var connection = _database.CreateConnection())
-        {
-            SqliteConnection.ClearPool(connection);
-        }
-
         _database.Dispose();
-        File.Delete(_path);
+        TestTemp.DeleteDatabase(_path);
     }
 }

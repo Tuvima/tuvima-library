@@ -3,6 +3,7 @@ using MediaEngine.Domain.Constants;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Entities;
 using MediaEngine.Storage;
+using MediaEngine.TestSupport;
 
 namespace MediaEngine.Storage.Tests;
 
@@ -229,9 +230,7 @@ public sealed class UniverseGraphBatchRepositoryTests : IDisposable
     public void Dispose()
     {
         _db.Dispose();
-        TryDelete(_dbPath);
-        TryDelete($"{_dbPath}-wal");
-        TryDelete($"{_dbPath}-shm");
+        TestTemp.DeleteDatabase(_dbPath);
     }
 
     private static EntityRelationship Edge(string subject, string target, string type) => new()
@@ -243,16 +242,4 @@ public sealed class UniverseGraphBatchRepositoryTests : IDisposable
         Confidence = 0.9,
         DiscoveredAt = DateTimeOffset.UtcNow,
     };
-
-    private static void TryDelete(string path)
-    {
-        try
-        {
-            File.Delete(path);
-        }
-        catch (IOException)
-        {
-            // SQLite pool cleanup can briefly retain a test file on Windows.
-        }
-    }
 }

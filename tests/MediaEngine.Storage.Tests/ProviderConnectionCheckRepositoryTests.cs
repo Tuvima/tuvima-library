@@ -1,4 +1,5 @@
 using MediaEngine.Domain.Contracts;
+using MediaEngine.TestSupport;
 
 namespace MediaEngine.Storage.Tests;
 
@@ -39,6 +40,6 @@ public sealed class ProviderConnectionCheckRepositoryTests : IDisposable
     public void Dispose()
     {
         _database.Dispose();
-        try { File.Delete(_path); } catch (IOException) { }
+        TestTemp.DeleteDatabase(_path);
     }
 }

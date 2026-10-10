@@ -1,6 +1,7 @@
 using Dapper;
 using MediaEngine.Domain.Authorization;
 using MediaEngine.Domain.Entities;
+using MediaEngine.TestSupport;
 using Microsoft.Data.Sqlite;
 
 namespace MediaEngine.Storage.Tests;
@@ -22,15 +23,8 @@ public sealed class ApplicationRepositoryTests : IDisposable
 
     public void Dispose()
     {
-        try { _database.Dispose(); } catch { }
-        using (var pool = new SqliteConnection($"Data Source={_databasePath}"))
-        {
-            SqliteConnection.ClearPool(pool);
-        }
-
-        TryDelete(_databasePath);
-        TryDelete($"{_databasePath}-wal");
-        TryDelete($"{_databasePath}-shm");
+        _database.Dispose();
+        TestTemp.DeleteDatabase(_databasePath);
     }
 
     [Fact]
@@ -255,19 +249,4 @@ public sealed class ApplicationRepositoryTests : IDisposable
 
     private static IReadOnlySet<ApplicationPermissionId> Set(params ApplicationPermissionId[] permissions) =>
         permissions.ToHashSet();
-
-    private static void TryDelete(string path)
-    {
-        try
-        {
-            if (File.Exists(path))
-            {
-                File.Delete(path);
-            }
-        }
-        catch
-        {
-            // Cleanup is best effort and must not hide assertion failures.
-        }
-    }
 }

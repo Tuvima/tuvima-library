@@ -2,6 +2,7 @@ using Dapper;
 using MediaEngine.Domain.Authorization;
 using MediaEngine.Domain.Playback;
 using MediaEngine.Storage.Playback;
+using MediaEngine.TestSupport;
 using Microsoft.Data.Sqlite;
 
 namespace MediaEngine.Storage.Tests;
@@ -209,14 +210,7 @@ public sealed class PlaybackTelemetryRepositoryTests : IDisposable
     public void Dispose()
     {
         _database.Dispose();
-        SqliteConnection.ClearAllPools();
-        foreach (var suffix in new[] { "", "-wal", "-shm" })
-        {
-            if (File.Exists(_path + suffix))
-            {
-                File.Delete(_path + suffix);
-            }
-        }
+        TestTemp.DeleteDatabase(_path);
     }
 
     private sealed record SeededIdentity(

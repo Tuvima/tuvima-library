@@ -1,5 +1,6 @@
 using Dapper;
 using MediaEngine.Storage;
+using MediaEngine.TestSupport;
 
 namespace MediaEngine.Storage.Tests;
 
@@ -38,7 +39,7 @@ public sealed class MediaEditorWorkVersionReadRepositoryTests
             Assert.Null(result.Editions.Single(item => item.EditionId == secondEditionId).Label);
             Assert.Equal("PDF", result.Editions.Single(item => item.EditionId == secondEditionId).Assets.Single().TechnicalLabel);
         }
-        finally { try { File.Delete(path); } catch { } }
+        finally { TestTemp.DeleteDatabase(path); }
     }
 
     [Fact]
@@ -67,6 +68,6 @@ public sealed class MediaEditorWorkVersionReadRepositoryTests
             Assert.Equal("MKV", Assert.Single(edition.Assets).TechnicalLabel);
             Assert.DoesNotContain("cut", edition.Label, StringComparison.OrdinalIgnoreCase);
         }
-        finally { try { File.Delete(path); } catch { } }
+        finally { TestTemp.DeleteDatabase(path); }
     }
 }

@@ -8,6 +8,7 @@ using MediaEngine.Domain.Enums;
 using MediaEngine.Domain.Jobs;
 using MediaEngine.Domain.Models;
 using MediaEngine.Storage.Services;
+using MediaEngine.TestSupport;
 using Microsoft.Data.Sqlite;
 
 namespace MediaEngine.Storage.Tests;
@@ -31,8 +32,8 @@ public sealed class RepositoryTests : IDisposable
 
     public void Dispose()
     {
-        try { _db.Dispose(); } catch { }
-        try { File.Delete(_dbPath); } catch { }
+        _db.Dispose();
+        TestTemp.DeleteDatabase(_dbPath);
     }
 
     // ════════════════════════════════════════════════════════════════════════
@@ -715,7 +716,7 @@ public sealed class RepositoryTests : IDisposable
         }
         finally
         {
-            try { Directory.Delete(directory, recursive: true); } catch { /* temp cleanup is best-effort */ }
+            TestTemp.DeleteDirectory(directory);
         }
     }
 

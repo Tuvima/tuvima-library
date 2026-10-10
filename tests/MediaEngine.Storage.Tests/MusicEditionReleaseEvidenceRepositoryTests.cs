@@ -1,6 +1,7 @@
 using System.Text.Json;
 using Dapper;
 using MediaEngine.Domain;
+using MediaEngine.TestSupport;
 
 namespace MediaEngine.Storage.Tests;
 
@@ -217,6 +218,6 @@ public sealed class MusicEditionReleaseEvidenceRepositoryTests : IDisposable
     public void Dispose()
     {
         _database.Dispose();
-        try { File.Delete(_path); } catch { }
+        TestTemp.DeleteDatabase(_path);
     }
 }

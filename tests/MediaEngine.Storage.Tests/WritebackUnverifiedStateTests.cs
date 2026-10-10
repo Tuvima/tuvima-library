@@ -3,6 +3,7 @@ using MediaEngine.Domain.Aggregates;
 using MediaEngine.Domain.Entities;
 using MediaEngine.Domain.Enums;
 using MediaEngine.Storage.Services;
+using MediaEngine.TestSupport;
 
 namespace MediaEngine.Storage.Tests;
 
@@ -81,7 +82,7 @@ public sealed class WritebackUnverifiedStateTests
         }
         finally
         {
-            try { File.Delete(dbPath); } catch { }
+            TestTemp.DeleteDatabase(dbPath);
         }
     }
 }

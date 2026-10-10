@@ -2,6 +2,8 @@
 using System.Diagnostics;
 using System.Reflection;
 using System.Runtime.CompilerServices;
+using Xunit.Abstractions;
+using Xunit.Sdk;
 
 namespace MediaEngine.TestSupport;
 
@@ -36,6 +38,9 @@ internal static class TestTemp
             Environment.SetEnvironmentVariable("TEMP", RunRoot);
             Environment.SetEnvironmentVariable("TMPDIR", RunRoot);
             AppDomain.CurrentDomain.ProcessExit += static (_, _) => CleanupRun();
+            System.Runtime.Loader.AssemblyLoadContext.Default.Unloading += static _ => CleanupRun();
+            // A start line with no matching "cleaned"/"LEFT" line means the host was killed before exit hooks ran.
+            AppendLog($"{DateTime.UtcNow:O} pid {Environment.ProcessId} started {RunRoot}");
         }
         catch (Exception exception)
         {
@@ -114,23 +119,42 @@ internal static class TestTemp
         }
     }
 
-    private static void CleanupRun()
+    private static int _cleanedUp;
+
+    internal static void CleanupRun()
     {
-        if (RunRoot.Length == 0)
+        if (RunRoot.Length == 0 || Interlocked.Exchange(ref _cleanedUp, 1) == 1)
         {
             return;
         }
 
-        DeleteDirectory(RunRoot);
+        var outcome = "cleanup threw before finishing";
+        try
+        {
+            // Progress lines locate a hang or kill inside the cleanup (a "cleanup begin" without a later outcome).
+            AppendLog($"{DateTime.UtcNow:O} pid {Environment.ProcessId} cleanup begin");
+            ReleaseSqlitePools();
+            AppendLog($"{DateTime.UtcNow:O} pid {Environment.ProcessId} pools released");
+            DeleteDirectory(RunRoot);
 
-        // The test host's console is often gone at exit, so leave a one-line trace beside the run folders.
-        // A folder that survives here is deleted by the next test process's sweep once its file handles are gone.
-        var remaining = Directory.Exists(RunRoot)
-            ? Directory.EnumerateFiles(RunRoot, "*", SearchOption.AllDirectories).Take(3).ToList()
-            : new List<string>();
-        AppendLog(remaining.Count == 0
-            ? $"{DateTime.UtcNow:O} pid {Environment.ProcessId} cleaned {RunRoot}"
-            : $"{DateTime.UtcNow:O} pid {Environment.ProcessId} LEFT {RunRoot} (e.g. {string.Join("; ", remaining)})");
+            // The test host's console is often gone at exit, so leave a one-line trace beside the run folders.
+            // A folder that survives here is deleted by the next test process's sweep once its file handles are gone.
+            var remaining = Directory.Exists(RunRoot)
+                ? Directory.EnumerateFiles(RunRoot, "*", SearchOption.AllDirectories).Take(3).ToList()
+                : new List<string>();
+            outcome = remaining.Count == 0
+                ? "cleaned"
+                : $"LEFT (e.g. {string.Join("; ", remaining)})";
+        }
+        catch (Exception exception)
+        {
+            // Exit hooks must never throw; the outcome is recorded in cleanup.log instead.
+            outcome = $"LEFT (cleanup failed: {exception.Message})";
+        }
+        finally
+        {
+            AppendLog($"{DateTime.UtcNow:O} pid {Environment.ProcessId} {outcome} {RunRoot}");
+        }
     }
 
     private static void AppendLog(string line)
@@ -200,5 +224,24 @@ internal static class TestTemp
 
         // Report instead of swallowing: a leftover file is a leak someone should see.
         Console.Error.WriteLine($"[TestTemp] Could not delete '{path}': {last?.Message}");
+    }
+}
+
+/// <summary>
+/// xUnit test framework (registered per assembly by tests/Directory.Build.props) whose disposal runs the run-folder
+/// cleanup once all tests finish. Test hosts are often terminated before <c>ProcessExit</c> handlers complete, so the
+/// cleanup must not depend on process exit; the exit hooks in <see cref="TestTemp"/> stay as a backstop.
+/// </summary>
+public sealed class TestTempFramework : XunitTestFramework
+{
+    public TestTempFramework(IMessageSink messageSink)
+        : base(messageSink)
+    {
+        DisposalTracker.Add(new CleanupOnDispose());
+    }
+
+    private sealed class CleanupOnDispose : IDisposable
+    {
+        public void Dispose() => TestTemp.CleanupRun();
     }
 }

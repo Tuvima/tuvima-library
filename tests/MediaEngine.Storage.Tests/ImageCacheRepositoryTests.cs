@@ -1,4 +1,5 @@
 using MediaEngine.Storage;
+using MediaEngine.TestSupport;
 
 namespace MediaEngine.Storage.Tests;
 
@@ -18,8 +19,8 @@ public sealed class ImageCacheRepositoryTests : IDisposable
 
     public void Dispose()
     {
-        try { _database.Dispose(); } catch { }
-        try { Directory.Delete(_tempRoot, recursive: true); } catch { }
+        _database.Dispose();
+        TestTemp.DeleteDirectory(_tempRoot);
     }
 
     [Fact]
