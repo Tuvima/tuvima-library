@@ -27,13 +27,24 @@ public sealed class SavedItemService(IEngineApiClient apiClient, DashboardSessio
             if (_cachedList is null || _cachedList.IsFaulted || _cachedList.IsCanceled || _cachedProfileId != profileId)
             {
                 _cachedProfileId = profileId;
-                _cachedList = apiClient.GetSavedItemsAsync(CancellationToken.None);
+                _cachedList = LoadListAsync();
             }
 
             list = _cachedList;
         }
 
         return list.WaitAsync(ct);
+    }
+
+    // The API client turns a failed or timed-out call into an empty list. Caching that would show
+    // "nothing saved" for the whole circuit (and make Add to My List remove a saved item), so a result
+    // that came back with an error is dropped from the cache and refetched on the next ask.
+    private async Task<IReadOnlyList<ProfileSavedItemDto>> LoadListAsync()
+    {
+        var result = await apiClient.GetSavedItemsAsync(CancellationToken.None);
+        if (apiClient.LastError is not null)
+            InvalidateList();
+        return result;
     }
 
     private void InvalidateList()

@@ -642,25 +642,43 @@
     // Supersedable token for the people list: a newer filter or page request cancels the older one.
     private CancellationTokenSource? _peopleCts;
 
-    private CancellationToken BeginPeopleRequest()
+    // The initial/full load has its own token so a people-only reload never cancels it
+    // (which would leave _loaded false and the page empty).
+    private CancellationTokenSource? _loadCts;
+
+    private CancellationTokenSource BeginPeopleRequest()
     {
         var previous = _peopleCts;
-        _peopleCts = CancellationTokenSource.CreateLinkedTokenSource(_pageCts.Token);
+        var next = CancellationTokenSource.CreateLinkedTokenSource(_pageCts.Token);
+        _peopleCts = next;
         previous?.Cancel();
         previous?.Dispose();
-        return _peopleCts.Token;
+        return next;
+    }
+
+    private CancellationTokenSource BeginLoadRequest()
+    {
+        var previous = _loadCts;
+        var next = CancellationTokenSource.CreateLinkedTokenSource(_pageCts.Token);
+        _loadCts = next;
+        previous?.Cancel();
+        previous?.Dispose();
+        return next;
     }
 
     public void Dispose()
     {
         _pageCts.Cancel();
         _peopleCts?.Dispose();
+        _loadCts?.Dispose();
         _pageCts.Dispose();
     }
 
     private async Task LoadAsync()
     {
-        var ct = BeginPeopleRequest();
+        var cts = BeginLoadRequest();
+        var ct = cts.Token;
+        _peopleCts?.Cancel();
         _loading = true;
         _loadFailed = false;
         _loadError = null;
@@ -709,7 +727,9 @@
         }
         finally
         {
-            _loading = false;
+            // A superseded load must not clear the flag for the newer one.
+            if (ReferenceEquals(_loadCts, cts))
+                _loading = false;
         }
     }
 
@@ -765,7 +785,8 @@
             return;
 
         _loadingMorePeople = true;
-        var ct = BeginPeopleRequest();
+        var cts = BeginPeopleRequest();
+        var ct = cts.Token;
         try
         {
             var next = await ApiClient.GetPersonsPageAsync(
@@ -782,7 +803,9 @@
         }
         finally
         {
-            _loadingMorePeople = false;
+            // A superseded request must not clear the flag for the newer one.
+            if (ReferenceEquals(_peopleCts, cts))
+                _loadingMorePeople = false;
         }
     }
 
@@ -993,7 +1016,8 @@
     private async Task ReloadPeopleForFiltersAsync()
     {
         _loadingMorePeople = true;
-        var ct = BeginPeopleRequest();
+        var cts = BeginPeopleRequest();
+        var ct = cts.Token;
         try
         {
             _people.Clear();
@@ -1014,7 +1038,9 @@
         }
         finally
         {
-            _loadingMorePeople = false;
+            // A superseded request must not clear the flag for the newer one.
+            if (ReferenceEquals(_peopleCts, cts))
+                _loadingMorePeople = false;
         }
     }
 

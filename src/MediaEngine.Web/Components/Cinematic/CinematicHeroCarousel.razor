@@ -641,12 +641,16 @@
                 DetailEntityType.MusicAlbum => ("listened", "unlistened"),
                 _ => ("watched", "unwatched"),
             };
-            var noun = type == DetailEntityType.TvShow ? "episodes" : type == DetailEntityType.MusicAlbum ? "tracks" : "titles";
-            var wholeSet = type is DetailEntityType.TvShow or DetailEntityType.MusicAlbum;
+            var noun = type is DetailEntityType.TvShow or DetailEntityType.TvSeason ? "episodes" : type == DetailEntityType.MusicAlbum ? "tracks" : "titles";
+            var wholeSet = type is DetailEntityType.TvShow or DetailEntityType.TvSeason or DetailEntityType.MusicAlbum
+                or DetailEntityType.BookSeries or DetailEntityType.MovieSeries or DetailEntityType.ComicSeries;
             string Scope(string word) => wholeSet ? $"owned {noun} as {word} ({status.OwnedCount})" : $"as {word}";
             if (status.CompletedCount < status.OwnedCount) actions.Add(new() { Key = "status-complete", Label = "Mark " + Scope(done), Icon = "check" });
             if (status.StartedCount > 0) actions.Add(new() { Key = "status-reset", Label = "Mark " + Scope(undone), Icon = "restart_alt" });
             if (status.StartedCount > status.CompletedCount || status.Hidden) actions.Add(new() { Key = status.Hidden ? "status-show" : "status-hide", Label = status.Hidden ? "Show in Continue" : "Hide from Continue", Icon = "visibility" });
+            var history = type is DetailEntityType.Book or DetailEntityType.ComicIssue or DetailEntityType.BookSeries or DetailEntityType.ComicSeries ? "Reading history" : type is DetailEntityType.Audiobook or DetailEntityType.MusicAlbum ? "Listening history" : "Viewing history";
+            // The hero has no history dialog; the status handler sends unknown status-* keys to the details page, which has it.
+            actions.Add(new() { Key = "status-history", Label = history, Icon = "history" });
         }
         actions.Add(new() { Key = "copy-link", Label = "Copy library link", Icon = "link" });
         return actions;

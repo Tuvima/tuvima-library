@@ -991,7 +991,9 @@ else
 
         var preference = await ApiClient.GetSeriesMissingItemPreferenceAsync(profileId, mediaType!, containerKey!);
         var value = preference?.ShowMissing;
-        _seriesPreferenceCache[cacheKey] = value;
+        // A failed call returns null; caching it would look like "no override" for this panel's lifetime.
+        if (preference is not null)
+            _seriesPreferenceCache[cacheKey] = value;
         return value;
     }
 
