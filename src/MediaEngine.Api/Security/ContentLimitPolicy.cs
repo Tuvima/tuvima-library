@@ -7,8 +7,8 @@ namespace MediaEngine.Api.Security;
 
 /// <summary>
 /// What one request's profile may see: its content limit turned into a yes/no for a rating. A profile with no limit
-/// (and any request that has no profile, such as a service application) gets <see cref="Unrestricted"/>, which never
-/// reads a rating.
+/// (and a service application, which acts for no person) gets <see cref="Unrestricted"/>, which never reads a rating.
+/// A person's request that has no usable profile gets the strictest limit instead (fail closed).
 /// </summary>
 internal sealed class ContentLimitFilter(ProfileContentLimit limit)
 {
@@ -28,11 +28,19 @@ internal sealed class ContentLimitPolicy(IProfileContentLimitRepository limits)
 {
     private readonly ConcurrentDictionary<Guid, Task<ContentLimitFilter>> _byProfile = new();
 
-    public Task<ContentLimitFilter> ForAsync(RequestAuthority authority) =>
-        authority.PrincipalKind is PrincipalKind.Human or PrincipalKind.DelegatedUserClient &&
-        authority.ActiveProfileId is { } profileId && profileId != Guid.Empty
+    private static readonly ContentLimitFilter Strictest = new(ProfileContentLimit.Strictest);
+
+    public Task<ContentLimitFilter> ForAsync(RequestAuthority authority)
+    {
+        if (authority.PrincipalKind is not (PrincipalKind.Human or PrincipalKind.DelegatedUserClient))
+        {
+            return Task.FromResult(ContentLimitFilter.Unrestricted);
+        }
+
+        return authority.ActiveProfileId is { } profileId && profileId != Guid.Empty
             ? _byProfile.GetOrAdd(profileId, id => LoadAsync(id))
-            : Task.FromResult(ContentLimitFilter.Unrestricted);
+            : Task.FromResult(Strictest);
+    }
 
     // Not tied to one caller's cancellation: the answer is cached for the rest of the request.
     private async Task<ContentLimitFilter> LoadAsync(Guid profileId)
@@ -48,11 +56,13 @@ internal static class ContentRatingSql
     /// <summary>
     /// A scalar expression for the rating of a work, given the SQL for its own id, its root work's id (the show for an
     /// episode, the work itself otherwise) and its media asset's id. Only built for profiles that have a limit.
+    /// When an item carries both a rating and a certification, both come back ("PG|R") and the higher rank counts.
+    /// Each lookup is an index seek on (entity_id, key), and the later levels only run when the earlier ones are empty.
     /// </summary>
     public static string Expression(string work, string root, string asset)
     {
         static string One(string id) =>
-            $"(SELECT NULLIF(TRIM(value), '') FROM canonical_values WHERE entity_id = {id} AND key IN ('content_rating', 'certification') LIMIT 1)";
+            $"(SELECT GROUP_CONCAT(NULLIF(TRIM(value), ''), '|') FROM canonical_values WHERE entity_id = {id} AND key IN ('content_rating', 'certification'))";
         return $"COALESCE({One(work)}, {One(root)}, {One(asset)})";
     }
 }

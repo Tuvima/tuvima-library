@@ -327,6 +327,58 @@ public sealed class AuthorizedDisplayProjectionReadServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task ContentLimitUsesTheStrictestOfRatingAndCertification()
+    {
+        var accountId = Guid.NewGuid();
+        var library = Guid.NewGuid();
+        await CreateHumanAsync(accountId,
+            new HashSet<AccountFeatureId> { AccountFeatureId.Watch },
+            new HashSet<Guid> { library });
+        var mixed = await InsertOwnedWorkWithIdAsync(library, "Mixed ratings", "Movie");
+        using (var connection = _database.CreateConnection())
+        {
+            connection.Execute("""
+                INSERT INTO canonical_values (entity_id, key, value, last_scored_at)
+                VALUES (@id, 'content_rating', 'PG', CURRENT_TIMESTAMP),
+                       (@id, 'certification', 'R', CURRENT_TIMESTAMP);
+                """, new { id = mixed.WorkId });
+        }
+
+        var profile = MediaEngine.Domain.Aggregates.Profile.SeedProfileId;
+        var context = HumanContext(accountId, profile);
+        SetContentLimit("PG-13");
+        Assert.Empty(await CreateService(context, new StubRawProjection([], [])).LoadAuthorizedAssetsAsync(CancellationToken.None));
+        SetContentLimit("R");
+        Assert.Single(await CreateService(context, new StubRawProjection([], [])).LoadAuthorizedAssetsAsync(CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task ContentLimitFailsClosedWhenTheProfileIsMissingOrDeleted()
+    {
+        var accountId = Guid.NewGuid();
+        var library = Guid.NewGuid();
+        await CreateHumanAsync(accountId,
+            new HashSet<AccountFeatureId> { AccountFeatureId.Watch },
+            new HashSet<Guid> { library });
+        var adult = await InsertOwnedWorkWithIdAsync(library, "Adult film", "Movie");
+        using (var connection = _database.CreateConnection())
+        {
+            connection.Execute(
+                "INSERT INTO canonical_values (entity_id, key, value, last_scored_at) VALUES (@id, 'content_rating', 'R', CURRENT_TIMESTAMP)",
+                new { id = adult.WorkId });
+        }
+
+        foreach (var profile in new Guid[] { Guid.NewGuid(), Guid.Empty })
+        {
+            var context = HumanContext(accountId, profile);
+            Assert.DoesNotContain(adult.AssetId,
+                (await CreateService(context, new StubRawProjection([], [])).LoadAuthorizedAssetsAsync(CancellationToken.None)).Select(row => row.AssetId));
+            Assert.NotEqual(CatalogueResourceAccess.Allowed,
+                await CreateResourceService(context).EvaluateAssetAsync(context, adult.AssetId, ApplicationPermissionIds.PlaybackRead));
+        }
+    }
+
+    [Fact]
     public async Task DirectAssetAuthorizationIntersectsFeatureAndLibrary()
     {
         var accountId = Guid.NewGuid();

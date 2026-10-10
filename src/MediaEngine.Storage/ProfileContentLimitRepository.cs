@@ -18,7 +18,7 @@ public sealed class ProfileContentLimitRepository(IDatabaseConnection database) 
             """,
             new { profileId });
         return Task.FromResult(row is null
-            ? ProfileContentLimit.Unrestricted
+            ? ProfileContentLimit.Strictest
             : new ProfileContentLimit(row.ContentLimit, row.AllowUnrated));
     }
 

@@ -65,7 +65,7 @@ public sealed class ProfileRepositoryInvariantTests : IDisposable
 
         var stored = await limits.GetAsync(Profile.SeedProfileId);
         Assert.Equal(new MediaEngine.Domain.Contracts.ProfileContentLimit("PG-13", true), stored);
-        Assert.Equal(MediaEngine.Domain.Contracts.ProfileContentLimit.Unrestricted, await limits.GetAsync(Guid.NewGuid()));
+        Assert.Equal(MediaEngine.Domain.Contracts.ProfileContentLimit.Strictest, await limits.GetAsync(Guid.NewGuid()));
     }
 
     [Fact]

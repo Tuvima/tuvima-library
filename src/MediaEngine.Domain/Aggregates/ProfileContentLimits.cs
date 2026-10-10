@@ -63,12 +63,39 @@ public static class ProfileContentLimits
             return null;
         }
 
-        var key = rating.Trim().ToUpperInvariant().Replace('_', '-').Replace(' ', '-');
-        foreach (var prefix in new[] { "US:", "US/", "RATED-" })
+        // Several values for one item ("PG|R") count as the strictest one that is understood.
+        if (rating.Contains('|', StringComparison.Ordinal))
         {
-            if (key.StartsWith(prefix, StringComparison.Ordinal))
+            int? strictest = null;
+            foreach (var part in rating.Split('|'))
             {
-                key = key[prefix.Length..];
+                if (RankOfRating(part) is { } partRank && (strictest is null || partRank > strictest))
+                {
+                    strictest = partRank;
+                }
+            }
+
+            return strictest;
+        }
+
+        var key = rating.Trim().ToUpperInvariant().Replace('_', '-').Replace(' ', '-');
+        // "RATED-R", a country prefix ("US:", "DE/", "GB:") or a board prefix ("FSK-12", "PEGI-16") before the value.
+        if (key.StartsWith("RATED-", StringComparison.Ordinal))
+        {
+            key = key["RATED-".Length..];
+        }
+
+        if (key.Length > 3 && char.IsAsciiLetterUpper(key[0]) && char.IsAsciiLetterUpper(key[1]) && key[2] is ':' or '/')
+        {
+            key = key[3..];
+        }
+
+        foreach (var prefix in new[] { "FSK-", "PEGI-", "FSK", "PEGI" })
+        {
+            if (key.StartsWith(prefix, StringComparison.Ordinal) && key.Length > prefix.Length)
+            {
+                key = key[prefix.Length..].TrimStart('-');
+                break;
             }
         }
 

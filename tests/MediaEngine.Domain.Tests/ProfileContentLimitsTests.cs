@@ -47,6 +47,16 @@ public sealed class ProfileContentLimitsTests
     [InlineData("18", 5)]
     [InlineData("7+", 2)]
     [InlineData("0", 1)]
+    [InlineData("FSK-12", 3)]
+    [InlineData("FSK 16", 4)]
+    [InlineData("DE:16", 4)]
+    [InlineData("GB:15", 4)]
+    [InlineData("GB:PG", 2)]
+    [InlineData("DE/6", 1)]
+    [InlineData("PEGI-18", 5)]
+    [InlineData("PG|R", 4)]
+    [InlineData("R|PG", 4)]
+    [InlineData("|PG", 2)]
     public void RankOfRating_PlacesEveryVocabularyOnOneLadder(string rating, int expected) =>
         Assert.Equal(expected, ProfileContentLimits.RankOfRating(rating));
 

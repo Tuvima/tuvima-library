@@ -6,6 +6,9 @@ public sealed record ProfileContentLimit(string? Limit, bool AllowUnrated)
     /// <summary>No limit: nothing is filtered and no rating needs to be read.</summary>
     public static readonly ProfileContentLimit Unrestricted = new(null, false);
 
+    /// <summary>The most protective limit (G, unrated hidden), used when a profile cannot be found.</summary>
+    public static readonly ProfileContentLimit Strictest = new("G", false);
+
     public bool IsUnrestricted => Limit is null;
 }
 
@@ -13,8 +16,8 @@ public sealed record ProfileContentLimit(string? Limit, bool AllowUnrated)
 public interface IProfileContentLimitRepository
 {
     /// <summary>
-    /// The profile's limit. A profile that does not exist gets no limit: a request can only act as a profile that
-    /// passed authentication, so there is nobody to protect.
+    /// The profile's limit. A profile that cannot be found gets <see cref="ProfileContentLimit.Strictest"/>: a
+    /// session that lost its profile (or acts for a deleted one) must never see more than a child would.
     /// </summary>
     Task<ProfileContentLimit> GetAsync(Guid profileId, CancellationToken ct = default);
 }
