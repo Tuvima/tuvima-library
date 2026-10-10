@@ -412,7 +412,12 @@ public sealed class MediaEditorFileCoverageRepositoryTests : IDisposable
             VALUES (@workId, @collectionId, @mediaType, @kind, @parentId, @ordinal, @ordinal, @isCatalogOnly, @ownership);
             """, new
         {
-            workId, collectionId, mediaType, kind, parentId, ordinal,
+            workId,
+            collectionId,
+            mediaType,
+            kind,
+            parentId,
+            ordinal,
             isCatalogOnly = catalog ? 1 : 0,
             ownership = catalog ? "Unowned" : "Owned",
         });
