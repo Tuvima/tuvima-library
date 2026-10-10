@@ -32,6 +32,10 @@
       "permit_limit": 100,
       "window_minutes": 1
     },
+    "reader_files": {
+      "permit_limit": 600,
+      "window_minutes": 1
+    },
     "general": {
       "permit_limit": 600,
       "window_minutes": 1

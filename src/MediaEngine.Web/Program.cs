@@ -513,6 +513,7 @@ app.MapMethods("/engine-image/{**enginePath}", [HttpMethods.Get, HttpMethods.Hea
     .WithSummary("Proxies authenticated Engine artwork through the Dashboard origin.")
     .RequireAuthorization();
 
+app.MapEngineBookProxy();
 app.MapViewMediaProxy();
 
 app.MapDashboardAuthenticationEndpoints(registeredExternalProviders);
