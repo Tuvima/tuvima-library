@@ -3838,10 +3838,20 @@ input[type="reset"],
 .compact-continue__item:is(:hover,:focus-visible) .app-progress-bar__track { height:6px; }
 .compact-continue__item:is(:hover,:focus-visible) .app-progress-bar__fill { background:var(--tl-accent-primary-hover); }
 
-/* "Who's using Tuvima?" controls. The page renders them through shared native controls, so their roots are styled here. */
-.who-card { display: grid; justify-items: center; align-content: start; gap: 10px; width: clamp(110px, 22vw, 190px); padding: 12px; color: var(--tl-text-primary); border: 2px solid transparent; border-radius: 14px; background: transparent; font: inherit; cursor: pointer; transition: border-color 140ms ease, background-color 140ms ease, transform 140ms ease; }
-.who-card:hover:not(:disabled), .who-card:focus-visible { border-color: var(--tl-accent-primary); background: color-mix(in srgb, var(--tl-bg-surface-elevated) 80%, transparent); outline: none; transform: translateY(-2px); }
+/* "Who's watching?" controls. The page renders them through shared native controls, so their roots are styled here. */
+.who-card { display: grid; justify-items: center; align-content: start; gap: 10px; width: 100%; padding: 12px; color: var(--tl-text-primary); border: 0; border-radius: 16px; background: transparent; font: inherit; cursor: pointer; transition: background-color 140ms ease, transform 140ms ease; }
+.who-card__picture { position: relative; display: block; width: 100%; max-width: 168px; aspect-ratio: 1; border-radius: 50%; transition: box-shadow 140ms ease; }
+.who-card:hover:not(:disabled), .who-card:focus-visible { background: color-mix(in srgb, var(--tl-bg-surface-elevated) 70%, transparent); outline: none; transform: scale(1.04); }
+.who-card:hover:not(:disabled) .who-card__picture, .who-card:focus-visible .who-card__picture { box-shadow: 0 0 0 4px var(--tl-accent-primary), 0 0 28px color-mix(in srgb, var(--tl-accent-primary) 55%, transparent); }
 .who-card:disabled { cursor: wait; opacity: .6; }
+.who-card--add:disabled { cursor: not-allowed; opacity: .5; }
+.who-card__picture--add { display: grid; place-items: center; color: var(--tl-text-muted); border: 2px dashed var(--tl-border-strong); box-sizing: border-box; }
+.who-card__picture--add svg { width: 40%; height: 40%; }
+.who-card__lock { position: absolute; right: 2%; bottom: 2%; display: grid; place-items: center; width: 28%; height: 28%; min-width: 24px; min-height: 24px; color: var(--tl-text-primary); border-radius: 50%; background: var(--tl-bg-surface-elevated); box-shadow: 0 0 0 2px var(--tl-bg-base); }
+.who-card__lock svg { width: 56%; height: 56%; }
+.who-card__name { max-width: 100%; font-size: 1.05rem; font-weight: 600; overflow-wrap: anywhere; }
+@media (prefers-reduced-motion: reduce) { .who-card { transition: none; } .who-card:hover:not(:disabled), .who-card:focus-visible { transform: none; } }
+@media (min-width: 1600px) { .who-card__picture { max-width: 220px; } .who-card__name { font-size: 1.35rem; } .who-button, .who-link { min-height: 56px; } }
 .who-check__box { width: 20px; height: 20px; accent-color: var(--tl-accent-primary); }
 .who-link { min-height: 44px; padding: 0 8px; color: var(--tl-accent-primary); border: 0; background: none; font: inherit; text-decoration: underline; cursor: pointer; }
 .who-button { min-height: 44px; padding: 0 20px; color: var(--tl-text-primary); border: 1px solid var(--tl-border-strong); border-radius: var(--tl-radius-md); background: transparent; font: inherit; font-weight: 600; cursor: pointer; }
@@ -3849,7 +3859,6 @@ input[type="reset"],
 .who-button:disabled { cursor: not-allowed; opacity: .55; }
 .who-dialog__input { box-sizing: border-box; width: 100%; min-height: 48px; padding: 0 14px; color: var(--tl-text-primary); border: 1px solid var(--tl-border-strong); border-radius: var(--tl-radius-md); background: var(--tl-bg-base); font: inherit; font-size: 1.2rem; letter-spacing: .3em; text-align: center; }
 .who-dialog__input:focus-visible { border-color: var(--tl-accent-primary); outline: none; box-shadow: 0 0 0 3px color-mix(in srgb, var(--tl-accent-primary) 25%, transparent); }
-@media (max-width: 640px) { .who-card { width: calc(50% - 14px); } }
 .invitation-qr {
     width: 11rem;
     max-width: 100%;

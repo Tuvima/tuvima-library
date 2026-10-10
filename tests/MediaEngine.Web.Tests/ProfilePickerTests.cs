@@ -2,7 +2,7 @@ using MediaEngine.Web.Services.Integration;
 
 namespace MediaEngine.Web.Tests;
 
-/// <summary>"Who's using Tuvima?": where sign-in sends a household, and what the picker page promises.</summary>
+/// <summary>"Who's watching?": where sign-in sends a household, and what the picker page promises.</summary>
 public sealed class ProfilePickerTests
 {
     private static readonly string RepoRoot = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", ".."));
@@ -47,10 +47,10 @@ public sealed class ProfilePickerTests
         var page = Read("src/MediaEngine.Web/Components/Pages/ProfilePickerPage.razor");
 
         Assert.Contains("@page \"/who\"", page, StringComparison.Ordinal);
-        Assert.Contains("Who's using Tuvima?", page, StringComparison.Ordinal);
+        Assert.Contains("Who's watching?", page, StringComparison.Ordinal);
         Assert.Contains("profile.HasPin", page, StringComparison.Ordinal);
         Assert.Contains("profile.IsRestricted", page, StringComparison.Ordinal);
-        Assert.Contains(">Child<", page, StringComparison.Ordinal);
+        Assert.Contains(">Kids<", page, StringComparison.Ordinal);
         Assert.Contains("Always open as this person on this device", page, StringComparison.Ordinal);
         Assert.Contains("Stop always opening as @preferred.DisplayName", page, StringComparison.Ordinal);
         Assert.Contains("Orchestrator.SetActiveProfileAsync(profile.Id, pin)", page, StringComparison.Ordinal);
