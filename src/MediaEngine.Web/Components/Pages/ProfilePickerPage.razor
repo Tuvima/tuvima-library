@@ -110,22 +110,18 @@
         <div class="who-backdrop">
             <div class="who-dialog" role="dialog" aria-modal="true" aria-labelledby="who-pin-title">
                 <h2 id="who-pin-title" class="who-dialog__title">Enter @_pending.DisplayName's PIN</h2>
-                <AppNativeInput Type="password"
-                                Class="who-dialog__input"
-                                Value="@_pin"
-                                ValueChanged="@(value => _pin = value?.ToString() ?? string.Empty)"
-                                OnKeyDown="OnPinKeyDownAsync"
-                                AriaLabel="Profile PIN"
-                                autocomplete="current-password"
-                                inputmode="numeric"
-                                autofocus="autofocus" />
+                <PinPad @bind-Value="_pin"
+                        Disabled="@_busy"
+                        ShakeCount="@_shake"
+                        OnSubmit="SubmitPinAsync"
+                        OnCancel="CancelPin" />
                 @if (!string.IsNullOrWhiteSpace(_error))
                 {
                     <p class="who-page__error" role="alert">@_error</p>
                 }
                 <div class="who-dialog__actions">
                     <AppNativeButton Type="button" Class="who-button" Disabled="@_busy" OnClick="CancelPin">Cancel</AppNativeButton>
-                    <AppNativeButton Type="button" Class="who-button who-button--primary" Disabled="@(_busy || string.IsNullOrWhiteSpace(_pin))" OnClick="SubmitPinAsync">
+                    <AppNativeButton Type="button" Class="who-button who-button--primary" Disabled="@(_busy || _pin.Length < 4)" OnClick="SubmitPinAsync">
                         @(_busy ? "Checking…" : "Continue")
                     </AppNativeButton>
                 </div>
@@ -148,6 +144,7 @@
     private bool _isAdministrator;
     private string _pin = string.Empty;
     private string? _error;
+    private int _shake;
 
     private string Destination => ProfilePickerRoute.SafeReturnUrl(ReturnUrl) ?? "/";
 
@@ -221,6 +218,7 @@
     {
         _pending = profile;
         _pin = string.Empty;
+        _shake = 0;
         _error = null;
     }
 
@@ -229,18 +227,6 @@
         _pending = null;
         _pin = string.Empty;
         _error = null;
-    }
-
-    private async Task OnPinKeyDownAsync(KeyboardEventArgs args)
-    {
-        if (args.Key == "Enter")
-        {
-            await SubmitPinAsync();
-        }
-        else if (args.Key == "Escape")
-        {
-            CancelPin();
-        }
     }
 
     private Task SubmitPinAsync() => _pending is { } profile && !string.IsNullOrWhiteSpace(_pin)
@@ -263,6 +249,11 @@
             if (!outcome.Succeeded)
             {
                 _pin = string.Empty;
+                if (outcome.Status == ProfileSwitchStatus.PinRequired && _pending is not null)
+                {
+                    _shake++;
+                }
+
                 _error = outcome.Status switch
                 {
                     ProfileSwitchStatus.PinRequired => _pending is null ? null : "That PIN didn't work. Try again.",

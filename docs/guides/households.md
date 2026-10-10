@@ -45,7 +45,7 @@ A server administrator can invite someone who is not part of an existing househo
 
 ## The profile picker
 
-When a household's sign-in is used, Tuvima shows the profile picker. Choose a person to open their profile. A profile with a PIN asks for it first.
+When a household's sign-in is used, Tuvima shows the profile picker. Choose a person to open their profile. A profile with a PIN opens a number pad: tap the digits (or type them on a keyboard or remote), then choose **Continue**. The dots shake if the PIN is wrong, and too many wrong tries pause further attempts for a minute.
 
 On a device that only one person uses, tick **Always open as this person on this device** to open straight to that profile. **Stop always opening as** undoes it.
 

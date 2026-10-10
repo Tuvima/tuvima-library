@@ -3870,6 +3870,25 @@ input[type="reset"],
 .who-button:disabled { cursor: not-allowed; opacity: .55; }
 .who-dialog__input { box-sizing: border-box; width: 100%; min-height: 48px; padding: 0 14px; color: var(--tl-text-primary); border: 1px solid var(--tl-border-strong); border-radius: var(--tl-radius-md); background: var(--tl-bg-base); font: inherit; font-size: 1.2rem; letter-spacing: .3em; text-align: center; }
 .who-dialog__input:focus-visible { border-color: var(--tl-accent-primary); outline: none; box-shadow: 0 0 0 3px color-mix(in srgb, var(--tl-accent-primary) 25%, transparent); }
+/* PIN number pad (PinPad.razor). Large touch targets, filling dots, and a shake on a wrong PIN. */
+.pin-pad { display: grid; justify-items: center; gap: 20px; outline: none; }
+.pin-pad__dots { display: flex; justify-content: center; gap: 14px; min-height: 20px; }
+.pin-pad__dot { width: 16px; height: 16px; box-sizing: border-box; border: 2px solid var(--tl-border-strong); border-radius: 50%; transition: background-color 120ms ease, border-color 120ms ease, transform 120ms ease; }
+.pin-pad__dot.is-filled { border-color: var(--tl-accent-primary); background: var(--tl-accent-primary); transform: scale(1.1); }
+.pin-pad__dots.is-wrong { animation: pin-shake 360ms ease-in-out; }
+.pin-pad__dots.is-wrong .pin-pad__dot { border-color: var(--tl-danger, #ff6b6b); }
+.pin-pad__keys { display: grid; grid-template-columns: repeat(3, 72px); gap: 12px; }
+.pin-pad__key { display: grid; place-items: center; width: 72px; height: 72px; padding: 0; color: var(--tl-text-primary); border: 1px solid var(--tl-border-subtle); border-radius: 50%; background: var(--tl-bg-base); font: inherit; font-size: 1.6rem; font-weight: 600; cursor: pointer; touch-action: manipulation; user-select: none; transition: background-color 120ms ease, transform 120ms ease, box-shadow 120ms ease; }
+.pin-pad__key svg { width: 28px; height: 28px; }
+.pin-pad__key:hover:not(:disabled) { background: color-mix(in srgb, var(--tl-accent-primary) 18%, var(--tl-bg-base)); }
+.pin-pad__key:active:not(:disabled) { transform: scale(.94); }
+.pin-pad__key:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--tl-accent-primary); }
+.pin-pad__key:disabled { cursor: not-allowed; opacity: .45; }
+.pin-pad__key--action { border-color: transparent; background: transparent; }
+@keyframes pin-shake { 0%, 100% { transform: translateX(0); } 20% { transform: translateX(-10px); } 40% { transform: translateX(9px); } 60% { transform: translateX(-6px); } 80% { transform: translateX(4px); } }
+@media (max-width: 360px) { .pin-pad__keys { grid-template-columns: repeat(3, 64px); gap: 10px; } .pin-pad__key { width: 64px; height: 64px; } }
+@media (min-width: 1600px) { .pin-pad__keys { grid-template-columns: repeat(3, 96px); gap: 16px; } .pin-pad__key { width: 96px; height: 96px; font-size: 2rem; } .pin-pad__dot { width: 20px; height: 20px; } }
+@media (prefers-reduced-motion: reduce) { .pin-pad__dots.is-wrong { animation: none; } .pin-pad__dot, .pin-pad__key { transition: none; } .pin-pad__key:active:not(:disabled) { transform: none; } }
 .invitation-qr {
     width: 11rem;
     max-width: 100%;
