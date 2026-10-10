@@ -217,6 +217,7 @@ internal sealed partial class DetailCompositionOrchestrator
             ? MergeMusicAlbumManifestTracks(ownedWorks, values, row.CoverUrl)
             : ownedWorks;
 
+        Dictionary<Guid, Dictionary<string, string>>? episodeValueMaps = null;
         if (entityType == DetailEntityType.TvShow)
         {
             works = DeduplicateTvEpisodeSummaries(works.Where(work => work.IsOwned).ToList());
@@ -234,12 +235,16 @@ internal sealed partial class DetailCompositionOrchestrator
                     ORDER BY ea.is_preferred DESC, ea.is_user_override DESC, ea.updated_at DESC LIMIT 1)
                 WHERE w.id IN @ownedIds
                 """, new { ownedIds }, cancellationToken: ct))).ToDictionary(row => row.WorkId);
+            // One batched read for the whole show, not about nine statements per episode.
+            var episodeIds = works.Select(work => Guid.Parse(work.Id)).ToList();
+            episodeValueMaps = await LoadWorkAndAssetCanonicalMapsAsync(episodeIds, ct);
+            var episodeOverrides = await LoadWorkDisplayOverridesBatchAsync(episodeIds, ct);
             var episodes = new List<CollectionWorkSummary>();
             foreach (var episode in works)
             {
                 var episodeId = Guid.Parse(episode.Id);
-                var episodeValues = await LoadWorkAndAssetCanonicalMapAsync(episodeId, ct);
-                var overrides = await LoadWorkDisplayOverridesAsync(episodeId, ct);
+                var episodeValues = episodeValueMaps[episodeId];
+                var overrides = episodeOverrides[episodeId];
                 episodes.Add(episode with
                 {
                     Description = FirstText(ResolveDisplayOverride(overrides, "description"),
@@ -263,8 +268,10 @@ internal sealed partial class DetailCompositionOrchestrator
         var tvPlaybackEpisodeId = tvPlaybackEpisode is not null && Guid.TryParse(tvPlaybackEpisode.Id, out var parsedEpisodeId)
             ? parsedEpisodeId
             : (Guid?)null;
+        // The playback episode is one of the episodes already read above; only read it again if it was not.
         var tvPlaybackValues = tvPlaybackEpisodeId.HasValue
-            ? await LoadWorkAndAssetCanonicalMapAsync(tvPlaybackEpisodeId.Value, ct)
+            ? episodeValueMaps?.GetValueOrDefault(tvPlaybackEpisodeId.Value)
+                ?? await LoadWorkAndAssetCanonicalMapAsync(tvPlaybackEpisodeId.Value, ct)
             : new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
         var relatedArt = works
