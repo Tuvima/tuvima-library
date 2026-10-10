@@ -579,7 +579,7 @@ public sealed class EpisodeBatchLoadingTests : IDisposable
         System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() => GetEnumerator();
     }
 
-    private static string[] Normalize(IReadOnlyDictionary<string, string> map) =
+    private static string[] Normalize(IReadOnlyDictionary<string, string> map) =>
         map.OrderBy(pair => pair.Key, StringComparer.Ordinal).Select(pair => $"{pair.Key}={pair.Value}").ToArray();
 
     public void Dispose()
