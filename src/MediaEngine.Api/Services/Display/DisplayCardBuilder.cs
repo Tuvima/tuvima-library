@@ -6,6 +6,9 @@ using MediaEngine.Domain.Services;
 
 namespace MediaEngine.Api.Services.Display;
 
+/// <summary>What a TV show card says about all of the show's episodes, whether or not every episode row was loaded.</summary>
+public sealed record DisplayTvShowSummary(int EpisodeCount, string Subtitle, int PremiereYear, int EndYear, DateTimeOffset SortTimestamp, bool IsSettling);
+
 public sealed class DisplayCardBuilder
 {
     public DisplayCardDto FromWork(DisplayWorkRow row, string context, DisplayJourneyRow? progress)
@@ -149,13 +152,18 @@ public sealed class DisplayCardBuilder
             .OrderByDescending(card => card.SortTimestamp)
             .ToList();
 
+    /// <param name="summaries">
+    /// Whole-show figures for shows whose rows were only partly loaded (see <see cref="SummarizeTvShow"/>).
+    /// Shows without an entry are summarised from the rows given.
+    /// </param>
     public IReadOnlyList<DisplayCardDto> BuildTvShowCards(
         IReadOnlyList<DisplayWorkRow> works,
-        IReadOnlyDictionary<Guid, DisplayJourneyRow>? progressByWork = null) =>
+        IReadOnlyDictionary<Guid, DisplayJourneyRow>? progressByWork = null,
+        IReadOnlyDictionary<Guid, DisplayTvShowSummary>? summaries = null) =>
         works
             .Where(work => DisplayMediaRules.NormalizeDisplayKind(work.MediaType) == "TV")
             .GroupBy(TvShowGroupId)
-            .Select(group => ToTvShowCard(group.Key, group.ToList(), progressByWork))
+            .Select(group => ToTvShowCard(group.Key, group.ToList(), progressByWork, summaries?.GetValueOrDefault(group.Key)))
             .Where(card => card is not null)
             .Cast<DisplayCardDto>()
             .OrderByDescending(card => card.SortTimestamp)
@@ -279,10 +287,28 @@ public sealed class DisplayCardBuilder
         };
     }
 
+    /// <summary>The figures a show card reports about every episode, from rows that need no artwork or text lookups.</summary>
+    public static DisplayTvShowSummary SummarizeTvShow(IReadOnlyList<DisplayWorkRow> works)
+    {
+        var premiere = works.Select(work => ParseSortYear(work.Year)).Where(year => year > 0).DefaultIfEmpty(0).Min();
+        var end = works.Select(work => ParseSortYear(work.SeriesEndYear)).Where(year => year >= premiere && year > 0).DefaultIfEmpty(0).Max();
+        return new DisplayTvShowSummary(
+            works.Select(work => work.WorkId).Distinct().Count(),
+            CollectionSubtitle("TV", works),
+            premiere,
+            end,
+            works.Max(work => work.CreatedAt),
+            works.Any(work => work.IsUpdatingDetails));
+    }
+
+    /// <summary>Where an episode sits in the show's order (null when it has no season or episode number).</summary>
+    internal static double? TvEpisodeSortPosition(DisplayWorkRow work) => PreviewSortPosition("TV", work);
+
     private DisplayCardDto? ToTvShowCard(
         Guid showRootWorkId,
         IReadOnlyList<DisplayWorkRow> works,
-        IReadOnlyDictionary<Guid, DisplayJourneyRow>? progressByWork)
+        IReadOnlyDictionary<Guid, DisplayJourneyRow>? progressByWork,
+        DisplayTvShowSummary? summary = null)
     {
         if (works.Count == 0)
         {
@@ -301,8 +327,9 @@ public sealed class DisplayCardBuilder
         var title = StringHelpers.FirstNonBlank(representative.ShowName, representative.Series, representative.Title, representative.CollectionTitle) ?? "TV Show";
         var action = new DisplayActionDto("openShow", "Open Show", showRootWorkId, null, null, $"/details/tvshow/{showRootWorkId:D}?context=watch");
         var previewItems = BuildSeriesPreviewItems("TV", works, tvShowRootId: showRootWorkId, progressByWork: progressByWork);
-        var premiereYear = works.Select(work => ParseSortYear(work.Year)).Where(year => year > 0).DefaultIfEmpty(0).Min();
-        var endYear = works.Select(work => ParseSortYear(work.SeriesEndYear)).Where(year => year >= premiereYear && year > 0).DefaultIfEmpty(0).Max();
+        summary ??= SummarizeTvShow(works);
+        var premiereYear = summary.PremiereYear;
+        var endYear = summary.EndYear;
 
         return new DisplayCardDto(
             Id: showRootWorkId,
@@ -312,8 +339,8 @@ public sealed class DisplayCardBuilder
             MediaType: "TV",
             GroupingType: "tvSeries",
             Title: title,
-            Subtitle: CollectionSubtitle("TV", works),
-            Facts: TvShowFacts(title, works, representative),
+            Subtitle: summary.Subtitle,
+            Facts: TvShowFacts(title, summary, representative),
             Artwork: artwork,
             PreferredShape: PreferredShape("TV", artwork.BackgroundUrl, artwork.BannerUrl, artwork.SquareUrl),
             Presentation: "tvSeries",
@@ -322,7 +349,7 @@ public sealed class DisplayCardBuilder
             Progress: null,
             Actions: [action],
             Flags: FlagsFor("TV", isCollection: true),
-            SortTimestamp: works.Max(work => work.CreatedAt))
+            SortTimestamp: works.Max(work => work.CreatedAt) is var loadedLatest && loadedLatest > summary.SortTimestamp ? loadedLatest : summary.SortTimestamp)
         {
             Subject = DisplaySubjectKind.TvShow,
             Tagline = representative.Tagline,
@@ -330,16 +357,16 @@ public sealed class DisplayCardBuilder
             Genres = DisplayMediaRules.SplitValues(representative.Genre).ToList(),
             Badges = BuildBadges("TV", representative.Quality, StringHelpers.FirstNonBlank(representative.Network, representative.Source)),
             PreviewItems = previewItems,
-            PreviewTotalCount = works.Select(work => work.WorkId).Distinct().Count(),
+            PreviewTotalCount = summary.EpisodeCount,
             GroupSummary = new DisplayGroupSummaryDto
             {
-                OwnedCount = works.Select(work => work.WorkId).Distinct().Count(),
+                OwnedCount = summary.EpisodeCount,
                 EarliestYear = premiereYear > 0 ? premiereYear : null,
                 LatestYear = endYear > 0 ? endYear : premiereYear > 0 ? premiereYear : null,
                 RelationshipLabel = "TV show",
             },
             SortYear = premiereYear,
-            IsSettling = works.Any(work => work.IsUpdatingDetails),
+            IsSettling = summary.IsSettling,
         };
     }
 
@@ -710,13 +737,13 @@ public sealed class DisplayCardBuilder
 
     private static IReadOnlyList<string> TvShowFacts(
         string title,
-        IReadOnlyList<DisplayWorkRow> works,
+        DisplayTvShowSummary summary,
         DisplayWorkRow representative)
     {
         var facts = BuildFacts(
                 "TV",
                 title,
-                TvShowYearRange(works, representative.Year),
+                TvShowYearRange(summary.PremiereYear, summary.EndYear, representative.Year),
                 representative.Author,
                 representative.Artist,
                 representative.ContentRating,
@@ -725,8 +752,7 @@ public sealed class DisplayCardBuilder
                 representative.PageCount,
                 representative.Rating)
             .ToList();
-        var episodeCount = works.Select(work => work.WorkId).Distinct().Count();
-        facts.Insert(Math.Min(2, facts.Count), CollectionCountLabel("TV", episodeCount));
+        facts.Insert(Math.Min(2, facts.Count), CollectionCountLabel("TV", summary.EpisodeCount));
         facts.AddRange(DisplayMediaRules.SplitValues(representative.Genre)
             .Where(value => !string.Equals(value, "TV", StringComparison.OrdinalIgnoreCase))
             .Take(2));
@@ -757,10 +783,8 @@ public sealed class DisplayCardBuilder
         return facts;
     }
 
-    private static string? TvShowYearRange(IReadOnlyList<DisplayWorkRow> works, string? fallbackYear)
+    private static string? TvShowYearRange(int start, int end, string? fallbackYear)
     {
-        var start = works.Select(work => ParseSortYear(work.Year)).Where(year => year > 0).DefaultIfEmpty(0).Min();
-        var end = works.Select(work => ParseSortYear(work.SeriesEndYear)).Where(year => year >= start && year > 0).DefaultIfEmpty(0).Max();
         if (start <= 0)
         {
             return fallbackYear;
