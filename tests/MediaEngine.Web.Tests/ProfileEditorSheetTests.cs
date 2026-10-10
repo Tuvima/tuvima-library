@@ -75,7 +75,7 @@ public sealed class ProfileEditorSheetTests
         Assert.True(result.IsChild);
         Assert.Null(result.NewPin);
         Assert.False(result.RemovePin);
-        Assert.Null(result.NewPhoto);
+        Assert.Null(result.PhotoBytes);
     }
 
     [Fact]

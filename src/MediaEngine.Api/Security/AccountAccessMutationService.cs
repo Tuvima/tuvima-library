@@ -617,7 +617,12 @@ public sealed class AccountAccessMutationService(
 
         profile.DisplayName = NormalizeDisplayName(command.DisplayName);
         profile.AvatarColor = NormalizeAvatarColor(command.AvatarColor);
-        profile.AvatarIcon = ProfileAvatarIcons.Normalize(command.AvatarIcon);
+        if (command.AvatarIcon is not null)
+        {
+            // Omitted keeps the current icon; an empty string clears it (back to the initial).
+            profile.AvatarIcon = ProfileAvatarIcons.Normalize(command.AvatarIcon);
+        }
+
         await accounts.UpdateManagedProfileAsync(profile, ct).ConfigureAwait(false);
         await ChangedAsync(actor, "profile.updated", "profile", profile.Id.ToString("D"),
             actor.AccountId ?? Guid.Empty, profile.Id, ct).ConfigureAwait(false);

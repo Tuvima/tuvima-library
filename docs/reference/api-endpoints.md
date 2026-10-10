@@ -456,7 +456,7 @@ presentation types must not narrow that payload.
 | POST | `/access/profiles` | Create a profile and its explicit account grant | Identity users write |
 | GET | `/profiles/{id}` | Profile detail | Required |
 | PUT | `/profiles/{id}/experience` | Save name, avatar color, and navigation preferences without role fields | Exact active profile |
-| PUT | `/access/profiles/{id}` | Rename a profile and change its look. Body: `display_name`, `avatar_color` (`#RRGGBB`), `avatar_icon` (a built-in icon key, or null/omitted to show the initial). Responses carry `avatar_icon` next to `avatar_color`; `GET /profiles` does too. A photo uses the existing `POST /profiles/{id}/avatar`. | Identity users write |
+| PUT | `/access/profiles/{id}` | Rename a profile and change its look. Body: `display_name`, `avatar_color` (`#RRGGBB`), `avatar_icon` (a built-in icon key; omit it to keep the current icon, send an empty string to go back to the initial). Responses carry `avatar_icon` next to `avatar_color`; `GET /profiles` does too. A photo uses the existing `POST /profiles/{id}/avatar`. | Identity users write |
 | DELETE | `/access/profiles/{id}` | Delete through account/grant safety rules without deleting originals | Identity users write |
 
 ---
