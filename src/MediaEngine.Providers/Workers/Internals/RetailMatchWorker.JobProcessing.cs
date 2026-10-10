@@ -251,6 +251,7 @@ public sealed partial class RetailMatchWorker
         // not have a scalar canonical yet.
         var hints = await BuildFileHintsAsync(job.EntityId, ct);
         var allCandidates = new List<RetailMatchCandidate>();
+        var tvdbSeriesIdByCandidate = new Dictionary<Guid, string>();
         RetailMatchCandidate? bestCandidate = null;
         var bestScore = 0.0;
         var providerRank = 0;
@@ -429,6 +430,11 @@ public sealed partial class RetailMatchWorker
                 };
 
                 allCandidates.Add(candidate);
+                if (claims.FirstOrDefault(c => string.Equals(c.Key, BridgeIdKeys.TvdbId, StringComparison.OrdinalIgnoreCase))
+                    is { Value: { Length: > 0 } tvdbSeriesId })
+                {
+                    tvdbSeriesIdByCandidate[candidate.Id] = tvdbSeriesId;
+                }
 
                 var fallbackIdentityAccepted = isFallbackIdentityAttempt
                     && decision.Outcome == "AutoAccepted";
@@ -617,7 +623,8 @@ public sealed partial class RetailMatchWorker
         string? rangeReviewReason = null;
         if (mediaType == MediaType.TV && bestCandidate is { Outcome: "AutoAccepted" })
         {
-            rangeReviewReason = await LinkEpisodeRangeAsync(job, hints, bestCandidate, lineage, ct)
+            rangeReviewReason = await LinkEpisodeRangeAsync(
+                    job, hints, tvdbSeriesIdByCandidate.GetValueOrDefault(bestCandidate.Id), lineage, ct)
                 .ConfigureAwait(false);
             if (rangeReviewReason is not null)
             {
@@ -735,7 +742,7 @@ public sealed partial class RetailMatchWorker
     private async Task<string?> LinkEpisodeRangeAsync(
         IdentityJob job,
         IReadOnlyDictionary<string, string> hints,
-        RetailMatchCandidate candidate,
+        string? tvdbSeriesId,
         WorkLineage? lineage,
         CancellationToken ct)
     {
@@ -754,7 +761,7 @@ public sealed partial class RetailMatchWorker
         IReadOnlySet<int>? providerEpisodes = null;
         if (first.HasValue
             && int.TryParse(seasonText, out var season)
-            && ReadTvdbSeriesId(candidate.BridgeIdsJson) is { } seriesId
+            && tvdbSeriesId is { Length: > 0 } seriesId
             && _rangeCatalogue is not null)
         {
             try
@@ -811,25 +818,6 @@ public sealed partial class RetailMatchWorker
             _logger.LogWarning(ex,
                 "TV: could not record the episodes covered by file {EntityId}", job.EntityId);
             return "The episodes covered by this file could not be recorded.";
-        }
-    }
-
-    private static string? ReadTvdbSeriesId(string? bridgeIdsJson)
-    {
-        if (string.IsNullOrWhiteSpace(bridgeIdsJson))
-        {
-            return null;
-        }
-
-        try
-        {
-            var value = JsonNode.Parse(bridgeIdsJson)?[BridgeIdKeys.TvdbId]?.ToString();
-            return string.IsNullOrWhiteSpace(value) ? null : value;
-        }
-        catch (JsonException)
-        {
-            // A malformed bridge-id blob only means the series id is unknown; the file goes to Review.
-            return null;
         }
     }
 
