@@ -1,0 +1,152 @@
+@namespace MediaEngine.Web.Components.MediaEditor
+@using MediaEngine.Contracts.Metadata
+@using MediaEngine.Web.Components.Shared
+@using MediaEngine.Web.Services.Integration
+@inject IEngineApiClient ApiClient
+
+@if (_coverage is { } coverage && coverage.Episodes.Count > 1)
+{
+    var atLimit = _selected.Count >= coverage.MaxEpisodes;
+    <section class="sme-file-coverage" aria-label="Episodes this file covers">
+        <h4>This file covers</h4>
+        <p class="sme-file-coverage__hint">
+            Tick every episode of this season that is in the same video file. The file itself is never cut or changed.
+        </p>
+        <div class="sme-file-coverage__chips" role="group" aria-label="Episodes in this season">
+            @foreach (var episode in coverage.Episodes)
+            {
+                var checkedNow = _selected.Contains(episode.WorkId);
+                var locked = episode.IsHost || episode.OwnedByOtherFile || (!checkedNow && atLimit) || _saving;
+                <label class="sme-file-coverage__chip @(checkedNow ? "is-selected" : string.Empty) @(locked ? "is-locked" : string.Empty)"
+                       title="@ChipTitle(episode, atLimit)">
+                    <input type="checkbox"
+                           checked="@checkedNow"
+                           disabled="@locked"
+                           @onchange="@(args => Toggle(episode.WorkId, args.Value is true))" />
+                    <span class="sme-file-coverage__number">@(episode.EpisodeNumber is { } number ? $"E{number}" : "E?")</span>
+                    <span class="sme-file-coverage__title">@episode.Title</span>
+                </label>
+            }
+        </div>
+        @if (atLimit)
+        {
+            <p class="sme-file-coverage__hint">A file can cover up to @coverage.MaxEpisodes episodes.</p>
+        }
+        <div class="sme-file-coverage__actions">
+            <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" Disabled="@(!IsDirty || _saving)" OnClick="Reset">Reset</AppButton>
+            <AppButton ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Disabled="@(!IsDirty || _saving)" OnClick="SaveAsync">@(_saving ? "Saving…" : "Save episodes")</AppButton>
+        </div>
+        <p class="sme-file-coverage__status @(_isError ? "is-error" : string.Empty)" role="status" aria-live="polite">@_status</p>
+    </section>
+}
+
+@code {
+    [Parameter, EditorRequired] public Guid EntityId { get; set; }
+    [Parameter, EditorRequired] public Guid AssetId { get; set; }
+    [Parameter] public EventCallback OnSaved { get; set; }
+
+    private MediaEditorFileCoverageDto? _coverage;
+    private HashSet<Guid> _selected = [];
+    private HashSet<Guid> _saved = [];
+    private Guid _loadedFor;
+    private Guid _operationId = Guid.NewGuid();
+    private bool _saving;
+    private bool _isError;
+    private string? _status;
+
+    private bool IsDirty => !_selected.SetEquals(_saved);
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (AssetId == Guid.Empty || EntityId == Guid.Empty)
+        {
+            _coverage = null;
+            _loadedFor = Guid.Empty;
+            return;
+        }
+
+        if (_loadedFor == AssetId)
+        {
+            return;
+        }
+
+        _loadedFor = AssetId;
+        var requested = AssetId;
+        var loaded = await ApiClient.GetMediaEditorFileCoverageAsync(EntityId, AssetId);
+        if (requested != AssetId)
+        {
+            return;
+        }
+
+        Apply(loaded);
+    }
+
+    private void Apply(MediaEditorFileCoverageDto? loaded)
+    {
+        _coverage = loaded;
+        _saved = loaded?.Episodes.Where(episode => episode.IsCovered).Select(episode => episode.WorkId).ToHashSet() ?? [];
+        _selected = [.. _saved];
+        _operationId = Guid.NewGuid();
+    }
+
+    private void Toggle(Guid workId, bool isChecked)
+    {
+        if (isChecked)
+        {
+            _selected.Add(workId);
+        }
+        else
+        {
+            _selected.Remove(workId);
+        }
+
+        _status = null;
+        _isError = false;
+        _operationId = Guid.NewGuid();
+    }
+
+    private void Reset()
+    {
+        _selected = [.. _saved];
+        _status = null;
+        _isError = false;
+    }
+
+    private async Task SaveAsync()
+    {
+        if (_coverage is null || _saving || !IsDirty)
+        {
+            return;
+        }
+
+        _saving = true;
+        _status = null;
+        _isError = false;
+        try
+        {
+            var order = _coverage.Episodes.Where(episode => _selected.Contains(episode.WorkId)).Select(episode => episode.WorkId).ToList();
+            var updated = await ApiClient.SaveMediaEditorFileCoverageAsync(
+                EntityId, new MediaEditorFileCoverageSaveRequestDto(_operationId, AssetId, order));
+            if (updated is null)
+            {
+                _isError = true;
+                _status = ApiClient.LastError ?? "The episodes could not be saved. Try again.";
+                return;
+            }
+
+            Apply(updated);
+            _status = "Saved. This file now covers " + _saved.Count + (_saved.Count == 1 ? " episode." : " episodes.");
+            await OnSaved.InvokeAsync();
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+
+    private static string ChipTitle(MediaEditorFileCoverageEpisodeDto episode, bool atLimit) =>
+        episode.IsHost ? "This file's own episode"
+        : episode.OwnedByOtherFile ? "This episode already has its own file"
+        : atLimit ? "A file can cover up to 6 episodes"
+        : episode.Title;
+}
