@@ -98,6 +98,47 @@ public sealed class AuthorizedDisplayProjectionReadServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task ProfileRecentCatalogueWithLargeShow()
+    {
+        var account = Guid.NewGuid(); var library = Guid.NewGuid();
+        await CreateHumanAsync(account, new HashSet<AccountFeatureId> { AccountFeatureId.Read, AccountFeatureId.Watch, AccountFeatureId.Listen }, new HashSet<Guid> { library });
+        for (var i = 0; i < 5; i++) { await InsertOwnedWorkWithIdAsync(library, $"Book {i}"); }
+        var show = Guid.NewGuid();
+        using (var connection = _database.CreateConnection())
+        {
+            connection.Execute("INSERT INTO works(id,media_type,work_kind,curator_state) VALUES(@show,'TV','parent','accepted');", new { show });
+            using var tx = connection.BeginTransaction();
+            for (var i = 0; i < 1000; i++)
+            {
+                var work = Guid.NewGuid(); var edition = Guid.NewGuid(); var asset = Guid.NewGuid();
+                connection.Execute("""
+                    INSERT INTO works(id,media_type,work_kind,parent_work_id,curator_state) VALUES(@work,'TV','child',@show,'accepted');
+                    INSERT INTO editions(id,work_id) VALUES(@edition,@work);
+                    INSERT INTO media_assets(id,edition_id,content_hash,file_path_root,presented_at,library_id) VALUES(@asset,@edition,@hash,@path,CURRENT_TIMESTAMP,@library);
+                    INSERT INTO work_owned_assets(work_id,edition_id,asset_id) VALUES(@work,@edition,@asset);
+                    INSERT INTO canonical_values(entity_id,key,value,last_scored_at) VALUES
+                      (@asset,'title','Episode',CURRENT_TIMESTAMP),(@asset,'season_number',@season,CURRENT_TIMESTAMP),(@asset,'episode_number',@ep,CURRENT_TIMESTAMP),(@work,'episode_number',@ep,CURRENT_TIMESTAMP);
+                    """, new { work, edition, asset, show, hash = asset.ToString("N"), path = $"C:/library/{asset:N}.mkv", library = library.ToString("D"), season = (i / 100 + 1).ToString(), ep = (i % 100 + 1).ToString() }, tx);
+            }
+            tx.Commit();
+        }
+        var profile = MediaEngine.Domain.Aggregates.Profile.SeedProfileId;
+        var authorization = CreateService(HumanContext(account, profile), new StubRawProjection([], []));
+        var reader = new DisplayWorkProjectionReader(_database);
+        var sw = System.Diagnostics.Stopwatch.StartNew();
+        var rows = await reader.LoadAsync(default);
+        var tReader = sw.ElapsedMilliseconds; sw.Restart();
+        await authorization.FilterRecentWorksAsync(rows, profile, default);
+        var tFilter = sw.ElapsedMilliseconds; sw.Restart();
+        var recent = new RecentCatalogueReadService(reader, authorization, new DisplayCardBuilder(), _database);
+        var items = await recent.LoadAsync("all", profile, null, 19, default);
+        var tTotal = sw.ElapsedMilliseconds; sw.Restart();
+        var composed = RecentCatalogueReadService.Compose(rows, new DisplayCardBuilder(), "all", null, 19);
+        var tCompose = sw.ElapsedMilliseconds;
+        Assert.Fail($"PROFILE rows={rows.Count} reader={tReader}ms filter={tFilter}ms total={tTotal}ms compose={tCompose}ms items={items.Count}/{composed.Count}");
+    }
+
+    [Fact]
     public async Task FiltersLibraryFeatureAndProfileBeforeComposerReadsRows()
     {
         var accountId = Guid.NewGuid();
