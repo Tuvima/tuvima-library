@@ -185,7 +185,8 @@ await check('book links: outside links open safely, chapter links navigate', () 
     const popupPromise = context.waitForEvent('page', { timeout: 5000 });
     await frame.click('#external-link');
     const popup = await popupPromise;
-    assert(popup.url().startsWith('https://example.org') || popup.url() === 'about:blank', `popup went to ${popup.url()}`);
+    const target = popup.url() === 'about:blank' ? null : new URL(popup.url());
+    assert(target === null || (target.protocol === 'https:' && target.hostname === 'example.org'), `popup went to ${popup.url()}`);
     const before = await relocationCount(page);
     await frame.click('#internal-link');
     await frameWith(page, '#start');
