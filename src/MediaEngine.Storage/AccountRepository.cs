@@ -562,6 +562,8 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
         {
             token.ThrowIfCancellationRequested();
             RequireProfileRemovable(connection, transaction, profileId);
+            // Same transaction as the delete: if the delete fails, the person's photo records stay exactly as they were.
+            ProfilePersonalMediaRepository.ReleaseForRemoval(connection, transaction, profileId);
             connection.Execute("DELETE FROM profiles WHERE id=@profileId;", new { profileId }, transaction);
         }, ct);
 

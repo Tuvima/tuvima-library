@@ -49,10 +49,10 @@ public sealed class ProfilePhotoDisposer(
         }
 
         // Whatever is still on disk now (trashed items, or originals the person chose to delete) is removed after the person is.
+        // The share records and file locations are released inside the profile delete itself, so a failed delete leaves them intact.
         var remaining = (await media.GetPersonalFilesAsync(profile.Id, ct).ConfigureAwait(false))
             .Where(file => file.IsManaged)
             .ToList();
-        await media.ReleaseForRemovalAsync(profile.Id, ct).ConfigureAwait(false);
         return new ProfilePhotoPlan(remaining);
     }
 

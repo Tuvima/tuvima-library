@@ -25,7 +25,7 @@ public sealed class ProfilePersonalMediaRepositoryTests : IDisposable
     }
 
     [Fact]
-    public async Task APersonWhoSharedPhotos_CanOnlyBeRemovedOnceTheShareRecordsAreReleased()
+    public async Task APersonWhoSharedPhotos_CanBeRemoved_AndTheShareRecordsGoWithThem()
     {
         var person = Person("Maya");
         var item = Photo(person, "/data/Profiles/maya/a.jpg", managed: true);
@@ -42,10 +42,7 @@ public sealed class ProfilePersonalMediaRepositoryTests : IDisposable
             VALUES (@itemRow,@contributionId,@item,'Maya',0,'move','[]','waiting',@now);
             """, new { id = Guid.NewGuid(), item, now = Now.ToString("O"), contributionId, person, itemRow = Guid.NewGuid() });
 
-        // Today's data model refuses: the share records point at the person's photo.
-        await Assert.ThrowsAnyAsync<Exception>(() => _accounts.DeleteManagedProfileAsync(person));
-
-        await _media.ReleaseForRemovalAsync(person);
+        // The share records point at the person's photo; removing the person lets go of them in the same step.
         await _accounts.DeleteManagedProfileAsync(person);
 
         Assert.Equal(0, Count("SELECT COUNT(*) FROM profiles WHERE id=@person", new { person }));
@@ -96,12 +93,52 @@ public sealed class ProfilePersonalMediaRepositoryTests : IDisposable
         var other = Photo(Person("Sam"), "/data/Profiles/sam/b.jpg", managed: true);
         var otherFile = Query<Guid>("SELECT file_id FROM local_item_files WHERE item_id=@other", new { other });
 
-        await _media.ReleaseForRemovalAsync(person);
         await _accounts.DeleteManagedProfileAsync(person);
         await _media.DeleteUnusedFilesAsync([fileId, otherFile]);
 
         Assert.Equal(0, Count("SELECT COUNT(*) FROM local_files WHERE id=@fileId", new { fileId }));
         Assert.Equal(1, Count("SELECT COUNT(*) FROM local_files WHERE id=@otherFile", new { otherFile }));
+    }
+
+    [Fact]
+    public async Task AFailedRemoval_LeavesThePersonsPhotosAndShareRecordsExactlyAsTheyWere()
+    {
+        var person = Person("Maya");
+        var item = Photo(person, "/data/Profiles/maya/a.jpg", managed: true);
+        Execute("""
+            INSERT INTO view_shared_transfers
+                (id,item_id,operation,state,source_manifest_json,created_at,updated_at)
+            VALUES (@id,@item,'move','failed','[]',@now,@now);
+            CREATE TRIGGER trg_test_block_profile_delete BEFORE DELETE ON profiles
+            BEGIN SELECT RAISE(ABORT,'blocked for test'); END;
+            """, new { id = Guid.NewGuid(), item, now = Now.ToString("O") });
+
+        await Assert.ThrowsAnyAsync<Exception>(() => _accounts.DeleteManagedProfileAsync(person));
+
+        Assert.Equal(1, Count("SELECT COUNT(*) FROM profiles WHERE id=@person", new { person }));
+        Assert.Equal(1, Count("SELECT COUNT(*) FROM view_shared_transfers WHERE item_id=@item", new { item }));
+        Assert.Equal(1, Count("""
+            SELECT COUNT(*) FROM local_file_sources
+             WHERE library_id IN (SELECT library_id FROM view_personal_spaces WHERE owner_profile_id=@person)
+            """, new { person }));
+    }
+
+    [Fact]
+    public async Task APersonWhoChoseAFolderTimelineSetting_CanStillBeRemoved()
+    {
+        var person = Person("Maya");
+        var other = Person("Sam");
+        Photo(other, "/data/Profiles/sam/b.jpg", managed: true);
+        var source = Query<Guid>("SELECT id FROM view_sources WHERE personal_space_id IN (SELECT id FROM view_personal_spaces WHERE owner_profile_id=@other)", new { other });
+        Execute("""
+            INSERT INTO view_folder_timeline_policies
+                (source_id,relative_path,absolute_path,include_in_timeline,updated_by_profile_id,updated_at)
+            VALUES (@source,'Trips','/data/Trips',1,@person,@now);
+            """, new { source, person, now = Now.ToString("O") });
+
+        await _accounts.DeleteManagedProfileAsync(person);
+
+        Assert.Equal(1, Count("SELECT COUNT(*) FROM view_folder_timeline_policies WHERE updated_by_profile_id IS NULL", new { }));
     }
 
     private Guid Person(string name)

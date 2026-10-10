@@ -522,7 +522,7 @@
 
         if (result.PhotoBytes is { } photo)
         {
-            var uploaded = await Identity.UploadManagedProfilePhotoResultAsync(added.Value.Id, photo, result.PhotoFileName ?? "photo.jpg");
+            var uploaded = await Confirmed.RunAsync(() => Identity.UploadManagedProfilePhotoResultAsync(added.Value.Id, photo, result.PhotoFileName ?? "photo.jpg"));
             if (!uploaded.Succeeded)
             {
                 // The person exists now, so close the sheet and say what is left to do instead of adding them twice.
@@ -554,7 +554,7 @@
 
         if (result.PhotoBytes is { } photo)
         {
-            var uploaded = await Identity.UploadManagedProfilePhotoResultAsync(profile.Id, photo, result.PhotoFileName ?? "photo.jpg");
+            var uploaded = await Confirmed.RunAsync(() => Identity.UploadManagedProfilePhotoResultAsync(profile.Id, photo, result.PhotoFileName ?? "photo.jpg"));
             if (!uploaded.Succeeded)
             {
                 return Fail(uploaded.Failure, () => SaveAsync(result));
@@ -562,7 +562,7 @@
         }
         else if (result.RemovePhoto)
         {
-            var removed = await Identity.RemoveManagedProfilePhotoResultAsync(profile.Id);
+            var removed = await Confirmed.RunAsync(() => Identity.RemoveManagedProfilePhotoResultAsync(profile.Id));
             if (!removed.Succeeded)
             {
                 return Fail(removed.Failure, () => SaveAsync(result));

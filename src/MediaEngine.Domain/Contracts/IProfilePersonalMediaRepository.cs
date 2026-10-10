@@ -15,12 +15,6 @@ public interface IProfilePersonalMediaRepository
     /// <summary>Every file location behind the person's personal items (trash included).</summary>
     Task<IReadOnlyList<ProfilePersonalFile>> GetPersonalFilesAsync(Guid profileId, CancellationToken ct = default);
 
-    /// <summary>
-    /// Lets the person be removed: drops the transfer and contribution records that still point at their personal items,
-    /// forgets the file locations of their personal library, and cancels contributions they had waiting for review. Shared Library copies are not touched.
-    /// </summary>
-    Task ReleaseForRemovalAsync(Guid profileId, CancellationToken ct = default);
-
     /// <summary>Forgets file records that no item uses any more.</summary>
     Task DeleteUnusedFilesAsync(IReadOnlyCollection<Guid> fileIds, CancellationToken ct = default);
 }

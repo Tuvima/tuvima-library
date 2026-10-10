@@ -1,3 +1,4 @@
+using System.Data;
 using Dapper;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Storage.Contracts;
@@ -54,19 +55,19 @@ public sealed class ProfilePersonalMediaRepository(IDatabaseConnection database)
                 .ToList();
         }, ct);
 
-    public Task ReleaseForRemovalAsync(Guid profileId, CancellationToken ct = default) =>
-        database.ExecuteWriteAsync((connection, transaction, token) =>
-        {
-            token.ThrowIfCancellationRequested();
-            connection.Execute($"""
-                DELETE FROM view_shared_transfers WHERE item_id IN ({PersonalItems});
-                DELETE FROM view_shared_contributions
-                 WHERE submitted_by_profile_id = @profileId AND status = 'pending';
-                DELETE FROM view_shared_contribution_items WHERE item_id IN ({PersonalItems});
-                DELETE FROM local_file_sources
-                 WHERE library_id IN (SELECT library_id FROM view_personal_spaces WHERE owner_profile_id = @profileId);
-                """, new { profileId }, transaction);
-        }, ct);
+    /// <summary>
+    /// Lets go of everything that points at the person's personal photos, so their profile can be deleted. Runs inside
+    /// the profile delete's own transaction, so it is all undone if the delete does not go through.
+    /// </summary>
+    internal static void ReleaseForRemoval(IDbConnection connection, IDbTransaction transaction, Guid profileId) =>
+        connection.Execute($"""
+            DELETE FROM view_shared_transfers WHERE item_id IN ({PersonalItems});
+            DELETE FROM view_shared_contributions
+             WHERE submitted_by_profile_id = @profileId AND status = 'pending';
+            DELETE FROM view_shared_contribution_items WHERE item_id IN ({PersonalItems});
+            DELETE FROM local_file_sources
+             WHERE library_id IN (SELECT library_id FROM view_personal_spaces WHERE owner_profile_id = @profileId);
+            """, new { profileId }, transaction);
 
     public Task DeleteUnusedFilesAsync(IReadOnlyCollection<Guid> fileIds, CancellationToken ct = default) =>
         database.ExecuteWriteAsync((connection, transaction, token) =>

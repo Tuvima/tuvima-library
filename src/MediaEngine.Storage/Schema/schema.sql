@@ -820,7 +820,7 @@ CREATE TABLE IF NOT EXISTS view_folder_timeline_policies (
     relative_path       TEXT NOT NULL,
     absolute_path       TEXT NOT NULL,
     include_in_timeline INTEGER NOT NULL CHECK (include_in_timeline IN (0, 1)),
-    updated_by_profile_id BLOB NOT NULL REFERENCES profiles(id),
+    updated_by_profile_id BLOB REFERENCES profiles(id) ON DELETE SET NULL,
     updated_at          TEXT NOT NULL,
     PRIMARY KEY (source_id, relative_path)
 );
