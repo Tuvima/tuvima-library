@@ -164,7 +164,9 @@ public static class ViewEndpoints
                     ? await repository.GetPreferencesAsync(profileId, ct)
                     : null;
                 var value = remembered is not null
-                    ? new ViewProfilePreferences(profileId, remembered.LastScopeKind, remembered.LastScopeProfileId,
+                    ? new ViewProfilePreferences(profileId,
+                        remembered.LastScopeKind ?? ViewScopeKind.Mine,
+                        remembered.LastScopeKind is null ? null : remembered.LastScopeProfileId,
                         request.TimelineDensity, DateTimeOffset.UtcNow, request.ViewerInfoOpen)
                     : new ViewProfilePreferences(profileId,
                         resolution.Scope.Kind,

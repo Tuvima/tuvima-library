@@ -49,6 +49,12 @@ public sealed class ViewScopeResolver(IViewScopeStore store) : IViewScopeResolve
                 await ResolveOtherSharedAsync(caller, callerState, targetId, ct).ConfigureAwait(false),
             _ => null,
         };
+        // A remembered (not explicitly chosen) selection never opens another household: that is always a deliberate pick.
+        if (resolved?.IsOtherHousehold == true && allowStaleSelectionFallback)
+        {
+            resolved = null;
+        }
+
         if (resolved is not null)
         {
             return new ViewScopeResolution(resolved, options);

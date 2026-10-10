@@ -32,6 +32,30 @@ public sealed class ViewOtherPeopleTests
     }
 
     [Fact]
+    public async Task ARememberedSelectionNeverOpensAnotherHousehold()
+    {
+        var admin = State(HomeHousehold);
+        var stranger = State(OtherHousehold);
+        var resolver = new ViewScopeResolver(new ViewScopeResolverTests.ScopeStore(admin, stranger));
+
+        var fallback = Assert.IsType<ViewScopeResolution>(await resolver.ResolveAsync(
+            ServerAdministrator(admin), ViewScopeRequest.ForProfile(stranger.Policy.ProfileId),
+            allowStaleSelectionFallback: true));
+
+        Assert.Equal(ViewScopeKind.Mine, fallback.Scope.Kind);
+        Assert.False(fallback.Scope.IsOtherHousehold);
+        Assert.True(fallback.Scope.WasFallback);
+    }
+
+    [Fact]
+    public void SavingPreferencesWhileBrowsingAnotherHouseholdNeverStoresThatScope()
+    {
+        var endpoint = File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..",
+            "src", "MediaEngine.Api", "Endpoints", "ViewEndpoints.cs"));
+        Assert.Contains("remembered.LastScopeKind ?? ViewScopeKind.Mine", endpoint, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task HouseholdAdministratorsMembersAndAppsCannotResolveAnotherHouseholdsSpace()
     {
         var caller = State(HomeHousehold);

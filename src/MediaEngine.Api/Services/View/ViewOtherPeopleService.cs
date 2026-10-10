@@ -73,29 +73,34 @@ public sealed class ViewOtherPeopleService(
             }
 
             using var connection = database.CreateConnection();
-            var since = (now - RecordWindow).ToString("O", System.Globalization.CultureInfo.InvariantCulture);
-            var already = connection.ExecuteScalar<int>(new CommandDefinition("""
-                SELECT COUNT(*) FROM authorization_audit_events
+            var latest = connection.ExecuteScalar<string?>(new CommandDefinition("""
+                SELECT MAX(occurred_at) FROM authorization_audit_events
                  WHERE event_type = @OpenedEventType AND actor_account_id = @accountId
-                   AND subject_type = @subjectType AND subject_id = @subjectId AND occurred_at >= @since;
-                """, new { OpenedEventType, accountId, subjectType, subjectId, since }, cancellationToken: ct)) > 0;
-            if (!already)
+                   AND subject_type = @subjectType AND subject_id = @subjectId;
+                """, new { OpenedEventType, accountId, subjectType, subjectId }, cancellationToken: ct));
+            var lastRecorded = latest is null
+                ? (DateTimeOffset?)null
+                : DateTimeOffset.Parse(latest, System.Globalization.CultureInfo.InvariantCulture);
+            if (lastRecorded is { } recorded && now - recorded < RecordWindow)
             {
-                await audit.WriteAsync(new AuthorizationAuditEvent(
-                    OpenedEventType,
-                    now,
-                    accountId,
-                    actor.ActiveProfileId,
-                    null,
-                    subjectType,
-                    subjectId,
-                    new Dictionary<string, string?>
-                    {
-                        ["household_id"] = household.ToString("D"),
-                        ["space"] = shared ? "shared" : "personal",
-                    }), ct).ConfigureAwait(false);
+                // Remember the real time of the last row, so a look after that hour is still recorded.
+                _recent[key] = recorded;
+                return;
             }
 
+            await audit.WriteAsync(new AuthorizationAuditEvent(
+                OpenedEventType,
+                now,
+                accountId,
+                actor.ActiveProfileId,
+                null,
+                subjectType,
+                subjectId,
+                new Dictionary<string, string?>
+                {
+                    ["household_id"] = household.ToString("D"),
+                    ["space"] = shared ? "shared" : "personal",
+                }), ct).ConfigureAwait(false);
             _recent[key] = now;
         }
         finally
