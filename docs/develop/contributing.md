@@ -78,6 +78,8 @@ dotnet list MediaEngine.slnx package --vulnerable --include-transitive
 
 After an intended Engine-to-Dashboard contract change, the Contracts snapshot tests fail and write the actual output next to each approved file as `tests/MediaEngine.Contracts.Tests/Fixtures/<name>.received.txt` (git-ignored). Accept the change by copying each `.received.txt` over its `.approved.txt`, or run `powershell -File tools\Update-ContractFixtures.ps1` (Windows PowerShell 5.1 or PowerShell 7), which runs the tests, copies the received files into place and re-runs the tests. No environment variables are needed. Review and commit the changed `*.approved.txt` files.
 
+Each test process works in its own temporary folder, `%TEMP%\tuvima-tests\<pid>-<time>`, which is deleted when the process exits; folders left by killed runs are removed at the next start. Fixtures that create SQLite files should clean up with `TestTemp.DeleteDatabase(path)` (`tests/Shared/TestTemp.cs`), which releases pooled connections and deletes the `-wal`/`-shm` files, rather than a bare `File.Delete` inside an empty `catch`.
+
 CI excludes tests marked `Category=LiveProvider`; ordinary tests should not depend on a live provider or paid credential. Use the current workflow as the source for coverage and Release CSS checks.
 
 For Docker changes, validate the image in a disposable environment:
