@@ -166,6 +166,40 @@ public static class ClientAuthorizationEndpoints
         .Produces(StatusCodes.Status204NoContent)
         .RequireClientScope(ClientApiScopes.PlaybackWrite);
 
+        // A phone chooses whose photos it backs up (a PIN-protected person needs their PIN). Backups go to this one
+        // person whichever person the phone is browsing as.
+        devices.MapPut("/current/backup-profile", async (
+            SetDeviceBackupProfileRequest request,
+            HttpContext http,
+            [FromServices] IRequestAuthorityResolver resolver,
+            [FromServices] PhoneBackupProfileService backup,
+            CancellationToken ct) =>
+        {
+            var authority = await resolver.ResolveAsync(http, ct);
+            var deviceId = RequiredGuidClaim(http.User, TuvimaClaimTypes.DeviceId);
+            return await backup.SetFromDeviceAsync(authority, deviceId, request.ProfileId, request.Pin, ct) switch
+            {
+                BackupProfileOutcome.Changed => Results.NoContent(),
+                BackupProfileOutcome.PinRequired => Results.Problem(
+                    title: "Profile PIN required",
+                    detail: "Enter that person's PIN to back up their photos.",
+                    statusCode: StatusCodes.Status428PreconditionRequired),
+                BackupProfileOutcome.Locked => Results.Problem(
+                    title: "Too many attempts",
+                    detail: "Too many attempts. Try again later.",
+                    statusCode: StatusCodes.Status429TooManyRequests),
+                BackupProfileOutcome.ProfileNotFound => ApiErrors.Forbidden("That person isn't in this household."),
+                BackupProfileOutcome.Forbidden => ApiErrors.Forbidden("Only the paired app can choose whose photos it backs up."),
+                _ => ApiErrors.NotFound("Device not found or revoked."),
+            };
+        })
+        .WithName("SetCurrentDeviceBackupProfile")
+        .Produces(StatusCodes.Status204NoContent)
+        .ProducesProblem(StatusCodes.Status428PreconditionRequired)
+        .ProducesProblem(StatusCodes.Status429TooManyRequests)
+        .ProducesProblem(StatusCodes.Status403Forbidden)
+        .ProducesProblem(StatusCodes.Status404NotFound);
+
         devices.MapDelete("/{deviceId:guid}", async (
             Guid deviceId,
             ClaimsPrincipal user,
@@ -261,5 +295,6 @@ public static class ClientAuthorizationEndpoints
         CreatedAt = device.CreatedAt,
         LastSeenAt = device.LastSeenAt,
         RevokedAt = device.RevokedAt,
+        BackupProfileId = device.BackupProfileId,
     };
 }

@@ -843,6 +843,7 @@ MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.Client
   CreatedAt: System.DateTimeOffset | nullability=not-null | accessors=get,init
   LastSeenAt: System.DateTimeOffset | nullability=not-null | accessors=get,init
   RevokedAt: System.DateTimeOffset? | nullability=nullable | accessors=get,init
+  BackupProfileId: System.Guid? | nullability=nullable | accessors=get,init
 
 MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.ClientIngressValues
 
@@ -1044,6 +1045,8 @@ MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.Manage
   PairedAt: System.DateTimeOffset | nullability=not-null | accessors=get,init
   LastSeenAt: System.DateTimeOffset | nullability=not-null | accessors=get,init
   BacksUpTo: System.String | nullability=nullable | accessors=get,init
+  BackupProfileId: System.Guid? | nullability=nullable | accessors=get,init
+  HouseholdId: System.Guid? | nullability=nullable | accessors=get,init
 
 MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.ManagedProfileResponse
   Id: System.Guid | nullability=not-null | accessors=get,init
@@ -1175,6 +1178,10 @@ MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.SetApp
 MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.SetApplicationPermissionsRequest
   PermissionIds: System.Collections.Generic.IReadOnlyList<System.String> | nullability=not-null | accessors=get,init
 
+MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.SetDeviceBackupProfileRequest
+  ProfileId: System.Guid | nullability=not-null | accessors=get,init
+  Pin: System.String | nullability=nullable | accessors=get,init
+
 MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.SetDeviceProfilePreferenceRequest
   ProfileId: System.Guid | nullability=not-null | accessors=get,init
 
@@ -1186,6 +1193,9 @@ MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.SetGra
 
 MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.SetHouseholdAdminRequest
   HouseholdAdmin: System.Boolean | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.SetManagedDeviceBackupProfileRequest
+  ProfileId: System.Guid? | nullability=nullable | accessors=get,init
 
 MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.SetProfilePinRequest
   Pin: System.String | nullability=not-null | accessors=get,init

@@ -238,6 +238,14 @@ public sealed class ClientAuthorizationRepository(IDatabaseConnection db) : ICli
     public Task<bool> RevokeDeviceAsync(Guid deviceId, Guid profileId, DateTimeOffset now, string reason, CancellationToken ct = default) =>
         RevokeDeviceCoreAsync(deviceId, profileId, now, reason, ct);
 
+    public Task<bool> SetBackupProfileAsync(Guid deviceId, Guid? profileId, CancellationToken ct = default) =>
+        db.ExecuteWriteAsync((conn, tx, token) =>
+        {
+            token.ThrowIfCancellationRequested();
+            return conn.Execute("UPDATE client_devices SET backup_profile_id = @profileId WHERE id = @deviceId AND revoked_at IS NULL;",
+                new { deviceId, profileId }, tx) == 1;
+        }, ct);
+
     public Task<bool> RevokeDeviceByIdAsync(Guid deviceId, DateTimeOffset now, string reason, CancellationToken ct = default) =>
         RevokeDeviceCoreAsync(deviceId, null, now, reason, ct);
 
@@ -345,7 +353,8 @@ public sealed class ClientAuthorizationRepository(IDatabaseConnection db) : ICli
         SELECT id AS Id, application_id AS ApplicationId, account_id AS AccountId, profile_id AS ProfileId, device_name AS DeviceName, device_class AS DeviceClass,
                client_id AS ClientId, client_name AS ClientName, client_version AS ClientVersion,
                scopes AS Scopes, capabilities_json AS CapabilitiesJson, created_at AS CreatedAt,
-               last_seen_at AS LastSeenAt, revoked_at AS RevokedAt, revoked_reason AS RevokedReason
+               last_seen_at AS LastSeenAt, revoked_at AS RevokedAt, revoked_reason AS RevokedReason,
+               backup_profile_id AS BackupProfileId
         FROM client_devices
         """;
 
@@ -448,6 +457,7 @@ public sealed class ClientAuthorizationRepository(IDatabaseConnection db) : ICli
         ClientName = row.ClientName,
         ClientVersion = row.ClientVersion,
         Scopes = row.Scopes,
+        BackupProfileId = row.BackupProfileId,
         CapabilitiesJson = row.CapabilitiesJson,
         CreatedAt = ParseRequired(row.CreatedAt),
         LastSeenAt = ParseRequired(row.LastSeenAt),
@@ -521,6 +531,7 @@ public sealed class ClientAuthorizationRepository(IDatabaseConnection db) : ICli
         public string LastSeenAt { get; init; } = "";
         public string? RevokedAt { get; init; }
         public string? RevokedReason { get; init; }
+        public Guid? BackupProfileId { get; init; }
     }
 
     private sealed class TokenDeviceRow

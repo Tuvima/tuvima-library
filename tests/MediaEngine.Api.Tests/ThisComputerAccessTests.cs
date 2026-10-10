@@ -497,6 +497,7 @@ public sealed class ThisComputerAccessTests : IDisposable
         builder.Services.AddSingleton<IAccountSignInMethodRepository>(_ => null!);
         builder.Services.AddSingleton<ISelfServiceAuthorizationService>(_ => null!);
         builder.Services.AddSingleton<IRequestAuthorityResolver>(_ => null!);
+        builder.Services.AddSingleton<PhoneBackupProfileService>(_ => null!);
         builder.Services.AddSingleton<IPasskeyHandler<Account>>(_ => null!);
         builder.Services.AddSingleton<UserManager<Account>>(_ => null!);
         builder.Services.AddSingleton(new DashboardAuthorityProjector(

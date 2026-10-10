@@ -187,6 +187,11 @@ ID, display/device facts, last-backup time, and a modeled backup state. The
 mobile/device producer itself is not implemented merely because these rows
 exist.
 
+A paired phone's own backup target lives on `client_devices.backup_profile_id`
+(nullable FK to `profiles.id`, set to null if that person is removed). Phone
+uploads are stored in that person's Personal Space whichever person the phone
+is browsing as; with no target they are refused until someone chooses one.
+
 ### `local_items`
 
 One profile-owned logical image, short video, document, audio item, or other

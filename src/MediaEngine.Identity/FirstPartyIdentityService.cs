@@ -21,7 +21,7 @@ public sealed class FirstPartyIdentityService(
     IPasswordHasher<ProfileCredential> profileSecretHasher,
     TimeProvider timeProvider,
     IAuthenticationPolicyProvider authenticationPolicy,
-    ITwoStepSecretProtector? twoStepSecrets = null) : IFirstPartyIdentityService, IHostAdministratorRecoveryService, IHostTwoStepRecoveryService
+    ITwoStepSecretProtector? twoStepSecrets = null) : IFirstPartyIdentityService, IHostAdministratorRecoveryService, IHostTwoStepRecoveryService, IProfilePinVerifier
 {
     /// <summary>The name an authenticator app shows for this server.</summary>
     public const string TwoStepIssuer = "Tuvima Library";
@@ -841,12 +841,28 @@ public sealed class FirstPartyIdentityService(
         }
 
         var target = await profiles.GetByIdAsync(targetProfileId, ct).ConfigureAwait(false) ?? throw new KeyNotFoundException($"Profile '{targetProfileId}' was not found.");
-        var credential = await identities.GetCredentialAsync(target.Id, ProfileCredentialKind.ProfilePin, ct).ConfigureAwait(false);
+        // Same rule as profile sign-in: only sessions made from outside the home count toward, or are
+        // blocked by, the PIN lockout. A session's issuing place is checked on every request by the Dashboard.
+        await VerifyProfilePinAsync(target.Id, pin, current.Session.IssuedIngress == ClientIngress.Remote, ct).ConfigureAwait(false);
+
+        if (!await identities.UpdateActiveProfileAsync(current.Session.Id, target.Id, ct).ConfigureAwait(false))
+        {
+            throw new UnauthorizedAccessException("The session is no longer valid.");
+        }
+
+        await accounts.ClearAdminUnlockAsync(current.Session.Id, ct).ConfigureAwait(false);
+        current.Session.ActiveProfileId = target.Id;
+        current.Session.ProfilePending = false;
+        await AuditAsync(current.Account.Id, target.Id, current.Session.Id, "active_profile_changed", true, target.Id.ToString("D"), ct).ConfigureAwait(false);
+        return new SessionValidationResult(current.Session, current.Account, target, target);
+    }
+
+    /// <inheritdoc />
+    public async Task VerifyProfilePinAsync(Guid profileId, string? pin, bool countsTowardLockout, CancellationToken ct = default)
+    {
+        var credential = await identities.GetCredentialAsync(profileId, ProfileCredentialKind.ProfilePin, ct).ConfigureAwait(false);
         if (credential is not null)
         {
-            // Same rule as profile sign-in: only sessions made from outside the home count toward, or are
-            // blocked by, the PIN lockout. A session's issuing place is checked on every request by the Dashboard.
-            var countsTowardLockout = current.Session.IssuedIngress == ClientIngress.Remote;
             var now = UtcNow;
             if (countsTowardLockout && credential.LockedUntil is { } until && until > now)
             {
@@ -879,17 +895,6 @@ public sealed class FirstPartyIdentityService(
                 await identities.UpdateCredentialAttemptAsync(credential.Id, 0, null, now, ct).ConfigureAwait(false);
             }
         }
-
-        if (!await identities.UpdateActiveProfileAsync(current.Session.Id, target.Id, ct).ConfigureAwait(false))
-        {
-            throw new UnauthorizedAccessException("The session is no longer valid.");
-        }
-
-        await accounts.ClearAdminUnlockAsync(current.Session.Id, ct).ConfigureAwait(false);
-        current.Session.ActiveProfileId = target.Id;
-        current.Session.ProfilePending = false;
-        await AuditAsync(current.Account.Id, target.Id, current.Session.Id, "active_profile_changed", true, target.Id.ToString("D"), ct).ConfigureAwait(false);
-        return new SessionValidationResult(current.Session, current.Account, target, target);
     }
 
     public async Task<bool> ValidateServiceCredentialAsync(string plaintextToken, CancellationToken ct = default) =>
