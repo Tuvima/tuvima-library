@@ -48,9 +48,15 @@ public sealed class AccountSecurityRenderTests : AsyncBunitContext
         {
             var type = targetMethod?.ReturnType;
             if (type is null || type == typeof(void))
+            {
                 return null;
+            }
+
             if (type == typeof(Task))
+            {
                 return Task.CompletedTask;
+            }
+
             if (type.IsGenericType && type.GetGenericTypeDefinition() == typeof(Task<>))
             {
                 var result = type.GetGenericArguments()[0];
