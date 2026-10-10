@@ -300,7 +300,7 @@ internal sealed partial class DetailCompositionOrchestrator
             .ToList();
     }
 
-    private async Task<Dictionary<string, string>> LoadWorkDisplayOverridesAsync(Guid workId, CancellationToken ct)
+    internal async Task<Dictionary<string, string>> LoadWorkDisplayOverridesAsync(Guid workId, CancellationToken ct)
     {
         using var conn = _db.CreateConnection();
         var json = await conn.ExecuteScalarAsync<string?>(new CommandDefinition(
@@ -311,7 +311,7 @@ internal sealed partial class DetailCompositionOrchestrator
         return ParseDisplayOverrides(json);
     }
 
-    private static Dictionary<string, string> ParseDisplayOverrides(string? json)
+    internal static Dictionary<string, string> ParseDisplayOverrides(string? json)
     {
         if (string.IsNullOrWhiteSpace(json))
         {
@@ -347,16 +347,26 @@ internal sealed partial class DetailCompositionOrchestrator
         using var conn = _db.CreateConnection();
         var entityIdBlob = GuidSql.ToBlob(entityId);
         var rows = await conn.QueryAsync<CanonicalPair>(new CommandDefinition(
-            "SELECT key AS Key, value AS Value FROM canonical_values WHERE entity_id = @entityId;",
+            "SELECT key AS Key, value AS Value FROM canonical_values WHERE entity_id = @entityId ORDER BY key;",
             new { entityId = entityIdBlob },
             cancellationToken: ct));
-        var values = rows.GroupBy(r => r.Key, StringComparer.OrdinalIgnoreCase)
-            .ToDictionary(g => g.Key, g => g.First().Value, StringComparer.OrdinalIgnoreCase);
-
         var arrayRows = await conn.QueryAsync<CanonicalPair>(new CommandDefinition(
             "SELECT key AS Key, value AS Value FROM canonical_value_arrays WHERE entity_id = @entityId ORDER BY key, ordinal;",
             new { entityId = entityIdBlob },
             cancellationToken: ct));
+        return BuildCanonicalMap(rows, arrayRows);
+    }
+
+    /// <summary>
+    /// Scalar rows win by first-seen key; multi-valued rows (already ordered by key, ordinal) replace the
+    /// scalar entry as one packed value. Shared by the single-entity and batched readers so both agree.
+    /// </summary>
+    private static Dictionary<string, string> BuildCanonicalMap(
+        IEnumerable<CanonicalPair> scalarRows,
+        IEnumerable<CanonicalPair> arrayRows)
+    {
+        var values = scalarRows.GroupBy(r => r.Key, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(g => g.Key, g => g.First().Value, StringComparer.OrdinalIgnoreCase);
         foreach (var group in arrayRows.GroupBy(row => row.Key, StringComparer.OrdinalIgnoreCase))
         {
             values[group.Key] = string.Join('|', group.Select(row => row.Value).Where(value => !string.IsNullOrWhiteSpace(value)));
@@ -382,7 +392,7 @@ internal sealed partial class DetailCompositionOrchestrator
         return values;
     }
 
-    private async Task<Dictionary<string, string>> LoadWorkAndAssetCanonicalMapAsync(
+    internal async Task<Dictionary<string, string>> LoadWorkAndAssetCanonicalMapAsync(
         Guid workId,
         CancellationToken ct,
         IReadOnlyList<Guid>? authorizedAssetIds = null)
@@ -456,10 +466,19 @@ internal sealed partial class DetailCompositionOrchestrator
             WHERE entity_id = @entityId
               AND claim_key IN ('duration_sec', 'duration_seconds', 'genre')
               AND NULLIF(CAST(claim_value AS TEXT), '') IS NOT NULL
-            ORDER BY confidence DESC, claimed_at DESC;
+            ORDER BY confidence DESC, claimed_at DESC, id;
             """,
             new { entityId = GuidSql.ToBlob(entityId) },
             cancellationToken: ct));
+        ApplyTechnicalClaimFallbacks(rows, values);
+    }
+
+    /// <summary>
+    /// Fills gaps from provider claims (ordered best first): durations only when missing, genres merged.
+    /// Shared by the single-entity and batched readers so both agree.
+    /// </summary>
+    private static void ApplyTechnicalClaimFallbacks(IEnumerable<CanonicalPair> rows, IDictionary<string, string> values)
+    {
         foreach (var row in rows)
         {
             if (!string.Equals(row.Key, MetadataFieldConstants.Genre, StringComparison.OrdinalIgnoreCase))
