@@ -633,6 +633,12 @@ public sealed partial class RetailMatchWorker
                     job.EntityId, rangeReviewReason);
             }
         }
+        else if (mediaType == MediaType.TV)
+        {
+            // An ambiguous or unmatched re-import must not leave episodes from an earlier
+            // filename match owned and playable.
+            await ClearFilenameCoverageAsync(job, ct).ConfigureAwait(false);
+        }
 
         // Determine final job state based on best candidate
         if (bestCandidate is not null && bestCandidate.Outcome == "AutoAccepted" && rangeReviewReason is null)
@@ -885,6 +891,13 @@ public sealed partial class RetailMatchWorker
 
                 rows.Add(new MediaAssetCoverage(
                     job.EntityId, workId, index + 1, null, null, MediaAssetCoverage.SourceFilename));
+            }
+
+            // Episodes a person chose in the editor outrank the filename; a re-match never overwrites them.
+            var existing = await _coverageRepo.ListByAssetAsync(job.EntityId, ct).ConfigureAwait(false);
+            if (existing.Any(row => row.Source != MediaAssetCoverage.SourceFilename))
+            {
+                return null;
             }
 
             await _coverageRepo.ReplaceForAssetAsync(job.EntityId, rows, ct).ConfigureAwait(false);

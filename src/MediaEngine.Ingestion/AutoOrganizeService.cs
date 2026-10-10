@@ -33,6 +33,7 @@ public sealed class AutoOrganizeService : IAutoOrganizeService
     private readonly IngestionOptions _options;
     private readonly IEntityAssetRepository? _entityAssetRepo;
     private readonly IWorkRepository? _workRepo;
+    private readonly IMediaAssetCoverageRepository? _coverageRepo;
     private readonly AssetPathService? _assetPathService;
     private readonly ILibraryFolderResolver? _libraryResolver;
     private readonly ISourceMutationPolicyGate _sourceMutationGate;
@@ -52,8 +53,10 @@ public sealed class AutoOrganizeService : IAutoOrganizeService
         IWorkRepository? workRepo = null,
         AssetPathService? assetPathService = null,
         ILibraryFolderResolver? libraryResolver = null,
-        ISourceMutationPolicyGate? sourceMutationGate = null)
+        ISourceMutationPolicyGate? sourceMutationGate = null,
+        IMediaAssetCoverageRepository? coverageRepo = null)
     {
+        _coverageRepo = coverageRepo;
         _assetRepo = assetRepo;
         _canonicalRepo = canonicalRepo;
         _organizer = organizer;
@@ -130,6 +133,8 @@ public sealed class AutoOrganizeService : IAutoOrganizeService
             && Enum.TryParse<MediaType>(mtStr, ignoreCase: true, out var mt)
                 ? mt
                 : (MediaType?)null;
+
+        await ApplyRecordedEpisodeRangeAsync(assetId, metadata, mediaType, ct).ConfigureAwait(false);
 
         // Determine where the file currently is.
         var stagingPath = Path.Combine(libraryRoot, ".data", "staging");
@@ -327,6 +332,36 @@ public sealed class AutoOrganizeService : IAutoOrganizeService
     // -------------------------------------------------------------------------
     // Already-organized path (QID updated after hydration)
     // -------------------------------------------------------------------------
+
+    /// <summary>
+    /// A combined TV file is named from the episodes recorded for it (filename match or a person's
+    /// choice in the editor), never from the filename claim alone: a file waiting in Review, or one
+    /// whose picker changed, must not be named for a range nobody confirmed. Only an unbroken run of
+    /// recorded episodes becomes a range; anything else is named as a single episode.
+    /// </summary>
+    private async Task ApplyRecordedEpisodeRangeAsync(
+        Guid assetId, Dictionary<string, string> metadata, MediaType? mediaType, CancellationToken ct)
+    {
+        if (mediaType != MediaType.TV)
+        {
+            return;
+        }
+
+        metadata.Remove(MetadataFieldConstants.EpisodeEnd);
+        if (_coverageRepo is null)
+        {
+            return;
+        }
+
+        var numbers = await _coverageRepo.ListCoveredEpisodeNumbersAsync(assetId, ct).ConfigureAwait(false);
+        if (!EpisodeRangeParser.TryGetUnbrokenRun(numbers, out var first, out var last))
+        {
+            return;
+        }
+
+        metadata["episode"] = first.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        metadata[MetadataFieldConstants.EpisodeEnd] = last.ToString(System.Globalization.CultureInfo.InvariantCulture);
+    }
 
     private async Task HandleAlreadyOrganizedAsync(
         Domain.Aggregates.MediaAsset asset, Guid assetId,

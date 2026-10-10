@@ -4229,6 +4229,27 @@ public sealed class WorkerPipelineTests
         Assert.Empty(await run.Coverage.ListByAssetAsync(run.AssetId));
     }
 
+    [Fact]
+    public async Task RetailMatchWorker_TvEpisodeRange_RerunKeepsCoverageAPersonChose()
+    {
+        var run = await RunTvEpisodeRangeAsync(
+            "2", new HashSet<int> { 1, 2, 3 }, seedStaleCoverage: true, seedCoverageSource: MediaAssetCoverage.SourceManual);
+
+        var rows = await run.Coverage.ListByAssetAsync(run.AssetId);
+        Assert.Equal(2, rows.Count);
+        Assert.All(rows, row => Assert.Equal(MediaAssetCoverage.SourceManual, row.Source));
+    }
+
+    [Fact]
+    public async Task RetailMatchWorker_TvEpisodeRange_RerunThatIsNoLongerAnAcceptedMatch_ClearsFilenameCoverage()
+    {
+        var run = await RunTvEpisodeRangeAsync(
+            "2", new HashSet<int> { 1, 2 }, seedStaleCoverage: true, compositeScore: 0.30);
+
+        Assert.NotEqual(IdentityJobState.RetailMatched.ToString(), run.Job.State);
+        Assert.Empty(await run.Coverage.ListByAssetAsync(run.AssetId));
+    }
+
     private sealed record TvRangeRun(
         IdentityJob Job,
         Guid AssetId,
@@ -4240,7 +4261,9 @@ public sealed class WorkerPipelineTests
         string? episodeEnd,
         IReadOnlySet<int>? providerEpisodes,
         bool seedStaleCoverage = false,
-        bool firstEpisodeMismatch = false)
+        bool firstEpisodeMismatch = false,
+        string seedCoverageSource = MediaAssetCoverage.SourceFilename,
+        double compositeScore = 0.95)
     {
         var assetId = Guid.NewGuid();
         var jobId = Guid.NewGuid();
@@ -4301,8 +4324,8 @@ public sealed class WorkerPipelineTests
         {
             await coverage.ReplaceForAssetAsync(assetId,
             [
-                new MediaAssetCoverage(assetId, firstEpisodeWorkId, 1, null, null, MediaAssetCoverage.SourceFilename),
-                new MediaAssetCoverage(assetId, Guid.NewGuid(), 2, null, null, MediaAssetCoverage.SourceFilename),
+                new MediaAssetCoverage(assetId, firstEpisodeWorkId, 1, null, null, seedCoverageSource),
+                new MediaAssetCoverage(assetId, Guid.NewGuid(), 2, null, null, seedCoverageSource),
             ]);
         }
 
@@ -4315,7 +4338,7 @@ public sealed class WorkerPipelineTests
         var worker = new RetailMatchWorker(
             jobs, new StubRetailCandidateRepository(), CreateStubStageOutcomeFactory(), CreateStubTimelineRecorder(), CreateStubBatchProgressService(),
             [provider],
-            new StubRetailMatchScoringService { Result = new FieldMatchScores { TitleScore = 0.95, AuthorScore = 0.95, FormatScore = 1.0, CompositeScore = 0.95 } },
+            new StubRetailMatchScoringService { Result = new FieldMatchScores { TitleScore = compositeScore, AuthorScore = compositeScore, FormatScore = 1.0, CompositeScore = compositeScore } },
             new StubMetadataClaimRepository(), canonical, new StubScoringEngine(), loader,
             new StubBridgeIdRepository(),
             workRepo,

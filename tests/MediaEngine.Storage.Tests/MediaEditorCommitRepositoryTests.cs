@@ -231,6 +231,37 @@ public sealed class MediaEditorCommitRepositoryTests : IDisposable
     }
 
     [Fact]
+    public async Task MovingACombinedFilesHostDropsItsCoverageAndReleasesTheCoveredEpisode()
+    {
+        var covered = Guid.NewGuid();
+        using (var setup = _database.CreateConnection())
+        {
+            setup.Execute("""
+                INSERT INTO works(id, media_type, work_kind, parent_work_id, ownership, is_catalog_only)
+                VALUES(@covered, 'TV', 'child', @season, 'Owned', 0);
+                INSERT INTO media_asset_coverage(asset_id, work_id, position, source)
+                VALUES(@asset, @source, 1, 'filename'), (@asset, @covered, 2, 'filename');
+                """, new { covered, season = _season, asset = _asset, source = _source });
+        }
+
+        var result = await new MediaEditorCommitRepository(_database)
+            .CommitVerifiedTvEpisodeMoveAsync(Move());
+
+        Assert.Equal(MediaEditorCommitOutcome.Committed, result.Outcome);
+        using var verify = _database.CreateConnection();
+        Assert.Equal(0, verify.QuerySingle<int>(
+            "SELECT COUNT(*) FROM media_asset_coverage WHERE asset_id = @asset;", new { asset = _asset }));
+        // The covered episode is no longer reached through the moved file, so it goes back to the catalogue
+        // and the moved file owns only its new episode.
+        var state = verify.QuerySingle<(string Ownership, int IsCatalogOnly, string WorkKind)>(
+            "SELECT ownership AS Ownership, is_catalog_only AS IsCatalogOnly, work_kind AS WorkKind FROM works WHERE id = @covered;",
+            new { covered });
+        Assert.Equal(("Unowned", 1, "catalog"), state);
+        Assert.Equal(1, verify.QuerySingle<int>(
+            "SELECT COUNT(DISTINCT work_id) FROM work_owned_assets WHERE asset_id = @asset;", new { asset = _asset }));
+    }
+
+    [Fact]
     public async Task CrossSeasonMoveKeepsSourceSeasonOwnedWhenSiblingFileRemains()
     {
         var actualSeason = Guid.NewGuid();

@@ -1,4 +1,5 @@
 using System.Globalization;
+using Dapper;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Entities;
 using MediaEngine.Storage.Contracts;
@@ -27,6 +28,12 @@ public sealed class MediaAssetCoverageRepository : IMediaAssetCoverageRepository
 
         return _db.ExecuteWriteAsync((conn, tx, innerCt) =>
         {
+            // Episodes whose ownership may change: the ones covered before and the ones covered now.
+            var affected = conn.Query<Guid>(
+                "SELECT work_id FROM media_asset_coverage WHERE asset_id = @assetId;",
+                new { assetId }, tx).ToList();
+            affected.AddRange(coverage.Select(row => row.WorkId));
+
             using (var delete = conn.CreateCommand())
             {
                 delete.Transaction = tx;
@@ -54,6 +61,8 @@ public sealed class MediaAssetCoverageRepository : IMediaAssetCoverageRepository
                 insert.Parameters.AddWithValue("@source", row.Source);
                 insert.ExecuteNonQuery();
             }
+
+            WorkOwnershipSync.Recompute(conn, tx, affected);
         }, ct);
     }
 
@@ -114,15 +123,40 @@ public sealed class MediaAssetCoverageRepository : IMediaAssetCoverageRepository
         return Task.FromResult<IReadOnlyList<MediaAssetCoverage>>(results);
     }
 
-    public Task DeleteForAssetAsync(Guid assetId, CancellationToken ct = default)
+    public Task<IReadOnlyList<int>> ListCoveredEpisodeNumbersAsync(Guid assetId, CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested();
         using var conn = _db.CreateConnection();
         using var cmd = conn.CreateCommand();
-        cmd.CommandText = "DELETE FROM media_asset_coverage WHERE asset_id = @assetId;";
+        cmd.CommandText = """
+            SELECT w.ordinal
+            FROM media_asset_coverage c
+            INNER JOIN works w ON w.id = c.work_id
+            WHERE c.asset_id = @assetId AND w.ordinal IS NOT NULL
+            ORDER BY w.ordinal;
+            """;
         cmd.Parameters.Add("@assetId", SqliteType.Blob).Value = GuidSql.ToBlob(assetId);
-        cmd.ExecuteNonQuery();
-        return Task.CompletedTask;
+        var numbers = new List<int>();
+        using var reader = cmd.ExecuteReader();
+        while (reader.Read())
+        {
+            numbers.Add(reader.GetInt32(0));
+        }
+
+        return Task.FromResult<IReadOnlyList<int>>(numbers);
+    }
+
+    public Task DeleteForAssetAsync(Guid assetId, CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+        return _db.ExecuteWriteAsync((conn, tx, _) =>
+        {
+            var affected = conn.Query<Guid>(
+                "SELECT work_id FROM media_asset_coverage WHERE asset_id = @assetId;",
+                new { assetId }, tx).ToList();
+            conn.Execute("DELETE FROM media_asset_coverage WHERE asset_id = @assetId;", new { assetId }, tx);
+            WorkOwnershipSync.Recompute(conn, tx, affected);
+        }, ct);
     }
 
     private static void Validate(Guid assetId, IReadOnlyList<MediaAssetCoverage> coverage)
