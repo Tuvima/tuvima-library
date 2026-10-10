@@ -25,7 +25,8 @@ public sealed class EngineApiClientEnvelopeGuardrailTests
         // send per attempt with no automatic retry.
         // One more raw POST: creating a reader highlight returns the saved row, and a failed save sets LastError and returns null (no retry).
         AssertAtOrBelow(source, "_http.PostAsJsonAsync", 64);
-        AssertAtOrBelow(source, "_http.PutAsJsonAsync", 28);
+        // One more raw PUT: updating a reader highlight (colour or note); a failure sets LastError and returns null.
+        AssertAtOrBelow(source, "_http.PutAsJsonAsync", 29);
         AssertAtOrBelow(source, "_http.DeleteAsync", 14);
     }
 
