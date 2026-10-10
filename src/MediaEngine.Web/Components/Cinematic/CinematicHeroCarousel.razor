@@ -502,10 +502,10 @@
         }
         if (action.Key == "copy-link") { await JS.InvokeVoidAsync("navigator.clipboard.writeText", new Uri(new Uri(Nav.BaseUri), ActiveDetailsUrl).AbsoluteUri); return; }
         if (action.Key.StartsWith("status-")) {
-            var status = await ApiClient.GetPersonalStatusAsync(ActiveEntityType, identity.Id);
+            var status = await ApiClient.GetPersonalStatusAsync(LandingEntityType, identity.Id);
             if (status is null || identity != LandingIdentity) return;
             var command = action.Key switch { "status-complete" => PersonalStatusAction.Complete, "status-reset" => PersonalStatusAction.Reset, "status-hide" => PersonalStatusAction.HideContinue, "status-show" => PersonalStatusAction.ShowContinue, _ => (PersonalStatusAction?)null };
-            if (command is not null) { await ApiClient.ChangePersonalStatusAsync(new(Guid.NewGuid(), ActiveEntityType, identity.Id, command.Value, status.Revision)); _personal.Remove((profile, identity.Id)); await LoadPersonalAsync(); }
+            if (command is not null) { await ApiClient.ChangePersonalStatusAsync(new(Guid.NewGuid(), LandingEntityType, identity.Id, command.Value, status.Revision)); _personal.Remove((profile, identity.Id)); await LoadPersonalAsync(); }
             else Nav.NavigateTo(ActiveDetailsUrl);
             return;
         }
@@ -624,7 +624,32 @@
         await LoadPersonalAsync();
         if (ActiveItemChanged.HasDelegate) await ActiveItemChanged.InvokeAsync(ActiveHero);
     }
-    private (ProfileEntityKind Kind, Guid Id) LandingIdentity => (ActiveEntityType switch { DetailEntityType.TvShow or DetailEntityType.TvEpisode => ProfileEntityKind.TvShow, DetailEntityType.Movie => ProfileEntityKind.Movie, DetailEntityType.Audiobook => ProfileEntityKind.Audiobook, DetailEntityType.MusicAlbum => ProfileEntityKind.Album, DetailEntityType.ComicIssue => ProfileEntityKind.Comic, _ => ProfileEntityKind.Book }, ActiveHero.EpisodeContext?.ShowWorkId ?? ActiveHero.CollectionId ?? ActiveHero.WorkId ?? ActiveHero.RepresentativeEntityId ?? Guid.Empty);
+    // An episode hero is identified by its show, so its calls must use the show type, never the episode's own kind.
+    private DetailEntityType LandingEntityType => ActiveHero.EpisodeContext?.ShowWorkId is not null ? DetailEntityType.TvShow : ActiveEntityType;
+    // Home must not fetch whole detail pages (a 1,000-episode show is 2 MB); the menu is built from the small personal-status call.
+    private static IReadOnlyList<DetailAction> BuildPersonalMenu(DetailEntityType type, PersonalStatusInfo? status)
+    {
+        var actions = new List<DetailAction>();
+        if (status is { OwnedCount: > 0 })
+        {
+            var (done, undone) = type switch
+            {
+                DetailEntityType.Book or DetailEntityType.ComicIssue => ("read", "unread"),
+                DetailEntityType.Audiobook => ("finished", "unfinished"),
+                DetailEntityType.MusicAlbum => ("listened", "unlistened"),
+                _ => ("watched", "unwatched"),
+            };
+            var noun = type == DetailEntityType.TvShow ? "episodes" : type == DetailEntityType.MusicAlbum ? "tracks" : "titles";
+            var wholeSet = type is DetailEntityType.TvShow or DetailEntityType.MusicAlbum;
+            string Scope(string word) => wholeSet ? $"owned {noun} as {word} ({status.OwnedCount})" : $"as {word}";
+            if (status.CompletedCount < status.OwnedCount) actions.Add(new() { Key = "status-complete", Label = "Mark " + Scope(done), Icon = "check" });
+            if (status.StartedCount > 0) actions.Add(new() { Key = "status-reset", Label = "Mark " + Scope(undone), Icon = "restart_alt" });
+            if (status.StartedCount > status.CompletedCount || status.Hidden) actions.Add(new() { Key = status.Hidden ? "status-show" : "status-hide", Label = status.Hidden ? "Show in Continue" : "Hide from Continue", Icon = "visibility" });
+        }
+        actions.Add(new() { Key = "copy-link", Label = "Copy library link", Icon = "link" });
+        return actions;
+    }
+    private (ProfileEntityKind Kind, Guid Id) LandingIdentity => (LandingEntityType switch { DetailEntityType.TvShow or DetailEntityType.TvEpisode => ProfileEntityKind.TvShow, DetailEntityType.Movie => ProfileEntityKind.Movie, DetailEntityType.Audiobook => ProfileEntityKind.Audiobook, DetailEntityType.MusicAlbum => ProfileEntityKind.Album, DetailEntityType.ComicIssue => ProfileEntityKind.Comic, _ => ProfileEntityKind.Book }, ActiveHero.EpisodeContext?.ShowWorkId ?? ActiveHero.CollectionId ?? ActiveHero.WorkId ?? ActiveHero.RepresentativeEntityId ?? Guid.Empty);
     private readonly Dictionary<(Guid? Profile, Guid Id), (bool Saved, MediaReaction Reaction, IReadOnlyList<DetailAction> Menu)> _personal = [];
     private (bool Saved, MediaReaction Reaction, IReadOnlyList<DetailAction> Menu) Personal => _personal.GetValueOrDefault((Playback.ActiveProfileId, LandingIdentity.Id), (false, MediaReaction.Neutral, []));
     private IReadOnlyList<DetailAction> LandingSecondaryActions => LandingIdentity.Id == Guid.Empty ? [] : [
@@ -633,14 +658,14 @@
     private IReadOnlyList<DetailAction> LandingOverflowActions => (IsContinuation ? new[] { new DetailAction { Key="play-from-beginning",Label="Restart from beginning",Icon="restart_alt",Route=RestartRoute(ActiveHero.PrimaryNavigationUrl) } } : []).Concat(Personal.Menu.Where(action => action.Key != "edit" && action.Key != "play-from-beginning")).Concat([new DetailAction { Key="go-details",Label="Go to details",Icon="info",Route=ActiveDetailsUrl }]).ToList();
     private async Task LoadPersonalAsync() {
         if (Slides.Count == 0) return;
-        var identity=LandingIdentity; var profile=Playback.ActiveProfileId;
+        var identity=LandingIdentity; var profile=Playback.ActiveProfileId; var landingType=LandingEntityType;
         if (identity.Id==Guid.Empty || _personal.ContainsKey((profile,identity.Id))) return;
         try {
             var saved=Services.GetService<SavedItemService>(); var reactions=Services.GetService<MediaReactionService>();
             var member=saved is null ? null : await saved.GetMembershipAsync(identity.Kind,identity.Id);
             var reaction=reactions is null ? MediaReaction.Neutral : await reactions.GetReactionAsync(identity.Id,profile,identity.Kind);
-            var detail=await ApiClient.GetDetailPageAsync(ActiveEntityType,identity.Id,DetailPresentationContext.Default,profileId:profile);
-            if (identity==LandingIdentity && profile==Playback.ActiveProfileId) _personal[(profile,identity.Id)]=(member?.IsSaved==true,reaction,detail?.OverflowActions ?? []);
+            var status=await ApiClient.GetPersonalStatusAsync(landingType,identity.Id);
+            if (identity==LandingIdentity && profile==Playback.ActiveProfileId) _personal[(profile,identity.Id)]=(member?.IsSaved==true,reaction,BuildPersonalMenu(landingType,status));
         } catch(Exception ex) { Logger.LogDebug(ex,"Could not load Home hero personal actions."); }
     }
 
