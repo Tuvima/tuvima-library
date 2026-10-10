@@ -5,6 +5,7 @@ using MediaEngine.Contracts.Authentication;
 using MediaEngine.Contracts.Reading;
 using MediaEngine.Domain.Authorization;
 using MediaEngine.Domain.Contracts;
+using Microsoft.Net.Http.Headers;
 
 namespace MediaEngine.Api.Endpoints;
 
@@ -183,6 +184,62 @@ public static class ReadEndpoints
         .RequireCatalogueAssetAccess(ApplicationPermissionIds.LibraryRead)
         .RequireRateLimiting("streaming");
 
+        // ── The book file itself, with byte ranges ───────────────────────
+
+        // A browser reader opens the book (or comic) file directly and reads only the parts it
+        // needs, so this serves the file with HTTP range support. Access is the same asset gate
+        // as every other reader call; a different kind of file (video, audio, ...) is never
+        // served from here, even to someone who may read the library.
+        group.MapGet("/{assetId:guid}/file", async (
+            Guid assetId,
+            HttpContext ctx,
+            IMediaAssetRepository assetRepo,
+            CancellationToken ct) =>
+        {
+            var asset = await assetRepo.FindByIdAsync(assetId, ct);
+            if (asset is null
+                || !TryGetReadableContentType(asset.FilePathRoot, out var contentType)
+                || !Path.IsPathRooted(asset.FilePathRoot))
+            {
+                return ApiErrors.NotFound($"Asset '{assetId}' not found.");
+            }
+
+            var file = new FileInfo(asset.FilePathRoot);
+            if (!file.Exists)
+            {
+                return ApiErrors.NotFound($"Asset '{assetId}' not found.");
+            }
+
+            // Strong validator: changes whenever the file's size or write time changes, so a
+            // resumed range request (If-Range) can never splice bytes from two versions.
+            var lastModified = new DateTimeOffset(file.LastWriteTimeUtc, TimeSpan.Zero);
+            var entityTag = new EntityTagHeaderValue(
+                $"\"{file.Length:x}-{file.LastWriteTimeUtc.Ticks:x}\"");
+
+            // Every request is authorised again; a cached copy may be reused only after that.
+            ctx.Response.Headers.CacheControl = "private, no-cache";
+            ctx.Response.Headers[HeaderNames.XContentTypeOptions] = "nosniff";
+            ctx.Response.Headers[HeaderNames.ContentSecurityPolicy] = "default-src 'none'; sandbox";
+
+            return Results.File(
+                file.FullName,
+                contentType,
+                fileDownloadName: null,
+                lastModified: lastModified,
+                entityTag: entityTag,
+                enableRangeProcessing: true);
+        })
+        .WithName("GetBookFile")
+        .WithSummary("Serves the book or comic file itself with HTTP byte-range support.")
+        .Produces(StatusCodes.Status200OK)
+        .Produces(StatusCodes.Status206PartialContent)
+        .Produces(StatusCodes.Status304NotModified)
+        .ProducesProblem(StatusCodes.Status404NotFound)
+        .Produces(StatusCodes.Status416RangeNotSatisfiable)
+        .RequireClientScope(ClientApiScopes.LibraryRead)
+        .RequireCatalogueAssetAccess(ApplicationPermissionIds.LibraryRead)
+        .RequireRateLimiting("streaming");
+
         // ── Full-text search ─────────────────────────────────────────────
 
         group.MapGet("/{assetId:guid}/search", async (
@@ -251,6 +308,30 @@ public static class ReadEndpoints
         .RequireClientScope(ClientApiScopes.LibraryRead);
 
         return app;
+    }
+
+    // Only reading formats are served by /file. The list is deliberately short: adding a type
+    // here is a decision to let a browser reader open it.
+    private static readonly Dictionary<string, string> ReadableContentTypes =
+        new(StringComparer.OrdinalIgnoreCase)
+        {
+            [".epub"] = "application/epub+zip",
+            [".cbz"] = "application/vnd.comicbook+zip",
+            [".cbr"] = "application/vnd.comicbook-rar",
+            [".pdf"] = "application/pdf",
+        };
+
+    internal static bool TryGetReadableContentType(string? filePath, out string contentType)
+    {
+        contentType = string.Empty;
+        if (string.IsNullOrEmpty(filePath)
+            || !ReadableContentTypes.TryGetValue(Path.GetExtension(filePath), out var found))
+        {
+            return false;
+        }
+
+        contentType = found;
+        return true;
     }
 
     private static EpubTocEntryDto MapTocEntry(MediaEngine.Domain.Models.EpubTocEntry entry) => new()
