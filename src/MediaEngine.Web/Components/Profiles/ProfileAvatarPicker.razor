@@ -1,0 +1,86 @@
+@namespace MediaEngine.Web.Components.Profiles
+@using MediaEngine.Domain.Aggregates
+@using MediaEngine.Web.Components.Shared
+@* Avatar choices for the profile editor: a colour swatch, a built-in icon (or the person's initial), or an uploaded photo.
+   The picker only reports choices; the editor owns the state and the preview. *@
+<div class="avatar-picker">
+    <div class="avatar-picker__group" role="radiogroup" aria-label="Avatar colour">
+        <h3 class="avatar-picker__heading">Colour</h3>
+        <div class="avatar-picker__grid avatar-picker__grid--swatches">
+            @foreach (var swatch in ProfileAvatarPalette.Swatches)
+            {
+                var selected = string.Equals(swatch.Hex, Color, StringComparison.OrdinalIgnoreCase);
+                <button type="button"
+                        class="avatar-picker__option avatar-picker__option--swatch @(selected ? "is-selected" : null)"
+                        role="radio"
+                        aria-checked="@(selected ? "true" : "false")"
+                        aria-label="@swatch.Name"
+                        disabled="@Disabled"
+                        @onclick="@(() => ColorChanged.InvokeAsync(swatch.Hex))">
+                    <svg viewBox="0 0 100 100" aria-hidden="true" focusable="false"><circle cx="50" cy="50" r="50" fill="@swatch.Hex" /></svg>
+                </button>
+            }
+        </div>
+    </div>
+
+    <div class="avatar-picker__group" role="radiogroup" aria-label="Avatar icon">
+        <h3 class="avatar-picker__heading">Icon</h3>
+        <div class="avatar-picker__grid">
+            <button type="button"
+                    class="avatar-picker__option @(Icon is null && !HasPhoto ? "is-selected" : null)"
+                    role="radio"
+                    aria-checked="@(Icon is null && !HasPhoto ? "true" : "false")"
+                    aria-label="Initial letter"
+                    disabled="@Disabled"
+                    @onclick="@(() => IconChanged.InvokeAsync(null))">
+                <ProfileAvatar DisplayName="@DisplayName" Color="@Color" />
+            </button>
+            @foreach (var key in ProfileAvatarIcons.All)
+            {
+                var selected = string.Equals(key, Icon, StringComparison.Ordinal) && !HasPhoto;
+                <button type="button"
+                        class="avatar-picker__option @(selected ? "is-selected" : null)"
+                        role="radio"
+                        aria-checked="@(selected ? "true" : "false")"
+                        aria-label="@key"
+                        disabled="@Disabled"
+                        @onclick="@(() => IconChanged.InvokeAsync(key))">
+                    <ProfileAvatar DisplayName="@DisplayName" Color="@Color" Icon="@key" />
+                </button>
+            }
+        </div>
+    </div>
+
+    <div class="avatar-picker__group">
+        <h3 class="avatar-picker__heading">Photo</h3>
+        <div class="avatar-picker__photo">
+            <label class="who-button avatar-picker__upload @(Disabled ? "is-disabled" : null)">
+                <span>@(HasPhoto ? "Change photo" : "Upload a photo")</span>
+                <InputFile class="avatar-picker__file" accept="image/jpeg,image/png,image/webp" disabled="@Disabled" OnChange="OnFileChosen" aria-label="Upload a profile photo" />
+            </label>
+            @if (HasPhoto)
+            {
+                <AppNativeButton Type="button" Class="who-button" Disabled="@Disabled" OnClick="@(() => PhotoRemoved.InvokeAsync())">Remove photo</AppNativeButton>
+            }
+        </div>
+        <p class="avatar-picker__hint">JPEG, PNG or WebP, up to 5 MB.</p>
+    </div>
+</div>
+
+@code {
+    [Parameter] public string? DisplayName { get; set; }
+    [Parameter] public string? Color { get; set; }
+    [Parameter] public EventCallback<string> ColorChanged { get; set; }
+
+    /// <summary>Key of the chosen built-in icon; null means the initial letter.</summary>
+    [Parameter] public string? Icon { get; set; }
+    [Parameter] public EventCallback<string?> IconChanged { get; set; }
+
+    /// <summary>True when a photo is currently chosen (saved or just picked); it wins over the icon.</summary>
+    [Parameter] public bool HasPhoto { get; set; }
+    [Parameter] public EventCallback<IBrowserFile> PhotoChosen { get; set; }
+    [Parameter] public EventCallback PhotoRemoved { get; set; }
+    [Parameter] public bool Disabled { get; set; }
+
+    private Task OnFileChosen(InputFileChangeEventArgs args) => PhotoChosen.InvokeAsync(args.File);
+}

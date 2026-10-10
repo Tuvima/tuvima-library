@@ -32,6 +32,7 @@ public sealed class ProfileRepository : IProfileRepository
                    display_name AS DisplayName,
                    avatar_color AS AvatarColor,
                    avatar_image_path AS AvatarImagePath,
+                   avatar_icon  AS AvatarIcon,
                    role         AS Role,
                    created_at   AS CreatedAt,
                    navigation_config AS NavigationConfig,
@@ -54,6 +55,7 @@ public sealed class ProfileRepository : IProfileRepository
                    display_name AS DisplayName,
                    avatar_color AS AvatarColor,
                    avatar_image_path AS AvatarImagePath,
+                   avatar_icon  AS AvatarIcon,
                    role         AS Role,
                    created_at   AS CreatedAt,
                    navigation_config AS NavigationConfig,
@@ -78,6 +80,7 @@ public sealed class ProfileRepository : IProfileRepository
             SET    display_name      = @name,
                    avatar_color      = @color,
                    avatar_image_path = @avatarImagePath,
+                   avatar_icon       = @avatarIcon,
                    navigation_config = @nav
             WHERE  id = @id;
             """, new
@@ -85,6 +88,7 @@ public sealed class ProfileRepository : IProfileRepository
             name = profile.DisplayName,
             color = profile.AvatarColor,
             avatarImagePath = profile.AvatarImagePath,
+            avatarIcon = profile.AvatarIcon,
             nav = profile.NavigationConfig,
             id = profile.Id,
         });
@@ -99,6 +103,7 @@ public sealed class ProfileRepository : IProfileRepository
         public string DisplayName { get; set; } = string.Empty;
         public string AvatarColor { get; set; } = string.Empty;
         public string? AvatarImagePath { get; set; }
+        public string? AvatarIcon { get; set; }
         public string Role { get; set; } = string.Empty;
         public string CreatedAt { get; set; } = string.Empty;
         public string? NavigationConfig { get; set; }
@@ -111,6 +116,7 @@ public sealed class ProfileRepository : IProfileRepository
         DisplayName = r.DisplayName,
         AvatarColor = r.AvatarColor,
         AvatarImagePath = r.AvatarImagePath,
+        AvatarIcon = r.AvatarIcon,
         Role = Enum.Parse<ProfileRole>(r.Role),
         CreatedAt = DateTimeOffset.Parse(r.CreatedAt),
         NavigationConfig = r.NavigationConfig,

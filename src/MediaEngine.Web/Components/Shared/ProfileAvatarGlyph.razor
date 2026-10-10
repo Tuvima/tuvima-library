@@ -1,0 +1,107 @@
+@namespace MediaEngine.Web.Components.Shared
+@* The built-in illustrated avatar icons, drawn as simple shapes inside ProfileAvatar's 100 x 100 circle.
+   Shapes use the lettering colour (Ink) and cut their details out in the circle colour (Fill), so every icon reads on every swatch. *@
+@switch (Key)
+{
+    case "cat":
+        <polygon points="26,46 29,20 47,34" fill="@Ink" />
+        <polygon points="74,46 71,20 53,34" fill="@Ink" />
+        <ellipse cx="50" cy="57" rx="26" ry="22" fill="@Ink" />
+        <circle cx="41" cy="54" r="3.6" fill="@Fill" />
+        <circle cx="59" cy="54" r="3.6" fill="@Fill" />
+        <polygon points="46,62 54,62 50,67" fill="@Fill" />
+        break;
+    case "fox":
+        <polygon points="20,20 43,38 57,38 80,20 82,56 50,82 18,56" fill="@Ink" />
+        <polygon points="50,82 36,66 64,66" fill="@Fill" fill-opacity="0.35" />
+        <circle cx="38" cy="52" r="3.6" fill="@Fill" />
+        <circle cx="62" cy="52" r="3.6" fill="@Fill" />
+        <circle cx="50" cy="76" r="4" fill="@Fill" />
+        break;
+    case "owl":
+        <polygon points="24,24 40,34 28,44" fill="@Ink" />
+        <polygon points="76,24 60,34 72,44" fill="@Ink" />
+        <ellipse cx="50" cy="56" rx="27" ry="28" fill="@Ink" />
+        <circle cx="39" cy="50" r="10" fill="@Fill" />
+        <circle cx="61" cy="50" r="10" fill="@Fill" />
+        <circle cx="39" cy="50" r="4.5" fill="@Ink" />
+        <circle cx="61" cy="50" r="4.5" fill="@Ink" />
+        <polygon points="45,60 55,60 50,70" fill="@Fill" />
+        break;
+    case "bear":
+        <circle cx="29" cy="34" r="10" fill="@Ink" />
+        <circle cx="71" cy="34" r="10" fill="@Ink" />
+        <circle cx="50" cy="56" r="26" fill="@Ink" />
+        <ellipse cx="50" cy="65" rx="11" ry="8" fill="@Fill" fill-opacity="0.35" />
+        <circle cx="40" cy="50" r="3.4" fill="@Fill" />
+        <circle cx="60" cy="50" r="3.4" fill="@Fill" />
+        <ellipse cx="50" cy="62" rx="4.5" ry="3.2" fill="@Fill" />
+        break;
+    case "panda":
+        <circle cx="29" cy="34" r="10" fill="@Ink" />
+        <circle cx="71" cy="34" r="10" fill="@Ink" />
+        <circle cx="50" cy="56" r="26" fill="@Ink" />
+        <ellipse cx="38" cy="51" rx="8" ry="10" fill="@Fill" transform="rotate(-20 38 51)" />
+        <ellipse cx="62" cy="51" rx="8" ry="10" fill="@Fill" transform="rotate(20 62 51)" />
+        <circle cx="39" cy="52" r="3.2" fill="@Ink" />
+        <circle cx="61" cy="52" r="3.2" fill="@Ink" />
+        <ellipse cx="50" cy="64" rx="5" ry="3.5" fill="@Fill" />
+        break;
+    case "penguin":
+        <ellipse cx="50" cy="55" rx="23" ry="30" fill="@Ink" />
+        <ellipse cx="50" cy="63" rx="14" ry="20" fill="@Fill" />
+        <circle cx="42" cy="38" r="3.6" fill="@Fill" />
+        <circle cx="58" cy="38" r="3.6" fill="@Fill" />
+        <polygon points="44,44 56,44 50,53" fill="@Ink" />
+        break;
+    case "robot":
+        <line x1="50" y1="22" x2="50" y2="34" stroke="@Ink" stroke-width="4" stroke-linecap="round" />
+        <circle cx="50" cy="20" r="5" fill="@Ink" />
+        <rect x="25" y="34" width="50" height="42" rx="9" fill="@Ink" />
+        <rect x="35" y="47" width="10" height="10" rx="3" fill="@Fill" />
+        <rect x="55" y="47" width="10" height="10" rx="3" fill="@Fill" />
+        <rect x="37" y="64" width="26" height="5" rx="2.5" fill="@Fill" />
+        break;
+    case "rocket":
+        <path d="M50 16 C65 30 67 52 61 70 H39 C33 52 35 30 50 16 Z" fill="@Ink" />
+        <polygon points="38,60 26,76 40,72" fill="@Ink" />
+        <polygon points="62,60 74,76 60,72" fill="@Ink" />
+        <circle cx="50" cy="42" r="7" fill="@Fill" />
+        <polygon points="43,74 57,74 50,88" fill="@Ink" />
+        break;
+    case "planet":
+        <circle cx="50" cy="50" r="19" fill="@Ink" />
+        <ellipse cx="50" cy="50" rx="35" ry="10" fill="none" stroke="@Ink" stroke-width="5" transform="rotate(-20 50 50)" />
+        <path d="M33 46 A19 19 0 0 1 52 31" fill="none" stroke="@Fill" stroke-width="3" stroke-linecap="round" stroke-opacity="0.5" />
+        break;
+    case "moon":
+        <circle cx="46" cy="52" r="28" fill="@Ink" />
+        <circle cx="60" cy="42" r="24" fill="@Fill" />
+        <circle cx="72" cy="30" r="3" fill="@Ink" />
+        <circle cx="78" cy="48" r="2" fill="@Ink" />
+        break;
+    case "crown":
+        <polygon points="20,72 16,34 36,50 50,26 64,50 84,34 80,72" fill="@Ink" />
+        <circle cx="16" cy="32" r="4" fill="@Ink" />
+        <circle cx="50" cy="24" r="4" fill="@Ink" />
+        <circle cx="84" cy="32" r="4" fill="@Ink" />
+        <rect x="26" y="62" width="48" height="5" rx="2.5" fill="@Fill" />
+        break;
+    case "ghost":
+        <path d="M29 78 V50 A21 21 0 0 1 71 50 V78 L63 70 L56 78 L49 70 L42 78 L35 70 Z" fill="@Ink" />
+        <circle cx="42" cy="48" r="4" fill="@Fill" />
+        <circle cx="58" cy="48" r="4" fill="@Fill" />
+        <ellipse cx="50" cy="60" rx="3.5" ry="4.5" fill="@Fill" />
+        break;
+}
+
+@code {
+    /// <summary>One of <see cref="MediaEngine.Domain.Aggregates.ProfileAvatarIcons.All"/>.</summary>
+    [Parameter] public string? Key { get; set; }
+
+    /// <summary>The colour the icon is drawn in.</summary>
+    [Parameter] public string Ink { get; set; } = "#ffffff";
+
+    /// <summary>The colour of the circle behind the icon, used to cut details out of it.</summary>
+    [Parameter] public string Fill { get; set; } = "#8852FC";
+}

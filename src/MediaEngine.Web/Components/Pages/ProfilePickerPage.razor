@@ -45,7 +45,7 @@
                                      AriaLabel="@CardLabel(profile)"
                                      OnClick="@(() => ChooseAsync(profile))">
                         <span class="who-card__picture">
-                            <ProfileAvatar DisplayName="@profile.DisplayName" ImageUrl="@profile.AvatarImageUrl" Color="@profile.AvatarColor" />
+                            <ProfileAvatar DisplayName="@profile.DisplayName" ImageUrl="@profile.AvatarImageUrl" Color="@profile.AvatarColor" Icon="@profile.AvatarIcon" />
                             @if (profile.HasPin)
                             {
                                 <span class="who-card__lock" aria-hidden="true">

@@ -362,14 +362,15 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
                 newProfile.HouseholdId = account.HouseholdId;
                 connection.Execute("""
                     INSERT INTO profiles
-                        (id,display_name,avatar_color,avatar_image_path,role,created_at,navigation_config,household_id)
-                    VALUES(@Id,@DisplayName,@AvatarColor,@AvatarImagePath,@Role,@CreatedAt,@NavigationConfig,@HouseholdId);
+                        (id,display_name,avatar_color,avatar_image_path,avatar_icon,role,created_at,navigation_config,household_id)
+                    VALUES(@Id,@DisplayName,@AvatarColor,@AvatarImagePath,@AvatarIcon,@Role,@CreatedAt,@NavigationConfig,@HouseholdId);
                     """, new
                 {
                     newProfile.Id,
                     newProfile.DisplayName,
                     newProfile.AvatarColor,
                     newProfile.AvatarImagePath,
+                    newProfile.AvatarIcon,
                     Role = newProfile.Role.ToString(),
                     CreatedAt = Iso(newProfile.CreatedAt),
                     newProfile.NavigationConfig,
@@ -538,7 +539,7 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
         {
             token.ThrowIfCancellationRequested();
             var changed = connection.Execute("""
-                UPDATE profiles SET display_name=@DisplayName,avatar_color=@AvatarColor
+                UPDATE profiles SET display_name=@DisplayName,avatar_color=@AvatarColor,avatar_icon=@AvatarIcon
                 WHERE id=@Id;
                 """, profile, transaction);
             if (changed != 1)
@@ -901,14 +902,15 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
     {
         profile.HouseholdId = householdId;
         connection.Execute("""
-            INSERT INTO profiles(id,display_name,avatar_color,avatar_image_path,role,created_at,navigation_config,household_id)
-            VALUES(@Id,@DisplayName,@AvatarColor,@AvatarImagePath,@Role,@CreatedAt,@NavigationConfig,@HouseholdId);
+            INSERT INTO profiles(id,display_name,avatar_color,avatar_image_path,avatar_icon,role,created_at,navigation_config,household_id)
+            VALUES(@Id,@DisplayName,@AvatarColor,@AvatarImagePath,@AvatarIcon,@Role,@CreatedAt,@NavigationConfig,@HouseholdId);
             """, new
         {
             profile.Id,
             profile.DisplayName,
             profile.AvatarColor,
             profile.AvatarImagePath,
+            profile.AvatarIcon,
             Role = profile.Role.ToString(),
             CreatedAt = Iso(profile.CreatedAt),
             profile.NavigationConfig,

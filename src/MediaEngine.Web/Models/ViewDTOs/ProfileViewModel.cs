@@ -14,7 +14,8 @@ public sealed record ProfileViewModel(
     [property: JsonPropertyName("created_at")] DateTimeOffset CreatedAt,
     [property: JsonPropertyName("navigation_config")] string? NavigationConfig = null,
     [property: JsonPropertyName("avatar_image_url")] string? AvatarImageUrl = null,
-    [property: JsonPropertyName("has_pin")] bool HasPin = false)
+    [property: JsonPropertyName("has_pin")] bool HasPin = false,
+    [property: JsonPropertyName("avatar_icon")] string? AvatarIcon = null)
 {
     /// <summary>Restricted ("child") profiles are tagged on the picker and never reach admin areas.</summary>
     [JsonIgnore]

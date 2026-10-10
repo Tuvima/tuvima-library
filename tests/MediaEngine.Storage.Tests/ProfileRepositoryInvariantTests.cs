@@ -41,6 +41,21 @@ public sealed class ProfileRepositoryInvariantTests : IDisposable
         Assert.Equal(ProfileRole.Administrator, persisted.Role);
     }
 
+    [Fact]
+    public async Task UpdateAsync_SavesAndClearsTheBuiltInAvatarIcon()
+    {
+        var owner = Assert.IsType<Profile>(await _repository.GetByIdAsync(Profile.SeedProfileId));
+        Assert.Null(owner.AvatarIcon);
+
+        owner.AvatarIcon = "fox";
+        Assert.True(await _repository.UpdateAsync(owner));
+        Assert.Equal("fox", Assert.IsType<Profile>(await _repository.GetByIdAsync(Profile.SeedProfileId)).AvatarIcon);
+
+        owner.AvatarIcon = null;
+        Assert.True(await _repository.UpdateAsync(owner));
+        Assert.Null(Assert.IsType<Profile>(await _repository.GetByIdAsync(Profile.SeedProfileId)).AvatarIcon);
+    }
+
     public void Dispose()
     {
         _database.Dispose();
