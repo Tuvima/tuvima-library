@@ -47,7 +47,7 @@
 
 <a class="skip-to-content" href="#main-content">@L["Layout_SkipToContent"]</a>
 
-<AppCssElement Tag="div" Class="layout-accent-scope" @onclick="CloseOpenShellMenus">
+<AppCssElement Tag="div" Class="@AccentScopeClass" @onclick="CloseOpenShellMenus">
 <div class="@(_thisComputerBanner ? "playback-app-frame playback-app-frame--with-banner" : "playback-app-frame")">
 <AppCssElement Tag="div" Class="playback-app-frame__variables">
 <AppLayout Class="@LayoutShellClass">
@@ -63,7 +63,7 @@
         </AppStack>
 
         <nav class="layout-shell__desktop-nav" aria-label="Primary">
-            @foreach (var link in _navLinks)
+            @foreach (var link in VisibleNavLinks)
             {
                 <a href="@link.Path"
                    @key="link.Path"
@@ -118,6 +118,7 @@
                                    Profiles="@_profiles"
                                    ReviewCount="@_reviewCount"
                                    CanViewReview="@CanViewReview"
+                                   IsKids="@_isKids"
                                    ShowSignOut="true" />
             </span>
         </AppStack>
@@ -198,6 +199,7 @@
     private string _displayName = "User";
     private string _profileRole = "Profile";
     private Guid? _activeProfileId;
+    private bool _isKids;
     private int _reviewCount;
     private int _accountMenuVersion;
     private readonly CancellationTokenSource _authorityRefreshCancellation = new();
@@ -233,6 +235,16 @@
             ["Collections"] = new("/collections", "Nav_Collections", AppMaterialIcons.Outlined.CollectionsBookmark),
         };
 
+    // The Kids shell keeps only the lanes a child needs; "My List" stays in the top bar.
+    private static readonly string[] _kidsNavPaths = ["/watch", "/listen", "/read"];
+    private static readonly string[] _kidsDockPaths = ["/", "/watch", "/listen", "/read"];
+
+    private string AccentScopeClass => _isKids ? "layout-accent-scope layout-kids" : "layout-accent-scope";
+
+    private IEnumerable<ShellNavLink> VisibleNavLinks => _isKids
+        ? _kidsNavPaths.Select(path => _navLinks.First(link => link.Path == path))
+        : _navLinks;
+
     private bool IsDetailShell => IsDetailPath(_currentPath);
     private bool IsLaneScrollRoute => new[] { "/read", "/watch", "/listen", "/collections", "/view" }.Any(path =>
         string.Equals(_currentPath, path, StringComparison.OrdinalIgnoreCase)
@@ -252,6 +264,7 @@
         .Select(item => _intentDockCatalog.TryGetValue(item, out var link) ? link : (ShellNavLink?)null)
         .Where(link => link.HasValue)
         .Select(link => link!.Value)
+        .Where(link => !_isKids || _kidsDockPaths.Contains(link.Path, StringComparer.OrdinalIgnoreCase))
         .DistinctBy(link => link.Path, StringComparer.OrdinalIgnoreCase)
         .ToArray();
     private string IntentDockClass => string.Join(' ', new[]
@@ -614,6 +627,7 @@
             _profiles = await Orchestrator.GetProfilesAsync();
             if (_disposed) return;
             _activeProfileId = profile.Id;
+            _isKids = profile.IsRestricted;
             _avatarColor = profile.AvatarColor;
             _avatarImageUrl = profile.AvatarImageUrl;
             _displayName = string.IsNullOrWhiteSpace(profile.DisplayName)

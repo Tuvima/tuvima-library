@@ -4115,3 +4115,69 @@ input[type="reset"],
         min-height: 56px;
     }
 }
+
+/* Kids shell (profiles P6): a calmer, friendlier version of the app for Kids profiles. */
+.layout-kids {
+    --tl-kids-tile-scale: 1.12;
+    --tl-kids-radius: 20px;
+    --tl-kids-accent: var(--tl-accent-primary, #8852FC);
+}
+
+.layout-kids .layout-shell__nav-link {
+    font-size: var(--tl-font-size-md, 1rem);
+    min-height: 48px;
+    padding-inline: 18px;
+}
+
+.layout-kids .layout-shell__nav-link--active::after {
+    height: 4px;
+    border-radius: var(--tl-radius-pill, 999px);
+}
+
+.layout-kids .layout-shell__intent-dock-link {
+    min-height: 56px;
+}
+
+.layout-kids .media-tile {
+    zoom: var(--tl-kids-tile-scale);
+}
+
+.layout-kids .media-tile .media-tile-media {
+    border-radius: var(--tl-kids-radius);
+}
+
+.kids-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 10px;
+    border-radius: var(--tl-radius-pill, 999px);
+    background: var(--tl-kids-accent, var(--tl-accent-primary, #8852FC));
+    color: #fff;
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 1.4;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+}
+
+@media (max-width: 640px) {
+    .layout-kids {
+        --tl-kids-tile-scale: 1.06;
+    }
+}
+
+@media (min-width: 1920px) {
+    .layout-kids {
+        --tl-kids-tile-scale: 1.2;
+    }
+
+    .layout-kids .layout-shell__nav-link {
+        min-height: 56px;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .layout-kids .media-tile {
+        transition: none;
+    }
+}
