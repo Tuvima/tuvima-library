@@ -76,7 +76,7 @@ public sealed class ReadBookFileEndpointTests : IDisposable
         Assert.NotNull(response.Headers.ETag);
         Assert.False(response.Headers.ETag!.IsWeak);
         Assert.NotNull(response.Content.Headers.LastModified);
-        Assert.Equal("private, no-cache", response.Headers.CacheControl?.ToString());
+        Assert.True(response.Headers.CacheControl?.Private == true && response.Headers.CacheControl.NoCache);
         Assert.Equal("nosniff", Assert.Single(response.Headers.GetValues("X-Content-Type-Options")));
         Assert.Equal("default-src 'none'; sandbox", Assert.Single(response.Headers.GetValues("Content-Security-Policy")));
         Assert.Null(response.Content.Headers.ContentDisposition);

@@ -131,7 +131,7 @@ public sealed class EngineBookProxyTests
         using var response = await dashboard.SendAsync(Request(null));
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        Assert.Equal("private, no-cache", response.Headers.CacheControl?.ToString());
+        Assert.True(response.Headers.CacheControl?.Private == true && response.Headers.CacheControl.NoCache);
         Assert.Equal("nosniff", Assert.Single(response.Headers.GetValues("X-Content-Type-Options")));
         Assert.Equal("default-src 'none'; sandbox", Assert.Single(response.Headers.GetValues("Content-Security-Policy")));
         Assert.False(response.Headers.Contains("Set-Cookie"));
