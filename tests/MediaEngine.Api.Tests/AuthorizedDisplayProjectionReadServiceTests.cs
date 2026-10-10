@@ -4,6 +4,7 @@ using MediaEngine.Api.Security;
 using MediaEngine.Api.Services.Details;
 using MediaEngine.Api.Services.Details.Internals;
 using MediaEngine.Api.Services.Display;
+using MediaEngine.Api.Services.Playback;
 using MediaEngine.Api.Services.ReadServices;
 using MediaEngine.Contracts.Playback;
 using MediaEngine.Domain.Authorization;
@@ -1253,6 +1254,136 @@ public sealed class AuthorizedDisplayProjectionReadServiceTests : IDisposable
         var other = await composer.BuildAuthorizedAsync(MediaEngine.Contracts.Details.DetailEntityType.TvEpisode, first.WorkId, MediaEngine.Contracts.Details.DetailPresentationContext.Watch, default, show.ToString("D"), Guid.NewGuid(), default, [first.AssetId, second.AssetId]);
         Assert.NotNull(other); Assert.All(other.SequencePlacement!.OrderedItems, i => { Assert.Equal(MediaEngine.Contracts.Display.DisplayContinuationState.Unstarted, i.EpisodeContext!.State); Assert.Null(i.ProgressPercent); });
         Assert.Equal(0, Assert.Single(other.SequencePlacement.Groups).CompletedCount);
+    }
+
+    [Fact]
+    public async Task CombinedFileEpisodesResolveToTheHostFileForPlayback()
+    {
+        var account = Guid.NewGuid();
+        var library = Guid.NewGuid();
+        await CreateHumanAsync(account, new HashSet<AccountFeatureId> { AccountFeatureId.Watch }, new HashSet<Guid> { library });
+        var combined = await InsertOwnedWorkWithIdAsync(library, "Pilot", "TV");
+        var covered = Guid.NewGuid();
+        using (var connection = _database.CreateConnection())
+        {
+            await connection.ExecuteAsync("""
+                INSERT INTO works (id, media_type, work_kind, curator_state) VALUES (@covered, 'TV', 'standalone', 'accepted');
+                INSERT INTO media_asset_coverage (asset_id, work_id, position, source) VALUES
+                    (@asset, @first, 1, 'filename'), (@asset, @covered, 2, 'filename');
+                """, new { covered, first = combined.WorkId, asset = combined.AssetId });
+        }
+        var context = HumanContext(account, MediaEngine.Domain.Aggregates.Profile.SeedProfileId);
+        var resources = CreateResourceService(context);
+        Assert.Equal([combined.AssetId], await resources.GetAuthorizedAssetIdsForWorkAsync(
+            context, covered, MediaEngine.Domain.Aggregates.Profile.SeedProfileId, ApplicationPermissionIds.LibraryRead));
+        Assert.Equal(combined.AssetId, await resources.FindAuthorizedAssetForWorkAsync(
+            context, combined.WorkId, MediaEngine.Domain.Aggregates.Profile.SeedProfileId, ApplicationPermissionIds.LibraryRead));
+        Assert.Empty(await resources.GetAuthorizedAssetIdsForWorkAsync(
+            context, Guid.NewGuid(), MediaEngine.Domain.Aggregates.Profile.SeedProfileId, ApplicationPermissionIds.LibraryRead));
+    }
+
+    [Fact]
+    public async Task CombinedFileQueuesOnceAndStartsAtTheRequestedEpisodeOnlyWhenNothingToResume()
+    {
+        var account = Guid.NewGuid();
+        var library = Guid.NewGuid();
+        var profile = MediaEngine.Domain.Aggregates.Profile.SeedProfileId;
+        await CreateHumanAsync(account, new HashSet<AccountFeatureId> { AccountFeatureId.Watch }, new HashSet<Guid> { library });
+        var combined = await InsertOwnedWorkWithIdAsync(library, "Pilot", "TV");
+        var next = await InsertOwnedWorkWithIdAsync(library, "Third", "TV");
+        var covered = Guid.NewGuid();
+        using (var connection = _database.CreateConnection())
+        {
+            await connection.ExecuteAsync("""
+                INSERT INTO works (id, media_type, work_kind, curator_state) VALUES (@covered, 'TV', 'standalone', 'accepted');
+                INSERT INTO canonical_values (entity_id, key, value, last_scored_at) VALUES
+                    (@covered, 'title', 'Part Two', CURRENT_TIMESTAMP),
+                    (@covered, 'episode_number', '2', CURRENT_TIMESTAMP),
+                    (@asset, 'episode_number', '1', CURRENT_TIMESTAMP);
+                INSERT INTO media_asset_coverage (asset_id, work_id, position, start_seconds, source) VALUES
+                    (@asset, @first, 1, 0, 'filename'), (@asset, @covered, 2, 1500, 'manual');
+                """, new { covered, first = combined.WorkId, asset = combined.AssetId });
+        }
+        var context = HumanContext(account, profile);
+        DisplayWorkRow Row(Guid work, Guid asset) =>
+            new() { WorkId = work, AssetId = asset, LibraryId = library.ToString("D"), MediaType = "TV" };
+        using var services = new ServiceCollection()
+            .AddSingleton<IRequestAuthorityResolver>(new RequestAuthorityResolver(_accounts, _applications, new ProfileRepository(_database)))
+            .AddSingleton(CreateService(context, new StubRawProjection(
+                [Row(combined.WorkId, combined.AssetId), Row(covered, combined.AssetId), Row(next.WorkId, next.AssetId)], [])))
+            .BuildServiceProvider();
+        context.RequestServices = services;
+        var player = new PlayerService(
+            null!, null!, _database, null!, null!, null!, null!, null!, null!,
+            new PlayerCatalogueScope(new HttpContextAccessor { HttpContext = context }), null!);
+        var request = new PlayerQueueMutationDto
+        {
+            WorkIds = [combined.WorkId, covered, next.WorkId],
+            StartWorkId = covered,
+        };
+
+        var queue = await player.ResolveQueueItemsAsync(request, profile, default);
+
+        Assert.Equal([covered, next.WorkId], queue.Select(item => item.WorkId).ToArray());
+        var episodeTwo = queue[0];
+        Assert.Equal(combined.AssetId, episodeTwo.AssetId);
+        Assert.Equal("Part Two", episodeTwo.Title);
+        Assert.Equal("2", episodeTwo.EpisodeNumber);
+        Assert.Equal(1500, episodeTwo.PositionSeconds);
+        Assert.Null(queue[1].PositionSeconds);
+
+        var fromStart = await player.ResolveQueueItemsAsync(request with { StartWorkId = combined.WorkId }, profile, default);
+        Assert.Equal([combined.WorkId, next.WorkId], fromStart.Select(item => item.WorkId).ToArray());
+        Assert.Null(fromStart[0].PositionSeconds);
+
+        // Partial progress inside episode 1 still opens episode 2 at its own start.
+        using (var connection = _database.CreateConnection())
+        {
+            connection.Execute(
+                "INSERT INTO user_states(user_id, asset_id, progress_pct, last_accessed, extended_properties) VALUES (@profile, @asset, 20, CURRENT_TIMESTAMP, '{\"position_seconds\":600}');",
+                new { profile, asset = combined.AssetId });
+        }
+        Assert.Equal(1500, (await player.ResolveQueueItemsAsync(request, profile, default))[0].PositionSeconds);
+
+        // Progress already inside episode 2 is resumed, not reset to its start.
+        using (var connection = _database.CreateConnection())
+        {
+            connection.Execute("UPDATE user_states SET progress_pct = 60, extended_properties = '{\"position_seconds\":2400}' WHERE asset_id = @asset;", new { asset = combined.AssetId });
+        }
+        Assert.Null((await player.ResolveQueueItemsAsync(request, profile, default))[0].PositionSeconds);
+
+        using (var connection = _database.CreateConnection())
+        {
+            connection.Execute("UPDATE user_states SET progress_pct = 100 WHERE asset_id = @asset;", new { asset = combined.AssetId });
+        }
+        Assert.Equal(1500, (await player.ResolveQueueItemsAsync(request, profile, default))[0].PositionSeconds);
+    }
+
+    [Fact]
+    public async Task QueueKeepsIntentionalRepeatsOfASingleEpisodeFile()
+    {
+        var account = Guid.NewGuid();
+        var library = Guid.NewGuid();
+        var profile = MediaEngine.Domain.Aggregates.Profile.SeedProfileId;
+        await CreateHumanAsync(account, new HashSet<AccountFeatureId> { AccountFeatureId.Watch }, new HashSet<Guid> { library });
+        var single = await InsertOwnedWorkWithIdAsync(library, "Movie night", "TV");
+        var context = HumanContext(account, profile);
+        using var services = new ServiceCollection()
+            .AddSingleton<IRequestAuthorityResolver>(new RequestAuthorityResolver(_accounts, _applications, new ProfileRepository(_database)))
+            .AddSingleton(CreateService(context, new StubRawProjection(
+                [new() { WorkId = single.WorkId, AssetId = single.AssetId, LibraryId = library.ToString("D"), MediaType = "TV" }], [])))
+            .BuildServiceProvider();
+        context.RequestServices = services;
+        var player = new PlayerService(
+            null!, null!, _database, null!, null!, null!, null!, null!, null!,
+            new PlayerCatalogueScope(new HttpContextAccessor { HttpContext = context }), null!);
+
+        var queue = await player.ResolveQueueItemsAsync(new PlayerQueueMutationDto
+        {
+            Items = [new() { WorkId = single.WorkId }, new() { WorkId = single.WorkId }],
+        }, profile, default);
+
+        Assert.Equal(2, queue.Count);
     }
 
     private AuthorizedDisplayProjectionReadService CreateService(
