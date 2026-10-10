@@ -746,6 +746,51 @@ public sealed partial class RetailMatchWorker
         WorkLineage? lineage,
         CancellationToken ct)
     {
+        var reviewReason = await LinkEpisodeRangeCoreAsync(job, hints, tvdbSeriesId, lineage, ct)
+            .ConfigureAwait(false);
+        if (reviewReason is not null || !hints.ContainsKey(MetadataFieldConstants.EpisodeEnd))
+        {
+            await ClearFilenameCoverageAsync(job, ct).ConfigureAwait(false);
+        }
+
+        return reviewReason;
+    }
+
+    /// <summary>
+    /// Removes coverage left by an earlier run once the file no longer qualifies, so stale
+    /// extra episodes do not linger. Coverage set by a person (manual) is never touched.
+    /// </summary>
+    private async Task ClearFilenameCoverageAsync(IdentityJob job, CancellationToken ct)
+    {
+        if (_coverageRepo is null
+            || !string.Equals(job.EntityType, "MediaAsset", StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        try
+        {
+            var existing = await _coverageRepo.ListByAssetAsync(job.EntityId, ct).ConfigureAwait(false);
+            if (existing.Count > 0
+                && existing.All(row => row.Source == MediaAssetCoverage.SourceFilename))
+            {
+                await _coverageRepo.ReplaceForAssetAsync(job.EntityId, [], ct).ConfigureAwait(false);
+            }
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _logger.LogWarning(ex,
+                "TV: could not clear earlier episode coverage for file {EntityId}", job.EntityId);
+        }
+    }
+
+    private async Task<string?> LinkEpisodeRangeCoreAsync(
+        IdentityJob job,
+        IReadOnlyDictionary<string, string> hints,
+        string? tvdbSeriesId,
+        WorkLineage? lineage,
+        CancellationToken ct)
+    {
         if (!hints.TryGetValue(MetadataFieldConstants.EpisodeEnd, out var episodeEnd)
             || string.IsNullOrWhiteSpace(episodeEnd))
         {
@@ -757,6 +802,28 @@ public sealed partial class RetailMatchWorker
         var seasonText = hints.GetValueOrDefault(MetadataFieldConstants.SeasonNumber)
             ?? hints.GetValueOrDefault("season");
         int? first = int.TryParse(firstText, out var firstValue) ? firstValue : null;
+
+        if (tvdbSeriesId is null && lineage is not null)
+        {
+            // The winning candidate carried no tvdb_id; fall back to one already recorded for the show.
+            try
+            {
+                var known = await _bridgeIdRepo.FindAsync(lineage.RootParentWorkId, BridgeIdKeys.TvdbId, ct)
+                    .ConfigureAwait(false);
+                tvdbSeriesId = known is { IdValue: { Length: > 0 } recorded } ? recorded : null;
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                _logger.LogDebug(ex, "TV: could not look up a recorded TVDB series id (entity {EntityId})", job.EntityId);
+            }
+        }
+
+        if (tvdbSeriesId is null)
+        {
+            _logger.LogInformation(
+                "TV: multi-episode file {EntityId} has no TheTVDB series id, so its range cannot be verified (only TheTVDB is supported)",
+                job.EntityId);
+        }
 
         IReadOnlySet<int>? providerEpisodes = null;
         if (first.HasValue
@@ -772,8 +839,15 @@ public sealed partial class RetailMatchWorker
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
                 _logger.LogWarning(ex,
-                    "TV: could not read the provider's season list to verify a multi-episode file (entity {EntityId})",
+                    "TV: could not read TheTVDB's season list (English, aired order) to verify a multi-episode file (entity {EntityId})",
                     job.EntityId);
+            }
+
+            if (providerEpisodes is null)
+            {
+                _logger.LogInformation(
+                    "TV: TheTVDB has no aired-order episodes for series {SeriesId} season {Season}; file {EntityId} goes to review (DVD or absolute order is not checked)",
+                    seriesId, season, job.EntityId);
             }
         }
 
@@ -802,10 +876,13 @@ public sealed partial class RetailMatchWorker
             for (var index = 0; index < decision.Episodes.Count; index++)
             {
                 var episode = decision.Episodes[index];
-                var workId = index == 0
-                    ? lineage.WorkId
-                    : await _workRepo.GetOrCreateChildAsync(MediaType.TV, seasonWorkId, episode, episode, ct)
-                        .ConfigureAwait(false);
+                var workId = await _workRepo.GetOrCreateChildAsync(MediaType.TV, seasonWorkId, episode, episode, ct)
+                    .ConfigureAwait(false);
+                if (index == 0 && workId != lineage.WorkId)
+                {
+                    return "The file is attached to a different episode than its filename names.";
+                }
+
                 rows.Add(new MediaAssetCoverage(
                     job.EntityId, workId, index + 1, null, null, MediaAssetCoverage.SourceFilename));
             }
