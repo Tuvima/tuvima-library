@@ -2,6 +2,8 @@
 using System.Diagnostics;
 using System.Reflection;
 using System.Runtime.CompilerServices;
+using Xunit.Abstractions;
+using Xunit.Sdk;
 
 namespace MediaEngine.TestSupport;
 
@@ -119,7 +121,7 @@ internal static class TestTemp
 
     private static int _cleanedUp;
 
-    private static void CleanupRun()
+    internal static void CleanupRun()
     {
         if (RunRoot.Length == 0 || Interlocked.Exchange(ref _cleanedUp, 1) == 1)
         {
@@ -218,5 +220,24 @@ internal static class TestTemp
 
         // Report instead of swallowing: a leftover file is a leak someone should see.
         Console.Error.WriteLine($"[TestTemp] Could not delete '{path}': {last?.Message}");
+    }
+}
+
+/// <summary>
+/// xUnit test framework (registered per assembly by tests/Directory.Build.props) whose disposal runs the run-folder
+/// cleanup once all tests finish. Test hosts are often terminated before <c>ProcessExit</c> handlers complete, so the
+/// cleanup must not depend on process exit; the exit hooks in <see cref="TestTemp"/> stay as a backstop.
+/// </summary>
+public sealed class TestTempFramework : XunitTestFramework
+{
+    public TestTempFramework(IMessageSink messageSink)
+        : base(messageSink)
+    {
+        DisposalTracker.Add(new CleanupOnDispose());
+    }
+
+    private sealed class CleanupOnDispose : IDisposable
+    {
+        public void Dispose() => TestTemp.CleanupRun();
     }
 }
