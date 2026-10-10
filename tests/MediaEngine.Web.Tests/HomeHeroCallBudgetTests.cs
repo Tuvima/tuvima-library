@@ -1,8 +1,8 @@
 using Bunit;
 using MediaEngine.Contracts.Details;
 using MediaEngine.Contracts.Display;
-using MediaEngine.Contracts.Progress;
 using MediaEngine.Contracts.ProfileState;
+using MediaEngine.Contracts.Progress;
 using MediaEngine.Web.Components.Cinematic;
 using MediaEngine.Web.Models.ViewDTOs;
 using MediaEngine.Web.Services.Integration;
@@ -38,7 +38,11 @@ public sealed class HomeHeroCallBudgetTests : AsyncBunitContext
             });
             stub.SetHandler(nameof(IEngineApiClient.GetPersonalStatusAsync), args =>
             {
-                lock (_statusTypes) _statusTypes.Add((DetailEntityType)args![0]!);
+                lock (_statusTypes)
+                {
+                    _statusTypes.Add((DetailEntityType)args![0]!);
+                }
+
                 return Task.FromResult<PersonalStatusInfo?>(new("r1", 3, 1, 0, false));
             });
         });
@@ -53,7 +57,9 @@ public sealed class HomeHeroCallBudgetTests : AsyncBunitContext
         var showId = Guid.NewGuid();
         var episodeHero = new DiscoveryHeroViewModel
         {
-            Title = "The Show", MediaKind = "Movie", WorkId = Guid.NewGuid(),
+            Title = "The Show",
+            MediaKind = "Movie",
+            WorkId = Guid.NewGuid(),
             EpisodeContext = new(showId, Guid.NewGuid(), Guid.NewGuid(), "The Show", "Ep", 1, 1,
                 DisplayContinuationState.Unstarted, null, null),
         };
