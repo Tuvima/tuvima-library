@@ -1,4 +1,5 @@
 using Dapper;
+using MediaEngine.Domain;
 using MediaEngine.Domain.Constants;
 using MediaEngine.Storage;
 

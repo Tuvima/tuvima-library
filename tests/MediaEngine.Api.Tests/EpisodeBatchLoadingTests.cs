@@ -1,8 +1,8 @@
 using System.Reflection;
 using System.Text.Json;
 using Dapper;
-using MediaEngine.Contracts.Details;
 using MediaEngine.Api.Services.Details.Internals;
+using MediaEngine.Contracts.Details;
 using MediaEngine.Domain.Aggregates;
 using MediaEngine.Storage;
 using MediaEngine.Storage.Contracts;
@@ -325,7 +325,7 @@ public sealed class EpisodeBatchLoadingTests : IDisposable
         public SqliteConnection CreateConnection()
         {
             var connection = inner.CreateConnection();
-            raw.sqlite3_trace(connection.Handle!, (_, _) => Interlocked.Increment(ref _statements), null);
+            raw.sqlite3_trace(connection.Handle!, (object _, string _) => Interlocked.Increment(ref _statements), null);
             return connection;
         }
 
