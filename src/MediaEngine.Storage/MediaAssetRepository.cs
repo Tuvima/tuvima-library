@@ -675,15 +675,24 @@ public sealed class MediaAssetRepository : IMediaAssetRepository
         ct.ThrowIfCancellationRequested();
 
         using var conn = _db.CreateConnection();
+        SetLibraryId(conn, null, id, libraryId);
+
+        return Task.CompletedTask;
+    }
+
+    /// <summary>Transaction-aware form of <see cref="SetLibraryIdAsync"/>.</summary>
+    internal static void SetLibraryId(
+        Microsoft.Data.Sqlite.SqliteConnection conn,
+        Microsoft.Data.Sqlite.SqliteTransaction? tx,
+        Guid id,
+        string? libraryId) =>
         conn.Execute("""
             UPDATE media_assets
             SET    library_id = @libraryId
             WHERE  id         = @id;
             """,
-            new { libraryId, id });
-
-        return Task.CompletedTask;
-    }
+            new { libraryId, id },
+            tx);
 
     /// <inheritdoc/>
     public Task MarkOrphanedAsync(Guid id, CancellationToken ct = default)

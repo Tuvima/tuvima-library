@@ -42,38 +42,54 @@ public sealed class MetadataClaimRepository : IMetadataClaimRepository
             return;
         }
 
-        await _db.ExecuteWriteAsync((conn, tx, innerCt) =>
+        await _db.ExecuteWriteAsync(
+            (conn, tx, innerCt) => InsertBatchInTransaction(conn, tx, claims),
+            ct).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Appends claims on a caller-owned write transaction, so a multi-step change can commit or
+    /// roll back with its claims.
+    /// </summary>
+    internal static void InsertBatchInTransaction(
+        Microsoft.Data.Sqlite.SqliteConnection conn,
+        Microsoft.Data.Sqlite.SqliteTransaction tx,
+        IReadOnlyList<MetadataClaim> claims)
+    {
+        if (claims.Count == 0)
         {
-            EnsureBuiltInProvidersExist(conn, tx, claims);
+            return;
+        }
 
-            const string sql = """
-                INSERT INTO metadata_claims
-                    (id, entity_id, provider_id, decision_source_provider_id, observation_set_id,
-                     claim_key, claim_value, confidence, claimed_at, is_user_locked, is_current, superseded_at)
-                VALUES
-                    (@Id, @EntityId, @ProviderId, @DecisionSourceProviderId, @ObservationSetId,
-                     @ClaimKey, @ClaimValue, @Confidence, @ClaimedAt, @IsUserLocked, @IsCurrent, @SupersededAt);
-                """;
+        EnsureBuiltInProvidersExist(conn, tx, claims);
 
-            // Build the batch parameter list — Dapper executes one INSERT per item.
-            var rows = claims.Select(c => new
-            {
-                c.Id,
-                c.EntityId,
-                c.ProviderId,
-                c.DecisionSourceProviderId,
-                c.ObservationSetId,
-                c.ClaimKey,
-                c.ClaimValue,
-                c.Confidence,
-                ClaimedAt = c.ClaimedAt.ToString("o"),
-                IsUserLocked = c.IsUserLocked ? 1 : 0,
-                IsCurrent = c.IsCurrent ? 1 : 0,
-                SupersededAt = c.SupersededAt?.ToString("O"),
-            });
+        const string sql = """
+            INSERT INTO metadata_claims
+                (id, entity_id, provider_id, decision_source_provider_id, observation_set_id,
+                 claim_key, claim_value, confidence, claimed_at, is_user_locked, is_current, superseded_at)
+            VALUES
+                (@Id, @EntityId, @ProviderId, @DecisionSourceProviderId, @ObservationSetId,
+                 @ClaimKey, @ClaimValue, @Confidence, @ClaimedAt, @IsUserLocked, @IsCurrent, @SupersededAt);
+            """;
 
-            conn.Execute(sql, rows, transaction: tx);
-        }, ct).ConfigureAwait(false);
+        // Build the batch parameter list — Dapper executes one INSERT per item.
+        var rows = claims.Select(c => new
+        {
+            c.Id,
+            c.EntityId,
+            c.ProviderId,
+            c.DecisionSourceProviderId,
+            c.ObservationSetId,
+            c.ClaimKey,
+            c.ClaimValue,
+            c.Confidence,
+            ClaimedAt = c.ClaimedAt.ToString("o"),
+            IsUserLocked = c.IsUserLocked ? 1 : 0,
+            IsCurrent = c.IsCurrent ? 1 : 0,
+            SupersededAt = c.SupersededAt?.ToString("O"),
+        });
+
+        conn.Execute(sql, rows, transaction: tx);
     }
 
     /// <inheritdoc/>
@@ -185,7 +201,7 @@ public sealed class MetadataClaimRepository : IMetadataClaimRepository
             FROM   metadata_claims
             WHERE  entity_id = @entityId
               AND  is_current = 1
-            ORDER  BY claimed_at ASC;
+            ORDER  BY claimed_at ASC, rowid ASC;
             """, new { entityId }).AsList();
 
         return Task.FromResult<IReadOnlyList<MetadataClaim>>(results);

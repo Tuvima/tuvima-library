@@ -634,6 +634,23 @@ public sealed class UIOrchestratorService : IAsyncDisposable
         return ok;
     }
 
+    /// <summary>
+    /// Accepts a "Found as a TV title" suggestion: the Engine re-files the film under the TMDB show as a
+    /// special and re-runs identity as TV. The file on disk is never moved.
+    /// </summary>
+    public async Task<ReviewMoveToTvAttempt> MoveReviewToTvAsync(Guid id, CancellationToken ct = default)
+    {
+        var response = await _api.MoveReviewItemToTvAsync(id, ct);
+        if (response is null)
+        {
+            return new ReviewMoveToTvAttempt(null, _api.LastError);
+        }
+
+        await RefreshReviewCountSnapshotAsync(ct);
+        _state.Invalidate();
+        return new ReviewMoveToTvAttempt(response, null);
+    }
+
     /// <summary>Skips Universe matching for a review item and dismisses it.</summary>
     public async Task<bool> SkipUniverseAsync(Guid id, CancellationToken ct = default)
     {

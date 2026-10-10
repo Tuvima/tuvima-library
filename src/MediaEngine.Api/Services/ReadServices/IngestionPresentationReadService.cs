@@ -781,8 +781,10 @@ public sealed class IngestionPresentationReadService : IIngestionPresentationRea
                 LEFT JOIN works gp ON gp.id = p.parent_work_id
                 LEFT JOIN latest_file_operations lfo
                   ON lfo.batch_id = ll.ingestion_run_id AND lfo.entity_id = ll.media_asset_id
-                WHERE NOT {IngestionBatchActivitySql.IsActive}
-                  AND {AdditionBatchPredicate}
+                -- Items of a still-active batch appear as soon as their own identity jobs settle
+                -- (AdditionBatchPredicate requires an added-at time), so a long first-run import
+                -- fills Recently Added while it runs. Items still in flight have no added-at yet.
+                WHERE {AdditionBatchPredicate}
                   AND {PresentationTitleSql}
                   {searchFilter}
                   {laneFilter}

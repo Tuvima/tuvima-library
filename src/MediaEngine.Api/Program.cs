@@ -258,7 +258,6 @@ foreach (var warning in LegacyAccessSettingsCheck.Find(configDirectory))
 }
 
 builder.Services.AddSingleton<IConfigurationLoader>(configLoader);
-builder.Services.AddSingleton<ProviderCredentialService>();
 
 // -- Rate limiting -------------------------------------------------------------
 {

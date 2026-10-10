@@ -142,6 +142,34 @@ public sealed class TmdbRetailClient
         }
     }
 
+    /// <summary>
+    /// Returns the raw TMDB TV search results for a title without year filtering, so a caller can
+    /// apply its own title and year rules. Unlike <see cref="SearchShowAsync"/> this lets HTTP
+    /// failures propagate, so the caller can tell "no results" from "TMDB was unreachable".
+    /// </summary>
+    public async Task<IReadOnlyList<JsonNode>> SearchShowCandidatesAsync(
+        string showName,
+        string apiKey,
+        string language,
+        string country,
+        CancellationToken ct)
+    {
+        var url = _requestBuilder.BuildTmdbTvSearchUrl(showName, null, apiKey, language, country);
+        using var client = _httpFactory.CreateClient("tmdb");
+        var json = await _rateLimiter.ExecuteAsync(
+            "tmdb",
+            ProviderRateLimitDefaults.Tmdb,
+            token => client.GetFromJsonAsync<JsonNode>(url, token),
+            ct).ConfigureAwait(false);
+        var results = json?["results"]?.AsArray();
+        if (results is null)
+        {
+            return [];
+        }
+
+        return results.Where(node => node is not null).Select(node => node!).ToList();
+    }
+
     public async Task<JsonNode?> FetchShowDetailsAsync(
         string tvId,
         string apiKey,

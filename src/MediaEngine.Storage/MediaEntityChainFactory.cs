@@ -32,11 +32,12 @@ public sealed class MediaEntityChainFactory : IMediaEntityChainFactory
     public async Task<Guid> EnsureEntityChainAsync(
         MediaType mediaType,
         IReadOnlyDictionary<string, string>? metadata,
+        string? sourceFilePath = null,
         CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested();
 
-        var resolved = await _resolver.ResolveAsync(mediaType, metadata, ct).ConfigureAwait(false);
+        var resolved = await _resolver.ResolveAsync(mediaType, metadata, sourceFilePath, ct).ConfigureAwait(false);
 
         _logger?.LogDebug(
             "Chain factory: resolved {MediaType} to Work {WorkId} ({Kind}, parent={Parent}, ordinal={Ordinal}, new={New})",

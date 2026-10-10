@@ -50,6 +50,7 @@ internal sealed class SchemaMigrator
         }
 
         EnsureCurrentIndexes(conn);
+        SplitPackedMultiValuedCanonicals(conn);
         using (var recordingIndex = conn.CreateCommand())
         {
             recordingIndex.CommandText = "SELECT sql FROM sqlite_master WHERE name='ux_works_child_parent_ordinal_sort'";
@@ -68,6 +69,158 @@ internal sealed class SchemaMigrator
         SeedMetadataProviders(conn);
         SeedDefaultProfile(conn);
         MigrateLegacyProfileLists(conn);
+    }
+
+    /// <summary>
+    /// Keys that earlier builds stored as '|'-packed text in <c>canonical_values</c> (and in <c>metadata_claims</c>)
+    /// and that are now multi-valued. Each is split into <c>canonical_value_arrays</c> rows and its scalar rows are
+    /// removed; packed current claims are superseded by one claim per value.
+    /// </summary>
+    private static readonly string[] PackedMultiValuedKeys = [MetadataFieldConstants.SubtitleLanguages];
+
+    /// <summary>
+    /// Splits packed multi-valued canonical values and claims (see <see cref="PackedMultiValuedKeys"/>) into the
+    /// array form. Driven only by the data it finds, so it is safe to run on every startup and does nothing on
+    /// clean data. Existing array rows are never overwritten.
+    /// </summary>
+    private void SplitPackedMultiValuedCanonicals(SqliteConnection conn)
+    {
+        var splitValues = 0;
+        var splitClaims = 0;
+        DatabaseConnection.ExecuteStartupTransaction(conn, transaction =>
+        {
+            foreach (var key in PackedMultiValuedKeys)
+            {
+                var scalarRows = new List<(byte[] EntityId, string Value)>();
+                using (var read = conn.CreateCommand())
+                {
+                    read.Transaction = transaction;
+                    read.CommandText = "SELECT entity_id, value FROM canonical_values WHERE key = $key;";
+                    read.Parameters.AddWithValue("$key", key);
+                    using var reader = read.ExecuteReader();
+                    while (reader.Read())
+                    {
+                        scalarRows.Add((reader.GetFieldValue<byte[]>(0), reader.GetString(1)));
+                    }
+                }
+
+                foreach (var (entityId, value) in scalarRows)
+                {
+                    using var existing = conn.CreateCommand();
+                    existing.Transaction = transaction;
+                    existing.CommandText = "SELECT COUNT(*) FROM canonical_value_arrays WHERE entity_id = $entity AND key = $key;";
+                    existing.Parameters.AddWithValue("$entity", entityId);
+                    existing.Parameters.AddWithValue("$key", key);
+                    var hasArray = Convert.ToInt32(existing.ExecuteScalar(), System.Globalization.CultureInfo.InvariantCulture) > 0;
+
+                    if (!hasArray)
+                    {
+                        var ordinal = 0;
+                        foreach (var item in Domain.Services.LanguageCodeNormalizer.NormalizeDistinct(
+                                     value.Split('|', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)))
+                        {
+                            using var insert = conn.CreateCommand();
+                            insert.Transaction = transaction;
+                            insert.CommandText = """
+                                INSERT INTO canonical_value_arrays (entity_id, key, ordinal, value, value_qid)
+                                VALUES ($entity, $key, $ordinal, $value, NULL);
+                                """;
+                            insert.Parameters.AddWithValue("$entity", entityId);
+                            insert.Parameters.AddWithValue("$key", key);
+                            insert.Parameters.AddWithValue("$ordinal", ordinal++);
+                            insert.Parameters.AddWithValue("$value", item);
+                            insert.ExecuteNonQuery();
+                        }
+                    }
+
+                    using var delete = conn.CreateCommand();
+                    delete.Transaction = transaction;
+                    delete.CommandText = "DELETE FROM canonical_values WHERE entity_id = $entity AND key = $key;";
+                    delete.Parameters.AddWithValue("$entity", entityId);
+                    delete.Parameters.AddWithValue("$key", key);
+                    delete.ExecuteNonQuery();
+                    splitValues++;
+                }
+
+                splitClaims += SplitPackedClaims(conn, transaction, key);
+            }
+        });
+
+        if (splitValues > 0 || splitClaims > 0)
+        {
+            _notes.Add($"Moved {splitValues} packed multi-valued canonical value(s) to array rows and split {splitClaims} packed claim(s).");
+        }
+    }
+
+    private static int SplitPackedClaims(SqliteConnection conn, SqliteTransaction transaction, string key)
+    {
+        var packed = new List<(byte[] Id, byte[] EntityId, byte[] ProviderId, byte[]? DecisionSourceProviderId,
+            byte[]? ObservationSetId, string Value, double Confidence, string ClaimedAt, long IsUserLocked)>();
+        using (var read = conn.CreateCommand())
+        {
+            read.Transaction = transaction;
+            read.CommandText = """
+                SELECT id, entity_id, provider_id, decision_source_provider_id, observation_set_id,
+                       claim_value, confidence, claimed_at, is_user_locked
+                FROM metadata_claims
+                WHERE claim_key = $key AND is_current = 1 AND instr(claim_value, '|') > 0
+                ORDER BY claimed_at, rowid;
+                """;
+            read.Parameters.AddWithValue("$key", key);
+            using var reader = read.ExecuteReader();
+            while (reader.Read())
+            {
+                packed.Add((
+                    reader.GetFieldValue<byte[]>(0),
+                    reader.GetFieldValue<byte[]>(1),
+                    reader.GetFieldValue<byte[]>(2),
+                    reader.IsDBNull(3) ? null : reader.GetFieldValue<byte[]>(3),
+                    reader.IsDBNull(4) ? null : reader.GetFieldValue<byte[]>(4),
+                    reader.GetString(5),
+                    reader.GetDouble(6),
+                    reader.GetString(7),
+                    reader.GetInt64(8)));
+            }
+        }
+
+        var supersededAt = DateTimeOffset.UtcNow.ToString("O");
+        foreach (var claim in packed)
+        {
+            foreach (var item in Domain.Services.LanguageCodeNormalizer.NormalizeDistinct(
+                         claim.Value.Split('|', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)))
+            {
+                using var insert = conn.CreateCommand();
+                insert.Transaction = transaction;
+                insert.CommandText = """
+                    INSERT INTO metadata_claims
+                        (id, entity_id, provider_id, decision_source_provider_id, observation_set_id,
+                         claim_key, claim_value, confidence, claimed_at, is_user_locked, is_current, superseded_at)
+                    VALUES
+                        ($id, $entity, $provider, $decision, $observation,
+                         $key, $value, $confidence, $claimedAt, $locked, 1, NULL);
+                    """;
+                insert.Parameters.AddWithValue("$id", GuidSql.ToBlob(Guid.NewGuid()));
+                insert.Parameters.AddWithValue("$entity", claim.EntityId);
+                insert.Parameters.AddWithValue("$provider", claim.ProviderId);
+                insert.Parameters.AddWithValue("$decision", (object?)claim.DecisionSourceProviderId ?? DBNull.Value);
+                insert.Parameters.AddWithValue("$observation", (object?)claim.ObservationSetId ?? DBNull.Value);
+                insert.Parameters.AddWithValue("$key", key);
+                insert.Parameters.AddWithValue("$value", item);
+                insert.Parameters.AddWithValue("$confidence", claim.Confidence);
+                insert.Parameters.AddWithValue("$claimedAt", claim.ClaimedAt);
+                insert.Parameters.AddWithValue("$locked", claim.IsUserLocked);
+                insert.ExecuteNonQuery();
+            }
+
+            using var supersede = conn.CreateCommand();
+            supersede.Transaction = transaction;
+            supersede.CommandText = "UPDATE metadata_claims SET is_current = 0, superseded_at = $at WHERE id = $id;";
+            supersede.Parameters.AddWithValue("$at", supersededAt);
+            supersede.Parameters.AddWithValue("$id", claim.Id);
+            supersede.ExecuteNonQuery();
+        }
+
+        return packed.Count;
     }
 
     /// <summary>
@@ -1588,12 +1741,14 @@ internal sealed class SchemaMigrator
             (WellKnownProviders.OpenLibrary, "open_library", "1.0"),
             (WellKnownProviders.MusicBrainz, "musicbrainz", "1.0"),
             (WellKnownProviders.Tmdb, "tmdb", "1.0"),
+            (WellKnownProviders.Tvdb, "tvdb", "1.0"),
             (WellKnownProviders.ComicVine, "comicvine", "1.0"),
             (WellKnownProviders.Lrclib, "lrclib", "1.0"),
             (WellKnownProviders.OpenSubtitles, "opensubtitles", "1.0"),
             (WellKnownProviders.Subdl, "subdl", "2.0"),
             (WellKnownProviders.UserManual, "user_manual", "1.0"),
             (WellKnownProviders.AiProvider, "ai_provider", "1.0"),
+            (WellKnownProviders.Pseudonym, "pseudonym", "1.0"),
         ];
 
         using var cmd = conn.CreateCommand();

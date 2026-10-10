@@ -114,6 +114,12 @@ public sealed class FieldOverrideDto
     public string? ProviderId { get; set; }
 }
 
+/// <summary>
+/// Outcome of the Move to TV action: the Engine's confirmation, or the reason it failed. Dashboard-only;
+/// the confirmation itself is the Contracts <c>ReviewMoveToTvResponse</c>.
+/// </summary>
+public sealed record ReviewMoveToTvAttempt(MediaEngine.Contracts.Review.ReviewMoveToTvResponse? Response, string? Error);
+
 /// <summary>Pending review count returned by <c>GET /review/count</c>.</summary>
 public sealed record ReviewCountDto(
     [property: JsonPropertyName("pending_count")] int PendingCount);

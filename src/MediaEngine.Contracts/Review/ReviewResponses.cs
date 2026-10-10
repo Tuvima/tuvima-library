@@ -12,3 +12,5 @@ public sealed record ReviewResolveResponse(bool resolved, Guid review_item_id);
 public sealed record ReviewDismissResponse(bool dismissed, Guid review_item_id);
 
 public sealed record ReviewSkipUniverseResponse(bool skipped, Guid review_item_id);
+
+public sealed record ReviewMoveToTvResponse(bool moved, Guid review_item_id, Guid entity_id, string show_name, string? tv_library_id);

@@ -39,6 +39,7 @@ public sealed partial class ConfigDrivenAdapter
         }
 
         claims = NormalizeClaimsForStrategy(strategy, request, claims);
+        claims = KeepTaggedAlbumWhenCollectionDiffers(request, claims);
         claims = EnrichComicVineCreatorClaims(claims, resultNode, request);
 
         if (!ClaimsMatchRequest(claims, request, strategy))

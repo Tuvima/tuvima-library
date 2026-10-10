@@ -13,7 +13,7 @@
          @ref="_cardRef"
          aria-label="@Item.Title">
     <a class="media-tile-link" href="@DetailsNavigationUrl" aria-label="@DetailsActionAriaLabel" @onclick="OpenDetails" @onclick:preventDefault="true">
-    <div class="media-tile-frame @(Item.IsUpdatingDetails ? "tl-enrichment-pending" : null)">
+    <div class="media-tile-frame">
         <div class="media-tile-media @(HasArtworkSurface ? "has-artwork-surface" : null)">
             @if (ShowGroupCollage)
             {
@@ -116,13 +116,17 @@
                 </div>
             </div>
         }
+        @if (ShowOverlaySettlingDot)
+        {
+            <span class="media-tile-settling-dot is-overlay" title="Still being matched"><span class="media-tile-settling-dot__label">Still being matched</span></span>
+        }
     </div>
 
     @if (CaptionContent is not null) { <div class="media-tile-identity-caption">@CaptionContent</div> }
     @if (ShowCompactCaption && Item.Subject != DisplaySubjectKind.TvEpisode)
     {
         <div class="media-tile-caption" aria-hidden="true">
-            <span class="media-tile-caption__title" title="@Item.Title">@Item.Title</span>
+            <span class="media-tile-caption__title" title="@Item.Title">@if (Item.IsSettling) { <span class="media-tile-settling-dot" title="Still being matched"><span class="media-tile-settling-dot__label">Still being matched</span></span> }@Item.Title</span>
             @if (!string.IsNullOrWhiteSpace(Item.Subtitle) && Item.MediaKind is not ("Movie" or "TV")) { <span class="media-tile-caption__subtitle">@Item.Subtitle</span> }
 
             @if (!string.IsNullOrWhiteSpace(CompactIdentityYear))
@@ -134,7 +138,7 @@
 
     @if (CaptionContent is null && Item.Subject == DisplaySubjectKind.TvEpisode && !string.IsNullOrWhiteSpace(EpisodeShowCaption))
     {
-        <div class="media-tile-episode-caption"><strong>@(Item.EpisodeContext is { } episode ? $"S{episode.SeasonNumber} E{episode.EpisodeNumber} · {episode.EpisodeTitle}" : Item.Title)</strong><span>@EpisodeShowCaption</span></div>
+        <div class="media-tile-episode-caption"><strong>@if (Item.IsSettling) { <span class="media-tile-settling-dot" title="Still being matched"><span class="media-tile-settling-dot__label">Still being matched</span></span> }@(Item.EpisodeContext is { } episode ? $"S{episode.SeasonNumber} E{episode.EpisodeNumber} · {episode.EpisodeTitle}" : Item.Title)</strong><span>@EpisodeShowCaption</span></div>
     }
     </a>
     @if (UsesCinematicHover)
@@ -584,7 +588,7 @@
         _ => "is-default",
     };
 
-    private string HoverLayoutClass => MediaKindLabel is "Movie" or "TV" || Item.HoverLayout == MediaTileHoverLayout.BannerPopover ? "is-banner-popover" : "is-art-popover";
+    private string HoverLayoutClass => Item.HoverLayout == MediaTileHoverLayout.BannerPopover ? "is-banner-popover" : "is-art-popover";
 
     private string HoverPlacementClass => Item.PreviewPlacement == MediaTilePreviewPlacement.Bottom ? "is-placement-bottom" : "is-placement-smart";
 
@@ -1094,7 +1098,14 @@
 
     private string DetailsNavigationUrl => Item.DetailsNavigationUrl ?? Item.NavigationUrl;
 
-    private string DetailsActionAriaLabel => $"View details for {Item.Title}" + (Item.IsUpdatingDetails ? ". Updating details" : string.Empty);
+    private bool ShowsCompactTitleCaption => ShowCompactCaption && Item.Subject != DisplaySubjectKind.TvEpisode;
+    private bool ShowsEpisodeCaption => CaptionContent is null && Item.Subject == DisplaySubjectKind.TvEpisode && !string.IsNullOrWhiteSpace(EpisodeShowCaption);
+
+    // Tiles without a title line of their own (hover-only shelves, custom caption content) carry the marker as a
+    // small corner dot so every tile still signals "still being matched" without changing its height.
+    private bool ShowOverlaySettlingDot => Item.IsSettling && !ShowsCompactTitleCaption && !ShowsEpisodeCaption;
+
+    private string DetailsActionAriaLabel => $"View details for {Item.Title}" + (Item.IsSettling ? ". Still being matched" : string.Empty);
 
     private void OpenDetails()
     {

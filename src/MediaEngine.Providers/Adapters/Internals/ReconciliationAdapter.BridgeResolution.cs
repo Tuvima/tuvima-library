@@ -716,8 +716,11 @@ public sealed partial class ReconciliationAdapter
             ? mediaType.ToString()
             : resolutionScope;
 
+        // Read the live config (not the startup snapshot) so allow-list edits hot reload.
+        var config = CurrentConfig;
+
         // Check exclude list first — if ANY P31 is excluded, reject immediately.
-        if (_config.ExcludeClasses.TryGetValue(mediaTypeKey, out var excludedClasses)
+        if (config.ExcludeClasses.TryGetValue(mediaTypeKey, out var excludedClasses)
             && excludedClasses.Count > 0)
         {
             var excludedSet = new HashSet<string>(excludedClasses, StringComparer.OrdinalIgnoreCase);
@@ -731,7 +734,7 @@ public sealed partial class ReconciliationAdapter
         }
 
         // Check include list — at least one P31 must be in instance_of_classes.
-        if (_config.InstanceOfClasses.TryGetValue(mediaTypeKey, out var expectedClasses)
+        if (config.InstanceOfClasses.TryGetValue(mediaTypeKey, out var expectedClasses)
             && expectedClasses.Count > 0)
         {
             var expectedSet = new HashSet<string>(expectedClasses, StringComparer.OrdinalIgnoreCase);

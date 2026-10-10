@@ -3,6 +3,7 @@ using MediaEngine.Domain.Enums;
 using MediaEngine.Domain.Models;
 using MediaEngine.Ingestion.Models;
 using MediaEngine.Intelligence.Models;
+using MediaEngine.Processors;
 using MediaEngine.Processors.Models;
 
 namespace MediaEngine.Ingestion.Pipeline;
@@ -41,6 +42,8 @@ internal sealed class IngestionPipelineContext(
     public HashResult? Hash { get; set; }
     public SemaphoreSlim? HashLock { get; set; }
     public ProcessorResult? ProcessorResult { get; set; }
+    /// <summary>Sibling cover image (cover.jpg, folder.jpg, …) used only when the file has no embedded cover.</summary>
+    public FolderCoverImage? FolderCover { get; set; }
     public Guid AssetId { get; set; }
     public IReadOnlyList<MetadataClaim> Claims { get; set; } = [];
     public ScoringResult? Scored { get; set; }

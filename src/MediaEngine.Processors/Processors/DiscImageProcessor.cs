@@ -25,7 +25,7 @@ public sealed partial class DiscImageProcessor : IMediaProcessor
             return Task.FromResult(ProcessorResultFactory.Corrupt(filePath, MediaType.Movies, "The disc image does not contain an ISO-9660 volume descriptor."));
         }
 
-        var stem = Path.GetFileNameWithoutExtension(filePath).Replace('.', ' ').Replace('_', ' ').Trim();
+        var stem = FileStemTitleCleaner.Clean(Path.GetFileNameWithoutExtension(filePath));
         var yearMatch = TrailingYear().Match(stem);
         var title = yearMatch.Success ? stem[..yearMatch.Index].Trim() : stem;
         var claims = new List<ExtractedClaim>

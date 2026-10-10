@@ -915,6 +915,14 @@ public sealed class ReleaseSelectionConfig
     /// </summary>
     [JsonPropertyName("request_filters")]
     public List<RequestCandidateFilterConfig> RequestFilters { get; set; } = [];
+
+    /// <summary>
+    /// JSON path, on each candidate, of a short note that tells same-titled releases apart
+    /// (MusicBrainz <c>"disambiguation"</c>, for example <c>"collector's edition"</c>). When a music
+    /// file's album tag carries an edition label, candidates whose note matches it are preferred.
+    /// </summary>
+    [JsonPropertyName("disambiguation_path")]
+    public string? DisambiguationPath { get; set; } = "disambiguation";
 }
 
 /// <summary>

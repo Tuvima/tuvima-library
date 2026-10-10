@@ -50,7 +50,7 @@ Open **Settings > Operations > Ingestion**, or select the header activity icon. 
 A checked or visible file does not mean the whole run is done. Matching, richer details, and file moves may still be in progress. Counts come from saved Engine state. Unknown values stay unknown.
 
 1. Check the current phase and any work that needs help.
-2. Use **Scan now** for an extra scan of watched folders.
+2. Use **Check folders for changes** (in the Ingestion page "⋯" menu) for an extra scan of watched folders.
 3. Search batch history or choose a result filter.
 4. Select a batch to browse its media.
 5. Choose **Show older** to load another page of history.

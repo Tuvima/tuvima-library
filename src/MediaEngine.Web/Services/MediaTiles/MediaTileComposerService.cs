@@ -314,7 +314,7 @@ public sealed class MediaTileComposerService
             CollectionId = card.CollectionId,
             Title = card.Subject == DisplaySubjectKind.TvEpisode && card.EpisodeContext is { } episodeIdentity
                 ? episodeIdentity.EpisodeTitle : card.Title,
-            IsUpdatingDetails = card.ListMetadata?.IsUpdatingDetails == true,
+            IsSettling = card.IsSettling || card.ListMetadata?.IsUpdatingDetails == true,
             Subtitle = card.Subtitle,
             Tagline = card.Tagline,
             Description = card.Description,

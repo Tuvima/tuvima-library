@@ -438,10 +438,61 @@ public sealed class DisplayWorkProjectionReaderTests : IDisposable
         Assert.Equal("Skyward Saga", row.Franchise);
     }
 
-    private static Task InsertBookAsync(System.Data.IDbConnection conn, Guid workId, string title, IReadOnlyList<string> authors)
+    [Fact]
+    public async Task LoadAsync_MarksWorkSettlingOnlyWhileItsIdentityJobIsNonTerminal()
+    {
+        var workId = Guid.NewGuid();
+        var assetId = Guid.NewGuid();
+        var jobId = Guid.NewGuid();
+        using (var conn = _db.CreateConnection())
+        {
+            await InsertBookAsync(conn, workId, "Still Matching", ["Some Author"], assetId);
+            await conn.ExecuteAsync(
+                """
+                INSERT INTO identity_jobs (id, entity_id, entity_type, media_type, ingestion_run_id, state, pass, created_at, updated_at)
+                VALUES (@jobId, @assetId, 'MediaAsset', 'Books', @runId, 'Queued', 'Quick', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
+                """,
+                new { jobId, assetId, runId = Guid.NewGuid() });
+        }
+
+        var reader = new DisplayWorkProjectionReader(_db);
+        Assert.True(Assert.Single(await reader.LoadAsync(CancellationToken.None)).IsUpdatingDetails);
+
+        using (var conn = _db.CreateConnection())
+        {
+            await conn.ExecuteAsync("UPDATE identity_jobs SET state = 'ReadyWithoutUniverse' WHERE id = @jobId;", new { jobId });
+        }
+
+        Assert.False(Assert.Single(await reader.LoadAsync(CancellationToken.None)).IsUpdatingDetails);
+    }
+
+    [Fact]
+    public void CardBuilder_MapsSettlingFromWorkRowsAndAnyMemberOfAGroup()
+    {
+        var collectionId = Guid.NewGuid();
+        var rowIndex = 0;
+        DisplayWorkRow Row(bool updating) => new()
+        {
+            WorkId = Guid.NewGuid(),
+            AssetId = Guid.NewGuid(),
+            CollectionId = collectionId,
+            CollectionTitle = "Saga",
+            MediaType = "Movies",
+            Title = (rowIndex++ % 2 == 0 ? "Alpha Film" : "Beta Picture"),
+            IsUpdatingDetails = updating,
+        };
+        var builder = new DisplayCardBuilder();
+
+        Assert.True(builder.FromWork(Row(true), "watch", null).IsSettling);
+        Assert.False(builder.FromWork(Row(false), "watch", null).IsSettling);
+        Assert.True(Assert.Single(builder.BuildCollectionCards([Row(false), Row(true)], "watch")).IsSettling);
+        Assert.False(Assert.Single(builder.BuildCollectionCards([Row(false), Row(false)], "watch")).IsSettling);
+    }
+
+    private static Task InsertBookAsync(System.Data.IDbConnection conn, Guid workId, string title, IReadOnlyList<string> authors, Guid? existingAssetId = null)
     {
         var editionId = Guid.NewGuid();
-        var assetId = Guid.NewGuid();
+        var assetId = existingAssetId ?? Guid.NewGuid();
         return InsertAsync();
 
         async Task InsertAsync()

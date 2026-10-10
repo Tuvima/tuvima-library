@@ -151,11 +151,16 @@ public static class CollectionResponseFormatting
         return "portrait";
     }
 
-    public static PlaybackTechnicalSummary? BuildPlaybackSummaryFromWork(WorkDto work)
+    /// <param name="subtitleLanguages">
+    /// The primary asset's <c>subtitle_languages</c> array rows; the scalar canonical values on
+    /// <paramref name="work"/> never carry this multi-valued key.
+    /// </param>
+    public static PlaybackTechnicalSummary? BuildPlaybackSummaryFromWork(
+        WorkDto work,
+        IReadOnlyList<string> subtitleLanguages)
     {
         string? Canonical(string key) => GetCanonical(work, key);
 
-        var subtitleLanguages = SplitValues(Canonical("subtitle_languages"));
         var summary = new PlaybackTechnicalSummary
         {
             VideoResolutionLabel = FormatResolution(

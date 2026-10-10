@@ -323,6 +323,7 @@ The Dashboard renders Stages 1-8 as compact progress rows. Review/attention stat
 | GET | `/review/{id}` | Full detail for a single review item including candidates | Effective administrator or precise Application permission |
 | POST | `/review/{id}/resolve` | Resolve a review item by selecting a candidate or confirming corrected local metadata | Effective administrator or precise Application permission |
 | POST | `/review/{id}/dismiss` | Dismiss a review item without resolving it | Effective administrator or precise Application permission |
+| POST | `/review/{id}/move-to-tv` | Accept a "Found as a TV title" suggestion: re-file the film as Season 0, Episode 1 (Specials) of the matched TMDB show in the TV library and re-run identity as TV. The file on disk is never moved. | Effective administrator or precise Application permission |
 | POST | `/review/{id}/skip-universe` | Accept the item without a Wikidata QID. The item can still remain browse surfaces-visible if it passes the browse readiness gate. | Effective administrator or precise Application permission |
 
 ---

@@ -52,6 +52,32 @@ public sealed class RateLimitedDependencyException : HttpRequestException
     public TimeSpan? RetryAfter { get; }
 }
 
+/// <summary>
+/// A provider could not be reached or is not currently serving requests (marked down, timeout,
+/// connection failure, HTTP 5xx or 429). The work should wait and retry; it must never be treated
+/// as "no match".
+/// </summary>
+public sealed class ProviderUnavailableException : HttpRequestException
+{
+    public ProviderUnavailableException(string message, Exception? innerException = null, HttpStatusCode? statusCode = null)
+        : base(message, innerException, statusCode)
+    {
+    }
+}
+
+/// <summary>
+/// A provider rejected our request (HTTP 4xx other than 429), meaning the request was invalid or
+/// unauthorised. Retrying cannot succeed until configuration or the request changes, so it counts
+/// against the job's poison budget.
+/// </summary>
+public sealed class ProviderRequestRejectedException : HttpRequestException
+{
+    public ProviderRequestRejectedException(string message, HttpStatusCode statusCode, Exception? innerException = null)
+        : base(message, innerException, statusCode)
+    {
+    }
+}
+
 public static class BackgroundJobOutcomeClassifier
 {
     public static BackgroundJobOutcomeCategory Classify(Exception exception, CancellationToken callerToken = default)
@@ -68,6 +94,11 @@ public static class BackgroundJobOutcomeClassifier
         if (exception is UnavailableCapabilityException)
         {
             return BackgroundJobOutcomeCategory.UnavailableCapability;
+        }
+
+        if (exception is ProviderRequestRejectedException)
+        {
+            return BackgroundJobOutcomeCategory.ContentFailure;
         }
 
         if (exception is RateLimitedDependencyException

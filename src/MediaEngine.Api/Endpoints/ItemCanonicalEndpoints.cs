@@ -1984,17 +1984,26 @@ public static class ItemCanonicalEndpoints
                 return ApiErrors.Problem(StatusCodes.Status502BadGateway, "Comic Vine verification is unavailable.", "Try again later.");
             }
 
-            var claims = await comicVine.FetchAsync(new ProviderLookupRequest
+            IReadOnlyList<ProviderClaim> claims;
+            try
             {
-                EntityId = lineage.TargetForSelfScope,
-                EntityType = EntityType.Work,
-                MediaType = MediaType.Comics,
-                Title = context.WorkTitle,
-                Hints = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+                claims = await comicVine.FetchAsync(new ProviderLookupRequest
                 {
-                    [BridgeIdKeys.ComicVineId] = localIssue.IdValue,
-                },
-            }, ct);
+                    EntityId = lineage.TargetForSelfScope,
+                    EntityType = EntityType.Work,
+                    MediaType = MediaType.Comics,
+                    Title = context.WorkTitle,
+                    Hints = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+                    {
+                        [BridgeIdKeys.ComicVineId] = localIssue.IdValue,
+                    },
+                }, ct);
+            }
+            catch (HttpRequestException)
+            {
+                // The adapter reports an unavailable or rejecting provider by throwing; treat it as "could not verify".
+                return ApiErrors.Problem(StatusCodes.Status502BadGateway, "Comic Vine verification is unavailable.", "Comic Vine could not verify this issue's run. Try again later.");
+            }
             var resolvedVolumeId = claims.FirstOrDefault(claim =>
                 string.Equals(claim.Key, BridgeIdKeys.ComicVineVolumeId, StringComparison.OrdinalIgnoreCase))?.Value;
             if (string.IsNullOrWhiteSpace(resolvedVolumeId))

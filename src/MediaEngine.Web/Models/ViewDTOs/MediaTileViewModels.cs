@@ -93,7 +93,8 @@ public sealed record MediaTileGroupSummaryViewModel
 
 public sealed class MediaTileViewModel
 {
-    public bool IsUpdatingDetails { get; init; }
+    /// <summary>True while the item is still being matched or enriched; shows the quiet caption marker.</summary>
+    public bool IsSettling { get; init; }
     public DisplaySubjectKind Subject { get; init; }
     public DisplayContinuationState ContinuationState { get; init; }
     public DisplayEpisodeContextDto? EpisodeContext { get; init; }

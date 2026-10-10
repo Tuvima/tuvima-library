@@ -69,6 +69,12 @@ The backend application (`MediaEngine.Api`) that runs ingestion, enrichment, sto
 
 Follow-up metadata work after basic identity is known, such as artwork, people, relationships, descriptions, summaries, and universe graph data.
 
+## F
+
+### Found as a TV title
+
+A Review Queue reason for a Movies-library file whose only strong match is a TMDB miniseries or short TV title. Resolve it with Move to TV, Search again, or Keep as unmatched film.
+
 ## H
 
 ### Household

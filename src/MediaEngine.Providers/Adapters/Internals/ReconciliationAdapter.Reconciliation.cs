@@ -97,7 +97,7 @@ public sealed partial class ReconciliationAdapter
         if (typeQids is null && mediaType != MediaType.Unknown)
         {
             var mediaTypeKey = mediaType.ToString();
-            if (_config.InstanceOfClasses.TryGetValue(mediaTypeKey, out var classes) && classes.Count > 0)
+            if (CurrentConfig.InstanceOfClasses.TryGetValue(mediaTypeKey, out var classes) && classes.Count > 0)
             {
                 typeQids = classes;
             }
@@ -321,7 +321,8 @@ public sealed partial class ReconciliationAdapter
         }
 
         var mediaTypeKey = mediaType.ToString();
-        if (!_config.InstanceOfClasses.TryGetValue(mediaTypeKey, out var expectedClasses)
+        var config = CurrentConfig;
+        if (!config.InstanceOfClasses.TryGetValue(mediaTypeKey, out var expectedClasses)
             || expectedClasses.Count == 0)
         {
             _logger.LogDebug("{Provider}: no instance_of classes configured for {MediaType}, skipping filter",
@@ -333,7 +334,7 @@ public sealed partial class ReconciliationAdapter
 
         // Build the exclusion set — entity types that should never match for this media type.
         var excludedSet = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        if (_config.ExcludeClasses.TryGetValue(mediaTypeKey, out var excludedClasses)
+        if (config.ExcludeClasses.TryGetValue(mediaTypeKey, out var excludedClasses)
             && excludedClasses.Count > 0)
         {
             foreach (var qid in excludedClasses)

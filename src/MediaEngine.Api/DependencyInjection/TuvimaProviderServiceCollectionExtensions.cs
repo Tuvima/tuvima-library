@@ -1,4 +1,5 @@
 using MediaEngine.Api.Services;
+using MediaEngine.Api.Services.Review;
 using MediaEngine.Domain.Configuration;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Services;
@@ -46,6 +47,7 @@ public static class TuvimaProviderServiceCollectionExtensions
         services.AddSingleton<ImageEnrichmentService>();
         services.AddSingleton<IImageEnrichmentService>(sp => sp.GetRequiredService<ImageEnrichmentService>());
         services.AddSingleton<IHydrationPipelineService, SynchronousIdentityPipelineService>();
+        services.AddSingleton<IReviewMoveToTvService, ReviewMoveToTvService>();
         services.AddSingleton<DeferredEnrichmentService>();
         services.AddSingleton<IDeferredEnrichmentService>(sp =>
             sp.GetRequiredService<DeferredEnrichmentService>());
@@ -72,6 +74,7 @@ public static class TuvimaProviderServiceCollectionExtensions
         services.AddSingleton<AppleRetailClient>();
         services.AddSingleton<MusicBrainzReleaseClient>();
         services.AddSingleton<TmdbRetailClient>();
+        services.AddSingleton<TmdbTvSuggestionService>();
         services.AddSingleton<ITvEpisodeCrosswalk, TvEpisodeCrosswalk>();
         services.AddSingleton<TvdbRetailClient>();
         services.AddSingleton<IExternalMetadataProvider, TvdbMetadataProvider>();
@@ -86,6 +89,8 @@ public static class TuvimaProviderServiceCollectionExtensions
         services.AddSingleton<ProviderHealthMonitorService>();
         services.AddSingleton<IProviderHealthMonitor>(sp =>
             sp.GetRequiredService<ProviderHealthMonitorService>());
+        // Shared by the Settings/Setup endpoints and the startup provider connection checks.
+        services.AddSingleton<ProviderCredentialService>();
         services.AddSingleton<IIngestionOperationsStatusService, IngestionOperationsStatusService>();
         services.AddSingleton<IngestionNotificationReadService>();
         services.AddSingleton<IIngestionBatchResponseService, IngestionBatchResponseService>();

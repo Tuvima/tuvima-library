@@ -26,7 +26,7 @@ Date: 2026-09-12
 
 Every Dashboard action uses `AppButton` or `AppIconButton`. Pages express intent with app-owned `ButtonStyle`, `Tone`, and `AppControlSize` values; the wrappers expose first-party contracts and render native elements.
 
-- Primary commit or start action: `Filled` + `Primary`. Examples: Save, Create, Continue, Scan now.
+- Primary commit or start action: `Filled` + `Primary`. Examples: Save, Create, Continue.
 - Secondary action: `Outlined`, normally `Neutral` or `Primary`. Examples: Test connection, Edit, Set up manually.
 - Tertiary or low-emphasis action: `Text`, normally `Neutral` or `Primary`. Examples: Learn more, View all, Cancel in a lightweight context.
 - Destructive entry action: `Outlined` + `Error`.
@@ -35,7 +35,6 @@ Every Dashboard action uses `AppButton` or `AppIconButton`. Pages express intent
 
 Use only one filled primary action in an action region. A page may contain multiple independent cards, dialogs, or forms, each with its own primary action. Loading actions retain their label, show a spinner, expose `aria-busy`, and cannot be clicked again.
 
-The purple filled **Scan now** action on Ingestion is intentional because it starts the page's primary operation. A purple outline elsewhere is correct only when that action is secondary in its local context.
 
 ## Typography
 

@@ -1,0 +1,39 @@
+@namespace MediaEngine.Web.Components.Library
+@using MediaEngine.Contracts.Review
+@using MediaEngine.Web.Services.Editing
+
+<section class="movie-as-tv-card" aria-label="Found as a TV title">
+    @if (!string.IsNullOrWhiteSpace(Suggestion.PosterUrl))
+    {
+        <img class="movie-as-tv-card__poster" src="@Suggestion.PosterUrl" alt="" loading="lazy" referrerpolicy="no-referrer" />
+    }
+    <div class="movie-as-tv-card__body">
+        <p class="movie-as-tv-card__text">@MovieTvSuggestionReader.Describe(Suggestion)</p>
+        <div class="movie-as-tv-card__actions">
+            <div class="movie-as-tv-card__primary">
+                <AppButton Label="Move to TV" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Size="AppControlSize.Compact" Disabled="@Busy" OnClick="OnMoveToTv" />
+                <small>The file stays where it is; Tuvima files it under TV as a special.</small>
+            </div>
+            @if (ShowSearchAgain)
+            {
+                <AppButton Label="Search again" ButtonStyle="AppButtonStyle.Outlined" Size="AppControlSize.Compact" Disabled="@Busy" OnClick="OnSearchAgain" />
+            }
+            <AppButton Label="Keep as unmatched film" ButtonStyle="AppButtonStyle.Text" Size="AppControlSize.Compact" Disabled="@Busy" OnClick="OnKeepAsFilm" />
+        </div>
+    </div>
+</section>
+
+@code {
+    /// <summary>The TMDB TV title the Engine suggests for this film file.</summary>
+    [Parameter, EditorRequired] public MovieTvSuggestionDto Suggestion { get; set; } = new();
+
+    /// <summary>True while any action on this item is running; disables all three actions.</summary>
+    [Parameter] public bool Busy { get; set; }
+
+    /// <summary>False inside the review editor, where the editor's own search is "Search again".</summary>
+    [Parameter] public bool ShowSearchAgain { get; set; } = true;
+
+    [Parameter] public EventCallback OnMoveToTv { get; set; }
+    [Parameter] public EventCallback OnSearchAgain { get; set; }
+    [Parameter] public EventCallback OnKeepAsFilm { get; set; }
+}

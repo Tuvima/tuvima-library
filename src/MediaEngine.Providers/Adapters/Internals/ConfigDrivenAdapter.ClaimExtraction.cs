@@ -78,6 +78,56 @@ public sealed partial class ConfigDrivenAdapter
             return null;
         }
 
+        // A file's album tag outranks the generic ordering below: when any candidate release
+        // carries the tagged album's title, only those releases compete for selection.
+        var taggedAlbum = request is null ? null : GetRequestedAlbum(request);
+        if (!string.IsNullOrWhiteSpace(taggedAlbum) && candidates.Count > 1)
+        {
+            var titlePath = GetReleaseAlbumTitlePath();
+            var albumMatches = candidates
+                .Where(candidate => IsStrongAlbumMatch(
+                    taggedAlbum,
+                    ExtractFirstString(candidate!, [titlePath])))
+                .ToList();
+
+            // A tag with an edition label ("... (Collector's Edition)") names a release whose
+            // title does not carry it: MusicBrainz keeps that label in the disambiguation.
+            if (albumMatches.Count == 0)
+            {
+                albumMatches = candidates
+                    .Where(candidate => MusicAlbumIdentity.IsSameBaseAlbum(
+                        taggedAlbum,
+                        ExtractFirstString(candidate!, [titlePath])))
+                    .ToList();
+            }
+
+            if (albumMatches.Count > 1)
+            {
+                var tagLabel = MusicAlbumIdentity.EditionLabel(taggedAlbum);
+                var disambiguationPath = config.DisambiguationPath;
+                if (tagLabel.Length > 0 && !string.IsNullOrWhiteSpace(disambiguationPath))
+                {
+                    var labelled = albumMatches
+                        .Where(candidate => MusicAlbumIdentity.LabelIsCoveredBy(
+                            tagLabel,
+                            ExtractFirstString(candidate!, [disambiguationPath])))
+                        .ToList();
+                    if (labelled.Count > 0)
+                    {
+                        albumMatches = labelled;
+                    }
+                }
+            }
+
+            if (albumMatches.Count > 0)
+            {
+                _logger.LogDebug(
+                    "{Provider}: release selection — {Count} of {Total} candidates match tagged album '{Album}'",
+                    Name, albumMatches.Count, candidates.Count, taggedAlbum);
+                candidates = albumMatches;
+            }
+        }
+
         // Sort by configured sort fields.
         if (config.Sort is { Count: > 0 })
         {
@@ -118,6 +168,96 @@ public sealed partial class ConfigDrivenAdapter
         }
 
         return candidates[0];
+    }
+
+    /// <summary>
+    /// Claim keys that describe the album a track sits on rather than the track itself.
+    /// A provider collection that is not the file's tagged album must not supply them.
+    /// </summary>
+    private static readonly HashSet<string> TaggedAlbumIdentityClaimKeys = new(StringComparer.OrdinalIgnoreCase)
+    {
+        MetadataFieldConstants.Album,
+        MetadataFieldConstants.Year,
+        MetadataFieldConstants.Cover,
+        MetadataFieldConstants.CoverUrl,
+        MetadataFieldConstants.TrackCount,
+        BridgeIdKeys.MusicBrainzReleaseId,
+        BridgeIdKeys.MusicBrainzReleaseGroupId,
+        BridgeIdKeys.AppleMusicCollectionId,
+    };
+
+    /// <summary>
+    /// JSON path of the release title, read from the configured release-sourced album mapping.
+    /// </summary>
+    private string GetReleaseAlbumTitlePath()
+        => _config.FieldMappings?
+            .FirstOrDefault(mapping =>
+                string.Equals(mapping.ClaimKey, MetadataFieldConstants.Album, StringComparison.OrdinalIgnoreCase)
+                && string.Equals(mapping.Source, "release", StringComparison.OrdinalIgnoreCase))
+            ?.JsonPath
+        ?? "title";
+
+    /// <summary>
+    /// Keeps a music file's tagged album when the provider's album (the selected release or
+    /// collection) is a different album. The recording-level claims still apply to the track,
+    /// but the album-level claims — album title, release / release-group / collection ids,
+    /// year, cover and track count — are dropped, so nothing downstream (parent-Work claim
+    /// routing, synthesised parent title, album manifests) can rename or re-identify the
+    /// parent album Work from a non-matching release. A file with no album tag is unaffected.
+    /// </summary>
+    private IReadOnlyList<ProviderClaim> KeepTaggedAlbumWhenCollectionDiffers(
+        ProviderLookupRequest request,
+        IReadOnlyList<ProviderClaim> claims)
+    {
+        if (request.MediaType != MediaType.Music)
+        {
+            return claims;
+        }
+
+        var taggedAlbum = GetRequestedAlbum(request);
+        if (string.IsNullOrWhiteSpace(taggedAlbum))
+        {
+            return claims;
+        }
+
+        var providerAlbum = claims.FirstOrDefault(claim =>
+            string.Equals(claim.Key, MetadataFieldConstants.Album, StringComparison.OrdinalIgnoreCase)
+            && !string.IsNullOrWhiteSpace(claim.Value))?.Value;
+        if (providerAlbum is null)
+        {
+            return claims;
+        }
+
+        // The same album, possibly under a different edition label ("(Deluxe)", "(Bonus Track
+        // Version)", "(2015 Remaster)"): the release's id, release group, cover, year and track
+        // count describe this album. Only the title is kept from the tag when it carries a label
+        // the release title lacks, so the label is not lost.
+        if (IsStrongAlbumMatch(taggedAlbum, providerAlbum)
+            || MusicAlbumIdentity.IsSameBaseAlbum(taggedAlbum, providerAlbum))
+        {
+            var tagLabel = MusicAlbumIdentity.EditionLabel(taggedAlbum);
+            if (tagLabel.Length > 0
+                && !string.Equals(taggedAlbum, providerAlbum, StringComparison.OrdinalIgnoreCase)
+                && !MusicAlbumIdentity.LabelIsCoveredBy(tagLabel, MusicAlbumIdentity.EditionLabel(providerAlbum)))
+            {
+                _logger.LogInformation(
+                    "Kept tagged album title '{Tag}' for {EntityId}; {Provider} release '{Release}' is the same album without that edition label",
+                    taggedAlbum, request.EntityId, _config.DisplayName ?? Name, providerAlbum);
+                return claims
+                    .Where(claim => !string.Equals(claim.Key, MetadataFieldConstants.Album, StringComparison.OrdinalIgnoreCase))
+                    .ToList();
+            }
+
+            return claims;
+        }
+
+        _logger.LogInformation(
+            "Kept tagged album '{Tag}' for {EntityId}; no {Provider} release of the recording matches",
+            taggedAlbum, request.EntityId, _config.DisplayName ?? Name);
+
+        return claims
+            .Where(claim => !TaggedAlbumIdentityClaimKeys.Contains(claim.Key))
+            .ToList();
     }
 
     /// <summary>
@@ -591,8 +731,8 @@ public sealed partial class ConfigDrivenAdapter
     private string ResolveEffectiveLanguage(ProviderLookupRequest request) =>
         _config.LanguageStrategy switch
         {
-            LanguageStrategy.Localized => NormalizeLocalePart(request.FileLanguage ?? request.Language, "en"),
-            LanguageStrategy.Both => NormalizeLocalePart(request.FileLanguage ?? request.Language, "en"),
+            LanguageStrategy.Localized => NormalizeLanguagePart(request.FileLanguage ?? request.Language, "en"),
+            LanguageStrategy.Both => NormalizeLanguagePart(request.FileLanguage ?? request.Language, "en"),
             _ => "en",             // Source: always English
         };
 

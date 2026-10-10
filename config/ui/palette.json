@@ -50,6 +50,7 @@
     "multiple_matches": "#5C7A99",
     "match_failed": "#A05050",
     "ambiguous": "#B08940",
+    "movie_matched_as_tv": "#5C7A99",
     "user_report": "#C9922E",
     "default": "#6B6B6B"
   }

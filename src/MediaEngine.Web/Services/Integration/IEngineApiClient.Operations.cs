@@ -199,4 +199,9 @@ public partial interface IEngineApiClient
     /// <summary>GET /capabilities/summary — capability counts by capability/status.</summary>
     Task<Dictionary<string, int>> GetCapabilitySummaryAsync(CancellationToken ct = default);
 
+    /// <summary>
+    /// POST /review/{id}/move-to-tv — accept a "Found as a TV title" suggestion. Returns <c>null</c> on failure;
+    /// <see cref="LastError"/> then holds the Engine's explanation.
+    /// </summary>
+    Task<MediaEngine.Contracts.Review.ReviewMoveToTvResponse?> MoveReviewItemToTvAsync(Guid id, CancellationToken ct = default);
 }

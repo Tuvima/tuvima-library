@@ -208,6 +208,82 @@ public sealed class CoverArtWorkerCentralStorageTests : IDisposable
     }
 
     [Fact]
+    public async Task DownloadAndPersistAsync_TvShowWithManagedTvdbPosterAndNoCoverClaim_IsNotMarkedMissing()
+    {
+        // TheTVDB emits no show `cover` claim; its poster is stored as an entity asset by
+        // ImageEnrichmentService. The claim-less cover pass must not overwrite that with "missing".
+        var showWorkId = await _workRepo.InsertParentAsync(MediaType.TV, "tv:solo-leveling", grandparentWorkId: null, ordinal: null);
+        var seasonWorkId = await _workRepo.InsertParentAsync(MediaType.TV, "tv:solo-leveling:s1", grandparentWorkId: showWorkId, ordinal: 1);
+        var episodeWorkId = await _workRepo.InsertChildAsync(MediaType.TV, seasonWorkId, ordinal: 1);
+        var assetId = await SeedAssetForExistingWorkAsync(episodeWorkId, Path.Combine("TV", "Solo Leveling", "S01E01.mkv"));
+        await SeedCanonicalsAsync(showWorkId, ("tvdb_id", "389597"), ("show_name", "Solo Leveling"));
+
+        var posterId = Guid.NewGuid();
+        var posterPath = _assetPaths.GetCentralAssetPath("Work", showWorkId, "CoverArt", posterId, ".jpg");
+        Directory.CreateDirectory(Path.GetDirectoryName(posterPath)!);
+        await File.WriteAllBytesAsync(posterPath, CreateTestImageBytes());
+        await _entityAssetRepo.UpsertAsync(new EntityAsset
+        {
+            Id = posterId,
+            EntityId = showWorkId.ToString(),
+            EntityType = "Work",
+            AssetTypeValue = "CoverArt",
+            ImageUrl = "https://artworks.thetvdb.com/banners/v4/series/389597/posters/a.jpg",
+            LocalImagePath = posterPath,
+            SourceProvider = "tvdb",
+            IsPreferred = true,
+        });
+        await SeedCanonicalsAsync(showWorkId, ("cover_state", "missing"), ("cover_source", "none"));
+
+        var worker = new CoverArtWorker(
+            _assetRepo,
+            _canonicalRepo,
+            _workRepo,
+            new NoOpImageCacheRepository(),
+            new RoutingHttpClientFactory(_ => ImageResponse(CreateTestImageBytes())),
+            _assetPaths,
+            NullLogger<CoverArtWorker>.Instance,
+            assetExportService: null,
+            coverArtHash: null,
+            entityAssetRepo: _entityAssetRepo);
+
+        await worker.DownloadAndPersistAsync(assetId, null, CancellationToken.None);
+
+        var canonicals = await _canonicalRepo.GetByEntityAsync(showWorkId);
+        Assert.Equal("present", canonicals.Single(value => value.Key == MetadataFieldConstants.CoverState).Value);
+        Assert.Equal("provider", canonicals.Single(value => value.Key == MetadataFieldConstants.CoverSource).Value);
+        Assert.Equal(
+            $"/stream/artwork/{posterId}",
+            canonicals.Single(value => value.Key == MetadataFieldConstants.CoverUrl).Value);
+    }
+
+    [Fact]
+    public async Task DownloadAndPersistAsync_ClaimLessOwnerWithoutStoredCover_IsMarkedMissing()
+    {
+        var workId = await _workRepo.InsertStandaloneAsync(MediaType.Movies);
+        var assetId = await SeedAssetForExistingWorkAsync(workId, Path.Combine("Movies", "NoArt.mkv"));
+        await SeedCanonicalsAsync(workId, ("title", "No Art"));
+
+        var worker = new CoverArtWorker(
+            _assetRepo,
+            _canonicalRepo,
+            _workRepo,
+            new NoOpImageCacheRepository(),
+            new RoutingHttpClientFactory(_ => ImageResponse(CreateTestImageBytes())),
+            _assetPaths,
+            NullLogger<CoverArtWorker>.Instance,
+            assetExportService: null,
+            coverArtHash: null,
+            entityAssetRepo: _entityAssetRepo);
+
+        await worker.DownloadAndPersistAsync(assetId, null, CancellationToken.None);
+
+        var canonicals = await _canonicalRepo.GetByEntityAsync(workId);
+        Assert.Equal("missing", canonicals.Single(value => value.Key == MetadataFieldConstants.CoverState).Value);
+        Assert.Equal("none", canonicals.Single(value => value.Key == MetadataFieldConstants.CoverSource).Value);
+    }
+
+    [Fact]
     public async Task ReplaceProviderArtworkAsync_BookReplacesOldManagedArtworkAndKeepsUserUpload()
     {
         var seriesWorkId = await _workRepo.InsertParentAsync(

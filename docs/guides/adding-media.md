@@ -29,9 +29,9 @@ Start with one media type and a few files. Large imports are easier to check aft
 3. Choose its type and server-side path.
 4. Select **Existing library** or **Managed by Tuvima**.
 5. Check access and confirm the addition.
-6. Open **Settings → Operations** and choose **Scan now** for an existing batch.
+6. Open **Settings → Operations** and choose **Check folders for changes** (in the Ingestion page "⋯" menu) for an existing batch.
 
-New files in watched folders are picked up automatically. **Scan now** explicitly starts an extra scan. Operations at `/settings/ingestion` shows current work and bounded batch history without manual refresh.
+New files in watched folders are picked up automatically. **Check folders for changes** (in the Ingestion page "⋯" menu) explicitly starts an extra scan. Operations at `/settings/ingestion` shows current work and bounded batch history without manual refresh.
 
 Existing sources are never modified. Keep **Protect existing files** enabled unless you understand the managed source's write behavior.
 

@@ -27,6 +27,7 @@ using MediaEngine.Providers.Workers;
 using MediaEngine.Storage;
 using MediaEngine.Storage.Contracts;
 using MediaEngine.Storage.Services;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 // Disambiguate ProviderConfiguration from the Storage.Models namespace
@@ -103,7 +104,7 @@ public sealed class DurablePipelineTests : IDisposable
         _workRepo = new WorkRepository(db);
         _entityAssetRepo = new EntityAssetRepository(db);
         _assetPaths = new AssetPathService(_libraryDir);
-        _chainFactory = new MediaEntityChainFactory(db, new HierarchyResolver(_workRepo));
+        _chainFactory = new MediaEntityChainFactory(db, new HierarchyResolver(_workRepo, null, new BookFormatSiblingFinder(db)));
         _batchRepo = new IngestionBatchRepository(db);
         _identityJobRepo = new IdentityJobRepository(db);
         _operationRepo = new MediaOperationRepository(db);
@@ -546,6 +547,425 @@ public sealed class DurablePipelineTests : IDisposable
 
         var legacyImageRoot = Path.Combine(_libraryDir, ".data", "images");
         Assert.False(Directory.Exists(legacyImageRoot) && Directory.EnumerateFiles(legacyImageRoot, "*", SearchOption.AllDirectories).Any());
+    }
+
+    [Fact]
+    public async Task IngestionEngine_AudiobookWithoutEmbeddedArt_UsesSiblingCoverJpg()
+    {
+        var filePath = CreateWatchFile("Artemis.m4b");
+        var folderImage = CreateJpeg(4096, seed: 7);
+        File.WriteAllBytes(Path.Combine(_watchDir, "cover.jpg"), folderImage);
+        _processors.SetNextResult(new ProcessorResult
+        {
+            FilePath = filePath,
+            DetectedType = MediaType.Audiobooks,
+            Claims =
+            [
+                new ExtractedClaim { Key = "title", Value = "Artemis", Confidence = 0.95 },
+                new ExtractedClaim { Key = "author", Value = "Andy Weir", Confidence = 0.92 },
+            ],
+        });
+
+        await RunPipelineAsync(applyMediaTypePrior: false);
+
+        var cover = Assert.Single(ReadCoverRows());
+        Assert.Equal("folder", cover.SourceProvider);
+        Assert.True(File.Exists(cover.LocalImagePath));
+        Assert.Equal(folderImage, File.ReadAllBytes(cover.LocalImagePath!));
+        Assert.Equal(["folder"], ReadCanonicalValues("cover_source"));
+        Assert.Equal(["present"], ReadCanonicalValues("cover_state"));
+        Assert.Equal(folderImage, File.ReadAllBytes(Path.Combine(_watchDir, "cover.jpg")));
+    }
+
+    [Fact]
+    public async Task IngestionEngine_EmbeddedCoverAndSiblingCoverJpg_EmbeddedWins()
+    {
+        var filePath = CreateWatchFile("Children of Dune.epub");
+        File.WriteAllBytes(Path.Combine(_watchDir, "cover.jpg"), CreateJpeg(4096, seed: 3));
+        var embedded = Convert.FromBase64String("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9s4s46QAAAAASUVORK5CYII=");
+        _processors.SetNextResult(new ProcessorResult
+        {
+            FilePath = filePath,
+            DetectedType = MediaType.Books,
+            CoverImage = embedded,
+            CoverImageMimeType = "image/png",
+            Claims =
+            [
+                new ExtractedClaim { Key = "title", Value = "Children of Dune", Confidence = 0.95 },
+                new ExtractedClaim { Key = "author", Value = "Frank Herbert", Confidence = 0.92 },
+            ],
+        });
+
+        await RunPipelineAsync();
+
+        var cover = Assert.Single(ReadCoverRows());
+        Assert.Equal("embedded", cover.SourceProvider);
+        Assert.Equal(embedded, File.ReadAllBytes(cover.LocalImagePath!));
+        Assert.Equal(["embedded"], ReadCanonicalValues("cover_source"));
+    }
+
+    [Fact]
+    public async Task IngestionEngine_InvalidSiblingCoverJpg_IsIgnored()
+    {
+        var filePath = CreateWatchFile("Dune.epub");
+        File.WriteAllBytes(Path.Combine(_watchDir, "cover.jpg"), new byte[4096]);
+        _processors.SetNextResult(new ProcessorResult
+        {
+            FilePath = filePath,
+            DetectedType = MediaType.Books,
+            Claims = [new ExtractedClaim { Key = "title", Value = "Dune", Confidence = 0.95 }],
+        });
+
+        await RunPipelineAsync();
+
+        Assert.NotNull(await FindAssetByFileNameAsync("Dune.epub"));
+        Assert.Empty(ReadCoverRows());
+        Assert.Equal(["pending"], ReadCanonicalValues("cover_state"));
+    }
+
+    [Fact]
+    public async Task IngestionEngine_ComicWithSiblingFolderJpg_DoesNotUseFolderImage()
+    {
+        var filePath = CreateWatchFile("Saga 001.cbz");
+        File.WriteAllBytes(Path.Combine(_watchDir, "folder.jpg"), CreateJpeg(4096, seed: 5));
+        _processors.SetNextResult(new ProcessorResult
+        {
+            FilePath = filePath,
+            DetectedType = MediaType.Comics,
+            Claims = [new ExtractedClaim { Key = "title", Value = "Saga 001", Confidence = 0.95 }],
+        });
+
+        await RunPipelineAsync(applyMediaTypePrior: false);
+
+        Assert.NotNull(await FindAssetByFileNameAsync("Saga 001.cbz"));
+        Assert.Empty(ReadCoverRows());
+        Assert.Equal(["pending"], ReadCanonicalValues("cover_state"));
+    }
+
+    [Fact]
+    public async Task IngestionEngine_ConcurrentTracksOfOneAlbum_PersistOneCompleteCoverWithoutErrors()
+    {
+        const int trackCount = 8;
+        var embedded = CreateJpeg(512 * 1024, seed: 11);
+        var assetIds = SeedAlbumTracks(trackCount);
+        var logger = new CapturingLogger<IngestionEngine>();
+
+        var contexts = assetIds
+            .Select((assetId, index) => CreateWriteBackContext(
+                assetId,
+                CreateWatchFile($"Track {index + 1:00}.mp3", $"audio bytes {index}"),
+                embedded,
+                "image/jpeg"))
+            .ToList();
+
+        using var debounce = new DebounceQueue(new DebounceOptions());
+        using var engine = CreateEngine(debounce, CreateDeletionOptions(), logger);
+
+        // Release every track at once so they race for the shared album cover.
+        using var gate = new ManualResetEventSlim(false);
+        var writes = contexts
+            .Select(context => Task.Run(async () =>
+            {
+                gate.Wait();
+                await InvokeWriteBackStageAsync(engine, context);
+            }))
+            .ToArray();
+        gate.Set();
+        await Task.WhenAll(writes);
+
+        Assert.DoesNotContain(logger.Warnings, w => w.Contains("Failed to persist", StringComparison.OrdinalIgnoreCase));
+
+        var cover = Assert.Single(ReadCoverRows());
+        Assert.True(cover.IsPreferred);
+        Assert.Equal("embedded", cover.SourceProvider);
+        Assert.Equal(embedded, File.ReadAllBytes(cover.LocalImagePath!));
+        var coverDirectory = Path.GetDirectoryName(cover.LocalImagePath!)!;
+        Assert.Empty(Directory.EnumerateFiles(coverDirectory, "*.tmp"));
+        Assert.Single(Directory.EnumerateFiles(coverDirectory));
+
+        // A later track carrying the same cover must not rewrite the file.
+        var writtenAt = new DateTime(2001, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+        File.SetLastWriteTimeUtc(cover.LocalImagePath!, writtenAt);
+        var lateAsset = SeedAlbumTracks(1, existingAlbumOf: assetIds[0]).Single();
+        await InvokeWriteBackStageAsync(
+            engine,
+            CreateWriteBackContext(lateAsset, CreateWatchFile("Track 99.mp3", "late"), embedded, "image/jpeg"));
+
+        Assert.Equal(writtenAt, File.GetLastWriteTimeUtc(cover.LocalImagePath!));
+        Assert.Single(ReadCoverRows());
+        Assert.DoesNotContain(logger.Warnings, w => w.Contains("Failed to persist", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public async Task IngestionEngine_TracksOfOneAlbumWithDifferentEmbeddedCovers_PersistWithoutForeignKeyFailure()
+    {
+        // Proof run: sibling tracks of one album carried different embedded art. The second write replaced
+        // the shared variant's file in place, whose new content hash had no artwork_assets row, so the
+        // artwork link insert failed with FOREIGN KEY constraint failed.
+        var assetIds = SeedAlbumTracks(4);
+        var logger = new CapturingLogger<IngestionEngine>();
+        var covers = Enumerable.Range(0, assetIds.Count).Select(i => CreateJpeg(64 * 1024, seed: (byte)(20 + i))).ToList();
+
+        using var debounce = new DebounceQueue(new DebounceOptions());
+        using var engine = CreateEngine(debounce, CreateDeletionOptions(), logger);
+
+        for (var i = 0; i < assetIds.Count; i++)
+        {
+            await InvokeWriteBackStageAsync(
+                engine,
+                CreateWriteBackContext(assetIds[i], CreateWatchFile($"Differing {i:00}.mp3", $"audio {i}"), covers[i], "image/jpeg"));
+        }
+
+        Assert.DoesNotContain(logger.Warnings, w => w.Contains("Failed to persist", StringComparison.OrdinalIgnoreCase));
+        var cover = Assert.Single(ReadCoverRows());
+        Assert.True(cover.IsPreferred);
+
+        using var conn = _dbFactory.Connection.CreateConnection();
+        Assert.Equal(1, conn.ExecuteScalar<long>(
+            """
+            SELECT COUNT(*) FROM entity_artwork_links l
+            JOIN artwork_assets a ON a.id = l.artwork_asset_id
+            WHERE l.role = 'Primary';
+            """));
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task IngestionEngine_ConcurrentFormatsOfOneBookInOneFolder_CreateOneWorkWithTwoEditions(bool sameFolder)
+    {
+        var otherFolder = Path.Combine(_watchDir, "other");
+        Directory.CreateDirectory(otherFolder);
+        var epub = CreateWatchFile("Winners Take All.epub", "epub bytes");
+        var azw3Path = Path.Combine(sameFolder ? _watchDir : otherFolder, "Winners Take All.azw3");
+        File.WriteAllText(azw3Path, "azw3 bytes");
+        foreach (var path in new[] { epub, azw3Path })
+        {
+            _processors.SetResultForPath(path, new ProcessorResult
+            {
+                FilePath = path,
+                DetectedType = MediaType.Books,
+                Claims =
+                [
+                    new ExtractedClaim { Key = "title", Value = "Winners Take All: The Elite Charade", Confidence = 0.95 },
+                    new ExtractedClaim { Key = "author", Value = "Anand Giridharadas", Confidence = 0.92 },
+                ],
+            });
+        }
+
+        using var debounce = new DebounceQueue(new DebounceOptions());
+        // Widen the window between "Edition created" and "asset registered" so the pair would
+        // both create a Work if the pipeline did not serialise siblings in one folder.
+        using var engine = CreateEngine(
+            debounce,
+            CreateDeletionOptions(),
+            chainFactory: new SlowChainFactory(_chainFactory, TimeSpan.FromMilliseconds(300)));
+
+        // Release both formats at once so they race through work resolution.
+        using var gate = new ManualResetEventSlim(false);
+        var runs = new[] { epub, azw3Path }
+            .Select(path => Task.Run(async () =>
+            {
+                gate.Wait();
+                await InvokeProcessCandidateAsync(engine, path);
+            }))
+            .ToArray();
+        gate.Set();
+        await Task.WhenAll(runs);
+
+        using var conn = _dbFactory.Connection.CreateConnection();
+        Assert.Equal(2, conn.ExecuteScalar<int>("SELECT COUNT(*) FROM media_assets;"));
+        Assert.Equal(2, conn.ExecuteScalar<int>("SELECT COUNT(*) FROM editions;"));
+        Assert.Equal(sameFolder ? 1 : 2, conn.ExecuteScalar<int>("SELECT COUNT(*) FROM works WHERE media_type = 'Books';"));
+    }
+
+    private sealed class SlowChainFactory(IMediaEntityChainFactory inner, TimeSpan delay) : IMediaEntityChainFactory
+    {
+        public async Task<Guid> EnsureEntityChainAsync(
+            MediaType mediaType,
+            IReadOnlyDictionary<string, string>? metadata,
+            string? sourceFilePath = null,
+            CancellationToken ct = default)
+        {
+            var editionId = await inner.EnsureEntityChainAsync(mediaType, metadata, sourceFilePath, ct);
+            await Task.Delay(delay, ct);
+            return editionId;
+        }
+    }
+
+    private static async Task InvokeProcessCandidateAsync(IngestionEngine engine, string path)
+    {
+        var method = typeof(IngestionEngine).GetMethod(
+            "ProcessCandidateAsync",
+            System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+        Assert.NotNull(method);
+        var invocation = method.Invoke(
+            engine,
+            [
+                new IngestionCandidate
+                {
+                    Path = path,
+                    EventType = FileEventType.Created,
+                    DetectedAt = DateTimeOffset.UtcNow,
+                    ReadyAt = DateTimeOffset.UtcNow,
+                },
+                CancellationToken.None,
+            ]);
+        await Assert.IsAssignableFrom<Task>(invocation);
+    }
+
+    private List<Guid> SeedAlbumTracks(int count, Guid? existingAlbumOf = null)
+    {
+        using var connection = _dbFactory.Connection.CreateConnection();
+        var albumId = existingAlbumOf.HasValue
+            ? connection.ExecuteScalar<Guid>(
+                """
+                SELECT w.parent_work_id FROM media_assets a
+                JOIN editions e ON e.id = a.edition_id
+                JOIN works w ON w.id = e.work_id
+                WHERE a.id = @assetId;
+                """,
+                new { assetId = existingAlbumOf.Value })
+            : Guid.NewGuid();
+        if (!existingAlbumOf.HasValue)
+        {
+            connection.Execute(
+                "INSERT INTO works (id, media_type, work_kind, ownership) VALUES (@albumId, 'Music', 'parent', 'Owned');",
+                new { albumId });
+        }
+
+        var assetIds = new List<Guid>();
+        for (var i = 0; i < count; i++)
+        {
+            var workId = Guid.NewGuid();
+            var editionId = Guid.NewGuid();
+            var assetId = Guid.NewGuid();
+            connection.Execute(
+                """
+                INSERT INTO works (id, media_type, work_kind, ownership, parent_work_id)
+                VALUES (@workId, 'Music', 'child', 'Owned', @albumId);
+                INSERT INTO editions (id, work_id) VALUES (@editionId, @workId);
+                INSERT INTO media_assets (id, edition_id, content_hash, file_path_root, status)
+                VALUES (@assetId, @editionId, @contentHash, @path, 'Normal');
+                """,
+                new
+                {
+                    workId,
+                    albumId,
+                    editionId,
+                    assetId,
+                    contentHash = assetId.ToString("N"),
+                    path = Path.Combine(_watchDir, $"seeded-{assetId:N}.mp3"),
+                });
+            assetIds.Add(assetId);
+        }
+
+        return assetIds;
+    }
+
+    private static object CreateWriteBackContext(Guid assetId, string filePath, byte[] coverImage, string mimeType)
+    {
+        var contextType = typeof(IngestionEngine).Assembly.GetType("MediaEngine.Ingestion.Pipeline.IngestionPipelineContext");
+        Assert.NotNull(contextType);
+        var candidate = new IngestionCandidate
+        {
+            Path = filePath,
+            EventType = FileEventType.Created,
+            DetectedAt = DateTimeOffset.UtcNow,
+            ReadyAt = DateTimeOffset.UtcNow,
+        };
+        var context = Activator.CreateInstance(contextType, candidate, Guid.NewGuid());
+        Assert.NotNull(context);
+
+        void Set(string name, object value) => contextType.GetProperty(name)!.SetValue(context, value);
+        Set("AssetId", assetId);
+        Set("ResolvedTitle", "Shared Album Track");
+        Set("ProcessorResult", new ProcessorResult
+        {
+            FilePath = filePath,
+            DetectedType = MediaType.Music,
+            CoverImage = coverImage,
+            CoverImageMimeType = mimeType,
+        });
+        return context;
+    }
+
+    private static async Task InvokeWriteBackStageAsync(IngestionEngine engine, object context)
+    {
+        var method = typeof(IngestionEngine).GetMethod(
+            "RunWriteBackStageAsync",
+            System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+        Assert.NotNull(method);
+        await Assert.IsAssignableFrom<Task>(method.Invoke(engine, [context, CancellationToken.None]));
+    }
+
+    private static byte[] CreateJpeg(int length, byte seed)
+    {
+        var bytes = new byte[length];
+        for (var i = 0; i < bytes.Length; i++)
+        {
+            bytes[i] = (byte)((i + seed) % 251);
+        }
+
+        bytes[0] = 0xFF;
+        bytes[1] = 0xD8;
+        bytes[2] = 0xFF;
+        return bytes;
+    }
+
+    private sealed record CoverRow(string EntityId, string SourceProvider, string? LocalImagePath, bool IsPreferred);
+
+    private List<CoverRow> ReadCoverRows()
+    {
+        using var conn = _dbFactory.Connection.CreateConnection();
+        return conn.Query(
+                "SELECT entity_id AS EntityId, source_provider AS SourceProvider, local_image_path AS LocalImagePath, is_preferred AS IsPreferred FROM entity_assets WHERE asset_type = 'CoverArt';")
+            .Select(row => new CoverRow(
+                row.EntityId is byte[] blob ? new Guid(blob).ToString() : Convert.ToString(row.EntityId) ?? string.Empty,
+                (string?)row.SourceProvider ?? string.Empty,
+                (string?)row.LocalImagePath,
+                Convert.ToInt64(row.IsPreferred) == 1))
+            .ToList();
+    }
+
+    private List<string> ReadCanonicalValues(string key)
+    {
+        using var conn = _dbFactory.Connection.CreateConnection();
+        return conn.Query<string>("SELECT DISTINCT value FROM canonical_values WHERE key = @key ORDER BY value;", new { key })
+            .ToList();
+    }
+
+    private sealed class CapturingLogger<T> : ILogger<T>
+    {
+        private readonly List<string> _warnings = [];
+
+        public IReadOnlyList<string> Warnings
+        {
+            get
+            {
+                lock (_warnings)
+                {
+                    return _warnings.ToList();
+                }
+            }
+        }
+
+        public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
+
+        public bool IsEnabled(LogLevel logLevel) => true;
+
+        public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter)
+        {
+            if (logLevel < LogLevel.Warning)
+            {
+                return;
+            }
+
+            lock (_warnings)
+            {
+                _warnings.Add(formatter(state, exception));
+            }
+        }
     }
 
     // ══════════════════════════════════════════════════════════════════════
@@ -1106,7 +1526,8 @@ public sealed class DurablePipelineTests : IDisposable
 
     private async Task RunPipelineAsync(
         bool localOnly = false,
-        bool applyMediaTypePrior = true)
+        bool applyMediaTypePrior = true,
+        ILogger<IngestionEngine>? logger = null)
     {
         var libraryId = localOnly
             ? "99999999-9999-4999-8999-999999999999"
@@ -1162,7 +1583,7 @@ public sealed class DurablePipelineTests : IDisposable
 
         using var debounce = new DebounceQueue(debounceOptions);
 
-        using var engine = CreateEngine(debounce, options);
+        using var engine = CreateEngine(debounce, options, logger);
 
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
         try
@@ -1181,7 +1602,11 @@ public sealed class DurablePipelineTests : IDisposable
 
     // Helpers - IngestionEngine factory
 
-    private IngestionEngine CreateEngine(DebounceQueue debounce, IngestionOptions options) =>
+    private IngestionEngine CreateEngine(
+        DebounceQueue debounce,
+        IngestionOptions options,
+        ILogger<IngestionEngine>? logger = null,
+        IMediaEntityChainFactory? chainFactory = null) =>
         new(
             _watcher,
             debounce,
@@ -1194,11 +1619,11 @@ public sealed class DurablePipelineTests : IDisposable
             _bgWorker,
             _publisher,
             Options.Create(options),
-            NullLogger<IngestionEngine>.Instance,
+            logger ?? NullLogger<IngestionEngine>.Instance,
             _claimRepo,
             _canonicalRepo,
             _recursiveIdentity,
-            _chainFactory,
+            chainFactory ?? _chainFactory,
             _reviewRepo,
             _activityRepo,
             _reconciliation,

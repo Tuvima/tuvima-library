@@ -1462,7 +1462,7 @@ public partial class ListenPage
                 {
                     Key = "my-list",
                     Label = _favoriteWorkIds.Contains(id) ? "In My List" : "My List",
-                    Icon = _favoriteWorkIds.Contains(id) ? "playlist_add_check" : "playlist_add",
+                    Icon = _favoriteWorkIds.Contains(id) ? "check" : "add",
                     Tooltip = _favoriteWorkIds.Contains(id) ? "Remove from My List" : "Add to My List",
                     DisplayStyle = "icon",
                     IsSelected = _favoriteWorkIds.Contains(id),

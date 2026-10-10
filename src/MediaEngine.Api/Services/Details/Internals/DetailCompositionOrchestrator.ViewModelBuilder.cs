@@ -703,7 +703,7 @@ internal sealed partial class DetailCompositionOrchestrator
         {
             Key = "my-list",
             Label = isSelected ? "In My List" : "Add to My List",
-            Icon = isSelected ? "check_circle" : "add",
+            Icon = isSelected ? "check" : "add",
             Tooltip = isSelected ? "Remove from My List" : "Add to My List",
             DisplayStyle = "icon-circle",
             IsSelected = isSelected,

@@ -3,6 +3,7 @@ using MediaEngine.Api.Http;
 using MediaEngine.Api.Models;
 using MediaEngine.Api.Security;
 using MediaEngine.Api.Services.ReadServices;
+using MediaEngine.Api.Services.Review;
 using MediaEngine.Contracts.Paging;
 using MediaEngine.Contracts.Realtime;
 using MediaEngine.Contracts.Review;
@@ -301,6 +302,32 @@ public static class ReviewEndpoints
         .Produces<ReviewDismissResponse>(StatusCodes.Status200OK)
         .ProducesProblem(StatusCodes.Status404NotFound)
         .ProducesProblem(StatusCodes.Status400BadRequest)
+        .RequireAdministratorOrApplication(ApplicationPermissionIds.ReviewResolve);
+
+        // ── POST /review/{id}/move-to-tv ─────────────────────────────────────
+        // The user accepted the "Found as a TV title" suggestion. Logical move only: the file on
+        // disk is never touched.
+        group.MapPost("/{id:guid}/move-to-tv", async (
+            Guid id,
+            IReviewMoveToTvService moveToTv,
+            CancellationToken ct) =>
+        {
+            var result = await moveToTv.MoveAsync(id, "user", ct);
+            return result.Outcome switch
+            {
+                ReviewMoveToTvOutcome.Moved => Results.Ok(result.Response),
+                ReviewMoveToTvOutcome.ReviewItemNotFound => ApiErrors.NotFound(result.Message ?? "Review item not found."),
+                ReviewMoveToTvOutcome.NotPending or ReviewMoveToTvOutcome.WrongTrigger
+                    => ApiErrors.BadRequest(result.Message ?? "Review item cannot be moved to TV."),
+                _ => ApiErrors.Conflict(result.Message ?? "The item could not be moved to TV."),
+            };
+        })
+        .WithName("MoveReviewItemToTv")
+        .WithSummary("Accept a 'Found as a TV title' suggestion: re-file the film as Season 0 Episode 1 of the TMDB show in the TV library. The file on disk is not moved.")
+        .Produces<ReviewMoveToTvResponse>(StatusCodes.Status200OK)
+        .ProducesProblem(StatusCodes.Status404NotFound)
+        .ProducesProblem(StatusCodes.Status400BadRequest)
+        .ProducesProblem(StatusCodes.Status409Conflict)
         .RequireAdministratorOrApplication(ApplicationPermissionIds.ReviewResolve);
 
         // ── POST /review/{id}/skip-universe ────────────────────────────────

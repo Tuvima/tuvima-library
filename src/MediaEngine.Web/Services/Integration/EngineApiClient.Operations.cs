@@ -1180,4 +1180,10 @@ public sealed partial class EngineApiClient
         }
     }
 
+    // -- POST /review/{id}/move-to-tv -----------------------------------------
+
+    public Task<MediaEngine.Contracts.Review.ReviewMoveToTvResponse?> MoveReviewItemToTvAsync(
+        Guid id, CancellationToken ct = default)
+        => PostAsync<object, MediaEngine.Contracts.Review.ReviewMoveToTvResponse>(
+            "POST /review/{id}/move-to-tv", $"/review/{id}/move-to-tv", new { }, ct: ct);
 }

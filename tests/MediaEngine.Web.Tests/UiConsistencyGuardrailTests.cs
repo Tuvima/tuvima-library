@@ -91,7 +91,8 @@ public sealed partial class UiConsistencyGuardrailTests
     {
         var expectations = new Dictionary<string, string>
         {
-            ["src/MediaEngine.Web/Components/Settings/IngestionScanAction.razor"] = "Label=\"Scan now\"",
+            ["src/MediaEngine.Web/Components/Settings/IngestionScanAction.razor"] = "<strong>Check folders for changes</strong>",
+            ["src/MediaEngine.Web/Components/Settings/IngestionLiveDashboard.razor"] = "Label=\"Check folders for changes\"",
             ["src/MediaEngine.Web/Components/Settings/LocalNetworkSettingsPanel.razor"] = "Label=\"Save\" ButtonStyle=\"AppButtonStyle.Filled\" Tone=\"AppUiTone.Primary\"",
             ["src/MediaEngine.Web/Components/Settings/NetworkStreamingSettingsPanel.razor"] = "Label=\"Save streaming settings\" ButtonStyle=\"AppButtonStyle.Filled\" Tone=\"AppUiTone.Primary\"",
             ["src/MediaEngine.Web/Components/Settings/RemoteAccessSettingsPanel.razor"] = "Label=\"Save and verify\" ButtonStyle=\"AppButtonStyle.Filled\" Tone=\"AppUiTone.Primary\"",

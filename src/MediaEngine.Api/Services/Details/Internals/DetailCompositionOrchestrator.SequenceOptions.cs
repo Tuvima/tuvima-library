@@ -395,6 +395,7 @@ internal sealed partial class DetailCompositionOrchestrator
             """
             WITH current_lineage AS (
                 SELECT COALESCE(current_grandparent.id, current_parent.id, current_work.id) AS RootWorkId,
+                       current_work.parent_work_id AS ParentWorkId,
                        current_work.collection_id AS CollectionId
                 FROM works current_work
                 LEFT JOIN works current_parent ON current_parent.id = current_work.parent_work_id
@@ -404,7 +405,11 @@ internal sealed partial class DetailCompositionOrchestrator
             SELECT CAST(COALESCE(
                 (SELECT display_name FROM collections c WHERE c.id = current.CollectionId LIMIT 1),
                 (SELECT value FROM canonical_values WHERE entity_id = current.RootWorkId AND key = 'series' LIMIT 1),
-                (SELECT value FROM canonical_values WHERE entity_id = current.RootWorkId AND key = 'title' LIMIT 1)
+                -- A root's own title only names a container when the work actually has a
+                -- parent (episode -> show, track -> album). A standalone work is not a
+                -- one-item series of itself.
+                (SELECT value FROM canonical_values WHERE entity_id = current.RootWorkId AND key = 'title'
+                    AND current.ParentWorkId IS NOT NULL LIMIT 1)
             ) AS TEXT) AS SeriesTitle,
             current.CollectionId AS CollectionId,
             CAST((SELECT wikidata_qid FROM collections c WHERE c.id = current.CollectionId LIMIT 1) AS TEXT) AS SeriesQid,

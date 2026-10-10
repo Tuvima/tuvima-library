@@ -840,7 +840,21 @@ public static class SettingsEndpoints
                 Country = country,
             };
 
-            var claims = await adapter.FetchAsync(lookup, ct);
+            IReadOnlyList<ProviderClaim> claims;
+            try
+            {
+                claims = await adapter.FetchAsync(lookup, ct);
+            }
+            catch (HttpRequestException ex)
+            {
+                // Availability/rejection is surfaced as an exception by the adapter; keep the sample action non-failing.
+                return Results.Ok(new ProviderSampleResponse
+                {
+                    ProviderName = name,
+                    Message = $"The provider could not be reached or rejected the request: {ex.Message}",
+                    Claims = [],
+                });
+            }
 
             return Results.Ok(new ProviderSampleResponse
             {

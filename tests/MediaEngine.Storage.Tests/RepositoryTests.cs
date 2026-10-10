@@ -664,6 +664,62 @@ public sealed class RepositoryTests : IDisposable
     }
 
     [Fact]
+    public async Task EntityAsset_Upsert_WhenFileReplacedInPlaceWithDifferentBytes_RelinksWithoutForeignKeyFailure()
+    {
+        // Two tracks of one album resolve to the same owner and variant id but carry different embedded
+        // art, so the second write replaces the variant's file in place with a new content hash.
+        var repo = new EntityAssetRepository(_db);
+        var albumId = Guid.NewGuid();
+        var variantId = Guid.NewGuid();
+        var directory = Path.Combine(Path.GetTempPath(), $"tuvima_entity_asset_{Guid.NewGuid():N}");
+        Directory.CreateDirectory(directory);
+        try
+        {
+            var coverPath = Path.Combine(directory, $"{variantId:N}.jpg");
+            EntityAsset Build() => new()
+            {
+                Id = variantId,
+                EntityId = albumId.ToString(),
+                EntityType = "Work",
+                AssetTypeValue = "CoverArt",
+                ImageUrl = $"/stream/artwork/{variantId}",
+                LocalImagePath = coverPath,
+                SourceProvider = "embedded",
+                AssetClassValue = "Artwork",
+                StorageLocationValue = "Central",
+                OwnerScope = "Work",
+                IsPreferred = true,
+                CreatedAt = DateTimeOffset.UtcNow,
+            };
+
+            await File.WriteAllBytesAsync(coverPath, [1, 2, 3, 4]);
+            await repo.UpsertAsync(Build());
+            await File.WriteAllBytesAsync(coverPath, [9, 8, 7, 6, 5]);
+            await repo.UpsertAsync(Build());
+
+            using var conn = _db.CreateConnection();
+            Assert.Equal(1, conn.ExecuteScalar<long>(
+                "SELECT COUNT(*) FROM entity_artwork_links WHERE id = @variantId;", new { variantId }));
+            var linkedHash = conn.ExecuteScalar<string>(
+                """
+                SELECT a.content_hash
+                FROM entity_artwork_links l
+                JOIN artwork_assets a ON a.id = l.artwork_asset_id
+                WHERE l.id = @variantId;
+                """,
+                new { variantId });
+            Assert.NotNull(linkedHash);
+            Assert.DoesNotContain("source:", linkedHash);
+            Assert.Equal(2, conn.ExecuteScalar<long>("SELECT COUNT(*) FROM artwork_assets;"));
+            Assert.Single(await repo.GetByEntityAsync(albumId.ToString(), "CoverArt"));
+        }
+        finally
+        {
+            try { Directory.Delete(directory, recursive: true); } catch { /* temp cleanup is best-effort */ }
+        }
+    }
+
+    [Fact]
     public async Task CanonicalValueArray_BatchLookup_PreservesEntityKeyAndOrdinalGrouping()
     {
         var arrays = new CanonicalValueArrayRepository(_db);

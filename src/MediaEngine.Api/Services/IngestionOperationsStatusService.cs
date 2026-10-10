@@ -3469,7 +3469,7 @@ public sealed class IngestionOperationsStatusService : IIngestionOperationsStatu
 
         return
         [
-            Review("unmatched", "Unmatched", SumMatching(triggerCounts, "RetailMatchFailed", "StagedUnidentifiable"), "Items could not be matched to a known catalogue record."),
+            Review("unmatched", "Unmatched", SumMatching(triggerCounts, "RetailMatchFailed", "StagedUnidentifiable", "MovieMatchedAsTv"), "Items could not be matched to a known catalogue record."),
             Review("low_confidence", "Low Confidence", SumMatching(triggerCounts, "LowConfidence", "RetailMatchAmbiguous", "ArbiterNeedsReview"), "Items matched below the confidence threshold."),
             Review("duplicates", "Duplicates", 0, "Possible duplicate files or editions need confirmation."),
             Review("missing_artwork", "Missing Artwork", SumMatching(triggerCounts, "ArtworkUnconfirmed"), "Artwork is missing or needs confirmation."),

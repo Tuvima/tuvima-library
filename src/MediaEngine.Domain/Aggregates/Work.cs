@@ -297,6 +297,19 @@ public sealed class Work
         UniverseMismatchAt = universeMismatchAt;
     }
 
+    /// <summary>
+    /// Records that this Work (or the container above it) now holds an owned file. A catalog row
+    /// becomes a real child Work; every other kind keeps its role.
+    /// </summary>
+    public void MarkOwned()
+    {
+        Ownership = OwnershipStatus.Owned;
+        if (WorkKind == WorkKind.Catalog)
+        {
+            WorkKind = WorkKind.Child;
+        }
+    }
+
     public void AddEdition(Edition edition)
     {
         ArgumentNullException.ThrowIfNull(edition);

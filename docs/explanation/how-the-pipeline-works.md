@@ -224,6 +224,8 @@ Items go to review when the Engine decides that guessing would be worse than wai
 
 The Review Queue exists so the system can stop at the right moment instead of silently creating bad matches.
 
+A Movies-library file whose only strong match is a TMDB miniseries or short TV title is not applied automatically. It appears as a "Found as a TV title" suggestion instead, so you can move it to TV or keep it as a film.
+
 ---
 
 ## How the UI represents the pipeline

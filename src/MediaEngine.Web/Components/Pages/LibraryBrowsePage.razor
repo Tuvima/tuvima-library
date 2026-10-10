@@ -21,6 +21,27 @@
     @if (IsEmpty)
     {
 
+    @if (_librariesConfigured)
+    {
+        <div class="home-discovery-empty">
+            <img src="/images/tuvima-icon.svg" alt="Tuvima Library" class="home-discovery-empty-icon" />
+            <h2 class="home-discovery-empty-title">Your library is being prepared</h2>
+            <p class="home-discovery-empty-subtitle">
+                Tuvima is finding and matching your media. Items appear here as they're ready.
+            </p>
+            <div class="home-discovery-empty-actions">
+                <AppButton ButtonStyle="AppButtonStyle.Outlined"
+                           Tone="AppUiTone.Neutral"
+                           Size="AppControlSize.Large"
+                           StartIcon="@AppMaterialIcons.Outlined.PendingActions"
+                           Href="/settings/ingestion">
+                    View progress
+                </AppButton>
+            </div>
+        </div>
+    }
+    else
+    {
     <div class="home-discovery-empty">
         <img src="/images/tuvima-icon.svg" alt="Tuvima Library" class="home-discovery-empty-icon" />
         <h2 class="home-discovery-empty-title">Set up your first library</h2>
@@ -47,11 +68,11 @@
                     @if (_scanStarting)
                     {
                         <AppSpinner Size="AppSize.Small" Indeterminate="true" Class="mr-2" />
-                        <text>Starting scan...</text>
+                        <text>Checking folders...</text>
                     }
                     else
                     {
-                        <text>Scan now</text>
+                        <text>Check folders for changes</text>
                     }
                 </AppButton>
             }
@@ -88,11 +109,12 @@
             </div>
         }
     </div>
+    }
 
     }
 
 
-    <div class="home-discovery-page @(_page.Hero is not null ? "home-discovery-page--with-hero" : null)">
+    <div class="home-discovery-page @(HomeHeroCandidates.Count > 0 ? "home-discovery-page--with-hero" : "home-discovery-page--no-hero")">
         @if (HomeHeroCandidates.Count > 0)
         {
             <CinematicHeroCarousel Items="@HomeHeroCandidates"
@@ -135,6 +157,7 @@
     private bool _seeding;
     private bool _scanStarting;
     private bool _canScan;
+    private bool _librariesConfigured;
     private string _recentType = "all";
     private long _recentRefreshKey;
     private bool _hasRecentItems;
@@ -237,11 +260,13 @@
                         _recentRefreshKey++;
                     UpdatePresentationCaches();
                     _canScan = IsEmpty && await CanStartScanAsync();
+                    _librariesConfigured = IsEmpty && await HasConfiguredLibrariesAsync();
                 }
                 catch (Exception ex)
                 {
                     Logger.LogWarning(ex, "Home refresh failed; retaining the current page");
                     _canScan = await CanStartScanAsync();
+                    _librariesConfigured = IsEmpty && await HasConfiguredLibrariesAsync();
                 }
                 finally
                 {
@@ -290,18 +315,33 @@
             var started = await Orchestrator.TriggerRescanAsync();
             if (started)
             {
-                Snackbar.Add("Scan started. Open Ingestion to watch progress.", AppSeverity.Success);
+                Snackbar.Add("Checking your folders for changes. Open Ingestion to watch progress.", AppSeverity.Success);
                 _canScan = false;
             }
             else
             {
-                Snackbar.Add(Orchestrator.LastApiError ?? "Scan could not be started.", AppSeverity.Error);
+                Snackbar.Add(Orchestrator.LastApiError ?? "Folders could not be checked for changes.", AppSeverity.Error);
             }
         }
         finally
         {
             _scanStarting = false;
             await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    // Libraries exist but nothing has surfaced yet: the first import is still running, so Home says so instead of asking for setup.
+    private async Task<bool> HasConfiguredLibrariesAsync()
+    {
+        try
+        {
+            var libraries = await Orchestrator.GetLibrariesAsync();
+            return libraries?.Libraries.Any(library => library.Sources.Any(source => !string.IsNullOrWhiteSpace(source.Path))) == true;
+        }
+        catch (Exception ex)
+        {
+            Logger.LogDebug(ex, "Could not read configured libraries for the Home empty state");
+            return false;
         }
     }
 

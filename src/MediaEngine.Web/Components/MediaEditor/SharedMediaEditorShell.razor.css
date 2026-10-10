@@ -1931,3 +1931,5 @@
 @media (max-width: 850px) {
 .tvdb-match-results ::deep .tvdb-match-result__art--season { width: 4rem; }
 }
+
+.sme-movie-tv-suggestion { margin-bottom: 1rem; }

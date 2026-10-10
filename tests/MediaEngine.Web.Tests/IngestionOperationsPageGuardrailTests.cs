@@ -30,8 +30,10 @@ public sealed class IngestionOperationsPageGuardrailTests
         Assert.Contains("RefreshPinnedDrawerAsync", source, StringComparison.Ordinal);
         Assert.Contains("_selectedItem.BatchId == batchId", source, StringComparison.Ordinal);
         Assert.Contains("<IngestionMediaPagedView", source, StringComparison.Ordinal);
-        Assert.Contains("Active batch", source, StringComparison.Ordinal);
-        Assert.Contains("Being Added Now", source, StringComparison.Ordinal);
+        Assert.Contains("Adding {RunTotal:N0}", source, StringComparison.Ordinal);
+        Assert.Contains("<IngestionScanAction", source, StringComparison.Ordinal);
+        Assert.DoesNotContain("ingestion-current__facts", source, StringComparison.Ordinal);
+        Assert.Contains("Being added now", source, StringComparison.Ordinal);
         Assert.Contains("Model.IsRunning ? \"is-active\" : \"is-idle\"", source, StringComparison.Ordinal);
         Assert.Contains("aria-busy", source, StringComparison.Ordinal);
         Assert.Contains("ingestion-summary-breathe", styles, StringComparison.Ordinal);
@@ -48,7 +50,10 @@ public sealed class IngestionOperationsPageGuardrailTests
         Assert.DoesNotContain("Follow current stage", source, StringComparison.Ordinal);
         Assert.DoesNotContain("OverallProgressPercent", source, StringComparison.Ordinal);
         Assert.DoesNotContain("Overall run progress", source, StringComparison.Ordinal);
-        Assert.Single(Regex.Matches(scanAction, "Label=\"Scan now\""));
+        Assert.Single(Regex.Matches(scanAction, "Check folders for changes"));
+        Assert.Contains("Folders are watched automatically. Use this after changing files while Tuvima was off, or for network drives.", scanAction, StringComparison.Ordinal);
+        Assert.DoesNotContain("Scan now", scanAction, StringComparison.Ordinal);
+        Assert.Contains("<AppOverflowMenu", scanAction, StringComparison.Ordinal);
         Assert.DoesNotContain("Label=\"Refresh\"", source, StringComparison.Ordinal);
         Assert.DoesNotContain("<EnrichmentRefreshSchedulePanel", source, StringComparison.Ordinal);
         Assert.DoesNotContain("settings/ingestion?view=history", source, StringComparison.Ordinal);
@@ -1336,7 +1341,7 @@ public sealed class IngestionOperationsPageGuardrailTests
         Assert.Equal(43, retail.Total);
         Assert.Equal(1, retail.OtherCount);
         Assert.True(progress.Percent < 100);
-        Assert.Equal(70.9, Math.Round(progress.Percent, 1));
+        Assert.Equal(61, Math.Round(progress.Percent, 1));
         Assert.Equal("Ingestion_StageWikidataMatch", progress.ActiveStageLabelKey);
         Assert.Equal(19, progress.ActiveStageCount);
         Assert.Equal(31, progress.ActiveStageTotal);
@@ -1359,6 +1364,100 @@ public sealed class IngestionOperationsPageGuardrailTests
         Assert.Equal(99, progress.Percent);
         Assert.Equal("Ingestion_StageEnrichment", progress.ActiveStageLabelKey);
     }
+
+    [Fact]
+    public void LiveDashboardState_OverallProgress_EarlyStagesDoneAndLateStagesEmptyIsAboutHalf()
+    {
+        // 508 items: detect, fingerprint and process are finished, but retail match, Wikidata and
+        // enrichment have not been reached yet (their own Total is still 0).
+        var stages = new[]
+        {
+            ProgressStage("scan", 1, 508, 508, "Ingestion_StatusComplete"),
+            ProgressStage("fingerprint", 2, 508, 508, "Ingestion_StatusComplete"),
+            ProgressStage("process", 3, 508, 508, "Ingestion_StatusComplete"),
+            ProgressStage("retail", 4, 0, 0, "Ingestion_StatusActive"),
+            ProgressStage("wikidata", 5, 0, 0, "Ingestion_StatusIdle"),
+            ProgressStage("enrichment", 6, 0, 0, "Ingestion_StatusIdle"),
+        };
+
+        var progress = IngestionLiveDashboardState.BuildOverallProgress(
+            new IngestionDashboardMetrics(508, 508, 12, 0),
+            stages,
+            null);
+
+        Assert.InRange(progress.Percent, 40, 50);
+        Assert.NotEqual(99, progress.Percent);
+    }
+
+    [Fact]
+    public void LiveDashboardState_OverallProgress_UsesRunTotalAsDenominatorForLateStages()
+    {
+        // The retail stage has only seen 100 of the 508 items so far, and the stages after it
+        // have not seen any: every stage is measured against the run total, not its own.
+        var stages = new[]
+        {
+            ProgressStage("scan", 1, 508, 508, "Ingestion_StatusComplete"),
+            ProgressStage("retail", 2, 100, 508, "Ingestion_StatusActive"),
+            ProgressStage("wikidata", 3, 0, 0, "Ingestion_StatusIdle"),
+            ProgressStage("enrichment", 4, 0, 0, "Ingestion_StatusIdle"),
+        };
+        var batch = new BatchProgressEvent(Guid.NewGuid(), 508, 508, 40, 0, 0, 0, 0, 360, false);
+
+        var progress = IngestionLiveDashboardState.BuildOverallProgress(
+            new IngestionDashboardMetrics(508, 508, 12, 0),
+            stages,
+            batch);
+
+        // scan 100%, retail 100/508 (~20%), wikidata 0, enrichment 0 -> about 30%.
+        Assert.InRange(progress.Percent, 25, 35);
+        Assert.Equal(40, progress.ItemsReady);
+        Assert.Equal(360, progress.EstimatedSecondsRemaining);
+    }
+
+    [Fact]
+    public void BatchProgressSummary_EarlyIntakeDoneAndNothingSettledIsHalfNotDone()
+    {
+        var batch = new BatchProgressEvent(Guid.NewGuid(), 508, 508, 0, 0, 0, 0, 100, 600, false, WorkUnitsTotal: 508, WorkUnitsCompleted: 0);
+
+        var summary = IngestionBatchProgressSummary.From(batch);
+
+        Assert.Equal(50, summary.Percent);
+        Assert.Equal(0, summary.ItemsReady);
+        Assert.Equal(508, summary.ItemsTotal);
+    }
+
+    [Fact]
+    public void BatchProgressSummary_ReportsReadyCountAndCapsAt99UntilComplete()
+    {
+        var running = new BatchProgressEvent(Guid.NewGuid(), 508, 508, 312, 0, 0, 0, 100, 200, false, WorkUnitsTotal: 508, WorkUnitsCompleted: 312);
+        var nearlyDone = new BatchProgressEvent(Guid.NewGuid(), 508, 508, 508, 0, 0, 0, 100, null, false, WorkUnitsTotal: 508, WorkUnitsCompleted: 508);
+        var complete = nearlyDone with { IsComplete = true };
+
+        var runningSummary = IngestionBatchProgressSummary.From(running);
+
+        Assert.Equal(312, runningSummary.ItemsReady);
+        Assert.InRange(runningSummary.Percent, 79, 82);
+        Assert.Equal(99, IngestionBatchProgressSummary.From(nearlyDone).Percent);
+        Assert.Equal(100, IngestionBatchProgressSummary.From(complete).Percent);
+    }
+
+    private static IngestionDashboardStage ProgressStage(string key, int number, int count, int total, string status) =>
+        new(
+            key,
+            key,
+            key,
+            AppMaterialIcons.Outlined.Search,
+            count,
+            total,
+            total > 0 ? count * 100d / total : 0,
+            status,
+            total > 0 ? count * 100d / total : 0,
+            false,
+            0,
+            0,
+            0,
+            false,
+            StageNumber: number);
 
     [Fact]
     public void LiveDashboardState_OverallProgressReachesCompleteWhenAllFilesAreTerminal()
@@ -1772,7 +1871,8 @@ public sealed class IngestionDashboardRenderTests : AsyncBunitContext
         Assert.Contains("Processing progress", cut.Markup, StringComparison.Ordinal);
         Assert.Contains("Recent batches", cut.Markup, StringComparison.Ordinal);
         Assert.Contains("Refresh", cut.Markup, StringComparison.Ordinal);
-        Assert.Contains("Scan now", cut.Markup, StringComparison.Ordinal);
+        Assert.Contains("Check folders for changes", cut.Markup, StringComparison.Ordinal);
+        Assert.DoesNotContain("Scan now", cut.Markup, StringComparison.Ordinal);
         Assert.DoesNotContain("Files Found", cut.Markup, StringComparison.Ordinal);
         Assert.DoesNotContain("Processed", cut.Markup, StringComparison.Ordinal);
         Assert.DoesNotContain("Need Review", cut.Markup, StringComparison.Ordinal);

@@ -1,0 +1,8 @@
+.movie-as-tv-card { display: flex; align-items: flex-start; gap: 14px; padding: 12px 14px; border: 1px solid var(--tl-border-subtle); border-radius: 10px; background: var(--tl-bg-surface); }
+.movie-as-tv-card__poster { flex: 0 0 auto; width: 54px; aspect-ratio: 2 / 3; object-fit: cover; border-radius: 6px; background: rgba(255, 255, 255, .06); }
+.movie-as-tv-card__body { display: grid; gap: 10px; min-width: 0; }
+.movie-as-tv-card__text { margin: 0; color: var(--tl-text-primary); font-size: .9rem; line-height: 1.4; }
+.movie-as-tv-card__actions { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 10px 14px; }
+.movie-as-tv-card__primary { display: grid; gap: 4px; max-width: 280px; }
+.movie-as-tv-card__primary small { color: var(--tl-text-muted); font-size: .76rem; line-height: 1.35; }
+@media (max-width: 900px) { .movie-as-tv-card { flex-direction: column; } }

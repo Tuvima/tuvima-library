@@ -884,6 +884,7 @@ public sealed partial class DisplayComposerService
                     [.. AlbumFacts([work], artist, work.Year, work.Genre, work.Rating)]))
                 .ToList(),
             PreviewTotalCount = works.Count,
+            IsSettling = works.Any(work => work.IsUpdatingDetails),
         };
     }
 
@@ -929,6 +930,7 @@ public sealed partial class DisplayComposerService
             Flags: new DisplayCardFlagsDto(true, false, true, false),
             SortTimestamp: works.Max(work => work.CreatedAt))
         {
+            IsSettling = works.Any(work => work.IsUpdatingDetails),
             Genres = works
                 .SelectMany(work => DisplayMediaRules.SplitValues(work.Genre))
                 .Distinct(StringComparer.OrdinalIgnoreCase)

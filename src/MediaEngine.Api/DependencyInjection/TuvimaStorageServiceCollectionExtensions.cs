@@ -127,12 +127,14 @@ public static class TuvimaStorageServiceCollectionExtensions
         services.AddSingleton<IPersonRepository, PersonRepository>();
         services.AddSingleton<IWorkRepository, WorkRepository>();
         services.AddSingleton<ISeriesManifestRepository, SeriesManifestRepository>();
+        services.AddSingleton<IBookFormatSiblingFinder, BookFormatSiblingFinder>();
         services.AddSingleton<HierarchyResolver>();
         services.AddSingleton<WorkHierarchyMaintenanceService>();
         services.AddSingleton<IWorkIdentityReconciliationService, WorkIdentityReconciliationService>();
         services.AddSingleton<WorkClaimRouter>();
         services.AddSingleton<CatalogUpsertService>();
         services.AddSingleton<IMediaEntityChainFactory, MediaEntityChainFactory>();
+        services.AddSingleton<ITvReassignmentRepository, TvReassignmentRepository>();
         services.AddSingleton<IQidLabelRepository, QidLabelRepository>();
         services.AddSingleton<IQidLabelResolver, QidLabelResolver>();
         services.AddSingleton<ICanonicalValueArrayRepository, CanonicalValueArrayRepository>();

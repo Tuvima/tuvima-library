@@ -29,7 +29,7 @@ Visibility and file organization are separate milestones. Existing/read-only sou
 
 ## Check progress or act
 
-Open **Operations** from the header activity indicator to follow active work. The screen refreshes automatically; **Scan now** starts an extra folder scan. Use Review Queue only when the item needs your decision.
+Open **Operations** from the header activity indicator to follow active work. The screen refreshes automatically; **Check folders for changes** (in the Ingestion page "⋯" menu) starts an extra folder scan. Use Review Queue only when the item needs your decision.
 
 A completed file count does not mean the whole run has finished. Required identity, enrichment, or organization operations can still be active.
 
@@ -210,7 +210,7 @@ It shows real application state from the Engine:
 
 File progress and run completion are deliberately separate. The Files checked outcome reports intake volume, while the prominent overall bar combines measurable pipeline stages for the logical run. It stays below completion while a stage is active and shows the current stage's own task count beneath it. The run stays active while required identity, artwork, people, relationship, or organization operations remain outstanding.
 
-While work is active, the Dashboard updates from SignalR `BatchProgress` and `IngestionProgress` events and polls the operations snapshot more frequently. When idle, it polls less often. If a signal is not tracked yet, the page says so instead of inventing a count. The top navigation activity indicator opens Ingestion for authorized system work. The page has no manual status-refresh control because this synchronization is automatic. Its one **Scan now** action starts an extra scan of watched folders; folder monitoring, schedules, and queued processing continue automatically.
+While work is active, the Dashboard updates from SignalR `BatchProgress` and `IngestionProgress` events and polls the operations snapshot more frequently. When idle, it polls less often. If a signal is not tracked yet, the page says so instead of inventing a count. The top navigation activity indicator opens Ingestion for authorized system work. The page has no manual status-refresh control because this synchronization is automatic. Its one **Check folders for changes** (in the Ingestion page "⋯" menu) action starts an extra scan of watched folders; folder monitoring, schedules, and queued processing continue automatically.
 
 Batch history loads the three newest runs first. Search and All, Completed, Needs attention, and Failed quick filters query the server, while **Show older** appends another bounded page. Selecting a run opens the shared searchable, sortable media browser without loading raw technical records. A durable ingestion batch retains the same identity when the Engine restarts and resumes its outstanding work; later watcher debounce windows join the active batch instead of creating duplicate entries, and a scan across multiple configured source folders uses one batch ID.
 

@@ -57,34 +57,58 @@ public sealed class CanonicalValueRepository : ICanonicalValueRepository, IAiFea
         await _db.ExecuteWriteAsync((conn, tx, innerCt) =>
         {
             innerCt.ThrowIfCancellationRequested();
-
-            // Update in place so the winner changes atomically without the
-            // delete/reinsert side effects of INSERT OR REPLACE.
-            conn.Execute("""
-                INSERT INTO canonical_values
-                    (entity_id, key, value, last_scored_at, is_conflicted, winning_provider_id, needs_review)
-                VALUES
-                    (@EntityId, @Key, @Value, @LastScoredAt, @IsConflicted, @WinningProviderId, @NeedsReview)
-                ON CONFLICT(entity_id, key) DO UPDATE SET
-                    value = excluded.value,
-                    last_scored_at = excluded.last_scored_at,
-                    is_conflicted = excluded.is_conflicted,
-                    winning_provider_id = excluded.winning_provider_id,
-                    needs_review = excluded.needs_review;
-                """,
-                scalarValues.Select(cv => new
-                {
-                    cv.EntityId,
-                    cv.Key,
-                    Value = DescriptionText.IsDescription(cv.Key) ? DescriptionText.Normalize(cv.Value) : cv.Value,
-                    LastScoredAt = cv.LastScoredAt.ToString("o"),
-                    IsConflicted = cv.IsConflicted ? 1 : 0,
-                    cv.WinningProviderId,
-                    NeedsReview = cv.NeedsReview ? 1 : 0,
-                }),
-                transaction: tx);
-
+            UpsertScalarValuesInTransaction(conn, tx, scalarValues);
         }, ct).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Upserts the scalar values in <paramref name="values"/> on a caller-owned write transaction,
+    /// so a multi-step change can commit or roll back with its canonical values.
+    /// </summary>
+    internal static void UpsertBatchInTransaction(
+        Microsoft.Data.Sqlite.SqliteConnection conn,
+        Microsoft.Data.Sqlite.SqliteTransaction tx,
+        IReadOnlyList<CanonicalValue> values)
+    {
+        var scalarValues = values
+            .Where(cv => !MetadataFieldConstants.IsMultiValued(cv.Key))
+            .ToList();
+        if (scalarValues.Count > 0)
+        {
+            UpsertScalarValuesInTransaction(conn, tx, scalarValues);
+        }
+    }
+
+    private static void UpsertScalarValuesInTransaction(
+        Microsoft.Data.Sqlite.SqliteConnection conn,
+        Microsoft.Data.Sqlite.SqliteTransaction tx,
+        List<CanonicalValue> scalarValues)
+    {
+        // Update in place so the winner changes atomically without the
+        // delete/reinsert side effects of INSERT OR REPLACE.
+        conn.Execute("""
+            INSERT INTO canonical_values
+                (entity_id, key, value, last_scored_at, is_conflicted, winning_provider_id, needs_review)
+            VALUES
+                (@EntityId, @Key, @Value, @LastScoredAt, @IsConflicted, @WinningProviderId, @NeedsReview)
+            ON CONFLICT(entity_id, key) DO UPDATE SET
+                value = excluded.value,
+                last_scored_at = excluded.last_scored_at,
+                is_conflicted = excluded.is_conflicted,
+                winning_provider_id = excluded.winning_provider_id,
+                needs_review = excluded.needs_review;
+            """,
+            scalarValues.Select(cv => new
+            {
+                cv.EntityId,
+                cv.Key,
+                Value = DescriptionText.IsDescription(cv.Key) ? DescriptionText.Normalize(cv.Value) : cv.Value,
+                LastScoredAt = cv.LastScoredAt.ToString("o"),
+                IsConflicted = cv.IsConflicted ? 1 : 0,
+                cv.WinningProviderId,
+                NeedsReview = cv.NeedsReview ? 1 : 0,
+            }),
+            transaction: tx);
     }
 
     /// <inheritdoc/>

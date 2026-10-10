@@ -40,6 +40,7 @@ public static class ReviewIssuePresentationBuilder
     {
         "RetailMatchFailed" => $"Tuvima Library searched the configured providers but couldn't confirm a reliable match for this {media}, so it wasn't linked automatically.",
         "RetailMatchAmbiguous" => $"Tuvima Library found more than one possible match for this {media} and couldn't safely choose between them.",
+        "MovieMatchedAsTv" => "No movie matched this file, but TMDB lists a TV series with the same title and year. It stays in Movies with its file details until you decide.",
         "PlaceholderTitle" => $"Tuvima Library could not find enough identifying information in this {media} to search for it reliably.",
         "StagedUnidentifiable" => $"Tuvima Library could not determine a reliable identity for this {media}, so it stopped before organizing it.",
         "MissingQid" or "WikidataBridgeFailed" => $"The retail edition was identified, but Tuvima Library couldn't determine the shared canonical identity for this {media}.",
@@ -54,6 +55,7 @@ public static class ReviewIssuePresentationBuilder
     {
         "RetailMatchFailed" => "No reliable match was found in the configured providers",
         "RetailMatchAmbiguous" => "Multiple possible retail matches need comparison",
+        "MovieMatchedAsTv" => "TMDB lists this film as a TV title",
         "PlaceholderTitle" => "Missing title, creator, or identifying information",
         "StagedUnidentifiable" => "Not enough reliable information to identify the item",
         "MissingQid" or "WikidataBridgeFailed" => "Retail match found, but canonical identity is missing",
@@ -71,6 +73,7 @@ public static class ReviewIssuePresentationBuilder
         {
             "RetailMatchFailed" => new[] { "None of the configured providers returned a match reliable enough to use automatically." },
             "RetailMatchAmbiguous" => new[] { "Several provider results were plausible, but no single result was safe to select automatically." },
+            "MovieMatchedAsTv" => new[] { "The movie search found nothing, but a short TV series with the same title and year exists on TMDB." },
             "PlaceholderTitle" => new[] { "A usable title or identifier was not detected in the local file metadata." },
             "StagedUnidentifiable" => new[] { "The available local evidence scored below the safe identification threshold." },
             "MissingQid" or "WikidataBridgeFailed" => new[] { "The retained retail identifiers did not resolve to a confirmed canonical identity." },
@@ -115,6 +118,7 @@ public static class ReviewIssuePresentationBuilder
     {
         "RetailMatchFailed" => $"Search for the correct retail record. Adding {IdentityHints(item.MediaType)} may improve the results.",
         "RetailMatchAmbiguous" => $"Compare the possible matches using {IdentityHints(item.MediaType)} and choose the record that represents this {media}.",
+        "MovieMatchedAsTv" => "Choose Move to TV to file it under the TV show as a special, Search again to look for a different match, or Keep as unmatched film.",
         "PlaceholderTitle" or "StagedUnidentifiable" => $"Add the missing {IdentityHints(item.MediaType)} so Tuvima Library can search again.",
         "MissingQid" or "WikidataBridgeFailed" or "MultipleQidMatches" => "Search for the shared work or person identity while keeping the confirmed retail edition unchanged.",
         "MetadataConflict" => $"Compare the conflicting values using {IdentityHints(item.MediaType)} and choose which information Tuvima Library should keep.",

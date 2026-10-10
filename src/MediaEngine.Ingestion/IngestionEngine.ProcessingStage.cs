@@ -88,6 +88,44 @@ public sealed partial class IngestionEngine
                 : "Local tags and technical metadata were reread; the file bytes were unchanged.");
     }
 
+    /// <summary>
+    /// Multi-valued technical keys that only the local processors emit. Scoring skips multi-valued keys when it
+    /// writes <c>canonical_values</c>, and the provider workers decompose arrays later, so these are written to
+    /// <c>canonical_value_arrays</c> right after the file is read; otherwise the details page would show nothing
+    /// until a provider pass runs.
+    /// </summary>
+    private static readonly string[] LocalArrayKeys = [MetadataFieldConstants.SubtitleLanguages];
+
+    private async Task PersistLocalArrayFieldsAsync(
+        Guid assetId,
+        IEnumerable<MetadataClaim> claims,
+        bool clearWhenEmpty,
+        CancellationToken ct)
+    {
+        if (_arrayRepo is null)
+        {
+            return;
+        }
+
+        var materialized = claims as IReadOnlyCollection<MetadataClaim> ?? claims.ToList();
+        foreach (var key in LocalArrayKeys)
+        {
+            var entries = materialized
+                .Where(claim => claim.ClaimKey.Equals(key, StringComparison.OrdinalIgnoreCase)
+                    && !string.IsNullOrWhiteSpace(claim.ClaimValue))
+                .Select(claim => claim.ClaimValue.Trim())
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .Select((value, ordinal) => new CanonicalArrayEntry { Ordinal = ordinal, Value = value })
+                .ToList();
+            if (entries.Count == 0 && !clearWhenEmpty)
+            {
+                continue;
+            }
+
+            await _arrayRepo.SetValuesAsync(assetId, key, entries, ct).ConfigureAwait(false);
+        }
+    }
+
     private async Task<bool> RefreshExistingAssetMetadataAsync(
         MediaAsset asset,
         string filePath,
@@ -167,6 +205,7 @@ public sealed partial class IngestionEngine
                 })
                 .ToList();
             await _canonicalRepo.UpsertBatchAsync(canonicals, ct).ConfigureAwait(false);
+            await PersistLocalArrayFieldsAsync(asset.Id, claims, clearWhenEmpty: true, ct).ConfigureAwait(false);
 
             var winningKeys = scored.FieldScores
                 .Where(field => !string.IsNullOrWhiteSpace(field.WinningValue))

@@ -1,5 +1,6 @@
 using System.Text.Json;
 using MediaEngine.Contracts.Realtime;
+using MediaEngine.Contracts.Review;
 using MediaEngine.Domain;
 using MediaEngine.Domain.Constants;
 using MediaEngine.Domain.Contracts;
@@ -94,6 +95,67 @@ public sealed class StageOutcomeFactory
             ingestionRunId,
             onBatchAdjust,
             ct);
+    }
+
+    /// <summary>
+    /// Creates a <see cref="ReviewTrigger.MovieMatchedAsTv"/> review item: a film file had no movie
+    /// match, but TMDB lists it in its TV catalogue. The suggestion is stored in <c>candidates_json</c>
+    /// and is never applied automatically. A suggestion the user already dismissed ("Keep as
+    /// unmatched film") is not raised again.
+    /// </summary>
+    /// <returns>The review entry ID, or <c>null</c> if a pending or dismissed item already exists.</returns>
+    public async Task<Guid?> CreateMovieMatchedAsTvAsync(
+        Guid entityId,
+        MovieTvSuggestionDto suggestion,
+        Guid? ingestionRunId = null,
+        Action<Guid?>? onBatchAdjust = null,
+        CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(suggestion);
+
+        var existing = await _reviewRepo.GetByEntityAsync(entityId, ct).ConfigureAwait(false);
+        if (existing.Any(r => r.Trigger == ReviewTrigger.MovieMatchedAsTv
+                              && r.Status == ReviewStatus.Dismissed))
+        {
+            _logger.LogDebug(
+                "Movie-as-TV suggestion for entity {Id} was dismissed earlier — not raising it again",
+                entityId);
+            return null;
+        }
+
+        return await CreateCoreAsync(
+            entityId,
+            ReviewTrigger.MovieMatchedAsTv,
+            0.0,
+            DescribeMovieTvSuggestion(suggestion),
+            ingestionRunId,
+            onBatchAdjust,
+            ct,
+            candidatesJson: JsonSerializer.Serialize(new[] { suggestion })).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// The one-line suggestion shown to the user, for example
+    /// <c>TMDB lists this as the miniseries 'Dr. Horrible's Sing-Along Blog' (2008, 3 parts). Move it to TV?</c>.
+    /// </summary>
+    public static string DescribeMovieTvSuggestion(MovieTvSuggestionDto suggestion)
+    {
+        var kind = string.IsNullOrWhiteSpace(suggestion.Type)
+            ? "TV series"
+            : suggestion.Type.Trim().ToLowerInvariant();
+        var facts = new List<string>();
+        if (suggestion.FirstAirYear is { } year)
+        {
+            facts.Add(year.ToString(System.Globalization.CultureInfo.InvariantCulture));
+        }
+
+        if (suggestion.Episodes > 0)
+        {
+            facts.Add(suggestion.Episodes == 1 ? "1 part" : $"{suggestion.Episodes} parts");
+        }
+
+        var detail = facts.Count > 0 ? $" ({string.Join(", ", facts)})" : string.Empty;
+        return $"TMDB lists this as the {kind} '{suggestion.Name}'{detail}. Move it to TV?";
     }
 
     /// <summary>

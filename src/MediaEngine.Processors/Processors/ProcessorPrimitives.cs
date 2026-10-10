@@ -47,6 +47,27 @@ internal static class ProcessorHeaderReader
     }
 }
 
+/// <summary>
+/// Turns a file-name stem into a readable title. A stem that already contains spaces keeps its
+/// full stops ("Dr. Horrible's Sing-Along Blog (2008)", "Mr. Smith Goes to Washington", "Vol. 2");
+/// only scene-style stems without spaces ("The.Matrix.1999.1080p") use full stops as word
+/// separators. Underscores are always separators and repeated whitespace is collapsed.
+/// </summary>
+public static class FileStemTitleCleaner
+{
+    public static string Clean(string stem)
+    {
+        if (string.IsNullOrEmpty(stem))
+        {
+            return string.Empty;
+        }
+
+        var cleaned = stem.Contains(' ') ? stem : stem.Replace('.', ' ');
+        cleaned = cleaned.Replace('_', ' ');
+        return System.Text.RegularExpressions.Regex.Replace(cleaned, @"\s{2,}", " ").Trim();
+    }
+}
+
 internal static class ProcessorClaimFactory
 {
     public static ExtractedClaim Create(

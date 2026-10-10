@@ -432,6 +432,18 @@ public static class CollectionEndpoints
                 .GroupBy(work => work.WorkId)
                 .ToDictionary(group => group.Key, group => (Guid?)group.First().AssetId);
 
+            // Subtitle languages are multi-valued, so they are array rows on the primary asset
+            // rather than scalar canonical values on the work.
+            var assetArrays = await canonicalArrayRepo.GetAllByEntitiesAsync(
+                primaryAssetIds.Values.Where(id => id.HasValue).Select(id => id!.Value).Distinct().ToList(),
+                ct);
+            IReadOnlyList<string> SubtitleLanguagesFor(Guid? assetId) =>
+                assetId is { } id
+                && assetArrays.TryGetValue(id, out var arrays)
+                && arrays.TryGetValue(MetadataFieldConstants.SubtitleLanguages, out var entries)
+                    ? entries.OrderBy(entry => entry.Ordinal).Select(entry => entry.Value).ToList()
+                    : [];
+
             // Build per-work DTOs.
             var workDtos = visibleWorks
                 .OrderBy(w => w.Ordinal ?? int.MaxValue)
@@ -520,7 +532,7 @@ public static class CollectionEndpoints
                         Director = director,
                         Writer = writer,
                         ReleaseDate = releaseDate,
-                        PlaybackSummary = BuildPlaybackSummaryFromWork(workDto),
+                        PlaybackSummary = BuildPlaybackSummaryFromWork(workDto, SubtitleLanguagesFor(primaryAssetId)),
                         Stage1 = stage1,
                         Stage2 = stage2,
                         Stage3 = stage3,

@@ -418,16 +418,11 @@
     flex: 0 0 auto;
 }
 
-.layout-shell__search-action-slot {
-    margin-right: 0.1rem;
-}
-
-.layout-shell__my-list-slot {
-    margin-right: 0.75rem;
-}
-
+/* Search, My List and Library activity are one icon row with an identical, fixed gap in every state. */
+.layout-shell__search-action-slot,
+.layout-shell__my-list-slot,
 .layout-shell__activity-slot {
-    margin-right: 1.05rem;
+    margin-right: 0.25rem;
 }
 
 .layout-shell__search-action-slot ::deep .layout-shell__search-action,
@@ -500,10 +495,6 @@
         justify-self: end;
     }
 
-    .layout-shell__my-list-slot,
-    .layout-shell__activity-slot {
-        margin-right: 0.35rem;
-    }
 }
 
 @media (max-width: 840px) {
@@ -518,10 +509,6 @@
         height: 2.02rem;
         min-width: 8.2rem;
         min-height: 2.02rem;
-    }
-
-    .layout-shell__activity-slot {
-        margin-right: 0.65rem;
     }
 }
 

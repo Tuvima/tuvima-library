@@ -81,6 +81,27 @@ public sealed class Edition
     /// </summary>
     public IReadOnlyList<CanonicalValue> CanonicalValues => _canonicalValuesView;
 
+    /// <summary>
+    /// Re-parents this Edition (and so the files it holds) under another Work. A logical change
+    /// only: the files on disk are never read, moved or written.
+    /// </summary>
+    /// <returns><c>true</c> when the Edition moved; <c>false</c> when it already belongs to the Work.</returns>
+    public bool MoveToWork(Guid targetWorkId)
+    {
+        if (targetWorkId == Guid.Empty)
+        {
+            throw new ArgumentException("A target Work is required.", nameof(targetWorkId));
+        }
+
+        if (WorkId == targetWorkId)
+        {
+            return false;
+        }
+
+        WorkId = targetWorkId;
+        return true;
+    }
+
     public void AddMediaAsset(MediaAsset asset)
     {
         ArgumentNullException.ThrowIfNull(asset);

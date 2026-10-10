@@ -730,10 +730,6 @@ body {
     background: rgba(39, 40, 50, 0.36);
 }
 
-.tl-switch .tl-switch-track {
-    border-radius: var(--app-radius-sm) !important;
-}
-
 .settings-overview-metric,
 .settings-system-metric {
     display: flex;

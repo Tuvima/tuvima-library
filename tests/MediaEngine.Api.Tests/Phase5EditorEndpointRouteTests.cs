@@ -27,6 +27,7 @@ public sealed class Phase5EditorEndpointRouteTests
         Assert.Contains("/{id:guid}/resolve", review, StringComparison.Ordinal);
         Assert.Contains("/{id:guid}/dismiss", review, StringComparison.Ordinal);
         Assert.Contains("/{id:guid}/skip-universe", review, StringComparison.Ordinal);
+        Assert.Contains("/{id:guid}/move-to-tv", review, StringComparison.Ordinal);
     }
 
     [Fact]

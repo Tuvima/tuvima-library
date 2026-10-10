@@ -882,15 +882,50 @@ public sealed partial class IngestionLiveDashboardState
         IReadOnlyList<IngestionDashboardStage> stages,
         BatchProgressEvent? batch)
     {
-        var pipelineStages = stages.Where(stage => !stage.HideCount && !IsReviewStage(stage)).ToList();
-        var measurableStages = pipelineStages.Where(stage => stage.Total > 0).ToList();
-        var measuredWork = measurableStages.Sum(stage => Math.Clamp(stage.Count, 0, stage.Total));
-        var totalWork = measurableStages.Sum(stage => Math.Max(0, stage.Total));
-        var percent = totalWork > 0
-            ? Math.Clamp(measuredWork * 100d / totalWork, 0, 100)
+        var pipelineStages = stages
+            .Where(stage => !stage.HideCount && !IsReviewStage(stage))
+            .OrderBy(stage => stage.StageNumber > 0 ? stage.StageNumber : int.MaxValue)
+            .ToList();
+
+        // Whole-pipeline progress: every stage is measured against the run's full item count
+        // from the start, so fast early stages (detect, fingerprint, process) cannot push the bar
+        // to ~done while slow later stages (retail match, Wikidata, hydration, enrichment) have
+        // not seen most items yet. Each stage is weighted equally; overall = average completion.
+        // A stage whose own (smaller) total is finished only counts as fully done once every
+        // upstream stage is done too, otherwise it would claim 100% while items are still queued.
+        var runTotal = Math.Max(Math.Max(0, metrics.TotalFiles), batch?.FilesTotal ?? 0);
+        var measurableStages = pipelineStages.Where(stage => runTotal > 0 || stage.Total > 0).ToList();
+        var upstreamDone = true;
+        var fractionSum = 0d;
+        foreach (var stage in measurableStages)
+        {
+            var denominator = Math.Max(Math.Max(0, stage.Total), runTotal);
+            var done = denominator > 0 && stage.Count >= denominator;
+            if (!done && upstreamDone && IsStageSettled(stage))
+            {
+                done = true;
+            }
+
+            fractionSum += done
+                ? 1d
+                : denominator > 0
+                    ? Math.Clamp(stage.Count, 0, denominator) / (double)denominator
+                    : 0d;
+            upstreamDone &= done;
+        }
+
+        var percent = measurableStages.Count > 0
+            ? Math.Clamp(fractionSum * 100d / measurableStages.Count, 0, 100)
             : metrics.TotalFiles > 0
                 ? Math.Clamp(metrics.ProcessedFiles * 100d / metrics.TotalFiles, 0, 100)
                 : 0;
+
+        // Items fully settled: the batch's ready count when known, otherwise the last
+        // measurable stage's count.
+        var itemsReady = batch is not null
+            ? batch.FilesIdentified
+            : measurableStages.LastOrDefault()?.Count ?? 0;
+        itemsReady = runTotal > 0 ? Math.Clamp(itemsReady, 0, runTotal) : Math.Max(0, itemsReady);
 
         var hasActiveStage = pipelineStages.Any(stage => stage.StatusKey == "Ingestion_StatusActive");
         if (!hasActiveStage && metrics.TotalFiles > 0 && metrics.ProcessedFiles >= metrics.TotalFiles)
@@ -916,8 +951,14 @@ public sealed partial class IngestionLiveDashboardState
             activeStage?.Count ?? 0,
             activeStage?.Total ?? 0,
             activeStage?.Percent ?? 0,
-            batch?.EstimatedSecondsRemaining);
+            batch?.EstimatedSecondsRemaining,
+            itemsReady);
     }
+
+    private static bool IsStageSettled(IngestionDashboardStage stage) =>
+        stage.Percent >= 99.5
+        || stage.StatusKey == "Ingestion_StatusComplete"
+        || string.Equals(stage.StatusLabel, "Complete", StringComparison.OrdinalIgnoreCase);
 
     private static bool IsReviewStage(IngestionDashboardStage stage) =>
         stage.StageNumber == 9 || stage.Key.Equals("review", StringComparison.OrdinalIgnoreCase);
@@ -2612,7 +2653,8 @@ public sealed record IngestionOverallProgress(
     int ActiveStageCount,
     int ActiveStageTotal,
     double ActiveStagePercent,
-    int? EstimatedSecondsRemaining);
+    int? EstimatedSecondsRemaining,
+    int ItemsReady = 0);
 
 public sealed record IngestionDashboardStage(
     string Key,

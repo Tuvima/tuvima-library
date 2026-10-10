@@ -816,7 +816,7 @@ public sealed class ImageEnrichmentService : IImageEnrichmentService
             return new ImageAssetProcessingResult(preferred?.LocalImagePath, stored, 0);
         }
         await _assetRepo.SetPreferredAsync(preferred.Id, ct).ConfigureAwait(false);
-        await _canonicalRepo.UpsertBatchAsync(ArtworkCanonicalHelper.CreatePreferredAssetCanonicals(ownerEntityId, preferred, DateTimeOffset.UtcNow), ct).ConfigureAwait(false);
+        await PersistPreferredAssetCanonicalsAsync(ownerEntityId, preferred, ct).ConfigureAwait(false);
         if (_assetExportService is not null)
         {
             await _assetExportService.ReconcileArtworkAsync(preferred.EntityId, preferred.EntityType, preferred.AssetTypeValue, ct).ConfigureAwait(false);
@@ -877,10 +877,38 @@ public sealed class ImageEnrichmentService : IImageEnrichmentService
         }
 
         await _assetRepo.SetPreferredAsync(existing.Id, ct).ConfigureAwait(false);
-        await _canonicalRepo.UpsertBatchAsync(
-            ArtworkCanonicalHelper.CreatePreferredAssetCanonicals(ownerEntityId, existing, DateTimeOffset.UtcNow),
-            ct).ConfigureAwait(false);
+        await PersistPreferredAssetCanonicalsAsync(ownerEntityId, existing, ct).ConfigureAwait(false);
         return new ImageAssetProcessingResult(existing.LocalImagePath, stored, currentPreferred?.Id == existing.Id ? 0 : 1);
+    }
+
+    /// <summary>
+    /// Writes the display canonicals for a newly preferred asset. A preferred cover also
+    /// asserts <c>cover_state=present</c>, so a stale "missing" marker left by a claim-less
+    /// cover pass (for example TheTVDB show posters, which have no <c>cover</c> claim)
+    /// cannot outlive real artwork.
+    /// </summary>
+    private async Task PersistPreferredAssetCanonicalsAsync(Guid ownerEntityId, EntityAsset preferred, CancellationToken ct)
+    {
+        var now = DateTimeOffset.UtcNow;
+        var canonicals = ArtworkCanonicalHelper.CreatePreferredAssetCanonicals(ownerEntityId, preferred, now);
+        if (string.Equals(preferred.AssetTypeValue, AssetType.CoverArt.ToString(), StringComparison.OrdinalIgnoreCase))
+        {
+            canonicals.Add(ArtworkCanonicalHelper.Create(ownerEntityId, MetadataFieldConstants.CoverState, "present", now));
+            // Keep a more specific source recorded by the cover pass; replace only the
+            // reason attached to a "missing" state (none, provider_unavailable, ...).
+            var existing = await _canonicalRepo.GetByEntityAsync(ownerEntityId, ct).ConfigureAwait(false);
+            var existingState = existing.FirstOrDefault(value =>
+                string.Equals(value.Key, MetadataFieldConstants.CoverState, StringComparison.OrdinalIgnoreCase))?.Value;
+            var existingSource = existing.FirstOrDefault(value =>
+                string.Equals(value.Key, MetadataFieldConstants.CoverSource, StringComparison.OrdinalIgnoreCase))?.Value;
+            if (string.IsNullOrWhiteSpace(existingSource)
+                || !string.Equals(existingState, "present", StringComparison.OrdinalIgnoreCase))
+            {
+                canonicals.Add(ArtworkCanonicalHelper.Create(ownerEntityId, MetadataFieldConstants.CoverSource, "provider", now));
+            }
+        }
+
+        await _canonicalRepo.UpsertBatchAsync(canonicals, ct).ConfigureAwait(false);
     }
 
     private async Task<(JsonNode? Json, string Status, int? HttpStatusCode, string? SkippedReason, string? Message)> GetImagesAsync(

@@ -65,6 +65,16 @@ public sealed class MediaAsset
     public string? LibraryId { get; set; }
 
     /// <summary>
+    /// Attributes this asset to another logical library. Library membership is data only:
+    /// <see cref="FilePathRoot"/> and the file itself are never touched.
+    /// </summary>
+    public void AssignToLibrary(string libraryId)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(libraryId);
+        LibraryId = libraryId;
+    }
+
+    /// <summary>
     /// Soft-delete flag. Set to <see langword="true"/> by the watcher when a
     /// file disappears from disk (NAS unmount, user reorganised in Plex).
     /// The asset row is retained so user progress and metadata survive; a

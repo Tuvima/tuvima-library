@@ -42,6 +42,7 @@ public sealed class DisplayCardBuilder
             Genres = DisplayMediaRules.SplitValues(row.Genre).ToList(),
             Badges = BuildBadges(mediaKind, row.Quality, StringHelpers.FirstNonBlank(row.Network, row.Source)),
             SortYear = ParseSortYear(row.Year),
+            IsSettling = row.IsUpdatingDetails,
             ListMetadata = new DisplayCardListMetadataDto(
                 row.Author,
                 row.Artist,
@@ -274,6 +275,7 @@ public sealed class DisplayCardBuilder
             PreviewTotalCount = previewItems.Count > 0 ? ownedCount : null,
             GroupSummary = BuildGroupSummary(mediaKind, works, ownedCount, progressByWork, representative.CollectionType),
             SortYear = works.Select(work => ParseSortYear(work.Year)).DefaultIfEmpty(0).Max(),
+            IsSettling = works.Any(work => work.IsUpdatingDetails),
         };
     }
 
@@ -335,6 +337,7 @@ public sealed class DisplayCardBuilder
                 RelationshipLabel = "TV show",
             },
             SortYear = premiereYear,
+            IsSettling = works.Any(work => work.IsUpdatingDetails),
         };
     }
 

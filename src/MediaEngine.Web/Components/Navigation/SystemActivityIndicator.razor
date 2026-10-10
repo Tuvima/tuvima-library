@@ -5,48 +5,47 @@
 @inject PlaybackSessionController Playback
 @inject NavigationManager Nav
 
-@if (Snapshot.IsBusy)
-{
 <span class="system-activity-indicator-shell">
     <AppTooltip Text="@TooltipText" Placement="AppPlacement.Bottom">
         <AppNativeButton Type="button"
                          Class="@ButtonClass"
                          AriaLabel="@AriaLabel"
                          OnClick="HandleClick">
-            <span class="@RingClass" aria-hidden="true">
-                @if (Snapshot.Primary?.ProgressPercent is { } progress)
-                {
-                    <AppSpinner Value="@progress" Size="AppSize.Small" />
-                }
-                else
-                {
-                    <AppSpinner Indeterminate="true" Size="AppSize.Small" />
-                }
-            </span>
+            @if (Snapshot.IsBusy && Snapshot.Primary?.ProgressPercent is { } progress)
+            {
+                <span class="@RingClass" aria-hidden="true">
+                    <AppSpinner Indeterminate="false" Value="@progress" Size="AppSize.Small" StrokeWidth="2" />
+                </span>
+            }
+            else if (Snapshot.IsBusy)
+            {
+                <span class="system-activity-indicator__dot" aria-hidden="true"></span>
+            }
             <AppMaterialIcon Icon="@PrimaryIcon" Class="system-activity-indicator__center-icon" />
-            @if (Snapshot.ActiveCount > 1)
+            @if (Snapshot.IsBusy && Snapshot.ActiveCount > 1)
             {
                 <span class="system-activity-indicator__count" aria-hidden="true">@CountLabel</span>
             }
         </AppNativeButton>
     </AppTooltip>
 </span>
-}
 
 @code {
     [Parameter] public bool CanOpenSystemActivity { get; set; }
 
     private ShellActivitySnapshot Snapshot => Activity.Current;
     private bool IsPlaybackAction => Snapshot.Primary?.Kind == ShellActivityKind.Playback && Playback.HasQueue;
-    private string ButtonClass => IsPlaybackAction
-        ? "system-activity-indicator is-active is-playback"
-        : "system-activity-indicator is-active";
+    private string ButtonClass => !Snapshot.IsBusy
+        ? "system-activity-indicator"
+        : IsPlaybackAction
+            ? "system-activity-indicator is-active is-playback"
+            : "system-activity-indicator is-active";
     private string RingClass => Snapshot.Primary is { ProgressPercent: not null } primary
         && primary.Kind is ShellActivityKind.Ingestion or ShellActivityKind.Enrichment
             ? "system-activity-indicator__ring is-animated"
             : "system-activity-indicator__ring";
 
-    private string PrimaryIcon => Snapshot.Primary?.Kind switch
+    private string PrimaryIcon => !Snapshot.IsBusy ? AppMaterialIcons.Outlined.Sync : Snapshot.Primary?.Kind switch
     {
         ShellActivityKind.Playback => AppMaterialIcons.Filled.PlayArrow,
         ShellActivityKind.Ingestion => AppMaterialIcons.Outlined.Sync,
@@ -57,17 +56,17 @@
 
     private string CountLabel => Snapshot.ActiveCount > 9 ? "9+" : Snapshot.ActiveCount.ToString();
 
-    private string AriaLabel => IsPlaybackAction
+    private string AriaLabel => !Snapshot.IsBusy
+        ? IdleLabel
+        : IsPlaybackAction
         ? $"Open Now Playing. {TooltipText}"
         : $"{Snapshot.ActiveCount} active system {Pluralize("action", Snapshot.ActiveCount)}. {TooltipText}";
 
-    private string TooltipText
-    {
-        get
-        {
-            return string.Join(" • ", Snapshot.Items.Take(3).Select(FormatActivity));
-        }
-    }
+    private const string IdleLabel = "Library activity";
+
+    private string TooltipText => !Snapshot.IsBusy
+        ? IdleLabel
+        : string.Join(" • ", Snapshot.Items.Take(3).Select(FormatActivity));
 
     protected override void OnInitialized() => Activity.Changed += OnActivityChanged;
 

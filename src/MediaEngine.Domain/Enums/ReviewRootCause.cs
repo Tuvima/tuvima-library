@@ -15,7 +15,7 @@ public enum ReviewRootCause
 
     /// <summary>
     /// Evidence exists but is contradictory or ambiguous.
-    /// Maps from: RetailMatchAmbiguous, MultipleQidMatches, AmbiguousMediaType, LowConfidence.
+    /// Maps from: RetailMatchAmbiguous, MultipleQidMatches, AmbiguousMediaType, LowConfidence, MovieMatchedAsTv.
     /// </summary>
     ConflictingEvidence,
 
@@ -42,7 +42,7 @@ public static class ReviewRootCauseExtensions
     {
         "RetailMatchFailed" or "StagedUnidentifiable" or "PlaceholderTitle" or "RootWatchFolder"
             => ReviewRootCause.InsufficientEvidence,
-        "RetailMatchAmbiguous" or "MultipleQidMatches" or "AmbiguousMediaType" or "LowConfidence"
+        "RetailMatchAmbiguous" or "MultipleQidMatches" or "AmbiguousMediaType" or "LowConfidence" or "MovieMatchedAsTv"
             => ReviewRootCause.ConflictingEvidence,
         "WikidataBridgeFailed" or "MissingQid"
             => ReviewRootCause.NoCanonicalIdentity,

@@ -1,7 +1,9 @@
 using System.Text.Json;
 using Dapper;
+using MediaEngine.Api.Services.Details;
 using MediaEngine.Api.Services.Display;
 using MediaEngine.Api.Services.ReadServices;
+using MediaEngine.Contracts.Details;
 using MediaEngine.Domain.Entities;
 using MediaEngine.Domain.Models;
 using MediaEngine.Providers.Services;
@@ -538,6 +540,131 @@ public sealed class CollectionReadServicesTests : IDisposable
         Assert.Equal("The Album", group.DisplayName);
         Assert.Equal("The Artist", group.Creator);
         Assert.Equal("The Artist", detail.Author);
+    }
+
+    [Fact]
+    public async Task MusicAlbumGroups_SameNamedRoots_ResolveFromEveryMemberRootId()
+    {
+        var first = await SeedMusicHierarchyAsync("Track One", "hash-sn-1");
+        var second = await SeedMusicHierarchyAsync("Track Two", "hash-sn-2");
+        var other = await SeedMusicHierarchyAsync("Elsewhere", "hash-sn-3");
+        using (var connection = _database.CreateConnection())
+        {
+            await connection.ExecuteAsync(
+                """
+                UPDATE canonical_values SET value = 'Another Album'
+                WHERE key IN ('album', 'title') AND entity_id IN (@AlbumWorkId, @AssetId) AND value = 'The Album';
+                """,
+                new { other.AlbumWorkId, other.AssetId });
+        }
+
+        var groups = await _browse.GetSystemViewGroupsAsync("Music", "album", CancellationToken.None);
+        var merged = Assert.Single(groups, group => group.DisplayName == "The Album");
+        Assert.Equal(2, merged.WorkCount);
+
+        var viaFirst = await _browse.GetMusicAlbumGroupForRootAsync(first.AlbumWorkId, CancellationToken.None);
+        var viaSecond = await _browse.GetMusicAlbumGroupForRootAsync(second.AlbumWorkId, CancellationToken.None);
+        var viaOther = await _browse.GetMusicAlbumGroupForRootAsync(other.AlbumWorkId, CancellationToken.None);
+
+        Assert.Equal("The Album", viaFirst?.DisplayName);
+        Assert.Equal("The Album", viaSecond?.DisplayName);
+        Assert.Equal(viaFirst?.RootWorkId, viaSecond?.RootWorkId);
+        Assert.Equal("Another Album", viaOther?.DisplayName);
+        Assert.Null(await _browse.GetMusicAlbumGroupForRootAsync(Guid.NewGuid(), CancellationToken.None));
+        Assert.Null(await _browse.GetMusicAlbumGroupForRootAsync(first.TrackWorkId, CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task MusicAlbumGroups_SameNamedAlbumsByDifferentArtists_AreSeparateGroupsThatResolveTheirOwnDetail()
+    {
+        var queen = await SeedMusicHierarchyAsync("Under Pressure", "hash-ga-queen", artist: "Queen");
+        var abba = await SeedMusicHierarchyAsync("Dancing Queen", "hash-ga-abba", artist: "ABBA");
+        using (var connection = _database.CreateConnection())
+        {
+            await connection.ExecuteAsync(
+                """
+                UPDATE canonical_values SET value = 'Greatest Hits'
+                WHERE key IN ('album', 'title') AND entity_id IN (@QueenAlbum, @QueenAsset, @AbbaAlbum, @AbbaAsset)
+                  AND value = 'The Album';
+                """,
+                new
+                {
+                    QueenAlbum = queen.AlbumWorkId,
+                    QueenAsset = queen.AssetId,
+                    AbbaAlbum = abba.AlbumWorkId,
+                    AbbaAsset = abba.AssetId,
+                });
+        }
+
+        var groups = await _browse.GetSystemViewGroupsAsync("Music", "album", CancellationToken.None);
+
+        Assert.Equal(2, groups.Count(group => group.DisplayName == "Greatest Hits"));
+        var queenGroup = Assert.Single(groups, group => group.Creator == "Queen");
+        var abbaGroup = Assert.Single(groups, group => group.Creator == "ABBA");
+        Assert.Equal(queen.AlbumWorkId, queenGroup.RootWorkId);
+        Assert.Equal(abba.AlbumWorkId, abbaGroup.RootWorkId);
+        Assert.Equal(1, queenGroup.WorkCount);
+        Assert.Equal(1, abbaGroup.WorkCount);
+        Assert.Equal(queen.TrackWorkId, Assert.Single(queenGroup.PreviewItems).WorkId);
+        Assert.Equal(abba.TrackWorkId, Assert.Single(abbaGroup.PreviewItems).WorkId);
+        Assert.NotEqual(
+            SystemViewGroupIdentity.CreateId(queenGroup, "Music", "album"),
+            SystemViewGroupIdentity.CreateId(abbaGroup, "Music", "album"));
+
+        // Each root resolves its own group, and each group's detail lists only its own tracks.
+        var viaQueen = await _browse.GetMusicAlbumGroupForRootAsync(queen.AlbumWorkId, CancellationToken.None);
+        var viaAbba = await _browse.GetMusicAlbumGroupForRootAsync(abba.AlbumWorkId, CancellationToken.None);
+        Assert.Equal("Queen", viaQueen?.Creator);
+        Assert.Equal("ABBA", viaAbba?.Creator);
+        var queenTracks = await _browse.GetSystemViewDetailWorksAsync(
+            "album", viaQueen!.DisplayName, "Music", viaQueen.Creator, CancellationToken.None);
+        var abbaTracks = await _browse.GetSystemViewDetailWorksAsync(
+            "album", viaAbba!.DisplayName, "Music", viaAbba.Creator, CancellationToken.None);
+        Assert.Equal(queen.TrackWorkId, Assert.Single(queenTracks).WorkId);
+        Assert.Equal(abba.TrackWorkId, Assert.Single(abbaTracks).WorkId);
+    }
+
+    [Fact]
+    public async Task MusicAlbumGroups_SameArtistSplitRoots_StayOneGroup_EvenWhenArtistCaseDiffers()
+    {
+        var first = await SeedMusicHierarchyAsync("Track One", "hash-sa-1", artist: "The Artist");
+        var second = await SeedMusicHierarchyAsync("Track Two", "hash-sa-2", artist: "the artist");
+
+        var groups = await _browse.GetSystemViewGroupsAsync("Music", "album", CancellationToken.None);
+
+        var merged = Assert.Single(groups);
+        Assert.Equal(2, merged.WorkCount);
+        Assert.Equal(2, merged.PreviewItems.Count);
+        var viaFirst = await _browse.GetMusicAlbumGroupForRootAsync(first.AlbumWorkId, CancellationToken.None);
+        var viaSecond = await _browse.GetMusicAlbumGroupForRootAsync(second.AlbumWorkId, CancellationToken.None);
+        Assert.Equal(merged.RootWorkId, viaFirst?.RootWorkId);
+        Assert.Equal(merged.RootWorkId, viaSecond?.RootWorkId);
+    }
+
+    [Fact]
+    public async Task MusicAlbumDetail_SameNamedRoots_BothRootIdsOpenADetailPage()
+    {
+        var first = await SeedMusicHierarchyAsync("Track One", "hash-sd-1");
+        var second = await SeedMusicHierarchyAsync("Track Two", "hash-sd-2");
+        var composer = new DetailComposerService(
+            _database,
+            new LibraryItemRepository(_database),
+            new PersonRepository(_database),
+            new EntityAssetRepository(_database),
+            new CanonicalValueArrayRepository(_database),
+            new SeriesManifestRepository(_database),
+            null!,
+            new DetailRecommendationService(_database),
+            collectionBrowse: _browse);
+
+        foreach (var rootId in new[] { first.AlbumWorkId, second.AlbumWorkId })
+        {
+            var detail = await composer.BuildAsync(DetailEntityType.MusicAlbum, rootId, DetailPresentationContext.Listen);
+
+            Assert.NotNull(detail);
+            Assert.Equal("The Album", detail.Title);
+            Assert.Equal(DetailEntityType.MusicAlbum, detail.EntityType);
+        }
     }
 
     [Fact]
@@ -1270,7 +1397,8 @@ public sealed class CollectionReadServicesTests : IDisposable
 
     private async Task<SeededMusic> SeedMusicHierarchyAsync(
         string title = "Track One",
-        string? contentHash = null)
+        string? contentHash = null,
+        string artist = "The Artist")
     {
         var albumWorkId = Guid.NewGuid();
         var trackWorkId = Guid.NewGuid();
@@ -1293,8 +1421,8 @@ public sealed class CollectionReadServicesTests : IDisposable
                 (@AssetId, 'track_number', '1', @Now),
                 (@AssetId, 'year', '2026', @Now);
             INSERT INTO canonical_value_arrays (entity_id, key, ordinal, value) VALUES
-                (@AlbumWorkId, 'album_artist', 0, 'The Artist'),
-                (@AssetId, 'artist', 0, 'The Artist');
+                (@AlbumWorkId, 'album_artist', 0, @Artist),
+                (@AssetId, 'artist', 0, @Artist);
             INSERT INTO entity_assets (
                 id, entity_id, entity_type, asset_type, aspect_class,
                 primary_hex, secondary_hex, accent_hex, created_at)
@@ -1312,6 +1440,7 @@ public sealed class CollectionReadServicesTests : IDisposable
                 ContentHash = contentHash ?? $"hash-{assetId:N}",
                 FilePath = $"C:/library/{assetId:N}.flac",
                 Title = title,
+                Artist = artist,
                 Now = now,
             });
 

@@ -1,6 +1,7 @@
 using MediaEngine.Domain.Configuration;
 using MediaEngine.Domain.Enums;
 using MediaEngine.Domain.Models;
+using MediaEngine.Domain.Services;
 using MediaEngine.Providers.Models;
 using Microsoft.Extensions.Logging;
 
@@ -20,7 +21,7 @@ public sealed partial class ConfigDrivenAdapter
 
         void Add(string language, string country, string label, bool tagSourceLanguage)
         {
-            language = NormalizeLocalePart(language, "en");
+            language = NormalizeLanguagePart(language, "en");
             country = NormalizeLocalePart(country, "us");
             if (!seen.Add($"{language}|{country}"))
             {
@@ -35,7 +36,7 @@ public sealed partial class ConfigDrivenAdapter
 
         void AddMarketFallbacks(string language, bool tagSourceLanguage)
         {
-            var languageKey = NormalizeLocalePart(language, "en");
+            var languageKey = NormalizeLanguagePart(language, "en");
             if (!_config.MarketFallbacks.TryGetValue(languageKey, out var markets))
             {
                 return;
@@ -64,6 +65,7 @@ public sealed partial class ConfigDrivenAdapter
     private async Task<IReadOnlyList<ProviderClaim>> ExecuteFetchPassAsync(
         IReadOnlyList<SearchStrategyConfig> strategies,
         LookupPass pass,
+        FetchOutcome outcome,
         CancellationToken ct)
     {
         foreach (var strategy in strategies)
@@ -76,6 +78,7 @@ public sealed partial class ConfigDrivenAdapter
             try
             {
                 var claims = await ExecuteStrategyAsync(strategy, pass.Request, ct).ConfigureAwait(false);
+                outcome.Responded = true;
                 await _healthMonitor.ReportSuccessAsync(Name, ct);
                 if (claims.Count == 0)
                 {
@@ -98,15 +101,12 @@ public sealed partial class ConfigDrivenAdapter
             }
             catch (Exception ex) when (ex is HttpRequestException or OperationCanceledException)
             {
-                _logger.LogWarning(ex,
-                    "{Provider}/{Strategy} failed using {LocalePass}",
-                    Name,
-                    strategy.Name,
-                    pass.Label);
-                await _healthMonitor.ReportFailureAsync(Name, ex.Message, ct);
+                await RecordTransportFailureAsync(ex, strategy.Name, $"failed using {pass.Label}", outcome, ct)
+                    .ConfigureAwait(false);
             }
             catch (Exception ex) when (ex is System.Text.Json.JsonException or InvalidOperationException)
             {
+                outcome.Responded = true;
                 _logger.LogWarning(ex,
                     "{Provider}/{Strategy} parse error using {LocalePass}",
                     Name,
@@ -167,6 +167,7 @@ public sealed partial class ConfigDrivenAdapter
         return [];
     }
 
+    /// <summary>Normalises a country part (two-letter, lowercase). Not for languages; see <see cref="NormalizeLanguagePart"/>.</summary>
     private static string NormalizeLocalePart(string? value, string fallback)
     {
         if (string.IsNullOrWhiteSpace(value))
@@ -177,5 +178,87 @@ public sealed partial class ConfigDrivenAdapter
         return value.Trim()
             .Split(['-', '_'], StringSplitOptions.RemoveEmptyEntries)[0]
             .ToLowerInvariant();
+    }
+
+    // Language values already reported as unrecognised, so the Debug note is logged once per value.
+    private readonly System.Collections.Concurrent.ConcurrentDictionary<string, byte> _loggedLanguageFallbacks =
+        new(StringComparer.OrdinalIgnoreCase);
+
+    // Specific culture names (e.g. "en-US", "pt-BR") used to confirm a {lang}-{country} pair is real.
+    private static readonly Lazy<HashSet<string>> SpecificCultureNames = new(() =>
+        System.Globalization.CultureInfo.GetCultures(System.Globalization.CultureTypes.SpecificCultures)
+            .Select(culture => culture.Name)
+            .Where(name => !string.IsNullOrEmpty(name))
+            .ToHashSet(StringComparer.OrdinalIgnoreCase));
+
+    /// <summary>
+    /// Normalises a language value ("English", "eng", "en-US", ...) to an ISO 639-1 code.
+    /// Unrecognised values fall back to <paramref name="fallback"/> (logged once at Debug).
+    /// </summary>
+    private string NormalizeLanguagePart(string? value, string fallback)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return fallback;
+        }
+
+        var code = LanguageCodeNormalizer.ToIso6391(value);
+        if (code is not null)
+        {
+            return code;
+        }
+
+        if (_loggedLanguageFallbacks.TryAdd(value.Trim(), 0))
+        {
+            _logger.LogDebug(
+                "{Provider}: language '{Language}' is not a recognised language; using '{Fallback}'",
+                Name,
+                value,
+                fallback);
+        }
+
+        return fallback;
+    }
+
+    /// <summary>
+    /// The <c>{lang}</c> value substituted into a URL template. When the template pairs it
+    /// with <c>{country}</c> (<c>lang_COUNTRY</c> / <c>lang-COUNTRY</c>) the pair must be a
+    /// real culture; otherwise the language falls back to English.
+    /// </summary>
+    private string ResolveTemplateLanguage(ProviderLookupRequest request, string template)
+    {
+        var language = NormalizeLanguagePart(request.Language, "en");
+        var pairsWithCountry = template.Contains("{lang}_{country}", StringComparison.OrdinalIgnoreCase)
+            || template.Contains("{lang}-{country}", StringComparison.OrdinalIgnoreCase);
+        return pairsWithCountry ? ApplyLanguageCountryPairFallback(language, request.Country) : language;
+    }
+
+    /// <summary>
+    /// The language the request's storefront locale resolves to — the <c>{lang}</c> value
+    /// that Apple-style <c>lang={lang}_{country}</c> templates actually send.
+    /// </summary>
+    private string ResolveStorefrontLanguage(ProviderLookupRequest request) =>
+        ApplyLanguageCountryPairFallback(NormalizeLanguagePart(request.Language, "en"), request.Country);
+
+    private string ApplyLanguageCountryPairFallback(string language, string? country)
+    {
+        var pair = $"{language}-{(country ?? string.Empty).Trim().ToUpperInvariant()}";
+        var known = SpecificCultureNames.Value;
+
+        // No culture data available (invariant globalization): cannot validate, so leave as-is.
+        if (known.Count == 0 || known.Contains(pair))
+        {
+            return language;
+        }
+
+        if (_loggedLanguageFallbacks.TryAdd(pair, 0))
+        {
+            _logger.LogDebug(
+                "{Provider}: locale '{Pair}' is not a known culture; using 'en' for the language",
+                Name,
+                pair);
+        }
+
+        return "en";
     }
 }
