@@ -42,9 +42,9 @@
                         <small>Choose which libraries and lanes each sign-in can open. You can only share what your household already has.</small>
                         @foreach (var account in SignInsYouCanEdit(own))
                         {
-                            <div class="household-signin" @key="account.Id">
+                            <div class="access-grant" @key="account.Id">
                                 <strong>@AccountLabel(account)</strong>
-                                <div class="household-person__actions">
+                                <div class="access-users__badges">
                                     <AppButton Label="Libraries & lanes" Size="AppControlSize.Compact" ButtonStyle="AppButtonStyle.Text" OnClick="@(() => OpenPermissions(account))" />
                                     <AppButton Label="Set temporary password" Size="AppControlSize.Compact" ButtonStyle="AppButtonStyle.Text" OnClick="@(() => OpenTemporaryPassword(account))" />
                                 </div>
@@ -83,7 +83,7 @@
                             </div>
                             @if (_expandedHouseholds.Contains(household.Id))
                             {
-                                <div class="household-detail">
+                                <div class="access-form-section">
                                     @PeopleCards(household, true)
                                 </div>
                             }
@@ -825,11 +825,11 @@
                 <AppButton Label="Add person" StartIcon="@AppMaterialIcons.Outlined.PersonAdd" Disabled="@(household.People.Count >= 8)" OnClick="@(() => OpenAddPerson(household.Id))" />
             </div>
         }
-        <div class="household-people__grid" role="list">
+        <div class="access-form-section" role="list">
             @foreach (var person in household.People)
             {
-                <article class="household-person" role="listitem" @key="person.Profile.Id">
-                    <div class="household-person__identity">
+                <article class="access-grant" role="listitem" @key="person.Profile.Id">
+                    <div class="access-grant__heading">
                         <span class="access-profile-chip__avatar">@Initials(person.Profile.DisplayName)</span>
                         <strong>@person.Profile.DisplayName</strong>
                         @if (person.Profile.IsRestricted) { <AppChip Text="Child" Tone="AppUiTone.Primary" /> }
@@ -842,7 +842,7 @@
                     {
                         <small>No sign-in of their own</small>
                     }
-                    <div class="household-person__actions">
+                    <div class="access-users__badges">
                         <AppButton Label="Set PIN" Size="AppControlSize.Compact" ButtonStyle="AppButtonStyle.Text" aria-label="@($"Set PIN for {person.Profile.DisplayName}")" OnClick="@(() => OpenSetPin(person.Profile))" />
                         @if (person.OwnSignIn is { } existing)
                         {
