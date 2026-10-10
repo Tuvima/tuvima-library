@@ -31,6 +31,7 @@ public partial interface IEngineApiClient
         DetailPresentationContext context = DetailPresentationContext.Default,
         string? containerId = null,
         Guid? profileId = null,
+        SequenceWindowQuery? sequence = null,
         CancellationToken ct = default);
 
     Task<bool> SetDefaultSequenceAsync(

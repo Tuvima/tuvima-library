@@ -550,7 +550,8 @@ internal sealed partial class DetailCompositionOrchestrator
         IReadOnlyDictionary<string, SeasonArtworkPresentation>? seasonArtwork,
         Guid? currentWorkId = null,
         Guid? showRootId = null,
-        IReadOnlyDictionary<Guid, IReadOnlyList<SequenceCoverageLinkViewModel>>? sameFileLinks = null)
+        IReadOnlyDictionary<Guid, IReadOnlyList<SequenceCoverageLinkViewModel>>? sameFileLinks = null,
+        SequenceWindowRequest? window = null)
     {
         if (entityType is not (DetailEntityType.TvShow
             or DetailEntityType.MovieSeries
@@ -668,6 +669,7 @@ internal sealed partial class DetailCompositionOrchestrator
                             : group.Count(),
                         HasAuthoritativeTotal = authoritativeTotalsBySeason.ContainsKey(
                         seasonKey),
+                        ItemCount = group.Count(),
                         Items = group.OrderBy(item => item.PositionSort ?? double.MaxValue).ToList(),
                     };
                 })
@@ -686,6 +688,13 @@ internal sealed partial class DetailCompositionOrchestrator
             ?? initialGroup?.Items.FirstOrDefault()
             ?? items.FirstOrDefault(item => item.IsOwned)
             ?? items[0];
+        var windowed = entityType == DetailEntityType.TvShow
+            && window is { IsAll: false }
+            && (window.IsExplicit || items.Count > SequenceWindowRequest.FullEmitThreshold);
+        if (windowed)
+        {
+            groups = WindowSequenceGroups(groups, window!, selectedGroup);
+        }
         var normalizedSourceId = NormalizeSequenceContainerId(sourceContainerId);
         var containerId = collectionId.ToString("D");
         var totalKnownItems = entityType == DetailEntityType.TvShow
@@ -729,7 +738,8 @@ internal sealed partial class DetailCompositionOrchestrator
                 _ => SequenceOrderingType.PublicationOrder,
             },
             CurrentItem = representative,
-            OrderedItems = items,
+            // A windowed list is carried once, inside its season group, instead of twice.
+            OrderedItems = windowed ? [] : items,
             Groups = groups,
         };
     }

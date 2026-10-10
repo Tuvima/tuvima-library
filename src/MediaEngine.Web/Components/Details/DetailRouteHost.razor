@@ -65,7 +65,8 @@ else
             Request.EntityId,
             Request.PresentationContext,
             containerId: Request.ContainerId,
-            profileId: profile?.Id);
+            profileId: profile?.Id,
+            sequence: SequenceWindowQuery.Windowed);
 
         if (loadVersion != _loadVersion)
             return;

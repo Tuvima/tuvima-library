@@ -85,6 +85,10 @@ TMDB episode credits are stored separately from show aggregates; full credits su
 
 These changes require fresh pre-beta ingestion. Runtime and responsive visual acceptance are pending; see the TV episode consistency proposal for validation status and remaining scope.
 
+### Long seasons
+
+A show with up to 100 episodes lists every season and episode at once. (The Dashboard asks for the paged form; clients that do not ask still receive the whole list.) A longer show lists every season but loads one season's episodes at a time, 50 per window, starting at the window that holds the episode being watched. A season longer than 50 episodes shows a small pager under the strip ("Episodes 51-100 of 1000" with earlier/later buttons, 44px targets, usable at phone, desktop and TV widths); a normal season shows no pager and looks exactly as before. Choosing another season fetches that season's first window. The "owned / missing / total" counts always describe the whole season, not the window on screen. Next-episode playback and the player's episode picker ask the Engine for the whole list, so they cross season and window boundaries.
+
 ### Episodes stored in one file
 
 When one video file holds several episodes, each covered episode in a season strip carries a quiet "Same file as Episode N" chip under its tile. The chip data arrives with the episode item (one batched lookup per page, no per-card requests). When the other episode is in the visible strip the chip is a 44px button that highlights it (press again to clear); otherwise it is plain text. It wraps on phone widths, follows the dark theme and needs no motion. Files without combined episodes look exactly as before.

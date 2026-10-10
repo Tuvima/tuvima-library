@@ -56,6 +56,209 @@ public sealed class EpisodeBatchLoadingTests : IDisposable
     }
 
     [Fact]
+    public async Task AirDateOnlyReadMatchesTheFullReadForThoseKeys()
+    {
+        var episodes = SeedEpisodes(60);
+        var composer = new DetailCompositionOrchestrator(_db, null!, null!, null!, null!, null!, null!, null!);
+        string[] keys = ["air_date", "release_date"];
+
+        var restricted = await composer.LoadWorkAndAssetCanonicalMapsAsync(episodes, CancellationToken.None, keys);
+        var full = await composer.LoadWorkAndAssetCanonicalMapsAsync(episodes, CancellationToken.None);
+
+        Assert.Equal(episodes.Count, restricted.Count);
+        foreach (var episode in episodes)
+        {
+            Assert.Equal(full[episode].GetValueOrDefault("air_date"), restricted[episode].GetValueOrDefault("air_date"));
+            Assert.Equal(full[episode].GetValueOrDefault("release_date"), restricted[episode].GetValueOrDefault("release_date"));
+            Assert.All(restricted[episode].Keys, key => Assert.Contains(key, keys, StringComparer.OrdinalIgnoreCase));
+        }
+
+        // Work date only, asset date only, work date shadowing an asset date, and release_date.
+        Assert.Contains(restricted.Values, map => map.GetValueOrDefault("air_date") == "2019-05-05");
+        Assert.Contains(restricted.Values, map => map.GetValueOrDefault("air_date")?.StartsWith("2020-", StringComparison.Ordinal) == true);
+        Assert.Contains(restricted.Values, map => map.GetValueOrDefault("release_date") == "2017-03-03");
+        Assert.DoesNotContain(restricted.Values, map => map.GetValueOrDefault("air_date") == "2018-04-04");
+    }
+
+    [Fact]
+    public async Task AirDateOnlyReadStaysFlatForAThousandEpisodes()
+    {
+        var episodes = SeedEpisodes(1000);
+        var counting = new StatementCountingDatabase(_db);
+        var composer = new DetailCompositionOrchestrator(counting, null!, null!, null!, null!, null!, null!, null!);
+
+        counting.Reset();
+        await composer.LoadWorkAndAssetCanonicalMapsAsync(episodes, CancellationToken.None, ["air_date", "release_date"]);
+
+        Assert.InRange(counting.Statements, 1, 20);
+    }
+
+    [Fact]
+    public async Task SubsetEnrichmentReadsOnlyTheRequestedEpisodesAndKeepsTheRest()
+    {
+        var show = Guid.NewGuid();
+        using (var connection = _db.CreateConnection())
+        {
+            connection.Execute(
+                "INSERT INTO works(id,media_type,work_kind,curator_state) VALUES (@show,'TV','parent','accepted');",
+                new { show });
+        }
+
+        var episodes = SeedEpisodes(30, show);
+        var composer = new DetailCompositionOrchestrator(_db, null!, null!, null!, null!, null!, null!, null!);
+        var orchestrator = typeof(DetailCompositionOrchestrator);
+        var nonPublic = BindingFlags.Instance | BindingFlags.NonPublic;
+        var works = await LoadShowWorksAsync(composer, show);
+        var chosen = episodes.Skip(4).Take(5).ToList();
+        var enriched = new HashSet<Guid>();
+
+        var outcome = await InvokeSubsetAsync(composer, works, chosen, enriched);
+
+        Assert.Equal(chosen.ToHashSet(), enriched);
+        Assert.Equal(chosen.ToHashSet(), outcome.ValueMaps.Keys.ToHashSet());
+        Assert.Equal(episodes.Count, outcome.Works.Count);
+        var before = works.ToDictionary(work => Read<string>(work, "Id"));
+        foreach (var work in outcome.Works)
+        {
+            var id = Read<string>(work, "Id");
+            var was = before[id];
+            if (chosen.Contains(Guid.Parse(id)))
+            {
+                var legacy = await composer.LoadWorkAndAssetCanonicalMapAsync(Guid.Parse(id), CancellationToken.None);
+                Assert.Equal(legacy.GetValueOrDefault("episode_still_url"), Read<string?>(work, "BackgroundUrl"));
+            }
+            else
+            {
+                Assert.Equal(Read<string?>(was, "Description"), Read<string?>(work, "Description"));
+                Assert.Equal(Read<string?>(was, "BackgroundUrl"), Read<string?>(work, "BackgroundUrl"));
+            }
+
+            // Subset enrichment never touches the air date the first pass set.
+            Assert.Equal(Read<string?>(was, "Year"), Read<string?>(work, "Year"));
+        }
+
+        // Asking again for episodes that were already read costs nothing and changes nothing.
+        var counting = new StatementCountingDatabase(_db);
+        var countingComposer = new DetailCompositionOrchestrator(counting, null!, null!, null!, null!, null!, null!, null!);
+        counting.Reset();
+        var again = await InvokeSubsetAsync(countingComposer, outcome.Works, chosen, enriched);
+        Assert.Equal(0, counting.Statements);
+        Assert.Empty(again.ValueMaps);
+        Assert.Equal(outcome.Works.Count, again.Works.Count);
+        Assert.All(outcome.Works.Zip(again.Works), pair => Assert.Same(pair.First, pair.Second));
+        Assert.NotNull(orchestrator.GetMethod("EnrichTvEpisodeSubsetAsync", nonPublic));
+    }
+
+    [Fact]
+    public async Task LongShowCarriesOneSeasonWindowWhileEveryOtherPathStillGetsTheWholeList()
+    {
+        var show = Guid.NewGuid();
+        using (var connection = _db.CreateConnection())
+        {
+            connection.Execute(
+                "INSERT INTO works(id,media_type,work_kind,curator_state) VALUES (@show,'TV','parent','accepted');",
+                new { show });
+        }
+
+        // 130 episodes: 70 in season 1, 60 in season 2.
+        var episodes = SeedEpisodes(130, show, index => index < 70 ? "1" : "2");
+        var composer = new DetailCompositionOrchestrator(_db, null!, null!, null!, null!, null!, null!, null!);
+        var works = (await LoadShowWorksAsync(composer, show)).Select(Own).ToList();
+        Assert.Equal(130, works.Count);
+
+        SequencePlacementViewModel Place(IEnumerable<object> source, SequenceWindowRequest? window, Guid? current = null)
+        {
+            var list = Activator.CreateInstance(typeof(List<>).MakeGenericType(works[0].GetType()))!;
+            foreach (var work in source)
+            {
+                ((System.Collections.IList)list).Add(work);
+            }
+
+            return (SequencePlacementViewModel)typeof(DetailCompositionOrchestrator)
+                .GetMethod("BuildCollectionSequencePlacement", BindingFlags.Static | BindingFlags.NonPublic)!
+                .Invoke(null, [show, DetailEntityType.TvShow, "Show", null, null, list, null, null, null, current, show, null, window])!;
+        }
+
+        // Default window: every season is listed with its count; only season 1's first 50 episodes are carried, once.
+        var first = Place(works, new SequenceWindowRequest());
+        Assert.Equal(["season-1", "season-2"], first.Groups.Select(group => group.Key));
+        Assert.Equal([70, 60], first.Groups.Select(group => group.ItemCount));
+        Assert.Equal(50, first.Groups[0].Items.Count);
+        Assert.Equal(0, first.Groups[0].ItemOffset);
+        Assert.Empty(first.Groups[1].Items);
+        Assert.Empty(first.OrderedItems);
+        Assert.Equal(130, first.TotalKnownItems);
+        Assert.Equal(Enumerable.Range(0, 70).Count(), first.Groups[0].OwnedCount);
+        Assert.False(string.IsNullOrWhiteSpace(first.CurrentItem.Id));
+
+        // The window that holds the episode being watched.
+        var watching = episodes[64];
+        var around = Place(works, new SequenceWindowRequest(), watching);
+        Assert.Equal(50, around.Groups[0].ItemOffset);
+        Assert.Equal(20, around.Groups[0].Items.Count);
+        Assert.Contains(around.Groups[0].Items, item => item.IsCurrent && item.Id == watching.ToString("D"));
+        Assert.Equal(watching.ToString("D"), around.CurrentItem.Id);
+
+        // A season asked for by name returns exactly that window, even when it is short enough to send whole.
+        var second = Place(works, new SequenceWindowRequest("season-2", 50, 50, null, true));
+        Assert.Equal(50, second.Groups[1].ItemOffset);
+        Assert.Equal(10, second.Groups[1].Items.Count);
+        Assert.Empty(second.Groups[0].Items);
+
+        // The whole list, for playback queues, crosses season boundaries in order.
+        var all = Place(works, SequenceWindowRequest.All());
+        Assert.Equal(130, all.OrderedItems.Count);
+        Assert.Equal([70, 60], all.Groups.Select(group => group.Items.Count));
+        Assert.Equal(all.OrderedItems.Select(item => item.Id), all.Groups.SelectMany(group => group.Items).Select(item => item.Id));
+
+        // An unknown season key answers with the season being watched, never an empty list.
+        var unknown = Place(works, new SequenceWindowRequest("season-9", 0, 50, watching, true), watching);
+        Assert.Equal(20, unknown.Groups[0].Items.Count);
+        Assert.Equal(50, unknown.Groups[0].ItemOffset);
+
+        // An offset past the end lands on the last full window, not an empty one.
+        var pastEnd = Place(works, new SequenceWindowRequest("season-2", 5000, 50, null, true));
+        Assert.Equal(50, pastEnd.Groups[1].ItemOffset);
+        Assert.Equal(10, pastEnd.Groups[1].Items.Count);
+
+        // No window at all (a client that sends no sequence parameter): the whole list, as before.
+        var legacy = Place(works, null);
+        Assert.Equal(130, legacy.OrderedItems.Count);
+        Assert.Equal([70, 60], legacy.Groups.Select(group => group.Items.Count));
+
+        // Up to 100 episodes in total nothing changes: every season is carried whole.
+        var short90 = Place(works.Take(90), new SequenceWindowRequest());
+        Assert.Equal(90, short90.OrderedItems.Count);
+        Assert.Equal([70, 20], short90.Groups.Select(group => group.Items.Count));
+        Assert.Equal([70, 20], short90.Groups.Select(group => group.ItemCount));
+    }
+
+    [Fact]
+    public void SequenceWindowRequestReadsTheQueryString()
+    {
+        Assert.Null(SequenceWindowRequest.FromQuery(null, null, null, null, null));
+        Assert.Null(SequenceWindowRequest.FromQuery(" ", null, null, "", false));
+
+        // Without any sequence parameter the Engine keeps sending the whole list (older clients).
+        Assert.True(SequenceWindowRequest.All().IsAll);
+
+        var page = SequenceWindowRequest.FromQuery("season-2", 50, 50, null, true)!;
+        Assert.Equal(("season-2", 50, 50, true), (page.GroupKey, page.Offset, page.Limit, page.PlacementOnly));
+        Assert.True(page.IsExplicit);
+        Assert.False(page.IsAll);
+
+        var current = Guid.NewGuid();
+        var whole = SequenceWindowRequest.FromQuery(null, null, 0, current.ToString("D"), true)!;
+        Assert.True(whole.IsAll);
+        Assert.Equal(current, whole.CurrentWorkId);
+
+        Assert.Equal(SequenceWindowRequest.MaxLimit, SequenceWindowRequest.FromQuery("s", 0, 5000, null, null)!.EffectiveLimit);
+        Assert.Equal(0, SequenceWindowRequest.FromQuery("s", -4, 10, null, null)!.Offset);
+        Assert.Equal(0, SequenceWindowRequest.FromQuery(null, null, null, current.ToString("D"), null)!.Limit);
+        Assert.Equal(SequenceWindowRequest.DefaultLimit, SequenceWindowRequest.FromQuery("season-2", null, null, null, null)!.Limit);
+    }
+
+    [Fact]
     public async Task BatchedCanonicalMapsGiveUnknownAndEmptyRequestsAnEmptyResult()
     {
         var composer = new DetailCompositionOrchestrator(_db, null!, null!, null!, null!, null!, null!, null!);
@@ -167,7 +370,7 @@ public sealed class EpisodeBatchLoadingTests : IDisposable
     /// Seeds standalone TV episodes with deliberately uneven data: extra editions and assets, orphaned assets,
     /// conflicting keys between asset and work, packed and multi-valued genres, blank subtitles, bad override JSON.
     /// </summary>
-    private List<Guid> SeedEpisodes(int count, Guid? show = null)
+    private List<Guid> SeedEpisodes(int count, Guid? show = null, Func<int, string>? season = null)
     {
         var ids = new List<Guid>(count);
         using var connection = _db.CreateConnection();
@@ -195,6 +398,10 @@ public sealed class EpisodeBatchLoadingTests : IDisposable
 
             InsertValue(connection, transaction, work, "title", $"Work title {i}");
             InsertValue(connection, transaction, work, "episode_number", $"{i + 1}");
+            if (season is not null)
+            {
+                InsertValue(connection, transaction, work, "season_number", season(i));
+            }
             InsertValue(connection, transaction, work, "episode_description", $"Episode {i}");
             if (i % 2 == 0)
             {
@@ -204,6 +411,23 @@ public sealed class EpisodeBatchLoadingTests : IDisposable
             if (i % 5 == 0)
             {
                 InsertValue(connection, transaction, work, "episode_still_url", $"https://img/{i}.jpg");
+            }
+
+            if (i % 10 == 3)
+            {
+                // An air date that only the asset knows (the work has none).
+                InsertValue(connection, transaction, firstAsset, "air_date", "2019-05-05");
+            }
+
+            if (i % 14 == 4)
+            {
+                // An asset air date the work's own air_date (even i) must override.
+                InsertValue(connection, transaction, firstAsset, "air_date", "2018-04-04");
+            }
+
+            if (i % 6 == 1)
+            {
+                InsertValue(connection, transaction, work, "release_date", "2017-03-03");
             }
 
             if (i % 4 == 0)
@@ -296,6 +520,65 @@ public sealed class EpisodeBatchLoadingTests : IDisposable
         connection.Execute(
             "INSERT INTO metadata_claims(id,entity_id,provider_id,claim_key,claim_value,confidence,claimed_at) VALUES (@id,@entity,@provider,@key,@value,@confidence,@claimedAt);",
             new { id = Guid.NewGuid(), entity, provider = _provider, key, value, confidence, claimedAt }, transaction);
+
+    private static T Read<T>(object summary, string property) => (T)summary.GetType().GetProperty(property)!.GetValue(summary)!;
+
+    private static async Task<IReadOnlyList<object>> LoadShowWorksAsync(DetailCompositionOrchestrator composer, Guid show)
+    {
+        var load = (Task)typeof(DetailCompositionOrchestrator).GetMethod("LoadCollectionWorksAsync", BindingFlags.Instance | BindingFlags.NonPublic)!
+            .Invoke(composer, [Guid.Empty, show, CancellationToken.None, null, Profile.SeedProfileId, null])!;
+        await load;
+        var works = load.GetType().GetProperty("Result")!.GetValue(load)!;
+        return ((System.Collections.IEnumerable)works).Cast<object>().ToList();
+    }
+
+    /// <summary>The seeded works have no owned-asset link row; mark them owned the way the reader would.</summary>
+    private static object Own(object work)
+    {
+        var clone = work.GetType().GetMethod("<Clone>$")!.Invoke(work, null)!;
+        clone.GetType().GetProperty("HasAsset")!.SetValue(clone, true);
+        return clone;
+    }
+
+    private static async Task<(IReadOnlyList<object> Works, Dictionary<Guid, Dictionary<string, string>> ValueMaps)> InvokeSubsetAsync(
+        DetailCompositionOrchestrator composer,
+        IReadOnlyList<object> works,
+        IReadOnlyCollection<Guid> ids,
+        HashSet<Guid> alreadyEnriched)
+    {
+        var summaryType = works[0].GetType();
+        var typed = Activator.CreateInstance(typeof(List<>).MakeGenericType(summaryType))!;
+        foreach (var work in works)
+        {
+            ((System.Collections.IList)typed).Add(work);
+        }
+
+        var task = (Task)typeof(DetailCompositionOrchestrator).GetMethod("EnrichTvEpisodeSubsetAsync", BindingFlags.Instance | BindingFlags.NonPublic)!
+            .Invoke(composer, [typed, ids, alreadyEnriched, CancellationToken.None])!;
+        await task;
+        var result = task.GetType().GetProperty("Result")!.GetValue(task)!;
+        var merged = result.GetType().GetField("Item1")!.GetValue(result)!;
+        var maps = (Dictionary<Guid, Dictionary<string, string>>)result.GetType().GetField("Item2")!.GetValue(result)!;
+        return (new ReferenceTrackingList(merged), maps);
+    }
+
+    /// <summary>Wraps the typed list the Engine returned so reference identity can be asserted.</summary>
+    private sealed class ReferenceTrackingList : IReadOnlyList<object>
+    {
+        public ReferenceTrackingList(object inner) => Inner = inner;
+
+        public object Inner { get; }
+
+        private System.Collections.IList List => (System.Collections.IList)Inner;
+
+        public int Count => List.Count;
+
+        public object this[int index] => List[index]!;
+
+        public IEnumerator<object> GetEnumerator() => List.Cast<object>().GetEnumerator();
+
+        System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() => GetEnumerator();
+    }
 
     private static string[] Normalize(IReadOnlyDictionary<string, string> map) =>
         map.OrderBy(pair => pair.Key, StringComparer.Ordinal).Select(pair => $"{pair.Key}={pair.Value}").ToArray();

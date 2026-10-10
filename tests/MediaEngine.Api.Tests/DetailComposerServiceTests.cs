@@ -512,7 +512,7 @@ public sealed class DetailComposerServiceTests
         Assert.Contains("ResolveTvSeriesRootWorkIdAsync(workId, ct)", source);
         Assert.Contains("if (episodeShowId is { } showId)", source);
         Assert.Contains("WHERE child.depth < 32", source);
-        Assert.Contains("workId,\n                profileId,\n                authorizedWorks: authorizedWorks);", source);
+        Assert.Contains("workId,\n                profileId,\n                authorizedWorks: authorizedWorks,\n                sequenceWindow: sequenceWindow);", source);
         Assert.Contains(".Where(work => expectedTotal is > 0 || work.IsOwned)", source);
         Assert.Contains("selectedGroup?.HasAuthoritativeTotal == true", source);
         Assert.Contains("HasAuthoritativeTotal = mainSequenceExpectedTotal.HasValue", source);

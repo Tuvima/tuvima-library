@@ -524,6 +524,34 @@ public sealed class UnifiedDetailComponentTests
     }
 
     [Fact]
+    public void SequencePlacementPanel_RefreshesLoadedWindowsWhenThePlacementReloadsAndIgnoresLateAnswers()
+    {
+        var source = ReadSequenceMarkup();
+
+        // A windowed placement has no flat OrderedItems, so the refresh key carries each season's counts and a
+        // new placement object always drops the windows fetched earlier.
+        Assert.Contains("group.ItemCount}/{group.ItemOffset}/{group.OwnedCount}/{group.CompletedCount}", source);
+        Assert.Contains("!ReferenceEquals(Placement, _placementReference)", source);
+
+        // Switching season supersedes any window still being fetched.
+        var select = source[source.IndexOf("private async Task SelectGroup", StringComparison.Ordinal)..];
+        Assert.True(select.IndexOf("_windowRequestId++", StringComparison.Ordinal) < select.IndexOf("_selectedGroupKey = value", StringComparison.Ordinal));
+        Assert.True(select.IndexOf("_loadingWindow = false", StringComparison.Ordinal) < select.IndexOf("_selectedGroupKey = value", StringComparison.Ordinal));
+
+        // A late answer only moves the screen when its season is still the one shown.
+        Assert.Contains("var isActive = string.Equals(group.Key, ActiveGroup?.Key, StringComparison.OrdinalIgnoreCase);", source);
+        Assert.Contains("_windowFailed = isActive;", source);
+    }
+
+    [Fact]
+    public void DetailPageRequestsAskForTheWindowedSequence()
+    {
+        Assert.Contains("sequence: SequenceWindowQuery.Windowed", ReadSource("src/MediaEngine.Web/Components/Details/DetailRouteHost.razor"));
+        var page = ReadSource("src/MediaEngine.Web/Components/Details/DetailPage.razor");
+        Assert.Equal(3, System.Text.RegularExpressions.Regex.Matches(page, "SequenceWindowQuery\\.Windowed").Count);
+    }
+
+    [Fact]
     public void SequencePlacementPanel_DoesNotRenderViewAllLink()
     {
         var source = ReadSequenceMarkup();
@@ -538,7 +566,7 @@ public sealed class UnifiedDetailComponentTests
         Assert.DoesNotContain("Label=\"Series Set\"", source);
         Assert.Contains("[Parameter] public bool Compact { get; set; }", source);
         Assert.Contains("Placement.ContainerDescription", source);
-        Assert.Contains("Placement.Groups.Count}:{Placement.ContainerDescription}", source);
+        Assert.Contains("Placement.Groups.Count}:{groupStats}:{Placement.ContainerDescription}", source);
         Assert.Contains("isElementContentOverflowing", source);
         Assert.Contains("_seriesDescriptionExpanded ? \"Less\" : \"More\"", source);
         Assert.Contains("display: flex", styles);

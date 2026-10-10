@@ -30,6 +30,26 @@ public sealed class OwnedEpisodeQueuePlannerTests
         Assert.Empty(OwnedEpisodeQueuePlanner.NextPlayableCandidates(sequence, Guid.NewGuid()));
     }
 
+    [Fact]
+    public void NextUp_CrossesSeasonBoundaryWhenEpisodesAreCarriedOnlyInTheirSeasonGroups()
+    {
+        // A long show is sent season by season with no flat list.
+        var lastOfSeasonOne = Guid.NewGuid();
+        var firstOfSeasonTwo = Guid.NewGuid();
+        var secondOfSeasonTwo = Guid.NewGuid();
+        var sequence = new SequencePlacementViewModel
+        {
+            OrderedItems = [],
+            Groups =
+            [
+                new() { Key = "season-1", ItemCount = 2, Items = [Episode(Guid.NewGuid(), owned: true), Episode(lastOfSeasonOne, owned: true)] },
+                new() { Key = "season-2", ItemCount = 2, Items = [Episode(firstOfSeasonTwo, owned: true), Episode(secondOfSeasonTwo, owned: true)] },
+            ],
+        };
+
+        Assert.Equal([firstOfSeasonTwo, secondOfSeasonTwo], OwnedEpisodeQueuePlanner.NextPlayableCandidates(sequence, lastOfSeasonOne));
+    }
+
     private static SequenceItemViewModel Episode(Guid id, bool owned) => new()
     {
         Id = id.ToString("D"),

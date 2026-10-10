@@ -2882,8 +2882,10 @@
   BackgroundArtworkUrl: System.String | json=backgroundArtworkUrl | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   TotalKnownItems: System.Int32? | json=totalKnownItems | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   HasAuthoritativeTotal: System.Boolean | json=hasAuthoritativeTotal | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  ItemCount: System.Int32 | json=itemCount | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  ItemOffset: System.Int32 | json=itemOffset | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Items: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Details.SequenceItemViewModel> | json=items | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  sample={"ownedCount":7,"completedCount":7,"key":"sample","title":"sample","entityId":"sample","artworkSmallUrl":"sample","artworkUrl":"sample","backgroundArtworkUrl":"sample","totalKnownItems":7,"hasAuthoritativeTotal":true,"items":[]}
+  sample={"ownedCount":7,"completedCount":7,"key":"sample","title":"sample","entityId":"sample","artworkSmallUrl":"sample","artworkUrl":"sample","backgroundArtworkUrl":"sample","totalKnownItems":7,"hasAuthoritativeTotal":true,"itemCount":7,"itemOffset":7,"items":[]}
 
 [contracts] MediaEngine.Contracts.Details.SequenceItemViewModel
   kind=class | converter=default | number-handling=default | unmapped=default

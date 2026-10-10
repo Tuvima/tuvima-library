@@ -2021,6 +2021,8 @@ public sealed partial class EngineApiClient : IEngineApiClient, IDisposable
             BackgroundArtworkUrl = NormalizeOptionalUrl(group.BackgroundArtworkUrl),
             TotalKnownItems = group.TotalKnownItems,
             HasAuthoritativeTotal = group.HasAuthoritativeTotal,
+            ItemCount = group.ItemCount,
+            ItemOffset = group.ItemOffset,
             Items = group.Items.Select(NormalizeSequenceItem).OfType<SequenceItemViewModel>().ToList(),
             OwnedCount = group.OwnedCount,
             CompletedCount = group.CompletedCount,

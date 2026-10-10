@@ -74,8 +74,14 @@ internal sealed partial class DetailCompositionOrchestrator
         Guid? currentWorkId = null,
         Guid? profileId = null,
         string? selectedContainerId = null,
-        IReadOnlyList<DisplayWorkRow>? authorizedWorks = null)
+        IReadOnlyList<DisplayWorkRow>? authorizedWorks = null,
+        SequenceWindowRequest? sequenceWindow = null)
     {
+        // Windowing is opt-in (the caller sends sequenceLimit); a request without sequence parameters gets the whole
+        // list exactly as before, so older clients keep working.
+        sequenceWindow ??= SequenceWindowRequest.All();
+        currentWorkId ??= sequenceWindow.CurrentWorkId;
+        var placementOnly = sequenceWindow.PlacementOnly;
         using var conn = _db.CreateConnection();
         var rawRow = await conn.QueryFirstOrDefaultAsync(new CommandDefinition(
             """
@@ -251,24 +257,19 @@ internal sealed partial class DetailCompositionOrchestrator
             : ownedWorks;
 
         Dictionary<Guid, Dictionary<string, string>>? episodeValueMaps = null;
+        var enrichedEpisodeIds = new HashSet<Guid>();
         if (entityType == DetailEntityType.TvShow)
         {
             works = DeduplicateTvEpisodeSummaries(works.Where(work => work.IsOwned).ToList());
-            using var stillConnection = _db.CreateConnection();
-            var ownedIds = works.Select(work => GuidSql.ToBlob(Guid.Parse(work.Id))).ToArray();
-            var actualStills = (await stillConnection.QueryAsync<SequenceRow>(new CommandDefinition("""
-                SELECT w.id AS WorkId, art.id AS EpisodeStillAssetId,
-                       art.width_px AS EpisodeStillWidthPx, art.height_px AS EpisodeStillHeightPx
-                FROM works w LEFT JOIN entity_assets art ON art.id = (
-                    SELECT ea.id FROM entity_assets ea
-                    WHERE ea.asset_type = 'EpisodeStill'
-                      AND (ea.entity_id = w.id OR ea.entity_id IN (SELECT e.id FROM editions e WHERE e.work_id = w.id)
-                           OR ea.entity_id IN (SELECT ma.id FROM media_assets ma JOIN editions e ON e.id = ma.edition_id WHERE e.work_id = w.id))
-                      AND (ea.local_image_path_s IS NOT NULL OR ea.local_image_path IS NOT NULL)
-                    ORDER BY ea.is_preferred DESC, ea.is_user_override DESC, ea.updated_at DESC LIMIT 1)
-                WHERE w.id IN @ownedIds
-                """, new { ownedIds }, cancellationToken: ct))).ToDictionary(row => row.WorkId);
-            (works, episodeValueMaps) = await EnrichTvEpisodesAsync(works, actualStills, ct);
+            // Every episode needs its air date (first and last air year, ordering). Its description and still are
+            // read further down, only for the episodes this response carries: the one the hero plays now, and the
+            // window of episodes the page lists.
+            works = await ApplyTvEpisodeAirDatesAsync(works, ct);
+            var heroEpisode = SelectActiveTvEpisode(works) ?? SelectFirstOwnedTvEpisode(works);
+            if (heroEpisode is not null && Guid.TryParse(heroEpisode.Id, out var heroEpisodeId))
+            {
+                (works, episodeValueMaps) = await EnrichTvEpisodeSubsetAsync(works, [heroEpisodeId], enrichedEpisodeIds, ct);
+            }
         }
 
         var tvInProgressEpisode = entityType == DetailEntityType.TvShow
@@ -347,12 +348,12 @@ internal sealed partial class DetailCompositionOrchestrator
             collectionCover = tvInProgressEpisode.BackgroundUrl;
         }
         var collectionLogo = StringHelpers.FirstNonBlankOr(string.Empty, row.LogoUrl, GetValue(values, "logo_url"), GetValue(values, "logo"));
-        IReadOnlyList<CreditGroupViewModel> contributorGroups = IsStructuralContainer(entityType)
+        IReadOnlyList<CreditGroupViewModel> contributorGroups = IsStructuralContainer(entityType) || placementOnly
             ? []
             : await BuildCollectionCreditsAsync(collectionId, rootWorkId, works, entityType, values, ct);
-        var fullContributorGroups = entityType == DetailEntityType.TvShow
+        var fullContributorGroups = entityType == DetailEntityType.TvShow && !placementOnly
             ? await BuildTvCreditsAsync(rootWorkId ?? collectionId, ct) : contributorGroups;
-        if (entityType == DetailEntityType.TvShow)
+        if (entityType == DetailEntityType.TvShow && !placementOnly)
         {
             contributorGroups = tvInProgressEpisode is not null
                 ? await BuildTvCreditsAsync(Guid.Parse(tvInProgressEpisode.Id), ct) : fullContributorGroups;
@@ -365,7 +366,7 @@ internal sealed partial class DetailCompositionOrchestrator
                 contributorGroups,
                 ct)
             : null;
-        var characterGroups = IsStructuralContainer(entityType)
+        var characterGroups = IsStructuralContainer(entityType) || placementOnly
             ? []
             : await BuildCollectionCharactersAsync(collectionId, row.WikidataQid, authorizedWorks, ct);
         var heroProgress = BuildCollectionHeroProgress(entityType, works);
@@ -388,7 +389,7 @@ internal sealed partial class DetailCompositionOrchestrator
             0,
             null,
             collectionLogo);
-        var relationshipOwner = rootWorkId.HasValue ? await _libraryItems.GetDetailAsync(rootWorkId.Value, ct) : null;
+        var relationshipOwner = rootWorkId.HasValue && !placementOnly ? await _libraryItems.GetDetailAsync(rootWorkId.Value, ct) : null;
         var relationships = relationshipOwner is not null ? BuildRelationshipStrip(relationshipOwner, null) : [];
         var collectionTitle = ResolveDisplayOverride(displayOverrides, "title") ?? ResolveCollectionTitle(entityType, row.DisplayName, rootValues, values);
         var sequenceCollectionId = manifest?.CollectionId ?? collectionId;
@@ -403,19 +404,44 @@ internal sealed partial class DetailCompositionOrchestrator
                     .ToList(),
                 ct)
             : null;
-        var sequencePlacement = BuildCollectionSequencePlacement(
+        SequencePlacementViewModel? BuildPlacement(IReadOnlyList<CollectionWorkSummary> placementWorks) => BuildCollectionSequencePlacement(
             sequenceCollectionId,
             entityType,
             entityType == DetailEntityType.TvShow ? collectionTitle : StringHelpers.FirstNonBlankOr(collectionTitle, manifest?.SeriesLabel, collectionTitle)!,
             StringHelpers.FirstNonBlank(manifest?.SeriesQid, row.WikidataQid),
             entityType == DetailEntityType.TvShow ? heroSummary : longDescription,
-            displayWorks,
+            placementWorks,
             expectedTotal,
             manifest?.AuthoritativeTotalsByContainer,
             seasonArtwork,
             currentWorkId ?? tvPlaybackEpisodeId,
             entityType == DetailEntityType.TvShow ? rootWorkId ?? collectionId : null,
-            sameFileLinks);
+            sameFileLinks,
+            sequenceWindow);
+        var sequencePlacement = BuildPlacement(displayWorks);
+        if (entityType == DetailEntityType.TvShow && sequencePlacement is not null)
+        {
+            // The first pass only decided which episodes this response carries. Read their descriptions and stills
+            // now (a window, not the whole show) and build the placement again with them.
+            var carriedEpisodeIds = sequencePlacement.EmittedItems()
+                .Append(sequencePlacement.CurrentItem)
+                .Where(item => item.IsOwned && Guid.TryParse(item.Id, out _))
+                .Select(item => Guid.Parse(item.Id))
+                .ToList();
+            var (carriedWorks, _) = await EnrichTvEpisodeSubsetAsync(displayWorks, carriedEpisodeIds, enrichedEpisodeIds, ct);
+            sequencePlacement = BuildPlacement(carriedWorks);
+        }
+        if (placementOnly)
+        {
+            return new DetailPageViewModel
+            {
+                Id = collectionId.ToString("D"),
+                EntityType = entityType,
+                PresentationContext = context,
+                Title = collectionTitle,
+                SequencePlacement = sequencePlacement,
+            };
+        }
         var mediaGroups = entityType == DetailEntityType.TvShow
             ? []
             : BuildCollectionMediaGroups(entityType, displayWorks, favoriteWorkIds, expectedTotal);

@@ -41,7 +41,8 @@ internal sealed partial class DetailCompositionOrchestrator
         Guid? profileId,
         IReadOnlyList<Guid>? authorizedAssetIds,
         IReadOnlyList<DisplayWorkRow>? authorizedWorks,
-        CancellationToken ct)
+        CancellationToken ct,
+        SequenceWindowRequest? sequenceWindow = null)
     {
         using (var redirectConnection = _db.CreateConnection())
         {
@@ -134,11 +135,29 @@ internal sealed partial class DetailCompositionOrchestrator
                 ct,
                 workId,
                 profileId,
-                authorizedWorks: authorizedWorks);
+                authorizedWorks: authorizedWorks,
+                sequenceWindow: sequenceWindow);
             sequencePlacement = showModel?.SequencePlacement;
-            if (sequencePlacement is null || !sequencePlacement.OrderedItems.Any(item => item.Id == workId.ToString("D") && item.IsOwned))
+            // The show marks this episode as its current item when it is an owned episode of the show; that holds
+            // whether the response carries every episode or only the window around this one.
+            if (sequencePlacement is null
+                || sequencePlacement.CurrentItem.Id != workId.ToString("D")
+                || !sequencePlacement.CurrentItem.IsOwned)
             {
                 return null;
+            }
+
+            if (sequenceWindow is { PlacementOnly: true })
+            {
+                // Playback only needs the episode list; skip composing the rest of the page.
+                return new DetailPageViewModel
+                {
+                    Id = workId.ToString("D"),
+                    EntityType = entityType,
+                    PresentationContext = context,
+                    Title = resolvedTitle,
+                    SequencePlacement = sequencePlacement,
+                };
             }
 
             fullContributorGroups = showModel!.FullContributorGroups;
@@ -176,7 +195,7 @@ internal sealed partial class DetailCompositionOrchestrator
             ?? BuildAudiobookHeroProgress(entityType, detail.Runtime, mediaGroups);
         if (entityType == DetailEntityType.TvEpisode && heroProgress is not null)
         {
-            var episode = sequencePlacement?.OrderedItems.FirstOrDefault(item => item.IsOwned && item.Id == workId.ToString("D"));
+            var episode = sequencePlacement?.EmittedItems().FirstOrDefault(item => item.IsOwned && item.Id == workId.ToString("D"));
             heroProgress = new ProgressViewModel
             {
                 Percent = heroProgress.Percent,

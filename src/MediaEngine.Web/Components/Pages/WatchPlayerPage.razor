@@ -98,7 +98,8 @@ else if (!string.IsNullOrWhiteSpace(_loadError))
             try
             {
                 var episodePage = await ApiClient.GetDetailPageAsync(
-                    DetailEntityType.TvEpisode, WorkId, DetailPresentationContext.Watch, ct: ct);
+                    DetailEntityType.TvEpisode, WorkId, DetailPresentationContext.Watch,
+                    sequence: SequenceWindowQuery.WholeList, ct: ct);
                 ct.ThrowIfCancellationRequested();
                 if (Playback.CurrentItem?.WorkId == WorkId && Playback.PlaybackRequestVersion == activeRequestVersion)
                 {

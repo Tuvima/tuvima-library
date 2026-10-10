@@ -2355,6 +2355,8 @@ MediaEngine.Contracts.Details.MediaEngine.Contracts.Details.SequenceGroupViewMod
   BackgroundArtworkUrl: System.String | nullability=nullable | accessors=get,init
   TotalKnownItems: System.Int32? | nullability=nullable | accessors=get,init
   HasAuthoritativeTotal: System.Boolean | nullability=not-null | accessors=get,init
+  ItemCount: System.Int32 | nullability=not-null | accessors=get,init
+  ItemOffset: System.Int32 | nullability=not-null | accessors=get,init
   Items: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Details.SequenceItemViewModel> | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.Details.MediaEngine.Contracts.Details.SequenceItemViewModel

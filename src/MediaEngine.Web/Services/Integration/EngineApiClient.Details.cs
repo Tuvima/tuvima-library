@@ -119,6 +119,7 @@ public sealed partial class EngineApiClient
         DetailPresentationContext context = DetailPresentationContext.Default,
         string? containerId = null,
         Guid? profileId = null,
+        SequenceWindowQuery? sequence = null,
         CancellationToken ct = default)
     {
         try
@@ -132,6 +133,18 @@ public sealed partial class EngineApiClient
             }
 
             AddQuery(query, "profileId", profileId?.ToString("D"));
+            if (sequence is not null)
+            {
+                AddQuery(query, "sequenceGroup", sequence.Group);
+                query.Add($"sequenceOffset={sequence.Offset}");
+                query.Add($"sequenceLimit={sequence.Limit}");
+                AddQuery(query, "sequenceCurrent", sequence.Current?.ToString("D"));
+                if (sequence.Only)
+                {
+                    query.Add("sequenceOnly=true");
+                }
+            }
+
             var detail = await _http.GetFromJsonAsync<DetailPageViewModel>($"/api/v1/details/{entity}/{id:D}?{string.Join('&', query)}", ct);
             return detail is null ? null : NormalizeDetailArtwork(detail);
         }

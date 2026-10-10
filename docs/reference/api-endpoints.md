@@ -60,6 +60,21 @@ Tokens are opaque bearer credentials and must be stored in the platform secure c
 | Playback decision | `GET /api/v1/playback/{assetId}/manifest` | `playback.read` |
 | Downloads | encode/offline routes under `/api/v1/playback` | `downloads.read` / `downloads.write` |
 
+#### Long TV episode lists
+
+`GET /api/v1/details/{entityType}/{id}` carries a TV show's seasons in `sequencePlacement.groups`. Each group reports `itemCount` (every episode in the season, owned and missing) and `itemOffset` (position of `items[0]`). **Windowing is opt-in:** a request with no `sequence*` parameter receives the whole list exactly as before (`orderedItems` and every group's `items` complete), so older clients keep working. A client opts in by sending `sequenceLimit` (the Dashboard sends `sequenceLimit=50`). Up to 100 episodes in total a windowed request still lists every episode. A longer show then lists every season but fills `items` for one season only (the season being watched, starting at the window that holds the current episode); `orderedItems` is empty because the episodes are carried once, inside their season.
+
+Optional query parameters on the same route:
+
+| Parameter | Meaning |
+|---|---|
+| `sequenceGroup` | Season key (for example `season-2`) to read; returns exactly that window. An unknown key falls back to the season being watched. |
+| `sequenceOffset` / `sequenceLimit` | First episode and window size (default 50 when a season or offset is named, at most 200). An offset past the end returns the last full window. `sequenceLimit=0`, or no `sequence*` parameter at all, returns every episode, for playback queues and the player's episode picker. |
+| `sequenceCurrent` | Episode id to mark `isCurrent` in the answer. |
+| `sequenceOnly=true` | Return just `sequencePlacement`, without credits and the rest of the page. |
+
+The routes need no extra scope or permission: they are the same detail request.
+
 Capability negotiation declares containers, video/audio codecs, subtitle formats, protocols, maximum dimensions/bitrate/channels, HDR, speed, and offline-download support. The playback manifest compares those registered capabilities with inspected source media and returns `directPlaySupported`, `recommendedDelivery`, source/alternate URLs, tracks, chapters, resume state, warnings, and a conversion reason. For HLS it also returns `hlsStatus`, `hlsUrl`, and `hlsExpiresAt`. `preparing` means the client should retry the manifest; `ready` supplies the playable path. Clients must follow the manifest rather than independently guessing whether a file can direct-play.
 
 The HLS URL is a bearer capability scoped to one asset, package, and expiration time. It is intentionally usable by native HLS media stacks that cannot attach application authorization headers to every segment request. Clients must not log, persist, or share it. Expired or modified paths return `403`; missing and traversal-rejected package resources return `404`. Relative URIs in the master and media playlists preserve the same signed path for variant, alternate-audio, caption, and segment requests.
