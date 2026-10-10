@@ -210,6 +210,8 @@ Example:
 TV/Breaking Bad (Q1079331)/Season 01/S01E01 - Pilot.mkv
 ```
 
+A file that covers several episodes (`S01E01E02`, `S01E01-E02`, `1x01-02`) uses the `{Episode}` token as `01-e02`. With the template above it is named `S01E01-e02 - Pilot.mkv`; the S and E letters follow whatever template you use. Single-episode files are named exactly as before. The file is never split or re-encoded, and the episodes it covers are recorded separately (see `media_asset_coverage`).
+
 ### Providers
 
 1. TMDB - series and episode metadata; poster and backdrop images

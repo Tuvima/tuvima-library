@@ -41,6 +41,10 @@ A single metadata value from a specific source with confidence and provenance. C
 
 A grouping of media with explicit purpose and access. Automatic Collections connect trusted broader relationships; custom collections may belong to a profile or be published by an administrator. A Collection should not duplicate a single lane-level shelf. For example, a book series belongs in Read and in the cross-lane Shelves index; a wider world that connects novels and films can appear in Automatic.
 
+### Combined file
+
+One video file that holds several episodes of a show, such as `Show S01E01E02.mkv`. It stays one file: it is never split, and playing, resuming and watching it act on the file. Its covered episodes are recorded separately, and the organiser names it with the episode run (for example `s01e01-e02`).
+
 ## D
 
 ### Dashboard
