@@ -456,8 +456,10 @@ presentation types must not narrow that payload.
 | POST | `/access/profiles` | Create a profile and its explicit account grant | Identity users write |
 | GET | `/profiles/{id}` | Profile detail | Required |
 | PUT | `/profiles/{id}/experience` | Save name, avatar color, and navigation preferences without role fields | Exact active profile |
-| PUT | `/access/profiles/{id}` | Rename a profile and change its look. Body: `display_name`, `avatar_color` (`#RRGGBB`), `avatar_icon` (a built-in icon key; omit it to keep the current icon, send an empty string to go back to the initial). Responses carry `avatar_icon` next to `avatar_color`; `GET /profiles` does too. A photo uses the existing `POST /profiles/{id}/avatar`. | Identity users write |
-| DELETE | `/access/profiles/{id}` | Delete through account/grant safety rules without deleting originals | Identity users write |
+| PUT | `/access/profiles/{id}` | (Needs a recent sign-in.) Rename a profile and change its look. Body: `display_name`, `avatar_color` (`#RRGGBB`), `avatar_icon` (a built-in icon key; omit it to keep the current icon, send an empty string to go back to the initial). Responses carry `avatar_icon` next to `avatar_color`; `GET /profiles` does too. A photo uses the existing `POST /profiles/{id}/avatar`. | Identity users write |
+| DELETE | `/access/profiles/{id}?photos=move\|delete` | Delete through account/grant safety rules without deleting originals. Habits (likes, My List, progress, bookmarks, taste) always go. `photos=move` (the default) keeps the person's personal photos in their household's Shared Library under a folder and tag named `From <name> <date>` (managed files move, linked originals are copied); `photos=delete` deletes them. Nothing is removed if a photo can't be kept or a removal rule refuses (last profile, Owner, final administrator, an account's only profile). Needs a recent sign-in (`confirm_its_you` otherwise) and a person the caller may manage; another household's person is 403. | Identity users write |
+| POST | `/access/profiles/{id}/avatar` | Set someone else's profile photo (multipart `file`, JPEG/PNG/WebP up to 5 MB). Same rules and checks as above; `POST /profiles/{id}/avatar` still only changes the active profile's own photo. | Identity users write |
+| DELETE | `/access/profiles/{id}/avatar` | Remove someone's profile photo. | Identity users write |
 
 ---
 

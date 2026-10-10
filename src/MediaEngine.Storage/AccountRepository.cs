@@ -6,6 +6,7 @@ using MediaEngine.Domain.Authorization;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Entities;
 using MediaEngine.Storage.Contracts;
+using Microsoft.Data.Sqlite;
 
 namespace MediaEngine.Storage;
 
@@ -548,59 +549,71 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
             }
         }, ct);
 
+    public Task ValidateManagedProfileRemovalAsync(Guid profileId, CancellationToken ct = default) =>
+        db.ExecuteReadAsync((connection, transaction, token) =>
+        {
+            token.ThrowIfCancellationRequested();
+            RequireProfileRemovable(connection, transaction, profileId);
+            return 0;
+        }, ct);
+
     public Task DeleteManagedProfileAsync(Guid profileId, CancellationToken ct = default) =>
         db.ExecuteWriteAsync((connection, transaction, token) =>
         {
             token.ThrowIfCancellationRequested();
-            if (profileId == Profile.SeedProfileId)
-            {
-                throw new InvalidOperationException("The Owner profile cannot be deleted.");
-            }
-
-            if (connection.ExecuteScalar<int>("SELECT COUNT(*) FROM profiles WHERE id=@profileId;",
-                    new { profileId }, transaction) == 0)
-            {
-                throw new KeyNotFoundException("Profile not found.");
-            }
-
-            if (connection.ExecuteScalar<int>("""
-                    SELECT COUNT(*) FROM accounts a
-                    JOIN account_profile_grants target ON target.account_id=a.id
-                    WHERE target.profile_id=@profileId AND target.is_enabled=1 AND a.is_enabled=1
-                      AND (SELECT COUNT(*) FROM account_profile_grants other
-                           WHERE other.account_id=a.id AND other.is_enabled=1)=1;
-                    """, new { profileId }, transaction) > 0)
-            {
-                throw new InvalidOperationException("Move accounts to another profile before deleting this profile.");
-            }
-
-            var removesAdministrator = connection.ExecuteScalar<int>("""
-                SELECT COUNT(*) FROM account_profile_grants g JOIN accounts a ON a.id=g.account_id
-                WHERE g.profile_id=@profileId AND g.is_enabled=1 AND g.admin_enabled=1
-                  AND a.is_enabled=1 AND a.is_administrator=1
-                  AND (
-                    EXISTS(SELECT 1 FROM account_credentials c WHERE c.account_id=a.id)
-                    OR EXISTS(SELECT 1 FROM account_passkeys p WHERE p.account_id=a.id)
-                    OR EXISTS(SELECT 1 FROM account_external_logins e WHERE e.account_id=a.id)
-                  );
-                """, new { profileId }, transaction) > 0;
-            var administratorsRemaining = connection.ExecuteScalar<int>("""
-                SELECT COUNT(*) FROM account_profile_grants g JOIN accounts a ON a.id=g.account_id
-                WHERE g.profile_id<>@profileId AND g.is_enabled=1 AND g.admin_enabled=1
-                  AND a.is_enabled=1 AND a.is_administrator=1
-                  AND (
-                    EXISTS(SELECT 1 FROM account_credentials c WHERE c.account_id=a.id)
-                    OR EXISTS(SELECT 1 FROM account_passkeys p WHERE p.account_id=a.id)
-                    OR EXISTS(SELECT 1 FROM account_external_logins e WHERE e.account_id=a.id)
-                  );
-                """, new { profileId }, transaction);
-            if (removesAdministrator && administratorsRemaining == 0)
-            {
-                throw new InvalidOperationException("The final effective administrator profile cannot be deleted.");
-            }
-
+            RequireProfileRemovable(connection, transaction, profileId);
             connection.Execute("DELETE FROM profiles WHERE id=@profileId;", new { profileId }, transaction);
         }, ct);
+
+    private static void RequireProfileRemovable(SqliteConnection connection, SqliteTransaction transaction, Guid profileId)
+    {
+        if (profileId == Profile.SeedProfileId)
+        {
+            throw new InvalidOperationException("The Owner profile cannot be deleted.");
+        }
+
+        if (connection.ExecuteScalar<int>("SELECT COUNT(*) FROM profiles WHERE id=@profileId;",
+                new { profileId }, transaction) == 0)
+        {
+            throw new KeyNotFoundException("Profile not found.");
+        }
+
+        if (connection.ExecuteScalar<int>("""
+                SELECT COUNT(*) FROM accounts a
+                JOIN account_profile_grants target ON target.account_id=a.id
+                WHERE target.profile_id=@profileId AND target.is_enabled=1 AND a.is_enabled=1
+                  AND (SELECT COUNT(*) FROM account_profile_grants other
+                       WHERE other.account_id=a.id AND other.is_enabled=1)=1;
+                """, new { profileId }, transaction) > 0)
+        {
+            throw new InvalidOperationException("Move accounts to another profile before deleting this profile.");
+        }
+
+        var removesAdministrator = connection.ExecuteScalar<int>("""
+            SELECT COUNT(*) FROM account_profile_grants g JOIN accounts a ON a.id=g.account_id
+            WHERE g.profile_id=@profileId AND g.is_enabled=1 AND g.admin_enabled=1
+              AND a.is_enabled=1 AND a.is_administrator=1
+              AND (
+                EXISTS(SELECT 1 FROM account_credentials c WHERE c.account_id=a.id)
+                OR EXISTS(SELECT 1 FROM account_passkeys p WHERE p.account_id=a.id)
+                OR EXISTS(SELECT 1 FROM account_external_logins e WHERE e.account_id=a.id)
+              );
+            """, new { profileId }, transaction) > 0;
+        var administratorsRemaining = connection.ExecuteScalar<int>("""
+            SELECT COUNT(*) FROM account_profile_grants g JOIN accounts a ON a.id=g.account_id
+            WHERE g.profile_id<>@profileId AND g.is_enabled=1 AND g.admin_enabled=1
+              AND a.is_enabled=1 AND a.is_administrator=1
+              AND (
+                EXISTS(SELECT 1 FROM account_credentials c WHERE c.account_id=a.id)
+                OR EXISTS(SELECT 1 FROM account_passkeys p WHERE p.account_id=a.id)
+                OR EXISTS(SELECT 1 FROM account_external_logins e WHERE e.account_id=a.id)
+              );
+            """, new { profileId }, transaction);
+        if (removesAdministrator && administratorsRemaining == 0)
+        {
+            throw new InvalidOperationException("The final effective administrator profile cannot be deleted.");
+        }
+    }
 
     public Task UpsertGrantAsync(AccountProfileGrant grant, CancellationToken ct = default) =>
         db.ExecuteWriteAsync((connection, transaction, token) =>

@@ -3952,3 +3952,13 @@ input[type="reset"],
 @media (max-width: 640px) {
     .network-checklist__item { grid-template-columns: 1fr; gap: 4px; }
 }
+/* Manage profiles on the picker (ProfilePickerPage.razor, ProfileEditorSheet.razor). */
+.who-card__edit { position: absolute; inset: 0; display: grid; place-items: center; color: #fff; border-radius: 50%; background: rgb(0 0 0 / 48%); }
+.who-card__edit svg { width: 36%; height: 36%; }
+.who-backdrop--top { z-index: 1400; }
+.who-dialog__hint { margin: 0; color: var(--tl-text-muted); font-size: .85rem; text-align: center; }
+.profile-editor__photos { display: grid; gap: 8px; margin: 0; padding: 0; border: 0; }
+.profile-editor__photos legend { padding: 0; font-weight: 600; }
+.profile-editor__choice { display: flex; align-items: flex-start; gap: 12px; min-height: 44px; cursor: pointer; }
+.profile-editor__choice span { display: grid; gap: 2px; }
+.profile-editor__choice small { color: var(--tl-text-muted); font-size: .85rem; }

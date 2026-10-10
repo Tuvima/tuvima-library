@@ -1,4 +1,5 @@
 using System.Net.Mail;
+using MediaEngine.Api.Services.View;
 using MediaEngine.Domain.Aggregates;
 using MediaEngine.Domain.Authorization;
 using MediaEngine.Domain.Configuration;
@@ -21,6 +22,7 @@ public sealed class AccountAccessMutationService(
     IAuthorizationInvalidationService invalidation,
     IAuthorizationAuditWriter audit,
     IFirstPartyIdentityService firstParty,
+    IProfilePhotoDisposer photoDisposer,
     TimeProvider clock) : IAccountAccessMutationService
 {
     public async Task<Account> CreateAsync(
@@ -629,9 +631,28 @@ public sealed class AccountAccessMutationService(
         return profile;
     }
 
+    public async Task RequireCanChangeProfileAsync(
+        RequestAuthority actor,
+        Guid profileId,
+        CancellationToken ct = default)
+    {
+        var profile = await profiles.GetByIdAsync(profileId, ct).ConfigureAwait(false);
+        var householdOnly = await RequireHouseholdWriteAsync(actor, profile?.HouseholdId, ct).ConfigureAwait(false);
+        if (profile is null)
+        {
+            throw new KeyNotFoundException("Profile not found.");
+        }
+
+        if (householdOnly)
+        {
+            await RequireNotAdministratorProfileAsync(profile, actor, ct).ConfigureAwait(false);
+        }
+    }
+
     public async Task DeleteProfileAsync(
         RequestAuthority actor,
         Guid profileId,
+        ProfilePhotoDisposition photos = ProfilePhotoDisposition.MoveToShared,
         CancellationToken ct = default)
     {
         var profile = await profiles.GetByIdAsync(profileId, ct).ConfigureAwait(false);
@@ -646,7 +667,16 @@ public sealed class AccountAccessMutationService(
             await RequireNotAdministratorProfileAsync(profile, actor, ct).ConfigureAwait(false);
         }
 
+        if (profile is null)
+        {
+            throw new KeyNotFoundException("Profile not found.");
+        }
+
+        // Check every removal rule first, so photos are never moved for a person who then cannot be removed.
+        await accounts.ValidateManagedProfileRemovalAsync(profileId, ct).ConfigureAwait(false);
+        var plan = await photoDisposer.PrepareAsync(profile, photos, actor.ActiveProfileId ?? profileId, ct).ConfigureAwait(false);
         await accounts.DeleteManagedProfileAsync(profileId, ct).ConfigureAwait(false);
+        await photoDisposer.CompleteAsync(plan, ct).ConfigureAwait(false);
         await ChangedAsync(actor, "profile.deleted", "profile", profileId.ToString("D"),
             actor.AccountId ?? Guid.Empty, profileId, ct).ConfigureAwait(false);
     }

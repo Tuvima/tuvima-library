@@ -375,32 +375,7 @@ public static class ProfileEndpoints
         .ProducesProblem(StatusCodes.Status404NotFound)
         .RequireActiveProfile();
 
-        group.MapDelete("/{id:guid}/avatar", async (
-            Guid id,
-            IProfileService svc,
-            CancellationToken ct) =>
-        {
-            var profile = await svc.GetProfileAsync(id, ct);
-            if (profile is null)
-            {
-                return ApiErrors.NotFound($"Profile '{id}' not found.");
-            }
-
-            var existingPath = profile.AvatarImagePath;
-            profile.AvatarImagePath = null;
-            var updated = await svc.UpdateProfileAsync(profile, ct);
-            if (!updated)
-            {
-                return Results.Problem("Could not remove profile avatar.");
-            }
-
-            if (!string.IsNullOrWhiteSpace(existingPath) && File.Exists(existingPath))
-            {
-                File.Delete(existingPath);
-            }
-
-            return Results.Ok(ProfileContractMapper.ToResponse(profile));
-        })
+        group.MapDelete("/{id:guid}/avatar", RemoveProfileAvatarAsync)
         .WithName("RemoveProfileAvatar")
         .WithSummary("Removes the uploaded avatar image for a profile.")
         .Produces<ProfileResponseDto>(StatusCodes.Status200OK)
@@ -526,6 +501,34 @@ public static class ProfileEndpoints
 
         var accounts = context.RequestServices.GetRequiredService<IAccountRepository>();
         return await accounts.HasProfileAccessAsync(accountId, profileId, context.RequestAborted);
+    }
+
+    /// <summary>Removes a profile's uploaded photo. The caller has already decided the person may change it.</summary>
+    internal static async Task<IResult> RemoveProfileAvatarAsync(
+        Guid id,
+        IProfileService svc,
+        CancellationToken ct)
+    {
+        var profile = await svc.GetProfileAsync(id, ct);
+        if (profile is null)
+        {
+            return ApiErrors.NotFound($"Profile '{id}' not found.");
+        }
+
+        var existingPath = profile.AvatarImagePath;
+        profile.AvatarImagePath = null;
+        var updated = await svc.UpdateProfileAsync(profile, ct);
+        if (!updated)
+        {
+            return Results.Problem("Could not remove profile avatar.");
+        }
+
+        if (!string.IsNullOrWhiteSpace(existingPath) && File.Exists(existingPath))
+        {
+            File.Delete(existingPath);
+        }
+
+        return Results.Ok(ProfileContractMapper.ToResponse(profile));
     }
 
     internal static async Task<IResult> UploadProfileAvatarAsync(

@@ -2,19 +2,22 @@
 @layout MediaEngine.Web.Shared.ProfilePickerLayout
 @namespace MediaEngine.Web.Components.Pages
 @using Microsoft.AspNetCore.Components.Authorization
+@using MediaEngine.Contracts.Authentication
+@using MediaEngine.Web.Components.Profiles
 @using MediaEngine.Web.Models.ViewDTOs
 @using MediaEngine.Web.Services.Integration
 @inject UIOrchestratorService Orchestrator
 @inject DashboardSessionAccessor Session
 @inject DashboardIdentityClient Identity
+@inject ConfirmedActionRunner Confirmed
 @inject AuthenticationStateProvider AuthenticationStateProvider
 @inject NavigationManager Navigation
 @inject ILogger<ProfilePickerPage> Logger
 
-<PageTitle>Who's watching? - Tuvima Library</PageTitle>
+<PageTitle>@(_managing ? "Manage profiles" : "Who's watching?") - Tuvima Library</PageTitle>
 
 <section class="who-page" aria-labelledby="who-title">
-    <h1 id="who-title" class="who-page__title">Who's watching?</h1>
+    <h1 id="who-title" class="who-page__title">@(_managing ? "Manage profiles" : "Who's watching?")</h1>
 
     @if (_loading)
     {
@@ -43,10 +46,16 @@
                                      Class="who-card"
                                      Disabled="@_busy"
                                      AriaLabel="@CardLabel(profile)"
-                                     OnClick="@(() => ChooseAsync(profile))">
+                                     OnClick="@(() => PickAsync(profile))">
                         <span class="who-card__picture">
                             <ProfileAvatar DisplayName="@profile.DisplayName" ImageUrl="@profile.AvatarImageUrl" Color="@profile.AvatarColor" Icon="@profile.AvatarIcon" />
-                            @if (profile.HasPin)
+                            @if (_managing)
+                            {
+                                <span class="who-card__edit" aria-hidden="true">
+                                    <svg viewBox="0 0 24 24" focusable="false"><path fill="currentColor" d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z" /></svg>
+                                </span>
+                            }
+                            else if (profile.HasPin)
                             {
                                 <span class="who-card__lock" aria-hidden="true">
                                     <svg viewBox="0 0 24 24" focusable="false"><path fill="currentColor" d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z" /></svg>
@@ -66,8 +75,7 @@
             @if (ShowAddTile)
             {
                 <li>
-                    @* Adding people from here arrives in a later step, so the tile is shown but not yet active. *@
-                    <AppNativeButton Type="button" Class="who-card who-card--add" Disabled="true" AriaLabel="Add profile (coming soon)">
+                    <AppNativeButton Type="button" Class="who-card who-card--add" Disabled="@_busy" AriaLabel="Add profile" OnClick="OpenAdd">
                         <span class="who-card__picture who-card__picture--add" aria-hidden="true">
                             <svg viewBox="0 0 24 24" focusable="false"><path fill="currentColor" d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" /></svg>
                         </span>
@@ -78,11 +86,17 @@
             }
         </ul>
 
-        @if (!string.IsNullOrWhiteSpace(_error) && _pending is null)
+        @if (!string.IsNullOrWhiteSpace(_error) && _pending is null && !_editorOpen)
         {
             <p class="who-page__error" role="alert">@_error</p>
         }
 
+        @if (_managing)
+        {
+            <AppNativeButton Type="button" Class="who-button who-button--primary" Disabled="@_busy" OnClick="DoneManaging">Done</AppNativeButton>
+        }
+        else
+        {
         <div class="who-options">
             <label class="who-check">
                 <AppNativeInput Type="checkbox" Class="who-check__box" Checked="@_alwaysOpen" OnChange="OnAlwaysOpenChanged" Disabled="@_busy" />
@@ -99,10 +113,46 @@
             <AppNativeButton Type="submit" Class="who-link">Sign out</AppNativeButton>
         </form>
 
+        @if (CanManage)
+        {
+            <AppNativeButton Type="button" Class="who-button" Disabled="@_busy" OnClick="StartManaging">Manage profiles</AppNativeButton>
+        }
+
         @if (ShowPinReminder)
         {
             <p class="who-note" role="note">Set PINs on adult profiles so children can't switch into them.</p>
         }
+        }
+    }
+
+    <ProfileEditorSheet Open="@_editorOpen"
+                        Profile="@_editing"
+                        Saving="@_editorSaving"
+                        Error="@_editorError"
+                        CanDelete="@CanDeleteEditing"
+                        OnSave="SaveEditorAsync"
+                        OnDelete="DeleteEditingAsync"
+                        OnClose="CloseEditor" />
+
+    @if (_needsUnlock)
+    {
+        <div class="who-backdrop who-backdrop--top">
+            <div class="who-dialog" role="dialog" aria-modal="true" aria-labelledby="who-unlock-title">
+                <h2 id="who-unlock-title" class="who-dialog__title">Enter your administrator PIN</h2>
+                <p class="who-dialog__hint">This is only asked for when administrator protection is turned on.</p>
+                <PinPad @bind-Value="_unlockPin" Disabled="@_busy" MaxLength="12" OnSubmit="UnlockAsync" OnCancel="CancelUnlock" />
+                @if (!string.IsNullOrWhiteSpace(_error))
+                {
+                    <p class="who-page__error" role="alert">@_error</p>
+                }
+                <div class="who-dialog__actions">
+                    <AppNativeButton Type="button" Class="who-button" Disabled="@_busy" OnClick="CancelUnlock">Cancel</AppNativeButton>
+                    <AppNativeButton Type="button" Class="who-button who-button--primary" Disabled="@(_busy || _unlockPin.Length < 4)" OnClick="UnlockAsync">
+                        @(_busy ? "Checking…" : "Continue")
+                    </AppNativeButton>
+                </div>
+            </div>
+        </div>
     }
 
     @if (_pending is not null)
@@ -134,6 +184,12 @@
     /// <summary>Where to go once someone is chosen (a same-site path only).</summary>
     [Parameter, SupplyParameterFromQuery(Name = "returnUrl")] public string? ReturnUrl { get; set; }
 
+    /// <summary>"1" opens the picker in Manage profiles mode (and keeps it open even for a one-person household).</summary>
+    [Parameter, SupplyParameterFromQuery(Name = "manage")] public string? ManageFlag { get; set; }
+
+    /// <summary>"1" opens the Add profile sheet as soon as the picker has loaded.</summary>
+    [Parameter, SupplyParameterFromQuery(Name = "add")] public string? AddFlag { get; set; }
+
     private List<ProfileViewModel> _profiles = [];
     private ProfileViewModel? _active;
     private Guid? _preferredId;
@@ -145,6 +201,16 @@
     private string _pin = string.Empty;
     private string? _error;
     private int _shake;
+    private bool _managing;
+    private bool _editorOpen;
+    private bool _editorSaving;
+    private string? _editorError;
+    private ProfileViewModel? _editing;
+    private Guid? _householdId;
+    private bool _needsUnlock;
+    private bool _justUnlocked;
+    private string _unlockPin = string.Empty;
+    private Func<Task>? _afterUnlock;
 
     private string Destination => ProfilePickerRoute.SafeReturnUrl(ReturnUrl) ?? "/";
 
@@ -155,10 +221,17 @@
         && _profiles.Any(profile => profile.IsRestricted)
         && _profiles.Any(profile => !profile.IsRestricted && !profile.HasPin);
 
-    // Household administrators can add people, up to the household limit.
-    private bool ShowAddTile => _isAdministrator && _profiles.Count < MaxProfiles;
+    // Household and server administrators manage people, never from inside a Kids profile.
+    private bool CanManage => ProfileManageRules.CanManage(
+        _active?.IsRestricted == true,
+        Session.HasAction("household.manage") || Session.HasAction("access.manage"));
 
-    private const int MaxProfiles = 8;
+    // Adding is offered up to the household limit.
+    private bool ShowAddTile => ProfileManageRules.CanAdd(CanManage, _profiles.Count);
+
+    private bool CanDeleteEditing => _editing is { } profile && ProfileManageRules.CanDelete(profile, _active?.Id, _profiles.Count);
+
+    private bool WantsManage => ManageFlag == "1" || AddFlag == "1";
 
     protected override Task OnInitializedAsync() => LoadAsync();
 
@@ -174,7 +247,7 @@
             _isAdministrator = Session.Authority?.EffectiveAdministrator == true;
             _profiles = await Orchestrator.GetProfilesAsync();
             _active = await Orchestrator.GetActiveProfileAsync();
-            if (_profiles.Count == 1)
+            if (_profiles.Count == 1 && !WantsManage)
             {
                 // Nobody to choose between.
                 Navigation.NavigateTo(Destination, forceLoad: true, replace: true);
@@ -194,12 +267,35 @@
             _loading = false;
         }
 
+        if (WantsManage && CanManage)
+        {
+            _managing = ManageFlag == "1";
+            if (AddFlag == "1" && ShowAddTile)
+            {
+                OpenAdd();
+            }
+
+            return;
+        }
+
         // This device always opens as someone with a PIN: ask for it once instead of skipping it.
         if (PreferredProfile is { HasPin: true } preferred && preferred.Id != _active?.Id)
         {
             _alwaysOpen = true;
             BeginPin(preferred);
         }
+    }
+
+    // In Manage profiles mode a tap opens the editor; otherwise it opens the profile.
+    private Task PickAsync(ProfileViewModel profile)
+    {
+        if (!_managing)
+        {
+            return ChooseAsync(profile);
+        }
+
+        OpenEditor(profile);
+        return Task.CompletedTask;
     }
 
     private Task ChooseAsync(ProfileViewModel profile)
@@ -324,8 +420,305 @@
 
     private void OnAlwaysOpenChanged(ChangeEventArgs args) => _alwaysOpen = args.Value is true;
 
-    private static string CardLabel(ProfileViewModel profile) =>
-        profile.HasPin
-            ? (profile.IsRestricted ? $"{profile.DisplayName}, Kids profile, needs a PIN" : $"{profile.DisplayName}, needs a PIN")
-            : (profile.IsRestricted ? $"{profile.DisplayName}, Kids profile" : profile.DisplayName);
+    private string CardLabel(ProfileViewModel profile)
+    {
+        var kids = profile.IsRestricted ? ", Kids profile" : string.Empty;
+        if (_managing)
+        {
+            return $"Edit {profile.DisplayName}{kids}";
+        }
+
+        return profile.HasPin ? $"{profile.DisplayName}{kids}, needs a PIN" : $"{profile.DisplayName}{kids}";
+    }
+
+    private void StartManaging()
+    {
+        _error = null;
+        _managing = true;
+    }
+
+    private void DoneManaging()
+    {
+        _managing = false;
+        _editorOpen = false;
+        _error = null;
+    }
+
+    private void OpenEditor(ProfileViewModel profile)
+    {
+        _error = null;
+        _editorError = null;
+        _editing = profile;
+        _editorOpen = true;
+    }
+
+    private void OpenAdd()
+    {
+        _error = null;
+        _editorError = null;
+        _editing = null;
+        _editorOpen = true;
+    }
+
+    private void CloseEditor()
+    {
+        if (!_editorSaving)
+        {
+            _editorOpen = false;
+            _editorError = null;
+        }
+    }
+
+    private Task SaveEditorAsync(ProfileEditorResult result)
+    {
+        _justUnlocked = false;
+        return SaveAsync(result);
+    }
+
+    private Task DeleteEditingAsync(bool keepPhotos)
+    {
+        _justUnlocked = false;
+        return RemoveAsync(keepPhotos);
+    }
+
+    private async Task SaveAsync(ProfileEditorResult result)
+    {
+        if (_editorSaving)
+        {
+            return;
+        }
+
+        _editorSaving = true;
+        _editorError = null;
+        try
+        {
+            var done = _editing is null ? await AddPersonAsync(result) : await ChangePersonAsync(_editing, result);
+            await ReloadProfilesAsync();
+            if (done)
+            {
+                _editorOpen = false;
+            }
+        }
+        finally
+        {
+            _editorSaving = false;
+        }
+    }
+
+    private async Task<bool> AddPersonAsync(ProfileEditorResult result)
+    {
+        if (await EnsureHouseholdAsync() is not { } householdId)
+        {
+            _editorError = "Your household couldn't be found. Try again.";
+            return false;
+        }
+
+        var added = await Confirmed.RunAsync(() => Identity.AddHouseholdPersonResultAsync(householdId,
+            new AddHouseholdPersonRequest(result.DisplayName, result.Color, result.IsChild, result.NewPin, result.Icon)));
+        if (!added.Succeeded || added.Value is null)
+        {
+            return Fail(added.Failure, () => SaveAsync(result));
+        }
+
+        if (result.PhotoBytes is { } photo)
+        {
+            var uploaded = await Identity.UploadManagedProfilePhotoResultAsync(added.Value.Id, photo, result.PhotoFileName ?? "photo.jpg");
+            if (!uploaded.Succeeded)
+            {
+                // The person exists now, so close the sheet and say what is left to do instead of adding them twice.
+                _error = $"{added.Value.DisplayName} was added, but the photo couldn't be saved. Edit the profile to try again.";
+            }
+        }
+
+        return true;
+    }
+
+    private async Task<bool> ChangePersonAsync(ProfileViewModel profile, ProfileEditorResult result)
+    {
+        // An empty icon tells the Engine to go back to the initial; leaving it out would keep the old icon.
+        var updated = await Confirmed.RunAsync(() => Identity.UpdateManagedProfileResultAsync(profile.Id,
+            new UpdateManagedProfileRequest(result.DisplayName, result.Color, result.Icon ?? string.Empty)));
+        if (!updated.Succeeded)
+        {
+            return Fail(updated.Failure, () => SaveAsync(result));
+        }
+
+        if (result.NewPin is not null || result.RemovePin)
+        {
+            var pin = await Confirmed.RunAsync(() => Identity.SetProfilePinResultAsync(profile.Id, result.NewPin ?? string.Empty));
+            if (!pin.Succeeded)
+            {
+                return Fail(pin.Failure, () => SaveAsync(result));
+            }
+        }
+
+        if (result.PhotoBytes is { } photo)
+        {
+            var uploaded = await Identity.UploadManagedProfilePhotoResultAsync(profile.Id, photo, result.PhotoFileName ?? "photo.jpg");
+            if (!uploaded.Succeeded)
+            {
+                return Fail(uploaded.Failure, () => SaveAsync(result));
+            }
+        }
+        else if (result.RemovePhoto)
+        {
+            var removed = await Identity.RemoveManagedProfilePhotoResultAsync(profile.Id);
+            if (!removed.Succeeded)
+            {
+                return Fail(removed.Failure, () => SaveAsync(result));
+            }
+        }
+
+        return true;
+    }
+
+    private async Task RemoveAsync(bool keepPhotos)
+    {
+        if (_editing is not { } profile || _editorSaving)
+        {
+            return;
+        }
+
+        _editorSaving = true;
+        _editorError = null;
+        try
+        {
+            var removed = await Confirmed.RunAsync(() => Identity.DeleteManagedProfileResultAsync(profile.Id, keepPhotos));
+            if (!removed.Succeeded)
+            {
+                Fail(removed.Failure, () => RemoveAsync(keepPhotos));
+                return;
+            }
+
+            if (_preferredId == profile.Id)
+            {
+                _preferredId = null;
+                _alwaysOpen = false;
+            }
+
+            await ReloadProfilesAsync();
+            _editorOpen = false;
+        }
+        finally
+        {
+            _editorSaving = false;
+        }
+    }
+
+    // A household administrator who turned on an administrator PIN is refused until it is entered, so ask for it once and try again.
+    private bool Fail(DashboardAccessMutationFailure failure, Func<Task> retry)
+    {
+        if (failure == DashboardAccessMutationFailure.Forbidden && !_justUnlocked)
+        {
+            _needsUnlock = true;
+            _unlockPin = string.Empty;
+            _error = null;
+            _afterUnlock = retry;
+            return false;
+        }
+
+        _editorError = failure switch
+        {
+            DashboardAccessMutationFailure.ConfirmItsYou => "Nothing was changed. Confirm it's you to continue.",
+            DashboardAccessMutationFailure.Conflict => "That can't be done right now. A household holds up to 8 people, and each person needs a way in.",
+            DashboardAccessMutationFailure.Validation => "Check the name and PIN, then try again.",
+            DashboardAccessMutationFailure.NotFound => "That person is no longer in the household.",
+            DashboardAccessMutationFailure.Forbidden => "You can't change this person.",
+            DashboardAccessMutationFailure.Unauthorized => "Sign in again to continue.",
+            DashboardAccessMutationFailure.Transient => "The Engine is unavailable. Try again.",
+            _ => "That couldn't be saved. Try again.",
+        };
+        return false;
+    }
+
+    private async Task UnlockAsync()
+    {
+        if (_unlockPin.Length < 4 || _busy)
+        {
+            return;
+        }
+
+        _busy = true;
+        _error = null;
+        try
+        {
+            var pin = _unlockPin;
+            _unlockPin = string.Empty;
+            var unlocked = await Identity.UnlockAdministratorAsync(new GrantAdminUnlockRequest(pin));
+            if (unlocked?.Unlocked != true)
+            {
+                _error = "That PIN didn't work. Try again.";
+                return;
+            }
+        }
+        catch (Exception exception) when (exception is HttpRequestException or TaskCanceledException or System.Text.Json.JsonException)
+        {
+            Logger.LogWarning(exception, "Could not unlock administrator access from the profile picker.");
+            _error = "The Engine is unavailable. Try again.";
+            return;
+        }
+        finally
+        {
+            _busy = false;
+        }
+
+        var retry = _afterUnlock;
+        _needsUnlock = false;
+        _afterUnlock = null;
+        _justUnlocked = true;
+        if (retry is not null)
+        {
+            await retry();
+        }
+    }
+
+    private void CancelUnlock()
+    {
+        _needsUnlock = false;
+        _afterUnlock = null;
+        _unlockPin = string.Empty;
+        _error = null;
+    }
+
+    private async Task<Guid?> EnsureHouseholdAsync()
+    {
+        if (_householdId is { } known)
+        {
+            return known;
+        }
+
+        try
+        {
+            var managed = await Identity.GetManagedProfilesAsync();
+            _householdId = managed
+                .Where(person => person.HouseholdId is not null && _profiles.Any(profile => profile.Id == person.Id))
+                .Select(person => person.HouseholdId)
+                .FirstOrDefault();
+        }
+        catch (Exception exception) when (exception is HttpRequestException or TaskCanceledException or System.Text.Json.JsonException)
+        {
+            Logger.LogWarning(exception, "Could not find the household to add a person to.");
+        }
+
+        return _householdId;
+    }
+
+    private async Task ReloadProfilesAsync()
+    {
+        try
+        {
+            // The list of people a sign-in may open comes from its authority, so refresh that first.
+            await Identity.RevalidateAuthorityAsync(Session);
+            var fresh = await Orchestrator.RefreshProfilesAsync();
+            if (fresh.Count > 0)
+            {
+                _profiles = fresh;
+            }
+        }
+        catch (Exception exception) when (exception is HttpRequestException or TaskCanceledException or System.Text.Json.JsonException)
+        {
+            Logger.LogWarning(exception, "Could not refresh the profile list.");
+            _error = "The list couldn't be refreshed. Reload the page to see the latest.";
+        }
+    }
 }

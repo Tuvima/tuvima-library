@@ -383,9 +383,10 @@ public sealed class DashboardIdentityClient(
     public Task<DashboardAccessMutationResult<ManagedProfileResponse>> UpdateManagedProfileResultAsync(Guid profileId, UpdateManagedProfileRequest request, CancellationToken ct = default) =>
         SendMutationAsync<UpdateManagedProfileRequest, ManagedProfileResponse>(HttpMethod.Put, $"/access/profiles/{profileId:D}", request, ct);
 
-    public async Task<DashboardAccessMutationResult> DeleteManagedProfileResultAsync(Guid profileId, CancellationToken ct = default)
+    /// <summary>Removes a person. Their habits always go; <paramref name="keepPhotos"/> moves their personal photos to the Shared Library (true) or deletes them (false).</summary>
+    public async Task<DashboardAccessMutationResult> DeleteManagedProfileResultAsync(Guid profileId, bool keepPhotos = true, CancellationToken ct = default)
     {
-        var result = await SendMutationAsync(HttpMethod.Delete, $"/access/profiles/{profileId:D}", ct).ConfigureAwait(false);
+        var result = await SendMutationAsync(HttpMethod.Delete, $"/access/profiles/{profileId:D}?photos={(keepPhotos ? "move" : "delete")}", ct).ConfigureAwait(false);
         if (result.Succeeded)
         {
             openScreens?.CloseWhere(screen => screen.ProfileId == profileId);
@@ -393,6 +394,36 @@ public sealed class DashboardIdentityClient(
 
         return result;
     }
+
+    /// <summary>Sets a person's profile photo (JPEG, PNG or WebP up to 5 MB). Allowed for anyone who may manage that person.</summary>
+    public async Task<DashboardAccessMutationResult> UploadManagedProfilePhotoResultAsync(Guid profileId, byte[] photo, string fileName, CancellationToken ct = default)
+    {
+        try
+        {
+            using var content = new MultipartFormDataContent();
+            var file = new ByteArrayContent(photo);
+            file.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(
+                Path.GetExtension(fileName).ToLowerInvariant() switch { ".png" => "image/png", ".webp" => "image/webp", _ => "image/jpeg" });
+            content.Add(file, "file", Path.GetFileName(fileName));
+            using var request = new HttpRequestMessage(HttpMethod.Post, $"/access/profiles/{profileId:D}/avatar") { Content = content };
+            using var response = await Client.SendAsync(request, ct).ConfigureAwait(false);
+            return response.IsSuccessStatusCode
+                ? DashboardAccessMutationResult.Success()
+                : await ReadMutationFailureAsync(response, ct).ConfigureAwait(false);
+        }
+        catch (HttpRequestException)
+        {
+            return DashboardAccessMutationResult.FailureResult(DashboardAccessMutationFailure.Transient);
+        }
+        catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+        {
+            return DashboardAccessMutationResult.FailureResult(DashboardAccessMutationFailure.Transient);
+        }
+    }
+
+    /// <summary>Removes a person's profile photo; their colour or icon shows again.</summary>
+    public Task<DashboardAccessMutationResult> RemoveManagedProfilePhotoResultAsync(Guid profileId, CancellationToken ct = default) =>
+        SendMutationAsync(HttpMethod.Delete, $"/access/profiles/{profileId:D}/avatar", ct);
 
     public Task<DashboardAccessMutationResult<ManagedProfileResponse>> AddHouseholdPersonResultAsync(Guid householdId, AddHouseholdPersonRequest request, CancellationToken ct = default) =>
         SendMutationAsync<AddHouseholdPersonRequest, ManagedProfileResponse>(HttpMethod.Post, $"/access/households/{householdId:D}/people", request, ct);
