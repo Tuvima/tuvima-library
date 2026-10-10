@@ -178,13 +178,6 @@ public sealed class DatabaseConnection : IDatabaseConnection
     {
         _connection?.Dispose();
         _connection = null;
-        // Pooled operation connections keep the file open after the shared one closes; release them so the
-        // data file (and its -wal/-shm files) can be moved or deleted once this instance is gone.
-        using (var poolKey = new SqliteConnection($"Data Source={_databasePath}"))
-        {
-            SqliteConnection.ClearPool(poolKey);
-        }
-
         _writeLock.Dispose();
     }
 }
