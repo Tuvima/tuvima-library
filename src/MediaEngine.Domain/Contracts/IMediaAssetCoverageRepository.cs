@@ -23,6 +23,13 @@ public interface IMediaAssetCoverageRepository
     /// <summary>Batch lookup of the files covering any of the given episodes (one query, not one per episode).</summary>
     Task<IReadOnlyList<MediaAssetCoverage>> ListByWorksAsync(IReadOnlyCollection<Guid> workIds, CancellationToken ct = default);
 
+    /// <summary>
+    /// The episode numbers (ordinals) of every episode the file covers, ascending. Used to name a
+    /// combined file from what is actually recorded rather than from its filename.
+    /// </summary>
+    Task<IReadOnlyList<int>> ListCoveredEpisodeNumbersAsync(Guid assetId, CancellationToken ct = default)
+        => Task.FromResult<IReadOnlyList<int>>([]);
+
     /// <summary>Removes all coverage for one file.</summary>
     Task DeleteForAssetAsync(Guid assetId, CancellationToken ct = default);
 }

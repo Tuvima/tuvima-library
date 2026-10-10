@@ -1,5 +1,6 @@
 using Dapper;
 using MediaEngine.Domain.Entities;
+using MediaEngine.Domain.Services;
 using MediaEngine.Storage;
 
 namespace MediaEngine.Api.Tests;
@@ -242,6 +243,117 @@ public sealed class MediaEditorFileCoverageRepositoryTests : IDisposable
         Assert.Equal([host.WorkId, second.WorkId], (await _coverage.ListByAssetAsync(host.AssetId!.Value)).Select(row => row.WorkId));
     }
 
+    [Fact]
+    public async Task Get_ListsCatalogEpisodesSoThePickerCanChooseThem()
+    {
+        var season = CreateSeason();
+        var host = CreateEpisode(season, 1, withAsset: true);
+        var catalog = CreateCatalogEpisode(season, 2);
+
+        var view = (await _repository.GetAsync(host.AssetId!.Value)).View!;
+
+        Assert.Equal([host.WorkId, catalog], view.Episodes.Select(episode => episode.WorkId));
+        Assert.False(view.Episodes[1].IsCovered);
+    }
+
+    [Fact]
+    public async Task Replace_PromotesNewlyCoveredCatalogEpisodes_AndDemotesUntickedOnes()
+    {
+        var season = CreateSeason();
+        var host = CreateEpisode(season, 1, withAsset: true);
+        var second = CreateCatalogEpisode(season, 2);
+        var third = CreateCatalogEpisode(season, 3);
+
+        var saved = await _repository.ReplaceAsync(host.AssetId!.Value, Guid.NewGuid(), [host.WorkId, second, third]);
+
+        Assert.Equal(FileCoverageOutcome.Ok, saved.Outcome);
+        Assert.Equal(("child", "Owned", 0), WorkState(second));
+        Assert.Equal(("child", "Owned", 0), WorkState(third));
+
+        var trimmed = await _repository.ReplaceAsync(host.AssetId!.Value, Guid.NewGuid(), [host.WorkId, second]);
+
+        Assert.Equal(FileCoverageOutcome.Ok, trimmed.Outcome);
+        Assert.Equal(("child", "Owned", 0), WorkState(second));
+        Assert.Equal(("catalog", "Unowned", 1), WorkState(third));
+
+        await _repository.ReplaceAsync(host.AssetId!.Value, Guid.NewGuid(), [host.WorkId]);
+
+        Assert.Equal(("catalog", "Unowned", 1), WorkState(second));
+        Assert.Equal(("child", "Owned", 0), WorkState(host.WorkId));
+    }
+
+    [Fact]
+    public async Task ClearingFilenameCoverage_ReturnsCoveredEpisodesToTheCatalogue()
+    {
+        var season = CreateSeason();
+        var host = CreateEpisode(season, 1, withAsset: true);
+        var second = CreateCatalogEpisode(season, 2);
+        await _coverage.ReplaceForAssetAsync(host.AssetId!.Value,
+        [
+            new MediaAssetCoverage(host.AssetId!.Value, host.WorkId, 1, null, null, MediaAssetCoverage.SourceFilename),
+            new MediaAssetCoverage(host.AssetId!.Value, second, 2, null, null, MediaAssetCoverage.SourceFilename),
+        ]);
+        Assert.Equal(("child", "Owned", 0), WorkState(second));
+
+        await _coverage.ReplaceForAssetAsync(host.AssetId!.Value, []);
+
+        Assert.Equal(("catalog", "Unowned", 1), WorkState(second));
+        Assert.Equal(("child", "Owned", 0), WorkState(host.WorkId));
+    }
+
+    [Fact]
+    public async Task CombinedFileLifecycle_FilenameToPickerToDelete()
+    {
+        // Filename: an unbroken pair is a range; a typo and a gap are not linked.
+        var pair = EpisodeRangeParser.Parse("Show S01E01E02");
+        Assert.True(pair!.IsRange);
+        Assert.Equal((1, 2), (pair.FirstEpisode, pair.LastEpisode));
+        Assert.True(EpisodeRangeParser.Parse("Show S01E01E200")!.IsUnresolvedRange);
+        Assert.True(EpisodeRangeParser.Parse("Show S01E01E03")!.IsUnresolvedRange);
+
+        // Ingest links the pair; counts treat both as owned from one file, plus one normal file.
+        var season = CreateSeason();
+        var host = CreateEpisode(season, 1, withAsset: true);
+        var second = CreateCatalogEpisode(season, 2);
+        var normal = CreateEpisode(season, 3, withAsset: true);
+        var assetId = host.AssetId!.Value;
+        await _coverage.ReplaceForAssetAsync(assetId,
+        [
+            new MediaAssetCoverage(assetId, host.WorkId, 1, null, null, MediaAssetCoverage.SourceFilename),
+            new MediaAssetCoverage(assetId, second, 2, null, null, MediaAssetCoverage.SourceFilename),
+        ]);
+        using (var conn = _database.CreateConnection())
+        {
+            Assert.Equal(3, conn.ExecuteScalar<long>("SELECT COUNT(DISTINCT work_id) FROM work_owned_assets;"));
+            Assert.Equal(2, conn.ExecuteScalar<long>("SELECT COUNT(DISTINCT asset_id) FROM work_owned_assets;"));
+        }
+
+        // Chip lookup: each episode of the file finds the other through one batched query.
+        var siblings = await _coverage.ListByWorksAsync([host.WorkId, second, normal.WorkId]);
+        Assert.Equal(2, siblings.Count(row => row.AssetId == assetId));
+        Assert.DoesNotContain(siblings, row => row.WorkId == normal.WorkId && row.AssetId != normal.AssetId);
+
+        // Recorded episodes, not the filename, decide the organiser's range.
+        var numbers = await _coverage.ListCoveredEpisodeNumbersAsync(assetId);
+        Assert.Equal([1, 2], numbers);
+        Assert.True(EpisodeRangeParser.TryGetUnbrokenRun(numbers, out var first, out var last));
+        Assert.Equal((1, 2), (first, last));
+        Assert.False(EpisodeRangeParser.TryGetUnbrokenRun([1, 3], out _, out _));
+        Assert.False(EpisodeRangeParser.TryGetUnbrokenRun([2], out _, out _));
+
+        // Editor fix: saving the same list again changes nothing.
+        var again = await _repository.ReplaceAsync(assetId, Guid.NewGuid(), [host.WorkId, second]);
+        Assert.Equal(FileCoverageOutcome.Ok, again.Outcome);
+        Assert.Equal(2, (await _coverage.ListByAssetAsync(assetId)).Count);
+
+        // Delete: removing the file takes all its coverage with it.
+        using (var conn = _database.CreateConnection())
+        {
+            conn.Execute("DELETE FROM media_assets WHERE id = @assetId;", new { assetId });
+            Assert.Equal(0, conn.ExecuteScalar<long>("SELECT COUNT(*) FROM media_asset_coverage;"));
+        }
+    }
+
     public void Dispose()
     {
         try { _database.Dispose(); } catch { /* Test cleanup is best effort. */ }
@@ -267,6 +379,21 @@ public sealed class MediaEditorFileCoverageRepositoryTests : IDisposable
         return (workId, AddAsset(workId));
     }
 
+    private Guid CreateCatalogEpisode(Guid seasonId, int number)
+    {
+        var workId = Guid.NewGuid();
+        InsertWork(workId, "catalog", seasonId, number, catalog: true);
+        return workId;
+    }
+
+    private (string WorkKind, string Ownership, int IsCatalogOnly) WorkState(Guid workId)
+    {
+        using var conn = _database.CreateConnection();
+        return conn.QuerySingle<(string WorkKind, string Ownership, int IsCatalogOnly)>(
+            "SELECT work_kind AS WorkKind, ownership AS Ownership, is_catalog_only AS IsCatalogOnly FROM works WHERE id = @workId;",
+            new { workId });
+    }
+
     private Guid CreateStandaloneWithAsset()
     {
         var workId = Guid.NewGuid();
@@ -274,16 +401,26 @@ public sealed class MediaEditorFileCoverageRepositoryTests : IDisposable
         return AddAsset(workId);
     }
 
-    private void InsertWork(Guid workId, string kind, Guid? parentId, int? ordinal, string mediaType = "TV")
+    private void InsertWork(Guid workId, string kind, Guid? parentId, int? ordinal, string mediaType = "TV", bool catalog = false)
     {
         var collectionId = Guid.NewGuid();
         using var conn = _database.CreateConnection();
         conn.Execute("INSERT INTO collections (id, created_at) VALUES (@collectionId, @createdAt);",
             new { collectionId, createdAt = DateTimeOffset.UtcNow.ToString("O") });
         conn.Execute("""
-            INSERT INTO works (id, collection_id, media_type, work_kind, parent_work_id, ordinal, ordinal_sort, is_catalog_only)
-            VALUES (@workId, @collectionId, @mediaType, @kind, @parentId, @ordinal, @ordinal, 0);
-            """, new { workId, collectionId, mediaType, kind, parentId, ordinal });
+            INSERT INTO works (id, collection_id, media_type, work_kind, parent_work_id, ordinal, ordinal_sort, is_catalog_only, ownership)
+            VALUES (@workId, @collectionId, @mediaType, @kind, @parentId, @ordinal, @ordinal, @isCatalogOnly, @ownership);
+            """, new
+        {
+            workId,
+            collectionId,
+            mediaType,
+            kind,
+            parentId,
+            ordinal,
+            isCatalogOnly = catalog ? 1 : 0,
+            ownership = catalog ? "Unowned" : "Owned",
+        });
     }
 
     private Guid AddAsset(Guid workId)

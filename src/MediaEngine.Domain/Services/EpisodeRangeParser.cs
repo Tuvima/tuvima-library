@@ -20,6 +20,33 @@ public static partial class EpisodeRangeParser
     /// <summary>Longest run of episodes a single file may cover and still be linked automatically.</summary>
     public const int MaxEpisodesPerFile = 6;
 
+    /// <summary>
+    /// True when the recorded episode numbers (ascending) form one unbroken run of two or more
+    /// episodes within <see cref="MaxEpisodesPerFile"/>; a gap, a single episode or an oversized
+    /// run is not a range.
+    /// </summary>
+    public static bool TryGetUnbrokenRun(IReadOnlyList<int> ascendingNumbers, out int first, out int last)
+    {
+        first = 0;
+        last = 0;
+        if (ascendingNumbers.Count < 2 || ascendingNumbers.Count > MaxEpisodesPerFile)
+        {
+            return false;
+        }
+
+        first = ascendingNumbers[0];
+        last = ascendingNumbers[^1];
+        for (var i = 1; i < ascendingNumbers.Count; i++)
+        {
+            if (ascendingNumbers[i] != ascendingNumbers[i - 1] + 1)
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
     // series is optional so a leading "S01E01E02 - Title" stem also parses.
     [GeneratedRegex(
         @"^(?:.+?\s*[.\-_ ]*)?[Ss](?<season>\d{1,2})\s*[Ee](?<first>\d{1,4})(?<tail>(?:\s*-\s*[Ee]\d{1,4}|\s*[Ee]\d{1,4}|-\d{1,4}(?![\dA-Za-z]))*)",

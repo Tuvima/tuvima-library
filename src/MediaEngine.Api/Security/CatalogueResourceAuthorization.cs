@@ -348,31 +348,57 @@ internal sealed class CatalogueResourceAuthorizationService(
 
         // The profile's content limit is the last gate, so every detail page, file, stream and artwork request honours it.
         var content = await ContentLimits.ForAsync(authority).ConfigureAwait(false);
-        if (!content.IsUnrestricted &&
-            !content.Allows(await ReadContentRatingAsync(connection, assetId, ct).ConfigureAwait(false)))
+        if (!content.IsUnrestricted)
         {
-            return CatalogueResourceAccess.Denied;
+            // A combined file is playable from every episode it covers, so each covered episode's rating must pass too.
+            foreach (var rating in await ReadContentRatingsAsync(connection, assetId, ct).ConfigureAwait(false))
+            {
+                if (!content.Allows(rating))
+                {
+                    return CatalogueResourceAccess.Denied;
+                }
+            }
         }
 
         return CatalogueResourceAccess.Allowed;
     }
 
-    private static async Task<string?> ReadContentRatingAsync(
+    /// <summary>
+    /// Ratings of the host edition's work plus every episode the file covers
+    /// (<c>media_asset_coverage</c>). The host rating alone would let a restricted profile
+    /// play a stricter covered episode through a more lenient host file.
+    /// </summary>
+    internal static async Task<IReadOnlyList<string?>> ReadContentRatingsAsync(
         System.Data.IDbConnection connection, Guid assetId, CancellationToken ct)
     {
-        var rating = ContentRatingSql.Expression("w.id", "COALESCE(gw.id, pw.id, w.id)", "ma.id");
-        return await connection.QueryFirstOrDefaultAsync<string?>(new CommandDefinition(
+        var hostRating = ContentRatingSql.Expression("w.id", "COALESCE(gw.id, pw.id, w.id)", "ma.id");
+        var coveredRating = ContentRatingSql.Expression("w.id", "COALESCE(gw.id, pw.id, w.id)", "ma.id");
+        var ratings = (await connection.QueryAsync<string?>(new CommandDefinition(
             $"""
-            SELECT {rating}
+            SELECT {hostRating}
             FROM media_assets ma
             JOIN editions e ON e.id=ma.edition_id
             JOIN works w ON w.id=e.work_id
             LEFT JOIN works pw ON pw.id=w.parent_work_id
             LEFT JOIN works gw ON gw.id=pw.parent_work_id
-            WHERE ma.id=@assetId;
+            WHERE ma.id=@assetId
+            UNION ALL
+            SELECT {coveredRating}
+            FROM media_asset_coverage c
+            JOIN media_assets ma ON ma.id=c.asset_id
+            JOIN works w ON w.id=c.work_id
+            LEFT JOIN works pw ON pw.id=w.parent_work_id
+            LEFT JOIN works gw ON gw.id=pw.parent_work_id
+            WHERE c.asset_id=@assetId;
             """,
             new { assetId },
-            cancellationToken: ct)).ConfigureAwait(false);
+            cancellationToken: ct)).ConfigureAwait(false)).ToList();
+        // An asset with no host row keeps the old fail-closed shape: one unrated entry.
+        if (ratings.Count == 0)
+        {
+            ratings.Add(null);
+        }
+        return ratings;
     }
 
     private static AccountFeatureId? FeatureFor(string mediaType) =>

@@ -148,6 +148,10 @@ public sealed class MediaEditorFileCoverageRepository(IDatabaseConnection databa
                         """, row, tx);
                 }
 
+                // Newly covered episodes become owned (a catalog row turns into a child); episodes
+                // that were unticked and have no other file go back to the catalogue.
+                WorkOwnershipSync.Recompute(conn, tx, existing.Keys.Concat(rows.Select(row => row.WorkId)));
+
                 conn.Execute("""
                     INSERT INTO system_activity(action_type, entity_id, entity_type, detail, changes_json)
                     VALUES('MetadataUpdated', @assetId, 'MediaAsset', @detail, @changes);
@@ -236,7 +240,7 @@ public sealed class MediaEditorFileCoverageRepository(IDatabaseConnection databa
                           WHERE woa.work_id = w.id AND woa.asset_id <> @assetId
                             AND other.status = 'Normal' AND other.is_orphaned = 0) AS OwnedElsewhere
             FROM works w
-            WHERE w.parent_work_id = @seasonId AND w.media_type = 'TV' AND w.work_kind = 'child'
+            WHERE w.parent_work_id = @seasonId AND w.media_type = 'TV' AND w.work_kind IN ('child', 'catalog')
             ORDER BY w.ordinal_sort, w.ordinal;
             """, new { assetId, seasonId = host.SeasonId }, tx).ToList();
 
