@@ -375,6 +375,14 @@ internal sealed partial class DetailCompositionOrchestrator
         var seasonArtwork = entityType == DetailEntityType.TvShow
             ? await LoadTvSeasonArtworkAsync(rootWorkId ?? collectionId, ct)
             : null;
+        var sameFileLinks = entityType == DetailEntityType.TvShow
+            ? await LoadSameFileLinksAsync(
+                displayWorks
+                    .Where(work => work.IsOwned && Guid.TryParse(work.Id, out _))
+                    .Select(work => new SameFileCandidate(Guid.Parse(work.Id), TryParseInt(work.Episode)?.ToString(CultureInfo.InvariantCulture) ?? work.Episode, work.Title))
+                    .ToList(),
+                ct)
+            : null;
         var sequencePlacement = BuildCollectionSequencePlacement(
             sequenceCollectionId,
             entityType,
@@ -386,7 +394,8 @@ internal sealed partial class DetailCompositionOrchestrator
             manifest?.AuthoritativeTotalsByContainer,
             seasonArtwork,
             currentWorkId ?? tvPlaybackEpisodeId,
-            entityType == DetailEntityType.TvShow ? rootWorkId ?? collectionId : null);
+            entityType == DetailEntityType.TvShow ? rootWorkId ?? collectionId : null,
+            sameFileLinks);
         var mediaGroups = entityType == DetailEntityType.TvShow
             ? []
             : BuildCollectionMediaGroups(entityType, displayWorks, favoriteWorkIds, expectedTotal);

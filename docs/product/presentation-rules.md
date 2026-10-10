@@ -68,6 +68,10 @@ TMDB episode credits are stored separately from show aggregates; full credits su
 
 These changes require fresh pre-beta ingestion. Runtime and responsive visual acceptance are pending; see the TV episode consistency proposal for validation status and remaining scope.
 
+### Episodes stored in one file
+
+When one video file holds several episodes, each covered episode in a season strip carries a quiet "Same file as Episode N" chip under its tile. The chip data arrives with the episode item (one batched lookup per page, no per-card requests). When the other episode is in the visible strip the chip is a 44px button that highlights it (press again to clear); otherwise it is plain text. It wraps on phone widths, follows the dark theme and needs no motion. Files without combined episodes look exactly as before.
+
 
 ### Libraries settings refresh
 
