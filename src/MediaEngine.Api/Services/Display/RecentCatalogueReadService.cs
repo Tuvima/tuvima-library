@@ -126,7 +126,7 @@ internal sealed class RecentCatalogueReadService(
         foreach (var group in filtered.Where(r => DisplayMediaRules.NormalizeDisplayKind(r.MediaType) == "Music")
                      .GroupBy(r => r.RootWorkId == Guid.Empty ? r.WorkId : r.RootWorkId))
         {
-            var row = group.OrderByDescending(r => r.CreatedAt).First();
+            var row = group.OrderByDescending(r => r.CreatedAt).ThenBy(r => r.WorkId).ThenBy(r => r.AssetId).First();
             var card = cards.FromWork(row, "recent", null);
             var action = new DisplayActionDto("playAlbum", "Play Album", row.WorkId, row.AssetId, row.CollectionId, $"/details/musicalbum/{group.Key:D}?context=listen");
             result.Add(card with
@@ -143,7 +143,7 @@ internal sealed class RecentCatalogueReadService(
             });
         }
         result.AddRange(filtered.Where(r => DisplayMediaRules.NormalizeDisplayKind(r.MediaType) is not ("TV" or "Music"))
-            .GroupBy(r => r.WorkId).Select(g => cards.FromWork(g.OrderByDescending(r => r.CreatedAt).First(), "recent", progress?.GetValueOrDefault(g.Key))));
+            .GroupBy(r => r.WorkId).Select(g => cards.FromWork(g.OrderByDescending(r => r.CreatedAt).ThenBy(r => r.WorkId).ThenBy(r => r.AssetId).First(), "recent", progress?.GetValueOrDefault(g.Key))));
         return result.Select(card => new DisplayRecentItemDto("catalogue:" + card.Id.ToString("N"), card.SortTimestamp, card, null))
             .Where(item => DisplayRecentCursor.IsAfter(item.AddedAt, item.Key, boundary))
             .OrderByDescending(i => i.AddedAt).ThenBy(i => i.Key, StringComparer.Ordinal).Take(take).ToList();
