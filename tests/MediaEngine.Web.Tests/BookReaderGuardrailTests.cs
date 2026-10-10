@@ -59,7 +59,34 @@ public sealed class BookReaderGuardrailTests
 
         Assert.Contains("script-src 'none'", adapter);
         Assert.Contains("connect-src 'none'", adapter);
+        Assert.Contains("frame-src 'none'", adapter);
         Assert.Contains("if (detail.isScript) detail.allow = false;", adapter);
+    }
+
+    [Fact]
+    public void Adapter_HardensEveryKindOfDocumentItCanShow()
+    {
+        var adapter = Read($"{Web}/wwwroot/js/book-reader.js");
+
+        // XHTML/HTML, SVG pages and anything else a browser would open as a document all pass through the hardening step.
+        Assert.Contains("hardenPageDetailed", adapter);
+        Assert.Contains("hardenSvg", adapter);
+        Assert.Contains("hardenSvgAsPage", adapter);
+        Assert.Contains("isDocumentType", adapter);
+        Assert.Contains("iframe, frame, frameset, object, embed, applet, base", adapter);
+        // A page that cannot be parsed is replaced, never passed through as it was.
+        Assert.Contains("BLOCKED_PAGE", adapter);
+        Assert.DoesNotContain("return text;", adapter);
+    }
+
+    [Fact]
+    public void Adapter_RejectsABookThatChangesWhileItIsRead()
+    {
+        var adapter = Read($"{Web}/wwwroot/js/book-reader.js");
+
+        Assert.Contains("'If-Range'", adapter);
+        Assert.Contains("'changed'", adapter);
+        Assert.Contains("OnFailed", adapter);
     }
 
     [Fact]
@@ -72,6 +99,10 @@ public sealed class BookReaderGuardrailTests
         Assert.Contains("[\"cfi\"]", page);
         Assert.Contains("IAsyncDisposable", page);
         Assert.Contains("_dotNetRef?.Dispose()", page);
+        Assert.Contains("_disposing", page);
+        Assert.Contains("public Task OnFailed", page);
+        // Stored reader settings are read by the script, so no stored-JSON shape is parsed on the .NET side.
+        Assert.DoesNotContain("ReaderSettingsDto", page);
         Assert.DoesNotContain("style=\"", page);
         Assert.DoesNotContain("<button", page);
         Assert.DoesNotContain("<input", page);
@@ -85,6 +116,9 @@ public sealed class BookReaderGuardrailTests
         Assert.Contains("[SupplyParameterFromQuery(Name = \"reader\")]", page);
         Assert.Contains("\"new\"", page);
         Assert.Contains("<BookReader ", page);
+        // The choice is made once when the page opens.
+        Assert.Contains("private bool _useNewReader;", page);
+        Assert.DoesNotContain("UseNewReader =>", page);
     }
 
     [Fact]

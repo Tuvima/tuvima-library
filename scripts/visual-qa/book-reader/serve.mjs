@@ -27,7 +27,7 @@ const PAGE = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewp
  */
 export async function startServer({ books = {}, mode = 'range', port = 0 } = {}) {
     const log = [];
-    const state = { mode };
+    const state = { mode, etag: '"v1"' };
     const server = http.createServer((req, res) => {
         const url = new URL(req.url, 'http://x');
         const entry = { method: req.method, path: url.pathname, range: req.headers.range ?? null, status: 0, bytes: 0 };
@@ -46,9 +46,11 @@ export async function startServer({ books = {}, mode = 'range', port = 0 } = {})
             if (typeof state.mode === 'number') return finish(state.mode, state.mode === 429 ? { 'Retry-After': '1' } : {});
             if (!file) return finish(404);
             const size = fs.statSync(file).size;
-            const base = { 'Content-Type': 'application/epub+zip', 'Cache-Control': 'private, no-cache', 'X-Content-Type-Options': 'nosniff' };
+            const base = { 'Content-Type': 'application/epub+zip', 'Cache-Control': 'private, no-cache', 'X-Content-Type-Options': 'nosniff', ETag: state.etag };
             const range = /^bytes=(\d*)-(\d*)$/.exec(req.headers.range ?? '');
-            if (!range || state.mode === 'no-range') {
+            // If-Range with a validator that no longer matches means "the file changed: send it all" (RFC 9110).
+            const changed = req.headers['if-range'] !== undefined && req.headers['if-range'] !== state.etag;
+            if (!range || state.mode === 'no-range' || changed) {
                 entry.bytes = size;
                 entry.status = 200;
                 res.writeHead(200, { ...base, 'Content-Length': size });
@@ -78,6 +80,7 @@ export async function startServer({ books = {}, mode = 'range', port = 0 } = {})
         origin: `http://127.0.0.1:${address.port}`,
         log,
         setMode: value => { state.mode = value; },
+        setEtag: value => { state.etag = value; },
         clearLog: () => { log.length = 0; },
         close: () => new Promise(resolve => server.close(resolve)),
     };

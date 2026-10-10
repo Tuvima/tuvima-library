@@ -201,6 +201,71 @@ export function buildRegressionEpub(file, { trackerOrigin = 'http://127.0.0.1:9'
     zip.close();
 }
 
+/**
+ * A hostile book (the 2026-10-10 review): scripts hidden in an SVG spine item, in an SVG that a chapter embeds
+ * through <iframe>/<object>/<embed>, in an XHTML-namespace element inside an SVG, in an XML-typed spine item,
+ * in a page that is not well-formed XHTML, and a meta refresh. Nothing here may ever run, and the harmless
+ * parts (text, pictures) must still show.
+ */
+export const HOSTILE_PWN = "window.__pwned = (window.__pwned ? window.__pwned + ',' : '') + 'NAME'; try { window.parent.__pwned = 'NAME-parent'; window.top.__pwned = 'NAME-top'; } catch (e) {}";
+const pwn = name => HOSTILE_PWN.replaceAll('NAME', name);
+
+export function buildHostileEpub(file) {
+    const zip = new ZipFile(file);
+    zip.add('mimetype', 'application/epub+zip', { store: true });
+    zip.add('META-INF/container.xml', CONTAINER);
+    const items = [
+        ['ch1', 'text/ch1.xhtml', 'application/xhtml+xml'],
+        ['svgok', 'text/ok.svg', 'image/svg+xml'],
+        ['svgbad', 'text/bad.svg', 'image/svg+xml'],
+        ['xmlbad', 'text/bad.xml', 'text/xml'],
+        ['broken', 'text/broken.xhtml', 'application/xhtml+xml'],
+        ['evil', 'images/evil.svg', 'image/svg+xml'],
+        ['pic', 'images/pic.png', 'image/png'],
+    ].map(([id, href, type]) => `<item id="${id}" href="${href}" media-type="${type}"/>`).join('');
+    const spine = ['ch1', 'svgok', 'svgbad', 'xmlbad', 'broken'].map(id => `<itemref idref="${id}"/>`).join('');
+    zip.add('OEBPS/content.opf', `<?xml version="1.0" encoding="utf-8"?>
+<package xmlns="http://www.idpf.org/2007/opf" version="3.0" unique-identifier="bookid">
+<metadata xmlns:dc="http://purl.org/dc/elements/1.1/"><dc:identifier id="bookid">urn:uuid:99999999-2222-3333-4444-555555555555</dc:identifier><dc:title>Hostile Fixture</dc:title><dc:creator>Test Author</dc:creator><dc:language>en</dc:language><meta property="dcterms:modified">2026-10-10T00:00:00Z</meta></metadata>
+<manifest><item id="nav" href="nav.xhtml" media-type="application/xhtml+xml" properties="nav"/>${items}</manifest><spine>${spine}</spine></package>`);
+    zip.add('OEBPS/nav.xhtml', nav(['ch1']));
+    zip.add('OEBPS/images/pic.png', makePng(120, 80, [200, 40, 40]), { store: true });
+    const svgNs = 'xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"';
+    // Same bad SVG used as a spine item and as the target of frames inside a chapter.
+    const bad = name => `<?xml version="1.0" encoding="utf-8"?>
+<svg ${svgNs} xmlns:h="http://www.w3.org/1999/xhtml" viewBox="0 0 300 200" width="300" height="200" onload="${pwn(name + '-onload')}">
+<title>hostile</title>
+<script>${pwn(name + '-script')}</script>
+<h:script>${pwn(name + '-xhtml-script')}</h:script>
+<foreignObject width="300" height="100"><h:div><h:script>${pwn(name + '-fo-script')}</h:script><h:iframe src="javascript:window.top.__pwned='${name}-fo-iframe'"></h:iframe></h:div></foreignObject>
+<a xlink:href="javascript:window.top.__pwned='${name}-link'"><text id="link-text" x="10" y="150">a script link</text></a>
+<a href="https://example.org/ok"><text id="web-link-text" x="10" y="170">a web link</text></a>
+<rect width="50" height="50" fill="teal" onclick="${pwn(name + '-onclick')}"/>
+<set attributeName="href" to="javascript:alert(1)" begin="0s"/>
+<image id="outside-image" width="10" height="10" xlink:href="http://127.0.0.1:9/tracker/pixel.png"/>
+<text id="visible-text" x="10" y="190">Visible text in a hostile svg</text>
+</svg>`;
+    zip.add('OEBPS/images/evil.svg', bad('evil-frame'));
+    zip.add('OEBPS/text/bad.svg', bad('svg-spine'));
+    zip.add('OEBPS/text/ok.svg', `<?xml version="1.0" encoding="utf-8"?>
+<svg ${svgNs} viewBox="0 0 300 200" width="300" height="200"><rect width="300" height="200" fill="#ddeeff"/><image id="ok-image" width="120" height="80" xlink:href="../images/pic.png"/><text id="ok-text" x="10" y="150">A harmless svg page</text></svg>`);
+    zip.add('OEBPS/text/bad.xml', `<?xml version="1.0"?>
+<html xmlns="http://www.w3.org/1999/xhtml"><body><p id="xml-text">xml typed page</p><script>${pwn('xml-spine')}</script></body></html>`);
+    zip.add('OEBPS/text/broken.xhtml', `<html><head><meta http-equiv="refresh" content="0;url=https://example.org/gone"/></head><body><p id="broken-text">Not well formed <b>xhtml<p>second <script>${pwn('broken-script')}</script></body>`);
+    zip.add('OEBPS/text/ch1.xhtml', xhtml('Chapter', `
+<h1 id="hostile-title">Hostile chapter</h1>
+<p>${paragraph(7, 6)}</p>
+<iframe id="evil-iframe" src="../images/evil.svg" width="300" height="200"></iframe>
+<object id="evil-object" data="../images/evil.svg" type="image/svg+xml" width="300" height="200"></object>
+<embed id="evil-embed" src="../images/evil.svg" type="image/svg+xml" width="300" height="200"/>
+<img id="evil-img" src="../images/evil.svg" alt="svg as picture" width="150" height="100"/>
+<iframe id="js-iframe" src="javascript:window.top.__pwned='js-iframe'"></iframe>
+<a id="js-link" href="javascript:window.top.__pwned='js-link'">script link</a>
+<meta http-equiv="refresh" content="0;url=https://example.org/gone"/>
+<p>${paragraph(8, 6)}</p>`));
+    zip.close();
+}
+
 /** A plain book of roughly `sizeMB` megabytes: many chapters, each with a valid PNG padded by an ignorable chunk. */
 export function buildBigEpub(file, sizeMB) {
     const zip = new ZipFile(file);
@@ -244,6 +309,8 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
     fs.mkdirSync(out, { recursive: true });
     buildRegressionEpub(path.join(out, 'regression.epub'));
     console.log('regression.epub');
+    buildHostileEpub(path.join(out, 'hostile.epub'));
+    console.log('hostile.epub');
     buildFixedLayoutEpub(path.join(out, 'fixed-layout.epub'));
     console.log('fixed-layout.epub');
     for (const size of [5, 50, 200]) {

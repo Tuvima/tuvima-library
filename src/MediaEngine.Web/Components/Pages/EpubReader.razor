@@ -14,10 +14,10 @@
 
 @implements IAsyncDisposable
 
-@if (UseNewReader)
+@if (_useNewReader)
 {
     @* BR2: the foliate-js reader, switched on with ?reader=new. The page below stays the default until the cutover. *@
-    <BookReader AssetId="AssetId" ReturnCollectionId="ReturnCollectionId" Restart="Restart" />
+    <BookReader @key="AssetId" AssetId="AssetId" ReturnCollectionId="ReturnCollectionId" Restart="Restart" />
 }
 else
 {
@@ -321,7 +321,11 @@ else
     [SupplyParameterFromQuery(Name = "reader")] public string? ReaderChoice { get; set; }
 
     // BR2: ?reader=new shows the foliate-js reader; the current reader stays the default until the cutover.
-    private bool UseNewReader => string.Equals(ReaderChoice, "new", StringComparison.OrdinalIgnoreCase);
+    // Decided once when the page opens, so a later address change cannot swap readers under a running page.
+    private bool _useNewReader;
+
+    protected override void OnInitialized() =>
+        _useNewReader = string.Equals(ReaderChoice, "new", StringComparison.OrdinalIgnoreCase);
 
     private bool _loading = true;
     private string? _loadError;
@@ -367,7 +371,7 @@ else
 
     protected override async Task OnInitializedAsync()
     {
-        if (UseNewReader)
+        if (_useNewReader)
         {
             return;
         }
@@ -854,7 +858,7 @@ else
 
     public async ValueTask DisposeAsync()
     {
-        if (UseNewReader)
+        if (_useNewReader)
         {
             return;
         }

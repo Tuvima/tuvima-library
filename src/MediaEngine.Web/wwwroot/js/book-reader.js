@@ -64,15 +64,22 @@ class RangedFile extends BlobReader {
     #lastEnd = -1;
     #run = 0;
     #canFetch;
+    #ifRange;          // the validator (ETag or Last-Modified) of the file as first seen; sent with every later range
+    #etag;
     stats;
+    onFatal = null;    // called once when the book can no longer be read (replaced on disk, sign-in ended)
 
-    constructor(url, size, firstChunk, canFetch, signal, stats) {
+    constructor(url, size, firstChunk, canFetch, signal, stats, validators = {}) {
         super({ size });
         this.#url = url;
         this.size = size;
         this.#signal = signal;
         this.#canFetch = canFetch;
         this.stats = stats;
+        // A weak ETag cannot be used with If-Range, so fall back to Last-Modified in that case.
+        const strong = validators.etag && !/^W\//.test(validators.etag) ? validators.etag : null;
+        this.#etag = strong;
+        this.#ifRange = strong ?? validators.lastModified ?? null;
         this.#remember(firstChunk.start, firstChunk.bytes);
     }
 
@@ -88,8 +95,12 @@ class RangedFile extends BlobReader {
             const m = /^bytes (\d+)-(\d+)\/(\d+)$/.exec(res.headers.get('Content-Range') ?? '');
             if (!m) throw new ReaderError('unavailable', 'The library sent an unreadable range answer.');
             const bytes = new Uint8Array(await res.arrayBuffer());
+            if (bytes.length !== Number(m[2]) - Number(m[1]) + 1) {
+                throw new ReaderError('unavailable', 'The library sent an incomplete part of the book.');
+            }
             stats.bytes += bytes.length;
-            return new RangedFile(url, Number(m[3]), { start: Number(m[1]), bytes }, true, signal, stats);
+            const validators = { etag: res.headers.get('ETag'), lastModified: res.headers.get('Last-Modified') };
+            return new RangedFile(url, Number(m[3]), { start: Number(m[1]), bytes }, true, signal, stats, validators);
         }
         if (res.status === 200) {
             // The server ignored the range and sent the whole book. Keep it in memory and read from there.
@@ -139,6 +150,39 @@ class RangedFile extends BlobReader {
         throw new ReaderError('unavailable', 'The library could not send this part of the book.');
     }
 
+    async #fetchRange(start, stop) {
+        const headers = { Range: 'bytes=' + start + '-' + (stop - 1) };
+        if (this.#ifRange) headers['If-Range'] = this.#ifRange;
+        let res;
+        try {
+            res = await fetchWithRetry(this.#url, headers, this.#signal, this.stats);
+        } catch (e) {
+            if (e instanceof ReaderError || this.#signal?.aborted) throw e;
+            throw new ReaderError('offline', 'The library could not be reached.', e);
+        }
+        // A full answer to a conditional range request means the file is no longer the one we started with.
+        if (res.status === 200) throw this.#ifRange ? RangedFile.#changed() : statusError(502);
+        if (res.status !== 206) throw statusError(res.status);
+        const m = /^bytes (\d+)-(\d+)\/(\d+)$/.exec(res.headers.get('Content-Range') ?? '');
+        if (!m) throw new ReaderError('unavailable', 'The library sent an unreadable range answer.');
+        if (Number(m[3]) !== this.size) throw RangedFile.#changed();
+        const etag = res.headers.get('ETag');
+        if (this.#etag && etag && etag !== this.#etag) throw RangedFile.#changed();
+        if (Number(m[1]) !== start || Number(m[2]) > stop - 1) {
+            throw new ReaderError('unavailable', 'The library sent a different part of the book than asked for.');
+        }
+        const bytes = new Uint8Array(await res.arrayBuffer());
+        if (bytes.length !== Number(m[2]) - Number(m[1]) + 1) {
+            throw new ReaderError('unavailable', 'The library sent an incomplete part of the book.');
+        }
+        this.stats.bytes += bytes.length;
+        this.#remember(start, bytes);
+    }
+
+    static #changed() {
+        return new ReaderError('changed', 'This book was replaced while you were reading it. Open it again to continue.');
+    }
+
     #fetchAround(offset, end) {
         // Reading straight through a large file? Grow the read-ahead; a jump resets it.
         this.#run = offset === this.#lastEnd ? this.#run + 1 : 0;
@@ -146,17 +190,12 @@ class RangedFile extends BlobReader {
         const start = offset;
         const stop = Math.min(this.size, Math.max(end, offset + block));
         const promise = (async () => {
-            let res;
             try {
-                res = await fetchWithRetry(this.#url, { Range: 'bytes=' + start + '-' + (stop - 1) }, this.#signal, this.stats);
+                await this.#fetchRange(start, stop);
             } catch (e) {
-                if (e instanceof ReaderError || this.#signal?.aborted) throw e;
-                throw new ReaderError('offline', 'The library could not be reached.', e);
+                if (e instanceof ReaderError && (e.code === 'changed' || e.code === 'unauthorized')) this.onFatal?.(e);
+                throw e;
             }
-            if (res.status !== 206) throw statusError(res.status === 200 ? 502 : res.status);
-            const bytes = new Uint8Array(await res.arrayBuffer());
-            this.stats.bytes += bytes.length;
-            this.#remember(start, bytes);
         })();
         const entry = { start, end: stop, promise };
         this.#pending.push(entry);
@@ -248,47 +287,95 @@ const sha1 = async str => {
 // ---------------------------------------------------------------------------
 
 // Applied to every book page before it is shown. The book can show its own pictures, fonts and
-// styles (they are blob: URLs made from the zip) and nothing else: no scripts, no network.
+// styles (they are blob: URLs made from the zip) and nothing else: no scripts, no network, no frames.
 export const BOOK_CSP = [
     "default-src 'none'",
     "script-src 'none'",
     "connect-src 'none'",
     "object-src 'none'",
+    "frame-src 'none'",
     "base-uri 'none'",
     "form-action 'none'",
     'img-src blob: data:',
     'media-src blob: data:',
     'font-src blob: data:',
     "style-src blob: 'unsafe-inline'",
-    'frame-src blob:',
 ].join('; ');
 
-const PAGE_TYPES = new Set(['application/xhtml+xml', 'text/html']);
-const isLocalUrl = value => !value || !/^[a-z][a-z0-9+.-]*:/i.test(value) || /^(blob|data):/i.test(value);
+// foliate-js shows every chapter in an iframe that is sandboxed with allow-same-origin AND allow-scripts (the
+// library needs allow-scripts for events in WebKit). That means a script that runs inside a chapter would run with
+// the Dashboard's own rights. So nothing a book ships may ever become a live document unless it has been made safe
+// first: XHTML/HTML gets the CSP above plus a clean-up, SVG (which cannot carry a CSP) gets a stricter clean-up,
+// and every other kind of document is refused.
+const XHTML_TYPE = 'application/xhtml+xml';
+const HTML_TYPE = 'text/html';
+const SVG_TYPE = 'image/svg+xml';
+const SVG_NS = 'http://www.w3.org/2000/svg';
+const isXhtmlOrHtml = type => type === XHTML_TYPE || type === HTML_TYPE;
+// Types a browser would render as a document. Anything of these kinds that is not hardened below is refused.
+const isDocumentType = type => /(^|\/|\+)(x?html|xml)$/i.test(type ?? '') || /^text\/(html|xml)/i.test(type ?? '');
 
-/** Pure: harden one book page (string of XHTML/HTML) and return the new string. */
-export function hardenPage(text, mediaType) {
-    const doc = new DOMParser().parseFromString(text, mediaType);
-    if (doc.querySelector('parsererror') || !doc.documentElement) return text;
+const COMPACT_CHARS = new RegExp('[\\u0000-\\u0020\\u007f-\\u009f\\u2028\\u2029]+', 'g');
+const compact = value => String(value ?? '').replace(COMPACT_CHARS, '').toLowerCase();
+const isLocalUrl = value => !value || !/^[a-z][a-z0-9+.-]*:/i.test(value.trim()) || /^(blob|data):/i.test(value.trim());
+const isScriptUrl = value => /^(javascript|vbscript|livescript):/.test(compact(value)) || /^data:(text|application)\//.test(compact(value));
+const LINK_SCHEMES = /^(https?:|mailto:)/i;
+const URL_ATTRS = ['href', 'src', 'data', 'poster', 'action', 'formaction', 'xlink:href', 'from', 'to', 'values', 'srcset'];
 
-    for (const script of doc.querySelectorAll('script')) script.remove();
+/** Blocks anything in CSS that would load from outside the book. */
+function cleanCss(css) {
+    return String(css ?? '')
+        .replace(/@import[^;{]*(;|(?=\{)|$)/gi, '')
+        .replace(/url\(\s*(['"]?)\s*(?![#]|blob:|data:image\/)[^)'"]*\1\s*\)/gi, 'none')
+        .replace(/expression\s*\(/gi, '(');
+}
+
+/** Shared: scripts, handlers and script URLs go in every kind of document. */
+function stripActiveContent(doc) {
+    for (const el of Array.from(doc.querySelectorAll('script'))) el.remove();
     for (const el of doc.querySelectorAll('*')) {
         for (const attr of Array.from(el.attributes)) {
             if (/^on/i.test(attr.name)) el.removeAttribute(attr.name);
+            else if (URL_ATTRS.includes(attr.name.toLowerCase()) && isScriptUrl(attr.value)) el.removeAttribute(attr.name);
         }
     }
-    // A book must not reach out to the web for pictures, styles or frames (privacy and tracking pixels).
-    for (const el of doc.querySelectorAll('img[src], source[src], video[src], audio[src], iframe[src], embed[src], track[src]')) {
+}
+
+const BLOCKED_PAGE = `<html xmlns="http://www.w3.org/1999/xhtml"><head><meta http-equiv="Content-Security-Policy" content="${BOOK_CSP}"/><title></title></head><body><p>This page could not be shown safely.</p></body></html>`;
+
+/**
+ * Pure: harden one book page and return { text, type }. Fails closed: a page that cannot be parsed is
+ * replaced by a plain notice rather than shown as it is.
+ */
+export function hardenPageDetailed(text, mediaType) {
+    let type = mediaType === HTML_TYPE ? HTML_TYPE : XHTML_TYPE;
+    let doc = new DOMParser().parseFromString(text, type);
+    if (type === XHTML_TYPE && (doc.querySelector('parsererror') || !doc.documentElement)) {
+        // Not valid XHTML: read it as forgiving HTML (the same fallback the library uses), then write it back out as XML.
+        type = HTML_TYPE;
+        doc = new DOMParser().parseFromString(text, type);
+    }
+    if (!doc.documentElement || doc.querySelector('parsererror')) return { text: BLOCKED_PAGE, type: XHTML_TYPE };
+
+    stripActiveContent(doc);
+    // No nested documents, plug-ins or redirects: a frame would be a document this clean-up never sees.
+    for (const el of Array.from(doc.querySelectorAll('iframe, frame, frameset, object, embed, applet, base'))) el.remove();
+    for (const el of Array.from(doc.querySelectorAll('meta[http-equiv]'))) {
+        if (/^(refresh|set-cookie|content-security-policy|x-frame-options)$/i.test(el.getAttribute('http-equiv'))) el.remove();
+    }
+    // A book must not reach out to the web for pictures, styles or media (privacy and tracking pixels).
+    for (const el of doc.querySelectorAll('img[src], source[src], video[src], audio[src], track[src], input[src]')) {
         if (!isLocalUrl(el.getAttribute('src'))) el.removeAttribute('src');
     }
     for (const el of doc.querySelectorAll('[srcset]')) {
         const external = el.getAttribute('srcset').split(',').some(part => !isLocalUrl(part.trim().split(/\s+/)[0]));
         if (external) el.removeAttribute('srcset');
     }
-    for (const el of doc.querySelectorAll('link[href]')) {
+    for (const el of Array.from(doc.querySelectorAll('link[href]'))) {
         if (!isLocalUrl(el.getAttribute('href'))) el.remove();
     }
-    for (const el of doc.querySelectorAll('object, embed')) el.remove();
+    for (const el of doc.querySelectorAll('style')) el.textContent = cleanCss(el.textContent);
+    for (const el of doc.querySelectorAll('[style]')) el.setAttribute('style', cleanCss(el.getAttribute('style')));
 
     let head = doc.querySelector('head');
     if (!head) {
@@ -299,24 +386,111 @@ export function hardenPage(text, mediaType) {
     meta.setAttribute('http-equiv', 'Content-Security-Policy');
     meta.setAttribute('content', BOOK_CSP);
     head.prepend(meta);
+    return { text: new XMLSerializer().serializeToString(doc), type };
+}
+
+/** Pure: harden one book page (string of XHTML/HTML) and return the new string. */
+export function hardenPage(text, mediaType) {
+    return hardenPageDetailed(text, mediaType).text;
+}
+
+const SVG_REMOVE = new Set(['script', 'foreignobject', 'iframe', 'frame', 'embed', 'object', 'applet', 'animate', 'set', 'handler', 'listener', 'meta', 'base', 'audio', 'video', 'canvas']);
+
+/**
+ * Pure: harden one SVG document, which a browser would run scripts in if it were opened as a page, and which cannot
+ * carry a CSP. Returns the new string, or null when the file cannot be made safe (so it is refused, never shown as is).
+ */
+export function hardenSvg(text) {
+    const doc = new DOMParser().parseFromString(text, SVG_TYPE);
+    const root = doc.documentElement;
+    if (!root || doc.querySelector('parsererror') || root.localName !== 'svg' || root.namespaceURI !== SVG_NS) return null;
+
+    // Only elements in the SVG namespace stay (an XHTML <script> or <iframe> inside an SVG is still a script/frame).
+    for (const el of Array.from(root.querySelectorAll('*'))) {
+        if (el.namespaceURI !== SVG_NS || SVG_REMOVE.has(el.localName.toLowerCase())) el.remove();
+    }
+    stripActiveContent(doc);
+    for (const el of root.querySelectorAll('*')) {
+        for (const name of ['href', 'xlink:href']) {
+            const value = el.getAttribute(name);
+            if (value === null) continue;
+            const allowed = el.localName === 'a' ? (isLocalUrl(value) || LINK_SCHEMES.test(value.trim())) : isLocalUrl(value);
+            if (!allowed) el.removeAttribute(name);
+        }
+    }
+    for (const el of doc.querySelectorAll('style')) el.textContent = cleanCss(el.textContent);
+    for (const el of doc.querySelectorAll('[style]')) el.setAttribute('style', cleanCss(el.getAttribute('style')));
+    // xml-stylesheet instructions can pull in a stylesheet from anywhere; keep only the ones inside the book.
+    for (const node of Array.from(doc.childNodes)) {
+        if (node.nodeType === Node.PROCESSING_INSTRUCTION_NODE) {
+            const href = /href\s*=\s*["']([^"']*)["']/i.exec(node.data)?.[1];
+            if (node.target !== 'xml-stylesheet' || (href !== undefined && !isLocalUrl(href))) node.remove();
+        }
+    }
     return new XMLSerializer().serializeToString(doc);
+}
+
+/**
+ * Pure: an SVG that is a page of the book (a spine item). The paginator measures pages through their <body>, which an
+ * SVG document does not have, so the cleaned SVG is shown inside a plain XHTML page; that page also carries the CSP.
+ * Returns { text, type } and fails closed like hardenPage.
+ */
+export function hardenSvgAsPage(text) {
+    const svg = hardenSvg(text);
+    if (svg === null) return { text: BLOCKED_PAGE, type: XHTML_TYPE };
+    const root = new DOMParser().parseFromString(svg, SVG_TYPE).documentElement;
+    const box = (root.getAttribute('viewBox') ?? '').trim().split(/[\s,]+/).map(Number);
+    const number = value => { const n = parseFloat(value); return Number.isFinite(n) && n > 0 ? n : null; };
+    const width = number(root.getAttribute('width')) ?? (box.length === 4 ? number(box[2]) : null);
+    const height = number(root.getAttribute('height')) ?? (box.length === 4 ? number(box[3]) : null);
+    const viewport = width && height ? `<meta name="viewport" content="width=${width}, height=${height}"/>` : '';
+    const page = `<html xmlns="http://www.w3.org/1999/xhtml"><head>${viewport}<title></title></head><body>${new XMLSerializer().serializeToString(root)}</body></html>`;
+    return hardenPageDetailed(page, XHTML_TYPE);
+}
+
+/**
+ * What happens to one resource the library has read from the book, just before it becomes a blob: address.
+ * `asPage` is true for the book's own pages (spine items), which are the only documents a frame ever shows.
+ */
+export function hardenResource(data, mediaType, asPage = false) {
+    // Refused: a plain notice where a page was expected (an empty document would break the page layout), nothing otherwise.
+    const refused = () => (asPage ? { data: BLOCKED_PAGE, type: XHTML_TYPE } : { data: '', type: mediaType });
+    if (typeof data !== 'string') {
+        // Binary data is only safe if a browser would never open it as a document.
+        return isDocumentType(mediaType) ? refused() : { data, type: mediaType };
+    }
+    if (isXhtmlOrHtml(mediaType)) {
+        const { text, type } = hardenPageDetailed(data, mediaType);
+        return { data: text, type };
+    }
+    if (mediaType === SVG_TYPE && asPage) {
+        const { text, type } = hardenSvgAsPage(data);
+        return { data: text, type };
+    }
+    if (mediaType === SVG_TYPE) return { data: hardenSvg(data) ?? '', type: mediaType };   // a picture: unsafe ones become empty
+    if (isDocumentType(mediaType)) return refused();   // some other XML/HTML flavour
+    return { data, type: mediaType };
 }
 
 function secureBook(book) {
     const target = book.transformTarget;
     if (!target) throw new ReaderError('unsupported', 'This book cannot be shown safely.');
+    // The book's own pages (the only things a frame ever shows) are hardened as pages; pictures, styles and fonts as resources.
+    const pages = new Set((book.sections ?? []).map(section => section.id));
     // Never load script files at all.
     target.addEventListener('load', ({ detail }) => {
         if (detail.isScript) detail.allow = false;
     });
     target.addEventListener('data', ({ detail }) => {
         const mediaType = detail.type;
-        detail.data = Promise.resolve(detail.data).then(
-            data => (typeof data === 'string' && PAGE_TYPES.has(mediaType)) ? hardenPage(data, mediaType) : data,
+        const outcome = Promise.resolve(detail.data).then(
+            data => hardenResource(data, mediaType, pages.has(detail.name)),
             error => {
                 console.error(new Error('Failed to load ' + detail.name, { cause: error }));
-                return '';
+                return pages.has(detail.name) ? { data: BLOCKED_PAGE, type: XHTML_TYPE } : { data: '', type: mediaType };
             });
+        detail.data = outcome.then(r => r.data);
+        detail.type = outcome.then(r => r.type);
     });
 }
 
@@ -383,6 +557,7 @@ export async function open(host, url, options, dotNet) {
     try {
         const file = await RangedFile.open(url, controller.signal, stats);
         stats.fileSize = file.size;
+        file.onFatal = err => notify(state, 'OnFailed', err.code, err.message);
         const loader = await makeZipLoader(file);
         state.loader = loader;
         stats.entries = loader.entries.length;
@@ -462,6 +637,29 @@ function applyAppearance(state, options) {
     state.view?.renderer?.setStyles?.(css);
     const name = options.theme === 'system' ? (resolveTheme('system') === THEMES.dark ? 'dark' : 'light') : (THEMES[options.theme] ? options.theme : 'light');
     state.host.dataset.theme = name;
+}
+
+/**
+ * The reading appearance this device saved (the same per-device key the current reader uses), as
+ * { theme, fontSize, lineHeight }. Anything missing or unreadable is left out so the page's defaults apply.
+ */
+export function loadSettings() {
+    try {
+        const stored = JSON.parse(globalThis.localStorage?.getItem('tuvima-reader-settings') ?? 'null');
+        if (!stored || typeof stored !== 'object') return {};
+        const pick = name => stored[name] ?? stored[name[0].toLowerCase() + name.slice(1)];
+        const out = {};
+        const theme = pick('Theme');
+        if (typeof theme === 'string') out.theme = theme;
+        const size = Number(pick('FontSize'));
+        if (Number.isFinite(size) && size > 0) out.fontSize = size;
+        const spacing = Number(pick('LineHeight'));
+        if (Number.isFinite(spacing) && spacing > 0) out.lineHeight = spacing;
+        return out;
+    } catch (e) {
+        console.debug('Reader settings could not be read; using the defaults.', e);
+        return {};
+    }
 }
 
 export function setAppearance(options) {

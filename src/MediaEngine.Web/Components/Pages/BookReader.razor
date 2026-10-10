@@ -85,7 +85,7 @@
     private readonly Stopwatch _sinceSave = Stopwatch.StartNew();
     private readonly Stopwatch _reading = new();
     private readonly string _readerSessionId = Guid.NewGuid().ToString("D");
-    private ReaderSettingsDto _settings = new();
+    private BookReaderOpenOptions _settings = new();
 
     private string _state = "loading";          // loading | ready | error
     private string _title = string.Empty;
@@ -97,6 +97,7 @@
     private bool _chromeVisible = true;
     private bool _opened;
     private bool _exited;
+    private bool _disposing;
     private bool _disposed;
     private double _fraction;
     private double _baseReadingSeconds;
@@ -105,7 +106,12 @@
 
     private string ThemeClass => _settings.Theme is "dark" or "sepia" or "system" ? _settings.Theme : "light";
     private int Percent => (int)Math.Round(Math.Clamp(_fraction, 0, 1) * 100);
-    private string ErrorTitle => _errorCode == "unsupported" ? "Not supported yet" : "Book failed to load";
+    private string ErrorTitle => _errorCode switch
+    {
+        "unsupported" => "Not supported yet",
+        "changed" => "This book was updated",
+        _ => "Book failed to load",
+    };
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -163,7 +169,7 @@
             var result = await _module.InvokeAsync<BookReaderOpenResult>(
                 "open", _host, EngineBookProxyPath.ToBrowserUrl(AssetId), options, _dotNetRef);
 
-            if (_disposed || result.Code == "cancelled")
+            if (_disposing || _disposed || result.Code == "cancelled")
             {
                 return;
             }
@@ -179,12 +185,25 @@
             _fraction = result.Fraction;
             _state = "ready";
             _reading.Restart();
+            if (_disposing || _disposed)
+            {
+                return;
+            }
+
             _saveTimer = new System.Threading.Timer(_ => _ = InvokeAsync(FlushIfDirtyAsync), null, SaveInterval, SaveInterval);
         }
-        catch (Exception ex) when (ex is JSException or InvalidOperationException or TaskCanceledException)
+        catch (Exception ex)
         {
+            // Anything that goes wrong while starting (script, network, a closed connection) ends in the error
+            // screen with a working Try again, never in a crashed page.
+            if (_disposing || _disposed)
+            {
+                return;
+            }
+
             Logger.LogWarning(ex, "The book reader could not start for {AssetId}.", AssetId);
-            ShowError("unavailable", "The reader could not start. Reload the page to try again.");
+            ShowError("unavailable", "The reader could not start. Try again, or reload the page.");
+            return;
         }
 
         StateHasChanged();
@@ -194,12 +213,17 @@
     {
         _errorCode = code;
         _errorMessage = string.IsNullOrWhiteSpace(message) ? "This book could not be opened." : message;
-        _canRetry = code is "busy" or "offline" or "unavailable";
+        _canRetry = code is "busy" or "offline" or "unavailable" or "changed";
         _state = "error";
         StateHasChanged();
     }
 
-    private async Task RetryAsync() => await OpenAsync();
+    private async Task RetryAsync()
+    {
+        // Keep the place the reader reached before it stopped; a changed book simply falls back to the start.
+        await SaveProgressAsync();
+        await OpenAsync();
+    }
 
     // ---- Calls from the script -------------------------------------------------------------------------------
 
@@ -220,6 +244,18 @@
         {
             await SaveProgressAsync();
         }
+    }
+
+    // The book could not be read any further (it was replaced on disk, or the sign-in ended). Show the error screen.
+    [JSInvokable]
+    public Task OnFailed(string code, string message)
+    {
+        if (!_disposing && !_disposed && _state == "ready")
+        {
+            ShowError(code, message);
+        }
+
+        return Task.CompletedTask;
     }
 
     [JSInvokable]
@@ -277,17 +313,10 @@
     {
         try
         {
-            var json = await JS.InvokeAsync<string?>("localStorage.getItem", "tuvima-reader-settings");
-            if (!string.IsNullOrEmpty(json))
-            {
-                var loaded = System.Text.Json.JsonSerializer.Deserialize<ReaderSettingsDto>(json);
-                if (loaded is not null)
-                {
-                    _settings = loaded;
-                }
-            }
+            // The script reads the per-device key itself, so no stored-JSON shape is parsed on this side.
+            _settings = await _module!.InvokeAsync<BookReaderOpenOptions>("loadSettings");
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is JSException or InvalidOperationException)
         {
             Logger.LogDebug(ex, "Failed to load reader settings from local storage.");
         }
@@ -337,10 +366,13 @@
 
     public async ValueTask DisposeAsync()
     {
-        if (_disposed)
+        if (_disposed || _disposing)
         {
             return;
         }
+
+        // From here an open that is still in flight must not start a new save timer.
+        _disposing = true;
 
         if (_saveTimer is { } timer)
         {
@@ -365,6 +397,13 @@
         catch (Exception ex) when (ex is JSDisconnectedException or JSException or InvalidOperationException)
         {
             Logger.LogDebug(ex, "Failed to dispose the book reader script.");
+        }
+
+        // An open that was in flight when disposal began may have created its timer in the meantime.
+        if (_saveTimer is { } lateTimer)
+        {
+            await lateTimer.DisposeAsync();
+            _saveTimer = null;
         }
 
         _dotNetRef?.Dispose();
