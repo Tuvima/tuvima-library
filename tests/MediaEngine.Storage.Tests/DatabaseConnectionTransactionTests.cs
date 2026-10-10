@@ -200,9 +200,20 @@ public sealed class DatabaseConnectionDisposeTests
         finally
         {
             SqliteConnection.ClearAllPools();
-            if (File.Exists(path)) File.Delete(path);
-            if (File.Exists($"{path}-wal")) File.Delete($"{path}-wal");
-            if (File.Exists($"{path}-shm")) File.Delete($"{path}-shm");
+            if (File.Exists(path))
+            {
+                File.Delete(path);
+            }
+
+            if (File.Exists($"{path}-wal"))
+            {
+                File.Delete($"{path}-wal");
+            }
+
+            if (File.Exists($"{path}-shm"))
+            {
+                File.Delete($"{path}-shm");
+            }
         }
     }
 }
