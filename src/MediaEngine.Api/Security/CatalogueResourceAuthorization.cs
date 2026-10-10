@@ -120,11 +120,12 @@ internal sealed class CatalogueResourceAuthorizationService(
         var candidates = (await connection.QueryAsync<Guid>(new CommandDefinition(
             """
             SELECT ma.id
-            FROM media_assets ma
-            JOIN editions e ON e.id=ma.edition_id
+            FROM work_owned_assets woa
+            JOIN media_assets ma ON ma.id=woa.asset_id
             LEFT JOIN user_states us ON us.asset_id=ma.id AND us.user_id=@profileId
-            WHERE e.work_id=@workId AND ma.status='Normal' AND ma.is_orphaned=0
-            ORDER BY CASE WHEN LOWER(ma.file_path_root) LIKE '%.epub' THEN 0 ELSE 1 END,
+            WHERE woa.work_id=@workId AND ma.status='Normal' AND ma.is_orphaned=0
+            ORDER BY woa.is_covered,
+                     CASE WHEN LOWER(ma.file_path_root) LIKE '%.epub' THEN 0 ELSE 1 END,
                      us.last_accessed DESC, ma.id;
             """,
             new { workId, profileId },

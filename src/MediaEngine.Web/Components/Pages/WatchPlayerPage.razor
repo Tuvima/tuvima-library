@@ -111,6 +111,8 @@ else if (!string.IsNullOrWhiteSpace(_loadError))
                     var nextAssetId = await Orchestrator.ResolveWorkToAssetAsync(nextId, ct);
                     ct.ThrowIfCancellationRequested();
                     if (nextAssetId is not Guid playableAssetId) continue;
+                    // Episodes covered by the file now playing share its asset; queueing them would replay it.
+                    if (playableAssetId == assetId.Value) continue;
                     var nextDetail = await ApiClient.GetLibraryItemDetailAsync(nextId, ct);
                     ct.ThrowIfCancellationRequested();
                     if (nextDetail is null || string.IsNullOrWhiteSpace(nextDetail.EpisodeNumber)) continue;

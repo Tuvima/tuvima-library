@@ -159,6 +159,39 @@ public sealed class VideoPresentationTests
         Assert.Equal(PlaybackPhase.Playing, playback.Phase);
     }
 
+    [Fact]
+    public async Task NextUpSkipsEpisodesCoveredByTheFileAlreadyPlaying()
+    {
+        var covered = Guid.NewGuid(); var currentAsset = Guid.Empty; var detailReads = 0;
+        Guid? currentWork = null;
+        var api = EngineApiClientStub.Create(stub =>
+        {
+            stub.SetHandler(nameof(IEngineApiClient.GetDetailPageAsync), _ => Task.FromResult<DetailPageViewModel?>(new()
+            {
+                SequencePlacement = new()
+                {
+                    OrderedItems =
+                    [
+                        new() { Id = currentWork.ToString()!, EntityType = DetailEntityType.TvEpisode, IsOwned = true },
+                        new() { Id = covered.ToString(), EntityType = DetailEntityType.TvEpisode, IsOwned = true },
+                    ]
+                }
+            }));
+            stub.SetHandler(nameof(IEngineApiClient.ResolveWorkToAssetAsync), _ => Task.FromResult<Guid?>(currentAsset));
+            stub.SetHandler(nameof(IEngineApiClient.GetLibraryItemDetailAsync), _ => { detailReads++; return Task.FromResult<LibraryItemDetailViewModel?>(new() { Title = "Part two", MediaType = "TV" }); });
+        });
+        await using var orchestrator = new UIOrchestratorService(api, null!, null!, new ConfigurationManager(), NullLogger<UIOrchestratorService>.Instance);
+        var playback = CreatePlayback(new(), api);
+        var identity = VideoPlaybackIdentity.Capture(playback)!;
+        currentWork = identity.WorkId; currentAsset = playback.CurrentItem!.AssetId!.Value;
+
+        var context = await new VideoPresentationResolver(api, orchestrator, playback).ResolveAsync(identity, default);
+
+        Assert.Null(context.NextEpisode);
+        Assert.Equal(0, detailReads);
+        Assert.Single(playback.Queue);
+    }
+
     [Theory]
     [InlineData("metadata")]
     [InlineData("profile")]

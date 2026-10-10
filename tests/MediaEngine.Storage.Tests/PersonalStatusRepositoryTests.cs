@@ -69,6 +69,48 @@ public sealed class PersonalStatusRepositoryTests : IDisposable
         Assert.Single(await repo.HistoryAsync(profile, target));
     }
     [Fact]
+    public async Task CombinedFile_StatusIsOneStatePerFile_AndReachesEveryCoveredEpisode()
+    {
+        var show = Guid.NewGuid();
+        using (var conn = db.CreateConnection())
+        {
+            conn.Execute("INSERT INTO works(id,media_type) VALUES(@show,'TV')", new { show });
+        }
+        var (first, file) = Add(MediaType.TV, show);
+        var (_, other) = Add(MediaType.TV, show);
+        var covered = Guid.NewGuid();
+        using (var conn = db.CreateConnection())
+        {
+            conn.Execute("INSERT INTO works(id,media_type,parent_work_id) VALUES(@covered,'TV',@show)", new { covered, show });
+            conn.Execute("INSERT INTO media_asset_coverage(asset_id,work_id,position,source) VALUES(@file,@first,1,'filename'),(@file,@covered,2,'filename')",
+                new { file, first, covered });
+        }
+
+        var repo = new PersonalStatusRepository(db);
+        var store = new UserStateRepository(db);
+        var showTarget = new PersonalStatusTarget(show, MediaType.TV);
+        var before = await repo.ReadAsync(profile, showTarget);
+        Assert.Equal(3, before.OwnedCount);
+
+        var complete = await repo.ExecuteAsync(profile, showTarget, PersonalStatusCommand.Complete, Guid.NewGuid(), before.Revision);
+        Assert.Equal(3, complete.AffectedCount);
+        Assert.Equal(100, (await store.GetAsync(profile, file))!.ProgressPct);
+        Assert.Equal(100, (await store.GetAsync(profile, other))!.ProgressPct);
+        var after = await repo.ReadAsync(profile, showTarget);
+        Assert.Equal(3, after.CompletedCount);
+
+        // Resetting only the covered episode resets the file once, which resets its sibling too.
+        var episodeTarget = new PersonalStatusTarget(covered, MediaType.TV);
+        var episode = await repo.ReadAsync(profile, episodeTarget);
+        Assert.Equal(1, episode.OwnedCount);
+        var reset = await repo.ExecuteAsync(profile, episodeTarget, PersonalStatusCommand.Reset, Guid.NewGuid(), episode.Revision);
+        Assert.Equal(1, reset.AffectedCount);
+        Assert.Equal(0, (await store.GetAsync(profile, file))!.ProgressPct);
+        Assert.Equal(100, (await store.GetAsync(profile, other))!.ProgressPct);
+        Assert.Equal(1, (await repo.ReadAsync(profile, showTarget)).CompletedCount);
+    }
+
+    [Fact]
     public async Task RepeatCommandIsIdempotent_UndoCannotOverwriteNewPlayback()
     {
         var (work, asset) = Add(MediaType.Movies); var repo = new PersonalStatusRepository(db); var store = new UserStateRepository(db);

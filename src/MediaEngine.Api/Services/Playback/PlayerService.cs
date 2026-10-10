@@ -78,7 +78,7 @@ public sealed class PlayerService
         var deviceId = NormalizeDeviceId(request.DeviceId);
         var client = NormalizeClient(request.Client);
         var sessionId = Guid.NewGuid();
-        var items = await ResolveQueueItemsAsync(request, ct);
+        var items = await ResolveQueueItemsAsync(request, profileId, ct);
         ValidateQueueReplacement(items);
 
         if (request.Shuffle)
@@ -123,7 +123,7 @@ public sealed class PlayerService
         var profileId = await _scope.RequireProfileAsync(request.ProfileId, ct);
         var deviceId = NormalizeDeviceId(request.DeviceId);
         var client = NormalizeClient(request.Client);
-        var items = await ResolveQueueItemsAsync(request, ct);
+        var items = await ResolveQueueItemsAsync(request, profileId, ct);
         ValidateQueueAddition(items);
 
         await _sessions.AddQueueItemsAsync(
@@ -519,40 +519,61 @@ public sealed class PlayerService
             ct: ct);
     }
 
-    private async Task<IReadOnlyList<PlayerQueueItemDto>> ResolveQueueItemsAsync(PlayerQueueMutationDto request, CancellationToken ct)
+    internal async Task<IReadOnlyList<PlayerQueueItemDto>> ResolveQueueItemsAsync(
+        PlayerQueueMutationDto request, Guid profileId, CancellationToken ct)
     {
         var items = new List<PlayerQueueItemDto>();
         var explicitWorkIds = new HashSet<Guid>();
 
         foreach (var requested in request.Items.Where(item => item.WorkId != Guid.Empty))
         {
-            var resolved = await ResolvePlayableWorkAsync(requested.WorkId, requested.AssetId, ct);
+            var resolved = await ResolvePlayableWorkAsync(requested.WorkId, requested.AssetId, profileId, ct);
             if (resolved is null)
             {
                 continue;
             }
 
             explicitWorkIds.Add(requested.WorkId);
-            items.Add(MergeQueueItem(resolved, requested, request.SourceLabel));
+            AddQueueItem(items, MergeQueueItem(resolved, requested, request.SourceLabel), request.StartWorkId);
         }
 
         foreach (var workId in request.WorkIds.Where(id => id != Guid.Empty).Distinct().Where(id => !explicitWorkIds.Contains(id)))
         {
-            var resolved = await ResolvePlayableWorkAsync(workId, null, ct);
+            var resolved = await ResolvePlayableWorkAsync(workId, null, profileId, ct);
             if (resolved is null)
             {
                 continue;
             }
 
-            items.Add(resolved with
+            AddQueueItem(items, resolved with
             {
                 QueueItemId = Guid.NewGuid(),
                 AddedAt = DateTimeOffset.UtcNow,
                 Subtitle = StringHelpers.FirstNonBlank(resolved.Subtitle, resolved.Artist, resolved.Author, resolved.Narrator, request.SourceLabel),
-            });
+            }, request.StartWorkId);
         }
 
         return items;
+    }
+
+    /// <summary>
+    /// Adds a resolved item, collapsing episodes that share one combined file into a single
+    /// queue entry so the file never plays twice in a row. The entry for the requested start
+    /// episode wins, so starting on episode 2 keeps its start offset.
+    /// </summary>
+    private static void AddQueueItem(List<PlayerQueueItemDto> items, PlayerQueueItemDto item, Guid? startWorkId)
+    {
+        var shared = item.AssetId.HasValue && IsVideo(item.MediaType)
+            ? items.FindIndex(existing => existing.AssetId == item.AssetId)
+            : -1;
+        if (shared < 0)
+        {
+            items.Add(item);
+        }
+        else if (startWorkId.HasValue && item.WorkId == startWorkId.Value)
+        {
+            items[shared] = item;
+        }
     }
 
     private static PlayerQueueItemDto MergeQueueItem(
@@ -589,7 +610,7 @@ public sealed class PlayerService
         };
     }
 
-    private async Task<PlayerQueueItemDto?> ResolvePlayableWorkAsync(Guid workId, Guid? requestedAsset, CancellationToken ct)
+    private async Task<PlayerQueueItemDto?> ResolvePlayableWorkAsync(Guid workId, Guid? requestedAsset, Guid profileId, CancellationToken ct)
     {
         var allowedAsset = await _scope.FindAssetAsync(workId, requestedAsset, ct);
         if (allowedAsset is null)
@@ -664,12 +685,19 @@ public sealed class PlayerService
                        MAX(CASE WHEN acv.key = 'duration' THEN acv.value END),
                        MAX(CASE WHEN wcv.key = 'runtime' THEN wcv.value END),
                        MAX(CASE WHEN acv.key = 'runtime' THEN acv.value END)
-                   ) AS Duration
+                   ) AS Duration,
+                   (SELECT c.start_seconds FROM media_asset_coverage c
+                    WHERE c.asset_id = ma.id AND c.work_id = w.id) AS CoverageStartSeconds,
+                   (SELECT us.progress_pct FROM user_states us
+                    WHERE us.asset_id = ma.id AND us.user_id = @profileId) AS FileProgressPct
             FROM works w
-            INNER JOIN editions e ON e.work_id = w.id
-            INNER JOIN media_assets ma ON ma.edition_id = e.id
+            INNER JOIN work_owned_assets woa ON woa.work_id = w.id
+            INNER JOIN media_assets ma ON ma.id = woa.asset_id
             LEFT JOIN canonical_values wcv ON wcv.entity_id = w.id
+            -- A covered episode shares the host file; its identity comes from its own work, never the file's.
             LEFT JOIN canonical_values acv ON acv.entity_id = ma.id
+                AND (woa.is_covered = 0
+                     OR acv.key NOT IN ('title', 'subtitle', 'episode_title', 'episode_number', 'season_number'))
             WHERE w.id = @workId
               AND ma.id = @allowedAsset
               AND LOWER(REPLACE(w.media_type, ' ', '')) IN
@@ -678,7 +706,7 @@ public sealed class PlayerService
             GROUP BY w.id, ma.id
             ORDER BY ma.presented_at IS NULL, ma.presented_at DESC, ma.file_path_root
             LIMIT 1;
-            """, new { workId, allowedAsset });
+            """, new { workId, allowedAsset, profileId });
 
         if (row is null)
         {
@@ -706,10 +734,20 @@ public sealed class PlayerService
             Quality = row.Quality,
             CoverUrl = row.AssetId.HasValue ? $"/stream/{row.AssetId.Value}/cover" : null,
             DurationSeconds = TryParseDurationSeconds(row.Duration),
+            PositionSeconds = StartOffsetFor(row),
             StreamUrl = row.AssetId.HasValue ? $"/stream/{row.AssetId.Value}" : null,
             DownloadUrl = row.AssetId.HasValue ? $"/stream/{row.AssetId.Value}" : null,
         };
     }
+
+    /// <summary>
+    /// Where a combined file should open for this episode: its known start inside the file, but
+    /// only when the profile has nothing to resume (new or finished), so saved progress always wins.
+    /// </summary>
+    private static double? StartOffsetFor(PlayableWorkRow row) =>
+        row.CoverageStartSeconds is > 0 && row.FileProgressPct is null or <= 0 or >= 99.5
+            ? row.CoverageStartSeconds
+            : null;
 
     private async Task<PlayerStateDto> EnrichStateAsync(PlayerStateDto state, CancellationToken ct)
     {
@@ -1245,5 +1283,7 @@ public sealed class PlayerService
         public string? EpisodeTitle { get; init; }
         public string? Quality { get; init; }
         public string? Duration { get; init; }
+        public double? CoverageStartSeconds { get; init; }
+        public double? FileProgressPct { get; init; }
     }
 }
