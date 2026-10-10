@@ -144,7 +144,8 @@ public sealed class EpisodeBatchLoadingTests : IDisposable
         var again = await InvokeSubsetAsync(countingComposer, outcome.Works, chosen, enriched);
         Assert.Equal(0, counting.Statements);
         Assert.Empty(again.ValueMaps);
-        Assert.Same(outcome.Works, again.Works);
+        Assert.Equal(outcome.Works.Count, again.Works.Count);
+        Assert.All(outcome.Works.Zip(again.Works), pair => Assert.Same(pair.First, pair.Second));
         Assert.NotNull(orchestrator.GetMethod("EnrichTvEpisodeSubsetAsync", nonPublic));
     }
 
