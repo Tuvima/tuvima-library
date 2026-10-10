@@ -816,6 +816,13 @@
         }
 
         _selection = null;
+        if (_highlights.Any(mark => string.Equals(mark.CfiRange, selection.Cfi, StringComparison.Ordinal)))
+        {
+            ShowNotice("That text is already highlighted.");
+            await CallScriptAsync("clearSelection");
+            return;
+        }
+
         var created = await Api.CreateHighlightAsync(AssetId, selection.Cfi, selection.Text, color, null);
         if (created is null)
         {
@@ -850,7 +857,13 @@
             return;
         }
 
-        _editing = ReplaceHighlight(current, color, note);
+        // The card may have been closed (the page turned) while the call was out; only an open card for this highlight is refreshed.
+        var updated = ReplaceHighlight(_highlights.FirstOrDefault(mark => mark.Id == current.Id) ?? current, color, note);
+        if (_editing?.Id == current.Id)
+        {
+            _editing = updated;
+        }
+
         await CallScriptAsync("recolorHighlight", current.Id.ToString("D"), color);
     }
 
@@ -863,11 +876,13 @@
 
         _editing = null;
         var note = string.IsNullOrWhiteSpace(_noteDraft) ? null : _noteDraft.Trim();
-        if (!string.Equals(note, current.NoteText, StringComparison.Ordinal))
+        // Compare with the stored copy, which a colour change made while the card was open may have refreshed.
+        var stored = _highlights.FirstOrDefault(mark => mark.Id == current.Id) ?? current;
+        if (!string.Equals(note, stored.NoteText, StringComparison.Ordinal))
         {
-            if (await Api.UpdateHighlightAsync(current.Id, null, note))
+            if (await Api.UpdateHighlightAsync(stored.Id, null, note))
             {
-                ReplaceHighlight(current, current.Color, note);
+                ReplaceHighlight(stored, _highlights.FirstOrDefault(mark => mark.Id == stored.Id)?.Color ?? stored.Color, note);
             }
             else
             {
@@ -886,13 +901,14 @@
             return;
         }
 
+        _editing = null;
         if (!await Api.DeleteHighlightAsync(current.Id))
         {
             ShowNotice("The highlight could not be deleted. Try again.");
+            await CallScriptAsync("setInputPaused", _panel is not null);
             return;
         }
 
-        _editing = null;
         _highlights.RemoveAll(mark => mark.Id == current.Id);
         await CallScriptAsync("removeHighlight", current.Id.ToString("D"));
         await CallScriptAsync("setInputPaused", _panel is not null);

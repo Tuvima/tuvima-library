@@ -32,7 +32,7 @@ public sealed class ReaderHighlightRepository : IReaderHighlightRepository
                    created_at    AS CreatedAt
             FROM   reader_highlights
             WHERE  user_id = @userId AND asset_id = @assetId
-            ORDER BY chapter_index, start_offset, created_at;
+            ORDER BY chapter_index, start_offset, created_at, id;
             """, new { userId, assetId }).AsList();
 
         return Task.FromResult<IReadOnlyList<ReaderHighlight>>(rows.ConvertAll(MapRow));

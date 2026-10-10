@@ -125,7 +125,8 @@ public static class ReaderEndpoints
             CancellationToken ct) =>
         {
             if (request.CfiRange is { } cfiRange
-                && (cfiRange.Length is 0 or > MaxCfiLength || !cfiRange.StartsWith("epubcfi(", StringComparison.Ordinal)))
+                && (cfiRange.Length is 0 or > MaxCfiLength || !cfiRange.StartsWith("epubcfi(", StringComparison.Ordinal)
+                    || !cfiRange.EndsWith(')')))
             {
                 return ApiErrors.BadRequest("CfiRange must be an epubcfi(...) value of at most 4096 characters.");
             }
@@ -133,9 +134,9 @@ public static class ReaderEndpoints
             {
                 return ApiErrors.BadRequest("Color must be one of the supported highlight colours.");
             }
-            if (request.SelectedText.Length > MaxSelectedTextLength || request.NoteText?.Length > MaxNoteLength)
+            if (string.IsNullOrEmpty(request.SelectedText) || request.SelectedText.Length > MaxSelectedTextLength || request.NoteText?.Length > MaxNoteLength)
             {
-                return ApiErrors.BadRequest("The selected text or note is too long.");
+                return ApiErrors.BadRequest("The selected text is required, and the text and note must not be too long.");
             }
 
             var highlight = new ReaderHighlight
