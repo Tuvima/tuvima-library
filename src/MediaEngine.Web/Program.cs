@@ -266,6 +266,10 @@ builder.Services.AddSingleton<DashboardServiceCredentialProvider>();
 builder.Services.AddScoped<DashboardSessionAccessor>();
 builder.Services.AddTransient<DashboardServiceCredentialHandler>();
 builder.Services.AddTransient<DashboardEngineAuthenticationHandler>();
+// One shared sign-in check per burst of requests (a page load fetches dozens of assets). Anything sent through the
+// identity client that can change a sign-in empties it first.
+builder.Services.AddSingleton(new SessionValidationCache());
+builder.Services.AddTransient<SessionValidationInvalidationHandler>();
 builder.Services.AddTransient<ViewProfileAssertionHandler>(services => new ViewProfileAssertionHandler(
     services.GetRequiredService<IActiveProfileAccessor>()));
 builder.Services.AddScoped<DashboardCircuitHttpClientFactory>();
@@ -316,6 +320,7 @@ builder.Services.AddHttpClient("EngineApi", ConfigureEngineClient)
 builder.Services.AddHttpClient("EngineArtwork", ConfigureEngineClient)
     .AddHttpMessageHandler<DashboardEngineAuthenticationHandler>();
 builder.Services.AddHttpClient("EngineIdentity", ConfigureEngineClient)
+    .AddHttpMessageHandler<SessionValidationInvalidationHandler>()
     .AddHttpMessageHandler<DashboardEngineAuthenticationHandler>();
 builder.Services.AddSingleton(new ExposureSettingsReader(dashboardConfig, configDir));
 // The app door never carries the Dashboard's service credential. No cookies are stored or replayed

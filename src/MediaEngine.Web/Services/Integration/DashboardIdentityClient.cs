@@ -17,7 +17,9 @@ public sealed class DashboardIdentityClient(
     ILogger<DashboardIdentityClient>? logger = null,
     IngressClassifier? ingress = null,
     OpenScreenRegistry? openScreens = null,
-    SignInAttemptLimiter? signInLimiter = null)
+    SignInAttemptLimiter? signInLimiter = null,
+    SessionValidationCache? validationCache = null,
+    DashboardServiceCredentialProvider? serviceCredential = null)
 {
     private readonly object _initialAuthorityGate = new();
     private Task<DashboardAuthorityResponse?>? _initialAuthorityTask;
@@ -347,10 +349,41 @@ public sealed class DashboardIdentityClient(
         return $"/access/self-service?originalClientIngress={Uri.EscapeDataString(original.Ingress)}&originalClientIsHttps={original.IsHttps.ToString().ToLowerInvariant()}";
     }
 
+    /// <summary>
+    /// The sign-in check for an ordinary Dashboard request. A page load makes dozens of these at once (scripts, styles,
+    /// images), so requests from the same sign-in, place and Dashboard credential share one Engine call for a few seconds.
+    /// Only a valid answer is kept; a refusal, an unreachable Engine or a missing Dashboard credential always goes
+    /// to (or fails at) the Engine, and anything that changes a sign-in empties the shared answer first.
+    /// </summary>
     public async Task<(SessionValidationResponse? Response, bool Invalid)> ValidateCookieAsync(string token, string currentIngress, CancellationToken ct = default)
     {
+        if (validationCache is not null && TryGetValidationKey(token, currentIngress, out var key))
+        {
+            // The shared check must not die with whichever request happened to start it: it is bounded by the client's own timeout.
+            return await validationCache.GetOrValidateAsync(key, async () =>
+            {
+                var shared = await ValidateDetailedAsync(token, currentIngress, CancellationToken.None).ConfigureAwait(false);
+                return (shared.Response, shared.Invalid);
+            }, ct).ConfigureAwait(false);
+        }
+
         var result = await ValidateDetailedAsync(token, currentIngress, ct).ConfigureAwait(false);
         return (result.Response, result.Invalid);
+    }
+
+    // Fail closed: with no usable Dashboard credential nothing is answered from memory, so the call reaches the
+    // credential handler, which refuses it.
+    private bool TryGetValidationKey(string token, string currentIngress, out string key)
+    {
+        string? credential = null;
+        if (serviceCredential is not null && !serviceCredential.TryGetToken(out credential))
+        {
+            key = string.Empty;
+            return false;
+        }
+
+        key = SessionValidationCache.KeyFor(token, currentIngress, credential);
+        return true;
     }
 
     public Task<List<AccountAccessResponse>> GetManagedAccountsAsync(CancellationToken ct = default) =>
