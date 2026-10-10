@@ -219,16 +219,25 @@ public sealed class ManagedAccessHouseholdTests : AsyncBunitContext
             Requests.Add(new(request.Method, path, body));
 
             if (request.Method == HttpMethod.Get && path == "/access/accounts")
+            {
                 return Json(new[] { Account(AdminAccountId, "admin@home.test", AdminProfileId, householdAdmin: true), Account(PartnerAccountId, "partner@home.test", AdminProfileId), SamAccount() });
+            }
+
             if (request.Method == HttpMethod.Get && path == "/access/profiles")
+            {
                 return Json(new[]
                 {
                     new ManagedProfileResponse(AdminProfileId, "Admin Person", "#7C4DFF", null, DateTimeOffset.UtcNow.AddDays(-3), HouseholdId),
                     new ManagedProfileResponse(KidProfileId, "Kid", "#7C4DFF", null, DateTimeOffset.UtcNow.AddDays(-2), HouseholdId, IsRestricted: true),
                     new ManagedProfileResponse(SamProfileId, "Sam", "#7C4DFF", null, DateTimeOffset.UtcNow.AddDays(-1), HouseholdId),
                 });
+            }
+
             if (request.Method == HttpMethod.Get && path == "/access/libraries")
+            {
                 return Json(new[] { HouseholdLibrary });
+            }
+
             if (request.Method == HttpMethod.Post && path == $"/access/households/{HouseholdId:D}/people")
             {
                 var value = JsonSerializer.Deserialize<AddHouseholdPersonRequest>(body, JsonOptions)!;
@@ -236,11 +245,20 @@ public sealed class ManagedAccessHouseholdTests : AsyncBunitContext
             }
 
             if (request.Method == HttpMethod.Post && path.EndsWith("/own-sign-in", StringComparison.Ordinal))
+            {
                 return Json(new GiveOwnSignInResponse(Guid.NewGuid(), "kid@home.test", new AccountInvitationResponse(Guid.NewGuid(), "KQ7M4-XH2TA", DateTimeOffset.UtcNow.AddDays(1), null), null));
+            }
+
             if (request.Method == HttpMethod.Put && path.StartsWith("/auth/profiles/", StringComparison.Ordinal) && path.EndsWith("/pin", StringComparison.Ordinal))
+            {
                 return new HttpResponseMessage(PinStatus);
+            }
+
             if (request.Method == HttpMethod.Post && path == "/access/admin-unlock")
+            {
                 return Json(new GrantAdminUnlockResponse(true, null, 1));
+            }
+
             return new HttpResponseMessage(HttpStatusCode.NoContent);
         }
 
