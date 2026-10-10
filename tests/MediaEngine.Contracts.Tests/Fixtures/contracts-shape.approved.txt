@@ -2338,6 +2338,12 @@ MediaEngine.Contracts.Details.MediaEngine.Contracts.Details.SequenceContainerOpt
   MediaScope: System.String | nullability=nullable | accessors=get,init
   EquivalentContainerIds: System.Collections.Generic.IReadOnlyList<System.String> | nullability=not-null | accessors=get,init
 
+MediaEngine.Contracts.Details.MediaEngine.Contracts.Details.SequenceCoverageLinkViewModel
+  Id: System.String | nullability=not-null | accessors=get,init
+  PositionLabel: System.String | nullability=nullable | accessors=get,init
+  Title: System.String | nullability=nullable | accessors=get,init
+  Route: System.String | nullability=nullable | accessors=get,init
+
 MediaEngine.Contracts.Details.MediaEngine.Contracts.Details.SequenceGroupViewModel
   OwnedCount: System.Int32 | nullability=not-null | accessors=get,init
   CompletedCount: System.Int32 | nullability=not-null | accessors=get,init
@@ -2352,6 +2358,7 @@ MediaEngine.Contracts.Details.MediaEngine.Contracts.Details.SequenceGroupViewMod
   Items: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Details.SequenceItemViewModel> | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.Details.MediaEngine.Contracts.Details.SequenceItemViewModel
+  CoveredWith: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Details.SequenceCoverageLinkViewModel> | nullability=not-null | accessors=get,init
   EpisodeStillUrl: System.String | nullability=nullable | accessors=get,init
   EpisodeStillWidthPx: System.Int32? | nullability=nullable | accessors=get,init
   EpisodeStillHeightPx: System.Int32? | nullability=nullable | accessors=get,init

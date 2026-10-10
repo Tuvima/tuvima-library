@@ -335,6 +335,11 @@ internal sealed partial class DetailCompositionOrchestrator
 
         items = DeduplicateManifestMergeItems(items).ToList();
         items = NormalizeSequenceItems(items, entityType);
+        if (entityType is DetailEntityType.TvEpisode or DetailEntityType.TvSeason)
+        {
+            items = await ApplySameFileCoverageAsync(items, ct);
+        }
+
         items = SortSequenceItems(items);
         var hasPositionEvidence = items.Any(HasSequencePositionEvidence);
         if (IsUnpositionedSelfNamedSequence(

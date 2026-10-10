@@ -527,8 +527,12 @@ else
                 var route = SequenceItemRoute(item);
                 if (IsSeasonContainer && item.IsOwned && item.EpisodeContext is not null)
                 {
-                    <div class="sequence-episode-tile @(item.IsCurrent ? "is-current" : null)" aria-current="@(item.IsCurrent ? "page" : null)">
+                    <div class="sequence-episode-tile @(item.IsCurrent ? "is-current" : null) @(_sameFileHighlight.Contains(item.Id) ? "is-same-file-highlight" : null)" aria-current="@(item.IsCurrent ? "page" : null)">
                         <MediaTile ShowCompactCaption="true" Item="@SequenceEpisodeTileAdapter.FromItem(item)" />
+                        <SameFileChip Links="item.CoveredWith"
+                                      CanHighlight="@HasVisibleSibling(item)"
+                                      IsHighlighting="@IsHighlightingSiblings(item)"
+                                      OnHighlight="@(() => ToggleSameFileHighlight(item))" />
                     </div>
                 }
                 else if (route is not null)
@@ -592,6 +596,7 @@ else
     private const int LongSequenceThreshold = 6;
     private const int PortraitWindowSize = 6;
 
+    private readonly HashSet<string> _sameFileHighlight = new(StringComparer.OrdinalIgnoreCase);
     private string? _placementKey;
     private string? _selectedGroupKey;
     private string? _jumpSelectionValue;
@@ -612,6 +617,25 @@ else
     private MissingItemDisplayPolicy? _missingItemPolicy;
     private ElementReference _seriesDescriptionElement;
     private readonly string _seasonStripId = "seasons-" + Guid.NewGuid().ToString("N");
+
+    private bool HasVisibleSibling(SequenceItemViewModel item)
+        => item.CoveredWith.Any(link => VisibleItems.Any(other => string.Equals(other.Id, link.Id, StringComparison.OrdinalIgnoreCase)));
+
+    private bool IsHighlightingSiblings(SequenceItemViewModel item)
+        => item.CoveredWith.Count > 0 && item.CoveredWith.All(link => _sameFileHighlight.Contains(link.Id));
+
+    private void ToggleSameFileHighlight(SequenceItemViewModel item)
+    {
+        var turnOff = IsHighlightingSiblings(item);
+        _sameFileHighlight.Clear();
+        if (!turnOff)
+        {
+            foreach (var link in item.CoveredWith)
+            {
+                _sameFileHighlight.Add(link.Id);
+            }
+        }
+    }
 
     private string PanelClass => $"{MediaShapeClass}{(IsLongSequence ? " tl-series-placement--long" : string.Empty)}{(Compact ? " tl-series-placement--compact" : string.Empty)}";
     private string DetailSurfaceClass => $"tl-series-detail {MediaShapeClass}{(IsSeasonContainer ? " is-season-container" : string.Empty)}";
