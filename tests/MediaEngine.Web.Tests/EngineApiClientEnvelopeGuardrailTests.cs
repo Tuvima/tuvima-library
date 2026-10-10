@@ -23,7 +23,8 @@ public sealed class EngineApiClientEnvelopeGuardrailTests
         // One additional raw POST is the typed bookmark-create outcome path. Its focused tests
         // cover success classification, definite 4xx vs unknown 5xx/malformed results, and one
         // send per attempt with no automatic retry.
-        AssertAtOrBelow(source, "_http.PostAsJsonAsync", 63);
+        // One more raw POST: creating a reader highlight returns the saved row, and a failed save sets LastError and returns null (no retry).
+        AssertAtOrBelow(source, "_http.PostAsJsonAsync", 64);
         AssertAtOrBelow(source, "_http.PutAsJsonAsync", 28);
         AssertAtOrBelow(source, "_http.DeleteAsync", 14);
     }
