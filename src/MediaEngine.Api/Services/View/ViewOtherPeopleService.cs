@@ -154,9 +154,16 @@ public sealed class ViewOtherPeopleService(
                AND (@householdWide = 1 OR (e.subject_type = @personal AND e.subject_id = @own))
              ORDER BY e.occurred_at DESC, e.id DESC
              LIMIT @limit OFFSET @offset;
-            """, new { OpenedEventType, personal = PersonalSubject, household = household?.ToString("D"),
-                householdWide = householdWide ? 1 : 0, own = activeProfile.ToString("D"),
-                limit = page.Limit + 1, offset = page.Offset }, cancellationToken: ct)).ToList();
+            """, new
+        {
+            OpenedEventType,
+            personal = PersonalSubject,
+            household = household?.ToString("D"),
+            householdWide = householdWide ? 1 : 0,
+            own = activeProfile.ToString("D"),
+            limit = page.Limit + 1,
+            offset = page.Offset
+        }, cancellationToken: ct)).ToList();
 
         var names = new Dictionary<string, string>();
         var items = new List<ViewPhotoViewDto>(rows.Count);
