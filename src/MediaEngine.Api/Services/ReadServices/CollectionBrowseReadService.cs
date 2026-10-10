@@ -75,9 +75,9 @@ public sealed class CollectionBrowseReadService(
             using (var cmd = conn.CreateCommand())
             {
                 cmd.CommandText = """
-                    SELECT DISTINCT e.work_id
-                    FROM editions e
-                    INNER JOIN media_assets ma ON ma.edition_id = e.id
+                    SELECT DISTINCT woa.work_id
+                    FROM work_owned_assets woa
+                    INNER JOIN media_assets ma ON ma.id = woa.asset_id
                     WHERE ma.file_path_root NOT LIKE '%/.data/staging/%'
                       AND ma.file_path_root NOT LIKE '%\.data\staging\%'
                     """;
@@ -157,8 +157,8 @@ public sealed class CollectionBrowseReadService(
             FROM works w
             LEFT JOIN works child ON child.parent_work_id = w.id
             LEFT JOIN works grandchild ON grandchild.parent_work_id = child.id
-            INNER JOIN editions e ON e.work_id IN (w.id, child.id, grandchild.id)
-            INNER JOIN media_assets ma ON ma.edition_id = e.id
+            INNER JOIN work_owned_assets woa ON woa.work_id IN (w.id, child.id, grandchild.id)
+            INNER JOIN media_assets ma ON ma.id = woa.asset_id
             WHERE w.id = @WorkId
             """,
             new { WorkId = workId },
@@ -179,11 +179,11 @@ public sealed class CollectionBrowseReadService(
         using var conn = db.CreateConnection();
         var rows = await conn.QueryAsync<PrimaryAssetReadRow>(new CommandDefinition(
             """
-            SELECT e.work_id AS WorkId, MIN(ma.id) AS AssetId
-            FROM editions e
-            INNER JOIN media_assets ma ON ma.edition_id = e.id
-            WHERE e.work_id IN @WorkIds
-            GROUP BY e.work_id
+            SELECT woa.work_id AS WorkId, MIN(ma.id) AS AssetId
+            FROM work_owned_assets woa
+            INNER JOIN media_assets ma ON ma.id = woa.asset_id
+            WHERE woa.work_id IN @WorkIds
+            GROUP BY woa.work_id
             """,
             new { WorkIds = ids.Select(GuidSql.ToBlob).ToArray() },
             cancellationToken: ct)).ConfigureAwait(false);
