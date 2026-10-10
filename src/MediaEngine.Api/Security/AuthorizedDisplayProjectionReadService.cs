@@ -34,8 +34,11 @@ internal sealed class AuthorizedDisplayProjectionReadService(
             return [];
         }
 
-        var visibleWorkPredicate = HomeVisibilitySql.VisibleWorkPredicate(
-            "w.id", "w.curator_state", "w.is_catalog_only");
+        // The file itself must be visible (checked on the joined asset below), not just the work's own files:
+        // an episode covered by a combined file has no file of its own but is still playable through the host file.
+        var visibleWorkPredicate =
+            "COALESCE(w.curator_state, '') NOT IN ('rejected', 'provisional') AND COALESCE(w.is_catalog_only, 0) = 0 "
+            + "AND ma.status = 'Normal' AND ma.is_orphaned = 0";
         var visibleAssetPredicate = HomeVisibilitySql.VisibleAssetPathPredicate("ma.file_path_root");
         using var connection = database.CreateConnection();
         var rows = (await connection.QueryAsync<DisplayWorkRow>(new CommandDefinition(
@@ -48,12 +51,12 @@ internal sealed class AuthorizedDisplayProjectionReadService(
                    ma.id AS AssetId,
                    COALESCE(ma.presented_at, CURRENT_TIMESTAMP) AS CreatedAt
             FROM works w
-            JOIN editions e ON e.work_id=w.id
-            JOIN media_assets ma ON ma.edition_id=e.id
+            JOIN work_owned_assets woa ON woa.work_id=w.id
+            JOIN media_assets ma ON ma.id=woa.asset_id
             WHERE w.work_kind <> 'parent'
               AND {visibleWorkPredicate}
               AND {visibleAssetPredicate}
-            ORDER BY ma.presented_at DESC, ma.id;
+            ORDER BY ma.presented_at DESC, ma.id, woa.is_covered;
             """,
             cancellationToken: ct)).ConfigureAwait(false)).AsList();
         return rows.Where(row => Allows(row.LibraryId, row.MediaType, scope)).ToList();
