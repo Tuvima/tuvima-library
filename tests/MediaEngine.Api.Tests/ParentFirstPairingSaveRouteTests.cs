@@ -39,6 +39,7 @@ public sealed class ParentFirstPairingSaveRouteTests
         try
         {
             database.InitializeSchema();
+            database.RunStartupChecks();
             var libraryId = Guid.NewGuid();
             var show = Guid.NewGuid();
             var season = Guid.NewGuid();
@@ -79,7 +80,7 @@ public sealed class ParentFirstPairingSaveRouteTests
             }
 
             var actor = new RequestAuthority(PrincipalKind.Human, true,
-                AccountId: Guid.NewGuid(), ActiveProfileId: Guid.NewGuid(), SessionId: Guid.NewGuid(),
+                AccountId: Guid.NewGuid(), ActiveProfileId: MediaEngine.Domain.Aggregates.Profile.SeedProfileId, SessionId: Guid.NewGuid(),
                 AccountEnabled: true, GrantEnabled: true);
             var resolver = new MutableAuthorityResolver(actor);
             var builder = WebApplication.CreateBuilder(new WebApplicationOptions { EnvironmentName = "Development" });
