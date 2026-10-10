@@ -21,9 +21,15 @@ public sealed class ProviderHealthMonitorService : BackgroundService, IProviderH
     private readonly IEventPublisher _events;
     private readonly ILogger<ProviderHealthMonitorService> _logger;
     private readonly IServiceScopeFactory _scopeFactory;
+    private readonly IConfigurationLoader _configLoader;
+
+    private static readonly TimeSpan ProbeTimeout = TimeSpan.FromSeconds(5);
 
     // In-memory cache for fast IsDown() checks — refreshed from DB on changes.
     private readonly ConcurrentDictionary<string, ProviderHealthStatus> _statusCache = new(StringComparer.OrdinalIgnoreCase);
+
+    // When each Down provider is next due a probe (half-open window). Missing or null means "due now".
+    private readonly ConcurrentDictionary<string, DateTimeOffset?> _nextCheckCache = new(StringComparer.OrdinalIgnoreCase);
 
     // Track providers that need recovery flush.
     private readonly ConcurrentQueue<string> _recoveryQueue = new();
@@ -33,13 +39,15 @@ public sealed class ProviderHealthMonitorService : BackgroundService, IProviderH
         IHttpClientFactory httpClientFactory,
         IEventPublisher events,
         ILogger<ProviderHealthMonitorService> logger,
-        IServiceScopeFactory scopeFactory)
+        IServiceScopeFactory scopeFactory,
+        IConfigurationLoader configLoader)
     {
         _repo = repo;
         _httpClientFactory = httpClientFactory;
         _events = events;
         _logger = logger;
         _scopeFactory = scopeFactory;
+        _configLoader = configLoader;
     }
 
     // ── IProviderHealthMonitor implementation ────────────────────
@@ -48,6 +56,7 @@ public sealed class ProviderHealthMonitorService : BackgroundService, IProviderH
     {
         bool wasDown = await _repo.RecordSuccessAsync(providerId, ct);
         _statusCache[providerId] = ProviderHealthStatus.Healthy;
+        _nextCheckCache.TryRemove(providerId, out _);
 
         if (wasDown)
         {
@@ -71,6 +80,16 @@ public sealed class ProviderHealthMonitorService : BackgroundService, IProviderH
         var newStatus = await _repo.RecordFailureAsync(providerId, reason, ct);
         _statusCache[providerId] = newStatus;
 
+        if (newStatus == ProviderHealthStatus.Down)
+        {
+            var record = await _repo.GetAsync(providerId, ct);
+            _nextCheckCache[providerId] = record?.NextCheckAt ?? DateTimeOffset.UtcNow.AddMinutes(5);
+        }
+        else
+        {
+            _nextCheckCache.TryRemove(providerId, out _);
+        }
+
         // Notify Dashboard on transition to Down.
         if (newStatus == ProviderHealthStatus.Down && previousStatus != ProviderHealthStatus.Down)
         {
@@ -84,9 +103,22 @@ public sealed class ProviderHealthMonitorService : BackgroundService, IProviderH
         }
     }
 
+    /// <summary>
+    /// True while the provider is Down and its next probe is not yet due. Once <c>next_check_at</c> has
+    /// passed (or was never set) the provider is half-open: real requests are allowed through again and
+    /// the next success or failure decides whether it recovers or goes back to Down with a later check.
+    /// </summary>
     public bool IsDown(string providerId)
-        => _statusCache.TryGetValue(providerId, out var status)
-            && status == ProviderHealthStatus.Down;
+    {
+        if (!_statusCache.TryGetValue(providerId, out var status) || status != ProviderHealthStatus.Down)
+        {
+            return false;
+        }
+
+        return _nextCheckCache.TryGetValue(providerId, out var nextCheckAt)
+            && nextCheckAt is { } due
+            && due > DateTimeOffset.UtcNow;
+    }
 
     public ProviderHealthStatus GetStatus(string providerId)
         => _statusCache.TryGetValue(providerId, out var status)
@@ -127,44 +159,61 @@ public sealed class ProviderHealthMonitorService : BackgroundService, IProviderH
         }
     }
 
-    private async Task RefreshCacheAsync(CancellationToken ct)
+    internal async Task RefreshCacheAsync(CancellationToken ct)
     {
         var records = await _repo.GetAllAsync(ct);
         foreach (var r in records)
         {
             _statusCache[r.ProviderId] = r.Status;
+            if (r.Status == ProviderHealthStatus.Down)
+            {
+                _nextCheckCache[r.ProviderId] = r.NextCheckAt;
+            }
+            else
+            {
+                _nextCheckCache.TryRemove(r.ProviderId, out _);
+            }
         }
     }
 
-    private async Task RunActiveProbesAsync(CancellationToken ct)
+    internal async Task RunActiveProbesAsync(CancellationToken ct)
     {
         var downProviders = await _repo.GetDownProvidersAsync(ct);
         var now = DateTimeOffset.UtcNow;
 
         foreach (var provider in downProviders)
         {
+            // A missing next_check_at means the probe is due now.
             if (provider.NextCheckAt.HasValue && provider.NextCheckAt.Value > now)
             {
                 continue; // Not time yet.
             }
 
-            _logger.LogDebug("Active health probe for {Provider}", provider.ProviderId);
+            var probeUri = ResolveProbeUri(provider.ProviderId);
+            if (probeUri is null)
+            {
+                // No endpoint to probe: IsDown() turns half-open once the check time passes, so the
+                // next real request decides whether the provider has recovered.
+                _logger.LogDebug(
+                    "Provider {Provider} has no probe endpoint; recovery is detected on its next real request",
+                    provider.ProviderId);
+                continue;
+            }
+
+            _logger.LogDebug("Active health probe for {Provider} at {Uri}", provider.ProviderId, probeUri);
 
             try
             {
-                // Use the provider's named HttpClient to probe its base URL.
-                var client = _httpClientFactory.CreateClient(provider.ProviderId);
-                if (client.BaseAddress is null)
-                {
-                    _logger.LogDebug("Provider {Provider} has no probe address; recovery is detected on its next real request", provider.ProviderId);
-                    continue;
-                }
+                // The provider's named HttpClient when one is registered (the factory falls back to its default client otherwise).
+                using var client = _httpClientFactory.CreateClient(provider.ProviderId);
                 using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-                cts.CancelAfter(TimeSpan.FromSeconds(5));
+                cts.CancelAfter(ProbeTimeout);
 
-                using var response = await client.GetAsync(string.Empty, HttpCompletionOption.ResponseHeadersRead, cts.Token);
+                using var response = await client.GetAsync(probeUri, HttpCompletionOption.ResponseHeadersRead, cts.Token);
 
-                if ((int)response.StatusCode < 500)
+                // Any answer below 500 (other than 429) proves the service is reachable again, even if
+                // the probe itself was not an authorised or valid request.
+                if ((int)response.StatusCode < 500 && response.StatusCode != System.Net.HttpStatusCode.TooManyRequests)
                 {
                     // Provider is back! Record success — triggers recovery.
                     await ReportSuccessAsync(provider.ProviderId, ct);
@@ -177,13 +226,58 @@ public sealed class ProviderHealthMonitorService : BackgroundService, IProviderH
                         $"HTTP {(int)response.StatusCode}", ct);
                 }
             }
-            catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (Exception ex) when (ex is HttpRequestException or OperationCanceledException)
             {
                 await ReportFailureAsync(provider.ProviderId, ex.Message, ct);
                 _logger.LogDebug("Active probe: {Provider} still down — {Error}",
                     provider.ProviderId, ex.Message);
             }
         }
+    }
+
+    /// <summary>
+    /// The URL used to probe a Down provider: its configured "api" endpoint, otherwise the first
+    /// absolute http(s) endpoint. Null when the provider has no usable endpoint.
+    /// </summary>
+    private Uri? ResolveProbeUri(string providerName)
+    {
+        var config = _configLoader.LoadProvider(providerName);
+        if (config?.Endpoints is not { Count: > 0 } endpoints)
+        {
+            return null;
+        }
+
+        if (endpoints.TryGetValue("api", out var api) && TryParseHttpUri(api, out var apiUri))
+        {
+            return apiUri;
+        }
+
+        foreach (var endpoint in endpoints.Values)
+        {
+            if (TryParseHttpUri(endpoint, out var uri))
+            {
+                return uri;
+            }
+        }
+
+        return null;
+    }
+
+    private static bool TryParseHttpUri(string? value, out Uri uri)
+    {
+        if (Uri.TryCreate(value, UriKind.Absolute, out var parsed)
+            && parsed.Scheme is "http" or "https")
+        {
+            uri = parsed;
+            return true;
+        }
+
+        uri = null!;
+        return false;
     }
 
     private async Task ProcessRecoveryQueueAsync(CancellationToken ct)

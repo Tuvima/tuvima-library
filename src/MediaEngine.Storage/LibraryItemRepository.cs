@@ -534,7 +534,10 @@ public sealed class LibraryItemRepository : ILibraryItemRepository
 
         // Detail reads must remain database-only. File inspection belongs to ingestion or the
         // playback inspection cache; starting ffprobe here made a normal page request wait on disk.
-        var playbackSummary = BuildPlaybackSummary(Canonical, ct);
+        var playbackSummary = BuildPlaybackSummary(
+            Canonical,
+            LoadSubtitleLanguages(conn, [assetId, entityId, rootParentId]),
+            ct);
 
         Guid? reviewItemId = rqRow == default ? null : rqRow.Id;
         var universeQid = Canonical("fictional_universe_qid")
@@ -1808,8 +1811,42 @@ public sealed class LibraryItemRepository : ILibraryItemRepository
     private static DateTimeOffset? ParseDateTimeOffset(string? value) =>
         DateTimeOffset.TryParse(value, out var parsed) ? parsed : null;
 
+    /// <summary>
+    /// Subtitle languages are multi-valued, so they live in <c>canonical_value_arrays</c>. The first owner that
+    /// has any rows wins (the media asset owns its tracks; the work rows are only consulted when it has none).
+    /// </summary>
+    private static List<string> LoadSubtitleLanguages(
+        System.Data.IDbConnection conn,
+        IEnumerable<Guid?> ownerIds)
+    {
+        foreach (var owner in ownerIds)
+        {
+            if (owner is null)
+            {
+                continue;
+            }
+
+            var values = conn.Query<string>(
+                    """
+                    SELECT value
+                    FROM canonical_value_arrays
+                    WHERE entity_id = @owner AND key = @key
+                    ORDER BY ordinal;
+                    """,
+                    new { owner = owner.Value, key = MetadataFieldConstants.SubtitleLanguages })
+                .ToList();
+            if (values.Count > 0)
+            {
+                return values;
+            }
+        }
+
+        return [];
+    }
+
     private static PlaybackTechnicalSummary? BuildPlaybackSummary(
         Func<string, string?> canonical,
+        IReadOnlyList<string> subtitleLanguages,
         CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
@@ -1818,7 +1855,6 @@ public sealed class LibraryItemRepository : ILibraryItemRepository
         string? audioLanguage = canonical("audio_language");
         string? audioCodec = canonical("audio_codec");
         string? audioChannels = canonical("audio_channels");
-        var subtitleLanguages = SplitValues(canonical("subtitle_languages"));
 
         int? width = ParseNullableInt(canonical("video_width"));
         int? height = ParseNullableInt(canonical("video_height"));

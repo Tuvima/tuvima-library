@@ -9,6 +9,7 @@ using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Enums;
 using MediaEngine.Domain.Services;
 using MediaEngine.Storage.Contracts;
+using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Logging;
 
 namespace MediaEngine.Storage;
@@ -86,6 +87,13 @@ public sealed class WorkRepository : IWorkRepository
         ct.ThrowIfCancellationRequested();
 
         using var conn = _db.CreateConnection();
+        return Task.FromResult(FindChildByOrdinal(conn, null, parentWorkId, ordinal));
+    }
+
+    /// <summary>Transaction-aware form of <see cref="FindChildByOrdinalAsync"/>.</summary>
+    internal static Guid? FindChildByOrdinal(
+        SqliteConnection conn, SqliteTransaction? tx, Guid parentWorkId, int ordinal)
+    {
         const string sql = """
             SELECT id
             FROM   works
@@ -98,10 +106,8 @@ public sealed class WorkRepository : IWorkRepository
             LIMIT  1;
             """;
 
-        var id = conn.QueryFirstOrDefault<Guid?>(
-            sql, new { parentId = parentWorkId, ordinal });
-
-        return Task.FromResult(id);
+        return conn.QueryFirstOrDefault<Guid?>(
+            sql, new { parentId = parentWorkId, ordinal }, tx);
     }
 
     /// <inheritdoc/>
@@ -113,6 +119,13 @@ public sealed class WorkRepository : IWorkRepository
         ct.ThrowIfCancellationRequested();
 
         using var conn = _db.CreateConnection();
+        return Task.FromResult(FindChildByOrdinalSort(conn, null, parentWorkId, ordinalSort));
+    }
+
+    /// <summary>Transaction-aware form of <see cref="FindChildByOrdinalSortAsync"/>.</summary>
+    internal static Guid? FindChildByOrdinalSort(
+        SqliteConnection conn, SqliteTransaction? tx, Guid parentWorkId, double ordinalSort)
+    {
         const string sql = """
             SELECT id
             FROM   works
@@ -121,10 +134,8 @@ public sealed class WorkRepository : IWorkRepository
             LIMIT  1;
             """;
 
-        var id = conn.QueryFirstOrDefault<Guid?>(
-            sql, new { parentId = parentWorkId, ordinalSort });
-
-        return Task.FromResult(id);
+        return conn.QueryFirstOrDefault<Guid?>(
+            sql, new { parentId = parentWorkId, ordinalSort }, tx);
     }
 
     /// <inheritdoc/>
@@ -140,7 +151,13 @@ public sealed class WorkRepository : IWorkRepository
         }
 
         using var conn = _db.CreateConnection();
+        return Task.FromResult(FindChildByTitle(conn, null, parentWorkId, title));
+    }
 
+    /// <summary>Transaction-aware form of <see cref="FindChildByTitleAsync"/>.</summary>
+    internal static Guid? FindChildByTitle(
+        SqliteConnection conn, SqliteTransaction? tx, Guid parentWorkId, string title)
+    {
         // Title comparison goes through the canonical_values → media_assets →
         // editions chain. For catalog children that have no asset yet, we
         // also fall back to canonical values written directly with the
@@ -160,10 +177,8 @@ public sealed class WorkRepository : IWorkRepository
             LIMIT  1;
             """;
 
-        var id = conn.QueryFirstOrDefault<Guid?>(
-            sql, new { parentId = parentWorkId, title });
-
-        return Task.FromResult(id);
+        return conn.QueryFirstOrDefault<Guid?>(
+            sql, new { parentId = parentWorkId, title }, tx);
     }
 
     /// <inheritdoc/>
@@ -432,100 +447,116 @@ public sealed class WorkRepository : IWorkRepository
             throw new ArgumentException("Parent key is required.", nameof(parentKey));
         }
 
-        var resolved = await _db.ExecuteWriteAsync((conn, tx, innerCt) =>
-        {
-            Guid? existing = grandparentWorkId.HasValue && ordinal.HasValue
-                ? conn.QueryFirstOrDefault<Guid?>(
-                    """
-                    SELECT id
-                    FROM   works
-                    WHERE  media_type      = @mediaType
-                      AND  parent_work_id  = @parentId
-                      AND  ordinal         = @ordinal
-                      AND  work_kind       = 'parent'
-                    LIMIT  1;
-                    """,
-                    new { mediaType = mediaType.ToString(), parentId = grandparentWorkId.Value, ordinal },
-                    tx)
-                : conn.QueryFirstOrDefault<Guid?>(
-                    """
-                    SELECT id
-                    FROM   works
-                    WHERE  media_type = @mediaType
-                      AND  parent_key = @parentKey
-                      AND  work_kind  = 'parent'
-                    LIMIT  1;
-                    """,
-                    new { mediaType = mediaType.ToString(), parentKey },
-                    tx);
-
-            if (existing is { } found)
-            {
-                if (ordinalSort.HasValue)
-                {
-                    conn.Execute(
-                        "UPDATE works SET ordinal_sort = COALESCE(ordinal_sort, @ordinalSort) WHERE id = @id;",
-                        new { id = found, ordinalSort },
-                        tx);
-                }
-
-                return found;
-            }
-
-            var workId = Guid.NewGuid();
-            conn.Execute(
-                """
-                INSERT OR IGNORE INTO works
-                    (id, collection_id, media_type, work_kind, parent_work_id,
-                     ordinal, ordinal_sort, is_catalog_only, parent_key, wikidata_status)
-                VALUES
-                    (@id, NULL, @mediaType, 'parent', @parentId,
-                     @ordinal, @ordinalSort, 0, @parentKey, 'pending');
-                """,
-                new
-                {
-                    id = workId,
-                    mediaType = mediaType.ToString(),
-                    parentId = grandparentWorkId,
-                    ordinal,
-                    ordinalSort,
-                    parentKey
-                },
-                tx);
-
-            var resolvedId = grandparentWorkId.HasValue && ordinal.HasValue
-                ? conn.QuerySingle<Guid>(
-                    """
-                    SELECT id
-                    FROM   works
-                    WHERE  media_type      = @mediaType
-                      AND  parent_work_id  = @parentId
-                      AND  ordinal         = @ordinal
-                      AND  work_kind       = 'parent'
-                    LIMIT  1;
-                    """,
-                    new { mediaType = mediaType.ToString(), parentId = grandparentWorkId.Value, ordinal },
-                    tx)
-                : conn.QuerySingle<Guid>(
-                    """
-                    SELECT id
-                    FROM   works
-                    WHERE  media_type = @mediaType
-                      AND  parent_key = @parentKey
-                      AND  work_kind  = 'parent'
-                    LIMIT  1;
-                    """,
-                    new { mediaType = mediaType.ToString(), parentKey },
-                    tx);
-
-            return resolvedId;
-        }, ct).ConfigureAwait(false);
+        var resolved = await _db.ExecuteWriteAsync(
+            (conn, tx, innerCt) => GetOrCreateParent(
+                conn, tx, mediaType, parentKey, grandparentWorkId, ordinal, ordinalSort),
+            ct).ConfigureAwait(false);
 
         _logger?.LogDebug(
             "Resolved parent Work {WorkId} ({MediaType}) parent_key='{ParentKey}' grandparent={Grandparent} ordinal={Ordinal}",
             resolved, mediaType, parentKey, grandparentWorkId, ordinal);
 
         return resolved;
+    }
+
+    /// <summary>
+    /// Transaction-aware find-or-create of a parent Work, for callers that already hold the
+    /// write lock and an open transaction.
+    /// </summary>
+    internal static Guid GetOrCreateParent(
+        SqliteConnection conn,
+        SqliteTransaction tx,
+        MediaType mediaType,
+        string parentKey,
+        Guid? grandparentWorkId,
+        int? ordinal,
+        double? ordinalSort)
+    {
+        Guid? existing = grandparentWorkId.HasValue && ordinal.HasValue
+            ? conn.QueryFirstOrDefault<Guid?>(
+                """
+                SELECT id
+                FROM   works
+                WHERE  media_type      = @mediaType
+                  AND  parent_work_id  = @parentId
+                  AND  ordinal         = @ordinal
+                  AND  work_kind       = 'parent'
+                LIMIT  1;
+                """,
+                new { mediaType = mediaType.ToString(), parentId = grandparentWorkId.Value, ordinal },
+                tx)
+            : conn.QueryFirstOrDefault<Guid?>(
+                """
+                SELECT id
+                FROM   works
+                WHERE  media_type = @mediaType
+                  AND  parent_key = @parentKey
+                  AND  work_kind  = 'parent'
+                LIMIT  1;
+                """,
+                new { mediaType = mediaType.ToString(), parentKey },
+                tx);
+
+        if (existing is { } found)
+        {
+            if (ordinalSort.HasValue)
+            {
+                conn.Execute(
+                    "UPDATE works SET ordinal_sort = COALESCE(ordinal_sort, @ordinalSort) WHERE id = @id;",
+                    new { id = found, ordinalSort },
+                    tx);
+            }
+
+            return found;
+        }
+
+        var workId = Guid.NewGuid();
+        conn.Execute(
+            """
+            INSERT OR IGNORE INTO works
+                (id, collection_id, media_type, work_kind, parent_work_id,
+                 ordinal, ordinal_sort, is_catalog_only, parent_key, wikidata_status)
+            VALUES
+                (@id, NULL, @mediaType, 'parent', @parentId,
+                 @ordinal, @ordinalSort, 0, @parentKey, 'pending');
+            """,
+            new
+            {
+                id = workId,
+                mediaType = mediaType.ToString(),
+                parentId = grandparentWorkId,
+                ordinal,
+                ordinalSort,
+                parentKey
+            },
+            tx);
+
+        var resolvedId = grandparentWorkId.HasValue && ordinal.HasValue
+            ? conn.QuerySingle<Guid>(
+                """
+                SELECT id
+                FROM   works
+                WHERE  media_type      = @mediaType
+                  AND  parent_work_id  = @parentId
+                  AND  ordinal         = @ordinal
+                  AND  work_kind       = 'parent'
+                LIMIT  1;
+                """,
+                new { mediaType = mediaType.ToString(), parentId = grandparentWorkId.Value, ordinal },
+                tx)
+            : conn.QuerySingle<Guid>(
+                """
+                SELECT id
+                FROM   works
+                WHERE  media_type = @mediaType
+                  AND  parent_key = @parentKey
+                  AND  work_kind  = 'parent'
+                LIMIT  1;
+                """,
+                new { mediaType = mediaType.ToString(), parentKey },
+                tx);
+
+        return resolvedId;
     }
 
     /// <inheritdoc/>
@@ -567,97 +598,111 @@ public sealed class WorkRepository : IWorkRepository
     {
         ct.ThrowIfCancellationRequested();
 
-        return _db.ExecuteWriteAsync((conn, tx, innerCt) =>
+        return _db.ExecuteWriteAsync(
+            (conn, tx, innerCt) => GetOrCreateChild(conn, tx, mediaType, parentWorkId, ordinal, ordinalSort),
+            ct);
+    }
+
+    /// <summary>
+    /// Transaction-aware find-or-create of a child Work, for callers that already hold the
+    /// write lock and an open transaction.
+    /// </summary>
+    internal static Guid GetOrCreateChild(
+        SqliteConnection conn,
+        SqliteTransaction tx,
+        MediaType mediaType,
+        Guid parentWorkId,
+        int? ordinal,
+        double? ordinalSort)
+    {
+        Guid? existing = ordinalSort.HasValue
+            ? conn.QueryFirstOrDefault<Guid?>(
+                """
+                SELECT id
+                FROM   works
+                WHERE  parent_work_id = @parentId
+                  AND  ordinal_sort   = @ordinalSort
+                  AND  work_kind IN ('child', 'catalog')
+                LIMIT  1;
+                """,
+                new { parentId = parentWorkId, ordinalSort },
+                tx)
+            : null;
+
+        existing ??= ordinal.HasValue
+            ? conn.QueryFirstOrDefault<Guid?>(
+                """
+                SELECT id
+                FROM   works
+                WHERE  parent_work_id = @parentId
+                  AND  ordinal        = @ordinal
+                  AND  work_kind IN ('child', 'catalog')
+                LIMIT  1;
+                """,
+                new { parentId = parentWorkId, ordinal },
+                tx)
+            : null;
+
+        if (existing is { } found)
         {
-            Guid? existing = ordinalSort.HasValue
-                ? conn.QueryFirstOrDefault<Guid?>(
-                    """
-                    SELECT id
-                    FROM   works
-                    WHERE  parent_work_id = @parentId
-                      AND  ordinal_sort   = @ordinalSort
-                      AND  work_kind IN ('child', 'catalog')
-                    LIMIT  1;
-                    """,
-                    new { parentId = parentWorkId, ordinalSort },
-                    tx)
-                : null;
-
-            existing ??= ordinal.HasValue
-                ? conn.QueryFirstOrDefault<Guid?>(
-                    """
-                    SELECT id
-                    FROM   works
-                    WHERE  parent_work_id = @parentId
-                      AND  ordinal        = @ordinal
-                      AND  work_kind IN ('child', 'catalog')
-                    LIMIT  1;
-                    """,
-                    new { parentId = parentWorkId, ordinal },
-                    tx)
-                : null;
-
-            if (existing is { } found)
-            {
-                conn.Execute(
-                    """
-                    UPDATE works
-                    SET    work_kind       = CASE WHEN work_kind = 'catalog' THEN 'child' ELSE work_kind END,
-                           is_catalog_only = CASE WHEN work_kind = 'catalog' THEN 0 ELSE is_catalog_only END,
-                           ownership       = CASE WHEN work_kind = 'catalog' THEN 'Owned' ELSE ownership END,
-                           ordinal_sort    = COALESCE(ordinal_sort, @ordinalSort)
-                    WHERE  id = @id;
-                    """,
-                    new { id = found, ordinalSort },
-                    tx);
-
-                return found;
-            }
-
-            var workId = Guid.NewGuid();
             conn.Execute(
                 """
-                INSERT OR IGNORE INTO works
-                    (id, collection_id, media_type, work_kind, parent_work_id,
-                     ordinal, ordinal_sort, is_catalog_only, wikidata_status)
-                VALUES
-                    (@id, NULL, @mediaType, 'child', @parentId,
-                     @ordinal, @ordinalSort, 0, 'pending');
+                UPDATE works
+                SET    work_kind       = CASE WHEN work_kind = 'catalog' THEN 'child' ELSE work_kind END,
+                       is_catalog_only = CASE WHEN work_kind = 'catalog' THEN 0 ELSE is_catalog_only END,
+                       ownership       = CASE WHEN work_kind = 'catalog' THEN 'Owned' ELSE ownership END,
+                       ordinal_sort    = COALESCE(ordinal_sort, @ordinalSort)
+                WHERE  id = @id;
                 """,
-                new
-                {
-                    id = workId,
-                    mediaType = mediaType.ToString(),
-                    parentId = parentWorkId,
-                    ordinal,
-                    ordinalSort
-                },
+                new { id = found, ordinalSort },
                 tx);
 
-            var resolved = ordinalSort.HasValue
-                ? conn.QuerySingle<Guid>(
-                    """
-                    SELECT id
-                    FROM   works
-                    WHERE  parent_work_id = @parentId
-                      AND  ordinal_sort   = @ordinalSort
-                      AND  work_kind IN ('child', 'catalog')
-                    LIMIT  1;
-                    """,
-                    new { parentId = parentWorkId, ordinalSort },
-                    tx)
-                : conn.QuerySingle<Guid>(
-                    """
-                    SELECT id
-                    FROM   works
-                    WHERE  id = @id
-                    LIMIT  1;
-                    """,
-                    new { id = workId },
-                    tx);
+            return found;
+        }
 
-            return resolved;
-        }, ct);
+        var workId = Guid.NewGuid();
+        conn.Execute(
+            """
+            INSERT OR IGNORE INTO works
+                (id, collection_id, media_type, work_kind, parent_work_id,
+                 ordinal, ordinal_sort, is_catalog_only, wikidata_status)
+            VALUES
+                (@id, NULL, @mediaType, 'child', @parentId,
+                 @ordinal, @ordinalSort, 0, 'pending');
+            """,
+            new
+            {
+                id = workId,
+                mediaType = mediaType.ToString(),
+                parentId = parentWorkId,
+                ordinal,
+                ordinalSort
+            },
+            tx);
+
+        var resolved = ordinalSort.HasValue
+            ? conn.QuerySingle<Guid>(
+                """
+                SELECT id
+                FROM   works
+                WHERE  parent_work_id = @parentId
+                  AND  ordinal_sort   = @ordinalSort
+                  AND  work_kind IN ('child', 'catalog')
+                LIMIT  1;
+                """,
+                new { parentId = parentWorkId, ordinalSort },
+                tx)
+            : conn.QuerySingle<Guid>(
+                """
+                SELECT id
+                FROM   works
+                WHERE  id = @id
+                LIMIT  1;
+                """,
+                new { id = workId },
+                tx);
+
+        return resolved;
     }
 
     /// <inheritdoc/>
@@ -673,12 +718,18 @@ public sealed class WorkRepository : IWorkRepository
         }
 
         using var conn = _db.CreateConnection();
-        conn.Execute(
-            "UPDATE works SET ordinal_sort = @ordinalSort WHERE id = @workId;",
-            new { workId, ordinalSort });
+        UpdateOrdinalSort(conn, null, workId, ordinalSort.Value);
 
         return Task.CompletedTask;
     }
+
+    /// <summary>Transaction-aware form of <see cref="UpdateOrdinalSortAsync"/>.</summary>
+    internal static void UpdateOrdinalSort(
+        SqliteConnection conn, SqliteTransaction? tx, Guid workId, double ordinalSort) =>
+        conn.Execute(
+            "UPDATE works SET ordinal_sort = @ordinalSort WHERE id = @workId;",
+            new { workId, ordinalSort },
+            tx);
 
     /// <inheritdoc/>
     public Task<Guid> InsertStandaloneAsync(
@@ -748,7 +799,19 @@ public sealed class WorkRepository : IWorkRepository
         ct.ThrowIfCancellationRequested();
 
         using var conn = _db.CreateConnection();
+        if (PromoteCatalogToOwned(conn, null, workId) > 0)
+        {
+            _logger?.LogInformation("Promoted catalog Work {WorkId} to owned child", workId);
+        }
+
+        return Task.CompletedTask;
+    }
+
+    /// <summary>Transaction-aware form of <see cref="PromoteCatalogToOwnedAsync"/>; returns rows changed.</summary>
+    internal static int PromoteCatalogToOwned(SqliteConnection conn, SqliteTransaction? tx, Guid workId)
+    {
         using var cmd = conn.CreateCommand();
+        cmd.Transaction = tx;
         cmd.CommandText = """
             UPDATE works
             SET    work_kind       = 'child',
@@ -758,14 +821,7 @@ public sealed class WorkRepository : IWorkRepository
               AND  work_kind       = 'catalog';
             """;
         cmd.Parameters.AddWithValue("@id", GuidSql.ToBlob(workId));
-        var rows = cmd.ExecuteNonQuery();
-
-        if (rows > 0)
-        {
-            _logger?.LogInformation("Promoted catalog Work {WorkId} to owned child", workId);
-        }
-
-        return Task.CompletedTask;
+        return cmd.ExecuteNonQuery();
     }
 
     /// <inheritdoc/>

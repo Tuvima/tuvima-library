@@ -13,7 +13,7 @@
          @ref="_cardRef"
          aria-label="@Item.Title">
     <a class="media-tile-link" href="@DetailsNavigationUrl" aria-label="@DetailsActionAriaLabel" @onclick="OpenDetails" @onclick:preventDefault="true">
-    <div class="media-tile-frame @(Item.IsUpdatingDetails ? "tl-enrichment-pending" : null)">
+    <div class="media-tile-frame">
         <div class="media-tile-media @(HasArtworkSurface ? "has-artwork-surface" : null)">
             @if (ShowGroupCollage)
             {
@@ -122,7 +122,7 @@
     @if (ShowCompactCaption && Item.Subject != DisplaySubjectKind.TvEpisode)
     {
         <div class="media-tile-caption" aria-hidden="true">
-            <span class="media-tile-caption__title" title="@Item.Title">@Item.Title</span>
+            <span class="media-tile-caption__title" title="@Item.Title">@if (Item.IsSettling) { <span class="media-tile-settling-dot" title="Still being matched"><span class="media-tile-settling-dot__label">Still being matched</span></span> }@Item.Title</span>
             @if (!string.IsNullOrWhiteSpace(Item.Subtitle) && Item.MediaKind is not ("Movie" or "TV")) { <span class="media-tile-caption__subtitle">@Item.Subtitle</span> }
 
             @if (!string.IsNullOrWhiteSpace(CompactIdentityYear))
@@ -584,7 +584,7 @@
         _ => "is-default",
     };
 
-    private string HoverLayoutClass => MediaKindLabel is "Movie" or "TV" || Item.HoverLayout == MediaTileHoverLayout.BannerPopover ? "is-banner-popover" : "is-art-popover";
+    private string HoverLayoutClass => Item.HoverLayout == MediaTileHoverLayout.BannerPopover ? "is-banner-popover" : "is-art-popover";
 
     private string HoverPlacementClass => Item.PreviewPlacement == MediaTilePreviewPlacement.Bottom ? "is-placement-bottom" : "is-placement-smart";
 
@@ -1094,7 +1094,7 @@
 
     private string DetailsNavigationUrl => Item.DetailsNavigationUrl ?? Item.NavigationUrl;
 
-    private string DetailsActionAriaLabel => $"View details for {Item.Title}" + (Item.IsUpdatingDetails ? ". Updating details" : string.Empty);
+    private string DetailsActionAriaLabel => $"View details for {Item.Title}" + (Item.IsSettling ? ". Still being matched" : string.Empty);
 
     private void OpenDetails()
     {

@@ -90,6 +90,8 @@ API credentials are config-file data. Base provider definitions live in `config/
 
 **Notes:** ISBN lookup is exact match (1 result). Book and audiobook search returns up to 25 results and fetches the top 5. For music, Apple runs after the configured MusicBrainz identity step and supplies cover art, retail album metadata, genre/year, and Apple source links. Cover art URL transforms remove Apple's size constraints for higher resolution.
 
+File languages written as names (`English`), ISO 639-2 codes (`eng`) or culture codes (`en-US`) are normalised to two-letter codes. Apple's `lang` must be a real language-country pair; otherwise English is used. Apple results from an ISBN lookup are trusted as the exact edition, while search results are accepted only when the file language matches the storefront language.
+
 #### TMDB
 
 | Strategy | Priority | Required Fields | URL Pattern | Media Types |
@@ -100,6 +102,8 @@ API credentials are config-file data. Base provider definitions live in `config/
 
 **Notes:** Year is optional but included when available from file metadata. TV jobs are grouped by show and season: the worker searches the show, fetches show details, then fetches the season episode list and distributes episode-level claims to queued files. Returns poster paths that are expanded to `https://image.tmdb.org/t/p/w500{path}`.
 
+A Movies-library item with no TMDB movie match is checked against TMDB's TV catalogue. A strong miniseries or short-season match is never applied automatically; it becomes a Review Queue suggestion, "Found as a TV title", with Move to TV, Search again, or Keep as unmatched film. Move to TV re-files the item under TV as a Season 0 special without moving the file.
+
 #### MusicBrainz
 
 | Strategy | Priority | Required Fields | URL Pattern | Media Types |
@@ -108,6 +112,8 @@ API credentials are config-file data. Base provider definitions live in `config/
 | Release Search | 2 | `title` | `/release?query={query}&fmt=json&limit={limit}` | Music |
 
 **Notes:** MusicBrainz is the default first Stage 1 provider for music. It identifies recordings and album/release containers before Apple enrichment runs. Its configured searches combine title with artist/composer/author where available, while album and year remain ranking and scoping signals. Recording IDs stay track-scoped; release and release-group IDs stay album-scoped.
+
+For MusicBrainz and Apple Music matches, a track keeps its tagged album. A release is only applied to the album when its title matches the album tag.
 
 #### Comic Vine
 

@@ -140,6 +140,12 @@ public static class MetadataFieldConstants
     public const string Editor = "editor";
 
     /// <summary>
+    /// Embedded subtitle track languages of a video file, one claim and one array row per
+    /// distinct language (ISO 639-1 where the code is recognised).
+    /// </summary>
+    public const string SubtitleLanguages = "subtitle_languages";
+
+    /// <summary>
     /// Multi-valued field keys that may contain multiple values from Wikidata
     /// or other providers. These keys are decomposed into individual
     /// <c>CanonicalArrayEntry</c> rows in the array repository.
@@ -193,6 +199,9 @@ public static class MetadataFieldConstants
         "network",
         "set_in_period",
         "filming_location",
+
+        // Technical track fields
+        "subtitle_languages",
 
         // AI-generated vocabulary fields
         "themes",

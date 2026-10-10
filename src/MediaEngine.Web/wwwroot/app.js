@@ -3147,16 +3147,27 @@ window.detailOrigin = (() => {
     let freshRoute = null;
     let navigationEpoch = 0;
     const routeKey = () => `${window.location.pathname}${window.location.search}`;
+    // Pages scroll inside the layout shell's main pane (Home, details, most routes),
+    // so it is tracked alongside the explicitly tagged lane/section scrollers.
+    const scrollTargets = () => {
+        const targets = Array.from(document.querySelectorAll('[data-detail-origin-scroll]'))
+            .map((element, index) => ({ element, key: element.getAttribute('data-detail-origin-scroll') || String(index) }));
+        const shellMain = document.querySelector('.layout-context-sidebar > .context-sidebar-shell__main');
+        if (shellMain && !targets.some(target => target.element === shellMain)) {
+            targets.push({ element: shellMain, key: 'shell-main' });
+        }
+        return targets;
+    };
 
     const capture = () => {
         try {
             const active = document.activeElement;
             sessionStorage.setItem(prefix + routeKey(), JSON.stringify({
                 scrollY: window.scrollY,
-                scrollContainers: Array.from(document.querySelectorAll('[data-detail-origin-scroll]'))
-                    .map((element, index) => ({
-                        key: element.getAttribute('data-detail-origin-scroll') || String(index),
-                        top: element.scrollTop
+                scrollContainers: scrollTargets()
+                    .map(target => ({
+                        key: target.key,
+                        top: target.element.scrollTop
                     })),
                 activeHref: active instanceof HTMLAnchorElement ? active.getAttribute('href') : null,
                 capturedAt: Date.now()
@@ -3181,11 +3192,10 @@ window.detailOrigin = (() => {
                     if (epoch !== navigationEpoch) return;
                     if (freshRoute === routeKey()) { resetFresh(); return; }
                     window.scrollTo({ top: Number(state.scrollY) || 0, behavior: 'instant' });
-                    const scrollContainers = Array.from(document.querySelectorAll('[data-detail-origin-scroll]'));
+                    const scrollContainers = scrollTargets();
                     (state.scrollContainers || []).forEach((position, index) => {
-                        const element = scrollContainers.find(candidate =>
-                            candidate.getAttribute('data-detail-origin-scroll') === position.key)
-                            || scrollContainers[index];
+                        const element = (scrollContainers.find(candidate => candidate.key === position.key)
+                            || scrollContainers[index])?.element;
                         // Catalogue timelines restore an indexed year, which may
                         // require a different page window. A stale pixel offset
                         // would override that jump and land in the wrong period.
@@ -3218,10 +3228,12 @@ window.detailOrigin = (() => {
                 : null;
             if (!(link instanceof HTMLAnchorElement)) return;
             const destination = new URL(link.href, window.location.href);
+            const destinationRoute = `${destination.pathname}${destination.search}`;
             if (destination.origin === window.location.origin
                 && destination.pathname.startsWith('/details/')
-                && !window.location.pathname.startsWith('/details/')) {
-                capture();
+                && destinationRoute !== routeKey()) {
+                // Remember where we came from (for Back) and open the details page at its top.
+                fresh(destinationRoute);
             }
         }, true);
         window.addEventListener('popstate', () => { freshRoute = null; window.setTimeout(restore, 0); });

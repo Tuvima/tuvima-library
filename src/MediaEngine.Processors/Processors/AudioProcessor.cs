@@ -211,7 +211,7 @@ public sealed partial class AudioProcessor : IMediaProcessor
             if (!string.IsNullOrWhiteSpace(stem))
             {
                 // Basic filename cleanup — SmartLabeler (Step 6b) handles intelligent parsing.
-                var basicTitle = stem.Replace('.', ' ').Replace('_', ' ').Trim();
+                var basicTitle = FileStemTitleCleaner.Clean(stem);
                 if (!string.IsNullOrWhiteSpace(basicTitle))
                 {
                     claims.Add(Claim("title", basicTitle, 0.50));

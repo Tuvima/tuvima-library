@@ -249,6 +249,32 @@ public sealed class ReviewQueueRepository : IReviewQueueRepository
         return Task.CompletedTask;
     }
 
+    /// <summary>
+    /// Moves a still-pending review item to <paramref name="status"/> on a caller-owned write
+    /// transaction. Returns false when the item is no longer pending (already resolved or dismissed).
+    /// </summary>
+    internal static bool ResolvePendingInTransaction(
+        Microsoft.Data.Sqlite.SqliteConnection conn,
+        Microsoft.Data.Sqlite.SqliteTransaction tx,
+        Guid id,
+        string status,
+        string? resolvedBy) =>
+        conn.Execute("""
+            UPDATE review_queue
+            SET    status      = @status,
+                   resolved_at = @resolvedAt,
+                   resolved_by = @resolvedBy
+            WHERE  id = @id
+              AND  status = @pending
+            """, new
+        {
+            id,
+            status,
+            resolvedAt = DateTimeOffset.UtcNow.ToString("O"),
+            resolvedBy,
+            pending = ReviewStatus.Pending,
+        }, tx) == 1;
+
     /// <inheritdoc/>
     public Task<int> MarkPendingReadyByEntityAsync(Guid entityId, CancellationToken ct = default)
     {

@@ -176,34 +176,44 @@ public sealed class BridgeIdRepository : IBridgeIdRepository
             return Task.CompletedTask;
         }
 
-        return _db.ExecuteWriteAsync((conn, tx, innerCt) =>
-        {
-            foreach (var entry in entries)
-            {
-                conn.Execute("""
-                    INSERT INTO bridge_ids
-                        (id, entity_id, id_type, id_value, wikidata_property, provider_id, created_at)
-                    VALUES
-                        (@id, @entityId, @idType, @idValue, @wikidataProperty, @providerId, @createdAt)
-                    ON CONFLICT(entity_id, id_type) DO UPDATE SET
-                        id_value          = excluded.id_value,
-                        wikidata_property = excluded.wikidata_property,
-                        provider_id       = excluded.provider_id;
-                    """,
-                    new
-                    {
-                        id = entry.Id,
-                        entityId = entry.EntityId,
-                        idType = entry.IdType,
-                        idValue = entry.IdValue,
-                        wikidataProperty = entry.WikidataProperty,
-                        providerId = entry.ProviderId,
-                        createdAt = entry.CreatedAt.ToString("O"),
-                    },
-                    transaction: tx);
-            }
+        return _db.ExecuteWriteAsync(
+            (conn, tx, innerCt) => UpsertBatchInTransaction(conn, tx, entries),
+            ct);
+    }
 
-        }, ct);
+    /// <summary>
+    /// Upserts bridge ids on a caller-owned write transaction, so a multi-step change can commit
+    /// or roll back with its bridge ids.
+    /// </summary>
+    internal static void UpsertBatchInTransaction(
+        Microsoft.Data.Sqlite.SqliteConnection conn,
+        Microsoft.Data.Sqlite.SqliteTransaction tx,
+        IReadOnlyList<BridgeIdEntry> entries)
+    {
+        foreach (var entry in entries)
+        {
+            conn.Execute("""
+                INSERT INTO bridge_ids
+                    (id, entity_id, id_type, id_value, wikidata_property, provider_id, created_at)
+                VALUES
+                    (@id, @entityId, @idType, @idValue, @wikidataProperty, @providerId, @createdAt)
+                ON CONFLICT(entity_id, id_type) DO UPDATE SET
+                    id_value          = excluded.id_value,
+                    wikidata_property = excluded.wikidata_property,
+                    provider_id       = excluded.provider_id;
+                """,
+                new
+                {
+                    id = entry.Id,
+                    entityId = entry.EntityId,
+                    idType = entry.IdType,
+                    idValue = entry.IdValue,
+                    wikidataProperty = entry.WikidataProperty,
+                    providerId = entry.ProviderId,
+                    createdAt = entry.CreatedAt.ToString("O"),
+                },
+                transaction: tx);
+        }
     }
 
     /// <inheritdoc/>

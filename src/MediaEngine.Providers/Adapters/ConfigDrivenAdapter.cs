@@ -10,6 +10,7 @@ using MediaEngine.Domain;
 using MediaEngine.Domain.Configuration;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Enums;
+using MediaEngine.Domain.Jobs;
 using MediaEngine.Domain.Models;
 using MediaEngine.Domain.Services;
 using MediaEngine.Providers.Contracts;
@@ -124,11 +125,12 @@ public sealed partial class ConfigDrivenAdapter : IExternalMetadataProvider, IPr
             return [];
         }
 
-        // Skip providers known to be down — items will be queued as "Waiting for Provider".
+        // A provider known to be down is not a "no match": surface it so callers keep the work
+        // queued as "Waiting for provider" instead of classifying it as permanently unmatched.
         if (_healthMonitor.IsDown(Name))
         {
-            _logger.LogDebug("{Provider} is known to be down — skipping", Name);
-            return [];
+            _logger.LogDebug("{Provider} is known to be down — waiting for provider", Name);
+            throw new ProviderUnavailableException("Waiting for provider");
         }
 
         // Short-circuit when an API key is required but not configured.
@@ -161,6 +163,8 @@ public sealed partial class ConfigDrivenAdapter : IExternalMetadataProvider, IPr
             ? request
             : CloneRequestWithLanguage(request, effectiveLang);
 
+        var outcome = new FetchOutcome();
+
         foreach (var strategy in strategies)
         {
             // Check required fields are present.
@@ -176,6 +180,7 @@ public sealed partial class ConfigDrivenAdapter : IExternalMetadataProvider, IPr
             {
                 var claims = await ExecuteStrategyAsync(strategy, effectiveRequest, ct)
                     .ConfigureAwait(false);
+                outcome.Responded = true;
 
                 if (claims.Count > 0)
                 {
@@ -198,13 +203,13 @@ public sealed partial class ConfigDrivenAdapter : IExternalMetadataProvider, IPr
             }
             catch (Exception ex) when (ex is HttpRequestException or OperationCanceledException)
             {
-                _logger.LogWarning(ex,
-                    "{Provider}/{Strategy}: failed, trying next strategy",
-                    Name, strategy.Name);
-                await _healthMonitor.ReportFailureAsync(Name, ex.Message, ct);
+                await RecordTransportFailureAsync(ex, strategy.Name, "failed, trying next strategy", outcome, ct)
+                    .ConfigureAwait(false);
             }
             catch (Exception ex) when (ex is System.Text.Json.JsonException or InvalidOperationException)
             {
+                // The provider answered; an unreadable body is not an availability problem.
+                outcome.Responded = true;
                 _logger.LogWarning(ex,
                     "{Provider}/{Strategy}: parse error, trying next strategy",
                     Name, strategy.Name);
@@ -229,6 +234,7 @@ public sealed partial class ConfigDrivenAdapter : IExternalMetadataProvider, IPr
                 {
                     var claims = await ExecuteStrategyAsync(strategy, englishRequest, ct)
                         .ConfigureAwait(false);
+                    outcome.Responded = true;
 
                     if (claims.Count > 0)
                     {
@@ -243,13 +249,12 @@ public sealed partial class ConfigDrivenAdapter : IExternalMetadataProvider, IPr
                 catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }
                 catch (Exception ex) when (ex is HttpRequestException or OperationCanceledException)
                 {
-                    _logger.LogWarning(ex,
-                        "{Provider}/{Strategy}: English fallback failed",
-                        Name, strategy.Name);
-                    await _healthMonitor.ReportFailureAsync(Name, ex.Message, ct);
+                    await RecordTransportFailureAsync(ex, strategy.Name, "English fallback failed", outcome, ct)
+                        .ConfigureAwait(false);
                 }
                 catch (Exception ex) when (ex is System.Text.Json.JsonException or InvalidOperationException)
                 {
+                    outcome.Responded = true;
                     _logger.LogWarning(ex,
                         "{Provider}/{Strategy}: English fallback parse error",
                         Name, strategy.Name);
@@ -260,14 +265,66 @@ public sealed partial class ConfigDrivenAdapter : IExternalMetadataProvider, IPr
         foreach (var pass in BuildLookupPasses(request).Where(pass =>
                      !string.Equals(pass.Request.Country, request.Country, StringComparison.OrdinalIgnoreCase)))
         {
-            var claims = await ExecuteFetchPassAsync(strategies, pass, ct).ConfigureAwait(false);
+            var claims = await ExecuteFetchPassAsync(strategies, pass, outcome, ct).ConfigureAwait(false);
             if (claims.Count > 0)
             {
                 return claims;
             }
         }
 
+        // Nothing produced claims. If no strategy got any answer and at least one failed in transit,
+        // this is an availability/request problem, not a genuine "no match".
+        if (!outcome.Responded && outcome.Failures.Count > 0)
+        {
+            throw outcome.Failures.All(failure => failure is ProviderRequestRejectedException)
+                ? outcome.Failures[0]
+                : outcome.Failures.OfType<ProviderUnavailableException>().First();
+        }
+
         return [];
+    }
+
+    /// <summary>Tracks what the provider answered while <see cref="FetchAsync"/> tried its strategies.</summary>
+    private sealed class FetchOutcome
+    {
+        /// <summary>True once any strategy received a readable response (even with zero results).</summary>
+        public bool Responded { get; set; }
+
+        /// <summary>
+        /// Transport-level failures: <see cref="ProviderRequestRejectedException"/> for non-429 4xx
+        /// responses, <see cref="ProviderUnavailableException"/> for everything else.
+        /// </summary>
+        public List<HttpRequestException> Failures { get; } = [];
+    }
+
+    /// <summary>
+    /// Logs a failed provider request and records how it should be classified. Only provider-side
+    /// failures (timeouts, connection errors, 5xx, 429) count towards the provider being Down;
+    /// a rejected request (non-429 4xx) means our request was wrong, not that the provider is.
+    /// </summary>
+    private async Task RecordTransportFailureAsync(
+        Exception ex,
+        string strategyName,
+        string context,
+        FetchOutcome outcome,
+        CancellationToken ct)
+    {
+        if (ex is HttpRequestException { StatusCode: { } status }
+            && (int)status is >= 400 and < 500
+            && status != System.Net.HttpStatusCode.TooManyRequests)
+        {
+            _logger.LogWarning(ex,
+                "{Provider}/{Strategy}: {Context} — request rejected (HTTP {StatusCode})",
+                Name, strategyName, context, (int)status);
+            outcome.Failures.Add(new ProviderRequestRejectedException(
+                $"{Name} rejected the request (HTTP {(int)status})", status, ex));
+            return;
+        }
+
+        _logger.LogWarning(ex, "{Provider}/{Strategy}: {Context}", Name, strategyName, context);
+        await _healthMonitor.ReportFailureAsync(Name, ex.Message, ct).ConfigureAwait(false);
+        outcome.Failures.Add(new ProviderUnavailableException(
+            $"{Name} is unavailable: {ex.Message}", ex, (ex as HttpRequestException)?.StatusCode));
     }
 
     /// <summary>

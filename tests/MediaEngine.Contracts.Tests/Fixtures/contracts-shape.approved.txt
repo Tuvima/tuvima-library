@@ -2514,6 +2514,7 @@ MediaEngine.Contracts.Display.MediaEngine.Contracts.Display.DisplayCardDto
   GroupSummary: MediaEngine.Contracts.Display.DisplayGroupSummaryDto | nullability=nullable | accessors=get,init
   SortYear: System.Int32 | nullability=not-null | accessors=get,init
   ListMetadata: MediaEngine.Contracts.Display.DisplayCardListMetadataDto | nullability=nullable | accessors=get,init
+  IsSettling: System.Boolean | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.Display.MediaEngine.Contracts.Display.DisplayCardFlagsDto
   IsPlayable: System.Boolean | nullability=not-null | accessors=get,init
@@ -6701,6 +6702,16 @@ MediaEngine.Contracts.Review.MediaEngine.Contracts.Review.FieldOverrideDto
   Value: System.String | nullability=not-null | accessors=get,init
   ProviderId: System.String | nullability=nullable | accessors=get,init
 
+MediaEngine.Contracts.Review.MediaEngine.Contracts.Review.MovieTvSuggestionDto
+  TmdbTvId: System.String | nullability=not-null | accessors=get,init
+  Name: System.String | nullability=not-null | accessors=get,init
+  FirstAirYear: System.Int32? | nullability=nullable | accessors=get,init
+  Type: System.String | nullability=nullable | accessors=get,init
+  Seasons: System.Int32 | nullability=not-null | accessors=get,init
+  Episodes: System.Int32 | nullability=not-null | accessors=get,init
+  PosterUrl: System.String | nullability=nullable | accessors=get,init
+  Overview: System.String | nullability=nullable | accessors=get,init
+
 MediaEngine.Contracts.Review.MediaEngine.Contracts.Review.ReviewCountResponse
   PendingCount: System.Int32 | nullability=not-null | accessors=get,init
 
@@ -6729,6 +6740,13 @@ MediaEngine.Contracts.Review.MediaEngine.Contracts.Review.ReviewItemDto
   CoverUrl: System.String | nullability=nullable | accessors=get,init
   BridgeIdentifiers: System.Collections.Generic.Dictionary<System.String, System.String> | nullability=not-null | accessors=get,init
   DetectedFacts: System.Collections.Generic.Dictionary<System.String, System.String> | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Review.MediaEngine.Contracts.Review.ReviewMoveToTvResponse
+  moved: System.Boolean | nullability=not-null | accessors=get,init
+  review_item_id: System.Guid | nullability=not-null | accessors=get,init
+  entity_id: System.Guid | nullability=not-null | accessors=get,init
+  show_name: System.String | nullability=not-null | accessors=get,init
+  tv_library_id: System.String | nullability=nullable | accessors=get,init
 
 MediaEngine.Contracts.Review.MediaEngine.Contracts.Review.ReviewResolveRequestDto
   SelectedQid: System.String | nullability=nullable | accessors=get,init

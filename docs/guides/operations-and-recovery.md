@@ -29,7 +29,7 @@ Enter the new password at its interactive prompt. Recovery revokes sessions and 
 
 Open Operations at `/settings/ingestion`, shown as **Live Ingestion** in the Settings sidebar. It shows the current run, queued work, provider waits, outcomes, and the three newest batches. Use search and outcome filters for history; **Show older** appends another page. Open a batch to browse its media.
 
-Operations refreshes automatically. **Scan now** starts an extra scan of watched folders. The green navbar activity indicator opens the same page.
+Operations refreshes automatically. **Check folders for changes** (in the Ingestion page "⋯" menu) starts an extra scan of watched folders. The green navbar activity indicator opens the same page.
 
 An interrupted import resumes from durable job and operation records when the Engine restarts. Expired worker leases do not by themselves fail recoverable work.
 

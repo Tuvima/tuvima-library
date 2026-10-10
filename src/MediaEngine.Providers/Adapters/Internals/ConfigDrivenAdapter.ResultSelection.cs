@@ -39,13 +39,16 @@ public sealed partial class ConfigDrivenAdapter
             return null;
         }
 
-        // Storefront and response locale are not evidence of an edition's language.
-        // Apple omits ebook language in its search payload; without an exact ISBN
-        // or explicit language evidence, leave that edition for manual selection.
+        // Apple omits ebook language and ISBN in its payloads, so candidates are
+        // accepted when: the candidate's explicit language matches the file's; the
+        // strategy was an exact ISBN lookup for a valid request ISBN; or there is no
+        // language evidence and the file language is unknown or equals the storefront
+        // language. Only a known file language that differs from the storefront still
+        // requires an exact ISBN match, leaving that edition for manual selection.
         if (request.MediaType is MediaType.Books or MediaType.Audiobooks)
         {
             var language = request.FileLanguage ?? request.Language;
-            var eligible = arr.Where(node => node is not null && IsEditionCompatible(node, request, language)).ToList();
+            var eligible = arr.Where(node => node is not null && IsEditionCompatible(node, strategy, request, language)).ToList();
             if (eligible.Count == 0)
             {
                 return null;
@@ -184,18 +187,15 @@ public sealed partial class ConfigDrivenAdapter
         return arr[index];
     }
 
-    private bool IsEditionCompatible(JsonNode node, ProviderLookupRequest request, string? expectedLanguage)
+    private bool IsEditionCompatible(
+        JsonNode node,
+        SearchStrategyConfig strategy,
+        ProviderLookupRequest request,
+        string? expectedLanguage)
     {
         var candidateLanguage = ExtractFirstString(node, ["language", "languageCode", "language_code"]);
-        static string NormalizeLanguage(string value) => value.Trim().ToLowerInvariant().Split('-', '_')[0] switch
-        {
-            "eng" or "english" => "en",
-            "fra" or "fre" or "french" => "fr",
-            "deu" or "ger" or "german" => "de",
-            "spa" or "spanish" => "es",
-            "ita" or "italian" => "it",
-            var other => other,
-        };
+        static string NormalizeLanguage(string value) =>
+            LanguageCodeNormalizer.ToIso6391(value) ?? value.Trim().ToLowerInvariant();
         if (!string.IsNullOrWhiteSpace(candidateLanguage) && !string.IsNullOrWhiteSpace(expectedLanguage))
         {
             return NormalizeLanguage(candidateLanguage) == NormalizeLanguage(expectedLanguage);
@@ -208,6 +208,24 @@ public sealed partial class ConfigDrivenAdapter
         }
 
         var sourceIsbn = IsbnValidation.NormalizeValid(request.Isbn);
+
+        // A strategy keyed on the ISBN (e.g. isbn_lookup) returns ISBN-exact editions by
+        // definition, even though Apple's payload carries no isbn or language field.
+        if (sourceIsbn is not null
+            && strategy.RequiredFields.Any(field => string.Equals(field, "isbn", StringComparison.OrdinalIgnoreCase)))
+        {
+            return true;
+        }
+
+        // No language/ISBN evidence on the candidate: accept when the file language is
+        // unknown or is the language of the storefront that was queried.
+        var fileLanguage = LanguageCodeNormalizer.ToIso6391(expectedLanguage);
+        if (fileLanguage is null
+            || string.Equals(fileLanguage, ResolveStorefrontLanguage(request), StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
         var editionIsbn = IsbnValidation.NormalizeValid(ExtractFirstString(node, ["isbn", "isbn13", "isbn10"]));
         return sourceIsbn is not null && sourceIsbn == editionIsbn;
     }

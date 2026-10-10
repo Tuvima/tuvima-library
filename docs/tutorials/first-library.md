@@ -36,7 +36,7 @@ The path belongs to the server running the Engine. For Docker, use the path insi
 
 1. Use a few supported files from one media type.
 2. Copy them into a managed source, or attach an existing read-only folder containing them.
-3. Open **Settings → Operations** and choose **Scan now**.
+3. Open **Settings → Operations** and choose **Check folders for changes** (in the Ingestion page "⋯" menu).
 4. Keep Operations open to see active work and recent batch outcomes.
 
 Operations uses `/settings/ingestion`; it refreshes automatically. File scanning can finish while matching, artwork, or organization still runs.

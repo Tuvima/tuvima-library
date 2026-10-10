@@ -66,6 +66,7 @@ public sealed partial class IngestionEngine : BackgroundService, IIngestionEngin
     };
 
     private readonly PlaybackInspectionWriter? _playbackInspection;
+    private readonly ICanonicalValueArrayRepository? _arrayRepo;
     private readonly IFileWatcher _watcher;
     private readonly DebounceQueue _debounce;
     private readonly IAssetHasher _hasher;
@@ -196,9 +197,11 @@ public sealed partial class IngestionEngine : BackgroundService, IIngestionEngin
         ILibraryFolderResolver? libraryFolderResolver = null,
         ISourceMutationPolicyGate? sourceMutationPolicyGate = null,
         OnboardingActivationGate? onboardingGate = null,
-        PlaybackInspectionWriter? playbackInspection = null)
+        PlaybackInspectionWriter? playbackInspection = null,
+        ICanonicalValueArrayRepository? arrayRepo = null)
     {
         _playbackInspection = playbackInspection;
+        _arrayRepo = arrayRepo;
         _watcher = watcher;
         _debounce = debounce;
         _hasher = hasher;

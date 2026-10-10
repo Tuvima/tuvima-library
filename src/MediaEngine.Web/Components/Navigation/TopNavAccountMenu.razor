@@ -26,6 +26,10 @@
                            AccentColor="@AvatarColor"
                            ForegroundColor="@AvatarForeground"
                            Class="top-nav-account-menu__avatar" />
+                @if (ShowSecureAccount)
+                {
+                    <span class="top-nav-account-menu__attention-dot" aria-hidden="true"></span>
+                }
                 <span class="top-nav-account-menu__trigger-copy">@DisplayName</span>
                 <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.KeyboardArrowDown"
                          Class="top-nav-account-menu__chevron" />
@@ -41,7 +45,7 @@
                                AccentColor="@AvatarColor"
                                ForegroundColor="@AvatarForeground"
                                Class="top-nav-account-menu__header-avatar" />
-                    <strong>@DisplayName</strong>
+                    <strong>@HeaderLabel</strong>
                 </header>
 
                 @if (_pendingProfile is not null)
@@ -85,7 +89,7 @@
                         </div>
                     </section>
                 }
-                else if (ProfilesForMenu.Count > 0)
+                else if (ProfilesForMenu.Count > 1)
                 {
                     <div class="top-nav-account-menu__profiles">
                         @foreach (var profile in ProfilesForMenu)
@@ -147,6 +151,33 @@
                     </a>
                 }
 
+                @if (CanManageProfiles)
+                {
+                    <a class="top-nav-account-menu__item"
+                       href="@ManageProfilesHref"
+                       role="menuitem"
+                       @onclick="CloseMenu">
+                        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ManageAccounts"
+                                 Class="top-nav-account-menu__item-icon" />
+                        <span>Manage profiles</span>
+                    </a>
+                }
+
+                @if (ShowSecureAccount)
+                {
+                    <a class="top-nav-account-menu__item"
+                       href="@ThisComputerOnlyBanner.SecureAccountHref"
+                       role="menuitem"
+                       @onclick="CloseMenu">
+                        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Security"
+                                 Class="top-nav-account-menu__item-icon" />
+                        <span class="top-nav-account-menu__item-copy">
+                            <span>Secure account</span>
+                            <span class="top-nav-account-menu__attention-dot top-nav-account-menu__attention-dot--inline" aria-hidden="true"></span>
+                        </span>
+                    </a>
+                }
+
                 <a class="top-nav-account-menu__item"
                    href="/settings"
                    role="menuitem"
@@ -189,9 +220,15 @@
 </div>
 
 @code {
-    [Parameter] public string DisplayName { get; set; } = "User";
+    [Parameter] public string DisplayName { get; set; } = string.Empty;
+    /// <summary>Signed-in account (email); the header falls back to <see cref="DisplayName"/> when unavailable.</summary>
+    [Parameter] public string? AccountLabel { get; set; }
+    [Parameter] public bool CanManageProfiles { get; set; }
+    /// <summary>True while the account is this-computer-only: shows the Secure account item and an attention dot.</summary>
+    [Parameter] public bool ShowSecureAccount { get; set; }
+    public const string ManageProfilesHref = "/settings/access/users";
     [Parameter] public string ProfileRole { get; set; } = "Profile";
-    [Parameter] public string AvatarInitial { get; set; } = "?";
+    [Parameter] public string AvatarInitial { get; set; } = string.Empty;
     [Parameter] public string AvatarColor { get; set; } = "var(--tl-accent-primary)";
     [Parameter] public string AvatarForeground { get; set; } = "#fff";
     [Parameter] public string? AvatarImageUrl { get; set; }
@@ -213,8 +250,9 @@
         .OrderByDescending(profile => profile.Id == ActiveProfileId)
         .ThenBy(profile => profile.DisplayName, StringComparer.OrdinalIgnoreCase)
         .ToList();
+    private string HeaderLabel => string.IsNullOrWhiteSpace(AccountLabel) ? DisplayName : AccountLabel!;
     private string ProfileMenuAriaLabel =>
-        string.Concat(L["TopBar_OpenProfileMenu"].Value, ": ", DisplayName);
+        string.IsNullOrWhiteSpace(DisplayName) ? L["TopBar_OpenProfileMenu"].Value : string.Concat(L["TopBar_OpenProfileMenu"].Value, ": ", DisplayName);
 
     private string ReviewCountLabel => ReviewCount > 99 ? "99+" : Math.Max(0, ReviewCount).ToString();
 

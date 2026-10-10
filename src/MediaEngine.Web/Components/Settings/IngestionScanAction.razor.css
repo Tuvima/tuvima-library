@@ -1,0 +1,17 @@
+.ingestion-scan-action__item {
+    display: grid;
+    gap: .15rem;
+    max-width: 18rem;
+    text-align: left;
+    white-space: normal;
+}
+
+.ingestion-scan-action__item strong {
+    font-size: .85rem;
+}
+
+.ingestion-scan-action__item small {
+    color: var(--tl-palette-text-secondary);
+    font-size: .76rem;
+    line-height: 1.35;
+}

@@ -38,7 +38,7 @@
 <AppDialogHost />
 <AppToastHost />
 <ActivityNotificationHost Enabled="@CanViewSystemActivity" />
-<ThisComputerOnlyBanner VisibleChanged="OnThisComputerBannerChanged" />
+<ThisComputerOnlyBanner VisibleChanged="OnThisComputerBannerChanged" ThisComputerOnlyChanged="OnThisComputerOnlyChanged" />
 
 @if (!DeviceContext.IsFeatureDisabled("command_palette"))
 {
@@ -96,7 +96,7 @@
                                      Class="layout-shell__my-list"
                                      AriaLabel="@L["TopBar_MyList"]"
                                      OnClick="@(_ => OpenForMe())">
-                        <AppMaterialIcon Icon="@AppCustomIcons.Planet"
+                        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.PlaylistAddCheck"
                                  Class="layout-shell__my-list-icon" />
                     </AppNativeButton>
                 </AppTooltip>
@@ -109,6 +109,9 @@
             <span @onclick:stopPropagation="true">
                 <TopNavAccountMenu @key="_accountMenuVersion"
                                    DisplayName="@_displayName"
+                                   AccountLabel="@_accountLabel"
+                                   CanManageProfiles="@CanManageProfiles"
+                                   ShowSecureAccount="@_thisComputerOnly"
                                    ProfileRole="@_profileRole"
                                    AvatarInitial="@_avatarInitial"
                                    AvatarColor="@_avatarColor"
@@ -194,9 +197,10 @@
     private AppNativeButton? _searchButton;
     private string _avatarColor = "var(--tl-accent-primary)";
     private string? _avatarImageUrl;
-    private string _avatarInitial = "?";
+    private string _avatarInitial = string.Empty;
     private string _currentPath = "/";
-    private string _displayName = "User";
+    private string _displayName = string.Empty;
+    private string? _accountLabel;
     private string _profileRole = "Profile";
     private Guid? _activeProfileId;
     private int _reviewCount;
@@ -235,7 +239,7 @@
         };
 
     private bool IsDetailShell => IsDetailPath(_currentPath);
-    private bool IsLaneScrollRoute => new[] { "/read", "/watch", "/listen", "/collections", "/view" }.Any(path =>
+    private bool IsLaneScrollRoute => new[] { "/read", "/watch", "/listen", "/collections", "/view", "/settings" }.Any(path =>
         string.Equals(_currentPath, path, StringComparison.OrdinalIgnoreCase)
         || _currentPath.StartsWith(path + "/", StringComparison.OrdinalIgnoreCase));
     private bool IsCinematicShell => IsDetailShell || string.Equals(_currentPath, "/", StringComparison.Ordinal);
@@ -247,6 +251,7 @@
         ? "main-content-with-topbar main-content-with-topbar--cinematic"
         : "main-content-with-topbar";
     private string MainContainerClass => IsCinematicShell || IsLaneScrollRoute ? "px-0 py-0" : "py-6 px-0";
+    private bool CanManageProfiles => _session.HasAction("access.manage");
     private bool CanViewReview => _session.HasNavigation("settings.administration");
     private bool CanViewSystemActivity => _session.HasNavigation("settings.administration");
     private IReadOnlyList<ShellNavLink> IntentDockLinks => DeviceContext.Settings.Shell.IntentDockItems
@@ -617,10 +622,30 @@
                 ? "Administrator"
                 : "Profile";
             _avatarInitial = GetAvatarInitial(_displayName);
+            await LoadAccountLabelAsync();
         }
         catch (Exception ex)
         {
             Logger.LogWarning(ex, "Failed to load active profile for layout shell.");
+        }
+    }
+
+    private async Task LoadAccountLabelAsync()
+    {
+        if (_accountLabel is not null) return;
+        try
+        {
+            var account = await Identity.GetAccountAsync(_authorityRefreshCancellation.Token);
+            if (_disposed) return;
+            _accountLabel = string.IsNullOrWhiteSpace(account?.Email) ? null : account.Email.Trim();
+        }
+        catch (OperationCanceledException) when (_authorityRefreshCancellation.IsCancellationRequested)
+        {
+        }
+        catch (Exception ex)
+        {
+            // The menu header falls back to the profile name when the account identity cannot be read.
+            Logger.LogDebug(ex, "Could not load the account identity for the account menu.");
         }
     }
 
@@ -741,6 +766,8 @@
     }
 
     private bool _thisComputerBanner;
+    private bool _thisComputerOnly;
+    private void OnThisComputerOnlyChanged(bool thisComputerOnly) { _thisComputerOnly = thisComputerOnly; StateHasChanged(); }
     private void OnThisComputerBannerChanged(bool visible) { _thisComputerBanner = visible; StateHasChanged(); }
 
     // The Engine says an action waits until the account has a password: say so plainly and point to Secure account.

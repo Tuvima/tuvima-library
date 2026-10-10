@@ -349,7 +349,7 @@ URL, retrieval timestamp, and a flag for modified or summarized display text.
 
 ### canonical_value_arrays
 
-The winning multi-valued claims (genres, authors, vibe tags, cast members). Each value is one row with an ordinal and optional QID; packed delimiter strings are not supported.
+The winning multi-valued claims (genres, authors, vibe tags, cast members, and a video file's `subtitle_languages`, one ISO 639-1 code per distinct language). Each value is one row with an ordinal and optional QID; packed delimiter strings are not supported. A startup migration splits any packed `subtitle_languages` rows left by earlier builds into this table.
 
 | Column | Type | Notes |
 |---|---|---|

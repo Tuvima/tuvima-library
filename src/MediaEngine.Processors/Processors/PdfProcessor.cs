@@ -39,10 +39,7 @@ public sealed class PdfProcessor : IMediaProcessor
         }
 
         var claims = new List<ExtractedClaim>();
-        var title = Path.GetFileNameWithoutExtension(filePath)
-            .Replace('.', ' ')
-            .Replace('_', ' ')
-            .Trim();
+        var title = FileStemTitleCleaner.Clean(Path.GetFileNameWithoutExtension(filePath));
 
         if (!string.IsNullOrWhiteSpace(title))
         {

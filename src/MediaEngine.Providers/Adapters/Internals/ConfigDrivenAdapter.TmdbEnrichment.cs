@@ -609,7 +609,7 @@ public sealed partial class ConfigDrivenAdapter
         url = ReplacePlaceholder(url, "{api_key}", EffectiveApiKey, encode: true);
         url = ReplacePlaceholder(url, "{client_key}", _config.HttpClient?.ClientKey, encode: true);
         url = ReplacePlaceholder(url, "{access_token}", _config.HttpClient?.AccessToken, encode: true);
-        url = ReplacePlaceholder(url, "{lang}", request.Language.ToLowerInvariant(), encode: true);
+        url = ReplacePlaceholder(url, "{lang}", ResolveTemplateLanguage(request, template), encode: true);
         url = ReplacePlaceholder(url, "{country}", request.Country.ToUpperInvariant(), encode: true);
         url = ReplacePlaceholder(url, "{year}", yearFromTitle ?? string.Empty, encode: true);
         url = ReplacePlaceholder(url, "{tvdb_id}", ResolveRequestField(request, BridgeIdKeys.TvdbId), encode: true);

@@ -16,6 +16,7 @@ using MediaEngine.Ingestion.Pipeline;
 using MediaEngine.Ingestion.Services;
 using MediaEngine.Intelligence.Contracts;
 using MediaEngine.Intelligence.Models;
+using MediaEngine.Processors;
 using MediaEngine.Processors.Contracts;
 using MediaEngine.Providers.Contracts;
 using MediaEngine.Providers.Helpers;
@@ -30,6 +31,9 @@ public sealed partial class IngestionEngine
     // =========================================================================
     // Live pipeline
     // =========================================================================
+
+    private const string CoverSourceEmbedded = "embedded";
+    private const string CoverSourceFolder = "folder";
 
     private async Task ProcessCandidateAsync(IngestionCandidate candidate, CancellationToken ct)
     {
@@ -587,7 +591,14 @@ public sealed partial class IngestionEngine
             IsConflicted = mediaTypeIsConflicted,
         });
 
-        if (result.CoverImage is { Length: > 0 })
+        // Embedded art always wins; the sibling folder image (cover.jpg, folder.jpg, ...) is only a
+        // fallback for Books, Audiobooks and Music files that carry no embedded picture.
+        var hasEmbeddedCover = result.CoverImage is { Length: > 0 };
+        context.FolderCover = !hasEmbeddedCover && FolderCoverImageReader.AppliesTo(resolvedMediaType)
+            ? FolderCoverImageReader.TryRead(candidate.Path)
+            : null;
+
+        if (hasEmbeddedCover || context.FolderCover is not null)
         {
             canonicals.Add(new CanonicalValue
             {
@@ -600,7 +611,7 @@ public sealed partial class IngestionEngine
             canonicals.AddRange(ArtworkCanonicalHelper.CreateFlags(
                 assetId,
                 coverState: "present",
-                coverSource: "embedded",
+                coverSource: hasEmbeddedCover ? CoverSourceEmbedded : CoverSourceFolder,
                 heroState: "missing",
                 lastScoredAt: scored.ScoredAt,
                 settled: true));
@@ -617,6 +628,7 @@ public sealed partial class IngestionEngine
         }
 
         await _canonicalRepo.UpsertBatchAsync(canonicals, ct).ConfigureAwait(false);
+        await PersistLocalArrayFieldsAsync(assetId, claims, clearWhenEmpty: false, ct).ConfigureAwait(false);
 
         // Create MetadataConflict review item when any canonical value has IsConflicted=true.
         // Conflicts don't block organization — the file proceeds with the best-guess value.
@@ -673,39 +685,55 @@ public sealed partial class IngestionEngine
         // Step 9b: create Collection ? Work ? Edition chain so the FK on media_assets
         // can be satisfied.  The factory reuses an existing Collection when a matching
         // display name is found; otherwise it creates a fresh chain.
-        var editionId = await _chainFactory.EnsureEntityChainAsync(
-            resolvedMediaType,
-            candidate.Metadata,
-            ct).ConfigureAwait(false);
-
-        await SafeActivityLogAsync(new Domain.Entities.SystemActivityEntry
+        //
+        // Books: siblings in one folder (the EPUB beside the AZW3) must resolve one at a time,
+        // from "find the existing Work" through "register the asset" (the lookup reads registered
+        // assets), otherwise both create a Work. The folder lock covers exactly that span.
+        var folderLock = resolvedMediaType == MediaType.Books
+            && Path.GetDirectoryName(candidate.Path) is { Length: > 0 } bookFolder
+                ? await _concurrencyGuard.AcquireFolderLockAsync(bookFolder, ct).ConfigureAwait(false)
+                : null;
+        Guid editionId;
+        MediaAsset asset;
+        bool inserted;
+        using (folderLock)
         {
-            ActionType = Domain.Constants.SystemActionType.EntityChainCreated,
-            EntityId = assetId,
-            EntityType = "MediaAsset",
-            Detail = $"Catalogue entry created for \"{candidate.Metadata?.GetValueOrDefault(MetadataFieldConstants.Title, "Unknown") ?? "Unknown"}\"",
-            ChangesJson = JsonSerializer.Serialize(new
+            editionId = await _chainFactory.EnsureEntityChainAsync(
+                resolvedMediaType,
+                candidate.Metadata,
+                candidate.Path,
+                ct).ConfigureAwait(false);
+
+            await SafeActivityLogAsync(new Domain.Entities.SystemActivityEntry
             {
-                title = candidate.Metadata?.GetValueOrDefault(MetadataFieldConstants.Title),
-                author = candidate.Metadata?.GetValueOrDefault(MetadataFieldConstants.Author),
-                media_type = resolvedMediaType.ToString(),
-                edition_id = editionId.ToString(),
-            }),
-            IngestionRunId = ingestionRunId,
-        }, ct).ConfigureAwait(false);
+                ActionType = Domain.Constants.SystemActionType.EntityChainCreated,
+                EntityId = assetId,
+                EntityType = "MediaAsset",
+                Detail = $"Catalogue entry created for \"{candidate.Metadata?.GetValueOrDefault(MetadataFieldConstants.Title, "Unknown") ?? "Unknown"}\"",
+                ChangesJson = JsonSerializer.Serialize(new
+                {
+                    title = candidate.Metadata?.GetValueOrDefault(MetadataFieldConstants.Title),
+                    author = candidate.Metadata?.GetValueOrDefault(MetadataFieldConstants.Author),
+                    media_type = resolvedMediaType.ToString(),
+                    edition_id = editionId.ToString(),
+                }),
+                IngestionRunId = ingestionRunId,
+            }, ct).ConfigureAwait(false);
 
-        // Step 10: insert asset.
-        var asset = new MediaAsset
-        {
-            Id = assetId,
-            EditionId = editionId,
-            ContentHash = hash.Hex,
-            FilePathRoot = candidate.Path,
-            LibraryId = context.Library?.Id,
-            Status = AssetStatus.Normal,
-        };
+            // Step 10: insert asset.
+            asset = new MediaAsset
+            {
+                Id = assetId,
+                EditionId = editionId,
+                ContentHash = hash.Hex,
+                FilePathRoot = candidate.Path,
+                LibraryId = context.Library?.Id,
+                Status = AssetStatus.Normal,
+            };
 
-        bool inserted = await _assetRepo.InsertAsync(asset, ct).ConfigureAwait(false);
+            inserted = await _assetRepo.InsertAsync(asset, ct).ConfigureAwait(false);
+        }
+
         if (!inserted)
         {
             // Race: another thread inserted the same hash concurrently.
@@ -884,14 +912,24 @@ public sealed partial class IngestionEngine
         var result = context.ProcessorResult!;
         var resolvedTitle = context.ResolvedTitle;
         var currentPath = context.CurrentPath;
-        // Step 11b: persist embedded cover art into the central asset store.
+        // Step 11b: persist the cover into the central asset store. Embedded art always wins;
+        // the sibling folder image (cover.jpg, folder.jpg, ...) is only used when no picture is embedded.
+        var hasEmbeddedCover = result.CoverImage is { Length: > 0 };
+        var coverBytes = hasEmbeddedCover ? result.CoverImage : context.FolderCover?.Bytes;
+        var coverMimeType = hasEmbeddedCover ? result.CoverImageMimeType : context.FolderCover?.MimeType;
+        var coverSource = hasEmbeddedCover ? CoverSourceEmbedded : CoverSourceFolder;
         if (_writeBackStageDependencies.EntityAssetRepository is not null
             && _writeBackStageDependencies.AssetPathService is not null
-            && result.CoverImage is { Length: > 0 })
+            && coverBytes is { Length: > 0 })
         {
             try
             {
                 var ownerEntityId = await ResolveEmbeddedCoverOwnerEntityIdAsync(assetId, ct).ConfigureAwait(false);
+
+                // Several files (e.g. the tracks of one album or audiobook) resolve to the same owner and the same
+                // variant path, so the whole read-check-write-upsert-reconcile sequence is serialised per owner.
+                using var ownerLock = await _concurrencyGuard.AcquireArtworkOwnerLockAsync(ownerEntityId, ct).ConfigureAwait(false);
+
                 var existingAssets = await _writeBackStageDependencies.EntityAssetRepository.GetByEntityAsync(ownerEntityId.ToString(), "CoverArt", ct)
                     .ConfigureAwait(false);
                 var preferredUserOverride = existingAssets.FirstOrDefault(asset => asset.IsPreferred && asset.IsUserOverride);
@@ -904,91 +942,105 @@ public sealed partial class IngestionEngine
                 }
                 else
                 {
-                    var existingEmbedded = existingAssets.FirstOrDefault(asset =>
-                        string.Equals(asset.SourceProvider, "embedded", StringComparison.OrdinalIgnoreCase)
-                        || string.Equals(asset.SourceProvider, "local_processor", StringComparison.OrdinalIgnoreCase));
-                    var coverVariantId = existingEmbedded?.Id ?? Guid.NewGuid();
-                    var coverPath = _writeBackStageDependencies.AssetPathService.GetCentralAssetPath(
-                        "Work",
-                        ownerEntityId,
-                        "CoverArt",
-                        coverVariantId,
-                        InferArtworkExtension(result.CoverImageMimeType));
-                    var coverFolder = Path.GetDirectoryName(coverPath) ?? string.Empty;
-                    AssetPathService.EnsureDirectory(coverPath);
+                    var existingLocalCover = existingAssets.FirstOrDefault(asset =>
+                        string.Equals(asset.SourceProvider, CoverSourceEmbedded, StringComparison.OrdinalIgnoreCase)
+                        || string.Equals(asset.SourceProvider, "local_processor", StringComparison.OrdinalIgnoreCase)
+                        || string.Equals(asset.SourceProvider, CoverSourceFolder, StringComparison.OrdinalIgnoreCase));
 
-                    await File.WriteAllBytesAsync(coverPath, result.CoverImage, ct).ConfigureAwait(false);
-
-                    var storedAsset = existingEmbedded ?? new EntityAsset
+                    if (await IsLocalCoverAlreadyPersistedAsync(existingLocalCover, coverSource, coverBytes, ct).ConfigureAwait(false))
                     {
-                        Id = coverVariantId,
-                        EntityId = ownerEntityId.ToString(),
-                        EntityType = "Work",
-                        AssetTypeValue = "CoverArt",
-                        AssetClassValue = "Artwork",
-                        StorageLocationValue = "Central",
-                        OwnerScope = "Work",
-                        CreatedAt = DateTimeOffset.UtcNow,
-                    };
-
-                    storedAsset.ImageUrl = $"/stream/artwork/{coverVariantId}";
-                    storedAsset.LocalImagePath = coverPath;
-                    storedAsset.SourceProvider = "embedded";
-                    storedAsset.IsPreferred = true;
-                    storedAsset.IsUserOverride = false;
-                    storedAsset.IsLocallyExported = false;
-                    storedAsset.IsPreferredExported = false;
-                    ArtworkVariantHelper.StampMetadataAndRenditions(storedAsset, _writeBackStageDependencies.AssetPathService);
-
-                    await _writeBackStageDependencies.EntityAssetRepository.UpsertAsync(storedAsset, ct).ConfigureAwait(false);
-                    await _writeBackStageDependencies.EntityAssetRepository.SetPreferredAsync(storedAsset.Id, ct).ConfigureAwait(false);
-                    await _canonicalRepo.UpsertBatchAsync(
-                        [
-                            .. ArtworkCanonicalHelper.CreatePreferredAssetCanonicals(
-                                ownerEntityId,
-                                storedAsset,
-                                DateTimeOffset.UtcNow),
-                            .. ArtworkCanonicalHelper.CreateFlags(
-                                ownerEntityId,
-                                coverState: "present",
-                                coverSource: "embedded",
-                                heroState: "missing",
-                                lastScoredAt: DateTimeOffset.UtcNow,
-                                settled: true),
-                        ],
-                        ct).ConfigureAwait(false);
-
-                    if (_writeBackStageDependencies.AssetExportService is not null)
-                    {
-                        await _writeBackStageDependencies.AssetExportService.ReconcileArtworkAsync(
-                            storedAsset.EntityId,
-                            storedAsset.EntityType,
-                            storedAsset.AssetTypeValue,
-                            ct).ConfigureAwait(false);
+                        _logger.LogDebug(
+                            "Skipping {CoverSource} cover persistence for {AssetId}: owner {OwnerEntityId} already has this cover",
+                            coverSource,
+                            assetId,
+                            ownerEntityId);
                     }
-
-                    await SafeActivityLogAsync(new Domain.Entities.SystemActivityEntry
+                    else
                     {
-                        ActionType = Domain.Constants.SystemActionType.CoverArtSaved,
-                        EntityId = assetId,
-                        EntityType = "MediaAsset",
-                        CollectionName = resolvedTitle,
-                        ChangesJson = JsonSerializer.Serialize(new
+                        var coverVariantId = existingLocalCover?.Id ?? Guid.NewGuid();
+                        var coverPath = _writeBackStageDependencies.AssetPathService.GetCentralAssetPath(
+                            "Work",
+                            ownerEntityId,
+                            "CoverArt",
+                            coverVariantId,
+                            InferArtworkExtension(coverMimeType));
+                        var coverFolder = Path.GetDirectoryName(coverPath) ?? string.Empty;
+                        AssetPathService.EnsureDirectory(coverPath);
+
+                        await BoundedHttpContent.WriteFileAtomicallyAsync(coverPath, coverBytes, ct).ConfigureAwait(false);
+
+                        var storedAsset = existingLocalCover ?? new EntityAsset
                         {
-                            cover_size_bytes = result.CoverImage.Length,
-                            filename = Path.GetFileName(coverPath),
-                            folder = coverFolder,
-                            location = "central_asset_store",
-                            owner_entity_id = ownerEntityId,
-                        }),
-                        Detail = $"Cover art saved ({result.CoverImage.Length / 1024} KB)",
-                        IngestionRunId = ingestionRunId,
-                    }, ct).ConfigureAwait(false);
+                            Id = coverVariantId,
+                            EntityId = ownerEntityId.ToString(),
+                            EntityType = "Work",
+                            AssetTypeValue = "CoverArt",
+                            AssetClassValue = "Artwork",
+                            StorageLocationValue = "Central",
+                            OwnerScope = "Work",
+                            CreatedAt = DateTimeOffset.UtcNow,
+                        };
+
+                        storedAsset.ImageUrl = $"/stream/artwork/{coverVariantId}";
+                        storedAsset.LocalImagePath = coverPath;
+                        storedAsset.SourceProvider = coverSource;
+                        storedAsset.IsPreferred = true;
+                        storedAsset.IsUserOverride = false;
+                        storedAsset.IsLocallyExported = false;
+                        storedAsset.IsPreferredExported = false;
+                        ArtworkVariantHelper.StampMetadataAndRenditions(storedAsset, _writeBackStageDependencies.AssetPathService);
+
+                        await _writeBackStageDependencies.EntityAssetRepository.UpsertAsync(storedAsset, ct).ConfigureAwait(false);
+                        await _writeBackStageDependencies.EntityAssetRepository.SetPreferredAsync(storedAsset.Id, ct).ConfigureAwait(false);
+                        await _canonicalRepo.UpsertBatchAsync(
+                            [
+                                .. ArtworkCanonicalHelper.CreatePreferredAssetCanonicals(
+                                    ownerEntityId,
+                                    storedAsset,
+                                    DateTimeOffset.UtcNow),
+                                .. ArtworkCanonicalHelper.CreateFlags(
+                                    ownerEntityId,
+                                    coverState: "present",
+                                    coverSource: coverSource,
+                                    heroState: "missing",
+                                    lastScoredAt: DateTimeOffset.UtcNow,
+                                    settled: true),
+                            ],
+                            ct).ConfigureAwait(false);
+
+                        if (_writeBackStageDependencies.AssetExportService is not null)
+                        {
+                            await _writeBackStageDependencies.AssetExportService.ReconcileArtworkAsync(
+                                storedAsset.EntityId,
+                                storedAsset.EntityType,
+                                storedAsset.AssetTypeValue,
+                                ct).ConfigureAwait(false);
+                        }
+
+                        await SafeActivityLogAsync(new Domain.Entities.SystemActivityEntry
+                        {
+                            ActionType = Domain.Constants.SystemActionType.CoverArtSaved,
+                            EntityId = assetId,
+                            EntityType = "MediaAsset",
+                            CollectionName = resolvedTitle,
+                            ChangesJson = JsonSerializer.Serialize(new
+                            {
+                                cover_size_bytes = coverBytes.Length,
+                                cover_source = coverSource,
+                                filename = Path.GetFileName(coverPath),
+                                folder = coverFolder,
+                                location = "central_asset_store",
+                                owner_entity_id = ownerEntityId,
+                            }),
+                            Detail = $"Cover art saved ({coverBytes.Length / 1024} KB)",
+                            IngestionRunId = ingestionRunId,
+                        }, ct).ConfigureAwait(false);
+                    }
                 }
             }
             catch (Exception ex)
             {
-                _logger.LogWarning(ex, "Failed to persist embedded cover art for {Path}", currentPath);
+                _logger.LogWarning(ex, "Failed to persist {CoverSource} cover art for {Path}", coverSource, currentPath);
             }
         }
 

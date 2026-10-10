@@ -21,6 +21,7 @@
 .settings-review-row__item small, .settings-review-row__reason span { color: var(--tl-text-muted); line-height: 1.35; }
 .settings-review-row__reason strong { font-size: .86rem; }
 .settings-review-media-icon { display: grid; place-items: center; width: 36px; height: 36px; flex: 0 0 36px; color: var(--tl-text-secondary); }
+.settings-review-row__suggestion { grid-column: 1 / -1; }
 .settings-review-row time { color: var(--tl-text-secondary); font-weight: 600; }
 .settings-review-row__actions { justify-content: flex-end; }
 .settings-review-list footer { padding: 11px 16px; border-top: 1px solid var(--tl-border-subtle); color: var(--tl-text-muted); font-size: .82rem; }

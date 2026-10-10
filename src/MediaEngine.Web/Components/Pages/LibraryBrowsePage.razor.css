@@ -1,4 +1,5 @@
 .home-discovery-loading {
+    margin-top: var(--app-topbar-height, 65px);
     border-radius: var(--app-radius-md);
 }
 
@@ -14,6 +15,14 @@
 }
 
 .home-discovery-page--with-hero {
+    margin-top: 0;
+}
+
+.home-discovery-page--no-hero {
+    padding-top: calc(var(--app-topbar-height, 65px) + 1.5rem);
+}
+
+.home-discovery-page--no-hero .home-discovery-content-shell {
     margin-top: 0;
 }
 

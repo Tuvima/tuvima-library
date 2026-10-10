@@ -317,6 +317,41 @@ public sealed class MediaTileSurfaceRenderTests : AsyncBunitContext
         Assert.Empty(cut.FindAll(".media-tile-caption__subtitle"));
     }
 
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void MediaTile_ShowsStillBeingMatchedMarkerOnlyWhileSettling(bool isSettling)
+    {
+        var item = new MediaTileViewModel
+        {
+            Id = Guid.NewGuid(),
+            Title = "Dune",
+            MediaKind = "Book",
+            Shape = MediaTileShape.Portrait,
+            SurfaceKind = MediaTileSurfaceKind.CoverPortrait,
+            TileImageUrl = "/art/dune.jpg",
+            NavigationUrl = "/book/dune",
+            DetailsNavigationUrl = "/book/dune",
+            IsSettling = isSettling,
+        };
+
+        var cut = Render<MediaTile>(parameters => parameters
+            .Add(component => component.Item, item)
+            .Add(component => component.ShowCompactCaption, true));
+
+        var dots = cut.FindAll(".media-tile-caption__title .media-tile-settling-dot");
+        Assert.Equal(isSettling, dots.Count == 1);
+        Assert.Equal(isSettling, cut.Markup.Contains("Still being matched", StringComparison.Ordinal));
+        Assert.Empty(cut.FindAll(".media-tile-frame .media-tile-settling-dot"));
+        Assert.Empty(cut.FindAll("[aria-live]"));
+        if (isSettling)
+        {
+            Assert.Equal("Still being matched", dots[0].GetAttribute("title"));
+            Assert.Equal("Still being matched", cut.Find(".media-tile-settling-dot__label").TextContent);
+            Assert.Contains("Still being matched", cut.Find("a.media-tile-link").GetAttribute("aria-label"));
+        }
+    }
+
     [Fact]
     public void MediaTileGrid_CanHideRedundantTvShowGroupIndicator()
     {
@@ -1017,6 +1052,31 @@ public sealed class MediaTileSurfaceRenderTests : AsyncBunitContext
         Assert.Contains("is-banner-popover", cut.Find(".media-tile-hover-panel").ClassList);
         Assert.Equal("/shows/foundation-background.jpg", cut.Find(".media-tile-hover-image").GetAttribute("src"));
         Assert.Empty(cut.FindAll(".media-tile-hover-body"));
+    }
+
+    [Fact]
+    public void MediaTile_MovieWithoutCinematicArtUsesArtPopover()
+    {
+        var item = new MediaTileViewModel
+        {
+            Id = Guid.NewGuid(),
+            Title = "Portrait Only",
+            MediaKind = "Movie",
+            WorkId = Guid.NewGuid(),
+            Shape = MediaTileShape.Portrait,
+            SurfaceKind = MediaTileSurfaceKind.CoverPortrait,
+            HoverLayout = MediaTileHoverLayout.ArtOnlyPopover,
+            HoverMode = MediaTileHoverMode.Expanded,
+            TileImageUrl = "/movies/portrait.jpg",
+            HoverImageUrl = "/movies/portrait.jpg",
+            NavigationUrl = "/watch/movie/1",
+        };
+
+        var cut = Render<MediaTile>(parameters => parameters.Add(component => component.Item, item).Add(component => component.IsHomeSurface, true));
+
+        var panel = cut.Find(".media-tile-hover-panel");
+        Assert.Contains("is-art-popover", panel.ClassList);
+        Assert.DoesNotContain("is-banner-popover", panel.ClassList);
     }
 
     [Fact]

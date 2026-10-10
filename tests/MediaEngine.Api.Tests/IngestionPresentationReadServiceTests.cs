@@ -392,6 +392,44 @@ public sealed class IngestionPresentationReadServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task RecentAdditions_IncludesSettledItemsOfAnActiveBatchAndExcludesItemsStillInFlight()
+    {
+        // A long first-run import is one running batch; its finished items must show up while it runs.
+        var batchId = AddBatch("running", 3, 3);
+        var addedWork = AddStandalone(batchId, "Movies", "Already Added", presented: true);
+        var inFlightWork = AddStandalone(batchId, "Movies", "Still Hydrating", presented: false);
+        using (var conn = _db.CreateConnection())
+        {
+            var inFlightAsset = conn.QuerySingle<Guid>(
+                "SELECT ma.id FROM media_assets ma JOIN editions e ON e.id = ma.edition_id WHERE e.work_id = @work;",
+                new { work = inFlightWork });
+            conn.Execute("""
+                INSERT INTO identity_jobs (id,entity_id,entity_type,media_type,ingestion_run_id,state,pass,created_at,updated_at)
+                VALUES (@id,@asset,'MediaAsset','Movies',@batch,'Hydrating','Quick',@now,@now);
+                """, new { id = Guid.NewGuid(), asset = inFlightAsset, batch = batchId, now = DateTimeOffset.UtcNow.ToString("O") });
+        }
+
+        var service = new IngestionPresentationReadService(_db);
+        var whileRunning = await service.GetRecentAdditionsAsync(null, null, null, null, 0, 50);
+
+        var added = Assert.Single(whileRunning.Items);
+        Assert.Equal(addedWork, added.GroupId);
+        Assert.Equal(batchId, added.BatchId);
+        Assert.Equal("Already Added", added.Title);
+
+        // Once the in-flight item settles it joins the list; the completed batch behaves as before.
+        using (var conn = _db.CreateConnection())
+        {
+            conn.Execute("UPDATE identity_jobs SET state = 'Ready';");
+            conn.Execute("UPDATE ingestion_batches SET status = 'completed', completed_at = @now;", new { now = DateTimeOffset.UtcNow.ToString("O") });
+        }
+
+        var afterCompletion = await service.GetRecentAdditionsAsync(null, null, null, null, 0, 50);
+        Assert.Contains(afterCompletion.Items, item => item.GroupId == addedWork);
+        Assert.Contains(afterCompletion.Items, item => item.GroupId == inFlightWork);
+    }
+
+    [Fact]
     public async Task RecentAdditions_AppliesSearchAndLaneBeforeBuildingThePage()
     {
         var batchId = AddBatch("completed", 61, 61);

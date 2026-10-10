@@ -268,10 +268,74 @@ public sealed class UiShellRenderTests : AsyncBunitContext
             Assert.Single(cut.FindAll(".layout-shell__search-action"));
             Assert.Single(cut.FindAll(".top-nav-account-menu__trigger"));
             Assert.Single(cut.FindAll(".layout-shell__my-list"));
-            Assert.Empty(cut.FindAll(".system-activity-indicator"));
+            var activity = Assert.Single(cut.FindAll(".system-activity-indicator"));
+            Assert.Equal("Library activity", activity.GetAttribute("aria-label"));
+            Assert.Empty(cut.FindAll(".system-activity-indicator__ring"));
+            Assert.Empty(cut.FindAll(".system-activity-indicator__count"));
             Assert.Empty(cut.FindAll(".layout-shell__review-button"));
             Assert.Empty(cut.FindAll(".layout-shell__avatar-trigger"));
         });
+    }
+
+    private static ProfileViewModel Profile(string name) =>
+        new(Guid.NewGuid(), name, "#7c4dff", "Profile", DateTimeOffset.UtcNow);
+
+    [Fact]
+    public void TopNavAccountMenu_WithOneProfileShowsAccountIdentityWithoutProfileList()
+    {
+        var shy = Profile("Shy");
+        var cut = Render<MediaEngine.Web.Components.Navigation.TopNavAccountMenu>(parameters => parameters
+            .Add(menu => menu.DisplayName, "Shy")
+            .Add(menu => menu.AccountLabel, "shy@example.test")
+            .Add(menu => menu.ActiveProfileId, shy.Id)
+            .Add(menu => menu.Profiles, new[] { shy })
+            .Add(menu => menu.CanManageProfiles, true));
+
+        cut.Find(".top-nav-account-menu__trigger").Click();
+
+        Assert.Equal("shy@example.test", cut.Find(".top-nav-account-menu__header strong").TextContent);
+        Assert.Empty(cut.FindAll(".top-nav-account-menu__profile-item"));
+        Assert.Contains(cut.FindAll("a[role=menuitem]"), link =>
+            link.GetAttribute("href") == "/settings/access/users" && link.TextContent.Contains("Manage profiles"));
+    }
+
+    [Fact]
+    public void TopNavAccountMenu_WithSeveralProfilesListsThemAndFallsBackToProfileNameHeader()
+    {
+        var shy = Profile("Shy");
+        var kid = Profile("Kid");
+        var cut = Render<MediaEngine.Web.Components.Navigation.TopNavAccountMenu>(parameters => parameters
+            .Add(menu => menu.DisplayName, "Shy")
+            .Add(menu => menu.ActiveProfileId, shy.Id)
+            .Add(menu => menu.Profiles, new[] { shy, kid }));
+
+        cut.Find(".top-nav-account-menu__trigger").Click();
+
+        Assert.Equal("Shy", cut.Find(".top-nav-account-menu__header strong").TextContent);
+        Assert.Equal(2, cut.FindAll(".top-nav-account-menu__profile-item").Count);
+        Assert.DoesNotContain("Manage profiles", cut.Markup);
+        Assert.Empty(cut.FindAll(".top-nav-account-menu__attention-dot"));
+    }
+
+    [Fact]
+    public void TopNavAccountMenu_ThisComputerOnlyShowsSecureAccountItemAndAvatarDot()
+    {
+        var cut = Render<MediaEngine.Web.Components.Navigation.TopNavAccountMenu>(parameters => parameters
+            .Add(menu => menu.DisplayName, "Shy")
+            .Add(menu => menu.ShowSecureAccount, true));
+
+        Assert.Single(cut.FindAll(".top-nav-account-menu__trigger .top-nav-account-menu__attention-dot"));
+        cut.Find(".top-nav-account-menu__trigger").Click();
+
+        Assert.Contains(cut.FindAll("a[role=menuitem]"), link =>
+            link.GetAttribute("href") == "/settings/account" && link.TextContent.Contains("Secure account"));
+    }
+
+    [Fact]
+    public void HeroActionRow_MapsCheckIconForSelectedMyList()
+    {
+        Assert.Equal(AppMaterialIcons.Outlined.Check, MediaEngine.Web.Components.Details.HeroActionRow.IconFor(
+            new MediaEngine.Contracts.Details.DetailAction { Key = "my-list", Icon = "check", IsSelected = true }));
     }
 
     [Fact]

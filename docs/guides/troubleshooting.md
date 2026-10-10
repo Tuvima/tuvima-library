@@ -84,7 +84,7 @@ A catalogue item needs a real title, resolved type, and settled artwork state be
 2. In Docker, use a container path and check its mount.
 3. Confirm the extension and library media type match [supported media types](../reference/media-types.md).
 4. Wait for copying to finish and release locks held by other programs.
-5. Use **Scan now** in Operations after changing source folders.
+5. Use **Check folders for changes** (in the Ingestion page "⋯" menu) in Operations after changing source folders.
 
 For View, confirm the owning profile, source attachment, and upload/import policy. Routine catalogue scans do not replace View's personal-source workflow.
 

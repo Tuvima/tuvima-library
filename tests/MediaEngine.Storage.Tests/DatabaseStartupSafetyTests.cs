@@ -819,6 +819,104 @@ public sealed class DatabaseStartupSafetyTests
     }
 
     [Fact]
+    public async Task CanonicalValueRepository_NeverWritesAnyRegisteredArrayKeyToScalarTable()
+    {
+        using var fixture = TempDatabase.Create();
+        fixture.Database.InitializeSchema();
+        fixture.Database.RunStartupChecks();
+
+        var repo = new CanonicalValueRepository(fixture.Database);
+        var entityId = Guid.NewGuid();
+        await repo.UpsertBatchAsync(MetadataFieldConstants.MultiValuedKeys
+            .Select(key => new CanonicalValue
+            {
+                EntityId = entityId,
+                Key = key,
+                Value = "a|b",
+                LastScoredAt = DateTimeOffset.UtcNow,
+            })
+            .ToList());
+
+        using var conn = fixture.Database.CreateConnection();
+        Assert.Equal("0", Scalar(conn, "SELECT COUNT(*) FROM canonical_values;"));
+        Assert.True(MetadataFieldConstants.IsMultiValued(MetadataFieldConstants.SubtitleLanguages));
+    }
+
+    [Fact]
+    public void StartupChecks_SplitPackedSubtitleLanguagesIntoArrayRowsAndStayIdempotent()
+    {
+        using var fixture = TempDatabase.Create();
+        fixture.Database.InitializeSchema();
+        fixture.Database.RunStartupChecks();
+
+        var packedEntity = GuidSql.ToBlob(Guid.NewGuid());
+        var singleEntity = GuidSql.ToBlob(Guid.NewGuid());
+        var alreadyArrayEntity = GuidSql.ToBlob(Guid.NewGuid());
+        var claimEntity = packedEntity;
+        using (var conn = fixture.Database.CreateConnection())
+        {
+            Exec(conn, "INSERT INTO canonical_values (entity_id, key, value, last_scored_at) VALUES ($e, 'subtitle_languages', 'eng|eng|ara|ger|spa|spa|chi|chi|xx-codec', '2026-01-01T00:00:00Z');", ("$e", packedEntity));
+            Exec(conn, "INSERT INTO canonical_values (entity_id, key, value, last_scored_at) VALUES ($e, 'subtitle_languages', 'fre', '2026-01-01T00:00:00Z');", ("$e", singleEntity));
+            Exec(conn, "INSERT INTO canonical_values (entity_id, key, value, last_scored_at) VALUES ($e, 'subtitle_languages', 'eng|spa', '2026-01-01T00:00:00Z');", ("$e", alreadyArrayEntity));
+            Exec(conn, "INSERT INTO canonical_value_arrays (entity_id, key, ordinal, value) VALUES ($e, 'subtitle_languages', 0, 'ja');", ("$e", alreadyArrayEntity));
+            Exec(conn, "INSERT INTO metadata_claims (id, entity_id, provider_id, claim_key, claim_value, confidence) VALUES ($id, $e, $p, 'subtitle_languages', 'eng|eng|ara', 0.8);",
+                ("$id", GuidSql.ToBlob(Guid.NewGuid())), ("$e", claimEntity), ("$p", GuidSql.ToBlob(WellKnownProviders.LocalProcessor)));
+        }
+
+        for (var run = 0; run < 2; run++)
+        {
+            fixture.Database.InitializeSchema();
+            fixture.Database.RunStartupChecks();
+
+            using var conn = fixture.Database.CreateConnection();
+            Assert.Equal("0", Scalar(conn, "SELECT COUNT(*) FROM canonical_values WHERE key = 'subtitle_languages';"));
+            Assert.Equal("0", Scalar(conn, "SELECT COUNT(*) FROM canonical_values WHERE value LIKE '%|%';"));
+            Assert.Equal("en,ar,de,es,zh,xx-codec", ArrayValues(conn, packedEntity));
+            Assert.Equal("fr", ArrayValues(conn, singleEntity));
+            Assert.Equal("ja", ArrayValues(conn, alreadyArrayEntity));
+            Assert.Equal("0", Scalar(conn, "SELECT COUNT(*) FROM metadata_claims WHERE claim_key = 'subtitle_languages' AND is_current = 1 AND claim_value LIKE '%|%';"));
+            Assert.Equal("1", Scalar(conn, "SELECT COUNT(*) FROM metadata_claims WHERE claim_key = 'subtitle_languages' AND is_current = 0;"));
+            using var currentClaims = conn.CreateCommand();
+            currentClaims.CommandText = "SELECT claim_value FROM metadata_claims WHERE claim_key = 'subtitle_languages' AND is_current = 1 ORDER BY rowid;";
+            using var reader = currentClaims.ExecuteReader();
+            var values = new List<string>();
+            while (reader.Read())
+            {
+                values.Add(reader.GetString(0));
+            }
+
+            Assert.Equal(["en", "ar"], values);
+        }
+    }
+
+    private static void Exec(SqliteConnection conn, string sql, params (string Name, object Value)[] parameters)
+    {
+        using var cmd = conn.CreateCommand();
+        cmd.CommandText = sql;
+        foreach (var (name, value) in parameters)
+        {
+            cmd.Parameters.AddWithValue(name, value);
+        }
+
+        cmd.ExecuteNonQuery();
+    }
+
+    private static string ArrayValues(SqliteConnection conn, byte[] entityId)
+    {
+        using var cmd = conn.CreateCommand();
+        cmd.CommandText = "SELECT value FROM canonical_value_arrays WHERE entity_id = $e AND key = 'subtitle_languages' ORDER BY ordinal;";
+        cmd.Parameters.AddWithValue("$e", entityId);
+        using var reader = cmd.ExecuteReader();
+        var values = new List<string>();
+        while (reader.Read())
+        {
+            values.Add(reader.GetString(0));
+        }
+
+        return string.Join(",", values);
+    }
+
+    [Fact]
     public void StartupInitialization_IsIdempotent()
     {
         using var fixture = TempDatabase.Create();
@@ -1081,6 +1179,38 @@ public sealed class DatabaseStartupSafetyTests
         cmd.CommandText = sql;
         cmd.Parameters.AddWithValue("$name", name);
         return Convert.ToInt32(cmd.ExecuteScalar()) > 0;
+    }
+
+    [Fact]
+    public void FreshDatabase_SeedsEveryWellKnownProvider()
+    {
+        // Claims reference metadata_providers by foreign key, so a built-in provider
+        // missing from the seed silently loses every claim it produces on a new library.
+        using var fixture = TempDatabase.Create();
+        fixture.Database.InitializeSchema();
+        fixture.Database.RunStartupChecks();
+
+        using var conn = fixture.Database.CreateConnection();
+        var seeded = new HashSet<Guid>();
+        using (var cmd = conn.CreateCommand())
+        {
+            cmd.CommandText = "SELECT id FROM metadata_providers;";
+            using var reader = cmd.ExecuteReader();
+            while (reader.Read())
+            {
+                seeded.Add(GuidSql.FromDb(reader[0]));
+            }
+        }
+
+        var wellKnown = typeof(WellKnownProviders)
+            .GetFields(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static)
+            .Where(field => field.FieldType == typeof(Guid))
+            .Select(field => (field.Name, Id: (Guid)field.GetValue(null)!))
+            .ToList();
+
+        Assert.NotEmpty(wellKnown);
+        var missing = wellKnown.Where(provider => !seeded.Contains(provider.Id)).Select(provider => provider.Name).ToList();
+        Assert.True(missing.Count == 0, $"Not seeded into metadata_providers: {string.Join(", ", missing)}");
     }
 
     private static string Scalar(SqliteConnection conn, string sql)

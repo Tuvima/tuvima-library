@@ -84,12 +84,12 @@
 .ingestion-media-card-shell ::deep .ingestion-media-list-row {
     display: grid !important;
     grid-template-columns: minmax(15rem, 2fr) minmax(8.5rem, .8fr) minmax(8.5rem, .75fr) minmax(12rem, 1fr);
-    gap: 1rem;
+    gap: .75rem;
     align-items: center;
     width: 100%;
     min-width: 0;
-    min-height: 4.25rem;
-    padding: .45rem .7rem !important;
+    min-height: 3.25rem;
+    padding: .25rem .5rem !important;
     color: inherit;
     text-align: left;
     background: transparent;
@@ -106,15 +106,15 @@
 
 .ingestion-media-list-row__identity {
     display: grid;
-    grid-template-columns: 3.15rem minmax(0, 1fr);
-    gap: .7rem;
+    grid-template-columns: 2.5rem minmax(0, 1fr);
+    gap: .6rem;
     align-items: center;
     min-width: 0;
 }
 
 .ingestion-media-list-row__art {
     display: block;
-    width: 3.15rem;
+    width: 2.5rem;
     aspect-ratio: 1;
     overflow: hidden;
     background: var(--app-glass-inner-bg);
@@ -137,8 +137,9 @@
 .ingestion-media-list-row__status > span { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .ingestion-media-list-row__status ::deep .tl-icon-root { flex: none; font-size: 1.2rem; }
 .ingestion-media-list-row__status.is-ready { color: var(--tl-palette-success); }
+.ingestion-media-list-row__status:not(.is-ready) { width: fit-content; max-width: 100%; padding: .12rem .55rem; background: color-mix(in srgb, var(--ingestion-card-accent) 14%, transparent); border-radius: 999px; }
 .ingestion-media-list-row__details { display: block; min-width: 0; }
-.ingestion-media-list-row__details ::deep .ingestion-facets { min-height: 2.6rem; border-top: 0; }
+.ingestion-media-list-row__details ::deep .ingestion-facets { min-height: 2rem; border-top: 0; }
 
 @media (max-width: 800px) {
     .ingestion-media-card-shell ::deep .ingestion-media-list-row {

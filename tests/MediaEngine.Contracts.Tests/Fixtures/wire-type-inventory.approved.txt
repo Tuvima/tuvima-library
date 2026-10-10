@@ -3,7 +3,7 @@
 # Compatibility is enforced separately by wire-compatibility.approved.txt.
 # Serializer: System.Text.Json JsonSerializerDefaults.Web; DefaultIgnoreCondition=Never
 # Regenerate intentionally with TUVIMA_UPDATE_WIRE_SNAPSHOT=1.
-# scopes: contracts=929; api=0; web-client=86
+# scopes: contracts=931; api=0; web-client=86
 
 [contracts] MediaEngine.Contracts.Activity.ActivityBatchInsightsDto
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -3065,6 +3065,7 @@
   GroupSummary: MediaEngine.Contracts.Display.DisplayGroupSummaryDto | json=groupSummary | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   SortYear: System.Int32 | json=sortYear | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   ListMetadata: MediaEngine.Contracts.Display.DisplayCardListMetadataDto | json=listMetadata | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  IsSettling: System.Boolean | json=isSettling | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
 
 [contracts] MediaEngine.Contracts.Display.DisplayCardFlagsDto
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -7908,6 +7909,18 @@
   ProviderId: System.String | json=provider_id | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   sample={"key":"sample","value":"sample","provider_id":"sample"}
 
+[contracts] MediaEngine.Contracts.Review.MovieTvSuggestionDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  TmdbTvId: System.String | json=tmdb_tv_id | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Name: System.String | json=name | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  FirstAirYear: System.Int32? | json=first_air_year | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Type: System.String | json=type | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Seasons: System.Int32 | json=seasons | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Episodes: System.Int32 | json=episodes | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  PosterUrl: System.String | json=poster_url | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Overview: System.String | json=overview | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"tmdb_tv_id":"sample","name":"sample","first_air_year":7,"type":"sample","seasons":7,"episodes":7,"poster_url":"sample","overview":"sample"}
+
 [contracts] MediaEngine.Contracts.Review.ReviewCountResponse
   kind=class | converter=default | number-handling=default | unmapped=default
   PendingCount: System.Int32 | json=pending_count | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
@@ -7941,6 +7954,14 @@
   BridgeIdentifiers: System.Collections.Generic.Dictionary<System.String, System.String> | json=bridge_identifiers | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   DetectedFacts: System.Collections.Generic.Dictionary<System.String, System.String> | json=detected_facts | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   sample={"id":"11111111-2222-3333-4444-555555555555","entity_id":"11111111-2222-3333-4444-555555555555","entity_type":"sample","trigger":"sample","status":"sample","proposed_collection_id":"sample","confidence_score":7,"candidates_json":"sample","detail":"sample","created_at":"2025-01-02T03:04:05+00:00","resolved_at":"2025-01-02T03:04:05+00:00","resolved_by":"sample","source_operation_id":"11111111-2222-3333-4444-555555555555","source_capability_id":"sample","source_capability_sub_key":"sample","media_type":"sample","entity_title":"sample","cover_url":"sample","bridge_identifiers":{},"detected_facts":{}}
+
+[contracts] MediaEngine.Contracts.Review.ReviewMoveToTvResponse
+  kind=class | converter=default | number-handling=default | unmapped=default
+  moved: System.Boolean | json=moved | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  review_item_id: System.Guid | json=review_item_id | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  entity_id: System.Guid | json=entity_id | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  show_name: System.String | json=show_name | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  tv_library_id: System.String | json=tv_library_id | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
 
 [contracts] MediaEngine.Contracts.Review.ReviewResolveRequestDto
   kind=class | converter=default | number-handling=default | unmapped=default

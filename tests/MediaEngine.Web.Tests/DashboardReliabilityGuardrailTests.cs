@@ -273,7 +273,7 @@ public sealed class DashboardReliabilityGuardrailTests
                      + Read(@"src/MediaEngine.Web/Components/Settings/IngestionLiveDashboard.razor.cs");
 
         Assert.Contains("AppTooltip Text=\"Reload the latest ingestion status.\"", source, StringComparison.Ordinal);
-        Assert.Contains("AppTooltip Text=\"Start a new scan of the watched folders.\"", source, StringComparison.Ordinal);
+        Assert.Contains("AppTooltip Text=\"Folders are watched automatically. Use this after changing files while Tuvima was off, or for network drives.\"", source, StringComparison.Ordinal);
         Assert.Contains("StageIconTooltip(stage)", source, StringComparison.Ordinal);
         Assert.Contains("StageProgressTooltip(stage)", source, StringComparison.Ordinal);
         Assert.Contains("StageDetailTooltip(detail)", source, StringComparison.Ordinal);

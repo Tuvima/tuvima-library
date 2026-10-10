@@ -45,13 +45,13 @@
                                            title="Reload the latest ingestion status."
                                            OnClick="OnRefresh" />
                             </AppTooltip>
-                            <AppTooltip Text="Start a new scan of the watched folders." Placement="AppPlacement.Bottom">
-                                <AppButton Label="Scan now"
+                            <AppTooltip Text="Folders are watched automatically. Use this after changing files while Tuvima was off, or for network drives." Placement="AppPlacement.Bottom">
+                                <AppButton Label="Check folders for changes"
                                            ButtonStyle="AppButtonStyle.Filled"
                                            Tone="AppUiTone.Primary"
                                            StartIcon="@AppMaterialIcons.Outlined.PlayArrow"
                                            Disabled="@(Loading || ScanStarting)"
-                                           title="Start a new scan of the watched folders."
+                                           title="Folders are watched automatically. Use this after changing files while Tuvima was off, or for network drives."
                                            OnClick="OnScanNow" />
                             </AppTooltip>
                         </AppActionBar>

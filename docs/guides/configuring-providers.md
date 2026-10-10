@@ -39,6 +39,8 @@ Enabled configuration and provider availability still determine what runs. Tuvim
 
 Use **Test connection** to check saved configuration later. A title lookup returning no match does not by itself mean the provider is offline.
 
+A provider is marked Down only for provider-side failures: timeouts, connection errors, HTTP 5xx, and 429. Rejected requests (other 4xx responses) do not take it offline. Down providers are re-probed at their configured endpoint after 5 minutes, then 15 minutes, then hourly, and recover automatically. Items waiting on a down provider retry instead of being marked unmatched. Every enabled provider gets an automatic connection check after setup completes and at each Engine start.
+
 Provider-specific help is available from [TMDB](https://www.themoviedb.org/settings/api), [TheTVDB](https://thetvdb.com/api-information), [Comic Vine](https://comicvine.gamespot.com/api/), and [SubDL](https://subdl.com/developers).
 
 ## Add optional subtitles

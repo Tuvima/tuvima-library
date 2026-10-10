@@ -3,16 +3,16 @@
 @inject IngestionLiveDashboardState Dashboard
 @implements IDisposable
 
-<AppTooltip Text="Start an extra scan of every watched folder. Automatic watching continues in the background."
-            Placement="AppPlacement.Bottom">
-    <AppButton Label="Scan now"
-               StartIcon="@AppMaterialIcons.Outlined.FolderOpen"
-               ButtonStyle="AppButtonStyle.Filled"
-               Tone="AppUiTone.Primary"
-               Disabled="@(Dashboard.IsLoading || Dashboard.IsScanStarting || IsRunning)"
-               Loading="@Dashboard.IsScanStarting"
-               OnClick="ScanNowAsync" />
-</AppTooltip>
+<AppOverflowMenu AriaLabel="More ingestion actions" Class="ingestion-scan-action">
+    <AppMenuItem Icon="@AppMaterialIcons.Outlined.FolderOpen"
+                 Disabled="@(Dashboard.IsLoading || Dashboard.IsScanStarting || IsRunning)"
+                 OnClick="ScanNowAsync">
+        <span class="ingestion-scan-action__item">
+            <strong>Check folders for changes</strong>
+            <small>Folders are watched automatically. Use this after changing files while Tuvima was off, or for network drives.</small>
+        </span>
+    </AppMenuItem>
+</AppOverflowMenu>
 
 @code {
     private bool IsRunning => Dashboard.Presentation?.IsRunning == true;

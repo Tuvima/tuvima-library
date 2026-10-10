@@ -21,10 +21,15 @@ public interface IMediaEntityChainFactory
     /// <param name="metadata">
     /// Scored metadata dictionary (keys: "title", "author", "year", etc.).
     /// </param>
+    /// <param name="sourceFilePath">
+    /// Path of the file being registered. Lets a book join the Work that already holds the same
+    /// book in another format in the same folder; <c>null</c> skips that lookup.
+    /// </param>
     /// <param name="ct">Cancellation token.</param>
     /// <returns>The <c>editions.id</c> GUID to set on the MediaAsset.</returns>
     Task<Guid> EnsureEntityChainAsync(
         MediaType mediaType,
         IReadOnlyDictionary<string, string>? metadata,
+        string? sourceFilePath = null,
         CancellationToken ct = default);
 }

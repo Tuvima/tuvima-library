@@ -37,6 +37,17 @@ public interface ICollectionBrowseReadService
         string? groupField,
         CancellationToken ct,
         IReadOnlySet<Guid>? allowedWorkIds = null);
+
+    /// <summary>
+    /// Finds the Music album group that contains the album root <paramref name="rootWorkId"/>.
+    /// Album groups merge roots that share a name (one album split across roots), so a root that is not
+    /// the group's representative id still resolves to its group. Returns <c>null</c> when no album group holds it.
+    /// </summary>
+    async Task<ContentGroupDto?> GetMusicAlbumGroupForRootAsync(Guid rootWorkId, CancellationToken ct)
+    {
+        var groups = await GetSystemViewGroupsAsync("Music", "album", ct).ConfigureAwait(false);
+        return groups.FirstOrDefault(group => group.RootWorkId == rootWorkId);
+    }
 }
 
 public interface ICollectionMediaLookupReadService

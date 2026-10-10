@@ -628,7 +628,7 @@
     private readonly Dictionary<(Guid? Profile, Guid Id), (bool Saved, MediaReaction Reaction, IReadOnlyList<DetailAction> Menu)> _personal = [];
     private (bool Saved, MediaReaction Reaction, IReadOnlyList<DetailAction> Menu) Personal => _personal.GetValueOrDefault((Playback.ActiveProfileId, LandingIdentity.Id), (false, MediaReaction.Neutral, []));
     private IReadOnlyList<DetailAction> LandingSecondaryActions => LandingIdentity.Id == Guid.Empty ? [] : [
-        new() { Key="my-list", Label=Personal.Saved ? "Remove from My List" : "Add to My List", Icon=Personal.Saved ? "check_circle" : "add", IsSelected=Personal.Saved },
+        new() { Key="my-list", Label=Personal.Saved ? "Remove from My List" : "Add to My List", Icon=Personal.Saved ? "check" : "add", IsSelected=Personal.Saved },
         new() { Key="reaction-menu", Label="Rate", Icon="thumb_up", IsSelected=Personal.Reaction is MediaReaction.Like or MediaReaction.Love, Children=[new() { Key="reaction-dislike",Label="Not for me",Icon="thumb_down",IsSelected=Personal.Reaction==MediaReaction.Dislike },new() { Key="reaction-like",Label="I like this",Icon="thumb_up",IsSelected=Personal.Reaction is MediaReaction.Like or MediaReaction.Love }] } ];
     private IReadOnlyList<DetailAction> LandingOverflowActions => (IsContinuation ? new[] { new DetailAction { Key="play-from-beginning",Label="Restart from beginning",Icon="restart_alt",Route=RestartRoute(ActiveHero.PrimaryNavigationUrl) } } : []).Concat(Personal.Menu.Where(action => action.Key != "edit" && action.Key != "play-from-beginning")).Concat([new DetailAction { Key="go-details",Label="Go to details",Icon="info",Route=ActiveDetailsUrl }]).ToList();
     private async Task LoadPersonalAsync() {

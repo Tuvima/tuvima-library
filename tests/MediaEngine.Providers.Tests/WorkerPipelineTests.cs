@@ -139,6 +139,84 @@ public sealed class WorkerPipelineTests
     }
 
     [Fact]
+    public async Task RetailMatchWorker_ClaimPersistenceFailure_RetriesInsteadOfReportingMatch()
+    {
+        var entityId = Guid.NewGuid();
+        var jobId = Guid.NewGuid();
+
+        var jobRepo = new StubIdentityJobRepository();
+        var candidateRepo = new StubRetailCandidateRepository();
+        await jobRepo.CreateAsync(new IdentityJob
+        {
+            Id = jobId,
+            EntityId = entityId,
+            EntityType = "MediaAsset",
+            MediaType = "Books",
+            State = "Queued",
+        });
+
+        var provider = new StubExternalMetadataProvider
+        {
+            Name = "apple_api",
+            ProviderId = Guid.NewGuid(),
+            Claims =
+            [
+                new ProviderClaim(MetadataFieldConstants.Title, "Dune", 0.95),
+                new ProviderClaim(MetadataFieldConstants.Author, "Frank Herbert", 0.95),
+            ],
+        };
+
+        var retailScoring = new StubRetailMatchScoringService
+        {
+            Result = new FieldMatchScores
+            {
+                TitleScore = 0.95,
+                AuthorScore = 0.90,
+                FormatScore = 1.0,
+                CompositeScore = 0.90,
+            },
+        };
+
+        // Mirrors a fresh data store missing the provider row: the claim insert hits a
+        // foreign key failure after the candidate has already been scored as accepted.
+        var claimRepo = new StubMetadataClaimRepository
+        {
+            FailInsertWith = new InvalidOperationException("FOREIGN KEY constraint failed"),
+        };
+
+        var worker = new RetailMatchWorker(
+            jobRepo,
+            candidateRepo,
+            CreateStubStageOutcomeFactory(),
+            CreateStubTimelineRecorder(),
+            CreateStubBatchProgressService(),
+            new[] { provider },
+            retailScoring,
+            claimRepo,
+            new StubCanonicalValueRepository(),
+            new StubScoringEngine(),
+            new StubConfigurationLoader(),
+            new StubBridgeIdRepository(),
+            new StubWorkRepository(),
+            new WorkClaimRouter(),
+            new StubHttpClientFactory(),
+            null!, // PostPipelineService — not reached when the attempt is rolled back
+            NullLogger<RetailMatchWorker>.Instance);
+
+        await worker.PollAsync(CancellationToken.None);
+
+        var updatedJob = await jobRepo.GetByIdAsync(jobId);
+        Assert.NotNull(updatedJob);
+        Assert.Equal(IdentityJobState.Queued.ToString(), updatedJob!.State);
+        Assert.Single(candidateRepo.Candidates);
+        Assert.Equal("Rejected", candidateRepo.Candidates[0].Outcome);
+
+        // A local fault is not a provider outage: it consumes the poison budget like a rejected request.
+        var retry = Assert.Single(jobRepo.OutcomeRetries);
+        Assert.Equal(MediaEngine.Domain.Jobs.BackgroundJobOutcomeCategory.ContentFailure, retry.Category);
+    }
+
+    [Fact]
     public async Task RetailMatchWorker_WeakCreatorSimilarity_CapsAutoAcceptToReview()
     {
         var entityId = Guid.NewGuid();
@@ -2526,6 +2604,427 @@ public sealed class WorkerPipelineTests
         Assert.Equal(candidateRepo.Candidates[1].Id, updatedJob.SelectedCandidateId);
     }
 
+    // ── Provider failures are never "no match" ──
+
+    private static async Task<(StubIdentityJobRepository Jobs, IdentityJob Job)> RunRetailWithProviderFailureAsync(
+        Exception failure,
+        int poisonAttemptCount = 0)
+    {
+        var jobRepo = new StubIdentityJobRepository();
+        var job = new IdentityJob
+        {
+            Id = Guid.NewGuid(),
+            EntityId = Guid.NewGuid(),
+            EntityType = "MediaAsset",
+            MediaType = "Books",
+            State = "Queued",
+            PoisonAttemptCount = poisonAttemptCount,
+        };
+        await jobRepo.CreateAsync(job);
+
+        var provider = new StubExternalMetadataProvider
+        {
+            Name = "apple_api",
+            ProviderId = Guid.NewGuid(),
+            Failure = failure,
+        };
+
+        var worker = new RetailMatchWorker(
+            jobRepo,
+            new StubRetailCandidateRepository(),
+            CreateStubStageOutcomeFactory(),
+            CreateStubTimelineRecorder(),
+            CreateStubBatchProgressService(),
+            new[] { provider },
+            new StubRetailMatchScoringService(),
+            new StubMetadataClaimRepository(),
+            new StubCanonicalValueRepository(),
+            new StubScoringEngine(),
+            new StubConfigurationLoader(),
+            new StubBridgeIdRepository(),
+            new StubWorkRepository(),
+            new WorkClaimRouter(),
+            new StubHttpClientFactory(),
+            null!,
+            NullLogger<RetailMatchWorker>.Instance);
+
+        await worker.PollAsync(CancellationToken.None);
+        return (jobRepo, job);
+    }
+
+    [Fact]
+    public async Task RetailMatchWorker_ProviderUnavailable_StaysQueuedWithoutConsumingPoisonBudget()
+    {
+        var (jobs, job) = await RunRetailWithProviderFailureAsync(
+            new MediaEngine.Domain.Jobs.ProviderUnavailableException("Waiting for provider"));
+
+        var retry = Assert.Single(jobs.OutcomeRetries);
+        Assert.Equal(IdentityJobState.Queued, retry.State);
+        Assert.Equal(MediaEngine.Domain.Jobs.BackgroundJobOutcomeCategory.TransientDependencyFailure, retry.Category);
+        Assert.Equal(IdentityJobState.Queued.ToString(), job.State);
+    }
+
+    [Fact]
+    public async Task RetailMatchWorker_ProviderRejectedRequest_ConsumesPoisonBudget()
+    {
+        var (jobs, job) = await RunRetailWithProviderFailureAsync(
+            new MediaEngine.Domain.Jobs.ProviderRequestRejectedException("rejected", HttpStatusCode.BadRequest));
+
+        var retry = Assert.Single(jobs.OutcomeRetries);
+        Assert.Equal(IdentityJobState.Queued, retry.State);
+        Assert.Equal(MediaEngine.Domain.Jobs.BackgroundJobOutcomeCategory.ContentFailure, retry.Category);
+        Assert.Equal(IdentityJobState.Queued.ToString(), job.State);
+    }
+
+    [Fact]
+    public async Task RetailMatchWorker_ProviderRejectedRequest_WithExhaustedBudget_EndsInRetailNoMatchReview()
+    {
+        // The default budget is 5; this attempt would be the fifth.
+        var (jobs, job) = await RunRetailWithProviderFailureAsync(
+            new MediaEngine.Domain.Jobs.ProviderRequestRejectedException("rejected", HttpStatusCode.BadRequest),
+            poisonAttemptCount: 4);
+
+        Assert.Empty(jobs.OutcomeRetries);
+        Assert.Equal(IdentityJobState.RetailNoMatch.ToString(), job.State);
+    }
+
+    [Fact]
+    public async Task RetailMatchWorker_ProviderUnavailable_StaysTransient_EvenWithAnExhaustedPoisonBudget()
+    {
+        // Provider-side outages never consume the poison budget, however many attempts came before.
+        var (jobs, job) = await RunRetailWithProviderFailureAsync(
+            new MediaEngine.Domain.Jobs.ProviderUnavailableException("Waiting for provider"),
+            poisonAttemptCount: 4);
+
+        var retry = Assert.Single(jobs.OutcomeRetries);
+        Assert.Equal(MediaEngine.Domain.Jobs.BackgroundJobOutcomeCategory.TransientDependencyFailure, retry.Category);
+        Assert.Equal(IdentityJobState.Queued.ToString(), job.State);
+    }
+
+    // A local fault (here: claim persistence failing every time) is not a provider outage: it is
+    // classified like a rejected request so the job cannot retry forever.
+
+    private static async Task<(StubIdentityJobRepository Jobs, IdentityJob Job, List<ReviewQueueEntry> Reviews)>
+        RunRetailWithClaimPersistenceFailureAsync(Exception failure, int poisonAttemptCount = 0)
+    {
+        var jobRepo = new StubIdentityJobRepository();
+        var job = new IdentityJob
+        {
+            Id = Guid.NewGuid(),
+            EntityId = Guid.NewGuid(),
+            EntityType = "MediaAsset",
+            MediaType = "Books",
+            State = "Queued",
+            PoisonAttemptCount = poisonAttemptCount,
+        };
+        await jobRepo.CreateAsync(job);
+
+        var provider = new StubExternalMetadataProvider
+        {
+            Name = "apple_api",
+            ProviderId = Guid.NewGuid(),
+            Claims =
+            [
+                new ProviderClaim(MetadataFieldConstants.Title, "Dune", 0.95),
+                new ProviderClaim(MetadataFieldConstants.Author, "Frank Herbert", 0.95),
+            ],
+        };
+        var retailScoring = new StubRetailMatchScoringService
+        {
+            Result = new FieldMatchScores
+            {
+                TitleScore = 0.95,
+                AuthorScore = 0.90,
+                FormatScore = 1.0,
+                CompositeScore = 0.90,
+            },
+        };
+
+        var canonicals = new StubCanonicalValueRepository();
+        canonicals.Values.Add(new CanonicalValue { EntityId = job.EntityId, Key = MetadataFieldConstants.Title, Value = "Dune" });
+        canonicals.Values.Add(new CanonicalValue { EntityId = job.EntityId, Key = MetadataFieldConstants.Author, Value = "Frank Herbert" });
+
+        var reviews = new RecordingReviewQueueRepository();
+        var outcomeFactory = new StageOutcomeFactory(
+            reviews,
+            new StubSystemActivityRepository(),
+            new StubEventPublisher(),
+            canonicals,
+            NullLogger<StageOutcomeFactory>.Instance);
+
+        var worker = new RetailMatchWorker(
+            jobRepo,
+            new StubRetailCandidateRepository(),
+            outcomeFactory,
+            CreateStubTimelineRecorder(),
+            CreateStubBatchProgressService(),
+            new[] { provider },
+            retailScoring,
+            new StubMetadataClaimRepository { FailInsertWith = failure },
+            canonicals,
+            new StubScoringEngine(),
+            new StubConfigurationLoader(),
+            new StubBridgeIdRepository(),
+            new StubWorkRepository(),
+            new WorkClaimRouter(),
+            new StubHttpClientFactory(),
+            null!,
+            NullLogger<RetailMatchWorker>.Instance);
+
+        await worker.PollAsync(CancellationToken.None);
+        return (jobRepo, job, reviews.Inserted);
+    }
+
+    [Fact]
+    public async Task RetailMatchWorker_PersistentLocalFault_SchedulesContentFailureRetry_AndConsumesPoisonBudget()
+    {
+        var (jobs, job, reviews) = await RunRetailWithClaimPersistenceFailureAsync(
+            new InvalidOperationException("claim persistence failed"));
+
+        var retry = Assert.Single(jobs.OutcomeRetries);
+        Assert.Equal(IdentityJobState.Queued, retry.State);
+        Assert.Equal(MediaEngine.Domain.Jobs.BackgroundJobOutcomeCategory.ContentFailure, retry.Category);
+        Assert.Equal(IdentityJobState.Queued.ToString(), job.State);
+        Assert.Empty(reviews);
+    }
+
+    [Fact]
+    public async Task RetailMatchWorker_PersistentLocalFault_WithExhaustedBudget_EndsAsRetailNoMatchWithRetailFailedReview()
+    {
+        // The default budget is 5; this attempt would be the fifth.
+        var (jobs, job, reviews) = await RunRetailWithClaimPersistenceFailureAsync(
+            new InvalidOperationException("claim persistence failed"),
+            poisonAttemptCount: 4);
+
+        Assert.Empty(jobs.OutcomeRetries);
+        Assert.Equal(IdentityJobState.RetailNoMatch.ToString(), job.State);
+        var review = Assert.Single(reviews);
+        Assert.Equal(ReviewTrigger.RetailMatchFailed, review.Trigger);
+        Assert.Equal(job.EntityId, review.EntityId);
+    }
+
+    // ── Movies with no movie match: TMDB TV suggestion (never auto-accepted) ──
+
+    private const string DrHorribleTitle = "Dr. Horrible's Sing-Along Blog";
+
+    private static string TmdbTvSearchJson(string name = DrHorribleTitle, string firstAirDate = "2008-07-15") =>
+        $$"""{ "results": [ { "id": 5739, "name": "{{name}}", "first_air_date": "{{firstAirDate}}", "poster_path": "/dr.jpg" } ] }""";
+
+    private static string TmdbTvDetailsJson(string type, int seasons, int episodes, string firstAirDate = "2008-07-15") =>
+        $$"""
+        { "id": 5739, "name": "Dr. Horrible's Sing-Along Blog", "first_air_date": "{{firstAirDate}}",
+          "type": "{{type}}", "number_of_seasons": {{seasons}}, "number_of_episodes": {{episodes}},
+          "poster_path": "/dr.jpg", "overview": "A low-rent super-villain." }
+        """;
+
+    private static async Task<(IdentityJob Job, List<ReviewQueueEntry> Reviews, List<string> Requests)> RunMovieNoMatchAsync(
+        Func<HttpRequestMessage, HttpResponseMessage> tmdbResponder)
+    {
+        var entityId = Guid.NewGuid();
+        var jobRepo = new StubIdentityJobRepository();
+        var job = new IdentityJob
+        {
+            Id = Guid.NewGuid(),
+            EntityId = entityId,
+            EntityType = "MediaAsset",
+            MediaType = "Movies",
+            State = "Queued",
+        };
+        await jobRepo.CreateAsync(job);
+
+        var canonicals = new StubCanonicalValueRepository();
+        canonicals.Values.Add(new CanonicalValue { EntityId = entityId, Key = MetadataFieldConstants.Title, Value = DrHorribleTitle });
+        canonicals.Values.Add(new CanonicalValue { EntityId = entityId, Key = MetadataFieldConstants.Year, Value = "2008" });
+
+        // The movie search finds nothing at all.
+        var tmdb = new StubExternalMetadataProvider { Name = "tmdb", ProviderId = WellKnownProviders.Tmdb, Claims = [] };
+        var config = new StubConfigurationLoader
+        {
+            PipelineConfiguration = new PipelineConfiguration
+            {
+                Pipelines = new Dictionary<string, MediaTypePipeline>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["Movies"] = new()
+                    {
+                        Strategy = ProviderStrategy.Waterfall,
+                        Providers = [new PipelineProviderEntry { Rank = 1, Name = "tmdb", Purpose = "identity" }],
+                    },
+                },
+            },
+            Providers =
+            [
+                new()
+                {
+                    Name = "tmdb",
+                    Enabled = true,
+                    ProviderId = WellKnownProviders.Tmdb.ToString(),
+                    Weight = 0.9,
+                    HttpClient = new HttpClientConfig { ApiKey = "tmdb-test-key" },
+                },
+            ],
+        };
+
+        var requests = new List<string>();
+        var reviews = new RecordingReviewQueueRepository();
+        var outcomeFactory = new StageOutcomeFactory(
+            reviews,
+            new StubSystemActivityRepository(),
+            new StubEventPublisher(),
+            canonicals,
+            NullLogger<StageOutcomeFactory>.Instance);
+        var suggestions = new TmdbTvSuggestionService(
+            new TmdbRetailClient(
+                new RoutingHttpClientFactory(request =>
+                {
+                    requests.Add(request.RequestUri!.AbsolutePath);
+                    return tmdbResponder(request);
+                }),
+                new RetailRequestBuilder(),
+                new ProviderRateLimiterCoordinator(),
+                NullLogger<TmdbRetailClient>.Instance),
+            NullLogger<TmdbTvSuggestionService>.Instance);
+
+        var worker = new RetailMatchWorker(
+            jobRepo,
+            new StubRetailCandidateRepository(),
+            outcomeFactory,
+            CreateStubTimelineRecorder(),
+            CreateStubBatchProgressService(),
+            new[] { tmdb },
+            new StubRetailMatchScoringService(),
+            new StubMetadataClaimRepository(),
+            canonicals,
+            new StubScoringEngine(),
+            config,
+            new StubBridgeIdRepository(),
+            new StubWorkRepository(),
+            new WorkClaimRouter(),
+            new StubHttpClientFactory(),
+            null!,
+            NullLogger<RetailMatchWorker>.Instance,
+            tvSuggestions: suggestions);
+
+        await worker.PollAsync(CancellationToken.None);
+        return (job, reviews.Inserted, requests);
+    }
+
+    private static HttpResponseMessage TmdbTvResponse(HttpRequestMessage request, string detailsJson) =>
+        JsonResponse(request.RequestUri!.AbsolutePath.StartsWith("/3/search/tv", StringComparison.Ordinal)
+            ? TmdbTvSearchJson()
+            : detailsJson);
+
+    [Fact]
+    public async Task RetailMatchWorker_MovieWithNoMovieMatch_QualifyingTmdbMiniseries_CreatesTvSuggestionReview()
+    {
+        var (job, reviews, requests) = await RunMovieNoMatchAsync(request =>
+            TmdbTvResponse(request, TmdbTvDetailsJson("Miniseries", 1, 3)));
+
+        // Never accepted: the job ends as an ordinary no-match and keeps the file's own metadata.
+        Assert.Equal(IdentityJobState.RetailNoMatch.ToString(), job.State);
+        Assert.Contains("/3/search/tv", requests);
+        Assert.Contains("/3/tv/5739", requests);
+
+        var review = Assert.Single(reviews);
+        Assert.Equal(ReviewTrigger.MovieMatchedAsTv, review.Trigger);
+        Assert.Equal(job.EntityId, review.EntityId);
+        Assert.Contains("miniseries 'Dr. Horrible's Sing-Along Blog' (2008, 3 parts). Move it to TV?", review.Detail);
+
+        var suggestion = Assert.Single(JsonSerializer.Deserialize<List<MediaEngine.Contracts.Review.MovieTvSuggestionDto>>(review.CandidatesJson!)!);
+        Assert.Equal("5739", suggestion.TmdbTvId);
+        Assert.Equal(DrHorribleTitle, suggestion.Name);
+        Assert.Equal(2008, suggestion.FirstAirYear);
+        Assert.Equal("Miniseries", suggestion.Type);
+        Assert.Equal(1, suggestion.Seasons);
+        Assert.Equal(3, suggestion.Episodes);
+        Assert.Equal("https://image.tmdb.org/t/p/w500/dr.jpg", suggestion.PosterUrl);
+        Assert.Equal("A low-rent super-villain.", suggestion.Overview);
+    }
+
+    [Theory]
+    [InlineData("Scripted", 4, 40, "2008-07-15")]   // a long-running series is not film-like
+    [InlineData("Scripted", 1, 12, "2008-07-15")]   // one season but too many episodes
+    [InlineData("Miniseries", 1, 3, "2012-07-15")]  // year more than one off
+    public async Task RetailMatchWorker_MovieWithNoMovieMatch_NonQualifyingTmdbTv_CreatesNoSuggestion(
+        string type, int seasons, int episodes, string firstAirDate)
+    {
+        var (job, reviews, _) = await RunMovieNoMatchAsync(request =>
+            TmdbTvResponse(request, TmdbTvDetailsJson(type, seasons, episodes, firstAirDate)));
+
+        Assert.Equal(IdentityJobState.RetailNoMatch.ToString(), job.State);
+        Assert.DoesNotContain(reviews, review => review.Trigger == ReviewTrigger.MovieMatchedAsTv);
+    }
+
+    [Fact]
+    public async Task RetailMatchWorker_MovieWithNoMovieMatch_TmdbTvLookupFails_JobProceedsAsOrdinaryNoMatch()
+    {
+        var (job, reviews, requests) = await RunMovieNoMatchAsync(_ => new HttpResponseMessage(HttpStatusCode.InternalServerError));
+
+        Assert.NotEmpty(requests);
+        Assert.Equal(IdentityJobState.RetailNoMatch.ToString(), job.State);
+        Assert.DoesNotContain(reviews, review => review.Trigger == ReviewTrigger.MovieMatchedAsTv);
+    }
+
+    [Fact]
+    public async Task StageOutcomeFactory_DismissedTvSuggestion_IsNotRaisedAgain()
+    {
+        var entityId = Guid.NewGuid();
+        var reviews = new RecordingReviewQueueRepository();
+        var factory = new StageOutcomeFactory(
+            reviews, new StubSystemActivityRepository(), new StubEventPublisher(),
+            new StubCanonicalValueRepository(), NullLogger<StageOutcomeFactory>.Instance);
+        var suggestion = new MediaEngine.Contracts.Review.MovieTvSuggestionDto { TmdbTvId = "5739", Name = DrHorribleTitle, Type = "Miniseries", Episodes = 3, FirstAirYear = 2008 };
+
+        var first = await factory.CreateMovieMatchedAsTvAsync(entityId, suggestion);
+        Assert.NotNull(first);
+        Assert.Null(await factory.CreateMovieMatchedAsTvAsync(entityId, suggestion)); // still pending
+
+        await reviews.UpdateStatusAsync(first!.Value, ReviewStatus.Dismissed, "user");
+        Assert.Null(await factory.CreateMovieMatchedAsTvAsync(entityId, suggestion)); // kept as a film
+        Assert.Single(reviews.Inserted);
+    }
+
+    private sealed class RecordingReviewQueueRepository : IReviewQueueRepository
+    {
+        public List<ReviewQueueEntry> Inserted { get; } = [];
+
+        public Task<Guid> InsertAsync(ReviewQueueEntry entry, CancellationToken ct = default)
+        {
+            Inserted.Add(entry);
+            return Task.FromResult(entry.Id);
+        }
+
+        public Task<IReadOnlyList<ReviewQueueEntry>> GetPendingAsync(int limit = 50, CancellationToken ct = default)
+            => Task.FromResult<IReadOnlyList<ReviewQueueEntry>>(Inserted.Where(e => e.Status == ReviewStatus.Pending).ToList());
+
+        public Task<ReviewQueueEntry?> GetByIdAsync(Guid id, CancellationToken ct = default)
+            => Task.FromResult(Inserted.FirstOrDefault(e => e.Id == id));
+
+        public Task<IReadOnlyList<ReviewQueueEntry>> GetByEntityAsync(Guid entityId, CancellationToken ct = default)
+            => Task.FromResult<IReadOnlyList<ReviewQueueEntry>>(Inserted.Where(e => e.EntityId == entityId).ToList());
+
+        public Task<IReadOnlyList<ReviewQueueEntry>> GetPendingByEntityAsync(Guid entityId, CancellationToken ct = default)
+            => Task.FromResult<IReadOnlyList<ReviewQueueEntry>>(
+                Inserted.Where(e => e.EntityId == entityId && e.Status == ReviewStatus.Pending).ToList());
+
+        public Task UpdateStatusAsync(Guid id, string status, string? resolvedBy = null, CancellationToken ct = default)
+        {
+            var entry = Inserted.Single(e => e.Id == id);
+            entry.Status = status;
+            return Task.CompletedTask;
+        }
+
+        public Task<int> MarkPendingReadyByEntityAsync(Guid entityId, CancellationToken ct = default) => Task.FromResult(0);
+
+        public Task<IReadOnlyList<ReviewQueueEntry>> PromotePendingReadyByEntityAsync(Guid entityId, CancellationToken ct = default)
+            => Task.FromResult<IReadOnlyList<ReviewQueueEntry>>([]);
+
+        public Task<int> GetPendingCountAsync(CancellationToken ct = default) => Task.FromResult(0);
+        public Task<int> DismissAllByEntityAsync(Guid entityId, CancellationToken ct = default) => Task.FromResult(0);
+        public Task<int> ResolveAllByEntityAsync(Guid entityId, string resolvedBy = "system:auto-organize", CancellationToken ct = default) => Task.FromResult(0);
+        public Task<int> ResolvePendingByEntityAndTriggersAsync(Guid entityId, IReadOnlyCollection<string> triggers, string resolvedBy, CancellationToken ct = default) => Task.FromResult(0);
+        public Task<int> PurgeOrphanedAsync(CancellationToken ct = default) => Task.FromResult(0);
+    }
+
     // ── Test 2: RetailMatchWorker no match → RetailNoMatch, WikidataBridge skips ──
 
     [Fact]
@@ -3201,6 +3700,20 @@ public sealed class WorkerPipelineTests
             return Task.CompletedTask;
         }
 
+        public List<(Guid JobId, IdentityJobState State, MediaEngine.Domain.Jobs.BackgroundJobOutcomeCategory Category, string Error)> OutcomeRetries { get; } = [];
+
+        public Task ScheduleRetryForOutcomeAsync(
+            Guid jobId,
+            IdentityJobState retryState,
+            DateTimeOffset nextRetryAt,
+            string error,
+            MediaEngine.Domain.Jobs.BackgroundJobOutcomeCategory category,
+            CancellationToken ct = default)
+        {
+            OutcomeRetries.Add((jobId, retryState, category, error));
+            return UpdateStateAsync(jobId, retryState, error, ct);
+        }
+
         public Task SetSelectedCandidateAsync(Guid jobId, Guid candidateId, CancellationToken ct = default)
         {
             var job = _jobs.FirstOrDefault(j => j.Id == jobId);
@@ -3324,6 +3837,7 @@ public sealed class WorkerPipelineTests
         public IReadOnlyList<ProviderClaim> Claims { get; set; } = [];
         public Queue<IReadOnlyList<ProviderClaim>> ClaimResults { get; } = new();
         public List<ProviderLookupRequest> Requests { get; } = [];
+        public Exception? Failure { get; set; }
 
         public bool CanHandle(MediaType mediaType) => true;
         public bool CanHandle(EntityType entityType) => true;
@@ -3331,6 +3845,11 @@ public sealed class WorkerPipelineTests
         public Task<IReadOnlyList<ProviderClaim>> FetchAsync(ProviderLookupRequest request, CancellationToken ct = default)
         {
             Requests.Add(request);
+            if (Failure is not null)
+            {
+                throw Failure;
+            }
+
             return Task.FromResult(ClaimResults.Count > 0 ? ClaimResults.Dequeue() : Claims);
         }
     }
@@ -3539,8 +4058,15 @@ public sealed class WorkerPipelineTests
     {
         public List<MetadataClaim> Claims { get; } = [];
 
+        public Exception? FailInsertWith { get; init; }
+
         public Task InsertBatchAsync(IReadOnlyList<MetadataClaim> claims, CancellationToken ct = default)
         {
+            if (FailInsertWith is not null)
+            {
+                return Task.FromException(FailInsertWith);
+            }
+
             Claims.AddRange(claims);
             return Task.CompletedTask;
         }

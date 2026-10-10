@@ -46,11 +46,18 @@ public sealed class CollectionSystemViewGroupReadModel
     public long? BannerWidthPx { get; init; }
     public long? BannerHeightPx { get; init; }
     public long? SeasonCount { get; init; }
+
+    /// <summary>
+    /// Normalised album artist of a Music album group (empty for every other group), so same-named albums by
+    /// different artists stay separate groups.
+    /// </summary>
+    public string AlbumArtistKey { get; init; } = string.Empty;
 }
 
 public sealed class CollectionSystemViewPreviewReadModel
 {
     public string GroupName { get; init; } = string.Empty;
+    public string AlbumArtistKey { get; init; } = string.Empty;
     public Guid WorkId { get; init; }
     public Guid RootWorkId { get; init; }
     public Guid? AssetId { get; init; }
@@ -667,6 +674,113 @@ public sealed class CollectionBrowseReadService(
         return result;
     }
 
+    /// <summary>
+    /// Music album groups merge album roots that share a name (one album can be split across roots when
+    /// its tracks carry different artist credits), and the group exposes only one representative root id.
+    /// Home tiles link to each root's own id, so a root that is not the representative must still resolve
+    /// to the group carrying its album name.
+    /// </summary>
+    public async Task<ContentGroupDto?> GetMusicAlbumGroupForRootAsync(Guid rootWorkId, CancellationToken ct)
+    {
+        var groups = await GetSystemViewGroupsAsync("Music", "album", ct).ConfigureAwait(false);
+        var exact = groups.FirstOrDefault(group => group.RootWorkId == rootWorkId);
+        if (exact is not null)
+        {
+            return exact;
+        }
+
+        using var conn = db.CreateConnection();
+        var albumName = await conn.ExecuteScalarAsync<string?>(new CommandDefinition(
+            """
+            SELECT COALESCE(
+                (SELECT value FROM canonical_values WHERE entity_id = @RootWorkId AND key = 'album' LIMIT 1),
+                (SELECT value FROM canonical_values WHERE entity_id = @RootWorkId AND key = 'title' LIMIT 1),
+                (SELECT cv.value
+                 FROM works c
+                 INNER JOIN editions e ON e.work_id = c.id
+                 INNER JOIN media_assets ma ON ma.edition_id = e.id
+                 INNER JOIN canonical_values cv ON cv.entity_id = ma.id AND cv.key = 'album'
+                 WHERE c.media_type = 'Music' AND COALESCE(c.parent_work_id, c.id) = @RootWorkId
+                 LIMIT 1))
+            WHERE EXISTS (
+                SELECT 1
+                FROM works c
+                INNER JOIN editions e ON e.work_id = c.id
+                INNER JOIN media_assets ma ON ma.edition_id = e.id
+                WHERE c.media_type = 'Music' AND COALESCE(c.parent_work_id, c.id) = @RootWorkId);
+            """,
+            new { RootWorkId = GuidSql.ToBlob(rootWorkId) },
+            cancellationToken: ct)).ConfigureAwait(false);
+        if (string.IsNullOrWhiteSpace(albumName))
+        {
+            return null;
+        }
+
+        var sameName = groups
+            .Where(group => string.Equals(group.DisplayName?.Trim(), albumName.Trim(), StringComparison.OrdinalIgnoreCase))
+            .ToList();
+        if (sameName.Count <= 1)
+        {
+            return sameName.FirstOrDefault();
+        }
+
+        // Several artists released an album of this name: the root belongs to the group of its own album artist.
+        var albumArtist = await conn.ExecuteScalarAsync<string?>(new CommandDefinition(
+            """
+            SELECT cva.value
+            FROM canonical_value_arrays cva
+            WHERE cva.key IN ('album_artist', 'artist')
+              AND TRIM(cva.value) <> ''
+              AND (cva.entity_id = @RootWorkId
+                   OR cva.entity_id IN (
+                        SELECT c.id FROM works c
+                        WHERE c.media_type = 'Music' AND COALESCE(c.parent_work_id, c.id) = @RootWorkId)
+                   OR cva.entity_id IN (
+                        SELECT ma.id FROM works c
+                        INNER JOIN editions e ON e.work_id = c.id
+                        INNER JOIN media_assets ma ON ma.edition_id = e.id
+                        WHERE c.media_type = 'Music' AND COALESCE(c.parent_work_id, c.id) = @RootWorkId))
+            ORDER BY CASE cva.key WHEN 'album_artist' THEN 1 ELSE 2 END,
+                     CASE WHEN cva.entity_id = @RootWorkId THEN 0 ELSE 1 END,
+                     cva.ordinal
+            LIMIT 1;
+            """,
+            new { RootWorkId = GuidSql.ToBlob(rootWorkId) },
+            cancellationToken: ct)).ConfigureAwait(false);
+        return string.IsNullOrWhiteSpace(albumArtist)
+            ? null
+            : sameName.FirstOrDefault(group => string.Equals(group.Creator?.Trim(), albumArtist.Trim(), StringComparison.OrdinalIgnoreCase));
+    }
+
+    /// <summary>
+    /// The album artist a Music album group is keyed on, read the same way the hierarchy resolver builds an
+    /// album's parent key: <c>album_artist</c>, else <c>artist</c>, root Work first, then the track Work and
+    /// its file. Requires a <c>wa</c> row with RootWorkId, WorkId and AssetId, and the @IsMusicAlbumGroup flag.
+    /// </summary>
+    private const string MusicAlbumArtistSql = """
+        CASE WHEN @IsMusicAlbumGroup = 1 THEN COALESCE(
+            (SELECT value FROM canonical_value_arrays WHERE entity_id = wa.RootWorkId AND key = 'album_artist' AND TRIM(value) <> '' ORDER BY ordinal LIMIT 1),
+            (SELECT value FROM canonical_value_arrays WHERE entity_id = wa.WorkId AND key = 'album_artist' AND TRIM(value) <> '' ORDER BY ordinal LIMIT 1),
+            (SELECT value FROM canonical_value_arrays WHERE entity_id = wa.AssetId AND key = 'album_artist' AND TRIM(value) <> '' ORDER BY ordinal LIMIT 1),
+            (SELECT value FROM canonical_value_arrays WHERE entity_id = wa.RootWorkId AND key = 'artist' AND TRIM(value) <> '' ORDER BY ordinal LIMIT 1),
+            (SELECT value FROM canonical_value_arrays WHERE entity_id = wa.WorkId AND key = 'artist' AND TRIM(value) <> '' ORDER BY ordinal LIMIT 1),
+            (SELECT value FROM canonical_value_arrays WHERE entity_id = wa.AssetId AND key = 'artist' AND TRIM(value) <> '' ORDER BY ordinal LIMIT 1))
+        END
+        """;
+
+    /// <summary>
+    /// Normalised album-artist key that is identical for every track of one album root, so a root is never
+    /// split across groups when only some of its tracks carry an artist.
+    /// </summary>
+    private const string MusicAlbumArtistKeySql = """
+        CASE WHEN @IsMusicAlbumGroup = 1
+             THEN COALESCE(MIN(lower(trim(r.AlbumArtistRaw))) OVER (PARTITION BY r.RootWorkId), '')
+             ELSE '' END
+        """;
+
+    private static string SystemViewPreviewKey(string groupName, string? albumArtistKey)
+        => $"{groupName}\u001F{albumArtistKey}";
+
     private async Task<IReadOnlyList<CollectionSystemViewGroupReadModel>> QuerySystemViewGroupsAsync(
         IReadOnlyList<Guid> workIds,
         string groupField,
@@ -749,11 +863,18 @@ public sealed class CollectionBrowseReadService(
                        COALESCE(
                            (SELECT value FROM canonical_value_arrays WHERE entity_id = wa.RootWorkId AND key IN ('album_artist', 'artist', 'author', 'creator') ORDER BY ordinal LIMIT 1),
                            (SELECT value FROM canonical_value_arrays WHERE entity_id = wa.WorkId AND key IN ('album_artist', 'artist', 'author', 'creator') ORDER BY ordinal LIMIT 1),
-                           (SELECT value FROM canonical_value_arrays WHERE entity_id = wa.AssetId AND key IN ('album_artist', 'artist', 'author', 'creator') ORDER BY ordinal LIMIT 1)) AS WorkCreator
+                           (SELECT value FROM canonical_value_arrays WHERE entity_id = wa.AssetId AND key IN ('album_artist', 'artist', 'author', 'creator') ORDER BY ordinal LIMIT 1)) AS WorkCreator,
+                       {MusicAlbumArtistSql} AS AlbumArtistRaw
                 FROM work_assets wa
+            ),
+            keyed AS (
+                SELECT r.*,
+                       {MusicAlbumArtistKeySql} AS AlbumArtistKey
+                FROM resolved r
             ),
             grouped AS (
                 SELECT GroupName,
+                       AlbumArtistKey,
                        COUNT(DISTINCT CASE WHEN @IsTvAggregateGroup = 1 THEN RootWorkId ELSE WorkId END) AS WorkCount,
                        COUNT(DISTINCT CASE
                            WHEN @IsTvAggregateGroup = 1 THEN COALESCE(NULLIF(WorkTitle, ''), hex(RootWorkId))
@@ -770,10 +891,10 @@ public sealed class CollectionBrowseReadService(
                        END) AS LatestYear,
                        MIN(AssetId) AS FirstAssetId,
                        MIN(RootWorkId) AS RootWorkId,
-                       MAX(NULLIF(TRIM(WorkCreator), '')) AS WorkCreator
-                FROM resolved
+                       COALESCE(MAX(NULLIF(TRIM(AlbumArtistRaw), '')), MAX(NULLIF(TRIM(WorkCreator), ''))) AS WorkCreator
+                FROM keyed
                 WHERE GroupName IS NOT NULL AND TRIM(GroupName) != ''
-                GROUP BY lower(GroupName)
+                GROUP BY lower(GroupName), AlbumArtistKey
             ),
             metadata AS (
                 SELECT cv.entity_id AS EntityId,
@@ -803,6 +924,7 @@ public sealed class CollectionBrowseReadService(
                 GROUP BY cv.entity_id
             )
             SELECT g.GroupName,
+                   g.AlbumArtistKey,
                    g.WorkCount,
                    g.DistinctTitleCount,
                    g.AlbumCount,
@@ -919,6 +1041,16 @@ public sealed class CollectionBrowseReadService(
                 WHERE w.id IN @WorkIds
                   AND {visibleAssetPredicate}
                 GROUP BY w.id, {hierarchyRootSql}, primary_credit.person_name
+            ),
+            artists AS (
+                SELECT wa.*,
+                       {MusicAlbumArtistSql} AS AlbumArtistRaw
+                FROM work_assets wa
+            ),
+            keyed AS (
+                SELECT r.*,
+                       {MusicAlbumArtistKeySql} AS AlbumArtistKey
+                FROM artists r
             )
             SELECT CASE WHEN @IsMusicAlbumGroup = 1 THEN COALESCE(
                        (SELECT value FROM canonical_values WHERE entity_id = wa.RootWorkId AND key = 'album' LIMIT 1),
@@ -935,6 +1067,7 @@ public sealed class CollectionBrowseReadService(
                        (SELECT value FROM canonical_values WHERE entity_id = wa.WorkId AND key = @GroupField LIMIT 1),
                        (SELECT value FROM canonical_values WHERE entity_id = wa.AssetId AND key = @GroupField LIMIT 1))
                    END AS GroupName,
+                   wa.AlbumArtistKey,
                    wa.WorkId,
                    wa.RootWorkId,
                    wa.AssetId,
@@ -950,7 +1083,7 @@ public sealed class CollectionBrowseReadService(
                    COALESCE(
                        (SELECT value FROM canonical_values WHERE entity_id = wa.AssetId AND key IN ('series_index', 'episode_number', 'track_number') ORDER BY CASE key WHEN 'series_index' THEN 1 WHEN 'episode_number' THEN 2 ELSE 3 END LIMIT 1),
                        (SELECT value FROM canonical_values WHERE entity_id = wa.WorkId AND key = 'series_index' LIMIT 1)) AS Position
-            FROM work_assets wa
+            FROM keyed wa
             """,
             new
             {
@@ -968,7 +1101,7 @@ public sealed class CollectionBrowseReadService(
             : "portrait";
         return rows
             .Where(row => !string.IsNullOrWhiteSpace(row.GroupName) && row.AssetId.HasValue)
-            .GroupBy(row => row.GroupName, StringComparer.OrdinalIgnoreCase)
+            .GroupBy(row => SystemViewPreviewKey(row.GroupName, row.AlbumArtistKey), StringComparer.OrdinalIgnoreCase)
             .ToDictionary(
                 group => group.Key,
                 group => (IReadOnlyList<ContentGroupPreviewItemDto>)(isTvAggregateGroup
@@ -1045,7 +1178,7 @@ public sealed class CollectionBrowseReadService(
                 DistinctTitleCount = row.DistinctTitleCount,
                 PreviewItems = !usesRootTvArtwork && groupByField == "series" && row.RootCoverAssetId is Guid customCoverId && row.RootWorkId is Guid ownerId
                     ? [new ContentGroupPreviewItemDto(ownerId, row.DisplayTitleOverride ?? row.GroupName, $"/stream/artwork/{customCoverId:D}", "portrait", null)]
-                    : previews.GetValueOrDefault(row.GroupName) ?? [],
+                    : previews.GetValueOrDefault(SystemViewPreviewKey(row.GroupName, row.AlbumArtistKey)) ?? [],
                 CoverUrl = usesRootTvArtwork || (groupByField == "series" && row.RootCoverAssetId.HasValue)
                     ? row.RootCoverAssetId is { } rootCoverId ? $"/stream/artwork/{rootCoverId:D}" : null
                     : assetRoute is null ? null : $"/stream/{assetRoute}/cover",

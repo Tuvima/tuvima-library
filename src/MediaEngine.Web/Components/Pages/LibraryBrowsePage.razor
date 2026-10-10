@@ -47,11 +47,11 @@
                     @if (_scanStarting)
                     {
                         <AppSpinner Size="AppSize.Small" Indeterminate="true" Class="mr-2" />
-                        <text>Starting scan...</text>
+                        <text>Checking folders...</text>
                     }
                     else
                     {
-                        <text>Scan now</text>
+                        <text>Check folders for changes</text>
                     }
                 </AppButton>
             }
@@ -92,7 +92,7 @@
     }
 
 
-    <div class="home-discovery-page @(_page.Hero is not null ? "home-discovery-page--with-hero" : null)">
+    <div class="home-discovery-page @(HomeHeroCandidates.Count > 0 ? "home-discovery-page--with-hero" : "home-discovery-page--no-hero")">
         @if (HomeHeroCandidates.Count > 0)
         {
             <CinematicHeroCarousel Items="@HomeHeroCandidates"
@@ -290,12 +290,12 @@
             var started = await Orchestrator.TriggerRescanAsync();
             if (started)
             {
-                Snackbar.Add("Scan started. Open Ingestion to watch progress.", AppSeverity.Success);
+                Snackbar.Add("Checking your folders for changes. Open Ingestion to watch progress.", AppSeverity.Success);
                 _canScan = false;
             }
             else
             {
-                Snackbar.Add(Orchestrator.LastApiError ?? "Scan could not be started.", AppSeverity.Error);
+                Snackbar.Add(Orchestrator.LastApiError ?? "Folders could not be checked for changes.", AppSeverity.Error);
             }
         }
         finally

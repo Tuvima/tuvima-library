@@ -14,14 +14,14 @@
     padding: 0;
     border: 0;
     border-radius: 999px;
-    color: var(--app-text-muted, #8391a2);
+    color: var(--app-text-primary, #f5f7fb);
     background: transparent;
     cursor: pointer;
 }
 
 .system-activity-indicator-shell ::deep .system-activity-indicator:hover,
 .system-activity-indicator-shell ::deep .system-activity-indicator:focus-visible {
-    color: var(--app-text-primary, #e5edf5);
+    color: #fff;
     background: var(--app-hover-overlay, rgba(255, 255, 255, 0.055));
 }
 
@@ -31,8 +31,8 @@
 }
 
 .system-activity-indicator-shell ::deep .system-activity-indicator.is-active {
-    color: var(--tl-palette-success);
-    background: color-mix(in srgb, var(--tl-palette-success) 13%, transparent);
+    --system-activity-glyph: 1.4rem;
+    color: var(--app-text-primary, #f5f7fb);
 }
 
 .system-activity-indicator-shell ::deep .system-activity-indicator.is-playback {
@@ -72,9 +72,25 @@
 }
 
 .system-activity-indicator-shell ::deep .system-activity-indicator__center-icon {
-    width: 1rem;
-    height: 1rem;
-    font-size: 1rem;
+    width: var(--system-activity-glyph, 1.72rem);
+    height: var(--system-activity-glyph, 1.72rem);
+    font-size: var(--system-activity-glyph, 1.72rem);
+}
+
+.system-activity-indicator__dot {
+    position: absolute;
+    top: 0.55rem;
+    right: 0.6rem;
+    width: 0.5rem;
+    height: 0.5rem;
+    border-radius: 999px;
+    background: var(--tl-accent-primary);
+    animation: system-activity-dot-pulse 1.8s ease-in-out infinite;
+}
+
+@keyframes system-activity-dot-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.45; }
 }
 
 .system-activity-indicator-shell ::deep .system-activity-indicator__idle-icon {
@@ -95,15 +111,16 @@
     border: 2px solid var(--app-surface, #1e1f27);
     border-radius: 999px;
     color: #fff;
-    background: var(--tl-palette-success);
+    background: var(--tl-accent-primary);
     font-size: var(--tl-font-size-xs);
     font-weight: 800;
     line-height: 1;
 }
 
 @media (prefers-reduced-motion: reduce) {
-    .system-activity-indicator__ring.is-animated {
-        animation-duration: 4s;
+    .system-activity-indicator__ring.is-animated,
+    .system-activity-indicator__dot {
+        animation: none;
     }
 
 }

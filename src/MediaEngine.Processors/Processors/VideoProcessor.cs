@@ -1,4 +1,5 @@
 using System.Text.RegularExpressions;
+using MediaEngine.Domain;
 using MediaEngine.Domain.Enums;
 using MediaEngine.Domain.Models;
 using MediaEngine.Domain.Services;
@@ -215,7 +216,7 @@ public sealed class VideoProcessor : IMediaProcessor
         if (!string.IsNullOrWhiteSpace(stem))
         {
             // Basic filename cleanup — SmartLabeler (Step 6b) handles intelligent parsing.
-            var basicTitle = StripTrailingOrganizerTokens(stem.Replace('.', ' ').Replace('_', ' ').Trim());
+            var basicTitle = StripTrailingOrganizerTokens(FileStemTitleCleaner.Clean(stem));
 
             // Attempt season/episode extraction BEFORE the title-only path.
             // When detected, the series title (text before the episode pattern) is
@@ -353,10 +354,10 @@ public sealed class VideoProcessor : IMediaProcessor
                     meta.FrameRate.Value.ToString("F3"), 0.8));
             }
 
-            if (meta.SubtitleLanguages.Count > 0)
+            // Multi-valued: one claim per distinct language (see MetadataFieldConstants.MultiValuedKeys).
+            foreach (var language in LanguageCodeNormalizer.NormalizeDistinct(meta.SubtitleLanguages))
             {
-                claims.Add(Claim("subtitle_languages",
-                    string.Join("|", meta.SubtitleLanguages), 0.8));
+                claims.Add(Claim(MetadataFieldConstants.SubtitleLanguages, language, 0.8));
             }
         }
 

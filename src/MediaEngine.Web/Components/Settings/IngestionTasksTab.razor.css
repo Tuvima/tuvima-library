@@ -1,169 +1,75 @@
 .ingestion-operations {
     display: grid;
-    gap: 1.25rem;
+    gap: .75rem;
 }
 
-.ingestion-summary-layout {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(18rem, 24rem);
-    gap: 1rem;
-}
-
-.ingestion-summary-layout:not(:has(.ingestion-attention)) {
-    grid-template-columns: 1fr;
-}
-
-.ingestion-current {
+/* One compact status card: title, slim progress bar, one secondary line, overflow menu. */
+.ingestion-status {
     position: relative;
-    overflow: hidden;
-    padding: 1.5rem !important;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: .75rem;
+    align-items: start;
+    padding: .85rem 1rem !important;
 }
 
-.ingestion-current.is-active::after {
+.ingestion-status.is-active::after {
     position: absolute;
     inset: 0;
     border: 1px solid color-mix(in srgb, var(--tl-palette-primary) 44%, transparent);
     border-radius: inherit;
-    box-shadow: inset 0 0 28px color-mix(in srgb, var(--tl-palette-primary) 8%, transparent);
     content: "";
     pointer-events: none;
     animation: ingestion-summary-breathe 2.8s ease-in-out infinite;
 }
 
-.ingestion-current__top {
+.ingestion-status__main {
     display: grid;
-    grid-template-columns: auto minmax(0, 1fr) minmax(18rem, .52fr);
-    gap: 1.4rem;
-    align-items: start;
+    gap: .4rem;
+    min-width: 0;
 }
 
-.ingestion-current__icon {
-    position: relative;
-    display: grid;
-    place-items: center;
-    width: 4.5rem;
-    height: 4.5rem;
-    color: var(--tl-palette-primary);
-    background: color-mix(in srgb, var(--tl-palette-primary) 13%, transparent);
-    border-radius: 1rem;
-}
-
-.ingestion-current__icon::before {
-    position: absolute;
-    inset: .5rem;
-    border: 3px solid color-mix(in srgb, var(--tl-palette-primary) 24%, transparent);
-    border-top-color: var(--tl-palette-primary);
-    border-radius: 50%;
-    content: "";
-    opacity: 0;
-}
-
-.ingestion-current__icon ::deep .tl-icon-root {
-    font-size: 2.15rem;
-}
-
-.ingestion-current.is-active .ingestion-current__icon::before {
-    opacity: 1;
-    animation: ingestion-summary-spin 1.6s linear infinite;
-}
-
-.ingestion-current.is-active .ingestion-current__icon ::deep .tl-icon-root {
-    animation: ingestion-summary-spin 2.2s linear infinite reverse;
-}
-
-.ingestion-current.is-idle .ingestion-current__icon {
-    color: var(--tl-palette-success);
-    background: color-mix(in srgb, var(--tl-palette-success) 13%, transparent);
-}
-
-.ingestion-current__copy h2 {
-    margin: .02rem 0 .28rem;
+.ingestion-status__main h2 {
+    margin: 0;
     color: var(--tl-text-primary);
     font-family: var(--font-ui, "Segoe UI Variable", "Segoe UI", system-ui, sans-serif);
-    font-size: clamp(1.45rem, 1.65vw, 1.75rem);
+    font-size: 1.15rem;
     font-weight: 700;
-    line-height: 1.16;
-    letter-spacing: -.018em;
+    line-height: 1.25;
+    letter-spacing: -.01em;
 }
 
-.ingestion-current__lead,
-.ingestion-current__summary {
+.ingestion-status.is-idle .ingestion-status__main h2 {
+    color: var(--tl-palette-success);
+}
+
+.ingestion-status__line,
+.ingestion-status__meta {
     margin: 0;
-    color: var(--tl-palette-text-secondary);
-    line-height: 1.45;
+    line-height: 1.4;
 }
 
-.ingestion-current__lead {
-    font-size: .92rem;
-}
-
-.ingestion-current__summary {
-    margin-top: .72rem;
+.ingestion-status__line {
     color: var(--tl-text-primary);
     font-size: .82rem;
-    font-weight: 700;
 }
 
-.ingestion-current__progress {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
-    gap: .8rem;
-    align-items: center;
-    margin-top: 1.1rem;
-}
-
-.ingestion-current__progress > span {
+.ingestion-status__meta {
     color: var(--tl-palette-text-secondary);
-    font-size: var(--tl-font-size-xs);
-    white-space: nowrap;
+    font-size: .76rem;
 }
 
-.ingestion-current.is-active ::deep .ingestion-current__progress-bar:not(.app-progress-bar--indeterminate) .app-progress-bar__fill {
+.ingestion-status ::deep .ingestion-status__bar {
+    width: 100%;
+}
+
+.ingestion-status.is-active ::deep .ingestion-status__bar:not(.app-progress-bar--indeterminate) .app-progress-bar__fill {
     background-image: linear-gradient(90deg,
         var(--app-progress-accent, var(--app-primary)) 0%,
         color-mix(in srgb, var(--app-progress-accent, var(--app-primary)) 64%, white) 48%,
         var(--app-progress-accent, var(--app-primary)) 100%);
     background-size: 220% 100%;
     animation: ingestion-progress-shimmer 1.7s linear infinite;
-}
-
-.ingestion-current__facts {
-    display: grid;
-    gap: .7rem;
-    margin: 0;
-    padding-left: 1.35rem;
-    border-left: 1px solid var(--app-border);
-}
-
-.ingestion-current__facts > div {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
-    gap: 1rem;
-    align-items: center;
-}
-
-.ingestion-current__facts dt {
-    display: inline-flex;
-    align-items: center;
-    gap: .5rem;
-    color: var(--tl-palette-text-secondary);
-    font-size: .76rem;
-}
-
-.ingestion-current__facts dt ::deep .tl-icon-root {
-    width: 1.1rem;
-    height: 1.1rem;
-    color: var(--tl-text-muted);
-    font-size: 1.1rem;
-}
-
-.ingestion-current__facts dd {
-    margin: 0;
-    color: var(--tl-text-primary);
-    font-size: .82rem;
-    font-variant-numeric: tabular-nums;
-    font-weight: 700;
-    white-space: nowrap;
 }
 
 .ingestion-attention {
@@ -174,15 +80,15 @@
 .ingestion-attention > header {
     display: flex;
     align-items: center;
-    gap: .6rem;
-    padding: 1rem 1.1rem;
+    gap: .5rem;
+    padding: .55rem .9rem;
     color: var(--tl-palette-warning);
     border-bottom: 1px solid var(--app-border);
 }
 
 .ingestion-attention h3 {
     margin: 0;
-    font-size: 1.08rem;
+    font-size: .95rem;
 }
 
 .ingestion-attention > a {
@@ -190,8 +96,8 @@
     grid-template-columns: 1.5rem minmax(0, 1fr) 1.2rem;
     gap: .6rem;
     align-items: center;
-    min-height: 3.75rem;
-    padding: .65rem 1.1rem;
+    min-height: 2.75rem;
+    padding: .4rem .9rem;
     color: inherit;
     text-decoration: none;
     border-bottom: 1px solid var(--app-border);
@@ -221,26 +127,26 @@
 
 .ingestion-section {
     display: grid;
-    gap: .8rem;
+    gap: .3rem;
 }
 
 .ingestion-section > header {
     display: flex;
-    align-items: end;
+    align-items: center;
     justify-content: space-between;
     gap: 1rem;
 }
 
 .ingestion-section h2 {
     margin: 0;
-    font-size: 1.2rem;
+    font-size: 1rem;
 }
 
 .ingestion-section header p {
     display: flex;
     align-items: center;
     gap: .48rem;
-    margin: .2rem 0 0;
+    margin: .1rem 0 0;
     color: var(--tl-palette-text-secondary);
     font-size: .76rem;
 }
@@ -262,21 +168,18 @@
     animation: ingestion-live-pulse 1.8s ease-out infinite;
 }
 
-.ingestion-media-grid {
+.ingestion-media-list {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr));
-    gap: .7rem;
+    border-top: 1px solid var(--app-border);
 }
 
 .ingestion-grouping-state {
     display: flex;
     align-items: center;
     gap: .75rem;
-    min-height: 5rem;
-    padding: 1rem;
+    min-height: 3.5rem;
+    padding: .6rem 0;
     color: var(--tl-palette-text-secondary);
-    border: 1px dashed var(--app-border);
-    border-radius: .6rem;
 }
 
 .ingestion-grouping-state > span {
@@ -307,89 +210,24 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-    .ingestion-current.is-active::after,
-    .ingestion-current.is-active .ingestion-current__icon::before,
-    .ingestion-current.is-active .ingestion-current__icon ::deep .tl-icon-root,
-    .ingestion-current.is-active ::deep .ingestion-current__progress-bar .app-progress-bar__fill,
+    .ingestion-status.is-active::after,
+    .ingestion-status.is-active ::deep .ingestion-status__bar .app-progress-bar__fill,
     .ingestion-live-dot::after,
     .ingestion-grouping-state ::deep > .tl-icon-root {
         animation: none;
     }
 
-    .ingestion-current.is-active ::deep .ingestion-current__progress-bar.app-progress-bar--indeterminate .app-progress-bar__fill {
+    .ingestion-status.is-active ::deep .ingestion-status__bar.app-progress-bar--indeterminate .app-progress-bar__fill {
         transform: translateX(90%);
     }
 }
 
-@media (max-width: 1400px) {
-    .ingestion-summary-layout {
-        grid-template-columns: 1fr;
-    }
-}
-
-@media (max-width: 1100px) {
-    .ingestion-current__top {
-        grid-template-columns: auto minmax(0, 1fr);
-    }
-
-    .ingestion-current__facts {
-        grid-column: 1 / -1;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        padding: 1rem 0 0;
-        border-top: 1px solid var(--app-border);
-        border-left: 0;
-    }
-}
-
 @media (max-width: 600px) {
-    .ingestion-current {
-        padding: 1rem !important;
-    }
-
-    .ingestion-current__top {
-        grid-template-columns: 3rem minmax(0, 1fr);
-        gap: .9rem;
-    }
-
-    .ingestion-current__icon {
-        width: 3rem;
-        height: 3rem;
-    }
-
-    .ingestion-current__icon::before {
-        inset: .34rem;
-    }
-
-    .ingestion-current__copy h2 {
-        font-size: 1.35rem;
-    }
-
-    .ingestion-current__facts {
-        grid-template-columns: 1fr;
-    }
-
-    .ingestion-current__progress {
-        grid-template-columns: 1fr;
-    }
-
-    .ingestion-current__progress > span {
-        white-space: normal;
-    }
-
-    .ingestion-media-grid {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
-
-    .ingestion-section > header {
-        align-items: start;
+    .ingestion-status {
+        padding: .7rem .8rem !important;
     }
 
     .ingestion-section header p {
         max-width: 18rem;
     }
 }
-
-.ingestion-current.is-active .ingestion-current__icon { color: var(--tl-palette-success); background: color-mix(in srgb, var(--tl-palette-success) 13%, transparent); animation: ingestion-active-pulse 1.8s ease-in-out infinite; }
-.ingestion-current.is-active .ingestion-current__icon::before { border-color: color-mix(in srgb, var(--tl-palette-success) 24%, transparent); border-top-color: var(--tl-palette-success); }
-@keyframes ingestion-active-pulse { 50% { opacity: .45; } }
-@media (prefers-reduced-motion: reduce) { .ingestion-current.is-active .ingestion-current__icon { animation: none; } }

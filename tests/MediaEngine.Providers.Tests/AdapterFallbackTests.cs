@@ -17,7 +17,7 @@ namespace MediaEngine.Providers.Tests;
 
 /// <summary>
 /// Verifies that all external metadata adapters degrade gracefully:
-/// they return an empty claim list on network failure rather than throwing.
+/// a network failure surfaces as a typed provider exception (never a silent "no match").
 ///
 /// Config-driven adapters are loaded from <c>config/providers/</c> and
 /// wired to stub HTTP handlers that inject predetermined responses (error status,
@@ -32,7 +32,7 @@ public sealed class AdapterFallbackTests
     [Theory]
     [InlineData("fr", false)]
     [InlineData("en", true)]
-    [InlineData(null, false)]
+    [InlineData(null, true)] // No candidate language: file language (en) equals the en/US storefront.
     public async Task AppleBooks_AutomaticMatch_RequiresEditionEvidence(string? language, bool accepted)
     {
         var config = LoadExampleConfig("apple_api");
@@ -59,6 +59,121 @@ public sealed class AdapterFallbackTests
         var claims = await adapter.FetchAsync(request);
         Assert.Equal(accepted, claims.Count > 0);
         Assert.NotEmpty(await adapter.SearchAsync(request));
+    }
+
+    // Verified Apple ebook payload keys: no isbn and no language key.
+    private const string AppleEbookPayloadWithoutEvidence = """
+        {
+          "resultCount": 1,
+          "results": [
+            {
+              "trackId": 1526997052,
+              "trackName": "Project Hail Mary",
+              "artistName": "Andy Weir",
+              "releaseDate": "2021-05-04T07:00:00Z",
+              "description": "A lone astronaut.",
+              "genres": ["Science Fiction"]
+            }
+          ]
+        }
+        """;
+
+    [Fact]
+    public async Task AppleBooks_IsbnLookupResult_WithoutIsbnKey_IsAcceptedAsIsbnExact()
+    {
+        var config = LoadExampleConfig("apple_api");
+        var requestedUrls = new List<string>();
+        var adapter = new ConfigDrivenAdapter(config,
+            BuildFactory(config.Name, new RoutingStubHttpMessageHandler(request =>
+            {
+                requestedUrls.Add(request.RequestUri!.ToString());
+                return JsonResponse(AppleEbookPayloadWithoutEvidence);
+            })),
+            NullLogger<ConfigDrivenAdapter>.Instance, NullProviderHealthMonitor.Instance);
+
+        // File language differs from the storefront; only the ISBN-exact rule can accept it.
+        var claims = await adapter.FetchAsync(new ProviderLookupRequest
+        {
+            EntityId = Guid.NewGuid(),
+            EntityType = EntityType.Work,
+            MediaType = MediaType.Books,
+            Title = "Project Hail Mary",
+            Author = "Andy Weir",
+            Isbn = "9780593135204",
+            FileLanguage = "Portuguese",
+            Language = "en",
+            BaseUrl = "https://itunes.apple.com"
+        });
+
+        Assert.Contains(requestedUrls, url => url.Contains("/lookup?isbn=", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(claims, c => c.Key == MetadataFieldConstants.Title && c.Value == "Project Hail Mary");
+    }
+
+    [Theory]
+    [InlineData("English", true)]
+    [InlineData("eng", true)]
+    [InlineData(null, true)]
+    [InlineData("Portuguese", false)]
+    public async Task AppleBooks_EbookSearch_WithoutLanguageEvidence_AcceptsOnlyStorefrontLanguage(
+        string? fileLanguage, bool accepted)
+    {
+        var config = LoadExampleConfig("apple_api");
+        var adapter = new ConfigDrivenAdapter(config,
+            BuildFactory(config.Name, new RoutingStubHttpMessageHandler(_ => JsonResponse(AppleEbookPayloadWithoutEvidence))),
+            NullLogger<ConfigDrivenAdapter>.Instance, NullProviderHealthMonitor.Instance);
+
+        var claims = await adapter.FetchAsync(new ProviderLookupRequest
+        {
+            EntityId = Guid.NewGuid(),
+            EntityType = EntityType.Work,
+            MediaType = MediaType.Books,
+            Title = "Project Hail Mary",
+            Author = "Andy Weir",
+            FileLanguage = fileLanguage,
+            Language = "en",
+            Country = "us",
+            BaseUrl = "https://itunes.apple.com"
+        });
+
+        Assert.Equal(accepted, claims.Count > 0);
+    }
+
+    [Theory]
+    [InlineData("English", "us", "lang=en_US")]
+    [InlineData("eng", "us", "lang=en_US")]
+    [InlineData("en-US", "us", "lang=en_US")]
+    [InlineData("Portuguese", "us", "lang=en_US")] // pt-US is not a culture
+    [InlineData("ja", "jp", "lang=ja_JP")]
+    [InlineData("fr", "fr", "lang=fr_FR")]
+    public async Task AppleBooks_RequestUrl_UsesValidLanguageAndCountryPair(
+        string fileLanguage, string country, string expectedFragment)
+    {
+        var config = LoadExampleConfig("apple_api");
+        var requestedUrls = new List<string>();
+        var adapter = new ConfigDrivenAdapter(config,
+            BuildFactory(config.Name, new RoutingStubHttpMessageHandler(request =>
+            {
+                requestedUrls.Add(request.RequestUri!.ToString());
+                return JsonResponse("{\"resultCount\":0,\"results\":[]}");
+            })),
+            NullLogger<ConfigDrivenAdapter>.Instance, NullProviderHealthMonitor.Instance);
+
+        await adapter.FetchAsync(new ProviderLookupRequest
+        {
+            EntityId = Guid.NewGuid(),
+            EntityType = EntityType.Work,
+            MediaType = MediaType.Books,
+            Title = "Project Hail Mary",
+            Author = "Andy Weir",
+            FileLanguage = fileLanguage,
+            Language = "en",
+            Country = country,
+            BaseUrl = "https://itunes.apple.com"
+        });
+
+        // First search is the primary storefront; later ones are configured market fallbacks.
+        var searchUrl = requestedUrls.First(url => url.Contains("/search?", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(expectedFragment, searchUrl, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -138,7 +253,7 @@ public sealed class AdapterFallbackTests
     // ── Apple Books — HTTP 503 ────────────────────────────────────────────────
 
     [Fact]
-    public async Task AppleBooks_Returns_Empty_On_HttpError()
+    public async Task AppleBooks_Throws_ProviderUnavailable_On_HttpError()
     {
         // Arrange: load config, wire stub returning HTTP 503.
         var config = LoadExampleConfig("apple_api");
@@ -156,15 +271,13 @@ public sealed class AdapterFallbackTests
             BaseUrl = "https://itunes.apple.com",
         };
 
-        // Act
-        var claims = await adapter.FetchAsync(request);
-
-        // Assert: empty list, no exception.
-        Assert.Empty(claims);
+        // Act + Assert: an unreachable provider is not a "no match"; callers must be able to retry.
+        await Assert.ThrowsAsync<MediaEngine.Domain.Jobs.ProviderUnavailableException>(
+            () => adapter.FetchAsync(request));
     }
 
     [Fact]
-    public async Task AppleBooks_Returns_Empty_On_TransportTimeout()
+    public async Task AppleBooks_Throws_ProviderUnavailable_On_TransportTimeout()
     {
         var config = LoadExampleConfig("apple_api");
         var adapter = new ConfigDrivenAdapter(
@@ -173,17 +286,16 @@ public sealed class AdapterFallbackTests
             NullLogger<ConfigDrivenAdapter>.Instance,
             NullProviderHealthMonitor.Instance);
 
-        var claims = await adapter.FetchAsync(new ProviderLookupRequest
-        {
-            EntityId = Guid.NewGuid(),
-            EntityType = EntityType.MediaAsset,
-            MediaType = MediaType.Books,
-            Title = "Dune",
-            Author = "Frank Herbert",
-            BaseUrl = "https://itunes.apple.com",
-        });
-
-        Assert.Empty(claims);
+        await Assert.ThrowsAsync<MediaEngine.Domain.Jobs.ProviderUnavailableException>(
+            () => adapter.FetchAsync(new ProviderLookupRequest
+            {
+                EntityId = Guid.NewGuid(),
+                EntityType = EntityType.MediaAsset,
+                MediaType = MediaType.Books,
+                Title = "Dune",
+                Author = "Frank Herbert",
+                BaseUrl = "https://itunes.apple.com",
+            }));
     }
 
     [Fact]
@@ -406,7 +518,8 @@ public sealed class AdapterFallbackTests
             BaseUrl = "https://itunes.apple.com",
         });
 
-        Assert.Contains(requestedUrls, url => url.Contains("lang=ja_us", StringComparison.OrdinalIgnoreCase));
+        // ja_US is not a real culture (Apple answers 400), so the US storefront is queried as en_US.
+        Assert.Contains(requestedUrls, url => url.Contains("lang=en_us", StringComparison.OrdinalIgnoreCase));
         Assert.Contains(requestedUrls, url => url.Contains("country=jp", StringComparison.OrdinalIgnoreCase)
             && url.Contains("lang=ja_jp", StringComparison.OrdinalIgnoreCase));
         Assert.Contains(claims, claim => claim.Key == MetadataFieldConstants.Title
@@ -448,7 +561,9 @@ public sealed class AdapterFallbackTests
             BaseUrl = "https://itunes.apple.com",
         });
 
-        Assert.Contains(requestedUrls, url => url.Contains($"lang={language}_us", StringComparison.OrdinalIgnoreCase));
+        // {language}_US is not always a real culture (de_US, fr_US are not), so the US storefront falls back to en_US.
+        Assert.Contains(requestedUrls, url => url.Contains("country=us", StringComparison.OrdinalIgnoreCase)
+            && url.Contains(language == "es" ? "lang=es_us" : "lang=en_us", StringComparison.OrdinalIgnoreCase));
         Assert.Contains(requestedUrls, url => url.Contains($"country={language}", StringComparison.OrdinalIgnoreCase)
             && url.Contains($"lang={language}_{language}", StringComparison.OrdinalIgnoreCase));
         Assert.Contains(claims, claim => claim.Key == MetadataFieldConstants.Title

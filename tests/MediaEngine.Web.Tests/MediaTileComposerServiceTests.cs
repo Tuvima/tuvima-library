@@ -639,6 +639,8 @@ public sealed class MediaTileComposerServiceTests
         Assert.Equal(MediaTileShape.Landscape, continueTile.Shape);
         Assert.Equal("/background-s.jpg", continueTile.TileImageUrl);
         Assert.Equal("/background-m.jpg", mapped.Catalog[0].HoverImageUrl);
+        Assert.False(mapped.Catalog[0].IsSettling);
+        Assert.True(MediaTileComposerService.FromDisplayCard(card with { IsSettling = true }, MediaTileContext.Default).IsSettling);
     }
 
     [Fact]

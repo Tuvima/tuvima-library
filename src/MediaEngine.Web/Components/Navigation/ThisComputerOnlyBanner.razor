@@ -1,15 +1,23 @@
 @namespace MediaEngine.Web.Components.Navigation
 @implements IDisposable
 @inject AuthenticationStateProvider AuthenticationStateProvider
+@inject IJSRuntime JS
+@inject ILogger<ThisComputerOnlyBanner> Logger
 @using System.Security.Claims
 @using Microsoft.AspNetCore.Components.Authorization
 
-@if (_thisComputerOnly)
+@if (ShowBanner)
 {
     <aside class="this-computer-banner" role="status" aria-live="polite">
         <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.AdminPanelSettings" Size="AppSize.Small" />
         <span>This computer only. Add a password to use Tuvima on your phone or TV.</span>
         <AppButton Label="Secure account" Href="@SecureAccountHref" ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Primary" />
+        <AppIconButton Icon="@AppMaterialIcons.Outlined.Close"
+                       Tooltip="Dismiss"
+                       AriaLabel="Dismiss secure account reminder"
+                       Size="AppControlSize.Compact"
+                       Class="this-computer-banner__dismiss"
+                       OnClick="DismissAsync" />
     </aside>
 }
 
@@ -20,7 +28,20 @@
     /// <summary>Tells the shell whether the banner is showing, so it can make room for it.</summary>
     [Parameter] public EventCallback<bool> VisibleChanged { get; set; }
 
+    /// <summary>Reports whether the account is still this-computer-only, whether or not the banner is dismissed (drives the account menu reminder).</summary>
+    [Parameter] public EventCallback<bool> ThisComputerOnlyChanged { get; set; }
+
+    private const string DismissedKeyPrefix = "tuvima.secure-account-banner.dismissed.v1.";
+
     private bool _thisComputerOnly;
+    private bool _dismissed;
+    private bool _storageChecked;
+    private bool _lastReportedVisible;
+    private bool? _lastReportedThisComputerOnly;
+    private string? _accountId;
+
+    // Hidden until the browser dismissal is read so a dismissed account never sees the banner flash.
+    private bool ShowBanner => _thisComputerOnly && _storageChecked && !_dismissed;
 
     public static bool IsThisComputerOnly(ClaimsPrincipal user) =>
         user.Identity?.IsAuthenticated == true
@@ -38,13 +59,62 @@
         StateHasChanged();
     });
 
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+        try
+        {
+            if (_accountId is not null)
+                _dismissed = string.Equals(await JS.InvokeAsync<string?>("localStorage.getItem", DismissedKeyPrefix + _accountId), "true", StringComparison.Ordinal);
+        }
+        catch (Exception ex)
+        {
+            // Storage can be unavailable (blocked, disconnected circuit); render the banner normally.
+            Logger.LogDebug(ex, "Could not read the secure account banner dismissal.");
+        }
+        _storageChecked = true;
+        await ReportAsync();
+        StateHasChanged();
+    }
+
+    private async Task DismissAsync()
+    {
+        _dismissed = true;
+        try
+        {
+            if (_accountId is not null)
+                await JS.InvokeVoidAsync("localStorage.setItem", DismissedKeyPrefix + _accountId, "true");
+        }
+        catch (Exception ex)
+        {
+            Logger.LogDebug(ex, "Could not store the secure account banner dismissal.");
+        }
+        await ReportAsync();
+    }
+
+    private async Task ReportAsync()
+    {
+        if (_lastReportedThisComputerOnly != _thisComputerOnly)
+        {
+            _lastReportedThisComputerOnly = _thisComputerOnly;
+            await ThisComputerOnlyChanged.InvokeAsync(_thisComputerOnly);
+        }
+        if (_lastReportedVisible != ShowBanner)
+        {
+            _lastReportedVisible = ShowBanner;
+            await VisibleChanged.InvokeAsync(ShowBanner);
+        }
+    }
+
     private async Task RefreshAsync(Task<AuthenticationState> state)
     {
-        var visible = IsThisComputerOnly((await state).User);
+        var user = (await state).User;
+        _accountId = user.FindFirst("tuvima:account_id")?.Value;
+        var visible = IsThisComputerOnly(user);
         if (visible != _thisComputerOnly)
         {
             _thisComputerOnly = visible;
-            await VisibleChanged.InvokeAsync(visible);
+            await ReportAsync();
         }
     }
 

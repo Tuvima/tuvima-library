@@ -125,4 +125,12 @@ public static class ReviewTrigger
     /// the write or skip the file permanently.
     /// </summary>
     public const string WritebackFailed = "WritebackFailed";
+
+    /// <summary>
+    /// A file in a Movies library had no movie match, but TMDB lists a matching title in its TV catalogue
+    /// (for example a miniseries or web series). The suggestion is never applied automatically;
+    /// the user chooses Move to TV, Search again, or Keep as unmatched film. <c>candidates_json</c>
+    /// carries the TMDB TV suggestion.
+    /// </summary>
+    public const string MovieMatchedAsTv = "MovieMatchedAsTv";
 }

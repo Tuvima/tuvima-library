@@ -90,6 +90,7 @@ public sealed class ReviewTriggerPalette
     [JsonPropertyName("multiple_matches")] public string MultipleMatches { get; set; } = "#5C7A99";
     [JsonPropertyName("match_failed")] public string MatchFailed { get; set; } = "#A05050";
     [JsonPropertyName("ambiguous")] public string Ambiguous { get; set; } = "#B08940";
+    [JsonPropertyName("movie_matched_as_tv")] public string MovieMatchedAsTv { get; set; } = "#5C7A99";
     [JsonPropertyName("user_report")] public string UserReport { get; set; } = "#C9922E";
     [JsonPropertyName("default")] public string Default { get; set; } = "#6B6B6B";
 }

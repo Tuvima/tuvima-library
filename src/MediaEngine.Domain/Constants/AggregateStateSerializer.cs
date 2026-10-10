@@ -58,6 +58,32 @@ public static class AggregateStateSerializer
             _ => throw Unknown(nameof(WorkMatchLevel), value),
         };
 
+    public static string ToStorageValue(this WorkKind value) => value switch
+    {
+        WorkKind.Standalone => "standalone",
+        WorkKind.Parent => "parent",
+        WorkKind.Child => "child",
+        WorkKind.Catalog => "catalog",
+        _ => throw new ArgumentOutOfRangeException(nameof(value), value, null),
+    };
+
+    public static WorkKind ParseWorkKind(string value) =>
+        Normalize(value) switch
+        {
+            "standalone" => WorkKind.Standalone,
+            "parent" => WorkKind.Parent,
+            "child" => WorkKind.Child,
+            "catalog" => WorkKind.Catalog,
+            _ => throw Unknown(nameof(WorkKind), value),
+        };
+
+    public static string ToStorageValue(this OwnershipStatus value) => value switch
+    {
+        OwnershipStatus.Owned => "Owned",
+        OwnershipStatus.Unowned => "Unowned",
+        _ => throw new ArgumentOutOfRangeException(nameof(value), value, null),
+    };
+
     public static string ToStorageValue(this CollectionType value) => value switch
     {
         CollectionType.Universe => "Universe",

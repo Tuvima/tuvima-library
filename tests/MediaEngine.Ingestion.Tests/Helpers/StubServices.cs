@@ -222,8 +222,16 @@ internal sealed class TestProcessorLibraryItem : IProcessorRouter
 {
     private ProcessorResult? _nextResult;
     private readonly Queue<ProcessorResult> _resultQueue = new();
+    private readonly System.Collections.Concurrent.ConcurrentDictionary<string, ProcessorResult> _pathResults =
+        new(StringComparer.OrdinalIgnoreCase);
 
     public void SetNextResult(ProcessorResult result) => _nextResult = result;
+
+    /// <summary>
+    /// Returns <paramref name="result"/> whenever <paramref name="filePath"/> is processed, regardless of
+    /// call order, so concurrent pipelines each see the result intended for their own file.
+    /// </summary>
+    public void SetResultForPath(string filePath, ProcessorResult result) => _pathResults[filePath] = result;
 
     /// <summary>
     /// Enqueues a result to be returned by <see cref="ProcessAsync"/> in FIFO order.
@@ -236,6 +244,11 @@ internal sealed class TestProcessorLibraryItem : IProcessorRouter
 
     public Task<ProcessorResult> ProcessAsync(string filePath, CancellationToken ct = default)
     {
+        if (_pathResults.TryGetValue(filePath, out var forPath))
+        {
+            return Task.FromResult(forPath);
+        }
+
         // Priority 1: dequeue from FIFO queue.
         if (_resultQueue.TryDequeue(out var queued))
         {

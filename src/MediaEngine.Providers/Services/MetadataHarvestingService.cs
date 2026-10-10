@@ -243,6 +243,14 @@ public sealed class MetadataHarvestingService : BackgroundService, IMetadataHarv
             {
                 throw;
             }
+            catch (MediaEngine.Domain.Jobs.ProviderUnavailableException ex)
+            {
+                // Same outcome as before the adapter surfaced availability: skip this provider.
+                _logger.LogDebug(ex,
+                    "Provider {Provider} is unavailable for entity {Id}; skipping",
+                    provider.Name, request.EntityId);
+                continue;
+            }
             catch (Exception ex)
             {
                 _logger.LogWarning(ex,

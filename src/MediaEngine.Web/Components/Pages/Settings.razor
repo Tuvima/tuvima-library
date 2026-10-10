@@ -19,6 +19,23 @@
 
 <PageTitle>@BrowserTitle</PageTitle>
 
+@if (!_profileRoleLoaded)
+{
+    @* Neutral loading state: the section, navigation and permissions are unknown until the session resolves. *@
+    <MediaSectionShell Title="Settings"
+                       NavigationGroups="@(Array.Empty<MediaSectionNavigationGroup>())"
+                       ShowMobileNavigation="false">
+        <div class="settings-shell-content" aria-busy="true" aria-label="Loading settings">
+            <div class="settings-loading-skeleton">
+                <AppSkeleton Width="40%" Height="28px" />
+                <AppSkeleton Width="100%" Height="120px" />
+                <AppSkeleton Width="100%" Height="120px" />
+            </div>
+        </div>
+    </MediaSectionShell>
+}
+else
+{
 <MediaSectionShell Title="Settings"
                    NavigationGroups="@SettingsNavigationGroups"
                    AccordionNavigation="true"
@@ -62,8 +79,7 @@
 
         <SidebarPageHeader Eyebrow="@GetHeroEyebrow()"
                            Title="@GetHeroTitle()"
-                           Subtitle="@GetSectionDescription(_activeSection)"
-                           Actions="@HeaderActions" />
+                           Subtitle="@GetSectionDescription(_activeSection)" />
 
         <div @key="DeviceContext.DeviceClass" class="@PageCanvasClass">
             <AdministratorSurfaceGate Required="@(_profileRoleLoaded && SettingsNav.GetItem(_activeSection).AdminOnly)">
@@ -168,6 +184,7 @@
         </div>
     </div>
 </MediaSectionShell>
+}
 
 <CuratorsDrawer Open="@_drawerOpen"
                 OpenChanged="@OnDrawerOpenChanged"
@@ -226,10 +243,6 @@
             .ToList();
 
     private SettingsGroupDef CurrentGroup => SettingsNav.GetGroup(_activeSection);
-    private RenderFragment? HeaderActions =>
-        _activeSection == SettingsSection.Ingestion && IngestionRunId is null
-            ? @<IngestionScanAction />
-            : null;
     private IReadOnlyList<SettingsBreadcrumb> Breadcrumbs => BuildBreadcrumbs();
     private string BrowserTitle => _activeSection == SettingsSection.Libraries
         ? $"{(string.IsNullOrWhiteSpace(_activeSubsection) ? "Libraries" : _activeSubsection == "new" ? "Add Library" : _activeSubsection == "view" ? "View" : _libraryBreadcrumbName ?? "Library")} - Tuvima Library"

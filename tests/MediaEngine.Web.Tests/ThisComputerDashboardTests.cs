@@ -106,6 +106,7 @@ public sealed class ThisComputerDashboardTests : AsyncBunitContext
     [Fact]
     public void Banner_ShowsForAThisComputerOnlyAccount()
     {
+        JSInterop.Mode = JSRuntimeMode.Loose;
         Services.AddSingleton<AuthenticationStateProvider>(new FixedState(ThisComputerRequests.AuthenticationMethod));
 
         var banner = Render<ThisComputerOnlyBanner>();
@@ -121,7 +122,44 @@ public sealed class ThisComputerDashboardTests : AsyncBunitContext
     [InlineData("")]
     public void Banner_IsAbsentForEveryOtherSignIn(string method)
     {
+        JSInterop.Mode = JSRuntimeMode.Loose;
         Services.AddSingleton<AuthenticationStateProvider>(new FixedState(method));
+
+        var banner = Render<ThisComputerOnlyBanner>();
+
+        Assert.DoesNotContain("This computer only", banner.Markup);
+    }
+
+    [Fact]
+    public void Banner_DismissHidesItAndRemembersItForThisAccount()
+    {
+        JSInterop.Mode = JSRuntimeMode.Loose;
+        var accountId = Guid.NewGuid().ToString("D");
+        Services.AddSingleton<AuthenticationStateProvider>(new FixedState(ThisComputerRequests.AuthenticationMethod, accountId));
+        var visible = new List<bool>();
+        var thisComputerOnly = new List<bool>();
+
+        var banner = Render<ThisComputerOnlyBanner>(parameters => parameters
+            .Add(component => component.VisibleChanged, new Microsoft.AspNetCore.Components.EventCallbackFactory().Create<bool>(this, value => visible.Add(value)))
+            .Add(component => component.ThisComputerOnlyChanged, new Microsoft.AspNetCore.Components.EventCallbackFactory().Create<bool>(this, value => thisComputerOnly.Add(value))));
+
+        var dismiss = banner.Find("button[aria-label='Dismiss secure account reminder']");
+        dismiss.Click();
+
+        Assert.DoesNotContain("This computer only", banner.Markup);
+        Assert.False(visible.Last());
+        Assert.True(thisComputerOnly.Last());
+        var stored = JSInterop.Invocations.Single(call => call.Identifier == "localStorage.setItem");
+        Assert.Contains(accountId, (string)stored.Arguments[0]!, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Banner_StaysHiddenWhenThisAccountDismissedItBefore()
+    {
+        JSInterop.Mode = JSRuntimeMode.Loose;
+        var accountId = Guid.NewGuid().ToString("D");
+        JSInterop.Setup<string?>("localStorage.getItem", "tuvima.secure-account-banner.dismissed.v1." + accountId).SetResult("true");
+        Services.AddSingleton<AuthenticationStateProvider>(new FixedState(ThisComputerRequests.AuthenticationMethod, accountId));
 
         var banner = Render<ThisComputerOnlyBanner>();
 
@@ -240,9 +278,10 @@ public sealed class ThisComputerDashboardTests : AsyncBunitContext
             Task.FromResult(respond(request));
     }
 
-    private sealed class FixedState(string method) : AuthenticationStateProvider
+    private sealed class FixedState(string method, string? accountId = null) : AuthenticationStateProvider
     {
         public override Task<AuthenticationState> GetAuthenticationStateAsync() => Task.FromResult(new AuthenticationState(
-            new ClaimsPrincipal(new ClaimsIdentity([new Claim("tuvima:authentication_method", method)], "Test"))));
+            new ClaimsPrincipal(new ClaimsIdentity(
+                [new Claim("tuvima:authentication_method", method), new Claim("tuvima:account_id", accountId ?? Guid.Empty.ToString("D"))], "Test"))));
     }
 }

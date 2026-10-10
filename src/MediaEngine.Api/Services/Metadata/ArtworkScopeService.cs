@@ -588,6 +588,7 @@ internal sealed class ArtworkScopeService(
                 "manual" => "Uploaded",
                 "provider" => "Provider",
                 "embedded" => "Stored",
+                "folder" => "Folder image",
                 _ => "Stored",
             };
         }

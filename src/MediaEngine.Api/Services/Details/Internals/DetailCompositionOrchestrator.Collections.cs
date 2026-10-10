@@ -342,6 +342,7 @@ internal sealed partial class DetailCompositionOrchestrator
         var musicAlbumCompanion = entityType == DetailEntityType.MusicAlbum
             ? await BuildMusicAlbumCompanionAsync(
                 rootWorkId ?? collectionId,
+                musicAlbumGroup?.RootWorkId,
                 contributorGroups,
                 ct)
             : null;
@@ -767,10 +768,10 @@ internal sealed partial class DetailCompositionOrchestrator
             return null;
         }
 
-        var groups = await _collectionBrowse
-            .GetSystemViewGroupsAsync("Music", "album", ct)
+        // Same-named album roots share one group, so any member root id resolves to it.
+        return await _collectionBrowse
+            .GetMusicAlbumGroupForRootAsync(rootWorkId, ct)
             .ConfigureAwait(false);
-        return groups.FirstOrDefault(group => group.RootWorkId == rootWorkId);
     }
 
     private async Task<IReadOnlyList<CollectionWorkSummary>> LoadMusicAlbumSystemViewWorksAsync(
@@ -821,6 +822,7 @@ internal sealed partial class DetailCompositionOrchestrator
 
     private async Task<MusicAlbumCompanionViewModel> BuildMusicAlbumCompanionAsync(
         Guid currentAlbumRootWorkId,
+        Guid? currentAlbumGroupRootWorkId,
         IReadOnlyList<CreditGroupViewModel> contributorGroups,
         CancellationToken ct)
     {
@@ -850,6 +852,12 @@ internal sealed partial class DetailCompositionOrchestrator
 
         var ownedAlbumRootIds = await LoadOwnedMusicAlbumRootIdsForArtistAsync(primaryArtistId, ct);
         ownedAlbumRootIds.Remove(currentAlbumRootWorkId);
+        if (currentAlbumGroupRootWorkId.HasValue)
+        {
+            // The current album's group may be represented by a same-named sibling root.
+            ownedAlbumRootIds.Remove(currentAlbumGroupRootWorkId.Value);
+        }
+
         if (ownedAlbumRootIds.Count == 0)
         {
             return companion;

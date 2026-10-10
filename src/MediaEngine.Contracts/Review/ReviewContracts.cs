@@ -46,3 +46,21 @@ public sealed class ReviewCountResponse
     [JsonPropertyName("pending_count")]
     public int PendingCount { get; init; }
 }
+
+/// <summary>
+/// One TMDB TV-catalogue suggestion for a film file that has no movie match. The Engine serialises
+/// an array of these into <see cref="ReviewItemDto.CandidatesJson"/> for review items whose trigger is
+/// <c>MovieMatchedAsTv</c>; the Dashboard reads it back to render the suggestion card.
+/// </summary>
+public sealed class MovieTvSuggestionDto
+{
+    [JsonPropertyName("tmdb_tv_id")] public string TmdbTvId { get; init; } = string.Empty;
+    [JsonPropertyName("name")] public string Name { get; init; } = string.Empty;
+    [JsonPropertyName("first_air_year")] public int? FirstAirYear { get; init; }
+    /// <summary>TMDB series type, for example "Miniseries" or "Scripted".</summary>
+    [JsonPropertyName("type")] public string? Type { get; init; }
+    [JsonPropertyName("seasons")] public int Seasons { get; init; }
+    [JsonPropertyName("episodes")] public int Episodes { get; init; }
+    [JsonPropertyName("poster_url")] public string? PosterUrl { get; init; }
+    [JsonPropertyName("overview")] public string? Overview { get; init; }
+}

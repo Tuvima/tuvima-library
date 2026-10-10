@@ -710,6 +710,44 @@ public sealed partial class IngestionEngine
         };
     }
 
+    /// <summary>
+    /// True when the owner already has a preferred, on-disk local cover that makes rewriting unnecessary:
+    /// either the same bytes from the same kind of source, or an embedded cover when only a folder image is on offer
+    /// (embedded art always wins over a folder image).
+    /// </summary>
+    private static async Task<bool> IsLocalCoverAlreadyPersistedAsync(
+        EntityAsset? existing,
+        string newSource,
+        byte[] newBytes,
+        CancellationToken ct)
+    {
+        if (existing is null || !existing.IsPreferred || string.IsNullOrWhiteSpace(existing.LocalImagePath))
+        {
+            return false;
+        }
+
+        var existingFile = new FileInfo(existing.LocalImagePath);
+        if (!existingFile.Exists)
+        {
+            return false;
+        }
+
+        var existingIsFolder = string.Equals(existing.SourceProvider, CoverSourceFolder, StringComparison.OrdinalIgnoreCase);
+        var newIsFolder = string.Equals(newSource, CoverSourceFolder, StringComparison.OrdinalIgnoreCase);
+        if (newIsFolder && !existingIsFolder)
+        {
+            return true;
+        }
+
+        if (existingIsFolder != newIsFolder || existingFile.Length != newBytes.Length)
+        {
+            return false;
+        }
+
+        var existingBytes = await File.ReadAllBytesAsync(existing.LocalImagePath, ct).ConfigureAwait(false);
+        return existingBytes.AsSpan().SequenceEqual(newBytes);
+    }
+
     private static string InferArtworkExtension(string? contentType) =>
         string.Equals(contentType, "image/png", StringComparison.OrdinalIgnoreCase)
             ? ".png"

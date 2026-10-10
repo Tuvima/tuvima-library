@@ -65,6 +65,8 @@ Provider order during Stage 1:
 
 EPUB is strong book evidence. PDF defaults to Books unless the file is inside a single-type Comics library folder, where the folder/media hint wins and the item is routed as Comics.
 
+Different ebook formats of the same book in the same folder form one Work with one Edition per format, when they share the same title and author or the same Calibre UUID.
+
 ### Organization template
 
 ```
@@ -330,6 +332,10 @@ Comics/{Title} ({Qid})/{Title}.cbz
 ```
 
 ---
+
+## Folder artwork
+
+For Books, Audiobooks, and Music, a file with no embedded cover uses a sibling `cover.jpg`, `cover.jpeg`, `cover.png`, `folder.jpg`, `folder.jpeg`, `folder.png`, `front.jpg`, or `front.png` in the same folder. The image must be JPEG or PNG between 1 KB and 25 MB. Tuvima reads it without changing it, embedded art wins when present, and folder art is not used for Comics, Movies, or TV.
 
 ## Ambiguous Format Summary
 

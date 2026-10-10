@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using MediaEngine.Contracts.Review;
 using MediaEngine.Domain;
 using MediaEngine.Domain.Configuration;
 using MediaEngine.Domain.Constants;
@@ -255,6 +256,9 @@ public sealed partial class RetailMatchWorker
         var bestScore = 0.0;
         var providerRank = 0;
         var providerFailures = 0;
+        // Failures where the provider rejected our request (HTTP 4xx). When these are the only
+        // failures the job consumes its poison budget instead of waiting for a provider forever.
+        var rejectedProviderFailures = 0;
         var sequentialBridgeIds = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         var acceptedIdentity = false;
         var acceptedEnrichmentProviders = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -306,6 +310,16 @@ public sealed partial class RetailMatchWorker
             {
                 continue;
             }
+
+            // A provider attempt only counts once its claims are persisted. If anything
+            // after candidate selection fails (e.g. claim persistence), roll the attempt
+            // back so the job retries instead of reporting a match that was never saved.
+            RetailMatchCandidate? attemptCandidate = null;
+            var bestCandidateBeforeAttempt = bestCandidate;
+            var bestScoreBeforeAttempt = bestScore;
+            var acceptedIdentityBeforeAttempt = acceptedIdentity;
+            var acceptedProviderAddedByAttempt = false;
+            var enrichmentProviderAddedByAttempt = false;
 
             try
             {
@@ -429,6 +443,7 @@ public sealed partial class RetailMatchWorker
                 };
 
                 allCandidates.Add(candidate);
+                attemptCandidate = candidate;
 
                 var fallbackIdentityAccepted = isFallbackIdentityAttempt
                     && decision.Outcome == "AutoAccepted";
@@ -439,7 +454,7 @@ public sealed partial class RetailMatchWorker
                 }
                 if (decision.Outcome == "AutoAccepted")
                 {
-                    acceptedProviders.Add(provider.Name);
+                    acceptedProviderAddedByAttempt = acceptedProviders.Add(provider.Name);
                 }
 
                 // Track best candidate
@@ -463,7 +478,7 @@ public sealed partial class RetailMatchWorker
                     if (!isFallbackIdentityAttempt
                         && IsEnrichmentPurpose(pipelineEntry.Purpose))
                     {
-                        acceptedEnrichmentProviders.Add(provider.Name);
+                        enrichmentProviderAddedByAttempt = acceptedEnrichmentProviders.Add(provider.Name);
                     }
 
                     // Phase 3c: pass lineage so parent-scope claims mirror
@@ -575,8 +590,37 @@ public sealed partial class RetailMatchWorker
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
                 providerFailures++;
+                // Only genuine provider-side outages wait without consuming the poison
+                // budget. Rejected requests and local faults (e.g. a claim write that
+                // fails every time) must eventually stop retrying.
+                var isTransientProviderFailure = ex is ProviderUnavailableException
+                    or RateLimitedDependencyException
+                    or TimeoutException
+                    || (ex is HttpRequestException && ex is not ProviderRequestRejectedException);
+                if (!isTransientProviderFailure)
+                {
+                    rejectedProviderFailures++;
+                }
+
+                if (attemptCandidate is not null)
+                {
+                    attemptCandidate.Outcome = "Rejected";
+                    bestCandidate = bestCandidateBeforeAttempt;
+                    bestScore = bestScoreBeforeAttempt;
+                    acceptedIdentity = acceptedIdentityBeforeAttempt;
+                    if (acceptedProviderAddedByAttempt)
+                    {
+                        acceptedProviders.Remove(provider.Name);
+                    }
+
+                    if (enrichmentProviderAddedByAttempt)
+                    {
+                        acceptedEnrichmentProviders.Remove(provider.Name);
+                    }
+                }
+
                 _logger.LogWarning(ex,
-                    "Provider {Provider} failed for entity {EntityId}",
+                    "Provider {Provider} failed for entity {EntityId}; the attempt was rolled back and will be retried",
                     providerName, job.EntityId);
             }
         }
@@ -611,6 +655,16 @@ public sealed partial class RetailMatchWorker
 
         bestCandidate = SelectIdentityCandidateWhenConfigured(allCandidates, bestCandidate, pipeline);
         bestScore = bestCandidate?.ScoreTotal ?? 0.0;
+
+        // A request the provider keeps rejecting will never succeed on its own. Once this attempt
+        // would exhaust the poison budget, stop retrying and let the job end in the normal
+        // RetailNoMatch / RetailMatchFailed review path instead of waiting forever.
+        var maxPoisonAttempts = hydrationConfig.IdentityRetryMaxAttempts > 0
+            ? hydrationConfig.IdentityRetryMaxAttempts
+            : IdentityJobRetryPolicy.MaxAttempts;
+        var rejectedBudgetExhausted = providerFailures > 0
+            && rejectedProviderFailures == providerFailures
+            && job.PoisonAttemptCount + 1 >= maxPoisonAttempts;
 
         // Determine final job state based on best candidate
         if (bestCandidate is not null && bestCandidate.Outcome == "AutoAccepted")
@@ -662,15 +716,22 @@ public sealed partial class RetailMatchWorker
                 "Retail match ambiguous for entity {EntityId}: '{Title}' (score: {Score:F2})",
                 job.EntityId, bestCandidate.Title, bestScore);
         }
-        else if (providerFailures > 0)
+        else if (providerFailures > 0 && !rejectedBudgetExhausted)
         {
-            var message = $"Retail provider lookup failed for {providerFailures} provider(s); retrying before no-match classification.";
+            // Provider unavailable (down, timeout, 5xx, 429) or a mixed failure: wait without consuming
+            // the poison budget. Only rejected requests (non-429 4xx) count against it.
+            var rejectedOnly = rejectedProviderFailures == providerFailures;
+            var message = rejectedOnly
+                ? $"Retail lookup failed for {providerFailures} provider(s) (request rejected or local error); retrying before no-match classification."
+                : $"Waiting for provider: retail lookup failed for {providerFailures} provider(s); retrying before no-match classification.";
             await _jobRepo.ScheduleRetryForOutcomeAsync(
                 job.Id,
                 IdentityJobState.Queued,
                 DateTimeOffset.UtcNow.AddMinutes(10),
                 message,
-                BackgroundJobOutcomeCategory.TransientDependencyFailure,
+                rejectedOnly
+                    ? BackgroundJobOutcomeCategory.ContentFailure
+                    : BackgroundJobOutcomeCategory.TransientDependencyFailure,
                 ct).ConfigureAwait(false);
 
             _logger.LogWarning(
@@ -690,11 +751,27 @@ public sealed partial class RetailMatchWorker
             // If the file has a placeholder title with no bridge IDs, route to a
             // dedicated PlaceholderTitle review trigger instead of the generic
             // RetailMatchFailed bucket — these items will never match retail.
-            if (PlaceholderTitleDetector.IsPlaceholder(titleHint)
-                && !PlaceholderTitleDetector.HasBridgeId(hints))
+            var placeholderTitle = PlaceholderTitleDetector.IsPlaceholder(titleHint)
+                && !PlaceholderTitleDetector.HasBridgeId(hints);
+
+            // A film with no movie match may exist on TMDB only as a TV title (miniseries, web series).
+            // That is raised as a suggestion for the Review Queue and never applied automatically.
+            var tvSuggestion = !placeholderTitle
+                && mediaType == MediaType.Movies
+                && string.Equals(job.EntityType, "MediaAsset", StringComparison.OrdinalIgnoreCase)
+                    ? await FindMovieAsTvSuggestionAsync(
+                        hints, titleHint, executionConfig, enabledProviders, ct).ConfigureAwait(false)
+                    : null;
+
+            if (placeholderTitle)
             {
                 await _outcomeFactory.CreatePlaceholderTitleAsync(
                     job.EntityId, titleHint, job.IngestionRunId, null, ct);
+            }
+            else if (tvSuggestion is not null)
+            {
+                await _outcomeFactory.CreateMovieMatchedAsTvAsync(
+                    job.EntityId, tvSuggestion, job.IngestionRunId, null, ct);
             }
             else
             {
@@ -709,6 +786,40 @@ public sealed partial class RetailMatchWorker
                 "No retail match for entity {EntityId} — {CandidateCount} candidates evaluated, best score: {Score:F2}",
                 job.EntityId, allCandidates.Count, bestScore);
         }
+    }
+
+    /// <summary>
+    /// Looks the film up in TMDB's TV catalogue. Returns <c>null</c> when TMDB is not enabled or has no
+    /// key for this job, when no qualifying TV title exists, or when TMDB cannot be reached (the
+    /// service logs a warning); the job then continues as an ordinary no-match.
+    /// </summary>
+    private async Task<MovieTvSuggestionDto?> FindMovieAsTvSuggestionAsync(
+        IReadOnlyDictionary<string, string> hints,
+        string? title,
+        PipelineExecutionSnapshot executionConfig,
+        IReadOnlyCollection<string> enabledProviders,
+        CancellationToken ct)
+    {
+        if (_tvSuggestions is null
+            || !enabledProviders.Contains("tmdb", StringComparer.OrdinalIgnoreCase))
+        {
+            return null;
+        }
+
+        var tmdbConfig = executionConfig.Providers.FirstOrDefault(p =>
+            string.Equals(p.Name, "tmdb", StringComparison.OrdinalIgnoreCase));
+        var apiKey = !string.IsNullOrWhiteSpace(tmdbConfig?.HttpClient?.ApiKeyOverride)
+            ? tmdbConfig!.HttpClient!.ApiKeyOverride
+            : tmdbConfig?.HttpClient?.ApiKey;
+        if (string.IsNullOrWhiteSpace(apiKey))
+        {
+            return null;
+        }
+
+        var (language, _, country) = GetConfiguredLocale();
+        return await _tvSuggestions
+            .FindAsync(title, RetailHints.GetYearHint(hints), apiKey, language, country, ct)
+            .ConfigureAwait(false);
     }
 
     private static Guid ResolveBridgeIdEntityId(WorkLineage? lineage, Guid assetId, string key)

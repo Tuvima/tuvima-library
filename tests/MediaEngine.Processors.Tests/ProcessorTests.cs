@@ -230,6 +230,49 @@ public class VideoProcessorTests
         }
     }
 
+    [Theory]
+    [InlineData("Dr. Horrible's Sing-Along Blog (2008) - x264 DTS.mp4", "Dr. Horrible's Sing-Along Blog", "2008")]
+    [InlineData("Mr. Smith Goes to Washington (1939).mp4", "Mr. Smith Goes to Washington", "1939")]
+    [InlineData("The.Matrix.1999.1080p.mp4", "The Matrix 1999", null)]
+    public async Task ProcessAsync_KeepsAbbreviationFullStopsInSpacedFileNames(
+        string fileName,
+        string expectedTitle,
+        string? expectedYear)
+    {
+        var dir = Path.Combine(Path.GetTempPath(), $"video_processor_{Guid.NewGuid():N}");
+        Directory.CreateDirectory(dir);
+        var file = Path.Combine(dir, fileName);
+        await File.WriteAllBytesAsync(file, MinimalMp4Header());
+
+        try
+        {
+            var result = await new VideoProcessor(new StubVideoMetadataExtractor()).ProcessAsync(file);
+
+            Assert.Contains(result.Claims, claim => claim.Key == "title" && claim.Value == expectedTitle);
+            if (expectedYear is not null)
+            {
+                Assert.Contains(result.Claims, claim => claim.Key == "year" && claim.Value == expectedYear);
+            }
+        }
+        finally
+        {
+            Directory.Delete(dir, recursive: true);
+        }
+    }
+
+    [Theory]
+    [InlineData("Dr. Horrible's Sing-Along Blog (2008)", "Dr. Horrible's Sing-Along Blog (2008)")]
+    [InlineData("Mr. Smith Goes to Washington (1939)", "Mr. Smith Goes to Washington (1939)")]
+    [InlineData("The.Matrix.1999.1080p", "The Matrix 1999 1080p")]
+    [InlineData("Vol. 2", "Vol. 2")]
+    [InlineData("Some_Title_Here", "Some Title Here")]
+    [InlineData("Spaced  Out   Title", "Spaced Out Title")]
+    [InlineData("Dr. Who_Special", "Dr. Who Special")]
+    public void FileStemTitleCleaner_OnlyTurnsFullStopsIntoSpacesForSceneStyleNames(string stem, string expected)
+    {
+        Assert.Equal(expected, FileStemTitleCleaner.Clean(stem));
+    }
+
     [Fact]
     public async Task ProcessAsync_StripsReleaseQualityAndVersionFromEpisodeTitle()
     {
@@ -247,6 +290,42 @@ public class VideoProcessorTests
         {
             Directory.Delete(dir, recursive: true);
         }
+    }
+
+    [Fact]
+    public async Task ProcessAsync_EmitsOneSubtitleLanguageClaimPerDistinctLanguage()
+    {
+        var dir = Path.Combine(Path.GetTempPath(), $"video_processor_{Guid.NewGuid():N}");
+        Directory.CreateDirectory(dir);
+        var file = Path.Combine(dir, "Arrival (2016).mp4");
+        await File.WriteAllBytesAsync(file, MinimalMp4Header());
+        try
+        {
+            var extractor = new FixedVideoMetadataExtractor(new VideoMetadata
+            {
+                SubtitleLanguages = ["eng", "eng", "ara", "ger", "chi", "chi", "mov_text"],
+            });
+
+            var result = await new VideoProcessor(extractor).ProcessAsync(file);
+
+            var languages = result.Claims
+                .Where(claim => claim.Key == MetadataFieldConstants.SubtitleLanguages)
+                .Select(claim => claim.Value)
+                .ToList();
+            Assert.Equal(["en", "ar", "de", "zh", "mov_text"], languages);
+            Assert.DoesNotContain(languages, value => value.Contains('|'));
+            Assert.True(MetadataFieldConstants.IsMultiValued(MetadataFieldConstants.SubtitleLanguages));
+        }
+        finally
+        {
+            Directory.Delete(dir, recursive: true);
+        }
+    }
+
+    private sealed class FixedVideoMetadataExtractor(VideoMetadata metadata) : IVideoMetadataExtractor
+    {
+        public Task<VideoMetadata?> ExtractAsync(string filePath, CancellationToken ct = default) =>
+            Task.FromResult<VideoMetadata?>(metadata);
     }
 
     private static byte[] MinimalMp4Header() =>

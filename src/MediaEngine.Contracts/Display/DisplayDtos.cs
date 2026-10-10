@@ -104,6 +104,12 @@ public sealed record DisplayCardDto(
     public DisplayGroupSummaryDto? GroupSummary { get; init; }
     public int SortYear { get; init; }
     public DisplayCardListMetadataDto? ListMetadata { get; init; }
+
+    /// <summary>
+    /// True while the item (or, for group cards, any member) still has unsettled identity work.
+    /// Tiles use it for the quiet "Still being matched" marker; false once the item settles.
+    /// </summary>
+    public bool IsSettling { get; init; }
 }
 
 public sealed record DisplayCardListMetadataDto(
