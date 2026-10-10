@@ -34,7 +34,7 @@ Tuvima Library starts with the story instead of the file type. Point it at your 
 - **Read, watch and listen built in.** Read EPUBs in the browser. Play music with lyrics and a queue. Listen to audiobooks with chapters, bookmarks, speed and a sleep timer. Watch films and shows with subtitles and Up Next. **Continue Across Media** puts your unfinished book, show and audiobook in one row.
 - **It organises itself, and asks when it isn't sure.** Tuvima reads each file's metadata, checks trusted catalogues and open knowledge from Wikidata and Wikipedia, and fills in titles, artwork, series order, cast and creators. When a match is uncertain, it goes to a **Review Queue** instead of being silently guessed.
 - **A private space for personal media.** **View** gives every profile its own Personal Space for photos, home videos and documents, with a timeline, folders, galleries and favourites. Personal files never go to online catalogues.
-- **Made for households.** Accounts, profiles, optional profile PINs and per-library access let each person keep their own progress, lists and favourites.
+- **Made for households.** Households group up to eight people. Each person gets a profile with their own progress, lists and favourites, optional PINs and per-library access, and can have their own sign-in.
 - **Free and open source, for good.** There is no premium tier, no feature paywall and no product telemetry. The AGPLv3 license keeps the source open, so your library never depends on one company staying in business.
 
 ## How Tuvima Library compares to Plex and other apps

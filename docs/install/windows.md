@@ -85,7 +85,7 @@ The script publishes self-contained `win-x64` apps and writes `dist\TuvimaLibrar
 
 First-run setup is protected by a one-time setup code, so only someone who can reach the server itself can claim it.
 
-- Opening `/setup` from the same computer that runs Tuvima Library needs no code.
+- Opening `/setup` from the same computer that runs Tuvima Library needs no code. On a desktop install you can start with just a name and an email, using **Use on this computer**. That sign-in works only from this computer until you add a password under **Settings → Account → Security**; setup then sets **Who can connect** to **This computer**.
 - Opening it from another device on your home network asks for a setup code. On the server, run `docker exec -it <container> tuvima-admin setup code` for Docker, Unraid, Synology, QNAP and TrueNAS. On Windows, open a terminal as administrator in the install folder and run `tuvima-admin setup code`.
 - The code has eight characters (for example `ABCD-EFGH`), works once, and expires after 30 minutes. A newer code replaces an older one, and five wrong tries cancel it.
 - Setup is never available over the internet. Visitors from outside see "Setup has to be finished from your home network."
