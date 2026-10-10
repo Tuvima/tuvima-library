@@ -8,30 +8,39 @@
 
 <PageTitle>@PageTitleText</PageTitle>
 
-@if (_loading)
+@if (_detail is not null)
 {
-    <div class="tl-detail-page tl-detail-route-state">
-        <AppPageState Kind="AppPageStateKind.Loading"
-                      Title="Loading details"
-                      Class="tl-detail-route-state__content" />
+    @* While the next item loads, the previous page stays on screen but dimmed and inert, so the wrong
+       item's actions can never be used; DetailPage is re-created (via @key) only when the new payload lands. *@
+    <div class="@ShellClass" inert="@_loading" aria-busy="@(_loading ? "true" : null)">
+        <DetailPage @key="_detailVersion"
+                    Model="_detail"
+                    ActiveTab="@_activeTab"
+                    ActiveTabChanged="HandleTabChangedAsync"
+                    OnActionSelected="HandleActionAsync" />
+    </div>
+
+    @if (_loading)
+    {
+        <div class="tl-detail-route-progress" role="status" aria-live="polite">
+            <span class="tl-detail-route-progress__label">Loading details</span>
+            <span class="tl-detail-route-progress__bar" aria-hidden="true"></span>
+        </div>
+    }
+}
+else if (_loading)
+{
+    <div class="tl-detail-route-state">
+        <DetailHeroSkeleton />
     </div>
 }
-else if (_detail is null)
+else
 {
     <div class="tl-detail-page tl-detail-route-state">
         <AppPageState Kind="AppPageStateKind.Unavailable"
                       Title="@Request.NotFoundTitle"
                       Message="@Request.NotFoundMessage"
                       Class="tl-detail-route-state__content" />
-    </div>
-}
-else
-{
-    <div class="tl-detail-route-shell">
-        <DetailPage Model="_detail"
-                    ActiveTab="@_activeTab"
-                    ActiveTabChanged="HandleTabChangedAsync"
-                    OnActionSelected="HandleActionAsync" />
     </div>
 }
 
@@ -44,10 +53,15 @@ else
     private bool _loading = true;
     private string? _activeTab;
     private int _loadVersion;
+    private int _detailVersion;
     private CancellationTokenSource? _loadCts;
 
+    private string ShellClass =>
+        _loading ? "tl-detail-route-shell tl-detail-route-shell--loading" : "tl-detail-route-shell";
+
+    // The previous item's title must not label the page while the next item loads.
     private string PageTitleText =>
-        $"{_detail?.Title ?? Request.PageTitleFallback} - {Request.ProductTitle}";
+        $"{(_loading ? null : _detail?.Title) ?? Request.PageTitleFallback} - {Request.ProductTitle}";
 
     protected override async Task OnParametersSetAsync()
     {
@@ -59,11 +73,12 @@ else
         var cts = _loadCts = new CancellationTokenSource();
         var ct = cts.Token;
 
+        // The previous page (if any) stays visible, dimmed, until the new payload replaces it.
         _loading = true;
-        _detail = null;
 
         if (Request.EntityType is not { } entityType)
         {
+            _detail = null;
             _loading = false;
             return;
         }
@@ -85,6 +100,7 @@ else
             return;
 
         _detail = detail;
+        _detailVersion++;
         ApplyDetailTabRoute();
         _loading = false;
     }
