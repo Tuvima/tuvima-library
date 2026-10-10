@@ -1,0 +1,28 @@
+@using MediaEngine.Contracts.LocalAssets
+@using MediaEngine.Domain.PersonalMedia
+@namespace MediaEngine.Web.Components.Pages
+@* The options of a View scope picker: your own space first, then a "Household" group naming each member, then the Shared Library. *@
+@foreach (var scope in Scopes.Where(value => value.Kind == ViewScopeKind.Mine))
+{
+    <option value="@ScopeValue(scope)">@scope.Label</option>
+}
+@if (Scopes.Any(value => value.Kind == ViewScopeKind.Profile))
+{
+    <optgroup label="Household">
+        @foreach (var scope in Scopes.Where(value => value.Kind == ViewScopeKind.Profile))
+        {
+            <option value="@ScopeValue(scope)">@scope.Label</option>
+        }
+    </optgroup>
+}
+@foreach (var scope in Scopes.Where(value => value.Kind == ViewScopeKind.Shared))
+{
+    <option value="@ScopeValue(scope)">@scope.Label</option>
+}
+
+@code {
+    [Parameter, EditorRequired] public IReadOnlyList<ViewScopeOptionDto> Scopes { get; set; } = [];
+
+    private static string ScopeValue(ViewScopeOptionDto scope) =>
+        $"{scope.Kind}:{(scope.Kind == ViewScopeKind.Profile ? scope.ProfileId?.ToString("D") : null)}";
+}

@@ -50,14 +50,13 @@ public sealed class EngineApiClientViewPolicyTests
             ViewEnabled = true,
             AccessSharedLibrary = false,
             SubmitToSharedLibrary = true,
-            ReviewSharedLibraryContributions = true,
             AllowGallerySharing = true,
         });
 
         Assert.NotNull(saved);
         Assert.Contains("\"access_shared_library\":false", requestJson, StringComparison.Ordinal);
         Assert.Contains("\"submit_to_shared_library\":true", requestJson, StringComparison.Ordinal);
-        Assert.Contains("\"review_shared_library_contributions\":true", requestJson, StringComparison.Ordinal);
+        Assert.DoesNotContain("review_shared_library_contributions", requestJson, StringComparison.Ordinal);
         Assert.False(saved.AccessSharedLibrary);
         Assert.True(saved.SubmitToSharedLibrary);
     }
@@ -77,7 +76,6 @@ public sealed class EngineApiClientViewPolicyTests
                       "view_enabled": true,
                       "access_shared_library": true,
                       "submit_to_shared_library": false,
-                      "review_shared_library_contributions": true,
                       "allow_gallery_sharing": false,
                       "updated_at": null
                     }
@@ -92,7 +90,6 @@ public sealed class EngineApiClientViewPolicyTests
         Assert.True(policy.ViewEnabled);
         Assert.True(policy.AccessSharedLibrary);
         Assert.False(policy.SubmitToSharedLibrary);
-        Assert.True(policy.ReviewSharedLibraryContributions);
     }
 
     [Fact]

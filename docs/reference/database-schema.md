@@ -254,7 +254,7 @@ the Shared Library while retaining the original profile as provenance. This mark
 does not expose the original profile's other private assets.
 
 `view_shared_contributions` stores the contributor, decision state, destination,
-note, optimistic revision, idempotency key, curator, and timestamps.
+note, optimistic revision, idempotency key, reviewer, and timestamps.
 `view_shared_contribution_items` stores the exact submitted logical items,
 submission-time provenance, source snapshot, transfer operation, execution
 state, and safe error. `view_shared_contribution_events` records the durable
@@ -292,9 +292,12 @@ reapplies View authorization.
 
 ### Profile policy and preferences
 
-`profile_view_policies` stores four independent administrator-managed
-capabilities: View enabled, access Shared View, include the profile's Personal
-Space in Shared View, and share Galleries.
+`profile_view_policies` stores independent administrator-managed capabilities:
+View enabled, open the household's Shared Library, send items to it, and share
+Galleries. Opening and sending default on (sending stays off for a child profile
+until a household administrator allows it). Reviewing contributions is not a
+per-profile setting: the former `review_shared_library_contributions` column is
+dropped once on upgrade, and household administrators review.
 
 `profile_view_preferences` stores the last Shared/Mine/Profile scope and
 compact/comfortable/relaxed timeline density. The Profile form requires a

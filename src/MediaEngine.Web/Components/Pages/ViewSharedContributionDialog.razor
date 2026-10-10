@@ -3,7 +3,7 @@
 @namespace MediaEngine.Web.Components.Pages
 @implements IDisposable
 
-<AppDialogShell Title="Submit to Shared Library" Subtitle="Send selected Personal Space items to a Shared Library curator." Size="Medium" OnClose="@(() => Dialog.Cancel())">
+<AppDialogShell Title="Submit to Shared Library" Subtitle="Send selected photos to the household Shared Library for a household administrator to review." Size="Medium" OnClose="@(() => Dialog.Cancel())">
     <ChildContent>
         @if (_loading) { <AppProgressBar Indeterminate="true" /> }
         else if (!string.IsNullOrWhiteSpace(_error)) { <AppAlert Tone="AppUiTone.Error">@_error</AppAlert> }
@@ -15,7 +15,7 @@
                 <AppNativeButton Type="button" role="radio" aria-checked="@(_kind == "folder")" Class="@(_kind == "folder" ? "is-selected" : null)" OnClick="@(_ => SelectKindAsync("folder"))"><strong>Named Shared folder</strong><span>Keep these files together under Shared/Folders.</span></AppNativeButton>
             </div>
             @if (_kind == "folder") { <AppTextField Label="Shared folder name" Value="@_folderName" ValueChanged="FolderNameChangedAsync" /> }
-            <AppTextField Label="Note for curators (optional)" Value="@_note" ValueChanged="@(value => _note = value ?? string.Empty)" />
+            <AppTextField Label="Note for the reviewer (optional)" Value="@_note" ValueChanged="@(value => _note = value ?? string.Empty)" />
             @if (_preview is not null)
             {
                 <div><strong>Destination preview</strong>@foreach (var path in _preview.Items.Select(value => value.DestinationRoot).Distinct(StringComparer.OrdinalIgnoreCase)) { <code>@path</code> }</div>

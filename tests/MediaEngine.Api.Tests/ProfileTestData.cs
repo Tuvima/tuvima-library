@@ -15,7 +15,7 @@ internal static class ProfileTestData
         var household = householdId ?? TestHouseholdId;
         connection.Execute(
             "INSERT OR IGNORE INTO households(id,name,created_at) VALUES(@TestHouseholdId,'Test household',@CreatedAt);",
-            new { TestHouseholdId, CreatedAt = profile.CreatedAt.ToString("O") });
+            new { TestHouseholdId = household, CreatedAt = profile.CreatedAt.ToString("O") });
         connection.Execute("""
             INSERT INTO profiles(id,display_name,avatar_color,avatar_image_path,role,created_at,navigation_config,household_id)
             VALUES(@Id,@DisplayName,@AvatarColor,@AvatarImagePath,@Role,@CreatedAt,@NavigationConfig,@TestHouseholdId);

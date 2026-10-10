@@ -28,7 +28,8 @@ public sealed class ViewScopePersistenceService(
             await spaces.GetByOwnerAsync(profileId, ct).ConfigureAwait(false),
             profile.DisplayName,
             profile.AvatarColor,
-            profile.AvatarImagePath is null ? null : $"/profiles/{profile.Id:D}/avatar");
+            profile.AvatarImagePath is null ? null : $"/profiles/{profile.Id:D}/avatar",
+            profile.HouseholdId);
     }
 
     public async Task<IReadOnlyList<ViewScopeStoreEntry>> GetProfilesAsync(CancellationToken ct = default)
@@ -41,7 +42,8 @@ public sealed class ViewScopePersistenceService(
                 await spaces.GetByOwnerAsync(profile.Id, ct).ConfigureAwait(false),
                 profile.DisplayName,
                 profile.AvatarColor,
-                profile.AvatarImagePath is null ? null : $"/profiles/{profile.Id:D}/avatar"));
+                profile.AvatarImagePath is null ? null : $"/profiles/{profile.Id:D}/avatar",
+                profile.HouseholdId));
         }
         return result;
     }
@@ -122,7 +124,8 @@ public sealed class ViewResourcePersistenceService(
             item.OwnerProfileId,
             item.LibraryId,
             explicitProfiles,
-            IsSharedLibraryAsset: isSharedLibraryAsset);
+            IsSharedLibraryAsset: isSharedLibraryAsset,
+            Hidden: item.Hidden);
     }
 
     private async Task<IReadOnlySet<Guid>> GetExplicitAssetRecipientsAsync(

@@ -39,7 +39,8 @@ public sealed record ViewResourceDescriptor(
     Guid? LibraryId,
     IReadOnlySet<Guid>? SharedWithProfileIds = null,
     IReadOnlySet<Guid>? ContributingProfileIds = null,
-    bool IsSharedLibraryAsset = false);
+    bool IsSharedLibraryAsset = false,
+    bool Hidden = false);
 
 public sealed record ViewResourceRequest(
     ViewScopeRequest Scope,
@@ -177,6 +178,13 @@ public sealed class ViewResourceAuthorizationService(
             return ViewAccessDecision.NotFound(resolution.Scope);
         }
 
+        // Someone else's hidden photo stays hidden from the rest of the household, even by direct link.
+        if (resolution.Scope.Kind == ViewScopeKind.Profile && resource.Hidden
+            && resource.OwnerProfileId != caller.ActiveProfileId)
+        {
+            return ViewAccessDecision.NotFound(resolution.Scope);
+        }
+
         if (request.Action is ViewResourceAction.Contribute or ViewResourceAction.Manage)
         {
             var ownsResource = resource.OwnerProfileId == caller.ActiveProfileId;
@@ -186,7 +194,12 @@ public sealed class ViewResourceAuthorizationService(
                 : ViewAccessDecision.NotFound(resolution.Scope);
         }
 
-        return request.Kind != ViewResourceKind.Gallery
+        // A person reads (never edits) a household member's Galleries too; Galleries stay private to everyone
+        // outside the Personal Space's household because the scope itself is only resolved inside the household.
+        var householdGallery = caller.HasHumanContext
+            && resolution.Scope.Kind == ViewScopeKind.Profile
+            && resource.OwnerProfileId == resolution.Scope.ProfileId;
+        return request.Kind != ViewResourceKind.Gallery || householdGallery
             ? ViewAccessDecision.Allowed(resolution.Scope)
             : ViewAccessDecision.NotFound(resolution.Scope);
     }

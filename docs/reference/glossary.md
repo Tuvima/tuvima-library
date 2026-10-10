@@ -216,9 +216,13 @@ The single HTTPS address people use to reach this server from outside the home, 
 
 The one personal-media space owned by an enabled profile. Multiple folder or device sources can feed it. View provides its Photos, Folders, Galleries, People, and Places experiences.
 
+### Household photo space
+
+Everyone in a household can open (read only) each other's Personal Space and send photos from it to the household's Shared Library, listed under **Household** in the View scope picker. Other households' spaces are invisible, including counts, thumbnails, search results, map pins and timeline.
+
 ### Shared Library
 
-Separate household-owned View storage containing accepted contributions. Each household has its own, and people only ever see their own household's. Shared access does not grant access to every profile's Personal Space.
+Separate household-owned View storage containing accepted contributions. Each household has its own, and people only ever see their own household's. Shared access does not grant access to every profile's Personal Space. Household administrators review what people send to it; there is no separate curator role.
 
 ### Household administrator
 

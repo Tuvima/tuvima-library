@@ -15,21 +15,35 @@ public sealed class ViewSharedContributionService(
     IViewProfileRepository policies,
     ViewSharedTransferService transfers,
     IAuthorizationEvaluator authorization,
-    IViewSharedContributionQueue queue)
+    IViewSharedContributionQueue queue,
+    IAccountAccessDecisionService decisions,
+    IAuthorizationAuditWriter audit)
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
+
+    /// <summary>
+    /// Who may review contributions: a server administrator (any household) or a household administrator (their own
+    /// household only). Both need the administrator PIN unlocked when they turned that protection on.
+    /// </summary>
+    private enum ReviewerKind { None, Household, Server }
+
+    private sealed record Reviewer(ReviewerKind Kind, Guid? HouseholdId)
+    {
+        public static Reviewer None { get; } = new(ReviewerKind.None, null);
+        public bool IsReviewer => Kind != ReviewerKind.None;
+    }
 
     public async Task<ViewSharedContributionPreviewDto> PreviewAsync(
         RequestAuthority authority,
         ViewSharedContributionPreviewRequest request,
         CancellationToken ct = default)
     {
-        var actorProfileId = await RequireActorAsync(authority, curator: false, ct);
+        var (actorProfileId, _) = await RequireActorAsync(authority, review: false, lookupReviewer: false, ct);
         await RequireSubmitAsync(actorProfileId, ct);
-        return PreviewOwned(actorProfileId, request, ct);
+        return PreviewForActor(actorProfileId, request, ct);
     }
 
-    private ViewSharedContributionPreviewDto PreviewOwned(
+    private ViewSharedContributionPreviewDto PreviewForActor(
         Guid actorProfileId,
         ViewSharedContributionPreviewRequest request,
         CancellationToken ct)
@@ -39,12 +53,14 @@ public sealed class ViewSharedContributionService(
         foreach (var itemId in itemIds)
         {
             var item = assets.Find(itemId, ct) ?? throw new KeyNotFoundException("A selected View item was not found.");
-            if (item.OwnerProfileId != actorProfileId)
+            if (!CanSend(actorProfileId, item))
             {
                 throw new KeyNotFoundException("A selected View item was not found.");
             }
 
-            var preview = transfers.Preview(itemId, request.DestinationKind, request.FolderName, ct);
+            // Someone else's photo is shared as a copy: the owner's original always stays in their own space.
+            var preview = transfers.Preview(itemId, request.DestinationKind, request.FolderName, ct,
+                copyOnly: item.OwnerProfileId != actorProfileId);
             if (!preview.AlreadyShared)
             {
                 previews.Add(preview);
@@ -64,7 +80,7 @@ public sealed class ViewSharedContributionService(
         ViewSharedContributionSubmitRequest request,
         CancellationToken ct = default)
     {
-        var actorProfileId = await RequireActorAsync(authority, curator: false, ct);
+        var (actorProfileId, _) = await RequireActorAsync(authority, review: false, lookupReviewer: false, ct);
         return await SubmitCoreAsync(actorProfileId, request, requireSubmitPermission: true, ct);
     }
 
@@ -86,7 +102,7 @@ public sealed class ViewSharedContributionService(
             await RequireSubmitAsync(actorProfileId, ct);
         }
 
-        var preview = PreviewOwned(actorProfileId, previewRequest, ct);
+        var preview = PreviewForActor(actorProfileId, previewRequest, ct);
         if (!CryptographicOperations.FixedTimeEquals(
                 Encoding.UTF8.GetBytes(preview.PreviewRevision),
                 Encoding.UTF8.GetBytes(request.PreviewRevision ?? string.Empty)))
@@ -97,7 +113,7 @@ public sealed class ViewSharedContributionService(
         var existing = FindByIdempotency(actorProfileId, request.IdempotencyKey.Trim(), ct);
         if (existing.HasValue)
         {
-            return await GetRequiredForProfileAsync(actorProfileId, existing.Value, false, ct);
+            return await GetRequiredForProfileAsync(actorProfileId, existing.Value, false, Reviewer.None, ct);
         }
 
         var contributionId = Guid.NewGuid();
@@ -164,20 +180,14 @@ public sealed class ViewSharedContributionService(
                 "submitted", $"{preview.Items.Count} item(s) submitted.", now, token);
             return true;
         }, ct);
-        return await GetRequiredForProfileAsync(actorProfileId, contributionId, false, ct);
+        return await GetRequiredForProfileAsync(actorProfileId, contributionId, false, Reviewer.None, ct);
     }
 
     public async Task<ViewSharedContributionDto> AddDirectAsync(
         RequestAuthority authority, ViewSharedDirectAddRequest request, CancellationToken ct = default)
     {
-        var actorProfileId = await RequireActorAsync(authority, curator: true, ct);
-        var policy = await policies.GetPolicyAsync(actorProfileId, ct);
-        if (!policy.ViewEnabled || !policy.ReviewSharedLibraryContributions)
-        {
-            throw new UnauthorizedAccessException("Shared Library curator access is required.");
-        }
-
-        var preview = PreviewOwned(actorProfileId,
+        var (actorProfileId, reviewer) = await RequireActorAsync(authority, review: true, lookupReviewer: true, ct);
+        var preview = PreviewForActor(actorProfileId,
             new ViewSharedContributionPreviewRequest(request.ItemIds, request.DestinationKind, request.FolderName), ct);
         var key = string.IsNullOrWhiteSpace(request.IdempotencyKey) ? Guid.NewGuid().ToString("N") : request.IdempotencyKey.Trim();
         var pending = await SubmitCoreAsync(actorProfileId, new ViewSharedContributionSubmitRequest(
@@ -189,10 +199,10 @@ public sealed class ViewSharedContributionService(
         }
 
         await UpdateDecisionAsync(pending.Id, pending.Revision, "accepted", actorProfileId,
-            GetProfileName(actorProfileId, ct), "Added directly by a Shared Library curator.",
+            GetProfileName(actorProfileId, ct), "Added directly by a household administrator.",
             pending.DestinationKind, pending.DestinationLabel, ct);
         await queue.EnqueueAsync(pending.Id, ct);
-        return await GetRequiredForProfileAsync(actorProfileId, pending.Id, true, ct);
+        return await GetRequiredForProfileAsync(actorProfileId, pending.Id, true, reviewer, ct);
     }
 
     public async Task<ViewSharedContributionPageDto> ListAsync(
@@ -211,27 +221,32 @@ public sealed class ViewSharedContributionService(
         }
 
         var review = string.Equals(mode, "review", StringComparison.OrdinalIgnoreCase);
-        var actorProfileId = await RequireActorAsync(authority, curator: review, ct);
+        var (actorProfileId, reviewer) = await RequireActorAsync(authority, review, lookupReviewer: true, ct);
         var policy = await policies.GetPolicyAsync(actorProfileId, ct);
-        if (review && !policy.ReviewSharedLibraryContributions)
-        {
-            throw new UnauthorizedAccessException("Shared Library curator access is required.");
-        }
 
         var normalizedStatus = NormalizeStatusFilter(status);
         using var connection = database.CreateConnection();
         var ids = connection.Query<Guid>(new CommandDefinition("""
             SELECT id FROM view_shared_contributions
-             WHERE ((@review = 1 AND EXISTS (
-                        -- A reviewer only sees what people in their own household submitted.
-                        SELECT 1 FROM profiles submitter JOIN profiles reviewer ON reviewer.household_id = submitter.household_id
+             WHERE ((@review = 1 AND (@serverReviewer = 1 OR EXISTS (
+                        -- A household administrator only sees what people in their own household submitted.
+                        SELECT 1 FROM profiles submitter
                          WHERE submitter.id = view_shared_contributions.submitted_by_profile_id
-                           AND reviewer.id = @actorProfileId))
+                           AND submitter.household_id = @reviewerHousehold)))
                     OR submitted_by_profile_id = @actorProfileId)
                AND (@status IS NULL OR status = @status)
              ORDER BY CASE status WHEN 'pending' THEN 0 ELSE 1 END, submitted_at DESC
              LIMIT @take OFFSET @offset;
-            """, new { review = review ? 1 : 0, actorProfileId, status = normalizedStatus, take = limit + 1, offset },
+            """, new
+        {
+            review = review ? 1 : 0,
+            serverReviewer = reviewer.Kind == ReviewerKind.Server ? 1 : 0,
+            reviewerHousehold = reviewer.HouseholdId,
+            actorProfileId,
+            status = normalizedStatus,
+            take = limit + 1,
+            offset,
+        },
             cancellationToken: ct)).ToList();
         var hasMore = ids.Count > limit;
         if (hasMore)
@@ -245,49 +260,105 @@ public sealed class ViewSharedContributionService(
             rows.Add(Read(connection, id, ct)!);
         }
 
-        return new(rows, offset, hasMore, policy.SubmitToSharedLibrary,
-            policy.ReviewSharedLibraryContributions);
+        return new(rows, offset, hasMore, policy.SubmitToSharedLibrary, reviewer.IsReviewer);
     }
 
     public async Task<ViewSharedContributionDto> GetRequiredAsync(
         RequestAuthority authority, Guid contributionId, bool requireReview = false,
         CancellationToken ct = default)
     {
-        var actorProfileId = await RequireActorAsync(authority, curator: requireReview, ct);
-        return await GetRequiredForProfileAsync(actorProfileId, contributionId, requireReview, ct);
+        var (actorProfileId, reviewer) = await RequireActorAsync(authority, requireReview, lookupReviewer: true, ct);
+        return await GetRequiredForProfileAsync(actorProfileId, contributionId, requireReview, reviewer, ct,
+            (authority, "open"));
     }
 
+    /// <param name="audited">
+    /// Set on the first read of a request. When a server administrator reaches into another household's
+    /// contribution it is recorded (who, what, which household), the same way "Other people" viewing is.
+    /// </param>
     private async Task<ViewSharedContributionDto> GetRequiredForProfileAsync(
-        Guid actorProfileId, Guid contributionId, bool requireReview, CancellationToken ct)
+        Guid actorProfileId, Guid contributionId, bool requireReview, Reviewer reviewer, CancellationToken ct,
+        (RequestAuthority Authority, string Action)? audited = null)
     {
-        var policy = await policies.GetPolicyAsync(actorProfileId, ct);
+        ct.ThrowIfCancellationRequested();
         using var connection = database.CreateConnection();
         var contribution = Read(connection, contributionId, ct) ?? throw new KeyNotFoundException();
-        var canReview = policy.ReviewSharedLibraryContributions
-            && SubmitterIsInHousehold(connection, contribution.SubmittedByProfileId, actorProfileId);
+        var submitterHousehold = contribution.SubmittedByProfileId is { } submitter
+            ? connection.QuerySingleOrDefault<Guid?>(
+                "SELECT household_id FROM profiles WHERE id = @submitter;", new { submitter })
+            : null;
+        var canReview = reviewer.Kind switch
+        {
+            ReviewerKind.Server => true,
+            // A household administrator reviews what people in their own household submitted, nothing else.
+            ReviewerKind.Household => submitterHousehold is { } household && household == reviewer.HouseholdId,
+            _ => false,
+        };
         if ((requireReview && !canReview)
             || (!canReview && contribution.SubmittedByProfileId != actorProfileId))
         {
             throw new KeyNotFoundException("This contribution is unavailable.");
         }
 
+        if (audited is { } access && reviewer.Kind == ReviewerKind.Server && submitterHousehold != reviewer.HouseholdId)
+        {
+            await audit.WriteAsync(new AuthorizationAuditEvent(
+                "view.admin_other_household_contribution",
+                DateTimeOffset.UtcNow,
+                access.Authority.AccountId,
+                access.Authority.ActiveProfileId,
+                null,
+                "view_shared_contribution",
+                contributionId.ToString("D"),
+                new Dictionary<string, string?>
+                {
+                    ["action"] = access.Action,
+                    ["household_id"] = submitterHousehold?.ToString("D"),
+                }), ct);
+        }
+
         return contribution;
     }
 
-    /// <summary>True when the person who submitted (when known) lives in the same household as the reviewer.</summary>
-    private static bool SubmitterIsInHousehold(System.Data.IDbConnection connection, Guid? submitterProfileId, Guid reviewerProfileId) =>
-        submitterProfileId is { } submitter
+    /// <summary>True when both profiles live in the same household (a profile with no household matches nobody).</summary>
+    private static bool InSameHousehold(System.Data.IDbConnection connection, Guid? profileId, Guid otherProfileId) =>
+        profileId is { } first
         && connection.ExecuteScalar<int>("""
-            SELECT COUNT(*) FROM profiles s JOIN profiles r ON r.household_id = s.household_id
-             WHERE s.id = @submitter AND r.id = @reviewerProfileId;
-            """, new { submitter, reviewerProfileId }) > 0;
+            SELECT COUNT(*) FROM profiles a JOIN profiles b ON b.household_id = a.household_id
+             WHERE a.id = @first AND b.id = @otherProfileId;
+            """, new { first, otherProfileId }) > 0;
+
+    /// <summary>
+    /// A household member can send their own items, and any visible (not hidden) item in the Personal Space of
+    /// someone in their household. Anyone else's item looks like it does not exist.
+    /// </summary>
+    private bool CanSend(Guid actorProfileId, LocalAssetDto item)
+    {
+        if (item.OwnerProfileId is not { } owner)
+        {
+            return false;
+        }
+
+        if (owner == actorProfileId)
+        {
+            return true;
+        }
+
+        if (item.Hidden)
+        {
+            return false;
+        }
+
+        using var connection = database.CreateConnection();
+        return InSameHousehold(connection, owner, actorProfileId);
+    }
 
     public async Task<ViewSharedContributionDto> CancelAsync(
         RequestAuthority authority, Guid contributionId, int expectedRevision,
         CancellationToken ct = default)
     {
-        var actorProfileId = await RequireActorAsync(authority, curator: false, ct);
-        var current = await GetRequiredForProfileAsync(actorProfileId, contributionId, false, ct);
+        var (actorProfileId, _) = await RequireActorAsync(authority, review: false, lookupReviewer: false, ct);
+        var current = await GetRequiredForProfileAsync(actorProfileId, contributionId, false, Reviewer.None, ct);
         if (current.SubmittedByProfileId != actorProfileId)
         {
             throw new UnauthorizedAccessException("Only the contributor can cancel this submission.");
@@ -300,15 +371,16 @@ public sealed class ViewSharedContributionService(
 
         await UpdateDecisionAsync(contributionId, expectedRevision, "cancelled", actorProfileId,
             current.SubmittedByName, null, null, null, ct);
-        return await GetRequiredForProfileAsync(actorProfileId, contributionId, false, ct);
+        return await GetRequiredForProfileAsync(actorProfileId, contributionId, false, Reviewer.None, ct);
     }
 
     public async Task<ViewSharedContributionDto> DecideAsync(
         RequestAuthority authority, Guid contributionId, ViewSharedContributionDecisionRequest request,
         CancellationToken ct = default)
     {
-        var actorProfileId = await RequireActorAsync(authority, curator: true, ct);
-        var current = await GetRequiredForProfileAsync(actorProfileId, contributionId, true, ct);
+        var (actorProfileId, reviewer) = await RequireActorAsync(authority, review: true, lookupReviewer: true, ct);
+        var current = await GetRequiredForProfileAsync(actorProfileId, contributionId, true, reviewer, ct,
+            (authority, "decide"));
         if (current.Status != "pending")
         {
             throw new InvalidOperationException("This contribution is no longer pending.");
@@ -331,7 +403,7 @@ public sealed class ViewSharedContributionService(
             foreach (var contributionItem in current.Items)
             {
                 var asset = assets.Find(contributionItem.ItemId, ct);
-                if (asset?.OwnerProfileId != contributorId)
+                if (asset is null || !CanSend(contributorId, asset))
                 {
                     throw new InvalidOperationException("A submitted item changed ownership and must be submitted again.");
                 }
@@ -354,23 +426,24 @@ public sealed class ViewSharedContributionService(
             label = null;
         }
 
-        var curatorName = GetProfileName(actorProfileId, ct);
+        var reviewerName = GetProfileName(actorProfileId, ct);
         await UpdateDecisionAsync(contributionId, request.ExpectedRevision, decision, actorProfileId,
-            curatorName, request.Reason, kind, label, ct);
+            reviewerName, request.Reason, kind, label, ct);
         if (decision == "accepted")
         {
             await queue.EnqueueAsync(contributionId, ct);
         }
 
-        return await GetRequiredForProfileAsync(actorProfileId, contributionId, true, ct);
+        return await GetRequiredForProfileAsync(actorProfileId, contributionId, true, reviewer, ct);
     }
 
     public async Task<ViewSharedContributionDto> RetryAsync(
         RequestAuthority authority, Guid contributionId, int expectedRevision,
         CancellationToken ct = default)
     {
-        var actorProfileId = await RequireActorAsync(authority, curator: true, ct);
-        var current = await GetRequiredForProfileAsync(actorProfileId, contributionId, true, ct);
+        var (actorProfileId, reviewer) = await RequireActorAsync(authority, review: true, lookupReviewer: true, ct);
+        var current = await GetRequiredForProfileAsync(actorProfileId, contributionId, true, reviewer, ct,
+            (authority, "retry"));
         if (current.Status != "accepted")
         {
             throw new InvalidOperationException("Only an accepted contribution can be retried.");
@@ -382,7 +455,7 @@ public sealed class ViewSharedContributionService(
         }
 
         await queue.EnqueueAsync(contributionId, ct);
-        return await GetRequiredForProfileAsync(actorProfileId, contributionId, true, ct);
+        return await GetRequiredForProfileAsync(actorProfileId, contributionId, true, reviewer, ct);
     }
 
     public IReadOnlyList<Guid> GetRecoverableIds(CancellationToken ct = default)
@@ -404,14 +477,16 @@ public sealed class ViewSharedContributionService(
         var actorProfileId = readConnection.QuerySingle<Guid?>(new CommandDefinition(
             "SELECT decided_by_profile_id FROM view_shared_contributions WHERE id = @contributionId;",
             new { contributionId }, cancellationToken: ct))
-            ?? throw new InvalidOperationException("The accepting curator is unavailable.");
+            ?? throw new InvalidOperationException("The accepting household administrator is unavailable.");
         foreach (var item in batch.Items.Where(value => value.ExecutionState is "waiting" or "failed" or "needs_attention" or "cleanup_pending"))
         {
             await SetItemStateAsync(item.Id, "transferring", null, ct);
             try
             {
+                // Sharing someone else's photo always copies it; the owner's original stays where it is.
+                var copyOnly = assets.Find(item.ItemId, ct)?.OwnerProfileId != batch.SubmittedByProfileId;
                 var result = await transfers.ExecuteAsync(item.ItemId, actorProfileId,
-                    batch.DestinationKind, batch.DestinationLabel, item.Id, ct);
+                    batch.DestinationKind, batch.DestinationLabel, item.Id, ct, copyOnly);
                 await SetItemStateAsync(item.Id, result.State, null, ct);
             }
             catch (Exception exception) when (exception is IOException or UnauthorizedAccessException
@@ -431,32 +506,55 @@ public sealed class ViewSharedContributionService(
         }
     }
 
-    private async Task<Guid> RequireActorAsync(RequestAuthority authority, bool curator, CancellationToken ct)
+    private async Task<(Guid ProfileId, Reviewer Reviewer)> RequireActorAsync(
+        RequestAuthority authority, bool review, bool lookupReviewer, CancellationToken ct)
     {
-        if (!authority.HasHumanContext || authority.ActiveProfileId is not { } profileId
-            || curator && (authority.PrincipalKind != PrincipalKind.Human || !authority.IsEffectiveAdministrator))
+        if (!authority.HasHumanContext || authority.ActiveProfileId is not { } profileId)
         {
             throw new UnauthorizedAccessException("Trusted View authority is required.");
         }
 
         var requirement = new AuthorizationRequirement(
             authority.HasApplicationContext ? ApplicationPermissionIds.ViewUpload : null,
-            AccountFeatureId.View, RequiresHumanContext: true, RequiresAdministrator: curator,
-            RequiresAdministratorSurfaceUnlock: curator);
+            AccountFeatureId.View, RequiresHumanContext: true);
         if (!(await authorization.EvaluateAsync(authority, requirement, null, ct)).IsAllowed)
         {
             throw new UnauthorizedAccessException("Trusted View authority is required.");
         }
 
-        var policy = await policies.GetPolicyAsync(profileId, ct);
-        if (!policy.ViewEnabled || (curator ? !policy.ReviewSharedLibraryContributions : !policy.SubmitToSharedLibrary))
+        var reviewer = review || lookupReviewer
+            ? await EvaluateReviewerAsync(authority, ct)
+            : Reviewer.None;
+        if (review && !reviewer.IsReviewer)
         {
-            throw new UnauthorizedAccessException(curator
-                ? "Shared Library curator access is required."
-                : "Permission to submit to the Shared Library is required.");
+            throw new UnauthorizedAccessException("Household administrator access is required.");
         }
 
-        return profileId;
+        var policy = await policies.GetPolicyAsync(profileId, ct);
+        if (!policy.ViewEnabled || (!review && !reviewer.IsReviewer && !policy.SubmitToSharedLibrary))
+        {
+            throw new UnauthorizedAccessException("Permission to submit to the Shared Library is required.");
+        }
+
+        return (profileId, reviewer);
+    }
+
+    private async Task<Reviewer> EvaluateReviewerAsync(RequestAuthority authority, CancellationToken ct)
+    {
+        if (authority.PrincipalKind != PrincipalKind.Human || !authority.HasHumanContext)
+        {
+            return Reviewer.None;
+        }
+
+        if ((await decisions.EvaluateAdministratorAsync(authority, true, ct)).IsAllowed)
+        {
+            return new(ReviewerKind.Server, authority.AccountHouseholdId);
+        }
+
+        return !authority.IsEffectiveAdministrator && authority.AccountHouseholdId is { } household
+            && (await decisions.EvaluateHouseholdAdministratorAsync(authority, true, ct)).IsAllowed
+            ? new(ReviewerKind.Household, household)
+            : Reviewer.None;
     }
 
     private async Task UpdateDecisionAsync(Guid id, int revision, string status, Guid actorId,

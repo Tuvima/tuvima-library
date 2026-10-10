@@ -7442,9 +7442,8 @@
   ViewEnabled: System.Boolean | json=view_enabled | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   AccessSharedLibrary: System.Boolean | json=access_shared_library | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   SubmitToSharedLibrary: System.Boolean | json=submit_to_shared_library | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  ReviewSharedLibraryContributions: System.Boolean | json=review_shared_library_contributions | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   AllowGallerySharing: System.Boolean | json=allow_gallery_sharing | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  sample={"view_enabled":true,"access_shared_library":true,"submit_to_shared_library":true,"review_shared_library_contributions":true,"allow_gallery_sharing":true}
+  sample={"view_enabled":true,"access_shared_library":true,"submit_to_shared_library":true,"allow_gallery_sharing":true}
 
 [contracts] MediaEngine.Contracts.Profiles.ViewProfilePolicyDto
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -7452,10 +7451,9 @@
   ViewEnabled: System.Boolean | json=view_enabled | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   AccessSharedLibrary: System.Boolean | json=access_shared_library | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   SubmitToSharedLibrary: System.Boolean | json=submit_to_shared_library | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  ReviewSharedLibraryContributions: System.Boolean | json=review_shared_library_contributions | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   AllowGallerySharing: System.Boolean | json=allow_gallery_sharing | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   UpdatedAt: System.DateTimeOffset? | json=updated_at | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  sample={"profile_id":"11111111-2222-3333-4444-555555555555","view_enabled":true,"access_shared_library":true,"submit_to_shared_library":true,"review_shared_library_contributions":true,"allow_gallery_sharing":true,"updated_at":"2025-01-02T03:04:05+00:00"}
+  sample={"profile_id":"11111111-2222-3333-4444-555555555555","view_enabled":true,"access_shared_library":true,"submit_to_shared_library":true,"allow_gallery_sharing":true,"updated_at":"2025-01-02T03:04:05+00:00"}
 
 [contracts] MediaEngine.Contracts.Progress.JourneyItemDto
   kind=class | converter=default | number-handling=default | unmapped=default

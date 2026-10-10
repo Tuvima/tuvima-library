@@ -79,14 +79,22 @@ public sealed class ViewScopeResolver(IViewScopeStore store) : IViewScopeResolve
             return Personal(ViewScopeKind.Mine, active);
         }
 
-        if (!caller.IsEffectiveAdministrator && !caller.IsAdministratorApplication)
+        var target = profiles.FirstOrDefault(profile => profile.Policy.ProfileId == targetId);
+        if (target is null)
         {
             return null;
         }
 
-        var target = profiles.FirstOrDefault(profile => profile.Policy.ProfileId == targetId);
-        return target is null ? null : Personal(ViewScopeKind.Profile, target);
+        // A trusted administrator application reads any profile. A person only ever reads (never edits) the
+        // Personal Space of someone in their own household; another household is simply not found. Server
+        // administrators reach other households through "Other people", not through this scope.
+        return caller.IsAdministratorApplication || InSameHousehold(active, target)
+            ? Personal(ViewScopeKind.Profile, target)
+            : null;
     }
+
+    private static bool InSameHousehold(ViewScopeStoreEntry? active, ViewScopeStoreEntry target) =>
+        active?.HouseholdId is { } household && household != Guid.Empty && household == target.HouseholdId;
 
     private async Task<IReadOnlyList<ViewScopeOption>> BuildOptionsAsync(RequestAuthority caller,
         ViewScopeStoreEntry? active, IReadOnlyList<ViewScopeStoreEntry> profiles, CancellationToken ct)
@@ -97,9 +105,12 @@ public sealed class ViewScopeResolver(IViewScopeStore store) : IViewScopeResolve
             result.Add(Option(ViewScopeKind.Mine, active));
         }
 
-        if (caller.IsEffectiveAdministrator)
+        if (active is not null)
         {
-            result.AddRange(profiles.Where(profile => profile.Policy.ProfileId != active?.Policy.ProfileId)
+            // The Household section: everyone else in the same household, by name. Your own space stays first.
+            result.AddRange(profiles
+                .Where(profile => profile.Policy.ProfileId != active.Policy.ProfileId && InSameHousehold(active, profile))
+                .OrderBy(profile => profile.DisplayName, StringComparer.CurrentCultureIgnoreCase)
                 .Select(profile => Option(ViewScopeKind.Profile, profile)));
         }
 

@@ -17,8 +17,12 @@ public sealed class ViewSharedTransferService(
     private static readonly SemaphoreSlim TransferGate = new(1, 1);
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
+    /// <param name="copyOnly">
+    /// True when the person sending the item is not its owner (a household member sharing someone else's photo):
+    /// the owner's original always stays in their own space, so the Shared Library gets a copy, never a move.
+    /// </param>
     public ViewSharedTransferPreviewDto Preview(Guid itemId, string destinationKind, string? folderName,
-        CancellationToken ct = default)
+        CancellationToken ct = default, bool copyOnly = false)
     {
         var item = assets.Find(itemId, ct) ?? throw new KeyNotFoundException("The View item was not found.");
         var files = GetFiles(itemId, ct);
@@ -33,7 +37,7 @@ public sealed class ViewSharedTransferService(
             _ = SanitizeFolderName(folderName);
         }
 
-        var move = files.All(file => string.Equals(file.StorageMode, "managed", StringComparison.Ordinal));
+        var move = !copyOnly && files.All(file => string.Equals(file.StorageMode, "managed", StringComparison.Ordinal));
         using var connection = database.CreateConnection();
         var promoted = connection.ExecuteScalar<int>(new CommandDefinition(
             "SELECT COUNT(*) FROM view_shared_assets WHERE item_id = @itemId OR origin_item_id = @itemId;",
@@ -44,7 +48,7 @@ public sealed class ViewSharedTransferService(
 
     public async Task<ViewSharedTransferResultDto> ExecuteAsync(Guid itemId, Guid actorProfileId,
         string destinationKind, string? folderName, Guid? contributionItemId = null,
-        CancellationToken ct = default)
+        CancellationToken ct = default, bool copyOnly = false)
     {
         await TransferGate.WaitAsync(ct);
         try
@@ -55,7 +59,7 @@ public sealed class ViewSharedTransferService(
                 return ToResult(itemId, existing);
             }
 
-            var preview = Preview(itemId, destinationKind, folderName, ct);
+            var preview = Preview(itemId, destinationKind, folderName, ct, copyOnly);
 
             var item = assets.Find(itemId, ct)!;
             var files = GetFiles(itemId, ct);
