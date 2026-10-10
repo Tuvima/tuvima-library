@@ -23,7 +23,7 @@ public sealed class KidsShellTests : AsyncBunitContext
     [Fact]
     public void KidsProfile_HasNoSettingsOrReviewLinks_AndShowsBadge()
     {
-        var cut = RenderOpenMenu(kids: true, canReview: true);
+        var cut = RenderOpenMenu(kids: true, canReview: false);
 
         Assert.Empty(cut.FindAll("a[href='/settings']"));
         Assert.Empty(cut.FindAll("a[href='/settings/profile']"));
@@ -49,6 +49,7 @@ public sealed class KidsShellTests : AsyncBunitContext
         var layout = File.ReadAllText(Path.Combine(repo, "src", "MediaEngine.Web", "Shared", "MainLayout.razor"));
 
         Assert.Contains("_isKids = profile.IsRestricted;", layout);
+        Assert.Contains("CanViewReview=\"@(CanViewReview && !_isKids)\"", layout);
         Assert.Contains("_kidsNavPaths = [\"/watch\", \"/listen\", \"/read\"]", layout);
         Assert.DoesNotContain("/view\", \"/collections\"", layout.Split("_kidsNavPaths")[1].Split(';')[0]);
     }

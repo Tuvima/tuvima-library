@@ -117,7 +117,7 @@
                                    ActiveProfileId="@_activeProfileId"
                                    Profiles="@_profiles"
                                    ReviewCount="@_reviewCount"
-                                   CanViewReview="@CanViewReview"
+                                   CanViewReview="@(CanViewReview && !_isKids)"
                                    IsKids="@_isKids"
                                    ShowSignOut="true" />
             </span>
