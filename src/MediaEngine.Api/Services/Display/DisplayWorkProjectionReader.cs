@@ -537,6 +537,71 @@ public sealed class DisplayWorkProjectionReader
         return (await conn.QueryAsync<RecentCandidate>(new CommandDefinition(sql, cancellationToken: ct))).ToList();
     }
 
+    /// <summary>
+    /// Light rows (no artwork or text lookups) for every episode of the given shows: just what a show card reports
+    /// about the whole show, plus the rating the profile limit is checked against. One row per episode file.
+    /// </summary>
+    internal async Task<IReadOnlyList<DisplayWorkRow>> LoadTvEpisodeSkeletonAsync(IReadOnlyCollection<Guid> rootIds, CancellationToken ct)
+    {
+        if (rootIds.Count == 0)
+        {
+            return [];
+        }
+
+        var visibleWorkPredicate = HomeVisibilitySql.VisibleWorkPredicate("w.id", "w.curator_state", "w.is_catalog_only");
+        var visibleAssetPredicate = HomeVisibilitySql.VisibleAssetPathPredicate("ma.file_path_root");
+        // The year rule only reads credits for audiobooks, so an empty credits relation keeps this listing cheap.
+        var displayYearSql = MediaDateSql.DisplayOriginalYear("WorkId", "RootWorkId", "AssetId", "MediaType", "projection_credits");
+        var sql = $"""
+            WITH projection_credits AS (SELECT * FROM primary_person_media_credits WHERE 0),
+            episode_assets AS (
+                SELECT
+                    w.id AS WorkId,
+                    ma.library_id AS LibraryId,
+                    w.collection_id AS CollectionId,
+                    w.media_type AS MediaType,
+                    COALESCE(gp.id, p.id, w.id) AS RootWorkId,
+                    ma.id AS AssetId
+                FROM works w
+                INNER JOIN work_owned_assets woa ON woa.work_id = w.id
+                INNER JOIN editions e ON e.id = woa.edition_id
+                INNER JOIN media_assets ma ON ma.id = woa.asset_id
+                LEFT JOIN works p ON p.id = w.parent_work_id
+                LEFT JOIN works gp ON gp.id = p.parent_work_id
+                WHERE w.work_kind != 'parent'
+                  AND ma.status = 'Normal' AND ma.is_orphaned = 0
+                  AND {visibleWorkPredicate}
+                  AND {visibleAssetPredicate}
+                  AND COALESCE(gp.id, p.id, w.id) IN @rootIds
+            )
+            SELECT
+                LibraryId,
+                WorkId,
+                CollectionId,
+                MediaType,
+                RootWorkId,
+                AssetId,
+                CASE WHEN {IngestionAvailability.UpdatingWorkPredicate("WorkId")} THEN 1 ELSE 0 END AS IsUpdatingDetails,
+                COALESCE(
+                    (SELECT value FROM canonical_values WHERE entity_id = WorkId AND key IN ('content_rating', 'certification') LIMIT 1),
+                    (SELECT value FROM canonical_values WHERE entity_id = RootWorkId AND key IN ('content_rating', 'certification') LIMIT 1),
+                    (SELECT value FROM canonical_values WHERE entity_id = AssetId AND key IN ('content_rating', 'certification') LIMIT 1)
+                ) AS ContentRating,
+                {displayYearSql} AS Year,
+                COALESCE(
+                    (SELECT value FROM canonical_values WHERE entity_id = RootWorkId AND key = 'series_end_year' LIMIT 1),
+                    (SELECT value FROM canonical_values WHERE entity_id = WorkId AND key = 'series_end_year' LIMIT 1),
+                    (SELECT value FROM canonical_values WHERE entity_id = AssetId AND key = 'series_end_year' LIMIT 1)
+                ) AS SeriesEndYear,
+                (SELECT value FROM canonical_values WHERE entity_id = AssetId AND key = 'season_number' LIMIT 1) AS SeasonNumber,
+                (SELECT value FROM canonical_values WHERE entity_id = AssetId AND key = 'episode_number' LIMIT 1) AS EpisodeNumber
+            FROM episode_assets
+            ORDER BY WorkId, LibraryId, AssetId;
+            """;
+        using var conn = _db.CreateConnection();
+        return (await conn.QueryAsync<DisplayWorkRow>(new CommandDefinition(sql, new { rootIds = rootIds.Select(GuidSql.ToBlob).ToArray() }, cancellationToken: ct))).ToList();
+    }
+
     public async Task<IReadOnlyList<DisplayWorkRow>> LoadAsync(CancellationToken ct, int limit = int.MaxValue, Guid? detailId = null, DisplayRecentGroupFilter? groups = null, bool lean = false)
     {
         var startedAt = Stopwatch.GetTimestamp();

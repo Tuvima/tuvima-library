@@ -170,6 +170,57 @@ public sealed class AuthorizedDisplayProjectionReadServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task RecentWindowsALargeShowYetKeepsCardIdenticalWithViewingProgress()
+    {
+        var account = Guid.NewGuid(); var library = Guid.NewGuid();
+        await CreateHumanAsync(account, new HashSet<AccountFeatureId> { AccountFeatureId.Watch }, new HashSet<Guid> { library });
+        var profile = MediaEngine.Domain.Aggregates.Profile.SeedProfileId;
+        var show = Guid.NewGuid();
+        var assets = new List<Guid>();
+        using (var connection = _database.CreateConnection())
+        {
+            connection.Execute("INSERT INTO works(id,media_type,work_kind,curator_state) VALUES(@show,'TV','parent','accepted');INSERT INTO canonical_values(entity_id,key,value,last_scored_at) VALUES(@show,'title','Long show',CURRENT_TIMESTAMP);", new { show });
+            for (var i = 0; i < 40; i++)
+            {
+                var work = Guid.NewGuid(); var edition = Guid.NewGuid(); var asset = Guid.NewGuid();
+                assets.Add(asset);
+                var season = (i / 20 + 1).ToString(); var episode = (i % 20 + 1).ToString();
+                connection.Execute("""
+                    INSERT INTO works(id,media_type,work_kind,parent_work_id,curator_state) VALUES(@work,'TV','child',@show,'accepted');
+                    INSERT INTO editions(id,work_id) VALUES(@edition,@work);
+                    INSERT INTO media_assets(id,edition_id,content_hash,file_path_root,presented_at,library_id) VALUES(@asset,@edition,@hash,@path,@at,@library);
+                    INSERT INTO canonical_values(entity_id,key,value,last_scored_at) VALUES(@asset,'title',@title,CURRENT_TIMESTAMP),(@asset,'season_number',@season,CURRENT_TIMESTAMP),(@asset,'episode_number',@episode,CURRENT_TIMESTAMP);
+                    """, new { work, show, edition, asset, hash = asset.ToString("N"), path = $"C:/library/{asset:N}.mkv", at = new DateTime(2026, 1, 1).AddDays(i % 7).ToString("yyyy-MM-dd HH:mm:ss"), library, title = $"Episode {i}", season, episode });
+            }
+            // One finished episode and one half-watched episode, neither at the start or end of the show.
+            connection.Execute("""INSERT INTO user_states(user_id,asset_id,progress_pct,last_accessed,extended_properties) VALUES (@profile,@done,100,'2026-02-01 10:00:00','{}'),(@profile,@current,40,'2026-02-02 10:00:00','{"position_seconds":300,"duration_seconds":900}');""", new { profile, done = assets[7], current = assets[22] });
+        }
+        var states = await new DisplayJourneyProjectionReader(_database).LoadAsync(profile, null, default, includeCompleted: true);
+        var reader = new DisplayWorkProjectionReader(_database);
+        var authorization = CreateService(HumanContext(account, profile), new StubRawProjection([], states));
+        var recent = new RecentCatalogueReadService(reader, authorization, new DisplayCardBuilder(), _database);
+        var progress = (await authorization.LoadStatesAsync(profile, null, default)).GroupBy(s => s.WorkId).ToDictionary(g => g.Key, g => g.OrderByDescending(s => s.LastAccessed).First());
+        var expectedRows = (await authorization.FilterRecentWorksAsync(await reader.LoadAsync(default), profile, default)).ToList();
+        using (var connection = _database.CreateConnection())
+        {
+            var additions = connection.Query<RecentAdditionRow>("""
+                SELECT e.work_id AS WorkId, ma.library_id AS LibraryId, MAX(ma.presented_at) AS AddedAt FROM media_assets ma JOIN editions e ON e.id = ma.edition_id
+                WHERE ma.status = 'Normal' AND ma.is_orphaned = 0 GROUP BY e.work_id, ma.library_id;
+                """).ToDictionary(a => (a.WorkId, a.LibraryId), a => a.AddedAt);
+            foreach (var row in expectedRows)
+            {
+                if (row.LibraryId is { } lib && additions.TryGetValue((row.WorkId, lib), out var at)) { row.CreatedAt = at; }
+            }
+        }
+        var expected = RecentCatalogueReadService.Compose(expectedRows, new DisplayCardBuilder(), "all", null, 10, progress);
+        var actual = await recent.LoadAsync("all", profile, null, 10, default);
+        var options = new System.Text.Json.JsonSerializerOptions();
+        Assert.Equal(System.Text.Json.JsonSerializer.Serialize(expected, options), System.Text.Json.JsonSerializer.Serialize(actual, options));
+        Assert.Equal(40, actual.Single().Catalogue!.PreviewTotalCount);
+        Assert.Contains(progress.Keys, k => actual.Single().Catalogue!.PreviewItems!.Any(p => p.WorkId == k));
+    }
+
+    [Fact]
     public async Task FiltersLibraryFeatureAndProfileBeforeComposerReadsRows()
     {
         var accountId = Guid.NewGuid();

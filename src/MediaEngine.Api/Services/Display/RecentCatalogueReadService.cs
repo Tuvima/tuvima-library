@@ -24,6 +24,7 @@ internal sealed class RecentCatalogueReadService(
         var states = await authorization.LoadStatesAsync(profileId, null, ct);
         var progress = states.GroupBy(s => s.WorkId).ToDictionary(g => g.Key, g => g.OrderByDescending(s => s.LastAccessed).First());
         var loaded = new List<DisplayWorkRow>();
+        var tvSummaries = new Dictionary<Guid, DisplayTvShowSummary>();
         var loadedGroups = 0;
         var batch = Math.Max(take + 6, 24);
         while (true)
@@ -31,15 +32,22 @@ internal sealed class RecentCatalogueReadService(
             var next = groups.Skip(loadedGroups).Take(batch).ToList();
             if (next.Count > 0)
             {
+                // A show with many episodes only needs the few episode rows its card shows; the rest are counted from a light listing.
+                var windowed = next.Where(g => g.IsRoot && g.IsTv && g.Members > TvWindowThreshold).ToList();
+                var full = windowed.Count == 0 ? next : next.Except(windowed).ToList();
                 var filter = new DisplayRecentGroupFilter(
-                    next.Where(g => g.IsRoot).Select(g => g.Id).ToList(),
-                    next.Where(g => !g.IsRoot).Select(g => g.Id).ToList());
+                    full.Where(g => g.IsRoot).Select(g => g.Id).ToList(),
+                    full.Where(g => !g.IsRoot).Select(g => g.Id).ToList());
                 var rows = await authorization.FilterRecentWorksAsync(await reader.LoadAsync(ct, groups: filter, lean: true), profileId, ct);
                 ApplyAdditions(rows, additions);
                 loaded.AddRange(rows);
+                if (windowed.Count > 0)
+                {
+                    await LoadTvWindowsAsync(windowed.Select(g => g.Id).ToList(), additions, progress, profileId, loaded, tvSummaries, ct);
+                }
                 loadedGroups += next.Count;
             }
-            var items = Compose(loaded, cards, type, boundary, take, progress);
+            var items = Compose(loaded, cards, type, boundary, take, progress, tvSummaries);
             // Unloaded groups never sort above their listed time, so a full page that ends later than the next one is final.
             if (loadedGroups >= groups.Count
                 || (items.Count >= take && items[take - 1].AddedAt > groups[loadedGroups].AddedAt))
@@ -48,6 +56,101 @@ internal sealed class RecentCatalogueReadService(
             }
             batch *= 2;
         }
+    }
+
+    /// <summary>Shows with more episodes than this load only the episodes their card can show.</summary>
+    internal const int TvWindowThreshold = 24;
+
+    private async Task LoadTvWindowsAsync(
+        IReadOnlyCollection<Guid> rootIds,
+        Dictionary<(Guid WorkId, string LibraryId), Addition> additions,
+        IReadOnlyDictionary<Guid, DisplayJourneyRow> progress,
+        Guid profileId,
+        List<DisplayWorkRow> loaded,
+        Dictionary<Guid, DisplayTvShowSummary> summaries,
+        CancellationToken ct)
+    {
+        // The same limits as full rows, so counts never include an episode the profile may not see.
+        var skeleton = await authorization.FilterRecentWorksAsync(await reader.LoadTvEpisodeSkeletonAsync(rootIds, ct), profileId, ct);
+        var episodes = skeleton
+            .GroupBy(r => (r.WorkId, r.LibraryId))
+            .Select(g => g.First())
+            .ToList();
+        ApplyAdditions(episodes, additions);
+        var picked = new List<Guid>();
+        var wholeShows = new List<Guid>();
+        foreach (var show in episodes.GroupBy(r => r.RootWorkId))
+        {
+            var rows = show.ToList();
+            summaries[show.Key] = DisplayCardBuilder.SummarizeTvShow(rows);
+            var window = SelectTvWindow(rows, progress);
+            if (window is null)
+            {
+                wholeShows.Add(show.Key);
+            }
+            else
+            {
+                picked.AddRange(window);
+            }
+        }
+        var filter = new DisplayRecentGroupFilter(wholeShows, picked);
+        var fullRows = await authorization.FilterRecentWorksAsync(await reader.LoadAsync(ct, groups: filter, lean: true), profileId, ct);
+        ApplyAdditions(fullRows, additions);
+        loaded.AddRange(fullRows);
+        foreach (var root in wholeShows)
+        {
+            summaries.Remove(root);
+        }
+    }
+
+    /// <summary>
+    /// Episodes whose rows a show card can draw on: the first and last in order, the newest, the ones with
+    /// viewing progress and the one after the current. Null means the order is unclear, so load the whole show.
+    /// </summary>
+    internal static IReadOnlyList<Guid>? SelectTvWindow(IReadOnlyList<DisplayWorkRow> episodes, IReadOnlyDictionary<Guid, DisplayJourneyRow> progress)
+    {
+        var unpositioned = episodes.Count(e => DisplayCardBuilder.TvEpisodeSortPosition(e) is null);
+        if (unpositioned > 1)
+        {
+            return null;
+        }
+        var ordered = episodes
+            .OrderBy(e => DisplayCardBuilder.TvEpisodeSortPosition(e) is null)
+            .ThenBy(e => DisplayCardBuilder.TvEpisodeSortPosition(e) ?? double.MaxValue)
+            .ThenBy(e => e.CreatedAt)
+            .ThenBy(e => e.WorkId)
+            .ToList();
+        var chosen = new HashSet<Guid>();
+        void Add(DisplayWorkRow? e)
+        {
+            if (e is not null)
+            {
+                chosen.Add(e.WorkId);
+            }
+        }
+        foreach (var e in ordered.Take(2)) { Add(e); }
+        Add(ordered[^1]);
+        foreach (var e in episodes.OrderByDescending(e => e.CreatedAt).ThenBy(e => e.WorkId).Take(4)) { Add(e); }
+        Add(ordered.FirstOrDefault(e => !progress.TryGetValue(e.WorkId, out var p) || p.ProgressPct < 99.5));
+        for (var i = 0; i < ordered.Count; i++)
+        {
+            if (!progress.TryGetValue(ordered[i].WorkId, out var state))
+            {
+                continue;
+            }
+            Add(ordered[i]);
+            if (state.ProgressPct is > 0 and < 99.5 && i + 1 < ordered.Count)
+            {
+                Add(ordered[i + 1]);
+            }
+        }
+        // Episodes sharing a position with a pick sort by title, which this listing does not have: keep them together.
+        var positions = ordered.Where(e => chosen.Contains(e.WorkId)).Select(DisplayCardBuilder.TvEpisodeSortPosition).Where(p => p is not null).ToHashSet();
+        foreach (var e in ordered.Where(e => DisplayCardBuilder.TvEpisodeSortPosition(e) is { } p && positions.Contains(p)))
+        {
+            Add(e);
+        }
+        return chosen.ToList();
     }
 
     private Dictionary<(Guid WorkId, string LibraryId), Addition> LoadAdditions(CancellationToken ct)
@@ -77,6 +180,8 @@ internal sealed class RecentCatalogueReadService(
     internal static IReadOnlyList<RecentGroup> RankGroups(IReadOnlyList<RecentCandidate> candidates, string type, DisplayRecentBoundary? boundary)
     {
         var groups = new Dictionary<(bool IsRoot, Guid Id), DateTimeOffset>();
+        var members = new Dictionary<(bool IsRoot, Guid Id), HashSet<Guid>>();
+        var tvGroups = new HashSet<(bool IsRoot, Guid Id)>();
         foreach (var candidate in candidates)
         {
             var include = type switch
@@ -101,17 +206,26 @@ internal sealed class RecentCatalogueReadService(
             // No listed time means the real one comes from metadata claims: keep the group in play.
             var at = candidate.AddedAt ?? DateTimeOffset.MaxValue;
             groups[key] = groups.TryGetValue(key, out var existing) && existing > at ? existing : at;
+            if (!members.TryGetValue(key, out var set))
+            {
+                members[key] = set = [];
+            }
+            set.Add(candidate.WorkId);
+            if (kind == "TV")
+            {
+                tvGroups.Add(key);
+            }
         }
         return groups
-            .Select(g => new RecentGroup(g.Key.IsRoot, g.Key.Id, g.Value, "catalogue:" + g.Key.Id.ToString("N")))
+            .Select(g => new RecentGroup(g.Key.IsRoot, g.Key.Id, g.Value, "catalogue:" + g.Key.Id.ToString("N"), tvGroups.Contains(g.Key), members[g.Key].Count))
             .Where(g => g.AddedAt == DateTimeOffset.MaxValue || DisplayRecentCursor.IsAfter(g.AddedAt, g.Key, boundary))
             .OrderByDescending(g => g.AddedAt).ThenBy(g => g.Key, StringComparer.Ordinal)
             .ToList();
     }
 
-    internal sealed record RecentGroup(bool IsRoot, Guid Id, DateTimeOffset AddedAt, string Key);
+    internal sealed record RecentGroup(bool IsRoot, Guid Id, DateTimeOffset AddedAt, string Key, bool IsTv = false, int Members = 0);
 
-    public static IReadOnlyList<DisplayRecentItemDto> Compose(IReadOnlyList<DisplayWorkRow> rows, DisplayCardBuilder cards, string type, DisplayRecentBoundary? boundary, int take, IReadOnlyDictionary<Guid, DisplayJourneyRow>? progress = null)
+    public static IReadOnlyList<DisplayRecentItemDto> Compose(IReadOnlyList<DisplayWorkRow> rows, DisplayCardBuilder cards, string type, DisplayRecentBoundary? boundary, int take, IReadOnlyDictionary<Guid, DisplayJourneyRow>? progress = null, IReadOnlyDictionary<Guid, DisplayTvShowSummary>? tvSummaries = null)
     {
         var filtered = rows.Where(r => type switch
         {
@@ -122,7 +236,7 @@ internal sealed class RecentCatalogueReadService(
             _ => false
         }).ToList();
         var result = new List<DisplayCardDto>();
-        result.AddRange(cards.BuildTvShowCards(filtered, progress));
+        result.AddRange(cards.BuildTvShowCards(filtered, progress, tvSummaries));
         foreach (var group in filtered.Where(r => DisplayMediaRules.NormalizeDisplayKind(r.MediaType) == "Music")
                      .GroupBy(r => r.RootWorkId == Guid.Empty ? r.WorkId : r.RootWorkId))
         {
