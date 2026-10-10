@@ -189,6 +189,7 @@ Same as Movies. Classified as TV via filename pattern matching.
 | `series_title` | 0.70 | Parsed from filename before season/episode marker |
 | `season_number` | 0.95 | Parsed from `SxxExx`, `Season xx`, or `xx x xx` patterns |
 | `episode_number` | 0.95 | Parsed from filename |
+| `episode_end` | 0.55 | Last episode of a multi-episode file (`S01E01E02`, `S01E01-E02`, `S01E01-02`, `1x01-02`). Only unbroken runs of up to 6 episodes; emitted only when the file covers more than one episode |
 | `episode_title` | 0.70 | Parsed from filename after episode marker (when present) |
 | `container` | 1.0 | |
 | `video_width`, `video_height` | 1.0 | |

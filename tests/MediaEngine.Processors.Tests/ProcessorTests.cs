@@ -249,6 +249,56 @@ public class VideoProcessorTests
         }
     }
 
+    [Theory]
+    [InlineData("Show Name - S01E01E02 - Two Part Premiere.mp4", "1", "2", "Two Part Premiere")]
+    [InlineData("Show Name - S01E01-E02.mp4", "1", "2", null)]
+    [InlineData("Show Name - S01E01-02 - Pilot.mp4", "1", "2", "Pilot")]
+    [InlineData("Show Name - 1x01-02.mp4", "1", "2", null)]
+    [InlineData("Show Name - S01E03E04E05.mp4", "3", "5", null)]
+    public async Task ProcessAsync_EmitsEpisodeEnd_ForUnbrokenRange(
+        string fileName, string expectedFirst, string expectedEnd, string? expectedTitle)
+    {
+        var claims = await ProcessClaimsAsync(fileName);
+
+        Assert.Contains(claims, c => c.Key == "episode_number" && c.Value == expectedFirst);
+        Assert.Contains(claims, c => c.Key == "episode_end" && c.Value == expectedEnd);
+        if (expectedTitle is not null)
+        {
+            Assert.Contains(claims, c => c.Key == "episode_title" && c.Value == expectedTitle);
+        }
+    }
+
+    [Theory]
+    [InlineData("Show Name - S01E01.mp4")]
+    [InlineData("Show Name - S01E01 - Pilot.mp4")]
+    [InlineData("Show Name - S01E01E03.mp4")]
+    [InlineData("Show Name - S01E01E200.mp4")]
+    [InlineData("Show Name - S01E01-E09.mp4")]
+    public async Task ProcessAsync_OmitsEpisodeEnd_ForSingleOrBrokenRange(string fileName)
+    {
+        var claims = await ProcessClaimsAsync(fileName);
+
+        Assert.Contains(claims, c => c.Key == "episode_number" && c.Value == "1");
+        Assert.DoesNotContain(claims, c => c.Key == "episode_end");
+    }
+
+    private static async Task<IReadOnlyList<ExtractedClaim>> ProcessClaimsAsync(string fileName)
+    {
+        var dir = Path.Combine(Path.GetTempPath(), $"video_processor_{Guid.NewGuid():N}");
+        Directory.CreateDirectory(dir);
+        var file = Path.Combine(dir, fileName);
+        await File.WriteAllBytesAsync(file, MinimalMp4Header());
+        try
+        {
+            var result = await new VideoProcessor(new StubVideoMetadataExtractor()).ProcessAsync(file);
+            return result.Claims;
+        }
+        finally
+        {
+            Directory.Delete(dir, recursive: true);
+        }
+    }
+
     private static byte[] MinimalMp4Header() =>
     [
         0x00, 0x00, 0x00, 0x18,
