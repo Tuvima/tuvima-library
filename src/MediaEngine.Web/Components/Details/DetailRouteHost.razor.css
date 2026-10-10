@@ -21,3 +21,58 @@
 .tl-detail-route-state ::deep .tl-detail-route-state__content {
     min-height: 100vh;
 }
+
+/* Navigating between items: the previous page stays visible but dimmed (and inert in markup) until the next arrives. */
+.tl-detail-route-shell {
+    transition: opacity 120ms ease;
+}
+
+.tl-detail-route-shell--loading {
+    opacity: 0.45;
+    pointer-events: none;
+}
+
+.tl-detail-route-progress {
+    position: fixed;
+    inset: 0 0 auto 0;
+    z-index: 60;
+    height: 3px;
+    overflow: hidden;
+    background: transparent;
+}
+
+.tl-detail-route-progress__label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+}
+
+.tl-detail-route-progress__bar {
+    display: block;
+    width: 40%;
+    height: 100%;
+    background: var(--tl-accent-primary);
+    animation: tl-detail-route-progress-slide 1.1s ease-in-out infinite;
+}
+
+@keyframes tl-detail-route-progress-slide {
+    from { transform: translateX(-100%); }
+    to { transform: translateX(250%); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .tl-detail-route-shell {
+        transition: none;
+    }
+
+    .tl-detail-route-progress__bar {
+        width: 100%;
+        animation: none;
+        opacity: 0.7;
+    }
+}

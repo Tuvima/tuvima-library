@@ -1,0 +1,139 @@
+.tl-detail-skeleton {
+    box-sizing: border-box;
+    width: 100%;
+    padding: calc(var(--app-topbar-height, 65px) + 1.5rem) 1rem 1.5rem;
+}
+
+.tl-detail-skeleton__label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+}
+
+/* Phone first: artwork stacked above the copy, hero height fixed so nothing jumps when the real hero lands. */
+.tl-detail-skeleton__hero {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1.25rem;
+    min-height: min(34rem, 72svh);
+}
+
+.tl-detail-skeleton__copy {
+    display: flex;
+    width: 100%;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.tl-detail-skeleton__artwork {
+    flex: none;
+    width: min(55vw, 13rem);
+    height: min(82vw, 19.5rem);
+    min-height: 0;
+    border-radius: 0.5rem;
+}
+
+.tl-detail-skeleton__eyebrow {
+    width: 30%;
+    height: 0.8rem;
+    min-height: 0;
+}
+
+.tl-detail-skeleton__title {
+    width: 80%;
+    height: 2rem;
+    min-height: 0;
+}
+
+.tl-detail-skeleton__meta {
+    width: 55%;
+    height: 0.9rem;
+    min-height: 0;
+}
+
+.tl-detail-skeleton__line {
+    width: 100%;
+    height: 0.9rem;
+    min-height: 0;
+}
+
+.tl-detail-skeleton__line--short {
+    width: 70%;
+}
+
+.tl-detail-skeleton__actions {
+    display: flex;
+    gap: 0.75rem;
+    margin-top: 0.5rem;
+}
+
+.tl-detail-skeleton__button {
+    width: 8rem;
+    height: 2.75rem;
+    min-height: 0;
+    border-radius: 999px;
+}
+
+.tl-detail-skeleton__button--secondary {
+    width: 3rem;
+}
+
+.tl-detail-skeleton__tabs {
+    display: flex;
+    gap: 1.5rem;
+    margin-top: 1.5rem;
+    padding-top: 1rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.tl-detail-skeleton__tab {
+    width: 5rem;
+    height: 1rem;
+    min-height: 0;
+}
+
+@media (min-width: 721px) {
+    .tl-detail-skeleton {
+        padding-inline: clamp(1.5rem, 4vw, 4rem);
+    }
+
+    .tl-detail-skeleton__hero {
+        flex-direction: row;
+        align-items: flex-start;
+        gap: clamp(1.5rem, 4vw, 3.5rem);
+        min-height: min(30rem, 62svh);
+    }
+
+    .tl-detail-skeleton__copy {
+        max-width: 44rem;
+        padding-top: 1rem;
+    }
+
+    .tl-detail-skeleton__artwork {
+        width: clamp(12rem, 20vw, 20rem);
+        height: clamp(18rem, 30vw, 30rem);
+    }
+
+    .tl-detail-skeleton__title {
+        width: 60%;
+        height: 2.75rem;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .tl-detail-skeleton__artwork,
+    .tl-detail-skeleton__eyebrow,
+    .tl-detail-skeleton__title,
+    .tl-detail-skeleton__meta,
+    .tl-detail-skeleton__line,
+    .tl-detail-skeleton__button,
+    .tl-detail-skeleton__tab {
+        animation: none;
+    }
+}

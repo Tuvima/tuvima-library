@@ -1,0 +1,29 @@
+@namespace MediaEngine.Web.Components.Details
+
+@* Fixed-height stand-in for the detail hero and tab bar, shown only on the first load of a detail page
+   (later navigations keep the previous page on screen instead). Sizes live in the scoped stylesheet so the
+   skeleton does not shift when the real hero arrives. *@
+<div class="tl-detail-skeleton" role="status" aria-live="polite" aria-busy="true">
+    <span class="tl-detail-skeleton__label">Loading details</span>
+
+    <div class="tl-detail-skeleton__hero" aria-hidden="true">
+        <AppSkeleton Class="tl-detail-skeleton__artwork" />
+        <div class="tl-detail-skeleton__copy">
+            <AppSkeleton Class="tl-detail-skeleton__eyebrow" />
+            <AppSkeleton Class="tl-detail-skeleton__title" />
+            <AppSkeleton Class="tl-detail-skeleton__meta" />
+            <AppSkeleton Class="tl-detail-skeleton__line" />
+            <AppSkeleton Class="tl-detail-skeleton__line tl-detail-skeleton__line--short" />
+            <div class="tl-detail-skeleton__actions">
+                <AppSkeleton Class="tl-detail-skeleton__button" />
+                <AppSkeleton Class="tl-detail-skeleton__button tl-detail-skeleton__button--secondary" />
+            </div>
+        </div>
+    </div>
+
+    <div class="tl-detail-skeleton__tabs" aria-hidden="true">
+        <AppSkeleton Class="tl-detail-skeleton__tab" />
+        <AppSkeleton Class="tl-detail-skeleton__tab" />
+        <AppSkeleton Class="tl-detail-skeleton__tab" />
+    </div>
+</div>

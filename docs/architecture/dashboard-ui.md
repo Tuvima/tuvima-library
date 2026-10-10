@@ -231,7 +231,11 @@ until their observable error classification is intentionally redesigned.
 Routed book, movie, TV show/episode, and generic detail entry points translate
 their parameters into `DetailRouteRequest` and delegate loading, page state,
 tab selection, actions, and origin navigation to `DetailRouteHost`. The route
-wrappers do not duplicate detail orchestration.
+wrappers do not duplicate detail orchestration. The first load of a detail page
+shows `DetailHeroSkeleton` (fixed-height hero and tab placeholders, announced as
+"Loading details"); moving to another item keeps the previous page on screen,
+dimmed and `inert` with a slim progress bar, until the new payload replaces it,
+so stale actions are never live and navigation does not flash blank.
 
 Page-sized loading, empty, unavailable, and retryable failures use
 `AppPageState`/`AppErrorState`. Compact progress indicators remain appropriate
