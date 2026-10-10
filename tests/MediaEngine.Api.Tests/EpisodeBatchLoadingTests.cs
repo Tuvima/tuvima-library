@@ -210,6 +210,21 @@ public sealed class EpisodeBatchLoadingTests : IDisposable
         Assert.Equal([70, 60], all.Groups.Select(group => group.Items.Count));
         Assert.Equal(all.OrderedItems.Select(item => item.Id), all.Groups.SelectMany(group => group.Items).Select(item => item.Id));
 
+        // An unknown season key answers with the season being watched, never an empty list.
+        var unknown = Place(works, new SequenceWindowRequest("season-9", 0, 50, watching, true), watching);
+        Assert.Equal(20, unknown.Groups[0].Items.Count);
+        Assert.Equal(50, unknown.Groups[0].ItemOffset);
+
+        // An offset past the end lands on the last full window, not an empty one.
+        var pastEnd = Place(works, new SequenceWindowRequest("season-2", 5000, 50, null, true));
+        Assert.Equal(50, pastEnd.Groups[1].ItemOffset);
+        Assert.Equal(10, pastEnd.Groups[1].Items.Count);
+
+        // No window at all (a client that sends no sequence parameter): the whole list, as before.
+        var legacy = Place(works, null);
+        Assert.Equal(130, legacy.OrderedItems.Count);
+        Assert.Equal([70, 60], legacy.Groups.Select(group => group.Items.Count));
+
         // Up to 100 episodes in total nothing changes: every season is carried whole.
         var short90 = Place(works.Take(90), new SequenceWindowRequest());
         Assert.Equal(90, short90.OrderedItems.Count);
@@ -223,6 +238,9 @@ public sealed class EpisodeBatchLoadingTests : IDisposable
         Assert.Null(SequenceWindowRequest.FromQuery(null, null, null, null, null));
         Assert.Null(SequenceWindowRequest.FromQuery(" ", null, null, "", false));
 
+        // Without any sequence parameter the Engine keeps sending the whole list (older clients).
+        Assert.True(SequenceWindowRequest.All().IsAll);
+
         var page = SequenceWindowRequest.FromQuery("season-2", 50, 50, null, true)!;
         Assert.Equal(("season-2", 50, 50, true), (page.GroupKey, page.Offset, page.Limit, page.PlacementOnly));
         Assert.True(page.IsExplicit);
@@ -235,7 +253,8 @@ public sealed class EpisodeBatchLoadingTests : IDisposable
 
         Assert.Equal(SequenceWindowRequest.MaxLimit, SequenceWindowRequest.FromQuery("s", 0, 5000, null, null)!.EffectiveLimit);
         Assert.Equal(0, SequenceWindowRequest.FromQuery("s", -4, 10, null, null)!.Offset);
-        Assert.Equal(SequenceWindowRequest.DefaultLimit, SequenceWindowRequest.FromQuery(null, null, null, current.ToString("D"), null)!.Limit);
+        Assert.Equal(0, SequenceWindowRequest.FromQuery(null, null, null, current.ToString("D"), null)!.Limit);
+        Assert.Equal(SequenceWindowRequest.DefaultLimit, SequenceWindowRequest.FromQuery("season-2", null, null, null, null)!.Limit);
     }
 
     [Fact]

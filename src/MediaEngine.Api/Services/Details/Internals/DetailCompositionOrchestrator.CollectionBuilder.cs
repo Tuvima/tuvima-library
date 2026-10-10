@@ -753,9 +753,14 @@ internal sealed partial class DetailCompositionOrchestrator
         SequenceWindowRequest window,
         SequenceGroupViewModel? selectedGroup)
     {
-        var target = window.IsExplicit
-            ? groups.FirstOrDefault(group => string.Equals(group.Key, window.GroupKey, StringComparison.OrdinalIgnoreCase))
-            : selectedGroup;
+        // An unknown season key falls back to the season being watched instead of answering with no episodes.
+        var target = (window.IsExplicit
+                ? groups.FirstOrDefault(group => string.Equals(group.Key, window.GroupKey, StringComparison.OrdinalIgnoreCase))
+                : null)
+            ?? selectedGroup;
+        var targetNamed = window.IsExplicit
+            && target is not null
+            && string.Equals(target.Key, window.GroupKey, StringComparison.OrdinalIgnoreCase);
         var limit = window.EffectiveLimit;
         return groups.Select(group =>
         {
@@ -764,8 +769,10 @@ internal sealed partial class DetailCompositionOrchestrator
             if (ReferenceEquals(group, target))
             {
                 var currentIndex = group.Items.ToList().FindIndex(item => item.IsCurrent);
-                offset = window.IsExplicit
-                    ? Math.Min(window.Offset, group.Items.Count)
+                // An offset past the end lands on the last full window rather than an empty one.
+                var lastWindowStart = group.Items.Count <= 0 ? 0 : (group.Items.Count - 1) / limit * limit;
+                offset = targetNamed
+                    ? Math.Min(window.Offset, lastWindowStart)
                     : currentIndex < 0 ? 0 : currentIndex / limit * limit;
                 windowItems = group.Items.Skip(offset).Take(limit).ToList();
             }

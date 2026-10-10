@@ -62,14 +62,14 @@ Tokens are opaque bearer credentials and must be stored in the platform secure c
 
 #### Long TV episode lists
 
-`GET /api/v1/details/{entityType}/{id}` carries a TV show's seasons in `sequencePlacement.groups`. Each group reports `itemCount` (every episode in the season, owned and missing) and `itemOffset` (position of `items[0]`). Up to 100 episodes in total the response lists every episode, as before. A longer show lists every season but fills `items` for one season only (the season being watched, starting at the window of 50 that holds the current episode); `orderedItems` is then empty because the episodes are carried once, inside their season.
+`GET /api/v1/details/{entityType}/{id}` carries a TV show's seasons in `sequencePlacement.groups`. Each group reports `itemCount` (every episode in the season, owned and missing) and `itemOffset` (position of `items[0]`). **Windowing is opt-in:** a request with no `sequence*` parameter receives the whole list exactly as before (`orderedItems` and every group's `items` complete), so older clients keep working. A client opts in by sending `sequenceLimit` (the Dashboard sends `sequenceLimit=50`). Up to 100 episodes in total a windowed request still lists every episode. A longer show then lists every season but fills `items` for one season only (the season being watched, starting at the window that holds the current episode); `orderedItems` is empty because the episodes are carried once, inside their season.
 
-Optional query parameters on the same route choose another window:
+Optional query parameters on the same route:
 
 | Parameter | Meaning |
 |---|---|
-| `sequenceGroup` | Season key (for example `season-2`) to read; returns exactly that window. |
-| `sequenceOffset` / `sequenceLimit` | First episode and window size (default 50, at most 200). `sequenceLimit=0` returns every episode, for playback queues and the player's episode picker. |
+| `sequenceGroup` | Season key (for example `season-2`) to read; returns exactly that window. An unknown key falls back to the season being watched. |
+| `sequenceOffset` / `sequenceLimit` | First episode and window size (default 50 when a season or offset is named, at most 200). An offset past the end returns the last full window. `sequenceLimit=0`, or no `sequence*` parameter at all, returns every episode, for playback queues and the player's episode picker. |
 | `sequenceCurrent` | Episode id to mark `isCurrent` in the answer. |
 | `sequenceOnly=true` | Return just `sequencePlacement`, without credits and the rest of the page. |
 

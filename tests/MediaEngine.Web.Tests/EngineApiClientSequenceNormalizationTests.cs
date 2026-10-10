@@ -120,6 +120,13 @@ public sealed class EngineApiClientSequenceNormalizationTests
 
         await client.GetDetailPageAsync(DetailEntityType.TvShow, show);
         Assert.DoesNotContain("sequence", handler.LastRequest!.RequestUri!.Query);
+
+        // The detail page opts in to the paged form explicitly; the Engine never windows on its own.
+        await client.GetDetailPageAsync(DetailEntityType.TvShow, show, sequence: SequenceWindowQuery.Windowed);
+        var windowed = handler.LastRequest!.RequestUri!.Query;
+        Assert.Contains("sequenceLimit=50", windowed);
+        Assert.DoesNotContain("sequenceOnly", windowed);
+        Assert.DoesNotContain("sequenceGroup", windowed);
     }
 
     private sealed class Handler(DetailPageViewModel detail) : HttpMessageHandler

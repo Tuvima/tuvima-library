@@ -206,7 +206,7 @@
             return;
 
         var profile = await Orchestrator.GetActiveProfileAsync();
-        var updated = await ApiClient.GetDetailPageAsync(Model.EntityType, id, Model.PresentationContext, option.ContainerId, profile?.Id);
+        var updated = await ApiClient.GetDetailPageAsync(Model.EntityType, id, Model.PresentationContext, option.ContainerId, profile?.Id, SequenceWindowQuery.Windowed);
         if (updated is not null)
             Model = updated;
     }
@@ -562,7 +562,7 @@
             return;
 
         var profile = await Orchestrator.GetActiveProfileAsync();
-        var updated = await ApiClient.GetDetailPageAsync(Model.EntityType, entityId, Model.PresentationContext, containerId: Model.EntityType == DetailEntityType.TvEpisode ? Model.SequencePlacement?.ContainerId : null, profileId: profile?.Id);
+        var updated = await ApiClient.GetDetailPageAsync(Model.EntityType, entityId, Model.PresentationContext, containerId: Model.EntityType == DetailEntityType.TvEpisode ? Model.SequencePlacement?.ContainerId : null, profileId: profile?.Id, sequence: SequenceWindowQuery.Windowed);
         if (updated is not null)
         {
             Model = updated;
@@ -576,7 +576,7 @@
             return;
 
         var profile = await Orchestrator.GetActiveProfileAsync();
-        var updated = await ApiClient.GetDetailPageAsync(Model.EntityType, entityId, Model.PresentationContext, containerId: Model.EntityType == DetailEntityType.TvEpisode ? Model.SequencePlacement?.ContainerId : null, profileId: profile?.Id);
+        var updated = await ApiClient.GetDetailPageAsync(Model.EntityType, entityId, Model.PresentationContext, containerId: Model.EntityType == DetailEntityType.TvEpisode ? Model.SequencePlacement?.ContainerId : null, profileId: profile?.Id, sequence: SequenceWindowQuery.Windowed);
         if (updated is not null)
         {
             Model = updated;

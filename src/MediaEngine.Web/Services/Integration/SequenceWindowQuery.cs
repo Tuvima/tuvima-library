@@ -1,8 +1,9 @@
 namespace MediaEngine.Web.Services.Integration;
 
 /// <summary>
-/// Which slice of a long TV episode list a detail request asks for. Without one the Engine sends the default
-/// window (the whole list for an ordinary show, one window of a very long one). Maps to the detail endpoint's
+/// Which slice of a long TV episode list a detail request asks for. Without one the Engine sends the whole list;
+/// <see cref="Windowed"/> asks for the paged form (the whole list for a show of up to 100 episodes, one window of
+/// a longer one). Maps to the detail endpoint's
 /// <c>sequenceGroup</c>, <c>sequenceOffset</c>, <c>sequenceLimit</c>, <c>sequenceCurrent</c> and <c>sequenceOnly</c>.
 /// </summary>
 /// <param name="Group">Season (group) key to read, for example <c>season-2</c>.</param>
@@ -19,6 +20,12 @@ public sealed record SequenceWindowQuery(
 {
     /// <summary>Episodes per window; matches the Engine's default.</summary>
     public const int PageSize = 50;
+
+    /// <summary>
+    /// The detail page's normal request: every season with its counts and one window of episodes. Windowing is opt-in,
+    /// so a request without a sequence query still receives the whole list.
+    /// </summary>
+    public static SequenceWindowQuery Windowed { get; } = new();
 
     /// <summary>Every owned and missing episode, for playback queues and the player's episode picker.</summary>
     public static SequenceWindowQuery WholeList { get; } = new(Limit: 0, Only: true);

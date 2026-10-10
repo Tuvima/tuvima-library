@@ -37,7 +37,10 @@ internal sealed record SequenceWindowRequest(
 
     public int EffectiveLimit => Math.Clamp(Limit, 1, MaxLimit);
 
-    /// <summary>Builds a request from the detail endpoint's query string; null when no sequence parameter was supplied.</summary>
+    /// <summary>
+    /// Builds a request from the detail endpoint's query string; null when no sequence parameter was supplied
+    /// (the caller then gets the whole list).
+    /// </summary>
     public static SequenceWindowRequest? FromQuery(
         string? group,
         int? offset,
@@ -53,7 +56,9 @@ internal sealed record SequenceWindowRequest(
         return new SequenceWindowRequest(
             string.IsNullOrWhiteSpace(group) ? null : group.Trim(),
             Math.Max(0, offset ?? 0),
-            limit is null ? DefaultLimit : Math.Max(0, limit.Value),
+            // Windowing is opt-in: without sequenceLimit a request that only names an episode gets the whole list;
+            // naming a season or an offset alone gets the default window.
+            limit is null ? (string.IsNullOrWhiteSpace(group) && offset is null ? 0 : DefaultLimit) : Math.Max(0, limit.Value),
             Guid.TryParse(current, out var currentWorkId) ? currentWorkId : null,
             only is true);
     }

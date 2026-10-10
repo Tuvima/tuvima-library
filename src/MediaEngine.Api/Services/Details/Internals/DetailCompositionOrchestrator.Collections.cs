@@ -77,8 +77,9 @@ internal sealed partial class DetailCompositionOrchestrator
         IReadOnlyList<DisplayWorkRow>? authorizedWorks = null,
         SequenceWindowRequest? sequenceWindow = null)
     {
-        // The episode list of a TV show is windowed by default; callers that need the whole list ask for it.
-        sequenceWindow ??= new SequenceWindowRequest();
+        // Windowing is opt-in (the caller sends sequenceLimit); a request without sequence parameters gets the whole
+        // list exactly as before, so older clients keep working.
+        sequenceWindow ??= SequenceWindowRequest.All();
         currentWorkId ??= sequenceWindow.CurrentWorkId;
         var placementOnly = sequenceWindow.PlacementOnly;
         using var conn = _db.CreateConnection();
