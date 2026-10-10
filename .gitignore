@@ -129,7 +129,6 @@ clients/roku/out/
 
 # Runtime-generated user preference files (written by the Dashboard)
 config/ui/library-preferences.json
-config/ui/library-preferences.json.bak
 # Disposable visual QA runtime data contains local authentication state.
 tools/reports/home-media-cards-visual/fixture-*/
 scripts/visual-qa/**/__pycache__/
@@ -150,3 +149,6 @@ website/external-links-report.json
 
 # Contracts snapshot review files (copy over the matching .approved.txt to accept)
 *.received.txt
+
+# Config backups written by ConfigurationDirectoryLoader on save (local runtime state)
+*.bak
