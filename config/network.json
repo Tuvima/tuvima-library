@@ -1,6 +1,6 @@
 {
   "schema_version": "3.0",
-  "who_can_connect": "home_network",
+  "who_can_connect": "this_computer",
   "local": {
     "port": 5016,
     "bind_mode": "automatic",

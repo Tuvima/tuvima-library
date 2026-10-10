@@ -23,9 +23,30 @@
   "country": "US",
   "date_format": "system",
   "time_format": "system",
+  "rate_limiting": {
+    "key_generation": {
+      "permit_limit": 5,
+      "window_minutes": 1
+    },
+    "streaming": {
+      "permit_limit": 100,
+      "window_minutes": 1
+    },
+    "general": {
+      "permit_limit": 600,
+      "window_minutes": 1
+    }
+  },
   "auth": {
     "mode": "Local",
     "localhost_bypass": false,
+    "password_sign_in_enabled": true,
+    "passkey_sign_in_enabled": true,
+    "external_sign_in_enabled": true,
+    "trusted_local_networks": [],
+    "invitation_lifetime_hours": 168,
+    "session_lifetime_hours": 336,
+    "maximum_active_sessions": 20,
     "external_providers": [],
     "password_reset": {
       "mode": "Disabled",
