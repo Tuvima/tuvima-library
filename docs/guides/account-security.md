@@ -88,7 +88,7 @@ Two-step codes add a second check to password sign-in. You turn them on yourself
 - Passkey and **Sign in with…** sign-ins never ask for a code. They are already a second kind of proof.
 - **Confirm it's you** also asks for the code while two-step is on.
 - To turn it off, confirm it's you, then enter a fresh code (wait for the next one if you just used one) or a recovery code.
-- If someone loses both their phone and their recovery codes, a server administrator can use **Turn off two-step codes** on their account in Settings → Access. This is recorded in the audit log. You can also run `tuvima-admin auth reset-two-step --email someone@example.com` on the computer that hosts Tuvima.
+- If someone loses both their phone and their recovery codes, a server administrator can use **Turn off two-step codes** on their account in Settings → Users & Access. This is recorded in the audit log. You can also run `tuvima-admin auth reset-two-step --email someone@example.com` on the computer that hosts Tuvima.
 - Codes are checked offline against a secret stored encrypted on your server. Nothing is sent to any service, and there are no text or email codes.
 
 ## Password rules

@@ -9,7 +9,7 @@ status: current
 
 # Secure Remote Access
 
-Reach Tuvima Library through a private HTTPS path while keeping sign-in required. Allow 15–30 minutes once your network tools are ready. Tuvima starts in **Local network only** mode; local use needs no router mapping.
+Reach Tuvima Library through a private HTTPS path while keeping sign-in required. Allow 15–30 minutes once your network tools are ready. Tuvima starts with **Who can connect** set to **Home network**; local use needs no router mapping.
 
 Remote access always requires both Tuvima sign-in and a verified secure path.
 The Engine on port 61495 is internal and must not be published or proxied.

@@ -127,6 +127,12 @@
       "section": "Use Tuvima"
     },
     {
+      "source": "guides/households.md",
+      "slug": "guides/households",
+      "group": "Guides",
+      "section": "Use Tuvima"
+    },
+    {
       "source": "guides/using-plugins.md",
       "slug": "guides/using-plugins",
       "group": "Guides",

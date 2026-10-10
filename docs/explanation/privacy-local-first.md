@@ -47,7 +47,7 @@ Evaluation fixtures, outputs, reports, and models stay on the Engine host unless
 
 Keep provider keys in ignored secret files, rather than committing them to the repository. Missing credentials should remain visible as a configuration problem, not as a successful connection.
 
-New installs start local-network-only. Remote access requires normal sign-in plus a verified supported Tailscale Serve or HTTPS reverse-proxy path. Advanced router mapping is opt-in. [Remote access guidance](../guides/remote-access.md) explains the deployment checks.
+New installs start on **Home network**. A desktop install started without a password stays on **This computer** until its administrator secures the account. Remote access requires normal sign-in plus a verified supported Tailscale Serve or HTTPS reverse-proxy path. Advanced router mapping is opt-in. [Remote access guidance](../guides/remote-access.md) explains the deployment checks.
 
 ## Plan an offline session
 
