@@ -11,14 +11,22 @@
 @inject NavigationManager Navigation
 @inject ILogger<ProfilePickerPage> Logger
 
-<PageTitle>Who's using Tuvima? - Tuvima Library</PageTitle>
+<PageTitle>Who's watching? - Tuvima Library</PageTitle>
 
 <section class="who-page" aria-labelledby="who-title">
-    <h1 id="who-title" class="who-page__title">Who's using Tuvima?</h1>
+    <h1 id="who-title" class="who-page__title">Who's watching?</h1>
 
     @if (_loading)
     {
-        <p class="who-page__status" role="status">Loading profiles…</p>
+        <ul class="who-grid who-grid--loading" role="status" aria-label="Loading profiles">
+            @for (var i = 0; i < 4; i++)
+            {
+                <li class="who-skeleton" aria-hidden="true">
+                    <span class="who-skeleton__avatar"></span>
+                    <span class="who-skeleton__name"></span>
+                </li>
+            }
+        </ul>
     }
     else if (_profiles.Count == 0)
     {
@@ -36,31 +44,35 @@
                                      Disabled="@_busy"
                                      AriaLabel="@CardLabel(profile)"
                                      OnClick="@(() => ChooseAsync(profile))">
-                        @if (!string.IsNullOrWhiteSpace(profile.AvatarImageUrl))
-                        {
-                            <img class="who-card__avatar" src="@profile.AvatarImageUrl" alt="" loading="lazy" decoding="async" />
-                        }
-                        else
-                        {
-                            <svg class="who-card__avatar" viewBox="0 0 100 100" aria-hidden="true" focusable="false">
-                                <circle cx="50" cy="50" r="50" fill="@AvatarFill(profile)" />
-                                <text x="50" y="52" text-anchor="middle" dominant-baseline="central" font-size="44" font-weight="700" fill="@AvatarInk(profile)">@Initial(profile)</text>
-                            </svg>
-                        }
-                        <span class="who-card__name">@profile.DisplayName</span>
-                        <span class="who-card__tags">
+                        <span class="who-card__picture">
+                            <ProfileAvatar DisplayName="@profile.DisplayName" ImageUrl="@profile.AvatarImageUrl" Color="@profile.AvatarColor" />
                             @if (profile.HasPin)
                             {
-                                <span class="who-tag">
-                                    <svg class="who-tag__icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path fill="currentColor" d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z" /></svg>
-                                    PIN
+                                <span class="who-card__lock" aria-hidden="true">
+                                    <svg viewBox="0 0 24 24" focusable="false"><path fill="currentColor" d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z" /></svg>
                                 </span>
                             }
+                        </span>
+                        <span class="who-card__name">@profile.DisplayName</span>
+                        <span class="who-card__tags">
                             @if (profile.IsRestricted)
                             {
-                                <span class="who-tag">Child</span>
+                                <span class="who-tag">Kids</span>
                             }
                         </span>
+                    </AppNativeButton>
+                </li>
+            }
+            @if (ShowAddTile)
+            {
+                <li>
+                    @* Adding people from here arrives in a later step, so the tile is shown but not yet active. *@
+                    <AppNativeButton Type="button" Class="who-card who-card--add" Disabled="true" AriaLabel="Add profile (coming soon)">
+                        <span class="who-card__picture who-card__picture--add" aria-hidden="true">
+                            <svg viewBox="0 0 24 24" focusable="false"><path fill="currentColor" d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" /></svg>
+                        </span>
+                        <span class="who-card__name">Add profile</span>
+                        <span class="who-card__tags"></span>
                     </AppNativeButton>
                 </li>
             }
@@ -145,6 +157,11 @@
     private bool ShowPinReminder => _isAdministrator
         && _profiles.Any(profile => profile.IsRestricted)
         && _profiles.Any(profile => !profile.IsRestricted && !profile.HasPin);
+
+    // Household administrators can add people, up to the household limit.
+    private bool ShowAddTile => _isAdministrator && _profiles.Count < MaxProfiles;
+
+    private const int MaxProfiles = 8;
 
     protected override Task OnInitializedAsync() => LoadAsync();
 
@@ -316,22 +333,8 @@
 
     private void OnAlwaysOpenChanged(ChangeEventArgs args) => _alwaysOpen = args.Value is true;
 
-    private static string Initial(ProfileViewModel profile) =>
-        string.IsNullOrWhiteSpace(profile.DisplayName) ? "?" : profile.DisplayName.Trim()[..1].ToUpperInvariant();
-
-    private static string AvatarFill(ProfileViewModel profile) =>
-        System.Text.RegularExpressions.Regex.IsMatch(profile.AvatarColor ?? string.Empty, "^#[0-9a-fA-F]{6}$") ? profile.AvatarColor! : "#8852FC";
-
-    // Dark or light lettering, whichever reads better on the profile's colour.
-    private static string AvatarInk(ProfileViewModel profile)
-    {
-        var hex = AvatarFill(profile);
-        var red = Convert.ToInt32(hex.Substring(1, 2), 16);
-        var green = Convert.ToInt32(hex.Substring(3, 2), 16);
-        var blue = Convert.ToInt32(hex.Substring(5, 2), 16);
-        return (0.299 * red) + (0.587 * green) + (0.114 * blue) > 160 ? "#1b1b1f" : "#ffffff";
-    }
-
     private static string CardLabel(ProfileViewModel profile) =>
-        profile.HasPin ? $"{profile.DisplayName}, needs a PIN" : profile.DisplayName;
+        profile.HasPin
+            ? (profile.IsRestricted ? $"{profile.DisplayName}, Kids profile, needs a PIN" : $"{profile.DisplayName}, needs a PIN")
+            : (profile.IsRestricted ? $"{profile.DisplayName}, Kids profile" : profile.DisplayName);
 }

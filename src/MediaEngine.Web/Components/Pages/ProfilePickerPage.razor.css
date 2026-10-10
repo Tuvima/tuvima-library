@@ -2,8 +2,6 @@
 .who-page__title { margin: 0; font-size: clamp(1.7rem, 4vw, 2.6rem); font-weight: 700; }
 .who-page__status { margin: 0; color: var(--tl-text-muted); }
 .who-page__error { margin: 0; color: var(--tl-danger, #ff6b6b); }
-.who-grid { display: flex; flex-wrap: wrap; justify-content: center; gap: clamp(14px, 3vw, 32px); max-width: 1100px; margin: 0; padding: 0; list-style: none; }
-.who-card__avatar { width: clamp(84px, 16vw, 148px); height: clamp(84px, 16vw, 148px); border-radius: 50%; object-fit: cover; }
 .who-card__name { max-width: 100%; font-size: 1.05rem; font-weight: 600; overflow-wrap: anywhere; }
 .who-card__tags { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; min-height: 22px; }
 .who-tag { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; color: var(--tl-text-muted); border: 1px solid var(--tl-border-subtle); border-radius: 999px; font-size: .75rem; }
