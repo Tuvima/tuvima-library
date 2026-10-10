@@ -165,3 +165,39 @@ public sealed class DatabaseConnectionTransactionTests : IDisposable
         }
     }
 }
+
+public sealed class DatabaseConnectionDisposeTests
+{
+    [Fact]
+    public void Dispose_ReleasesPooledHandlesSoDatabaseFileCanBeDeleted()
+    {
+        DapperConfiguration.Configure();
+        var path = Path.Combine(Path.GetTempPath(), $"tuvima_dispose_{Guid.NewGuid():N}.db");
+        try
+        {
+            var db = new DatabaseConnection(path);
+            db.InitializeSchema();
+            db.RunStartupChecks();
+            using (var conn = db.CreateConnection())
+            {
+                using var cmd = conn.CreateCommand();
+                cmd.CommandText = "SELECT 1";
+                cmd.ExecuteScalar();
+            }
+
+            db.Dispose();
+
+            File.Delete(path);
+            File.Delete($"{path}-wal");
+            File.Delete($"{path}-shm");
+            Assert.False(File.Exists(path));
+        }
+        finally
+        {
+            SqliteConnection.ClearAllPools();
+            if (File.Exists(path)) File.Delete(path);
+            if (File.Exists($"{path}-wal")) File.Delete($"{path}-wal");
+            if (File.Exists($"{path}-shm")) File.Delete($"{path}-shm");
+        }
+    }
+}

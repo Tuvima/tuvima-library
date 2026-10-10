@@ -44,6 +44,17 @@ internal sealed class SqliteConnectionFactory
         }
     }
 
+    /// <summary>
+    /// Closes this database's idle pooled connections so the file (and its WAL/SHM
+    /// sidecars) is released. Connections still checked out close when returned.
+    /// </summary>
+    public void ClearPool()
+    {
+        // Pool lookup is keyed by connection string; this instance is never opened.
+        using var key = new SqliteConnection($"Data Source={_databasePath}");
+        SqliteConnection.ClearPool(key);
+    }
+
     private static void ApplySharedPragmas(SqliteConnection conn)
     {
         using var pragmaCmd = conn.CreateCommand();
