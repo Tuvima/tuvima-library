@@ -7,6 +7,7 @@ using MediaEngine.Api.Services.Display;
 using MediaEngine.Api.Services.Playback;
 using MediaEngine.Api.Services.ReadServices;
 using MediaEngine.Contracts.Playback;
+using MediaEngine.Contracts.Display;
 using MediaEngine.Domain.Authorization;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Entities;
@@ -157,6 +158,8 @@ public sealed class AuthorizedDisplayProjectionReadServiceTests : IDisposable
             {
                 var expected = RecentCatalogueReadService.Compose(expectedRows, new DisplayCardBuilder(), type, null, take);
                 var actual = await recent.LoadAsync(type, profile, null, take, default);
+                static string Summary(IEnumerable<DisplayRecentItemDto> items) => string.Join(" ; ", items.Select(i => $"{i.Catalogue?.Title}@{i.AddedAt:O}"));
+                Assert.True(Summary(expected) == Summary(actual), $"{type}/{take}: expected [{Summary(expected)}] actual [{Summary(actual)}]");
                 Assert.Equal(System.Text.Json.JsonSerializer.Serialize(expected, options), System.Text.Json.JsonSerializer.Serialize(actual, options));
             }
         }
