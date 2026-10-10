@@ -171,7 +171,7 @@ public static class ClientAuthorizationEndpoints
         devices.MapPut("/current/backup-profile", async (
             SetDeviceBackupProfileRequest request,
             HttpContext http,
-            IRequestAuthorityResolver resolver,
+            [FromServices] IRequestAuthorityResolver resolver,
             [FromServices] PhoneBackupProfileService backup,
             CancellationToken ct) =>
         {
