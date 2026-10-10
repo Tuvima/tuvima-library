@@ -71,7 +71,7 @@ Reusable visual components, organised by feature slice.
 |---|---|---|
 | `/` | `LibraryBrowsePage.razor` | Home — discovery landing |
 | `/read`, `/read/{Tab}` | `ReadPage.razor` | Books + comics browse |
-| `/read/{AssetId:guid}` | `EpubReader.razor` | In-browser EPUB reader |
+| `/read/{AssetId:guid}` | `EpubReader.razor` | In-browser EPUB reader. `?reader=new` shows the foliate-js reader (`BookReader.razor` + `wwwroot/js/book-reader.js`, the only importer of `wwwroot/lib/foliate-js/`); it replaces this page at cutover |
 | `/watch`, `/watch/{Tab}` | `WatchPage.razor` | Movies + TV browse |
 | `/watch/movie/{WorkId:guid}` | `WatchMoviePage.razor` | Movie detail |
 | `/watch/tv/show/{CollectionId:guid}` | `WatchTvShowPage.razor` | TV show detail |
@@ -105,7 +105,7 @@ Reusable visual components, organised by feature slice.
 | Settings section | `Components/Settings/<Name>Tab.razor` + register in `SettingsNav` |
 | Review-queue surface component | `Components/Library/` |
 | Inspector / cards reused by Library or Universe | `Components/LibraryItems/` |
-| Reader-player component | inline in `Components/Pages/EpubReader.razor` (reader chrome) or `Components/Shared/Playback*` primitives |
+| Reader-player component | `Components/Pages/BookReader.razor` (new book reader chrome; book access stays in `wwwroot/js/book-reader.js`), `Components/Pages/EpubReader.razor` (current reader, retired at cutover) or `Components/Shared/Playback*` primitives |
 | Listen/player transport controls | `Components/Listen/ListenTransportControls.razor` |
 | Media-playback session controller or primitives | `Services/Playback/` |
 | Route-building helper | `Services/Navigation/` |

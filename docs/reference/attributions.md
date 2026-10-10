@@ -56,6 +56,15 @@ The authoritative package version list is `Directory.Packages.props`; the projec
 | SharpCompress | Archive reading for comic formats such as CBZ/CBR |
 | QRCoder | Draws the QR code for invitation links (MIT) |
 
+### Book reader
+
+| Component | Use | License |
+|---|---|---|
+| foliate-js (pinned copy in `src/MediaEngine.Web/wwwroot/lib/foliate-js/`) | In-browser EPUB rendering, pagination and reading positions | MIT |
+| zip.js (bundled with foliate-js) | Reading EPUB files by range in the browser | BSD-3-Clause |
+
+The exact version and the files kept are recorded in `PINNED.md` beside the copy; full notices are in `THIRD-PARTY-NOTICES.md` and `licenses/`.
+
 ## Local AI
 
 | Project | Role |
