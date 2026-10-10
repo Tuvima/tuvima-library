@@ -1333,15 +1333,7 @@ public sealed class DatabaseStartupSafetyTests
         public void Dispose()
         {
             Database.Dispose();
-            DatabaseStartupSafetyTests.TryDelete(Path);
-            DatabaseStartupSafetyTests.TryDelete($"{Path}-wal");
-            DatabaseStartupSafetyTests.TryDelete($"{Path}-shm");
-            foreach (var backup in Directory.GetFiles(
-                         System.IO.Path.GetDirectoryName(Path)!,
-                         $"{System.IO.Path.GetFileName(Path)}.legacy-text-guid.*.bak"))
-            {
-                DatabaseStartupSafetyTests.TryDelete(backup);
-            }
+            MediaEngine.TestSupport.TestTemp.DeleteDatabase(Path);
         }
     }
 }
