@@ -397,6 +397,8 @@
             Logger.LogDebug(ex, "Could not read the reduced-motion preference for the cinematic hero.");
         }
 
+        // The page may have been left while the browser answered; a disposed hero starts no rotation.
+        if (_disposeCts.IsCancellationRequested) return;
         _rotationTask = RunRotationAsync(_disposeCts.Token);
         await NotifyActiveItemAsync();
         await InvokeAsync(StateHasChanged);

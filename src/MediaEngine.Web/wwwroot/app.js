@@ -834,6 +834,12 @@ window.unregisterMediaShelfBoundaries = function (el) {
     if (el) el.__shelfBoundaries = null;
 };
 
+// Removes everything a media shelf registered in one call, so it runs while the element is still on the page.
+window.unregisterMediaShelf = function (el) {
+    window.unregisterMediaShelfBoundaries(el);
+    window.unregisterMediaTileShelfScrollGuard(el);
+};
+
 window.registerMediaTileShelfScrollGuard = function (el) {
     if (!el || el.__mediaTileShelfScrollGuard) return;
 
