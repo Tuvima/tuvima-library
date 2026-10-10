@@ -6471,6 +6471,7 @@ MediaEngine.Contracts.Reading.MediaEngine.Contracts.Reading.CreateReaderHighligh
   SelectedText: System.String | nullability=not-null | accessors=get,init
   Color: System.String | nullability=nullable | accessors=get,init
   NoteText: System.String | nullability=nullable | accessors=get,init
+  CfiRange: System.String | nullability=nullable | accessors=get,init
 
 MediaEngine.Contracts.Reading.MediaEngine.Contracts.Reading.EpubBookMetadataDto
   Title: System.String | nullability=not-null | accessors=get,init
@@ -6515,6 +6516,7 @@ MediaEngine.Contracts.Reading.MediaEngine.Contracts.Reading.ReaderHighlightDto
   ChapterIndex: System.Int32 | nullability=not-null | accessors=get,init
   StartOffset: System.Int32 | nullability=not-null | accessors=get,init
   EndOffset: System.Int32 | nullability=not-null | accessors=get,init
+  CfiRange: System.String | nullability=nullable | accessors=get,init
   SelectedText: System.String | nullability=not-null | accessors=get,init
   Color: System.String | nullability=not-null | accessors=get,init
   NoteText: System.String | nullability=nullable | accessors=get,init

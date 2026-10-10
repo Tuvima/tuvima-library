@@ -118,6 +118,15 @@ public partial interface IEngineApiClient
     /// <summary>GET /reader/{assetId}/highlights  -  list highlights.</summary>
     Task<List<ReaderHighlightDto>> GetHighlightsAsync(Guid assetId, CancellationToken ct = default);
 
+    /// <summary>POST /reader/{assetId}/highlights  -  create a highlight anchored by an EPUB CFI range.</summary>
+    Task<ReaderHighlightDto?> CreateHighlightAsync(Guid assetId, string cfiRange, string selectedText, string? color, string? noteText, CancellationToken ct = default);
+
+    /// <summary>PUT /reader/highlights/{id}  -  change a highlight's colour and/or note.</summary>
+    Task<bool> UpdateHighlightAsync(Guid highlightId, string? color, string? noteText, CancellationToken ct = default);
+
+    /// <summary>DELETE /reader/highlights/{id}  -  delete a highlight.</summary>
+    Task<bool> DeleteHighlightAsync(Guid highlightId, CancellationToken ct = default);
+
     /// <summary>GET /reader/{assetId}/statistics  -  reading statistics.</summary>
     Task<ReaderStatisticsDto?> GetReadingStatisticsAsync(Guid assetId, CancellationToken ct = default);
 

@@ -12,6 +12,12 @@ public sealed class ReaderHighlight
     public int StartOffset { get; set; }
     public int EndOffset { get; set; }
 
+    /// <summary>
+    /// Standard EPUB CFI range of the highlighted text (<c>epubcfi(...)</c>). Highlights made by the book reader
+    /// carry this instead of the character offsets above (which stay 0); rows without it predate that reader.
+    /// </summary>
+    public string? CfiRange { get; set; }
+
     /// <summary>The selected text that was highlighted.</summary>
     public string SelectedText { get; set; } = string.Empty;
 

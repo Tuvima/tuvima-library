@@ -58,6 +58,7 @@ public sealed class ReaderHighlightDto
     public int ChapterIndex { get; init; }
     public int StartOffset { get; init; }
     public int EndOffset { get; init; }
+    public string? CfiRange { get; init; }
     public string SelectedText { get; init; } = string.Empty;
     public string Color { get; init; } = "#EAB308";
     public string? NoteText { get; init; }
@@ -91,7 +92,8 @@ public sealed record CreateReaderHighlightRequestDto(
     int EndOffset,
     string SelectedText,
     string? Color,
-    string? NoteText);
+    string? NoteText,
+    string? CfiRange = null);
 
 /// <summary>Request body for updating a reader highlight.</summary>
 public sealed record UpdateReaderHighlightRequestDto(

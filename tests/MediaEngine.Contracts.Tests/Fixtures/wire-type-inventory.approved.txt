@@ -7643,6 +7643,7 @@
   SelectedText: System.String | json=selectedText | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Color: System.String | json=color | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   NoteText: System.String | json=noteText | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  CfiRange: System.String | json=cfiRange | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
 
 [contracts] MediaEngine.Contracts.Reading.EpubBookMetadataDto
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -7695,11 +7696,12 @@
   ChapterIndex: System.Int32 | json=chapterIndex | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   StartOffset: System.Int32 | json=startOffset | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   EndOffset: System.Int32 | json=endOffset | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  CfiRange: System.String | json=cfiRange | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   SelectedText: System.String | json=selectedText | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Color: System.String | json=color | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   NoteText: System.String | json=noteText | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   CreatedAt: System.DateTime | json=createdAt | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  sample={"id":"11111111-2222-3333-4444-555555555555","userId":"sample","assetId":"11111111-2222-3333-4444-555555555555","chapterIndex":7,"startOffset":7,"endOffset":7,"selectedText":"sample","color":"sample","noteText":"sample","createdAt":"2025-01-02T03:04:05Z"}
+  sample={"id":"11111111-2222-3333-4444-555555555555","userId":"sample","assetId":"11111111-2222-3333-4444-555555555555","chapterIndex":7,"startOffset":7,"endOffset":7,"cfiRange":"sample","selectedText":"sample","color":"sample","noteText":"sample","createdAt":"2025-01-02T03:04:05Z"}
 
 [contracts] MediaEngine.Contracts.Reading.ReaderStatisticsDto
   kind=class | converter=default | number-handling=default | unmapped=default

@@ -18,6 +18,7 @@
 import { configure, ZipReader, BlobReader, BlobWriter, TextWriter } from '../lib/foliate-js/vendor/zip.js';
 import { EPUB } from '../lib/foliate-js/epub.js';
 import '../lib/foliate-js/view.js'; // registers <foliate-view>
+import { Overlayer } from '../lib/foliate-js/overlayer.js';
 
 configure({ useWebWorkers: false });
 
@@ -541,6 +542,13 @@ const THEMES = {
     sepia: { bg: '#eee0bd', fg: '#3a2c1b', link: '#7a3b12', dark: false, force: true },
 };
 
+// Book frames cannot load web fonts, so the choices are system stacks; "book" leaves the book's own typeface alone.
+const FONT_STACKS = {
+    serif: "Georgia, 'Iowan Old Style', 'Times New Roman', serif",
+    sans: "system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif",
+};
+const PAGE_WIDTHS = { narrow: 560, standard: 720, wide: 960 };
+
 export function resolveTheme(name) {
     if (name === 'system') {
         name = globalThis.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
@@ -548,16 +556,18 @@ export function resolveTheme(name) {
     return THEMES[name] ?? THEMES.light;
 }
 
-export function bookCss({ theme, fontSize, lineHeight }) {
+export function bookCss({ theme, fontSize, lineHeight, font }) {
     const t = resolveTheme(theme);
     const size = Math.min(40, Math.max(10, Number(fontSize) || 18));
     const spacing = Math.min(3, Math.max(1, Number(lineHeight) || 1.6));
     const force = t.force ? ' !important' : '';
+    const family = FONT_STACKS[font];
     return `
         @namespace epub "http://www.idpf.org/2007/ops";
         html { color-scheme: ${t.dark ? 'dark' : 'light'}; background: ${t.bg}${force}; color: ${t.fg}${force}; font-size: ${size}px !important; }
         ${t.force ? `body, body *:not(img):not(svg):not(svg *) { color: ${t.fg} !important; background-color: transparent !important; }
         a:link, a:visited, a:link *, a:visited * { color: ${t.link} !important; }` : ''}
+        ${family ? `html, body, body *:not(code):not(pre):not(kbd):not(samp) { font-family: ${family} !important; }` : ''}
         p, li, blockquote, dd { line-height: ${spacing}; widows: 2; orphans: 2; }
         [align="left"] { text-align: left; } [align="right"] { text-align: right; }
         [align="center"] { text-align: center; } [align="justify"] { text-align: justify; }
@@ -571,6 +581,8 @@ export function bookCss({ theme, fontSize, lineHeight }) {
 // ---------------------------------------------------------------------------
 
 const NOTIFY_DELAY_MS = 250;
+const SELECTION_DELAY_MS = 250;
+const MAX_SELECTED_TEXT = 2000;
 const INTERACTIVE = 'a[href], button, input, select, textarea, summary, label, [role="button"], [contenteditable="true"]';
 
 let session = null;
@@ -589,7 +601,10 @@ export async function open(host, url, options, dotNet) {
     const started = performance.now();
     const controller = new AbortController();
     const stats = emptyStats();
-    const state = { host, controller, stats, dotNet, view: null, loader: null, listeners: [], timer: null, latest: null, disposed: false };
+    const state = {
+        host, controller, stats, dotNet, view: null, book: null, loader: null, listeners: [], timer: null, latest: null, disposed: false,
+        marks: new Map(), paused: false, selection: null, selectionTimers: new Set(), markTap: false, suppressTap: false,
+    };
     session = state;
     try {
         const file = await RangedFile.open(url, controller.signal, stats);
@@ -610,14 +625,18 @@ export async function open(host, url, options, dotNet) {
             throw new ReaderError('corrupt', 'This book could not be read. The file may be damaged.', e);
         }
         secureBook(book);
+        state.book = book;
         if (state.disposed) return { ok: false, code: 'cancelled', message: 'Closed.' };
 
         const view = document.createElement('foliate-view');
         state.view = view;
         host.replaceChildren(view);
-        view.addEventListener('load', e => onSectionLoad(state, e.detail.doc));
+        view.addEventListener('load', e => onSectionLoad(state, e.detail.doc, e.detail.index));
         view.addEventListener('relocate', e => onRelocate(state, e.detail));
         view.addEventListener('external-link', e => onExternalLink(e));
+        view.addEventListener('draw-annotation', e => e.detail.draw(Overlayer.highlight, { color: e.detail.annotation.color }));
+        view.addEventListener('create-overlay', e => drawMarksInSection(state, e.detail.index));
+        view.addEventListener('show-annotation', e => onMarkTapped(state, e.detail));
         await view.open(book);
         if (!globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches) view.renderer.setAttribute?.('animated', '');
         applyAppearance(state, options ?? {});
@@ -671,7 +690,12 @@ function pickPeople(value) {
 
 function applyAppearance(state, options) {
     const css = bookCss(options);
-    state.view?.renderer?.setStyles?.(css);
+    const renderer = state.view?.renderer;
+    renderer?.setStyles?.(css);
+    if (renderer) {
+        renderer.setAttribute('flow', options.flow === 'scrolled' ? 'scrolled' : 'paginated');
+        renderer.setAttribute('max-inline-size', (PAGE_WIDTHS[options.pageWidth] ?? PAGE_WIDTHS.standard) + 'px');
+    }
     const name = options.theme === 'system' ? (resolveTheme('system') === THEMES.dark ? 'dark' : 'light') : (THEMES[options.theme] ? options.theme : 'light');
     state.host.dataset.theme = name;
 }
@@ -692,10 +716,37 @@ export function loadSettings() {
         if (Number.isFinite(size) && size > 0) out.fontSize = size;
         const spacing = Number(pick('LineHeight'));
         if (Number.isFinite(spacing) && spacing > 0) out.lineHeight = spacing;
+        const font = pick('ReaderFont');
+        if (typeof font === 'string' && (font === 'book' || FONT_STACKS[font])) out.font = font;
+        const pageWidth = pick('PageWidth');
+        if (typeof pageWidth === 'string' && PAGE_WIDTHS[pageWidth]) out.pageWidth = pageWidth;
+        const flow = pick('Flow');
+        if (flow === 'paginated' || flow === 'scrolled') out.flow = flow;
         return out;
     } catch (e) {
         console.debug('Reader settings could not be read; using the defaults.', e);
         return {};
+    }
+}
+
+/**
+ * Remembers the reading appearance on this device. Only this reader's own keys are written (PascalCase, like the
+ * current reader's), so everything else already stored under the key survives.
+ */
+export function saveSettings(options) {
+    try {
+        const stored = JSON.parse(globalThis.localStorage?.getItem('tuvima-reader-settings') ?? 'null');
+        const merged = stored && typeof stored === 'object' ? stored : {};
+        const o = options ?? {};
+        if (typeof o.theme === 'string') merged.Theme = o.theme;
+        if (Number.isFinite(o.fontSize)) merged.FontSize = o.fontSize;
+        if (Number.isFinite(o.lineHeight)) merged.LineHeight = o.lineHeight;
+        if (typeof o.font === 'string') merged.ReaderFont = o.font;
+        if (typeof o.pageWidth === 'string') merged.PageWidth = o.pageWidth;
+        if (typeof o.flow === 'string') merged.Flow = o.flow;
+        globalThis.localStorage?.setItem('tuvima-reader-settings', JSON.stringify(merged));
+    } catch (e) {
+        console.debug('Reader settings could not be saved on this device.', e);
     }
 }
 
@@ -735,27 +786,77 @@ function bindInput(state) {
     });
 }
 
-function onSectionLoad(state, doc) {
+function onSectionLoad(state, doc, index) {
     if (state.disposed) return;
     const win = doc.defaultView;
     const frame = win?.frameElement;
     doc.addEventListener('keydown', e => onKey(state, e));
+    // A tap that only dismisses a text selection is not a page turn.
+    doc.addEventListener('pointerdown', () => { state.suppressTap = state.selection !== null; }, true);
+    doc.addEventListener('selectionchange', () => {
+        const timer = setTimeout(() => {
+            state.selectionTimers.delete(timer);
+            reportSelection(state, doc, index);
+        }, SELECTION_DELAY_MS);
+        state.selectionTimers.add(timer);
+    });
     doc.addEventListener('click', e => {
         if (e.defaultPrevented) return;                       // a link the library already handled
         if (e.target.closest?.(INTERACTIVE)) return;
+        if (state.suppressTap) { state.suppressTap = false; return; }
         const selection = win.getSelection?.();
         if (selection && !selection.isCollapsed) return;      // selecting text is not a page turn
-        let x = e.clientX;
-        if (frame) {
-            const rect = frame.getBoundingClientRect();
-            const scale = rect.width / (frame.offsetWidth || rect.width || 1);
-            x = rect.left + e.clientX * scale;
-        }
-        onTap(state, x);
+        const x = toHostRect(frame, { left: e.clientX, top: 0, width: 0, height: 0 }).x;
+        // The library reports a tap on a highlight in its own click listener; let it finish, then decide.
+        setTimeout(() => {
+            if (state.disposed) return;
+            if (state.markTap) { state.markTap = false; return; }
+            onTap(state, x);
+        }, 0);
     });
 }
 
+/** A rectangle inside a book frame, as screen (viewport) coordinates. */
+function toHostRect(frame, rect) {
+    if (!frame) return { x: rect.left, y: rect.top, w: rect.width, h: rect.height };
+    const box = frame.getBoundingClientRect();
+    const scale = box.width / (frame.offsetWidth || box.width || 1);
+    return { x: box.left + rect.left * scale, y: box.top + rect.top * scale, w: rect.width * scale, h: rect.height * scale };
+}
+
+function reportSelection(state, doc, index) {
+    if (state.disposed) return;
+    const selection = doc.defaultView?.getSelection?.();
+    const text = selection && !selection.isCollapsed ? selection.toString().replace(/\s+/g, ' ').trim() : '';
+    if (!text || selection.rangeCount === 0) {
+        // Another section's selection event must not clear this section's selection.
+        if (state.selection && state.selection.doc === doc) {
+            state.selection = null;
+            notify(state, 'OnSelectionCleared');
+        }
+        return;
+    }
+    const range = selection.getRangeAt(0);
+    let cfi;
+    try {
+        cfi = state.view.getCFI(index, range);
+    } catch (e) {
+        console.debug('This selection has no usable position.', e);
+        return;
+    }
+    const first = range.getClientRects()[0] ?? range.getBoundingClientRect();
+    const box = toHostRect(doc.defaultView.frameElement, first);
+    state.selection = { doc, cfi, text };
+    notify(state, 'OnSelection', cfi, text.slice(0, MAX_SELECTED_TEXT), box.x, box.y, box.w, box.h);
+}
+
+/** While a panel or the highlight editor is open, taps and keys must not turn the page behind it. */
+export function setInputPaused(paused) {
+    if (session) session.paused = !!paused;
+}
+
 function onTap(state, clientX) {
+    if (state.paused) return;
     const rect = state.host.getBoundingClientRect();
     const ratio = rect.width > 0 ? (clientX - rect.left) / rect.width : 0.5;
     if (ratio < 0.3) state.view.goLeft();
@@ -767,6 +868,11 @@ function onKey(state, e) {
     if (e.defaultPrevented || e.ctrlKey || e.metaKey || e.altKey) return;
     const interactive = e.target?.closest?.('button, a[href], input, select, textarea, [contenteditable="true"], [role="button"]');
     const view = state.view;
+    if (e.key === 'Escape') { notify(state, 'OnEscape'); e.preventDefault(); return; }
+    // Typing in a note box, or moving between buttons with a remote's arrows, belongs to the control, not the page.
+    if (e.target?.closest?.('input, select, textarea, [contenteditable="true"]')) return;
+    if (interactive && e.key.startsWith('Arrow') && e.target.closest?.('.br-bar, .br-panel, .br-float')) return;
+    if (state.paused) return;
     switch (e.key) {
         case 'ArrowLeft': view.goLeft(); break;
         case 'ArrowRight': view.goRight(); break;
@@ -776,7 +882,10 @@ function onKey(state, e) {
             if (interactive) return;                           // Space belongs to a focused button
             if (e.shiftKey) view.prev(); else view.next();
             break;
-        case 'Escape': notify(state, 'OnEscape'); break;
+        case 'Enter':
+            if (interactive) return;                           // Enter belongs to a focused button or link
+            notify(state, 'OnToggleChrome');                   // a remote's OK button shows the bars
+            break;
         default: return;
     }
     e.preventDefault();
@@ -818,6 +927,115 @@ export function goLeft() { return session?.view?.goLeft(); }
 export function goRight() { return session?.view?.goRight(); }
 export function goTo(target) { return session?.view?.goTo(target); }
 
+/** The contents list, flattened: [{ label, href, level }]. */
+export function getToc() {
+    const out = [];
+    const walk = (items, level) => {
+        for (const item of items ?? []) {
+            if (out.length >= 2000) return;
+            out.push({ label: String(item.label ?? '').replace(/\s+/g, ' ').trim() || 'Untitled', href: item.href ?? '', level });
+            walk(item.subitems, level + 1);
+        }
+    };
+    walk(session?.book?.toc, 0);
+    return out;
+}
+
+export async function goToHref(href) {
+    try {
+        await session?.view?.goTo(href);
+    } catch (e) {
+        console.warn('That contents entry could not be opened.', e);
+    }
+}
+
+// ---- Highlights --------------------------------------------------------------------------------------------------
+
+function markIndex(state, cfi) {
+    try {
+        return state.view.resolveCFI(cfi).index;
+    } catch (e) {
+        console.debug('A saved highlight has a position this book cannot resolve.', e);
+        return -1;
+    }
+}
+
+function drawMark(state, mark) {
+    if (state.disposed || mark.index < 0) return;
+    state.view.addAnnotation({ value: mark.cfi, id: mark.id, color: mark.color }).catch(e => {
+        console.debug('A highlight could not be drawn.', e);
+    });
+}
+
+function drawMarksInSection(state, index) {
+    for (const mark of state.marks.values()) if (mark.index === index) drawMark(state, mark);
+}
+
+function onMarkTapped(state, detail) {
+    const mark = state.marks.get(detail.value);
+    if (!mark) return;
+    state.markTap = true;
+    const range = detail.range;
+    const frame = range?.startContainer?.ownerDocument?.defaultView?.frameElement;
+    const rect = range ? (range.getClientRects()[0] ?? range.getBoundingClientRect()) : { left: 0, top: 0, width: 0, height: 0 };
+    const box = toHostRect(frame, rect);
+    notify(state, 'OnHighlightTapped', mark.id, box.x, box.y, box.w, box.h);
+}
+
+/** Replaces every highlight with `list` ([{ id, cfi, color }]); ones the book cannot place are skipped quietly. */
+export function setHighlights(list) {
+    const state = session;
+    if (!state || state.disposed) return;
+    for (const mark of state.marks.values()) state.view.deleteAnnotation({ value: mark.cfi }).catch(() => {
+        // The section is not on screen any more; its overlay went with it.
+    });
+    state.marks.clear();
+    for (const item of list ?? []) addHighlight(item);
+}
+
+export function addHighlight(item) {
+    const state = session;
+    if (!state || state.disposed || !item?.cfi) return;
+    const mark = { id: item.id, cfi: item.cfi, color: item.color || '#EAB308', index: markIndex(state, item.cfi) };
+    state.marks.set(mark.cfi, mark);
+    drawMark(state, mark);
+}
+
+export function recolorHighlight(id, color) {
+    const state = session;
+    const mark = state && [...state.marks.values()].find(m => m.id === id);
+    if (!mark) return;
+    mark.color = color;
+    drawMark(state, mark);
+}
+
+export function removeHighlight(id) {
+    const state = session;
+    const mark = state && [...state.marks.values()].find(m => m.id === id);
+    if (!mark) return;
+    state.marks.delete(mark.cfi);
+    state.view.deleteAnnotation({ value: mark.cfi }).catch(() => {
+        // The section is not on screen; nothing is drawn there.
+    });
+}
+
+/** The text the person currently has selected, as { cfi, text }, or null. */
+export function getSelection() {
+    const s = session?.selection;
+    return s ? { cfi: s.cfi, text: s.text } : null;
+}
+
+export function clearSelection() {
+    const state = session;
+    if (!state?.selection) return;
+    try {
+        state.selection.doc.defaultView?.getSelection?.()?.removeAllRanges();
+    } catch (e) {
+        console.debug('The selection could not be cleared.', e);
+    }
+    state.selection = null;
+}
+
 /** Latest position, for saving right before the page closes. */
 export function getLocation() { return session?.latest ?? null; }
 export function getStats() { return session ? { ...session.stats } : null; }
@@ -826,6 +1044,8 @@ function teardown(state) {
     if (state.disposed) return;
     state.disposed = true;
     clearTimeout(state.timer);
+    for (const timer of state.selectionTimers) clearTimeout(timer);
+    state.selectionTimers.clear();
     state.controller.abort();
     for (const off of state.listeners.splice(0)) off();
     try {
