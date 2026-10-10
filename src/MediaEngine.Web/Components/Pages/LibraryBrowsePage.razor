@@ -143,6 +143,8 @@
     private static readonly TimeSpan StateReloadDebounce = TimeSpan.FromMilliseconds(750);
 
     private CancellationTokenSource? _stateReloadCts;
+    // Cancelled on disposal so a Home load still in flight stops when the user navigates away.
+    private readonly CancellationTokenSource _pageCts = new();
     private bool _loading = true;
     private bool _hasLoadedOnce;
     private bool _loadInProgress;
@@ -235,7 +237,7 @@
                 try
                 {
                     var requestedProfile = (await Orchestrator.GetActiveProfileAsync())?.Id;
-                    var nextPage = await MediaTiles.BuildHomeAsync(requestedProfile);
+                    var nextPage = await MediaTiles.BuildHomeAsync(requestedProfile, _pageCts.Token);
                     if (_disposed) return;
                     if (Orchestrator.ActivePlaybackProfileId != requestedProfile)
                     {
@@ -261,6 +263,11 @@
                     UpdatePresentationCaches();
                     _canScan = IsEmpty && await CanStartScanAsync();
                     _librariesConfigured = IsEmpty && await HasConfiguredLibrariesAsync();
+                }
+                catch (Exception) when (_pageCts.IsCancellationRequested)
+                {
+                    // The page was left mid-load; the cancelled call is expected, not a failure.
+                    return;
                 }
                 catch (Exception ex)
                 {
@@ -479,5 +486,7 @@
         Playback.Changed -= OnPlaybackChanged;
         _stateReloadCts?.Cancel();
         _stateReloadCts?.Dispose();
+        _pageCts.Cancel();
+        _pageCts.Dispose();
     }
 }

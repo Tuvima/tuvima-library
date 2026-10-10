@@ -760,6 +760,19 @@ else
     private bool _loadingWindow;
     private bool _windowFailed;
     private int _windowRequestId;
+    private CancellationTokenSource? _windowCts;
+
+    /// <summary>Cancels the season-window fetch still in flight (the season changed, or the panel is going away).</summary>
+    private void CancelWindowLoad()
+    {
+        var cts = _windowCts;
+        _windowCts = null;
+        if (cts is null)
+            return;
+
+        cts.Cancel();
+        cts.Dispose();
+    }
 
     private static int GroupItemCount(SequenceGroupViewModel group) => Math.Max(group.ItemCount, group.Items.Count);
 
@@ -1005,6 +1018,7 @@ else
             _placementKey = key;
             _windows.Clear();
             _windowRequestId++;
+            CancelWindowLoad();
             _loadingWindow = false;
             _windowFailed = false;
             _selectedGroupKey = Placement.CurrentGroupKey;
@@ -1098,6 +1112,7 @@ else
 
         // Any window still being fetched belongs to the season being left; its answer must not touch this one.
         _windowRequestId++;
+        CancelWindowLoad();
         _loadingWindow = false;
         _selectedGroupKey = value;
         _visibleMissingLimit = _missingItemPolicy?.PageSize ?? 0;
@@ -1129,6 +1144,9 @@ else
             return;
 
         var request = ++_windowRequestId;
+        CancelWindowLoad();
+        var cts = _windowCts = new CancellationTokenSource();
+        var ct = cts.Token;
         _loadingWindow = true;
         _windowFailed = false;
         await InvokeAsync(StateHasChanged);
@@ -1141,8 +1159,9 @@ else
                 sequence: SequenceWindowQuery.Page(
                     group.Key,
                     offset,
-                    Guid.TryParse(Placement.CurrentItem.Id, out var currentId) ? currentId : null));
-            if (request != _windowRequestId)
+                    Guid.TryParse(Placement.CurrentItem.Id, out var currentId) ? currentId : null),
+                ct: ct);
+            if (ct.IsCancellationRequested || request != _windowRequestId)
                 return;
 
             var loaded = page?.SequencePlacement?.Groups
@@ -1340,6 +1359,7 @@ else
     }
     public async ValueTask DisposeAsync()
     {
+        CancelWindowLoad();
         if (_episodeReference is null) return;
         try { await Js.InvokeVoidAsync("unregisterMediaShelfBoundaries", _observedEpisodeStrip); }
         catch (JSDisconnectedException) { }

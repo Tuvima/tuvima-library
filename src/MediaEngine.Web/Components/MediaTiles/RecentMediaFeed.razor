@@ -52,6 +52,17 @@
     private bool _loading, _disposed, _refreshPending;
     private int? _refreshVersion;
     private int _version;
+    private CancellationTokenSource? _loadCts;
+
+    // A newer load, a profile change or disposal supersedes the Engine call still in flight.
+    private CancellationToken BeginLoad()
+    {
+        var previous = _loadCts;
+        _loadCts = new CancellationTokenSource();
+        previous?.Cancel();
+        previous?.Dispose();
+        return _loadCts.Token;
+    }
     protected override void OnInitialized() { Orchestrator.OnProfileChanged += ProfileChanged; ProgressChanges.Changed += ProgressChanged; State.MediaAddedReceived += MediaAdded; }
     private void MediaAdded(MediaAddedEvent ev) { if (Browse && !_disposed) _ = InvokeAsync(RefreshAsync); }
     private void ProgressChanged(Guid profileId, Guid assetId) { if (Browse && _profileId == profileId) _ = InvokeAsync(RefreshAsync); }
@@ -81,6 +92,7 @@
         }
 
         var version = ++_version;
+        var ct = BeginLoad();
         var sameScope = _loadedType == type && _profileId is not null;
         _loadedType = type; _loadedRefreshKey = RefreshKey; _error = null;
         _refreshPending = false;
@@ -102,7 +114,7 @@
         _refreshVersion = version;
         try
         {
-            var page = await Api.GetDisplayRecentAsync(type, null, Browse ? 48 : 18);
+            var page = await Api.GetDisplayRecentAsync(type, null, Browse ? 48 : 18, ct);
             if (_disposed || version != _version || type != Type) return;
             _loading = false;
             if (page is null)
@@ -132,7 +144,7 @@
         if (_loading || _refreshVersion is not null || _cursor is null) return;
         var version = _version; var cursor = _cursor; var type = Type;
         _loading = true;
-        var page = await Api.GetDisplayRecentAsync(type, cursor, 48);
+        var page = await Api.GetDisplayRecentAsync(type, cursor, 48, BeginLoad());
         if (_disposed || version != _version) return;
         _loading = false;
         if (page is null) { _error = "Recent additions are unavailable. Please try again."; return; }
@@ -151,5 +163,5 @@
         if (!_disposed && version == _version) { _activeView = item; if (item is null) _error = "This View item is no longer available."; }
     }
     private void CloseView() => _activeView = null;
-    public void Dispose() { _disposed = true; _version++; Orchestrator.OnProfileChanged -= ProfileChanged; ProgressChanges.Changed -= ProgressChanged; State.MediaAddedReceived -= MediaAdded; }
+    public void Dispose() { _disposed = true; _version++; _loadCts?.Cancel(); _loadCts?.Dispose(); _loadCts = null; Orchestrator.OnProfileChanged -= ProfileChanged; ProgressChanges.Changed -= ProgressChanged; State.MediaAddedReceived -= MediaAdded; }
 }

@@ -4,6 +4,7 @@
 @inject IEngineApiClient ApiClient
 @inject UIOrchestratorService Orchestrator
 @inject NavigationManager Nav
+@implements IDisposable
 
 <PageTitle>@PageTitleText</PageTitle>
 
@@ -43,6 +44,7 @@ else
     private bool _loading = true;
     private string? _activeTab;
     private int _loadVersion;
+    private CancellationTokenSource? _loadCts;
 
     private string PageTitleText =>
         $"{_detail?.Title ?? Request.PageTitleFallback} - {Request.ProductTitle}";
@@ -50,6 +52,13 @@ else
     protected override async Task OnParametersSetAsync()
     {
         var loadVersion = ++_loadVersion;
+
+        // Navigating to another detail page supersedes the load still in flight; cancel it so the
+        // Engine stops composing a payload nobody will see.
+        CancelPendingLoad();
+        var cts = _loadCts = new CancellationTokenSource();
+        var ct = cts.Token;
+
         _loading = true;
         _detail = null;
 
@@ -60,21 +69,38 @@ else
         }
 
         var profile = await Orchestrator.GetActiveProfileAsync();
+        if (ct.IsCancellationRequested || loadVersion != _loadVersion)
+            return;
+
         var detail = await ApiClient.GetDetailPageAsync(
             entityType,
             Request.EntityId,
             Request.PresentationContext,
             containerId: Request.ContainerId,
             profileId: profile?.Id,
-            sequence: SequenceWindowQuery.Windowed);
+            sequence: SequenceWindowQuery.Windowed,
+            ct: ct);
 
-        if (loadVersion != _loadVersion)
+        if (ct.IsCancellationRequested || loadVersion != _loadVersion)
             return;
 
         _detail = detail;
         ApplyDetailTabRoute();
         _loading = false;
     }
+
+    private void CancelPendingLoad()
+    {
+        var cts = _loadCts;
+        _loadCts = null;
+        if (cts is null)
+            return;
+
+        cts.Cancel();
+        cts.Dispose();
+    }
+
+    public void Dispose() => CancelPendingLoad();
 
     private Task HandleActionAsync(DetailAction action)
     {
