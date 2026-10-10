@@ -888,6 +888,43 @@ else
         }
     }
 
+    private LibraryPreferencesSettings? _libraryPreferences;
+    private bool _libraryPreferencesLoaded;
+    private readonly Dictionary<string, bool?> _seriesPreferenceCache = new(StringComparer.Ordinal);
+
+    private async Task<LibraryPreferencesSettings?> GetLibraryPreferencesCachedAsync()
+    {
+        if (_libraryPreferencesLoaded)
+            return _libraryPreferences;
+
+        var loaded = await ApiClient.GetLibraryPreferencesAsync();
+        _libraryPreferences = loaded;
+        _libraryPreferencesLoaded = loaded is not null;
+        return loaded;
+    }
+
+    private string? SeriesPreferenceCacheKey(string? mediaType, string? containerKey) =>
+        _activeProfileId is { } profileId
+        && !string.IsNullOrWhiteSpace(containerKey)
+        && !string.IsNullOrWhiteSpace(mediaType)
+            ? $"{profileId:N}:{mediaType}:{containerKey}"
+            : null;
+
+    private async Task<bool?> GetSeriesPreferenceCachedAsync(string? mediaType, string? containerKey)
+    {
+        var cacheKey = SeriesPreferenceCacheKey(mediaType, containerKey);
+        if (cacheKey is null || _activeProfileId is not { } profileId)
+            return null;
+
+        if (_seriesPreferenceCache.TryGetValue(cacheKey, out var cached))
+            return cached;
+
+        var preference = await ApiClient.GetSeriesMissingItemPreferenceAsync(profileId, mediaType!, containerKey!);
+        var value = preference?.ShowMissing;
+        _seriesPreferenceCache[cacheKey] = value;
+        return value;
+    }
+
     protected override async Task OnParametersSetAsync()
     {
         var profile = await Orchestrator.GetActiveProfileAsync();
@@ -904,9 +941,19 @@ else
             _seriesDescriptionExpanded = false;
             _hasExpandableSeriesDescription = false;
             _needsSeriesDescriptionMeasurement = true;
-            var preferences = await ApiClient.GetLibraryPreferencesAsync();
+            var preferenceContainerKey = ResolveSeriesPreferenceContainerKey();
+            var mediaType = ResolveMediaPolicyKey();
+
+            // The library defaults and the per-series override are independent reads; run them
+            // together and keep the answers for this panel's lifetime so placement/tab changes
+            // on the same details page do not refetch them.
+            var preferencesTask = GetLibraryPreferencesCachedAsync();
+            var seriesPreferenceTask = GetSeriesPreferenceCachedAsync(mediaType, preferenceContainerKey);
+            await Task.WhenAll(preferencesTask, seriesPreferenceTask);
+
+            var preferences = preferencesTask.Result;
             _missingItemPolicy = preferences is not null
-                && preferences.MissingItemDisplay.TryGetValue(ResolveMediaPolicyKey(), out var policy)
+                && preferences.MissingItemDisplay.TryGetValue(mediaType, out var policy)
                     ? policy
                     : null;
             _configuredShowMissingDefault = string.Equals(
@@ -916,21 +963,10 @@ else
             _showMissing = _configuredShowMissingDefault;
             _hasMissingPreferenceOverride = false;
 
-            var preferenceContainerKey = ResolveSeriesPreferenceContainerKey();
-            var mediaType = ResolveMediaPolicyKey();
-            if (_activeProfileId is { } profileId
-                && !string.IsNullOrWhiteSpace(preferenceContainerKey)
-                && !string.IsNullOrWhiteSpace(mediaType))
+            if (seriesPreferenceTask.Result is { } showMissing)
             {
-                var preference = await ApiClient.GetSeriesMissingItemPreferenceAsync(
-                    profileId,
-                    mediaType,
-                    preferenceContainerKey);
-                if (preference?.ShowMissing is { } showMissing)
-                {
-                    _showMissing = showMissing;
-                    _hasMissingPreferenceOverride = true;
-                }
+                _showMissing = showMissing;
+                _hasMissingPreferenceOverride = true;
             }
 
             _visibleMissingLimit = _missingItemPolicy?.PageSize ?? 0;
@@ -1060,6 +1096,8 @@ else
 
             _showMissing = savedValue;
             _hasMissingPreferenceOverride = true;
+            if (SeriesPreferenceCacheKey(mediaType, containerKey) is { } savedKey)
+                _seriesPreferenceCache[savedKey] = savedValue;
             ResetWindowToCurrentItem();
         }
         finally
@@ -1096,6 +1134,8 @@ else
             }
 
             _hasMissingPreferenceOverride = false;
+            if (SeriesPreferenceCacheKey(mediaType, containerKey) is { } resetKey)
+                _seriesPreferenceCache[resetKey] = null;
             _showMissing = _configuredShowMissingDefault;
             _visibleMissingLimit = _missingItemPolicy?.PageSize ?? 0;
             ResetWindowToCurrentItem();
