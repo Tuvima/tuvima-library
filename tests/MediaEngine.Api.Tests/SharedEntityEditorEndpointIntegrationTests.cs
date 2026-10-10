@@ -41,6 +41,7 @@ public sealed class SharedEntityEditorEndpointIntegrationTests : IDisposable
         DapperConfiguration.Configure();
         _database = new DatabaseConnection(_databasePath);
         _database.InitializeSchema();
+        _database.RunStartupChecks();
     }
 
     [Fact]
@@ -177,7 +178,7 @@ public sealed class SharedEntityEditorEndpointIntegrationTests : IDisposable
             PrincipalKind.DelegatedUserClient,
             true,
             AccountId: Guid.NewGuid(),
-            ActiveProfileId: Guid.NewGuid(),
+            ActiveProfileId: MediaEngine.Domain.Aggregates.Profile.SeedProfileId,
             ApplicationId: Guid.NewGuid(),
             DeviceId: Guid.NewGuid(),
             AccountEnabled: true,

@@ -15,7 +15,9 @@ public sealed record ProfileViewModel(
     [property: JsonPropertyName("navigation_config")] string? NavigationConfig = null,
     [property: JsonPropertyName("avatar_image_url")] string? AvatarImageUrl = null,
     [property: JsonPropertyName("has_pin")] bool HasPin = false,
-    [property: JsonPropertyName("avatar_icon")] string? AvatarIcon = null)
+    [property: JsonPropertyName("avatar_icon")] string? AvatarIcon = null,
+    [property: JsonPropertyName("content_limit")] string? ContentLimit = null,
+    [property: JsonPropertyName("content_limit_allow_unrated")] bool ContentLimitAllowUnrated = false)
 {
     /// <summary>Restricted ("child") profiles are tagged on the picker and never reach admin areas.</summary>
     [JsonIgnore]

@@ -638,6 +638,8 @@ MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.AddHou
   IsChild: System.Boolean | nullability=not-null | accessors=get,init
   Pin: System.String | nullability=nullable | accessors=get,init
   AvatarIcon: System.String | nullability=nullable | accessors=get,init
+  ContentLimit: System.String | nullability=nullable | accessors=get,init
+  ContentLimitAllowUnrated: System.Boolean | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.AdministratorElevationResponse
   Elevated: System.Boolean | nullability=not-null | accessors=get,init
@@ -1058,6 +1060,8 @@ MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.Manage
   HouseholdId: System.Guid? | nullability=nullable | accessors=get,init
   IsRestricted: System.Boolean | nullability=not-null | accessors=get,init
   AvatarIcon: System.String | nullability=nullable | accessors=get,init
+  ContentLimit: System.String | nullability=nullable | accessors=get,init
+  ContentLimitAllowUnrated: System.Boolean | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.NewAccountProfileRequest
   DisplayName: System.String | nullability=not-null | accessors=get,init
@@ -1260,6 +1264,8 @@ MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.Update
   DisplayName: System.String | nullability=not-null | accessors=get,init
   AvatarColor: System.String | nullability=nullable | accessors=get,init
   AvatarIcon: System.String | nullability=nullable | accessors=get,init
+  ContentLimit: System.String | nullability=nullable | accessors=get,init
+  ContentLimitAllowUnrated: System.Boolean? | nullability=nullable | accessors=get,init
 
 MediaEngine.Contracts.Characters.MediaEngine.Contracts.Characters.CharacterPortraitDto
   id: System.Guid | nullability=not-null | accessors=get,init
@@ -6300,6 +6306,8 @@ MediaEngine.Contracts.Profiles.MediaEngine.Contracts.Profiles.ProfileResponseDto
   NavigationConfig: System.String | nullability=nullable | accessors=get,init
   AvatarImageUrl: System.String | nullability=nullable | accessors=get,init
   AvatarIcon: System.String | nullability=nullable | accessors=get,init
+  ContentLimit: System.String | nullability=nullable | accessors=get,init
+  ContentLimitAllowUnrated: System.Boolean | nullability=not-null | accessors=get,init
   HasPin: System.Boolean | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.Profiles.MediaEngine.Contracts.Profiles.TasteProfileBuildResponse

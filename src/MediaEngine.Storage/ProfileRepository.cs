@@ -33,6 +33,8 @@ public sealed class ProfileRepository : IProfileRepository
                    avatar_color AS AvatarColor,
                    avatar_image_path AS AvatarImagePath,
                    avatar_icon  AS AvatarIcon,
+                   content_limit AS ContentLimit,
+                   content_limit_allow_unrated AS ContentLimitAllowUnrated,
                    role         AS Role,
                    created_at   AS CreatedAt,
                    navigation_config AS NavigationConfig,
@@ -56,6 +58,8 @@ public sealed class ProfileRepository : IProfileRepository
                    avatar_color AS AvatarColor,
                    avatar_image_path AS AvatarImagePath,
                    avatar_icon  AS AvatarIcon,
+                   content_limit AS ContentLimit,
+                   content_limit_allow_unrated AS ContentLimitAllowUnrated,
                    role         AS Role,
                    created_at   AS CreatedAt,
                    navigation_config AS NavigationConfig,
@@ -104,6 +108,8 @@ public sealed class ProfileRepository : IProfileRepository
         public string AvatarColor { get; set; } = string.Empty;
         public string? AvatarImagePath { get; set; }
         public string? AvatarIcon { get; set; }
+        public string? ContentLimit { get; set; }
+        public bool ContentLimitAllowUnrated { get; set; }
         public string Role { get; set; } = string.Empty;
         public string CreatedAt { get; set; } = string.Empty;
         public string? NavigationConfig { get; set; }
@@ -117,6 +123,8 @@ public sealed class ProfileRepository : IProfileRepository
         AvatarColor = r.AvatarColor,
         AvatarImagePath = r.AvatarImagePath,
         AvatarIcon = r.AvatarIcon,
+        ContentLimit = r.ContentLimit,
+        ContentLimitAllowUnrated = r.ContentLimitAllowUnrated,
         Role = Enum.Parse<ProfileRole>(r.Role),
         CreatedAt = DateTimeOffset.Parse(r.CreatedAt),
         NavigationConfig = r.NavigationConfig,

@@ -15,6 +15,12 @@ internal sealed class CatalogueResourceAuthorizationService(
     IAccountAccessDecisionService accounts,
     IAuthorizationEvaluator evaluator)
 {
+    // Built from the same data store connection, so every host that can authorize a catalogue request can also enforce the limit.
+    private ContentLimitPolicy? _contentLimits;
+
+    private ContentLimitPolicy ContentLimits => _contentLimits ??= new(new ProfileContentLimitRepository(database));
+
+
     public async ValueTask<CatalogueResourceAccess> EvaluateArtworkLinkAsync(
         HttpContext context, Guid linkId, ApplicationPermissionId permission, CancellationToken ct = default)
     {
@@ -335,9 +341,38 @@ internal sealed class CatalogueResourceAuthorizationService(
             return CatalogueResourceAccess.Denied;
         }
 
-        return (await accounts.EvaluateLibraryAsync(authority, libraryId, ct).ConfigureAwait(false)).IsAllowed
-            ? CatalogueResourceAccess.Allowed
-            : CatalogueResourceAccess.Denied;
+        if (!(await accounts.EvaluateLibraryAsync(authority, libraryId, ct).ConfigureAwait(false)).IsAllowed)
+        {
+            return CatalogueResourceAccess.Denied;
+        }
+
+        // The profile's content limit is the last gate, so every detail page, file, stream and artwork request honours it.
+        var content = await ContentLimits.ForAsync(authority).ConfigureAwait(false);
+        if (!content.IsUnrestricted &&
+            !content.Allows(await ReadContentRatingAsync(connection, assetId, ct).ConfigureAwait(false)))
+        {
+            return CatalogueResourceAccess.Denied;
+        }
+
+        return CatalogueResourceAccess.Allowed;
+    }
+
+    private static async Task<string?> ReadContentRatingAsync(
+        System.Data.IDbConnection connection, Guid assetId, CancellationToken ct)
+    {
+        var rating = ContentRatingSql.Expression("w.id", "COALESCE(gw.id, pw.id, w.id)", "ma.id");
+        return await connection.QueryFirstOrDefaultAsync<string?>(new CommandDefinition(
+            $"""
+            SELECT {rating}
+            FROM media_assets ma
+            JOIN editions e ON e.id=ma.edition_id
+            JOIN works w ON w.id=e.work_id
+            LEFT JOIN works pw ON pw.id=w.parent_work_id
+            LEFT JOIN works gw ON gw.id=pw.parent_work_id
+            WHERE ma.id=@assetId;
+            """,
+            new { assetId },
+            cancellationToken: ct)).ConfigureAwait(false);
     }
 
     private static AccountFeatureId? FeatureFor(string mediaType) =>

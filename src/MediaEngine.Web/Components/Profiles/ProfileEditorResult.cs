@@ -10,6 +10,8 @@ namespace MediaEngine.Web.Components.Profiles;
 /// <param name="PhotoBytes">The bytes of a freshly picked photo to upload (JPEG, PNG or WebP, up to 5 MB), if any.</param>
 /// <param name="PhotoFileName">The picked photo's file name, for the upload.</param>
 /// <param name="RemovePhoto">True when the existing saved photo should be removed.</param>
+/// <param name="ContentLimit">What this person may watch: an empty string for Everything, or G, PG, PG-13 or R.</param>
+/// <param name="ContentLimitAllowUnrated">True when items with no rating stay visible although a limit is set.</param>
 public sealed record ProfileEditorResult(
     string DisplayName,
     string Color,
@@ -19,4 +21,6 @@ public sealed record ProfileEditorResult(
     bool RemovePin,
     byte[]? PhotoBytes,
     string? PhotoFileName,
-    bool RemovePhoto);
+    bool RemovePhoto,
+    string ContentLimit = "",
+    bool ContentLimitAllowUnrated = false);

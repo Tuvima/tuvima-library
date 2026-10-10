@@ -514,7 +514,8 @@
         }
 
         var added = await Confirmed.RunAsync(() => Identity.AddHouseholdPersonResultAsync(householdId,
-            new AddHouseholdPersonRequest(result.DisplayName, result.Color, result.IsChild, result.NewPin, result.Icon)));
+            new AddHouseholdPersonRequest(result.DisplayName, result.Color, result.IsChild, result.NewPin, result.Icon,
+                result.ContentLimit, result.ContentLimitAllowUnrated)));
         if (!added.Succeeded || added.Value is null)
         {
             return Fail(added.Failure, () => SaveAsync(result));
@@ -537,7 +538,8 @@
     {
         // An empty icon tells the Engine to go back to the initial; leaving it out would keep the old icon.
         var updated = await Confirmed.RunAsync(() => Identity.UpdateManagedProfileResultAsync(profile.Id,
-            new UpdateManagedProfileRequest(result.DisplayName, result.Color, result.Icon ?? string.Empty)));
+            new UpdateManagedProfileRequest(result.DisplayName, result.Color, result.Icon ?? string.Empty,
+                result.ContentLimit, result.ContentLimitAllowUnrated)));
         if (!updated.Succeeded)
         {
             return Fail(updated.Failure, () => SaveAsync(result));

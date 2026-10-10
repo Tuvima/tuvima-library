@@ -38,6 +38,15 @@ public sealed class Profile
     /// </summary>
     public string? AvatarIcon { get; set; }
 
+    /// <summary>
+    /// The highest rating this person may see (<c>G</c>, <c>PG</c>, <c>PG-13</c> or <c>R</c>, see <see cref="ProfileContentLimits"/>).
+    /// <see langword="null"/> means Everything. It is set by a household administrator and does not depend on <see cref="Role"/>.
+    /// </summary>
+    public string? ContentLimit { get; set; }
+
+    /// <summary>True when items with no recognised rating stay visible although a <see cref="ContentLimit"/> is set.</summary>
+    public bool ContentLimitAllowUnrated { get; set; }
+
     /// <summary>Absolute path to the uploaded avatar image, when one has been stored.</summary>
     public string? AvatarImagePath { get; set; }
 

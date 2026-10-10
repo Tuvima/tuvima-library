@@ -1588,6 +1588,8 @@ CREATE TABLE IF NOT EXISTS profiles (
     avatar_color TEXT NOT NULL DEFAULT '#7C4DFF',
     avatar_image_path TEXT,
     avatar_icon  TEXT,
+    content_limit TEXT CHECK (content_limit IS NULL OR content_limit IN ('G', 'PG', 'PG-13', 'R')),
+    content_limit_allow_unrated INTEGER NOT NULL DEFAULT 0 CHECK (content_limit_allow_unrated IN (0, 1)),
     role         TEXT NOT NULL DEFAULT 'RestrictedProfile'
                      CHECK (role IN ('Administrator', 'StandardUser', 'RestrictedProfile')),
     created_at   TEXT NOT NULL
