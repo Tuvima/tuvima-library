@@ -1741,10 +1741,6 @@
       "important": 0,
       "deep": 0
     },
-    "src/MediaEngine.Web/Components/Shared/AppExpandableAuditTable.razor.css": {
-      "important": 0,
-      "deep": 3
-    },
     "src/MediaEngine.Web/Components/Shared/AppFilterBar.razor.css": {
       "important": 0,
       "deep": 0
@@ -1782,10 +1778,6 @@
       "deep": 6
     },
     "src/MediaEngine.Web/Components/Shared/AppSelect.razor.css": {
-      "important": 0,
-      "deep": 2
-    },
-    "src/MediaEngine.Web/Components/Shared/AppSortableHeader.razor.css": {
       "important": 0,
       "deep": 2
     },
@@ -1937,10 +1929,6 @@
       "important": 0,
       "deep": 0
     },
-    "src/MediaEngine.Web/Components/Universe/BookDetailContent.razor.css": {
-      "important": 4,
-      "deep": 0
-    },
     "src/MediaEngine.Web/Components/Universe/CastComparison.razor.css": {
       "important": 0,
       "deep": 0
@@ -1954,10 +1942,6 @@
       "deep": 0
     },
     "src/MediaEngine.Web/Components/Universe/PathFinderPanel.razor.css": {
-      "important": 0,
-      "deep": 0
-    },
-    "src/MediaEngine.Web/Components/Universe/PosterSwimlane.razor.css": {
       "important": 0,
       "deep": 0
     },

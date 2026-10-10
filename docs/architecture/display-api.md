@@ -115,7 +115,7 @@ The shelf route should reuse `DisplayCardDto` and the same `DisplayCardBuilder` 
 
 ## Active Non-Display Card Surfaces
 
-The Universe card components, including `PosterSwimlane`, `PosterItemViewModel`, `LibraryCard`, `SquareCard`, and `LandscapeCard`, are still active in detail and related-content areas. They are not stale code.
+The Universe swimlane and card components (`PosterSwimlane`, `LibraryCard`, `SquareCard`, and `LandscapeCard`) have been removed. `PosterItemViewModel` still exists, but no Dashboard component renders it after this cleanup.
 
 Future cleanup can migrate related-content shelves to `MediaTile` or a display-card adapter, but detail and operational APIs should stay separate from display shelf APIs.
 

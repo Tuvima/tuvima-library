@@ -110,7 +110,7 @@ Current UI entry points:
 3. `src/MediaEngine.Web/Components/Cinematic/CinematicHeroCarousel.razor`, `CinematicHeroSurface.razor`, and `SurfaceNavigationBar.razor`, plus `src/MediaEngine.Web/Components/Details/DetailHeroContent.razor`, for Home/detail cinematic presentation and shared navigation.
 4. `src/MediaEngine.Web/Components/Pages/ReadPage.razor` and `src/MediaEngine.Web/Components/Pages/WatchPage.razor` for the `/read` and `/watch` lane landing pages.
 5. `src/MediaEngine.Web/Components/Browse/MediaBrowseShell.razor` for detailed Read/Watch/Listen browse behavior under tab routes.
-6. `src/MediaEngine.Web/Components/Details/DetailPage.razor` and `src/MediaEngine.Web/Components/Universe/BookDetailContent.razor` for detail surfaces and modal edit launch points.
+6. `src/MediaEngine.Web/Components/Details/DetailPage.razor` for detail surfaces and modal edit launch points.
 7. `src/MediaEngine.Web/Components/Settings/SettingsReviewQueueTab.razor` for the exception queue.
 8. `src/MediaEngine.Web/Components/MediaEditor/SharedMediaEditorShell.razor` for normal, review, and batch editing.
 9. `src/MediaEngine.Web/Components/Settings/IngestionTasksTab.razor` for the Ingestion dashboard at `/settings/ingestion`; it uses the Engine `GET /ingestion/operations` snapshot plus SignalR ingestion progress.

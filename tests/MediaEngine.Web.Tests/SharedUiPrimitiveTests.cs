@@ -53,35 +53,6 @@ public sealed class SharedUiPrimitiveTests : AsyncBunitContext
         Assert.Equal("Users", Assert.Single(cut.FindAll("[role=tab][aria-selected=true]")).TextContent.Trim());
     }
 
-    [Fact]
-    public void AppMediaCard_RendersSquareVariantWithBadgeAndProgress()
-    {
-        var clicked = false;
-
-        var cut = Render<AppMediaCard>(parameters => parameters
-            .Add(component => component.Title, "Static on the Line")
-            .Add(component => component.Subtitle, "Among The Outcasts")
-            .Add(component => component.ImageUrl, "https://example.test/cover.jpg")
-            .Add(component => component.Progress, 42)
-            .Add(component => component.Variant, AppMediaCardVariant.Square)
-            .Add(component => component.Badge, builder =>
-            {
-                builder.OpenComponent<AppStatusBadge>(0);
-                builder.AddAttribute(1, nameof(AppStatusBadge.Text), "NEW");
-                builder.AddAttribute(2, nameof(AppStatusBadge.Tone), AppUiTone.Warning);
-                builder.CloseComponent();
-            })
-            .Add(component => component.OnSelected, EventCallback.Factory.Create(this, () => clicked = true)));
-
-        Assert.Single(cut.FindAll(".app-media-card--square"));
-        Assert.Single(cut.FindAll(".app-media-artwork__image"));
-        Assert.Contains("Static on the Line", cut.Markup);
-        Assert.Contains("NEW", cut.Markup);
-
-        cut.Find(".app-media-card").Click();
-        Assert.True(clicked);
-    }
-
     [Theory]
     [InlineData(AppPageStateKind.Loading, "Loading")]
     [InlineData(AppPageStateKind.Empty, "Nothing here")]

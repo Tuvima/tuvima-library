@@ -145,7 +145,7 @@ body {
 
 /* -- Muted the shared UI layer Input Overrides ----------------------------------- */
 
-/* -- Shared primary CTA button - used by CollectionHero + CollectionDetail -------- */
+/* -- Shared primary CTA button (no current Dashboard consumer) ----------------- */
 .collection-primary-cta {
     position: relative;
     display: flex;
