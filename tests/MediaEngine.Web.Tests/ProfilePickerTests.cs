@@ -58,6 +58,28 @@ public sealed class ProfilePickerTests
     }
 
     [Fact]
+    public void PickerPage_UsesTheNumberPad_AndKeepsTheSameSwitchRules()
+    {
+        var page = Read("src/MediaEngine.Web/Components/Pages/ProfilePickerPage.razor");
+
+        Assert.Contains("<PinPad", page, StringComparison.Ordinal);
+        Assert.DoesNotContain("autocomplete=\"current-password\"", page, StringComparison.Ordinal);
+        Assert.Contains("ProfileSwitchStatus.TooManyAttempts => \"Too many attempts. Try again in a minute.\"", page, StringComparison.Ordinal);
+        Assert.Contains("That PIN didn't work. Try again.", page, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void PinPadStyles_AreGlobal_WithoutDeepRulesOrInlineStyles()
+    {
+        var pad = Read("src/MediaEngine.Web/Components/Shared/PinPad.razor");
+        var css = Read("src/MediaEngine.Web/wwwroot/app.css");
+
+        Assert.DoesNotContain(" style=\"", pad, StringComparison.Ordinal);
+        Assert.Contains(".pin-pad__key", css, StringComparison.Ordinal);
+        Assert.Contains("@keyframes pin-shake", css, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void PickerStyles_AvoidDeepRulesAndInlineStyles()
     {
         var css = Read("src/MediaEngine.Web/Components/Pages/ProfilePickerPage.razor.css");

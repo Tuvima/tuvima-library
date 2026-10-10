@@ -1,0 +1,128 @@
+@namespace MediaEngine.Web.Components.Shared
+@* A number pad for PINs: big touch targets, dots that fill as digits go in, and a shake when the PIN is wrong.
+   Digits, Backspace, Enter and Escape also work from a keyboard or a TV remote. The digits themselves are never put on the page. *@
+<div @ref="_root"
+     class="pin-pad"
+     role="group"
+     tabindex="0"
+     aria-label="@Label"
+     @onkeydown="OnRootKeyDown">
+    <div class="pin-pad__dots @(ShakeCount > 0 ? "is-wrong" : null)" @key="ShakeCount" role="img" aria-label="@DotsLabel">
+        @for (var i = 0; i < DotCount; i++)
+        {
+            <span class="pin-pad__dot @(i < Value.Length ? "is-filled" : null)"></span>
+        }
+    </div>
+    <div class="pin-pad__keys">
+        @foreach (var digit in _digits)
+        {
+            <button type="button" class="pin-pad__key" disabled="@Disabled" aria-label="@digit"
+                    @onclick="@(() => AddAsync(digit))"
+                    @onkeydown="OnKeyDown" @onkeydown:stopPropagation="true">@digit</button>
+        }
+        <span class="pin-pad__spacer" aria-hidden="true"></span>
+        <button type="button" class="pin-pad__key" disabled="@Disabled" aria-label="0"
+                @onclick="@(() => AddAsync('0'))"
+                @onkeydown="OnKeyDown" @onkeydown:stopPropagation="true">0</button>
+        <button type="button" class="pin-pad__key pin-pad__key--action" disabled="@(Disabled || Value.Length == 0)" aria-label="Delete last digit"
+                @onclick="RemoveAsync"
+                @onkeydown="OnKeyDown" @onkeydown:stopPropagation="true">
+            <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true"><path fill="currentColor" d="M22 3H7c-.69 0-1.23.35-1.59.88L0 12l5.41 8.11c.36.53.9.89 1.59.89h15c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-3 12.59L17.59 17 14 13.41 10.41 17 9 15.59 12.59 12 9 8.41 10.41 7 14 10.59 17.59 7 19 8.41 15.41 12 19 15.59z" /></svg>
+        </button>
+    </div>
+</div>
+
+@code {
+    private const int MinimumDots = 4;
+    private static readonly char[] _digits = ['1', '2', '3', '4', '5', '6', '7', '8', '9'];
+
+    private ElementReference _root;
+    private int _focusedShake;
+
+    /// <summary>The digits entered so far.</summary>
+    [Parameter] public string Value { get; set; } = string.Empty;
+    [Parameter] public EventCallback<string> ValueChanged { get; set; }
+
+    /// <summary>The most digits a PIN can have.</summary>
+    [Parameter] public int MaxLength { get; set; } = 12;
+
+    [Parameter] public bool Disabled { get; set; }
+
+    /// <summary>Raise by one each time a PIN is wrong; the dots shake and focus returns to the pad.</summary>
+    [Parameter] public int ShakeCount { get; set; }
+
+    [Parameter] public string Label { get; set; } = "Profile PIN";
+
+    /// <summary>Raised when Enter is pressed with something entered.</summary>
+    [Parameter] public EventCallback OnSubmit { get; set; }
+
+    /// <summary>Raised when Escape is pressed.</summary>
+    [Parameter] public EventCallback OnCancel { get; set; }
+
+    private int DotCount => Math.Clamp(Math.Max(MinimumDots, Value.Length), MinimumDots, Math.Max(MinimumDots, MaxLength));
+
+    private string DotsLabel => Value.Length == 1 ? "1 digit entered" : $"{Value.Length} digits entered";
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender && ShakeCount == _focusedShake)
+        {
+            return;
+        }
+
+        _focusedShake = ShakeCount;
+        try
+        {
+            await _root.FocusAsync();
+        }
+        catch (JSDisconnectedException)
+        {
+            // The circuit closed while the pad was drawing; there is nothing left to focus.
+        }
+    }
+
+    private async Task AddAsync(char digit)
+    {
+        if (Disabled || Value.Length >= MaxLength)
+        {
+            return;
+        }
+
+        await ValueChanged.InvokeAsync(Value + digit);
+    }
+
+    private async Task RemoveAsync()
+    {
+        if (Disabled || Value.Length == 0)
+        {
+            return;
+        }
+
+        await ValueChanged.InvokeAsync(Value[..^1]);
+    }
+
+    // Buttons keep Enter and Space for pressing themselves; everything else works the same as on the pad.
+    private Task OnKeyDown(KeyboardEventArgs args) => args.Key is "Enter" or " " ? Task.CompletedTask : HandleKeyAsync(args.Key);
+
+    private Task OnRootKeyDown(KeyboardEventArgs args) => HandleKeyAsync(args.Key);
+
+    private async Task HandleKeyAsync(string key)
+    {
+        if (key.Length == 1 && key[0] is >= '0' and <= '9')
+        {
+            await AddAsync(key[0]);
+        }
+        else if (key == "Backspace")
+        {
+            await RemoveAsync();
+        }
+        else if (key == "Enter" && !Disabled && Value.Length > 0)
+        {
+            await OnSubmit.InvokeAsync();
+        }
+        else if (key == "Escape")
+        {
+            await OnCancel.InvokeAsync();
+        }
+    }
+}
