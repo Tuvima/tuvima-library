@@ -31,6 +31,31 @@ public sealed class ReadingPlaybackContractTests
     }
 
     [Fact]
+    public void ReaderHighlightContract_CarriesTheCfiRangeAndStaysReadableWithoutOne()
+    {
+        var request = new CreateReaderHighlightRequestDto(0, 0, 0, "The first words", "#EAB308", null, "epubcfi(/6/6!/4/2/4,/1:0,/1:24)");
+        var requestJson = JsonSerializer.Serialize(request, MediaEngineJson.Web);
+        Assert.Contains("\"cfiRange\":\"epubcfi(/6/6!/4/2/4,/1:0,/1:24)\"", requestJson, StringComparison.Ordinal);
+
+        // A request from before the book reader (no cfiRange) still reads, with the range absent.
+        var legacy = JsonSerializer.Deserialize<CreateReaderHighlightRequestDto>(
+            "{\"chapterIndex\":2,\"startOffset\":5,\"endOffset\":9,\"selectedText\":\"words\",\"color\":null,\"noteText\":null}",
+            MediaEngineJson.Web);
+        Assert.Null(legacy!.CfiRange);
+
+        var highlight = new ReaderHighlightDto
+        {
+            Id = Guid.Parse("77777777-7777-7777-7777-777777777777"),
+            UserId = "local",
+            AssetId = Guid.Parse("88888888-8888-8888-8888-888888888888"),
+            CfiRange = "epubcfi(/6/6!/4/2/4,/1:0,/1:24)",
+            SelectedText = "The first words",
+        };
+        var roundTrip = JsonSerializer.Deserialize<ReaderHighlightDto>(JsonSerializer.Serialize(highlight, MediaEngineJson.Web), MediaEngineJson.Web);
+        Assert.Equal(highlight.CfiRange, roundTrip?.CfiRange);
+    }
+
+    [Fact]
     public void ReaderStatisticsContract_DoesNotDropPersistenceIdentity()
     {
         var statistics = new ReaderStatisticsDto

@@ -1,6 +1,8 @@
 @namespace MediaEngine.Web.Components.Pages
 
 @using System.Diagnostics
+@using MediaEngine.Contracts.Reading
+@using MediaEngine.Domain.Constants
 @using MediaEngine.Web.Models.ViewDTOs
 @using MediaEngine.Web.Services.Integration
 
@@ -35,12 +37,185 @@
                 <div class="br-title-author">@_author</div>
             }
         </div>
+        @if (_state == "ready")
+        {
+            <div class="br-actions" role="toolbar" aria-label="Reader tools">
+                <AppNativeButton Class="br-icon-btn" OnClick="@(() => TogglePanel("contents"))" Title="Contents" AriaLabel="Contents">
+                    <AppMaterialIcon Icon="@AppMaterialIcons.Filled.Toc" Size="AppSize.Small" />
+                </AppNativeButton>
+                <AppNativeButton Class="br-icon-btn" OnClick="AddBookmarkAsync" Title="Bookmark this page" AriaLabel="Bookmark this page">
+                    <AppMaterialIcon Icon="@AppMaterialIcons.Filled.BookmarkAdd" Size="AppSize.Small" />
+                </AppNativeButton>
+                <AppNativeButton Class="@($"br-icon-btn {(_panel == "saved" ? "br-icon-btn--on" : "")}")" OnClick="@(() => TogglePanel("saved"))" Title="Bookmarks and highlights" AriaLabel="Bookmarks and highlights">
+                    <AppMaterialIcon Icon="@AppMaterialIcons.Filled.Bookmark" Size="AppSize.Small" />
+                </AppNativeButton>
+                <AppNativeButton Class="@($"br-icon-btn {(_panel == "settings" ? "br-icon-btn--on" : "")}")" OnClick="@(() => TogglePanel("settings"))" Title="Reading settings" AriaLabel="Reading settings">
+                    <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Tune" Size="AppSize.Small" />
+                </AppNativeButton>
+            </div>
+        }
     </header>
 
     <footer class="br-bar br-bar--bottom @(_chromeVisible ? "" : "br-bar--hidden")" aria-hidden="@(_chromeVisible ? null : "true")">
         <span class="br-section">@_sectionLabel</span>
         <span class="br-percent" aria-label="Progress">@Percent%</span>
     </footer>
+
+    @if (_state == "ready" && _selection is { } selected && _editing is null && _panel is null)
+    {
+        <AppCssElement Tag="div" Class="br-float br-float--bar" Css="@FloatCss(selected.Anchor)" role="toolbar" aria-label="Highlight the selected text">
+            @foreach (var color in HighlightColor.All)
+            {
+                <AppNativeButton Class="br-swatch" Css="@SwatchCss(color)" OnClick="@(() => CreateHighlightAsync(color, false))"
+                                 Title="@($"Highlight in {ColorName(color)}")" AriaLabel="@($"Highlight in {ColorName(color)}")" />
+            }
+            <AppNativeButton Class="br-icon-btn br-icon-btn--small" OnClick="@(() => CreateHighlightAsync(HighlightColor.Yellow, true))" Title="Highlight and add a note" AriaLabel="Highlight and add a note">
+                <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.EditNote" Size="AppSize.Small" />
+            </AppNativeButton>
+        </AppCssElement>
+    }
+
+    @if (_state == "ready" && _editing is { } editing)
+    {
+        <div class="br-scrim br-scrim--clear" role="presentation" @onclick="CloseEditorAsync"></div>
+        <AppCssElement Tag="div" Class="br-float br-float--card" Css="@FloatCss(_editAnchor)" role="dialog" aria-label="Highlight">
+            <div class="br-quote">@editing.SelectedText</div>
+            <div class="br-swatches" role="group" aria-label="Highlight colour">
+                @foreach (var color in HighlightColor.All)
+                {
+                    <AppNativeButton Class="@($"br-swatch {(string.Equals(editing.Color, color, StringComparison.OrdinalIgnoreCase) ? "br-swatch--on" : "")}")" Css="@SwatchCss(color)"
+                                     OnClick="@(() => RecolorHighlightAsync(color))" Title="@ColorName(color)" AriaLabel="@ColorName(color)"
+                                     aria-pressed="@(string.Equals(editing.Color, color, StringComparison.OrdinalIgnoreCase) ? "true" : "false")" />
+                }
+            </div>
+            <AppTextField Label="Note" Value="@_noteDraft" ValueChanged="@(value => _noteDraft = value)" Lines="3" MaxLength="2000" Placeholder="Add a note" />
+            <div class="br-card-actions">
+                <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Error" OnClick="DeleteHighlightAsync">Delete</AppButton>
+                <AppButton ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" OnClick="CloseEditorAsync">Done</AppButton>
+            </div>
+        </AppCssElement>
+    }
+
+    @if (_state == "ready" && _panel is not null)
+    {
+        <div class="br-scrim" role="presentation" @onclick="ClosePanelAsync"></div>
+        <aside class="br-panel" role="dialog" aria-label="@PanelTitle">
+            <div class="br-panel-head">
+                <h2 class="br-panel-title">@PanelTitle</h2>
+                <AppNativeButton Class="br-icon-btn" OnClick="ClosePanelAsync" Title="Close" AriaLabel="@($"Close {PanelTitle}")">
+                    <AppMaterialIcon Icon="@AppMaterialIcons.Filled.Close" Size="AppSize.Small" />
+                </AppNativeButton>
+            </div>
+            <div class="br-panel-body">
+                @if (_panel == "contents")
+                {
+                    @if (_toc.Count == 0)
+                    {
+                        <p class="br-empty">This book has no contents list.</p>
+                    }
+                    else
+                    {
+                        <ul class="br-list">
+                            @foreach (var item in _toc)
+                            {
+                                <li>
+                                    <AppNativeButton Class="@($"br-row br-row--level{Math.Min(item.Level, 3)} {(IsCurrentSection(item) ? "br-row--current" : "")}")"
+                                                     OnClick="@(() => OpenTocItemAsync(item))" AriaLabel="@item.Label">
+                                        @item.Label
+                                    </AppNativeButton>
+                                </li>
+                            }
+                        </ul>
+                    }
+                }
+                else if (_panel == "saved")
+                {
+                    <AppSegmentedControl Options="SavedTabs" Value="@_savedTab" ValueChanged="@(value => { _savedTab = value; })" AriaLabel="Saved places" />
+                    @if (_savedTab == "bookmarks")
+                    {
+                        <AppButton ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Primary" OnClick="AddBookmarkAsync" StartIcon="@AppMaterialIcons.Filled.BookmarkAdd">
+                            Bookmark this page
+                        </AppButton>
+                        @if (_bookmarks.Count == 0)
+                        {
+                            <p class="br-empty">No bookmarks yet.</p>
+                        }
+                        else
+                        {
+                            <ul class="br-list">
+                                @foreach (var mark in _bookmarks)
+                                {
+                                    <li class="br-item">
+                                        <AppNativeButton Class="br-row br-row--grow" OnClick="@(() => OpenBookmarkAsync(mark))" AriaLabel="@($"Go to bookmark {mark.Label}")">
+                                            <span class="br-row-main">@(string.IsNullOrWhiteSpace(mark.Label) ? "Bookmark" : mark.Label)</span>
+                                            <span class="br-row-sub">@mark.CreatedAt.ToLocalTime().ToString("d MMM yyyy")</span>
+                                        </AppNativeButton>
+                                        <AppNativeButton Class="br-icon-btn br-icon-btn--small" OnClick="@(() => DeleteBookmarkAsync(mark))" Title="Delete bookmark" AriaLabel="Delete bookmark">
+                                            <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.DeleteOutline" Size="AppSize.Small" />
+                                        </AppNativeButton>
+                                    </li>
+                                }
+                            </ul>
+                        }
+                    }
+                    else if (_highlights.Count == 0)
+                    {
+                        <p class="br-empty">No highlights yet. Select some text in the book to make one.</p>
+                    }
+                    else
+                    {
+                        <ul class="br-list">
+                            @foreach (var mark in _highlights)
+                            {
+                                <li class="br-item">
+                                    <AppNativeButton Class="br-row br-row--grow" OnClick="@(() => OpenHighlightAsync(mark))" AriaLabel="@($"Go to highlight {mark.SelectedText}")">
+                                        <span class="br-row-main br-row-main--quote" data-color="@mark.Color">@mark.SelectedText</span>
+                                        @if (!string.IsNullOrWhiteSpace(mark.NoteText))
+                                        {
+                                            <span class="br-row-sub">@mark.NoteText</span>
+                                        }
+                                    </AppNativeButton>
+                                </li>
+                            }
+                        </ul>
+                    }
+                }
+                else
+                {
+                    <div class="br-field">
+                        <div class="br-field-label">Theme</div>
+                        <AppSegmentedControl Options="ThemeOptions" Value="@_settings.Theme" ValueChanged="SetThemeAsync" AriaLabel="Reading theme" />
+                    </div>
+                    <div class="br-field">
+                        <div class="br-field-label">Text size</div>
+                        <AppSlider Value="@_settings.FontSize" ValueChanged="SetFontSizeAsync" Min="12" Max="32" Step="1" Immediate="false" Label="Text size" />
+                    </div>
+                    <div class="br-field">
+                        <div class="br-field-label">Line spacing</div>
+                        <AppSlider Value="@((int)Math.Round(_settings.LineHeight * 10))" ValueChanged="SetLineHeightAsync" Min="12" Max="24" Step="1" Immediate="false" Label="Line spacing" />
+                    </div>
+                    <div class="br-field">
+                        <div class="br-field-label">Typeface</div>
+                        <AppSegmentedControl Options="FontOptions" Value="@_settings.Font" ValueChanged="SetFontAsync" AriaLabel="Typeface" />
+                    </div>
+                    <div class="br-field">
+                        <div class="br-field-label">Page width</div>
+                        <AppSegmentedControl Options="WidthOptions" Value="@_settings.PageWidth" ValueChanged="SetPageWidthAsync" AriaLabel="Page width" />
+                    </div>
+                    <div class="br-field">
+                        <div class="br-field-label">Layout</div>
+                        <AppSegmentedControl Options="FlowOptions" Value="@_settings.Flow" ValueChanged="SetFlowAsync" AriaLabel="Layout" />
+                    </div>
+                    <p class="br-hint">These choices are remembered on this device.</p>
+                }
+            </div>
+        </aside>
+    }
+
+    @if (!string.IsNullOrEmpty(_notice))
+    {
+        <div class="br-notice" role="status" aria-live="polite">@_notice</div>
+    }
 
     @if (_state == "loading")
     {
@@ -104,6 +279,59 @@
     private string? _latestCfi;
     private string? _savedCfi;
 
+    // Panels, saved places and the highlight tools.
+    private string? _panel;                     // null | contents | saved | settings
+    private string _savedTab = "bookmarks";     // bookmarks | highlights
+    private List<BookReaderTocItem> _toc = [];
+    private List<ReaderBookmarkDto> _bookmarks = [];
+    private List<ReaderHighlightDto> _highlights = [];
+    private PendingSelection? _selection;
+    private ReaderHighlightDto? _editing;
+    private Anchor _editAnchor = new(0, 0, 0, 0);
+    private string? _noteDraft;
+    private string? _notice;
+    private System.Threading.Timer? _noticeTimer;
+
+    private sealed record Anchor(double X, double Y, double W, double H);
+    private sealed record PendingSelection(string Cfi, string Text, Anchor Anchor);
+
+    private static readonly IReadOnlyList<AppSelectOption> SavedTabs =
+    [
+        new("bookmarks", "Bookmarks"),
+        new("highlights", "Highlights"),
+    ];
+    private static readonly IReadOnlyList<AppSelectOption> ThemeOptions =
+    [
+        new("light", "Light"),
+        new("dark", "Dark"),
+        new("sepia", "Sepia"),
+        new("system", "Auto"),
+    ];
+    private static readonly IReadOnlyList<AppSelectOption> FontOptions =
+    [
+        new("book", "Book's own"),
+        new("serif", "Serif"),
+        new("sans", "Sans"),
+    ];
+    private static readonly IReadOnlyList<AppSelectOption> WidthOptions =
+    [
+        new("narrow", "Narrow"),
+        new("standard", "Standard"),
+        new("wide", "Wide"),
+    ];
+    private static readonly IReadOnlyList<AppSelectOption> FlowOptions =
+    [
+        new("paginated", "Pages"),
+        new("scrolled", "Scroll"),
+    ];
+
+    private string PanelTitle => _panel switch
+    {
+        "contents" => "Contents",
+        "saved" => "Bookmarks and highlights",
+        _ => "Reading settings",
+    };
+
     private string ThemeClass => _settings.Theme is "dark" or "sepia" or "system" ? _settings.Theme : "light";
     private int Percent => (int)Math.Round(Math.Clamp(_fraction, 0, 1) * 100);
     private string ErrorTitle => _errorCode switch
@@ -135,6 +363,10 @@
             _module ??= await JS.InvokeAsync<IJSObjectReference>("import", "./js/book-reader.js");
             await LoadSettingsAsync();
 
+            // Saved places load while the book opens; both calls answer with an empty list when they fail.
+            var bookmarksTask = Api.GetBookmarksAsync(AssetId);
+            var highlightsTask = Api.GetHighlightsAsync(AssetId);
+
             // A book that was never read has no saved position (the Engine answers 404, which comes back as null here).
             var progress = Restart ? null : await Api.GetProgressAsync(AssetId);
             string? lastLocation = null;
@@ -165,6 +397,9 @@
                 Theme = ThemeClass,
                 FontSize = _settings.FontSize,
                 LineHeight = _settings.LineHeight,
+                Font = _settings.Font,
+                PageWidth = _settings.PageWidth,
+                Flow = _settings.Flow,
             };
             var result = await _module.InvokeAsync<BookReaderOpenResult>(
                 "open", _host, EngineBookProxyPath.ToBrowserUrl(AssetId), options, _dotNetRef);
@@ -183,6 +418,14 @@
             _title = result.Title ?? string.Empty;
             _author = result.Author;
             _fraction = result.Fraction;
+            // Bookmarks from the retired reader are character offsets, highlights have no range: only positions this reader can use are shown.
+            _bookmarks = (await bookmarksTask)
+                .Where(mark => mark.CfiPosition?.StartsWith("epubcfi(", StringComparison.Ordinal) == true)
+                .OrderByDescending(mark => mark.CreatedAt).ToList();
+            _highlights = (await highlightsTask)
+                .Where(mark => !string.IsNullOrWhiteSpace(mark.CfiRange))
+                .OrderBy(mark => mark.CreatedAt).ToList();
+            await LoadContentsAndHighlightsAsync();
             _state = "ready";
             _reading.Restart();
             if (_disposing || _disposed)
@@ -238,6 +481,13 @@
         _latestCfi = cfi;
         _fraction = fraction;
         _sectionLabel = label ?? string.Empty;
+        // The page moved under any floating tool.
+        _selection = null;
+        if (_editing is not null)
+        {
+            _ = InvokeAsync(CloseEditorAsync);
+        }
+
         StateHasChanged();
 
         if (_sinceSave.Elapsed >= SaveInterval)
@@ -271,7 +521,75 @@
     }
 
     [JSInvokable]
-    public Task OnEscape() => ExitReader();
+    public async Task OnEscape()
+    {
+        // Escape closes the innermost thing first and leaves the book last.
+        if (_editing is not null)
+        {
+            await CloseEditorAsync();
+        }
+        else if (_selection is not null)
+        {
+            _selection = null;
+            await CallScriptAsync("clearSelection");
+            StateHasChanged();
+        }
+        else if (_panel is not null)
+        {
+            await ClosePanelAsync();
+        }
+        else
+        {
+            await ExitReader();
+        }
+    }
+
+    [JSInvokable]
+    public Task OnSelection(string cfi, string text, double x, double y, double w, double h)
+    {
+        if (_disposed || _state != "ready" || _editing is not null || _panel is not null)
+        {
+            return Task.CompletedTask;
+        }
+
+        _selection = new PendingSelection(cfi, text, new Anchor(x, y, w, h));
+        StateHasChanged();
+        return Task.CompletedTask;
+    }
+
+    [JSInvokable]
+    public Task OnSelectionCleared()
+    {
+        if (_selection is not null)
+        {
+            _selection = null;
+            StateHasChanged();
+        }
+
+        return Task.CompletedTask;
+    }
+
+    [JSInvokable]
+    public async Task OnHighlightTapped(string id, double x, double y, double w, double h)
+    {
+        if (_disposed || _state != "ready" || _panel is not null || !Guid.TryParse(id, out var highlightId))
+        {
+            return;
+        }
+
+        var highlight = _highlights.FirstOrDefault(mark => mark.Id == highlightId);
+        if (highlight is null)
+        {
+            return;
+        }
+
+        _selection = null;
+        _editing = highlight;
+        _editAnchor = new Anchor(x, y, w, h);
+        _noteDraft = highlight.NoteText;
+        await CallScriptAsync("setInputPaused", true);
+        StateHasChanged();
+    }
 
     // ---- Saving the place ---------------------------------------------------------------------------------------
 
@@ -325,6 +643,323 @@
             Logger.LogDebug(ex, "Failed to load reader settings from local storage.");
         }
     }
+
+    private async Task ApplySettingsAsync(BookReaderOpenOptions next)
+    {
+        _settings = next;
+        var options = new { theme = next.Theme, fontSize = next.FontSize, lineHeight = next.LineHeight, font = next.Font, pageWidth = next.PageWidth, flow = next.Flow };
+        await CallScriptAsync("setAppearance", options);
+        await CallScriptAsync("saveSettings", options);
+    }
+
+    private Task SetThemeAsync(string value) => ApplySettingsAsync(_settings with { Theme = value });
+    private Task SetFontSizeAsync(int value) => ApplySettingsAsync(_settings with { FontSize = Math.Clamp(value, 12, 32) });
+    private Task SetLineHeightAsync(int value) => ApplySettingsAsync(_settings with { LineHeight = Math.Clamp(value, 12, 24) / 10.0 });
+    private Task SetFontAsync(string value) => ApplySettingsAsync(_settings with { Font = value });
+    private Task SetPageWidthAsync(string value) => ApplySettingsAsync(_settings with { PageWidth = value });
+    private Task SetFlowAsync(string value) => ApplySettingsAsync(_settings with { Flow = value });
+
+    // ---- Panels --------------------------------------------------------------------------------------------------
+
+    private async Task TogglePanel(string panel)
+    {
+        if (_panel == panel)
+        {
+            await ClosePanelAsync();
+            return;
+        }
+
+        _panel = panel;
+        _selection = null;
+        await CallScriptAsync("setInputPaused", true);
+        await CallScriptAsync("clearSelection");
+    }
+
+    private async Task ClosePanelAsync()
+    {
+        _panel = null;
+        await CallScriptAsync("setInputPaused", false);
+    }
+
+    private bool IsCurrentSection(BookReaderTocItem item) =>
+        !string.IsNullOrEmpty(_sectionLabel) && string.Equals(item.Label, _sectionLabel, StringComparison.Ordinal);
+
+    private async Task OpenTocItemAsync(BookReaderTocItem item)
+    {
+        await ClosePanelAsync();
+        await CallScriptAsync("goToHref", item.Href);
+    }
+
+    private async Task LoadContentsAndHighlightsAsync()
+    {
+        try
+        {
+            var module = _module!;
+            _toc = await module.InvokeAsync<List<BookReaderTocItem>>("getToc");
+            var marks = _highlights.Select(mark => new BookReaderHighlightMark(mark.Id.ToString("D"), mark.CfiRange!, mark.Color)).ToList();
+            await module.InvokeVoidAsync("setHighlights", marks);
+        }
+        catch (Exception ex) when (ex is JSException or JSDisconnectedException or InvalidOperationException)
+        {
+            Logger.LogDebug(ex, "Could not hand the contents and highlights to the book reader script.");
+        }
+    }
+
+    // A script call that must never take the page down: the reader keeps working without the tool that failed.
+    private async Task CallScriptAsync(string method, params object?[] args)
+    {
+        if (_module is null || _disposed)
+        {
+            return;
+        }
+
+        try
+        {
+            await _module.InvokeVoidAsync(method, args);
+        }
+        catch (Exception ex) when (ex is JSException or JSDisconnectedException or InvalidOperationException)
+        {
+            Logger.LogDebug(ex, "The book reader script call {Method} failed.", method);
+        }
+    }
+
+    private void ShowNotice(string message)
+    {
+        _notice = message;
+        _noticeTimer?.Dispose();
+        _noticeTimer = new System.Threading.Timer(_ => _ = InvokeAsync(() =>
+        {
+            _notice = null;
+            StateHasChanged();
+        }), null, TimeSpan.FromSeconds(2.5), System.Threading.Timeout.InfiniteTimeSpan);
+    }
+
+    // ---- Bookmarks ---------------------------------------------------------------------------------------------
+
+    private async Task AddBookmarkAsync()
+    {
+        await CaptureLatestLocationAsync();
+        var cfi = _latestCfi;
+        if (string.IsNullOrWhiteSpace(cfi))
+        {
+            return;
+        }
+
+        if (_bookmarks.Any(mark => string.Equals(mark.CfiPosition, cfi, StringComparison.Ordinal)))
+        {
+            ShowNotice("This page is already bookmarked.");
+            return;
+        }
+
+        var where = string.IsNullOrWhiteSpace(_sectionLabel) ? "Page" : _sectionLabel;
+        var label = $"{where} · {Percent}%";
+        var created = await Api.CreateBookmarkAsync(AssetId, 0, cfi, label.Length > 200 ? label[..200] : label);
+        if (created is null)
+        {
+            ShowNotice("The bookmark could not be saved. Try again.");
+            return;
+        }
+
+        _bookmarks.Insert(0, created);
+        ShowNotice("Bookmark added.");
+    }
+
+    private async Task OpenBookmarkAsync(ReaderBookmarkDto mark)
+    {
+        await ClosePanelAsync();
+        await GoToPlaceAsync(mark.CfiPosition);
+    }
+
+    private async Task DeleteBookmarkAsync(ReaderBookmarkDto mark)
+    {
+        if (await Api.DeleteBookmarkAsync(mark.Id))
+        {
+            _bookmarks.Remove(mark);
+        }
+        else
+        {
+            ShowNotice("The bookmark could not be deleted. Try again.");
+        }
+    }
+
+    private async Task GoToPlaceAsync(string? cfi)
+    {
+        if (_module is null || string.IsNullOrWhiteSpace(cfi))
+        {
+            return;
+        }
+
+        try
+        {
+            await _module.InvokeVoidAsync("goTo", cfi);
+        }
+        catch (JSException ex)
+        {
+            // A saved place the book no longer has (the file was replaced) just says so.
+            Logger.LogDebug(ex, "A saved place could not be opened.");
+            ShowNotice("That place could not be found in this book.");
+        }
+        catch (Exception ex) when (ex is JSDisconnectedException or InvalidOperationException)
+        {
+            Logger.LogDebug(ex, "The book reader script was not available to open a saved place.");
+        }
+    }
+
+    // ---- Highlights --------------------------------------------------------------------------------------------
+
+    private async Task CreateHighlightAsync(string color, bool withNote)
+    {
+        var selection = _selection;
+        if (selection is null)
+        {
+            return;
+        }
+
+        _selection = null;
+        if (_highlights.Any(mark => string.Equals(mark.CfiRange, selection.Cfi, StringComparison.Ordinal)))
+        {
+            ShowNotice("That text is already highlighted.");
+            await CallScriptAsync("clearSelection");
+            return;
+        }
+
+        var created = await Api.CreateHighlightAsync(AssetId, selection.Cfi, selection.Text, color, null);
+        if (created is null)
+        {
+            ShowNotice("The highlight could not be saved. Try again.");
+            return;
+        }
+
+        _highlights.Add(created);
+        await CallScriptAsync("addHighlight", new BookReaderHighlightMark(created.Id.ToString("D"), selection.Cfi, color));
+        await CallScriptAsync("clearSelection");
+        if (withNote)
+        {
+            _editing = created;
+            _editAnchor = selection.Anchor;
+            _noteDraft = null;
+            await CallScriptAsync("setInputPaused", true);
+        }
+    }
+
+    private async Task RecolorHighlightAsync(string color)
+    {
+        if (_editing is not { } current || string.Equals(current.Color, color, StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        // The update call replaces the note, so the note being typed travels along with the colour.
+        var note = string.IsNullOrWhiteSpace(_noteDraft) ? null : _noteDraft;
+        if (!await Api.UpdateHighlightAsync(current.Id, color, note))
+        {
+            ShowNotice("The colour could not be changed. Try again.");
+            return;
+        }
+
+        // The card may have been closed (the page turned) while the call was out; only an open card for this highlight is refreshed.
+        var updated = ReplaceHighlight(_highlights.FirstOrDefault(mark => mark.Id == current.Id) ?? current, color, note);
+        if (_editing?.Id == current.Id)
+        {
+            _editing = updated;
+        }
+
+        await CallScriptAsync("recolorHighlight", current.Id.ToString("D"), color);
+    }
+
+    private async Task CloseEditorAsync()
+    {
+        if (_editing is not { } current)
+        {
+            return;
+        }
+
+        _editing = null;
+        var note = string.IsNullOrWhiteSpace(_noteDraft) ? null : _noteDraft.Trim();
+        // Compare with the stored copy, which a colour change made while the card was open may have refreshed.
+        var stored = _highlights.FirstOrDefault(mark => mark.Id == current.Id) ?? current;
+        if (!string.Equals(note, stored.NoteText, StringComparison.Ordinal))
+        {
+            if (await Api.UpdateHighlightAsync(stored.Id, null, note))
+            {
+                ReplaceHighlight(stored, _highlights.FirstOrDefault(mark => mark.Id == stored.Id)?.Color ?? stored.Color, note);
+            }
+            else
+            {
+                ShowNotice("The note could not be saved. Try again.");
+            }
+        }
+
+        await CallScriptAsync("setInputPaused", _panel is not null);
+        StateHasChanged();
+    }
+
+    private async Task DeleteHighlightAsync()
+    {
+        if (_editing is not { } current)
+        {
+            return;
+        }
+
+        _editing = null;
+        if (!await Api.DeleteHighlightAsync(current.Id))
+        {
+            ShowNotice("The highlight could not be deleted. Try again.");
+            await CallScriptAsync("setInputPaused", _panel is not null);
+            return;
+        }
+
+        _highlights.RemoveAll(mark => mark.Id == current.Id);
+        await CallScriptAsync("removeHighlight", current.Id.ToString("D"));
+        await CallScriptAsync("setInputPaused", _panel is not null);
+    }
+
+    private async Task OpenHighlightAsync(ReaderHighlightDto mark)
+    {
+        await ClosePanelAsync();
+        await GoToPlaceAsync(mark.CfiRange);
+    }
+
+    private ReaderHighlightDto ReplaceHighlight(ReaderHighlightDto current, string color, string? note)
+    {
+        var updated = new ReaderHighlightDto
+        {
+            Id = current.Id,
+            UserId = current.UserId,
+            AssetId = current.AssetId,
+            ChapterIndex = current.ChapterIndex,
+            StartOffset = current.StartOffset,
+            EndOffset = current.EndOffset,
+            CfiRange = current.CfiRange,
+            SelectedText = current.SelectedText,
+            Color = color,
+            NoteText = note,
+            CreatedAt = current.CreatedAt,
+        };
+        var index = _highlights.FindIndex(mark => mark.Id == current.Id);
+        if (index >= 0)
+        {
+            _highlights[index] = updated;
+        }
+
+        return updated;
+    }
+
+    private static string ColorName(string color) => color.ToUpperInvariant() switch
+    {
+        "#EAB308" => "yellow",
+        "#60A5FA" => "blue",
+        "#34D399" => "green",
+        "#F472B6" => "pink",
+        "#A78BFA" => "purple",
+        _ => "this colour",
+    };
+
+    private static string SwatchCss(string color) => $"--br-swatch: {color};";
+
+    // The floating tools sit under the first line of the selection, centred on it. The page keeps them on screen.
+    private static string FloatCss(Anchor anchor) => FormattableString.Invariant(
+        $"--br-fx: {anchor.X + anchor.W / 2:0}px; --br-fy: {anchor.Y + anchor.H + 10:0}px;");
 
     // ---- Leaving ---------------------------------------------------------------------------------------------------
 
@@ -381,6 +1016,11 @@
         if (_saveTimer is { } timer)
         {
             await timer.DisposeAsync();
+        }
+
+        if (_noticeTimer is { } noticeTimer)
+        {
+            await noticeTimer.DisposeAsync();
         }
 
         if (!_exited)

@@ -43,6 +43,11 @@ public static class ReaderEndpoints
             IReaderBookmarkRepository repo,
             CancellationToken ct) =>
         {
+            if (request.CfiPosition?.Length > MaxCfiLength || request.Label?.Length > 500)
+            {
+                return ApiErrors.BadRequest("The bookmark position or label is too long.");
+            }
+
             var bookmark = new ReaderBookmark
             {
                 Id = Guid.NewGuid(),
@@ -119,6 +124,21 @@ public static class ReaderEndpoints
             IReaderHighlightRepository repo,
             CancellationToken ct) =>
         {
+            if (request.CfiRange is { } cfiRange
+                && (cfiRange.Length is 0 or > MaxCfiLength || !cfiRange.StartsWith("epubcfi(", StringComparison.Ordinal)
+                    || !cfiRange.EndsWith(')')))
+            {
+                return ApiErrors.BadRequest("CfiRange must be an epubcfi(...) value of at most 4096 characters.");
+            }
+            if (request.Color is { } requestedColor && !HighlightColor.All.Contains(requestedColor))
+            {
+                return ApiErrors.BadRequest("Color must be one of the supported highlight colours.");
+            }
+            if (string.IsNullOrEmpty(request.SelectedText) || request.SelectedText.Length > MaxSelectedTextLength || request.NoteText?.Length > MaxNoteLength)
+            {
+                return ApiErrors.BadRequest("The selected text is required, and the text and note must not be too long.");
+            }
+
             var highlight = new ReaderHighlight
             {
                 Id = Guid.NewGuid(),
@@ -127,6 +147,7 @@ public static class ReaderEndpoints
                 ChapterIndex = request.ChapterIndex,
                 StartOffset = request.StartOffset,
                 EndOffset = request.EndOffset,
+                CfiRange = request.CfiRange,
                 SelectedText = request.SelectedText,
                 Color = request.Color ?? HighlightColor.Yellow,
                 NoteText = request.NoteText,
@@ -150,6 +171,15 @@ public static class ReaderEndpoints
             CatalogueResourceAuthorizationService authorization,
             CancellationToken ct) =>
         {
+            if (request.Color is { } requestedColor && !HighlightColor.All.Contains(requestedColor))
+            {
+                return ApiErrors.BadRequest("Color must be one of the supported highlight colours.");
+            }
+            if (request.NoteText?.Length > MaxNoteLength)
+            {
+                return ApiErrors.BadRequest("The note is too long.");
+            }
+
             var existing = await repo.FindByIdAsync(id, ct);
             if (existing is null)
             {
@@ -267,6 +297,10 @@ public static class ReaderEndpoints
         return app;
     }
 
+    private const int MaxCfiLength = 4096;
+    private const int MaxSelectedTextLength = 4000;
+    private const int MaxNoteLength = 4000;
+
     private static string ProfileUserId(HttpContext context) =>
         context.Items.TryGetValue(ProfileOperationAccessFilter.ActiveProfileItemKey, out var value) && value is Guid profileId
             ? profileId.ToString("D")
@@ -291,6 +325,7 @@ public static class ReaderEndpoints
         ChapterIndex = highlight.ChapterIndex,
         StartOffset = highlight.StartOffset,
         EndOffset = highlight.EndOffset,
+        CfiRange = highlight.CfiRange,
         SelectedText = highlight.SelectedText,
         Color = highlight.Color,
         NoteText = highlight.NoteText,

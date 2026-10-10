@@ -509,10 +509,11 @@ presentation types must not narrow that payload.
 | GET | `/read/{assetId}/search` | Full-text search within EPUB content | Required |
 | GET | `/reader/{assetId}/bookmarks` | List bookmarks for an asset | Required |
 | POST | `/reader/{assetId}/bookmarks` | Create a bookmark | Required |
-| DELETE | `/reader/{assetId}/bookmarks/{bookmarkId}` | Delete a bookmark | Required |
-| GET | `/reader/{assetId}/highlights` | List highlights | Required |
-| POST | `/reader/{assetId}/highlights` | Create a highlight | Required |
-| DELETE | `/reader/{assetId}/highlights/{highlightId}` | Delete a highlight | Required |
+| DELETE | `/reader/bookmarks/{bookmarkId}` | Delete a bookmark. Another profile's bookmark answers `404`. | Required |
+| GET | `/reader/{assetId}/highlights` | List highlights. Rows made by the book reader carry `cfiRange`; rows from the retired reader have it `null`. | Required |
+| POST | `/reader/{assetId}/highlights` | Create a highlight. The book reader sends `cfiRange` (an `epubcfi(...)` range, at most 4096 characters) with `chapterIndex`, `startOffset` and `endOffset` all `0`. `color` must be one of the supported highlight colours, `selectedText` and `noteText` at most 4000 characters; anything else answers `400`. | Required |
+| PUT | `/reader/highlights/{highlightId}` | Change a highlight's colour and note (a missing note clears it). Another profile's highlight answers `404`. | Required |
+| DELETE | `/reader/highlights/{highlightId}` | Delete a highlight. Another profile's highlight answers `404`. | Required |
 | GET | `/reader/{assetId}/statistics` | Reading statistics - time spent, completion percentage, sessions | Required |
 | POST | `/read/{assetId}/whispersync` | Sync reading position across devices | Required |
 | GET | `/read/{assetId}/whispersync` | Retrieve last sync position | Required |

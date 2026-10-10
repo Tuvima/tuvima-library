@@ -516,6 +516,133 @@ await check('a book replaced on disk while it is being read reports "changed" (I
     await context.close();
 });
 
+console.log('Highlights, contents and settings');
+
+// Selects the first words of the first paragraph after the chapter heading, the way a person's drag would.
+const selectWords = frame => frame.evaluate(() => {
+    const p = document.querySelector('#start ~ p');
+    const node = p.firstChild;
+    const range = document.createRange();
+    range.setStart(node, 0);
+    range.setEnd(node, Math.min(24, node.length));
+    const selection = getSelection();
+    selection.removeAllRanges();
+    selection.addRange(range);
+    return range.toString();
+});
+const events = (page, name) => page.evaluate(name => window.events.filter(e => e[0] === name), name);
+const centreOf = e => [e[3] + e[5] / 2, e[4] + e[6] / 2];
+
+await check('selecting text reports a CFI range, the text and where it is; collapsing it reports the end', () => withBook(desktop, {}, async ({ page }) => {
+    await page.evaluate(() => window.br.goTo(2));
+    const frame = await frameWith(page, '#start');
+    const chosen = await selectWords(frame);
+    const [, cfi, text, x, y, w, h] = await waitFor(async () => (await events(page, 'OnSelection')).at(-1), { label: 'a selection report' });
+    assert(cfi.startsWith('epubcfi(') && cfi.includes(','), `not a CFI range: ${cfi}`);
+    assert(text === chosen.replace(/\s+/g, ' ').trim(), `text differs: "${text}" vs "${chosen}"`);
+    assert(w > 20 && h > 5 && x > 0 && y > 0 && x < 1280 && y < 800, `odd box ${[x, y, w, h]}`);
+    assert((await page.evaluate(() => window.br.getSelection()))?.cfi === cfi, 'getSelection disagrees');
+    await frame.evaluate(() => getSelection().removeAllRanges());
+    await waitFor(async () => (await events(page, 'OnSelectionCleared')).length > 0, { label: 'the selection to clear' });
+    assert((await page.evaluate(() => window.br.getSelection())) === null, 'selection still held');
+}));
+
+await check('a highlight is drawn on its words, taps on it report it (and do not turn the page), and it survives a text-size change', () => withBook(desktop, {}, async ({ page }) => {
+    await page.evaluate(() => window.br.goTo(2));
+    const frame = await frameWith(page, '#start');
+    await selectWords(frame);
+    const selection = await waitFor(async () => (await events(page, 'OnSelection')).at(-1), { label: 'a selection report' });
+    const cfi = selection[1];
+    await page.evaluate(cfi => { window.br.addHighlight({ id: 'h1', cfi, color: '#EAB308' }); window.br.clearSelection(); }, cfi);
+    await sleep(400);
+    const [cx, cy] = centreOf(selection);
+    let relocations = await relocationCount(page);
+    await page.mouse.click(cx, cy);
+    const tapped = await waitFor(async () => (await events(page, 'OnHighlightTapped')).at(-1), { label: 'a highlight tap' });
+    assert(tapped[1] === 'h1', `tap reported ${tapped[1]}`);
+    await sleep(500);
+    assert((await relocationCount(page)) === relocations, 'tapping a highlight turned the page');
+    assert((await events(page, 'OnToggleChrome')).length === 0, 'tapping a highlight toggled the bars');
+
+    // Bigger text moves everything; the highlight must still sit on the same words.
+    await page.evaluate(() => window.br.setAppearance({ theme: 'light', fontSize: 28, lineHeight: 1.6 }));
+    await sleep(400);
+    await page.evaluate(cfi => window.br.goTo(cfi), cfi);
+    await sleep(800);
+    const where = await frame.evaluate(() => {
+        const r = document.querySelector('#start ~ p').firstChild;
+        const range = document.createRange();
+        range.setStart(r, 0); range.setEnd(r, 24);
+        const rect = range.getClientRects()[0];
+        const box = window.frameElement.getBoundingClientRect();
+        return [box.left + rect.left + rect.width / 2, box.top + rect.top + rect.height / 2];
+    });
+    const before = (await events(page, 'OnHighlightTapped')).length;
+    await page.mouse.click(where[0], where[1]);
+    await waitFor(async () => (await events(page, 'OnHighlightTapped')).length > before, { label: 'the highlight to answer after the text got bigger' });
+}));
+
+await check('recolouring and removing a highlight work; a position the book cannot place is skipped quietly', () => withBook(desktop, {}, async ({ page, consoleMessages }) => {
+    await page.evaluate(() => window.br.goTo(2));
+    const frame = await frameWith(page, '#start');
+    await selectWords(frame);
+    const selection = await waitFor(async () => (await events(page, 'OnSelection')).at(-1), { label: 'a selection report' });
+    await page.evaluate(cfi => {
+        window.br.setHighlights([{ id: 'good', cfi, color: '#60A5FA' }, { id: 'bad', cfi: 'epubcfi(/6/999!/4/2)', color: '#EAB308' }, { id: 'worse', cfi: 'not a cfi', color: '#EAB308' }]);
+    }, selection[1]);
+    await frame.evaluate(() => getSelection().removeAllRanges());
+    await sleep(400);
+    await page.evaluate(() => window.br.recolorHighlight('good', '#F472B6'));
+    await sleep(200);
+    const [cx, cy] = centreOf(selection);
+    await page.mouse.click(cx, cy);
+    await waitFor(async () => (await events(page, 'OnHighlightTapped')).at(-1)?.[1] === 'good', { label: 'the recoloured highlight' });
+    await page.evaluate(() => window.br.removeHighlight('good'));
+    await sleep(400);
+    const before = (await events(page, 'OnHighlightTapped')).length;
+    await page.mouse.click(cx, cy);
+    await sleep(600);
+    assert((await events(page, 'OnHighlightTapped')).length === before, 'a removed highlight still answers taps');
+    assert(!consoleMessages.some(m => m.type === 'pageerror'), 'the page raised an error');
+}));
+
+await check('the contents list is flattened and an entry opens its chapter', () => withBook(desktop, {}, async ({ page }) => {
+    const toc = await page.evaluate(() => window.br.getToc());
+    assert(toc.length === 4 && toc.every(t => t.label && t.href && t.level === 0), `unexpected contents ${JSON.stringify(toc)}`);
+    const count = await relocationCount(page);
+    await page.evaluate(href => window.br.goToHref(href), toc[2].href);
+    await frameWith(page, '#start');
+    await nextRelocation(page, count);
+}));
+
+await check('settings are remembered per device, other stored keys survive, and flow/width/font apply', () => withBook(desktop, {}, async ({ page }) => {
+    const saved = await page.evaluate(() => {
+        localStorage.setItem('tuvima-reader-settings', JSON.stringify({ Theme: 'light', Margins: 48, FontFamily: 'Merriweather' }));
+        window.br.saveSettings({ theme: 'sepia', fontSize: 22, lineHeight: 1.8, font: 'serif', pageWidth: 'wide', flow: 'scrolled' });
+        return { stored: JSON.parse(localStorage.getItem('tuvima-reader-settings')), loaded: window.br.loadSettings() };
+    });
+    assert(saved.stored.Margins === 48 && saved.stored.FontFamily === 'Merriweather', 'the current reader\'s keys were lost');
+    assert(JSON.stringify(saved.loaded) === JSON.stringify({ theme: 'sepia', fontSize: 22, lineHeight: 1.8, font: 'serif', pageWidth: 'wide', flow: 'scrolled' }), `loaded ${JSON.stringify(saved.loaded)}`);
+    await page.evaluate(() => window.br.setAppearance({ theme: 'dark', fontSize: 20, lineHeight: 1.6, font: 'sans', pageWidth: 'narrow', flow: 'scrolled' }));
+    const attrs = await page.evaluate(() => {
+        const r = document.querySelector('foliate-view').renderer;
+        return { flow: r.getAttribute('flow'), width: r.getAttribute('max-inline-size') };
+    });
+    assert(attrs.flow === 'scrolled' && attrs.width === '560px', `renderer ${JSON.stringify(attrs)}`);
+    await page.evaluate(() => window.br.goTo(2));
+    const frame = await frameWith(page, '#start');
+    const family = await frame.evaluate(() => getComputedStyle(document.querySelector('#start ~ p')).fontFamily);
+    assert(/system-ui|Segoe|Roboto|sans-serif/.test(family), `font was ${family}`);
+    await page.evaluate(() => window.br.setAppearance({ theme: 'light', fontSize: 20, lineHeight: 1.6, font: 'book', pageWidth: 'standard', flow: 'paginated' }));
+    const back = await page.evaluate(() => document.querySelector('foliate-view').renderer.getAttribute('flow'));
+    assert(back === 'paginated', 'flow did not return to pages');
+    const garbage = await page.evaluate(() => {
+        localStorage.setItem('tuvima-reader-settings', JSON.stringify({ ReaderFont: 'comic-sans', PageWidth: 'huge', Flow: 'sideways', FontSize: -3 }));
+        return window.br.loadSettings();
+    });
+    assert(Object.keys(garbage).length === 0, `bad stored values were accepted: ${JSON.stringify(garbage)}`);
+}));
+
 console.log('Helpers');
 
 await check('built-in SHA-1 (used on plain http, where the browser has none) matches the real one', async () => {

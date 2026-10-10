@@ -773,6 +773,40 @@ public sealed partial class EngineApiClient
         catch (Exception ex) { LastError = ex.Message; return []; }
     }
 
+    public async Task<ReaderHighlightDto?> CreateHighlightAsync(Guid assetId, string cfiRange, string selectedText, string? color, string? noteText, CancellationToken ct = default)
+    {
+        try
+        {
+            // The offsets belong to the retired reader; the CFI range is the position.
+            var body = new CreateReaderHighlightRequestDto(0, 0, 0, selectedText, color, noteText, cfiRange);
+            var resp = await _http.PostAsJsonAsync($"reader/{assetId}/highlights", body, ct);
+            return resp.IsSuccessStatusCode
+                ? await resp.Content.ReadFromJsonAsync<ReaderHighlightDto>(cancellationToken: ct)
+                : null;
+        }
+        catch (Exception ex) { LastError = ex.Message; return null; }
+    }
+
+    public async Task<bool> UpdateHighlightAsync(Guid highlightId, string? color, string? noteText, CancellationToken ct = default)
+    {
+        try
+        {
+            var resp = await _http.PutAsJsonAsync($"reader/highlights/{highlightId}", new UpdateReaderHighlightRequestDto(color, noteText), ct);
+            return resp.IsSuccessStatusCode;
+        }
+        catch (Exception ex) { LastError = ex.Message; return false; }
+    }
+
+    public async Task<bool> DeleteHighlightAsync(Guid highlightId, CancellationToken ct = default)
+    {
+        try
+        {
+            var resp = await _http.DeleteAsync($"reader/highlights/{highlightId}", ct);
+            return resp.IsSuccessStatusCode;
+        }
+        catch (Exception ex) { LastError = ex.Message; return false; }
+    }
+
     public async Task<ReaderStatisticsDto?> GetReadingStatisticsAsync(Guid assetId, CancellationToken ct = default)
     {
         try { return await _http.GetFromJsonAsync<ReaderStatisticsDto>($"reader/{assetId}/statistics", ct); }

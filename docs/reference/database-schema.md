@@ -911,7 +911,7 @@ Saved reading positions.
 | `asset_id` | TEXT | FK -> `media_assets.id` |
 | `profile_id` | TEXT | FK -> `profiles.id` |
 | `chapter_index` | INTEGER | |
-| `cfi` | TEXT | EPUB Canonical Fragment Identifier for precise position |
+| `cfi_position` | TEXT | EPUB Canonical Fragment Identifier of the bookmarked page (`epubcfi(...)`). The book reader writes `chapter_index` as 0 and puts "section name · percent" in `label`; rows from the retired reader hold offsets and are ignored by the book reader. |
 | `created_at` | TEXT | Timestamp |
 
 ### audiobook_bookmarks
@@ -981,10 +981,11 @@ Text highlights and annotations.
 | `asset_id` | TEXT | |
 | `profile_id` | TEXT | |
 | `chapter_index` | INTEGER | |
-| `cfi_range` | TEXT | CFI range for highlighted text |
-| `text` | TEXT | Highlighted text content |
-| `note` | TEXT | User annotation. NULL if no note. |
-| `color` | TEXT | Highlight color |
+| `start_offset`, `end_offset` | INTEGER | Character offsets of the retired reader; 0 for rows made by the book reader |
+| `cfi_range` | TEXT | EPUB CFI range of the highlighted text (`epubcfi(...)`). NULL for rows made by the retired reader, which the book reader does not show. Added by an idempotent startup migration. |
+| `selected_text` | TEXT | Highlighted text content |
+| `note_text` | TEXT | User annotation. NULL if no note. |
+| `color` | TEXT | Highlight colour as a hex code (one of the supported highlight colours) |
 | `created_at` | TEXT | Timestamp |
 
 ### reader_statistics

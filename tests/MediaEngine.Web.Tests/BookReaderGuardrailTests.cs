@@ -154,6 +154,52 @@ public sealed class BookReaderGuardrailTests
     }
 
     [Fact]
+    public void PageAndScript_AgreeOnEveryCallBetweenThem()
+    {
+        var page = Read($"{Web}/Components/Pages/BookReader.razor");
+        var adapter = Read($"{Web}/wwwroot/js/book-reader.js");
+
+        // Every script function the page calls exists in the adapter (a typo would only fail inside a browser).
+        var called = Regex.Matches(page, "(?:CallScriptAsync|InvokeAsync<[^>]+(?:>+)|InvokeVoidAsync)\\(\"([A-Za-z]+)\"")
+            .Select(match => match.Groups[1].Value)
+            .Where(name => name != "import")
+            .Distinct()
+            .ToArray();
+        Assert.Contains("setHighlights", called);
+        Assert.Contains("saveSettings", called);
+        foreach (var name in called)
+        {
+            Assert.Matches(new Regex($"export (?:async )?function {name}\\("), adapter);
+        }
+
+        // Every notification the script sends to the page has a [JSInvokable] method with the same name.
+        var notified = Regex.Matches(adapter, "notify\\(state, '([A-Za-z]+)'")
+            .Select(match => match.Groups[1].Value)
+            .Distinct()
+            .ToArray();
+        Assert.Contains("OnSelection", notified);
+        Assert.Contains("OnHighlightTapped", notified);
+        foreach (var name in notified)
+        {
+            Assert.Matches(new Regex($"\\[JSInvokable\\]\\s+public (?:async )?Task(?:<[^>]+>)? {name}\\("), page);
+        }
+    }
+
+    [Fact]
+    public void Highlights_AreAnchoredByCfiRangeNeverByCharacterOffsets()
+    {
+        var page = Read($"{Web}/Components/Pages/BookReader.razor");
+
+        Assert.Contains("Api.CreateHighlightAsync(AssetId, selection.Cfi", page);
+        // New highlights go through the client call, which writes no offsets; the page never builds the request itself.
+        // (ReplaceHighlight copies the retired offsets of an existing row unchanged because the wire type is not a record.)
+        Assert.DoesNotContain("CreateReaderHighlightRequestDto", page);
+        // Rows from the retired reader (no range) and bookmarks that are not CFIs are never handed to the script.
+        Assert.Contains("!string.IsNullOrWhiteSpace(mark.CfiRange)", page);
+        Assert.Contains("StartsWith(\"epubcfi(\"", page);
+    }
+
+    [Fact]
     public void OpenResult_ReadsTheScriptsCamelCaseAnswer()
     {
         const string json = """

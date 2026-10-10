@@ -2083,6 +2083,7 @@ CREATE TABLE IF NOT EXISTS reader_highlights (
     chapter_index  INTEGER NOT NULL,
     start_offset   INTEGER NOT NULL,
     end_offset     INTEGER NOT NULL,
+    cfi_range      TEXT,
     selected_text  TEXT NOT NULL,
     color          TEXT NOT NULL DEFAULT '#EAB308',
     note_text      TEXT,

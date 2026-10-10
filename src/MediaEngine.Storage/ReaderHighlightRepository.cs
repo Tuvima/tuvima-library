@@ -25,13 +25,14 @@ public sealed class ReaderHighlightRepository : IReaderHighlightRepository
                    chapter_index AS ChapterIndex,
                    start_offset  AS StartOffset,
                    end_offset    AS EndOffset,
+                   cfi_range     AS CfiRange,
                    selected_text AS SelectedText,
                    color         AS Color,
                    note_text     AS NoteText,
                    created_at    AS CreatedAt
             FROM   reader_highlights
             WHERE  user_id = @userId AND asset_id = @assetId
-            ORDER BY chapter_index, start_offset;
+            ORDER BY chapter_index, start_offset, created_at, id;
             """, new { userId, assetId }).AsList();
 
         return Task.FromResult<IReadOnlyList<ReaderHighlight>>(rows.ConvertAll(MapRow));
@@ -48,6 +49,7 @@ public sealed class ReaderHighlightRepository : IReaderHighlightRepository
                    chapter_index AS ChapterIndex,
                    start_offset  AS StartOffset,
                    end_offset    AS EndOffset,
+                   cfi_range     AS CfiRange,
                    selected_text AS SelectedText,
                    color         AS Color,
                    note_text     AS NoteText,
@@ -66,10 +68,10 @@ public sealed class ReaderHighlightRepository : IReaderHighlightRepository
         using var conn = _db.CreateConnection();
         conn.Execute("""
             INSERT INTO reader_highlights
-                (id, user_id, asset_id, chapter_index, start_offset, end_offset,
+                (id, user_id, asset_id, chapter_index, start_offset, end_offset, cfi_range,
                  selected_text, color, note_text, created_at)
             VALUES
-                (@id, @userId, @assetId, @chapterIndex, @startOffset, @endOffset,
+                (@id, @userId, @assetId, @chapterIndex, @startOffset, @endOffset, @cfiRange,
                  @selectedText, @color, @noteText, @createdAt);
             """, new
         {
@@ -79,6 +81,7 @@ public sealed class ReaderHighlightRepository : IReaderHighlightRepository
             chapterIndex = highlight.ChapterIndex,
             startOffset = highlight.StartOffset,
             endOffset = highlight.EndOffset,
+            cfiRange = highlight.CfiRange,
             selectedText = highlight.SelectedText,
             color = highlight.Color,
             noteText = highlight.NoteText,
@@ -125,6 +128,7 @@ public sealed class ReaderHighlightRepository : IReaderHighlightRepository
         public int ChapterIndex { get; set; }
         public int StartOffset { get; set; }
         public int EndOffset { get; set; }
+        public string? CfiRange { get; set; }
         public string SelectedText { get; set; } = string.Empty;
         public string Color { get; set; } = string.Empty;
         public string? NoteText { get; set; }
@@ -139,6 +143,7 @@ public sealed class ReaderHighlightRepository : IReaderHighlightRepository
         ChapterIndex = r.ChapterIndex,
         StartOffset = r.StartOffset,
         EndOffset = r.EndOffset,
+        CfiRange = r.CfiRange,
         SelectedText = r.SelectedText,
         Color = r.Color,
         NoteText = r.NoteText,
