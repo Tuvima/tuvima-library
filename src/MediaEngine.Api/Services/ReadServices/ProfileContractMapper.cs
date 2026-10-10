@@ -57,7 +57,6 @@ internal static class ProfileContractMapper
         ViewEnabled = policy.ViewEnabled,
         AccessSharedLibrary = policy.AccessSharedLibrary,
         SubmitToSharedLibrary = policy.SubmitToSharedLibrary,
-        ReviewSharedLibraryContributions = policy.ReviewSharedLibraryContributions,
         AllowGallerySharing = policy.ShareGalleries,
         UpdatedAt = policy.UpdatedAt,
     };
@@ -69,7 +68,6 @@ internal static class ProfileContractMapper
             request.ViewEnabled,
             request.AccessSharedLibrary,
             request.SubmitToSharedLibrary,
-            request.ReviewSharedLibraryContributions,
             request.AllowGallerySharing,
             null);
 

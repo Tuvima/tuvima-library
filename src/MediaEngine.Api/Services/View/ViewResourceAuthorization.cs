@@ -186,7 +186,12 @@ public sealed class ViewResourceAuthorizationService(
                 : ViewAccessDecision.NotFound(resolution.Scope);
         }
 
-        return request.Kind != ViewResourceKind.Gallery
+        // A person reads (never edits) a household member's Galleries too; Galleries stay private to everyone
+        // outside the Personal Space's household because the scope itself is only resolved inside the household.
+        var householdGallery = caller.HasHumanContext
+            && resolution.Scope.Kind == ViewScopeKind.Profile
+            && resource.OwnerProfileId == resolution.Scope.ProfileId;
+        return request.Kind != ViewResourceKind.Gallery || householdGallery
             ? ViewAccessDecision.Allowed(resolution.Scope)
             : ViewAccessDecision.NotFound(resolution.Scope);
     }

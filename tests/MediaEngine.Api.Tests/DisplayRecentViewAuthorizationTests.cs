@@ -29,7 +29,7 @@ public sealed class DisplayRecentViewAuthorizationTests
         Assert.Equal(first.PersonalSpace.LibraryId, Assert.Single(backend.LastPlan.Scope.LibraryIds));
         Assert.Equal("Other", Assert.Single((await Load(second)).Items).ViewAsset!.Title);
     }
-    private static ViewScopeStoreEntry State() { var id = Guid.NewGuid(); var now = DateTimeOffset.UtcNow; return new(new ViewProfilePolicy(id, true, true, true, false, true, now), new ViewPersonalSpace(Guid.NewGuid(), id, Guid.NewGuid(), now, now)); }
+    private static ViewScopeStoreEntry State() { var id = Guid.NewGuid(); var now = DateTimeOffset.UtcNow; return new(new ViewProfilePolicy(id, true, true, true, true, now), new ViewPersonalSpace(Guid.NewGuid(), id, Guid.NewGuid(), now, now)); }
     private static LocalAssetDto Asset(Guid library, string title) => JsonSerializer.Deserialize<LocalAssetDto>(JsonSerializer.Serialize(new { id = Guid.NewGuid(), library_id = library, title, file_name = "photo.jpg", media_kind = "image", created_at = DateTimeOffset.UtcNow, files = Array.Empty<object>(), tags = Array.Empty<string>() }))!;
     private sealed class EmptyStore : IViewResourceStore { public Task<ViewResourceDescriptor?> FindAsync(ViewResourceKind kind, Guid resourceId, Guid requestingProfileId, CancellationToken ct = default) => Task.FromResult<ViewResourceDescriptor?>(null); }
     private sealed class ScopedBackend(IReadOnlyList<LocalAssetDto> rows) : IViewAssetQueryBackend

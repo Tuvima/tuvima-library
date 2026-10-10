@@ -37,7 +37,7 @@ else
                 <section class="view-atlas__filter-sheet" aria-label="Places filters">
                     @if (Workspace.Scopes is not null)
                     {
-                        <label><span>Library scope</span><AppNativeSelect Value="@SelectedScopeValue" OnChange="ScopeChangedAsync" aria-label="Authorized Places scope">@foreach (var scope in Workspace.Scopes.AvailableScopes) { <option value="@ScopeValue(scope.Kind, scope.ProfileId)">@scope.Label</option> }</AppNativeSelect></label>
+                        <label><span>Library scope</span><AppNativeSelect Value="@SelectedScopeValue" OnChange="ScopeChangedAsync" aria-label="Authorized Places scope"><ViewScopeOptions Scopes="@Workspace.Scopes.AvailableScopes" /></AppNativeSelect></label>
                     }
                     <div class="view-atlas__check"><AppCheckbox Value="@_favoritesOnly" ValueChanged="FavoritesChangedAsync" Label="Favorites only" /><small>Show mapped media marked as a favorite.</small></div>
                     @if (_atlas.UnmappedAssetCount > 0) { <AppButton Label="@($"Without location ({_atlas.UnmappedAssetCount:N0})")" OnClick="ShowUnmappedAsync" /> }

@@ -91,6 +91,10 @@ View uses a common library-detail header and Folders, Organization, File Handlin
 
 The install banner records dismissal in browser/site local storage. Subsequent install events and navigation respect it. System Overview offers an independent manual installation action.
 
+### View household section (October 2026)
+
+The View scope pickers (Photos, Places, Folders) list your own space first, then a **Household** group naming each other person in the household, then the Shared Library. Another member's space is read only: no Add media, no editing, hidden photos stay hidden, and sending one of their photos to the Shared Library always makes a copy. People in other households never appear. Everyone can open and send to their household's Shared Library by default; a child profile can send only after a household administrator allows it. Household administrators (and server administrators) review contributions, and there is no curator role.
+
 ## Shared AI storage (September 2026)
 
 Local app/test builds load versioned native AI dependencies from TUVIMA_AI_RUNTIME_DIR and model weights from TUVIMA_MODELS_DIR. Provision through tools/Install-AiRuntime.ps1; do not add native package copies back to ordinary build outputs. The workstation uses E:\Resources\AI Models (llama/whisper directly beneath it) and sibling AI Runtimes. Windows installer and Docker builds explicitly bundle deployment assets. See docs/guides/shared-ai-storage.md and AGENTS.md for setup, verification and workspace retention. Repos holds only Library and Wikidata; keep at most two temporary worktrees outside Repos and retire them after integration.

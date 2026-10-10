@@ -56,7 +56,11 @@ A Gallery groups media. It is not a new file source. Deleting a Gallery does not
 3. Submit the batch if you have that right.
 4. Follow it in **Shared Library > Contributions**.
 
-A curator with review rights accepts or declines the batch. The transfer checks the shared copy before making it a shared member. Managed originals move only after that check. Linked originals are copied and stay in their source folder. Submission and review need separate rights.
+A household administrator accepts or declines the batch (so can a server administrator). The transfer checks the shared copy before making it a shared member. Managed originals move only after that check. Linked originals are copied and stay in their source folder. When you send someone else's photo, the Shared Library always gets a copy and their original stays in their own space. Everyone in a household can open and send; a child profile can send only after a household administrator allows it.
+
+## Browse your household
+
+Open the scope picker at the top of Photos, Places or Folders. Your own space stays first, then a **Household** group lists each person in your household by name, then the Shared Library. You can open, search and share from anyone's space in your household, but you cannot edit, hide, move or delete their photos, and their hidden photos stay hidden. People in other households never appear, and none of their photos, counts, map pins or contributions are visible to you.
 
 ## Browse People and Places
 

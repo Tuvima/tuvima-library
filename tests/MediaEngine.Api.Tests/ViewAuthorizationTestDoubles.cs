@@ -37,3 +37,33 @@ internal sealed class TestAllowAuthorizationEvaluator : IAuthorizationEvaluator
                 : AuthorizationDecision.Deny(AuthorizationDenialReason.DisabledPrincipal));
     }
 }
+
+/// <summary>Allows exactly what the real rules allow: an effective server administrator, or an effective household administrator.</summary>
+internal sealed class AdministratorDecisions : IAccountAccessDecisionService
+{
+    public bool LastRequiredSurfaceUnlock { get; private set; }
+
+    public ValueTask<AuthorizationDecision> EvaluateFeatureAsync(RequestAuthority authority, AccountFeatureId feature,
+        CancellationToken cancellationToken = default) => ValueTask.FromResult(AuthorizationDecision.Allow());
+
+    public ValueTask<AuthorizationDecision> EvaluateLibraryAsync(RequestAuthority authority, Guid libraryId,
+        CancellationToken cancellationToken = default) => ValueTask.FromResult(AuthorizationDecision.Allow());
+
+    public ValueTask<AuthorizationDecision> EvaluateAdministratorAsync(RequestAuthority authority,
+        bool requireSurfaceUnlock, CancellationToken cancellationToken = default)
+    {
+        LastRequiredSurfaceUnlock = requireSurfaceUnlock;
+        return ValueTask.FromResult(authority.IsEffectiveAdministrator
+            ? AuthorizationDecision.Allow()
+            : AuthorizationDecision.Deny(AuthorizationDenialReason.AdministratorRequired));
+    }
+
+    public ValueTask<AuthorizationDecision> EvaluateHouseholdAdministratorAsync(RequestAuthority authority,
+        bool requireSurfaceUnlock, CancellationToken cancellationToken = default)
+    {
+        LastRequiredSurfaceUnlock = requireSurfaceUnlock;
+        return ValueTask.FromResult(authority.IsEffectiveHouseholdAdministrator
+            ? AuthorizationDecision.Allow()
+            : AuthorizationDecision.Deny(AuthorizationDenialReason.AdministratorRequired));
+    }
+}

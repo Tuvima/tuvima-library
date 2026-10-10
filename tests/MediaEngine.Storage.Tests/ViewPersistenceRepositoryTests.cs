@@ -31,20 +31,18 @@ public sealed class ViewPersistenceRepositoryTests : IDisposable
         var ownerId = InsertProfile("Owner");
         var visibleProfileId = InsertProfile("Visible profile");
 
-        Assert.Equal(ViewProfilePolicy.Default(ownerId), await _profiles.GetPolicyAsync(ownerId));
+        Assert.Equal(ViewProfilePolicy.Default(ownerId, restricted: true), await _profiles.GetPolicyAsync(ownerId));
         Assert.True(await _profiles.SavePolicyAsync(new ViewProfilePolicy(
             ownerId,
             ViewEnabled: true,
             AccessSharedLibrary: false,
             SubmitToSharedLibrary: true,
-            ReviewSharedLibraryContributions: true,
             ShareGalleries: true,
             UpdatedAt: null)));
 
         var policy = await _profiles.GetPolicyAsync(ownerId);
         Assert.False(policy.AccessSharedLibrary);
         Assert.True(policy.SubmitToSharedLibrary);
-        Assert.True(policy.ReviewSharedLibraryContributions);
         Assert.True(policy.ShareGalleries);
 
         Assert.True(await _profiles.SavePreferencesAsync(new ViewProfilePreferences(
@@ -66,6 +64,25 @@ public sealed class ViewPersistenceRepositoryTests : IDisposable
             preferences with { LastScopeKind = ViewScopeKind.Mine }));
         Assert.False(await _profiles.SavePolicyAsync(
             ViewProfilePolicy.Default(Guid.NewGuid())));
+    }
+
+    [Fact]
+    public async Task ProfilePolicyDefaults_OpenAndSendForEveryoneButAChildNeedsPermissionToSend()
+    {
+        var adultId = InsertProfile("Adult", "StandardUser");
+        var childId = InsertProfile("Child");
+
+        var adult = await _profiles.GetPolicyAsync(adultId);
+        var child = await _profiles.GetPolicyAsync(childId);
+
+        Assert.True(adult.ViewEnabled);
+        Assert.True(adult.AccessSharedLibrary);
+        Assert.True(adult.SubmitToSharedLibrary);
+        Assert.True(child.AccessSharedLibrary);
+        Assert.False(child.SubmitToSharedLibrary);
+
+        Assert.True(await _profiles.SavePolicyAsync(child with { SubmitToSharedLibrary = true }));
+        Assert.True((await _profiles.GetPolicyAsync(childId)).SubmitToSharedLibrary);
     }
 
     [Fact]
@@ -247,14 +264,14 @@ public sealed class ViewPersistenceRepositoryTests : IDisposable
             [firstOwner.LibraryId, secondOwner.LibraryId], Lifecycle: LocalAssetLifecycleFilter.Trashed)).Items).Id);
     }
 
-    private Guid InsertProfile(string name)
+    private Guid InsertProfile(string name, string role = "RestrictedProfile")
     {
         var id = Guid.NewGuid();
         using var connection = _database.CreateConnection();
         connection.Execute("""
             INSERT INTO profiles (id, display_name, avatar_color, role, created_at)
-            VALUES (@id, @name, '#7C4DFF', 'RestrictedProfile', @now);
-            """, new { id, name, now = DateTimeOffset.UtcNow });
+            VALUES (@id, @name, '#7C4DFF', @role, @now);
+            """, new { id, name, role, now = DateTimeOffset.UtcNow });
         return id;
     }
 

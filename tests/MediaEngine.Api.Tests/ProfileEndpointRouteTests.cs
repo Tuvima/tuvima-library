@@ -48,7 +48,7 @@ public sealed class ProfileEndpointRouteTests
     }
 
     [Fact]
-    public void ViewPolicyEndpoints_AreProfileScopedAndAdministratorOnly()
+    public void ViewPolicyEndpoints_AreProfileScopedAndAdministratorOrOwnHouseholdAdministratorOnly()
     {
         var source = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Api/Endpoints/ProfileEndpoints.cs"));
 
@@ -59,8 +59,11 @@ public sealed class ProfileEndpointRouteTests
         Assert.True(getStart >= 0);
         Assert.True(putStart > getStart);
         Assert.True(playbackPut > putStart);
-        Assert.Contains(".RequireAdmin();", source[getStart..putStart], StringComparison.Ordinal);
-        Assert.Contains(".RequireAdmin();", source[putStart..playbackPut], StringComparison.Ordinal);
+        Assert.Contains(".RequireEffectiveAdministratorOrHouseholdAdministrator();", source[getStart..putStart], StringComparison.Ordinal);
+        Assert.Contains(".RequireEffectiveAdministratorOrHouseholdAdministrator();", source[putStart..playbackPut], StringComparison.Ordinal);
+        // A household administrator only reaches profiles in their own household.
+        Assert.Contains("MayManageViewPolicyAsync", source[getStart..putStart], StringComparison.Ordinal);
+        Assert.Contains("MayManageViewPolicyAsync", source[putStart..playbackPut], StringComparison.Ordinal);
         Assert.Contains("IViewProfileRepository viewProfiles", source[getStart..playbackPut], StringComparison.Ordinal);
         Assert.DoesNotContain("RequireAnyRole", source[getStart..playbackPut], StringComparison.Ordinal);
     }

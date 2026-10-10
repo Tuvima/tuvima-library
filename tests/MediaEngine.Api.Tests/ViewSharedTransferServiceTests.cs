@@ -15,11 +15,11 @@ namespace MediaEngine.Api.Tests;
 public sealed class ViewSharedTransferServiceTests
 {
     [Fact]
-    public async Task Contribution_DoesNotMoveUntilCuratorAccepts_AndIsIdempotent()
+    public async Task Contribution_DoesNotMoveUntilHouseholdAdministratorAccepts_AndIsIdempotent()
     {
         using var fixture = new Fixture();
         await fixture.Policies.SavePolicyAsync(new ViewProfilePolicy(
-            fixture.ProfileId, true, true, true, true, true, null));
+            fixture.ProfileId, true, true, true, true, null));
         var original = fixture.WriteManaged("keeper.jpg", [11, 12, 13]);
         var indexed = await fixture.Library.IndexPathAsync(fixture.Space.LibraryId, original);
         Assert.NotNull(indexed);
@@ -49,11 +49,11 @@ public sealed class ViewSharedTransferServiceTests
     }
 
     [Fact]
-    public async Task CuratorCanAddOwnedItemDirectlyWithoutSubmitGrant()
+    public async Task HouseholdAdministratorCanAddOwnedItemDirectlyWithoutSubmitGrant()
     {
         using var fixture = new Fixture();
         await fixture.Policies.SavePolicyAsync(new ViewProfilePolicy(
-            fixture.ProfileId, true, true, false, true, true, null));
+            fixture.ProfileId, true, true, false, true, null));
         var original = fixture.WriteManaged("direct.jpg", [31, 32]);
         var indexed = await fixture.Library.IndexPathAsync(fixture.Space.LibraryId, original);
 
@@ -67,11 +67,11 @@ public sealed class ViewSharedTransferServiceTests
     }
 
     [Fact]
-    public async Task CuratorPolicyCannotReplaceEffectiveAccountAdministratorAuthority()
+    public async Task ReviewingRequiresEffectiveAdministratorAuthority()
     {
         using var fixture = new Fixture();
         await fixture.Policies.SavePolicyAsync(new ViewProfilePolicy(
-            fixture.ProfileId, true, true, false, true, true, null));
+            fixture.ProfileId, true, true, false, true, null));
         var original = fixture.WriteManaged("denied-direct.jpg", [41, 42]);
         var indexed = await fixture.Library.IndexPathAsync(fixture.Space.LibraryId, original);
         var nonAdministrator = fixture.Authority with { AccountIsAdministrator = false };
@@ -82,27 +82,26 @@ public sealed class ViewSharedTransferServiceTests
     }
 
     [Fact]
-    public async Task CuratorActionRequiresAdministratorSurfaceUnlock()
+    public async Task ReviewingRequiresAdministratorSurfaceUnlock()
     {
         using var fixture = new Fixture();
         await fixture.Policies.SavePolicyAsync(new ViewProfilePolicy(
-            fixture.ProfileId, true, true, false, true, true, null));
+            fixture.ProfileId, true, true, false, true, null));
         var original = fixture.WriteManaged("unlock-direct.jpg", [61, 62]);
         var indexed = await fixture.Library.IndexPathAsync(fixture.Space.LibraryId, original);
 
         await fixture.Contributions.AddDirectAsync(fixture.Authority,
             new ViewSharedDirectAddRequest([indexed!.ItemId]));
 
-        Assert.True(fixture.Authorization.LastRequirement!.RequiresAdministrator);
-        Assert.True(fixture.Authorization.LastRequirement.RequiresAdministratorSurfaceUnlock);
+        Assert.True(fixture.Decisions.LastRequiredSurfaceUnlock);
     }
 
     [Fact]
-    public async Task ContributionCannotProbeAnotherProfilesItem()
+    public async Task ContributionCannotProbeAnotherHouseholdsItem()
     {
         using var fixture = new Fixture();
         await fixture.Policies.SavePolicyAsync(new ViewProfilePolicy(
-            fixture.ProfileId, true, true, true, true, true, null));
+            fixture.ProfileId, true, true, true, true, null));
         var original = fixture.WriteManaged("private-item.jpg", [71, 72]);
         var indexed = await fixture.Library.IndexPathAsync(fixture.Space.LibraryId, original);
         var otherProfileId = Guid.NewGuid();
@@ -111,9 +110,9 @@ public sealed class ViewSharedTransferServiceTests
             Id = otherProfileId,
             DisplayName = "Other profile",
             Role = ProfileRole.StandardUser,
-        });
+        }, householdId: Guid.NewGuid());
         await fixture.Policies.SavePolicyAsync(new ViewProfilePolicy(
-            otherProfileId, true, true, true, false, false, null));
+            otherProfileId, true, true, true, false, null));
         var otherAuthority = fixture.Authority with { ActiveProfileId = otherProfileId };
 
         await Assert.ThrowsAsync<KeyNotFoundException>(() => fixture.Contributions.PreviewAsync(
@@ -126,7 +125,7 @@ public sealed class ViewSharedTransferServiceTests
     {
         using var fixture = new Fixture();
         await fixture.Policies.SavePolicyAsync(new ViewProfilePolicy(
-            fixture.ProfileId, true, true, true, true, true, null));
+            fixture.ProfileId, true, true, true, true, null));
         var original = fixture.WriteManaged("disabled-submit.jpg", [51, 52]);
         var indexed = await fixture.Library.IndexPathAsync(fixture.Space.LibraryId, original);
 
@@ -145,7 +144,7 @@ public sealed class ViewSharedTransferServiceTests
     {
         using var fixture = new Fixture();
         await fixture.Policies.SavePolicyAsync(new ViewProfilePolicy(
-            fixture.ProfileId, true, true, true, true, true, null));
+            fixture.ProfileId, true, true, true, true, null));
         var original = fixture.WriteManaged("disabled-binding.jpg", [53, 54]);
         var indexed = await fixture.Library.IndexPathAsync(fixture.Space.LibraryId, original);
         var authority = fixture.Authority with
@@ -166,7 +165,7 @@ public sealed class ViewSharedTransferServiceTests
     {
         using var fixture = new Fixture();
         await fixture.Policies.SavePolicyAsync(new ViewProfilePolicy(
-            fixture.ProfileId, true, true, true, true, true, null));
+            fixture.ProfileId, true, true, true, true, null));
         var original = fixture.WriteManaged("declined.jpg", [21, 22]);
         var indexed = await fixture.Library.IndexPathAsync(fixture.Space.LibraryId, original);
         var preview = await fixture.Contributions.PreviewAsync(fixture.Authority,
@@ -293,6 +292,193 @@ public sealed class ViewSharedTransferServiceTests
         Assert.Single(items.Items);
     }
 
+    [Fact]
+    public async Task JimCanOpenMarysPhotoAndShareACopy_AHouseholdAdministratorApproves_AndJimCannotEditIt()
+    {
+        using var fixture = new Fixture();
+        var maryId = Guid.NewGuid();
+        var jimId = Guid.NewGuid();
+        await fixture.InsertProfileAsync(new Profile { Id = maryId, DisplayName = "Mary", Role = ProfileRole.StandardUser });
+        await fixture.InsertProfileAsync(new Profile { Id = jimId, DisplayName = "Jim", Role = ProfileRole.StandardUser });
+        var marySpace = await fixture.Storage.EnsurePersonalSpaceAsync(maryId);
+        await fixture.Storage.EnsurePersonalSpaceAsync(jimId);
+        var original = fixture.WriteManagedFor(marySpace, "mary-lake.jpg", [5, 6, 7]);
+        var indexed = await fixture.Library.IndexPathAsync(marySpace.LibraryId, original);
+        Assert.NotNull(indexed);
+        var jim = fixture.Person(jimId);
+        var context = new StubProfileContext(jim);
+        var authorization = fixture.NewAuthorization();
+
+        // Jim opens Mary's photo (read only) and finds it in her space's timeline.
+        var open = await authorization.AuthorizeAsync(jim, new ViewResourceRequest(
+            ViewScopeRequest.ForProfile(maryId), ViewResourceKind.Asset, indexed!.ItemId));
+        Assert.True(open.IsAllowed);
+        var timeline = await fixture.NewOrchestrator(context).QueryAsync(new ViewAssetQueryRequest(
+            ViewScopeRequest.ForProfile(maryId)));
+        Assert.Contains(Assert.IsType<ViewAssetTimelinePageDto>(timeline.Page).Items, item => item.Id == indexed.ItemId);
+
+        // He cannot change or remove it.
+        foreach (var action in new[] { ViewResourceAction.Manage, ViewResourceAction.Contribute })
+        {
+            var edit = await authorization.AuthorizeAsync(jim, new ViewResourceRequest(
+                ViewScopeRequest.ForProfile(maryId), ViewResourceKind.Asset, indexed.ItemId, action));
+            Assert.False(edit.IsAllowed);
+            var viaMine = await authorization.AuthorizeAsync(jim, new ViewResourceRequest(
+                ViewScopeRequest.Mine, ViewResourceKind.Asset, indexed.ItemId, action));
+            Assert.False(viaMine.IsAllowed);
+        }
+
+        // He sends a copy to the household Shared Library.
+        var preview = await fixture.Contributions.PreviewAsync(jim,
+            new ViewSharedContributionPreviewRequest([indexed.ItemId]));
+        Assert.Equal("copy", Assert.Single(preview.Items).Operation);
+        var pending = await fixture.Contributions.SubmitAsync(jim, new ViewSharedContributionSubmitRequest(
+            [indexed.ItemId], "timeline", null, "Mary's lake", preview.PreviewRevision, "jim-sends-marys-lake"));
+        Assert.Equal("pending", pending.Status);
+
+        // Only a household administrator of that household (or a server administrator) can review it.
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() => fixture.Contributions.DecideAsync(
+            jim, pending.Id, new ViewSharedContributionDecisionRequest("accepted", pending.Revision)));
+        var otherHouseholdAdministrator = fixture.HouseholdAdministrator(Guid.NewGuid());
+        await Assert.ThrowsAsync<KeyNotFoundException>(() => fixture.Contributions.DecideAsync(
+            otherHouseholdAdministrator, pending.Id,
+            new ViewSharedContributionDecisionRequest("accepted", pending.Revision)));
+
+        var householdAdministrator = fixture.HouseholdAdministrator(ProfileTestData.TestHouseholdId);
+        var reviewList = await fixture.Contributions.ListAsync(householdAdministrator, "review", "pending", 0, 20);
+        Assert.True(reviewList.CanReview);
+        Assert.Equal(pending.Id, Assert.Single(reviewList.Items).Id);
+        await fixture.Contributions.DecideAsync(householdAdministrator, pending.Id,
+            new ViewSharedContributionDecisionRequest("accepted", pending.Revision));
+        await fixture.Contributions.ProcessAsync(pending.Id);
+
+        // Mary's original stays exactly where it was; the Shared Library has its own copy.
+        Assert.True(File.Exists(original));
+        Assert.Equal(indexed.ItemId, fixture.OriginItemId(fixture.SharedItemId(indexed.ItemId)));
+    }
+
+    [Fact]
+    public async Task AChildProfileCannotSendToTheSharedLibraryUntilAHouseholdAdministratorAllowsIt()
+    {
+        using var fixture = new Fixture();
+        var childId = Guid.NewGuid();
+        await fixture.InsertProfileAsync(new Profile { Id = childId, DisplayName = "Child", Role = ProfileRole.RestrictedProfile });
+        var childSpace = await fixture.Storage.EnsurePersonalSpaceAsync(childId);
+        var original = fixture.WriteManagedFor(childSpace, "drawing.jpg", [8, 9]);
+        var indexed = await fixture.Library.IndexPathAsync(childSpace.LibraryId, original);
+        var child = fixture.Person(childId) with { ActiveProfileIsRestricted = true };
+
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() => fixture.Contributions.PreviewAsync(
+            child, new ViewSharedContributionPreviewRequest([indexed!.ItemId])));
+
+        await fixture.Policies.SavePolicyAsync((await fixture.Policies.GetPolicyAsync(childId)) with { SubmitToSharedLibrary = true });
+
+        var preview = await fixture.Contributions.PreviewAsync(
+            child, new ViewSharedContributionPreviewRequest([indexed.ItemId]));
+        Assert.Single(preview.Items);
+    }
+
+    [Fact]
+    public async Task AnotherHouseholdSeesNothingOfThisOne_AcrossEverySurface()
+    {
+        using var fixture = new Fixture();
+        var maryId = Guid.NewGuid();
+        var eveId = Guid.NewGuid();
+        var otherHousehold = Guid.NewGuid();
+        await fixture.InsertProfileAsync(new Profile { Id = maryId, DisplayName = "Mary", Role = ProfileRole.StandardUser });
+        await fixture.InsertProfileAsync(new Profile { Id = eveId, DisplayName = "Eve", Role = ProfileRole.StandardUser }, otherHousehold);
+        var marySpace = await fixture.Storage.EnsurePersonalSpaceAsync(maryId);
+        var eveSpace = await fixture.Storage.EnsurePersonalSpaceAsync(eveId);
+        var maryFile = fixture.WriteManagedFor(marySpace, "mary-secret.jpg", [1, 1, 1]);
+        var eveFile = fixture.WriteManagedFor(eveSpace, "eve-own.jpg", [2, 2, 2]);
+        var maryItem = (await fixture.Library.IndexPathAsync(marySpace.LibraryId, maryFile))!.ItemId;
+        var eveItem = (await fixture.Library.IndexPathAsync(eveSpace.LibraryId, eveFile))!.ItemId;
+
+        // Mary shares a photo into her household's Shared Library, approved by her household's administrator.
+        var mary = fixture.Person(maryId);
+        var maryPreview = await fixture.Contributions.PreviewAsync(mary, new ViewSharedContributionPreviewRequest([maryItem]));
+        var contribution = await fixture.Contributions.SubmitAsync(mary, new ViewSharedContributionSubmitRequest(
+            [maryItem], "timeline", null, null, maryPreview.PreviewRevision, "mary-shares"));
+        await fixture.Contributions.DecideAsync(fixture.HouseholdAdministrator(ProfileTestData.TestHouseholdId),
+            contribution.Id, new ViewSharedContributionDecisionRequest("accepted", contribution.Revision));
+        await fixture.Contributions.ProcessAsync(contribution.Id);
+        var maryShared = fixture.SharedItemId(maryItem);
+
+        var eve = fixture.Person(eveId);
+        var eveAdministrator = fixture.HouseholdAdministrator(otherHousehold) with { ActiveProfileId = eveId };
+        var context = new StubProfileContext(eve);
+        var authorization = fixture.NewAuthorization();
+        var orchestrator = fixture.NewOrchestrator(context);
+        var discovery = fixture.NewDiscovery(context);
+
+        async Task<ViewAccessOutcome> Authorize(ViewScopeRequest scope, ViewResourceKind kind, Guid? id) =>
+            (await authorization.AuthorizeAsync(eve, new ViewResourceRequest(scope, kind, id))).Outcome;
+
+        var probes = new (string Surface, Func<Task<bool>> Hidden)[]
+        {
+            ("another household's profile scope", async () =>
+                await Authorize(ViewScopeRequest.ForProfile(maryId), ViewResourceKind.Search, null) == ViewAccessOutcome.NotFound),
+            ("asset by id", async () => await Authorize(ViewScopeRequest.Mine, ViewResourceKind.Asset, maryItem) == ViewAccessOutcome.NotFound),
+            ("asset by id in their profile scope", async () =>
+                await Authorize(ViewScopeRequest.ForProfile(maryId), ViewResourceKind.Asset, maryItem) == ViewAccessOutcome.NotFound),
+            ("thumbnail", async () => await Authorize(ViewScopeRequest.Mine, ViewResourceKind.Thumbnail, maryItem) == ViewAccessOutcome.NotFound),
+            ("original", async () =>
+                await Authorize(ViewScopeRequest.ForProfile(maryId), ViewResourceKind.Original, maryItem) == ViewAccessOutcome.NotFound),
+            ("their Shared Library photo", async () => await Authorize(ViewScopeRequest.Shared, ViewResourceKind.Asset, maryShared) == ViewAccessOutcome.NotFound),
+            ("their Shared Library thumbnail", async () => await Authorize(ViewScopeRequest.Shared, ViewResourceKind.Thumbnail, maryShared) == ViewAccessOutcome.NotFound),
+            ("timeline in their space", async () =>
+                (await orchestrator.QueryAsync(new ViewAssetQueryRequest(ViewScopeRequest.ForProfile(maryId)))).Outcome == ViewAccessOutcome.NotFound),
+            ("own timeline lists only own photos", async () =>
+            {
+                var own = await orchestrator.QueryAsync(new ViewAssetQueryRequest(ViewScopeRequest.Mine));
+                return own.Page!.Items.Select(item => item.Id).SequenceEqual([eveItem]);
+            }),
+            ("Shared Library listing", async () =>
+            {
+                var shared = await orchestrator.QueryAsync(new ViewAssetQueryRequest(ViewScopeRequest.Shared));
+                return shared.Page!.Items.All(item => item.Id != maryShared && item.Id != maryItem);
+            }),
+            ("search", async () =>
+            {
+                var found = await orchestrator.QueryAsync(new ViewAssetQueryRequest(ViewScopeRequest.Mine, Search: "mary"));
+                return found.Page!.Items.Count == 0;
+            }),
+            ("counts and timeline buckets in their space", async () =>
+                (await orchestrator.IndexAsync(new ViewAssetQueryRequest(ViewScopeRequest.ForProfile(maryId)))).Outcome == ViewAccessOutcome.NotFound),
+            ("own counts", async () =>
+                (await orchestrator.IndexAsync(new ViewAssetQueryRequest(ViewScopeRequest.Mine))).Index!.Buckets.Sum(bucket => bucket.AssetCount) == 1),
+            ("map pins in their space", async () =>
+                (await discovery.GetPlacesAsync(new ViewDiscoveryRequest(ViewScopeRequest.ForProfile(maryId), 50))).Outcome == ViewAccessOutcome.NotFound),
+            ("people in their space", async () =>
+                (await discovery.GetPeopleAsync(new ViewDiscoveryRequest(ViewScopeRequest.ForProfile(maryId), 50))).Outcome == ViewAccessOutcome.NotFound),
+            ("contributions list (own household's reviewer view)", async () =>
+                (await fixture.Contributions.ListAsync(eveAdministrator, "review", null, 0, 20)).Items.Count == 0),
+            ("contribution by id", async () =>
+            {
+                try
+                {
+                    await fixture.Contributions.GetRequiredAsync(eveAdministrator, contribution.Id, true);
+                    return false;
+                }
+                catch (KeyNotFoundException)
+                {
+                    return true;
+                }
+            }),
+        };
+
+        foreach (var probe in probes)
+        {
+            Assert.True(await probe.Hidden(), $"Leaked through: {probe.Surface}");
+        }
+    }
+
+    private sealed class StubProfileContext(RequestAuthority authority) : IViewRequestProfileContext
+    {
+        public ValueTask<RequestAuthority> ResolveAuthorityAsync(CancellationToken ct = default) =>
+            ValueTask.FromResult(authority);
+    }
+
     private sealed class Fixture : IDisposable
     {
         private readonly ConfigurationDirectoryLoader _configuration;
@@ -333,7 +519,7 @@ public sealed class ViewSharedTransferServiceTests
             ProfileTestData.InsertAsync(_database, new Profile
             {
                 Id = ProfileId,
-                DisplayName = "Shared curator",
+                DisplayName = "Household administrator",
                 Role = ProfileRole.Administrator,
             }).GetAwaiter().GetResult();
             Authority = new RequestAuthority(PrincipalKind.Human, true, Guid.NewGuid(), ProfileId,
@@ -346,8 +532,9 @@ public sealed class ViewSharedTransferServiceTests
             Transfers = new ViewSharedTransferService(_database, _assets, Storage);
             Policies = new ViewProfileRepository(_database);
             Authorization = new TestAllowAuthorizationEvaluator();
+            Decisions = new AdministratorDecisions();
             Contributions = new ViewSharedContributionService(_database, _assets, Policies, Transfers,
-                Authorization, new ViewSharedContributionQueue());
+                Authorization, new ViewSharedContributionQueue(), Decisions);
             Folders = new ViewFolderService(_database, _spaces, Profiles, _assets, Storage);
         }
 
@@ -358,11 +545,46 @@ public sealed class ViewSharedTransferServiceTests
         public ViewPersonalSpaceRepository Sources => _spaces;
         public ProfileRepository Profiles { get; }
 
-        public Task InsertProfileAsync(Profile profile) => ProfileTestData.InsertAsync(_database, profile);
+        public Task InsertProfileAsync(Profile profile, Guid? householdId = null) =>
+            ProfileTestData.InsertAsync(_database, profile, householdId);
+
+        /// <summary>An ordinary signed-in person acting as the given profile.</summary>
+        public RequestAuthority Person(Guid profileId) => new(PrincipalKind.Human, true, Guid.NewGuid(), profileId,
+            AccountEnabled: true, GrantEnabled: true);
+
+        /// <summary>A household administrator (not a server administrator) of the given household.</summary>
+        public RequestAuthority HouseholdAdministrator(Guid householdId) => Person(ProfileId) with
+        {
+            AccountHouseholdId = householdId,
+            AccountIsHouseholdAdmin = true,
+        };
+
+        public ViewResourceAuthorizationService NewAuthorization() => new(
+            new ViewScopeResolver(new ViewScopePersistenceService(
+                Profiles, Policies, _spaces, new ViewSharedLibraryRepository(_database), _database)),
+            new ViewResourcePersistenceService(_assets, new ViewGalleryRepository(_database), _spaces, _database),
+            Authorization);
+
+        public ViewQueryOrchestrator NewOrchestrator(IViewRequestProfileContext context) =>
+            new(context, NewAuthorization(), new ViewAssetQueryService(_assets));
+
+        public ViewDiscoveryService NewDiscovery(IViewRequestProfileContext context) =>
+            new(context, NewAuthorization(), new ViewDiscoveryRepository(_database), _assets);
+
+        public string WriteManagedFor(ViewPersonalSpace space, string name, byte[] bytes)
+        {
+            var source = _spaces.GetSourcesAsync(space.Id).GetAwaiter().GetResult()
+                .Single(value => value.SourceType == ViewSourceType.BrowserUpload);
+            var path = Path.Combine(Storage.GetSourcePath(space, source), name);
+            Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+            File.WriteAllBytes(path, bytes);
+            return path;
+        }
         public ViewStorageService Storage { get; }
         public ViewLibraryService Library { get; }
         public ViewSharedTransferService Transfers { get; }
         public TestAllowAuthorizationEvaluator Authorization { get; }
+        public AdministratorDecisions Decisions { get; }
         public ViewProfileRepository Policies { get; }
         public ViewSharedContributionService Contributions { get; }
         public ViewFolderService Folders { get; }

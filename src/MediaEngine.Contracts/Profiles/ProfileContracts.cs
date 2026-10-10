@@ -207,9 +207,6 @@ public sealed class ViewProfilePolicyDto
     [JsonPropertyName("submit_to_shared_library")]
     public bool SubmitToSharedLibrary { get; init; }
 
-    [JsonPropertyName("review_shared_library_contributions")]
-    public bool ReviewSharedLibraryContributions { get; init; }
-
     [JsonPropertyName("allow_gallery_sharing")]
     public bool AllowGallerySharing { get; init; }
 
@@ -227,9 +224,6 @@ public sealed class UpdateViewProfilePolicyRequest
 
     [JsonPropertyName("submit_to_shared_library")]
     public bool SubmitToSharedLibrary { get; init; }
-
-    [JsonPropertyName("review_shared_library_contributions")]
-    public bool ReviewSharedLibraryContributions { get; init; }
 
     [JsonPropertyName("allow_gallery_sharing")]
     public bool AllowGallerySharing { get; init; }

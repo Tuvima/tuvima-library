@@ -15,7 +15,7 @@
         <HeaderActions>
             @if (Workspace.Scopes is not null)
             {
-                <label><span>Scope</span><AppNativeSelect Value="@SelectedScopeValue" OnChange="ScopeChangedAsync" aria-label="Authorized folder scope">@foreach (var scope in Workspace.Scopes.AvailableScopes) { <option value="@ScopeValue(scope.Kind, scope.ProfileId)">@scope.Label</option> }</AppNativeSelect></label>
+                <label><span>Scope</span><AppNativeSelect Value="@SelectedScopeValue" OnChange="ScopeChangedAsync" aria-label="Authorized folder scope"><ViewScopeOptions Scopes="@Workspace.Scopes.AvailableScopes" /></AppNativeSelect></label>
             }
         </HeaderActions>
         <ChildContent>

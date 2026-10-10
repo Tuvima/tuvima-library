@@ -146,35 +146,51 @@ public static class ProfileEndpoints
 
         group.MapGet("/{id:guid}/settings/view", async (
             Guid id,
+            HttpContext http,
+            IRequestAuthorityResolver resolver,
             IProfileService profileService,
             IViewProfileRepository viewProfiles,
             CancellationToken ct) =>
         {
-            if (await profileService.GetProfileAsync(id, ct) is null)
+            var profile = await profileService.GetProfileAsync(id, ct);
+            if (profile is null)
             {
                 return ApiErrors.NotFound($"Profile '{id}' not found.");
+            }
+
+            if (!await MayManageViewPolicyAsync(http, resolver, profile, ct))
+            {
+                return ApiErrors.Forbidden("This profile belongs to another household.");
             }
 
             var policy = await viewProfiles.GetPolicyAsync(id, ct);
             return Results.Ok(ProfileContractMapper.ToResponse(policy));
         })
         .WithName("GetViewProfilePolicy")
-        .WithSummary("Get the administrator-managed View access policy for a profile.")
+        .WithSummary("Get the View access policy for a profile (server administrators, or household administrators for their own household).")
         .Produces<ViewProfilePolicyDto>(StatusCodes.Status200OK)
         .ProducesProblem(StatusCodes.Status404NotFound)
-        .RequireAdmin();
+        .RequireEffectiveAdministratorOrHouseholdAdministrator();
 
         group.MapPut("/{id:guid}/settings/view", async (
             Guid id,
             UpdateViewProfilePolicyRequest request,
+            HttpContext http,
+            IRequestAuthorityResolver resolver,
             IProfileService profileService,
             IViewProfileRepository viewProfiles,
             MediaEngine.Api.Services.LocalAssets.ViewStorageService viewStorage,
             CancellationToken ct) =>
         {
-            if (await profileService.GetProfileAsync(id, ct) is null)
+            var profile = await profileService.GetProfileAsync(id, ct);
+            if (profile is null)
             {
                 return ApiErrors.NotFound($"Profile '{id}' not found.");
+            }
+
+            if (!await MayManageViewPolicyAsync(http, resolver, profile, ct))
+            {
+                return ApiErrors.Forbidden("This profile belongs to another household.");
             }
 
             var policy = ProfileContractMapper.ToDomain(id, request);
@@ -195,7 +211,7 @@ public static class ProfileEndpoints
         .WithSummary("Update View, Shared Library contribution, and Gallery-sharing permissions for a profile.")
         .Produces<ViewProfilePolicyDto>(StatusCodes.Status200OK)
         .ProducesProblem(StatusCodes.Status404NotFound)
-        .RequireAdmin();
+        .RequireEffectiveAdministratorOrHouseholdAdministrator();
 
         group.MapPut("/{id:guid}/settings/playback", async (
             Guid id,
@@ -404,6 +420,20 @@ public static class ProfileEndpoints
             ShowMissing = preference?.ShowMissing,
             UpdatedAt = preference?.UpdatedAt,
         };
+
+    /// <summary>
+    /// A server administrator manages any profile's View policy; a household administrator only profiles in their
+    /// own household (for example to let a child profile send items to the Shared Library).
+    /// </summary>
+    private static async Task<bool> MayManageViewPolicyAsync(
+        HttpContext http, IRequestAuthorityResolver resolver, Profile profile, CancellationToken ct)
+    {
+        var authority = await resolver.ResolveAsync(http, ct);
+        return authority.IsEffectiveAdministrator
+            || (authority.IsEffectiveHouseholdAdministrator
+                && profile.HouseholdId is { } household
+                && household == authority.AccountHouseholdId);
+    }
 
     private static RouteHandlerBuilder RequireActiveProfile(this RouteHandlerBuilder builder) =>
         builder.RequireHumanSelfService()

@@ -222,7 +222,7 @@ public sealed class ViewQueryOrchestratorTests
         var profileId = Guid.NewGuid();
         var now = DateTimeOffset.UtcNow;
         return new ViewScopeStoreEntry(
-            new ViewProfilePolicy(profileId, true, access, include, false, true, now),
+            new ViewProfilePolicy(profileId, true, access, include, true, now),
             new ViewPersonalSpace(Guid.NewGuid(), profileId, Guid.NewGuid(), now, now));
     }
 

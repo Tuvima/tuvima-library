@@ -19,14 +19,16 @@ public sealed record ViewRequestProfile(Guid ProfileId, string Role);
 
 /// <summary>
 /// Persistence projection used by scope resolution. Shared Library access and
-/// contribution/review capabilities are independent administrator grants.
+/// contribution are independent grants. <see cref="HouseholdId"/> is the household the profile belongs to; people
+/// in the same household can browse each other's Personal Space, nobody else can.
 /// </summary>
 public sealed record ViewScopeStoreEntry(
     ViewProfilePolicy Policy,
     ViewPersonalSpace? PersonalSpace,
     string DisplayName = "",
     string AvatarColor = "#7C4DFF",
-    string? AvatarUrl = null);
+    string? AvatarUrl = null,
+    Guid? HouseholdId = null);
 
 public sealed record ResolvedViewScope(
     ViewScopeKind Kind,

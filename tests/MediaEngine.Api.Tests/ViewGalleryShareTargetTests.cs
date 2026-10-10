@@ -82,7 +82,7 @@ public sealed class ViewGalleryShareTargetTests
     {
         var now = DateTimeOffset.UtcNow;
         return new ViewScopeStoreEntry(
-            new ViewProfilePolicy(profileId, viewEnabled, false, false, false, false, now),
+            new ViewProfilePolicy(profileId, viewEnabled, false, false, false, now),
             hasPersonalSpace ? new ViewPersonalSpace(Guid.NewGuid(), profileId, Guid.NewGuid(), now, now) : null,
             displayName,
             "#7457D9");

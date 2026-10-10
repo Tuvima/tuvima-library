@@ -35,6 +35,7 @@ internal sealed class SchemaMigrator
         EnsureCurrentColumns(conn);
         EnsureHouseholdAdministrators(conn);
         EnsurePerHouseholdSharedLibrary(conn);
+        RetireSharedLibraryCuratorFlag(conn);
         if (sessionsGainedIngress)
         {
             // Runs once, in the same upgrade that introduces the child-profile rule.
@@ -1621,6 +1622,35 @@ internal sealed class SchemaMigrator
         cmd.Parameters.AddWithValue("@role", "Administrator");
         cmd.Parameters.AddWithValue("@created", DateTimeOffset.UtcNow.ToString("O"));
         cmd.ExecuteNonQuery();
+    }
+
+    /// <summary>
+    /// The per-profile "review Shared Library contributions" (curator) flag is gone: household administrators review.
+    /// One time, in the upgrade that removes the column, everyone gets the new defaults (open the household's Shared
+    /// Library, and send items to it; a child profile still cannot send until a household administrator allows it)
+    /// and the column is dropped. Once the column is gone this does nothing.
+    /// </summary>
+    private static void RetireSharedLibraryCuratorFlag(SqliteConnection conn)
+    {
+        if (!ColumnExists(conn, "profile_view_policies", "review_shared_library_contributions"))
+        {
+            return;
+        }
+
+        DatabaseConnection.ExecuteStartupTransaction(conn, transaction =>
+        {
+            using var cmd = conn.CreateCommand();
+            cmd.Transaction = transaction;
+            cmd.CommandText = """
+                UPDATE profile_view_policies
+                   SET access_shared_library = 1,
+                       submit_to_shared_library = CASE
+                           WHEN profile_id IN (SELECT id FROM profiles WHERE role = 'RestrictedProfile') THEN 0
+                           ELSE 1 END;
+                ALTER TABLE profile_view_policies DROP COLUMN review_shared_library_contributions;
+                """;
+            cmd.ExecuteNonQuery();
+        });
     }
 
     private static bool ColumnExists(SqliteConnection conn, string table, string column)

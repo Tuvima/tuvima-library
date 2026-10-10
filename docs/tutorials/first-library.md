@@ -70,7 +70,7 @@ Every enabled profile has one Personal Space. Sources and devices feed that spac
 
 Managed uploads use `View/Profiles/<profile-label>/Timeline/<year>/<month>/`. Managed mixed folders use `Folders/<folder-label>` and retain their hierarchy. Labels remain stable when display names change.
 
-Shared Library access, submission, and curator review are separate permissions. Contributions remain pending until reviewed. Accepted managed files move only after verified Shared copies exist; linked originals are copied and retained.
+Opening the Shared Library and sending to it are separate permissions (both on by default, except a child profile cannot send until a household administrator allows it). A household administrator reviews contributions, which remain pending until reviewed. Accepted managed files move only after verified Shared copies exist; linked originals are copied and retained.
 
 ## Adjust folders later
 
