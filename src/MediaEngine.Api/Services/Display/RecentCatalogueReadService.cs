@@ -130,7 +130,8 @@ internal sealed class RecentCatalogueReadService(
         }
         foreach (var e in ordered.Take(2)) { Add(e); }
         Add(ordered[^1]);
-        foreach (var e in episodes.OrderByDescending(e => e.CreatedAt).ThenBy(e => e.WorkId).Take(4)) { Add(e); }
+        // Equal times keep the show's episode order, the way the card ranks them.
+        foreach (var e in ordered.OrderByDescending(e => e.CreatedAt).Take(4)) { Add(e); }
         Add(ordered.FirstOrDefault(e => !progress.TryGetValue(e.WorkId, out var p) || p.ProgressPct < 99.5));
         for (var i = 0; i < ordered.Count; i++)
         {
