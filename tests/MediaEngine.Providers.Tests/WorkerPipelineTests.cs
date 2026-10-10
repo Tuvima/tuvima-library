@@ -4109,8 +4109,23 @@ public sealed class WorkerPipelineTests
         public Task<Guid> InsertChildAsync(MediaType mediaType, Guid parentWorkId, int? ordinal, CancellationToken ct = default)
             => Task.FromResult(Guid.NewGuid());
 
+        public Dictionary<int, Guid> Children { get; } = [];
+
         public Task<Guid> GetOrCreateChildAsync(MediaType mediaType, Guid parentWorkId, int? ordinal, double? ordinalSort = null, CancellationToken ct = default)
-            => Task.FromResult(Guid.NewGuid());
+        {
+            if (ordinal is not { } position)
+            {
+                return Task.FromResult(Guid.NewGuid());
+            }
+
+            if (!Children.TryGetValue(position, out var id))
+            {
+                id = Guid.NewGuid();
+                Children[position] = id;
+            }
+
+            return Task.FromResult(id);
+        }
 
         public Task UpdateOrdinalSortAsync(Guid workId, double? ordinalSort, CancellationToken ct = default)
             => Task.CompletedTask;
@@ -4187,6 +4202,33 @@ public sealed class WorkerPipelineTests
         Assert.Empty(await run.Coverage.ListByAssetAsync(run.AssetId));
     }
 
+    [Fact]
+    public async Task RetailMatchWorker_TvEpisodeRange_RerunNoLongerQualifying_ClearsStaleCoverage()
+    {
+        var run = await RunTvEpisodeRangeAsync("2", new HashSet<int> { 1 }, seedStaleCoverage: true);
+
+        Assert.Equal(IdentityJobState.RetailMatchedNeedsReview.ToString(), run.Job.State);
+        Assert.Empty(await run.Coverage.ListByAssetAsync(run.AssetId));
+    }
+
+    [Fact]
+    public async Task RetailMatchWorker_TvSingleEpisodeRerun_ClearsStaleCoverage()
+    {
+        var run = await RunTvEpisodeRangeAsync(episodeEnd: null, new HashSet<int> { 1, 2 }, seedStaleCoverage: true);
+
+        Assert.Equal(IdentityJobState.RetailMatched.ToString(), run.Job.State);
+        Assert.Empty(await run.Coverage.ListByAssetAsync(run.AssetId));
+    }
+
+    [Fact]
+    public async Task RetailMatchWorker_TvEpisodeRange_FileOnDifferentEpisodeThanFilename_GoesToReview()
+    {
+        var run = await RunTvEpisodeRangeAsync("2", new HashSet<int> { 1, 2 }, firstEpisodeMismatch: true);
+
+        Assert.Equal(IdentityJobState.RetailMatchedNeedsReview.ToString(), run.Job.State);
+        Assert.Empty(await run.Coverage.ListByAssetAsync(run.AssetId));
+    }
+
     private sealed record TvRangeRun(
         IdentityJob Job,
         Guid AssetId,
@@ -4194,7 +4236,11 @@ public sealed class WorkerPipelineTests
         RecordingCoverageRepository Coverage,
         List<string> CatalogueRequests);
 
-    private async Task<TvRangeRun> RunTvEpisodeRangeAsync(string? episodeEnd, IReadOnlySet<int>? providerEpisodes)
+    private async Task<TvRangeRun> RunTvEpisodeRangeAsync(
+        string? episodeEnd,
+        IReadOnlySet<int>? providerEpisodes,
+        bool seedStaleCoverage = false,
+        bool firstEpisodeMismatch = false)
     {
         var assetId = Guid.NewGuid();
         var jobId = Guid.NewGuid();
@@ -4251,17 +4297,28 @@ public sealed class WorkerPipelineTests
             },
         };
         var coverage = new RecordingCoverageRepository();
+        if (seedStaleCoverage)
+        {
+            await coverage.ReplaceForAssetAsync(assetId,
+            [
+                new MediaAssetCoverage(assetId, firstEpisodeWorkId, 1, null, null, MediaAssetCoverage.SourceFilename),
+                new MediaAssetCoverage(assetId, Guid.NewGuid(), 2, null, null, MediaAssetCoverage.SourceFilename),
+            ]);
+        }
+
         var catalogue = new StubEpisodeRangeCatalogue(providerEpisodes);
+        var workRepo = new StubWorkRepository
+        {
+            Lineage = new WorkLineage(assetId, Guid.NewGuid(), firstEpisodeWorkId, seasonWorkId, seasonWorkId, WorkKind.Child, MediaType.TV),
+        };
+        workRepo.Children[1] = firstEpisodeMismatch ? Guid.NewGuid() : firstEpisodeWorkId;
         var worker = new RetailMatchWorker(
             jobs, new StubRetailCandidateRepository(), CreateStubStageOutcomeFactory(), CreateStubTimelineRecorder(), CreateStubBatchProgressService(),
             [provider],
             new StubRetailMatchScoringService { Result = new FieldMatchScores { TitleScore = 0.95, AuthorScore = 0.95, FormatScore = 1.0, CompositeScore = 0.95 } },
             new StubMetadataClaimRepository(), canonical, new StubScoringEngine(), loader,
             new StubBridgeIdRepository(),
-            new StubWorkRepository
-            {
-                Lineage = new WorkLineage(assetId, Guid.NewGuid(), firstEpisodeWorkId, seasonWorkId, seasonWorkId, WorkKind.Child, MediaType.TV),
-            },
+            workRepo,
             new WorkClaimRouter(), new StubHttpClientFactory(), null!, NullLogger<RetailMatchWorker>.Instance,
             coverageRepo: coverage, rangeCatalogue: catalogue);
 
