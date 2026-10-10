@@ -1,0 +1,211 @@
+/* ============================================================================
+   Book reader (BR2) — Tuvima Library
+   Chrome around the foliate-js book view. The book itself is drawn by the library
+   inside sandboxed frames; this file only styles the shell, bars and overlays.
+   Everything is prefixed br- so it can never touch the current reader (reader-*).
+   Loaded by BookReader.razor, so it ships only when a book is open.
+   ============================================================================ */
+
+.br-shell {
+    --br-page: #faf8f2;
+    --br-bg: #ddd8cf;
+    --br-chrome-bg: rgba(246, 242, 235, 0.96);
+    --br-chrome-border: rgba(25, 25, 25, 0.14);
+    --br-chrome-text: #25282e;
+    --br-chrome-dim: #60656b;
+    --br-focus: #8852fc;
+
+    position: fixed;
+    inset: 0;
+    overflow: hidden;
+    background: var(--br-page);
+    color: var(--br-chrome-text);
+}
+
+.br-theme-dark {
+    --br-page: #101319;
+    --br-bg: #060a16;
+    --br-chrome-bg: rgba(6, 10, 22, 0.92);
+    --br-chrome-border: rgba(255, 255, 255, 0.08);
+    --br-chrome-text: rgba(248, 248, 248, 0.88);
+    --br-chrome-dim: rgba(248, 248, 248, 0.55);
+}
+
+.br-theme-sepia {
+    --br-page: #eee0bd;
+    --br-bg: #bfae90;
+    --br-chrome-bg: rgba(226, 211, 180, 0.96);
+    --br-chrome-border: rgba(66, 45, 27, 0.16);
+    --br-chrome-text: #493726;
+    --br-chrome-dim: #715d49;
+}
+
+@media (prefers-color-scheme: dark) {
+    .br-theme-system {
+        --br-page: #101319;
+        --br-bg: #060a16;
+        --br-chrome-bg: rgba(6, 10, 22, 0.92);
+        --br-chrome-border: rgba(255, 255, 255, 0.08);
+        --br-chrome-text: rgba(248, 248, 248, 0.88);
+        --br-chrome-dim: rgba(248, 248, 248, 0.55);
+    }
+}
+
+/* ── Book stage ─────────────────────────────────────────────────────────── */
+
+.br-stage {
+    position: absolute;
+    inset: 0;
+    background: var(--br-page);
+    touch-action: pan-y pinch-zoom;
+}
+
+.br-stage foliate-view {
+    display: block;
+    width: 100%;
+    height: 100%;
+}
+
+/* The book fills the screen; the bars float over it and give the page its own safe area. */
+.br-shell[data-state="loading"] .br-stage,
+.br-shell[data-state="error"] .br-stage {
+    visibility: hidden;
+}
+
+/* ── Bars ───────────────────────────────────────────────────────────────── */
+
+.br-bar {
+    position: absolute;
+    left: 0;
+    right: 0;
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding-left: max(0.75rem, env(safe-area-inset-left));
+    padding-right: max(0.75rem, env(safe-area-inset-right));
+    background: var(--br-chrome-bg);
+    border-color: var(--br-chrome-border);
+    border-style: solid;
+    border-width: 0;
+    -webkit-backdrop-filter: blur(10px);
+    backdrop-filter: blur(10px);
+    transition: transform 0.2s ease, opacity 0.2s ease, visibility 0s linear 0s;
+}
+
+.br-bar--top {
+    top: 0;
+    min-height: 3.5rem;
+    padding-top: env(safe-area-inset-top);
+    border-bottom-width: 1px;
+}
+
+.br-bar--bottom {
+    bottom: 0;
+    min-height: 2.5rem;
+    padding-bottom: env(safe-area-inset-bottom);
+    border-top-width: 1px;
+    justify-content: space-between;
+    font-size: var(--tl-font-size-sm, 0.875rem);
+    color: var(--br-chrome-dim);
+}
+
+.br-bar--top.br-bar--hidden {
+    transform: translateY(-100%);
+    opacity: 0;
+    visibility: hidden;
+    transition: transform 0.2s ease, opacity 0.2s ease, visibility 0s linear 0.2s;
+}
+
+.br-bar--bottom.br-bar--hidden {
+    transform: translateY(100%);
+    opacity: 0;
+    visibility: hidden;
+    transition: transform 0.2s ease, opacity 0.2s ease, visibility 0s linear 0.2s;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .br-bar,
+    .br-bar--top.br-bar--hidden,
+    .br-bar--bottom.br-bar--hidden {
+        transition: none;
+    }
+}
+
+.br-icon-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+    inline-size: 2.75rem;
+    block-size: 2.75rem;
+    padding: 0;
+    border: 0;
+    border-radius: 50%;
+    background: transparent;
+    color: var(--br-chrome-text);
+    cursor: pointer;
+}
+
+.br-icon-btn:hover {
+    background: var(--br-chrome-border);
+}
+
+.br-icon-btn:focus-visible {
+    outline: 2px solid var(--br-focus);
+    outline-offset: 2px;
+}
+
+.br-title {
+    min-width: 0;
+    flex: 1 1 auto;
+}
+
+.br-title-book,
+.br-title-author,
+.br-section {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.br-title-book {
+    font-size: var(--tl-font-size-md, 1rem);
+    font-weight: 600;
+}
+
+.br-title-author {
+    font-size: var(--tl-font-size-xs, 0.75rem);
+    color: var(--br-chrome-dim);
+}
+
+.br-section {
+    min-width: 0;
+    flex: 1 1 auto;
+}
+
+.br-percent {
+    flex: 0 0 auto;
+    font-variant-numeric: tabular-nums;
+}
+
+/* ── Loading and error ──────────────────────────────────────────────────── */
+
+.br-overlay {
+    position: absolute;
+    inset: 0;
+    z-index: 3;
+    display: grid;
+    place-items: center;
+    padding: 1.5rem;
+    background: var(--br-page);
+    color: var(--br-chrome-text);
+}
+
+/* ── Narrow screens: tighter bar, bigger type stays readable ─────────────── */
+
+@media (max-width: 480px) {
+    .br-title-author {
+        display: none;
+    }
+}

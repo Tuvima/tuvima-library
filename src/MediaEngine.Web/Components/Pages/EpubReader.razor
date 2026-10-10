@@ -14,6 +14,13 @@
 
 @implements IAsyncDisposable
 
+@if (UseNewReader)
+{
+    @* BR2: the foliate-js reader, switched on with ?reader=new. The page below stays the default until the cutover. *@
+    <BookReader AssetId="AssetId" ReturnCollectionId="ReturnCollectionId" Restart="Restart" />
+}
+else
+{
 <PageTitle>@((_metadata?.Title ?? "Reader")) - Tuvima Library</PageTitle>
 
 <link href="css/epub-reader.css" rel="stylesheet" />
@@ -305,11 +312,16 @@
 </div>
 
 <script src="js/epub-reader.js"></script>
+}
 
 @code {
     [Parameter] public Guid AssetId { get; set; }
     [SupplyParameterFromQuery] public Guid? ReturnCollectionId { get; set; }
     [SupplyParameterFromQuery] public bool Restart { get; set; }
+    [SupplyParameterFromQuery(Name = "reader")] public string? ReaderChoice { get; set; }
+
+    // BR2: ?reader=new shows the foliate-js reader; the current reader stays the default until the cutover.
+    private bool UseNewReader => string.Equals(ReaderChoice, "new", StringComparison.OrdinalIgnoreCase);
 
     private bool _loading = true;
     private string? _loadError;
@@ -355,6 +367,11 @@
 
     protected override async Task OnInitializedAsync()
     {
+        if (UseNewReader)
+        {
+            return;
+        }
+
         _dotNetRef = DotNetObjectReference.Create(this);
         await LoadSettings();
         await LoadBook();
@@ -837,6 +854,11 @@
 
     public async ValueTask DisposeAsync()
     {
+        if (UseNewReader)
+        {
+            return;
+        }
+
         _sessionTimer?.Dispose();
         _autoSaveTimer?.Dispose();
 
