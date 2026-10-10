@@ -4181,3 +4181,71 @@ input[type="reset"],
         transition: none;
     }
 }
+
+/* Editor "This file covers" picker (global so it stays out of the scoped-CSS bundle ceiling). */
+.sme-file-coverage {
+    display: grid;
+    gap: .75rem;
+    min-width: 0;
+    margin-top: 1rem;
+    padding: 1rem;
+    border: 1px solid var(--tl-border-default);
+    border-radius: .65rem;
+    background: var(--tl-bg-surface-raised);
+}
+
+.sme-file-coverage h4 { margin: 0; }
+
+.sme-file-coverage__hint,
+.sme-file-coverage__status {
+    margin: 0;
+    color: var(--tl-text-secondary);
+    font-size: .84rem;
+}
+
+.sme-file-coverage__status:empty { display: none; }
+.sme-file-coverage__status.is-error { color: var(--tl-text-primary); border-left: 3px solid var(--tl-status-danger-border); padding-left: .5rem; }
+
+.sme-file-coverage__chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .5rem;
+    max-height: 16rem;
+    overflow-y: auto;
+    min-width: 0;
+}
+
+.sme-file-coverage__chip {
+    display: inline-flex;
+    align-items: center;
+    gap: .5rem;
+    min-height: 44px;
+    max-width: 100%;
+    padding: .35rem .75rem;
+    border: 1px solid var(--tl-border-default);
+    border-radius: 999px;
+    color: var(--tl-text-primary);
+    cursor: pointer;
+}
+
+.sme-file-coverage__chip:focus-within { border-color: var(--tl-accent-primary); box-shadow: 0 0 0 1px var(--tl-accent-primary); }
+.sme-file-coverage__chip.is-selected { border-color: var(--tl-accent-primary-border); background: var(--tl-accent-primary-soft); }
+.sme-file-coverage__chip.is-locked { cursor: default; opacity: .7; }
+.sme-file-coverage__number { flex: 0 0 auto; font-weight: 600; }
+.sme-file-coverage__title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--tl-text-secondary); }
+
+.sme-file-coverage__actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: .5rem;
+}
+
+@media (max-width: 600px) {
+    .sme-file-coverage { padding: .75rem; }
+    .sme-file-coverage__chip { flex: 1 1 100%; }
+    .sme-file-coverage__actions > * { flex: 1; }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+    .sme-file-coverage__chip { transition: border-color .12s ease, background-color .12s ease; }
+}

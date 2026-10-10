@@ -108,7 +108,8 @@ public sealed class MediaEditorFileCoveragePickerTests : AsyncBunitContext
     public void Styles_KeepTouchTargetsLargeAndStackChipsOnPhones()
     {
         var css = File.ReadAllText(Path.Combine(
-            RepoRoot, "src", "MediaEngine.Web", "Components", "MediaEditor", "MediaEditorFileCoveragePicker.razor.css"));
+            RepoRoot, "src", "MediaEngine.Web", "wwwroot", "app.css"));
+        css = css[css.IndexOf("Editor \"This file covers\" picker", StringComparison.Ordinal)..];
 
         Assert.Contains("min-height: 44px", css, StringComparison.Ordinal);
         Assert.Contains("@media (max-width: 600px)", css, StringComparison.Ordinal);
