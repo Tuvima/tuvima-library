@@ -55,7 +55,7 @@ Carry the selected target identity, owner, and revision together. Immediate artw
 
 ### W3: identity pairing (walkthrough 2, 4)
 
-Preserve editions when a work is rematched. An asset move must not mutate an edition still used by unselected assets. Music release selection requires exact release evidence; recording identity alone cannot move membership. Multi-episode files remain a review case until a safe relationship exists.
+Preserve editions when a work is rematched. An asset move must not mutate an edition still used by unselected assets. Music release selection requires exact release evidence; recording identity alone cannot move membership. Multi-episode files link to every episode they cover only when the filename gives an unbroken run that the TV provider's episode list confirms (up to six episodes); anything else stays in Review, where the **This file covers** picker fixes it.
 
 ### W4: shared editor tree (walkthrough 1–2)
 

@@ -37,7 +37,7 @@ Canonical book, comic, and movie series containers show their sequence rail dire
 
 ## TV episode routing and heroes
 
-TV episodes are children of the show detail page, organized by season. Each owned
+TV episodes are children of the show detail page, organized by season. A combined file (one file, several episodes) is named with its episode run when the organiser renames files, for example `s01e01-e02`; every episode it covers is shown as owned. Each owned
 episode has a show-scoped detail route opened from its still. Continue surfaces
 retain the episode still and playback target, identify it with compact copy such
 as `Continue · S5 E1`, and use actions such as `Resume S5 E1`. Episode detail
