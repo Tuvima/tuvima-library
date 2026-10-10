@@ -187,6 +187,11 @@ public sealed class DatabaseConnectionDisposeTests
 
             db.Dispose();
 
+            // Platform-independent proof the file was closed: SQLite removes the WAL
+            // sidecar only when the last connection (including pooled ones) closes.
+            // File.Delete alone would pass on Linux even with a handle still open.
+            Assert.False(File.Exists($"{path}-wal"), "WAL sidecar remains: a pooled connection is still open.");
+
             File.Delete(path);
             File.Delete($"{path}-wal");
             File.Delete($"{path}-shm");
