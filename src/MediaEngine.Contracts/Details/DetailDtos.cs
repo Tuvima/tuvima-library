@@ -418,6 +418,14 @@ public sealed class SequenceGroupViewModel
     public string? BackgroundArtworkUrl { get; init; }
     public int? TotalKnownItems { get; init; }
     public bool HasAuthoritativeTotal { get; init; }
+    /// <summary>
+    /// How many items the group holds in total. <see cref="Items"/> can be only a window of them: when this is larger
+    /// than <c>Items.Count</c> (or <c>Items</c> is empty), fetch the rest through the detail endpoint's sequence window.
+    /// 0 means the group did not report a count and <c>Items</c> is complete.
+    /// </summary>
+    public int ItemCount { get; init; }
+    /// <summary>Position of <c>Items[0]</c> within the group's full ordering (0 when <c>Items</c> starts at the beginning).</summary>
+    public int ItemOffset { get; init; }
     public IReadOnlyList<SequenceItemViewModel> Items { get; init; } = [];
 }
 

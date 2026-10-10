@@ -1467,6 +1467,23 @@
     display: inline-flex;
 }
 
+/* Long seasons: one window of episodes at a time ---------------------------- */
+.tl-series-detail__pager {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+    padding-top: 0.35rem;
+    color: rgba(226, 232, 240, 0.72);
+    font-size: var(--tl-font-size-xs);
+    font-variant-numeric: tabular-nums;
+}
+
+.tl-series-detail__pager-label {
+    min-width: 9rem;
+    text-align: center;
+}
+
 .tl-series-detail.is-season-container .tl-series-detail__ownership {
     min-height: 1.65rem;
     padding-top: 0.15rem;

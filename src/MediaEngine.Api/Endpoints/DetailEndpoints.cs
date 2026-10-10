@@ -24,6 +24,11 @@ public static class DetailEndpoints
             Guid id,
             string? context,
             string? containerId,
+            string? sequenceGroup,
+            int? sequenceOffset,
+            int? sequenceLimit,
+            string? sequenceCurrent,
+            bool? sequenceOnly,
             HttpContext httpContext,
             DetailComposerService composer,
             ContributorReadiness readiness,
@@ -66,7 +71,8 @@ public static class DetailEndpoints
                 ct);
             var detail = await composer.BuildAuthorizedAsync(
                 parsedType, id, presentationContext, ct, containerId,
-                authority.ActiveProfileId, actionAuthorization, authorizedAssetIds, authorizedWorks);
+                authority.ActiveProfileId, actionAuthorization, authorizedAssetIds, authorizedWorks,
+                SequenceWindowRequest.FromQuery(sequenceGroup, sequenceOffset, sequenceLimit, sequenceCurrent, sequenceOnly));
             var compositionMs = timing.Elapsed.TotalMilliseconds - projectionMs;
             if (detail is not null)
             {

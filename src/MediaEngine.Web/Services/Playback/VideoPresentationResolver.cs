@@ -42,7 +42,8 @@ public sealed class VideoPresentationResolver(IEngineApiClient api, UIOrchestrat
             return VideoPresentationContext.Empty(identity);
         }
         var page = await api.GetDetailPageAsync(DetailEntityType.TvEpisode, identity.WorkId,
-            DetailPresentationContext.Watch, profileId: identity.ProfileId, ct: ct);
+            DetailPresentationContext.Watch, profileId: identity.ProfileId,
+            sequence: SequenceWindowQuery.WholeList, ct: ct);
         Check();
         var sequence = page?.SequencePlacement;
         var episodes = OwnedEpisodes(sequence);
@@ -96,7 +97,8 @@ public sealed class VideoPresentationResolver(IEngineApiClient api, UIOrchestrat
         }
         Check();
         var page = await api.GetDetailPageAsync(DetailEntityType.TvEpisode, identity.WorkId,
-            DetailPresentationContext.Watch, profileId: identity.ProfileId, ct: ct);
+            DetailPresentationContext.Watch, profileId: identity.ProfileId,
+            sequence: SequenceWindowQuery.WholeList, ct: ct);
         Check();
         if (!OwnedEpisodes(page?.SequencePlacement).Any(item => item.WorkId == workId))
         {

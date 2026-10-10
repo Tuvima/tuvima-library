@@ -550,7 +550,8 @@ internal sealed partial class DetailCompositionOrchestrator
         IReadOnlyDictionary<string, SeasonArtworkPresentation>? seasonArtwork,
         Guid? currentWorkId = null,
         Guid? showRootId = null,
-        IReadOnlyDictionary<Guid, IReadOnlyList<SequenceCoverageLinkViewModel>>? sameFileLinks = null)
+        IReadOnlyDictionary<Guid, IReadOnlyList<SequenceCoverageLinkViewModel>>? sameFileLinks = null,
+        SequenceWindowRequest? window = null)
     {
         if (entityType is not (DetailEntityType.TvShow
             or DetailEntityType.MovieSeries
@@ -668,6 +669,7 @@ internal sealed partial class DetailCompositionOrchestrator
                             : group.Count(),
                         HasAuthoritativeTotal = authoritativeTotalsBySeason.ContainsKey(
                         seasonKey),
+                        ItemCount = group.Count(),
                         Items = group.OrderBy(item => item.PositionSort ?? double.MaxValue).ToList(),
                     };
                 })
@@ -686,6 +688,13 @@ internal sealed partial class DetailCompositionOrchestrator
             ?? initialGroup?.Items.FirstOrDefault()
             ?? items.FirstOrDefault(item => item.IsOwned)
             ?? items[0];
+        var windowed = entityType == DetailEntityType.TvShow
+            && window is { IsAll: false }
+            && (window.IsExplicit || items.Count > SequenceWindowRequest.FullEmitThreshold);
+        if (windowed)
+        {
+            groups = WindowSequenceGroups(groups, window!, selectedGroup);
+        }
         var normalizedSourceId = NormalizeSequenceContainerId(sourceContainerId);
         var containerId = collectionId.ToString("D");
         var totalKnownItems = entityType == DetailEntityType.TvShow
@@ -729,9 +738,55 @@ internal sealed partial class DetailCompositionOrchestrator
                 _ => SequenceOrderingType.PublicationOrder,
             },
             CurrentItem = representative,
-            OrderedItems = items,
+            // A windowed list is carried once, inside its season group, instead of twice.
+            OrderedItems = windowed ? [] : items,
             Groups = groups,
         };
+    }
+
+    /// <summary>
+    /// Keeps every season (title, artwork, counts) but only one season's slice of episodes: the requested season,
+    /// else the season being watched, starting at the window that holds the current episode.
+    /// </summary>
+    private static List<SequenceGroupViewModel> WindowSequenceGroups(
+        IReadOnlyList<SequenceGroupViewModel> groups,
+        SequenceWindowRequest window,
+        SequenceGroupViewModel? selectedGroup)
+    {
+        var target = window.IsExplicit
+            ? groups.FirstOrDefault(group => string.Equals(group.Key, window.GroupKey, StringComparison.OrdinalIgnoreCase))
+            : selectedGroup;
+        var limit = window.EffectiveLimit;
+        return groups.Select(group =>
+        {
+            var windowItems = new List<SequenceItemViewModel>();
+            var offset = 0;
+            if (ReferenceEquals(group, target))
+            {
+                var currentIndex = group.Items.ToList().FindIndex(item => item.IsCurrent);
+                offset = window.IsExplicit
+                    ? Math.Min(window.Offset, group.Items.Count)
+                    : currentIndex < 0 ? 0 : currentIndex / limit * limit;
+                windowItems = group.Items.Skip(offset).Take(limit).ToList();
+            }
+
+            return new SequenceGroupViewModel
+            {
+                OwnedCount = group.OwnedCount,
+                CompletedCount = group.CompletedCount,
+                Key = group.Key,
+                Title = group.Title,
+                EntityId = group.EntityId,
+                ArtworkSmallUrl = group.ArtworkSmallUrl,
+                ArtworkUrl = group.ArtworkUrl,
+                BackgroundArtworkUrl = group.BackgroundArtworkUrl,
+                TotalKnownItems = group.TotalKnownItems,
+                HasAuthoritativeTotal = group.HasAuthoritativeTotal,
+                ItemCount = group.ItemCount,
+                ItemOffset = offset,
+                Items = windowItems,
+            };
+        }).ToList();
     }
 
     private static string? SequenceProgressLabel(CollectionWorkSummary work)

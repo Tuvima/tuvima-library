@@ -253,6 +253,25 @@
     </div>
     }
 
+    @if (IsWindowedGroup || _loadingWindow || _windowFailed)
+    {
+        <div class="tl-series-detail__pager" role="group" aria-label="@($"{ItemNoun} pages")">
+            <AppIconButton Icon="@AppMaterialIcons.Outlined.ChevronLeft"
+                           Size="AppControlSize.Large"
+                           AriaLabel="@($"Earlier {Placement.ItemPluralLabel.ToLowerInvariant()}")"
+                           Disabled="@(_loadingWindow || ActiveOffset <= 0)"
+                           OnClick="LoadEarlierWindowAsync" />
+            <span class="tl-series-detail__pager-label" role="status" aria-live="polite">
+                @WindowLabel
+            </span>
+            <AppIconButton Icon="@AppMaterialIcons.Outlined.ChevronRight"
+                           Size="AppControlSize.Large"
+                           AriaLabel="@($"Later {Placement.ItemPluralLabel.ToLowerInvariant()}")"
+                           Disabled="@(_loadingWindow || !HasLaterWindow)"
+                           OnClick="LoadLaterWindowAsync" />
+        </div>
+    }
+
     @if (HasMoreConfiguredMissingItems)
     {
         <AppNativeButton Type="button"
@@ -655,7 +674,8 @@ else
                 return [new SequenceGroupViewModel { Key = "all", Title = Placement.ItemPluralLabel, Items = Placement.OrderedItems }];
             }
 
-            var nonEmptyGroups = Placement.Groups.Where(group => group.Items.Count > 0).ToList();
+            // A long show sends each season's count but only one season's episodes; the others still belong in the list.
+            var nonEmptyGroups = Placement.Groups.Where(group => GroupItemCount(group) > 0).ToList();
             var scopedGroups = nonEmptyGroups
                 .Where(group => !string.Equals(group.Key, "all", StringComparison.OrdinalIgnoreCase))
                 .ToList();
@@ -731,8 +751,42 @@ else
 
     private IReadOnlyList<SequenceItemViewModel> GroupItems
         => ShowGroupSelector
-            ? ActiveGroup?.Items ?? []
+            ? ActiveGroup is { } group ? LoadedWindow(group).Items : []
             : Placement.OrderedItems;
+
+    // Long TV seasons arrive one window at a time (see SequenceGroupViewModel.ItemCount / ItemOffset).
+    private readonly Dictionary<string, (int Offset, IReadOnlyList<SequenceItemViewModel> Items)> _windows = new(StringComparer.OrdinalIgnoreCase);
+    private bool _loadingWindow;
+    private bool _windowFailed;
+    private int _windowRequestId;
+
+    private static int GroupItemCount(SequenceGroupViewModel group) => Math.Max(group.ItemCount, group.Items.Count);
+
+    private (int Offset, IReadOnlyList<SequenceItemViewModel> Items) LoadedWindow(SequenceGroupViewModel group)
+        => _windows.TryGetValue(group.Key, out var window) ? window : (group.ItemOffset, group.Items);
+
+    private bool IsWindowedGroup => IsSeasonContainer
+        && ActiveGroup is { } group
+        && GroupItemCount(group) > LoadedWindow(group).Items.Count;
+    private int ActiveOffset => ActiveGroup is { } group ? LoadedWindow(group).Offset : 0;
+    private bool HasLaterWindow => ActiveGroup is { } group
+        && LoadedWindow(group).Offset + LoadedWindow(group).Items.Count < GroupItemCount(group);
+    private string WindowLabel
+    {
+        get
+        {
+            if (_windowFailed)
+                return $"Could not load more {Placement.ItemPluralLabel.ToLowerInvariant()}. Try again.";
+            if (ActiveGroup is not { } group)
+                return string.Empty;
+            var loaded = LoadedWindow(group);
+            var first = loaded.Offset + 1;
+            var last = loaded.Offset + loaded.Items.Count;
+            return _loadingWindow
+                ? $"Loading {Placement.ItemPluralLabel.ToLowerInvariant()}..."
+                : $"{Placement.ItemPluralLabel} {first}-{last} of {GroupItemCount(group)}";
+        }
+    }
     private IReadOnlyList<SequenceItemViewModel> ActiveItems => ApplyMissingItemPolicy(GroupItems);
     private bool CanShowMissingToggle => _missingItemPolicy?.Enabled == true
         && MissingCount > 0;
@@ -752,7 +806,9 @@ else
             index.ToString(CultureInfo.InvariantCulture),
             $"#{SequenceNumber(item)} — {SequenceItemTitle(item)}"))
         .ToList();
-    private int OwnedCount => GroupItems.Count(item => item.IsOwned);
+    private int OwnedCount => IsWindowedGroup && ActiveGroup is { } windowedGroup
+        ? windowedGroup.OwnedCount
+        : GroupItems.Count(item => item.IsOwned);
     private int MissingCount => Math.Max(0, TotalItems - OwnedCount);
     private bool IsComicSequence => Placement.CurrentItem.EntityType is DetailEntityType.ComicIssue or DetailEntityType.ComicSeries;
     private bool ShowCoverageDonut => !IsComicSequence && Placement.HasAuthoritativeTotal && TotalItems > 0;
@@ -898,6 +954,10 @@ else
         if (!string.Equals(key, _placementKey, StringComparison.Ordinal))
         {
             _placementKey = key;
+            _windows.Clear();
+            _windowRequestId++;
+            _loadingWindow = false;
+            _windowFailed = false;
             _selectedGroupKey = Placement.CurrentGroupKey;
             _seasonBrowserOpen = false;
             _scrollToCurrentSeason = false;
@@ -983,14 +1043,75 @@ else
     private void ToggleSeriesDescription()
         => _seriesDescriptionExpanded = !_seriesDescriptionExpanded;
 
-    private void SelectGroup(string? value)
+    private async Task SelectGroup(string? value)
     {
         if (string.IsNullOrWhiteSpace(value))
             return;
 
         _selectedGroupKey = value;
         _visibleMissingLimit = _missingItemPolicy?.PageSize ?? 0;
+        _windowFailed = false;
         ResetWindowToCurrentItem();
+        // A long show sends only one season's episodes; fetch the first window of the season just chosen.
+        if (IsSeasonContainer
+            && Placement.Groups.FirstOrDefault(group => string.Equals(group.Key, value, StringComparison.OrdinalIgnoreCase)) is { } chosen
+            && GroupItemCount(chosen) > 0
+            && LoadedWindow(chosen).Items.Count == 0)
+        {
+            await LoadWindowAsync(chosen, 0);
+        }
+    }
+
+    private Task LoadEarlierWindowAsync()
+        => ActiveGroup is { } group
+            ? LoadWindowAsync(group, Math.Max(0, LoadedWindow(group).Offset - SequenceWindowQuery.PageSize))
+            : Task.CompletedTask;
+
+    private Task LoadLaterWindowAsync()
+        => ActiveGroup is { } group
+            ? LoadWindowAsync(group, LoadedWindow(group).Offset + LoadedWindow(group).Items.Count)
+            : Task.CompletedTask;
+
+    private async Task LoadWindowAsync(SequenceGroupViewModel group, int offset)
+    {
+        if (!Guid.TryParse(Placement.ContainerId, out var showId))
+            return;
+
+        var request = ++_windowRequestId;
+        _loadingWindow = true;
+        _windowFailed = false;
+        await InvokeAsync(StateHasChanged);
+        try
+        {
+            var page = await ApiClient.GetDetailPageAsync(
+                DetailEntityType.TvShow,
+                showId,
+                profileId: _activeProfileId,
+                sequence: SequenceWindowQuery.Page(
+                    group.Key,
+                    offset,
+                    Guid.TryParse(Placement.CurrentItem.Id, out var currentId) ? currentId : null));
+            if (request != _windowRequestId)
+                return;
+
+            var loaded = page?.SequencePlacement?.Groups
+                .FirstOrDefault(candidate => string.Equals(candidate.Key, group.Key, StringComparison.OrdinalIgnoreCase));
+            if (loaded is null || loaded.Items.Count == 0)
+            {
+                _windowFailed = true;
+                return;
+            }
+
+            _windows[group.Key] = (loaded.ItemOffset, loaded.Items);
+            _jumpSelectionValue = null;
+            _windowCenterIndex = 0;
+            _scrollToCurrentEpisode = true;
+        }
+        finally
+        {
+            if (request == _windowRequestId)
+                _loadingWindow = false;
+        }
     }
 
     private void ToggleSeasonBrowser()
@@ -1004,10 +1125,10 @@ else
         _scrollToCurrentSeason = _seasonBrowserOpen;
     }
 
-    private void SelectSeason(string key)
+    private async Task SelectSeason(string key)
     {
-        SelectGroup(key);
         _seasonBrowserOpen = false;
+        await SelectGroup(key);
     }
 
     private Task PageSeasonRailAsync(int direction)

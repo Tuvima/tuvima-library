@@ -76,9 +76,60 @@ public sealed class EngineApiClientSequenceNormalizationTests
         }
         Assert.Equal(3, placement.Groups[0].OwnedCount); Assert.Equal(1, placement.Groups[0].CompletedCount);
     }
+
+    [Fact]
+    public async Task SeasonWindowCountsAndOffsetsSurviveNormalizationAndTheWindowQueryIsSent()
+    {
+        var show = Guid.NewGuid();
+        var detail = new DetailPageViewModel
+        {
+            Id = show.ToString("D"),
+            EntityType = DetailEntityType.TvShow,
+            SequencePlacement = new()
+            {
+                ContainerId = show.ToString("D"),
+                Groups =
+                [
+                    new() { Key = "season-1", Title = "Season 1", ItemCount = 400, ItemOffset = 50, OwnedCount = 400, Items = [new() { Id = Guid.NewGuid().ToString("D"), IsOwned = true }] },
+                    new() { Key = "season-2", Title = "Season 2", ItemCount = 12, OwnedCount = 12 },
+                ],
+            },
+        };
+        var handler = new Handler(detail);
+        using var http = new HttpClient(handler) { BaseAddress = new Uri("http://localhost:61495") };
+        using var client = new EngineApiClient(http, NullLogger<EngineApiClient>.Instance);
+
+        var current = Guid.NewGuid();
+        var result = await client.GetDetailPageAsync(
+            DetailEntityType.TvShow, show, sequence: SequenceWindowQuery.Page("season-1", 50, current));
+
+        Assert.NotNull(result);
+        var groups = result.SequencePlacement!.Groups;
+        Assert.Equal((400, 50, 1), (groups[0].ItemCount, groups[0].ItemOffset, groups[0].Items.Count));
+        Assert.Equal((12, 0, 0), (groups[1].ItemCount, groups[1].ItemOffset, groups[1].Items.Count));
+        var query = handler.LastRequest!.RequestUri!.Query;
+        Assert.Contains("sequenceGroup=season-1", query);
+        Assert.Contains("sequenceOffset=50", query);
+        Assert.Contains("sequenceLimit=50", query);
+        Assert.Contains($"sequenceCurrent={current:D}", query);
+        Assert.Contains("sequenceOnly=true", query);
+
+        await client.GetDetailPageAsync(DetailEntityType.TvEpisode, show, sequence: SequenceWindowQuery.WholeList);
+        Assert.Contains("sequenceLimit=0", handler.LastRequest!.RequestUri!.Query);
+        Assert.DoesNotContain("sequenceGroup", handler.LastRequest.RequestUri.Query);
+
+        await client.GetDetailPageAsync(DetailEntityType.TvShow, show);
+        Assert.DoesNotContain("sequence", handler.LastRequest!.RequestUri!.Query);
+    }
+
     private sealed class Handler(DetailPageViewModel detail) : HttpMessageHandler
     {
+        public HttpRequestMessage? LastRequest { get; private set; }
+
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken ct)
-            => Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK) { Content = JsonContent.Create(detail) });
+        {
+            LastRequest = request;
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK) { Content = JsonContent.Create(detail) });
+        }
     }
 }

@@ -10,7 +10,10 @@ public static class OwnedEpisodeQueuePlanner
         {
             return [];
         }
-        var items = sequence.OrderedItems;
+        // The list may be carried flat or inside its season groups (a long show is sent season by season).
+        IReadOnlyList<SequenceItemViewModel> items = sequence.OrderedItems.Count > 0
+            ? sequence.OrderedItems
+            : sequence.Groups.SelectMany(group => group.Items).ToList();
         var currentIndex = -1;
         for (var index = 0; index < items.Count; index++)
         {

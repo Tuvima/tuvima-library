@@ -93,7 +93,8 @@ internal sealed partial class DetailCompositionOrchestrator
         Guid? profileId = null,
         DetailActionAuthorizationContext actionAuthorization = default,
         IReadOnlyList<Guid>? authorizedAssetIds = null,
-        IReadOnlyList<DisplayWorkRow>? authorizedWorks = null)
+        IReadOnlyList<DisplayWorkRow>? authorizedWorks = null,
+        SequenceWindowRequest? sequenceWindow = null)
     {
         var isAdminView = context is DetailPresentationContext.Admin;
         var favoriteWorkIds = await _reader.LoadFavoriteWorkIdsAsync(profileId, ct);
@@ -113,7 +114,8 @@ internal sealed partial class DetailCompositionOrchestrator
                     ct,
                     profileId: profileId,
                     selectedContainerId: selectedContainerId,
-                    authorizedWorks: authorizedWorks),
+                    authorizedWorks: authorizedWorks,
+                    sequenceWindow: sequenceWindow),
             DetailEntityType.Character => await BuildCharacterAsync(id, context, isAdminView, actionAuthorization, authorizedWorks, ct),
             DetailEntityType.Universe => await BuildUniverseAsync(id, context, isAdminView, actionAuthorization, authorizedWorks, ct),
             _ => await BuildWorkAsync(
@@ -127,7 +129,8 @@ internal sealed partial class DetailCompositionOrchestrator
                 profileId,
                 authorizedAssetIds,
                 authorizedWorks,
-                ct),
+                ct,
+                sequenceWindow),
         };
         if (model is not null && profileId.HasValue)
         {

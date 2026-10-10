@@ -19,7 +19,8 @@ internal sealed partial class DetailCompositionOrchestrator
     /// </summary>
     internal async Task<Dictionary<Guid, Dictionary<string, string>>> LoadWorkAndAssetCanonicalMapsAsync(
         IReadOnlyCollection<Guid> workIds,
-        CancellationToken ct)
+        CancellationToken ct,
+        IReadOnlyCollection<string>? onlyKeys = null)
     {
         var distinctWorkIds = workIds.Distinct().ToList();
         var result = new Dictionary<Guid, Dictionary<string, string>>(distinctWorkIds.Count);
@@ -61,6 +62,12 @@ internal sealed partial class DetailCompositionOrchestrator
                 }
             }
 
+            if (onlyKeys is not null)
+            {
+                // A key-restricted read never needs the edition subtitle.
+                continue;
+            }
+
             // Only the first edition (by id) of a work can supply the subtitle, even when its value is blank.
             var subtitleRows = await conn.QueryAsync<WorkEditionSubtitleRow>(new CommandDefinition(
                 """
@@ -89,6 +96,21 @@ internal sealed partial class DetailCompositionOrchestrator
         {
             ct.ThrowIfCancellationRequested();
             var entityBlobs = chunk.Select(GuidSql.ToBlob).ToArray();
+
+            if (onlyKeys is not null)
+            {
+                // Same rows as the full read below, narrowed to the requested keys (each key resolves independently).
+                var keys = onlyKeys.Select(key => key.ToLowerInvariant()).ToArray();
+                Collect(scalarsByEntity, await conn.QueryAsync<EntityPairRow>(new CommandDefinition(
+                    "SELECT entity_id AS EntityId, key AS Key, value AS Value FROM canonical_values WHERE entity_id IN @entityIds AND lower(key) IN @keys ORDER BY entity_id, key;",
+                    new { entityIds = entityBlobs, keys },
+                    cancellationToken: ct)));
+                Collect(arraysByEntity, await conn.QueryAsync<EntityPairRow>(new CommandDefinition(
+                    "SELECT entity_id AS EntityId, key AS Key, value AS Value FROM canonical_value_arrays WHERE entity_id IN @entityIds AND lower(key) IN @keys ORDER BY entity_id, key, ordinal;",
+                    new { entityIds = entityBlobs, keys },
+                    cancellationToken: ct)));
+                continue;
+            }
 
             Collect(scalarsByEntity, await conn.QueryAsync<EntityPairRow>(new CommandDefinition(
                 "SELECT entity_id AS EntityId, key AS Key, value AS Value FROM canonical_values WHERE entity_id IN @entityIds ORDER BY entity_id, key;",
@@ -142,6 +164,104 @@ internal sealed partial class DetailCompositionOrchestrator
 
             ApplyTechnicalClaimFallbacks(claimsByEntity.GetValueOrDefault(workId) ?? [], values);
             result[workId] = values;
+        }
+
+        return result;
+    }
+
+    private static readonly string[] EpisodeAirDateKeys = ["air_date", "release_date"];
+
+    /// <summary>
+    /// Gives every episode its air date (what the full per-episode read would have set), so show-level air years and
+    /// ordering do not depend on how many episodes the response goes on to describe in full.
+    /// </summary>
+    private async Task<IReadOnlyList<CollectionWorkSummary>> ApplyTvEpisodeAirDatesAsync(
+        IReadOnlyList<CollectionWorkSummary> works,
+        CancellationToken ct)
+    {
+        var maps = await LoadWorkAndAssetCanonicalMapsAsync(
+            works.Select(work => Guid.Parse(work.Id)).ToList(),
+            ct,
+            EpisodeAirDateKeys);
+        return works.Select(work =>
+        {
+            var values = maps[Guid.Parse(work.Id)];
+            return work with { Year = FirstText(GetValue(values, "air_date"), GetValue(values, "release_date")) };
+        }).ToList();
+    }
+
+    /// <summary>
+    /// Reads description, still and artwork for just <paramref name="episodeIds"/> (skipping any already read) and
+    /// lays them over the matching entries of <paramref name="works"/>. Everything else about an entry is kept, so it
+    /// can be applied after manifest placeholders were merged in.
+    /// </summary>
+    private async Task<(IReadOnlyList<CollectionWorkSummary> Works, Dictionary<Guid, Dictionary<string, string>> ValueMaps)> EnrichTvEpisodeSubsetAsync(
+        IReadOnlyList<CollectionWorkSummary> works,
+        IReadOnlyCollection<Guid> episodeIds,
+        HashSet<Guid> alreadyEnriched,
+        CancellationToken ct)
+    {
+        var pending = episodeIds.Where(id => !alreadyEnriched.Contains(id)).Distinct().ToHashSet();
+        if (pending.Count == 0)
+        {
+            return (works, new Dictionary<Guid, Dictionary<string, string>>());
+        }
+
+        var subset = works
+            .Where(work => Guid.TryParse(work.Id, out var id) && pending.Contains(id))
+            .ToList();
+        var stills = await LoadTvEpisodeStillsAsync(subset.Select(work => Guid.Parse(work.Id)).ToList(), ct);
+        var (enrichedSubset, valueMaps) = await EnrichTvEpisodesAsync(subset, stills, ct);
+        var enrichedById = enrichedSubset.ToDictionary(work => work.Id, StringComparer.OrdinalIgnoreCase);
+        foreach (var work in subset)
+        {
+            alreadyEnriched.Add(Guid.Parse(work.Id));
+        }
+
+        var merged = works.Select(work => enrichedById.TryGetValue(work.Id, out var enriched)
+            ? work with
+            {
+                Description = enriched.Description,
+                BackgroundUrl = enriched.BackgroundUrl,
+                EpisodeStillUrl = enriched.EpisodeStillUrl,
+                EpisodeStillWidthPx = enriched.EpisodeStillWidthPx,
+                EpisodeStillHeightPx = enriched.EpisodeStillHeightPx,
+            }
+            : work).ToList();
+        return (merged, valueMaps);
+    }
+
+    private async Task<Dictionary<Guid, SequenceRow>> LoadTvEpisodeStillsAsync(
+        IReadOnlyCollection<Guid> episodeIds,
+        CancellationToken ct)
+    {
+        var result = new Dictionary<Guid, SequenceRow>();
+        if (episodeIds.Count == 0)
+        {
+            return result;
+        }
+
+        using var conn = _db.CreateConnection();
+        foreach (var chunk in episodeIds.Chunk(BatchChunkSize))
+        {
+            ct.ThrowIfCancellationRequested();
+            var ownedIds = chunk.Select(GuidSql.ToBlob).ToArray();
+            var rows = await conn.QueryAsync<SequenceRow>(new CommandDefinition("""
+                SELECT w.id AS WorkId, art.id AS EpisodeStillAssetId,
+                       art.width_px AS EpisodeStillWidthPx, art.height_px AS EpisodeStillHeightPx
+                FROM works w LEFT JOIN entity_assets art ON art.id = (
+                    SELECT ea.id FROM entity_assets ea
+                    WHERE ea.asset_type = 'EpisodeStill'
+                      AND (ea.entity_id = w.id OR ea.entity_id IN (SELECT e.id FROM editions e WHERE e.work_id = w.id)
+                           OR ea.entity_id IN (SELECT ma.id FROM media_assets ma JOIN editions e ON e.id = ma.edition_id WHERE e.work_id = w.id))
+                      AND (ea.local_image_path_s IS NOT NULL OR ea.local_image_path IS NOT NULL)
+                    ORDER BY ea.is_preferred DESC, ea.is_user_override DESC, ea.updated_at DESC LIMIT 1)
+                WHERE w.id IN @ownedIds
+                """, new { ownedIds }, cancellationToken: ct));
+            foreach (var row in rows)
+            {
+                result[row.WorkId] = row;
+            }
         }
 
         return result;
