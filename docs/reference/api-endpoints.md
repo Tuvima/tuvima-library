@@ -249,6 +249,8 @@ unauthorized identifiers return the same not-found shape as missing resources.
 | GET | `/metadata/claims/{entityId}` | All claims for an entity, grouped by field, with source and confidence | Required |
 | GET | `/metadata/conflicts` | All unresolved metadata conflicts across the library | Effective administrator or precise Application permission |
 | GET | `/metadata/{entityId}/canon-discrepancies` | Field-level mismatches between the canonical value and file-embedded metadata | Required |
+| GET | `/metadata/{entityId}/file-coverage?assetId=` | Episodes a TV file covers plus the other episodes of its season it could cover (404 when the file is not a TV episode) | Effective administrator or precise Application permission |
+| PUT | `/metadata/{entityId}/file-coverage` | Replace the full list of episodes one TV file covers. Must include the file's own episode, stay within its season, name at most 6 episodes and skip episodes that already have another file. Idempotent: saving the same list changes nothing. Resolves the file's pending review and records a History entry | Effective administrator or precise Application permission |
 | GET | `/metadata/{entityId}/artwork` | Artwork context for the media editor, including variants by artwork type and preferred selections | Effective administrator or precise Application permission |
 | GET | `/metadata/{entityId}/artwork/{scopeId}` | Artwork variants for a specific editor scope | Effective administrator or precise Application permission |
 | POST | `/metadata/{entityId}/artwork/{scopeId}/{assetType}` | Upload a user-owned artwork variant for the selected type | Effective administrator or precise Application permission |

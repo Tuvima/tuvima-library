@@ -4586,6 +4586,25 @@ MediaEngine.Contracts.Metadata.MediaEngine.Contracts.Metadata.MediaEditorEdition
   AssetCount: System.Int32 | nullability=not-null | accessors=get,set
   Assets: System.Collections.Generic.List<MediaEngine.Contracts.Metadata.MediaEditorAssetSelectorDto> | nullability=not-null | accessors=get,set
 
+MediaEngine.Contracts.Metadata.MediaEngine.Contracts.Metadata.MediaEditorFileCoverageDto
+  AssetId: System.Guid | nullability=not-null | accessors=get,init
+  HostWorkId: System.Guid | nullability=not-null | accessors=get,init
+  MaxEpisodes: System.Int32 | nullability=not-null | accessors=get,init
+  Episodes: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Metadata.MediaEditorFileCoverageEpisodeDto> | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Metadata.MediaEngine.Contracts.Metadata.MediaEditorFileCoverageEpisodeDto
+  WorkId: System.Guid | nullability=not-null | accessors=get,init
+  EpisodeNumber: System.Int32? | nullability=nullable | accessors=get,init
+  Title: System.String | nullability=not-null | accessors=get,init
+  IsHost: System.Boolean | nullability=not-null | accessors=get,init
+  IsCovered: System.Boolean | nullability=not-null | accessors=get,init
+  OwnedByOtherFile: System.Boolean | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Metadata.MediaEngine.Contracts.Metadata.MediaEditorFileCoverageSaveRequestDto
+  OperationId: System.Guid | nullability=not-null | accessors=get,init
+  AssetId: System.Guid | nullability=not-null | accessors=get,init
+  WorkIds: System.Collections.Generic.IReadOnlyList<System.Guid> | nullability=not-null | accessors=get,init
+
 MediaEngine.Contracts.Metadata.MediaEngine.Contracts.Metadata.MediaEditorIdentitySummaryDto
   ProviderName: System.String | nullability=nullable | accessors=get,set
   ProviderItemId: System.String | nullability=nullable | accessors=get,set

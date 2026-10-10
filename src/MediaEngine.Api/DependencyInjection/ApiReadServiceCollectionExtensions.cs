@@ -45,6 +45,7 @@ public static class ApiReadServiceCollectionExtensions
         services.AddSingleton<IMediaEditorOwnedChildReadService, MediaEditorOwnedChildReadService>();
         services.AddSingleton<MediaEditorWorkVersionReadRepository>();
         services.AddSingleton<MusicTrackRelocationRepository>();
+        services.AddSingleton<MediaEditorFileCoverageRepository>();
         services.AddSingleton<MediaEditorSelectionHistoryReadService>();
         services.AddSingleton<PairingAssetReadService>();
         services.AddSingleton<TvPairingLocalTargetReadService>();

@@ -506,6 +506,10 @@
                         CancelTvdbSelection="@(() => _selectedTvdbCandidate = null)"
                         SelectMusicTrackMoveChoice="@((string value) => _musicTrackMoveChoiceId = value)"
                         GetRetailCandidateId="@((MediaEngine.Contracts.Matching.ItemCanonicalRetailCandidateDto candidate) => GetCandidateId(candidate))" />
+                    @if (CoverageAssetId is { } coverageAssetId)
+                    {
+                        <MediaEditorFileCoveragePicker EntityId="@(CurrentEntityId)" AssetId="@(coverageAssetId)" />
+                    }
                 }
                 else if (_activeTab == "artwork")
                 {

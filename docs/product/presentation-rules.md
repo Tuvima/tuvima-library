@@ -52,6 +52,19 @@ on their own non-wrapping line. Movie heroes
 use the movie description without a synopsis heading. The watch utility row does
 not repeat a Show details action.
 
+### One file, several episodes: the editor picker
+
+When one video file holds several episodes of a season, the editor's Matching tab
+shows a **This file covers** picker for that episode's file. Each episode of the
+season is a tappable chip (`E2 · Title`); the file's own episode is always ticked and
+locked, episodes that already have their own file are locked, and a file covers at
+most six episodes, all within one season. **Save episodes** replaces the list in one
+step, answers the file's pending combined-media Review item, and records a History
+entry; saving the same list again changes nothing. Single-episode files see no change
+beyond the picker staying out of the way when the season has one episode. On phones
+the chips stack full width with 44px touch targets and the actions stay reachable
+inside the modal.
+
 ## Current Collections and linked-identity clarifications
 
 - Collections has one padded, viewport-bounded content scroller beside its anchored rail, with no second document scrollbar.
