@@ -238,5 +238,18 @@ public sealed class CinematicHeroCarouselRenderTests : AsyncBunitContext
         Assert.DoesNotContain("+ 3.75rem", css);
     }
 
+    [Fact]
+    public async Task LeavingThePageBeforeTheMotionPreferenceArrivesStartsNoRotation()
+    {
+        var motionPreference = JSInterop.Setup<bool>("tuvimaPrefersReducedMotion");
+        var cut = Render<CinematicHeroCarousel>(p => p.Add(c => c.Items, [Hero("First"), Hero("Second")]));
+
+        await cut.Instance.DisposeAsync();
+        motionPreference.SetResult(false);
+        await Task.Yield();
+
+        Assert.False(Renderer.UnhandledException.IsCompleted);
+    }
+
     private static DiscoveryHeroViewModel Hero(string title) => new() { Title = title, MediaKind = "Movie", PrimaryActionLabel = "Watch" };
 }

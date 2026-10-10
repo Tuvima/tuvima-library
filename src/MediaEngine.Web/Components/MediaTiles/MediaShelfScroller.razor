@@ -50,10 +50,13 @@
         _disposed = true;
         try
         {
-            await JS.InvokeVoidAsync("unregisterMediaShelfBoundaries", _scrollRef);
-            await JS.InvokeVoidAsync("unregisterMediaTileShelfScrollGuard", _scrollRef);
+            // One call, sent before the page update that removes the shelf. A second call would arrive after the
+            // shelf element is gone, so the browser could no longer find it and its window listener would leak.
+            await JS.InvokeVoidAsync("unregisterMediaShelf", _scrollRef);
         }
         catch (JSDisconnectedException ex) { Logger.LogDebug(ex, "Shelf disconnected during disposal."); }
-        _reference?.Dispose();
+        catch (JSException ex) { Logger.LogDebug(ex, "Shelf browser clean-up failed during disposal."); }
+        catch (OperationCanceledException ex) { Logger.LogDebug(ex, "Shelf browser clean-up was cancelled during disposal."); }
+        finally { _reference?.Dispose(); }
     }
 }
