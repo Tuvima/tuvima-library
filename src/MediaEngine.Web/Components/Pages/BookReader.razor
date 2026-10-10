@@ -1,0 +1,411 @@
+@namespace MediaEngine.Web.Components.Pages
+
+@using System.Diagnostics
+@using MediaEngine.Web.Models.ViewDTOs
+@using MediaEngine.Web.Services.Integration
+
+@inject IEngineApiClient Api
+@inject NavigationManager Nav
+@inject IJSRuntime JS
+@inject ILogger<BookReader> Logger
+
+@implements IAsyncDisposable
+
+@* The foliate-js based book reader (packet BR2). Shown by EpubReader's route when the address carries
+   ?reader=new; it replaces that page at cutover. This component owns the chrome and the saved position;
+   wwwroot/js/book-reader.js owns everything that touches the book. *@
+
+<PageTitle>@(string.IsNullOrWhiteSpace(_title) ? "Reader" : _title) - Tuvima Library</PageTitle>
+
+<link href="css/book-reader.css" rel="stylesheet" />
+
+<div class="br-shell br-theme-@ThemeClass" data-state="@_state">
+
+    @* The script mounts the book view in here; Blazor never puts children in it. *@
+    <div class="br-stage" @ref="_host"></div>
+
+    <header class="br-bar br-bar--top @(_chromeVisible ? "" : "br-bar--hidden")" aria-hidden="@(_chromeVisible ? null : "true")">
+        <AppNativeButton Class="br-icon-btn" OnClick="ExitReader" Title="Back to library" AriaLabel="Back to library">
+            <AppMaterialIcon Icon="@AppMaterialIcons.Filled.ArrowBack" Size="AppSize.Small" />
+        </AppNativeButton>
+        <div class="br-title">
+            <div class="br-title-book">@_title</div>
+            @if (!string.IsNullOrWhiteSpace(_author))
+            {
+                <div class="br-title-author">@_author</div>
+            }
+        </div>
+    </header>
+
+    <footer class="br-bar br-bar--bottom @(_chromeVisible ? "" : "br-bar--hidden")" aria-hidden="@(_chromeVisible ? null : "true")">
+        <span class="br-section">@_sectionLabel</span>
+        <span class="br-percent" aria-label="Progress">@Percent%</span>
+    </footer>
+
+    @if (_state == "loading")
+    {
+        <div class="br-overlay">
+            <AppPageState Kind="AppPageStateKind.Loading" Title="Opening book" />
+        </div>
+    }
+    else if (_state == "error")
+    {
+        <div class="br-overlay">
+            <AppPageState Kind="AppPageStateKind.Unavailable"
+                          Title="@ErrorTitle"
+                          Message="@_errorMessage"
+                          Icon="@AppMaterialIcons.Filled.ErrorOutline">
+                <Actions>
+                    @if (_canRetry)
+                    {
+                        <AppButton ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" OnClick="RetryAsync">
+                            Try again
+                        </AppButton>
+                    }
+                    <AppButton ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Primary" OnClick="ExitReader">
+                        Return to Library
+                    </AppButton>
+                </Actions>
+            </AppPageState>
+        </div>
+    }
+</div>
+
+@code {
+    private static readonly TimeSpan SaveInterval = TimeSpan.FromSeconds(5);
+
+    [Parameter] public Guid AssetId { get; set; }
+    [Parameter] public Guid? ReturnCollectionId { get; set; }
+    [Parameter] public bool Restart { get; set; }
+
+    private ElementReference _host;
+    private IJSObjectReference? _module;
+    private DotNetObjectReference<BookReader>? _dotNetRef;
+    private System.Threading.Timer? _saveTimer;
+    private readonly Stopwatch _sinceSave = Stopwatch.StartNew();
+    private readonly Stopwatch _reading = new();
+    private readonly string _readerSessionId = Guid.NewGuid().ToString("D");
+    private BookReaderOpenOptions _settings = new();
+
+    private string _state = "loading";          // loading | ready | error
+    private string _title = string.Empty;
+    private string? _author;
+    private string _sectionLabel = string.Empty;
+    private string? _errorCode;
+    private string? _errorMessage;
+    private bool _canRetry;
+    private bool _chromeVisible = true;
+    private bool _opened;
+    private bool _exited;
+    private bool _disposing;
+    private bool _disposed;
+    private double _fraction;
+    private double _baseReadingSeconds;
+    private string? _latestCfi;
+    private string? _savedCfi;
+
+    private string ThemeClass => _settings.Theme is "dark" or "sepia" or "system" ? _settings.Theme : "light";
+    private int Percent => (int)Math.Round(Math.Clamp(_fraction, 0, 1) * 100);
+    private string ErrorTitle => _errorCode switch
+    {
+        "unsupported" => "Not supported yet",
+        "changed" => "This book was updated",
+        _ => "Book failed to load",
+    };
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender || _opened)
+        {
+            return;
+        }
+
+        _opened = true;
+        await OpenAsync();
+    }
+
+    private async Task OpenAsync()
+    {
+        _state = "loading";
+        _errorMessage = null;
+        StateHasChanged();
+
+        try
+        {
+            _module ??= await JS.InvokeAsync<IJSObjectReference>("import", "./js/book-reader.js");
+            await LoadSettingsAsync();
+
+            // A book that was never read has no saved position (the Engine answers 404, which comes back as null here).
+            var progress = Restart ? null : await Api.GetProgressAsync(AssetId);
+            string? lastLocation = null;
+            if (progress is not null)
+            {
+                if (progress.ExtendedProperties.TryGetValue("cfi", out var cfi) && !string.IsNullOrWhiteSpace(cfi))
+                {
+                    lastLocation = cfi;
+                }
+
+                if (progress.ExtendedProperties.TryGetValue("position_seconds", out var seconds)
+                    && double.TryParse(seconds, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var parsed))
+                {
+                    _baseReadingSeconds = Math.Max(0, parsed);
+                }
+            }
+
+            _dotNetRef ??= DotNetObjectReference.Create(this);
+            if (_saveTimer is { } previousTimer)
+            {
+                await previousTimer.DisposeAsync();
+                _saveTimer = null;
+            }
+
+            var options = new BookReaderOpenOptions
+            {
+                LastLocation = lastLocation,
+                Theme = ThemeClass,
+                FontSize = _settings.FontSize,
+                LineHeight = _settings.LineHeight,
+            };
+            var result = await _module.InvokeAsync<BookReaderOpenResult>(
+                "open", _host, EngineBookProxyPath.ToBrowserUrl(AssetId), options, _dotNetRef);
+
+            if (_disposing || _disposed || result.Code == "cancelled")
+            {
+                return;
+            }
+
+            if (!result.Ok)
+            {
+                ShowError(result.Code, result.Message);
+                return;
+            }
+
+            _title = result.Title ?? string.Empty;
+            _author = result.Author;
+            _fraction = result.Fraction;
+            _state = "ready";
+            _reading.Restart();
+            if (_disposing || _disposed)
+            {
+                return;
+            }
+
+            _saveTimer = new System.Threading.Timer(_ => _ = InvokeAsync(FlushIfDirtyAsync), null, SaveInterval, SaveInterval);
+        }
+        catch (Exception ex)
+        {
+            // Anything that goes wrong while starting (script, network, a closed connection) ends in the error
+            // screen with a working Try again, never in a crashed page.
+            if (_disposing || _disposed)
+            {
+                return;
+            }
+
+            Logger.LogWarning(ex, "The book reader could not start for {AssetId}.", AssetId);
+            ShowError("unavailable", "The reader could not start. Try again, or reload the page.");
+            return;
+        }
+
+        StateHasChanged();
+    }
+
+    private void ShowError(string? code, string? message)
+    {
+        _errorCode = code;
+        _errorMessage = string.IsNullOrWhiteSpace(message) ? "This book could not be opened." : message;
+        _canRetry = code is "busy" or "offline" or "unavailable" or "changed";
+        _state = "error";
+        StateHasChanged();
+    }
+
+    private async Task RetryAsync()
+    {
+        // Keep the place the reader reached before it stopped; a changed book simply falls back to the start.
+        await SaveProgressAsync();
+        await OpenAsync();
+    }
+
+    // ---- Calls from the script -------------------------------------------------------------------------------
+
+    [JSInvokable]
+    public async Task OnRelocated(string cfi, double fraction, string label)
+    {
+        if (_disposed || _state != "ready")
+        {
+            return;
+        }
+
+        _latestCfi = cfi;
+        _fraction = fraction;
+        _sectionLabel = label ?? string.Empty;
+        StateHasChanged();
+
+        if (_sinceSave.Elapsed >= SaveInterval)
+        {
+            await SaveProgressAsync();
+        }
+    }
+
+    // The book could not be read any further (it was replaced on disk, or the sign-in ended). Show the error screen.
+    [JSInvokable]
+    public Task OnFailed(string code, string message)
+    {
+        if (!_disposing && !_disposed && _state == "ready")
+        {
+            ShowError(code, message);
+        }
+
+        return Task.CompletedTask;
+    }
+
+    [JSInvokable]
+    public Task OnToggleChrome()
+    {
+        _chromeVisible = !_chromeVisible;
+        StateHasChanged();
+        return Task.CompletedTask;
+    }
+
+    [JSInvokable]
+    public Task OnEscape() => ExitReader();
+
+    // ---- Saving the place ---------------------------------------------------------------------------------------
+
+    private async Task FlushIfDirtyAsync()
+    {
+        if (!_disposed && _latestCfi is not null && _latestCfi != _savedCfi)
+        {
+            await SaveProgressAsync();
+        }
+    }
+
+    private async Task SaveProgressAsync()
+    {
+        var cfi = _latestCfi;
+        if (string.IsNullOrWhiteSpace(cfi))
+        {
+            return;
+        }
+
+        _sinceSave.Restart();
+        _savedCfi = cfi;
+        try
+        {
+            var properties = new Dictionary<string, string>
+            {
+                ["reader_session_id"] = _readerSessionId,
+                ["reader"] = "foliate",
+                ["cfi"] = cfi,
+                ["position_seconds"] = Math.Max(0, _baseReadingSeconds + _reading.Elapsed.TotalSeconds).ToString("0", System.Globalization.CultureInfo.InvariantCulture),
+                ["media_kind"] = "reading",
+            };
+            await Api.SaveProgressAsync(AssetId, progressPct: Math.Clamp(_fraction, 0, 1) * 100.0, extendedProperties: properties);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogDebug(ex, "Failed to save book reader progress.");
+        }
+    }
+
+    // ---- Settings (same per-device key as the current reader) ----------------------------------------------------
+
+    private async Task LoadSettingsAsync()
+    {
+        try
+        {
+            // The script reads the per-device key itself, so no stored-JSON shape is parsed on this side.
+            _settings = await _module!.InvokeAsync<BookReaderOpenOptions>("loadSettings");
+        }
+        catch (Exception ex) when (ex is JSException or InvalidOperationException)
+        {
+            Logger.LogDebug(ex, "Failed to load reader settings from local storage.");
+        }
+    }
+
+    // ---- Leaving ---------------------------------------------------------------------------------------------------
+
+    private async Task ExitReader()
+    {
+        if (_exited)
+        {
+            return;
+        }
+
+        _exited = true;
+        await CaptureLatestLocationAsync();
+        await SaveProgressAsync();
+
+        var returnUrl = ReturnCollectionId.HasValue
+            ? $"/details/collection/{ReturnCollectionId.Value}?lastAssetId={AssetId}"
+            : "/";
+        Nav.NavigateTo(returnUrl, replace: true);
+    }
+
+    // The script reports positions after a short pause; ask it for the very latest one before saving on exit.
+    private async Task CaptureLatestLocationAsync()
+    {
+        if (_module is null || _state != "ready")
+        {
+            return;
+        }
+
+        try
+        {
+            var latest = await _module.InvokeAsync<BookReaderLocation?>("getLocation");
+            if (latest is not null && !string.IsNullOrWhiteSpace(latest.Cfi))
+            {
+                _latestCfi = latest.Cfi;
+                _fraction = latest.Fraction;
+            }
+        }
+        catch (Exception ex) when (ex is JSException or JSDisconnectedException or InvalidOperationException)
+        {
+            Logger.LogDebug(ex, "Could not read the latest book position before leaving.");
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_disposed || _disposing)
+        {
+            return;
+        }
+
+        // From here an open that is still in flight must not start a new save timer.
+        _disposing = true;
+
+        if (_saveTimer is { } timer)
+        {
+            await timer.DisposeAsync();
+        }
+
+        if (!_exited)
+        {
+            await CaptureLatestLocationAsync();
+            await SaveProgressAsync();
+        }
+
+        _disposed = true;
+        try
+        {
+            if (_module is not null)
+            {
+                await _module.InvokeVoidAsync("dispose");
+                await _module.DisposeAsync();
+            }
+        }
+        catch (Exception ex) when (ex is JSDisconnectedException or JSException or InvalidOperationException)
+        {
+            Logger.LogDebug(ex, "Failed to dispose the book reader script.");
+        }
+
+        // An open that was in flight when disposal began may have created its timer in the meantime.
+        if (_saveTimer is { } lateTimer)
+        {
+            await lateTimer.DisposeAsync();
+            _saveTimer = null;
+        }
+
+        _dotNetRef?.Dispose();
+    }
+}

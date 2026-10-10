@@ -25,6 +25,10 @@ NUglify 1.23.3 is used only for Release CSS compilation and is excluded from Das
 
 QRCoder 1.6.0 draws the QR code that Users & Access shows with an invitation link. It runs inside the Dashboard, so the link never leaves the computer. Copyright Raffael Herrmann, MIT License.
 
+## foliate-js (book and comic reader)
+
+The in-browser book reader uses a pinned, unmodified copy of foliate-js (commit `78914aef`) under `src/MediaEngine.Web/wwwroot/lib/foliate-js/`, to open EPUB and comic (CBZ) files and keep standard reading positions. Copyright (c) 2022 John Factotum, MIT License (`src/MediaEngine.Web/wwwroot/lib/foliate-js/LICENSE`). It bundles zip.js (@zip.js/zip.js), copyright (c) 2022 Gildas Lormeau, BSD 3-Clause License, retained in `licenses/zip.js-BSD-3-Clause.txt`. Project: <https://github.com/johnfactotum/foliate-js>.
+
 ## SecLists common-password list (password rules)
 
 Tuvima Library refuses known common passwords when an account password is set or changed. The list is the NCSC "100k most used passwords" file from SecLists (`Passwords/Common-Credentials/100k-most-used-passwords-NCSC.txt`), filtered to entries of 12 or more characters, lower-cased and deduplicated into `src/MediaEngine.Identity/Resources/common-passwords.txt`. SecLists is distributed under the MIT License, copyright Daniel Miessler. The licence text is in `licenses/SecLists-MIT.txt`.
