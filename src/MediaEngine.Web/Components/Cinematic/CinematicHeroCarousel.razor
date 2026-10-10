@@ -660,6 +660,8 @@
         if (Slides.Count == 0) return;
         var identity=LandingIdentity; var profile=Playback.ActiveProfileId; var landingType=LandingEntityType;
         if (identity.Id==Guid.Empty || _personal.ContainsKey((profile,identity.Id))) return;
+        // Several render hooks ask at once; only the first load per slide may reach the Engine.
+        if (!_personalLoading.Add((profile,identity.Id))) return;
         try {
             var saved=Services.GetService<SavedItemService>(); var reactions=Services.GetService<MediaReactionService>();
             var member=saved is null ? null : await saved.GetMembershipAsync(identity.Kind,identity.Id);
@@ -667,7 +669,9 @@
             var status=await ApiClient.GetPersonalStatusAsync(landingType,identity.Id);
             if (identity==LandingIdentity && profile==Playback.ActiveProfileId) _personal[(profile,identity.Id)]=(member?.IsSaved==true,reaction,BuildPersonalMenu(landingType,status));
         } catch(Exception ex) { Logger.LogDebug(ex,"Could not load Home hero personal actions."); }
+        finally { _personalLoading.Remove((profile,identity.Id)); }
     }
+    private readonly HashSet<(Guid? Profile, Guid Id)> _personalLoading = [];
 
     private void PauseForHover() => _hoverPaused = true;
     private void ResumeFromHover() => _hoverPaused = false;
