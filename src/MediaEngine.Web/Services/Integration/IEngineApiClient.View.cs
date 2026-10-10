@@ -7,6 +7,10 @@ public partial interface IEngineApiClient
 {
     Task<ViewScopeResolutionDto?> GetViewScopesAsync(ViewScopeKind? scope = null, Guid? scopeProfileId = null, CancellationToken ct = default);
     Task<ViewPreferencesDto?> GetViewPreferencesAsync(CancellationToken ct = default);
+    /// <summary>Other households a server administrator can open, read-only. Refused (null) for everyone else.</summary>
+    Task<ViewOtherPeopleDto?> GetViewOtherPeopleAsync(CancellationToken ct = default);
+    /// <summary>Who opened the caller's photos (the whole household for a household administrator), newest first.</summary>
+    Task<ViewPhotoViewsPageDto?> GetViewPhotoViewsAsync(int offset = 0, int limit = 25, CancellationToken ct = default);
     Task<LibraryCapacityDto?> GetLibraryCapacityAsync(string area, CancellationToken ct = default);
     Task<ViewPreferencesDto?> UpdateViewPreferencesAsync(ViewScopeKind scope, Guid? scopeProfileId, ViewTimelineDensity timelineDensity, bool viewerInfoOpen = true, CancellationToken ct = default);
     Task<ViewAssetTimelinePageDto?> GetViewAssetsAsync(ViewAssetQueryOptions options, CancellationToken ct = default);

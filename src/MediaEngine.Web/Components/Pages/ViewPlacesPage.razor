@@ -37,7 +37,7 @@ else
                 <section class="view-atlas__filter-sheet" aria-label="Places filters">
                     @if (Workspace.Scopes is not null)
                     {
-                        <label><span>Library scope</span><AppNativeSelect Value="@SelectedScopeValue" OnChange="ScopeChangedAsync" aria-label="Authorized Places scope"><ViewScopeOptions Scopes="@Workspace.Scopes.AvailableScopes" /></AppNativeSelect></label>
+                        <label><span>Library scope</span><AppNativeSelect Value="@SelectedScopeValue" OnChange="ScopeChangedAsync" aria-label="Authorized Places scope"><ViewScopeOptions Scopes="@Workspace.Scopes.AvailableScopes" OtherPeople="@Workspace.OtherPeople" /></AppNativeSelect></label>
                     }
                     <div class="view-atlas__check"><AppCheckbox Value="@_favoritesOnly" ValueChanged="FavoritesChangedAsync" Label="Favorites only" /><small>Show mapped media marked as a favorite.</small></div>
                     @if (_atlas.UnmappedAssetCount > 0) { <AppButton Label="@($"Without location ({_atlas.UnmappedAssetCount:N0})")" OnClick="ShowUnmappedAsync" /> }
@@ -190,7 +190,7 @@ else
         if (await Workspace.SelectScopeAsync(kind, profile)) { _grants.Clear(); CloseStory(); _active = null; _atlas = null; await LoadAtlasAsync(); }
     }
     private string SelectedScopeValue => ScopeValue(Workspace.ScopeKind, Workspace.ScopeProfileId);
-    private static string ScopeValue(ViewScopeKind kind, Guid? profile) => $"{kind}:{(kind == ViewScopeKind.Profile ? profile?.ToString("D") : null)}";
+    private static string ScopeValue(ViewScopeKind kind, Guid? profile) => $"{kind}:{(kind.CarriesProfileId() ? profile?.ToString("D") : null)}";
     private void OpenItem(LocalAssetDto item) => _active = item;
     private void CloseViewer() => _active = null;
     private int ActiveIndex => _active is null ? -1 : StoryItems.ToList().FindIndex(item => item.Id == _active.Id);
@@ -227,6 +227,6 @@ else
         return cached.Url;
     }
     private string? MotionUrl(LocalAssetDto item) => item.Files.Any(file => file.Role == "live_photo_video") ? AssetUrl(item, ViewMediaResourceKind.Content, ViewMediaResourceRole.LivePhotoVideo) : null;
-    private (ViewScopeKind Kind, Guid? ProfileId) ItemScope(LocalAssetDto item) => string.Equals(item.ScopeKind, "shared", StringComparison.OrdinalIgnoreCase) ? (ViewScopeKind.Shared, null) : item.OwnerProfileId.HasValue && item.OwnerProfileId != _profileId ? (ViewScopeKind.Profile, item.OwnerProfileId) : (ViewScopeKind.Mine, null);
+    private (ViewScopeKind Kind, Guid? ProfileId) ItemScope(LocalAssetDto item) => string.Equals(item.ScopeKind, "shared", StringComparison.OrdinalIgnoreCase) ? (Workspace.ScopeKind == ViewScopeKind.OtherShared ? (ViewScopeKind.OtherShared, Workspace.ScopeProfileId) : (ViewScopeKind.Shared, null)) : item.OwnerProfileId.HasValue && item.OwnerProfileId != _profileId ? (ViewScopeKind.Profile, item.OwnerProfileId) : (ViewScopeKind.Mine, null);
     private sealed record CachedMediaGrant(string Url, DateTimeOffset ExpiresAt);
 }

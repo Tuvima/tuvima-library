@@ -1,0 +1,100 @@
+@namespace MediaEngine.Web.Components.Settings
+@using MediaEngine.Contracts.LocalAssets
+@using MediaEngine.Web.Services.Integration
+@inject IEngineApiClient ApiClient
+@* Account > Who viewed your photos. A server administrator can open another household's photos through
+   "Other people"; every look is recorded here so the household's owner always knows. Household administrators see
+   the whole household; everyone else sees their own photos. *@
+<SettingsSectionPanel Title="Who viewed your photos" Icon="@AppMaterialIcons.Outlined.Visibility"
+                      Description="@Description">
+    @if (_loading)
+    {
+        <AppSkeleton Size="AppControlSize.Compact" aria-label="Loading who viewed your photos" />
+    }
+    else if (_loadFailed)
+    {
+        <AppAlert Tone="AppUiTone.Error">This list could not be loaded. Try again in a moment.</AppAlert>
+    }
+    else if (_items.Count == 0)
+    {
+        <AppEmptyState Class="app-page-state--compact" Title="Nobody outside your household has opened your photos"
+                       Message="If a server administrator ever does, it appears here with the date." />
+    }
+    else
+    {
+        <div>
+            <AppTable>
+                <thead>
+                    <tr>
+                        <th>When</th>
+                        <th>Who</th>
+                        <th>Opened</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var view in _items)
+                    {
+                        <tr @key="view.Id">
+                            <td>@view.ViewedAt.LocalDateTime.ToString("g")</td>
+                            <td>@view.ViewerName</td>
+                            <td>@view.Opened</td>
+                        </tr>
+                    }
+                </tbody>
+            </AppTable>
+        </div>
+        @if (_hasMore)
+        {
+            <AppButton Label="Show more" Size="AppControlSize.Compact" Loading="@_loadingMore" Disabled="@_loadingMore"
+                       OnClick="LoadMoreAsync" />
+        }
+    }
+</SettingsSectionPanel>
+
+@code {
+    private const int PageSize = 25;
+    private readonly List<ViewPhotoViewDto> _items = [];
+    private bool _loading = true;
+    private bool _loadingMore;
+    private bool _loadFailed;
+    private bool _hasMore;
+    private bool _householdWide;
+
+    private string Description => _householdWide
+        ? "Times a server administrator opened your household's photos, newest first."
+        : "Times a server administrator opened your photos, newest first.";
+
+    protected override async Task OnInitializedAsync()
+    {
+        var page = await ApiClient.GetViewPhotoViewsAsync(0, PageSize);
+        if (page is null)
+        {
+            _loadFailed = true;
+        }
+        else
+        {
+            Add(page);
+        }
+
+        _loading = false;
+    }
+
+    private async Task LoadMoreAsync()
+    {
+        _loadingMore = true;
+        var page = await ApiClient.GetViewPhotoViewsAsync(_items.Count, PageSize);
+        if (page is not null)
+        {
+            Add(page);
+        }
+
+        _loadingMore = false;
+    }
+
+    private void Add(ViewPhotoViewsPageDto page)
+    {
+        _items.AddRange(page.Page.Items);
+        _hasMore = page.Page.HasMore;
+        _householdWide = page.HouseholdWide;
+    }
+}

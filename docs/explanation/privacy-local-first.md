@@ -17,6 +17,8 @@ Your media files and SQLite database stay in configured local storage. Profiles,
 
 The [Engine](../reference/glossary.md#engine) and Dashboard run on that host. Local AI uses its CPU or GPU. There is no Tuvima-hosted account service or built-in telemetry pipeline.
 
+Photos stay with the person who took them. Everyone in a household can browse each other's photos, and the household has one Shared Library. A server administrator can also open other households' photos through **Other people** in View, read-only. That is deliberate and visible: each time an administrator opens someone's space or a household's Shared Library, Tuvima records who looked and what they opened (at most once an hour per space), and the household owner sees it under **Account > Who viewed your photos**. People outside your household start with View switched off until an administrator turns it on for them.
+
 This describes where Tuvima stores data. Your own network shares, backup destinations, reverse proxy, and installed plugins have their own access and privacy implications.
 
 ## Know when external requests happen

@@ -5,6 +5,19 @@ public enum ViewScopeKind
     Shared,
     Mine,
     Profile,
+    /// <summary>
+    /// Request-only: a server administrator reading another household's Shared Library through "Other people".
+    /// It never resolves to a stored scope and is never saved as a preference; the resolved scope is
+    /// <see cref="Shared"/> with the other household recorded on it.
+    /// </summary>
+    OtherShared,
+}
+
+public static class ViewScopeKindExtensions
+{
+    /// <summary>The scopes a request names with a person: another person's space, or their household's Shared Library.</summary>
+    public static bool CarriesProfileId(this ViewScopeKind kind) =>
+        kind is ViewScopeKind.Profile or ViewScopeKind.OtherShared;
 }
 
 public enum ViewTimelineDensity

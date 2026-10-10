@@ -94,7 +94,7 @@ public sealed class ViewScopeResolverTests
     }
 
     [Fact]
-    public async Task AnotherHouseholdsProfileIsNeverResolvedOrListed_EvenForAServerAdministrator()
+    public async Task AnotherHouseholdsProfileIsOnlyResolvedForServerAdministrators_AsAnOtherPeopleScope()
     {
         var ours = Guid.NewGuid();
         var theirs = Guid.NewGuid();
@@ -102,17 +102,25 @@ public sealed class ViewScopeResolverTests
         var stranger = State(access: true, include: true, theirs);
         var resolver = new ViewScopeResolver(new ScopeStore(caller, stranger));
 
+        var serverAdministrator = Identity(caller) with { AccountIsAdministrator = true, GrantAdminEnabled = true };
         foreach (var authority in new[]
                  {
                      Identity(caller),
-                     Identity(caller) with { AccountIsAdministrator = true, GrantAdminEnabled = true },
                      Identity(caller) with { AccountIsHouseholdAdmin = true, AccountHouseholdId = ours },
+                     serverAdministrator with { ActiveProfileIsRestricted = true },
+                     serverAdministrator with { PrincipalKind = PrincipalKind.DelegatedUserClient, ApplicationId = Guid.NewGuid() },
                  })
         {
             Assert.Null(await resolver.ResolveAsync(authority, ViewScopeRequest.ForProfile(stranger.Policy.ProfileId)));
-            var own = Assert.IsType<ViewScopeResolution>(await resolver.ResolveAsync(authority, ViewScopeRequest.Mine));
-            Assert.DoesNotContain(own.AvailableScopes, option => option.ProfileId == stranger.Policy.ProfileId);
         }
+
+        // A server administrator reaches it only as a read-only "Other people" scope (recorded when opened),
+        // and it never shows up in the ordinary scope list.
+        var resolved = Assert.IsType<ViewScopeResolution>(await resolver.ResolveAsync(
+            serverAdministrator, ViewScopeRequest.ForProfile(stranger.Policy.ProfileId)));
+        Assert.Equal(theirs, resolved.Scope.OtherHouseholdId);
+        var own = Assert.IsType<ViewScopeResolution>(await resolver.ResolveAsync(serverAdministrator, ViewScopeRequest.Mine));
+        Assert.DoesNotContain(own.AvailableScopes, option => option.ProfileId == stranger.Policy.ProfileId);
     }
 
     [Fact]

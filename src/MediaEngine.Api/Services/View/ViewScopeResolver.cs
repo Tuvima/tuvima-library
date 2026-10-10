@@ -45,8 +45,16 @@ public sealed class ViewScopeResolver(IViewScopeStore store) : IViewScopeResolve
                 await SharedAsync(callerState?.Policy.ProfileId, ct).ConfigureAwait(false),
             ViewScopeKind.Profile when requested.ProfileId is { } targetId =>
                 ResolveProfile(caller, callerState, enabledProfiles, targetId),
+            ViewScopeKind.OtherShared when requested.ProfileId is { } targetId =>
+                await ResolveOtherSharedAsync(caller, callerState, targetId, ct).ConfigureAwait(false),
             _ => null,
         };
+        // A remembered (not explicitly chosen) selection never opens another household: that is always a deliberate pick.
+        if (resolved?.IsOtherHousehold == true && allowStaleSelectionFallback)
+        {
+            resolved = null;
+        }
+
         if (resolved is not null)
         {
             return new ViewScopeResolution(resolved, options);
@@ -88,10 +96,43 @@ public sealed class ViewScopeResolver(IViewScopeStore store) : IViewScopeResolve
         // A trusted administrator application reads any profile. A person only ever reads (never edits) the
         // Personal Space of someone in their own household; another household is simply not found. Server
         // administrators reach other households through "Other people", not through this scope.
-        return caller.IsAdministratorApplication || InSameHousehold(active, target)
-            ? Personal(ViewScopeKind.Profile, target)
+        if (caller.IsAdministratorApplication || InSameHousehold(active, target))
+        {
+            return Personal(ViewScopeKind.Profile, target);
+        }
+
+        // "Other people": a server administrator (a person, never an app) can read, and only read, another
+        // household's Personal Space. Opening it is audited by the authorization service.
+        return CanBrowseOtherHouseholds(caller, active) && target.HouseholdId is { } otherHousehold
+            && otherHousehold != Guid.Empty && otherHousehold != active!.HouseholdId
+            ? Personal(ViewScopeKind.Profile, target, otherHouseholdId: otherHousehold)
             : null;
     }
+
+    private async Task<ResolvedViewScope?> ResolveOtherSharedAsync(RequestAuthority caller,
+        ViewScopeStoreEntry? active, Guid viaProfileId, CancellationToken ct)
+    {
+        if (!CanBrowseOtherHouseholds(caller, active))
+        {
+            return null;
+        }
+
+        var via = await store.FindProfileAsync(viaProfileId, ct).ConfigureAwait(false);
+        if (via?.HouseholdId is not { } household || household == Guid.Empty || household == active!.HouseholdId)
+        {
+            return null;
+        }
+
+        var libraryId = await store.GetSharedLibraryIdAsync(viaProfileId, ct).ConfigureAwait(false);
+        return libraryId is { } id && id != Guid.Empty
+            ? new(ViewScopeKind.Shared, null, new HashSet<Guid> { id },
+                OtherHouseholdId: household, OtherViaProfileId: viaProfileId)
+            : null;
+    }
+
+    /// <summary>Only a server administrator signed in as a person (never an app, never a child profile).</summary>
+    private static bool CanBrowseOtherHouseholds(RequestAuthority caller, ViewScopeStoreEntry? active) =>
+        active is not null && caller.PrincipalKind == PrincipalKind.Human && caller.IsEffectiveAdministrator;
 
     private static bool InSameHousehold(ViewScopeStoreEntry? active, ViewScopeStoreEntry target) =>
         active?.HouseholdId is { } household && household != Guid.Empty && household == target.HouseholdId;
@@ -123,8 +164,10 @@ public sealed class ViewScopeResolver(IViewScopeStore store) : IViewScopeResolve
         return result;
     }
 
-    private static ResolvedViewScope Personal(ViewScopeKind kind, ViewScopeStoreEntry profile, bool fellBack = false) =>
-        new(kind, profile.Policy.ProfileId, new HashSet<Guid> { profile.PersonalSpace!.LibraryId }, fellBack);
+    private static ResolvedViewScope Personal(ViewScopeKind kind, ViewScopeStoreEntry profile, bool fellBack = false,
+        Guid? otherHouseholdId = null) =>
+        new(kind, profile.Policy.ProfileId, new HashSet<Guid> { profile.PersonalSpace!.LibraryId }, fellBack,
+            otherHouseholdId, otherHouseholdId.HasValue ? profile.Policy.ProfileId : null);
 
     private static ViewScopeOption Option(ViewScopeKind kind, ViewScopeStoreEntry profile) =>
         new(kind, profile.Policy.ProfileId,
