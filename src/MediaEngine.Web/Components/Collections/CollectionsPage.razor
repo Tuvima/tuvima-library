@@ -15,6 +15,7 @@
 @inject IAppToastService Snackbar
 @inject NavigationManager Nav
 @inject ILogger<CollectionsPage> Logger
+@implements IDisposable
 
 <BrowseShellStyles />
 
@@ -636,8 +637,30 @@
         }
     }
 
+    // Lifetime token: cancelled when the page is left so in-flight Engine calls stop.
+    private readonly CancellationTokenSource _pageCts = new();
+    // Supersedable token for the people list: a newer filter or page request cancels the older one.
+    private CancellationTokenSource? _peopleCts;
+
+    private CancellationToken BeginPeopleRequest()
+    {
+        var previous = _peopleCts;
+        _peopleCts = CancellationTokenSource.CreateLinkedTokenSource(_pageCts.Token);
+        previous?.Cancel();
+        previous?.Dispose();
+        return _peopleCts.Token;
+    }
+
+    public void Dispose()
+    {
+        _pageCts.Cancel();
+        _peopleCts?.Dispose();
+        _pageCts.Dispose();
+    }
+
     private async Task LoadAsync()
     {
+        var ct = BeginPeopleRequest();
         _loading = true;
         _loadFailed = false;
         _loadError = null;
@@ -645,22 +668,27 @@
         {
             _activeProfile = await Orchestrator.GetActiveProfileAsync();
 
-            var catalogTask = ApiClient.GetCollectionCatalogAsync(_activeProfile?.Id);
-            var shelvesTask = ApiClient.GetContentGroupsAsync();
-            var peopleRolesTask = ApiClient.GetPersonRoleCountsAsync();
+            var catalogTask = ApiClient.GetCollectionCatalogAsync(_activeProfile?.Id, ct);
+            var shelvesTask = ApiClient.GetContentGroupsAsync(ct);
+            var peopleRolesTask = ApiClient.GetPersonRoleCountsAsync(ct);
             var peopleTask = ApiClient.GetPersonsPageAsync(
                 search: _activeSection == CollectionsSectionConfiguration.People ? NullIfBlank(_searchText) : null,
                 role: _activeSection == CollectionsSectionConfiguration.People && _role != "all" ? _role : null,
                 offset: 0,
                 limit: PeoplePageSize,
                 lane: _activeSection == CollectionsSectionConfiguration.People && _lane != "all" ? _lane : null,
-                sort: _activeSection == CollectionsSectionConfiguration.People ? _sortBy : null);
+                sort: _activeSection == CollectionsSectionConfiguration.People ? _sortBy : null,
+                ct: ct);
 
             await Task.WhenAll(
                 catalogTask,
                 shelvesTask,
                 peopleRolesTask,
                 peopleTask);
+
+            // Cancelled calls come back empty; a newer load (or leaving the page) owns the state.
+            if (ct.IsCancellationRequested)
+                return;
 
             _collections.Clear();
             _collections.AddRange(catalogTask.Result);
@@ -669,7 +697,7 @@
 
             _people.Clear();
             _peopleOffset = 0;
-            await AppendPeoplePageAsync(peopleTask.Result ?? EmptyPeoplePage());
+            await AppendPeoplePageAsync(peopleTask.Result ?? EmptyPeoplePage(), ct);
             _loadedPeopleQueryKey = CurrentPeopleQueryKey;
             _loaded = true;
         }
@@ -713,12 +741,15 @@
         SeeAllRoute = $"/collections/shelves?lane={lane}",
     };
 
-    private async Task AppendPeoplePageAsync(PagedResponse<PersonListItemResponse> page)
+    private async Task AppendPeoplePageAsync(PagedResponse<PersonListItemResponse> page, CancellationToken ct = default)
     {
         _peopleHasMore = page.HasMore;
         _peopleOffset = page.Offset + page.Items.Count;
 
-        var presence = await ApiClient.GetPersonPresenceAsync(page.Items.Select(person => person.id));
+        var presence = await ApiClient.GetPersonPresenceAsync(page.Items.Select(person => person.id), ct);
+        if (ct.IsCancellationRequested)
+            return;
+
         foreach (var pair in presence)
             _peoplePresence[pair.Key] = pair.Value;
 
@@ -734,6 +765,7 @@
             return;
 
         _loadingMorePeople = true;
+        var ct = BeginPeopleRequest();
         try
         {
             var next = await ApiClient.GetPersonsPageAsync(
@@ -742,8 +774,11 @@
                 offset: _peopleOffset,
                 limit: PeoplePageSize,
                 lane: _activeSection == CollectionsSectionConfiguration.People && _lane != "all" ? _lane : null,
-                sort: _activeSection == CollectionsSectionConfiguration.People ? _sortBy : null);
-            await AppendPeoplePageAsync(next ?? EmptyPeoplePage(_peopleOffset));
+                sort: _activeSection == CollectionsSectionConfiguration.People ? _sortBy : null,
+                ct: ct);
+            if (ct.IsCancellationRequested)
+                return;
+            await AppendPeoplePageAsync(next ?? EmptyPeoplePage(_peopleOffset), ct);
         }
         finally
         {
@@ -958,6 +993,7 @@
     private async Task ReloadPeopleForFiltersAsync()
     {
         _loadingMorePeople = true;
+        var ct = BeginPeopleRequest();
         try
         {
             _people.Clear();
@@ -969,8 +1005,11 @@
                 offset: 0,
                 limit: PeoplePageSize,
                 lane: _lane == "all" ? null : _lane,
-                sort: _sortBy);
-            await AppendPeoplePageAsync(page ?? EmptyPeoplePage());
+                sort: _sortBy,
+                ct: ct);
+            if (ct.IsCancellationRequested)
+                return;
+            await AppendPeoplePageAsync(page ?? EmptyPeoplePage(), ct);
             _loadedPeopleQueryKey = CurrentPeopleQueryKey;
         }
         finally

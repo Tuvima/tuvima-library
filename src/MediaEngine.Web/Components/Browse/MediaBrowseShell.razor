@@ -359,6 +359,7 @@
     private IReadOnlyList<MediaEngine.Contracts.Display.DisplayTimelinePeriodDto>? _timelineIndex;
     private int _timelineOffset;
     private int _displayRequestVersion;
+    private CancellationTokenSource? _browseRequestCts;
     private async Task TimelineGroupingChanged(TimelineGrouping value)
     {
         _timelineGrouping = value;
@@ -811,6 +812,7 @@
     private async Task<bool> LoadDisplayCardsAsync(bool append, int? timelineOffset = null)
     {
         var requestVersion = ++_displayRequestVersion;
+        var ct = BeginBrowseRequest();
         var queryKey = BuildCurrentQueryKey();
         var requestedOffset = timelineOffset ?? (append ? _timelineOffset + _cards.Count : 0);
         var page = await ApiClient.GetDisplayBrowseAsync(
@@ -824,8 +826,10 @@
             status: string.IsNullOrWhiteSpace(_status) ? null : _status,
             year: _selectedYears.Count == 0 ? null : string.Join(',', _selectedYears),
             profileId: _activeProfileId,
-            sort: _sortBy);
+            sort: _sortBy,
+            ct: ct);
 
+        if (ct.IsCancellationRequested) return true;
         if (requestVersion != _displayRequestVersion || queryKey != BuildCurrentQueryKey()) return true;
         if (page is null)
         {
@@ -857,9 +861,20 @@
         return true;
     }
 
+    /// <summary>Starts a browse request, cancelling the one still in flight (stale filters, tab or page change).</summary>
+    private CancellationToken BeginBrowseRequest()
+    {
+        var previous = _browseRequestCts;
+        _browseRequestCts = new CancellationTokenSource();
+        previous?.Cancel();
+        previous?.Dispose();
+        return _browseRequestCts.Token;
+    }
+
     private async Task LoadItemsAsync(bool append)
     {
         var requestedOffset = append ? _items.Count : 0;
+        var ct = BeginBrowseRequest();
         var response = await ApiClient.GetDisplayBrowseAsync(
             mediaType: CurrentTab.MediaType,
             grouping: _grouping,
@@ -871,7 +886,11 @@
             status: string.IsNullOrWhiteSpace(_status) ? null : _status,
             year: _selectedYears.Count == 0 ? null : string.Join(',', _selectedYears),
             profileId: _activeProfileId,
-            sort: _sortBy);
+            sort: _sortBy,
+            ct: ct);
+
+        // A newer browse request (or leaving the page) cancelled this one; the newer load owns the state.
+        if (ct.IsCancellationRequested) return;
 
         var incoming = response?.Catalog.Select(ToLibraryItem).ToList() ?? [];
         if (response is null && !string.IsNullOrWhiteSpace(ApiClient.LastError))
@@ -890,7 +909,8 @@
             _items = incoming;
             _totalCount = response?.TotalCount ?? incoming.Count;
             _facets = response?.Facets;
-            await LoadContinueAsync();
+            await LoadContinueAsync(ct);
+            if (ct.IsCancellationRequested) return;
         }
 
         _cards.Clear();
@@ -904,12 +924,14 @@
         }
     }
 
-    private async Task LoadContinueAsync()
+    private async Task LoadContinueAsync(CancellationToken ct = default)
     {
         var page = await ApiClient.GetDisplayContinueAsync(
             lane: Preset.Title.ToLowerInvariant(),
             mediaType: CurrentTab.MediaType,
-            limit: 3);
+            limit: 3,
+            ct: ct);
+        if (ct.IsCancellationRequested) return;
 
         _continueCards.Clear();
         if (page is not null)
@@ -2168,6 +2190,9 @@
         Playback.Changed -= OnPlaybackChanged;
         _mediaAddedReloadCts?.Cancel();
         _mediaAddedReloadCts?.Dispose();
+        _browseRequestCts?.Cancel();
+        _browseRequestCts?.Dispose();
+        _browseRequestCts = null;
     }
 
     private static int GetSelectedIndex(IEnumerable<string> keys, string activeKey)
