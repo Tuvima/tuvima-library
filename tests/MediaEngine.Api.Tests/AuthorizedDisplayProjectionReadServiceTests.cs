@@ -158,8 +158,8 @@ public sealed class AuthorizedDisplayProjectionReadServiceTests : IDisposable
             {
                 var expected = RecentCatalogueReadService.Compose(expectedRows, new DisplayCardBuilder(), type, null, take);
                 var actual = await recent.LoadAsync(type, profile, null, take, default);
-                static string Summary(IEnumerable<DisplayRecentItemDto> items) => string.Join(" ; ", items.Select(i => $"{i.Catalogue?.Title}@{i.AddedAt:O}"));
-                Assert.True(Summary(expected) == Summary(actual), $"{type}/{take}: expected [{Summary(expected)}] actual [{Summary(actual)}]");
+                static string Summary(IEnumerable<DisplayRecentItemDto> items) => string.Join(" ; ", items.Select(i => $"{i.Catalogue?.Title}@{i.AddedAt:O}<{string.Join(",", i.Catalogue?.PreviewItems?.Select(p => p.Position) ?? [])}>"));
+                Assert.True(Summary(expected) == Summary(actual), $"{type}/{take}: expected [{Summary(expected)}] actual [{Summary(actual)}] rows [{string.Join(" ", expectedRows.Where(r => r.Title == "New episode").Select(r => $"S{r.SeasonNumber}E{r.EpisodeNumber}@{r.CreatedAt:O}"))}]");
                 Assert.Equal(System.Text.Json.JsonSerializer.Serialize(expected, options), System.Text.Json.JsonSerializer.Serialize(actual, options));
             }
         }
