@@ -50,7 +50,7 @@
                     <AppMaterialIcon Icon="@AppMaterialIcons.Filled.Bookmark" Size="AppSize.Small" />
                 </AppNativeButton>
                 <AppNativeButton Class="@($"br-icon-btn {(_panel == "settings" ? "br-icon-btn--on" : "")}")" OnClick="@(() => TogglePanel("settings"))" Title="Reading settings" AriaLabel="Reading settings">
-                    <AppMaterialIcon Icon="@AppMaterialIcons.Filled.Tune" Size="AppSize.Small" />
+                    <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Tune" Size="AppSize.Small" />
                 </AppNativeButton>
             </div>
         }
@@ -70,7 +70,7 @@
                                  Title="@($"Highlight in {ColorName(color)}")" AriaLabel="@($"Highlight in {ColorName(color)}")" />
             }
             <AppNativeButton Class="br-icon-btn br-icon-btn--small" OnClick="@(() => CreateHighlightAsync(HighlightColor.Yellow, true))" Title="Highlight and add a note" AriaLabel="Highlight and add a note">
-                <AppMaterialIcon Icon="@AppMaterialIcons.Filled.EditNote" Size="AppSize.Small" />
+                <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.EditNote" Size="AppSize.Small" />
             </AppNativeButton>
         </AppCssElement>
     }
@@ -102,7 +102,7 @@
         <aside class="br-panel" role="dialog" aria-label="@PanelTitle">
             <div class="br-panel-head">
                 <h2 class="br-panel-title">@PanelTitle</h2>
-                <AppNativeButton Class="br-icon-btn" OnClick="ClosePanelAsync" Title="Close" AriaLabel="Close @PanelTitle">
+                <AppNativeButton Class="br-icon-btn" OnClick="ClosePanelAsync" Title="Close" AriaLabel="@($"Close {PanelTitle}")">
                     <AppMaterialIcon Icon="@AppMaterialIcons.Filled.Close" Size="AppSize.Small" />
                 </AppNativeButton>
             </div>
@@ -151,7 +151,7 @@
                                             <span class="br-row-sub">@mark.CreatedAt.ToLocalTime().ToString("d MMM yyyy")</span>
                                         </AppNativeButton>
                                         <AppNativeButton Class="br-icon-btn br-icon-btn--small" OnClick="@(() => DeleteBookmarkAsync(mark))" Title="Delete bookmark" AriaLabel="Delete bookmark">
-                                            <AppMaterialIcon Icon="@AppMaterialIcons.Filled.DeleteOutline" Size="AppSize.Small" />
+                                            <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.DeleteOutline" Size="AppSize.Small" />
                                         </AppNativeButton>
                                     </li>
                                 }
@@ -694,9 +694,10 @@
     {
         try
         {
-            _toc = await _module!.InvokeAsync<List<BookReaderTocItem>>("getToc");
+            var module = _module!;
+            _toc = await module.InvokeAsync<List<BookReaderTocItem>>("getToc");
             var marks = _highlights.Select(mark => new BookReaderHighlightMark(mark.Id.ToString("D"), mark.CfiRange!, mark.Color)).ToList();
-            await _module.InvokeVoidAsync("setHighlights", marks);
+            await module.InvokeVoidAsync("setHighlights", marks);
         }
         catch (Exception ex) when (ex is JSException or JSDisconnectedException or InvalidOperationException)
         {
