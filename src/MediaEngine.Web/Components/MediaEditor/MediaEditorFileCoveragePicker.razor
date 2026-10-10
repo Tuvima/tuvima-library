@@ -18,7 +18,7 @@
                 var checkedNow = _selected.Contains(episode.WorkId);
                 var locked = episode.IsHost || episode.OwnedByOtherFile || (!checkedNow && atLimit) || _saving;
                 <label class="sme-file-coverage__chip @(checkedNow ? "is-selected" : string.Empty) @(locked ? "is-locked" : string.Empty)"
-                       title="@ChipTitle(episode, atLimit)">
+                       title="@ChipTitle(episode, atLimit, coverage.MaxEpisodes)">
                     <input type="checkbox"
                            checked="@checkedNow"
                            disabled="@locked"
@@ -48,7 +48,7 @@
     private MediaEditorFileCoverageDto? _coverage;
     private HashSet<Guid> _selected = [];
     private HashSet<Guid> _saved = [];
-    private Guid _loadedFor;
+    private (Guid Entity, Guid Asset) _loadedFor;
     private Guid _operationId = Guid.NewGuid();
     private bool _saving;
     private bool _isError;
@@ -61,21 +61,26 @@
         if (AssetId == Guid.Empty || EntityId == Guid.Empty)
         {
             _coverage = null;
-            _loadedFor = Guid.Empty;
+            _loadedFor = default;
             return;
         }
 
-        if (_loadedFor == AssetId)
+        var key = (EntityId, AssetId);
+        if (_loadedFor == key)
         {
             return;
         }
 
-        _loadedFor = AssetId;
-        var requested = AssetId;
         var loaded = await ApiClient.GetMediaEditorFileCoverageAsync(EntityId, AssetId);
-        if (requested != AssetId)
+        if (key != (EntityId, AssetId))
         {
             return;
+        }
+
+        // Remember the pair only after a successful load, so a failed load retries on the next render.
+        if (loaded is not null || ApiClient.LastError is null)
+        {
+            _loadedFor = key;
         }
 
         Apply(loaded);
@@ -110,6 +115,7 @@
         _selected = [.. _saved];
         _status = null;
         _isError = false;
+        _operationId = Guid.NewGuid();
     }
 
     private async Task SaveAsync()
@@ -144,9 +150,9 @@
         }
     }
 
-    private static string ChipTitle(MediaEditorFileCoverageEpisodeDto episode, bool atLimit) =>
+    private static string ChipTitle(MediaEditorFileCoverageEpisodeDto episode, bool atLimit, int max) =>
         episode.IsHost ? "This file's own episode"
         : episode.OwnedByOtherFile ? "This episode already has its own file"
-        : atLimit ? "A file can cover up to 6 episodes"
+        : atLimit ? $"A file can cover up to {max} episodes"
         : episode.Title;
 }

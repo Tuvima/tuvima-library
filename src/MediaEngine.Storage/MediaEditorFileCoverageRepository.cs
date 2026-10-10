@@ -1,4 +1,5 @@
 using Dapper;
+using MediaEngine.Domain.Constants;
 using MediaEngine.Domain.Entities;
 using MediaEngine.Domain.Services;
 using MediaEngine.Storage.Contracts;
@@ -47,10 +48,11 @@ public sealed class MediaEditorFileCoverageRepository(IDatabaseConnection databa
 
     public Task<FileCoverageResult> ReplaceAsync(
         Guid assetId,
+        Guid operationId,
         IReadOnlyList<Guid> workIds,
         CancellationToken ct = default)
     {
-        if (assetId == Guid.Empty)
+        if (assetId == Guid.Empty || operationId == Guid.Empty)
         {
             return Task.FromResult(new FileCoverageResult(FileCoverageOutcome.Invalid, "Choose a file.", null));
         }
@@ -75,6 +77,20 @@ public sealed class MediaEditorFileCoverageRepository(IDatabaseConnection databa
             if (current.View is not { } view)
             {
                 return current;
+            }
+
+            // One save per operation id: a retry of the same request returns the saved result,
+            // while reusing the id for a different list is refused.
+            var operationKey = "file-coverage:" + operationId.ToString("N");
+            var fingerprint = assetId.ToString("N") + ":" + string.Join(",", requested.Select(id => id.ToString("N")).Order(StringComparer.Ordinal));
+            var previous = conn.QuerySingleOrDefault<string>(
+                "SELECT result_summary FROM media_operations WHERE idempotency_key=@operationKey", new { operationKey }, tx);
+            if (previous is not null)
+            {
+                return previous == fingerprint
+                    ? current
+                    : new FileCoverageResult(
+                        FileCoverageOutcome.Conflict, "This save was already used for a different list of episodes.", null);
             }
 
             if (!requested.Contains(view.HostWorkId))
@@ -150,13 +166,38 @@ public sealed class MediaEditorFileCoverageRepository(IDatabaseConnection databa
                 }, tx);
             }
 
-            // A person has now said exactly which episodes this file holds, so any
-            // "combined media" review waiting on this file is answered.
-            conn.Execute("""
+            // A person has now said exactly which episodes this file holds, so the
+            // "combined media" review waiting on this file is answered. Other reviews stay.
+            var resolved = conn.Execute("""
                 UPDATE review_queue
                 SET status='Resolved', resolved_at=@now, resolved_by='manual:file-coverage'
-                WHERE entity_id=@assetId AND status='Pending';
-                """, new { assetId, now = DateTimeOffset.UtcNow.ToString("O") }, tx);
+                WHERE entity_id=@assetId AND status='Pending' AND trigger=@trigger;
+                """, new { assetId, trigger = ReviewTrigger.RetailMatchAmbiguous, now = DateTimeOffset.UtcNow.ToString("O") }, tx);
+            if (resolved > 0)
+            {
+                conn.Execute("""
+                    INSERT INTO system_activity(action_type, entity_id, entity_type, detail)
+                    VALUES('MetadataUpdated', @assetId, 'MediaAsset', 'Review answered by choosing the episodes this file covers');
+                    """, new { assetId }, tx);
+            }
+
+            var stamp = DateTimeOffset.UtcNow;
+            conn.Execute("""
+                INSERT INTO media_operations
+                    (id, operation_type, operation_kind, entity_id, entity_kind, status, position_key,
+                     result_summary, created_at, updated_at, completed_at, idempotency_key)
+                VALUES
+                    (@id, 'editor.file_coverage', 'editor_commit', @assetId, 'MediaAsset', 'succeeded', @position,
+                     @fingerprint, @now, @now, @now, @operationKey);
+                """, new
+            {
+                id = Guid.NewGuid(),
+                assetId,
+                position = stamp.ToUnixTimeMilliseconds(),
+                fingerprint,
+                now = stamp.ToString("O"),
+                operationKey,
+            }, tx);
 
             return Load(conn, tx, assetId);
         }, ct);

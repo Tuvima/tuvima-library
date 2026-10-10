@@ -59,7 +59,7 @@
 @media (max-width: 600px) {
     .sme-file-coverage { padding: .75rem; }
     .sme-file-coverage__chip { flex: 1 1 100%; }
-    .sme-file-coverage__actions { justify-content: stretch; }
+    .sme-file-coverage__actions > * { flex: 1; }
 }
 
 @media (prefers-reduced-motion: no-preference) {
