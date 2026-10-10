@@ -12,6 +12,9 @@ public sealed record ViewScopeRequest(ViewScopeKind Kind, Guid? ProfileId = null
     public static ViewScopeRequest Mine { get; } = new(ViewScopeKind.Mine);
     public static ViewScopeRequest ForProfile(Guid profileId) =>
         new(ViewScopeKind.Profile, profileId);
+    /// <summary>The Shared Library of the household <paramref name="profileId"/> belongs to ("Other people").</summary>
+    public static ViewScopeRequest ForOtherShared(Guid profileId) =>
+        new(ViewScopeKind.OtherShared, profileId);
 }
 
 /// <summary>Profile identity established by trusted Engine middleware.</summary>
@@ -19,21 +22,32 @@ public sealed record ViewRequestProfile(Guid ProfileId, string Role);
 
 /// <summary>
 /// Persistence projection used by scope resolution. Shared Library access and
-/// contribution/review capabilities are independent administrator grants.
+/// contribution are independent grants. <see cref="HouseholdId"/> is the household the profile belongs to; people
+/// in the same household can browse each other's Personal Space, nobody else can.
 /// </summary>
 public sealed record ViewScopeStoreEntry(
     ViewProfilePolicy Policy,
     ViewPersonalSpace? PersonalSpace,
     string DisplayName = "",
     string AvatarColor = "#7C4DFF",
-    string? AvatarUrl = null);
+    string? AvatarUrl = null,
+    Guid? HouseholdId = null);
 
+/// <param name="OtherHouseholdId">
+/// Set when a server administrator is reading another household's space ("Other people"). Such a scope is
+/// read-only, recorded in the audit trail, and never saved as the administrator's last scope.
+/// </param>
+/// <param name="OtherViaProfileId">The person the administrator picked in that household (for the Shared Library too).</param>
 public sealed record ResolvedViewScope(
     ViewScopeKind Kind,
     Guid? ProfileId,
     IReadOnlySet<Guid> LibraryIds,
-    bool WasFallback = false)
+    bool WasFallback = false,
+    Guid? OtherHouseholdId = null,
+    Guid? OtherViaProfileId = null)
 {
+    public bool IsOtherHousehold => OtherHouseholdId.HasValue;
+
     public bool ContainsLibrary(Guid libraryId) => LibraryIds.Contains(libraryId);
 }
 

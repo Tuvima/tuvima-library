@@ -4939,6 +4939,9 @@ public partial class SharedMediaEditorShell
     protected bool IsMusicTrackMoveTarget => EditorMediaType == "Music"
         && string.Equals(_canonicalTargetGroup, "track", StringComparison.OrdinalIgnoreCase);
 
+    /// <summary>The single owned file a TV episode editor can set "This file covers" for; null for other media.</summary>
+    private Guid? CoverageAssetId => EditorMediaType == "TV" ? GetMusicMoveAssetId() : null;
+
     private Guid? GetMusicMoveAssetId()
     {
         if (_workVersions is null)

@@ -21,10 +21,10 @@
 <HeaderActions>
     @if (!_initializing && Workspace.Scopes is not null)
     {
-        <label><span>Scope</span><AppNativeSelect Value="@SelectedScopeValue" OnChange="ScopeChangedAsync" aria-label="Authorized photo scope">@foreach (var scope in Workspace.Scopes.AvailableScopes) { <option value="@ScopeValue(scope.Kind, scope.ProfileId)">@scope.Label</option> }</AppNativeSelect></label>
+        <label><span>Scope</span><AppNativeSelect Value="@SelectedScopeValue" OnChange="ScopeChangedAsync" aria-label="Authorized photo scope"><ViewScopeOptions Scopes="@Workspace.Scopes.AvailableScopes" OtherPeople="@Workspace.OtherPeople" /></AppNativeSelect></label>
         <label><span>Density</span><AppNativeSelect Value="@Workspace.Density.ToString()" OnChange="DensityChangedAsync" aria-label="Timeline density">@foreach (var density in Enum.GetValues<ViewTimelineDensity>()) { <option value="@density">@density</option> }</AppNativeSelect></label>
         <AppButton Href="/view/contributions" Label="Contributions" StartIcon="@AppMaterialIcons.Outlined.MoveToInbox" ButtonStyle="AppButtonStyle.Text" />
-        <label class="view-add-media@(_uploading ? " is-busy" : string.Empty)" aria-disabled="@_uploading"><InputFile class="view-add-media__input" OnChange="UploadMediaAsync" disabled="@_uploading" accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt" /><span class="view-add-media__label"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Add" />@(_uploading ? "Uploading…" : "Add media")</span></label>
+        @if (!Workspace.ScopeKind.CarriesProfileId()) { <label class="view-add-media@(_uploading ? " is-busy" : string.Empty)" aria-disabled="@_uploading"><InputFile class="view-add-media__input" OnChange="UploadMediaAsync" disabled="@_uploading" accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt" /><span class="view-add-media__label"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Add" />@(_uploading ? "Uploading…" : "Add media")</span></label> }
     }
 </HeaderActions>
 <ChildContent>
@@ -146,15 +146,18 @@ else
         }
         catch (OperationCanceledException) { }
     }
-    private async Task SetFilterAsync(string filter) { _filter = filter; await LoadAsync(); } private string FilterClass(string filter) => $"app-discovery-filter__tab{(_filter == filter ? " is-active" : "")}"; private string SelectedScopeValue => ScopeValue(Workspace.ScopeKind, Workspace.ScopeProfileId); private static string ScopeValue(ViewScopeKind kind, Guid? profile) => $"{kind}:{(kind == ViewScopeKind.Profile ? profile?.ToString("D") : null)}";
+    private async Task SetFilterAsync(string filter) { _filter = filter; await LoadAsync(); } private string FilterClass(string filter) => $"app-discovery-filter__tab{(_filter == filter ? " is-active" : "")}"; private string SelectedScopeValue => ScopeValue(Workspace.ScopeKind, Workspace.ScopeProfileId); private static string ScopeValue(ViewScopeKind kind, Guid? profile) => $"{kind}:{(kind.CarriesProfileId() ? profile?.ToString("D") : null)}";
     private string ScopeDescription => Workspace.ScopeKind switch
     {
         ViewScopeKind.Mine => "Your private photo and video timeline.",
+        ViewScopeKind.Profile when Workspace.IsOtherPerson(Workspace.ScopeProfileId) => $"Read-only: {SelectedScopeLabel}'s photos. Your look is recorded and shown to their household.",
         ViewScopeKind.Profile => $"Photos and videos shared by {SelectedScopeLabel}.",
+        ViewScopeKind.OtherShared => "Read-only: another household's Shared Library. Your look is recorded and shown to that household.",
         _ => "Photos and videos in the Shared Library."
     };
     private string SelectedScopeLabel => Workspace.Scopes?.AvailableScopes.FirstOrDefault(scope =>
-        scope.Kind == Workspace.ScopeKind && (scope.Kind != ViewScopeKind.Profile || scope.ProfileId == Workspace.ScopeProfileId))?.Label ?? "this profile";
+        scope.Kind == Workspace.ScopeKind && (scope.Kind != ViewScopeKind.Profile || scope.ProfileId == Workspace.ScopeProfileId))?.Label
+        ?? Workspace.OtherPersonName(Workspace.ScopeProfileId) ?? "this profile";
     private async Task UploadMediaAsync(InputFileChangeEventArgs args) { if (_uploading) return; var file = args.File; _uploadFileName = file.Name; _uploadError = null; _uploading = true; try { await using var stream = file.OpenReadStream(file.Size); var result = await ApiClient.UploadViewMediaAsync(stream, file.Name, file.ContentType); if (!result.Success) { _uploadError = result.ErrorMessage ?? "The Engine rejected this upload."; return; } Snackbar.Add($"Added {file.Name} to Photos.", AppSeverity.Success); await LoadAsync(); } catch (Exception ex) { _uploadError = $"The file could not be uploaded: {ex.Message}"; } finally { _uploading = false; _uploadFileName = null; } }
     private void OpenItem(LocalAssetDto item) => _activeItem = item; private void CloseItem() => _activeItem = null; private IReadOnlyList<LocalAssetDto> VisibleItems => _page?.Items ?? []; private int ActiveIndex => _activeItem is null ? -1 : VisibleItems.ToList().FindIndex(i => i.Id == _activeItem.Id); private bool HasPrevious => ActiveIndex > 0; private bool HasNext => ActiveIndex >= 0 && ActiveIndex < VisibleItems.Count - 1; private void PreviousItem() { if (HasPrevious) _activeItem = VisibleItems[ActiveIndex - 1]; } private void NextItem() { if (HasNext) _activeItem = VisibleItems[ActiveIndex + 1]; }
     private string? ViewerPosition => ActiveIndex >= 0 ? $"{ActiveIndex + 1} of {VisibleItems.Count}" : null;
@@ -258,7 +261,7 @@ else
         ? AssetUrl(item, ViewMediaResourceKind.Content, ViewMediaResourceRole.LivePhotoVideo) : null;
     private (ViewScopeKind Kind, Guid? ProfileId) ItemScope(LocalAssetDto item) =>
         string.Equals(item.ScopeKind, "shared", StringComparison.OrdinalIgnoreCase)
-            ? (ViewScopeKind.Shared, null)
+            ? (Workspace.ScopeKind == ViewScopeKind.OtherShared ? (ViewScopeKind.OtherShared, Workspace.ScopeProfileId) : (ViewScopeKind.Shared, null))
             : item.OwnerProfileId.HasValue && item.OwnerProfileId != _profileId
                 ? (ViewScopeKind.Profile, item.OwnerProfileId)
                 : (ViewScopeKind.Mine, null);

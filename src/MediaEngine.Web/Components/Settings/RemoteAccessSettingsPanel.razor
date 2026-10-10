@@ -1,5 +1,6 @@
 @namespace MediaEngine.Web.Components.Settings
 @using MediaEngine.Contracts.Settings
+@using MediaEngine.Web.Models.ViewDTOs
 @using MediaEngine.Web.Services.Integration
 @inject IEngineApiClient ApiClient
 @inject IAppToastService Snackbar
@@ -12,20 +13,51 @@
     <SettingsSectionPanel Title="Who can connect" Icon="@AppMaterialIcons.Outlined.Public"
                           Description="One rule for every sign-in, page and app. Remote visitors always need a secure HTTPS path.">
         <div class="network-mode-list" role="radiogroup" aria-label="Who can connect">
-            @Who("this_computer", "This computer", "Only this computer can open Tuvima Library.")
-            @Who("home_network", "Home network", "Devices on your home network can connect. Nothing from the internet.")
-            @Who("anywhere", "Anywhere", "Also reachable from the internet over a verified HTTPS path. Sign-in is always required.")
+            @Who("this_computer", "This computer", "Only a browser on this computer.")
+            @Who("home_network", "Home network", "Devices on your home Wi-Fi or network.")
+            @Who("anywhere", "Anywhere", "Also from the internet, through a secure address.", !AnywhereReady)
+        </div>
+        @if (_secureAccountFirst)
+        {
+            <AppAlert Tone="AppUiTone.Warning">Secure your account first: add a password or passkey, then open Tuvima to more places. <a href="/settings/account">Open your account</a></AppAlert>
+        }
+        <h4 class="network-checklist-title">Before Anywhere can be turned on</h4>
+        @if (_readiness is null)
+        {
+            <AppSkeleton Size="AppControlSize.Compact" />
+        }
+        else
+        {
+            <ul class="network-checklist" aria-label="Checklist for Anywhere">
+                @foreach (var item in _checklist)
+                {
+                    <li class="network-checklist__item @(item.Passed ? "is-passed" : "is-blocked")">
+                        <span class="network-checklist__state">@(item.Passed ? "Ready" : "Needs attention")</span>
+                        <span class="network-checklist__text"><strong>@item.Label</strong><small>@item.Detail</small></span>
+                        @if (!item.Passed)
+                        {
+                            <a class="network-checklist__fix" href="@item.FixHref">Fix: @item.FixLabel</a>
+                        }
+                    </li>
+                }
+            </ul>
+        }
+        <div class="network-card-actions">
+            <AppButton Label="Check again" StartIcon="@AppMaterialIcons.Outlined.Refresh" OnClick="RefreshReadinessAsync" />
+            <AppButton Label="Test remote access" StartIcon="@AppMaterialIcons.Outlined.Science" OnClick="TestRemoteAsync" />
         </div>
     </SettingsSectionPanel>
 
-    <SettingsSectionPanel Title="Access" Icon="@AppMaterialIcons.Outlined.Public"
-                          Description="Local access works without router, DNS, or certificate setup.">
-        <div class="network-mode-list" role="radiogroup" aria-label="Remote connection mode">
-            @Mode("local-only", "Local network only — Default", "No public router mapping or remote tunnel is attempted.")
+    <div id="remote-connection-mode">
+    <SettingsSectionPanel Title="How the internet reaches Tuvima" Icon="@AppMaterialIcons.Outlined.Public"
+                          Description="Local access works without router, DNS, or certificate setup. Pick a secure path only if you want Anywhere.">
+        <div class="network-mode-list" role="radiogroup" aria-label="How the internet reaches Tuvima">
+            @Mode("local-only", "Not set up — Default", "No public router mapping or remote tunnel is attempted.")
             @Mode("tailscale", "Tailscale", "Private HTTPS access through an independently installed Tailscale client and Tailscale Serve.")
             @Mode("custom", "HTTPS reverse proxy", "Use a trusted HTTPS hostname served by Caddy, nginx, Traefik, or another reverse proxy.")
         </div>
     </SettingsSectionPanel>
+    </div>
 
     @if (Settings.Remote.ConnectionMode == "tailscale")
     {
@@ -40,8 +72,9 @@
         </SettingsSectionPanel>
     }
 
-    @if (Settings.Remote.ConnectionMode == "custom")
+    @if (Settings.Remote.ConnectionMode is "custom" or "direct-only")
     {
+        <div id="remote-public-address">
         <SettingsSectionPanel Title="HTTPS Reverse Proxy" Icon="@AppMaterialIcons.Outlined.Language"
                               Description="The address must have a trusted certificate and route to this Dashboard.">
             <AppTextField T="string" @bind-Value="Settings.Remote.PublicHostname"
@@ -49,31 +82,9 @@
                           HelpText="Used for passkeys, linked sign-in and reset links" />
             <div class="network-card-actions"><AppButton Label="Save and verify" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" OnClick="SaveAddressAsync" /></div>
         </SettingsSectionPanel>
+        </div>
     }
 
-    @if (Settings.Remote.ConnectionMode != "local-only")
-    {
-        <SettingsSectionPanel Title="Security Check" Icon="@AppMaterialIcons.Outlined.VerifiedUser"
-                              Description="Anywhere stays unavailable until every required check passes.">
-            @if (_readiness is null)
-            {
-                <AppSkeleton Size="AppControlSize.Compact" />
-            }
-            else
-            {
-                <dl class="network-facts network-facts--compact">
-                    @foreach (var check in _readiness.Checks)
-                    {
-                        @Fact(check.Label, $"{(check.Status == "passed" ? "Ready" : "Blocked")} — {check.Detail}")
-                    }
-                </dl>
-            }
-            <div class="network-card-actions">
-                <AppButton Label="Check again" StartIcon="@AppMaterialIcons.Outlined.Refresh" OnClick="RefreshReadinessAsync" />
-                <AppButton Label="Test remote access" StartIcon="@AppMaterialIcons.Outlined.Science" OnClick="TestRemoteAsync" />
-            </div>
-        </SettingsSectionPanel>
-    }
 </div>
 
 <NetworkTestDialog @bind-Visible="_testDialogOpen" Busy="@_testing" Result="@_testResult" />
@@ -88,11 +99,14 @@
     private bool _testing;
     private NetworkTestResultDto? _testResult;
     private RemoteAccessReadinessDto? _readiness;
+    private IReadOnlyList<RemoteAccessChecklistItem> _checklist = [];
+    private bool _secureAccountFirst;
+
+    private bool AnywhereReady => _readiness?.Ready == true;
 
     protected override async Task OnInitializedAsync()
     {
-        if (Settings.Remote.ConnectionMode != "local-only")
-            await RefreshReadinessAsync();
+        await LoadReadinessAsync();
     }
 
     private RenderFragment Mode(string value, string title, string description) => @<label class="network-mode-option">
@@ -102,27 +116,53 @@
         <span><strong>@title</strong><small>@description</small></span>
     </label>;
 
-    private RenderFragment Who(string value, string title, string description) => @<label class="network-mode-option">
+    private RenderFragment Who(string value, string title, string description, bool disabled = false) => @<label class="network-mode-option @(disabled && Settings.WhoCanConnect != value ? "is-disabled" : "")">
         <AppNativeInput Type="radio" Name="who-can-connect" Value="@value"
                         Checked="@(Settings.WhoCanConnect == value)"
+                        Disabled="@(disabled && Settings.WhoCanConnect != value)"
                         OnChange="@(_ => ChangeWhoCanConnectAsync(value))" />
         <span><strong>@title</strong><small>@description</small></span>
     </label>;
 
     private async Task ChangeWhoCanConnectAsync(string value)
     {
+        _secureAccountFirst = false;
         if (value == "anywhere")
         {
-            await RefreshReadinessAsync();
-            if (_readiness?.Ready != true)
+            await LoadReadinessAsync();
+            if (!AnywhereReady)
             {
-                Snackbar.Add("Anywhere stays off until every security check passes.", AppSeverity.Warning);
+                Snackbar.Add("Anywhere stays off until every item in the checklist is ready.", AppSeverity.Warning);
                 return;
             }
         }
 
+        // Save a fresh copy with only this choice changed, so unrelated unsaved edits elsewhere are not saved too.
+        var fresh = await ApiClient.GetNetworkSettingsAsync();
+        if (fresh is null)
+        {
+            Snackbar.Add("Who can connect could not be changed.", AppSeverity.Error);
+            return;
+        }
+
+        fresh.WhoCanConnect = value;
+        if (await ApiClient.UpdateNetworkSettingsAsync(fresh) is null)
+        {
+            var error = ApiClient.LastError;
+            if (error is not null && (error.Contains(ThisComputerRequests.SecureAccountFirstCode, StringComparison.Ordinal)
+                || error.Contains("password or passkey", StringComparison.OrdinalIgnoreCase)))
+            {
+                _secureAccountFirst = true;
+            }
+            else
+            {
+                Snackbar.Add(error ?? "Who can connect could not be changed.", AppSeverity.Error);
+            }
+            return;
+        }
+
         Settings.WhoCanConnect = value;
-        await SaveRequested.InvokeAsync();
+        Snackbar.Add("Who can connect saved.", AppSeverity.Success);
         await StatusRefreshRequested.InvokeAsync();
     }
 
@@ -139,7 +179,7 @@
         if (value != "direct-only")
             Settings.Remote.AutomaticRouterConfiguration = false;
         await SaveRequested.InvokeAsync();
-        _readiness = value == "local-only" ? null : await ApiClient.GetRemoteAccessReadinessAsync();
+        await LoadReadinessAsync();
         await StatusRefreshRequested.InvokeAsync();
     }
 
@@ -150,9 +190,15 @@
         await RefreshReadinessAsync();
     }
 
-    private async Task RefreshReadinessAsync()
+    private async Task LoadReadinessAsync()
     {
         _readiness = await ApiClient.GetRemoteAccessReadinessAsync();
+        _checklist = _readiness is null ? [] : RemoteAccessChecklist.Build(_readiness);
+    }
+
+    private async Task RefreshReadinessAsync()
+    {
+        await LoadReadinessAsync();
         await StatusRefreshRequested.InvokeAsync();
     }
 

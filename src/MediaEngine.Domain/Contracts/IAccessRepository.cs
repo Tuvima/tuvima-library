@@ -34,14 +34,27 @@ public interface IAccountAccessMutationRepository
         MediaEngine.Domain.Aggregates.Profile profile,
         AccountProfileGrant targetGrant,
         CancellationToken ct = default);
+    /// <summary>Adds a person to a household, opened by the given sign-ins (none of them as default). Refused when the household is full.</summary>
+    Task CreateHouseholdPersonAsync(
+        MediaEngine.Domain.Aggregates.Profile profile,
+        Guid householdId,
+        IReadOnlyList<AccountProfileGrant> grants,
+        CancellationToken ct = default);
     Task UpdateManagedProfileAsync(
         MediaEngine.Domain.Aggregates.Profile profile,
         CancellationToken ct = default);
+    /// <summary>Throws the same errors as <see cref="DeleteManagedProfileAsync"/> would, without removing anything.</summary>
+    Task ValidateManagedProfileRemovalAsync(Guid profileId, CancellationToken ct = default);
     Task DeleteManagedProfileAsync(Guid profileId, CancellationToken ct = default);
     Task UpsertGrantAsync(AccountProfileGrant grant, CancellationToken ct = default);
     Task RevokeGrantAsync(Guid accountId, Guid profileId, CancellationToken ct = default);
     Task ReplaceAccountAccessAsync(Guid accountId, IReadOnlySet<AccountFeatureId> features, IReadOnlySet<Guid> libraries, DateTimeOffset changedAt, CancellationToken ct = default);
     Task SetAdminProtectionAsync(GrantAdminProtection protection, CancellationToken ct = default);
+    /// <summary>
+    /// Makes an account the administrator of its household (or takes that away). Making one also names it the
+    /// household's primary account when the household has none. Raises the account's authorization version.
+    /// </summary>
+    Task<bool> SetHouseholdAdminAsync(Guid accountId, bool isHouseholdAdmin, DateTimeOffset changedAt, CancellationToken ct = default);
     Task<GrantAdminProtection> RecordAdminProtectionFailureAsync(Guid accountId, Guid profileId, DateTimeOffset lockedUntilAfterLimit, CancellationToken ct = default);
     Task ResetAdminProtectionAttemptsAsync(Guid accountId, Guid profileId, CancellationToken ct = default);
     Task SetAdminUnlockAsync(GrantAdminUnlock unlock, CancellationToken ct = default);
@@ -107,7 +120,32 @@ public sealed record CreateManagedProfileCommand(
     string DisplayName,
     string? AvatarColor,
     bool IsDefault);
-public sealed record UpdateManagedProfileCommand(string DisplayName, string? AvatarColor);
+public sealed record UpdateManagedProfileCommand(
+    string DisplayName,
+    string? AvatarColor,
+    string? AvatarIcon = null,
+    string? ContentLimit = null,
+    bool? ContentLimitAllowUnrated = null);
+
+/// <summary>A new person in a household: a child person gets the restricted role; a PIN is optional.</summary>
+public sealed record AddHouseholdPersonCommand(
+    Guid HouseholdId,
+    string DisplayName,
+    string? AvatarColor,
+    bool IsChild,
+    string? Pin,
+    string? AvatarIcon = null,
+    string? ContentLimit = null,
+    bool ContentLimitAllowUnrated = false);
+
+/// <summary>
+/// Gives a person in a household their own email sign-in. With <paramref name="TemporaryPassword"/> the
+/// administrator chooses the first password; without it the person gets an invitation to choose their own.
+/// </summary>
+public sealed record GiveOwnSignInCommand(Guid ProfileId, string Email, string? TemporaryPassword);
+
+/// <summary>The sign-in just made, and its invitation when one was chosen.</summary>
+public sealed record GivenOwnSignIn(Account Account, IssuedAccountInvitation? Invitation);
 
 public interface IAccountAccessMutationService
 {
@@ -115,6 +153,8 @@ public interface IAccountAccessMutationService
     Task<Account> UpdateAsync(RequestAuthority actor, Guid accountId, UpdateAccountAccessCommand command, CancellationToken ct = default);
     /// <summary>Gives an existing account a new temporary password; the person must choose their own at next sign-in.</summary>
     Task SetTemporaryPasswordAsync(RequestAuthority actor, Guid accountId, string temporaryPassword, CancellationToken ct = default);
+    /// <summary>Turns two-step codes off for someone who lost their authenticator app and recovery codes. Audited.</summary>
+    Task ResetTwoStepAsync(RequestAuthority actor, Guid accountId, CancellationToken ct = default);
     Task DeleteAsync(RequestAuthority actor, Guid accountId, CancellationToken ct = default);
     Task<IssuedAccountInvitation> IssueInvitationAsync(
         RequestAuthority actor,
@@ -129,9 +169,31 @@ public interface IAccountAccessMutationService
         Guid profileId,
         UpdateManagedProfileCommand command,
         CancellationToken ct = default);
-    Task DeleteProfileAsync(RequestAuthority actor, Guid profileId, CancellationToken ct = default);
+    /// <summary>
+    /// Removes a person. Their habits (likes, My List, progress, bookmarks, taste) always go; <paramref name="photos"/> decides
+    /// what happens to their personal photos. Library files are never touched.
+    /// </summary>
+    Task DeleteProfileAsync(
+        RequestAuthority actor,
+        Guid profileId,
+        ProfilePhotoDisposition photos = ProfilePhotoDisposition.MoveToShared,
+        CancellationToken ct = default);
+    /// <summary>Throws unless the actor may change this person (their photo, for example); a missing person and another household's person look the same.</summary>
+    Task RequireCanChangeProfileAsync(RequestAuthority actor, Guid profileId, CancellationToken ct = default);
+    /// <summary>Adds a person to a household. The household's main sign-ins can open them; the person has no sign-in of their own yet.</summary>
+    Task<MediaEngine.Domain.Aggregates.Profile> AddHouseholdPersonAsync(
+        RequestAuthority actor, AddHouseholdPersonCommand command, CancellationToken ct = default);
+    /// <summary>Gives a person their own sign-in. It opens only that person, is never an administrator, and follows the household's library access.</summary>
+    Task<GivenOwnSignIn> GiveOwnSignInAsync(
+        RequestAuthority actor, GiveOwnSignInCommand command, CancellationToken ct = default);
+    /// <summary>Removes a person's own sign-in. The person and everything they own stay in the household.</summary>
+    Task RemoveOwnSignInAsync(RequestAuthority actor, Guid accountId, CancellationToken ct = default);
     Task ReplaceAccessAsync(RequestAuthority actor, Guid accountId, IReadOnlySet<AccountFeatureId> features, IReadOnlySet<Guid> libraries, CancellationToken ct = default);
     Task UpsertGrantAsync(RequestAuthority actor, AccountProfileGrant grant, CancellationToken ct = default);
     Task RevokeGrantAsync(RequestAuthority actor, Guid accountId, Guid profileId, CancellationToken ct = default);
     Task SetAdminProtectionAsync(RequestAuthority actor, Guid accountId, Guid profileId, GrantAdminProtectionCommand command, CancellationToken ct = default);
+    /// <summary>Makes a main sign-in the administrator of its household, or takes that away. Only a server administrator may.</summary>
+    Task SetHouseholdAdminAsync(RequestAuthority actor, Guid accountId, bool isHouseholdAdmin, CancellationToken ct = default);
+    /// <summary>Sets or clears a person's PIN. A household administrator may only do this for their own household.</summary>
+    Task SetProfilePinAsync(RequestAuthority actor, Guid profileId, string? pin, CancellationToken ct = default);
 }

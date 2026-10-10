@@ -3,9 +3,13 @@
 
 <section class="access-user-permissions">
     <AppText Typo="AppTypo.subtitle1">Media access</AppText>
-    @foreach (var feature in Features)
+    @foreach (var feature in Features.Where(feature => !(ViewStartsOff && feature.Id == "view")))
     {
         <AppSwitchRow Value="@FeatureIds.Contains(feature.Id)" ValueChanged="@((bool value) => FeatureChanged.InvokeAsync((feature.Id, value)))" Label="@feature.Label" Description="@feature.Description" />
+    }
+    @if (ViewStartsOff)
+    {
+        <small>View starts off for people outside your household. Switch it on from their row once you know them.</small>
     }
 </section>
 <section class="access-user-permissions">
@@ -31,6 +35,8 @@
         new("view", "View", "Shared content and the active profile's Personal Space"),
     ];
 
+    /// <summary>A person outside the household starts with View off, so the switch is not offered here.</summary>
+    [Parameter] public bool ViewStartsOff { get; set; }
     [Parameter, EditorRequired] public IReadOnlySet<string> FeatureIds { get; set; } = new HashSet<string>();
     [Parameter, EditorRequired] public IReadOnlySet<Guid> LibraryIds { get; set; } = new HashSet<Guid>();
     [Parameter, EditorRequired] public IReadOnlyList<AccessLibraryOptionDto> Libraries { get; set; } = [];

@@ -16,12 +16,22 @@ public sealed class ViewProfileRepository(IDatabaseConnection database) : IViewP
             SELECT profile_id AS ProfileId, view_enabled AS ViewEnabled,
                    access_shared_library AS AccessSharedLibrary,
                    submit_to_shared_library AS SubmitToSharedLibrary,
-                   review_shared_library_contributions AS ReviewSharedLibraryContributions,
                    share_galleries AS ShareGalleries, updated_at AS UpdatedAt
               FROM profile_view_policies
              WHERE profile_id = @profileId;
             """, new { profileId }, cancellationToken: ct));
-        return Task.FromResult(row is null ? ViewProfilePolicy.Default(profileId) : Map(row));
+        if (row is not null)
+        {
+            return Task.FromResult(Map(row));
+        }
+
+        // No saved row yet: a child (restricted) profile cannot send items to the Shared Library until allowed.
+        // A profile that belongs to no household (only possible before any account exists) has no Shared Library to open.
+        var profile = connection.QuerySingleOrDefault<ProfileRow>(new CommandDefinition(
+            "SELECT role AS Role, household_id AS HouseholdId FROM profiles WHERE id = @profileId;",
+            new { profileId }, cancellationToken: ct));
+        return Task.FromResult(ViewProfilePolicy.Default(
+            profileId, profile?.Role == "RestrictedProfile", profile?.HouseholdId is not null));
     }
 
     public Task<bool> SavePolicyAsync(ViewProfilePolicy policy, CancellationToken ct = default)
@@ -40,15 +50,14 @@ public sealed class ViewProfileRepository(IDatabaseConnection database) : IViewP
             connection.Execute(new CommandDefinition("""
                 INSERT INTO profile_view_policies
                     (profile_id, view_enabled, access_shared_library, submit_to_shared_library,
-                     review_shared_library_contributions, share_galleries, updated_at)
+                     share_galleries, updated_at)
                 VALUES
                     (@ProfileId, @ViewEnabled, @AccessSharedLibrary, @SubmitToSharedLibrary,
-                     @ReviewSharedLibraryContributions, @ShareGalleries, @now)
+                     @ShareGalleries, @now)
                 ON CONFLICT(profile_id) DO UPDATE SET
                     view_enabled = excluded.view_enabled,
                     access_shared_library = excluded.access_shared_library,
                     submit_to_shared_library = excluded.submit_to_shared_library,
-                    review_shared_library_contributions = excluded.review_shared_library_contributions,
                     share_galleries = excluded.share_galleries,
                     updated_at = excluded.updated_at;
                 """, new
@@ -57,7 +66,6 @@ public sealed class ViewProfileRepository(IDatabaseConnection database) : IViewP
                 ViewEnabled = policy.ViewEnabled ? 1 : 0,
                 AccessSharedLibrary = policy.AccessSharedLibrary ? 1 : 0,
                 SubmitToSharedLibrary = policy.SubmitToSharedLibrary ? 1 : 0,
-                ReviewSharedLibraryContributions = policy.ReviewSharedLibraryContributions ? 1 : 0,
                 ShareGalleries = policy.ShareGalleries ? 1 : 0,
                 now,
             }, transaction, cancellationToken: token));
@@ -142,7 +150,7 @@ public sealed class ViewProfileRepository(IDatabaseConnection database) : IViewP
 
     private static ViewProfilePolicy Map(PolicyRow row) => new(
         row.ProfileId, row.ViewEnabled != 0, row.AccessSharedLibrary != 0,
-        row.SubmitToSharedLibrary != 0, row.ReviewSharedLibraryContributions != 0,
+        row.SubmitToSharedLibrary != 0,
         row.ShareGalleries != 0, ParseDate(row.UpdatedAt));
 
     private static ViewProfilePreferences Map(PreferencesRow row) => new(
@@ -202,9 +210,14 @@ public sealed class ViewProfileRepository(IDatabaseConnection database) : IViewP
         public long ViewEnabled { get; init; }
         public long AccessSharedLibrary { get; init; }
         public long SubmitToSharedLibrary { get; init; }
-        public long ReviewSharedLibraryContributions { get; init; }
         public long ShareGalleries { get; init; }
         public string? UpdatedAt { get; init; }
+    }
+
+    private sealed class ProfileRow
+    {
+        public string? Role { get; init; }
+        public Guid? HouseholdId { get; init; }
     }
 
     private sealed class PreferencesRow

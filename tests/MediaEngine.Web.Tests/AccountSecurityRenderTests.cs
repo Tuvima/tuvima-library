@@ -22,6 +22,7 @@ public sealed class AccountSecurityRenderTests : AsyncBunitContext
         Services.AddSingleton<IHttpClientFactory>(_factory);
         Services.AddScoped<DashboardIdentityClient>();
         Services.AddScoped<DashboardSessionAccessor>();
+        Services.AddSingleton(System.Reflection.DispatchProxy.Create<IEngineApiClient, EmptyEngineApiClient>());
         Services.AddScoped<IItsYouConfirmer>(_ => new ConfirmedActionRunnerTests.SpyConfirmer(confirmed: false));
         Services.AddScoped<ConfirmedActionRunner>();
         Services.AddSingleton<IReadOnlyList<RegisteredExternalAuthProvider>>([]);
@@ -38,6 +39,33 @@ public sealed class AccountSecurityRenderTests : AsyncBunitContext
             cut.FindAll(".app-skeleton").Select(element => element.GetAttribute("style")));
         pending.SetResult(new HttpResponseMessage(HttpStatusCode.NotFound));
         cut.WaitForAssertion(() => Assert.Empty(cut.FindAll(".app-skeleton")));
+    }
+
+    /// <summary>An Engine client that answers every call with nothing, for components that only need it to exist.</summary>
+    public class EmptyEngineApiClient : System.Reflection.DispatchProxy
+    {
+        protected override object? Invoke(System.Reflection.MethodInfo? targetMethod, object?[]? args)
+        {
+            var type = targetMethod?.ReturnType;
+            if (type is null || type == typeof(void))
+            {
+                return null;
+            }
+
+            if (type == typeof(Task))
+            {
+                return Task.CompletedTask;
+            }
+
+            if (type.IsGenericType && type.GetGenericTypeDefinition() == typeof(Task<>))
+            {
+                var result = type.GetGenericArguments()[0];
+                var value = result.IsValueType ? Activator.CreateInstance(result) : null;
+                return typeof(Task).GetMethod(nameof(Task.FromResult))!.MakeGenericMethod(result).Invoke(null, [value]);
+            }
+
+            return type.IsValueType ? Activator.CreateInstance(type) : null;
+        }
     }
 
     private sealed class LoadingAccountClientFactory(TaskCompletionSource<HttpResponseMessage> pending) : IHttpClientFactory

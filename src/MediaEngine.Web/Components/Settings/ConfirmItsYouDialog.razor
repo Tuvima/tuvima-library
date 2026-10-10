@@ -22,6 +22,11 @@
             {
                 <AppTextField T="string" @bind-Value="_password" Label="Password" InputType="AppInputType.Password"
                               autocomplete="current-password" AutoFocus="true" OnKeyDown="OnKeyDownAsync" />
+                @if (_hasTwoStep)
+                {
+                    <AppTextField T="string" @bind-Value="_twoStepCode" Label="6-digit code from your app, or a recovery code"
+                                  autocomplete="one-time-code" OnKeyDown="OnKeyDownAsync" />
+                }
             }
             @if (_error is not null)
             {
@@ -38,7 +43,7 @@
         @if (_hasPassword)
         {
             <AppButton Label="Confirm" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary"
-                       Loading="@_working" Disabled="@(_working || string.IsNullOrEmpty(_password))" OnClick="ConfirmWithPasswordAsync" />
+                       Loading="@_working" Disabled="@(_working || !CanConfirmWithPassword)" OnClick="ConfirmWithPasswordAsync" />
         }
     </DialogActions>
 </AppDialog>
@@ -52,6 +57,10 @@
     private bool _working;
     private bool _hasPassword;
     private bool _hasPasskey;
+    private bool _hasTwoStep;
+    private string _twoStepCode = string.Empty;
+
+    private bool CanConfirmWithPassword => !string.IsNullOrEmpty(_password) && (!_hasTwoStep || !string.IsNullOrWhiteSpace(_twoStepCode));
 
     protected override async Task OnInitializedAsync()
     {
@@ -59,6 +68,7 @@
         {
             var capabilities = (await Identity.GetAccountAsync(_lifetime.Token))?.SecurityCapabilities;
             _hasPassword = capabilities?.HasPassword == true;
+            _hasTwoStep = capabilities?.HasTwoStep == true;
             // A passkey can be used only where the browser may use one (the public secure address).
             _hasPasskey = capabilities is { HasPasskeys: true, CanRegisterPasskey: true };
         }
@@ -68,7 +78,7 @@
 
     private async Task OnKeyDownAsync(KeyboardEventArgs args)
     {
-        if (args.Key == "Enter" && _hasPassword && !string.IsNullOrEmpty(_password))
+        if (args.Key == "Enter" && _hasPassword && CanConfirmWithPassword)
         {
             await ConfirmWithPasswordAsync();
         }
@@ -76,9 +86,10 @@
 
     private async Task ConfirmWithPasswordAsync()
     {
-        if (_working || string.IsNullOrEmpty(_password)) return;
-        await ConfirmAsync(new ConfirmItsYouRequest { Password = _password });
+        if (_working || !CanConfirmWithPassword) return;
+        await ConfirmAsync(new ConfirmItsYouRequest { Password = _password, TwoStepCode = _hasTwoStep ? _twoStepCode.Trim() : null });
         _password = string.Empty;
+        _twoStepCode = string.Empty;
     }
 
     private async Task ConfirmWithPasskeyAsync()
@@ -110,7 +121,9 @@
             _error = result.Failure switch
             {
                 DashboardAccessMutationFailure.Unauthorized => request.Password is null
-                    ? "That passkey wasn't accepted. Try again or use your password." : "That password wasn't right.",
+                    ? "That passkey wasn't accepted. Try again or use your password."
+                    : _hasTwoStep ? "That password or code wasn't right. Each code works once, so try the next one in your app."
+                    : "That password wasn't right.",
                 DashboardAccessMutationFailure.Transient => "Too many attempts. Wait a minute and try again.",
                 _ => "We couldn't confirm it's you. Try again.",
             };

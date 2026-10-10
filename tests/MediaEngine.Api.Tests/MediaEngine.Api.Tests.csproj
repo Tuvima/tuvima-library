@@ -3,8 +3,6 @@
   <PropertyGroup>
     <IsTestProject>true</IsTestProject>
     <IsPackable>false</IsPackable>
-    <!-- Mirrors the API project suppression for the transitive MediaInfo.Core.Native RID warning. -->
-    <NoWarn>$(NoWarn);NETSDK1206</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>

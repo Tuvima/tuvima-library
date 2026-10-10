@@ -215,6 +215,10 @@ public sealed class UIOrchestratorService : IAsyncDisposable
         OnProfileChanged?.Invoke();
         return outcome;
     }
+    /// <summary>Loads the signed-in account's profiles again from the Engine, for screens that just added, changed or removed one.</summary>
+    public Task<List<ProfileViewModel>> RefreshProfilesAsync(CancellationToken ct = default) =>
+        _activeProfileSession.RefreshProfilesAsync(ct);
+
     /// <summary>Updates an existing user profile and notifies the layout to refresh.</summary>
     public async Task<bool> UpdateProfileAsync(
         Guid id, string displayName, string avatarColor,

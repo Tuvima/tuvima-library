@@ -35,13 +35,13 @@ Canonical book, comic, and movie series containers show their sequence rail dire
 
 A standalone work (no collection, no series value and no parent) never shows a series or sequence panel on its details page. Opening any details page from a browse surface starts at the top, and Back restores the previous page's scroll position.
 
-`MainLayout` exposes My List as the active profile's saved shortlist and delegates account actions to `TopNavAccountMenu`. Needs Review lives inside that permission-aware menu rather than in a standalone bell. `SystemActivityIndicator` uses `ShellActivityState` to combine playback, ingestion, AI download/parsing, enrichment, and durable-operation activity into one circular progress surface, using success green for its icon and ring while work is active. The Library activity icon is permanent at a fixed width, shows a subtle progress ring or dot while busy, and opens Live Ingestion. The account menu offers Sign out for the current session, including local accounts.
+`MainLayout` exposes My List as the active profile's saved shortlist and delegates account actions to `TopNavAccountMenu`. Needs Review lives inside that permission-aware menu rather than in a standalone bell. `SystemActivityIndicator` uses `ShellActivityState` to combine playback, ingestion, AI download/parsing, enrichment, and durable-operation activity into one circular progress surface, using success green for its icon and ring while work is active and hiding when idle. The account menu offers Sign out for the current session, including local accounts. A Kids profile (restricted role) gets the simpler Kids shell: the top bar and phone dock keep only Watch, Listen and Read (plus Home on the dock) and My List, tiles are larger with rounder corners (`.layout-kids` tokens in `wwwroot/app.css`), the account menu drops Profile settings, Settings and Needs Review and shows a *Kids* badge. Content limits are separate and not part of the shell.
 
 The top-bar My List button uses the list-with-tick icon (`PlaylistAddCheck`), which supersedes the ringed-planet glyph in the October 6 2026 policy below; the bookmark shape is reserved for real bookmarks. On details pages, My List is a "+" action labelled Add to My List, which becomes a plain tick "✓" labelled In My List once saved. The account menu header shows the account email. The profile switcher appears only with more than one profile, and the menu includes Manage profiles (administrators) and Secure account (this-computer-only accounts, which also show a dot on the avatar). The "This computer only" banner can be dismissed per account.
 
 ## TV episode routing and heroes
 
-TV episodes are children of the show detail page, organized by season. Each owned
+TV episodes are children of the show detail page, organized by season. A combined file (one file, several episodes) is named with its episode run when the organiser renames files, for example `s01e01-e02`; every episode it covers is shown as owned. Each owned
 episode has a show-scoped detail route opened from its still. Continue surfaces
 retain the episode still and playback target, identify it with compact copy such
 as `Continue · S5 E1`, and use actions such as `Resume S5 E1`. Episode detail
@@ -55,6 +55,19 @@ logos, compact facts, actions, and description, and show at most two linked genr
 on their own non-wrapping line. Movie heroes
 use the movie description without a synopsis heading. The watch utility row does
 not repeat a Show details action.
+
+### One file, several episodes: the editor picker
+
+When one video file holds several episodes of a season, the editor's Matching tab
+shows a **This file covers** picker for that episode's file. Each episode of the
+season is a tappable chip (`E2 · Title`); the file's own episode is always ticked and
+locked, episodes that already have their own file are locked, and a file covers at
+most six episodes, all within one season. **Save episodes** replaces the list in one
+step, answers the file's pending combined-media Review item, and records a History
+entry; saving the same list again changes nothing. Single-episode files see no change
+beyond the picker staying out of the way when the season has one episode. On phones
+the chips stack full width with 44px touch targets and the actions stay reachable
+inside the modal.
 
 ## Current Collections and linked-identity clarifications
 
@@ -72,6 +85,10 @@ TMDB episode credits are stored separately from show aggregates; full credits su
 
 These changes require fresh pre-beta ingestion. Runtime and responsive visual acceptance are pending; see the TV episode consistency proposal for validation status and remaining scope.
 
+### Episodes stored in one file
+
+When one video file holds several episodes, each covered episode in a season strip carries a quiet "Same file as Episode N" chip under its tile. The chip data arrives with the episode item (one batched lookup per page, no per-card requests). When the other episode is in the visible strip the chip is a 44px button that highlights it (press again to clear); otherwise it is plain text. It wraps on phone widths, follows the dark theme and needs no motion. Files without combined episodes look exactly as before.
+
 
 ### Libraries settings refresh
 
@@ -82,7 +99,7 @@ The Libraries overview uses aligned full-width rows and URL-backed lane scope. S
 
 Libraries now includes All/Read/Watch/Listen/View filters, a single View summary row, and a dedicated View settings page. Scope changes filter the mounted list without repeated library loads or filesystem probes. Add folder belongs inside Folders and saves immediately; detachment asks for confirmation and keeps files. Names and custom templates use focused Apply dialogs, while other library settings save individually with conflict detection. There is no page-wide Save. Breadcrumbs remain shell-owned and retain the selected scope.
 
-New Personal Spaces use `View/Profiles/<stable-readable-label>/Timeline` and named managed folders beneath `Folders`. Persisted label reservations survive profile deletion so another profile cannot silently inherit the former folder. Display-name changes do not rename storage. `View/Shared` is the server-owned Shared Library beside Profiles; accepted contributions use verified transfer before managed-original cleanup. Existing obsolete View source state fails closed rather than moving originals or using compatibility paths. View source additions queue reconciliation in its dedicated hosted worker.
+New Personal Spaces use `View/Profiles/<stable-readable-label>/Timeline` and named managed folders beneath `Folders`. Persisted label reservations survive profile deletion so another profile cannot silently inherit the former folder. Display-name changes do not rename storage. `View/Shared` is the server household's Shared Library beside Profiles (every other household's lives under `View/Shared/Households/<id>`, and people only ever see their own household's); accepted contributions use verified transfer before managed-original cleanup. Existing obsolete View source state fails closed rather than moving originals or using compatibility paths. View source additions queue reconciliation in its dedicated hosted worker.
 
 
 ## Setup, Operations, and View storage (September 2026)
@@ -96,6 +113,10 @@ Live Ingestion shows one compact status card: a progress bar averages every pipe
 View uses a common library-detail header and Folders, Organization, File Handling, Sharing & Access, and Advanced Settings sections. The configurable View library root contains Shared and Profiles; Shared Library is an authorization scope distinct from the physical base. Logical personal-space/source registration never creates directories. Uploads and accepted transfers create destination folders only at actual write time. Merely visiting View or adding a profile must leave unused storage empty.
 
 The install banner records dismissal in browser/site local storage. Subsequent install events and navigation respect it. System Overview offers an independent manual installation action.
+
+### View household section (October 2026)
+
+The View scope pickers (Photos, Places, Folders) list your own space first, then a **Household** group naming each other person in the household, then the Shared Library. Another member's space is read only: no Add media, no editing, hidden photos stay hidden, and sending one of their photos to the Shared Library always makes a copy. People in other households never appear. Everyone can open and send to their household's Shared Library by default; a child profile can send only after a household administrator allows it. Household administrators (and server administrators) review contributions, and there is no curator role.
 
 ## Shared AI storage (September 2026)
 
@@ -176,6 +197,24 @@ The phone full player and the popout share `PlaybackFullPlayer` as one screen wi
 - **Follow-up.** Shared controls and Release CSS minification now use first-party ownership. Bundle acceptance still requires measured Release assets and paired visual evidence; broader per-render interop optimization remains separate.
 - **Docs toolchain.** The documentation toolchain requires Astro Starlight, pinned in `website/package.json`.
 
+
+### Who's using Tuvima? (October 9 2026)
+
+`/who` is a full-screen page with no main navigation. It shows the signed-in account's profiles (its grants inside its own household, never another household's) as a Netflix-style grid: avatar or initial, name, a lock tag when the profile has a PIN and a *Child* tag for restricted profiles. Picking a profile switches to it; a profile with a PIN always asks for that PIN first (this is what stops a child profile switching into an adult one), and a wrong PIN counts toward the lockout only for people connecting from outside. Below the grid, *Always open as this person on this device* remembers the choice for this browser or device only; *Stop always opening as Mary* clears it.
+
+The page appears straight after a password, passkey or provider sign-in when the account has more than one enabled profile and this device has no saved choice, and from the account menu's *Who's watching?* item (shown only with more than one profile). The same menu lists the other people in the household for a one-tap switch: a person with a PIN opens the number pad inside the menu, and a wrong PIN, a lockout or a refusal is shown there with nothing changed. The list reuses the profiles the page already loaded, so opening the menu adds no Engine requests. An account with one profile never sees it. When the saved person has a PIN, sign-in opens the page with that PIN prompt instead of skipping it. Administrators in a household that has a Child profile and an adult profile without a PIN see one gentle note: *Set PINs on adult profiles so children can't switch into them.* Nothing is blocked. Restricted profiles still never reach admin areas.
+
+### Manage profiles on the picker (October 10 2026)
+
+Administrators (server or household) see a *Manage profiles* button under the grid, and an *Add profile* tile while the household has fewer than eight people. Kids (restricted) profiles never see either, and nobody else does: the Engine only lets administrators change people. *Manage profiles* turns the grid into edit mode: every face shows a pencil, tapping one opens the profile editor sheet (name, colour, icon or photo, PIN, delete) instead of opening the profile, and *Done* returns to normal. The page also opens in this mode at `/who?manage=1`, and with the Add profile sheet open at `/who?add=1`; both stay on the page even for a one-person household.
+
+Adding creates a household person (optionally a Kids profile and a PIN) and then uploads the chosen photo. Saving an existing person changes name, colour and icon first, then the PIN (set, change or remove), then the photo (a new photo, or removal when a colour or icon replaces it). A Kids profile can't be switched to an adult one afterwards. Delete is offered for everyone except the last profile, the Owner profile and the profile that is open right now. Deleting asks what to do with the person's personal photos: keep them in the household's Shared Library (the default, in a folder and tag named *From <name> <date>*; managed files move, linked originals are copied and left where they are) or delete them. Habits (likes, My List, progress, bookmarks, taste picks) are always removed and library files are never touched. If any photo can't be kept, nothing is removed. Every change needs a recent sign-in (the usual *Confirm it's you* prompt) and, when administrator protection is on, the administrator PIN, which the page asks for once and then repeats the change.
+
+### Content limit per profile (October 10 2026)
+
+Every profile has its own *What can this person watch?* setting, chosen by an administrator in the profile editor: Everything, G, PG, PG-13 or R. It is separate from the Kids label, so a parent can allow an eight-year-old PG-13 or limit an adult. A new Kids profile starts on PG, everyone else on Everything. The editor shows the choice as five pills with a one-line explanation, plus a *Show items with no rating* switch (off by default) because music, personal videos and some imports carry no rating.
+
+The Engine enforces the limit, not the screens. Ratings from every vocabulary (film G to NC-17, TV-Y to TV-MA, UK and plain ages such as 12, 15, 18, and book or comic labels such as Everyone, Teen, Mature) are placed on one ladder; anything above the profile's step, and anything unrated unless allowed, is removed before a list, search, Home shelf, collection, Continue Watching row, detail page, file, stream or player queue is built. A TV episode takes its rating from the episode, then its show. A change applies on the person's next request. A limited item is reported as not found. Changing the limit needs the same sign-in checks and administrator PIN as any other profile change.
 
 ### Dashboard UI bugfix policy (October 6 2026)
 

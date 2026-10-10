@@ -59,25 +59,78 @@ public sealed class ViewScopeResolverTests
     }
 
     [Fact]
-    public async Task EffectiveAdministratorGetsExactEnabledProfileWithoutRootScope()
+    public async Task HouseholdMemberGetsExactEnabledProfileWithoutRootScope()
     {
-        var caller = State(access: true, include: false);
-        var target = State(access: false, include: false);
+        var household = Guid.NewGuid();
+        var caller = State(access: true, include: false, household);
+        var target = State(access: false, include: false, household);
         var resolver = new ViewScopeResolver(new ScopeStore(caller, target));
-        var authority = Identity(caller) with
-        {
-            AccountIsAdministrator = true,
-            GrantAdminEnabled = true,
-        };
 
         var resolution = Assert.IsType<ViewScopeResolution>(await resolver.ResolveAsync(
-            authority, ViewScopeRequest.ForProfile(target.Policy.ProfileId)));
+            Identity(caller), ViewScopeRequest.ForProfile(target.Policy.ProfileId)));
 
         Assert.Equal(ViewScopeKind.Profile, resolution.Scope.Kind);
         Assert.Equal(target.Policy.ProfileId, resolution.Scope.ProfileId);
         Assert.Equal([target.PersonalSpace!.LibraryId], resolution.Scope.LibraryIds);
         Assert.Contains(resolution.AvailableScopes, option =>
             option.Kind == ViewScopeKind.Profile && option.ProfileId == target.Policy.ProfileId);
+    }
+
+    [Fact]
+    public async Task OwnSpaceStaysFirstAndHouseholdMembersAreListedByName()
+    {
+        var household = Guid.NewGuid();
+        var caller = State(access: true, include: true, household, "Jim");
+        var zoe = State(access: true, include: true, household, "Zoe");
+        var mary = State(access: true, include: true, household, "Mary");
+        var resolver = new ViewScopeResolver(new ScopeStore(caller, zoe, mary));
+
+        var resolution = Assert.IsType<ViewScopeResolution>(await resolver.ResolveAsync(
+            Identity(caller), ViewScopeRequest.Mine));
+
+        Assert.Equal(ViewScopeKind.Mine, resolution.AvailableScopes[0].Kind);
+        Assert.Equal(["Jim", "Mary", "Zoe"], resolution.AvailableScopes
+            .Where(option => option.Kind != ViewScopeKind.Shared).Select(option => option.Label));
+    }
+
+    [Fact]
+    public async Task AnotherHouseholdsProfileIsOnlyResolvedForServerAdministrators_AsAnOtherPeopleScope()
+    {
+        var ours = Guid.NewGuid();
+        var theirs = Guid.NewGuid();
+        var caller = State(access: true, include: true, ours);
+        var stranger = State(access: true, include: true, theirs);
+        var resolver = new ViewScopeResolver(new ScopeStore(caller, stranger));
+
+        var serverAdministrator = Identity(caller) with { AccountIsAdministrator = true, GrantAdminEnabled = true };
+        foreach (var authority in new[]
+                 {
+                     Identity(caller),
+                     Identity(caller) with { AccountIsHouseholdAdmin = true, AccountHouseholdId = ours },
+                     serverAdministrator with { ActiveProfileIsRestricted = true },
+                     serverAdministrator with { PrincipalKind = PrincipalKind.DelegatedUserClient, ApplicationId = Guid.NewGuid() },
+                 })
+        {
+            Assert.Null(await resolver.ResolveAsync(authority, ViewScopeRequest.ForProfile(stranger.Policy.ProfileId)));
+        }
+
+        // A server administrator reaches it only as a read-only "Other people" scope (recorded when opened),
+        // and it never shows up in the ordinary scope list.
+        var resolved = Assert.IsType<ViewScopeResolution>(await resolver.ResolveAsync(
+            serverAdministrator, ViewScopeRequest.ForProfile(stranger.Policy.ProfileId)));
+        Assert.Equal(theirs, resolved.Scope.OtherHouseholdId);
+        var own = Assert.IsType<ViewScopeResolution>(await resolver.ResolveAsync(serverAdministrator, ViewScopeRequest.Mine));
+        Assert.DoesNotContain(own.AvailableScopes, option => option.ProfileId == stranger.Policy.ProfileId);
+    }
+
+    [Fact]
+    public async Task ProfilesWithNoHouseholdAreNotHouseholdMembersOfEachOther()
+    {
+        var caller = State(access: true, include: true);
+        var other = State(access: true, include: true);
+        var resolver = new ViewScopeResolver(new ScopeStore(caller, other));
+
+        Assert.Null(await resolver.ResolveAsync(Identity(caller), ViewScopeRequest.ForProfile(other.Policy.ProfileId)));
     }
 
     [Fact]
@@ -94,13 +147,15 @@ public sealed class ViewScopeResolverTests
         Assert.Equal(ViewScopeKind.Mine, fallback.Scope.Kind);
     }
 
-    private static ViewScopeStoreEntry State(bool access, bool include)
+    private static ViewScopeStoreEntry State(bool access, bool include, Guid? household = null, string name = "")
     {
         var profileId = Guid.NewGuid();
         var now = DateTimeOffset.UtcNow;
         return new ViewScopeStoreEntry(
-            new ViewProfilePolicy(profileId, true, access, include, false, true, now),
-            new ViewPersonalSpace(Guid.NewGuid(), profileId, Guid.NewGuid(), now, now));
+            new ViewProfilePolicy(profileId, true, access, include, true, now),
+            new ViewPersonalSpace(Guid.NewGuid(), profileId, Guid.NewGuid(), now, now),
+            DisplayName: name,
+            HouseholdId: household);
     }
 
     private static RequestAuthority Identity(ViewScopeStoreEntry state) =>

@@ -13,8 +13,16 @@ public sealed record ProfileViewModel(
     [property: JsonPropertyName("role")] string Role,
     [property: JsonPropertyName("created_at")] DateTimeOffset CreatedAt,
     [property: JsonPropertyName("navigation_config")] string? NavigationConfig = null,
-    [property: JsonPropertyName("avatar_image_url")] string? AvatarImageUrl = null)
+    [property: JsonPropertyName("avatar_image_url")] string? AvatarImageUrl = null,
+    [property: JsonPropertyName("has_pin")] bool HasPin = false,
+    [property: JsonPropertyName("avatar_icon")] string? AvatarIcon = null,
+    [property: JsonPropertyName("content_limit")] string? ContentLimit = null,
+    [property: JsonPropertyName("content_limit_allow_unrated")] bool ContentLimitAllowUnrated = false)
 {
+    /// <summary>Restricted ("child") profiles are tagged on the picker and never reach admin areas.</summary>
+    [JsonIgnore]
+    public bool IsRestricted => string.Equals(Role, "RestrictedProfile", StringComparison.OrdinalIgnoreCase);
+
     /// <summary>
     /// Returns <see langword="true"/> when this is the seed "Owner" profile
     /// that cannot be deleted.

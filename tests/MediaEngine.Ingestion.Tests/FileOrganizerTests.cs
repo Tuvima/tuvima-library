@@ -150,6 +150,33 @@ public class FileOrganizerTests
         Assert.DoesNotContain("TV Shows", relative);
     }
 
+    [Theory]
+    [InlineData("1", "2", "Show/Show - s01e01-e02.mkv")]   // unbroken two-episode file
+    [InlineData("1", "6", "Show/Show - s01e01-e06.mkv")]   // longest run allowed
+    [InlineData("1", "9", "Show/Show - s01e01.mkv")]       // over the per-file cap: plain name
+    [InlineData("1", "1", "Show/Show - s01e01.mkv")]       // no real range
+    [InlineData("3", "2", "Show/Show - s01e03.mkv")]       // reversed: plain name
+    [InlineData("1", null, "Show/Show - s01e01.mkv")]      // single-episode file: unchanged
+    public void CalculatePath_TvCombinedFile_NamesTheEpisodeRun(string episode, string? episodeEnd, string expected)
+    {
+        var meta = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["title"] = "Show",
+            ["season"] = "1",
+            ["episode"] = episode,
+        };
+        if (episodeEnd is not null)
+        {
+            meta["episode_end"] = episodeEnd;
+        }
+
+        var candidate = BuildCandidate(@"C:\watch\show.mkv", MediaType.TV, meta);
+
+        var relative = CreateOrganizer().CalculatePath(candidate, "{Title}/{Title} - s{Season}e{Episode}{Ext}");
+
+        Assert.Equal(expected, relative.Replace('\\', '/'));
+    }
+
     [Fact]
     public void CalculatePath_MultipartAudiobookUsesBookFolderAndPartIdentity()
     {

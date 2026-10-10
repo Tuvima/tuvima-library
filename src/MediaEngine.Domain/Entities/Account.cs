@@ -21,6 +21,13 @@ public sealed class Account
     public Guid? HouseholdId { get; set; }
 
     /// <summary>
+    /// When set, this account has no feature or library access of its own: it follows the access of the named
+    /// account (a person's own sign-in follows the household's main sign-in). Read at use time, so later changes to
+    /// the household's access reach the person without being copied.
+    /// </summary>
+    public Guid? GrantsInheritFromAccountId { get; set; }
+
+    /// <summary>
     /// True for an account that was set up on this computer without a password. It can only be used in a browser
     /// on that same computer until the owner adds a password or passkey. Changed only through
     /// <see cref="MarkThisComputerOnly"/> and <see cref="ClearThisComputerOnly"/>.
@@ -39,6 +46,27 @@ public sealed class Account
     /// <summary>True while a temporary password is in force and has run out.</summary>
     public bool IsTemporaryPasswordExpired(DateTimeOffset now) =>
         MustChangePassword && TemporaryPasswordExpiresAt is { } expires && expires <= now;
+
+    /// <summary>
+    /// True for the person who looks after one household (add and remove people, give own sign-ins, PINs, hand out
+    /// what the household already has). It never reaches another household or the server's settings. Changed only
+    /// through <see cref="MakeHouseholdAdmin"/> and <see cref="RemoveHouseholdAdmin"/>.
+    /// </summary>
+    public bool HouseholdAdmin { get; private set; }
+
+    /// <summary>Makes this sign-in the administrator of its own household. A person's own sign-in never qualifies.</summary>
+    public void MakeHouseholdAdmin()
+    {
+        if (GrantsInheritFromAccountId is not null)
+        {
+            throw new InvalidOperationException("A person's own sign-in can't be a household administrator.");
+        }
+
+        HouseholdAdmin = true;
+    }
+
+    /// <summary>Takes household administration away from this sign-in.</summary>
+    public void RemoveHouseholdAdmin() => HouseholdAdmin = false;
 
     /// <summary>Marks the account as usable only on this computer (no password has been set yet).</summary>
     public void MarkThisComputerOnly() => IsThisComputerOnly = true;

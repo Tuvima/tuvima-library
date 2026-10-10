@@ -1,0 +1,51 @@
+@namespace MediaEngine.Web.Components.Details
+@using MediaEngine.Contracts.Details
+
+@* Quiet "Same file as Episode N" note for episodes stored in one combined file. The data arrives with the episode item, so the chip never makes a request of its own. *@
+@if (Links.Count > 0)
+{
+    @if (CanHighlight)
+    {
+        <AppNativeButton Type="button"
+                         Class="same-file-chip same-file-chip--action"
+                         AriaLabel="@($"{Label}. Highlight the matching episode.")"
+                         aria-pressed="@(IsHighlighting ? "true" : "false")"
+                         OnClick="Activate">
+            <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Link" Size="AppSize.Small" />
+            <span class="same-file-chip__text">@Label</span>
+        </AppNativeButton>
+    }
+    else
+    {
+        <span class="same-file-chip">
+            <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Link" Size="AppSize.Small" />
+            <span class="same-file-chip__text">@Label</span>
+        </span>
+    }
+}
+
+@code {
+    [Parameter, EditorRequired] public IReadOnlyList<SequenceCoverageLinkViewModel> Links { get; set; } = [];
+    [Parameter] public bool CanHighlight { get; set; }
+    [Parameter] public bool IsHighlighting { get; set; }
+    [Parameter] public EventCallback OnHighlight { get; set; }
+
+    private Task Activate(MouseEventArgs _) => OnHighlight.InvokeAsync();
+
+    private string Label
+    {
+        get
+        {
+            var numbers = Links
+                .Select(link => link.PositionLabel)
+                .Where(label => !string.IsNullOrWhiteSpace(label))
+                .ToList();
+            return numbers.Count switch
+            {
+                0 => "Same file as another episode",
+                1 => $"Same file as Episode {numbers[0]}",
+                _ => $"Same file as Episodes {string.Join(", ", numbers)}",
+            };
+        }
+    }
+}

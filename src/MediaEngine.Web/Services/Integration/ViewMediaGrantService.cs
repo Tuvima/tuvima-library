@@ -73,8 +73,8 @@ public sealed class ViewMediaGrantService
         Guid? scopeProfileId = null)
     {
         if (!Enum.IsDefined(scopeKind)
-            || (scopeKind == ViewScopeKind.Profile && !scopeProfileId.HasValue)
-            || (scopeKind != ViewScopeKind.Profile && scopeProfileId.HasValue))
+            || (scopeKind.CarriesProfileId() && !scopeProfileId.HasValue)
+            || (!scopeKind.CarriesProfileId() && scopeProfileId.HasValue))
         {
             throw new ArgumentException("The View scope and scope profile must describe one valid authorized scope.", nameof(scopeKind));
         }
@@ -137,8 +137,8 @@ public sealed class ViewMediaGrantService
         if (!Enum.IsDefined(resourceKind)
             || !Enum.IsDefined(resourceRole)
             || !Enum.IsDefined(scopeKind)
-            || (scopeKind == ViewScopeKind.Profile && !scopeProfileId.HasValue)
-            || (scopeKind != ViewScopeKind.Profile && scopeProfileId.HasValue))
+            || (scopeKind.CarriesProfileId() && !scopeProfileId.HasValue)
+            || (!scopeKind.CarriesProfileId() && scopeProfileId.HasValue))
         {
             return false;
         }

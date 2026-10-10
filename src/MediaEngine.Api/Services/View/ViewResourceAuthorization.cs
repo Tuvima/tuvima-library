@@ -39,7 +39,8 @@ public sealed record ViewResourceDescriptor(
     Guid? LibraryId,
     IReadOnlySet<Guid>? SharedWithProfileIds = null,
     IReadOnlySet<Guid>? ContributingProfileIds = null,
-    bool IsSharedLibraryAsset = false);
+    bool IsSharedLibraryAsset = false,
+    bool Hidden = false);
 
 public sealed record ViewResourceRequest(
     ViewScopeRequest Scope,
@@ -76,7 +77,8 @@ public sealed record ViewAccessDecision(
 public sealed class ViewResourceAuthorizationService(
     IViewScopeResolver scopeResolver,
     IViewResourceStore resourceStore,
-    IAuthorizationEvaluator evaluator) : IViewResourceAuthorizationService
+    IAuthorizationEvaluator evaluator,
+    IViewOtherPeopleAuditor? otherPeople = null) : IViewResourceAuthorizationService
 {
     public async Task<ViewAccessDecision> AuthorizeAsync(
         RequestAuthority caller,
@@ -101,6 +103,17 @@ public sealed class ViewResourceAuthorizationService(
         if (resolution is null)
         {
             return ViewAccessDecision.NotFound();
+        }
+
+        if (resolution.Scope.IsOtherHousehold)
+        {
+            // "Other people": a server administrator reads another household's photos, never changes them, and each
+            // new look is recorded for that household's owner. Without a way to record it, nothing is shown.
+            var blocked = await AuthorizeOtherPeopleAsync(caller, request, resolution.Scope, ct).ConfigureAwait(false);
+            if (blocked is not null)
+            {
+                return blocked;
+            }
         }
 
         if (request.Kind == ViewResourceKind.Search)
@@ -132,6 +145,12 @@ public sealed class ViewResourceAuthorizationService(
             caller.ActiveProfileId ?? Guid.Empty,
             ct).ConfigureAwait(false);
         if (resource is null || resource.Kind != request.Kind)
+        {
+            return ViewAccessDecision.NotFound(resolution.Scope);
+        }
+
+        // Hidden photos stay hidden from a server administrator browsing another household, even by direct link.
+        if (resolution.Scope.IsOtherHousehold && resource.Hidden)
         {
             return ViewAccessDecision.NotFound(resolution.Scope);
         }
@@ -177,6 +196,13 @@ public sealed class ViewResourceAuthorizationService(
             return ViewAccessDecision.NotFound(resolution.Scope);
         }
 
+        // Someone else's hidden photo stays hidden from the rest of the household, even by direct link.
+        if (resolution.Scope.Kind == ViewScopeKind.Profile && resource.Hidden
+            && resource.OwnerProfileId != caller.ActiveProfileId)
+        {
+            return ViewAccessDecision.NotFound(resolution.Scope);
+        }
+
         if (request.Action is ViewResourceAction.Contribute or ViewResourceAction.Manage)
         {
             var ownsResource = resource.OwnerProfileId == caller.ActiveProfileId;
@@ -186,9 +212,40 @@ public sealed class ViewResourceAuthorizationService(
                 : ViewAccessDecision.NotFound(resolution.Scope);
         }
 
-        return request.Kind != ViewResourceKind.Gallery
+        // A person reads (never edits) a household member's Galleries too; Galleries stay private to everyone
+        // outside the Personal Space's household because the scope itself is only resolved inside the household.
+        var householdGallery = caller.HasHumanContext
+            && resolution.Scope.Kind == ViewScopeKind.Profile
+            && resource.OwnerProfileId == resolution.Scope.ProfileId;
+        return request.Kind != ViewResourceKind.Gallery || householdGallery
             ? ViewAccessDecision.Allowed(resolution.Scope)
             : ViewAccessDecision.NotFound(resolution.Scope);
+    }
+
+    private async Task<ViewAccessDecision?> AuthorizeOtherPeopleAsync(
+        RequestAuthority caller, ViewResourceRequest request, ResolvedViewScope scope, CancellationToken ct)
+    {
+        var readOnlyKind = request.Kind is ViewResourceKind.Asset or ViewResourceKind.Thumbnail
+            or ViewResourceKind.Original or ViewResourceKind.Search or ViewResourceKind.Folder;
+        if (request.Action != ViewResourceAction.Read || !readOnlyKind)
+        {
+            return ViewAccessDecision.NotFound();
+        }
+
+        // A server administrator who has locked the administrator screens opens them again before browsing others.
+        var requirement = new AuthorizationRequirement(
+            AccountFeature: AccountFeatureId.View, RequiresHumanContext: true,
+            RequiresAdministrator: true, RequiresAdministratorSurfaceUnlock: true);
+        var context = new ResourceAuthorizationContext("view-other-people",
+            (scope.OtherViaProfileId ?? Guid.Empty).ToString("D"), OwnerProfileId: scope.ProfileId, IsPrivate: true);
+        if (otherPeople is null
+            || !(await evaluator.EvaluateAsync(caller, requirement, context, ct).ConfigureAwait(false)).IsAllowed)
+        {
+            return ViewAccessDecision.Forbidden();
+        }
+
+        await otherPeople.RecordOpenAsync(caller, scope, ct).ConfigureAwait(false);
+        return null;
     }
 
     /// <summary>
@@ -226,12 +283,13 @@ public sealed class ViewResourceAuthorizationService(
             ViewResourceKind.Upload => ApplicationPermissionIds.ViewUpload,
             ViewResourceKind.Gallery when request.Action != ViewResourceAction.Read => ApplicationPermissionIds.ViewGalleriesWrite,
             ViewResourceKind.Gallery => ApplicationPermissionIds.ViewGalleriesRead,
-            _ when requestedScope == ViewScopeKind.Shared => ApplicationPermissionIds.ViewSharedRead,
+            _ when requestedScope is ViewScopeKind.Shared or ViewScopeKind.OtherShared => ApplicationPermissionIds.ViewSharedRead,
             _ => ApplicationPermissionIds.ViewPersonalRead,
         };
 
-        if (request.Action != ViewResourceAction.Read && requestedScope == ViewScopeKind.Profile
-            && request.Kind != ViewResourceKind.Folder)
+        if (request.Action != ViewResourceAction.Read
+            && (requestedScope == ViewScopeKind.OtherShared
+                || requestedScope == ViewScopeKind.Profile && request.Kind != ViewResourceKind.Folder))
         {
             return false;
         }

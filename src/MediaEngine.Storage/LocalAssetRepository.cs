@@ -263,10 +263,8 @@ public sealed class LocalAssetRepository(IDatabaseConnection database) : ILocalA
         var libraryPredicate = libraryIds.Length == 0
             ? "0 = 1"
             : string.Join(" OR ", libraryIds.Select((_, index) => $"li.library_id = @LibraryId{index}"));
-        if (query.IncludeSharedLibraryAssets)
-        {
-            libraryPredicate = $"({libraryPredicate}) OR EXISTS (SELECT 1 FROM view_shared_assets vsa WHERE vsa.item_id = li.id)";
-        }
+        // The Shared scope reads only the libraries the resolver authorized (the caller's household's), never every
+        // household's shared assets.
 
         var smartRule = query.SmartRule is null
             ? new LocalAssetSmartRuleSql("1 = 1", new DynamicParameters())
@@ -446,10 +444,8 @@ public sealed class LocalAssetRepository(IDatabaseConnection database) : ILocalA
         var libraryPredicate = libraryIds.Length == 0
             ? "0 = 1"
             : string.Join(" OR ", libraryIds.Select((_, index) => $"li.library_id = @LibraryId{index}"));
-        if (query.IncludeSharedLibraryAssets)
-        {
-            libraryPredicate = $"({libraryPredicate}) OR EXISTS (SELECT 1 FROM view_shared_assets vsa WHERE vsa.item_id = li.id)";
-        }
+        // The Shared scope reads only the libraries the resolver authorized (the caller's household's), never every
+        // household's shared assets.
 
         var smartRule = query.SmartRule is null
             ? new LocalAssetSmartRuleSql("1 = 1", new DynamicParameters())
@@ -652,10 +648,10 @@ public sealed class LocalAssetRepository(IDatabaseConnection database) : ILocalA
             }
             else if (connection.ExecuteScalar<long>("""
                     SELECT COUNT(*) FROM view_shared_library
-                     WHERE singleton_key=1 AND library_id=@LibraryId;
+                     WHERE library_id=@LibraryId;
                     """, registration, transaction) == 0)
             {
-                throw new InvalidOperationException("A Shared item must use the server-owned Shared library.");
+                throw new InvalidOperationException("A Shared item must use a household's Shared library.");
             }
 
             var primary = registration.Files.SingleOrDefault(file =>

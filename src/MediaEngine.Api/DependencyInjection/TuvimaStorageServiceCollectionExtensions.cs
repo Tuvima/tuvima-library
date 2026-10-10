@@ -37,6 +37,7 @@ public static class TuvimaStorageServiceCollectionExtensions
         services.AddSingleton<IViewProfileRepository, ViewProfileRepository>();
         services.AddSingleton<IViewPersonalSpaceRepository, ViewPersonalSpaceRepository>();
         services.AddSingleton<IViewSharedLibraryRepository, ViewSharedLibraryRepository>();
+        services.AddSingleton<IProfilePersonalMediaRepository, ProfilePersonalMediaRepository>();
         services.AddSingleton<ViewStorageService>();
         services.AddSingleton<ViewSharedSourceService>();
         services.AddSingleton<IViewGalleryRepository, ViewGalleryRepository>();
@@ -49,6 +50,9 @@ public static class TuvimaStorageServiceCollectionExtensions
         services.AddSingleton<IViewScopeStore, ViewScopePersistenceService>();
         services.AddSingleton<IViewScopeResolver, ViewScopeResolver>();
         services.AddSingleton<IViewResourceStore, ViewResourcePersistenceService>();
+        services.AddSingleton<ViewOtherPeopleService>();
+        services.AddSingleton<IViewOtherPeopleAuditor>(sp => sp.GetRequiredService<ViewOtherPeopleService>());
+        services.AddSingleton<IViewOtherPeopleService>(sp => sp.GetRequiredService<ViewOtherPeopleService>());
         services.AddScoped<IViewResourceAuthorizationService, ViewResourceAuthorizationService>();
         services.AddSingleton<IViewAssetQueryBackend, ViewAssetQueryService>();
         services.AddSingleton<IViewSmartGalleryQueryService, ViewSmartGalleryQueryService>();
@@ -56,6 +60,7 @@ public static class TuvimaStorageServiceCollectionExtensions
         services.AddScoped<ViewDiscoveryService>();
         services.AddScoped<ViewFolderService>();
         services.AddSingleton<ViewSharedTransferService>();
+        services.AddSingleton<IProfilePhotoDisposer, ProfilePhotoDisposer>();
         services.AddSingleton<IViewSharedContributionQueue, ViewSharedContributionQueue>();
         services.AddScoped<ViewSharedContributionService>();
         services.AddHostedService<ViewSharedContributionHostedService>();
@@ -104,6 +109,7 @@ public static class TuvimaStorageServiceCollectionExtensions
         services.AddSingleton<AuthenticationPolicyMutationGate>();
         services.AddSingleton<ExternalIdentityTransactionService>();
         services.AddSingleton<IFirstPartyIdentityService, FirstPartyIdentityService>();
+        services.AddSingleton<IProfilePinVerifier>(sp => (FirstPartyIdentityService)sp.GetRequiredService<IFirstPartyIdentityService>());
         services.AddTuvimaSecurity();
         services.AddSingleton<SetupSessionService>();
         services.AddSingleton<SetupPreflightService>();
@@ -161,6 +167,7 @@ public static class TuvimaStorageServiceCollectionExtensions
         services.AddSingleton<ILibraryItemRepository, LibraryItemRepository>();
         services.AddSingleton<ISearchIndexRepository, SearchIndexRepository>();
         services.AddSingleton<IPlaybackSegmentRepository, PlaybackSegmentRepository>();
+        services.AddSingleton<IMediaAssetCoverageRepository, MediaAssetCoverageRepository>();
         services.AddSingleton<SearchService>();
         services.AddSingleton<ISearchService>(sp => sp.GetRequiredService<SearchService>());
         services.AddSingleton<RetailMatchPreviewService>();

@@ -16,7 +16,13 @@ public sealed record AccountAccessResponse(
     [property: JsonPropertyName("last_active_at")] DateTimeOffset? LastActiveAt,
     [property: JsonPropertyName("household_id")] Guid? HouseholdId = null,
     [property: JsonPropertyName("must_change_password")] bool MustChangePassword = false,
-    [property: JsonPropertyName("temporary_password_expires_at")] DateTimeOffset? TemporaryPasswordExpiresAt = null);
+    [property: JsonPropertyName("temporary_password_expires_at")] DateTimeOffset? TemporaryPasswordExpiresAt = null,
+    [property: JsonPropertyName("has_two_step")] bool HasTwoStep = false,
+    [property: JsonPropertyName("grants_inherit_from_account_id")] Guid? GrantsInheritFromAccountId = null,
+    [property: JsonPropertyName("household_admin")] bool HouseholdAdmin = false);
+
+public sealed record SetHouseholdAdminRequest(
+    [property: JsonPropertyName("household_admin")] bool HouseholdAdmin);
 
 public sealed record AccountFeatureGrantDto(
     [property: JsonPropertyName("feature")] string Feature,
@@ -39,7 +45,40 @@ public sealed record ManagedProfileResponse(
     [property: JsonPropertyName("avatar_color")] string AvatarColor,
     [property: JsonPropertyName("avatar_path")] string? AvatarPath,
     [property: JsonPropertyName("created_at")] DateTimeOffset CreatedAt,
-    [property: JsonPropertyName("household_id")] Guid? HouseholdId = null);
+    [property: JsonPropertyName("household_id")] Guid? HouseholdId = null,
+    [property: JsonPropertyName("is_restricted")] bool IsRestricted = false,
+    [property: JsonPropertyName("avatar_icon")] string? AvatarIcon = null,
+    [property: JsonPropertyName("content_limit")] string? ContentLimit = null,
+    [property: JsonPropertyName("content_limit_allow_unrated")] bool ContentLimitAllowUnrated = false);
+
+/// <summary>
+/// Adds a person to a household. A child person is a restricted profile; the PIN is optional.
+/// <c>content_limit</c> is Everything (<c>""</c>), <c>G</c>, <c>PG</c>, <c>PG-13</c> or <c>R</c>; left out, a child person starts on
+/// <c>PG</c> and anyone else on Everything.
+/// </summary>
+public sealed record AddHouseholdPersonRequest(
+    [property: JsonPropertyName("display_name")] string DisplayName,
+    [property: JsonPropertyName("avatar_color")] string? AvatarColor,
+    [property: JsonPropertyName("is_child")] bool IsChild,
+    [property: JsonPropertyName("pin")] string? Pin,
+    [property: JsonPropertyName("avatar_icon")] string? AvatarIcon = null,
+    [property: JsonPropertyName("content_limit")] string? ContentLimit = null,
+    [property: JsonPropertyName("content_limit_allow_unrated")] bool ContentLimitAllowUnrated = false);
+
+/// <summary>
+/// Gives a person their own sign-in. Send <c>temporary_password</c> to choose their first password; leave it out to
+/// get an invitation for them to choose their own.
+/// </summary>
+public sealed record GiveOwnSignInRequest(
+    [property: JsonPropertyName("email")] string Email,
+    [property: JsonPropertyName("temporary_password")] string? TemporaryPassword = null);
+
+/// <summary>The person's new own sign-in, with its invitation when one was chosen.</summary>
+public sealed record GiveOwnSignInResponse(
+    [property: JsonPropertyName("account_id")] Guid AccountId,
+    [property: JsonPropertyName("email")] string? Email,
+    [property: JsonPropertyName("invitation")] AccountInvitationResponse? Invitation,
+    [property: JsonPropertyName("temporary_password_expires_at")] DateTimeOffset? TemporaryPasswordExpiresAt);
 
 public sealed record CreateManagedProfileRequest(
     [property: JsonPropertyName("account_id")] Guid AccountId,
@@ -47,9 +86,16 @@ public sealed record CreateManagedProfileRequest(
     [property: JsonPropertyName("avatar_color")] string? AvatarColor,
     [property: JsonPropertyName("is_default")] bool IsDefault);
 
+/// <summary>
+/// Changes a person's name and look. <c>content_limit</c> left out keeps the current limit; <c>""</c> sets Everything; otherwise
+/// <c>G</c>, <c>PG</c>, <c>PG-13</c> or <c>R</c>. <c>content_limit_allow_unrated</c> left out keeps the current choice.
+/// </summary>
 public sealed record UpdateManagedProfileRequest(
     [property: JsonPropertyName("display_name")] string DisplayName,
-    [property: JsonPropertyName("avatar_color")] string? AvatarColor);
+    [property: JsonPropertyName("avatar_color")] string? AvatarColor,
+    [property: JsonPropertyName("avatar_icon")] string? AvatarIcon = null,
+    [property: JsonPropertyName("content_limit")] string? ContentLimit = null,
+    [property: JsonPropertyName("content_limit_allow_unrated")] bool? ContentLimitAllowUnrated = null);
 
 public sealed record AccountProfileGrantDto(
     [property: JsonPropertyName("account_id")] Guid AccountId,
@@ -133,7 +179,8 @@ public sealed record AccountSecurityCapabilitiesResponse(
     [property: JsonPropertyName("can_register_passkey")] bool CanRegisterPasskey,
     [property: JsonPropertyName("passkey_ready")] bool PasskeyReady,
     [property: JsonPropertyName("external_sign_in_available")] bool ExternalSignInAvailable,
-    [property: JsonPropertyName("available_external_providers")] IReadOnlyList<AccountExternalProviderResponse> AvailableExternalProviders);
+    [property: JsonPropertyName("available_external_providers")] IReadOnlyList<AccountExternalProviderResponse> AvailableExternalProviders,
+    [property: JsonPropertyName("has_two_step")] bool HasTwoStep = false);
 
 public sealed record AccountExternalProviderResponse(
     [property: JsonPropertyName("id")] string Id,

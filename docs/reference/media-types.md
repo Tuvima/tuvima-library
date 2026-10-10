@@ -191,6 +191,7 @@ Same as Movies. Classified as TV via filename pattern matching.
 | `series_title` | 0.70 | Parsed from filename before season/episode marker |
 | `season_number` | 0.95 | Parsed from `SxxExx`, `Season xx`, or `xx x xx` patterns |
 | `episode_number` | 0.95 | Parsed from filename |
+| `episode_end` | 0.55 | Last episode of a multi-episode file (`S01E01E02`, `S01E01-E02`, `S01E01-02`, `1x01-02`). Only unbroken runs of up to 6 episodes; emitted only when the file covers more than one episode |
 | `episode_title` | 0.70 | Parsed from filename after episode marker (when present) |
 | `container` | 1.0 | |
 | `video_width`, `video_height` | 1.0 | |
@@ -210,6 +211,8 @@ Example:
 ```
 TV/Breaking Bad (Q1079331)/Season 01/S01E01 - Pilot.mkv
 ```
+
+A file that covers several episodes (`S01E01E02`, `S01E01-E02`, `1x01-02`) uses the `{Episode}` token as `01-e02`. With the template above it is named `S01E01-e02 - Pilot.mkv`; the S and E letters follow whatever template you use. Single-episode files are named exactly as before. The file is never split or re-encoded, and the episodes it covers are recorded separately (see `media_asset_coverage`).
 
 ### Providers
 

@@ -92,10 +92,6 @@
                                     <dt>FFmpeg</dt>
                                     <dd>@ToolStatus(_diagnostics.FFmpegAvailable)</dd>
                                 </div>
-                                <div>
-                                    <dt>MediaInfo</dt>
-                                    <dd>@ToolStatus(_diagnostics.MediaInfoAvailable)</dd>
-                                </div>
                             </dl>
                         }
                     </SettingsSectionPanel>
@@ -194,7 +190,7 @@
     }
 
     private bool DeliveryChecksPassed =>
-        _diagnostics is { FFmpegAvailable: true, MediaInfoAvailable: true }
+        _diagnostics is { FFmpegAvailable: true }
         && _diagnostics.Warnings.Count == 0;
 
     private string DeliveryDetail => DeliveryChecksPassed

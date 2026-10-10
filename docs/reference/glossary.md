@@ -41,6 +41,10 @@ A single metadata value from a specific source with confidence and provenance. C
 
 A grouping of media with explicit purpose and access. Automatic Collections connect trusted broader relationships; custom collections may belong to a profile or be published by an administrator. A Collection should not duplicate a single lane-level shelf. For example, a book series belongs in Read and in the cross-lane Shelves index; a wider world that connects novels and films can appear in Automatic.
 
+### Combined file
+
+One video file that holds several episodes of a show, such as `Show S01E01E02.mkv`. It stays one file: it is never split, and playing, resuming and watching it act on the file. Its covered episodes are recorded separately, and the organiser names it with the episode run (for example `s01e01-e02`).
+
 ## D
 
 ### Dashboard
@@ -110,6 +114,12 @@ The resolved category for a file: Books, Audiobooks, Movies, TV, Music, or Comic
 Artwork copied into Tuvima Library's managed `.data/assets` store and served back
 through Engine media URLs. Provider image URLs are source inputs, not stable UI
 display URLs.
+
+## O
+
+### Own sign-in
+
+An email sign-in that belongs to one person in a household and opens straight to them, without the profile picker. The person stays in the household. An own sign-in is never an administrator, and it follows the library and lane access of the household's main sign-in, so later changes to the household reach the person. An administrator gives it from **Settings → My household** (or, for a server administrator, **Users & Access → Households**) and can remove it at any time; removing it keeps the person and everything they have saved.
 
 ## P
 
@@ -216,9 +226,17 @@ The single HTTPS address people use to reach this server from outside the home, 
 
 The one personal-media space owned by an enabled profile. Multiple folder or device sources can feed it. View provides its Photos, Folders, Galleries, People, and Places experiences.
 
+### Household photo space
+
+Everyone in a household can open (read only) each other's Personal Space and send photos from it to the household's Shared Library, listed under **Household** in the View scope picker. Other households' spaces are invisible, including counts, thumbnails, search results, map pins and timeline.
+
 ### Shared Library
 
-Separate household-owned View storage containing accepted contributions. Shared access does not grant access to every profile's Personal Space.
+Separate household-owned View storage containing accepted contributions. Each household has its own, and people only ever see their own household's. Shared access does not grant access to every profile's Personal Space. Household administrators review what people send to it; there is no separate curator role.
+
+### Household administrator
+
+The person who looks after one household: adds and removes people, gives people their own sign-ins, sets PINs, and hands out libraries and features the household already has. They work from **Settings → My household** and never reach another household or the server's settings, which stay with the **server administrator**.
 
 ### Account
 

@@ -3,8 +3,6 @@
   <PropertyGroup>
     <IsTestProject>true</IsTestProject>
     <IsPackable>false</IsPackable>
-    <!-- The API dependency already accepts MediaInfo.Core.Native's distro RID catalog. -->
-    <NoWarn>$(NoWarn);NETSDK1206</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>

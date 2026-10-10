@@ -421,8 +421,18 @@ public sealed class SequenceGroupViewModel
     public IReadOnlyList<SequenceItemViewModel> Items { get; init; } = [];
 }
 
+/// <summary>Another episode that lives in the same physical file as a sequence item.</summary>
+public sealed class SequenceCoverageLinkViewModel
+{
+    public string Id { get; init; } = string.Empty;
+    public string? PositionLabel { get; init; }
+    public string? Title { get; init; }
+    public string? Route { get; init; }
+}
+
 public sealed class SequenceItemViewModel
 {
+    public IReadOnlyList<SequenceCoverageLinkViewModel> CoveredWith { get; init; } = [];
     public string? EpisodeStillUrl { get; init; }
     public int? EpisodeStillWidthPx { get; init; }
     public int? EpisodeStillHeightPx { get; init; }

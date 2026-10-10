@@ -79,6 +79,12 @@ public static class AuthenticationEndpoints
             var result = await identity.AuthenticatePasswordAsync(request.Email ?? string.Empty, request.Password ?? string.Empty,
                 request.DeviceId, request.DeviceName, request.Client, ct, ClientIngress.Parse(request.OriginalClientIngress)).ConfigureAwait(false);
 
+            // A right password for an account with two-step codes on is only the first step.
+            if (result.TwoStepRequired)
+            {
+                return Results.Accepted(value: new TwoStepRequiredResponse(true, result.TwoStepToken!));
+            }
+
             return result.Succeeded && result.IssuedSession is not null
                 ? Results.Ok(await ToResponseAsync(result.IssuedSession, projector, ct))
                 : ApiErrors.Problem(
@@ -87,10 +93,34 @@ public static class AuthenticationEndpoints
                     result.LockedOut ? "The credential is temporarily locked." : result.Error ?? "Invalid credentials.");
         })
         .Produces<AuthSessionResponse>()
+        .Produces<TwoStepRequiredResponse>(StatusCodes.Status202Accepted)
         .AdmitClient<LocalLoginRequest>(
             (services, request) => IsLoginPermittedFor(services.GetRequiredService<IConfigurationLoader>(), request),
             () => ApiErrors.Problem(StatusCodes.Status401Unauthorized,
                 "Authentication failed.", "This sign-in method is unavailable for this connection."))
+        .RequireRateLimiting("authentication")
+        .RequireAuthorization(AuthPolicies.DashboardService);
+
+        // The second step of a password sign-in for an account with two-step codes on: the pending token from /auth/login
+        // plus a code from the authenticator app (or a recovery code). The token works once, for five minutes, and only
+        // from the kind of connection (home or outside) that entered the password.
+        group.MapPost("/two-step/verify", async (CompleteTwoStepSignInRequest request, IFirstPartyIdentityService identity,
+            DashboardAuthorityProjector projector, CancellationToken ct) =>
+        {
+            var result = await identity.CompleteTwoStepSignInAsync(request.PendingToken, request.Code, ct,
+                ClientIngress.Parse(request.OriginalClientIngress)).ConfigureAwait(false);
+
+            return result.Succeeded && result.IssuedSession is not null
+                ? Results.Ok(await ToResponseAsync(result.IssuedSession, projector, ct))
+                : ApiErrors.Problem(
+                    StatusCodes.Status401Unauthorized,
+                    "Authentication failed.",
+                    result.LockedOut ? "The credential is temporarily locked." : result.Error ?? "Invalid code.");
+        })
+        .WithName("CompleteTwoStepSignIn")
+        .Produces<AuthSessionResponse>()
+        .ProducesProblem(StatusCodes.Status401Unauthorized)
+        .AdmitClient<CompleteTwoStepSignInRequest>(IsPasswordSignInAdmitted, () => Results.Unauthorized())
         .RequireRateLimiting("authentication")
         .RequireAuthorization(AuthPolicies.DashboardService);
 
@@ -393,6 +423,62 @@ public static class AuthenticationEndpoints
             catch (UnauthorizedAccessException) { return Results.Unauthorized(); }
         }).Produces<RecoveryCodesResponse>().RequireRateLimiting("authentication").RequireAuthorization(AuthPolicies.HumanSelfService);
 
+        // Optional two-step codes from a free authenticator app. All three need a recent sign-in ("confirm it's you").
+        group.MapPost("/two-step/setup", async (ClaimsPrincipal user, IFirstPartyIdentityService identity,
+            [FromServices] RecentSignInGuard recentSignIn, CancellationToken ct) =>
+        {
+            if (await recentSignIn.RefuseIfStaleAsync(user, ct).ConfigureAwait(false) is { } stale)
+            {
+                return stale;
+            }
+
+            try
+            {
+                var setup = await identity.BeginTwoStepSetupAsync(RequiredGuidClaim(user, TuvimaClaimTypes.AccountId), ct).ConfigureAwait(false);
+                return Results.Ok(new TwoStepSetupResponse(setup.Secret, setup.OtpAuthUri));
+            }
+            catch (InvalidOperationException ex) { return ApiErrors.Conflict(ex.Message); }
+            catch (UnauthorizedAccessException) { return Results.Unauthorized(); }
+        }).WithName("BeginTwoStepSetup").Produces<TwoStepSetupResponse>().ProducesProblem(StatusCodes.Status409Conflict)
+          .RequireRateLimiting("authentication").RequireAuthorization(AuthPolicies.HumanSelfService);
+
+        group.MapPost("/two-step/enable", async (EnableTwoStepRequest request, ClaimsPrincipal user, IFirstPartyIdentityService identity,
+            [FromServices] RecentSignInGuard recentSignIn, CancellationToken ct) =>
+        {
+            if (await recentSignIn.RefuseIfStaleAsync(user, ct).ConfigureAwait(false) is { } stale)
+            {
+                return stale;
+            }
+
+            try
+            {
+                var codes = await identity.EnableTwoStepAsync(RequiredGuidClaim(user, TuvimaClaimTypes.AccountId), request.Code, ct).ConfigureAwait(false);
+                return Results.Ok(new RecoveryCodesResponse(codes));
+            }
+            catch (InvalidOperationException ex) { return ApiErrors.Conflict(ex.Message); }
+            catch (UnauthorizedAccessException) { return Results.Unauthorized(); }
+        }).WithName("EnableTwoStep").Produces<RecoveryCodesResponse>().ProducesProblem(StatusCodes.Status409Conflict)
+          .RequireRateLimiting("authentication").RequireAuthorization(AuthPolicies.HumanSelfService);
+
+        group.MapPost("/two-step/disable", async (DisableTwoStepRequest request, ClaimsPrincipal user, IFirstPartyIdentityService identity,
+            [FromServices] RecentSignInGuard recentSignIn, CancellationToken ct) =>
+        {
+            if (await recentSignIn.RefuseIfStaleAsync(user, ct).ConfigureAwait(false) is { } stale)
+            {
+                return stale;
+            }
+
+            try
+            {
+                return await identity.DisableTwoStepAsync(
+                    RequiredGuidClaim(user, TuvimaClaimTypes.AccountId), RequiredGuidClaim(user, TuvimaClaimTypes.SessionId), request.Code, ct).ConfigureAwait(false)
+                    ? Results.NoContent()
+                    : Results.Unauthorized();
+            }
+            catch (UnauthorizedAccessException) { return Results.Unauthorized(); }
+        }).WithName("DisableTwoStep").Produces(StatusCodes.Status204NoContent)
+          .RequireRateLimiting("authentication").RequireAuthorization(AuthPolicies.HumanSelfService);
+
         group.MapPost("/password/recover", async (RecoverPasswordRequest request,
             IConfigurationLoader configuration, IFirstPartyIdentityService identity, CancellationToken ct) =>
         {
@@ -574,7 +660,9 @@ public static class AuthenticationEndpoints
             };
         }).WithName("DeletePasskey").Produces(StatusCodes.Status204NoContent).RequireAuthorization(AuthPolicies.HumanSelfService);
 
-        group.MapPut("/profiles/{profileId:guid}/pin", async (Guid profileId, SetProfilePinRequest request, ClaimsPrincipal user, IFirstPartyIdentityService identity,
+        // A server administrator can set any person's PIN; a household administrator only for people in their own household. People only, never applications.
+        group.MapPut("/profiles/{profileId:guid}/pin", async (Guid profileId, SetProfilePinRequest request, HttpContext http, ClaimsPrincipal user,
+            [FromServices] IRequestAuthorityResolver authorities, [FromServices] IAccountAccessMutationService mutations,
             [FromServices] RecentSignInGuard recentSignIn, CancellationToken ct) =>
         {
             if (await recentSignIn.RefuseIfStaleAsync(user, ct).ConfigureAwait(false) is { } stale)
@@ -582,10 +670,16 @@ public static class AuthenticationEndpoints
                 return stale;
             }
 
-            try { await identity.SetProfilePinAsync(profileId, request.Pin, ct).ConfigureAwait(false); return Results.NoContent(); }
+            try
+            {
+                await mutations.SetProfilePinAsync(await authorities.ResolveAsync(http, ct).ConfigureAwait(false), profileId, request.Pin, ct).ConfigureAwait(false);
+                return Results.NoContent();
+            }
             catch (ArgumentException ex) { return ApiErrors.BadRequest(ex.Message); }
             catch (KeyNotFoundException ex) { return ApiErrors.NotFound(ex.Message); }
-        }).WithName("SetProfilePin").Produces(StatusCodes.Status204NoContent).RequireAuthorization(AuthPolicies.Administrator);
+            catch (UnauthorizedAccessException ex) { return ApiErrors.Forbidden(ex.Message); }
+        }).WithName("SetProfilePin").Produces(StatusCodes.Status204NoContent)
+          .RequireEffectiveAdministratorOrHouseholdAdministrator();
 
         group.MapPost("/session/switch-profile", async (SwitchProfileRequest request, HttpRequest httpRequest, IFirstPartyIdentityService identity, DashboardAuthorityProjector projector, CancellationToken ct) =>
         {
@@ -603,6 +697,41 @@ public static class AuthenticationEndpoints
           .ProducesProblem(StatusCodes.Status428PreconditionRequired)
           .RequireRateLimiting("authentication-session").RequireAuthorization(AuthPolicies.HumanSelfService);
 
+        // "Always open as": the profile this browser or device starts in after sign-in. Everything is scoped to the
+        // caller's own account and session, so a caller can never read or change another account's or device's choice.
+        group.MapGet("/device-profile", async (ClaimsPrincipal user, [FromServices] IFirstPartyIdentityService identity, CancellationToken ct) =>
+        {
+            try
+            {
+                var preferred = await identity.GetDeviceProfilePreferenceAsync(
+                    RequiredGuidClaim(user, TuvimaClaimTypes.AccountId), RequiredGuidClaim(user, TuvimaClaimTypes.SessionId), ct).ConfigureAwait(false);
+                return Results.Ok(new DeviceProfilePreferenceResponse(preferred));
+            }
+            catch (UnauthorizedAccessException) { return Results.Unauthorized(); }
+        }).WithName("GetDeviceProfilePreference").Produces<DeviceProfilePreferenceResponse>().RequireAuthorization(AuthPolicies.HumanSelfService);
+
+        group.MapPut("/device-profile", async (SetDeviceProfilePreferenceRequest request, ClaimsPrincipal user, [FromServices] IFirstPartyIdentityService identity, CancellationToken ct) =>
+        {
+            try
+            {
+                await identity.SetDeviceProfilePreferenceAsync(
+                    RequiredGuidClaim(user, TuvimaClaimTypes.AccountId), RequiredGuidClaim(user, TuvimaClaimTypes.SessionId), request.ProfileId, ct).ConfigureAwait(false);
+                return Results.NoContent();
+            }
+            catch (UnauthorizedAccessException) { return Results.Forbid(); }
+        }).WithName("SetDeviceProfilePreference").Produces(StatusCodes.Status204NoContent).RequireAuthorization(AuthPolicies.HumanSelfService);
+
+        group.MapDelete("/device-profile", async (ClaimsPrincipal user, [FromServices] IFirstPartyIdentityService identity, CancellationToken ct) =>
+        {
+            try
+            {
+                await identity.ClearDeviceProfilePreferenceAsync(
+                    RequiredGuidClaim(user, TuvimaClaimTypes.AccountId), RequiredGuidClaim(user, TuvimaClaimTypes.SessionId), ct).ConfigureAwait(false);
+                return Results.NoContent();
+            }
+            catch (UnauthorizedAccessException) { return Results.Unauthorized(); }
+        }).WithName("ClearDeviceProfilePreference").Produces(StatusCodes.Status204NoContent).RequireAuthorization(AuthPolicies.HumanSelfService);
+
         // "Confirm it's you": a password or passkey proves the person is still there, which makes the session recent
         // for sensitive actions (change password, passkeys, linked accounts, recovery codes, signing out other devices).
         group.MapPost("/confirm", async (ConfirmItsYouRequest request, ClaimsPrincipal user, HttpContext context,
@@ -613,7 +742,7 @@ public static class AuthenticationEndpoints
             var sessionId = RequiredGuidClaim(user, TuvimaClaimTypes.SessionId);
             if (!string.IsNullOrEmpty(request.Password))
             {
-                return await identity.ConfirmWithPasswordAsync(accountId, sessionId, request.Password, ct).ConfigureAwait(false)
+                return await identity.ConfirmWithPasswordAsync(accountId, sessionId, request.Password, ct, request.TwoStepCode).ConfigureAwait(false)
                     ? Results.NoContent()
                     : Results.Unauthorized();
             }
@@ -807,6 +936,8 @@ public static class AuthenticationEndpoints
         AuthenticationMethod = issued.Session.AuthenticationMethod,
         ExpiresAt = issued.Session.ExpiresAt,
         RecoveryCodes = issued.RecoveryCodes,
+        ChooseProfile = issued.ChooseProfile,
+        ProfilePending = issued.Session.ProfilePending,
         PasswordChangeRequired = issued.Account.MustChangePassword,
     };
 
@@ -819,6 +950,7 @@ public static class AuthenticationEndpoints
         Authority = await projector.ProjectAsync(result.Account.Id, result.ActiveProfile.Id, result.Session.Id, ct),
         AuthenticationMethod = result.Session.AuthenticationMethod,
         ExpiresAt = result.Session.ExpiresAt,
+        ProfilePending = result.Session.ProfilePending,
         PasswordChangeRequired = result.Account.MustChangePassword,
     };
 
@@ -879,6 +1011,9 @@ public static class AuthenticationEndpoints
         || request.Headers.ContainsKey("Forwarded");
 
     private static bool IsPasswordSignInAdmitted(IServiceProvider services, PreviewAccountInvitationRequest request) =>
+        IsPasswordSignInAdmitted(services, request.OriginalClientIngress, request.OriginalClientIsHttps);
+
+    private static bool IsPasswordSignInAdmitted(IServiceProvider services, CompleteTwoStepSignInRequest request) =>
         IsPasswordSignInAdmitted(services, request.OriginalClientIngress, request.OriginalClientIsHttps);
 
     private static bool IsPasswordSignInAdmitted(IServiceProvider services, ChangeTemporaryPasswordRequest request) =>

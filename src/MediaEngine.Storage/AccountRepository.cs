@@ -6,6 +6,7 @@ using MediaEngine.Domain.Authorization;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Entities;
 using MediaEngine.Storage.Contracts;
+using Microsoft.Data.Sqlite;
 
 namespace MediaEngine.Storage;
 
@@ -158,6 +159,8 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
                is_administrator AS IsAdministrator, authorization_version AS AuthorizationVersion,
                created_at AS CreatedAt, updated_at AS UpdatedAt,
                household_id AS HouseholdId,
+               household_admin AS HouseholdAdmin,
+               grants_inherit_from_account_id AS GrantsInheritFromAccountId,
                this_computer_only AS ThisComputerOnly,
                must_change_password AS MustChangePassword,
                temporary_password_expires_at AS TemporaryPasswordExpiresAt
@@ -175,6 +178,8 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
         CreatedAt = account.CreatedAt.ToString("O"),
         UpdatedAt = account.UpdatedAt.ToString("O"),
         account.HouseholdId,
+        HouseholdAdmin = account.HouseholdAdmin ? 1 : 0,
+        account.GrantsInheritFromAccountId,
         ThisComputerOnly = account.IsThisComputerOnly ? 1 : 0,
         MustChangePassword = account.MustChangePassword ? 1 : 0,
         TemporaryPasswordExpiresAt = account.TemporaryPasswordExpiresAt?.ToString("O"),
@@ -186,6 +191,12 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
         if (row.ThisComputerOnly)
         {
             account.MarkThisComputerOnly();
+        }
+
+        // A person's own sign-in never administers a household, whatever a stray row says.
+        if (row.HouseholdAdmin && row.GrantsInheritFromAccountId is null)
+        {
+            account.MakeHouseholdAdmin();
         }
 
         return account;
@@ -202,6 +213,7 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
         CreatedAt = DateTimeOffset.Parse(row.CreatedAt),
         UpdatedAt = DateTimeOffset.Parse(row.UpdatedAt),
         HouseholdId = row.HouseholdId,
+        GrantsInheritFromAccountId = row.GrantsInheritFromAccountId,
         MustChangePassword = row.MustChangePassword,
         TemporaryPasswordExpiresAt = string.IsNullOrWhiteSpace(row.TemporaryPasswordExpiresAt)
             ? null
@@ -219,6 +231,8 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
         public string CreatedAt { get; set; } = string.Empty;
         public string UpdatedAt { get; set; } = string.Empty;
         public Guid? HouseholdId { get; set; }
+        public bool HouseholdAdmin { get; set; }
+        public Guid? GrantsInheritFromAccountId { get; set; }
         public bool ThisComputerOnly { get; set; }
         public bool MustChangePassword { get; set; }
         public string? TemporaryPasswordExpiresAt { get; set; }
@@ -264,6 +278,24 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
                 throw new InvalidOperationException("The final effective administrator account cannot be deleted.");
             }
 
+            // People whose access followed this account follow the household's next main sign-in instead.
+            connection.Execute("""
+                UPDATE accounts SET grants_inherit_from_account_id=(
+                    SELECT other.id FROM accounts other
+                    WHERE other.household_id=accounts.household_id AND other.id<>@accountId
+                      AND other.grants_inherit_from_account_id IS NULL AND other.is_enabled=1
+                    ORDER BY other.created_at LIMIT 1)
+                WHERE grants_inherit_from_account_id=@accountId;
+                """, new { accountId }, transaction);
+            // A household whose main sign-in goes away hands "primary" to its next main sign-in (or none).
+            connection.Execute("""
+                UPDATE households SET primary_account_id=(
+                    SELECT other.id FROM accounts other
+                    WHERE other.household_id=households.id AND other.id<>@accountId
+                      AND other.grants_inherit_from_account_id IS NULL AND other.is_enabled=1
+                    ORDER BY other.created_at LIMIT 1)
+                WHERE primary_account_id=@accountId;
+                """, new { accountId }, transaction);
             connection.Execute("DELETE FROM accounts WHERE id=@accountId;", new { accountId }, transaction);
         }, ct);
 
@@ -276,13 +308,13 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
     public Task<IReadOnlySet<AccountFeatureId>> GetFeatureGrantsAsync(Guid accountId, CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested(); using var conn = db.CreateConnection();
-        return Task.FromResult<IReadOnlySet<AccountFeatureId>>(conn.Query<string>("SELECT feature_id FROM account_feature_grants WHERE account_id=@accountId;", new { accountId }).Select(x => new AccountFeatureId(x)).ToFrozenSet());
+        return Task.FromResult<IReadOnlySet<AccountFeatureId>>(conn.Query<string>("SELECT feature_id FROM account_feature_grants WHERE account_id=COALESCE((SELECT grants_inherit_from_account_id FROM accounts WHERE id=@accountId),@accountId);", new { accountId }).Select(x => new AccountFeatureId(x)).ToFrozenSet());
     }
 
     public Task<IReadOnlySet<Guid>> GetLibraryGrantsAsync(Guid accountId, CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested(); using var conn = db.CreateConnection();
-        return Task.FromResult<IReadOnlySet<Guid>>(conn.Query<Guid>("SELECT library_id FROM account_library_grants WHERE account_id=@accountId;", new { accountId }).ToFrozenSet());
+        return Task.FromResult<IReadOnlySet<Guid>>(conn.Query<Guid>("SELECT library_id FROM account_library_grants WHERE account_id=COALESCE((SELECT grants_inherit_from_account_id FROM accounts WHERE id=@accountId),@accountId);", new { accountId }).ToFrozenSet());
     }
 
     public async Task<bool> HasFeatureGrantAsync(Guid accountId, AccountFeatureId feature, CancellationToken ct = default) =>
@@ -331,14 +363,17 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
                 newProfile.HouseholdId = account.HouseholdId;
                 connection.Execute("""
                     INSERT INTO profiles
-                        (id,display_name,avatar_color,avatar_image_path,role,created_at,navigation_config,household_id)
-                    VALUES(@Id,@DisplayName,@AvatarColor,@AvatarImagePath,@Role,@CreatedAt,@NavigationConfig,@HouseholdId);
+                        (id,display_name,avatar_color,avatar_image_path,avatar_icon,content_limit,content_limit_allow_unrated,role,created_at,navigation_config,household_id)
+                    VALUES(@Id,@DisplayName,@AvatarColor,@AvatarImagePath,@AvatarIcon,@ContentLimit,@ContentLimitAllowUnrated,@Role,@CreatedAt,@NavigationConfig,@HouseholdId);
                     """, new
                 {
                     newProfile.Id,
                     newProfile.DisplayName,
                     newProfile.AvatarColor,
                     newProfile.AvatarImagePath,
+                    newProfile.AvatarIcon,
+                    newProfile.ContentLimit,
+                    newProfile.ContentLimitAllowUnrated,
                     Role = newProfile.Role.ToString(),
                     CreatedAt = Iso(newProfile.CreatedAt),
                     newProfile.NavigationConfig,
@@ -353,6 +388,7 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
             InsertAccount(connection, transaction, account);
             InsertGrant(connection, transaction, initialGrant);
             ReplaceAccess(connection, transaction, account.Id, features, libraries, account.UpdatedAt);
+            EnsureHouseholdPrimary(connection, transaction, account.Id);
         }, ct);
 
     public Task CreateInvitedAccountAsync(
@@ -395,7 +431,7 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
 
             account.HouseholdId ??= profileHouseholds.Count == 1
                 ? profileHouseholds[0]
-                : CreateHousehold(connection, transaction, newProfile?.DisplayName ?? account.Email, account.CreatedAt);
+                : CreateOrAdoptHousehold(connection, transaction, newProfile?.DisplayName ?? account.Email, account);
             if (newProfile is not null)
             {
                 InsertProfileRow(connection, transaction, newProfile, account.HouseholdId.Value);
@@ -419,6 +455,8 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
                 CreatedAt = Iso(invitation.CreatedAt),
                 ExpiresAt = Iso(invitation.ExpiresAt),
             }, transaction);
+            // Someone invited from outside starts a household of their own and looks after it.
+            EnsureHouseholdPrimary(connection, transaction, account.Id);
         }, ct);
 
     public Task CreateManagedProfileAsync(
@@ -468,12 +506,44 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
             """, new { accountId = targetGrant.AccountId, now = Iso(profile.CreatedAt) }, transaction);
     }, ct);
 
+    public Task CreateHouseholdPersonAsync(
+        Profile profile,
+        Guid householdId,
+        IReadOnlyList<AccountProfileGrant> grants,
+        CancellationToken ct = default) => db.ExecuteWriteAsync((connection, transaction, token) =>
+    {
+        token.ThrowIfCancellationRequested();
+        if (connection.ExecuteScalar<int>("SELECT COUNT(*) FROM households WHERE id=@householdId;",
+                new { householdId }, transaction) == 0)
+        {
+            throw new KeyNotFoundException("Household not found.");
+        }
+
+        if (grants.Any(grant => grant.ProfileId != profile.Id || grant.IsDefault || !grant.IsEnabled || grant.AdminEnabled
+            || HouseholdOfAccount(connection, transaction, grant.AccountId) != householdId))
+        {
+            throw new InvalidOperationException("A new person can only be opened by sign-ins in their own household.");
+        }
+
+        RequireRoom(connection, transaction, householdId);
+        InsertProfileRow(connection, transaction, profile, householdId);
+        foreach (var grant in grants)
+        {
+            InsertGrantRow(connection, transaction, grant);
+            connection.Execute("""
+                UPDATE accounts SET authorization_version=authorization_version+1,updated_at=@now
+                WHERE id=@accountId;
+                """, new { accountId = grant.AccountId, now = Iso(profile.CreatedAt) }, transaction);
+        }
+    }, ct);
+
     public Task UpdateManagedProfileAsync(Profile profile, CancellationToken ct = default) =>
         db.ExecuteWriteAsync((connection, transaction, token) =>
         {
             token.ThrowIfCancellationRequested();
             var changed = connection.Execute("""
-                UPDATE profiles SET display_name=@DisplayName,avatar_color=@AvatarColor
+                UPDATE profiles SET display_name=@DisplayName,avatar_color=@AvatarColor,avatar_icon=@AvatarIcon,
+                    content_limit=@ContentLimit,content_limit_allow_unrated=@ContentLimitAllowUnrated
                 WHERE id=@Id;
                 """, profile, transaction);
             if (changed != 1)
@@ -482,59 +552,73 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
             }
         }, ct);
 
+    public Task ValidateManagedProfileRemovalAsync(Guid profileId, CancellationToken ct = default) =>
+        db.ExecuteReadAsync((connection, transaction, token) =>
+        {
+            token.ThrowIfCancellationRequested();
+            RequireProfileRemovable(connection, transaction, profileId);
+            return 0;
+        }, ct);
+
     public Task DeleteManagedProfileAsync(Guid profileId, CancellationToken ct = default) =>
         db.ExecuteWriteAsync((connection, transaction, token) =>
         {
             token.ThrowIfCancellationRequested();
-            if (profileId == Profile.SeedProfileId)
-            {
-                throw new InvalidOperationException("The Owner profile cannot be deleted.");
-            }
-
-            if (connection.ExecuteScalar<int>("SELECT COUNT(*) FROM profiles WHERE id=@profileId;",
-                    new { profileId }, transaction) == 0)
-            {
-                throw new KeyNotFoundException("Profile not found.");
-            }
-
-            if (connection.ExecuteScalar<int>("""
-                    SELECT COUNT(*) FROM accounts a
-                    JOIN account_profile_grants target ON target.account_id=a.id
-                    WHERE target.profile_id=@profileId AND target.is_enabled=1 AND a.is_enabled=1
-                      AND (SELECT COUNT(*) FROM account_profile_grants other
-                           WHERE other.account_id=a.id AND other.is_enabled=1)=1;
-                    """, new { profileId }, transaction) > 0)
-            {
-                throw new InvalidOperationException("Move accounts to another profile before deleting this profile.");
-            }
-
-            var removesAdministrator = connection.ExecuteScalar<int>("""
-                SELECT COUNT(*) FROM account_profile_grants g JOIN accounts a ON a.id=g.account_id
-                WHERE g.profile_id=@profileId AND g.is_enabled=1 AND g.admin_enabled=1
-                  AND a.is_enabled=1 AND a.is_administrator=1
-                  AND (
-                    EXISTS(SELECT 1 FROM account_credentials c WHERE c.account_id=a.id)
-                    OR EXISTS(SELECT 1 FROM account_passkeys p WHERE p.account_id=a.id)
-                    OR EXISTS(SELECT 1 FROM account_external_logins e WHERE e.account_id=a.id)
-                  );
-                """, new { profileId }, transaction) > 0;
-            var administratorsRemaining = connection.ExecuteScalar<int>("""
-                SELECT COUNT(*) FROM account_profile_grants g JOIN accounts a ON a.id=g.account_id
-                WHERE g.profile_id<>@profileId AND g.is_enabled=1 AND g.admin_enabled=1
-                  AND a.is_enabled=1 AND a.is_administrator=1
-                  AND (
-                    EXISTS(SELECT 1 FROM account_credentials c WHERE c.account_id=a.id)
-                    OR EXISTS(SELECT 1 FROM account_passkeys p WHERE p.account_id=a.id)
-                    OR EXISTS(SELECT 1 FROM account_external_logins e WHERE e.account_id=a.id)
-                  );
-                """, new { profileId }, transaction);
-            if (removesAdministrator && administratorsRemaining == 0)
-            {
-                throw new InvalidOperationException("The final effective administrator profile cannot be deleted.");
-            }
-
+            RequireProfileRemovable(connection, transaction, profileId);
+            // Same transaction as the delete: if the delete fails, the person's photo records stay exactly as they were.
+            ProfilePersonalMediaRepository.ReleaseForRemoval(connection, transaction, profileId);
             connection.Execute("DELETE FROM profiles WHERE id=@profileId;", new { profileId }, transaction);
         }, ct);
+
+    private static void RequireProfileRemovable(SqliteConnection connection, SqliteTransaction transaction, Guid profileId)
+    {
+        if (profileId == Profile.SeedProfileId)
+        {
+            throw new InvalidOperationException("The Owner profile cannot be deleted.");
+        }
+
+        if (connection.ExecuteScalar<int>("SELECT COUNT(*) FROM profiles WHERE id=@profileId;",
+                new { profileId }, transaction) == 0)
+        {
+            throw new KeyNotFoundException("Profile not found.");
+        }
+
+        if (connection.ExecuteScalar<int>("""
+                SELECT COUNT(*) FROM accounts a
+                JOIN account_profile_grants target ON target.account_id=a.id
+                WHERE target.profile_id=@profileId AND target.is_enabled=1 AND a.is_enabled=1
+                  AND (SELECT COUNT(*) FROM account_profile_grants other
+                       WHERE other.account_id=a.id AND other.is_enabled=1)=1;
+                """, new { profileId }, transaction) > 0)
+        {
+            throw new InvalidOperationException("Move accounts to another profile before deleting this profile.");
+        }
+
+        var removesAdministrator = connection.ExecuteScalar<int>("""
+            SELECT COUNT(*) FROM account_profile_grants g JOIN accounts a ON a.id=g.account_id
+            WHERE g.profile_id=@profileId AND g.is_enabled=1 AND g.admin_enabled=1
+              AND a.is_enabled=1 AND a.is_administrator=1
+              AND (
+                EXISTS(SELECT 1 FROM account_credentials c WHERE c.account_id=a.id)
+                OR EXISTS(SELECT 1 FROM account_passkeys p WHERE p.account_id=a.id)
+                OR EXISTS(SELECT 1 FROM account_external_logins e WHERE e.account_id=a.id)
+              );
+            """, new { profileId }, transaction) > 0;
+        var administratorsRemaining = connection.ExecuteScalar<int>("""
+            SELECT COUNT(*) FROM account_profile_grants g JOIN accounts a ON a.id=g.account_id
+            WHERE g.profile_id<>@profileId AND g.is_enabled=1 AND g.admin_enabled=1
+              AND a.is_enabled=1 AND a.is_administrator=1
+              AND (
+                EXISTS(SELECT 1 FROM account_credentials c WHERE c.account_id=a.id)
+                OR EXISTS(SELECT 1 FROM account_passkeys p WHERE p.account_id=a.id)
+                OR EXISTS(SELECT 1 FROM account_external_logins e WHERE e.account_id=a.id)
+              );
+            """, new { profileId }, transaction);
+        if (removesAdministrator && administratorsRemaining == 0)
+        {
+            throw new InvalidOperationException("The final effective administrator profile cannot be deleted.");
+        }
+    }
 
     public Task UpsertGrantAsync(AccountProfileGrant grant, CancellationToken ct = default) =>
         db.ExecuteWriteAsync((connection, transaction, token) =>
@@ -629,6 +713,46 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
                 UPDATE accounts SET authorization_version=authorization_version+1,updated_at=@now
                 WHERE id=@accountId;
                 """, new { accountId, now = Iso(DateTimeOffset.UtcNow) }, transaction);
+        }, ct);
+
+    public Task<Guid?> GetHouseholdPrimaryAccountIdAsync(Guid householdId, CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+        using var conn = db.CreateConnection();
+        var id = conn.QuerySingleOrDefault<Guid?>(
+            "SELECT primary_account_id FROM households WHERE id=@householdId;", new { householdId });
+        return Task.FromResult(id);
+    }
+
+    public Task<bool> SetHouseholdAdminAsync(Guid accountId, bool isHouseholdAdmin, DateTimeOffset changedAt, CancellationToken ct = default) =>
+        db.ExecuteWriteAsync((connection, transaction, token) =>
+        {
+            token.ThrowIfCancellationRequested();
+            var account = connection.QuerySingleOrDefault<(Guid? HouseholdId, bool Follows)>(
+                "SELECT household_id AS HouseholdId, (grants_inherit_from_account_id IS NOT NULL) AS Follows FROM accounts WHERE id=@accountId;",
+                new { accountId }, transaction);
+            if (account.HouseholdId is null)
+            {
+                return false;
+            }
+
+            if (isHouseholdAdmin && account.Follows)
+            {
+                throw new InvalidOperationException("A person's own sign-in can't be a household administrator.");
+            }
+
+            var changed = connection.Execute("""
+                UPDATE accounts SET household_admin=@flag, authorization_version=authorization_version+1, updated_at=@now
+                WHERE id=@accountId AND household_admin<>@flag;
+                """, new { accountId, flag = isHouseholdAdmin ? 1 : 0, now = Iso(changedAt) }, transaction);
+            if (isHouseholdAdmin)
+            {
+                connection.Execute(
+                    "UPDATE households SET primary_account_id=@accountId WHERE id=@household AND primary_account_id IS NULL;",
+                    new { accountId, household = account.HouseholdId.Value }, transaction);
+            }
+
+            return changed > 0;
         }, ct);
 
     public Task ReplaceAccountAccessAsync(Guid accountId, IReadOnlySet<AccountFeatureId> features,
@@ -726,7 +850,7 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
             "DELETE FROM grant_admin_unlocks WHERE session_id=@sessionId;",
             new { sessionId }, transaction), ct);
 
-    private static void InsertAccount(System.Data.IDbConnection c, System.Data.IDbTransaction tx, Account a) => c.Execute("INSERT INTO accounts(id,email,normalized_email,is_enabled,is_administrator,authorization_version,created_at,updated_at,household_id,this_computer_only,must_change_password,temporary_password_expires_at) VALUES(@Id,@Email,@NormalizedEmail,@IsEnabled,@IsAdministrator,@AuthorizationVersion,@CreatedAt,@UpdatedAt,@HouseholdId,@ThisComputerOnly,@MustChangePassword,@TemporaryPasswordExpiresAt);", Parameters(a), tx);
+    private static void InsertAccount(System.Data.IDbConnection c, System.Data.IDbTransaction tx, Account a) => c.Execute("INSERT INTO accounts(id,email,normalized_email,is_enabled,is_administrator,authorization_version,created_at,updated_at,household_id,household_admin,grants_inherit_from_account_id,this_computer_only,must_change_password,temporary_password_expires_at) VALUES(@Id,@Email,@NormalizedEmail,@IsEnabled,@IsAdministrator,@AuthorizationVersion,@CreatedAt,@UpdatedAt,@HouseholdId,@HouseholdAdmin,@GrantsInheritFromAccountId,@ThisComputerOnly,@MustChangePassword,@TemporaryPasswordExpiresAt);", Parameters(a), tx);
     private static void InsertGrant(System.Data.IDbConnection c, System.Data.IDbTransaction tx, AccountProfileGrant g)
     {
         JoinHousehold(c, tx, g.AccountId, g.ProfileId, g.GrantedAt);
@@ -796,14 +920,17 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
     {
         profile.HouseholdId = householdId;
         connection.Execute("""
-            INSERT INTO profiles(id,display_name,avatar_color,avatar_image_path,role,created_at,navigation_config,household_id)
-            VALUES(@Id,@DisplayName,@AvatarColor,@AvatarImagePath,@Role,@CreatedAt,@NavigationConfig,@HouseholdId);
+            INSERT INTO profiles(id,display_name,avatar_color,avatar_image_path,avatar_icon,content_limit,content_limit_allow_unrated,role,created_at,navigation_config,household_id)
+            VALUES(@Id,@DisplayName,@AvatarColor,@AvatarImagePath,@AvatarIcon,@ContentLimit,@ContentLimitAllowUnrated,@Role,@CreatedAt,@NavigationConfig,@HouseholdId);
             """, new
         {
             profile.Id,
             profile.DisplayName,
             profile.AvatarColor,
             profile.AvatarImagePath,
+            profile.AvatarIcon,
+            profile.ContentLimit,
+            profile.ContentLimitAllowUnrated,
             Role = profile.Role.ToString(),
             CreatedAt = Iso(profile.CreatedAt),
             profile.NavigationConfig,
@@ -819,6 +946,31 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
         c.Execute("INSERT INTO households(id,name,created_at) VALUES(@id,@name,@at);",
             new { id, name = Household.DefaultNameFor(name), at = Iso(at) }, tx);
         return id;
+    }
+
+    /// <summary>
+    /// The first main sign-in a household gets (never a person's own sign-in, which follows another) becomes its
+    /// primary account and its household administrator. Later sign-ins leave that alone.
+    /// </summary>
+    private static void EnsureHouseholdPrimary(System.Data.IDbConnection c, System.Data.IDbTransaction tx, Guid accountId)
+    {
+        var householdId = HouseholdOfAccount(c, tx, accountId);
+        if (householdId is null)
+        {
+            return;
+        }
+
+        var named = c.Execute("""
+            UPDATE households SET primary_account_id=@accountId
+            WHERE id=@householdId AND primary_account_id IS NULL
+              AND EXISTS (SELECT 1 FROM accounts WHERE id=@accountId AND grants_inherit_from_account_id IS NULL);
+            """, new { accountId, householdId = householdId.Value }, tx);
+        if (named > 0)
+        {
+            // A brand-new account has no open sessions to re-check, so its authorization version stays as created.
+            c.Execute("UPDATE accounts SET household_admin=1 WHERE id=@accountId;",
+                new { accountId }, tx);
+        }
     }
 
     private static Guid? HouseholdOfAccount(System.Data.IDbConnection c, System.Data.IDbTransaction tx, Guid accountId) =>
@@ -853,7 +1005,29 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
         }
 
         var fromProfile = profileId is { } p ? HouseholdOfProfile(c, tx, p) : null;
-        return fromProfile ?? CreateHousehold(c, tx, name, account.CreatedAt);
+        return fromProfile ?? CreateOrAdoptHousehold(c, tx, name, account);
+    }
+
+    /// <summary>
+    /// A new household for <paramref name="account"/>. The first server administrator joins the server's still-empty
+    /// household (made by the Shared Library upgrade, or by the first shared item) instead of leaving it as a phantom.
+    /// </summary>
+    private static Guid CreateOrAdoptHousehold(
+        System.Data.IDbConnection c, System.Data.IDbTransaction tx, string? name, Account account)
+    {
+        if (account.IsAdministrator &&
+            c.QueryFirstOrDefault<Guid?>("""
+                SELECT h.id FROM households h
+                WHERE NOT EXISTS (SELECT 1 FROM accounts a WHERE a.household_id = h.id)
+                  AND NOT EXISTS (SELECT 1 FROM profiles p WHERE p.household_id = h.id)
+                  AND EXISTS (SELECT 1 FROM view_shared_library v WHERE v.household_id = h.id)
+                ORDER BY h.created_at, h.id LIMIT 1;
+                """, transaction: tx) is { } empty)
+        {
+            return empty;
+        }
+
+        return CreateHousehold(c, tx, name, account.CreatedAt);
     }
 
     /// <summary>

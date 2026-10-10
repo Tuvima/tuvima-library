@@ -20,7 +20,29 @@ internal static class ProfileContractMapper
         AvatarImageUrl = string.IsNullOrWhiteSpace(profile.AvatarImagePath)
             ? null
             : $"/profiles/{profile.Id:D}/avatar",
+        AvatarIcon = profile.AvatarIcon,
+        ContentLimit = profile.ContentLimit,
+        ContentLimitAllowUnrated = profile.ContentLimitAllowUnrated,
     };
+
+    internal static ProfileResponseDto ToResponse(Profile profile, bool hasPin)
+    {
+        var dto = ToResponse(profile);
+        return new ProfileResponseDto
+        {
+            Id = dto.Id,
+            DisplayName = dto.DisplayName,
+            AvatarColor = dto.AvatarColor,
+            Role = dto.Role,
+            CreatedAt = dto.CreatedAt,
+            NavigationConfig = dto.NavigationConfig,
+            AvatarImageUrl = dto.AvatarImageUrl,
+            AvatarIcon = dto.AvatarIcon,
+            ContentLimit = dto.ContentLimit,
+            ContentLimitAllowUnrated = dto.ContentLimitAllowUnrated,
+            HasPin = hasPin,
+        };
+    }
 
     internal static AccountExternalLoginDto ToResponse(AccountExternalLogin login) => new()
     {
@@ -41,7 +63,6 @@ internal static class ProfileContractMapper
         ViewEnabled = policy.ViewEnabled,
         AccessSharedLibrary = policy.AccessSharedLibrary,
         SubmitToSharedLibrary = policy.SubmitToSharedLibrary,
-        ReviewSharedLibraryContributions = policy.ReviewSharedLibraryContributions,
         AllowGallerySharing = policy.ShareGalleries,
         UpdatedAt = policy.UpdatedAt,
     };
@@ -53,7 +74,6 @@ internal static class ProfileContractMapper
             request.ViewEnabled,
             request.AccessSharedLibrary,
             request.SubmitToSharedLibrary,
-            request.ReviewSharedLibraryContributions,
             request.AllowGallerySharing,
             null);
 

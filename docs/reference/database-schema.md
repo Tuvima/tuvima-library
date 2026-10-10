@@ -124,6 +124,28 @@ A single file on disk.
 
 **Indices:** `fingerprint`, `edition_id`, `status`
 
+### media_asset_coverage
+
+Lists every episode a single physical file covers, for example `Show S01E01E02.mkv`.
+The file stays attached to its first episode through `editions`; this table adds the
+rest. Single-episode files have no rows, so existing behaviour is unchanged. Source
+files are never split or altered.
+
+| Column | Type | Notes |
+|---|---|---|
+| `asset_id` | BLOB | FK -> `media_assets.id`, cascade delete |
+| `work_id` | BLOB | FK -> `works.id`, cascade delete: the covered episode |
+| `position` | INTEGER | Order within the file, starting at 1 |
+| `start_seconds` | REAL | Optional start of the episode inside the file |
+| `end_seconds` | REAL | Optional end of the episode inside the file |
+| `source` | TEXT | `filename`, `chapters`, `manual` or `provider_runtime` |
+
+**Primary key:** (`asset_id`, `work_id`). **Unique:** (`asset_id`, `position`). **Indices:** `work_id`
+
+### work_owned_assets (view)
+
+Every (`work_id`, `edition_id`, `asset_id`) an owned work is reached through: its own files, plus files that cover it through `media_asset_coverage`. A covered episode resolves to the host file's edition; the file is still one file, so file counts must use `COUNT(DISTINCT asset_id)` while episode counts use `COUNT(DISTINCT work_id)`. `is_covered` is 1 for the extra rows contributed by coverage. Read services that decide whether a work is owned or which file represents it join this view instead of `editions` + `media_assets`.
+
 ### collection_items
 
 Links works to collections (Series to Universe relationships).
@@ -187,6 +209,11 @@ ID, display/device facts, last-backup time, and a modeled backup state. The
 mobile/device producer itself is not implemented merely because these rows
 exist.
 
+A paired phone's own backup target lives on `client_devices.backup_profile_id`
+(nullable FK to `profiles.id`, set to null if that person is removed). Phone
+uploads are stored in that person's Personal Space whichever person the phone
+is browsing as; with no target they are refused until someone chooses one.
+
 ### `local_items`
 
 One profile-owned logical image, short video, document, audio item, or other
@@ -240,14 +267,17 @@ folders remain available in Folders and opt in explicitly.
 `view_folder_pins` stores profile-private shortcuts by source and relative path.
 `view_folder_timeline_policies` stores source-owner branch rules with the
 validated absolute prefix used by the timeline query; the most-specific
-ancestor rule wins over the source default.
+ancestor rule wins over the source default. `updated_by_profile_id` is optional and
+clears itself (`ON DELETE SET NULL`) when that person is removed.
+
+`view_shared_library` holds one Shared Library per household (`household_id` is the primary key, `library_id` is unique and immutable), created the first time the household needs it. The server's own Shared Library is the one that belongs to the server administrator's household. Upgrade: a data store from before household administrators had one row for the whole server; the startup migration moves that row, keeping its library identity, to the server administrator's household and recreates the View scope triggers without the single-row condition. A personal space can never use any Shared Library's identity. Shared files of the server's household stay in the original Shared folder; other households' files live under `Shared/Households/<id>` so one household's files are never indexed into another's library.
 
 `view_shared_assets` marks accepted items whose verified originals are owned by
 the Shared Library while retaining the original profile as provenance. This marker
 does not expose the original profile's other private assets.
 
 `view_shared_contributions` stores the contributor, decision state, destination,
-note, optimistic revision, idempotency key, curator, and timestamps.
+note, optimistic revision, idempotency key, reviewer, and timestamps.
 `view_shared_contribution_items` stores the exact submitted logical items,
 submission-time provenance, source snapshot, transfer operation, execution
 state, and safe error. `view_shared_contribution_events` records the durable
@@ -285,9 +315,12 @@ reapplies View authorization.
 
 ### Profile policy and preferences
 
-`profile_view_policies` stores four independent administrator-managed
-capabilities: View enabled, access Shared View, include the profile's Personal
-Space in Shared View, and share Galleries.
+`profile_view_policies` stores independent administrator-managed capabilities:
+View enabled, open the household's Shared Library, send items to it, and share
+Galleries. Opening and sending default on (sending stays off for a child profile
+until a household administrator allows it). Reviewing contributions is not a
+per-profile setting: the former `review_shared_library_contributions` column is
+dropped once on upgrade, and household administrators review.
 
 `profile_view_preferences` stores the last Shared/Mine/Profile scope and
 compact/comfortable/relaxed timeline density. The Profile form requires a
@@ -629,9 +662,11 @@ One row per person who signs in. Every account has an email: there are no email-
 | `authorization_version` | INTEGER | Bumped whenever access changes, so open sessions re-check |
 | `created_at`, `updated_at` | TEXT | Timestamps |
 | `household_id` | BLOB | The household the account belongs to (see `households`). Filled by the startup migration and by the repository when an account is saved, so it is set on every account the Engine writes. |
+| `grants_inherit_from_account_id` | BLOB | When set, the account has no feature or library grants of its own and follows those of the named account (a person's own sign-in follows the household's main sign-in). Read at use time, so changes to the main sign-in reach the person. Cleared to the household's next main sign-in when the named account is deleted. |
 | `this_computer_only` | INTEGER | 1 for an account that was started on this computer without a password. It can be used only in a browser on that computer (never from the home network), counts as no remote sign-in, and blocks the actions that would let others in (see Security). Defaults to 0; added by an idempotent startup migration. |
 | `must_change_password` | INTEGER | 1 while the password is one an administrator chose. The person can then do nothing except choose their own password, check their session and sign out; the Engine refuses everything else with 403 `password_change_required`. Defaults to 0; added by an idempotent startup migration. |
 | `temporary_password_expires_at` | TEXT | When an administrator-set temporary password stops working; null when none is set. Sessions of an account whose temporary password has run out stop validating. |
+| `household_admin` | INTEGER | 1 when the account looks after its own household (a **household administrator**). It never reaches another household or the server's settings. A person's own sign-in (`grants_inherit_from_account_id` set) can never have it. Defaults to 0; added by an idempotent startup migration, and a household's first main sign-in gets it when the household is created. |
 
 ### households
 
@@ -642,6 +677,7 @@ A household is the group of people (profiles) who live together and the sign-ins
 | `id` | BLOB | GUID, primary key |
 | `name` | TEXT | Display name, for example `Alex's household` |
 | `created_at` | TEXT | Timestamp |
+| `primary_account_id` | BLOB | The household's main sign-in (the one the server administrator set up; household administrators can only hand out what it holds). Set when the first main sign-in is saved; re-pointed to the next oldest enabled main sign-in when it is deleted. Null only for a household with no main sign-in. |
 
 **Upgrade.** The idempotent startup migration adds `household_id` to `accounts` and `profiles`, then gives every account without one its own household (named after the account's default profile) and moves every profile granted to an account into that account's household. A profile granted to two accounts joins the household of the account where it is the default grant, otherwise the oldest account; the startup log notes each such profile. Re-running changes nothing. Only the seeded Owner profile can be without a household, and only until the first administrator account is created.
 
@@ -652,6 +688,11 @@ User profiles for multi-user support.
 | Column | Type | Notes |
 |---|---|---|
 | `household_id` | BLOB | The household the profile belongs to (see `households`) |
+| `avatar_color` | TEXT | Avatar circle colour, `#RRGGBB`. The profile editor offers a fixed palette of 12 swatches. |
+| `avatar_image_path` | TEXT | Path of an uploaded avatar photo; NULL when none. A photo wins over an icon. |
+| `avatar_icon` | TEXT | Key of a built-in illustrated icon drawn on `avatar_color` (`cat`, `fox`, `owl`, `bear`, `panda`, `penguin`, `robot`, `rocket`, `planet`, `moon`, `crown`, `ghost`); NULL shows the person's initial. Added by an idempotent startup migration. |
+| `content_limit` | TEXT | The highest rating this person may see: `G`, `PG`, `PG-13` or `R` (CHECK-constrained). NULL means Everything. Set by a household administrator and independent of `role`. Enforced by the Engine in every list, search, detail page, Continue Watching and player. Added by an idempotent startup migration. |
+| `content_limit_allow_unrated` | INTEGER | 1 keeps items with no recognised rating visible although a `content_limit` is set; 0 (the default) hides them. Added by an idempotent startup migration. |
 
 | Column | Type | Notes |
 |---|---|---|
@@ -660,6 +701,14 @@ User profiles for multi-user support.
 | `pin_hash` | TEXT | PIN hash. NULL if no PIN set. |
 | `role` | TEXT | |
 | `created_at` | TEXT | Timestamp |
+
+### account_two_step
+
+One row per account that started optional two-step codes. `account_id` (primary key, references `accounts`), `secret_protected` (the authenticator key, encrypted with Data Protection), `created_at`, `enabled_at` (null while setup is unconfirmed), `last_used_step` (the last accepted 30-second step, so a code cannot be reused).
+
+### two_step_challenges
+
+Pending second-step sign-ins. `token_hash` (SHA-256 of the one-time token), `account_id`, `ingress`, `device_id`, `device_name`, `client`, `failed_attempts`, `created_at`, `expires_at` (5 minutes), `consumed_at`.
 
 ### auth_sessions
 
@@ -676,6 +725,17 @@ Revocable, device-scoped sign-in sessions. A session remembers where it started.
 | `authenticated_at` | TEXT | When the person last proved it was them (password, passkey or provider sign-in, or a "Confirm it's you" check). Sensitive account actions need this within the last 10 minutes. NULL on older rows, which are read as `created_at`. Added by the idempotent startup migration. |
 | `created_at`, `last_seen_at`, `expires_at` | TEXT | Timestamps |
 | `revoked_at`, `revoked_reason` | TEXT | NULL while active |
+
+### device_profile_preferences
+
+"Always open as this person on this device". At most one row per signed-in account and browser/device; the *Who's using Tuvima?* page writes it, and a new sign-in from that device starts in the saved profile (when that profile has a PIN, the picker asks for it instead).
+
+| Column | Type | Notes |
+|---|---|---|
+| `account_id` | BLOB | Owning account (primary key with `device_id`); deleting the account removes the row |
+| `device_id` | TEXT | The `Tuvima.Device` cookie value stored in `auth_sessions.device_id` |
+| `profile_id` | BLOB | The profile to open as; deleting the profile removes the row. A saved profile the account no longer has is ignored |
+| `updated_at` | TEXT | Timestamp |
 
 ### setup_codes
 

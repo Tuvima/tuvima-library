@@ -223,6 +223,14 @@ public sealed class VideoProcessor : IMediaProcessor
             // used as a cleaner title and season_number / episode_number are emitted.
             var (seriesTitle, seasonNum, episodeNum, episodeTitle) = ExtractSeasonEpisode(basicTitle);
 
+            // A file holding several episodes (S01E01E02, S01E01-E02, 1x01-02) also reports
+            // where the run ends. Only unbroken, in-limit runs count; anything else stays a
+            // single-episode read so matching can send it to Review.
+            var range = EpisodeRangeParser.Parse(basicTitle);
+            int? episodeEnd = range is { IsRange: true } r && r.Season == seasonNum && r.FirstEpisode == episodeNum
+                ? r.LastEpisode
+                : null;
+
             if (seriesTitle is not null && seasonNum.HasValue)
             {
                 // TV title resolution: prefer the episode title (specific) over the
@@ -240,6 +248,10 @@ public sealed class VideoProcessor : IMediaProcessor
                 {
                     claims.Add(Claim("episode_number", episodeNum.Value.ToString(), 0.55));
                     claims.Add(Claim("episode", episodeNum.Value.ToString(), 0.55));
+                    if (episodeEnd.HasValue)
+                    {
+                        claims.Add(Claim("episode_end", episodeEnd.Value.ToString(), 0.55));
+                    }
                 }
                 if (!string.IsNullOrWhiteSpace(episodeTitle))
                 {
@@ -275,6 +287,10 @@ public sealed class VideoProcessor : IMediaProcessor
                 {
                     claims.Add(Claim("episode_number", episodeNum.Value.ToString(), 0.55));
                     claims.Add(Claim("episode", episodeNum.Value.ToString(), 0.55));
+                    if (episodeEnd.HasValue)
+                    {
+                        claims.Add(Claim("episode_end", episodeEnd.Value.ToString(), 0.55));
+                    }
                 }
                 if (!string.IsNullOrWhiteSpace(episodeTitle))
                 {
@@ -384,7 +400,8 @@ public sealed class VideoProcessor : IMediaProcessor
             var season = int.Parse(m.Groups["season"].Value);
             var episode = int.Parse(m.Groups["ep1"].Value);
             // Extract episode title from text after the SxxExx pattern
-            var afterPattern = text[m.Length..].TrimStart('.', '-', '–', '—', '_', ' ');
+            var rangeEnd = EpisodeRangeParser.Parse(text) is { IsRange: true } range ? range.EndIndex : 0;
+            var afterPattern = text[Math.Max(m.Length, rangeEnd)..].TrimStart('.', '-', '–', '—', '_', ' ');
             var epTitle = CleanEpisodeTitle(afterPattern);
             return (series, season, episode, epTitle);
         }

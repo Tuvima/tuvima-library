@@ -25,6 +25,22 @@ public sealed class ProfileResponseDto
 
     [JsonPropertyName("avatar_image_url")]
     public string? AvatarImageUrl { get; init; }
+
+    /// <summary>Key of a built-in avatar icon drawn on <see cref="AvatarColor"/>; null shows the initial.</summary>
+    [JsonPropertyName("avatar_icon")]
+    public string? AvatarIcon { get; init; }
+
+    /// <summary>The highest rating this profile may see (G, PG, PG-13 or R); null means Everything.</summary>
+    [JsonPropertyName("content_limit")]
+    public string? ContentLimit { get; init; }
+
+    /// <summary>True when items with no rating stay visible although a content limit is set.</summary>
+    [JsonPropertyName("content_limit_allow_unrated")]
+    public bool ContentLimitAllowUnrated { get; init; }
+
+    /// <summary>True when switching to this profile needs its PIN. Filled in by the profile list only.</summary>
+    [JsonPropertyName("has_pin")]
+    public bool HasPin { get; init; }
 }
 
 public sealed class ProfileOverviewResponseDto
@@ -203,9 +219,6 @@ public sealed class ViewProfilePolicyDto
     [JsonPropertyName("submit_to_shared_library")]
     public bool SubmitToSharedLibrary { get; init; }
 
-    [JsonPropertyName("review_shared_library_contributions")]
-    public bool ReviewSharedLibraryContributions { get; init; }
-
     [JsonPropertyName("allow_gallery_sharing")]
     public bool AllowGallerySharing { get; init; }
 
@@ -223,9 +236,6 @@ public sealed class UpdateViewProfilePolicyRequest
 
     [JsonPropertyName("submit_to_shared_library")]
     public bool SubmitToSharedLibrary { get; init; }
-
-    [JsonPropertyName("review_shared_library_contributions")]
-    public bool ReviewSharedLibraryContributions { get; init; }
 
     [JsonPropertyName("allow_gallery_sharing")]
     public bool AllowGallerySharing { get; init; }

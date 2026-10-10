@@ -16,7 +16,6 @@ public sealed class ViewProfilePolicyContractTests
             ViewEnabled = true,
             AccessSharedLibrary = accessSharedLibrary,
             SubmitToSharedLibrary = submitToSharedLibrary,
-            ReviewSharedLibraryContributions = true,
             AllowGallerySharing = true,
         });
 
@@ -24,7 +23,6 @@ public sealed class ViewProfilePolicyContractTests
 
         Assert.Equal(accessSharedLibrary, contract.AccessSharedLibrary);
         Assert.Equal(submitToSharedLibrary, contract.SubmitToSharedLibrary);
-        Assert.True(contract.ReviewSharedLibraryContributions);
         Assert.True(contract.AllowGallerySharing);
     }
 }

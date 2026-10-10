@@ -31,6 +31,10 @@
                     <span class="top-nav-account-menu__attention-dot" aria-hidden="true"></span>
                 }
                 <span class="top-nav-account-menu__trigger-copy">@DisplayName</span>
+                @if (IsKids)
+                {
+                    <span class="kids-badge">Kids</span>
+                }
                 <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.KeyboardArrowDown"
                          Class="top-nav-account-menu__chevron" />
     </AppNativeButton>
@@ -46,92 +50,36 @@
                                ForegroundColor="@AvatarForeground"
                                Class="top-nav-account-menu__header-avatar" />
                     <strong>@HeaderLabel</strong>
+                    @if (IsKids)
+                    {
+                        <span class="kids-badge">Kids</span>
+                    }
                 </header>
 
-                @if (_pendingProfile is not null)
+                @if (!IsKids)
                 {
-                    <section class="top-nav-account-menu__switch-prompt"
-                             role="dialog"
-                             aria-labelledby="profile-switch-title"
-                             aria-describedby="profile-switch-description">
-                        <strong id="profile-switch-title">Switch profile?</strong>
-                        <p id="profile-switch-description">
-                            Continue as @_pendingProfile.DisplayName? Any administrator elevation for the current profile will be cleared.
-                        </p>
-                        @if (_pinRequired)
-                        {
-                            <label class="top-nav-account-menu__pin-field">
-                                <span>Profile PIN</span>
-                                <AppNativeInput Type="password"
-                                                Value="@_profilePin"
-                                                ValueChanged="@(value => _profilePin = value?.ToString() ?? string.Empty)"
-                                                OnKeyDown="HandlePinKeyDownAsync"
-                                                AriaLabel="Profile PIN"
-                                                autocomplete="current-password"
-                                                inputmode="numeric" />
-                            </label>
-                        }
-                        @if (!string.IsNullOrWhiteSpace(_switchError))
-                        {
-                            <p class="top-nav-account-menu__switch-error" role="alert">@_switchError</p>
-                        }
-                        <div class="top-nav-account-menu__switch-actions">
-                            <AppNativeButton Type="button"
-                                             Class="top-nav-account-menu__switch-cancel"
-                                             Disabled="@_switching"
-                                             OnClick="CancelProfileSwitch">Cancel</AppNativeButton>
-                            <AppNativeButton Type="button"
-                                             Class="top-nav-account-menu__switch-confirm"
-                                             Disabled="@(_switching || (_pinRequired && string.IsNullOrWhiteSpace(_profilePin)))"
-                                             OnClick="ConfirmProfileSwitchAsync">
-                                @(_switching ? "Switching…" : "Switch")
-                            </AppNativeButton>
-                        </div>
-                    </section>
+                    <a class="top-nav-account-menu__item"
+                       href="/settings/profile"
+                       role="menuitem"
+                       @onclick="CloseMenu">
+                        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Person"
+                                 Class="top-nav-account-menu__item-icon" />
+                        <span>Profile settings</span>
+                    </a>
                 }
-                else if (ProfilesForMenu.Count > 1)
+
+                @if (Profiles.Count > 1)
                 {
-                    <div class="top-nav-account-menu__profiles">
-                        @foreach (var profile in ProfilesForMenu)
-                        {
-                            var isActive = profile.Id == ActiveProfileId;
-                            @if (isActive)
-                            {
-                                <a class="top-nav-account-menu__item top-nav-account-menu__profile-item is-active"
-                                   href="/settings/profile"
-                                   role="menuitem"
-                                   aria-current="page"
-                                   @key="profile.Id"
-                                   @onclick="CloseMenu">
-                                    <AppAvatar ImageUrl="@profile.AvatarImageUrl"
-                                               AltText=""
-                                               Initials="@AvatarInitialFor(profile.DisplayName)"
-                                               AccentColor="@profile.AvatarColor"
-                                               ForegroundColor="@AvatarForeground"
-                                               Class="top-nav-account-menu__profile-avatar" />
-                                    <span>@profile.DisplayName</span>
-                                    <span class="top-nav-account-menu__current-label">Current</span>
-                                    <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Check" Class="top-nav-account-menu__current-icon" />
-                                </a>
-                            }
-                            else
-                            {
-                                <AppNativeButton Type="button"
-                                                 Class="top-nav-account-menu__item top-nav-account-menu__profile-item"
-                                                 role="menuitem"
-                                                 @key="profile.Id"
-                                                 OnClick="@(() => BeginProfileSwitch(profile))">
-                                    <AppAvatar ImageUrl="@profile.AvatarImageUrl"
-                                               AltText=""
-                                               Initials="@AvatarInitialFor(profile.DisplayName)"
-                                               AccentColor="@profile.AvatarColor"
-                                               ForegroundColor="@AvatarForeground"
-                                               Class="top-nav-account-menu__profile-avatar" />
-                                    <span>@profile.DisplayName</span>
-                                </AppNativeButton>
-                            }
-                        }
-                    </div>
+                    <TopNavProfileSwitcher ActiveProfileId="@ActiveProfileId" Profiles="@Profiles" />
+
+                    <a class="top-nav-account-menu__item"
+                       href="@ProfilePickerRoute.Path"
+                       role="menuitem"
+                       @onclick="CloseMenu">
+                        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.People"
+                                 Class="top-nav-account-menu__item-icon" />
+                        <span>Who's watching?</span>
+                    </a>
                 }
 
                 <AppDivider Class="top-nav-account-menu__divider" />
@@ -151,41 +99,47 @@
                     </a>
                 }
 
-                @if (CanManageProfiles)
+                @if (!IsKids)
                 {
-                    <a class="top-nav-account-menu__item"
-                       href="@ManageProfilesHref"
-                       role="menuitem"
-                       @onclick="CloseMenu">
-                        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ManageAccounts"
-                                 Class="top-nav-account-menu__item-icon" />
-                        <span>Manage profiles</span>
-                    </a>
+                    if (CanManageProfiles)
+                    {
+                        <a class="top-nav-account-menu__item"
+                           href="@ManageProfilesHref"
+                           role="menuitem"
+                           @onclick="CloseMenu">
+                            <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ManageAccounts"
+                                     Class="top-nav-account-menu__item-icon" />
+                            <span>Manage profiles</span>
+                        </a>
+                    }
+
+                    if (ShowSecureAccount)
+                    {
+                        <a class="top-nav-account-menu__item"
+                           href="@ThisComputerOnlyBanner.SecureAccountHref"
+                           role="menuitem"
+                           @onclick="CloseMenu">
+                            <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Security"
+                                     Class="top-nav-account-menu__item-icon" />
+                            <span class="top-nav-account-menu__item-copy">
+                                <span>Secure account</span>
+                                <span class="top-nav-account-menu__attention-dot top-nav-account-menu__attention-dot--inline" aria-hidden="true"></span>
+                            </span>
+                        </a>
+                    }
                 }
 
-                @if (ShowSecureAccount)
+                @if (!IsKids)
                 {
                     <a class="top-nav-account-menu__item"
-                       href="@ThisComputerOnlyBanner.SecureAccountHref"
+                       href="/settings"
                        role="menuitem"
                        @onclick="CloseMenu">
-                        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Security"
+                        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Settings"
                                  Class="top-nav-account-menu__item-icon" />
-                        <span class="top-nav-account-menu__item-copy">
-                            <span>Secure account</span>
-                            <span class="top-nav-account-menu__attention-dot top-nav-account-menu__attention-dot--inline" aria-hidden="true"></span>
-                        </span>
+                        <span>@L["Nav_Settings"]</span>
                     </a>
                 }
-
-                <a class="top-nav-account-menu__item"
-                   href="/settings"
-                   role="menuitem"
-                   @onclick="CloseMenu">
-                    <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Settings"
-                             Class="top-nav-account-menu__item-icon" />
-                    <span>@L["Nav_Settings"]</span>
-                </a>
 
                 <a class="top-nav-account-menu__item"
                    href="https://tuvima.github.io/tuvima_library/"
@@ -226,7 +180,7 @@
     [Parameter] public bool CanManageProfiles { get; set; }
     /// <summary>True while the account is this-computer-only: shows the Secure account item and an attention dot.</summary>
     [Parameter] public bool ShowSecureAccount { get; set; }
-    public const string ManageProfilesHref = "/settings/access/users";
+    public const string ManageProfilesHref = ProfilePickerRoute.Path + "?manage=1";
     [Parameter] public string ProfileRole { get; set; } = "Profile";
     [Parameter] public string AvatarInitial { get; set; } = string.Empty;
     [Parameter] public string AvatarColor { get; set; } = "var(--tl-accent-primary)";
@@ -237,19 +191,11 @@
     [Parameter] public int ReviewCount { get; set; }
     [Parameter] public bool CanViewReview { get; set; }
     [Parameter] public bool ShowSignOut { get; set; }
-    [Parameter] public Func<Guid, string?, Task<ProfileSwitchOutcome>>? ProfileSwitchRequested { get; set; }
+
+    /// <summary>True for a Kids profile: no settings or review links, and a "Kids" badge.</summary>
+    [Parameter] public bool IsKids { get; set; }
 
     private bool _open;
-    private ProfileViewModel? _pendingProfile;
-    private bool _pinRequired;
-    private bool _switching;
-    private string _profilePin = string.Empty;
-    private string? _switchError;
-
-    private IReadOnlyList<ProfileViewModel> ProfilesForMenu => Profiles
-        .OrderByDescending(profile => profile.Id == ActiveProfileId)
-        .ThenBy(profile => profile.DisplayName, StringComparer.OrdinalIgnoreCase)
-        .ToList();
     private string HeaderLabel => string.IsNullOrWhiteSpace(AccountLabel) ? DisplayName : AccountLabel!;
     private string ProfileMenuAriaLabel =>
         string.IsNullOrWhiteSpace(DisplayName) ? L["TopBar_OpenProfileMenu"].Value : string.Concat(L["TopBar_OpenProfileMenu"].Value, ": ", DisplayName);
@@ -266,70 +212,6 @@
     private void CloseMenu()
     {
         _open = false;
-        CancelProfileSwitch();
-    }
-
-    private void BeginProfileSwitch(ProfileViewModel profile)
-    {
-        _pendingProfile = profile;
-        _pinRequired = false;
-        _profilePin = string.Empty;
-        _switchError = null;
-    }
-
-    private void CancelProfileSwitch()
-    {
-        _pendingProfile = null;
-        _pinRequired = false;
-        _switching = false;
-        _profilePin = string.Empty;
-        _switchError = null;
-    }
-
-    private async Task ConfirmProfileSwitchAsync()
-    {
-        if (_pendingProfile is null || ProfileSwitchRequested is null)
-            return;
-
-        _switching = true;
-        _switchError = null;
-        var outcome = await ProfileSwitchRequested(
-            _pendingProfile.Id,
-            _pinRequired ? _profilePin : null);
-        _switching = false;
-
-        switch (outcome.Status)
-        {
-            case ProfileSwitchStatus.Succeeded:
-                CloseMenu();
-                break;
-            case ProfileSwitchStatus.PinRequired:
-                _pinRequired = true;
-                _profilePin = string.Empty;
-                _switchError = "This profile requires its PIN.";
-                break;
-            case ProfileSwitchStatus.Forbidden:
-                _switchError = "This account cannot switch to that profile.";
-                break;
-            case ProfileSwitchStatus.NotFound:
-                _switchError = "That profile is no longer available.";
-                break;
-            case ProfileSwitchStatus.TooManyAttempts:
-                _switchError = "Too many attempts. Try again later.";
-                break;
-            default:
-                _switchError = "The profile could not be switched. Try again.";
-                break;
-        }
-    }
-
-    private Task HandlePinKeyDownAsync(KeyboardEventArgs args)
-    {
-        if (string.Equals(args.Key, "Enter", StringComparison.Ordinal))
-            return ConfirmProfileSwitchAsync();
-        if (string.Equals(args.Key, "Escape", StringComparison.Ordinal))
-            CancelProfileSwitch();
-        return Task.CompletedTask;
     }
 
     private void HandleKeyDown(KeyboardEventArgs args)
@@ -338,11 +220,5 @@
         {
             CloseMenu();
         }
-    }
-
-    private static string AvatarInitialFor(string displayName)
-    {
-        var initial = displayName.FirstOrDefault(character => !char.IsWhiteSpace(character));
-        return initial == default ? "?" : char.ToUpperInvariant(initial).ToString();
     }
 }

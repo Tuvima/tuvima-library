@@ -44,7 +44,7 @@ public sealed class AccountEmailRequiredTests
                         new NoOpInvalidation(),
                         new NoOpAudit(),
                         firstParty,
-                        TimeProvider.System);
+                        new NoProfilePhotos(), TimeProvider.System);
                     var actor = new RequestAuthority(
                         PrincipalKind.Human,
                         true,
@@ -157,7 +157,7 @@ public sealed class AccountEmailRequiredTests
                         new NoOpInvalidation(),
                         new NoOpAudit(),
                         firstParty,
-                        TimeProvider.System);
+                        new NoProfilePhotos(), TimeProvider.System);
                     var actor = new RequestAuthority(
                         PrincipalKind.Human,
                         true,
@@ -251,7 +251,7 @@ public sealed class AccountEmailRequiredTests
                         new NoOpInvalidation(),
                         new NoOpAudit(),
                         firstParty,
-                        TimeProvider.System);
+                        new NoProfilePhotos(), TimeProvider.System);
                     var actor = new RequestAuthority(
                         PrincipalKind.Human, true, AccountId: Guid.NewGuid(), ActiveProfileId: Guid.NewGuid(),
                         SessionId: Guid.NewGuid(), AccountEnabled: true, GrantEnabled: true,
@@ -332,7 +332,7 @@ public sealed class AccountEmailRequiredTests
                         accounts, new IdentityRepository(database), new ProfileRepository(database), configuration,
                         new AllowAdministratorDecisions(), new AllowEvaluator(),
                         new PasswordHasher<GrantAdminProtection>(), new NoOpInvalidation(), new NoOpAudit(),
-                        firstParty, TimeProvider.System);
+                        firstParty, new NoProfilePhotos(), TimeProvider.System);
                     var human = new RequestAuthority(
                         PrincipalKind.Human, true, AccountId: Guid.NewGuid(), ActiveProfileId: Guid.NewGuid(),
                         SessionId: Guid.NewGuid(), AccountEnabled: true, GrantEnabled: true,

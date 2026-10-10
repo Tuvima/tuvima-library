@@ -112,6 +112,7 @@ public static partial class ExternalAuthenticationRegistration
                 context.Properties ??= new AuthenticationProperties();
                 context.Properties.IsPersistent = true;
                 context.Properties.ExpiresUtc = issued.ExpiresAt;
+                RouteThroughProfilePicker(context.Properties, issued);
             };
         });
     }
@@ -183,6 +184,7 @@ public static partial class ExternalAuthenticationRegistration
                 context.Principal = DashboardPrincipalFactory.Create(issued, context.HttpContext.ClientIngress());
                 context.Properties.IsPersistent = true;
                 context.Properties.ExpiresUtc = issued.ExpiresAt;
+                RouteThroughProfilePicker(context.Properties, issued);
             };
         });
     }
@@ -267,6 +269,15 @@ public static partial class ExternalAuthenticationRegistration
         };
         var issued = await identity.CreateExternalSessionAsync(request, context.RequestAborted).ConfigureAwait(false);
         return issued;
+    }
+
+    /// <summary>After a provider sign-in, a household with several people lands on "Who's using Tuvima?" first.</summary>
+    private static void RouteThroughProfilePicker(AuthenticationProperties properties, AuthSessionResponse issued)
+    {
+        if (issued.ChooseProfile && ExternalPurpose(properties) == ExternalIdentityTransactionPurposes.SignIn)
+        {
+            properties.RedirectUri = ProfilePickerRoute.For(properties.RedirectUri);
+        }
     }
 
     // MapInboundClaims is false, so OIDC claims keep their JWT names; fall back to the

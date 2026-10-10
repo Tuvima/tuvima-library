@@ -4,6 +4,7 @@ using MediaEngine.Api.Security;
 using MediaEngine.Api.Services.Details;
 using MediaEngine.Api.Services.Details.Internals;
 using MediaEngine.Api.Services.Display;
+using MediaEngine.Api.Services.Playback;
 using MediaEngine.Api.Services.ReadServices;
 using MediaEngine.Contracts.Playback;
 using MediaEngine.Domain.Authorization;
@@ -242,6 +243,139 @@ public sealed class AuthorizedDisplayProjectionReadServiceTests : IDisposable
         var assets = await CreateResourceService(context).GetAuthorizedAssetIdsForWorkAsync(
             context, workId, MediaEngine.Domain.Aggregates.Profile.SeedProfileId, ApplicationPermissionIds.LibraryRead);
         Assert.Equal([epub, azw], assets);
+    }
+
+    private void SetContentLimit(string? limit, bool allowUnrated = false)
+    {
+        using var connection = _database.CreateConnection();
+        connection.Execute(
+            "UPDATE profiles SET content_limit=@limit, content_limit_allow_unrated=@allowUnrated WHERE id=@id",
+            new { limit, allowUnrated, id = MediaEngine.Domain.Aggregates.Profile.SeedProfileId });
+    }
+
+    [Theory]
+    [InlineData(null, false, new[] { "G", "PG-13", "R", "none" })]
+    [InlineData("PG", false, new[] { "G" })]
+    [InlineData("PG", true, new[] { "G", "none" })]
+    [InlineData("PG-13", false, new[] { "G", "PG-13" })]
+    [InlineData("R", false, new[] { "G", "PG-13", "R" })]
+    public async Task ContentLimitHidesOverLimitRowsFromEveryProjectionList(string? limit, bool allowUnrated, string[] expected)
+    {
+        var accountId = Guid.NewGuid();
+        var library = Guid.NewGuid();
+        await CreateHumanAsync(accountId,
+            new HashSet<AccountFeatureId> { AccountFeatureId.Watch },
+            new HashSet<Guid> { library });
+        SetContentLimit(limit, allowUnrated);
+        var profile = MediaEngine.Domain.Aggregates.Profile.SeedProfileId;
+        DisplayWorkRow Rated(string? rating) { var row = Work(library, "Movie"); row.ContentRating = rating; return row; }
+        DisplayJourneyRow Resume(string? rating) { var row = Journey(library, "Movie", profile); row.ContentRating = rating; return row; }
+        var service = CreateService(HumanContext(accountId, profile), new StubRawProjection(
+            [Rated("G"), Rated("PG-13"), Rated("R"), Rated(null)],
+            [Resume("G"), Resume("PG-13"), Resume("R"), Resume(null)]));
+
+        string Label(string? rating) => rating ?? "none";
+        Assert.Equal(expected.Order(), (await service.LoadWorksAsync(CancellationToken.None)).Select(row => Label(row.ContentRating)).Order());
+        Assert.Equal(expected.Order(), (await service.LoadHomeWorksAsync(CancellationToken.None)).Select(row => Label(row.ContentRating)).Order());
+        Assert.Equal(expected.Order(), (await service.LoadJourneyAsync(profile, null, CancellationToken.None)).Select(row => Label(row.ContentRating)).Order());
+        Assert.Equal(expected.Order(), (await service.LoadStatesAsync(profile, null, CancellationToken.None)).Select(row => Label(row.ContentRating)).Order());
+    }
+
+    [Fact]
+    public async Task ContentLimitAppliesToAuthorizedAssetsAndDirectAssetAccess()
+    {
+        var accountId = Guid.NewGuid();
+        var library = Guid.NewGuid();
+        await CreateHumanAsync(accountId,
+            new HashSet<AccountFeatureId> { AccountFeatureId.Read, AccountFeatureId.Watch },
+            new HashSet<Guid> { library });
+        var family = await InsertOwnedWorkWithIdAsync(library, "Family film", "Movie");
+        var adult = await InsertOwnedWorkWithIdAsync(library, "Adult film", "Movie");
+        var show = await InsertOwnedWorkWithIdAsync(library, "Grown-up show", "TV");
+        var unrated = await InsertOwnedWorkWithIdAsync(library, "Home video", "Movie");
+        using (var connection = _database.CreateConnection())
+        {
+            connection.Execute("""
+                INSERT INTO canonical_values (entity_id, key, value, last_scored_at)
+                VALUES (@family, 'content_rating', 'PG', CURRENT_TIMESTAMP),
+                       (@adult, 'certification', 'R', CURRENT_TIMESTAMP),
+                       (@show, 'content_rating', 'TV-MA', CURRENT_TIMESTAMP);
+                """, new { family = family.WorkId, adult = adult.WorkId, show = show.WorkId });
+        }
+
+        var profile = MediaEngine.Domain.Aggregates.Profile.SeedProfileId;
+        var context = HumanContext(accountId, profile);
+        SetContentLimit("PG");
+
+        var assets = await CreateService(context, new StubRawProjection([], [])).LoadAuthorizedAssetsAsync(CancellationToken.None);
+        Assert.Equal([family.AssetId], assets.Select(row => row.AssetId));
+        var resources = CreateResourceService(context);
+        Assert.Equal(CatalogueResourceAccess.Allowed, await resources.EvaluateAssetAsync(context, family.AssetId, ApplicationPermissionIds.PlaybackRead));
+        Assert.Equal(CatalogueResourceAccess.Denied, await resources.EvaluateAssetAsync(context, adult.AssetId, ApplicationPermissionIds.PlaybackRead));
+        Assert.Equal(CatalogueResourceAccess.Denied, await resources.EvaluateAssetAsync(context, show.AssetId, ApplicationPermissionIds.PlaybackRead));
+        Assert.Equal(CatalogueResourceAccess.Denied, await resources.EvaluateAssetAsync(context, unrated.AssetId, ApplicationPermissionIds.PlaybackRead));
+        Assert.Empty(await resources.GetAuthorizedAssetIdsForWorkAsync(context, adult.WorkId, profile, ApplicationPermissionIds.LibraryRead));
+
+        // Raising the limit applies on the very next request; unrated items follow their own switch.
+        SetContentLimit("R", allowUnrated: true);
+        assets = await CreateService(context, new StubRawProjection([], [])).LoadAuthorizedAssetsAsync(CancellationToken.None);
+        Assert.Equivalent(new[] { family.AssetId, adult.AssetId, show.AssetId, unrated.AssetId }, assets.Select(row => row.AssetId));
+        resources = CreateResourceService(context);
+        Assert.Equal(CatalogueResourceAccess.Allowed, await resources.EvaluateAssetAsync(context, adult.AssetId, ApplicationPermissionIds.PlaybackRead));
+        Assert.Equal(CatalogueResourceAccess.Allowed, await resources.EvaluateAssetAsync(context, unrated.AssetId, ApplicationPermissionIds.PlaybackRead));
+        Assert.Equal(CatalogueResourceAccess.Allowed, await resources.EvaluateAssetAsync(context, show.AssetId, ApplicationPermissionIds.PlaybackRead));
+    }
+
+    [Fact]
+    public async Task ContentLimitUsesTheStrictestOfRatingAndCertification()
+    {
+        var accountId = Guid.NewGuid();
+        var library = Guid.NewGuid();
+        await CreateHumanAsync(accountId,
+            new HashSet<AccountFeatureId> { AccountFeatureId.Watch },
+            new HashSet<Guid> { library });
+        var mixed = await InsertOwnedWorkWithIdAsync(library, "Mixed ratings", "Movie");
+        using (var connection = _database.CreateConnection())
+        {
+            connection.Execute("""
+                INSERT INTO canonical_values (entity_id, key, value, last_scored_at)
+                VALUES (@id, 'content_rating', 'PG', CURRENT_TIMESTAMP),
+                       (@id, 'certification', 'R', CURRENT_TIMESTAMP);
+                """, new { id = mixed.WorkId });
+        }
+
+        var profile = MediaEngine.Domain.Aggregates.Profile.SeedProfileId;
+        var context = HumanContext(accountId, profile);
+        SetContentLimit("PG-13");
+        Assert.Empty(await CreateService(context, new StubRawProjection([], [])).LoadAuthorizedAssetsAsync(CancellationToken.None));
+        SetContentLimit("R");
+        Assert.Single(await CreateService(context, new StubRawProjection([], [])).LoadAuthorizedAssetsAsync(CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task ContentLimitFailsClosedWhenTheProfileIsMissingOrDeleted()
+    {
+        var accountId = Guid.NewGuid();
+        var library = Guid.NewGuid();
+        await CreateHumanAsync(accountId,
+            new HashSet<AccountFeatureId> { AccountFeatureId.Watch },
+            new HashSet<Guid> { library });
+        var adult = await InsertOwnedWorkWithIdAsync(library, "Adult film", "Movie");
+        using (var connection = _database.CreateConnection())
+        {
+            connection.Execute(
+                "INSERT INTO canonical_values (entity_id, key, value, last_scored_at) VALUES (@id, 'content_rating', 'R', CURRENT_TIMESTAMP)",
+                new { id = adult.WorkId });
+        }
+
+        foreach (var profile in new Guid[] { Guid.NewGuid(), Guid.Empty })
+        {
+            var context = HumanContext(accountId, profile);
+            Assert.DoesNotContain(adult.AssetId,
+                (await CreateService(context, new StubRawProjection([], [])).LoadAuthorizedAssetsAsync(CancellationToken.None)).Select(row => row.AssetId));
+            Assert.NotEqual(CatalogueResourceAccess.Allowed,
+                await CreateResourceService(context).EvaluateAssetAsync(context, adult.AssetId, ApplicationPermissionIds.PlaybackRead));
+        }
     }
 
     [Fact]
@@ -1253,6 +1387,136 @@ public sealed class AuthorizedDisplayProjectionReadServiceTests : IDisposable
         var other = await composer.BuildAuthorizedAsync(MediaEngine.Contracts.Details.DetailEntityType.TvEpisode, first.WorkId, MediaEngine.Contracts.Details.DetailPresentationContext.Watch, default, show.ToString("D"), Guid.NewGuid(), default, [first.AssetId, second.AssetId]);
         Assert.NotNull(other); Assert.All(other.SequencePlacement!.OrderedItems, i => { Assert.Equal(MediaEngine.Contracts.Display.DisplayContinuationState.Unstarted, i.EpisodeContext!.State); Assert.Null(i.ProgressPercent); });
         Assert.Equal(0, Assert.Single(other.SequencePlacement.Groups).CompletedCount);
+    }
+
+    [Fact]
+    public async Task CombinedFileEpisodesResolveToTheHostFileForPlayback()
+    {
+        var account = Guid.NewGuid();
+        var library = Guid.NewGuid();
+        await CreateHumanAsync(account, new HashSet<AccountFeatureId> { AccountFeatureId.Watch }, new HashSet<Guid> { library });
+        var combined = await InsertOwnedWorkWithIdAsync(library, "Pilot", "TV");
+        var covered = Guid.NewGuid();
+        using (var connection = _database.CreateConnection())
+        {
+            await connection.ExecuteAsync("""
+                INSERT INTO works (id, media_type, work_kind, curator_state) VALUES (@covered, 'TV', 'standalone', 'accepted');
+                INSERT INTO media_asset_coverage (asset_id, work_id, position, source) VALUES
+                    (@asset, @first, 1, 'filename'), (@asset, @covered, 2, 'filename');
+                """, new { covered, first = combined.WorkId, asset = combined.AssetId });
+        }
+        var context = HumanContext(account, MediaEngine.Domain.Aggregates.Profile.SeedProfileId);
+        var resources = CreateResourceService(context);
+        Assert.Equal([combined.AssetId], await resources.GetAuthorizedAssetIdsForWorkAsync(
+            context, covered, MediaEngine.Domain.Aggregates.Profile.SeedProfileId, ApplicationPermissionIds.LibraryRead));
+        Assert.Equal(combined.AssetId, await resources.FindAuthorizedAssetForWorkAsync(
+            context, combined.WorkId, MediaEngine.Domain.Aggregates.Profile.SeedProfileId, ApplicationPermissionIds.LibraryRead));
+        Assert.Empty(await resources.GetAuthorizedAssetIdsForWorkAsync(
+            context, Guid.NewGuid(), MediaEngine.Domain.Aggregates.Profile.SeedProfileId, ApplicationPermissionIds.LibraryRead));
+    }
+
+    [Fact]
+    public async Task CombinedFileQueuesOnceAndStartsAtTheRequestedEpisodeOnlyWhenNothingToResume()
+    {
+        var account = Guid.NewGuid();
+        var library = Guid.NewGuid();
+        var profile = MediaEngine.Domain.Aggregates.Profile.SeedProfileId;
+        await CreateHumanAsync(account, new HashSet<AccountFeatureId> { AccountFeatureId.Watch }, new HashSet<Guid> { library });
+        var combined = await InsertOwnedWorkWithIdAsync(library, "Pilot", "TV");
+        var next = await InsertOwnedWorkWithIdAsync(library, "Third", "TV");
+        var covered = Guid.NewGuid();
+        using (var connection = _database.CreateConnection())
+        {
+            await connection.ExecuteAsync("""
+                INSERT INTO works (id, media_type, work_kind, curator_state) VALUES (@covered, 'TV', 'standalone', 'accepted');
+                INSERT INTO canonical_values (entity_id, key, value, last_scored_at) VALUES
+                    (@covered, 'title', 'Part Two', CURRENT_TIMESTAMP),
+                    (@covered, 'episode_number', '2', CURRENT_TIMESTAMP),
+                    (@asset, 'episode_number', '1', CURRENT_TIMESTAMP);
+                INSERT INTO media_asset_coverage (asset_id, work_id, position, start_seconds, source) VALUES
+                    (@asset, @first, 1, 0, 'filename'), (@asset, @covered, 2, 1500, 'manual');
+                """, new { covered, first = combined.WorkId, asset = combined.AssetId });
+        }
+        var context = HumanContext(account, profile);
+        DisplayWorkRow Row(Guid work, Guid asset) =>
+            new() { WorkId = work, AssetId = asset, LibraryId = library.ToString("D"), MediaType = "TV" };
+        using var services = new ServiceCollection()
+            .AddSingleton<IRequestAuthorityResolver>(new RequestAuthorityResolver(_accounts, _applications, new ProfileRepository(_database)))
+            .AddSingleton(CreateService(context, new StubRawProjection(
+                [Row(combined.WorkId, combined.AssetId), Row(covered, combined.AssetId), Row(next.WorkId, next.AssetId)], [])))
+            .BuildServiceProvider();
+        context.RequestServices = services;
+        var player = new PlayerService(
+            null!, null!, _database, null!, null!, null!, null!, null!, null!,
+            new PlayerCatalogueScope(new HttpContextAccessor { HttpContext = context }), null!);
+        var request = new PlayerQueueMutationDto
+        {
+            WorkIds = [combined.WorkId, covered, next.WorkId],
+            StartWorkId = covered,
+        };
+
+        var queue = await player.ResolveQueueItemsAsync(request, profile, default);
+
+        Assert.Equal([covered, next.WorkId], queue.Select(item => item.WorkId).ToArray());
+        var episodeTwo = queue[0];
+        Assert.Equal(combined.AssetId, episodeTwo.AssetId);
+        Assert.Equal("Part Two", episodeTwo.Title);
+        Assert.Equal("2", episodeTwo.EpisodeNumber);
+        Assert.Equal(1500, episodeTwo.PositionSeconds);
+        Assert.Null(queue[1].PositionSeconds);
+
+        var fromStart = await player.ResolveQueueItemsAsync(request with { StartWorkId = combined.WorkId }, profile, default);
+        Assert.Equal([combined.WorkId, next.WorkId], fromStart.Select(item => item.WorkId).ToArray());
+        Assert.Null(fromStart[0].PositionSeconds);
+
+        // Partial progress inside episode 1 still opens episode 2 at its own start.
+        using (var connection = _database.CreateConnection())
+        {
+            connection.Execute(
+                "INSERT INTO user_states(user_id, asset_id, progress_pct, last_accessed, extended_properties) VALUES (@profile, @asset, 20, CURRENT_TIMESTAMP, '{\"position_seconds\":600}');",
+                new { profile, asset = combined.AssetId });
+        }
+        Assert.Equal(1500, (await player.ResolveQueueItemsAsync(request, profile, default))[0].PositionSeconds);
+
+        // Progress already inside episode 2 is resumed, not reset to its start.
+        using (var connection = _database.CreateConnection())
+        {
+            connection.Execute("UPDATE user_states SET progress_pct = 60, extended_properties = '{\"position_seconds\":2400}' WHERE asset_id = @asset;", new { asset = combined.AssetId });
+        }
+        Assert.Null((await player.ResolveQueueItemsAsync(request, profile, default))[0].PositionSeconds);
+
+        using (var connection = _database.CreateConnection())
+        {
+            connection.Execute("UPDATE user_states SET progress_pct = 100 WHERE asset_id = @asset;", new { asset = combined.AssetId });
+        }
+        Assert.Equal(1500, (await player.ResolveQueueItemsAsync(request, profile, default))[0].PositionSeconds);
+    }
+
+    [Fact]
+    public async Task QueueKeepsIntentionalRepeatsOfASingleEpisodeFile()
+    {
+        var account = Guid.NewGuid();
+        var library = Guid.NewGuid();
+        var profile = MediaEngine.Domain.Aggregates.Profile.SeedProfileId;
+        await CreateHumanAsync(account, new HashSet<AccountFeatureId> { AccountFeatureId.Watch }, new HashSet<Guid> { library });
+        var single = await InsertOwnedWorkWithIdAsync(library, "Movie night", "TV");
+        var context = HumanContext(account, profile);
+        using var services = new ServiceCollection()
+            .AddSingleton<IRequestAuthorityResolver>(new RequestAuthorityResolver(_accounts, _applications, new ProfileRepository(_database)))
+            .AddSingleton(CreateService(context, new StubRawProjection(
+                [new() { WorkId = single.WorkId, AssetId = single.AssetId, LibraryId = library.ToString("D"), MediaType = "TV" }], [])))
+            .BuildServiceProvider();
+        context.RequestServices = services;
+        var player = new PlayerService(
+            null!, null!, _database, null!, null!, null!, null!, null!, null!,
+            new PlayerCatalogueScope(new HttpContextAccessor { HttpContext = context }), null!);
+
+        var queue = await player.ResolveQueueItemsAsync(new PlayerQueueMutationDto
+        {
+            Items = [new() { WorkId = single.WorkId }, new() { WorkId = single.WorkId }],
+        }, profile, default);
+
+        Assert.Equal(2, queue.Count);
     }
 
     private AuthorizedDisplayProjectionReadService CreateService(

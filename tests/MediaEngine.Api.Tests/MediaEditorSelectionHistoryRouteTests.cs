@@ -35,6 +35,7 @@ public sealed class MediaEditorSelectionHistoryRouteTests
         try
         {
             database.InitializeSchema();
+            database.RunStartupChecks();
             var show = Guid.NewGuid();
             var episode = Guid.NewGuid();
             var edition = Guid.NewGuid();
@@ -69,7 +70,7 @@ public sealed class MediaEditorSelectionHistoryRouteTests
 
             var access = new LibraryAccess(firstLibrary);
             var actor = new RequestAuthority(PrincipalKind.Human, true,
-                AccountId: Guid.NewGuid(), ActiveProfileId: Guid.NewGuid(), SessionId: Guid.NewGuid(),
+                AccountId: Guid.NewGuid(), ActiveProfileId: MediaEngine.Domain.Aggregates.Profile.SeedProfileId, SessionId: Guid.NewGuid(),
                 AccountEnabled: true, GrantEnabled: true);
             var builder = WebApplication.CreateBuilder(new WebApplicationOptions
             { EnvironmentName = "Development" });

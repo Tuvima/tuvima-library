@@ -112,8 +112,8 @@ public sealed class MappedEndpointInventoryTests
         var inventory = EndpointInventory.From(app);
         var expected = new Dictionary<ApplicationPermissionId, string[]>
         {
-            [ApplicationPermissionIds.MetadataRead] = ["GetClaimHistory", "GetMediaEditorContext", "GetScopedArtworkEditor", "GetArtworkEditor", "GetArtworkWritebackStatus", "GetArtworkWritebackStatuses", "GetEditionRenditions", "GetSearchResultsCache", "GetCanonicalValues", "ResolveLabels", "GetWikidataAliases", "GetMediaEditorNavigator", "GetMediaEditorWorkVersions", "SearchMediaEditorOwnedChildren", "SnapshotMediaEditorOwnedChildSelection", "PreviewParentFirstMediaEditorPairing", "SearchReviewedTvPairingChildren", "GetMediaEditorMembershipSuggestions", "PreviewMediaEditorMembershipChange", "GetCanonDiscrepancies", "GetTvdbMatchPreview", "GetTvdbScopedMatchCandidates", "PreviewTvdbShowOrder"],
-            [ApplicationPermissionIds.MetadataWrite] = ["LockClaim", "OverrideMetadata", "ReclassifyMediaType", "UploadCover", "UploadScopedArtwork", "UploadScopedArtworkFromUrl", "UploadEntityArtwork", "SetPreferredArtwork", "DeleteArtworkVariant", "CoverFromUrl", "ApplyMediaEditorMembershipChange", "ApplyTvdbScopedMatch", "ApplyTvdbShowOrder", "ImportSelectedProviderArtwork", "RetryArtworkWriteback", "UpdateAssetRendition", "PreviewEditionCoverPreference", "SaveEditionCoverPreference", "PreviewReviewedTvEpisodeStill", "PreviewReviewedTvSharedArtwork"],
+            [ApplicationPermissionIds.MetadataRead] = ["GetClaimHistory", "GetMediaEditorContext", "GetScopedArtworkEditor", "GetArtworkEditor", "GetArtworkWritebackStatus", "GetArtworkWritebackStatuses", "GetEditionRenditions", "GetSearchResultsCache", "GetCanonicalValues", "ResolveLabels", "GetWikidataAliases", "GetMediaEditorNavigator", "GetMediaEditorWorkVersions", "SearchMediaEditorOwnedChildren", "SnapshotMediaEditorOwnedChildSelection", "PreviewParentFirstMediaEditorPairing", "SearchReviewedTvPairingChildren", "GetMediaEditorFileCoverage", "GetMediaEditorMembershipSuggestions", "PreviewMediaEditorMembershipChange", "GetCanonDiscrepancies", "GetTvdbMatchPreview", "GetTvdbScopedMatchCandidates", "PreviewTvdbShowOrder"],
+            [ApplicationPermissionIds.MetadataWrite] = ["LockClaim", "OverrideMetadata", "ReclassifyMediaType", "UploadCover", "UploadScopedArtwork", "UploadScopedArtworkFromUrl", "UploadEntityArtwork", "SetPreferredArtwork", "DeleteArtworkVariant", "CoverFromUrl", "ApplyMediaEditorMembershipChange", "ApplyTvdbScopedMatch", "ApplyTvdbShowOrder", "ImportSelectedProviderArtwork", "RetryArtworkWriteback", "UpdateAssetRendition", "PreviewEditionCoverPreference", "SaveEditionCoverPreference", "SaveMediaEditorFileCoverage", "PreviewReviewedTvEpisodeStill", "PreviewReviewedTvSharedArtwork"],
             [ApplicationPermissionIds.MetadataMatch] = ["SearchMetadata", "SearchMetadataFanOut", "PutSearchResultsCache", "WikidataTest", "PreviewMusicTrackMove", "SaveMusicTrackMove", "SaveReviewedParentFirstTvPairing"],
             [ApplicationPermissionIds.MetadataEnrichmentRun] = ["HydrateEntity", "RefreshScopedProviderArtwork", "DiscoverScopedProviderArtwork", "TriggerPass2"],
             [ApplicationPermissionIds.MetadataEnrichmentRead] = ["GetPass2Status"],
@@ -153,10 +153,11 @@ public sealed class MappedEndpointInventoryTests
         inventory.Require("/access/accounts/{accountId:guid}/grants/{profileId:guid}/admin-protection", HttpMethods.Put)
             .RequiresAdministratorOrApplication(ApplicationPermissionIds.IdentityUsersWrite);
 
+        // Server administrators and household administrators (who may turn on their own PIN) use the unlock routes.
         inventory.Require("/access/admin-unlock", HttpMethods.Get)
-            .RequiresNamedPolicy(AuthPolicies.AdministratorEligibility);
+            .RequiresEffectiveAdministratorOrHousehold(surfaceUnlock: false);
         inventory.Require("/access/admin-unlock", HttpMethods.Post)
-            .RequiresNamedPolicy(AuthPolicies.AdministratorEligibility);
+            .RequiresEffectiveAdministratorOrHousehold(surfaceUnlock: false);
         inventory.Require("/access/self-service", HttpMethods.Get)
             .RequiresNamedPolicy(AuthPolicies.HumanSelfService);
 
@@ -379,6 +380,15 @@ public sealed class MappedEndpointInventoryTests
             var policy = Assert.Single(Policies);
             var requirement = Assert.Single(policy.Requirements.OfType<AdministratorOrApplicationRequirement>());
             Assert.Equal(permission, requirement.Permission);
+            return this;
+        }
+
+        public EndpointRecord RequiresEffectiveAdministratorOrHousehold(bool surfaceUnlock)
+        {
+            var policy = Assert.Single(Policies);
+            var requirement = Assert.Single(policy.Requirements.OfType<EffectiveAdministratorRequirement>());
+            Assert.Equal(surfaceUnlock, requirement.SurfaceUnlock);
+            Assert.True(requirement.AllowHouseholdAdministrator);
             return this;
         }
 

@@ -5,6 +5,19 @@ public enum ViewScopeKind
     Shared,
     Mine,
     Profile,
+    /// <summary>
+    /// Request-only: a server administrator reading another household's Shared Library through "Other people".
+    /// It never resolves to a stored scope and is never saved as a preference; the resolved scope is
+    /// <see cref="Shared"/> with the other household recorded on it.
+    /// </summary>
+    OtherShared,
+}
+
+public static class ViewScopeKindExtensions
+{
+    /// <summary>The scopes a request names with a person: another person's space, or their household's Shared Library.</summary>
+    public static bool CarriesProfileId(this ViewScopeKind kind) =>
+        kind is ViewScopeKind.Profile or ViewScopeKind.OtherShared;
 }
 
 public enum ViewTimelineDensity
@@ -19,12 +32,16 @@ public sealed record ViewProfilePolicy(
     bool ViewEnabled,
     bool AccessSharedLibrary,
     bool SubmitToSharedLibrary,
-    bool ReviewSharedLibraryContributions,
     bool ShareGalleries,
     DateTimeOffset? UpdatedAt)
 {
-    public static ViewProfilePolicy Default(Guid profileId) =>
-        new(profileId, true, false, false, false, false, null);
+    /// <summary>
+    /// What a profile gets before anyone changes it: everyone in a household can open and contribute to the
+    /// household's Shared Library. A child (restricted) profile cannot send items until a household administrator
+    /// allows it. Reviewing contributions is not a per-profile setting; household administrators do it.
+    /// </summary>
+    public static ViewProfilePolicy Default(Guid profileId, bool restricted = false, bool inHousehold = true) =>
+        new(profileId, true, inHousehold, inHousehold && !restricted, false, null);
 }
 
 public sealed record ViewProfilePreferences(

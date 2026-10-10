@@ -587,6 +587,24 @@ CREATE TABLE IF NOT EXISTS media_assets (
     rendition_source_fingerprint TEXT,
     CHECK(derived_from_asset_id IS NULL OR derived_from_asset_id != id));
 
+-- Lists every episode a single physical file covers (for example S01E01E02.mkv).
+-- The file stays attached to its first episode via editions; single-episode files
+-- have no rows here. Original files are never split or altered.
+CREATE TABLE IF NOT EXISTS media_asset_coverage (
+    asset_id      BLOB NOT NULL REFERENCES media_assets(id) ON DELETE CASCADE,
+    work_id       BLOB NOT NULL REFERENCES works(id) ON DELETE CASCADE,
+    position      INTEGER NOT NULL CHECK (position >= 1),
+    start_seconds REAL,
+    end_seconds   REAL,
+    source        TEXT NOT NULL
+                      CHECK (source IN ('filename', 'chapters', 'manual', 'provider_runtime')),
+    PRIMARY KEY (asset_id, work_id),
+    UNIQUE (asset_id, position),
+    CHECK (start_seconds IS NULL OR start_seconds >= 0),
+    CHECK (end_seconds IS NULL OR start_seconds IS NULL OR end_seconds >= start_seconds)
+);
+CREATE INDEX IF NOT EXISTS idx_media_asset_coverage_work ON media_asset_coverage(work_id);
+
 -- An editor commit and its file-sync intent are recorded in the same transaction
 -- as the owned-file reassociation. A retry of the same operation token reads this
 -- receipt instead of applying the edit twice.
@@ -748,8 +766,9 @@ CREATE TABLE IF NOT EXISTS view_sources (
         OR (scope_kind = 'shared' AND personal_space_id IS NULL))
 );
 
+-- One Shared library per household; each household's library is created when it is first needed.
 CREATE TABLE IF NOT EXISTS view_shared_library (
-    singleton_key INTEGER NOT NULL PRIMARY KEY CHECK (singleton_key = 1),
+    household_id BLOB NOT NULL PRIMARY KEY REFERENCES households(id),
     library_id BLOB NOT NULL UNIQUE,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL
@@ -776,9 +795,6 @@ BEGIN SELECT RAISE(ABORT,'Shared library identity is immutable'); END;
 CREATE TRIGGER IF NOT EXISTS trg_view_shared_library_delete
 BEFORE DELETE ON view_shared_library
 BEGIN SELECT RAISE(ABORT,'Shared library identity cannot be deleted'); END;
-INSERT OR IGNORE INTO view_shared_library(singleton_key, library_id, created_at, updated_at)
-VALUES (1, X'00000000000000000000000000000003',
-    strftime('%Y-%m-%dT%H:%M:%fZ','now'), strftime('%Y-%m-%dT%H:%M:%fZ','now'));
 
 -- Timeline inclusion is separate from source registration. Browser uploads
 -- participate by default; additional folders opt in explicitly.
@@ -804,7 +820,7 @@ CREATE TABLE IF NOT EXISTS view_folder_timeline_policies (
     relative_path       TEXT NOT NULL,
     absolute_path       TEXT NOT NULL,
     include_in_timeline INTEGER NOT NULL CHECK (include_in_timeline IN (0, 1)),
-    updated_by_profile_id BLOB NOT NULL REFERENCES profiles(id),
+    updated_by_profile_id BLOB REFERENCES profiles(id) ON DELETE SET NULL,
     updated_at          TEXT NOT NULL,
     PRIMARY KEY (source_id, relative_path)
 );
@@ -1562,7 +1578,8 @@ CREATE TABLE IF NOT EXISTS playback_segments (
 CREATE TABLE IF NOT EXISTS households (
     id         BLOB NOT NULL PRIMARY KEY,
     name       TEXT NOT NULL,
-    created_at TEXT NOT NULL
+    created_at TEXT NOT NULL,
+    primary_account_id BLOB REFERENCES accounts(id) ON DELETE SET NULL
 );
 
 CREATE TABLE IF NOT EXISTS profiles (
@@ -1570,6 +1587,9 @@ CREATE TABLE IF NOT EXISTS profiles (
     display_name TEXT NOT NULL,
     avatar_color TEXT NOT NULL DEFAULT '#7C4DFF',
     avatar_image_path TEXT,
+    avatar_icon  TEXT,
+    content_limit TEXT CHECK (content_limit IS NULL OR content_limit IN ('G', 'PG', 'PG-13', 'R')),
+    content_limit_allow_unrated INTEGER NOT NULL DEFAULT 0 CHECK (content_limit_allow_unrated IN (0, 1)),
     role         TEXT NOT NULL DEFAULT 'RestrictedProfile'
                      CHECK (role IN ('Administrator', 'StandardUser', 'RestrictedProfile')),
     created_at   TEXT NOT NULL
@@ -1586,6 +1606,8 @@ CREATE TABLE IF NOT EXISTS accounts (
     created_at       TEXT NOT NULL,
     updated_at       TEXT NOT NULL,
     household_id     BLOB REFERENCES households(id),
+    household_admin  INTEGER NOT NULL DEFAULT 0 CHECK (household_admin IN (0, 1)),
+    grants_inherit_from_account_id BLOB REFERENCES accounts(id) ON DELETE SET NULL,
     this_computer_only INTEGER NOT NULL DEFAULT 0 CHECK (this_computer_only IN (0, 1)),
     must_change_password INTEGER NOT NULL DEFAULT 0 CHECK (must_change_password IN (0, 1)),
     temporary_password_expires_at TEXT
@@ -1623,16 +1645,16 @@ CREATE TABLE IF NOT EXISTS account_feature_grants (
 );
 
 CREATE TRIGGER IF NOT EXISTS trg_view_sources_scope_insert BEFORE INSERT ON view_sources BEGIN
-    SELECT CASE WHEN NEW.scope_kind='personal' AND NOT EXISTS (SELECT 1 FROM view_personal_spaces s WHERE s.id=NEW.personal_space_id AND s.library_id=NEW.library_id) THEN RAISE(ABORT,'personal View source must match its Personal Space library') WHEN NEW.scope_kind='shared' AND NOT EXISTS (SELECT 1 FROM view_shared_library s WHERE s.singleton_key=1 AND s.library_id=NEW.library_id) THEN RAISE(ABORT,'Shared View source must match the Shared library') END;
+    SELECT CASE WHEN NEW.scope_kind='personal' AND NOT EXISTS (SELECT 1 FROM view_personal_spaces s WHERE s.id=NEW.personal_space_id AND s.library_id=NEW.library_id) THEN RAISE(ABORT,'personal View source must match its Personal Space library') WHEN NEW.scope_kind='shared' AND NOT EXISTS (SELECT 1 FROM view_shared_library s WHERE s.library_id=NEW.library_id) THEN RAISE(ABORT,'Shared View source must match the Shared library') END;
 END;
 CREATE TRIGGER IF NOT EXISTS trg_view_sources_scope_update BEFORE UPDATE OF scope_kind,personal_space_id,library_id ON view_sources BEGIN
-    SELECT CASE WHEN NEW.scope_kind='personal' AND NOT EXISTS (SELECT 1 FROM view_personal_spaces s WHERE s.id=NEW.personal_space_id AND s.library_id=NEW.library_id) THEN RAISE(ABORT,'personal View source must match its Personal Space library') WHEN NEW.scope_kind='shared' AND NOT EXISTS (SELECT 1 FROM view_shared_library s WHERE s.singleton_key=1 AND s.library_id=NEW.library_id) THEN RAISE(ABORT,'Shared View source must match the Shared library') END;
+    SELECT CASE WHEN NEW.scope_kind='personal' AND NOT EXISTS (SELECT 1 FROM view_personal_spaces s WHERE s.id=NEW.personal_space_id AND s.library_id=NEW.library_id) THEN RAISE(ABORT,'personal View source must match its Personal Space library') WHEN NEW.scope_kind='shared' AND NOT EXISTS (SELECT 1 FROM view_shared_library s WHERE s.library_id=NEW.library_id) THEN RAISE(ABORT,'Shared View source must match the Shared library') END;
 END;
 CREATE TRIGGER IF NOT EXISTS trg_local_items_scope_insert BEFORE INSERT ON local_items BEGIN
-    SELECT CASE WHEN NEW.scope_kind='personal' AND NOT EXISTS (SELECT 1 FROM view_personal_spaces s WHERE s.id=NEW.personal_space_id AND s.library_id=NEW.library_id AND s.owner_profile_id=NEW.owner_profile_id) THEN RAISE(ABORT,'personal View item must match its owner and Personal Space library') WHEN NEW.scope_kind='shared' AND NOT EXISTS (SELECT 1 FROM view_shared_library s WHERE s.singleton_key=1 AND s.library_id=NEW.library_id) THEN RAISE(ABORT,'Shared View item must match the Shared library') END;
+    SELECT CASE WHEN NEW.scope_kind='personal' AND NOT EXISTS (SELECT 1 FROM view_personal_spaces s WHERE s.id=NEW.personal_space_id AND s.library_id=NEW.library_id AND s.owner_profile_id=NEW.owner_profile_id) THEN RAISE(ABORT,'personal View item must match its owner and Personal Space library') WHEN NEW.scope_kind='shared' AND NOT EXISTS (SELECT 1 FROM view_shared_library s WHERE s.library_id=NEW.library_id) THEN RAISE(ABORT,'Shared View item must match the Shared library') END;
 END;
 CREATE TRIGGER IF NOT EXISTS trg_local_items_scope_update BEFORE UPDATE OF scope_kind,personal_space_id,owner_profile_id,library_id ON local_items BEGIN
-    SELECT CASE WHEN NEW.scope_kind='personal' AND NOT EXISTS (SELECT 1 FROM view_personal_spaces s WHERE s.id=NEW.personal_space_id AND s.library_id=NEW.library_id AND s.owner_profile_id=NEW.owner_profile_id) THEN RAISE(ABORT,'personal View item must match its owner and Personal Space library') WHEN NEW.scope_kind='shared' AND NOT EXISTS (SELECT 1 FROM view_shared_library s WHERE s.singleton_key=1 AND s.library_id=NEW.library_id) THEN RAISE(ABORT,'Shared View item must match the Shared library') END;
+    SELECT CASE WHEN NEW.scope_kind='personal' AND NOT EXISTS (SELECT 1 FROM view_personal_spaces s WHERE s.id=NEW.personal_space_id AND s.library_id=NEW.library_id AND s.owner_profile_id=NEW.owner_profile_id) THEN RAISE(ABORT,'personal View item must match its owner and Personal Space library') WHEN NEW.scope_kind='shared' AND NOT EXISTS (SELECT 1 FROM view_shared_library s WHERE s.library_id=NEW.library_id) THEN RAISE(ABORT,'Shared View item must match the Shared library') END;
 END;
 CREATE UNIQUE INDEX IF NOT EXISTS ux_view_sources_personal_key ON view_sources(personal_space_id, source_key)
     WHERE scope_kind = 'personal' AND source_key IS NOT NULL;
@@ -1733,11 +1755,21 @@ CREATE TABLE IF NOT EXISTS auth_sessions (
     expires_at            TEXT NOT NULL,
     authenticated_at      TEXT,
     revoked_at            TEXT,
-    revoked_reason        TEXT
+    revoked_reason        TEXT,
+    profile_pending       INTEGER NOT NULL DEFAULT 0
 );
 
 CREATE INDEX IF NOT EXISTS idx_auth_sessions_account_active
     ON auth_sessions(account_id, revoked_at, expires_at);
+
+-- "Always open as this person on this device": one row per signed-in account and browser/device.
+CREATE TABLE IF NOT EXISTS device_profile_preferences (
+    account_id BLOB NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+    device_id  TEXT NOT NULL,
+    profile_id BLOB NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+    updated_at TEXT NOT NULL,
+    PRIMARY KEY (account_id, device_id)
+);
 
 CREATE TABLE IF NOT EXISTS grant_admin_unlocks (
     session_id BLOB NOT NULL PRIMARY KEY REFERENCES auth_sessions(id) ON DELETE CASCADE,
@@ -1805,6 +1837,32 @@ CREATE TABLE IF NOT EXISTS password_reset_challenges (
     consumed_at TEXT
 );
 
+-- Optional two-step sign-in with a free authenticator app (TOTP, RFC 6238). A row with enabled_at NULL is a setup
+-- the person has not confirmed yet. last_used_step blocks reusing a code.
+CREATE TABLE IF NOT EXISTS account_two_step (
+    account_id      BLOB NOT NULL PRIMARY KEY REFERENCES accounts(id) ON DELETE CASCADE,
+    secret_protected TEXT NOT NULL,
+    created_at      TEXT NOT NULL,
+    enabled_at      TEXT,
+    last_used_step  INTEGER NOT NULL DEFAULT 0
+);
+
+-- The half-finished sign-in between a correct password and the authenticator code.
+CREATE TABLE IF NOT EXISTS two_step_challenges (
+    id              BLOB NOT NULL PRIMARY KEY,
+    account_id      BLOB NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+    token_hash      TEXT NOT NULL UNIQUE,
+    ingress         TEXT NOT NULL,
+    device_id       TEXT NOT NULL,
+    device_name     TEXT NOT NULL,
+    client          TEXT NOT NULL,
+    security_stamp  TEXT NOT NULL DEFAULT '',
+    failed_attempts INTEGER NOT NULL DEFAULT 0,
+    created_at      TEXT NOT NULL,
+    expires_at      TEXT NOT NULL,
+    consumed_at     TEXT
+);
+
 -- Server-issued identities for Dashboard, television, mobile and future
 -- clients. Request fields and browser storage are never identity authorities.
 CREATE TABLE IF NOT EXISTS client_devices (
@@ -1822,7 +1880,8 @@ CREATE TABLE IF NOT EXISTS client_devices (
     created_at        TEXT NOT NULL,
     last_seen_at      TEXT NOT NULL,
     revoked_at        TEXT,
-    revoked_reason    TEXT
+    revoked_reason    TEXT,
+    backup_profile_id BLOB REFERENCES profiles(id) ON DELETE SET NULL
 );
 CREATE INDEX IF NOT EXISTS idx_client_devices_profile_active
     ON client_devices(profile_id, revoked_at, last_seen_at DESC);
@@ -1932,14 +1991,14 @@ CREATE TABLE IF NOT EXISTS authorization_audit_events (
 CREATE INDEX IF NOT EXISTS idx_authorization_audit_subject
     ON authorization_audit_events(subject_type, subject_id, occurred_at DESC);
 
--- Administrator-owned View capability policy. Viewing, submitting to, and
--- reviewing the Shared Library are deliberately independent permissions.
+-- Administrator-owned View capability policy. Viewing and submitting to the household's Shared Library are
+-- separate permissions; both default on (submitting stays off for a child profile). Reviewing contributions
+-- belongs to household administrators, so there is no per-profile review flag.
 CREATE TABLE IF NOT EXISTS profile_view_policies (
     profile_id              BLOB NOT NULL PRIMARY KEY REFERENCES profiles(id) ON DELETE CASCADE,
     view_enabled            INTEGER NOT NULL DEFAULT 1 CHECK (view_enabled IN (0, 1)),
-    access_shared_library   INTEGER NOT NULL DEFAULT 0 CHECK (access_shared_library IN (0, 1)),
-    submit_to_shared_library INTEGER NOT NULL DEFAULT 0 CHECK (submit_to_shared_library IN (0, 1)),
-    review_shared_library_contributions INTEGER NOT NULL DEFAULT 0 CHECK (review_shared_library_contributions IN (0, 1)),
+    access_shared_library   INTEGER NOT NULL DEFAULT 1 CHECK (access_shared_library IN (0, 1)),
+    submit_to_shared_library INTEGER NOT NULL DEFAULT 1 CHECK (submit_to_shared_library IN (0, 1)),
     share_galleries         INTEGER NOT NULL DEFAULT 0 CHECK (share_galleries IN (0, 1)),
     updated_at              TEXT NOT NULL
 );
@@ -2933,6 +2992,22 @@ CREATE UNIQUE INDEX IF NOT EXISTS ux_identity_jobs_entity_pass_active
 
 CREATE UNIQUE INDEX IF NOT EXISTS ux_media_operations_idempotency
 ON media_operations(idempotency_key);
+
+-- Every (work, edition, file) an owned work is reached through: its own files plus
+-- files that cover it as an additional episode of a combined file. A covered
+-- episode resolves to the host file's edition; the file itself is still one file,
+-- so file counts must use DISTINCT asset_id. Single-episode files appear once.
+DROP VIEW IF EXISTS work_owned_assets;
+CREATE VIEW work_owned_assets AS
+SELECT e.work_id AS work_id, e.id AS edition_id, ma.id AS asset_id, 0 AS is_covered
+FROM editions e
+INNER JOIN media_assets ma ON ma.edition_id = e.id
+UNION ALL
+SELECT c.work_id, e.id, c.asset_id, 1
+FROM media_asset_coverage c
+INNER JOIN media_assets ma ON ma.id = c.asset_id
+INNER JOIN editions e ON e.id = ma.edition_id
+WHERE c.work_id <> e.work_id;
 
 -- Presentation-facing person credits must follow the same ordered canonical
 -- contributor source used by detail pages. person_media_links intentionally

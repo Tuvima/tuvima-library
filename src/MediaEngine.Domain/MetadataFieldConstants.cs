@@ -55,6 +55,7 @@ public static class MetadataFieldConstants
     public const string OriginalTitle = "original_title";
     public const string SeasonNumber = "season_number";
     public const string EpisodeNumber = "episode_number";
+    public const string EpisodeEnd = "episode_end";
     public const string TrackNumber = "track_number";
     public const string DiscNumber = "disc_number";
     public const string DiscCount = "disc_count";

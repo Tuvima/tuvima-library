@@ -1,0 +1,46 @@
+@using MediaEngine.Contracts.LocalAssets
+@using MediaEngine.Domain.PersonalMedia
+@namespace MediaEngine.Web.Components.Pages
+@* The options of a View scope picker: your own space first, then a "Household" group naming each member, then the Shared Library. *@
+@foreach (var scope in Scopes.Where(value => value.Kind == ViewScopeKind.Mine))
+{
+    <option value="@ScopeValue(scope)">@scope.Label</option>
+}
+@if (Scopes.Any(value => value.Kind == ViewScopeKind.Profile))
+{
+    <optgroup label="Household">
+        @foreach (var scope in Scopes.Where(value => value.Kind == ViewScopeKind.Profile))
+        {
+            <option value="@ScopeValue(scope)">@scope.Label</option>
+        }
+    </optgroup>
+}
+@foreach (var scope in Scopes.Where(value => value.Kind == ViewScopeKind.Shared))
+{
+    <option value="@ScopeValue(scope)">@scope.Label</option>
+}
+@* Server administrators only: other households, read-only. Each look is recorded for that household. *@
+@if (OtherPeople is { Households.Count: > 0 })
+{
+    @foreach (var household in OtherPeople.Households)
+    {
+        <optgroup label="@($"Other people · {household.Name}")">
+            @foreach (var person in household.People.Where(value => value.HasPersonalSpace))
+            {
+                <option value="@($"{ViewScopeKind.Profile}:{person.ProfileId:D}")">@person.DisplayName</option>
+            }
+            @if (household.People.Count > 0)
+            {
+                <option value="@($"{ViewScopeKind.OtherShared}:{household.People[0].ProfileId:D}")">Shared Library</option>
+            }
+        </optgroup>
+    }
+}
+
+@code {
+    [Parameter, EditorRequired] public IReadOnlyList<ViewScopeOptionDto> Scopes { get; set; } = [];
+    [Parameter] public ViewOtherPeopleDto? OtherPeople { get; set; }
+
+    private static string ScopeValue(ViewScopeOptionDto scope) =>
+        $"{scope.Kind}:{(scope.Kind.CarriesProfileId() ? scope.ProfileId?.ToString("D") : null)}";
+}

@@ -41,6 +41,56 @@ public sealed class ProfileRepositoryInvariantTests : IDisposable
         Assert.Equal(ProfileRole.Administrator, persisted.Role);
     }
 
+    [Fact]
+    public async Task ContentLimit_IsReadBackAndNotTouchedByTheExperienceUpdate()
+    {
+        var limits = new ProfileContentLimitRepository(_database);
+        Assert.True((await limits.GetAsync(Profile.SeedProfileId)).IsUnrestricted);
+
+        using (var connection = _database.CreateConnection())
+        {
+            Dapper.SqlMapper.Execute(connection,
+                "UPDATE profiles SET content_limit='PG-13', content_limit_allow_unrated=1 WHERE id=@id",
+                new { id = Profile.SeedProfileId });
+        }
+
+        var owner = Assert.IsType<Profile>(await _repository.GetByIdAsync(Profile.SeedProfileId));
+        Assert.Equal("PG-13", owner.ContentLimit);
+        Assert.True(owner.ContentLimitAllowUnrated);
+
+        // The experience update never rewrites the limit, so saving a theme can't lift it.
+        owner.ContentLimit = null;
+        owner.DisplayName = "Renamed";
+        Assert.True(await _repository.UpdateAsync(owner));
+
+        var stored = await limits.GetAsync(Profile.SeedProfileId);
+        Assert.Equal(new MediaEngine.Domain.Contracts.ProfileContentLimit("PG-13", true), stored);
+        Assert.Equal(MediaEngine.Domain.Contracts.ProfileContentLimit.Strictest, await limits.GetAsync(Guid.NewGuid()));
+    }
+
+    [Fact]
+    public void ContentLimit_RejectsValuesOutsideTheFiveChoices()
+    {
+        using var connection = _database.CreateConnection();
+        Assert.Throws<SqliteException>(() => Dapper.SqlMapper.Execute(connection,
+            "UPDATE profiles SET content_limit='NC-17' WHERE id=@id", new { id = Profile.SeedProfileId }));
+    }
+
+    [Fact]
+    public async Task UpdateAsync_SavesAndClearsTheBuiltInAvatarIcon()
+    {
+        var owner = Assert.IsType<Profile>(await _repository.GetByIdAsync(Profile.SeedProfileId));
+        Assert.Null(owner.AvatarIcon);
+
+        owner.AvatarIcon = "fox";
+        Assert.True(await _repository.UpdateAsync(owner));
+        Assert.Equal("fox", Assert.IsType<Profile>(await _repository.GetByIdAsync(Profile.SeedProfileId)).AvatarIcon);
+
+        owner.AvatarIcon = null;
+        Assert.True(await _repository.UpdateAsync(owner));
+        Assert.Null(Assert.IsType<Profile>(await _repository.GetByIdAsync(Profile.SeedProfileId)).AvatarIcon);
+    }
+
     public void Dispose()
     {
         _database.Dispose();

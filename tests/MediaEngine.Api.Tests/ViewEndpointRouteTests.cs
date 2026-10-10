@@ -14,6 +14,26 @@ public sealed class ViewEndpointRouteTests
     }
 
     [Fact]
+    public void OtherPeopleListIsServerAdministratorOnlyAndOpeningIsRecordedAtTheBoundary()
+    {
+        var root = FindRepoRoot();
+        var endpoint = File.ReadAllText(Path.Combine(root, "src", "MediaEngine.Api", "Endpoints", "ViewEndpoints.cs"));
+        var routeStart = endpoint.IndexOf("group.MapGet(\"/other-people\"", StringComparison.Ordinal);
+        var routeEnd = endpoint.IndexOf("group.MapGet(\"/photo-views\"", routeStart, StringComparison.Ordinal);
+        var route = endpoint[routeStart..routeEnd];
+
+        // Household administrators, members and apps are refused (403) both by the policy and by the handler.
+        Assert.Contains(".RequireEffectiveAdministrator()", route, StringComparison.Ordinal);
+        Assert.Contains("PrincipalKind.Human", route, StringComparison.Ordinal);
+        Assert.Contains("IsEffectiveAdministrator", route, StringComparison.Ordinal);
+        Assert.Contains("ApiErrors.Forbidden", route, StringComparison.Ordinal);
+
+        // Every read of another household goes through the one authorization boundary, which records it.
+        var authorization = File.ReadAllText(Path.Combine(root, "src", "MediaEngine.Api", "Services", "View", "ViewResourceAuthorization.cs"));
+        Assert.Contains("otherPeople.RecordOpenAsync", authorization, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void PreferenceScopeProfileId_PreservesExplicitProfileTarget()
     {
         var profileId = Guid.NewGuid();

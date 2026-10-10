@@ -1,0 +1,48 @@
+@namespace MediaEngine.Web.Components.Shared
+@using MediaEngine.Domain.Aggregates
+@* A profile's round picture: an uploaded photo, or a coloured circle with a built-in icon or the person's initial. It fills the box its parent sizes, so the picker can resize it without layout shift. *@
+@if (!string.IsNullOrWhiteSpace(ImageUrl))
+{
+    <img class="profile-avatar" src="@ImageUrl" alt="" loading="lazy" decoding="async" width="256" height="256" />
+}
+else
+{
+    <svg class="profile-avatar" viewBox="0 0 100 100" aria-hidden="true" focusable="false">
+        <circle cx="50" cy="50" r="50" fill="@Fill" />
+        @if (ProfileAvatarIcons.IsValid(Icon))
+        {
+            <ProfileAvatarGlyph Key="@Icon" Ink="@Ink" Fill="@Fill" />
+        }
+        else
+        {
+            <g><text x="50" y="52" text-anchor="middle" dominant-baseline="central" font-size="44" font-weight="700" fill="@Ink">@Initial</text></g>
+        }
+    </svg>
+}
+
+@code {
+    private const string DefaultFill = "#8852FC";
+
+    [Parameter] public string? DisplayName { get; set; }
+    [Parameter] public string? ImageUrl { get; set; }
+    [Parameter] public string? Color { get; set; }
+
+    /// <summary>Key of a built-in icon drawn instead of the initial; ignored when a photo is set.</summary>
+    [Parameter] public string? Icon { get; set; }
+
+    private string Initial => string.IsNullOrWhiteSpace(DisplayName) ? "?" : DisplayName.Trim()[..1].ToUpperInvariant();
+
+    private string Fill => System.Text.RegularExpressions.Regex.IsMatch(Color ?? string.Empty, "^#[0-9a-fA-F]{6}$") ? Color! : DefaultFill;
+
+    // Dark or light lettering, whichever reads better on the chosen colour.
+    private string Ink
+    {
+        get
+        {
+            var red = Convert.ToInt32(Fill.Substring(1, 2), 16);
+            var green = Convert.ToInt32(Fill.Substring(3, 2), 16);
+            var blue = Convert.ToInt32(Fill.Substring(5, 2), 16);
+            return (0.299 * red) + (0.587 * green) + (0.114 * blue) > 160 ? "#1b1b1f" : "#ffffff";
+        }
+    }
+}

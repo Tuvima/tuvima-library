@@ -15,8 +15,8 @@ An account signs in. A profile holds personal history, preferences, and View Per
 
 ## Give someone access
 
-1. Open **Settings → Users & Access → Users**.
-2. Choose **New user**, enter the person's email, then pick how they will sign in for the first time: **Send an invitation** (the default) or **Set a temporary password**. Use **Invite user** to invite someone into profiles that already exist.
+1. Open **Settings → Users & Access → Households** (server administrators only).
+2. Choose **Invite someone outside your household**, enter the person's email, then pick how they will sign in for the first time: **Send an invitation** (the default) or **Set a temporary password**. They start a household of their own and look after it as its household administrator. Use **Invite user** to invite someone into profiles that already exist.
 3. Set the account's permitted Read, Watch, Listen, View, and catalogue libraries.
 4. Grant only the profiles that person should use. An account can have up to eight profile grants.
 5. Hand over what Tuvima shows you, through a trusted private channel. It is shown once.
@@ -36,6 +36,23 @@ This page sets a password only; passkeys can be added afterwards in **Settings �
 Choose **Set a temporary password** to type one yourself or press **Generate** for a random 16-character one. It is shown once, with a **Copy** button. The first time the person signs in with it, Tuvima asks them to choose their own password and nothing else works until they do. Choosing a new one signs out every other device. A temporary password stops working after 7 days; after that the person sees "Ask your administrator for a new temporary password." and you can set another from the user's actions menu (**Set temporary password**), which also signs them out everywhere.
 
 Every account needs an email address to sign in. Someone who does not need their own sign-in is added as a profile in an existing household instead, and is opened by switching profiles.
+
+## Add a person, and give them their own sign-in
+
+What you see depends on who you are:
+
+- A **household administrator** sees **Settings → My household**: the people in their own household (up to 8) as cards, with their child tag and sign-in. Nothing else from Users & Access is shown, and they cannot reach another household.
+- A **server administrator** sees the same cards under **Settings → Users & Access → My household** for their own household, and a **Households** tab listing every household (name, how many people, main sign-in). **View people** opens a household's cards with the same actions.
+- Anyone else sees neither. The pages are hidden from the menu and opening their address sends you back to your own settings.
+
+On a card:
+
+1. **Add person** adds someone to the household. Enter a name, switch on **Child profile** for a restricted profile, and set an optional PIN that is asked before anyone switches into them. The household's sign-in can open them straight away; they do not have a sign-in of their own yet.
+2. **Give (name) their own sign-in** lets a person sign in with their own email. Choose **Send an invitation** or **Set a temporary password** (the same two ways as for a new user) and enter their email. The new sign-in opens straight to that person without the profile picker, stays in the same household, and is never an administrator.
+3. **Set PIN** sets the PIN asked before anyone switches into that person (4 to 12 digits). A new PIN replaces the old one.
+4. **Remove sign-in** deletes the person's own sign-in, signs it out everywhere and unpairs its devices. The person stays in the household with everything they have saved, and the household's sign-in can still open them.
+
+Library and lane access is not set per person. A person's own sign-in follows the household's main sign-in, so when you change the household's access it reaches them as well. Under **Sign-ins and access**, **Libraries & lanes** changes what one of the household's own sign-ins can open. A household administrator is only offered the libraries their household already has; if they turned on an administrator PIN, Tuvima asks for it the first time the Engine refuses a change.
 
 ## Protect admin settings
 
@@ -63,6 +80,16 @@ If you started Tuvima on your desktop without a password, **Settings → Account
 ## Confirm it's you
 
 Changing your password, adding or removing a passkey, linking or unlinking a provider, replacing recovery codes, signing out other sessions, and setting or removing a PIN need a sign-in from the last 10 minutes. If yours is older, a **Confirm it's you** window asks for your password or passkey, then finishes what you were doing. Accounts that work only on this computer have no password to ask for, so they are not asked. Tuvima still refuses to remove your last sign-in method, and there is no action to remove a password.
+
+## Two-step codes (optional)
+
+Two-step codes add a second check to password sign-in. You turn them on yourself in **Settings → Account → Security → Two-step codes**: after confirming it's you, scan the picture with an authenticator app (or type the key it shows), enter the 6-digit code the app gives you, and save the new recovery codes that appear. From then on, signing in with your password also asks for **the 6-digit code from your authenticator app**. If your phone is lost, choose **Use a recovery code instead**; each recovery code works once.
+
+- Passkey and **Sign in with…** sign-ins never ask for a code. They are already a second kind of proof.
+- **Confirm it's you** also asks for the code while two-step is on.
+- To turn it off, confirm it's you, then enter a fresh code (wait for the next one if you just used one) or a recovery code.
+- If someone loses both their phone and their recovery codes, a server administrator can use **Turn off two-step codes** on their account in Settings → Users & Access. This is recorded in the audit log. You can also run `tuvima-admin auth reset-two-step --email someone@example.com` on the computer that hosts Tuvima.
+- Codes are checked offline against a secret stored encrypted on your server. Nothing is sent to any service, and there are no text or email codes.
 
 ## Password rules
 

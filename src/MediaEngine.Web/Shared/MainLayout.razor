@@ -47,7 +47,7 @@
 
 <a class="skip-to-content" href="#main-content">@L["Layout_SkipToContent"]</a>
 
-<AppCssElement Tag="div" Class="layout-accent-scope" @onclick="CloseOpenShellMenus">
+<AppCssElement Tag="div" Class="@AccentScopeClass" @onclick="CloseOpenShellMenus">
 <div class="@(_thisComputerBanner ? "playback-app-frame playback-app-frame--with-banner" : "playback-app-frame")">
 <AppCssElement Tag="div" Class="playback-app-frame__variables">
 <AppLayout Class="@LayoutShellClass">
@@ -63,7 +63,7 @@
         </AppStack>
 
         <nav class="layout-shell__desktop-nav" aria-label="Primary">
-            @foreach (var link in _navLinks)
+            @foreach (var link in VisibleNavLinks)
             {
                 <a href="@link.Path"
                    @key="link.Path"
@@ -120,9 +120,9 @@
                                    ActiveProfileId="@_activeProfileId"
                                    Profiles="@_profiles"
                                    ReviewCount="@_reviewCount"
-                                   CanViewReview="@CanViewReview"
-                                   ShowSignOut="true"
-                                   ProfileSwitchRequested="SwitchProfileAsync" />
+                                   CanViewReview="@(CanViewReview && !_isKids)"
+                                   IsKids="@_isKids"
+                                   ShowSignOut="true" />
             </span>
         </AppStack>
     </AppAppBar>
@@ -203,6 +203,7 @@
     private string? _accountLabel;
     private string _profileRole = "Profile";
     private Guid? _activeProfileId;
+    private bool _isKids;
     private int _reviewCount;
     private int _accountMenuVersion;
     private readonly CancellationTokenSource _authorityRefreshCancellation = new();
@@ -238,6 +239,16 @@
             ["Collections"] = new("/collections", "Nav_Collections", AppMaterialIcons.Outlined.CollectionsBookmark),
         };
 
+    // The Kids shell keeps only the lanes a child needs; "My List" stays in the top bar.
+    private static readonly string[] _kidsNavPaths = ["/watch", "/listen", "/read"];
+    private static readonly string[] _kidsDockPaths = ["/", "/watch", "/listen", "/read"];
+
+    private string AccentScopeClass => _isKids ? "layout-accent-scope layout-kids" : "layout-accent-scope";
+
+    private IEnumerable<ShellNavLink> VisibleNavLinks => _isKids
+        ? _kidsNavPaths.Select(path => _navLinks.First(link => link.Path == path))
+        : _navLinks;
+
     private bool IsDetailShell => IsDetailPath(_currentPath);
     private bool IsLaneScrollRoute => new[] { "/read", "/watch", "/listen", "/collections", "/view", "/settings" }.Any(path =>
         string.Equals(_currentPath, path, StringComparison.OrdinalIgnoreCase)
@@ -258,6 +269,7 @@
         .Select(item => _intentDockCatalog.TryGetValue(item, out var link) ? link : (ShellNavLink?)null)
         .Where(link => link.HasValue)
         .Select(link => link!.Value)
+        .Where(link => !_isKids || _kidsDockPaths.Contains(link.Path, StringComparer.OrdinalIgnoreCase))
         .DistinctBy(link => link.Path, StringComparer.OrdinalIgnoreCase)
         .ToArray();
     private string IntentDockClass => string.Join(' ', new[]
@@ -587,6 +599,13 @@
             if (_disposed) return;
             var principal = (await AuthenticationStateProvider.GetAuthenticationStateAsync()).User;
             if (_disposed) return;
+            if (principal.HasClaim(DashboardPrincipalFactory.ProfilePendingClaim, "true"))
+            {
+                // A remembered person needs their PIN: nothing else opens until someone is picked.
+                Nav.NavigateTo(ProfilePickerRoute.For(null), forceLoad: true, replace: true);
+                return;
+            }
+
             _session.InitializeFromPrincipal(principal);
             await Identity.EnsureInitialAuthorityAsync(_session, _authorityRefreshCancellation.Token);
         }
@@ -613,6 +632,7 @@
             _profiles = await Orchestrator.GetProfilesAsync();
             if (_disposed) return;
             _activeProfileId = profile.Id;
+            _isKids = profile.IsRestricted;
             _avatarColor = profile.AvatarColor;
             _avatarImageUrl = profile.AvatarImageUrl;
             _displayName = string.IsNullOrWhiteSpace(profile.DisplayName)
@@ -647,24 +667,6 @@
             // The menu header falls back to the profile name when the account identity cannot be read.
             Logger.LogDebug(ex, "Could not load the account identity for the account menu.");
         }
-    }
-
-    private async Task<ProfileSwitchOutcome> SwitchProfileAsync(Guid profileId, string? secret)
-    {
-        var outcome = await Orchestrator.SetActiveProfileAsync(profileId, secret);
-        if (!outcome.Succeeded)
-        {
-            return outcome;
-        }
-
-        await LoadActiveProfileAsync();
-        await LoadReviewCountAsync();
-        StateHasChanged();
-        // A profile switch changes the authenticated role and every profile-scoped
-        // data source. Rebuild the request/circuit so cookie validation renews the
-        // principal and no already-mounted page can retain the previous profile.
-        Nav.NavigateTo("/", forceLoad: true, replace: true);
-        return outcome;
     }
 
     private async Task LoadReviewCountAsync()

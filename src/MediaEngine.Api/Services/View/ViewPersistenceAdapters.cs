@@ -12,6 +12,7 @@ public sealed class ViewScopePersistenceService(
     IProfileRepository profiles,
     IViewProfileRepository policies,
     IViewPersonalSpaceRepository spaces,
+    IViewSharedLibraryRepository sharedLibraries,
     IDatabaseConnection database) : IViewScopeStore
 {
     public async Task<ViewScopeStoreEntry?> FindProfileAsync(Guid profileId, CancellationToken ct = default)
@@ -27,7 +28,8 @@ public sealed class ViewScopePersistenceService(
             await spaces.GetByOwnerAsync(profileId, ct).ConfigureAwait(false),
             profile.DisplayName,
             profile.AvatarColor,
-            profile.AvatarImagePath is null ? null : $"/profiles/{profile.Id:D}/avatar");
+            profile.AvatarImagePath is null ? null : $"/profiles/{profile.Id:D}/avatar",
+            profile.HouseholdId);
     }
 
     public async Task<IReadOnlyList<ViewScopeStoreEntry>> GetProfilesAsync(CancellationToken ct = default)
@@ -40,18 +42,34 @@ public sealed class ViewScopePersistenceService(
                 await spaces.GetByOwnerAsync(profile.Id, ct).ConfigureAwait(false),
                 profile.DisplayName,
                 profile.AvatarColor,
-                profile.AvatarImagePath is null ? null : $"/profiles/{profile.Id:D}/avatar"));
+                profile.AvatarImagePath is null ? null : $"/profiles/{profile.Id:D}/avatar",
+                profile.HouseholdId));
         }
         return result;
     }
 
-    public Task<Guid?> GetSharedLibraryIdAsync(CancellationToken ct = default)
+    public async Task<Guid?> GetSharedLibraryIdAsync(CancellationToken ct = default) =>
+        await GetSharedLibraryIdAsync(null, ct).ConfigureAwait(false);
+
+    public async Task<Guid?> GetSharedLibraryIdAsync(Guid? profileId, CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested();
-        using var connection = database.CreateConnection();
-        return Task.FromResult(connection.QuerySingleOrDefault<Guid?>(new CommandDefinition(
-            "SELECT library_id FROM view_shared_library WHERE singleton_key = 1;",
-            cancellationToken: ct)));
+        if (profileId is not { } id)
+        {
+            // An application acting for the server uses the server's own Shared library (none until a household exists).
+            using var connection = database.CreateConnection();
+            return connection.ExecuteScalar<int>(new CommandDefinition(
+                "SELECT COUNT(*) FROM households;", cancellationToken: ct)) == 0
+                ? null
+                : (await sharedLibraries.GetAsync(ct).ConfigureAwait(false)).LibraryId;
+        }
+
+        // A person only ever sees their own household's Shared library, created the first time it is needed.
+        // A profile with no household (the setup profile before any account exists) uses the server's own.
+        var household = (await profiles.GetByIdAsync(id, ct).ConfigureAwait(false))?.HouseholdId;
+        return household is { } householdId
+            ? (await sharedLibraries.EnsureForHouseholdAsync(householdId, ct).ConfigureAwait(false)).LibraryId
+            : (await sharedLibraries.GetAsync(ct).ConfigureAwait(false)).LibraryId;
     }
 }
 
@@ -106,7 +124,8 @@ public sealed class ViewResourcePersistenceService(
             item.OwnerProfileId,
             item.LibraryId,
             explicitProfiles,
-            IsSharedLibraryAsset: isSharedLibraryAsset);
+            IsSharedLibraryAsset: isSharedLibraryAsset,
+            Hidden: item.Hidden);
     }
 
     private async Task<IReadOnlySet<Guid>> GetExplicitAssetRecipientsAsync(

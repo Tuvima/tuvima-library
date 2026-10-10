@@ -365,39 +365,25 @@ public sealed class MediaEditorCommitRepository(IDatabaseConnection database)
                 }
             }
 
-            foreach (var workId in ordered.SelectMany(row => new[] { row.ExpectedSourceWorkId, row.TargetWorkId }).Distinct())
+            // Re-pairing a combined file's host moves the whole file, so the extra episodes it
+            // covered stop being covered (they would otherwise point at the wrong show or season).
+            // Dropped in this same transaction, then every touched episode is recomputed.
+            var releasedWorkIds = new List<Guid>();
+            foreach (var movedAssetId in ordered.Select(row => row.AssetId))
             {
-                connection.Execute("""
-                        UPDATE works SET
-                            ownership = CASE WHEN EXISTS (
-                                SELECT 1 FROM editions e JOIN media_assets a ON a.edition_id = e.id
-                                WHERE e.work_id = @workId) THEN 'Owned' ELSE 'Unowned' END,
-                            is_catalog_only = CASE WHEN EXISTS (
-                                SELECT 1 FROM editions e JOIN media_assets a ON a.edition_id = e.id
-                                WHERE e.work_id = @workId) THEN 0 ELSE 1 END,
-                            work_kind = CASE WHEN EXISTS (
-                                SELECT 1 FROM editions e JOIN media_assets a ON a.edition_id = e.id
-                                WHERE e.work_id = @workId) THEN 'child' ELSE 'catalog' END
-                        WHERE id = @workId;
-                        """, new { workId }, transaction);
+                releasedWorkIds.AddRange(connection.Query<Guid>(
+                    "SELECT work_id FROM media_asset_coverage WHERE asset_id = @movedAssetId;",
+                    new { movedAssetId }, transaction));
+                connection.Execute(
+                    "DELETE FROM media_asset_coverage WHERE asset_id = @movedAssetId;",
+                    new { movedAssetId }, transaction);
             }
 
-            foreach (var seasonId in ordered.SelectMany(row => new[] {
-                         row.ExpectedSourceSeasonWorkId, row.ExpectedTargetSeasonWorkId }).Distinct())
-            {
-                connection.Execute("""
-                        UPDATE works SET
-                            ownership = CASE WHEN EXISTS (
-                                SELECT 1 FROM works episode JOIN editions e ON e.work_id = episode.id
-                                JOIN media_assets a ON a.edition_id = e.id
-                                WHERE episode.parent_work_id = @seasonId) THEN 'Owned' ELSE 'Unowned' END,
-                            is_catalog_only = CASE WHEN EXISTS (
-                                SELECT 1 FROM works episode JOIN editions e ON e.work_id = episode.id
-                                JOIN media_assets a ON a.edition_id = e.id
-                                WHERE episode.parent_work_id = @seasonId) THEN 0 ELSE 1 END
-                        WHERE id = @seasonId;
-                        """, new { seasonId }, transaction);
-            }
+            WorkOwnershipSync.Recompute(
+                connection,
+                transaction,
+                ordered.SelectMany(row => new[] { row.ExpectedSourceWorkId, row.TargetWorkId })
+                    .Concat(releasedWorkIds));
 
             if (stagedStill is not null)
             {

@@ -179,8 +179,9 @@ move or linked read-only originals will copy, together with group count, bytes,
 and destination directories. Submitting creates a pending, revision-bound
 record and does not change files. Contributors can cancel pending work.
 
-An authorized Shared Library curator can accept or decline only the explicitly
-submitted items. A decline is non-mutating. Acceptance records the decision,
+A household administrator of the contribution's household (or a server administrator) can
+accept or decline only the explicitly submitted items. There is no per-profile curator
+flag; reviewing follows household-administrator authority and the administrator PIN. A decline is non-mutating. Acceptance records the decision,
 queues transfer work, and exposes per-item progress plus an append-only activity
 record at `/view/contributions/{id}`. The list and detail routes retain the
 `View > Shared Library > Contributions` breadcrumb. A hosted worker resumes

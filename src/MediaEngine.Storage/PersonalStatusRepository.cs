@@ -32,6 +32,10 @@ public sealed class PersonalStatusRepository(IDatabaseConnection db) : IPersonal
             ExtendedProperties = string.IsNullOrEmpty(Properties) ? [] : JsonSerializer.Deserialize<Dictionary<string, string>>(Properties)!
         };
     }
+    // One row per (file, work): an episode covered by a combined file is its own work sharing the host file,
+    // so counts follow works while state reads and writes follow files (see DistinctFiles).
+    private static List<AssetState> DistinctFiles(IEnumerable<AssetState> assets) =>
+        assets.DistinctBy(a => a.AssetId).ToList();
     private static List<AssetState> Assets(SqliteConnection conn, SqliteTransaction? tx, Guid profile, PersonalStatusTarget target)
     {
         if (target.MediaType == MediaType.Unknown)
@@ -48,8 +52,8 @@ public sealed class PersonalStatusRepository(IDatabaseConnection db) : IPersonal
             SELECT DISTINCT ma.id AssetId, w.id WorkId, ma.content_hash ContentHash,
                 CAST(COALESCE(us.progress_pct,0) AS REAL) Progress, COALESCE(us.revision,0) Revision,
                 us.last_accessed Accessed, us.extended_properties Properties
-            FROM scope s JOIN works w ON w.id=s.id JOIN editions e ON e.work_id=w.id
-            JOIN media_assets ma ON ma.edition_id=e.id
+            FROM scope s JOIN works w ON w.id=s.id JOIN work_owned_assets woa ON woa.work_id=w.id
+            JOIN media_assets ma ON ma.id=woa.asset_id
             LEFT JOIN user_states us ON us.asset_id=ma.id AND us.user_id=@profile
             WHERE ma.status='Normal' AND ma.is_orphaned=0
             AND (@unrestricted=1 OR ma.id IN @allowedAssets) AND (
@@ -78,7 +82,7 @@ public sealed class PersonalStatusRepository(IDatabaseConnection db) : IPersonal
         using var conn = db.CreateConnection();
         var assets = Assets(conn, null, profileId, target);
         var works = assets.GroupBy(a => a.WorkId).ToList();
-        return Task.FromResult(new PersonalStatusSnapshot(Revision(assets.Select(a => a.State(profileId))), works.Count,
+        return Task.FromResult(new PersonalStatusSnapshot(Revision(DistinctFiles(assets).Select(a => a.State(profileId))), works.Count,
             works.Count(g => g.OrderByDescending(a => a.Accessed, StringComparer.Ordinal).ThenBy(a => a.AssetId).First().Progress > 0), works.Count(g => g.OrderByDescending(a => a.Accessed, StringComparer.Ordinal).ThenBy(a => a.AssetId).First().Progress >= 99.5),
             assets.Count > 0 && assets.All(a => a.State(profileId).ExtendedProperties.GetValueOrDefault("hide_continue") == "true")));
     }
@@ -104,7 +108,7 @@ public sealed class PersonalStatusRepository(IDatabaseConnection db) : IPersonal
                 throw new InvalidOperationException("No owned media in this scope.");
             }
 
-            var before = assets.Select(a => a.State(profileId)).ToList();
+            var before = DistinctFiles(assets).Select(a => a.State(profileId)).ToList();
             if (Revision(before) != expectedRevision)
             {
                 throw new StateRevisionConflictException();

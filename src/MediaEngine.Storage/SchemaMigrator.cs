@@ -33,6 +33,16 @@ internal sealed class SchemaMigrator
         EnsureAssetRenditionSchema(conn);
         var sessionsGainedIngress = !ColumnExists(conn, "auth_sessions", "issued_ingress");
         EnsureCurrentColumns(conn);
+        EnsureHouseholdAdministrators(conn);
+        AddColumnIfMissing(conn, "profiles", "avatar_icon",
+            "ALTER TABLE profiles ADD COLUMN avatar_icon TEXT;");
+        AddColumnIfMissing(conn, "profiles", "content_limit",
+            "ALTER TABLE profiles ADD COLUMN content_limit TEXT CHECK (content_limit IS NULL OR content_limit IN ('G', 'PG', 'PG-13', 'R'));");
+        AddColumnIfMissing(conn, "profiles", "content_limit_allow_unrated",
+            "ALTER TABLE profiles ADD COLUMN content_limit_allow_unrated INTEGER NOT NULL DEFAULT 0 CHECK (content_limit_allow_unrated IN (0, 1));");
+        EnsureTimelinePolicySurvivesProfileRemoval(conn);
+        EnsurePerHouseholdSharedLibrary(conn);
+        RetireSharedLibraryCuratorFlag(conn);
         if (sessionsGainedIngress)
         {
             // Runs once, in the same upgrade that introduces the child-profile rule.
@@ -579,6 +589,163 @@ internal sealed class SchemaMigrator
             }
         });
         _notes.AddRange(notes);
+    }
+
+    /// <summary>
+    /// Household administrators. Adds <c>households.primary_account_id</c> and <c>accounts.household_admin</c>. One time,
+    /// when the flag column first appears, each household's main sign-in (its oldest enabled one) becomes its primary
+    /// account and household administrator, and every server administrator also administers their own household.
+    /// Later starts never promote anyone again, so a server administrator can take the role away for good.
+    /// </summary>
+    private void EnsureHouseholdAdministrators(SqliteConnection conn)
+    {
+        var addedPrimary = AddColumnIfMissing(conn, "households", "primary_account_id",
+            "ALTER TABLE households ADD COLUMN primary_account_id BLOB REFERENCES accounts(id) ON DELETE SET NULL;");
+        var addedFlag = AddColumnIfMissing(conn, "accounts", "household_admin",
+            "ALTER TABLE accounts ADD COLUMN household_admin INTEGER NOT NULL DEFAULT 0 CHECK (household_admin IN (0, 1));");
+        if (!addedPrimary && !addedFlag)
+        {
+            return;
+        }
+
+        DatabaseConnection.ExecuteStartupTransaction(conn, transaction =>
+        {
+            using var primary = conn.CreateCommand();
+            primary.Transaction = transaction;
+            primary.CommandText = """
+                UPDATE households SET primary_account_id = (
+                    SELECT a.id FROM accounts a
+                    WHERE a.household_id = households.id AND a.grants_inherit_from_account_id IS NULL
+                    ORDER BY a.is_enabled DESC, a.created_at, a.id LIMIT 1)
+                WHERE primary_account_id IS NULL;
+                """;
+            primary.ExecuteNonQuery();
+
+            if (!addedFlag)
+            {
+                return;
+            }
+
+            using var admins = conn.CreateCommand();
+            admins.Transaction = transaction;
+            admins.CommandText = """
+                UPDATE accounts SET household_admin = 1
+                WHERE household_admin = 0 AND grants_inherit_from_account_id IS NULL AND household_id IS NOT NULL
+                  AND (is_administrator = 1
+                       OR id IN (SELECT primary_account_id FROM households WHERE primary_account_id IS NOT NULL));
+                """;
+            admins.ExecuteNonQuery();
+        });
+    }
+
+    /// <summary>
+    /// The Shared library used to be one row for the whole server. It is now one row per household. One time, the
+    /// existing row moves to the server administrator's household (else the oldest household) and keeps its library
+    /// identity, so everything already shared stays where it is. A server with no household yet simply starts empty.
+    /// The scope triggers that named the single row are recreated without that condition.
+    /// </summary>
+    private void EnsurePerHouseholdSharedLibrary(SqliteConnection conn)
+    {
+        if (!ColumnExists(conn, "view_shared_library", "singleton_key"))
+        {
+            return;
+        }
+
+        Guid? owner = null;
+        using (var find = conn.CreateCommand())
+        {
+            find.CommandText = """
+                SELECT COALESCE(
+                    (SELECT household_id FROM accounts
+                     WHERE is_administrator = 1 AND is_enabled = 1 AND household_id IS NOT NULL
+                     ORDER BY created_at, id LIMIT 1),
+                    (SELECT id FROM households ORDER BY created_at, id LIMIT 1));
+                """;
+            if (find.ExecuteScalar() is { } value and not DBNull)
+            {
+                owner = GuidSql.FromDb(value);
+            }
+        }
+
+        var scopeTriggers = new List<(string Name, string Sql)>();
+        foreach (var name in new[]
+                 {
+                     "trg_view_sources_scope_insert", "trg_view_sources_scope_update",
+                     "trg_local_items_scope_insert", "trg_local_items_scope_update",
+                 })
+        {
+            using var read = conn.CreateCommand();
+            read.CommandText = "SELECT sql FROM sqlite_master WHERE type = 'trigger' AND name = @name;";
+            read.Parameters.AddWithValue("@name", name);
+            if (read.ExecuteScalar() is string sql)
+            {
+                scopeTriggers.Add((name, sql.Replace("s.singleton_key=1 AND ", string.Empty, StringComparison.Ordinal)));
+            }
+        }
+
+        DatabaseConnection.ExecuteStartupTransaction(conn, transaction =>
+        {
+            void Run(string commandText, Action<SqliteCommand>? bind = null)
+            {
+                using var command = conn.CreateCommand();
+                command.Transaction = transaction;
+                command.CommandText = commandText;
+                bind?.Invoke(command);
+                command.ExecuteNonQuery();
+            }
+
+            Run("""
+                CREATE TEMP TABLE shared_library_legacy AS
+                SELECT library_id, created_at, updated_at FROM view_shared_library WHERE singleton_key = 1;
+                DROP TRIGGER IF EXISTS trg_view_shared_library_collision_insert;
+                DROP TRIGGER IF EXISTS trg_view_shared_library_identity_immutable;
+                DROP TRIGGER IF EXISTS trg_view_shared_library_delete;
+                DROP TRIGGER IF EXISTS trg_view_sources_scope_insert;
+                DROP TRIGGER IF EXISTS trg_view_sources_scope_update;
+                DROP TRIGGER IF EXISTS trg_local_items_scope_insert;
+                DROP TRIGGER IF EXISTS trg_local_items_scope_update;
+                DROP TABLE view_shared_library;
+                CREATE TABLE view_shared_library (
+                    household_id BLOB NOT NULL PRIMARY KEY REFERENCES households(id),
+                    library_id BLOB NOT NULL UNIQUE,
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL
+                );
+                CREATE TRIGGER IF NOT EXISTS trg_view_shared_library_collision_insert
+                BEFORE INSERT ON view_shared_library WHEN EXISTS (
+                    SELECT 1 FROM view_personal_spaces WHERE library_id=NEW.library_id)
+                BEGIN SELECT RAISE(ABORT,'Shared library identity cannot be used by a Personal Space'); END;
+                CREATE TRIGGER IF NOT EXISTS trg_view_shared_library_identity_immutable
+                BEFORE UPDATE OF library_id ON view_shared_library WHEN NEW.library_id<>OLD.library_id
+                BEGIN SELECT RAISE(ABORT,'Shared library identity is immutable'); END;
+                CREATE TRIGGER IF NOT EXISTS trg_view_shared_library_delete
+                BEFORE DELETE ON view_shared_library
+                BEGIN SELECT RAISE(ABORT,'Shared library identity cannot be deleted'); END;
+                """);
+            if (owner is null)
+            {
+                // No household yet: make the server's own now so the existing Shared library (and anything already shared
+                // in it) keeps a home. The first administrator account joins it instead of starting another.
+                owner = Guid.NewGuid();
+                Run("INSERT INTO households (id, name, created_at) VALUES (@household, 'Household', @now);", command =>
+                {
+                    command.Parameters.Add("@household", SqliteType.Blob).Value = GuidSql.ToBlob(owner.Value);
+                    command.Parameters.AddWithValue("@now", DateTimeOffset.UtcNow.ToString("O"));
+                });
+            }
+
+            Run("""
+                INSERT INTO view_shared_library (household_id, library_id, created_at, updated_at)
+                SELECT @household, library_id, created_at, updated_at FROM shared_library_legacy LIMIT 1;
+                """, command => command.Parameters.Add("@household", SqliteType.Blob).Value = GuidSql.ToBlob(owner.Value));
+
+            Run("DROP TABLE shared_library_legacy;");
+            foreach (var (_, sql) in scopeTriggers)
+            {
+                Run(sql);
+            }
+        });
+        _notes.Add("The Shared library is now one per household; the existing one moved to the server administrator's household.");
     }
 
     private static void RebuildAccountsTable(SqliteConnection conn)
@@ -1348,6 +1515,9 @@ internal sealed class SchemaMigrator
     {
         var addedMembershipMode = AddColumnIfMissing(conn, "collections", "membership_mode",
             "ALTER TABLE collections ADD COLUMN membership_mode TEXT NOT NULL DEFAULT 'Smart';");
+        // A person's own sign-in follows the household's main sign-in for feature and library access.
+        AddColumnIfMissing(conn, "accounts", "grants_inherit_from_account_id",
+            "ALTER TABLE accounts ADD COLUMN grants_inherit_from_account_id BLOB REFERENCES accounts(id) ON DELETE SET NULL;");
         // An account made on this computer without a password works only on this computer until it is secured.
         AddColumnIfMissing(conn, "accounts", "this_computer_only",
             "ALTER TABLE accounts ADD COLUMN this_computer_only INTEGER NOT NULL DEFAULT 0 CHECK (this_computer_only IN (0, 1));");
@@ -1356,6 +1526,10 @@ internal sealed class SchemaMigrator
             "ALTER TABLE accounts ADD COLUMN must_change_password INTEGER NOT NULL DEFAULT 0 CHECK (must_change_password IN (0, 1));");
         AddColumnIfMissing(conn, "accounts", "temporary_password_expires_at",
             "ALTER TABLE accounts ADD COLUMN temporary_password_expires_at TEXT;");
+        // The one person a paired phone backs its photos up to, whichever person it is browsing as.
+        // Existing devices have none until someone chooses one (phone backups are refused until then).
+        AddColumnIfMissing(conn, "client_devices", "backup_profile_id",
+            "ALTER TABLE client_devices ADD COLUMN backup_profile_id BLOB REFERENCES profiles(id) ON DELETE SET NULL;");
         // Sessions remember where they started; existing rows become home-only, which fails closed.
         AddColumnIfMissing(conn, "auth_sessions", "issued_ingress",
             "ALTER TABLE auth_sessions ADD COLUMN issued_ingress TEXT NOT NULL DEFAULT 'home_network';");
@@ -1363,6 +1537,9 @@ internal sealed class SchemaMigrator
         // Existing sessions are treated as signed in when they were created (the reader falls back to created_at).
         AddColumnIfMissing(conn, "auth_sessions", "authenticated_at",
             "ALTER TABLE auth_sessions ADD COLUMN authenticated_at TEXT;");
+        // 1 while the person still has to pick who is using Tuvima (a remembered profile had a PIN); cleared by the next profile switch.
+        AddColumnIfMissing(conn, "auth_sessions", "profile_pending",
+            "ALTER TABLE auth_sessions ADD COLUMN profile_pending INTEGER NOT NULL DEFAULT 0;");
         AddColumnIfMissing(conn, "collections", "primary_area",
             "ALTER TABLE collections ADD COLUMN primary_area TEXT NOT NULL DEFAULT 'Mixed';");
         var addedOwnerKind = AddColumnIfMissing(conn, "collections", "owner_kind",
@@ -1607,6 +1784,81 @@ internal sealed class SchemaMigrator
         cmd.Parameters.AddWithValue("@role", "Administrator");
         cmd.Parameters.AddWithValue("@created", DateTimeOffset.UtcNow.ToString("O"));
         cmd.ExecuteNonQuery();
+    }
+
+    /// <summary>
+    /// The per-profile "review Shared Library contributions" (curator) flag is gone: household administrators review.
+    /// One time, in the upgrade that removes the column, everyone gets the new defaults (open the household's Shared
+    /// Library, and send items to it; a child profile still cannot send until a household administrator allows it)
+    /// and the column is dropped. Once the column is gone this does nothing.
+    /// </summary>
+    private static void RetireSharedLibraryCuratorFlag(SqliteConnection conn)
+    {
+        if (!ColumnExists(conn, "profile_view_policies", "review_shared_library_contributions"))
+        {
+            return;
+        }
+
+        DatabaseConnection.ExecuteStartupTransaction(conn, transaction =>
+        {
+            using var cmd = conn.CreateCommand();
+            cmd.Transaction = transaction;
+            cmd.CommandText = """
+                UPDATE profile_view_policies
+                   SET access_shared_library = 1,
+                       submit_to_shared_library = CASE
+                           WHEN profile_id IN (SELECT id FROM profiles WHERE role = 'RestrictedProfile') THEN 0
+                           ELSE 1 END
+                 WHERE profile_id IN (SELECT id FROM profiles WHERE household_id IS NOT NULL);
+                ALTER TABLE profile_view_policies DROP COLUMN review_shared_library_contributions;
+                """;
+            cmd.ExecuteNonQuery();
+        });
+    }
+
+    /// <summary>
+    /// A Shared Library folder's "show in timeline" choice remembers who last changed it. That used to be a required
+    /// reference to the person, which stopped anyone who had ever made the choice from being removed. The reference is
+    /// now optional and clears itself when the person is removed. Rebuilds the table once; does nothing afterwards.
+    /// </summary>
+    private static void EnsureTimelinePolicySurvivesProfileRemoval(SqliteConnection conn)
+    {
+        bool stillRequired;
+        using (var read = conn.CreateCommand())
+        {
+            read.CommandText = "SELECT \"notnull\" FROM pragma_table_info('view_folder_timeline_policies') WHERE name='updated_by_profile_id';";
+            var result = read.ExecuteScalar();
+            stillRequired = result is not null && Convert.ToInt32(result, System.Globalization.CultureInfo.InvariantCulture) != 0;
+        }
+
+        if (!stillRequired)
+        {
+            return;
+        }
+
+        DatabaseConnection.ExecuteStartupTransaction(conn, transaction =>
+        {
+            using var cmd = conn.CreateCommand();
+            cmd.Transaction = transaction;
+            cmd.CommandText = """
+                CREATE TABLE view_folder_timeline_policies_rebuild (
+                    source_id           BLOB NOT NULL REFERENCES view_sources(id) ON DELETE CASCADE,
+                    relative_path       TEXT NOT NULL,
+                    absolute_path       TEXT NOT NULL,
+                    include_in_timeline INTEGER NOT NULL CHECK (include_in_timeline IN (0, 1)),
+                    updated_by_profile_id BLOB REFERENCES profiles(id) ON DELETE SET NULL,
+                    updated_at          TEXT NOT NULL,
+                    PRIMARY KEY (source_id, relative_path)
+                );
+                INSERT INTO view_folder_timeline_policies_rebuild
+                    (source_id, relative_path, absolute_path, include_in_timeline, updated_by_profile_id, updated_at)
+                SELECT source_id, relative_path, absolute_path, include_in_timeline, updated_by_profile_id, updated_at
+                FROM view_folder_timeline_policies;
+                DROP TABLE view_folder_timeline_policies;
+                ALTER TABLE view_folder_timeline_policies_rebuild RENAME TO view_folder_timeline_policies;
+                """;
+            cmd.ExecuteNonQuery();
+        });
     }
 
     private static bool ColumnExists(SqliteConnection conn, string table, string column)

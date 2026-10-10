@@ -811,6 +811,7 @@ public static partial class MetadataEndpoints
         MapParentFirstPairingPreviewEndpoints(group);
         MapParentFirstArtworkEndpoints(group);
         MapEditionCoverEndpoints(group);
+        MapFileCoverageEndpoints(group);
         MapAssetRenditionEndpoints(group);
         MapProviderArtworkPickerEndpoints(group);
 

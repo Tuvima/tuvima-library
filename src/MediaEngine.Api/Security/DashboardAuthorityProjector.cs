@@ -38,7 +38,9 @@ public sealed class DashboardAuthorityProjector(
             GrantAuthorizationVersion: activeGrant.AuthorizationVersion,
             AccountIsAdministrator: account.IsAdministrator,
             GrantAdminEnabled: activeGrant.AdminEnabled,
-            ActiveProfileIsRestricted: activeProfile?.Role == MediaEngine.Domain.Enums.ProfileRole.RestrictedProfile);
+            ActiveProfileIsRestricted: activeProfile?.Role == MediaEngine.Domain.Enums.ProfileRole.RestrictedProfile,
+            AccountHouseholdId: account.HouseholdId,
+            AccountIsHouseholdAdmin: account.HouseholdAdmin);
 
         GrantAdminUnlockState? unlock = authority.IsEffectiveAdministrator
             ? await unlocks.GetStateAsync(authority, ct).ConfigureAwait(false)
@@ -105,6 +107,12 @@ public sealed class DashboardAuthorityProjector(
             {
                 actions.Add("administrator.unlock");
             }
+        }
+
+        // A household administrator (who is not also the server administrator) manages only their own household.
+        if (authority.IsEffectiveHouseholdAdministrator && !authority.IsEffectiveAdministrator)
+        {
+            actions.Add("household.manage");
         }
 
         return new DashboardAuthorityResponse(

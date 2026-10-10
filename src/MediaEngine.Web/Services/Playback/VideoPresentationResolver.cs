@@ -56,6 +56,11 @@ public sealed class VideoPresentationResolver(IEngineApiClient api, UIOrchestrat
             {
                 continue;
             }
+            // Episodes covered by the file already playing are not "next": that would replay the same file.
+            if (playable == playback.CurrentItem?.AssetId)
+            {
+                continue;
+            }
             var detail = await api.GetLibraryItemDetailAsync(candidate, ct);
             Check();
             if (detail is null)

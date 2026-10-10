@@ -20,6 +20,11 @@ internal sealed class AuthorizedDisplayProjectionReadService(
     IAuthorizationEvaluator evaluator,
     IDatabaseConnection database) : IDisplayProjectionReadService
 {
+    // Built from the same data store connection, so every host that can authorize a catalogue request can also enforce the limit.
+    private ContentLimitPolicy? _contentLimits;
+
+    private ContentLimitPolicy ContentLimits => _contentLimits ??= new(new ProfileContentLimitRepository(database));
+
     public async Task<IReadOnlyList<DisplayWorkRow>> LoadWorksAsync(CancellationToken ct) =>
         FilterWorks(await inner.LoadWorksAsync(ct).ConfigureAwait(false), await ResolveScopeAsync(ct).ConfigureAwait(false));
 
@@ -34,9 +39,16 @@ internal sealed class AuthorizedDisplayProjectionReadService(
             return [];
         }
 
-        var visibleWorkPredicate = HomeVisibilitySql.VisibleWorkPredicate(
-            "w.id", "w.curator_state", "w.is_catalog_only");
+        // The file itself must be visible (checked on the joined asset below), not just the work's own files:
+        // an episode covered by a combined file has no file of its own but is still playable through the host file.
+        var visibleWorkPredicate =
+            "COALESCE(w.curator_state, '') NOT IN ('rejected', 'provisional') AND COALESCE(w.is_catalog_only, 0) = 0 "
+            + "AND ma.status = 'Normal' AND ma.is_orphaned = 0";
         var visibleAssetPredicate = HomeVisibilitySql.VisibleAssetPathPredicate("ma.file_path_root");
+        // A rating is only read for a profile that has a limit; everyone else pays nothing.
+        var ratingSql = scope.Content.IsUnrestricted
+            ? "NULL"
+            : ContentRatingSql.Expression("w.id", "COALESCE(gw.id, pw.id, w.id)", "ma.id");
         using var connection = database.CreateConnection();
         var rows = (await connection.QueryAsync<DisplayWorkRow>(new CommandDefinition(
             $"""
@@ -46,17 +58,20 @@ internal sealed class AuthorizedDisplayProjectionReadService(
                    w.media_type AS MediaType,
                    w.work_kind AS WorkKind,
                    ma.id AS AssetId,
+                   {ratingSql} AS ContentRating,
                    COALESCE(ma.presented_at, CURRENT_TIMESTAMP) AS CreatedAt
             FROM works w
-            JOIN editions e ON e.work_id=w.id
-            JOIN media_assets ma ON ma.edition_id=e.id
+            JOIN work_owned_assets woa ON woa.work_id=w.id
+            JOIN media_assets ma ON ma.id=woa.asset_id
+            LEFT JOIN works pw ON pw.id=w.parent_work_id
+            LEFT JOIN works gw ON gw.id=pw.parent_work_id
             WHERE w.work_kind <> 'parent'
               AND {visibleWorkPredicate}
               AND {visibleAssetPredicate}
-            ORDER BY ma.presented_at DESC, ma.id;
+            ORDER BY ma.presented_at DESC, ma.id, woa.is_covered;
             """,
             cancellationToken: ct)).ConfigureAwait(false)).AsList();
-        return rows.Where(row => Allows(row.LibraryId, row.MediaType, scope)).ToList();
+        return rows.Where(row => Allows(row.LibraryId, row.MediaType, row.ContentRating, scope)).ToList();
     }
 
     internal async Task<IReadOnlyList<DisplayWorkRow>> FilterRecentWorksAsync(IReadOnlyList<DisplayWorkRow> rows, Guid? profileId, CancellationToken ct)
@@ -66,7 +81,7 @@ internal sealed class AuthorizedDisplayProjectionReadService(
         {
             return [];
         }
-        return rows.Where(row => Allows(row.LibraryId, row.MediaType, scope)).ToList();
+        return rows.Where(row => Allows(row.LibraryId, row.MediaType, row.ContentRating, scope)).ToList();
     }
 
     public async Task<IReadOnlyList<DisplayWorkRow>> LoadHomeWorksAsync(CancellationToken ct) =>
@@ -81,7 +96,7 @@ internal sealed class AuthorizedDisplayProjectionReadService(
         }
 
         return (await inner.LoadJourneyAsync(profileId, lane, ct).ConfigureAwait(false))
-            .Where(row => row.ProfileId == profileId && Allows(row.LibraryId, row.MediaType, scope))
+            .Where(row => row.ProfileId == profileId && Allows(row.LibraryId, row.MediaType, row.ContentRating, scope))
             .ToList();
     }
 
@@ -93,7 +108,7 @@ internal sealed class AuthorizedDisplayProjectionReadService(
             return [];
         }
         return (await inner.LoadStatesAsync(profileId, lane, ct).ConfigureAwait(false))
-            .Where(row => row.ProfileId == profileId && Allows(row.LibraryId, row.MediaType, scope)).ToList();
+            .Where(row => row.ProfileId == profileId && Allows(row.LibraryId, row.MediaType, row.ContentRating, scope)).ToList();
     }
 
     public async Task<IReadOnlySet<Guid>> LoadFavoriteWorkIdsAsync(Guid? profileId, CancellationToken ct)
@@ -115,13 +130,13 @@ internal sealed class AuthorizedDisplayProjectionReadService(
             return [];
         }
 
-        if (scope.AllLibraries)
+        if (scope.AllLibraries && scope.Content.IsUnrestricted)
         {
             return await inner.LoadHomeCollectionsAsync(profileId, ct).ConfigureAwait(false);
         }
 
         var allowedWorkIds = (await inner.LoadWorksAsync(ct).ConfigureAwait(false))
-            .Where(work => Allows(work.LibraryId, work.MediaType, scope))
+            .Where(work => Allows(work.LibraryId, work.MediaType, work.ContentRating, scope))
             .Select(work => work.WorkId)
             .ToHashSet();
         if (allowedWorkIds.Count == 0)
@@ -142,7 +157,7 @@ internal sealed class AuthorizedDisplayProjectionReadService(
         var authority = await authorities.ResolveAsync(context, ct).ConfigureAwait(false);
         if (AuthorityValidity.Validate(authority) is not null)
         {
-            return new(authority, false, false, new HashSet<Guid>(), new HashSet<AccountFeatureId>());
+            return new(authority, false, false, new HashSet<Guid>(), new HashSet<AccountFeatureId>(), ContentLimitFilter.Unrestricted);
         }
 
         if (authority.PrincipalKind is PrincipalKind.DelegatedUserClient or PrincipalKind.ServiceApplication)
@@ -154,35 +169,36 @@ internal sealed class AuthorizedDisplayProjectionReadService(
                 ct).ConfigureAwait(false);
             if (!permission.IsAllowed)
             {
-                return new(authority, false, false, new HashSet<Guid>(), new HashSet<AccountFeatureId>());
+                return new(authority, false, false, new HashSet<Guid>(), new HashSet<AccountFeatureId>(), ContentLimitFilter.Unrestricted);
             }
         }
 
+        var content = await ContentLimits.ForAsync(authority).ConfigureAwait(false);
         if (authority.PrincipalKind == PrincipalKind.ServiceApplication)
         {
-            return new(authority, true, true, new HashSet<Guid>(), AccountFeatureId.All.ToHashSet());
+            return new(authority, true, true, new HashSet<Guid>(), AccountFeatureId.All.ToHashSet(), content);
         }
 
         if (authority.PrincipalKind is not (PrincipalKind.Human or PrincipalKind.DelegatedUserClient))
         {
-            return new(authority, false, false, new HashSet<Guid>(), new HashSet<AccountFeatureId>());
+            return new(authority, false, false, new HashSet<Guid>(), new HashSet<AccountFeatureId>(), ContentLimitFilter.Unrestricted);
         }
 
         if (authority.IsEffectiveAdministrator)
         {
-            return new(authority, true, true, new HashSet<Guid>(), AccountFeatureId.All.ToHashSet());
+            return new(authority, true, true, new HashSet<Guid>(), AccountFeatureId.All.ToHashSet(), content);
         }
 
         var features = await accounts.GetFeatureGrantsAsync(authority.AccountId!.Value, ct).ConfigureAwait(false);
         var libraries = await accounts.GetLibraryGrantsAsync(authority.AccountId.Value, ct).ConfigureAwait(false);
-        return new(authority, true, false, libraries, features);
+        return new(authority, true, false, libraries, features, content);
     }
 
     private static IReadOnlyList<DisplayWorkRow> FilterWorks(
         IReadOnlyList<DisplayWorkRow> rows,
         CatalogueScope scope) =>
         scope.IsValid
-            ? rows.Where(row => Allows(row.LibraryId, row.MediaType, scope))
+            ? rows.Where(row => Allows(row.LibraryId, row.MediaType, row.ContentRating, scope))
                 .GroupBy(row => row.WorkId)
                 .Select(group => group
                     .OrderBy(row => row.CreatedAt)
@@ -192,8 +208,13 @@ internal sealed class AuthorizedDisplayProjectionReadService(
                 .ToList()
             : [];
 
-    private static bool Allows(string? libraryId, string mediaType, CatalogueScope scope)
+    private static bool Allows(string? libraryId, string mediaType, string? contentRating, CatalogueScope scope)
     {
+        if (!scope.Content.Allows(contentRating))
+        {
+            return false;
+        }
+
         if (!scope.Features.Contains(FeatureFor(mediaType)))
         {
             return false;
@@ -219,13 +240,14 @@ internal sealed class AuthorizedDisplayProjectionReadService(
         bool IsValid,
         bool AllLibraries,
         IReadOnlySet<Guid> Libraries,
-        IReadOnlySet<AccountFeatureId> Features)
+        IReadOnlySet<AccountFeatureId> Features,
+        ContentLimitFilter Content)
     {
         public static readonly CatalogueScope Denied = new(
             new RequestAuthority(PrincipalKind.Anonymous, false),
             false,
             false,
             new HashSet<Guid>(),
-            new HashSet<AccountFeatureId>());
+            new HashSet<AccountFeatureId>(), ContentLimitFilter.Unrestricted);
     }
 }

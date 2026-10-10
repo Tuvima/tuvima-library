@@ -51,13 +51,15 @@ public static class ProfileEndpoints
             IRequestAuthorityResolver resolver,
             IProfileService svc,
             IAccountRepository accounts,
+            [FromServices] IFirstPartyIdentityService identity,
             CancellationToken ct) =>
         {
             var authority = await resolver.ResolveAsync(http, ct);
             var profiles = await svc.GetAllProfilesAsync(ct);
             var allowed = (await accounts.GetProfileIdsAsync(authority.AccountId!.Value, ct)).ToHashSet();
             profiles = profiles.Where(profile => allowed.Contains(profile.Id)).ToList();
-            var dtos = profiles.Select(ProfileContractMapper.ToResponse).ToList();
+            var withPin = await identity.GetProfileIdsWithPinAsync([.. profiles.Select(profile => profile.Id)], ct);
+            var dtos = profiles.Select(profile => ProfileContractMapper.ToResponse(profile, withPin.Contains(profile.Id))).ToList();
             return Results.Ok(dtos);
         })
         .WithName("ListProfiles")
@@ -144,35 +146,53 @@ public static class ProfileEndpoints
 
         group.MapGet("/{id:guid}/settings/view", async (
             Guid id,
+            HttpContext http,
+            IRequestAuthorityResolver resolver,
+            IAccountRepository accounts,
             IProfileService profileService,
             IViewProfileRepository viewProfiles,
             CancellationToken ct) =>
         {
-            if (await profileService.GetProfileAsync(id, ct) is null)
+            var profile = await profileService.GetProfileAsync(id, ct);
+            if (profile is null)
             {
                 return ApiErrors.NotFound($"Profile '{id}' not found.");
+            }
+
+            if (!await MayManageViewPolicyAsync(http, resolver, accounts, profile, ct))
+            {
+                return ApiErrors.Forbidden("Only a server administrator can manage this profile.");
             }
 
             var policy = await viewProfiles.GetPolicyAsync(id, ct);
             return Results.Ok(ProfileContractMapper.ToResponse(policy));
         })
         .WithName("GetViewProfilePolicy")
-        .WithSummary("Get the administrator-managed View access policy for a profile.")
+        .WithSummary("Get the View access policy for a profile (server administrators, or household administrators for their own household).")
         .Produces<ViewProfilePolicyDto>(StatusCodes.Status200OK)
         .ProducesProblem(StatusCodes.Status404NotFound)
-        .RequireAdmin();
+        .RequireEffectiveAdministratorOrHouseholdAdministrator();
 
         group.MapPut("/{id:guid}/settings/view", async (
             Guid id,
             UpdateViewProfilePolicyRequest request,
+            HttpContext http,
+            IRequestAuthorityResolver resolver,
+            IAccountRepository accounts,
             IProfileService profileService,
             IViewProfileRepository viewProfiles,
             MediaEngine.Api.Services.LocalAssets.ViewStorageService viewStorage,
             CancellationToken ct) =>
         {
-            if (await profileService.GetProfileAsync(id, ct) is null)
+            var profile = await profileService.GetProfileAsync(id, ct);
+            if (profile is null)
             {
                 return ApiErrors.NotFound($"Profile '{id}' not found.");
+            }
+
+            if (!await MayManageViewPolicyAsync(http, resolver, accounts, profile, ct))
+            {
+                return ApiErrors.Forbidden("Only a server administrator can manage this profile.");
             }
 
             var policy = ProfileContractMapper.ToDomain(id, request);
@@ -193,7 +213,7 @@ public static class ProfileEndpoints
         .WithSummary("Update View, Shared Library contribution, and Gallery-sharing permissions for a profile.")
         .Produces<ViewProfilePolicyDto>(StatusCodes.Status200OK)
         .ProducesProblem(StatusCodes.Status404NotFound)
-        .RequireAdmin();
+        .RequireEffectiveAdministratorOrHouseholdAdministrator();
 
         group.MapPut("/{id:guid}/settings/playback", async (
             Guid id,
@@ -355,32 +375,7 @@ public static class ProfileEndpoints
         .ProducesProblem(StatusCodes.Status404NotFound)
         .RequireActiveProfile();
 
-        group.MapDelete("/{id:guid}/avatar", async (
-            Guid id,
-            IProfileService svc,
-            CancellationToken ct) =>
-        {
-            var profile = await svc.GetProfileAsync(id, ct);
-            if (profile is null)
-            {
-                return ApiErrors.NotFound($"Profile '{id}' not found.");
-            }
-
-            var existingPath = profile.AvatarImagePath;
-            profile.AvatarImagePath = null;
-            var updated = await svc.UpdateProfileAsync(profile, ct);
-            if (!updated)
-            {
-                return Results.Problem("Could not remove profile avatar.");
-            }
-
-            if (!string.IsNullOrWhiteSpace(existingPath) && File.Exists(existingPath))
-            {
-                File.Delete(existingPath);
-            }
-
-            return Results.Ok(ProfileContractMapper.ToResponse(profile));
-        })
+        group.MapDelete("/{id:guid}/avatar", RemoveProfileAvatarAsync)
         .WithName("RemoveProfileAvatar")
         .WithSummary("Removes the uploaded avatar image for a profile.")
         .Produces<ProfileResponseDto>(StatusCodes.Status200OK)
@@ -402,6 +397,47 @@ public static class ProfileEndpoints
             ShowMissing = preference?.ShowMissing,
             UpdatedAt = preference?.UpdatedAt,
         };
+
+    /// <summary>
+    /// A server administrator manages any profile's View policy; a household administrator only profiles in their
+    /// own household (for example to let a child profile send items to the Shared Library).
+    /// </summary>
+    private static async Task<bool> MayManageViewPolicyAsync(
+        HttpContext http, IRequestAuthorityResolver resolver, IAccountRepository accounts, Profile profile, CancellationToken ct)
+    {
+        var authority = await resolver.ResolveAsync(http, ct);
+        if (authority.IsEffectiveAdministrator)
+        {
+            return true;
+        }
+
+        if (!authority.IsEffectiveHouseholdAdministrator
+            || profile.HouseholdId is not { } household
+            || household != authority.AccountHouseholdId)
+        {
+            return false;
+        }
+
+        // Like other household actions: not a person an administrator (server or household) other than the caller
+        // signs in as, unless it is the caller's own active person.
+        if (profile.Id == authority.ActiveProfileId)
+        {
+            return true;
+        }
+
+        foreach (var account in (await accounts.GetAllAsync(ct))
+            .Where(account => account.HouseholdId == household && account.Id != authority.AccountId
+                              && (account.IsAdministrator || account.HouseholdAdmin)))
+        {
+            if (await accounts.GetGrantAsync(account.Id, profile.Id, ct) is { IsEnabled: true } grant
+                && (grant.AdminEnabled || grant.IsDefault))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
 
     private static RouteHandlerBuilder RequireActiveProfile(this RouteHandlerBuilder builder) =>
         builder.RequireHumanSelfService()
@@ -465,6 +501,34 @@ public static class ProfileEndpoints
 
         var accounts = context.RequestServices.GetRequiredService<IAccountRepository>();
         return await accounts.HasProfileAccessAsync(accountId, profileId, context.RequestAborted);
+    }
+
+    /// <summary>Removes a profile's uploaded photo. The caller has already decided the person may change it.</summary>
+    internal static async Task<IResult> RemoveProfileAvatarAsync(
+        Guid id,
+        IProfileService svc,
+        CancellationToken ct)
+    {
+        var profile = await svc.GetProfileAsync(id, ct);
+        if (profile is null)
+        {
+            return ApiErrors.NotFound($"Profile '{id}' not found.");
+        }
+
+        var existingPath = profile.AvatarImagePath;
+        profile.AvatarImagePath = null;
+        var updated = await svc.UpdateProfileAsync(profile, ct);
+        if (!updated)
+        {
+            return Results.Problem("Could not remove profile avatar.");
+        }
+
+        if (!string.IsNullOrWhiteSpace(existingPath) && File.Exists(existingPath))
+        {
+            File.Delete(existingPath);
+        }
+
+        return Results.Ok(ProfileContractMapper.ToResponse(profile));
     }
 
     internal static async Task<IResult> UploadProfileAvatarAsync(

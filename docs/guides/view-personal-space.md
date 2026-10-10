@@ -56,7 +56,21 @@ A Gallery groups media. It is not a new file source. Deleting a Gallery does not
 3. Submit the batch if you have that right.
 4. Follow it in **Shared Library > Contributions**.
 
-A curator with review rights accepts or declines the batch. The transfer checks the shared copy before making it a shared member. Managed originals move only after that check. Linked originals are copied and stay in their source folder. Submission and review need separate rights.
+A household administrator accepts or declines the batch (so can a server administrator). The transfer checks the shared copy before making it a shared member. Managed originals move only after that check. Linked originals are copied and stay in their source folder. When you send someone else's photo, the Shared Library always gets a copy and their original stays in their own space. Everyone in a household can open and send; a child profile can send only after a household administrator allows it.
+
+## Browse your household
+
+Open the scope picker at the top of Photos, Places or Folders. Your own space stays first, then a **Household** group lists each person in your household by name, then the Shared Library. You can open, search and share from anyone's space in your household, but you cannot edit, hide, move or delete their photos, and their hidden photos stay hidden. People in other households never appear, and none of their photos, counts, map pins or contributions are visible to you.
+
+## See other households as a server administrator
+
+Server administrators have an **Other people** group in the scope picker. It lists every other household, each person in it, and the household's Shared Library. Everything there is read-only: you cannot edit, hide, move, delete or send anything, hidden photos stay hidden, and household administrators and members never see the group. When the administrator screens are locked with a PIN, unlock them first.
+
+Every time you open someone's space or a household's Shared Library, Tuvima records it. The household's owner sees the date, your name and what you opened under **Account > Who viewed your photos**. The same space is recorded at most once an hour.
+
+## Switch View on for a person
+
+People outside your household start with **View** off. Open **Settings > Users & Access** and use the **Can use View** switch on their row when you want them to use it. People in your own household keep whatever you chose when you added them.
 
 ## Browse People and Places
 
@@ -70,6 +84,8 @@ Face recognition, object/scene detection, OCR, captions, semantic search, and AI
 
 <details>
 <summary>Technical details</summary>
+
+A phone backs its photos up to one person that is chosen for the phone, not to whoever the phone is browsing as. The phone's app asks for that person's PIN when they have one; an administrator can also choose under **Settings > Network > Apps & devices** (**Backs up to**). Until one is chosen, backups from that phone are refused.
 
 Settings > Libraries chooses the managed View root. Current paths use stable `profiles/<profile-id>/sources/<source-id>` folders. Accepted shared originals live in a separate `Shared` tree. Do not move files by hand to match old `View/Profiles` wording.
 

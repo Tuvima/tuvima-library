@@ -127,6 +127,9 @@ else
                         case SettingsSection.Playback:
                             <PlaybackTab />
                             break;
+                        case SettingsSection.Household:
+                            <ManagedAccessUsers Scope="household" />
+                            break;
                         case SettingsSection.Privacy:
                             <PrivacyHistoryTab Subsection="@_activeSubsection" />
                             break;
@@ -226,7 +229,7 @@ else
     private string? _batchBreadcrumbLabel;
     private int _breadcrumbLoadRevision;
     private IReadOnlyList<SettingsTreeGroupDef> VisibleTreeGroups =>
-        SettingsNav.FilteredTreeGroups(CanManageAdministration).ToList();
+        SettingsNav.FilteredTreeGroups(CanManageAdministration, CanManageHousehold).ToList();
 
     private IReadOnlyList<MediaSectionNavigationGroup> SettingsNavigationGroups =>
         VisibleTreeGroups
@@ -411,6 +414,7 @@ else
     }
 
     private bool CanManageAdministration => Session.HasNavigation("settings.administration");
+    private bool CanManageHousehold => Session.HasAction("household.manage");
 
     private void ResolveSectionAndNormalize()
     {
@@ -427,7 +431,7 @@ else
             return;
         }
 
-        var resolution = SettingsNav.ResolveRoute(Section, CanManageAdministration);
+        var resolution = SettingsNav.ResolveRoute(Section, CanManageAdministration, CanManageHousehold);
         _activeSection = resolution.Section;
 
         if (!resolution.IsKnownRoute)
@@ -444,7 +448,7 @@ else
 
         if (!IsItemEnabledByUiSettings(SettingsNav.GetItem(_activeSection)))
         {
-            Nav.NavigateTo(SettingsNav.RouteFor(SettingsNav.FirstVisibleSection(CanManageAdministration)), replace: true);
+            Nav.NavigateTo(SettingsNav.RouteFor(SettingsNav.FirstVisibleSection(CanManageAdministration, CanManageHousehold)), replace: true);
             return;
         }
 
@@ -549,7 +553,7 @@ else
     }
 
     private IReadOnlyList<SettingsItemDef> GetVisibleTreeItems(SettingsTreeGroupDef group) =>
-        SettingsNav.FilteredTreeItems(group, CanManageAdministration)
+        SettingsNav.FilteredTreeItems(group, CanManageAdministration, CanManageHousehold)
             .Where(item => !DeviceContext.IsMobile || SettingsNav.IsVisibleOnMobile(item.Value))
             .Where(item => item.Value is not SettingsSection.Review)
             .Where(IsItemEnabledByUiSettings)
@@ -558,7 +562,7 @@ else
     private IReadOnlyList<MediaSectionNavigationItem> BuildTreeNavigationItems(SettingsTreeGroupDef group)
     {
         var items = new List<MediaSectionNavigationItem>();
-        var childGroups = SettingsNav.FilteredChildTreeGroups(group, CanManageAdministration).ToList();
+        var childGroups = SettingsNav.FilteredChildTreeGroups(group, CanManageAdministration, CanManageHousehold).ToList();
 
         foreach (var item in GetVisibleTreeItems(group))
         {
@@ -751,6 +755,7 @@ else
     {
         SettingsSection.Overview => "Manage your profile and see your personal library activity.",
         SettingsSection.Account => "Manage your account, security, and sign-in methods.",
+        SettingsSection.Household => "Look after the people in your household and how they sign in.",
         SettingsSection.Playback => "Set the defaults that shape how you watch, listen, and read.",
         SettingsSection.Privacy => "Personal history and export controls are not yet available.",
         SettingsSection.AdminOverview => "A quick look at your library, system health, and anything that needs attention.",

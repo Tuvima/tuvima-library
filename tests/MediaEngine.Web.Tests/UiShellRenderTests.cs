@@ -294,9 +294,10 @@ public sealed class UiShellRenderTests : AsyncBunitContext
         cut.Find(".top-nav-account-menu__trigger").Click();
 
         Assert.Equal("shy@example.test", cut.Find(".top-nav-account-menu__header strong").TextContent);
-        Assert.Empty(cut.FindAll(".top-nav-account-menu__profile-item"));
+        Assert.Empty(cut.FindAll(".profile-switcher__item"));
+        Assert.DoesNotContain("Who's watching?", cut.Markup);
         Assert.Contains(cut.FindAll("a[role=menuitem]"), link =>
-            link.GetAttribute("href") == "/settings/access/users" && link.TextContent.Contains("Manage profiles"));
+            link.GetAttribute("href") == "/who?manage=1" && link.TextContent.Contains("Manage profiles"));
     }
 
     [Fact]
@@ -312,7 +313,8 @@ public sealed class UiShellRenderTests : AsyncBunitContext
         cut.Find(".top-nav-account-menu__trigger").Click();
 
         Assert.Equal("Shy", cut.Find(".top-nav-account-menu__header strong").TextContent);
-        Assert.Equal(2, cut.FindAll(".top-nav-account-menu__profile-item").Count);
+        Assert.NotEmpty(cut.FindAll(".profile-switcher__item"));
+        Assert.Contains("Who's watching?", cut.Markup);
         Assert.DoesNotContain("Manage profiles", cut.Markup);
         Assert.Empty(cut.FindAll(".top-nav-account-menu__attention-dot"));
     }
@@ -382,8 +384,9 @@ public sealed class UiShellRenderTests : AsyncBunitContext
         Assert.DoesNotContain("NotificationsNone", accountSource);
         Assert.Contains("top-nav-account-menu__trigger-copy", accountSource);
         Assert.Contains("href=\"/settings/profile\"", accountSource);
-        Assert.Contains("Switch profile?", accountSource);
-        Assert.Contains("ProfileSwitchStatus.PinRequired", accountSource);
+        // Switching people now happens on the full-screen "Who's using Tuvima?" page.
+        Assert.Contains("ProfilePickerRoute.Path", accountSource);
+        Assert.DoesNotContain("Switch profile?", accountSource);
         Assert.Contains("font-family: var(--font-brand);", css);
         Assert.Contains("grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);", css);
         Assert.Contains("grid-column: 2;", css);

@@ -68,8 +68,9 @@ public sealed class DisplayWorkProjectionReader
                                  CASE WHEN mc.claimed_at IS NULL THEN 1 ELSE 0 END, mc.claimed_at ASC, ma.id
                     ) AS AssetRank
                 FROM works w
-                INNER JOIN editions e ON e.work_id = w.id
-                INNER JOIN media_assets ma ON ma.edition_id = e.id
+                INNER JOIN work_owned_assets woa ON woa.work_id = w.id
+                INNER JOIN editions e ON e.id = woa.edition_id
+                INNER JOIN media_assets ma ON ma.id = woa.asset_id
                 LEFT JOIN asset_dates mc ON mc.entity_id = ma.id
                 LEFT JOIN works p ON p.id = w.parent_work_id
                 LEFT JOIN works gp ON gp.id = p.parent_work_id

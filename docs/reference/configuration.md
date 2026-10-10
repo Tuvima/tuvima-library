@@ -56,7 +56,7 @@ Core Engine settings. Most changes are read at startup. Ingestion sources and de
 | `data_root` | string | `""` | Root directory for all internal Engine storage (`.data/`). Must be set before first run. |
 | `library_root` | string | `""` | Root directory where the Engine places organized media after promotion. |
 | `organization_template` | string | - | Default file organization template. Tokens: `{Category}`, `{Title}`, `{Qid}`, `{Ext}`. |
-| `organization_templates` | object | - | Per-media-type templates. Keys: `default`, `Books`, `Audiobooks`, `Movies`, `TV`, `Comics`, `Music`. TV supports `{Series}`, `{Season}`, `{Episode}` tokens. Music supports `{Artist}`, `{Album}`, `{TrackNumber}` tokens. |
+| `organization_templates` | object | - | Per-media-type templates. Keys: `default`, `Books`, `Audiobooks`, `Movies`, `TV`, `Comics`, `Music`. TV supports `{Series}`, `{Season}`, `{Episode}` tokens; `{Episode}` reads `01-e02` for a file that covers episodes 1 and 2. Music supports `{Artist}`, `{Album}`, `{TrackNumber}` tokens. |
 | `server_name` | string | `"Tuvima Library"` | Display name shown in the Dashboard title bar and system status. |
 | `language` | object | - | Language preferences. See sub-fields below. |
 | `language.display` | string | `"en"` | UI display language (BCP-47 code). Controls Dashboard localization. |

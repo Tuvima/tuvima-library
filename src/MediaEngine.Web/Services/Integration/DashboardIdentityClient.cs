@@ -8,7 +8,8 @@ using MediaEngine.Web.Services.Configuration;
 namespace MediaEngine.Web.Services.Integration;
 
 /// <summary>The result of a sign-in style call: the new session, or the Engine's status and (for some refusals) its plain-language reason.</summary>
-public sealed record DashboardSessionAttempt(AuthSessionResponse? Session, HttpStatusCode Status, string? Detail);
+/// <param name="TwoStepToken">Set (with no session) when the password was right but the account also needs a code from its authenticator app.</param>
+public sealed record DashboardSessionAttempt(AuthSessionResponse? Session, HttpStatusCode Status, string? Detail, string? TwoStepToken = null);
 
 public sealed class DashboardIdentityClient(
     IHttpClientFactory clients,
@@ -365,6 +366,11 @@ public sealed class DashboardIdentityClient(
     public Task<DashboardAccessMutationResult> RevokeManagedDeviceAsync(Guid deviceId, CancellationToken ct = default) =>
         SendMutationAsync(HttpMethod.Delete, $"/access/devices/{deviceId:D}", ct);
 
+    /// <summary>Chooses (or clears, with null) whose photos a phone backs up.</summary>
+    public Task<DashboardAccessMutationResult> SetManagedDeviceBackupProfileAsync(Guid deviceId, Guid? profileId, CancellationToken ct = default) =>
+        SendMutationAsync(HttpMethod.Put, $"/access/devices/{deviceId:D}/backup-profile",
+            new SetManagedDeviceBackupProfileRequest { ProfileId = profileId }, ct);
+
     public async Task<List<ManagedProfileResponse>> GetManagedProfilesAsync(CancellationToken ct = default) =>
         await GetAsync<List<ManagedProfileResponse>>("/access/profiles", ct).ConfigureAwait(false) ?? [];
 
@@ -377,9 +383,10 @@ public sealed class DashboardIdentityClient(
     public Task<DashboardAccessMutationResult<ManagedProfileResponse>> UpdateManagedProfileResultAsync(Guid profileId, UpdateManagedProfileRequest request, CancellationToken ct = default) =>
         SendMutationAsync<UpdateManagedProfileRequest, ManagedProfileResponse>(HttpMethod.Put, $"/access/profiles/{profileId:D}", request, ct);
 
-    public async Task<DashboardAccessMutationResult> DeleteManagedProfileResultAsync(Guid profileId, CancellationToken ct = default)
+    /// <summary>Removes a person. Their habits always go; <paramref name="keepPhotos"/> moves their personal photos to the Shared Library (true) or deletes them (false).</summary>
+    public async Task<DashboardAccessMutationResult> DeleteManagedProfileResultAsync(Guid profileId, bool keepPhotos = true, CancellationToken ct = default)
     {
-        var result = await SendMutationAsync(HttpMethod.Delete, $"/access/profiles/{profileId:D}", ct).ConfigureAwait(false);
+        var result = await SendMutationAsync(HttpMethod.Delete, $"/access/profiles/{profileId:D}?photos={(keepPhotos ? "move" : "delete")}", ct).ConfigureAwait(false);
         if (result.Succeeded)
         {
             openScreens?.CloseWhere(screen => screen.ProfileId == profileId);
@@ -387,6 +394,58 @@ public sealed class DashboardIdentityClient(
 
         return result;
     }
+
+    /// <summary>Sets a person's profile photo (JPEG, PNG or WebP up to 5 MB). Allowed for anyone who may manage that person.</summary>
+    public async Task<DashboardAccessMutationResult> UploadManagedProfilePhotoResultAsync(Guid profileId, byte[] photo, string fileName, CancellationToken ct = default)
+    {
+        try
+        {
+            using var content = new MultipartFormDataContent();
+            var file = new ByteArrayContent(photo);
+            file.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(
+                Path.GetExtension(fileName).ToLowerInvariant() switch { ".png" => "image/png", ".webp" => "image/webp", _ => "image/jpeg" });
+            content.Add(file, "file", Path.GetFileName(fileName));
+            using var request = new HttpRequestMessage(HttpMethod.Post, $"/access/profiles/{profileId:D}/avatar") { Content = content };
+            using var response = await Client.SendAsync(request, ct).ConfigureAwait(false);
+            return response.IsSuccessStatusCode
+                ? DashboardAccessMutationResult.Success()
+                : await ReadMutationFailureAsync(response, ct).ConfigureAwait(false);
+        }
+        catch (HttpRequestException)
+        {
+            return DashboardAccessMutationResult.FailureResult(DashboardAccessMutationFailure.Transient);
+        }
+        catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+        {
+            return DashboardAccessMutationResult.FailureResult(DashboardAccessMutationFailure.Transient);
+        }
+    }
+
+    /// <summary>Removes a person's profile photo; their colour or icon shows again.</summary>
+    public Task<DashboardAccessMutationResult> RemoveManagedProfilePhotoResultAsync(Guid profileId, CancellationToken ct = default) =>
+        SendMutationAsync(HttpMethod.Delete, $"/access/profiles/{profileId:D}/avatar", ct);
+
+    public Task<DashboardAccessMutationResult<ManagedProfileResponse>> AddHouseholdPersonResultAsync(Guid householdId, AddHouseholdPersonRequest request, CancellationToken ct = default) =>
+        SendMutationAsync<AddHouseholdPersonRequest, ManagedProfileResponse>(HttpMethod.Post, $"/access/households/{householdId:D}/people", request, ct);
+
+    public Task<DashboardAccessMutationResult<GiveOwnSignInResponse>> GiveOwnSignInResultAsync(Guid profileId, GiveOwnSignInRequest request, CancellationToken ct = default) =>
+        SendMutationAsync<GiveOwnSignInRequest, GiveOwnSignInResponse>(HttpMethod.Post, $"/access/profiles/{profileId:D}/own-sign-in", request, ct);
+
+    /// <summary>Removes a person's own sign-in and sends any screen open on it back to sign-in; the person stays.</summary>
+    public async Task<DashboardAccessMutationResult> RemoveOwnSignInResultAsync(Guid accountId, CancellationToken ct = default)
+    {
+        var result = await SendMutationAsync(HttpMethod.Delete, $"/access/accounts/{accountId:D}/own-sign-in", ct).ConfigureAwait(false);
+        if (result.Succeeded)
+        {
+            openScreens?.CloseWhere(screen => screen.AccountId == accountId);
+        }
+
+        return result;
+    }
+
+    /// <summary>Sets a person's profile PIN. A server administrator can set anyone's; a household administrator only their own household's.</summary>
+    public Task<DashboardAccessMutationResult> SetProfilePinResultAsync(Guid profileId, string pin, CancellationToken ct = default) =>
+        SendMutationAsync(HttpMethod.Put, $"/auth/profiles/{profileId:D}/pin", new SetProfilePinRequest { Pin = pin }, ct);
 
     public Task<DashboardAccessMutationResult<AccountInvitationResponse>> CreateInvitationResultAsync(CreateAccountInvitationRequest request, CancellationToken ct = default) =>
         SendMutationAsync<CreateAccountInvitationRequest, AccountInvitationResponse>(HttpMethod.Post, "/access/invitations", request, ct);
@@ -599,8 +658,37 @@ public sealed class DashboardIdentityClient(
     public Task<DashboardAccessMutationResult<AccountAccessResponse>> SetTemporaryPasswordResultAsync(Guid accountId, SetTemporaryPasswordRequest request, CancellationToken ct = default) =>
         SendMutationAsync<SetTemporaryPasswordRequest, AccountAccessResponse>(HttpMethod.Post, $"/access/accounts/{accountId:D}/temporary-password", request, ct);
 
+    /// <summary>Finishes a password sign-in that asked for a code from the authenticator app (or a recovery code).</summary>
+    public async Task<DashboardSessionAttempt> CompleteTwoStepSignInAsync(CompleteTwoStepSignInRequest request, CancellationToken ct = default)
+    {
+        using var response = await Client.PostAsJsonAsync("/auth/two-step/verify", request, ct).ConfigureAwait(false);
+        return await ReadSessionAttemptAsync(response, ct).ConfigureAwait(false);
+    }
+
+    /// <summary>Starts setting up two-step codes: the key to show as a QR code and as text.</summary>
+    public Task<DashboardAccessMutationResult<TwoStepSetupResponse>> BeginTwoStepSetupResultAsync(CancellationToken ct = default) =>
+        SendMutationAsync<object, TwoStepSetupResponse>(HttpMethod.Post, "/auth/two-step/setup", new { }, ct);
+
+    /// <summary>Turns two-step codes on once the first code from the app matches; the Engine answers with new recovery codes.</summary>
+    public Task<DashboardAccessMutationResult<RecoveryCodesResponse>> EnableTwoStepResultAsync(string code, CancellationToken ct = default) =>
+        SendMutationAsync<EnableTwoStepRequest, RecoveryCodesResponse>(HttpMethod.Post, "/auth/two-step/enable", new EnableTwoStepRequest { Code = code }, ct);
+
+    /// <summary>Turns two-step codes off with a current code or a recovery code.</summary>
+    public Task<DashboardAccessMutationResult> DisableTwoStepResultAsync(string code, CancellationToken ct = default) =>
+        SendMutationAsync(HttpMethod.Post, "/auth/two-step/disable", new DisableTwoStepRequest { Code = code }, ct);
+
+    /// <summary>An administrator turns two-step codes off for someone who lost their phone and recovery codes.</summary>
+    public Task<DashboardAccessMutationResult<AccountAccessResponse>> ResetAccountTwoStepResultAsync(Guid accountId, CancellationToken ct = default) =>
+        SendMutationAsync<object, AccountAccessResponse>(HttpMethod.Post, $"/access/accounts/{accountId:D}/two-step/reset", new { }, ct);
+
     private static async Task<DashboardSessionAttempt> ReadSessionAttemptAsync(HttpResponseMessage response, CancellationToken ct)
     {
+        if (response.StatusCode == HttpStatusCode.Accepted)
+        {
+            var pending = await response.Content.ReadFromJsonAsync<TwoStepRequiredResponse>(cancellationToken: ct).ConfigureAwait(false);
+            return new DashboardSessionAttempt(null, response.StatusCode, null, pending?.PendingToken);
+        }
+
         if (response.IsSuccessStatusCode)
         {
             return new DashboardSessionAttempt(
@@ -975,6 +1063,16 @@ public sealed class DashboardIdentityClient(
     /// <summary>Turns the this-computer-only account into a normal one. The Engine answers with the new session.</summary>
     public Task<DashboardAccessMutationResult<AuthSessionResponse>> SecureAccountAsync(SecureAccountRequest request, CancellationToken ct = default) =>
         SendMutationAsync<SecureAccountRequest, AuthSessionResponse>(HttpMethod.Post, "/auth/account/secure", request, ct);
+
+    /// <summary>The profile this browser or device always opens as for the signed-in account, or <c>null</c> when none is set.</summary>
+    public async Task<Guid?> GetDeviceProfilePreferenceAsync(CancellationToken ct = default) =>
+        (await GetAsync<DeviceProfilePreferenceResponse>("/auth/device-profile", ct).ConfigureAwait(false))?.ProfileId;
+
+    public Task<DashboardAccessMutationResult> SetDeviceProfilePreferenceAsync(Guid profileId, CancellationToken ct = default) =>
+        SendMutationAsync(HttpMethod.Put, "/auth/device-profile", new SetDeviceProfilePreferenceRequest(profileId), ct);
+
+    public Task<DashboardAccessMutationResult> ClearDeviceProfilePreferenceAsync(CancellationToken ct = default) =>
+        SendMutationAsync(HttpMethod.Delete, "/auth/device-profile", ct);
 
     /// <summary>Wrong-PIN guesses allowed per minute for one target profile, from one kind of place.</summary>
     public const int ProfilePinAttemptsPerMinute = 10;

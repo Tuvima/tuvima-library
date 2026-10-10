@@ -33,7 +33,8 @@ public sealed class EngineApiClientSequenceNormalizationTests
                 PositionSeconds = index * 1500,
                 DurationSeconds = 3000,
                 RemainingSeconds = 3000 - index * 1500,
-                ProgressLabel = $"State {index}"
+                ProgressLabel = $"State {index}",
+                CoveredWith = index == 0 ? [new SequenceCoverageLinkViewModel { Id = "sibling", PositionLabel = "2", Title = "Episode 2" }] : []
             };
         }).ToList();
         var detail = new DetailPageViewModel
@@ -60,7 +61,7 @@ public sealed class EngineApiClientSequenceNormalizationTests
         {
             var original = items.Single(i => i.Id == copy.Id);
             Assert.Equal(original.EpisodeContext, copy.EpisodeContext); Assert.Equal(original.ProgressState, copy.ProgressState);
-            Assert.Equal(original.ProgressPercent, copy.ProgressPercent); Assert.Equal(original.PositionSeconds, copy.PositionSeconds);
+            Assert.Equal(original.CoveredWith.Select(l => (l.Id, l.PositionLabel)), copy.CoveredWith.Select(l => (l.Id, l.PositionLabel))); Assert.Equal(original.ProgressPercent, copy.ProgressPercent); Assert.Equal(original.PositionSeconds, copy.PositionSeconds);
             Assert.Equal(original.DurationSeconds, copy.DurationSeconds); Assert.Equal(original.RemainingSeconds, copy.RemainingSeconds); Assert.Equal(original.ProgressLabel, copy.ProgressLabel);
             Assert.Equal(original.Route, copy.Route); Assert.StartsWith("/engine-image/stream/artwork/", copy.ArtworkUrl);
             Assert.Equal(original.EpisodeStillWidthPx, copy.EpisodeStillWidthPx); Assert.Equal(original.EpisodeStillHeightPx, copy.EpisodeStillHeightPx);

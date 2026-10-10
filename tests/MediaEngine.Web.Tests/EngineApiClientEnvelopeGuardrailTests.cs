@@ -17,7 +17,9 @@ public sealed class EngineApiClientEnvelopeGuardrailTests
         // The current checkout contains 25 raw GET calls: the added typed audiobook bookmark
         // list read preserves per-call HTTP status versus unknown transport outcomes. The
         // text-track reader still shares its existing raw-text envelope.
-        AssertAtOrBelow(source, "_http.GetAsync", 25);
+        // The file-coverage read is one more manual GET: a 404 means "not a TV episode file" and keeps the picker hidden
+        // without an error, while other failures set LastError; the picker tests cover both outcomes.
+        AssertAtOrBelow(source, "_http.GetAsync", 26);
         // One additional raw POST is the typed bookmark-create outcome path. Its focused tests
         // cover success classification, definite 4xx vs unknown 5xx/malformed results, and one
         // send per attempt with no automatic retry.

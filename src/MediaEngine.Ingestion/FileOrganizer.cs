@@ -1,6 +1,7 @@
 using MediaEngine.Domain;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Enums;
+using MediaEngine.Domain.Services;
 using MediaEngine.Ingestion.Contracts;
 using MediaEngine.Ingestion.Models;
 using Microsoft.Extensions.Logging;
@@ -459,7 +460,7 @@ public sealed class FileOrganizer : IFileOrganizer
                                   ? track
                                   : meta.GetValueOrDefault("audiobook_part_number", string.Empty)),
             ["Season"] = PadNumeric(meta.GetValueOrDefault("season", "") is { Length: > 0 } sn ? sn : meta.GetValueOrDefault("season_number", string.Empty)),
-            ["Episode"] = PadNumeric(meta.GetValueOrDefault("episode", "") is { Length: > 0 } ep ? ep : meta.GetValueOrDefault("episode_number", string.Empty)),
+            ["Episode"] = ResolveEpisodeToken(meta),
             // ── TV episode title (Plex/Jellyfin filename convention) ─────────────
             ["EpisodeTitle"] = meta.GetValueOrDefault("episode_title", "") is { Length: > 0 } et
                                   ? et
@@ -550,6 +551,29 @@ public sealed class FileOrganizer : IFileOrganizer
         MediaType.Music => "Music",
         _ => "Other",  // Unknown, null — caught by upstream guard
     };
+
+    /// <summary>
+    /// Builds the <c>{Episode}</c> token. A file that covers several episodes
+    /// (<c>episode_end</c> set, unbroken and within <see cref="EpisodeRangeParser.MaxEpisodesPerFile"/>)
+    /// reads as <c>01-e02</c>, so a template such as <c>s{Season}e{Episode}</c> names it
+    /// <c>s01e01-e02</c>. Single-episode files are unchanged.
+    /// </summary>
+    private static string ResolveEpisodeToken(IReadOnlyDictionary<string, string> meta)
+    {
+        string episode = PadNumeric(meta.GetValueOrDefault("episode", "") is { Length: > 0 } ep
+            ? ep
+            : meta.GetValueOrDefault("episode_number", string.Empty));
+
+        if (!int.TryParse(episode, out int first)
+            || !int.TryParse(meta.GetValueOrDefault(MetadataFieldConstants.EpisodeEnd, string.Empty), out int last)
+            || last <= first
+            || last - first + 1 > EpisodeRangeParser.MaxEpisodesPerFile)
+        {
+            return episode;
+        }
+
+        return $"{episode}-e{last:D2}";
+    }
 
     /// <summary>
     /// Pads a numeric string to at least 2 digits (e.g. "3" → "03", "12" → "12").

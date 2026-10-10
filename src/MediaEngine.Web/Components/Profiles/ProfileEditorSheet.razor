@@ -1,0 +1,447 @@
+@namespace MediaEngine.Web.Components.Profiles
+@using MediaEngine.Web.Components.Shared
+@using MediaEngine.Web.Models.ViewDTOs
+@* The one sheet for adding and editing a profile: name, avatar (colour, icon or photo), Kids switch, PIN and delete.
+   It is a bottom sheet on phones and a centred dialog on larger screens. It only gathers choices and reports them through
+   OnSave / OnDelete; the page that opens it talks to the Engine. *@
+@if (Open)
+{
+    <div class="profile-editor-backdrop" @onclick="CloseAsync">
+        <div @ref="_root"
+             class="profile-editor"
+             role="dialog"
+             aria-modal="true"
+             aria-labelledby="profile-editor-title"
+             tabindex="-1"
+             @onclick:stopPropagation="true"
+             @onkeydown="OnKeyDown">
+            <h2 id="profile-editor-title" class="profile-editor__title">@(IsAdd ? "Add profile" : "Edit profile")</h2>
+
+            <div class="profile-editor__preview">
+                <span class="profile-editor__avatar">
+                    <ProfileAvatar DisplayName="@_name" ImageUrl="@PreviewImageUrl" Color="@_color" Icon="@_icon" />
+                </span>
+            </div>
+
+            <label class="profile-editor__field">
+                <span>Name</span>
+                <AppNativeInput Type="text" Class="who-dialog__input profile-editor__name" Value="@_name" Placeholder="Name" AriaLabel="Name" maxlength="50" Disabled="@Saving" OnInput="OnNameInput" />
+            </label>
+
+            <ProfileAvatarPicker DisplayName="@_name"
+                                 Color="@_color"
+                                 Icon="@_icon"
+                                 HasPhoto="@HasPhoto"
+                                 Disabled="@Saving"
+                                 ColorChanged="OnColorChanged"
+                                 IconChanged="OnIconChanged"
+                                 PhotoChosen="OnPhotoChosenAsync"
+                                 PhotoRemoved="OnPhotoRemoved" />
+
+            @if (HasPhoto || Profile?.AvatarImageUrl is { Length: > 0 })
+            {
+                <p class="avatar-picker__hint">Choosing a colour or icon replaces the current photo.</p>
+            }
+
+            <label class="profile-editor__switch">
+                <AppNativeInput Type="checkbox" Class="who-check__box" Checked="@_isChild" Disabled="@(Saving || KidsLocked)" AriaLabel="Kids profile" OnChange="OnKidsChanged" />
+                <span>
+                    <strong>Kids profile</strong>
+                    <small>@(KidsLocked ? "This can't be changed after a profile is made." : "A calmer, simpler Tuvima without settings.")</small>
+                </span>
+            </label>
+
+            <fieldset class="profile-editor__limit" disabled="@Saving">
+                <legend>What can @(string.IsNullOrWhiteSpace(_name) ? "this person" : _name.Trim()) watch?</legend>
+                <div class="profile-editor__limit-options" role="radiogroup" aria-label="Content limit">
+                    @foreach (var choice in LimitChoices)
+                    {
+                        var selected = _limit == choice.Value;
+                        var choiceClass = selected ? "profile-editor__limit-choice is-selected" : "profile-editor__limit-choice";
+                        <AppNativeButton Type="button"
+                                         Class="@choiceClass"
+                                         Disabled="@Saving"
+                                         OnClick="@(() => ChooseLimit(choice.Value))"
+                                         role="radio"
+                                         aria-checked="@(selected ? "true" : "false")">@choice.Label</AppNativeButton>
+                    }
+                </div>
+                <small class="profile-editor__limit-hint">@LimitHint</small>
+                @if (_limit.Length > 0)
+                {
+                    <label class="profile-editor__switch">
+                        <AppNativeInput Type="checkbox" Class="who-check__box" Checked="@_allowUnrated" Disabled="@Saving" AriaLabel="Show items with no rating" OnChange="OnAllowUnratedChanged" />
+                        <span>
+                            <strong>Show items with no rating</strong>
+                            <small>Music and personal videos often have none. Off keeps them hidden.</small>
+                        </span>
+                    </label>
+                }
+            </fieldset>
+
+            <div class="profile-editor__pin">
+                <strong>PIN</strong>
+                @if (_changingPin)
+                {
+                    <PinPad @bind-Value="_pin" Disabled="@Saving" MaxLength="12" Label="New PIN" OnCancel="CancelPinChange" />
+                    <small>@PinHint</small>
+                    <AppNativeButton Type="button" Class="who-button" Disabled="@Saving" OnClick="CancelPinChange">Cancel PIN change</AppNativeButton>
+                }
+                else
+                {
+                    <small>@(HasPin && !_removePin ? "A PIN is asked for before switching to this person." : "No PIN. Anyone can switch to this person.")</small>
+                    <div class="profile-editor__row">
+                        <AppNativeButton Type="button" Class="who-button" Disabled="@Saving" OnClick="StartPinChange">@(HasPin && !_removePin ? "Change PIN" : "Set a PIN")</AppNativeButton>
+                        @if (HasPin && !_removePin)
+                        {
+                            <AppNativeButton Type="button" Class="who-button" Disabled="@Saving" OnClick="RemovePin">Remove PIN</AppNativeButton>
+                        }
+                    </div>
+                }
+            </div>
+
+            @if (!string.IsNullOrWhiteSpace(Error ?? _localError))
+            {
+                <p class="who-page__error" role="alert">@(Error ?? _localError)</p>
+            }
+
+            @if (_confirmingDelete)
+            {
+                <div class="profile-editor__confirm" role="alertdialog" aria-label="Confirm delete">
+                    <p><strong>Delete @(string.IsNullOrWhiteSpace(Profile?.DisplayName) ? "this profile" : Profile!.DisplayName)?</strong> Their likes, My List, progress, bookmarks and taste picks are removed. Library files are never touched.</p>
+                    <fieldset class="profile-editor__photos" disabled="@Saving">
+                        <legend>What about their personal photos?</legend>
+                        <label class="profile-editor__choice">
+                            <AppNativeInput Type="radio" Name="profile-photos" Class="who-check__box" Checked="@_keepPhotos" AriaLabel="Keep their photos in the Shared Library" Disabled="@Saving" OnChange="KeepPhotos" />
+                            <span><strong>Keep them in the Shared Library</strong><small>Tagged "From @(Profile?.DisplayName)" with today's date.</small></span>
+                        </label>
+                        <label class="profile-editor__choice">
+                            <AppNativeInput Type="radio" Name="profile-photos" Class="who-check__box" Checked="@(!_keepPhotos)" AriaLabel="Delete their photos" Disabled="@Saving" OnChange="DeletePhotos" />
+                            <span><strong>Delete them</strong><small>This can't be undone.</small></span>
+                        </label>
+                    </fieldset>
+                    <div class="profile-editor__row">
+                        <AppNativeButton Type="button" Class="who-button" Disabled="@Saving" OnClick="CancelDelete">Keep profile</AppNativeButton>
+                        <AppNativeButton Type="button" Class="who-button who-button--danger" Disabled="@Saving" OnClick="ConfirmDeleteAsync">Delete</AppNativeButton>
+                    </div>
+                </div>
+            }
+
+            <div class="profile-editor__actions">
+                @if (!IsAdd && CanDelete)
+                {
+                    <AppNativeButton Type="button" Class="who-button who-button--danger profile-editor__delete" Disabled="@(Saving || _confirmingDelete)" OnClick="AskDelete">Delete profile</AppNativeButton>
+                }
+                <span class="profile-editor__spacer"></span>
+                <AppNativeButton Type="button" Class="who-button" Disabled="@Saving" OnClick="CloseAsync">Cancel</AppNativeButton>
+                <AppNativeButton Type="button" Class="who-button who-button--primary" Disabled="@(!CanSave)" OnClick="SaveAsync">
+                    @(Saving ? "Saving…" : IsAdd ? "Add profile" : "Save")
+                </AppNativeButton>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private const string DefaultColor = "#8852FC";
+    private const long MaxPhotoBytes = 5 * 1024 * 1024;
+
+    private ElementReference _root;
+    private bool _wasOpen;
+    private string _name = string.Empty;
+    private string _color = DefaultColor;
+    private string? _icon;
+    private bool _isChild;
+    private string _pin = string.Empty;
+    private bool _changingPin;
+    private bool _removePin;
+    private bool _removePhoto;
+    private bool _confirmingDelete;
+    private bool _keepPhotos = true;
+    private byte[]? _newPhoto;
+    private string? _newPhotoName;
+    private string? _newPhotoPreview;
+    private string? _localError;
+    private string _limit = string.Empty;
+    private bool _allowUnrated;
+    private bool _limitTouched;
+
+    // An empty value is Everything; the rest are the steps the Engine understands.
+    private static readonly (string Value, string Label)[] LimitChoices =
+    [
+        (string.Empty, "Everything"), ("G", "G"), ("PG", "PG"), ("PG-13", "PG-13"), ("R", "R"),
+    ];
+
+    /// <summary>Show the sheet. Its fields are filled in again each time it opens.</summary>
+    [Parameter] public bool Open { get; set; }
+
+    /// <summary>The profile being edited; leave empty to add one.</summary>
+    [Parameter] public ProfileViewModel? Profile { get; set; }
+
+    /// <summary>True while the page is saving: the sheet is locked so nothing is sent twice.</summary>
+    [Parameter] public bool Saving { get; set; }
+
+    /// <summary>A failure from the page's last save, shown inside the sheet.</summary>
+    [Parameter] public string? Error { get; set; }
+
+    /// <summary>Whether a Delete button is offered (the page decides: never the last profile).</summary>
+    [Parameter] public bool CanDelete { get; set; }
+
+    /// <summary>Raised with the person's choices when Save or Add is pressed.</summary>
+    [Parameter] public EventCallback<ProfileEditorResult> OnSave { get; set; }
+
+    /// <summary>Raised after the person confirms deleting the profile. The value is true to keep their personal photos in the Shared Library, false to delete them.</summary>
+    [Parameter] public EventCallback<bool> OnDelete { get; set; }
+
+    /// <summary>Raised when the sheet is dismissed without saving.</summary>
+    [Parameter] public EventCallback OnClose { get; set; }
+
+    private bool IsAdd => Profile is null;
+
+    private string LimitHint => _limit switch
+    {
+        "G" => "Only all-ages titles: G movies, TV-Y and TV-G shows, books and comics for everyone.",
+        "PG" => "Up to PG and TV-PG. Nothing rated PG-13, TV-14 or higher.",
+        "PG-13" => "Up to PG-13 and TV-14. Nothing rated R or TV-MA.",
+        "R" => "Everything except adults-only titles (NC-17).",
+        _ => "No limit. This person sees the whole library.",
+    };
+
+    // The Engine can't switch an existing profile between adult and Kids, so the switch is only live while adding.
+    private bool KidsLocked => !IsAdd;
+
+    private bool HasPin => Profile?.HasPin == true;
+
+    private bool HasPhoto => _newPhoto is not null || (!_removePhoto && !string.IsNullOrWhiteSpace(Profile?.AvatarImageUrl));
+
+    private string? PreviewImageUrl => _newPhoto is not null ? _newPhotoPreview : _removePhoto ? null : Profile?.AvatarImageUrl;
+
+    private static bool ValidPin(string value) => value.Length is >= 4 and <= 12 && value.All(char.IsAsciiDigit);
+
+    private string PinHint => _pin.Length == 0 ? "Choose 4 to 12 digits." : ValidPin(_pin) ? "Looks good. It is saved with the profile." : "A PIN needs at least 4 digits.";
+
+    private bool CanSave => !Saving
+                            && !string.IsNullOrWhiteSpace(_name)
+                            && _name.Trim().Length <= 50
+                            && (!_changingPin || ValidPin(_pin));
+
+    protected override void OnParametersSet()
+    {
+        if (Open && !_wasOpen)
+        {
+            Reset();
+        }
+
+        _wasOpen = Open;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!Open)
+        {
+            _focused = false;
+            return;
+        }
+
+        if (_focused)
+        {
+            return;
+        }
+
+        _focused = true;
+        try
+        {
+            await _root.FocusAsync();
+        }
+        catch (JSDisconnectedException)
+        {
+            // The circuit closed while the sheet was opening; there is nothing left to focus.
+        }
+    }
+
+    private bool _focused;
+
+    private void Reset()
+    {
+        _name = Profile?.DisplayName ?? string.Empty;
+        _color = ProfileAvatarPalette.Find(Profile?.AvatarColor)?.Hex ?? Profile?.AvatarColor ?? DefaultColor;
+        _icon = Profile?.AvatarIcon;
+        _isChild = Profile?.IsRestricted ?? false;
+        _limit = Profile?.ContentLimit ?? string.Empty;
+        _allowUnrated = Profile?.ContentLimitAllowUnrated ?? false;
+        _limitTouched = false;
+        _pin = string.Empty;
+        _changingPin = false;
+        _removePin = false;
+        _removePhoto = false;
+        _confirmingDelete = false;
+        _keepPhotos = true;
+        _newPhoto = null;
+        _newPhotoName = null;
+        _newPhotoPreview = null;
+        _localError = null;
+    }
+
+    private void OnNameInput(ChangeEventArgs args) => _name = args.Value?.ToString() ?? string.Empty;
+
+    private void OnKidsChanged(ChangeEventArgs args)
+    {
+        _isChild = args.Value is true || string.Equals(args.Value?.ToString(), "true", StringComparison.OrdinalIgnoreCase);
+
+        // A new Kids profile starts on PG; this follows the switch until the limit has been chosen by hand.
+        if (IsAdd && !_limitTouched)
+        {
+            _limit = _isChild ? "PG" : string.Empty;
+        }
+    }
+
+    private void ChooseLimit(string value)
+    {
+        _limit = value;
+        _limitTouched = true;
+    }
+
+    private void OnAllowUnratedChanged(ChangeEventArgs args) =>
+        _allowUnrated = args.Value is true || string.Equals(args.Value?.ToString(), "true", StringComparison.OrdinalIgnoreCase);
+
+    // Picking a colour means "show a colour", so a chosen photo is dropped (Cancel still keeps the saved one).
+    private Task OnColorChanged(string color)
+    {
+        _color = color;
+        DropPhoto();
+        return Task.CompletedTask;
+    }
+
+    private Task OnIconChanged(string? key)
+    {
+        _icon = key;
+        DropPhoto();
+        return Task.CompletedTask;
+    }
+
+    private async Task OnPhotoChosenAsync(IBrowserFile file)
+    {
+        // Only these exact image types are accepted; the type also decides the preview's data URL.
+        var type = file.ContentType.Trim().ToLowerInvariant();
+        if (type == "image/jpg")
+        {
+            type = "image/jpeg";
+        }
+
+        if (type is not ("image/jpeg" or "image/png" or "image/webp"))
+        {
+            _localError = "Choose a JPEG, PNG or WebP photo.";
+            return;
+        }
+
+        try
+        {
+            // The photo is read once; the sheet keeps the bytes and never touches the browser file again.
+            await using var stream = file.OpenReadStream(MaxPhotoBytes);
+            using var buffer = new MemoryStream();
+            await stream.CopyToAsync(buffer);
+            _newPhoto = buffer.ToArray();
+            _newPhotoName = Path.GetFileName(file.Name);
+            _newPhotoPreview = await SmallPreviewAsync(file, type, _newPhoto);
+            _removePhoto = false;
+            _localError = null;
+        }
+        catch (IOException)
+        {
+            _localError = "A profile photo must be 5 MB or smaller.";
+        }
+    }
+
+    // A 256 px copy made in the browser keeps the page light on phones; without it, only a small photo is previewed whole.
+    private static async Task<string?> SmallPreviewAsync(IBrowserFile file, string type, byte[] original)
+    {
+        try
+        {
+            var resized = await file.RequestImageFileAsync(type, 256, 256);
+            await using var stream = resized.OpenReadStream(MaxPhotoBytes);
+            using var buffer = new MemoryStream();
+            await stream.CopyToAsync(buffer);
+            return $"data:{resized.ContentType};base64,{Convert.ToBase64String(buffer.ToArray())}";
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or InvalidCastException or JSException or IOException)
+        {
+            // Resizing is only a preview nicety: when the browser can't do it, a small photo is shown as is, a large one gets no preview.
+            return original.Length <= 256 * 1024 ? $"data:{type};base64,{Convert.ToBase64String(original)}" : null;
+        }
+    }
+
+    private Task OnPhotoRemoved()
+    {
+        DropPhoto();
+        return Task.CompletedTask;
+    }
+
+    private void DropPhoto()
+    {
+        _newPhoto = null;
+        _newPhotoName = null;
+        _newPhotoPreview = null;
+        _removePhoto = !string.IsNullOrWhiteSpace(Profile?.AvatarImageUrl);
+    }
+
+    private void StartPinChange()
+    {
+        _pin = string.Empty;
+        _changingPin = true;
+        _removePin = false;
+    }
+
+    private void CancelPinChange()
+    {
+        _pin = string.Empty;
+        _changingPin = false;
+    }
+
+    private void RemovePin()
+    {
+        _pin = string.Empty;
+        _changingPin = false;
+        _removePin = true;
+    }
+
+    private void AskDelete() => _confirmingDelete = true;
+
+    private void CancelDelete() => _confirmingDelete = false;
+
+    private void KeepPhotos() => _keepPhotos = true;
+
+    private void DeletePhotos() => _keepPhotos = false;
+
+    private Task ConfirmDeleteAsync() => OnDelete.InvokeAsync(_keepPhotos);
+
+    private Task CloseAsync() => Saving ? Task.CompletedTask : OnClose.InvokeAsync();
+
+    private async Task OnKeyDown(KeyboardEventArgs args)
+    {
+        if (args.Key == "Escape")
+        {
+            await CloseAsync();
+        }
+    }
+
+    private async Task SaveAsync()
+    {
+        if (!CanSave)
+        {
+            return;
+        }
+
+        await OnSave.InvokeAsync(new ProfileEditorResult(
+            _name.Trim(),
+            _color,
+            _icon,
+            _isChild,
+            _changingPin ? _pin : null,
+            _removePin && HasPin,
+            _newPhoto,
+            _newPhotoName,
+            _removePhoto && _newPhoto is null,
+            _limit,
+            _limit.Length > 0 && _allowUnrated));
+    }
+}

@@ -549,7 +549,8 @@ internal sealed partial class DetailCompositionOrchestrator
         IReadOnlyDictionary<string, int>? authoritativeTotalsByContainer,
         IReadOnlyDictionary<string, SeasonArtworkPresentation>? seasonArtwork,
         Guid? currentWorkId = null,
-        Guid? showRootId = null)
+        Guid? showRootId = null,
+        IReadOnlyDictionary<Guid, IReadOnlyList<SequenceCoverageLinkViewModel>>? sameFileLinks = null)
     {
         if (entityType is not (DetailEntityType.TvShow
             or DetailEntityType.MovieSeries
@@ -629,6 +630,9 @@ internal sealed partial class DetailCompositionOrchestrator
                 DurationSeconds = work.DurationSeconds is > 0 ? work.DurationSeconds : null,
                 RemainingSeconds = work.PositionSeconds is >= 0 && work.DurationSeconds is > 0 ? Math.Max(0, work.DurationSeconds.Value - work.PositionSeconds.Value) : null,
                 ProgressLabel = SequenceProgressLabel(work),
+                CoveredWith = work.IsOwned && Guid.TryParse(work.Id, out var coveredWorkId)
+                    && sameFileLinks is not null && sameFileLinks.TryGetValue(coveredWorkId, out var sameFile)
+                    ? sameFile : [],
             };
         }).ToList();
 

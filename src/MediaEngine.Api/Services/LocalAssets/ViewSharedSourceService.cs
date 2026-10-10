@@ -12,7 +12,7 @@ public enum ViewSharedSourceDeleteOutcome
     Protected,
 }
 
-/// <summary>Admin operations for sources owned by the singleton Shared library.</summary>
+/// <summary>Admin operations for sources owned by the server's own Shared library (the server administrator's household).</summary>
 public sealed class ViewSharedSourceService(
     IViewSharedLibraryRepository shared,
     IViewPersonalSpaceRepository personalSpaces,

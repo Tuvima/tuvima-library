@@ -278,6 +278,10 @@
     user-select: all;
 }
 
+.access-users__row--household {
+    grid-template-columns: 1.5fr 1.5fr auto;
+}
+
 @media (max-width: 960px) {
     .access-users__header {
         display: none;
@@ -296,6 +300,10 @@
     .access-users__actions {
         grid-row: 1;
         grid-column: 2;
+    }
+
+    .access-users__row--household {
+        grid-template-columns: 1fr;
     }
 }
 

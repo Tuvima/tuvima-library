@@ -25,6 +25,17 @@ public sealed class ManagedClientDeviceDto
     [JsonPropertyName("paired_at")] public DateTimeOffset PairedAt { get; init; }
     [JsonPropertyName("last_seen_at")] public DateTimeOffset LastSeenAt { get; init; }
 
-    /// <summary>The profile a phone backs its photos up to. Empty until phone backup exists.</summary>
+    /// <summary>The name of the profile a phone backs its photos up to. Empty until one is chosen.</summary>
     [JsonPropertyName("backs_up_to")] public string? BacksUpTo { get; init; }
+
+    [JsonPropertyName("backup_profile_id")] public Guid? BackupProfileId { get; init; }
+
+    /// <summary>The household the phone's account belongs to; the people it can back up are the ones in it.</summary>
+    [JsonPropertyName("household_id")] public Guid? HouseholdId { get; init; }
+}
+
+/// <summary>An administrator choosing (or clearing, with null) whose photos a phone backs up.</summary>
+public sealed class SetManagedDeviceBackupProfileRequest
+{
+    [JsonPropertyName("profile_id")] public Guid? ProfileId { get; init; }
 }

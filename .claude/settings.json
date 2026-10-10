@@ -25,7 +25,9 @@
       "Bash(cp:*)",
       "Bash(mv:*)",
       "Bash(touch:*)",
-      "Bash(python3:*)"
+      "Bash(python3:*)",
+      "Bash(taskkill //F //IM dotnet.exe)",
+      "Bash(pwsh -File scripts/docs/build-docs.ps1:*)"
     ],
     "deny": [
       "Bash(git push --force:*)",

@@ -23,7 +23,7 @@
 
         <header class="view-contributions-header">
             <div><span>Shared Library</span><h1>@(ContributionId.HasValue ? "Contribution" : "Contributions")</h1>
-                <p>@(ContributionId.HasValue ? "Review the submitted items, destination, and transfer state." : "Track your submissions and review pending contributions when you are a curator.")</p></div>
+                <p>@(ContributionId.HasValue ? "Review the submitted items, destination, and transfer state." : "Track your submissions and review pending contributions when you are a household administrator.")</p></div>
             @if (ContributionId.HasValue) { <AppButton Href="/view/contributions" Label="All contributions" StartIcon="@AppMaterialIcons.Outlined.ArrowBack" ButtonStyle="AppButtonStyle.Text" /> }
         </header>
 
@@ -107,13 +107,13 @@
                 <div><span>Submitted</span><strong>@contribution.SubmittedAt.ToLocalTime().ToString("MMM d, yyyy · h:mm tt")</strong></div>
             </div>
             @if (!string.IsNullOrWhiteSpace(contribution.Note)) { <div class="view-contribution-note"><span>Contributor note</span><p>@contribution.Note</p></div> }
-            @if (!string.IsNullOrWhiteSpace(contribution.DecisionReason)) { <div class="view-contribution-note"><span>Curator note</span><p>@contribution.DecisionReason</p></div> }
+            @if (!string.IsNullOrWhiteSpace(contribution.DecisionReason)) { <div class="view-contribution-note"><span>Reviewer note</span><p>@contribution.DecisionReason</p></div> }
             @if (contribution.Status == "pending" && _page?.CanReview == true)
             {
                 <div class="view-contribution-decision">
                     <label><span>Accepted destination</span><AppNativeSelect Value="@_decisionKind" OnChange="DecisionKindChanged" aria-label="Accepted Shared Library destination"><option value="timeline">Shared Timeline</option><option value="folder">Named Shared folder</option></AppNativeSelect></label>
                     @if (_decisionKind == "folder") { <AppTextField Label="Shared folder name" Value="@_decisionFolder" ValueChanged="@(value => _decisionFolder = value ?? string.Empty)" /> }
-                    <AppTextField Label="Curator note (optional)" Value="@_decisionReason" ValueChanged="@(value => _decisionReason = value ?? string.Empty)" />
+                    <AppTextField Label="Reviewer note (optional)" Value="@_decisionReason" ValueChanged="@(value => _decisionReason = value ?? string.Empty)" />
                 </div>
             }
         </AppCard>
