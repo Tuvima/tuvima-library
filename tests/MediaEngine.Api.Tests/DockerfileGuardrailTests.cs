@@ -108,6 +108,16 @@ public sealed class DockerfileGuardrailTests
     }
 
     [Fact]
+    public void ContainerFirstRun_StartsOnHomeNetwork_EvenWhenDesktopDefaultIsThisComputer()
+    {
+        // The container copies docker/config over the desktop defaults. A published container port reaches the
+        // Dashboard from the Docker bridge (a home-network address), so "This computer" would refuse every device.
+        var network = File.ReadAllText(Path.Combine(FindRepoRoot(), "docker", "config", "network.json"));
+
+        Assert.Contains("\"who_can_connect\": \"home_network\"", network);
+    }
+
+    [Fact]
     public void ContainerFirstRun_SeedsPlatformSpecificLibraryPaths()
     {
         var repoRoot = FindRepoRoot();
