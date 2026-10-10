@@ -2,13 +2,6 @@
 .who-page__title { margin: 0; font-size: clamp(1.7rem, 4vw, 2.6rem); font-weight: 700; }
 .who-page__status { margin: 0; color: var(--tl-text-muted); }
 .who-page__error { margin: 0; color: var(--tl-danger, #ff6b6b); }
-.who-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: clamp(8px, 2vw, 28px); width: min(100%, 960px); margin: 0; padding: 0; list-style: none; animation: who-fade-in 320ms ease-out both; }
-.who-grid > li { min-width: 0; }
-.who-skeleton { display: grid; justify-items: center; gap: 12px; padding: 12px; }
-.who-skeleton__avatar { width: 100%; max-width: 148px; aspect-ratio: 1; border-radius: 50%; background: var(--tl-bg-surface-elevated); animation: who-pulse 1.4s ease-in-out infinite; }
-.who-skeleton__name { width: 60%; height: 16px; border-radius: 8px; background: var(--tl-bg-surface-elevated); animation: who-pulse 1.4s ease-in-out infinite; }
-@keyframes who-fade-in { from { opacity: 0; } to { opacity: 1; } }
-@keyframes who-pulse { 0%, 100% { opacity: .55; } 50% { opacity: .9; } }
 .who-card__name { max-width: 100%; font-size: 1.05rem; font-weight: 600; overflow-wrap: anywhere; }
 .who-card__tags { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; min-height: 22px; }
 .who-tag { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; color: var(--tl-text-muted); border: 1px solid var(--tl-border-subtle); border-radius: 999px; font-size: .75rem; }
@@ -21,9 +14,6 @@
 .who-dialog { display: grid; gap: 14px; width: min(360px, 100%); padding: 24px; border: 1px solid var(--tl-border-subtle); border-radius: 14px; background: var(--tl-bg-surface-elevated); box-shadow: 0 18px 52px rgb(0 0 0 / 35%); }
 .who-dialog__title { margin: 0; font-size: 1.15rem; }
 .who-dialog__actions { display: flex; justify-content: flex-end; gap: 10px; }
-@media (min-width: 641px) { .who-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
-@media (min-width: 1024px) { .who-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
-@media (prefers-reduced-motion: reduce) { .who-grid, .who-skeleton__avatar, .who-skeleton__name { animation: none; } }
 @media (max-width: 640px) {
     .who-page { align-content: start; padding-top: 48px; }
 }

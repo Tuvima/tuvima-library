@@ -3839,6 +3839,17 @@ input[type="reset"],
 .compact-continue__item:is(:hover,:focus-visible) .app-progress-bar__fill { background:var(--tl-accent-primary-hover); }
 
 /* "Who's watching?" controls. The page renders them through shared native controls, so their roots are styled here. */
+.who-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: clamp(8px, 2vw, 28px); width: min(100%, 960px); margin: 0; padding: 0; list-style: none; animation: who-fade-in 320ms ease-out both; }
+.who-grid > li { min-width: 0; }
+.who-skeleton { display: grid; justify-items: center; gap: 12px; padding: 12px; }
+.who-skeleton__avatar { width: 100%; max-width: 148px; aspect-ratio: 1; border-radius: 50%; background: var(--tl-bg-surface-elevated); animation: who-pulse 1.4s ease-in-out infinite; }
+.who-skeleton__name { width: 60%; height: 16px; border-radius: 8px; background: var(--tl-bg-surface-elevated); animation: who-pulse 1.4s ease-in-out infinite; }
+.profile-avatar { display: block; width: 100%; aspect-ratio: 1; border-radius: 50%; object-fit: cover; }
+@keyframes who-fade-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes who-pulse { 0%, 100% { opacity: .55; } 50% { opacity: .9; } }
+@media (min-width: 641px) { .who-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (min-width: 1024px) { .who-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+@media (prefers-reduced-motion: reduce) { .who-grid, .who-skeleton__avatar, .who-skeleton__name { animation: none; } }
 .who-card { display: grid; justify-items: center; align-content: start; gap: 10px; width: 100%; padding: 12px; color: var(--tl-text-primary); border: 0; border-radius: 16px; background: transparent; font: inherit; cursor: pointer; transition: background-color 140ms ease, transform 140ms ease; }
 .who-card__picture { position: relative; display: block; width: 100%; max-width: 168px; aspect-ratio: 1; border-radius: 50%; transition: box-shadow 140ms ease; }
 .who-card:hover:not(:disabled), .who-card:focus-visible { background: color-mix(in srgb, var(--tl-bg-surface-elevated) 70%, transparent); outline: none; transform: scale(1.04); }
