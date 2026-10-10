@@ -21,6 +21,27 @@
     @if (IsEmpty)
     {
 
+    @if (_librariesConfigured)
+    {
+        <div class="home-discovery-empty">
+            <img src="/images/tuvima-icon.svg" alt="Tuvima Library" class="home-discovery-empty-icon" />
+            <h2 class="home-discovery-empty-title">Your library is being prepared</h2>
+            <p class="home-discovery-empty-subtitle">
+                Tuvima is finding and matching your media. Items appear here as they're ready.
+            </p>
+            <div class="home-discovery-empty-actions">
+                <AppButton ButtonStyle="AppButtonStyle.Outlined"
+                           Tone="AppUiTone.Neutral"
+                           Size="AppControlSize.Large"
+                           StartIcon="@AppMaterialIcons.Outlined.PendingActions"
+                           Href="/settings/ingestion">
+                    View progress
+                </AppButton>
+            </div>
+        </div>
+    }
+    else
+    {
     <div class="home-discovery-empty">
         <img src="/images/tuvima-icon.svg" alt="Tuvima Library" class="home-discovery-empty-icon" />
         <h2 class="home-discovery-empty-title">Set up your first library</h2>
@@ -88,6 +109,7 @@
             </div>
         }
     </div>
+    }
 
     }
 
@@ -135,6 +157,7 @@
     private bool _seeding;
     private bool _scanStarting;
     private bool _canScan;
+    private bool _librariesConfigured;
     private string _recentType = "all";
     private long _recentRefreshKey;
     private bool _hasRecentItems;
@@ -237,11 +260,13 @@
                         _recentRefreshKey++;
                     UpdatePresentationCaches();
                     _canScan = IsEmpty && await CanStartScanAsync();
+                    _librariesConfigured = IsEmpty && await HasConfiguredLibrariesAsync();
                 }
                 catch (Exception ex)
                 {
                     Logger.LogWarning(ex, "Home refresh failed; retaining the current page");
                     _canScan = await CanStartScanAsync();
+                    _librariesConfigured = IsEmpty && await HasConfiguredLibrariesAsync();
                 }
                 finally
                 {
@@ -302,6 +327,21 @@
         {
             _scanStarting = false;
             await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    // Libraries exist but nothing has surfaced yet: the first import is still running, so Home says so instead of asking for setup.
+    private async Task<bool> HasConfiguredLibrariesAsync()
+    {
+        try
+        {
+            var libraries = await Orchestrator.GetLibrariesAsync();
+            return libraries?.Libraries.Any(library => library.Sources.Any(source => !string.IsNullOrWhiteSpace(source.Path))) == true;
+        }
+        catch (Exception ex)
+        {
+            Logger.LogDebug(ex, "Could not read configured libraries for the Home empty state");
+            return false;
         }
     }
 

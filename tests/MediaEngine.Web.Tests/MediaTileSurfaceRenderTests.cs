@@ -352,6 +352,44 @@ public sealed class MediaTileSurfaceRenderTests : AsyncBunitContext
         }
     }
 
+    [Theory]
+    [InlineData("compact", ".media-tile-caption__title .media-tile-settling-dot")]
+    [InlineData("no-caption", ".media-tile-frame > .media-tile-settling-dot.is-overlay")]
+    [InlineData("custom-caption", ".media-tile-frame > .media-tile-settling-dot.is-overlay")]
+    [InlineData("episode", ".media-tile-episode-caption strong .media-tile-settling-dot")]
+    public void MediaTile_SettlingDot_AppearsExactlyOnceInEveryCaptionVariant(string variant, string dotSelector)
+    {
+        var episode = variant == "episode";
+        var item = new MediaTileViewModel
+        {
+            Id = Guid.NewGuid(),
+            Title = episode ? "Pilot" : "Discovery",
+            MediaKind = episode ? "TV" : "Music",
+            Subject = episode ? MediaEngine.Contracts.Display.DisplaySubjectKind.TvEpisode : MediaEngine.Contracts.Display.DisplaySubjectKind.Album,
+            Shape = episode ? MediaTileShape.Portrait : MediaTileShape.Square,
+            SurfaceKind = episode ? MediaTileSurfaceKind.CoverPortrait : MediaTileSurfaceKind.CoverSquare,
+            TileImageUrl = "/art/x.jpg",
+            NavigationUrl = "/details/x",
+            DetailsNavigationUrl = "/details/x",
+            IsSettling = true,
+            EpisodeContext = episode ? new MediaEngine.Contracts.Display.DisplayEpisodeContextDto(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), "The Show", "Pilot", 1, 1, MediaEngine.Contracts.Display.DisplayContinuationState.Unstarted, null, null) : null,
+        };
+
+        var cut = Render<MediaTile>(parameters =>
+        {
+            parameters.Add(component => component.Item, item);
+            parameters.Add(component => component.ShowCompactCaption, variant == "compact");
+            if (variant == "custom-caption")
+            {
+                parameters.Add(component => component.CaptionContent, (Microsoft.AspNetCore.Components.RenderFragment)(builder => builder.AddContent(0, "Custom")));
+            }
+        });
+
+        Assert.Single(cut.FindAll(dotSelector));
+        Assert.Single(cut.FindAll(".media-tile-settling-dot"));
+        Assert.Contains("Still being matched", cut.Find("a.media-tile-link").GetAttribute("aria-label"));
+    }
+
     [Fact]
     public void MediaTileGrid_CanHideRedundantTvShowGroupIndicator()
     {

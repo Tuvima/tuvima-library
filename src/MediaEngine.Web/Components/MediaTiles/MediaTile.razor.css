@@ -581,6 +581,7 @@
 
 /* Quiet "still being matched" marker: a soft dot before the caption title. It never overlays artwork and keeps the caption line height. */
 .media-tile-settling-dot { display:inline-block; width:6px; height:6px; margin-right:6px; vertical-align:middle; border-radius:50%; background:var(--media-tile-accent, var(--tl-accent-primary)); opacity:.7; animation:media-tile-settling-pulse 2s ease-in-out infinite; }
+.media-tile-settling-dot.is-overlay { position:absolute; top:8px; right:8px; margin:0; z-index:2; box-shadow:0 0 0 2px rgba(0,0,0,.45); pointer-events:none; }
 .media-tile-settling-dot__label { position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; }
 @keyframes media-tile-settling-pulse { 50% { opacity:.25; } }
 @media (prefers-reduced-motion: reduce) { .media-tile-settling-dot { animation:none; } }

@@ -1,6 +1,7 @@
 @namespace MediaEngine.Web.Components.Pages
 @using MediaEngine.Contracts.Ingestion
 @using MediaEngine.Contracts.Paging
+@using MediaEngine.Web.Components.Library
 @using MediaEngine.Web.Services.Editing
 @inject IEngineApiClient Api
 @inject UIOrchestratorService Orchestrator
@@ -57,6 +58,7 @@
                     {
                         var issue = ReviewIssueClassifier.Classify(item.Trigger);
                         var detail = ReviewIssuePresentationBuilder.Build(item);
+                        var tvSuggestion = item.Trigger == MovieTvSuggestionReader.Trigger ? MovieTvSuggestionReader.Read(item.CandidatesJson) : null;
                         <article class="review-row" @key="item.Id">
                             <span class="review-row__identity">
                                 <span class="review-row__unknown"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.QuestionMark" /></span>
@@ -64,7 +66,10 @@
                             </span>
                             <span class="review-row__issue"><strong>@issue.Label</strong><small>@detail.QueueExplanation.</small></span>
                             <span class="review-row__actions">
-                                <AppButton Label="Review" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Size="AppControlSize.Compact" Disabled="@_busyReviewIds.Contains(item.Id)" OnClick="@(() => OpenReviewEditorAsync(item))" />
+                                @if (tvSuggestion is null)
+                                {
+                                    <AppButton Label="Review" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Size="AppControlSize.Compact" Disabled="@_busyReviewIds.Contains(item.Id)" OnClick="@(() => OpenReviewEditorAsync(item))" />
+                                }
                                 <AppOverflowMenu AriaLabel="@($"More actions for {DisplayTitle(item)}")" Size="AppControlSize.Compact">
                                     <AppMenuItem Label="Review" Icon="@AppMaterialIcons.Outlined.ManageSearch" OnClick="@(() => OpenReviewEditorAsync(item))" />
                                     <AppMenuItem Label="Find in recent history" Icon="@AppMaterialIcons.Outlined.ReceiptLong" OnClick="@(() => Nav.NavigateTo($"/settings/recently-added?q={Uri.EscapeDataString(DisplayTitle(item))}"))" />
@@ -75,6 +80,16 @@
                                     <AppMenuItem Label="Dismiss from review" Icon="@AppMaterialIcons.Outlined.Close" OnClick="@(() => DismissAsync(item))" />
                                 </AppOverflowMenu>
                             </span>
+                            @if (tvSuggestion is not null)
+                            {
+                                <div class="review-row__suggestion">
+                                    <MovieAsTvSuggestionCard Suggestion="@tvSuggestion"
+                                                             Busy="@_busyReviewIds.Contains(item.Id)"
+                                                             OnMoveToTv="@(() => MoveToTvAsync(item))"
+                                                             OnSearchAgain="@(() => OpenReviewEditorAsync(item))"
+                                                             OnKeepAsFilm="@(() => KeepAsFilmAsync(item))" />
+                                </div>
+                            }
                         </article>
                     }
                 </div>
@@ -283,7 +298,7 @@
                 LaunchEntityKind = StringHelpers.FirstNonBlankOr("review", item.EntityType),
                 Mode = SharedMediaEditorMode.Review, IdentityIntent = target.Intent,
                 InitialTab = target.InitialTab, InitialCanonicalTargetGroup = target.CanonicalTargetGroup,
-                ReviewItemId = item.Id, ReviewTrigger = item.Trigger, MediaType = item.MediaType,
+                ReviewItemId = item.Id, ReviewTrigger = item.Trigger, ReviewCandidatesJson = item.CandidatesJson, MediaType = item.MediaType,
                 HeaderTitle = title, HeaderSubtitle = target.PrimaryActionLabel, CoverUrl = item.CoverUrl,
                 PreviewItems = [new() { EntityId = item.EntityId, Title = title, CoverUrl = item.CoverUrl, MediaType = item.MediaType }],
             });
@@ -297,6 +312,43 @@
     {
         _busyReviewIds.Add(item.Id);
         try { if (await Orchestrator.DismissReviewAsync(item.Id)) _reviews.Remove(item); }
+        finally { _busyReviewIds.Remove(item.Id); }
+    }
+
+    private async Task MoveToTvAsync(ReviewItemViewModel item)
+    {
+        _busyReviewIds.Add(item.Id);
+        try
+        {
+            var attempt = await Orchestrator.MoveReviewToTvAsync(item.Id);
+            if (attempt.Response is { } moved)
+            {
+                _reviews.Remove(item);
+                Snackbar.Add($"Moved to TV as a special of '{moved.show_name}'. The file was not moved.", AppSeverity.Success);
+                await LoadHistoryAsync(0);
+            }
+            else
+            {
+                Snackbar.Add($"'{DisplayTitle(item)}' could not be moved to TV: {attempt.Error ?? "the Engine did not accept the change"}.", AppSeverity.Error);
+            }
+        }
+        catch (Exception ex) { Snackbar.Add($"'{DisplayTitle(item)}' could not be moved to TV: {ex.Message}", AppSeverity.Error); }
+        finally { _busyReviewIds.Remove(item.Id); }
+    }
+
+    private async Task KeepAsFilmAsync(ReviewItemViewModel item)
+    {
+        _busyReviewIds.Add(item.Id);
+        try
+        {
+            if (await Orchestrator.DismissReviewAsync(item.Id))
+            {
+                _reviews.Remove(item);
+                Snackbar.Add("Kept as an unmatched film. Its file details are unchanged.", AppSeverity.Success);
+            }
+            else Snackbar.Add("Review item could not be dismissed.", AppSeverity.Warning);
+        }
+        catch (Exception ex) { Snackbar.Add($"Review item could not be dismissed: {ex.Message}", AppSeverity.Error); }
         finally { _busyReviewIds.Remove(item.Id); }
     }
 

@@ -368,7 +368,7 @@ This file is the authoritative configuration for all Wikidata-related behaviour.
 
 | Section | Description |
 |---|---|
-| `instance_of_classes` | Per-media-type P31 type allow-lists for Wikidata candidate filtering. TV includes miniseries (Q1259759) and web series (Q526877). Previously stored separately in `cirrus-type-filters.json` (now removed). |
+| `instance_of_classes` | Per-media-type P31 type allow-lists for Wikidata candidate filtering. TV includes miniseries (Q1259759), web series (Q526877), anime television series (Q63952888) and animated television series (Q117467246). Previously stored separately in `cirrus-type-filters.json` (now removed). |
 | `edition_pivot` | Per-media-type rules for walking from Wikidata edition items to work items. Previously stored in `edition-pivot.json` (now removed). Keys: `audiobooks`, `books`, `music`. Each has `work_classes`, `edition_classes`, and `prefer_edition`. |
 | `exclude_classes` | P31 classes to exclude from reconciliation results. |
 | `bridge_resolution.scopes` | Entity-scoped bridge-ID policy. Each scope declares `target_ids`, `context_ids`, and whether constrained text fallback is allowed. Music uses `MusicTrack` to prefer recording/work/ISRC IDs before Apple track IDs, while release/release-group/artist IDs stay contextual unless resolving `MusicAlbum`. |

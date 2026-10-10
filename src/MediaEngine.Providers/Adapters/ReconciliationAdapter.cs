@@ -53,8 +53,6 @@ public sealed partial class ReconciliationAdapter : IExternalMetadataProvider, I
     // Parsed once at construction.
     private readonly Guid _providerId;
 
-    // Lazy cache for the edition pivot config. Built from _config on first use.
-    private EditionPivotConfiguration? _editionPivotCache;
     private static readonly JsonSerializerOptions JsonOpts = new()
     {
         PropertyNameCaseInsensitive = true,
@@ -92,6 +90,17 @@ public sealed partial class ReconciliationAdapter : IExternalMetadataProvider, I
             ? Guid.Parse(config.ProviderId)
             : Guid.NewGuid();
     }
+
+    /// <summary>
+    /// The current <c>providers/wikidata_reconciliation.json</c> contents. The adapter is a
+    /// singleton built from the config present at startup, so the type allow/deny lists
+    /// (<c>instance_of_classes</c>, <c>exclude_classes</c>, <c>edition_pivot</c>) are re-read here
+    /// to honour config hot reload. Falls back to the startup config when no loader is wired or
+    /// the file is missing/invalid.
+    /// </summary>
+    private ReconciliationProviderConfig CurrentConfig =>
+        _configLoader?.LoadConfig<ReconciliationProviderConfig>("providers", "wikidata_reconciliation")
+        ?? _config;
 
     // ── IExternalMetadataProvider ─────────────────────────────────────────────
 

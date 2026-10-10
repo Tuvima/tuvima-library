@@ -2,6 +2,7 @@ using System.Text.Json;
 using Bunit;
 using MediaEngine.Contracts.Review;
 using MediaEngine.Web.Components.Library;
+using MediaEngine.Web.Components.Pages;
 using MediaEngine.Web.Components.Settings;
 using MediaEngine.Web.Models.ViewDTOs;
 using MediaEngine.Web.Services.Editing;
@@ -108,6 +109,87 @@ public sealed class MovieAsTvSuggestionTests : AsyncBunitContext
         cut.WaitForAssertion(() =>
         {
             Assert.Equal([ReviewId], moved);
+            Assert.Empty(cut.FindAll(".movie-as-tv-card"));
+        });
+    }
+
+    private void RegisterReviewServices(List<ReviewItemViewModel> reviews, List<Guid>? moved = null, List<Guid>? dismissed = null)
+    {
+        var api = EngineApiClientStub.Create(stub =>
+        {
+            stub.SetHandler(nameof(IEngineApiClient.GetPendingReviewsAsync), _ => Task.FromResult(reviews));
+            stub.SetHandler(nameof(IEngineApiClient.MoveReviewItemToTvAsync), args =>
+            {
+                moved?.Add((Guid)args![0]!);
+                return Task.FromResult<ReviewMoveToTvResponse?>(
+                    new ReviewMoveToTvResponse(true, ReviewId, EntityId, "Dr. Horrible's Sing-Along Blog", "tv-library"));
+            });
+            stub.SetHandler(nameof(IEngineApiClient.DismissReviewItemAsync), args =>
+            {
+                dismissed?.Add((Guid)args![0]!);
+                return Task.FromResult(true);
+            });
+        });
+        Services.AddSingleton(api);
+        Services.AddSingleton(provider => new UIOrchestratorService(
+            api,
+            new UniverseStateContainer(),
+            new ActiveProfileSessionService(provider.GetRequiredService<Microsoft.JSInterop.IJSRuntime>(), api),
+            new ConfigurationBuilder().Build(),
+            NullLogger<UIOrchestratorService>.Instance));
+        Services.AddScoped<MediaEditorLauncherService>();
+        JSInterop.Mode = JSRuntimeMode.Loose;
+    }
+
+    [Fact]
+    public void NeedsReviewRow_ForTheTrigger_ShowsTheCardWithThreeActions_AndOtherTriggersKeepTheReviewButton()
+    {
+        var moved = new List<Guid>();
+        var dismissed = new List<Guid>();
+        var other = Item();
+        other.Id = Guid.Parse("33333333-3333-4333-8333-333333333333");
+        other.Trigger = "RetailMatchFailed";
+        other.CandidatesJson = null;
+        other.EntityTitle = "Plain Film";
+        RegisterReviewServices([Item(), other], moved, dismissed);
+
+        var cut = Render<RecentlyAddedPageContent>(p => p.Add(c => c.ReviewState, "expanded"));
+
+        cut.WaitForAssertion(() => Assert.Single(cut.FindAll(".movie-as-tv-card")));
+        Assert.Equal(
+            ["Move to TV", "Search again", "Keep as unmatched film"],
+            cut.FindAll(".movie-as-tv-card__actions button").Select(button => button.TextContent.Trim()).ToArray());
+
+        var rows = cut.FindAll("article.review-row");
+        Assert.Equal(2, rows.Count);
+        var tvRow = rows.Single(row => row.QuerySelector(".movie-as-tv-card") is not null);
+        var plainRow = rows.Single(row => row.QuerySelector(".movie-as-tv-card") is null);
+        // The card replaces the generic Review button for the TV-title trigger only.
+        Assert.DoesNotContain(tvRow.QuerySelectorAll(".review-row__actions button"), b => b.TextContent.Trim() == "Review");
+        Assert.Contains(plainRow.QuerySelectorAll(".review-row__actions button"), b => b.TextContent.Trim() == "Review");
+
+        cut.FindAll(".movie-as-tv-card__actions button")[0].Click();
+        cut.WaitForAssertion(() =>
+        {
+            Assert.Equal([ReviewId], moved);
+            Assert.Empty(cut.FindAll(".movie-as-tv-card"));
+        });
+    }
+
+    [Fact]
+    public void NeedsReviewRow_KeepAsFilmDismissesTheReviewItem()
+    {
+        var dismissed = new List<Guid>();
+        RegisterReviewServices([Item()], null, dismissed);
+
+        var cut = Render<RecentlyAddedPageContent>(p => p.Add(c => c.ReviewState, "expanded"));
+        cut.WaitForAssertion(() => Assert.Single(cut.FindAll(".movie-as-tv-card")));
+
+        cut.FindAll(".movie-as-tv-card__actions button")[2].Click();
+
+        cut.WaitForAssertion(() =>
+        {
+            Assert.Equal([ReviewId], dismissed);
             Assert.Empty(cut.FindAll(".movie-as-tv-card"));
         });
     }

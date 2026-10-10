@@ -223,18 +223,21 @@ public sealed partial class ConfigDrivenAdapter
         var providerAlbum = claims.FirstOrDefault(claim =>
             string.Equals(claim.Key, MetadataFieldConstants.Album, StringComparison.OrdinalIgnoreCase)
             && !string.IsNullOrWhiteSpace(claim.Value))?.Value;
-        if (providerAlbum is null || IsStrongAlbumMatch(taggedAlbum, providerAlbum))
+        if (providerAlbum is null)
         {
             return claims;
         }
 
-        // The same album under a different edition label: the release's id, release group,
-        // cover, year and track count describe this album. Only the title is kept from the tag
-        // when it carries a label the release title lacks, so the label is not lost.
-        if (MusicAlbumIdentity.IsSameBaseAlbum(taggedAlbum, providerAlbum))
+        // The same album, possibly under a different edition label ("(Deluxe)", "(Bonus Track
+        // Version)", "(2015 Remaster)"): the release's id, release group, cover, year and track
+        // count describe this album. Only the title is kept from the tag when it carries a label
+        // the release title lacks, so the label is not lost.
+        if (IsStrongAlbumMatch(taggedAlbum, providerAlbum)
+            || MusicAlbumIdentity.IsSameBaseAlbum(taggedAlbum, providerAlbum))
         {
             var tagLabel = MusicAlbumIdentity.EditionLabel(taggedAlbum);
             if (tagLabel.Length > 0
+                && !string.Equals(taggedAlbum, providerAlbum, StringComparison.OrdinalIgnoreCase)
                 && !MusicAlbumIdentity.LabelIsCoveredBy(tagLabel, MusicAlbumIdentity.EditionLabel(providerAlbum)))
             {
                 _logger.LogInformation(

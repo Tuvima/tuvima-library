@@ -58,6 +58,8 @@ public sealed class BridgeIdHelper
         BridgeIdKeys.AppleBooksId => true,
         BridgeIdKeys.TmdbId => true,
         BridgeIdKeys.TmdbEpisodeId => true,
+        // TheTVDB series id (Wikidata P4835): the show-scope target id for TV Stage 2.
+        BridgeIdKeys.TvdbId => true,
         BridgeIdKeys.ImdbId => true,
         BridgeIdKeys.AudibleId => true,
         BridgeIdKeys.GoodreadsId => true,

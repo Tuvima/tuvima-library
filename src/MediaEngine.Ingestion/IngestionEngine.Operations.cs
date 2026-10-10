@@ -690,24 +690,48 @@ public sealed partial class IngestionEngine
         return lineage?.TargetForParentScope ?? assetId;
     }
 
-    private async Task<Guid> ResolveEmbeddedCoverOwnerEntityIdAsync(Guid assetId, CancellationToken ct)
+    private async Task<(Guid OwnerEntityId, bool IsSharedByManyFiles)> ResolveEmbeddedCoverOwnerAsync(Guid assetId, CancellationToken ct)
     {
         if (_writeBackStageDependencies.WorkRepository is null)
         {
-            return assetId;
+            return (assetId, false);
         }
 
         var lineage = await _writeBackStageDependencies.WorkRepository.GetLineageByAssetAsync(assetId, ct).ConfigureAwait(false);
         if (lineage is null)
         {
-            return assetId;
+            return (assetId, false);
         }
 
-        return lineage.MediaType switch
+        var owner = lineage.MediaType switch
         {
             MediaType.Books or MediaType.Audiobooks or MediaType.Comics => lineage.TargetForSelfScope,
             _ => lineage.TargetForParentScope,
         };
+
+        // Album tracks and audiobook parts share one cover owner; the first local cover found
+        // keeps the cover stable instead of flipping to whichever file was written last.
+        return (owner, lineage.MediaType is MediaType.Music or MediaType.Audiobooks);
+    }
+
+    /// <summary>
+    /// True when a shared owner (album or multi-part audiobook) already has a preferred, on-disk
+    /// local cover that a sibling file must not replace. An embedded cover still replaces a folder image.
+    /// </summary>
+    private static bool KeepsFirstSharedLocalCover(EntityAsset? existing, string newSource, bool isSharedByManyFiles)
+    {
+        if (!isSharedByManyFiles
+            || existing is null
+            || !existing.IsPreferred
+            || string.IsNullOrWhiteSpace(existing.LocalImagePath)
+            || !File.Exists(existing.LocalImagePath))
+        {
+            return false;
+        }
+
+        var existingIsFolder = string.Equals(existing.SourceProvider, CoverSourceFolder, StringComparison.OrdinalIgnoreCase);
+        var newIsEmbedded = string.Equals(newSource, CoverSourceEmbedded, StringComparison.OrdinalIgnoreCase);
+        return !(existingIsFolder && newIsEmbedded);
     }
 
     /// <summary>

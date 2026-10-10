@@ -696,6 +696,39 @@ public sealed class DurablePipelineTests : IDisposable
         Assert.DoesNotContain(logger.Warnings, w => w.Contains("Failed to persist", StringComparison.OrdinalIgnoreCase));
     }
 
+    [Fact]
+    public async Task IngestionEngine_TracksOfOneAlbumWithDifferentEmbeddedCovers_PersistWithoutForeignKeyFailure()
+    {
+        // Proof run: sibling tracks of one album carried different embedded art. The second write replaced
+        // the shared variant's file in place, whose new content hash had no artwork_assets row, so the
+        // artwork link insert failed with FOREIGN KEY constraint failed.
+        var assetIds = SeedAlbumTracks(4);
+        var logger = new CapturingLogger<IngestionEngine>();
+        var covers = Enumerable.Range(0, assetIds.Count).Select(i => CreateJpeg(64 * 1024, seed: (byte)(20 + i))).ToList();
+
+        using var debounce = new DebounceQueue(new DebounceOptions());
+        using var engine = CreateEngine(debounce, CreateDeletionOptions(), logger);
+
+        for (var i = 0; i < assetIds.Count; i++)
+        {
+            await InvokeWriteBackStageAsync(
+                engine,
+                CreateWriteBackContext(assetIds[i], CreateWatchFile($"Differing {i:00}.mp3", $"audio {i}"), covers[i], "image/jpeg"));
+        }
+
+        Assert.DoesNotContain(logger.Warnings, w => w.Contains("Failed to persist", StringComparison.OrdinalIgnoreCase));
+        var cover = Assert.Single(ReadCoverRows());
+        Assert.True(cover.IsPreferred);
+
+        using var conn = _dbFactory.Connection.CreateConnection();
+        Assert.Equal(1, conn.ExecuteScalar<long>(
+            """
+            SELECT COUNT(*) FROM entity_artwork_links l
+            JOIN artwork_assets a ON a.id = l.artwork_asset_id
+            WHERE l.role = 'Primary';
+            """));
+    }
+
     [Theory]
     [InlineData(true)]
     [InlineData(false)]

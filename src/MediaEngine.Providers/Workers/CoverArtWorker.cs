@@ -318,6 +318,15 @@ public sealed class CoverArtWorker
 
         if (string.IsNullOrEmpty(coverUrl))
         {
+            // A claim-less owner can still hold managed artwork: TheTVDB show posters arrive
+            // through ImageEnrichmentService as entity assets, never as a `cover` claim.
+            // Marking such an owner missing would overwrite valid artwork state.
+            if (await TryRestoreStoredCoverStateAsync(ownerEntityId, ct).ConfigureAwait(false))
+            {
+                await PublishCoverHarvestedAsync(ownerEntityId, ct).ConfigureAwait(false);
+                return;
+            }
+
             await MarkCoverMissingAsync(ownerEntityId, "none", ct);
             _logger.LogDebug("No cover URL found for entity {EntityId}", entityId);
             return;
@@ -596,6 +605,40 @@ public sealed class CoverArtWorker
             .Where(c => string.Equals(c.Key, MetadataFieldConstants.CoverUrl, StringComparison.OrdinalIgnoreCase))
             .Select(c => c.Value)
             .FirstOrDefault(v => !string.IsNullOrEmpty(v) && v.StartsWith("http", StringComparison.OrdinalIgnoreCase));
+    }
+
+    /// <summary>
+    /// When the owner already has a preferred managed cover on disk, re-asserts its
+    /// present state and display canonicals instead of reporting the cover as missing.
+    /// </summary>
+    private async Task<bool> TryRestoreStoredCoverStateAsync(Guid ownerEntityId, CancellationToken ct)
+    {
+        if (_entityAssetRepo is null)
+        {
+            return false;
+        }
+
+        var stored = (await _entityAssetRepo.GetByEntityAsync(ownerEntityId.ToString(), "CoverArt", ct)
+                .ConfigureAwait(false))
+            .FirstOrDefault(asset => asset.IsPreferred
+                && !string.IsNullOrWhiteSpace(asset.LocalImagePath)
+                && File.Exists(asset.LocalImagePath));
+        if (stored is null)
+        {
+            return false;
+        }
+
+        var coverSource = string.Equals(stored.SourceProvider, "user_upload", StringComparison.OrdinalIgnoreCase)
+            ? "manual"
+            : !string.IsNullOrWhiteSpace(stored.SourceProvider)
+                ? "provider"
+                : "stored";
+        await _canonicalRepo.UpsertBatchAsync(BuildCoverCanonicals(ownerEntityId, stored, coverSource), ct)
+            .ConfigureAwait(false);
+        _logger.LogDebug(
+            "Cover art: owner {OwnerEntityId} has no cover claim but keeps stored {Provider} artwork {AssetId}",
+            ownerEntityId, stored.SourceProvider, stored.Id);
+        return true;
     }
 
     private Task MarkCoverMissingAsync(Guid entityId, string coverSource, CancellationToken ct)

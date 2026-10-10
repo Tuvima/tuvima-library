@@ -213,6 +213,120 @@ public sealed class MusicBrainzTaggedAlbumTests
         Assert.NotNull(ClaimValue(claims, BridgeIdKeys.MusicBrainzReleaseId));
     }
 
+    // Proof run: MusicBrainz returns several recordings that share one title. The first is often a
+    // duplicate recording whose only release is elsewhere (a compilation, a live album, another
+    // album), while a later recording sits on the tagged album. Selection used to take the first
+    // recording, so the tagged album found no matching release and lost its release link.
+    private static string RecordingsJson(params (string Id, string Title, string Artist, string[] Releases)[] recordings)
+        => "{ \"recordings\": ["
+           + string.Join(",", recordings.Select(recording =>
+               $$"""
+               { "id": "{{recording.Id}}", "title": "{{recording.Title}}",
+                 "artist-credit": [{ "name": "{{recording.Artist}}" }],
+                 "releases": [{{string.Join(",", recording.Releases)}}] }
+               """))
+           + "] }";
+
+    private static string Release(
+        string id, string title, string group, string? disambiguation = null, string date = "2005-08-16",
+        string primaryType = "Album", string? secondaryType = null)
+        => $$"""
+           { "id": "{{id}}", "title": "{{title}}",
+             {{(disambiguation is null ? string.Empty : $"\"disambiguation\": \"{disambiguation}\",")}}
+             "status": "Official", "date": "{{date}}",
+             "release-group": { "id": "{{group}}", "primary-type": "{{primaryType}}"{{(secondaryType is null ? string.Empty : $", \"secondary-types\": [\"{secondaryType}\"]")}} },
+             "cover-art-archive": { "artwork": true } }
+           """;
+
+    [Fact]
+    public async Task FetchAsync_BonusTrackVersionTag_PicksTheRecordingOnTheTaggedAlbumAndKeepsReleaseLink()
+    {
+        var json = RecordingsJson(
+            ("rec-other-album", "Wasteland", "10 Years", [Release("killing-release", "Killing All That Holds You", "killing-group", date: "2004-03-22")]),
+            ("rec-autumn", "Wasteland", "10 Years",
+            [
+                Release("autumn-release", "The Autumn Effect", "autumn-group"),
+                Release("autumn-promo", "The Autumn Effect", "autumn-group", disambiguation: "BMG club edition"),
+            ]));
+
+        var claims = await FetchAsync(json, "The Autumn Effect (Bonus Track Version)", title: "Wasteland", artist: "10 Years");
+
+        Assert.Equal("rec-autumn", ClaimValue(claims, BridgeIdKeys.MusicBrainzRecordingId));
+        Assert.Equal("autumn-release", ClaimValue(claims, BridgeIdKeys.MusicBrainzReleaseId));
+        Assert.Equal("autumn-group", ClaimValue(claims, BridgeIdKeys.MusicBrainzReleaseGroupId));
+        Assert.Equal("2005", ClaimValue(claims, MetadataFieldConstants.Year));
+        // The tagged edition label is not lost: the release title claim is withheld.
+        Assert.DoesNotContain(claims, claim => claim.Key == MetadataFieldConstants.Album);
+    }
+
+    [Fact]
+    public async Task FetchAsync_DeluxeTag_PicksTheRecordingOnTheTaggedAlbumNotACompilationDuplicate()
+    {
+        var json = RecordingsJson(
+            ("rec-so-fresh", "Youngblood", "5 Seconds of Summer", [Release("so-fresh-release", "So Fresh: Best Ever", "so-fresh-group", date: "2020", secondaryType: "Compilation")]),
+            ("rec-album", "Youngblood", "5 Seconds of Summer",
+            [
+                Release("youngblood-standard", "Youngblood", "youngblood-group", date: "2018-06-15"),
+                Release("youngblood-deluxe", "Youngblood", "youngblood-group", disambiguation: "deluxe edition", date: "2018-06-15"),
+            ]));
+
+        var claims = await FetchAsync(json, "Youngblood (Deluxe)", title: "Youngblood", artist: "5 Seconds of Summer");
+
+        Assert.Equal("rec-album", ClaimValue(claims, BridgeIdKeys.MusicBrainzRecordingId));
+        Assert.Equal("youngblood-deluxe", ClaimValue(claims, BridgeIdKeys.MusicBrainzReleaseId));
+        Assert.Equal("youngblood-group", ClaimValue(claims, BridgeIdKeys.MusicBrainzReleaseGroupId));
+        Assert.DoesNotContain(claims, claim => claim.Key == MetadataFieldConstants.Album);
+    }
+
+    [Fact]
+    public async Task FetchAsync_RemasterTag_PicksTheStudioRecordingOverALiveAlbumDuplicate_AndKeepsTaggedTitle()
+    {
+        var json = RecordingsJson(
+            ("rec-live", "Hand in My Pocket", "Alanis Morissette", [Release("jlp-live", "Jagged Little Pill, Live", "jlp-live-group", date: "1997", secondaryType: "Live")]),
+            ("rec-studio", "Hand in My Pocket", "Alanis Morissette", [Release("jlp-release", "Jagged Little Pill", "jlp-group", date: "1995-06-13")]));
+
+        var claims = await FetchAsync(json, "Jagged Little Pill (2015 Remaster)", title: "Hand in My Pocket");
+
+        Assert.Equal("rec-studio", ClaimValue(claims, BridgeIdKeys.MusicBrainzRecordingId));
+        Assert.Equal("jlp-release", ClaimValue(claims, BridgeIdKeys.MusicBrainzReleaseId));
+        Assert.Equal("jlp-group", ClaimValue(claims, BridgeIdKeys.MusicBrainzReleaseGroupId));
+        // The strong (remaster-insensitive) match must not rename the album to "Jagged Little Pill".
+        Assert.DoesNotContain(claims, claim => claim.Key == MetadataFieldConstants.Album);
+    }
+
+    [Fact]
+    public async Task FetchAsync_LiveAlbumIsNotTheSameAlbumAsTheStudioAlbum()
+    {
+        var json = RecordingsJson(
+            ("rec-live", "Hand in My Pocket", "Alanis Morissette", [Release("jlp-live", "Jagged Little Pill, Live", "jlp-live-group", date: "1997", secondaryType: "Live")]));
+
+        var claims = await FetchAsync(json, "Jagged Little Pill (2015 Remaster)", title: "Hand in My Pocket");
+
+        Assert.DoesNotContain(claims, claim => claim.Key == BridgeIdKeys.MusicBrainzReleaseId);
+        Assert.DoesNotContain(claims, claim => claim.Key == BridgeIdKeys.MusicBrainzReleaseGroupId);
+        Assert.DoesNotContain(claims, claim => claim.Key == MetadataFieldConstants.Album);
+    }
+
+    [Theory]
+    [InlineData("Jagged Little Pill (2015 Remaster)", "Jagged Little Pill")]
+    [InlineData("Youngblood (Deluxe)", "Youngblood")]
+    [InlineData("The Autumn Effect (Bonus Track Version)", "The Autumn Effect")]
+    [InlineData("Jagged Little Pill (25th Anniversary Deluxe Edition)", "Jagged Little Pill")]
+    public void IsSameBaseAlbum_ProofRunEditionQualifiedAlbumsMatchTheirUnqualifiedRelease(string tagged, string release)
+    {
+        Assert.True(MediaEngine.Providers.Services.MusicAlbumIdentity.IsSameBaseAlbum(tagged, release));
+        Assert.NotEqual(string.Empty, MediaEngine.Providers.Services.MusicAlbumIdentity.EditionLabel(tagged));
+    }
+
+    [Theory]
+    [InlineData("Jagged Little Pill (2015 Remaster)", "Jagged Little Pill, Live")]
+    [InlineData("Youngblood (Deluxe)", "So Fresh: Best Ever")]
+    [InlineData("The Autumn Effect (Bonus Track Version)", "Killing All That Holds You")]
+    public void IsSameBaseAlbum_ProofRunDifferentAlbumsStayDifferent(string tagged, string release)
+    {
+        Assert.False(MediaEngine.Providers.Services.MusicAlbumIdentity.IsSameBaseAlbum(tagged, release));
+    }
+
     [Theory]
     [InlineData("Jagged Little Pill (Collector's Edition)", "Jagged Little Pill", true)]
     [InlineData("Jagged Little Pill (Deluxe Edition)", "Jagged Little Pill", true)]
@@ -300,7 +414,9 @@ public sealed class MusicBrainzTaggedAlbumTests
         string recordingSearchJson,
         string? album,
         Guid? entityId = null,
-        ILogger<ConfigDrivenAdapter>? logger = null)
+        ILogger<ConfigDrivenAdapter>? logger = null,
+        string title = "Uninvited",
+        string artist = "Alanis Morissette")
     {
         var config = LoadMusicBrainzConfig();
         var factory = BuildFactory(
@@ -320,8 +436,8 @@ public sealed class MusicBrainzTaggedAlbumTests
             EntityId = entityId ?? Guid.NewGuid(),
             EntityType = EntityType.MediaAsset,
             MediaType = MediaType.Music,
-            Title = "Uninvited",
-            Artist = "Alanis Morissette",
+            Title = title,
+            Artist = artist,
             Album = album,
             BaseUrl = "https://musicbrainz.org/ws/2",
             Country = "us",

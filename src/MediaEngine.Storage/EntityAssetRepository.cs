@@ -234,13 +234,26 @@ public sealed class EntityAssetRepository : IEntityAssetRepository
         }
 
         var contentHash = ComputeArtworkIdentity(asset);
+
+        // artwork_assets rows are content-addressed and shared. The variant id is only a candidate
+        // id for a new row: when the variant's file was replaced in place (e.g. a sibling track of
+        // the same album carries different embedded art), the row under asset.Id still describes the
+        // old bytes and may be linked by other entities, so a fresh id is used. Inserting under the
+        // taken id would be silently ignored and leave no row for the new hash.
+        var existingCanonicalId = FindArtworkAssetId(conn, contentHash);
+        var candidateId = existingCanonicalId != Guid.Empty
+            ? existingCanonicalId
+            : conn.ExecuteScalar<long>(
+                  "SELECT COUNT(1) FROM artwork_assets WHERE id=@Id;", new { asset.Id }) > 0
+                ? Guid.NewGuid()
+                : asset.Id;
         conn.Execute("""
             INSERT OR IGNORE INTO artwork_assets (
                 id, content_hash, original_path, small_path, medium_path, large_path,
                 width_px, height_px, aspect_class, primary_hex, secondary_hex, accent_hex,
                 source_provider, source_url, created_at, updated_at)
             VALUES (
-                @Id, @ContentHash, @LocalImagePath, @LocalImagePathSmall, @LocalImagePathMedium, @LocalImagePathLarge,
+                @CandidateId, @ContentHash, @LocalImagePath, @LocalImagePathSmall, @LocalImagePathMedium, @LocalImagePathLarge,
                 @WidthPx, @HeightPx, @AspectClass, @PrimaryHex, @SecondaryHex, @AccentHex,
                 @SourceProvider, @ImageUrl, @CreatedAt, @UpdatedAt);
 
@@ -257,7 +270,7 @@ public sealed class EntityAssetRepository : IEntityAssetRepository
             WHERE content_hash=@ContentHash;
             """, new
         {
-            asset.Id,
+            CandidateId = candidateId,
             ContentHash = contentHash,
             asset.LocalImagePath,
             asset.LocalImagePathSmall,
@@ -275,9 +288,13 @@ public sealed class EntityAssetRepository : IEntityAssetRepository
             UpdatedAt = asset.UpdatedAt?.ToString("O"),
         });
 
-        var canonicalId = conn.ExecuteScalar<Guid>(
-            "SELECT id FROM artwork_assets WHERE content_hash=@contentHash LIMIT 1;",
-            new { contentHash });
+        var canonicalId = FindArtworkAssetId(conn, contentHash);
+        if (canonicalId == Guid.Empty)
+        {
+            throw new InvalidOperationException(
+                $"Artwork identity {contentHash} has no artwork_assets row after upsert for entity asset {asset.Id}.");
+        }
+
         var role = asset.AssetTypeValue switch
         {
             "Headshot" or "CharacterPortrait" => "Portrait",
@@ -331,6 +348,11 @@ public sealed class EntityAssetRepository : IEntityAssetRepository
             asset.SourceProvider,
             asset.CreatedAt);
     }
+
+    private static Guid FindArtworkAssetId(System.Data.IDbConnection conn, string contentHash) =>
+        conn.QueryFirstOrDefault<Guid>(
+            "SELECT id FROM artwork_assets WHERE content_hash=@contentHash LIMIT 1;",
+            new { contentHash });
 
     private static void SyncCanonicalArtworkContext(
         IDbConnection conn,

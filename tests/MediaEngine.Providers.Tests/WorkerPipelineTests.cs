@@ -53,6 +53,70 @@ public sealed class WorkerPipelineTests
         Assert.Empty(merged);
     }
 
+    // TV episode lineage: episode work -> season -> show. TVDB's tvdb_id is show-scoped, so
+    // it is written to (and must be read back from) the show root, never the episode.
+    private static WorkLineage CreateTvEpisodeLineage(Guid assetId) => new(
+        AssetId: assetId,
+        EditionId: Guid.NewGuid(),
+        WorkId: Guid.NewGuid(),
+        ParentWorkId: Guid.NewGuid(),
+        RootParentWorkId: Guid.NewGuid(),
+        WorkKind: WorkKind.Child,
+        MediaType: MediaType.TV);
+
+    [Fact]
+    public void TvEpisodeResolution_CollectsTvdbShowIdFromShowRootBridgeRow()
+    {
+        var assetId = Guid.NewGuid();
+        var lineage = CreateTvEpisodeLineage(assetId);
+        var showRow = new BridgeIdEntry
+        {
+            EntityId = lineage.RootParentWorkId,
+            IdType = BridgeIdKeys.TvdbId,
+            IdValue = "389597",
+            ProviderId = WellKnownProviders.Tvdb.ToString(),
+        };
+
+        var scoped = WikidataBridgeWorker.CollectScopedBridgeIdsForResolution(assetId, MediaType.TV, lineage,
+            new Dictionary<Guid, IReadOnlyList<BridgeIdEntry>> { [lineage.RootParentWorkId] = [showRow] });
+
+        var entry = Assert.Single(scoped);
+        Assert.Equal(BridgeIdKeys.TvdbId, entry.IdType);
+        Assert.Equal("389597", entry.IdValue);
+    }
+
+    [Fact]
+    public void TvEpisodeResolution_MergesTvdbShowIdFromShowRootCanonical()
+    {
+        // Proof-run shape: the show root has canonical tvdb_id (winner: TheTVDB) but no bridge_ids row.
+        var assetId = Guid.NewGuid();
+        var lineage = CreateTvEpisodeLineage(assetId);
+
+        var merged = WikidataBridgeWorker.MergeCanonicalBridgeIdsForResolution(assetId, MediaType.TV, lineage, [],
+        [
+            new CanonicalValue
+            {
+                EntityId = lineage.RootParentWorkId,
+                Key = BridgeIdKeys.TvdbId,
+                Value = "389597",
+                WinningProviderId = WellKnownProviders.Tvdb,
+            },
+            // A show-scoped key on the episode work is out of scope and must not leak in.
+            new CanonicalValue
+            {
+                EntityId = lineage.WorkId,
+                Key = BridgeIdKeys.TvdbId,
+                Value = "999",
+                WinningProviderId = WellKnownProviders.Tvdb,
+            },
+        ]);
+
+        var entry = Assert.Single(merged);
+        Assert.Equal(BridgeIdKeys.TvdbId, entry.IdType);
+        Assert.Equal("389597", entry.IdValue);
+        Assert.Equal(lineage.RootParentWorkId, entry.EntityId);
+    }
+
     [Fact]
     public async Task RetailMatchWorker_AutoAccepted_TransitionsToRetailMatched()
     {

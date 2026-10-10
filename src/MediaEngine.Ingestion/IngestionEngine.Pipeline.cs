@@ -924,7 +924,7 @@ public sealed partial class IngestionEngine
         {
             try
             {
-                var ownerEntityId = await ResolveEmbeddedCoverOwnerEntityIdAsync(assetId, ct).ConfigureAwait(false);
+                var (ownerEntityId, isSharedCoverOwner) = await ResolveEmbeddedCoverOwnerAsync(assetId, ct).ConfigureAwait(false);
 
                 // Several files (e.g. the tracks of one album or audiobook) resolve to the same owner and the same
                 // variant path, so the whole read-check-write-upsert-reconcile sequence is serialised per owner.
@@ -947,7 +947,8 @@ public sealed partial class IngestionEngine
                         || string.Equals(asset.SourceProvider, "local_processor", StringComparison.OrdinalIgnoreCase)
                         || string.Equals(asset.SourceProvider, CoverSourceFolder, StringComparison.OrdinalIgnoreCase));
 
-                    if (await IsLocalCoverAlreadyPersistedAsync(existingLocalCover, coverSource, coverBytes, ct).ConfigureAwait(false))
+                    if (KeepsFirstSharedLocalCover(existingLocalCover, coverSource, isSharedCoverOwner)
+                        || await IsLocalCoverAlreadyPersistedAsync(existingLocalCover, coverSource, coverBytes, ct).ConfigureAwait(false))
                     {
                         _logger.LogDebug(
                             "Skipping {CoverSource} cover persistence for {AssetId}: owner {OwnerEntityId} already has this cover",

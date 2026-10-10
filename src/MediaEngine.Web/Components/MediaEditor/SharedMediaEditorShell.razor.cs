@@ -188,6 +188,31 @@ public partial class SharedMediaEditorShell
     private string? _loadError;
     private string? _saveError;
     private bool _saveConflict;
+    private bool _movieTvBusy;
+    private string? _movieTvSuggestionSource;
+    private MediaEngine.Contracts.Review.MovieTvSuggestionDto? _movieTvSuggestionCache;
+
+    /// <summary>The TMDB TV suggestion for a "Found as a TV title" review item; null for every other editor launch.</summary>
+    private MediaEngine.Contracts.Review.MovieTvSuggestionDto? _movieTvSuggestion
+    {
+        get
+        {
+            if (Request.Mode != SharedMediaEditorMode.Review
+                || !string.Equals(Request.ReviewTrigger ?? _detail?.ReviewTrigger, MovieTvSuggestionReader.Trigger, StringComparison.Ordinal))
+            {
+                return null;
+            }
+
+            if (!string.Equals(_movieTvSuggestionSource, Request.ReviewCandidatesJson, StringComparison.Ordinal))
+            {
+                _movieTvSuggestionSource = Request.ReviewCandidatesJson;
+                _movieTvSuggestionCache = MovieTvSuggestionReader.Read(Request.ReviewCandidatesJson);
+            }
+
+            return _movieTvSuggestionCache;
+        }
+    }
+
     private string _reviewSummary = "Review the item identity.";
     private string _primaryActionLabel = "Review Metadata";
     private MediaEditorIdentityIntent _identityIntent = MediaEditorIdentityIntent.None;
@@ -2573,6 +2598,69 @@ public partial class SharedMediaEditorShell
     {
         await InvokeAsync(StateHasChanged);
         await JS.InvokeVoidAsync("tuvimaEditorFocus", ".sme-save-error");
+    }
+
+    private async Task MoveReviewToTvAsync()
+    {
+        if (Request.ReviewItemId is not { } reviewItemId)
+        {
+            return;
+        }
+
+        _movieTvBusy = true;
+        try
+        {
+            var attempt = await Orchestrator.MoveReviewToTvAsync(reviewItemId);
+            if (attempt.Response is { } moved)
+            {
+                Snackbar.Add($"Moved to TV as a special of '{moved.show_name}'. The file was not moved.", AppSeverity.Success);
+                await CloseEditorAsync(applied: true);
+            }
+            else
+            {
+                Snackbar.Add($"This item could not be moved to TV: {attempt.Error ?? "the Engine did not accept the change"}.", AppSeverity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "Move to TV failed for review item {ReviewItemId}", reviewItemId);
+            Snackbar.Add($"This item could not be moved to TV: {ex.Message}", AppSeverity.Error);
+        }
+        finally
+        {
+            _movieTvBusy = false;
+        }
+    }
+
+    private async Task KeepReviewAsFilmAsync()
+    {
+        if (Request.ReviewItemId is not { } reviewItemId)
+        {
+            return;
+        }
+
+        _movieTvBusy = true;
+        try
+        {
+            if (await Orchestrator.DismissReviewAsync(reviewItemId))
+            {
+                Snackbar.Add("Kept as an unmatched film. Its file details are unchanged.", AppSeverity.Success);
+                await CloseEditorAsync(applied: true);
+            }
+            else
+            {
+                Snackbar.Add("Review item could not be dismissed.", AppSeverity.Warning);
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "Keep as film failed for review item {ReviewItemId}", reviewItemId);
+            Snackbar.Add($"Review item could not be dismissed: {ex.Message}", AppSeverity.Error);
+        }
+        finally
+        {
+            _movieTvBusy = false;
+        }
     }
 
     protected async Task ResolveReviewWithoutChangesAsync()

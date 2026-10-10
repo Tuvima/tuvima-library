@@ -565,7 +565,13 @@ public sealed partial class ConfigDrivenAdapter
         var requestedCreator = selection.CreatorRequestFields
             .Select(field => ResolveRequestField(request, field))
             .FirstOrDefault(value => !string.IsNullOrWhiteSpace(value));
-        var candidates = new List<(JsonNode Node, double TitleScore, double CreatorScore)>();
+        var candidates = new List<(JsonNode Node, double TitleScore, double CreatorScore, int AlbumRank)>();
+
+        // A music search returns many distinct recordings that share one title (the studio
+        // recording, live takes, compilation-only duplicates). The file's album tag is the
+        // tiebreaker between them, so the recording that sits on the tagged album wins over
+        // an equally titled one whose only releases are elsewhere.
+        var taggedAlbum = request.MediaType == MediaType.Music ? GetRequestedAlbum(request) : null;
 
         foreach (var result in results)
         {
@@ -574,11 +580,18 @@ public sealed partial class ConfigDrivenAdapter
                 continue;
             }
 
-            if (selection.RequireNestedSelection
-                && (strategy.ReleaseSelection is null
-                    || ApplyReleaseSelection(result, strategy.ReleaseSelection, request) is null))
+            var albumRank = 0;
+            if (selection.RequireNestedSelection)
             {
-                continue;
+                var selectedRelease = strategy.ReleaseSelection is null
+                    ? null
+                    : ApplyReleaseSelection(result, strategy.ReleaseSelection, request);
+                if (selectedRelease is null)
+                {
+                    continue;
+                }
+
+                albumRank = RankReleaseAgainstTaggedAlbum(taggedAlbum, selectedRelease);
             }
 
             if (!PassesRequestFilters(result, selection.RequestFilters, request))
@@ -609,14 +622,36 @@ public sealed partial class ConfigDrivenAdapter
                 continue;
             }
 
-            candidates.Add((result, titleScore, creatorScore));
+            candidates.Add((result, titleScore, creatorScore, albumRank));
         }
 
         return candidates
             .OrderByDescending(candidate => candidate.TitleScore)
             .ThenByDescending(candidate => candidate.CreatorScore)
+            .ThenByDescending(candidate => candidate.AlbumRank)
             .Select(candidate => candidate.Node)
             .FirstOrDefault();
+    }
+
+    /// <summary>
+    /// 2 when the selected release is the tagged album's track list, 1 when it is the same album
+    /// under a different edition label (MusicBrainz keeps "Deluxe", "Bonus Track Version" and
+    /// "2015 Remaster" out of a release title), 0 otherwise or when the file has no album tag.
+    /// </summary>
+    private int RankReleaseAgainstTaggedAlbum(string? taggedAlbum, JsonNode selectedRelease)
+    {
+        if (string.IsNullOrWhiteSpace(taggedAlbum))
+        {
+            return 0;
+        }
+
+        var releaseTitle = ExtractFirstString(selectedRelease, [GetReleaseAlbumTitlePath()]);
+        if (IsStrongAlbumMatch(taggedAlbum, releaseTitle))
+        {
+            return 2;
+        }
+
+        return MusicAlbumIdentity.IsSameBaseAlbum(taggedAlbum, releaseTitle) ? 1 : 0;
     }
 
     private static bool PassesRequestFilters(

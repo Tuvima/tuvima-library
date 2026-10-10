@@ -5,6 +5,7 @@
 @using Microsoft.AspNetCore.Components.Forms
 @using MediaEngine.Web.Models.ViewDTOs
 @using MediaEngine.Web.Services.Editing
+@using MediaEngine.Web.Components.Library
 @using MediaEngine.Web.Components.Shared
 @using MediaEngine.Web.Components.Artwork
 @using MediaEngine.Web.Components.MediaEditor.Sections
@@ -397,6 +398,16 @@
                 }
                 else if (_activeTab == "links")
                 {
+                    @if (_movieTvSuggestion is { } tvSuggestion)
+                    {
+                        <div class="sme-movie-tv-suggestion">
+                            <MovieAsTvSuggestionCard Suggestion="@tvSuggestion"
+                                                     ShowSearchAgain="false"
+                                                     Busy="@(_saving || _movieTvBusy)"
+                                                     OnMoveToTv="MoveReviewToTvAsync"
+                                                     OnKeepAsFilm="KeepReviewAsFilmAsync" />
+                        </div>
+                    }
                     <EditorMatchSection
                         SmallEditorArtworkUrl="@((string? url) => SmallEditorArtworkUrl(url))"
                         EditorArtworkSrcSet="@((string? url) => EditorArtworkSrcSet(url))"

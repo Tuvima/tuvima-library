@@ -6,10 +6,7 @@
 /* One compact status card: title, slim progress bar, one secondary line, overflow menu. */
 .ingestion-status {
     position: relative;
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
-    gap: .75rem;
-    align-items: start;
+    display: block;
     padding: .85rem 1rem !important;
 }
 
@@ -29,7 +26,25 @@
     min-width: 0;
 }
 
+/* Title and the overflow menu share one line; the bar and status lines below span the full card width. */
+.ingestion-status__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: .75rem;
+    min-width: 0;
+}
+
+.ingestion-status__menu {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    /* Keeps the 44px menu target from making the title row taller than the title. */
+    margin-block: -.5rem;
+}
+
 .ingestion-status__main h2 {
+    min-width: 0;
     margin: 0;
     color: var(--tl-text-primary);
     font-family: var(--font-ui, "Segoe UI Variable", "Segoe UI", system-ui, sans-serif);

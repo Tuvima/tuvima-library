@@ -864,8 +864,8 @@ public sealed partial class ReconciliationAdapter
         // The broad instance_of_classes list includes edition types, series types,
         // and other adjacent classes that cause CirrusSearch to return false positives
         // (e.g. a film adaptation instead of the novel).
-        _editionPivotCache ??= _config.GetEditionPivotConfiguration();
-        var pivotRule = _editionPivotCache.GetRuleFor(mediaType);
+        var config = CurrentConfig;
+        var pivotRule = config.GetEditionPivotConfiguration().GetRuleFor(mediaType);
         if (pivotRule is not null && pivotRule.WorkClasses.Count > 0)
         {
             return pivotRule.WorkClasses;
@@ -873,7 +873,7 @@ public sealed partial class ReconciliationAdapter
 
         // Non-edition-aware types (Movies, TV, Comics) use instance_of_classes.
         var mediaTypeKey = mediaType.ToString();
-        if (_config.InstanceOfClasses.TryGetValue(mediaTypeKey, out var classes) && classes.Count > 0)
+        if (config.InstanceOfClasses.TryGetValue(mediaTypeKey, out var classes) && classes.Count > 0)
         {
             return classes;
         }
@@ -887,15 +887,15 @@ public sealed partial class ReconciliationAdapter
     /// </summary>
     private IReadOnlyList<string> GetAudiobookEditionClasses()
     {
-        _editionPivotCache ??= _config.GetEditionPivotConfiguration();
-        var rule = _editionPivotCache.GetRuleFor(MediaType.Audiobooks);
+        var config = CurrentConfig;
+        var rule = config.GetEditionPivotConfiguration().GetRuleFor(MediaType.Audiobooks);
         if (rule is not null && rule.EditionClasses.Count > 0)
         {
             return rule.EditionClasses;
         }
 
         // Fallback to instance_of_classes if edition_pivot is not configured.
-        return _config.InstanceOfClasses.TryGetValue("Audiobooks", out var classes) && classes.Count > 0
+        return config.InstanceOfClasses.TryGetValue("Audiobooks", out var classes) && classes.Count > 0
             ? classes
             : (IReadOnlyList<string>)["Q122731938", "Q106833962"];
     }

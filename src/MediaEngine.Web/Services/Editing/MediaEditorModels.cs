@@ -43,6 +43,8 @@ public sealed class MediaEditorLaunchRequest
     public string? InitialCanonicalTargetGroup { get; init; }
     public Guid? ReviewItemId { get; init; }
     public string? ReviewTrigger { get; init; }
+    /// <summary>The review item's stored candidates (for "Found as a TV title", the TMDB TV suggestion).</summary>
+    public string? ReviewCandidatesJson { get; init; }
     public string? MediaType { get; init; }
     public string? HeaderTitle { get; init; }
     public string? HeaderSubtitle { get; init; }

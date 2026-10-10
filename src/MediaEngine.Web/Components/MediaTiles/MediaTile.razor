@@ -116,6 +116,10 @@
                 </div>
             </div>
         }
+        @if (ShowOverlaySettlingDot)
+        {
+            <span class="media-tile-settling-dot is-overlay" title="Still being matched"><span class="media-tile-settling-dot__label">Still being matched</span></span>
+        }
     </div>
 
     @if (CaptionContent is not null) { <div class="media-tile-identity-caption">@CaptionContent</div> }
@@ -134,7 +138,7 @@
 
     @if (CaptionContent is null && Item.Subject == DisplaySubjectKind.TvEpisode && !string.IsNullOrWhiteSpace(EpisodeShowCaption))
     {
-        <div class="media-tile-episode-caption"><strong>@(Item.EpisodeContext is { } episode ? $"S{episode.SeasonNumber} E{episode.EpisodeNumber} · {episode.EpisodeTitle}" : Item.Title)</strong><span>@EpisodeShowCaption</span></div>
+        <div class="media-tile-episode-caption"><strong>@if (Item.IsSettling) { <span class="media-tile-settling-dot" title="Still being matched"><span class="media-tile-settling-dot__label">Still being matched</span></span> }@(Item.EpisodeContext is { } episode ? $"S{episode.SeasonNumber} E{episode.EpisodeNumber} · {episode.EpisodeTitle}" : Item.Title)</strong><span>@EpisodeShowCaption</span></div>
     }
     </a>
     @if (UsesCinematicHover)
@@ -1093,6 +1097,13 @@
     }
 
     private string DetailsNavigationUrl => Item.DetailsNavigationUrl ?? Item.NavigationUrl;
+
+    private bool ShowsCompactTitleCaption => ShowCompactCaption && Item.Subject != DisplaySubjectKind.TvEpisode;
+    private bool ShowsEpisodeCaption => CaptionContent is null && Item.Subject == DisplaySubjectKind.TvEpisode && !string.IsNullOrWhiteSpace(EpisodeShowCaption);
+
+    // Tiles without a title line of their own (hover-only shelves, custom caption content) carry the marker as a
+    // small corner dot so every tile still signals "still being matched" without changing its height.
+    private bool ShowOverlaySettlingDot => Item.IsSettling && !ShowsCompactTitleCaption && !ShowsEpisodeCaption;
 
     private string DetailsActionAriaLabel => $"View details for {Item.Title}" + (Item.IsSettling ? ". Still being matched" : string.Empty);
 

@@ -34,7 +34,10 @@
                   aria-live="polite"
                   aria-busy="@(Model.IsRunning ? "true" : "false")">
             <div class="ingestion-status__main">
-                <h2>@HeadingText</h2>
+                <div class="ingestion-status__header">
+                    <h2>@HeadingText</h2>
+                    <div class="ingestion-status__menu"><IngestionScanAction /></div>
+                </div>
                 @if (Model.IsRunning)
                 {
                     <AppProgressBar Class="ingestion-status__bar" Indeterminate="@(Dashboard.BatchProgress is not { FilesTotal: > 0 } || Dashboard.BatchProgress.ProgressIsIndeterminate)" Value="@(BatchSummary?.Percent ?? 0)" ShowValue="false" />
@@ -45,7 +48,6 @@
                     <p class="ingestion-status__meta">@MetaLine</p>
                 }
             </div>
-            <IngestionScanAction />
         </AppPanel>
 
         @if (Model.Attention.Count > 0)
