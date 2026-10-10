@@ -43,7 +43,10 @@ public sealed class SavedItemService(IEngineApiClient apiClient, DashboardSessio
     {
         var result = await apiClient.GetSavedItemsAsync(CancellationToken.None);
         if (apiClient.LastError is not null)
+        {
             InvalidateList();
+        }
+
         return result;
     }
 
