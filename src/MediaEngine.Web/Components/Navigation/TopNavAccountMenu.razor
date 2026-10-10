@@ -27,6 +27,10 @@
                            ForegroundColor="@AvatarForeground"
                            Class="top-nav-account-menu__avatar" />
                 <span class="top-nav-account-menu__trigger-copy">@DisplayName</span>
+                @if (IsKids)
+                {
+                    <span class="kids-badge">Kids</span>
+                }
                 <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.KeyboardArrowDown"
                          Class="top-nav-account-menu__chevron" />
     </AppNativeButton>
@@ -42,16 +46,23 @@
                                ForegroundColor="@AvatarForeground"
                                Class="top-nav-account-menu__header-avatar" />
                     <strong>@DisplayName</strong>
+                    @if (IsKids)
+                    {
+                        <span class="kids-badge">Kids</span>
+                    }
                 </header>
 
-                <a class="top-nav-account-menu__item"
-                   href="/settings/profile"
-                   role="menuitem"
-                   @onclick="CloseMenu">
-                    <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Person"
-                             Class="top-nav-account-menu__item-icon" />
-                    <span>Profile settings</span>
-                </a>
+                @if (!IsKids)
+                {
+                    <a class="top-nav-account-menu__item"
+                       href="/settings/profile"
+                       role="menuitem"
+                       @onclick="CloseMenu">
+                        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Person"
+                                 Class="top-nav-account-menu__item-icon" />
+                        <span>Profile settings</span>
+                    </a>
+                }
 
                 @if (Profiles.Count > 1)
                 {
@@ -84,14 +95,17 @@
                     </a>
                 }
 
-                <a class="top-nav-account-menu__item"
-                   href="/settings"
-                   role="menuitem"
-                   @onclick="CloseMenu">
-                    <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Settings"
-                             Class="top-nav-account-menu__item-icon" />
-                    <span>@L["Nav_Settings"]</span>
-                </a>
+                @if (!IsKids)
+                {
+                    <a class="top-nav-account-menu__item"
+                       href="/settings"
+                       role="menuitem"
+                       @onclick="CloseMenu">
+                        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Settings"
+                                 Class="top-nav-account-menu__item-icon" />
+                        <span>@L["Nav_Settings"]</span>
+                    </a>
+                }
 
                 <a class="top-nav-account-menu__item"
                    href="https://tuvima.github.io/tuvima_library/"
@@ -137,6 +151,9 @@
     [Parameter] public int ReviewCount { get; set; }
     [Parameter] public bool CanViewReview { get; set; }
     [Parameter] public bool ShowSignOut { get; set; }
+
+    /// <summary>True for a Kids profile: no settings or review links, and a "Kids" badge.</summary>
+    [Parameter] public bool IsKids { get; set; }
 
     private bool _open;
     private string ProfileMenuAriaLabel =>
