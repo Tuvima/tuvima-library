@@ -998,7 +998,7 @@ public static class AuthenticationEndpoints
     /// <summary>Only the Dashboard (service credential) may say where the browser is; a missing header counts as remote.</summary>
     private static bool ComesFromThisComputer(HttpRequest request) =>
         request.HttpContext.User.HasClaim(TuvimaClaimTypes.DashboardService, "true")
-        && ClientIngress.Parse(request.Headers[ClientIngressValues.ValidateHeader].ToString()) == ClientIngress.ThisComputer
+        && ClientIngress.IsLocal(request.Headers[ClientIngressValues.ValidateHeader].ToString())
         && !WasForwarded(request);
 
     /// <summary>

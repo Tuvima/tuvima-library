@@ -83,13 +83,11 @@ The script publishes self-contained `win-x64` apps and writes `dist\TuvimaLibrar
 
 ## Claim your server
 
-First-run setup is protected by a one-time setup code, so only someone who can reach the server itself can claim it.
+Every new install starts on **Home network**: phones, TVs and computers on your Wi-Fi can reach the Dashboard, and nothing from the internet can. **Anywhere** is always your choice under **Settings → Network**. First-run setup needs no code from this computer or your home network; it is never available from the internet. Installs that already exist keep the setting they saved. On Docker, a visitor who reaches Tuvima through Docker's own bridge address is treated as outside the home network unless you list that address under `auth.trusted_local_networks`; setups where devices keep their real LAN addresses (host or macvlan/br0 networking) are unaffected.
 
-- Opening `/setup` from the same computer that runs Tuvima Library needs no code. On a desktop install you can start with just a name and an email, using **Use on this computer**. That sign-in works only from this computer until you add a password under **Settings → Account → Security**; setup then sets **Who can connect** to **This computer**.
-- Opening it from another device on your home network asks for a setup code. On the server, run `docker exec -it <container> tuvima-admin setup code` for Docker, Unraid, Synology, QNAP and TrueNAS. On Windows, open a terminal as administrator in the install folder and run `tuvima-admin setup code`.
-- The code has eight characters (for example `ABCD-EFGH`), works once, and expires after 30 minutes. A newer code replaces an older one, and five wrong tries cancel it.
+- Opening `/setup` from this computer or any device on your home network needs no code. You can start with just a name and an email, using **Start without a password**. That account works on your home network only, and never from the internet, until you add a password under **Settings → Account → Security**.
 - Setup is never available over the internet. Visitors from outside see "Setup has to be finished from your home network."
-- Once the administrator exists, setup closes for good and `tuvima-admin setup code` refuses to run.
+- Once the administrator exists, setup closes for good.
 
 ## Next steps
 

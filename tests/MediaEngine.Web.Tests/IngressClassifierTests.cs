@@ -117,6 +117,49 @@ public sealed class IngressClassifierTests
         Assert.Equal(IngressKind.ThisComputer, classifier.Classify(IPAddress.Loopback, MainPort));
     }
 
+    [Fact]
+    public void ContainerGateway_IsRemote_ButOtherPrivateAddressesStayHomeNetwork()
+    {
+        var gateway = IPAddress.Parse("172.17.0.1");
+        var classifier = new IngressClassifier(null, [], null, null, [gateway]);
+
+        Assert.Equal(IngressKind.Remote, classifier.Classify(gateway, MainPort));
+        Assert.Equal(IngressKind.Remote, classifier.Classify(IPAddress.Parse("::ffff:172.17.0.1"), MainPort));
+        Assert.Equal(IngressKind.HomeNetwork, classifier.Classify(IPAddress.Parse("192.168.0.77"), MainPort));
+        Assert.Equal(IngressKind.ThisComputer, classifier.Classify(IPAddress.Loopback, MainPort));
+    }
+
+    [Fact]
+    public void ContainerGateway_CanBeTrustedExplicitly()
+    {
+        var gateway = IPAddress.Parse("172.17.0.1");
+        var classifier = new IngressClassifier(null, ["172.17.0.1/32"], null, null, [gateway]);
+
+        Assert.Equal(IngressKind.HomeNetwork, classifier.Classify(gateway, MainPort));
+    }
+
+    [Theory]
+    [InlineData("100.64.1.1")]
+    [InlineData("2001:db8::1")]
+    [InlineData("2a00:1450::1")]
+    [InlineData("203.0.113.9")]
+    public void CarrierGradeAndPublicAddresses_AreRemote(string address)
+    {
+        Assert.Equal(IngressKind.Remote, new IngressClassifier(null, []).Classify(IPAddress.Parse(address), MainPort));
+    }
+
+    [Fact]
+    public void ContainerGatewayParser_ReadsDefaultRoutesOnly()
+    {
+        var gateways = ContainerGateway.Parse([
+            "Iface\tDestination\tGateway\tFlags",
+            "eth0\t00000000\t010011AC\t0003",
+            "eth0\t000011AC\t00000000\t0001",
+        ]);
+
+        Assert.Equal([IPAddress.Parse("172.17.0.1")], gateways);
+    }
+
     [Theory]
     [InlineData("127.0.0.1", null)]
     [InlineData("::1", null)]

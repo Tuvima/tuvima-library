@@ -143,9 +143,9 @@ public sealed class NetworkSettingsUiTests
     {
         var remote = Read(@"src/MediaEngine.Web/Components/Settings/RemoteAccessSettingsPanel.razor");
 
-        Assert.Contains("Only a browser on this computer.", remote, StringComparison.Ordinal);
-        Assert.Contains("Devices on your home Wi-Fi or network.", remote, StringComparison.Ordinal);
-        Assert.Contains("Also from the internet, through a secure address.", remote, StringComparison.Ordinal);
+        Assert.Contains("Only a browser on the computer that runs Tuvima. Other devices are turned away.", remote, StringComparison.Ordinal);
+        Assert.Contains("Phones, TVs and computers on your home Wi-Fi or network. This is the starting choice.", remote, StringComparison.Ordinal);
+        Assert.Contains("Also from the internet, through a secure address. Off until you turn it on.", remote, StringComparison.Ordinal);
         Assert.Contains("!AnywhereReady", remote, StringComparison.Ordinal);
         Assert.Contains("Disabled=\"@(disabled && Settings.WhoCanConnect != value)\"", remote, StringComparison.Ordinal);
         Assert.Contains("Fix: @item.FixLabel", remote, StringComparison.Ordinal);

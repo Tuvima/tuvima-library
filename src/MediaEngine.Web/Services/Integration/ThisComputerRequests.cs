@@ -23,10 +23,10 @@ public static class ThisComputerRequests
     /// </summary>
     public static void AddIngress(HttpRequestMessage request, string? ingress)
     {
-        if (ingress == ClientIngressValues.ThisComputer
+        if (ingress is ClientIngressValues.ThisComputer or ClientIngressValues.HomeNetwork
             && !request.Headers.Contains(ClientIngressValues.ValidateHeader))
         {
-            request.Headers.TryAddWithoutValidation(ClientIngressValues.ValidateHeader, ClientIngressValues.ThisComputer);
+            request.Headers.TryAddWithoutValidation(ClientIngressValues.ValidateHeader, ingress);
         }
     }
 

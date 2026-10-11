@@ -76,7 +76,7 @@ public static class SetupEndpoints
         group.MapPost("/begin", async (SetupBeginRequest? request, SetupSessionService sessions, CancellationToken ct) =>
         {
             // The Dashboard (service credential) classifies the visitor; a missing value counts as remote.
-            var result = await sessions.BeginAsync(request?.OriginalClientIngress, request?.SetupCode, ct).ConfigureAwait(false);
+            var result = await sessions.BeginAsync(request?.OriginalClientIngress, ct).ConfigureAwait(false);
             if (result.Started is not null)
             {
                 return Results.Ok(result.Started);
@@ -134,19 +134,19 @@ public static class SetupEndpoints
                 SessionIssueResult issued;
                 if (signIn == SetupSignInModes.ThisComputer)
                 {
-                    // Desktop only, and only from this computer: begin with a name and email, add a password later.
-                    // Both where setup began and where this request comes from must be this computer.
-                    if (!sessions.BeganFromThisComputer(context.Request.Headers[SetupSessionService.SessionHeader].ToString())
-                        || !ThisComputerAccess.IsAvailable(request.OriginalClientIngress, container.IsContainer()))
+                    // From this computer or the home network: begin with a name and email, add a password later.
+                    // Both where setup began and where this request comes from must be local.
+                    if (!sessions.BeganLocally(context.Request.Headers[SetupSessionService.SessionHeader].ToString())
+                        || !ThisComputerAccess.IsAvailable(request.OriginalClientIngress))
                     {
                         return ApiErrors.Conflict(
                             SetupAdministratorRefusalCodes.NotAvailableHere,
-                            "Starting without a password is only offered on the computer that runs Tuvima, not on a server or NAS.");
+                            "Starting without a password is only offered on your home network.");
                     }
 
                     if (!string.IsNullOrEmpty(request.Password))
                     {
-                        return ApiErrors.BadRequest("Leave the password empty to use Tuvima on this computer only.");
+                        return ApiErrors.BadRequest("Leave the password empty to start without one.");
                     }
 
                     if (string.IsNullOrWhiteSpace(request.Email) || string.IsNullOrWhiteSpace(request.DisplayName))
@@ -155,8 +155,13 @@ public static class SetupEndpoints
                     }
 
                     // Close the door first: if anything below fails, Tuvima is left more closed, never more open.
+                    // Home network is the widest a no-password account is ever allowed.
                     var network = configuration.LoadNetwork();
-                    network.WhoCanConnect = WhoCanConnectModes.ThisComputer;
+                    if (WhoCanConnectModes.Rank(network.WhoCanConnect) > WhoCanConnectModes.Rank(WhoCanConnectModes.HomeNetwork))
+                    {
+                        network.WhoCanConnect = WhoCanConnectModes.HomeNetwork;
+                    }
+
                     network.NativeAppAccess.Enabled = false;
                     configuration.SaveNetwork(network);
                     issued = await identity.BootstrapThisComputerAdministratorAsync(

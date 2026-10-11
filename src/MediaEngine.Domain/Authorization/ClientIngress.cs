@@ -37,11 +37,11 @@ public static class ClientIngress
         !IsLocal(issuedIngress) || IsLocal(currentIngress);
 
     /// <summary>
-    /// Same rule, stricter for an account that is only usable on this computer (it has no password yet): its
-    /// session may continue only from this computer, never from the home network.
+    /// Same rule for an account that has no password yet: its session may continue only from this computer or the
+    /// home network, never from outside, whatever the session was issued from.
     /// </summary>
     public static bool SessionMayContinue(string? issuedIngress, string? currentIngress, bool accountIsThisComputerOnly) =>
         accountIsThisComputerOnly
-            ? Parse(currentIngress) == ThisComputer
+            ? IsLocal(currentIngress)
             : SessionMayContinue(issuedIngress, currentIngress);
 }

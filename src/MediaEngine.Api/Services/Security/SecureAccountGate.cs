@@ -6,13 +6,12 @@ using MediaEngine.Domain.Contracts;
 namespace MediaEngine.Api.Services.Security;
 
 /// <summary>
-/// Who may start without a password. Only a visitor on this computer, and never on a container install: a desktop
-/// owner can begin with a name and email, while a server or NAS always asks for a password.
+/// Who may start without a password: a visitor on this computer or on the home network. Without a password the
+/// account never works from outside, and cannot open the door to Anywhere.
 /// </summary>
 public static class ThisComputerAccess
 {
-    public static bool IsAvailable(string? clientIngress, bool inContainer) =>
-        !inContainer && ClientIngress.Parse(clientIngress) == ClientIngress.ThisComputer;
+    public static bool IsAvailable(string? clientIngress) => ClientIngress.IsLocal(clientIngress);
 }
 
 /// <summary>
@@ -23,14 +22,15 @@ public static class ThisComputerAccess
 public sealed class SecureAccountGate(IUsableAdministratorService administrators)
 {
     public const string Code = "secure_account_first";
-    public const string Message = "Add a password or passkey to your account first. Until then Tuvima only works on this computer.";
+    public const string Message = "Add a password or passkey to your account first. Until then Tuvima only works on your home network.";
 
     /// <summary>True while every enabled administrator is a this-computer-only account.</summary>
     public Task<bool> IsLockedAsync(CancellationToken ct) => administrators.OnlyThisComputerAdministratorsAsync(ct);
 
-    /// <summary>True when a change from <paramref name="current"/> to <paramref name="proposed"/> opens the door wider.</summary>
+    /// <summary>True when a change from <paramref name="current"/> to <paramref name="proposed"/> opens the door wider than the home network (the widest a no-password account may use).</summary>
     public static bool Raises(string? current, string? proposed) =>
-        WhoCanConnectModes.Rank(proposed) > WhoCanConnectModes.Rank(current);
+        WhoCanConnectModes.Rank(proposed) > WhoCanConnectModes.Rank(WhoCanConnectModes.HomeNetwork)
+        && WhoCanConnectModes.Rank(proposed) > WhoCanConnectModes.Rank(current);
 
     public static IResult Refusal() => ApiErrors.Conflict(Code, Message);
 }

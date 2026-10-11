@@ -38,69 +38,32 @@ public sealed class SetupSessionCodeTests : IDisposable
     }
 
     [Fact]
-    public async Task HomeNetwork_WithoutACode_IsToldACodeIsRequired()
+    public async Task ShippedDefault_IsHomeNetwork()
     {
-        var result = await _sessions.BeginAsync(ClientIngress.HomeNetwork, null, CancellationToken.None);
+        var dir = new DirectoryInfo(AppContext.BaseDirectory);
+        while (dir is not null && !File.Exists(Path.Combine(dir.FullName, "MediaEngine.slnx")))
+        {
+            dir = dir.Parent;
+        }
 
-        Assert.Null(result.Started);
-        Assert.Equal(SetupBeginRefusalReasons.CodeRequired, result.Refusal?.Reason);
+        var json = await File.ReadAllTextAsync(Path.Combine(dir!.FullName, "config", "network.json"));
+        using var doc = JsonDocument.Parse(json);
+        Assert.Equal("home_network", doc.RootElement.GetProperty("who_can_connect").GetString());
     }
 
     [Fact]
-    public async Task HomeNetwork_WithAValidCode_StartsSetup()
+    public async Task HomeNetworkVisitor_CanBeginSetupWithoutACode()
     {
-        await _codes.IssueAsync(Code, _time.GetUtcNow(), CancellationToken.None);
-
-        var result = await _sessions.BeginAsync(ClientIngress.HomeNetwork, Code, CancellationToken.None);
+        var result = await _sessions.BeginAsync(ClientIngress.HomeNetwork, CancellationToken.None);
 
         Assert.NotNull(result.Started);
         Assert.True(await _sessions.ValidateSessionAsync(result.Started!.SetupSessionToken, CancellationToken.None));
     }
 
     [Fact]
-    public async Task SameCodeASecondTime_IsRefused()
-    {
-        await _codes.IssueAsync(Code, _time.GetUtcNow(), CancellationToken.None);
-        await _sessions.BeginAsync(ClientIngress.HomeNetwork, Code, CancellationToken.None);
-
-        var second = await _sessions.BeginAsync(ClientIngress.HomeNetwork, Code, CancellationToken.None);
-
-        Assert.Null(second.Started);
-        Assert.Equal(SetupBeginRefusalReasons.CodeInvalid, second.Refusal?.Reason);
-    }
-
-    [Fact]
-    public async Task ExpiredCode_IsRefused()
-    {
-        await _codes.IssueAsync(Code, _time.GetUtcNow(), CancellationToken.None);
-        _time.Advance(SetupCodeRepository.Lifetime + TimeSpan.FromMinutes(1));
-
-        var result = await _sessions.BeginAsync(ClientIngress.HomeNetwork, Code, CancellationToken.None);
-
-        Assert.Null(result.Started);
-        Assert.Equal(SetupBeginRefusalReasons.CodeInvalid, result.Refusal?.Reason);
-    }
-
-    [Fact]
-    public async Task FiveWrongCodes_KillTheCode()
-    {
-        await _codes.IssueAsync(Code, _time.GetUtcNow(), CancellationToken.None);
-        for (var i = 0; i < SetupCodeRepository.MaxFailedAttempts; i++)
-        {
-            var wrong = await _sessions.BeginAsync(ClientIngress.HomeNetwork, "ZZZZ-ZZZZ", CancellationToken.None);
-            Assert.Equal(SetupBeginRefusalReasons.CodeInvalid, wrong.Refusal?.Reason);
-        }
-
-        var right = await _sessions.BeginAsync(ClientIngress.HomeNetwork, Code, CancellationToken.None);
-
-        Assert.Null(right.Started);
-        Assert.Equal(SetupBeginRefusalReasons.CodeInvalid, right.Refusal?.Reason);
-    }
-
-    [Fact]
     public async Task ThisComputer_NeedsNoCode()
     {
-        var result = await _sessions.BeginAsync(ClientIngress.ThisComputer, null, CancellationToken.None);
+        var result = await _sessions.BeginAsync(ClientIngress.ThisComputer, CancellationToken.None);
 
         Assert.NotNull(result.Started);
     }
@@ -109,24 +72,19 @@ public sealed class SetupSessionCodeTests : IDisposable
     [InlineData(ClientIngressValues.Remote)]
     [InlineData(null)]
     [InlineData("something-else")]
-    public async Task Remote_IsRefusedEvenWithAValidCode(string? ingress)
+    public async Task PublicAddressVisitor_IsRefused(string? ingress)
     {
-        await _codes.IssueAsync(Code, _time.GetUtcNow(), CancellationToken.None);
-
-        var result = await _sessions.BeginAsync(ingress, Code, CancellationToken.None);
+        var result = await _sessions.BeginAsync(ingress, CancellationToken.None);
 
         Assert.Null(result.Started);
         Assert.Equal(SetupBeginRefusalReasons.RemoteRefused, result.Refusal?.Reason);
-        // The refused visitor did not use up the code, so the person at home still can.
-        var home = await _sessions.BeginAsync(ClientIngress.HomeNetwork, Code, CancellationToken.None);
-        Assert.NotNull(home.Started);
     }
 
     [Fact]
     public async Task SecondSuccessfulBegin_EndsTheFirstSession()
     {
-        var first = await _sessions.BeginAsync(ClientIngress.ThisComputer, null, CancellationToken.None);
-        var second = await _sessions.BeginAsync(ClientIngress.ThisComputer, null, CancellationToken.None);
+        var first = await _sessions.BeginAsync(ClientIngress.ThisComputer, CancellationToken.None);
+        var second = await _sessions.BeginAsync(ClientIngress.ThisComputer, CancellationToken.None);
 
         Assert.False(await _sessions.ValidateSessionAsync(first.Started!.SetupSessionToken, CancellationToken.None));
         Assert.True(await _sessions.ValidateSessionAsync(second.Started!.SetupSessionToken, CancellationToken.None));
@@ -138,7 +96,7 @@ public sealed class SetupSessionCodeTests : IDisposable
         var sessions = new SetupSessionService(
             new OnboardingRepository(_database), new NoAdministratorIdentity(administratorConfigured: true), _time);
 
-        var result = await sessions.BeginAsync(ClientIngress.ThisComputer, null, CancellationToken.None);
+        var result = await sessions.BeginAsync(ClientIngress.ThisComputer, CancellationToken.None);
 
         Assert.True(result.IsAlreadyConfigured);
         Assert.Null(result.Started);
@@ -155,13 +113,12 @@ public sealed class SetupSessionCodeTests : IDisposable
     }
 
     [Fact]
-    public async Task BeginEndpoint_HomeNetworkWithoutACode_Returns403WithTheReason()
+    public async Task BeginEndpoint_HomeNetwork_ReturnsTheSetupSession()
     {
         var (status, body) = await PostBeginAsync(new SetupBeginRequest { OriginalClientIngress = ClientIngress.HomeNetwork });
 
-        Assert.Equal(StatusCodes.Status403Forbidden, status);
-        Assert.Equal(SetupBeginRefusalReasons.CodeRequired, body.GetProperty("reason").GetString());
-        Assert.False(string.IsNullOrWhiteSpace(body.GetProperty("message").GetString()));
+        Assert.Equal(StatusCodes.Status200OK, status);
+        Assert.False(string.IsNullOrWhiteSpace(body.GetProperty("setup_session_token").GetString()));
     }
 
     [Fact]

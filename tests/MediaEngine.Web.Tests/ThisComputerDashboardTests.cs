@@ -28,13 +28,13 @@ public sealed class ThisComputerDashboardTests : AsyncBunitContext
     {
         var choices = RenderStage(available: true, mode: string.Empty);
 
-        Assert.Contains("Use on this computer", choices.Markup);
+        Assert.Contains("Start without a password", choices.Markup);
         Assert.Contains("Set a password now", choices.Markup);
         Assert.DoesNotContain("Confirm password", choices.Markup);
 
         var elsewhere = RenderStage(available: false, mode: string.Empty);
 
-        Assert.DoesNotContain("Use on this computer", elsewhere.Markup);
+        Assert.DoesNotContain("Start without a password", elsewhere.Markup);
         Assert.Contains("Confirm password", elsewhere.Markup);
     }
 
@@ -55,7 +55,7 @@ public sealed class ThisComputerDashboardTests : AsyncBunitContext
         var form = RenderStage(available: true, mode: SetupSignInModes.Password);
 
         Assert.Contains("Confirm password", form.Markup);
-        Assert.DoesNotContain("Use on this computer", form.Markup);
+        Assert.DoesNotContain("Start without a password", form.Markup);
     }
 
     [Fact]
@@ -74,7 +74,7 @@ public sealed class ThisComputerDashboardTests : AsyncBunitContext
     {
         var source = File.ReadAllText(RepoPath("src/MediaEngine.Web/Components/Pages/SetupPage.razor")).Replace("\r\n", "\n");
 
-        Assert.Contains("== MediaEngine.Web.Services.Configuration.IngressKind.ThisComputer\n        && !ClientForwarded\n        && _preflight?.RunningInContainer != true;", source, StringComparison.Ordinal);
+        Assert.Contains("!= MediaEngine.Web.Services.Configuration.IngressKind.Remote\n        && !ClientForwarded;", source, StringComparison.Ordinal);
         Assert.Contains("SignIn = UsesThisComputer ? SetupSignInModes.ThisComputer : SetupSignInModes.Password,", source, StringComparison.Ordinal);
         Assert.Contains("OriginalClientIngress = ClientForwarded ? ClientIngressValues.Remote : (ClientIngress ?? ClientIngressValues.Remote),", source, StringComparison.Ordinal);
     }
@@ -111,7 +111,7 @@ public sealed class ThisComputerDashboardTests : AsyncBunitContext
 
         var banner = Render<ThisComputerOnlyBanner>();
 
-        Assert.Contains("This computer only. Add a password to use Tuvima on your phone or TV.", banner.Markup);
+        Assert.Contains("No password set. Anyone on your home network can open Tuvima. Add one to secure it.", banner.Markup);
         Assert.Contains("Secure account", banner.Markup);
         Assert.Contains("href=\"/settings/account\"", banner.Markup);
     }
@@ -127,7 +127,7 @@ public sealed class ThisComputerDashboardTests : AsyncBunitContext
 
         var banner = Render<ThisComputerOnlyBanner>();
 
-        Assert.DoesNotContain("This computer only", banner.Markup);
+        Assert.DoesNotContain("No password set", banner.Markup);
     }
 
     [Fact]
@@ -146,7 +146,7 @@ public sealed class ThisComputerDashboardTests : AsyncBunitContext
         var dismiss = banner.Find("button[aria-label='Dismiss secure account reminder']");
         dismiss.Click();
 
-        Assert.DoesNotContain("This computer only", banner.Markup);
+        Assert.DoesNotContain("No password set", banner.Markup);
         Assert.False(visible.Last());
         Assert.True(thisComputerOnly.Last());
         var stored = JSInterop.Invocations.Single(call => call.Identifier == "localStorage.setItem");
@@ -163,7 +163,7 @@ public sealed class ThisComputerDashboardTests : AsyncBunitContext
 
         var banner = Render<ThisComputerOnlyBanner>();
 
-        Assert.DoesNotContain("This computer only", banner.Markup);
+        Assert.DoesNotContain("No password set", banner.Markup);
     }
 
     [Fact]
@@ -176,7 +176,7 @@ public sealed class ThisComputerDashboardTests : AsyncBunitContext
     }
 
     [Fact]
-    public void Ingress_IsSentOnlyForAVisitorOnThisComputer()
+    public void Ingress_IsSentOnlyForAVisitorOnThisComputerOrTheHomeNetwork()
     {
         using var here = new HttpRequestMessage();
         ThisComputerRequests.AddIngress(here, ClientIngressValues.ThisComputer);
@@ -186,7 +186,7 @@ public sealed class ThisComputerDashboardTests : AsyncBunitContext
         ThisComputerRequests.AddIngress(unknown, null);
 
         Assert.Equal(ClientIngressValues.ThisComputer, Assert.Single(here.Headers.GetValues(ClientIngressValues.ValidateHeader)));
-        Assert.False(home.Headers.Contains(ClientIngressValues.ValidateHeader));
+        Assert.Equal(ClientIngressValues.HomeNetwork, Assert.Single(home.Headers.GetValues(ClientIngressValues.ValidateHeader)));
         Assert.False(unknown.Headers.Contains(ClientIngressValues.ValidateHeader));
     }
 
@@ -254,7 +254,7 @@ public sealed class ThisComputerDashboardTests : AsyncBunitContext
         session.LastIngress = ClientIngressValues.HomeNetwork;
         using (await client.GetAsync("/ok")) { }
 
-        Assert.Equal(new string?[] { ClientIngressValues.ThisComputer, ClientIngressValues.ThisComputer, null }, captured);
+        Assert.Equal(new string?[] { ClientIngressValues.ThisComputer, ClientIngressValues.ThisComputer, ClientIngressValues.HomeNetwork }, captured);
         Assert.Equal(1, notices);
     }
 
