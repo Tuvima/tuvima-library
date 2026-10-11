@@ -62,7 +62,7 @@ public static class AuthenticationEndpoints
             IFirstPartyIdentityService identity, DashboardAuthorityProjector projector, CancellationToken ct) =>
         {
             var issued = ComesFromThisComputer(request)
-                ? await identity.SignInThisComputerAccountAsync(body.DeviceId, body.DeviceName, body.Client, ct).ConfigureAwait(false)
+                ? await identity.SignInThisComputerAccountAsync(body.DeviceId, body.DeviceName, body.Client, request.Headers[ClientIngressValues.ValidateHeader].ToString(), ct).ConfigureAwait(false)
                 : null;
             return issued is null
                 ? ApiErrors.NotFound("Not found.")

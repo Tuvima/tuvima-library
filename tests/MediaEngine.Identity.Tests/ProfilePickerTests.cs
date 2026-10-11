@@ -1,5 +1,6 @@
 using Dapper;
 using MediaEngine.Domain.Aggregates;
+using MediaEngine.Domain.Authorization;
 using MediaEngine.Domain.Configuration;
 using MediaEngine.Domain.Entities;
 using MediaEngine.Domain.Enums;
@@ -34,6 +35,34 @@ public sealed class ProfilePickerTests : IDisposable
             new IdentityRepository(_database), _accounts, new ProfileRepository(_database),
             new PasswordHasher<AccountCredential>(), new PasswordHasher<ProfileCredential>(),
             TimeProvider.System, new FixedPolicy());
+    }
+
+    [Fact]
+    public async Task ThisComputerSignIn_WithSeveralProfiles_AsksWhoIsUsingTuvima_AndRecordsTheHomeNetwork()
+    {
+        var owner = await _service.BootstrapThisComputerAdministratorAsync(Email, "Dad", "setup-device", "Setup", "Dashboard");
+        var mary = new Profile
+        {
+            Id = Guid.NewGuid(),
+            DisplayName = "Mary",
+            AvatarColor = "#7C4DFF",
+            Role = ProfileRole.StandardUser,
+            CreatedAt = DateTimeOffset.UtcNow.AddMinutes(1),
+        };
+        await InsertProfileAsync(mary);
+        await _accounts.GrantProfileAsync(new AccountProfileGrant
+        {
+            AccountId = owner.Account.Id,
+            ProfileId = mary.Id,
+            GrantedAt = DateTimeOffset.UtcNow.AddMinutes(1),
+        });
+
+        var signedIn = await _service.SignInThisComputerAccountAsync("laptop", "Laptop", "Dashboard", ClientIngress.HomeNetwork);
+
+        Assert.NotNull(signedIn);
+        Assert.True(signedIn!.ChooseProfile);
+        Assert.Equal(ClientIngress.HomeNetwork, signedIn.Session.IssuedIngress);
+        Assert.Null(await _service.SignInThisComputerAccountAsync("laptop", "Laptop", "Dashboard", ClientIngress.Remote));
     }
 
     [Fact]

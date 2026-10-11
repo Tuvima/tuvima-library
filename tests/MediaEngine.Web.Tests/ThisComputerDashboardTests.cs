@@ -85,17 +85,17 @@ public sealed class ThisComputerDashboardTests : AsyncBunitContext
         var here = LoginPage("Sam");
         var elsewhere = LoginPage(null);
 
-        Assert.Contains("Continue as Sam", here);
+        Assert.Contains("Go back in as Sam", here);
         Assert.Contains("value=\"this-computer\"", here);
         Assert.Contains("name=\"password\"", here);
-        Assert.DoesNotContain("Continue as", elsewhere);
+        Assert.DoesNotContain("Go back in as", elsewhere);
         Assert.DoesNotContain("this-computer", elsewhere);
     }
 
     [Fact]
     public void LoginPage_EncodesTheAccountName()
     {
-        Assert.Contains("Continue as &lt;b&gt;Sam&lt;/b&gt;", LoginPage("<b>Sam</b>"));
+        Assert.Contains("Go back in as &lt;b&gt;Sam&lt;/b&gt;", LoginPage("<b>Sam</b>"));
     }
 
     private static string LoginPage(string? name) =>
