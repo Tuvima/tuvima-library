@@ -35,11 +35,18 @@ public static class DashboardAuthenticationEndpoints
                 return Results.Redirect("/setup");
             }
 
-            var tokens = antiforgery.GetAndStoreTokens(context);
             var deviceId = EnsureDeviceCookie(context);
+            // Only asked on this computer or the home network; anywhere else the Engine never says the account exists.
+            var started = await StartWithoutPasswordAsync(
+                context, deviceId, SafeReturnUrl(returnUrl),
+                identity.GetThisComputerAccountNameAsync, identity.SignInThisComputerAsync).ConfigureAwait(false);
+            if (started is not null)
+            {
+                return started;
+            }
+
+            var tokens = antiforgery.GetAndStoreTokens(context);
             var methods = await identity.GetSignInMethodsAsync(context.RequestAborted).ConfigureAwait(false);
-            // Only asked on this computer; anywhere else the Engine never says the account exists.
-            var thisComputerName = await identity.GetThisComputerAccountNameAsync(context.RequestAborted).ConfigureAwait(false);
             return Results.Content(
                 LoginPage(
                     tokens.RequestToken ?? string.Empty,
@@ -48,7 +55,7 @@ public static class DashboardAuthenticationEndpoints
                     deviceId,
                     SafeReturnUrl(returnUrl),
                     PasskeyOriginGate.IsPublicOrigin(context),
-                    thisComputerName: thisComputerName),
+                    thisComputerName: null),
                 "text/html",
                 Encoding.UTF8);
         }).AllowAnonymous();
@@ -628,6 +635,33 @@ public static class DashboardAuthenticationEndpoints
     }
 
     /// <summary>Signs the browser in with the session the Engine issued, then sends the person where they were going.</summary>
+    /// <summary>
+    /// While the account has no password there is nothing to type: when the Engine says this visitor (on this computer or
+    /// the home network, not behind a proxy) may continue without one, sign in straight away and go to the profile picker
+    /// when several people share the library, otherwise Home. Null means show the normal sign-in page: a password exists,
+    /// the visitor is remote, or the Engine could not be reached.
+    /// </summary>
+    internal static async Task<IResult?> StartWithoutPasswordAsync(
+        HttpContext context,
+        string deviceId,
+        string returnUrl,
+        Func<CancellationToken, Task<string?>> accountName,
+        Func<ThisComputerSignInRequest, CancellationToken, Task<AuthSessionResponse?>> signIn)
+    {
+        if (await accountName(context.RequestAborted).ConfigureAwait(false) is null)
+        {
+            return null;
+        }
+
+        var issued = await signIn(new ThisComputerSignInRequest
+        {
+            DeviceId = deviceId,
+            DeviceName = SanitizeDeviceName(context.Request.Headers.UserAgent.ToString()),
+            Client = "Tuvima Library Dashboard",
+        }, context.RequestAborted).ConfigureAwait(false);
+        return issued is null ? null : await FinishSignInAsync(context, issued, returnUrl).ConfigureAwait(false);
+    }
+
     private static async Task<IResult> FinishSignInAsync(HttpContext context, AuthSessionResponse issued, string returnUrl)
     {
         await context.SignInAsync(
