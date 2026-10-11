@@ -27,9 +27,10 @@ public sealed class SecureAccountGate(IUsableAdministratorService administrators
     /// <summary>True while every enabled administrator is a this-computer-only account.</summary>
     public Task<bool> IsLockedAsync(CancellationToken ct) => administrators.OnlyThisComputerAdministratorsAsync(ct);
 
-    /// <summary>True when a change from <paramref name="current"/> to <paramref name="proposed"/> opens the door wider.</summary>
+    /// <summary>True when a change from <paramref name="current"/> to <paramref name="proposed"/> opens the door wider than the home network (the widest a no-password account may use).</summary>
     public static bool Raises(string? current, string? proposed) =>
-        WhoCanConnectModes.Rank(proposed) > WhoCanConnectModes.Rank(current);
+        WhoCanConnectModes.Rank(proposed) > WhoCanConnectModes.Rank(WhoCanConnectModes.HomeNetwork)
+        && WhoCanConnectModes.Rank(proposed) > WhoCanConnectModes.Rank(current);
 
     public static IResult Refusal() => ApiErrors.Conflict(Code, Message);
 }

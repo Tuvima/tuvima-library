@@ -54,7 +54,7 @@ public sealed class SetupSessionCodeTests : IDisposable
     [Fact]
     public async Task HomeNetworkVisitor_CanBeginSetupWithoutACode()
     {
-        var result = await _sessions.BeginAsync(ClientIngress.HomeNetwork, null, CancellationToken.None);
+        var result = await _sessions.BeginAsync(ClientIngress.HomeNetwork, CancellationToken.None);
 
         Assert.NotNull(result.Started);
         Assert.True(await _sessions.ValidateSessionAsync(result.Started!.SetupSessionToken, CancellationToken.None));
@@ -63,7 +63,7 @@ public sealed class SetupSessionCodeTests : IDisposable
     [Fact]
     public async Task ThisComputer_NeedsNoCode()
     {
-        var result = await _sessions.BeginAsync(ClientIngress.ThisComputer, null, CancellationToken.None);
+        var result = await _sessions.BeginAsync(ClientIngress.ThisComputer, CancellationToken.None);
 
         Assert.NotNull(result.Started);
     }
@@ -74,7 +74,7 @@ public sealed class SetupSessionCodeTests : IDisposable
     [InlineData("something-else")]
     public async Task PublicAddressVisitor_IsRefused(string? ingress)
     {
-        var result = await _sessions.BeginAsync(ingress, null, CancellationToken.None);
+        var result = await _sessions.BeginAsync(ingress, CancellationToken.None);
 
         Assert.Null(result.Started);
         Assert.Equal(SetupBeginRefusalReasons.RemoteRefused, result.Refusal?.Reason);
@@ -83,8 +83,8 @@ public sealed class SetupSessionCodeTests : IDisposable
     [Fact]
     public async Task SecondSuccessfulBegin_EndsTheFirstSession()
     {
-        var first = await _sessions.BeginAsync(ClientIngress.ThisComputer, null, CancellationToken.None);
-        var second = await _sessions.BeginAsync(ClientIngress.ThisComputer, null, CancellationToken.None);
+        var first = await _sessions.BeginAsync(ClientIngress.ThisComputer, CancellationToken.None);
+        var second = await _sessions.BeginAsync(ClientIngress.ThisComputer, CancellationToken.None);
 
         Assert.False(await _sessions.ValidateSessionAsync(first.Started!.SetupSessionToken, CancellationToken.None));
         Assert.True(await _sessions.ValidateSessionAsync(second.Started!.SetupSessionToken, CancellationToken.None));
@@ -96,7 +96,7 @@ public sealed class SetupSessionCodeTests : IDisposable
         var sessions = new SetupSessionService(
             new OnboardingRepository(_database), new NoAdministratorIdentity(administratorConfigured: true), _time);
 
-        var result = await sessions.BeginAsync(ClientIngress.ThisComputer, null, CancellationToken.None);
+        var result = await sessions.BeginAsync(ClientIngress.ThisComputer, CancellationToken.None);
 
         Assert.True(result.IsAlreadyConfigured);
         Assert.Null(result.Started);

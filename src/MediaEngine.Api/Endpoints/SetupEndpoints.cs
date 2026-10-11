@@ -76,7 +76,7 @@ public static class SetupEndpoints
         group.MapPost("/begin", async (SetupBeginRequest? request, SetupSessionService sessions, CancellationToken ct) =>
         {
             // The Dashboard (service credential) classifies the visitor; a missing value counts as remote.
-            var result = await sessions.BeginAsync(request?.OriginalClientIngress, request?.SetupCode, ct).ConfigureAwait(false);
+            var result = await sessions.BeginAsync(request?.OriginalClientIngress, ct).ConfigureAwait(false);
             if (result.Started is not null)
             {
                 return Results.Ok(result.Started);

@@ -29,6 +29,7 @@ public sealed class IngressClassifier
     private readonly IReadOnlyList<System.Net.IPNetwork> _trustedNetworks;
     private readonly IReadOnlyList<IPAddress> _proxyAddresses;
     private readonly IReadOnlyList<System.Net.IPNetwork> _proxyNetworks;
+    private readonly IReadOnlyList<IPAddress> _containerGateways;
 
     /// <param name="proxyPort">The dedicated proxy port, or null when none is configured.</param>
     /// <param name="trustedLocalNetworks"><c>auth.trusted_local_networks</c>: extra ranges that count as the home network.</param>
@@ -40,8 +41,14 @@ public sealed class IngressClassifier
         int? proxyPort,
         IEnumerable<string>? trustedLocalNetworks,
         IEnumerable<string>? trustedProxies = null,
-        IEnumerable<string>? trustedProxyNetworks = null)
+        IEnumerable<string>? trustedProxyNetworks = null,
+        IEnumerable<IPAddress>? containerGateways = null)
     {
+        // Behind Docker NAT an internet visitor arrives as the bridge gateway, so on a container install that one
+        // address is not the home network unless the owner trusts it explicitly in auth.trusted_local_networks.
+        _containerGateways = (containerGateways ?? [])
+            .Select(address => address.IsIPv4MappedToIPv6 ? address.MapToIPv4() : address)
+            .ToArray();
         _proxyPort = proxyPort;
         _trustedNetworks = ParseNetworks(trustedLocalNetworks);
         _proxyNetworks = ParseNetworks(trustedProxyNetworks);
@@ -113,7 +120,17 @@ public sealed class IngressClassifier
             return IngressKind.ThisComputer;
         }
 
-        if (IsPrivate(address) || IsInAny(_trustedNetworks, address))
+        if (IsInAny(_trustedNetworks, address))
+        {
+            return IngressKind.HomeNetwork;
+        }
+
+        if (_containerGateways.Any(gateway => gateway.Equals(address)))
+        {
+            return IngressKind.Remote;
+        }
+
+        if (IsPrivate(address))
         {
             return IngressKind.HomeNetwork;
         }

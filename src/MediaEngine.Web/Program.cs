@@ -139,7 +139,8 @@ builder.Services.AddSingleton(new IngressClassifier(
     proxyPort,
     dashboardConfig.LoadCore().Auth.TrustedLocalNetworks,
     networkSettings.Remote.TrustedProxies,
-    networkSettings.Remote.TrustedProxyNetworks));
+    networkSettings.Remote.TrustedProxyNetworks,
+    ContainerGateway.Detect()));
 builder.Services.AddSingleton(new HostAllowList(
     networkSettings,
     tailscaleUrl,

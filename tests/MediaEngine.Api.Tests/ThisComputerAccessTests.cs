@@ -252,7 +252,7 @@ public sealed class ThisComputerAccessTests : IDisposable
     [Fact]
     public async Task Setup_WithoutAPassword_IsAllowedWhenSetupBeganOnTheHomeNetwork()
     {
-        var begun = await _setupSessions.BeginAsync(ClientIngress.HomeNetwork, null, CancellationToken.None);
+        var begun = await _setupSessions.BeginAsync(ClientIngress.HomeNetwork, CancellationToken.None);
         var token = Assert.IsType<SetupStartResponse>(begun.Started).SetupSessionToken;
         await using var app = BuildSetupApplication();
 
@@ -352,13 +352,10 @@ public sealed class ThisComputerAccessTests : IDisposable
         _configuration.SaveNetwork(network);
         await using var app = BuildNetworkApplication();
 
-        foreach (var wider in new[] { WhoCanConnectModes.HomeNetwork, WhoCanConnectModes.Anywhere })
-        {
-            var response = await SendAsync(app, "PUT", "/settings/network/", new { who_can_connect = wider });
+        var response = await SendAsync(app, "PUT", "/settings/network/", new { who_can_connect = WhoCanConnectModes.Anywhere });
 
-            AssertSecureAccountFirst(response);
-            Assert.Equal(WhoCanConnectModes.ThisComputer, _configuration.LoadNetwork().WhoCanConnect);
-        }
+        AssertSecureAccountFirst(response);
+        Assert.Equal(WhoCanConnectModes.ThisComputer, _configuration.LoadNetwork().WhoCanConnect);
     }
 
     [Fact]
@@ -389,12 +386,39 @@ public sealed class ThisComputerAccessTests : IDisposable
         await using var app = BuildNetworkApplication();
 
         var keep = await SendAsync(app, "PUT", "/settings/network/", new { who_can_connect = WhoCanConnectModes.ThisComputer });
-        // Resetting would put the door back to the home network, which is wider than this computer.
+        // Resetting puts the door back to the home network, which a passwordless account may use.
         var reset = await SendAsync(app, "POST", "/network/reset");
 
         Assert.Equal(StatusCodes.Status200OK, keep.Status);
-        AssertSecureAccountFirst(reset);
-        Assert.Equal(WhoCanConnectModes.ThisComputer, _configuration.LoadNetwork().WhoCanConnect);
+        Assert.Equal(StatusCodes.Status200OK, reset.Status);
+        Assert.Equal(WhoCanConnectModes.HomeNetwork, _configuration.LoadNetwork().WhoCanConnect);
+    }
+
+    [Fact]
+    public async Task RaisingWhoCanConnect_ToTheHomeNetwork_IsAllowedForAPasswordlessAccount()
+    {
+        await _identity.BootstrapThisComputerAdministratorAsync("owner@example.com", "Owner", "d", "Browser", "Dashboard");
+        var network = _configuration.LoadNetwork();
+        network.WhoCanConnect = WhoCanConnectModes.ThisComputer;
+        _configuration.SaveNetwork(network);
+        await using var app = BuildNetworkApplication();
+
+        var response = await SendAsync(app, "PUT", "/settings/network/", new { who_can_connect = WhoCanConnectModes.HomeNetwork });
+
+        Assert.Equal(StatusCodes.Status200OK, response.Status);
+        Assert.Equal(WhoCanConnectModes.HomeNetwork, _configuration.LoadNetwork().WhoCanConnect);
+    }
+
+    [Fact]
+    public async Task SignInAgain_IsRefusedWhenTheHomeNetworkRequestWasForwarded()
+    {
+        await _identity.BootstrapThisComputerAdministratorAsync("owner@example.com", "Owner", "d", "Browser", "Dashboard");
+        await using var app = BuildAuthenticationApplication();
+
+        var response = await SendAsync(app, "GET", "/auth/this-computer", ingress: ClientIngress.HomeNetwork,
+            extraHeaders: new() { [ClientIngressValues.ForwardedHeader] = "true" });
+
+        Assert.Equal(StatusCodes.Status404NotFound, response.Status);
     }
 
     [Fact]
@@ -448,7 +472,7 @@ public sealed class ThisComputerAccessTests : IDisposable
     }
 
     [Theory]
-    [InlineData("this_computer", "home_network", true)]
+    [InlineData("this_computer", "home_network", false)]
     [InlineData("this_computer", "anywhere", true)]
     [InlineData("home_network", "anywhere", true)]
     [InlineData("home_network", "home_network", false)]
@@ -476,7 +500,7 @@ public sealed class ThisComputerAccessTests : IDisposable
 
     private async Task<string> BeginSetupAsync(string ingress)
     {
-        var begun = await _setupSessions.BeginAsync(ingress, null, CancellationToken.None);
+        var begun = await _setupSessions.BeginAsync(ingress, CancellationToken.None);
         return Assert.IsType<SetupStartResponse>(begun.Started).SetupSessionToken;
     }
 
