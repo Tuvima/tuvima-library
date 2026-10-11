@@ -128,10 +128,12 @@ docker exec --user 10001:10001 "$CONTAINER" sh -exc '
         -frames:v 1 /artwork-cache/container-smoke-thumbnail.jpg
 '
 
-# The proxy port counts every request as an internet visitor. With the default "who can connect"
-# (home network), the front page is refused with 403 (ExposurePolicy, NotAvailableHere).
+# Network location is no longer checked, so the proxy port serves the front page like the main port
+# (it redirects to sign-in or setup) instead of refusing it with 403.
 docker exec "$CONTAINER" sh -exc '
-    test "$(curl --silent --output /dev/null --write-out "%{http_code}" --max-time 30 --retry 2 --retry-connrefused http://127.0.0.1:5018/)" = "403"
+    code="$(curl --silent --output /dev/null --write-out "%{http_code}" --max-time 30 --retry 2 --retry-connrefused http://127.0.0.1:5018/)"
+    test "$code" != "403"
+    test "$code" != "000"
 '
 
 # First-run setup from another device needs the one-time code. Printing it proves the command works as root in the container.

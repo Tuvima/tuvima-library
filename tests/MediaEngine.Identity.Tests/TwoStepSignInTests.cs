@@ -197,22 +197,6 @@ public sealed class TwoStepSignInTests : IDisposable
     }
 
     [Fact]
-    public async Task ThePendingToken_CannotBeMovedToAnotherKindOfConnection()
-    {
-        var owner = await SignUpAsync();
-        var secret = await TurnOnAsync(owner.Account.Id);
-        _clock.Advance(TimeSpan.FromSeconds(31));
-        var pending = await _service.AuthenticatePasswordAsync(Email, Password, "d", "Phone", "Dashboard", ingress: ClientIngress.HomeNetwork);
-
-        var fromOutside = await _service.CompleteTwoStepSignInAsync(pending.TwoStepToken!, CodeFor(secret), ingress: ClientIngress.Remote);
-        Assert.False(fromOutside.Succeeded);
-
-        // Once it has turned up somewhere else it is dead, even back where it started.
-        var backHome = await _service.CompleteTwoStepSignInAsync(pending.TwoStepToken!, CodeFor(secret), ingress: ClientIngress.HomeNetwork);
-        Assert.False(backHome.Succeeded);
-    }
-
-    [Fact]
     public async Task ARandomPendingToken_IsRefused()
     {
         var owner = await SignUpAsync();
@@ -221,67 +205,6 @@ public sealed class TwoStepSignInTests : IDisposable
 
         Assert.False((await _service.CompleteTwoStepSignInAsync("not-a-token", CodeFor(secret))).Succeeded);
         Assert.False((await _service.CompleteTwoStepSignInAsync("", CodeFor(secret))).Succeeded);
-    }
-
-    [Fact]
-    public async Task FiveWrongCodes_EndThatSignInEvenIfTheNextOneIsRight_AtHome()
-    {
-        var owner = await SignUpAsync();
-        var secret = await TurnOnAsync(owner.Account.Id);
-        _clock.Advance(TimeSpan.FromSeconds(31));
-        var pending = await _service.AuthenticatePasswordAsync(Email, Password, "d", "Phone", "Dashboard", ingress: ClientIngress.HomeNetwork);
-
-        for (var attempt = 0; attempt < 5; attempt++)
-        {
-            Assert.False((await _service.CompleteTwoStepSignInAsync(pending.TwoStepToken!, "000000", ingress: ClientIngress.HomeNetwork)).Succeeded);
-        }
-
-        Assert.False((await _service.CompleteTwoStepSignInAsync(pending.TwoStepToken!, CodeFor(secret), ingress: ClientIngress.HomeNetwork)).Succeeded);
-        // Home mistakes never lock the account; the password still starts a fresh sign-in.
-        var fresh = await _service.AuthenticatePasswordAsync(Email, Password, "d", "Phone", "Dashboard", ingress: ClientIngress.HomeNetwork);
-        Assert.True(fresh.TwoStepRequired);
-    }
-
-    [Fact]
-    public async Task WrongCodesFromOutside_CountTowardTheLockout_AndRepeatingThePasswordDoesNotResetIt()
-    {
-        var owner = await SignUpAsync();
-        var secret = await TurnOnAsync(owner.Account.Id);
-        _clock.Advance(TimeSpan.FromSeconds(31));
-
-        AuthenticationAttemptResult last = default!;
-        for (var attempt = 0; attempt < 5; attempt++)
-        {
-            var pending = await _service.AuthenticatePasswordAsync(Email, Password, "d", "Phone", "Dashboard", ingress: ClientIngress.Remote);
-            Assert.True(pending.TwoStepRequired);
-            last = await _service.CompleteTwoStepSignInAsync(pending.TwoStepToken!, "000000", ingress: ClientIngress.Remote);
-            Assert.False(last.Succeeded);
-        }
-
-        Assert.True(last.LockedOut);
-        var locked = await _service.AuthenticatePasswordAsync(Email, Password, "d", "Phone", "Dashboard", ingress: ClientIngress.Remote);
-        Assert.True(locked.LockedOut);
-        Assert.False(locked.TwoStepRequired);
-
-        _clock.Advance(TimeSpan.FromMinutes(16));
-        var after = await _service.AuthenticatePasswordAsync(Email, Password, "d", "Phone", "Dashboard", ingress: ClientIngress.Remote);
-        Assert.True((await _service.CompleteTwoStepSignInAsync(after.TwoStepToken!, CodeFor(secret), ingress: ClientIngress.Remote)).Succeeded);
-    }
-
-    [Fact]
-    public async Task WrongCodesAtHome_NeverLockTheAccount()
-    {
-        var owner = await SignUpAsync();
-        await TurnOnAsync(owner.Account.Id);
-        _clock.Advance(TimeSpan.FromSeconds(31));
-
-        for (var attempt = 0; attempt < 8; attempt++)
-        {
-            var pending = await _service.AuthenticatePasswordAsync(Email, Password, "d", "Phone", "Dashboard", ingress: ClientIngress.HomeNetwork);
-            Assert.True(pending.TwoStepRequired);
-            var result = await _service.CompleteTwoStepSignInAsync(pending.TwoStepToken!, "000000", ingress: ClientIngress.HomeNetwork);
-            Assert.False(result.LockedOut);
-        }
     }
 
     [Fact]
@@ -295,30 +218,6 @@ public sealed class TwoStepSignInTests : IDisposable
         await _service.ChangePasswordAsync(owner.Account.Id, "a different long password 42");
 
         Assert.False((await _service.CompleteTwoStepSignInAsync(pending.TwoStepToken!, CodeFor(secret))).Succeeded);
-    }
-
-    [Fact]
-    public async Task RepeatedWrongCodesAtHome_SlowDownWithoutLocking()
-    {
-        var owner = await SignUpAsync();
-        var secret = await TurnOnAsync(owner.Account.Id);
-        _clock.Advance(TimeSpan.FromSeconds(31));
-
-        for (var attempt = 0; attempt < 3; attempt++)
-        {
-            var pending = await _service.AuthenticatePasswordAsync(Email, Password, "d", "Phone", "Dashboard", ingress: ClientIngress.HomeNetwork);
-            Assert.False((await _service.CompleteTwoStepSignInAsync(pending.TwoStepToken!, "000000", ingress: ClientIngress.HomeNetwork)).Succeeded);
-        }
-
-        // The right code is refused during the short pause, and accepted once it has passed.
-        var during = await _service.AuthenticatePasswordAsync(Email, Password, "d", "Phone", "Dashboard", ingress: ClientIngress.HomeNetwork);
-        var refused = await _service.CompleteTwoStepSignInAsync(during.TwoStepToken!, CodeFor(secret), ingress: ClientIngress.HomeNetwork);
-        Assert.False(refused.Succeeded);
-        Assert.False(refused.LockedOut);
-
-        _clock.Advance(TimeSpan.FromMinutes(2));
-        var after = await _service.AuthenticatePasswordAsync(Email, Password, "d", "Phone", "Dashboard", ingress: ClientIngress.HomeNetwork);
-        Assert.True((await _service.CompleteTwoStepSignInAsync(after.TwoStepToken!, CodeFor(secret), ingress: ClientIngress.HomeNetwork)).Succeeded);
     }
 
     [Fact]
@@ -534,5 +433,26 @@ public sealed class TwoStepSignInTests : IDisposable
             protectedSecret.StartsWith("protected:", StringComparison.Ordinal)
                 ? new string(protectedSecret["protected:".Length..].Reverse().ToArray())
                 : null;
+    }
+
+    [Theory]
+    [InlineData(ClientIngress.HomeNetwork)]
+    [InlineData(ClientIngress.ThisComputer)]
+    public async Task WrongCodesFromAnywhere_CountTowardTheLockout(string ingress)
+    {
+        var owner = await SignUpAsync();
+        await TurnOnAsync(owner.Account.Id);
+        _clock.Advance(TimeSpan.FromSeconds(31));
+
+        AuthenticationAttemptResult last = default!;
+        for (var attempt = 0; attempt < 5; attempt++)
+        {
+            var pending = await _service.AuthenticatePasswordAsync(Email, Password, "d", "Phone", "Dashboard", ingress: ingress);
+            Assert.True(pending.TwoStepRequired);
+            last = await _service.CompleteTwoStepSignInAsync(pending.TwoStepToken!, "000000", ingress: ingress);
+            Assert.False(last.Succeeded);
+        }
+
+        Assert.True(last.LockedOut);
     }
 }

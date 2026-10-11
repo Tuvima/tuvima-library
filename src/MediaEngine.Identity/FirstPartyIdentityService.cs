@@ -573,7 +573,7 @@ public sealed class FirstPartyIdentityService(
         }
 
         // Same rule as sign-in: only a session made from outside counts toward, or is blocked by, the lockout.
-        var countsTowardLockout = session.IssuedIngress == ClientIngress.Remote;
+        var countsTowardLockout = true; // Account lockout applies wherever the attempt comes from.
         var now = UtcNow;
         if (countsTowardLockout && credential.LockedUntil is { } until && until > now)
         {
@@ -688,7 +688,7 @@ public sealed class FirstPartyIdentityService(
 
         // Same rule as sign-in: only a session made from outside counts toward, or is blocked by, the lockout.
         var credential = await identities.GetAccountCredentialAsync(accountId, AccountCredentialKind.Password, ct).ConfigureAwait(false);
-        var countsTowardLockout = session.IssuedIngress == ClientIngress.Remote;
+        var countsTowardLockout = true; // Account lockout applies wherever the attempt comes from.
         if (countsTowardLockout && credential?.LockedUntil is { } until && until > UtcNow)
         {
             return false;
@@ -764,7 +764,7 @@ public sealed class FirstPartyIdentityService(
             return invalid;
         }
 
-        var countsTowardLockout = currentIngress == ClientIngress.Remote;
+        var countsTowardLockout = true; // Account lockout applies wherever the attempt comes from.
         if (countsTowardLockout && credential.LockedUntil is { } until && until > now)
         {
             return new AuthenticationAttemptResult(false, true, "Too many attempts. Try again later.", null);
@@ -851,7 +851,7 @@ public sealed class FirstPartyIdentityService(
         var target = await profiles.GetByIdAsync(targetProfileId, ct).ConfigureAwait(false) ?? throw new KeyNotFoundException($"Profile '{targetProfileId}' was not found.");
         // Same rule as profile sign-in: only sessions made from outside the home count toward, or are
         // blocked by, the PIN lockout. A session's issuing place is checked on every request by the Dashboard.
-        await VerifyProfilePinAsync(target.Id, pin, current.Session.IssuedIngress == ClientIngress.Remote, ct).ConfigureAwait(false);
+        await VerifyProfilePinAsync(target.Id, pin, true, ct).ConfigureAwait(false);
 
         if (!await identities.UpdateActiveProfileAsync(current.Session.Id, target.Id, ct).ConfigureAwait(false))
         {
@@ -914,7 +914,7 @@ public sealed class FirstPartyIdentityService(
         if (account is null || !account.IsEnabled || credential is null) { await AuditAsync(account?.Id, null, null, "login_failed", false, "unknown_credential", ct).ConfigureAwait(false); return new(false, false, "Invalid credentials.", null); }
         // Only internet attempts count toward, or are blocked by, the lockout; home and
         // this-computer attempts are throttled per client address by the Dashboard instead.
-        var countsTowardLockout = ClientIngress.Parse(ingress) == ClientIngress.Remote;
+        var countsTowardLockout = true; // Account lockout applies wherever the attempt comes from.
         if (countsTowardLockout && credential.LockedUntil is { } until && until > now)
         {
             return new(false, true, "Too many attempts. Try again later.", null);

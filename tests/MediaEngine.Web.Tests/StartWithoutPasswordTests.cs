@@ -70,16 +70,6 @@ public sealed class StartWithoutPasswordTests
     }
 
     [Fact]
-    public async Task RemoteVisitor_MakesNoEngineCall()
-    {
-        var handler = new CountingHandler(HttpStatusCode.OK);
-        var identity = IdentityFor(handler, Visitor("203.0.113.9"));
-
-        Assert.Null(await identity.GetThisComputerAccountNameAsync());
-        Assert.Equal(0, handler.Calls);
-    }
-
-    [Fact]
     public async Task ForwardedVisitor_IsMarkedForTheEngineWhichRefuses()
     {
         var handler = new CountingHandler(HttpStatusCode.NotFound);

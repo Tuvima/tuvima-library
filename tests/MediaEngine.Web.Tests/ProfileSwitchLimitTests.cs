@@ -78,37 +78,6 @@ public sealed class ProfileSwitchLimitTests
     }
 
     [Fact]
-    public async Task RemoteGuessRun_DoesNotBlockHomeSwitchingIntoTheSameProfile()
-    {
-        var limiter = NewLimiter();
-        var remoteHandler = new CountingHandler(PinRequired);
-        var homeHandler = new CountingHandler(Switched);
-
-        await ExhaustAsync(Client(remoteHandler, limiter, "203.0.113.9"));
-        // Once the Dashboard limit is reached the Engine is not even asked.
-        Assert.Equal(DashboardIdentityClient.ProfilePinAttemptsPerMinute, remoteHandler.Calls);
-
-        var home = await Guess(Client(homeHandler, limiter, "192.168.1.20"), "2468");
-
-        Assert.Equal(DashboardProfileSwitchStatus.Succeeded, home.Status);
-        Assert.Equal(1, homeHandler.Calls);
-    }
-
-    [Fact]
-    public async Task HomeSwitchSuccess_LeavesTheRemoteLockInPlace()
-    {
-        var limiter = NewLimiter();
-        var remoteHandler = new CountingHandler(PinRequired);
-        var remote = Client(remoteHandler, limiter, "203.0.113.9");
-        await ExhaustAsync(remote);
-
-        Assert.Equal(DashboardProfileSwitchStatus.Succeeded, (await Guess(Client(new CountingHandler(Switched), limiter, "192.168.1.20"), "2468")).Status);
-
-        Assert.Equal(DashboardProfileSwitchStatus.TooManyAttempts, (await Guess(remote, "2468")).Status);
-        Assert.Equal(DashboardIdentityClient.ProfilePinAttemptsPerMinute, remoteHandler.Calls);
-    }
-
-    [Fact]
     public async Task HomeGuessRun_IsStillLimitedForHomeCallers()
     {
         var limiter = NewLimiter();

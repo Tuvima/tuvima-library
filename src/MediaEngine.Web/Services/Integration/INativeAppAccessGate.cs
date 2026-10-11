@@ -10,7 +10,7 @@ public interface INativeAppAccessGate
 
 /// <summary>
 /// Reads the <c>native_app_access</c> network setting from <c>config/network.json</c>, the same file the Engine
-/// saves. Apps are admitted only while the setting is on and who can connect is Anywhere (the verified secure path).
+/// saves. Apps are admitted while the setting is on; where the app connects from is not checked.
 /// Fails closed: a missing, unreadable or invalid file means off. The file is re-read only when it changes, so
 /// switching it off takes effect on the next request without a per-request disk parse.
 /// </summary>
@@ -40,7 +40,7 @@ public sealed class NetworkSettingsNativeAppAccessGate(DashboardConfigurationRea
                     if (info.LastWriteTimeUtc != _lastWriteUtc || info.Length != _length)
                     {
                         var settings = configuration.LoadNetwork();
-                        _enabled = settings.NativeAppAccess?.Enabled == true && settings.AllowsInternet;
+                        _enabled = settings.NativeAppAccess?.Enabled == true;
                         _lastWriteUtc = info.LastWriteTimeUtc;
                         _length = info.Length;
                     }

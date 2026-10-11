@@ -170,23 +170,6 @@ public sealed class SecureAccountAndRecentSignInTests : IDisposable
     }
 
     [Fact]
-    public async Task Confirm_WrongPasswordsFromOutside_CountTowardTheLockout()
-    {
-        var owner = await _service.BootstrapAdministratorAsync(
-            "owner@example.com", Password, "Owner", "device", "Browser", "Dashboard");
-        var remote = (await _service.AuthenticatePasswordAsync("owner@example.com", Password, "phone", "Phone", "Dashboard", ingress: ClientIngress.Remote)).IssuedSession!;
-        _clock.Advance(TimeSpan.FromMinutes(11));
-
-        for (var attempt = 0; attempt < 5; attempt++)
-        {
-            Assert.False(await _service.ConfirmWithPasswordAsync(owner.Account.Id, remote.Session.Id, "wrong password"));
-        }
-
-        Assert.False(await _service.ConfirmWithPasswordAsync(owner.Account.Id, remote.Session.Id, Password));
-        Assert.False(await _service.IsRecentlyAuthenticatedAsync(remote.Session.Id));
-    }
-
-    [Fact]
     public async Task ARevokedSession_IsNeverRecent()
     {
         var issued = await _service.BootstrapAdministratorAsync(

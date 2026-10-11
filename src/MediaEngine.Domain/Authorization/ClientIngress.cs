@@ -2,7 +2,7 @@ namespace MediaEngine.Domain.Authorization;
 
 /// <summary>
 /// Where a request physically came from, as one shared vocabulary for the Dashboard, the Engine and stored
-/// sessions. Anything unknown or missing is <see cref="Remote"/> so the rule always fails closed.
+/// sessions. Network location is no longer restricted, so anything other than this computer counts as the home network.
 /// </summary>
 public static class ClientIngress
 {
@@ -10,12 +10,11 @@ public static class ClientIngress
     public const string HomeNetwork = "home_network";
     public const string Remote = "remote";
 
-    /// <summary>Normalises a wire value; unknown or missing values become <see cref="Remote"/>.</summary>
+    /// <summary>Normalises a wire value; anything other than this computer becomes the home network.</summary>
     public static string Parse(string? value) => value?.Trim().ToLowerInvariant() switch
     {
         ThisComputer => ThisComputer,
-        HomeNetwork => HomeNetwork,
-        _ => Remote,
+        _ => HomeNetwork,
     };
 
     /// <summary>How far from the computer the request is: 0 this computer, 1 home network, 2 anywhere else.</summary>

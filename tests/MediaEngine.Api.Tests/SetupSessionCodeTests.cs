@@ -68,18 +68,6 @@ public sealed class SetupSessionCodeTests : IDisposable
         Assert.NotNull(result.Started);
     }
 
-    [Theory]
-    [InlineData(ClientIngressValues.Remote)]
-    [InlineData(null)]
-    [InlineData("something-else")]
-    public async Task PublicAddressVisitor_IsRefused(string? ingress)
-    {
-        var result = await _sessions.BeginAsync(ingress, CancellationToken.None);
-
-        Assert.Null(result.Started);
-        Assert.Equal(SetupBeginRefusalReasons.RemoteRefused, result.Refusal?.Reason);
-    }
-
     [Fact]
     public async Task SecondSuccessfulBegin_EndsTheFirstSession()
     {
@@ -101,15 +89,6 @@ public sealed class SetupSessionCodeTests : IDisposable
         Assert.True(result.IsAlreadyConfigured);
         Assert.Null(result.Started);
         Assert.Null(result.Refusal);
-    }
-
-    [Fact]
-    public async Task BeginEndpoint_WithoutABody_IsTreatedAsRemote()
-    {
-        var (status, body) = await PostBeginAsync(requestBody: null);
-
-        Assert.Equal(StatusCodes.Status403Forbidden, status);
-        Assert.Equal(SetupBeginRefusalReasons.RemoteRefused, body.GetProperty("reason").GetString());
     }
 
     [Fact]

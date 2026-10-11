@@ -298,8 +298,7 @@ public static class AuthenticationEndpoints
 
         group.MapPost("/session/validate", async (HttpRequest request, IFirstPartyIdentityService identity, DashboardAuthorityProjector projector, CancellationToken ct) =>
         {
-            // Only the Dashboard (the service credential) may say where the browser is. Any other caller, or a
-            // missing header, is treated as outside the home, so the rule fails closed.
+            // Only the Dashboard (the service credential) may say where the browser is; it is recorded but not enforced.
             var isDashboard = request.HttpContext.User.HasClaim(TuvimaClaimTypes.DashboardService, "true");
             var currentIngress = isDashboard
                 ? ClientIngress.Parse(request.Headers[ClientIngressValues.ValidateHeader].ToString())
@@ -1036,28 +1035,13 @@ public static class AuthenticationEndpoints
         IsPasskeyAvailable(configuration.LoadCore().Auth, configuration.LoadNetwork(), originalClientIngress, originalClientIsHttps);
 
     /// <summary>
-    /// The one door rule for sign-in. A client on this computer or the home network is allowed whenever the method is
-    /// enabled; a client from outside is allowed only when "who can connect" is Anywhere, and only over HTTPS.
+    /// Sign-in is allowed whenever the method is enabled. Where the client connects from is no longer checked.
     /// </summary>
     internal static bool AllowsClient(
         NetworkSettings network,
         string? originalClientIngress,
         bool originalClientIsHttps,
-        bool methodEnabled)
-    {
-        var ingress = ClientIngress.Parse(originalClientIngress);
-        return methodEnabled
-            && ClientIngress.Rank(ingress) <= WhoCanConnectRank(network.WhoCanConnect)
-            && (ingress != ClientIngress.Remote || originalClientIsHttps);
-    }
-
-    // An unknown setting is the most restrictive (fail closed), matching the Dashboard's ExposurePolicy.
-    private static int WhoCanConnectRank(string? whoCanConnect) => whoCanConnect?.Trim().ToLowerInvariant() switch
-    {
-        WhoCanConnectModes.Anywhere => 2,
-        WhoCanConnectModes.HomeNetwork => 1,
-        _ => 0,
-    };
+        bool methodEnabled) => methodEnabled;
 
     internal static bool IsPasskeyAvailable(
         AuthSettings policy,
