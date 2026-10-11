@@ -10,7 +10,7 @@ public static class ClientIngress
     public const string HomeNetwork = "home_network";
     public const string Remote = "remote";
 
-    /// <summary>Normalises a wire value; unknown or missing values become <see cref="Remote"/>.</summary>
+    /// <summary>Normalises a wire value; anything other than this computer becomes the home network.</summary>
     public static string Parse(string? value) => value?.Trim().ToLowerInvariant() switch
     {
         ThisComputer => ThisComputer,

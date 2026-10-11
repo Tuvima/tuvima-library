@@ -97,12 +97,24 @@ public sealed class IngressClassifier
     /// </summary>
     public IngressKind Classify(IPAddress? address, int localPort)
     {
-        if (address is not null && IPAddress.IsLoopback(address.IsIPv4MappedToIPv6 ? address.MapToIPv4() : address))
+        // Anything on the proxy port, or relayed by a configured proxy (a tunnel on this computer looks like loopback),
+        // is not "this computer" even though nothing is refused any more: setup and the no-password start key on it.
+        if ((_proxyPort is int proxyPort && localPort == proxyPort) || address is null)
         {
-            return IngressKind.ThisComputer;
+            return IngressKind.HomeNetwork;
         }
 
-        return IngressKind.HomeNetwork;
+        if (address.IsIPv4MappedToIPv6)
+        {
+            address = address.MapToIPv4();
+        }
+
+        if (IsConfiguredProxy(address))
+        {
+            return IngressKind.HomeNetwork;
+        }
+
+        return IPAddress.IsLoopback(address) ? IngressKind.ThisComputer : IngressKind.HomeNetwork;
     }
 
     private bool IsConfiguredProxy(IPAddress address) =>

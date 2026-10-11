@@ -25,9 +25,8 @@ public sealed class SetupSessionService(
 
     /// <summary>
     /// Starts setup. A visitor on this computer or on a private home-network address can begin without a code: the
-    /// person setting up a server is on their own network, and the server's owner can always redo setup. Anyone
-    /// else (a public address, an unknown origin) is refused, so an install that is accidentally exposed cannot be
-    /// claimed from outside. Setup codes are no longer used. A successful
+    /// person setting up a server is on their own network, and the server's owner can always redo setup. The visitor's place is
+    /// recorded for the session but no longer decides whether setup may begin. Setup codes are no longer used. A successful
     /// begin ends every earlier setup session.
     /// </summary>
     public async Task<SetupBeginResult> BeginAsync(string? clientIngress, CancellationToken ct)

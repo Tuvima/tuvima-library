@@ -415,8 +415,8 @@ if (proxyPort is null
 {
     app.Logger.LogWarning(
         "Trusted proxies are configured but no proxy port is set (remote.proxy_port). Forwarded headers are ignored " +
-        "on the main port, so point the reverse proxy at a proxy port or its visitors will look like one shared remote address " +
-        "and sign-in is refused for them.");
+        "on the main port, so point the reverse proxy at a proxy port or its visitors will look like one shared address " +
+        "(the reverse proxy's own).");
 }
 
 // Forwarded scheme/client information must be established before HSTS,

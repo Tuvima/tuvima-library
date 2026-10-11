@@ -302,25 +302,6 @@ public sealed class FirstPartyIdentityServiceTests : IDisposable
             "SELECT COUNT(*) FROM identity_audit_events WHERE event_type='other_sessions_revoked' AND succeeded=1;"));
     }
 
-    [Fact]
-    public async Task HomeFailures_NeverLockRemoteSignIn()
-    {
-        await _service.BootstrapAdministratorAsync(
-            "owner@example.com", "correct horse battery staple", "Owner", "browser-1", "Living room", "Dashboard");
-
-        for (var index = 0; index < 20; index++)
-        {
-            await _service.AuthenticatePasswordAsync(
-                "owner@example.com", "wrong password", $"home-{index}", "Living room", "Dashboard",
-                ingress: ClientIngress.HomeNetwork);
-        }
-
-        var remote = await _service.AuthenticatePasswordAsync(
-            "owner@example.com", "correct horse battery staple", "away-1", "Phone", "Dashboard",
-            ingress: ClientIngress.Remote);
-        Assert.True(remote.Succeeded);
-    }
-
     [Theory]
     [InlineData("ProfileEntry")]
     [InlineData("ProfilePin")]
@@ -411,21 +392,6 @@ public sealed class FirstPartyIdentityServiceTests : IDisposable
         });
         await _service.SetProfilePinAsync(kid.Id, "2468");
         return (bootstrap, kid);
-    }
-
-    [Fact]
-    public async Task SwitchProfilePinGuesses_FromAHomeSession_NeverLock()
-    {
-        var (session, kid) = await SessionWithPinProfileAsync(ClientIngress.HomeNetwork);
-
-        for (var index = 0; index < 20; index++)
-        {
-            await Assert.ThrowsAsync<ProfilePinRequiredException>(() =>
-                _service.SwitchActiveProfileAsync(session.PlaintextToken, kid.Id, "0000"));
-        }
-
-        var switched = await _service.SwitchActiveProfileAsync(session.PlaintextToken, kid.Id, "2468");
-        Assert.Equal(kid.Id, switched.ActiveProfile.Id);
     }
 
     [Fact]
@@ -977,5 +943,30 @@ public sealed class FirstPartyIdentityServiceTests : IDisposable
     {
         public AuthSettings Settings { get; } = new();
         public AuthSettings GetCurrent() => Settings;
+    }
+
+    [Theory]
+    [InlineData(ClientIngress.HomeNetwork)]
+    [InlineData(ClientIngress.ThisComputer)]
+    public async Task PasswordFailures_LockCredentialAfterFiveAttemptsFromAnywhere(string ingress)
+    {
+        await _service.BootstrapAdministratorAsync(
+            "owner@example.com", "correct horse battery staple", "Owner", "browser-1", "Living room", "Dashboard");
+
+        AuthenticationAttemptResult? attempt = null;
+        for (var index = 0; index < 5; index++)
+        {
+            attempt = await _service.AuthenticatePasswordAsync(
+                "owner@example.com", "wrong password", $"browser-{index}", "Unknown", "Dashboard", ingress: ingress);
+        }
+
+        Assert.NotNull(attempt);
+        Assert.False(attempt.Succeeded);
+        Assert.True(attempt.LockedOut);
+
+        var correctWhileLocked = await _service.AuthenticatePasswordAsync(
+            "owner@example.com", "correct horse battery staple", "browser-6", "Office", "Dashboard", ingress: ingress);
+        Assert.False(correctWhileLocked.Succeeded);
+        Assert.True(correctWhileLocked.LockedOut);
     }
 }

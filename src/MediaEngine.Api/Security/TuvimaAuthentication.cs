@@ -133,8 +133,7 @@ public sealed class TuvimaAuthenticationHandler(
             if (Request.Headers.TryGetValue(TuvimaAuthDefaults.SessionHeader, out var sessionValues)
                 && !string.IsNullOrWhiteSpace(sessionValues.ToString()))
             {
-                // The Dashboard says where the visitor is when it knows; an account that works only on this computer
-                // is refused when it does not.
+                // The Dashboard says where the visitor is when it knows; the place is recorded but no longer restricts access.
                 var claimedIngress = Request.Headers.TryGetValue(ClientIngressValues.ValidateHeader, out var ingressValues)
                     && !string.IsNullOrWhiteSpace(ingressValues.ToString())
                     ? ClientIngress.Parse(ingressValues.ToString())
