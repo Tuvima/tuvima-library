@@ -17,7 +17,7 @@ public static class DashboardAuthenticationEndpoints
         this WebApplication app,
         IReadOnlyList<RegisteredExternalAuthProvider> externalProviders)
     {
-        app.MapGet("/auth/login", async (HttpContext context, DashboardIdentityClient identity, IAntiforgery antiforgery, string? returnUrl) =>
+        app.MapGet("/auth/login", async (HttpContext context, DashboardIdentityClient identity, IAntiforgery antiforgery, string? returnUrl, string? signedOut) =>
         {
             if (context.User.Identity?.IsAuthenticated == true)
             {
@@ -35,11 +35,27 @@ public static class DashboardAuthenticationEndpoints
                 return Results.Redirect("/setup");
             }
 
-            var tokens = antiforgery.GetAndStoreTokens(context);
             var deviceId = EnsureDeviceCookie(context);
+            // Only asked on this computer or the home network; anywhere else the Engine never says the account exists.
+            // After an explicit sign-out the person chooses to go back in, so they are not signed straight back in.
+            string? thisComputerName = null;
+            if (string.IsNullOrEmpty(signedOut))
+            {
+                var started = await StartWithoutPasswordAsync(
+                    context, deviceId, SafeReturnUrl(returnUrl),
+                    identity.GetThisComputerAccountNameAsync, identity.SignInThisComputerAsync).ConfigureAwait(false);
+                if (started is not null)
+                {
+                    return started;
+                }
+            }
+            else
+            {
+                thisComputerName = await identity.GetThisComputerAccountNameAsync(context.RequestAborted).ConfigureAwait(false);
+            }
+
+            var tokens = antiforgery.GetAndStoreTokens(context);
             var methods = await identity.GetSignInMethodsAsync(context.RequestAborted).ConfigureAwait(false);
-            // Only asked on this computer; anywhere else the Engine never says the account exists.
-            var thisComputerName = await identity.GetThisComputerAccountNameAsync(context.RequestAborted).ConfigureAwait(false);
             return Results.Content(
                 LoginPage(
                     tokens.RequestToken ?? string.Empty,
@@ -437,7 +453,7 @@ public static class DashboardAuthenticationEndpoints
             }
 
             await context.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme).ConfigureAwait(false);
-            return Results.Redirect("/auth/login");
+            return Results.Redirect(SignedOutRedirect);
         });
 
 
@@ -562,8 +578,13 @@ public static class DashboardAuthenticationEndpoints
         return value;
     }
 
-    private static string SafeReturnUrl(string? value) =>
-        !string.IsNullOrWhiteSpace(value) && value.StartsWith('/') && !value.StartsWith("//", StringComparison.Ordinal)
+    /// <summary>Where an explicit sign-out lands: the sign-in page, which does not sign a passwordless account straight back in.</summary>
+    internal const string SignedOutRedirect = "/auth/login?signedOut=1";
+
+    internal static string SafeReturnUrl(string? value) =>
+        !string.IsNullOrWhiteSpace(value) && value.StartsWith('/')
+        && !value.StartsWith("//", StringComparison.Ordinal) && !value.StartsWith("/\\", StringComparison.Ordinal)
+        && !value.Any(char.IsControl)
             ? value
             : "/";
 
@@ -609,7 +630,7 @@ public static class DashboardAuthenticationEndpoints
             ? string.Empty
             : $"""
               <form method="post"><input type="hidden" name="__RequestVerificationToken" value="{H(token)}"><input type="hidden" name="action" value="this-computer"><input type="hidden" name="returnUrl" value="{H(returnUrl)}">
-              <button id="continue-on-this-computer">Continue as {H(thisComputerName)}</button></form>
+              <button id="continue-on-this-computer">Go back in as {H(thisComputerName)}</button></form>
               <p class="supporting">This computer only. Add a password later to use Tuvima on other devices.</p>
               """;
         var form = $"""
@@ -625,6 +646,33 @@ public static class DashboardAuthenticationEndpoints
               """;
 
         return Shell(form);
+    }
+
+    /// <summary>
+    /// While the account has no password there is nothing to type: when the Engine says this visitor (on this computer or
+    /// the home network, not behind a proxy) may continue without one, sign in straight away and go to the profile picker
+    /// when several people share the library, otherwise Home. Null means show the normal sign-in page: a password exists,
+    /// the visitor is remote, or the Engine could not be reached.
+    /// </summary>
+    internal static async Task<IResult?> StartWithoutPasswordAsync(
+        HttpContext context,
+        string deviceId,
+        string returnUrl,
+        Func<CancellationToken, Task<string?>> accountName,
+        Func<ThisComputerSignInRequest, CancellationToken, Task<AuthSessionResponse?>> signIn)
+    {
+        if (await accountName(context.RequestAborted).ConfigureAwait(false) is null)
+        {
+            return null;
+        }
+
+        var issued = await signIn(new ThisComputerSignInRequest
+        {
+            DeviceId = deviceId,
+            DeviceName = SanitizeDeviceName(context.Request.Headers.UserAgent.ToString()),
+            Client = "Tuvima Library Dashboard",
+        }, context.RequestAborted).ConfigureAwait(false);
+        return issued is null ? null : await FinishSignInAsync(context, issued, returnUrl).ConfigureAwait(false);
     }
 
     /// <summary>Signs the browser in with the session the Engine issued, then sends the person where they were going.</summary>

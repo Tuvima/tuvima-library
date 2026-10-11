@@ -55,7 +55,7 @@ public sealed class FirstPartyIdentityService(
     public Task<SessionIssueResult> BootstrapThisComputerAdministratorAsync(string email, string displayName, string deviceId, string deviceName, string client, CancellationToken ct = default, string? pin = null) =>
         BootstrapCoreAsync(email, null, displayName, deviceId, deviceName, client, pin, ClientIngress.ThisComputer, ct);
 
-    public async Task<SessionIssueResult?> SignInThisComputerAccountAsync(string deviceId, string deviceName, string client, CancellationToken ct = default)
+    public async Task<SessionIssueResult?> SignInThisComputerAccountAsync(string deviceId, string deviceName, string client, string? clientIngress = null, CancellationToken ct = default)
     {
         var account = await FindThisComputerAccountAsync(ct).ConfigureAwait(false);
         if (account is null)
@@ -63,8 +63,16 @@ public sealed class FirstPartyIdentityService(
             return null;
         }
 
-        var profile = await GetDefaultProfileAsync(account.Id, ct).ConfigureAwait(false);
-        var issued = await IssueSessionAsync(account, profile, ThisComputerStamp, ThisComputerMethod, deviceId, deviceName, client, ClientIngress.ThisComputer, ct).ConfigureAwait(false);
+        // Record where the person really is (this computer or the home network); anything else is not allowed here.
+        var ingress = clientIngress is null ? ClientIngress.ThisComputer : ClientIngress.Parse(clientIngress);
+        if (!ClientIngress.IsLocal(ingress))
+        {
+            return null;
+        }
+
+        var (profile, chooseProfile, profilePending) = await ResolveStartingProfileAsync(account.Id, deviceId, ct).ConfigureAwait(false);
+        var issued = (await IssueSessionAsync(account, profile, ThisComputerStamp, ThisComputerMethod, deviceId, deviceName, client, ingress, ct).ConfigureAwait(false)) with { ChooseProfile = chooseProfile };
+        await MarkPendingAsync(issued, profilePending, ct).ConfigureAwait(false);
         await AuditAsync(account.Id, profile.Id, issued.Session.Id, "login_this_computer", true, null, ct).ConfigureAwait(false);
         return issued;
     }
