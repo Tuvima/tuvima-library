@@ -132,13 +132,13 @@ public sealed class DashboardIdentityClient(
     private HttpRequestMessage? ThisComputerRequest(HttpMethod method)
     {
         var context = contextAccessor?.HttpContext;
-        if (context is null || IngressClassifierExtensions.FromWireValue(CurrentIngress(context)) != IngressKind.ThisComputer)
+        if (context is null || IngressClassifierExtensions.FromWireValue(CurrentIngress(context)) == IngressKind.Remote)
         {
             return null;
         }
 
         var request = new HttpRequestMessage(method, "/auth/this-computer");
-        request.Headers.TryAddWithoutValidation(ClientIngressValues.ValidateHeader, ClientIngressValues.ThisComputer);
+        request.Headers.TryAddWithoutValidation(ClientIngressValues.ValidateHeader, CurrentIngress(context));
         if (context.WasForwarded())
         {
             request.Headers.TryAddWithoutValidation(ClientIngressValues.ForwardedHeader, "true");

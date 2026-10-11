@@ -11,11 +11,11 @@
     </header>
 
     <SettingsSectionPanel Title="Who can connect" Icon="@AppMaterialIcons.Outlined.Public"
-                          Description="One rule for every sign-in, page and app. Remote visitors always need a secure HTTPS path.">
+                          Description="One rule for every sign-in, page and app. New installs start on Home network. Anywhere is always your choice, and needs a secure HTTPS path.">
         <div class="network-mode-list" role="radiogroup" aria-label="Who can connect">
-            @Who("this_computer", "This computer", "Only a browser on this computer.")
-            @Who("home_network", "Home network", "Devices on your home Wi-Fi or network.")
-            @Who("anywhere", "Anywhere", "Also from the internet, through a secure address.", !AnywhereReady)
+            @Who("this_computer", "This computer", "Only a browser on the computer that runs Tuvima. Other devices are turned away.")
+            @Who("home_network", "Home network", "Phones, TVs and computers on your home Wi-Fi or network. This is the starting choice.")
+            @Who("anywhere", "Anywhere", "Also from the internet, through a secure address. Off until you turn it on.", !AnywhereReady)
         </div>
         @if (_secureAccountFirst)
         {

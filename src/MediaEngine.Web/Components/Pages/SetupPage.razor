@@ -370,12 +370,11 @@
     private void CancelRestore() { _showRestore = false; _backup = null; }
     private async Task UploadBackupAsync(InputFileChangeEventArgs args) { _busy = true; try { await using var stream = args.File.OpenReadStream(2L * 1024 * 1024 * 1024); _backup = await ApiClient.UploadSetupBackupAsync(stream, args.File.Name, _setupSession ?? string.Empty); if (_backup is null) Snackbar.Add("The backup failed validation.", AppSeverity.Error); } finally { _busy = false; } }
     private async Task ConfirmRestoreAsync() { if (_backup is null || _setupSession is null) return; _busy = true; var result = await ApiClient.ConfirmSetupRestoreAsync(_backup.OperationId, _setupSession); _busy = false; if (result is null) Snackbar.Add("The restore could not be scheduled.", AppSeverity.Error); else Snackbar.Add("Restore scheduled. Tuvima Library is restarting.", AppSeverity.Info); }
-    // The no-password start is offered only to a visitor on the computer that runs Tuvima: not a container, not another
-    // device, and not someone a tunnel or proxy on this computer may be relaying. The Engine checks all of this again.
+    // The no-password start is offered to a visitor on this computer or the home network, never to one a tunnel or
+    // proxy may be relaying. The Engine checks all of this again.
     private bool ThisComputerAvailable =>
-        MediaEngine.Web.Services.Configuration.IngressClassifierExtensions.FromWireValue(ClientIngress) == MediaEngine.Web.Services.Configuration.IngressKind.ThisComputer
-        && !ClientForwarded
-        && _preflight?.RunningInContainer != true;
+        MediaEngine.Web.Services.Configuration.IngressClassifierExtensions.FromWireValue(ClientIngress) != MediaEngine.Web.Services.Configuration.IngressKind.Remote
+        && !ClientForwarded;
     private bool UsesThisComputer => ThisComputerAvailable && _signInMode == SetupSignInModes.ThisComputer;
     private string _signInMode = string.Empty;
     private string? _signInNotice;

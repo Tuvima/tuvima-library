@@ -6,13 +6,12 @@ using MediaEngine.Domain.Contracts;
 namespace MediaEngine.Api.Services.Security;
 
 /// <summary>
-/// Who may start without a password. Only a visitor on this computer, and never on a container install: a desktop
-/// owner can begin with a name and email, while a server or NAS always asks for a password.
+/// Who may start without a password: a visitor on this computer or on the home network. Without a password the
+/// account never works from outside, and cannot open the door to Anywhere.
 /// </summary>
 public static class ThisComputerAccess
 {
-    public static bool IsAvailable(string? clientIngress, bool inContainer) =>
-        !inContainer && ClientIngress.Parse(clientIngress) == ClientIngress.ThisComputer;
+    public static bool IsAvailable(string? clientIngress) => ClientIngress.IsLocal(clientIngress);
 }
 
 /// <summary>
@@ -23,7 +22,7 @@ public static class ThisComputerAccess
 public sealed class SecureAccountGate(IUsableAdministratorService administrators)
 {
     public const string Code = "secure_account_first";
-    public const string Message = "Add a password or passkey to your account first. Until then Tuvima only works on this computer.";
+    public const string Message = "Add a password or passkey to your account first. Until then Tuvima only works on your home network.";
 
     /// <summary>True while every enabled administrator is a this-computer-only account.</summary>
     public Task<bool> IsLockedAsync(CancellationToken ct) => administrators.OnlyThisComputerAdministratorsAsync(ct);

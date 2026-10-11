@@ -24,9 +24,11 @@ public sealed class SetupSessionService(
     private string _currentSessionIngress = ClientIngress.Remote;
 
     /// <summary>
-    /// Starts setup. A visitor on this computer needs nothing; a visitor on the home network needs the
-    /// one-time setup code from <c>tuvima-admin setup code</c>; anyone else is refused, because setup is
-    /// never done over the internet. A successful begin ends every earlier setup session.
+    /// Starts setup. A visitor on this computer or on a private home-network address can begin without a code: the
+    /// person setting up a server is on their own network, and the server's owner can always redo setup. Anyone
+    /// else (a public address, an unknown origin) is refused, so an install that is accidentally exposed cannot be
+    /// claimed from outside. <paramref name="setupCode"/> is accepted for older clients and ignored. A successful
+    /// begin ends every earlier setup session.
     /// </summary>
     public async Task<SetupBeginResult> BeginAsync(string? clientIngress, string? setupCode, CancellationToken ct)
     {
@@ -46,32 +48,13 @@ public sealed class SetupSessionService(
                     "Setup has to be finished from your home network.");
             }
 
-            var codeRequired = ingress != ClientIngress.ThisComputer;
-            if (codeRequired && string.IsNullOrWhiteSpace(setupCode))
-            {
-                return SetupBeginResult.Refused(
-                    SetupBeginRefusalReasons.CodeRequired,
-                    "Enter the setup code from your server to continue.");
-            }
-
             var plaintextSession = Token(32);
             var sessionHash = Convert.ToHexStringLower(Hash(plaintextSession));
             var expires = timeProvider.GetUtcNow().AddHours(12);
-            // The code is used up in the same transaction that starts the session.
-            var (started, check) = await repository.TryBeginAsync(
-                sessionHash, Guid.NewGuid(), expires, setupCode, codeRequired, timeProvider.GetUtcNow(), ct).ConfigureAwait(false);
+            var started = await repository.TryBeginAsync(sessionHash, Guid.NewGuid(), expires, ct).ConfigureAwait(false);
             if (!started)
             {
-                return check is null || check == SetupCodeCheck.Accepted
-                    ? SetupBeginResult.AlreadyConfigured
-                    : SetupBeginResult.Refused(
-                        SetupBeginRefusalReasons.CodeInvalid,
-                        check switch
-                        {
-                            SetupCodeCheck.Wrong => "That setup code isn't right. Check it and try again.",
-                            SetupCodeCheck.TooManyAttempts => "Too many wrong codes. Generate a new setup code on your server.",
-                            _ => "There is no valid setup code. Generate a new one on your server.",
-                        });
+                return SetupBeginResult.AlreadyConfigured;
             }
 
             _currentSessionHash = sessionHash;
@@ -87,12 +70,12 @@ public sealed class SetupSessionService(
         }
     }
 
-    /// <summary>True when the setup session identified by <paramref name="token"/> was begun from this computer.</summary>
-    public bool BeganFromThisComputer(string? token) =>
+    /// <summary>True when the setup session identified by <paramref name="token"/> was begun on this computer or the home network.</summary>
+    public bool BeganLocally(string? token) =>
         !string.IsNullOrWhiteSpace(token)
         && _currentSessionHash is not null
         && string.Equals(_currentSessionHash, Convert.ToHexStringLower(Hash(token)), StringComparison.Ordinal)
-        && _currentSessionIngress == ClientIngress.ThisComputer;
+        && ClientIngress.IsLocal(_currentSessionIngress);
 
     public async Task<bool> ValidateSessionAsync(string? token, CancellationToken ct)
     {

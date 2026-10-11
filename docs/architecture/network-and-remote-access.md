@@ -29,7 +29,7 @@ knowledge.
 ## Source of truth
 
 Desired state lives in `config/network.json` and is validated against
-`config/schemas/network.schema.json`. `who_can_connect` (`this_computer`, `home_network` or `anywhere`) is the single door rule that replaces the old remote on/off switch and the sign-in remote toggles: the Dashboard's exposure policy refuses any request from farther away than it allows, before routing, authentication or static files. Schema 2.0 includes the Dashboard port,
+`config/schemas/network.schema.json`. `who_can_connect` (`this_computer`, `home_network` or `anywhere`; every shipped config, desktop and container, defaults to `home_network`, and only the no-password desktop setup or the administrator moves it to `this_computer`) is the single door rule that replaces the old remote on/off switch and the sign-in remote toggles: the Dashboard's exposure policy refuses any request from farther away than it allows, before routing, authentication or static files. Schema 2.0 includes the Dashboard port,
 binding, local discovery, remote mode, advanced router automation, custom HTTPS
 address, exact/CIDR trusted proxies, and remote-streaming policy. Supported
 remote modes are `tailscale`, `custom`, and the advanced `direct-only` mode.

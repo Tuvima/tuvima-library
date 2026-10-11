@@ -75,7 +75,7 @@ Passkeys need a secure browser origin. Development on `localhost` is allowed; ot
 
 ## Secure a this-computer account
 
-If you started Tuvima on your desktop without a password, **Settings → Account → Security** shows a **Secure your account** card. Enter a password (at least 12 characters) and confirm it. You get a new set of recovery codes, and the account becomes a normal one: it can sign in from other devices once **Who can connect** allows it. You can add a passkey afterwards. Until you do this, Tuvima will not let you open the door wider than *This computer*.
+If you started Tuvima on your desktop without a password, **Settings → Account → Security** shows a **Secure your account** card. Enter a password (at least 12 characters) and confirm it. You get a new set of recovery codes, and the account becomes a normal one: it can sign in from other devices once **Who can connect** allows it. You can add a passkey afterwards. Until you do this, Tuvima will not let you open the door wider than *This computer*. (Installs that start with a password begin on *Home network* instead.)
 
 ## Confirm it's you
 

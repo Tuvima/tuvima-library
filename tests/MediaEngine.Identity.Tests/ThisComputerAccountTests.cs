@@ -66,10 +66,10 @@ public sealed class ThisComputerAccountTests : IDisposable
 
     [Theory]
     [InlineData(ClientIngress.ThisComputer, true)]
-    [InlineData(ClientIngress.HomeNetwork, false)]
+    [InlineData(ClientIngress.HomeNetwork, true)]
     [InlineData(ClientIngress.Remote, false)]
     [InlineData("something-else", false)]
-    public async Task Session_ContinuesOnlyFromThisComputer(string currentIngress, bool allowed)
+    public async Task Session_ContinuesFromThisComputerAndTheHomeNetworkButNotOutside(string currentIngress, bool allowed)
     {
         var issued = await _service.BootstrapThisComputerAdministratorAsync(
             "owner@example.com", "Owner", "device", "Browser", "Dashboard");
@@ -110,7 +110,8 @@ public sealed class ThisComputerAccountTests : IDisposable
         Assert.NotNull(again);
         Assert.Equal(ClientIngress.ThisComputer, again!.Session.IssuedIngress);
         Assert.NotNull(await _service.ValidateSessionAsync(again.PlaintextToken, touch: false, currentIngress: ClientIngress.ThisComputer));
-        Assert.Null(await _service.ValidateSessionAsync(again.PlaintextToken, touch: false, currentIngress: ClientIngress.HomeNetwork));
+        Assert.NotNull(await _service.ValidateSessionAsync(again.PlaintextToken, touch: false, currentIngress: ClientIngress.HomeNetwork));
+        Assert.Null(await _service.ValidateSessionAsync(again.PlaintextToken, touch: false, currentIngress: ClientIngress.Remote));
     }
 
     [Fact]
