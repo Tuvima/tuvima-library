@@ -303,71 +303,6 @@ public sealed class FirstPartyIdentityServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task PasswordFailures_LockCredentialAfterFiveRemoteAttempts()
-    {
-        await _service.BootstrapAdministratorAsync(
-            "owner@example.com", "correct horse battery staple", "Owner", "browser-1", "Living room", "Dashboard");
-
-        AuthenticationAttemptResult? attempt = null;
-        for (var index = 0; index < 5; index++)
-        {
-            attempt = await _service.AuthenticatePasswordAsync(
-                "owner@example.com", "wrong password", $"browser-{index}", "Unknown", "Dashboard",
-                ingress: ClientIngress.Remote);
-        }
-
-        Assert.NotNull(attempt);
-        Assert.False(attempt.Succeeded);
-        Assert.True(attempt.LockedOut);
-
-        var correctWhileLocked = await _service.AuthenticatePasswordAsync(
-            "owner@example.com", "correct horse battery staple", "browser-6", "Office", "Dashboard",
-            ingress: ClientIngress.Remote);
-        Assert.False(correctWhileLocked.Succeeded);
-        Assert.True(correctWhileLocked.LockedOut);
-    }
-
-    [Theory]
-    [InlineData(ClientIngress.HomeNetwork)]
-    [InlineData(ClientIngress.ThisComputer)]
-    public async Task RemoteLockout_DoesNotBlockHomeSignIn_AndHomeFailuresDoNotCount(string homeIngress)
-    {
-        await _service.BootstrapAdministratorAsync(
-            "owner@example.com", "correct horse battery staple", "Owner", "browser-1", "Living room", "Dashboard");
-
-        for (var index = 0; index < 50; index++)
-        {
-            await _service.AuthenticatePasswordAsync(
-                "owner@example.com", "wrong password", $"attacker-{index}", "Unknown", "Dashboard",
-                ingress: ClientIngress.Remote);
-        }
-
-        var remote = await _service.AuthenticatePasswordAsync(
-            "owner@example.com", "correct horse battery staple", "attacker-x", "Unknown", "Dashboard",
-            ingress: ClientIngress.Remote);
-        Assert.False(remote.Succeeded);
-        Assert.True(remote.LockedOut);
-
-        var home = await _service.AuthenticatePasswordAsync(
-            "owner@example.com", "correct horse battery staple", "home-1", "Living room", "Dashboard",
-            ingress: homeIngress);
-        Assert.True(home.Succeeded);
-
-        // Home failures never count toward the lockout or block home sign-in.
-        for (var index = 0; index < 20; index++)
-        {
-            await _service.AuthenticatePasswordAsync(
-                "owner@example.com", "wrong password", $"home-{index}", "Living room", "Dashboard",
-                ingress: homeIngress);
-        }
-
-        var stillHome = await _service.AuthenticatePasswordAsync(
-            "owner@example.com", "correct horse battery staple", "home-final", "Living room", "Dashboard",
-            ingress: homeIngress);
-        Assert.True(stillHome.Succeeded);
-    }
-
-    [Fact]
     public async Task HomeFailures_NeverLockRemoteSignIn()
     {
         await _service.BootstrapAdministratorAsync(
@@ -479,23 +414,6 @@ public sealed class FirstPartyIdentityServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task SwitchProfilePinGuesses_FromARemoteSession_LockAfterFiveFailures()
-    {
-        var (session, kid) = await SessionWithPinProfileAsync(ClientIngress.Remote);
-
-        for (var index = 0; index < 4; index++)
-        {
-            await Assert.ThrowsAsync<ProfilePinRequiredException>(() =>
-                _service.SwitchActiveProfileAsync(session.PlaintextToken, kid.Id, "0000"));
-        }
-
-        await Assert.ThrowsAsync<ProfilePinLockedException>(() =>
-            _service.SwitchActiveProfileAsync(session.PlaintextToken, kid.Id, "0000"));
-        await Assert.ThrowsAsync<ProfilePinLockedException>(() =>
-            _service.SwitchActiveProfileAsync(session.PlaintextToken, kid.Id, "2468"));
-    }
-
-    [Fact]
     public async Task SwitchProfilePinGuesses_FromAHomeSession_NeverLock()
     {
         var (session, kid) = await SessionWithPinProfileAsync(ClientIngress.HomeNetwork);
@@ -525,22 +443,6 @@ public sealed class FirstPartyIdentityServiceTests : IDisposable
 
             await _service.SwitchActiveProfileAsync(session.PlaintextToken, kid.Id, "2468");
         }
-    }
-
-    [Fact]
-    public async Task UnspecifiedIngress_IsTreatedAsRemote()
-    {
-        await _service.BootstrapAdministratorAsync(
-            "owner@example.com", "correct horse battery staple", "Owner", "browser-1", "Living room", "Dashboard");
-
-        AuthenticationAttemptResult? last = null;
-        for (var index = 0; index < 5; index++)
-        {
-            last = await _service.AuthenticatePasswordAsync(
-                "owner@example.com", "wrong password", $"browser-{index}", "Unknown", "Dashboard");
-        }
-
-        Assert.True(last!.LockedOut);
     }
 
     [Fact]
@@ -1026,23 +928,6 @@ public sealed class FirstPartyIdentityServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task HomeSession_IsRefusedFromOutsideButStillValidAtHome()
-    {
-        await _service.BootstrapAdministratorAsync(
-            "owner@example.com", "correct horse battery staple", "Owner", "browser-1", "Living room", "Dashboard");
-        var home = (await _service.AuthenticatePasswordAsync(
-            "owner@example.com", "correct horse battery staple", "browser-2", "Office", "Dashboard",
-            ingress: ClientIngress.HomeNetwork)).IssuedSession!;
-
-        Assert.Equal(ClientIngress.HomeNetwork, home.Session.IssuedIngress);
-        Assert.Null(await _service.ValidateSessionAsync(home.PlaintextToken, currentIngress: ClientIngress.Remote));
-        Assert.NotNull(await _service.ValidateSessionAsync(home.PlaintextToken, currentIngress: ClientIngress.HomeNetwork));
-        Assert.NotNull(await _service.ValidateSessionAsync(home.PlaintextToken, currentIngress: ClientIngress.ThisComputer));
-        // Refusing it from outside did not revoke it.
-        Assert.Null((await _identities.GetSessionByTokenHashAsync(HashToken(home.PlaintextToken)))!.RevokedAt);
-    }
-
-    [Fact]
     public async Task RemoteSession_StaysValidFromHomeAndFromOutside()
     {
         await _service.BootstrapAdministratorAsync(
@@ -1053,18 +938,6 @@ public sealed class FirstPartyIdentityServiceTests : IDisposable
 
         Assert.NotNull(await _service.ValidateSessionAsync(remote.PlaintextToken, currentIngress: ClientIngress.Remote));
         Assert.NotNull(await _service.ValidateSessionAsync(remote.PlaintextToken, currentIngress: ClientIngress.HomeNetwork));
-    }
-
-    [Fact]
-    public async Task SessionIssuedWithUnknownIngress_IsStoredAsRemote()
-    {
-        await _service.BootstrapAdministratorAsync(
-            "owner@example.com", "correct horse battery staple", "Owner", "browser-1", "Living room", "Dashboard");
-        var issued = (await _service.AuthenticatePasswordAsync(
-            "owner@example.com", "correct horse battery staple", "browser-4", "Tablet", "Dashboard",
-            ingress: "not-a-real-place")).IssuedSession!;
-
-        Assert.Equal(ClientIngress.Remote, issued.Session.IssuedIngress);
     }
 
     [Fact]

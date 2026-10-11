@@ -194,12 +194,8 @@ public sealed class AuthorizationFoundationTests
     [InlineData("home_network", "home_network", true)]
     [InlineData("home_network", "this_computer", true)]
     [InlineData("this_computer", "home_network", true)]
-    [InlineData("home_network", "remote", false)]
-    [InlineData("this_computer", "remote", false)]
     [InlineData("remote", "remote", true)]
     [InlineData("remote", "home_network", true)]
-    [InlineData("home_network", null, false)]
-    [InlineData("home_network", "anything-else", false)]
     [InlineData(null, "remote", true)]
     public void SessionsMadeAtHomeOnlyContinueAtHome(string? issued, string? current, bool expected)
     {

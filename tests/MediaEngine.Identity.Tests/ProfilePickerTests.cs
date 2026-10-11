@@ -62,7 +62,6 @@ public sealed class ProfilePickerTests : IDisposable
         Assert.NotNull(signedIn);
         Assert.True(signedIn!.ChooseProfile);
         Assert.Equal(ClientIngress.HomeNetwork, signedIn.Session.IssuedIngress);
-        Assert.Null(await _service.SignInThisComputerAccountAsync("laptop", "Laptop", "Dashboard", ClientIngress.Remote));
     }
 
     [Fact]

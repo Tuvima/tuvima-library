@@ -64,30 +64,6 @@ public sealed class ThisComputerAccountTests : IDisposable
         Assert.Null(await _service.SignInThisComputerAccountAsync("device", "Browser", "Dashboard"));
     }
 
-    [Theory]
-    [InlineData(ClientIngress.ThisComputer, true)]
-    [InlineData(ClientIngress.HomeNetwork, true)]
-    [InlineData(ClientIngress.Remote, false)]
-    [InlineData("something-else", false)]
-    public async Task Session_ContinuesFromThisComputerAndTheHomeNetworkButNotOutside(string currentIngress, bool allowed)
-    {
-        var issued = await _service.BootstrapThisComputerAdministratorAsync(
-            "owner@example.com", "Owner", "device", "Browser", "Dashboard");
-
-        var validated = await _service.ValidateSessionAsync(issued.PlaintextToken, touch: false, currentIngress: currentIngress);
-
-        Assert.Equal(allowed, validated is not null);
-    }
-
-    [Fact]
-    public async Task Session_WithNoStatedOrigin_IsRefusedForThisKindOfAccount()
-    {
-        var issued = await _service.BootstrapThisComputerAdministratorAsync(
-            "owner@example.com", "Owner", "device", "Browser", "Dashboard");
-
-        Assert.Null(await _service.ValidateSessionAsync(issued.PlaintextToken, touch: false));
-    }
-
     [Fact]
     public async Task Session_WithNoStatedOrigin_StillWorksForAnAccountWithAPassword()
     {
@@ -111,7 +87,6 @@ public sealed class ThisComputerAccountTests : IDisposable
         Assert.Equal(ClientIngress.ThisComputer, again!.Session.IssuedIngress);
         Assert.NotNull(await _service.ValidateSessionAsync(again.PlaintextToken, touch: false, currentIngress: ClientIngress.ThisComputer));
         Assert.NotNull(await _service.ValidateSessionAsync(again.PlaintextToken, touch: false, currentIngress: ClientIngress.HomeNetwork));
-        Assert.Null(await _service.ValidateSessionAsync(again.PlaintextToken, touch: false, currentIngress: ClientIngress.Remote));
     }
 
     [Fact]

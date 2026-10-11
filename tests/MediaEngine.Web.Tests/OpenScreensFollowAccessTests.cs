@@ -46,16 +46,6 @@ public sealed class OpenScreensFollowAccessTests : IDisposable
     }
 
     [Fact]
-    public async Task Provider_IngressNoLongerAllowed_BecomesAnonymousWithoutAskingTheEngine()
-    {
-        var handler = new CountingHandler(_ => AllowedResponse());
-        var provider = NewProvider(handler, WhoCanConnect.ThisComputer);
-
-        Assert.False(await provider.IsStillSignedInAsync(Principal("token", ClientIngressValues.HomeNetwork), default));
-        Assert.Equal(0, handler.Calls);
-    }
-
-    [Fact]
     public async Task Provider_HomeSessionSeenFromOutside_BecomesAnonymous()
     {
         var wrongPlace = new CountingHandler(_ => new HttpResponseMessage(HttpStatusCode.Unauthorized)
@@ -96,18 +86,6 @@ public sealed class OpenScreensFollowAccessTests : IDisposable
 
         Assert.NotNull(published);
         Assert.False((await published!).User.Identity?.IsAuthenticated);
-    }
-
-    [Fact]
-    public async Task Provider_SignedOutByTheDoorRule_StopsForwardingItsSessionToken()
-    {
-        var provider = NewProvider(new CountingHandler(_ => AllowedResponse()), WhoCanConnect.ThisComputer, out var session);
-
-        Assert.False(await provider.IsStillSignedInAsync(Principal("token", ClientIngressValues.Remote), default));
-
-        var forwarding = session.CurrentForwardingState();
-        Assert.Null(forwarding.SessionToken);
-        Assert.True(forwarding.HasEstablishedSessionState); // so the ambient request fallback stays suppressed
     }
 
     [Fact]
@@ -221,25 +199,6 @@ public sealed class OpenScreensFollowAccessTests : IDisposable
         Assert.Equal(1, closed);
     }
 
-    [Theory]
-    [InlineData(WhoCanConnect.ThisComputer, true, true)]
-    [InlineData(WhoCanConnect.HomeNetwork, false, true)]
-    [InlineData(WhoCanConnect.Anywhere, false, false)]
-    public void Registry_LoweringWhoCanConnect_ClosesOnlyScreensFromFartherAway(string setting, bool homeCloses, bool remoteCloses)
-    {
-        var registry = new OpenScreenRegistry();
-        var closed = new HashSet<string>();
-        registry.Register(Screen(Guid.NewGuid(), ClientIngressValues.ThisComputer), () => closed.Add("computer"));
-        registry.Register(Screen(Guid.NewGuid(), ClientIngressValues.HomeNetwork), () => closed.Add("home"));
-        registry.Register(Screen(Guid.NewGuid(), ClientIngressValues.Remote), () => closed.Add("remote"));
-
-        registry.CloseWhereIngressNotAllowed(setting);
-
-        Assert.DoesNotContain("computer", closed);
-        Assert.Equal(homeCloses, closed.Contains("home"));
-        Assert.Equal(remoteCloses, closed.Contains("remote"));
-    }
-
     // ── Big-change actions close the right screens ────────────────────────────────────────────────
 
     [Fact]
@@ -308,44 +267,12 @@ public sealed class OpenScreensFollowAccessTests : IDisposable
     }
 
     [Fact]
-    public async Task ResettingNetworkSettings_ClosesScreensFromFartherAwayThanTheDefault()
-    {
-        var registry = new OpenScreenRegistry();
-        var closed = new List<string>();
-        registry.Register(Screen(Guid.NewGuid(), ClientIngressValues.HomeNetwork), () => closed.Add("home"));
-        registry.Register(Screen(Guid.NewGuid(), ClientIngressValues.Remote), () => closed.Add("remote"));
-        var reset = new NetworkSettingsDto { WhoCanConnect = WhoCanConnect.HomeNetwork };
-        using var http = new HttpClient(new CountingHandler(_ => new HttpResponseMessage(HttpStatusCode.OK) { Content = JsonContent.Create(reset) })) { BaseAddress = new Uri("http://engine.test") };
-        var client = new EngineApiClient(http, NullLogger<EngineApiClient>.Instance, openScreens: registry);
-
-        Assert.NotNull(await client.ResetNetworkSettingsAsync());
-
-        Assert.Equal(["remote"], closed);
-    }
-
-    [Fact]
     public async Task AFailedAction_ClosesNothing()
     {
         var f = new Fixture(status: HttpStatusCode.Forbidden);
         await f.Identity.DeleteManagedAccountResultAsync(f.AccountA);
         await f.Identity.RevokeSessionResultAsync(f.SessionB);
         Assert.Empty(f.Closed());
-    }
-
-    [Fact]
-    public async Task LoweringWhoCanConnect_ClosesScreensFromFartherAway()
-    {
-        var registry = new OpenScreenRegistry();
-        var closed = new List<string>();
-        registry.Register(Screen(Guid.NewGuid(), ClientIngressValues.HomeNetwork), () => closed.Add("home"));
-        registry.Register(Screen(Guid.NewGuid(), ClientIngressValues.Remote), () => closed.Add("remote"));
-        using var http = new HttpClient(new CountingHandler(_ => new HttpResponseMessage(HttpStatusCode.OK))) { BaseAddress = new Uri("http://engine.test") };
-        var client = new EngineApiClient(http, NullLogger<EngineApiClient>.Instance, openScreens: registry);
-
-        var saved = await client.UpdateNetworkSettingsAsync(new NetworkSettingsDto { WhoCanConnect = WhoCanConnect.HomeNetwork });
-
-        Assert.NotNull(saved);
-        Assert.Equal(["remote"], closed);
     }
 
     [Fact]

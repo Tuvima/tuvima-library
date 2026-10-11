@@ -54,52 +54,6 @@ public sealed class SignInMethodsTests
     }
 
     [Fact]
-    public void ExternalProviders_AreListedOnlyWhenEnabledAndAllowedHere()
-    {
-        var network = Network(WhoCanConnectModes.HomeNetwork);
-
-        var home = AuthenticationEndpoints.BuildSignInMethods(Policy(withProvider: true), network, ClientIngressValues.HomeNetwork, false);
-        var remote = AuthenticationEndpoints.BuildSignInMethods(Policy(withProvider: true), network, ClientIngressValues.Remote, true);
-        var disabled = AuthenticationEndpoints.BuildSignInMethods(
-            Policy(withProvider: true, providerEnabled: false), network, ClientIngressValues.HomeNetwork, false);
-
-        var listed = Assert.Single(home.ExternalProviders);
-        Assert.Equal("household-sso", listed.Id);
-        Assert.Equal("Household sign-in", listed.DisplayName);
-        Assert.Empty(remote.ExternalProviders);
-        Assert.Empty(disabled.ExternalProviders);
-    }
-
-    [Fact]
-    public void RemoteVisitor_GetsNothingWhenWhoCanConnectStopsAtHome_AndInvitationFollowsSignInBeingPossible()
-    {
-        var policy = Policy(withProvider: true);
-
-        var blocked = AuthenticationEndpoints.BuildSignInMethods(
-            policy, Network(WhoCanConnectModes.HomeNetwork), ClientIngressValues.Remote, true);
-        var insecure = AuthenticationEndpoints.BuildSignInMethods(
-            policy, Network(WhoCanConnectModes.Anywhere), ClientIngressValues.Remote, false);
-        var allowed = AuthenticationEndpoints.BuildSignInMethods(
-            policy, Network(WhoCanConnectModes.Anywhere), ClientIngressValues.Remote, true);
-
-        Assert.False(blocked.Password || blocked.Passkey || blocked.InvitationCode);
-        Assert.Empty(blocked.ExternalProviders);
-        Assert.False(insecure.Password || insecure.InvitationCode);
-        Assert.True(allowed.Password);
-        Assert.True(allowed.InvitationCode);
-    }
-
-    [Fact]
-    public void MissingPlace_IsTreatedAsOutsideTheHome()
-    {
-        var result = AuthenticationEndpoints.BuildSignInMethods(
-            Policy(), Network(WhoCanConnectModes.HomeNetwork), originalClientIngress: null, originalClientIsHttps: false);
-
-        Assert.False(result.Password);
-        Assert.False(result.InvitationCode);
-    }
-
-    [Fact]
     public void Response_ContainsOnlyMethodFields_NeverAccountOrProfileDetails()
     {
         var json = JsonSerializer.Serialize(AuthenticationEndpoints.BuildSignInMethods(

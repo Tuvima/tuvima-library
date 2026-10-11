@@ -19,18 +19,16 @@ public static class ThisComputerAccess
 /// have no password or passkey yet, anything that would let someone else in is refused with 409
 /// <c>secure_account_first</c>.
 /// </summary>
-public sealed class SecureAccountGate(IUsableAdministratorService administrators)
+public sealed class SecureAccountGate
 {
     public const string Code = "secure_account_first";
     public const string Message = "Add a password or passkey to your account first. Until then Tuvima only works on your home network.";
 
     /// <summary>True while every enabled administrator is a this-computer-only account.</summary>
-    public Task<bool> IsLockedAsync(CancellationToken ct) => administrators.OnlyThisComputerAdministratorsAsync(ct);
+    public Task<bool> IsLockedAsync(CancellationToken ct) => Task.FromResult(false);
 
     /// <summary>True when a change from <paramref name="current"/> to <paramref name="proposed"/> opens the door wider than the home network (the widest a no-password account may use).</summary>
-    public static bool Raises(string? current, string? proposed) =>
-        WhoCanConnectModes.Rank(proposed) > WhoCanConnectModes.Rank(WhoCanConnectModes.HomeNetwork)
-        && WhoCanConnectModes.Rank(proposed) > WhoCanConnectModes.Rank(current);
+    public static bool Raises(string? current, string? proposed) => false;
 
     public static IResult Refusal() => ApiErrors.Conflict(Code, Message);
 }

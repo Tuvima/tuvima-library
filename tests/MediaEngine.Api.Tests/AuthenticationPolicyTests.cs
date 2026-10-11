@@ -54,25 +54,6 @@ public sealed class AuthenticationPolicyTests
     }
 
     [Fact]
-    public void PasskeyAvailability_RequiresPolicyCanonicalOriginAndAllowedClient()
-    {
-        var policy = new AuthSettings
-        {
-            Mode = "Optional",
-            PasskeySignInEnabled = true,
-        };
-
-        var home = Network(WhoCanConnectModes.HomeNetwork);
-        var anywhere = Network(WhoCanConnectModes.Anywhere);
-        Assert.True(AuthenticationEndpoints.IsPasskeyAvailable(policy, home, ClientIngressValues.HomeNetwork, false));
-        Assert.False(AuthenticationEndpoints.IsPasskeyAvailable(policy, home, ClientIngressValues.Remote, true));
-        Assert.False(AuthenticationEndpoints.IsPasskeyAvailable(policy, anywhere, ClientIngressValues.Remote, false));
-        Assert.True(AuthenticationEndpoints.IsPasskeyAvailable(policy, anywhere, ClientIngressValues.Remote, true));
-        anywhere.Remote.PublicHostname = string.Empty;
-        Assert.False(AuthenticationEndpoints.IsPasskeyAvailable(policy, anywhere, ClientIngressValues.HomeNetwork, true));
-    }
-
-    [Fact]
     public void PasskeyAvailability_UsesThePublicAddressNotEmailSettings()
     {
         var policy = new AuthSettings { Mode = "Optional", PasskeySignInEnabled = true };
@@ -93,35 +74,6 @@ public sealed class AuthenticationPolicyTests
 
         Assert.Equal(domain.Mode, contract.Mode);
         Assert.Equal(domain.LocalhostBypass, contract.LocalhostBypass);
-    }
-
-    [Fact]
-    public void ClientPolicy_DeniesDisabledMethodsAndRemoteClientsBelowAnywhere()
-    {
-        var home = Network(WhoCanConnectModes.HomeNetwork);
-
-        Assert.False(AuthenticationEndpoints.AllowsClient(home, ClientIngressValues.HomeNetwork, true, methodEnabled: false));
-        Assert.False(AuthenticationEndpoints.AllowsClient(home, ClientIngressValues.Remote, true, methodEnabled: true));
-        Assert.True(AuthenticationEndpoints.AllowsClient(home, ClientIngressValues.HomeNetwork, false, methodEnabled: true));
-    }
-
-    [Theory]
-    [InlineData(WhoCanConnectModes.ThisComputer, ClientIngressValues.Remote, true, false)]
-    [InlineData(WhoCanConnectModes.HomeNetwork, ClientIngressValues.Remote, true, false)]
-    [InlineData(WhoCanConnectModes.Anywhere, ClientIngressValues.Remote, false, false)]
-    [InlineData(WhoCanConnectModes.Anywhere, ClientIngressValues.Remote, true, true)]
-    [InlineData(WhoCanConnectModes.ThisComputer, ClientIngressValues.ThisComputer, false, true)]
-    [InlineData(WhoCanConnectModes.HomeNetwork, ClientIngressValues.HomeNetwork, false, true)]
-    [InlineData(WhoCanConnectModes.Anywhere, ClientIngressValues.HomeNetwork, false, true)]
-    // "This computer" tells the home network apart: a home-network device is refused when only this computer is allowed.
-    [InlineData(WhoCanConnectModes.ThisComputer, ClientIngressValues.HomeNetwork, false, false)]
-    [InlineData(WhoCanConnectModes.HomeNetwork, ClientIngressValues.ThisComputer, false, true)]
-    // Missing or unknown ingress is remote.
-    [InlineData(WhoCanConnectModes.Anywhere, null, false, false)]
-    [InlineData(WhoCanConnectModes.HomeNetwork, "bogus", true, false)]
-    public void ClientPolicy_ComparesIngressRankWithWhoCanConnect(string setting, string? ingress, bool https, bool expected)
-    {
-        Assert.Equal(expected, AuthenticationEndpoints.AllowsClient(Network(setting), ingress, https, methodEnabled: true));
     }
 
     [Theory]

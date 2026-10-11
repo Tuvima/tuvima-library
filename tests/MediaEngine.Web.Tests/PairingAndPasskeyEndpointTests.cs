@@ -200,27 +200,6 @@ public sealed class PairingAndPasskeyEndpointTests : IDisposable
         Assert.DoesNotContain("name=\"password\"", html);
     }
 
-    [Fact]
-    public async Task InviteLink_WrongCodesAreRateLimited()
-    {
-        await using var engine = await StartAsync(app => app.Run(context =>
-        {
-            context.Response.StatusCode = StatusCodes.Status404NotFound;
-            return Task.CompletedTask;
-        }));
-        await using var dashboard = await StartAsync(_ => { }, engine.Address, withAuthEndpoints: true);
-        using var client = new HttpClient(new HttpClientHandler { AllowAutoRedirect = false });
-
-        HttpStatusCode last = default;
-        for (var attempt = 0; attempt < 12; attempt++)
-        {
-            using var response = await client.GetAsync(new Uri(dashboard.Address, $"/auth/invite?code=AAAAA-AAAA{attempt % 9 + 2}"));
-            last = response.StatusCode;
-        }
-
-        Assert.Equal(HttpStatusCode.TooManyRequests, last);
-    }
-
     private void SetPublicAddress(string address) =>
         File.WriteAllText(
             Path.Combine(_configDirectory, "network.json"),

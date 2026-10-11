@@ -91,51 +91,18 @@ public sealed class IngressClassifier
         return IsConfiguredProxy(address);
     }
 
+    /// <summary>
+    /// Network location is no longer restricted: this computer is still recognised (it keeps the this-computer sign-in
+    /// path) and every other connection counts as the home network. Nothing is classified as remote.
+    /// </summary>
     public IngressKind Classify(IPAddress? address, int localPort)
     {
-        if (_proxyPort is int proxyPort && localPort == proxyPort)
-        {
-            return IngressKind.Remote;
-        }
-
-        if (address is null)
-        {
-            return IngressKind.Remote;
-        }
-
-        if (address.IsIPv4MappedToIPv6)
-        {
-            address = address.MapToIPv4();
-        }
-
-        // A configured proxy is checked first: a reverse proxy on this same machine connects from loopback,
-        // and treating that as "this computer" would let every internet visitor skip the setup code.
-        if (IsConfiguredProxy(address))
-        {
-            return IngressKind.Remote;
-        }
-
-        if (IPAddress.IsLoopback(address))
+        if (address is not null && IPAddress.IsLoopback(address.IsIPv4MappedToIPv6 ? address.MapToIPv4() : address))
         {
             return IngressKind.ThisComputer;
         }
 
-        if (IsInAny(_trustedNetworks, address))
-        {
-            return IngressKind.HomeNetwork;
-        }
-
-        if (_containerGateways.Any(gateway => gateway.Equals(address)))
-        {
-            return IngressKind.Remote;
-        }
-
-        if (IsPrivate(address))
-        {
-            return IngressKind.HomeNetwork;
-        }
-
-        return IngressKind.Remote;
+        return IngressKind.HomeNetwork;
     }
 
     private bool IsConfiguredProxy(IPAddress address) =>

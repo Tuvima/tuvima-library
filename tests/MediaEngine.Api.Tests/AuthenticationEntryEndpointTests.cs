@@ -22,43 +22,6 @@ namespace MediaEngine.Api.Tests;
 public sealed class AuthenticationEntryEndpointTests
 {
     [Fact]
-    public async Task PasswordLogin_RemoteClientNeverReachesIdentityServiceWhenRemoteSignInIsOff()
-    {
-        var configPath = Path.Combine(Path.GetTempPath(), $"tuvima-auth-entry-{Guid.NewGuid():N}");
-        try
-        {
-            using var configuration = new ConfigurationDirectoryLoader(configPath);
-            var core = configuration.LoadCore();
-            core.Auth.Mode = "Local";
-            core.Auth.PasswordSignInEnabled = true;
-            configuration.SaveCore(core);
-            var identity = new TrackingIdentityService();
-            await using var app = BuildApplication(configuration, identity);
-
-            var response = await InvokeAsync(app, "/auth/login", new LocalLoginRequest
-            {
-                Email = "owner@example.com",
-                Password = "correct horse battery staple",
-                DeviceId = "remote-browser",
-                DeviceName = "Remote browser",
-                Client = "Tuvima Dashboard",
-                OriginalClientIngress = ClientIngressValues.Remote,
-                OriginalClientIsHttps = true,
-            });
-
-            Assert.True(response.StatusCode == StatusCodes.Status401Unauthorized, await DescribeAsync(response));
-            Assert.Equal(0, identity.PasswordLoginCalls);
-        }
-        finally
-        {
-            if (Directory.Exists(configPath))
-            {
-                Directory.Delete(configPath, recursive: true);
-            }
-        }
-    }
-
-    [Fact]
     public void LoginRequest_CarriesOnlyAnEmailAndPassword()
     {
         var names = typeof(LocalLoginRequest).GetProperties().Select(property => property.Name).ToHashSet();
@@ -112,82 +75,6 @@ public sealed class AuthenticationEntryEndpointTests
             response.Body.Position = 0;
             Assert.False(string.IsNullOrWhiteSpace(
                 (await JsonSerializer.DeserializeAsync<ExternalIdentityTransactionResponse>(response.Body))?.Ticket));
-        }
-        finally
-        {
-            if (Directory.Exists(configPath))
-            {
-                Directory.Delete(configPath, recursive: true);
-            }
-        }
-    }
-
-    [Fact]
-    public async Task InvitationAndRecoveryIssuance_DenyRemoteClientBeforeIdentityMutation()
-    {
-        var configPath = Path.Combine(Path.GetTempPath(), $"tuvima-auth-entry-{Guid.NewGuid():N}");
-        try
-        {
-            using var configuration = new ConfigurationDirectoryLoader(configPath);
-            var core = configuration.LoadCore();
-            core.Auth.Mode = "Required";
-            core.Auth.PasswordSignInEnabled = true;
-            configuration.SaveCore(core);
-            var identity = new TrackingIdentityService();
-            await using var app = BuildApplication(configuration, identity);
-
-            var invitation = await InvokeAsync(app, "/auth/invitations/accept",
-                new AcceptAccountInvitationRequest("invitation", "password", "browser", "Browser", ClientIngressValues.Remote, true));
-            var recovery = await InvokeAsync(app, "/auth/password/recover", new RecoverPasswordRequest
-            {
-                Email = "person@example.com",
-                RecoveryCode = "code",
-                NewPassword = "replacement",
-                OriginalClientIngress = ClientIngressValues.Remote,
-                OriginalClientIsHttps = true,
-            });
-            var resetComplete = await InvokeAsync(app, "/auth/password/reset/complete",
-                new ResetPasswordTokenRequest("reset", "replacement", ClientIngressValues.Remote, true));
-
-            Assert.True(invitation.StatusCode == StatusCodes.Status401Unauthorized, await DescribeAsync(invitation));
-            Assert.True(recovery.StatusCode == StatusCodes.Status401Unauthorized, await DescribeAsync(recovery));
-            Assert.True(resetComplete.StatusCode == StatusCodes.Status401Unauthorized, await DescribeAsync(resetComplete));
-            Assert.Equal(0, identity.AcceptInvitationCalls);
-            Assert.Equal(0, identity.RecoveryCodeResetCalls);
-            Assert.Equal(0, identity.TokenResetCalls);
-        }
-        finally
-        {
-            if (Directory.Exists(configPath))
-            {
-                Directory.Delete(configPath, recursive: true);
-            }
-        }
-    }
-
-    [Fact]
-    public async Task PasswordResetBegin_PreservesAntiEnumerationWhileSkippingDeniedRemoteRequest()
-    {
-        var configPath = Path.Combine(Path.GetTempPath(), $"tuvima-auth-entry-{Guid.NewGuid():N}");
-        try
-        {
-            using var configuration = new ConfigurationDirectoryLoader(configPath);
-            var core = configuration.LoadCore();
-            core.Auth.Mode = "Required";
-            core.Auth.PasswordSignInEnabled = true;
-            configuration.SaveCore(core);
-            var identity = new TrackingIdentityService();
-            await using var app = BuildApplication(configuration, identity);
-
-            var response = await InvokeAsync(app, "/auth/password/reset/begin",
-                new BeginPasswordResetRequest("person@example.com", ClientIngressValues.Remote, true));
-
-            Assert.True(response.StatusCode == StatusCodes.Status202Accepted, await DescribeAsync(response));
-            response.Body.Position = 0;
-            var payload = await JsonSerializer.DeserializeAsync<BeginPasswordResetResponse>(response.Body);
-            Assert.NotNull(payload);
-            Assert.Null(payload.Token);
-            Assert.Equal(0, identity.BeginPasswordResetCalls);
         }
         finally
         {

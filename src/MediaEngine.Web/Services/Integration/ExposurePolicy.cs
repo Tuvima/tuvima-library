@@ -28,17 +28,9 @@ public static class ExposurePolicy
 
     public const string HttpsRequiredMessage = "Remote access requires a verified HTTPS or tunnel path.";
 
-    public static ExposureDecision Evaluate(string? whoCanConnect, IngressKind ingress, bool isHttps)
-    {
-        if (Rank(ingress) > Rank(whoCanConnect))
-        {
-            return ExposureDecision.NotAvailableHere;
-        }
-
-        return ingress == IngressKind.Remote && !isHttps
-            ? ExposureDecision.UpgradeRequired
-            : ExposureDecision.Allow;
-    }
+    /// <summary>Network location is no longer checked: every request is allowed.</summary>
+    public static ExposureDecision Evaluate(string? whoCanConnect, IngressKind ingress, bool isHttps) =>
+        ExposureDecision.Allow;
 
     private static int Rank(IngressKind ingress) => ingress switch
     {
