@@ -646,6 +646,11 @@ public static class JsonConfigValidator
             errors.Add($"{prefix}.intake_role is unsupported.");
         }
 
+        if (source.AcceptsNewMedia && source.ManagementMode != LibrarySourceManagementModes.ExistingLibrary)
+        {
+            errors.Add($"{prefix}.accepts_new_media applies only to existing library folders; managed folders already take new media.");
+        }
+
         if (source.ManagementMode == LibrarySourceManagementModes.ExistingLibrary)
         {
             if (source.AccessMode != LibrarySourceAccessModes.ReadOnly)

@@ -61,6 +61,17 @@ public sealed class ServerFolderPickerUiTests
     }
 
     [Fact]
+    public void LibraryFoldersPanel_OffersImportFolderAndAcceptNewMedia()
+    {
+        var panel = Read("src/MediaEngine.Web/Components/Settings/LibraryFoldersPanel.razor");
+
+        Assert.Contains("Import folder", panel, StringComparison.Ordinal);
+        Assert.Contains("Waiting for destinations", panel, StringComparison.Ordinal);
+        Assert.Contains("ToggleAcceptsNewMediaAsync", panel, StringComparison.Ordinal);
+        Assert.Contains("ImportFolderStatus", panel, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void StructuredWizardAndLibraryDetailsExposeCanonicalFlow()
     {
         var settings = Read("src/MediaEngine.Web/Components/Pages/Settings.razor");

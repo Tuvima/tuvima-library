@@ -270,6 +270,7 @@ public static class SetupEndpoints
             var error = SettingsEndpoints.ValidateViewStorage(config)
                 ?? SettingsEndpoints.ValidateViewRootChange(configuration.LoadLibraries(), config)
                 ?? LibraryTypeRules.ValidateOneLibraryPerType(configuration.LoadLibraries(), config)
+                ?? ImportFolderValidation.Validate(config)
                 ?? SettingsEndpoints.ValidateConfiguredPaths(config);
             if (error is not null)
             {

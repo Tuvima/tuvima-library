@@ -204,3 +204,20 @@
     font-size: 12px;
     color: var(--tl-text-muted);
 }
+.library-folders__import {
+    grid-column: 1 / -1;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 12px;
+    border: 1px solid var(--tl-border-subtle);
+    border-radius: var(--app-radius-md, 8px);
+    background: var(--app-glass-inner-bg);
+}
+
+.library-folders__import h3 small {
+    font-weight: 400;
+    color: var(--tl-text-muted);
+}
+
+.library-folders__icon--import { color: var(--tl-accent-primary); }

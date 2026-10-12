@@ -68,8 +68,19 @@ internal static class SettingsContractMapper
     internal static ResolvedUISettingsDto ToContract(ResolvedUISettings value) =>
         Convert<ResolvedUISettingsDto>(value);
 
-    internal static LibrariesConfigurationDto ToContract(LibrariesConfiguration value) =>
-        Convert<LibrariesConfigurationDto>(value);
+    internal static LibrariesConfigurationDto ToContract(LibrariesConfiguration value)
+    {
+        var result = Convert<LibrariesConfigurationDto>(value);
+        var status = ImportFolderRules.Evaluate(value);
+        result.ImportFolderStatus = new ImportFolderStatusDto
+        {
+            Configured = status.Configured,
+            Path = status.Path,
+            Ready = status.Ready,
+            MissingTypes = [.. status.MissingTypes],
+        };
+        return result;
+    }
 
     internal static LibrariesConfiguration ToStorage(UpdateLibrariesRequest value)
     {

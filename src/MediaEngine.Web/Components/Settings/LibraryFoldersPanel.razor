@@ -98,9 +98,21 @@
                             <span class="library-folders__name"><AppMaterialIcon Icon="@AppMaterialIcons.Filled.Folder" /><strong>@FriendlyName(source)</strong></span>
                             <span class="library-folders__path" title="@source.Path">@source.Path</span>
                             <span class="library-folders__row-actions">
+                                @if (source.AcceptsNewMedia)
+                                {
+                                    <AppStatusBadge Text="Accepts new media" Tone="AppUiTone.Success" />
+                                }
                                 <AppStatusBadge Text="@ModeLabel(source)" Tone="@(IsManaged(source) ? AppUiTone.Info : AppUiTone.Neutral)" />
                                 @if (!ReadOnly)
                                 {
+                                    @if (!IsManaged(source))
+                                    {
+                                        <AppIconButton Icon="@(source.AcceptsNewMedia ? AppMaterialIcons.Outlined.DownloadDone : AppMaterialIcons.Outlined.MoveToInbox)"
+                                                       Tooltip="@(source.AcceptsNewMedia ? "Stop accepting new media" : "Accept new media: imported files can be added here")"
+                                                       AriaLabel="@(source.AcceptsNewMedia ? $"Stop {FriendlyName(source)} accepting new media" : $"Let {FriendlyName(source)} accept new media")"
+                                                       Disabled="@_saving"
+                                                       OnClick="@(() => ToggleAcceptsNewMediaAsync(source))" />
+                                    }
                                     <AppIconButton Icon="@(IsManaged(source) ? AppMaterialIcons.Outlined.Lock : AppMaterialIcons.Outlined.DriveFileMove)"
                                                    Tooltip="@(IsManaged(source) ? "Leave as-is" : "Let Tuvima manage this folder")"
                                                    AriaLabel="@(IsManaged(source) ? $"Leave {FriendlyName(source)} as-is" : $"Let Tuvima manage {FriendlyName(source)}")"
@@ -118,10 +130,55 @@
                 </div>
             }
         </section>
+
+        <section class="library-folders__import" aria-labelledby="library-import-title">
+            <header class="library-folders__detail-header">
+                <span class="library-folders__icon library-folders__icon--import"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.MoveToInbox" /></span>
+                <div>
+                    <h3 id="library-import-title">Import folder <small>(optional)</small></h3>
+                    <p>A drop-off folder for new media. Apps like Sonarr and Radarr can save finished downloads here too, and Tuvima files them into your libraries.</p>
+                </div>
+                <div class="library-folders__detail-actions">
+                    @if (ImportStatus.Configured)
+                    {
+                        <AppButton Label="Change" ButtonStyle="AppButtonStyle.Outlined" Disabled="@(_saving || ReadOnly)" OnClick="ChooseImportFolderAsync" />
+                        <AppButton Label="Remove" ButtonStyle="AppButtonStyle.Text" Disabled="@(_saving || ReadOnly)" OnClick="RemoveImportFolderAsync" />
+                    }
+                    else
+                    {
+                        <AppButton Label="Set import folder"
+                                   StartIcon="@AppMaterialIcons.Outlined.Add"
+                                   ButtonStyle="AppButtonStyle.Outlined"
+                                   Disabled="@(_saving || ReadOnly)"
+                                   OnClick="ChooseImportFolderAsync" />
+                    }
+                </div>
+            </header>
+            @if (ImportStatus.Configured)
+            {
+                <div class="library-folders__row">
+                    <span class="library-folders__name"><AppMaterialIcon Icon="@AppMaterialIcons.Filled.Folder" /><strong>Import folder</strong></span>
+                    <span class="library-folders__path" title="@ImportStatus.Path">@ImportStatus.Path</span>
+                    <span class="library-folders__row-actions">
+                        <AppStatusBadge Text="@(ImportStatus.Ready ? "Ready" : "Waiting for destinations")" Tone="@(ImportStatus.Ready ? AppUiTone.Success : AppUiTone.Warning)" />
+                    </span>
+                </div>
+                @if (!ImportStatus.Ready)
+                {
+                    <AppAlert Tone="AppUiTone.Warning">
+                        Import won't run until every type has a destination. Still needed: @string.Join(", ", ImportStatus.MissingTypes).
+                        Add a folder that Tuvima manages, or choose Accept new media on a folder you use as-is.
+                    </AppAlert>
+                }
+            }
+        </section>
     }
 </div>
 
 @code {
+    // The import folder is the storage location with this id (see ImportFolderRules in the Engine).
+    private const string ImportLocationId = "incoming";
+
     private sealed record LibraryTypeOption(string Key, string Label, string PluralLabel, string Area, string[] MediaTypes, string Icon, string? LibraryId = null);
 
     private static readonly LibraryTypeOption[] LibraryTypes =
@@ -150,6 +207,8 @@
     private bool _loading = true;
     private bool _saving;
     private LibraryTypeOption _selected = LibraryTypes[0];
+
+    private ImportFolderStatusDto ImportStatus => _configuration?.ImportFolderStatus ?? new ImportFolderStatusDto();
 
     private LibraryTypeOption Selected => _selected;
     private LibraryFolderDto? SelectedLibrary => LibraryFor(_selected);
@@ -307,12 +366,102 @@
             return;
         }
 
+        if (managed) target.AcceptsNewMedia = false; // managed folders already take new media
         target.ManagementMode = managed ? "managed_by_tuvima" : "existing_library";
         target.AccessMode = managed ? "writable" : "read_only";
         target.ParticipatesInOrganization = managed;
         target.WritebackOverride = false;
         NormalizePrimaryDestination(library);
         await SaveAsync(library, managed ? "Tuvima will now manage this folder." : "This folder will be used as-is.");
+    }
+
+    private async Task ToggleAcceptsNewMediaAsync(LibrarySourceDto source)
+    {
+        var library = Clone(SelectedLibrary);
+        var target = library?.Sources.FirstOrDefault(item => item.Id == source.Id);
+        if (library is null || target is null || _saving || IsManaged(target)) return;
+        var accept = !target.AcceptsNewMedia;
+        if (accept)
+        {
+            // New files are added to the folder, so Tuvima must be able to write there. Existing files are never touched.
+            var validation = await ValidateAsync(target.Path, ServerFolderSelectionModes.ManagedLibrary, target.Id);
+            if (validation is null || !validation.CanSelect)
+            {
+                _notice = validation?.Issues.FirstOrDefault()?.Message ?? ApiClient.LastError ?? "Tuvima can't add files to this folder.";
+                return;
+            }
+        }
+
+        target.AcceptsNewMedia = accept;
+        await SaveAsync(library, accept ? "New media can now be added to this folder." : "This folder no longer accepts new media.");
+    }
+
+    private async Task ChooseImportFolderAsync()
+    {
+        if (_configuration is null || _saving) return;
+        _notice = null;
+        var parameters = new AppDialogParameters<ServerFolderPicker>
+        {
+            { component => component.SelectionMode, ServerFolderSelectionModes.ManagedLibrary },
+            { component => component.CurrentSourceId, ImportLocationId },
+            { component => component.HelpText, "Choose a folder on the Tuvima Library server where new media will be dropped. It must be separate from your library folders." },
+            { component => component.SetupSession, SetupSession },
+        };
+        var dialog = await DialogService.ShowAsync<ServerFolderPicker>(string.Empty, parameters, new AppDialogOptions
+        {
+            MaxWidth = AppMaxWidth.ExtraExtraLarge,
+            FullWidth = false,
+            CloseButton = false,
+            CloseOnEscapeKey = true,
+        });
+        if (await dialog.Result is not { Canceled: false, Data: ServerFolderValidationResultDto selected }) return;
+        await SaveImportFolderAsync(selected.Path, "Import folder saved.");
+    }
+
+    private async Task RemoveImportFolderAsync()
+    {
+        var confirmed = await DialogService.ShowMessageBoxAsync(
+            "Remove the import folder?",
+            "Tuvima stops importing from it. Files in the folder stay on disk.",
+            yesText: "Remove", cancelText: "Keep");
+        if (confirmed == true) await SaveImportFolderAsync(null, "Import folder removed.");
+    }
+
+    private async Task SaveImportFolderAsync(string? path, string message)
+    {
+        if (_configuration is null || _saving) return;
+        _saving = true;
+        try
+        {
+            var baseline = JsonSerializer.Deserialize<LibrariesConfigurationDto>(_baseline)!;
+            var locations = baseline.StorageLocations
+                .Where(location => !string.Equals(location.Id, ImportLocationId, StringComparison.OrdinalIgnoreCase))
+                .ToList();
+            if (path is not null)
+            {
+                locations.Add(new ServerStorageLocationDto { Id = ImportLocationId, Label = "Tuvima import folder", Path = path, AllowWrite = true });
+            }
+
+            var request = new UpdateLibrariesRequest
+            {
+                SchemaVersion = baseline.SchemaVersion,
+                StorageLocations = locations,
+                ViewStorage = baseline.ViewStorage,
+                Libraries = baseline.Libraries,
+                PersonalLibraryPolicy = baseline.PersonalLibraryPolicy,
+            };
+            var saved = Embedded ? await ApiClient.UpdateSetupLibrariesAsync(request, SetupSession) : await ApiClient.UpdateLibrariesAsync(request);
+            if (saved is null)
+            {
+                _notice = ApiClient.LastError ?? "The import folder could not be saved. Check the folder and try again.";
+                return;
+            }
+            _configuration = saved;
+            _baseline = JsonSerializer.Serialize(saved);
+            Snackbar.Add(message, AppSeverity.Success);
+        }
+        finally { _saving = false; }
+        await Changed.InvokeAsync();
     }
 
     private async Task RemoveFolderAsync(LibrarySourceDto source)

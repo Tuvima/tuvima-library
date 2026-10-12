@@ -142,7 +142,7 @@ through compatibility routes.
 | Method | Path | Description | Auth |
 |---|---|---|---|
 | GET | `/settings/libraries` | Return the complete library configuration, including stable sources and universal incoming sources | Administrator |
-| PUT | `/settings/libraries` | Validate and replace the complete schema-3 library configuration | Administrator |
+| PUT | `/settings/libraries` | Validate and replace the complete schema-3 library configuration; the library responses (GET, PUT, mutation) include `import_folder_status` (whether the optional import folder is set and which types still need a destination) | Administrator |
 | GET | `/settings/incoming-sources` | Return universal unassigned intake folders | Administrator |
 | PUT | `/settings/incoming-sources` | Validate and replace universal incoming folders | Administrator |
 | POST | `/settings/libraries/{libraryId}/reorganization/plan` | Produce a read-only, expiring move/rename plan with stable source IDs, conflicts, blocked work, and an exact confirmation fingerprint | Administrator |

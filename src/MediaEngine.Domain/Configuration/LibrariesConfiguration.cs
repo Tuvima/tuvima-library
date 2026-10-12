@@ -194,6 +194,13 @@ public sealed class LibrarySourceConfig
     [JsonPropertyName("intake_role")]
     public string IntakeRole { get; set; } = LibrarySourceIntakeRoles.None;
 
+    /// <summary>
+    /// For an as-is (existing library) folder: new media may be added to it, for example from the import folder.
+    /// Files already there are never renamed, moved or changed, and access stays read-only for them.
+    /// </summary>
+    [JsonPropertyName("accepts_new_media")]
+    public bool AcceptsNewMedia { get; set; }
+
     [JsonPropertyName("notes")]
     public string? Notes { get; set; }
 
