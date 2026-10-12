@@ -43,6 +43,15 @@ public sealed class ServerFolderPickerUiTests
     }
 
     [Fact]
+    public void LibraryFoldersPanel_ListsLibrariesOutsideTheSixTypes()
+    {
+        var panel = Read("src/MediaEngine.Web/Components/Settings/LibraryFoldersPanel.razor");
+
+        Assert.Contains("Other libraries", panel, StringComparison.Ordinal);
+        Assert.Contains("OtherLibraries", panel, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void StructuredWizardAndLibraryDetailsExposeCanonicalFlow()
     {
         var settings = Read("src/MediaEngine.Web/Components/Pages/Settings.razor");
