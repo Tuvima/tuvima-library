@@ -11,7 +11,7 @@ public sealed class DashboardFirstRunExperienceTests
         var dashboard = Read("src/MediaEngine.Web/Services/Integration/DashboardAuthenticationEndpoints.cs");
         var setup = Read("src/MediaEngine.Web/Components/Pages/SetupPage.razor");
         var setupClient = Read("src/MediaEngine.Web/Services/Integration/EngineApiClient.Setup.cs");
-        var preflight = Read("src/MediaEngine.Web/Components/Setup/SetupPreflightStage.razor");
+        var preflight = Read("src/MediaEngine.Web/Components/Setup/SetupServerStage.razor");
         var engine = Read("src/MediaEngine.Api/Endpoints/AuthenticationEndpoints.cs");
         var setupSessions = Read("src/MediaEngine.Api/Services/SetupSessionService.cs");
 

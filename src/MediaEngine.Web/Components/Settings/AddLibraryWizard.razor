@@ -23,6 +23,8 @@
     }
     else
     {
+        @if (!Embedded)
+        {
         <div class="add-library-wizard__header">
             @if (!Embedded)
             {
@@ -41,6 +43,7 @@
                 </li>
             }
         </ol>
+        }
 
         @if (_step == 1)
         {
@@ -57,7 +60,7 @@
                                              Class="@($"add-library-wizard__type is-{option.Key} {(!_personal && _selectedType?.Key == option.Key ? "is-selected" : null)}")"
                                              role="radio"
                                              aria-checked="@(!_personal && _selectedType?.Key == option.Key ? "true" : "false")"
-                                             OnClick="@(() => SelectType(option))">
+                                             OnClick="@(() => ChooseTypeAsync(option))">
                                 <span class="add-library-wizard__type-icon"><AppMaterialIcon Icon="@option.Icon" /></span>
                                 <strong>@option.Label</strong>
                                 @if (!_personal && _selectedType?.Key == option.Key)
@@ -72,7 +75,7 @@
                                              Class="@($"add-library-wizard__type is-personal {(_personal ? "is-selected" : null)}")"
                                              role="radio"
                                              aria-checked="@(_personal ? "true" : "false")"
-                                             OnClick="SelectPersonal">
+                                             OnClick="ChoosePersonalAsync">
                                 <span class="add-library-wizard__type-icon"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Person" /></span>
                                 <strong>Personal photos &amp; videos</strong>
                                 @if (_personal)
@@ -254,8 +257,14 @@
         <div class="add-library-wizard__footer">
             <AppButton Label="Back" ButtonStyle="AppButtonStyle.Outlined" Disabled="@(IsFirstStep || _saving)" OnClick="Back" />
             <div>
-                <AppButton Label="Cancel" ButtonStyle="AppButtonStyle.Text" Disabled="@_saving" OnClick="Cancel" />
-                @if (!IsLastStep)
+                @if (!HideCancel)
+                {
+                    <AppButton Label="Cancel" ButtonStyle="AppButtonStyle.Text" Disabled="@_saving" OnClick="Cancel" />
+                }
+                @if (_step == 1)
+                {
+                }
+                else if (!IsLastStep)
                 {
                     <AppButton Label="Next" EndIcon="@AppMaterialIcons.Outlined.ArrowForward" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Disabled="@(!CanContinue)" OnClick="Next" />
                 }
@@ -270,6 +279,7 @@
 
 @code {
     [Parameter] public bool Embedded { get; set; }
+    [Parameter] public bool HideCancel { get; set; }
     [Parameter] public string? SetupSession { get; set; }
     [Parameter] public EventCallback LibraryCreated { get; set; }
     [Parameter] public EventCallback Cancelled { get; set; }
@@ -415,6 +425,19 @@
                 if (review is not null) _personalReviews[profileId] = review;
         }
         _loading = false;
+    }
+
+    // Picking a type is the whole first step, so it carries straight on to the folder step.
+    private async Task ChooseTypeAsync(LibraryTypeOption option)
+    {
+        SelectType(option);
+        await Next();
+    }
+
+    private async Task ChoosePersonalAsync()
+    {
+        SelectPersonal();
+        await Next();
     }
 
     private void SelectType(LibraryTypeOption option)

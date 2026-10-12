@@ -9,6 +9,9 @@
 @inject UserProgressChangeNotifier ProgressChanges
 @inject UniverseStateContainer State
 @implements IDisposable
+@* Nothing recent on the unfiltered Home feed means an empty library: show nothing rather than a heading over an empty shelf. *@
+@if (Browse || _loading || _error is not null || _items.Count > 0 || Type != "all")
+{
 <section class="recent-feed" aria-label="Recently Added">
     <div class="recent-feed-heading"><h2>Recently Added</h2><RecentMediaFilters Selected="@Type" SelectedChanged="ChangeTypeAsync" />@if (!Browse) { <a class="recent-view-all" href="@($"/recently-added?type={Type}")">View all</a> }</div>
     @if (_error is not null) { <p role="status">@_error</p> }
@@ -18,6 +21,7 @@
     @if (_loading) { <p role="status">Loading recent additions…</p> }
     @if (Browse && _cursor is not null) { <AppNativeButton Class="recent-load-more" Disabled="@_loading" OnClick="LoadMoreAsync">Show more</AppNativeButton> }
 </section>
+}
 @if (_activeView is not null && _profileId is { } activeProfile)
 {
     <ViewImmersiveViewer Item="@_activeView" ContentUrl="@ViewAdapter.PreviewUrl(_activeView, activeProfile)" OriginalUrl="@ViewAdapter.OriginalUrl(_activeView, activeProfile)" ThumbnailUrl="@ViewAdapter.ThumbnailUrl(_activeView, activeProfile)" OnClose="CloseView" CanEdit="false" CanManage="false" />

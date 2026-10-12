@@ -50,5 +50,16 @@
     };
 
     private static string AriaLabel(string key, string state) => $"{Friendly(key)}, {Friendly(state)}";
-    private static string Friendly(string value) => value == "server" ? "Name" : string.Join(' ', value.Replace('_', '-').Split('-', StringSplitOptions.RemoveEmptyEntries).Select(part => char.ToUpperInvariant(part[0]) + part[1..]));
+    private static string Friendly(string value) => value switch
+    {
+        "server" => "Name your server",
+        "preflight" => "Server check",
+        "administrator" => "Your account",
+        "media-locations" => "Libraries",
+        "providers" => "Language and extras",
+        "readiness" => "All set",
+        _ => Humanise(value),
+    };
+
+    private static string Humanise(string value) => string.Join(' ', value.Replace('_', '-').Split('-', StringSplitOptions.RemoveEmptyEntries).Select(part => char.ToUpperInvariant(part[0]) + part[1..]));
 }

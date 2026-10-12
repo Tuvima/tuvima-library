@@ -44,44 +44,18 @@
     {
     <div class="home-discovery-empty">
         <img src="/images/tuvima-icon.svg" alt="Tuvima Library" class="home-discovery-empty-icon" />
-        <h2 class="home-discovery-empty-title">Set up your first library</h2>
+        <h2 class="home-discovery-empty-title">Your library is empty</h2>
         <p class="home-discovery-empty-subtitle">
-            Add a catalogued, personal, or photo folder, choose how metadata should be handled, then start a scan.
+            Point Tuvima at the folders where your books, films, shows and music live. It will find them, identify them and lay them out here.
         </p>
 
         <div class="home-discovery-empty-actions">
-            <AppButton ButtonStyle="AppButtonStyle.Outlined"
-                       Tone="AppUiTone.Neutral"
+            <AppButton ButtonStyle="AppButtonStyle.Filled"
+                       Tone="AppUiTone.Primary"
                        Size="AppControlSize.Large"
-                       StartIcon="@AppMaterialIcons.Outlined.FolderOpen"
-                       Href="/settings/libraries">
-                Configure folders
-            </AppButton>
-            @if (_canScan)
-            {
-                <AppButton ButtonStyle="AppButtonStyle.Filled"
-                           Tone="AppUiTone.Primary"
-                           Size="AppControlSize.Large"
-                           StartIcon="@AppMaterialIcons.Outlined.PlayArrow"
-                           Disabled="@_scanStarting"
-                           OnClick="HandleScanNowAsync">
-                    @if (_scanStarting)
-                    {
-                        <AppSpinner Size="AppSize.Small" Indeterminate="true" Class="mr-2" />
-                        <text>Checking folders...</text>
-                    }
-                    else
-                    {
-                        <text>Check folders for changes</text>
-                    }
-                </AppButton>
-            }
-            <AppButton ButtonStyle="AppButtonStyle.Text"
-                       Tone="AppUiTone.Neutral"
-                       Size="AppControlSize.Large"
-                       StartIcon="@AppMaterialIcons.Outlined.PendingActions"
-                       Href="/settings/ingestion">
-                Open ingestion activity
+                       StartIcon="@AppMaterialIcons.Outlined.CreateNewFolder"
+                       Href="/settings/libraries/new">
+                Add a library
             </AppButton>
         </div>
 
@@ -157,8 +131,6 @@
     private enum HomeRefreshReason { Progress = 1, LibraryState = 2, MediaAdded = 4, Profile = 8, Initial = 16, PlaybackTransition = 32 }
     private bool _disposed;
     private bool _seeding;
-    private bool _scanStarting;
-    private bool _canScan;
     private bool _librariesConfigured;
     private string _recentType = "all";
     private long _recentRefreshKey;
@@ -263,7 +235,6 @@
                     if ((reason & (HomeRefreshReason.Initial | HomeRefreshReason.Profile | HomeRefreshReason.MediaAdded)) != 0)
                         _recentRefreshKey++;
                     UpdatePresentationCaches();
-                    _canScan = IsEmpty && await CanStartScanAsync();
                     _librariesConfigured = IsEmpty && await HasConfiguredLibrariesAsync();
                 }
                 catch (Exception) when (_pageCts.IsCancellationRequested)
@@ -274,7 +245,6 @@
                 catch (Exception ex)
                 {
                     Logger.LogWarning(ex, "Home refresh failed; retaining the current page");
-                    _canScan = await CanStartScanAsync();
                     _librariesConfigured = IsEmpty && await HasConfiguredLibrariesAsync();
                 }
                 finally
@@ -314,31 +284,6 @@
         _homeHeroCandidates = explicitHeroes.Take(5).ToList();
     }
 
-    private async Task HandleScanNowAsync()
-    {
-        _scanStarting = true;
-        await InvokeAsync(StateHasChanged);
-
-        try
-        {
-            var started = await Orchestrator.TriggerRescanAsync();
-            if (started)
-            {
-                Snackbar.Add("Checking your folders for changes. Open Ingestion to watch progress.", AppSeverity.Success);
-                _canScan = false;
-            }
-            else
-            {
-                Snackbar.Add(Orchestrator.LastApiError ?? "Folders could not be checked for changes.", AppSeverity.Error);
-            }
-        }
-        finally
-        {
-            _scanStarting = false;
-            await InvokeAsync(StateHasChanged);
-        }
-    }
-
     // Libraries exist but nothing has surfaced yet: the first import is still running, so Home says so instead of asking for setup.
     private async Task<bool> HasConfiguredLibrariesAsync()
     {
@@ -352,53 +297,6 @@
             Logger.LogDebug(ex, "Could not read configured libraries for the Home empty state");
             return false;
         }
-    }
-
-    private async Task<bool> CanStartScanAsync()
-    {
-        try
-        {
-            var status = await Orchestrator.GetSystemStatusAsync();
-            if (status?.IsHealthy != true)
-            {
-                return false;
-            }
-
-            var libraries = await Orchestrator.GetLibrariesAsync();
-            var libraryFolders = libraries?.Libraries
-                .SelectMany(library => library.Sources)
-                .Select(source => source.Path)
-                .Where(path => !string.IsNullOrWhiteSpace(path))
-                .Distinct(StringComparer.OrdinalIgnoreCase)
-                .ToList() ?? [];
-            if (libraryFolders.Count == 0)
-                return false;
-
-            foreach (var libraryFolder in libraryFolders)
-            {
-                if (!await IsReadyFolderAsync(libraryFolder))
-                    return false;
-            }
-
-            var operations = await ApiClient.GetIngestionOperationsSnapshotAsync();
-            return (operations?.ActiveJobs.Count ?? 0) == 0;
-        }
-        catch
-        {
-            // Empty-state scan eligibility is best-effort; Libraries and Ingestion remain visible when the Engine cannot answer.
-            return false;
-        }
-    }
-
-    private async Task<bool> IsReadyFolderAsync(string? path)
-    {
-        if (string.IsNullOrWhiteSpace(path))
-        {
-            return false;
-        }
-
-        var result = await Orchestrator.TestPathAsync(path);
-        return result is { Exists: true, HasRead: true, HasWrite: true };
     }
 
     private async Task HandleSeedLibraryAsync()

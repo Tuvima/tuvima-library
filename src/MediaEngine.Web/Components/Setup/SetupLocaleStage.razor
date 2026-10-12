@@ -3,9 +3,7 @@
 
 @if (Value is not null)
 {
-    <section class="setup-provider-group" aria-label="Language and region">
-        <h2>Language and region</h2>
-        <p>Choose the interface and metadata languages. These choices do not restrict the languages of your media.</p>
+    <section class="setup-locale-form" aria-label="Language and region">
         <label>Display language
             <AppNativeSelect Value="@Value.DisplayLanguage" OnChange="@(args => Change(display: args.Value?.ToString()))">
                 @foreach (var culture in Languages) { <option value="@culture.Name">@culture.NativeName</option> }

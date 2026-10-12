@@ -5,10 +5,8 @@
 <div class="setup-stage-content">
     <div class="setup-stage__heading">
         <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.FactCheck" />
-        <div><h2 id="setup-stage-title">Prepare this installation</h2><p>Tuvima Library is checking the server before account creation.</p></div>
+        <div><h2 id="setup-stage-title">Checking your server</h2><p>One moment while Tuvima checks that it can store its catalogue and read your drives.</p></div>
     </div>
-
-    <AppAlert Tone="AppUiTone.Info">Keep this Dashboard on your private network until the first administrator is created. An unconfigured server intentionally accepts setup without a separate claim token.</AppAlert>
 
     @if (ShowRestore)
     {

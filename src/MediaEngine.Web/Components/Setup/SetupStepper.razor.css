@@ -1,16 +1,23 @@
-.setup-stepper { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); max-width: 780px; margin: 0 auto; padding: 0; list-style: none; }
-.setup-stepper li { position: relative; min-width: 0; color: var(--tl-text-muted); text-align: center; }
-.setup-stepper li:not(:last-child)::after { position: absolute; z-index: 0; top: 25px; left: calc(50% + 25px); width: calc(100% - 50px); height: 1px; content: ""; background: var(--tl-border-strong); }
-::deep button { position: relative; z-index: 1; display: grid; width: 100%; place-items: center; gap: 6px; padding: 8px 3px; border: 0; color: inherit; background: transparent; cursor: pointer; font: inherit; }
+.setup-stepper { display: grid; gap: 4px; margin: 0; padding: 0; list-style: none; }
+.setup-stepper li { --step-direction: row; --step-gap: 12px; --step-align: left; position: relative; min-width: 0; color: var(--tl-text-muted); }
+.setup-stepper li:not(:last-child)::after { position: absolute; z-index: 0; top: 40px; bottom: -8px; left: 21px; width: 1px; content: ""; background: var(--tl-border-strong); }
+::deep button { position: relative; z-index: 1; display: flex; flex-direction: var(--step-direction); width: 100%; align-items: center; justify-content: var(--step-justify, flex-start); gap: var(--step-gap); padding: 7px 4px; border: 0; color: inherit; background: transparent; cursor: pointer; font: inherit; text-align: var(--step-align); }
 ::deep button:disabled { cursor: not-allowed; opacity: .58; }
-span { display: grid; width: 34px; height: 34px; place-items: center; border: 1px solid currentColor; border-radius: 50%; background: var(--tl-bg-base); font-weight: 700; }
-small { overflow: hidden; max-width: 100%; text-overflow: ellipsis; white-space: nowrap; }
-em { color: var(--tl-text-muted); font-size: var(--tl-font-size-xs); font-style: normal; }
-.is-current, .is-complete { color: var(--tl-accent-primary); }
-.is-current span { border-color: color-mix(in srgb, var(--tl-accent-primary) 78%, white); box-shadow: 0 0 0 4px color-mix(in srgb, var(--tl-accent-primary) 14%, transparent); }
+span { display: grid; flex: 0 0 auto; width: 34px; height: 34px; place-items: center; border: 1px solid currentColor; border-radius: 50%; background: var(--tl-bg-base); font-weight: 700; }
+small { min-width: 0; font-size: .92rem; }
+em { margin-left: auto; color: var(--tl-text-muted); font-size: var(--tl-font-size-xs); font-style: normal; }
+.is-current { color: var(--tl-text-primary); }
+.is-current small { font-weight: 700; }
+.is-complete { color: var(--tl-accent-primary); }
+.is-current span { border-color: color-mix(in srgb, var(--tl-accent-primary) 78%, white); color: var(--tl-accent-primary); box-shadow: 0 0 0 4px color-mix(in srgb, var(--tl-accent-primary) 14%, transparent); }
 .is-blocked { color: var(--tl-error); }
 .is-deferred { color: var(--tl-warning); }
-@media (max-width: 700px) {
-    .setup-stepper { width: 100%; overflow-x: auto; grid-template-columns: repeat(5, minmax(76px, 1fr)); padding-bottom: 4px; }
-    small { font-size: var(--tl-font-size-xs); }
+@media (max-width: 900px) {
+    .setup-stepper { display: flex; justify-content: space-between; gap: 6px; }
+    .setup-stepper li { flex: 1 1 0; }
+    .setup-stepper li:not(:last-child)::after { top: 24px; bottom: auto; left: calc(50% + 20px); width: calc(100% - 40px); height: 1px; }
+    .setup-stepper li { --step-direction: column; --step-gap: 4px; --step-align: center; --step-justify: center; }
+    small { display: none; }
+    .is-current small { display: block; position: absolute; top: 44px; left: 50%; width: max-content; max-width: 70vw; transform: translateX(-50%); }
+    em { display: none; }
 }

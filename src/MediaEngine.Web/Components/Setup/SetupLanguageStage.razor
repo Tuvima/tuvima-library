@@ -1,0 +1,26 @@
+@namespace MediaEngine.Web.Components.Setup
+@using MediaEngine.Contracts.Setup
+
+<div class="setup-stage-content">
+    <div class="setup-stage__heading">
+        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Language" />
+        <div><h2 id="setup-stage-title">Language and region</h2><p>Choose the language Tuvima speaks and the language it prefers for titles and descriptions. Your own files are never changed.</p></div>
+    </div>
+
+    <SetupLocaleStage Value="@Value" ValueChanged="ValueChanged" />
+
+    <SetupStageFooter Back="Back" ShowReturnToCurrentStep="@ShowReturnToCurrentStep" ReturnToCurrentStep="ReturnToCurrentStep">
+        <AppButton Label="Continue" EndIcon="@AppMaterialIcons.Outlined.ArrowForward" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary"
+                   Loading="@Busy" Disabled="@(Value is null)" OnClick="Continue" />
+    </SetupStageFooter>
+</div>
+
+@code {
+    [Parameter] public SetupLocaleDto? Value { get; set; }
+    [Parameter] public EventCallback<SetupLocaleDto> ValueChanged { get; set; }
+    [Parameter] public bool Busy { get; set; }
+    [Parameter] public EventCallback Continue { get; set; }
+    [Parameter] public EventCallback Back { get; set; }
+    [Parameter] public bool ShowReturnToCurrentStep { get; set; }
+    [Parameter] public EventCallback ReturnToCurrentStep { get; set; }
+}
