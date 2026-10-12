@@ -40,7 +40,7 @@
 .add-library-wizard__type-icon ::deep .tl-icon-root { font-size: 2rem; }
 .add-library-wizard__selected-check { position: absolute; top: 10px; right: 10px; color: var(--tl-accent-primary); }
 .add-library-wizard__folder-list { display: grid; gap: var(--tl-space-3); }
-.add-library-wizard__folder { display: grid; grid-template-columns: minmax(220px, 1.45fr) minmax(120px, .65fr) minmax(175px, .9fr) minmax(120px, .65fr) minmax(145px, .75fr) auto; gap: var(--tl-space-3); align-items: center; padding: var(--tl-space-4); border: 1px solid var(--tl-border-subtle); border-radius: var(--tl-radius-md); background: color-mix(in srgb, var(--tl-bg-surface-elevated) 58%, transparent); }
+.add-library-wizard__folder { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--tl-space-3); align-items: center; padding: var(--tl-space-4); border: 1px solid var(--tl-border-subtle); border-radius: var(--tl-radius-md); background: color-mix(in srgb, var(--tl-bg-surface-elevated) 58%, transparent); }
 .add-library-wizard__folder-identity { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 12px; align-items: center; }
 .add-library-wizard__folder-identity code { display: block; overflow: hidden; margin-top: 5px; color: var(--tl-text-muted); font-size: var(--tl-font-size-xs); text-overflow: ellipsis; white-space: nowrap; }
 .add-library-wizard__folder-icon { width: 46px; height: 46px; color: #f3b927; background: color-mix(in srgb, #f3b927 12%, transparent); }
@@ -48,6 +48,9 @@
 .add-library-wizard__folder-control > span { color: var(--tl-text-muted); font-size: var(--tl-font-size-xs); }
 .add-library-wizard__folder-control > strong { color: var(--tl-text-primary); font-size: .8rem; }
 .add-library-wizard__folder-control > small { color: var(--tl-text-muted); font-size: var(--tl-font-size-xs); line-height: 1.35; }
+.add-library-wizard__advanced { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: var(--tl-space-3); }
+.add-library-wizard__advanced > summary { grid-column: 1 / -1; cursor: pointer; color: var(--tl-text-muted); font-size: var(--tl-font-size-xs); }
+.add-library-wizard__advanced--organization { margin-top: var(--tl-space-3); }
 .add-library-wizard__folder-health { display: flex; align-items: center; gap: var(--tl-space-2); }
 .add-library-wizard__organization { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--tl-space-3); }
 ::deep .add-library-wizard__organization-option { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 12px; align-items: start; padding: var(--tl-space-4); border: 1px solid var(--tl-border-subtle); border-radius: var(--tl-radius-md); color: var(--tl-text-secondary); background: transparent; text-align: left; cursor: pointer; font: inherit; }
@@ -69,7 +72,6 @@
 .add-library-wizard__footer { justify-content: space-between; }
 
 @media (max-width: 1200px) {
-    .add-library-wizard__folder { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .add-library-wizard__folder-identity { grid-column: 1 / -1; }
     .add-library-wizard__folder-health { justify-content: flex-end; }
 }

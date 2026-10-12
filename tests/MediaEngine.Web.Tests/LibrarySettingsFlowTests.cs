@@ -130,12 +130,13 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
     }
 
     [Fact]
-    public void PersonalWizardKeepsThreeStepsAndDoesNotCreateAStructuredLibrary()
+    public void PersonalWizardKeepsReviewStepAndDoesNotCreateAStructuredLibrary()
     {
         var cut = Render<AddLibraryWizard>();
-        cut.WaitForElement(".add-library-wizard__branches");
+        cut.WaitForElement(".add-library-wizard__types");
+        Assert.Equal(2, cut.FindAll(".add-library-wizard__steps li").Count);
+        cut.FindAll("button").Single(button => button.TextContent.Contains("Personal photos")).Click();
         Assert.Equal(3, cut.FindAll(".add-library-wizard__steps li").Count);
-        cut.FindAll("button").Single(button => button.TextContent.Contains("Personal Media")).Click();
         cut.FindAll("button").Single(button => button.TextContent.Trim() == "Next").Click();
         cut.WaitForAssertion(() => Assert.Contains("Choose Personal Media storage", cut.Markup));
         cut.FindAll("button").Single(button => button.TextContent.Trim() == "Next").Click();
@@ -148,8 +149,8 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
     public void PersonalSaveFailureRetainsReviewAndRetryKeepsStructuredLibrariesUnchanged()
     {
         var cut = Render<AddLibraryWizard>();
-        cut.WaitForElement(".add-library-wizard__branches");
-        cut.FindAll("button").Single(button => button.TextContent.Contains("Personal Media")).Click();
+        cut.WaitForElement(".add-library-wizard__types");
+        cut.FindAll("button").Single(button => button.TextContent.Contains("Personal photos")).Click();
         cut.FindAll("button").Single(button => button.TextContent.Trim() == "Next").Click();
         cut.FindAll("button").Single(button => button.TextContent.Trim() == "Next").Click();
         _failSave = true;

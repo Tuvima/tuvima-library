@@ -1,0 +1,59 @@
+@namespace MediaEngine.Web.Components.Setup
+
+<div class="setup-stage-content">
+    <div class="setup-stage__heading">
+        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Dns" />
+        <div><h2 id="setup-stage-title">Name your server</h2><p>Pick a friendly name. Phones, TVs and other computers on your network can then find it by name instead of by number.</p></div>
+    </div>
+
+    <div class="setup-server-form">
+        <AppTextField Label="Server name" Value="@ServerName" ValueChanged="OnNameChanged" Placeholder="Shaya's Library" />
+        <AppTextField Label="Network name" Value="@HostName" ValueChanged="OnHostChanged" Placeholder="tuvima" />
+        <p class="setup-server-form__preview">Other devices on your home network can open <strong>http://@(string.IsNullOrWhiteSpace(HostName) ? "tuvima" : HostName).local:5016</strong>. If a device cannot find it by name, the numeric address keeps working.</p>
+    </div>
+
+    <SetupStageFooter Back="Back" ShowReturnToCurrentStep="@ShowReturnToCurrentStep" ReturnToCurrentStep="ReturnToCurrentStep">
+        <AppButton Label="Continue" EndIcon="@AppMaterialIcons.Outlined.ArrowForward" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary"
+                   Loading="@Busy" Disabled="@(string.IsNullOrWhiteSpace(ServerName))" OnClick="Save" />
+    </SetupStageFooter>
+</div>
+
+@code {
+    [Parameter] public string ServerName { get; set; } = string.Empty;
+    [Parameter] public EventCallback<string> ServerNameChanged { get; set; }
+    [Parameter] public string HostName { get; set; } = string.Empty;
+    [Parameter] public EventCallback<string> HostNameChanged { get; set; }
+    [Parameter] public bool Busy { get; set; }
+    [Parameter] public EventCallback Save { get; set; }
+    [Parameter] public EventCallback Back { get; set; }
+    [Parameter] public bool ShowReturnToCurrentStep { get; set; }
+    [Parameter] public EventCallback ReturnToCurrentStep { get; set; }
+
+    // The network name follows the friendly name until the person edits it themselves.
+    private bool _hostEdited;
+
+    private async Task OnNameChanged(string? value)
+    {
+        var name = value ?? string.Empty;
+        await ServerNameChanged.InvokeAsync(name);
+        if (!_hostEdited) await HostNameChanged.InvokeAsync(ToLabel(name));
+    }
+
+    private Task OnHostChanged(string? value)
+    {
+        _hostEdited = true;
+        return HostNameChanged.InvokeAsync(ToLabel(value ?? string.Empty));
+    }
+
+    private static string ToLabel(string value)
+    {
+        var builder = new System.Text.StringBuilder();
+        foreach (var character in value.Trim().ToLowerInvariant())
+        {
+            if (character is >= 'a' and <= 'z' or >= '0' and <= '9') builder.Append(character);
+            else if (builder.Length > 0 && builder[^1] != '-') builder.Append('-');
+        }
+        var label = builder.ToString().TrimEnd('-');
+        return label.Length > 63 ? label[..63].TrimEnd('-') : label;
+    }
+}

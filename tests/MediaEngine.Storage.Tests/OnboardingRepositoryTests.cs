@@ -25,6 +25,7 @@ public sealed class OnboardingRepositoryTests : IDisposable
         Assert.True(await _repository.TryBeginAsync("session-hash", Guid.NewGuid(), expires, CancellationToken.None));
         Assert.True(await _repository.TryBeginAsync("other-hash", Guid.NewGuid(), expires, CancellationToken.None));
 
+        await _repository.SetStepAsync("server", "passed", "Named.", null, null, CancellationToken.None);
         await _repository.SetStepAsync("preflight", "passed", "Ready.", null, null, CancellationToken.None);
         await _repository.SetStepAsync("preflight", "passed", "Ready.", null, null, CancellationToken.None);
 

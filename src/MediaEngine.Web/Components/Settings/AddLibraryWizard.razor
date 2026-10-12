@@ -28,7 +28,7 @@
             {
                 <AppIconButton Icon="@AppMaterialIcons.Outlined.ArrowBack" Tooltip="Back to libraries" AriaLabel="Back to libraries" OnClick="Cancel" />
             }
-            <div>@if (Embedded) { <h2>Add Library</h2> } else { <h1>Add Library</h1> }<p>Choose what you want Tuvima Library to manage.</p></div>
+            <div>@if (Embedded) { <h2>Add Library</h2> } else { <h1>Add Library</h1> }<p>Pick a type, then pick the folder where it lives.</p></div>
         </div>
 
         <ol class="add-library-wizard__steps" aria-label="Library setup progress">
@@ -47,36 +47,35 @@
             <section class="add-library-wizard__stage" aria-labelledby="library-type-heading">
                 <div class="add-library-wizard__stage-heading">
                     <h3 id="library-type-heading">What would you like to add?</h3>
-                    <p>Choose structured media or configure Personal Media storage for View.</p>
+                    <p>Pick the kind of media you want to add.</p>
                 </div>
-                <div class="add-library-wizard__branches" role="radiogroup" aria-label="Library setup kind">
-                    <AppNativeButton Type="button" role="radio" aria-checked="@(!_personal ? "true" : "false")" Class="@($"add-library-wizard__branch {(!_personal ? "is-selected" : null)}")" OnClick="SelectStructured">
-                        <span class="add-library-wizard__category-icon"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.VideoLibrary" /></span>
-                        <span><strong>Structured Media</strong><small>Books, comics, movies, TV shows, music, and audiobooks.</small></span>
-                    </AppNativeButton>
-                    <AppNativeButton Type="button" role="radio" aria-checked="@(_personal ? "true" : "false")" Class="@($"add-library-wizard__branch {(_personal ? "is-selected" : null)}")" OnClick="SelectPersonal">
-                        <span class="add-library-wizard__category-icon"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Person" /></span>
-                        <span><strong>Personal Media</strong><small>Photos, videos, documents, and recordings for each enabled profile.</small><small>One storage root · One Personal Space per profile</small></span>
-                    </AppNativeButton>
-                </div>
-                @if (!_personal)
-                {
                 <div class="add-library-wizard__type-layout">
-                    <div class="add-library-wizard__type-category">
-                        <span class="add-library-wizard__category-icon"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.VideoLibrary" /></span>
-                        <div><strong>Structured Media</strong><p>Identified and enriched with metadata.</p></div>
-                    </div>
-                    <div class="add-library-wizard__types" role="radiogroup" aria-label="Structured library type">
+                    <div class="add-library-wizard__types" role="radiogroup" aria-label="Library type">
                         @foreach (var option in LibraryTypes)
                         {
                             <AppNativeButton Type="button"
-                                             Class="@($"add-library-wizard__type is-{option.Key} {(_selectedType?.Key == option.Key ? "is-selected" : null)}")"
+                                             Class="@($"add-library-wizard__type is-{option.Key} {(!_personal && _selectedType?.Key == option.Key ? "is-selected" : null)}")"
                                              role="radio"
-                                             aria-checked="@(_selectedType?.Key == option.Key ? "true" : "false")"
+                                             aria-checked="@(!_personal && _selectedType?.Key == option.Key ? "true" : "false")"
                                              OnClick="@(() => SelectType(option))">
                                 <span class="add-library-wizard__type-icon"><AppMaterialIcon Icon="@option.Icon" /></span>
                                 <strong>@option.Label</strong>
-                                @if (_selectedType?.Key == option.Key)
+                                @if (!_personal && _selectedType?.Key == option.Key)
+                                {
+                                    <AppMaterialIcon Icon="@AppMaterialIcons.Filled.CheckCircle" Class="add-library-wizard__selected-check" />
+                                }
+                            </AppNativeButton>
+                        }
+                        @if (!Embedded)
+                        {
+                            <AppNativeButton Type="button"
+                                             Class="@($"add-library-wizard__type is-personal {(_personal ? "is-selected" : null)}")"
+                                             role="radio"
+                                             aria-checked="@(_personal ? "true" : "false")"
+                                             OnClick="SelectPersonal">
+                                <span class="add-library-wizard__type-icon"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Person" /></span>
+                                <strong>Personal photos &amp; videos</strong>
+                                @if (_personal)
                                 {
                                     <AppMaterialIcon Icon="@AppMaterialIcons.Filled.CheckCircle" Class="add-library-wizard__selected-check" />
                                 }
@@ -84,8 +83,6 @@
                         }
                     </div>
                 </div>
-                }
-                <AppAlert Tone="AppUiTone.Info">Shared View combines permitted content from Personal Spaces without duplicating files. Access and sharing follow administrator policies.</AppAlert>
             </section>
         }
         else if (_step == 2 && _personal)
@@ -139,18 +136,17 @@
                 <div class="add-library-wizard__stage-heading add-library-wizard__stage-heading--actions">
                     <div>
                         <h3 id="library-folders-heading">Where are your @(_selectedType?.PluralLabel.ToLowerInvariant())?</h3>
-                        <p>Add one or more server-visible folders that contain your @(_selectedType?.PluralLabel.ToLowerInvariant()).</p>
+                        <p>Choose the folder on the server that holds them. You can add more folders later.</p>
                     </div>
                     <div class="add-library-wizard__folder-actions">
-                        <AppSegmentedControl Value="@_newFolderMode" ValueChanged="SetNewFolderMode" Options="@FolderModeOptions" Size="AppControlSize.Compact" AriaLabel="New folder mode" />
-                        <AppButton Label="Add folder" StartIcon="@AppMaterialIcons.Outlined.CreateNewFolder" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" OnClick="AddFolderAsync" />
+                        <AppButton Label="@(_draft.Sources.Count == 0 ? "Choose folder" : "Add another folder")" StartIcon="@AppMaterialIcons.Outlined.CreateNewFolder" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" OnClick="AddFolderAsync" />
                     </div>
                 </div>
 
                 @if (_draft.Sources.Count == 0)
                 {
                     <AppPageState Kind="AppPageStateKind.Empty" Icon="@AppMaterialIcons.Outlined.FolderOpen"
-                                  Title="No folders selected" Message="Choose a managed destination or an existing read-only library folder." />
+                                  Title="No folder chosen yet" Message="Use Choose folder to browse the server." />
                 }
                 else
                 {
@@ -165,22 +161,25 @@
                                         <code>@source.Path</code>
                                     </div>
                                 </div>
-                                <div class="add-library-wizard__folder-control">
-                                    <span>Role</span>
-                                    <AppSelect Value="@source.Role" ValueChanged="@((string? value) => SetSourceRole(source, value))" Options="@RoleOptionsFor(source)" />
-                                </div>
-                                <div class="add-library-wizard__folder-control">
-                                    <span>Mode</span>
-                                    <AppSelect Value="@source.ManagementMode" ValueChanged="@((string? value) => ChangeSourceModeAsync(source, value))" Options="@FolderModeOptions" />
-                                    <small>@ModeHelp(source.ManagementMode)</small>
-                                </div>
-                                <div class="add-library-wizard__folder-control">
-                                    <span>Access</span>
-                                    <strong>@(source.ManagementMode == "managed_by_tuvima" ? "Read / Write" : "Read-only permitted")</strong>
-                                </div>
-                                <div class="add-library-wizard__folder-control">
-                                    <AppSwitchRow Label="Include subfolders" Value="@source.IncludeSubdirectories" ValueChanged="@((bool value) => source.IncludeSubdirectories = value)" />
-                                </div>
+                                <details class="add-library-wizard__advanced">
+                                    <summary>Advanced</summary>
+                                    <div class="add-library-wizard__folder-control">
+                                        <span>Role</span>
+                                        <AppSelect Value="@source.Role" ValueChanged="@((string? value) => SetSourceRole(source, value))" Options="@RoleOptionsFor(source)" />
+                                    </div>
+                                    <div class="add-library-wizard__folder-control">
+                                        <span>Mode</span>
+                                        <AppSelect Value="@source.ManagementMode" ValueChanged="@((string? value) => ChangeSourceModeAsync(source, value))" Options="@FolderModeOptions" />
+                                        <small>@ModeHelp(source.ManagementMode)</small>
+                                    </div>
+                                    <div class="add-library-wizard__folder-control">
+                                        <span>Access</span>
+                                        <strong>@(source.ManagementMode == "managed_by_tuvima" ? "Read / Write" : "Read-only permitted")</strong>
+                                    </div>
+                                    <div class="add-library-wizard__folder-control">
+                                        <AppSwitchRow Label="Include subfolders" Value="@source.IncludeSubdirectories" ValueChanged="@((bool value) => source.IncludeSubdirectories = value)" />
+                                    </div>
+                                </details>
                                 <div class="add-library-wizard__folder-health">
                                     <AppStatusBadge Text="@ValidationLabel(source)" Tone="@ValidationTone(source)" />
                                     <AppIconButton Icon="@AppMaterialIcons.Outlined.Delete" Tooltip="Remove folder" AriaLabel="Remove folder" Tone="AppUiTone.Error" OnClick="@(() => RemoveSource(source))" />
@@ -196,6 +195,7 @@
             </section>
             @if (HasManagedSources)
             {
+            <details class="add-library-wizard__advanced add-library-wizard__advanced--organization"><summary>Advanced: how new media is organized</summary>
             <section class="add-library-wizard__stage" aria-labelledby="library-organization-heading">
                 <div class="add-library-wizard__stage-heading">
                     <h3 id="library-organization-heading">Choose how new media is organized</h3>
@@ -221,6 +221,7 @@
                 }
                 <div class="add-library-wizard__example"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.AccountTree" /><span>Example</span><code>@OrganizationExample</code></div>
             </section>
+            </details>
             }
         }
         else if (_personal)
@@ -249,38 +250,6 @@
                 </dl>
             </section>
         }
-        else
-        {
-            <section class="add-library-wizard__stage" aria-labelledby="library-review-heading">
-                <div class="add-library-wizard__stage-heading">
-                    <h3 id="library-review-heading">Review your library</h3>
-                    <p>Nothing is saved until you create the library.</p>
-                </div>
-                <div class="add-library-wizard__review-identity">
-                    <span class="@($"add-library-wizard__type-icon is-{_selectedType?.Key}")"><AppMaterialIcon Icon="@_selectedType?.Icon" /></span>
-                    <div><h3>@_draft.Name</h3><p>@TitleCase(_draft.Area) library · @(_selectedType?.Description)</p></div>
-                </div>
-                <dl class="add-library-wizard__review">
-                    <div><dt>Area</dt><dd>@TitleCase(_draft.Area)</dd></div>
-                    <div><dt>Type</dt><dd>Structured media</dd></div>
-                    <div><dt>Folders</dt><dd>@_draft.Sources.Count</dd></div>
-                    @if (HasManagedSources)
-                    {
-                        <div><dt>Managed primary</dt><dd>@(_draft.GetPrimaryDestination()?.Path ?? "Not configured")</dd></div>
-                        <div><dt>Other folders</dt><dd>@SecondaryFolderSummary</dd></div>
-                        <div><dt>Organization</dt><dd>@OrganizationLabel</dd></div>
-                        @if (HasReadOnlySources)
-                        {
-                            <div><dt>Read-only sources</dt><dd>Existing files remain unchanged</dd></div>
-                        }
-                    }
-                    else
-                    {
-                        <div><dt>File handling</dt><dd>Existing files will remain unchanged</dd></div>
-                    }
-                </dl>
-            </section>
-        }
 
         <div class="add-library-wizard__footer">
             <AppButton Label="Back" ButtonStyle="AppButtonStyle.Outlined" Disabled="@(IsFirstStep || _saving)" OnClick="Back" />
@@ -292,7 +261,7 @@
                 }
                 else
                 {
-                    <AppButton Label="@(_personal ? (_personalSetup == "root" ? "Save View storage" : "Add View folder") : "Create library")" StartIcon="@AppMaterialIcons.Outlined.Add" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Loading="@_saving" Disabled="@(_saving || !CanCommit)" OnClick="CreateAsync" />
+                    <AppButton Label="@(_personal ? (_personalSetup == "root" ? "Save View storage" : "Add View folder") : "Add library")" StartIcon="@AppMaterialIcons.Outlined.Add" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Loading="@_saving" Disabled="@(_saving || !CanCommit)" OnClick="CreateAsync" />
                 }
             </div>
         </div>
@@ -320,12 +289,13 @@
 
     private static readonly WizardStep[] WizardSteps =
     [
-        new(1, "Choose type", "Structured or Personal"),
-        new(2, "Add folders", "Choose folders or root"),
-        new(3, "Review", "Confirm and create"),
+        new(1, "Pick a type", "Books, movies, music"),
+        new(2, "Pick a folder", "Browse the server"),
+        new(3, "Review", "Confirm and save"),
     ];
 
-    private IReadOnlyList<WizardStep> VisibleSteps => WizardSteps;
+    // Structured libraries finish on the folder step; only Personal Media keeps a review page.
+    private IReadOnlyList<WizardStep> VisibleSteps => _personal ? WizardSteps : WizardSteps[..2];
 
     private static readonly OrganizationMode[] OrganizationModes =
     [

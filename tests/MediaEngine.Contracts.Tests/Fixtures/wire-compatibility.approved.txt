@@ -1152,6 +1152,10 @@
   input setupSession | default=required | shape=5f8e496050a6b44f36ce0029250d28a6669af25673d426cd41838f3f7808990c
   response | shape=86c9ccaa4ada2e38cf11253a92dece67f548d796dfb40d80a49b71ebbea615d7
 
+[method] GetSetupServerIdentityAsync
+  input setupSession | default=required | shape=5f8e496050a6b44f36ce0029250d28a6669af25673d426cd41838f3f7808990c
+  response | shape=f002e6b5912e63464812a0e7b24cb01d0087681adcd1d56a3caf5ec9b3122ece
+
 [method] GetSetupStatusAsync
   response | shape=454b7a09d29ed5f750e08ee3780295503cff77828780995012360595bb0fd310
 
@@ -1832,6 +1836,11 @@
   input request | default=required | shape=08e827a7960407d5611cca90dad8ea8d05067272fbf7871f3c98ed95a47c4279
   input setupSession | default=required | shape=5f8e496050a6b44f36ce0029250d28a6669af25673d426cd41838f3f7808990c
   response | shape=b2415d59520472ab44ae3b99461531ec3a4431ce5988a9d2f13e697de954cdef
+
+[method] SaveSetupServerIdentityAsync
+  input identity | default=required | shape=0f59fae403737d955c179d3aa74635a9c1683607b7d4ed1cfcdcaaf93604654e
+  input setupSession | default=required | shape=5f8e496050a6b44f36ce0029250d28a6669af25673d426cd41838f3f7808990c
+  response | shape=f002e6b5912e63464812a0e7b24cb01d0087681adcd1d56a3caf5ec9b3122ece
 
 [method] SaveTranscodingSettingsAsync
   input settings | default=required | shape=172e0c87805cd01ceec6f23891c57d537bcc555e342e7f8007e876e7d0060e34
@@ -2768,6 +2777,11 @@ direction=read | kind=object | converter=default | number-handling=default | unm
 property=home | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=e87399d663403fcba0ff0a723aa82746dac158dc6aeee8a2d7fedb90c5ab774e
 property=preferences | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=3d8b5d7b752353fee42a1d267bdd9ecdf7e012b1b2dc44ff468bd72c29952bf7
 property=server_settings | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=6496484a4baa47fd4d07774531a4adf223437373317bfb09e86dc6ada3594394
+
+[shape] 0f59fae403737d955c179d3aa74635a9c1683607b7d4ed1cfcdcaaf93604654e
+direction=write | kind=object | converter=default | number-handling=default | unmapped=default | polymorphism=none
+property=server_name | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=5f8e496050a6b44f36ce0029250d28a6669af25673d426cd41838f3f7808990c
+property=host_name | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=5f8e496050a6b44f36ce0029250d28a6669af25673d426cd41838f3f7808990c
 
 [shape] 0faf7da91e402ecdc3d296025e9533fc462a9b3da83bf1fbb9e9589240c3d2a6
 direction=read | kind=object | converter=default | number-handling=default | unmapped=default | polymorphism=none
@@ -10481,6 +10495,11 @@ value=2 | json="Completed"
 
 [shape] ef91f8772d67c88e225193884ac705aa8a81dc71e13fc75e0b8274a720c1acfe
 direction=read | kind=array | item=3bf13ee41107c6dfe0f9f02eece2a532bb4da7883794391762806e319ee70a94
+
+[shape] f002e6b5912e63464812a0e7b24cb01d0087681adcd1d56a3caf5ec9b3122ece
+direction=read | kind=object | converter=default | number-handling=default | unmapped=default | polymorphism=none
+property=server_name | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=b7f71ed495bd93896e800be27ce47fe57bc5e91c260a23941824ad675096d219
+property=host_name | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=b7f71ed495bd93896e800be27ce47fe57bc5e91c260a23941824ad675096d219
 
 [shape] f01935123e0703e3b6ee082eecb4f59e79f63b540cc32e239fc1a015014a7b26
 direction=read | kind=map | key=b7f71ed495bd93896e800be27ce47fe57bc5e91c260a23941824ad675096d219 | value=0fc55cc3ceb1a77c8d3692c5cfe59d0be28ebcbca41b173c4a371d55bc06798e

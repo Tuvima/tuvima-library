@@ -7926,6 +7926,10 @@ MediaEngine.Contracts.Setup.MediaEngine.Contracts.Setup.SetupRestoreConfirmation
   RestartRequired: System.Boolean | nullability=not-null | accessors=get,init
   Message: System.String | nullability=not-null | accessors=get,init
 
+MediaEngine.Contracts.Setup.MediaEngine.Contracts.Setup.SetupServerIdentityDto
+  ServerName: System.String | nullability=not-null | accessors=get,init
+  HostName: System.String | nullability=not-null | accessors=get,init
+
 MediaEngine.Contracts.Setup.MediaEngine.Contracts.Setup.SetupSignInModes
 
 MediaEngine.Contracts.Setup.MediaEngine.Contracts.Setup.SetupStartResponse

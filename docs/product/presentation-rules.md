@@ -96,7 +96,7 @@ When one video file holds several episodes, each covered episode in a season str
 
 ### Libraries settings refresh
 
-The Libraries overview uses aligned full-width rows and URL-backed lane scope. Shell-owned breadcrumbs retain the configured library name on details. One library page contains Folders, Organization, File Handling, and Advanced Settings. Add Library has Choose type, Add folders, Review, with Structured Media and Personal Media branches. The latter saves the shared View root and never creates a catalogued row. Folder validation is repeated at confirmation and commit. Existing-file protection and per-library naming/duplicate policy are enforced in ingestion; populated View roots cannot be relocated through settings.
+The Libraries overview uses aligned full-width rows and URL-backed lane scope. Shell-owned breadcrumbs retain the configured library name on details. One library page contains Folders, Organization, File Handling, and Advanced Settings. Add Library is two steps for catalogued media: Pick a type, then Pick a folder (one Choose folder button; role, mode, subfolders and organization sit under collapsed Advanced). Personal photos & videos is a type tile that adds a Review step, saves the shared View root and never creates a catalogued row. First-run setup begins with Name your server (friendly name plus the `.local` network name stored as `preferred_server_name`), then the server checks. Folder validation is repeated at confirmation and commit. Existing-file protection and per-library naming/duplicate policy are enforced in ingestion; populated View roots cannot be relocated through settings.
 
 
 ### Libraries settings and readable View storage
