@@ -36,6 +36,23 @@
                     <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ChevronRight" />
                 </AppNativeButton>
             }
+            @if (OtherLibraries.Count > 0)
+            {
+                <p class="library-folders__group">Other libraries</p>
+                @foreach (var type in OtherLibraries)
+                {
+                    var count = FolderCount(type);
+                    <AppNativeButton Type="button"
+                                     Class="@TypeClass(type)"
+                                     AriaLabel="@($"{type.Label}, {FolderCountText(count)}")"
+                                     aria-current="@(type.Key == _selected.Key ? "true" : null)"
+                                     OnClick="@(_ => Select(type))">
+                        <span class="library-folders__icon library-folders__icon--other"><AppMaterialIcon Icon="@type.Icon" /></span>
+                        <span class="library-folders__type-text"><strong>@type.Label</strong><small>@FolderCountText(count)</small></span>
+                        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ChevronRight" />
+                    </AppNativeButton>
+                }
+            }
         </nav>
 
         <section class="library-folders__detail" aria-labelledby="library-folders-title">
@@ -43,7 +60,7 @@
                 <span class="@($"library-folders__icon library-folders__icon--{Selected.Key}")"><AppMaterialIcon Icon="@Selected.Icon" /></span>
                 <div>
                     <h3 id="library-folders-title">@Selected.Label</h3>
-                    <p>Folders that make up your @Selected.PluralLabel library.</p>
+                    <p>Folders that make up @(Selected.LibraryId is null ? $"your {Selected.PluralLabel} library" : Selected.Label).</p>
                 </div>
                 <div class="library-folders__detail-actions">
                     @if (!Embedded && SelectedLibrary is not null)
@@ -105,7 +122,7 @@
 </div>
 
 @code {
-    private sealed record LibraryTypeOption(string Key, string Label, string PluralLabel, string Area, string[] MediaTypes, string Icon);
+    private sealed record LibraryTypeOption(string Key, string Label, string PluralLabel, string Area, string[] MediaTypes, string Icon, string? LibraryId = null);
 
     private static readonly LibraryTypeOption[] LibraryTypes =
     [
@@ -156,9 +173,39 @@
         _loading = false;
     }
 
-    private LibraryFolderDto? LibraryFor(LibraryTypeOption type) => _configuration?.Libraries
-        .FirstOrDefault(library => string.Equals(library.Kind, "catalogued", StringComparison.OrdinalIgnoreCase)
+    private LibraryFolderDto? LibraryFor(LibraryTypeOption type) => type.LibraryId is not null
+        ? _configuration?.Libraries.FirstOrDefault(library => library.Id == type.LibraryId)
+        : PrimaryLibraryFor(type);
+
+    private LibraryFolderDto? PrimaryLibraryFor(LibraryTypeOption type) => _configuration?.Libraries
+        .FirstOrDefault(library => IsCatalogued(library)
             && library.MediaTypes.Any(token => type.MediaTypes.Contains(token, StringComparer.OrdinalIgnoreCase)));
+
+    private static bool IsCatalogued(LibraryFolderDto library) => string.Equals(library.Kind, "catalogued", StringComparison.OrdinalIgnoreCase);
+
+    // Libraries that are not the one library of a standard type (an older custom type, or a second library of a standard
+    // type) still show here, so their folders can be seen and removed instead of silently hiding.
+    private IReadOnlyList<LibraryTypeOption> OtherLibraries => _configuration is null
+        ? []
+        : _configuration.Libraries
+            .Where(library => IsCatalogued(library) && !LibraryTypes.Any(type => ReferenceEquals(PrimaryLibraryFor(type), library)))
+            .Select(library => new LibraryTypeOption(
+                $"other-{library.Id}",
+                string.IsNullOrWhiteSpace(library.Name) ? "Other library" : library.Name,
+                string.IsNullOrWhiteSpace(library.Name) ? "other" : library.Name,
+                library.Area,
+                [.. library.MediaTypes],
+                OtherIcon(library.Area),
+                library.Id))
+            .ToList();
+
+    private static string OtherIcon(string? area) => area?.ToLowerInvariant() switch
+    {
+        "read" => AppMaterialIcons.Outlined.MenuBook,
+        "watch" => AppMaterialIcons.Outlined.Movie,
+        "listen" => AppMaterialIcons.Outlined.Headphones,
+        _ => AppMaterialIcons.Outlined.Folder,
+    };
 
     private int FolderCount(LibraryTypeOption type) => LibraryFor(type)?.Sources.Count ?? 0;
     private static string FolderCountText(int count) => count == 1 ? "1 folder" : $"{count} folders";

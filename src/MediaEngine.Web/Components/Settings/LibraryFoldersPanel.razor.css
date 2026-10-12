@@ -196,3 +196,11 @@
 .library-folders__icon--tv { color: #49a7ff; }
 .library-folders__icon--music { color: #e76fce; }
 .library-folders__icon--comics { color: #7de568; }
+
+.library-folders__icon--other { color: var(--tl-text-muted); }
+
+.library-folders__group {
+    margin: 10px 4px 2px;
+    font-size: 12px;
+    color: var(--tl-text-muted);
+}
