@@ -366,6 +366,7 @@
             return;
         }
 
+        if (managed) target.AcceptsNewMedia = false; // managed folders already take new media
         target.ManagementMode = managed ? "managed_by_tuvima" : "existing_library";
         target.AccessMode = managed ? "writable" : "read_only";
         target.ParticipatesInOrganization = managed;

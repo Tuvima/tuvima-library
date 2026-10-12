@@ -94,6 +94,16 @@ public sealed class ImportFolderTests
     }
 
     [Fact]
+    public void ALibraryAtADriveRootOverlapsTheImportFolder()
+    {
+        var driveRoot = Path.GetPathRoot(Root)!;
+        var config = AllTypes(label => AsIs(label));
+        config.Libraries[0].Sources[0].Path = driveRoot;
+
+        Assert.Contains("overlap", ImportFolderValidation.Validate(config));
+    }
+
+    [Fact]
     public void ImportFolderMustBeAbsoluteAndWritable()
     {
         var relative = AllTypes(label => AsIs(label));

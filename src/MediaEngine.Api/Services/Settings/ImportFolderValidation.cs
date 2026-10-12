@@ -56,8 +56,10 @@ internal static class ImportFolderValidation
     private static bool Within(string parent, string child)
     {
         var comparison = OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
+        // A drive root or "/" already ends with a separator.
+        var prefix = Path.EndsInDirectorySeparator(parent) ? parent : parent + Path.DirectorySeparatorChar;
         return string.Equals(parent, child, comparison)
-            || child.StartsWith(parent + Path.DirectorySeparatorChar, comparison)
+            || child.StartsWith(prefix, comparison)
             || child.StartsWith(parent + Path.AltDirectorySeparatorChar, comparison);
     }
 }
