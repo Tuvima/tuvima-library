@@ -180,7 +180,7 @@
     [Parameter] public bool CanManageProfiles { get; set; }
     /// <summary>True while the account is this-computer-only: shows the Secure account item and an attention dot.</summary>
     [Parameter] public bool ShowSecureAccount { get; set; }
-    public const string ManageProfilesHref = ProfilePickerRoute.Path + "?manage=1";
+    public const string ManageProfilesHref = "/settings/profiles";
     [Parameter] public string ProfileRole { get; set; } = "Profile";
     [Parameter] public string AvatarInitial { get; set; } = string.Empty;
     [Parameter] public string AvatarColor { get; set; } = "var(--tl-accent-primary)";

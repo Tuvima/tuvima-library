@@ -1,0 +1,51 @@
+@namespace MediaEngine.Web.Components.Profiles
+@using MediaEngine.Web.Components.Shared
+@* Asks for the household's administrator PIN when a change was refused until it is entered. It only gathers the PIN; the page that opens it checks it with the Engine. *@
+@if (Open)
+{
+    <div class="admin-unlock__backdrop">
+        <div class="admin-unlock" role="dialog" aria-modal="true" aria-labelledby="admin-unlock-title">
+            <h2 id="admin-unlock-title" class="admin-unlock__title">Enter your administrator PIN</h2>
+            <p class="admin-unlock__hint">This is only asked for when administrator protection is turned on.</p>
+            <PinPad @bind-Value="_pin" Disabled="@Busy" MaxLength="12" OnSubmit="SubmitAsync" OnCancel="Cancel" />
+            @if (!string.IsNullOrWhiteSpace(Error))
+            {
+                <p class="admin-unlock__error" role="alert">@Error</p>
+            }
+            <div class="admin-unlock__actions">
+                <AppNativeButton Type="button" Class="who-button" Disabled="@Busy" OnClick="Cancel">Cancel</AppNativeButton>
+                <AppNativeButton Type="button" Class="who-button who-button--primary" Disabled="@(Busy || _pin.Length < 4)" OnClick="SubmitAsync">
+                    @(Busy ? "Checking…" : "Continue")
+                </AppNativeButton>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private string _pin = string.Empty;
+
+    [Parameter] public bool Open { get; set; }
+    [Parameter] public bool Busy { get; set; }
+    [Parameter] public string? Error { get; set; }
+    [Parameter] public EventCallback<string> OnUnlock { get; set; }
+    [Parameter] public EventCallback OnCancel { get; set; }
+
+    private async Task SubmitAsync()
+    {
+        if (_pin.Length < 4 || Busy)
+        {
+            return;
+        }
+
+        var pin = _pin;
+        _pin = string.Empty;
+        await OnUnlock.InvokeAsync(pin);
+    }
+
+    private async Task Cancel()
+    {
+        _pin = string.Empty;
+        await OnCancel.InvokeAsync();
+    }
+}

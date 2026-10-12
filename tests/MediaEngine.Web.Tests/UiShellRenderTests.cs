@@ -93,6 +93,8 @@ public sealed class UiShellRenderTests : AsyncBunitContext
         Services.AddScoped(_ => session);
         Services.AddSingleton<IHttpClientFactory>(new SettingsIdentityClientFactory(new DelayedLockHandler(authority, session)));
         Services.AddScoped<DashboardIdentityClient>();
+        Services.AddScoped<IItsYouConfirmer>(_ => new ConfirmedActionRunnerTests.SpyConfirmer(confirmed: false));
+        Services.AddScoped<ConfirmedActionRunner>();
     }
 
     [Theory]
@@ -297,7 +299,7 @@ public sealed class UiShellRenderTests : AsyncBunitContext
         Assert.Empty(cut.FindAll(".profile-switcher__item"));
         Assert.DoesNotContain("Who's watching?", cut.Markup);
         Assert.Contains(cut.FindAll("a[role=menuitem]"), link =>
-            link.GetAttribute("href") == "/who?manage=1" && link.TextContent.Contains("Manage profiles"));
+            link.GetAttribute("href") == "/settings/profiles" && link.TextContent.Contains("Manage profiles"));
     }
 
     [Fact]
@@ -681,7 +683,7 @@ public sealed class UiShellRenderTests : AsyncBunitContext
     }
 
     [Fact]
-    public void SettingsPage_RendersUserOverviewWithoutAdminOverviewContent()
+    public void SettingsPage_RendersProfilesWithoutAdminOverviewContent()
     {
         var cut = Render(builder =>
         {
@@ -697,20 +699,14 @@ public sealed class UiShellRenderTests : AsyncBunitContext
 
         cut.WaitForAssertion(() =>
         {
-            Assert.Contains("Change profile photo", cut.Markup);
+            Assert.Contains("profiles-tab__card", cut.Markup);
             Assert.Empty(cut.FindAll(".settings-subsection-nav"));
-            Assert.Empty(cut.FindAll(".user-overview-continue-card"));
-            Assert.Single(cut.FindAll(".user-overview-history-card"));
-            Assert.Single(cut.FindAll(".user-overview-taste-card"));
-            Assert.Single(cut.FindAll(".user-overview-stat-strip"));
             Assert.DoesNotContain("At a Glance", cut.Markup);
             Assert.DoesNotContain("Your Statistics", cut.Markup);
             Assert.Empty(cut.FindAll(".recent-history"));
             Assert.DoesNotContain("Recently Completed", cut.Markup);
             Assert.DoesNotContain("Libraries Used", cut.Markup);
             Assert.DoesNotContain("Preferences at a Glance", cut.Markup);
-            Assert.DoesNotContain("user-overview-name-field", cut.Markup);
-            Assert.DoesNotContain("user-overview-editor", cut.Markup);
             Assert.DoesNotContain("Runtime status", cut.Markup);
             Assert.DoesNotContain("Heartbeat", cut.Markup);
             Assert.DoesNotContain("Stage 3 coverage", cut.Markup);
@@ -846,60 +842,6 @@ public sealed class UiShellRenderTests : AsyncBunitContext
             Assert.Contains("Adjust text while reading", cut.Markup);
             Assert.Contains("Choose tracks in the player", cut.Markup);
         });
-    }
-
-    [Fact]
-    public void UserOverviewTab_RendersIdentityActivityHistoryAndTasteTogether()
-    {
-        var stub = (EngineApiClientStub)(object)Services.GetRequiredService<IEngineApiClient>();
-        stub.SetHandler(nameof(IEngineApiClient.GetProfileReactionsAsync), _ =>
-            Task.FromResult<IReadOnlyList<MediaEngine.Contracts.ProfileState.ProfileReactionDto>>(
-            [
-                new(MediaEngine.Domain.Enums.ProfileEntityKind.Book, Guid.NewGuid(), MediaEngine.Domain.Enums.ProfileReactionKind.Like, DateTimeOffset.UtcNow),
-                new(MediaEngine.Domain.Enums.ProfileEntityKind.Comic, Guid.NewGuid(), MediaEngine.Domain.Enums.ProfileReactionKind.Love, DateTimeOffset.UtcNow),
-                new(MediaEngine.Domain.Enums.ProfileEntityKind.Movie, Guid.NewGuid(), MediaEngine.Domain.Enums.ProfileReactionKind.Dislike, DateTimeOffset.UtcNow),
-                new(MediaEngine.Domain.Enums.ProfileEntityKind.Song, Guid.NewGuid(), MediaEngine.Domain.Enums.ProfileReactionKind.Love, DateTimeOffset.UtcNow),
-            ]));
-        var cut = Render(builder =>
-        {
-            builder.OpenComponent<AppPopoverHost>(0);
-            builder.CloseComponent();
-            builder.OpenComponent<AppDialogHost>(1);
-            builder.CloseComponent();
-            builder.OpenComponent<AppToastHost>(2);
-            builder.CloseComponent();
-            builder.OpenComponent<UserOverviewTab>(3);
-            builder.CloseComponent();
-        });
-
-        cut.WaitForAssertion(() =>
-        {
-            Assert.Equal("overview", cut.Find(".user-overview-grid").GetAttribute("data-profile-section"));
-            Assert.Contains("Activity summary", cut.Markup);
-            Assert.Contains("Continue where you left off", cut.Markup);
-            Assert.Contains("Taste", cut.Markup);
-            Assert.Equal("2", cut.Find("a[href='/for-me?view=favorites&area=read'] strong").TextContent);
-            Assert.Equal("0", cut.Find("a[href='/for-me?view=favorites&area=watch'] strong").TextContent);
-            Assert.Equal("1", cut.Find("a[href='/for-me?view=favorites&area=listen'] strong").TextContent);
-            Assert.Empty(cut.FindAll("[aria-label='Edit display name']"));
-            Assert.Contains("Edit profile", cut.Markup);
-            Assert.DoesNotContain("Manage settings", cut.Markup);
-            Assert.DoesNotContain("Appearance", cut.Markup);
-            Assert.DoesNotContain("Accent color", cut.Markup);
-        });
-    }
-
-    [Fact]
-    public void UserOverviewLoadingRendersBothSizedSkeletonsBeforeTheRequestCompletes()
-    {
-        var pending = new TaskCompletionSource<ProfileOverviewViewModel?>();
-        var stub = (EngineApiClientStub)(object)Services.GetRequiredService<IEngineApiClient>();
-        stub.SetHandler(nameof(IEngineApiClient.GetProfileOverviewAsync), _ => pending.Task);
-        var cut = Render<UserOverviewTab>();
-        Assert.Equal(new[] { "width:;height:180px", "width:;height:220px" },
-            cut.FindAll(".app-skeleton").Select(element => element.GetAttribute("style")));
-        pending.SetResult(null);
-        cut.WaitForAssertion(() => Assert.Empty(cut.FindAll(".app-skeleton")));
     }
 
     [Fact]
