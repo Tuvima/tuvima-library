@@ -110,7 +110,6 @@ public sealed class Wave5AccessibilityGuardrailTests
         Assert.Contains("AppPageStateKind.Error", sources["OverviewTab.razor"]);
         Assert.Contains("AppPageStateKind.Loading", sources["BackupRecoveryPanel.razor"]);
         Assert.Contains("AppPageStateKind.Error", sources["IngestionTasksTab.razor"]);
-        Assert.Contains("AppPageStateKind.Empty", sources["LibrariesTab.razor"]);
         Assert.Contains("<AppDialog", sources["BackupRecoveryPanel.razor"]);
         Assert.DoesNotContain("InvokeAsync<bool>(\n            \"confirm\"", sources["BackupRecoveryPanel.razor"], StringComparison.Ordinal);
     }

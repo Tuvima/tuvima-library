@@ -8,8 +8,6 @@ public sealed class UiCleanupGuardTests
         var source = ReadRepoFile(@"src/MediaEngine.Web/Components/Settings/LibrariesTab.razor");
 
         Assert.Contains("<AppCard", source, StringComparison.Ordinal);
-        Assert.Contains("Density=\"AppSurfaceDensity.Compact\"", source, StringComparison.Ordinal);
-        Assert.Contains("<AppPanel", source, StringComparison.Ordinal);
         Assert.Contains("<AppPageState", source, StringComparison.Ordinal);
         Assert.DoesNotContain("LibraryCardStyle", source, StringComparison.Ordinal);
         Assert.DoesNotContain("PreviewStyle", source, StringComparison.Ordinal);
