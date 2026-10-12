@@ -3,13 +3,15 @@ namespace MediaEngine.Web.Tests;
 public sealed class PersonalSettingsSimplificationTests
 {
     [Fact]
-    public void ProfilePage_CombinesUsefulPersonalInformationWithoutAppearanceControls()
+    public void ProfilePage_ShowsTheOpenProfileAndHousehold_WithoutAppearanceControls()
     {
-        var source = ReadRepoFile("src", "MediaEngine.Web", "Components", "Settings", "UserOverviewTab.razor");
+        var source = ReadRepoFile("src", "MediaEngine.Web", "Components", "Settings", "ProfilesTab.razor");
 
-        Assert.Contains("Activity summary", source, StringComparison.Ordinal);
-        Assert.Contains("Continue where you left off", source, StringComparison.Ordinal);
-        Assert.Contains(">Taste<", source, StringComparison.Ordinal);
+        Assert.Contains("People in your household", source, StringComparison.Ordinal);
+        Assert.Contains("Add profile", source, StringComparison.Ordinal);
+        Assert.Contains("<ProfileEditorSheet", source, StringComparison.Ordinal);
+        Assert.DoesNotContain("Continue where you left off", source, StringComparison.Ordinal);
+        Assert.DoesNotContain("Joined", source, StringComparison.Ordinal);
         Assert.DoesNotContain("ActiveSubsection", source, StringComparison.Ordinal);
         Assert.DoesNotContain("Appearance", source, StringComparison.Ordinal);
         Assert.DoesNotContain("AccentColor", source, StringComparison.Ordinal);

@@ -101,7 +101,7 @@ public static class DisplayFormat
     /// <summary>
     /// Hours+minutes only, rounding the total to the nearest minute and never
     /// showing seconds. Returns "0m" for non-positive input. Originally private
-    /// in Components/Settings/UserOverviewTab.razor ("Time Tracked" stat).
+    /// in Components/Settings/UserOverviewTab.razor, now shown as "Hours" in ProfilesTab.razor.
     /// Distinct from <see cref="FormatDurationHoursMinutesTruncated"/>, which
     /// truncates instead of rounding.
     /// </summary>

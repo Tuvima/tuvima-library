@@ -172,7 +172,7 @@ Settings at `/settings/{Section}` is the Dashboard's operational hub. `SettingsN
 
 | Group | Sections (slug → tab) |
 |---|---|
-| **User Settings** | Overview → `UserOverviewTab`, `playback` → `PlaybackTab`, `privacy` → `PrivacyHistoryTab` |
+| **User Settings** | Profiles → `ProfilesTab`, `playback` → `PlaybackTab`, `privacy` → `PrivacyHistoryTab` |
 | **Admin Settings** | `admin` → `OverviewTab`, `libraries` → `LibrariesTab`, `ingestion` → the Operations `IngestionTasksTab` (automatic live summary on desktop/mobile), `review` → `SettingsReviewQueueTab`, `dev-harness` → `DevHarnessTab`, `providers` → `ProviderPriorityTab`, `ai` → `LocalAiSettingsTab`, `plugins` → `PluginSettingsTab`, `delivery` → `PlaybackDeliverySettingsTab`, `access` → `UsersAccessSettingsTab`, `provider-tester` → `ProviderTesterToolTab`, `enrichment-tester` → `EnrichmentTesterToolTab` |
 
 Additional tab components composed inside those sections: `EncodeSettingsTab`, `OfflineDownloadsTab`, `ModelsTab`, `AiFeaturesTab`, `VibeVocabularyTab`, `AiScheduleTab`, `WikidataConfigTab`, `UniverseSettingsTab`, `SecurityTab`, `UsersTab`, `ApiKeysTab`.

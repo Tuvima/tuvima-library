@@ -51,7 +51,8 @@ Reusable visual components, organised by feature slice.
 | `Navigation/` | `SystemActivityIndicator`, `TopNavAccountMenu` |
 | `Pages/` | All routed pages — see §6.4 |
 | `LibraryItems/` | Internal building blocks used by Library + Universe: `LibraryItemHelpers`, `ReportProblemDialog` |
-| `Settings/` | Settings shell tabs — see §3.11 for the section list and component inventory. |
+| `Profiles/` | `ProfileEditorSheet`, `ProfileAvatarPicker`, `ProfileEditingWorkflow` (sends sheet choices to the Engine), `AdminUnlockDialog`, `ProfileManageRules` — shared by the picker and Settings > Profiles |
+| `Settings/` | Settings shell tabs — `ProfilesTab` is the Profiles page (open-profile card plus the household list for administrators; replaces the retired `UserOverviewTab`). |
 | `Shared/` | The first-party native `App*` design-system primitives (`AppPageState`, `AppErrorState`, `AppEmptyState`, `AppSkeleton`, `AppIcon`, `AppIconCatalog`, `AppTable`, `AppDialog`, form/field/button primitives, …) plus the `Playback*` control primitives (`PlaybackControlStrip`, `PlaybackPrimaryButton`, `PlaybackSpeedControl`, `PlaybackSleepTimerControl`, `PlaybackToolSheet`, …) and `TuvimaArtworkStack` |
 | `Universe/` | Universe surface components: `GlobalBackground`, `AdaptationTree` + node, `FamilyTreeView`, `CastComparison`, `PathFinderPanel` |
 | `Watch/` | `VideoPlaybackHost`, `VideoContextPanel`, `OwnedEpisodeQueuePlanner` |

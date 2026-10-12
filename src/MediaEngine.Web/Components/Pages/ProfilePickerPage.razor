@@ -13,6 +13,8 @@
 @inject AuthenticationStateProvider AuthenticationStateProvider
 @inject NavigationManager Navigation
 @inject ILogger<ProfilePickerPage> Logger
+@inject IJSRuntime JS
+@inject DeviceContextService DeviceContext
 
 <PageTitle>@(_managing ? "Manage profiles" : "Who's watching?") - Tuvima Library</PageTitle>
 
@@ -115,7 +117,7 @@
 
         @if (CanManage)
         {
-            <AppNativeButton Type="button" Class="who-button" Disabled="@_busy" OnClick="StartManaging">Manage profiles</AppNativeButton>
+            <AppNativeButton Type="button" Class="who-button" Disabled="@_busy" OnClick="StartManagingAsync">Manage profiles</AppNativeButton>
         }
 
         @if (ShowPinReminder)
@@ -431,10 +433,31 @@
         return profile.HasPin ? $"{profile.DisplayName}{kids}, needs a PIN" : $"{profile.DisplayName}{kids}";
     }
 
-    private void StartManaging()
+    // Managing people lives in Settings; a television has no Settings page worth using, so it keeps managing in place here.
+    private async Task StartManagingAsync()
     {
         _error = null;
-        _managing = true;
+        if (await IsTelevisionAsync())
+        {
+            _managing = true;
+            return;
+        }
+
+        Navigation.NavigateTo("/settings/profiles");
+    }
+
+    private async Task<bool> IsTelevisionAsync()
+    {
+        try
+        {
+            var deviceClass = await JS.InvokeAsync<string>("detectDeviceClass");
+            return string.Equals(deviceClass, "television", StringComparison.OrdinalIgnoreCase);
+        }
+        catch (Exception exception) when (exception is JSException or InvalidOperationException or JSDisconnectedException)
+        {
+            Logger.LogDebug(exception, "Could not detect the device class; using the one already known.");
+            return DeviceContext.IsTelevision;
+        }
     }
 
     private void DoneManaging()
