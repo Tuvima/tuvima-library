@@ -38,7 +38,7 @@
     <div class="media-hub__shelves">
         @if (VisibleShelves.Count == 0)
         {
-            <EmptyShelfState Title="@EmptyTitle" Message="@EmptyMessage" />
+            <EmptyShelfState Title="@EmptyTitle" Message="@EmptyMessage" ActionLabel="Add a library" ActionHref="@AddLibraryHref" />
         }
         else
         {
@@ -131,6 +131,14 @@
         })
         .Where(shelf => shelf.Items.Count > 0)
         .ToList();
+
+    // Each lane starts the Add Library wizard on the matching type, so the first click is already on the folder step.
+    private string AddLibraryHref => "/settings/libraries/new?type=" + SectionType switch
+    {
+        MediaHubSectionType.Read => "books",
+        MediaHubSectionType.Watch => "movies",
+        _ => "music",
+    };
 
     private string EmptyTitle => $"{Title} is waiting for media";
 
