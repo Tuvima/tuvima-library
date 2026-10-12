@@ -102,19 +102,12 @@ public sealed class Phase6SettingsAdminHardeningTests
         Assert.Contains("new(SettingsSection.Ingestion", nav, StringComparison.Ordinal);
         Assert.DoesNotContain("<SettingsSubsectionNav", settings, StringComparison.Ordinal);
 
-        Assert.Contains("All libraries", source, StringComparison.Ordinal);
         Assert.Contains("Personal Space", ReadRepoFile(@"src/MediaEngine.Web/Components/Settings/ViewLibrarySettings.razor"), StringComparison.Ordinal);
         Assert.DoesNotContain("Import folders", source, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("Choose a media area", source, StringComparison.Ordinal);
-        Assert.Contains("new(\"all\", \"All\"", source, StringComparison.Ordinal);
-        Assert.Contains("new(\"read\", \"Read\"", source, StringComparison.Ordinal);
-        Assert.Contains("new(\"watch\", \"Watch\"", source, StringComparison.Ordinal);
-        Assert.Contains("new(\"listen\", \"Listen\"", source, StringComparison.Ordinal);
         Assert.Contains("<ViewLibrarySettings", source, StringComparison.Ordinal);
         Assert.Contains("/settings/libraries/view", source, StringComparison.Ordinal);
         Assert.Contains("Not checked", source, StringComparison.Ordinal);
         Assert.Contains("<h3>Folders</h3>", source, StringComparison.Ordinal);
-        Assert.Contains("Existing folders stay unchanged", source, StringComparison.Ordinal);
         Assert.Contains("Primary destination", source, StringComparison.Ordinal);
         Assert.Contains("Duplicate handling", source, StringComparison.Ordinal);
         Assert.Contains("Visibility", source, StringComparison.Ordinal);

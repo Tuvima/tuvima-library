@@ -88,12 +88,9 @@
     private sealed record OrganizationDetailOption(string Value, string Label, string Help, string Icon);
 
     [Parameter] public string? Subsection { get; set; }
-    [Parameter] public string? Scope { get; set; }
     [Parameter] public EventCallback<string> LibraryNameChanged { get; set; }
 
     private LibrariesConfigurationDto? _configuration;
-    private IngestionOperationsSnapshotDto? _ingestionSnapshot;
-    private ViewStorageSummaryDto? _viewSummary;
     private string _baseline = string.Empty;
     private string? _loadError;
     private bool _loading = true;
@@ -101,7 +98,6 @@
     private bool _engineUnavailable;
     private ArtworkWritebackSettingsDto? _artworkWritebackSettings;
     private bool _savingArtworkWriteback;
-    private string _libraryFilter = "all";
     private readonly Dictionary<string, PathTestResultDto> _pathResults = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, string> _selectedLibraryIds = new(StringComparer.OrdinalIgnoreCase);
 
@@ -109,17 +105,6 @@
     [
         new("skip_exact", "Skip exact duplicates"),
         new("keep_both", "Keep both"),
-    ];
-
-    private static readonly IReadOnlyList<AppSelectOption> OrganizationOptions =
-    [
-        new("tuvima_standard", "Tuvima Library standard"),
-        new("keep_original_names", "Keep original names"),
-        new("capture_year_month", "Capture year / month"),
-        new("year_month_day", "Year / month / day"),
-        new("keep_original_folders", "Keep original folders"),
-        new("flat_folder", "Flat folder"),
-        new("custom", "Custom"),
     ];
 
     private static readonly IReadOnlyList<AppSelectOption> ManagementOptions =
@@ -135,23 +120,6 @@
         new("intake", "Intake source"),
     ];
 
-    private static readonly IReadOnlyList<AppSelectOption> SourceTypeOptions =
-    [
-        new("local_folder", "Local folder"),
-        new("network_share", "Network share"),
-        new("mobile_device", "Mobile device"),
-        new("connected_device", "Connected device"),
-    ];
-
-    private static readonly IReadOnlyList<AppSelectOption> LibraryFilterOptions =
-    [
-        new("all", "All", AppMaterialIcons.Outlined.Layers),
-        new("read", "Read", AppMaterialIcons.Outlined.MenuBook),
-        new("watch", "Watch", AppMaterialIcons.Outlined.LiveTv),
-        new("listen", "Listen", AppMaterialIcons.Outlined.Headphones),
-        new("view", "View", AppMaterialIcons.Outlined.PhotoLibrary),
-    ];
-
     private static readonly OrganizationDetailOption[] OrganizationDetailOptions =
     [
         new("tuvima_standard", "Tuvima Library Standard", "Use media-aware folders and filenames for new imports.", AppMaterialIcons.Outlined.AutoAwesome),
@@ -161,83 +129,14 @@
 
     protected override async Task OnInitializedAsync()
     {
-        _libraryFilter = Scope is "read" or "watch" or "listen" or "view" ? Scope : "all";
         await LoadAsync();
         _artworkWritebackSettings = await ApiClient.GetArtworkWritebackSettingsAsync();
     }
 
     protected override void OnParametersSet()
     {
-        _libraryFilter = Scope is "read" or "watch" or "listen" or "view" ? Scope : "all";
         _ = PublishLibraryNameAsync();
     }
-
-    private RenderFragment OverviewSurface(bool readOnly) => @<div class="libraries__overview">
-        <AppSegmentedControl Value="@_libraryFilter"
-                             ValueChanged="@SetLibraryFilter"
-                             Options="@LibraryFilterOptions"
-                             AriaLabel="Choose a media area" />
-
-        <div class="libraries-metrics" aria-label="Library summary">
-            <AppPanel Density="AppSurfaceDensity.Compact" Class="libraries-metric">
-                <span class="libraries-metric__icon"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.VideoLibrary" /></span>
-                <span><small>Total libraries</small><strong>@((_configuration?.Libraries.Count(library => library.Kind == "catalogued") ?? 0) + 1)</strong><em>Across Read, Watch, Listen, and View</em></span>
-            </AppPanel>
-            <AppPanel Density="AppSurfaceDensity.Compact" Class="libraries-metric">
-                <span class="libraries-metric__icon libraries-metric__icon--blue"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Folder" /></span>
-                <span><small>Total folders</small><strong>@(_viewSummary is null ? "Unavailable" : ((_configuration?.Libraries.Sum(library => library.Sources.Count) ?? 0) + _viewSummary.Sources).ToString())</strong><em>Watched by their library</em></span>
-            </AppPanel>
-            <AppPanel Density="AppSurfaceDensity.Compact" Class="libraries-metric libraries-metric--link">
-                <a href="/settings/recently-added?review=expanded" aria-label="Open items needing review"></a>
-                <span class="libraries-metric__icon libraries-metric__icon--warning"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.WarningAmber" /></span>
-                <span><small>Items needing review</small><strong>@(_ingestionSnapshot?.Summary.ItemsNeedingReview.ToString() ?? "Unavailable")</strong><em>Catalogued media only</em></span>
-            </AppPanel>
-        </div>
-
-        <AppCard Class="libraries-card">
-            <div class="libraries-card__heading">
-                <div><h3>@(_libraryFilter == "all" ? "All libraries" : $"{TitleCase(_libraryFilter)} libraries")</h3><p>Open a library to review its folders, organization rules, and health.</p></div>
-            </div>
-            @if (FilteredLibraries.Count == 0 && _libraryFilter != "view" && _libraryFilter != "all")
-            {
-                <AppPageState Kind="AppPageStateKind.Empty" Icon="@AreaIcon(_libraryFilter)" Title="No folders in this area" Message="Choose another media area or configure its first folder." />
-            }
-            else
-            {
-            <div class="libraries-table libraries-table--summary" aria-label="Configured libraries">
-                <div class="libraries-table__head" ><span>Library</span><span>Area</span><span>Folders</span><span>Files</span><span>Health</span><span></span></div>
-                @if (_libraryFilter is "all" or "view")
-                {
-                    <a class="libraries-table__row" href="/settings/libraries/view?scope=@_libraryFilter">
-                        <span class="libraries-table__identity"><span class="libraries-table__media-icon is-view"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.PhotoLibrary" Size="AppSize.Small" /></span><span><strong>View</strong><small>Personal photos, videos, documents, and recordings</small></span></span>
-                        <AppStatusBadge Text="View" Tone="AppUiTone.Success" />
-                        <span>@(_viewSummary is null ? "Unavailable" : $"{_viewSummary.Sources} {(_viewSummary.Sources == 1 ? "folder" : "folders")}")</span><span>@(_viewSummary?.Items.ToString() ?? "Unavailable")</span>
-                        <AppStatusBadge Text="Not checked" Tone="AppUiTone.Neutral" />
-                        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ChevronRight" Size="AppSize.Small" />
-                    </a>
-                }
-                @foreach (var library in FilteredLibraries)
-                {
-                    <a class="libraries-table__row" href="@LibraryRoute(library)">
-                        <span class="libraries-table__identity"><span class="libraries-table__media-icon @($"is-{library.Area}")"><AppMaterialIcon Icon="@LibraryIcon(library)" Size="AppSize.Small" /></span><span><strong>@LibraryDisplayName(library)</strong><small>@LibraryDescription(library)</small></span></span>
-                        <AppStatusBadge Text="@TitleCase(library.Area)" Tone="@AreaTone(library.Area)" />
-                        <span>@library.Sources.Count @(library.Sources.Count == 1 ? "folder" : "folders")</span>
-                        <span>@(LibraryItemCount(library) is { } count ? DisplayFormat.FormatCount(count) : "Unavailable")</span>
-                        <AppStatusBadge Text="@LibraryStatus(library)" Tone="@LibraryStatusTone(library)" />
-                        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ChevronRight" Size="AppSize.Small" />
-                    </a>
-                }
-            </div>
-            }
-        </AppCard>
-
-        <div class="libraries__aside-grid">
-            <AppPanel Density="AppSurfaceDensity.Compact" Class="libraries-info">
-                <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Shield" />
-                <div><strong>Existing folders stay unchanged</strong><p>Tuvima Library can scan and index an existing library, but it never moves, renames, tags, or deletes its files.</p></div>
-            </AppPanel>
-        </div>
-    </div>;
 
     private RenderFragment LibraryDetailSurface(LibraryFolderDto library, bool readOnly) => @<div class="library-detail">
         <LibraryDetailHeader Title="@library.Name" Description="@($"{TitleCase(library.Area)} library · {LibraryDescription(library)}")" Icon="@LibraryIcon(library)">
@@ -330,42 +229,6 @@
         finally { _savingArtworkWriteback = false; }
     }
 
-    private IReadOnlyList<LibraryFolderDto> FilteredLibraries => _configuration?.Libraries
-        .Where(library => !string.Equals(library.Kind, "personal", StringComparison.OrdinalIgnoreCase))
-        .Where(library => _libraryFilter == "all" || string.Equals(library.Area, _libraryFilter, StringComparison.OrdinalIgnoreCase))
-        .OrderBy(library => library.Area)
-        .ThenBy(library => library.Name)
-        .ToList() ?? [];
-
-    private IReadOnlyList<AppSelectOption> ViewStorageLocationOptions => _configuration?.StorageLocations
-        .Where(location => location.AllowWrite)
-        .Select(location => new AppSelectOption(location.Id, location.Label))
-        .ToList() ?? [];
-
-    private string ViewRootPreview
-    {
-        get
-        {
-            if (_configuration is null) return "View";
-            var location = _configuration.StorageLocations.FirstOrDefault(candidate =>
-                string.Equals(candidate.Id, _configuration.ViewStorage.StorageLocationId, StringComparison.OrdinalIgnoreCase));
-            return location is null
-                ? _configuration.ViewStorage.RelativeRoot
-                : Path.Combine(location.Path, _configuration.ViewStorage.RelativeRoot);
-        }
-    }
-
-    private LibraryFolderDto? ActiveFilteredLibrary
-    {
-        get
-        {
-            var libraries = FilteredLibraries;
-            if (libraries.Count == 0) return null;
-            var selectedId = _selectedLibraryIds.GetValueOrDefault(_libraryFilter);
-            return libraries.FirstOrDefault(library => library.Id == selectedId) ?? libraries[0];
-        }
-    }
-
     private async Task LoadAsync()
     {
         _loading = true;
@@ -373,8 +236,6 @@
         try
         {
             var configurationTask = Orchestrator.GetLibrariesAsync();
-            var ingestionTask = ApiClient.GetIngestionOperationsSnapshotAsync();
-            var viewTask = ApiClient.GetViewStorageSummaryAsync();
 
             _configuration = await configurationTask;
 
@@ -387,8 +248,6 @@
                 _loading = false;
                 await PublishLibraryNameAsync();
                 await InvokeAsync(StateHasChanged);
-                _viewSummary = await viewTask;
-                _ingestionSnapshot = await ingestionTask;
                 await RefreshPathStatusesAsync();
                 await PublishLibraryNameAsync();
             }
@@ -403,11 +262,6 @@
         {
             _loading = false;
         }
-    }
-
-    private async Task ReloadAsync()
-    {
-        await LoadAsync();
     }
 
     private async Task<string?> EditTextAsync(string label, string value)
@@ -553,11 +407,6 @@
         }
     }
 
-    private async Task CheckLibraryPathsAsync(LibraryFolderDto library)
-    {
-        foreach (var source in library.Sources) await CheckPathAsync(source.Path);
-    }
-
     private async Task CheckPathAsync(string path)
     {
         if (string.IsNullOrWhiteSpace(path)) return;
@@ -637,30 +486,6 @@
             : null;
     }
 
-    private string LibraryRoute(LibraryFolderDto library) => $"/settings/libraries/{library.Id}" + (_libraryFilter == "all" ? "" : $"?scope={_libraryFilter}");
-
-    private void OpenLibrary(LibraryFolderDto library)
-    {
-        _selectedLibraryIds[library.Area] = library.Id;
-        _selectedLibraryIds["all"] = library.Id;
-        _libraryFilter = library.Area;
-        Nav.NavigateTo($"/settings/libraries/{library.Id}");
-    }
-
-    private void SelectLibrary(string section, string id) => _selectedLibraryIds[section] = id;
-
-    private void SetLibraryFilter(string? value)
-    {
-        _libraryFilter = value is "read" or "watch" or "listen" or "view" ? value : "all";
-        Nav.NavigateTo(_libraryFilter == "all" ? "/settings/libraries" : $"/settings/libraries?scope={_libraryFilter}");
-        var libraries = FilteredLibraries;
-        if (libraries.Count > 0
-            && (!_selectedLibraryIds.TryGetValue(_libraryFilter, out var id) || libraries.All(library => library.Id != id)))
-        {
-            _selectedLibraryIds[_libraryFilter] = libraries[0].Id;
-        }
-    }
-
     private LibraryFolderDto? ActiveLibrary(string section)
     {
         var libraries = LibrariesFor(section);
@@ -690,18 +515,6 @@
         if (!result.HasRead) return "Permission issue";
         if (!result.HasWrite) return "Read-only";
         return "Healthy";
-    }
-
-    private static string FormatRelative(DateTimeOffset value)
-    {
-        var elapsed = DateTimeOffset.UtcNow - value.ToUniversalTime();
-        return elapsed.TotalMinutes switch
-        {
-            < 1 => "just now",
-            < 60 => $"{(int)elapsed.TotalMinutes}m ago",
-            < 1440 => $"{(int)elapsed.TotalHours}h ago",
-            _ => $"{(int)elapsed.TotalDays}d ago",
-        };
     }
 
     private AppUiTone PathTone(string path) => PathStatus(path) switch
@@ -791,27 +604,6 @@
         ? Path.GetFileName(source.Path.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar))
         : source.Notes;
 
-    private string LibraryLastScan(LibraryFolderDto library)
-    {
-        var latest = _ingestionSnapshot?.SourceGroups
-            .SelectMany(group => group.Libraries)
-            .SelectMany(sourceLibrary => sourceLibrary.Folders)
-            .Where(folder => library.Sources.Any(source => string.Equals(source.Path, folder.Path, StringComparison.OrdinalIgnoreCase)))
-            .Where(folder => folder.LastScan.HasValue)
-            .Select(folder => folder.LastScan!.Value)
-            .DefaultIfEmpty()
-            .Max();
-        return latest is null || latest == default ? "Not scanned" : FormatRelative(latest.Value);
-    }
-
-    private static string OrganizationModeLabel(string? mode) => mode switch
-    {
-        "tuvima_standard" => "Tuvima Library Standard",
-        "keep_original_names" => "Keep original names",
-        "custom" => "Custom",
-        _ => TitleCase(mode),
-    };
-
     private static string LibraryIcon(LibraryFolderDto library)
     {
         var mediaType = library.MediaTypes.FirstOrDefault()?.ToLowerInvariant();
@@ -827,7 +619,6 @@
         };
     }
 
-    private static string LibraryDisplayName(LibraryFolderDto library) => library.Name;
     private static string LibraryDescription(LibraryFolderDto library) =>
         library.MediaTypes.FirstOrDefault()?.ToLowerInvariant() switch
         {
@@ -839,17 +630,6 @@
             "audiobooks" => "Narrated books",
             _ => library.Notes ?? "Structured media library",
         };
-
-    private int? LibraryItemCount(LibraryFolderDto library)
-    {
-        var folders = _ingestionSnapshot?.SourceGroups
-            .SelectMany(group => group.Libraries)
-            .SelectMany(sourceLibrary => sourceLibrary.Folders)
-            .Where(folder => library.Sources.Any(source => string.Equals(source.Path, folder.Path, StringComparison.OrdinalIgnoreCase)))
-            .ToList();
-        return folders is not null && folders.Count == library.Sources.Count
-            ? folders.Sum(folder => folder.ItemCount) : null;
-    }
 
     private static AppUiTone AreaTone(string? area) => area?.ToLowerInvariant() switch
     {
@@ -864,26 +644,6 @@
     {
         "enriched" => "Provider metadata", "local_preferred" => "Local preferred", "local_only" => "Local metadata", "manual" => "Manual", _ => TitleCase(value),
     };
-
-    private static string PresentationDescription(string value) => value switch
-    {
-        "mixed_gallery" => "Photos, short videos, and files together.",
-        "timeline" => "Browse by capture date.",
-        "video" => "Focus on videos and clips.",
-        "gallery" => "Image-led thumbnail gallery.",
-        "documents" => "Documents and file previews.",
-        "audio" => "Audio notes and local recordings.",
-        _ => "A flexible view for several file types.",
-    };
-
-    private static string DuplicateLabel(string? value) => value switch
-    {
-        "skip_exact" => "Skip exact duplicates", "keep_both" => "Keep both", "replace_existing" => "Replace existing", _ => TitleCase(value),
-    };
-
-    private static string SourceSummary(LibrarySourceDto source) => source.ManagementMode == "existing_library"
-        ? "Read-only external source"
-        : source.Role == "primary_destination" ? "Managed primary destination" : "Managed secondary source";
 
     private static string OrganizationExample(LibraryFolderDto library) => library.OrganizationPolicy.Mode switch
     {
