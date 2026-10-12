@@ -47,7 +47,8 @@ internal static class LibraryMutationEndpoints
                     PersonalLibraryPolicy = dto.PersonalLibraryPolicy,
                 });
                 var error = SettingsEndpoints.ValidateViewStorage(proposed)
-                    ?? SettingsEndpoints.ValidateViewRootChange(current, proposed);
+                    ?? SettingsEndpoints.ValidateViewRootChange(current, proposed)
+                    ?? LibraryTypeRules.ValidateOneLibraryPerType(current, proposed);
                 if (error is not null)
                 {
                     return ApiErrors.BadRequest(error);
