@@ -21,81 +21,82 @@
                 <span class="profile-editor__avatar">
                     <ProfileAvatar DisplayName="@_name" ImageUrl="@PreviewImageUrl" Color="@_color" Icon="@_icon" />
                 </span>
+                <AppNativeButton Type="button" Class="who-button profile-editor__change" Disabled="@Saving" OnClick="TogglePicker" aria-expanded="@(_pickerOpen ? "true" : "false")">@(_pickerOpen ? "Done" : "Change")</AppNativeButton>
             </div>
+
+            @if (_pickerOpen)
+            {
+                <ProfileAvatarPicker DisplayName="@_name"
+                                     Color="@_color"
+                                     Icon="@_icon"
+                                     HasPhoto="@HasPhoto"
+                                     PhotoReplacedByChoices="@(HasPhoto || Profile?.AvatarImageUrl is { Length: > 0 })"
+                                     Disabled="@Saving"
+                                     ColorChanged="OnColorChanged"
+                                     IconChanged="OnIconChanged"
+                                     PhotoChosen="OnPhotoChosenAsync"
+                                     PhotoRemoved="OnPhotoRemoved" />
+            }
 
             <label class="profile-editor__field">
                 <span>Name</span>
                 <AppNativeInput Type="text" Class="who-dialog__input profile-editor__name" Value="@_name" Placeholder="Name" AriaLabel="Name" maxlength="50" Disabled="@Saving" OnInput="OnNameInput" />
             </label>
 
-            <ProfileAvatarPicker DisplayName="@_name"
-                                 Color="@_color"
-                                 Icon="@_icon"
-                                 HasPhoto="@HasPhoto"
-                                 Disabled="@Saving"
-                                 ColorChanged="OnColorChanged"
-                                 IconChanged="OnIconChanged"
-                                 PhotoChosen="OnPhotoChosenAsync"
-                                 PhotoRemoved="OnPhotoRemoved" />
+            <div class="profile-editor__settings">
+                <label class="profile-editor__setting">
+                    <span class="profile-editor__setting-text">
+                        <strong>Kids profile</strong>
+                        <small>@(KidsLocked ? "This can't be changed after a profile is made." : "A calmer, simpler Tuvima without settings.")</small>
+                    </span>
+                    <AppNativeInput Type="checkbox" Class="who-check__box" Checked="@_isChild" Disabled="@(Saving || KidsLocked)" AriaLabel="Kids profile" OnChange="OnKidsChanged" />
+                </label>
 
-            @if (HasPhoto || Profile?.AvatarImageUrl is { Length: > 0 })
-            {
-                <p class="avatar-picker__hint">Choosing a colour or icon replaces the current photo.</p>
-            }
-
-            <label class="profile-editor__switch">
-                <AppNativeInput Type="checkbox" Class="who-check__box" Checked="@_isChild" Disabled="@(Saving || KidsLocked)" AriaLabel="Kids profile" OnChange="OnKidsChanged" />
-                <span>
-                    <strong>Kids profile</strong>
-                    <small>@(KidsLocked ? "This can't be changed after a profile is made." : "A calmer, simpler Tuvima without settings.")</small>
-                </span>
-            </label>
-
-            <fieldset class="profile-editor__limit" disabled="@Saving">
-                <legend>What can @(string.IsNullOrWhiteSpace(_name) ? "this person" : _name.Trim()) watch?</legend>
-                <div class="profile-editor__limit-options" role="radiogroup" aria-label="Content limit">
-                    @foreach (var choice in LimitChoices)
-                    {
-                        var selected = _limit == choice.Value;
-                        var choiceClass = selected ? "profile-editor__limit-choice is-selected" : "profile-editor__limit-choice";
-                        <AppNativeButton Type="button"
-                                         Class="@choiceClass"
-                                         Disabled="@Saving"
-                                         OnClick="@(() => ChooseLimit(choice.Value))"
-                                         role="radio"
-                                         aria-checked="@(selected ? "true" : "false")">@choice.Label</AppNativeButton>
-                    }
+                <div class="profile-editor__setting profile-editor__setting--wide">
+                    <span class="profile-editor__setting-text">
+                        <strong>What can @(string.IsNullOrWhiteSpace(_name) ? "this person" : _name.Trim()) watch?</strong>
+                        <small>@LimitHint</small>
+                    </span>
+                    <AppSegmentedControl Class="profile-editor__limit" AriaLabel="Content limit" Options="LimitChoices" Value="@_limit" ValueChanged="ChooseLimit" Disabled="@Saving" />
                 </div>
-                <small class="profile-editor__limit-hint">@LimitHint</small>
+
                 @if (_limit.Length > 0)
                 {
-                    <label class="profile-editor__switch">
-                        <AppNativeInput Type="checkbox" Class="who-check__box" Checked="@_allowUnrated" Disabled="@Saving" AriaLabel="Show items with no rating" OnChange="OnAllowUnratedChanged" />
-                        <span>
+                    <label class="profile-editor__setting">
+                        <span class="profile-editor__setting-text">
                             <strong>Show items with no rating</strong>
                             <small>Music and personal videos often have none. Off keeps them hidden.</small>
                         </span>
+                        <AppNativeInput Type="checkbox" Class="who-check__box" Checked="@_allowUnrated" Disabled="@Saving" AriaLabel="Show items with no rating" OnChange="OnAllowUnratedChanged" />
                     </label>
                 }
-            </fieldset>
 
-            <div class="profile-editor__pin">
-                <strong>PIN</strong>
+                <div class="profile-editor__setting">
+                    <span class="profile-editor__setting-text">
+                        <strong>PIN</strong>
+                        <small>@PinStatus</small>
+                    </span>
+                    <span class="profile-editor__setting-actions">
+                        @if (!_changingPin)
+                        {
+                            <AppNativeButton Type="button" Class="who-button" Disabled="@Saving" OnClick="StartPinChange">@(PinSet ? "Change" : "Set")</AppNativeButton>
+                            @if (PinSet)
+                            {
+                                <AppNativeButton Type="button" Class="who-button" Disabled="@Saving" OnClick="RemovePin">Remove</AppNativeButton>
+                            }
+                        }
+                        else
+                        {
+                            <AppNativeButton Type="button" Class="who-button" Disabled="@Saving" OnClick="CancelPinChange">Cancel</AppNativeButton>
+                        }
+                    </span>
+                </div>
+
                 @if (_changingPin)
                 {
-                    <PinPad @bind-Value="_pin" Disabled="@Saving" MaxLength="12" Label="New PIN" OnCancel="CancelPinChange" />
-                    <small>@PinHint</small>
-                    <AppNativeButton Type="button" Class="who-button" Disabled="@Saving" OnClick="CancelPinChange">Cancel PIN change</AppNativeButton>
-                }
-                else
-                {
-                    <small>@(HasPin && !_removePin ? "A PIN is asked for before switching to this person." : "No PIN. Anyone can switch to this person.")</small>
-                    <div class="profile-editor__row">
-                        <AppNativeButton Type="button" Class="who-button" Disabled="@Saving" OnClick="StartPinChange">@(HasPin && !_removePin ? "Change PIN" : "Set a PIN")</AppNativeButton>
-                        @if (HasPin && !_removePin)
-                        {
-                            <AppNativeButton Type="button" Class="who-button" Disabled="@Saving" OnClick="RemovePin">Remove PIN</AppNativeButton>
-                        }
+                    <div class="profile-editor__pin">
+                        <PinPad @bind-Value="_pin" Disabled="@Saving" MaxLength="12" Label="New PIN" OnCancel="CancelPinChange" />
+                        <small>@PinHint</small>
                     </div>
                 }
             </div>
@@ -153,6 +154,7 @@
     private string? _icon;
     private bool _isChild;
     private string _pin = string.Empty;
+    private bool _pickerOpen;
     private bool _changingPin;
     private bool _removePin;
     private bool _removePhoto;
@@ -167,9 +169,9 @@
     private bool _limitTouched;
 
     // An empty value is Everything; the rest are the steps the Engine understands.
-    private static readonly (string Value, string Label)[] LimitChoices =
+    private static readonly IReadOnlyList<AppSelectOption> LimitChoices =
     [
-        (string.Empty, "Everything"), ("G", "G"), ("PG", "PG"), ("PG-13", "PG-13"), ("R", "R"),
+        new(string.Empty, "Everything"), new("G", "G"), new("PG", "PG"), new("PG-13", "PG-13"), new("R", "R"),
     ];
 
     /// <summary>Show the sheet. Its fields are filled in again each time it opens.</summary>
@@ -211,6 +213,11 @@
     private bool KidsLocked => !IsAdd;
 
     private bool HasPin => Profile?.HasPin == true;
+
+    // "PIN set" follows what will be saved: an existing PIN not being removed, or a new one being chosen.
+    private bool PinSet => (HasPin && !_removePin) || (_changingPin && ValidPin(_pin));
+
+    private string PinStatus => _changingPin ? PinHint : PinSet ? "PIN set" : "No PIN";
 
     private bool HasPhoto => _newPhoto is not null || (!_removePhoto && !string.IsNullOrWhiteSpace(Profile?.AvatarImageUrl));
 
@@ -271,6 +278,7 @@
         _allowUnrated = Profile?.ContentLimitAllowUnrated ?? false;
         _limitTouched = false;
         _pin = string.Empty;
+        _pickerOpen = false;
         _changingPin = false;
         _removePin = false;
         _removePhoto = false;
@@ -305,9 +313,12 @@
         _allowUnrated = args.Value is true || string.Equals(args.Value?.ToString(), "true", StringComparison.OrdinalIgnoreCase);
 
     // Picking a colour means "show a colour", so a chosen photo is dropped (Cancel still keeps the saved one).
+    private void TogglePicker() => _pickerOpen = !_pickerOpen;
+
     private Task OnColorChanged(string color)
     {
         _color = color;
+        _pickerOpen = false;
         DropPhoto();
         return Task.CompletedTask;
     }
@@ -315,6 +326,7 @@
     private Task OnIconChanged(string? key)
     {
         _icon = key;
+        _pickerOpen = false;
         DropPhoto();
         return Task.CompletedTask;
     }

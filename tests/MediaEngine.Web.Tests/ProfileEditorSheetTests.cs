@@ -37,6 +37,19 @@ public sealed class ProfileEditorSheetTests
             .Add(p => p.OnClose, EventCallback.Factory.Create(Owner, () => closed?.Invoke())));
     }
 
+    private static void OpenPicker(IRenderedComponent<ProfileEditorSheet> cut) => ButtonWithText(cut, "Change").Click();
+
+    private static void OpenTab(IRenderedComponent<ProfileEditorSheet> cut, string tab)
+    {
+        OpenPicker(cut);
+        PickTab(cut, tab);
+    }
+
+    private static void PickTab(IRenderedComponent<ProfileEditorSheet> cut, string tab)
+    {
+        cut.FindAll("[aria-label='Avatar type'] button").First(button => button.TextContent.Trim() == tab).Click();
+    }
+
     private static AngleSharp.Dom.IElement ButtonWithText(IRenderedComponent<ProfileEditorSheet> cut, string text) =>
         cut.FindAll("button").First(button => button.TextContent.Contains(text, StringComparison.Ordinal));
 
@@ -63,7 +76,9 @@ public sealed class ProfileEditorSheetTests
         var cut = Render(ctx, saved: r => result = r);
 
         cut.Find("input.profile-editor__name").Input("  Sam ");
+        OpenPicker(cut);
         cut.Find("button[aria-label='Pink']").Click();
+        OpenTab(cut, "Icon");
         cut.Find("button[aria-label='fox']").Click();
         cut.Find("input[aria-label='Kids profile']").Change(true);
         cut.Find("button.who-button--primary").Click();
@@ -85,9 +100,9 @@ public sealed class ProfileEditorSheetTests
         ProfileEditorResult? result = null;
         var cut = Render(ctx, saved: r => result = r);
 
-        var choices = cut.FindAll("[aria-label='Content limit'] button[role='radio']");
+        var choices = cut.FindAll("[aria-label='Content limit'] button");
         Assert.Equal(["Everything", "G", "PG", "PG-13", "R"], choices.Select(choice => choice.TextContent.Trim()));
-        Assert.Equal("true", choices[0].GetAttribute("aria-checked"));
+        Assert.Equal("true", choices[0].GetAttribute("aria-pressed"));
         Assert.Empty(cut.FindAll("input[aria-label='Show items with no rating']"));
 
         cut.Find("input.profile-editor__name").Input("Sam");
@@ -106,10 +121,10 @@ public sealed class ProfileEditorSheetTests
 
         cut.Find("input.profile-editor__name").Input("Sam");
         cut.Find("input[aria-label='Kids profile']").Change(true);
-        Assert.Equal("true", cut.FindAll("[aria-label='Content limit'] button[role='radio']")[2].GetAttribute("aria-checked"));
+        Assert.Equal("true", cut.FindAll("[aria-label='Content limit'] button")[2].GetAttribute("aria-pressed"));
 
         // PG-13 for an eight-year-old is the parent's call; switching Kids off afterwards does not undo it.
-        cut.FindAll("[aria-label='Content limit'] button[role='radio']")[3].Click();
+        cut.FindAll("[aria-label='Content limit'] button")[3].Click();
         cut.Find("input[aria-label='Show items with no rating']").Change(true);
         cut.Find("input[aria-label='Kids profile']").Change(false);
         cut.Find("button.who-button--primary").Click();
@@ -126,14 +141,72 @@ public sealed class ProfileEditorSheetTests
         var existing = Existing(kids: true) with { ContentLimit = "R", ContentLimitAllowUnrated = true };
         var cut = Render(ctx, existing, saved: r => result = r);
 
-        Assert.Equal("true", cut.FindAll("[aria-label='Content limit'] button[role='radio']")[4].GetAttribute("aria-checked"));
+        Assert.Equal("true", cut.FindAll("[aria-label='Content limit'] button")[4].GetAttribute("aria-pressed"));
         Assert.True(cut.Find("input[aria-label='Show items with no rating']").HasAttribute("checked"));
 
-        cut.FindAll("[aria-label='Content limit'] button[role='radio']")[0].Click();
+        cut.FindAll("[aria-label='Content limit'] button")[0].Click();
         cut.Find("button.who-button--primary").Click();
 
         Assert.Equal(string.Empty, result!.ContentLimit);
         Assert.False(result.ContentLimitAllowUnrated);
+    }
+
+    [Fact]
+    public void TheAvatarPicker_StartsCollapsed_AndClosesAfterAColourIsChosen()
+    {
+        using var ctx = new BunitContext();
+        ProfileEditorResult? result = null;
+        var cut = Render(ctx, saved: r => result = r);
+
+        Assert.Empty(cut.FindAll(".avatar-picker"));
+        Assert.Empty(cut.FindAll("button[aria-label='Pink']"));
+
+        OpenPicker(cut);
+        cut.Find("button[aria-label='Pink']").Click();
+
+        Assert.Empty(cut.FindAll(".avatar-picker"));
+        cut.Find("input.profile-editor__name").Input("Sam");
+        cut.Find("button.who-button--primary").Click();
+        Assert.Equal("#EC4899", result!.Color);
+    }
+
+    [Fact]
+    public void ContentLimit_ShowsTheUnratedSwitchOnlyWhenALimitIsSet_AndReportsTheChoice()
+    {
+        using var ctx = new BunitContext();
+        ProfileEditorResult? result = null;
+        var cut = Render(ctx, saved: r => result = r);
+
+        Assert.Empty(cut.FindAll("input[aria-label='Show items with no rating']"));
+        cut.FindAll("[aria-label='Content limit'] button").First(button => button.TextContent.Trim() == "PG-13").Click();
+        cut.Find("input[aria-label='Show items with no rating']").Change(true);
+        cut.Find("input.profile-editor__name").Input("Sam");
+        cut.Find("button.who-button--primary").Click();
+
+        Assert.Equal("PG-13", result!.ContentLimit);
+        Assert.True(result.ContentLimitAllowUnrated);
+
+        cut.FindAll("[aria-label='Content limit'] button").First(button => button.TextContent.Trim() == "Everything").Click();
+        Assert.Empty(cut.FindAll("input[aria-label='Show items with no rating']"));
+    }
+
+    [Fact]
+    public void PinRow_ShowsStatus_AndTheButtonsToggleTheInlinePad()
+    {
+        using var ctx = new BunitContext();
+        var cut = Render(ctx, Existing(hasPin: true));
+
+        Assert.Contains("PIN set", cut.Find(".profile-editor__setting-actions").ParentElement!.TextContent);
+        Assert.Empty(cut.FindAll(".pin-pad"));
+
+        cut.Find(".profile-editor__setting-actions button").Click();
+        Assert.Single(cut.FindAll(".pin-pad"));
+
+        cut.Find(".profile-editor__setting-actions button").Click();
+        Assert.Empty(cut.FindAll(".pin-pad"));
+
+        ButtonWithText(cut, "Remove").Click();
+        Assert.Contains("No PIN", cut.Find(".profile-editor__setting-actions").ParentElement!.TextContent);
     }
 
     [Fact]
@@ -142,7 +215,11 @@ public sealed class ProfileEditorSheetTests
         using var ctx = new BunitContext();
         var cut = Render(ctx);
 
+        Assert.Empty(cut.FindAll("button.avatar-picker__option"));
+
+        OpenPicker(cut);
         Assert.Equal(12, cut.FindAll("button.avatar-picker__option--swatch").Count);
+        PickTab(cut, "Icon");
         Assert.Equal(13, cut.FindAll("[aria-label='Avatar icon'] button[role='radio']").Count);
         Assert.Empty(cut.FindAll("input[type='text'][aria-label='Avatar color']"));
     }
@@ -154,7 +231,9 @@ public sealed class ProfileEditorSheetTests
         var cut = Render(ctx, Existing(icon: "owl"));
 
         Assert.Equal("Maya", cut.Find("input.profile-editor__name").GetAttribute("value"));
+        OpenPicker(cut);
         Assert.Equal("true", cut.Find("button[aria-label='Blue']").GetAttribute("aria-checked"));
+        PickTab(cut, "Icon");
         Assert.Equal("true", cut.Find("button[aria-label='owl']").GetAttribute("aria-checked"));
         Assert.True(cut.Find("input[aria-label='Kids profile']").HasAttribute("disabled"));
     }
@@ -166,7 +245,11 @@ public sealed class ProfileEditorSheetTests
         ProfileEditorResult? result = null;
         var cut = Render(ctx, Existing(image: "/profiles/1/avatar"), saved: r => result = r);
 
+        OpenTab(cut, "Photo");
         Assert.Contains("Remove photo", cut.Markup);
+        Assert.Contains("replaces the current photo", cut.Markup);
+        PickTab(cut, "Icon");
+        Assert.DoesNotContain("replaces the current photo", cut.Markup);
         cut.Find("button[aria-label='cat']").Click();
         cut.Find("button.who-button--primary").Click();
 
@@ -182,7 +265,7 @@ public sealed class ProfileEditorSheetTests
         ProfileEditorResult? result = null;
         var cut = Render(ctx, Existing(), saved: r => result = r);
 
-        ButtonWithText(cut, "Set a PIN").Click();
+        ButtonWithText(cut, "Set").Click();
         foreach (var digit in "123")
         {
             cut.Find($"button.pin-pad__key[aria-label='{digit}']").Click();
@@ -203,7 +286,7 @@ public sealed class ProfileEditorSheetTests
         ProfileEditorResult? result = null;
         var cut = Render(ctx, Existing(hasPin: true), saved: r => result = r);
 
-        ButtonWithText(cut, "Remove PIN").Click();
+        ButtonWithText(cut, "Remove").Click();
         cut.Find("button.who-button--primary").Click();
 
         Assert.True(result!.RemovePin);
