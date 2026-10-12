@@ -509,8 +509,9 @@ public sealed class ServerFolderBrowserService(
             {
                 issues.Add(new ServerFolderValidationIssueDto { Code = "inside_configured_source", Message = $"This folder is inside a source already configured for {source.Label}.", LibraryName = source.Label });
             }
-            else if (IsWithin(selected.Path, configuredPath))
+            else if (!IsDriveRoot(selected.Path) && IsWithin(selected.Path, configuredPath))
             {
+                // Pointing at a whole drive is allowed even though it holds other libraries' folders.
                 issues.Add(new ServerFolderValidationIssueDto { Code = "contains_configured_source", Message = $"This folder contains a source already configured for {source.Label}.", LibraryName = source.Label });
             }
         }
@@ -528,6 +529,10 @@ public sealed class ServerFolderBrowserService(
             return full;
         }
     }
+
+    private static bool IsDriveRoot(string path) =>
+        Path.GetPathRoot(path) is { Length: > 0 } root
+        && PathEquals(Path.TrimEndingDirectorySeparator(root), Path.TrimEndingDirectorySeparator(path));
 
     private static bool IsSystemPath(string path)
     {
@@ -584,7 +589,7 @@ public sealed class ServerFolderBrowserService(
                 .Select(path => PhysicalOrFull(path!))
                 .ToList();
             if (RelativeSegments(selection.Path).Any(segment => segment == ".data")
-                || own.Any(path => IsWithin(path, selection.Path) || IsWithin(selection.Path, path)))
+                || own.Any(path => IsWithin(path, selection.Path) || (!IsDriveRoot(selection.Path) && IsWithin(selection.Path, path))))
             {
                 issues.Add(Issue("protected_path", "This folder is reserved for Tuvima application or generated data."));
             }

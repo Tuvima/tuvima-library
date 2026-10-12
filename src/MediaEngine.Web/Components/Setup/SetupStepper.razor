@@ -2,7 +2,7 @@
 @using MediaEngine.Contracts.Setup
 
 <ol class="setup-stepper" aria-label="Setup steps">
-    @foreach (var step in SetupWorkflow.StepKeys)
+    @foreach (var step in DisplayKeys)
     {
         var state = StateFor(step);
         <li class="@StepClass(step, state)" aria-current="@(step == CurrentStep ? "step" : null)">
@@ -27,10 +27,23 @@
     [Parameter, EditorRequired] public string WorkflowStep { get; set; } = "server";
     [Parameter] public EventCallback<string> StepSelected { get; set; }
 
-    private string StateFor(string key) => Steps.FirstOrDefault(step => step.Key == key)?.Status ?? "not_started";
+    // "language" is a sidebar-only step: the workflow records one "providers" step, but the wizard shows
+    // the language screen and the Enhance your library screen separately, so each gets its own entry.
+    private static readonly string[] DisplayKeys = SetupWorkflow.StepKeys
+        .SelectMany(key => key == "providers" ? new[] { "language", "providers" } : new[] { key })
+        .ToArray();
+
+    private static string WorkflowKey(string key) => key == "language" ? "providers" : key;
+
+    private string StateFor(string key)
+    {
+        var status = Steps.FirstOrDefault(step => step.Key == WorkflowKey(key))?.Status ?? "not_started";
+        // Language is saved before providers are reviewed or deferred, so it never shows "Later".
+        return key == "language" && status == "deferred" ? "passed" : status;
+    }
 
     private bool CanNavigate(string key) =>
-        Array.IndexOf(SetupWorkflow.StepKeys, key) <= Array.IndexOf(SetupWorkflow.StepKeys, WorkflowStep)
+        Array.IndexOf(DisplayKeys, key) <= Array.IndexOf(DisplayKeys, WorkflowStep)
         || StateFor(key) is "passed" or "deferred";
 
     private string StepClass(string key, string state) => string.Join(' ', new[]
@@ -46,7 +59,7 @@
         "passed" => "✓",
         "deferred" => "✓",
         "blocked" => "!",
-        _ => (Array.IndexOf(SetupWorkflow.StepKeys, key) + 1).ToString(),
+        _ => (Array.IndexOf(DisplayKeys, key) + 1).ToString(),
     };
 
     private static string AriaLabel(string key, string state) => $"{Friendly(key)}, {Friendly(state)}";
@@ -56,7 +69,8 @@
         "preflight" => "Server check",
         "administrator" => "Your account",
         "media-locations" => "Libraries",
-        "providers" => "Language and extras",
+        "language" => "Language",
+        "providers" => "Enhance your library",
         "readiness" => "All set",
         _ => Humanise(value),
     };

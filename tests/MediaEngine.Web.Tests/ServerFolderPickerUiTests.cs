@@ -71,6 +71,21 @@ public sealed class ServerFolderPickerUiTests
         Assert.Contains("Advanced", libraries, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void SetupWizard_SidebarListsEnhanceStep_AndRecommendedAppearsOnce()
+    {
+        var stepper = Read("src/MediaEngine.Web/Components/Setup/SetupStepper.razor");
+        var providers = Read("src/MediaEngine.Web/Components/Setup/SetupProvidersStage.razor");
+        var picker = Read("src/MediaEngine.Web/Components/Shared/ServerFolderPicker.razor");
+        var preflight = Read("src/MediaEngine.Web/Components/Setup/SetupPreflightStage.razor");
+
+        Assert.Contains("\"providers\" => \"Enhance your library\"", stepper, StringComparison.Ordinal);
+        Assert.Contains("\"language\" => \"Language\"", stepper, StringComparison.Ordinal);
+        Assert.DoesNotContain("ProviderStatus(", providers, StringComparison.Ordinal);
+        Assert.Contains("Approved folders", picker, StringComparison.Ordinal);
+        Assert.Contains("Revisiting", preflight, StringComparison.Ordinal);
+    }
+
     private static string Read(string relativePath) =>
         File.ReadAllText(Path.Combine(RepoRoot, relativePath));
 }

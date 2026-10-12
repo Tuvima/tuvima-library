@@ -3,13 +3,13 @@
   "storage_locations": [
     {
       "id": "media",
-      "label": "Media storage",
+      "label": "Tuvima library folder",
       "path": "C:\\temp\\tuvima-library",
       "allow_write": true
     },
     {
       "id": "incoming",
-      "label": "Incoming storage",
+      "label": "Tuvima drop-off folder",
       "path": "C:\\temp\\tuvima-import",
       "allow_write": true
     },

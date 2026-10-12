@@ -152,3 +152,4 @@ website/external-links-report.json
 
 # Config backups written by ConfigurationDirectoryLoader on save (local runtime state)
 *.bak
+.scratch/
