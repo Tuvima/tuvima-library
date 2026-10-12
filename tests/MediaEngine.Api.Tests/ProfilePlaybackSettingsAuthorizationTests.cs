@@ -124,6 +124,36 @@ public sealed class ProfilePlaybackSettingsAuthorizationTests : IDisposable
     }
 
     [Fact]
+    public async Task KidsCaller_MayManageOwnSettings()
+    {
+        var http = Caller(_householdOneKidAdmin, _householdOneKidProfile);
+
+        Assert.Null(await ProfileEndpoints.AuthorizeProfileSettingsAsync(http, _householdOneKidProfile.Id));
+    }
+
+    [Fact]
+    public async Task HouseholdAdministrator_WithPinProtectionLocked_IsForbidden()
+    {
+        await _accounts.SetAdminProtectionAsync(new GrantAdminProtection
+        {
+            AccountId = _householdOneAdmin.Id,
+            ProfileId = _householdOneAdultProfile.Id,
+            IsEnabled = true,
+            UnlockMode = "FixedDuration",
+            UnlockMinutes = 30,
+            PinHash = "not-used",
+            HashScheme = "test",
+            ProtectionVersion = 1,
+            UpdatedAt = Now,
+        });
+        var http = Caller(_householdOneAdmin, _householdOneAdultProfile);
+
+        await AssertForbiddenAsync(http, _householdOneOtherProfile.Id);
+        // Their own settings never need the unlock.
+        Assert.Null(await ProfileEndpoints.AuthorizeProfileSettingsAsync(http, _householdOneAdultProfile.Id));
+    }
+
+    [Fact]
     public async Task UnknownProfile_AsAdministrator_IsNotFound()
     {
         var http = Caller(_serverAdmin, _serverAdminProfile);

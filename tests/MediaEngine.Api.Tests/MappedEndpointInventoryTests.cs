@@ -63,7 +63,7 @@ public sealed class MappedEndpointInventoryTests
             }
         }
 
-        string[] personal = ["GetUIDeviceProfile", "GetUIProfileSettings", "UpdateUIProfileSettings", "GetResolvedUISettings", "GetLibraryPreferences", "SubmitReport", "GetMediaTypes"];
+        string[] personal = ["GetUIDeviceProfile", "GetUIProfileSettings", "UpdateUIProfileSettings", "GetResolvedUISettings", "GetLibraryPreferences", "SubmitReport", "GetMediaTypes", "GetProfilePlaybackSettings", "UpdateProfilePlaybackSettings"];
         foreach (var name in personal)
         {
             Assert.Single(inventory.Endpoints, endpoint => endpoint.Name == name).RequiresNamedPolicy(AuthPolicies.HumanSelfService);

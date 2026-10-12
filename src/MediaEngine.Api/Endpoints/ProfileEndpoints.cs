@@ -448,6 +448,7 @@ public static class ProfileEndpoints
     internal static async Task<bool> MayManageProfileSettingsAsync(
         HttpContext http, IRequestAuthorityResolver resolver, IAccountRepository accounts, Profile profile, CancellationToken ct)
     {
+        // Defence in depth: the route filter already lets the active profile through before reaching here.
         var authority = await resolver.ResolveAsync(http, ct);
         if (profile.Id == authority.ActiveProfileId)
         {
