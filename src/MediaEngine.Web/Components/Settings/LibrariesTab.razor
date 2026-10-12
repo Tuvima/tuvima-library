@@ -41,18 +41,7 @@
     {
         @if (section == "overview")
         {
-        <header class="libraries-page-header"><div><h1>Libraries</h1><p>Manage structured libraries and storage roots.</p></div>
-        <AppActionBar Align="AppHorizontalAlignment.End" Class="libraries__actions">
-            @if (section == "overview" && !readOnly)
-            {
-                <AppButton Label="Add library"
-                           StartIcon="@AppMaterialIcons.Outlined.CreateNewFolder"
-                           ButtonStyle="AppButtonStyle.Filled"
-                           Tone="AppUiTone.Primary"
-                           Disabled="@_engineUnavailable"
-                           Href="/settings/libraries/new" />
-            }
-        </AppActionBar>
+        <header class="libraries-page-header"><div><h1>Libraries</h1><p>Manage the folders for each type of media in your library.</p></div>
         </header>
         }
 
@@ -75,7 +64,8 @@
 
         @if (section == "overview")
         {
-            @OverviewSurface(readOnly)
+            <LibraryFoldersPanel ReadOnly="@(readOnly || _engineUnavailable)" />
+            <p class="libraries__view-link"><a href="/settings/libraries/view">Personal photos &amp; videos settings</a></p>
         }
         else if (section == "view")
         {

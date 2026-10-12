@@ -1,28 +1,24 @@
 @namespace MediaEngine.Web.Components.Setup
 @using MediaEngine.Contracts.Setup
+@using MediaEngine.Web.Components.Settings
 
 <div class="setup-stage-content">
-    <div class="setup-stage__heading"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.FolderOpen" /><div><h2 id="setup-stage-title">Media locations</h2><p>Pick a kind of media, then the folder it lives in. You can skip this and add libraries later.</p></div></div>
-    @if (ShowLibraryWizard || !HasLibraries)
+    <div class="setup-stage__heading"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.FolderOpen" /><div><h2 id="setup-stage-title">Your media</h2><p>Choose a type of media, then add the folders it lives in. You can skip this and add folders later.</p></div></div>
+    <LibraryFoldersPanel Embedded="true" SetupSession="@SetupSession" Changed="LibraryCreated" />
+    @if (HasLibraries && Media is not null)
     {
-        <AddLibraryWizard Embedded="true" HideCancel="@(!HasLibraries)" SetupSession="@SetupSession" LibraryCreated="LibraryCreated" Cancelled="CancelLibraryWizard" />
+        <AppAlert Tone="@(Media.Passed ? AppUiTone.Success : AppUiTone.Warning)" Class="setup-media-notice"><span>@Media.Detail</span></AppAlert>
+    }
+    <SetupStageFooter Back="Back" ShowReturnToCurrentStep="ShowReturnToCurrentStep" ReturnToCurrentStep="ReturnToCurrentStep">
         @if (!HasLibraries)
         {
-            <SetupStageFooter Back="Back" ShowReturnToCurrentStep="ShowReturnToCurrentStep" ReturnToCurrentStep="ReturnToCurrentStep">
-                <AppButton Label="Skip for now" ButtonStyle="AppButtonStyle.Text" Disabled="@Busy" OnClick="DeferMedia" />
-            </SetupStageFooter>
+            <AppButton Label="Skip for now" ButtonStyle="AppButtonStyle.Text" Disabled="@Busy" OnClick="DeferMedia" />
         }
-    }
-    else
-    {
-        <AppAlert Tone="@(Media is null ? AppUiTone.Info : Media.Passed ? AppUiTone.Success : AppUiTone.Warning)" Class="setup-media-notice">
-            <span>@(Media?.Detail ?? "Your library is added. You can add more any time in Settings.")</span>
-        </AppAlert>
-        <SetupStageFooter Back="Back" ShowReturnToCurrentStep="ShowReturnToCurrentStep" ReturnToCurrentStep="ReturnToCurrentStep">
-            <AppButton Label="Add another library" ButtonStyle="AppButtonStyle.Outlined" OnClick="OpenLibraryWizard" />
+        else
+        {
             <AppButton Label="Continue" EndIcon="@AppMaterialIcons.Outlined.ArrowForward" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Loading="@Busy" OnClick="ValidateMedia" />
-        </SetupStageFooter>
-    }
+        }
+    </SetupStageFooter>
 </div>
 
 @code {
@@ -31,9 +27,6 @@
     [Parameter] public SetupMediaLocationsDto? Media { get; set; }
     [Parameter] public string? SetupSession { get; set; }
     [Parameter] public bool Busy { get; set; }
-    [Parameter] public bool ShowLibraryWizard { get; set; }
-    [Parameter] public EventCallback OpenLibraryWizard { get; set; }
-    [Parameter] public EventCallback CancelLibraryWizard { get; set; }
     [Parameter] public EventCallback LibraryCreated { get; set; }
     [Parameter] public EventCallback ValidateMedia { get; set; }
     [Parameter] public EventCallback Back { get; set; }

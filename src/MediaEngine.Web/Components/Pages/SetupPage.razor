@@ -72,9 +72,8 @@
                                              SignIn="SignIn" Back="GoBackAsync" ShowReturnToCurrentStep="@(CurrentStep != WorkflowStep)" ReturnToCurrentStep="ReturnToCurrentStep" />
                     break;
                 case "media-locations":
-                    <SetupMediaStage Media="@_media" SetupSession="@_setupSession" Busy="@_busy" ShowLibraryWizard="@_showLibraryWizard"
-                                     OpenLibraryWizard="@(() => _showLibraryWizard = true)" CancelLibraryWizard="@(() => _showLibraryWizard = false)"
-                                     LibraryCreated="LibraryCreatedAsync" ValidateMedia="ValidateMediaAsync" HasLibraries="@(_setupLibraries?.Libraries.Count > 0)" DeferMedia="DeferMediaAsync"
+                    <SetupMediaStage Media="@_media" SetupSession="@_setupSession" Busy="@_busy"
+                                     LibraryCreated="LibraryCreatedAsync" ValidateMedia="ValidateMediaAsync" HasLibraries="@(_setupLibraries?.Libraries.Any(library => library.Sources.Count > 0) == true)" DeferMedia="DeferMediaAsync"
                                      Back="GoBackAsync" ShowReturnToCurrentStep="@(CurrentStep != WorkflowStep)" ReturnToCurrentStep="ReturnToCurrentStep" />
                     break;
                 case "providers" when !_languageConfirmed:
@@ -118,7 +117,6 @@
     private bool _loading = true;
     private bool _busy;
     private bool _showRestore;
-    private bool _showLibraryWizard;
     private bool _authenticated;
     private bool _setupSessionReadyForCircuit;
     private bool _codeRequired, _remoteRefused;
@@ -463,7 +461,8 @@
     private async Task ClearSetupSessionAsync() { _setupSession = null; try { await Storage.DeleteAsync(SetupSessionKey); } catch { _setupSession = null; } }
     private void SignIn() => Navigation.NavigateTo("/auth/login?returnUrl=%2Fsetup", forceLoad: true);
     private async Task ValidateMediaAsync() { _busy = true; _media = await ApiClient.ValidateSetupMediaLocationsAsync(_setupSession); _busy = false; if (_media?.Passed == true) { _readiness = null; await ReloadAsync(); } }
-    private async Task LibraryCreatedAsync() { _showLibraryWizard = false; _setupLibraries = await ApiClient.GetSetupLibrariesAsync(_setupSession); await ValidateMediaAsync(); }
+    // The Libraries panel saves each folder as it is added; the person moves on with Continue.
+    private async Task LibraryCreatedAsync() { _setupLibraries = await ApiClient.GetSetupLibrariesAsync(_setupSession); }
     private async Task LoadProvidersAsync() { _busy = true; _providerCatalogue = await ApiClient.GetProviderCatalogueAsync(); _busy = false; }
     private async Task RefreshProvidersAsync() { _providerCatalogue = await ApiClient.GetProviderCatalogueAsync(); }
     private async Task SaveProviderResultAsync()
