@@ -287,8 +287,8 @@ Settings/Admin contains configuration and operational state:
 Settings/Admin should not host normal media browse/edit pages.
 
 The Settings shell uses a flat, role-aware rail grouped as **Personal**,
-**Administration**, and **Advanced**. Canonical page routes use
-`/settings/profile`, `/settings/system`, `/settings/libraries`, `/settings/ingestion`, and the
+**Administration**, and **Advanced**. The personal group lists Profiles, Playback, Listening, Reading and Security, in that order; the older `/settings/profile`, `/settings/household` and `/settings/account` links redirect to Profiles and Security. Canonical page routes use
+`/settings/profiles`, `/settings/system`, `/settings/libraries`, `/settings/ingestion`, and the
 corresponding page slug. Libraries owns the configured Read, Watch, Listen, and
 View storage surfaces. Page-local tabs and segmented controls
 provide subsection navigation; the rail does not expand into a second settings

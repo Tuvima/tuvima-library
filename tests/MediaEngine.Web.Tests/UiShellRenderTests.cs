@@ -383,7 +383,7 @@ public sealed class UiShellRenderTests : AsyncBunitContext
         Assert.DoesNotContain("ReviewSelected", accountSource);
         Assert.DoesNotContain("NotificationsNone", accountSource);
         Assert.Contains("top-nav-account-menu__trigger-copy", accountSource);
-        Assert.Contains("href=\"/settings/profile\"", accountSource);
+        Assert.Contains("href=\"/settings/profiles\"", accountSource);
         // Switching people now happens on the full-screen "Who's using Tuvima?" page.
         Assert.Contains("ProfilePickerRoute.Path", accountSource);
         Assert.DoesNotContain("Switch profile?", accountSource);

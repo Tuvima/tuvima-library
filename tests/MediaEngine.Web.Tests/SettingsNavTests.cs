@@ -88,7 +88,7 @@ public sealed class SettingsNavTests
     [Fact]
     public void RouteFor_Overview_UsesProfileSettingsUrl()
     {
-        Assert.Equal("/settings/profile", SettingsNav.RouteFor(SettingsSection.Overview));
+        Assert.Equal("/settings/profiles", SettingsNav.RouteFor(SettingsSection.Profiles));
     }
 
     [Theory]
@@ -131,7 +131,7 @@ public sealed class SettingsNavTests
     [Fact]
     public void SummaryFirstSections_UseRootRoutesWithoutRequiringSubsections()
     {
-        Assert.Empty(SettingsNav.GetSubsections(SettingsSection.Overview));
+        Assert.Empty(SettingsNav.GetSubsections(SettingsSection.Profiles));
         Assert.Empty(SettingsNav.GetSubsections(SettingsSection.Playback));
         Assert.Empty(SettingsNav.GetSubsections(SettingsSection.AdminOverview));
         Assert.Empty(SettingsNav.GetSubsections(SettingsSection.Review));
@@ -185,8 +185,8 @@ public sealed class SettingsNavTests
     {
         var resolution = SettingsNav.ResolveRoute(null, true);
 
-        Assert.Equal(SettingsSection.Overview, resolution.Section);
-        Assert.Equal("/settings/profile", resolution.CanonicalRoute);
+        Assert.Equal(SettingsSection.Profiles, resolution.Section);
+        Assert.Equal("/settings/profiles", resolution.CanonicalRoute);
         Assert.False(resolution.IsCanonicalRoute);
         Assert.True(resolution.IsKnownRoute);
         Assert.True(resolution.ShouldRedirect);
@@ -197,7 +197,7 @@ public sealed class SettingsNavTests
     {
         var resolution = SettingsNav.ResolveRoute("admin", true);
 
-        Assert.Equal(SettingsSection.Overview, resolution.Section);
+        Assert.Equal(SettingsSection.Profiles, resolution.Section);
         Assert.Equal("/not-found", resolution.CanonicalRoute);
         Assert.False(resolution.IsKnownRoute);
         Assert.True(resolution.ShouldRedirect);
@@ -208,12 +208,12 @@ public sealed class SettingsNavTests
     {
         var resolution = SettingsNav.ResolveRoute("profile", true);
 
-        Assert.Equal(SettingsSection.Overview, resolution.Section);
-        Assert.Equal("/settings/profile", resolution.CanonicalRoute);
-        Assert.True(resolution.IsCanonicalRoute);
+        Assert.Equal(SettingsSection.Profiles, resolution.Section);
+        Assert.Equal("/settings/profiles", resolution.CanonicalRoute);
+        Assert.False(resolution.IsCanonicalRoute);
         Assert.True(resolution.IsKnownRoute);
         Assert.True(resolution.RequestedSectionAllowed);
-        Assert.False(resolution.ShouldRedirect);
+        Assert.True(resolution.ShouldRedirect);
     }
 
     [Fact]
@@ -221,7 +221,7 @@ public sealed class SettingsNavTests
     {
         var resolution = SettingsNav.ResolveRoute("display", true);
 
-        Assert.Equal(SettingsSection.Overview, resolution.Section);
+        Assert.Equal(SettingsSection.Profiles, resolution.Section);
         Assert.Equal("/not-found", resolution.CanonicalRoute);
         Assert.False(resolution.IsCanonicalRoute);
         Assert.False(resolution.IsKnownRoute);
@@ -234,7 +234,6 @@ public sealed class SettingsNavTests
     [InlineData("features")]
     [InlineData("encode")]
     [InlineData("users")]
-    [InlineData("security")]
     [InlineData("api-keys")]
     [InlineData("activity")]
     public void ResolveRoute_RemovedAliasesAreUnknown(string alias)
@@ -251,8 +250,8 @@ public sealed class SettingsNavTests
     {
         var resolution = SettingsNav.ResolveRoute("metadata", false);
 
-        Assert.Equal(SettingsSection.Overview, resolution.Section);
-        Assert.Equal("/settings/profile", resolution.CanonicalRoute);
+        Assert.Equal(SettingsSection.Profiles, resolution.Section);
+        Assert.Equal("/settings/profiles", resolution.CanonicalRoute);
         Assert.False(resolution.IsCanonicalRoute);
         Assert.True(resolution.IsKnownRoute);
         Assert.False(resolution.RequestedSectionAllowed);
@@ -266,7 +265,7 @@ public sealed class SettingsNavTests
     {
         var resolution = SettingsNav.ResolveRoute(segment, true);
 
-        Assert.Equal(SettingsSection.Overview, resolution.Section);
+        Assert.Equal(SettingsSection.Profiles, resolution.Section);
         Assert.Equal("/not-found", resolution.CanonicalRoute);
         Assert.False(resolution.IsKnownRoute);
         Assert.True(resolution.ShouldRedirect);
@@ -291,7 +290,7 @@ public sealed class SettingsNavTests
             .Select(item => item.Label)
             .ToArray();
 
-        Assert.Equal(["Profile", "Security", "Playback & Reading"], userLabels);
+        Assert.Equal(["Profiles", "Playback", "Listening", "Reading", "Security"], userLabels);
 
         var adminLabels = SettingsNav.FilteredTreeItems(SettingsNav.TreeGroups.Single(group => group.Key == "administration"), true)
             .Select(item => item.Label)
@@ -351,7 +350,7 @@ public sealed class SettingsNavTests
 
     [Theory]
     [InlineData("administration", SettingsSection.AdminOverview, "/settings/system")]
-    [InlineData("personal", SettingsSection.Overview, "/settings/profile")]
+    [InlineData("personal", SettingsSection.Profiles, "/settings/profiles")]
     public void GroupDefaults_ResolveToExpectedCanonicalRoutes(string groupKey, SettingsSection expectedSection, string expectedRoute)
     {
         var section = SettingsNav.GetDefaultSection(groupKey);
@@ -396,28 +395,49 @@ public sealed class SettingsNavTests
             .Select(item => item.Value)
             .ToArray();
 
-        Assert.Contains(SettingsSection.Overview, visible);
+        Assert.Contains(SettingsSection.Profiles, visible);
         Assert.Contains(SettingsSection.Playback, visible);
-        Assert.Contains(SettingsSection.Account, visible);
+        Assert.Contains(SettingsSection.Security, visible);
         Assert.DoesNotContain(SettingsSection.Review, visible);
         Assert.DoesNotContain(SettingsSection.Server, visible);
         Assert.DoesNotContain(SettingsSection.Providers, visible);
     }
 
     [Fact]
-    public void HouseholdAdministrator_SeesMyHouseholdButNoServerAdministration()
+    public void HouseholdAdministrator_SeesTheFivePersonalSectionsButNoServerAdministration()
     {
         var groups = SettingsNav.FilteredTreeGroups(false, true).Select(group => group.Key).ToArray();
-        var personalLabels = SettingsNav.FilteredTreeItems(SettingsNav.TreeGroups.Single(group => group.Key == "personal"), false, true)
-            .Select(item => item.Label)
-            .ToArray();
 
         Assert.Equal(["personal"], groups);
-        Assert.Contains("My household", personalLabels);
-        Assert.Equal(SettingsSection.Household, SettingsNav.ResolveRoute("household", false, true).Section);
-        Assert.True(SettingsNav.ResolveRoute("household", false, true).RequestedSectionAllowed);
+        var household = SettingsNav.ResolveRoute("household", false, true);
+        Assert.Equal(SettingsSection.Profiles, household.Section);
+        Assert.False(household.IsCanonicalRoute);
+        Assert.True(household.RequestedSectionAllowed);
         Assert.False(SettingsNav.ResolveRoute("access", false, true).RequestedSectionAllowed);
         Assert.False(SettingsNav.ResolveRoute("network", false, true).RequestedSectionAllowed);
+    }
+
+    [Fact]
+    public void NonAdmin_PersonalTree_IsExactlyTheFiveSectionsInOrder()
+    {
+        var personal = SettingsNav.TreeGroups.Single(group => group.Key == "personal");
+
+        var sections = SettingsNav.FilteredTreeItems(personal, false).Select(item => item.Value).ToArray();
+
+        Assert.Equal(
+            [SettingsSection.Profiles, SettingsSection.Playback, SettingsSection.Listening, SettingsSection.Reading, SettingsSection.Security],
+            sections);
+    }
+
+    [Fact]
+    public void ResolveRoute_AccountAlias_MapsToSecurity()
+    {
+        var resolution = SettingsNav.ResolveRoute("account", false, true);
+
+        Assert.Equal(SettingsSection.Security, resolution.Section);
+        Assert.Equal("/settings/security", resolution.CanonicalRoute);
+        Assert.False(resolution.IsCanonicalRoute);
+        Assert.True(resolution.ShouldRedirect);
     }
 
     [Fact]
@@ -434,18 +454,14 @@ public sealed class SettingsNavTests
     }
 
     [Fact]
-    public void PlainMember_DoesNotSeeMyHouseholdOrUsersAndAccess_AndDirectNavigationIsRefused()
+    public void PlainMember_DoesNotSeeUsersAndAccess_AndDirectNavigationIsRefused()
     {
         var visible = SettingsNav.TreeGroups
             .SelectMany(group => SettingsNav.FilteredTreeItems(group, false, false))
             .Select(item => item.Value)
             .ToArray();
 
-        Assert.DoesNotContain(SettingsSection.Household, visible);
         Assert.DoesNotContain(SettingsSection.Access, visible);
-        var household = SettingsNav.ResolveRoute("household", false, false);
-        Assert.False(household.RequestedSectionAllowed);
-        Assert.True(household.ShouldRedirect);
         var access = SettingsNav.ResolveRoute("access", false, false);
         Assert.False(access.RequestedSectionAllowed);
         Assert.True(access.ShouldRedirect);

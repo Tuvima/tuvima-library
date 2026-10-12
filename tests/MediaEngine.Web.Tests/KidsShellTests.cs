@@ -26,7 +26,7 @@ public sealed class KidsShellTests : AsyncBunitContext
         var cut = RenderOpenMenu(kids: true, canReview: false);
 
         Assert.Empty(cut.FindAll("a[href='/settings']"));
-        Assert.Empty(cut.FindAll("a[href='/settings/profile']"));
+        Assert.Empty(cut.FindAll("a[href='/settings/profiles']"));
         Assert.Empty(cut.FindAll("a[href^='/settings/recently-added']"));
         Assert.NotEmpty(cut.FindAll(".kids-badge"));
         Assert.NotEmpty(cut.FindAll(".top-nav-account-menu__signout"));
@@ -38,7 +38,7 @@ public sealed class KidsShellTests : AsyncBunitContext
         var cut = RenderOpenMenu(kids: false, canReview: true);
 
         Assert.NotEmpty(cut.FindAll("a[href='/settings']"));
-        Assert.NotEmpty(cut.FindAll("a[href='/settings/profile']"));
+        Assert.NotEmpty(cut.FindAll("a[href='/settings/profiles']"));
         Assert.Empty(cut.FindAll(".kids-badge"));
     }
 

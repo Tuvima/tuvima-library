@@ -8,11 +8,12 @@ namespace MediaEngine.Web.Models.ViewDTOs;
 /// </summary>
 public enum SettingsSection
 {
-    Overview,
-    Account,
+    Profiles,
     Playback,
+    Listening,
+    Reading,
+    Security,
     Privacy,
-    Household,
 
     AdminOverview,
     Libraries,
@@ -121,10 +122,11 @@ public static class SettingsNav
     private static readonly IReadOnlyDictionary<SettingsSection, LaunchFeatureEvidence> LaunchContracts =
         new Dictionary<SettingsSection, LaunchFeatureEvidence>
         {
-            [SettingsSection.Overview] = Complete(),
-            [SettingsSection.Account] = Complete(),
+            [SettingsSection.Profiles] = Complete(),
             [SettingsSection.Playback] = Complete(),
-            [SettingsSection.Household] = Complete(),
+            [SettingsSection.Listening] = Complete(),
+            [SettingsSection.Reading] = Complete(),
+            [SettingsSection.Security] = Complete(),
             [SettingsSection.AdminOverview] = Complete(),
             [SettingsSection.Libraries] = Complete(),
             [SettingsSection.Ingestion] = Complete(),
@@ -147,18 +149,19 @@ public static class SettingsNav
 
     public static readonly SettingsGroupDef[] AllGroups =
     [
-        new("personal", "Account", AppMaterialIcons.Outlined.Person, false, SettingsSection.Overview),
+        new("personal", "Account", AppMaterialIcons.Outlined.Person, false, SettingsSection.Profiles),
         new("administration", "Administration", AppMaterialIcons.Outlined.AdminPanelSettings, true, SettingsSection.AdminOverview),
         new("advanced", "Advanced", AppMaterialIcons.Outlined.Tune, true, SettingsSection.LocalAi),
     ];
 
     public static readonly SettingsItemDef[] AllItems =
     [
-        new(SettingsSection.Overview, "personal", "profile", AppMaterialIcons.Outlined.Person, "Profile", false, null, [], "sqlite", Status: SettingsStatusKind.Live),
-        new(SettingsSection.Account, "personal", "account", AppMaterialIcons.Outlined.ManageAccounts, "Security", false, null, [], "sqlite", Status: SettingsStatusKind.Live),
-        new(SettingsSection.Playback, "personal", "playback", AppMaterialIcons.Outlined.PlayCircleOutline, "Playback & Reading", false, null, [], "sqlite", Status: SettingsStatusKind.Live),
+        new(SettingsSection.Profiles, "personal", "profiles", AppMaterialIcons.Outlined.Group, "Profiles", false, null, ["profile", "household", "overview"], "sqlite", Status: SettingsStatusKind.Live),
+        new(SettingsSection.Playback, "personal", "playback", AppMaterialIcons.Outlined.PlayCircleOutline, "Playback", false, null, [], "sqlite", Status: SettingsStatusKind.Live),
+        new(SettingsSection.Listening, "personal", "listening", AppMaterialIcons.Outlined.Headphones, "Listening", false, null, [], "sqlite", Status: SettingsStatusKind.Live),
+        new(SettingsSection.Reading, "personal", "reading", AppMaterialIcons.Outlined.MenuBook, "Reading", false, null, [], "sqlite", Status: SettingsStatusKind.Live),
+        new(SettingsSection.Security, "personal", "security", AppMaterialIcons.Outlined.Lock, "Security", false, null, ["account"], "sqlite", Status: SettingsStatusKind.Live),
         new(SettingsSection.Privacy, "personal", "privacy", AppMaterialIcons.Outlined.Lock, "Privacy & Data", false, null, [], "unavailable", Placeholder: true),
-        new(SettingsSection.Household, "personal", "household", AppMaterialIcons.Outlined.Home, "My household", false, null, [], "sqlite", Status: SettingsStatusKind.Live, MobileAvailability: SettingsMobileAvailability.Full),
 
         new(SettingsSection.AdminOverview, "administration", "system", AppMaterialIcons.Outlined.Dashboard, "System Overview", true, null, [], "json+sqlite", Status: SettingsStatusKind.Live, MobileAvailability: SettingsMobileAvailability.SummaryOnly),
         new(SettingsSection.Libraries, "administration", "libraries", AppMaterialIcons.Outlined.VideoLibrary, "Libraries", true, null, [], Status: SettingsStatusKind.Live, MobileAvailability: SettingsMobileAvailability.SummaryOnly),
@@ -180,8 +183,8 @@ public static class SettingsNav
 
     public static readonly SettingsTreeGroupDef[] TreeGroups =
     [
-        new("personal", "Personal", AppMaterialIcons.Outlined.Person, false, false, SettingsSection.Overview,
-            [SettingsSection.Overview, SettingsSection.Account, SettingsSection.Playback, SettingsSection.Household, SettingsSection.Privacy]),
+        new("personal", "Personal", AppMaterialIcons.Outlined.Person, false, false, SettingsSection.Profiles,
+            [SettingsSection.Profiles, SettingsSection.Playback, SettingsSection.Listening, SettingsSection.Reading, SettingsSection.Security, SettingsSection.Privacy]),
         new("administration", "Administration", AppMaterialIcons.Outlined.AdminPanelSettings, true, false, SettingsSection.AdminOverview,
             [
                 SettingsSection.AdminOverview,
@@ -204,10 +207,11 @@ public static class SettingsNav
     public static readonly IReadOnlyDictionary<SettingsSection, IReadOnlyList<SettingsSubsectionDef>> Subsections =
         new Dictionary<SettingsSection, IReadOnlyList<SettingsSubsectionDef>>
         {
-            [SettingsSection.Overview] = [],
-            [SettingsSection.Account] = [],
+            [SettingsSection.Profiles] = [],
             [SettingsSection.Playback] = [],
-            [SettingsSection.Household] = [],
+            [SettingsSection.Listening] = [],
+            [SettingsSection.Reading] = [],
+            [SettingsSection.Security] = [],
             [SettingsSection.Privacy] =
             [
                 new("history", "Personal History", AppMaterialIcons.Outlined.History),
@@ -287,8 +291,11 @@ public static class SettingsNav
 
     private static readonly HashSet<SettingsSection> _landingSections =
     [
-        SettingsSection.Overview,
+        SettingsSection.Profiles,
         SettingsSection.Playback,
+        SettingsSection.Listening,
+        SettingsSection.Reading,
+        SettingsSection.Security,
         SettingsSection.AdminOverview,
         SettingsSection.Libraries,
         SettingsSection.Ingestion,
@@ -337,7 +344,6 @@ public static class SettingsNav
         return AllItems
             .Where(item => string.Equals(item.GroupKey, group.Key, StringComparison.OrdinalIgnoreCase))
             .Where(item => !item.AdminOnly || hasAdmin)
-            .Where(item => item.Value != SettingsSection.Household || (householdAllowed && !hasAdmin))
             .ToList();
     }
 
@@ -397,15 +403,9 @@ public static class SettingsNav
             return false;
         }
 
-        // A household administrator who is not a server administrator reaches only their own household; a server
-        // administrator manages it from the My household tab inside Users & Access.
-        if (section == SettingsSection.Household)
-        {
-            return householdAllowed && !administrationAllowed;
-        }
-
-        return administrationAllowed || section is SettingsSection.Overview
-            or SettingsSection.Account or SettingsSection.Playback;
+        return administrationAllowed || section is SettingsSection.Profiles
+            or SettingsSection.Playback or SettingsSection.Listening
+            or SettingsSection.Reading or SettingsSection.Security;
     }
 
     public static SettingsSection FirstVisibleSection(bool administrationAllowed, bool householdAllowed = false) =>
@@ -472,8 +472,8 @@ public static class SettingsNav
         if (string.IsNullOrWhiteSpace(segment))
         {
             return new SettingsRouteResolution(
-                SettingsSection.Overview,
-                RouteFor(SettingsSection.Overview),
+                SettingsSection.Profiles,
+                RouteFor(SettingsSection.Profiles),
                 IsCanonicalRoute: false,
                 IsKnownRoute: true,
                 RequestedSectionAllowed: true);
@@ -535,7 +535,7 @@ public static class SettingsNav
     {
         if (string.IsNullOrWhiteSpace(segment))
         {
-            return SettingsSection.Overview;
+            return SettingsSection.Profiles;
         }
 
         var resolution = ResolveRoute(segment, administrationAllowed: true);
