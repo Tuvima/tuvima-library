@@ -368,7 +368,9 @@ public static class SettingsEndpoints
             try
             {
                 var config = SettingsContractMapper.ToStorage(request);
-                var viewError = ValidateViewStorage(config) ?? ValidateViewRootChange(configLoader.LoadLibraries(), config);
+                var viewError = ValidateViewStorage(config)
+                    ?? ValidateViewRootChange(configLoader.LoadLibraries(), config)
+                    ?? MediaEngine.Api.Services.Settings.LibraryTypeRules.ValidateOneLibraryPerType(configLoader.LoadLibraries(), config);
                 if (viewError is not null)
                 {
                     return ApiErrors.BadRequest(viewError);

@@ -269,6 +269,7 @@ public static class SetupEndpoints
             var config = SettingsContractMapper.ToStorage(request);
             var error = SettingsEndpoints.ValidateViewStorage(config)
                 ?? SettingsEndpoints.ValidateViewRootChange(configuration.LoadLibraries(), config)
+                ?? LibraryTypeRules.ValidateOneLibraryPerType(configuration.LoadLibraries(), config)
                 ?? SettingsEndpoints.ValidateConfiguredPaths(config);
             if (error is not null)
             {

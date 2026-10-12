@@ -249,7 +249,7 @@ Defines the clean schema 6 library model used by **Settings > Libraries**. The r
 | `area` | string | `read`, `watch`, `listen`, or `view`. |
 | `presentation` | string | Catalogue, gallery, mixed gallery, timeline, video, documents, audio, or mixed presentation. |
 | `metadata_policy` | string | `enriched`, `local_preferred`, `local_only`, or `manual`. The last two bypass external identity/provider work. |
-| `media_types` | string[] | Structured media types expected by catalogued libraries. A View Personal Space may index mixed local media through its backing personal library. |
+| `media_types` | string[] | Structured media types expected by catalogued libraries. A View Personal Space may index mixed local media through its backing personal library. Each media type may belong to only one catalogued library; the Engine rejects a change that adds a second one (older duplicates already saved are tolerated). |
 | `sources` | object[] | Stable source objects; see below. Array order has no meaning. |
 | `primary_destination_source_id` | GUID string? | Explicit managed destination source ID. It is never inferred from array position. |
 | `owner_profile_id` | GUID string? | Owning profile for personal access decisions. |
