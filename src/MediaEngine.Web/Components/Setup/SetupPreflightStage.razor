@@ -125,7 +125,18 @@
 
     private async Task IgnoreAsync(ServerStorageLocationDto location)
     {
-        Libraries?.StorageLocations.Remove(location);
+        if (Libraries is null) return;
+        Libraries.StorageLocations.Remove(location);
+        // Folders that sit inside the ignored location are ignored with it, so nothing is left pointing at it.
+        var root = Path.TrimEndingDirectorySeparator(location.Path);
+        foreach (var library in Libraries.Libraries)
+        {
+            library.Sources.RemoveAll(source =>
+                source.Path.StartsWith(root + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase)
+                || source.Path.StartsWith(root + Path.AltDirectorySeparatorChar, StringComparison.OrdinalIgnoreCase)
+                || string.Equals(source.Path, root, StringComparison.OrdinalIgnoreCase));
+            if (library.Sources.All(source => source.Id != library.PrimaryDestinationSourceId)) library.PrimaryDestinationSourceId = null;
+        }
         await SaveStorageLocations.InvokeAsync();
     }
 
