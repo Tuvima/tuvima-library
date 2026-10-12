@@ -46,6 +46,12 @@
         <section class="setup-stage" aria-labelledby="setup-stage-title">
             @switch (CurrentStep)
             {
+                case "server":
+                    <SetupServerStage ServerName="@_serverName" ServerNameChanged="@((string value) => _serverName = value)"
+                                      HostName="@_hostName" HostNameChanged="@((string value) => _hostName = value)"
+                                      Busy="@_busy" Save="SaveServerIdentityAsync" Back="GoBackAsync"
+                                      ShowReturnToCurrentStep="@(CurrentStep != WorkflowStep)" ReturnToCurrentStep="ReturnToCurrentStep" />
+                    break;
                 case "preflight":
                     <SetupPreflightStage Preflight="@_preflight" Error="@_preflightError" Backup="@_backup" Libraries="@_setupLibraries" Busy="@_busy" ShowRestore="@_showRestore"
                                          OpenRestore="@(() => _showRestore = true)" CancelRestore="CancelRestore" UploadBackup="UploadBackupAsync"
@@ -115,6 +121,8 @@
     private string? _selectedStep;
     private bool _providersLoaded;
     private SetupLocaleDto? _locale;
+    private string _serverName = string.Empty, _hostName = string.Empty;
+    private bool _serverIdentityLoaded;
 
     // The Dashboard's own classification of this visitor, set by the host page. Never read from the browser.
     [CascadingParameter(Name = "ClientIngress")]
@@ -156,9 +164,10 @@
     private string CurrentStep => _selectedStep ?? WorkflowStep;
     private int CurrentIndex => Math.Max(0, Array.IndexOf(SetupWorkflow.StepKeys, CurrentStep));
     private bool PasswordsMatch => string.Equals(_password, _passwordConfirmation, StringComparison.Ordinal);
-    private string PageTitleText => CurrentStep == "preflight" ? "Welcome to your library" : Friendly(CurrentStep);
+    private string PageTitleText => CurrentStep == "server" ? "Welcome to your library" : Friendly(CurrentStep);
     private string PageSubtitle => CurrentStep switch
     {
+        "server" => "Give this server a name, then add your libraries.",
         "preflight" => "Start fresh or recover a backup, then verify the storage and tools visible to this server.",
         "administrator" => "Create the first authenticated administrator and household profile.",
         "media-locations" => "Connect read-only sources separately from storage Tuvima Library may manage.",
@@ -300,6 +309,16 @@
 
     private async Task EnsureCurrentStageDataAsync()
     {
+        if (CurrentStep == "server" && !_serverIdentityLoaded && !_busy)
+        {
+            var identity = await ApiClient.GetSetupServerIdentityAsync(_setupSession);
+            if (identity is not null)
+            {
+                _serverName = identity.ServerName;
+                _hostName = identity.HostName;
+                _serverIdentityLoaded = true;
+            }
+        }
         if (WorkflowStep == "preflight" && CurrentStep == "preflight" && _preflight is null && _preflightError is null && !_showRestore && !_busy)
         {
             await RunPreflightAsync(automaticallyAdvance: true);
@@ -316,6 +335,18 @@
         }
         if (CurrentStep == "readiness" && _readiness is null && !_busy)
             await LoadReadinessAsync();
+    }
+
+    private async Task SaveServerIdentityAsync()
+    {
+        _busy = true;
+        var saved = await ApiClient.SaveSetupServerIdentityAsync(new SetupServerIdentityDto(_serverName, _hostName), _setupSession);
+        _busy = false;
+        if (saved is null) { Snackbar.Add("The server name could not be saved. Use 1 to 64 characters.", AppSeverity.Error); return; }
+        _serverName = saved.ServerName;
+        _hostName = saved.HostName;
+        _selectedStep = null;
+        await ReloadAsync();
     }
 
     private async Task RunPreflightAsync(bool automaticallyAdvance = false)
@@ -435,6 +466,6 @@
     private async Task GoToStepAsync(string key) { if (CanNavigateTo(key)) { _selectedStep = key; if (key == "readiness") _readiness = null; await EnsureCurrentStageDataAsync(); } }
     private async Task GoBackAsync() { var index = Math.Max(0, CurrentIndex - 1); _selectedStep = SetupWorkflow.StepKeys[index]; await EnsureCurrentStageDataAsync(); }
     private void ReturnToCurrentStep() => _selectedStep = null;
-    private static string NormalizeStep(string? step) => SetupWorkflow.StepKeys.Contains(step, StringComparer.Ordinal) ? step! : "preflight";
+    private static string NormalizeStep(string? step) => SetupWorkflow.StepKeys.Contains(step, StringComparer.Ordinal) ? step! : "server";
     private static string Friendly(string value) => string.Join(' ', value.Replace('_', '-').Split('-', StringSplitOptions.RemoveEmptyEntries).Select(part => char.ToUpperInvariant(part[0]) + part[1..]));
 }

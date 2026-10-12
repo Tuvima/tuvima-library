@@ -7639,6 +7639,7 @@ MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.ServerFolderValida
   Exists: System.Boolean | nullability=not-null | accessors=get,init
   HasRead: System.Boolean | nullability=not-null | accessors=get,init
   HasWrite: System.Boolean | nullability=not-null | accessors=get,init
+  ContainsFiles: System.Boolean | nullability=not-null | accessors=get,init
   AvailableBytes: System.Int64? | nullability=nullable | accessors=get,init
   FileSystem: System.String | nullability=nullable | accessors=get,init
   CanSelect: System.Boolean | nullability=not-null | accessors=get,init
@@ -7925,6 +7926,10 @@ MediaEngine.Contracts.Setup.MediaEngine.Contracts.Setup.SetupRestoreConfirmation
   Scheduled: System.Boolean | nullability=not-null | accessors=get,init
   RestartRequired: System.Boolean | nullability=not-null | accessors=get,init
   Message: System.String | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Setup.MediaEngine.Contracts.Setup.SetupServerIdentityDto
+  ServerName: System.String | nullability=not-null | accessors=get,init
+  HostName: System.String | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.Setup.MediaEngine.Contracts.Setup.SetupSignInModes
 

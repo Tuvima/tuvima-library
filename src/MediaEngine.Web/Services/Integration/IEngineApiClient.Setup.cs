@@ -5,6 +5,8 @@ namespace MediaEngine.Web.Services.Integration;
 
 public partial interface IEngineApiClient
 {
+    Task<SetupServerIdentityDto?> GetSetupServerIdentityAsync(string? setupSession, CancellationToken ct = default);
+    Task<SetupServerIdentityDto?> SaveSetupServerIdentityAsync(SetupServerIdentityDto identity, string? setupSession, CancellationToken ct = default);
     Task<SetupLocaleDto?> GetSetupLocaleAsync(string? setupSession, CancellationToken ct = default);
     Task<SetupLocaleDto?> SaveSetupLocaleAsync(SetupLocaleDto locale, string? setupSession, CancellationToken ct = default);
     Task<SetupStatusDto?> GetSetupStatusAsync(CancellationToken ct = default);

@@ -1452,10 +1452,11 @@ internal sealed class SchemaMigrator
             INSERT OR IGNORE INTO onboarding_workflows
                 (workflow_version, state, current_step, revision, created_at, updated_at)
             VALUES
-                (1, 'in_progress', 'preflight', 0, strftime('%Y-%m-%dT%H:%M:%fZ','now'), strftime('%Y-%m-%dT%H:%M:%fZ','now'));
+                (1, 'in_progress', 'server', 0, strftime('%Y-%m-%dT%H:%M:%fZ','now'), strftime('%Y-%m-%dT%H:%M:%fZ','now'));
 
             INSERT OR IGNORE INTO onboarding_steps (workflow_version, step_key, status, updated_at)
             VALUES
+                (1, 'server', 'not_started', strftime('%Y-%m-%dT%H:%M:%fZ','now')),
                 (1, 'preflight', 'not_started', strftime('%Y-%m-%dT%H:%M:%fZ','now')),
                 (1, 'administrator', 'not_started', strftime('%Y-%m-%dT%H:%M:%fZ','now')),
                 (1, 'media-locations', 'not_started', strftime('%Y-%m-%dT%H:%M:%fZ','now')),

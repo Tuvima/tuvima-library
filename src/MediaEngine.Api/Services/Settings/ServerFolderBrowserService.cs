@@ -17,7 +17,7 @@ public sealed class ServerFolderBrowserService(
     public IReadOnlyList<ServerStorageLocationDto> GetStorageLocations()
     {
         var result = new List<ServerStorageLocationDto>();
-        foreach (var location in configuration.LoadLibraries().StorageLocations)
+        foreach (var location in EffectiveLocations(configuration.LoadLibraries()))
         {
             if (!TryResolveLocationRoot(location, out var root, out var error))
             {
@@ -117,8 +117,15 @@ public sealed class ServerFolderBrowserService(
         }
 
         var hasRead = ProbeRead(accessPath);
-        var hasWrite = location.AllowWrite && ProbeWrite(accessPath);
-        if (!location.AllowWrite && ServerFolderSelectionModes.RequiresWrite(request.SelectionMode))
+        // A whole-drive root never overrides a configured location: if the folder sits inside one that is read-only
+        // (for example protected real media), it stays read-only however it was reached.
+        var allowWrite = location.AllowWrite
+            && !configurationSnapshot.StorageLocations.Any(configured =>
+                !configured.AllowWrite
+                && Path.IsPathFullyQualified(configured.Path)
+                && IsWithin(Path.GetFullPath(configured.Path), resolved.Path));
+        var hasWrite = allowWrite && ProbeWrite(accessPath);
+        if (!allowWrite && ServerFolderSelectionModes.RequiresWrite(request.SelectionMode))
         {
             issues.Add(Issue("storage_location_read_only", "This storage location is not approved for server-side writes."));
         }
@@ -133,7 +140,7 @@ public sealed class ServerFolderBrowserService(
             issues.Add(Issue("write_required", "This folder must be writable for the selected managed mode."));
         }
 
-        AddProtectedPathIssue(resolved, issues);
+        AddProtectedPathIssue(resolved, location, request.SelectionMode, issues);
         AddConfiguredPathIssues(configurationSnapshot, resolved, request.CurrentSourceId, issues);
         var (availableBytes, fileSystem) = GetDriveDetails(resolved.Path);
         return new ServerFolderValidationResultDto
@@ -144,6 +151,7 @@ public sealed class ServerFolderBrowserService(
             Exists = exists,
             HasRead = hasRead,
             HasWrite = hasWrite,
+            ContainsFiles = exists && hasRead && ProbeContainsFiles(resolved.Path),
             AvailableBytes = availableBytes,
             FileSystem = fileSystem,
             CanSelect = issues.All(issue => !string.Equals(issue.Severity, "error", StringComparison.OrdinalIgnoreCase)),
@@ -179,10 +187,80 @@ public sealed class ServerFolderBrowserService(
         }
     }
 
+    private const string ImplicitIdPrefix = "drive-";
+    private const string ImplicitRootId = "server-root";
+
+    /// <summary>
+    /// The administrator-configured locations plus the roots of this machine (every ready drive on Windows,
+    /// <c>/</c> elsewhere, which in a container is whatever the container can see). Only administrators and the
+    /// first-run setup session reach these actions, so the person choosing folders is the one approving them.
+    /// </summary>
+    internal static IReadOnlyList<ServerStorageLocationConfig> EffectiveLocations(LibrariesConfiguration snapshot)
+    {
+        var result = new List<ServerStorageLocationConfig>(snapshot.StorageLocations);
+        foreach (var root in MachineRoots())
+        {
+            if (!result.Any(existing => PathEquals(existing.Path, root.Path)))
+            {
+                result.Add(root);
+            }
+        }
+
+        return result;
+    }
+
+    private static bool IsImplicit(ServerStorageLocationConfig location) =>
+        location.Id.StartsWith(ImplicitIdPrefix, StringComparison.Ordinal)
+        || string.Equals(location.Id, ImplicitRootId, StringComparison.Ordinal);
+
+    private static IEnumerable<ServerStorageLocationConfig> MachineRoots()
+    {
+        if (!OperatingSystem.IsWindows())
+        {
+            yield return new ServerStorageLocationConfig { Id = ImplicitRootId, Label = "This server", Path = "/", AllowWrite = true };
+            yield break;
+        }
+
+        DriveInfo[] drives;
+        try
+        {
+            drives = DriveInfo.GetDrives();
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            yield break;
+        }
+
+        foreach (var drive in drives)
+        {
+            bool ready;
+            try
+            {
+                ready = drive.IsReady && drive.DriveType is DriveType.Fixed or DriveType.Network or DriveType.Removable;
+            }
+            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+            {
+                continue;
+            }
+
+            if (ready)
+            {
+                var letter = drive.Name.TrimEnd('\\', ':').ToLowerInvariant();
+                yield return new ServerStorageLocationConfig
+                {
+                    Id = ImplicitIdPrefix + letter,
+                    Label = drive.Name.TrimEnd('\\'),
+                    Path = drive.Name,
+                    AllowWrite = true,
+                };
+            }
+        }
+    }
+
     private static ServerStorageLocationConfig FindLocation(
         LibrariesConfiguration configurationSnapshot,
         string? id) =>
-        configurationSnapshot.StorageLocations.FirstOrDefault(location =>
+        EffectiveLocations(configurationSnapshot).FirstOrDefault(location =>
             string.Equals(location.Id, id?.Trim(), StringComparison.OrdinalIgnoreCase))
         ?? throw new ServerFolderAccessException("The selected server storage location is unavailable.");
 
@@ -196,7 +274,7 @@ public sealed class ServerFolderBrowserService(
         }
 
         var candidate = Path.TrimEndingDirectorySeparator(Path.GetFullPath(manualPath.Trim()));
-        return configurationSnapshot.StorageLocations
+        return EffectiveLocations(configurationSnapshot)
             .Select(location => new { Location = location, Valid = TryResolveLocationRoot(location, out var root, out _), Root = root })
             .Where(item => item.Valid && IsWithin(item.Root, candidate))
             .OrderByDescending(item => item.Root.Length)
@@ -348,6 +426,26 @@ public sealed class ServerFolderBrowserService(
         }
     }
 
+    private bool ProbeContainsFiles(string path)
+    {
+        try
+        {
+            var options = new EnumerationOptions
+            {
+                RecurseSubdirectories = true,
+                IgnoreInaccessible = true,
+                AttributesToSkip = FileAttributes.System | FileAttributes.ReparsePoint,
+            };
+            return Directory.EnumerateFiles(path, "*", options)
+                .Any(file => !Path.GetFileName(file).StartsWith('.'));
+        }
+        catch (Exception exception) when (exception is UnauthorizedAccessException or IOException)
+        {
+            logger.LogInformation(exception, "Could not look for existing files in server folder {FolderPath}", path);
+            return false;
+        }
+    }
+
     private bool ProbeWrite(string path)
     {
         var probePath = Path.Combine(path, $".tuvima-folder-check-{Guid.NewGuid():N}.tmp");
@@ -418,10 +516,92 @@ public sealed class ServerFolderBrowserService(
         }
     }
 
-    private static void AddProtectedPathIssue(
+    private static string PhysicalOrFull(string path)
+    {
+        var full = Path.TrimEndingDirectorySeparator(Path.GetFullPath(path));
+        try
+        {
+            return Directory.Exists(full) ? ResolveLink(new DirectoryInfo(full)) : full;
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            return full;
+        }
+    }
+
+    private static bool IsSystemPath(string path)
+    {
+        var roots = new List<string>();
+        if (OperatingSystem.IsWindows())
+        {
+            foreach (var folder in new[] { Environment.SpecialFolder.Windows, Environment.SpecialFolder.ProgramFiles, Environment.SpecialFolder.ProgramFilesX86, Environment.SpecialFolder.CommonApplicationData })
+            {
+                var value = Environment.GetFolderPath(folder);
+                if (!string.IsNullOrWhiteSpace(value))
+                {
+                    roots.Add(value);
+                }
+            }
+        }
+        else
+        {
+            roots.AddRange(["/bin", "/boot", "/dev", "/etc", "/lib", "/lib64", "/proc", "/run", "/sbin", "/sys", "/usr"]);
+        }
+
+        return roots.Any(root => IsWithin(Path.TrimEndingDirectorySeparator(root), path));
+    }
+
+    private void AddProtectedPathIssue(
         ResolvedSelection selection,
+        ServerStorageLocationConfig location,
+        string selectionMode,
         List<ServerFolderValidationIssueDto> issues)
     {
+        if (IsImplicit(location))
+        {
+            // A whole drive is browsable, so protect Tuvima's own folders by where they are rather than by name.
+            var ownFolders = new List<string?>
+            {
+                configuration.ConfigDirectoryPath,
+                Environment.GetEnvironmentVariable("TUVIMA_CONFIG_DIR"),
+                Environment.GetEnvironmentVariable("TUVIMA_DATA_PROTECTION_DIR"),
+                Environment.GetEnvironmentVariable("TUVIMA_BACKUP_DIR"),
+                Environment.GetEnvironmentVariable("TUVIMA_LOG_DIR"),
+            };
+            var databasePath = Environment.GetEnvironmentVariable("TUVIMA_DB_PATH");
+            if (!string.IsNullOrWhiteSpace(databasePath))
+            {
+                ownFolders.Add(Path.GetDirectoryName(Path.GetFullPath(databasePath)));
+            }
+            var core = configuration.LoadCore();
+            ownFolders.Add(core.DataRoot);
+            if (!string.IsNullOrWhiteSpace(core.LibraryRoot))
+            {
+                ownFolders.Add(Path.Combine(core.LibraryRoot, ".data"));
+            }
+            var own = ownFolders
+                .Where(path => !string.IsNullOrWhiteSpace(path))
+                .Select(path => PhysicalOrFull(path!))
+                .ToList();
+            if (RelativeSegments(selection.Path).Any(segment => segment == ".data")
+                || own.Any(path => IsWithin(path, selection.Path) || IsWithin(selection.Path, path)))
+            {
+                issues.Add(Issue("protected_path", "This folder is reserved for Tuvima application or generated data."));
+            }
+
+            if (IsSystemPath(selection.Path))
+            {
+                issues.Add(Issue("system_path", "This is an operating-system folder and cannot be used for a library."));
+            }
+
+            if (PathEquals(selection.Path, selection.RootPath) && ServerFolderSelectionModes.RequiresWrite(selectionMode))
+            {
+                issues.Add(Issue("drive_root_managed", "Tuvima cannot manage a whole drive. Choose a folder on it, or leave the drive as-is (read-only)."));
+            }
+
+            return;
+        }
+
         var relative = Path.GetRelativePath(selection.RootPath, selection.Path);
         if (RelativeSegments(relative).Any(segment => ProtectedSegments.Contains(segment, StringComparer.OrdinalIgnoreCase)))
         {
@@ -500,7 +680,8 @@ public sealed class ServerFolderBrowserService(
             return true;
         }
 
-        var prefix = Path.TrimEndingDirectorySeparator(root) + Path.DirectorySeparatorChar;
+        var trimmed = Path.TrimEndingDirectorySeparator(root);
+        var prefix = trimmed.EndsWith(Path.DirectorySeparatorChar) ? trimmed : trimmed + Path.DirectorySeparatorChar;
         return candidate.StartsWith(prefix, PathComparison);
     }
 

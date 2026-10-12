@@ -123,6 +123,10 @@ Rate limits apply to authentication, credential operations, streaming, general A
 
 Pre-beta obsolete database/configuration state fails fast and is rebuilt from configured sources. Do not add compatibility authorization schemas, old role readers, or automatic key conversion. This permission covers disposable application state only; original and read-only source media remain protected. The [Access cutover procedure](../../engineering/plans/access-architecture-2026-09-08/execution/cutover.md) covers fresh identity state, native re-pairing, and protection of existing Personal Space directories.
 
+## Server folder browsing
+
+Choosing library folders is an administrator action: the Engine's server-folder actions accept only an administrator or the first-run setup session (revoked when setup completes). They browse every ready drive on Windows, or `/` on Linux (inside a container, whatever the container can see), plus any configured storage locations. Listing returns folder names and one "already has files" flag, never file contents. Tuvima's own configuration, key, log, backup and data folders, operating-system folders, and `.data` folders cannot be chosen; a whole drive can be indexed read-only but not managed; and a folder inside a configured read-only storage location stays read-only however it was reached. Managed folders still pass a real write test.
+
 ## Related
 
 - [Access implementation plan](../../engineering/plans/access-architecture-2026-09-08/plan.md)

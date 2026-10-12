@@ -22,9 +22,9 @@ Use [View Personal Space](../guides/view-personal-space.md) for private photos, 
 ## Add a structured library
 
 1. Open **Settings → Libraries** and choose **Add library**.
-2. In **Choose type**, select Books, Comics, Movies, TV Shows, Music, or Audiobooks.
-3. In **Add folders**, choose an approved storage location or enter a server-side path.
-4. Choose **Existing library** for originals that must stay unchanged. Choose **Managed by Tuvima** only for folders Tuvima may organize.
+2. In **Pick a type**, select Books, Comics, Movies, TV Shows, Music, or Audiobooks.
+3. In **Pick a folder**, choose **Choose folder** and browse the server's drives (inside a container, whatever the container can see). Only administrators can browse, and Tuvima's own data folders cannot be chosen.
+4. If the folder already has files, Tuvima asks whether to manage it or leave it as-is. Leave it as-is for originals that must stay unchanged; let Tuvima manage it only for folders it may organize.
 5. Check read/write access and any overlap warnings.
 6. Review the settings and confirm the final action.
 

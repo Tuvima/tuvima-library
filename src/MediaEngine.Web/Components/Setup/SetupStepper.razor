@@ -23,8 +23,8 @@
 
 @code {
     [Parameter, EditorRequired] public IReadOnlyList<SetupStepStatusDto> Steps { get; set; } = [];
-    [Parameter, EditorRequired] public string CurrentStep { get; set; } = "preflight";
-    [Parameter, EditorRequired] public string WorkflowStep { get; set; } = "preflight";
+    [Parameter, EditorRequired] public string CurrentStep { get; set; } = "server";
+    [Parameter, EditorRequired] public string WorkflowStep { get; set; } = "server";
     [Parameter] public EventCallback<string> StepSelected { get; set; }
 
     private string StateFor(string key) => Steps.FirstOrDefault(step => step.Key == key)?.Status ?? "not_started";
@@ -50,5 +50,5 @@
     };
 
     private static string AriaLabel(string key, string state) => $"{Friendly(key)}, {Friendly(state)}";
-    private static string Friendly(string value) => string.Join(' ', value.Replace('_', '-').Split('-', StringSplitOptions.RemoveEmptyEntries).Select(part => char.ToUpperInvariant(part[0]) + part[1..]));
+    private static string Friendly(string value) => value == "server" ? "Name" : string.Join(' ', value.Replace('_', '-').Split('-', StringSplitOptions.RemoveEmptyEntries).Select(part => char.ToUpperInvariant(part[0]) + part[1..]));
 }

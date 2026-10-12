@@ -8,7 +8,7 @@ public static class SetupWorkflow
     public const int CurrentVersion = 1;
     public static readonly string[] StepKeys =
     [
-        "preflight", "administrator", "media-locations",
+        "server", "preflight", "administrator", "media-locations",
         "providers", "readiness",
     ];
 }

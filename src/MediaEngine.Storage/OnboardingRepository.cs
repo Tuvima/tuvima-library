@@ -37,7 +37,7 @@ public sealed class OnboardingRepository(IDatabaseConnection database)
                    repair_target AS RepairTarget, completed_at AS CompletedAt
             FROM onboarding_steps WHERE workflow_version = @version
             ORDER BY CASE step_key
-                WHEN 'preflight' THEN 1 WHEN 'administrator' THEN 2
+                WHEN 'server' THEN 0 WHEN 'preflight' THEN 1 WHEN 'administrator' THEN 2
                 WHEN 'media-locations' THEN 3 WHEN 'providers' THEN 4
                 WHEN 'readiness' THEN 5 ELSE 99 END;
             """, new { version = CurrentVersion }).AsList();
@@ -224,7 +224,7 @@ public sealed class OnboardingRepository(IDatabaseConnection database)
             SELECT step_key FROM onboarding_steps
             WHERE workflow_version = @version AND status NOT IN ('passed','deferred')
             ORDER BY CASE step_key
-                WHEN 'preflight' THEN 1 WHEN 'administrator' THEN 2
+                WHEN 'server' THEN 0 WHEN 'preflight' THEN 1 WHEN 'administrator' THEN 2
                 WHEN 'media-locations' THEN 3 WHEN 'providers' THEN 4
                 WHEN 'readiness' THEN 5 ELSE 99 END LIMIT 1;
             """, new { version = CurrentVersion }, transaction) ?? "readiness";
@@ -236,7 +236,7 @@ public sealed class OnboardingRepository(IDatabaseConnection database)
     {
         public int WorkflowVersion { get; init; }
         public string State { get; init; } = "in_progress";
-        public string CurrentStep { get; init; } = "preflight";
+        public string CurrentStep { get; init; } = "server";
         public Guid? AdministratorProfileId { get; init; }
         public long Revision { get; init; }
         public string? CompletedAt { get; init; }

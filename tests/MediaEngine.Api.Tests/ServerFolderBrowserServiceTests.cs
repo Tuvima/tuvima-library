@@ -31,6 +31,25 @@ public sealed class ServerFolderBrowserServiceTests
     }
 
     [Fact]
+    public void ValidationReportsWhetherTheFolderAlreadyHoldsFiles()
+    {
+        using var fixture = new Fixture();
+        var empty = Directory.CreateDirectory(Path.Combine(fixture.AllowedRoot, "Empty"));
+        var full = Directory.CreateDirectory(Path.Combine(fixture.AllowedRoot, "Full", "Season 1"));
+        File.WriteAllText(Path.Combine(full.FullName, "episode.mkv"), "x");
+
+        bool Contains(string relative) => fixture.Service.Validate(new ValidateServerFolderRequest
+        {
+            StorageLocationId = "media",
+            RelativePath = relative,
+            SelectionMode = ServerFolderSelectionModes.ExistingLibrary,
+        }).ContainsFiles;
+
+        Assert.False(Contains("Empty"));
+        Assert.True(Contains("Full"));
+    }
+
+    [Fact]
     public void BrowseListsOnlyDirectoriesBeneathApprovedRoot()
     {
         using var fixture = new Fixture();
@@ -66,20 +85,88 @@ public sealed class ServerFolderBrowserServiceTests
     }
 
     [Fact]
-    public void ManualPathOutsideApprovedRootsIsRejectedWithoutDisclosingIt()
+    public void ManualPathOutsideConfiguredRootsIsFoundThroughTheMachineRoot()
     {
         using var fixture = new Fixture();
         var outside = Path.Combine(fixture.Root, "outside");
         Directory.CreateDirectory(outside);
 
-        var exception = Assert.Throws<ServerFolderAccessException>(() => fixture.Service.Validate(
-            new ValidateServerFolderRequest
-            {
-                ManualPath = outside,
-                SelectionMode = ServerFolderSelectionModes.ExistingLibrary,
-            }));
+        var result = fixture.Service.Validate(new ValidateServerFolderRequest
+        {
+            ManualPath = outside,
+            SelectionMode = ServerFolderSelectionModes.ExistingLibrary,
+        });
 
-        Assert.Contains("outside", exception.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.True(result.CanSelect);
+        Assert.True(result.HasRead);
+    }
+
+    [Fact]
+    public void MachineRootsAreListedAlongsideConfiguredLocations()
+    {
+        using var fixture = new Fixture();
+
+        var roots = fixture.Service.GetStorageLocations();
+
+        Assert.Contains(roots, root => root.Id == "media");
+        Assert.Contains(roots, root => root.Id.StartsWith("drive-", StringComparison.Ordinal) || root.Id == "server-root");
+    }
+
+    [Fact]
+    public void TuvimasOwnConfigurationFolderCannotBeChosenFromAWholeDrive()
+    {
+        using var fixture = new Fixture();
+
+        var result = fixture.Service.Validate(new ValidateServerFolderRequest
+        {
+            ManualPath = Path.Combine(fixture.Root, "config"),
+            SelectionMode = ServerFolderSelectionModes.ExistingLibrary,
+        });
+
+        Assert.False(result.CanSelect);
+        Assert.Contains(result.Issues, issue => issue.Code == "protected_path");
+    }
+
+    [Fact]
+    public void ReadOnlyConfiguredLocationStaysReadOnlyWhenReachedThroughTheWholeDrive()
+    {
+        using var fixture = new Fixture(allowWrite: false);
+        var archive = Directory.CreateDirectory(Path.Combine(fixture.AllowedRoot, "Archive"));
+
+        var result = fixture.Service.Validate(new ValidateServerFolderRequest
+        {
+            ManualPath = archive.FullName,
+            SelectionMode = ServerFolderSelectionModes.ManagedLibrary,
+        });
+
+        Assert.False(result.CanSelect);
+        Assert.False(result.HasWrite);
+    }
+
+    [Fact]
+    public void WholeDriveCannotBeManagedAndSystemFoldersCannotBeUsed()
+    {
+        using var fixture = new Fixture();
+        var driveRoot = Path.GetPathRoot(fixture.Root)!;
+
+        var managedDrive = fixture.Service.Validate(new ValidateServerFolderRequest
+        {
+            ManualPath = driveRoot,
+            SelectionMode = ServerFolderSelectionModes.ManagedLibrary,
+        });
+        Assert.False(managedDrive.CanSelect);
+        Assert.Contains(managedDrive.Issues, issue => issue.Code == "drive_root_managed");
+
+        var system = OperatingSystem.IsWindows()
+            ? Environment.GetFolderPath(Environment.SpecialFolder.Windows)
+            : "/etc";
+        var systemResult = fixture.Service.Validate(new ValidateServerFolderRequest
+        {
+            ManualPath = system,
+            SelectionMode = ServerFolderSelectionModes.ExistingLibrary,
+        });
+        Assert.False(systemResult.CanSelect);
+        Assert.Contains(systemResult.Issues, issue => issue.Code == "system_path");
     }
 
     [Fact]

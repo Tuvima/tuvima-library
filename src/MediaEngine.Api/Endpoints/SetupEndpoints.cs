@@ -73,6 +73,51 @@ public static class SetupEndpoints
             catch (ArgumentException) { return ApiErrors.BadRequest("The language or country is not recognized."); }
         }).Produces<SetupLocaleDto>();
 
+        group.MapGet("/server-identity", async (HttpContext context, ClaimsPrincipal user,
+            SetupSessionService sessions, IConfigurationLoader configuration, CancellationToken ct) =>
+        {
+            if (!await AuthorizedAsync(context, user, sessions, ct))
+            {
+                return Results.Unauthorized();
+            }
+            var serverName = configuration.LoadCore().ServerName;
+            var hostName = configuration.LoadNetwork().Local.PreferredServerName;
+            return Results.Ok(new SetupServerIdentityDto(serverName, hostName));
+        }).Produces<SetupServerIdentityDto>();
+
+        group.MapPut("/server-identity", async (SetupServerIdentityDto request, HttpContext context, ClaimsPrincipal user,
+            SetupSessionService sessions, IConfigurationLoader configuration, OnboardingRepository onboarding,
+            CancellationToken ct) =>
+        {
+            if (!await AuthorizedAsync(context, user, sessions, ct))
+            {
+                return Results.Unauthorized();
+            }
+            var serverName = (request.ServerName ?? string.Empty).Trim();
+            if (serverName.Length is 0 or > 64)
+            {
+                return ApiErrors.BadRequest("Give the server a name of 1 to 64 characters.");
+            }
+            var hostName = ToDnsLabel(request.HostName);
+            if (hostName.Length == 0)
+            {
+                hostName = ToDnsLabel(serverName);
+            }
+            if (hostName.Length == 0)
+            {
+                return ApiErrors.BadRequest("The network name needs at least one letter or number.");
+            }
+
+            var core = configuration.LoadCore();
+            core.ServerName = serverName;
+            configuration.SaveCore(core);
+            var network = configuration.LoadNetwork();
+            network.Local.PreferredServerName = hostName;
+            configuration.SaveNetwork(network);
+            await onboarding.SetStepAsync("server", "passed", $"Named \"{serverName}\" ({hostName}.local).", null, null, ct).ConfigureAwait(false);
+            return Results.Ok(new SetupServerIdentityDto(serverName, hostName));
+        }).Produces<SetupServerIdentityDto>();
+
         group.MapPost("/begin", async (SetupBeginRequest? request, SetupSessionService sessions, CancellationToken ct) =>
         {
             // The Dashboard (service credential) classifies the visitor; a missing value counts as remote.
@@ -444,6 +489,25 @@ public static class SetupEndpoints
         var authority = await resolver.ResolveAsync(context, ct).ConfigureAwait(false);
         return (await decisions.EvaluateAdministratorAsync(authority, true, ct)
             .ConfigureAwait(false)).IsAllowed;
+    }
+
+    /// <summary>Reduces free text to one DNS label: lower-case letters, digits and single hyphens, at most 63 characters.</summary>
+    internal static string ToDnsLabel(string? value)
+    {
+        var builder = new System.Text.StringBuilder();
+        foreach (var character in (value ?? string.Empty).Trim().ToLowerInvariant())
+        {
+            if (character is >= 'a' and <= 'z' or >= '0' and <= '9')
+            {
+                builder.Append(character);
+            }
+            else if (builder.Length > 0 && builder[^1] != '-')
+            {
+                builder.Append('-');
+            }
+        }
+        var label = builder.ToString().Trim('-');
+        return label.Length > 63 ? label[..63].TrimEnd('-') : label;
     }
 
     private static SetupReadinessDto BuildReadiness(OnboardingWorkflowRecord workflow)
