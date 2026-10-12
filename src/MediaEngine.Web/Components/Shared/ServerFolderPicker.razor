@@ -260,9 +260,8 @@
     private IEnumerable<(string Heading, IReadOnlyList<ServerStorageLocationDto> Locations)> LocationGroups => new (string Heading, IReadOnlyList<ServerStorageLocationDto> Locations)[]
     {
         ("Drives and folders on this server", VisibleLocations.Where(IsMachineLocation).ToList()),
+        // Tuvima's own library and import folders are not offered here; they belong with the library types.
         ("Approved folders", VisibleLocations.Where(location => !IsMachineLocation(location) && !IsTuvimaOwn(location)).ToList()),
-        // Tuvima's own storage only matters when choosing where Tuvima should keep things; when picking existing media it is hidden.
-        ("Tuvima storage", ServerFolderSelectionModes.RequiresWrite(SelectionMode) ? VisibleLocations.Where(IsTuvimaOwn).ToList() : []),
     }.Where(group => group.Locations.Count > 0);
 
     private static string DisplayName(ServerStorageLocationDto location) => location.Id switch

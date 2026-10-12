@@ -82,7 +82,7 @@ public sealed class ServerFolderPickerUiTests
         Assert.Contains("\"providers\" => \"Enhance your library\"", stepper, StringComparison.Ordinal);
         Assert.Contains("\"language\" => \"Language\"", stepper, StringComparison.Ordinal);
         Assert.DoesNotContain("ProviderStatus(", providers, StringComparison.Ordinal);
-        Assert.Contains("Tuvima storage", picker, StringComparison.Ordinal);
+        Assert.Contains("Approved folders", picker, StringComparison.Ordinal);
         Assert.Contains("Revisiting", preflight, StringComparison.Ordinal);
     }
 
