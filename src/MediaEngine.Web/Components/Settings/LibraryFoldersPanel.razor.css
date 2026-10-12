@@ -20,7 +20,7 @@
     align-self: start;
 }
 
-.library-folders__type {
+::deep .library-folders__type {
     display: flex;
     align-items: center;
     justify-content: flex-start;
@@ -35,9 +35,7 @@
     text-align: left;
 }
 
-.library-folders__type:hover,
-.library-folders__type:focus-visible,
-.library-folders__type.is-active {
+::deep .library-folders__type:is(:hover, :focus-visible, .is-active) {
     border-color: var(--tl-accent-primary-border);
     background: var(--tl-accent-primary-soft);
 }

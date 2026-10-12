@@ -64,7 +64,7 @@
 
         @if (section == "overview")
         {
-            <LibraryFoldersPanel ReadOnly="@(readOnly || _engineUnavailable)" />
+            <LibraryFoldersPanel ReadOnly="@(readOnly || _engineUnavailable)" Changed="RefreshConfigurationAsync" />
             <p class="libraries__view-link"><a href="/settings/libraries/view">Personal photos &amp; videos settings</a></p>
         }
         else if (section == "view")
@@ -437,6 +437,15 @@
         // Custom naming is a coupled edit: keep the choice in the editor until Apply.
         if (library.OrganizationPolicy.Mode == "custom" && string.IsNullOrWhiteSpace(library.OrganizationPolicy.CustomTemplate)) return;
         await SaveLibraryAsync(library);
+    }
+
+    // The Libraries panel saves on its own; keep this page's copy current so library detail pages never see stale data.
+    private async Task RefreshConfigurationAsync()
+    {
+        var latest = await Orchestrator.GetLibrariesAsync();
+        if (latest is null) return;
+        _configuration = latest;
+        _baseline = JsonSerializer.Serialize(latest);
     }
 
     private async Task SaveLibraryAsync(LibraryFolderDto library)

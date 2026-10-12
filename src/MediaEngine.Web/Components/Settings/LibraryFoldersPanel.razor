@@ -29,8 +29,9 @@
                 <AppNativeButton Type="button"
                                  Class="@TypeClass(type)"
                                  AriaLabel="@($"{type.Label}, {FolderCountText(count)}")"
+                                 aria-current="@(type.Key == _selected.Key ? "true" : null)"
                                  OnClick="@(_ => Select(type))">
-                    <AppMaterialIcon Icon="@type.Icon" Class="@($"library-folders__icon library-folders__icon--{type.Key}")" />
+                    <span class="@($"library-folders__icon library-folders__icon--{type.Key}")"><AppMaterialIcon Icon="@type.Icon" /></span>
                     <span class="library-folders__type-text"><strong>@type.Label</strong><small>@FolderCountText(count)</small></span>
                     <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ChevronRight" />
                 </AppNativeButton>
@@ -39,7 +40,7 @@
 
         <section class="library-folders__detail" aria-labelledby="library-folders-title">
             <header class="library-folders__detail-header">
-                <AppMaterialIcon Icon="@Selected.Icon" Class="@($"library-folders__icon library-folders__icon--{Selected.Key}")" />
+                <span class="@($"library-folders__icon library-folders__icon--{Selected.Key}")"><AppMaterialIcon Icon="@Selected.Icon" /></span>
                 <div>
                     <h3 id="library-folders-title">@Selected.Label</h3>
                     <p>Folders that make up your @Selected.PluralLabel library.</p>
@@ -104,22 +105,24 @@
 </div>
 
 @code {
-    private sealed record LibraryTypeOption(string Key, string Label, string PluralLabel, string Area, string MediaType, string Icon);
+    private sealed record LibraryTypeOption(string Key, string Label, string PluralLabel, string Area, string[] MediaTypes, string Icon);
 
     private static readonly LibraryTypeOption[] LibraryTypes =
     [
-        new("books", "Books", "Books", "read", "Books", AppMaterialIcons.Outlined.MenuBook),
-        new("audiobooks", "Audiobooks", "Audiobooks", "listen", "Audiobooks", AppMaterialIcons.Outlined.Headphones),
-        new("movies", "Movies", "Movies", "watch", "Movies", AppMaterialIcons.Outlined.Movie),
-        new("tv", "TV Shows", "TV shows", "watch", "TVShows", AppMaterialIcons.Outlined.Tv),
-        new("music", "Music", "Music", "listen", "Music", AppMaterialIcons.Outlined.MusicNote),
-        new("comics", "Comics", "Comics", "read", "Comics", AppMaterialIcons.Outlined.AutoStories),
+        new("books", "Books", "Books", "read", ["Books"], AppMaterialIcons.Outlined.MenuBook),
+        new("audiobooks", "Audiobooks", "Audiobooks", "listen", ["Audiobooks"], AppMaterialIcons.Outlined.Headphones),
+        new("movies", "Movies", "Movies", "watch", ["Movies"], AppMaterialIcons.Outlined.Movie),
+        new("tv", "TV Shows", "TV shows", "watch", ["TV", "TVShows"], AppMaterialIcons.Outlined.Tv),
+        new("music", "Music", "Music", "listen", ["Music"], AppMaterialIcons.Outlined.MusicNote),
+        new("comics", "Comics", "Comics", "read", ["Comics"], AppMaterialIcons.Outlined.AutoStories),
     ];
 
     /// <summary>True when the first-run setup session is in use instead of the signed-in Settings endpoints.</summary>
     [Parameter] public bool Embedded { get; set; }
     [Parameter] public string? SetupSession { get; set; }
     [Parameter] public bool ReadOnly { get; set; }
+    /// <summary>Empty-state links open the screen on a given type, for example ?type=movies.</summary>
+    [SupplyParameterFromQuery(Name = "type")] public string? PreselectedType { get; set; }
     /// <summary>Raised after any saved change so the host can refresh its own state.</summary>
     [Parameter] public EventCallback Changed { get; set; }
 
@@ -137,7 +140,9 @@
     protected override async Task OnInitializedAsync()
     {
         await LoadAsync();
-        _selected = LibraryTypes.FirstOrDefault(type => FolderCount(type) > 0) ?? LibraryTypes[0];
+        _selected = LibraryTypes.FirstOrDefault(type => string.Equals(type.Key, PreselectedType, StringComparison.OrdinalIgnoreCase))
+            ?? LibraryTypes.FirstOrDefault(type => FolderCount(type) > 0)
+            ?? LibraryTypes[0];
     }
 
     private async Task LoadAsync()
@@ -153,7 +158,7 @@
 
     private LibraryFolderDto? LibraryFor(LibraryTypeOption type) => _configuration?.Libraries
         .FirstOrDefault(library => string.Equals(library.Kind, "catalogued", StringComparison.OrdinalIgnoreCase)
-            && library.MediaTypes.Contains(type.MediaType, StringComparer.OrdinalIgnoreCase));
+            && library.MediaTypes.Any(token => type.MediaTypes.Contains(token, StringComparer.OrdinalIgnoreCase)));
 
     private int FolderCount(LibraryTypeOption type) => LibraryFor(type)?.Sources.Count ?? 0;
     private static string FolderCountText(int count) => count == 1 ? "1 folder" : $"{count} folders";
@@ -210,7 +215,9 @@
             else
             {
                 managed = false;
-                _notice = "Tuvima can't write to this folder, so it will be used as-is (read only).";
+                _notice = writable is null
+                    ? "Tuvima couldn't check whether it can write to this folder, so it will be used as-is (read only)."
+                    : "Tuvima can't write to this folder, so it will be used as-is (read only).";
             }
         }
 
@@ -242,6 +249,10 @@
         var target = library?.Sources.FirstOrDefault(item => item.Id == source.Id);
         if (library is null || target is null || _saving) return;
         var managed = !IsManaged(target);
+        if (managed && await DialogService.ShowMessageBoxAsync(
+                "Let Tuvima manage this folder?",
+                "Tuvima may rename and reorganise files in this folder, which could affect other applications that use it.",
+                yesText: "Let Tuvima manage it", cancelText: "Keep as-is") != true) return;
         var validation = await ValidateAsync(target.Path, managed ? ServerFolderSelectionModes.ManagedLibrary : ServerFolderSelectionModes.ExistingLibrary, target.Id);
         if (validation is null || !validation.CanSelect)
         {
@@ -324,7 +335,7 @@
         Area = option.Area,
         Presentation = "catalogue",
         MetadataPolicy = "enriched",
-        MediaTypes = [option.MediaType],
+        MediaTypes = [option.MediaTypes[0]],
         Visibility = "household",
         AcceptedIntakeModes = ["incoming_folder"],
         DuplicatePolicy = "skip_exact",

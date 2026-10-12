@@ -134,14 +134,7 @@ else
                             <PrivacyHistoryTab Subsection="@_activeSubsection" />
                             break;
                         case SettingsSection.Libraries:
-                            @if (string.Equals(_activeSubsection, "new", StringComparison.OrdinalIgnoreCase))
-                            {
-                                <AddLibraryWizard />
-                            }
-                            else
-                            {
-                                <LibrariesTab Subsection="@_activeSubsection" Scope="@LibraryScope" LibraryNameChanged="OnLibraryNameChanged" />
-                            }
+                            <LibrariesTab Subsection="@_activeSubsection" Scope="@LibraryScope" LibraryNameChanged="OnLibraryNameChanged" />
                             break;
                         case SettingsSection.Ingestion:
                             <IngestionTasksTab View="@IngestionView" RunId="@IngestionRunId" ItemId="@IngestionItemId" />
@@ -248,7 +241,7 @@ else
     private SettingsGroupDef CurrentGroup => SettingsNav.GetGroup(_activeSection);
     private IReadOnlyList<SettingsBreadcrumb> Breadcrumbs => BuildBreadcrumbs();
     private string BrowserTitle => _activeSection == SettingsSection.Libraries
-        ? $"{(string.IsNullOrWhiteSpace(_activeSubsection) ? "Libraries" : _activeSubsection == "new" ? "Add Library" : _activeSubsection == "view" ? "View" : _libraryBreadcrumbName ?? "Library")} - Tuvima Library"
+        ? $"{(string.IsNullOrWhiteSpace(_activeSubsection) ? "Libraries" : _activeSubsection == "view" ? "View" : _libraryBreadcrumbName ?? "Library")} - Tuvima Library"
         : string.IsNullOrWhiteSpace(_activeSubsection)
         ? $"{GetHeroTitle()} - Tuvima Library"
         : $"{GetSubsectionLabel()} - {GetHeroTitle()} - Tuvima Library";
@@ -510,8 +503,7 @@ else
     }
 
     private static bool IsLibraryRouteSegment(string? value) =>
-        string.Equals(value, "new", StringComparison.OrdinalIgnoreCase)
-        || string.Equals(value, "view", StringComparison.OrdinalIgnoreCase)
+        string.Equals(value, "view", StringComparison.OrdinalIgnoreCase)
         || Guid.TryParse(value, out _);
 
     private static bool IsValidDetailRoute(SettingsSection section, string subsection, string? detail)
@@ -672,7 +664,7 @@ else
                 ? $"/settings/libraries?scope={LibraryScope}" : "/settings/libraries";
             breadcrumbs.Add(new SettingsBreadcrumb("Libraries", string.IsNullOrWhiteSpace(_activeSubsection) ? null : overview));
             if (!string.IsNullOrWhiteSpace(_activeSubsection))
-                breadcrumbs.Add(new SettingsBreadcrumb(_activeSubsection == "new" ? "Add Library" : _activeSubsection == "view" ? "View" : _libraryBreadcrumbName ?? "Library", null));
+                breadcrumbs.Add(new SettingsBreadcrumb(_activeSubsection == "view" ? "View" : _libraryBreadcrumbName ?? "Library", null));
             return breadcrumbs;
         }
 

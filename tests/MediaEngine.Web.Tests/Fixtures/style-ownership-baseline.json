@@ -24,7 +24,7 @@
   },
   "totals": {
     "important": 1780,
-    "deep": 2888
+    "deep": 2865
   },
   "initialFiles": {
     "src/MediaEngine.Web/Components/Artwork/ArtworkAssetBrowser.razor.css": {
@@ -1533,9 +1533,9 @@
       "important": 4,
       "deep": 11
     },
-    "src/MediaEngine.Web/Components/Settings/AddLibraryWizard.razor.css": {
+    "src/MediaEngine.Web/Components/Settings/LibraryFoldersPanel.razor.css": {
       "important": 0,
-      "deep": 25
+      "deep": 2
     },
     "src/MediaEngine.Web/Components/Settings/AdministratorSurfaceGate.razor.css": {
       "important": 0,
@@ -2008,6 +2008,17 @@
   },
   "lineExceptions": {},
   "transfers": [
+    {
+      "source": "src/MediaEngine.Web/Components/Settings/AddLibraryWizard.razor.css",
+      "destination": "src/MediaEngine.Web/Components/Settings/LibraryFoldersPanel.razor.css",
+      "important": 0,
+      "deep": 2,
+      "selectors": [
+        "::deep .library-folders__type",
+        "::deep .library-folders__type:is(:hover, :focus-visible, .is-active)"
+      ],
+      "reason": "The Add Library wizard was removed; the shared Libraries screen replaces it and styles its type buttons the same way."
+    },
     {
       "source": "src/MediaEngine.Web/Components/Details/DetailPage.razor.css",
       "destination": "src/MediaEngine.Web/Components/Cinematic/CinematicHeroSurface.razor.css",

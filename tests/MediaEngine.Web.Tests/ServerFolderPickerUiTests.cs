@@ -30,7 +30,7 @@ public sealed class ServerFolderPickerUiTests
     public void Picker_IsReusedAcrossLibraryAndPersonalSpaceFlows()
     {
         var libraries = Read("src/MediaEngine.Web/Components/Settings/LibrariesTab.razor");
-        var wizard = Read("src/MediaEngine.Web/Components/Settings/AddLibraryWizard.razor");
+        var wizard = Read("src/MediaEngine.Web/Components/Settings/LibraryFoldersPanel.razor");
         var view = Read("src/MediaEngine.Web/Components/Settings/ViewLibrarySettings.razor");
 
         Assert.Contains("AppDialogParameters<ServerFolderPicker>", libraries, StringComparison.Ordinal);
@@ -46,26 +46,16 @@ public sealed class ServerFolderPickerUiTests
     public void StructuredWizardAndLibraryDetailsExposeCanonicalFlow()
     {
         var settings = Read("src/MediaEngine.Web/Components/Pages/Settings.razor");
-        var wizard = Read("src/MediaEngine.Web/Components/Settings/AddLibraryWizard.razor");
         var libraries = Read("src/MediaEngine.Web/Components/Settings/LibrariesTab.razor");
 
         Assert.Contains("IsLibraryRouteSegment", settings, StringComparison.Ordinal);
-        Assert.Contains("<AddLibraryWizard />", settings, StringComparison.Ordinal);
+        Assert.DoesNotContain("AddLibraryWizard", settings, StringComparison.Ordinal);
 
-        Assert.Contains("Pick a folder", wizard, StringComparison.Ordinal);
-        Assert.Contains("Organization", wizard, StringComparison.Ordinal);
-        Assert.Contains("Review", wizard, StringComparison.Ordinal);
-        Assert.Contains("PrimaryDestinationSourceId", wizard, StringComparison.Ordinal);
-        Assert.Contains("Pick a type", wizard, StringComparison.Ordinal);
-        Assert.Contains("Personal photos", wizard, StringComparison.Ordinal);
-        Assert.Contains("Save View storage", wizard, StringComparison.Ordinal);
         Assert.Contains("LibraryNameChanged", settings, StringComparison.Ordinal);
         Assert.DoesNotContain("library-detail__tabs", libraries, StringComparison.Ordinal);
         Assert.Contains("File Handling", libraries, StringComparison.Ordinal);
         Assert.DoesNotContain("<NavigationLock", libraries, StringComparison.Ordinal);
         Assert.Contains("MutateLibraryAsync", libraries, StringComparison.Ordinal);
-        Assert.Contains("RequiresPrimaryDestination", wizard, StringComparison.Ordinal);
-        Assert.Contains("Advanced", wizard, StringComparison.Ordinal);
         Assert.Contains("Folders", libraries, StringComparison.Ordinal);
         Assert.Contains("Organization", libraries, StringComparison.Ordinal);
         Assert.Contains("Advanced", libraries, StringComparison.Ordinal);
