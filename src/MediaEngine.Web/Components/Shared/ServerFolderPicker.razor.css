@@ -364,3 +364,6 @@
     .server-folder-picker { grid-template-columns: 340px minmax(0, 1fr); }
     .server-folder-picker__list-header, .server-folder-picker__folder { min-height: 60px; }
 }
+
+/* Reserve room for validation notices so the folder list does not jump when one appears. */
+.server-folder-picker__notices { display: grid; align-content: start; gap: 8px; min-height: 76px; }

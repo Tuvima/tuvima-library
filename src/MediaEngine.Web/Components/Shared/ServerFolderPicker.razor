@@ -178,6 +178,7 @@
                     </div>
                 }
 
+                <div class="server-folder-picker__notices">
                 @if (_validation is { CanSelect: true, Exists: false }) { <AppAlert Tone="AppUiTone.Info">This View folder will be created when storage is saved.</AppAlert> }
                 @if (!string.IsNullOrWhiteSpace(_error))
                 {
@@ -201,6 +202,7 @@
                         }
                     </div>
                 }
+                </div>
             </section>
         </div>
     </ChildContent>
@@ -259,7 +261,8 @@
     {
         ("Drives and folders on this server", VisibleLocations.Where(IsMachineLocation).ToList()),
         ("Approved folders", VisibleLocations.Where(location => !IsMachineLocation(location) && !IsTuvimaOwn(location)).ToList()),
-        ("Tuvima's own folders", VisibleLocations.Where(IsTuvimaOwn).ToList()),
+        // Tuvima's own storage only matters when choosing where Tuvima should keep things; when picking existing media it is hidden.
+        ("Tuvima storage", ServerFolderSelectionModes.RequiresWrite(SelectionMode) ? VisibleLocations.Where(IsTuvimaOwn).ToList() : []),
     }.Where(group => group.Locations.Count > 0);
 
     private static string DisplayName(ServerStorageLocationDto location) => location.Id switch
