@@ -52,6 +52,15 @@ public sealed class ServerFolderPickerUiTests
     }
 
     [Fact]
+    public void ServerCheck_CanIgnoreAFailedStorageLocation()
+    {
+        var stage = Read("src/MediaEngine.Web/Components/Setup/SetupPreflightStage.razor");
+
+        Assert.Contains("Ignore this location", stage, StringComparison.Ordinal);
+        Assert.Contains("IgnoreAsync", stage, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void StructuredWizardAndLibraryDetailsExposeCanonicalFlow()
     {
         var settings = Read("src/MediaEngine.Web/Components/Pages/Settings.razor");

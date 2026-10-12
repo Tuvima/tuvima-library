@@ -65,6 +65,10 @@
                     <div class="setup-storage-row">
                         <AppTextField Label="@location.Label" Value="@location.Path" ValueChanged="@((string? value) => location.Path = value?.Trim() ?? string.Empty)" />
                         <AppStatusBadge Text="@(location.AllowWrite ? "Writable" : "Read only")" Tone="@(location.AllowWrite ? AppUiTone.Success : AppUiTone.Neutral)" />
+                        @if (CanIgnore(location))
+                        {
+                            <AppButton Label="Ignore this location" ButtonStyle="AppButtonStyle.Text" Loading="@Busy" OnClick="@(() => IgnoreAsync(location))" />
+                        }
                     </div>
                 }
                 <div class="setup-actions"><AppButton Label="Save and check again" StartIcon="@AppMaterialIcons.Outlined.Refresh" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Loading="@Busy" OnClick="SaveStorageLocations" /></div>
@@ -112,5 +116,18 @@
     [Parameter] public EventCallback Next { get; set; }
     [Parameter] public EventCallback ReturnToCurrentStep { get; set; }
     [Parameter] public EventCallback SaveStorageLocations { get; set; }
+
+    // A location that fails its check can be dropped so setup can carry on; the one View uses is needed and stays.
+    private bool CanIgnore(ServerStorageLocationDto location) =>
+        Libraries is not null
+        && !string.Equals(Libraries.ViewStorage.StorageLocationId, location.Id, StringComparison.OrdinalIgnoreCase)
+        && Preflight?.Checks.Any(check => check.Key == $"storage-{location.Id}" && check.Status != "passed") == true;
+
+    private async Task IgnoreAsync(ServerStorageLocationDto location)
+    {
+        Libraries?.StorageLocations.Remove(location);
+        await SaveStorageLocations.InvokeAsync();
+    }
+
     private static string Friendly(string value) => char.ToUpperInvariant(value[0]) + value[1..].Replace('_', ' ');
 }
