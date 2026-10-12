@@ -58,6 +58,9 @@ public sealed class ServerFolderPickerUiTests
 
         Assert.Contains("Ignore this location", stage, StringComparison.Ordinal);
         Assert.Contains("IgnoreAsync", stage, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void LibraryFoldersPanel_OffersImportFolderAndAcceptNewMedia()
     {
         var panel = Read("src/MediaEngine.Web/Components/Settings/LibraryFoldersPanel.razor");
