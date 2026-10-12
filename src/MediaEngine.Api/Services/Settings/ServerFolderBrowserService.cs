@@ -537,7 +537,10 @@ public sealed class ServerFolderBrowserService(
             foreach (var folder in new[] { Environment.SpecialFolder.Windows, Environment.SpecialFolder.ProgramFiles, Environment.SpecialFolder.ProgramFilesX86, Environment.SpecialFolder.CommonApplicationData })
             {
                 var value = Environment.GetFolderPath(folder);
-                if (!string.IsNullOrWhiteSpace(value)) roots.Add(value);
+                if (!string.IsNullOrWhiteSpace(value))
+                {
+                    roots.Add(value);
+                }
             }
         }
         else
@@ -566,10 +569,16 @@ public sealed class ServerFolderBrowserService(
                 Environment.GetEnvironmentVariable("TUVIMA_LOG_DIR"),
             };
             var databasePath = Environment.GetEnvironmentVariable("TUVIMA_DB_PATH");
-            if (!string.IsNullOrWhiteSpace(databasePath)) ownFolders.Add(Path.GetDirectoryName(Path.GetFullPath(databasePath)));
+            if (!string.IsNullOrWhiteSpace(databasePath))
+            {
+                ownFolders.Add(Path.GetDirectoryName(Path.GetFullPath(databasePath)));
+            }
             var core = configuration.LoadCore();
             ownFolders.Add(core.DataRoot);
-            if (!string.IsNullOrWhiteSpace(core.LibraryRoot)) ownFolders.Add(Path.Combine(core.LibraryRoot, ".data"));
+            if (!string.IsNullOrWhiteSpace(core.LibraryRoot))
+            {
+                ownFolders.Add(Path.Combine(core.LibraryRoot, ".data"));
+            }
             var own = ownFolders
                 .Where(path => !string.IsNullOrWhiteSpace(path))
                 .Select(path => PhysicalOrFull(path!))
