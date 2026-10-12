@@ -28,7 +28,7 @@ public sealed class NetworkSettingsUiTests
         Assert.Contains("@page \"/setup\"", setup, StringComparison.Ordinal);
         Assert.Contains("UploadBackupAsync", setup, StringComparison.Ordinal);
         Assert.Contains("SetupMediaStage", setup, StringComparison.Ordinal);
-        Assert.Contains("AddLibraryWizard Embedded=\"true\"", media, StringComparison.Ordinal);
+        Assert.Contains("LibraryFoldersPanel Embedded=\"true\"", media, StringComparison.Ordinal);
         Assert.Contains("SetupWorkflow.StepKeys", setup, StringComparison.Ordinal);
     }
 

@@ -1,0 +1,198 @@
+.library-folders {
+    display: grid;
+    grid-template-columns: 280px minmax(0, 1fr);
+    gap: 16px;
+    min-height: 360px;
+}
+
+.library-folders__types,
+.library-folders__detail {
+    border: 1px solid var(--tl-border-subtle);
+    border-radius: var(--app-radius-md, 8px);
+    background: var(--app-glass-inner-bg);
+}
+
+.library-folders__types {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 8px;
+    align-self: start;
+}
+
+::deep .library-folders__type {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 12px;
+    width: 100%;
+    min-height: 56px;
+    padding: 8px 12px;
+    border: 1px solid transparent;
+    border-radius: var(--app-radius-sm, 6px);
+    background: transparent;
+    color: inherit;
+    text-align: left;
+}
+
+::deep .library-folders__type:is(:hover, :focus-visible, .is-active) {
+    border-color: var(--tl-accent-primary-border);
+    background: var(--tl-accent-primary-soft);
+}
+
+.library-folders__type-text {
+    display: grid;
+    justify-items: start;
+    text-align: left;
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.library-folders__type-text small,
+.library-folders__detail-header p,
+.library-folders__empty span {
+    margin: 0;
+    color: var(--tl-text-muted);
+    font-size: 0.82rem;
+}
+
+.library-folders__detail {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    gap: 14px;
+    padding: 16px;
+}
+
+.library-folders__detail-header {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+
+.library-folders__detail-header h3 {
+    margin: 0;
+    font-size: 1.15rem;
+}
+
+.library-folders__detail-header > div:not(.library-folders__detail-actions) {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.library-folders__detail-actions {
+    display: flex;
+    flex: 0 0 auto;
+    align-items: center;
+    gap: 8px;
+}
+
+.library-folders__table {
+    border: 1px solid var(--tl-border-subtle);
+    border-radius: var(--app-radius-md, 8px);
+    overflow: hidden;
+}
+
+.library-folders__row {
+    display: grid;
+    grid-template-columns: minmax(140px, 1fr) minmax(0, 1.4fr) auto;
+    align-items: center;
+    gap: 12px;
+    min-height: 56px;
+    padding: 6px 12px;
+    border-bottom: 1px solid var(--tl-border-subtle);
+}
+
+.library-folders__row:last-child {
+    border-bottom: 0;
+}
+
+.library-folders__row--head {
+    min-height: 40px;
+    color: var(--tl-text-muted);
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+}
+
+.library-folders__name {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+}
+
+.library-folders__name strong,
+.library-folders__path {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.library-folders__path {
+    color: var(--tl-text-muted);
+}
+
+.library-folders__row-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 4px;
+}
+
+.library-folders__empty {
+    display: grid;
+    flex: 1 1 auto;
+    place-items: center;
+    align-content: center;
+    gap: 6px;
+    padding: 32px 16px;
+    text-align: center;
+}
+
+@media (max-width: 800px) {
+    .library-folders {
+        grid-template-columns: 1fr;
+        min-height: 0;
+    }
+
+    .library-folders__types {
+        flex-direction: row;
+        overflow-x: auto;
+    }
+
+    .library-folders__type {
+        flex: 0 0 auto;
+        width: auto;
+        min-width: 160px;
+    }
+
+    .library-folders__detail-header {
+        flex-wrap: wrap;
+    }
+
+    .library-folders__detail-actions {
+        width: 100%;
+        justify-content: flex-end;
+    }
+
+    .library-folders__row {
+        grid-template-columns: minmax(0, 1fr) auto;
+    }
+
+    .library-folders__row--head {
+        display: none;
+    }
+
+    .library-folders__path {
+        grid-column: 1 / -1;
+        grid-row: 2;
+    }
+}
+
+.library-folders__icon--books { color: #61a8ff; }
+.library-folders__icon--audiobooks { color: #f1b95b; }
+.library-folders__icon--movies { color: #a16dff; }
+.library-folders__icon--tv { color: #49a7ff; }
+.library-folders__icon--music { color: #e76fce; }
+.library-folders__icon--comics { color: #7de568; }

@@ -19,7 +19,6 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
         Libraries = [new() { Id = "22222222-2222-4222-8222-222222222222", Name = "Audiobooks", Area = "listen", MediaTypes = ["Audiobooks"], Sources = [new() { Id = "source", Path = "C:\\media\\Audiobooks", ManagementMode = "existing_library" }] }],
     };
     private int _saves, _loads, _pathChecks;
-    private bool _failSave;
     private UpdateLibrariesRequest? _lastSave;
 
     public LibrarySettingsFlowTests()
@@ -33,13 +32,13 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
             stub.SetHandler(nameof(IEngineApiClient.GetLibrariesAsync), _ => { _loads++; return Task.FromResult<LibrariesConfigurationDto?>(_configuration); });
             stub.SetHandler(nameof(IEngineApiClient.GetSetupLibrariesAsync), _ => Task.FromResult<LibrariesConfigurationDto?>(_configuration));
             stub.SetHandler(nameof(IEngineApiClient.TestPathAsync), _ => { _pathChecks++; return Task.FromResult<PathTestResultDto?>(new() { Exists = true, HasRead = true, HasWrite = false }); });
-            stub.SetHandler(nameof(IEngineApiClient.UpdateLibrariesAsync), args => { _saves++; _lastSave = (UpdateLibrariesRequest)args![0]!; return Task.FromResult<LibrariesConfigurationDto?>(_failSave ? null : _configuration); });
+            stub.SetHandler(nameof(IEngineApiClient.UpdateLibrariesAsync), args => { _saves++; _lastSave = (UpdateLibrariesRequest)args![0]!; return Task.FromResult<LibrariesConfigurationDto?>(_configuration); });
             stub.SetHandler(nameof(IEngineApiClient.MutateLibraryAsync), args =>
             {
                 _saves++;
                 var mutation = (LibraryMutationRequest)args![0]!;
                 _lastSave = new UpdateLibrariesRequest { Libraries = _configuration.Libraries, ViewStorage = mutation.ViewStorage ?? _configuration.ViewStorage };
-                return Task.FromResult<LibrariesConfigurationDto?>(_failSave ? null : _configuration);
+                return Task.FromResult<LibrariesConfigurationDto?>(_configuration);
             });
             stub.SetHandler(nameof(IEngineApiClient.GetServerFolderRootsAsync), _ => Task.FromResult<IReadOnlyList<ServerStorageLocationDto>>(_configuration.StorageLocations));
             stub.SetHandler(nameof(IEngineApiClient.BrowseServerFoldersAsync), _ => Task.FromResult<BrowseServerFoldersResultDto?>(new() { DisplayPath = "C:\\media" }));
@@ -53,27 +52,15 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
     }
 
     [Fact]
-    public void ViewFilterNavigatesToItsOwnScope()
+    public void OverviewListsEveryLibraryTypeWithItsFolderCount()
     {
         var cut = Render<LibrariesTab>();
-        cut.WaitForElement(".libraries-table__row");
-        cut.FindAll(".app-segmented-control__item").Single(x => x.TextContent.Trim() == "View").Click();
-        Assert.EndsWith("/settings/libraries?scope=view", Services.GetRequiredService<Microsoft.AspNetCore.Components.NavigationManager>().Uri);
-    }
-
-    [Fact]
-    public void ScopeChangesReuseLoadedLibrariesAndDoNotProbeAgain()
-    {
-        var cut = Render<LibrariesTab>();
-        cut.WaitForElement(".libraries-table__row");
-        cut.WaitForAssertion(() => Assert.Equal(1, _pathChecks));
-        foreach (var scope in new[] { "listen", "read", "watch", "view", "all" })
-        {
-            cut.Render(parameters => parameters.Add(x => x.Scope, scope));
-        }
-
-        Assert.Equal(1, _loads);
-        Assert.Equal(1, _pathChecks);
+        cut.WaitForElement(".library-folders__type");
+        Assert.Equal(6, cut.FindAll(".library-folders__type").Count);
+        Assert.Contains(cut.FindAll(".library-folders__type"), x => x.TextContent.Contains("Audiobooks") && x.TextContent.Contains("1 folder"));
+        Assert.Contains(cut.FindAll(".library-folders__type"), x => x.TextContent.Contains("Movies") && x.TextContent.Contains("0 folders"));
+        Assert.Contains("Add Folder", cut.Markup);
+        Assert.DoesNotContain("Add library", cut.Markup);
         Assert.Contains("/settings/libraries/view", cut.Markup);
     }
 
@@ -115,52 +102,6 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
         Assert.All(cut.FindAll("button").Where(button => button.GetAttribute("aria-label")?.StartsWith("Test folder path", StringComparison.Ordinal) != true),
             button => Assert.True(button.HasAttribute("disabled")));
         Assert.All(cut.FindAll("input"), input => Assert.True(input.HasAttribute("disabled") || input.HasAttribute("readonly")));
-    }
-
-    [Fact]
-    public void OverviewUsesFullWidthLibraryLinksAndUnknownCountsStayUnknown()
-    {
-        var cut = Render<LibrariesTab>(parameters => parameters.Add(component => component.Scope, "listen"));
-        cut.WaitForElement(".libraries-table__row");
-        var row = cut.Find(".libraries-table__row");
-        Assert.Equal("a", row.LocalName);
-        Assert.EndsWith("?scope=listen", row.GetAttribute("href"));
-        Assert.Contains("Unavailable", row.TextContent);
-        Assert.Equal(cut.Find(".libraries-table__head").Children.Length, row.Children.Length);
-    }
-
-    [Fact]
-    public void PersonalWizardKeepsReviewStepAndDoesNotCreateAStructuredLibrary()
-    {
-        var cut = Render<AddLibraryWizard>();
-        cut.WaitForElement(".add-library-wizard__types");
-        Assert.Equal(2, cut.FindAll(".add-library-wizard__steps li").Count);
-        cut.FindAll("button").Single(button => button.TextContent.Contains("Personal photos")).Click();
-        Assert.Equal(3, cut.FindAll(".add-library-wizard__steps li").Count);
-        cut.WaitForAssertion(() => Assert.Contains("Choose Personal Media storage", cut.Markup));
-        cut.FindAll("button").Single(button => button.TextContent.Trim() == "Next").Click();
-        cut.WaitForAssertion(() => Assert.Contains("Review Personal Media storage", cut.Markup));
-        Assert.Single(_configuration.Libraries);
-        Assert.Equal(0, _saves);
-    }
-
-    [Fact]
-    public void PersonalSaveFailureRetainsReviewAndRetryKeepsStructuredLibrariesUnchanged()
-    {
-        var cut = Render<AddLibraryWizard>();
-        cut.WaitForElement(".add-library-wizard__types");
-        cut.FindAll("button").Single(button => button.TextContent.Contains("Personal photos")).Click();
-        cut.FindAll("button").Single(button => button.TextContent.Trim() == "Next").Click();
-        _failSave = true;
-        cut.FindAll("button").Single(button => button.TextContent.Trim() == "Save View storage").Click();
-        cut.WaitForAssertion(() => Assert.Equal(1, _saves));
-        Assert.Contains("Review Personal Media storage", cut.Markup);
-        Assert.Single(_lastSave!.Libraries);
-        _failSave = false;
-        cut.FindAll("button").Single(button => button.TextContent.Trim() == "Save View storage").Click();
-        cut.WaitForAssertion(() => Assert.Equal(2, _saves));
-        Assert.Single(_lastSave.Libraries);
-        Assert.Single(_configuration.Libraries);
     }
 
     [Fact]

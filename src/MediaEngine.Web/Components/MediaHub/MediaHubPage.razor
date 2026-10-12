@@ -132,8 +132,8 @@
         .Where(shelf => shelf.Items.Count > 0)
         .ToList();
 
-    // Each lane starts the Add Library wizard on the matching type, so the first click is already on the folder step.
-    private string AddLibraryHref => "/settings/libraries/new?type=" + SectionType switch
+    // Each lane opens the Libraries screen on the matching type, so the first click is already on Add Folder.
+    private string AddLibraryHref => "/settings/libraries?type=" + SectionType switch
     {
         MediaHubSectionType.Read => "books",
         MediaHubSectionType.Watch => "movies",

@@ -1,0 +1,373 @@
+@namespace MediaEngine.Web.Components.Settings
+@using System.Text.Json
+@using MediaEngine.Web.Components.Shared
+@inject UIOrchestratorService Orchestrator
+@inject IEngineApiClient ApiClient
+@inject IAppDialogService DialogService
+@inject IAppToastService Snackbar
+
+@* One screen for libraries: media types on the left, the selected type's folders on the right.
+   Used by the first-run setup step and by Settings > Libraries, so both behave identically. *@
+<div class="library-folders">
+    @if (_loading)
+    {
+        <AppPageState Kind="AppPageStateKind.Loading" Title="Loading libraries" />
+    }
+    else if (_configuration is null)
+    {
+        <AppPageState Kind="AppPageStateKind.Error"
+                      Icon="@AppMaterialIcons.Outlined.CloudOff"
+                      Title="Libraries could not be loaded"
+                      Message="@(_loadError ?? "The Engine did not return library configuration.")" />
+    }
+    else
+    {
+        <nav class="library-folders__types" aria-label="Library types">
+            @foreach (var type in LibraryTypes)
+            {
+                var count = FolderCount(type);
+                <AppNativeButton Type="button"
+                                 Class="@TypeClass(type)"
+                                 AriaLabel="@($"{type.Label}, {FolderCountText(count)}")"
+                                 aria-current="@(type.Key == _selected.Key ? "true" : null)"
+                                 OnClick="@(_ => Select(type))">
+                    <span class="@($"library-folders__icon library-folders__icon--{type.Key}")"><AppMaterialIcon Icon="@type.Icon" /></span>
+                    <span class="library-folders__type-text"><strong>@type.Label</strong><small>@FolderCountText(count)</small></span>
+                    <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ChevronRight" />
+                </AppNativeButton>
+            }
+        </nav>
+
+        <section class="library-folders__detail" aria-labelledby="library-folders-title">
+            <header class="library-folders__detail-header">
+                <span class="@($"library-folders__icon library-folders__icon--{Selected.Key}")"><AppMaterialIcon Icon="@Selected.Icon" /></span>
+                <div>
+                    <h3 id="library-folders-title">@Selected.Label</h3>
+                    <p>Folders that make up your @Selected.PluralLabel library.</p>
+                </div>
+                <div class="library-folders__detail-actions">
+                    @if (!Embedded && SelectedLibrary is not null)
+                    {
+                        <AppButton Label="Library settings" ButtonStyle="AppButtonStyle.Text" Href="@($"/settings/libraries/{SelectedLibrary.Id}")" />
+                    }
+                    <AppButton Label="Add Folder"
+                               StartIcon="@AppMaterialIcons.Outlined.Add"
+                               ButtonStyle="AppButtonStyle.Outlined"
+                               Disabled="@(_saving || ReadOnly)"
+                               OnClick="AddFolderAsync" />
+                </div>
+            </header>
+
+            @if (!string.IsNullOrWhiteSpace(_notice))
+            {
+                <AppAlert Tone="AppUiTone.Warning">@_notice</AppAlert>
+            }
+
+            @if (SelectedLibrary is null || SelectedLibrary.Sources.Count == 0)
+            {
+                <div class="library-folders__empty">
+                    <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.FolderOpen" />
+                    <strong>No folders yet</strong>
+                    <span>Choose Add Folder to point Tuvima at where your @Selected.PluralLabel live.</span>
+                </div>
+            }
+            else
+            {
+                <div class="library-folders__table" role="list" aria-label="@($"{Selected.Label} folders")">
+                    <div class="library-folders__row library-folders__row--head" aria-hidden="true"><span>Folder</span><span>Path</span><span></span></div>
+                    @foreach (var source in SelectedLibrary.Sources)
+                    {
+                        <div class="library-folders__row" role="listitem">
+                            <span class="library-folders__name"><AppMaterialIcon Icon="@AppMaterialIcons.Filled.Folder" /><strong>@FriendlyName(source)</strong></span>
+                            <span class="library-folders__path" title="@source.Path">@source.Path</span>
+                            <span class="library-folders__row-actions">
+                                <AppStatusBadge Text="@ModeLabel(source)" Tone="@(IsManaged(source) ? AppUiTone.Info : AppUiTone.Neutral)" />
+                                @if (!ReadOnly)
+                                {
+                                    <AppIconButton Icon="@(IsManaged(source) ? AppMaterialIcons.Outlined.Lock : AppMaterialIcons.Outlined.DriveFileMove)"
+                                                   Tooltip="@(IsManaged(source) ? "Leave as-is" : "Let Tuvima manage this folder")"
+                                                   AriaLabel="@(IsManaged(source) ? $"Leave {FriendlyName(source)} as-is" : $"Let Tuvima manage {FriendlyName(source)}")"
+                                                   Disabled="@_saving"
+                                                   OnClick="@(() => ChangeModeAsync(source))" />
+                                    <AppIconButton Icon="@AppMaterialIcons.Outlined.Delete"
+                                                   Tooltip="Remove folder"
+                                                   AriaLabel="@($"Remove {FriendlyName(source)}")"
+                                                   Disabled="@_saving"
+                                                   OnClick="@(() => RemoveFolderAsync(source))" />
+                                }
+                            </span>
+                        </div>
+                    }
+                </div>
+            }
+        </section>
+    }
+</div>
+
+@code {
+    private sealed record LibraryTypeOption(string Key, string Label, string PluralLabel, string Area, string[] MediaTypes, string Icon);
+
+    private static readonly LibraryTypeOption[] LibraryTypes =
+    [
+        new("books", "Books", "Books", "read", ["Books"], AppMaterialIcons.Outlined.MenuBook),
+        new("audiobooks", "Audiobooks", "Audiobooks", "listen", ["Audiobooks"], AppMaterialIcons.Outlined.Headphones),
+        new("movies", "Movies", "Movies", "watch", ["Movies"], AppMaterialIcons.Outlined.Movie),
+        new("tv", "TV Shows", "TV shows", "watch", ["TV", "TVShows"], AppMaterialIcons.Outlined.Tv),
+        new("music", "Music", "Music", "listen", ["Music"], AppMaterialIcons.Outlined.MusicNote),
+        new("comics", "Comics", "Comics", "read", ["Comics"], AppMaterialIcons.Outlined.AutoStories),
+    ];
+
+    /// <summary>True when the first-run setup session is in use instead of the signed-in Settings endpoints.</summary>
+    [Parameter] public bool Embedded { get; set; }
+    [Parameter] public string? SetupSession { get; set; }
+    [Parameter] public bool ReadOnly { get; set; }
+    /// <summary>Empty-state links open the screen on a given type, for example ?type=movies.</summary>
+    [SupplyParameterFromQuery(Name = "type")] public string? PreselectedType { get; set; }
+    /// <summary>Raised after any saved change so the host can refresh its own state.</summary>
+    [Parameter] public EventCallback Changed { get; set; }
+
+    private LibrariesConfigurationDto? _configuration;
+    private string _baseline = string.Empty;
+    private string? _loadError;
+    private string? _notice;
+    private bool _loading = true;
+    private bool _saving;
+    private LibraryTypeOption _selected = LibraryTypes[0];
+
+    private LibraryTypeOption Selected => _selected;
+    private LibraryFolderDto? SelectedLibrary => LibraryFor(_selected);
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAsync();
+        _selected = LibraryTypes.FirstOrDefault(type => string.Equals(type.Key, PreselectedType, StringComparison.OrdinalIgnoreCase))
+            ?? LibraryTypes.FirstOrDefault(type => FolderCount(type) > 0)
+            ?? LibraryTypes[0];
+    }
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        _configuration = Embedded
+            ? await ApiClient.GetSetupLibrariesAsync(SetupSession)
+            : await Orchestrator.GetLibrariesAsync();
+        _loadError = _configuration is null ? ApiClient.LastError : null;
+        _baseline = _configuration is null ? string.Empty : JsonSerializer.Serialize(_configuration);
+        _loading = false;
+    }
+
+    private LibraryFolderDto? LibraryFor(LibraryTypeOption type) => _configuration?.Libraries
+        .FirstOrDefault(library => string.Equals(library.Kind, "catalogued", StringComparison.OrdinalIgnoreCase)
+            && library.MediaTypes.Any(token => type.MediaTypes.Contains(token, StringComparer.OrdinalIgnoreCase)));
+
+    private int FolderCount(LibraryTypeOption type) => LibraryFor(type)?.Sources.Count ?? 0;
+    private static string FolderCountText(int count) => count == 1 ? "1 folder" : $"{count} folders";
+    private string TypeClass(LibraryTypeOption type) => $"library-folders__type{(type.Key == _selected.Key ? " is-active" : string.Empty)}";
+    private void Select(LibraryTypeOption type) { _selected = type; _notice = null; }
+    private static bool IsManaged(LibrarySourceDto source) => source.ManagementMode == "managed_by_tuvima";
+    private static string ModeLabel(LibrarySourceDto source) => IsManaged(source) ? "Managed by Tuvima" : "Used as-is";
+    private static string FriendlyName(LibrarySourceDto source) => string.IsNullOrWhiteSpace(source.Notes)
+        ? Path.GetFileName(source.Path.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar))
+        : source.Notes;
+
+    private Task<ServerFolderValidationResultDto?> ValidateAsync(string path, string mode, string? sourceId = null)
+    {
+        var request = new ValidateServerFolderRequest { ManualPath = path, SelectionMode = mode, CurrentSourceId = sourceId };
+        return Embedded ? ApiClient.ValidateSetupServerFolderAsync(request, SetupSession) : ApiClient.ValidateServerFolderAsync(request);
+    }
+
+    private async Task AddFolderAsync()
+    {
+        if (_configuration is null || _saving) return;
+        _notice = null;
+        var parameters = new AppDialogParameters<ServerFolderPicker>
+        {
+            { component => component.SelectionMode, ServerFolderSelectionModes.ExistingLibrary },
+            { component => component.HelpText, $"Choose a folder on the Tuvima Library server to add to {_selected.Label}." },
+            { component => component.SetupSession, SetupSession },
+        };
+        var dialog = await DialogService.ShowAsync<ServerFolderPicker>(string.Empty, parameters, new AppDialogOptions
+        {
+            MaxWidth = AppMaxWidth.ExtraExtraLarge,
+            FullWidth = false,
+            CloseButton = false,
+            CloseOnEscapeKey = true,
+        });
+        if (await dialog.Result is not { Canceled: false, Data: ServerFolderValidationResultDto selected }) return;
+
+        // An empty folder is ours to manage. A folder that already holds files is used as-is unless the person says otherwise,
+        // because managing it could rename or move files other apps depend on.
+        var managed = true;
+        if (selected.ContainsFiles)
+        {
+            var choice = await DialogService.ShowMessageBoxAsync(
+                "This folder already has files in it",
+                "Tuvima will use it as-is: it only reads the folder and never renames, moves or changes your files, so other apps are not affected. If you let Tuvima manage it instead, Tuvima may rename and reorganise files here, which could affect other applications that use this folder.",
+                yesText: "Use as-is (recommended)", noText: "Let Tuvima manage it", cancelText: "Cancel");
+            if (choice is null) return;
+            managed = choice == false;
+        }
+
+        if (managed)
+        {
+            var writable = await ValidateAsync(selected.Path, ServerFolderSelectionModes.ManagedLibrary);
+            if (writable?.CanSelect == true) selected = writable;
+            else
+            {
+                managed = false;
+                _notice = writable is null
+                    ? "Tuvima couldn't check whether it can write to this folder, so it will be used as-is (read only)."
+                    : "Tuvima can't write to this folder, so it will be used as-is (read only).";
+            }
+        }
+
+        var library = Clone(SelectedLibrary) ?? NewLibrary(_selected);
+        var isPrimary = managed && library.GetPrimaryDestination() is null;
+        var source = new LibrarySourceDto
+        {
+            Id = Guid.NewGuid().ToString("D"),
+            Path = selected.Path,
+            Notes = Path.GetFileName(selected.Path.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)),
+            Role = isPrimary ? "primary_destination" : "secondary",
+            ManagementMode = managed ? "managed_by_tuvima" : "existing_library",
+            SourceType = "local_folder",
+            IncludeSubdirectories = true,
+            AccessMode = managed ? "writable" : "read_only",
+            ParticipatesInOrganization = managed,
+            IntakeRole = isPrimary ? "direct" : "none",
+            WritebackOverride = false,
+        };
+        if (string.IsNullOrWhiteSpace(source.Notes)) source.Notes = selected.Path;
+        library.Sources.Add(source);
+        if (isPrimary) library.PrimaryDestinationSourceId = source.Id;
+        await SaveAsync(library, "Folder added.");
+    }
+
+    private async Task ChangeModeAsync(LibrarySourceDto source)
+    {
+        var library = Clone(SelectedLibrary);
+        var target = library?.Sources.FirstOrDefault(item => item.Id == source.Id);
+        if (library is null || target is null || _saving) return;
+        var managed = !IsManaged(target);
+        if (managed && await DialogService.ShowMessageBoxAsync(
+                "Let Tuvima manage this folder?",
+                "Tuvima may rename and reorganise files in this folder, which could affect other applications that use it.",
+                yesText: "Let Tuvima manage it", cancelText: "Keep as-is") != true) return;
+        var validation = await ValidateAsync(target.Path, managed ? ServerFolderSelectionModes.ManagedLibrary : ServerFolderSelectionModes.ExistingLibrary, target.Id);
+        if (validation is null || !validation.CanSelect)
+        {
+            _notice = validation?.Issues.FirstOrDefault()?.Message ?? ApiClient.LastError ?? "This folder does not meet the access needed for that choice.";
+            return;
+        }
+
+        target.ManagementMode = managed ? "managed_by_tuvima" : "existing_library";
+        target.AccessMode = managed ? "writable" : "read_only";
+        target.ParticipatesInOrganization = managed;
+        target.WritebackOverride = false;
+        NormalizePrimaryDestination(library);
+        await SaveAsync(library, managed ? "Tuvima will now manage this folder." : "This folder will be used as-is.");
+    }
+
+    private async Task RemoveFolderAsync(LibrarySourceDto source)
+    {
+        var library = Clone(SelectedLibrary);
+        if (library is null || _saving) return;
+        var confirmed = await DialogService.ShowMessageBoxAsync(
+            "Remove this folder?",
+            $"{FriendlyName(source)} stops being part of {_selected.Label}. Your files stay on disk.",
+            yesText: "Remove", cancelText: "Keep");
+        if (confirmed != true) return;
+        library.Sources.RemoveAll(item => item.Id == source.Id);
+        NormalizePrimaryDestination(library);
+        await SaveAsync(library, "Folder removed.");
+    }
+
+    private async Task SaveAsync(LibraryFolderDto library, string message)
+    {
+        if (_configuration is null || _saving) return;
+        _saving = true;
+        try
+        {
+            var baseline = JsonSerializer.Deserialize<LibrariesConfigurationDto>(_baseline)!;
+            var existing = baseline.Libraries.FirstOrDefault(item => item.Id == library.Id);
+            LibrariesConfigurationDto? saved;
+            if (Embedded)
+            {
+                var libraries = baseline.Libraries.Where(item => item.Id != library.Id).ToList();
+                libraries.Add(library);
+                saved = await ApiClient.UpdateSetupLibrariesAsync(new UpdateLibrariesRequest
+                {
+                    SchemaVersion = baseline.SchemaVersion,
+                    StorageLocations = baseline.StorageLocations,
+                    ViewStorage = baseline.ViewStorage,
+                    Libraries = libraries,
+                    PersonalLibraryPolicy = baseline.PersonalLibraryPolicy,
+                }, SetupSession);
+            }
+            else
+            {
+                saved = await ApiClient.MutateLibraryAsync(new LibraryMutationRequest { Library = library, ExpectedLibrary = existing });
+            }
+
+            if (saved is null)
+            {
+                _notice = ApiClient.LastError ?? "That change could not be saved. Check the folder and try again.";
+                return;
+            }
+            _configuration = saved;
+            _baseline = JsonSerializer.Serialize(saved);
+            Snackbar.Add(message, AppSeverity.Success);
+        }
+        finally { _saving = false; }
+        await Changed.InvokeAsync();
+    }
+
+    private static LibraryFolderDto? Clone(LibraryFolderDto? library) => library is null
+        ? null
+        : JsonSerializer.Deserialize<LibraryFolderDto>(JsonSerializer.Serialize(library));
+
+    private static LibraryFolderDto NewLibrary(LibraryTypeOption option) => new()
+    {
+        Id = Guid.NewGuid().ToString("D"),
+        Name = option.Label,
+        Category = option.Label,
+        Kind = "catalogued",
+        Area = option.Area,
+        Presentation = "catalogue",
+        MetadataPolicy = "enriched",
+        MediaTypes = [option.MediaTypes[0]],
+        Visibility = "household",
+        AcceptedIntakeModes = ["incoming_folder"],
+        DuplicatePolicy = "skip_exact",
+        OrganizationPolicy = new LibraryOrganizationPolicyDto { Mode = "tuvima_standard", PreserveOriginals = true },
+    };
+
+    // Exactly one managed folder is the primary destination; as-is folders are never one.
+    private static void NormalizePrimaryDestination(LibraryFolderDto library)
+    {
+        foreach (var source in library.Sources.Where(source => source.ManagementMode != "managed_by_tuvima"))
+        {
+            source.Role = "secondary";
+            source.IntakeRole = "none";
+        }
+
+        var managed = library.Sources.Where(source => source.ManagementMode == "managed_by_tuvima").ToList();
+        if (managed.Count == 0)
+        {
+            library.PrimaryDestinationSourceId = null;
+            return;
+        }
+
+        var primary = managed.FirstOrDefault(source => source.Role == "primary_destination"
+                && string.Equals(source.Id, library.PrimaryDestinationSourceId, StringComparison.OrdinalIgnoreCase))
+            ?? managed.FirstOrDefault(source => source.Role == "primary_destination")
+            ?? managed[0];
+        foreach (var source in managed)
+        {
+            var isPrimary = ReferenceEquals(source, primary);
+            source.Role = isPrimary ? "primary_destination" : "secondary";
+            source.IntakeRole = isPrimary ? "direct" : "none";
+        }
+        library.PrimaryDestinationSourceId = primary.Id;
+    }
+}

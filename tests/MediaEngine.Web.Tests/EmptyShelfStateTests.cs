@@ -14,9 +14,9 @@ public sealed class EmptyShelfStateTests : BunitContext
         var withAction = Render<EmptyShelfState>(parameters => parameters
             .Add(component => component.Title, "Nothing yet")
             .Add(component => component.ActionLabel, "Add a library")
-            .Add(component => component.ActionHref, "/settings/libraries/new?type=books"));
+            .Add(component => component.ActionHref, "/settings/libraries?type=books"));
         var link = Assert.Single(withAction.FindAll("a"));
-        Assert.Equal("/settings/libraries/new?type=books", link.GetAttribute("href"));
+        Assert.Equal("/settings/libraries?type=books", link.GetAttribute("href"));
         Assert.Contains("Add a library", link.TextContent);
     }
 }
