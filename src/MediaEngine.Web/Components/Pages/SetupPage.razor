@@ -42,7 +42,7 @@
         <div class="setup-shell">
         <aside class="setup-sidebar">
             <div class="setup-brand"><img src="/images/tuvima-icon.svg" alt="" width="32" height="32" /><span>Tuvima Library</span></div>
-            <SetupStepper Steps="@_status.Steps" CurrentStep="@CurrentStep" WorkflowStep="@WorkflowStep" StepSelected="GoToStepAsync" />
+            <SetupStepper Steps="@_status.Steps" CurrentStep="@StepperCurrent" WorkflowStep="@StepperWorkflow" StepSelected="GoToStepAsync" />
         </aside>
         <section class="setup-stage" aria-labelledby="setup-stage-title">
             @switch (CurrentStep)
@@ -56,7 +56,8 @@
                 case "preflight":
                     <SetupPreflightStage Preflight="@_preflight" Error="@_preflightError" Backup="@_backup" Libraries="@_setupLibraries" Busy="@_busy" ShowRestore="@_showRestore"
                                          OpenRestore="@(() => _showRestore = true)" CancelRestore="CancelRestore" UploadBackup="UploadBackupAsync"
-                                         ConfirmRestore="ConfirmRestoreAsync" Retry="RunPreflightManualAsync" SaveStorageLocations="SaveStorageLocationsAsync" />
+                                         ConfirmRestore="ConfirmRestoreAsync" Retry="RunPreflightManualAsync" SaveStorageLocations="SaveStorageLocationsAsync"
+                                         Revisiting="@(CurrentStep != WorkflowStep)" Back="GoBackAsync" Next="GoNextAsync" ReturnToCurrentStep="ReturnToCurrentStep" />
                     break;
                 case "administrator":
                     <SetupAdministratorStage DisplayName="@_displayName" DisplayNameChanged="@((string? value) => _displayName = value ?? string.Empty)"
@@ -168,6 +169,9 @@
     public string? RequestedStep { get; set; }
 
     private string WorkflowStep => NormalizeStep(_status?.CurrentStep);
+    // The sidebar lists the language screen and the Enhance your library screen as separate steps.
+    private string StepperCurrent => CurrentStep == "providers" && !_languageConfirmed ? "language" : CurrentStep;
+    private string StepperWorkflow => WorkflowStep == "providers" && !_languageConfirmed ? "language" : WorkflowStep;
     private string CurrentStep => _selectedStep ?? WorkflowStep;
     private int CurrentIndex => Math.Max(0, Array.IndexOf(SetupWorkflow.StepKeys, CurrentStep));
     private bool PasswordsMatch => string.Equals(_password, _passwordConfirmation, StringComparison.Ordinal);
@@ -331,6 +335,12 @@
             await RunPreflightAsync(automaticallyAdvance: true);
             return;
         }
+        if (CurrentStep == "preflight" && WorkflowStep != "preflight" && _preflight is null && _preflightError is null && !_showRestore && !_busy)
+        {
+            // Coming back to a finished server check: run it again quietly instead of waiting on a result that never arrives.
+            await RunPreflightAsync();
+            return;
+        }
         if (CurrentStep == "media-locations" && _setupLibraries is null)
             _setupLibraries = await ApiClient.GetSetupLibrariesAsync(_setupSession);
         if (CurrentStep == "providers" && !_providersLoaded && !_busy)
@@ -481,7 +491,19 @@
     private async Task CompleteAsync() { _busy = true; var result = await ApiClient.CompleteSetupAsync(_setupSession); _busy = false; if (result?.State == "complete") { try { await Storage.DeleteAsync(SetupSessionKey); } catch { _setupSession = null; } Navigation.NavigateTo(_authenticated ? "/" : "/auth/login", forceLoad: true); } else Snackbar.Add("Required setup checks are still blocked.", AppSeverity.Error); }
     private string StepState(string key) => _status?.Steps.FirstOrDefault(step => step.Key == key)?.Status ?? "not_started";
     private bool CanNavigateTo(string key) => Array.IndexOf(SetupWorkflow.StepKeys, key) <= Array.IndexOf(SetupWorkflow.StepKeys, WorkflowStep) || StepState(key) is "passed" or "deferred";
-    private async Task GoToStepAsync(string key) { if (CanNavigateTo(key)) { _selectedStep = key; if (key == "readiness") _readiness = null; await EnsureCurrentStageDataAsync(); } }
+    private async Task GoToStepAsync(string key)
+    {
+        if (key == "language")
+        {
+            if (!CanNavigateTo("providers")) return;
+            _selectedStep = "providers";
+            _languageConfirmed = false;
+            await EnsureCurrentStageDataAsync();
+            return;
+        }
+        if (key == "providers" && !_languageConfirmed) return;
+        if (CanNavigateTo(key)) { _selectedStep = key; if (key == "readiness") _readiness = null; await EnsureCurrentStageDataAsync(); } }
+    private async Task GoNextAsync() { var index = Math.Min(SetupWorkflow.StepKeys.Length - 1, CurrentIndex + 1); _selectedStep = SetupWorkflow.StepKeys[index]; await EnsureCurrentStageDataAsync(); }
     private async Task GoBackAsync() { var index = Math.Max(0, CurrentIndex - 1); _selectedStep = SetupWorkflow.StepKeys[index]; await EnsureCurrentStageDataAsync(); }
     private void ReturnToCurrentStep() => _selectedStep = null;
     private static string NormalizeStep(string? step) => SetupWorkflow.StepKeys.Contains(step, StringComparer.Ordinal) ? step! : "server";

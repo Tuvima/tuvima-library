@@ -157,10 +157,14 @@
             builder.CloseElement();
             builder.CloseElement();
             builder.CloseElement();
-            builder.OpenComponent<AppStatusBadge>(25);
-            builder.AddAttribute(26, nameof(AppStatusBadge.Text), ProviderStatus(provider));
-            builder.AddAttribute(27, nameof(AppStatusBadge.Tone), ProviderTone(provider));
-            builder.CloseComponent();
+            // The group heading already says Recommended or Optional; only a connected key needs a badge.
+            if (IsConnected(provider))
+            {
+                builder.OpenComponent<AppStatusBadge>(25);
+                builder.AddAttribute(26, nameof(AppStatusBadge.Text), "Key configured");
+                builder.AddAttribute(27, nameof(AppStatusBadge.Tone), AppUiTone.Neutral);
+                builder.CloseComponent();
+            }
             builder.OpenComponent<AppButton>(28);
             builder.AddAttribute(29, nameof(AppButton.Label), ProviderAction(provider));
             builder.AddAttribute(30, nameof(AppButton.ButtonStyle), AppButtonStyle.Filled);
@@ -205,18 +209,6 @@
 
     private static bool IsConnected(ProviderCatalogueDto provider) =>
         provider.Onboarding?.Credentials.Where(credential => credential.Required).All(credential => credential.Configured) == true;
-
-    private static string ProviderStatus(ProviderCatalogueDto provider) => IsConnected(provider)
-        ? "Key configured"
-        : string.Equals(provider.Onboarding?.Classification, "recommended", StringComparison.OrdinalIgnoreCase)
-            ? "Recommended"
-            : "Optional";
-
-    private static AppUiTone ProviderTone(ProviderCatalogueDto provider) => IsConnected(provider)
-        ? AppUiTone.Neutral
-        : string.Equals(provider.Onboarding?.Classification, "recommended", StringComparison.OrdinalIgnoreCase)
-            ? AppUiTone.Warning
-            : AppUiTone.Neutral;
 
     private static string ProviderAction(ProviderCatalogueDto provider) => IsConnected(provider) ? "Review key" : "Connect";
     private static string Purpose(ProviderCatalogueDto provider) => provider.Onboarding?.Intro?.Summary

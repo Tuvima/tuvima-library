@@ -1,7 +1,7 @@
 {
   "schema_version": "6.0",
   "storage_locations": [
-    { "id": "media", "label": "Tuvima media storage", "path": "/library", "allow_write": true }
+    { "id": "media", "label": "Tuvima library folder", "path": "/library", "allow_write": true }
   ],
   "view_storage": {
     "storage_location_id": "media",

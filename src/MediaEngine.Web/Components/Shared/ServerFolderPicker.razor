@@ -11,22 +11,25 @@
     <ChildContent>
         <div class="server-folder-picker">
             <aside class="server-folder-picker__locations" aria-label="Approved server storage locations">
-                <h3>Storage locations</h3>
                 @if (_loadingRoots)
                 {
                     <AppProgressBar Indeterminate="true" />
                 }
                 else
                 {
-                    @foreach (var location in VisibleLocations)
+                    @foreach (var group in LocationGroups)
                     {
-                        <AppNativeButton Type="button"
-                                         Class="@LocationClass(location)"
-                                         AriaLabel="@($"Browse {location.Label}")"
-                                         OnClick="@(_ => SelectLocationAsync(location))">
-                            <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Storage" />
-                            <span><strong>@location.Label</strong><small>@location.Path</small></span>
-                        </AppNativeButton>
+                        <h3>@group.Heading</h3>
+                        @foreach (var location in group.Locations)
+                        {
+                            <AppNativeButton Type="button"
+                                             Class="@LocationClass(location)"
+                                             AriaLabel="@($"Browse {DisplayName(location)}")"
+                                             OnClick="@(_ => SelectLocationAsync(location))">
+                                <AppMaterialIcon Icon="@(IsTuvimaOwn(location) ? AppMaterialIcons.Outlined.Folder : AppMaterialIcons.Outlined.Storage)" />
+                                <span><strong>@DisplayName(location)</strong><small>@(IsTuvimaOwn(location) ? $"Managed by Tuvima · {location.Path}" : location.Path)</small></span>
+                            </AppNativeButton>
+                        }
                     }
                 }
 
@@ -78,7 +81,7 @@
                                              Class="server-folder-picker__breadcrumb"
                                              AriaLabel="Storage location root"
                                              OnClick="@(_ => NavigateAsync(string.Empty))">
-                                <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Storage" /><span>@_activeLocation?.Label</span>
+                                <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Storage" /><span>@(_activeLocation is null ? string.Empty : DisplayName(_activeLocation))</span>
                             </AppNativeButton>
                             @foreach (var crumb in Breadcrumbs)
                             {
@@ -112,7 +115,7 @@
 
                     <div class="server-folder-picker__list" role="listbox" aria-label="Server folders">
                         <div class="server-folder-picker__list-header" aria-hidden="true">
-                            <span>Name</span><span>Type</span><span>Modified</span><span></span>
+                            <span>Folder</span><span>Modified</span><span></span>
                         </div>
                         @if (_loadingBrowse)
                         {
@@ -140,8 +143,7 @@
                                         <AppMaterialIcon Icon="@AppMaterialIcons.Filled.Folder" />
                                         <strong>@folder.Name</strong>
                                     </AppNativeButton>
-                                    <span>Folder</span>
-                                    <span>@FormatModified(folder.ModifiedAt)</span>
+                                    <span class="server-folder-picker__modified">@FormatModified(folder.ModifiedAt)</span>
                                     <AppIconButton Icon="@AppMaterialIcons.Outlined.ChevronRight"
                                                    Tooltip="Open folder"
                                                    AriaLabel="@($"Open folder {folder.Name}")"
@@ -176,6 +178,10 @@
                     </div>
                 }
 
+                @if (OwnFolderBlocked)
+                {
+                    <AppAlert Tone="AppUiTone.Info">This is one of Tuvima's own folders, so it can't be used for your media. Open another drive or folder on the left.</AppAlert>
+                }
                 @if (_validation is { CanSelect: true, Exists: false }) { <AppAlert Tone="AppUiTone.Info">This View folder will be created when storage is saved.</AppAlert> }
                 @if (!string.IsNullOrWhiteSpace(_error))
                 {
@@ -208,7 +214,7 @@
             <AppButton Label="Select this folder"
                        ButtonStyle="AppButtonStyle.Filled"
                        Tone="AppUiTone.Primary"
-                       Disabled="@(_validation?.CanSelect != true || _validating || _loadingBrowse)"
+                       Disabled="@(_validation?.CanSelect != true || _validating || _loadingBrowse || OwnFolderBlocked)"
                        OnClick="Confirm" />
         </AppActionBar>
     </FooterContent>
@@ -244,6 +250,35 @@
     private bool _validating;
     private bool _showManualPath;
 
+    // Drives and the server root are discovered automatically; anything else in the list is a folder
+    // Tuvima itself owns (its library, drop-off and similar areas) and is grouped and named separately.
+    private static bool IsMachineLocation(ServerStorageLocationDto location) =>
+        location.Id.StartsWith("drive-", StringComparison.Ordinal)
+        || string.Equals(location.Id, "server-root", StringComparison.Ordinal);
+
+    private static bool IsTuvimaOwn(ServerStorageLocationDto location) =>
+        location.Id is "media" or "incoming";
+
+    // Tuvima's own library and drop-off folders hold files Tuvima manages; they can never be picked as the
+    // place where existing media already lives.
+    private bool OwnFolderBlocked => _activeLocation is not null
+        && IsTuvimaOwn(_activeLocation)
+        && !ServerFolderSelectionModes.RequiresWrite(SelectionMode);
+
+    private IEnumerable<(string Heading, IReadOnlyList<ServerStorageLocationDto> Locations)> LocationGroups => new (string Heading, IReadOnlyList<ServerStorageLocationDto> Locations)[]
+    {
+        ("Drives and folders on this server", VisibleLocations.Where(IsMachineLocation).ToList()),
+        ("Approved folders", VisibleLocations.Where(location => !IsMachineLocation(location) && !IsTuvimaOwn(location)).ToList()),
+        ("Tuvima's own folders", VisibleLocations.Where(IsTuvimaOwn).ToList()),
+    }.Where(group => group.Locations.Count > 0);
+
+    private static string DisplayName(ServerStorageLocationDto location) => location.Id switch
+    {
+        "media" => "Tuvima library folder",
+        "incoming" => "Tuvima drop-off folder",
+        _ => location.Label,
+    };
+
     private IReadOnlyList<ServerStorageLocationDto> VisibleLocations => _locations
         .Where(location => AllowedStorageLocationIds is null
             || AllowedStorageLocationIds.Contains(location.Id, StringComparer.OrdinalIgnoreCase))
@@ -255,7 +290,7 @@
             ? await ApiClient.GetServerFolderRootsAsync(_lifetime.Token)
             : await ApiClient.GetSetupServerFolderRootsAsync(SetupSession, _lifetime.Token)).ToList();
         _loadingRoots = false;
-        var first = VisibleLocations.FirstOrDefault();
+        var first = VisibleLocations.FirstOrDefault(location => ServerFolderSelectionModes.RequiresWrite(SelectionMode) || !IsTuvimaOwn(location)) ?? VisibleLocations.FirstOrDefault();
         if (first is null) return;
 
         if (!string.IsNullOrWhiteSpace(InitialPath))
@@ -475,7 +510,7 @@
     }
     private async Task Confirm()
     {
-        if (_validating || _loadingBrowse || _validation?.CanSelect != true) return;
+        if (_validating || _loadingBrowse || _validation?.CanSelect != true || OwnFolderBlocked) return;
         if (_showManualPath) await ValidateManualPathAsync(); else await ValidateSelectedAsync();
         if (_validation?.CanSelect == true) DialogInstance.Close(AppDialogResult.Ok(_validation));
     }

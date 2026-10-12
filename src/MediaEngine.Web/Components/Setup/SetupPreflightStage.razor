@@ -41,6 +41,13 @@
             <li>Checking storage</li><li>Checking configuration</li><li>Checking database</li><li>Checking media tools</li>
         </ul>
     }
+    else if (Preflight.Passed && Revisiting)
+    {
+        <AppAlert Tone="AppUiTone.Success">Server checks passed. Storage, configuration, database and media tools are all ready.</AppAlert>
+        <SetupStageFooter Back="Back" ShowReturnToCurrentStep="true" ReturnToCurrentStep="ReturnToCurrentStep">
+            <AppButton Label="Continue" EndIcon="@AppMaterialIcons.Outlined.ArrowForward" OnClick="Next" />
+        </SetupStageFooter>
+    }
     else if (Preflight.Passed)
     {
         <AppAlert Tone="AppUiTone.Success">Server checks passed. Continuing to administrator setup…</AppAlert>
@@ -93,6 +100,11 @@
     [Parameter] public EventCallback<InputFileChangeEventArgs> UploadBackup { get; set; }
     [Parameter] public EventCallback ConfirmRestore { get; set; }
     [Parameter] public EventCallback Retry { get; set; }
+    // True when the person came back to this step after it was already finished (sidebar or Back).
+    [Parameter] public bool Revisiting { get; set; }
+    [Parameter] public EventCallback Back { get; set; }
+    [Parameter] public EventCallback Next { get; set; }
+    [Parameter] public EventCallback ReturnToCurrentStep { get; set; }
     [Parameter] public EventCallback SaveStorageLocations { get; set; }
     private static string Friendly(string value) => char.ToUpperInvariant(value[0]) + value[1..].Replace('_', ' ');
 }

@@ -15,7 +15,7 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
 {
     private readonly LibrariesConfigurationDto _configuration = new()
     {
-        StorageLocations = [new() { Id = "media", Label = "Media storage", Path = "C:\\media", AllowWrite = true }],
+        StorageLocations = [new() { Id = "movies", Label = "Movies drive", Path = "C:\\media", AllowWrite = true }],
         Libraries = [new() { Id = "22222222-2222-4222-8222-222222222222", Name = "Audiobooks", Area = "listen", MediaTypes = ["Audiobooks"], Sources = [new() { Id = "source", Path = "C:\\media\\Audiobooks", ManagementMode = "existing_library" }] }],
     };
     private int _saves, _loads, _pathChecks;
@@ -43,7 +43,7 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
             });
             stub.SetHandler(nameof(IEngineApiClient.GetServerFolderRootsAsync), _ => Task.FromResult<IReadOnlyList<ServerStorageLocationDto>>(_configuration.StorageLocations));
             stub.SetHandler(nameof(IEngineApiClient.BrowseServerFoldersAsync), _ => Task.FromResult<BrowseServerFoldersResultDto?>(new() { DisplayPath = "C:\\media" }));
-            stub.SetHandler(nameof(IEngineApiClient.ValidateServerFolderAsync), _ => Task.FromResult<ServerFolderValidationResultDto?>(new() { Path = "C:\\media", StorageLocationId = "media", Exists = true, HasRead = true, HasWrite = true, CanSelect = true }));
+            stub.SetHandler(nameof(IEngineApiClient.ValidateServerFolderAsync), _ => Task.FromResult<ServerFolderValidationResultDto?>(new() { Path = "C:\\media", StorageLocationId = "movies", Exists = true, HasRead = true, HasWrite = true, CanSelect = true }));
         }));
         Services.AddScoped<DeviceContextService>();
         Services.AddScoped<UniverseStateContainer>();
