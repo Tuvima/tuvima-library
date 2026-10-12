@@ -337,6 +337,19 @@ public sealed class ConfigurationDirectoryLoaderValidationTests
     }
 
     [Fact]
+    public void SaveLibraries_RejectsAcceptsNewMediaOnManagedSources()
+    {
+        using var temp = TempConfig.Create();
+        var loader = new ConfigurationDirectoryLoader(temp.Path);
+        var config = CreateValidCataloguedLibrary();
+        config.Libraries[0].Sources[0].AcceptsNewMedia = true;
+
+        var ex = Assert.Throws<ConfigValidationException>(() => loader.SaveLibraries(config));
+
+        Assert.Contains("accepts_new_media applies only to existing library folders", ex.Message);
+    }
+
+    [Fact]
     public void SaveLibraries_RejectsOverlappingAndUnsafeExistingSources()
     {
         using var temp = TempConfig.Create();

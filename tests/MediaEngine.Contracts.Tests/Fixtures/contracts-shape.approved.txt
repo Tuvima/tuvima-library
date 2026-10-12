@@ -7154,12 +7154,19 @@ MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.HydrationSettingsD
   Stage3MaxDepth: System.Int32 | nullability=not-null | accessors=get,set
   TimelineRetentionDays: System.Int32 | nullability=not-null | accessors=get,set
 
+MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.ImportFolderStatusDto
+  Configured: System.Boolean | nullability=not-null | accessors=get,set
+  Path: System.String | nullability=nullable | accessors=get,set
+  Ready: System.Boolean | nullability=not-null | accessors=get,set
+  MissingTypes: System.Collections.Generic.List<System.String> | nullability=not-null | accessors=get,set
+
 MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.LibrariesConfigurationDto
   SchemaVersion: System.String | nullability=not-null | accessors=get,init
   StorageLocations: System.Collections.Generic.List<MediaEngine.Contracts.Settings.ServerStorageLocationDto> | nullability=not-null | accessors=get,init
   ViewStorage: MediaEngine.Contracts.Settings.ViewStorageDto | nullability=not-null | accessors=get,init
   Libraries: System.Collections.Generic.List<MediaEngine.Contracts.Settings.LibraryFolderDto> | nullability=not-null | accessors=get,init
   PersonalLibraryPolicy: MediaEngine.Contracts.Settings.PersonalLibraryPolicyDto | nullability=not-null | accessors=get,init
+  ImportFolderStatus: MediaEngine.Contracts.Settings.ImportFolderStatusDto | nullability=not-null | accessors=get,set
 
 MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.LibraryFolderDto
   Id: System.String | nullability=not-null | accessors=get,set
@@ -7221,6 +7228,7 @@ MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.LibrarySourceDto
   WritebackOverride: System.Boolean? | nullability=nullable | accessors=get,set
   ParticipatesInOrganization: System.Boolean | nullability=not-null | accessors=get,set
   IntakeRole: System.String | nullability=not-null | accessors=get,set
+  AcceptsNewMedia: System.Boolean | nullability=not-null | accessors=get,set
   Notes: System.String | nullability=nullable | accessors=get,set
   DeviceId: System.String | nullability=nullable | accessors=get,set
   ProfileId: System.String | nullability=nullable | accessors=get,set

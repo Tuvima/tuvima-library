@@ -212,6 +212,9 @@ public sealed class LibrarySourceDto
     [JsonPropertyName("intake_role")]
     public string IntakeRole { get; set; } = "none";
 
+    [JsonPropertyName("accepts_new_media")]
+    public bool AcceptsNewMedia { get; set; }
+
     [JsonPropertyName("notes")]
     public string? Notes { get; set; }
 
@@ -268,6 +271,27 @@ public sealed class LibrariesConfigurationDto
 
     [JsonPropertyName("personal_library_policy")]
     public PersonalLibraryPolicyDto PersonalLibraryPolicy { get; init; } = new();
+
+    /// <summary>Read-only: whether the optional import folder is set and every media type has a destination for it.</summary>
+    [JsonPropertyName("import_folder_status")]
+    public ImportFolderStatusDto ImportFolderStatus { get; set; } = new();
+}
+
+public sealed class ImportFolderStatusDto
+{
+    [JsonPropertyName("configured")]
+    public bool Configured { get; set; }
+
+    [JsonPropertyName("path")]
+    public string? Path { get; set; }
+
+    /// <summary>True when an import folder is set and every media type has a destination. Import does not run otherwise.</summary>
+    [JsonPropertyName("ready")]
+    public bool Ready { get; set; }
+
+    /// <summary>Plain names of the media types that still need a destination.</summary>
+    [JsonPropertyName("missing_types")]
+    public List<string> MissingTypes { get; set; } = [];
 }
 
 public sealed class ViewStorageDto

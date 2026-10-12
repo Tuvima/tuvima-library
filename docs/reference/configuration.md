@@ -259,7 +259,7 @@ Defines the clean schema 6 library model used by **Settings > Libraries**. The r
 | `duplicate_policy` | string | `skip_exact`, `keep_both`, or `replace_existing`. |
 | `organization_policy` | object | Organization mode, optional custom template, and original-preservation policy. |
 
-Each source owns `id`, `path`, `role`, `management_mode`, `source_type`, `include_subdirectories`, `access_mode`, `writeback_override`, `participates_in_organization`, and `intake_role`. **Existing library** sources must be read-only and are never moved, renamed, tagged, deleted, or used as destinations. Only **Managed by Tuvima** plus writable sources can authorize mutation.
+Each source owns `id`, `path`, `role`, `management_mode`, `source_type`, `include_subdirectories`, `access_mode`, `writeback_override`, `participates_in_organization`, `intake_role`, and `accepts_new_media`. **Existing library** sources must be read-only and are never moved, renamed, tagged or deleted. They are used as a destination only when `accepts_new_media` is true, which lets new files be added without touching the ones already there (rejected on managed sources). The optional import folder is the storage location with id `incoming`; when it is set, every media type needs a destination (a managed primary destination or an as-is source with `accepts_new_media`) before import runs. Only **Managed by Tuvima** plus writable sources can authorize mutation.
 
 Each enabled profile resolves one View Personal Space, backed by one internal
 `personal` library bridge and any number of sources/devices. It indexes mixed

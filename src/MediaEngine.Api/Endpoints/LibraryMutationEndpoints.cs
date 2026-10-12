@@ -48,7 +48,8 @@ internal static class LibraryMutationEndpoints
                 });
                 var error = SettingsEndpoints.ValidateViewStorage(proposed)
                     ?? SettingsEndpoints.ValidateViewRootChange(current, proposed)
-                    ?? LibraryTypeRules.ValidateOneLibraryPerType(current, proposed);
+                    ?? LibraryTypeRules.ValidateOneLibraryPerType(current, proposed)
+                    ?? ImportFolderValidation.Validate(proposed);
                 if (error is not null)
                 {
                     return ApiErrors.BadRequest(error);

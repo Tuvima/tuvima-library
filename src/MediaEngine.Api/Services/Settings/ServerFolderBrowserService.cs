@@ -489,7 +489,14 @@ public sealed class ServerFolderBrowserService(
         List<ServerFolderValidationIssueDto> issues)
     {
         var configured = configurationSnapshot.Libraries
-            .SelectMany(library => library.Sources.Select(source => (source.Id, source.Path, Label: library.Name)));
+            .SelectMany(library => library.Sources.Select(source => (source.Id, source.Path, Label: library.Name)))
+            .ToList();
+
+        // The import folder is kept apart from every library folder, so it is never offered as one either.
+        if (ImportFolderRules.Find(configurationSnapshot) is { } importFolder)
+        {
+            configured.Add((ImportFolderRules.LocationId, importFolder.Path, "the import folder"));
+        }
 
         foreach (var source in configured)
         {
