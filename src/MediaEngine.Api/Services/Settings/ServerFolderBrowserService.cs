@@ -117,8 +117,15 @@ public sealed class ServerFolderBrowserService(
         }
 
         var hasRead = ProbeRead(accessPath);
-        var hasWrite = location.AllowWrite && ProbeWrite(accessPath);
-        if (!location.AllowWrite && ServerFolderSelectionModes.RequiresWrite(request.SelectionMode))
+        // A whole-drive root never overrides a configured location: if the folder sits inside one that is read-only
+        // (for example protected real media), it stays read-only however it was reached.
+        var allowWrite = location.AllowWrite
+            && !configurationSnapshot.StorageLocations.Any(configured =>
+                !configured.AllowWrite
+                && Path.IsPathFullyQualified(configured.Path)
+                && IsWithin(Path.GetFullPath(configured.Path), resolved.Path));
+        var hasWrite = allowWrite && ProbeWrite(accessPath);
+        if (!allowWrite && ServerFolderSelectionModes.RequiresWrite(request.SelectionMode))
         {
             issues.Add(Issue("storage_location_read_only", "This storage location is not approved for server-side writes."));
         }
@@ -133,7 +140,7 @@ public sealed class ServerFolderBrowserService(
             issues.Add(Issue("write_required", "This folder must be writable for the selected managed mode."));
         }
 
-        AddProtectedPathIssue(resolved, location, issues);
+        AddProtectedPathIssue(resolved, location, request.SelectionMode, issues);
         AddConfiguredPathIssues(configurationSnapshot, resolved, request.CurrentSourceId, issues);
         var (availableBytes, fileSystem) = GetDriveDetails(resolved.Path);
         return new ServerFolderValidationResultDto
@@ -509,27 +516,78 @@ public sealed class ServerFolderBrowserService(
         }
     }
 
+    private static string PhysicalOrFull(string path)
+    {
+        var full = Path.TrimEndingDirectorySeparator(Path.GetFullPath(path));
+        try
+        {
+            return Directory.Exists(full) ? ResolveLink(new DirectoryInfo(full)) : full;
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            return full;
+        }
+    }
+
+    private static bool IsSystemPath(string path)
+    {
+        var roots = new List<string>();
+        if (OperatingSystem.IsWindows())
+        {
+            foreach (var folder in new[] { Environment.SpecialFolder.Windows, Environment.SpecialFolder.ProgramFiles, Environment.SpecialFolder.ProgramFilesX86, Environment.SpecialFolder.CommonApplicationData })
+            {
+                var value = Environment.GetFolderPath(folder);
+                if (!string.IsNullOrWhiteSpace(value)) roots.Add(value);
+            }
+        }
+        else
+        {
+            roots.AddRange(["/bin", "/boot", "/dev", "/etc", "/lib", "/lib64", "/proc", "/run", "/sbin", "/sys", "/usr"]);
+        }
+
+        return roots.Any(root => IsWithin(Path.TrimEndingDirectorySeparator(root), path));
+    }
+
     private void AddProtectedPathIssue(
         ResolvedSelection selection,
         ServerStorageLocationConfig location,
+        string selectionMode,
         List<ServerFolderValidationIssueDto> issues)
     {
         if (IsImplicit(location))
         {
             // A whole drive is browsable, so protect Tuvima's own folders by where they are rather than by name.
-            var ownFolders = new List<string>();
-            var configPath = configuration.ConfigDirectoryPath;
-            if (!string.IsNullOrWhiteSpace(configPath)) ownFolders.Add(configPath);
+            var ownFolders = new List<string?>
+            {
+                configuration.ConfigDirectoryPath,
+                Environment.GetEnvironmentVariable("TUVIMA_CONFIG_DIR"),
+                Environment.GetEnvironmentVariable("TUVIMA_DATA_PROTECTION_DIR"),
+                Environment.GetEnvironmentVariable("TUVIMA_BACKUP_DIR"),
+                Environment.GetEnvironmentVariable("TUVIMA_LOG_DIR"),
+            };
+            var databasePath = Environment.GetEnvironmentVariable("TUVIMA_DB_PATH");
+            if (!string.IsNullOrWhiteSpace(databasePath)) ownFolders.Add(Path.GetDirectoryName(Path.GetFullPath(databasePath)));
             var core = configuration.LoadCore();
-            if (!string.IsNullOrWhiteSpace(core.DataRoot)) ownFolders.Add(core.DataRoot);
+            ownFolders.Add(core.DataRoot);
             if (!string.IsNullOrWhiteSpace(core.LibraryRoot)) ownFolders.Add(Path.Combine(core.LibraryRoot, ".data"));
             var own = ownFolders
-                .Where(path => Path.IsPathFullyQualified(path))
-                .Select(path => Path.TrimEndingDirectorySeparator(Path.GetFullPath(path)));
+                .Where(path => !string.IsNullOrWhiteSpace(path))
+                .Select(path => PhysicalOrFull(path!))
+                .ToList();
             if (RelativeSegments(selection.Path).Any(segment => segment == ".data")
                 || own.Any(path => IsWithin(path, selection.Path) || IsWithin(selection.Path, path)))
             {
                 issues.Add(Issue("protected_path", "This folder is reserved for Tuvima application or generated data."));
+            }
+
+            if (IsSystemPath(selection.Path))
+            {
+                issues.Add(Issue("system_path", "This is an operating-system folder and cannot be used for a library."));
+            }
+
+            if (PathEquals(selection.Path, selection.RootPath) && ServerFolderSelectionModes.RequiresWrite(selectionMode))
+            {
+                issues.Add(Issue("drive_root_managed", "Tuvima cannot manage a whole drive. Choose a folder on it, or leave the drive as-is (read-only)."));
             }
 
             return;

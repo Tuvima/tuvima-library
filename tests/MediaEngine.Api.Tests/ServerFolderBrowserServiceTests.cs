@@ -128,6 +128,48 @@ public sealed class ServerFolderBrowserServiceTests
     }
 
     [Fact]
+    public void ReadOnlyConfiguredLocationStaysReadOnlyWhenReachedThroughTheWholeDrive()
+    {
+        using var fixture = new Fixture(allowWrite: false);
+        var archive = Directory.CreateDirectory(Path.Combine(fixture.AllowedRoot, "Archive"));
+
+        var result = fixture.Service.Validate(new ValidateServerFolderRequest
+        {
+            ManualPath = archive.FullName,
+            SelectionMode = ServerFolderSelectionModes.ManagedLibrary,
+        });
+
+        Assert.False(result.CanSelect);
+        Assert.False(result.HasWrite);
+    }
+
+    [Fact]
+    public void WholeDriveCannotBeManagedAndSystemFoldersCannotBeUsed()
+    {
+        using var fixture = new Fixture();
+        var driveRoot = Path.GetPathRoot(fixture.Root)!;
+
+        var managedDrive = fixture.Service.Validate(new ValidateServerFolderRequest
+        {
+            ManualPath = driveRoot,
+            SelectionMode = ServerFolderSelectionModes.ManagedLibrary,
+        });
+        Assert.False(managedDrive.CanSelect);
+        Assert.Contains(managedDrive.Issues, issue => issue.Code == "drive_root_managed");
+
+        var system = OperatingSystem.IsWindows()
+            ? Environment.GetFolderPath(Environment.SpecialFolder.Windows)
+            : "/etc";
+        var systemResult = fixture.Service.Validate(new ValidateServerFolderRequest
+        {
+            ManualPath = system,
+            SelectionMode = ServerFolderSelectionModes.ExistingLibrary,
+        });
+        Assert.False(systemResult.CanSelect);
+        Assert.Contains(systemResult.Issues, issue => issue.Code == "system_path");
+    }
+
+    [Fact]
     public void ManagedSelectionRequiresStorageLocationWriteApproval()
     {
         using var fixture = new Fixture(allowWrite: false);
