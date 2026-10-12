@@ -139,10 +139,11 @@ public static class ProfileEndpoints
             }
         })
         .WithName("GetProfilePlaybackSettings")
-        .WithSummary("Get user playback and reading settings for a profile.")
+        .WithSummary("Get user playback and reading settings for a profile (the person themselves, or an administrator of their household).")
         .Produces<UserPlaybackSettingsDto>(StatusCodes.Status200OK)
+        .ProducesProblem(StatusCodes.Status403Forbidden)
         .ProducesProblem(StatusCodes.Status404NotFound)
-        .RequireActiveProfile();
+        .RequireProfileSettingsAccess();
 
         group.MapGet("/{id:guid}/settings/view", async (
             Guid id,
@@ -236,11 +237,12 @@ public static class ProfileEndpoints
             }
         })
         .WithName("UpdateProfilePlaybackSettings")
-        .WithSummary("Save user playback and reading settings for a profile.")
+        .WithSummary("Save user playback and reading settings for a profile (the person themselves, or an administrator of their household).")
         .Produces<UserPlaybackSettingsDto>(StatusCodes.Status200OK)
         .ProducesProblem(StatusCodes.Status400BadRequest)
+        .ProducesProblem(StatusCodes.Status403Forbidden)
         .ProducesProblem(StatusCodes.Status404NotFound)
-        .RequireActiveProfile();
+        .RequireProfileSettingsAccess();
 
         group.MapGet("/{id:guid}/sequence-preferences/missing-items", async (
             Guid id,
@@ -437,6 +439,71 @@ public static class ProfileEndpoints
         }
 
         return true;
+    }
+
+    /// <summary>
+    /// A person manages their own settings; otherwise the caller must be a server administrator, or a household
+    /// administrator for a profile in their own household (with the same carve-out as the View policy).
+    /// </summary>
+    internal static async Task<bool> MayManageProfileSettingsAsync(
+        HttpContext http, IRequestAuthorityResolver resolver, IAccountRepository accounts, Profile profile, CancellationToken ct)
+    {
+        var authority = await resolver.ResolveAsync(http, ct);
+        if (profile.Id == authority.ActiveProfileId)
+        {
+            return true;
+        }
+
+        return await MayManageViewPolicyAsync(http, resolver, accounts, profile, ct);
+    }
+
+    private static RouteHandlerBuilder RequireProfileSettingsAccess(this RouteHandlerBuilder builder) =>
+        builder.RequireHumanSelfService()
+            .AddEndpointFilter(async (context, next) =>
+            {
+                if (!Guid.TryParse(context.HttpContext.Request.RouteValues["id"]?.ToString(), out var profileId))
+                {
+                    return ApiErrors.NotFound("Profile not found.");
+                }
+
+                return await AuthorizeProfileSettingsAsync(context.HttpContext, profileId)
+                    ?? await next(context);
+            })
+            .WithMetadata(new AuthorityRequirementMetadata("profile_settings_resource"));
+
+    /// <summary>Returns null when the caller may read and write the person's settings, otherwise the refusal.</summary>
+    internal static async Task<IResult?> AuthorizeProfileSettingsAsync(HttpContext http, Guid profileId)
+    {
+        if (await IsActiveProfileAuthorizedAsync(http, profileId))
+        {
+            return null;
+        }
+
+        const string denied = "Only an administrator of this household can change these settings.";
+        var resolver = http.RequestServices.GetRequiredService<IRequestAuthorityResolver>();
+        var decisions = http.RequestServices.GetRequiredService<IAccountAccessDecisionService>();
+        var authority = await resolver.ResolveAsync(http, http.RequestAborted);
+
+        // The administrator PIN unlock applies exactly as on the View policy routes.
+        var isAdministrator = authority.IsEffectiveAdministrator
+            ? (await decisions.EvaluateAdministratorAsync(authority, true, http.RequestAborted)).IsAllowed
+            : (await decisions.EvaluateHouseholdAdministratorAsync(authority, true, http.RequestAborted)).IsAllowed;
+        if (!isAdministrator)
+        {
+            return ApiErrors.Forbidden(denied);
+        }
+
+        var profile = await http.RequestServices.GetRequiredService<IProfileService>()
+            .GetProfileAsync(profileId, http.RequestAborted);
+        if (profile is null)
+        {
+            return ApiErrors.NotFound($"Profile '{profileId}' not found.");
+        }
+
+        var accounts = http.RequestServices.GetRequiredService<IAccountRepository>();
+        return await MayManageProfileSettingsAsync(http, resolver, accounts, profile, http.RequestAborted)
+            ? null
+            : ApiErrors.Forbidden(denied);
     }
 
     private static RouteHandlerBuilder RequireActiveProfile(this RouteHandlerBuilder builder) =>
