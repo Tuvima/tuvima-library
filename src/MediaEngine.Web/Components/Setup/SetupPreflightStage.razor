@@ -30,6 +30,7 @@
     {
         <AppAlert Tone="AppUiTone.Error">@Error</AppAlert>
         <div class="setup-actions"><AppButton Label="Retry checks" OnClick="Retry" /></div>
+        @if (Revisiting) { <SetupStageFooter Back="Back" ShowReturnToCurrentStep="true" ReturnToCurrentStep="ReturnToCurrentStep" /> }
     }
     else if (Preflight is null || Busy)
     {
@@ -80,6 +81,11 @@
                 <li><strong>@check.Label</strong> <small>@check.Detail</small></li>
             }
         </ul>
+    }
+
+    @if (Revisiting && Preflight is { Passed: false })
+    {
+        <SetupStageFooter Back="Back" ShowReturnToCurrentStep="true" ReturnToCurrentStep="ReturnToCurrentStep" />
     }
 
     @if (!ShowRestore)

@@ -35,7 +35,12 @@
 
     private static string WorkflowKey(string key) => key == "language" ? "providers" : key;
 
-    private string StateFor(string key) => Steps.FirstOrDefault(step => step.Key == WorkflowKey(key))?.Status ?? "not_started";
+    private string StateFor(string key)
+    {
+        var status = Steps.FirstOrDefault(step => step.Key == WorkflowKey(key))?.Status ?? "not_started";
+        // Language is saved before providers are reviewed or deferred, so it never shows "Later".
+        return key == "language" && status == "deferred" ? "passed" : status;
+    }
 
     private bool CanNavigate(string key) =>
         Array.IndexOf(DisplayKeys, key) <= Array.IndexOf(DisplayKeys, WorkflowStep)

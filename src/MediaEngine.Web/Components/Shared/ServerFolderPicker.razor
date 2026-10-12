@@ -178,10 +178,6 @@
                     </div>
                 }
 
-                @if (OwnFolderBlocked)
-                {
-                    <AppAlert Tone="AppUiTone.Info">This is one of Tuvima's own folders, so it can't be used for your media. Open another drive or folder on the left.</AppAlert>
-                }
                 @if (_validation is { CanSelect: true, Exists: false }) { <AppAlert Tone="AppUiTone.Info">This View folder will be created when storage is saved.</AppAlert> }
                 @if (!string.IsNullOrWhiteSpace(_error))
                 {
@@ -214,7 +210,7 @@
             <AppButton Label="Select this folder"
                        ButtonStyle="AppButtonStyle.Filled"
                        Tone="AppUiTone.Primary"
-                       Disabled="@(_validation?.CanSelect != true || _validating || _loadingBrowse || OwnFolderBlocked)"
+                       Disabled="@(_validation?.CanSelect != true || _validating || _loadingBrowse)"
                        OnClick="Confirm" />
         </AppActionBar>
     </FooterContent>
@@ -258,12 +254,6 @@
 
     private static bool IsTuvimaOwn(ServerStorageLocationDto location) =>
         location.Id is "media" or "incoming";
-
-    // Tuvima's own library and drop-off folders hold files Tuvima manages; they can never be picked as the
-    // place where existing media already lives.
-    private bool OwnFolderBlocked => _activeLocation is not null
-        && IsTuvimaOwn(_activeLocation)
-        && !ServerFolderSelectionModes.RequiresWrite(SelectionMode);
 
     private IEnumerable<(string Heading, IReadOnlyList<ServerStorageLocationDto> Locations)> LocationGroups => new (string Heading, IReadOnlyList<ServerStorageLocationDto> Locations)[]
     {
@@ -510,7 +500,7 @@
     }
     private async Task Confirm()
     {
-        if (_validating || _loadingBrowse || _validation?.CanSelect != true || OwnFolderBlocked) return;
+        if (_validating || _loadingBrowse || _validation?.CanSelect != true) return;
         if (_showManualPath) await ValidateManualPathAsync(); else await ValidateSelectedAsync();
         if (_validation?.CanSelect == true) DialogInstance.Close(AppDialogResult.Ok(_validation));
     }

@@ -501,7 +501,7 @@
             await EnsureCurrentStageDataAsync();
             return;
         }
-        if (key == "providers" && !_languageConfirmed) return;
+        if (key == "providers" && !_languageConfirmed) { if (!CanNavigateTo("providers")) return; _languageConfirmed = true; }
         if (CanNavigateTo(key)) { _selectedStep = key; if (key == "readiness") _readiness = null; await EnsureCurrentStageDataAsync(); } }
     private async Task GoNextAsync() { var index = Math.Min(SetupWorkflow.StepKeys.Length - 1, CurrentIndex + 1); _selectedStep = SetupWorkflow.StepKeys[index]; await EnsureCurrentStageDataAsync(); }
     private async Task GoBackAsync() { var index = Math.Max(0, CurrentIndex - 1); _selectedStep = SetupWorkflow.StepKeys[index]; await EnsureCurrentStageDataAsync(); }
