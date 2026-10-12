@@ -85,20 +85,46 @@ public sealed class ServerFolderBrowserServiceTests
     }
 
     [Fact]
-    public void ManualPathOutsideApprovedRootsIsRejectedWithoutDisclosingIt()
+    public void ManualPathOutsideConfiguredRootsIsFoundThroughTheMachineRoot()
     {
         using var fixture = new Fixture();
         var outside = Path.Combine(fixture.Root, "outside");
         Directory.CreateDirectory(outside);
 
-        var exception = Assert.Throws<ServerFolderAccessException>(() => fixture.Service.Validate(
-            new ValidateServerFolderRequest
-            {
-                ManualPath = outside,
-                SelectionMode = ServerFolderSelectionModes.ExistingLibrary,
-            }));
+        var result = fixture.Service.Validate(new ValidateServerFolderRequest
+        {
+            ManualPath = outside,
+            SelectionMode = ServerFolderSelectionModes.ExistingLibrary,
+        });
 
-        Assert.Contains("outside", exception.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.True(result.CanSelect);
+        Assert.True(result.HasRead);
+    }
+
+    [Fact]
+    public void MachineRootsAreListedAlongsideConfiguredLocations()
+    {
+        using var fixture = new Fixture();
+
+        var roots = fixture.Service.GetStorageLocations();
+
+        Assert.Contains(roots, root => root.Id == "media");
+        Assert.Contains(roots, root => root.Id.StartsWith("drive-", StringComparison.Ordinal) || root.Id == "server-root");
+    }
+
+    [Fact]
+    public void TuvimasOwnConfigurationFolderCannotBeChosenFromAWholeDrive()
+    {
+        using var fixture = new Fixture();
+
+        var result = fixture.Service.Validate(new ValidateServerFolderRequest
+        {
+            ManualPath = Path.Combine(fixture.Root, "config"),
+            SelectionMode = ServerFolderSelectionModes.ExistingLibrary,
+        });
+
+        Assert.False(result.CanSelect);
+        Assert.Contains(result.Issues, issue => issue.Code == "protected_path");
     }
 
     [Fact]
