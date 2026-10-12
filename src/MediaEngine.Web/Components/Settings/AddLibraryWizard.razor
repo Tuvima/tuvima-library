@@ -280,6 +280,7 @@
 @code {
     [Parameter] public bool Embedded { get; set; }
     [Parameter] public bool HideCancel { get; set; }
+    [SupplyParameterFromQuery(Name = "type")] public string? PreselectedType { get; set; }
     [Parameter] public string? SetupSession { get; set; }
     [Parameter] public EventCallback LibraryCreated { get; set; }
     [Parameter] public EventCallback Cancelled { get; set; }
@@ -425,6 +426,12 @@
                 if (review is not null) _personalReviews[profileId] = review;
         }
         _loading = false;
+        var preselected = LibraryTypes.FirstOrDefault(option => string.Equals(option.Key, PreselectedType, StringComparison.OrdinalIgnoreCase));
+        if (preselected is not null && _configuration is not null)
+        {
+            SelectType(preselected);
+            _step = 2;
+        }
     }
 
     // Picking a type is the whole first step, so it carries straight on to the folder step.
