@@ -2,26 +2,25 @@
 @using MediaEngine.Contracts.Setup
 
 <div class="setup-stage-content">
-    <div class="setup-stage__heading"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.FolderOpen" /><div><h2 id="setup-stage-title">Media locations</h2><p>Add the folders Tuvima Library should index. Existing libraries can remain completely read-only.</p></div></div>
-    @if (ShowLibraryWizard)
+    <div class="setup-stage__heading"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.FolderOpen" /><div><h2 id="setup-stage-title">Media locations</h2><p>Pick a kind of media, then the folder it lives in. You can skip this and add libraries later.</p></div></div>
+    @if (ShowLibraryWizard || !HasLibraries)
     {
-        <AddLibraryWizard Embedded="true" SetupSession="@SetupSession" LibraryCreated="LibraryCreated" Cancelled="CancelLibraryWizard" />
+        <AddLibraryWizard Embedded="true" HideCancel="@(!HasLibraries)" SetupSession="@SetupSession" LibraryCreated="LibraryCreated" Cancelled="CancelLibraryWizard" />
+        @if (!HasLibraries)
+        {
+            <SetupStageFooter Back="Back" ShowReturnToCurrentStep="ShowReturnToCurrentStep" ReturnToCurrentStep="ReturnToCurrentStep">
+                <AppButton Label="Skip for now" ButtonStyle="AppButtonStyle.Text" Disabled="@Busy" OnClick="DeferMedia" />
+            </SetupStageFooter>
+        }
     }
     else
     {
         <AppAlert Tone="@(Media is null ? AppUiTone.Info : Media.Passed ? AppUiTone.Success : AppUiTone.Warning)" Class="setup-media-notice">
-            <strong>You can add your media folders later in Settings · Libraries.</strong>
-            <span>@(Media?.Detail ?? "Existing libraries will remain completely read-only.")</span>
+            <span>@(Media?.Detail ?? "Your library is added. You can add more any time in Settings.")</span>
         </AppAlert>
-        <div class="setup-choice-grid">
-            <AppChoiceCard Class="setup-choice-card" Icon="@AppMaterialIcons.Outlined.CreateNewFolder" Title="Add a library" Description="Choose media folders to index now." OnClick="OpenLibraryWizard" />
-            <AppChoiceCard Class="setup-choice-card" Icon="@AppMaterialIcons.Outlined.Schedule" Title="Do this later" Description="You can always add libraries in Settings." Disabled="@Busy" OnClick="DeferMedia" />
-        </div>
         <SetupStageFooter Back="Back" ShowReturnToCurrentStep="ShowReturnToCurrentStep" ReturnToCurrentStep="ReturnToCurrentStep">
-            @if (HasLibraries)
-            {
-                <AppButton Label="Continue" EndIcon="@AppMaterialIcons.Outlined.ArrowForward" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Loading="@Busy" OnClick="ValidateMedia" />
-            }
+            <AppButton Label="Add another library" ButtonStyle="AppButtonStyle.Outlined" OnClick="OpenLibraryWizard" />
+            <AppButton Label="Continue" EndIcon="@AppMaterialIcons.Outlined.ArrowForward" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Loading="@Busy" OnClick="ValidateMedia" />
         </SetupStageFooter>
     }
 </div>

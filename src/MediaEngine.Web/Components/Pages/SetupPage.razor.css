@@ -1,4 +1,7 @@
-.setup-page { display: grid; width: min(1380px, calc(100% - 40px)); margin: 0 auto; gap: 24px; padding: clamp(24px, 4vw, 52px) 0 64px; }
+.setup-page { display: grid; width: min(1180px, calc(100% - 40px)); margin: 0 auto; gap: 24px; padding: clamp(24px, 5vh, 56px) 0 48px; }
+.setup-shell { display: grid; grid-template-columns: 240px minmax(0, 1fr); align-items: start; gap: 32px; }
+.setup-sidebar { position: sticky; top: 32px; display: grid; gap: 28px; }
+.setup-brand { display: flex; align-items: center; gap: 10px; font-size: 1.05rem; font-weight: 700; }
 .setup-stage { display: grid; min-height: 440px; padding: clamp(22px, 3vw, 34px); border: 1px solid var(--tl-border-subtle); border-radius: 14px; background: color-mix(in srgb, var(--tl-bg-surface-raised) 95%, transparent); box-shadow: 0 18px 52px rgb(0 0 0 / 20%); }
 ::deep .setup-stage__footer { display: flex; align-items: center; justify-content: space-between; align-self: end; gap: 16px; margin-top: auto; padding-top: 24px; border-top: 1px solid var(--tl-border-subtle); }
 ::deep .setup-stage__footer-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 12px; }
@@ -75,6 +78,11 @@
 ::deep .setup-file-input { min-height: 48px; width: 100%; padding: 10px; border: 1px dashed var(--tl-border-strong); border-radius: 10px; color: var(--tl-text-primary); }
 @media (max-width: 980px) {
     ::deep .setup-providers-layout { grid-template-columns: 1fr; }
+}
+@media (max-width: 900px) {
+    .setup-shell { grid-template-columns: 1fr; gap: 28px; }
+    .setup-sidebar { position: static; gap: 16px; padding-bottom: 18px; }
+    .setup-brand { justify-content: center; }
 }
 @media (max-width: 700px) {
     .setup-page { width: min(100% - 20px, 560px); gap: 16px; padding-top: 14px; }

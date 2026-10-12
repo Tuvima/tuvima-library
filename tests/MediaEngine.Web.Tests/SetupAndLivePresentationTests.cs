@@ -73,8 +73,7 @@ public sealed class SetupAndLivePresentationTests : AsyncBunitContext
 
         var footer = cut.Find(".setup-stage__footer");
         Assert.Contains("Back", footer.TextContent);
-        Assert.Contains("Run a sample scan", footer.TextContent);
-        Assert.Contains("Finish setup", footer.TextContent);
+        Assert.Contains("Open my library", footer.TextContent);
         Assert.Single(cut.FindAll(".setup-stage__footer"));
     }
 

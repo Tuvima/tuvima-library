@@ -34,6 +34,7 @@ public sealed class RecentMediaFeedInteractionTests : AsyncBunitContext
     [Fact]
     public void ControlledFilterFetchesOnceAndKeepsSelectedScopeAndLink()
     {
+        _read = type => Task.FromResult<DisplayRecentPageDto?>(Page(type, "Recent"));
         IRenderedComponent<RecentMediaFeed>? cut = null;
         cut = Render<RecentMediaFeed>(p => p.Add(c => c.Type, "all").Add(c => c.TypeChanged, type => cut!.Render(p => p.Add(c => c.Type, type))));
         cut.WaitForAssertion(() => Assert.Single(_requests));
@@ -131,5 +132,16 @@ public sealed class RecentMediaFeedInteractionTests : AsyncBunitContext
     private sealed class ProfileAuth(Guid profile) : AuthenticationStateProvider
     {
         public override Task<AuthenticationState> GetAuthenticationStateAsync() => Task.FromResult(new AuthenticationState(new ClaimsPrincipal(new ClaimsIdentity([new Claim("tuvima:active_profile_id", profile.ToString("D"))], "test"))));
+    }
+
+    [Fact]
+    public void EmptyLibraryHomeFeedShowsNoHeadingButAFilteredEmptyScopeStillExplainsItself()
+    {
+        var cut = Render<RecentMediaFeed>();
+        cut.WaitForAssertion(() => Assert.Single(_requests));
+        cut.WaitForAssertion(() => Assert.DoesNotContain("Recently Added", cut.Markup));
+
+        cut.Render(p => p.Add(c => c.Type, "view"));
+        cut.WaitForAssertion(() => Assert.Contains("No accessible recent additions", cut.Markup));
     }
 }

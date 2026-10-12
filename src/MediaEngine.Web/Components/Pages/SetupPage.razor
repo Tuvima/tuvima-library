@@ -17,8 +17,6 @@
 <PageTitle>Set up Tuvima Library</PageTitle>
 
 <main class="setup-page">
-    <AppPageHeader Eyebrow="Tuvima Library" Title="@PageTitleText" Subtitle="@PageSubtitle" Compact="true" />
-
     @if (_loading)
     {
         <AppPageState Kind="AppPageStateKind.Loading" Title="Loading setup" Message="Checking this server's durable setup state." />
@@ -41,8 +39,11 @@
     }
     else
     {
-        <SetupStepper Steps="@_status.Steps" CurrentStep="@CurrentStep" WorkflowStep="@WorkflowStep" StepSelected="GoToStepAsync" />
-
+        <div class="setup-shell">
+        <aside class="setup-sidebar">
+            <div class="setup-brand"><img src="/images/tuvima-icon.svg" alt="" width="32" height="32" /><span>Tuvima Library</span></div>
+            <SetupStepper Steps="@_status.Steps" CurrentStep="@CurrentStep" WorkflowStep="@WorkflowStep" StepSelected="GoToStepAsync" />
+        </aside>
         <section class="setup-stage" aria-labelledby="setup-stage-title">
             @switch (CurrentStep)
             {
@@ -75,11 +76,15 @@
                                      LibraryCreated="LibraryCreatedAsync" ValidateMedia="ValidateMediaAsync" HasLibraries="@(_setupLibraries?.Libraries.Count > 0)" DeferMedia="DeferMediaAsync"
                                      Back="GoBackAsync" ShowReturnToCurrentStep="@(CurrentStep != WorkflowStep)" ReturnToCurrentStep="ReturnToCurrentStep" />
                     break;
+                case "providers" when !_languageConfirmed:
+                    <SetupLanguageStage Value="@_locale" ValueChanged="@(value => _locale = value)" Busy="@_busy"
+                                        Continue="ConfirmLanguageAsync" Back="GoBackAsync"
+                                        ShowReturnToCurrentStep="@(CurrentStep != WorkflowStep)" ReturnToCurrentStep="ReturnToCurrentStep" />
+                    break;
                 case "providers":
-                    <SetupLocaleStage Value="@_locale" ValueChanged="@(value => _locale = value)" />
                     <SetupProvidersStage Catalogue="@_providerCatalogue" Libraries="@_setupLibraries" SetupSession="@_setupSession" Busy="@_busy"
                                          RefreshRequested="RefreshProvidersAsync" Continue="SaveProviderResultAsync" Defer="DeferProviderResultAsync"
-                                         Back="GoBackAsync" ShowReturnToCurrentStep="@(CurrentStep != WorkflowStep)" ReturnToCurrentStep="ReturnToCurrentStep" />
+                                         Back="@(() => { _languageConfirmed = false; return Task.CompletedTask; })" ShowReturnToCurrentStep="@(CurrentStep != WorkflowStep)" ReturnToCurrentStep="ReturnToCurrentStep" />
                     break;
                 default:
                     <SetupReadinessStage Readiness="@_readiness" SampleScanDetail="@_sampleScanDetail" Busy="@_busy" SampleScan="SampleScanAsync" Complete="CompleteAsync"
@@ -87,6 +92,7 @@
                     break;
             }
         </section>
+        </div>
     }
 </main>
 
@@ -123,6 +129,7 @@
     private SetupLocaleDto? _locale;
     private string _serverName = string.Empty, _hostName = string.Empty;
     private bool _serverIdentityLoaded;
+    private bool _languageConfirmed;
 
     // The Dashboard's own classification of this visitor, set by the host page. Never read from the browser.
     [CascadingParameter(Name = "ClientIngress")]
@@ -335,6 +342,17 @@
         }
         if (CurrentStep == "readiness" && _readiness is null && !_busy)
             await LoadReadinessAsync();
+    }
+
+    private async Task ConfirmLanguageAsync()
+    {
+        if (_locale is null || await ApiClient.SaveSetupLocaleAsync(_locale, _setupSession) is null)
+        {
+            Snackbar.Add("Language settings could not be saved. Please retry.", AppSeverity.Error);
+            return;
+        }
+
+        _languageConfirmed = true;
     }
 
     private async Task SaveServerIdentityAsync()

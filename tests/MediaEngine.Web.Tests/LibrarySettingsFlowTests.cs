@@ -137,7 +137,6 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
         Assert.Equal(2, cut.FindAll(".add-library-wizard__steps li").Count);
         cut.FindAll("button").Single(button => button.TextContent.Contains("Personal photos")).Click();
         Assert.Equal(3, cut.FindAll(".add-library-wizard__steps li").Count);
-        cut.FindAll("button").Single(button => button.TextContent.Trim() == "Next").Click();
         cut.WaitForAssertion(() => Assert.Contains("Choose Personal Media storage", cut.Markup));
         cut.FindAll("button").Single(button => button.TextContent.Trim() == "Next").Click();
         cut.WaitForAssertion(() => Assert.Contains("Review Personal Media storage", cut.Markup));
@@ -151,7 +150,6 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
         var cut = Render<AddLibraryWizard>();
         cut.WaitForElement(".add-library-wizard__types");
         cut.FindAll("button").Single(button => button.TextContent.Contains("Personal photos")).Click();
-        cut.FindAll("button").Single(button => button.TextContent.Trim() == "Next").Click();
         cut.FindAll("button").Single(button => button.TextContent.Trim() == "Next").Click();
         _failSave = true;
         cut.FindAll("button").Single(button => button.TextContent.Trim() == "Save View storage").Click();
