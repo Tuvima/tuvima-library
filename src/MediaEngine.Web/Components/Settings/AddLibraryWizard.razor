@@ -442,12 +442,10 @@
 
     private async Task AddFolderAsync()
     {
-        var mode = _newFolderMode == "existing_library"
-            ? ServerFolderSelectionModes.ExistingLibrary
-            : ServerFolderSelectionModes.ManagedLibrary;
+        // Browse with read access only; whether Tuvima manages the folder is decided below, once we know what is in it.
         var parameters = new AppDialogParameters<ServerFolderPicker>
         {
-            { component => component.SelectionMode, mode },
+            { component => component.SelectionMode, ServerFolderSelectionModes.ExistingLibrary },
             { component => component.HelpText, $"Choose a folder on the Tuvima Library server to add to the {_draft.Name} library." },
             { component => component.SetupSession, SetupSession },
         };
@@ -461,7 +459,35 @@
         var result = await dialog.Result;
         if (result is not { Canceled: false, Data: ServerFolderValidationResultDto selected }) return;
 
-        var managed = _newFolderMode == "managed_by_tuvima";
+        // An empty folder is simply ours to manage. A folder that already holds files is the person's call.
+        var managed = true;
+        if (selected.ContainsFiles)
+        {
+            var choice = await DialogService.ShowMessageBoxAsync(
+                "This folder already has files in it",
+                "Let Tuvima manage it, which means Tuvima may rename and organise files in this folder? Or leave it as-is, which means Tuvima only reads it and never changes your files?",
+                yesText: "Let Tuvima manage it", noText: "Leave as-is", cancelText: "Cancel");
+            if (choice is null) return;
+            managed = choice == true;
+        }
+
+        if (managed)
+        {
+            var writable = Embedded
+                ? await ApiClient.ValidateSetupServerFolderAsync(new ValidateServerFolderRequest { ManualPath = selected.Path, SelectionMode = ServerFolderSelectionModes.ManagedLibrary }, SetupSession)
+                : await ApiClient.ValidateServerFolderAsync(new ValidateServerFolderRequest { ManualPath = selected.Path, SelectionMode = ServerFolderSelectionModes.ManagedLibrary });
+            if (writable?.CanSelect == true)
+            {
+                selected = writable;
+            }
+            else
+            {
+                managed = false;
+                Snackbar.Add("Tuvima can't write to this folder, so it will be left as-is (read-only).", AppSeverity.Warning);
+            }
+        }
+
+        _newFolderMode = managed ? "managed_by_tuvima" : "existing_library";
         var isPrimary = managed && _draft.GetPrimaryDestination() is null;
         var source = new LibrarySourceDto
         {

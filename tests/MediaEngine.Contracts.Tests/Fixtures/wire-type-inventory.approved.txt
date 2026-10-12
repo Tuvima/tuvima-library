@@ -9041,11 +9041,12 @@
   Exists: System.Boolean | json=exists | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   HasRead: System.Boolean | json=has_read | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   HasWrite: System.Boolean | json=has_write | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  ContainsFiles: System.Boolean | json=contains_files | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   AvailableBytes: System.Int64? | json=available_bytes | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   FileSystem: System.String | json=file_system | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   CanSelect: System.Boolean | json=can_select | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Issues: System.Collections.Generic.List<MediaEngine.Contracts.Settings.ServerFolderValidationIssueDto> | json=issues | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  sample={"storage_location_id":"sample","relative_path":"sample","path":"sample","exists":true,"has_read":true,"has_write":true,"available_bytes":7,"file_system":"sample","can_select":true,"issues":[]}
+  sample={"storage_location_id":"sample","relative_path":"sample","path":"sample","exists":true,"has_read":true,"has_write":true,"contains_files":true,"available_bytes":7,"file_system":"sample","can_select":true,"issues":[]}
 
 [contracts] MediaEngine.Contracts.Settings.ServerGeneralSettingsDto
   kind=class | converter=default | number-handling=default | unmapped=default

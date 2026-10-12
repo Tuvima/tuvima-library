@@ -144,6 +144,7 @@ public sealed class ServerFolderBrowserService(
             Exists = exists,
             HasRead = hasRead,
             HasWrite = hasWrite,
+            ContainsFiles = exists && hasRead && ProbeContainsFiles(resolved.Path),
             AvailableBytes = availableBytes,
             FileSystem = fileSystem,
             CanSelect = issues.All(issue => !string.Equals(issue.Severity, "error", StringComparison.OrdinalIgnoreCase)),
@@ -344,6 +345,26 @@ public sealed class ServerFolderBrowserService(
         catch (Exception exception) when (exception is UnauthorizedAccessException or IOException)
         {
             logger.LogInformation(exception, "Read validation failed for approved server folder {FolderPath}", path);
+            return false;
+        }
+    }
+
+    private bool ProbeContainsFiles(string path)
+    {
+        try
+        {
+            var options = new EnumerationOptions
+            {
+                RecurseSubdirectories = true,
+                IgnoreInaccessible = true,
+                AttributesToSkip = FileAttributes.System | FileAttributes.ReparsePoint,
+            };
+            return Directory.EnumerateFiles(path, "*", options)
+                .Any(file => !Path.GetFileName(file).StartsWith('.'));
+        }
+        catch (Exception exception) when (exception is UnauthorizedAccessException or IOException)
+        {
+            logger.LogInformation(exception, "Could not look for existing files in server folder {FolderPath}", path);
             return false;
         }
     }

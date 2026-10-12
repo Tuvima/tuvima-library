@@ -31,6 +31,25 @@ public sealed class ServerFolderBrowserServiceTests
     }
 
     [Fact]
+    public void ValidationReportsWhetherTheFolderAlreadyHoldsFiles()
+    {
+        using var fixture = new Fixture();
+        var empty = Directory.CreateDirectory(Path.Combine(fixture.AllowedRoot, "Empty"));
+        var full = Directory.CreateDirectory(Path.Combine(fixture.AllowedRoot, "Full", "Season 1"));
+        File.WriteAllText(Path.Combine(full.FullName, "episode.mkv"), "x");
+
+        bool Contains(string relative) => fixture.Service.Validate(new ValidateServerFolderRequest
+        {
+            StorageLocationId = "media",
+            RelativePath = relative,
+            SelectionMode = ServerFolderSelectionModes.ExistingLibrary,
+        }).ContainsFiles;
+
+        Assert.False(Contains("Empty"));
+        Assert.True(Contains("Full"));
+    }
+
+    [Fact]
     public void BrowseListsOnlyDirectoriesBeneathApprovedRoot()
     {
         using var fixture = new Fixture();

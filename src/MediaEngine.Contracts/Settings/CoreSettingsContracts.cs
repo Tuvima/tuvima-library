@@ -466,6 +466,10 @@ public sealed class ServerFolderValidationResultDto
     [JsonPropertyName("has_write")]
     public bool HasWrite { get; init; }
 
+    /// <summary>True when the folder (or a folder beneath it) already holds files.</summary>
+    [JsonPropertyName("contains_files")]
+    public bool ContainsFiles { get; init; }
+
     [JsonPropertyName("available_bytes")]
     public long? AvailableBytes { get; init; }
 

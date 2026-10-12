@@ -67,19 +67,14 @@
         <div class="setup-actions setup-actions--secondary"><AppButton Label="Run checks again" StartIcon="@AppMaterialIcons.Outlined.Refresh" ButtonStyle="AppButtonStyle.Text" Loading="@Busy" OnClick="Retry" /></div>
     }
 
-    @if (Preflight is not null)
+    @if (Preflight is { Passed: false })
     {
-        <details class="setup-technical" open="@(!Preflight.Passed)">
-            <summary>Technical details</summary>
-            <p>@Preflight.ContainerExplanation</p>
-            <div class="setup-checks">
-                @foreach (var check in Preflight.Checks)
-                {
-                    <article><AppStatusBadge Text="@Friendly(check.Status)" Tone="@(check.Status == "passed" ? AppUiTone.Success : AppUiTone.Error)" /><div><strong>@check.Label</strong><small>@check.Detail</small><code>@check.Path</code></div></article>
-                }
-            </div>
-            <p class="setup-runtime">@Preflight.RuntimeIdentifier · @Preflight.ProcessArchitecture · FFmpeg: @Preflight.FfmpegStatus</p>
-        </details>
+        <ul class="setup-problems">
+            @foreach (var check in Preflight.Checks.Where(check => check.Status != "passed"))
+            {
+                <li><strong>@check.Label</strong> <small>@check.Detail</small></li>
+            }
+        </ul>
     }
 
     @if (!ShowRestore)
