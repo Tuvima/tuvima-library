@@ -115,20 +115,19 @@ else
                 }
                 @switch (_activeSection)
                 {
-                        case SettingsSection.Overview:
+                        case SettingsSection.Profiles:
                             <UserOverviewTab />
                             break;
-                        case SettingsSection.Account:
+                        case SettingsSection.Security:
                             <AccountSettingsTab />
                             break;
                         case SettingsSection.AdminOverview:
                             <OverviewTab ReviewCount="_reviewCount" Subsection="@_activeSubsection" />
                             break;
                         case SettingsSection.Playback:
+                        case SettingsSection.Listening:
+                        case SettingsSection.Reading:
                             <PlaybackTab />
-                            break;
-                        case SettingsSection.Household:
-                            <ManagedAccessUsers Scope="household" />
                             break;
                         case SettingsSection.Privacy:
                             <PrivacyHistoryTab Subsection="@_activeSubsection" />
@@ -201,7 +200,7 @@ else
     [SupplyParameterFromQuery(Name = "review")] public string? ReviewState { get; set; }
     [SupplyParameterFromQuery(Name = "q")] public string? RecentSearch { get; set; }
 
-    private SettingsSection _activeSection = SettingsSection.Overview;
+    private SettingsSection _activeSection = SettingsSection.Profiles;
     private string _activeSubsection = string.Empty;
     private ProfileViewModel? _activeProfile;
     private bool _profileRoleLoaded;
@@ -650,7 +649,7 @@ else
     {
         var breadcrumbs = new List<SettingsBreadcrumb>
         {
-            new("Settings", SettingsNav.RouteFor(SettingsSection.Overview)),
+            new("Settings", SettingsNav.RouteFor(SettingsSection.Profiles)),
         };
 
         breadcrumbs.Add(new SettingsBreadcrumb(
@@ -742,10 +741,11 @@ else
 
     private string GetSectionDescription(SettingsSection section) => section switch
     {
-        SettingsSection.Overview => "Manage your profile and see your personal library activity.",
-        SettingsSection.Account => "Manage your account, security, and sign-in methods.",
-        SettingsSection.Household => "Look after the people in your household and how they sign in.",
-        SettingsSection.Playback => "Set the defaults that shape how you watch, listen, and read.",
+        SettingsSection.Profiles => "Your profile and the people in your household.",
+        SettingsSection.Playback => "How you watch.",
+        SettingsSection.Listening => "How you listen.",
+        SettingsSection.Reading => "How you read.",
+        SettingsSection.Security => "Password, email and extra protection.",
         SettingsSection.Privacy => "Personal history and export controls are not yet available.",
         SettingsSection.AdminOverview => "A quick look at your library, system health, and anything that needs attention.",
         SettingsSection.Libraries => "Manage structured libraries and storage roots.",
