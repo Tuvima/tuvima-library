@@ -24,6 +24,8 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
     private int _saves;
     private LibraryFolderDto? _lastLibrary;
     private UpdateLibrariesRequest? _lastUpdate;
+    private Func<string, PathTestResultDto> _pathProbe = _ => new() { Exists = true, HasRead = true, HasWrite = true };
+    private IRenderedComponent<AppPopoverHost> _popovers = null!;
 
     private static LibrariesConfigurationDto BuildConfiguration() => new()
     {
@@ -66,7 +68,7 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
         {
             stub.SetHandler(nameof(IEngineApiClient.GetLibrariesAsync), _ => Task.FromResult<LibrariesConfigurationDto?>(_configuration));
             stub.SetHandler(nameof(IEngineApiClient.GetSetupLibrariesAsync), _ => Task.FromResult<LibrariesConfigurationDto?>(_configuration));
-            stub.SetHandler(nameof(IEngineApiClient.TestPathAsync), _ => Task.FromResult<PathTestResultDto?>(new() { Exists = true, HasRead = true, HasWrite = true }));
+            stub.SetHandler(nameof(IEngineApiClient.TestPathAsync), args => Task.FromResult<PathTestResultDto?>(_pathProbe((string)args![0]!)));
             stub.SetHandler(nameof(IEngineApiClient.UpdateLibrariesAsync), args =>
             {
                 _saves++;
@@ -78,6 +80,12 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
             {
                 _saves++;
                 _lastLibrary = ((LibraryMutationRequest)args![0]!).Library;
+                // Mimic the Engine's Normalize: keep a managed marker, else the earliest managed folder, else none.
+                var managed = _lastLibrary!.Sources.Where(x => x.ManagementMode == "managed_by_tuvima").ToList();
+                if (!managed.Any(x => x.Id == _lastLibrary.PrimaryDestinationSourceId))
+                {
+                    _lastLibrary.PrimaryDestinationSourceId = managed.FirstOrDefault()?.Id;
+                }
                 var libraries = _configuration.Libraries.Select(library => library.Id == _lastLibrary!.Id ? _lastLibrary : library).ToList();
                 _configuration = new LibrariesConfigurationDto { StorageLocations = _configuration.StorageLocations, Libraries = libraries, FileHandling = _configuration.FileHandling };
                 return Task.FromResult<LibrariesConfigurationDto?>(_configuration);
@@ -98,7 +106,7 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
         Services.AddScoped<UniverseStateContainer>();
         Services.AddScoped<ActiveProfileSessionService>();
         Services.AddScoped<UIOrchestratorService>();
-        Render<AppPopoverHost>();
+        _popovers = Render<AppPopoverHost>();
     }
 
     private IRenderedComponent<LibrariesTab> Open(string typeLabel)
@@ -270,6 +278,109 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
         var cut = Render<LibraryFoldersPanel>(parameters => parameters.Add(x => x.Embedded, true).Add(x => x.SetupSession, "session"));
         cut.WaitForElement(".library-folders__type");
         Assert.Empty(cut.FindAll(".library-folders__advanced"));
+    }
+
+    private void OpenMenuItem(IRenderedComponent<LibrariesTab> cut, int row, string label)
+    {
+        cut.FindAll(".folder-table__row")[row].QuerySelector(".folder-table__menu-trigger")!.Click();
+        cut.WaitForAssertion(() => Assert.Contains(cut.FindAll("[role=menuitem]"), x => Text(x) == label));
+        cut.FindAll("[role=menuitem]").First(x => Text(x) == label).Click();
+    }
+
+    [Fact]
+    public void KeepManagedCancelsTheSwitchToAsIs()
+    {
+        var dialogs = Render<AppDialogHost>();
+        var cut = Open("Movies");
+        cut.FindAll(".folder-table__row")[1].QuerySelector(".folder-table__chip")!.Click();
+        dialogs.WaitForAssertion(() => Assert.Contains("Use D:\\Plex\\Movies as-is?", dialogs.Markup));
+        dialogs.FindAll("button").Single(x => x.TextContent.Trim() == "Keep managed").Click();
+        Assert.Equal(0, _saves);
+    }
+
+    [Fact]
+    public void UseAsIsConfirmsThenSwitchesTheFolderToReadOnly()
+    {
+        var dialogs = Render<AppDialogHost>();
+        var cut = Open("Movies");
+        cut.FindAll(".folder-table__row")[1].QuerySelector(".folder-table__chip")!.Click();
+        dialogs.WaitForAssertion(() => Assert.Contains("Use D:\\Plex\\Movies as-is?", dialogs.Markup));
+        dialogs.FindAll("button").Single(x => x.TextContent.Trim() == "Use as-is").Click();
+        cut.WaitForAssertion(() => Assert.Equal("existing_library", _lastLibrary?.Sources.Single(x => x.Id == "movies-plex").ManagementMode));
+        Assert.Equal("read_only", _lastLibrary!.Sources.Single(x => x.Id == "movies-plex").AccessMode);
+    }
+
+    [Fact]
+    public void FolderProblemsShowAsOneStatusLine()
+    {
+        _pathProbe = path => path.StartsWith("F:", StringComparison.Ordinal)
+            ? new() { Exists = false }
+            : path.StartsWith("D:", StringComparison.Ordinal) ? new() { Exists = true, HasRead = true, HasWrite = false } : new() { Exists = true, HasRead = true, HasWrite = true };
+        var cut = Open("Movies");
+        cut.WaitForAssertion(() => Assert.Contains("Folder unavailable", cut.FindAll(".folder-table__row")[2].TextContent));
+        Assert.Contains("No access", cut.FindAll(".folder-table__row")[1].TextContent);
+        Assert.DoesNotContain("No access", cut.FindAll(".folder-table__row")[0].TextContent);
+    }
+
+    [Fact]
+    public void LabelEditSavesTheNewLabel()
+    {
+        var dialogs = Render<AppDialogHost>();
+        var cut = Open("Movies");
+        OpenMenuItem(cut, 0, "Label");
+        dialogs.WaitForElement("input");
+        dialogs.Find("input").Input("Main films");
+        dialogs.FindAll("button").Single(x => x.TextContent.Trim() == "Apply").Click();
+        cut.WaitForAssertion(() => Assert.Equal("Main films", _lastLibrary?.Sources.Single(x => x.Id == "movies-main").Notes));
+    }
+
+    [Fact]
+    public void ConvertingFolderCanHoldTheMarkerAndShowsProgress()
+    {
+        _configuration.Libraries[0].PrimaryDestinationSourceId = "movies-plex";
+        _configuration.Libraries[0].Sources[1].ConversionState = "converting";
+        var cut = Open("Movies");
+        var row = cut.FindAll(".folder-table__row")[1];
+        Assert.Contains("is-marked", row.ClassList);
+        Assert.Contains("Organising…", row.TextContent);
+        Assert.Contains("Converting…", Text(row.QuerySelector(".folder-table__handling")!));
+        Assert.Single(cut.FindAll(".folder-table__marker.is-marked"));
+    }
+
+    [Fact]
+    public void MarkerMovesWhenItsFolderIsRemovedOrSwitchedToAsIs()
+    {
+        var dialogs = Render<AppDialogHost>();
+        var cut = Open("Movies");
+        OpenMenuItem(cut, 0, "Remove folder");
+        dialogs.WaitForAssertion(() => Assert.Contains("Remove this folder?", dialogs.Markup));
+        dialogs.FindAll("button").Single(x => x.TextContent.Trim() == "Remove").Click();
+        cut.WaitForAssertion(() => Assert.Equal(2, cut.FindAll(".folder-table__row").Count));
+        Assert.Equal("movies-plex", _lastLibrary?.PrimaryDestinationSourceId);
+        Assert.Contains("is-marked", cut.FindAll(".folder-table__row")[0].ClassList);
+
+        // Switching the marked folder to As-is hands the marker to the next managed folder; with none left it is cleared.
+        _configuration.Libraries[1].Sources.Add(new() { Id = "tv-second", Path = "E:\\Library\\TV2", ManagementMode = "managed_by_tuvima", AccessMode = "writable" });
+        var tv = Open("TV Shows");
+        tv.FindAll(".folder-table__row")[0].QuerySelector(".folder-table__chip")!.Click();
+        dialogs.WaitForAssertion(() => Assert.Contains("as-is?", dialogs.Markup));
+        dialogs.FindAll("button").Single(x => x.TextContent.Trim() == "Use as-is").Click();
+        tv.WaitForAssertion(() => Assert.Equal("tv-second", _lastLibrary?.PrimaryDestinationSourceId));
+        Assert.Single(tv.FindAll(".folder-table__marker.is-marked"));
+    }
+
+    // Changing naming never re-paths existing files by itself: the only caller of the reorganisation service is its explicit plan/execute endpoints.
+    [Fact]
+    public void NamingChangesNeverRepathExistingFilesOnTheirOwn()
+    {
+        var root = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", "src"));
+        var users = Directory.EnumerateFiles(root, "*.cs", SearchOption.AllDirectories)
+            .Where(file => !file.Contains($"{Path.DirectorySeparatorChar}obj{Path.DirectorySeparatorChar}") && !file.Contains($"{Path.DirectorySeparatorChar}bin{Path.DirectorySeparatorChar}"))
+            .Where(file => File.ReadAllText(file).Contains("LibraryReorganizationService", StringComparison.Ordinal))
+            .Select(Path.GetFileName)
+            .Order()
+            .ToList();
+        Assert.Equal(["LibraryReorganizationEndpoints.cs", "LibraryReorganizationService.cs", "TuvimaStorageServiceCollectionExtensions.cs"], users);
     }
 
     // A11: the table collapses to stacked cards under 800px and adds no horizontal scroll of its own.

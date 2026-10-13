@@ -4,6 +4,7 @@
 @using MediaEngine.Web.Components.Shared
 @inject IEngineApiClient ApiClient
 @inject IAppToastService Snackbar
+@inject ILogger<LibraryAdvancedSettings> Logger
 
 @* File handling and naming. Global rows first, then one tab per media type. The host (LibraryFoldersPanel) owns every save. *@
 <div class="library-advanced">
@@ -107,10 +108,16 @@
         _standardTemplates = templates?.Templates;
         foreach (var type in Types)
         {
-            if (_standardTemplates is not null && _standardTemplates.TryGetValue(type.TemplateKey, out var template))
+            if (_standardTemplates is null || !_standardTemplates.TryGetValue(type.TemplateKey, out var template)) continue;
+            try
             {
                 var preview = await ApiClient.PreviewOrganizationTemplateAsync(template);
                 if (!string.IsNullOrWhiteSpace(preview?.Preview)) _standardExamples[type.Key] = preview.Preview!;
+            }
+            catch (Exception ex)
+            {
+                // The example is a nicety: keep the built-in sample for this type and carry on.
+                Logger.LogWarning(ex, "Naming example for {Type} could not be loaded", type.Key);
             }
         }
     }

@@ -1,11 +1,12 @@
 @namespace MediaEngine.Web.Components.Settings
 @using MediaEngine.Contracts.Settings
 @using MediaEngine.Web.Components.Shared
+@using MediaEngine.Web.Models.ViewDTOs
 
 @* One media type's folders as a table: folder, how Tuvima handles it, where new media goes, and what happens to its files.
    Under 800px each row becomes a stacked card. The host owns every save; this component only raises what was tapped. *@
 <div class="folder-table" role="table" aria-label="@($"{TypeLabel} folders")">
-    <div class="folder-table__head" role="row" aria-hidden="true">
+    <div class="folder-table__head" role="row">
         <span role="columnheader">Folder</span>
         <span role="columnheader">Handling</span>
         <span role="columnheader">New media</span>
@@ -18,7 +19,7 @@
         var converting = IsConverting(source);
         var marked = IsNewMediaFolder(source);
         var issue = IssueFor(source);
-        var name = FriendlyName(source);
+        var name = source.DisplayName();
         <div class="@RowClass(source)" role="row" @key="source.Id">
             <div class="folder-table__folder" role="cell">
                 <AppMaterialIcon Icon="@AppMaterialIcons.Filled.Folder" />
@@ -117,7 +118,7 @@
 
     // Read the marker through the same rule the Engine uses: only a managed folder can hold it.
     private bool IsNewMediaFolder(LibrarySourceDto source) => IsManaged(source)
-        && string.Equals(source.Id, Library.PrimaryDestinationSourceId, StringComparison.OrdinalIgnoreCase);
+        && ReferenceEquals(source, Library.GetPrimaryDestination());
 
     private string FilesLabel(LibrarySourceDto source) => FilesText(Library, source);
 
@@ -127,8 +128,8 @@
         $"folder-table__chip {(IsConverting(source) ? "is-converting" : IsManaged(source) ? "is-managed" : "is-asis")}";
 
     private string HandlingAriaLabel(LibrarySourceDto source) => IsManaged(source)
-        ? $"{FriendlyName(source)} is managed by Tuvima. Choose to use it as-is."
-        : $"{FriendlyName(source)} is used as-is. Choose to let Tuvima manage it.";
+        ? $"{source.DisplayName()} is managed by Tuvima. Choose to use it as-is."
+        : $"{source.DisplayName()} is used as-is. Choose to let Tuvima manage it.";
 
     private string RowClass(LibrarySourceDto source) =>
         $"folder-table__row{(IsExpanded(source) ? " is-expanded" : string.Empty)}{(IsNewMediaFolder(source) ? " is-marked" : string.Empty)}";
@@ -142,8 +143,4 @@
     {
         if (!_expanded.Remove(source.Id)) _expanded.Add(source.Id);
     }
-
-    private static string FriendlyName(LibrarySourceDto source) => string.IsNullOrWhiteSpace(source.Notes)
-        ? Path.GetFileName(source.Path.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar))
-        : source.Notes;
 }

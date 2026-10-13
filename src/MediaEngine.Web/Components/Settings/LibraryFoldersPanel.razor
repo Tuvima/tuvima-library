@@ -1,6 +1,7 @@
 @namespace MediaEngine.Web.Components.Settings
 @using System.Text.Json
 @using MediaEngine.Web.Components.Shared
+@using MediaEngine.Web.Models.ViewDTOs
 @inject UIOrchestratorService Orchestrator
 @inject IEngineApiClient ApiClient
 @inject IAppDialogService DialogService
@@ -301,13 +302,6 @@
     private string TypeClass(LibraryTypeOption type) => $"library-folders__type{(type.Key == _selected.Key ? " is-active" : string.Empty)}";
     private void Select(LibraryTypeOption type) { _selected = type; _notice = null; }
     private static bool IsManaged(LibrarySourceDto source) => source.ManagementMode == "managed_by_tuvima";
-    private static string FriendlyName(LibrarySourceDto source)
-    {
-        if (!string.IsNullOrWhiteSpace(source.Notes)) return source.Notes;
-        var name = Path.GetFileName(source.Path.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
-        return string.IsNullOrWhiteSpace(name) ? source.Path : name;
-    }
-
     private Task<ServerFolderValidationResultDto?> ValidateAsync(string path, string mode, string? sourceId = null)
     {
         var request = new ValidateServerFolderRequest { ManualPath = path, SelectionMode = mode, CurrentSourceId = sourceId };
@@ -419,7 +413,7 @@
         var target = library?.Sources.FirstOrDefault(item => item.Id == source.Id);
         if (library is null || target is null || _saving || !IsManaged(target)) return;
         library.PrimaryDestinationSourceId = target.Id;
-        await SaveAsync(library, $"New {Selected.PluralLabel} will go to {FriendlyName(target)}.");
+        await SaveAsync(library, $"New {Selected.PluralLabel} will go to {target.DisplayName()}.");
     }
 
     private async Task LabelFolderAsync(LibrarySourceDto source)
@@ -430,7 +424,7 @@
         var dialog = await DialogService.ShowAsync<LibraryTextEditDialog>(string.Empty, new AppDialogParameters<LibraryTextEditDialog>
         {
             { component => component.Label, "Folder label" },
-            { component => component.Value, FriendlyName(target) },
+            { component => component.Value, target.DisplayName() },
         }, new AppDialogOptions { NoHeader = true, FullWidth = true, MaxWidth = AppMaxWidth.Small });
         if (await dialog.Result is not { Canceled: false, Data: string label }) return;
         target.Notes = label;
@@ -438,6 +432,14 @@
     }
 
     private Task SaveAdvancedLibraryAsync(LibraryFolderDto library) => SaveAsync(library, "Saved.");
+
+    // Copy the saved file handling and change only the duplicate rule, so settings added later are not dropped.
+    private static FileHandlingDto WithDuplicatePolicy(FileHandlingDto current, string policy)
+    {
+        var copy = JsonSerializer.Deserialize<FileHandlingDto>(JsonSerializer.Serialize(current))!;
+        copy.DuplicatePolicy = policy;
+        return copy;
+    }
 
     private Task SaveDuplicatePolicyAsync(string policy) => PutAsync(
         baseline => new UpdateLibrariesRequest
@@ -447,7 +449,7 @@
             ViewStorage = baseline.ViewStorage,
             Libraries = baseline.Libraries,
             PersonalLibraryPolicy = baseline.PersonalLibraryPolicy,
-            FileHandling = new FileHandlingDto { DuplicatePolicy = policy },
+            FileHandling = WithDuplicatePolicy(baseline.FileHandling, policy),
         },
         "Saved.");
 
@@ -532,7 +534,7 @@
         if (library is null || _saving) return;
         var confirmed = await DialogService.ShowMessageBoxAsync(
             "Remove this folder?",
-            $"{FriendlyName(source)} stops being part of {_selected.Label}. Your files stay on disk.",
+            $"{source.DisplayName()} stops being part of {_selected.Label}. Your files stay on disk.",
             yesText: "Remove", cancelText: "Keep");
         if (confirmed != true) return;
         library.Sources.RemoveAll(item => item.Id == source.Id);

@@ -71,6 +71,8 @@ public sealed class ServerFolderPickerUiTests
 
         Assert.DoesNotContain("AddLibraryWizard", settings, StringComparison.Ordinal);
         Assert.DoesNotContain("LibraryNameChanged", settings, StringComparison.Ordinal);
+        Assert.Contains("Guid.TryParse(Subsection, out _)", settings, StringComparison.Ordinal);
+        Assert.Contains("Nav.NavigateTo(\"/settings/libraries\", replace: true)", settings, StringComparison.Ordinal);
         Assert.DoesNotContain("LibraryDetailSurface", libraries, StringComparison.Ordinal);
         Assert.DoesNotContain("Library settings", panel, StringComparison.Ordinal);
         Assert.DoesNotContain("/settings/libraries/{", panel, StringComparison.Ordinal);
