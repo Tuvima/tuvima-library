@@ -1670,10 +1670,84 @@ public sealed class UiShellRenderTests : AsyncBunitContext
 
         var device = Services.GetRequiredService<DeviceContextService>();
         await overlay.InvokeAsync(() => device.SwitchDeviceAsync(new DeviceContextSnapshot("mobile", "phone", true)));
-        overlay.Render();
         Assert.Single(overlay.FindAll(".universal-search-overlay--phone"));
         Assert.Single(overlay.FindAll(".universal-search-overlay__cancel"));
         Assert.Equal("search", overlay.Find(".universal-search-overlay__input-shell input").GetAttribute("enterkeyhint"));
+    }
+
+    [Theory]
+    [InlineData("television", "tv", false)]
+    public async Task MainLayout_KeepsTvDock(string deviceClass, string formFactor, bool touch)
+    {
+        var cut = Render<MainLayout>(parameters => parameters
+            .Add(layout => layout.Body, builder => builder.AddMarkupContent(0, "<section>Body</section>")));
+        cut.WaitForAssertion(() => Assert.Single(cut.FindAll(".tl-appbar")));
+        var device = Services.GetRequiredService<DeviceContextService>();
+
+        await cut.InvokeAsync(() => formFactor.Length == 0
+            ? device.SwitchDeviceAsync(deviceClass)
+            : device.SwitchDeviceAsync(new DeviceContextSnapshot(deviceClass, formFactor, touch)));
+
+        cut.WaitForAssertion(() =>
+        {
+            Assert.Equal(6, cut.FindAll(".layout-shell__intent-dock-link").Count);
+            Assert.Contains("is-device-profile-dock", cut.Find(".layout-shell__intent-dock").ClassName);
+            Assert.Empty(cut.FindAll(".shell-menu-button"));
+        });
+    }
+
+    [Fact]
+    public async Task MainLayout_KidsPhoneDockHasFourTabs()
+    {
+        var cut = Render<MainLayout>(parameters => parameters
+            .Add(layout => layout.Body, builder => builder.AddMarkupContent(0, "<section>Body</section>")));
+        cut.WaitForAssertion(() => Assert.Single(cut.FindAll(".tl-appbar")));
+        var device = Services.GetRequiredService<DeviceContextService>();
+
+        await cut.InvokeAsync(() => device.SwitchDeviceAsync(new DeviceContextSnapshot("mobile", "phone", true)));
+        typeof(MainLayout).GetField("_isKids", BindingFlags.Instance | BindingFlags.NonPublic)!.SetValue(cut.Instance, true);
+        cut.Render();
+
+        cut.WaitForAssertion(() => Assert.Equal(["/", "/read", "/watch", "/listen"],
+            cut.FindAll(".layout-shell__intent-dock-link").Select(link => link.GetAttribute("href")!).ToArray()));
+    }
+
+    [Fact]
+    public async Task ShellMenuButton_OpensAndClosesTheSheetAndSearchClosesItFirst()
+    {
+        Services.AddScoped<MediaEngine.Web.Services.Ui.IAppDialogService, MediaEngine.Web.Services.Ui.AppDialogService>();
+        var searchRaised = 0;
+        IRenderedComponent<MediaEngine.Web.Components.Navigation.ShellMenuButton>? cut = null;
+        cut = Render<MediaEngine.Web.Components.Navigation.ShellMenuButton>(parameters => parameters
+            .Add(p => p.OnSearch, Microsoft.AspNetCore.Components.EventCallback.Factory.Create(this, () =>
+            {
+                searchRaised++;
+            })));
+        Assert.Empty(cut.FindAll(".shell-menu-button")); // desktop: no hamburger
+
+        var device = Services.GetRequiredService<DeviceContextService>();
+        await cut.InvokeAsync(() => device.SwitchDeviceAsync(new DeviceContextSnapshot("mobile", "phone", true)));
+        cut.Find(".shell-menu-button").Click();
+        cut.WaitForAssertion(() => Assert.Single(cut.FindAll(".shell-menu-sheet")));
+
+        // Escape-style cancel from a link row closes it.
+        cut.Find(".shell-menu-sheet a[href='/settings']").Click();
+        cut.WaitForAssertion(() => Assert.Empty(cut.FindAll(".shell-menu-sheet")));
+
+        cut.Find(".shell-menu-button").Click();
+        cut.WaitForAssertion(() => Assert.Single(cut.FindAll(".shell-menu-sheet")));
+        cut.FindAll(".shell-menu-sheet__row").First(row => row.TextContent.Trim() == "Search").Click();
+        cut.WaitForAssertion(() => Assert.Equal(1, searchRaised));
+        Assert.Empty(cut.FindAll(".shell-menu-sheet"));
+    }
+
+    [Fact]
+    public void PhoneDockAndAudioDockOccupyDifferentGridRows()
+    {
+        var css = File.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "Shared", "MainLayout.razor.css")).Replace("\r\n", "\n");
+        Assert.Contains(".playback-app-frame__audio-dock {\n    grid-row: 3;", css);
+        Assert.Contains("html[data-form-factor=\"phone\"] .playback-app-frame .layout-shell__intent-dock {\n    grid-row: 4;", css);
+        Assert.DoesNotContain("@media (max-width: 600px)", css);
     }
 
     [Fact]

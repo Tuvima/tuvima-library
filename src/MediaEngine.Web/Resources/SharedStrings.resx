@@ -146,6 +146,9 @@
   <data name="TopBar_SignOut" xml:space="preserve">
     <value>Sign out</value>
   </data>
+  <data name="Search_Cancel" xml:space="preserve">
+    <value>Cancel</value>
+  </data>
   <data name="Nav_Menu" xml:space="preserve">
     <value>Menu</value>
   </data>

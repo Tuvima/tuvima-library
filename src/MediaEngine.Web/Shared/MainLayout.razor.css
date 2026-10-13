@@ -498,133 +498,130 @@
 
 }
 
-/* Phone shell (below 600): the dock and compact top bar. Tablets keep the desktop top navigation. */
-@media (max-width: 600px) {
-    .playback-app-frame .layout-shell__intent-dock {
-        grid-row: 4;
-        grid-column: 1;
-        position: relative;
-        z-index: 1351;
-        bottom: auto;
-    }
-
-    .layout-shell__brand-lockup-shell {
-        width: 8.2rem;
-        height: 2.02rem;
-        min-width: 8.2rem;
-        min-height: 2.02rem;
-    }
+/* Phone shell: the dock and compact top bar apply to the phone form factor only (html[data-form-factor="phone"]). Tablets keep the desktop top navigation. */
+html[data-form-factor="phone"] .playback-app-frame .layout-shell__intent-dock {
+    grid-row: 4;
+    grid-column: 1;
+    position: relative;
+    z-index: 1351;
+    bottom: auto;
 }
 
-@media (max-width: 600px) {
-    .layout-shell__engine-banner {
-        top: auto;
-        right: max(.75rem, var(--tl-safe-area-right));
-        bottom: calc(var(--tl-bottom-dock-height) + .75rem);
-        left: max(.75rem, var(--tl-safe-area-left));
-        width: auto;
-        max-width: none;
-        transform: none;
-    }
-
-    .layout-shell__intent-dock {
-        display: flex;
-        box-sizing: border-box;
-        width: 100%;
-        min-width: 0;
-        padding: 4px var(--tl-safe-area-right) max(4px, var(--tl-safe-area-bottom)) var(--tl-safe-area-left);
-    }
-
-    .layout-shell__intent-dock-link {
-        box-sizing: border-box;
-        flex: 1 1 0;
-        min-width: 48px;
-        min-height: 48px;
-        grid-template-rows: 22px auto;
-        padding: 4px 2px;
-        gap: 4px;
-    }
-
-    .layout-shell__intent-dock-link ::deep .tl-icon-root {
-        width: 22px;
-        height: 22px;
-        font-size: 22px;
-    }
-
-    .layout-shell__intent-dock-link span {
-        min-width: 0;
-        font-size: 12px;
-        overflow: visible;
-        white-space: normal;
-        overflow-wrap: anywhere;
-        text-overflow: clip;
-        text-align: center;
-        line-height: 1.15;
-    }
-
-    ::deep .layout-shell__appbar .tl-toolbar {
-        grid-template-columns: minmax(0, 1fr) 0 auto;
-        padding: 0 8px;
-        column-gap: 4px;
-    }
-
-    .layout-shell__brand-lockup-shell {
-        width: 114px;
-        max-width: 100%;
-        height: 28px;
-        min-width: 0;
-        min-height: 28px;
-        flex-shrink: 1;
-    }
-
-    .layout-shell__left-rail {
-        width: 100%;
-        max-width: 100%;
-        overflow: visible;
-    }
-
-    .layout-shell__desktop-nav {
-        display: none;
-    }
-
-    .layout-shell__actions {
-        grid-column: 3;
-        justify-self: end;
-    }
-
-    .layout-shell__search-action-slot,
-    .layout-shell__my-list-slot,
-    .layout-shell__activity-slot {
-        margin-right: 0;
-    }
-
-    .layout-shell__search-action-slot ::deep .layout-shell__search-action,
-    .layout-shell__my-list-slot ::deep .layout-shell__my-list,
-    .layout-shell__activity-slot ::deep .system-activity-indicator {
-        width: 48px;
-        min-width: 48px;
-        height: 48px;
-    }
-
-    .layout-shell__activity-slot ::deep .system-activity-indicator__ring {
-        width: 32px;
-        height: 32px;
-    }
-
-    .layout-shell__activity-slot ::deep .system-activity-indicator__ring .tl-progress-circular {
-        width: 32px !important;
-        height: 32px !important;
-    }
-
-    .layout-shell__search-action-slot ::deep .layout-shell__search-action-icon,
-    .layout-shell__my-list-slot ::deep .layout-shell__my-list-icon,
-    .layout-shell__activity-slot ::deep .tl-icon-root {
-        width: 24px;
-        height: 24px;
-        font-size: 24px;
-    }
-
+html[data-form-factor="phone"] .layout-shell__brand-lockup-shell {
+    width: 8.2rem;
+    height: 2.02rem;
+    min-width: 8.2rem;
+    min-height: 2.02rem;
 }
+
+
+html[data-form-factor="phone"] .layout-shell__engine-banner {
+    top: auto;
+    right: max(.75rem, var(--tl-safe-area-right));
+    bottom: calc(var(--tl-bottom-dock-height) + .75rem);
+    left: max(.75rem, var(--tl-safe-area-left));
+    width: auto;
+    max-width: none;
+    transform: none;
+}
+
+html[data-form-factor="phone"] .layout-shell__intent-dock {
+    display: flex;
+    box-sizing: border-box;
+    width: 100%;
+    min-width: 0;
+    padding: 4px var(--tl-safe-area-right) max(4px, var(--tl-safe-area-bottom)) var(--tl-safe-area-left);
+}
+
+html[data-form-factor="phone"] .layout-shell__intent-dock-link {
+    box-sizing: border-box;
+    flex: 1 1 0;
+    min-width: 48px;
+    min-height: 48px;
+    grid-template-rows: 22px auto;
+    padding: 4px 2px;
+    gap: 4px;
+}
+
+html[data-form-factor="phone"] .layout-shell__intent-dock-link ::deep .tl-icon-root {
+    width: 22px;
+    height: 22px;
+    font-size: 22px;
+}
+
+html[data-form-factor="phone"] .layout-shell__intent-dock-link span {
+    min-width: 0;
+    font-size: 12px;
+    overflow: visible;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    text-overflow: clip;
+    text-align: center;
+    line-height: 1.15;
+}
+
+html[data-form-factor="phone"] .playback-app-frame ::deep .layout-shell__appbar .tl-toolbar {
+    grid-template-columns: minmax(0, 1fr) 0 auto;
+    padding: 0 8px;
+    column-gap: 4px;
+}
+
+html[data-form-factor="phone"] .layout-shell__brand-lockup-shell {
+    width: 114px;
+    max-width: 100%;
+    height: 28px;
+    min-width: 0;
+    min-height: 28px;
+    flex-shrink: 1;
+}
+
+html[data-form-factor="phone"] .layout-shell__left-rail {
+    width: 100%;
+    max-width: 100%;
+    overflow: visible;
+}
+
+html[data-form-factor="phone"] .layout-shell__desktop-nav {
+    display: none;
+}
+
+html[data-form-factor="phone"] .layout-shell__actions {
+    grid-column: 3;
+    justify-self: end;
+}
+
+html[data-form-factor="phone"] .layout-shell__search-action-slot,
+html[data-form-factor="phone"] .layout-shell__my-list-slot,
+html[data-form-factor="phone"] .layout-shell__activity-slot {
+    margin-right: 0;
+}
+
+html[data-form-factor="phone"] .layout-shell__search-action-slot ::deep .layout-shell__search-action,
+html[data-form-factor="phone"] .layout-shell__my-list-slot ::deep .layout-shell__my-list,
+html[data-form-factor="phone"] .layout-shell__activity-slot ::deep .system-activity-indicator {
+    width: 48px;
+    min-width: 48px;
+    height: 48px;
+}
+
+html[data-form-factor="phone"] .layout-shell__activity-slot ::deep .system-activity-indicator__ring {
+    width: 32px;
+    height: 32px;
+}
+
+html[data-form-factor="phone"] .layout-shell__activity-slot ::deep .system-activity-indicator__ring .tl-progress-circular {
+    width: 32px !important;
+    height: 32px !important;
+}
+
+html[data-form-factor="phone"] .layout-shell__search-action-slot ::deep .layout-shell__search-action-icon,
+html[data-form-factor="phone"] .layout-shell__my-list-slot ::deep .layout-shell__my-list-icon,
+html[data-form-factor="phone"] .layout-shell__activity-slot ::deep .tl-icon-root {
+    width: 24px;
+    height: 24px;
+    font-size: 24px;
+}
+
 
 @media (max-width: 640px) {
     .layout-shell__activity-slot {

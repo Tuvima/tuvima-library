@@ -6,6 +6,7 @@
 @inject IEngineApiClient ApiClient
 @inject NavigationManager Nav
 @inject DeviceContextService DeviceContext
+@inject IStringLocalizer<SharedStrings> L
 
 @if (_open)
 {
@@ -62,7 +63,7 @@
                 {
                     <AppNativeButton Type="button"
                                      Class="universal-search-overlay__cancel"
-                                     OnClick="CloseAsync">Cancel</AppNativeButton>
+                                     OnClick="CloseAsync">@L["Search_Cancel"]</AppNativeButton>
                 }
             </header>
 
@@ -161,6 +162,10 @@
         _focusInput = true;
         StateHasChanged();
     }
+
+    protected override void OnInitialized() => DeviceContext.OnChanged += DeviceChanged;
+
+    private void DeviceChanged() => _ = InvokeAsync(StateHasChanged);
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -298,6 +303,7 @@
 
     public void Dispose()
     {
+        DeviceContext.OnChanged -= DeviceChanged;
         _searchCts?.Cancel();
         _searchCts?.Dispose();
     }

@@ -330,13 +330,18 @@
 }
 
 @media (max-width: 600px) {
-    /* Phones list results as 48 px-plus rows that open on tap, not a sideways scroller. */
+    /* Phones never get a sideways scroller: the full page shows two columns, the compact overlay lists
+       48 px-plus rows that open on tap. */
     .universal-results__grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .universal-results--compact .universal-results__grid {
         grid-template-columns: minmax(0, 1fr);
         gap: 4px;
     }
 
-    .universal-results__card {
+    .universal-results--compact .universal-results__card {
         grid-template-columns: 40px minmax(0, 1fr);
         grid-template-rows: auto auto;
         align-items: center;
@@ -346,16 +351,16 @@
         padding: 4px 0;
     }
 
-    .universal-results__card-art {
+    .universal-results--compact .universal-results__card-art {
         grid-row: 1 / span 2;
         width: 40px;
     }
 
-    .universal-results__card-art .universal-results__type {
+    .universal-results--compact .universal-results__card-art .universal-results__type {
         display: none;
     }
 
-    .universal-results__card strong {
+    .universal-results--compact .universal-results__card strong {
         font-size: 0.95rem;
     }
 }
