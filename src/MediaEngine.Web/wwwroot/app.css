@@ -3326,7 +3326,7 @@ button.app-menu-item {
     display: inline-flex;
     width: 44px !important;
     min-width: 44px !important;
-    height: 44px !important;
+    height: 44px;
     min-height: 44px !important;
     margin: 0 !important;
 }
@@ -3614,6 +3614,10 @@ button.app-menu-item {
     :root:root .tl-icon-button,
     :root:root .app-active-filter-summary__chip,
     :root:root .app-active-filter-summary__clear,
+    :root:root .app-browse-mode__option,
+    :root:root .browse-filter-sheet__trigger,
+    :root:root .browse-filter-sheet__clear,
+    :root:root .browse-filter-sheet__apply,
     :root:root .browse-shell__genre-option,
     :root:root .browse-shell__layout-button,
     :root:root .browse-multi-select__option,
@@ -3676,6 +3680,180 @@ button.app-menu-item {
     :root:root .universal-search-overlay__input-shell input {
         min-height: var(--tl-tap-target-min);
     }
+}
+
+/* Browse filter sheet (phones): the Filters button and the sheet's sticky Clear / Show footer. */
+.browse-filter-sheet__bar {
+    display: flex;
+    min-width: 0;
+    padding: 8px 0 0;
+}
+
+.browse-filter-sheet__trigger {
+    display: inline-flex;
+    width: 100%;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 0 16px;
+    border: 1px solid rgba(128, 146, 180, 0.28);
+    border-radius: 10px;
+    background: rgba(8, 16, 31, 0.64);
+    color: var(--tl-text-primary);
+    font: inherit;
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.browse-filter-sheet__body {
+    display: grid;
+    min-width: 0;
+    gap: 14px;
+    padding: 4px 16px 12px;
+}
+
+.browse-filter-sheet__footer {
+    position: sticky;
+    bottom: 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 12px 16px calc(12px + env(safe-area-inset-bottom, 0px));
+    border-top: 1px solid rgba(128, 146, 180, 0.2);
+    background: var(--tl-surface-elevated, #0b1424);
+}
+
+.browse-filter-sheet__clear {
+    padding: 0 12px;
+    border: 0;
+    background: transparent;
+    color: #bda7ff;
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.browse-filter-sheet__clear:disabled {
+    opacity: 0.45;
+    cursor: default;
+}
+
+.browse-filter-sheet__apply {
+    flex: 1 1 auto;
+    padding: 0 18px;
+    border: 0;
+    border-radius: 10px;
+    background: var(--tl-accent-primary);
+    color: #fff;
+    font: inherit;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+/* The browse search box sits in a 44px outlined container whose text input is 2px shorter (the border). On phones the
+   input itself covers the full 44px, so the whole box is the tap target. */
+:root:root[data-form-factor="phone"] .browse-shell__search .tl-input-container.tl-input-container.tl-input-container > input.tl-input,
+:root:root[data-form-factor="phone"] .search-page__input .tl-input-container.tl-input-container.tl-input-container > input.tl-input {
+    height: 44px !important;
+    min-height: 44px;
+    margin-block: -1px;
+}
+
+/* Browse filter sheet (phones): the filters a page draws inline on larger screens, stacked as full-width rows. Watch,
+   Read, Listen, Collections and Search all reuse the same sheet, so this one block lays out all of their controls. */
+:root:root .browse-filter-sheet__body .browse-shell__control-group,
+:root:root .browse-filter-sheet__body .browse-shell__display-controls,
+:root:root .browse-filter-sheet__body .search-page__filters {
+    width: 100%;
+    min-width: 0;
+    margin: 0;
+    padding: 0;
+    border: 0;
+}
+
+:root:root .browse-filter-sheet__body .browse-shell__filter-row,
+:root:root .browse-filter-sheet__body .browse-shell__filter-selects,
+:root:root .browse-filter-sheet__body .collections-filter-selects {
+    display: flex;
+    flex-direction: column;
+    flex-wrap: nowrap;
+    align-items: stretch;
+    gap: 12px;
+    width: 100%;
+}
+
+:root:root .browse-filter-sheet__body .browse-shell__multi-select,
+:root:root .browse-filter-sheet__body .browse-shell__sort,
+:root:root .browse-filter-sheet__body .browse-shell__layout-toggle,
+:root:root .browse-filter-sheet__body .browse-shell__tile-size,
+:root:root .browse-filter-sheet__body .collections-filter-select,
+:root:root .browse-filter-sheet__body .collections-tile-size,
+:root:root .browse-filter-sheet__body .search-page__media-filter,
+:root:root .browse-filter-sheet__body .search-page__select,
+:root:root .browse-filter-sheet__body .search-page__year-filter {
+    flex: none;
+    width: 100%;
+    min-width: 0;
+    max-width: none;
+}
+
+:root:root .browse-filter-sheet__body .browse-shell__display-controls,
+:root:root .browse-filter-sheet__body .search-page__filters {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: none;
+    gap: 12px;
+}
+
+:root:root .browse-filter-sheet__body .browse-shell__sort-label,
+:root:root .browse-filter-sheet__body .browse-shell__display-label,
+:root:root .browse-filter-sheet__body .browse-shell__sort,
+:root:root .browse-filter-sheet__body .browse-shell__tile-size,
+:root:root .browse-filter-sheet__body .browse-shell__layout-toggle,
+:root:root .browse-filter-sheet__body .browse-shell__timeline-grouping,
+:root:root .browse-filter-sheet__body .collections-tile-size {
+    grid-column: 1;
+    grid-row: auto;
+}
+
+/* Sort first, then the Display group (card size and layout) under its own label. */
+:root:root .browse-filter-sheet__body .browse-shell__sort-label { order: 1; }
+:root:root .browse-filter-sheet__body .browse-shell__sort { order: 2; }
+:root:root .browse-filter-sheet__body .browse-shell__display-label { order: 3; }
+:root:root .browse-filter-sheet__body .browse-shell__tile-size,
+:root:root .browse-filter-sheet__body .collections-tile-size { order: 4; }
+:root:root .browse-filter-sheet__body .browse-shell__layout-toggle,
+:root:root .browse-filter-sheet__body .browse-shell__timeline-grouping { order: 5; }
+
+:root:root .browse-filter-sheet__body .search-page__year-filter input {
+    min-height: 44px;
+}
+
+/* The column-resize grips on the song table are a mouse affordance; touch screens do not show them. */
+:root:root[data-form-factor="phone"] .listen-song-table__resizer {
+    display: none;
+}
+
+:root:root .browse-filter-sheet__body input[type="range"] {
+    min-height: 44px;
+}
+
+:root:root .browse-filter-sheet__body .browse-shell__tile-size-readout {
+    display: block;
+}
+
+:root:root .browse-filter-sheet__body .browse-shell__toggle-row {
+    width: 100%;
+    flex-wrap: wrap;
+    gap: 4px 12px;
+}
+
+:root:root .browse-filter-sheet__body .browse-multi-select__trigger,
+:root:root .browse-filter-sheet__body .tl-select-trigger,
+:root:root .browse-filter-sheet__body .search-page__year-filter > div {
+    min-height: 48px;
 }
 
 /* Icon-only buttons that were 25-34px stay compact with a mouse but never drop below 36px. */

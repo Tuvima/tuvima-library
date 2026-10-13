@@ -87,7 +87,11 @@
                                                AriaLabel="@($"Browse {CurrentTab.Label} as")" />
                     </div>
 
-                    <div class="browse-shell__control-group browse-shell__control-group--filters">
+                    <BrowseFilterSheet ActiveCount="@ActiveFilterChips.Count"
+                                       ResultLabel="@ResultCountLabel"
+                                       OnClear="ClearFiltersAsync">
+                    <ChildContent Context="inSheet">
+                    <div class="browse-shell__control-group browse-shell__control-group--filters @(inSheet ? "is-sheet" : "")">
                         <span class="browse-shell__control-label">Filter by</span>
                         <div class="browse-shell__filter-row">
                             <div class="browse-shell__filter-selects">
@@ -170,7 +174,7 @@
                         </div>
                     </div>
 
-                    <div class="browse-shell__display-controls @(IsTimelineGrouping ? "is-timeline" : "")">
+                    <div class="browse-shell__display-controls @(IsTimelineGrouping ? "is-timeline" : "") @(inSheet ? "is-sheet" : "")">
                         @if (IsTimelineGrouping) { <div class="browse-shell__timeline-grouping"><AppTimelineGroupingControl Value="@_timelineGrouping" ValueChanged="TimelineGroupingChanged" /></div> }
                         <span class="browse-shell__sort-label">Sort</span>
                         <span class="browse-shell__display-label">Display</span>
@@ -189,6 +193,7 @@
                         {
                             <label class="browse-shell__tile-size" title="Adjust tile size">
                                 <span>Tile size</span>
+                                <span class="browse-shell__tile-size-readout">Card size: @TileSizeLabel</span>
                                 <span class="browse-shell__tile-size-control">
                                     <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.PhotoSizeSelectSmall" />
                                     <AppNativeInput Type="range"
@@ -227,6 +232,8 @@
                         }
 
                     </div>
+                    </ChildContent>
+                    </BrowseFilterSheet>
                 </div>
 
                 <AppActiveFilterSummary Items="@ActiveFilterChips"
@@ -532,6 +539,14 @@
     };
     private MediaTileHoverMode GridHoverMode => MediaTileHoverMode.GlowOnly;
     private int TileSizePx => _tileSizes.TryGetValue(_activeTabId, out var size) ? size : DefaultTileSizePx;
+    private string TileSizeLabel
+    {
+        get
+        {
+            var position = (double)(TileSizePx - TileSizeMinPx) / Math.Max(1, TileSizeMaxPx - TileSizeMinPx);
+            return position < 0.34 ? "Small" : position > 0.66 ? "Large" : "Medium";
+        }
+    }
     private int TileSizeMinPx => string.Equals(CurrentTab.MediaType, "Music", StringComparison.OrdinalIgnoreCase) ? 96 : 128;
     private int TileSizeMaxPx => string.Equals(CurrentTab.MediaType, "Music", StringComparison.OrdinalIgnoreCase) ? 208 : 248;
     private int DefaultTileSizePx => CurrentTab.MediaType switch

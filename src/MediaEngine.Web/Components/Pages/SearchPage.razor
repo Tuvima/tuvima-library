@@ -29,7 +29,9 @@
                       OnDebounceIntervalElapsed="OnSearchDebouncedAsync"
                       Class="search-page__input" />
 
-        <div class="search-page__filters">
+        <BrowseFilterSheet ActiveCount="@ActiveFilterChips.Count" OnClear="ClearFiltersAsync">
+        <ChildContent Context="inSheet">
+        <div class="search-page__filters @(inSheet ? "is-sheet" : "")">
              <BrowseMultiSelect Label="Media"
                                 ButtonLabel="@MediaButtonLabel"
                                 MenuKey="media"
@@ -88,14 +90,19 @@
                 <AppSelectItem T="string" Value="@("oldest")">Oldest first</AppSelectItem>
             </AppSelect>
 
-            <AppNativeButton Type="button"
-                             Class="search-page__more-filters"
-                             Disabled="true"
-                             Title="Contextual filters become available when one media type is selected">
-                <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.FilterList" />
-                <span>More filters</span>
-            </AppNativeButton>
+            @if (!inSheet)
+            {
+                <AppNativeButton Type="button"
+                                 Class="search-page__more-filters"
+                                 Disabled="true"
+                                 Title="Contextual filters become available when one media type is selected">
+                    <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.FilterList" />
+                    <span>More filters</span>
+                </AppNativeButton>
+            }
         </div>
+        </ChildContent>
+        </BrowseFilterSheet>
 
         <AppActiveFilterSummary Items="@ActiveFilterChips"
                                 Remove="RemoveFilterAsync"

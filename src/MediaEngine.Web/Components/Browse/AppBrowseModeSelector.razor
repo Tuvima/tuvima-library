@@ -1,7 +1,9 @@
 @using MediaEngine.Web.Models.ViewDTOs
 @namespace MediaEngine.Web.Components.Browse
+@implements IAsyncDisposable
+@inject IJSRuntime JS
 
-<div class="app-browse-mode" role="tablist" aria-label="@AriaLabel">
+<div class="app-browse-mode" @ref="_strip" role="tablist" aria-label="@AriaLabel">
     @foreach (var option in Options)
     {
         var selected = string.Equals(Value, option.Value, StringComparison.OrdinalIgnoreCase);
@@ -25,6 +27,55 @@
     [Parameter, EditorRequired] public string Value { get; set; } = string.Empty;
     [Parameter] public EventCallback<string> ValueChanged { get; set; }
     [Parameter] public string AriaLabel { get; set; } = "Browse as";
+
+    private ElementReference _strip;
+    private IJSObjectReference? _module;
+    private string? _shownValue;
+
+    // Phones scroll this strip sideways: the edge hint fades where more modes wait, and the chosen mode is brought into view.
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        try
+        {
+            _module ??= await JS.InvokeAsync<IJSObjectReference>("import", "./js/scroll-edge-hint.js");
+            if (firstRender)
+            {
+                await _module.InvokeVoidAsync("attach", _strip);
+            }
+
+            if (!string.Equals(_shownValue, Value, StringComparison.Ordinal))
+            {
+                _shownValue = Value;
+                await _module.InvokeVoidAsync("showActive", _strip, ".app-browse-mode__option.is-selected");
+            }
+        }
+        catch (JSDisconnectedException)
+        {
+            // The circuit closed while the strip was rendering; there is nothing left to hint.
+        }
+        catch (JSException)
+        {
+            // The edge hint is a best-effort nicety (for example a stale cached module); the modes work without it.
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_module is null)
+        {
+            return;
+        }
+
+        try
+        {
+            await _module.InvokeVoidAsync("detach", _strip);
+            await _module.DisposeAsync();
+        }
+        catch (JSDisconnectedException)
+        {
+            // The circuit is already gone, so the browser has dropped the listeners with the page.
+        }
+    }
 
     private Task SelectAsync(string value) => ValueChanged.InvokeAsync(value);
     private static string OptionClass(bool selected) => $"app-browse-mode__option {(selected ? "is-selected" : string.Empty)}";
