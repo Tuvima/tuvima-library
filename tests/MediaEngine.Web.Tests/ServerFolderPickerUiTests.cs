@@ -52,15 +52,6 @@ public sealed class ServerFolderPickerUiTests
     }
 
     [Fact]
-    public void ServerCheck_CanIgnoreAFailedStorageLocation()
-    {
-        var stage = Read("src/MediaEngine.Web/Components/Setup/SetupPreflightStage.razor");
-
-        Assert.Contains("Ignore this location", stage, StringComparison.Ordinal);
-        Assert.Contains("IgnoreAsync", stage, StringComparison.Ordinal);
-    }
-
-    [Fact]
     public void LibraryFoldersPanel_OffersImportFolderAndAcceptNewMedia()
     {
         var panel = Read("src/MediaEngine.Web/Components/Settings/LibraryFoldersPanel.razor");
@@ -102,7 +93,7 @@ public sealed class ServerFolderPickerUiTests
         Assert.Contains("\"language\" => \"Language\"", stepper, StringComparison.Ordinal);
         Assert.DoesNotContain("ProviderStatus(", providers, StringComparison.Ordinal);
         Assert.Contains("Approved folders", picker, StringComparison.Ordinal);
-        Assert.Contains("Revisiting", preflight, StringComparison.Ordinal);
+        Assert.DoesNotContain("Revisiting", preflight, StringComparison.Ordinal);
     }
 
     private static string Read(string relativePath) =>

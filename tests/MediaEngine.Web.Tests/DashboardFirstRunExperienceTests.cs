@@ -115,14 +115,15 @@ public sealed class DashboardFirstRunExperienceTests
         Assert.Contains("RecoveryCodesDisplay", administrator, StringComparison.Ordinal);
         Assert.Contains("Download .txt", recoveryCodes, StringComparison.Ordinal);
         Assert.Contains("Copy all", recoveryCodes, StringComparison.Ordinal);
-        Assert.Contains("Save and check again", preflight, StringComparison.Ordinal);
+        Assert.DoesNotContain("Save and check again", preflight, StringComparison.Ordinal);
         Assert.Contains("CanNavigateTo(key)", setup, StringComparison.Ordinal);
         Assert.Contains("Label=\"Back\"", stageFooter, StringComparison.Ordinal);
         Assert.Contains("SetupStageFooter", readiness, StringComparison.Ordinal);
         Assert.Contains("ProviderOnboardingDialog", providers, StringComparison.Ordinal);
         Assert.Contains("ProviderOnboardingDialog", metadataSettings, StringComparison.Ordinal);
         Assert.Contains("provider.MediaTypes.Any(ConfiguredMediaTypes.Contains)", providers, StringComparison.Ordinal);
-        Assert.Contains("Set up later", providers, StringComparison.Ordinal);
+        Assert.Contains("Skip for now", providers, StringComparison.Ordinal);
+        Assert.DoesNotContain("Set up later", providers, StringComparison.Ordinal);
         Assert.DoesNotContain("TMDB", providers, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("Fanart.tv", providers, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("Ownership", providerDialog, StringComparison.Ordinal);

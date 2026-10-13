@@ -51,13 +51,12 @@
                     <SetupServerStage ServerName="@_serverName" ServerNameChanged="@((string value) => _serverName = value)"
                                       HostName="@_hostName" HostNameChanged="@((string value) => _hostName = value)"
                                       Busy="@_busy" Save="SaveServerIdentityAsync" Back="GoBackAsync"
+                                      Backup="@_backup" ShowRestore="@_showRestore" OpenRestore="@(() => _showRestore = true)" CancelRestore="CancelRestore"
+                                      UploadBackup="UploadBackupAsync" ConfirmRestore="ConfirmRestoreAsync"
                                       ShowReturnToCurrentStep="@(CurrentStep != WorkflowStep)" ReturnToCurrentStep="ReturnToCurrentStep" />
                     break;
                 case "preflight":
-                    <SetupPreflightStage Preflight="@_preflight" Error="@_preflightError" Backup="@_backup" Libraries="@_setupLibraries" Busy="@_busy" ShowRestore="@_showRestore"
-                                         OpenRestore="@(() => _showRestore = true)" CancelRestore="CancelRestore" UploadBackup="UploadBackupAsync"
-                                         ConfirmRestore="ConfirmRestoreAsync" Retry="RunPreflightManualAsync" SaveStorageLocations="SaveStorageLocationsAsync"
-                                         Revisiting="@(CurrentStep != WorkflowStep)" Back="GoBackAsync" Next="GoNextAsync" ReturnToCurrentStep="ReturnToCurrentStep" />
+                    <SetupPreflightStage Preflight="@_preflight" Error="@_preflightError" Busy="@_busy" Retry="RunPreflightManualAsync" />
                     break;
                 case "administrator":
                     <SetupAdministratorStage DisplayName="@_displayName" DisplayNameChanged="@((string? value) => _displayName = value ?? string.Empty)"
@@ -171,13 +170,15 @@
     private string StepperCurrent => CurrentStep == "providers" && !_languageConfirmed ? "language" : CurrentStep;
     private string StepperWorkflow => WorkflowStep == "providers" && !_languageConfirmed ? "language" : WorkflowStep;
     private string CurrentStep => _selectedStep ?? WorkflowStep;
-    private int CurrentIndex => Math.Max(0, Array.IndexOf(SetupWorkflow.StepKeys, CurrentStep));
+    // The server check runs silently after the server name is saved, so Back, Next and the sidebar never stop on it.
+    private static readonly string[] NavigableSteps = SetupWorkflow.StepKeys.Where(key => key != "preflight").ToArray();
+    private int CurrentIndex => Math.Max(0, Array.IndexOf(NavigableSteps, CurrentStep == "preflight" ? "server" : CurrentStep));
     private bool PasswordsMatch => string.Equals(_password, _passwordConfirmation, StringComparison.Ordinal);
     private string PageTitleText => CurrentStep == "server" ? "Welcome to your library" : Friendly(CurrentStep);
     private string PageSubtitle => CurrentStep switch
     {
         "server" => "Give this server a name, then add your libraries.",
-        "preflight" => "Start fresh or recover a backup, then verify the storage and tools visible to this server.",
+        "preflight" => "Getting this server ready.",
         "administrator" => "Create the first authenticated administrator and household profile.",
         "media-locations" => "Connect read-only sources separately from storage Tuvima Library may manage.",
         "providers" => "Connect the metadata services that make each media lane useful.",
@@ -300,8 +301,6 @@
             Navigation.NavigateTo("/auth/login?returnUrl=%2Fsetup", forceLoad: true);
             return;
         }
-        if (WorkflowStep == "preflight" && _setupLibraries is null)
-            _setupLibraries = await ApiClient.GetSetupLibrariesAsync(_setupSession);
         if (_selectedStep is null && SetupWorkflow.StepKeys.Contains(RequestedStep, StringComparer.Ordinal) && CanNavigateTo(RequestedStep!))
             _selectedStep = RequestedStep;
         StateHasChanged();
@@ -331,12 +330,6 @@
         if (WorkflowStep == "preflight" && CurrentStep == "preflight" && _preflight is null && _preflightError is null && !_showRestore && !_busy)
         {
             await RunPreflightAsync(automaticallyAdvance: true);
-            return;
-        }
-        if (CurrentStep == "preflight" && WorkflowStep != "preflight" && _preflight is null && _preflightError is null && !_showRestore && !_busy)
-        {
-            // Coming back to a finished server check: run it again quietly instead of waiting on a result that never arrives.
-            await RunPreflightAsync();
             return;
         }
         if (CurrentStep == "media-locations" && _setupLibraries is null)
@@ -384,17 +377,16 @@
         {
             _preflight = await ApiClient.RunSetupPreflightAsync(_setupSession);
             if (_preflight is null)
-                _preflightError = "Preflight could not run. The server rejected the request or could not be reached. Retry the checks.";
+                _preflightError = "Tuvima could not get ready. The server did not answer the request. Check that it is running, then try again.";
         }
         catch (Exception)
         {
-            _preflightError = "Preflight could not finish. Retry the checks.";
+            _preflightError = "Tuvima could not finish getting ready. Try again.";
         }
         finally { _busy = false; }
         if (_preflight?.Passed == true && automaticallyAdvance && !_showRestore && _selectedStep is null)
         {
             StateHasChanged();
-            await Task.Delay(650);
             await ReloadAsync();
         }
     }
@@ -404,25 +396,7 @@
         if (!_setupSessionReadyForCircuit && !_authenticated)
             await ReloadAsync();
         else
-            await RunPreflightAsync();
-    }
-    private async Task SaveStorageLocationsAsync()
-    {
-        if (_setupLibraries is null) return;
-        _busy = true;
-        var saved = await ApiClient.UpdateSetupLibrariesAsync(new UpdateLibrariesRequest
-        {
-            SchemaVersion = _setupLibraries.SchemaVersion,
-            StorageLocations = _setupLibraries.StorageLocations,
-            ViewStorage = _setupLibraries.ViewStorage,
-            Libraries = _setupLibraries.Libraries,
-            PersonalLibraryPolicy = _setupLibraries.PersonalLibraryPolicy,
-        }, _setupSession);
-        _busy = false;
-        if (saved is null) { Snackbar.Add("Storage locations could not be saved. Check that every path is absolute and visible to the server.", AppSeverity.Error); return; }
-        _setupLibraries = saved;
-        Snackbar.Add("Storage locations saved.", AppSeverity.Success);
-        await RunPreflightAsync(automaticallyAdvance: WorkflowStep == "preflight");
+            await RunPreflightAsync(automaticallyAdvance: WorkflowStep == "preflight");
     }
     private void CancelRestore() { _showRestore = false; _backup = null; }
     private async Task UploadBackupAsync(InputFileChangeEventArgs args) { _busy = true; try { await using var stream = args.File.OpenReadStream(2L * 1024 * 1024 * 1024); _backup = await ApiClient.UploadSetupBackupAsync(stream, args.File.Name, _setupSession ?? string.Empty); if (_backup is null) Snackbar.Add("The backup failed validation.", AppSeverity.Error); } finally { _busy = false; } }
@@ -489,7 +463,8 @@
     private async Task SampleScanAsync() { _busy = true; var result = await ApiClient.TriggerScanAsync(); _busy = false; _sampleScanDetail = result is null ? "The dry-run scan could not start. Use the media-location repair link to check the configured source." : $"Dry run found {result.TotalCount} pending file operation{(result.TotalCount == 1 ? string.Empty : "s")}. No files were changed."; }
     private async Task CompleteAsync() { _busy = true; var result = await ApiClient.CompleteSetupAsync(_setupSession); _busy = false; if (result?.State == "complete") { try { await Storage.DeleteAsync(SetupSessionKey); } catch { _setupSession = null; } Navigation.NavigateTo(_authenticated ? "/" : "/auth/login", forceLoad: true); } else Snackbar.Add("Required setup checks are still blocked.", AppSeverity.Error); }
     private string StepState(string key) => _status?.Steps.FirstOrDefault(step => step.Key == key)?.Status ?? "not_started";
-    private bool CanNavigateTo(string key) => Array.IndexOf(SetupWorkflow.StepKeys, key) <= Array.IndexOf(SetupWorkflow.StepKeys, WorkflowStep) || StepState(key) is "passed" or "deferred";
+    private bool CanNavigateTo(string key) => key != "preflight"
+        && (Array.IndexOf(SetupWorkflow.StepKeys, key) <= Array.IndexOf(SetupWorkflow.StepKeys, WorkflowStep) || StepState(key) is "passed" or "deferred");
     private async Task GoToStepAsync(string key)
     {
         if (key == "language")
@@ -502,8 +477,8 @@
         }
         if (key == "providers" && !_languageConfirmed) { if (!CanNavigateTo("providers")) return; _languageConfirmed = true; }
         if (CanNavigateTo(key)) { _selectedStep = key; if (key == "readiness") _readiness = null; await EnsureCurrentStageDataAsync(); } }
-    private async Task GoNextAsync() { var index = Math.Min(SetupWorkflow.StepKeys.Length - 1, CurrentIndex + 1); _selectedStep = SetupWorkflow.StepKeys[index]; await EnsureCurrentStageDataAsync(); }
-    private async Task GoBackAsync() { var index = Math.Max(0, CurrentIndex - 1); _selectedStep = SetupWorkflow.StepKeys[index]; await EnsureCurrentStageDataAsync(); }
+    private async Task GoNextAsync() { var index = Math.Min(NavigableSteps.Length - 1, CurrentIndex + 1); _selectedStep = NavigableSteps[index]; await EnsureCurrentStageDataAsync(); }
+    private async Task GoBackAsync() { var index = Math.Max(0, CurrentIndex - 1); _selectedStep = NavigableSteps[index]; await EnsureCurrentStageDataAsync(); }
     private void ReturnToCurrentStep() => _selectedStep = null;
     private static string NormalizeStep(string? step) => SetupWorkflow.StepKeys.Contains(step, StringComparer.Ordinal) ? step! : "server";
     private static string Friendly(string value) => string.Join(' ', value.Replace('_', '-').Split('-', StringSplitOptions.RemoveEmptyEntries).Select(part => char.ToUpperInvariant(part[0]) + part[1..]));

@@ -5,7 +5,7 @@
     @foreach (var step in DisplayKeys)
     {
         var state = StateFor(step);
-        <li class="@StepClass(step, state)" aria-current="@(step == CurrentStep ? "step" : null)">
+        <li class="@StepClass(step, state)" aria-current="@(step == DisplayKey(CurrentStep) ? "step" : null)">
             <AppNativeButton Type="button"
                                Disabled="@(!CanNavigate(step))"
                                AriaLabel="@AriaLabel(step, state)"
@@ -29,11 +29,16 @@
 
     // "language" is a sidebar-only step: the workflow records one "providers" step, but the wizard shows
     // the language screen and the Enhance your library screen separately, so each gets its own entry.
+    // The server check ("preflight") runs silently after the server name is saved, so it has no entry.
     private static readonly string[] DisplayKeys = SetupWorkflow.StepKeys
+        .Where(key => key != "preflight")
         .SelectMany(key => key == "providers" ? new[] { "language", "providers" } : new[] { key })
         .ToArray();
 
     private static string WorkflowKey(string key) => key == "language" ? "providers" : key;
+
+    // While the silent server check is the workflow step, the person is still on the first entry.
+    private static string DisplayKey(string key) => key == "preflight" ? "server" : key;
 
     private string StateFor(string key)
     {
@@ -43,12 +48,12 @@
     }
 
     private bool CanNavigate(string key) =>
-        Array.IndexOf(DisplayKeys, key) <= Array.IndexOf(DisplayKeys, WorkflowStep)
+        Array.IndexOf(DisplayKeys, key) <= Array.IndexOf(DisplayKeys, DisplayKey(WorkflowStep))
         || StateFor(key) is "passed" or "deferred";
 
     private string StepClass(string key, string state) => string.Join(' ', new[]
     {
-        key == CurrentStep ? "is-current" : null,
+        key == DisplayKey(CurrentStep) ? "is-current" : null,
         state == "passed" ? "is-complete" : null,
         state == "deferred" ? "is-deferred" : null,
         state == "blocked" ? "is-blocked" : null,
@@ -66,7 +71,6 @@
     private static string Friendly(string value) => value switch
     {
         "server" => "Name your server",
-        "preflight" => "Server check",
         "administrator" => "Your account",
         "media-locations" => "Libraries",
         "language" => "Language",

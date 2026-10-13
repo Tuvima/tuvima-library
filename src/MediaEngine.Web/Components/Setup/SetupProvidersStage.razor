@@ -66,11 +66,7 @@
         </div>
 
         <SetupStageFooter Back="Back" ShowReturnToCurrentStep="ShowReturnToCurrentStep" ReturnToCurrentStep="ReturnToCurrentStep">
-            @if (CredentialProviders.Count > 0)
-            {
-                <AppButton Label="Set up later" Disabled="@Busy" OnClick="Defer" />
-            }
-            <AppButton Label="Continue" EndIcon="@AppMaterialIcons.Outlined.ArrowForward" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Loading="@Busy" Disabled="@(Busy || Catalogue.Count == 0)" OnClick="Continue" />
+            <AppButton Label="@(AnythingConfigured ? "Continue" : "Skip for now")" EndIcon="@AppMaterialIcons.Outlined.ArrowForward" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Loading="@Busy" Disabled="@(Busy || Catalogue.Count == 0)" OnClick="@(AnythingConfigured ? Continue : Defer)" />
         </SetupStageFooter>
     }
 </div>
@@ -209,6 +205,14 @@
 
     private static bool IsConnected(ProviderCatalogueDto provider) =>
         provider.Onboarding?.Credentials.Where(credential => credential.Required).All(credential => credential.Configured) == true;
+
+    // True once at least one key the person supplies has been entered and saved; until then the step is skipped, not passed.
+    // Services that work without an account do not count: nothing was set up here.
+    internal static bool HasConfiguredKey(IEnumerable<ProviderCatalogueDto> catalogue) => catalogue.Any(provider =>
+        provider.Onboarding is not null
+        && provider.Onboarding.Credentials.Any(credential => IsUserSupplied(credential) && credential.Configured));
+
+    private bool AnythingConfigured => HasConfiguredKey(Catalogue);
 
     private static string ProviderAction(ProviderCatalogueDto provider) => IsConnected(provider) ? "Review key" : "Connect";
     private static string Purpose(ProviderCatalogueDto provider) => provider.Onboarding?.Intro?.Summary
