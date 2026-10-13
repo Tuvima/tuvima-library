@@ -1,6 +1,7 @@
 .browse-shell {
     color: var(--tl-text-primary);
     min-height: calc(100vh - 84px);
+    min-height: calc(100dvh - 84px);
     padding: clamp(22px, 2.2vw, 36px) clamp(28px, 2.4vw, 48px) 56px;
     background:
         radial-gradient(circle at 45% 0%, rgba(59, 130, 246, 0.09) 0%, transparent 34%),

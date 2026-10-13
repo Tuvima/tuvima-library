@@ -1,4 +1,4 @@
-# Existing off-scale @media widths and 100vh counts (file:value). Remove lines as styles move to the supported scale; never add new ones.
+# Existing off-scale @media widths (file:value). Remove lines as styles move to the supported scale; never add new ones.
 src/MediaEngine.Web/Components/Artwork/ArtworkAssetBrowser.razor.css:720px
 src/MediaEngine.Web/Components/Artwork/ArtworkJustifiedGallery.razor.css:720px
 src/MediaEngine.Web/Components/Artwork/ArtworkWorkspace.razor.css:1000px
@@ -237,13 +237,3 @@ src/MediaEngine.Web/wwwroot/vendor/maplibre/maplibre-gl.css:1px
 src/MediaEngine.Web/wwwroot/vendor/maplibre/maplibre-gl.css:24px
 src/MediaEngine.Web/wwwroot/vendor/maplibre/maplibre-gl.css:29px
 src/MediaEngine.Web/wwwroot/vendor/maplibre/maplibre-gl.css:88px
-src/MediaEngine.Web/Components/Browse/BrowseShellStyles.razor.css:100vh=1
-src/MediaEngine.Web/Components/Browse/MediaBrowseShell.razor.css:100vh=1
-src/MediaEngine.Web/Components/Details/DetailPage.razor.css:100vh=1
-src/MediaEngine.Web/Components/Details/DetailRouteHost.razor.css:100vh=2
-src/MediaEngine.Web/Components/MediaEditor/SharedEntityEditorWorkspace.razor.css:100vh=1
-src/MediaEngine.Web/Components/MediaEditor/SharedMediaEditorShell.razor.css:100vh=2
-src/MediaEngine.Web/Components/Pages/ListenPage.razor.css:100vh=1
-src/MediaEngine.Web/Shared/MainLayout.razor.css:100vh=1
-src/MediaEngine.Web/wwwroot/app.css:100vh=1
-src/MediaEngine.Web/wwwroot/native-structure.css:100vh=1

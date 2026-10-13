@@ -932,9 +932,9 @@
 
 .tl-detail-page .tl-series-detail ::deep .tl-series-carousel__arrow {
     position: static;
-    width: 2.4rem !important;
-    min-width: 2.4rem !important;
-    height: 2.4rem !important;
+    width: 2.75rem !important;
+    min-width: 2.75rem !important;
+    height: 2.75rem !important;
     translate: none;
     box-shadow: none;
 }

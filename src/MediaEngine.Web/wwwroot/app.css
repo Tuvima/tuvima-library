@@ -2853,7 +2853,7 @@ input.app-control.tl-input-slot,
 .tl-u-margin-top-8px { margin-top: 8px !important; }
 .tl-u-max-height-500px { max-height: 500px !important; }
 
-.tl-u-max-height-calc-100vh---400px { max-height: calc(100vh - 400px) !important; }
+.tl-u-max-height-calc-100vh---400px { max-height: calc(100vh - 400px) !important; max-height: calc(100dvh - 400px) !important; }
 .tl-u-max-width-100px { max-width: 100px !important; }
 .tl-u-max-width-160px { max-width: 160px !important; }
 .tl-u-max-width-200px { max-width: 200px !important; }
@@ -3511,6 +3511,71 @@ button.app-menu-item {
 .app-menu-divider {
     margin: 0.16rem 0.28rem !important;
     border-color: var(--tl-menu-divider) !important;
+}
+
+/* Shared 44px tap-target contract. Touch devices and any window narrower than the desktop form factor
+   (a mouse-driven narrow window complies too). The 48px dock/button token above is unchanged. Text links
+   inside running prose are deliberately left alone. */
+@media (hover: none), (pointer: coarse), (max-width: 1023px) {
+    :root {
+        --tl-control-height-sm: var(--tl-tap-target-min);
+        --tl-control-height-md: var(--tl-tap-target-min);
+    }
+
+    :root:root a.tl-button,
+    :root:root a.app-chip,
+    :root:root .tl-chip,
+    :root:root .tl-icon-button,
+    :root:root .app-active-filter-summary__chip,
+    :root:root .app-active-filter-summary__clear,
+    :root:root .browse-shell__genre-option,
+    :root:root .browse-shell__layout-button,
+    :root:root .browse-multi-select__option,
+    :root:root .media-group-tile__open-cue,
+    :root:root .listen-icon-button,
+    :root:root .tl-series-carousel__arrow,
+    :root:root .sme-section-nav__item,
+    :root:root .sme-close,
+    :root:root .sme-artwork-gallery-check,
+    :root:root .sme-history-icon,
+    :root:root .sme-local-star-button,
+    :root:root .media-viewer__icon-action,
+    :root:root .view-more-filters,
+    :root:root .tl-embedded-audio__row-play,
+    :root:root .tl-select-trigger,
+    :root:root .top-nav-account-menu__trigger,
+    :root:root .layout-shell__engine-banner-retry {
+        min-width: var(--tl-tap-target-min);
+        min-height: var(--tl-tap-target-min);
+    }
+
+    :root:root [role="option"],
+    :root:root [role="menuitem"],
+    :root:root [role="tab"],
+    :root:root .tl-detail-action {
+        min-height: var(--tl-tap-target-min);
+    }
+
+    :root:root .shelf-header__link,
+    :root:root .media-tile-shelf-link,
+    :root:root .layout-shell__brand-link,
+    :root:root .settings-breadcrumbs a,
+    :root:root .skip-to-content {
+        display: inline-flex;
+        align-items: center;
+        min-height: var(--tl-tap-target-min);
+    }
+}
+
+/* Icon-only buttons that were 25-34px stay compact with a mouse but never drop below 36px. */
+.sme-close,
+.sme-artwork-gallery-check,
+.sme-history-icon,
+.sme-local-star-button,
+.listen-icon-button,
+.tl-embedded-audio__row-play {
+    min-width: 36px;
+    min-height: 36px;
 }
 
 /* Shared touch, safe-area, and coarse-pointer contract. */
