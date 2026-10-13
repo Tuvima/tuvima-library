@@ -47,7 +47,7 @@ public static class FolderJobFormat
         {
             "queued" when !string.IsNullOrWhiteSpace(job.QueuedBehind) => $"Queued behind {job.QueuedBehind}",
             "queued" => job.ItemsTotal > 0
-                ? $"Waiting to {(merge ? "merge" : "organise")} {total} files"
+                ? $"Waiting to {(merge ? "merge" : "organise")} {total} {(job.ItemsTotal == 1 ? "file" : "files")}"
                 : $"Waiting to {(merge ? "merge" : "organise")}",
             "running" => job.EstimatedSecondsRemaining is { } left
                 ? $"{(merge ? "Merging" : "Organising")} {done} of {total} \u00b7 {Duration(left)} left"
