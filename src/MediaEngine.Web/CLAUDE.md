@@ -44,7 +44,7 @@ Reusable visual components, organised by feature slice.
 | `Details/` | Detail-page composition extracted from Pages. `DetailPage`, `DetailHero` (+ `DetailHeroPresentation`), shared `DetailHeroContent`, `DetailTabs`, `DetailPrimaryModule`, `OverviewTab`, `DetailsTab`, `PeopleAndCharactersTab`, `ChildrenListTab`, `SyncTab`, `RelatedTab`, `UniverseTab`, `AudioItemTable`, `MusicAlbumOverviewContent`, `MusicAlbumSeriesRail`, `MusicTrackList`, `CharactersSection`, `ContributorsSection`, `CreditGroupSection`, `CastCharacterPairCard`, `CharacterCreditCard`, `OptionalSyncPanel`, `PersonAvatar`, `PersonCreditCard`, `RelatedEntityChip`, `SequencePlacementPanel`, `HeroBackdrop`, `HeroActionRow`, `HeroMetadataPills`, `HeroProgressBlock`, `ManageActionsMenu`, `OverflowActionMenu`, `GeneratedIdentity`, `DescriptionAttribution` |
 | `MediaHub/` | `MediaHubPage`, `LibrarySectionHeader`, `MediaSectionShell`, `MediaShelf`, `ShelfHeader`, `EmptyShelfState` — shared section scaffolding used by Read, Watch, Listen, and Collections |
 | `MediaTiles/` | `MediaTile`, `MediaGroupTile`, `MediaTileGrid`, `MediaTileShelf` |
-| `Layout/` | `MainLayout`, `NavMenu`, `ReconnectModal` — the routed app shell |
+| `Layout/` | `MainLayout`, `ReconnectModal` — the routed app shell |
 | `Library/` | Reusable legacy-named library helpers still used by current browse/list surfaces, such as configurable tables, column definitions, batch bars, and status pills. Do not add all-in-one management workflow components here. |
 | `Listen/` | `ListenNowPlayingBar`, `ListenSongTable`, `ListenTransportControls`, `ListenNavigationItem`, `ListenNavigationSection` |
 | `MediaEditor/` | `SharedMediaEditorShell`, `SharedMediaBatchConfirmDialog` |
@@ -63,7 +63,7 @@ Reusable visual components, organised by feature slice.
 |---|---|
 | `Models/ViewDTOs/` | Dashboard-only presentation shapes. They may wrap or compose Contracts types through explicit mappers, but they never own or mirror Engine↔Dashboard JSON. |
 | `Resources/` | `SharedStrings.resx` (+ `.fr` / `.de` / `.es`) plus generated `SharedStrings.cs` |
-| `Shared/` | Blazor app-host layout wrappers: `MainLayout`, `NavMenu`, `PopupLayout`, `ReaderLayout`, `_Imports` |
+| `Shared/` | Blazor app-host layout wrappers: `MainLayout`, `PopupLayout`, `ReaderLayout`, `_Imports` |
 | `wwwroot/` | Static assets: images, CSS, JS (`cytoscape-interop.js`, `epub-reader.js`, `cover-popup.js`, `app.js`) |
 
 ### Routed Pages (`Components/Pages/`)

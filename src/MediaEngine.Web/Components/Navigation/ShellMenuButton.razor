@@ -1,0 +1,50 @@
+@namespace MediaEngine.Web.Components.Navigation
+@using MediaEngine.Web.Services.Theming
+@using MediaEngine.Web.Services.Ui
+@implements IDisposable
+@inject DeviceContextService DeviceContext
+@inject IStringLocalizer<SharedStrings> L
+
+@* Phone-only hamburger: a 44 px button at the left of the top bar that opens the shell menu as a bottom sheet. *@
+@if (DeviceContext.IsPhone)
+{
+    <AppNativeButton Type="button"
+                     Class="shell-menu-button"
+                     AriaLabel="@L["Nav_Menu"]"
+                     aria-haspopup="dialog"
+                     aria-expanded="@(_open ? "true" : "false")"
+                     OnClick="Open">
+        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Menu" />
+    </AppNativeButton>
+    @if (_open)
+    {
+        <AppDialogFrame Open="true" Title="@L["Nav_Menu"]" DialogOptions="SheetOptions" Class="shell-menu-sheet-dialog" OnCancel="Close">
+            <ShellMenuSheet IsKids="IsKids" OnNavigate="Close" OnSearch="SearchAsync" />
+        </AppDialogFrame>
+    }
+}
+
+@code {
+    // Rendered only for phones, so Sheet = Phone always matches the frame's own check.
+    private static readonly AppDialogOptions SheetOptions = new() { Sheet = AppDialogSheetMode.Phone, BackdropClick = true, CloseOnEscapeKey = true };
+    private bool _open;
+
+    [Parameter] public bool IsKids { get; set; }
+    /// <summary>Raised after the sheet has closed when the Search row is chosen.</summary>
+    [Parameter] public EventCallback OnSearch { get; set; }
+
+    protected override void OnInitialized() => DeviceContext.OnChanged += DeviceChanged;
+    public void Dispose() => DeviceContext.OnChanged -= DeviceChanged;
+    private void DeviceChanged() => _ = InvokeAsync(StateHasChanged);
+
+    private void Open() => _open = true;
+    private void Close() => _open = false;
+
+    private async Task SearchAsync()
+    {
+        // Let the sheet leave the DOM first so search does not open under it.
+        _open = false;
+        await InvokeAsync(StateHasChanged);
+        await OnSearch.InvokeAsync();
+    }
+}
