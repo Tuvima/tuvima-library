@@ -170,9 +170,9 @@
 }
 
 ::deep .tl-embedded-audio__more {
-    width: 2rem !important;
-    min-width: 2rem !important;
-    height: 2rem !important;
+    width: var(--tl-embedded-audio-more-size, 2rem) !important;
+    min-width: var(--tl-embedded-audio-more-size, 2rem) !important;
+    height: var(--tl-embedded-audio-more-size, 2rem) !important;
 }
 
 @media (max-width: 720px) {
