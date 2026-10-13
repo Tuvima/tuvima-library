@@ -52,7 +52,7 @@ Reusable visual components, organised by feature slice.
 | `Pages/` | All routed pages — see §6.4 |
 | `LibraryItems/` | Internal building blocks used by Library + Universe: `LibraryItemHelpers`, `ReportProblemDialog` |
 | `Profiles/` | `ProfileEditorSheet`, `ProfileAvatarPicker`, `ProfileEditingWorkflow` (sends sheet choices to the Engine), `AdminUnlockDialog`, `ProfileManageRules` — shared by the picker and Settings > Profiles |
-| `Settings/` | Settings shell tabs — `ProfilesTab` is the Profiles page (open-profile card plus the household list for administrators; replaces the retired `UserOverviewTab`). |
+| `Settings/` | Settings shell tabs — `ProfilesTab` is the Profiles page (open-profile card plus the household list for administrators; replaces the retired `UserOverviewTab`). `ProfileDetailPage` is `/settings/profiles/{profileId}` (one page per person: header, Profile and Preferences row lists, Delete); it is built from `SettingsNavRow`, the shared 56 px icon/title/status/chevron row (link, button or disabled; styles in `wwwroot/app.css` because the button root is a child component) that Security will reuse. |
 | `Shared/` | The first-party native `App*` design-system primitives (`AppPageState`, `AppErrorState`, `AppEmptyState`, `AppSkeleton`, `AppIcon`, `AppIconCatalog`, `AppTable`, `AppDialog`, form/field/button primitives, …) plus the `Playback*` control primitives (`PlaybackControlStrip`, `PlaybackPrimaryButton`, `PlaybackSpeedControl`, `PlaybackSleepTimerControl`, `PlaybackToolSheet`, …) and `TuvimaArtworkStack` |
 | `Universe/` | Universe surface components: `GlobalBackground`, `AdaptationTree` + node, `FamilyTreeView`, `CastComparison`, `PathFinderPanel` |
 | `Watch/` | `VideoPlaybackHost`, `VideoContextPanel`, `OwnedEpisodeQueuePlanner` |
@@ -87,7 +87,7 @@ Reusable visual components, organised by feature slice.
 | `/detail/{Type}/{Id}` (and similar) | `UnifiedDetailPage.razor` | Unified detail surface (work / edition / collection / person) — uses `Components/Details/` slice |
 | `/universe/{Qid}/explore` | `ChronicleExplorer.razor` | Universe graph explorer |
 | `/search` | `SearchPage.razor` | Global search |
-| `/settings`, `/settings/{Section}` | `Settings.razor` | Settings shell (review queue at `/settings/review`, ingestion at `/settings/ingestion`, temporary harness at `/settings/dev-harness`) |
+| `/settings`, `/settings/{Section}` | `Settings.razor` | Settings shell (`/settings/profiles/{profileId}` shows `ProfileDetailPage`; review queue at `/settings/review`, ingestion at `/settings/ingestion`, temporary harness at `/settings/dev-harness`) |
 | `/not-found`, `/Error` | `NotFound.razor`, `Error.razor` | Error pages |
 
 > **Note.** Earlier drafts referenced `PersonDetail.razor`, `Home.razor`, and `ReviewRedirect.razor`. Those files no longer exist on disk; person detail is served by `UnifiedDetailPage` via `Components/Details/`, and the `/review` redirect has been replaced by direct `/settings/review` navigation.

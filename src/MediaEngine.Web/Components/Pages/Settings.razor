@@ -116,7 +116,14 @@ else
                 @switch (_activeSection)
                 {
                         case SettingsSection.Profiles:
-                            <ProfilesTab />
+                            @if (IsProfileDetailRoute)
+                            {
+                                <ProfileDetailPage ProfileId="@ProfileDetailId" NameChanged="OnProfileNameChanged" />
+                            }
+                            else
+                            {
+                                <ProfilesTab />
+                            }
                             break;
                         case SettingsSection.Security:
                             <AccountSettingsTab />
@@ -194,6 +201,15 @@ else
     private string? _libraryBreadcrumbName;
     private string? _libraryBreadcrumbRoute;
     private void OnLibraryNameChanged(string name) => _libraryBreadcrumbName = name;
+    private string? _profileBreadcrumbName;
+    private void OnProfileNameChanged(string name)
+    {
+        if (_profileBreadcrumbName != name)
+        {
+            _profileBreadcrumbName = name;
+            StateHasChanged();
+        }
+    }
     [SupplyParameterFromQuery(Name = "view")] public string? IngestionView { get; set; }
     [SupplyParameterFromQuery(Name = "itemId")] public Guid? IngestionItemId { get; set; }
     [SupplyParameterFromQuery(Name = "runId")] public Guid? IngestionRunId { get; set; }
@@ -238,7 +254,11 @@ else
 
     private SettingsGroupDef CurrentGroup => SettingsNav.GetGroup(_activeSection);
     private IReadOnlyList<SettingsBreadcrumb> Breadcrumbs => BuildBreadcrumbs();
-    private string BrowserTitle => _activeSection == SettingsSection.Libraries
+    private bool IsProfileDetailRoute => _activeSection == SettingsSection.Profiles && ProfileDetailId != Guid.Empty;
+    private Guid ProfileDetailId => Guid.TryParse(_activeSubsection, out var id) ? id : Guid.Empty;
+    private string BrowserTitle => IsProfileDetailRoute
+        ? $"{_profileBreadcrumbName ?? "Profile"} - Profiles - Tuvima Library"
+        : _activeSection == SettingsSection.Libraries
         ? $"{(string.IsNullOrWhiteSpace(_activeSubsection) ? "Libraries" : _activeSubsection == "view" ? "View" : _libraryBreadcrumbName ?? "Library")} - Tuvima Library"
         : string.IsNullOrWhiteSpace(_activeSubsection)
         ? $"{GetHeroTitle()} - Tuvima Library"
@@ -307,6 +327,11 @@ else
             _libraryBreadcrumbRoute = _activeSubsection;
             _libraryBreadcrumbName = null;
         }
+        if (!IsProfileDetailRoute)
+        {
+            _profileBreadcrumbName = null;
+        }
+
         _scrollToTopPending = true;
         await LoadBatchBreadcrumbAsync();
     }
@@ -447,6 +472,10 @@ else
         {
             _activeSubsection = Subsection!.Trim();
         }
+        else if (_activeSection == SettingsSection.Profiles && Guid.TryParse(Subsection, out _))
+        {
+            _activeSubsection = Subsection!.Trim();
+        }
         else if (_activeSection == SettingsSection.Providers && string.IsNullOrWhiteSpace(Subsection))
         {
             _activeSubsection = "providers";
@@ -476,6 +505,8 @@ else
         var currentPath = NormalizePath(Nav.ToBaseRelativePath(Nav.Uri));
         var targetRoute = _activeSection == SettingsSection.Libraries && IsLibraryRouteSegment(Subsection)
             ? $"/settings/libraries/{_activeSubsection}"
+            : IsProfileDetailRoute
+            ? $"/settings/profiles/{_activeSubsection}"
             : _activeSection == SettingsSection.Providers && !string.IsNullOrWhiteSpace(Detail)
             ? $"{SettingsNav.RouteFor(_activeSection, _activeSubsection)}/{Detail!.Trim().ToLowerInvariant()}"
             : string.IsNullOrWhiteSpace(Subsection)
@@ -661,6 +692,13 @@ else
             breadcrumbs.Add(new SettingsBreadcrumb("Libraries", string.IsNullOrWhiteSpace(_activeSubsection) ? null : "/settings/libraries"));
             if (!string.IsNullOrWhiteSpace(_activeSubsection))
                 breadcrumbs.Add(new SettingsBreadcrumb(_activeSubsection == "view" ? "View" : _libraryBreadcrumbName ?? "Library", null));
+            return breadcrumbs;
+        }
+
+        if (IsProfileDetailRoute)
+        {
+            breadcrumbs.Add(new SettingsBreadcrumb("Profiles", SettingsNav.RouteFor(SettingsSection.Profiles)));
+            breadcrumbs.Add(new SettingsBreadcrumb(_profileBreadcrumbName ?? "Profile", null));
             return breadcrumbs;
         }
 

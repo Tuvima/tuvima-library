@@ -1,0 +1,67 @@
+@namespace MediaEngine.Web.Components.Settings
+
+@* One row of a Settings list: icon, title, a one-line status and a chevron. The whole row is the link or the button.
+   Styles live in wwwroot/app.css because the button root is a child component and isolated CSS does not reach it. *@
+@if (Disabled)
+{
+    <div class="@RowClass" data-nav-row="@Key" aria-disabled="true">
+        @RowContent
+    </div>
+}
+else if (!string.IsNullOrWhiteSpace(Href))
+{
+    <a class="@RowClass" data-nav-row="@Key" href="@Href">
+        @RowContent
+    </a>
+}
+else
+{
+    <AppNativeButton Type="button" Class="@RowClass" data-nav-row="@Key" OnClick="OnClick">
+        @RowContent
+    </AppNativeButton>
+}
+
+@code {
+    private RenderFragment RowContent => __builder =>
+    {
+        <span class="settings-nav-row__icon" aria-hidden="true"><AppMaterialIcon Icon="@Icon" /></span>
+        <span class="settings-nav-row__copy">
+            <span class="settings-nav-row__title">@Title</span>
+            @if (!string.IsNullOrWhiteSpace(Status))
+            {
+                <span class="settings-nav-row__status">@Status</span>
+            }
+        </span>
+        @if (ShowChevron)
+        {
+            <span class="settings-nav-row__chevron" aria-hidden="true"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ChevronRight" /></span>
+        }
+    };
+
+    /// <summary>Stable name for tests and for scripts that look a row up.</summary>
+    [Parameter] public string Key { get; set; } = string.Empty;
+    [Parameter, EditorRequired] public string Icon { get; set; } = string.Empty;
+    [Parameter, EditorRequired] public string Title { get; set; } = string.Empty;
+    [Parameter] public string? Status { get; set; }
+
+    /// <summary>When set, the row is a link to this address.</summary>
+    [Parameter] public string? Href { get; set; }
+
+    /// <summary>Used when the row is a button (no <see cref="Href"/>).</summary>
+    [Parameter] public EventCallback<MouseEventArgs> OnClick { get; set; }
+
+    /// <summary>A row for something that is not available yet: it keeps its place but opens nothing.</summary>
+    [Parameter] public bool Disabled { get; set; }
+
+    /// <summary>Red title, for actions that remove something.</summary>
+    [Parameter] public bool Destructive { get; set; }
+
+    [Parameter] public bool ShowChevron { get; set; } = true;
+
+    private string RowClass => string.Join(' ', new[]
+    {
+        "settings-nav-row",
+        Destructive ? "settings-nav-row--danger" : null,
+        Disabled ? "settings-nav-row--disabled" : null,
+    }.Where(value => value is not null));
+}

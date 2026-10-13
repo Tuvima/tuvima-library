@@ -373,6 +373,7 @@ public static class SettingsNav
         return section switch
         {
             SettingsSection.Libraries => string.IsNullOrWhiteSpace(normalized) || normalized == "view" || Guid.TryParse(normalized, out _),
+            SettingsSection.Profiles => string.IsNullOrWhiteSpace(normalized) || Guid.TryParse(normalized, out _),
             SettingsSection.Providers => normalized is "" or "providers",
             SettingsSection.Network => normalized is "" or "overview",
             SettingsSection.Access => normalized is "" or "household" or "users" or "applications" or "authentication",

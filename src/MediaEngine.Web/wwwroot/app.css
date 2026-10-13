@@ -4274,3 +4274,17 @@ input[type="reset"],
 @media (prefers-reduced-motion: no-preference) {
     .sme-file-coverage__chip { transition: border-color .12s ease, background-color .12s ease; }
 }
+
+/* Settings list rows (SettingsNavRow): a link, a button or a disabled row, 56 px tall, shared by Profile detail and Security. */
+.settings-nav-row { display: flex; align-items: center; gap: 16px; width: 100%; min-height: 56px; padding: 8px 16px; box-sizing: border-box; color: var(--tl-text-primary); border: 0; background: transparent; font: inherit; text-align: left; text-decoration: none; cursor: pointer; }
+.settings-nav-row:hover { background: color-mix(in srgb, var(--tl-text-primary) 6%, transparent); }
+.settings-nav-row:focus-visible { outline: 2px solid var(--tl-accent-primary); outline-offset: -2px; }
+.settings-nav-row__icon { flex: none; display: inline-flex; color: var(--tl-text-muted); }
+.settings-nav-row__copy { flex: 1; display: grid; gap: 2px; min-width: 0; }
+.settings-nav-row__title { font-weight: 600; overflow-wrap: anywhere; }
+.settings-nav-row__status { color: var(--tl-text-muted); font-size: .875rem; overflow-wrap: anywhere; }
+.settings-nav-row__chevron { flex: none; display: inline-flex; color: var(--tl-text-muted); }
+.settings-nav-row--danger, .settings-nav-row--danger .settings-nav-row__icon { color: var(--tl-danger, #ff6b6b); }
+.settings-nav-row--disabled { cursor: default; opacity: .6; }
+.settings-nav-row--disabled:hover { background: transparent; }
+@media (min-width: 1600px) { .settings-nav-row { min-height: 72px; gap: 20px; font-size: 1.15rem; } .settings-nav-row__status { font-size: 1rem; } }
