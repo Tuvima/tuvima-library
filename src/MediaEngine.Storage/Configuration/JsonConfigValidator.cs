@@ -664,6 +664,11 @@ public static class JsonConfigValidator
         {
             errors.Add($"{prefix}.conversion_state must be none, converting, or converted.");
         }
+        else if (source.ConversionState != LibrarySourceConversionStates.None
+            && source.ManagementMode != LibrarySourceManagementModes.ManagedByTuvima)
+        {
+            errors.Add($"{prefix}.conversion_state {source.ConversionState} requires a folder Tuvima manages (managed_by_tuvima).");
+        }
         else if (source.ConversionState == LibrarySourceConversionStates.Converting)
         {
             if (!Guid.TryParse(source.ConversionOperationId, out var operationId) || operationId == Guid.Empty)

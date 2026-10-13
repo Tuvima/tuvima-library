@@ -472,6 +472,24 @@ public sealed class ConfigurationDirectoryLoaderValidationTests
             error => error.Contains("conversion_state must be none, converting, or converted"));
     }
 
+    [Theory]
+    [InlineData(LibrarySourceConversionStates.Converting)]
+    [InlineData(LibrarySourceConversionStates.Converted)]
+    public void Validator_ConversionRequiresAFolderTuvimaManages(string state)
+    {
+        var config = CreateValidCataloguedLibrary();
+        var source = config.Libraries[0].Sources[0];
+        source.ManagementMode = LibrarySourceManagementModes.ExistingLibrary;
+        source.AccessMode = LibrarySourceAccessModes.ReadOnly;
+        source.ConversionState = state;
+        source.ConversionOperationId = "dddddddd-dddd-4ddd-8ddd-dddddddddddd";
+        config.Libraries[0].PrimaryDestinationSourceId = null;
+
+        var errors = JsonConfigValidator.Validate(config, "libraries.json");
+
+        Assert.Contains(errors, error => error.Contains("requires a folder Tuvima manages"));
+    }
+
     [Fact]
     public void SaveLibraries_DerivesAccessFromManagementMode()
     {

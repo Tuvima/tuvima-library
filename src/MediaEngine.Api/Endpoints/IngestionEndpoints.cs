@@ -453,139 +453,7 @@ public static class IngestionEndpoints
 
         // ── POST /ingestion/upload ────────────────────────────────────────────────
 
-        group.MapPost("/upload", async (
-            HttpRequest request,
-            IConfigurationLoader configLoader,
-            IIngestionEngine engine,
-            IOptions<IngestionOptions> opts,
-            ISourceMutationPolicyGate mutationGate,
-            CancellationToken ct) =>
-        {
-            var form = await request.ReadFormAsync(ct);
-            var file = form.Files.GetFile("file");
-            var mediaType = form["mediaType"].ToString();
-            var destinationLibraryId = form["destinationLibraryId"].ToString();
-
-            if (file is null || string.IsNullOrWhiteSpace(destinationLibraryId))
-            {
-                return ApiErrors.BadRequest("File and destinationLibraryId are required.");
-            }
-
-            if (file.Length <= 0)
-            {
-                return ApiErrors.BadRequest("Upload file must not be empty.");
-            }
-
-            var libraries = configLoader.LoadLibraries();
-            var mediaTypes = configLoader.LoadMediaTypes();
-            var library = libraries.Libraries.FirstOrDefault(candidate =>
-                string.Equals(candidate.Id, destinationLibraryId.Trim(), StringComparison.OrdinalIgnoreCase));
-
-            if (library is null)
-            {
-                return ApiErrors.BadRequest($"Destination library '{destinationLibraryId}' is not configured.");
-            }
-
-            if (library.Kind != LibraryKinds.Catalogued)
-            {
-                return ApiErrors.BadRequest("Personal media uploads use the profile-owned View upload endpoint.");
-            }
-
-            if (!library.AcceptedIntakeModes.Contains(LibraryIntakeModes.BrowserUpload, StringComparer.OrdinalIgnoreCase))
-            {
-                return ApiErrors.BadRequest($"Library '{library.Name}' does not accept browser uploads.");
-            }
-
-            // Uploads go to the library's one explicit destination, which is always a folder Tuvima manages.
-            // An as-is folder is never written to, and there is no fallback to another folder.
-            var destination = library.PrimaryDestination;
-            if (destination is null
-                || !destination.AllowsFileMutation
-                || !mutationGate.Evaluate(new SourceMutationRequest
-                {
-                    Source = FileSourceMutationPolicyFactory.Create(library, destination),
-                    Mutation = SourceMutationKind.UseAsDestination,
-                    Path = destination.Path,
-                }).Allowed)
-            {
-                return ApiErrors.BadRequest($"Library '{library.Name}' has no managed folder set as its destination for new media.");
-            }
-
-            if (string.IsNullOrWhiteSpace(mediaType)
-                || !LibraryAcceptsMediaType(library, mediaType, mediaTypes.Types))
-            {
-                return ApiErrors.BadRequest(
-                    $"A configured mediaType is required for catalogued library '{library.Name}'.");
-            }
-
-            var plan = UploadSafety.CreateDestinationPlan(
-                destination.Path,
-                mediaType,
-                file.FileName,
-                file.Length,
-                mediaTypes.Types,
-                opts.Value,
-                allowPersonalFiles: false);
-
-            if (plan.Error is not null)
-            {
-                return plan.Error;
-            }
-
-            Directory.CreateDirectory(plan.TargetDirectory);
-
-            if (!UploadSafety.HasRequiredFreeSpace(plan.TargetDirectory, file.Length, opts.Value.UploadFreeSpaceBufferBytes))
-            {
-                return Results.Problem(
-                    title: "Insufficient disk space",
-                    detail: "The destination drive does not have enough free space for this upload and the configured safety buffer.",
-                    statusCode: StatusCodes.Status507InsufficientStorage);
-            }
-
-            var tempPath = Path.Combine(
-                plan.TargetDirectory,
-                $".{Path.GetFileNameWithoutExtension(plan.SafeFileName)}.{Guid.NewGuid():N}.uploading");
-
-            try
-            {
-                await using (var stream = new FileStream(
-                    tempPath,
-                    FileMode.CreateNew,
-                    FileAccess.Write,
-                    FileShare.None,
-                    bufferSize: 1024 * 1024,
-                    useAsync: true))
-                {
-                    await file.CopyToAsync(stream, ct);
-                }
-
-                await UploadSafety.FinalizeUploadAsync(
-                    tempPath,
-                    plan.TargetPath,
-                    async (uploadedPath, indexCt) =>
-                    {
-                        await engine.EnqueueIntakeAsync(new IntakeFileRequest
-                        {
-                            Path = uploadedPath,
-                            SourceKind = IntakeSourceKinds.BrowserUpload,
-                            SourceId = destination.Id,
-                            DestinationLibraryId = library.Id,
-                        }, indexCt);
-                    },
-                    ct);
-            }
-            catch
-            {
-                TryDeleteTempUpload(tempPath);
-                TryDeleteTempUpload(plan.TargetPath);
-                throw;
-            }
-
-            return Results.Ok(new UploadMediaResponse(
-                plan.TargetPath,
-                plan.CanonicalMediaType,
-                library.Id));
-        })
+        group.MapPost("/upload", HandleUploadAsync)
         .WithName("UploadMedia")
         .WithSummary("Uploads to an explicit destination library and queues direct intake without rediscovery.")
         .DisableAntiforgery()
@@ -593,6 +461,156 @@ public static class IngestionEndpoints
         .RequireAdministratorOrApplication(ApplicationPermissionIds.IngestionRun);
 
         return app;
+    }
+
+    /// <summary>
+    /// Handles a browser upload into a catalogued library's explicit destination. The destination must be a folder
+    /// Tuvima manages, and both the destination and the final file path must pass the source-mutation gate; there is
+    /// no fallback to another folder.
+    /// </summary>
+    internal static async Task<IResult> HandleUploadAsync(
+        HttpRequest request,
+        IConfigurationLoader configLoader,
+        IIngestionEngine engine,
+        IOptions<IngestionOptions> opts,
+        ISourceMutationPolicyGate mutationGate,
+        CancellationToken ct)
+    {
+        var form = await request.ReadFormAsync(ct);
+        var file = form.Files.GetFile("file");
+        var mediaType = form["mediaType"].ToString();
+        var destinationLibraryId = form["destinationLibraryId"].ToString();
+
+        if (file is null || string.IsNullOrWhiteSpace(destinationLibraryId))
+        {
+            return ApiErrors.BadRequest("File and destinationLibraryId are required.");
+        }
+
+        if (file.Length <= 0)
+        {
+            return ApiErrors.BadRequest("Upload file must not be empty.");
+        }
+
+        var libraries = configLoader.LoadLibraries();
+        var mediaTypes = configLoader.LoadMediaTypes();
+        var library = libraries.Libraries.FirstOrDefault(candidate =>
+            string.Equals(candidate.Id, destinationLibraryId.Trim(), StringComparison.OrdinalIgnoreCase));
+
+        if (library is null)
+        {
+            return ApiErrors.BadRequest($"Destination library '{destinationLibraryId}' is not configured.");
+        }
+
+        if (library.Kind != LibraryKinds.Catalogued)
+        {
+            return ApiErrors.BadRequest("Personal media uploads use the profile-owned View upload endpoint.");
+        }
+
+        if (!library.AcceptedIntakeModes.Contains(LibraryIntakeModes.BrowserUpload, StringComparer.OrdinalIgnoreCase))
+        {
+            return ApiErrors.BadRequest($"Library '{library.Name}' does not accept browser uploads.");
+        }
+
+        // Uploads go to the library's one explicit destination, which is always a folder Tuvima manages.
+        // An as-is folder is never written to, and there is no fallback to another folder.
+        var destination = library.PrimaryDestination;
+        if (destination is null
+            || !destination.AllowsFileMutation
+            || !mutationGate.Evaluate(new SourceMutationRequest
+            {
+                Source = FileSourceMutationPolicyFactory.Create(library, destination),
+                Mutation = SourceMutationKind.UseAsDestination,
+                Path = destination.Path,
+            }).Allowed)
+        {
+            return ApiErrors.BadRequest($"Library '{library.Name}' has no managed folder set as its destination for new media.");
+        }
+
+        if (string.IsNullOrWhiteSpace(mediaType)
+            || !LibraryAcceptsMediaType(library, mediaType, mediaTypes.Types))
+        {
+            return ApiErrors.BadRequest(
+                $"A configured mediaType is required for catalogued library '{library.Name}'.");
+        }
+
+        var plan = UploadSafety.CreateDestinationPlan(
+            destination.Path,
+            mediaType,
+            file.FileName,
+            file.Length,
+            mediaTypes.Types,
+            opts.Value,
+            allowPersonalFiles: false);
+
+        if (plan.Error is not null)
+        {
+            return plan.Error;
+        }
+
+        // The final file path must also pass the gate, not just the destination folder's root.
+        if (!mutationGate.Evaluate(new SourceMutationRequest
+        {
+            Source = FileSourceMutationPolicyFactory.Create(library, destination),
+            Mutation = SourceMutationKind.UseAsDestination,
+            Path = plan.TargetPath,
+        }).Allowed)
+        {
+            return ApiErrors.BadRequest($"Library '{library.Name}' cannot receive this file in its destination folder.");
+        }
+
+        Directory.CreateDirectory(plan.TargetDirectory);
+
+        if (!UploadSafety.HasRequiredFreeSpace(plan.TargetDirectory, file.Length, opts.Value.UploadFreeSpaceBufferBytes))
+        {
+            return Results.Problem(
+                title: "Insufficient disk space",
+                detail: "The destination drive does not have enough free space for this upload and the configured safety buffer.",
+                statusCode: StatusCodes.Status507InsufficientStorage);
+        }
+
+        var tempPath = Path.Combine(
+            plan.TargetDirectory,
+            $".{Path.GetFileNameWithoutExtension(plan.SafeFileName)}.{Guid.NewGuid():N}.uploading");
+
+        try
+        {
+            await using (var stream = new FileStream(
+                tempPath,
+                FileMode.CreateNew,
+                FileAccess.Write,
+                FileShare.None,
+                bufferSize: 1024 * 1024,
+                useAsync: true))
+            {
+                await file.CopyToAsync(stream, ct);
+            }
+
+            await UploadSafety.FinalizeUploadAsync(
+                tempPath,
+                plan.TargetPath,
+                async (uploadedPath, indexCt) =>
+                {
+                    await engine.EnqueueIntakeAsync(new IntakeFileRequest
+                    {
+                        Path = uploadedPath,
+                        SourceKind = IntakeSourceKinds.BrowserUpload,
+                        SourceId = destination.Id,
+                        DestinationLibraryId = library.Id,
+                    }, indexCt);
+                },
+                ct);
+        }
+        catch
+        {
+            TryDeleteTempUpload(tempPath);
+            TryDeleteTempUpload(plan.TargetPath);
+            throw;
+        }
+
+        return Results.Ok(new UploadMediaResponse(
+            plan.TargetPath,
+            plan.CanonicalMediaType,
+            library.Id));
     }
 
     private static bool LibraryAcceptsMediaType(
