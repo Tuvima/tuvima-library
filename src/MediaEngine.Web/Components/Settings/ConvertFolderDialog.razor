@@ -31,7 +31,7 @@
                     <li><strong>@Count(_preview.AlreadyCorrect)</strong> already correct</li>
                     <li><strong>@Count(_preview.DuplicatesToRemove)</strong> exact duplicate copies to remove</li>
                     <li><strong>@Count(_preview.NeedsReview + _preview.NameCollisions)</strong> will need Review</li>
-                    <li><strong>@Count(_preview.Skipped)</strong> left as they are</li>
+                    <li><strong>@Count(_preview.Skipped)</strong> not renamed yet</li>
                 </ul>
                 @if (_preview.SkipReasons.Count > 0)
                 {

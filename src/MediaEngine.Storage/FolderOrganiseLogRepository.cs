@@ -87,13 +87,16 @@ public sealed class FolderOrganiseLogRepository : IFolderOrganiseLogRepository
         ct.ThrowIfCancellationRequested();
         using var conn = _db.CreateConnection();
         var rows = conn.Query<PathPair>(
-            "SELECT old_path AS OldPath, new_path AS NewPath FROM folder_organise_log WHERE operation_id = @operationId AND outcome <> @moving;",
+            "SELECT old_path AS OldPath, new_path AS NewPath, outcome AS Outcome FROM folder_organise_log WHERE operation_id = @operationId AND outcome <> @moving;",
             new { operationId, moving = FolderOrganiseOutcomes.Moving });
-        var paths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var paths = new HashSet<string>(OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal);
         foreach (var pair in rows)
         {
             paths.Add(pair.OldPath);
-            if (!string.IsNullOrEmpty(pair.NewPath))
+            // A new path counts only when the job itself put a file there. A removed duplicate's "new path" is the copy that
+            // stayed, which still has to be looked at.
+            if (!string.IsNullOrEmpty(pair.NewPath)
+                && pair.Outcome is FolderOrganiseOutcomes.Moved or FolderOrganiseOutcomes.MovedWithUniqueName)
             {
                 paths.Add(pair.NewPath);
             }
@@ -146,6 +149,7 @@ public sealed class FolderOrganiseLogRepository : IFolderOrganiseLogRepository
     {
         public string OldPath { get; set; } = string.Empty;
         public string NewPath { get; set; } = string.Empty;
+        public string Outcome { get; set; } = string.Empty;
     }
 
     private sealed class Row

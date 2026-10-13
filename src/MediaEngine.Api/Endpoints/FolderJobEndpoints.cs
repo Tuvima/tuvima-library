@@ -126,7 +126,11 @@ public static class FolderJobEndpoints
         {
             try
             {
-                await jobs.GetAsync(operationId, ct);
+                if (await jobs.GetAsync(operationId, ct) is null)
+                {
+                    return ApiErrors.NotFound("That folder job was not found.");
+                }
+
                 context.Response.ContentType = "text/csv; charset=utf-8";
                 context.Response.Headers.ContentDisposition = $"attachment; filename=\"folder-job-{operationId:N}.csv\"";
                 await jobs.WriteLogCsvAsync(operationId, context.Response.Body, ct);

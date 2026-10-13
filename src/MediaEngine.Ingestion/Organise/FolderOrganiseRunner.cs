@@ -122,6 +122,12 @@ public sealed class FolderOrganiseRunner
         var context = Resolve(job, out var unavailable);
         if (context is null)
         {
+            // Moves already made are still recorded, even though nothing more may be changed on disk.
+            foreach (var unfinished in await _ledger.ListUnfinishedAsync(job.OperationId, ct).ConfigureAwait(false))
+            {
+                await _organiser.RecoverPathOnlyAsync(unfinished, ct).ConfigureAwait(false);
+            }
+
             return new FolderOrganiseRunResult
             {
                 Stop = unavailable == FolderConversionUnavailable.NotManaged
@@ -277,7 +283,7 @@ public sealed class FolderOrganiseRunner
     private async Task<IReadOnlyDictionary<string, MediaAssetFileRef>> CataloguedByPathAsync(
         FolderConversionContext context, CancellationToken ct)
     {
-        var map = new Dictionary<string, MediaAssetFileRef>(StringComparer.OrdinalIgnoreCase);
+        var map = new Dictionary<string, MediaAssetFileRef>(PathSafety.Comparer);
         foreach (var file in await _assets.ListFilesUnderAsync(context.SourceRoot, ct).ConfigureAwait(false))
         {
             map.TryAdd(Path.GetFullPath(file.FilePath), file);

@@ -44,14 +44,23 @@ public sealed class SidecarMover
         string oldMediaPath,
         string newMediaPath,
         Func<string, string, bool> mayMove,
-        Func<string, bool>? mayDelete = null)
+        Func<string, bool>? mayDelete = null,
+        bool includeArtwork = false)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(oldMediaPath);
         ArgumentException.ThrowIfNullOrWhiteSpace(newMediaPath);
         ArgumentNullException.ThrowIfNull(mayMove);
 
         var results = new List<SidecarMoveResult>();
-        foreach (var sidecar in SidecarFiles.Find(oldMediaPath, MediaExtensions))
+        var candidates = SidecarFiles.Find(oldMediaPath, MediaExtensions).ToList();
+        if (includeArtwork)
+        {
+            // Folder-wide files (cover.jpg, metadata.json) travel only once the last media file has left the old folder.
+            var oldFolder = Path.GetDirectoryName(oldMediaPath)!;
+            candidates.AddRange(SidecarFiles.FindArtwork(oldMediaPath, MediaExtensions, includeFolderLevel: !HasMediaLeft(oldFolder)));
+        }
+
+        foreach (var sidecar in candidates)
         {
             var target = SidecarFiles.DestinationFor(sidecar, newMediaPath);
             if (string.Equals(sidecar.Path, target, StringComparison.Ordinal))
@@ -93,6 +102,20 @@ public sealed class SidecarMover
         }
 
         return results;
+    }
+
+    private bool HasMediaLeft(string folder)
+    {
+        try
+        {
+            return Directory.EnumerateFiles(folder).Any(file => MediaExtensions.Contains(Path.GetExtension(file)));
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            // If the folder cannot be read, assume files are still there so nothing shared is moved.
+            _ = ex;
+            return true;
+        }
     }
 
     private SidecarMoveResult MeetExisting(SidecarFiles.Sidecar sidecar, string target, Func<string, bool>? mayDelete)

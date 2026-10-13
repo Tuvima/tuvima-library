@@ -23,7 +23,8 @@ public static class SidecarFiles
     /// <summary>One file that moves with a media file.</summary>
     /// <param name="Path">Where the sidecar is now.</param>
     /// <param name="Remainder">Everything after the media file's base name, for example <c>.en.forced.srt</c>.</param>
-    public sealed record Sidecar(string Path, string Remainder)
+    /// <param name="KeepName">True for a file that keeps its own name in the new folder (a folder-level cover or poster).</param>
+    public sealed record Sidecar(string Path, string Remainder, bool KeepName = false)
     {
         /// <summary>True for a playlist whose lines may name the media file.</summary>
         public bool IsPlaylist => Remainder.EndsWith(".m3u", StringComparison.OrdinalIgnoreCase)
@@ -102,6 +103,91 @@ public static class SidecarFiles
         return found;
     }
 
+    private static readonly string[] ArtKinds = ["poster", "fanart", "logo"];
+
+    private static readonly IReadOnlySet<string> ArtworkExtensions = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+    {
+        ".jpg", ".jpeg", ".png", ".webp",
+    };
+
+    /// <summary>File names that describe a whole folder rather than one media file.</summary>
+    private static readonly IReadOnlySet<string> FolderLevelNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+    {
+        "poster.jpg", "poster.png", "poster-thumb.jpg", "fanart.jpg", "fanart.png", "logo.png", "logo.jpg",
+        "cover.jpg", "cover.jpeg", "cover.png", "metadata.json", "metadata.opf",
+    };
+
+    /// <summary>
+    /// Artwork that belongs to a media file but is not named like a sidecar: <c>Name-poster.jpg</c>, <c>Name-fanart-1.jpg</c>,
+    /// <c>Name-logo.png</c>. When <paramref name="includeFolderLevel"/> is true (nothing else is left in the folder) the files
+    /// that describe the whole folder (<c>poster.jpg</c>, <c>cover.jpg</c>, <c>metadata.json</c>...) come too, keeping their names.
+    /// </summary>
+    public static IReadOnlyList<Sidecar> FindArtwork(string mediaPath, IReadOnlySet<string> mediaExtensions, bool includeFolderLevel)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(mediaPath);
+        ArgumentNullException.ThrowIfNull(mediaExtensions);
+
+        var folder = System.IO.Path.GetDirectoryName(mediaPath);
+        var stem = System.IO.Path.GetFileNameWithoutExtension(mediaPath);
+        if (string.IsNullOrEmpty(folder) || string.IsNullOrEmpty(stem) || !Directory.Exists(folder))
+        {
+            return [];
+        }
+
+        string[] siblings;
+        try
+        {
+            siblings = Directory.GetFiles(folder);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            // A folder that cannot be listed has nothing to move.
+            _ = ex;
+            return [];
+        }
+
+        var longerStems = siblings
+            .Where(path => mediaExtensions.Contains(System.IO.Path.GetExtension(path)) && !PathsEqual(path, mediaPath))
+            .Select(path => System.IO.Path.GetFileNameWithoutExtension(path))
+            .Where(other => other.Length > stem.Length
+                && other.StartsWith(stem, StringComparison.OrdinalIgnoreCase)
+                && (other[stem.Length] is '.' or '-' or ' '))
+            .ToList();
+
+        var found = new List<Sidecar>();
+        foreach (var path in siblings.OrderBy(path => path, StringComparer.OrdinalIgnoreCase))
+        {
+            var name = System.IO.Path.GetFileName(path);
+            if (includeFolderLevel && FolderLevelNames.Contains(name))
+            {
+                found.Add(new Sidecar(path, name, KeepName: true));
+                continue;
+            }
+
+            var prefix = stem + "-";
+            if (!name.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)
+                || !ArtworkExtensions.Contains(System.IO.Path.GetExtension(name)))
+            {
+                continue;
+            }
+
+            var rest = name[prefix.Length..];
+            if (!ArtKinds.Any(kind => rest.StartsWith(kind, StringComparison.OrdinalIgnoreCase)))
+            {
+                continue;
+            }
+
+            if (longerStems.Any(other => name.StartsWith(other + "-", StringComparison.OrdinalIgnoreCase)))
+            {
+                continue;
+            }
+
+            found.Add(new Sidecar(path, name[stem.Length..]));
+        }
+
+        return found;
+    }
+
     /// <summary>Where a sidecar goes once its media file has moved: the new base name plus the same remainder.</summary>
     public static string DestinationFor(Sidecar sidecar, string newMediaPath)
     {
@@ -109,6 +195,11 @@ public static class SidecarFiles
         ArgumentException.ThrowIfNullOrWhiteSpace(newMediaPath);
 
         var folder = System.IO.Path.GetDirectoryName(newMediaPath) ?? string.Empty;
+        if (sidecar.KeepName)
+        {
+            return System.IO.Path.Combine(folder, System.IO.Path.GetFileName(sidecar.Path));
+        }
+
         var newStem = System.IO.Path.GetFileNameWithoutExtension(newMediaPath);
         return System.IO.Path.Combine(folder, newStem + sidecar.Remainder);
     }

@@ -273,16 +273,12 @@ public sealed class FolderConversionOrganiser
             try
             {
                 Directory.CreateDirectory(Path.GetDirectoryName(target)!);
-                if (string.Equals(current, target, StringComparison.OrdinalIgnoreCase))
-                {
-                    RenameCaseOnly(current, target);
-                }
-                else
-                {
-                    _mover.Move(current, target);
-                }
+                // A name that differs only in letter case is one rename on every drive (it is the same file).
+                _mover.Move(current, target);
             }
-            catch (IOException ex) when (File.Exists(target) && attempt < NameRaceAttempts)
+            catch (IOException ex) when (File.Exists(target)
+                && !string.Equals(current, target, StringComparison.OrdinalIgnoreCase)
+                && attempt < NameRaceAttempts)
             {
                 // Someone took the name a moment ago: pick the next free numbered name and try again.
                 _logger.LogDebug(ex, "The name {Target} was taken; choosing another for {Current}", target, current);
@@ -387,6 +383,31 @@ public sealed class FolderConversionOrganiser
         return await FinishAsync(
             context, current, kept, FolderOrganiseOutcomes.DuplicateRemoved,
             "An exact copy was already at the standard name, so this copy was removed.", ct).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Settles the data store for moves a stopped job did make, when the folder is no longer Managed so nothing more may be
+    /// changed on disk: a file already at its new name gets its path updated and its ledger line closed; anything else is left.
+    /// </summary>
+    public async Task RecoverPathOnlyAsync(FolderOrganiseLogEntry entry, CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(entry);
+        if (File.Exists(entry.OldPath) || string.IsNullOrEmpty(entry.NewPath) || !File.Exists(entry.NewPath))
+        {
+            return;
+        }
+
+        var asset = await _assets.FindByPathRootAsync(entry.OldPath, ct).ConfigureAwait(false);
+        if (asset is not null)
+        {
+            await _assets.UpdateFilePathAsync(asset.Id, entry.NewPath, ct).ConfigureAwait(false);
+        }
+
+        await _ledger.UpsertAsync(
+            new FolderOrganiseLogEntry(
+                entry.OperationId, entry.SourceId, entry.OldPath, entry.NewPath, FolderOrganiseOutcomes.Moved,
+                DateTimeOffset.UtcNow, "Finished after the folder was switched to As-is; nothing else was changed."),
+            ct).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -516,7 +537,9 @@ public sealed class FolderConversionOrganiser
                 return await FinishAsync(context, full, full, FolderOrganiseOutcomes.NotMoved, denied, ct).ConfigureAwait(false);
             }
 
-            if (!File.Exists(kept) || new FileInfo(kept).Length != new FileInfo(full).Length)
+            if (!File.Exists(kept)
+                || new FileInfo(kept).Length != new FileInfo(full).Length
+                || !string.Equals(await HashAsync(kept, ct).ConfigureAwait(false), await HashAsync(full, ct).ConfigureAwait(false), StringComparison.OrdinalIgnoreCase))
             {
                 return await FinishAsync(context, full, full, FolderOrganiseOutcomes.NotMoved,
                     "The copy that should stay could not be confirmed, so nothing was removed.", ct).ConfigureAwait(false);
@@ -599,9 +622,9 @@ public sealed class FolderConversionOrganiser
                 return false;
             }
 
-            var mine = string.IsNullOrWhiteSpace(file.ContentHash)
-                ? await HashAsync(current, ct).ConfigureAwait(false)
-                : file.ContentHash;
+            // Both are read fresh (the cache only answers for a file whose size and time are unchanged): a file edited outside
+            // Tuvima must never be removed because of an old stored fingerprint.
+            var mine = await HashAsync(current, ct).ConfigureAwait(false);
             var theirs = await HashAsync(other, ct).ConfigureAwait(false);
             return string.Equals(mine, theirs, StringComparison.OrdinalIgnoreCase);
         }
@@ -630,23 +653,6 @@ public sealed class FolderConversionOrganiser
         }
 
         return result.Hex;
-    }
-
-    private static void RenameCaseOnly(string current, string target)
-    {
-        // A name that differs only in letter case cannot be renamed in one step on a case-insensitive drive.
-        var temporary = Path.Combine(Path.GetDirectoryName(current)!, $".{Guid.NewGuid():N}.rename");
-        File.Move(current, temporary, overwrite: false);
-        try
-        {
-            File.Move(temporary, target, overwrite: false);
-        }
-        catch
-        {
-            // Put it back under its old name rather than leaving it under a temporary one.
-            File.Move(temporary, current, overwrite: false);
-            throw;
-        }
     }
 
     private Task WriteLedgerAsync(
@@ -709,21 +715,15 @@ public sealed class FolderConversionOrganiser
     private async Task MoveCompanionsAsync(
         string oldPath, string newPath, FolderConversionContext context, CancellationToken ct, bool mayDropIdentical = false)
     {
-        try
-        {
-            _auto.MoveCompanionFiles(oldPath, newPath);
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-        {
-            _logger.LogDebug(ex, "Could not move the artwork beside {Path}", oldPath);
-        }
-
+        // Artwork goes through the same careful mover as sidecars: nothing is overwritten, nothing is removed unless it is a
+        // byte-identical copy of a file already there, and every move is in the ledger.
         var results = _sidecars.Move(
             oldPath,
             newPath,
             mayMove: (from, to) => Deny(context, IsSameFolder(from, to) ? SourceMutationKind.Rename : SourceMutationKind.Move, from) is null
                 && Deny(context, IsSameFolder(from, to) ? SourceMutationKind.Rename : SourceMutationKind.Move, to) is null,
-            mayDelete: mayDropIdentical ? from => Deny(context, SourceMutationKind.Delete, from, deleting: true) is null : null);
+            mayDelete: mayDropIdentical ? from => Deny(context, SourceMutationKind.Delete, from, deleting: true) is null : null,
+            includeArtwork: true);
         foreach (var result in results)
         {
             await WriteLedgerAsync(context, result.From, result.To, result.Outcome, result.Detail, ct).ConfigureAwait(false);

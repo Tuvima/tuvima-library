@@ -956,7 +956,7 @@
 
     private void EnsurePolling()
     {
-        if (_polling || Embedded) return;
+        if (_polling || _disposed || Embedded) return;
         _polling = true;
         _pollCancellation = new CancellationTokenSource();
         _ = PollJobsAsync(_pollCancellation.Token);
@@ -1002,8 +1002,11 @@
         if (request.Action == "cancel") await ReloadConfigurationAsync();
     }
 
+    private bool _disposed;
+
     public void Dispose()
     {
+        _disposed = true;
         _pollCancellation?.Cancel();
         _pollCancellation?.Dispose();
     }

@@ -1,4 +1,5 @@
 .folder-table {
+    container: folder-table / inline-size;
     border: 1px solid var(--tl-border-subtle);
     border-radius: var(--app-radius-md, 8px);
     overflow: hidden;
@@ -68,6 +69,39 @@
 }
 
 @media (max-width: 840px) {
+    .folder-table__head {
+        display: none;
+    }
+
+    .folder-table__row {
+        grid-template-columns: auto 1fr auto;
+        grid-template-areas:
+            "folder folder actions"
+            "handling marker marker"
+            "files files files";
+        row-gap: 8px;
+        padding: 12px;
+    }
+
+    .folder-table__folder { grid-area: folder; }
+    .folder-table__handling { grid-area: handling; }
+    .folder-table__marker { grid-area: marker; }
+    .folder-table__files { grid-area: files; display: none; }
+    .folder-table__actions { grid-area: actions; }
+
+    .folder-table__row.is-expanded .folder-table__files { display: block; }
+
+    .folder-table__path {
+        white-space: normal;
+        overflow-wrap: anywhere;
+    }
+
+    /* Only the folder that holds the marker shows a chip on a phone; the actions menu moves it. */
+    .folder-table__marker:not(.is-marked) { display: none; }
+}
+
+/* The table sits beside the list of media types, so it can be narrow on a wide screen: switch to cards by the table's own width too. */
+@container folder-table (max-width: 860px) {
     .folder-table__head {
         display: none;
     }

@@ -324,6 +324,14 @@ public sealed class FolderJobService
     /// <summary>A conversion is over (finished, cancelled or failed): the folder is simply Managed from here on.</summary>
     public async Task FinishConversionAsync(Guid sourceId, Guid operationId, CancellationToken ct)
     {
+        // Only a job that is over settles its folder. A job that has not even been created yet (a settings save in the middle
+        // of starting one) must not flip the folder to converted early.
+        var job = await _operations.GetByIdAsync(operationId, ct).ConfigureAwait(false);
+        if (job is not null && !IsFinished(job.Status))
+        {
+            return;
+        }
+
         await LibraryMutationEndpoints.WriteGate.WaitAsync(ct).ConfigureAwait(false);
         try
         {

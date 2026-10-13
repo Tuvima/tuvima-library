@@ -726,7 +726,7 @@ public sealed class AutoOrganizeService : IAutoOrganizeService
         }
     }
 
-    internal void MoveCompanionFiles(string oldMediaPath, string newMediaPath, ImportDestination? importDestination = null)
+    private void MoveCompanionFiles(string oldMediaPath, string newMediaPath, ImportDestination? importDestination = null)
     {
         if (string.IsNullOrWhiteSpace(oldMediaPath) || string.IsNullOrWhiteSpace(newMediaPath))
         {
@@ -932,7 +932,7 @@ public sealed class AutoOrganizeService : IAutoOrganizeService
         catch { /* best-effort cleanup */ }
     }
 
-    internal void CleanEmptyParents(string folder, string stopAt)
+    private void CleanEmptyParents(string folder, string stopAt)
     {
         try
         {

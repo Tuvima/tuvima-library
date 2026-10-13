@@ -156,14 +156,14 @@ public sealed class FolderConversionPreviewer
         }
 
         var disk = FolderMediaEnumerator.Enumerate(context.SourceRoot, context.Source.IncludeSubdirectories, MediaExtensions, ct: ct);
-        var catalogued = new Dictionary<string, MediaAssetFileRef>(StringComparer.OrdinalIgnoreCase);
+        var catalogued = new Dictionary<string, MediaAssetFileRef>(PathSafety.Comparer);
         foreach (var file in await _assets.ListFilesUnderAsync(context.SourceRoot, ct).ConfigureAwait(false))
         {
             catalogued.TryAdd(Path.GetFullPath(file.FilePath), file);
         }
 
         var examine = fileLimit > 0 ? disk.Take(fileLimit).ToList() : disk;
-        var planned = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var planned = new HashSet<string>(PathSafety.Comparer);
         var samples = new List<FolderConversionSample>();
         var skips = new Dictionary<string, int>(StringComparer.Ordinal);
         int toRename = 0, alreadyCorrect = 0, duplicates = 0, needsReview = 0, collisions = 0, skipped = 0;

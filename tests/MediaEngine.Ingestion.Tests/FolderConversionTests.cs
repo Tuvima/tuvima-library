@@ -508,6 +508,122 @@ public sealed class FolderConversionTests : IDisposable
         Assert.Equal(5, sample.ToRename);
     }
 
+    // ── Found in review: shared artwork, resume after a duplicate, stale fingerprints, case-only names ───────────
+
+    [Fact]
+    public async Task A_folder_wide_cover_moves_with_the_last_file_and_a_different_cover_is_never_deleted()
+    {
+        var h = NewHarness();
+        var first = h.Write(Path.Combine("CD1", "dune.mkv"), "first cut");
+        h.Write(Path.Combine("CD1", "cover.jpg"), "cover one");
+        var second = h.Write(Path.Combine("CD2", "dune extended.mkv"), "second cut, longer");
+        h.Write(Path.Combine("CD2", "cover.jpg"), "cover two");
+        await h.RegisterAsync(first, "Dune", "2021");
+        await h.RegisterAsync(second, "Dune", "2021");
+
+        var result = await h.RunAsync();
+
+        Assert.Equal(0, result.Failed);
+        var files = h.Files().ToList();
+        // The first folder's cover travelled with its film; the second cover differs, so it stayed where it was.
+        Assert.Equal("cover one", File.ReadAllText(Path.Combine(h.SourceDir, "Movies", "Dune (2021)", "cover.jpg")));
+        Assert.Equal("cover two", File.ReadAllText(Path.Combine(h.SourceDir, "CD2", "cover.jpg")));
+        Assert.Equal(4, files.Count);
+        var left = await h.Ledger.GetAsync(h.OperationId, Path.Combine(h.SourceDir, "CD2", "cover.jpg"));
+        Assert.Equal(FolderOrganiseOutcomes.NotMoved, left!.Outcome);
+    }
+
+    [Fact]
+    public async Task Per_file_artwork_follows_its_film_and_every_move_is_in_the_ledger()
+    {
+        var h = NewHarness();
+        var film = h.Write("Dune.2021.mkv", "dune");
+        h.Write("Dune.2021-poster.jpg", "poster");
+        h.Write("Dune.2021-fanart-1.jpg", "fanart");
+        await h.RegisterAsync(film, "Dune", "2021");
+
+        await h.RunAsync();
+
+        Assert.Equal(
+            ["Movies/Dune (2021)/Dune (2021)-fanart-1.jpg", "Movies/Dune (2021)/Dune (2021)-poster.jpg", Standard("Dune", "2021")],
+            h.Files());
+        Assert.Equal(2, (await h.Ledger.CountByOutcomeAsync(h.OperationId))[FolderOrganiseOutcomes.SidecarMoved]);
+    }
+
+    [Fact]
+    public async Task Pausing_after_a_duplicate_was_removed_still_renames_the_copy_that_stayed()
+    {
+        var h = NewHarness();
+        var kept = h.Write("Dune.2021.mkv", "same bytes");
+        h.Write(Path.Combine("a backup", "Dune copy.mkv"), "same bytes");
+        await h.RegisterAsync(kept, "Dune", "2021");
+
+        // "a backup/Dune copy.mkv" sorts first: it is removed as a copy, then the person pauses.
+        var paused = await h.RunAsync(new TestHost { Signal = asked => asked >= 1 ? FolderJobSignal.Pause : FolderJobSignal.Continue });
+        Assert.Equal(FolderOrganiseStop.Paused, paused.Stop);
+        Assert.Equal(["Dune.2021.mkv"], h.Files());
+
+        var resumed = await h.RunAsync();
+
+        Assert.Equal(FolderOrganiseStop.Finished, resumed.Stop);
+        Assert.Equal([Standard("Dune", "2021")], h.Files());
+    }
+
+    [Fact]
+    public async Task A_file_edited_outside_Tuvima_is_never_removed_because_of_an_old_fingerprint()
+    {
+        var h = NewHarness();
+        var edited = h.Write("raw.mkv", "aaaa");
+        await h.RegisterAsync(edited, "Dune", "2021");
+        // Someone changes the file in place (same length), and a different file sits at the standard name.
+        File.WriteAllText(edited, "bbbb");
+        h.Write(Standard("Dune", "2021"), "aaaa");
+
+        await h.RunAsync();
+
+        Assert.Equal(2, h.Files().Count());
+        Assert.Contains("bbbb", Directory.EnumerateFiles(h.SourceDir, "*", SearchOption.AllDirectories).Select(File.ReadAllText));
+        Assert.Contains("aaaa", Directory.EnumerateFiles(h.SourceDir, "*", SearchOption.AllDirectories).Select(File.ReadAllText));
+    }
+
+    [Fact]
+    public async Task A_name_that_differs_only_in_letter_case_is_renamed_in_one_step_on_Windows()
+    {
+        if (!OperatingSystem.IsWindows())
+        {
+            return; // On other systems a different letter case is a different name, so this is an ordinary move.
+        }
+
+        var h = NewHarness();
+        var path = h.Write(Path.Combine("Movies", "Dune (2021)", "dune (2021).mkv"), "dune");
+        await h.RegisterAsync(path, "Dune", "2021");
+
+        var result = await h.RunAsync();
+
+        Assert.Equal(0, result.Failed);
+        Assert.Equal("Dune (2021).mkv", Path.GetFileName(Directory.EnumerateFiles(Path.Combine(h.SourceDir, "Movies", "Dune (2021)")).Single()));
+    }
+
+    [Fact]
+    public async Task A_move_finished_on_disk_is_recorded_even_when_the_folder_is_switched_to_As_is_before_restart()
+    {
+        var h = NewHarness();
+        var path = h.Write("raw.mkv", "dune");
+        var id = await h.RegisterAsync(path, "Dune", "2021");
+        h.Mover.AfterMove = (_, _) => throw new SimulatedCrashException();
+        await Assert.ThrowsAsync<SimulatedCrashException>(() => h.RunAsync());
+
+        h.Mover.AfterMove = null;
+        h.SetManaged(false);
+        var result = await h.RunAsync();
+
+        Assert.Equal(FolderOrganiseStop.SourceNotManaged, result.Stop);
+        var asset = await h.Assets.FindByIdAsync(id);
+        Assert.True(File.Exists(asset!.FilePathRoot));
+        Assert.Equal(Path.Combine(h.SourceDir, "Movies", "Dune (2021)", "Dune (2021).mkv"), asset.FilePathRoot);
+        Assert.Empty(await h.Ledger.ListUnfinishedAsync(h.OperationId));
+    }
+
     // ── The time estimate ────────────────────────────────────────────────────────────────────────────────────────
 
     [Fact]
