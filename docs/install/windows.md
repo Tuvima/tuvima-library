@@ -85,7 +85,7 @@ The script publishes self-contained `win-x64` apps and writes `dist\TuvimaLibrar
 
 Every new install starts on **Home network**: phones, TVs and computers on your Wi-Fi can reach the Dashboard, and nothing from the internet can. **Anywhere** is always your choice under **Settings → Network**. First-run setup needs no code from this computer or your home network; it is never available from the internet. Installs that already exist keep the setting they saved. On Docker, a visitor who reaches Tuvima through Docker's own bridge address is treated as outside the home network unless you list that address under `auth.trusted_local_networks`; setups where devices keep their real LAN addresses (host or macvlan/br0 networking) are unaffected.
 
-- Opening `/setup` from this computer or any device on your home network needs no code. You can start with just a name and an email, using **Start without a password**. That account works on your home network only, and never from the internet, until you add a password under **Settings → Account → Security**.
+- Opening `/setup` from this computer or any device on your home network needs no code. You can start with just a name and an email, using **Start without a password**. That account works on your home network only, and never from the internet, until you add a password under **Settings → Security**.
 - Setup is never available over the internet. Visitors from outside see "Setup has to be finished from your home network."
 - Once the administrator exists, setup closes for good.
 

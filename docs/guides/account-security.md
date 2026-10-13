@@ -29,7 +29,7 @@ An invitation is a short code such as `KQ7M4-XH2TA` (ten letters and digits; the
 
 The person opens the link (or opens `/auth/invite` and types the code), sees their email, and chooses a password. Each invitation works once. Its lifetime comes from **Users & Access → Authentication**; the default is seven days. A wrong or expired code gets the same plain answer, and repeated wrong codes from outside the home are slowed down.
 
-This page sets a password only; passkeys can be added afterwards in **Settings → Account → Security**.
+This page sets a password only; passkeys can be added afterwards in **Settings → Security → Extra protection**.
 
 ### Temporary password
 
@@ -67,7 +67,7 @@ The PIN lock protects settings after sign-in. It is separate from the account pa
 
 ## Manage your sign-in methods
 
-Open **Settings → Account → Security** to change your password, replace recovery codes, manage passkeys, connect external providers, or revoke device sessions.
+Open **Settings → Security**. **Password** changes your password. Once you have a password, **Extra protection** opens one sheet for passkeys, two-step codes, linked sign-ins and recovery codes. Administrators also see **Sign out everywhere else** and **Devices** under *Access*.
 
 Password resets revoke existing sessions. Tuvima prevents removal of the final usable authenticator.
 
@@ -75,7 +75,7 @@ Passkeys need a secure browser origin. Development on `localhost` is allowed; ot
 
 ## Secure a this-computer account
 
-If you started Tuvima on your desktop without a password, **Settings → Account → Security** shows a **Secure your account** card. Enter a password (at least 12 characters) and confirm it. You get a new set of recovery codes, and the account becomes a normal one: it can sign in from other devices once **Who can connect** allows it. You can add a passkey afterwards. Until you do this, Tuvima will not let you open the door wider than *This computer*. (Installs that start with a password begin on *Home network* instead.)
+If you started Tuvima on your desktop without a password, open **Settings → Security → Password**, which shows **Secure your account**. Enter a password (at least 12 characters) and confirm it. You get a new set of recovery codes, and the account becomes a normal one: it can sign in from other devices once **Who can connect** allows it. You can add a passkey afterwards. Until you do this, Tuvima will not let you open the door wider than *This computer*. (Installs that start with a password begin on *Home network* instead.)
 
 ## Confirm it's you
 
@@ -83,7 +83,7 @@ Changing your password, adding or removing a passkey, linking or unlinking a pro
 
 ## Two-step codes (optional)
 
-Two-step codes add a second check to password sign-in. You turn them on yourself in **Settings → Account → Security → Two-step codes**: after confirming it's you, scan the picture with an authenticator app (or type the key it shows), enter the 6-digit code the app gives you, and save the new recovery codes that appear. From then on, signing in with your password also asks for **the 6-digit code from your authenticator app**. If your phone is lost, choose **Use a recovery code instead**; each recovery code works once.
+Two-step codes add a second check to password sign-in. You turn them on yourself in **Settings → Security → Extra protection → Two-step codes**: after confirming it's you, scan the picture with an authenticator app (or type the key it shows), enter the 6-digit code the app gives you, and save the new recovery codes that appear. From then on, signing in with your password also asks for **the 6-digit code from your authenticator app**. If your phone is lost, choose **Use a recovery code instead**; each recovery code works once.
 
 - Passkey and **Sign in with…** sign-ins never ask for a code. They are already a second kind of proof.
 - **Confirm it's you** also asks for the code while two-step is on.

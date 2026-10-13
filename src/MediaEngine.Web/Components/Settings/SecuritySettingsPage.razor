@@ -1,0 +1,670 @@
+@namespace MediaEngine.Web.Components.Settings
+@using MediaEngine.Contracts.Authentication
+@using MediaEngine.Web.Services.Integration
+@using Microsoft.AspNetCore.Components.Authorization
+@inject DashboardIdentityClient Identity
+@inject DashboardSessionAccessor Session
+@inject IReadOnlyList<RegisteredExternalAuthProvider> ExternalProviders
+@inject IJSRuntime JS
+@inject IAppToastService Snackbar
+@inject IAppDialogService DialogService
+@inject ConfirmedActionRunner Confirmed
+@inject AuthenticationStateProvider AuthenticationState
+@inject NavigationManager Navigation
+@implements IAsyncDisposable
+
+@* Settings > Security: two short row lists. Each row opens a sheet (a bottom sheet on phones, a dialog on larger screens)
+   that holds the forms. Most people only see Password and Email. *@
+<div class="tl-page security-settings" aria-busy="@_accountLoading">
+    @if (_accountLoading)
+    {
+        <div class="security-settings__content" aria-label="Loading account security">
+            <AppSkeleton Height="112px" />
+            <AppSkeleton Height="170px" />
+        </div>
+    }
+    else if (_account is null)
+    {
+        <AppPageState Kind="AppPageStateKind.Error"
+                      Icon="@AppMaterialIcons.Outlined.CloudOff"
+                      Title="Account security is unavailable"
+                      Message="Tuvima Library could not load your account identity. Your security settings have not been changed." />
+    }
+    else
+    {
+        <div class="security-settings__content">
+            <section class="security-settings__group" aria-labelledby="security-account-details">
+                <h3 id="security-account-details" class="security-settings__group-title">Account details</h3>
+                <ul class="security-settings__list" role="list">
+                    <li class="security-settings__item">
+                        <SettingsNavRow Key="password" Icon="@AppMaterialIcons.Outlined.Password" Title="Password" Status="@PasswordStatus" OnClick="@(() => OpenSheet(SecuritySheet.Password))" />
+                    </li>
+                    <li class="security-settings__item">
+                        <SettingsNavRow Key="email" Icon="@AppMaterialIcons.Outlined.Mail" Title="Email" Status="@EmailStatus" OnClick="@(() => OpenSheet(SecuritySheet.Email))" />
+                    </li>
+                    @if (Capabilities.HasPassword)
+                    {
+                        <li class="security-settings__item">
+                            <SettingsNavRow Key="extra-protection" Icon="@AppMaterialIcons.Outlined.Security" Title="Extra protection" Status="@ExtraProtectionStatus" OnClick="@(() => OpenSheet(SecuritySheet.ExtraProtection))" />
+                        </li>
+                    }
+                </ul>
+            </section>
+
+            @* Signing out other sessions and revoking paired devices stay available to every member: they protect a lost or stolen device. *@
+            <section class="security-settings__group" aria-labelledby="security-access">
+                <h3 id="security-access" class="security-settings__group-title">Access</h3>
+                <ul class="security-settings__list" role="list">
+                    <li class="security-settings__item">
+                        <SettingsNavRow Key="sign-out-others" Icon="@AppMaterialIcons.Outlined.Logout" Title="Sign out everywhere else" Status="@OtherSessionsStatus"
+                                        Disabled="@(!_sessionsLoading && _sessionsError is null && !OtherSessions.Any())" ShowChevron="false" OnClick="RevokeOtherSessionsAsync" />
+                    </li>
+                    @if (IsServerAdministrator)
+                    {
+                        <li class="security-settings__item">
+                            @* S13 moves devices to Administration > Devices and updates this address. *@
+                            <SettingsNavRow Key="devices" Icon="@AppMaterialIcons.Outlined.Devices" Title="Devices" Status="Paired phones and TVs, signed-in sessions" Href="/settings/network/apps" />
+                        </li>
+                    }
+                </ul>
+            </section>
+
+            @* S13 moves this to Administration > Devices; until then paired phones and TVs stay reachable here for everyone, as before. *@
+            <PairedDevicesSection />
+        </div>
+
+        @if (_sheet != SecuritySheet.None)
+        {
+            <div class="settings-sheet-backdrop" @onclick="DismissSheet">
+                <div @ref="_sheetRoot"
+                     class="settings-sheet"
+                     role="dialog"
+                     aria-modal="true"
+                     aria-labelledby="security-sheet-title"
+                     tabindex="-1"
+                     @onclick:stopPropagation="true"
+                     @onkeydown="OnSheetKeyDown">
+                    <h2 id="security-sheet-title" class="settings-sheet__title">@SheetTitle</h2>
+                    @switch (_sheet)
+                    {
+                        case SecuritySheet.Password:
+                            @PasswordSheetContent
+                            break;
+                        case SecuritySheet.Email:
+                            @EmailSheetContent
+                            break;
+                        case SecuritySheet.ExtraProtection:
+                            @ExtraProtectionSheetContent
+                            break;
+                    }
+                    <div class="security-sheet__actions">
+                        <AppButton Label="Done" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Disabled="@_busy" OnClick="CloseSheet" />
+                    </div>
+                </div>
+            </div>
+        }
+    }
+</div>
+
+@code {
+    private enum SecuritySheet { None, Password, Email, ExtraProtection }
+
+    private RenderFragment PasswordSheetContent => __builder =>
+    {
+        @if (!Capabilities.HasPassword)
+        {
+            <p>Add a password to use Tuvima on your phone, TV and other devices at home. Your library, history and favourites stay just as they are.</p>
+            <form method="post" action="/account/secure" class="security-sheet__fields">
+                <AntiforgeryToken />
+                <AppTextField T="string" @bind-Value="_securePassword" Label="Password" name="password"
+                              InputType="AppInputType.Password" autocomplete="new-password" MaxLength="128"
+                              Error="@(_securePassword.Length > 0 && !SecurePasswordValid)"
+                              ErrorText="Use at least 12 characters, and avoid common passwords or your email address."
+                              HelpText="Use at least 12 characters, and avoid common passwords or your email address." />
+                <AppTextField T="string" @bind-Value="_secureConfirm" Label="Confirm password" name="confirmPassword"
+                              InputType="AppInputType.Password" autocomplete="new-password" MaxLength="128"
+                              Error="@(_secureConfirm.Length > 0 && !SecurePasswordsMatch)"
+                              ErrorText="Passwords do not match." />
+                <div class="security-sheet__actions">
+                    <AppButton Label="Secure account" ButtonType="AppButtonType.Submit" ButtonStyle="AppButtonStyle.Filled"
+                               Tone="AppUiTone.Primary" Disabled="@(!CanSecureAccount)" />
+                </div>
+            </form>
+            <p class="security-sheet__hint">You'll get recovery codes to keep somewhere safe. This computer stays signed in.</p>
+        }
+        else
+        {
+            <p>Change your password while keeping this device signed in.</p>
+            @if (_passwordChanged)
+            {
+                <AppAlert Tone="AppUiTone.Success" aria-live="polite">
+                    Password changed successfully. Other signed-in sessions have been revoked.
+                </AppAlert>
+            }
+            <div class="security-sheet__fields">
+                <AppTextField T="string" @bind-Value="_newPassword" Label="New password"
+                              InputType="AppInputType.Password" autocomplete="new-password" MaxLength="128"
+                              Error="@(_newPassword.Length > 0 && !NewPasswordValid)"
+                              ErrorText="Use at least 12 characters, and avoid common passwords or your email address." HelpText="Use at least 12 characters, and avoid common passwords or your email address." />
+                <AppTextField T="string" @bind-Value="_confirmPassword" Label="Confirm new password"
+                              InputType="AppInputType.Password" autocomplete="new-password" MaxLength="128"
+                              Error="@(_confirmPassword.Length > 0 && !PasswordsMatch)"
+                              ErrorText="Passwords do not match." />
+                <div class="security-sheet__actions">
+                    <AppButton Label="Change password" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary"
+                               Loading="@_changingPassword" Disabled="@(!CanChangePassword)" OnClick="ChangePasswordAsync" />
+                </div>
+            </div>
+        }
+    };
+
+    private RenderFragment EmailSheetContent => __builder =>
+    {
+        <p><strong>@EmailStatus</strong></p>
+        <p class="security-sheet__hint">Ask an administrator to change it.</p>
+    };
+
+    private RenderFragment ExtraProtectionSheetContent => __builder =>
+    {
+        <section class="security-sheet__section">
+            <h3 class="security-sheet__section-title">Passkeys</h3>
+            <p class="security-sheet__hint">Use Windows Hello, Touch ID, Face ID, or a password manager for secure sign-in.</p>
+            @if (_passkeysLoading)
+            {
+                <AppSkeleton Height="72px" aria-label="Loading passkeys" />
+            }
+            else if (_passkeysError is not null)
+            {
+                <AppAlert Tone="AppUiTone.Error">@_passkeysError</AppAlert>
+            }
+            else if (_passkeys.Count == 0)
+            {
+                <AppEmptyState Class="app-page-state--compact"
+                               Title="No passkeys added yet"
+                               Message="Use a passkey to sign in securely without entering your password." />
+            }
+            else
+            {
+                <div class="security-sheet__rows">
+                    @foreach (var passkey in _passkeys)
+                    {
+                        <div class="security-sheet__row" @key="passkey.CredentialId">
+                            <div><strong>@passkey.Name</strong><span>Added @FormatDate(passkey.CreatedAt)@BackupStatus(passkey)</span></div>
+                            <AppButton Label="Remove" Size="AppControlSize.Compact" Tone="AppUiTone.Error"
+                                       Disabled="@_busy" OnClick="@(() => RemovePasskeyAsync(passkey))" />
+                        </div>
+                    }
+                </div>
+            }
+            <div class="security-sheet__actions">
+                <AppButton Label="@(_registeringPasskey ? "Waiting for device…" : "Add passkey")"
+                           StartIcon="@AppMaterialIcons.Outlined.Add" Loading="@_registeringPasskey"
+                           Disabled="@(_busy || !Capabilities.CanRegisterPasskey)"
+                           OnClick="RegisterPasskeyAsync"
+                           aria-describedby="@(!Capabilities.CanRegisterPasskey ? "passkey-unavailable" : null)" />
+            </div>
+            @if (!Capabilities.CanRegisterPasskey)
+            {
+                <p id="passkey-unavailable" class="security-sheet__hint">@PasskeyUnavailableMessage</p>
+            }
+        </section>
+
+        <section class="security-sheet__section">
+            <h3 class="security-sheet__section-title">Two-step codes</h3>
+            <p class="security-sheet__hint">After your password, ask for a 6-digit code from a free authenticator app. Passkeys and linked accounts don't ask for a code.</p>
+            @if (_twoStepSetup is { } setup)
+            {
+                <p class="security-sheet__warning">Scan this QR code with your authenticator app, then enter the 6-digit code it shows.</p>
+                <div class="invitation-qr">@((MarkupString)_twoStepQr)</div>
+                <p class="security-sheet__hint">Can't scan it? Type this key into your app: <code>@setup.Secret</code></p>
+                <AppTextField T="string" @bind-Value="_twoStepCode" Label="6-digit code" InputMode="AppInputMode.numeric"
+                              MaxLength="8" autocomplete="one-time-code" AutoFocus="true" OnKeyDown="OnTwoStepKeyDownAsync" />
+                <div class="security-sheet__actions">
+                    <AppButton Label="Turn on" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary"
+                               Loading="@_twoStepWorking" Disabled="@(_busy || string.IsNullOrWhiteSpace(_twoStepCode))"
+                               OnClick="EnableTwoStepAsync" />
+                    <AppButton Label="Cancel" Disabled="@_busy" OnClick="CancelTwoStepSetup" />
+                </div>
+            }
+            else if (TwoStepOn)
+            {
+                <p>Two-step codes are on. You'll be asked for a code each time you sign in with your password.</p>
+                @if (_twoStepTurningOff)
+                {
+                    <AppTextField T="string" @bind-Value="_twoStepDisableCode" Label="Code from your app, or a recovery code"
+                                  autocomplete="off" AutoFocus="true" OnKeyDown="OnTwoStepKeyDownAsync" />
+                    <p class="security-sheet__hint">Each code works once. If it was just used, wait for the next one in your app.</p>
+                    <div class="security-sheet__actions">
+                        <AppButton Label="Turn off" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Error"
+                                   Loading="@_twoStepWorking" Disabled="@(_busy || string.IsNullOrWhiteSpace(_twoStepDisableCode))"
+                                   OnClick="DisableTwoStepAsync" />
+                        <AppButton Label="Cancel" Disabled="@_busy" OnClick="CancelTurnOffTwoStep" />
+                    </div>
+                }
+                else
+                {
+                    <div class="security-sheet__actions">
+                        <AppButton Label="Turn off two-step codes" Tone="AppUiTone.Error"
+                                   Disabled="@_busy" OnClick="StartTurnOffTwoStepAsync" />
+                    </div>
+                }
+            }
+            else
+            {
+                <p>Two-step codes are off.</p>
+                <div class="security-sheet__actions">
+                    <AppButton Label="Turn on two-step codes" StartIcon="@AppMaterialIcons.Outlined.Add"
+                               Loading="@_twoStepWorking" Disabled="@_busy" OnClick="BeginTwoStepSetupAsync" />
+                </div>
+            }
+            @if (_twoStepRecoveryCodes.Count > 0)
+            {
+                <RecoveryCodesDisplay Codes="@_twoStepRecoveryCodes" />
+            }
+        </section>
+
+        @if (ShowLinkedAccounts)
+        {
+            <section class="security-sheet__section">
+                <h3 class="security-sheet__section-title">Linked sign-ins</h3>
+                <p class="security-sheet__hint">Use another account to sign in to Tuvima Library.</p>
+                @if (_loginsLoading)
+                {
+                    <AppSkeleton Height="88px" aria-label="Loading linked accounts" />
+                }
+                else if (_loginsError is not null)
+                {
+                    <AppAlert Tone="AppUiTone.Error">@_loginsError</AppAlert>
+                }
+                else
+                {
+                    <div class="security-sheet__rows">
+                        @foreach (var provider in AvailableProviders)
+                        {
+                            var login = FindLogin(provider.Id);
+                            <div class="security-sheet__row" @key="provider.Id">
+                                <div><strong>@provider.DisplayName</strong><span>@(login is null ? "Not linked" : LoginDescription(login))</span></div>
+                                @if (login is null)
+                                {
+                                    <AppButton Label="Link account" Size="AppControlSize.Compact" Disabled="@_busy"
+                                               OnClick="@(() => LinkExternalLoginAsync(provider.Id))" />
+                                }
+                                else
+                                {
+                                    <AppButton Label="Disconnect" Size="AppControlSize.Compact" Tone="AppUiTone.Error"
+                                               Disabled="@_busy" OnClick="@(() => UnlinkExternalLoginAsync(login))" />
+                                }
+                            </div>
+                        }
+                        @foreach (var login in UnmatchedLogins)
+                        {
+                            <div class="security-sheet__row" @key="login.Id">
+                                <div><strong>@login.Provider</strong><span>@LoginDescription(login) · Linked</span></div>
+                                <AppButton Label="Disconnect" Size="AppControlSize.Compact" Tone="AppUiTone.Error"
+                                           Disabled="@_busy" OnClick="@(() => UnlinkExternalLoginAsync(login))" />
+                            </div>
+                        }
+                    </div>
+                }
+            </section>
+        }
+
+        <section class="security-sheet__section">
+            <h3 class="security-sheet__section-title">Recovery codes</h3>
+            <p class="security-sheet__hint">Recovery codes can be used if you lose access to your normal sign-in methods.</p>
+            <p class="security-sheet__warning">Generating a new set invalidates all existing recovery codes.</p>
+            <div class="security-sheet__actions">
+                <AppButton Label="Generate new recovery codes" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Warning"
+                           Loading="@_generatingRecoveryCodes" Disabled="@_busy"
+                           OnClick="GenerateRecoveryCodesAsync" />
+            </div>
+            @if (_recoveryCodes.Count > 0)
+            {
+                <RecoveryCodesDisplay Codes="@_recoveryCodes" />
+            }
+        </section>
+    };
+
+    private readonly CancellationTokenSource _lifetime = new();
+    private AccountSelfServiceResponse? _account;
+    private List<DeviceSessionResponse> _sessions = [];
+    private List<AccountExternalLoginDto> _externalLogins = [];
+    private List<PasskeyCredentialResponse> _passkeys = [];
+    private IReadOnlyList<string> _recoveryCodes = [];
+    private string _securePassword = string.Empty;
+    private string _secureConfirm = string.Empty;
+    private bool _thisComputerOnly;
+    private string _newPassword = string.Empty;
+    private string _confirmPassword = string.Empty;
+    private bool _accountLoading = true;
+    private bool _sessionsLoading = true;
+    private bool _loginsLoading = true;
+    private bool _passkeysLoading = true;
+    private bool _busy;
+    private bool _changingPassword;
+    private bool _registeringPasskey;
+    private bool _generatingRecoveryCodes;
+    private bool _passwordChanged;
+    private bool _disposed;
+    private string? _sessionsError;
+    private string? _loginsError;
+    private string? _passkeysError;
+
+    private SecuritySheet _sheet;
+    private ElementReference _sheetRoot;
+    private bool _focusSheet;
+
+    private AccountSecurityCapabilitiesResponse Capabilities => _account!.SecurityCapabilities;
+    private bool IsServerAdministrator => Session.Authority?.EffectiveAdministrator == true;
+    private string PasswordStatus => Capabilities.HasPassword ? "Set"
+        : _thisComputerOnly ? "Not set · works on this computer only" : "Not set";
+    private string EmailStatus => string.IsNullOrWhiteSpace(_account?.Email) ? "None · only needed away from home" : _account.Email;
+    private string ExtraProtectionStatus
+    {
+        get
+        {
+            var parts = new List<string>();
+            if (Capabilities.HasPasskeys || _passkeys.Count > 0) parts.Add("Passkey added");
+            if (TwoStepOn) parts.Add("Two-step codes on");
+            return parts.Count == 0 ? "Off" : string.Join(" · ", parts);
+        }
+    }
+    private string OtherSessionsStatus => _sessionsLoading ? "Checking…"
+        : _sessionsError is not null ? "Couldn't check sessions"
+        : OtherSessions.Count() switch
+        {
+            0 => "No other sessions",
+            1 => "1 other session",
+            var count => $"{count} other sessions",
+        };
+    private string SheetTitle => _sheet switch
+    {
+        SecuritySheet.Password => Capabilities.HasPassword ? "Change password" : "Secure your account",
+        SecuritySheet.Email => "Email",
+        SecuritySheet.ExtraProtection => "Extra protection",
+        _ => string.Empty,
+    };
+
+    private void OpenSheet(SecuritySheet sheet)
+    {
+        _sheet = sheet;
+        _focusSheet = true;
+    }
+
+    // A click on the backdrop or Escape never throws away recovery codes that were just shown; the Done button does.
+    private bool ShowingRecoveryCodes => _recoveryCodes.Count > 0 || _twoStepRecoveryCodes.Count > 0;
+
+    private void DismissSheet()
+    {
+        if (!ShowingRecoveryCodes) CloseSheet();
+    }
+
+    private void CloseSheet()
+    {
+        if (_busy) return;
+        _sheet = SecuritySheet.None;
+        _newPassword = _confirmPassword = _securePassword = _secureConfirm = string.Empty;
+        _passwordChanged = false;
+        _twoStepSetup = null;
+        _twoStepQr = string.Empty;
+        _twoStepCode = string.Empty;
+        _twoStepTurningOff = false;
+        _twoStepDisableCode = string.Empty;
+        _twoStepRecoveryCodes = [];
+        _recoveryCodes = [];
+    }
+
+    private void OnSheetKeyDown(KeyboardEventArgs args)
+    {
+        if (args.Key == "Escape") DismissSheet();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!_focusSheet || _sheet == SecuritySheet.None) return;
+        _focusSheet = false;
+        try { await _sheetRoot.FocusAsync(); }
+        catch (InvalidOperationException) { } // The sheet closed again before the browser could focus it.
+        catch (JSDisconnectedException) { } // The circuit ended while focusing; nothing left to focus.
+    }
+
+    private bool NewPasswordValid => _newPassword.Length is >= 12 and <= 128;
+    private bool PasswordsMatch => string.Equals(_newPassword, _confirmPassword, StringComparison.Ordinal);
+    private bool CanChangePassword => !_busy && !_changingPassword && NewPasswordValid && PasswordsMatch;
+    private bool SecurePasswordValid => _securePassword.Length is >= 12 and <= 128;
+    private bool SecurePasswordsMatch => string.Equals(_securePassword, _secureConfirm, StringComparison.Ordinal);
+    private bool CanSecureAccount => SecurePasswordValid && SecurePasswordsMatch;
+    private string PasskeyUnavailableMessage => Capabilities.PasskeyReady
+        ? "Passkeys are unavailable from this connection. Use a secure connection or local access."
+        : "Passkeys are not available on this server.";
+    private bool ShowLinkedAccounts => Capabilities.HasExternalLogins || AvailableProviders.Any();
+    private IEnumerable<RegisteredExternalAuthProvider> AvailableProviders => ExternalProviders.Where(provider =>
+        Capabilities.AvailableExternalProviders.Any(available => available.Id.Equals(provider.Id, StringComparison.OrdinalIgnoreCase)));
+    private IEnumerable<AccountExternalLoginDto> UnmatchedLogins => _externalLogins.Where(login =>
+        AvailableProviders.All(provider => !provider.Id.Equals(login.Provider, StringComparison.OrdinalIgnoreCase)));
+    private IEnumerable<DeviceSessionResponse> OtherSessions => _sessions.Where(session => !IsCurrent(session));
+
+    protected override async Task OnInitializedAsync()
+    {
+        _thisComputerOnly = ThisComputerOnlyBanner.IsThisComputerOnly((await AuthenticationState.GetAuthenticationStateAsync()).User);
+        await LoadAccountAsync();
+        if (_account is null || _disposed) return;
+        StateHasChanged();
+        await Task.WhenAll(LoadSessionsAsync(), LoadLoginsAsync(), LoadPasskeysAsync());
+    }
+
+    private async Task LoadAccountAsync()
+    {
+        try { _account = await Identity.GetAccountAsync(_lifetime.Token); }
+        catch (OperationCanceledException) when (_lifetime.IsCancellationRequested) { }
+        catch { _account = null; }
+        finally { _accountLoading = false; }
+    }
+
+    private async Task RefreshAccountAsync()
+    {
+        try { _account = await Identity.GetAccountAsync(_lifetime.Token) ?? _account; }
+        catch (OperationCanceledException) when (_lifetime.IsCancellationRequested) { }
+    }
+
+    private async Task LoadSessionsAsync()
+    {
+        _sessionsLoading = true;
+        _sessionsError = null;
+        try { _sessions = await Identity.GetSessionsAsync(_lifetime.Token); }
+        catch (OperationCanceledException) when (_lifetime.IsCancellationRequested) { }
+        catch { _sessionsError = "Sessions could not be loaded. The rest of your security settings are still available."; }
+        finally { _sessionsLoading = false; }
+    }
+
+    private async Task LoadLoginsAsync()
+    {
+        if (!Capabilities.HasExternalLogins && !Capabilities.ExternalSignInAvailable) { _loginsLoading = false; return; }
+        _loginsLoading = true;
+        _loginsError = null;
+        try { _externalLogins = await Identity.GetExternalLoginsAsync(_lifetime.Token); }
+        catch (OperationCanceledException) when (_lifetime.IsCancellationRequested) { }
+        catch { _loginsError = "Linked accounts could not be loaded. The rest of your security settings are still available."; }
+        finally { _loginsLoading = false; }
+    }
+
+    private async Task LoadPasskeysAsync()
+    {
+        _passkeysLoading = true;
+        _passkeysError = null;
+        try { _passkeys = await Identity.GetPasskeysAsync(_lifetime.Token); }
+        catch (OperationCanceledException) when (_lifetime.IsCancellationRequested) { }
+        catch { _passkeysError = "Passkeys could not be loaded. The rest of your security settings are still available."; }
+        finally { _passkeysLoading = false; }
+    }
+
+    private async Task ChangePasswordAsync()
+    {
+        if (!CanChangePassword || _disposed) return;
+        _busy = _changingPassword = true;
+        _passwordChanged = false;
+        try
+        {
+            var result = await Confirmed.RunAsync(() => Identity.ChangePasswordResultAsync(
+                new ChangePasswordRequest { NewPassword = _newPassword }, _lifetime.Token), _lifetime.Token);
+            if (!result.Succeeded)
+            {
+                Snackbar.Add(NotChangedMessage(result, "The password could not be changed."), AppSeverity.Error);
+                return;
+            }
+            _newPassword = _confirmPassword = string.Empty;
+            _passwordChanged = true;
+            await LoadSessionsAsync();
+        }
+        catch (OperationCanceledException) when (_lifetime.IsCancellationRequested) { }
+        finally { _busy = _changingPassword = false; }
+    }
+
+    private async Task RegisterPasskeyAsync()
+    {
+        if (_busy || _registeringPasskey || !Capabilities.CanRegisterPasskey || _disposed) return;
+        _busy = _registeringPasskey = true;
+        try
+        {
+            var started = await Confirmed.RunAsync(() => Identity.GetPasskeyRegistrationOptionsResultAsync(_lifetime.Token), _lifetime.Token);
+            if (started.Value is not { } options)
+            {
+                Snackbar.Add(NotChangedMessage(started, "Passkeys are not available on this server."), AppSeverity.Error);
+                return;
+            }
+            var credentialJson = await JS.InvokeAsync<string>("tuvimaPasskeys.createCredential", _lifetime.Token, options.OptionsJson);
+            var saved = await Identity.CompletePasskeyRegistrationResultAsync(
+                new CompletePasskeyRegistrationRequest(credentialJson, options.State, NextPasskeyName()), _lifetime.Token);
+            if (!saved.Succeeded) { Snackbar.Add(NotChangedMessage(saved, "The passkey could not be registered."), AppSeverity.Error); return; }
+            await LoadPasskeysAsync();
+            await RefreshAccountAsync();
+            Snackbar.Add("Passkey added.", AppSeverity.Success);
+        }
+        catch (JSException exception) { Snackbar.Add(exception.Message, AppSeverity.Error); }
+        catch (OperationCanceledException) when (_lifetime.IsCancellationRequested) { }
+        finally { _busy = _registeringPasskey = false; }
+    }
+
+    private async Task RemovePasskeyAsync(PasskeyCredentialResponse passkey)
+    {
+        if (!await ConfirmAsync("Remove passkey?", $"Remove {passkey.Name} from your sign-in methods?", "Remove passkey")) return;
+        _busy = true;
+        try
+        {
+            var result = await Confirmed.RunAsync(() => Identity.RemovePasskeyResultAsync(passkey.CredentialId, _lifetime.Token), _lifetime.Token);
+            if (result.Succeeded)
+            {
+                _passkeys.RemoveAll(item => item.CredentialId == passkey.CredentialId);
+                await RefreshAccountAsync();
+                Snackbar.Add("Passkey removed.", AppSeverity.Success);
+            }
+            else Snackbar.Add(result.Failure == DashboardAccessMutationFailure.Conflict
+                ? "Add another sign-in method before removing this passkey." : NotChangedMessage(result, "The passkey could not be removed."), AppSeverity.Error);
+        }
+        finally { _busy = false; }
+    }
+
+    private async Task UnlinkExternalLoginAsync(AccountExternalLoginDto login)
+    {
+        if (!await ConfirmAsync("Disconnect linked account?", "You will no longer be able to use this account to sign in to Tuvima Library.", "Disconnect")) return;
+        _busy = true;
+        try
+        {
+            var result = await Confirmed.RunAsync(() => Identity.UnlinkExternalLoginResultAsync(login.Id, _lifetime.Token), _lifetime.Token);
+            if (result.Succeeded)
+            {
+                _externalLogins.RemoveAll(item => item.Id == login.Id);
+                await RefreshAccountAsync();
+                Snackbar.Add("Linked account disconnected.", AppSeverity.Success);
+            }
+            else Snackbar.Add(result.Failure == DashboardAccessMutationFailure.Conflict
+                ? "Add another sign-in method before disconnecting this account." : NotChangedMessage(result, "The linked account could not be disconnected."), AppSeverity.Error);
+        }
+        finally { _busy = false; }
+    }
+
+    private async Task RevokeOtherSessionsAsync()
+    {
+        if (!await ConfirmAsync("Sign out all other sessions?", "You will remain signed in on this device.", "Sign out other sessions")) return;
+        _busy = true;
+        try
+        {
+            var result = await Confirmed.RunAsync(() => Identity.RevokeOtherSessionsAsync(Session.AccountId, Session.SessionId, _lifetime.Token), _lifetime.Token);
+            if (result.Succeeded)
+            {
+                _sessions.RemoveAll(session => !IsCurrent(session));
+                Snackbar.Add(result.Value!.RevokedCount == 1 ? "1 other session signed out."
+                    : $"{result.Value.RevokedCount} other sessions signed out.", AppSeverity.Success);
+            }
+            else Snackbar.Add(NotChangedMessage(result, "Other sessions could not be signed out."), AppSeverity.Error);
+        }
+        finally { _busy = false; }
+    }
+
+    private async Task GenerateRecoveryCodesAsync()
+    {
+        if (_busy || _generatingRecoveryCodes || _disposed) return;
+        if (!await ConfirmAsync("Generate new recovery codes?", "Every existing recovery code will stop working.", "Generate new codes")) return;
+        _busy = _generatingRecoveryCodes = true;
+        try
+        {
+            var result = await Confirmed.RunAsync(() => Identity.RegenerateRecoveryCodesResultAsync(_lifetime.Token), _lifetime.Token);
+            if (result.Value is not { } codes) { Snackbar.Add(NotChangedMessage(result, "Recovery codes could not be generated."), AppSeverity.Error); return; }
+            _recoveryCodes = codes.RecoveryCodes;
+        }
+        catch (OperationCanceledException) when (_lifetime.IsCancellationRequested) { }
+        finally { _busy = _generatingRecoveryCodes = false; }
+    }
+
+    // Linking leaves this page for the provider's sign-in, so the recent sign-in check happens before leaving.
+    private async Task LinkExternalLoginAsync(string providerId)
+    {
+        if (_busy || _disposed) return;
+        _busy = true;
+        try
+        {
+            var recent = await Confirmed.RunAsync(() => Identity.CheckRecentSignInAsync(_lifetime.Token), _lifetime.Token);
+            if (!recent.Succeeded) { Snackbar.Add(NotChangedMessage(recent, "The account could not be linked."), AppSeverity.Error); return; }
+            Navigation.NavigateTo($"/account/security/external/{Uri.EscapeDataString(providerId)}", forceLoad: true);
+        }
+        catch (OperationCanceledException) when (_lifetime.IsCancellationRequested) { }
+        finally { _busy = false; }
+    }
+
+    // Still asking after the person confirmed (or they closed the dialog) is not an error to dress up.
+    private static string NotChangedMessage(DashboardAccessMutationResult result, string fallback) =>
+        result.Failure == DashboardAccessMutationFailure.ConfirmItsYou ? "Nothing was changed. Confirm it's you to continue." : fallback;
+
+    private static string NotChangedMessage<T>(DashboardAccessMutationResult<T> result, string fallback) =>
+        result.Failure == DashboardAccessMutationFailure.ConfirmItsYou ? "Nothing was changed. Confirm it's you to continue." : fallback;
+
+    private async Task<bool> ConfirmAsync(string title, string message, string confirmLabel) =>
+        await DialogService.ShowMessageBoxAsync(title, message, yesText: confirmLabel, cancelText: "Cancel") == true;
+    private bool IsCurrent(DeviceSessionResponse session) => Session.SessionId == session.Id;
+    private AccountExternalLoginDto? FindLogin(string providerId) => _externalLogins.FirstOrDefault(login =>
+        login.Provider.Equals(providerId, StringComparison.OrdinalIgnoreCase));
+    private static string LoginDescription(AccountExternalLoginDto login) =>
+        StringHelpers.FirstNonBlankOr(login.Provider, login.Email, login.DisplayName);
+    private string NextPasskeyName()
+    {
+        var current = _sessions.FirstOrDefault(IsCurrent);
+        var baseName = current is null ? "This device"
+            : SecuritySessionDisplayFormatter.Format(current).ClientDescription.Split(" · ", StringSplitOptions.None)[0];
+        if (_passkeys.All(passkey => !passkey.Name.Equals(baseName, StringComparison.OrdinalIgnoreCase))) return baseName;
+        var suffix = 2;
+        while (_passkeys.Any(passkey => passkey.Name.Equals($"{baseName} {suffix}", StringComparison.OrdinalIgnoreCase))) suffix++;
+        return $"{baseName} {suffix}";
+    }
+    private static string FormatDate(DateTimeOffset value) => value.ToLocalTime().ToString("MMM d, yyyy");
+    private static string BackupStatus(PasskeyCredentialResponse passkey) => passkey.BackedUp ? " · Synced" : string.Empty;
+
+    public ValueTask DisposeAsync()
+    {
+        if (_disposed) return ValueTask.CompletedTask;
+        _disposed = true;
+        _recoveryCodes = [];
+        _lifetime.Cancel();
+        _lifetime.Dispose();
+        return ValueTask.CompletedTask;
+    }
+}

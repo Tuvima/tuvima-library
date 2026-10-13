@@ -67,7 +67,7 @@ public sealed class NetworkSettingsUiTests
         var panel = Read(@"src/MediaEngine.Web/Components/Settings/AppsAndDevicesPanel.razor");
         var devices = Read(@"src/MediaEngine.Web/Components/Settings/PairedDevicesSection.razor");
         var host = Read(@"src/MediaEngine.Web/Components/Settings/NetworkRemoteAccessSettings.razor");
-        var account = Read(@"src/MediaEngine.Web/Components/Settings/AccountSettingsTab.razor");
+        var account = Read(@"src/MediaEngine.Web/Components/Settings/SecuritySettingsPage.razor");
 
         Assert.Contains("Disabled=\"@(!AllowsInternet || _saving)\"", panel, StringComparison.Ordinal);
         Assert.Contains("Settings.WhoCanConnect == \"anywhere\"", panel, StringComparison.Ordinal);
@@ -81,7 +81,7 @@ public sealed class NetworkSettingsUiTests
         Assert.Contains("Revoke this device?", devices, StringComparison.Ordinal);
         Assert.Contains("<PairedDevicesSection", account, StringComparison.Ordinal);
         Assert.Contains("<AppsAndDevicesPanel", host, StringComparison.Ordinal);
-        Assert.Contains("Settings &gt; Network &gt; Apps &amp; devices", account, StringComparison.Ordinal);
+        Assert.Contains("/settings/network/apps", account, StringComparison.Ordinal);
     }
 
     [Fact]

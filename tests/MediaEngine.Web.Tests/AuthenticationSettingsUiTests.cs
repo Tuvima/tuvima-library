@@ -52,38 +52,33 @@ public sealed class AuthenticationSettingsUiTests
     }
 
     [Fact]
-    public void PersonalSecurity_UsesTheResponsiveSettingsSurfaceWithoutServerAdministration()
+    public void PersonalSecurity_IsTwoRowListsWhoseFormsLiveInSheets()
     {
-        var account = Read("src/MediaEngine.Web/Components/Settings/AccountSettingsTab.razor");
-        var accountCss = Read("src/MediaEngine.Web/Components/Settings/AccountSettingsTab.razor.css");
+        var account = Read("src/MediaEngine.Web/Components/Settings/SecuritySettingsPage.razor");
+        var accountCss = Read("src/MediaEngine.Web/Components/Settings/SecuritySettingsPage.razor.css");
         var endpoints = Read("src/MediaEngine.Web/Services/Integration/DashboardAuthenticationEndpoints.cs");
 
-        Assert.Contains("Account security overview", account, StringComparison.Ordinal);
-        Assert.Contains("Title=\"Passkeys\"", account, StringComparison.Ordinal);
-        Assert.Contains("Title=\"Linked accounts\"", account, StringComparison.Ordinal);
-        Assert.Contains("Devices & sessions", account, StringComparison.Ordinal);
-        Assert.Contains("Recovery codes", account, StringComparison.Ordinal);
+        Assert.Contains("Key=\"password\"", account, StringComparison.Ordinal);
+        Assert.Contains("Key=\"email\"", account, StringComparison.Ordinal);
+        Assert.Contains("Key=\"extra-protection\"", account, StringComparison.Ordinal);
+        Assert.Contains("Key=\"sign-out-others\"", account, StringComparison.Ordinal);
+        Assert.Contains("Key=\"devices\"", account, StringComparison.Ordinal);
         Assert.Contains("Capabilities.HasPassword", account, StringComparison.Ordinal);
         Assert.Contains("Capabilities.CanRegisterPasskey", account, StringComparison.Ordinal);
+        Assert.Contains("IsServerAdministrator", account, StringComparison.Ordinal);
         Assert.DoesNotContain("IsLocalOnly", account, StringComparison.Ordinal);
         Assert.Contains("Passkeys are unavailable from this connection", account, StringComparison.Ordinal);
-        Assert.Contains("Sign out all other sessions", account, StringComparison.Ordinal);
+        Assert.Contains("Sign out other sessions", account, StringComparison.Ordinal);
         Assert.Contains("ShowMessageBoxAsync", account, StringComparison.Ordinal);
-        Assert.Equal(2, CountOccurrences(account, "account-security-settings__field-action"));
         Assert.Contains("GetSessionsAsync", account, StringComparison.Ordinal);
         Assert.Contains("GetPasskeysAsync", account, StringComparison.Ordinal);
         Assert.DoesNotContain("UpdateAuthSettingsAsync", account, StringComparison.Ordinal);
         Assert.DoesNotContain("Administrator access", account, StringComparison.Ordinal);
+        Assert.DoesNotContain("Account security overview", account, StringComparison.Ordinal);
+        Assert.DoesNotContain("Devices & sessions", account, StringComparison.Ordinal);
+        Assert.DoesNotContain("Who viewed your photos", account, StringComparison.Ordinal);
+        Assert.DoesNotContain("::deep", accountCss, StringComparison.Ordinal);
         Assert.Contains("max-width: none", accountCss, StringComparison.Ordinal);
-        Assert.DoesNotContain("width: min(100%, 1100px)", accountCss, StringComparison.Ordinal);
-        Assert.Contains("@container account-security (max-width: 640px)", accountCss, StringComparison.Ordinal);
-        Assert.Contains("grid-template-areas: \"icon copy status action\"", accountCss, StringComparison.Ordinal);
-        Assert.Contains("\"icon copy action\"", accountCss, StringComparison.Ordinal);
-        Assert.Contains("\"action action\"", accountCss, StringComparison.Ordinal);
-        Assert.Contains("grid-area: action", accountCss, StringComparison.Ordinal);
-        Assert.Contains("<Actions>", account, StringComparison.Ordinal);
-        Assert.DoesNotContain("account-security-settings__bulk-action", account, StringComparison.Ordinal);
-        Assert.DoesNotContain("account-security-settings__bulk-action", accountCss, StringComparison.Ordinal);
         Assert.Contains("/settings/account", endpoints, StringComparison.Ordinal);
         Assert.DoesNotContain("private static string SecurityPage", endpoints, StringComparison.Ordinal);
     }
