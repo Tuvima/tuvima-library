@@ -527,7 +527,7 @@ public sealed class FirstPartyIdentityService(
     /// </summary>
     private async Task<(string Display, string Normalized)?> ResolveEmailForSecuringAsync(Account account, string? email, CancellationToken ct)
     {
-        if (!string.IsNullOrWhiteSpace(account.Email) && !string.IsNullOrWhiteSpace(account.NormalizedEmail))
+        if (account.HasEmail)
         {
             return null;
         }
@@ -544,7 +544,7 @@ public sealed class FirstPartyIdentityService(
             throw new InvalidOperationException("That email is already used.");
         }
 
-        return (email.Trim(), normalized);
+        return (new MailAddress(email.Trim()).Address, normalized);
     }
 
     public async Task<SessionIssueResult> SecureThisComputerAccountAsync(Guid accountId, string? password, bool hasPasskey, string deviceId, string deviceName, string client, CancellationToken ct = default, string? email = null)
@@ -560,6 +560,19 @@ public sealed class FirstPartyIdentityService(
         var account = await accounts.GetByIdAsync(accountId, ct).ConfigureAwait(false) ?? throw new KeyNotFoundException("Account was not found.");
         var newEmail = await ResolveEmailForSecuringAsync(account, email, ct).ConfigureAwait(false);
 
+        // The email goes in first: if another sign-in took it in the meantime the unique index refuses it here,
+        // before a password or recovery codes are written, and the account is left as it was.
+        if (newEmail is { } added)
+        {
+            account.Email = added.Display;
+            account.NormalizedEmail = added.Normalized;
+            account.UpdatedAt = UtcNow;
+            if (!await accounts.UpdateAsync(account, ct).ConfigureAwait(false))
+            {
+                throw new InvalidOperationException("The account could not be updated.");
+            }
+        }
+
         var profile = await GetDefaultProfileAsync(accountId, ct).ConfigureAwait(false);
         AccountCredential? credential = null;
         if (withPassword)
@@ -573,12 +586,6 @@ public sealed class FirstPartyIdentityService(
 
         // The account keeps its id, profiles, history, favourites and library access; only the limit is lifted.
         account.ClearThisComputerOnly();
-        if (newEmail is { } added)
-        {
-            account.Email = added.Display;
-            account.NormalizedEmail = added.Normalized;
-        }
-
         account.UpdatedAt = UtcNow;
         if (!await accounts.UpdateAsync(account, ct).ConfigureAwait(false))
         {

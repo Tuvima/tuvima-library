@@ -10,6 +10,7 @@ namespace MediaEngine.Storage.Tests;
 public sealed class AccountEmailOptionalMigrationTests : IDisposable
 {
     private static readonly Guid AdminAccount = Guid.Parse("a0000000-0000-0000-0000-000000000001");
+    private static readonly Guid PersonAccount = Guid.Parse("a0000000-0000-0000-0000-000000000002");
     private static readonly Guid AdminProfile = Guid.Parse("c0000000-0000-0000-0000-000000000001");
     private static readonly string Now = DateTimeOffset.UtcNow.ToString("O");
 
@@ -42,6 +43,7 @@ public sealed class AccountEmailOptionalMigrationTests : IDisposable
         Assert.Equal(0, NotNull(path, "email"));
         Assert.Equal(0, NotNull(path, "normalized_email"));
         Assert.Equal(1, Scalar(path, "SELECT COUNT(*) FROM accounts WHERE id = @a AND email = 'owner@example.com' AND normalized_email = 'OWNER@EXAMPLE.COM' AND is_administrator = 1 AND this_computer_only = 0 AND household_admin = 1;", ("@a", AdminAccount)));
+        Assert.Equal(1, Scalar(path, "SELECT COUNT(*) FROM accounts WHERE id = @a AND grants_inherit_from_account_id = @p AND must_change_password = 1;", ("@a", PersonAccount), ("@p", AdminAccount)));
         Assert.Equal(1, Scalar(path, "SELECT COUNT(*) FROM account_profile_grants WHERE account_id = @a;", ("@a", AdminAccount)));
         Assert.Equal(1, Scalar(path, "SELECT COUNT(*) FROM account_credentials WHERE account_id = @a;", ("@a", AdminAccount)));
         Assert.Equal(1, Scalar(path, "SELECT COUNT(*) FROM auth_sessions WHERE account_id = @a;", ("@a", AdminAccount)));
@@ -64,7 +66,7 @@ public sealed class AccountEmailOptionalMigrationTests : IDisposable
             Assert.Empty(database.StartupNotes);
         }
 
-        Assert.Equal(1, Scalar(path, "SELECT COUNT(*) FROM accounts;"));
+        Assert.Equal(2, Scalar(path, "SELECT COUNT(*) FROM accounts;"));
         Assert.Equal(versionBefore, Scalar(path, "SELECT authorization_version FROM accounts WHERE id = @a;", ("@a", AdminAccount)));
         Assert.Equal(1, Scalar(path, "SELECT COUNT(*) FROM account_profile_grants WHERE account_id = @a;", ("@a", AdminAccount)));
         Assert.Equal(0, NotNull(path, "email"));
@@ -153,6 +155,10 @@ public sealed class AccountEmailOptionalMigrationTests : IDisposable
                 INSERT INTO accounts(id, email, normalized_email, is_enabled, is_administrator, authorization_version, created_at, updated_at, household_admin)
                 VALUES(@a, 'owner@example.com', 'OWNER@EXAMPLE.COM', 1, 1, 1, @now, @now, 1);
                 """, ("@a", AdminAccount), ("@now", Now));
+            Exec(raw, """
+                INSERT INTO accounts(id, email, normalized_email, is_enabled, authorization_version, created_at, updated_at, grants_inherit_from_account_id, must_change_password)
+                VALUES(@a, 'person@example.com', 'PERSON@EXAMPLE.COM', 1, 1, @now, @now, @parent, 1);
+                """, ("@a", PersonAccount), ("@parent", AdminAccount), ("@now", Now));
             Exec(raw, "INSERT INTO account_profile_grants(account_id, profile_id, is_default, is_enabled, admin_enabled, authorization_version, granted_at) VALUES(@a, @p, 1, 1, 1, 1, @now);",
                 ("@a", AdminAccount), ("@p", AdminProfile), ("@now", Now));
             Exec(raw, """

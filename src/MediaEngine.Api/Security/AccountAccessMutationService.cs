@@ -261,7 +261,7 @@ public sealed class AccountAccessMutationService(
         }
 
         // An account made on this computer has no email yet; turning it on or off must not demand one.
-        if (!string.IsNullOrWhiteSpace(command.Email) || !string.IsNullOrWhiteSpace(account.NormalizedEmail))
+        if (!string.IsNullOrWhiteSpace(command.Email) || account.HasEmail)
         {
             var email = NormalizeEmail(command.Email);
             account.Email = email;

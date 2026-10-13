@@ -267,6 +267,8 @@ public static class AuthenticationEndpoints
             }
             catch (ArgumentException ex) { return ApiErrors.BadRequest(ex.Message); }
             catch (InvalidOperationException ex) { return ApiErrors.Conflict(ex.Message); }
+            // Another sign-in took the email between the check and the save.
+            catch (Microsoft.Data.Sqlite.SqliteException ex) when (ex.SqliteErrorCode == 19) { return ApiErrors.Conflict("That email is already used."); }
         }).WithName("LinkExternalIdentity")
           .Produces<AccountExternalLoginDto>()
           .RequireRateLimiting("authentication")
@@ -854,6 +856,8 @@ public static class AuthenticationEndpoints
             catch (ArgumentException ex) { return ApiErrors.BadRequest(ex.Message); }
             catch (InvalidOperationException ex) { return ApiErrors.Conflict(ex.Message); }
             catch (KeyNotFoundException ex) { return ApiErrors.NotFound(ex.Message); }
+            // Another sign-in took the email between the check and the save; nothing else was written yet.
+            catch (Microsoft.Data.Sqlite.SqliteException ex) when (ex.SqliteErrorCode == 19) { return ApiErrors.Conflict("That email is already used."); }
 
             await MoveToHomeNetworkIfFirstAdministratorAsync(accounts, configuration, loggers.CreateLogger("MediaEngine.Api.Endpoints.AuthenticationEndpoints"), accountId, ct).ConfigureAwait(false);
             return Results.Ok(await ToResponseAsync(issued, projector, ct));

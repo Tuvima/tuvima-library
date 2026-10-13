@@ -58,7 +58,7 @@ public sealed class AccountExternalLoginService : IAccountExternalLoginService
             throw new InvalidOperationException("That external sign-in account is already linked.");
         }
 
-        var needsEmail = string.IsNullOrWhiteSpace(account.NormalizedEmail);
+        var needsEmail = !account.HasEmail;
         (string Display, string Normalized)? addedEmail = null;
         if (needsEmail)
         {
@@ -99,7 +99,7 @@ public sealed class AccountExternalLoginService : IAccountExternalLoginService
         if (TryNormalize(providerEmail, out var providerNormalized)
             && await IsFreeAsync(account, providerNormalized, ct).ConfigureAwait(false))
         {
-            return (providerEmail!.Trim(), providerNormalized);
+            return (CanonicalAddress(providerEmail!), providerNormalized);
         }
 
         if (string.IsNullOrWhiteSpace(typedEmail))
@@ -117,7 +117,7 @@ public sealed class AccountExternalLoginService : IAccountExternalLoginService
             throw new InvalidOperationException("That email is already used.");
         }
 
-        return (typedEmail.Trim(), typedNormalized);
+        return (CanonicalAddress(typedEmail), typedNormalized);
     }
 
     private async Task<bool> IsFreeAsync(Account account, string normalized, CancellationToken ct)
@@ -125,6 +125,9 @@ public sealed class AccountExternalLoginService : IAccountExternalLoginService
         var owner = await _accountRepository.GetByNormalizedEmailAsync(normalized, ct).ConfigureAwait(false);
         return owner is null || owner.Id == account.Id;
     }
+
+    // The address as stored for display: the bare address, so Identity's user-name validation accepts it.
+    private static string CanonicalAddress(string value) => new System.Net.Mail.MailAddress(value.Trim()).Address;
 
     private static bool TryNormalize(string? value, out string normalized)
     {
