@@ -4525,3 +4525,4 @@ input[type="reset"],
 .library-advanced__tabs { min-width: 0; max-width: 100%; }
 .library-advanced__tabs .tl-tabs-toolbar { overflow-x: auto; }
 .library-advanced__tabs .tl-tab { flex: 0 0 auto; white-space: nowrap; }
+.library-folders__add.is-highlighted { box-shadow: 0 0 0 2px var(--tl-accent-primary); }

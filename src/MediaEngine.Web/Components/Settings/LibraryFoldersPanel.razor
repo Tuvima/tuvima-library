@@ -1,5 +1,6 @@
 @namespace MediaEngine.Web.Components.Settings
 @using System.Text.Json
+@using MediaEngine.Contracts.Ingestion
 @using MediaEngine.Web.Components.Shared
 @using MediaEngine.Web.Models.ViewDTOs
 @inject UIOrchestratorService Orchestrator
@@ -37,6 +38,15 @@
                     <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ChevronRight" />
                 </AppNativeButton>
             }
+            <AppNativeButton Type="button"
+                             Class="@ImportTypeClass"
+                             AriaLabel="@($"Import folder, {ImportSubtitle}")"
+                             aria-current="@(ImportSelected ? "true" : null)"
+                             OnClick="@(_ => SelectImport())">
+                <span class="library-folders__icon library-folders__icon--import"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.MoveToInbox" /></span>
+                <span class="library-folders__type-text"><strong>Import folder</strong><small>@ImportSubtitle</small></span>
+                <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ChevronRight" />
+            </AppNativeButton>
             @if (OtherLibraries.Count > 0)
             {
                 <p class="library-folders__group">Other libraries</p>
@@ -56,95 +66,151 @@
             }
         </nav>
 
-        <section class="library-folders__detail" aria-labelledby="library-folders-title">
-            <header class="library-folders__detail-header">
-                <span class="@($"library-folders__icon library-folders__icon--{Selected.Key}")"><AppMaterialIcon Icon="@Selected.Icon" /></span>
-                <div>
-                    <h3 id="library-folders-title">@Selected.Label</h3>
-                    <p>Folders that make up @(Selected.LibraryId is null ? $"your {Selected.PluralLabel} library" : Selected.Label).</p>
-                </div>
-                <div class="library-folders__detail-actions">
-                    <AppButton Label="Add Folder"
-                               StartIcon="@AppMaterialIcons.Outlined.Add"
-                               ButtonStyle="AppButtonStyle.Outlined"
-                               Disabled="@(_saving || ReadOnly)"
-                               OnClick="AddFolderAsync" />
-                </div>
-            </header>
-
-            @if (!string.IsNullOrWhiteSpace(_notice))
-            {
-                <AppAlert Tone="AppUiTone.Warning">@_notice</AppAlert>
-            }
-
-            @if (SelectedLibrary is null || SelectedLibrary.Sources.Count == 0)
-            {
-                <div class="library-folders__empty">
-                    <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.FolderOpen" />
-                    <strong>No folders yet</strong>
-                    <span>Choose Add Folder to point Tuvima at where your @Selected.PluralLabel live.</span>
-                </div>
-            }
-            else
-            {
-                <LibraryFolderTable Library="@SelectedLibrary"
-                                    TypeLabel="@Selected.Label"
-                                    PluralLabel="@Selected.PluralLabel"
-                                    ReadOnly="@ReadOnly"
-                                    Busy="@_saving"
-                                    PathIssues="@_pathIssues"
-                                    OnChangeHandling="ChangeModeAsync"
-                                    OnSetDestination="SetDestinationAsync"
-                                    OnLabel="LabelFolderAsync"
-                                    OnRemove="RemoveFolderAsync" />
-                @if (!SelectedLibrary.Sources.Any(IsManaged))
-                {
-                    <p class="library-folders__hint">Add a managed folder to import or upload @Selected.PluralLabel.</p>
-                }
-            }
-        </section>
-
-        <section class="library-folders__import" aria-labelledby="library-import-title">
-            <header class="library-folders__detail-header">
-                <span class="library-folders__icon library-folders__icon--import"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.MoveToInbox" /></span>
-                <div>
-                    <h3 id="library-import-title">Import folder <small>(optional)</small></h3>
-                    <p>An import folder for new media. Apps like Sonarr and Radarr can save finished downloads here too, and Tuvima files them into your libraries.</p>
-                </div>
-                <div class="library-folders__detail-actions">
-                    @if (ImportStatus.Configured)
+        @if (ImportSelected)
+        {
+            <section class="library-folders__detail" aria-labelledby="library-import-title">
+                <header class="library-folders__detail-header">
+                    <span class="library-folders__icon library-folders__icon--import"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.MoveToInbox" /></span>
+                    <div>
+                        <h3 id="library-import-title">Import folder</h3>
+                        <p>One folder where new media can be dropped. Apps like Sonarr and Radarr can save finished downloads here too, and Tuvima files them into your libraries.</p>
+                    </div>
+                    @if (!ImportStatus.Configured)
                     {
-                        <AppButton Label="Change" ButtonStyle="AppButtonStyle.Outlined" Disabled="@(_saving || ReadOnly)" OnClick="ChooseImportFolderAsync" />
-                        <AppButton Label="Remove" ButtonStyle="AppButtonStyle.Text" Disabled="@(_saving || ReadOnly)" OnClick="RemoveImportFolderAsync" />
+                        <div class="library-folders__detail-actions">
+                            <AppButton Label="Set import folder"
+                                       StartIcon="@AppMaterialIcons.Outlined.Add"
+                                       ButtonStyle="AppButtonStyle.Outlined"
+                                       Disabled="@(_saving || ReadOnly)"
+                                       OnClick="ChooseImportFolderAsync" />
+                        </div>
                     }
-                    else
+                </header>
+
+                @if (!string.IsNullOrWhiteSpace(_notice))
+                {
+                    <AppAlert Tone="AppUiTone.Warning">@_notice</AppAlert>
+                }
+
+                @if (ImportStatus.Configured)
+                {
+                    <div class="library-folders__table" role="table" aria-label="Import folder">
+                        <div class="library-folders__table-head" role="row">
+                            <span role="columnheader">Folder</span>
+                            <span role="columnheader">Handling</span>
+                            <span role="columnheader"></span>
+                        </div>
+                        <div class="library-folders__table-row" role="row">
+                            <div class="library-folders__name" role="cell">
+                                <AppMaterialIcon Icon="@AppMaterialIcons.Filled.Folder" />
+                                <span class="library-folders__name-text">
+                                    <strong>Import folder</strong>
+                                    <span class="library-folders__path" title="@ImportStatus.Path">@ImportStatus.Path</span>
+                                </span>
+                            </div>
+                            <div role="cell"><span class="library-folders__chip">Import</span></div>
+                            <div class="library-folders__row-actions" role="cell">
+                                <AppButton Label="Change" ButtonStyle="AppButtonStyle.Outlined" Disabled="@(_saving || ReadOnly)" OnClick="ChooseImportFolderAsync" />
+                                <AppButton Label="Remove" ButtonStyle="AppButtonStyle.Text" Disabled="@(_saving || ReadOnly)" OnClick="RemoveImportFolderAsync" />
+                            </div>
+                        </div>
+                    </div>
+
+                    <h4 class="library-folders__subheading" id="library-import-destinations">Where imported files go</h4>
+                    <ul class="library-folders__destinations" aria-labelledby="library-import-destinations">
+                        @foreach (var destination in ImportStatus.Destinations)
+                        {
+                            var type = TypeForDestination(destination);
+                            var message = WaitingMessageFor(destination);
+                            var unavailable = DestinationUnavailable(destination);
+                            <li class="library-folders__destination">
+                                <strong class="library-folders__destination-type">@destination.MediaType</strong>
+                                @if (string.IsNullOrWhiteSpace(destination.DestinationSourceId))
+                                {
+                                    <span class="library-folders__destination-path">Add a managed folder to import @destination.MediaType</span>
+                                    @if (type is not null)
+                                    {
+                                        <AppButton Label="Choose"
+                                                   ButtonStyle="AppButtonStyle.Outlined"
+                                                   Disabled="@_saving"
+                                                   aria-label="@($"Choose a managed folder for {destination.MediaType}")"
+                                                   OnClick="@(() => ChooseDestinationType(type))" />
+                                    }
+                                }
+                                else
+                                {
+                                    <span class="library-folders__destination-path" title="@destination.Path">&rarr; @DestinationName(destination) &middot; @destination.Path</span>
+                                    @if (unavailable)
+                                    {
+                                        <span class="library-folders__status library-folders__status--warning">Folder unavailable</span>
+                                    }
+                                }
+                                @if (!string.IsNullOrWhiteSpace(message))
+                                {
+                                    <span class="library-folders__destination-note">@message</span>
+                                }
+                            </li>
+                        }
+                    </ul>
+
+                    @if (LibraryFolderTable.HasMergeAction)
                     {
-                        <AppButton Label="Set import folder"
+                        <p class="library-folders__hint">To bring in a whole existing folder once, use Merge into on a managed folder.</p>
+                    }
+                }
+            </section>
+        }
+        else
+        {
+            <section class="library-folders__detail" aria-labelledby="library-folders-title">
+                <header class="library-folders__detail-header">
+                    <span class="@($"library-folders__icon library-folders__icon--{Selected.Key}")"><AppMaterialIcon Icon="@Selected.Icon" /></span>
+                    <div>
+                        <h3 id="library-folders-title">@Selected.Label</h3>
+                        <p>Folders that make up @(Selected.LibraryId is null ? $"your {Selected.PluralLabel} library" : Selected.Label).</p>
+                    </div>
+                    <div class="library-folders__detail-actions">
+                        <AppButton Label="Add Folder"
+                                   Class="@(_highlightAdd ? "library-folders__add is-highlighted" : "library-folders__add")"
                                    StartIcon="@AppMaterialIcons.Outlined.Add"
                                    ButtonStyle="AppButtonStyle.Outlined"
                                    Disabled="@(_saving || ReadOnly)"
-                                   OnClick="ChooseImportFolderAsync" />
-                    }
-                </div>
-            </header>
-            @if (ImportStatus.Configured)
-            {
-                <div class="library-folders__row">
-                    <span class="library-folders__name"><AppMaterialIcon Icon="@AppMaterialIcons.Filled.Folder" /><strong>Import folder</strong></span>
-                    <span class="library-folders__path" title="@ImportStatus.Path">@ImportStatus.Path</span>
-                    <span class="library-folders__row-actions">
-                        <AppStatusBadge Text="@(ImportStatus.Ready ? "Ready" : "Waiting for destinations")" Tone="@(ImportStatus.Ready ? AppUiTone.Success : AppUiTone.Warning)" />
-                    </span>
-                </div>
-                @if (!ImportStatus.Ready)
+                                   OnClick="AddFolderAsync" />
+                    </div>
+                </header>
+
+                @if (!string.IsNullOrWhiteSpace(_notice))
                 {
-                    <AppAlert Tone="AppUiTone.Warning">
-                        Import won't run until every type has a destination. Still needed: @string.Join(", ", ImportStatus.MissingTypes).
-                        Add a folder that Tuvima manages for each type. Folders used as-is are never changed, so they can't take imports.
-                    </AppAlert>
+                    <AppAlert Tone="AppUiTone.Warning">@_notice</AppAlert>
                 }
-            }
-        </section>
+
+                @if (SelectedLibrary is null || SelectedLibrary.Sources.Count == 0)
+                {
+                    <div class="library-folders__empty">
+                        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.FolderOpen" />
+                        <strong>No folders yet</strong>
+                        <span>Choose Add Folder to point Tuvima at where your @Selected.PluralLabel live.</span>
+                    </div>
+                }
+                else
+                {
+                    <LibraryFolderTable Library="@SelectedLibrary"
+                                        TypeLabel="@Selected.Label"
+                                        PluralLabel="@Selected.PluralLabel"
+                                        ReadOnly="@ReadOnly"
+                                        Busy="@_saving"
+                                        PathIssues="@_pathIssues"
+                                        OnChangeHandling="ChangeModeAsync"
+                                        OnSetDestination="SetDestinationAsync"
+                                        OnLabel="LabelFolderAsync"
+                                        OnRemove="RemoveFolderAsync" />
+                    @if (!SelectedLibrary.Sources.Any(IsManaged))
+                    {
+                        <p class="library-folders__hint">Add a managed folder to import or upload @Selected.PluralLabel.</p>
+                    }
+                }
+            </section>
+        }
 
         @if (!Embedded)
         {
@@ -209,6 +275,14 @@
         })
         .ToList();
 
+    // The seventh entry in the list is not a media type; it has its own panel.
+    private static readonly LibraryTypeOption ImportEntry = new("import", "Import folder", "import", string.Empty, [], AppMaterialIcons.Outlined.MoveToInbox);
+    private bool ImportSelected => string.Equals(_selected.Key, ImportEntry.Key, StringComparison.Ordinal);
+    private string ImportSubtitle => ImportStatus.Configured ? "Set" : "Not set";
+    private string ImportTypeClass => $"library-folders__type{(ImportSelected ? " is-active" : string.Empty)}";
+    private bool _highlightAdd;
+    private ImportFolderWaitingResponse? _waiting;
+
     private ImportFolderStatusDto ImportStatus => _configuration?.ImportFolderStatus ?? new ImportFolderStatusDto();
 
     private LibraryTypeOption Selected => _selected;
@@ -222,6 +296,7 @@
             ?? LibraryTypes[0];
         await InvokeAsync(StateHasChanged);
         await RefreshPathIssuesAsync();
+        await RefreshWaitingAsync();
     }
 
     // Live read/write check of every folder; a problem shows as one status line under the path, nothing when healthy.
@@ -300,7 +375,58 @@
     private int FolderCount(LibraryTypeOption type) => LibraryFor(type)?.Sources.Count ?? 0;
     private static string FolderCountText(int count) => count == 1 ? "1 folder" : $"{count} folders";
     private string TypeClass(LibraryTypeOption type) => $"library-folders__type{(type.Key == _selected.Key ? " is-active" : string.Empty)}";
-    private void Select(LibraryTypeOption type) { _selected = type; _notice = null; }
+    private void Select(LibraryTypeOption type) { _selected = type; _notice = null; _highlightAdd = false; }
+    private void SelectImport() => Select(ImportEntry);
+
+    // Choose on an Import line jumps to that type's folders and points at Add Folder.
+    private void ChooseDestinationType(LibraryTypeOption type)
+    {
+        Select(type);
+        _highlightAdd = true;
+    }
+
+    private LibraryTypeOption? TypeForDestination(ImportFolderDestinationDto destination) => LibraryTypes.FirstOrDefault(type =>
+        string.Equals(type.Label, destination.MediaType, StringComparison.OrdinalIgnoreCase)
+        || type.MediaTypes.Contains(destination.MediaType, StringComparer.OrdinalIgnoreCase));
+
+    private ImportFolderWaitingDto? WaitingFor(ImportFolderDestinationDto destination) =>
+        _waiting?.Waiting.FirstOrDefault(item => string.Equals(item.MediaType, destination.MediaType, StringComparison.OrdinalIgnoreCase));
+
+    // The Engine's one plain sentence for a type whose files cannot be filed yet; nothing when it has none.
+    private string? WaitingMessageFor(ImportFolderDestinationDto destination) => WaitingFor(destination)?.Message;
+
+    private bool DestinationUnavailable(ImportFolderDestinationDto destination) =>
+        string.Equals(WaitingFor(destination)?.Reason, "folder_unavailable", StringComparison.OrdinalIgnoreCase)
+        || (!string.IsNullOrWhiteSpace(destination.Path) && _pathIssues.TryGetValue(destination.Path, out var issue) && issue == "Folder unavailable");
+
+    private string DestinationName(ImportFolderDestinationDto destination) =>
+        _configuration?.Libraries.SelectMany(library => library.Sources).FirstOrDefault(source => source.Id == destination.DestinationSourceId)?.DisplayName()
+        ?? destination.MediaType;
+
+    // The picker starts on a folder named Import beside Tuvima's own library folder, so accepting it is one click.
+    private string? SuggestedImportPath
+    {
+        get
+        {
+            var path = _configuration?.StorageLocations.FirstOrDefault(location => string.Equals(location.Id, "media", StringComparison.OrdinalIgnoreCase))?.Path;
+            if (string.IsNullOrWhiteSpace(path)) return null;
+            var trimmed = path.TrimEnd('\\', '/');
+            var cut = trimmed.LastIndexOfAny(['\\', '/']);
+            return cut <= 0 ? null : $"{trimmed[..(cut + 1)]}Import";
+        }
+    }
+
+    private async Task RefreshWaitingAsync()
+    {
+        if (Embedded || !ImportStatus.Configured)
+        {
+            _waiting = null;
+            return;
+        }
+
+        _waiting = await ApiClient.GetImportFolderWaitingAsync();
+        await InvokeAsync(StateHasChanged);
+    }
     private static bool IsManaged(LibrarySourceDto source) => source.ManagementMode == "managed_by_tuvima";
     private Task<ServerFolderValidationResultDto?> ValidateAsync(string path, string mode, string? sourceId = null)
     {
@@ -312,6 +438,7 @@
     {
         if (_configuration is null || _saving) return;
         _notice = null;
+        _highlightAdd = false;
         var parameters = new AppDialogParameters<ServerFolderPicker>
         {
             { component => component.SelectionMode, ServerFolderSelectionModes.ExistingLibrary },
@@ -461,6 +588,7 @@
         {
             { component => component.SelectionMode, ServerFolderSelectionModes.ManagedLibrary },
             { component => component.CurrentSourceId, ImportLocationId },
+            { component => component.InitialPath, ImportStatus.Configured ? ImportStatus.Path : SuggestedImportPath },
             { component => component.HelpText, "Choose a folder on the Tuvima Library server where new media will be dropped. It must be separate from your library folders." },
             { component => component.SetupSession, SetupSession },
         };
@@ -526,6 +654,7 @@
         }
         finally { _saving = false; }
         await Changed.InvokeAsync();
+        await RefreshWaitingAsync();
     }
 
     private async Task RemoveFolderAsync(LibrarySourceDto source)
@@ -581,6 +710,7 @@
         finally { _saving = false; }
         await Changed.InvokeAsync();
         await RefreshPathIssuesAsync();
+        await RefreshWaitingAsync();
     }
 
     private static LibraryFolderDto? Clone(LibraryFolderDto? library) => library is null

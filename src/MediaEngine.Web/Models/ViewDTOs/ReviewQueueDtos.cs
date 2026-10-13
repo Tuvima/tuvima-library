@@ -76,6 +76,10 @@ public sealed class ReviewItemViewModel
     /// <summary>Local/file facts used to make the matching decision.</summary>
     [JsonPropertyName("detected_facts")]
     public Dictionary<string, string> DetectedFacts { get; set; } = [];
+
+    /// <summary>True when the file arrived through the Import folder; the Review list shows a badge.</summary>
+    [JsonPropertyName("from_import_folder")]
+    public bool FromImportFolder { get; set; }
 }
 
 /// <summary>Request body for resolving a review queue item.</summary>

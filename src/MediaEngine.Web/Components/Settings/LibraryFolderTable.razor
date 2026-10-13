@@ -113,6 +113,9 @@
         ? "Not touched"
         : library.OrganizationPolicy.WriteTags ? "Named + tagged" : "Named";
 
+    /// <summary>True once the Merge into menu item exists; the Import folder panel shows its Merge hint only then.</summary>
+    public static bool HasMergeAction => false;
+
     private static bool IsManaged(LibrarySourceDto source) => source.ManagementMode == "managed_by_tuvima";
     private static bool IsConverting(LibrarySourceDto source) => string.Equals(source.ConversionState, "converting", StringComparison.OrdinalIgnoreCase);
 
