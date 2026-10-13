@@ -6,9 +6,9 @@
 
 .system-activity-indicator-shell ::deep .system-activity-indicator {
     position: relative;
-    width: 3rem;
-    min-width: 3rem;
-    height: 3rem;
+    width: max(3rem, var(--tl-tap-target-min, 44px));
+    min-width: max(3rem, var(--tl-tap-target-min, 44px));
+    height: max(3rem, var(--tl-tap-target-min, 44px));
     display: inline-grid;
     place-items: center;
     padding: 0;

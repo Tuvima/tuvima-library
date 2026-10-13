@@ -53,6 +53,7 @@
 <AppLayout Class="@LayoutShellClass">
     <AppAppBar Fixed="false" Elevation="0" Dense="true" Class="@AppBarClass">
         <AppStack Row="true" AlignItems="AppAlignItems.Center" Spacing="2" Class="layout-shell__left-rail">
+            <ShellMenuButton IsKids="@_isKids" OnSearch="@(() => OpenSearch())" />
             <AppLink Href="/" Underline="AppUnderline.None" Class="layout-shell__brand-link" aria-label="Tuvima Library">
                 <span class="layout-shell__brand-lockup-shell" aria-hidden="true">
                     <img src="/images/library.svg"
@@ -170,7 +171,7 @@
     <ListenNowPlayingBar />
 </div>
 
-@if (DeviceContext.Settings.Shell.DockVisible)
+@if (ShowIntentDock)
 {
     <nav class="@IntentDockClass" aria-label="Primary mobile navigation">
         @foreach (var link in IntentDockLinks)
@@ -272,6 +273,9 @@
         .Where(link => !_isKids || _kidsDockPaths.Contains(link.Path, StringComparer.OrdinalIgnoreCase))
         .DistinctBy(link => link.Path, StringComparer.OrdinalIgnoreCase)
         .ToArray();
+    // The six-tab dock is the phone's navigation (tablets keep the top navigation); TV and automotive keep their own dock.
+    private bool ShowIntentDock => DeviceContext.Settings.Shell.DockVisible
+        && (DeviceContext.IsPhone || DeviceContext.IsTelevision || DeviceContext.IsAutomotive);
     private string IntentDockClass => string.Join(' ', new[]
     {
         "layout-shell__intent-dock",

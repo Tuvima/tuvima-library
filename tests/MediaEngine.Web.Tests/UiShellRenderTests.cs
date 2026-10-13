@@ -263,9 +263,9 @@ public sealed class UiShellRenderTests : AsyncBunitContext
             Assert.Equal("/images/library.svg", cut.Find(".layout-shell__brand-lockup").GetAttribute("src"));
             Assert.Empty(cut.FindAll(".layout-shell__mobile-menu"));
             Assert.Contains("Body content", cut.Markup);
-            Assert.Equal(6, cut.FindAll(".layout-shell__intent-dock-link").Count);
-            Assert.Contains(cut.FindAll(".layout-shell__intent-dock-link"),
-                link => string.Equals(link.GetAttribute("href"), "/", StringComparison.Ordinal));
+            // Desktop uses the top navigation: no phone dock and no hamburger.
+            Assert.Empty(cut.FindAll(".layout-shell__intent-dock-link"));
+            Assert.Empty(cut.FindAll(".shell-menu-button"));
             Assert.DoesNotContain("Search your library", cut.Markup);
             Assert.Empty(cut.FindAll(".layout-shell__search-shell"));
             Assert.Single(cut.FindAll(".layout-shell__search-action"));
@@ -1614,6 +1614,147 @@ public sealed class UiShellRenderTests : AsyncBunitContext
         Assert.Contains("Duplicate Card And Panel Patterns", audit);
         Assert.Contains("Recommended Priority Order", audit);
         Assert.Contains("tl-filter-bar", audit);
+    }
+
+    [Fact]
+    public async Task MainLayout_ShowsSixTabDockAndHamburgerOnlyOnPhones()
+    {
+        var cut = Render<MainLayout>(parameters => parameters
+            .Add(layout => layout.Body, builder => builder.AddMarkupContent(0, "<section>Body</section>")));
+        cut.WaitForAssertion(() => Assert.Single(cut.FindAll(".tl-appbar")));
+        var device = Services.GetRequiredService<DeviceContextService>();
+
+        await cut.InvokeAsync(() => device.SwitchDeviceAsync(new DeviceContextSnapshot("mobile", "phone", true)));
+        cut.WaitForAssertion(() =>
+        {
+            var links = cut.FindAll(".layout-shell__intent-dock-link");
+            Assert.Equal(6, links.Count);
+            Assert.Equal(["/", "/read", "/watch", "/listen", "/view", "/collections"], links.Select(link => link.GetAttribute("href")!).ToArray());
+            Assert.Single(cut.FindAll(".shell-menu-button"));
+        });
+
+        await cut.InvokeAsync(() => device.SwitchDeviceAsync(new DeviceContextSnapshot("web", "tablet", true)));
+        cut.WaitForAssertion(() =>
+        {
+            Assert.Empty(cut.FindAll(".layout-shell__intent-dock-link"));
+            Assert.Empty(cut.FindAll(".shell-menu-button"));
+            Assert.Equal(5, cut.FindAll(".layout-shell__nav-link").Count);
+        });
+    }
+
+    [Fact]
+    public void ShellMenuSheet_ListsFullMenuForAdultsAndOnlySearchAndSwitchProfileForKids()
+    {
+        var adult = Render<MediaEngine.Web.Components.Navigation.ShellMenuSheet>(parameters => parameters.Add(p => p.IsKids, false));
+        var adultRows = adult.FindAll(".shell-menu-sheet__row");
+        Assert.Equal(["Recently added", "Search", "My List", "Settings", "Switch profile", "Sign out"],
+            adultRows.Select(row => row.TextContent.Trim()).ToArray());
+        Assert.Equal("/recently-added", adultRows[0].GetAttribute("href"));
+        Assert.Equal("/for-me", adultRows[2].GetAttribute("href"));
+        Assert.Equal("/settings", adultRows[3].GetAttribute("href"));
+        Assert.Equal("/who", adultRows[4].GetAttribute("href"));
+        Assert.Single(adult.FindAll("form[action='/auth/logout']"));
+
+        var kids = Render<MediaEngine.Web.Components.Navigation.ShellMenuSheet>(parameters => parameters.Add(p => p.IsKids, true));
+        Assert.Equal(["Search", "Switch profile"], kids.FindAll(".shell-menu-sheet__row").Select(row => row.TextContent.Trim()).ToArray());
+        Assert.Empty(kids.FindAll("a[href='/settings']"));
+    }
+
+    [Fact]
+    public async Task UniversalSearchOverlay_IsFullScreenWithCancelOnPhonesOnly()
+    {
+        var overlay = Render<MediaEngine.Web.Components.Search.UniversalSearchOverlay>();
+        await overlay.InvokeAsync(() => overlay.Instance.Open());
+        Assert.Empty(overlay.FindAll(".universal-search-overlay--phone"));
+        Assert.Empty(overlay.FindAll(".universal-search-overlay__cancel"));
+
+        var device = Services.GetRequiredService<DeviceContextService>();
+        await overlay.InvokeAsync(() => device.SwitchDeviceAsync(new DeviceContextSnapshot("mobile", "phone", true)));
+        Assert.Single(overlay.FindAll(".universal-search-overlay--phone"));
+        Assert.Single(overlay.FindAll(".universal-search-overlay__cancel"));
+        Assert.Equal("search", overlay.Find(".universal-search-overlay__input-shell input").GetAttribute("enterkeyhint"));
+    }
+
+    [Theory]
+    [InlineData("television", "tv", false)]
+    public async Task MainLayout_KeepsTvDock(string deviceClass, string formFactor, bool touch)
+    {
+        var cut = Render<MainLayout>(parameters => parameters
+            .Add(layout => layout.Body, builder => builder.AddMarkupContent(0, "<section>Body</section>")));
+        cut.WaitForAssertion(() => Assert.Single(cut.FindAll(".tl-appbar")));
+        var device = Services.GetRequiredService<DeviceContextService>();
+
+        await cut.InvokeAsync(() => formFactor.Length == 0
+            ? device.SwitchDeviceAsync(deviceClass)
+            : device.SwitchDeviceAsync(new DeviceContextSnapshot(deviceClass, formFactor, touch)));
+
+        cut.WaitForAssertion(() =>
+        {
+            Assert.Equal(6, cut.FindAll(".layout-shell__intent-dock-link").Count);
+            Assert.Contains("is-device-profile-dock", cut.Find(".layout-shell__intent-dock").ClassName);
+            Assert.Empty(cut.FindAll(".shell-menu-button"));
+        });
+    }
+
+    [Fact]
+    public async Task MainLayout_KidsPhoneDockHasFourTabs()
+    {
+        var cut = Render<MainLayout>(parameters => parameters
+            .Add(layout => layout.Body, builder => builder.AddMarkupContent(0, "<section>Body</section>")));
+        cut.WaitForAssertion(() => Assert.Single(cut.FindAll(".tl-appbar")));
+        var device = Services.GetRequiredService<DeviceContextService>();
+
+        await cut.InvokeAsync(() => device.SwitchDeviceAsync(new DeviceContextSnapshot("mobile", "phone", true)));
+        typeof(MainLayout).GetField("_isKids", BindingFlags.Instance | BindingFlags.NonPublic)!.SetValue(cut.Instance, true);
+        cut.Render();
+
+        cut.WaitForAssertion(() => Assert.Equal(["/", "/read", "/watch", "/listen"],
+            cut.FindAll(".layout-shell__intent-dock-link").Select(link => link.GetAttribute("href")!).ToArray()));
+    }
+
+    [Fact]
+    public async Task ShellMenuButton_OpensAndClosesTheSheetAndSearchClosesItFirst()
+    {
+        Services.AddScoped<MediaEngine.Web.Services.Ui.IAppDialogService, MediaEngine.Web.Services.Ui.AppDialogService>();
+        var searchRaised = 0;
+        IRenderedComponent<MediaEngine.Web.Components.Navigation.ShellMenuButton>? cut = null;
+        cut = Render<MediaEngine.Web.Components.Navigation.ShellMenuButton>(parameters => parameters
+            .Add(p => p.OnSearch, Microsoft.AspNetCore.Components.EventCallback.Factory.Create(this, () =>
+            {
+                searchRaised++;
+            })));
+        Assert.Empty(cut.FindAll(".shell-menu-button")); // desktop: no hamburger
+
+        var device = Services.GetRequiredService<DeviceContextService>();
+        await cut.InvokeAsync(() => device.SwitchDeviceAsync(new DeviceContextSnapshot("mobile", "phone", true)));
+        cut.Find(".shell-menu-button").Click();
+        cut.WaitForAssertion(() => Assert.Single(cut.FindAll(".shell-menu-sheet")));
+
+        // Escape-style cancel from a link row closes it.
+        cut.Find(".shell-menu-sheet a[href='/settings']").Click();
+        cut.WaitForAssertion(() => Assert.Empty(cut.FindAll(".shell-menu-sheet")));
+
+        cut.Find(".shell-menu-button").Click();
+        cut.WaitForAssertion(() => Assert.Single(cut.FindAll(".shell-menu-sheet")));
+        cut.FindAll(".shell-menu-sheet__row").First(row => row.TextContent.Trim() == "Search").Click();
+        cut.WaitForAssertion(() => Assert.Equal(1, searchRaised));
+        Assert.Empty(cut.FindAll(".shell-menu-sheet"));
+    }
+
+    [Fact]
+    public void PhoneDockAndAudioDockOccupyDifferentGridRows()
+    {
+        var css = File.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "Shared", "MainLayout.razor.css")).Replace("\r\n", "\n");
+        Assert.Contains(".playback-app-frame__audio-dock {\n    grid-row: 3;", css);
+        Assert.Contains("html[data-form-factor=\"phone\"] .playback-app-frame .layout-shell__intent-dock {\n    grid-row: 4;", css);
+        Assert.DoesNotContain("@media (max-width: 600px)", css);
+    }
+
+    [Fact]
+    public void LegacyNavMenuComponentIsGone()
+    {
+        Assert.False(File.Exists(GetRepoFile("src", "MediaEngine.Web", "Shared", "NavMenu.razor")));
+        Assert.False(File.Exists(GetRepoFile("src", "MediaEngine.Web", "Components", "Shared", "NavMenu.razor")));
     }
 
     private static string GetRepoFile(params string[] segments) =>
