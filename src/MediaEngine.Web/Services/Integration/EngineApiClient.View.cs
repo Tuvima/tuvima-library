@@ -100,6 +100,13 @@ public sealed partial class EngineApiClient
             ["scopeProfileId"] = scope.CarriesProfileId() ? scopeProfileId?.ToString("D") : null,
         }, ct: ct);
 
+    public Task<ViewDocumentTextDto?> GetViewDocumentTextAsync(Guid itemId, ViewScopeKind scope, Guid? scopeProfileId = null, CancellationToken ct = default) =>
+        GetAsync<ViewDocumentTextDto>("GET /view/items/{id}/text", $"/view/items/{itemId:D}/text", new Dictionary<string, string?>
+        {
+            ["scope"] = ScopeValue(scope),
+            ["scopeProfileId"] = scope.CarriesProfileId() ? scopeProfileId?.ToString("D") : null,
+        }, ct: ct);
+
     public Task<ViewFolderPageDto?> GetViewFoldersAsync(ViewFolderQueryOptions options, CancellationToken ct = default)
     {
         var query = new List<string>();

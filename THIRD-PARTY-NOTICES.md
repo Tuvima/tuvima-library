@@ -29,6 +29,10 @@ QRCoder 1.6.0 draws the QR code that Users & Access shows with an invitation lin
 
 PdfPig 0.1.16 (Apache License 2.0) reads the embedded text layer of PDFs, and DocumentFormat.OpenXml 3.5.1 (Microsoft, MIT License) reads text from .docx, .xlsx and .pptx files, so View documents are searchable. Both run inside the Engine on the user's computer; document text is never sent anywhere.
 
+## PDF.js (Documents viewer)
+
+PDF.js (pdfjs-dist 5.4.149, Mozilla, Apache License 2.0) draws PDFs and finds words inside them in the View Documents viewer. Its files are bundled unmodified under `src/MediaEngine.Web/wwwroot/vendor/pdfjs/` together with its license, and are always loaded from the Dashboard itself, never from a CDN. The document is read in the browser on the user's computer; nothing is sent to any other service.
+
 ## Tesseract OCR, tessdata_fast, PDFtoImage and PDFium (scanned document search)
 
 Scanned PDF pages and photos of paper are read with Tesseract OCR (Apache License 2.0, <https://github.com/tesseract-ocr/tesseract>), run as a separate program on the user's computer. The Windows installer bundles the UB Mannheim build (v5.4.0.20240606) with the libraries it needs (Leptonica, libpng, libjpeg-turbo, libtiff, libwebp and others), each under its own permissive or LGPL licence and shipped unmodified as separate files; the Apache 2.0 licence is installed under `licenses/tesseract`. English and orientation language data come from tessdata_fast (Apache License 2.0, <https://github.com/tesseract-ocr/tessdata_fast>), pinned to commit `923915d4`. PDF pages are drawn with PDFtoImage 5.4.0 (MIT License, <https://github.com/sungaila/PDFtoImage>), which uses PDFium (BSD 3-Clause License, copyright The PDFium Authors) through the bblanchon.PDFium packages. Everything runs on the user's computer; nothing is uploaded, and the only network use is an optional language download the user starts in Settings.

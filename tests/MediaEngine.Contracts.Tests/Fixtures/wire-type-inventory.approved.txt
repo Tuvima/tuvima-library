@@ -3,7 +3,7 @@
 # Compatibility is enforced separately by wire-compatibility.approved.txt.
 # Serializer: System.Text.Json JsonSerializerDefaults.Web; DefaultIgnoreCondition=Never
 # Regenerate intentionally with TUVIMA_UPDATE_WIRE_SNAPSHOT=1.
-# scopes: contracts=975; api=0; web-client=86
+# scopes: contracts=977; api=0; web-client=86
 
 [contracts] MediaEngine.Contracts.Activity.ActivityBatchInsightsDto
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -4397,6 +4397,13 @@
   AvailableBytes: System.Int64? | json=available_bytes | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   IsAvailable: System.Boolean | json=is_available | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
 
+[contracts] MediaEngine.Contracts.LocalAssets.LocalAssetDocumentInfoDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  TextSource: System.String | json=text_source | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  TextTruncated: System.Boolean | json=text_truncated | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Encrypted: System.Boolean | json=encrypted | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  HasText: System.Boolean | json=has_text | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+
 [contracts] MediaEngine.Contracts.LocalAssets.LocalAssetDto
   kind=class | converter=default | number-handling=default | unmapped=default
   Id: System.Guid | json=id | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
@@ -4447,6 +4454,8 @@
   EmbeddedCapturedAt: System.DateTimeOffset? | json=embedded_captured_at | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   CapturedAtUserOverride: System.Boolean | json=captured_at_user_override | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   People: System.Collections.Generic.IReadOnlyList<System.String> | json=people | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Snippet: System.String | json=snippet | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  DocumentInfo: MediaEngine.Contracts.LocalAssets.LocalAssetDocumentInfoDto | json=document_info | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
 
 [contracts] MediaEngine.Contracts.LocalAssets.LocalAssetFileDto
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -4574,6 +4583,13 @@
   AutomaticProcessingAvailable: System.Boolean | json=automatic_processing_available | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Message: System.String | json=message | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   EvidenceKinds: System.Collections.Generic.IReadOnlyList<System.String> | json=evidence_kinds | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+
+[contracts] MediaEngine.Contracts.LocalAssets.ViewDocumentTextDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  ItemId: System.Guid | json=item_id | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Text: System.String | json=text | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  ShownTruncated: System.Boolean | json=shown_truncated | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  DocumentInfo: MediaEngine.Contracts.LocalAssets.LocalAssetDocumentInfoDto | json=document_info | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
 
 [contracts] MediaEngine.Contracts.LocalAssets.ViewFolderBreadcrumbDto
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -4840,6 +4856,7 @@
   Scope: MediaEngine.Contracts.LocalAssets.ViewResolvedScopeDto | json=scope | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   AvailableScopes: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.LocalAssets.ViewScopeOptionDto> | json=available_scopes | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   CanBrowseOtherPeople: System.Boolean | json=can_browse_other_people | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  CanViewDocuments: System.Boolean | json=can_view_documents | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
 
 [contracts] MediaEngine.Contracts.LocalAssets.ViewSharedContributionDecisionRequest
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -7535,7 +7552,8 @@
   AccessSharedLibrary: System.Boolean | json=access_shared_library | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   SubmitToSharedLibrary: System.Boolean | json=submit_to_shared_library | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   AllowGallerySharing: System.Boolean | json=allow_gallery_sharing | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  sample={"view_enabled":true,"access_shared_library":true,"submit_to_shared_library":true,"allow_gallery_sharing":true}
+  AllowDocuments: System.Boolean | json=allow_documents | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"view_enabled":true,"access_shared_library":true,"submit_to_shared_library":true,"allow_gallery_sharing":true,"allow_documents":true}
 
 [contracts] MediaEngine.Contracts.Profiles.ViewProfilePolicyDto
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -7544,8 +7562,9 @@
   AccessSharedLibrary: System.Boolean | json=access_shared_library | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   SubmitToSharedLibrary: System.Boolean | json=submit_to_shared_library | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   AllowGallerySharing: System.Boolean | json=allow_gallery_sharing | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  AllowDocuments: System.Boolean | json=allow_documents | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   UpdatedAt: System.DateTimeOffset? | json=updated_at | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  sample={"profile_id":"11111111-2222-3333-4444-555555555555","view_enabled":true,"access_shared_library":true,"submit_to_shared_library":true,"allow_gallery_sharing":true,"updated_at":"2025-01-02T03:04:05+00:00"}
+  sample={"profile_id":"11111111-2222-3333-4444-555555555555","view_enabled":true,"access_shared_library":true,"submit_to_shared_library":true,"allow_gallery_sharing":true,"allow_documents":true,"updated_at":"2025-01-02T03:04:05+00:00"}
 
 [contracts] MediaEngine.Contracts.Progress.JourneyItemDto
   kind=class | converter=default | number-handling=default | unmapped=default

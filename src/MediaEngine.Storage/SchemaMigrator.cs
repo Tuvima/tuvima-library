@@ -1643,6 +1643,12 @@ internal sealed class SchemaMigrator
         AddColumnIfMissing(conn, "local_item_metadata", "frame_rate", "ALTER TABLE local_item_metadata ADD COLUMN frame_rate REAL;");
         AddColumnIfMissing(conn, "local_item_metadata", "text_source", "ALTER TABLE local_item_metadata ADD COLUMN text_source TEXT CHECK (text_source IS NULL OR text_source IN ('embedded', 'ocr', 'mixed', 'none'));");
         WidenTextSourceCheck(conn);
+        if (AddColumnIfMissing(conn, "profile_view_policies", "documents_enabled", "ALTER TABLE profile_view_policies ADD COLUMN documents_enabled INTEGER NOT NULL DEFAULT 1 CHECK (documents_enabled IN (0, 1));"))
+        {
+            // Child profiles that already have a saved policy start with Documents off, like new ones.
+            conn.Execute("UPDATE profile_view_policies SET documents_enabled = 0 WHERE profile_id IN (SELECT id FROM profiles WHERE role = 'RestrictedProfile');");
+        }
+
         AddColumnIfMissing(conn, "profile_view_preferences", "viewer_info_open", "ALTER TABLE profile_view_preferences ADD COLUMN viewer_info_open INTEGER NOT NULL DEFAULT 1;");
         var addedEmbeddedCapturedAt = AddColumnIfMissing(conn, "local_items", "embedded_captured_at", "ALTER TABLE local_items ADD COLUMN embedded_captured_at TEXT;");
         AddColumnIfMissing(conn, "local_items", "captured_at_user_override", "ALTER TABLE local_items ADD COLUMN captured_at_user_override INTEGER NOT NULL DEFAULT 0;");
