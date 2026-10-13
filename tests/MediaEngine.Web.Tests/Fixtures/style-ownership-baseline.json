@@ -499,7 +499,7 @@
       "important": 0,
       "deep": 1
     },
-    "src/MediaEngine.Web/Components/Settings/AccountSettingsTab.razor.css": {
+    "src/MediaEngine.Web/Components/Settings/SecuritySettingsPage.razor.css": {
       "important": 4,
       "deep": 11
     },
@@ -1529,7 +1529,7 @@
       "important": 0,
       "deep": 1
     },
-    "src/MediaEngine.Web/Components/Settings/AccountSettingsTab.razor.css": {
+    "src/MediaEngine.Web/Components/Settings/SecuritySettingsPage.razor.css": {
       "important": 4,
       "deep": 11
     },

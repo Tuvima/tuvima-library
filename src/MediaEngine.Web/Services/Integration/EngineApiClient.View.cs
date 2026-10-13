@@ -21,13 +21,6 @@ public sealed partial class EngineApiClient
     public Task<ViewOtherPeopleDto?> GetViewOtherPeopleAsync(CancellationToken ct = default) =>
         GetAsync<ViewOtherPeopleDto>("GET /view/other-people", "/view/other-people", ct: ct);
 
-    public Task<ViewPhotoViewsPageDto?> GetViewPhotoViewsAsync(int offset = 0, int limit = 25, CancellationToken ct = default) =>
-        GetAsync<ViewPhotoViewsPageDto>("GET /view/photo-views", "/view/photo-views", new Dictionary<string, string?>
-        {
-            ["offset"] = offset.ToString(System.Globalization.CultureInfo.InvariantCulture),
-            ["limit"] = limit.ToString(System.Globalization.CultureInfo.InvariantCulture),
-        }, ct: ct);
-
     public Task<LibraryCapacityDto?> GetLibraryCapacityAsync(string area, CancellationToken ct = default) =>
         GetAsync<LibraryCapacityDto>("GET /view/library-capacity", "/view/library-capacity", new Dictionary<string, string?>
         {

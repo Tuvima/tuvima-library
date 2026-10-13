@@ -113,7 +113,7 @@ public sealed class ThisComputerDashboardTests : AsyncBunitContext
 
         Assert.Contains("No password set. Anyone on your home network can open Tuvima. Add one to secure it.", banner.Markup);
         Assert.Contains("Secure account", banner.Markup);
-        Assert.Contains("href=\"/settings/account\"", banner.Markup);
+        Assert.Contains("href=\"/settings/security\"", banner.Markup);
     }
 
     [Theory]

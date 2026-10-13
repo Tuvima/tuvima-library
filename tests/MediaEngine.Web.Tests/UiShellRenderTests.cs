@@ -333,7 +333,7 @@ public sealed class UiShellRenderTests : AsyncBunitContext
         cut.Find(".top-nav-account-menu__trigger").Click();
 
         Assert.Contains(cut.FindAll("a[role=menuitem]"), link =>
-            link.GetAttribute("href") == "/settings/account" && link.TextContent.Contains("Secure account"));
+            link.GetAttribute("href") == "/settings/security" && link.TextContent.Contains("Secure account"));
     }
 
     [Fact]
