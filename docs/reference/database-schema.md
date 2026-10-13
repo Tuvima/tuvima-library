@@ -188,6 +188,8 @@ The ledger of the organising job: one row for each file, and each sidecar, the j
 | `at` | TEXT | Timestamp |
 | `detail` | TEXT | The plain-English reason for any outcome that needs one (nullable) |
 
+Indexes: `idx_folder_organise_log_source (source_id, at)` and `idx_folder_organise_log_old_path (old_path COLLATE NOCASE)`. The second one backs the check the mutation gate makes before every delete, move or rename: a path with a merge line whose original stays in place (`copied`, `copied_unique_name`, `duplicate_skipped`, `sidecar_copied`, `merged_for_review`, `left_in_source`) is never deleted, moved or renamed by anything except the merge job itself, even after the merge is cancelled. A restarted merge also reads this table (any earlier operation for the same `source_id`) to carry on from copies already made.
+
 ---
 
 ## View Personal Media

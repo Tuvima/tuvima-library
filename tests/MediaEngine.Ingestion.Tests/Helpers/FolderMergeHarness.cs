@@ -29,7 +29,7 @@ internal sealed class FolderMergeHarness : IDisposable
     public string TargetDir { get; }
     public Guid SourceId { get; } = Guid.NewGuid();
     public Guid TargetId { get; } = Guid.NewGuid();
-    public Guid OperationId { get; } = Guid.NewGuid();
+    public Guid OperationId { get; private set; } = Guid.NewGuid();
 
     public StubConfigurationLoader Config { get; } = new();
     public TestDatabaseFactory Db { get; } = new();
@@ -131,7 +131,7 @@ internal sealed class FolderMergeHarness : IDisposable
             NullLogger<AutoOrganizeService>.Instance,
             workRepo: new WorkRepository(db),
             libraryResolver: new LibraryFolderResolver(monitor),
-            sourceMutationGate: new SourceMutationPolicyGate(),
+            sourceMutationGate: new SourceMutationPolicyGate(Ledger),
             sidecars: sidecars);
         var naming = new FolderConversionOrganiser(
             auto,
@@ -143,7 +143,7 @@ internal sealed class FolderMergeHarness : IDisposable
             Activity,
             Ledger,
             Hasher,
-            new SourceMutationPolicyGate(),
+            new SourceMutationPolicyGate(Ledger),
             sidecars,
             mover,
             monitor,
@@ -155,7 +155,7 @@ internal sealed class FolderMergeHarness : IDisposable
             Activity,
             Ledger,
             Hasher,
-            new SourceMutationPolicyGate(),
+            new SourceMutationPolicyGate(Ledger),
             new MergeFileTransfer(Hasher, NullLogger<MergeFileTransfer>.Instance),
             sidecars,
             NullLogger<FolderMergeOrganiser>.Instance);
@@ -192,6 +192,26 @@ internal sealed class FolderMergeHarness : IDisposable
     }
 
     public FolderMergeJob Job => new(OperationId, SourceId);
+
+    /// <summary>The person stops the merge: the folder is a plain folder again, exactly as it was before the merge was started.</summary>
+    public void SettleCancelledMerge()
+    {
+        Source.MergeState = LibrarySourceMergeStates.None;
+        Source.MergeOperationId = null;
+        Source.MergeTargetSourceId = null;
+        Source.MergeMode = null;
+        Source.MergedAt = null;
+    }
+
+    /// <summary>The person starts the merge again: a new operation, the same folders, and a ledger that still holds the earlier one.</summary>
+    public void StartMergeAgain(bool move = false)
+    {
+        OperationId = Guid.NewGuid();
+        Source.MergeState = LibrarySourceMergeStates.Merging;
+        Source.MergeOperationId = OperationId.ToString("D");
+        Source.MergeTargetSourceId = TargetId.ToString("D");
+        Source.MergeMode = move ? LibraryMergeModes.Move : LibraryMergeModes.Copy;
+    }
 
     public LibrarySourceConfig Source => Config.Libraries.Libraries[0].Sources[0];
 
@@ -302,12 +322,12 @@ internal sealed class FolderMergeHarness : IDisposable
             new OrganizationGate(new ScoringConfiguration()),
             Microsoft.Extensions.Options.Options.Create(Options), NullLogger<AutoOrganizeService>.Instance,
             workRepo: new WorkRepository(Db.Connection), libraryResolver: new LibraryFolderResolver(monitor),
-            sourceMutationGate: new SourceMutationPolicyGate(), sidecars: sidecars);
+            sourceMutationGate: new SourceMutationPolicyGate(Ledger), sidecars: sidecars);
         var naming = new FolderConversionOrganiser(
             auto, assets, Canonicals, organizer, new OrganizationGate(new ScoringConfiguration()), Reviews, Activity, Ledger,
-            useHasher, new SourceMutationPolicyGate(), sidecars, mover, monitor, NullLogger<FolderConversionOrganiser>.Instance);
+            useHasher, new SourceMutationPolicyGate(Ledger), sidecars, mover, monitor, NullLogger<FolderConversionOrganiser>.Instance);
         var organiser = new FolderMergeOrganiser(
-            naming, assets, Reviews, Activity, Ledger, useHasher, new SourceMutationPolicyGate(),
+            naming, assets, Reviews, Activity, Ledger, useHasher, new SourceMutationPolicyGate(Ledger),
             new MergeFileTransfer(useHasher, NullLogger<MergeFileTransfer>.Instance), sidecars,
             NullLogger<FolderMergeOrganiser>.Instance);
         return new FolderMergeRunner(

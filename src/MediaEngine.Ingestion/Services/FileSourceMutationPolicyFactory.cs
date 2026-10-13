@@ -13,11 +13,13 @@ public static class FileSourceMutationPolicyFactory
 {
     /// <param name="allowDelete">The caller explicitly asks for deletion (duplicate removal, empty-folder clean-up).</param>
     /// <param name="isMergeTarget">The folder is the target of a merge the person started, so it may receive files even though it is not the destination.</param>
+    /// <param name="isMergeJob">The policy is held by the folder merge job itself, which may act on originals its own ledger lists. Nothing else sets this.</param>
     public static FileSourceMutationPolicy Create(
         LibraryFolderEntry library,
         LibrarySourceEntry source,
         bool allowDelete = false,
-        bool isMergeTarget = false)
+        bool isMergeTarget = false,
+        bool isMergeJob = false)
     {
         ArgumentNullException.ThrowIfNull(library);
         ArgumentNullException.ThrowIfNull(source);
@@ -39,14 +41,16 @@ public static class FileSourceMutationPolicyFactory
             isDestination: string.Equals(library.PrimaryDestination?.Id, source.Id, StringComparison.OrdinalIgnoreCase),
             isMergeTarget,
             library.WriteTags,
-            allowDelete);
+            allowDelete,
+            isMergeJob);
     }
 
     public static FileSourceMutationPolicy Create(
         LibraryFolderConfig library,
         LibrarySourceConfig source,
         bool allowDelete = false,
-        bool isMergeTarget = false)
+        bool isMergeTarget = false,
+        bool isMergeJob = false)
     {
         ArgumentNullException.ThrowIfNull(library);
         ArgumentNullException.ThrowIfNull(source);
@@ -68,7 +72,8 @@ public static class FileSourceMutationPolicyFactory
             isDestination: string.Equals(library.PrimaryDestination?.Id, source.Id, StringComparison.OrdinalIgnoreCase),
             isMergeTarget,
             library.OrganizationPolicy.WriteTags,
-            allowDelete);
+            allowDelete,
+            isMergeJob);
     }
 
     private static bool IsManaged(string managementMode) => string.Equals(
@@ -85,7 +90,8 @@ public static class FileSourceMutationPolicyFactory
         bool isDestination,
         bool isMergeTarget,
         bool writeTags,
-        bool allowDelete)
+        bool allowDelete,
+        bool isMergeJob)
         => new()
         {
             LibraryId = libraryId,
@@ -100,5 +106,6 @@ public static class FileSourceMutationPolicyFactory
             AllowMetadataWriteback = managed && writeTags,
             AllowDelete = managed && allowDelete,
             AllowAsDestination = managed && (isDestination || isMergeTarget),
+            IsMergeJob = isMergeJob,
         };
 }

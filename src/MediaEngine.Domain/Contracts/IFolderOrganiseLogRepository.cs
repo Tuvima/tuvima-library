@@ -55,6 +55,17 @@ public static class FolderOrganiseOutcomes
     public const string LeftInSource = "left_in_source";
 
     public static bool IsFinal(string outcome) => !string.Equals(outcome, Moving, StringComparison.Ordinal);
+
+    /// <summary>
+    /// A merge line whose original is still in the source folder, so that original must be kept: normal duplicate handling and
+    /// organising must never delete or move it. (A copy may already sit in the target, or the file has not been reached yet.)
+    /// </summary>
+    public static bool KeepsOriginalInPlace(string outcome) => outcome is Copied
+        or CopiedWithUniqueName
+        or DuplicateSkipped
+        or SidecarCopied
+        or MergedForReview
+        or LeftInSource;
 }
 
 /// <summary>One line of the organising job's log.</summary>
@@ -97,4 +108,17 @@ public interface IFolderOrganiseLogRepository
 
     /// <summary>How many entries carry each outcome, for the completion summary.</summary>
     Task<IReadOnlyDictionary<string, int>> CountByOutcomeAsync(Guid operationId, CancellationToken ct = default);
+
+    /// <summary>
+    /// True when any merge, ever, listed <paramref name="path"/> as an original that stays in its source folder (see
+    /// <see cref="FolderOrganiseOutcomes.KeepsOriginalInPlace"/>). Answered immediately: the mutation gate asks it before every
+    /// delete or move, so it must stay a single indexed lookup.
+    /// </summary>
+    bool IsMergeOriginal(string path);
+
+    /// <summary>
+    /// The most recent line, from any earlier merge of the same source folder, saying this original was already copied (or
+    /// had its copy started). A restarted merge uses it to carry on instead of copying the file again.
+    /// </summary>
+    Task<FolderOrganiseLogEntry?> FindEarlierCopyAsync(Guid sourceId, string oldPath, CancellationToken ct = default);
 }

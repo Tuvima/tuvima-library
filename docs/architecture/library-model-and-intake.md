@@ -225,7 +225,14 @@ exportable log, pause, resume, cancel, restart-resume).
   is updated, so after a restart a verified copy is completed, anything else is retired,
   leftover temporary copies are cleared, and finished files are not repeated. The job reads
   the saved settings again every few seconds and stops (keeping what was copied) when the
-  merge is cancelled, a folder is removed, or the target stops being managed.
+  merge is cancelled, a folder is removed, or the target stops being managed. A cancelled
+  merge reads "Merge stopped. Nothing was deleted. You can start it again." (a Move says
+  instead that the files already moved stay in the target). Starting it again is a new
+  operation: `FolderMergeOrganiser.TryCarryOnEarlierCopyAsync` looks up the earlier run's
+  ledger line for each original (`IFolderOrganiseLogRepository.FindEarlierCopyAsync`) and,
+  when that copy is still in the target and still has the original's exact bytes, records
+  the file again without copying it (a Move removes the original after the same byte
+  check), so a restart never adds numbered duplicates.
 - **Shortcuts and busy folders.** Symbolic links and Windows junctions inside the source
   are never listed, copied or removed (a file reached through one may really live in
   another folder), and an original is never removed when it and its "copy" are the same
@@ -235,9 +242,23 @@ exportable log, pause, resume, cancel, restart-resume).
 - **Duplicate removal by normal ingestion.** While a folder is merging, or once merged, the
   ingestion pipeline's own "exact duplicate" removal never deletes from it, and never
   removes any duplicate whose kept copy is missing. A merged folder is dropped from the
-  scan targets and from folder resolution. After a *cancelled* Copy merge the folder is a
-  normal folder again, so if it is a managed folder, normal duplicate handling may remove
-  originals whose verified copies are already in the target (as for any managed folder).
+  scan targets and from folder resolution. After a *cancelled* merge the folder is a
+  normal folder again, but the originals the merge listed are still protected: the
+  mutation gate (`SourceMutationPolicyGate`, the one place every delete, move and rename is
+  decided) asks the ledger (`IFolderOrganiseLogRepository.IsMergeOriginal`) and refuses
+  Delete, Move and Rename for any path with a merge line whose outcome leaves the original
+  in place (`FolderOrganiseOutcomes.KeepsOriginalInPlace`: `copied`, `copied_unique_name`,
+  `duplicate_skipped`, `sidecar_copied`, `merged_for_review`, `left_in_source`), whatever
+  state the folder is in and from any caller (duplicate removal, `AutoOrganizeService`,
+  reorganising, conversion). Only the merge job's own policy (`IsMergeJob`, set by
+  `FolderMergeContext` through `FileSourceMutationPolicyFactory`) is exempt. With the copy
+  and the original both present, Keep one copy therefore keeps both untouched and opens no
+  Review item. The protection does not expire: the originals stay as they are until the
+  person deletes them or merges the folder again as a Move, which removes each one only
+  after its copy is checked byte for byte. A merge cut short and then cancelled before it
+  could resume has its unfinished lines closed as `copied` (`KeepUnfinishedMergeCopiesAsync`)
+  so the original beside a copy that landed is protected too. If the ledger cannot be read
+  the gate refuses (fail closed).
 - **Known caveat.** `AutoOrganizeService` still moves files out of a managed folder that
   is not the destination into the destination's root; a merge into such a target is
   unaffected by this job, but later organising of that target may.

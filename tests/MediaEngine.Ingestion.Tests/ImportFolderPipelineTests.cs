@@ -1,6 +1,7 @@
 using Dapper;
 using MediaEngine.Domain.Configuration;
 using MediaEngine.Domain.Constants;
+using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Enums;
 using MediaEngine.Domain.Models;
 using MediaEngine.Domain.Services;
@@ -128,6 +129,47 @@ public sealed class ImportFolderPipelineTests : IDisposable
         Assert.True(Directory.Exists(Path.Combine(h.ImportDir, "Movies")));
         Assert.Equal(1, await AssetCountAsync(h));
         Assert.Single(h.FilesUnder(h.MoviesDir));
+    }
+
+    // ── Originals left behind by a cancelled merge ────────────────────────
+
+    [Fact]
+    public async Task Keep_one_copy_leaves_the_original_of_a_cancelled_merge_on_disk_beside_its_copy()
+    {
+        var h = NewHarness(LibraryDuplicatePolicies.KeepOne);
+        var (held, _) = await SeedHeldCopyAsync(h, "same bytes");
+        // The merged folder is a plain managed folder again after the cancel; its original sits beside the copy the merge made.
+        var original = Path.Combine(h.ElsewhereDir, "Dune.2021.mkv");
+        File.WriteAllText(original, "same bytes");
+        h.Options.WatchDirectories = [.. h.Options.WatchDirectories, h.ElsewhereDir];
+        await new FolderOrganiseLogRepository(h.Db.Connection).UpsertAsync(new FolderOrganiseLogEntry(
+            Guid.NewGuid(), Guid.NewGuid(), original, held, FolderOrganiseOutcomes.Copied, DateTimeOffset.UtcNow, null));
+
+        await RunEngineAsync(
+            h, new TestProcessorLibraryItem(), () => HasIngestionStatusAsync(h, "duplicate"), withMergeLedger: true);
+
+        Assert.True(File.Exists(original), "the original of a merge is never removed as a spare copy");
+        Assert.True(File.Exists(held));
+        Assert.Equal(1, await AssetCountAsync(h));
+        using var connection = h.Db.Connection.CreateConnection();
+        Assert.Equal(0, await connection.ExecuteScalarAsync<int>("SELECT COUNT(*) FROM review_queue;"));
+    }
+
+    [Fact]
+    public async Task Keep_one_copy_still_removes_an_ordinary_duplicate_that_no_merge_listed()
+    {
+        var h = NewHarness(LibraryDuplicatePolicies.KeepOne);
+        var (held, _) = await SeedHeldCopyAsync(h, "same bytes");
+        var spare = Path.Combine(h.ElsewhereDir, "Dune.2021.mkv");
+        File.WriteAllText(spare, "same bytes");
+        h.Options.WatchDirectories = [.. h.Options.WatchDirectories, h.ElsewhereDir];
+
+        await RunEngineAsync(
+            h, new TestProcessorLibraryItem(), () => Task.FromResult(!File.Exists(spare)), withMergeLedger: true);
+
+        Assert.False(File.Exists(spare));
+        Assert.True(File.Exists(held));
+        Assert.Equal(1, await AssetCountAsync(h));
     }
 
     [Fact]
@@ -291,6 +333,13 @@ public sealed class ImportFolderPipelineTests : IDisposable
         return await connection.ExecuteScalarAsync<int>("SELECT COUNT(*) FROM media_assets;");
     }
 
+    private static async Task<bool> HasIngestionStatusAsync(ImportFolderHarness h, string status)
+    {
+        using var connection = h.Db.Connection.CreateConnection();
+        return await connection.ExecuteScalarAsync<int>(
+            "SELECT COUNT(*) FROM ingestion_log WHERE status = @status;", new { status }) > 0;
+    }
+
     private static async Task<bool> HasAssetsAsync(ImportFolderHarness h, int expected)
         => await AssetCountAsync(h) >= expected;
 
@@ -298,7 +347,8 @@ public sealed class ImportFolderPipelineTests : IDisposable
         ImportFolderHarness h,
         TestProcessorLibraryItem processors,
         Func<Task<bool>> done,
-        TimeSpan? timeout = null)
+        TimeSpan? timeout = null,
+        bool withMergeLedger = false)
     {
         var db = h.Db.Connection;
         var publisher = new StubEventPublisher();
@@ -322,7 +372,8 @@ public sealed class ImportFolderPipelineTests : IDisposable
         });
         var monitor = new OptionsMonitorStub<IngestionOptions>(options);
         var assetHasher = new TestAssetHasher();
-        var gate = new SourceMutationPolicyGate();
+        // The running Engine's gate reads the merge ledger; the Import tests keep the plain gate they always had.
+        var gate = new SourceMutationPolicyGate(withMergeLedger ? new FolderOrganiseLogRepository(db) : null);
 
         using var engine = new IngestionEngine(
             new StubFileWatcher(),
