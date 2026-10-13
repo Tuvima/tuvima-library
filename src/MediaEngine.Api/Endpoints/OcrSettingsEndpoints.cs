@@ -39,7 +39,7 @@ public static class OcrSettingsEndpoints
             settings.Enabled = request.Enabled;
             settings.Effort = OcrEffort.Normalize(request.Effort);
             var known = settings.AvailableLanguages.Select(language => language.Code).ToHashSet(StringComparer.OrdinalIgnoreCase);
-            var languages = request.Languages
+            var languages = (request.Languages ?? [])
                 .Where(code => !string.IsNullOrWhiteSpace(code) && known.Contains(code.Trim()))
                 .Select(code => code.Trim().ToLowerInvariant())
                 .Distinct()

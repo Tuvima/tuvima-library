@@ -88,6 +88,12 @@ public sealed class DocumentOcrQueue(
         return true;
     }
 
+    private async Task<bool> HasActiveJobAsync(Guid itemId) =>
+        (await operations.GetByEntityAsync(itemId, CancellationToken.None).ConfigureAwait(false)).Any(operation =>
+            operation.OperationType == MediaOperationType.ViewDocumentOcr
+            && operation.Status is MediaOperationStatus.Queued or MediaOperationStatus.Leased
+                or MediaOperationStatus.Running or MediaOperationStatus.RetryWaiting);
+
     private async Task RereadAsync(string stamp)
     {
         try
@@ -104,6 +110,11 @@ public sealed class DocumentOcrQueue(
 
                 foreach (var candidate in page)
                 {
+                    if (await HasActiveJobAsync(candidate.ItemId).ConfigureAwait(false))
+                    {
+                        continue;
+                    }
+
                     await TryQueueAsync(candidate.ItemId, candidate.ContentHash, candidate.FilePath, CancellationToken.None, stamp)
                         .ConfigureAwait(false);
                     Interlocked.Increment(ref _rereadQueued);

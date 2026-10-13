@@ -314,6 +314,44 @@ public sealed class DocumentOcrTests
         Assert.Contains("\"document_text_truncated\":true", fixture.Metadata(item.Id)!, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public async Task OneUnreadablePage_IsSkipped_AndTheOtherPagesAreKeptAsPartial()
+    {
+        var ocr = new FakeOcrService
+        {
+            OnRecognize = (call, _) => call == 1
+                ? throw new InvalidOperationException("page one crashed the helper")
+                : Task.FromResult(new OcrRecognition("harbour pilot logbook", 85, 3)),
+        };
+        using var fixture = new ViewLibraryServiceTests.ViewFixture(ocr);
+        fixture.WritePersonal("two.pdf", OcrFixtures.Pdf(string.Empty, string.Empty));
+        await fixture.Service.ScanAsync(fixture.PersonalLibraryId);
+        await fixture.DrainTextQueueAsync();
+
+        await Worker(fixture, ocr, new ManualPlaybackProbe()).RunOnceAsync(CancellationToken.None);
+
+        var item = Assert.Single(fixture.Repository.Query(new LocalAssetQuery(fixture.PersonalLibraryId, Limit: 5)).Items);
+        Assert.Equal(1, fixture.Search("harbour pilot"));
+        Assert.Contains("\"document_text_truncated\":true", fixture.Metadata(item.Id)!, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task PhotoWithOnlyStrayMarks_AddsNoWordsToSearch()
+    {
+        var ocr = new FakeOcrService
+        {
+            OnRecognize = (_, _) => Task.FromResult(new OcrRecognition("a | ~", 22, 2)),
+        };
+        using var fixture = new ViewLibraryServiceTests.ViewFixture(ocr);
+        fixture.WritePersonal("beach.png", OcrFixtures.Png());
+        await fixture.Service.ScanAsync(fixture.PersonalLibraryId);
+
+        await Worker(fixture, ocr, new ManualPlaybackProbe()).RunOnceAsync(CancellationToken.None);
+
+        var item = Assert.Single(fixture.Repository.Query(new LocalAssetQuery(fixture.PersonalLibraryId, Limit: 5)).Items);
+        Assert.Null(fixture.TextSource(item.Id));
+    }
+
     // ── The worker ──────────────────────────────────────────────────────────
 
     [Fact]

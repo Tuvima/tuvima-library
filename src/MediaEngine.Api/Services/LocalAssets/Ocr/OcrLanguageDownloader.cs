@@ -45,7 +45,7 @@ public sealed partial class OcrLanguageDownloader(
 
         Directory.CreateDirectory(ocr.LanguageDataDirectory);
         var target = Path.Combine(ocr.LanguageDataDirectory, option.Code + ".traineddata");
-        var partial = target + ".part";
+        var partial = target + "." + Guid.NewGuid().ToString("N") + ".part";
         try
         {
             using var client = httpClientFactory.CreateClient(HttpClientName);
@@ -96,9 +96,13 @@ public sealed partial class OcrLanguageDownloader(
         }
         finally
         {
-            if (File.Exists(partial))
+            try
             {
                 File.Delete(partial);
+            }
+            catch (IOException)
+            {
+                // A leftover .part file is harmless; the next download uses its own unique name.
             }
         }
     }

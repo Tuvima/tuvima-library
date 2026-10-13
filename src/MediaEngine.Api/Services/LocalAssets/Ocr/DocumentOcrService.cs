@@ -182,7 +182,10 @@ public sealed class DocumentOcrService(
             }
         }
 
-        return string.IsNullOrWhiteSpace(best.Text)
+        // Ordinary photos give back stray marks; only confident, word-like text is kept.
+        var believable = best.WordCount >= Math.Max(1, settings.MinImageWords)
+            && (best.AverageConfidence ?? 0) >= settings.MinImageConfidence;
+        return string.IsNullOrWhiteSpace(best.Text) || !believable
             ? null
             : new ReadResult(best.Text, LocalAssetTextSources.Ocr, Partial: false, PageCount: null, best.AverageConfidence, PagesRecognised: 1);
     }
@@ -227,6 +230,7 @@ public sealed class DocumentOcrService(
         double confidenceTotal = 0;
         var confidencePages = 0;
         var done = 0;
+        var failedPages = 0;
         try
         {
             foreach (var (pageIndex, bitmap) in PdfPageRenderer.RenderPages(
@@ -235,20 +239,32 @@ public sealed class DocumentOcrService(
                 using (bitmap)
                 {
                     token.ThrowIfCancellationRequested();
-                    var page = await RecognisePreparedAsync(bitmap, 0, settings, options, workFolder, $"p{pageIndex + 1}", token)
-                        .ConfigureAwait(false);
-                    if (page.AverageConfidence is null or < 1 || page.AverageConfidence < settings.RotationRetryConfidence)
+                    OcrRecognition page;
+                    try
                     {
-                        var turn = await DetectTurnAsync(bitmap, settings, options, workFolder, token).ConfigureAwait(false);
-                        if (turn is not (null or 0))
+                        page = await RecognisePreparedAsync(bitmap, 0, settings, options, workFolder, $"p{pageIndex + 1}", token)
+                            .ConfigureAwait(false);
+                        if (page.AverageConfidence is null or < 1 || page.AverageConfidence < settings.RotationRetryConfidence)
                         {
-                            var retry = await RecognisePreparedAsync(bitmap, turn.Value, settings, options, workFolder, $"p{pageIndex + 1}t", token)
-                                .ConfigureAwait(false);
-                            if ((retry.AverageConfidence ?? 0) > (page.AverageConfidence ?? 0))
+                            var turn = await DetectTurnAsync(bitmap, settings, options, workFolder, token).ConfigureAwait(false);
+                            if (turn is not (null or 0))
                             {
-                                page = retry;
+                                var retry = await RecognisePreparedAsync(bitmap, turn.Value, settings, options, workFolder, $"p{pageIndex + 1}t", token)
+                                    .ConfigureAwait(false);
+                                if ((retry.AverageConfidence ?? 0) > (page.AverageConfidence ?? 0))
+                                {
+                                    page = retry;
+                                }
                             }
                         }
+                    }
+                    catch (InvalidOperationException)
+                    {
+                        // One unreadable page must not discard the pages already read; the file is marked partly read.
+                        failedPages++;
+                        partial = true;
+                        logger.LogWarning("Page {Page} of {FileName} could not be recognised and was skipped.", pageIndex + 1, fileName);
+                        continue;
                     }
 
                     if (!string.IsNullOrWhiteSpace(page.Text))
@@ -278,7 +294,8 @@ public sealed class DocumentOcrService(
 
         if (recognised.Count == 0)
         {
-            return null;
+            // Every page failing is a failed read (earlier text is kept); pages that simply held no words are not.
+            return failedPages > 0 ? throw new InvalidOperationException("No page could be recognised.") : null;
         }
 
         var builder = new StringBuilder();
@@ -355,6 +372,22 @@ public sealed class DocumentOcrService(
         finally
         {
             DeleteFile(imagePath);
+        }
+    }
+
+    /// <summary>Removes page images left behind by an Engine crash or stop; they come from private documents.</summary>
+    public void CleanTemporaryFolders()
+    {
+        try
+        {
+            if (Directory.Exists(ocr.TemporaryRoot))
+            {
+                Directory.Delete(ocr.TemporaryRoot, recursive: true);
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            logger.LogWarning(ex, "Could not clear leftover text recognition scratch files.");
         }
     }
 

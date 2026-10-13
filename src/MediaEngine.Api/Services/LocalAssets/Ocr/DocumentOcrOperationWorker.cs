@@ -34,6 +34,7 @@ public sealed class DocumentOcrOperationWorker(
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
+        reader.CleanTemporaryFolders();
         while (!stoppingToken.IsCancellationRequested)
         {
             try

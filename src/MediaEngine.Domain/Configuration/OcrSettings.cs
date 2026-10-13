@@ -52,6 +52,14 @@ public sealed class OcrSettings
     [JsonPropertyName("min_image_side_pixels")]
     public int MinImageSidePixels { get; set; } = 200;
 
+    /// <summary>Text from a photo is kept only when its average confidence (0-100) reaches this, so ordinary photos add no junk words.</summary>
+    [JsonPropertyName("min_image_confidence")]
+    public int MinImageConfidence { get; set; } = 55;
+
+    /// <summary>Text from a photo is kept only when at least this many words were recognised.</summary>
+    [JsonPropertyName("min_image_words")]
+    public int MinImageWords { get; set; } = 3;
+
     /// <summary>
     /// A first pass below this average confidence (0-100) triggers orientation detection and one retry.
     /// </summary>

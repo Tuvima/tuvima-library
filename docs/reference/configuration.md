@@ -453,6 +453,7 @@ Controls text recognition (OCR) for scanned PDF pages and photos of paper. Tesse
 | `render_dpi` | int | `300` | Resolution used to draw PDF pages. |
 | `max_render_side_pixels` | int | `3500` | The longest side of a drawn page or photo is reduced to this many pixels. |
 | `min_image_side_pixels` | int | `200` | Smaller images are skipped; they cannot hold readable text. |
+| `min_image_confidence` / `min_image_words` | int | `55` / `3` | Text from a photo is kept only when its average confidence reaches the first value and at least the second number of words were recognised, so ordinary photos add no junk words. |
 | `rotation_retry_confidence` | int | `40` | A first pass with a lower average confidence (0-100) triggers orientation detection and one retry. |
 | `language_download_url` | string | pinned `tessdata_fast` commit | Where an extra language is downloaded from when the person asks in Settings. `{code}` is replaced with the language code. |
 | `available_languages[]` | object[] | 17 languages | `code` and `name` of each language offered in Settings. |
