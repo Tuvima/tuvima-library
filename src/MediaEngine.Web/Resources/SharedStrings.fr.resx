@@ -146,6 +146,12 @@
   <data name="TopBar_SignOut" xml:space="preserve">
     <value>Se déconnecter</value>
   </data>
+  <data name="Nav_Menu" xml:space="preserve">
+    <value>Menu</value>
+  </data>
+  <data name="Nav_RecentlyAdded" xml:space="preserve">
+    <value>Ajouts récents</value>
+  </data>
   <data name="TopBar_SignedInAs" xml:space="preserve">
     <value>Connecté en tant que</value>
   </data>

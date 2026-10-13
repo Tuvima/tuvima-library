@@ -330,13 +330,32 @@
 }
 
 @media (max-width: 600px) {
+    /* Phones list results as 48 px-plus rows that open on tap, not a sideways scroller. */
     .universal-results__grid {
-        display: flex;
-        overflow-x: auto;
+        grid-template-columns: minmax(0, 1fr);
+        gap: 4px;
     }
 
     .universal-results__card {
-        width: 120px;
-        flex: 0 0 120px;
+        grid-template-columns: 40px minmax(0, 1fr);
+        grid-template-rows: auto auto;
+        align-items: center;
+        column-gap: 12px;
+        row-gap: 0;
+        min-height: 48px;
+        padding: 4px 0;
+    }
+
+    .universal-results__card-art {
+        grid-row: 1 / span 2;
+        width: 40px;
+    }
+
+    .universal-results__card-art .universal-results__type {
+        display: none;
+    }
+
+    .universal-results__card strong {
+        font-size: 0.95rem;
     }
 }

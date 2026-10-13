@@ -4525,3 +4525,66 @@ input[type="reset"],
 .library-advanced__tabs { min-width: 0; max-width: 100%; }
 .library-advanced__tabs .tl-tabs-toolbar { overflow-x: auto; }
 .library-advanced__tabs .tl-tab { flex: 0 0 auto; white-space: nowrap; }
+
+/* Phone search: the visible Cancel button next to the full-screen search field. */
+.universal-search-overlay__cancel {
+    min-width: 44px;
+    min-height: 48px;
+    padding: 0 8px;
+    border: 0;
+    background: transparent;
+    color: var(--tl-accent-primary);
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+/* Phone hamburger menu: the 44 px top-bar button and the 48 px rows of its bottom sheet. */
+.shell-menu-button {
+    display: inline-grid;
+    flex: 0 0 auto;
+    place-items: center;
+    width: 44px;
+    min-width: 44px;
+    height: 44px;
+    min-height: 44px;
+    padding: 0;
+    border: 0;
+    border-radius: 50%;
+    background: transparent;
+    color: var(--tl-text-primary);
+    cursor: pointer;
+}
+
+.shell-menu-sheet {
+    display: grid;
+    gap: 2px;
+    padding-bottom: var(--tl-safe-area-bottom);
+}
+
+.shell-menu-sheet__form {
+    display: contents;
+}
+
+.shell-menu-sheet__row {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    width: 100%;
+    min-height: 48px;
+    padding: 0 12px;
+    border: 0;
+    border-radius: var(--tl-radius-md, 8px);
+    background: transparent;
+    color: var(--tl-text-primary);
+    font: inherit;
+    text-align: left;
+    text-decoration: none;
+    cursor: pointer;
+}
+
+.shell-menu-sheet__row:hover,
+.shell-menu-sheet__row:focus-visible {
+    background: var(--tl-accent-primary-soft);
+    outline: none;
+}

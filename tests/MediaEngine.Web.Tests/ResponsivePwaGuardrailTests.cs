@@ -21,7 +21,7 @@ public sealed class ResponsivePwaGuardrailTests
         Assert.Contains("flex: 1 1 0;", phone, StringComparison.Ordinal);
         Assert.Contains("min-width: 48px;", phone, StringComparison.Ordinal);
         Assert.Contains("min-height: 48px;", phone, StringComparison.Ordinal);
-        Assert.Contains("grid-template-rows: 24px auto;", phone, StringComparison.Ordinal);
+        Assert.Contains("grid-template-rows: 22px auto;", phone, StringComparison.Ordinal);
         Assert.Contains("white-space: normal;", phone, StringComparison.Ordinal);
         Assert.Contains("overflow-wrap: anywhere;", phone, StringComparison.Ordinal);
         Assert.Contains("width: 24px;", phone, StringComparison.Ordinal);

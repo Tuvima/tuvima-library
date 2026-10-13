@@ -1,13 +1,15 @@
 @using MediaEngine.Contracts.Display
 @using MediaEngine.Web.Services.Integration
+@using MediaEngine.Web.Services.Theming
 @implements IDisposable
 @namespace MediaEngine.Web.Components.Search
 @inject IEngineApiClient ApiClient
 @inject NavigationManager Nav
+@inject DeviceContextService DeviceContext
 
 @if (_open)
 {
-    <div class="universal-search-overlay"
+    <div class="@OverlayClass"
          role="dialog"
          aria-modal="true"
          aria-labelledby="universal-search-title"
@@ -40,7 +42,8 @@
                                     OnKeyDown="HandleInputKeyDown"
                                     Placeholder="Search titles, people, series, playlists, or collections…"
                                     AriaLabel="Search the entire library"
-                                    autocomplete="off" />
+                                    autocomplete="off"
+                                    enterkeyhint="search" />
                     @if (_loading)
                     {
                         <AppSpinner Indeterminate="true" Size="AppSize.Small" />
@@ -55,6 +58,12 @@
                         </AppNativeButton>
                     }
                 </label>
+                @if (DeviceContext.IsPhone)
+                {
+                    <AppNativeButton Type="button"
+                                     Class="universal-search-overlay__cancel"
+                                     OnClick="CloseAsync">Cancel</AppNativeButton>
+                }
             </header>
 
             <div class="universal-search-overlay__body" aria-live="polite">
@@ -109,6 +118,7 @@
                 else if (_response is not null)
                 {
                     <UniversalSearchResults Response="@_response"
+                                            Compact="@DeviceContext.IsPhone"
                                             SelectedResult="@_selected"
                                             SelectedResultChanged="OnSelectedChanged" />
                     <div class="universal-search-overlay__view-all">
@@ -140,6 +150,10 @@
     private bool _focusInput;
 
     [Parameter] public EventCallback Closed { get; set; }
+
+    private string OverlayClass => DeviceContext.IsPhone
+        ? "universal-search-overlay universal-search-overlay--phone"
+        : "universal-search-overlay";
 
     public void Open()
     {

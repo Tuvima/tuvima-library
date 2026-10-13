@@ -498,8 +498,11 @@
 
 }
 
-@media (max-width: 840px) {
+/* Phone shell (below 600): the dock and compact top bar. Tablets keep the desktop top navigation. */
+@media (max-width: 600px) {
     .playback-app-frame .layout-shell__intent-dock {
+        grid-row: 4;
+        grid-column: 1;
         position: relative;
         z-index: 1351;
         bottom: auto;
@@ -513,7 +516,7 @@
     }
 }
 
-@media (max-width: 840px) {
+@media (max-width: 600px) {
     .layout-shell__engine-banner {
         top: auto;
         right: max(.75rem, var(--tl-safe-area-right));
@@ -537,19 +540,20 @@
         flex: 1 1 0;
         min-width: 48px;
         min-height: 48px;
-        grid-template-rows: 24px auto;
+        grid-template-rows: 22px auto;
         padding: 4px 2px;
         gap: 4px;
     }
 
     .layout-shell__intent-dock-link ::deep .tl-icon-root {
-        width: 24px;
-        height: 24px;
-        font-size: 24px;
+        width: 22px;
+        height: 22px;
+        font-size: 22px;
     }
 
     .layout-shell__intent-dock-link span {
         min-width: 0;
+        font-size: 12px;
         overflow: visible;
         white-space: normal;
         overflow-wrap: anywhere;
