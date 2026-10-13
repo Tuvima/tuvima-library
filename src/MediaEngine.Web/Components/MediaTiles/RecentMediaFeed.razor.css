@@ -14,3 +14,8 @@
 .recent-view-title { width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; line-height:1.4; }
 @media(max-width:840px) { .recent-feed-heading { gap:8px; } .recent-feed-heading ::deep .recent-filters { order:3; flex-basis:100%; } }
 @media(max-width:720px) { .recent-feed { --home-shelf-height:180px; } }
+
+:root[data-form-factor="phone"] .recent-feed {
+    --home-shelf-height: calc((100vw - 32px) / 2.6 * 1.5);
+    --phone-shelf-height: var(--home-shelf-height);
+}

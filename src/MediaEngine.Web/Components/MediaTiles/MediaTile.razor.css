@@ -585,3 +585,23 @@
 .media-tile-settling-dot__label { position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; }
 @keyframes media-tile-settling-pulse { 50% { opacity:.25; } }
 @media (prefers-reduced-motion: reduce) { .media-tile-settling-dot { animation:none; } }
+
+/* Phones: cards are sized from the screen width so the next card always peeks (about 2.6 portrait or 2.4 square cards
+   fit across) and no card is wider than the screen. A surface that shares one artwork height (Home) supplies
+   --phone-shelf-height; grids and tablets are untouched. */
+:root[data-form-factor="phone"] .media-tile-shelf-scroll .media-tile.is-portrait {
+    --media-tile-media-height: var(--phone-shelf-height, calc((100vw - 32px) / 2.6 * 1.5));
+}
+
+:root[data-form-factor="phone"] .media-tile-shelf-scroll .media-tile.is-square {
+    --media-tile-media-height: var(--phone-shelf-height, calc((100vw - 32px) / 2.4));
+}
+
+:root[data-form-factor="phone"] .media-tile-shelf-scroll .media-tile.is-continue-card.is-landscape {
+    --media-tile-media-height: calc(min(86vw, 320px) * 9 / 16);
+}
+
+:root[data-form-factor="phone"] .media-tile-shelf-scroll .media-tile.is-collection-card.is-landscape,
+:root[data-form-factor="phone"] .media-tile-shelf-scroll .media-tile.is-ordered-series-card.is-landscape {
+    width: min(86vw, 340px);
+}

@@ -1423,8 +1423,11 @@ public sealed class MediaTileSurfaceRenderTests : AsyncBunitContext
     [Theory]
     [InlineData("Movie")]
     [InlineData("TV")]
-    public void OnlyHomeWatchDiscoveryRegistersExpansion(string kind)
+    public async Task OnlyHomeWatchDiscoveryRegistersExpansion(string kind)
     {
+        // The hover script waits until the layout has told the circuit which device this is.
+        await Services.GetRequiredService<MediaEngine.Web.Services.Theming.DeviceContextService>()
+            .InitialiseAsync(new MediaEngine.Web.Services.Theming.DeviceContextSnapshot("web", "desktop", false));
         var item = new MediaTileViewModel
         {
             Id = Guid.NewGuid(),

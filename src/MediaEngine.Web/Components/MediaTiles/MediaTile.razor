@@ -5,11 +5,12 @@
 @inject NavigationManager Nav
 @inject IJSRuntime JS
 @inject ILogger<MediaTile> Logger
+@inject MediaEngine.Web.Services.Theming.DeviceContextService DeviceContext
 @implements IAsyncDisposable
 
 <AppCssElement Tag="div"
                Css="@PaletteScopeStyle">
-<article class='@($"media-tile {(UsesCinematicHover ? "tl-card-hover--media" : "")} {(IsContinueCard ? "is-continue-card" : "")} {ShapeClass} {MediaKindClass} {PresentationClass} {HoverLayoutClass} {SurfaceClass} {HoverPlacementClass} {HoverModeClass} {(UsesCollectionVisualTreatment ? "is-collection-card" : "")} {(UsesOrderedSeriesStack ? "is-ordered-series-card" : "")} {(UsesStaticCoverHover ? "is-static-cover-hover" : "")} {(UsesCinematicHover ? "is-cinematic-hover" : "")} {(ShowCompactCaption ? "has-compact-caption" : "")}")'
+<article class='@($"media-tile {(UsesCinematicHover ? "tl-card-hover--media" : "")} {(IsContinueCard ? "is-continue-card" : "")} {ShapeClass} {MediaKindClass} {PresentationClass} {HoverLayoutClass} {SurfaceClass} {HoverPlacementClass} {HoverModeClass} {(UsesCollectionVisualTreatment ? "is-collection-card" : "")} {(UsesOrderedSeriesStack ? "is-ordered-series-card" : "")} {(UsesStaticCoverHover ? "is-static-cover-hover" : "")} {(UsesCinematicHover ? "is-cinematic-hover" : "")} {(ShowsCompactTitleCaption ? "has-compact-caption" : "")}")'
          @ref="_cardRef"
          aria-label="@Item.Title">
     <a class="media-tile-link" href="@DetailsNavigationUrl" aria-label="@DetailsActionAriaLabel" @onclick="OpenDetails" @onclick:preventDefault="true">
@@ -123,7 +124,7 @@
     </div>
 
     @if (CaptionContent is not null) { <div class="media-tile-identity-caption">@CaptionContent</div> }
-    @if (ShowCompactCaption && Item.Subject != DisplaySubjectKind.TvEpisode)
+    @if (ShowsCompactTitleCaption)
     {
         <div class="media-tile-caption" aria-hidden="true">
             <span class="media-tile-caption__title" title="@Item.Title">@if (Item.IsSettling) { <span class="media-tile-settling-dot" title="Still being matched"><span class="media-tile-settling-dot__label">Still being matched</span></span> }@Item.Title</span>
@@ -141,7 +142,7 @@
         <div class="media-tile-episode-caption"><strong>@if (Item.IsSettling) { <span class="media-tile-settling-dot" title="Still being matched"><span class="media-tile-settling-dot__label">Still being matched</span></span> }@(Item.EpisodeContext is { } episode ? $"S{episode.SeasonNumber} E{episode.EpisodeNumber} · {episode.EpisodeTitle}" : Item.Title)</strong><span>@EpisodeShowCaption</span></div>
     }
     </a>
-    @if (UsesCinematicHover)
+    @if (UsesCinematicHover && !SuppressHover)
     {
         <div class="@HoverPanelClass"
                  @onclick="OpenDetails"
@@ -1018,6 +1019,10 @@
         return string.Join(' ', new string(chars).Split(' ', StringSplitOptions.RemoveEmptyEntries));
     }
 
+    protected override void OnInitialized() => DeviceContext.OnChanged += DeviceChanged;
+
+    private void DeviceChanged() => _ = InvokeAsync(StateHasChanged);
+
     protected override void OnParametersSet()
     {
         _hoverImageIndex = 0;
@@ -1072,7 +1077,13 @@
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (!UsesCinematicHover)
+        if (!DeviceContext.IsInitialised)
+        {
+            // The device is not known until the layout has asked the browser; registering now would be undone on touch.
+            return;
+        }
+
+        if (!UsesCinematicHover || SuppressHover)
         {
             if (_hoverRegistered)
             {
@@ -1098,7 +1109,13 @@
 
     private string DetailsNavigationUrl => Item.DetailsNavigationUrl ?? Item.NavigationUrl;
 
-    private bool ShowsCompactTitleCaption => ShowCompactCaption && Item.Subject != DisplaySubjectKind.TvEpisode;
+    // Touch has no hover: the desktop preview is never rendered, and tiles whose title is only shown by that preview
+    // (cinematic Movie/TV tiles) or by the hover strip carry the compact title under the art instead.
+    private bool SuppressHover => DeviceContext.IsTouch || DeviceContext.IsPhone;
+
+    private bool ShowsCompactTitleCaption =>
+        Item.Subject != DisplaySubjectKind.TvEpisode
+        && (ShowCompactCaption || (SuppressHover && CaptionContent is null && IsHoverEnabled && (UsesCinematicHover || ShowsStaticCoverIdentity)));
     private bool ShowsEpisodeCaption => CaptionContent is null && Item.Subject == DisplaySubjectKind.TvEpisode && !string.IsNullOrWhiteSpace(EpisodeShowCaption);
 
     // Tiles without a title line of their own (hover-only shelves, custom caption content) carry the marker as a
@@ -1125,6 +1142,7 @@
 
     public async ValueTask DisposeAsync()
     {
+        DeviceContext.OnChanged -= DeviceChanged;
         if (_hoverRegistered)
         {
             try
