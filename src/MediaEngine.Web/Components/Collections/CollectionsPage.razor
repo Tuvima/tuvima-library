@@ -139,7 +139,11 @@
                             </div>
 
                             <div class="browse-shell__filter-lower-row collections-filter-lower-row">
-                                <div class="browse-shell__control-group browse-shell__control-group--filters collections-filter-group">
+                                <BrowseFilterSheet ActiveCount="@ActiveFilterChips.Count"
+                                                   ResultLabel="@ResultCountLabel"
+                                                   OnClear="ClearFiltersAsync">
+                                <ChildContent Context="inSheet">
+                                <div class="browse-shell__control-group browse-shell__control-group--filters collections-filter-group @(inSheet ? "is-sheet" : "")">
                                     <span class="browse-shell__control-label">Filter by</span>
                                     <div class="collections-filter-selects">
                                 <AppSelect T="string"
@@ -223,7 +227,7 @@
                                     </div>
                                 </div>
 
-                                <div class="browse-shell__display-controls collections-display-controls">
+                                <div class="browse-shell__display-controls collections-display-controls @(inSheet ? "is-sheet" : "")">
                                     <span class="browse-shell__sort-label">Sort</span>
                                     <span class="browse-shell__display-label">Display</span>
                                 <AppSelect T="string"
@@ -252,6 +256,8 @@
                                     </label>
                                 }
                                 </div>
+                                </ChildContent>
+                                </BrowseFilterSheet>
                             </div>
 
                             <div class="collections-filter-summary">

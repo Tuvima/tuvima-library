@@ -1,0 +1,98 @@
+@namespace MediaEngine.Web.Components.Browse
+@using MediaEngine.Web.Services.Theming
+@using MediaEngine.Web.Services.Ui
+@implements IDisposable
+@inject DeviceContextService DeviceContext
+
+@* One filter surface for every browse page. Tablets and desktops render the page's own inline filters untouched;
+   phones swap them for a single Filters button that opens the very same controls in a bottom sheet. The page
+   passes its controls once, and the context tells it which of the two hosts is drawing them. *@
+@if (DeviceContext.IsPhone)
+{
+    <div class="browse-filter-sheet__bar">
+        <AppNativeButton Type="button"
+                         Class="browse-filter-sheet__trigger"
+                         AriaLabel="@TriggerAriaLabel"
+                         aria-haspopup="dialog"
+                         aria-expanded="@(_open ? "true" : "false")"
+                         OnClick="OpenAsync">
+            <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.FilterList" />
+            <span>@TriggerLabel</span>
+        </AppNativeButton>
+    </div>
+    @if (_open)
+    {
+        <AppDialogFrame Open="true" Title="Filters" DialogOptions="SheetOptions" Class="browse-filter-sheet" OnCancel="CloseAsync">
+            <div class="browse-filter-sheet__body">
+                @ChildContent?.Invoke(true)
+            </div>
+            <div class="browse-filter-sheet__footer">
+                <AppNativeButton Type="button"
+                                 Class="browse-filter-sheet__clear"
+                                 Disabled="@(ActiveCount == 0)"
+                                 OnClick="ClearAsync">
+                    Clear
+                </AppNativeButton>
+                <AppNativeButton Type="button"
+                                 Class="browse-filter-sheet__apply"
+                                 OnClick="CloseAsync">
+                    @ApplyLabel
+                </AppNativeButton>
+            </div>
+        </AppDialogFrame>
+    }
+}
+else
+{
+    @ChildContent?.Invoke(false)
+}
+
+@code {
+    private static readonly AppDialogOptions SheetOptions = new() { Sheet = AppDialogSheetMode.Phone, BackdropClick = true, CloseOnEscapeKey = true };
+    private bool _open;
+
+    /// <summary>The page's filter controls. The context is true while they are drawn inside the phone sheet.</summary>
+    [Parameter] public RenderFragment<bool>? ChildContent { get; set; }
+
+    /// <summary>How many filters are active; shown on the button and used to enable Clear.</summary>
+    [Parameter] public int ActiveCount { get; set; }
+
+    /// <summary>The "N items" text for the sheet's Show button, for example "24 items".</summary>
+    [Parameter] public string? ResultLabel { get; set; }
+
+    /// <summary>Clears every active filter. Filters apply live, so this runs while the sheet stays open.</summary>
+    [Parameter] public EventCallback OnClear { get; set; }
+
+    private string TriggerLabel => ActiveCount > 0 ? $"Filters ({ActiveCount})" : "Filters";
+    private string TriggerAriaLabel => ActiveCount > 0 ? $"Filters, {ActiveCount} active" : "Filters";
+    private string ApplyLabel => string.IsNullOrWhiteSpace(ResultLabel) ? "Show results" : $"Show {ResultLabel}";
+
+    protected override void OnInitialized() => DeviceContext.OnChanged += DeviceChanged;
+
+    public void Dispose() => DeviceContext.OnChanged -= DeviceChanged;
+
+    private void DeviceChanged()
+    {
+        // The sheet only exists on phones; leaving the phone form factor must not leave it armed for the way back.
+        if (!DeviceContext.IsPhone)
+        {
+            _open = false;
+        }
+
+        _ = InvokeAsync(StateHasChanged);
+    }
+
+    private Task OpenAsync()
+    {
+        _open = true;
+        return Task.CompletedTask;
+    }
+
+    private Task CloseAsync()
+    {
+        _open = false;
+        return Task.CompletedTask;
+    }
+
+    private Task ClearAsync() => OnClear.InvokeAsync();
+}

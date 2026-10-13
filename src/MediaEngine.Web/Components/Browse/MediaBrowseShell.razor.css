@@ -1071,6 +1071,7 @@
     }
 
     .browse-shell__display-controls {
+        min-width: 0;
         grid-template-columns: 1fr;
         grid-template-rows: auto 48px auto 48px 48px;
     }
@@ -1109,4 +1110,14 @@
     .browse-shell__layout-toggle ::deep .browse-shell__layout-button {
         flex: 1;
     }
+}
+
+/* Card size reads as text inside the phone sheet (the app.css sheet rules show it), where the slider has no tooltip to name it. */
+.browse-shell__tile-size-readout {
+    display: none;
+}
+
+/* On phones the browse-mode strip is a scroller: its track must be allowed to shrink to the screen. */
+:root[data-form-factor="phone"] .browse-shell__control-group--browse {
+    grid-template-columns: minmax(0, 1fr);
 }
