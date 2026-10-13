@@ -4339,3 +4339,17 @@ input[type="reset"],
     .server-folder-picker .server-folder-picker__folder { grid-template-columns: minmax(0, 1fr); min-height: 56px; }
     .server-folder-picker__modified { display: none; }
 }
+
+/* Library folder table (Settings > Libraries): classes on AppNativeButton / AppOverflowMenu live here because isolated CSS does not reach child roots. */
+.folder-table__chip { min-height: 44px; padding: 0 14px; color: var(--tl-text-secondary); border: 1px solid var(--tl-border-subtle); border-radius: 999px; background: transparent; font: inherit; font-size: 0.85rem; font-weight: 600; cursor: pointer; }
+.folder-table__chip.is-managed { color: var(--tl-accent-primary); border-color: var(--tl-accent-primary-border); background: var(--tl-accent-primary-soft); }
+.folder-table__chip.is-converting { color: var(--tl-status-warning); border-color: var(--tl-status-warning-border); background: var(--tl-status-warning-soft); }
+.folder-table__radio { min-width: 44px; min-height: 44px; display: inline-flex; align-items: center; gap: 8px; padding: 0 10px; color: var(--tl-text-secondary); border: 1px solid transparent; border-radius: var(--tl-radius-md, 8px); background: transparent; font: inherit; font-size: 0.85rem; cursor: pointer; }
+.folder-table__radio[aria-checked="true"] { color: var(--tl-accent-primary); font-weight: 600; cursor: default; }
+.folder-table__expand { display: none; padding: 0; width: 48px; min-height: 44px; color: var(--tl-text-secondary); border: 0; background: transparent; cursor: pointer; }
+.folder-table__chip:focus-visible, .folder-table__radio:focus-visible, .folder-table__expand:focus-visible, .folder-table__menu-trigger:focus-visible { outline: 2px solid var(--tl-accent-primary); outline-offset: 2px; }
+.folder-table__actions .folder-table__menu .folder-table__menu-trigger.app-overflow-menu__trigger { min-width: 44px; min-height: 44px; }
+@media (max-width: 840px) { .folder-table__expand { display: inline-flex; align-items: center; justify-content: center; } }
+.library-advanced__tabs { min-width: 0; max-width: 100%; }
+.library-advanced__tabs .tl-tabs-toolbar { overflow-x: auto; }
+.library-advanced__tabs .tl-tab { flex: 0 0 auto; white-space: nowrap; }

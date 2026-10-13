@@ -1,62 +1,26 @@
 
 .libraries,.library-detail {display:flex;flex-direction:column;gap:16px;min-width:0}
 .libraries__actions:empty {display:none}
-.libraries-page-header,.libraries-card__heading,.library-detail__header,.libraries__savebar {display:flex;align-items:center;justify-content:space-between;gap:20px}
-.libraries-page-header h1,.library-detail__header h1 {margin:0;font-size:30px;line-height:1.2;color:var(--tl-text-primary)}
-.libraries-page-header p,.libraries-card__heading p,.library-detail__header p {margin:5px 0 0;color:var(--tl-text-muted);font-size:14px;line-height:1.5}
+.libraries-page-header,.libraries-card__heading,.libraries__savebar {display:flex;align-items:center;justify-content:space-between;gap:20px}
+.libraries-page-header h1 {margin:0;font-size:30px;line-height:1.2;color:var(--tl-text-primary)}
+.libraries-page-header p,.libraries-card__heading p {margin:5px 0 0;color:var(--tl-text-muted);font-size:14px;line-height:1.5}
 .libraries-card__heading h2 {margin:0;font-size:24px}
 .libraries-card__heading h3 {margin:0;font-size:18px}
 ::deep .libraries-card {display:flex;flex-direction:column;gap:16px;padding:20px;border:1px solid var(--tl-border-subtle);background:color-mix(in srgb,var(--tl-bg-surface-raised) 65%,transparent)}
-.library-detail__folder-editor ::deep .app-status-badge {justify-self:start;width:max-content}
 .libraries-form-grid {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}
 .libraries-example {display:flex;align-items:center;flex-wrap:wrap;gap:12px;padding:10px 12px;border:1px solid var(--tl-border-subtle);border-radius:8px;font-size:13px}
 .libraries-example code,.library-detail__advanced code {overflow-wrap:anywhere;display:block}
 .libraries-example span {color:var(--tl-text-muted)}
 .libraries-example details {margin-left:auto}
 .library-detail__note,.libraries__mobile-note {margin:4px 0 0;color:var(--tl-text-muted);font-size:13px;line-height:1.5}
-.library-detail__header {padding-bottom:18px;border-bottom:1px solid var(--tl-border-subtle)}
-.library-detail__identity {display:flex;gap:18px;align-items:center;min-width:0}
-.library-detail__icon {display:grid;place-items:center;width:64px;height:64px;border-radius:50%;flex:0 0 64px;color:var(--tl-accent-primary);border:1px solid var(--tl-accent-primary);background:color-mix(in srgb,var(--tl-accent-primary) 12%,transparent)}
-.library-detail__folder-table {--folder-columns:minmax(200px,1.7fr) minmax(130px,1fr) minmax(150px,1.1fr) minmax(100px,.65fr) minmax(95px,.7fr) minmax(85px,.6fr) 108px;border:1px solid var(--tl-border-subtle);border-radius:8px}
-.library-detail__folder-head,.library-detail__folder-editor {display:grid;grid-template-columns:var(--folder-columns);align-items:center;gap:12px;padding:12px}
-.library-detail__folder-head {font-size:12px;color:var(--tl-text-muted)}
-.library-detail__folder-editor {border-top:1px solid var(--tl-border-subtle);font-size:13px}
-.library-detail__folder-editor > * {min-width:0}
-.library-detail__folder-path {display:flex;gap:12px;align-items:center;min-width:0}
-.library-detail__folder-path span {min-width:0}
-.library-detail__folder-path code {display:block;overflow-wrap:anywhere;font-size: var(--tl-font-size-xs);color:var(--tl-text-muted);margin-top:4px}
-.library-detail__folder-actions {display:flex;align-items:center}
-.library-detail__organization-options {display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
-::deep .library-detail__organization-option {display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:14px;width:100%;text-align:left;padding:16px;border:1px solid var(--tl-border-subtle);border-radius:10px;background:transparent;color:var(--tl-text-primary);font:inherit}
-::deep .library-detail__organization-option strong,::deep .library-detail__organization-option small {display:block}
-::deep .library-detail__organization-option small {margin-top:6px;font-size:12px;color:var(--tl-text-muted);line-height:1.5}
-::deep .library-detail__organization-option.is-active,::deep .library-detail__organization-option:focus-visible {border-color:var(--tl-accent-primary);background:color-mix(in srgb,var(--tl-accent-primary) 9%,transparent);outline:none}
-.library-detail__policies {display:flex;flex-direction:column;gap:0}
-.library-detail__policy-row {display:grid;grid-template-columns:minmax(0,2fr) minmax(240px,1fr);gap:20px;align-items:center;padding:10px 0;border-top:1px solid var(--tl-border-subtle);font-size:14px}
-.library-detail__policy-row small {display:block;margin-top:3px;color:var(--tl-text-muted);font-size:12px}
-.library-detail__policies details {padding-top:12px}
 summary {cursor:pointer;padding:8px 0}
 .library-detail__advanced {padding:16px 20px;border:1px solid var(--tl-border-subtle);border-radius:12px;background:color-mix(in srgb,var(--tl-bg-surface-raised) 65%,transparent)}
 .library-detail__advanced summary span {margin-left:14px;color:var(--tl-text-muted);font-size:13px}
 .library-detail__advanced[open] summary {margin-bottom:18px}
 .library-detail__advanced p {margin:6px 0;color:var(--tl-text-secondary)}
 .libraries__savebar {position:sticky;bottom:0;padding:14px 18px;background:var(--tl-bg-surface-raised);border:1px solid var(--tl-accent-primary);border-radius:10px;z-index:5;font-size:14px}
-@media(min-width:1500px) {
- .library-detail__folder-editor ::deep .app-field__label {position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
- .library-detail__folder-editor ::deep .app-switch-row__copy {display:none}
-}
-@media(max-width:1499px) {
- .library-detail__folder-head {display:none}
- .library-detail__folder-editor {grid-template-columns:repeat(3,minmax(0,1fr))}
- .library-detail__folder-path {grid-column:1 / -1}
-}
-@media(max-width:1000px) {
- .library-detail__organization-options {grid-template-columns:1fr}
- .library-detail__header {align-items:flex-start;flex-wrap:wrap}
-}
 @media(max-width:700px) {
  .libraries-page-header,.libraries-card__heading,.libraries__savebar {align-items:flex-start;flex-wrap:wrap}
- .library-detail__folder-editor {grid-template-columns:repeat(2,minmax(0,1fr))}
  .library-detail__advanced summary span {display:block;margin:6px 0 0}
  .libraries__savebar {position:static}
 }

@@ -1,7 +1,10 @@
+using System.Text.RegularExpressions;
 using Bunit;
+using MediaEngine.Contracts.Artwork;
 using MediaEngine.Contracts.Settings;
 using MediaEngine.Web.Components.Settings;
 using MediaEngine.Web.Components.Shared;
+using MediaEngine.Web.Models.ViewDTOs;
 using MediaEngine.Web.Services.Integration;
 using MediaEngine.Web.Services.Theming;
 using MediaEngine.Web.Services.Ui;
@@ -13,13 +16,45 @@ namespace MediaEngine.Web.Tests;
 
 public sealed class LibrarySettingsFlowTests : AsyncBunitContext
 {
-    private readonly LibrariesConfigurationDto _configuration = new()
+    private const string MoviesId = "11111111-1111-4111-8111-111111111111";
+    private const string TvId = "33333333-3333-4333-8333-333333333333";
+    private const string AudiobooksId = "22222222-2222-4222-8222-222222222222";
+
+    private LibrariesConfigurationDto _configuration = BuildConfiguration();
+    private int _saves;
+    private LibraryFolderDto? _lastLibrary;
+    private UpdateLibrariesRequest? _lastUpdate;
+
+    private static LibrariesConfigurationDto BuildConfiguration() => new()
     {
         StorageLocations = [new() { Id = "media", Label = "Media storage", Path = "C:\\media", AllowWrite = true }],
-        Libraries = [new() { Id = "22222222-2222-4222-8222-222222222222", Name = "Audiobooks", Area = "listen", MediaTypes = ["Audiobooks"], Sources = [new() { Id = "source", Path = "C:\\media\\Audiobooks", ManagementMode = "existing_library" }] }],
+        Libraries =
+        [
+            new()
+            {
+                Id = MoviesId, Name = "Movies", Area = "watch", MediaTypes = ["Movies"],
+                PrimaryDestinationSourceId = "movies-main",
+                Sources =
+                [
+                    new() { Id = "movies-main", Path = "E:\\Library\\Movies", Notes = "Library Movies", ManagementMode = "managed_by_tuvima", AccessMode = "writable" },
+                    new() { Id = "movies-plex", Path = "D:\\Plex\\Movies", Notes = "Plex Movies", ManagementMode = "managed_by_tuvima", AccessMode = "writable" },
+                    new() { Id = "movies-old", Path = "F:\\Movies", Notes = "Old drive", ManagementMode = "existing_library", AccessMode = "read_only" },
+                ],
+            },
+            new()
+            {
+                Id = TvId, Name = "TV Shows", Area = "watch", MediaTypes = ["TV"],
+                OrganizationPolicy = new() { Mode = "tuvima_standard", WriteTags = false },
+                PrimaryDestinationSourceId = "tv-main",
+                Sources = [new() { Id = "tv-main", Path = "E:\\Library\\TV", ManagementMode = "managed_by_tuvima", AccessMode = "writable" }],
+            },
+            new()
+            {
+                Id = AudiobooksId, Name = "Audiobooks", Area = "listen", MediaTypes = ["Audiobooks"],
+                Sources = [new() { Id = "audio-old", Path = "C:\\media\\Audiobooks", ManagementMode = "existing_library", AccessMode = "read_only" }],
+            },
+        ],
     };
-    private int _saves, _loads, _pathChecks;
-    private UpdateLibrariesRequest? _lastSave;
 
     public LibrarySettingsFlowTests()
     {
@@ -29,16 +64,31 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
         Services.AddSingleton<IConfiguration>(new ConfigurationBuilder().Build());
         Services.AddSingleton(EngineApiClientStub.Create(stub =>
         {
-            stub.SetHandler(nameof(IEngineApiClient.GetLibrariesAsync), _ => { _loads++; return Task.FromResult<LibrariesConfigurationDto?>(_configuration); });
+            stub.SetHandler(nameof(IEngineApiClient.GetLibrariesAsync), _ => Task.FromResult<LibrariesConfigurationDto?>(_configuration));
             stub.SetHandler(nameof(IEngineApiClient.GetSetupLibrariesAsync), _ => Task.FromResult<LibrariesConfigurationDto?>(_configuration));
-            stub.SetHandler(nameof(IEngineApiClient.TestPathAsync), _ => { _pathChecks++; return Task.FromResult<PathTestResultDto?>(new() { Exists = true, HasRead = true, HasWrite = false }); });
-            stub.SetHandler(nameof(IEngineApiClient.UpdateLibrariesAsync), args => { _saves++; _lastSave = (UpdateLibrariesRequest)args![0]!; return Task.FromResult<LibrariesConfigurationDto?>(_configuration); });
+            stub.SetHandler(nameof(IEngineApiClient.TestPathAsync), _ => Task.FromResult<PathTestResultDto?>(new() { Exists = true, HasRead = true, HasWrite = true }));
+            stub.SetHandler(nameof(IEngineApiClient.UpdateLibrariesAsync), args =>
+            {
+                _saves++;
+                _lastUpdate = (UpdateLibrariesRequest)args![0]!;
+                _configuration = new LibrariesConfigurationDto { StorageLocations = _lastUpdate.StorageLocations, Libraries = _lastUpdate.Libraries, FileHandling = _lastUpdate.FileHandling };
+                return Task.FromResult<LibrariesConfigurationDto?>(_configuration);
+            });
             stub.SetHandler(nameof(IEngineApiClient.MutateLibraryAsync), args =>
             {
                 _saves++;
-                var mutation = (LibraryMutationRequest)args![0]!;
-                _lastSave = new UpdateLibrariesRequest { Libraries = _configuration.Libraries, ViewStorage = mutation.ViewStorage ?? _configuration.ViewStorage };
+                _lastLibrary = ((LibraryMutationRequest)args![0]!).Library;
+                var libraries = _configuration.Libraries.Select(library => library.Id == _lastLibrary!.Id ? _lastLibrary : library).ToList();
+                _configuration = new LibrariesConfigurationDto { StorageLocations = _configuration.StorageLocations, Libraries = libraries, FileHandling = _configuration.FileHandling };
                 return Task.FromResult<LibrariesConfigurationDto?>(_configuration);
+            });
+            stub.SetHandler(nameof(IEngineApiClient.GetArtworkWritebackSettingsAsync), _ => Task.FromResult<ArtworkWritebackSettingsDto?>(new ArtworkWritebackSettingsDto(true, true)));
+            stub.SetHandler(nameof(IEngineApiClient.GetOrganizationTemplateAsync), _ => Task.FromResult<OrganizationTemplateDto?>(
+                new OrganizationTemplateDto("{Category}/{Title}{Ext}", null, new() { ["Movies"] = "Movies/{Title} ({Year})/{Title} ({Year}){Ext}", ["TV"] = "TV/{Series}/{Title}{Ext}" })));
+            stub.SetHandler(nameof(IEngineApiClient.PreviewOrganizationTemplateAsync), args =>
+            {
+                var template = (string)args![0]!;
+                return Task.FromResult<OrganizationTemplateDto?>(template.Contains("{Bad") ? null : new OrganizationTemplateDto(template, "Movies/Dune (2021)/Dune (2021).mkv"));
             });
             stub.SetHandler(nameof(IEngineApiClient.GetServerFolderRootsAsync), _ => Task.FromResult<IReadOnlyList<ServerStorageLocationDto>>(_configuration.StorageLocations));
             stub.SetHandler(nameof(IEngineApiClient.BrowseServerFoldersAsync), _ => Task.FromResult<BrowseServerFoldersResultDto?>(new() { DisplayPath = "C:\\media" }));
@@ -51,6 +101,17 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
         Render<AppPopoverHost>();
     }
 
+    private IRenderedComponent<LibrariesTab> Open(string typeLabel)
+    {
+        var cut = Render<LibrariesTab>();
+        cut.WaitForElement(".library-folders__type");
+        cut.FindAll(".library-folders__type").Single(x => x.TextContent.Contains(typeLabel)).Click();
+        cut.WaitForElement(".folder-table, .library-folders__empty");
+        return cut;
+    }
+
+    private static string Text(AngleSharp.Dom.IElement element) => Regex.Replace(element.TextContent, "\\s+", " ").Trim();
+
     [Fact]
     public void OverviewListsEveryLibraryTypeWithItsFolderCount()
     {
@@ -58,50 +119,176 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
         cut.WaitForElement(".library-folders__type");
         Assert.Equal(6, cut.FindAll(".library-folders__type").Count);
         Assert.Contains(cut.FindAll(".library-folders__type"), x => x.TextContent.Contains("Audiobooks") && x.TextContent.Contains("1 folder"));
-        Assert.Contains(cut.FindAll(".library-folders__type"), x => x.TextContent.Contains("Movies") && x.TextContent.Contains("0 folders"));
+        Assert.Contains(cut.FindAll(".library-folders__type"), x => x.TextContent.Contains("Movies") && x.TextContent.Contains("3 folders"));
         Assert.Contains("Add Folder", cut.Markup);
-        Assert.DoesNotContain("Add library", cut.Markup);
         Assert.Contains("/settings/libraries/view", cut.Markup);
     }
 
+    // A1: the per-library page and its link are gone.
     [Fact]
-    public void DetailOwnsAddFolderInsideFoldersAndHasNoGlobalSave()
+    public void NoLibrarySettingsLinkRemains()
     {
-        var cut = Render<LibrariesTab>(parameters => parameters.Add(x => x.Subsection, _configuration.Libraries[0].Id));
-        cut.WaitForElement(".library-detail__header");
-        Assert.Empty(cut.FindAll(".library-detail__header button"));
-        Assert.Single(cut.FindAll(".libraries-card__heading button"), x => x.TextContent.Contains("Add folder"));
-        Assert.DoesNotContain("Save changes", cut.Markup);
+        var cut = Open("Movies");
+        Assert.DoesNotContain("Library settings", cut.Markup);
+        Assert.DoesNotContain("/settings/libraries/" + MoviesId, cut.Markup);
+        Assert.False(SettingsNav.IsMobileRouteAvailable(SettingsSection.Libraries, MoviesId));
+        Assert.True(SettingsNav.IsMobileRouteAvailable(SettingsSection.Libraries, "view"));
+    }
+
+    // A2: four columns plus the actions menu, one row per folder, no numbering, arrows or drag handles.
+    [Fact]
+    public void FolderTableHasFourColumnsAndAMenuPerFolder()
+    {
+        var cut = Open("Movies");
+        Assert.Equal(["Folder", "Handling", "New media", "Files", ""], cut.FindAll(".folder-table__head [role=columnheader]").Select(Text));
+        var rows = cut.FindAll(".folder-table__row");
+        Assert.Equal(3, rows.Count);
+        Assert.All(rows, row =>
+        {
+            Assert.NotNull(row.QuerySelector(".folder-table__handling"));
+            Assert.NotNull(row.QuerySelector(".folder-table__marker"));
+            Assert.NotNull(row.QuerySelector(".folder-table__files"));
+            Assert.NotNull(row.QuerySelector(".folder-table__actions"));
+        });
+        Assert.DoesNotContain("draggable", cut.Find(".folder-table").InnerHtml);
+        Assert.Contains("Library Movies", Text(rows[0]));
+        Assert.Contains("E:\\Library\\Movies", Text(rows[0]));
+    }
+
+    // A3: exactly one managed folder holds the marker; tapping another managed folder moves it and saves; as-is folders have no radio.
+    [Fact]
+    public void NewMediaMarkerSitsOnOneManagedFolderAndMovesOnTap()
+    {
+        var cut = Open("Movies");
+        var marked = cut.FindAll(".folder-table__marker.is-marked");
+        Assert.Single(marked);
+        Assert.Contains("New media goes here", marked[0].TextContent);
+        var rows = cut.FindAll(".folder-table__row");
+        Assert.Empty(rows[2].QuerySelectorAll(".folder-table__radio"));
+        Assert.Equal("—", Text(rows[2].QuerySelector(".folder-table__marker")!));
+
+        rows[1].QuerySelector(".folder-table__radio")!.Click();
+        cut.WaitForAssertion(() => Assert.Equal("movies-plex", _lastLibrary?.PrimaryDestinationSourceId));
+        cut.WaitForAssertion(() => Assert.Contains("is-marked", cut.FindAll(".folder-table__row")[1].ClassList));
+        Assert.Single(cut.FindAll(".folder-table__marker.is-marked"));
+        Assert.Equal(1, _saves);
+    }
+
+    // A4: a type with no managed folder says how to fix it.
+    [Fact]
+    public void TypeWithoutAManagedFolderExplainsWhatToAdd()
+    {
+        var audiobooks = Open("Audiobooks");
+        Assert.Contains("Add a managed folder to import or upload Audiobooks.", audiobooks.Markup);
+        Assert.Empty(audiobooks.FindAll(".folder-table__marker.is-marked"));
+        Assert.DoesNotContain("Add a managed folder to import or upload", Open("Movies").Markup);
+    }
+
+    // A5 (this packet): tapping Handling on an as-is folder confirms, then uses the existing switch to Managed.
+    [Fact]
+    public void TappingAsIsHandlingConfirmsThenSwitchesToManaged()
+    {
+        var dialogs = Render<AppDialogHost>();
+        var cut = Open("Movies");
+        cut.FindAll(".folder-table__row")[2].QuerySelector(".folder-table__chip")!.Click();
+        dialogs.WaitForAssertion(() => Assert.Contains("Let Tuvima manage F:\\Movies?", dialogs.Markup));
+        Assert.Equal(0, _saves);
+        dialogs.FindAll("button").Single(x => x.TextContent.Trim() == "Let Tuvima manage it").Click();
+        cut.WaitForAssertion(() => Assert.Equal("managed_by_tuvima", _lastLibrary?.Sources.Single(x => x.Id == "movies-old").ManagementMode));
     }
 
     [Fact]
-    public void ReadOnlySourceIsHealthyAndDetailPublishesItsName()
+    public void KeepAsIsChangesNothing()
     {
-        var names = new List<string>();
-        var cut = Render<LibrariesTab>(parameters => parameters
-            .Add(component => component.Subsection, _configuration.Libraries[0].Id)
-            .Add(component => component.LibraryNameChanged, name => names.Add(name)));
-        cut.WaitForAssertion(() => Assert.Contains("Audiobooks", names));
-        Assert.Equal("Audiobooks", cut.Find("h1").TextContent);
-        Assert.Contains("Healthy", cut.Find(".library-detail__folder-editor").TextContent);
-        Assert.Contains("Read-only", cut.Find(".library-detail__folder-editor").TextContent);
-        Assert.Empty(cut.FindAll(".library-detail__tabs"));
+        var dialogs = Render<AppDialogHost>();
+        var cut = Open("Movies");
+        cut.FindAll(".folder-table__row")[2].QuerySelector(".folder-table__chip")!.Click();
+        dialogs.WaitForAssertion(() => Assert.Contains("Let Tuvima manage F:\\Movies?", dialogs.Markup));
+        dialogs.FindAll("button").Single(x => x.TextContent.Trim() == "Keep as-is").Click();
         Assert.Equal(0, _saves);
     }
 
+    // A6: the Files cell follows the type's tag setting.
     [Fact]
-    public async Task MobileDetailsExposeTheLibraryNameWithEditingDisabled()
+    public void FilesCellReadsNamedTaggedNamedOrNotTouched()
+    {
+        var movies = Open("Movies");
+        Assert.Equal(["Named + tagged", "Named + tagged", "Not touched"], movies.FindAll(".folder-table__files").Select(Text));
+        Assert.Contains("Advanced > Movies", movies.Find(".folder-table__files").GetAttribute("title"));
+        var tv = Open("TV Shows");
+        Assert.Equal(["Named"], tv.FindAll(".folder-table__files").Select(Text));
+    }
+
+    // A7: tags are on by default and a type can opt out.
+    [Fact]
+    public void AdvancedTagsAreOnByDefaultAndCanBeOptedOutPerType()
+    {
+        var cut = Open("Movies");
+        var tags = cut.FindAll(".library-advanced__type input[role=switch]").Single();
+        Assert.True(tags.HasAttribute("checked"));
+        tags.Change(false);
+        cut.WaitForAssertion(() => Assert.False(_lastLibrary?.OrganizationPolicy.WriteTags));
+        cut.WaitForAssertion(() => Assert.Equal(["Named", "Named", "Not touched"], cut.FindAll(".folder-table__files").Select(Text)));
+    }
+
+    // A7: a live example, and an invalid custom template is refused inline without saving.
+    [Fact]
+    public void AdvancedShowsALiveExampleAndRefusesAnInvalidCustomTemplateInline()
+    {
+        var cut = Open("Movies");
+        Assert.Contains("Movies/Dune (2021)/Dune (2021).mkv", cut.Find(".library-advanced__example code").TextContent);
+        cut.FindAll(".library-advanced__type button").Single(x => x.TextContent.Trim() == "Custom template").Click();
+        cut.WaitForElement(".library-advanced__type input:not([role=switch])");
+        var field = cut.Find(".library-advanced__type input:not([role=switch])");
+        field.Input("{Bad token");
+        cut.WaitForAssertion(() => Assert.Contains("isn't valid", cut.Markup));
+        Assert.True(cut.FindAll("button").Single(x => x.TextContent.Trim() == "Apply template").HasAttribute("disabled"));
+        Assert.Equal(0, _saves);
+
+        field.Input("{Title}/{Title} ({Year}){Ext}");
+        cut.WaitForAssertion(() => Assert.False(cut.FindAll("button").Single(x => x.TextContent.Trim() == "Apply template").HasAttribute("disabled")));
+        cut.FindAll("button").Single(x => x.TextContent.Trim() == "Apply template").Click();
+        cut.WaitForAssertion(() => Assert.Equal("custom", _lastLibrary?.OrganizationPolicy.Mode));
+        Assert.Equal("{Title}/{Title} ({Year}){Ext}", _lastLibrary!.OrganizationPolicy.CustomTemplate);
+    }
+
+    // A7: the global rows save.
+    [Fact]
+    public void AdvancedGlobalRowsSave()
+    {
+        var cut = Open("Movies");
+        cut.FindAll(".library-advanced__global button").Single(x => x.TextContent.Trim() == "Keep both").Click();
+        cut.WaitForAssertion(() => Assert.Equal("keep_both", _lastUpdate?.FileHandling.DuplicatePolicy));
+        Assert.Contains("The new file gets a unique name; nothing is overwritten.", cut.Markup);
+        Assert.Contains("Embed artwork in files", cut.Markup);
+    }
+
+    // The setup wizard reuses the same panel, without the Advanced section.
+    [Fact]
+    public void SetupWizardPanelHidesAdvanced()
+    {
+        var cut = Render<LibraryFoldersPanel>(parameters => parameters.Add(x => x.Embedded, true).Add(x => x.SetupSession, "session"));
+        cut.WaitForElement(".library-folders__type");
+        Assert.Empty(cut.FindAll(".library-folders__advanced"));
+    }
+
+    // A11: the table collapses to stacked cards under 800px and adds no horizontal scroll of its own.
+    [Fact]
+    public void FolderTableCollapsesToCardsOnPhones()
+    {
+        var css = File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", "src", "MediaEngine.Web", "Components", "Settings", "LibraryFolderTable.razor.css"));
+        Assert.Contains("@media (max-width: 840px)", css);
+        Assert.Contains("grid-template-areas", css);
+        Assert.DoesNotContain("overflow-x", css);
+    }
+
+    [Fact]
+    public async Task MobileKeepsTheTableReadOnly()
     {
         await Services.GetRequiredService<DeviceContextService>().InitialiseAsync("mobile");
-        var libraryId = _configuration.Libraries[0].Id;
-        Assert.True(MediaEngine.Web.Models.ViewDTOs.SettingsNav.IsMobileRouteAvailable(MediaEngine.Web.Models.ViewDTOs.SettingsSection.Libraries, libraryId));
-        Assert.False(MediaEngine.Web.Models.ViewDTOs.SettingsNav.IsMobileRouteAvailable(MediaEngine.Web.Models.ViewDTOs.SettingsSection.Libraries, "new"));
-        var cut = Render<LibrariesTab>(parameters => parameters.Add(component => component.Subsection, libraryId));
-        cut.WaitForElement("h1");
-        Assert.Equal("Audiobooks", cut.Find("h1").TextContent);
-        Assert.All(cut.FindAll("button").Where(button => button.GetAttribute("aria-label")?.StartsWith("Test folder path", StringComparison.Ordinal) != true),
-            button => Assert.True(button.HasAttribute("disabled")));
-        Assert.All(cut.FindAll("input"), input => Assert.True(input.HasAttribute("disabled") || input.HasAttribute("readonly")));
+        var cut = Open("Movies");
+        Assert.Empty(cut.FindAll(".folder-table__menu-trigger"));
+        Assert.All(cut.FindAll(".folder-table__chip, .folder-table__radio"), button => Assert.True(button.HasAttribute("disabled")));
     }
 
     [Fact]
