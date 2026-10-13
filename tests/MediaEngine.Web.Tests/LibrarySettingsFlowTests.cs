@@ -105,17 +105,14 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
     }
 
     [Fact]
-    public async Task EditingManualPathImmediatelyInvalidatesAnEarlierSelection()
+    public async Task EditingThePathBarImmediatelyInvalidatesAnEarlierSelection()
     {
         var cut = Render<AppDialogHost>();
         await cut.InvokeAsync(() => Services.GetRequiredService<IAppDialogService>().ShowAsync<ServerFolderPicker>(""));
-        cut.WaitForAssertion(() => Assert.False(cut.FindAll("button").Single(button => button.TextContent.Trim() == "Select this folder").HasAttribute("disabled")));
-        cut.FindAll("button").Single(button => button.TextContent.Trim() == "Enter path manually").Click();
-        cut.WaitForElement(".server-folder-picker__manual");
-        Assert.True(cut.FindAll("button").Single(button => button.TextContent.Trim() == "Select this folder").HasAttribute("disabled"));
-        cut.FindAll("button").Single(button => button.TextContent.Trim() == "Validate path").Click();
-        cut.WaitForAssertion(() => Assert.False(cut.FindAll("button").Single(button => button.TextContent.Trim() == "Select this folder").HasAttribute("disabled")));
-        cut.Find(".server-folder-picker__manual input").Input("C:\\media\\changed");
-        Assert.True(cut.FindAll("button").Single(button => button.TextContent.Trim() == "Select this folder").HasAttribute("disabled"));
+        cut.WaitForAssertion(() => Assert.False(cut.FindAll("button").Single(button => button.TextContent.Trim() == "Add").HasAttribute("disabled")));
+        cut.Find(".server-folder-picker__pathbar input").Input("C:\\media\\changed");
+        Assert.True(cut.FindAll("button").Single(button => button.TextContent.Trim() == "Add").HasAttribute("disabled"));
+        cut.FindAll("button").Single(button => button.TextContent.Trim() == "Go").Click();
+        cut.WaitForAssertion(() => Assert.False(cut.FindAll("button").Single(button => button.TextContent.Trim() == "Add").HasAttribute("disabled")));
     }
 }

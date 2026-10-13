@@ -56,7 +56,8 @@ public sealed class Wave5AccessibilityGuardrailTests
         Assert.Contains("role=\"listbox\"", folderBrowser);
         Assert.Contains("AriaLabel=\"@($\"Open folder {folder.Name}\")\"", folderBrowser);
         Assert.Contains("aria-live=\"polite\"", folderBrowser);
-        Assert.Contains("Select this folder", folderBrowser);
+        Assert.Contains("Label=\"Add\"", folderBrowser);
+        Assert.DoesNotContain("Select folder", folderBrowser);
         Assert.DoesNotContain("@ondblclick", folderBrowser);
     }
 
