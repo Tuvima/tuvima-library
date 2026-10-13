@@ -19,13 +19,18 @@
     @if (_open)
     {
         <AppDialogFrame Open="true" Title="@Title" DialogOptions="SheetOptions" Class="app-row-menu__sheet" OnCancel="CloseAsync">
-            <div class="app-row-menu__items" role="menu" aria-label="@AriaLabel" @onclick="CloseAsync">
+            <div class="app-row-menu__items" role="menu" aria-label="@AriaLabel">
                 @foreach (var item in Items)
                 {
                     <AppMenuItem Label="@item.Label" Icon="@item.Icon" Disabled="@item.Disabled"
                                  Tone="@ToneFor(item)" OnClick="@SelectCallback(item)" />
                 }
-                @ChildContent
+                @if (ChildContent is not null)
+                {
+                    @* Items passed as ChildContent do not know about the sheet, so a tap on one closes it. The wrapper
+                       has no box (display: contents), so taps between items never reach it. *@
+                    <div class="app-row-menu__extra" @onclick="CloseAsync">@ChildContent</div>
+                }
             </div>
         </AppDialogFrame>
     }
@@ -55,6 +60,7 @@ else
     [Parameter] public RenderFragment? ChildContent { get; set; }
     [Parameter] public string? Class { get; set; }
 
+    // Only rendered inside the DeviceContext.IsPhone branch, so Sheet = Phone always matches the frame's own check.
     private static readonly AppDialogOptions NoTitleSheet = new() { Sheet = AppDialogSheetMode.Phone, NoHeader = true, BackdropClick = true, CloseOnEscapeKey = true };
     private static readonly AppDialogOptions TitledSheet = new() { Sheet = AppDialogSheetMode.Phone, BackdropClick = true, CloseOnEscapeKey = true };
     private AppDialogOptions SheetOptions => string.IsNullOrWhiteSpace(Title) ? NoTitleSheet : TitledSheet;

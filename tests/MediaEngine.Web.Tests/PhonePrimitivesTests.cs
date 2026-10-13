@@ -43,6 +43,23 @@ public sealed class PhonePrimitivesTests : AsyncBunitContext
     }
 
     [Fact]
+    public async Task DialogClassFollowsALaterFormFactorChangeAndTellsTheModuleItIsASheet()
+    {
+        var module = JSInterop.SetupModule("./js/app-dialog.js");
+        module.Mode = JSRuntimeMode.Loose;
+        await UseAsync("desktop");
+        var frame = Render<AppDialogFrame>(parameters => parameters
+            .Add(frame => frame.DialogOptions, new AppDialogOptions { Sheet = AppDialogSheetMode.Phone }));
+        Assert.DoesNotContain("app-native-dialog--sheet", frame.Find("dialog").ClassName);
+        Assert.False((bool)module.Invocations.Last(i => i.Identifier == "update").Arguments.Last()!);
+
+        await _device.SwitchDeviceAsync(new DeviceContextSnapshot("mobile", "phone", true));
+
+        frame.WaitForAssertion(() => Assert.Contains("app-native-dialog--sheet", frame.Find("dialog").ClassName));
+        frame.WaitForAssertion(() => Assert.True((bool)module.Invocations.Last(i => i.Identifier == "update").Arguments.Last()!));
+    }
+
+    [Fact]
     public void DialogWithoutADeviceContextStaysCentred()
     {
         // No DeviceContextService is registered for this context's service provider override.
@@ -69,6 +86,11 @@ public sealed class PhonePrimitivesTests : AsyncBunitContext
 
         var shell = table.Find(".app-table-shell");
         Assert.Equal(cards, shell.ClassList.Contains("app-table-shell--cards"));
+        Assert.Equal(cards, JSInterop.Invocations.Any(i => i.Identifier == "tuvimaTableCards.apply"));
+        if (!cards)
+        {
+            Assert.DoesNotContain("cards", shell.ClassName);
+        }
         Assert.Equal(tablet, shell.ClassList.Contains("app-table-shell--cards-tablet"));
         Assert.Equal(2, table.FindAll("th[data-card-role]").Count);
         Assert.Equal(2, table.FindAll("td[data-card-role]").Count);
@@ -104,6 +126,23 @@ public sealed class PhonePrimitivesTests : AsyncBunitContext
         Assert.Contains("app-tone--error", items[1].ClassName);
 
         await items[0].ClickAsync(new());
+
+        Assert.Equal(1, chosen);
+        menu.WaitForAssertion(() => Assert.Empty(menu.FindAll("dialog")));
+    }
+
+    [Fact]
+    public async Task TappingAChildContentItemInThePhoneSheetRunsItAndClosesTheSheet()
+    {
+        await UseAsync("phone");
+        var chosen = 0;
+        var menu = Render<AppRowMenu>(parameters => parameters
+            .AddChildContent<AppMenuItem>(item => item
+                .Add(item => item.Label, "Share")
+                .Add(item => item.OnClick, () => { chosen++; })));
+        menu.Find("button.app-row-menu__trigger").Click();
+
+        await menu.Find("[role='menuitem']").ClickAsync(new());
 
         Assert.Equal(1, chosen);
         menu.WaitForAssertion(() => Assert.Empty(menu.FindAll("dialog")));

@@ -2371,7 +2371,9 @@ input.app-control.tl-input-slot,
 
 /* AppTable cards mode (CardsOn). CSS cannot read a header cell's column, so consumers mark the header cell AND
    every body cell of that column with data-card-role="title|subtitle|value|actions|hidden". Cells with no role
-   stack full width beneath the card (optional data-label prefixes them). The thead stays in the accessibility tree. */
+   stack full width beneath the card (optional data-label prefixes them). The thead stays in the accessibility
+   tree, and AppTable adds explicit table/row/cell roles (tuvimaTableCards in app.js) because display:block
+   and grid can drop native table semantics. */
 :is(html[data-form-factor="phone"] .app-table-shell--cards, html[data-form-factor="tablet"] .app-table-shell--cards-tablet) table,
 :is(html[data-form-factor="phone"] .app-table-shell--cards, html[data-form-factor="tablet"] .app-table-shell--cards-tablet) tbody,
 :is(html[data-form-factor="phone"] .app-table-shell--cards, html[data-form-factor="tablet"] .app-table-shell--cards-tablet) tr,
@@ -3623,6 +3625,7 @@ button.app-menu-item {
     :root:root .tl-embedded-audio__row-play,
     :root:root .tl-select-trigger,
     :root:root .top-nav-account-menu__trigger,
+    :root:root .app-row-menu__trigger,
     :root:root .layout-shell__engine-banner-retry {
         min-width: var(--tl-tap-target-min);
         min-height: var(--tl-tap-target-min);
@@ -3763,17 +3766,17 @@ input[type="reset"],
     font-size: 0.84rem;
 }
 
-/* AppRowMenu: 44px "more" trigger on every form factor; phone rows open as 48px items in a bottom sheet. */
+/* AppRowMenu: the trigger takes its 44px size from the shared tap-target contract; phone rows open as 48px items in a bottom sheet. */
 .app-row-menu__trigger.app-overflow-menu__trigger--icon {
-    width: var(--tl-tap-target-min);
-    min-width: var(--tl-tap-target-min);
-    height: var(--tl-tap-target-min);
-    min-height: var(--tl-tap-target-min);
     border-radius: var(--tl-radius-md);
 }
 
 .app-row-menu__sheet {
     --tl-menu-item-height: 48px;
+}
+
+.app-row-menu__extra {
+    display: contents;
 }
 
 .app-row-menu__items {

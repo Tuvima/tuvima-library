@@ -3446,6 +3446,30 @@ document.addEventListener('keydown', function (event) {
         : current <= 0 ? options.length - 1 : current - 1;
     options[index].focus();
 });
+// AppTable cards mode re-lays rows out with display:block/grid, which some engines treat as dropping table
+// semantics. Explicit ARIA roles keep the table navigable by screen readers; the observer keeps them current
+// when Blazor adds or replaces rows.
+window.tuvimaTableCards = (function () {
+    const observers = new WeakMap();
+    const roles = { TABLE: 'table', THEAD: 'rowgroup', TBODY: 'rowgroup', TFOOT: 'rowgroup', TR: 'row', TH: 'columnheader', TD: 'cell' };
+    function applyRoles(table) {
+        if (!table.hasAttribute('role')) table.setAttribute('role', roles.TABLE);
+        for (const node of table.querySelectorAll('thead, tbody, tfoot, tr, th, td')) {
+            if (!node.hasAttribute('role')) node.setAttribute('role', roles[node.tagName]);
+        }
+    }
+    return {
+        apply: function (table) {
+            if (!(table instanceof HTMLElement)) return;
+            applyRoles(table);
+            if (observers.has(table)) return;
+            const observer = new MutationObserver(() => applyRoles(table));
+            observer.observe(table, { childList: true, subtree: true });
+            observers.set(table, observer);
+        }
+    };
+})();
+
 window.tuvimaGetEditorListScrollTop = function (element) {
     return element?.scrollTop ?? 0;
 };

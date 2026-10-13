@@ -41,7 +41,9 @@
     };
     protected override void OnInitialized()
     {
-        // Optional: dialogs rendered without a device context (isolated hosts) stay centred.
+        // Optional: dialogs rendered without a device context (isolated hosts) stay centred. The device context is
+        // resolved at circuit start, long before a user can open a dialog, so the class does not flip mid-open; a later
+        // form-factor change (rotation, resize) re-renders via OnChanged and only restyles the open sheet.
         _device = Services.GetService(typeof(DeviceContextService)) as DeviceContextService;
         if (_device is not null) _device.OnChanged += DeviceChanged;
     }

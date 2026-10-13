@@ -1,7 +1,9 @@
 @namespace MediaEngine.Web.Components.Shared
 
+@inject IJSRuntime JS
+
 <div class="@RootClass" @attributes="AdditionalAttributes">
-    <table class="app-table tl-table-root">
+    <table @ref="_table" class="app-table tl-table-root">
         @ChildContent
     </table>
 </div>
@@ -15,6 +17,22 @@
     /// <summary>Stack rows as cards on phones (or phones and tablets). Cells declare their part with data-card-role.</summary>
     [Parameter] public AppTableCardsMode CardsOn { get; set; } = AppTableCardsMode.Never;
     [Parameter(CaptureUnmatchedValues = true)] public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    private ElementReference _table;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (CardsOn == AppTableCardsMode.Never) return;
+        try
+        {
+            // Cards mode re-lays rows out with display:block/grid; explicit roles keep the table semantics.
+            await JS.InvokeVoidAsync("tuvimaTableCards.apply", _table);
+        }
+        catch (JSDisconnectedException)
+        {
+            // The circuit is gone; there is no page left to annotate.
+        }
+    }
 
     private string? CardsClass => CardsOn switch
     {
