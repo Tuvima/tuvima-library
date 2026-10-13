@@ -20,6 +20,70 @@ namespace MediaEngine.Api.Tests;
 public sealed class EngineCompositionValidationTests
 {
     [Fact]
+    public async Task FullCompositionGraph_GivesTheMutationGateTheMergeLedger()
+    {
+        var repoRoot = FindRepoRoot();
+        var configuration = new ConfigurationManager();
+        var configLoader = new ConfigurationDirectoryLoader(Path.Combine(repoRoot, "config"));
+        var databasePath = Path.Combine(Path.GetTempPath(), $"tuvima_di_gate_{Guid.NewGuid():N}.db");
+        var database = new DatabaseConnection(databasePath);
+        try
+        {
+            DapperConfiguration.Configure();
+            database.InitializeSchema();
+            database.RunStartupChecks();
+
+            var services = new ServiceCollection();
+            services.AddLogging();
+            services.AddSingleton<IConfiguration>(configuration);
+            services.AddSingleton<IConfigurationLoader>(configLoader);
+            services.AddSingleton<IDatabaseConnection>(database);
+            services.AddTuvimaStorage();
+            services.AddMediaEngineIngestion(configuration, configLoader);
+            using var provider = services.BuildServiceProvider();
+
+            // The Engine's own gate must read the merge ledger: with it, a merge original is never deleted by ordinary code.
+            var root = Path.Combine(Path.GetTempPath(), "tuvima_gate_root");
+            var original = Path.Combine(root, "Dune.2021.mkv");
+            await provider.GetRequiredService<IFolderOrganiseLogRepository>().UpsertAsync(new FolderOrganiseLogEntry(
+                Guid.NewGuid(), Guid.NewGuid(), original, Path.Combine(root, "copy.mkv"), FolderOrganiseOutcomes.Copied, DateTimeOffset.UtcNow));
+            var source = new MediaEngine.Domain.Configuration.LibrarySourceConfig
+            {
+                Id = Guid.NewGuid().ToString("D"),
+                Path = root,
+                ManagementMode = MediaEngine.Domain.Configuration.LibrarySourceManagementModes.ManagedByTuvima,
+                AccessMode = MediaEngine.Domain.Configuration.LibrarySourceAccessModes.Writable,
+            };
+            var library = new MediaEngine.Domain.Configuration.LibraryFolderConfig { Id = "lib", Sources = [source] };
+            var gate = provider.GetRequiredService<MediaEngine.Ingestion.Contracts.ISourceMutationPolicyGate>();
+
+            var decision = gate.Evaluate(new MediaEngine.Ingestion.Models.SourceMutationRequest
+            {
+                Source = MediaEngine.Ingestion.Services.FileSourceMutationPolicyFactory.Create(library, source, allowDelete: true),
+                Mutation = MediaEngine.Ingestion.Models.SourceMutationKind.Delete,
+                Path = original,
+            });
+
+            Assert.False(decision.Allowed);
+        }
+        finally
+        {
+            database.Dispose();
+            foreach (var leftover in new[] { databasePath, databasePath + "-wal", databasePath + "-shm" })
+            {
+                try
+                {
+                    File.Delete(leftover);
+                }
+                catch (IOException)
+                {
+                    // A temporary data store that is still locked is left for the operating system's temp clean-up.
+                }
+            }
+        }
+    }
+
+    [Fact]
     public void FullCompositionGraph_ValidatesWithoutConstructingRuntimeResources()
     {
         var repoRoot = FindRepoRoot();

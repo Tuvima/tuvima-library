@@ -18,6 +18,13 @@ public sealed record FileSourceMutationPolicy
     public bool AllowMetadataWriteback { get; init; }
     public bool AllowDelete { get; init; }
     public bool AllowAsDestination { get; init; }
+
+    /// <summary>
+    /// True only for the policy the folder merge job itself holds over the folder it is merging. The merge is the one caller
+    /// allowed to move or remove an original it has listed in its own ledger (after checking the copy); every other caller is
+    /// refused those files by the gate.
+    /// </summary>
+    public bool IsMergeJob { get; init; }
 }
 
 /// <summary>

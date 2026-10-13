@@ -262,6 +262,13 @@ public sealed class FolderMergeRunner
         var heartbeat = HeartbeatAsync(host, snapshot, beating.Token);
         try
         {
+            // A merge that was stopped and started again carries on from the copies the earlier run already made.
+            var carriedOn = await _organiser.TryCarryOnEarlierCopyAsync(path, context, ct).ConfigureAwait(false);
+            if (carriedOn is not null)
+            {
+                return carriedOn;
+            }
+
             if (!catalogued.TryGetValue(path, out var file))
             {
                 return await _organiser.HandleUncataloguedAsync(path, context, _intake, ct).ConfigureAwait(false);

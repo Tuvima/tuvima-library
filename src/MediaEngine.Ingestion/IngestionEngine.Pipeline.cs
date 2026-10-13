@@ -276,7 +276,7 @@ public sealed partial class IngestionEngine
                         ActionType = Domain.Constants.SystemActionType.DuplicateSkipped,
                         EntityId = existing.Id,
                         EntityType = "MediaAsset",
-                        Detail = $"Duplicate skipped and deleted: {Path.GetFileName(candidate.Path)} (identical to {Path.GetFileName(existing.FilePathRoot)})",
+                        Detail = $"Duplicate skipped: {Path.GetFileName(candidate.Path)} (identical to {Path.GetFileName(existing.FilePathRoot)})",
                         IngestionRunId = ingestionRunId,
                     }, ct).ConfigureAwait(false);
 

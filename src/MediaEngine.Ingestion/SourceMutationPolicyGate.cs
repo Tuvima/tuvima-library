@@ -1,3 +1,4 @@
+using MediaEngine.Domain.Contracts;
 using MediaEngine.Ingestion.Contracts;
 using MediaEngine.Ingestion.Models;
 
@@ -5,10 +6,21 @@ namespace MediaEngine.Ingestion;
 
 /// <summary>
 /// Applies source ownership, writability, containment, and action-specific
-/// policy before a filesystem mutation is planned or executed.
+/// policy before a filesystem mutation is planned or executed. It also refuses to delete,
+/// move or rename a file a folder merge listed as an original that stays in its source folder
+/// (a cancelled merge leaves originals beside their copies, and ordinary duplicate handling
+/// must not mistake them for spare copies); only the merge job itself may act on those files.
 /// </summary>
 public sealed class SourceMutationPolicyGate : ISourceMutationPolicyGate
 {
+    private readonly IFolderOrganiseLogRepository? _mergeLedger;
+
+    /// <param name="mergeLedger">The merge ledger. Without it the merge-original rule cannot be checked; the running Engine always supplies it.</param>
+    public SourceMutationPolicyGate(IFolderOrganiseLogRepository? mergeLedger = null)
+    {
+        _mergeLedger = mergeLedger;
+    }
+
     public SourceMutationDecision Evaluate(SourceMutationRequest request)
     {
         ArgumentNullException.ThrowIfNull(request);
@@ -64,9 +76,44 @@ public sealed class SourceMutationPolicyGate : ISourceMutationPolicyGate
             _ => false,
         };
 
-        return permitted
-            ? SourceMutationDecision.Permit()
-            : SourceMutationDecision.Deny($"The source policy does not permit {request.Mutation}.");
+        if (!permitted)
+        {
+            return SourceMutationDecision.Deny($"The source policy does not permit {request.Mutation}.");
+        }
+
+        return MergeOriginalDenial(request, path!) ?? SourceMutationDecision.Permit();
+    }
+
+    /// <summary>
+    /// A file the merge ledger lists as an original that stays in its source folder is never deleted, moved or renamed by
+    /// anything except the merge job itself, whatever state the folder is in now. If the ledger cannot be read, the answer is
+    /// no: a refused delete costs nothing, a wrong one loses a person's file.
+    /// </summary>
+    private SourceMutationDecision? MergeOriginalDenial(SourceMutationRequest request, string path)
+    {
+        if (_mergeLedger is null
+            || request.Source.IsMergeJob
+            || request.Mutation is not (SourceMutationKind.Delete or SourceMutationKind.Move or SourceMutationKind.Rename))
+        {
+            return null;
+        }
+
+        bool isMergeOriginal;
+        try
+        {
+            isMergeOriginal = _mergeLedger.IsMergeOriginal(path);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            // Fail closed: when the merge ledger cannot be read the file is treated as an original that must be kept.
+            return SourceMutationDecision.Deny(
+                $"This file could not be checked against the folder merge log, so it was left where it is ({ex.Message}).");
+        }
+
+        return isMergeOriginal
+            ? SourceMutationDecision.Deny(
+                "This file is the original of a folder merge, so it is kept as it is until you merge the folder again or remove it yourself.")
+            : null;
     }
 }
 

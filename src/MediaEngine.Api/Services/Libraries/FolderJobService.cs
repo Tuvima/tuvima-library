@@ -412,7 +412,7 @@ public sealed class FolderJobService
                     throw new FolderJobException("This job has already finished.", conflict: true);
                 }
 
-                await _operations.MarkCancelledAsync(operationId, StoppedMessage(operation), ct).ConfigureAwait(false);
+                await _operations.MarkCancelledAsync(operationId, StoppedMessage(operation, MergeIsMove(operation)), ct).ConfigureAwait(false);
                 // A job nobody is running (paused, waiting) has no worker to tidy up after it.
                 if (operation.Status is not (MediaOperationStatus.Leased or MediaOperationStatus.Running)
                     && operation.EntityId is { } sourceId)
@@ -558,6 +558,11 @@ public sealed class FolderJobService
             return;
         }
 
+        if (!completed)
+        {
+            await KeepUnfinishedMergeCopiesAsync(operationId, ct).ConfigureAwait(false);
+        }
+
         await LibraryMutationEndpoints.WriteGate.WaitAsync(ct).ConfigureAwait(false);
         try
         {
@@ -588,6 +593,31 @@ public sealed class FolderJobService
         }
     }
 
+    /// <summary>
+    /// A merge that was cut short (the Engine stopped) and then cancelled before it could resume leaves a line that says a copy
+    /// was started. If that copy is in place, the line is closed as copied, so the original beside it stays protected from
+    /// ordinary duplicate handling. A line whose copy never appeared is left alone: the original is the only file there is.
+    /// </summary>
+    private async Task KeepUnfinishedMergeCopiesAsync(Guid operationId, CancellationToken ct)
+    {
+        foreach (var entry in await _ledger.ListUnfinishedAsync(operationId, ct).ConfigureAwait(false))
+        {
+            if (string.IsNullOrEmpty(entry.NewPath) || !File.Exists(entry.NewPath))
+            {
+                continue;
+            }
+
+            await _ledger.UpsertAsync(
+                entry with
+                {
+                    Outcome = FolderOrganiseOutcomes.Copied,
+                    At = DateTimeOffset.UtcNow,
+                    Detail = "The merge was stopped part way through this file. The copy is in place and the original was left alone.",
+                },
+                ct).ConfigureAwait(false);
+        }
+    }
+
     /// <summary>A merge whose folders have gone (or whose target is no longer managed) is stopped. What was copied stays where it is.</summary>
     private async Task StopMergeIfFoldersGoneAsync(
         MediaOperation operation, Guid sourceId, LibrariesConfiguration libraries, CancellationToken ct)
@@ -607,6 +637,7 @@ public sealed class FolderJobService
         }
 
         _logger.LogInformation("Stopping merge {OperationId}: a folder is gone or the target is no longer managed", operation.Id);
+        await KeepUnfinishedMergeCopiesAsync(operation.Id, ct).ConfigureAwait(false);
         await _operations.MarkCancelledAsync(
             operation.Id,
             "A folder was removed, or the folder being merged into is no longer managed, so Tuvima stopped. What was already copied stays where it is.",
@@ -914,11 +945,20 @@ public sealed class FolderJobService
         }
     }
 
-    private static string StoppedMessage(MediaOperation operation) =>
+    /// <summary>The sentence a person reads after stopping a merge. A Copy never deletes anything, and says so; a Move says what it did do.</summary>
+    public static string MergeStoppedMessage(bool isMove) => isMove
+        ? "Merge stopped. Files already moved stay in the target folder and the rest are still in the source folder. You can start it again."
+        : "Merge stopped. Nothing was deleted. You can start it again.";
+
+    private bool MergeIsMove(MediaOperation operation) =>
         operation.OperationType == MergeFolder
-            ? operation.ItemsTotal > 0
-                ? $"Stopped after {operation.ItemsCompleted.ToString("N0", CultureInfo.InvariantCulture)} of {operation.ItemsTotal.ToString("N0", CultureInfo.InvariantCulture)}. What was copied stays in the target folder; the rest is still in the source folder. The log lists what remains."
-                : "Stopped. What was copied stays in the target folder; the rest is still in the source folder. The log lists what remains."
+        && operation.EntityId is { } sourceId
+        && FindSource(_configuration.LoadLibraries(), sourceId) is { } source
+        && string.Equals(source.MergeMode, LibraryMergeModes.Move, StringComparison.Ordinal);
+
+    private static string StoppedMessage(MediaOperation operation, bool isMove) =>
+        operation.OperationType == MergeFolder
+            ? MergeStoppedMessage(isMove)
             : operation.ItemsTotal > 0
             ? $"Stopped after {operation.ItemsCompleted.ToString("N0", CultureInfo.InvariantCulture)} of {operation.ItemsTotal.ToString("N0", CultureInfo.InvariantCulture)}; the rest will be tidied gradually by normal scans."
             : "Stopped; the rest will be tidied gradually by normal scans.";
