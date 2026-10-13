@@ -1,8 +1,8 @@
 {
   "schema_version": "2.0",
   "database_path": "library.db",
-  "data_root": "C:\\temp\\tuvima-library\\.data\\real-media\\real-media-20260927-fresh",
-  "library_root": "C:\\temp\\tuvima-library",
+  "data_root": "",
+  "library_root": "{TuvimaData}/library",
   "organization_template": "{Category}/{Title} ({Year})/{Title}{Ext}",
   "organization_templates": {
     "default": "{Category}/{Title} ({Year})/{Title}{Ext}",
@@ -75,15 +75,15 @@
     }
   },
   "storage_policy": {
-    "mode": "Centralized",
+    "mode": "Hybrid",
     "artwork_export": false,
-    "subtitle_export": false,
+    "subtitle_export": true,
     "metadata_sidecar_export": false,
-    "cleanup_managed_local_artwork": false,
+    "cleanup_managed_local_artwork": true,
     "export_profile": {
-      "name": "real-media-read-only",
+      "name": "plex-jellyfin-common",
       "artwork": false,
-      "preferred_subtitles": false,
+      "preferred_subtitles": true,
       "metadata_sidecars": false
     }
   },

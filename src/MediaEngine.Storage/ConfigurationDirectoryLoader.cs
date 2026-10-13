@@ -3,6 +3,7 @@ using MediaEngine.Domain;
 using MediaEngine.Domain.Configuration;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Models;
+using MediaEngine.Domain.Services;
 using MediaEngine.Storage.Configuration;
 using MediaEngine.Storage.Contracts;
 
@@ -523,7 +524,7 @@ public sealed class ConfigurationDirectoryLoader : IConfigurationLoader, IDispos
 
         try
         {
-            var json = File.ReadAllText(path);
+            var json = TuvimaDataPaths.ExpandConfigTokens(File.ReadAllText(path));
             var result = JsonSerializer.Deserialize<T>(json, JsonOptions);
             if (result is null)
             {

@@ -1,4 +1,5 @@
 using System.Text.Json;
+using MediaEngine.Domain.Services;
 
 namespace MediaEngine.Storage;
 
@@ -29,7 +30,7 @@ public static class TuvimaDataPathResolver
             using var document = JsonDocument.Parse(stream);
             if (document.RootElement.TryGetProperty("library_root", out var configuredLibraryRoot))
             {
-                libraryRoot = configuredLibraryRoot.GetString();
+                libraryRoot = TuvimaDataPaths.ExpandConfigToken(configuredLibraryRoot.GetString());
             }
         }
 

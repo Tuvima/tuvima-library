@@ -113,6 +113,83 @@ public sealed class TuvimaDataPaths
         Directory.CreateDirectory(Root);
     }
 
+    /// <summary>
+    /// Placeholder the shipped <c>core.json</c> and <c>libraries.json</c> use instead of an absolute path, so a fresh
+    /// install follows wherever this server keeps its data (Windows, Linux or a container). A value that starts with
+    /// it is replaced by <see cref="Root"/> when the file is loaded.
+    /// </summary>
+    public const string ConfigToken = "{TuvimaData}";
+
+    /// <summary>
+    /// Replaces a leading <see cref="ConfigToken"/> in one configured path with the resolved data folder; any other
+    /// value is returned unchanged.
+    /// </summary>
+    public static string? ExpandConfigToken(string? value)
+    {
+        if (value is null || !value.StartsWith(ConfigToken, StringComparison.Ordinal))
+        {
+            return value;
+        }
+
+        var rest = value[ConfigToken.Length..].TrimStart('/', '\\');
+        var root = new TuvimaDataPaths().Root;
+        return rest.Length == 0 ? root : Path.GetFullPath(Path.Combine(root, rest));
+    }
+
+    /// <summary>
+    /// Expands <see cref="ConfigToken"/> in every string value of a configuration file's JSON text. Text without the
+    /// placeholder is returned untouched.
+    /// </summary>
+    public static string ExpandConfigTokens(string json)
+    {
+        ArgumentNullException.ThrowIfNull(json);
+        if (!json.Contains(ConfigToken, StringComparison.Ordinal))
+        {
+            return json;
+        }
+
+        var node = System.Text.Json.Nodes.JsonNode.Parse(json);
+        if (node is null)
+        {
+            return json;
+        }
+
+        ExpandInPlace(node);
+        return node.ToJsonString();
+    }
+
+    private static void ExpandInPlace(System.Text.Json.Nodes.JsonNode node)
+    {
+        switch (node)
+        {
+            case System.Text.Json.Nodes.JsonObject obj:
+                foreach (var key in obj.Select(pair => pair.Key).ToList())
+                {
+                    ExpandChild(obj[key], replacement => obj[key] = replacement);
+                }
+                break;
+            case System.Text.Json.Nodes.JsonArray array:
+                for (var index = 0; index < array.Count; index++)
+                {
+                    var position = index;
+                    ExpandChild(array[position], replacement => array[position] = replacement);
+                }
+                break;
+        }
+    }
+
+    private static void ExpandChild(System.Text.Json.Nodes.JsonNode? child, Action<System.Text.Json.Nodes.JsonNode?> replace)
+    {
+        if (child is System.Text.Json.Nodes.JsonValue value && value.TryGetValue<string>(out var text))
+        {
+            replace(System.Text.Json.Nodes.JsonValue.Create(ExpandConfigToken(text)));
+        }
+        else if (child is not null)
+        {
+            ExpandInPlace(child);
+        }
+    }
+
     private static string GetPlatformDefault()
     {
         if (OperatingSystem.IsWindows())
