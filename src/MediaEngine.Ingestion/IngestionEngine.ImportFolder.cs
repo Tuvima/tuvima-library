@@ -132,9 +132,10 @@ public sealed partial class IngestionEngine
 
             if (deleteAllowed)
             {
-                if (File.Exists(candidate.Path))
+                // A locked file is retried, and if it still can't be removed the operation stays open so the next pass tries again.
+                if (!await TryDeleteImportCopyAsync(candidate.Path, ct).ConfigureAwait(false))
                 {
-                    File.Delete(candidate.Path);
+                    return false;
                 }
 
                 importFolders.RemoveEmptyFolders(Path.GetDirectoryName(candidate.Path) ?? string.Empty);
@@ -150,8 +151,64 @@ public sealed partial class IngestionEngine
             return true;
         }
 
-        return _importFiler is not null
-            && await _importFiler.FileDuplicateCopyAsync(candidate.Path, existing.Id, contentHash, ct).ConfigureAwait(false);
+        var filedTo = _importFiler is null
+            ? null
+            : await _importFiler.FileDuplicateCopyAsync(candidate.Path, existing.Id, contentHash, ct).ConfigureAwait(false);
+        if (filedTo is null)
+        {
+            return false;
+        }
+
+        // A file is indexed once, so the kept copy is not a second library item; the history says where it went.
+        await SafeActivityLogAsync(new Domain.Entities.SystemActivityEntry
+        {
+            ActionType = Domain.Constants.SystemActionType.DuplicateSkipped,
+            EntityId = existing.Id,
+            EntityType = "MediaAsset",
+            Detail = $"Duplicate kept under Keep both: {Path.GetFileName(candidate.Path)} filed as {Path.GetFileName(filedTo)}",
+        }, ct).ConfigureAwait(false);
+        return true;
+    }
+
+    private async Task<bool> TryDeleteImportCopyAsync(string path, CancellationToken ct)
+    {
+        for (var attempt = 1; attempt <= 4; attempt++)
+        {
+            try
+            {
+                if (File.Exists(path))
+                {
+                    File.Delete(path);
+                }
+
+                return true;
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                _logger.LogDebug(ex, "Could not remove the import copy {Path} on attempt {Attempt}", path, attempt);
+                await Task.Delay(TimeSpan.FromMilliseconds(250 * attempt), ct).ConfigureAwait(false);
+            }
+        }
+
+        _logger.LogWarning("The import copy {Path} is locked; it will be removed on a later pass", path);
+        return false;
+    }
+
+    private async Task RecoverInterruptedImportFilingsAsync(CancellationToken ct)
+    {
+        if (_importFiler is null)
+        {
+            return;
+        }
+
+        try
+        {
+            await _importFiler.RecoverInterruptedFilingsAsync(ct).ConfigureAwait(false);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _logger.LogWarning(ex, "Finishing interrupted import filings failed - they will be retried on the next start");
+        }
     }
 
     /// <summary>

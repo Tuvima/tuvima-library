@@ -62,7 +62,7 @@ public sealed class ImportFileMover
             return null;
         }
 
-        if (string.Equals(Path.GetFullPath(sourcePath), Path.GetFullPath(destinationPath), StringComparison.OrdinalIgnoreCase))
+        if (PathSafety.Comparer.Equals(Path.GetFullPath(sourcePath), Path.GetFullPath(destinationPath)))
         {
             return destinationPath;
         }
@@ -75,15 +75,14 @@ public sealed class ImportFileMover
             }
 
             if (adoptIdenticalCopy
-                && File.Exists(destinationPath)
-                && await IsIdenticalAsync(sourcePath, destinationPath, expectedHash, ct).ConfigureAwait(false))
+                && await FindIdenticalCopyAsync(sourcePath, destinationPath, expectedHash, ct).ConfigureAwait(false) is { } adopted)
             {
-                await MoveHashCacheAsync(sourcePath, destinationPath, ct).ConfigureAwait(false);
+                await MoveHashCacheAsync(sourcePath, adopted, ct).ConfigureAwait(false);
                 await TryDeleteWithRetryAsync(sourcePath, ct).ConfigureAwait(false);
                 _logger.LogInformation(
                     "Resumed an interrupted import: {Destination} already holds this file, so only the original was removed",
-                    destinationPath);
-                return destinationPath;
+                    adopted);
+                return adopted;
             }
 
             return !AlwaysCopyAndVerify && VolumeProbe.SameVolume(sourcePath, destinationPath)
@@ -92,24 +91,91 @@ public sealed class ImportFileMover
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            _logger.LogWarning(ex, "Import move failed; the file stays where it is: {Source}", sourcePath);
+            _logger.LogWarning(ex, "Import move did not complete: {Source}", sourcePath);
             return null;
         }
     }
 
-    private async Task<bool> IsIdenticalAsync(
-        string sourcePath, string destinationPath, string? expectedHash, CancellationToken ct)
+    /// <summary>
+    /// Looks for a byte-identical copy of <paramref name="sourcePath"/> at <paramref name="destinationPath"/> or at one of
+    /// the unique names an earlier attempt may have used beside it (<c>Name (2).ext</c>, <c>Name (3).ext</c>...). Used to
+    /// resume an interrupted filing without making a second copy.
+    /// </summary>
+    public async Task<string?> FindIdenticalCopyAsync(
+        string sourcePath, string destinationPath, string? expectedHash, CancellationToken ct = default)
     {
-        if (new FileInfo(sourcePath).Length != new FileInfo(destinationPath).Length)
+        if (!File.Exists(sourcePath))
         {
-            return false;
+            return null;
         }
 
-        var original = string.IsNullOrWhiteSpace(expectedHash)
-            ? (await _hasher.ComputeAsync(sourcePath, ct).ConfigureAwait(false)).Hex
-            : expectedHash;
-        var present = (await _hasher.ComputeAsync(destinationPath, ct).ConfigureAwait(false)).Hex;
-        return string.Equals(original, present, StringComparison.OrdinalIgnoreCase);
+        var length = new FileInfo(sourcePath).Length;
+        string? original = string.IsNullOrWhiteSpace(expectedHash) ? null : expectedHash;
+        foreach (var candidate in CandidatePaths(destinationPath))
+        {
+            if (!File.Exists(candidate) || new FileInfo(candidate).Length != length)
+            {
+                continue;
+            }
+
+            original ??= (await _hasher.ComputeAsync(sourcePath, ct).ConfigureAwait(false)).Hex;
+            var present = (await _hasher.ComputeAsync(candidate, ct).ConfigureAwait(false)).Hex;
+            if (string.Equals(original, present, StringComparison.OrdinalIgnoreCase))
+            {
+                return candidate;
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>Same search as <see cref="FindIdenticalCopyAsync"/> for a file that is already gone from where it started: matched by fingerprint alone.</summary>
+    public async Task<string?> FindCopyByFingerprintAsync(
+        string destinationPath, string contentHash, CancellationToken ct = default)
+    {
+        foreach (var candidate in CandidatePaths(destinationPath))
+        {
+            if (File.Exists(candidate)
+                && string.Equals(
+                    (await _hasher.ComputeAsync(candidate, ct).ConfigureAwait(false)).Hex,
+                    contentHash,
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                return candidate;
+            }
+        }
+
+        return null;
+    }
+
+    private static IEnumerable<string> CandidatePaths(string destinationPath)
+    {
+        yield return destinationPath;
+
+        var folder = Path.GetDirectoryName(destinationPath);
+        if (string.IsNullOrEmpty(folder) || !Directory.Exists(folder))
+        {
+            yield break;
+        }
+
+        var stem = Path.GetFileNameWithoutExtension(destinationPath);
+        var extension = Path.GetExtension(destinationPath);
+        IEnumerable<string> siblings;
+        try
+        {
+            siblings = Directory.EnumerateFiles(folder, $"{stem} (*){extension}").ToList();
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            // A folder that can't be listed has no siblings to adopt.
+            _ = ex;
+            yield break;
+        }
+
+        foreach (var sibling in siblings.OrderBy(path => path, StringComparer.OrdinalIgnoreCase))
+        {
+            yield return sibling;
+        }
     }
 
     private async Task<string?> RenameAsync(string sourcePath, string destinationPath, CancellationToken ct)

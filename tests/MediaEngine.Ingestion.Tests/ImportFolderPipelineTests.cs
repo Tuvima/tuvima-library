@@ -166,10 +166,35 @@ public sealed class ImportFolderPipelineTests : IDisposable
 
         Directory.CreateDirectory(h.MoviesDir);
         var hash = (await h.Hasher.ComputeAsync(copy)).Hex;
-        Assert.True(await h.Filer.FileDuplicateCopyAsync(copy, heldId, hash));
+        Assert.NotNull(await h.Filer.FileDuplicateCopyAsync(copy, heldId, hash));
 
         Assert.False(File.Exists(copy));
         Assert.Equal("same bytes", File.ReadAllText(Assert.Single(h.FilesUnder(h.MoviesDir))));
+        Assert.Equal(1, await AssetCountAsync(h));
+    }
+
+    [Fact]
+    public async Task Keep_one_copy_retries_when_the_import_copy_is_locked()
+    {
+        if (!OperatingSystem.IsWindows())
+        {
+            return; // Only Windows refuses to delete a file that is open; elsewhere the delete simply succeeds.
+        }
+
+        var h = NewHarness(LibraryDuplicatePolicies.KeepOne);
+        await SeedHeldCopyAsync(h, "same bytes");
+        var copy = h.WriteImportFile(Path.Combine("Movies", "Dune Copy.mkv"), "same bytes");
+        var processors = new TestProcessorLibraryItem();
+
+        using (new FileStream(copy, FileMode.Open, FileAccess.Read, FileShare.Read))
+        {
+            await RunEngineAsync(h, processors, () => Task.FromResult(false), timeout: TimeSpan.FromSeconds(4));
+            Assert.True(File.Exists(copy), "a locked copy is not removed");
+        }
+
+        // The operation stayed open, so the next pass removes it once the lock is gone.
+        await RunEngineAsync(h, processors, () => Task.FromResult(!File.Exists(copy)));
+        Assert.False(File.Exists(copy));
         Assert.Equal(1, await AssetCountAsync(h));
     }
 

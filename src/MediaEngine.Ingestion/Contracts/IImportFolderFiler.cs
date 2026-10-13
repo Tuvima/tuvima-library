@@ -13,9 +13,17 @@ public interface IImportFolderFiler
     Task<int> FilePendingAsync(CancellationToken ct = default);
 
     /// <summary>
-    /// Under Keep both, files an import copy of a file that is already held, with a unique name, into the same managed
-    /// folder as the copy that is held. Returns <see langword="false"/> and leaves the copy untouched when the held copy
-    /// is itself still in the Import folder or its destination isn't ready.
+    /// Finishes filings that started and never completed (the program stopped between moving a file and recording where it
+    /// went): the asset is pointed at the file's new location instead of being treated as missing. Run before the startup
+    /// check for missing files. Returns how many were finished.
     /// </summary>
-    Task<bool> FileDuplicateCopyAsync(string copyPath, Guid heldAssetId, string contentHash, CancellationToken ct = default);
+    Task<int> RecoverInterruptedFilingsAsync(CancellationToken ct = default);
+
+    /// <summary>
+    /// Under Keep both, files an import copy of a file that is already held, with a unique name, into the same managed
+    /// folder as the copy that is held. Returns the path it was filed to, or <see langword="null"/> and leaves the copy
+    /// untouched when the held copy is itself still in the Import folder or its destination isn't ready. The copy is not a
+    /// second library item: a file is indexed once, whatever the duplicate rule.
+    /// </summary>
+    Task<string?> FileDuplicateCopyAsync(string copyPath, Guid heldAssetId, string contentHash, CancellationToken ct = default);
 }

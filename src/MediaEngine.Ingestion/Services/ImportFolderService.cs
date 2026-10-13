@@ -139,6 +139,9 @@ public sealed class ImportFolderService : IImportFolderService
             return null;
         }
 
+        // Built by hand rather than with FileSourceMutationPolicyFactory: the Import folder is a storage location, not a
+        // library source, so there is no library to build from. It may be moved out of (and an exact duplicate removed from),
+        // is never a destination, and is never renamed or tagged.
         return new FileSourceMutationPolicy
         {
             LibraryId = ImportFolderRules.LocationId,

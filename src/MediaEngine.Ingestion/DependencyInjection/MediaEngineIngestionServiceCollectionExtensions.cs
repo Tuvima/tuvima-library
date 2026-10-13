@@ -70,6 +70,7 @@ public static class MediaEngineIngestionServiceCollectionExtensions
         services.TryAddSingleton<IOrganizationGate, OrganizationGate>();
         services.TryAddSingleton<IImportFolderService, ImportFolderService>();
         services.TryAddSingleton<ImportFileMover>();
+        services.TryAddSingleton<ImportFilingJournal>();
         services.TryAddSingleton<IImportFolderFiler, ImportFolderFiler>();
         services.TryAddSingleton<IImportFolderWaitingReader, ImportFolderWaitingReader>();
         services.TryAddSingleton<IAutoOrganizeService, AutoOrganizeService>();

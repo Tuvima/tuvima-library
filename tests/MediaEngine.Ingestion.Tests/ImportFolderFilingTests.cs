@@ -278,6 +278,84 @@ public sealed class ImportFolderFilingTests : IDisposable
         Assert.Equal(landed, (await harness.Assets.FindByIdAsync(assetId))!.FilePathRoot);
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task A_crash_between_the_move_and_the_data_store_update_is_finished_on_the_next_start(bool originalStillThere)
+    {
+        var source = _h.WriteImportFile(Path.Combine("Movies", "Dune.mkv"), "dune bytes");
+        var assetId = await _h.RegisterAsync(source, MediaType.Movies, "Dune", "2021");
+        var asset = (await _h.Assets.FindByIdAsync(assetId))!;
+        var destination = Path.Combine(_h.MoviesDir, "Movies", "Dune (2021)", "Dune (2021).mkv");
+
+        // The previous run wrote its intent and moved the file, then stopped before it updated the data store.
+        Assert.True(_h.Journal.TryBegin(new ImportFilingIntent(
+            assetId, source, destination, asset.ContentHash, ImportFolderHarness.MoviesLibraryId, DateTimeOffset.UtcNow)));
+        Assert.True(_h.Journal.IsInProgress(assetId));
+        Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
+        File.Copy(source, destination);
+        if (!originalStillThere)
+        {
+            File.Delete(source);
+        }
+
+        var finished = await _h.Filer.RecoverInterruptedFilingsAsync();
+
+        Assert.Equal(1, finished);
+        Assert.False(_h.Journal.IsInProgress(assetId));
+        Assert.Equal(destination, (await _h.Assets.FindByIdAsync(assetId))!.FilePathRoot);
+        Assert.False(File.Exists(source));
+        Assert.Single(_h.FilesUnder(_h.MoviesDir));
+    }
+
+    [Fact]
+    public async Task A_filing_that_never_moved_the_file_leaves_the_asset_where_it_was()
+    {
+        var source = _h.WriteImportFile(Path.Combine("Movies", "Dune.mkv"), "dune bytes");
+        var assetId = await _h.RegisterAsync(source, MediaType.Movies, "Dune", "2021");
+        var asset = (await _h.Assets.FindByIdAsync(assetId))!;
+        _h.Journal.TryBegin(new ImportFilingIntent(
+            assetId, source, Path.Combine(_h.MoviesDir, "Dune.mkv"), asset.ContentHash, null, DateTimeOffset.UtcNow));
+
+        var finished = await _h.Filer.RecoverInterruptedFilingsAsync();
+
+        Assert.Equal(0, finished);
+        Assert.False(_h.Journal.IsInProgress(assetId));
+        Assert.Equal(source, (await _h.Assets.FindByIdAsync(assetId))!.FilePathRoot);
+        Assert.True(File.Exists(source));
+    }
+
+    [Fact]
+    public async Task A_restart_when_the_first_attempt_used_a_unique_name_adopts_it_instead_of_making_another()
+    {
+        var standard = Path.Combine(_h.MoviesDir, "Movies", "Dune (2021)", "Dune (2021).mkv");
+        Directory.CreateDirectory(Path.GetDirectoryName(standard)!);
+        File.WriteAllText(standard, "a different file that took the standard name");
+        var landed = Path.Combine(Path.GetDirectoryName(standard)!, "Dune (2021) (2).mkv");
+        var source = _h.WriteImportFile(Path.Combine("Movies", "Dune.mkv"), "dune bytes");
+        File.Copy(source, landed); // the interrupted attempt got this far
+        var assetId = await _h.RegisterAsync(source, MediaType.Movies, "Dune", "2021");
+
+        await _h.Organizer.TryAutoOrganizeAsync(assetId);
+
+        Assert.False(File.Exists(source));
+        Assert.Equal(landed, (await _h.Assets.FindByIdAsync(assetId))!.FilePathRoot);
+        Assert.Equal(2, _h.FilesUnder(_h.MoviesDir).Count());
+        Assert.False(File.Exists(Path.Combine(Path.GetDirectoryName(standard)!, "Dune (2021) (3).mkv")));
+    }
+
+    [Fact]
+    public async Task A_filing_in_progress_is_recorded_and_cleared_when_it_is_done()
+    {
+        var source = _h.WriteImportFile(Path.Combine("Movies", "Dune.mkv"), "dune bytes");
+        var assetId = await _h.RegisterAsync(source, MediaType.Movies, "Dune", "2021");
+
+        await _h.Organizer.TryAutoOrganizeAsync(assetId);
+
+        Assert.False(_h.Journal.IsInProgress(assetId));
+        Assert.Empty(_h.Journal.ReadPending());
+    }
+
     [Fact]
     public async Task A_copy_across_drives_is_checked_before_the_original_is_removed()
     {
@@ -367,7 +445,7 @@ public sealed class ImportFolderFilingTests : IDisposable
         // Duplicates: only the import copy is deleted, and only after the gate allows it.
         var method = pipeline.IndexOf("private async Task<bool> HandleImportDuplicateAsync(", StringComparison.Ordinal);
         var allow = pipeline.IndexOf("Mutation = SourceMutationKind.Delete,", method, StringComparison.Ordinal);
-        var delete = pipeline.IndexOf("File.Delete(candidate.Path);", method, StringComparison.Ordinal);
+        var delete = pipeline.IndexOf("TryDeleteImportCopyAsync(candidate.Path", method, StringComparison.Ordinal);
         Assert.True(method >= 0 && allow > method && delete > allow);
 
         // The duplicate copy kept under Keep both goes through the same gate as every other filing.

@@ -39,6 +39,7 @@ public sealed class AutoOrganizeService : IAutoOrganizeService
     private readonly ISourceMutationPolicyGate _sourceMutationGate;
     private readonly IImportFolderService? _importFolders;
     private readonly ImportFileMover? _importMover;
+    private readonly ImportFilingJournal? _importJournal;
 
     // Filing out of the Import folder runs one file at a time, so two passes (the pipeline and the sweep) can't file the
     // same file twice or race for the same unique name.
@@ -62,8 +63,10 @@ public sealed class AutoOrganizeService : IAutoOrganizeService
         ISourceMutationPolicyGate? sourceMutationGate = null,
         IMediaAssetCoverageRepository? coverageRepo = null,
         IImportFolderService? importFolders = null,
-        ImportFileMover? importMover = null)
+        ImportFileMover? importMover = null,
+        ImportFilingJournal? importJournal = null)
     {
+        _importJournal = importJournal;
         _importFolders = importFolders;
         _importMover = importMover;
         _coverageRepo = coverageRepo;
@@ -458,9 +461,19 @@ public sealed class AutoOrganizeService : IAutoOrganizeService
             return;
         }
 
+        // The intent is written first and removed only once the data store points at the new location, so a crash between
+        // the move and the update is finished on the next start (see ImportFolderFiler.RecoverInterruptedFilingsAsync).
+        if (_importJournal is not null
+            && !_importJournal.TryBegin(new ImportFilingIntent(
+                assetId, sourcePath, destPath, asset.ContentHash, destination.Library!.Id, DateTimeOffset.UtcNow)))
+        {
+            return;
+        }
+
         var finalPath = await _importMover!.MoveAsync(sourcePath, destPath, asset.ContentHash, adoptIdenticalCopy: true, ct: ct).ConfigureAwait(false);
         if (finalPath is null)
         {
+            _importJournal?.Complete(assetId);
             _logger.LogWarning("Import filing did not move {Id}; it stays in the Import folder: {Source}", assetId, sourcePath);
             return;
         }
@@ -470,6 +483,8 @@ public sealed class AutoOrganizeService : IAutoOrganizeService
         {
             await _assetRepo.SetLibraryIdAsync(assetId, destination.Library.Id, ct).ConfigureAwait(false);
         }
+
+        _importJournal?.Complete(assetId);
 
         await MarkPresentedAndPublishAsync(assetId, metadata, mediaType, ct).ConfigureAwait(false);
 

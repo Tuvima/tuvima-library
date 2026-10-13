@@ -289,6 +289,9 @@ public sealed partial class IngestionEngine : BackgroundService, IIngestionEngin
             Detail = "Server started",
         }, stoppingToken).ConfigureAwait(false);
 
+        // -- Step 1b: finish any import filing that was cut short, so its file is not treated as missing
+        await RecoverInterruptedImportFilingsAsync(stoppingToken).ConfigureAwait(false);
+
         // -- Step 2: Reconcile BEFORE scanning ----------------------------
         // Clean orphaned DB records so the initial scan sees files as fresh
         // rather than producing false "duplicate skipped" entries.

@@ -42,6 +42,7 @@ internal sealed class ImportFolderHarness : IDisposable
 
     public ImportFolderService Importer { get; }
     public ImportFileMover Mover { get; }
+    public ImportFilingJournal Journal { get; }
     public AutoOrganizeService Organizer { get; }
     public ImportFolderFiler Filer { get; }
     public ImportFolderWaitingReader Waiting { get; }
@@ -113,6 +114,7 @@ internal sealed class ImportFolderHarness : IDisposable
 
         Importer = new ImportFolderService(Config, NullLogger<ImportFolderService>.Instance);
         Mover = new ImportFileMover(Hasher, NullLogger<ImportFileMover>.Instance) { AlwaysCopyAndVerify = alwaysCopyAndVerify };
+        Journal = new ImportFilingJournal(Importer, NullLogger<ImportFilingJournal>.Instance);
         Organizer = new AutoOrganizeService(
             Assets,
             Canonicals,
@@ -127,7 +129,8 @@ internal sealed class ImportFolderHarness : IDisposable
             libraryResolver: new LibraryFolderResolver(new OptionsMonitorStub<IngestionOptions>(Options)),
             sourceMutationGate: new SourceMutationPolicyGate(),
             importFolders: Importer,
-            importMover: Mover);
+            importMover: Mover,
+            importJournal: Journal);
         Filer = new ImportFolderFiler(
             Importer,
             Assets,
@@ -138,7 +141,8 @@ internal sealed class ImportFolderHarness : IDisposable
             new SourceMutationPolicyGate(),
             Mover,
             Microsoft.Extensions.Options.Options.Create(Options),
-            NullLogger<ImportFolderFiler>.Instance);
+            NullLogger<ImportFolderFiler>.Instance,
+            Journal);
         Waiting = new ImportFolderWaitingReader(
             Importer, Assets, Canonicals, NullLogger<ImportFolderWaitingReader>.Instance);
     }
