@@ -63,6 +63,17 @@ public sealed class HouseholdAdministratorTests
         await Assert.ThrowsAsync<UnauthorizedAccessException>(() => mutations.SetTemporaryPasswordAsync(
             world.AdminOfA, world.ServerAdminAccount.Id, "another long temporary password"));
 
+        // Their email is off limits too, and so is a direct sign-in to a person that an administrator signs in as.
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() => mutations.ChangeEmailAsync(
+            world.AdminOfA, peer.AccountId, "taken.over@example.com"));
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() => mutations.ChangeEmailAsync(
+            world.AdminOfA, world.ServerAdminAccount.Id, "taken.over@example.com"));
+        var adminsPerson = await mutations.IssueInvitationAsync(world.ServerAdmin, new IssueAccountInvitationCommand(
+            "peer.two@example.com", [world.A.Spare.Id], null));
+        await mutations.SetHouseholdAdminAsync(world.ServerAdmin, adminsPerson.AccountId, true);
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() => mutations.GiveOwnSignInAsync(world.AdminOfA,
+            new GiveOwnSignInCommand(world.A.Spare.Id, "sidestep@example.com", "a long starting password")));
+
         // They cannot turn on administrator access for anyone, nor promote a household administrator.
         await Assert.ThrowsAsync<UnauthorizedAccessException>(() => mutations.UpsertGrantAsync(world.AdminOfA,
             new AccountProfileGrant
@@ -439,6 +450,9 @@ public sealed class HouseholdAdministratorTests
             new("set a temporary password", (actor, place) =>
                 Mutations.SetTemporaryPasswordAsync(actor, place.OwnSignIn.Id, "another long temporary password")),
             new("reset two-step codes", (actor, place) => Mutations.ResetTwoStepAsync(actor, place.OwnSignIn.Id)),
+            new("change a sign-in's email", (actor, place) => Mutations.ChangeEmailAsync(actor, place.OwnSignIn.Id, $"changed{Next()}@example.com")),
+            new("set an ordinary password", (actor, place) =>
+                Mutations.SetTemporaryPasswordAsync(actor, place.OwnSignIn.Id, "another long ordinary password", mustChangePassword: false)),
         ];
 
         private string Next() => (++_counter).ToString("D3", System.Globalization.CultureInfo.InvariantCulture);

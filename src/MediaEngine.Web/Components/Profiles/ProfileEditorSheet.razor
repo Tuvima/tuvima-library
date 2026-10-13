@@ -189,6 +189,9 @@
     /// <summary>Whether a Delete button is offered (the page decides: never the last profile).</summary>
     [Parameter] public bool CanDelete { get; set; }
 
+    /// <summary>Open straight on the delete confirmation (the page's Delete row); needs <see cref="CanDelete"/>.</summary>
+    [Parameter] public bool StartInDelete { get; set; }
+
     /// <summary>Raised with the person's choices when Save or Add is pressed.</summary>
     [Parameter] public EventCallback<ProfileEditorResult> OnSave { get; set; }
 
@@ -282,7 +285,7 @@
         _changingPin = false;
         _removePin = false;
         _removePhoto = false;
-        _confirmingDelete = false;
+        _confirmingDelete = StartInDelete && CanDelete && Profile is not null;
         _keepPhotos = true;
         _newPhoto = null;
         _newPhotoName = null;

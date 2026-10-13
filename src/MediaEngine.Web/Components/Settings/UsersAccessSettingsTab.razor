@@ -14,11 +14,8 @@
              aria-label="@ActiveSectionLabel">
         @switch (ActiveSection)
         {
-            case "household":
-                <ManagedAccessUsers Scope="household" />
-                break;
             case "users":
-                <ManagedAccessUsers Scope="server" />
+                <ManagedAccessUsers />
                 break;
             case "applications":
                 <ManagedAccessApplications />
@@ -27,7 +24,7 @@
                 <SecurityTab Section="authentication" />
                 break;
             default:
-                <ManagedAccessUsers Scope="server" />
+                <ManagedAccessUsers />
                 break;
         }
     </section>
@@ -38,7 +35,6 @@
 
     private string ActiveSection => Subsection.ToLowerInvariant() switch
     {
-        "household" => "household",
         "users" => "users",
         "applications" => "applications",
         "authentication" => "authentication",
@@ -47,7 +43,6 @@
 
     private string ActiveSectionLabel => ActiveSection switch
     {
-        "household" => "My household",
         "users" => "Households",
         "applications" => "Applications",
         "authentication" => "Authentication",
@@ -56,7 +51,6 @@
 
     private static readonly IReadOnlyList<SurfaceTabItem> Sections =
     [
-        new("household", "My household", AppMaterialIcons.Outlined.Home),
         new("users", "Households", AppMaterialIcons.Outlined.Group),
         new("applications", "Applications", AppMaterialIcons.Outlined.Apps),
         new("authentication", "Authentication", AppMaterialIcons.Outlined.Security),

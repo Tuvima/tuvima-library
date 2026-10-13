@@ -206,7 +206,7 @@ public sealed class FirstPartyIdentityService(
         return new InvitationPreview(account.Email, invitation.ExpiresAt);
     }
 
-    public async Task SetTemporaryPasswordAsync(Guid accountId, string password, DateTimeOffset expiresAt, CancellationToken ct = default)
+    public async Task SetTemporaryPasswordAsync(Guid accountId, string password, DateTimeOffset expiresAt, bool mustChange = true, CancellationToken ct = default)
     {
         var account = await accounts.GetByIdAsync(accountId, ct).ConfigureAwait(false) ?? throw new KeyNotFoundException("Account not found.");
         if (account.IsThisComputerOnly)
@@ -227,9 +227,11 @@ public sealed class FirstPartyIdentityService(
         }
 
         await identities.UpsertAccountCredentialAsync(credential, ct).ConfigureAwait(false);
-        await accounts.SetTemporaryPasswordStateAsync(accountId, true, expiresAt, UtcNow, ct).ConfigureAwait(false);
-        await identities.RevokeAccountSessionsAsync(accountId, UtcNow, "temporary_password_set", null, ct).ConfigureAwait(false);
-        await AuditAsync(accountId, null, null, "temporary_password_set", true, null, ct).ConfigureAwait(false);
+        await accounts.SetTemporaryPasswordStateAsync(accountId, mustChange, mustChange ? expiresAt : null, UtcNow, ct).ConfigureAwait(false);
+        await identities.InvalidatePasswordResetChallengesAsync(accountId, ct).ConfigureAwait(false);
+        var eventType = mustChange ? "temporary_password_set" : "password_set_by_administrator";
+        await identities.RevokeAccountSessionsAsync(accountId, UtcNow, eventType, null, ct).ConfigureAwait(false);
+        await AuditAsync(accountId, null, null, eventType, true, null, ct).ConfigureAwait(false);
     }
 
     public async Task<SessionIssueResult> ChangeTemporaryPasswordAsync(Guid accountId, string currentPassword, string newPassword, string deviceId, string deviceName, string client, CancellationToken ct = default, string ingress = ClientIngress.Remote)

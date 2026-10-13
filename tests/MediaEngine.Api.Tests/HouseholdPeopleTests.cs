@@ -133,7 +133,7 @@ public sealed class HouseholdPeopleTests
 
         // An invitation works the same way and the new sign-in opens only that person.
         var invited = await mutations.GiveOwnSignInAsync(actor,
-            new GiveOwnSignInCommand(tom.Id, "tom@example.com", null));
+            new GiveOwnSignInCommand(tom.Id, "tom@example.com", null, Invite: true));
         Assert.NotNull(invited.Invitation);
         var accepted = await fixture.Identity.AcceptInvitationAsync(
             invited.Invitation.Code, "invited password", "browser", "Browser", "Dashboard");
@@ -142,11 +142,11 @@ public sealed class HouseholdPeopleTests
 
         // One own sign-in per person, and an email only ever has one sign-in.
         await Assert.ThrowsAsync<InvalidOperationException>(() => mutations.GiveOwnSignInAsync(actor,
-            new GiveOwnSignInCommand(mary.Id, "mary2@example.com", null)));
+            new GiveOwnSignInCommand(mary.Id, "mary2@example.com", null, Invite: true)));
         var third = await mutations.AddHouseholdPersonAsync(actor,
             new AddHouseholdPersonCommand(household.Id, "Third", null, false, null));
         await Assert.ThrowsAsync<InvalidOperationException>(() => mutations.GiveOwnSignInAsync(actor,
-            new GiveOwnSignInCommand(third.Id, "MARY@example.com", null)));
+            new GiveOwnSignInCommand(third.Id, "MARY@example.com", null, Invite: true)));
     }
 
     [Fact]
@@ -161,7 +161,7 @@ public sealed class HouseholdPeopleTests
         var guestHousehold = (await households.GetForAccountAsync(invitation.AccountId))!;
         var guestPerson = Assert.Single(await households.ListProfilesAsync(guestHousehold.Id));
         var guestSignIn = await mutations.GiveOwnSignInAsync(actor,
-            new GiveOwnSignInCommand(guestPerson.Id, "guest.own@example.com", null));
+            new GiveOwnSignInCommand(guestPerson.Id, "guest.own@example.com", null, Invite: true));
 
         // The new sign-in lands in the person's household, not the household of whoever asked.
         Assert.Equal(guestHousehold.Id, guestSignIn.Account.HouseholdId);
@@ -188,7 +188,7 @@ public sealed class HouseholdPeopleTests
         var mary = await mutations.AddHouseholdPersonAsync(actor,
             new AddHouseholdPersonCommand(household.Id, "Mary", null, false, null));
         var invited = await mutations.GiveOwnSignInAsync(actor,
-            new GiveOwnSignInCommand(mary.Id, "mary@example.com", null));
+            new GiveOwnSignInCommand(mary.Id, "mary@example.com", null, Invite: true));
         await fixture.Identity.AcceptInvitationAsync(
             invited.Invitation!.Code, "invited password", "phone", "Phone", "Dashboard");
         Assert.NotEmpty(await fixture.Identities.GetSessionsAsync(invited.Account.Id));
@@ -272,6 +272,154 @@ public sealed class HouseholdPeopleTests
         Assert.Null(await accounts.GetByIdAsync(owner.Id));
     }
 
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task GiveOwnSignIn_WithAPassword_StoresATemporaryOrAnOrdinaryCredential(bool mustChange)
+    {
+        await using var fixture = await Fixture.CreateAsync();
+        var (mutations, accounts, households, actor) = (fixture.Mutations, fixture.Accounts, fixture.Households, fixture.Actor);
+        var owner = await fixture.CreateOwnerAsync();
+        var household = (await households.GetForAccountAsync(owner.Id))!;
+        var mary = await mutations.AddHouseholdPersonAsync(actor,
+            new AddHouseholdPersonCommand(household.Id, "Mary", null, false, null));
+
+        var given = await mutations.GiveOwnSignInAsync(actor,
+            new GiveOwnSignInCommand(mary.Id, "mary@example.com", "a long starting password", mustChange));
+
+        Assert.Null(given.Invitation);
+        var stored = (await accounts.GetByIdAsync(given.Account.Id))!;
+        Assert.Equal(mustChange, stored.MustChangePassword);
+        Assert.Equal(mustChange, stored.TemporaryPasswordExpiresAt is not null);
+        Assert.NotNull(await fixture.Identities.GetAccountCredentialAsync(stored.Id, AccountCredentialKind.Password));
+    }
+
+    [Fact]
+    public async Task GiveOwnSignIn_AlwaysNeedsAPasswordOrAnInvitation_AndLeavesNothingBehindWhenRefused()
+    {
+        await using var fixture = await Fixture.CreateAsync();
+        var (mutations, accounts, households, actor) = (fixture.Mutations, fixture.Accounts, fixture.Households, fixture.Actor);
+        var owner = await fixture.CreateOwnerAsync();
+        var household = (await households.GetForAccountAsync(owner.Id))!;
+        var mary = await mutations.AddHouseholdPersonAsync(actor,
+            new AddHouseholdPersonCommand(household.Id, "Mary", null, false, null));
+
+        foreach (var blank in new string?[] { null, string.Empty })
+        {
+            var refused = await Assert.ThrowsAsync<ArgumentException>(() => mutations.GiveOwnSignInAsync(actor,
+                new GiveOwnSignInCommand(mary.Id, "mary@example.com", blank)));
+            Assert.Equal("Set a starting password.", refused.Message);
+        }
+
+        // A password and an invitation together are ambiguous, and a weak password is refused by the usual rules.
+        await Assert.ThrowsAsync<ArgumentException>(() => mutations.GiveOwnSignInAsync(actor,
+            new GiveOwnSignInCommand(mary.Id, "mary@example.com", "a long starting password", Invite: true)));
+        await Assert.ThrowsAnyAsync<ArgumentException>(() => mutations.GiveOwnSignInAsync(actor,
+            new GiveOwnSignInCommand(mary.Id, "mary@example.com", "short", MustChangePassword: false)));
+        await Assert.ThrowsAnyAsync<ArgumentException>(() => mutations.GiveOwnSignInAsync(actor,
+            new GiveOwnSignInCommand(mary.Id, "mary@example.com", "mary@example.com", MustChangePassword: false)));
+        Assert.Null(await accounts.GetByNormalizedEmailAsync("MARY@EXAMPLE.COM"));
+
+        // The invitation path is unchanged: no password yet, a code to choose one with.
+        var invited = await mutations.GiveOwnSignInAsync(actor,
+            new GiveOwnSignInCommand(mary.Id, "mary@example.com", null, Invite: true));
+        Assert.NotNull(invited.Invitation);
+        Assert.Null(await fixture.Identities.GetAccountCredentialAsync(invited.Account.Id, AccountCredentialKind.Password));
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task SetTemporaryPassword_KeepsOrDropsTheMustChangeFlag(bool mustChange)
+    {
+        await using var fixture = await Fixture.CreateAsync();
+        var (mutations, accounts, households, actor) = (fixture.Mutations, fixture.Accounts, fixture.Households, fixture.Actor);
+        var owner = await fixture.CreateOwnerAsync();
+        var household = (await households.GetForAccountAsync(owner.Id))!;
+        var mary = await mutations.AddHouseholdPersonAsync(actor,
+            new AddHouseholdPersonCommand(household.Id, "Mary", null, false, null));
+        var given = (await mutations.GiveOwnSignInAsync(actor,
+            new GiveOwnSignInCommand(mary.Id, "mary@example.com", "a long starting password", MustChangePassword: !mustChange))).Account;
+
+        await mutations.SetTemporaryPasswordAsync(actor, given.Id, "another long password", mustChange);
+
+        var stored = (await accounts.GetByIdAsync(given.Id))!;
+        Assert.Equal(mustChange, stored.MustChangePassword);
+        Assert.Equal(mustChange, stored.TemporaryPasswordExpiresAt is not null);
+    }
+
+    [Fact]
+    public async Task ChangeEmail_ByAServerAdministrator_NormalizesAuditsAndRefusesDuplicates()
+    {
+        await using var fixture = await Fixture.CreateAsync();
+        var (mutations, accounts, households, actor) = (fixture.Mutations, fixture.Accounts, fixture.Households, fixture.Actor);
+        var owner = await fixture.CreateOwnerAsync();
+        var household = (await households.GetForAccountAsync(owner.Id))!;
+        var mary = await mutations.AddHouseholdPersonAsync(actor,
+            new AddHouseholdPersonCommand(household.Id, "Mary", null, false, null));
+        var given = (await mutations.GiveOwnSignInAsync(actor,
+            new GiveOwnSignInCommand(mary.Id, "mary@example.com", "a long starting password"))).Account;
+
+        var changed = await mutations.ChangeEmailAsync(actor, given.Id, "  Mary.New@Example.com ");
+
+        Assert.Equal("Mary.New@Example.com", changed.Email);
+        Assert.Equal("MARY.NEW@EXAMPLE.COM", changed.NormalizedEmail);
+        Assert.Null(await accounts.GetByNormalizedEmailAsync("MARY@EXAMPLE.COM"));
+        Assert.Equal(given.Id, (await accounts.GetByNormalizedEmailAsync("MARY.NEW@EXAMPLE.COM"))!.Id);
+        Assert.Contains(fixture.Audit.Events, audit => audit.EventType == "account.email_changed" && audit.SubjectId == given.Id.ToString("D"));
+        // The password and the rest of the account are untouched.
+        Assert.NotNull(await fixture.Identities.GetAccountCredentialAsync(given.Id, AccountCredentialKind.Password));
+
+        // Changing to the same address in another case is still the same account, not a duplicate.
+        Assert.Equal("MARY.NEW@example.com", (await mutations.ChangeEmailAsync(actor, given.Id, "MARY.NEW@example.com")).Email);
+
+        // Another account's address is a conflict (409 at the Engine door) and nothing changes.
+        await Assert.ThrowsAsync<InvalidOperationException>(() => mutations.ChangeEmailAsync(actor, given.Id, "owner@example.com"));
+        await Assert.ThrowsAsync<ArgumentException>(() => mutations.ChangeEmailAsync(actor, given.Id, "not an email"));
+        await Assert.ThrowsAsync<ArgumentException>(() => mutations.ChangeEmailAsync(actor, given.Id, "  "));
+        await Assert.ThrowsAsync<KeyNotFoundException>(() => mutations.ChangeEmailAsync(actor, Guid.NewGuid(), "someone@example.com"));
+        Assert.Equal("MARY.NEW@example.com", (await accounts.GetByIdAsync(given.Id))!.Email);
+    }
+
+    [Theory]
+    [InlineData("email")]
+    [InlineData("password")]
+    public async Task ChangingTheEmailOrPassword_EndsPasswordResetLinksAlreadySent(string change)
+    {
+        await using var fixture = await Fixture.CreateAsync();
+        var (mutations, households, actor) = (fixture.Mutations, fixture.Households, fixture.Actor);
+        var owner = await fixture.CreateOwnerAsync();
+        var household = (await households.GetForAccountAsync(owner.Id))!;
+        var mary = await mutations.AddHouseholdPersonAsync(actor,
+            new AddHouseholdPersonCommand(household.Id, "Mary", null, false, null));
+        var given = (await mutations.GiveOwnSignInAsync(actor,
+            new GiveOwnSignInCommand(mary.Id, "mary@example.com", "a long starting password"))).Account;
+        var token = await fixture.Identity.BeginPasswordResetAsync("mary@example.com");
+        Assert.NotNull(token);
+
+        if (change == "email")
+        {
+            await mutations.ChangeEmailAsync(actor, given.Id, "mary.new@example.com");
+        }
+        else
+        {
+            await mutations.SetTemporaryPasswordAsync(actor, given.Id, "another long password", mustChangePassword: false);
+        }
+
+        // A link mailed to the old address (or issued before the password was set) must not still work.
+        await Assert.ThrowsAnyAsync<Exception>(() => fixture.Identity.ResetPasswordWithTokenAsync(token, "a thief chosen password"));
+    }
+
+    [Fact]
+    public async Task ChangeEmail_IsNeverSelfService()
+    {
+        await using var fixture = await Fixture.CreateAsync();
+        var owner = await fixture.CreateOwnerAsync();
+        var self = fixture.Actor with { AccountId = owner.Id };
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => fixture.Mutations.ChangeEmailAsync(self, owner.Id, "elsewhere@example.com"));
+    }
+
     private sealed class Fixture : IAsyncDisposable
     {
         private readonly string _databasePath = Path.Combine(Path.GetTempPath(), $"tuvima-household-people-{Guid.NewGuid():N}.db");
@@ -285,6 +433,7 @@ public sealed class HouseholdPeopleTests
         public HouseholdRepository Households { get; private set; } = null!;
         public FirstPartyIdentityService Identity { get; private set; } = null!;
         public AccountAccessMutationService Mutations { get; private set; } = null!;
+        public RecordingAudit Audit { get; } = new();
         public RequestAuthority Actor { get; } = new(
             PrincipalKind.Human,
             true,
@@ -323,7 +472,7 @@ public sealed class HouseholdPeopleTests
                 new AllowEvaluator(),
                 new PasswordHasher<GrantAdminProtection>(),
                 new NoOpInvalidation(),
-                new NoOpAudit(),
+                fixture.Audit,
                 fixture.Identity,
                 new NoProfilePhotos(), TimeProvider.System);
             return Task.FromResult(fixture);
@@ -385,9 +534,15 @@ public sealed class HouseholdPeopleTests
         public ValueTask InvalidateSessionAsync(Guid sessionId, CancellationToken cancellationToken = default) => ValueTask.CompletedTask;
     }
 
-    private sealed class NoOpAudit : IAuthorizationAuditWriter
+    private sealed class RecordingAudit : IAuthorizationAuditWriter
     {
+        public List<AuthorizationAuditEvent> Events { get; } = [];
+
         public ValueTask WriteAsync(AuthorizationAuditEvent auditEvent,
-            CancellationToken cancellationToken = default) => ValueTask.CompletedTask;
+            CancellationToken cancellationToken = default)
+        {
+            Events.Add(auditEvent);
+            return ValueTask.CompletedTask;
+        }
     }
 }

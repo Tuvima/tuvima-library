@@ -20,6 +20,9 @@ public sealed class ProfileDetailPageTests : AsyncBunitContext
     private static readonly Guid OwnId = Guid.NewGuid();
     private static readonly Guid KidId = Guid.NewGuid();
     private static readonly Guid SamId = Guid.NewGuid();
+    private static readonly Guid SamAccountId = Guid.NewGuid();
+
+    private readonly List<RecordedRequest> _requests = [];
 
     private readonly List<ManagedProfileResponse> _managed = [];
     private string? _lastError;
@@ -76,7 +79,7 @@ public sealed class ProfileDetailPageTests : AsyncBunitContext
     }
 
     [Fact]
-    public void SignInRow_IsPresentButOpensNothing()
+    public void SignInRow_OnYourOwnProfile_LinksToSecurity()
     {
         Setup(actions: [], navigation: []);
 
@@ -84,9 +87,188 @@ public sealed class ProfileDetailPageTests : AsyncBunitContext
 
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-nav-row='sign-in']")));
         var row = Row(cut, "sign-in");
-        Assert.Equal("true", row.GetAttribute("aria-disabled"));
-        Assert.Null(row.GetAttribute("href"));
-        Assert.NotEqual("button", row.TagName.ToLowerInvariant());
+        Assert.Equal("/settings/security", row.GetAttribute("href"));
+        Assert.Null(row.GetAttribute("aria-disabled"));
+        Assert.Contains("Managed in Security", row.TextContent);
+    }
+
+    [Fact]
+    public void SignInRow_ForSomeoneWithoutOwnSignIn_SaysTheySwitchFromWhosWatching_AndOpensTheGiveSheet()
+    {
+        Setup(actions: ["household.manage"], navigation: []);
+        _managed.AddRange([Person(OwnId, "Test User", false), Person(SamId, "Sam", false)]);
+
+        var cut = RenderFor(SamId);
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-nav-row='sign-in']")));
+        Assert.Contains("Switches from Who's watching", Row(cut, "sign-in").TextContent);
+        Assert.Empty(cut.FindAll(".sign-in-sheet"));
+
+        Row(cut, "sign-in").Click();
+
+        cut.WaitForAssertion(() => Assert.Equal("Give own sign-in", cut.Find("#sign-in-sheet-title").TextContent));
+        var sheet = cut.Find(".sign-in-sheet");
+        Assert.Equal("manage", sheet.GetAttribute("data-sign-in-view"));
+        Assert.Contains(cut.FindAll(".sign-in-sheet button"), button => button.TextContent.Trim() == "Generate");
+        Assert.Contains(cut.FindAll(".sign-in-sheet button"), button => button.TextContent.Trim() == "Send an invitation link instead");
+        // "Must change it at first sign-in" starts on.
+        var mustChange = cut.Find(".sign-in-sheet input[role='switch']");
+        Assert.NotNull(mustChange.GetAttribute("checked"));
+        Assert.Contains("Must change it at first sign-in", cut.Find(".sign-in-sheet").TextContent);
+    }
+
+    [Fact]
+    public void SignInRow_ForSomeoneWithOwnSignIn_ShowsTheEmailAndAPendingChangeNote()
+    {
+        Setup(actions: ["household.manage"], navigation: []);
+        _managed.AddRange([Person(OwnId, "Test User", false), Person(SamId, "Sam", false, new ManagedProfileSignInDto(SamAccountId, "sam@home.test", true, true))]);
+
+        var cut = RenderFor(SamId);
+
+        cut.WaitForAssertion(() => Assert.Contains("sam@home.test", Row(cut, "sign-in").TextContent));
+        Assert.Contains("Must change password at first sign-in", Row(cut, "sign-in").TextContent);
+        Assert.DoesNotContain("Switches from Who's watching", Row(cut, "sign-in").TextContent);
+    }
+
+    [Fact]
+    public void SignInRow_WithoutThePendingChange_ShowsNoNote()
+    {
+        Setup(actions: ["household.manage"], navigation: []);
+        _managed.AddRange([Person(OwnId, "Test User", false), Person(SamId, "Sam", false, new ManagedProfileSignInDto(SamAccountId, "sam@home.test", false, true))]);
+
+        var cut = RenderFor(SamId);
+
+        cut.WaitForAssertion(() => Assert.Contains("sam@home.test", Row(cut, "sign-in").TextContent));
+        Assert.DoesNotContain("Must change password", Row(cut, "sign-in").TextContent);
+    }
+
+    [Fact]
+    public void ExistingSignIn_OffersChangeEmailSetPasswordAndRemove()
+    {
+        Setup(actions: ["household.manage"], navigation: []);
+        _managed.AddRange([Person(OwnId, "Test User", false), Person(SamId, "Sam", false, new ManagedProfileSignInDto(SamAccountId, "sam@home.test", false, true))]);
+
+        var cut = RenderFor(SamId);
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-nav-row='sign-in']")));
+        Row(cut, "sign-in").Click();
+
+        cut.WaitForAssertion(() => Assert.Equal("Sign-in", cut.Find("#sign-in-sheet-title").TextContent));
+        Assert.Equal("change-email,set-password,remove-sign-in",
+            string.Join(",", cut.FindAll(".sign-in-sheet [data-nav-row]").Select(row => row.GetAttribute("data-nav-row"))));
+    }
+
+    [Fact]
+    public void GivingASignIn_SendsThePasswordAndFlag_ShowsThePasswordOnce_AndDoesNotCloseByAccident()
+    {
+        Setup(actions: ["household.manage"], navigation: []);
+        _managed.AddRange([Person(OwnId, "Test User", false), Person(SamId, "Sam", false)]);
+
+        var cut = RenderFor(SamId);
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-nav-row='sign-in']")));
+        Row(cut, "sign-in").Click();
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".sign-in-sheet input")));
+        var inputs = cut.FindAll(".sign-in-sheet input").Where(input => input.GetAttribute("role") != "switch").ToList();
+        inputs[0].Input("sam@home.test");
+        inputs[1].Input("a long starting password");
+        cut.Find(".sign-in-sheet input[role='switch']").Change(false);
+        cut.FindAll(".sign-in-sheet button").Single(button => button.TextContent.Trim() == "Give own sign-in").Click();
+
+        cut.WaitForAssertion(() => Assert.Contains("a long starting password", cut.Find(".sign-in-sheet").TextContent));
+        var post = Assert.Single(_requests, request => request.Method == HttpMethod.Post && request.Path == $"/access/profiles/{SamId:D}/own-sign-in");
+        using var body = System.Text.Json.JsonDocument.Parse(post.Body);
+        Assert.Equal("sam@home.test", body.RootElement.GetProperty("email").GetString());
+        Assert.Equal("a long starting password", body.RootElement.GetProperty("temporary_password").GetString());
+        Assert.False(body.RootElement.GetProperty("must_change_password").GetBoolean());
+        Assert.False(body.RootElement.GetProperty("invite").GetBoolean());
+
+        // A password on screen is shown once: clicking outside or pressing Escape must not throw it away.
+        cut.Find(".settings-sheet-backdrop").Click();
+        cut.Find(".sign-in-sheet").KeyDown(new Microsoft.AspNetCore.Components.Web.KeyboardEventArgs { Key = "Escape" });
+        Assert.Contains("a long starting password", cut.Find(".sign-in-sheet").TextContent);
+
+        cut.FindAll(".sign-in-sheet button").Single(button => button.TextContent.Trim() == "Done").Click();
+        cut.WaitForAssertion(() => Assert.Empty(cut.FindAll(".sign-in-sheet")));
+    }
+
+    [Fact]
+    public void SendingAnInvitationInstead_SendsInviteWithNoPassword()
+    {
+        Setup(actions: ["household.manage"], navigation: []);
+        _managed.AddRange([Person(OwnId, "Test User", false), Person(SamId, "Sam", false)]);
+
+        var cut = RenderFor(SamId);
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-nav-row='sign-in']")));
+        Row(cut, "sign-in").Click();
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".sign-in-sheet input")));
+        cut.FindAll(".sign-in-sheet input").First(input => input.GetAttribute("role") != "switch").Input("sam@home.test");
+        cut.FindAll(".sign-in-sheet button").Single(button => button.TextContent.Trim() == "Send an invitation link instead").Click();
+
+        cut.WaitForAssertion(() => Assert.Contains("KQ7M4-XH2TA", cut.Find(".sign-in-sheet").TextContent));
+        var post = Assert.Single(_requests, request => request.Method == HttpMethod.Post && request.Path == $"/access/profiles/{SamId:D}/own-sign-in");
+        using var body = System.Text.Json.JsonDocument.Parse(post.Body);
+        Assert.True(body.RootElement.GetProperty("invite").GetBoolean());
+        Assert.Equal(System.Text.Json.JsonValueKind.Null, body.RootElement.GetProperty("temporary_password").ValueKind);
+    }
+
+    [Fact]
+    public void ChangingTheEmail_PutsTheNewEmailForThatAccount()
+    {
+        Setup(actions: ["household.manage"], navigation: ["settings.administration"]);
+        _managed.AddRange([Person(OwnId, "Test User", false), Person(SamId, "Sam", false, new ManagedProfileSignInDto(SamAccountId, "sam@home.test", false, true))]);
+
+        var cut = RenderFor(SamId);
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-nav-row='sign-in']")));
+        Row(cut, "sign-in").Click();
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-nav-row='change-email']")));
+        cut.Find("[data-nav-row='change-email']").Click();
+        cut.WaitForAssertion(() => Assert.Equal("email", cut.Find(".sign-in-sheet").GetAttribute("data-sign-in-view")));
+        cut.Find(".sign-in-sheet input").Input("sam.new@home.test");
+        cut.FindAll(".sign-in-sheet button").Single(button => button.TextContent.Trim() == "Change email").Click();
+
+        cut.WaitForAssertion(() => Assert.Contains(_requests, request => request.Method == HttpMethod.Put && request.Path == $"/access/accounts/{SamAccountId:D}/email"));
+        var put = _requests.Single(request => request.Method == HttpMethod.Put && request.Path == $"/access/accounts/{SamAccountId:D}/email");
+        using var body = System.Text.Json.JsonDocument.Parse(put.Body);
+        Assert.Equal("sam.new@home.test", body.RootElement.GetProperty("email").GetString());
+        cut.WaitForAssertion(() => Assert.Empty(cut.FindAll(".sign-in-sheet")));
+    }
+
+    [Fact]
+    public void SettingANewPassword_SendsTheFlagAndShowsItOnce()
+    {
+        Setup(actions: ["household.manage"], navigation: []);
+        _managed.AddRange([Person(OwnId, "Test User", false), Person(SamId, "Sam", false, new ManagedProfileSignInDto(SamAccountId, "sam@home.test", false, true))]);
+
+        var cut = RenderFor(SamId);
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-nav-row='sign-in']")));
+        Row(cut, "sign-in").Click();
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-nav-row='set-password']")));
+        cut.Find("[data-nav-row='set-password']").Click();
+        cut.WaitForAssertion(() => Assert.Equal("password", cut.Find(".sign-in-sheet").GetAttribute("data-sign-in-view")));
+        cut.FindAll(".sign-in-sheet input").First(input => input.GetAttribute("role") != "switch").Input("brand new starting password");
+        cut.FindAll(".sign-in-sheet button").Single(button => button.TextContent.Trim() == "Set password").Click();
+
+        cut.WaitForAssertion(() => Assert.Contains("brand new starting password", cut.Find(".sign-in-sheet").TextContent));
+        var post = Assert.Single(_requests, request => request.Method == HttpMethod.Post && request.Path == $"/access/accounts/{SamAccountId:D}/temporary-password");
+        using var body = System.Text.Json.JsonDocument.Parse(post.Body);
+        Assert.True(body.RootElement.GetProperty("must_change_password").GetBoolean());
+    }
+
+    [Fact]
+    public void RemovingTheSignIn_AsksFirst_ThenDeletesTheAccountsOwnSignIn()
+    {
+        Setup(actions: ["household.manage"], navigation: []);
+        _managed.AddRange([Person(OwnId, "Test User", false), Person(SamId, "Sam", false, new ManagedProfileSignInDto(SamAccountId, "sam@home.test", false, true))]);
+
+        var cut = RenderFor(SamId);
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-nav-row='sign-in']")));
+        Row(cut, "sign-in").Click();
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-nav-row='remove-sign-in']")));
+        cut.Find("[data-nav-row='remove-sign-in']").Click();
+        cut.WaitForAssertion(() => Assert.Contains("stays in the household with everything they have saved", cut.Find(".sign-in-sheet").TextContent));
+        Assert.DoesNotContain(_requests, request => request.Method == HttpMethod.Delete);
+
+        cut.FindAll(".sign-in-sheet button").Single(button => button.TextContent.Trim() == "Remove sign-in").Click();
+
+        cut.WaitForAssertion(() => Assert.Contains(_requests, request => request.Method == HttpMethod.Delete && request.Path == $"/access/accounts/{SamAccountId:D}/own-sign-in"));
     }
 
     [Fact]
@@ -188,6 +370,22 @@ public sealed class ProfileDetailPageTests : AsyncBunitContext
         Row(cut, "delete").Click();
 
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".profile-editor__delete")));
+        // The Delete row skips the form: the sheet opens on the photo question and the red Delete button.
+        Assert.NotEmpty(cut.FindAll(".profile-editor__confirm"));
+    }
+
+    [Fact]
+    public void ProfileDetailsRow_OpensTheEditorWithoutTheDeleteConfirmation()
+    {
+        Setup(actions: ["household.manage"], navigation: []);
+        _managed.AddRange([Person(OwnId, "Test User", false), Person(SamId, "Sam", false)]);
+
+        var cut = RenderFor(SamId);
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-nav-row='details']")));
+        Row(cut, "details").Click();
+
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".profile-editor__delete")));
+        Assert.Empty(cut.FindAll(".profile-editor__confirm"));
     }
 
     private IRenderedComponent<ProfileDetailPage> RenderFor(Guid profileId) =>
@@ -224,20 +422,51 @@ public sealed class ProfileDetailPageTests : AsyncBunitContext
         Services.AddScoped(_ => session);
     }
 
-    private static ManagedProfileResponse Person(Guid id, string name, bool restricted) =>
+    private static ManagedProfileResponse Person(Guid id, string name, bool restricted, ManagedProfileSignInDto? ownSignIn = null) =>
         new(id, name, "#C9922E", null, DateTimeOffset.UtcNow.AddMinutes(id == OwnId ? -3 : 0), HouseholdId, restricted,
-            ContentLimit: restricted ? "PG" : null);
+            ContentLimit: restricted ? "PG" : null, OwnSignIn: ownSignIn);
 
     private sealed class ClientFactory(HttpMessageHandler handler) : IHttpClientFactory
     {
         public HttpClient CreateClient(string name) => new(handler, false) { BaseAddress = new Uri("http://engine.test") };
     }
 
+    private sealed record RecordedRequest(HttpMethod Method, string Path, string Body);
+
     private sealed class ManagedHandler(ProfileDetailPageTests owner) : HttpMessageHandler
     {
-        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken) =>
-            Task.FromResult(request.RequestUri!.AbsolutePath == "/access/profiles"
-                ? new HttpResponseMessage(HttpStatusCode.OK) { Content = JsonContent.Create(owner._managed) }
-                : new HttpResponseMessage(HttpStatusCode.OK) { Content = JsonContent.Create(new { }) });
+        protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            var path = request.RequestUri!.AbsolutePath;
+            var body = request.Content is null ? string.Empty : await request.Content.ReadAsStringAsync(cancellationToken);
+            owner._requests.Add(new RecordedRequest(request.Method, path, body));
+
+            if (path == "/access/profiles" && request.Method == HttpMethod.Get)
+            {
+                return new HttpResponseMessage(HttpStatusCode.OK) { Content = JsonContent.Create(owner._managed) };
+            }
+
+            if (request.Method == HttpMethod.Post && path.EndsWith("/own-sign-in", StringComparison.Ordinal))
+            {
+                using var document = System.Text.Json.JsonDocument.Parse(body);
+                var invite = document.RootElement.GetProperty("invite").GetBoolean();
+                return new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = JsonContent.Create(new GiveOwnSignInResponse(Guid.NewGuid(), "sam@home.test",
+                        invite ? new AccountInvitationResponse(Guid.NewGuid(), "KQ7M4-XH2TA", DateTimeOffset.UtcNow.AddDays(1), null) : null,
+                        null)),
+                };
+            }
+
+            if (request.Method == HttpMethod.Delete || request.Method == HttpMethod.Put)
+            {
+                return new HttpResponseMessage(request.Method == HttpMethod.Delete ? HttpStatusCode.NoContent : HttpStatusCode.OK)
+                {
+                    Content = request.Method == HttpMethod.Put ? JsonContent.Create(new { }) : null,
+                };
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.OK) { Content = JsonContent.Create(new { }) };
+        }
     }
 }

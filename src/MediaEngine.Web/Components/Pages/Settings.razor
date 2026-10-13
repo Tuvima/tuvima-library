@@ -253,7 +253,7 @@ else
     private string? _batchBreadcrumbLabel;
     private int _breadcrumbLoadRevision;
     private IReadOnlyList<SettingsTreeGroupDef> VisibleTreeGroups =>
-        SettingsNav.FilteredTreeGroups(CanManageAdministration, CanManageHousehold).ToList();
+        SettingsNav.FilteredTreeGroups(CanManageAdministration).ToList();
 
     private IReadOnlyList<MediaSectionNavigationGroup> SettingsNavigationGroups =>
         VisibleTreeGroups
@@ -442,7 +442,6 @@ else
     }
 
     private bool CanManageAdministration => Session.HasNavigation("settings.administration");
-    private bool CanManageHousehold => Session.HasAction("household.manage");
 
     private void ResolveSectionAndNormalize()
     {
@@ -459,7 +458,7 @@ else
             return;
         }
 
-        var resolution = SettingsNav.ResolveRoute(Section, CanManageAdministration, CanManageHousehold);
+        var resolution = SettingsNav.ResolveRoute(Section, CanManageAdministration);
         _activeSection = resolution.Section;
 
         if (!resolution.IsKnownRoute)
@@ -476,7 +475,7 @@ else
 
         if (!IsItemEnabledByUiSettings(SettingsNav.GetItem(_activeSection)))
         {
-            Nav.NavigateTo(SettingsNav.RouteFor(SettingsNav.FirstVisibleSection(CanManageAdministration, CanManageHousehold)), replace: true);
+            Nav.NavigateTo(SettingsNav.RouteFor(SettingsNav.FirstVisibleSection(CanManageAdministration)), replace: true);
             return;
         }
 
@@ -592,7 +591,7 @@ else
     }
 
     private IReadOnlyList<SettingsItemDef> GetVisibleTreeItems(SettingsTreeGroupDef group) =>
-        SettingsNav.FilteredTreeItems(group, CanManageAdministration, CanManageHousehold)
+        SettingsNav.FilteredTreeItems(group, CanManageAdministration)
             .Where(item => !DeviceContext.IsMobile || SettingsNav.IsVisibleOnMobile(item.Value))
             .Where(item => item.Value is not SettingsSection.Review)
             .Where(IsItemEnabledByUiSettings)
@@ -601,7 +600,7 @@ else
     private IReadOnlyList<MediaSectionNavigationItem> BuildTreeNavigationItems(SettingsTreeGroupDef group)
     {
         var items = new List<MediaSectionNavigationItem>();
-        var childGroups = SettingsNav.FilteredChildTreeGroups(group, CanManageAdministration, CanManageHousehold).ToList();
+        var childGroups = SettingsNav.FilteredChildTreeGroups(group, CanManageAdministration).ToList();
 
         foreach (var item in GetVisibleTreeItems(group))
         {

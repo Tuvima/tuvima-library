@@ -9,7 +9,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace MediaEngine.Web.Tests;
 
-/// <summary>The My household and Households views of Users &amp; Access: who sees what, and which Engine actions they call.</summary>
+/// <summary>The Households and users view of Users &amp; Access: who sees what. People, PINs and sign-ins live on the profile page.</summary>
 public sealed class ManagedAccessHouseholdTests : AsyncBunitContext
 {
     private readonly HouseholdHandler _handler = new();
@@ -25,53 +25,46 @@ public sealed class ManagedAccessHouseholdTests : AsyncBunitContext
     }
 
     [Fact]
-    public void HouseholdAdministrator_SeesOnlyTheirHouseholdPeople_AndNoServerActions()
-    {
-        UseSession(_handler.AdminAccountId, ["household.manage"], effectiveAdministrator: false);
-
-        var cut = RenderHousehold();
-
-        Assert.Contains("Sam", cut.Markup);
-        Assert.Contains("Kid", cut.Markup);
-        Assert.Contains("Child", cut.Markup);
-        Assert.Contains("sam@home.test", cut.Markup);
-        Assert.Contains("No sign-in of their own", cut.Markup);
-        Assert.Contains(cut.FindAll("button"), button => button.TextContent.Trim() == "Add person");
-        Assert.DoesNotContain("Invite someone outside your household", cut.Markup);
-        Assert.DoesNotContain("Households", cut.Markup);
-        Assert.DoesNotContain("Invite user", cut.Markup);
-    }
-
-    [Fact]
-    public void ServerAdministrator_SeesTheirOwnHouseholdUnderMyHousehold_AndHouseholdsUnderTheServerView()
+    public void ServerAdministrator_SeesHouseholdsAsASummary_WithPeopleLookedAfterFromProfiles()
     {
         UseSession(_handler.AdminAccountId, ["access.manage"], effectiveAdministrator: true);
 
-        var household = RenderHousehold();
-        Assert.Contains("Sam", household.Markup);
-        Assert.DoesNotContain("Invite someone outside your household", household.Markup);
+        var cut = Render<ManagedAccessUsers>();
 
-        var server = Render<ManagedAccessUsers>(parameters => parameters.Add(component => component.Scope, "server"));
-        server.WaitForAssertion(() =>
+        cut.WaitForAssertion(() =>
         {
-            Assert.Contains("Invite someone outside your household", server.Markup);
-            Assert.Contains("admin@home.test's household", server.Markup);
-            Assert.Contains("3 of 8 people", server.Markup);
-            Assert.DoesNotContain("No sign-in of their own", server.Markup);
+            Assert.Contains("Invite someone outside your household", cut.Markup);
+            Assert.Contains("admin@home.test's household", cut.Markup);
+            Assert.Contains("3 of 8 people", cut.Markup);
         });
 
-        server.FindAll("button").Single(button => button.TextContent.Trim() == "View people").Click();
-        server.WaitForAssertion(() => Assert.Contains("No sign-in of their own", server.Markup));
+        // People, PINs and sign-ins moved to each person's profile page, so the Households list no longer carries them.
+        Assert.DoesNotContain(cut.FindAll("button"), button => button.TextContent.Trim() is "View people" or "Add person");
+        Assert.DoesNotContain("No sign-in of their own", cut.Markup);
+        Assert.Contains(cut.FindAll("a"), link => link.GetAttribute("href") == "/settings/profiles");
     }
 
     [Theory]
     [InlineData("household")]
-    [InlineData("server")]
-    public void PlainMember_GetsNoManagementControls(string scope)
+    [InlineData("users")]
+    [InlineData("")]
+    public void AccessTabs_HaveNoMyHouseholdTab_AndTheOldHouseholdAddressShowsTheUsersTab(string subsection)
+    {
+        UseSession(_handler.AdminAccountId, ["access.manage"], effectiveAdministrator: true);
+
+        var cut = Render<UsersAccessSettingsTab>(parameters => parameters.Add(component => component.Subsection, subsection));
+
+        Assert.Equal("users", cut.Find(".users-access-settings__section").GetAttribute("data-access-section"));
+        Assert.DoesNotContain("My household", cut.Markup);
+        cut.WaitForAssertion(() => Assert.Contains("admin@home.test's household", cut.Markup));
+    }
+
+    [Fact]
+    public void PlainMember_GetsNoManagementControls()
     {
         UseSession(_handler.AdminAccountId, [], effectiveAdministrator: false);
 
-        var cut = Render<ManagedAccessUsers>(parameters => parameters.Add(component => component.Scope, scope));
+        var cut = Render<ManagedAccessUsers>();
 
         cut.WaitForAssertion(() => Assert.Contains("administrator access is required", cut.Markup, StringComparison.OrdinalIgnoreCase));
         Assert.DoesNotContain(cut.FindAll("button"), button => button.TextContent.Trim() == "Add person");
@@ -80,106 +73,16 @@ public sealed class ManagedAccessHouseholdTests : AsyncBunitContext
     }
 
     [Fact]
-    public void AddPerson_PostsToTheHousehold_AsAChildWhenAsked()
+    public void ServerAdministrator_StillSetsATemporaryPassword_FromTheUsersList()
     {
-        UseSession(_handler.AdminAccountId, ["household.manage"], effectiveAdministrator: false);
-        var cut = RenderHousehold();
+        UseSession(_handler.AdminAccountId, ["access.manage"], effectiveAdministrator: true);
+        var cut = Render<ManagedAccessUsers>();
+        cut.WaitForAssertion(() => Assert.Contains("sam@home.test", cut.Markup));
 
-        cut.FindAll("button").Single(button => button.TextContent.Trim() == "Add person").Click();
-        cut.WaitForAssertion(() => Assert.Contains("access-drawer__body", cut.Markup));
-        cut.Find(".access-drawer__body input[type='text']").Input("Robin");
-        cut.Find(".access-drawer__body input[type='checkbox']").Change(true);
-        cut.FindAll(".access-drawer__footer button").Single(button => button.TextContent.Trim() == "Add person").Click();
+        cut.Find("button[aria-label='Actions for sam@home.test']").Click();
+        cut.FindAll("[role='menuitem']").Single(item => item.TextContent.Trim() == "Set temporary password").Click();
 
-        cut.WaitForAssertion(() => Assert.Contains("Robin was added to the household.", cut.Markup));
-        var request = Assert.Single(_handler.Requests, request => request.Method == HttpMethod.Post && request.Path == $"/access/households/{_handler.HouseholdId:D}/people");
-        var payload = JsonSerializer.Deserialize<AddHouseholdPersonRequest>(request.Body, JsonOptions)!;
-        Assert.Equal("Robin", payload.DisplayName);
-        Assert.True(payload.IsChild);
-    }
-
-    [Fact]
-    public void SetPin_SendsTheNewPinForThatPerson()
-    {
-        UseSession(_handler.AdminAccountId, ["household.manage"], effectiveAdministrator: false);
-        var cut = RenderHousehold();
-
-        cut.Find("button[aria-label='Set PIN for Sam']").Click();
-        cut.WaitForAssertion(() => Assert.Contains("PIN for Sam", cut.Markup));
-        cut.Find(".access-drawer__body input[type='password']").Input("2468");
-        cut.FindAll(".access-drawer__footer button").Single(button => button.TextContent.Trim() == "Save PIN").Click();
-
-        cut.WaitForAssertion(() => Assert.Contains("Sam's PIN was saved.", cut.Markup));
-        var request = Assert.Single(_handler.Requests, request => request.Method == HttpMethod.Put && request.Path == $"/auth/profiles/{_handler.SamProfileId:D}/pin");
-        Assert.Equal("2468", JsonSerializer.Deserialize<SetProfilePinRequest>(request.Body, JsonOptions)!.Pin);
-    }
-
-    [Fact]
-    public void GiveAndRemoveOwnSignIn_CallTheMatchingEngineActions()
-    {
-        UseSession(_handler.AdminAccountId, ["household.manage"], effectiveAdministrator: false);
-        var cut = RenderHousehold();
-
-        cut.Find("button[aria-label='Give Kid their own sign-in']").Click();
-        cut.WaitForAssertion(() => Assert.Contains("access-drawer__body", cut.Markup));
-        cut.Find(".access-drawer__body input[type='text']").Input("kid@home.test");
-        cut.FindAll(".access-drawer__footer button").Single(button => button.TextContent.Trim() == "Create sign-in").Click();
-        cut.WaitForAssertion(() => Assert.Contains(_handler.Requests, request => request.Method == HttpMethod.Post && request.Path == $"/access/profiles/{_handler.KidProfileId:D}/own-sign-in"));
-
-        cut.Find("button[aria-label='Close user drawer']").Click();
-        cut.Find("button[aria-label='Remove the sign-in of Sam']").Click();
-        cut.WaitForAssertion(() => Assert.Contains("Remove sam@home.test?", cut.Markup));
-        cut.FindAll(".access-drawer__footer button").Single(button => button.TextContent.Trim() == "Remove sign-in").Click();
-
-        cut.WaitForAssertion(() => Assert.Contains(_handler.Requests, request => request.Method == HttpMethod.Delete && request.Path == $"/access/accounts/{_handler.SamAccountId:D}/own-sign-in"));
-    }
-
-    [Fact]
-    public void LibrariesAndLanes_OffersOnlyTheLibrariesTheEngineReturnsForTheHousehold()
-    {
-        UseSession(_handler.AdminAccountId, ["household.manage"], effectiveAdministrator: false);
-        var cut = RenderHousehold();
-
-        cut.FindAll("button").Single(button => button.TextContent.Trim() == "Libraries & lanes").Click();
-        cut.WaitForAssertion(() => Assert.Contains("access-drawer__body", cut.Markup));
-
-        Assert.Contains("Household Books", cut.Find(".access-drawer__body").TextContent);
-        Assert.DoesNotContain("Server Only Movies", cut.Markup);
-        Assert.Contains(_handler.Requests, request => request.Method == HttpMethod.Get && request.Path == "/access/libraries");
-
-        cut.FindAll(".access-drawer__footer button").Single(button => button.TextContent.Trim() == "Save permissions").Click();
-        cut.WaitForAssertion(() => Assert.Contains("were saved.", cut.Markup));
-        var request = Assert.Single(_handler.Requests, request => request.Method == HttpMethod.Put && request.Path == $"/access/accounts/{_handler.PartnerAccountId:D}/access");
-        var payload = JsonSerializer.Deserialize<ReplaceAccountAccessRequest>(request.Body, JsonOptions)!;
-        Assert.Equal([_handler.HouseholdLibrary.Id], payload.LibraryIds);
-    }
-
-    [Fact]
-    public void AdministratorPin_IsAskedForWhenTheEngineRefusesTheChange()
-    {
-        _handler.PinStatus = HttpStatusCode.Forbidden;
-        UseSession(_handler.AdminAccountId, ["household.manage"], effectiveAdministrator: false);
-        var cut = RenderHousehold();
-
-        cut.Find("button[aria-label='Set PIN for Sam']").Click();
-        cut.WaitForAssertion(() => Assert.Contains("PIN for Sam", cut.Markup));
-        cut.Find(".access-drawer__body input[type='password']").Input("2468");
-        cut.FindAll(".access-drawer__footer button").Single(button => button.TextContent.Trim() == "Save PIN").Click();
-
-        cut.WaitForAssertion(() => Assert.Contains("Your administrator PIN is needed for this change.", cut.Markup));
-        cut.FindAll(".access-drawer__body input[type='password']").First().Input("1357");
-        cut.FindAll(".access-drawer__body button").Single(button => button.TextContent.Trim() == "Unlock").Click();
-
-        cut.WaitForAssertion(() => Assert.Contains("Unlocked. Try the change again.", cut.Markup));
-        var unlock = Assert.Single(_handler.Requests, request => request.Method == HttpMethod.Post && request.Path == "/access/admin-unlock");
-        Assert.Equal("1357", JsonSerializer.Deserialize<GrantAdminUnlockRequest>(unlock.Body, JsonOptions)!.Pin);
-    }
-
-    private IRenderedComponent<ManagedAccessUsers> RenderHousehold()
-    {
-        var cut = Render<ManagedAccessUsers>(parameters => parameters.Add(component => component.Scope, "household"));
-        cut.WaitForAssertion(() => Assert.Contains("Sam", cut.Markup));
-        return cut;
+        cut.WaitForAssertion(() => Assert.Contains("Set a temporary password", cut.Find(".access-drawer__body").TextContent));
     }
 
     private void UseSession(Guid accountId, string[] actions, bool effectiveAdministrator)

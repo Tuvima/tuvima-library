@@ -874,6 +874,47 @@ public sealed class FirstPartyIdentityServiceTests : IDisposable
             "temp@example.com", "another temp pass 456", "browser-2", "Laptop", "Dashboard")).Succeeded);
     }
 
+    [Fact]
+    public async Task OrdinaryPassword_SetByAnAdministrator_StoresANormalCredential_ThatNeverExpires()
+    {
+        var account = await CreateTemporaryPasswordAccountAsync("temporary pass 123", TimeSpan.FromDays(7));
+        var oldSession = (await _service.AuthenticatePasswordAsync(
+            "temp@example.com", "temporary pass 123", "browser-2", "Laptop", "Dashboard")).IssuedSession!;
+
+        await _service.SetTemporaryPasswordAsync(account.Id, "an ordinary password 456", _clock.GetUtcNow().AddDays(7), mustChange: false);
+
+        var stored = (await _accounts.GetByIdAsync(account.Id))!;
+        Assert.False(stored.MustChangePassword);
+        Assert.Null(stored.TemporaryPasswordExpiresAt);
+        // An administrator-set password still ends every existing sign-in of the account.
+        Assert.Null(await _service.ValidateSessionAsync(oldSession.PlaintextToken));
+
+        // It signs in at once with no forced change, and does not lapse the way a temporary one does.
+        _clock.Advance(TimeSpan.FromDays(30));
+        var attempt = await _service.AuthenticatePasswordAsync(
+            "temp@example.com", "an ordinary password 456", "browser-3", "Phone", "Dashboard");
+        Assert.True(attempt.Succeeded);
+        Assert.False((await _service.ValidateSessionAsync(attempt.IssuedSession!.PlaintextToken))!.Account.MustChangePassword);
+        Assert.False((await _service.AuthenticatePasswordAsync(
+            "temp@example.com", "temporary pass 123", "browser-4", "Tablet", "Dashboard")).Succeeded);
+    }
+
+    [Fact]
+    public async Task OrdinaryPassword_StillFollowsThePasswordRules()
+    {
+        var account = await CreateTemporaryPasswordAccountAsync("temporary pass 123", TimeSpan.FromDays(7));
+
+        await Assert.ThrowsAsync<ArgumentException>(() => _service.SetTemporaryPasswordAsync(
+            account.Id, "short", _clock.GetUtcNow().AddDays(7), mustChange: false));
+        await Assert.ThrowsAsync<ArgumentException>(() => _service.SetTemporaryPasswordAsync(
+            account.Id, "temp@example.com", _clock.GetUtcNow().AddDays(7), mustChange: false));
+        // Nothing changed: the temporary password still works and is still temporary.
+        var stored = (await _accounts.GetByIdAsync(account.Id))!;
+        Assert.True(stored.MustChangePassword);
+        Assert.True((await _service.AuthenticatePasswordAsync(
+            "temp@example.com", "temporary pass 123", "browser-2", "Laptop", "Dashboard")).Succeeded);
+    }
+
     private Task InsertProfileAsync(Profile profile)
     {
         using var connection = _database.CreateConnection();

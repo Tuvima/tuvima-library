@@ -1,0 +1,304 @@
+@namespace MediaEngine.Web.Components.Settings
+@using MediaEngine.Contracts.Authentication
+@using MediaEngine.Web.Components.Profiles
+@using MediaEngine.Web.Services.Ui
+@* The Sign-in sheet on a person's profile page. A person with no sign-in of their own switches from Who's watching; this sheet
+   gives them one, or looks after the one they have. It only gathers choices and reports them; the page that opens it talks to
+   the Engine. A starting password or invitation is shown once, and the sheet will not close by accident while it is on screen. *@
+@if (Open)
+{
+    <div class="settings-sheet-backdrop" @onclick="BackdropClickAsync">
+        <div @ref="_root"
+             class="settings-sheet sign-in-sheet"
+             role="dialog"
+             aria-modal="true"
+             aria-labelledby="sign-in-sheet-title"
+             data-sign-in-view="@_view.ToString().ToLowerInvariant()"
+             tabindex="-1"
+             @onclick:stopPropagation="true"
+             @onkeydown="OnKeyDown">
+            <h2 id="sign-in-sheet-title" class="settings-sheet__title">@Title</h2>
+
+            @if (!string.IsNullOrWhiteSpace(Error))
+            {
+                <p class="who-page__error" role="alert">@Error</p>
+            }
+
+            @if (Issued is { } issued)
+            {
+                @if (issued.Invitation is { } invitation)
+                {
+                    <InvitationShare Code="@invitation.Code" ExpiresAt="@invitation.ExpiresAt" PublicAddress="@invitation.PublicAddress" />
+                }
+                else
+                {
+                    <TemporaryPasswordShare Password="@(issued.Password ?? string.Empty)" ExpiresAt="@issued.PasswordExpiresAt" MustChange="@issued.MustChangePassword" />
+                }
+                <div class="sign-in-sheet__actions">
+                    <AppButton Label="Done" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" OnClick="CloseAsync" />
+                </div>
+            }
+            else if (SignIn is null)
+            {
+                @GiveContent
+            }
+            else
+            {
+                @switch (_view)
+                {
+                    case SheetView.Email:
+                        @EmailContent
+                        break;
+                    case SheetView.Password:
+                        @PasswordContent
+                        break;
+                    case SheetView.Remove:
+                        @RemoveContent
+                        break;
+                    default:
+                        @ManageContent
+                        break;
+                }
+            }
+        </div>
+    </div>
+}
+
+@code {
+    private RenderFragment GiveContent => __builder =>
+    {
+        <p class="sign-in-sheet__intro">
+            @(string.IsNullOrWhiteSpace(PersonName) ? "This person" : PersonName) signs in from Who's watching today. Give them their own sign-in
+            and they can open Tuvima straight to their profile. It follows the household's library access and is never an administrator.
+        </p>
+        <AppTextField T="string" @bind-Value="_email" Label="Email" InputType="AppInputType.Email" autocomplete="off" MaxLength="254" FullWidth="true" Disabled="@Saving" />
+        <div class="sign-in-sheet__password">
+            <AppTextField T="string" @bind-Value="_password" Label="Starting password" autocomplete="off" MaxLength="128" FullWidth="true" Disabled="@Saving"
+                          HelpText="At least 12 characters, not a common password, and not their email address or name." />
+            <AppButton Label="Generate" Size="AppControlSize.Compact" StartIcon="@AppMaterialIcons.Outlined.AutoAwesome" Disabled="@Saving" OnClick="GeneratePassword" />
+        </div>
+        <AppSwitchRow Value="@_mustChange" ValueChanged="@((bool value) => _mustChange = value)" Disabled="@Saving"
+                      Label="Must change it at first sign-in"
+                      Description="They choose their own password the first time they sign in." />
+        <div class="sign-in-sheet__actions">
+            <AppButton Label="Send an invitation link instead" Disabled="@(Saving || !ValidEmail)" OnClick="InviteAsync" />
+            <span class="sign-in-sheet__spacer"></span>
+            <AppButton Label="Cancel" Disabled="@Saving" OnClick="CloseAsync" />
+            <AppButton Label="@(Saving ? "Saving…" : "Give own sign-in")" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary"
+                       Disabled="@(Saving || !CanGive)" OnClick="GiveAsync" />
+        </div>
+    };
+
+    private RenderFragment ManageContent => __builder =>
+    {
+        <p class="sign-in-sheet__intro">
+            @(string.IsNullOrWhiteSpace(PersonName) ? "This person" : PersonName) signs in as <strong>@SignIn!.Email</strong>.
+            @if (SignIn.MustChangePassword)
+            {
+                <text> They still have to choose their own password.</text>
+            }
+            @if (!SignIn.IsEnabled)
+            {
+                <text> This sign-in is switched off.</text>
+            }
+        </p>
+        <ul class="sign-in-sheet__rows" role="list">
+            @if (CanChangeEmail)
+            {
+                <li class="sign-in-sheet__row"><SettingsNavRow Key="change-email" Icon="@AppMaterialIcons.Outlined.Mail" Title="Change email" Status="@SignIn.Email" OnClick="@(() => Go(SheetView.Email))" /></li>
+            }
+            <li class="sign-in-sheet__row"><SettingsNavRow Key="set-password" Icon="@AppMaterialIcons.Outlined.Key" Title="Set a new password" OnClick="@(() => Go(SheetView.Password))" /></li>
+            <li class="sign-in-sheet__row"><SettingsNavRow Key="remove-sign-in" Icon="@AppMaterialIcons.Outlined.Delete" Title="Remove sign-in" Destructive="true" ShowChevron="false" OnClick="@(() => Go(SheetView.Remove))" /></li>
+        </ul>
+        <div class="sign-in-sheet__actions">
+            <span class="sign-in-sheet__spacer"></span>
+            <AppButton Label="Done" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" OnClick="CloseAsync" />
+        </div>
+    };
+
+    private RenderFragment EmailContent => __builder =>
+    {
+        <p class="sign-in-sheet__intro">The email @(string.IsNullOrWhiteSpace(PersonName) ? "this person" : PersonName) signs in with. Their password stays the same.</p>
+        <AppTextField T="string" @bind-Value="_email" Label="Email" InputType="AppInputType.Email" autocomplete="off" MaxLength="254" FullWidth="true" Disabled="@Saving" />
+        <div class="sign-in-sheet__actions">
+            <span class="sign-in-sheet__spacer"></span>
+            <AppButton Label="Back" Disabled="@Saving" OnClick="@(() => Go(SheetView.Manage))" />
+            <AppButton Label="@(Saving ? "Saving…" : "Change email")" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary"
+                       Disabled="@(Saving || !ValidEmail || EmailUnchanged)" OnClick="ChangeEmailAsync" />
+        </div>
+    };
+
+    private RenderFragment PasswordContent => __builder =>
+    {
+        <p class="sign-in-sheet__intro">This signs @(string.IsNullOrWhiteSpace(PersonName) ? "them" : PersonName) out everywhere. Tell them the new password; it is shown once.</p>
+        <div class="sign-in-sheet__password">
+            <AppTextField T="string" @bind-Value="_password" Label="New password" autocomplete="off" MaxLength="128" FullWidth="true" Disabled="@Saving"
+                          HelpText="At least 12 characters, not a common password, and not their email address or name." />
+            <AppButton Label="Generate" Size="AppControlSize.Compact" StartIcon="@AppMaterialIcons.Outlined.AutoAwesome" Disabled="@Saving" OnClick="GeneratePassword" />
+        </div>
+        <AppSwitchRow Value="@_mustChange" ValueChanged="@((bool value) => _mustChange = value)" Disabled="@Saving"
+                      Label="Must change it at first sign-in"
+                      Description="They choose their own password the first time they sign in." />
+        <div class="sign-in-sheet__actions">
+            <span class="sign-in-sheet__spacer"></span>
+            <AppButton Label="Back" Disabled="@Saving" OnClick="@(() => Go(SheetView.Manage))" />
+            <AppButton Label="@(Saving ? "Saving…" : "Set password")" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary"
+                       Disabled="@(Saving || string.IsNullOrWhiteSpace(_password))" OnClick="SetPasswordAsync" />
+        </div>
+    };
+
+    private RenderFragment RemoveContent => __builder =>
+    {
+        <AppAlert Severity="AppSeverity.Warning">
+            Remove @SignIn!.Email? @(string.IsNullOrWhiteSpace(PersonName) ? "They stay" : $"{PersonName} stays") in the household with everything they have saved. This sign-in, its sessions and its paired devices stop working.
+        </AppAlert>
+        <div class="sign-in-sheet__actions">
+            <span class="sign-in-sheet__spacer"></span>
+            <AppButton Label="Keep sign-in" Disabled="@Saving" OnClick="@(() => Go(SheetView.Manage))" />
+            <AppButton Label="@(Saving ? "Removing…" : "Remove sign-in")" Tone="AppUiTone.Error" ButtonStyle="AppButtonStyle.Filled" Disabled="@Saving" OnClick="RemoveAsync" />
+        </div>
+    };
+
+    private enum SheetView { Manage, Email, Password, Remove }
+
+    private ElementReference _root;
+    private bool _wasOpen;
+    private bool _focused;
+    private SheetView _view = SheetView.Manage;
+    private string _email = string.Empty;
+    private string _password = string.Empty;
+    private bool _mustChange = true;
+
+    /// <summary>Show the sheet. Its fields start again each time it opens.</summary>
+    [Parameter] public bool Open { get; set; }
+
+    /// <summary>The person the sheet is about, for the wording.</summary>
+    [Parameter] public string PersonName { get; set; } = string.Empty;
+
+    /// <summary>The person's own sign-in; empty when they have none yet.</summary>
+    [Parameter] public ManagedProfileSignInDto? SignIn { get; set; }
+
+    /// <summary>Changing the email is an administrator action; the page decides who may.</summary>
+    [Parameter] public bool CanChangeEmail { get; set; }
+
+    /// <summary>True while the page is saving: the sheet is locked so nothing is sent twice.</summary>
+    [Parameter] public bool Saving { get; set; }
+
+    /// <summary>A failure from the page's last change, shown inside the sheet.</summary>
+    [Parameter] public string? Error { get; set; }
+
+    /// <summary>A password or invitation to hand over, shown once. While it is shown, the sheet only closes with Done.</summary>
+    [Parameter] public SignInIssued? Issued { get; set; }
+
+    /// <summary>Raised to give the person an own sign-in with a starting password.</summary>
+    [Parameter] public EventCallback<SignInGiveChoice> OnGive { get; set; }
+
+    /// <summary>Raised to send an invitation link instead of a starting password.</summary>
+    [Parameter] public EventCallback<SignInGiveChoice> OnInvite { get; set; }
+
+    /// <summary>Raised to set a new password for the existing sign-in.</summary>
+    [Parameter] public EventCallback<SignInPasswordChoice> OnSetPassword { get; set; }
+
+    /// <summary>Raised with the new email.</summary>
+    [Parameter] public EventCallback<string> OnChangeEmail { get; set; }
+
+    /// <summary>Raised after the person confirms removing the sign-in.</summary>
+    [Parameter] public EventCallback OnRemove { get; set; }
+
+    /// <summary>Raised when the sheet is dismissed.</summary>
+    [Parameter] public EventCallback OnClose { get; set; }
+
+    private string Title => Issued is not null
+        ? Issued.Invitation is not null ? "Invitation ready" : "Password ready"
+        : SignIn is null ? "Give own sign-in" : _view switch
+        {
+            SheetView.Email => "Change email",
+            SheetView.Password => "Set a new password",
+            SheetView.Remove => "Remove sign-in",
+            _ => "Sign-in",
+        };
+
+    private bool ValidEmail => _email.Trim().Length > 2 && _email.Contains('@', StringComparison.Ordinal);
+
+    private bool EmailUnchanged => SignIn is { } current
+        && string.Equals(current.Email?.Trim(), _email.Trim(), StringComparison.OrdinalIgnoreCase);
+
+    private bool CanGive => ValidEmail && !string.IsNullOrWhiteSpace(_password);
+
+    protected override void OnParametersSet()
+    {
+        if (Open && !_wasOpen)
+        {
+            _view = SheetView.Manage;
+            _email = SignIn?.Email ?? string.Empty;
+            _password = string.Empty;
+            _mustChange = true;
+        }
+
+        else if (!Open && _wasOpen)
+        {
+            // Nothing typed here is kept once the sheet is closed.
+            _password = string.Empty;
+            _email = string.Empty;
+        }
+
+        _wasOpen = Open;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!Open)
+        {
+            _focused = false;
+            return;
+        }
+
+        if (_focused)
+        {
+            return;
+        }
+
+        _focused = true;
+        try
+        {
+            await _root.FocusAsync();
+        }
+        catch (JSDisconnectedException)
+        {
+            // The circuit closed while the sheet was opening; there is nothing left to focus.
+        }
+    }
+
+    private void Go(SheetView view)
+    {
+        _view = view;
+        _password = string.Empty;
+        _mustChange = true;
+        _email = SignIn?.Email ?? _email;
+    }
+
+    private void GeneratePassword() => _password = TemporaryPasswordGenerator.Generate();
+
+    private Task GiveAsync() => OnGive.InvokeAsync(new SignInGiveChoice(_email.Trim(), _password, _mustChange));
+
+    private Task InviteAsync() => OnInvite.InvokeAsync(new SignInGiveChoice(_email.Trim(), null, true));
+
+    private Task SetPasswordAsync() => OnSetPassword.InvokeAsync(new SignInPasswordChoice(_password, _mustChange));
+
+    private Task ChangeEmailAsync() => OnChangeEmail.InvokeAsync(_email.Trim());
+
+    private Task RemoveAsync() => OnRemove.InvokeAsync();
+
+    private Task CloseAsync() => Saving ? Task.CompletedTask : OnClose.InvokeAsync();
+
+    // A password or code that is on screen is shown once, so a stray click outside or Escape must not throw it away.
+    private Task BackdropClickAsync() => Issued is null ? CloseAsync() : Task.CompletedTask;
+
+    private async Task OnKeyDown(KeyboardEventArgs args)
+    {
+        if (args.Key == "Escape" && Issued is null)
+        {
+            await CloseAsync();
+        }
+    }
+}

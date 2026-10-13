@@ -135,7 +135,7 @@ Link an external login to a Tuvima account before using it to sign in. Tuvima ch
 
 Sign in to your existing account and open **Settings → Security**. Choose the provider's **Link** action and complete its sign-in check. You can disconnect it from the same page, but must keep one working sign-in method. Administrators cannot link a person by typing their provider identity.
 
-To add a family member, use **Settings → Users & Access → My household** (or **Households**, for server administrators). After accepting, they can link their own provider from Account Security.
+To add a family member, open **Settings → Profiles**, open the person and choose **Sign-in**. After accepting an invitation, they can link their own provider from Account Security.
 
 ## Reverse proxies
 

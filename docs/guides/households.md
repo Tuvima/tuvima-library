@@ -13,15 +13,15 @@ A household is the group of people who live together and the sign-ins that open 
 
 ## Before you start
 
-- You need to be a server administrator or the household administrator. Household administrators see **Settings → My household**. Server administrators see the same cards under **Settings → Users & Access → My household**, plus a **Households** tab that lists every household.
+- You need to be a server administrator or the household administrator. Both look after people from **Settings → Profiles**: open a person to see their page. Server administrators also get **Settings → Users & Access → Households**, which lists every household.
 - Adding someone's own sign-in needs your own sign-in to be secure (a password or passkey). A desktop install started without a password shows **Secure your account** first.
 
 ## Add a person to the household
 
-1. Open **My household** and choose **Add person**.
-2. Enter a name. Switch on **Child profile** for a restricted profile. A child profile never has administrator access.
-3. Optionally set a **PIN**. Anyone who switches into that profile is asked for it. Use 4 to 12 digits. You can change it later with **Set PIN**.
-4. Save. The person appears as a card. They can use the profile straight away through the household's sign-in, and they do not need a sign-in of their own.
+1. Open **Settings → Profiles** and choose **Add profile**.
+2. Enter a name. Switch on **Kids profile** for a restricted profile. A kids profile never has administrator access.
+3. Optionally set a **PIN**. Anyone who switches into that profile is asked for it. Use 4 to 12 digits. You can change it later from the person's **Profile details**.
+4. Save. The person appears in the list. They can use the profile straight away through the household's sign-in, and they do not need a sign-in of their own.
 
 Adult profiles should have a PIN if others can reach the household's sign-in. Tuvima reminds you about this but does not force it.
 
@@ -29,15 +29,24 @@ Adult profiles should have a PIN if others can reach the household's sign-in. Tu
 
 Use this when a person wants to sign in with their own email, rather than picking their profile from the household sign-in.
 
-1. On their card, choose **Give (name) their own sign-in**.
-2. Enter their email. Choose **Send an invitation** or **Set a temporary password**.
-3. Share what Tuvima shows you through a private channel. An invitation code works once and expires after 7 days. A temporary password also expires after 7 days, and the person must choose their own password the first time they sign in.
+1. Open **Settings → Profiles**, open the person, and choose **Sign-in**. A person without their own sign-in reads *Switches from Who's watching*.
+2. Enter their email and a **Starting password**. Press **Generate** for a random one. An own sign-in always has a password.
+3. Leave **Must change it at first sign-in** on (the default) if the person should choose their own password the first time they sign in. Turn it off to give them an ordinary password that does not expire.
+4. Choose **Give own sign-in** and hand over the password Tuvima shows you through a private channel. It is shown once, and the sheet stays open until you choose **Done**.
+
+If you would rather not choose a password, choose **Send an invitation link instead**. Tuvima shows a code, a link and a QR code. The person uses it to choose their own password. An invitation code works once and expires after 7 days. A temporary password also expires after 7 days.
 
 Tuvima never sends email for this. You hand over the code or password yourself.
 
 Their own sign-in opens straight to them, without the profile picker. It stays in the same household, and it is never an administrator. It follows the household's library access, so when you change what the household can open, their sign-in changes too.
 
-To remove someone's own sign-in, choose **Remove sign-in**. The person stays in the household with everything they have saved, and the household's sign-in can still open them.
+Once a person has their own sign-in, their **Sign-in** row shows the email (and *Must change password at first sign-in* while that is still waiting). Open it to:
+
+- **Change email** (administrators): the person signs in with the new address from then on. Their password is unchanged, and an email that already has a sign-in is refused.
+- **Set a new password**: the same password field and **Must change it at first sign-in** switch as above. It signs the person out everywhere.
+- **Remove sign-in**: the person stays in the household with everything they have saved, and the household's sign-in can still open them.
+
+Changing your own email or password is not done here: your own **Sign-in** row opens **Settings → Security**.
 
 ## Someone from outside your household
 
@@ -66,7 +75,7 @@ Your private photo space stays private until you choose to submit something.
 
 ## What a household administrator can and cannot do
 
-A household administrator can add and remove people in their own household, give them their own sign-ins, set their PINs and temporary passwords, reset their two-step codes, and hand out libraries and features that the household already has.
+A household administrator can add and remove people in their own household, give them their own sign-ins, change their sign-in email, and set their PINs and passwords, all from each person's page under **Settings → Profiles**. They cannot give an own sign-in to a person that belongs to an administrator. Resetting two-step codes, sharing libraries and lanes, and looking after the household's main sign-ins are done by a server administrator under **Settings → Users & Access**.
 
 They cannot change another household, act on a server administrator or another household administrator, or turn on administrator access for anyone. Administrator access is always set by a server administrator.
 
