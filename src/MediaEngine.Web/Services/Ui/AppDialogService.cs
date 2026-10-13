@@ -15,6 +15,8 @@ public sealed record AppDialogOptions
     public bool? BackdropClick { get; init; }
     public bool? CloseOnEscapeKey { get; init; }
     public bool? NoHeader { get; init; }
+    /// <summary>Present as a bottom sheet on phones (and optionally tablets); desktop keeps the centred dialog.</summary>
+    public AppDialogSheetMode Sheet { get; init; } = AppDialogSheetMode.Never;
     public string? BackgroundClass { get; init; }
 }
 

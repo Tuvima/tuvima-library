@@ -371,6 +371,18 @@ a modal over the current detail URL. Toasts retain severity, stacking, dismissal
 and asynchronous actions such as Undo. Popup ownership follows the active dialog
 or fullscreen container; popup geometry remains a client presentation concern.
 
+Three shared phone primitives keep later phone layouts consistent. A dialog asks
+for a bottom sheet with `AppDialogOptions.Sheet` (`AppDialogSheetMode` Never,
+Phone or PhoneAndTablet); `AppDialogFrame` adds `app-native-dialog--sheet` and a
+grip only when `DeviceContextService` reports a matching form factor, and
+`app-dialog.js` closes the sheet on a 60 px swipe down the grip, a backdrop tap or
+Escape. `AppTable CardsOn` (`AppTableCardsMode`) turns each row into a card on
+phones, driven by CSS and `data-card-role` (title, subtitle, value, actions,
+hidden) set on the header cell and on every body cell of that column.
+`AppRowMenu` is the row "more" button: a bottom sheet of 48 px actions on phones,
+the `AppOverflowMenu` popover elsewhere; use it wherever a row relies on hover or
+drag. The demo lives on `/design-system/components`.
+
 First-party CSS is delivered through the asset map. Release-only NUglify targets
 minify copied global CSS and generated scoped bundles before fingerprinting and
 compression, failing on parser errors. Debug sources remain unminified. The

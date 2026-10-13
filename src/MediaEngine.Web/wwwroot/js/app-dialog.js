@@ -1,6 +1,7 @@
 const states = new Map();
 const frames = new Map();
 const openDialogs = new Set();
+const sheetDismissThreshold = 60;
 let removalObserver;
 let savedOverflow, savedPadding, savedGutter;
 function topmost(dialog) {
@@ -48,7 +49,7 @@ function unlock(dialog) {
         savedOverflow = undefined;
     }
 }
-export function update(dialog, dotnet, open, backdrop, escape, frameId) {
+export function update(dialog, dotnet, open, backdrop, escape, frameId, sheet) {
     if (!(dialog instanceof HTMLDialogElement)) return;
     let state = states.get(dialog);
     if (!state) {
@@ -86,6 +87,31 @@ export function update(dialog, dotnet, open, backdrop, escape, frameId) {
             if (state.backdrop && state.pointerOutside && event.target === dialog && outside(dialog, event)) requestCancel(state);
             state.pointerOutside = false;
         };
+        // Bottom-sheet swipe-down: drag the grip past the threshold to dismiss (same path as backdrop tap).
+        state.gripdown = event => {
+            if (!state.sheet || !event.isPrimary) return;
+            const grip = event.target?.closest?.('[data-app-dialog-grip]');
+            if (!grip) return;
+            state.drag = { id: event.pointerId, startY: event.clientY, delta: 0, grip };
+            try { grip.setPointerCapture(event.pointerId); } catch { /* capture is best-effort; move/up still bubble from the grip */ }
+        };
+        state.gripmove = event => {
+            const drag = state.drag;
+            if (!drag || event.pointerId !== drag.id) return;
+            drag.delta = Math.max(0, event.clientY - drag.startY);
+            if (!matchMedia('(prefers-reduced-motion: reduce)').matches) dialog.style.setProperty('--sheet-drag', `${drag.delta}px`);
+        };
+        state.gripend = event => {
+            const drag = state.drag;
+            if (!drag || event.pointerId !== drag.id) return;
+            state.drag = null;
+            dialog.style.removeProperty('--sheet-drag');
+            if (event.type === 'pointerup' && drag.delta >= sheetDismissThreshold && (state.escape || state.backdrop)) requestCancel(state);
+        };
+        dialog.addEventListener('pointerdown', state.gripdown);
+        dialog.addEventListener('pointermove', state.gripmove);
+        dialog.addEventListener('pointerup', state.gripend);
+        dialog.addEventListener('pointercancel', state.gripend);
         dialog.addEventListener('cancel', state.cancel);
         dialog.addEventListener('keydown', state.keydown, true);
         dialog.addEventListener('close', state.close);
@@ -102,7 +128,7 @@ export function update(dialog, dotnet, open, backdrop, escape, frameId) {
         });
         removalObserver.observe(document.documentElement, { childList: true, subtree: true });
     }
-    Object.assign(state, { dotnet, backdrop, escape, expectedOpen: open });
+    Object.assign(state, { dotnet, backdrop, escape, expectedOpen: open, sheet: sheet === true });
     const heading = dialog.querySelector('h2[id]');
     if (heading) dialog.setAttribute('aria-labelledby', heading.id);
     if (open && !dialog.open) {
@@ -138,6 +164,10 @@ function cleanup(state) {
     dialog.removeEventListener('focusin', state.focusin);
     dialog.removeEventListener('pointerdown', state.pointerdown);
     dialog.removeEventListener('click', state.click);
+    dialog.removeEventListener('pointerdown', state.gripdown);
+    dialog.removeEventListener('pointermove', state.gripmove);
+    dialog.removeEventListener('pointerup', state.gripend);
+    dialog.removeEventListener('pointercancel', state.gripend);
     if (dialog.open) dialog.close();
     unlock(dialog);
     restore(state);
