@@ -360,6 +360,31 @@ public sealed class SettingsNavTests
     }
 
     [Fact]
+    public void ProfilesRoute_AcceptsAPersonId_AndRejectsOtherSubsections()
+    {
+        var id = Guid.NewGuid().ToString("D");
+
+        Assert.True(SettingsNav.IsMobileRouteAvailable(SettingsSection.Profiles));
+        Assert.True(SettingsNav.IsMobileRouteAvailable(SettingsSection.Profiles, id));
+        Assert.False(SettingsNav.IsMobileRouteAvailable(SettingsSection.Profiles, "household"));
+        Assert.False(SettingsNav.IsMobileRouteAvailable(SettingsSection.Profiles, id, "extra"));
+        Assert.Null(SettingsNav.ResolveSubsection(SettingsSection.Profiles, "household"));
+    }
+
+    [Fact]
+    public void SettingsPage_ShowsThePersonPageForAProfilesIdAndNotFoundForAnythingElse()
+    {
+        var settingsSource = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Web/Components/Pages/Settings.razor"));
+
+        Assert.Contains("<ProfileDetailPage ProfileId=\"@ProfileDetailId\" NameChanged=\"OnProfileNameChanged\" />", settingsSource, StringComparison.Ordinal);
+        Assert.Contains("_activeSection == SettingsSection.Profiles && Guid.TryParse(Subsection, out _)", settingsSource, StringComparison.Ordinal);
+        Assert.Contains("$\"/settings/profiles/{_activeSubsection}\"", settingsSource, StringComparison.Ordinal);
+        Assert.Contains("- Profiles - Tuvima Library", settingsSource, StringComparison.Ordinal);
+        // A non-id subsection still goes through the normal lookup, which has no entry for Profiles and so ends at /not-found.
+        Assert.Contains("SettingsNav.ResolveSubsection(_activeSection, Subsection)", settingsSource, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void LibrariesRoute_IsCanonicalAndFoldersAliasRemainsRemoved()
     {
         var libraries = SettingsNav.ResolveRoute("libraries", true);

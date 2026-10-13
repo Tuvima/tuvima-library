@@ -7,6 +7,7 @@ using MediaEngine.Web.Components.Settings;
 using MediaEngine.Web.Models.ViewDTOs;
 using MediaEngine.Web.Services.Integration;
 using MediaEngine.Web.Tests.Support;
+using Microsoft.AspNetCore.Components;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -89,7 +90,7 @@ public sealed class ProfilesTabTests : AsyncBunitContext
     }
 
     [Fact]
-    public void TappingARow_OpensTheEditorSheetForThatPerson()
+    public void TappingARow_OpensThatPersonsProfilePage()
     {
         Setup(actions: ["household.manage"], navigation: []);
         _managed.AddRange([Person(OwnId, "Test User", false), Person(SamId, "Sam", false)]);
@@ -98,11 +99,32 @@ public sealed class ProfilesTabTests : AsyncBunitContext
         cut.WaitForAssertion(() => Assert.Equal(2, cut.FindAll(".profiles-tab__row:not(.profiles-tab__row--add)").Count));
         cut.FindAll(".profiles-tab__row:not(.profiles-tab__row--add)")[1].Click();
 
-        cut.WaitForAssertion(() =>
-        {
-            Assert.Equal("Edit profile", cut.Find("#profile-editor-title").TextContent);
-            Assert.Equal("Sam", cut.Find(".profile-editor__name").GetAttribute("value"));
-        });
+        Assert.EndsWith($"/settings/profiles/{SamId:D}", Services.GetRequiredService<NavigationManager>().Uri, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void EditButton_OpensTheOpenProfilesPage()
+    {
+        Setup(actions: [], navigation: []);
+
+        var cut = Render<ProfilesTab>();
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".profiles-tab__edit")));
+        cut.Find(".profiles-tab__edit").Click();
+
+        Assert.EndsWith($"/settings/profiles/{OwnId:D}", Services.GetRequiredService<NavigationManager>().Uri, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void AddRow_StillOpensTheSheetToAddSomeone()
+    {
+        Setup(actions: ["household.manage"], navigation: []);
+        _managed.Add(Person(OwnId, "Test User", false));
+
+        var cut = Render<ProfilesTab>();
+        cut.WaitForAssertion(() => Assert.Single(cut.FindAll(".profiles-tab__row--add")));
+        cut.Find(".profiles-tab__row--add").Click();
+
+        cut.WaitForAssertion(() => Assert.Equal("Add profile", cut.Find("#profile-editor-title").TextContent));
     }
 
     [Fact]

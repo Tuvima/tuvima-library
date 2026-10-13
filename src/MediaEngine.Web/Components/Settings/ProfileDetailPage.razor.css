@@ -1,0 +1,31 @@
+.profile-detail { display: grid; gap: 24px; width: 100%; max-width: 720px; margin: 0 auto; box-sizing: border-box; }
+.profile-detail__back { display: inline-flex; align-items: center; gap: 4px; min-height: 44px; color: var(--tl-accent-primary); font-weight: 600; text-decoration: none; }
+.profile-detail__back:focus-visible { outline: 2px solid var(--tl-accent-primary); outline-offset: 2px; border-radius: 4px; }
+.profile-detail__loading { display: grid; gap: 12px; }
+.profile-detail__header { display: flex; align-items: center; gap: 16px; }
+.profile-detail__avatar { flex: none; width: 80px; height: 80px; }
+.profile-detail__who { flex: 1; min-width: 0; }
+.profile-detail__name { margin: 0; font-size: 1.5rem; font-weight: 700; overflow-wrap: anywhere; }
+.profile-detail__role { margin: 2px 0 0; color: var(--tl-text-muted); }
+.profile-detail__badges { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0 0; padding: 0; list-style: none; }
+.profile-detail__badge { padding: 2px 8px; color: var(--tl-text-muted); border: 1px solid var(--tl-border-subtle); border-radius: 999px; font-size: .75rem; }
+.profile-detail__badge--you { color: var(--tl-accent-primary); border-color: var(--tl-accent-primary); }
+.profile-detail__group { display: grid; gap: 8px; }
+.profile-detail__group-title { margin: 0; color: var(--tl-text-muted); font-size: .85rem; font-weight: 600; }
+.profile-detail__list { margin: 0; padding: 0; list-style: none; border: 1px solid var(--tl-border-subtle); border-radius: 14px; background: var(--tl-bg-surface); overflow: hidden; }
+.profile-detail__item + .profile-detail__item { border-top: 1px solid var(--tl-border-subtle); }
+
+@media (min-width: 641px) {
+    .profile-detail__back { display: none; }
+    .profile-detail__avatar { width: 96px; height: 96px; }
+    .profile-detail__name { font-size: 1.75rem; }
+}
+
+@media (min-width: 1600px) {
+    .profile-detail { max-width: 900px; }
+    .profile-detail__avatar { width: 128px; height: 128px; }
+    .profile-detail__name { font-size: 2.25rem; }
+    .profile-detail__role { font-size: 1.15rem; }
+    .profile-detail__group-title { font-size: 1.05rem; }
+    .profile-detail__badge { font-size: .95rem; }
+}

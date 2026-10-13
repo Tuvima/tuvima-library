@@ -11,6 +11,7 @@
 @inject DashboardSessionAccessor Session
 @inject DashboardIdentityClient Identity
 @inject ConfirmedActionRunner Confirmed
+@inject NavigationManager Nav
 @inject ILogger<ProfilesTab> Logger
 
 <div class="profiles-tab" data-profile-section="overview">
@@ -36,7 +37,7 @@
                     <h2 id="profiles-tab-you" class="profiles-tab__name">@_active.DisplayName</h2>
                     <p class="profiles-tab__role">@RoleLabel</p>
                 </div>
-                <AppNativeButton Type="button" Class="who-button profiles-tab__edit" OnClick="OpenOwnEditor">Edit</AppNativeButton>
+                <AppNativeButton Type="button" Class="who-button profiles-tab__edit" OnClick="OpenOwnProfile">Edit</AppNativeButton>
             </div>
 
             <dl class="profiles-tab__stats">
@@ -109,7 +110,7 @@
                             @foreach (var person in group.People)
                             {
                                 <li class="profiles-tab__item" @key="person.Id">
-                                    <AppNativeButton Type="button" Class="profiles-tab__row" OnClick="@(() => OpenEditor(person))">
+                                    <AppNativeButton Type="button" Class="profiles-tab__row" OnClick="@(() => OpenProfile(person.Id))">
                                         <span class="profiles-tab__row-avatar"><ProfileAvatar DisplayName="@person.DisplayName" ImageUrl="@person.AvatarImageUrl" Color="@person.AvatarColor" Icon="@person.AvatarIcon" /></span>
                                         <span class="profiles-tab__row-name">@person.DisplayName</span>
                                         <span class="profiles-tab__badges">
@@ -149,12 +150,9 @@
 </div>
 
 <ProfileEditorSheet Open="@_editorOpen"
-                    Profile="@_editing"
                     Saving="@_editorSaving"
                     Error="@_editorError"
-                    CanDelete="@CanDeleteEditing"
                     OnSave="SaveEditorAsync"
-                    OnDelete="DeleteEditingAsync"
                     OnClose="CloseEditor" />
 
 <AdminUnlockDialog Open="@_needsUnlock" Busy="@_unlocking" Error="@_unlockError" OnUnlock="UnlockAsync" OnCancel="CancelUnlock" />
@@ -182,7 +180,6 @@
     private bool _editorOpen;
     private bool _editorSaving;
     private string? _editorError;
-    private ProfileViewModel? _editing;
     private bool _needsUnlock;
     private bool _unlocking;
     private bool _justUnlocked;
@@ -202,9 +199,6 @@
     private int OwnHouseholdCount => _managed.Count(person => person.HouseholdId == OwnHouseholdId);
 
     private bool ShowAdd => ProfileManageRules.CanAdd(CanManage, OwnHouseholdCount);
-
-    private bool CanDeleteEditing => _editing is { } profile
-        && ProfileManageRules.CanDelete(profile, _active?.Id, OwnHouseholdCount);
 
     private IReadOnlyList<Household> Groups => BuildGroups();
 
@@ -359,25 +353,20 @@
             ContentLimitAllowUnrated: person.ContentLimitAllowUnrated);
     }
 
-    private void OpenOwnEditor()
+    // Each person has their own page; the sheet here is only for adding someone.
+    private void OpenOwnProfile()
     {
         if (_active is { } profile)
         {
-            OpenEditor(_profiles.FirstOrDefault(known => known.Id == profile.Id) ?? profile);
+            OpenProfile(profile.Id);
         }
     }
 
-    private void OpenEditor(ProfileViewModel profile)
-    {
-        _editorError = null;
-        _editing = profile;
-        _editorOpen = true;
-    }
+    private void OpenProfile(Guid profileId) => Nav.NavigateTo($"/settings/profiles/{profileId:D}");
 
     private void OpenAdd()
     {
         _editorError = null;
-        _editing = null;
         _editorOpen = true;
     }
 
@@ -396,12 +385,6 @@
         return SaveAsync(result);
     }
 
-    private Task DeleteEditingAsync(bool keepPhotos)
-    {
-        _justUnlocked = false;
-        return RemoveAsync(keepPhotos);
-    }
-
     private async Task SaveAsync(ProfileEditorResult result)
     {
         if (_editorSaving)
@@ -413,28 +396,8 @@
         _editorError = null;
         try
         {
-            var outcome = await Workflow.SaveAsync(_editing, OwnHouseholdId, result, _justUnlocked);
+            var outcome = await Workflow.SaveAsync(null, OwnHouseholdId, result, _justUnlocked);
             await FinishAsync(outcome, () => SaveAsync(result));
-        }
-        finally
-        {
-            _editorSaving = false;
-        }
-    }
-
-    private async Task RemoveAsync(bool keepPhotos)
-    {
-        if (_editing is not { } profile || _editorSaving)
-        {
-            return;
-        }
-
-        _editorSaving = true;
-        _editorError = null;
-        try
-        {
-            var outcome = await Workflow.RemoveAsync(profile, keepPhotos, _justUnlocked);
-            await FinishAsync(outcome, () => RemoveAsync(keepPhotos));
         }
         finally
         {

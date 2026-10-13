@@ -1,0 +1,481 @@
+@namespace MediaEngine.Web.Components.Settings
+@using MediaEngine.Contracts.Authentication
+@using MediaEngine.Contracts.Playback
+@using MediaEngine.Web.Components.Profiles
+@using MediaEngine.Web.Models.ViewDTOs
+@using MediaEngine.Web.Services.Integration
+@inject UIOrchestratorService Orchestrator
+@inject IEngineApiClient ApiClient
+@inject DashboardSessionAccessor Session
+@inject DashboardIdentityClient Identity
+@inject ConfirmedActionRunner Confirmed
+@inject NavigationManager Nav
+@inject ILogger<ProfileDetailPage> Logger
+
+@* Settings > Profiles > one person: a short list of rows, the same for your own profile and (for administrators) anyone in the household. *@
+<div class="profile-detail" data-profile-section="detail">
+    <a class="profile-detail__back" href="/settings/profiles">
+        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ArrowBack" aria-hidden="true" />
+        <span>Profiles</span>
+    </a>
+
+    @if (_loading)
+    {
+        <div class="profile-detail__loading" role="status" aria-label="Loading profile">
+            <AppSkeleton Height="96px" />
+            <AppSkeleton Height="168px" />
+            <AppSkeleton Height="224px" />
+        </div>
+    }
+    else if (_person is null)
+    {
+        <AppAlert Severity="AppSeverity.Warning" Variant="AppVariant.Outlined">
+            This profile couldn't be loaded. Reload the page to try again.
+        </AppAlert>
+    }
+    else
+    {
+        <header class="profile-detail__header">
+            <span class="profile-detail__avatar"><ProfileAvatar DisplayName="@_person.DisplayName" ImageUrl="@_person.AvatarImageUrl" Color="@_person.AvatarColor" Icon="@_person.AvatarIcon" /></span>
+            <div class="profile-detail__who">
+                <h2 class="profile-detail__name">@_person.DisplayName</h2>
+                <p class="profile-detail__role">@RoleLabel</p>
+                <ul class="profile-detail__badges" aria-label="Profile badges">
+                    @if (IsSelf)
+                    {
+                        <li class="profile-detail__badge profile-detail__badge--you">You</li>
+                    }
+                    @if (IsSelf && IsAdministrator)
+                    {
+                        <li class="profile-detail__badge">Admin</li>
+                    }
+                    @if (_person.IsRestricted)
+                    {
+                        <li class="profile-detail__badge">Kids</li>
+                    }
+                    @if (_person.HasPin)
+                    {
+                        <li class="profile-detail__badge">PIN</li>
+                    }
+                </ul>
+            </div>
+        </header>
+
+        @if (!string.IsNullOrWhiteSpace(_notice))
+        {
+            <AppAlert Severity="AppSeverity.Info" Variant="AppVariant.Outlined" Dense="true">@_notice</AppAlert>
+        }
+
+        <section class="profile-detail__group" aria-labelledby="profile-detail-profile">
+            <h3 id="profile-detail-profile" class="profile-detail__group-title">Profile</h3>
+            <ul class="profile-detail__list" role="list">
+                <li class="profile-detail__item">
+                    <SettingsNavRow Key="details" Icon="@AppMaterialIcons.Outlined.Person" Title="Profile details" Status="@DetailsStatus" OnClick="OpenEditor" />
+                </li>
+                <li class="profile-detail__item">
+                    @* S9: own sign-in per person arrives with a later packet. The row keeps its place and opens nothing until then. *@
+                    <SettingsNavRow Key="sign-in" Icon="@AppMaterialIcons.Outlined.Key" Title="Sign-in" Status="Switches from Who's watching" Disabled="true" />
+                </li>
+            </ul>
+        </section>
+
+        @if (_forbidden)
+        {
+            <AppAlert Severity="AppSeverity.Warning" Variant="AppVariant.Outlined">You can't change this person's settings.</AppAlert>
+        }
+        else
+        {
+            <section class="profile-detail__group" aria-labelledby="profile-detail-preferences">
+                <h3 id="profile-detail-preferences" class="profile-detail__group-title">Preferences</h3>
+                <ul class="profile-detail__list" role="list">
+                    <li class="profile-detail__item">
+                        <SettingsNavRow Key="playback" Icon="@AppMaterialIcons.Outlined.PlayCircle" Title="Playback" Status="@PlaybackStatus" Href="@PreferenceLink("playback")" />
+                    </li>
+                    <li class="profile-detail__item">
+                        <SettingsNavRow Key="listening" Icon="@AppMaterialIcons.Outlined.Headphones" Title="Listening" Status="@ListeningStatus" Href="@PreferenceLink("listening")" />
+                    </li>
+                    <li class="profile-detail__item">
+                        <SettingsNavRow Key="reading" Icon="@AppMaterialIcons.Outlined.MenuBook" Title="Reading" Status="@ReadingStatus" Href="@PreferenceLink("reading")" />
+                    </li>
+                    <li class="profile-detail__item">
+                        <SettingsNavRow Key="subtitles" Icon="@AppMaterialIcons.Outlined.Subtitles" Title="Subtitles" Status="@SubtitlesStatus" Href="@PreferenceLink("playback", "#subtitles")" />
+                    </li>
+                </ul>
+            </section>
+        }
+
+        @if (CanDelete)
+        {
+            <section class="profile-detail__group" aria-label="Delete profile">
+                <ul class="profile-detail__list" role="list">
+                    <li class="profile-detail__item">
+                        @* The sheet asks what to do with their photos and then deletes; the Delete button in it is the confirmation. *@
+                        <SettingsNavRow Key="delete" Icon="@AppMaterialIcons.Outlined.Delete" Title="Delete profile" Destructive="true" ShowChevron="false" OnClick="OpenEditor" />
+                    </li>
+                </ul>
+            </section>
+        }
+    }
+</div>
+
+<ProfileEditorSheet Open="@_editorOpen"
+                    Profile="@_person"
+                    Saving="@_editorSaving"
+                    Error="@_editorError"
+                    CanDelete="@CanDelete"
+                    OnSave="SaveEditorAsync"
+                    OnDelete="DeleteAsync"
+                    OnClose="CloseEditor" />
+
+<AdminUnlockDialog Open="@_needsUnlock" Busy="@_unlocking" Error="@_unlockError" OnUnlock="UnlockAsync" OnCancel="CancelUnlock" />
+
+@code {
+    private const string SettingsProfilesRoute = "/settings/profiles";
+
+    private ProfileEditingWorkflow? _workflow;
+    private ProfileViewModel? _active;
+    private ProfileViewModel? _person;
+    private List<ProfileViewModel> _profiles = [];
+    private List<ManagedProfileResponse> _managed = [];
+    private UserPlaybackSettingsDto? _settings;
+    private Guid? _loadedFor;
+    private bool _loading = true;
+    private bool _forbidden;
+    private string? _notice;
+    private bool _editorOpen;
+    private bool _editorSaving;
+    private string? _editorError;
+    private bool _needsUnlock;
+    private bool _unlocking;
+    private bool _justUnlocked;
+    private string? _unlockError;
+    private Func<Task>? _afterUnlock;
+
+    /// <summary>The person this page is about.</summary>
+    [Parameter, EditorRequired] public Guid ProfileId { get; set; }
+
+    /// <summary>Raised with the person's name once it is known (and after a rename) so the page title and breadcrumb can use it.</summary>
+    [Parameter] public EventCallback<string> NameChanged { get; set; }
+
+    private ProfileEditingWorkflow Workflow => _workflow ??= new ProfileEditingWorkflow(Identity, Confirmed);
+
+    private bool IsAdministrator => Session.HasAction("household.manage") || Session.HasNavigation("settings.administration");
+
+    private bool IsSelf => _active is not null && _active.Id == ProfileId;
+
+    private string RoleLabel => IsSelf && Session.Authority?.EffectiveAdministrator == true
+        ? "Administrator"
+        : _person?.IsRestricted == true ? "Kids profile" : "Profile";
+
+    private int HouseholdCount
+    {
+        get
+        {
+            var household = _managed.FirstOrDefault(person => person.Id == ProfileId)?.HouseholdId;
+            return household is null ? _managed.Count : _managed.Count(person => person.HouseholdId == household);
+        }
+    }
+
+    // Deleting is an administrator action, so it is only offered to someone who can manage people.
+    private bool CanDelete => _person is { } person && _active is { } active
+        && ProfileManageRules.CanManage(active.IsRestricted, IsAdministrator)
+        && ProfileManageRules.CanDelete(person, active.Id, HouseholdCount);
+
+    private string DetailsStatus
+    {
+        get
+        {
+            if (_person is null)
+            {
+                return string.Empty;
+            }
+
+            var limit = string.IsNullOrWhiteSpace(_person.ContentLimit) ? "Everything" : _person.ContentLimit;
+            var status = _person.IsRestricted ? $"Kids · {limit}" : limit;
+            return _person.HasPin ? $"{status} · PIN set" : status;
+        }
+    }
+
+    private string? PlaybackStatus => _settings is null ? null
+        : $"Autoplay {(_settings.Watching.AutoplayNextEpisode ? "on" : "off")} · Skip {_settings.Watching.SkipBackSeconds} s / {_settings.Watching.SkipForwardSeconds} s";
+
+    private string? ListeningStatus => _settings is null ? null
+        : $"Skip {_settings.Listening.SkipBackSeconds} s / {_settings.Listening.SkipForwardSeconds} s · Sleep {SleepLabel(_settings.Listening.DefaultSleepTimer)}";
+
+    private string? ReadingStatus => _settings?.Reading.ReadingMode;
+
+    private string? SubtitlesStatus => _settings is null ? null
+        : $"{_settings.Subtitles.DefaultSubtitleLanguage} · {_settings.Subtitles.SubtitleSize}";
+
+    // Your own pages omit ?profile=, so they keep working exactly as they do from the sidebar.
+    private string PreferenceLink(string page, string fragment = "") =>
+        IsSelf ? $"/settings/{page}{fragment}" : $"/settings/{page}?profile={ProfileId:D}{fragment}";
+
+    private static string SleepLabel(string value) => value switch
+    {
+        PlaybackPreferenceValues.Off => "off",
+        PlaybackPreferenceValues.EndOfChapter => "end of chapter",
+        PlaybackPreferenceValues.EndOfEpisode => "end of episode",
+        _ when int.TryParse(value, out var minutes) => $"{minutes} min",
+        _ => value,
+    };
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (_loadedFor == ProfileId)
+        {
+            return;
+        }
+
+        _loadedFor = ProfileId;
+        _notice = null;
+        _person = null;
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        _loading = _person is null;
+        _forbidden = false;
+        try
+        {
+            _active = await Orchestrator.GetActiveProfileAsync();
+            if (_active is null)
+            {
+                _person = null;
+                return;
+            }
+
+            var canManage = ProfileManageRules.CanManage(_active.IsRestricted, IsAdministrator);
+            if (ProfileId != _active.Id && !canManage)
+            {
+                Nav.NavigateTo(SettingsProfilesRoute, replace: true);
+                return;
+            }
+
+            if (canManage)
+            {
+                var profiles = Orchestrator.GetProfilesAsync();
+                var managed = Identity.GetManagedProfilesAsync();
+                _profiles = await profiles;
+                _managed = await managed;
+            }
+
+            _person = FindPerson();
+            if (_person is null && ProfileId != _active.Id)
+            {
+                // Not someone this administrator can see (or no longer there): back to the list rather than a blank page.
+                Nav.NavigateTo(SettingsProfilesRoute, replace: true);
+                return;
+            }
+
+            if (_person is not null)
+            {
+                await NameChanged.InvokeAsync(_person.DisplayName);
+                await LoadSettingsAsync();
+            }
+        }
+        catch (Exception exception) when (exception is HttpRequestException or TaskCanceledException or System.Text.Json.JsonException)
+        {
+            Logger.LogWarning(exception, "Could not load the profile page.");
+            _person = null;
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private ProfileViewModel? FindPerson()
+    {
+        if (_active is { } active && active.Id == ProfileId)
+        {
+            return _profiles.FirstOrDefault(profile => profile.Id == ProfileId) ?? active;
+        }
+
+        var person = _managed.FirstOrDefault(known => known.Id == ProfileId);
+        if (person is null)
+        {
+            return null;
+        }
+
+        // The sheet works with the picker's profile shape, so use the full profile when we have it and fill the rest in.
+        return _profiles.FirstOrDefault(profile => profile.Id == person.Id)
+            ?? new ProfileViewModel(person.Id, person.DisplayName, person.AvatarColor,
+                person.IsRestricted ? "RestrictedProfile" : "Profile", person.CreatedAt,
+                AvatarIcon: person.AvatarIcon, ContentLimit: person.ContentLimit,
+                ContentLimitAllowUnrated: person.ContentLimitAllowUnrated);
+    }
+
+    private async Task LoadSettingsAsync()
+    {
+        _settings = await ApiClient.GetPlaybackSettingsAsync(ProfileId);
+
+        // The Engine says no (403) when this person's settings are off limits; the client keeps the reason, not the status code.
+        _forbidden = _settings is null
+            && !IsSelf
+            && ApiClient.LastError?.Contains("403", StringComparison.Ordinal) == true;
+    }
+
+    private async Task RefreshPeopleAsync()
+    {
+        try
+        {
+            // The list of people a sign-in may open comes from its authority, so refresh that first.
+            await Identity.RevalidateAuthorityAsync(Session);
+            await Orchestrator.RefreshProfilesAsync();
+        }
+        catch (Exception exception) when (exception is HttpRequestException or TaskCanceledException or System.Text.Json.JsonException)
+        {
+            Logger.LogWarning(exception, "Could not refresh the profile list.");
+            _notice = "The change was saved, but the page couldn't be refreshed. Reload the page to see the latest.";
+        }
+    }
+
+    private void OpenEditor()
+    {
+        _editorError = null;
+        _editorOpen = true;
+    }
+
+    private void CloseEditor()
+    {
+        if (!_editorSaving)
+        {
+            _editorOpen = false;
+            _editorError = null;
+        }
+    }
+
+    private Task SaveEditorAsync(ProfileEditorResult result)
+    {
+        _justUnlocked = false;
+        return SaveAsync(result);
+    }
+
+    private Task DeleteAsync(bool keepPhotos)
+    {
+        _justUnlocked = false;
+        return RemoveAsync(keepPhotos);
+    }
+
+    private async Task SaveAsync(ProfileEditorResult result)
+    {
+        if (_editorSaving || _person is null)
+        {
+            return;
+        }
+
+        _editorSaving = true;
+        _editorError = null;
+        try
+        {
+            var householdId = _managed.FirstOrDefault(person => person.Id == ProfileId)?.HouseholdId;
+            var outcome = await Workflow.SaveAsync(_person, householdId, result, _justUnlocked);
+            await FinishAsync(outcome, () => SaveAsync(result), deleted: false);
+        }
+        finally
+        {
+            _editorSaving = false;
+        }
+    }
+
+    private async Task RemoveAsync(bool keepPhotos)
+    {
+        if (_person is not { } profile || _editorSaving)
+        {
+            return;
+        }
+
+        _editorSaving = true;
+        _editorError = null;
+        try
+        {
+            var outcome = await Workflow.RemoveAsync(profile, keepPhotos, _justUnlocked);
+            await FinishAsync(outcome, () => RemoveAsync(keepPhotos), deleted: true);
+        }
+        finally
+        {
+            _editorSaving = false;
+        }
+    }
+
+    private async Task FinishAsync(ProfileEditOutcome outcome, Func<Task> retry, bool deleted)
+    {
+        if (outcome.NeedsUnlock)
+        {
+            _needsUnlock = true;
+            _unlockError = null;
+            _afterUnlock = retry;
+            return;
+        }
+
+        _editorError = outcome.Error;
+        if (outcome.Notice is not null)
+        {
+            _notice = outcome.Notice;
+        }
+
+        if (!outcome.Done)
+        {
+            return;
+        }
+
+        _editorOpen = false;
+        await RefreshPeopleAsync();
+        if (deleted)
+        {
+            // This page has nothing left to show, so go back to the list.
+            Nav.NavigateTo(SettingsProfilesRoute);
+            return;
+        }
+
+        await LoadAsync();
+    }
+
+    private async Task UnlockAsync(string pin)
+    {
+        if (_unlocking)
+        {
+            return;
+        }
+
+        _unlocking = true;
+        _unlockError = null;
+        try
+        {
+            var unlocked = await Identity.UnlockAdministratorAsync(new GrantAdminUnlockRequest(pin));
+            if (unlocked?.Unlocked != true)
+            {
+                _unlockError = "That PIN didn't work. Try again.";
+                return;
+            }
+        }
+        catch (Exception exception) when (exception is HttpRequestException or TaskCanceledException or System.Text.Json.JsonException)
+        {
+            Logger.LogWarning(exception, "Could not unlock administrator access from a profile page.");
+            _unlockError = "The Engine is unavailable. Try again.";
+            return;
+        }
+        finally
+        {
+            _unlocking = false;
+        }
+
+        var retry = _afterUnlock;
+        _needsUnlock = false;
+        _afterUnlock = null;
+        _justUnlocked = true;
+        if (retry is not null)
+        {
+            await retry();
+        }
+    }
+
+    private void CancelUnlock()
+    {
+        _needsUnlock = false;
+        _afterUnlock = null;
+        _unlockError = null;
+    }
+}
