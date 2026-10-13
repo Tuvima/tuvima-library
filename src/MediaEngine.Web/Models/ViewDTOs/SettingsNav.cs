@@ -260,7 +260,6 @@ public static class SettingsNav
             ],
             [SettingsSection.Access] =
             [
-                new("household", "My household", AppMaterialIcons.Outlined.Home),
                 new("users", "Households", AppMaterialIcons.Outlined.ManageAccounts),
                 new("applications", "Applications", AppMaterialIcons.Outlined.Apps),
                 new("authentication", "Authentication", AppMaterialIcons.Outlined.AdminPanelSettings),
@@ -313,32 +312,32 @@ public static class SettingsNav
     public static IEnumerable<SettingsGroupDef> FilteredGroups(bool administrationAllowed) =>
         AllGroups.Where(group => !group.AdminOnly || administrationAllowed);
 
-    public static IEnumerable<SettingsTreeGroupDef> FilteredTreeGroups(bool administrationAllowed, bool householdAllowed = false)
+    public static IEnumerable<SettingsTreeGroupDef> FilteredTreeGroups(bool administrationAllowed)
     {
         var hasAdmin = administrationAllowed;
         return TreeGroups
             .Where(group => string.IsNullOrWhiteSpace(group.ParentKey))
             .Where(group => !group.AdminOnly || hasAdmin)
-            .Where(group => group.Sections.Any(section => IsVisible(section, administrationAllowed, householdAllowed))
-                            || FilteredChildTreeGroups(group, administrationAllowed, householdAllowed).Any());
+            .Where(group => group.Sections.Any(section => IsVisible(section, administrationAllowed))
+                            || FilteredChildTreeGroups(group, administrationAllowed).Any());
     }
 
-    public static IEnumerable<SettingsTreeGroupDef> FilteredChildTreeGroups(SettingsTreeGroupDef parent, bool administrationAllowed, bool householdAllowed = false)
+    public static IEnumerable<SettingsTreeGroupDef> FilteredChildTreeGroups(SettingsTreeGroupDef parent, bool administrationAllowed)
     {
         var hasAdmin = administrationAllowed;
         return TreeGroups
             .Where(group => string.Equals(group.ParentKey, parent.Key, StringComparison.OrdinalIgnoreCase))
             .Where(group => !group.AdminOnly || hasAdmin)
-            .Where(group => group.Sections.Any(section => IsVisible(section, administrationAllowed, householdAllowed)));
+            .Where(group => group.Sections.Any(section => IsVisible(section, administrationAllowed)));
     }
 
-    public static IReadOnlyList<SettingsItemDef> FilteredTreeItems(SettingsTreeGroupDef group, bool administrationAllowed, bool householdAllowed = false) =>
+    public static IReadOnlyList<SettingsItemDef> FilteredTreeItems(SettingsTreeGroupDef group, bool administrationAllowed) =>
         group.Sections
             .Select(GetItem)
-            .Where(item => IsVisible(item.Value, administrationAllowed, householdAllowed))
+            .Where(item => IsVisible(item.Value, administrationAllowed))
             .ToList();
 
-    public static IReadOnlyList<SettingsItemDef> FilteredItems(SettingsGroupDef group, bool administrationAllowed, bool householdAllowed = false)
+    public static IReadOnlyList<SettingsItemDef> FilteredItems(SettingsGroupDef group, bool administrationAllowed)
     {
         var hasAdmin = administrationAllowed;
         return AllItems
@@ -376,7 +375,7 @@ public static class SettingsNav
             SettingsSection.Profiles => string.IsNullOrWhiteSpace(normalized) || Guid.TryParse(normalized, out _),
             SettingsSection.Providers => normalized is "" or "providers",
             SettingsSection.Network => normalized is "" or "overview",
-            SettingsSection.Access => normalized is "" or "household" or "users" or "applications" or "authentication",
+            SettingsSection.Access => normalized is "" or "users" or "applications" or "authentication",
             SettingsSection.Delivery or SettingsSection.LocalAi or SettingsSection.Plugins =>
                 string.IsNullOrWhiteSpace(normalized),
             _ => true,
@@ -390,7 +389,7 @@ public static class SettingsNav
 
     public static SettingsSection GetDefaultSection(string groupKey) => _groupsByKey[groupKey].DefaultSection;
 
-    public static bool IsVisible(SettingsSection section, bool administrationAllowed, bool householdAllowed = false)
+    public static bool IsVisible(SettingsSection section, bool administrationAllowed)
     {
         var item = GetItem(section);
         if (_productionMode
@@ -409,8 +408,8 @@ public static class SettingsNav
             or SettingsSection.Reading or SettingsSection.Security;
     }
 
-    public static SettingsSection FirstVisibleSection(bool administrationAllowed, bool householdAllowed = false) =>
-        AllItems.First(item => IsVisible(item.Value, administrationAllowed, householdAllowed)).Value;
+    public static SettingsSection FirstVisibleSection(bool administrationAllowed) =>
+        AllItems.First(item => IsVisible(item.Value, administrationAllowed)).Value;
 
     public static string RouteFor(SettingsSection section)
     {
@@ -449,6 +448,8 @@ public static class SettingsNav
         {
             (SettingsSection.LocalAi, "runtime") => "models",
             (SettingsSection.LocalAi, "schedule") => "automation",
+            // The old My household tab is gone: people, PINs and sign-ins live on each person's profile page.
+            (SettingsSection.Access, "household") => "users",
             _ => normalized,
         };
         return subsections.FirstOrDefault(subsection =>
@@ -468,7 +469,7 @@ public static class SettingsNav
         return $"{SectionRouteFor(section)}/{subsection.Slug}";
     }
 
-    public static SettingsRouteResolution ResolveRoute(string? segment, bool administrationAllowed, bool householdAllowed = false)
+    public static SettingsRouteResolution ResolveRoute(string? segment, bool administrationAllowed)
     {
         if (string.IsNullOrWhiteSpace(segment))
         {
@@ -484,7 +485,7 @@ public static class SettingsNav
 
         if (_itemsBySlug.TryGetValue(normalized, out var canonicalItem))
         {
-            if (IsVisible(canonicalItem.Value, administrationAllowed, householdAllowed))
+            if (IsVisible(canonicalItem.Value, administrationAllowed))
             {
                 return new SettingsRouteResolution(
                     canonicalItem.Value,
@@ -494,7 +495,7 @@ public static class SettingsNav
                     RequestedSectionAllowed: true);
             }
 
-            var fallback = FirstVisibleSection(administrationAllowed, householdAllowed);
+            var fallback = FirstVisibleSection(administrationAllowed);
             return new SettingsRouteResolution(
                 fallback,
                 RouteFor(fallback),
@@ -505,7 +506,7 @@ public static class SettingsNav
 
         if (_itemsByAlias.TryGetValue(normalized, out var aliasedItem))
         {
-            if (IsVisible(aliasedItem.Value, administrationAllowed, householdAllowed))
+            if (IsVisible(aliasedItem.Value, administrationAllowed))
             {
                 return new SettingsRouteResolution(
                     aliasedItem.Value,
@@ -515,7 +516,7 @@ public static class SettingsNav
                     RequestedSectionAllowed: true);
             }
 
-            var fallback = FirstVisibleSection(administrationAllowed, householdAllowed);
+            var fallback = FirstVisibleSection(administrationAllowed);
             return new SettingsRouteResolution(
                 fallback,
                 RouteFor(fallback),
@@ -525,7 +526,7 @@ public static class SettingsNav
         }
 
         return new SettingsRouteResolution(
-            FirstVisibleSection(administrationAllowed, householdAllowed),
+            FirstVisibleSection(administrationAllowed),
             "/not-found",
             IsCanonicalRoute: false,
             IsKnownRoute: false,

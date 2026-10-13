@@ -46,10 +46,11 @@ public interface IFirstPartyIdentityService
     /// <summary>Looks at an invitation code without using it up; <c>null</c> when it is wrong, used or expired.</summary>
     Task<InvitationPreview?> PreviewInvitationAsync(string code, CancellationToken ct = default);
     /// <summary>
-    /// Gives the account an administrator-chosen password that works only to choose a password of its own, until
-    /// <paramref name="expiresAt"/>. Every existing session of the account ends.
+    /// Gives the account an administrator-chosen password. With <paramref name="mustChange"/> (the default) it works only to
+    /// choose a password of its own, until <paramref name="expiresAt"/>; without it the password is an ordinary one that
+    /// never expires and <paramref name="expiresAt"/> is ignored. Every existing session of the account ends.
     /// </summary>
-    Task SetTemporaryPasswordAsync(Guid accountId, string password, DateTimeOffset expiresAt, CancellationToken ct = default);
+    Task SetTemporaryPasswordAsync(Guid accountId, string password, DateTimeOffset expiresAt, bool mustChange = true, CancellationToken ct = default);
     /// <summary>
     /// Replaces a temporary password with the person's own, ends all of the account's sessions and returns a new
     /// normal one.

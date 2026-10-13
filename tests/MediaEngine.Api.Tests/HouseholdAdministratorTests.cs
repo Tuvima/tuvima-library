@@ -439,6 +439,9 @@ public sealed class HouseholdAdministratorTests
             new("set a temporary password", (actor, place) =>
                 Mutations.SetTemporaryPasswordAsync(actor, place.OwnSignIn.Id, "another long temporary password")),
             new("reset two-step codes", (actor, place) => Mutations.ResetTwoStepAsync(actor, place.OwnSignIn.Id)),
+            new("change a sign-in's email", (actor, place) => Mutations.ChangeEmailAsync(actor, place.OwnSignIn.Id, $"changed{Next()}@example.com")),
+            new("set an ordinary password", (actor, place) =>
+                Mutations.SetTemporaryPasswordAsync(actor, place.OwnSignIn.Id, "another long ordinary password", mustChangePassword: false)),
         ];
 
         private string Next() => (++_counter).ToString("D3", System.Globalization.CultureInfo.InvariantCulture);

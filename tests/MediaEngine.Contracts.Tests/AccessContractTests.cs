@@ -33,6 +33,44 @@ public sealed class AccessContractTests
     }
 
     [Fact]
+    public void SignInRequestsDefaultToATemporaryPasswordAndNoInvite()
+    {
+        var give = JsonSerializer.Deserialize<GiveOwnSignInRequest>("{\"email\":\"sam@home.test\"}")!;
+        Assert.True(give.MustChangePassword);
+        Assert.False(give.Invite);
+        Assert.Null(give.TemporaryPassword);
+
+        var set = JsonSerializer.Deserialize<SetTemporaryPasswordRequest>("{\"temporary_password\":\"a long password here\"}")!;
+        Assert.True(set.MustChangePassword);
+
+        var explicitOff = JsonSerializer.Deserialize<GiveOwnSignInRequest>(
+            "{\"email\":\"sam@home.test\",\"temporary_password\":\"a long password here\",\"must_change_password\":false,\"invite\":false}")!;
+        Assert.False(explicitOff.MustChangePassword);
+        Assert.Equal("{\"email\":\"new@home.test\"}", JsonSerializer.Serialize(new ChangeAccountEmailRequest("new@home.test")));
+    }
+
+    [Fact]
+    public void ManagedProfileCarriesTheOwnSignInWithoutAnySecret()
+    {
+        var accountId = Guid.Parse("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb");
+        var profile = new ManagedProfileResponse(Guid.Empty, "Sam", "#112233", null, DateTimeOffset.UnixEpoch,
+            OwnSignIn: new ManagedProfileSignInDto(accountId, "sam@home.test", true, true));
+
+        using var document = JsonDocument.Parse(JsonSerializer.Serialize(profile));
+        var signIn = document.RootElement.GetProperty("own_sign_in");
+        Assert.Equal(accountId, signIn.GetProperty("account_id").GetGuid());
+        Assert.Equal("sam@home.test", signIn.GetProperty("email").GetString());
+        Assert.True(signIn.GetProperty("must_change_password").GetBoolean());
+        Assert.True(signIn.GetProperty("is_enabled").GetBoolean());
+        Assert.DoesNotContain(typeof(ManagedProfileSignInDto).GetProperties(), property =>
+            property.Name.Contains("Password", StringComparison.OrdinalIgnoreCase) && property.PropertyType == typeof(string));
+
+        var without = JsonSerializer.Deserialize<ManagedProfileResponse>(
+            "{\"id\":\"00000000-0000-0000-0000-000000000000\",\"display_name\":\"Sam\",\"avatar_color\":\"#112233\",\"avatar_path\":null,\"created_at\":\"1970-01-01T00:00:00+00:00\"}")!;
+        Assert.Null(without.OwnSignIn);
+    }
+
+    [Fact]
     public void AccessResponsesContainNoSecretOrHashProperties()
     {
         var responseTypes = new[]

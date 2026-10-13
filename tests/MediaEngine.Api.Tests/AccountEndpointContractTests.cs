@@ -41,6 +41,7 @@ public sealed class AccountEndpointContractTests
         AssertPolicy(endpoints, "/access/accounts/", "GET", ApplicationPermissionIds.IdentityUsersRead);
         AssertPolicy(endpoints, "/access/accounts/", "POST", ApplicationPermissionIds.IdentityUsersWrite);
         AssertPolicy(endpoints, "/access/accounts/{accountId:guid}", "DELETE", ApplicationPermissionIds.IdentityUsersWrite);
+        AssertPolicy(endpoints, "/access/accounts/{accountId:guid}/email", "PUT", ApplicationPermissionIds.IdentityUsersWrite);
         AssertPolicy(endpoints, "/access/libraries", "GET", ApplicationPermissionIds.IdentityUsersRead);
         AssertPolicy(endpoints, "/access/profiles/", "POST", ApplicationPermissionIds.IdentityUsersWrite);
     }

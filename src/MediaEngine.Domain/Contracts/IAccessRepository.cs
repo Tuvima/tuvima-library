@@ -140,9 +140,16 @@ public sealed record AddHouseholdPersonCommand(
 
 /// <summary>
 /// Gives a person in a household their own email sign-in. With <paramref name="TemporaryPassword"/> the
-/// administrator chooses the first password; without it the person gets an invitation to choose their own.
+/// administrator chooses the first password; with <paramref name="Invite"/> the person gets an invitation to choose their own
+/// instead. An own sign-in always has a password, so one of the two is required. <paramref name="MustChangePassword"/> decides
+/// whether the starting password is temporary (changed at first sign-in) or an ordinary one.
 /// </summary>
-public sealed record GiveOwnSignInCommand(Guid ProfileId, string Email, string? TemporaryPassword);
+public sealed record GiveOwnSignInCommand(
+    Guid ProfileId,
+    string Email,
+    string? TemporaryPassword,
+    bool MustChangePassword = true,
+    bool Invite = false);
 
 /// <summary>The sign-in just made, and its invitation when one was chosen.</summary>
 public sealed record GivenOwnSignIn(Account Account, IssuedAccountInvitation? Invitation);
@@ -151,8 +158,13 @@ public interface IAccountAccessMutationService
 {
     Task<Account> CreateAsync(RequestAuthority actor, CreateAccountAccessCommand command, CancellationToken ct = default);
     Task<Account> UpdateAsync(RequestAuthority actor, Guid accountId, UpdateAccountAccessCommand command, CancellationToken ct = default);
-    /// <summary>Gives an existing account a new temporary password; the person must choose their own at next sign-in.</summary>
-    Task SetTemporaryPasswordAsync(RequestAuthority actor, Guid accountId, string temporaryPassword, CancellationToken ct = default);
+    /// <summary>
+    /// Gives an existing account a new password. By default it is temporary and the person must choose their own at next
+    /// sign-in; with <paramref name="mustChangePassword"/> off it is an ordinary password.
+    /// </summary>
+    Task SetTemporaryPasswordAsync(RequestAuthority actor, Guid accountId, string temporaryPassword, bool mustChangePassword = true, CancellationToken ct = default);
+    /// <summary>Changes the email a person signs in with. A server administrator, or the household administrator of the account's household. Audited.</summary>
+    Task<Account> ChangeEmailAsync(RequestAuthority actor, Guid accountId, string email, CancellationToken ct = default);
     /// <summary>Turns two-step codes off for someone who lost their authenticator app and recovery codes. Audited.</summary>
     Task ResetTwoStepAsync(RequestAuthority actor, Guid accountId, CancellationToken ct = default);
     Task DeleteAsync(RequestAuthority actor, Guid accountId, CancellationToken ct = default);

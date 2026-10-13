@@ -172,7 +172,7 @@ public sealed class AuthenticationEntryEndpointTests
 
         public Task<InvitationPreview?> PreviewInvitationAsync(string code, CancellationToken ct = default) => throw new NotSupportedException();
 
-        public Task SetTemporaryPasswordAsync(Guid accountId, string password, DateTimeOffset expiresAt, CancellationToken ct = default) => throw new NotSupportedException();
+        public Task SetTemporaryPasswordAsync(Guid accountId, string password, DateTimeOffset expiresAt, bool mustChange = true, CancellationToken ct = default) => throw new NotSupportedException();
 
         public Task<SessionIssueResult> ChangeTemporaryPasswordAsync(Guid accountId, string currentPassword, string newPassword, string deviceId, string deviceName, string client, CancellationToken ct = default, string ingress = ClientIngress.Remote) => throw new NotSupportedException();
 

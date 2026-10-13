@@ -5,7 +5,6 @@ namespace MediaEngine.Web.Tests;
 public sealed class SettingsNavTests
 {
     [Theory]
-    [InlineData("household")]
     [InlineData("users")]
     [InlineData("applications")]
     [InlineData("authentication")]
@@ -64,7 +63,7 @@ public sealed class SettingsNavTests
         var sessionSource = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Web/Services/Integration/ActiveProfileSessionService.cs"));
 
         Assert.Contains("await LoadAuthorityAsync()", settingsSource, StringComparison.Ordinal);
-        Assert.Contains("SettingsNav.ResolveRoute(Section, CanManageAdministration, CanManageHousehold)", settingsSource, StringComparison.Ordinal);
+        Assert.Contains("SettingsNav.ResolveRoute(Section, CanManageAdministration)", settingsSource, StringComparison.Ordinal);
         Assert.Contains("DashboardSessionAccessor Session", settingsSource, StringComparison.Ordinal);
         Assert.Contains("ShouldDeferForRoleResolution", settingsSource, StringComparison.Ordinal);
         Assert.DoesNotContain("_currentRole", settingsSource, StringComparison.Ordinal);
@@ -80,7 +79,7 @@ public sealed class SettingsNavTests
         var settingsSource = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Web/Components/Pages/Settings.razor"));
 
         Assert.Contains("CanManageAdministration => Session.HasNavigation(\"settings.administration\")", settingsSource, StringComparison.Ordinal);
-        Assert.Contains("SettingsNav.ResolveRoute(Section, CanManageAdministration, CanManageHousehold)", settingsSource, StringComparison.Ordinal);
+        Assert.Contains("SettingsNav.ResolveRoute(Section, CanManageAdministration)", settingsSource, StringComparison.Ordinal);
         Assert.DoesNotContain("EnsureElevationForCurrentRouteAsync", settingsSource, StringComparison.Ordinal);
         Assert.DoesNotContain("IAdministratorElevationNavigationService", settingsSource, StringComparison.Ordinal);
     }
@@ -431,15 +430,15 @@ public sealed class SettingsNavTests
     [Fact]
     public void HouseholdAdministrator_SeesTheFivePersonalSectionsButNoServerAdministration()
     {
-        var groups = SettingsNav.FilteredTreeGroups(false, true).Select(group => group.Key).ToArray();
+        var groups = SettingsNav.FilteredTreeGroups(false).Select(group => group.Key).ToArray();
 
         Assert.Equal(["personal"], groups);
-        var household = SettingsNav.ResolveRoute("household", false, true);
+        var household = SettingsNav.ResolveRoute("household", false);
         Assert.Equal(SettingsSection.Profiles, household.Section);
         Assert.False(household.IsCanonicalRoute);
         Assert.True(household.RequestedSectionAllowed);
-        Assert.False(SettingsNav.ResolveRoute("access", false, true).RequestedSectionAllowed);
-        Assert.False(SettingsNav.ResolveRoute("network", false, true).RequestedSectionAllowed);
+        Assert.False(SettingsNav.ResolveRoute("access", false).RequestedSectionAllowed);
+        Assert.False(SettingsNav.ResolveRoute("network", false).RequestedSectionAllowed);
     }
 
     [Fact]
@@ -457,7 +456,7 @@ public sealed class SettingsNavTests
     [Fact]
     public void ResolveRoute_AccountAlias_MapsToSecurity()
     {
-        var resolution = SettingsNav.ResolveRoute("account", false, true);
+        var resolution = SettingsNav.ResolveRoute("account", false);
 
         Assert.Equal(SettingsSection.Security, resolution.Section);
         Assert.Equal("/settings/security", resolution.CanonicalRoute);
@@ -466,28 +465,31 @@ public sealed class SettingsNavTests
     }
 
     [Fact]
-    public void ServerAdministrator_ManagesTheirHouseholdInsideUsersAndAccess()
+    public void ServerAdministrator_ManagesHouseholdsInsideUsersAndAccess_AndThereIsNoMyHouseholdTab()
     {
-        var personalLabels = SettingsNav.FilteredTreeItems(SettingsNav.TreeGroups.Single(group => group.Key == "personal"), true, true)
+        var personalLabels = SettingsNav.FilteredTreeItems(SettingsNav.TreeGroups.Single(group => group.Key == "personal"), true)
             .Select(item => item.Label)
             .ToArray();
 
         Assert.DoesNotContain("My household", personalLabels);
-        Assert.Contains(SettingsNav.GetSubsections(SettingsSection.Access), subsection => subsection.Slug == "household" && subsection.Label == "My household");
+        Assert.DoesNotContain(SettingsNav.GetSubsections(SettingsSection.Access), subsection => subsection.Slug == "household");
         Assert.Contains(SettingsNav.GetSubsections(SettingsSection.Access), subsection => subsection.Slug == "users" && subsection.Label == "Households");
-        Assert.True(SettingsNav.IsMobileRouteAvailable(SettingsSection.Access, "household"));
+        Assert.False(SettingsNav.IsMobileRouteAvailable(SettingsSection.Access, "household"));
+        // The old address still resolves, to the Households tab.
+        Assert.Equal("users", SettingsNav.ResolveSubsection(SettingsSection.Access, "household")?.Slug);
+        Assert.Equal("/settings/access/users", SettingsNav.RouteFor(SettingsSection.Access, "household"));
     }
 
     [Fact]
     public void PlainMember_DoesNotSeeUsersAndAccess_AndDirectNavigationIsRefused()
     {
         var visible = SettingsNav.TreeGroups
-            .SelectMany(group => SettingsNav.FilteredTreeItems(group, false, false))
+            .SelectMany(group => SettingsNav.FilteredTreeItems(group, false))
             .Select(item => item.Value)
             .ToArray();
 
         Assert.DoesNotContain(SettingsSection.Access, visible);
-        var access = SettingsNav.ResolveRoute("access", false, false);
+        var access = SettingsNav.ResolveRoute("access", false);
         Assert.False(access.RequestedSectionAllowed);
         Assert.True(access.ShouldRedirect);
     }

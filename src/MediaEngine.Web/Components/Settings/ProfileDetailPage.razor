@@ -73,8 +73,15 @@
                     <SettingsNavRow Key="details" Icon="@AppMaterialIcons.Outlined.Person" Title="Profile details" Status="@DetailsStatus" OnClick="OpenEditor" />
                 </li>
                 <li class="profile-detail__item">
-                    @* S9: own sign-in per person arrives with a later packet. The row keeps its place and opens nothing until then. *@
-                    <SettingsNavRow Key="sign-in" Icon="@AppMaterialIcons.Outlined.Key" Title="Sign-in" Status="Switches from Who's watching" Disabled="true" />
+                    @if (IsSelf)
+                    {
+                        @* Your own sign-in is looked after in Security (password, two-step codes); an administrator never edits it from here. *@
+                        <SettingsNavRow Key="sign-in" Icon="@AppMaterialIcons.Outlined.Key" Title="Sign-in" Status="@SignInStatus" Href="/settings/security" />
+                    }
+                    else
+                    {
+                        <SettingsNavRow Key="sign-in" Icon="@AppMaterialIcons.Outlined.Key" Title="Sign-in" Status="@SignInStatus" Note="@SignInNote" OnClick="OpenSignIn" />
+                    }
                 </li>
             </ul>
         </section>
@@ -110,7 +117,7 @@
                 <ul class="profile-detail__list" role="list">
                     <li class="profile-detail__item">
                         @* The sheet asks what to do with their photos and then deletes; the Delete button in it is the confirmation. *@
-                        <SettingsNavRow Key="delete" Icon="@AppMaterialIcons.Outlined.Delete" Title="Delete profile" Destructive="true" ShowChevron="false" OnClick="OpenEditor" />
+                        <SettingsNavRow Key="delete" Icon="@AppMaterialIcons.Outlined.Delete" Title="Delete profile" Destructive="true" ShowChevron="false" OnClick="OpenDelete" />
                     </li>
                 </ul>
             </section>
@@ -123,9 +130,25 @@
                     Saving="@_editorSaving"
                     Error="@_editorError"
                     CanDelete="@CanDelete"
+                    StartInDelete="@_startInDelete"
                     OnSave="SaveEditorAsync"
                     OnDelete="DeleteAsync"
                     OnClose="CloseEditor" />
+
+@* Before the unlock dialog, so a PIN prompt raised from the sheet is drawn on top of it. *@
+<ProfileSignInSheet Open="@_signInOpen"
+                    PersonName="@(_person?.DisplayName ?? string.Empty)"
+                    SignIn="@OwnSignIn"
+                    CanChangeEmail="@IsAdministrator"
+                    Saving="@_signInSaving"
+                    Error="@_signInError"
+                    Issued="@_signInIssued"
+                    OnGive="GiveSignInAsync"
+                    OnInvite="InviteSignInAsync"
+                    OnSetPassword="SetSignInPasswordAsync"
+                    OnChangeEmail="ChangeSignInEmailAsync"
+                    OnRemove="RemoveSignInAsync"
+                    OnClose="CloseSignIn" />
 
 <AdminUnlockDialog Open="@_needsUnlock" Busy="@_unlocking" Error="@_unlockError" OnUnlock="UnlockAsync" OnCancel="CancelUnlock" />
 
@@ -143,8 +166,14 @@
     private bool _forbidden;
     private string? _notice;
     private bool _editorOpen;
+    private bool _startInDelete;
     private bool _editorSaving;
     private string? _editorError;
+    private ProfileSignInWorkflow? _signInWorkflow;
+    private bool _signInOpen;
+    private bool _signInSaving;
+    private string? _signInError;
+    private SignInIssued? _signInIssued;
     private bool _needsUnlock;
     private bool _unlocking;
     private bool _justUnlocked;
@@ -158,6 +187,17 @@
     [Parameter] public EventCallback<string> NameChanged { get; set; }
 
     private ProfileEditingWorkflow Workflow => _workflow ??= new ProfileEditingWorkflow(Identity, Confirmed);
+
+    private ProfileSignInWorkflow SignInWorkflow => _signInWorkflow ??= new ProfileSignInWorkflow(Identity, Confirmed);
+
+    // Only people in the administrator's household list carry sign-in details; your own page never offers the sheet.
+    private ManagedProfileSignInDto? OwnSignIn => _managed.FirstOrDefault(person => person.Id == ProfileId)?.OwnSignIn;
+
+    private string SignInStatus => IsSelf
+        ? OwnSignIn?.Email ?? "Managed in Security"
+        : OwnSignIn?.Email ?? "Switches from Who's watching";
+
+    private string? SignInNote => OwnSignIn is { MustChangePassword: true } ? "Must change password at first sign-in" : null;
 
     private bool IsAdministrator => Session.HasAction("household.manage") || Session.HasNavigation("settings.administration");
 
@@ -335,7 +375,119 @@
     private void OpenEditor()
     {
         _editorError = null;
+        _startInDelete = false;
         _editorOpen = true;
+    }
+
+    private void OpenDelete()
+    {
+        _editorError = null;
+        _startInDelete = true;
+        _editorOpen = true;
+    }
+
+    private void OpenSignIn()
+    {
+        _signInError = null;
+        _signInIssued = null;
+        _signInOpen = true;
+    }
+
+    private void CloseSignIn()
+    {
+        if (_signInSaving)
+        {
+            return;
+        }
+
+        _signInOpen = false;
+        _signInError = null;
+        _signInIssued = null;
+    }
+
+    private string PersonName => _person?.DisplayName ?? "This person";
+
+    private Task GiveSignInAsync(SignInGiveChoice choice) =>
+        RunSignInAsync(afterUnlock => SignInWorkflow.GiveAsync(ProfileId, PersonName, choice.Email, choice.Password,
+            choice.MustChangePassword, invite: false, afterUnlock));
+
+    private Task InviteSignInAsync(SignInGiveChoice choice) =>
+        RunSignInAsync(afterUnlock => SignInWorkflow.GiveAsync(ProfileId, PersonName, choice.Email, null,
+            choice.MustChangePassword, invite: true, afterUnlock));
+
+    private Task SetSignInPasswordAsync(SignInPasswordChoice choice) =>
+        OwnSignIn is { } signIn
+            ? RunSignInAsync(afterUnlock => SignInWorkflow.SetPasswordAsync(signIn.AccountId, PersonName, choice.Password,
+                choice.MustChangePassword, afterUnlock))
+            : Task.CompletedTask;
+
+    private Task ChangeSignInEmailAsync(string email) =>
+        OwnSignIn is { } signIn
+            ? RunSignInAsync(afterUnlock => SignInWorkflow.ChangeEmailAsync(signIn.AccountId, PersonName, email, afterUnlock))
+            : Task.CompletedTask;
+
+    private Task RemoveSignInAsync() =>
+        OwnSignIn is { } signIn
+            ? RunSignInAsync(afterUnlock => SignInWorkflow.RemoveAsync(signIn.AccountId, PersonName, afterUnlock))
+            : Task.CompletedTask;
+
+    private async Task RunSignInAsync(Func<bool, Task<SignInOutcome>> action, bool afterUnlock = false)
+    {
+        if (_signInSaving)
+        {
+            return;
+        }
+
+        _signInSaving = true;
+        _signInError = null;
+        try
+        {
+            var outcome = await action(afterUnlock);
+            if (outcome.NeedsUnlock)
+            {
+                _needsUnlock = true;
+                _unlockError = null;
+                _afterUnlock = () => RunSignInAsync(action, afterUnlock: true);
+                return;
+            }
+
+            _signInError = outcome.Error;
+            if (!outcome.Done)
+            {
+                return;
+            }
+
+            _signInIssued = outcome.Issued;
+            if (outcome.Notice is not null)
+            {
+                _notice = outcome.Notice;
+            }
+
+            await ReloadManagedAsync();
+
+            // A password or invitation is shown once, so the sheet stays until Done; everything else closes it.
+            if (outcome.Issued is null)
+            {
+                _signInOpen = false;
+            }
+        }
+        finally
+        {
+            _signInSaving = false;
+        }
+    }
+
+    private async Task ReloadManagedAsync()
+    {
+        try
+        {
+            _managed = await Identity.GetManagedProfilesAsync();
+        }
+        catch (Exception exception) when (exception is HttpRequestException or TaskCanceledException or System.Text.Json.JsonException)
+        {
+            Logger.LogWarning(exception, "Could not refresh the sign-in details.");
+            _notice = "The change was saved, but the page couldn't be refreshed. Reload the page to see the latest.";
+        }
     }
 
     private void CloseEditor()

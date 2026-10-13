@@ -806,6 +806,9 @@ MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.Bootst
   DeviceName: System.String | nullability=not-null | accessors=get,init
   Client: System.String | nullability=not-null | accessors=get,init
 
+MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.ChangeAccountEmailRequest
+  Email: System.String | nullability=not-null | accessors=get,init
+
 MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.ChangePasswordRequest
   NewPassword: System.String | nullability=not-null | accessors=get,init
 
@@ -997,6 +1000,8 @@ MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.Extern
 MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.GiveOwnSignInRequest
   Email: System.String | nullability=not-null | accessors=get,init
   TemporaryPassword: System.String | nullability=nullable | accessors=get,init
+  MustChangePassword: System.Boolean | nullability=not-null | accessors=get,init
+  Invite: System.Boolean | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.GiveOwnSignInResponse
   AccountId: System.Guid | nullability=not-null | accessors=get,init
@@ -1062,6 +1067,13 @@ MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.Manage
   AvatarIcon: System.String | nullability=nullable | accessors=get,init
   ContentLimit: System.String | nullability=nullable | accessors=get,init
   ContentLimitAllowUnrated: System.Boolean | nullability=not-null | accessors=get,init
+  OwnSignIn: MediaEngine.Contracts.Authentication.ManagedProfileSignInDto | nullability=nullable | accessors=get,init
+
+MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.ManagedProfileSignInDto
+  AccountId: System.Guid | nullability=not-null | accessors=get,init
+  Email: System.String | nullability=nullable | accessors=get,init
+  MustChangePassword: System.Boolean | nullability=not-null | accessors=get,init
+  IsEnabled: System.Boolean | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.NewAccountProfileRequest
   DisplayName: System.String | nullability=not-null | accessors=get,init
@@ -1208,6 +1220,7 @@ MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.SetPro
 
 MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.SetTemporaryPasswordRequest
   TemporaryPassword: System.String | nullability=not-null | accessors=get,init
+  MustChangePassword: System.Boolean | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.SignInMethodsResponse
   Password: System.Boolean | nullability=not-null | accessors=get,init

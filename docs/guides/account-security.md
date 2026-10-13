@@ -33,26 +33,26 @@ This page sets a password only; passkeys can be added afterwards in **Settings �
 
 ### Temporary password
 
-Choose **Set a temporary password** to type one yourself or press **Generate** for a random 16-character one. It is shown once, with a **Copy** button. The first time the person signs in with it, Tuvima asks them to choose their own password and nothing else works until they do. Choosing a new one signs out every other device. A temporary password stops working after 7 days; after that the person sees "Ask your administrator for a new temporary password." and you can set another from the user's actions menu (**Set temporary password**), which also signs them out everywhere.
+Choose **Set a temporary password** to type one yourself or press **Generate** for a random 16-character one. It is shown once, with a **Copy** button. The first time the person signs in with it, Tuvima asks them to choose their own password and nothing else works until they do. (On a person's own **Sign-in** sheet the **Must change it at first sign-in** switch is on by default; turning it off sets an ordinary password that does not expire.) Choosing a new one signs out every other device. A temporary password stops working after 7 days; after that the person sees "Ask your administrator for a new temporary password." and you can set another from the user's actions menu (**Set temporary password**), which also signs them out everywhere.
 
 Every account needs an email address to sign in. Someone who does not need their own sign-in is added as a profile in an existing household instead, and is opened by switching profiles.
 
 ## Add a person, and give them their own sign-in
 
-What you see depends on who you are:
+A person is looked after from their own page under **Settings → Profiles**. What you see depends on who you are:
 
-- A **household administrator** sees **Settings → My household**: the people in their own household (up to 8) as cards, with their child tag and sign-in. Nothing else from Users & Access is shown, and they cannot reach another household.
-- A **server administrator** sees the same cards under **Settings → Users & Access → My household** for their own household, and a **Households** tab listing every household (name, how many people, main sign-in). **View people** opens a household's cards with the same actions.
-- Anyone else sees neither. The pages are hidden from the menu and opening their address sends you back to your own settings.
+- A **household administrator** sees the people in their own household (up to 8). Nothing else from Users & Access is shown, and they cannot reach another household.
+- A **server administrator** sees every household under **Settings → Profiles**, and a **Households** tab under **Settings → Users & Access** that lists each household (name, how many people, main sign-in). Old links to the retired **My household** tab open the **Households** tab.
+- Anyone else sees only their own profile. Their **Sign-in** row opens **Settings → Security**.
 
-On a card:
+On a person's page:
 
-1. **Add person** adds someone to the household. Enter a name, switch on **Child profile** for a restricted profile, and set an optional PIN that is asked before anyone switches into them. The household's sign-in can open them straight away; they do not have a sign-in of their own yet.
-2. **Give (name) their own sign-in** lets a person sign in with their own email. Choose **Send an invitation** or **Set a temporary password** (the same two ways as for a new user) and enter their email. The new sign-in opens straight to that person without the profile picker, stays in the same household, and is never an administrator.
-3. **Set PIN** sets the PIN asked before anyone switches into that person (4 to 12 digits). A new PIN replaces the old one.
-4. **Remove sign-in** deletes the person's own sign-in, signs it out everywhere and unpairs its devices. The person stays in the household with everything they have saved, and the household's sign-in can still open them.
+1. **Add profile** (on the Profiles list) adds someone to the household. Enter a name, switch on **Kids profile** for a restricted profile, and set an optional PIN that is asked before anyone switches into them. The household's sign-in can open them straight away; they do not have a sign-in of their own yet.
+2. **Sign-in** lets a person sign in with their own email. For someone without one it opens **Give own sign-in**: an email, a **Starting password** (**Generate** makes one) and the **Must change it at first sign-in** switch (on by default), or **Send an invitation link instead**. The new sign-in opens straight to that person without the profile picker, stays in the same household, and is never an administrator.
+3. Once a person has their own sign-in, the same **Sign-in** sheet offers **Change email** (administrators only), **Set a new password** (the same password and switch) and **Remove sign-in**. Removing it signs it out everywhere and unpairs its devices; the person stays in the household with everything they have saved, and the household's sign-in can still open them.
+4. **Profile details** sets the PIN asked before anyone switches into that person (4 to 12 digits). A new PIN replaces the old one.
 
-Library and lane access is not set per person. A person's own sign-in follows the household's main sign-in, so when you change the household's access it reaches them as well. Under **Sign-ins and access**, **Libraries & lanes** changes what one of the household's own sign-ins can open. A household administrator is only offered the libraries their household already has; if they turned on an administrator PIN, Tuvima asks for it the first time the Engine refuses a change.
+Library and lane access is not set per person. A person's own sign-in follows the household's main sign-in, so when you change the household's access it reaches them as well. If a household administrator turned on an administrator PIN, Tuvima asks for it the first time the Engine refuses a change.
 
 ## Protect admin settings
 

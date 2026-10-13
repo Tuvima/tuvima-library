@@ -31,6 +31,10 @@ else
             {
                 <span class="settings-nav-row__status">@Status</span>
             }
+            @if (!string.IsNullOrWhiteSpace(Note))
+            {
+                <span class="settings-nav-row__note">@Note</span>
+            }
         </span>
         @if (ShowChevron)
         {
@@ -43,6 +47,9 @@ else
     [Parameter, EditorRequired] public string Icon { get; set; } = string.Empty;
     [Parameter, EditorRequired] public string Title { get; set; } = string.Empty;
     [Parameter] public string? Status { get; set; }
+
+    /// <summary>A small extra line under the status, for something worth noticing (for example a pending change).</summary>
+    [Parameter] public string? Note { get; set; }
 
     /// <summary>When set, the row is a link to this address.</summary>
     [Parameter] public string? Href { get; set; }

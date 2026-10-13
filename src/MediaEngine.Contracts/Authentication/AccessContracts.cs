@@ -49,7 +49,15 @@ public sealed record ManagedProfileResponse(
     [property: JsonPropertyName("is_restricted")] bool IsRestricted = false,
     [property: JsonPropertyName("avatar_icon")] string? AvatarIcon = null,
     [property: JsonPropertyName("content_limit")] string? ContentLimit = null,
-    [property: JsonPropertyName("content_limit_allow_unrated")] bool ContentLimitAllowUnrated = false);
+    [property: JsonPropertyName("content_limit_allow_unrated")] bool ContentLimitAllowUnrated = false,
+    [property: JsonPropertyName("own_sign_in")] ManagedProfileSignInDto? OwnSignIn = null);
+
+/// <summary>A person's own sign-in as the profile page shows it. Never carries a password or a code.</summary>
+public sealed record ManagedProfileSignInDto(
+    [property: JsonPropertyName("account_id")] Guid AccountId,
+    [property: JsonPropertyName("email")] string? Email,
+    [property: JsonPropertyName("must_change_password")] bool MustChangePassword,
+    [property: JsonPropertyName("is_enabled")] bool IsEnabled);
 
 /// <summary>
 /// Adds a person to a household. A child person is a restricted profile; the PIN is optional.
@@ -66,12 +74,15 @@ public sealed record AddHouseholdPersonRequest(
     [property: JsonPropertyName("content_limit_allow_unrated")] bool ContentLimitAllowUnrated = false);
 
 /// <summary>
-/// Gives a person their own sign-in. Send <c>temporary_password</c> to choose their first password; leave it out to
-/// get an invitation for them to choose their own.
+/// Gives a person their own sign-in. An own sign-in always has a password: send <c>temporary_password</c> to choose the
+/// starting one, or <c>invite: true</c> (with no password) to get an invitation link for them to choose their own.
+/// <c>must_change_password</c> (on by default) makes the starting password temporary, to be replaced at first sign-in.
 /// </summary>
 public sealed record GiveOwnSignInRequest(
     [property: JsonPropertyName("email")] string Email,
-    [property: JsonPropertyName("temporary_password")] string? TemporaryPassword = null);
+    [property: JsonPropertyName("temporary_password")] string? TemporaryPassword = null,
+    [property: JsonPropertyName("must_change_password")] bool MustChangePassword = true,
+    [property: JsonPropertyName("invite")] bool Invite = false);
 
 /// <summary>The person's new own sign-in, with its invitation when one was chosen.</summary>
 public sealed record GiveOwnSignInResponse(
@@ -127,9 +138,17 @@ public sealed record CreateManagedAccountRequest(
     [property: JsonPropertyName("library_ids")] IReadOnlyList<Guid> LibraryIds,
     [property: JsonPropertyName("temporary_password")] string? TemporaryPassword = null);
 
-/// <summary>An administrator sets a new temporary password for a person; they must choose their own at next sign-in.</summary>
+/// <summary>
+/// An administrator sets a new password for a person. By default it is temporary and they must choose their own at next
+/// sign-in; <c>must_change_password: false</c> sets an ordinary password instead.
+/// </summary>
 public sealed record SetTemporaryPasswordRequest(
-    [property: JsonPropertyName("temporary_password")] string TemporaryPassword);
+    [property: JsonPropertyName("temporary_password")] string TemporaryPassword,
+    [property: JsonPropertyName("must_change_password")] bool MustChangePassword = true);
+
+/// <summary>An administrator changes the email a person signs in with.</summary>
+public sealed record ChangeAccountEmailRequest(
+    [property: JsonPropertyName("email")] string Email);
 
 public sealed record NewAccountProfileRequest(
     [property: JsonPropertyName("display_name")] string DisplayName,

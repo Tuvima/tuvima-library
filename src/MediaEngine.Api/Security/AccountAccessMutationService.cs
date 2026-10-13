@@ -91,7 +91,7 @@ public sealed class AccountAccessMutationService(
             try
             {
                 await firstParty.SetTemporaryPasswordAsync(
-                    account.Id, command.TemporaryPassword, TemporaryPasswordExpiry(), ct).ConfigureAwait(false);
+                    account.Id, command.TemporaryPassword, TemporaryPasswordExpiry(), ct: ct).ConfigureAwait(false);
             }
             catch
             {
@@ -113,6 +113,7 @@ public sealed class AccountAccessMutationService(
         RequestAuthority actor,
         Guid accountId,
         string temporaryPassword,
+        bool mustChangePassword = true,
         CancellationToken ct = default)
     {
         var target = await accounts.GetByIdAsync(accountId, ct).ConfigureAwait(false);
@@ -136,9 +137,52 @@ public sealed class AccountAccessMutationService(
         }
 
         await firstParty.SetTemporaryPasswordAsync(
-            accountId, temporaryPassword, TemporaryPasswordExpiry(), ct).ConfigureAwait(false);
-        await ChangedAsync(actor, "account.temporary_password_set", "account", accountId.ToString("D"),
+            accountId, temporaryPassword, TemporaryPasswordExpiry(), mustChangePassword, ct).ConfigureAwait(false);
+        await ChangedAsync(actor, mustChangePassword ? "account.temporary_password_set" : "account.password_set",
+            "account", accountId.ToString("D"), accountId, null, ct).ConfigureAwait(false);
+    }
+
+    public async Task<Account> ChangeEmailAsync(
+        RequestAuthority actor,
+        Guid accountId,
+        string email,
+        CancellationToken ct = default)
+    {
+        var target = await accounts.GetByIdAsync(accountId, ct).ConfigureAwait(false);
+        var householdOnly = await RequireHouseholdWriteAsync(actor, target?.HouseholdId, ct).ConfigureAwait(false);
+        if (target is null)
+        {
+            throw new KeyNotFoundException("Account not found.");
+        }
+        if (actor.AccountId == accountId)
+        {
+            throw new InvalidOperationException("Email changes are made by an administrator, not for your own sign-in.");
+        }
+
+        RequireNotAdministratorTarget(target, householdOnly);
+
+        // Taking over an administrator's sign-in address would let its password reset reach someone else.
+        if (target.IsAdministrator
+            && (actor.PrincipalKind != PrincipalKind.Human || !actor.AccountIsAdministrator || !actor.GrantAdminEnabled))
+        {
+            throw new UnauthorizedAccessException("Only an unlocked administrator can change an administrator's email.");
+        }
+
+        var normalized = NormalizeEmail(email);
+        var normalizedKey = normalized.ToUpperInvariant();
+        if (await accounts.GetByNormalizedEmailAsync(normalizedKey, ct).ConfigureAwait(false) is { } existing
+            && existing.Id != accountId)
+        {
+            throw new InvalidOperationException("That email already has a sign-in.");
+        }
+
+        target.Email = normalized;
+        target.NormalizedEmail = normalizedKey;
+        target.UpdatedAt = clock.GetUtcNow();
+        await accounts.UpdateAccountAsync(target, ct).ConfigureAwait(false);
+        await ChangedAsync(actor, "account.email_changed", "account", accountId.ToString("D"),
             accountId, null, ct).ConfigureAwait(false);
+        return (await accounts.GetByIdAsync(accountId, ct).ConfigureAwait(false))!;
     }
 
     public async Task ResetTwoStepAsync(
@@ -476,6 +520,16 @@ public sealed class AccountAccessMutationService(
             .OrderBy(account => account.CreatedAt)
             .FirstOrDefault()
             ?? throw new InvalidOperationException("This household has no main sign-in to take library access from.");
+        // An own sign-in always has a password: either the one chosen here, or the one the person picks from an invitation.
+        if (command.Invite && !string.IsNullOrEmpty(command.TemporaryPassword))
+        {
+            throw new ArgumentException("Choose a starting password or an invitation link, not both.");
+        }
+        if (!command.Invite && string.IsNullOrEmpty(command.TemporaryPassword))
+        {
+            throw new ArgumentException("Set a starting password.");
+        }
+
         var email = NormalizeEmail(command.Email);
         if (await accounts.GetByNormalizedEmailAsync(email.ToUpperInvariant(), ct).ConfigureAwait(false) is not null)
         {
@@ -499,14 +553,15 @@ public sealed class AccountAccessMutationService(
         };
         var grant = NewProfileGrant(account.Id, profile.Id, true, now);
         IssuedAccountInvitation? issued = null;
-        if (!string.IsNullOrEmpty(command.TemporaryPassword))
+        if (!command.Invite)
         {
             await accounts.CreateAccountAsync(account, grant, new HashSet<AccountFeatureId>(), new HashSet<Guid>(), ct)
                 .ConfigureAwait(false);
             try
             {
                 await firstParty.SetTemporaryPasswordAsync(
-                    account.Id, command.TemporaryPassword, TemporaryPasswordExpiry(), ct).ConfigureAwait(false);
+                    account.Id, command.TemporaryPassword!, TemporaryPasswordExpiry(), command.MustChangePassword, ct)
+                    .ConfigureAwait(false);
             }
             catch
             {

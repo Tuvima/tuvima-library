@@ -688,8 +688,13 @@ public sealed class DashboardIdentityClient(
     }
 
     /// <summary>An administrator gives an existing person a new temporary password.</summary>
+    /// <summary>Sets a new password for a person. By default it is temporary; <c>MustChangePassword = false</c> sets an ordinary one.</summary>
     public Task<DashboardAccessMutationResult<AccountAccessResponse>> SetTemporaryPasswordResultAsync(Guid accountId, SetTemporaryPasswordRequest request, CancellationToken ct = default) =>
         SendMutationAsync<SetTemporaryPasswordRequest, AccountAccessResponse>(HttpMethod.Post, $"/access/accounts/{accountId:D}/temporary-password", request, ct);
+
+    /// <summary>Changes the email a person signs in with. Administrators only; never for your own sign-in.</summary>
+    public Task<DashboardAccessMutationResult<AccountAccessResponse>> ChangeAccountEmailResultAsync(Guid accountId, ChangeAccountEmailRequest request, CancellationToken ct = default) =>
+        SendMutationAsync<ChangeAccountEmailRequest, AccountAccessResponse>(HttpMethod.Put, $"/access/accounts/{accountId:D}/email", request, ct);
 
     /// <summary>Finishes a password sign-in that asked for a code from the authenticator app (or a recovery code).</summary>
     public async Task<DashboardSessionAttempt> CompleteTwoStepSignInAsync(CompleteTwoStepSignInRequest request, CancellationToken ct = default)
