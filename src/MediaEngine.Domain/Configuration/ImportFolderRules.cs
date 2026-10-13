@@ -39,13 +39,80 @@ public static class ImportFolderRules
         ("Comics", ["Comics"]),
     ];
 
+    /// <summary>The folders created inside the import folder when it is set, one per media type. Programs such as Sonarr and Radarr are pointed at them.</summary>
+    public static readonly IReadOnlyList<string> Subfolders = ["Movies", "TV", "Music", "Books", "Audiobooks", "Comics"];
+
+    /// <summary>Name of the folder, inside the import folder, that Tuvima uses for its own working files. It is never scanned for media.</summary>
+    public const string WorkingFolderName = ".data";
+
+    /// <summary>True when <paramref name="path"/> is the import folder or anywhere inside it.</summary>
+    public static bool IsInside(string importPath, string path)
+    {
+        if (string.IsNullOrWhiteSpace(importPath) || string.IsNullOrWhiteSpace(path))
+        {
+            return false;
+        }
+
+        var comparison = OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
+        var root = Path.TrimEndingDirectorySeparator(Path.GetFullPath(importPath));
+        var candidate = Path.GetFullPath(path);
+        return string.Equals(candidate, root, comparison)
+            || candidate.StartsWith(root + Path.DirectorySeparatorChar, comparison);
+    }
+
+    /// <summary>The folder name used for a media type label, for example <c>TV Shows</c> becomes <c>TV</c>.</summary>
+    public static string SubfolderFor(string label) =>
+        string.Equals(label, "TV Shows", StringComparison.OrdinalIgnoreCase) ? "TV" : label;
+
+    /// <summary>The media type label for a per-type folder name, or <see langword="null"/> when it is not one of the six.</summary>
+    public static string? LabelForSubfolder(string? folderName)
+    {
+        if (string.IsNullOrWhiteSpace(folderName))
+        {
+            return null;
+        }
+
+        foreach (var type in Types)
+        {
+            if (string.Equals(SubfolderFor(type.Label), folderName.Trim(), StringComparison.OrdinalIgnoreCase))
+            {
+                return type.Label;
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>The type entry that covers a media type name such as <c>Movies</c>, <c>TV</c> or <c>Comic</c>, or <see langword="null"/>.</summary>
+    public static (string Label, string[] MediaTypes)? TypeForMediaType(string? mediaTypeName)
+    {
+        if (string.IsNullOrWhiteSpace(mediaTypeName))
+        {
+            return null;
+        }
+
+        var parsed = Services.MediaTypeParser.Parse(mediaTypeName);
+        foreach (var type in Types)
+        {
+            if (type.MediaTypes.Any(token =>
+                    string.Equals(token, mediaTypeName.Trim(), StringComparison.OrdinalIgnoreCase)
+                    || (parsed != Enums.MediaType.Unknown && Services.MediaTypeParser.Parse(token) == parsed)))
+            {
+                return type;
+            }
+        }
+
+        return null;
+    }
+
     public static ServerStorageLocationConfig? Find(LibrariesConfiguration configuration) => configuration.StorageLocations
         .FirstOrDefault(location => string.Equals(location.Id, LocationId, StringComparison.OrdinalIgnoreCase)
             && !string.IsNullOrWhiteSpace(location.Path));
 
     public static bool HasDestination(LibraryFolderConfig library) => library.PrimaryDestination is not null;
 
-    private static LibraryFolderConfig? FindLibrary(LibrariesConfiguration configuration, string[] mediaTypes) =>
+    /// <summary>The catalogued library that holds a type and has a managed destination, or <see langword="null"/>.</summary>
+    public static LibraryFolderConfig? FindLibrary(LibrariesConfiguration configuration, string[] mediaTypes) =>
         configuration.Libraries.FirstOrDefault(library =>
             string.Equals(library.Kind, LibraryKinds.Catalogued, StringComparison.OrdinalIgnoreCase)
             && library.MediaTypes.Any(token => mediaTypes.Contains(token, StringComparer.OrdinalIgnoreCase))

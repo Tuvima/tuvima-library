@@ -24,6 +24,9 @@ public sealed class ReviewItemDto
     [JsonPropertyName("cover_url")] public string? CoverUrl { get; init; }
     [JsonPropertyName("bridge_identifiers")] public Dictionary<string, string> BridgeIdentifiers { get; init; } = [];
     [JsonPropertyName("detected_facts")] public Dictionary<string, string> DetectedFacts { get; init; } = [];
+
+    /// <summary>True when the file is still in the Import folder. The Review queue shows the badge "From the Import folder".</summary>
+    [JsonPropertyName("from_import_folder")] public bool FromImportFolder { get; init; }
 }
 
 public sealed class ReviewResolveRequestDto

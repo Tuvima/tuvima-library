@@ -2,6 +2,8 @@ using MediaEngine.Api.Services.ReadServices;
 using MediaEngine.Domain.Constants;
 using MediaEngine.Domain.Entities;
 using MediaEngine.Domain.Enums;
+using MediaEngine.Ingestion.Contracts;
+using MediaEngine.Ingestion.Models;
 using MediaEngine.Storage;
 using Microsoft.Data.Sqlite;
 
@@ -86,6 +88,47 @@ public sealed class ReviewQueueReadServiceTests : IDisposable
         Assert.Equal(1, reason.Count);
     }
 
+    [Fact]
+    public async Task PendingReviews_MarkFilesThatAreStillInTheImportFolder()
+    {
+        var importFolder = Path.Combine(Path.GetTempPath(), "tuvima-review-import");
+        var inImport = Guid.NewGuid();
+        var inLibrary = Guid.NewGuid();
+        SeedMediaAsset(Guid.NewGuid(), Guid.NewGuid(), inImport, Path.Combine(importFolder, "Movies", "mystery.mkv"));
+        SeedMediaAsset(Guid.NewGuid(), Guid.NewGuid(), inLibrary, Path.Combine(importFolder + "-library", "Movies", "known.mkv"));
+        var repository = new ReviewQueueRepository(_db);
+        var importReview = Guid.NewGuid();
+        var libraryReview = Guid.NewGuid();
+        await repository.InsertAsync(Review(importReview, inImport, "MediaAsset", "Unmatched"));
+        await repository.InsertAsync(Review(libraryReview, inLibrary, "MediaAsset", "Unmatched"));
+
+        var withImport = new ReviewQueueReadService(_db, new FixedImportFolder(importFolder));
+        var pending = await withImport.GetPendingAsync(10, CancellationToken.None);
+
+        Assert.True(Assert.Single(pending, item => item.Id == importReview).FromImportFolder);
+        Assert.False(Assert.Single(pending, item => item.Id == libraryReview).FromImportFolder);
+        Assert.True((await withImport.GetByIdAsync(importReview, CancellationToken.None))!.FromImportFolder);
+
+        // With no Import folder set, nothing carries the badge.
+        var withoutImport = new ReviewQueueReadService(_db, new FixedImportFolder(null));
+        Assert.All(await withoutImport.GetPendingAsync(10, CancellationToken.None), item => Assert.False(item.FromImportFolder));
+    }
+
+    private sealed class FixedImportFolder(string? path) : IImportFolderService
+    {
+        public string? GetImportPath() => path;
+        public bool IsInImportFolder(string candidate) => throw new NotSupportedException();
+        public bool IsWorkingPath(string candidate) => throw new NotSupportedException();
+        public MediaType? ResolveTypePrior(string candidate) => throw new NotSupportedException();
+        public string? ResolveTypeFolder(string candidate) => throw new NotSupportedException();
+        public MediaEngine.Ingestion.Models.LibraryFolderEntry? ResolveLibraryForType(MediaType mediaType) => throw new NotSupportedException();
+        public ImportDestination ResolveDestination(MediaType mediaType, long requiredBytes = 0) => throw new NotSupportedException();
+        public string DuplicatePolicy => throw new NotSupportedException();
+        public FileSourceMutationPolicy? CreateImportPolicy(bool allowDelete = false) => throw new NotSupportedException();
+        public IReadOnlyList<string> EnsureSubfolders(bool createImportFolder = false) => throw new NotSupportedException();
+        public void RemoveEmptyFolders(string startFolder) => throw new NotSupportedException();
+    }
+
     private static ReviewQueueEntry Review(Guid id, Guid entityId, string entityType, string detail) => new()
     {
         Id = id,
@@ -101,7 +144,7 @@ public sealed class ReviewQueueReadServiceTests : IDisposable
         SourceCapabilityId = "identity.retail-match",
     };
 
-    private void SeedMediaAsset(Guid workId, Guid editionId, Guid assetId)
+    private void SeedMediaAsset(Guid workId, Guid editionId, Guid assetId, string? path = null)
     {
         using var conn = _db.CreateConnection();
         using var cmd = conn.CreateCommand();
@@ -117,7 +160,7 @@ public sealed class ReviewQueueReadServiceTests : IDisposable
         AddGuid(cmd, "$editionId", editionId);
         AddGuid(cmd, "$assetId", assetId);
         cmd.Parameters.AddWithValue("$hash", $"review-{assetId:N}");
-        cmd.Parameters.AddWithValue("$path", $"C:/library/{assetId:N}.mkv");
+        cmd.Parameters.AddWithValue("$path", path ?? $"C:/library/{assetId:N}.mkv");
         cmd.ExecuteNonQuery();
     }
 

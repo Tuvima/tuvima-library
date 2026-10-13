@@ -2835,6 +2835,17 @@ MediaEngine.Contracts.Ingestion.MediaEngine.Contracts.Ingestion.FileMetadataRere
   ContentHashChanged: System.Boolean | nullability=not-null | accessors=get,init
   Message: System.String | nullability=not-null | accessors=get,init
 
+MediaEngine.Contracts.Ingestion.MediaEngine.Contracts.Ingestion.ImportFolderWaitingDto
+  MediaType: System.String | nullability=not-null | accessors=get,init
+  Folder: System.String | nullability=not-null | accessors=get,init
+  FileCount: System.Int32 | nullability=not-null | accessors=get,init
+  Reason: System.String | nullability=not-null | accessors=get,init
+  Message: System.String | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Ingestion.MediaEngine.Contracts.Ingestion.ImportFolderWaitingResponse
+  Configured: System.Boolean | nullability=not-null | accessors=get,init
+  Waiting: System.Collections.Generic.List<MediaEngine.Contracts.Ingestion.ImportFolderWaitingDto> | nullability=not-null | accessors=get,init
+
 MediaEngine.Contracts.Ingestion.MediaEngine.Contracts.Ingestion.IngestionActivityBatchDto
   BatchNumber: System.Int32 | nullability=not-null | accessors=get,set
   BatchSize: System.Int32 | nullability=not-null | accessors=get,set
@@ -6869,6 +6880,7 @@ MediaEngine.Contracts.Review.MediaEngine.Contracts.Review.ReviewItemDto
   CoverUrl: System.String | nullability=nullable | accessors=get,init
   BridgeIdentifiers: System.Collections.Generic.Dictionary<System.String, System.String> | nullability=not-null | accessors=get,init
   DetectedFacts: System.Collections.Generic.Dictionary<System.String, System.String> | nullability=not-null | accessors=get,init
+  FromImportFolder: System.Boolean | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.Review.MediaEngine.Contracts.Review.ReviewMoveToTvResponse
   moved: System.Boolean | nullability=not-null | accessors=get,init

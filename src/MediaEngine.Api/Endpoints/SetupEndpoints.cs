@@ -290,6 +290,9 @@ public static class SetupEndpoints
             }
 
             configuration.SaveLibraries(config);
+
+            // Setup only prepares the folders; the engine starts watching once first-run setup is complete.
+            context.RequestServices.GetService<MediaEngine.Api.Services.Settings.ImportFolderApplier>()?.CreateFolders();
             return Results.Ok(SettingsContractMapper.ToContract(config));
         }).Produces<LibrariesConfigurationDto>()
           .ProducesProblem(StatusCodes.Status400BadRequest);

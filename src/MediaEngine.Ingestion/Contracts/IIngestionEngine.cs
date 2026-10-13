@@ -51,6 +51,12 @@ public interface IIngestionEngine
     Task ScanDirectories(IReadOnlyList<IngestionScanTarget> targets, CancellationToken ct = default);
 
     /// <summary>
+    /// Makes sure the import folder (as configured now) is being watched, looks at what is already in it, and tries again
+    /// to file anything that was waiting for a managed folder or a review. Does nothing when no import folder is set.
+    /// </summary>
+    Task RefreshImportFolderAsync(CancellationToken ct = default);
+
+    /// <summary>
     /// Stops the FileSystemWatcher and clears the FSW event buffer without
     /// touching the debounce queue or its consumer loop.
     /// Used by the dev wipe operation so that seed files written immediately

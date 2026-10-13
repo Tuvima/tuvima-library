@@ -127,6 +127,13 @@ public sealed class IngestionOptions
     public IReadOnlyList<string> WatchDirectories { get; set; } = [];
 
     /// <summary>
+    /// The optional import folder as configured at startup (storage location <c>incoming</c>), or <see langword="null"/>.
+    /// It is also part of <see cref="WatchDirectories"/>. Decisions about where an imported file goes are made from the
+    /// current configuration, not from this startup value.
+    /// </summary>
+    public string? ImportFolderPath { get; set; }
+
+    /// <summary>
     /// Normalized watch directory list. Legacy single-folder configuration is not
     /// used as a fallback.
     /// </summary>

@@ -288,6 +288,38 @@ public static class IngestionEndpoints
         .Produces<WatchFolderPageResponse>(StatusCodes.Status200OK)
         .RequireAdministratorOrApplication(ApplicationPermissionIds.IngestionStatusRead);
 
+        // ── GET /ingestion/import-folder/waiting ────────────────────────────────
+
+        group.MapGet("/import-folder/waiting", async (
+            IImportFolderService importFolders,
+            IImportFolderWaitingReader waitingReader,
+            CancellationToken ct) =>
+        {
+            var waiting = await waitingReader.GetWaitingAsync(ct);
+            return Results.Ok(new ImportFolderWaitingResponse
+            {
+                Configured = importFolders.GetImportPath() is not null,
+                Waiting = waiting
+                    .Select(entry => new ImportFolderWaitingDto
+                    {
+                        MediaType = entry.MediaType,
+                        Folder = entry.Folder,
+                        FileCount = entry.FileCount,
+                        Reason = entry.Reason == ImportDestinationState.NoManagedFolder
+                            ? "no_managed_folder"
+                            : "folder_unavailable",
+                        Message = entry.Message,
+                    })
+                    .ToList(),
+            });
+        })
+        .WithName("GetImportFolderWaiting")
+        .WithSummary(
+            "Describes the files left untouched in the Import folder because their media type has no managed folder " +
+            "(or its New media folder is unavailable). Empty when nothing is waiting.")
+        .Produces<ImportFolderWaitingResponse>(StatusCodes.Status200OK)
+        .RequireAdministratorOrApplication(ApplicationPermissionIds.IngestionStatusRead);
+
         // ── POST /ingestion/rescan ──────────────────────────────────────────────
 
         group.MapPost("/rescan", async (
@@ -298,6 +330,9 @@ public static class IngestionEndpoints
         {
             var includeSubdirectories = request?.IncludeSubdirectories ?? opts.Value.IncludeSubdirectories;
             var requestedRoot = request?.RootPath;
+
+            // Also looks at the Import folder (even one set after startup) and files anything that was waiting in it.
+            await engine.RefreshImportFolderAsync(ct);
 
             if (!string.IsNullOrWhiteSpace(requestedRoot))
             {

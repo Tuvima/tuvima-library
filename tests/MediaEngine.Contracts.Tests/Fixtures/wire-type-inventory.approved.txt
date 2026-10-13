@@ -3,7 +3,7 @@
 # Compatibility is enforced separately by wire-compatibility.approved.txt.
 # Serializer: System.Text.Json JsonSerializerDefaults.Web; DefaultIgnoreCondition=Never
 # Regenerate intentionally with TUVIMA_UPDATE_WIRE_SNAPSHOT=1.
-# scopes: contracts=957; api=0; web-client=86
+# scopes: contracts=959; api=0; web-client=86
 
 [contracts] MediaEngine.Contracts.Activity.ActivityBatchInsightsDto
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -3445,6 +3445,21 @@
   ContentHashChanged: System.Boolean | json=content_hash_changed | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Message: System.String | json=message | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   sample={"asset_id":"11111111-2222-3333-4444-555555555555","status":"sample","refreshed":true,"content_hash_changed":true,"message":"sample"}
+
+[contracts] MediaEngine.Contracts.Ingestion.ImportFolderWaitingDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  MediaType: System.String | json=media_type | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Folder: System.String | json=folder | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  FileCount: System.Int32 | json=file_count | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Reason: System.String | json=reason | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Message: System.String | json=message | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"media_type":"sample","folder":"sample","file_count":7,"reason":"sample","message":"sample"}
+
+[contracts] MediaEngine.Contracts.Ingestion.ImportFolderWaitingResponse
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Configured: System.Boolean | json=configured | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Waiting: System.Collections.Generic.List<MediaEngine.Contracts.Ingestion.ImportFolderWaitingDto> | json=waiting | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"configured":true,"waiting":[]}
 
 [contracts] MediaEngine.Contracts.Ingestion.IngestionActivityBatchDto
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -8110,7 +8125,8 @@
   CoverUrl: System.String | json=cover_url | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   BridgeIdentifiers: System.Collections.Generic.Dictionary<System.String, System.String> | json=bridge_identifiers | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   DetectedFacts: System.Collections.Generic.Dictionary<System.String, System.String> | json=detected_facts | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  sample={"id":"11111111-2222-3333-4444-555555555555","entity_id":"11111111-2222-3333-4444-555555555555","entity_type":"sample","trigger":"sample","status":"sample","proposed_collection_id":"sample","confidence_score":7,"candidates_json":"sample","detail":"sample","created_at":"2025-01-02T03:04:05+00:00","resolved_at":"2025-01-02T03:04:05+00:00","resolved_by":"sample","source_operation_id":"11111111-2222-3333-4444-555555555555","source_capability_id":"sample","source_capability_sub_key":"sample","media_type":"sample","entity_title":"sample","cover_url":"sample","bridge_identifiers":{},"detected_facts":{}}
+  FromImportFolder: System.Boolean | json=from_import_folder | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"id":"11111111-2222-3333-4444-555555555555","entity_id":"11111111-2222-3333-4444-555555555555","entity_type":"sample","trigger":"sample","status":"sample","proposed_collection_id":"sample","confidence_score":7,"candidates_json":"sample","detail":"sample","created_at":"2025-01-02T03:04:05+00:00","resolved_at":"2025-01-02T03:04:05+00:00","resolved_by":"sample","source_operation_id":"11111111-2222-3333-4444-555555555555","source_capability_id":"sample","source_capability_sub_key":"sample","media_type":"sample","entity_title":"sample","cover_url":"sample","bridge_identifiers":{},"detected_facts":{},"from_import_folder":true}
 
 [contracts] MediaEngine.Contracts.Review.ReviewMoveToTvResponse
   kind=class | converter=default | number-handling=default | unmapped=default

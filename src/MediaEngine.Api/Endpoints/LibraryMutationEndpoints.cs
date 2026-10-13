@@ -25,7 +25,7 @@ internal static class LibraryMutationEndpoints
         group.MapPost("/libraries/mutations", async (LibraryMutationRequest request,
             IConfigurationLoader configuration, ServerFolderBrowserService folders,
             IFileOrganizer organizer, ViewStorageService storage, IProfileRepository profiles,
-            IViewProfileRepository policies, CancellationToken ct) =>
+            IViewProfileRepository policies, ImportFolderApplier importFolder, CancellationToken ct) =>
         {
             await WriteGate.WaitAsync(ct);
             try
@@ -102,6 +102,7 @@ internal static class LibraryMutationEndpoints
                     }
                 }
                 configuration.SaveLibraries(proposed);
+                await importFolder.ApplyAsync(ct);
                 if (request.ViewStorage is not null)
                 {
                     foreach (var profile in await profiles.GetAllAsync(ct))
