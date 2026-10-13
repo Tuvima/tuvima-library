@@ -3641,6 +3641,12 @@ MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.LibraryCapac
   AvailableBytes: System.Int64? | nullability=nullable | accessors=get,init
   IsAvailable: System.Boolean | nullability=not-null | accessors=get,init
 
+MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.LocalAssetDocumentInfoDto
+  TextSource: System.String | nullability=nullable | accessors=get,init
+  TextTruncated: System.Boolean | nullability=not-null | accessors=get,init
+  Encrypted: System.Boolean | nullability=not-null | accessors=get,init
+  HasText: System.Boolean | nullability=not-null | accessors=get,init
+
 MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.LocalAssetDto
   Id: System.Guid | nullability=not-null | accessors=get,init
   LibraryId: System.Guid | nullability=not-null | accessors=get,init
@@ -3690,6 +3696,8 @@ MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.LocalAssetDt
   EmbeddedCapturedAt: System.DateTimeOffset? | nullability=nullable | accessors=get,init
   CapturedAtUserOverride: System.Boolean | nullability=not-null | accessors=get,init
   People: System.Collections.Generic.IReadOnlyList<System.String> | nullability=nullable | accessors=get,init
+  Snippet: System.String | nullability=nullable | accessors=get,init
+  DocumentInfo: MediaEngine.Contracts.LocalAssets.LocalAssetDocumentInfoDto | nullability=nullable | accessors=get,init
 
 MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.LocalAssetFileDto
   Id: System.Guid | nullability=not-null | accessors=get,init
@@ -3803,6 +3811,12 @@ MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewDiscover
   EvidenceKinds: System.Collections.Generic.IReadOnlyList<System.String> | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewDiscoveryCapabilityStates
+
+MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewDocumentTextDto
+  ItemId: System.Guid | nullability=not-null | accessors=get,init
+  Text: System.String | nullability=not-null | accessors=get,init
+  ShownTruncated: System.Boolean | nullability=not-null | accessors=get,init
+  DocumentInfo: MediaEngine.Contracts.LocalAssets.LocalAssetDocumentInfoDto | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewFolderBreadcrumbDto
   Label: System.String | nullability=not-null | accessors=get,init
@@ -4033,6 +4047,7 @@ MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewScopeRes
   Scope: MediaEngine.Contracts.LocalAssets.ViewResolvedScopeDto | nullability=not-null | accessors=get,init
   AvailableScopes: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.LocalAssets.ViewScopeOptionDto> | nullability=not-null | accessors=get,init
   CanBrowseOtherPeople: System.Boolean | nullability=not-null | accessors=get,init
+  CanViewDocuments: System.Boolean | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewSharedContributionDecisionRequest
   Decision: System.String | nullability=not-null | accessors=get,init
@@ -6379,6 +6394,7 @@ MediaEngine.Contracts.Profiles.MediaEngine.Contracts.Profiles.UpdateViewProfileP
   AccessSharedLibrary: System.Boolean | nullability=not-null | accessors=get,init
   SubmitToSharedLibrary: System.Boolean | nullability=not-null | accessors=get,init
   AllowGallerySharing: System.Boolean | nullability=not-null | accessors=get,init
+  AllowDocuments: System.Boolean | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.Profiles.MediaEngine.Contracts.Profiles.ViewProfilePolicyDto
   ProfileId: System.Guid | nullability=not-null | accessors=get,init
@@ -6386,6 +6402,7 @@ MediaEngine.Contracts.Profiles.MediaEngine.Contracts.Profiles.ViewProfilePolicyD
   AccessSharedLibrary: System.Boolean | nullability=not-null | accessors=get,init
   SubmitToSharedLibrary: System.Boolean | nullability=not-null | accessors=get,init
   AllowGallerySharing: System.Boolean | nullability=not-null | accessors=get,init
+  AllowDocuments: System.Boolean | nullability=not-null | accessors=get,init
   UpdatedAt: System.DateTimeOffset? | nullability=nullable | accessors=get,init
 
 MediaEngine.Contracts.Progress.MediaEngine.Contracts.Progress.JourneyItemDto

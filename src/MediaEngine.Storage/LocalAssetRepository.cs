@@ -54,6 +54,10 @@ public sealed class LocalAssetRepository(IDatabaseConnection database) : ILocalA
         public double? FocalLengthMm { get; init; }
         public string? VideoCodec { get; init; }
         public double? FrameRate { get; init; }
+        public string? TextSource { get; init; }
+        public long TextTruncated { get; init; }
+        public long TextEncrypted { get; init; }
+        public long HasText { get; init; }
         public long Favorite { get; init; }
         public long Hidden { get; init; }
         public DateTimeOffset? ArchivedAt { get; init; }
@@ -165,6 +169,10 @@ public sealed class LocalAssetRepository(IDatabaseConnection database) : ILocalA
                    lm.description AS Description, lm.lens_model AS LensModel,
                    lm.exposure_time AS ExposureTime, lm.aperture AS Aperture, lm.iso AS Iso,
                    lm.focal_length_mm AS FocalLengthMm, lm.video_codec AS VideoCodec, lm.frame_rate AS FrameRate,
+                   lm.text_source AS TextSource,
+                   CASE WHEN lm.metadata_json IS NOT NULL AND json_valid(lm.metadata_json) THEN COALESCE(json_extract(lm.metadata_json, '$.document_text_truncated'), 0) ELSE 0 END AS TextTruncated,
+                   CASE WHEN lm.metadata_json IS NOT NULL AND json_valid(lm.metadata_json) THEN COALESCE(json_extract(lm.metadata_json, '$.document_encrypted'), 0) ELSE 0 END AS TextEncrypted,
+                   CASE WHEN lm.document_text IS NOT NULL AND lm.document_text <> '' THEN 1 ELSE 0 END AS HasText,
                    li.favorite AS Favorite,
                    li.hidden AS Hidden,
                    li.archived_at AS ArchivedAt,
@@ -320,6 +328,10 @@ public sealed class LocalAssetRepository(IDatabaseConnection database) : ILocalA
                    lm.description AS Description, lm.lens_model AS LensModel,
                    lm.exposure_time AS ExposureTime, lm.aperture AS Aperture, lm.iso AS Iso,
                    lm.focal_length_mm AS FocalLengthMm, lm.video_codec AS VideoCodec, lm.frame_rate AS FrameRate,
+                   lm.text_source AS TextSource,
+                   CASE WHEN lm.metadata_json IS NOT NULL AND json_valid(lm.metadata_json) THEN COALESCE(json_extract(lm.metadata_json, '$.document_text_truncated'), 0) ELSE 0 END AS TextTruncated,
+                   CASE WHEN lm.metadata_json IS NOT NULL AND json_valid(lm.metadata_json) THEN COALESCE(json_extract(lm.metadata_json, '$.document_encrypted'), 0) ELSE 0 END AS TextEncrypted,
+                   CASE WHEN lm.document_text IS NOT NULL AND lm.document_text <> '' THEN 1 ELSE 0 END AS HasText,
                    li.favorite AS Favorite, li.hidden AS Hidden,
                    li.archived_at AS ArchivedAt, li.trashed_at AS TrashedAt,
                    {{effectiveAtSql}} AS EffectiveAt,
@@ -395,7 +407,7 @@ public sealed class LocalAssetRepository(IDatabaseConnection database) : ILocalA
             rows.RemoveAt(rows.Count - 1);
         }
 
-        var items = MapItems(connection, rows);
+        var items = AttachSnippets(connection, MapItems(connection, rows), searchExpression);
         var last = rows.LastOrDefault();
         return new LocalAssetTimelinePage(
             items,
@@ -528,6 +540,36 @@ public sealed class LocalAssetRepository(IDatabaseConnection database) : ILocalA
             row.LatestAt)).ToList();
     }
 
+    public bool IsDocument(Guid itemId, CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+        using var connection = database.CreateConnection();
+        return connection.ExecuteScalar<long>(new CommandDefinition(
+            "SELECT COUNT(1) FROM local_items WHERE id = @itemId AND media_kind = 'document';",
+            new { itemId }, cancellationToken: ct)) != 0;
+    }
+
+    public (string Text, bool Cut)? GetDocumentText(Guid itemId, int maxCharacters, CancellationToken ct = default)
+    {
+        if (itemId == Guid.Empty)
+        {
+            throw new ArgumentException("Item ID is required.", nameof(itemId));
+        }
+
+        ArgumentOutOfRangeException.ThrowIfLessThan(maxCharacters, 1);
+        ct.ThrowIfCancellationRequested();
+        using var connection = database.CreateConnection();
+        var text = connection.QuerySingleOrDefault<string?>(new CommandDefinition(
+            "SELECT substr(document_text, 1, @limit) FROM local_item_metadata WHERE item_id = @itemId;",
+            new { itemId, limit = maxCharacters + 1 }, cancellationToken: ct));
+        if (string.IsNullOrEmpty(text))
+        {
+            return null;
+        }
+
+        return text.Length > maxCharacters ? (text[..maxCharacters], true) : (text, false);
+    }
+
     public LocalAssetDto? Find(Guid itemId, CancellationToken ct = default)
     {
         if (itemId == Guid.Empty)
@@ -556,6 +598,10 @@ public sealed class LocalAssetRepository(IDatabaseConnection database) : ILocalA
                    lm.description AS Description, lm.lens_model AS LensModel,
                    lm.exposure_time AS ExposureTime, lm.aperture AS Aperture, lm.iso AS Iso,
                    lm.focal_length_mm AS FocalLengthMm, lm.video_codec AS VideoCodec, lm.frame_rate AS FrameRate,
+                   lm.text_source AS TextSource,
+                   CASE WHEN lm.metadata_json IS NOT NULL AND json_valid(lm.metadata_json) THEN COALESCE(json_extract(lm.metadata_json, '$.document_text_truncated'), 0) ELSE 0 END AS TextTruncated,
+                   CASE WHEN lm.metadata_json IS NOT NULL AND json_valid(lm.metadata_json) THEN COALESCE(json_extract(lm.metadata_json, '$.document_encrypted'), 0) ELSE 0 END AS TextEncrypted,
+                   CASE WHEN lm.document_text IS NOT NULL AND lm.document_text <> '' THEN 1 ELSE 0 END AS HasText,
                    li.favorite AS Favorite,
                    li.hidden AS Hidden,
                    li.archived_at AS ArchivedAt, li.trashed_at AS TrashedAt,
@@ -1365,6 +1411,44 @@ public sealed class LocalAssetRepository(IDatabaseConnection database) : ILocalA
         }, ct);
     }
 
+    private static List<LocalAssetDto> AttachSnippets(
+        SqliteConnection connection,
+        List<LocalAssetDto> items,
+        string? searchExpression)
+    {
+        if (searchExpression is null || items.Count == 0)
+        {
+            return items;
+        }
+
+        // The highlighted words are marked with control characters so the Dashboard can draw them without
+        // ever treating document text as markup.
+        var parameters = new DynamicParameters();
+        parameters.Add("SearchExpression", searchExpression);
+        var idPredicate = string.Join(" OR ", items.Select((item, index) =>
+        {
+            parameters.Add($"ItemId{index}", GuidSql.ToBlob(item.Id), System.Data.DbType.Binary);
+            return $"lsk.item_id = @ItemId{index}";
+        }));
+        var snippets = connection.Query<SnippetRow>($$"""
+            SELECT lsk.item_id AS ItemId,
+                   snippet(local_item_search, 7, char(1), char(2), char(8230), 18) AS Snippet
+              FROM local_item_search lis
+              JOIN local_item_search_keys lsk ON lsk.rowid = lis.rowid
+             WHERE local_item_search MATCH @SearchExpression AND ({{idPredicate}});
+            """, parameters).Where(row => !string.IsNullOrWhiteSpace(row.Snippet) && row.Snippet.Contains('\u0001'))
+            .ToDictionary(row => row.ItemId, row => row.Snippet!);
+        return items.Select(item => snippets.TryGetValue(item.Id, out var snippet)
+            ? item with { Snippet = snippet.Length > 400 ? snippet[..400] : snippet }
+            : item).ToList();
+    }
+
+    private sealed class SnippetRow
+    {
+        public Guid ItemId { get; init; }
+        public string? Snippet { get; init; }
+    }
+
     private static LocalAssetDto MapItem(SqliteConnection connection, ItemRow row)
     {
         var files = connection.Query<FileRow>("""
@@ -1511,7 +1595,13 @@ public sealed class LocalAssetRepository(IDatabaseConnection database) : ILocalA
             row.EmbeddedLongitude,
             row.EmbeddedCapturedAt,
             row.CapturedAtUserOverride != 0,
-            people ?? []);
+            people ?? [],
+            DocumentInfo: MapDocumentInfo(row));
+
+    private static LocalAssetDocumentInfoDto? MapDocumentInfo(ItemRow row) =>
+        row.MediaKind == LocalAssetMediaKinds.Document || row.TextSource is not null || row.HasText != 0
+            ? new LocalAssetDocumentInfoDto(row.TextSource, row.TextTruncated != 0, row.TextEncrypted != 0, row.HasText != 0)
+            : null;
 
     private static void ReplaceTags(
         SqliteConnection connection,

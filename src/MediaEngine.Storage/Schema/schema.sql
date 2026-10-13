@@ -2012,13 +2012,15 @@ CREATE INDEX IF NOT EXISTS idx_authorization_audit_subject
 
 -- Administrator-owned View capability policy. Viewing and submitting to the household's Shared Library are
 -- separate permissions; both default on (submitting stays off for a child profile). Reviewing contributions
--- belongs to household administrators, so there is no per-profile review flag.
+-- belongs to household administrators, so there is no per-profile review flag. documents_enabled controls the
+-- Documents page and the document files behind it; a profile with no saved row gets it off when it is a child profile.
 CREATE TABLE IF NOT EXISTS profile_view_policies (
     profile_id              BLOB NOT NULL PRIMARY KEY REFERENCES profiles(id) ON DELETE CASCADE,
     view_enabled            INTEGER NOT NULL DEFAULT 1 CHECK (view_enabled IN (0, 1)),
     access_shared_library   INTEGER NOT NULL DEFAULT 1 CHECK (access_shared_library IN (0, 1)),
     submit_to_shared_library INTEGER NOT NULL DEFAULT 1 CHECK (submit_to_shared_library IN (0, 1)),
     share_galleries         INTEGER NOT NULL DEFAULT 0 CHECK (share_galleries IN (0, 1)),
+    documents_enabled       INTEGER NOT NULL DEFAULT 1 CHECK (documents_enabled IN (0, 1)),
     updated_at              TEXT NOT NULL
 );
 

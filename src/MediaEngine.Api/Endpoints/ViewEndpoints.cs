@@ -112,6 +112,7 @@ public static class ViewEndpoints
             {
                 // Only a server administrator signed in as a person sees "Other people" in the scope picker.
                 CanBrowseOtherPeople = authority.PrincipalKind == PrincipalKind.Human && authority.IsEffectiveAdministrator,
+                CanViewDocuments = await MayUseDocumentsAsync(authority, preferences, ct),
             });
         }).WithName("GetViewScopes").Produces<ViewScopeResolutionDto>();
 
@@ -204,8 +205,14 @@ public static class ViewEndpoints
                 var requested = authority.ActiveProfileId is { } profileId
                     ? await GetScopeAsync(profileId, scope, scopeProfileId, preferences, ct)
                     : ParseScope(scope, scopeProfileId);
+                var allowedKinds = await KindsWithoutBlockedDocumentsAsync(authority, kind, preferences, ct);
+                if (allowedKinds is null)
+                {
+                    return DocumentsNotAllowed();
+                }
+
                 var result = await queries.QueryAsync(new ViewAssetQueryRequest(
-                    requested, PagedRequest.From(0, limit, 120, 500).Limit, cursor, q, kind,
+                    requested, PagedRequest.From(0, limit, 120, 500).Limit, cursor, q, allowedKinds,
                     favorite == true, hidden == true, hidden == true, galleryId,
                     ParseLifecycle(lifecycle),
                     AllowStaleSelectionFallback: string.IsNullOrWhiteSpace(scope),
@@ -288,9 +295,16 @@ public static class ViewEndpoints
                 }
 
                 var page = PagedRequest.From(offset, limit, 100, 200);
-                return Results.Ok(await folders.QueryAsync(authority.ActiveProfileId ?? Guid.Empty,
+                var folderPage = await folders.QueryAsync(authority.ActiveProfileId ?? Guid.Empty,
                     decision.Scope, sourceId, path,
-                    recursive == true, q, page.Offset, page.Limit, ct));
+                    recursive == true, q, page.Offset, page.Limit, ct);
+                // A profile without the Documents permission never sees document files, even inside a folder.
+                return Results.Ok(await MayUseDocumentsAsync(authority, preferences, ct)
+                    ? folderPage
+                    : folderPage with
+                    {
+                        Items = folderPage.Items.Where(item => item.MediaKind != LocalAssetMediaKinds.Document).ToList(),
+                    });
             }
             catch (ArgumentException exception) { return ApiErrors.BadRequest(exception.Message); }
             catch (KeyNotFoundException) { return Missing(); }
@@ -423,20 +437,58 @@ public static class ViewEndpoints
         {
             var decision = await AuthorizeItemAsync(id, ViewResourceKind.Asset, ViewResourceAction.Read,
                 scope, scopeProfileId, identity, preferences, authorization, ct);
+            if (decision.IsAllowed && await DocumentsBlockedAsync(id, assets, identity, preferences, ct))
+            {
+                return DocumentsNotAllowed();
+            }
+
             return decision.IsAllowed && assets.Find(id, ct) is { } item
                 ? Results.Ok(item) : Access(decision.Outcome);
         }).WithName("GetViewItem").Produces<LocalAssetDto>();
 
+        group.MapGet("/items/{id:guid}/text", async (Guid id, string? scope, Guid? scopeProfileId,
+            IViewRequestProfileContext identity, IViewProfileRepository preferences,
+            IViewResourceAuthorizationService authorization, ILocalAssetRepository assets,
+            CancellationToken ct) =>
+        {
+            var decision = await AuthorizeItemAsync(id, ViewResourceKind.Asset, ViewResourceAction.Read,
+                scope, scopeProfileId, identity, preferences, authorization, ct);
+            if (!decision.IsAllowed)
+            {
+                return Access(decision.Outcome);
+            }
+
+            if (await DocumentsBlockedAsync(id, assets, identity, preferences, ct))
+            {
+                return DocumentsNotAllowed();
+            }
+
+            if (assets.Find(id, ct) is not { } item)
+            {
+                return Missing();
+            }
+
+            var text = assets.GetDocumentText(id, MaximumDocumentTextCharacters, ct);
+            return Results.Ok(new ViewDocumentTextDto(
+                id, text?.Text ?? string.Empty, text?.Cut == true,
+                item.DocumentInfo ?? new LocalAssetDocumentInfoDto(null, false, false, text is not null)));
+        }).WithName("GetViewItemText").Produces<ViewDocumentTextDto>();
+
         group.MapGet("/items/{id:guid}/content", async (Guid id, string? role, string? scope, Guid? scopeProfileId,
             IViewRequestProfileContext identity, IViewProfileRepository preferences,
             IViewResourceAuthorizationService authorization, IViewResourceStore resources,
-            CancellationToken ct) =>
+            ILocalAssetRepository assets, CancellationToken ct) =>
         {
             var decision = await AuthorizeItemAsync(id, ViewResourceKind.Original, ViewResourceAction.Read,
                 scope, scopeProfileId, identity, preferences, authorization, ct);
             if (!decision.IsAllowed)
             {
                 return Access(decision.Outcome);
+            }
+
+            if (await DocumentsBlockedAsync(id, assets, identity, preferences, ct))
+            {
+                return DocumentsNotAllowed();
             }
 
             try
@@ -452,7 +504,7 @@ public static class ViewEndpoints
         group.MapGet("/items/{id:guid}/thumbnail", async (Guid id, string? scope, Guid? scopeProfileId,
             IViewRequestProfileContext identity, IViewProfileRepository preferences,
             IViewResourceAuthorizationService authorization, IViewResourceStore resources,
-            ViewThumbnailService thumbnails,
+            ViewThumbnailService thumbnails, ILocalAssetRepository assets,
             CancellationToken ct) =>
         {
             var decision = await AuthorizeItemAsync(id, ViewResourceKind.Thumbnail, ViewResourceAction.Read,
@@ -460,6 +512,11 @@ public static class ViewEndpoints
             if (!decision.IsAllowed)
             {
                 return Access(decision.Outcome);
+            }
+
+            if (await DocumentsBlockedAsync(id, assets, identity, preferences, ct))
+            {
+                return DocumentsNotAllowed();
             }
 
             var file = decision.Scope is null ? null : await resources.ResolveContentAsync(
@@ -476,13 +533,18 @@ public static class ViewEndpoints
         group.MapGet("/items/{id:guid}/preview", async (Guid id, string? scope, Guid? scopeProfileId,
             IViewRequestProfileContext identity, IViewProfileRepository preferences,
             IViewResourceAuthorizationService authorization, IViewResourceStore resources,
-            ViewThumbnailService thumbnails, CancellationToken ct) =>
+            ViewThumbnailService thumbnails, ILocalAssetRepository assets, CancellationToken ct) =>
         {
             var decision = await AuthorizeItemAsync(id, ViewResourceKind.Thumbnail, ViewResourceAction.Read,
                 scope, scopeProfileId, identity, preferences, authorization, ct);
             if (!decision.IsAllowed)
             {
                 return Access(decision.Outcome);
+            }
+
+            if (await DocumentsBlockedAsync(id, assets, identity, preferences, ct))
+            {
+                return DocumentsNotAllowed();
             }
             var file = decision.Scope is null ? null : await resources.ResolveContentAsync(
                 id, LocalAssetFileRoles.Primary, decision.Scope, ct);
@@ -1376,6 +1438,45 @@ public static class ViewEndpoints
                 : await assets.SetLifecycleStateAsync(id, state, ct) ? Results.NoContent() : Missing();
         }).WithName($"{char.ToUpperInvariant(name[0])}{name[1..]}ViewItem")
             .Produces<Microsoft.AspNetCore.Http.HttpResults.NoContent>(StatusCodes.Status204NoContent);
+
+    /// <summary>The longest stretch of document text the viewer text panel is sent.</summary>
+    private const int MaximumDocumentTextCharacters = 200_000;
+
+    /// <summary>A profile with no saved policy gets the default: Documents on, except for child profiles.</summary>
+    private static async Task<bool> MayUseDocumentsAsync(
+        RequestAuthority authority, IViewProfileRepository preferences, CancellationToken ct) =>
+        authority.ActiveProfileId is not { } profileId
+        || (await preferences.GetPolicyAsync(profileId, ct)).DocumentsEnabled;
+
+    private static async Task<bool> DocumentsBlockedAsync(Guid id, ILocalAssetRepository assets,
+        IViewRequestProfileContext identity, IViewProfileRepository preferences, CancellationToken ct) =>
+        assets.IsDocument(id)
+        && !await MayUseDocumentsAsync(await identity.ResolveAuthorityAsync(ct), preferences, ct);
+
+    private static IResult DocumentsNotAllowed() =>
+        ApiErrors.Forbidden("Documents are not available for this profile.");
+
+    /// <summary>
+    /// A profile that may not use Documents never gets document files back from a search or listing. Asking only for
+    /// documents is refused (null); asking for everything is narrowed to the other kinds.
+    /// </summary>
+    private static async Task<string[]?> KindsWithoutBlockedDocumentsAsync(
+        RequestAuthority authority, string[]? kinds, IViewProfileRepository preferences, CancellationToken ct)
+    {
+        if (await MayUseDocumentsAsync(authority, preferences, ct))
+        {
+            return kinds;
+        }
+
+        var requested = kinds?.Where(value => !string.IsNullOrWhiteSpace(value)).ToArray() ?? [];
+        if (requested.Length == 0)
+        {
+            return [LocalAssetMediaKinds.Image, LocalAssetMediaKinds.Video, LocalAssetMediaKinds.Audio, LocalAssetMediaKinds.Other];
+        }
+
+        var remaining = requested.Where(value => !string.Equals(value.Trim(), LocalAssetMediaKinds.Document, StringComparison.OrdinalIgnoreCase)).ToArray();
+        return remaining.Length == 0 ? null : remaining;
+    }
 
     private static async Task<ViewAccessDecision> AuthorizeItemAsync(Guid id,
         ViewResourceKind kind, ViewResourceAction action, string? scope, Guid? scopeProfileId,

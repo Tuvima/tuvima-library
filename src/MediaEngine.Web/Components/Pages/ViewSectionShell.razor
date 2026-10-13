@@ -31,6 +31,8 @@
     protected override async Task OnInitializedAsync()
     {
         await ActiveProfileSession.GetActiveProfileAsync();
+        // The Documents tab only shows for profiles allowed to see documents, which the scopes response says.
+        await Workspace.InitializeAsync();
         await Workspace.LoadGalleriesAsync();
     }
 
@@ -62,16 +64,30 @@
         }
     }
 
+    private IReadOnlyList<MediaSectionNavigationItem> PersonalItems
+    {
+        get
+        {
+            var items = new List<MediaSectionNavigationItem>
+            {
+                new("Photos", "/view", AppMaterialIcons.Outlined.PhotoLibrary, Exact: true),
+                new("Galleries", "/view/galleries", AppMaterialIcons.Outlined.Collections, Exact: true),
+                new("Folders", "/view/folders", AppMaterialIcons.Outlined.FolderOpen, Exact: true),
+            };
+            if (Workspace.Scopes?.CanViewDocuments != false)
+            {
+                items.Add(new("Documents", "/view/documents", AppMaterialIcons.Outlined.Description, Exact: true));
+            }
+
+            items.Add(new("People", "/view/people", AppMaterialIcons.Outlined.People, Exact: true));
+            items.Add(new("Places", "/view/places", AppMaterialIcons.Outlined.Place, Exact: true));
+            return items;
+        }
+    }
+
     private IReadOnlyList<MediaSectionNavigationGroup> NavigationGroups =>
     [
-        new("Personal",
-        [
-            new("Photos", "/view", AppMaterialIcons.Outlined.PhotoLibrary, Exact: true),
-            new("Galleries", "/view/galleries", AppMaterialIcons.Outlined.Collections, Exact: true),
-            new("Folders", "/view/folders", AppMaterialIcons.Outlined.FolderOpen, Exact: true),
-            new("People", "/view/people", AppMaterialIcons.Outlined.People, Exact: true),
-            new("Places", "/view/places", AppMaterialIcons.Outlined.Place, Exact: true),
-        ]),
+        new("Personal", PersonalItems),
         new("Library",
         [
             new("Artwork Library", "/view/artwork", AppMaterialIcons.Outlined.PhotoLibrary, Exact: false),

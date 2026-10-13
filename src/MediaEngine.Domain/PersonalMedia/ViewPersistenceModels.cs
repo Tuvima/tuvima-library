@@ -33,15 +33,16 @@ public sealed record ViewProfilePolicy(
     bool AccessSharedLibrary,
     bool SubmitToSharedLibrary,
     bool ShareGalleries,
-    DateTimeOffset? UpdatedAt)
+    DateTimeOffset? UpdatedAt,
+    bool DocumentsEnabled = true)
 {
     /// <summary>
     /// What a profile gets before anyone changes it: everyone in a household can open and contribute to the
     /// household's Shared Library. A child (restricted) profile cannot send items until a household administrator
-    /// allows it. Reviewing contributions is not a per-profile setting; household administrators do it.
+    /// allows it. A child profile also does not see the Documents page until allowed. Reviewing contributions is not a per-profile setting; household administrators do it.
     /// </summary>
     public static ViewProfilePolicy Default(Guid profileId, bool restricted = false, bool inHousehold = true) =>
-        new(profileId, true, inHousehold, inHousehold && !restricted, false, null);
+        new(profileId, true, inHousehold, inHousehold && !restricted, false, null, !restricted);
 }
 
 public sealed record ViewProfilePreferences(

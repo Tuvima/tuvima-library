@@ -1,0 +1,287 @@
+@using MediaEngine.Contracts.LocalAssets
+@using MediaEngine.Domain.PersonalMedia
+@using MediaEngine.Web.Models.ViewDTOs
+@namespace MediaEngine.Web.Components.Pages
+@implements IAsyncDisposable
+@inject IEngineApiClient ApiClient
+@inject IJSRuntime JS
+
+<div class="view-document-viewer" role="dialog" aria-modal="true" aria-label="@Title" tabindex="-1" @ref="_root" @onkeydown="HandleKeyDown">
+    <header class="view-document-viewer__bar">
+        <AppIconButton Icon="@AppMaterialIcons.Outlined.ArrowBack" Tooltip="Back to Documents" AriaLabel="Close document" OnClick="Close" />
+        <div class="view-document-viewer__title">
+            <h2>@Title</h2>
+            <p>@ChipSummary</p>
+        </div>
+        <div class="view-document-viewer__bar-actions">
+            @if (HasPrevious)
+            {
+                <AppIconButton Icon="@AppMaterialIcons.Outlined.ChevronLeft" Tooltip="Previous document" AriaLabel="Previous document" OnClick="OnPrevious" />
+            }
+            @if (HasNext)
+            {
+                <AppIconButton Icon="@AppMaterialIcons.Outlined.ChevronRight" Tooltip="Next document" AriaLabel="Next document" OnClick="OnNext" />
+            }
+            <AppButton Label="Download original" StartIcon="@AppMaterialIcons.Outlined.Download" ButtonStyle="AppButtonStyle.Outlined"
+                       Href="@OriginalUrl" download="@Item.FileName" Class="view-document-viewer__download" />
+        </div>
+    </header>
+
+    @if (TextNotes.Count > 0)
+    {
+        <ul class="view-document-viewer__notes" aria-label="About this document's text">
+            @foreach (var note in TextNotes)
+            {
+                <li><AppMaterialIcon Icon="@(Item.DocumentInfo?.Encrypted == true ? AppMaterialIcons.Outlined.Lock : AppMaterialIcons.Outlined.Description)" />@note</li>
+            }
+        </ul>
+    }
+
+    @if (_mode == ViewerMode.Pdf)
+    {
+        <div class="view-document-viewer__tools" role="toolbar" aria-label="PDF controls">
+            <div class="view-document-viewer__tool-group">
+                <AppIconButton Icon="@AppMaterialIcons.Outlined.KeyboardArrowUp" Tooltip="Previous page" AriaLabel="Previous page" Disabled="@(_page <= 1)" OnClick="@(() => GoToAsync(_page - 1))" />
+                <span class="view-document-viewer__page" aria-live="polite">Page @_page of @(_pageCount == 0 ? "…" : _pageCount.ToString())</span>
+                <AppIconButton Icon="@AppMaterialIcons.Outlined.KeyboardArrowDown" Tooltip="Next page" AriaLabel="Next page" Disabled="@(_pageCount == 0 || _page >= _pageCount)" OnClick="@(() => GoToAsync(_page + 1))" />
+            </div>
+            <div class="view-document-viewer__tool-group">
+                <AppIconButton Icon="@AppMaterialIcons.Outlined.Remove" Tooltip="Zoom out" AriaLabel="Zoom out" OnClick="ZoomOutAsync" />
+                <span class="view-document-viewer__zoom" aria-live="polite">@_zoom%</span>
+                <AppIconButton Icon="@AppMaterialIcons.Outlined.Add" Tooltip="Zoom in" AriaLabel="Zoom in" OnClick="ZoomInAsync" />
+                <AppIconButton Icon="@AppMaterialIcons.Outlined.FitScreen" Tooltip="Fit to width" AriaLabel="Fit to width" OnClick="FitAsync" />
+            </div>
+            <form class="view-document-viewer__find" role="search" @onsubmit="FindSubmitAsync" @onsubmit:preventDefault="true">
+                <AppNativeInput Type="search" Value="@_find" ValueChanged="@(value => _find = value?.ToString() ?? string.Empty)" Placeholder="Find in this document" AriaLabel="Find in this document" />
+                <AppIconButton Icon="@AppMaterialIcons.Outlined.KeyboardArrowUp" Tooltip="Previous match" AriaLabel="Previous match" Disabled="@(_findTotal == 0)" OnClick="@(() => FindAgainAsync(true))" />
+                <AppIconButton Icon="@AppMaterialIcons.Outlined.KeyboardArrowDown" Tooltip="Next match" AriaLabel="Next match" Disabled="@(_findTotal == 0)" OnClick="@(() => FindAgainAsync(false))" />
+                <span class="view-document-viewer__find-count" role="status">@FindSummary</span>
+            </form>
+        </div>
+        @if (_failed is not null)
+        {
+            <AppPageState Kind="AppPageStateKind.Unavailable" Title="@_failed.Value.Title" Message="@_failed.Value.Message" Class="view-document-viewer__state" />
+        }
+        <div class="view-document-viewer__pdf-frame" hidden="@(_failed is not null)">
+            <div class="view-document-viewer__pdf" @ref="_scroller">
+                <div class="pdfViewer" @ref="_pages"></div>
+            </div>
+        </div>
+    }
+    else if (_mode == ViewerMode.Text)
+    {
+        <div class="view-document-viewer__text-panel">
+            @if (_textLoading)
+            {
+                <AppPageState Kind="AppPageStateKind.Loading" Title="Loading the text" Class="view-document-viewer__state" />
+            }
+            else if (_text is null)
+            {
+                <AppPageState Kind="AppPageStateKind.Unavailable" Title="The text could not be shown" Message="Download the original to read it." Class="view-document-viewer__state" />
+            }
+            else if (string.IsNullOrEmpty(_text.Text))
+            {
+                <AppPageState Kind="AppPageStateKind.Empty" Title="No readable text to show here" Message="Download the original to open it in another app." Class="view-document-viewer__state" />
+            }
+            else
+            {
+                <article class="view-document-viewer__text" tabindex="0" aria-label="Text of this document">@_text.Text</article>
+                @if (_text.ShownTruncated)
+                {
+                    <p class="view-document-viewer__text-more">Only the first part is shown. Download the original for the rest.</p>
+                }
+            }
+        </div>
+    }
+</div>
+
+@code {
+    private enum ViewerMode { Pdf, Text }
+
+    [Parameter, EditorRequired] public LocalAssetDto Item { get; set; } = default!;
+    [Parameter, EditorRequired] public string OriginalUrl { get; set; } = string.Empty;
+    [Parameter] public ViewScopeKind ScopeKind { get; set; } = ViewScopeKind.Mine;
+    [Parameter] public Guid? ScopeProfileId { get; set; }
+    /// <summary>The words the person searched for; preselected in the find box so matches are marked on open.</summary>
+    [Parameter] public string? SearchTerm { get; set; }
+    [Parameter] public bool HasPrevious { get; set; }
+    [Parameter] public bool HasNext { get; set; }
+    [Parameter] public EventCallback OnPrevious { get; set; }
+    [Parameter] public EventCallback OnNext { get; set; }
+    [Parameter] public EventCallback OnClose { get; set; }
+
+    private ElementReference _root, _scroller, _pages;
+    private IJSObjectReference? _module;
+    private DotNetObjectReference<ViewDocumentViewer>? _self;
+    private ViewerMode _mode;
+    private Guid _openedId;
+    private int _page = 1, _pageCount, _zoom = 100, _findCurrent, _findTotal;
+    private bool _findMissing, _textLoading, _pdfRequested, _disposed;
+    private (string Title, string Message)? _failed;
+    private string _find = string.Empty;
+    private ViewDocumentTextDto? _text;
+
+    private string Title => ViewDocumentPresentation.DisplayTitle(Item);
+    private IReadOnlyList<string> TextNotes => ViewDocumentPresentation.TextNotes(Item);
+
+    private string ChipSummary
+    {
+        get
+        {
+            var date = ViewDocumentPresentation.DocumentDate(Item).LocalDateTime.ToString("MMM d, yyyy");
+            var label = ViewDocumentPresentation.UsesAddedDate(Item) ? "Added" : "Dated";
+            return $"{string.Join(" · ", ViewDocumentPresentation.KindChips(Item))} · {label} {date}";
+        }
+    }
+
+    private string FindSummary => string.IsNullOrWhiteSpace(_find)
+        ? string.Empty
+        : _findMissing ? "No matches" : _findTotal > 0 ? $"{_findCurrent} of {_findTotal}" : string.Empty;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (_openedId == Item.Id)
+        {
+            return;
+        }
+
+        _openedId = Item.Id;
+        _page = 1; _pageCount = 0; _zoom = 100; _findCurrent = 0; _findTotal = 0; _findMissing = false;
+        _failed = null; _text = null; _pdfRequested = false;
+        _find = SearchTerm?.Trim() ?? string.Empty;
+        _mode = ViewDocumentPresentation.IsPdf(Item) ? ViewerMode.Pdf : ViewerMode.Text;
+        if (_mode == ViewerMode.Text)
+        {
+            // Leaving a PDF for a text document releases the PDF reader right away.
+            await Module("close");
+            _textLoading = true;
+            var id = Item.Id;
+            var text = await ApiClient.GetViewDocumentTextAsync(id, ScopeKind, ScopeProfileId);
+            if (id == _openedId)
+            {
+                _text = text;
+                _textLoading = false;
+            }
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await _root.FocusAsync();
+        }
+
+        if (_mode == ViewerMode.Pdf && !_pdfRequested && !_disposed)
+        {
+            _pdfRequested = true;
+            _self ??= DotNetObjectReference.Create(this);
+            try
+            {
+                _module ??= await JS.InvokeAsync<IJSObjectReference>("import", "./js/document-viewer.js");
+                await _module.InvokeVoidAsync("open", _scroller, _pages, OriginalUrl, _find, _self);
+            }
+            catch (JSException)
+            {
+                _failed = ("The document viewer could not start", "Download the original to open it in another app.");
+                StateHasChanged();
+            }
+            catch (JSDisconnectedException)
+            {
+                // The browser went away while the viewer was starting; there is nothing left to show.
+            }
+        }
+    }
+
+    [JSInvokable]
+    public Task OnPdfReady(int pageCount)
+    {
+        _pageCount = pageCount;
+        return InvokeAsync(StateHasChanged);
+    }
+
+    [JSInvokable]
+    public Task OnPdfPageChanged(int page)
+    {
+        _page = page;
+        return InvokeAsync(StateHasChanged);
+    }
+
+    [JSInvokable]
+    public Task OnPdfZoomChanged(int percent)
+    {
+        _zoom = percent;
+        return InvokeAsync(StateHasChanged);
+    }
+
+    [JSInvokable]
+    public Task OnPdfFind(int current, int total, bool notFound)
+    {
+        _findCurrent = current;
+        _findTotal = total;
+        _findMissing = notFound;
+        return InvokeAsync(StateHasChanged);
+    }
+
+    [JSInvokable]
+    public Task OnPdfFailed(bool passwordProtected)
+    {
+        _failed = passwordProtected
+            ? ("This PDF is password-protected", "Download the original and open it with its password.")
+            : ("This PDF could not be shown", "Download the original to open it in another app.");
+        return InvokeAsync(StateHasChanged);
+    }
+
+    private Task Close() => OnClose.InvokeAsync();
+
+    private async Task HandleKeyDown(KeyboardEventArgs args)
+    {
+        if (args.Key == "Escape")
+        {
+            await Close();
+        }
+    }
+
+    private Task GoToAsync(int page) => Module("goToPage", page);
+    private Task ZoomInAsync() => Module("zoomIn");
+    private Task ZoomOutAsync() => Module("zoomOut");
+    private Task FitAsync() => Module("fitWidth");
+    private Task FindAgainAsync(bool backwards) => Module("findAgain", backwards);
+
+    private async Task FindSubmitAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_find))
+        {
+            _findCurrent = 0; _findTotal = 0; _findMissing = false;
+        }
+
+        await Module("find", _find);
+    }
+
+    private async Task Module(string name, params object?[] arguments)
+    {
+        if (_module is not null && !_disposed)
+        {
+            await _module.InvokeVoidAsync(name, arguments);
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        _disposed = true;
+        if (_module is not null)
+        {
+            try
+            {
+                await _module.InvokeVoidAsync("close");
+                await _module.DisposeAsync();
+            }
+            catch (JSDisconnectedException)
+            {
+                // The circuit is already gone, so the browser has released the viewer.
+            }
+        }
+
+        _self?.Dispose();
+    }
+}

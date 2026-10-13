@@ -222,6 +222,9 @@ public sealed class ViewProfilePolicyDto
     [JsonPropertyName("allow_gallery_sharing")]
     public bool AllowGallerySharing { get; init; }
 
+    [JsonPropertyName("allow_documents")]
+    public bool AllowDocuments { get; init; } = true;
+
     [JsonPropertyName("updated_at")]
     public DateTimeOffset? UpdatedAt { get; init; }
 }
@@ -239,4 +242,7 @@ public sealed class UpdateViewProfilePolicyRequest
 
     [JsonPropertyName("allow_gallery_sharing")]
     public bool AllowGallerySharing { get; init; }
+
+    [JsonPropertyName("allow_documents")]
+    public bool AllowDocuments { get; init; } = true;
 }

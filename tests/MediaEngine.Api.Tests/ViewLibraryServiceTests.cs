@@ -311,6 +311,82 @@ public sealed class ViewLibraryServiceTests
             name => name == "text_source");
     }
 
+    [Fact]
+    public async Task DocumentTimeline_SearchHighlightsWordsInSnippetsAndPagesByCursor()
+    {
+        using var fixture = new ViewFixture();
+        fixture.WritePersonal("one.pdf", DocumentFixtures.Pdf("the zeppelin hangar rental agreement for spring"));
+        fixture.WritePersonal("two.docx", DocumentFixtures.Docx("another zeppelin schedule for the summer"));
+        fixture.WritePersonal("three.txt", "a zeppelin note without a table");
+        fixture.WritePersonal("photo.jpg", new byte[] { 0xFF, 0xD8, 0xFF, 0xD9 });
+        await fixture.Service.ScanAsync(fixture.PersonalLibraryId);
+        await fixture.DrainTextQueueAsync();
+
+        var query = new LocalAssetTimelineQuery(
+            [fixture.PersonalLibraryId], Limit: 2, Search: "zeppelin", MediaKinds: [LocalAssetMediaKinds.Document]);
+        var first = fixture.Repository.QueryTimeline(query);
+
+        Assert.Equal(2, first.Items.Count);
+        Assert.True(first.HasMore);
+        Assert.NotNull(first.NextCursor);
+        Assert.All(first.Items, item =>
+        {
+            Assert.NotNull(item.Snippet);
+            Assert.Contains("zeppelin", item.Snippet!, StringComparison.OrdinalIgnoreCase);
+            Assert.NotNull(item.DocumentInfo);
+            Assert.Equal(LocalAssetTextSources.Embedded, item.DocumentInfo!.TextSource);
+            Assert.True(item.DocumentInfo.HasText);
+        });
+
+        var second = fixture.Repository.QueryTimeline(query with
+        {
+            BeforeEffectiveAt = first.NextCursor!.EffectiveAt,
+            BeforeItemId = first.NextCursor.ItemId,
+        });
+        var all = first.Items.Concat(second.Items).Select(item => item.Id).ToList();
+        Assert.Single(second.Items);
+        Assert.False(second.HasMore);
+        Assert.Equal(3, all.Distinct().Count());
+    }
+
+    [Fact]
+    public async Task DocumentTimeline_WithoutSearchHasNoSnippetsAndReportsTextFlags()
+    {
+        using var fixture = new ViewFixture();
+        fixture.WritePersonal("memo.pdf", DocumentFixtures.Pdf("quarterly gazebo budget"));
+        await fixture.Service.ScanAsync(fixture.PersonalLibraryId);
+        await fixture.DrainTextQueueAsync();
+
+        var page = fixture.Repository.QueryTimeline(new LocalAssetTimelineQuery(
+            [fixture.PersonalLibraryId], MediaKinds: [LocalAssetMediaKinds.Document]));
+
+        var item = Assert.Single(page.Items);
+        Assert.Null(item.Snippet);
+        Assert.False(item.DocumentInfo!.Encrypted);
+        Assert.False(item.DocumentInfo.TextTruncated);
+    }
+
+    [Fact]
+    public async Task DocumentText_IsReturnedBoundedAndOnlyForDocuments()
+    {
+        using var fixture = new ViewFixture();
+        var path = fixture.WritePersonal("memo.txt", string.Join(' ', Enumerable.Repeat("filler", 100)) + " needleword");
+        await fixture.Service.ScanAsync(fixture.PersonalLibraryId);
+        await fixture.DrainTextQueueAsync();
+        var item = Assert.Single(fixture.Repository.Query(new LocalAssetQuery(fixture.PersonalLibraryId, Limit: 5)).Items);
+
+        var cut = fixture.Repository.GetDocumentText(item.Id, 50);
+        var whole = fixture.Repository.GetDocumentText(item.Id, 100_000);
+
+        Assert.True(fixture.Repository.IsDocument(item.Id));
+        Assert.False(fixture.Repository.IsDocument(Guid.NewGuid()));
+        Assert.Equal(50, cut!.Value.Text.Length);
+        Assert.True(cut.Value.Cut);
+        Assert.Contains("needleword", whole!.Value.Text);
+        Assert.False(whole.Value.Cut);
+        Assert.NotNull(path);
+    }
+
     private static string LocalAssetContentHashFor(string path) =>
         Convert.ToHexStringLower(System.Security.Cryptography.SHA256.HashData(System.IO.File.ReadAllBytes(path)));
 

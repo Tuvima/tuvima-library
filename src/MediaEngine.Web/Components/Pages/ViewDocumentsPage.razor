@@ -1,0 +1,379 @@
+@page "/view/documents"
+@using MediaEngine.Contracts.LocalAssets
+@using MediaEngine.Domain.PersonalMedia
+@using MediaEngine.Web.Models.ViewDTOs
+@using MediaEngine.Web.Services.Theming
+@using MediaEngine.Web.Services.Ui
+@inject IEngineApiClient ApiClient
+@inject ViewWorkspaceService Workspace
+@inject ActiveProfileSessionService ActiveProfileSession
+@inject ViewMediaGrantService MediaGrants
+@inject DeviceContextService Device
+@inject IAppToastService Snackbar
+@implements IDisposable
+@namespace MediaEngine.Web.Components.Pages
+
+<PageTitle>Documents - Tuvima Library</PageTitle>
+<ViewSectionShell>
+    <ViewContentPage Title="Documents" Subtitle="Find, read and download the documents in View." Class="view-documents-page">
+        <HeaderActions>
+            @if (CanBrowse && !Device.IsPhone)
+            {
+                @ScopePicker
+                @LayoutPicker
+                @if (CanSelect)
+                {
+                    <AppButton Label="@(_selectMode ? "Done" : "Select")" ButtonStyle="AppButtonStyle.Outlined" StartIcon="@AppMaterialIcons.Outlined.CheckCircleOutline" OnClick="ToggleSelectMode" Class="view-documents-select" />
+                }
+            }
+        </HeaderActions>
+        <ChildContent>
+            @if (_loading && !_policyKnown)
+            {
+                <AppPageState Kind="AppPageStateKind.Loading" Title="Loading documents" Message="Reading the documents you can open." />
+            }
+            else if (!CanBrowse)
+            {
+                <AppPageState Kind="AppPageStateKind.Unavailable" Icon="@AppMaterialIcons.Outlined.Lock" Title="Documents are not available for this profile" Message="Ask an administrator of this server to turn on Documents for you." Class="view-documents-denied" />
+            }
+            else
+            {
+                <AppDiscoveryFilterBar SearchValue="@_search" SearchChanged="SearchChanged" SearchPlaceholder="Search documents and the words inside them" SearchAriaLabel="Search documents">
+                    <QuickFilters>
+                        @if (Device.IsPhone)
+                        {
+                            <AppNativeButton Type="button" Class="view-documents-sheet-button" aria-haspopup="dialog" OnClick="@(_ => _sheetOpen = true)"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Tune" />View options</AppNativeButton>
+                        }
+                    </QuickFilters>
+                </AppDiscoveryFilterBar>
+
+                @if (_loading)
+                {
+                    <AppPageState Kind="AppPageStateKind.Loading" Title="@(string.IsNullOrWhiteSpace(_search) ? "Loading documents" : "Searching documents")" />
+                }
+                else if (_page is null)
+                {
+                    <AppErrorState Title="Documents could not be loaded" Message="The Engine did not return the documents list." Retry="LoadAsync" />
+                }
+                else if (_items.Count == 0)
+                {
+                    @if (string.IsNullOrWhiteSpace(_search))
+                    {
+                        <AppPageState Kind="AppPageStateKind.Empty" Icon="@AppMaterialIcons.Outlined.Description" Title="No documents yet" Message="Documents added to View sources or the Import folder appear here." Class="view-documents-empty">
+                            <Actions>
+                                <AppButton Label="Add media" StartIcon="@AppMaterialIcons.Outlined.Add" ButtonStyle="AppButtonStyle.Filled" Href="/view" />
+                            </Actions>
+                        </AppPageState>
+                    }
+                    else
+                    {
+                        <AppPageState Kind="AppPageStateKind.Empty" Icon="@AppMaterialIcons.Outlined.Search" Title="No documents match" Message="@($"Nothing in this view contains \"{_search.Trim()}\". Try fewer or different words.")" />
+                    }
+                }
+                else
+                {
+                    <ul class="@ListClass" aria-label="Documents">
+                        @foreach (var item in _items)
+                        {
+                            <li class="view-document-card@(_selected.Contains(item.Id) ? " is-selected" : string.Empty)" @key="item.Id">
+                                <AppNativeButton Type="button" Class="view-document-card__open" AriaLabel="@OpenLabel(item)" OnClick="@(_ => Activate(item))">
+                                    <span class="view-document-card__thumb">
+                                        @if (ViewDocumentPresentation.HasPicture(item) && !_brokenThumbnails.Contains(item.Id))
+                                        {
+                                            <img src="@ThumbnailUrl(item)" alt="" loading="lazy" decoding="async" @onerror="@(() => _brokenThumbnails.Add(item.Id))" />
+                                        }
+                                        else
+                                        {
+                                            <span class="view-document-card__tile"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Description" /><strong>@ViewDocumentPresentation.ExtensionLabel(item)</strong></span>
+                                        }
+                                    </span>
+                                    <span class="view-document-card__body">
+                                        <strong class="view-document-card__title">@ViewDocumentPresentation.DisplayTitle(item)</strong>
+                                        <small class="view-document-card__date">@(ViewDocumentPresentation.UsesAddedDate(item) ? "Added " : string.Empty)<time datetime="@ViewDocumentPresentation.DocumentDate(item).ToString("O")">@ViewDocumentPresentation.DocumentDate(item).LocalDateTime.ToString("MMM d, yyyy")</time></small>
+                                        @if (!string.IsNullOrEmpty(item.Snippet))
+                                        {
+                                            <span class="view-document-card__snippet">@foreach (var part in ViewDocumentPresentation.SnippetParts(item.Snippet)) { if (part.Highlight) { <mark>@part.Text</mark> } else { <text>@part.Text</text> } }</span>
+                                        }
+                                        <span class="view-document-card__chips">
+                                            @foreach (var chip in ViewDocumentPresentation.KindChips(item))
+                                            {
+                                                <AppChip Text="@chip" />
+                                            }
+                                            @foreach (var tag in item.Tags.Take(3))
+                                            {
+                                                <AppChip Text="@tag" />
+                                            }
+                                        </span>
+                                    </span>
+                                </AppNativeButton>
+                                @if (_selectMode)
+                                {
+                                    <AppCheckboxRow Label="@($"Select {ViewDocumentPresentation.DisplayTitle(item)}")" Value="@_selected.Contains(item.Id)" ValueChanged="@(_ => ToggleSelection(item.Id))" Class="view-document-card__select" />
+                                }
+                            </li>
+                        }
+                    </ul>
+                    @if (_selected.Count > 0)
+                    {
+                        <ViewSelectionToolbar Count="@_selected.Count" OnFavorite="FavoriteSelectionAsync" OnClear="@(() => _selected.Clear())" ShowTrash="false" />
+                    }
+                    @if (_page.HasMore)
+                    {
+                        <AppButton Label="Load more" ButtonStyle="AppButtonStyle.Outlined" Disabled="@_loadingMore" Loading="@_loadingMore" OnClick="LoadMoreAsync" Class="view-documents-more" />
+                    }
+                }
+            }
+        </ChildContent>
+    </ViewContentPage>
+</ViewSectionShell>
+
+@if (_sheetOpen)
+{
+    <AppDialogFrame Open="true" Title="View options" DialogOptions="SheetOptions" Class="view-documents-sheet" OnCancel="@(() => _sheetOpen = false)">
+        <div class="view-documents-sheet__body">
+            @ScopePicker
+            @LayoutPicker
+            <AppButton Label="Done" ButtonStyle="AppButtonStyle.Filled" FullWidth="true" OnClick="@(() => _sheetOpen = false)" />
+        </div>
+    </AppDialogFrame>
+}
+
+@if (_active is not null)
+{
+    @if (ViewDocumentPresentation.IsImage(_active))
+    {
+        <ViewImmersiveViewer Item="@_active" ContentUrl="@ResourceUrl(_active, ViewMediaResourceKind.Preview)"
+            OriginalUrl="@ResourceUrl(_active, ViewMediaResourceKind.Content)" ThumbnailUrl="@ThumbnailUrl(_active)"
+            HasPrevious="@(ActiveIndex > 0)" HasNext="@(ActiveIndex >= 0 && ActiveIndex < _items.Count - 1)"
+            OnPrevious="PreviousItem" OnNext="NextItem" PositionLabel="@($"{ActiveIndex + 1} of {_items.Count}")"
+            OnClose="CloseActive" CanEdit="@(Workspace.ScopeKind == ViewScopeKind.Mine)" />
+    }
+    else
+    {
+        <ViewDocumentViewer Item="@_active" OriginalUrl="@ResourceUrl(_active, ViewMediaResourceKind.Content)"
+            ScopeKind="@Workspace.ScopeKind" ScopeProfileId="@Workspace.ScopeProfileId" SearchTerm="@_search"
+            HasPrevious="@(ActiveIndex > 0)" HasNext="@(ActiveIndex >= 0 && ActiveIndex < _items.Count - 1)"
+            OnPrevious="PreviousItem" OnNext="NextItem" OnClose="CloseActive" />
+    }
+}
+
+@code {
+    private const int PageSize = 60;
+    private static readonly AppDialogOptions SheetOptions = new() { Sheet = AppDialogSheetMode.Phone, BackdropClick = true, CloseOnEscapeKey = true };
+    private static readonly IReadOnlyList<AppSelectOption> LayoutOptions =
+        [new("grid", "Grid", AppMaterialIcons.Outlined.GridView), new("list", "List", AppMaterialIcons.Outlined.ViewList)];
+
+    private readonly List<LocalAssetDto> _items = [];
+    private readonly HashSet<Guid> _selected = [];
+    private readonly HashSet<Guid> _brokenThumbnails = [];
+    private ViewAssetTimelinePageDto? _page;
+    private LocalAssetDto? _active;
+    private Guid? _profileId;
+    private bool _loading = true, _loadingMore, _policyKnown, _selectMode, _sheetOpen, _list;
+    private string _search = string.Empty;
+    private CancellationTokenSource? _searchCts;
+    private int _loadVersion;
+
+    // A profile that may not see Documents gets the plain "not available" page. Until the scopes load the answer is unknown.
+    private bool CanBrowse => Workspace.Scopes?.CanViewDocuments != false;
+    // Choosing and favoriting documents is for your own space on a pointer or touch screen, never on a television.
+    private bool CanSelect => !Device.IsTv && Workspace.ScopeKind == ViewScopeKind.Mine;
+    private string ListClass => $"view-documents-grid{(_list ? " view-documents-grid--list" : string.Empty)}";
+    private int ActiveIndex => _active is null ? -1 : _items.FindIndex(item => item.Id == _active.Id);
+
+    private RenderFragment ScopePicker => @<label class="view-documents-scope"><span>Scope</span><AppNativeSelect Value="@SelectedScopeValue" OnChange="ScopeChangedAsync" aria-label="Documents scope"><ViewScopeOptions Scopes="@(Workspace.Scopes?.AvailableScopes ?? [])" OtherPeople="@Workspace.OtherPeople" /></AppNativeSelect></label>;
+    private RenderFragment LayoutPicker => @<AppSegmentedControl Options="LayoutOptions" Value="@(_list ? "list" : "grid")" ValueChanged="LayoutChanged" AriaLabel="Documents layout" Class="view-documents-layout" />;
+
+    protected override async Task OnInitializedAsync()
+    {
+        Device.OnChanged += DeviceChanged;
+        _profileId = (await ActiveProfileSession.GetActiveProfileAsync())?.Id;
+        await Workspace.InitializeAsync();
+        _policyKnown = true;
+        if (CanBrowse)
+        {
+            await LoadAsync();
+        }
+        else
+        {
+            _loading = false;
+        }
+    }
+
+    private void DeviceChanged() => _ = InvokeAsync(StateHasChanged);
+
+    private ViewAssetQueryOptions Query(string? cursor = null) => new(
+        Workspace.ScopeKind, Workspace.ScopeProfileId, cursor, _search, ["document"], Limit: PageSize);
+
+    private async Task LoadAsync()
+    {
+        var version = ++_loadVersion;
+        _loading = true; _loadingMore = false; _selected.Clear(); _active = null;
+        var page = await ApiClient.GetViewAssetsAsync(Query());
+        if (version != _loadVersion)
+        {
+            return;
+        }
+
+        _page = page;
+        _items.Clear();
+        if (page is not null)
+        {
+            _items.AddRange(page.Items);
+        }
+
+        _loading = false;
+    }
+
+    private async Task LoadMoreAsync()
+    {
+        if (_page?.NextCursor is not { } cursor || _loadingMore || _loading)
+        {
+            return;
+        }
+
+        var version = _loadVersion;
+        _loadingMore = true;
+        var next = await ApiClient.GetViewAssetsAsync(Query(cursor));
+        if (version != _loadVersion)
+        {
+            return;
+        }
+
+        if (next is not null)
+        {
+            var known = _items.Select(item => item.Id).ToHashSet();
+            _items.AddRange(next.Items.Where(item => known.Add(item.Id)));
+            _page = next;
+        }
+
+        _loadingMore = false;
+    }
+
+    private async Task SearchChanged(object? value)
+    {
+        _search = value?.ToString() ?? string.Empty;
+        _searchCts?.Cancel();
+        _searchCts?.Dispose();
+        var pending = _searchCts = new CancellationTokenSource();
+        try
+        {
+            await Task.Delay(300, pending.Token);
+            await LoadAsync();
+        }
+        catch (OperationCanceledException)
+        {
+            // A newer keystroke replaced this search before it ran.
+        }
+    }
+
+    private async Task ScopeChangedAsync(ChangeEventArgs args)
+    {
+        var parts = args.Value?.ToString()?.Split(':', 2) ?? [];
+        if (parts.Length == 0 || !Enum.TryParse<ViewScopeKind>(parts[0], true, out var kind))
+        {
+            return;
+        }
+
+        Guid? profile = parts.Length == 2 && Guid.TryParse(parts[1], out var parsed) ? parsed : null;
+        if (await Workspace.SelectScopeAsync(kind, profile))
+        {
+            _selectMode = false;
+            await LoadAsync();
+        }
+    }
+
+    private string SelectedScopeValue => $"{Workspace.ScopeKind}:{(Workspace.ScopeKind.CarriesProfileId() ? Workspace.ScopeProfileId?.ToString("D") : null)}";
+
+    private Task LayoutChanged(string value)
+    {
+        _list = value == "list";
+        return Task.CompletedTask;
+    }
+
+    private void ToggleSelectMode()
+    {
+        _selectMode = !_selectMode;
+        if (!_selectMode)
+        {
+            _selected.Clear();
+        }
+    }
+
+    private void ToggleSelection(Guid id)
+    {
+        if (!_selected.Add(id))
+        {
+            _selected.Remove(id);
+        }
+    }
+
+    private async Task FavoriteSelectionAsync()
+    {
+        var failed = 0;
+        foreach (var id in _selected.ToArray())
+        {
+            if (!await ApiClient.SetViewItemFavoriteAsync(id, true))
+            {
+                failed++;
+            }
+        }
+
+        _selected.Clear();
+        Snackbar.Add(failed == 0 ? "Added to favorites." : $"{failed} could not be added to favorites.", failed == 0 ? AppSeverity.Success : AppSeverity.Error);
+    }
+
+    private void Activate(LocalAssetDto item)
+    {
+        if (_selectMode)
+        {
+            ToggleSelection(item.Id);
+            return;
+        }
+
+        _active = item;
+    }
+
+    private void CloseActive() => _active = null;
+
+    private void PreviousItem()
+    {
+        if (ActiveIndex > 0)
+        {
+            _active = _items[ActiveIndex - 1];
+        }
+    }
+
+    private async Task NextItem()
+    {
+        var index = ActiveIndex;
+        if (index < 0)
+        {
+            return;
+        }
+
+        if (index == _items.Count - 1 && _page?.HasMore == true)
+        {
+            await LoadMoreAsync();
+        }
+
+        if (index + 1 < _items.Count)
+        {
+            _active = _items[index + 1];
+        }
+    }
+
+    private static string OpenLabel(LocalAssetDto item) => $"Open {ViewDocumentPresentation.DisplayTitle(item)}";
+
+    private string ThumbnailUrl(LocalAssetDto item) => ResourceUrl(item, ViewMediaResourceKind.Thumbnail);
+
+    private string ResourceUrl(LocalAssetDto item, ViewMediaResourceKind kind) => !_profileId.HasValue ? string.Empty :
+        $"/view-media/{MediaGrants.Create(_profileId.Value, item.LibraryId, item.Id, kind, scopeKind: Workspace.ScopeKind, scopeProfileId: Workspace.ScopeProfileId).Value}";
+
+    public void Dispose()
+    {
+        Device.OnChanged -= DeviceChanged;
+        _searchCts?.Cancel();
+        _searchCts?.Dispose();
+    }
+}

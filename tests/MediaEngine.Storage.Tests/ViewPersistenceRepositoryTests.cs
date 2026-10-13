@@ -86,6 +86,26 @@ public sealed class ViewPersistenceRepositoryTests : IDisposable
     }
 
     [Fact]
+    public async Task DocumentsPolicy_IsOffForAChildByDefaultOnForEveryoneElseAndSurvivesOtherChanges()
+    {
+        var adultId = InsertProfile("Adult", "StandardUser");
+        var childId = InsertProfile("Child");
+
+        var adult = await _profiles.GetPolicyAsync(adultId);
+        var child = await _profiles.GetPolicyAsync(childId);
+
+        Assert.True(adult.DocumentsEnabled);
+        Assert.False(child.DocumentsEnabled);
+
+        // Saving an unrelated switch keeps the Documents choice that was made.
+        Assert.True(await _profiles.SavePolicyAsync(child with { DocumentsEnabled = true }));
+        Assert.True(await _profiles.SavePolicyAsync((await _profiles.GetPolicyAsync(childId)) with { ShareGalleries = true }));
+        Assert.True((await _profiles.GetPolicyAsync(childId)).DocumentsEnabled);
+        Assert.True(await _profiles.SavePolicyAsync((await _profiles.GetPolicyAsync(adultId)) with { DocumentsEnabled = false }));
+        Assert.False((await _profiles.GetPolicyAsync(adultId)).DocumentsEnabled);
+    }
+
+    [Fact]
     public async Task PersonalSpace_SupportsMultipleSourcesAndStableDeviceIdentityPerOwner()
     {
         var ownerId = InsertProfile("Owner");
