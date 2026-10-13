@@ -428,9 +428,9 @@
 
 .layout-shell__search-action-slot ::deep .layout-shell__search-action,
 .layout-shell__my-list-slot ::deep .layout-shell__my-list {
-    width: 3rem;
-    min-width: 3rem;
-    height: 3rem;
+    width: max(3rem, var(--tl-tap-target-min, 44px));
+    min-width: max(3rem, var(--tl-tap-target-min, 44px));
+    height: max(3rem, var(--tl-tap-target-min, 44px));
     display: inline-grid;
     place-items: center;
     padding: 0;
@@ -535,7 +535,7 @@ html[data-form-factor="phone"] .layout-shell__intent-dock {
 
 html[data-form-factor="phone"] .layout-shell__intent-dock-link {
     box-sizing: border-box;
-    flex: 1 1 0;
+    flex: 1 1 auto;
     min-width: 48px;
     min-height: 48px;
     grid-template-rows: 22px auto;

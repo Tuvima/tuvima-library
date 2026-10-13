@@ -3631,7 +3631,11 @@ button.app-menu-item {
     :root:root .tl-select-trigger,
     :root:root .top-nav-account-menu__trigger,
     :root:root .app-row-menu__trigger,
-    :root:root .layout-shell__engine-banner-retry {
+    :root:root .layout-shell__engine-banner-retry,
+    :root:root .layout-shell__nav-link,
+    :root:root .layout-shell__search-action,
+    :root:root .layout-shell__my-list,
+    :root:root .system-activity-indicator {
         min-width: var(--tl-tap-target-min);
         min-height: var(--tl-tap-target-min);
     }
@@ -4566,9 +4570,10 @@ input[type="reset"],
     display: contents;
 }
 
-.shell-menu-sheet__row {
+.shell-menu-sheet .shell-menu-sheet__row {
     display: flex;
     align-items: center;
+    justify-content: flex-start;
     gap: 16px;
     width: 100%;
     min-height: 48px;
@@ -4583,8 +4588,8 @@ input[type="reset"],
     cursor: pointer;
 }
 
-.shell-menu-sheet__row:hover,
-.shell-menu-sheet__row:focus-visible {
+.shell-menu-sheet .shell-menu-sheet__row:hover,
+.shell-menu-sheet .shell-menu-sheet__row:focus-visible {
     background: var(--tl-accent-primary-soft);
     outline: none;
 }
