@@ -211,6 +211,8 @@ public sealed record PlaybackSessionState
     public int ResumeRewindSeconds { get; init; }
     public int AudiobookNearStartGuardSeconds { get; init; }
     public IReadOnlyList<int> SleepTimerOptionsMinutes { get; init; } = [];
+    public int? DefaultSleepTimerMinutes { get; init; }
+    public bool AllowEndOfChapterSleepTimer { get; init; } = true;
     public AudiobookSleepTimerStateDto SleepTimerState { get; init; } = new();
     public AudiobookSleepTimerAvailabilityDto SleepTimerAvailability { get; init; } = new();
     public ListenQueueItem? CurrentItem { get; init; }
@@ -439,6 +441,12 @@ public sealed record ListenPlaybackSnapshot
 
     [JsonPropertyName("sleep_timer_options_minutes")]
     public List<int> SleepTimerOptionsMinutes { get; init; } = [5, 10, 15, 30, 45, 60];
+
+    [JsonPropertyName("default_sleep_timer_minutes")]
+    public int? DefaultSleepTimerMinutes { get; init; }
+
+    [JsonPropertyName("allow_end_of_chapter_sleep_timer")]
+    public bool AllowEndOfChapterSleepTimer { get; init; } = true;
 
     [JsonPropertyName("sleep_timer_state")]
     public AudiobookSleepTimerStateDto SleepTimerState { get; init; } = new();

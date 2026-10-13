@@ -2217,6 +2217,53 @@ public sealed class PlaybackSessionControllerTests
         public void Invalidate() { }
     }
 
+    [Theory]
+    [InlineData("30", 30)]
+    [InlineData("5", 5)]
+    [InlineData("Off", null)]
+    [InlineData("off", null)]
+    [InlineData("EndOfChapter", null)]
+    [InlineData("500", null)]
+    [InlineData("", null)]
+    [InlineData(null, null)]
+    public void DefaultSleepTimerIsReadAsMinutesOrNoDefault(string? stored, int? expected)
+    {
+        Assert.Equal(expected, PlaybackSessionController.ParseDefaultSleepTimer(stored, [5, 10, 15, 30, 45, 60]));
+    }
+
+    [Fact]
+    public async Task ListeningSettingsDriveTheSleepTimerDefaultAndEndOfChapterOffer()
+    {
+        var profileId = Guid.NewGuid();
+        var settings = UserPlaybackSettingsDto.CreateDefaults(profileId);
+        settings.Listening.DefaultSleepTimer = "45";
+        settings.Listening.AllowEndOfChapterSleepTimer = false;
+        var playback = new PlaybackSessionController(null!, null!, preferences: new FixedPlaybackPreferences(profileId, settings));
+
+        await playback.PlayAudiobookAsync(CreateAudiobookItem("Book", "stream://book"));
+
+        Assert.Equal(45, playback.DefaultSleepTimerMinutes);
+        Assert.False(playback.AllowEndOfChapterSleepTimer);
+        Assert.Equal(45, playback.State.DefaultSleepTimerMinutes);
+        Assert.False(playback.State.AllowEndOfChapterSleepTimer);
+        Assert.Equal(AudiobookSleepTimerModes.Off, playback.SleepTimerState.Mode);
+
+        settings.Listening.DefaultSleepTimer = "Off";
+        settings.Listening.AllowEndOfChapterSleepTimer = true;
+        await playback.PlayAudiobookAsync(CreateAudiobookItem("Other book", "stream://other"));
+
+        Assert.Null(playback.DefaultSleepTimerMinutes);
+        Assert.True(playback.AllowEndOfChapterSleepTimer);
+    }
+
+    private sealed class FixedPlaybackPreferences(Guid profileId, UserPlaybackSettingsDto settings) : IUserPlaybackPreferencesAccessor
+    {
+        public Guid? ActiveProfileId => profileId;
+        public Task<UserPlaybackSettingsDto?> GetAsync(CancellationToken ct = default) => Task.FromResult<UserPlaybackSettingsDto?>(settings);
+        public void UpdateCache(UserPlaybackSettingsDto next) { }
+        public void Invalidate() { }
+    }
+
     private sealed class ActiveProfilePlaybackPreferences(Guid profileId) : IUserPlaybackPreferencesAccessor
     {
         public Guid? ActiveProfileId => profileId;

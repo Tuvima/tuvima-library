@@ -869,7 +869,7 @@ public sealed class UiShellRenderTests : AsyncBunitContext
         Assert.Contains("playback-preference-row", source);
         Assert.Contains("UpdateAndSaveAsync", source);
         Assert.DoesNotContain("Default playback speed", source);
-        Assert.Contains("Audiobook default speed", source);
+        Assert.DoesNotContain("Audiobook default speed", source);
         Assert.DoesNotContain("DetectShortIntroChapters", source);
         Assert.DoesNotContain("ShortIntroMaxSeconds", source);
         Assert.DoesNotContain("ShortIntroLabel", source);

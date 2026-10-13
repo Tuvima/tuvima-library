@@ -138,7 +138,9 @@ else
                                                   TargetNameChanged="OnPlaybackTargetNameChanged" />
                             break;
                         case SettingsSection.Listening:
-                            <PlaybackSettingsPage Mode="PlaybackSettingsMode.Listening" />
+                            <ListeningSettingsPage @key="@PlaybackProfileId"
+                                                   ProfileId="@PlaybackProfileId"
+                                                   TargetNameChanged="OnPlaybackTargetNameChanged" />
                             break;
                         case SettingsSection.Reading:
                             <PlaybackSettingsPage Mode="PlaybackSettingsMode.Reading" />
@@ -228,7 +230,7 @@ else
     }
 
     /// <summary>An administrator is editing another household profile's playback settings.</summary>
-    private bool IsEditingOtherPlaybackProfile => _activeSection == SettingsSection.Playback
+    private bool IsEditingOtherPlaybackProfile => _activeSection is SettingsSection.Playback or SettingsSection.Listening
         && PlaybackProfileId is { } id && id != Guid.Empty && id != _activeProfile?.Id;
 
     private SettingsSection _activeSection = SettingsSection.Profiles;
@@ -703,7 +705,7 @@ else
         {
             breadcrumbs.Add(new SettingsBreadcrumb("Profiles", SettingsNav.RouteFor(SettingsSection.Profiles)));
             breadcrumbs.Add(new SettingsBreadcrumb(_playbackTargetName ?? "Profile", $"/settings/profiles/{PlaybackProfileId}"));
-            breadcrumbs.Add(new SettingsBreadcrumb("Playback", null));
+            breadcrumbs.Add(new SettingsBreadcrumb(_activeSection == SettingsSection.Listening ? "Listening" : "Playback", null));
             return breadcrumbs;
         }
 

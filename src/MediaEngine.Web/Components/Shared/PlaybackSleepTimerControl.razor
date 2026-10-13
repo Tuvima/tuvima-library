@@ -33,6 +33,10 @@
 
     [Parameter, EditorRequired] public AudiobookSleepTimerStateDto State { get; set; } = new();
     [Parameter] public IReadOnlyList<int> OptionsMinutes { get; set; } = [];
+    /// <summary>The profile's default length, pre-selected while no timer is running. Null means Off.</summary>
+    [Parameter] public int? DefaultMinutes { get; set; }
+    /// <summary>False hides the end-of-chapter choices for profiles that turned them off.</summary>
+    [Parameter] public bool OffersEndOfChapter { get; set; } = true;
     [Parameter] public AudiobookSleepTimerAvailabilityDto Availability { get; set; } = new();
     [Parameter] public string Surface { get; set; } = "dock";
     [Parameter] public bool Open { get; set; }
@@ -55,6 +59,7 @@
         AudiobookSleepTimerModes.Timer when State.ChosenMinutes is > 0 => MinuteValue(State.ChosenMinutes.Value),
         AudiobookSleepTimerModes.EndCurrent => AudiobookSleepTimerModes.EndCurrent,
         AudiobookSleepTimerModes.EndNext => AudiobookSleepTimerModes.EndNext,
+        _ when DefaultMinutes is > 0 and <= 240 => MinuteValue(DefaultMinutes.Value),
         _ => AudiobookSleepTimerModes.Off,
     };
 
@@ -86,6 +91,7 @@
         var minuteOptions = OptionsMinutes
             .Where(minutes => minutes is > 0 and <= 240)
             .Concat(State.Mode == AudiobookSleepTimerModes.Timer && State.ChosenMinutes is { } chosen ? [chosen] : [])
+            .Concat(DefaultMinutes is { } preferred ? [preferred] : [])
             .Append(15).Append(30).Append(45).Append(60)
             .Distinct()
             .Order()
@@ -98,6 +104,11 @@
             minuteOptions[0] = minuteOptions[0] with { SeparatorBefore = true };
         }
         options.AddRange(minuteOptions);
+        if (!OffersEndOfChapter)
+        {
+            return options;
+        }
+
         options.Add(new AppSelectOption(
             AudiobookSleepTimerModes.EndCurrent,
             "End of chapter",

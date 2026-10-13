@@ -105,7 +105,7 @@
                         <ChildContent><PlaybackControlStrip Controls="BookTools" Surface="phone" AriaLabel="Audiobook controls"
                             SpeedValue="Snapshot.PlaybackRate" SpeedChanged="@(rate => SendAsync(displayed, ListenPlaybackCommandActions.SetSpeed, rate))"
                             SpeedMenuOpen="_speedOpen" SpeedMenuOpenChanged="SpeedMenuChangedAsync"
-                            SleepTimerState="Snapshot.SleepTimerState" SleepTimerAvailability="Snapshot.SleepTimerAvailability" SleepTimerOptionsMinutes="Snapshot.SleepTimerOptionsMinutes"
+                            SleepTimerState="Snapshot.SleepTimerState" SleepTimerAvailability="Snapshot.SleepTimerAvailability" SleepTimerOptionsMinutes="Snapshot.SleepTimerOptionsMinutes" SleepTimerDefaultMinutes="Snapshot.DefaultSleepTimerMinutes" SleepTimerOffersEndOfChapter="Snapshot.AllowEndOfChapterSleepTimer"
                             SleepTimerChanged="@(selection => SendAsync(displayed, ListenPlaybackCommandActions.SetSleepTimer, sleep: selection))"
                             SleepMenuOpen="_sleepOpen" SleepMenuOpenChanged="SleepMenuChangedAsync" />
                         </ChildContent>

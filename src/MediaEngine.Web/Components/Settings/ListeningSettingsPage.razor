@@ -1,0 +1,256 @@
+@namespace MediaEngine.Web.Components.Settings
+@using System.Text.Json
+@using MediaEngine.Contracts.Playback
+@using MediaEngine.Web.Components.Shared
+@using MediaEngine.Web.Models.ViewDTOs
+@using MediaEngine.Web.Services.Integration
+@using MediaEngine.Web.Services.Playback
+@inject UIOrchestratorService Orchestrator
+@inject IEngineApiClient ApiClient
+@inject IUserPlaybackPreferencesAccessor PreferencesAccessor
+@inject IAppToastService Snackbar
+
+@if (_loading)
+{
+    <div class="listening-settings-skeleton" aria-label="Loading listening preferences">
+        @for (var index = 0; index < 2; index++)
+        {
+            <AppSkeleton Height="200px" />
+        }
+    </div>
+}
+else if (_forbidden)
+{
+    <AppAlert Severity="AppSeverity.Warning" Variant="AppVariant.Outlined">You can't change this person's settings.</AppAlert>
+}
+else if (!string.IsNullOrWhiteSpace(_loadError))
+{
+    <AppAlert Severity="AppSeverity.Error" Variant="AppVariant.Outlined">@_loadError</AppAlert>
+}
+else if (_settings is not null)
+{
+    <div class="settings-listening-page" data-listening-section="overview">
+        @if (!string.IsNullOrWhiteSpace(_saveError))
+        {
+            <AppAlert Severity="AppSeverity.Error" Variant="AppVariant.Outlined" Dense="true">@_saveError</AppAlert>
+        }
+
+        @if (IsOtherProfile && _target is not null)
+        {
+            <div class="listening-profile-heading">
+                <span class="listening-profile-heading__avatar">
+                    <ProfileAvatar DisplayName="@_target.DisplayName" ImageUrl="@_target.AvatarImageUrl" Color="@_target.AvatarColor" Icon="@_target.AvatarIcon" />
+                </span>
+                <AppText Typo="AppTypo.h6">How @_target.DisplayName listens.</AppText>
+                <a class="listening-profile-heading__back" href="@($"/settings/profiles/{ProfileId}")">Back to @_target.DisplayName</a>
+            </div>
+        }
+
+        <div class="listening-settings-grid">
+            <SettingsSectionPanel Title="Skip"
+                                  Description="How far the player jumps, and where it starts again."
+                                  Class="tl-card settings-section-card listening-settings-card">
+                @IntSelectRow(
+                    "Skip back",
+                    "The amount used by the rewind control.",
+                    _settings.Listening.SkipBackSeconds,
+                    SkipBackOptions,
+                    value => UpdateAndSaveAsync(() => _settings.Listening.SkipBackSeconds = value))
+                @IntSelectRow(
+                    "Skip forward",
+                    "The amount used by the forward control.",
+                    _settings.Listening.SkipForwardSeconds,
+                    SkipForwardOptions,
+                    value => UpdateAndSaveAsync(() => _settings.Listening.SkipForwardSeconds = value))
+                @IntSelectRow(
+                    "Resume rewind",
+                    "Rewind slightly when resuming so spoken context is not lost.",
+                    _settings.Listening.ResumeRewindSeconds,
+                    ResumeRewindOptions,
+                    value => UpdateAndSaveAsync(() => _settings.Listening.ResumeRewindSeconds = value))
+            </SettingsSectionPanel>
+
+            <SettingsSectionPanel Title="Sleep timer"
+                                  Description="What the sleep timer offers when you open it."
+                                  Class="tl-card settings-section-card listening-settings-card">
+                <div class="listening-preference-row">
+                    <div class="listening-preference-row__copy">
+                        <AppText Typo="AppTypo.body1">Default length</AppText>
+                        <AppText Typo="AppTypo.body2" Color="AppColor.Secondary">The length shown first when you open the sleep timer.</AppText>
+                    </div>
+                    <AppSelect Value="@SleepTimerValue"
+                               ValueChanged="@(value => UpdateAndSaveAsync(() => _settings.Listening.DefaultSleepTimer = value ?? PlaybackPreferenceValues.Off))"
+                               Variant="AppVariant.Outlined"
+                               Margin="AppMargin.Dense"
+                               Dense="true"
+                               Size="AppControlSize.Compact"
+                               Class="listening-preference-row__select"
+                               aria-label="Default length">
+                        <AppSelectItem T="string" Value="@PlaybackPreferenceValues.Off">Off</AppSelectItem>
+                        @foreach (var minutes in SleepTimerMinutes)
+                        {
+                            <AppSelectItem T="string" Value="@minutes.ToString(System.Globalization.CultureInfo.InvariantCulture)">@($"{minutes} minutes")</AppSelectItem>
+                        }
+                    </AppSelect>
+                </div>
+                <div class="listening-preference-row">
+                    <div class="listening-preference-row__copy">
+                        <AppText Typo="AppTypo.body1">Offer end of chapter</AppText>
+                        <AppText Typo="AppTypo.body2" Color="AppColor.Secondary">Let the sleep timer stop at the end of a chapter.</AppText>
+                    </div>
+                    <AppSwitchRow T="bool"
+                                  Value="@_settings.Listening.AllowEndOfChapterSleepTimer"
+                                  ValueChanged="@(value => UpdateAndSaveAsync(() => _settings.Listening.AllowEndOfChapterSleepTimer = value))"
+                                  Color="AppColor.Primary"
+                                  AriaLabel="Offer end of chapter" />
+                </div>
+            </SettingsSectionPanel>
+        </div>
+    </div>
+}
+
+@code {
+    /// <summary>Another household profile to edit (administrators only). Null or the active profile edits your own.</summary>
+    [Parameter] public Guid? ProfileId { get; set; }
+
+    /// <summary>Raised with the other profile's name once it is known, so the page can show it in the breadcrumb.</summary>
+    [Parameter] public EventCallback<string?> TargetNameChanged { get; set; }
+
+    private readonly JsonSerializerOptions _jsonOptions = MediaEngineJson.Web;
+    private UserPlaybackSettingsDto? _settings;
+    private ProfileViewModel? _activeProfile;
+    private ProfileViewModel? _target;
+    private bool _forbidden;
+    private bool _loading = true;
+    private string? _loadError;
+    private string? _saveError;
+
+    private bool IsOtherProfile => ProfileId is { } id && id != Guid.Empty && id != _activeProfile?.Id;
+
+    private static readonly int[] SkipBackOptions = [10, 15, 30];
+    private static readonly int[] SkipForwardOptions = [15, 30, 60];
+    private static readonly int[] ResumeRewindOptions = [0, 5, 10, 15, 30];
+
+    private IReadOnlyList<int> SleepTimerMinutes => _settings?.Listening.SleepTimerOptionsMinutes
+        .Where(minutes => minutes is > 0 and <= 240)
+        .Distinct()
+        .Order()
+        .ToList() ?? [];
+
+    private string SleepTimerValue
+    {
+        get
+        {
+            var stored = _settings?.Listening.DefaultSleepTimer;
+            return int.TryParse(stored, System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out var minutes)
+                && SleepTimerMinutes.Contains(minutes)
+                    ? stored!
+                    : PlaybackPreferenceValues.Off;
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _activeProfile = await Orchestrator.GetActiveProfileAsync();
+            if (IsOtherProfile)
+            {
+                var profiles = await Orchestrator.GetProfilesAsync();
+                _target = profiles.FirstOrDefault(profile => profile.Id == ProfileId);
+                var loaded = await ApiClient.GetPlaybackSettingsAsync(ProfileId!.Value);
+                if (loaded is null || _target is null)
+                {
+                    _forbidden = true;
+                    return;
+                }
+
+                _settings = Clone(loaded);
+                await TargetNameChanged.InvokeAsync(_target.DisplayName);
+            }
+            else
+            {
+                var loaded = await PreferencesAccessor.GetAsync();
+                _settings = Clone(loaded ?? UserPlaybackSettingsDto.CreateDefaults(_activeProfile?.Id ?? Guid.Empty));
+            }
+        }
+        catch
+        {
+            _loadError = "Listening settings could not be loaded.";
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private RenderFragment IntSelectRow(
+        string title,
+        string description,
+        int value,
+        IReadOnlyList<int> options,
+        Func<int, Task> changed) => @<div class="listening-preference-row">
+        <div class="listening-preference-row__copy">
+            <AppText Typo="AppTypo.body1">@title</AppText>
+            <AppText Typo="AppTypo.body2" Color="AppColor.Secondary">@description</AppText>
+        </div>
+        <AppIntSelect Value="@value"
+                      ValueChanged="@changed"
+                      Variant="AppVariant.Outlined"
+                      Margin="AppMargin.Dense"
+                      Dense="true"
+                      Size="AppControlSize.Compact"
+                      Class="listening-preference-row__select"
+                      aria-label="@title">
+            @foreach (var option in options)
+            {
+                <AppSelectItem T="int" Value="@option">@($"{option} seconds")</AppSelectItem>
+            }
+        </AppIntSelect>
+    </div>;
+
+    private async Task UpdateAndSaveAsync(Action update)
+    {
+        update();
+        _saveError = null;
+        await SaveAsync();
+    }
+
+    private async Task SaveAsync()
+    {
+        if (_settings is null)
+            return;
+
+        try
+        {
+            var other = IsOtherProfile;
+            var saved = other
+                ? await ApiClient.UpdatePlaybackSettingsAsync(ProfileId!.Value, _settings)
+                : await Orchestrator.SavePlaybackSettingsAsync(_settings);
+            if (saved is null)
+            {
+                _saveError = "Listening settings could not be saved.";
+                Snackbar.Add(_saveError, AppSeverity.Error);
+                return;
+            }
+
+            _settings = Clone(saved);
+            if (!other)
+                PreferencesAccessor.UpdateCache(saved);
+        }
+        catch
+        {
+            _saveError = "Listening settings could not be saved.";
+            Snackbar.Add(_saveError, AppSeverity.Error);
+        }
+        finally
+        {
+            StateHasChanged();
+        }
+    }
+
+    private UserPlaybackSettingsDto Clone(UserPlaybackSettingsDto source) =>
+        JsonSerializer.Deserialize<UserPlaybackSettingsDto>(
+            JsonSerializer.Serialize(source, _jsonOptions),
+            _jsonOptions) ?? UserPlaybackSettingsDto.CreateDefaults(source.ProfileId);
+}

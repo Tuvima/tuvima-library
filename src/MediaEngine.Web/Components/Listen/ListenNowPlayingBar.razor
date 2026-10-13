@@ -206,7 +206,7 @@
                                               SpeedValue="@Playback.PlaybackRate" SpeedChanged="SetAudiobookSpeedAsync"
                                               SpeedMenuOpen="@(_rateMenuOpen && _rateMenuSurface == "dock")" SpeedMenuOpenChanged="HandleRateMenuOpenChangedAsync"
                                               SleepTimerState="@Playback.SleepTimerState" SleepTimerAvailability="@Playback.SleepTimerAvailability"
-                                              SleepTimerOptionsMinutes="@Playback.SleepTimerOptionsMinutes" SleepTimerChanged="SetAudiobookSleepTimerSelectionAsync"
+                                              SleepTimerOptionsMinutes="@Playback.SleepTimerOptionsMinutes" SleepTimerDefaultMinutes="@Playback.DefaultSleepTimerMinutes" SleepTimerOffersEndOfChapter="@Playback.AllowEndOfChapterSleepTimer" SleepTimerChanged="SetAudiobookSleepTimerSelectionAsync"
                                               SleepMenuOpen="@(_sleepMenuOpen && _sleepMenuSurface == "dock")" SleepMenuOpenChanged="HandleSleepMenuOpenChangedAsync"
                                               OnControlActivation="HandleAudiobookDockActivationAsync" />
 
@@ -251,7 +251,7 @@
                                                       SpeedValue="@Playback.PlaybackRate" SpeedChanged="SetAudiobookSpeedAsync"
                                                       SpeedMenuOpen="@(_rateMenuOpen && _rateMenuSurface == "panel")" SpeedMenuOpenChanged="HandleRateMenuOpenChangedAsync"
                                                       SleepTimerState="@Playback.SleepTimerState" SleepTimerAvailability="@Playback.SleepTimerAvailability"
-                                                      SleepTimerOptionsMinutes="@Playback.SleepTimerOptionsMinutes" SleepTimerChanged="SetAudiobookSleepTimerSelectionAsync"
+                                                      SleepTimerOptionsMinutes="@Playback.SleepTimerOptionsMinutes" SleepTimerDefaultMinutes="@Playback.DefaultSleepTimerMinutes" SleepTimerOffersEndOfChapter="@Playback.AllowEndOfChapterSleepTimer" SleepTimerChanged="SetAudiobookSleepTimerSelectionAsync"
                                                       SleepMenuOpen="@(_sleepMenuOpen && _sleepMenuSurface == "panel")" SleepMenuOpenChanged="HandleSleepMenuOpenChangedAsync"
                                                       OnControlActivation="HandleAudiobookDockActivationAsync" />
                             }

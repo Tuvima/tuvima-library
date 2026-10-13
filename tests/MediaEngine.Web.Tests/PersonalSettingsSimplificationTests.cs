@@ -26,13 +26,27 @@ public sealed class PersonalSettingsSimplificationTests
         Assert.Contains("Resume where you left off", source, StringComparison.Ordinal);
         Assert.Contains("Skip back", source, StringComparison.Ordinal);
         Assert.Contains("Skip forward", source, StringComparison.Ordinal);
-        Assert.Contains("Audiobook default speed", source, StringComparison.Ordinal);
-        Assert.Contains("Resume rewind", source, StringComparison.Ordinal);
+        Assert.DoesNotContain("Audiobook default speed", source, StringComparison.Ordinal);
+        Assert.DoesNotContain("Resume rewind", source, StringComparison.Ordinal);
         Assert.DoesNotContain("Default playback speed", source, StringComparison.Ordinal);
         Assert.DoesNotContain("Choose tracks in the player", source, StringComparison.Ordinal);
         Assert.DoesNotContain("Theme", source, StringComparison.Ordinal);
         Assert.DoesNotContain("DefaultSleepTimer", source, StringComparison.Ordinal);
         Assert.DoesNotContain("PreferredVideoQuality", source, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ListeningPage_OnlySurfacesSkipAndSleepTimerDefaults()
+    {
+        var source = ReadRepoFile("src", "MediaEngine.Web", "Components", "Settings", "ListeningSettingsPage.razor");
+
+        Assert.Contains("Resume rewind", source, StringComparison.Ordinal);
+        Assert.Contains("DefaultSleepTimer", source, StringComparison.Ordinal);
+        Assert.Contains("AllowEndOfChapterSleepTimer", source, StringComparison.Ordinal);
+        Assert.DoesNotContain("AudiobookDefaultSpeed", source, StringComparison.Ordinal);
+        Assert.DoesNotContain("SkipSilence", source, StringComparison.Ordinal);
+        Assert.DoesNotContain("MusicCrossfade", source, StringComparison.Ordinal);
+        Assert.DoesNotContain("OutputPreference", source, StringComparison.Ordinal);
     }
 
     [Fact]
