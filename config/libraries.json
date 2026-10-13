@@ -19,7 +19,10 @@
     "allow_connected_device_import": true,
     "allow_managed_storage": true,
     "allow_existing_folder_attachment": true,
-    "default_visibility": "private"
+    "default_visibility": "private",
+    "document_text_max_characters": 1000000,
+    "document_text_max_pdf_pages": 2000,
+    "document_text_read_timeout_seconds": 60
   },
   "libraries": [
     {

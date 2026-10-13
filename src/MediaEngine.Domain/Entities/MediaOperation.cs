@@ -73,6 +73,7 @@ public static class MediaOperationKind
     public const string Writeback = "writeback";
     public const string Ai = "ai";
     public const string Maintenance = "maintenance";
+    public const string ViewDocument = "view_document";
 }
 
 public static class MediaOperationType
@@ -93,6 +94,7 @@ public static class MediaOperationType
     public const string AiTldr = "ai.tldr";
     public const string AiVibeTags = "ai.vibe_tags";
     public const string AiSmartLabels = "ai.smart_labels";
+    public const string ViewDocumentTextRead = "view.document_text_read";
 }
 
 public static class MediaOperationStage

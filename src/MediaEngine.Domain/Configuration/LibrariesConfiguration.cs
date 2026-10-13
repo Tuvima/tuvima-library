@@ -107,6 +107,18 @@ public sealed class PersonalLibraryPolicyConfig
     [JsonPropertyName("default_visibility")]
     public string DefaultVisibility { get; set; } = LibraryVisibility.Private;
 
+    /// <summary>Most characters of embedded text stored per document; the rest is truncated.</summary>
+    [JsonPropertyName("document_text_max_characters")]
+    public int DocumentTextMaxCharacters { get; set; } = 1_000_000;
+
+    /// <summary>Most PDF pages whose text layer is read.</summary>
+    [JsonPropertyName("document_text_max_pdf_pages")]
+    public int DocumentTextMaxPdfPages { get; set; } = 2000;
+
+    /// <summary>Longest time one document may take to read before it is abandoned.</summary>
+    [JsonPropertyName("document_text_read_timeout_seconds")]
+    public int DocumentTextReadTimeoutSeconds { get; set; } = 60;
+
     [JsonExtensionData]
     public Dictionary<string, JsonElement>? UnmappedProperties { get; set; }
 }

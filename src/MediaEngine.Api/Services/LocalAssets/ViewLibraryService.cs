@@ -21,7 +21,8 @@ public sealed class ViewLibraryService(
     IViewPersonalSpaceRepository spaces,
     ViewStorageService storage,
     ILogger<ViewLibraryService> logger,
-    IFFmpegService? ffmpeg = null) : IViewPathIndexer
+    IFFmpegService? ffmpeg = null,
+    IMediaOperationRepository? operations = null) : IViewPathIndexer
 {
     private const int MaxDocumentCharacters = 256 * 1024;
 
@@ -348,7 +349,7 @@ public sealed class ViewLibraryService(
             }
         }
 
-        return await repository.UpsertAsync(new LocalAssetRegistration(
+        var upserted = await repository.UpsertAsync(new LocalAssetRegistration(
             LibraryId: space.LibraryId,
             PersonalSpaceId: space.Id,
             OwnerProfileId: space.OwnerProfileId,
@@ -373,6 +374,42 @@ public sealed class ViewLibraryService(
             VideoCodec: metadata.VideoCodec,
             FrameRate: metadata.FrameRate,
             DocumentText: metadata.DocumentText), ct);
+        await QueueDocumentTextReadAsync(upserted.ItemId, group.Primary, registrations, ct);
+        return upserted;
+    }
+
+    /// <summary>
+    /// PDFs and Office files are read by a throttled background job, never inline during the scan.
+    /// A failure to queue must not fail the scan; the next scan queues it again.
+    /// </summary>
+    private async Task QueueDocumentTextReadAsync(
+        Guid itemId,
+        FileCandidate primary,
+        IReadOnlyList<LocalAssetFileRegistration> registrations,
+        CancellationToken ct)
+    {
+        if (operations is null
+            || primary.Type.MediaKind != LocalAssetMediaKinds.Document
+            || !DocumentTextReadService.NeedsBackgroundRead(primary.Extension))
+        {
+            return;
+        }
+
+        var file = registrations.FirstOrDefault(candidate =>
+            string.Equals(candidate.Role, LocalAssetFileRoles.Primary, StringComparison.OrdinalIgnoreCase));
+        if (file is null)
+        {
+            return;
+        }
+
+        try
+        {
+            await DocumentTextReadService.QueueAsync(operations, itemId, file.ContentHash, file.FilePath, ct);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            logger.LogWarning(ex, "Could not queue the text read for document {FileName}.", file.FileName);
+        }
     }
 
     private async Task<ViewDevice?> ResolveDeviceAsync(

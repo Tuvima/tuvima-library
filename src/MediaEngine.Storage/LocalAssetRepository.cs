@@ -657,6 +657,7 @@ public sealed class LocalAssetRepository(IDatabaseConnection database) : ILocalA
             var primary = registration.Files.SingleOrDefault(file =>
                 string.Equals(file.Role, LocalAssetFileRoles.Primary, StringComparison.OrdinalIgnoreCase));
 
+            var editedInPlace = false;
             var itemId = registration.ExistingItemId;
             if (itemId.HasValue)
             {
@@ -693,6 +694,24 @@ public sealed class LocalAssetRepository(IDatabaseConnection database) : ILocalA
                        AND lf.content_hash = @primaryHash COLLATE NOCASE
                      LIMIT 1;
                     """, new { registration.PersonalSpaceId, registration.LibraryId, scopeKind, primaryHash }, transaction);
+
+                if (!itemId.HasValue)
+                {
+                    // Same path, new bytes: an edited file updates its existing item in place
+                    // (keeping tags, notes and favourite) instead of creating a duplicate.
+                    itemId = connection.QuerySingleOrDefault<Guid?>("""
+                        SELECT li.id
+                          FROM local_file_sources lfs
+                          JOIN local_item_files lif ON lif.file_id = lfs.file_id AND lif.role = 'primary'
+                          JOIN local_items li ON li.id = lif.item_id
+                         WHERE lfs.library_id = @LibraryId AND lfs.file_path = @FilePath COLLATE NOCASE
+                           AND li.scope_kind=@scopeKind AND li.library_id=@LibraryId
+                           AND ((@scopeKind='shared' AND li.personal_space_id IS NULL)
+                             OR li.personal_space_id=@PersonalSpaceId)
+                         LIMIT 1;
+                        """, new { registration.PersonalSpaceId, registration.LibraryId, scopeKind, primary.FilePath }, transaction);
+                    editedInPlace = itemId.HasValue;
+                }
             }
 
             var itemAdded = !itemId.HasValue;
@@ -724,6 +743,26 @@ public sealed class LocalAssetRepository(IDatabaseConnection database) : ILocalA
             }
             else
             {
+                if (editedInPlace)
+                {
+                    // The bytes changed, so text read from the old bytes is stale until it is read again.
+                    connection.Execute("""
+                        UPDATE local_item_metadata
+                           SET document_text = NULL, text_source = NULL, updated_at = @now
+                         WHERE item_id = @itemId;
+                        """, new { itemId, now }, transaction);
+                    connection.Execute("""
+                        UPDATE local_items
+                           SET primary_file_name = @FileName, primary_mime_type = @MimeType
+                         WHERE id = @itemId;
+                        """, new
+                    {
+                        itemId,
+                        FileName = primary!.FileName.Trim(),
+                        MimeType = primary.MimeType.Trim().ToLowerInvariant(),
+                    }, transaction);
+                }
+
                 connection.Execute("""
                     UPDATE local_items
                        SET title = COALESCE(@Title, title),
@@ -740,13 +779,13 @@ public sealed class LocalAssetRepository(IDatabaseConnection database) : ILocalA
                     (item_id, width, height, duration_seconds, page_count, device_make,
                      device_model, latitude, longitude, location_name, embedded_latitude,
                      embedded_longitude, location_source, lens_model, exposure_time, aperture,
-                     iso, focal_length_mm, video_codec, frame_rate, document_text, metadata_json, updated_at)
+                     iso, focal_length_mm, video_codec, frame_rate, document_text, text_source, metadata_json, updated_at)
                 VALUES
                     (@itemId, @Width, @Height, @DurationSeconds, @PageCount, @DeviceMake,
                      @DeviceModel, @Latitude, @Longitude, @LocationName, @Latitude,
                      @Longitude, CASE WHEN @Latitude IS NOT NULL AND @Longitude IS NOT NULL THEN 'embedded' END,
                      @LensModel, @ExposureTime, @Aperture, @Iso, @FocalLengthMm, @VideoCodec,
-                     @FrameRate, @DocumentText, @MetadataJson, @now)
+                     @FrameRate, @DocumentText, CASE WHEN @DocumentText IS NOT NULL THEN 'embedded' END, @MetadataJson, @now)
                 ON CONFLICT(item_id) DO UPDATE SET
                     width = COALESCE(excluded.width, local_item_metadata.width),
                     height = COALESCE(excluded.height, local_item_metadata.height),
@@ -772,6 +811,7 @@ public sealed class LocalAssetRepository(IDatabaseConnection database) : ILocalA
                     video_codec = COALESCE(excluded.video_codec, local_item_metadata.video_codec),
                     frame_rate = COALESCE(excluded.frame_rate, local_item_metadata.frame_rate),
                     document_text = COALESCE(excluded.document_text, local_item_metadata.document_text),
+                    text_source = COALESCE(excluded.text_source, local_item_metadata.text_source),
                     metadata_json = COALESCE(excluded.metadata_json, local_item_metadata.metadata_json),
                     updated_at = excluded.updated_at;
                 """, new
@@ -797,6 +837,17 @@ public sealed class LocalAssetRepository(IDatabaseConnection database) : ILocalA
                 registration.MetadataJson,
                 now,
             }, transaction);
+
+            if (editedInPlace)
+            {
+                // An item has one primary file, so drop the link to the previous bytes before linking the new ones.
+                var newPrimaryHash = NormalizeHash(primary!.ContentHash);
+                connection.Execute("""
+                    DELETE FROM local_item_files
+                     WHERE item_id = @itemId AND role = 'primary'
+                       AND file_id NOT IN (SELECT id FROM local_files WHERE content_hash = @newPrimaryHash COLLATE NOCASE);
+                    """, new { itemId, newPrimaryHash }, transaction);
+            }
 
             var filesAdded = 0;
             var sourcesAdded = 0;
@@ -883,6 +934,57 @@ public sealed class LocalAssetRepository(IDatabaseConnection database) : ILocalA
             }
             RebuildSearchDocument(connection, transaction, itemId.Value);
             return new LocalAssetUpsertResult(itemId.Value, itemAdded, filesAdded, sourcesAdded);
+        }, ct);
+    }
+
+    public Task<bool> SetDocumentTextAsync(
+        Guid itemId,
+        LocalAssetDocumentTextWrite write,
+        CancellationToken ct = default)
+    {
+        if (itemId == Guid.Empty)
+        {
+            throw new ArgumentException("Item ID is required.", nameof(itemId));
+        }
+
+        ArgumentNullException.ThrowIfNull(write);
+        if (write.TextSource is not (LocalAssetTextSources.Embedded or LocalAssetTextSources.Ocr or LocalAssetTextSources.None))
+        {
+            throw new ArgumentOutOfRangeException(nameof(write), "Unknown text source.");
+        }
+
+        // Written explicitly (including clearing to NULL); UpsertAsync keeps old text when the new value is empty.
+        var text = string.IsNullOrEmpty(write.Text) ? null : write.Text;
+        return database.ExecuteWriteAsync((connection, transaction, token) =>
+        {
+            token.ThrowIfCancellationRequested();
+            var changed = connection.Execute("""
+                UPDATE local_item_metadata
+                   SET document_text = @text,
+                       text_source = @TextSource,
+                       page_count = COALESCE(@PageCount, page_count),
+                       metadata_json = json_set(
+                           CASE WHEN metadata_json IS NOT NULL AND json_valid(metadata_json) THEN metadata_json ELSE '{}' END,
+                           '$.document_text_truncated', json(@truncated),
+                           '$.document_encrypted', json(@encrypted)),
+                       updated_at = @now
+                 WHERE item_id = @itemId;
+                """, new
+            {
+                itemId,
+                text,
+                write.TextSource,
+                write.PageCount,
+                truncated = write.Truncated ? "true" : "false",
+                encrypted = write.Encrypted ? "true" : "false",
+                now = DateTimeOffset.UtcNow,
+            }, transaction) > 0;
+            if (changed)
+            {
+                RebuildSearchDocument(connection, transaction, itemId);
+            }
+
+            return changed;
         }, ct);
     }
 

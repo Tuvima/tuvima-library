@@ -32,6 +32,8 @@ public static class TuvimaHostedServiceCollectionExtensions
         services.AddHostedService<MediaFileWriteIntentDispatcher>();
         services.AddHostedService<IngestionBatchProgressHostedService>();
         services.AddHostedService<TextTrackRefreshOperationWorker>();
+        services.AddSingleton<DocumentTextReadService>();
+        services.AddHostedService<DocumentTextReadOperationWorker>();
         services.AddHostedService<ArtworkRenditionRepairStartupService>();
         services.AddHostedService<RejectedFileCleanupService>();
         services.AddSingleton<ViewSourceIndexingOptions>();
