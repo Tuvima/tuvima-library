@@ -95,10 +95,8 @@ public sealed class MetadataSettingsCompositionTests
     [Fact]
     public void LibraryOverview_UsesTheSameConfiguredFlowSnapshot()
     {
-        var libraries = Read("src/MediaEngine.Web/Components/Settings/LibrariesTab.razor");
         var summary = Read("src/MediaEngine.Web/Components/Settings/MetadataPipelineStrip.razor");
 
-        Assert.Contains("/settings/metadata/ingestion-flow", libraries, StringComparison.Ordinal);
         Assert.Contains("_pipeline.Identification", summary, StringComparison.Ordinal);
         Assert.Contains("_pipeline.Enrichment", summary, StringComparison.Ordinal);
         Assert.Contains("/settings/metadata/ingestion-flow", summary, StringComparison.Ordinal);

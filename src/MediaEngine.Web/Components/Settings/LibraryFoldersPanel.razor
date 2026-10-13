@@ -1,6 +1,7 @@
 @namespace MediaEngine.Web.Components.Settings
 @using System.Text.Json
 @using MediaEngine.Web.Components.Shared
+@using MediaEngine.Web.Models.ViewDTOs
 @inject UIOrchestratorService Orchestrator
 @inject IEngineApiClient ApiClient
 @inject IAppDialogService DialogService
@@ -63,10 +64,6 @@
                     <p>Folders that make up @(Selected.LibraryId is null ? $"your {Selected.PluralLabel} library" : Selected.Label).</p>
                 </div>
                 <div class="library-folders__detail-actions">
-                    @if (!Embedded && SelectedLibrary is not null)
-                    {
-                        <AppButton Label="Library settings" ButtonStyle="AppButtonStyle.Text" Href="@($"/settings/libraries/{SelectedLibrary.Id}")" />
-                    }
                     <AppButton Label="Add Folder"
                                StartIcon="@AppMaterialIcons.Outlined.Add"
                                ButtonStyle="AppButtonStyle.Outlined"
@@ -90,36 +87,20 @@
             }
             else
             {
-                <div class="library-folders__table" role="list" aria-label="@($"{Selected.Label} folders")">
-                    <div class="library-folders__row library-folders__row--head" aria-hidden="true"><span>Folder</span><span>Path</span><span></span></div>
-                    @foreach (var source in SelectedLibrary.Sources)
-                    {
-                        <div class="library-folders__row" role="listitem">
-                            <span class="library-folders__name"><AppMaterialIcon Icon="@AppMaterialIcons.Filled.Folder" /><strong>@FriendlyName(source)</strong></span>
-                            <span class="library-folders__path" title="@source.Path">@source.Path</span>
-                            <span class="library-folders__row-actions">
-                                @if (IsDestination(source))
-                                {
-                                    <AppStatusBadge Text="Destination" Tone="AppUiTone.Success" />
-                                }
-                                <AppStatusBadge Text="@ModeLabel(source)" Tone="@(IsManaged(source) ? AppUiTone.Info : AppUiTone.Neutral)" />
-                                @if (!ReadOnly)
-                                {
-                                    <AppIconButton Icon="@(IsManaged(source) ? AppMaterialIcons.Outlined.Lock : AppMaterialIcons.Outlined.DriveFileMove)"
-                                                   Tooltip="@(IsManaged(source) ? "Leave as-is" : "Let Tuvima manage this folder")"
-                                                   AriaLabel="@(IsManaged(source) ? $"Leave {FriendlyName(source)} as-is" : $"Let Tuvima manage {FriendlyName(source)}")"
-                                                   Disabled="@_saving"
-                                                   OnClick="@(() => ChangeModeAsync(source))" />
-                                    <AppIconButton Icon="@AppMaterialIcons.Outlined.Delete"
-                                                   Tooltip="Remove folder"
-                                                   AriaLabel="@($"Remove {FriendlyName(source)}")"
-                                                   Disabled="@_saving"
-                                                   OnClick="@(() => RemoveFolderAsync(source))" />
-                                }
-                            </span>
-                        </div>
-                    }
-                </div>
+                <LibraryFolderTable Library="@SelectedLibrary"
+                                    TypeLabel="@Selected.Label"
+                                    PluralLabel="@Selected.PluralLabel"
+                                    ReadOnly="@ReadOnly"
+                                    Busy="@_saving"
+                                    PathIssues="@_pathIssues"
+                                    OnChangeHandling="ChangeModeAsync"
+                                    OnSetDestination="SetDestinationAsync"
+                                    OnLabel="LabelFolderAsync"
+                                    OnRemove="RemoveFolderAsync" />
+                @if (!SelectedLibrary.Sources.Any(IsManaged))
+                {
+                    <p class="library-folders__hint">Add a managed folder to import or upload @Selected.PluralLabel.</p>
+                }
             }
         </section>
 
@@ -164,6 +145,19 @@
                 }
             }
         </section>
+
+        @if (!Embedded)
+        {
+            <details class="library-folders__advanced">
+                <summary><strong>Advanced</strong><span>File handling and naming</span></summary>
+                <LibraryAdvancedSettings Types="AdvancedTypes"
+                                         DuplicatePolicy="@(_configuration.FileHandling.DuplicatePolicy)"
+                                         ReadOnly="@ReadOnly"
+                                         Busy="@_saving"
+                                         OnLibraryChanged="SaveAdvancedLibraryAsync"
+                                         OnDuplicatePolicyChanged="SaveDuplicatePolicyAsync" />
+            </details>
+        }
     }
 </div>
 
@@ -199,6 +193,21 @@
     private bool _loading = true;
     private bool _saving;
     private LibraryTypeOption _selected = LibraryTypes[0];
+    private IReadOnlyDictionary<string, string> _pathIssues = new Dictionary<string, string>();
+
+    // Advanced tabs follow the order people think in; the template key is the type's entry in organization_templates.
+    private static readonly (string Key, string TemplateKey)[] AdvancedOrder =
+    [
+        ("movies", "Movies"), ("tv", "TV"), ("music", "Music"), ("books", "Books"), ("audiobooks", "Audiobooks"), ("comics", "Comics"),
+    ];
+
+    private IReadOnlyList<LibraryAdvancedSettings.AdvancedType> AdvancedTypes => AdvancedOrder
+        .Select(entry =>
+        {
+            var type = LibraryTypes.First(item => item.Key == entry.Key);
+            return new LibraryAdvancedSettings.AdvancedType(type.Key, type.Label, entry.TemplateKey, PrimaryLibraryFor(type));
+        })
+        .ToList();
 
     private ImportFolderStatusDto ImportStatus => _configuration?.ImportFolderStatus ?? new ImportFolderStatusDto();
 
@@ -211,6 +220,36 @@
         _selected = LibraryTypes.FirstOrDefault(type => string.Equals(type.Key, PreselectedType, StringComparison.OrdinalIgnoreCase))
             ?? LibraryTypes.FirstOrDefault(type => FolderCount(type) > 0)
             ?? LibraryTypes[0];
+        await InvokeAsync(StateHasChanged);
+        await RefreshPathIssuesAsync();
+    }
+
+    // Live read/write check of every folder; a problem shows as one status line under the path, nothing when healthy.
+    // The setup session cannot call the signed-in path check, so the first-run screen skips it.
+    private async Task RefreshPathIssuesAsync()
+    {
+        if (_configuration is null || Embedded) return;
+        var folders = _configuration.Libraries.SelectMany(library => library.Sources)
+            .Where(source => !string.IsNullOrWhiteSpace(source.Path))
+            .GroupBy(source => source.Path, StringComparer.OrdinalIgnoreCase)
+            .Select(group => group.First())
+            .ToList();
+        using var gate = new SemaphoreSlim(4);
+        var checks = folders.Select(async source =>
+        {
+            await gate.WaitAsync();
+            try { return (Source: source, Result: await Orchestrator.TestPathAsync(source.Path)); }
+            finally { gate.Release(); }
+        }).ToList();
+        var issues = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var (source, result) in await Task.WhenAll(checks))
+        {
+            if (result is null) continue;
+            if (!result.Exists) issues[source.Path] = "Folder unavailable";
+            else if (!result.HasRead || (IsManaged(source) && !result.HasWrite)) issues[source.Path] = "No access";
+        }
+        _pathIssues = issues;
+        await InvokeAsync(StateHasChanged);
     }
 
     private async Task LoadAsync()
@@ -263,13 +302,6 @@
     private string TypeClass(LibraryTypeOption type) => $"library-folders__type{(type.Key == _selected.Key ? " is-active" : string.Empty)}";
     private void Select(LibraryTypeOption type) { _selected = type; _notice = null; }
     private static bool IsManaged(LibrarySourceDto source) => source.ManagementMode == "managed_by_tuvima";
-    private bool IsDestination(LibrarySourceDto source) => IsManaged(source)
-        && string.Equals(source.Id, SelectedLibrary?.PrimaryDestinationSourceId, StringComparison.OrdinalIgnoreCase);
-    private static string ModeLabel(LibrarySourceDto source) => IsManaged(source) ? "Managed by Tuvima" : "Used as-is";
-    private static string FriendlyName(LibrarySourceDto source) => string.IsNullOrWhiteSpace(source.Notes)
-        ? Path.GetFileName(source.Path.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar))
-        : source.Notes;
-
     private Task<ServerFolderValidationResultDto?> ValidateAsync(string path, string mode, string? sourceId = null)
     {
         var request = new ValidateServerFolderRequest { ManualPath = path, SelectionMode = mode, CurrentSourceId = sourceId };
@@ -338,16 +370,24 @@
         await SaveAsync(library, "Folder added.");
     }
 
+    // Tapping Handling. As-is to Managed asks first (the organising job arrives later, so today this is the plain mode switch);
+    // Managed to As-is also asks, and stops any job that is running. Nothing already done is undone.
     private async Task ChangeModeAsync(LibrarySourceDto source)
     {
         var library = Clone(SelectedLibrary);
         var target = library?.Sources.FirstOrDefault(item => item.Id == source.Id);
         if (library is null || target is null || _saving) return;
         var managed = !IsManaged(target);
-        if (managed && await DialogService.ShowMessageBoxAsync(
-                "Let Tuvima manage this folder?",
+        var confirmed = managed
+            ? await DialogService.ShowMessageBoxAsync(
+                $"Let Tuvima manage {target.Path}?",
                 "Tuvima may rename and reorganise files in this folder, which could affect other applications that use it.",
-                yesText: "Let Tuvima manage it", cancelText: "Keep as-is") != true) return;
+                yesText: "Let Tuvima manage it", cancelText: "Keep as-is")
+            : await DialogService.ShowMessageBoxAsync(
+                $"Use {target.Path} as-is?",
+                "Tuvima stops renaming, moving or tagging files here, and any organising that is running stops. Nothing is undone and your files stay where they are.",
+                yesText: "Use as-is", cancelText: "Keep managed");
+        if (confirmed != true) return;
         var validation = await ValidateAsync(target.Path, managed ? ServerFolderSelectionModes.ManagedLibrary : ServerFolderSelectionModes.ExistingLibrary, target.Id);
         if (validation is null || !validation.CanSelect)
         {
@@ -358,8 +398,60 @@
         // The Engine keeps or re-picks the library's destination when it saves.
         target.ManagementMode = managed ? "managed_by_tuvima" : "existing_library";
         target.AccessMode = managed ? "writable" : "read_only";
+        if (!managed)
+        {
+            target.ConversionState = "none";
+            target.ConversionOperationId = null;
+        }
         await SaveAsync(library, managed ? "Tuvima will now manage this folder." : "This folder will be used as-is.");
     }
+
+    // Tapping the New media radio on another managed folder moves the marker. It only affects future imports and uploads.
+    private async Task SetDestinationAsync(LibrarySourceDto source)
+    {
+        var library = Clone(SelectedLibrary);
+        var target = library?.Sources.FirstOrDefault(item => item.Id == source.Id);
+        if (library is null || target is null || _saving || !IsManaged(target)) return;
+        library.PrimaryDestinationSourceId = target.Id;
+        await SaveAsync(library, $"New {Selected.PluralLabel} will go to {target.DisplayName()}.");
+    }
+
+    private async Task LabelFolderAsync(LibrarySourceDto source)
+    {
+        var library = Clone(SelectedLibrary);
+        var target = library?.Sources.FirstOrDefault(item => item.Id == source.Id);
+        if (library is null || target is null || _saving) return;
+        var dialog = await DialogService.ShowAsync<LibraryTextEditDialog>(string.Empty, new AppDialogParameters<LibraryTextEditDialog>
+        {
+            { component => component.Label, "Folder label" },
+            { component => component.Value, target.DisplayName() },
+        }, new AppDialogOptions { NoHeader = true, FullWidth = true, MaxWidth = AppMaxWidth.Small });
+        if (await dialog.Result is not { Canceled: false, Data: string label }) return;
+        target.Notes = label;
+        await SaveAsync(library, "Label saved.");
+    }
+
+    private Task SaveAdvancedLibraryAsync(LibraryFolderDto library) => SaveAsync(library, "Saved.");
+
+    // Copy the saved file handling and change only the duplicate rule, so settings added later are not dropped.
+    private static FileHandlingDto WithDuplicatePolicy(FileHandlingDto current, string policy)
+    {
+        var copy = JsonSerializer.Deserialize<FileHandlingDto>(JsonSerializer.Serialize(current))!;
+        copy.DuplicatePolicy = policy;
+        return copy;
+    }
+
+    private Task SaveDuplicatePolicyAsync(string policy) => PutAsync(
+        baseline => new UpdateLibrariesRequest
+        {
+            SchemaVersion = baseline.SchemaVersion,
+            StorageLocations = baseline.StorageLocations,
+            ViewStorage = baseline.ViewStorage,
+            Libraries = baseline.Libraries,
+            PersonalLibraryPolicy = baseline.PersonalLibraryPolicy,
+            FileHandling = WithDuplicatePolicy(baseline.FileHandling, policy),
+        },
+        "Saved.");
 
     private async Task ChooseImportFolderAsync()
     {
@@ -392,34 +484,40 @@
         if (confirmed == true) await SaveImportFolderAsync(null, "Import folder removed.");
     }
 
-    private async Task SaveImportFolderAsync(string? path, string message)
+    private Task SaveImportFolderAsync(string? path, string message) => PutAsync(baseline =>
+    {
+        var locations = baseline.StorageLocations
+            .Where(location => !string.Equals(location.Id, ImportLocationId, StringComparison.OrdinalIgnoreCase))
+            .ToList();
+        if (path is not null)
+        {
+            locations.Add(new ServerStorageLocationDto { Id = ImportLocationId, Label = "Tuvima import folder", Path = path, AllowWrite = true });
+        }
+
+        return new UpdateLibrariesRequest
+        {
+            SchemaVersion = baseline.SchemaVersion,
+            StorageLocations = locations,
+            ViewStorage = baseline.ViewStorage,
+            Libraries = baseline.Libraries,
+            PersonalLibraryPolicy = baseline.PersonalLibraryPolicy,
+            FileHandling = baseline.FileHandling,
+        };
+    }, message);
+
+    // Saves a whole-configuration change (import folder, file handling) and adopts the Engine's answer.
+    private async Task PutAsync(Func<LibrariesConfigurationDto, UpdateLibrariesRequest> build, string message)
     {
         if (_configuration is null || _saving) return;
         _saving = true;
         try
         {
             var baseline = JsonSerializer.Deserialize<LibrariesConfigurationDto>(_baseline)!;
-            var locations = baseline.StorageLocations
-                .Where(location => !string.Equals(location.Id, ImportLocationId, StringComparison.OrdinalIgnoreCase))
-                .ToList();
-            if (path is not null)
-            {
-                locations.Add(new ServerStorageLocationDto { Id = ImportLocationId, Label = "Tuvima import folder", Path = path, AllowWrite = true });
-            }
-
-            var request = new UpdateLibrariesRequest
-            {
-                SchemaVersion = baseline.SchemaVersion,
-                StorageLocations = locations,
-                ViewStorage = baseline.ViewStorage,
-                Libraries = baseline.Libraries,
-                PersonalLibraryPolicy = baseline.PersonalLibraryPolicy,
-                FileHandling = baseline.FileHandling,
-            };
+            var request = build(baseline);
             var saved = Embedded ? await ApiClient.UpdateSetupLibrariesAsync(request, SetupSession) : await ApiClient.UpdateLibrariesAsync(request);
             if (saved is null)
             {
-                _notice = ApiClient.LastError ?? "The import folder could not be saved. Check the folder and try again.";
+                _notice = ApiClient.LastError ?? "That change could not be saved. Check it and try again.";
                 return;
             }
             _configuration = saved;
@@ -436,7 +534,7 @@
         if (library is null || _saving) return;
         var confirmed = await DialogService.ShowMessageBoxAsync(
             "Remove this folder?",
-            $"{FriendlyName(source)} stops being part of {_selected.Label}. Your files stay on disk.",
+            $"{source.DisplayName()} stops being part of {_selected.Label}. Your files stay on disk.",
             yesText: "Remove", cancelText: "Keep");
         if (confirmed != true) return;
         library.Sources.RemoveAll(item => item.Id == source.Id);
@@ -482,6 +580,7 @@
         }
         finally { _saving = false; }
         await Changed.InvokeAsync();
+        await RefreshPathIssuesAsync();
     }
 
     private static LibraryFolderDto? Clone(LibraryFolderDto? library) => library is null

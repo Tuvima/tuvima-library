@@ -1,21 +1,12 @@
 @namespace MediaEngine.Web.Components.Settings
-@using System.Text.Json
-@using MediaEngine.Contracts.Artwork
 @inject UIOrchestratorService Orchestrator
 @inject IEngineApiClient ApiClient
 @inject DeviceContextService DeviceContext
-@inject IAppToastService Snackbar
-@inject IAppDialogService DialogService
-@inject NavigationManager Nav
-
-
-
 
 @{
     var readOnly = DeviceContext.IsMobile;
     var unavailable = DeviceContext.IsTelevision || DeviceContext.IsAutomotive;
     var section = NormalizeSection(Subsection);
-    var activeLibrary = ResolveActiveLibrary(section);
 }
 
 <div class="libraries">
@@ -61,7 +52,6 @@
             <AppAlert Tone="AppUiTone.Warning">@_loadError</AppAlert>
         }
 
-
         @if (section == "overview")
         {
             <LibraryFoldersPanel ReadOnly="@(readOnly || _engineUnavailable)" Changed="RefreshConfigurationAsync" />
@@ -71,526 +61,36 @@
         {
             <ViewLibrarySettings Configuration="@_configuration" ReadOnly="@readOnly" RootChanged="LoadAsync" />
         }
-        else if (activeLibrary is not null)
-        {
-            @LibraryDetailSurface(activeLibrary, readOnly)
-        }
-        else
-        {
-            <AppPageState Kind="AppPageStateKind.Error" Icon="@AppMaterialIcons.Outlined.SearchOff" Title="Library not found" Message="This library does not exist or is no longer configured." />
-        }
-
-
     }
 </div>
 
 @code {
-    private sealed record OrganizationDetailOption(string Value, string Label, string Help, string Icon);
-
     [Parameter] public string? Subsection { get; set; }
-    [Parameter] public EventCallback<string> LibraryNameChanged { get; set; }
 
     private LibrariesConfigurationDto? _configuration;
-    private string _baseline = string.Empty;
     private string? _loadError;
     private bool _loading = true;
-    private bool _saving;
     private bool _engineUnavailable;
-    private ArtworkWritebackSettingsDto? _artworkWritebackSettings;
-    private bool _savingArtworkWriteback;
-    private readonly Dictionary<string, PathTestResultDto> _pathResults = new(StringComparer.OrdinalIgnoreCase);
-    private readonly Dictionary<string, string> _selectedLibraryIds = new(StringComparer.OrdinalIgnoreCase);
 
-    private string DuplicateLabel => _configuration?.FileHandling.DuplicatePolicy == "keep_both" ? "Keep both copies" : "Keep one copy";
-
-    private static readonly IReadOnlyList<AppSelectOption> ManagementOptions =
-    [
-        new("managed_by_tuvima", "Managed by Tuvima Library"),
-        new("existing_library", "Existing library"),
-    ];
-
-    private static readonly OrganizationDetailOption[] OrganizationDetailOptions =
-    [
-        new("tuvima_standard", "Tuvima Library Standard", "Use media-aware folders and filenames for new imports.", AppMaterialIcons.Outlined.AutoAwesome),
-        new("keep_original_names", "Keep original names", "Preserve existing names and folder structure.", AppMaterialIcons.Outlined.FolderCopy),
-        new("custom", "Custom", "Use a library-specific naming template.", AppMaterialIcons.Outlined.Tune),
-    ];
-
-    protected override async Task OnInitializedAsync()
-    {
-        await LoadAsync();
-        _artworkWritebackSettings = await ApiClient.GetArtworkWritebackSettingsAsync();
-    }
-
-    protected override void OnParametersSet()
-    {
-        _ = PublishLibraryNameAsync();
-    }
-
-    private RenderFragment LibraryDetailSurface(LibraryFolderDto library, bool readOnly) => @<div class="library-detail">
-        <LibraryDetailHeader Title="@library.Name" Description="@($"{TitleCase(library.Area)} library · {LibraryDescription(library)}")" Icon="@LibraryIcon(library)">
-            <AppStatusBadge Text="@TitleCase(library.Area)" Tone="@AreaTone(library.Area)" />
-        </LibraryDetailHeader>
-        <div class="libraries-card__heading"><div><h2>Library Settings</h2><p>Manage folders, organization, and file handling for this library.</p></div><AppStatusBadge Text="@LibraryStatus(library)" Tone="@LibraryStatusTone(library)" /></div>
-        <AppCard Class="libraries-card">
-            <div class="libraries-card__heading"><div><h3>Folders</h3><p>Folders define where media is watched and where new managed imports can be organized.</p></div>
-                <AppButton Label="Add folder" StartIcon="@AppMaterialIcons.Outlined.Add" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Disabled="@(readOnly || _engineUnavailable || _saving)" OnClick="@(() => AddAndBrowseLibrarySourceAsync(library))" />
-            </div>
-            @if (_saving) { <p role="status">Saving…</p> }
-            @if (library.Sources.Count == 0) { <p>No folders configured. Add a folder to enable intake.</p> }
-            <div class="library-detail__folder-table">
-                <div class="library-detail__folder-head" aria-hidden="true"><span>Folder</span><span>Destination</span><span>Management</span><span>Subfolders</span><span>Access</span><span>Status</span><span>Actions</span></div>
-                @foreach (var source in library.Sources)
-                {
-                    <div class="library-detail__folder-editor" @key="source.Id">
-                        <div class="library-detail__folder-path"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Folder" /><span><strong>@SourceFriendlyName(source)</strong><code>@source.Path</code></span></div>
-                        <span>@(IsDestination(library, source) ? "Destination for new media" : "-")</span>
-                        <AppSelect Label="Management" Value="@source.ManagementMode" Options="@ManagementOptions" ValueChanged="@((string? value) => EditAsync(library, () => SetManagementMode(library, source, value)))" Disabled="@(readOnly || _engineUnavailable || _saving)" />
-                        <AppSwitchRow Label="Include subfolders" Value="@source.IncludeSubdirectories" ValueChanged="@((bool value) => EditAsync(library, () => source.IncludeSubdirectories = value))" Disabled="@(readOnly || _engineUnavailable || _saving)" />
-                        <span>@SourceAccess(source)</span>
-                        <AppStatusBadge Text="@SourceStatus(source)" Tone="@SourceTone(source)" />
-                        <div class="library-detail__folder-actions">
-                            <AppIconButton Icon="@AppMaterialIcons.Outlined.FolderOpen" Tooltip="Change path" AriaLabel="@($"Change folder path for {SourceFriendlyName(source)}")" Disabled="@(readOnly || _engineUnavailable || _saving)" OnClick="@(() => BrowseLibrarySourceAsync(library, source))" />
-                            <AppIconButton Icon="@AppMaterialIcons.Outlined.Refresh" Tooltip="Test path" AriaLabel="@($"Test folder path for {SourceFriendlyName(source)}")" Disabled="@(_engineUnavailable || _saving)" OnClick="@(() => CheckPathAsync(source.Path))" />
-                            <AppIconButton Icon="@AppMaterialIcons.Outlined.Delete" Tooltip="Detach folder; keep files" AriaLabel="@($"Remove folder {SourceFriendlyName(source)}")" Disabled="@(readOnly || _engineUnavailable || _saving )" OnClick="@(() => RemoveLibrarySource(library, source))" />
-                        </div>
-                    </div>
-                }
-            </div>
-            <p class="library-detail__note">Removing a folder detaches it from this library; its files stay on disk. Existing Library sources always remain read-only.</p>
-        </AppCard>
-        <AppCard Class="libraries-card">
-            <div class="libraries-card__heading"><div><h3>Organization</h3><p>Choose how new media should be named and placed.</p></div></div>
-            <div class="library-detail__organization-options" role="radiogroup" aria-label="Organization mode">
-                @foreach (var option in OrganizationDetailOptions)
-                {
-                    <AppNativeButton Type="button" role="radio" aria-checked="@(library.OrganizationPolicy.Mode == option.Value ? "true" : "false")" Disabled="@(readOnly || _engineUnavailable || _saving)" Class="@($"library-detail__organization-option {(library.OrganizationPolicy.Mode == option.Value ? "is-active" : null)}")" OnClick="@(() => ChooseOrganizationAsync(library, option.Value))">
-                        <AppMaterialIcon Icon="@option.Icon" /><span><strong>@option.Label</strong><small>@option.Help</small></span><AppMaterialIcon Icon="@(library.OrganizationPolicy.Mode == option.Value ? AppMaterialIcons.Filled.RadioButtonChecked : AppMaterialIcons.Outlined.RadioButtonUnchecked)" />
-                    </AppNativeButton>
-                }
-            </div>
-            @if (library.OrganizationPolicy.Mode == "custom")
-            {
-                <AppButton Label="Edit template" Disabled="@(readOnly || _engineUnavailable || _saving)" OnClick="@(() => ChooseOrganizationAsync(library, "custom"))" />
-            }
-            <div class="libraries-example"><span>Example</span><code>@OrganizationExample(library)</code></div>
-            <AppAlert Tone="AppUiTone.Info">Changing organization rules does not alter existing files automatically. Preview any reorganization before applying filesystem changes.</AppAlert>
-        </AppCard>
-        <AppCard Class="libraries-card">
-            <div class="libraries-card__heading"><div><h3>File Handling</h3><p>Control how Tuvima Library handles existing files and common scenarios.</p></div></div>
-            <div class="library-detail__policies">
-                <div class="library-detail__policy-row"><div><strong>When a duplicate is found</strong><small>Exact duplicate content is indexed once. This applies to every library.</small></div><span>@DuplicateLabel</span></div>
-                <div class="library-detail__policy-row"><div><strong>When a filename already exists</strong><small>The existing file is never overwritten.</small></div><span>Give the incoming file a unique name</span></div>
-                <AppSwitchRow Label="Write tags to files" Description="Save tags into this type's media files. Only folders Tuvima manages are ever written to; folders used as-is are never touched." Value="@library.OrganizationPolicy.WriteTags" ValueChanged="@((bool value) => EditAsync(library, () => library.OrganizationPolicy.WriteTags = value))" Disabled="@(readOnly || _engineUnavailable || _saving)" />
-                <AppSwitchRow Label="Embed artwork in supported media files" Description="When metadata writeback is enabled, preferred artwork is embedded only in supported, writable media files." Value="@(_artworkWritebackSettings?.ArtworkEnabled ?? false)" ValueChanged="SetArtworkWritebackAsync" Disabled="@(readOnly || _engineUnavailable || _saving || _savingArtworkWriteback || !(_artworkWritebackSettings?.MetadataWritebackEnabled ?? false))" />
-            </div>
-        </AppCard>
-        <details class="library-detail__advanced">
-            <summary><strong>Advanced Settings</strong><span>Library identity and metadata policy</span></summary>
-            <div class="libraries-form-grid">
-                <div><strong>Library name</strong><p>@library.Name</p><AppButton Label="Edit name" Disabled="@(readOnly || _engineUnavailable || _saving)" OnClick="@(() => RenameAsync(library))" /></div>
-                <div><strong>Visibility</strong><p>@TitleCase(library.Visibility)</p></div>
-                <div><strong>Library kind</strong><p>Catalogued</p></div>
-                <div><strong>Library ID</strong><code>@library.Id</code></div>
-                <div><strong>Metadata</strong><p>@PolicyLabel(library.MetadataPolicy)</p><a href="@MetadataSettingsRoute(library)">Manage media-type metadata settings</a></div>
-            </div>
-        </details>
-    </div>;
-
-    private static string MetadataSettingsRoute(LibraryFolderDto library) => "/settings/metadata/ingestion-flow";
-
-    private async Task SetArtworkWritebackAsync(bool enabled)
-    {
-        _savingArtworkWriteback = true;
-        try
-        {
-            var updated = await ApiClient.UpdateArtworkWritebackSettingsAsync(new UpdateArtworkWritebackSettingsDto(enabled));
-            if (updated is null) { Snackbar.Add("Artwork writeback setting could not be saved.", AppSeverity.Error); return; }
-            _artworkWritebackSettings = updated;
-        }
-        finally { _savingArtworkWriteback = false; }
-    }
+    protected override Task OnInitializedAsync() => LoadAsync();
 
     private async Task LoadAsync()
     {
         _loading = true;
         _loadError = null;
-        try
-        {
-            var configurationTask = Orchestrator.GetLibrariesAsync();
-
-            _configuration = await configurationTask;
-
-            _engineUnavailable = _configuration is null;
-            if (_configuration is null)
-                _loadError = ApiClient.LastError;
-            else
-            {
-                _baseline = JsonSerializer.Serialize(_configuration);
-                _loading = false;
-                await PublishLibraryNameAsync();
-                await InvokeAsync(StateHasChanged);
-                await RefreshPathStatusesAsync();
-                await PublishLibraryNameAsync();
-            }
-        }
-        catch (Exception ex)
-        {
-            _configuration = null;
-            _engineUnavailable = true;
-            _loadError = ex.Message;
-        }
-        finally
-        {
-            _loading = false;
-        }
+        _configuration = await Orchestrator.GetLibrariesAsync();
+        _engineUnavailable = _configuration is null;
+        if (_configuration is null) _loadError = ApiClient.LastError;
+        _loading = false;
     }
 
-    private async Task<string?> EditTextAsync(string label, string value)
-    {
-        var dialog = await DialogService.ShowAsync<LibraryTextEditDialog>(string.Empty, new AppDialogParameters<LibraryTextEditDialog>
-        {
-            { x => x.Label, label }, { x => x.Value, value },
-        }, new AppDialogOptions { NoHeader = true, FullWidth = true, MaxWidth = AppMaxWidth.Small });
-        return await dialog.Result is { Canceled: false, Data: string result } ? result : null;
-    }
-    private async Task RenameAsync(LibraryFolderDto library)
-    {
-        var value = await EditTextAsync("Library name", library.Name);
-        if (value is not null) await EditAsync(library, () => library.Name = value);
-    }
-    private async Task ChooseOrganizationAsync(LibraryFolderDto library, string mode)
-    {
-        var template = mode == "custom" ? await EditTextAsync("Naming template", library.OrganizationPolicy.CustomTemplate ?? "{Title} ({Year})/{Title}.{Extension}") : null;
-        if (mode == "custom" && template is null) return;
-        await EditAsync(library, () => { library.OrganizationPolicy.Mode = mode; library.OrganizationPolicy.CustomTemplate = template; });
-    }
-
-    private async Task EditAsync(LibraryFolderDto library, Action change)
-    {
-        if (_saving) return;
-        change();
-        // Custom naming is a coupled edit: keep the choice in the editor until Apply.
-        if (library.OrganizationPolicy.Mode == "custom" && string.IsNullOrWhiteSpace(library.OrganizationPolicy.CustomTemplate)) return;
-        await SaveLibraryAsync(library);
-    }
-
-    // The Libraries panel saves on its own; keep this page's copy current so library detail pages never see stale data.
+    // The Libraries panel saves on its own; keep this page's copy current for the View settings.
     private async Task RefreshConfigurationAsync()
     {
         var latest = await Orchestrator.GetLibrariesAsync();
-        if (latest is null) return;
-        _configuration = latest;
-        _baseline = JsonSerializer.Serialize(latest);
+        if (latest is not null) _configuration = latest;
     }
 
-    private async Task SaveLibraryAsync(LibraryFolderDto library)
-    {
-        if (_configuration is null || _saving) return;
-        var baseline = JsonSerializer.Deserialize<LibrariesConfigurationDto>(_baseline)!;
-        _saving = true;
-        try
-        {
-            var saved = await ApiClient.MutateLibraryAsync(new LibraryMutationRequest
-            {
-                Library = library,
-                ExpectedLibrary = baseline.Libraries.FirstOrDefault(x => x.Id == library.Id),
-            });
-            if (saved is null)
-            {
-                _configuration = baseline;
-                Snackbar.Add(ApiClient.LastError ?? "Changes could not be saved. Reload and try again.", AppSeverity.Error);
-                return;
-            }
-            _configuration = saved;
-            _baseline = JsonSerializer.Serialize(saved);
-            await PublishLibraryNameAsync();
-            Snackbar.Add("Saved.", AppSeverity.Success);
-        }
-        finally { _saving = false; }
-    }
-
-    private async Task AddAndBrowseLibrarySourceAsync(LibraryFolderDto library)
-    {
-        var source = new LibrarySourceDto
-        {
-            Id = Guid.NewGuid().ToString("D"),
-            ManagementMode = "existing_library",
-            SourceType = "local_folder",
-            AccessMode = "read_only",
-            IncludeSubdirectories = true,
-        };
-        library.Sources.Add(source);
-        await BrowseLibrarySourceAsync(library, source);
-        if (string.IsNullOrWhiteSpace(source.Path)) library.Sources.Remove(source);
-    }
-
-    private async Task RemoveLibrarySource(LibraryFolderDto library, LibrarySourceDto source)
-    {
-        // If this was the destination, the Engine hands the role to the earliest-added remaining managed folder on save.
-        if (await DialogService.ShowMessageBoxAsync("Detach folder?", $"Remove {source.Path} from {library.Name}? Files remain on disk.", yesText: "Detach folder", cancelText: "Cancel") != true) return;
-        library.Sources.Remove(source);
-        await SaveLibraryAsync(library);
-    }
-
-    private static bool IsDestination(LibraryFolderDto library, LibrarySourceDto source) =>
-        source.ManagementMode == "managed_by_tuvima"
-        && string.Equals(library.PrimaryDestinationSourceId, source.Id, StringComparison.OrdinalIgnoreCase);
-
-    // As-is folders are read-only and never a destination; the Engine re-picks the destination when it saves.
-    private static void SetManagementMode(LibraryFolderDto library, LibrarySourceDto source, string? mode)
-    {
-        source.ManagementMode = mode ?? "existing_library";
-        source.AccessMode = source.ManagementMode == "existing_library" ? "read_only" : "writable";
-    }
-
-    private async Task CheckPathAsync(string path)
-    {
-        if (string.IsNullOrWhiteSpace(path)) return;
-        var result = await Orchestrator.TestPathAsync(path);
-        if (result is not null) _pathResults[path] = result;
-    }
-
-    private async Task RefreshPathStatusesAsync()
-    {
-        if (_configuration is null)
-            return;
-
-        var paths = _configuration.Libraries
-            .SelectMany(library => library.Sources)
-            .Select(source => source.Path)
-            .Where(path => !string.IsNullOrWhiteSpace(path))
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .ToList();
-        using var gate = new SemaphoreSlim(4);
-        var checks = paths.Select(async path =>
-        {
-            await gate.WaitAsync();
-            try
-            {
-                return (Path: path, Result: await Orchestrator.TestPathAsync(path));
-            }
-            finally
-            {
-                gate.Release();
-            }
-        }).ToList();
-        foreach (var check in await Task.WhenAll(checks))
-            if (check.Result is not null)
-                _pathResults[check.Path] = check.Result;
-    }
-
-    private async Task BrowseLibrarySourceAsync(LibraryFolderDto library, LibrarySourceDto source)
-    {
-        var selectionMode = source.ManagementMode == "managed_by_tuvima"
-            ? ServerFolderSelectionModes.ManagedLibrary
-            : ServerFolderSelectionModes.ExistingLibrary;
-        var selected = await BrowseForPathAsync(
-            source.Path,
-            selectionMode,
-            source.Id,
-            "Choose a server folder to attach to this library.");
-        if (selected is null) return;
-        source.Path = selected;
-        await CheckPathAsync(selected);
-        await SaveLibraryAsync(library);
-    }
-
-    private async Task<string?> BrowseForPathAsync(
-        string currentPath,
-        string selectionMode,
-        string? currentSourceId,
-        string helpText)
-    {
-        var parameters = new AppDialogParameters<ServerFolderPicker>
-        {
-            { component => component.InitialPath, currentPath },
-            { component => component.SelectionMode, selectionMode },
-            { component => component.CurrentSourceId, currentSourceId },
-            { component => component.HelpText, helpText },
-        };
-        var options = new AppDialogOptions
-        {
-            MaxWidth = AppMaxWidth.ExtraExtraLarge,
-            FullWidth = false,
-            CloseButton = false,
-            CloseOnEscapeKey = true,
-        };
-        var dialog = await DialogService.ShowAsync<ServerFolderPicker>(string.Empty, parameters, options);
-        var result = await dialog.Result;
-        return result is { Canceled: false, Data: ServerFolderValidationResultDto selection }
-            ? selection.Path
-            : null;
-    }
-
-    private LibraryFolderDto? ActiveLibrary(string section)
-    {
-        var libraries = LibrariesFor(section);
-        if (libraries.Count == 0) return null;
-        EnsureSelection(section);
-        return libraries.FirstOrDefault(library => _selectedLibraryIds.GetValueOrDefault(section) == library.Id) ?? libraries[0];
-    }
-
-    private IReadOnlyList<LibraryFolderDto> LibrariesFor(string section) => _configuration?.Libraries
-        .Where(library => string.Equals(library.Area, section, StringComparison.OrdinalIgnoreCase))
-        .OrderBy(library => library.Name).ToList() ?? [];
-
-    private void EnsureSelection(string section)
-    {
-        if (_configuration is null || section == "overview") return;
-        var libraries = LibrariesFor(section);
-        if (libraries.Count == 0) return;
-        if (!_selectedLibraryIds.TryGetValue(section, out var id) || libraries.All(library => library.Id != id))
-            _selectedLibraryIds[section] = libraries[0].Id;
-    }
-
-    private string PathStatus(string path)
-    {
-        if (string.IsNullOrWhiteSpace(path)) return "Missing path";
-        if (!_pathResults.TryGetValue(path, out var result)) return "Not checked";
-        if (!result.Exists) return "Source unavailable";
-        if (!result.HasRead) return "Permission issue";
-        if (!result.HasWrite) return "Read-only";
-        return "Healthy";
-    }
-
-    private AppUiTone PathTone(string path) => PathStatus(path) switch
-    {
-        "Healthy" => AppUiTone.Success,
-        "Not checked" => AppUiTone.Neutral,
-        "Read-only" => AppUiTone.Warning,
-        _ => AppUiTone.Error,
-    };
-
-    private string? _publishedLibraryName;
-    private Task PublishLibraryNameAsync()
-    {
-        if (NormalizeSection(Subsection) == "overview") return Task.CompletedTask;
-        var name = NormalizeSection(Subsection) == "view" ? "View" : _loading ? "Library" : ResolveActiveLibrary(NormalizeSection(Subsection))?.Name ?? "Library unavailable";
-        if (name == _publishedLibraryName) return Task.CompletedTask;
-        _publishedLibraryName = name;
-        return LibraryNameChanged.InvokeAsync(name);
-    }
-    private string SourceStatus(LibrarySourceDto source)
-    {
-        var status = PathStatus(source.Path);
-        return status == "Read-only" && source.ManagementMode == "existing_library" ? "Healthy" : status;
-    }
-    private AppUiTone SourceTone(LibrarySourceDto source) => SourceStatus(source) == "Healthy" ? AppUiTone.Success : PathTone(source.Path);
-    private string SourceAccess(LibrarySourceDto source) => _pathResults.TryGetValue(source.Path, out var result)
-        ? !result.HasRead ? "No read access" : result.HasWrite ? "Read / Write" : "Read-only" : "Not checked";
-    private string LibraryStatus(LibraryFolderDto library)
-    {
-        if (library.Sources.Count == 0) return "No sources";
-        var statuses = library.Sources.Select(SourceStatus).ToList();
-        if (statuses.Any(status => status is "Missing path" or "Source unavailable" or "Permission issue")) return "Needs attention";
-        if (statuses.All(status => status == "Healthy")) return "Healthy";
-        if (statuses.Any(status => status == "Read-only")) return "Read-only";
-        return "Not checked";
-    }
-
-    private AppUiTone LibraryStatusTone(LibraryFolderDto library) => LibraryStatus(library) switch
-    {
-        "Healthy" => AppUiTone.Success,
-        "Read-only" => AppUiTone.Info,
-        "Not checked" => AppUiTone.Neutral,
-        _ => AppUiTone.Warning,
-    };
-
-    private LibraryFolderDto? ResolveActiveLibrary(string section)
-    {
-        if (_configuration is null) return null;
-        if (Guid.TryParse(section, out var id))
-            return _configuration.Libraries.FirstOrDefault(library => Guid.TryParse(library.Id, out var libraryId) && libraryId == id);
-        return section == "overview" ? null : ActiveLibrary(section);
-    }
-
-    private static string NormalizeSection(string? section)
-    {
-        var normalized = section?.Trim().ToLowerInvariant();
-        if (Guid.TryParse(normalized, out _)) return normalized!;
-        return normalized switch
-        {
-            "libraries" => "libraries", "view" => "view", _ => "overview",
-        };
-    }
-
-    private static string TitleCase(string? value) => string.IsNullOrWhiteSpace(value)
-        ? "Unknown"
-        : string.Join(' ', value.Split('_', StringSplitOptions.RemoveEmptyEntries).Select(word => char.ToUpperInvariant(word[0]) + word[1..]));
-
-    private static string AreaIcon(string? area) => area?.ToLowerInvariant() switch
-    {
-        "read" => AppMaterialIcons.Outlined.MenuBook,
-        "watch" => AppMaterialIcons.Outlined.Tv,
-        "listen" => AppMaterialIcons.Outlined.Headphones,
-        "view" => AppMaterialIcons.Outlined.FolderOpen,
-        _ => AppMaterialIcons.Outlined.PermMedia,
-    };
-
-    private static string SourceFriendlyName(LibrarySourceDto source) => string.IsNullOrWhiteSpace(source.Notes)
-        ? Path.GetFileName(source.Path.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar))
-        : source.Notes;
-
-    private static string LibraryIcon(LibraryFolderDto library)
-    {
-        var mediaType = library.MediaTypes.FirstOrDefault()?.ToLowerInvariant();
-        return mediaType switch
-        {
-            "movies" => AppMaterialIcons.Outlined.Movie,
-            "tvshows" or "tv_shows" => AppMaterialIcons.Outlined.Tv,
-            "books" => AppMaterialIcons.Outlined.MenuBook,
-            "comics" => AppMaterialIcons.Outlined.AutoStories,
-            "music" => AppMaterialIcons.Outlined.MusicNote,
-            "audiobooks" => AppMaterialIcons.Outlined.Headphones,
-            _ => AreaIcon(library.Area),
-        };
-    }
-
-    private static string LibraryDescription(LibraryFolderDto library) =>
-        library.MediaTypes.FirstOrDefault()?.ToLowerInvariant() switch
-        {
-            "movies" => "Films and full-length features",
-            "tvshows" or "tv_shows" => "Series and owned episodes",
-            "books" => "Ebooks and PDFs",
-            "comics" => "Issues and graphic novels",
-            "music" => "Albums and tracks",
-            "audiobooks" => "Narrated books",
-            _ => library.Notes ?? "Structured media library",
-        };
-
-    private static AppUiTone AreaTone(string? area) => area?.ToLowerInvariant() switch
-    {
-        "watch" => AppUiTone.Primary,
-        "read" => AppUiTone.Info,
-        "listen" => AppUiTone.Warning,
-        "view" => AppUiTone.Success,
-        _ => AppUiTone.Neutral,
-    };
-
-    private static string PolicyLabel(string? value) => value switch
-    {
-        "enriched" => "Provider metadata", "local_preferred" => "Local preferred", "local_only" => "Local metadata", "manual" => "Manual", _ => TitleCase(value),
-    };
-
-    private static string OrganizationExample(LibraryFolderDto library) => library.OrganizationPolicy.Mode switch
-    {
-        "capture_year_month" => "/2026/08/IMG_4821.HEIC",
-        "year_month_day" => "/2026/08/24/IMG_4821.HEIC",
-        "flat_folder" => "/IMG_4821.HEIC",
-        "keep_original_folders" => "/Original Folder/IMG_4821.HEIC",
-        "custom" => library.OrganizationPolicy.CustomTemplate ?? "Custom template required",
-        "keep_original_names" => "/Original Folder/Original Name.ext",
-        _ => library.MediaTypes.FirstOrDefault()?.ToLowerInvariant() switch
-        {
-            "books" => "Author/Title (2026)/Title.epub",
-            "comics" => "Series/Issue 001.cbz",
-            "movies" => "Title (2026)/Title (2026).mkv",
-            "tvshows" or "tv" => "Show/Season 01/Show - S01E01.mkv",
-            "music" => "Artist/Album (2026)/01 - Track.flac",
-            "audiobooks" => "Author/Title (2026)/Title.m4b",
-            _ => "/Library/Organized Item.ext",
-        },
-    };
-
+    private static string NormalizeSection(string? section) =>
+        string.Equals(section?.Trim(), "view", StringComparison.OrdinalIgnoreCase) ? "view" : "overview";
 }

@@ -29,11 +29,9 @@ public sealed class ServerFolderPickerUiTests
     [Fact]
     public void Picker_IsReusedAcrossLibraryAndPersonalSpaceFlows()
     {
-        var libraries = Read("src/MediaEngine.Web/Components/Settings/LibrariesTab.razor");
         var wizard = Read("src/MediaEngine.Web/Components/Settings/LibraryFoldersPanel.razor");
         var view = Read("src/MediaEngine.Web/Components/Settings/ViewLibrarySettings.razor");
 
-        Assert.Contains("AppDialogParameters<ServerFolderPicker>", libraries, StringComparison.Ordinal);
         Assert.Contains("AppDialogParameters<ServerFolderPicker>", wizard, StringComparison.Ordinal);
         Assert.Contains("ServerFolderSelectionModes.ManagedLibrary", wizard, StringComparison.Ordinal);
         Assert.Contains("ServerFolderSelectionModes.ExistingLibrary", wizard, StringComparison.Ordinal);
@@ -59,27 +57,27 @@ public sealed class ServerFolderPickerUiTests
         Assert.Contains("Import folder", panel, StringComparison.Ordinal);
         Assert.Contains("Waiting for destinations", panel, StringComparison.Ordinal);
         Assert.DoesNotContain("AcceptsNewMedia", panel, StringComparison.Ordinal);
-        Assert.DoesNotContain("PrimaryDestinationSourceId =", panel, StringComparison.Ordinal);
+        // The New media marker moves only through the explicit radio (SetDestinationAsync), never as a side effect.
+        Assert.Single(System.Text.RegularExpressions.Regex.Matches(panel, "PrimaryDestinationSourceId = "));
         Assert.Contains("ImportFolderStatus", panel, StringComparison.Ordinal);
     }
 
     [Fact]
-    public void StructuredWizardAndLibraryDetailsExposeCanonicalFlow()
+    public void LibrariesHaveOneFolderTableAndNoPerLibraryDetailPage()
     {
         var settings = Read("src/MediaEngine.Web/Components/Pages/Settings.razor");
         var libraries = Read("src/MediaEngine.Web/Components/Settings/LibrariesTab.razor");
+        var panel = Read("src/MediaEngine.Web/Components/Settings/LibraryFoldersPanel.razor");
 
-        Assert.Contains("IsLibraryRouteSegment", settings, StringComparison.Ordinal);
         Assert.DoesNotContain("AddLibraryWizard", settings, StringComparison.Ordinal);
-
-        Assert.Contains("LibraryNameChanged", settings, StringComparison.Ordinal);
-        Assert.DoesNotContain("library-detail__tabs", libraries, StringComparison.Ordinal);
-        Assert.Contains("File Handling", libraries, StringComparison.Ordinal);
-        Assert.DoesNotContain("<NavigationLock", libraries, StringComparison.Ordinal);
-        Assert.Contains("MutateLibraryAsync", libraries, StringComparison.Ordinal);
-        Assert.Contains("Folders", libraries, StringComparison.Ordinal);
-        Assert.Contains("Organization", libraries, StringComparison.Ordinal);
-        Assert.Contains("Advanced", libraries, StringComparison.Ordinal);
+        Assert.DoesNotContain("LibraryNameChanged", settings, StringComparison.Ordinal);
+        Assert.Contains("Guid.TryParse(Subsection, out _)", settings, StringComparison.Ordinal);
+        Assert.Contains("Nav.NavigateTo(\"/settings/libraries\", replace: true)", settings, StringComparison.Ordinal);
+        Assert.DoesNotContain("LibraryDetailSurface", libraries, StringComparison.Ordinal);
+        Assert.DoesNotContain("Library settings", panel, StringComparison.Ordinal);
+        Assert.DoesNotContain("/settings/libraries/{", panel, StringComparison.Ordinal);
+        Assert.Contains("<LibraryFolderTable", panel, StringComparison.Ordinal);
+        Assert.Contains("<LibraryAdvancedSettings", panel, StringComparison.Ordinal);
     }
 
     [Fact]

@@ -147,7 +147,7 @@ else
                             <PrivacyHistoryTab Subsection="@_activeSubsection" />
                             break;
                         case SettingsSection.Libraries:
-                            <LibrariesTab Subsection="@_activeSubsection" LibraryNameChanged="OnLibraryNameChanged" />
+                            <LibrariesTab Subsection="@_activeSubsection" />
                             break;
                         case SettingsSection.Ingestion:
                             <IngestionTasksTab View="@IngestionView" RunId="@IngestionRunId" ItemId="@IngestionItemId" />
@@ -205,9 +205,6 @@ else
     [Parameter] public string? Section { get; set; }
     [Parameter] public string? Subsection { get; set; }
     [Parameter] public string? Detail { get; set; }
-    private string? _libraryBreadcrumbName;
-    private string? _libraryBreadcrumbRoute;
-    private void OnLibraryNameChanged(string name) => _libraryBreadcrumbName = name;
     private string? _profileBreadcrumbName;
     private void OnProfileNameChanged(string name)
     {
@@ -277,7 +274,7 @@ else
     private string BrowserTitle => IsProfileDetailRoute
         ? $"{_profileBreadcrumbName ?? "Profile"} - Profiles - Tuvima Library"
         : _activeSection == SettingsSection.Libraries
-        ? $"{(string.IsNullOrWhiteSpace(_activeSubsection) ? "Libraries" : _activeSubsection == "view" ? "View" : _libraryBreadcrumbName ?? "Library")} - Tuvima Library"
+        ? $"{(_activeSubsection == "view" ? "View" : "Libraries")} - Tuvima Library"
         : string.IsNullOrWhiteSpace(_activeSubsection)
         ? $"{GetHeroTitle()} - Tuvima Library"
         : $"{GetSubsectionLabel()} - {GetHeroTitle()} - Tuvima Library";
@@ -340,11 +337,6 @@ else
         }
         _wasAdministrationRoute = IsAdministrationRoute(Section);
         ResolveSectionAndNormalize();
-        if (_activeSection == SettingsSection.Libraries && _libraryBreadcrumbRoute != _activeSubsection)
-        {
-            _libraryBreadcrumbRoute = _activeSubsection;
-            _libraryBreadcrumbName = null;
-        }
         if (!IsProfileDetailRoute)
         {
             _profileBreadcrumbName = null;
@@ -486,6 +478,13 @@ else
             return;
         }
 
+        if (_activeSection == SettingsSection.Libraries && Guid.TryParse(Subsection, out _))
+        {
+            // The per-library settings page is gone; old links land on the single Libraries screen.
+            Nav.NavigateTo("/settings/libraries", replace: true);
+            return;
+        }
+
         if (_activeSection == SettingsSection.Libraries && IsLibraryRouteSegment(Subsection))
         {
             _activeSubsection = Subsection!.Trim();
@@ -550,8 +549,7 @@ else
     }
 
     private static bool IsLibraryRouteSegment(string? value) =>
-        string.Equals(value, "view", StringComparison.OrdinalIgnoreCase)
-        || Guid.TryParse(value, out _);
+        string.Equals(value, "view", StringComparison.OrdinalIgnoreCase);
 
     private static bool IsValidDetailRoute(SettingsSection section, string subsection, string? detail)
     {
@@ -717,7 +715,7 @@ else
         {
             breadcrumbs.Add(new SettingsBreadcrumb("Libraries", string.IsNullOrWhiteSpace(_activeSubsection) ? null : "/settings/libraries"));
             if (!string.IsNullOrWhiteSpace(_activeSubsection))
-                breadcrumbs.Add(new SettingsBreadcrumb(_activeSubsection == "view" ? "View" : _libraryBreadcrumbName ?? "Library", null));
+                breadcrumbs.Add(new SettingsBreadcrumb(_activeSubsection == "view" ? "View" : "Library", null));
             return breadcrumbs;
         }
 
@@ -783,7 +781,7 @@ else
     private string GetDetailBreadcrumbLabel() => _activeSection switch
     {
         SettingsSection.Providers => Detail!.ToUpperInvariant(),
-        SettingsSection.Libraries => "Library details",
+        SettingsSection.Libraries => "Libraries",
         _ => FormatRouteLabel(Detail!),
     };
 

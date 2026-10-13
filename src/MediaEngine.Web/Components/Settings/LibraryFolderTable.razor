@@ -1,0 +1,146 @@
+@namespace MediaEngine.Web.Components.Settings
+@using MediaEngine.Contracts.Settings
+@using MediaEngine.Web.Components.Shared
+@using MediaEngine.Web.Models.ViewDTOs
+
+@* One media type's folders as a table: folder, how Tuvima handles it, where new media goes, and what happens to its files.
+   Under 800px each row becomes a stacked card. The host owns every save; this component only raises what was tapped. *@
+<div class="folder-table" role="table" aria-label="@($"{TypeLabel} folders")">
+    <div class="folder-table__head" role="row">
+        <span role="columnheader">Folder</span>
+        <span role="columnheader">Handling</span>
+        <span role="columnheader">New media</span>
+        <span role="columnheader">Files</span>
+        <span role="columnheader"></span>
+    </div>
+    @foreach (var source in Library.Sources)
+    {
+        var managed = IsManaged(source);
+        var converting = IsConverting(source);
+        var marked = IsNewMediaFolder(source);
+        var issue = IssueFor(source);
+        var name = source.DisplayName();
+        <div class="@RowClass(source)" role="row" @key="source.Id">
+            <div class="folder-table__folder" role="cell">
+                <AppMaterialIcon Icon="@AppMaterialIcons.Filled.Folder" />
+                <span class="folder-table__folder-text">
+                    <strong>@name</strong>
+                    <span class="folder-table__path" title="@source.Path">@source.Path</span>
+                    @if (converting)
+                    {
+                        <span class="folder-table__status" role="status">Organising…</span>
+                    }
+                    @if (!string.IsNullOrWhiteSpace(issue))
+                    {
+                        <span class="folder-table__status folder-table__status--warning">@issue</span>
+                    }
+                </span>
+            </div>
+            <div class="folder-table__handling" role="cell">
+                <AppNativeButton Type="button"
+                                 Class="@HandlingClass(source)"
+                                 Disabled="@(ReadOnly || Busy)"
+                                 AriaLabel="@HandlingAriaLabel(source)"
+                                 OnClick="@(_ => OnChangeHandling.InvokeAsync(source))">
+                    @HandlingLabel(source)
+                </AppNativeButton>
+            </div>
+            <div class="@(marked ? "folder-table__marker is-marked" : "folder-table__marker")" role="cell">
+                @if (!managed)
+                {
+                    <span class="folder-table__none" aria-label="Not a place for new media">—</span>
+                }
+                else
+                {
+                    <AppNativeButton Type="button"
+                                     Class="folder-table__radio"
+                                     role="radio"
+                                     aria-checked="@(marked ? "true" : "false")"
+                                     Disabled="@(ReadOnly || Busy)"
+                                     AriaLabel="@(marked ? $"{name} is where new {PluralLabel} go" : $"Make {name} the place for new {PluralLabel}")"
+                                     OnClick="@(_ => marked ? Task.CompletedTask : OnSetDestination.InvokeAsync(source))">
+                        <AppMaterialIcon Icon="@(marked ? AppMaterialIcons.Filled.RadioButtonChecked : AppMaterialIcons.Outlined.RadioButtonUnchecked)" />
+                        @if (marked)
+                        {
+                            <span class="folder-table__radio-text">New media goes here</span>
+                        }
+                    </AppNativeButton>
+                }
+            </div>
+            <div class="folder-table__files" role="cell" title="@($"Change in Advanced > {TypeLabel}")">@FilesLabel(source)</div>
+            <div class="folder-table__actions" role="cell">
+                <AppNativeButton Type="button"
+                                 Class="folder-table__expand"
+                                 AriaLabel="@($"Show details for {name}")"
+                                 aria-expanded="@(IsExpanded(source) ? "true" : "false")"
+                                 OnClick="@(_ => Toggle(source))">
+                    <AppMaterialIcon Icon="@(IsExpanded(source) ? AppMaterialIcons.Outlined.ExpandLess : AppMaterialIcons.Outlined.ExpandMore)" />
+                </AppNativeButton>
+                @if (!ReadOnly)
+                {
+                    <AppOverflowMenu AriaLabel="@($"Actions for {name}")" Disabled="@Busy" Class="folder-table__menu" TriggerClass="folder-table__menu-trigger">
+                        @if (managed && !marked)
+                        {
+                            <AppMenuItem Label="@($"Make this the place for new {PluralLabel}")" Icon="@AppMaterialIcons.Outlined.RadioButtonUnchecked" OnClick="@(() => OnSetDestination.InvokeAsync(source))" />
+                        }
+                        <AppMenuItem Label="@(managed ? "Switch to As-is" : "Switch to Managed")" Icon="@(managed ? AppMaterialIcons.Outlined.Lock : AppMaterialIcons.Outlined.DriveFileMove)" OnClick="@(() => OnChangeHandling.InvokeAsync(source))" />
+                        <AppMenuItem Label="Label" Icon="@AppMaterialIcons.Outlined.Edit" OnClick="@(() => OnLabel.InvokeAsync(source))" />
+                        <AppMenuItem Label="Remove folder" Icon="@AppMaterialIcons.Outlined.Delete" Tone="AppUiTone.Error" DividerBefore="true" OnClick="@(() => OnRemove.InvokeAsync(source))" />
+                    </AppOverflowMenu>
+                }
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public LibraryFolderDto Library { get; set; } = new();
+    [Parameter] public string TypeLabel { get; set; } = string.Empty;
+    [Parameter] public string PluralLabel { get; set; } = string.Empty;
+    [Parameter] public bool ReadOnly { get; set; }
+    [Parameter] public bool Busy { get; set; }
+    /// <summary>Folder path to a plain-English problem ("Folder unavailable", "No access"); absent when the folder is fine.</summary>
+    [Parameter] public IReadOnlyDictionary<string, string>? PathIssues { get; set; }
+    [Parameter] public EventCallback<LibrarySourceDto> OnChangeHandling { get; set; }
+    [Parameter] public EventCallback<LibrarySourceDto> OnSetDestination { get; set; }
+    [Parameter] public EventCallback<LibrarySourceDto> OnLabel { get; set; }
+    [Parameter] public EventCallback<LibrarySourceDto> OnRemove { get; set; }
+
+    private readonly HashSet<string> _expanded = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>What the Files cell says for a folder. Shared with tests so the wording has one owner.</summary>
+    public static string FilesText(LibraryFolderDto library, LibrarySourceDto source) => !IsManaged(source)
+        ? "Not touched"
+        : library.OrganizationPolicy.WriteTags ? "Named + tagged" : "Named";
+
+    private static bool IsManaged(LibrarySourceDto source) => source.ManagementMode == "managed_by_tuvima";
+    private static bool IsConverting(LibrarySourceDto source) => string.Equals(source.ConversionState, "converting", StringComparison.OrdinalIgnoreCase);
+
+    // Read the marker through the same rule the Engine uses: only a managed folder can hold it.
+    private bool IsNewMediaFolder(LibrarySourceDto source) => IsManaged(source)
+        && ReferenceEquals(source, Library.GetPrimaryDestination());
+
+    private string FilesLabel(LibrarySourceDto source) => FilesText(Library, source);
+
+    private string HandlingLabel(LibrarySourceDto source) => IsConverting(source) ? "Converting…" : IsManaged(source) ? "Managed" : "As-is";
+
+    private string HandlingClass(LibrarySourceDto source) =>
+        $"folder-table__chip {(IsConverting(source) ? "is-converting" : IsManaged(source) ? "is-managed" : "is-asis")}";
+
+    private string HandlingAriaLabel(LibrarySourceDto source) => IsManaged(source)
+        ? $"{source.DisplayName()} is managed by Tuvima. Choose to use it as-is."
+        : $"{source.DisplayName()} is used as-is. Choose to let Tuvima manage it.";
+
+    private string RowClass(LibrarySourceDto source) =>
+        $"folder-table__row{(IsExpanded(source) ? " is-expanded" : string.Empty)}{(IsNewMediaFolder(source) ? " is-marked" : string.Empty)}";
+
+    private string? IssueFor(LibrarySourceDto source) =>
+        PathIssues is not null && PathIssues.TryGetValue(source.Path, out var issue) ? issue : null;
+
+    private bool IsExpanded(LibrarySourceDto source) => _expanded.Contains(source.Id);
+
+    private void Toggle(LibrarySourceDto source)
+    {
+        if (!_expanded.Remove(source.Id)) _expanded.Add(source.Id);
+    }
+}
