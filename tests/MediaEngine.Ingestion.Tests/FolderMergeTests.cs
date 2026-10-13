@@ -424,6 +424,131 @@ public sealed class FolderMergeTests : IDisposable
         Assert.Contains("still only in the source folder", left.Detail);
     }
 
+    // ── A cancelled merge never loses an original, and starting it again does not copy twice ────────────────────
+
+    [Theory]
+    [InlineData(LibraryDuplicatePolicies.KeepOne)]
+    [InlineData(LibraryDuplicatePolicies.KeepBoth)]
+    public async Task A_cancelled_copy_merge_started_again_skips_files_already_copied_and_makes_no_numbered_duplicates(string policy)
+    {
+        var h = NewHarness(policy);
+        await ThreeFilmsAsync(h);
+        var cancelled = await h.RunAsync(new TestHost { Signal = asked => asked == 2 ? FolderJobSignal.Cancel : FolderJobSignal.Continue });
+        Assert.Equal(FolderOrganiseStop.Cancelled, cancelled.Stop);
+        var copiedBefore = h.TargetFiles().ToList();
+        Assert.Equal(2, copiedBefore.Count);
+
+        // The folder is a plain folder again; the person starts the same merge once more.
+        h.SettleCancelledMerge();
+        h.StartMergeAgain();
+        var before = FolderMergeHarness.Fingerprint(h.SourceDir);
+        var restarted = await h.RunAsync();
+
+        Assert.Equal(FolderOrganiseStop.Finished, restarted.Stop);
+        Assert.Equal(
+            [Standard("Alien", "1979"), Standard("Brazil", "1985"), Standard("Casablanca", "1942")],
+            h.TargetFiles());
+        Assert.Equal(before, FolderMergeHarness.Fingerprint(h.SourceDir));
+        Assert.Equal(3, restarted.Count(FolderOrganiseOutcomes.Copied));
+        var carried = await h.Ledger.GetAsync(h.OperationId, Path.Combine(h.SourceDir, "a.mkv"));
+        Assert.Equal(FolderOrganiseOutcomes.Copied, carried!.Outcome);
+        Assert.Contains("not copied again", carried.Detail);
+        Assert.DoesNotContain(await h.Reviews.GetPendingAsync(50), review => review.Trigger == ReviewTrigger.NameCollision);
+    }
+
+    [Fact]
+    public async Task A_cancelled_copy_merge_started_again_as_a_move_removes_each_original_after_the_copy_is_checked()
+    {
+        var h = NewHarness(sourceManaged: true);
+        var ids = await ThreeFilmsAsync(h);
+        await h.RunAsync(new TestHost { Signal = asked => asked == 2 ? FolderJobSignal.Cancel : FolderJobSignal.Continue });
+        h.SettleCancelledMerge();
+        h.StartMergeAgain(move: true);
+
+        var restarted = await h.RunAsync();
+
+        Assert.Equal(FolderOrganiseStop.Finished, restarted.Stop);
+        Assert.Empty(h.SourceFiles());
+        Assert.Equal(
+            [Standard("Alien", "1979"), Standard("Brazil", "1985"), Standard("Casablanca", "1942")],
+            h.TargetFiles());
+        Assert.Equal(3, restarted.Count(FolderOrganiseOutcomes.Moved));
+        Assert.Equal(Path.Combine(h.TargetDir, "Movies", "Alien (1979)", "Alien (1979).mkv"), (await h.RealAssets.FindByIdAsync(ids[0]))!.FilePathRoot);
+    }
+
+    [Fact]
+    public async Task A_copy_that_no_longer_matches_its_original_is_not_taken_as_already_copied()
+    {
+        var h = NewHarness();
+        await ThreeFilmsAsync(h);
+        await h.RunAsync(new TestHost { Signal = asked => asked == 1 ? FolderJobSignal.Cancel : FolderJobSignal.Continue });
+        var copy = Path.Combine(h.TargetDir, "Movies", "Alien (1979)", "Alien (1979).mkv");
+        File.WriteAllText(copy, "somebody changed this");
+        h.SettleCancelledMerge();
+        h.StartMergeAgain();
+
+        var carried = await h.Organiser.TryCarryOnEarlierCopyAsync(
+            Path.Combine(h.SourceDir, "a.mkv"), FolderMergeContext.TryCreateForJob(h.Config.Libraries, h.OperationId, h.SourceId, out _)!);
+
+        Assert.Null(carried);
+        Assert.Equal("somebody changed this", File.ReadAllText(copy));
+        Assert.Equal("Alien", File.ReadAllText(Path.Combine(h.SourceDir, "a.mkv")));
+    }
+
+    [Fact]
+    public async Task After_a_cancelled_merge_the_gate_refuses_to_delete_or_move_every_original_it_listed()
+    {
+        var h = NewHarness(sourceManaged: true);
+        await ThreeFilmsAsync(h);
+        await h.RunAsync(new TestHost { Signal = asked => asked == 2 ? FolderJobSignal.Cancel : FolderJobSignal.Continue });
+        h.SettleCancelledMerge();
+        var untouched = h.WriteSource("d.mkv", "not part of the merge");
+        var gate = new MediaEngine.Ingestion.SourceMutationPolicyGate(h.Ledger);
+        var policy = MediaEngine.Ingestion.Services.FileSourceMutationPolicyFactory.Create(
+            h.Config.Libraries.Libraries[0], h.Source, allowDelete: true);
+
+        foreach (var name in new[] { "a.mkv", "b.mkv", "c.mkv" })
+        {
+            foreach (var kind in new[]
+            {
+                MediaEngine.Ingestion.Models.SourceMutationKind.Delete,
+                MediaEngine.Ingestion.Models.SourceMutationKind.Move,
+                MediaEngine.Ingestion.Models.SourceMutationKind.Rename,
+            })
+            {
+                var decision = gate.Evaluate(new MediaEngine.Ingestion.Models.SourceMutationRequest
+                {
+                    Source = policy,
+                    Mutation = kind,
+                    Path = Path.Combine(h.SourceDir, name),
+                });
+                Assert.False(decision.Allowed, $"{kind} of {name} must be refused");
+            }
+        }
+
+        // c.mkv was never reached (left in source) and a.mkv and b.mkv were copied: all three are protected. A file no merge
+        // listed is an ordinary file and follows the usual rules.
+        Assert.True(gate.Evaluate(new MediaEngine.Ingestion.Models.SourceMutationRequest
+        {
+            Source = policy,
+            Mutation = MediaEngine.Ingestion.Models.SourceMutationKind.Delete,
+            Path = untouched,
+        }).Allowed);
+    }
+
+    [Fact]
+    public async Task The_merge_job_itself_may_still_remove_an_original_it_listed_once_its_copy_is_checked()
+    {
+        var h = NewHarness(sourceManaged: true, move: true);
+        await ThreeFilmsAsync(h);
+
+        var result = await h.RunAsync();
+
+        // Every original is a ledger line, and the merge's own policy still lets it remove them.
+        Assert.Equal(3, result.Count(FolderOrganiseOutcomes.Moved));
+        Assert.Empty(h.SourceFiles());
+    }
+
     [Fact]
     public async Task A_merge_stopped_right_after_a_copy_finishes_it_on_restart_without_a_second_copy()
     {

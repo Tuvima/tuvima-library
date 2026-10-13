@@ -59,7 +59,7 @@ public sealed class FolderMergeContext
         IsMove = isMove;
         DuplicatePolicy = duplicatePolicy;
         LibraryEntry = LibraryFolderEntryFactory.Create(library);
-        SourcePolicy = FileSourceMutationPolicyFactory.Create(library, source, allowDelete: isMove);
+        SourcePolicy = FileSourceMutationPolicyFactory.Create(library, source, allowDelete: isMove, isMergeJob: true);
         TargetPolicy = FileSourceMutationPolicyFactory.Create(library, target, allowDelete: false, isMergeTarget: true);
     }
 

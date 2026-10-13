@@ -136,6 +136,66 @@ public sealed class FolderOrganiseLogRepository : IFolderOrganiseLogRepository
         return Task.FromResult(counts);
     }
 
+    public bool IsMergeOriginal(string path)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            return false;
+        }
+
+        using var conn = _db.CreateConnection();
+        return conn.ExecuteScalar<int>(
+            """
+            SELECT EXISTS (
+                SELECT 1 FROM folder_organise_log
+                WHERE old_path = @path COLLATE NOCASE
+                  AND outcome IN @outcomes);
+            """,
+            new { path, outcomes = KeepOriginalOutcomes }) != 0;
+    }
+
+    public Task<FolderOrganiseLogEntry?> FindEarlierCopyAsync(Guid sourceId, string oldPath, CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+        if (string.IsNullOrWhiteSpace(oldPath))
+        {
+            return Task.FromResult<FolderOrganiseLogEntry?>(null);
+        }
+
+        using var conn = _db.CreateConnection();
+        var row = conn.QueryFirstOrDefault<Row>(
+            SelectSql + """
+                 WHERE source_id = @sourceId
+                   AND old_path = @oldPath COLLATE NOCASE
+                   AND outcome IN @outcomes
+                 ORDER BY at DESC
+                 LIMIT 1;
+                """,
+            new { sourceId, oldPath, outcomes = EarlierCopyOutcomes });
+        return Task.FromResult(row is null ? null : Map(row));
+    }
+
+    // The outcomes whose original is still in the source folder, listed once so the lookup and the rule cannot drift apart.
+    private static readonly string[] KeepOriginalOutcomes =
+    [
+        FolderOrganiseOutcomes.Copied,
+        FolderOrganiseOutcomes.CopiedWithUniqueName,
+        FolderOrganiseOutcomes.DuplicateSkipped,
+        FolderOrganiseOutcomes.SidecarCopied,
+        FolderOrganiseOutcomes.MergedForReview,
+        FolderOrganiseOutcomes.LeftInSource,
+    ];
+
+    // A copy of a media file exists (or was being made): what a restarted merge may carry on from.
+    private static readonly string[] EarlierCopyOutcomes =
+    [
+        FolderOrganiseOutcomes.Copied,
+        FolderOrganiseOutcomes.CopiedWithUniqueName,
+        FolderOrganiseOutcomes.DuplicateSkipped,
+        FolderOrganiseOutcomes.MergedForReview,
+        FolderOrganiseOutcomes.Moving,
+    ];
+
     private static FolderOrganiseLogEntry Map(Row row) => new(
         row.OperationId,
         row.SourceId,

@@ -898,6 +898,8 @@ internal sealed class SchemaMigrator
             );
             CREATE INDEX IF NOT EXISTS idx_folder_organise_log_source
                 ON folder_organise_log(source_id, at);
+            CREATE INDEX IF NOT EXISTS idx_folder_organise_log_old_path
+                ON folder_organise_log(old_path COLLATE NOCASE);
             """;
         command.ExecuteNonQuery();
         AddColumnIfMissing(conn, "folder_organise_log", "detail",

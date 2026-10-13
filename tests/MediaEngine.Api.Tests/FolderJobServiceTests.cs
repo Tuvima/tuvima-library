@@ -467,7 +467,7 @@ public sealed class FolderJobServiceTests : IDisposable
         var cancelled = await _f.Jobs.ControlAsync(Guid.Parse(job.OperationId), "cancel", default);
 
         Assert.Equal("cancelled", cancelled.State);
-        Assert.Contains("still in the source folder", cancelled.Message);
+        Assert.Equal("Merge stopped. Nothing was deleted. You can start it again.", cancelled.Message);
         var saved = _f.Source(source.Id);
         Assert.Equal(LibrarySourceMergeStates.None, saved.MergeState);
         Assert.Null(saved.MergeOperationId);
@@ -477,6 +477,51 @@ public sealed class FolderJobServiceTests : IDisposable
         // It can be merged again later.
         var again = await _f.Jobs.StartMergeAsync(MergeRequest(source, target), default);
         Assert.NotEqual(job.OperationId, again.OperationId);
+    }
+
+    [Fact]
+    public async Task Stopping_a_move_merge_says_what_was_moved_and_leaves_the_folder_as_it_was_before_the_merge()
+    {
+        var target = _f.AddManagedFolder("Tuvima Movies");
+        var source = _f.AddManagedFolder("Old Movies");
+        var job = await _f.Jobs.StartMergeAsync(MergeRequest(source, target, LibraryMergeModes.Move), default);
+
+        var cancelled = await _f.Jobs.ControlAsync(Guid.Parse(job.OperationId), "cancel", default);
+
+        Assert.Equal("cancelled", cancelled.State);
+        Assert.Equal(FolderJobService.MergeStoppedMessage(isMove: true), cancelled.Message);
+        Assert.StartsWith("Merge stopped.", cancelled.Message);
+        Assert.EndsWith("You can start it again.", cancelled.Message);
+        Assert.DoesNotContain("Nothing was deleted", cancelled.Message);
+        // Not merging and not merged: the saved folder looks exactly as it did before the merge was started.
+        var saved = _f.Source(source.Id);
+        Assert.Equal(LibrarySourceMergeStates.None, saved.MergeState);
+        Assert.Null(saved.MergeOperationId);
+        Assert.Null(saved.MergeTargetSourceId);
+        Assert.Null(saved.MergeMode);
+        Assert.Null(saved.MergedAt);
+    }
+
+    [Fact]
+    public async Task Cancelling_a_merge_cut_short_mid_file_keeps_the_original_protected_when_its_copy_is_in_place()
+    {
+        var source = _f.AddAsIsFolder("Plex Movies", fileCount: 1);
+        var target = _f.AddManagedFolder("Tuvima Movies");
+        var job = await _f.Jobs.StartMergeAsync(MergeRequest(source, target), default);
+        // The Engine stopped after the copy landed but before the file was closed off in the log, and then the merge was cancelled.
+        var original = Path.Combine(source.Path, "file0.mkv");
+        var copy = Path.Combine(target.Path, "Movies", "Dune (2021)", "Dune (2021).mkv");
+        Directory.CreateDirectory(Path.GetDirectoryName(copy)!);
+        File.Copy(original, copy);
+        await _f.Ledger.UpsertAsync(new FolderOrganiseLogEntry(
+            Guid.Parse(job.OperationId), Guid.Parse(source.Id), original, copy, FolderOrganiseOutcomes.Moving, DateTimeOffset.UtcNow, "transfer:"));
+        Assert.False(_f.Ledger.IsMergeOriginal(original));
+
+        await _f.Jobs.ControlAsync(Guid.Parse(job.OperationId), "cancel", default);
+
+        Assert.True(_f.Ledger.IsMergeOriginal(original));
+        Assert.Equal(FolderOrganiseOutcomes.Copied, (await _f.Ledger.GetAsync(Guid.Parse(job.OperationId), original))!.Outcome);
+        Assert.True(File.Exists(original));
     }
 
     [Fact]

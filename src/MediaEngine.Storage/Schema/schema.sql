@@ -1233,6 +1233,10 @@ CREATE TABLE IF NOT EXISTS folder_organise_log (
 CREATE INDEX IF NOT EXISTS idx_folder_organise_log_source
   ON folder_organise_log(source_id, at);
 
+-- The mutation gate asks "is this path a merge original?" before every delete or move, so it is one indexed lookup.
+CREATE INDEX IF NOT EXISTS idx_folder_organise_log_old_path
+  ON folder_organise_log(old_path COLLATE NOCASE);
+
 CREATE TABLE IF NOT EXISTS media_operations (
   id                  BLOB PRIMARY KEY,
   operation_type      TEXT NOT NULL,

@@ -446,21 +446,87 @@ public sealed class FolderMergeOrganiser
         }
 
         var reference = new MediaAssetFileRef(asset.Id, entry.OldPath, asset.ContentHash, asset.LibraryId);
+        await CompleteFromIntentAsync(reference, entry.OldPath, entry.NewPath, tag, note, context, ct).ConfigureAwait(false);
+    }
+
+    /// <summary>Finishes a transfer whose verified copy is already in place, the way the interrupted run would have.</summary>
+    private async Task<ConversionOutcome> CompleteFromIntentAsync(
+        MediaAssetFileRef reference, string oldPath, string newPath, string tag, string? note, FolderMergeContext context, CancellationToken ct)
+    {
         if (tag == TagDuplicate)
         {
             if (!context.IsMove)
             {
-                await RepointAsync(asset.Id, entry.NewPath, ct).ConfigureAwait(false);
-                await FinishAsync(context, entry.OldPath, entry.NewPath, FolderOrganiseOutcomes.DuplicateSkipped, note, ct).ConfigureAwait(false);
-                return;
+                await RepointAsync(reference.AssetId, newPath, ct).ConfigureAwait(false);
+                return await FinishAsync(context, oldPath, newPath, FolderOrganiseOutcomes.DuplicateSkipped, note, ct).ConfigureAwait(false);
             }
 
-            await CompleteDuplicateMoveAsync(reference, entry.OldPath, entry.NewPath, context, ct).ConfigureAwait(false);
-            return;
+            return await CompleteDuplicateMoveAsync(reference, oldPath, newPath, context, ct).ConfigureAwait(false);
         }
 
-        await CompleteTransferAsync(
-            reference, entry.OldPath, entry.NewPath, tag, note, unique: tag is TagUnique or TagCollision, context, ct).ConfigureAwait(false);
+        return await CompleteTransferAsync(
+            reference, oldPath, newPath, tag, note, unique: tag is TagUnique or TagCollision, context, ct).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// A merge that was stopped and started again meets files an earlier run already copied. When the earlier copy is still in
+    /// this merge's target and is still identical to the original, the file is carried on from there: in Copy mode it is simply
+    /// recorded (nothing is copied again and no numbered duplicate appears); in Move mode the original is removed after the
+    /// same byte check as any other move. Returns null when there is nothing to carry on from, so the file is handled normally.
+    /// </summary>
+    public async Task<ConversionOutcome?> TryCarryOnEarlierCopyAsync(string path, FolderMergeContext context, CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+        var full = Path.GetFullPath(path);
+        var earlier = await _ledger.FindEarlierCopyAsync(context.SourceId, full, ct).ConfigureAwait(false);
+        if (earlier is null || string.IsNullOrEmpty(earlier.NewPath))
+        {
+            return null;
+        }
+
+        // Only a copy that is still where this merge puts files, and still has the original's exact bytes, counts.
+        var copy = Path.GetFullPath(earlier.NewPath);
+        if (PathSafety.Comparer.Equals(full, copy)
+            || !PathSafety.IsContainedBy(copy, context.TargetRoot)
+            || !File.Exists(full)
+            || !File.Exists(copy)
+            || !await _transfer.SameContentAsync(full, copy, ct).ConfigureAwait(false))
+        {
+            return null;
+        }
+
+        var (tag, note) = ParseIntent(earlier.Detail);
+        if (earlier.Outcome != FolderOrganiseOutcomes.Moving)
+        {
+            tag = earlier.Outcome switch
+            {
+                FolderOrganiseOutcomes.DuplicateSkipped => TagDuplicate,
+                FolderOrganiseOutcomes.MergedForReview => TagReview,
+                FolderOrganiseOutcomes.CopiedWithUniqueName => TagUnique,
+                _ => TagTransfer,
+            };
+
+            if (!context.IsMove)
+            {
+                return await FinishAsync(
+                    context, full, copy, earlier.Outcome,
+                    "An earlier run of this merge already copied this file and the copy was checked again, so it was not copied again. The original was left alone.",
+                    ct).ConfigureAwait(false);
+            }
+
+            note = null;
+        }
+
+        var asset = await _assets.FindByPathRootAsync(full, ct).ConfigureAwait(false)
+            ?? await _assets.FindByPathRootAsync(copy, ct).ConfigureAwait(false);
+        if (asset is null)
+        {
+            return null;
+        }
+
+        var reference = new MediaAssetFileRef(asset.Id, full, asset.ContentHash, asset.LibraryId);
+        await WriteLedgerAsync(context, full, copy, FolderOrganiseOutcomes.Moving, Intent(tag, note), ct).ConfigureAwait(false);
+        return await CompleteFromIntentAsync(reference, full, copy, tag, note, context, ct).ConfigureAwait(false);
     }
 
     // ─────────────────────────────────────────────────────────────────────────────
