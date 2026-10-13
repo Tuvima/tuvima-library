@@ -31,8 +31,17 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
     private FolderConversionPreviewResponse _quick = new() { TotalFiles = 2140, VideoFiles = 2140, EstimatedSeconds = 10700, DuplicatePolicy = "keep_one" };
     private FolderConversionPreviewResponse _preview = new()
     {
-        TotalFiles = 2140, Examined = 500, Complete = false, ToRename = 410, AlreadyCorrect = 60, DuplicatesToRemove = 12, NeedsReview = 15, NameCollisions = 3, Skipped = 0,
-        EstimatedSeconds = 10700, DuplicatePolicy = "keep_one",
+        TotalFiles = 2140,
+        Examined = 500,
+        Complete = false,
+        ToRename = 410,
+        AlreadyCorrect = 60,
+        DuplicatesToRemove = 12,
+        NeedsReview = 15,
+        NameCollisions = 3,
+        Skipped = 0,
+        EstimatedSeconds = 10700,
+        DuplicatePolicy = "keep_one",
         Samples = [new() { OldPath = "raw/Dune.2021.mkv", NewPath = "Movies/Dune (2021)/Dune (2021).mkv" }],
     };
     private List<FolderJobStatusDto> _jobs = [];
