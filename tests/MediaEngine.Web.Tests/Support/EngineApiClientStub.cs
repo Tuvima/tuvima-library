@@ -495,6 +495,9 @@ internal class EngineApiClientStub : DispatchProxy
         _handlers[nameof(IEngineApiClient.GetCapabilitySummaryAsync)] =
             _ => Task.FromResult(new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase));
 
+        _handlers[nameof(IEngineApiClient.GetImportFolderWaitingAsync)] =
+            _ => Task.FromResult<MediaEngine.Contracts.Ingestion.ImportFolderWaitingResponse?>(null);
+
         _handlers[nameof(IEngineApiClient.TriggerRescanAsync)] =
             _ => Task.FromResult(true);
 

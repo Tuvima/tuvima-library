@@ -55,7 +55,11 @@ public sealed class ServerFolderPickerUiTests
         var panel = Read("src/MediaEngine.Web/Components/Settings/LibraryFoldersPanel.razor");
 
         Assert.Contains("Import folder", panel, StringComparison.Ordinal);
-        Assert.Contains("Waiting for destinations", panel, StringComparison.Ordinal);
+        foreach (var banned in new[] { "drop-off", "Waiting for destinations", "Needs destination", "\"Ready\"" })
+        {
+            Assert.DoesNotContain(banned, panel, StringComparison.OrdinalIgnoreCase);
+        }
+
         Assert.DoesNotContain("AcceptsNewMedia", panel, StringComparison.Ordinal);
         // The New media marker moves only through the explicit radio (SetDestinationAsync), never as a side effect.
         Assert.Single(System.Text.RegularExpressions.Regex.Matches(panel, "PrimaryDestinationSourceId = "));

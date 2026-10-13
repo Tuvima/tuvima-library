@@ -24,6 +24,7 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
     private int _saves;
     private LibraryFolderDto? _lastLibrary;
     private UpdateLibrariesRequest? _lastUpdate;
+    private MediaEngine.Contracts.Ingestion.ImportFolderWaitingResponse? _waiting;
     private Func<string, PathTestResultDto> _pathProbe = _ => new() { Exists = true, HasRead = true, HasWrite = true };
     private IRenderedComponent<AppPopoverHost> _popovers = null!;
 
@@ -68,6 +69,7 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
         {
             stub.SetHandler(nameof(IEngineApiClient.GetLibrariesAsync), _ => Task.FromResult<LibrariesConfigurationDto?>(_configuration));
             stub.SetHandler(nameof(IEngineApiClient.GetSetupLibrariesAsync), _ => Task.FromResult<LibrariesConfigurationDto?>(_configuration));
+            stub.SetHandler(nameof(IEngineApiClient.GetImportFolderWaitingAsync), _ => Task.FromResult(_waiting));
             stub.SetHandler(nameof(IEngineApiClient.TestPathAsync), args => Task.FromResult<PathTestResultDto?>(_pathProbe((string)args![0]!)));
             stub.SetHandler(nameof(IEngineApiClient.UpdateLibrariesAsync), args =>
             {
@@ -125,11 +127,102 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
     {
         var cut = Render<LibrariesTab>();
         cut.WaitForElement(".library-folders__type");
-        Assert.Equal(6, cut.FindAll(".library-folders__type").Count);
+        Assert.Equal(7, cut.FindAll(".library-folders__type").Count);
         Assert.Contains(cut.FindAll(".library-folders__type"), x => x.TextContent.Contains("Audiobooks") && x.TextContent.Contains("1 folder"));
         Assert.Contains(cut.FindAll(".library-folders__type"), x => x.TextContent.Contains("Movies") && x.TextContent.Contains("3 folders"));
         Assert.Contains("Add Folder", cut.Markup);
         Assert.Contains("/settings/libraries/view", cut.Markup);
+    }
+
+    private static ImportFolderStatusDto ConfiguredImport() => new()
+    {
+        Configured = true,
+        Path = "C:\\media\\Import",
+        Destinations =
+        [
+            new() { MediaType = "Movies", LibraryId = MoviesId, DestinationSourceId = "movies-main", Path = "E:\\Library\\Movies" },
+            new() { MediaType = "TV Shows", LibraryId = TvId, DestinationSourceId = "tv-main", Path = "E:\\Library\\TV" },
+            new() { MediaType = "Audiobooks" },
+        ],
+    };
+
+    // I1 to I3: the Import folder is the seventh entry, reads Not set, and shows only the Set button with no type lines.
+    [Fact]
+    public void ImportFolderIsTheSeventhEntryAndShowsOnlySetWhenNotSet()
+    {
+        var cut = Render<LibrariesTab>();
+        cut.WaitForElement(".library-folders__type");
+        var entries = cut.FindAll(".library-folders__type");
+        Assert.Equal("Import folder", Text(entries[6].QuerySelector("strong")!));
+        Assert.Equal("Not set", Text(entries[6].QuerySelector("small")!));
+        entries[6].Click();
+        cut.WaitForAssertion(() => Assert.Contains("Set import folder", cut.Markup));
+        Assert.Empty(cut.FindAll(".library-folders__destination"));
+        Assert.DoesNotContain("Where imported files go", cut.Markup);
+        foreach (var banned in new[] { "drop-off", "Ready", "Waiting for destinations", "Needs destination" })
+        {
+            Assert.False(Regex.IsMatch(cut.Markup, $@"\b{Regex.Escape(banned)}\b", RegexOptions.IgnoreCase), banned);
+        }
+    }
+
+    // I2: once set, the folder row and one line per type appear; a type without a managed folder gets a Choose action.
+    [Fact]
+    public void ImportPanelShowsTheFolderRowAndOneLinePerType()
+    {
+        _configuration.ImportFolderStatus = ConfiguredImport();
+        var cut = Render<LibrariesTab>();
+        cut.WaitForElement(".library-folders__type");
+        var entries = cut.FindAll(".library-folders__type");
+        Assert.Equal("Set", Text(entries[6].QuerySelector("small")!));
+        entries[6].Click();
+        cut.WaitForAssertion(() => Assert.Equal(3, cut.FindAll(".library-folders__destination").Count));
+        Assert.Contains("C:\\media\\Import", cut.Find(".library-folders__table-row").TextContent);
+        Assert.Contains("Where imported files go", cut.Markup);
+        var lines = cut.FindAll(".library-folders__destination").Select(Text).ToList();
+        Assert.Contains(lines, line => line.StartsWith("Movies") && line.Contains("Library Movies") && line.Contains("E:\\Library\\Movies"));
+        Assert.Contains(lines, line => line.StartsWith("Audiobooks") && line.Contains("Add a managed folder to import Audiobooks") && line.Contains("Choose"));
+        Assert.DoesNotContain("Merge into", cut.Markup);
+    }
+
+    // Choose jumps to that type's folders and points at Add Folder.
+    [Fact]
+    public void ChooseOnAnImportLineOpensThatTypeAndHighlightsAddFolder()
+    {
+        _configuration.ImportFolderStatus = ConfiguredImport();
+        var cut = Render<LibrariesTab>();
+        cut.WaitForElement(".library-folders__type");
+        cut.FindAll(".library-folders__type")[6].Click();
+        cut.WaitForElement(".library-folders__destination");
+        cut.FindAll(".library-folders__destination").Single(x => x.TextContent.Contains("Audiobooks")).QuerySelector("button")!.Click();
+        cut.WaitForAssertion(() =>
+        {
+            Assert.Contains("Audiobooks", Text(cut.Find("#library-folders-title")));
+            Assert.NotEmpty(cut.FindAll(".library-folders__add.is-highlighted"));
+        });
+    }
+
+    // A type whose files cannot be filed shows the Engine's own sentence under its line.
+    [Fact]
+    public void ImportLineShowsTheEnginesSentenceAndFolderUnavailable()
+    {
+        _configuration.ImportFolderStatus = ConfiguredImport();
+        _waiting = new MediaEngine.Contracts.Ingestion.ImportFolderWaitingResponse
+        {
+            Configured = true,
+            Waiting =
+            [
+                new() { MediaType = "TV Shows", Folder = "TV", FileCount = 2, Reason = "folder_unavailable", Message = "TV Shows are staying in the Import folder because the New media folder is offline." },
+            ],
+        };
+        var cut = Render<LibrariesTab>();
+        cut.WaitForElement(".library-folders__type");
+        cut.FindAll(".library-folders__type")[6].Click();
+        cut.WaitForAssertion(() =>
+        {
+            var tv = cut.FindAll(".library-folders__destination").Single(x => x.TextContent.StartsWith("TV Shows"));
+            Assert.Contains("Folder unavailable", tv.TextContent);
+            Assert.Contains("because the New media folder is offline", tv.TextContent);
+        });
     }
 
     // A1: the per-library page and its link are gone.
