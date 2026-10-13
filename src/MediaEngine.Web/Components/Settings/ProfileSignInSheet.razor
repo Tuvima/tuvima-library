@@ -235,6 +235,13 @@
             _mustChange = true;
         }
 
+        else if (!Open && _wasOpen)
+        {
+            // Nothing typed here is kept once the sheet is closed.
+            _password = string.Empty;
+            _email = string.Empty;
+        }
+
         _wasOpen = Open;
     }
 

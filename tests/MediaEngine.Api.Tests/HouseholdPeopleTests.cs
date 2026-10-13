@@ -381,6 +381,35 @@ public sealed class HouseholdPeopleTests
         Assert.Equal("MARY.NEW@example.com", (await accounts.GetByIdAsync(given.Id))!.Email);
     }
 
+    [Theory]
+    [InlineData("email")]
+    [InlineData("password")]
+    public async Task ChangingTheEmailOrPassword_EndsPasswordResetLinksAlreadySent(string change)
+    {
+        await using var fixture = await Fixture.CreateAsync();
+        var (mutations, households, actor) = (fixture.Mutations, fixture.Households, fixture.Actor);
+        var owner = await fixture.CreateOwnerAsync();
+        var household = (await households.GetForAccountAsync(owner.Id))!;
+        var mary = await mutations.AddHouseholdPersonAsync(actor,
+            new AddHouseholdPersonCommand(household.Id, "Mary", null, false, null));
+        var given = (await mutations.GiveOwnSignInAsync(actor,
+            new GiveOwnSignInCommand(mary.Id, "mary@example.com", "a long starting password"))).Account;
+        var token = await fixture.Identity.BeginPasswordResetAsync("mary@example.com");
+        Assert.NotNull(token);
+
+        if (change == "email")
+        {
+            await mutations.ChangeEmailAsync(actor, given.Id, "mary.new@example.com");
+        }
+        else
+        {
+            await mutations.SetTemporaryPasswordAsync(actor, given.Id, "another long password", mustChangePassword: false);
+        }
+
+        // A link mailed to the old address (or issued before the password was set) must not still work.
+        await Assert.ThrowsAnyAsync<Exception>(() => fixture.Identity.ResetPasswordWithTokenAsync(token, "a thief chosen password"));
+    }
+
     [Fact]
     public async Task ChangeEmail_IsNeverSelfService()
     {

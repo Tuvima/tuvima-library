@@ -228,6 +228,7 @@ public sealed class FirstPartyIdentityService(
 
         await identities.UpsertAccountCredentialAsync(credential, ct).ConfigureAwait(false);
         await accounts.SetTemporaryPasswordStateAsync(accountId, mustChange, mustChange ? expiresAt : null, UtcNow, ct).ConfigureAwait(false);
+        await identities.InvalidatePasswordResetChallengesAsync(accountId, ct).ConfigureAwait(false);
         var eventType = mustChange ? "temporary_password_set" : "password_set_by_administrator";
         await identities.RevokeAccountSessionsAsync(accountId, UtcNow, eventType, null, ct).ConfigureAwait(false);
         await AuditAsync(accountId, null, null, eventType, true, null, ct).ConfigureAwait(false);

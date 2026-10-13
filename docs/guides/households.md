@@ -75,7 +75,7 @@ Your private photo space stays private until you choose to submit something.
 
 ## What a household administrator can and cannot do
 
-A household administrator can add and remove people in their own household, give them their own sign-ins, change their sign-in email, set their PINs and passwords, and reset their two-step codes.
+A household administrator can add and remove people in their own household, give them their own sign-ins, change their sign-in email, and set their PINs and passwords, all from each person's page under **Settings → Profiles**. They cannot give an own sign-in to a person that belongs to an administrator. Resetting two-step codes, sharing libraries and lanes, and looking after the household's main sign-ins are done by a server administrator under **Settings → Users & Access**.
 
 They cannot change another household, act on a server administrator or another household administrator, or turn on administrator access for anyone. Administrator access is always set by a server administrator.
 

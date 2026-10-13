@@ -179,7 +179,19 @@ public sealed class AccountAccessMutationService(
         target.Email = normalized;
         target.NormalizedEmail = normalizedKey;
         target.UpdatedAt = clock.GetUtcNow();
-        await accounts.UpdateAccountAsync(target, ct).ConfigureAwait(false);
+        try
+        {
+            await accounts.UpdateAccountAsync(target, ct).ConfigureAwait(false);
+        }
+        catch (Microsoft.Data.Sqlite.SqliteException ex) when (ex.SqliteErrorCode == 19)
+        {
+            // Another change took the address between the check above and this write: the unique index decides.
+            throw new InvalidOperationException("That email already has a sign-in.");
+        }
+
+        // A password-reset link or two-step challenge sent for the old address must not outlive the move to the new one.
+        await identities.InvalidatePasswordResetChallengesAsync(accountId, ct).ConfigureAwait(false);
+        await identities.InvalidateTwoStepChallengesAsync(accountId, ct).ConfigureAwait(false);
         await ChangedAsync(actor, "account.email_changed", "account", accountId.ToString("D"),
             accountId, null, ct).ConfigureAwait(false);
         return (await accounts.GetByIdAsync(accountId, ct).ConfigureAwait(false))!;
@@ -494,7 +506,7 @@ public sealed class AccountAccessMutationService(
         CancellationToken ct = default)
     {
         var profile = await profiles.GetByIdAsync(command.ProfileId, ct).ConfigureAwait(false);
-        await RequireHouseholdWriteAsync(actor, profile?.HouseholdId, ct).ConfigureAwait(false);
+        var householdOnly = await RequireHouseholdWriteAsync(actor, profile?.HouseholdId, ct).ConfigureAwait(false);
         if (profile is null)
         {
             throw new KeyNotFoundException("Person not found.");
@@ -502,6 +514,11 @@ public sealed class AccountAccessMutationService(
         if (profile.HouseholdId is not { } householdId)
         {
             throw new InvalidOperationException("This person is not in a household yet.");
+        }
+        if (householdOnly)
+        {
+            // A direct sign-in to an administrator's own person would sidestep that person's PIN and the administrator.
+            await RequireNotAdministratorProfileAsync(profile, actor, ct).ConfigureAwait(false);
         }
 
         var members = (await accounts.GetAllAsync(ct).ConfigureAwait(false))

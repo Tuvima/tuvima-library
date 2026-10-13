@@ -63,6 +63,17 @@ public sealed class HouseholdAdministratorTests
         await Assert.ThrowsAsync<UnauthorizedAccessException>(() => mutations.SetTemporaryPasswordAsync(
             world.AdminOfA, world.ServerAdminAccount.Id, "another long temporary password"));
 
+        // Their email is off limits too, and so is a direct sign-in to a person that an administrator signs in as.
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() => mutations.ChangeEmailAsync(
+            world.AdminOfA, peer.AccountId, "taken.over@example.com"));
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() => mutations.ChangeEmailAsync(
+            world.AdminOfA, world.ServerAdminAccount.Id, "taken.over@example.com"));
+        var adminsPerson = await mutations.IssueInvitationAsync(world.ServerAdmin, new IssueAccountInvitationCommand(
+            "peer.two@example.com", [world.A.Spare.Id], null));
+        await mutations.SetHouseholdAdminAsync(world.ServerAdmin, adminsPerson.AccountId, true);
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() => mutations.GiveOwnSignInAsync(world.AdminOfA,
+            new GiveOwnSignInCommand(world.A.Spare.Id, "sidestep@example.com", "a long starting password")));
+
         // They cannot turn on administrator access for anyone, nor promote a household administrator.
         await Assert.ThrowsAsync<UnauthorizedAccessException>(() => mutations.UpsertGrantAsync(world.AdminOfA,
             new AccountProfileGrant
