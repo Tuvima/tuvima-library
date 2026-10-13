@@ -1,0 +1,182 @@
+@namespace MediaEngine.Web.Components.Settings
+@using System.Globalization
+@using MediaEngine.Contracts.Settings
+@using MediaEngine.Web.Services.Formatting
+@inject IEngineApiClient ApiClient
+
+@* The honest question before Tuvima manages a folder that already has files: what will happen, how long it can take, and that it
+   cannot be undone automatically. "Preview first" shows what would change, without changing anything. The result is "convert"
+   or a cancel; the host starts the job. *@
+<AppDialogShell Title="@Title" Size="Medium" OnClose="@(() => Dialog.Cancel())">
+    <ChildContent>
+        @if (_loading)
+        {
+            <AppPageState Kind="AppPageStateKind.Loading" Title="Counting files" />
+        }
+        else if (_error is not null)
+        {
+            <AppAlert Tone="AppUiTone.Error">@_error</AppAlert>
+        }
+        else if (_showingPreview && _preview is not null)
+        {
+            <div class="convert-folder" aria-label="Preview">
+                <p class="convert-folder__lead">
+                    @(_preview.Complete
+                        ? $"Looked at all {Count(_preview.TotalFiles)} files."
+                        : $"Looked at the first {Count(_preview.Examined)} of {Count(_preview.TotalFiles)} files.")
+                    Nothing has changed yet.
+                </p>
+                <ul class="convert-folder__counts">
+                    <li><strong>@Count(_preview.ToRename)</strong> to rename or move</li>
+                    <li><strong>@Count(_preview.AlreadyCorrect)</strong> already correct</li>
+                    <li><strong>@Count(_preview.DuplicatesToRemove)</strong> exact duplicate copies to remove</li>
+                    <li><strong>@Count(_preview.NeedsReview + _preview.NameCollisions)</strong> will need Review</li>
+                    <li><strong>@Count(_preview.Skipped)</strong> not renamed yet</li>
+                </ul>
+                @if (_preview.SkipReasons.Count > 0)
+                {
+                    <ul class="convert-folder__reasons">
+                        @foreach (var reason in _preview.SkipReasons.Take(4))
+                        {
+                            <li>@Count(reason.Count) &mdash; @reason.Reason</li>
+                        }
+                    </ul>
+                }
+                @if (_preview.Samples.Count > 0)
+                {
+                    <h4>Examples</h4>
+                    <ul class="convert-folder__samples">
+                        @foreach (var sample in _preview.Samples)
+                        {
+                            <li><code>@sample.OldPath</code><span aria-hidden="true">&rarr;</span><code>@sample.NewPath</code></li>
+                        }
+                    </ul>
+                }
+                <p class="convert-folder__time">Estimated time: <strong>@FolderJobFormat.Duration(_preview.EstimatedSeconds)</strong>.</p>
+                @if (!_preview.Complete)
+                {
+                    <AppButton Label="@(_scanning ? "Scanning everything..." : "Scan everything")" ButtonStyle="AppButtonStyle.Outlined"
+                               Disabled="@_scanning" OnClick="ScanEverythingAsync" />
+                }
+            </div>
+        }
+        else
+        {
+            <div class="convert-folder">
+                <p>
+                    Tuvima will rename and reorganise the <strong>@Count(_total) @(_total == 1 ? "file" : "files")</strong> in this folder
+                    to its standard naming, and write tags where the file type allows it. It will also remove exact duplicate copies
+                    (your &ldquo;same file twice&rdquo; setting is <em>@(_keepOne ? "Keep one copy" : "Keep both")</em>@(_keepOne ? "" : ", so both copies are kept under different names")).
+                </p>
+                <p>
+                    <strong>This can take hours for a large folder</strong> (@FolderJobFormat.Duration(_estimateSeconds) here, based on @Count(_total) @(_total == 1 ? "file" : "files")).
+                    You can keep using Tuvima while it runs; a film that is being moved may be unavailable for a few seconds.
+                    Other programs that use this folder (Plex, Jellyfin) will need to rescan afterwards.
+                </p>
+                <p>
+                    <strong>This cannot be undone automatically.</strong> Tuvima keeps a full log of every move.
+                    Nothing is ever deleted except exact duplicate copies.
+                </p>
+            </div>
+        }
+    </ChildContent>
+    <FooterContent>
+        @if (_showingPreview)
+        {
+            <AppButton Label="Back" ButtonStyle="AppButtonStyle.Text" OnClick="@(() => _showingPreview = false)" />
+        }
+        <AppButton Label="@KeepText" ButtonStyle="AppButtonStyle.Text" OnClick="@(() => Dialog.Cancel())" />
+        @if (!_showingPreview)
+        {
+            <AppButton Label="Preview first" ButtonStyle="AppButtonStyle.Outlined" Loading="@_previewing"
+                       Disabled="@(_loading || _error is not null)" OnClick="PreviewAsync" />
+        }
+        <AppButton Label="@ConvertText" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary"
+                   Disabled="@(_loading || _error is not null)" OnClick="@(() => Dialog.Close(AppDialogResult.Ok(Convert)))" />
+    </FooterContent>
+</AppDialogShell>
+
+@code {
+    /// <summary>The dialog's answer when the person chooses to go ahead.</summary>
+    public const string Convert = "convert";
+
+    private const int PreviewSample = 500;
+
+    [CascadingParameter] private IAppDialogContext Dialog { get; set; } = default!;
+    [Parameter, EditorRequired] public string SourceId { get; set; } = string.Empty;
+    [Parameter, EditorRequired] public string Path { get; set; } = string.Empty;
+    /// <summary>True for a folder that is already Managed and is being organised again (an "Organise now" or a naming change).</summary>
+    [Parameter] public bool AlreadyManaged { get; set; }
+    /// <summary>The quick count the host already asked for, so the dialog opens with real numbers.</summary>
+    [Parameter] public FolderConversionPreviewResponse? Initial { get; set; }
+
+    private bool _loading = true;
+    private string? _error;
+    private int _total;
+    private int _estimateSeconds;
+    private bool _keepOne = true;
+    private bool _showingPreview;
+    private bool _previewing;
+    private bool _scanning;
+    private FolderConversionPreviewResponse? _preview;
+
+    private string Title => AlreadyManaged ? $"Organise {Path} now?" : $"Let Tuvima manage {Path}?";
+    private string ConvertText => AlreadyManaged ? "Organise now" : "Convert";
+    private string KeepText => AlreadyManaged ? "Not now" : "Keep as-is";
+
+    protected override async Task OnInitializedAsync()
+    {
+        var quick = Initial ?? await ApiClient.PreviewFolderConversionAsync(new FolderConversionPreviewRequest { SourceId = SourceId, Quick = true });
+        _loading = false;
+        if (quick is null)
+        {
+            _error = ApiClient.LastError ?? "Tuvima could not count the files in this folder.";
+            return;
+        }
+
+        Apply(quick);
+    }
+
+    private void Apply(FolderConversionPreviewResponse response)
+    {
+        _total = response.TotalFiles;
+        _estimateSeconds = response.EstimatedSeconds;
+        _keepOne = string.Equals(response.DuplicatePolicy, "keep_one", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private async Task PreviewAsync()
+    {
+        _previewing = true;
+        try
+        {
+            _preview = await ApiClient.PreviewFolderConversionAsync(new FolderConversionPreviewRequest { SourceId = SourceId, FileLimit = PreviewSample });
+            if (_preview is null)
+            {
+                _error = ApiClient.LastError ?? "Tuvima could not preview this folder.";
+                return;
+            }
+
+            _showingPreview = true;
+        }
+        finally { _previewing = false; }
+    }
+
+    private async Task ScanEverythingAsync()
+    {
+        _scanning = true;
+        try
+        {
+            var full = await ApiClient.PreviewFolderConversionAsync(new FolderConversionPreviewRequest { SourceId = SourceId, FileLimit = 0 });
+            if (full is null)
+            {
+                _error = ApiClient.LastError ?? "Tuvima could not preview this folder.";
+                return;
+            }
+
+            _preview = full;
+        }
+        finally { _scanning = false; }
+    }
+
+    private static string Count(int value) => value.ToString("N0", CultureInfo.CurrentCulture);
+}

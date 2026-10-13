@@ -17,7 +17,7 @@ Your media files and SQLite database stay in configured local storage. Profiles,
 
 The [Engine](../reference/glossary.md#engine) and Dashboard run on that host. Local AI uses its CPU or GPU. There is no Tuvima-hosted account service or built-in telemetry pipeline.
 
-Photos stay with the person who took them. Everyone in a household can browse one another's photos, and the household has one Shared Library. A server administrator can also open other households' photos through **Other people** in View, read-only. That is deliberate and visible: each time an administrator opens someone's space or a household's Shared Library, Tuvima records who looked and what they opened (at most once an hour per space), and the household owner sees it under **Account > Who viewed your photos**. People outside your household start with View switched off until an administrator turns it on for them.
+Photos stay with the person who took them. Everyone in a household can browse one another's photos, and the household has one Shared Library. A server administrator can also open other households' photos through **Other people** in View, read-only. That is deliberate and visible: each time an administrator opens someone's space or a household's Shared Library, Tuvima records who looked and what they opened (at most once an hour per space), and the Engine keeps that record for the household owner (it is no longer listed on the Security page). People outside your household start with View switched off until an administrator turns it on for them.
 
 This describes where Tuvima stores data. Your own network shares, backup destinations, reverse proxy, and installed plugins have their own access and privacy implications.
 
@@ -28,6 +28,12 @@ Enabled metadata providers can request identifiers, descriptions, artwork, lyric
 Provider behavior depends on configuration, credentials, media type, and processing state. Model downloads retrieve local model files from external hosts; subsequent supported inference runs locally.
 
 Refreshing the approved plugin catalog contacts GitHub. Installed plugins can use external services according to their implementation and declared permissions. Only install code you trust.
+
+## Know how scanned documents are read
+
+Scanned pages and photos of paper are read by Tesseract, a program that runs on your own host. The text stays in your data store and is private to the owner's space. Nothing is uploaded.
+
+Text recognition uses the network in exactly one case: when you choose an extra language under **Settings > Libraries > View > Documents** and press **Download**. That downloads the language file from GitHub. English is included with Tuvima Library and needs no download.
 
 ## Understand Places map requests
 

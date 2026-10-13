@@ -378,6 +378,41 @@ public sealed class MediaAssetRepository : IMediaAssetRepository
         return Task.FromResult(row is null ? null : (MediaAsset?)ToAsset(row));
     }
 
+    public Task<IReadOnlyList<MediaAssetFileRef>> ListFilesUnderAsync(string folderPath, CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+        ArgumentException.ThrowIfNullOrWhiteSpace(folderPath);
+
+        // Compare on a normalised form (forward slashes, no case) so a path stored with either separator matches.
+        var prefix = folderPath.Replace((char)92, '/').TrimEnd('/') + "/";
+        using var conn = _db.CreateConnection();
+        var rows = conn.Query<FileRefRow>("""
+            SELECT id             AS AssetId,
+                   file_path_root AS FilePath,
+                   content_hash   AS ContentHash,
+                   library_id     AS LibraryId
+            FROM   media_assets
+            WHERE  substr(lower(replace(file_path_root, char(92), '/')), 1, length(@prefix)) = lower(@prefix)
+              AND  rendition_purpose = 'Original'
+              AND  derived_from_asset_id IS NULL
+              AND  is_orphaned = 0
+            ORDER  BY file_path_root COLLATE NOCASE;
+            """, new { prefix });
+
+        IReadOnlyList<MediaAssetFileRef> files = rows
+            .Select(row => new MediaAssetFileRef(row.AssetId, row.FilePath, row.ContentHash, row.LibraryId))
+            .ToList();
+        return Task.FromResult(files);
+    }
+
+    private sealed class FileRefRow
+    {
+        public Guid AssetId { get; set; }
+        public string FilePath { get; set; } = string.Empty;
+        public string ContentHash { get; set; } = string.Empty;
+        public string? LibraryId { get; set; }
+    }
+
     /// <inheritdoc/>
     public Task<HashSet<string>> GetAllFilePathsAsync(CancellationToken ct = default)
     {

@@ -223,3 +223,38 @@
         display: none;
     }
 }
+
+/* Phone: search owns the whole screen, the field and Cancel share one row, and the safe areas are respected. */
+.universal-search-overlay--phone {
+    padding: 0;
+}
+
+.universal-search-overlay--phone .universal-search-overlay__surface {
+    width: 100%;
+    height: 100vh;
+    height: 100dvh;
+    max-height: none;
+    border: 0;
+    border-radius: 0;
+    animation: none;
+    padding: var(--tl-safe-area-top) var(--tl-safe-area-right) var(--tl-safe-area-bottom) var(--tl-safe-area-left);
+}
+
+.universal-search-overlay--phone .universal-search-overlay__header {
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 12px;
+}
+
+.universal-search-overlay--phone .universal-search-overlay__title-row {
+    display: none;
+}
+
+.universal-search-overlay--phone .universal-search-overlay__input-shell {
+    min-height: 48px;
+}
+
+.universal-search-overlay--phone .universal-search-overlay__body {
+    padding: 12px 14px 24px;
+}

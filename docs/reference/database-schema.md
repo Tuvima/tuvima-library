@@ -176,7 +176,7 @@ Many-to-many cross-links between works and collections for works that span multi
 
 ### folder_organise_log
 
-One row for each file moved while a folder is switched from as-is to managed. It is written as each file moves, so an interrupted switch resumes and a finished one can be undone. The owning operation is a `media_operations` row; the log keeps no foreign key so its history outlives that row.
+The ledger of the organising job: one row for each file, and each sidecar, the job looked at while a folder was switched from as-is to managed (or organised again). A move is written as an intent (`moving`) before the file is renamed and as its final outcome after the library points at the new path, so an interrupted job resumes without losing, doubling or half-moving a file. It is also the audit trail and the source of the exportable log (`GET /settings/libraries/folders/jobs/{id}/log/export`); there is no automatic undo. The owning operation is a `media_operations` row (`operation_type = organise_folder`, `queue_name = folder_jobs`); the log keeps no foreign key so its history outlives that row.
 
 | Column | Type | Notes |
 |---|---|---|
@@ -184,8 +184,9 @@ One row for each file moved while a folder is switched from as-is to managed. It
 | `source_id` | BLOB | The library source (folder) being switched |
 | `old_path` | TEXT | Where the file was. Part of the primary key. |
 | `new_path` | TEXT | Where the file went |
-| `outcome` | TEXT | What happened to this file |
+| `outcome` | TEXT | `moving` (intent, not yet finished), `moved`, `moved_unique_name` (a different file had the name, so a numbered name was used), `already_correct`, `duplicate_removed` (an exact copy under Keep one copy), `sidecar_moved`, `not_moved`, `needs_review`, `queued_for_identification`, `skipped` or `failed` |
 | `at` | TEXT | Timestamp |
+| `detail` | TEXT | The plain-English reason for any outcome that needs one (nullable) |
 
 ---
 
@@ -252,7 +253,18 @@ kind, favorites, and active discovery.
 
 - `local_item_metadata` stores dimensions, duration, page count, camera/device,
   GPS, normalized place, safely extracted document text, and additional local
-  metadata JSON.
+  metadata JSON. `text_source` records where `document_text` came from:
+  `embedded` (the file's own text layer or text), `ocr` (every readable page
+  came from text recognition), `mixed` (some pages came from the file's own
+  text layer and others from text recognition), `none` (the file was read and
+  holds no readable text, is protected, or is corrupt), or NULL (not read yet). The text job writes through `SetDocumentTextAsync`, which also
+  rebuilds the search document, and records `document_text_truncated` and
+  `document_encrypted` flags in the metadata JSON. Text recognition also records
+  `ocr_average_confidence` (0-100) and `ocr_pages` there and keeps low-confidence
+  text. Startup widens the stored `text_source` check on older data stores to
+  accept `mixed`. A file edited in place (same
+  library and path, new bytes) updates its existing item rather than adding a
+  duplicate, clearing the stale text until it is read again.
 - `local_files` stores one exact content hash, size, MIME type, extension, and
   creation time. Hash equality does not imply shared logical ownership.
 - `local_file_sources` retains every observed library/source/device path and

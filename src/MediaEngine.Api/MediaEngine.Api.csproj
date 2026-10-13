@@ -21,6 +21,9 @@
          MIT license — approved for AGPLv3 compatibility (see CLAUDE.md §5.1). -->
     <PackageReference Include="Tuvima.Wikidata.AspNetCore" />
     <PackageReference Include="TagLibSharp" />
+    <PackageReference Include="PdfPig" />
+    <PackageReference Include="PDFtoImage" />
+    <PackageReference Include="DocumentFormat.OpenXml" />
   </ItemGroup>
 
   <ItemGroup>

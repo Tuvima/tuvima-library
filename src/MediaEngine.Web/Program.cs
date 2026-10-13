@@ -506,6 +506,17 @@ app.MapGet("/engine-text-track/{assetId:guid}/{trackId:guid}", async (Guid asset
     await response.Content.CopyToAsync(ctx.Response.Body, ct);
 }).RequireAuthorization();
 
+// The log of every file an organising job moved, as a CSV download. The browser only ever talks to the Dashboard; the Engine
+// checks that the signed-in person is an administrator.
+app.MapGet("/engine-folder-log/{operationId:guid}", async (Guid operationId, HttpContext ctx, IHttpClientFactory factory, CancellationToken ct) =>
+{
+    using var request = new HttpRequestMessage(HttpMethod.Get, $"/settings/libraries/folders/jobs/{operationId:D}/log/export");
+    using var response = await factory.CreateClient("EngineApi").SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct);
+    ctx.Response.StatusCode = (int)response.StatusCode;
+    CopyResponseHeaders(response, ctx.Response);
+    await response.Content.CopyToAsync(ctx.Response.Body, ct);
+}).RequireAuthorization();
+
 app.MapMethods(
         "/engine-hls/{grant}/{packageId:guid}/{**resourcePath}",
         [HttpMethods.Get, HttpMethods.Head],

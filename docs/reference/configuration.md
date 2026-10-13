@@ -53,8 +53,8 @@ Core Engine settings. Most changes are read at startup. Ingestion sources and de
 |---|---|---|---|
 | `schema_version` | string | `"2.0"` | Config schema version. Used for migration compatibility checks. |
 | `database_path` | string | `".data/database/library.db"` | Path to the SQLite database file. Relative paths resolve from `data_root`. |
-| `data_root` | string | `""` | Root directory for all internal Engine storage (`.data/`). Must be set before first run. |
-| `library_root` | string | `""` | Root directory where the Engine places organized media after promotion. |
+| `data_root` | string | `""` | Root directory for generated Engine data (artwork, derived files, staging). Empty means `.data/` inside `library_root`. |
+| `library_root` | string | `""` | Tuvima's own library folder, where the Engine places organized media and keeps `.data/`. The shipped file uses `{TuvimaData}/library`, so a fresh install follows the server's data location (see below). |
 | `organization_template` | string | - | Default file organization template. Tokens: `{Category}`, `{Title}`, `{Qid}`, `{Ext}`. |
 | `organization_templates` | object | - | Per-media-type templates. Keys: `default`, `Books`, `Audiobooks`, `Movies`, `TV`, `Comics`, `Music`. TV supports `{Series}`, `{Season}`, `{Episode}` tokens; `{Episode}` reads `01-e02` for a file that covers episodes 1 and 2. Music supports `{Artist}`, `{Album}`, `{TrackNumber}` tokens. |
 | `server_name` | string | `"Tuvima Library"` | Display name shown in the Dashboard title bar and system status. |
@@ -68,6 +68,8 @@ Core Engine settings. Most changes are read at startup. Ingestion sources and de
 | `time_format` | string | `"system"` | Time display format. `"system"` uses the OS locale. |
 | `plugin_catalog.enabled` | bool | `true` | Enables the read-only approved plugin catalog lookup used by Settings > Plugins. |
 | `plugin_catalog.approved_plugins_url` | string | GitHub raw URL | HTTPS GitHub URL for the approved plugin catalog JSON. The Engine accepts `raw.githubusercontent.com` or `github.com` sources only. |
+
+**Server data location and the `{TuvimaData}` placeholder.** The shipped `config/core.json` and `config/libraries.json` contain no absolute paths. A path that starts with `{TuvimaData}` is replaced when the file is loaded by the server's data location: the `TUVIMA_DATA_DIR` environment variable if set, otherwise `%LOCALAPPDATA%\Tuvima\data` on Windows and `~/.local/share/tuvima` on Linux and macOS. Tuvima's own library folder (storage location id `media`, which also holds the View personal space) is created there automatically the first time the server runs. It is never shown in a folder picker or asked about in setup; if it cannot be created or written, the silent server check in setup fails with one message naming the folder and the fix. The Docker image ships its own `docker/config` files that use `/library`, so containers are unchanged. No import folder is shipped: the `incoming` storage location does not exist until someone sets one in Libraries. The developer real-media harness writes its own paths into `real-media-harness.json` and the configuration it prepares; it does not rely on shipped paths.
 
 **Backward compatibility:** `language` accepts both legacy string form (`"language": "en"`) and the new object form. The deserializer handles both.
 
@@ -242,6 +244,9 @@ Defines the clean schema 7 library model used by **Settings > Libraries**. The r
 | `schema_version` | string | Must be `7.0`. Older files (including `6.0`) are refused with a plain message and are not converted; move the file aside to start from a fresh default and add folders again. |
 | `storage_locations` | array | Explicit server/container roots administrators may browse. Each entry has a stable `id`, friendly `label`, absolute `path`, and `allow_write` policy. |
 | `personal_library_policy` | object | Administrator defaults and capability switches for the internal personal-library bridge, managed/existing storage, browser upload, reserved future intake producers, and default visibility. |
+| `personal_library_policy.document_text_max_characters` | integer | Most characters of embedded text stored per View document (default 1000000); longer text is cut and flagged as truncated. |
+| `personal_library_policy.document_text_max_pdf_pages` | integer | Most PDF pages whose text layer is read (default 2000). |
+| `personal_library_policy.document_text_read_timeout_seconds` | integer | Longest one document may take to read before it is abandoned (default 60). |
 | `file_handling.duplicate_policy` | string | What happens to an exact copy of a file already held, for every library: `keep_one` (default; the copy is indexed once and the incoming duplicate is removed where its folder is managed) or `keep_both` (both files stay). A name clash between different files always gives the incoming file a unique name. |
 | `id` | GUID string | Stable library identity used by intake, indexing, access, and Dashboard editing. Required. |
 | `name` | string | Configuration/admin name. For View, the profile-facing identity is the Personal Space, not this library record. |
@@ -259,7 +264,18 @@ Defines the clean schema 7 library model used by **Settings > Libraries**. The r
 | `accepted_intake_modes` | string[] | Accepted producer vocabulary. Incoming folder and browser upload have current paths; drag-and-drop, mobile backup, connected-device import, and direct API producers are reserved until a real client is implemented. |
 | `organization_policy` | object | `mode`, optional `custom_template`, and `write_tags` (default `true`): write tags into this type's media files, only in managed folders, only for formats that can carry tags, and only for fields allowed by `writeback-fields.json`. |
 
-Each source owns `id`, `path`, `management_mode`, `source_type`, `include_subdirectories`, `access_mode`, `conversion_state`, `conversion_operation_id`, `notes`, `device_id`, and `profile_id`. A folder is in one of two states. **Managed by Tuvima** (`managed_by_tuvima`): Tuvima moves, renames and tags files, including the ones already there. **As-is** (`existing_library`): read-only, never moved, renamed, tagged or deleted, and never a destination. `access_mode` follows the management mode and is set when the file is saved (managed is `writable`, as-is is `read_only`). `conversion_state` is `none`, `converting` or `converted` while an as-is folder is being switched to managed; `conversion_operation_id` names the operation doing it and is set only while converting. The optional import folder is the storage location with id `incoming`; when it is set, every media type needs a destination (a managed folder chosen as that type's destination) before import runs. Only **Managed by Tuvima** plus writable sources can authorize mutation, and only the destination (or a merge target the person started) can receive files. A hand-edited file must already be consistent (for example a managed folder says `writable`, a destination is a managed folder, and `conversion_state` other than `none` needs a managed folder); Tuvima derives these when it saves the file but rejects an inconsistent one when it loads it.
+Each source owns `id`, `path`, `management_mode`, `source_type`, `include_subdirectories`, `access_mode`, `conversion_state`, `conversion_operation_id`, `notes`, `device_id`, and `profile_id`. A folder is in one of two states. **Managed by Tuvima** (`managed_by_tuvima`): Tuvima moves, renames and tags files, including the ones already there. **As-is** (`existing_library`): read-only, never moved, renamed, tagged or deleted, and never a destination. `access_mode` follows the management mode and is set when the file is saved (managed is `writable`, as-is is `read_only`). `conversion_state` is `none`, `converting` or `converted` while an as-is folder is being switched to managed; `conversion_operation_id` names the organising job doing it (an `organise_folder` operation on the `folder_jobs` queue) and is set while converting and kept as `converted` once the job ends, so the log stays reachable. Both are owned by the Engine: a settings save keeps the values the Engine has, and saving a folder as As-is resets them to `none`. See the organising job in [Library model and intake](../architecture/library-model-and-intake.md). The optional import folder is the storage location with id `incoming`; when it is set, every media type needs a destination (a managed folder chosen as that type's destination) before import runs. Only **Managed by Tuvima** plus writable sources can authorize mutation, and only the destination (or a merge target the person started) can receive files. A hand-edited file must already be consistent (for example a managed folder says `writable`, a destination is a managed folder, and `conversion_state` other than `none` needs a managed folder); Tuvima derives these when it saves the file but rejects an inconsistent one when it loads it.
+
+**Import folder.** One optional server folder where new media is dropped, always called the **Import folder**: the storage location with id `incoming`, writable, never overlapping a library folder and never offered as a library folder. Setting it creates six per-type folders inside it, `Movies`, `TV`, `Music`, `Books`, `Audiobooks` and `Comics` (point Sonarr, Radarr and similar programs at them). Removing it deletes nothing; files and folders stay on disk. The Engine watches the folder and files what arrives with the same pipeline as everything else: the file settles and is fingerprinted, scanned and identified, and then moves into exactly one managed folder for its type, the folder marked **New media** (the library's `primary_destination_source_id`), named with that type's preset. A file in a per-type folder gets that type as a strong prior; a file at the root is classified like any other. Rules that never bend:
+
+- **One destination, no fallback.** An as-is folder is never a destination. If the marked folder is offline, full or not writable, the file stays untouched in the Import folder; nothing is filed into another managed folder, and it is filed when the folder returns.
+- **No managed folder, no move.** A type with no managed folder leaves its files untouched (never moved, never deleted). `GET /ingestion/import-folder/waiting` returns one plain sentence for it, for example "3 files in Import\Comics can't be filed until Comics has a managed folder." The next pass (the watcher, the periodic sweep, or **Check folders for changes**) files them once a managed folder exists. This is a behaviour, not a state: there is no waiting status.
+- **Unmatched or low-confidence files** stay in the Import folder and appear in Review with the badge "From the Import folder" (`from_import_folder` on a review item); they are filed when the review is resolved.
+- **Duplicates** follow the global rule `file_handling.duplicate_policy`. Under `keep_one` only the copy in the Import folder is removed; under `keep_both` the import copy is filed beside the copy that is held with a unique name (a file is indexed once, so the kept copy is not a second library item; the history records where it went). A copy already held in a library folder is never deleted.
+- **Safe moves.** On the same drive a file is renamed. Across drives it is copied to a temporary file beside its final name, checked against the fingerprint taken at ingestion, renamed into place, and only then removed from the Import folder, so an interrupted move never loses the file and a restart never leaves two copies. A name that is already taken always gets a unique suffix; nothing is overwritten. Each filing is first written to a small record in the Import folder's own `.data/filing` folder and cleared once the data store points at the new location, so a stop between the two is finished on the next start (the file is never treated as missing). The temporary copy sits beside the final name in the destination folder, where the watcher ignores it, rather than in a staging folder.
+- **Cleanup stays inside.** Empty folders that a download program leaves behind are removed, but never the Import folder, a per-type folder or the working folder (`.data`) it keeps for Tuvima, and never anything outside the Import folder.
+
+The Engine reads the folder settings again for every filing decision, so setting the Import folder, adding a managed folder, or marking a different New media folder applies without a restart.
 
 Each enabled profile resolves one View Personal Space, backed by one internal
 `personal` library bridge and any number of sources/devices. It indexes mixed
@@ -418,6 +434,31 @@ Controls FFmpeg discovery, adaptive playback packages, offline variants, concurr
 | `adaptive_hls.renditions[]` | object[] | 1080p/720p/480p | Ordered H.264 ladder. Each item has `name`, `height`, `video_bitrate_kbps`, `max_rate_kbps`, and `buffer_size_kbps`; renditions above the source height are omitted. |
 
 The Engine health and `/playback/diagnostics` responses report the HLS muxer, H.264, AAC, WebVTT, and preferred hardware encoder capabilities. A missing required video/audio capability makes adaptive delivery unavailable but does not disable compatible direct play.
+
+---
+
+## config/ocr.json
+
+Controls text recognition (OCR) for scanned PDF pages and photos of paper. Tesseract runs as a child process on the Engine host; nothing is sent anywhere. Jobs are queued as `view.document_ocr` and run one file at a time.
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `enabled` | bool | `true` | Turns reading of scanned documents and photos on or off. It only runs when the helper is found. |
+| `tesseract_binary_path` | string | `""` | Explicit executable path. Empty uses the packaged `tools/tesseract` binaries and then `PATH`. An explicit missing path fails capability detection instead of silently falling back. |
+| `effort` | string | `"normal"` | `normal` or `low`. Low runs the helper at a lower process priority, limits it to one thread and pauses between files. |
+| `languages` | string[] | `["eng"]` | Tesseract language codes to read with. Only languages whose data is installed are used. |
+| `per_file_timeout_seconds` | int | `300` | Longest one file may take. Pages read before the limit are kept and the file is marked partly read. |
+| `max_pages_per_file` | int | `500` | Most pages recognised from one PDF. Longer files are marked partly read. |
+| `text_layer_min_characters` | int | `25` | A PDF page with fewer non-whitespace characters than this in its own text layer is drawn and recognised. Pages with a text layer are never re-read. |
+| `render_dpi` | int | `300` | Resolution used to draw PDF pages. |
+| `max_render_side_pixels` | int | `3500` | The longest side of a drawn page or photo is reduced to this many pixels. |
+| `min_image_side_pixels` | int | `200` | Smaller images are skipped; they cannot hold readable text. |
+| `min_image_confidence` / `min_image_words` | int | `55` / `3` | Text from a photo is kept only when its average confidence reaches the first value and at least the second number of words were recognised, so ordinary photos add no junk words. |
+| `rotation_retry_confidence` | int | `40` | A first pass with a lower average confidence (0-100) triggers orientation detection and one retry. |
+| `language_download_url` | string | pinned `tessdata_fast` commit | Where an extra language is downloaded from when the person asks in Settings. `{code}` is replaced with the language code. |
+| `available_languages[]` | object[] | 17 languages | `code` and `name` of each language offered in Settings. |
+
+English and orientation data are installed with the helper. Other languages are an explicit download from **Settings > Libraries > View > Documents** and are stored in `{DataRoot}/ocr/tessdata`, never in build output. Page images are written to `{DataRoot}/ocr/tmp` and removed as each file finishes.
 
 ---
 

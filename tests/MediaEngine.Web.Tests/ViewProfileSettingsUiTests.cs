@@ -19,6 +19,22 @@ public sealed class ViewProfileSettingsUiTests
         Assert.DoesNotContain("quota", users, StringComparison.OrdinalIgnoreCase);
     }
 
+    [Fact]
+    public void DocumentsSettings_IsAPlainListWithTruthfulTextRecognitionControls()
+    {
+        var view = ReadRepoFile(@"src/MediaEngine.Web/Components/Settings/ViewLibrarySettings.razor");
+        var documents = ReadRepoFile(@"src/MediaEngine.Web/Components/Settings/DocumentTextSettings.razor");
+
+        Assert.Contains("<DocumentTextSettings", view, StringComparison.Ordinal);
+        Assert.Contains("Text recognition is not installed", documents, StringComparison.Ordinal);
+        Assert.Contains("Read all documents again", documents, StringComparison.Ordinal);
+        Assert.Contains("the only time text recognition uses the internet", documents, StringComparison.Ordinal);
+        Assert.Contains("<AppSwitchRow", documents, StringComparison.Ordinal);
+        Assert.Contains("<AppCheckboxRow", documents, StringComparison.Ordinal);
+        Assert.DoesNotContain("<input", documents, StringComparison.Ordinal);
+        Assert.DoesNotContain("style=", documents, StringComparison.Ordinal);
+    }
+
     private static string ReadRepoFile(string relativePath) =>
         File.ReadAllText(Path.GetFullPath(Path.Combine(
             AppContext.BaseDirectory,

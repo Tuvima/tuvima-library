@@ -281,6 +281,7 @@ public static class LibraryHelpers
         "MultipleQidMatches" => "Multiple possible matches were found. Please pick the correct one.",
         "RetailMatchAmbiguous" => "A possible match was found but it's not certain. Please verify.",
         "MovieMatchedAsTv" => "TMDB lists this film as a TV title. Choose whether to move it to TV.",
+        "NameCollision" => "Two different files wanted the same name. Neither was overwritten; this one kept a numbered name.",
         "AmbiguousMediaType" => "The file type is ambiguous  -  it could be music or an audiobook.",
         "MissingQid" => "A retail match was found but it hasn't been linked to Wikidata yet.",
         "StagedUnidentifiable" => "This file couldn't be identified. Check the filename and embedded metadata.",
@@ -298,6 +299,7 @@ public static class LibraryHelpers
     public static string GetReviewTriggerLabel(string? trigger) => trigger switch
     {
         "MovieMatchedAsTv" => "Found as a TV title",
+        "NameCollision" => "Two different files wanted the same name",
         "StagedUnidentifiable" => "This file could not be identified automatically",
         "PlaceholderTitle" => "The title looks like a placeholder or temporary name",
         "WikidataBridgeFailed" => "Wikidata lookup failed after retail match",

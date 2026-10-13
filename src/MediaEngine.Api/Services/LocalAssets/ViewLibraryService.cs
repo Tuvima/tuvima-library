@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Security.Cryptography;
 using System.Text.RegularExpressions;
+using MediaEngine.Api.Services.LocalAssets.Ocr;
 using MediaEngine.Contracts.LocalAssets;
 using MediaEngine.Domain.Configuration;
 using MediaEngine.Domain.Contracts;
@@ -21,7 +22,9 @@ public sealed class ViewLibraryService(
     IViewPersonalSpaceRepository spaces,
     ViewStorageService storage,
     ILogger<ViewLibraryService> logger,
-    IFFmpegService? ffmpeg = null) : IViewPathIndexer
+    IFFmpegService? ffmpeg = null,
+    IMediaOperationRepository? operations = null,
+    DocumentOcrQueue? ocrQueue = null) : IViewPathIndexer
 {
     private const int MaxDocumentCharacters = 256 * 1024;
 
@@ -348,7 +351,7 @@ public sealed class ViewLibraryService(
             }
         }
 
-        return await repository.UpsertAsync(new LocalAssetRegistration(
+        var upserted = await repository.UpsertAsync(new LocalAssetRegistration(
             LibraryId: space.LibraryId,
             PersonalSpaceId: space.Id,
             OwnerProfileId: space.OwnerProfileId,
@@ -373,6 +376,54 @@ public sealed class ViewLibraryService(
             VideoCodec: metadata.VideoCodec,
             FrameRate: metadata.FrameRate,
             DocumentText: metadata.DocumentText), ct);
+        await QueueDocumentTextReadAsync(upserted.ItemId, group.Primary, registrations, ct);
+        return upserted;
+    }
+
+    /// <summary>
+    /// PDFs and Office files are read by a throttled background job, never inline during the scan.
+    /// A failure to queue must not fail the scan; the next scan queues it again.
+    /// </summary>
+    private async Task QueueDocumentTextReadAsync(
+        Guid itemId,
+        FileCandidate primary,
+        IReadOnlyList<LocalAssetFileRegistration> registrations,
+        CancellationToken ct)
+    {
+        var isPhotoOfPaper = primary.Type.MediaKind == LocalAssetMediaKinds.Image && OcrFormats.IsImage(primary.Extension);
+        if (operations is null
+            || (primary.Type.MediaKind != LocalAssetMediaKinds.Document && !isPhotoOfPaper)
+            || (!isPhotoOfPaper && !DocumentTextReadService.NeedsBackgroundRead(primary.Extension)))
+        {
+            return;
+        }
+
+        var file = registrations.FirstOrDefault(candidate =>
+            string.Equals(candidate.Role, LocalAssetFileRoles.Primary, StringComparison.OrdinalIgnoreCase));
+        if (file is null)
+        {
+            return;
+        }
+
+        try
+        {
+            if (isPhotoOfPaper)
+            {
+                // Photos go straight to text recognition; it only queues while recognition is on and installed.
+                if (ocrQueue is not null)
+                {
+                    await ocrQueue.TryQueueAsync(itemId, file.ContentHash, file.FilePath, ct);
+                }
+
+                return;
+            }
+
+            await DocumentTextReadService.QueueAsync(operations, itemId, file.ContentHash, file.FilePath, ct);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            logger.LogWarning(ex, "Could not queue the text read for document {FileName}.", file.FileName);
+        }
     }
 
     private async Task<ViewDevice?> ResolveDeviceAsync(

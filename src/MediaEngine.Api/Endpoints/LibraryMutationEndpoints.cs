@@ -1,6 +1,7 @@
 using System.Text.Json;
 using MediaEngine.Api.Http;
 using MediaEngine.Api.Security;
+using MediaEngine.Api.Services.Libraries;
 using MediaEngine.Api.Services.LocalAssets;
 using MediaEngine.Api.Services.Settings;
 using MediaEngine.Contracts.Settings;
@@ -25,7 +26,7 @@ internal static class LibraryMutationEndpoints
         group.MapPost("/libraries/mutations", async (LibraryMutationRequest request,
             IConfigurationLoader configuration, ServerFolderBrowserService folders,
             IFileOrganizer organizer, ViewStorageService storage, IProfileRepository profiles,
-            IViewProfileRepository policies, CancellationToken ct) =>
+            IViewProfileRepository policies, ImportFolderApplier importFolder, FolderJobService folderJobs, CancellationToken ct) =>
         {
             await WriteGate.WaitAsync(ct);
             try
@@ -47,6 +48,8 @@ internal static class LibraryMutationEndpoints
                     PersonalLibraryPolicy = dto.PersonalLibraryPolicy,
                     FileHandling = dto.FileHandling,
                 });
+                // Whether a folder is mid-conversion belongs to the Engine, never to what a settings screen last read.
+                FolderJobService.KeepEngineOwnedConversionState(current, proposed);
                 var error = SettingsEndpoints.ValidateViewStorage(proposed)
                     ?? SettingsEndpoints.ValidateViewRootChange(current, proposed)
                     ?? LibraryTypeRules.ValidateOneLibraryPerType(current, proposed)
@@ -102,6 +105,8 @@ internal static class LibraryMutationEndpoints
                     }
                 }
                 configuration.SaveLibraries(proposed);
+                await folderJobs.StopJobsForUnmanagedFoldersAsync(proposed, ct);
+                await importFolder.ApplyAsync(ct);
                 if (request.ViewStorage is not null)
                 {
                     foreach (var profile in await profiles.GetAllAsync(ct))

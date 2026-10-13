@@ -3,6 +3,7 @@ using MediaEngine.Domain;
 using MediaEngine.Domain.Configuration;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Models;
+using MediaEngine.Domain.Services;
 using MediaEngine.Storage.Configuration;
 using MediaEngine.Storage.Contracts;
 
@@ -62,6 +63,7 @@ public sealed class ConfigurationDirectoryLoader : IConfigurationLoader, IDispos
     private const string MediaTypesFileName = "media_types.json";
     private const string DisambiguationFileName = "disambiguation.json";
     private const string TranscodingFileName = "transcoding.json";
+    private const string OcrFileName = "ocr.json";
     private const string NetworkFileName = "network.json";
     private const string FieldPrioritiesFileName = "field_priorities.json";
     private const string PipelinesFileName = "pipelines.json";
@@ -158,6 +160,14 @@ public sealed class ConfigurationDirectoryLoader : IConfigurationLoader, IDispos
     /// <inheritdoc/>
     public void SaveTranscoding(TranscodingSettings settings) =>
         SaveFile(TranscodingFileName, settings);
+
+    /// <inheritdoc/>
+    public OcrSettings LoadOcr() =>
+        LoadFile<OcrSettings>(OcrFileName) ?? new();
+
+    /// <inheritdoc/>
+    public void SaveOcr(OcrSettings settings) =>
+        SaveFile(OcrFileName, settings);
 
     /// <inheritdoc/>
     public NetworkSettings LoadNetwork() =>
@@ -523,7 +533,7 @@ public sealed class ConfigurationDirectoryLoader : IConfigurationLoader, IDispos
 
         try
         {
-            var json = File.ReadAllText(path);
+            var json = TuvimaDataPaths.ExpandConfigTokens(File.ReadAllText(path));
             var result = JsonSerializer.Deserialize<T>(json, JsonOptions);
             if (result is null)
             {

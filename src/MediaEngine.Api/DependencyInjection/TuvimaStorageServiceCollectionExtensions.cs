@@ -65,7 +65,9 @@ public static class TuvimaStorageServiceCollectionExtensions
         services.AddScoped<ViewSharedContributionService>();
         services.AddHostedService<ViewSharedContributionHostedService>();
         services.AddSingleton<LibraryReorganizationService>();
+        services.AddSingleton<FolderJobService>();
         services.AddSingleton<ServerFolderBrowserService>();
+        services.AddSingleton<ImportFolderApplier>();
         services.AddSingleton<SetupMediaLocationValidationService>();
         services.AddSingleton<IFileHashCacheRepository, FileHashCacheRepository>();
         services.AddSingleton(_ => new TuvimaDataPaths(configuredPath: null));
@@ -153,6 +155,7 @@ public static class TuvimaStorageServiceCollectionExtensions
         services.AddSingleton<IIngestionBatchRepository, IngestionBatchRepository>();
         services.AddSingleton<IIngestionBatchArtifactRepository, IngestionBatchArtifactRepository>();
         services.AddSingleton<IMediaOperationRepository, MediaOperationRepository>();
+        services.AddSingleton<IFolderOrganiseLogRepository, FolderOrganiseLogRepository>();
         services.AddSingleton<MediaEditorCommitRepository>();
         services.AddSingleton<MediaFileWriteIntentRepository>();
         services.AddSingleton<MusicPairingCommitRepository>();

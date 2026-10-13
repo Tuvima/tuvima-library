@@ -101,7 +101,7 @@ public sealed class HeroBannerGenerator : IHeroBannerGenerator
         var inset = -30f;
         var oversized = new SKRect(inset, inset, HeroWidth - inset, HeroHeight - inset);
 
-        canvas.DrawBitmap(cover, oversized, paint);
+        canvas.DrawBitmap(cover, oversized, SKSamplingOptions.Default, paint);
 
         // Darken layer to ensure text readability.
         using var darken = new SKPaint
@@ -159,7 +159,7 @@ public sealed class HeroBannerGenerator : IHeroBannerGenerator
         {
             for (int x = 0; x < HeroWidth; x += GrainTileSize)
             {
-                canvas.DrawBitmap(grainBitmap, x, y, paint);
+                canvas.DrawBitmap(grainBitmap, x, y, SKSamplingOptions.Default, paint);
             }
         }
     }

@@ -12,22 +12,23 @@ public sealed class ResponsivePwaGuardrailTests
         var layout = Read("src/MediaEngine.Web/Shared/MainLayout.razor.css").Replace("\r\n", "\n", StringComparison.Ordinal);
         var global = Read("src/MediaEngine.Web/wwwroot/app.css");
         var account = Read("src/MediaEngine.Web/Components/Navigation/TopNavAccountMenu.razor.css");
-        var phone = layout[layout.IndexOf("    .layout-shell__intent-dock {\n        display: flex;", StringComparison.Ordinal)..];
+        var phone = layout[layout.IndexOf("html[data-form-factor=\"phone\"] .layout-shell__intent-dock {\n    display: flex;", StringComparison.Ordinal)..];
 
         Assert.Contains("grid-template-columns: minmax(0, 1fr) 0 auto;", phone, StringComparison.Ordinal);
         Assert.Contains("grid-template-columns: minmax(0, 1fr) 0 auto !important;", global, StringComparison.Ordinal);
         Assert.Contains("width: 114px;", phone, StringComparison.Ordinal);
         Assert.Contains("height: 28px;", phone, StringComparison.Ordinal);
-        Assert.Contains("flex: 1 1 0;", phone, StringComparison.Ordinal);
+        Assert.Contains("flex: 1 1 auto;", phone, StringComparison.Ordinal);
         Assert.Contains("min-width: 48px;", phone, StringComparison.Ordinal);
         Assert.Contains("min-height: 48px;", phone, StringComparison.Ordinal);
-        Assert.Contains("grid-template-rows: 24px auto;", phone, StringComparison.Ordinal);
+        Assert.Contains("grid-template-rows: 22px auto;", phone, StringComparison.Ordinal);
         Assert.Contains("white-space: normal;", phone, StringComparison.Ordinal);
         Assert.Contains("overflow-wrap: anywhere;", phone, StringComparison.Ordinal);
         Assert.Contains("width: 24px;", phone, StringComparison.Ordinal);
+        Assert.Contains("width: 22px;\n    height: 22px;\n    font-size: 22px;", phone, StringComparison.Ordinal);
         Assert.Contains(".layout-shell__search-action-slot ::deep .layout-shell__search-action-icon,", phone, StringComparison.Ordinal);
         Assert.Contains(".layout-shell__my-list-slot ::deep .layout-shell__my-list-icon,", phone, StringComparison.Ordinal);
-        Assert.Contains(".system-activity-indicator__ring .tl-progress-circular {\n        width: 32px !important;\n        height: 32px !important;", phone, StringComparison.Ordinal);
+        Assert.Contains(".system-activity-indicator__ring .tl-progress-circular {\n    width: 32px !important;\n    height: 32px !important;", phone, StringComparison.Ordinal);
         var accountPhone = account[account.IndexOf("@media (max-width: 640px)", StringComparison.Ordinal)..];
         Assert.Contains("width: 48px;", accountPhone, StringComparison.Ordinal);
         Assert.Contains("height: 48px;", accountPhone, StringComparison.Ordinal);

@@ -7,7 +7,7 @@ using Microsoft.AspNetCore.Components.Web;
 namespace MediaEngine.Web.Components.Settings;
 
 /// <summary>Optional two-step codes: turn on (QR code + first code), turn off, and the recovery codes shown once.</summary>
-public partial class AccountSettingsTab
+public partial class SecuritySettingsPage
 {
     private TwoStepSetupResponse? _twoStepSetup;
     private string _twoStepQr = string.Empty;

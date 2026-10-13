@@ -126,6 +126,23 @@ public sealed class MediaOperationTracker : IMediaOperationTracker
         }
     }
 
+    public async Task ReportProgressAsync(
+        Guid operationId,
+        int itemsTotal,
+        int itemsCompleted,
+        int itemsFailed,
+        int progressPercent,
+        TimeSpan? extendLease = null,
+        CancellationToken ct = default)
+    {
+        await _operations.RecordProgressAsync(operationId, itemsTotal, itemsCompleted, itemsFailed, progressPercent, extendLease, ct);
+        var after = await _operations.GetByIdAsync(operationId, ct);
+        if (after is not null)
+        {
+            await PublishOperationChangedAsync(after, ct);
+        }
+    }
+
     private async Task AddTransitionAsync(
         string eventType,
         MediaOperation? before,

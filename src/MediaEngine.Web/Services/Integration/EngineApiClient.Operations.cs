@@ -165,6 +165,14 @@ public sealed partial class EngineApiClient
         }
     }
 
+    // -- GET /ingestion/import-folder/waiting ------------------------------------
+
+    public Task<MediaEngine.Contracts.Ingestion.ImportFolderWaitingResponse?> GetImportFolderWaitingAsync(CancellationToken ct = default) =>
+        GetAsync<MediaEngine.Contracts.Ingestion.ImportFolderWaitingResponse>(
+            "GET /ingestion/import-folder/waiting",
+            "/ingestion/import-folder/waiting",
+            ct: ct);
+
     // -- POST /ingestion/rescan ----------------------------------------------
 
     // Migrated to the shared PostAsync<TReq> bool-returning helper (stage 5B wave 2).

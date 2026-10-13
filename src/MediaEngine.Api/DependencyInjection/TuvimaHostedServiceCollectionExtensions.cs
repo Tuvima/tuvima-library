@@ -1,5 +1,7 @@
 using MediaEngine.Api.Services;
+using MediaEngine.Api.Services.Libraries;
 using MediaEngine.Api.Services.LocalAssets;
+using MediaEngine.Api.Services.LocalAssets.Ocr;
 using MediaEngine.Api.Services.Playback;
 using MediaEngine.Api.Services.Plugins;
 using MediaEngine.Providers.Services;
@@ -29,9 +31,19 @@ public static class TuvimaHostedServiceCollectionExtensions
         services.AddHostedService<ProviderStartupCheckService>();
         services.AddHostedService<ActivityPruningService>();
         services.AddHostedService<MediaOperationRecoveryHostedService>();
+        services.AddHostedService<FolderOrganiseJobWorker>();
         services.AddHostedService<MediaFileWriteIntentDispatcher>();
         services.AddHostedService<IngestionBatchProgressHostedService>();
         services.AddHostedService<TextTrackRefreshOperationWorker>();
+        services.AddSingleton<DocumentTextReadService>();
+        services.AddHostedService<DocumentTextReadOperationWorker>();
+        services.AddSingleton<IOcrProcessRunner, OcrProcessRunner>();
+        services.AddSingleton<IOcrService, OcrService>();
+        services.AddSingleton<DocumentOcrQueue>();
+        services.AddTuvimaHttpClient(OcrLanguageDownloader.HttpClientName, TimeSpan.FromMinutes(10), addStandardResilience: false);
+        services.AddSingleton<OcrLanguageDownloader>();
+        services.AddSingleton<DocumentOcrService>();
+        services.AddHostedService<DocumentOcrOperationWorker>();
         services.AddHostedService<ArtworkRenditionRepairStartupService>();
         services.AddHostedService<RejectedFileCleanupService>();
         services.AddSingleton<ViewSourceIndexingOptions>();

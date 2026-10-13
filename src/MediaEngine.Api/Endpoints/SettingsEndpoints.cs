@@ -362,12 +362,13 @@ public static class SettingsEndpoints
         .Produces<LibrariesConfigurationSettingsDto>(StatusCodes.Status200OK)
         .RequireAdministratorOrApplication(ApplicationPermissionIds.StorageStatusRead);
 
-        grp.MapPut("/libraries", async (UpdateLibrariesRequest request, IConfigurationLoader configLoader, MediaEngine.Api.Services.LocalAssets.ViewStorageService viewStorage, IProfileRepository profiles, IViewProfileRepository viewProfiles, MediaEngine.Api.Services.Settings.ServerFolderBrowserService folders, MediaEngine.Ingestion.Contracts.IFileOrganizer organizer, CancellationToken ct) =>
+        grp.MapPut("/libraries", async (UpdateLibrariesRequest request, IConfigurationLoader configLoader, MediaEngine.Api.Services.LocalAssets.ViewStorageService viewStorage, IProfileRepository profiles, IViewProfileRepository viewProfiles, MediaEngine.Api.Services.Settings.ServerFolderBrowserService folders, MediaEngine.Ingestion.Contracts.IFileOrganizer organizer, MediaEngine.Api.Services.Settings.ImportFolderApplier importFolder, MediaEngine.Api.Services.Libraries.FolderJobService folderJobs, CancellationToken ct) =>
         {
             await LibraryMutationEndpoints.WriteGate.WaitAsync(ct);
             try
             {
                 var config = SettingsContractMapper.ToStorage(request);
+                MediaEngine.Api.Services.Libraries.FolderJobService.KeepEngineOwnedConversionState(configLoader.LoadLibraries(), config);
                 var viewError = ValidateViewStorage(config)
                     ?? ValidateViewRootChange(configLoader.LoadLibraries(), config)
                     ?? MediaEngine.Api.Services.Settings.LibraryTypeRules.ValidateOneLibraryPerType(configLoader.LoadLibraries(), config)
@@ -395,6 +396,8 @@ public static class SettingsEndpoints
                 }
 
                 configLoader.SaveLibraries(config);
+                await folderJobs.StopJobsForUnmanagedFoldersAsync(config, ct);
+                await importFolder.ApplyAsync(ct);
                 foreach (var profile in await profiles.GetAllAsync(ct))
                 {
                     if ((await viewProfiles.GetPolicyAsync(profile.Id, ct)).ViewEnabled)

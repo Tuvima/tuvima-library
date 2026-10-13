@@ -30,12 +30,12 @@ public sealed class AccountSecurityRenderTests : AsyncBunitContext
     }
 
     [Fact]
-    public void AccountLoadingRendersThreeSizedSkeletonsBeforeTheRequestCompletes()
+    public void AccountLoadingRendersTwoSizedSkeletonsBeforeTheRequestCompletes()
     {
         var pending = new TaskCompletionSource<HttpResponseMessage>();
         _factory.Pending = pending;
-        var cut = Render<AccountSettingsTab>();
-        Assert.Equal(new[] { "width:;height:112px", "width:;height:170px", "width:;height:140px" },
+        var cut = Render<SecuritySettingsPage>();
+        Assert.Equal(new[] { "width:;height:112px", "width:;height:170px" },
             cut.FindAll(".app-skeleton").Select(element => element.GetAttribute("style")));
         pending.SetResult(new HttpResponseMessage(HttpStatusCode.NotFound));
         cut.WaitForAssertion(() => Assert.Empty(cut.FindAll(".app-skeleton")));
@@ -83,9 +83,11 @@ public sealed class AccountSecurityRenderTests : AsyncBunitContext
     }
 
     [Fact]
-    public void AccountSecurity_WithNoPasskeys_RendersPasskeyEmptyStateWithoutParameterErrors()
+    public async Task AccountSecurity_WithNoPasskeys_RendersPasskeyEmptyStateWithoutParameterErrors()
     {
-        var cut = Render<AccountSettingsTab>();
+        var cut = Render<SecuritySettingsPage>();
+        cut.WaitForElement("[data-nav-row='extra-protection']");
+        await cut.InvokeAsync(() => cut.Find("[data-nav-row='extra-protection']").Click());
 
         cut.WaitForAssertion(() =>
         {
@@ -120,7 +122,7 @@ public sealed class AccountSecurityRenderTests : AsyncBunitContext
                     [],
                     [],
                     new AccountSecurityCapabilitiesResponse(
-                        false,
+                        true,
                         false,
                         false,
                         false,

@@ -20,3 +20,6 @@
         --continue-artwork-height:min(calc(var(--home-shelf-height) * .8), calc((100cqw - 138px) * 9 / 32));
     }
 }
+
+/* Phones: Continue portrait and square cards keep the shared Continue height; gutter and landscape stills are set in MediaShelfScroller.razor.css and MediaTile.razor.css. */
+:root[data-form-factor="phone"] .continue-groups { --phone-shelf-height: var(--continue-artwork-height); }

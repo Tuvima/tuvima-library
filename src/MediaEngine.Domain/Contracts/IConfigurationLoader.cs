@@ -92,6 +92,14 @@ public interface IConfigurationLoader
     /// <summary>Persist transcoding settings to <c>config/transcoding.json</c>.</summary>
     void SaveTranscoding(TranscodingSettings settings);
 
+    // ── Text recognition ─────────────────────────────────────────────────────
+
+    /// <summary>Load text recognition (OCR) settings from <c>config/ocr.json</c>.</summary>
+    OcrSettings LoadOcr() => new();
+
+    /// <summary>Persist text recognition (OCR) settings to <c>config/ocr.json</c>.</summary>
+    void SaveOcr(OcrSettings settings) { }
+
     // ── Network & Remote Access ─────────────────────────────────────────────
 
     /// <summary>Load desired network settings from <c>config/network.json</c>.</summary>

@@ -255,7 +255,7 @@ public sealed partial class IngestionEngine
         _concurrencyGuard.Cleanup();
     }
 
-    private static bool IsIgnoredScanFile(string filePath)
+    internal static bool IsIgnoredScanFile(string filePath)
     {
         if (filePath.Contains(Path.DirectorySeparatorChar + ".data" + Path.DirectorySeparatorChar,
                 StringComparison.OrdinalIgnoreCase)
@@ -318,6 +318,8 @@ public sealed partial class IngestionEngine
                 await Task.Delay(interval, ct).ConfigureAwait(false);
             }
             catch (OperationCanceledException) { break; }
+
+            await SweepImportFolderAsync(ct).ConfigureAwait(false);
 
             var scanTargets = GetConfiguredScanTargets()
                 .Where(target => Directory.Exists(target.Path))

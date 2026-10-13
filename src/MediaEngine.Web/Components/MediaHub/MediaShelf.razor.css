@@ -122,3 +122,7 @@
         scroll-padding-inline: 0;
     }
 }
+
+:root[data-form-factor="phone"] .media-hub-shelf {
+    padding-inline: 16px;
+}

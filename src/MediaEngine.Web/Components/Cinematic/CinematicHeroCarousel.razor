@@ -21,10 +21,11 @@
 @if (Slides.Count > 0)
 {
     <section class="@CarouselClass"
+             @ref="_carouselRef"
              aria-roledescription="carousel"
              aria-label="@AriaLabel"
-             @onmouseenter="PauseForHover"
-             @onmouseleave="ResumeFromHover"
+             @onpointerenter="PauseForHover"
+             @onpointerleave="ResumeFromHover"
              @onfocusin="PauseForFocus"
              @onfocusout="ResumeFromFocus">
         <div class="cinematic-hero-carousel__slide" aria-live="@(IsPaused ? "polite" : "off")">
@@ -181,6 +182,10 @@
     private bool _userPaused;
     private bool _hoverPaused;
     private bool _focusPaused;
+    private bool _touchPaused;
+    private ElementReference _carouselRef;
+    private bool _swipeRegistered;
+    private DotNetObjectReference<CinematicHeroCarousel>? _swipeReference;
     private Task? _rotationTask;
 
     private IReadOnlyList<DiscoveryHeroViewModel> Slides => Items
@@ -189,7 +194,7 @@
         .ToList();
 
     private DiscoveryHeroViewModel ActiveHero => Slides[Math.Clamp(_activeIndex, 0, Slides.Count - 1)];
-    private bool IsPaused => _prefersReducedMotion || _userPaused || _hoverPaused || _focusPaused || Slides.Count < 2;
+    private bool IsPaused => _prefersReducedMotion || _userPaused || _hoverPaused || _focusPaused || _touchPaused || Slides.Count < 2;
     private bool UsesLandscapeArtwork => ActiveHero.SurfaceKind == MediaTileSurfaceKind.BannerLandscape;
     private bool UsesLandscapeBackground => UsesLandscapeArtwork
         && !string.IsNullOrWhiteSpace(StringHelpers.FirstNonBlank(ActiveHero.HeroBackgroundImageUrl, ActiveHero.BackgroundImageUrl, ActiveHero.BannerImageUrl));
@@ -382,6 +387,7 @@
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
+        await RegisterSwipeAsync();
         if (!firstRender || _initializedMotionPreference)
         {
             return;
@@ -403,6 +409,56 @@
         await NotifyActiveItemAsync();
         await InvokeAsync(StateHasChanged);
     }
+
+    // The section only exists once there are slides, so registration is retried after every render until it succeeds.
+    private async Task RegisterSwipeAsync()
+    {
+        if (Slides.Count == 0)
+        {
+            // The section is gone; a later one is a new element that needs registering again.
+            _swipeRegistered = false;
+            return;
+        }
+
+        if (_swipeRegistered || _disposeCts.IsCancellationRequested)
+        {
+            return;
+        }
+
+        try
+        {
+            _swipeReference ??= DotNetObjectReference.Create(this);
+            await JS.InvokeVoidAsync("registerHeroSwipe", _carouselRef, _swipeReference);
+            _swipeRegistered = true;
+        }
+        catch (Exception ex)
+        {
+            Logger.LogDebug(ex, "Could not register the hero swipe gesture.");
+        }
+    }
+
+    [JSInvokable]
+    public Task OnHeroSwipe(string direction) => InvokeAsync(async () =>
+    {
+        if (_disposeCts.IsCancellationRequested) return;
+        if (direction == "next") await NextAsync(); else await PreviousAsync();
+        StateHasChanged();
+    });
+
+    // A finger on the hero holds rotation. Touch has no mouse-leave or keyboard blur, so lifting it also clears
+    // the hover and focus holds that a tap can leave behind.
+    [JSInvokable]
+    public Task OnHeroTouchHold(bool down) => InvokeAsync(() =>
+    {
+        if (_disposeCts.IsCancellationRequested) return;
+        _touchPaused = down;
+        if (!down)
+        {
+            _hoverPaused = false;
+            _focusPaused = false;
+        }
+        StateHasChanged();
+    });
 
     private async Task RunRotationAsync(CancellationToken token)
     {
@@ -679,8 +735,9 @@
     }
     private readonly HashSet<(Guid? Profile, Guid Id)> _personalLoading = [];
 
-    private void PauseForHover() => _hoverPaused = true;
-    private void ResumeFromHover() => _hoverPaused = false;
+    // Only a mouse or pen hovers; a tap on touch must not leave the carousel held.
+    private void PauseForHover(PointerEventArgs e) { if (e.PointerType != "touch") _hoverPaused = true; }
+    private void ResumeFromHover(PointerEventArgs e) { if (e.PointerType != "touch") _hoverPaused = false; }
     private void PauseForFocus() => _focusPaused = true;
     private void ResumeFromFocus() => _focusPaused = false;
 
@@ -749,6 +806,17 @@
         if (_savedItems is not null) _savedItems.Changed -= PersonalChanged;
         if (_reactions is not null) _reactions.Changed -= PersonalChanged;
         _disposeCts.Cancel();
+        if (_swipeRegistered)
+        {
+            try
+            {
+                await JS.InvokeVoidAsync("unregisterHeroSwipe", _carouselRef);
+            }
+            catch (JSDisconnectedException ex) { Logger.LogDebug(ex, "Hero disconnected during disposal."); }
+            catch (JSException ex) { Logger.LogDebug(ex, "Hero swipe clean-up failed during disposal."); }
+            catch (OperationCanceledException ex) { Logger.LogDebug(ex, "Hero swipe clean-up was cancelled during disposal."); }
+        }
+        _swipeReference?.Dispose();
         if (_rotationTask is not null)
         {
             try

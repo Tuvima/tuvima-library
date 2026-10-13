@@ -394,3 +394,10 @@
 }
 
 .cinematic-hero-carousel ::deep .tl-detail-media-stage__overlay { background:linear-gradient(90deg,#05070ce6,transparent 70%),linear-gradient(0deg,#05070c,transparent 70%); }
+
+/* Touch: vertical panning stays with the browser so the page still scrolls; horizontal swipes go to the carousel. */
+@media (hover: none), (pointer: coarse) {
+    .cinematic-hero-carousel {
+        touch-action: pan-y;
+    }
+}

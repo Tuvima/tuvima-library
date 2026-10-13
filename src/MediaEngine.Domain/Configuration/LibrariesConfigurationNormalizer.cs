@@ -2,7 +2,8 @@ namespace MediaEngine.Domain.Configuration;
 
 /// <summary>
 /// Applies the rules that are derived rather than chosen, so every writer of <c>libraries.json</c> ends up with the
-/// same result: a folder's access follows its management mode, and each library has the right destination.
+/// same result: a folder's access follows its management mode (and an As-is folder is never mid-conversion), and each
+/// library has the right destination.
 /// </summary>
 public static class LibrariesConfigurationNormalizer
 {
@@ -17,6 +18,13 @@ public static class LibrariesConfigurationNormalizer
                 source.AccessMode = source.IsManaged
                     ? LibrarySourceAccessModes.Writable
                     : LibrarySourceAccessModes.ReadOnly;
+
+                // A folder Tuvima does not manage is not being converted: switching it back to As-is ends any conversion.
+                if (!source.IsManaged)
+                {
+                    source.ConversionState = LibrarySourceConversionStates.None;
+                    source.ConversionOperationId = null;
+                }
             }
 
             library.PrimaryDestinationSourceId = PickDestination(library);

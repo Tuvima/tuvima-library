@@ -107,3 +107,16 @@
     .media-tile-shelf-arrow-slot { display:none; }
     .media-tile-shelf-scroll { padding-inline:0; scroll-padding-inline:0; }
 }
+
+/* Phones: the row bleeds to both screen edges and keeps the page gutter as its own padding, so the next card is
+   always cut at the screen edge and the first card still lines up with the shelf title. */
+:root[data-form-factor="phone"] .media-tile-shelf-track {
+    margin-inline: calc(-1 * var(--media-shelf-gutter, 16px));
+}
+
+:root[data-form-factor="phone"] .media-tile-shelf-scroll,
+:root[data-form-factor="phone"] .continue-group .media-tile-shelf-scroll {
+    --media-tile-hover-lift: 0px;
+    padding-inline: var(--media-shelf-gutter, 16px);
+    scroll-padding-inline: var(--media-shelf-gutter, 16px);
+}

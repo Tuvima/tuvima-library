@@ -336,6 +336,14 @@ Comics/{Title} ({Qid})/{Title}.cbz
 
 ---
 
+## View documents (text search)
+
+Documents in a personal View library are searchable by their own text. Plain text files (`.txt`, `.md`, `.csv`, `.json`, `.xml`) are read during the scan (first 256K characters). PDFs (their own text layer), Word `.docx`, Excel `.xlsx`, PowerPoint `.pptx`, OpenDocument `.odt` and `.rtf` files are read by a throttled background job (`view.document_text_read`) after the scan, so folder scans stay fast. Text is capped per document, PDFs are capped by page count and by read time, and password-protected or corrupt files are marked as having no text. Original files are never changed, and document text never appears in Home, global Search or Recommendations. Limits are set under `personal_library_policy` in `config/libraries.json`.
+
+Scanned PDF pages and photos of paper (`.jpg`, `.jpeg`, `.png`, `.tif`, `.tiff`, `.webp`, `.bmp`, `.heic`, `.heif`) are read with text recognition by a second throttled job (`view.document_ocr`). For each PDF page whose own text layer holds fewer than 25 non-whitespace characters, the page is drawn at 300 DPI (longest side capped at 3500 px) and recognised; pages that already have a text layer are never re-read. `text_source` becomes `embedded`, `ocr` or `mixed`. The job waits while anyone is playing media, runs one file at a time, and keeps the previous text if a re-read fails. Originals are never changed and no searchable-PDF copy is written. Settings are in `config/ocr.json`; see [How documents are read](../explanation/how-documents-are-read.md).
+
+---
+
 ## Folder artwork
 
 For Books, Audiobooks, and Music, a file with no embedded cover uses a sibling `cover.jpg`, `cover.jpeg`, `cover.png`, `folder.jpg`, `folder.jpeg`, `folder.png`, `front.jpg`, or `front.png` in the same folder. The image must be JPEG or PNG between 1 KB and 25 MB. Tuvima reads it without changing it, embedded art wins when present, and folder art is not used for Comics, Movies, or TV.

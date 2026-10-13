@@ -191,5 +191,6 @@ internal static class CurationContractMapper
         CoverUrl = source.CoverUrl,
         BridgeIdentifiers = source.BridgeIdentifiers,
         DetectedFacts = source.DetectedFacts,
+        FromImportFolder = source.FromImportFolder,
     };
 }

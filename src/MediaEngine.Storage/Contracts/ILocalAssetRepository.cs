@@ -22,6 +22,24 @@ public interface ILocalAssetRepository
     Task<LocalAssetUpsertResult> UpsertAsync(
         LocalAssetRegistration registration,
         CancellationToken ct = default);
+    /// <summary>
+    /// Replaces an item's extracted document text and its <c>text_source</c>, then rebuilds the search document.
+    /// Passing no text clears it. Prefer this over <see cref="UpsertAsync"/> for text reads.
+    /// </summary>
+    Task<bool> SetDocumentTextAsync(
+        Guid itemId,
+        LocalAssetDocumentTextWrite write,
+        CancellationToken ct = default);
+
+    /// <summary>
+    /// Lists PDFs and photos whose text has not been read (or was read as none) so text recognition can be
+    /// queued for them again. Pages by item ID: pass the last ID of the previous page as <paramref name="afterItemId"/>.
+    /// </summary>
+    Task<IReadOnlyList<LocalAssetOcrCandidate>> GetOcrCandidatesAsync(
+        Guid? afterItemId,
+        int limit,
+        IReadOnlyCollection<string> imageExtensions,
+        CancellationToken ct = default);
     Task<bool> SetFlagsAsync(
         Guid itemId,
         bool? favorite,
@@ -150,6 +168,30 @@ public sealed record LocalAssetLocationUpdate(
     string? Country = null,
     string? CountryCode = null,
     bool ResetToEmbedded = false);
+
+/// <summary>Where an item's document text came from.</summary>
+public static class LocalAssetTextSources
+{
+    public const string Embedded = "embedded";
+    public const string Ocr = "ocr";
+
+    /// <summary>Some pages came from the file's own text layer and others were read by OCR.</summary>
+    public const string Mixed = "mixed";
+
+    public const string None = "none";
+}
+
+public sealed record LocalAssetDocumentTextWrite(
+    string? Text,
+    string TextSource,
+    bool Truncated = false,
+    bool Encrypted = false,
+    int? PageCount = null,
+    double? OcrAverageConfidence = null,
+    int? OcrPages = null);
+
+/// <summary>A file whose text could still be recognised.</summary>
+public sealed record LocalAssetOcrCandidate(Guid ItemId, string ContentHash, string FilePath);
 
 public static class LocalAssetScopeKinds
 {

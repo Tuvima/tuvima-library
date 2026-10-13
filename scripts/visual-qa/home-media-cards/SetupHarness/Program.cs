@@ -85,6 +85,13 @@ if (status.State != "complete")
     {
         _ = await SendAsync<SetupStatusDto>(HttpMethod.Post, $"/setup/v1/steps/{step}", new SetupStepDecisionRequest { Status = "deferred", Detail = "Disposable visual fixture has no ingestion sources or provider calls." });
     }
+    var pending = await SendAsync<SetupReadinessDto>(HttpMethod.Get, "/setup/v1/readiness");
+    foreach (var capability in pending.Capabilities.Where(c => !c.Required && c.Key != "readiness" && c.Status is not ("passed" or "deferred")))
+    {
+        if (capability.Key == "server") { _ = await SendAsync<SetupServerIdentityDto>(HttpMethod.Put, "/setup/v1/server-identity", new SetupServerIdentityDto("Home Cards Disposable QA", "qa-fixture")); continue; }
+        Console.WriteLine("Deferring " + capability.Key);
+        _ = await SendAsync<SetupStatusDto>(HttpMethod.Post, $"/setup/v1/steps/{capability.Key}", new SetupStepDecisionRequest { Status = "deferred", Detail = "Disposable visual fixture defers this step." });
+    }
     var readiness = await SendAsync<SetupReadinessDto>(HttpMethod.Get, "/setup/v1/readiness");
     if (!readiness.CanComplete)
     {

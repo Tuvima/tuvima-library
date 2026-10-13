@@ -26,6 +26,7 @@ public static class TuvimaPlaybackServiceCollectionExtensions
         services.AddSingleton<AudiobookChapterTitleOverrideRepository>();
         services.AddSingleton<AudiobookChapterNamingService>();
         services.AddSingleton<IPlaybackTelemetryRepository, PlaybackTelemetryRepository>();
+        services.AddSingleton<IPlaybackActivityProbe, PlaybackActivityProbe>();
         services.AddSingleton<PlaybackTelemetryLifecycleService>();
         services.AddScoped<PlaybackTelemetryReadService>();
         services.AddHostedService<PlaybackTelemetryMaintenanceService>();

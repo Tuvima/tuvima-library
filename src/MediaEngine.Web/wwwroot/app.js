@@ -12,6 +12,60 @@ window.tuvimaPrefersReducedMotion = function () {
     return !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
 };
 
+/**
+ * Touch swipe for the Home hero carousel. A horizontal swipe of more than 48 px with less vertical travel moves to
+ * the next or previous featured item through the carousel's own buttons logic; rotation is held while a finger is down.
+ * Mouse and pen input never reach this handler, so desktop behaviour is unchanged. The swipe adds no animation, so it
+ * needs no reduced-motion variant.
+ */
+window.registerHeroSwipe = function (el, dotnet) {
+    if (!el || el.__heroSwipe) return;
+    const threshold = 48;
+    let start = null, swiped = false;
+    const report = (method, ...args) => dotnet.invokeMethodAsync(method, ...args)
+        .catch(error => console.debug('Hero swipe observer disconnected', error));
+    const down = event => {
+        if (event.pointerType !== 'touch' || !event.isPrimary) return;
+        start = { id: event.pointerId, x: event.clientX, y: event.clientY };
+        swiped = false;
+        report('OnHeroTouchHold', true);
+    };
+    const finish = event => {
+        if (!start || event.pointerId !== start.id) return;
+        const dx = event.clientX - start.x, dy = event.clientY - start.y;
+        start = null;
+        if (event.type === 'pointerup' && Math.abs(dx) > threshold && Math.abs(dy) < Math.abs(dx)) {
+            swiped = true;
+            report('OnHeroSwipe', dx < 0 ? 'next' : 'previous');
+        }
+        report('OnHeroTouchHold', false);
+    };
+    // A swipe that ends on a link must not also open it.
+    const suppressClick = event => {
+        if (!swiped) return;
+        swiped = false;
+        event.preventDefault();
+        event.stopPropagation();
+    };
+    el.addEventListener('pointerdown', down, { passive: true });
+    el.addEventListener('pointerup', finish, { passive: true });
+    el.addEventListener('pointercancel', finish, { passive: true });
+    el.addEventListener('click', suppressClick, true);
+    el.__heroSwipe = {
+        dispose() {
+            el.removeEventListener('pointerdown', down);
+            el.removeEventListener('pointerup', finish);
+            el.removeEventListener('pointercancel', finish);
+            el.removeEventListener('click', suppressClick, true);
+        }
+    };
+};
+
+window.unregisterHeroSwipe = function (el) {
+    el?.__heroSwipe?.dispose();
+    if (el) el.__heroSwipe = null;
+};
+
 window.tuvimaPasskeys = {
     createCredential: async function (optionsJson) {
         if (!window.PublicKeyCredential || !PublicKeyCredential.parseCreationOptionsFromJSON) {
@@ -814,7 +868,8 @@ window.updateMediaTileShelfVisibleWidth = function (el) {
     paddingRight = Number.isFinite(paddingRight) ? paddingRight : 0;
 
     var visibleWidth = availableWidth;
-    if (el.closest && el.closest('.continue-group')) {
+    // Phones let the row run to the screen edge so the next card peeks; larger screens trim it to whole cards.
+    if (el.closest && el.closest('.continue-group') && document.documentElement.dataset.formFactor !== 'phone') {
         const gap = style ? parseFloat(style.columnGap || style.gap || '0') || 0 : 0;
         const count = Math.max(1, Math.floor((availableWidth - paddingLeft - paddingRight + gap) / (itemWidth + gap)));
         visibleWidth = Math.min(availableWidth, count * itemWidth + Math.max(0, count - 1) * gap + paddingLeft + paddingRight);
@@ -3446,6 +3501,30 @@ document.addEventListener('keydown', function (event) {
         : current <= 0 ? options.length - 1 : current - 1;
     options[index].focus();
 });
+// AppTable cards mode re-lays rows out with display:block/grid, which some engines treat as dropping table
+// semantics. Explicit ARIA roles keep the table navigable by screen readers; the observer keeps them current
+// when Blazor adds or replaces rows.
+window.tuvimaTableCards = (function () {
+    const observers = new WeakMap();
+    const roles = { TABLE: 'table', THEAD: 'rowgroup', TBODY: 'rowgroup', TFOOT: 'rowgroup', TR: 'row', TH: 'columnheader', TD: 'cell' };
+    function applyRoles(table) {
+        if (!table.hasAttribute('role')) table.setAttribute('role', roles.TABLE);
+        for (const node of table.querySelectorAll('thead, tbody, tfoot, tr, th, td')) {
+            if (!node.hasAttribute('role')) node.setAttribute('role', roles[node.tagName]);
+        }
+    }
+    return {
+        apply: function (table) {
+            if (!(table instanceof HTMLElement)) return;
+            applyRoles(table);
+            if (observers.has(table)) return;
+            const observer = new MutationObserver(() => applyRoles(table));
+            observer.observe(table, { childList: true, subtree: true });
+            observers.set(table, observer);
+        }
+    };
+})();
+
 window.tuvimaGetEditorListScrollTop = function (element) {
     return element?.scrollTop ?? 0;
 };

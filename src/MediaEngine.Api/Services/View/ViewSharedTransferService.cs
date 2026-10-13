@@ -167,9 +167,9 @@ public sealed class ViewSharedTransferService(
                           FROM local_items WHERE id=@itemId;
                         INSERT OR IGNORE INTO local_item_metadata
                             (item_id,width,height,duration_seconds,page_count,device_make,device_model,
-                             latitude,longitude,location_name,document_text,metadata_json,updated_at)
+                             latitude,longitude,location_name,document_text,text_source,metadata_json,updated_at)
                         SELECT @sharedItemId,width,height,duration_seconds,page_count,device_make,device_model,
-                               latitude,longitude,location_name,document_text,metadata_json,@now
+                               latitude,longitude,location_name,document_text,text_source,metadata_json,@now
                           FROM local_item_metadata WHERE item_id=@itemId;
                         INSERT OR IGNORE INTO local_item_files(item_id,file_id,role,derivative_kind,position,added_at)
                         SELECT @sharedItemId,file_id,role,derivative_kind,position,@now

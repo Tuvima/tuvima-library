@@ -184,6 +184,14 @@ That separation makes the product more honest and reduces bad auto-moves.
 
 ---
 
+## The Import folder
+
+You can set one optional **Import folder** where new media is dropped, for example by Sonarr or Radarr. Tuvima creates a folder inside it for each kind of media (Movies, TV, Music, Books, Audiobooks and Comics), and a file in one of them is treated as that kind. Files arrive, settle and are identified like any other, then move into the one managed folder you marked **New media** for their kind, named the usual way.
+
+If that folder is offline, full or can't be written to, or the kind has no managed folder yet, the file simply stays where it is, untouched, and is filed on a later pass once the folder is back. Files Tuvima can't match yet stay in the Import folder and appear in Review with a "From the Import folder" badge, and are filed once you resolve them. An exact duplicate follows your duplicate rule: with **Keep one copy** only the copy in the Import folder is removed, and with **Keep both** it is filed next to the other with a different name. Nothing in your library folders is ever deleted by this.
+
+---
+
 ## When things go wrong
 
 The pipeline is designed to fail safely:

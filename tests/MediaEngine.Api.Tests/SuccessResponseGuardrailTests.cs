@@ -29,6 +29,7 @@ public sealed partial class SuccessResponseGuardrailTests
         "DeleteProvider",
         "DownloadOfflineVariant",
         "DownloadBackup",
+        "ExportFolderJobLog",
         "GetArtworkVariant",
         "GetCharacterPortrait",
         "GetViewItemPreview",

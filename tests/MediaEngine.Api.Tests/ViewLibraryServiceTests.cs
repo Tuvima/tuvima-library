@@ -1,3 +1,4 @@
+using Dapper;
 using MediaEngine.Api.Services.LocalAssets;
 using MediaEngine.Domain;
 using MediaEngine.Domain.Aggregates;
@@ -191,7 +192,129 @@ public sealed class ViewLibraryServiceTests
         Assert.Null(await fixture.Service.ScanAsync(fixture.CatalogueLibraryId));
     }
 
-    private sealed class ViewFixture : IDisposable
+    [Fact]
+    public async Task Scan_ReadsPdfAndOfficeTextInTheBackgroundAndSearchFindsIt()
+    {
+        using var fixture = new ViewFixture();
+        fixture.WritePersonal("lease.pdf", DocumentFixtures.Pdf("zeppelin hangar rental"));
+        fixture.WritePersonal("minutes.docx", DocumentFixtures.Docx("quarterly gazebo budget"));
+        fixture.WritePersonal("ledger.xlsx", DocumentFixtures.Xlsx("marmalade invoices"));
+        fixture.WritePersonal("pitch.pptx", DocumentFixtures.Pptx("lighthouse keeper roadmap"));
+        fixture.WritePersonal("letter.rtf", @"{\rtf1\ansi Dear \b trombone\b0  society\par}");
+
+        var scan = await fixture.Service.ScanAsync(fixture.PersonalLibraryId);
+
+        Assert.Equal(5, scan!.ItemsAdded);
+        Assert.Equal(0, fixture.Search("zeppelin"));
+        await fixture.DrainTextQueueAsync();
+        Assert.Equal(1, fixture.Search("zeppelin hangar"));
+        Assert.Equal(1, fixture.Search("gazebo"));
+        Assert.Equal(1, fixture.Search("marmalade"));
+        Assert.Equal(1, fixture.Search("lighthouse"));
+        Assert.Equal(1, fixture.Search("trombone"));
+        Assert.All(
+            fixture.Repository.Query(new LocalAssetQuery(fixture.PersonalLibraryId, Limit: 20, IncludeHidden: true)).Items,
+            item => Assert.Equal(LocalAssetTextSources.Embedded, fixture.TextSource(item.Id)));
+    }
+
+    [Fact]
+    public async Task TextRead_IsIdempotentAndRescanDoesNotQueueTwice()
+    {
+        using var fixture = new ViewFixture();
+        fixture.WritePersonal("lease.pdf", DocumentFixtures.Pdf("zeppelin hangar"));
+        await fixture.Service.ScanAsync(fixture.PersonalLibraryId);
+        await fixture.DrainTextQueueAsync();
+        await fixture.Service.ScanAsync(fixture.PersonalLibraryId);
+
+        Assert.Equal(0, await fixture.Worker.RunBatchAsync(CancellationToken.None));
+        var item = Assert.Single(fixture.Repository.Query(new LocalAssetQuery(fixture.PersonalLibraryId, Limit: 5)).Items);
+        Assert.True((await fixture.TextReader.ReadItemAsync(item.Id, CancellationToken.None)).Status == DocumentTextReadStatus.Read);
+        Assert.True((await fixture.TextReader.ReadItemAsync(item.Id, CancellationToken.None)).Status == DocumentTextReadStatus.Read);
+        Assert.Equal(1, fixture.Search("zeppelin"));
+    }
+
+    [Fact]
+    public async Task EditedDocumentAtTheSamePathUpdatesTheSameItemAndReplacesOldWords()
+    {
+        using var fixture = new ViewFixture();
+        var path = fixture.WritePersonal("plan.pdf", DocumentFixtures.Pdf("zeppelin hangar"));
+        await fixture.Service.ScanAsync(fixture.PersonalLibraryId);
+        await fixture.DrainTextQueueAsync();
+        var original = Assert.Single(fixture.Repository.Query(new LocalAssetQuery(fixture.PersonalLibraryId, Limit: 5)).Items);
+        await fixture.Repository.SetFlagsAsync(original.Id, favorite: true, hidden: null);
+        await fixture.Repository.ReplaceTagsAsync(original.Id, ["keep"]);
+
+        System.IO.File.WriteAllBytes(path, DocumentFixtures.Pdf("submarine garage"));
+        var rescan = await fixture.Service.ScanAsync(fixture.PersonalLibraryId);
+
+        Assert.Equal(0, rescan!.ItemsAdded);
+        Assert.Equal(1, fixture.ItemCount());
+        Assert.Equal(0, fixture.Search("zeppelin"));
+        await fixture.DrainTextQueueAsync();
+        Assert.Equal(0, fixture.Search("zeppelin"));
+        Assert.Equal(1, fixture.Search("submarine garage"));
+        var updated = Assert.IsType<MediaEngine.Contracts.LocalAssets.LocalAssetDto>(fixture.Repository.Find(original.Id));
+        Assert.True(updated.Favorite);
+        Assert.Contains("keep", updated.Tags);
+        Assert.Equal(
+            LocalAssetContentHashFor(path),
+            fixture.Repository.ResolveContent(original.Id)!.ContentHash,
+            ignoreCase: true);
+    }
+
+    [Fact]
+    public async Task CorruptEncryptedAndEmptyDocumentsRecordNoneWithoutStoppingTheBatch()
+    {
+        using var fixture = new ViewFixture();
+        fixture.WritePersonal("broken.pdf", "%PDF-1.4 this is not really a pdf"u8.ToArray());
+        fixture.WritePersonal("locked.docx", [0xD0, 0xCF, 0x11, 0xE0, 0xA1, 0xB1, 0x1A, 0xE1, 1, 2, 3]);
+        fixture.WritePersonal("blank.pdf", DocumentFixtures.Pdf(string.Empty));
+        fixture.WritePersonal("good.docx", DocumentFixtures.Docx("persimmon harvest"));
+        await fixture.Service.ScanAsync(fixture.PersonalLibraryId);
+
+        await fixture.DrainTextQueueAsync();
+
+        var items = fixture.Repository.Query(new LocalAssetQuery(fixture.PersonalLibraryId, Limit: 20, IncludeHidden: true)).Items;
+        string Source(string name) => fixture.TextSource(items.Single(item => item.Title == name).Id)!;
+        Assert.Equal(LocalAssetTextSources.None, Source("broken"));
+        Assert.Equal(LocalAssetTextSources.None, Source("locked"));
+        Assert.Equal(LocalAssetTextSources.None, Source("blank"));
+        Assert.Equal(LocalAssetTextSources.Embedded, Source("good"));
+        var locked = items.Single(item => item.Title == "locked");
+        Assert.Contains("\"document_encrypted\":true", fixture.Metadata(locked.Id));
+        Assert.Equal(1, fixture.Search("persimmon"));
+    }
+
+    [Fact]
+    public async Task LongDocumentTextIsTruncatedAndFlagged()
+    {
+        using var fixture = new ViewFixture();
+        var path = fixture.WritePersonal("long.docx", DocumentFixtures.Docx(string.Join(' ', Enumerable.Repeat("filler", 400)) + " needleword"));
+        await fixture.Service.ScanAsync(fixture.PersonalLibraryId);
+
+        var result = DocumentTextReader.Read(path, new DocumentTextReadLimits(100, 10, TimeSpan.FromSeconds(30)), CancellationToken.None);
+
+        Assert.True(result.Truncated);
+        Assert.Equal(100, result.Text!.Length);
+    }
+
+    [Fact]
+    public void StartupChecksCanRunTwiceAndLeaveTheTextSourceColumn()
+    {
+        using var fixture = new ViewFixture();
+        using var first = new DatabaseConnection(fixture.DatabasePath);
+        first.RunStartupChecks();
+        first.RunStartupChecks();
+        using var connection = first.CreateConnection();
+        Assert.Contains(
+            connection.Query<string>("SELECT name FROM pragma_table_info('local_item_metadata');"),
+            name => name == "text_source");
+    }
+
+    private static string LocalAssetContentHashFor(string path) =>
+        Convert.ToHexStringLower(System.Security.Cryptography.SHA256.HashData(System.IO.File.ReadAllBytes(path)));
+
+    internal sealed class ViewFixture : IDisposable
     {
         private readonly string _root = Path.Combine(
             Path.GetTempPath(),
@@ -200,7 +323,7 @@ public sealed class ViewLibraryServiceTests
         private readonly ConfigurationDirectoryLoader _configuration;
         private readonly DatabaseConnection _database;
 
-        public ViewFixture()
+        public ViewFixture(MediaEngine.Api.Services.LocalAssets.Ocr.IOcrService? ocr = null)
         {
             PersonalRoot = Path.Combine(_root, "personal");
             CatalogueRoot = Path.Combine(_root, "catalogue");
@@ -258,12 +381,65 @@ public sealed class ViewLibraryServiceTests
                 null, now, now, ViewSourceStorageMode.Linked, ExternalPath: PersonalRoot,
                 IncludeSubdirectories: true, Enabled: true)).GetAwaiter().GetResult();
             var storage = new ViewStorageService(_configuration, spaces, new ViewSharedLibraryRepository(_database));
+            Operations = new MediaOperationRepository(_database);
+            if (ocr is not null)
+            {
+                OcrQueue = new MediaEngine.Api.Services.LocalAssets.Ocr.DocumentOcrQueue(
+                    Operations, Repository, ocr, _configuration,
+                    NullLogger<MediaEngine.Api.Services.LocalAssets.Ocr.DocumentOcrQueue>.Instance);
+            }
+
             Service = new ViewLibraryService(
                 Repository,
                 _configuration,
                 spaces,
                 storage,
-                NullLogger<ViewLibraryService>.Instance);
+                NullLogger<ViewLibraryService>.Instance,
+                operations: Operations,
+                ocrQueue: OcrQueue);
+            TextReader = new DocumentTextReadService(
+                Repository, _configuration, NullLogger<DocumentTextReadService>.Instance, OcrQueue);
+            Worker = new DocumentTextReadOperationWorker(
+                Operations, TextReader, NullLogger<DocumentTextReadOperationWorker>.Instance);
+        }
+
+        public MediaOperationRepository Operations { get; }
+        public MediaEngine.Api.Services.LocalAssets.Ocr.DocumentOcrQueue? OcrQueue { get; }
+        public ConfigurationDirectoryLoader Configuration => _configuration;
+        public DocumentTextReadService TextReader { get; }
+        public DocumentTextReadOperationWorker Worker { get; }
+
+        public string DatabasePath => _databasePath;
+
+        public int Search(string words) => Repository.Query(new LocalAssetQuery(
+            PersonalLibraryId, Search: words, Limit: 20, IncludeHidden: true)).Items.Count;
+
+        public string? TextSource(Guid itemId)
+        {
+            using var connection = _database.CreateConnection();
+            return connection.ExecuteScalar<string?>(
+                "SELECT text_source FROM local_item_metadata WHERE item_id = @itemId;", new { itemId });
+        }
+
+        public string? Metadata(Guid itemId)
+        {
+            using var connection = _database.CreateConnection();
+            return connection.ExecuteScalar<string?>(
+                "SELECT metadata_json FROM local_item_metadata WHERE item_id = @itemId;", new { itemId });
+        }
+
+        public int ItemCount()
+        {
+            using var connection = _database.CreateConnection();
+            return connection.ExecuteScalar<int>("SELECT COUNT(*) FROM local_items;");
+        }
+
+        /// <summary>Runs the text-read worker until the queue is empty.</summary>
+        public async Task DrainTextQueueAsync()
+        {
+            while (await Worker.RunBatchAsync(CancellationToken.None) > 0)
+            {
+            }
         }
 
         public Guid PersonalLibraryId { get; }

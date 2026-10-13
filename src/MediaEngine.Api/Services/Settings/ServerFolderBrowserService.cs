@@ -1,6 +1,7 @@
 using MediaEngine.Contracts.Settings;
 using MediaEngine.Domain.Configuration;
 using MediaEngine.Domain.Contracts;
+using MediaEngine.Domain.Services;
 
 namespace MediaEngine.Api.Services.Settings;
 
@@ -17,8 +18,16 @@ public sealed class ServerFolderBrowserService(
     public IReadOnlyList<ServerStorageLocationDto> GetStorageLocations()
     {
         var result = new List<ServerStorageLocationDto>();
-        foreach (var location in EffectiveLocations(configuration.LoadLibraries()))
+        var snapshot = configuration.LoadLibraries();
+        foreach (var location in EffectiveLocations(snapshot))
         {
+            // Tuvima's own library and import folders are created or chosen elsewhere and are never offered in a picker.
+            // They stay resolvable by id so a typed or remembered path (such as the View root) still validates.
+            if (TuvimaOwnFolders.IsOwnLocation(snapshot, location.Id))
+            {
+                continue;
+            }
+
             if (!TryResolveLocationRoot(location, out var root, out var error))
             {
                 logger.LogWarning(
@@ -587,6 +596,7 @@ public sealed class ServerFolderBrowserService(
             }
             var core = configuration.LoadCore();
             ownFolders.Add(core.DataRoot);
+            ownFolders.Add(new TuvimaDataPaths().Root);
             if (!string.IsNullOrWhiteSpace(core.LibraryRoot))
             {
                 ownFolders.Add(Path.Combine(core.LibraryRoot, ".data"));

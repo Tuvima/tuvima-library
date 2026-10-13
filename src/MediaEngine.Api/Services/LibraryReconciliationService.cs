@@ -48,6 +48,8 @@ public sealed partial class LibraryReconciliationService : BackgroundService, IR
     private readonly AssetPathService _assetPaths;
     private readonly IDatabaseConnection _db;
     private readonly ILibraryFolderResolver _libraryFolderResolver;
+    private readonly MediaEngine.Ingestion.Contracts.IImportFolderService? _importFolders;
+    private readonly MediaEngine.Ingestion.Services.ImportFilingJournal? _importJournal;
     private readonly ILogger<LibraryReconciliationService> _logger;
 
     /// <summary>Category root folder names that should never be deleted.</summary>
@@ -75,8 +77,12 @@ public sealed partial class LibraryReconciliationService : BackgroundService, IR
         AssetPathService assetPaths,
         IDatabaseConnection db,
         ILibraryFolderResolver libraryFolderResolver,
-        ILogger<LibraryReconciliationService> logger)
+        ILogger<LibraryReconciliationService> logger,
+        MediaEngine.Ingestion.Contracts.IImportFolderService? importFolders = null,
+        MediaEngine.Ingestion.Services.ImportFilingJournal? importJournal = null)
     {
+        _importFolders = importFolders;
+        _importJournal = importJournal;
         _assetRepo = assetRepo;
         _claimRepo = claimRepo;
         _canonicalRepo = canonicalRepo;
@@ -174,6 +180,18 @@ public sealed partial class LibraryReconciliationService : BackgroundService, IR
 
             if (File.Exists(asset.FilePathRoot))
             {
+                continue;
+            }
+
+            // A file in the Import folder is only missing for real when the folder itself is reachable and no filing of it is
+            // part-way through; an offline drive or a move in flight must not cost the file its identity and history.
+            if (_importFolders?.GetImportPath() is { } importPath
+                && _importFolders.IsInImportFolder(asset.FilePathRoot)
+                && (!Directory.Exists(importPath) || _importJournal?.IsInProgress(asset.Id) == true))
+            {
+                _logger.LogWarning(
+                    "Reconciliation deferred missing-file cleanup for asset {Id}; the Import folder is unavailable or the file is being filed",
+                    asset.Id);
                 continue;
             }
 

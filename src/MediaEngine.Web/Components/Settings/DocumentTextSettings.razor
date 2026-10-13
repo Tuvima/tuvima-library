@@ -1,0 +1,256 @@
+@namespace MediaEngine.Web.Components.Settings
+@using MediaEngine.Contracts.Settings
+@implements IAsyncDisposable
+@inject IEngineApiClient ApiClient
+@inject IAppToastService Snackbar
+
+<AppCard Class="libraries-card">
+    <div class="documents-settings__heading">
+        <div>
+            <h3>Documents</h3>
+            <p>Scanned pages and photos of paper are read on this computer, so you can search them by their words.</p>
+        </div>
+        @if (_status is { Installed: true })
+        {
+            <AppStatusBadge Text="@(_status.Settings.Enabled ? "Reading is on" : "Reading is off")" Tone="@(_status.Settings.Enabled ? AppUiTone.Success : AppUiTone.Neutral)" />
+        }
+    </div>
+
+    @if (_loading)
+    {
+        <p role="status">Loading document settings…</p>
+    }
+    else if (_status is null)
+    {
+        <AppAlert Tone="AppUiTone.Error">Document settings could not be loaded.</AppAlert>
+    }
+    else if (!_status.Installed)
+    {
+        <div class="documents-settings__missing" role="status">
+            <strong>Text recognition is not installed</strong>
+            <p>@(string.IsNullOrWhiteSpace(_status.Message) || _status.Message == "Text recognition is not installed." ? "Scanned pages are still kept and can be opened; they just cannot be searched by their words until it is installed." : _status.Message)</p>
+        </div>
+    }
+    else
+    {
+        <AppSwitchRow Label="Read scanned documents and photos"
+                      Description="Turn this off to stop reading new files. Words already found stay searchable."
+                      Value="@_status.Settings.Enabled" ValueChanged="@SetEnabledAsync" Disabled="@(ReadOnly || _busy)" />
+        <div class="documents-settings__field">
+            <AppSelect Label="Effort" Value="@_status.Settings.Effort" ValueChanged="@SetEffortAsync" Options="@EffortOptions"
+                       HelpText="Low reads more slowly and leaves more of this computer free." Disabled="@(ReadOnly || _busy)" />
+        </div>
+
+        <div class="documents-settings__languages">
+            <strong>Languages</strong>
+            <p>English is included. Other languages are an optional download. A download is the only time text recognition uses the internet; no document is ever sent anywhere.</p>
+            <ul class="documents-settings__language-list">
+                @foreach (var language in _status.Languages)
+                {
+                    <li class="documents-settings__language" @key="language.Code">
+                        @if (language.Installed)
+                        {
+                            <AppCheckboxRow Label="@language.Name" Value="@language.Selected"
+                                            ValueChanged="@(value => ToggleLanguageAsync(language.Code, value))"
+                                            Disabled="@(ReadOnly || _busy)" />
+                        }
+                        else
+                        {
+                            <span class="documents-settings__language-name">@language.Name</span>
+                            <AppButton Label="Download" StartIcon="@AppMaterialIcons.Outlined.Download" ButtonStyle="AppButtonStyle.Outlined"
+                                       Loading="@(_downloading == language.Code)"
+                                       Disabled="@(ReadOnly || _busy)" OnClick="@(() => DownloadAsync(language))" />
+                        }
+                    </li>
+                }
+            </ul>
+        </div>
+
+        <div class="documents-settings__queue" role="status">
+            @if (_status.QueueLength == 0)
+            {
+                <span>Nothing is waiting to be read.</span>
+            }
+            else
+            {
+                <span>@_status.QueueLength @(_status.QueueLength == 1 ? "file is" : "files are") waiting to be read.</span>
+                @if (!string.IsNullOrWhiteSpace(_status.CurrentFileName))
+                {
+                    <span>Reading now: <code>@_status.CurrentFileName</code></span>
+                }
+            }
+        </div>
+        <AppActionBar>
+            <AppButton Label="Read all documents again" StartIcon="@AppMaterialIcons.Outlined.Refresh" ButtonStyle="AppButtonStyle.Outlined"
+                       Disabled="@(ReadOnly || _busy || _status.Settings.Enabled == false || _status.RereadRunning)" OnClick="RereadAsync" />
+        </AppActionBar>
+        @if (_status.RereadRunning)
+        {
+            <p role="status">Queueing documents to be read again… @_status.RereadQueued so far.</p>
+        }
+    }
+    @if (_error is not null)
+    {
+        <AppAlert Tone="AppUiTone.Error">@_error</AppAlert>
+    }
+</AppCard>
+
+@code {
+    [Parameter] public bool ReadOnly { get; set; }
+
+    private static readonly IReadOnlyList<AppSelectOption> EffortOptions =
+        [new("normal", "Normal"), new("low", "Low — gentler on this computer")];
+
+    private readonly CancellationTokenSource _cts = new();
+    private OcrStatusDto? _status;
+    private bool _loading = true, _busy;
+    private string? _error, _downloading;
+    private Task? _poller;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await RefreshAsync();
+        _loading = false;
+        _poller = PollAsync();
+    }
+
+    private async Task PollAsync()
+    {
+        using var timer = new PeriodicTimer(TimeSpan.FromSeconds(5));
+        try
+        {
+            while (await timer.WaitForNextTickAsync(_cts.Token))
+            {
+                if (_busy)
+                {
+                    continue;
+                }
+
+                await RefreshAsync();
+                await InvokeAsync(StateHasChanged);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // The page was closed; nothing left to refresh.
+        }
+    }
+
+    private async Task RefreshAsync() => _status = await ApiClient.GetOcrStatusAsync(_cts.Token) ?? _status;
+
+    private Task SetEnabledAsync(bool value) => SaveAsync(settings => settings.Enabled = value);
+
+    private Task SetEffortAsync(string? value) => SaveAsync(settings => settings.Effort = value == "low" ? "low" : "normal");
+
+    private Task ToggleLanguageAsync(string code, bool selected) => SaveAsync(settings =>
+    {
+        settings.Languages = settings.Languages.Where(existing => !string.Equals(existing, code, StringComparison.OrdinalIgnoreCase)).ToList();
+        if (selected)
+        {
+            settings.Languages.Add(code);
+        }
+
+        if (settings.Languages.Count == 0)
+        {
+            settings.Languages.Add("eng");
+        }
+    });
+
+    private async Task SaveAsync(Action<OcrSettingsDto> change)
+    {
+        if (_status is null || _busy)
+        {
+            return;
+        }
+
+        _busy = true;
+        try
+        {
+            var settings = _status.Settings;
+            change(settings);
+            var saved = await ApiClient.SaveOcrSettingsAsync(settings);
+            if (saved is null)
+            {
+                _error = ApiClient.LastError ?? "Document settings could not be saved.";
+                await RefreshAsync();
+            }
+            else
+            {
+                _error = null;
+                _status = saved;
+            }
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private async Task DownloadAsync(OcrLanguageStatusDto language)
+    {
+        _busy = true;
+        _downloading = language.Code;
+        try
+        {
+            var result = await ApiClient.DownloadOcrLanguageAsync(language.Code);
+            if (result is null)
+            {
+                _error = ApiClient.LastError ?? $"{language.Name} could not be downloaded. Check the connection and try again.";
+            }
+            else
+            {
+                _error = null;
+                Snackbar.Add(result.Message, AppSeverity.Success);
+            }
+
+            await RefreshAsync();
+        }
+        finally
+        {
+            _downloading = null;
+            _busy = false;
+        }
+    }
+
+    private async Task RereadAsync()
+    {
+        _busy = true;
+        try
+        {
+            var result = await ApiClient.RereadAllDocumentsAsync();
+            if (result is null)
+            {
+                _error = ApiClient.LastError ?? "Documents could not be queued to be read again.";
+            }
+            else
+            {
+                _error = null;
+                Snackbar.Add(result.Message, AppSeverity.Success);
+            }
+
+            await RefreshAsync();
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        await _cts.CancelAsync();
+        if (_poller is not null)
+        {
+            try
+            {
+                await _poller;
+            }
+            catch (OperationCanceledException)
+            {
+                // Expected when the page closes mid-wait.
+            }
+        }
+
+        _cts.Dispose();
+    }
+}

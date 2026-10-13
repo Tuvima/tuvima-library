@@ -143,10 +143,21 @@ through compatibility routes.
 |---|---|---|---|
 | GET | `/settings/libraries` | Return the complete library configuration, including stable sources and universal incoming sources | Administrator |
 | PUT | `/settings/libraries` | Validate and replace the complete schema-3 library configuration; the library responses (GET, PUT, mutation) include `import_folder_status` (whether the optional import folder is set and which types still need a destination) | Administrator |
+| GET | `/settings/ocr` | Text recognition settings, whether the helper and language data are installed, the language checklist, and the reading queue (length and current file name only) | Administrator |
+| PUT | `/settings/ocr` | Save text recognition on or off, effort (`normal` or `low`) and the languages to read with | Administrator |
+| POST | `/settings/ocr/languages/{code}` | Download the language data for one listed language; the only network use of text recognition | Administrator |
+| POST | `/settings/ocr/reread` | Queue every PDF and photo without text to be read again, in batches (`202`; `409` when already running or not ready) | Administrator |
 | GET | `/settings/incoming-sources` | Return universal unassigned intake folders | Administrator |
 | PUT | `/settings/incoming-sources` | Validate and replace universal incoming folders | Administrator |
 | POST | `/settings/libraries/{libraryId}/reorganization/plan` | Produce a read-only, expiring move/rename plan with stable source IDs, conflicts, blocked work, and an exact confirmation fingerprint | Administrator |
 | POST | `/settings/libraries/{libraryId}/reorganization/execute` | Execute one confirmed plan once, revalidating source policy, files, collisions, and free space immediately before each operation | Administrator |
+| POST | `/settings/libraries/folders/conversion/preview` | `{source_id, quick, file_limit}`. `quick: true` counts the folder's media files from folder listings only (`total_files`, `video_files`, time estimate, `duplicate_policy`). Otherwise a read-only dry run over the first `file_limit` files (0 = all): `to_rename`, `already_correct`, `duplicates_to_remove`, `needs_review`, `name_collisions`, `skipped` with `skip_reasons`, five `samples` of old to new path, and `estimated_seconds`. Nothing is changed | Administrator |
+| POST | `/settings/libraries/folders/convert` | `{source_id}`. Makes the folder Managed (`conversion_state: converting`) and queues one `organise_folder` job on the `folder_jobs` queue; a folder that already has an open job gets that job back. Returns the job status | Administrator |
+| GET | `/settings/libraries/folders/jobs` | The open folder jobs and each folder's most recent finished job from the last week (`state`, `items_total/completed/failed`, `progress_percent`, `estimated_seconds_remaining`, `message`, `queued_behind`, `has_log`) | Administrator |
+| GET | `/settings/libraries/folders/jobs/{id}` | One folder job | Administrator |
+| POST | `/settings/libraries/folders/jobs/{id}/control` | `{action}` of `pause`, `resume` or `cancel`; `409` when the job has already finished (or is not paused) | Administrator |
+| GET | `/settings/libraries/folders/jobs/{id}/log` | A page (`offset`, `limit`) of the job's log: every file, old path to new path, with its outcome | Administrator |
+| GET | `/settings/libraries/folders/jobs/{id}/log/export` | The whole log as a CSV download (the Dashboard serves it at `/engine-folder-log/{id}`) | Administrator |
 
 Reorganization execution requires both the returned `plan_id` and its exact
 `fingerprint`. A plan expires after 15 minutes and cannot be reused. Partial
@@ -293,6 +304,7 @@ unauthorized identifiers return the same not-found shape as missing resources.
 | POST | `/ingestion/scan` | Dry-run scan of configured library folders. Reports what would be ingested without making changes. | Administrator |
 | POST | `/ingestion/library-scan` | Scan library folders and update known file paths. Triggers ingestion for new files. | Administrator |
 | POST | `/ingestion/upload` | Upload a file to the library's explicit destination (a folder Tuvima manages, checked through the source-mutation gate as a destination, with no fallback folder) identified by multipart `destinationLibraryId`; catalogued files retain stable intake IDs, while personal files are indexed directly into View without catalogue/provider work | Administrator |
+| GET | `/ingestion/import-folder/waiting` | What is being left untouched in the optional Import folder because a media type has no managed folder yet (`reason` `no_managed_folder`) or its New media folder is offline, full or not writable (`folder_unavailable`). One entry per type with `media_type`, `folder`, `file_count` and a plain-language `message`; empty when nothing is waiting. A situation, not a state of the Import folder. | Effective administrator or precise Application permission |
 | GET | `/ingestion/operations` | Dashboard snapshot backed by durable ingestion operation counts, numbered `stage_progress` rows, current activity, review state, provider health, and recent batch summaries. | Effective administrator or precise Application permission |
 | GET | `/ingestion/batches` | Recent ingestion batches. | Effective administrator or precise Application permission |
 | GET | `/ingestion/batches/{batchId}` | Single ingestion batch summary. | Effective administrator or precise Application permission |
@@ -333,7 +345,7 @@ The Dashboard renders Stages 1-8 as compact progress rows. Review/attention stat
 
 | Method | Path | Description | Auth |
 |---|---|---|---|
-| GET | `/review/pending` | All items currently in the review queue | Effective administrator or precise Application permission |
+| GET | `/review/pending` | All items currently in the review queue; `from_import_folder` is true for a file still in the Import folder (the "From the Import folder" badge) | Effective administrator or precise Application permission |
 | GET | `/review/count` | Count of pending review items. Used for media library badge. | Required |
 | GET | `/review/{id}` | Full detail for a single review item including candidates | Effective administrator or precise Application permission |
 | POST | `/review/{id}/resolve` | Resolve a review item by selecting a candidate or confirming corrected local metadata | Effective administrator or precise Application permission |

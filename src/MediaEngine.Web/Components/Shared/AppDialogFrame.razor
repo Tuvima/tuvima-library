@@ -1,9 +1,15 @@
 @namespace MediaEngine.Web.Components.Shared
+@using MediaEngine.Web.Services.Theming
 @using MediaEngine.Web.Services.Ui
 @implements IAsyncDisposable
 @inject IJSRuntime JS
 @inject AppDialogService Dialogs
+@inject IServiceProvider Services
 <dialog @ref="_dialog" class="@RootClass" aria-label="@(string.IsNullOrWhiteSpace(Title) ? "Dialog" : Title)" data-app-dialog>
+    @if (IsSheet)
+    {
+        <div class="app-native-dialog__grip" data-app-dialog-grip aria-hidden="true"><span></span></div>
+    }
     @if (Options.NoHeader != true && !string.IsNullOrWhiteSpace(Title))
     {
         <header class="app-native-dialog__header"><h2>@Title</h2>
@@ -26,7 +32,23 @@
     private readonly Guid _frameId = Guid.NewGuid();
     private IJSObjectReference? _module;
     private DotNetObjectReference<AppDialogFrame>? _self;
-    private string RootClass => $"app-native-dialog tl-dialog app-native-dialog--{(Options.MaxWidth ?? AppMaxWidth.Small).ToString().ToLowerInvariant()} app-native-dialog--position-{(Options.Position ?? AppDialogPosition.Center).ToString().ToLowerInvariant()}{(Options.FullWidth == true ? " app-native-dialog--full-width" : "")}{(Options.FullScreen == true ? " app-native-dialog--fullscreen" : "")} {Class} {Context?.PresentationClass}";
+    private DeviceContextService? _device;
+    private bool IsSheet => Options.Sheet switch
+    {
+        AppDialogSheetMode.Phone => _device?.IsPhone == true,
+        AppDialogSheetMode.PhoneAndTablet => _device?.IsPhone == true || _device?.IsTablet == true,
+        _ => false,
+    };
+    protected override void OnInitialized()
+    {
+        // Optional: dialogs rendered without a device context (isolated hosts) stay centred. The device context is
+        // resolved at circuit start, long before a user can open a dialog, so the class does not flip mid-open; a later
+        // form-factor change (rotation, resize) re-renders via OnChanged and only restyles the open sheet.
+        _device = Services.GetService(typeof(DeviceContextService)) as DeviceContextService;
+        if (_device is not null) _device.OnChanged += DeviceChanged;
+    }
+    private void DeviceChanged() => _ = InvokeAsync(StateHasChanged);
+    private string RootClass => $"app-native-dialog tl-dialog app-native-dialog--{(Options.MaxWidth ?? AppMaxWidth.Small).ToString().ToLowerInvariant()} app-native-dialog--position-{(Options.Position ?? AppDialogPosition.Center).ToString().ToLowerInvariant()}{(Options.FullWidth == true ? " app-native-dialog--full-width" : "")}{(Options.FullScreen == true ? " app-native-dialog--fullscreen" : "")}{(IsSheet ? " app-native-dialog--sheet" : "")} {Class} {Context?.PresentationClass}";
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         Dialogs.SetFrameVisibility(_frameId, Open);
@@ -34,7 +56,7 @@
         {
             _module ??= await JS.InvokeAsync<IJSObjectReference>("import", "./js/app-dialog.js");
             _self ??= DotNetObjectReference.Create(this);
-            await _module.InvokeVoidAsync("update", _dialog, _self, Open, Options.BackdropClick != false, Options.CloseOnEscapeKey != false, _frameId.ToString());
+            await _module.InvokeVoidAsync("update", _dialog, _self, Open, Options.BackdropClick != false, Options.CloseOnEscapeKey != false, _frameId.ToString(), IsSheet);
         }
         catch (JSDisconnectedException) { }
     }
@@ -43,6 +65,7 @@
     public async ValueTask DisposeAsync()
     {
         Dialogs.SetFrameVisibility(_frameId, false);
+        if (_device is not null) _device.OnChanged -= DeviceChanged;
         if (_module is not null)
         {
             try { await _module.InvokeVoidAsync("detach", _frameId.ToString()); await _module.DisposeAsync(); }

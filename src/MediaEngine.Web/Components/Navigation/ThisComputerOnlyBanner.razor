@@ -22,8 +22,8 @@
 }
 
 @code {
-    /// <summary>Until the securing flow lands, Secure account opens the account settings.</summary>
-    public const string SecureAccountHref = "/settings/account";
+    /// <summary>Secure account opens the Security settings, where the password is set.</summary>
+    public const string SecureAccountHref = "/settings/security";
 
     /// <summary>Tells the shell whether the banner is showing, so it can make room for it.</summary>
     [Parameter] public EventCallback<bool> VisibleChanged { get; set; }

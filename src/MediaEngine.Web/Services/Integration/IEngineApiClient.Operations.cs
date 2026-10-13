@@ -73,6 +73,9 @@ public partial interface IEngineApiClient
     /// <summary>GET /ingestion/watch-folder — list files currently in the Watch Folder.</summary>
     Task<List<WatchFolderFileDto>> GetWatchFolderAsync(CancellationToken ct = default);
 
+    /// <summary>GET /ingestion/import-folder/waiting: files the Import folder is leaving untouched because a type has nowhere to file them. Null when the Engine cannot answer.</summary>
+    Task<MediaEngine.Contracts.Ingestion.ImportFolderWaitingResponse?> GetImportFolderWaitingAsync(CancellationToken ct = default);
+
     /// <summary>POST /ingestion/rescan — trigger re-processing of Watch Folder files.</summary>
     Task<bool> TriggerRescanAsync(string? rootPath = null, bool? includeSubdirectories = null, CancellationToken ct = default);
 

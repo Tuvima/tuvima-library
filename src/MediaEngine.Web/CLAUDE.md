@@ -44,7 +44,7 @@ Reusable visual components, organised by feature slice.
 | `Details/` | Detail-page composition extracted from Pages. `DetailPage`, `DetailHero` (+ `DetailHeroPresentation`), shared `DetailHeroContent`, `DetailTabs`, `DetailPrimaryModule`, `OverviewTab`, `DetailsTab`, `PeopleAndCharactersTab`, `ChildrenListTab`, `SyncTab`, `RelatedTab`, `UniverseTab`, `AudioItemTable`, `MusicAlbumOverviewContent`, `MusicAlbumSeriesRail`, `MusicTrackList`, `CharactersSection`, `ContributorsSection`, `CreditGroupSection`, `CastCharacterPairCard`, `CharacterCreditCard`, `OptionalSyncPanel`, `PersonAvatar`, `PersonCreditCard`, `RelatedEntityChip`, `SequencePlacementPanel`, `HeroBackdrop`, `HeroActionRow`, `HeroMetadataPills`, `HeroProgressBlock`, `ManageActionsMenu`, `OverflowActionMenu`, `GeneratedIdentity`, `DescriptionAttribution` |
 | `MediaHub/` | `MediaHubPage`, `LibrarySectionHeader`, `MediaSectionShell`, `MediaShelf`, `ShelfHeader`, `EmptyShelfState` — shared section scaffolding used by Read, Watch, Listen, and Collections |
 | `MediaTiles/` | `MediaTile`, `MediaGroupTile`, `MediaTileGrid`, `MediaTileShelf` |
-| `Layout/` | `MainLayout`, `NavMenu`, `ReconnectModal` — the routed app shell |
+| `Layout/` | `MainLayout`, `ReconnectModal` — the routed app shell |
 | `Library/` | Reusable legacy-named library helpers still used by current browse/list surfaces, such as configurable tables, column definitions, batch bars, and status pills. Do not add all-in-one management workflow components here. |
 | `Listen/` | `ListenNowPlayingBar`, `ListenSongTable`, `ListenTransportControls`, `ListenNavigationItem`, `ListenNavigationSection` |
 | `MediaEditor/` | `SharedMediaEditorShell`, `SharedMediaBatchConfirmDialog` |
@@ -52,7 +52,7 @@ Reusable visual components, organised by feature slice.
 | `Pages/` | All routed pages — see §6.4 |
 | `LibraryItems/` | Internal building blocks used by Library + Universe: `LibraryItemHelpers`, `ReportProblemDialog` |
 | `Profiles/` | `ProfileEditorSheet`, `ProfileAvatarPicker`, `ProfileEditingWorkflow` (sends sheet choices to the Engine), `AdminUnlockDialog`, `ProfileManageRules` — shared by the picker and Settings > Profiles |
-| `Settings/` | Settings shell tabs — `ProfilesTab` is the Profiles page (open-profile card plus the household list for administrators; replaces the retired `UserOverviewTab`). `ProfileDetailPage` is `/settings/profiles/{profileId}` (one page per person: header, Profile and Preferences row lists, Delete); it is built from `SettingsNavRow`, the shared 56 px icon/title/status/chevron row (link, button or disabled; styles in `wwwroot/app.css` because the button root is a child component) that Security will reuse. |
+| `Settings/` | Settings shell tabs — `ProfilesTab` is the Profiles page (open-profile card plus the household list for administrators; replaces the retired `UserOverviewTab`). `ProfileDetailPage` is `/settings/profiles/{profileId}` (one page per person: header, Profile and Preferences row lists, Delete); it is built from `SettingsNavRow`, the shared 56 px icon/title/status/chevron row (link, button or disabled; styles in `wwwroot/app.css` because the button root is a child component) that the Security page (`SecuritySettingsPage`, rows that open sheets) also uses. |
 | `Shared/` | The first-party native `App*` design-system primitives (`AppPageState`, `AppErrorState`, `AppEmptyState`, `AppSkeleton`, `AppIcon`, `AppIconCatalog`, `AppTable`, `AppDialog`, form/field/button primitives, …) plus the `Playback*` control primitives (`PlaybackControlStrip`, `PlaybackPrimaryButton`, `PlaybackSpeedControl`, `PlaybackSleepTimerControl`, `PlaybackToolSheet`, …) and `TuvimaArtworkStack` |
 | `Universe/` | Universe surface components: `GlobalBackground`, `AdaptationTree` + node, `FamilyTreeView`, `CastComparison`, `PathFinderPanel` |
 | `Watch/` | `VideoPlaybackHost`, `VideoContextPanel`, `OwnedEpisodeQueuePlanner` |
@@ -63,7 +63,7 @@ Reusable visual components, organised by feature slice.
 |---|---|
 | `Models/ViewDTOs/` | Dashboard-only presentation shapes. They may wrap or compose Contracts types through explicit mappers, but they never own or mirror Engine↔Dashboard JSON. |
 | `Resources/` | `SharedStrings.resx` (+ `.fr` / `.de` / `.es`) plus generated `SharedStrings.cs` |
-| `Shared/` | Blazor app-host layout wrappers: `MainLayout`, `NavMenu`, `PopupLayout`, `ReaderLayout`, `_Imports` |
+| `Shared/` | Blazor app-host layout wrappers: `MainLayout`, `PopupLayout`, `ReaderLayout`, `_Imports` |
 | `wwwroot/` | Static assets: images, CSS, JS (`cytoscape-interop.js`, `epub-reader.js`, `cover-popup.js`, `app.js`) |
 
 ### Routed Pages (`Components/Pages/`)
@@ -147,6 +147,8 @@ All isolated CSS has a 2,000-line cap. The CSS audit and StyleOwnershipGuardrail
 ## Native Dashboard controls and release styling
 
 The Dashboard uses first-party `Components/Shared/App*` primitives and scoped `Services/Ui/` services. `AppPopoverHost`, `AppDialogHost`, `AppToastHost` and `AppThemeProvider` are mounted by Main, Popup, Reader and SetupWizard layouts. Dialog and toast callers use `IAppDialogService` and `IAppToastService`; popup coordination belongs to `AppPopoverService`. Native dialogs preserve the editor's unchanged URL, typed results and unsaved-change interception. Toast actions retain asynchronous Undo behavior. Popup ownership follows the active modal or fullscreen container so a select remains usable inside an editor or player.
+
+Phone primitives (shared, opt-in, desktop unchanged): `AppDialogOptions.Sheet = AppDialogSheetMode.Phone|PhoneAndTablet` presents a dialog as a bottom sheet (grip, swipe down, backdrop tap, Escape); `<AppTable CardsOn="AppTableCardsMode.Phone|PhoneAndTablet">` stacks rows as cards and needs `data-card-role="title|subtitle|value|actions|hidden"` on the header cell and every body cell of the column (CSS in `wwwroot/app.css`); `<AppRowMenu Items=... />` is the 44 px row "more" button (sheet on phones, `AppOverflowMenu` popover elsewhere). Use these instead of hover-only or drag-only row actions.
 
 `tuvima.tokens.css` owns canonical tokens; first-party theme aliases, `native-utilities.css`, `native-structure.css`, `native-fields.css`, global `app.css` and component-isolated styles own presentation. `AppMaterialIcon` renders the pinned `AppMaterialIcons` SVG catalog; regenerate it with `python scripts/icons/generate-material-icons.py`, retaining `THIRD-PARTY-NOTICES.md`. Material and playback icon families keep their established row contracts.
 

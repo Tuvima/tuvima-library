@@ -1,0 +1,134 @@
+.folder-table {
+    container: folder-table / inline-size;
+    border: 1px solid var(--tl-border-subtle);
+    border-radius: var(--app-radius-md, 8px);
+    overflow: hidden;
+}
+
+.folder-table__head,
+.folder-table__row {
+    display: grid;
+    grid-template-columns: minmax(220px, 2.2fr) 140px minmax(190px, 1.4fr) 150px 56px;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 12px;
+}
+
+.folder-table__head {
+    min-height: 40px;
+    color: var(--tl-text-muted);
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+}
+
+.folder-table__row {
+    min-height: 64px;
+    border-top: 1px solid var(--tl-border-subtle);
+}
+
+.folder-table__folder {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+}
+
+.folder-table__folder-text {
+    display: grid;
+    min-width: 0;
+}
+
+.folder-table__folder-text strong,
+.folder-table__path {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.folder-table__path,
+.folder-table__files,
+.folder-table__none {
+    color: var(--tl-text-muted);
+    font-size: 0.85rem;
+}
+
+.folder-table__status {
+    font-size: 0.8rem;
+    color: var(--tl-text-secondary);
+}
+
+.folder-table__status--warning {
+    color: var(--tl-status-warning);
+}
+
+.folder-table__actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+}
+
+@media (max-width: 840px) {
+    .folder-table__head {
+        display: none;
+    }
+
+    .folder-table__row {
+        grid-template-columns: auto 1fr auto;
+        grid-template-areas:
+            "folder folder actions"
+            "handling marker marker"
+            "files files files";
+        row-gap: 8px;
+        padding: 12px;
+    }
+
+    .folder-table__folder { grid-area: folder; }
+    .folder-table__handling { grid-area: handling; }
+    .folder-table__marker { grid-area: marker; }
+    .folder-table__files { grid-area: files; display: none; }
+    .folder-table__actions { grid-area: actions; }
+
+    .folder-table__row.is-expanded .folder-table__files { display: block; }
+
+    .folder-table__path {
+        white-space: normal;
+        overflow-wrap: anywhere;
+    }
+
+    /* Only the folder that holds the marker shows a chip on a phone; the actions menu moves it. */
+    .folder-table__marker:not(.is-marked) { display: none; }
+}
+
+/* The table sits beside the list of media types, so it can be narrow on a wide screen: switch to cards by the table's own width too. */
+@container folder-table (max-width: 860px) {
+    .folder-table__head {
+        display: none;
+    }
+
+    .folder-table__row {
+        grid-template-columns: auto 1fr auto;
+        grid-template-areas:
+            "folder folder actions"
+            "handling marker marker"
+            "files files files";
+        row-gap: 8px;
+        padding: 12px;
+    }
+
+    .folder-table__folder { grid-area: folder; }
+    .folder-table__handling { grid-area: handling; }
+    .folder-table__marker { grid-area: marker; }
+    .folder-table__files { grid-area: files; display: none; }
+    .folder-table__actions { grid-area: actions; }
+
+    .folder-table__row.is-expanded .folder-table__files { display: block; }
+
+    .folder-table__path {
+        white-space: normal;
+        overflow-wrap: anywhere;
+    }
+
+    /* Only the folder that holds the marker shows a chip on a phone; the actions menu moves it. */
+    .folder-table__marker:not(.is-marked) { display: none; }
+}

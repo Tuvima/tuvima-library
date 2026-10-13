@@ -1,0 +1,19 @@
+{
+  "_comment": "Text recognition (OCR) for scanned PDFs and photos of paper. Leave tesseract_binary_path empty to auto-detect (tools/tesseract/ then PATH); a path that does not exist turns recognition off instead of falling back.",
+
+  "enabled": true,
+  "tesseract_binary_path": "",
+
+  "_comment_effort": "normal | low. Low runs the helper at a lower priority and pauses between files.",
+  "effort": "normal",
+
+  "languages": [ "eng" ],
+
+  "per_file_timeout_seconds": 300,
+  "max_pages_per_file": 500,
+  "text_layer_min_characters": 25,
+  "render_dpi": 300,
+  "max_render_side_pixels": 3500,
+  "min_image_side_pixels": 200,
+  "rotation_retry_confidence": 40
+}

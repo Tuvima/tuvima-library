@@ -108,15 +108,20 @@ public sealed class SetupPreflightService(
             var free = GetFreeSpace(path);
             var passed = readable && (!requireWrite || writable);
             return new SetupPathCheckDto(key, label, path, source, passed ? "passed" : "blocked", readable, writable, free,
-                passed ? "Path is available." : "The path does not provide the required access.");
+                passed ? "Path is available." : UnusableFolderMessage(path));
         }
-        catch (Exception ex)
+        catch (Exception)
         {
             var path = string.IsNullOrWhiteSpace(rawPath) ? "Not configured" : rawPath;
             return new SetupPathCheckDto(key, label, path, source, "blocked", false, false, null,
-                $"{ex.GetType().Name}: the path could not be prepared.");
+                UnusableFolderMessage(path));
         }
     }
+
+    // One plain message that names the folder and the fix; setup never offers a storage-location editor.
+    private static string UnusableFolderMessage(string path) =>
+        $"Tuvima could not use the folder {path}. Make sure the account running Tuvima can create and write to it, "
+        + "or set TUVIMA_DATA_DIR to a folder it can use, then try again.";
 
     private static SetupPathCheckDto ProbeFile(string key, string label, string rawPath, string source)
     {

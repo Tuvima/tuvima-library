@@ -5,6 +5,7 @@ using MediaEngine.Domain.Enums;
 using MediaEngine.Domain.Services;
 using MediaEngine.Ingestion.Contracts;
 using MediaEngine.Ingestion.Models;
+using MediaEngine.Ingestion.Organise;
 using MediaEngine.Ingestion.Pipeline;
 using MediaEngine.Ingestion.Services;
 using MediaEngine.Processors;
@@ -68,7 +69,19 @@ public static class MediaEngineIngestionServiceCollectionExtensions
         services.TryAddSingleton<IWriteBackOutcomeService>(sp => sp.GetRequiredService<WriteBackService>());
         services.TryAddSingleton<IBackgroundWorker, BackgroundWorker>();
         services.TryAddSingleton<IOrganizationGate, OrganizationGate>();
-        services.TryAddSingleton<IAutoOrganizeService, AutoOrganizeService>();
+        services.TryAddSingleton<IImportFolderService, ImportFolderService>();
+        services.TryAddSingleton<ImportFileMover>();
+        services.TryAddSingleton<ImportFilingJournal>();
+        services.TryAddSingleton<IImportFolderFiler, ImportFolderFiler>();
+        services.TryAddSingleton<IImportFolderWaitingReader, ImportFolderWaitingReader>();
+        services.TryAddSingleton<IOrganiseFileMover, SystemOrganiseFileMover>();
+        services.TryAddSingleton<SidecarMover>();
+        services.TryAddSingleton<AutoOrganizeService>();
+        services.TryAddSingleton<IAutoOrganizeService>(sp => sp.GetRequiredService<AutoOrganizeService>());
+        services.TryAddSingleton<IFileIntake, IngestionEngineFileIntake>();
+        services.TryAddSingleton<FolderConversionOrganiser>();
+        services.TryAddSingleton<FolderOrganiseRunner>();
+        services.TryAddSingleton<FolderConversionPreviewer>();
         services.TryAddSingleton<ILibraryScanner, LibraryScanner>();
         services.TryAddSingleton<IMediaTypeResolver, MediaTypeResolver>();
         services.TryAddSingleton<IDuplicateResolver, DuplicateResolver>();
@@ -125,6 +138,11 @@ public static class MediaEngineIngestionServiceCollectionExtensions
     {
         services.Configure<IngestionOptions>(configuration.GetSection(IngestionOptions.SectionName));
 
+        // Saving libraries.json refreshes the folder list the file-source policy reads, with no restart.
+        var libraryChanges = new LibrariesOptionsChangeTokenSource(configLoader);
+        services.AddSingleton(libraryChanges);
+        services.AddSingleton<Microsoft.Extensions.Options.IOptionsChangeTokenSource<IngestionOptions>>(libraryChanges);
+
         services.PostConfigure<IngestionOptions>(opts =>
         {
             opts.WatchDirectories = [];
@@ -170,36 +188,7 @@ public static class MediaEngineIngestionServiceCollectionExtensions
                 var libraries = configLoader.LoadLibraries();
                 opts.DuplicatePolicy = libraries.FileHandling.DuplicatePolicy;
                 opts.LibraryFolders = libraries.Libraries
-                    .Select(l =>
-                    {
-                        return new LibraryFolderEntry
-                        {
-                            Id = l.Id,
-                            Name = l.Name,
-                            WriteTags = l.OrganizationPolicy.WriteTags,
-                            OrganizationMode = l.OrganizationPolicy.Mode,
-                            CustomOrganizationTemplate = l.OrganizationPolicy.CustomTemplate,
-                            Kind = l.Kind,
-                            Area = l.Area,
-                            Presentation = l.Presentation,
-                            MetadataPolicy = l.MetadataPolicy,
-                            Sources = l.Sources.Select(source => new LibrarySourceEntry
-                            {
-                                Id = source.Id,
-                                Path = source.Path,
-                                ManagementMode = source.ManagementMode,
-                                AccessMode = source.AccessMode,
-                                IncludeSubdirectories = source.IncludeSubdirectories,
-                                ConversionState = source.ConversionState,
-                            }).ToList(),
-                            PrimaryDestinationSourceId = l.PrimaryDestinationSourceId,
-                            MediaTypes = l.MediaTypes
-                                .Select(MediaTypeParser.Parse)
-                                .Where(mt => mt != MediaType.Unknown)
-                                .ToList(),
-                            AcceptedIntakeModes = l.AcceptedIntakeModes.ToList(),
-                        };
-                    })
+                    .Select(LibraryFolderEntryFactory.Create)
                     .Where(e => e.EffectiveSourcePaths.Count > 0)
                     .ToList();
 
@@ -214,7 +203,14 @@ public static class MediaEngineIngestionServiceCollectionExtensions
                     .Where(path => !string.IsNullOrWhiteSpace(path))
                     .Distinct(StringComparer.OrdinalIgnoreCase)
                     .ToList();
-                opts.WatchDirectories = sourcePaths;
+                var importFolder = ImportFolderRules.Find(libraries);
+                opts.ImportFolderPath = importFolder?.Path;
+                if (importFolder is not null)
+                {
+                    sourcePaths.Add(importFolder.Path);
+                }
+
+                opts.WatchDirectories = sourcePaths.Distinct(StringComparer.OrdinalIgnoreCase).ToList();
             }
             catch (InvalidOperationException ex)
             {
@@ -233,6 +229,16 @@ public static class MediaEngineIngestionServiceCollectionExtensions
         try
         {
             var libraries = configLoader.LoadLibraries();
+
+            // Tuvima's own library folder is created here the first time the server runs; nobody is asked about it.
+            foreach (var location in libraries.StorageLocations.Where(location =>
+                         location.AllowWrite
+                         && string.Equals(location.Id, TuvimaOwnFolders.LibraryLocationId, StringComparison.OrdinalIgnoreCase)
+                         && !string.IsNullOrWhiteSpace(location.Path)))
+            {
+                Directory.CreateDirectory(location.Path);
+            }
+
             foreach (var lib in libraries.Libraries)
             {
                 var allPaths = lib.Sources

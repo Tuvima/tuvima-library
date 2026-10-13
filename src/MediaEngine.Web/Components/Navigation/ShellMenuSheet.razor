@@ -1,0 +1,54 @@
+@namespace MediaEngine.Web.Components.Navigation
+@using MediaEngine.Web.Services.Integration
+
+@inject IStringLocalizer<SharedStrings> L
+
+@* The phone hamburger menu rows. Adults get the full list; Kids profiles only get Search and Switch profile.
+   Sign out posts the same form the avatar menu uses, so both go through one sign-out path. *@
+<nav class="shell-menu-sheet" aria-label="@L["Nav_Menu"]">
+    @if (!IsKids)
+    {
+        <a class="shell-menu-sheet__row" href="/recently-added" @onclick="OnNavigate">
+            <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Schedule" />
+            <span>@L["Nav_RecentlyAdded"]</span>
+        </a>
+    }
+    <AppNativeButton Type="button" Class="shell-menu-sheet__row" OnClick="OnSearch">
+        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Search" />
+        <span>@L["Nav_Search"]</span>
+    </AppNativeButton>
+    @if (!IsKids)
+    {
+        <a class="shell-menu-sheet__row" href="/for-me" @onclick="OnNavigate">
+            <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.PlaylistAddCheck" />
+            <span>@L["TopBar_MyList"]</span>
+        </a>
+        <a class="shell-menu-sheet__row" href="/settings" @onclick="OnNavigate">
+            <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Settings" />
+            <span>@L["Nav_Settings"]</span>
+        </a>
+    }
+    <a class="shell-menu-sheet__row" href="@ProfilePickerRoute.Path" @onclick="OnNavigate">
+        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.People" />
+        <span>@L["TopBar_SwitchProfile"]</span>
+    </a>
+    @if (!IsKids)
+    {
+        <form method="post" action="/auth/logout" class="shell-menu-sheet__form">
+            <AntiforgeryToken />
+            <AppNativeButton Type="submit" Class="shell-menu-sheet__row">
+                <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Logout" />
+                <span>@L["TopBar_SignOut"]</span>
+            </AppNativeButton>
+        </form>
+    }
+</nav>
+
+@code {
+    /// <summary>True for a Kids profile: only Search and Switch profile are listed.</summary>
+    [Parameter] public bool IsKids { get; set; }
+    /// <summary>Raised when a link row is tapped so the host can close the sheet.</summary>
+    [Parameter] public EventCallback OnNavigate { get; set; }
+    /// <summary>Raised when the Search row is tapped; the host closes the sheet and opens search.</summary>
+    [Parameter] public EventCallback OnSearch { get; set; }
+}

@@ -421,7 +421,10 @@ public sealed class ShellActivityState : IDisposable
         "ai.tldr" => "AI is summarizing media",
         "ai.vibe_tags" => "AI is analyzing themes",
         "ai.smart_labels" => "AI is organizing labels",
+        "view.document_text_read" => "Reading document text",
+        "view.document_ocr" => "Reading scanned documents",
         "writeback.metadata" => "Writing media metadata",
+        "organise_folder" => "Organising a folder",
         _ => operationKind?.ToLowerInvariant() switch
         {
             "ai" => "AI is processing media",

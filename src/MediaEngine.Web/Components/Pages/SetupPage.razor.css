@@ -1,4 +1,4 @@
-.setup-page { display: grid; width: min(1180px, calc(100% - 40px)); margin: 0 auto; gap: 24px; padding: clamp(24px, 5vh, 56px) 0 48px; }
+.setup-page { display: grid; width: min(1180px, calc(100% - 40px - var(--tl-safe-area-left) - var(--tl-safe-area-right))); margin: 0 auto; gap: 24px; padding: calc(clamp(24px, 5vh, 56px) + var(--tl-safe-area-top)) 0 calc(48px + var(--tl-safe-area-bottom)); }
 .setup-shell { display: grid; grid-template-columns: 240px minmax(0, 1fr); align-items: start; gap: 32px; }
 .setup-sidebar { position: sticky; top: 32px; display: grid; gap: 28px; }
 .setup-brand { display: flex; align-items: center; gap: 10px; font-size: 1.05rem; font-weight: 700; }

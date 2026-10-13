@@ -61,6 +61,12 @@ public sealed partial class IngestionEngine
             ? _libraryFolderResolver?.ResolveById(candidate.Intake.DestinationLibraryId!)
             : _libraryFolderResolver?.ResolveForPath(candidate.Path);
 
+        // A file in one of the Import folder's per-type folders belongs to that type's library from the start.
+        if (context.Library is null && _importFolders?.ResolveTypePrior(candidate.Path) is { } importType)
+        {
+            context.Library = _importFolders.ResolveLibraryForType(importType);
+        }
+
         if (candidate.Intake?.HasDestinationHint == true && context.Library is null)
         {
             throw new InvalidOperationException(
@@ -297,34 +303,44 @@ public sealed partial class IngestionEngine
                         _logger.LogDebug(ex, "Ingestion duplicate log update failed - continuing");
                     }
 
+                    var retryImportCopyLater = false;
                     try
                     {
-                        var resolvedSource = _libraryFolderResolver?.ResolveSourceForPath(candidate.Path);
-                        var deleteAllowed = resolvedSource is not null
-                            && MediaEngine.Domain.Configuration.LibraryDuplicatePolicies.DeletesIncomingDuplicate(_options.DuplicatePolicy)
-                            && _sourceMutationPolicyGate?.Evaluate(new SourceMutationRequest
+                        if (_importFolders?.IsInImportFolder(candidate.Path) == true)
+                        {
+                            // The Import folder follows the same global duplicate rule, and only its own copy is ever removed.
+                            retryImportCopyLater = !await HandleImportDuplicateAsync(candidate, existing, hash.Hex, ct)
+                                .ConfigureAwait(false);
+                        }
+                        else
+                        {
+                            var resolvedSource = _libraryFolderResolver?.ResolveSourceForPath(candidate.Path);
+                            var deleteAllowed = resolvedSource is not null
+                                && MediaEngine.Domain.Configuration.LibraryDuplicatePolicies.DeletesIncomingDuplicate(_options.DuplicatePolicy)
+                                && _sourceMutationPolicyGate?.Evaluate(new SourceMutationRequest
+                                {
+                                    Source = FileSourceMutationPolicyFactory.Create(
+                                        resolvedSource.Library,
+                                        resolvedSource.Source,
+                                        allowDelete: true),
+                                    Mutation = SourceMutationKind.Delete,
+                                    Path = candidate.Path,
+                                }).Allowed == true;
+
+                            if (deleteAllowed && File.Exists(candidate.Path))
                             {
-                                Source = FileSourceMutationPolicyFactory.Create(
-                                    resolvedSource.Library,
-                                    resolvedSource.Source,
-                                    allowDelete: true),
-                                Mutation = SourceMutationKind.Delete,
-                                Path = candidate.Path,
-                            }).Allowed == true;
+                                File.Delete(candidate.Path);
+                            }
 
-                        if (deleteAllowed && File.Exists(candidate.Path))
-                        {
-                            File.Delete(candidate.Path);
+                            if (!deleteAllowed)
+                            {
+                                _logger.LogInformation(
+                                    "Exact duplicate was indexed without deleting {Path}; its source policy does not authorize deletion",
+                                    candidate.Path);
+                            }
+
+                            await DeleteHashCacheEntryAsync(candidate.Path, ct).ConfigureAwait(false);
                         }
-
-                        if (!deleteAllowed)
-                        {
-                            _logger.LogInformation(
-                                "Exact duplicate was indexed without deleting {Path}; its source policy does not authorize deletion",
-                                candidate.Path);
-                        }
-
-                        await DeleteHashCacheEntryAsync(candidate.Path, ct).ConfigureAwait(false);
                     }
                     catch (Exception ex)
                     {
@@ -333,7 +349,19 @@ public sealed partial class IngestionEngine
                     }
 
                     await MarkBatchFileProcessedAsync(candidate.BatchId, ct).ConfigureAwait(false);
-                    await CompleteOperationAsync(durableOperation, "duplicate", ct).ConfigureAwait(false);
+                    if (retryImportCopyLater)
+                    {
+                        // Kept under Keep both but not filed yet (its destination isn't ready): the next pass tries again.
+                        await MarkInterruptedOperationAsync(
+                            durableOperation,
+                            "Waiting for the destination folder before filing this copy.",
+                            ct).ConfigureAwait(false);
+                    }
+                    else
+                    {
+                        await CompleteOperationAsync(durableOperation, "duplicate", ct).ConfigureAwait(false);
+                    }
+
                     context.Complete();
                     return;
                 }
@@ -433,8 +461,7 @@ public sealed partial class IngestionEngine
         var logEntryId = context.LogEntryId;
         var hash = context.Hash!;
         var result = context.ProcessorResult!;
-        if (context.Library?.MediaTypes.Contains(MediaType.Audiobooks) == true
-            && _libraryFolderResolver?.ResolveSourcePath(candidate.Path) is { } audiobookSource)
+        if (ResolveAudiobookHintRoot(context.Library, candidate.Path) is { } audiobookSource)
         {
             result = context.ProcessorResult = Services.AudiobookFolderHints.Apply(result, audiobookSource);
         }
@@ -572,6 +599,16 @@ public sealed partial class IngestionEngine
             ct).ConfigureAwait(false);
 
         var resolvedMediaType = context.ResolvedMediaType = mediaTypeResolution.MediaType;
+
+        // A file dropped at the root of the Import folder is attributed to its type's library once the type is known.
+        if (_importFolders?.IsInImportFolder(candidate.Path) == true
+            && (context.Library is null || !context.Library.MediaTypes.Contains(resolvedMediaType)))
+        {
+            context.Library = resolvedMediaType == MediaType.Unknown
+                ? null
+                : _importFolders.ResolveLibraryForType(resolvedMediaType);
+        }
+
         bool mediaTypeIsConflicted = mediaTypeResolution.IsConflicted;
         bool mediaTypeNeedsReview = context.MediaTypeNeedsReview = mediaTypeResolution.NeedsReview;
         candidate.CategoryConfidencePrior = mediaTypeResolution.CategoryConfidencePrior;

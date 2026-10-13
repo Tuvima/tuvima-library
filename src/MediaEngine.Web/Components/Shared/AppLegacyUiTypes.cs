@@ -236,6 +236,22 @@ public enum AppUnderline
     Always = 2,
 }
 
+/// <summary>Whether an AppTable collapses into stacked cards on small screens.</summary>
+public enum AppTableCardsMode
+{
+    Never = 0,
+    Phone = 1,
+    PhoneAndTablet = 2,
+}
+
+/// <summary>Whether a dialog presents as a bottom sheet instead of a centred dialog.</summary>
+public enum AppDialogSheetMode
+{
+    Never = 0,
+    Phone = 1,
+    PhoneAndTablet = 2,
+}
+
 public enum AppDialogPosition
 {
     Center = 0,

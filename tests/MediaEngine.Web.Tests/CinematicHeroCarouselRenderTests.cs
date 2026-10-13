@@ -103,16 +103,59 @@ public sealed class CinematicHeroCarouselRenderTests : AsyncBunitContext
     {
         var cut = Render<CinematicHeroCarousel>(p => p.Add(c => c.Items, [Hero("First"), Hero("Second")]));
         var carousel = cut.Find(".cinematic-hero-carousel");
-        carousel.TriggerEvent("onmouseenter", new MouseEventArgs());
+        carousel.TriggerEvent("onpointerenter", new PointerEventArgs { PointerType = "mouse" });
         Assert.Contains("is-rotation-paused", carousel.ClassName);
         cut.Find("[aria-label='Pause featured item rotation']").Click();
-        carousel.TriggerEvent("onmouseleave", new MouseEventArgs());
+        carousel.TriggerEvent("onpointerleave", new PointerEventArgs { PointerType = "mouse" });
         carousel.TriggerEvent("onfocusout", new FocusEventArgs());
         Assert.Contains("is-rotation-paused", carousel.ClassName);
         cut.Find("[aria-label='Resume featured item rotation']").Click();
         Assert.DoesNotContain("is-rotation-paused", carousel.ClassName);
         carousel.TriggerEvent("onfocusin", new FocusEventArgs());
         Assert.Contains("is-rotation-paused", carousel.ClassName);
+    }
+
+    [Fact]
+    public async Task TouchHoldsRotationWhileAFingerIsDownAndSwipesMoveBetweenItems()
+    {
+        var cut = Render<CinematicHeroCarousel>(p => p.Add(c => c.Items, [Hero("First"), Hero("Second"), Hero("Third")]));
+        var carousel = cut.Find(".cinematic-hero-carousel");
+        JSInterop.VerifyInvoke("registerHeroSwipe");
+
+        // A tap on touch fires an emulated pointer enter; it must not leave the carousel held.
+        carousel.TriggerEvent("onpointerenter", new PointerEventArgs { PointerType = "touch" });
+        Assert.DoesNotContain("is-rotation-paused", carousel.ClassName);
+
+        await cut.InvokeAsync(() => cut.Instance.OnHeroTouchHold(true));
+        Assert.Contains("is-rotation-paused", cut.Find(".cinematic-hero-carousel").ClassName);
+
+        await cut.InvokeAsync(() => cut.Instance.OnHeroSwipe("next"));
+        Assert.Equal("Second", cut.Find("h1").TextContent);
+        await cut.InvokeAsync(() => cut.Instance.OnHeroSwipe("previous"));
+        await cut.InvokeAsync(() => cut.Instance.OnHeroSwipe("previous"));
+        Assert.Equal("Third", cut.Find("h1").TextContent);
+
+        await cut.InvokeAsync(() => cut.Instance.OnHeroTouchHold(false));
+        Assert.DoesNotContain("is-rotation-paused", cut.Find(".cinematic-hero-carousel").ClassName);
+    }
+
+    [Fact]
+    public void SwipeHandlerIsTouchOnlyAndLeavesVerticalPanningToTheBrowser()
+    {
+        var folder = new DirectoryInfo(AppContext.BaseDirectory);
+        while (folder is not null && !File.Exists(Path.Combine(folder.FullName, "MediaEngine.slnx")))
+        {
+            folder = folder.Parent;
+        }
+        Assert.NotNull(folder);
+        var css = File.ReadAllText(Path.Combine(folder.FullName, "src/MediaEngine.Web/Components/Cinematic/CinematicHeroCarousel.razor.css"));
+        var script = File.ReadAllText(Path.Combine(folder.FullName, "src/MediaEngine.Web/wwwroot/app.js"));
+        Assert.Contains("touch-action: pan-y;", css);
+        var swipe = script[script.IndexOf("window.registerHeroSwipe", StringComparison.Ordinal)..];
+        swipe = swipe[..swipe.IndexOf("window.unregisterHeroSwipe", StringComparison.Ordinal)];
+        Assert.Contains("event.pointerType !== 'touch'", swipe);
+        Assert.Contains("const threshold = 48;", swipe);
+        Assert.Contains("Math.abs(dy) < Math.abs(dx)", swipe);
     }
 
     [Fact]
