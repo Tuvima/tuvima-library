@@ -38,6 +38,14 @@
                     {
                         <span class="folder-table__status" role="status">Organising…</span>
                     }
+                    else if (IsMerging(source))
+                    {
+                        <span class="folder-table__status" role="status">Merging…</span>
+                    }
+                    @if (IsMerged(source))
+                    {
+                        <span class="folder-table__status" role="status">@MergedText(source)</span>
+                    }
                     @if (!string.IsNullOrWhiteSpace(issue))
                     {
                         <span class="folder-table__status folder-table__status--warning">@issue</span>
@@ -47,7 +55,7 @@
             <div class="folder-table__handling" role="cell">
                 <AppNativeButton Type="button"
                                  Class="@HandlingClass(source)"
-                                 Disabled="@(ReadOnly || Busy)"
+                                 Disabled="@(ReadOnly || Busy || IsMerging(source))"
                                  AriaLabel="@HandlingAriaLabel(source)"
                                  OnClick="@(_ => OnChangeHandling.InvokeAsync(source))">
                     @HandlingLabel(source)
@@ -95,6 +103,10 @@
                         {
                             <AppMenuItem Label="Organise files now" Icon="@AppMaterialIcons.Outlined.DriveFileMove" OnClick="@(() => OnOrganiseNow.InvokeAsync(source))" />
                         }
+                        @if (CanMerge(source, job))
+                        {
+                            <AppMenuItem Label="Merge into…" Icon="@AppMaterialIcons.Outlined.ArrowForward" OnClick="@(() => OnMerge.InvokeAsync(source))" />
+                        }
                         <AppMenuItem Label="@(managed ? "Switch to As-is" : "Switch to Managed")" Icon="@(managed ? AppMaterialIcons.Outlined.Lock : AppMaterialIcons.Outlined.DriveFileMove)" OnClick="@(() => OnChangeHandling.InvokeAsync(source))" />
                         <AppMenuItem Label="Label" Icon="@AppMaterialIcons.Outlined.Edit" OnClick="@(() => OnLabel.InvokeAsync(source))" />
                         <AppMenuItem Label="Remove folder" Icon="@AppMaterialIcons.Outlined.Delete" Tone="AppUiTone.Error" DividerBefore="true" OnClick="@(() => OnRemove.InvokeAsync(source))" />
@@ -123,6 +135,8 @@
     [Parameter] public EventCallback<FolderJobControl> OnJobControl { get; set; }
     /// <summary>Raised from the row menu to organise the files already in a managed folder.</summary>
     [Parameter] public EventCallback<LibrarySourceDto> OnOrganiseNow { get; set; }
+    /// <summary>Raised from the row menu to merge a folder, once, into one of the type's managed folders.</summary>
+    [Parameter] public EventCallback<LibrarySourceDto> OnMerge { get; set; }
 
     /// <summary>One press of Pause, Resume or Cancel on a folder's job.</summary>
     public sealed record FolderJobControl(LibrarySourceDto Source, FolderJobStatusDto Job, string Action);
@@ -135,10 +149,42 @@
         : library.OrganizationPolicy.WriteTags ? "Named + tagged" : "Named";
 
     /// <summary>True once the Merge into menu item exists; the Import folder panel shows its Merge hint only then.</summary>
-    public static bool HasMergeAction => false;
+    public static bool HasMergeAction => true;
+
+    /// <summary>
+    /// Whether Merge into is offered for a folder: another managed folder of the type is there to receive the files, nothing is
+    /// running on this folder, it has not been merged already, and it is not where new media goes (that folder is a target).
+    /// Shared with tests so the rule has one owner.
+    /// </summary>
+    public static bool CanMergeInto(LibraryFolderDto library, LibrarySourceDto source, bool jobOpen) =>
+        !jobOpen
+        && !IsConverting(source)
+        && string.Equals(source.MergeState, "none", StringComparison.OrdinalIgnoreCase)
+        && !ReferenceEquals(source, library.GetPrimaryDestination())
+        && MergeTargets(library, source).Count > 0;
+
+    /// <summary>The managed folders a folder can be merged into: every other managed folder of the type that is not itself merged away.</summary>
+    public static IReadOnlyList<LibrarySourceDto> MergeTargets(LibraryFolderDto library, LibrarySourceDto source) => library.Sources
+        .Where(candidate => !ReferenceEquals(candidate, source)
+            && candidate.Id != source.Id
+            && IsManaged(candidate)
+            && !string.Equals(candidate.MergeState, "merged", StringComparison.OrdinalIgnoreCase))
+        .ToList();
 
     private static bool IsManaged(LibrarySourceDto source) => source.ManagementMode == "managed_by_tuvima";
     private static bool IsConverting(LibrarySourceDto source) => string.Equals(source.ConversionState, "converting", StringComparison.OrdinalIgnoreCase);
+    private static bool IsMerging(LibrarySourceDto source) => string.Equals(source.MergeState, "merging", StringComparison.OrdinalIgnoreCase);
+    private static bool IsMerged(LibrarySourceDto source) => string.Equals(source.MergeState, "merged", StringComparison.OrdinalIgnoreCase);
+
+    private bool CanMerge(LibrarySourceDto source, FolderJobStatusDto? job) =>
+        CanMergeInto(Library, source, job is not null && FolderJobFormat.IsOpen(job));
+
+    /// <summary>"Merged into Movies on 13 Oct 2026"; the target's name comes from the library, or a plain fallback when it was removed.</summary>
+    private string MergedText(LibrarySourceDto source)
+    {
+        var target = Library.Sources.FirstOrDefault(candidate => candidate.Id == source.MergeTargetSourceId);
+        return FolderJobFormat.MergedLine(target?.DisplayName() ?? "another folder", source.MergedAt);
+    }
 
     // Read the marker through the same rule the Engine uses: only a managed folder can hold it.
     private bool IsNewMediaFolder(LibrarySourceDto source) => IsManaged(source)
@@ -152,9 +198,11 @@
             : null;
 
     private bool IsOrganising(LibrarySourceDto source) =>
-        IsConverting(source) || (JobFor(source) is { State: "queued" or "running" or "paused" });
+        IsConverting(source) || IsMerging(source) || (JobFor(source) is { State: "queued" or "running" or "paused" });
 
-    private string HandlingLabel(LibrarySourceDto source) => IsOrganising(source) ? "Converting…" : IsManaged(source) ? "Managed" : "As-is";
+    private string HandlingLabel(LibrarySourceDto source) => IsOrganising(source)
+        ? IsMerging(source) || (JobFor(source) is { } job && FolderJobFormat.IsMerge(job) && FolderJobFormat.IsOpen(job)) ? "Merging…" : "Converting…"
+        : IsManaged(source) ? "Managed" : "As-is";
 
     private string HandlingClass(LibrarySourceDto source) =>
         $"folder-table__chip {(IsOrganising(source) ? "is-converting" : IsManaged(source) ? "is-managed" : "is-asis")}";

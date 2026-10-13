@@ -124,3 +124,20 @@ public static class LibrarySourceConversionStates
     public const string Converted = "converted";
     public static bool IsValid(string? value) => value is None or Converting or Converted;
 }
+
+/// <summary>Where a folder is in being merged into another managed folder: not at all, in progress, or done.</summary>
+public static class LibrarySourceMergeStates
+{
+    public const string None = "none";
+    public const string Merging = "merging";
+    public const string Merged = "merged";
+    public static bool IsValid(string? value) => value is None or Merging or Merged;
+}
+
+/// <summary>Whether a merge leaves the original files alone (copy) or removes each one once its copy is checked (move).</summary>
+public static class LibraryMergeModes
+{
+    public const string Copy = "copy";
+    public const string Move = "move";
+    public static bool IsValid(string? value) => value is Copy or Move;
+}

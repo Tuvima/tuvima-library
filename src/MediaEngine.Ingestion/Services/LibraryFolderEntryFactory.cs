@@ -31,6 +31,7 @@ public static class LibraryFolderEntryFactory
                 AccessMode = source.AccessMode,
                 IncludeSubdirectories = source.IncludeSubdirectories,
                 ConversionState = source.ConversionState,
+                MergeState = source.MergeState,
             }).ToList(),
             PrimaryDestinationSourceId = library.PrimaryDestinationSourceId,
             MediaTypes = library.MediaTypes

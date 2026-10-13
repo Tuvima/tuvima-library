@@ -20,13 +20,15 @@ public sealed class FolderJobException(string message, bool notFound = false, bo
 }
 
 /// <summary>
-/// Starts, controls and reports on the long folder jobs (converting a folder to Managed today, merging folders next). A
-/// job is one durable <c>media_operations</c> row on the <c>folder_jobs</c> queue, so it survives a restart and the
-/// Dashboard sees it like any other background work. The files themselves are moved by <see cref="FolderOrganiseRunner"/>.
+/// Starts, controls and reports on the long folder jobs: converting a folder to Managed, and merging one existing folder,
+/// once, into a managed folder. A job is one durable <c>media_operations</c> row on the <c>folder_jobs</c> queue, so it
+/// survives a restart and the Dashboard sees it like any other background work. The files themselves are moved by
+/// <see cref="FolderOrganiseRunner"/> (converting) and <see cref="FolderMergeRunner"/> (merging).
 /// </summary>
 public sealed class FolderJobService
 {
     private const string OrganiseFolder = MediaOperationType.OrganiseFolder;
+    private const string MergeFolder = MediaOperationType.MergeFolder;
     private const int DefaultLogPage = 200;
     private const int MaxLogPage = 1000;
     private static readonly TimeSpan RecentJobWindow = TimeSpan.FromDays(7);
@@ -36,6 +38,7 @@ public sealed class FolderJobService
     private readonly IMediaOperationTracker _tracker;
     private readonly IFolderOrganiseLogRepository _ledger;
     private readonly FolderConversionPreviewer _previewer;
+    private readonly FolderMergePreviewer _mergePreviewer;
     private readonly ServerFolderBrowserService _folders;
     private readonly ILogger<FolderJobService> _logger;
 
@@ -45,6 +48,7 @@ public sealed class FolderJobService
         IMediaOperationTracker tracker,
         IFolderOrganiseLogRepository ledger,
         FolderConversionPreviewer previewer,
+        FolderMergePreviewer mergePreviewer,
         ServerFolderBrowserService folders,
         ILogger<FolderJobService> logger)
     {
@@ -53,6 +57,7 @@ public sealed class FolderJobService
         _tracker = tracker;
         _ledger = ledger;
         _previewer = previewer;
+        _mergePreviewer = mergePreviewer;
         _folders = folders;
         _logger = logger;
     }
@@ -113,9 +118,164 @@ public sealed class FolderJobService
         };
     }
 
+    /// <summary>
+    /// The honest numbers behind the merge sheet: a quick count with the room needed and the room there is, or the full dry run
+    /// of what merging would do. Nothing is changed.
+    /// </summary>
+    public async Task<FolderMergePreviewResponse> PreviewMergeAsync(FolderMergePreviewRequest request, CancellationToken ct)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        var sourceId = ParseSourceId(request.SourceId);
+
+        FolderMergePreview? preview;
+        FolderMergeCheck check;
+        if (request.Quick)
+        {
+            preview = _mergePreviewer.Count(sourceId, request.TargetSourceId, request.Mode, out check, ct);
+        }
+        else
+        {
+            var plan = FolderMergeContext.TryCreateForPlan(
+                _configuration.LoadLibraries(), sourceId, request.TargetSourceId, request.Mode, out check);
+            preview = plan is null
+                ? null
+                : await _mergePreviewer.PreviewAsync(sourceId, request.TargetSourceId, request.Mode, Math.Max(0, request.FileLimit), ct).ConfigureAwait(false);
+        }
+
+        if (preview is null)
+        {
+            throw MergeProblem(check);
+        }
+
+        return new FolderMergePreviewResponse
+        {
+            SourceId = request.SourceId,
+            TargetSourceId = request.TargetSourceId,
+            Mode = preview.Mode,
+            TotalFiles = preview.TotalFiles,
+            VideoFiles = preview.VideoFiles,
+            Examined = preview.Examined,
+            Complete = preview.Complete,
+            ToTransfer = preview.ToTransfer,
+            AlreadyInTarget = preview.AlreadyInTarget,
+            NeedsReview = preview.NeedsReview,
+            NameCollisions = preview.NameCollisions,
+            Skipped = preview.Skipped,
+            SkipReasons = preview.SkipReasons.Select(group => new FolderConversionSkipDto { Reason = group.Reason, Count = group.Count }).ToList(),
+            Samples = preview.Samples.Select(sample => new FolderConversionSampleDto { OldPath = sample.OldPath, NewPath = sample.NewPath }).ToList(),
+            DuplicatePolicy = preview.DuplicatePolicy,
+            EstimatedSeconds = MergeEstimateSeconds(preview),
+            SourceBytes = preview.SourceBytes,
+            TargetFreeBytes = preview.TargetFreeBytes,
+            BlockedReason = preview.BlockedReason,
+        };
+    }
+
     // ─────────────────────────────────────────────────────────────────────────────
     // Starting
     // ─────────────────────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Queues the job that merges one existing folder, once, into a managed folder. The source is never written in Copy mode;
+    /// Move is only for a folder Tuvima manages. Safe to call twice: a folder that already has a merge in progress gets that
+    /// job back instead of a second one.
+    /// </summary>
+    public async Task<FolderJobStatusDto> StartMergeAsync(FolderMergeRequest request, CancellationToken ct)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        var sourceId = ParseSourceId(request.SourceId);
+        await LibraryMutationEndpoints.WriteGate.WaitAsync(ct).ConfigureAwait(false);
+        try
+        {
+            var libraries = _configuration.LoadLibraries();
+            if (FindSource(libraries, sourceId) is null)
+            {
+                throw new FolderJobException("This folder is not part of your libraries.", notFound: true);
+            }
+
+            var open = await FindOpenOperationAsync(sourceId, null, ct).ConfigureAwait(false);
+            if (open is not null)
+            {
+                return open.OperationType == MergeFolder
+                    ? await ToStatusAsync(open, libraries, ct).ConfigureAwait(false)
+                    : throw new FolderJobException("This folder is being organised right now. Wait for that to finish first.", conflict: true);
+            }
+
+            var context = FolderMergeContext.TryCreateForPlan(libraries, sourceId, request.TargetSourceId, request.Mode, out var check)
+                ?? throw MergeProblem(check);
+
+            // The target must really accept files: it is checked the same way a managed folder is when it is added.
+            var writable = _folders.Validate(new ValidateServerFolderRequest
+            {
+                ManualPath = context.Target.Path,
+                CurrentSourceId = context.Target.Id,
+                SelectionMode = ServerFolderSelectionModes.ManagedLibrary,
+            }, libraries);
+            if (!writable.CanSelect)
+            {
+                throw new FolderJobException(
+                    writable.Issues.FirstOrDefault(issue => issue.Severity == "error")?.Message
+                    ?? "Tuvima cannot write to the folder you are merging into.");
+            }
+
+            var count = _mergePreviewer.Count(sourceId, request.TargetSourceId, request.Mode, out check, ct) ?? throw MergeProblem(check);
+            if (count.BlockedReason is not null)
+            {
+                throw new FolderJobException(count.BlockedReason);
+            }
+
+            var operationId = Guid.NewGuid();
+            var source = context.Source;
+            source.MergeState = LibrarySourceMergeStates.Merging;
+            source.MergeOperationId = operationId.ToString("D");
+            source.MergeTargetSourceId = context.Target.Id;
+            source.MergeMode = context.IsMove ? LibraryMergeModes.Move : LibraryMergeModes.Copy;
+            source.MergedAt = null;
+            try
+            {
+                _configuration.SaveLibraries(libraries);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                throw new FolderJobException($"The folder settings could not be saved: {ex.Message}");
+            }
+
+            try
+            {
+                var operation = await _tracker.EnsureQueuedAsync(new MediaOperation
+                {
+                    Id = operationId,
+                    OperationType = MergeFolder,
+                    OperationKind = MediaOperationKind.Maintenance,
+                    EntityId = sourceId,
+                    EntityKind = "library_source",
+                    SourcePath = source.Path,
+                    Status = MediaOperationStatus.Queued,
+                    Stage = MediaOperationStage.Queued,
+                    QueueName = MediaOperationQueue.FolderJobs,
+                    ItemsTotal = count.TotalFiles,
+                    IdempotencyKey = $"{MergeFolder}:{sourceId:D}:{operationId:N}",
+                }, ct).ConfigureAwait(false);
+                return await ToStatusAsync(operation, libraries, ct).ConfigureAwait(false);
+            }
+            catch
+            {
+                // No job exists, so the folder must not be left saying it is merging.
+                var current = _configuration.LoadLibraries();
+                if (FindSource(current, sourceId) is { } saved)
+                {
+                    ClearMerge(saved);
+                    _configuration.SaveLibraries(current);
+                }
+
+                throw;
+            }
+        }
+        finally
+        {
+            LibraryMutationEndpoints.WriteGate.Release();
+        }
+    }
 
     /// <summary>
     /// Makes the folder Managed and queues the job that organises the files already in it. Safe to call twice: a folder that
@@ -132,10 +292,15 @@ public sealed class FolderJobService
                 ?? throw new FolderJobException("This folder is not part of your libraries.", notFound: true);
             var source = library.Sources.First(candidate => Guid.TryParse(candidate.Id, out var id) && id == sourceId);
 
-            var running = await FindOpenOperationAsync(sourceId, ct).ConfigureAwait(false);
+            var running = await FindOpenOperationAsync(sourceId, OrganiseFolder, ct).ConfigureAwait(false);
             if (running is not null)
             {
                 return await ToStatusAsync(running, libraries, ct).ConfigureAwait(false);
+            }
+
+            if (await FindOpenOperationAsync(sourceId, null, ct).ConfigureAwait(false) is not null)
+            {
+                throw new FolderJobException("This folder is being merged right now. Wait for that to finish first.", conflict: true);
             }
 
             var proposed = Clone(libraries);
@@ -252,7 +417,14 @@ public sealed class FolderJobService
                 if (operation.Status is not (MediaOperationStatus.Leased or MediaOperationStatus.Running)
                     && operation.EntityId is { } sourceId)
                 {
-                    await FinishConversionAsync(sourceId, operationId, ct).ConfigureAwait(false);
+                    if (operation.OperationType == MergeFolder)
+                    {
+                        await FinishMergeAsync(sourceId, operationId, completed: false, ct).ConfigureAwait(false);
+                    }
+                    else
+                    {
+                        await FinishConversionAsync(sourceId, operationId, ct).ConfigureAwait(false);
+                    }
                 }
 
                 break;
@@ -273,6 +445,12 @@ public sealed class FolderJobService
         {
             if (operation.EntityId is not { } sourceId)
             {
+                continue;
+            }
+
+            if (operation.OperationType == MergeFolder)
+            {
+                await StopMergeIfFoldersGoneAsync(operation, sourceId, libraries, ct).ConfigureAwait(false);
                 continue;
             }
 
@@ -313,6 +491,20 @@ public sealed class FolderJobService
             {
                 source.ConversionState = LibrarySourceConversionStates.None;
                 source.ConversionOperationId = null;
+            }
+
+            // The merge details belong to the Engine too, whether the folder is managed or used as-is.
+            if (known.TryGetValue(source.Id, out var merged))
+            {
+                source.MergeState = merged.MergeState;
+                source.MergeOperationId = merged.MergeOperationId;
+                source.MergeTargetSourceId = merged.MergeTargetSourceId;
+                source.MergeMode = merged.MergeMode;
+                source.MergedAt = merged.MergedAt;
+            }
+            else
+            {
+                ClearMerge(source);
             }
         }
     }
@@ -355,12 +547,109 @@ public sealed class FolderJobService
     }
 
     /// <summary>
-    /// Settles any folder still marked as converting whose job is over (cancelled from somewhere else, or lost), so the
-    /// row never says "Converting" for a job that is not running.
+    /// A merge is over: finished (the folder now says it was merged into the target and is no longer scanned) or stopped
+    /// (cancelled or failed: the folder is simply a folder again, and the log says what was copied and what remains).
+    /// </summary>
+    public async Task FinishMergeAsync(Guid sourceId, Guid operationId, bool completed, CancellationToken ct)
+    {
+        var job = await _operations.GetByIdAsync(operationId, ct).ConfigureAwait(false);
+        if (job is not null && !IsFinished(job.Status))
+        {
+            return;
+        }
+
+        await LibraryMutationEndpoints.WriteGate.WaitAsync(ct).ConfigureAwait(false);
+        try
+        {
+            var libraries = _configuration.LoadLibraries();
+            var source = FindSource(libraries, sourceId);
+            if (source is null
+                || source.MergeState != LibrarySourceMergeStates.Merging
+                || !string.Equals(source.MergeOperationId, operationId.ToString("D"), StringComparison.OrdinalIgnoreCase))
+            {
+                return;
+            }
+
+            if (completed)
+            {
+                source.MergeState = LibrarySourceMergeStates.Merged;
+                source.MergedAt = job?.CompletedAt ?? DateTimeOffset.UtcNow;
+            }
+            else
+            {
+                ClearMerge(source);
+            }
+
+            _configuration.SaveLibraries(libraries);
+        }
+        finally
+        {
+            LibraryMutationEndpoints.WriteGate.Release();
+        }
+    }
+
+    /// <summary>A merge whose folders have gone (or whose target is no longer managed) is stopped. What was copied stays where it is.</summary>
+    private async Task StopMergeIfFoldersGoneAsync(
+        MediaOperation operation, Guid sourceId, LibrariesConfiguration libraries, CancellationToken ct)
+    {
+        var source = FindSource(libraries, sourceId);
+        var target = source is null || string.IsNullOrWhiteSpace(source.MergeTargetSourceId)
+            ? null
+            : libraries.Libraries.SelectMany(library => library.Sources)
+                .FirstOrDefault(candidate => string.Equals(candidate.Id, source.MergeTargetSourceId, StringComparison.OrdinalIgnoreCase));
+        if (source is not null && target is { IsManaged: true })
+        {
+            return;
+        }
+
+        _logger.LogInformation("Stopping merge {OperationId}: a folder is gone or the target is no longer managed", operation.Id);
+        await _operations.MarkCancelledAsync(
+            operation.Id,
+            "A folder was removed, or the folder being merged into is no longer managed, so Tuvima stopped. What was already copied stays where it is.",
+            ct).ConfigureAwait(false);
+        if (operation.Status is not (MediaOperationStatus.Leased or MediaOperationStatus.Running)
+            && source is { MergeState: LibrarySourceMergeStates.Merging })
+        {
+            // The caller already holds the settings gate and has saved, so the folder is tidied here without waiting for it.
+            var current = _configuration.LoadLibraries();
+            if (FindSource(current, sourceId) is { } saved)
+            {
+                ClearMerge(saved);
+                _configuration.SaveLibraries(current);
+            }
+        }
+
+        await PublishAsync(operation.Id, ct).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Settles any folder still marked as converting or merging whose job is over (cancelled from somewhere else, or lost), so
+    /// the row never says "Converting" or "Merging" for a job that is not running.
     /// </summary>
     public async Task ReconcileAsync(CancellationToken ct)
     {
         var libraries = _configuration.LoadLibraries();
+        var staleMerges = new List<(Guid SourceId, Guid OperationId, bool Completed)>();
+        foreach (var source in libraries.Libraries.SelectMany(library => library.Sources)
+                     .Where(source => source.MergeState == LibrarySourceMergeStates.Merging))
+        {
+            if (!Guid.TryParse(source.Id, out var mergeSourceId) || !Guid.TryParse(source.MergeOperationId, out var mergeOperationId))
+            {
+                continue;
+            }
+
+            var operation = await _operations.GetByIdAsync(mergeOperationId, ct).ConfigureAwait(false);
+            if (operation is null || IsFinished(operation.Status))
+            {
+                staleMerges.Add((mergeSourceId, mergeOperationId, operation?.Status == MediaOperationStatus.Succeeded));
+            }
+        }
+
+        foreach (var (mergeSourceId, mergeOperationId, completed) in staleMerges)
+        {
+            await FinishMergeAsync(mergeSourceId, mergeOperationId, completed, ct).ConfigureAwait(false);
+        }
+
         var stale = new List<(Guid SourceId, Guid OperationId)>();
         foreach (var source in libraries.Libraries.SelectMany(library => library.Sources)
                      .Where(source => source.ConversionState == LibrarySourceConversionStates.Converting))
@@ -479,6 +768,45 @@ public sealed class FolderJobService
         await writer.FlushAsync(ct).ConfigureAwait(false);
     }
 
+    /// <summary>The sentence shown when a merge finishes: what was copied or moved, and what needs a look.</summary>
+    public static string MergeCompletionMessage(FolderOrganiseRunResult result)
+    {
+        ArgumentNullException.ThrowIfNull(result);
+        var transferred = result.Count(FolderOrganiseOutcomes.Copied)
+            + result.Count(FolderOrganiseOutcomes.CopiedWithUniqueName)
+            + result.Count(FolderOrganiseOutcomes.Moved)
+            + result.Count(FolderOrganiseOutcomes.MovedWithUniqueName);
+        var parts = new List<string>
+        {
+            $"{transferred.ToString("N0", CultureInfo.InvariantCulture)} {(result.IsMove ? "moved" : "copied")}",
+        };
+
+        var skipped = result.Count(FolderOrganiseOutcomes.DuplicateSkipped);
+        if (skipped > 0)
+        {
+            parts.Add($"{skipped.ToString("N0", CultureInfo.InvariantCulture)} already there (exact copies, not copied again)");
+        }
+
+        var removed = result.Count(FolderOrganiseOutcomes.DuplicateRemoved);
+        if (removed > 0)
+        {
+            parts.Add($"{removed.ToString("N0", CultureInfo.InvariantCulture)} exact duplicates removed");
+        }
+
+        var review = result.Count(FolderOrganiseOutcomes.MergedForReview);
+        if (review > 0)
+        {
+            parts.Add($"{review.ToString("N0", CultureInfo.InvariantCulture)} waiting for Review (From merge)");
+        }
+
+        if (result.Failed > 0)
+        {
+            parts.Add($"{result.Failed.ToString("N0", CultureInfo.InvariantCulture)} could not be copied - see log");
+        }
+
+        return string.Join(", ", parts) + ".";
+    }
+
     /// <summary>The sentence shown when a conversion finishes: what was organised, and what needs a look.</summary>
     public static string CompletionMessage(FolderOrganiseRunResult result)
     {
@@ -541,9 +869,34 @@ public sealed class FolderJobService
     private async Task<IReadOnlyList<MediaOperation>> OpenOperationsAsync(CancellationToken ct) =>
         (await JobsAsync(ct).ConfigureAwait(false)).Where(operation => !IsFinished(operation.Status)).ToList();
 
-    private async Task<MediaOperation?> FindOpenOperationAsync(Guid sourceId, CancellationToken ct) =>
+    private async Task<MediaOperation?> FindOpenOperationAsync(Guid sourceId, string? operationType, CancellationToken ct) =>
         (await OpenOperationsAsync(ct).ConfigureAwait(false)).FirstOrDefault(operation =>
-            operation.EntityId == sourceId && operation.OperationType == OrganiseFolder);
+            operation.EntityId == sourceId && (operationType is null || operation.OperationType == operationType));
+
+    private static void ClearMerge(LibrarySourceConfig source)
+    {
+        source.MergeState = LibrarySourceMergeStates.None;
+        source.MergeOperationId = null;
+        source.MergeTargetSourceId = null;
+        source.MergeMode = null;
+        source.MergedAt = null;
+    }
+
+    private static FolderJobException MergeProblem(FolderMergeCheck check) => new(
+        check.Message ?? "This folder cannot be merged.",
+        notFound: check.Problem is FolderMergeProblem.SourceRemoved or FolderMergeProblem.TargetRemoved,
+        conflict: check.Problem is FolderMergeProblem.SourceBusy);
+
+    /// <summary>
+    /// About how long a merge takes: every file is read, written and read back, so it is sized by bytes (about 60 MB a
+    /// second) plus a little per file. The running job replaces this with the rate it is actually achieving.
+    /// </summary>
+    private static int MergeEstimateSeconds(FolderMergePreview preview)
+    {
+        const double BytesPerSecond = 60d * 1024 * 1024;
+        const double SecondsPerFile = 0.5;
+        return (int)Math.Ceiling((preview.SourceBytes / BytesPerSecond) + (preview.TotalFiles * SecondsPerFile));
+    }
 
     private async Task PublishAsync(Guid operationId, CancellationToken ct)
     {
@@ -557,7 +910,11 @@ public sealed class FolderJobService
     }
 
     private static string StoppedMessage(MediaOperation operation) =>
-        operation.ItemsTotal > 0
+        operation.OperationType == MergeFolder
+            ? operation.ItemsTotal > 0
+                ? $"Stopped after {operation.ItemsCompleted.ToString("N0", CultureInfo.InvariantCulture)} of {operation.ItemsTotal.ToString("N0", CultureInfo.InvariantCulture)}. What was copied stays in the target folder; the rest is still in the source folder. The log lists what remains."
+                : "Stopped. What was copied stays in the target folder; the rest is still in the source folder. The log lists what remains."
+            : operation.ItemsTotal > 0
             ? $"Stopped after {operation.ItemsCompleted.ToString("N0", CultureInfo.InvariantCulture)} of {operation.ItemsTotal.ToString("N0", CultureInfo.InvariantCulture)}; the rest will be tidied gradually by normal scans."
             : "Stopped; the rest will be tidied gradually by normal scans.";
 
@@ -587,13 +944,24 @@ public sealed class FolderJobService
             Message = state switch
             {
                 "completed" or "cancelled" => operation.ResultSummary,
-                "failed" => operation.LastError ?? "Organising stopped before it finished.",
+                "failed" => operation.LastError ?? (operation.OperationType == MergeFolder
+                    ? "Merging stopped before it finished."
+                    : "Organising stopped before it finished."),
                 "paused" => $"Paused at {operation.ItemsCompleted.ToString("N0", CultureInfo.InvariantCulture)} of {operation.ItemsTotal.ToString("N0", CultureInfo.InvariantCulture)}.",
                 _ => null,
             },
         };
 
-        if (state == "running" || state == "queued")
+        if (state == "running" && operation.OperationType == MergeFolder)
+        {
+            // Copying is paced by file size, which a count of files cannot see: the estimate comes from the rate the job is
+            // really achieving, once it has finished a file.
+            var elapsed = operation.StartedAt is { } mergeStarted ? DateTimeOffset.UtcNow - mergeStarted : TimeSpan.Zero;
+            status.EstimatedSecondsRemaining = operation.ItemsCompleted > 0 && elapsed > TimeSpan.Zero
+                ? (int)Math.Ceiling(elapsed.TotalSeconds / operation.ItemsCompleted * Math.Max(0, operation.ItemsTotal - operation.ItemsCompleted))
+                : null;
+        }
+        else if (state == "running" || state == "queued")
         {
             var perFile = PerFileSeconds(operation, libraries, measured);
             var upFront = TimeSpan.FromSeconds(perFile * Math.Max(1, operation.ItemsTotal));
@@ -650,6 +1018,7 @@ public sealed class FolderJobService
     {
         var finished = queue
             .Where(operation => operation.Status == MediaOperationStatus.Succeeded
+                && operation.OperationType == OrganiseFolder
                 && operation.StartedAt is not null
                 && operation.CompletedAt is not null
                 && operation.ItemsCompleted >= FolderConversionEstimator.LiveRateAfterFiles)

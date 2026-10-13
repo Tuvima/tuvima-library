@@ -1,0 +1,328 @@
+@namespace MediaEngine.Web.Components.Settings
+@using System.Globalization
+@using MediaEngine.Contracts.Settings
+@using MediaEngine.Web.Services.Formatting
+@inject IEngineApiClient ApiClient
+
+@* Merge one existing folder, once, into a managed folder. The honest question first: where the files go, whether the original
+   folder is touched, what happens to duplicates and to files Tuvima cannot name yet. "Preview first" shows what would happen,
+   without changing anything. The answer is a FolderMergeRequest or a cancel; the host starts the job. *@
+<AppDialogShell Title="@Title" Size="Medium" OnClose="@(() => Dialog.Cancel())">
+    <ChildContent>
+        <div class="merge-folder">
+            @if (_error is not null)
+            {
+                <AppAlert Tone="AppUiTone.Error">@_error</AppAlert>
+            }
+
+            @if (Targets.Count == 0)
+            {
+                <AppAlert Tone="AppUiTone.Warning">There is no managed folder to merge into yet. Add a managed folder to this library first.</AppAlert>
+            }
+            else if (_showingPreview && _preview is not null)
+            {
+                <div class="merge-folder__preview" aria-label="Preview">
+                    <p class="merge-folder__lead">
+                        @(_preview.Complete
+                            ? $"Looked at all {Count(_preview.TotalFiles)} files."
+                            : $"Looked at the first {Count(_preview.Examined)} of {Count(_preview.TotalFiles)} files.")
+                        Nothing has changed yet.
+                    </p>
+                    <ul class="merge-folder__counts">
+                        <li><strong>@Count(_preview.ToTransfer)</strong> to @(_mode == "move" ? "move" : "copy") to their standard names</li>
+                        <li><strong>@Count(_preview.AlreadyInTarget)</strong> already in the target (exact copies)</li>
+                        <li><strong>@Count(_preview.NeedsReview)</strong> to the From merge folder, waiting in Review</li>
+                        <li><strong>@Count(_preview.NameCollisions)</strong> will get a numbered name and need Review</li>
+                        <li><strong>@Count(_preview.Skipped)</strong> left where they are</li>
+                    </ul>
+                    @if (_preview.SkipReasons.Count > 0)
+                    {
+                        <ul class="merge-folder__reasons">
+                            @foreach (var reason in _preview.SkipReasons.Take(4))
+                            {
+                                <li>@Count(reason.Count) &mdash; @reason.Reason</li>
+                            }
+                        </ul>
+                    }
+                    @if (_preview.Samples.Count > 0)
+                    {
+                        <h4>Examples</h4>
+                        <ul class="merge-folder__samples">
+                            @foreach (var sample in _preview.Samples)
+                            {
+                                <li><code>@sample.OldPath</code><span aria-hidden="true">&rarr;</span><code>@sample.NewPath</code></li>
+                            }
+                        </ul>
+                    }
+                    <p class="merge-folder__time">Estimated time: <strong>@FolderJobFormat.Duration(_preview.EstimatedSeconds)</strong>.</p>
+                    @if (!_preview.Complete)
+                    {
+                        <AppButton Label="@(_scanning ? "Scanning everything..." : "Scan everything")" ButtonStyle="AppButtonStyle.Outlined"
+                                   Disabled="@_scanning" OnClick="ScanEverythingAsync" />
+                    }
+                </div>
+            }
+            else
+            {
+                <p>
+                    Tuvima will bring every media file in <strong>@Path</strong> into the folder you choose, once, with the same naming,
+                    duplicate and tag rules as the rest of your library. To keep feeding a folder over time, use the Import folder instead.
+                </p>
+
+                <fieldset class="merge-folder__group">
+                    <legend>Merge into</legend>
+                    <div role="radiogroup" aria-label="Merge into">
+                        @foreach (var option in Targets)
+                        {
+                            <label class="merge-folder__option" @key="option.Id">
+                                <AppNativeInput Type="radio" Name="merge-target" Value="@option.Id"
+                                                Checked="@(_targetId == option.Id)"
+                                                Disabled="@_starting"
+                                                OnChange="@(_ => SelectTargetAsync(option.Id))" />
+                                <span>
+                                    <strong>@option.Name</strong>
+                                    @if (option.IsNewMediaFolder)
+                                    {
+                                        <em class="merge-folder__tag">New media folder</em>
+                                    }
+                                    <small>@option.Path</small>
+                                </span>
+                            </label>
+                        }
+                    </div>
+                </fieldset>
+
+                <fieldset class="merge-folder__group">
+                    <legend>What happens to the originals</legend>
+                    <div role="radiogroup" aria-label="Copy or move">
+                        <label class="merge-folder__option">
+                            <AppNativeInput Type="radio" Name="merge-mode" Value="@("copy")"
+                                            Checked="@(_mode == "copy")" Disabled="@_starting"
+                                            OnChange="@(_ => SelectModeAsync("copy"))" />
+                            <span>
+                                <strong>Copy</strong>
+                                <small>Your folder is never changed. The files stay here as well, so they use room on the target's drive too.</small>
+                            </span>
+                        </label>
+                        @if (CanMove)
+                        {
+                            <label class="merge-folder__option">
+                                <AppNativeInput Type="radio" Name="merge-mode" Value="@("move")"
+                                                Checked="@(_mode == "move")" Disabled="@_starting"
+                                                OnChange="@(_ => SelectModeAsync("move"))" />
+                                <span>
+                                    <strong>Move instead of copy</strong>
+                                    <small>Each file is removed from here only after its copy has been checked byte for byte. This frees space on @FolderJobFormat.DriveLabel(Path).</small>
+                                </span>
+                            </label>
+                        }
+                    </div>
+                    @if (!CanMove)
+                    {
+                        <p class="merge-folder__note">Move is not offered because Tuvima uses this folder as-is and never changes it.</p>
+                    }
+                </fieldset>
+
+                @if (_loading)
+                {
+                    <AppPageState Kind="AppPageStateKind.Loading" Title="Counting files" />
+                }
+                else if (_error is null && _quick is not null)
+                {
+                    <p class="merge-folder__facts" aria-live="polite">
+                        <strong>@Count(_quick.TotalFiles) @(_quick.TotalFiles == 1 ? "file" : "files")</strong>, @FolderJobFormat.Bytes(_quick.SourceBytes).
+                        @if (_quick.TargetFreeBytes is { } free)
+                        {
+                            <text>The target's drive has @FolderJobFormat.Bytes(free) free.</text>
+                        }
+                    </p>
+                    @if (!string.IsNullOrWhiteSpace(_quick.BlockedReason))
+                    {
+                        <AppAlert Tone="AppUiTone.Error">@_quick.BlockedReason</AppAlert>
+                    }
+                    else if (_quick.TotalFiles == 0)
+                    {
+                        <AppAlert Tone="AppUiTone.Warning">There are no media files in this folder to merge.</AppAlert>
+                    }
+                }
+
+                <ul class="merge-folder__rules">
+                    <li>
+                        Exact duplicates follow your &ldquo;same file twice&rdquo; setting, which is
+                        <em>@(_keepOne ? "Keep one copy" : "Keep both")</em>@(_keepOne ? "." : ", so both copies are kept under different names.")
+                    </li>
+                    <li>Files Tuvima cannot name yet go to a folder called <em>From merge</em> inside the target and wait in Review.</li>
+                    <li>
+                        Afterwards this folder shows &ldquo;Merged into&rdquo; the target and is no longer scanned, so nothing appears twice.
+                        Tuvima never removes the folder itself; you do that when you are ready.
+                    </li>
+                    <li>
+                        <strong>This cannot be undone automatically.</strong> You can pause or stop at any time: what was copied stays,
+                        and the log lists what remains. Tuvima keeps a full log you can download.
+                    </li>
+                </ul>
+            }
+        </div>
+    </ChildContent>
+    <FooterContent>
+        @if (_showingPreview)
+        {
+            <AppButton Label="Back" ButtonStyle="AppButtonStyle.Text" OnClick="@(() => _showingPreview = false)" />
+        }
+        <AppButton Label="Cancel" ButtonStyle="AppButtonStyle.Text" OnClick="@(() => Dialog.Cancel())" />
+        @if (!_showingPreview)
+        {
+            <AppButton Label="Preview first" ButtonStyle="AppButtonStyle.Outlined" Loading="@_previewing"
+                       Disabled="@(!CanContinue)" OnClick="PreviewAsync" />
+        }
+        <AppButton Label="Merge" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary"
+                   Disabled="@(!CanContinue || _quick is null || !string.IsNullOrWhiteSpace(_quick.BlockedReason) || _quick.TotalFiles == 0)"
+                   OnClick="Merge" />
+    </FooterContent>
+</AppDialogShell>
+
+@code {
+    /// <summary>One managed folder the files can go into.</summary>
+    public sealed record MergeTargetOption(string Id, string Name, string Path, bool IsNewMediaFolder);
+
+    private const int PreviewSample = 500;
+
+    [CascadingParameter] private IAppDialogContext Dialog { get; set; } = default!;
+    [Parameter, EditorRequired] public string SourceId { get; set; } = string.Empty;
+    [Parameter, EditorRequired] public string Path { get; set; } = string.Empty;
+    [Parameter] public string SourceName { get; set; } = string.Empty;
+    /// <summary>True when the folder is one Tuvima manages, so Move can be offered. A folder used as-is is only ever copied.</summary>
+    [Parameter] public bool CanMove { get; set; }
+    /// <summary>The managed folders of the same type, other than this one.</summary>
+    [Parameter] public IReadOnlyList<MergeTargetOption> Targets { get; set; } = [];
+
+    private bool _loading = true;
+    private bool _starting;
+    private bool _previewing;
+    private bool _scanning;
+    private bool _showingPreview;
+    private bool _keepOne = true;
+    private string? _error;
+    private string _targetId = string.Empty;
+    private string _mode = "copy";
+    private int _version;
+    private FolderMergePreviewResponse? _quick;
+    private FolderMergePreviewResponse? _preview;
+
+    private string Title => string.IsNullOrWhiteSpace(SourceName) ? "Merge into a managed folder" : $"Merge {SourceName} into a managed folder";
+
+    private bool CanContinue => Targets.Count > 0 && !string.IsNullOrWhiteSpace(_targetId) && !_loading && _error is null && !_starting;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // The New media folder is the natural home for merged files, so it is chosen unless the person picks another.
+        _targetId = (Targets.FirstOrDefault(option => option.IsNewMediaFolder) ?? Targets.FirstOrDefault())?.Id ?? string.Empty;
+        await RefreshQuickAsync();
+    }
+
+    private async Task SelectTargetAsync(string id)
+    {
+        if (_targetId == id) return;
+        _targetId = id;
+        await RefreshQuickAsync();
+    }
+
+    private async Task SelectModeAsync(string mode)
+    {
+        if (_mode == mode) return;
+        _mode = mode;
+        await RefreshQuickAsync();
+    }
+
+    private async Task RefreshQuickAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_targetId))
+        {
+            _loading = false;
+            return;
+        }
+
+        var version = ++_version;
+        _loading = true;
+        _error = null;
+        var response = await ApiClient.PreviewFolderMergeAsync(new FolderMergePreviewRequest
+        {
+            SourceId = SourceId,
+            TargetSourceId = _targetId,
+            Mode = _mode,
+            Quick = true,
+        });
+        // A slower answer for an earlier choice must not replace the answer for the current one.
+        if (version != _version) return;
+        _loading = false;
+        if (response is null)
+        {
+            _quick = null;
+            _error = ApiClient.LastError ?? "Tuvima could not count the files in this folder.";
+            return;
+        }
+
+        _quick = response;
+        _keepOne = string.Equals(response.DuplicatePolicy, "keep_one", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private async Task PreviewAsync()
+    {
+        _previewing = true;
+        try
+        {
+            _preview = await ApiClient.PreviewFolderMergeAsync(new FolderMergePreviewRequest
+            {
+                SourceId = SourceId,
+                TargetSourceId = _targetId,
+                Mode = _mode,
+                FileLimit = PreviewSample,
+            });
+            if (_preview is null)
+            {
+                _error = ApiClient.LastError ?? "Tuvima could not preview this merge.";
+                return;
+            }
+
+            _showingPreview = true;
+        }
+        finally { _previewing = false; }
+    }
+
+    private async Task ScanEverythingAsync()
+    {
+        _scanning = true;
+        try
+        {
+            var full = await ApiClient.PreviewFolderMergeAsync(new FolderMergePreviewRequest
+            {
+                SourceId = SourceId,
+                TargetSourceId = _targetId,
+                Mode = _mode,
+                FileLimit = 0,
+            });
+            if (full is null)
+            {
+                _error = ApiClient.LastError ?? "Tuvima could not preview this merge.";
+                _showingPreview = false;
+                return;
+            }
+
+            _preview = full;
+        }
+        finally { _scanning = false; }
+    }
+
+    private void Merge()
+    {
+        _starting = true;
+        Dialog.Close(AppDialogResult.Ok(new FolderMergeRequest
+        {
+            SourceId = SourceId,
+            TargetSourceId = _targetId,
+            Mode = _mode,
+        }));
+    }
+
+    private static string Count(int value) => value.ToString("N0", CultureInfo.CurrentCulture);
+}

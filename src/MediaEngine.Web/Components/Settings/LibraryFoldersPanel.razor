@@ -210,7 +210,8 @@
                                         OnRemove="RemoveFolderAsync"
                                         Jobs="@_jobs"
                                         OnJobControl="ControlJobAsync"
-                                        OnOrganiseNow="OrganiseNowAsync" />
+                                        OnOrganiseNow="OrganiseNowAsync"
+                                        OnMerge="MergeIntoAsync" />
                     @if (!SelectedLibrary.Sources.Any(IsManaged))
                     {
                         <p class="library-folders__hint">Add a managed folder to import or upload @Selected.PluralLabel.</p>
@@ -463,16 +464,17 @@
         if (await dialog.Result is not { Canceled: false, Data: ServerFolderValidationResultDto selected }) return;
 
         // An empty folder is ours to manage. A folder that already holds files is used as-is unless the person says otherwise,
-        // because managing it could rename or move files other apps depend on.
+        // because managing it could rename or move files other apps depend on. Merging adds it as-is first, then brings its
+        // files into a managed folder once.
         var managed = true;
+        var mergeAfter = false;
         if (selected.ContainsFiles)
         {
-            var choice = await DialogService.ShowMessageBoxAsync(
-                "This folder already has files in it",
-                "Tuvima will use it as-is: it only reads the folder and never renames, moves or changes your files, so other apps are not affected. If you let Tuvima manage it instead, Tuvima may rename and reorganise files here, which could affect other applications that use this folder.",
-                yesText: "Use as-is (recommended)", noText: "Let Tuvima manage it", cancelText: "Cancel");
+            var canMerge = !Embedded && (SelectedLibrary?.Sources.Any(IsManaged) ?? false);
+            var choice = await AskAddFolderChoiceAsync(canMerge);
             if (choice is null) return;
-            managed = choice == false;
+            managed = choice == AddFolderChoiceDialog.Managed;
+            mergeAfter = choice == AddFolderChoiceDialog.Merge;
         }
 
         if (managed)
@@ -509,6 +511,84 @@
             var added = SelectedLibrary?.Sources.FirstOrDefault(item => item.Id == source.Id);
             if (added is not null) await OfferOrganiseAsync(added, alreadyManaged: true, quiet: true);
         }
+        else if (saved && mergeAfter)
+        {
+            // The folder is now part of the library as-is; the sheet asks where its files should go.
+            var added = SelectedLibrary?.Sources.FirstOrDefault(item => item.Id == source.Id);
+            if (added is not null) await MergeIntoAsync(added);
+        }
+    }
+
+    // The three ways to use a folder that already has files. Returns the answer, or null when the person cancels.
+    private async Task<string?> AskAddFolderChoiceAsync(bool canMerge)
+    {
+        var parameters = new AppDialogParameters<AddFolderChoiceDialog>
+        {
+            { component => component.TypeLabel, Selected.Label },
+            { component => component.CanMerge, canMerge },
+        };
+        var dialog = await DialogService.ShowAsync<AddFolderChoiceDialog>(string.Empty, parameters, new AppDialogOptions
+        {
+            MaxWidth = AppMaxWidth.Medium,
+            FullWidth = true,
+            CloseButton = false,
+            NoHeader = true,
+            CloseOnEscapeKey = true,
+            Sheet = AppDialogSheetMode.PhoneAndTablet,
+        });
+        return await dialog.Result is { Canceled: false, Data: string answer } ? answer : null;
+    }
+
+    // Row menu "Merge into": choose the managed folder and Copy or Move, look at a preview, then queue the merge job.
+    private async Task MergeIntoAsync(LibrarySourceDto source)
+    {
+        var library = SelectedLibrary;
+        if (library is null || _saving || Embedded) return;
+        var targets = LibraryFolderTable.MergeTargets(library, source);
+        if (targets.Count == 0)
+        {
+            _notice = "There is no managed folder to merge into yet. Add a managed folder to this library first.";
+            return;
+        }
+
+        var destination = library.GetPrimaryDestination();
+        var options = targets
+            .Select(target => new MergeFolderDialog.MergeTargetOption(target.Id, target.DisplayName(), target.Path, ReferenceEquals(target, destination)))
+            .ToList();
+        var parameters = new AppDialogParameters<MergeFolderDialog>
+        {
+            { component => component.SourceId, source.Id },
+            { component => component.Path, source.Path },
+            { component => component.SourceName, source.DisplayName() },
+            { component => component.CanMove, IsManaged(source) },
+            { component => component.Targets, options },
+        };
+        var dialog = await DialogService.ShowAsync<MergeFolderDialog>(string.Empty, parameters, new AppDialogOptions
+        {
+            MaxWidth = AppMaxWidth.Medium,
+            FullWidth = true,
+            CloseButton = false,
+            NoHeader = true,
+            CloseOnEscapeKey = true,
+            Sheet = AppDialogSheetMode.PhoneAndTablet,
+        });
+        if (await dialog.Result is not { Canceled: false, Data: FolderMergeRequest request }) return;
+
+        _saving = true;
+        FolderJobStatusDto? job;
+        try { job = await ApiClient.MergeFolderAsync(request); }
+        finally { _saving = false; }
+        if (job is null)
+        {
+            _notice = ApiClient.LastError ?? "Tuvima could not start merging this folder.";
+            return;
+        }
+
+        var targetName = targets.FirstOrDefault(target => target.Id == request.TargetSourceId)?.DisplayName() ?? "the folder you chose";
+        Snackbar.Add($"Tuvima is merging {source.DisplayName()} into {targetName}. You can keep using Tuvima meanwhile.", AppSeverity.Success);
+        await ReloadConfigurationAsync();
+        await RefreshJobsAsync();
+        await Changed.InvokeAsync();
     }
 
     // Tapping Handling. As-is to Managed asks honestly first and then queues the organising job (the setup wizard has no files to
@@ -939,7 +1019,7 @@
         var folder = _configuration?.Libraries.SelectMany(library => library.Sources).FirstOrDefault(item => item.Id == job.SourceId);
         var name = folder?.DisplayName() ?? "the folder";
         var text = job.State == "failed"
-            ? $"Organising {name} stopped. {job.Message}"
+            ? $"{(FolderJobFormat.IsMerge(job) ? "Merging" : "Organising")} {name} stopped. {job.Message}"
             : $"{name}: {job.Message}";
         Snackbar.Add(text, job.State == "failed" ? AppSeverity.Error : AppSeverity.Success, options =>
         {
@@ -985,10 +1065,16 @@
     {
         if (request.Action == "cancel")
         {
-            var confirmed = await DialogService.ShowMessageBoxAsync(
-                $"Stop organising {request.Source.DisplayName()}?",
-                "The folder stays Managed with the work done so far. Files already renamed keep their new names, and the rest will be tidied gradually by normal scans.",
-                yesText: "Stop organising", cancelText: "Keep going");
+            var merging = FolderJobFormat.IsMerge(request.Job);
+            var confirmed = merging
+                ? await DialogService.ShowMessageBoxAsync(
+                    $"Stop merging {request.Source.DisplayName()}?",
+                    "What was already copied stays in the target folder, and the rest stays in this folder. Nothing is undone. The log lists what remains.",
+                    yesText: "Stop merging", cancelText: "Keep going")
+                : await DialogService.ShowMessageBoxAsync(
+                    $"Stop organising {request.Source.DisplayName()}?",
+                    "The folder stays Managed with the work done so far. Files already renamed keep their new names, and the rest will be tidied gradually by normal scans.",
+                    yesText: "Stop organising", cancelText: "Keep going");
             if (confirmed != true) return;
         }
 

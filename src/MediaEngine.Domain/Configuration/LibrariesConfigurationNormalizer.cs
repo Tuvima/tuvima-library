@@ -25,6 +25,19 @@ public static class LibrariesConfigurationNormalizer
                     source.ConversionState = LibrarySourceConversionStates.None;
                     source.ConversionOperationId = null;
                 }
+
+                // Merge details only mean something while a merge is running or done.
+                if (source.MergeState == LibrarySourceMergeStates.None)
+                {
+                    source.MergeOperationId = null;
+                    source.MergeTargetSourceId = null;
+                    source.MergeMode = null;
+                    source.MergedAt = null;
+                }
+                else if (source.MergeState == LibrarySourceMergeStates.Merging)
+                {
+                    source.MergedAt = null;
+                }
             }
 
             library.PrimaryDestinationSourceId = PickDestination(library);

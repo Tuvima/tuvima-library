@@ -39,6 +39,9 @@ public enum FolderOrganiseStop
     Cancelled,
     SourceNotManaged,
     SourceMissing,
+
+    /// <summary>A merge's target folder was removed or is no longer a folder Tuvima manages.</summary>
+    TargetUnavailable,
 }
 
 public sealed class FolderOrganiseRunResult
@@ -50,6 +53,9 @@ public sealed class FolderOrganiseRunResult
     public int Completed { get; init; }
 
     public int Failed { get; init; }
+
+    /// <summary>For a merge: true when originals were moved (not just copied), so the completion message says so.</summary>
+    public bool IsMove { get; init; }
 
     /// <summary>How many log lines each outcome has, for the completion message.</summary>
     public IReadOnlyDictionary<string, int> Outcomes { get; init; } = new Dictionary<string, int>();

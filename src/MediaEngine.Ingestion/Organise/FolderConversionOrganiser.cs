@@ -99,60 +99,13 @@ public sealed class FolderConversionOrganiser
             return new OrganiseDecision(OrganiseDecisionKind.Skip, Reason: "The file is not there any more.");
         }
 
-        var canonicals = await _canonicals.GetByEntityAsync(file.AssetId, ct).ConfigureAwait(false);
-        if (canonicals.Count == 0)
+        var name = await ResolveStandardNameAsync(file, current, context.LibraryEntry, ct).ConfigureAwait(false);
+        if (name.Blocked is not null)
         {
-            return new OrganiseDecision(
-                OrganiseDecisionKind.Skip, Reason: "Not identified yet. Tuvima names it once it has been identified.");
+            return name.Blocked;
         }
 
-        var metadata = canonicals.ToDictionary(item => item.Key, item => item.Value, StringComparer.OrdinalIgnoreCase);
-        var mediaType = metadata.TryGetValue("media_type", out var typeText)
-            && Enum.TryParse<MediaType>(typeText, ignoreCase: true, out var parsed)
-                ? parsed
-                : (MediaType?)null;
-        await _auto.ApplyRecordedEpisodeRangeAsync(file.AssetId, metadata, mediaType, ct).ConfigureAwait(false);
-
-        var pending = await _reviews.GetPendingByEntityAsync(file.AssetId, ct).ConfigureAwait(false);
-        var blocking = pending.FirstOrDefault(review =>
-            review.ReviewReadyAt is not null
-            && !string.Equals(review.Trigger, ReviewTrigger.WritebackFailed, StringComparison.OrdinalIgnoreCase)
-            && !string.Equals(review.Trigger, ReviewTrigger.NameCollision, StringComparison.OrdinalIgnoreCase));
-        if (blocking is not null)
-        {
-            return new OrganiseDecision(
-                OrganiseDecisionKind.NeedsReview, Reason: "It is waiting in Review for a person to confirm what it is.");
-        }
-
-        var title = metadata.GetValueOrDefault("title");
-        if (string.IsNullOrWhiteSpace(title) || title is "Untitled" or "Unknown")
-        {
-            return new OrganiseDecision(
-                OrganiseDecisionKind.NeedsReview, Reason: "It has no confirmed title yet.");
-        }
-
-        var candidate = new IngestionCandidate
-        {
-            Path = current,
-            EventType = FileEventType.Created,
-            DetectedAt = DateTimeOffset.UtcNow,
-            ReadyAt = DateTimeOffset.UtcNow,
-            Metadata = metadata,
-            DetectedMediaType = mediaType,
-        };
-        var template = _options.CurrentValue.ResolveTemplate(mediaType?.ToString());
-        var relative = LibraryOrganizationPath.Calculate(_organizer, candidate, context.LibraryEntry, template);
-        var gate = _gate.Evaluate(
-            overallConfidence: 1.0,
-            canonicalValues: metadata,
-            hasUserLock: false,
-            mediaTypeNeedsReview: false,
-            resolvedRelativePath: relative);
-        if (!gate.CanOrganize)
-        {
-            return new OrganiseDecision(OrganiseDecisionKind.NeedsReview, Reason: gate.BlockReason);
-        }
-
+        var relative = name.RelativePath!;
         var target = Path.GetFullPath(Path.Combine(context.SourceRoot, relative));
         if (!PathSafety.IsContainedBy(target, context.SourceRoot))
         {
@@ -195,6 +148,72 @@ public sealed class FolderConversionOrganiser
             Target: UniqueTarget(target, plannedTargets),
             Reason: "Two different files want the same name.",
             Occupant: target);
+    }
+
+    /// <summary>
+    /// The type's standard relative path for a catalogued file (under the library's naming rules), or the reason it cannot be
+    /// named yet: not identified, waiting in Review, no confirmed title, or a name the organisation gate refuses. Shared by the
+    /// organising job and the merge job, so both name files by exactly the same rules.
+    /// </summary>
+    public async Task<StandardName> ResolveStandardNameAsync(
+        MediaAssetFileRef file, string currentPath, LibraryFolderEntry library, CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(file);
+        ArgumentNullException.ThrowIfNull(library);
+
+        var canonicals = await _canonicals.GetByEntityAsync(file.AssetId, ct).ConfigureAwait(false);
+        if (canonicals.Count == 0)
+        {
+            return new StandardName(null, new OrganiseDecision(
+                OrganiseDecisionKind.Skip, Reason: "Not identified yet. Tuvima names it once it has been identified."));
+        }
+
+        var metadata = canonicals.ToDictionary(item => item.Key, item => item.Value, StringComparer.OrdinalIgnoreCase);
+        var mediaType = metadata.TryGetValue("media_type", out var typeText)
+            && Enum.TryParse<MediaType>(typeText, ignoreCase: true, out var parsed)
+                ? parsed
+                : (MediaType?)null;
+        await _auto.ApplyRecordedEpisodeRangeAsync(file.AssetId, metadata, mediaType, ct).ConfigureAwait(false);
+
+        var pending = await _reviews.GetPendingByEntityAsync(file.AssetId, ct).ConfigureAwait(false);
+        var blocking = pending.FirstOrDefault(review =>
+            review.ReviewReadyAt is not null
+            && !string.Equals(review.Trigger, ReviewTrigger.WritebackFailed, StringComparison.OrdinalIgnoreCase)
+            && !string.Equals(review.Trigger, ReviewTrigger.NameCollision, StringComparison.OrdinalIgnoreCase)
+            && !string.Equals(review.Trigger, ReviewTrigger.FromMerge, StringComparison.OrdinalIgnoreCase));
+        if (blocking is not null)
+        {
+            return new StandardName(null, new OrganiseDecision(
+                OrganiseDecisionKind.NeedsReview, Reason: "It is waiting in Review for a person to confirm what it is."));
+        }
+
+        var title = metadata.GetValueOrDefault("title");
+        if (string.IsNullOrWhiteSpace(title) || title is "Untitled" or "Unknown")
+        {
+            return new StandardName(null, new OrganiseDecision(
+                OrganiseDecisionKind.NeedsReview, Reason: "It has no confirmed title yet."));
+        }
+
+        var candidate = new IngestionCandidate
+        {
+            Path = currentPath,
+            EventType = FileEventType.Created,
+            DetectedAt = DateTimeOffset.UtcNow,
+            ReadyAt = DateTimeOffset.UtcNow,
+            Metadata = metadata,
+            DetectedMediaType = mediaType,
+        };
+        var template = _options.CurrentValue.ResolveTemplate(mediaType?.ToString());
+        var relative = LibraryOrganizationPath.Calculate(_organizer, candidate, library, template);
+        var gate = _gate.Evaluate(
+            overallConfidence: 1.0,
+            canonicalValues: metadata,
+            hasUserLock: false,
+            mediaTypeNeedsReview: false,
+            resolvedRelativePath: relative);
+        return gate.CanOrganize
+            ? new StandardName(relative, null)
+            : new StandardName(null, new OrganiseDecision(OrganiseDecisionKind.NeedsReview, Reason: gate.BlockReason));
     }
 
     // ─────────────────────────────────────────────────────────────────────────────

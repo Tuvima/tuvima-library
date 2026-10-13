@@ -102,6 +102,9 @@ public static class MediaOperationType
 
     /// <summary>Converts a folder from As-is to Managed: renames and reorganises the files already there.</summary>
     public const string OrganiseFolder = "organise_folder";
+
+    /// <summary>Merges one existing folder, once, into a managed folder with the same naming, duplicate and tag rules.</summary>
+    public const string MergeFolder = "merge_folder";
 }
 
 /// <summary>Queue names for operations that need more than the default queue.</summary>

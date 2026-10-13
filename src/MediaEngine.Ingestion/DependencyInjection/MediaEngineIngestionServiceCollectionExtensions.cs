@@ -82,6 +82,10 @@ public static class MediaEngineIngestionServiceCollectionExtensions
         services.TryAddSingleton<FolderConversionOrganiser>();
         services.TryAddSingleton<FolderOrganiseRunner>();
         services.TryAddSingleton<FolderConversionPreviewer>();
+        services.TryAddSingleton<MergeFileTransfer>();
+        services.TryAddSingleton<FolderMergeOrganiser>();
+        services.TryAddSingleton<FolderMergeRunner>();
+        services.TryAddSingleton<FolderMergePreviewer>();
         services.TryAddSingleton<ILibraryScanner, LibraryScanner>();
         services.TryAddSingleton<IMediaTypeResolver, MediaTypeResolver>();
         services.TryAddSingleton<IDuplicateResolver, DuplicateResolver>();
