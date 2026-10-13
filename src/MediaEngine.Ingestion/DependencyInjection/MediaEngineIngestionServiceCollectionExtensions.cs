@@ -233,6 +233,16 @@ public static class MediaEngineIngestionServiceCollectionExtensions
         try
         {
             var libraries = configLoader.LoadLibraries();
+
+            // Tuvima's own library folder is created here the first time the server runs; nobody is asked about it.
+            foreach (var location in libraries.StorageLocations.Where(location =>
+                         location.AllowWrite
+                         && string.Equals(location.Id, TuvimaOwnFolders.LibraryLocationId, StringComparison.OrdinalIgnoreCase)
+                         && !string.IsNullOrWhiteSpace(location.Path)))
+            {
+                Directory.CreateDirectory(location.Path);
+            }
+
             foreach (var lib in libraries.Libraries)
             {
                 var allPaths = lib.Sources

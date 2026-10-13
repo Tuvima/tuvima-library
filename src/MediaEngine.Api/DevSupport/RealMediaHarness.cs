@@ -4,6 +4,7 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using MediaEngine.Contracts.Startup;
 using MediaEngine.Domain.Configuration;
+using MediaEngine.Domain.Services;
 using MediaEngine.Storage;
 using Microsoft.Data.Sqlite;
 
@@ -148,9 +149,9 @@ public static class RealMediaHarness
         {
             throw new InvalidOperationException("Real-media configuration changed. Revalidate offline before starting workers.");
         }
-        var libraries = JsonSerializer.Deserialize<LibrariesConfiguration>(File.ReadAllText(Path.Combine(directory, "libraries.json")))!;
+        var libraries = JsonSerializer.Deserialize<LibrariesConfiguration>(TuvimaDataPaths.ExpandConfigTokens(File.ReadAllText(Path.Combine(directory, "libraries.json"))))!;
         ValidateSources(libraries, run.SourceRoot);
-        var core = JsonSerializer.Deserialize<CoreConfiguration>(File.ReadAllText(Path.Combine(directory, "core.json")))!;
+        var core = JsonSerializer.Deserialize<CoreConfiguration>(TuvimaDataPaths.ExpandConfigTokens(File.ReadAllText(Path.Combine(directory, "core.json"))))!;
         if (!string.IsNullOrWhiteSpace(core.DataRoot))
         {
             RequireSeparate(run.SourceRoot, core.DataRoot);
@@ -211,7 +212,7 @@ public static class RealMediaHarness
             }
         }
         var corePath = Path.Combine(configDirectory, "core.json");
-        var core = JsonNode.Parse(File.ReadAllText(corePath))!.AsObject();
+        var core = JsonNode.Parse(TuvimaDataPaths.ExpandConfigTokens(File.ReadAllText(corePath)))!.AsObject();
         var libraryRoot = Path.GetFullPath(core["library_root"]!.GetValue<string>());
         var database = Path.GetFullPath(TuvimaDataPathResolver.ResolveDatabasePath(configDirectory, null, null));
         foreach (var path in new[] { configDirectory, outputDirectory, libraryRoot, database })
@@ -281,7 +282,7 @@ public static class RealMediaHarness
         }
         var run = new RealMediaRun(sourceRoot, outputDirectory, libraryRoot, database, selectedProfile, "Preparing", "", DateTimeOffset.UtcNow);
         Save(Path.Combine(configDirectory, SettingsFile), run);
-        var libraries = JsonSerializer.Deserialize<LibrariesConfiguration>(File.ReadAllText(Path.Combine(configDirectory, "libraries.json")))!;
+        var libraries = JsonSerializer.Deserialize<LibrariesConfiguration>(TuvimaDataPaths.ExpandConfigTokens(File.ReadAllText(Path.Combine(configDirectory, "libraries.json"))))!;
         libraries.Libraries = libraries.Libraries.Where(l => CatalogueFolders.Contains(l.Category?.ToLowerInvariant())).ToList();
         if (libraries.Libraries.Count != 5)
         {

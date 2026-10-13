@@ -3,8 +3,8 @@
   "storage_locations": [
     {
       "id": "media",
-      "label": "Tuvima library folder",
-      "path": "C:\\ProgramData\\Tuvima\\library",
+      "label": "Tuvima data",
+      "path": "{TuvimaData}/library",
       "allow_write": true
     }
   ],
@@ -39,7 +39,7 @@
       "sources": [
         {
           "id": "11111111-aaaa-4111-8111-111111111111",
-          "path": "C:\\ProgramData\\Tuvima\\library\\Books",
+          "path": "{TuvimaData}/library/Books",
           "management_mode": "managed_by_tuvima",
           "source_type": "local_folder",
           "include_subdirectories": true,
@@ -74,7 +74,7 @@
       "sources": [
         {
           "id": "22222222-aaaa-4222-8222-222222222222",
-          "path": "C:\\ProgramData\\Tuvima\\library\\Audiobooks",
+          "path": "{TuvimaData}/library/Audiobooks",
           "management_mode": "managed_by_tuvima",
           "source_type": "local_folder",
           "include_subdirectories": true,
@@ -109,7 +109,7 @@
       "sources": [
         {
           "id": "33333333-aaaa-4333-8333-333333333333",
-          "path": "C:\\ProgramData\\Tuvima\\library\\TV",
+          "path": "{TuvimaData}/library/TV",
           "management_mode": "managed_by_tuvima",
           "source_type": "local_folder",
           "include_subdirectories": true,
@@ -144,7 +144,7 @@
       "sources": [
         {
           "id": "44444444-aaaa-4444-8444-444444444444",
-          "path": "C:\\ProgramData\\Tuvima\\library\\Movies",
+          "path": "{TuvimaData}/library/Movies",
           "management_mode": "managed_by_tuvima",
           "source_type": "local_folder",
           "include_subdirectories": true,
@@ -179,7 +179,7 @@
       "sources": [
         {
           "id": "55555555-aaaa-4555-8555-555555555555",
-          "path": "C:\\ProgramData\\Tuvima\\library\\Music",
+          "path": "{TuvimaData}/library/Music",
           "management_mode": "managed_by_tuvima",
           "source_type": "local_folder",
           "include_subdirectories": true,
@@ -214,7 +214,7 @@
       "sources": [
         {
           "id": "66666666-aaaa-4666-8666-666666666666",
-          "path": "C:\\ProgramData\\Tuvima\\library\\Comics",
+          "path": "{TuvimaData}/library/Comics",
           "management_mode": "managed_by_tuvima",
           "source_type": "local_folder",
           "include_subdirectories": true,

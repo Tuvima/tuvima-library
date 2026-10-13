@@ -28,8 +28,8 @@
                                              Class="@LocationClass(location)"
                                              AriaLabel="@($"Browse {DisplayName(location)}")"
                                              OnClick="@(_ => SelectLocationAsync(location))">
-                                <AppMaterialIcon Icon="@(IsTuvimaOwn(location) ? AppMaterialIcons.Outlined.Folder : AppMaterialIcons.Outlined.Storage)" />
-                                <span><strong>@DisplayName(location)</strong><small>@(IsTuvimaOwn(location) ? $"Managed by Tuvima · {location.Path}" : location.Path)</small></span>
+                                <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Storage" />
+                                <span><strong>@DisplayName(location)</strong><small>@location.Path</small></span>
                             </AppNativeButton>
                         }
                     }
@@ -200,28 +200,19 @@
     private bool _loadingBrowse;
     private bool _validating;
 
-    // Drives and the server root are discovered automatically; anything else in the list is a folder
-    // Tuvima itself owns (its library, drop-off and similar areas) and is grouped and named separately.
+    // Drives and the server root are discovered automatically; anything else in the list is an approved folder.
+    // Tuvima's own folders are never sent by the Engine, so there is nothing to hide or rename here.
     private static bool IsMachineLocation(ServerStorageLocationDto location) =>
         location.Id.StartsWith("drive-", StringComparison.Ordinal)
         || string.Equals(location.Id, "server-root", StringComparison.Ordinal);
 
-    private static bool IsTuvimaOwn(ServerStorageLocationDto location) =>
-        location.Id is "media" or "incoming";
-
     private IEnumerable<(string Heading, IReadOnlyList<ServerStorageLocationDto> Locations)> LocationGroups => new (string Heading, IReadOnlyList<ServerStorageLocationDto> Locations)[]
     {
         ("Drives and folders on this server", VisibleLocations.Where(IsMachineLocation).ToList()),
-        // Tuvima's own library and import folders are not offered here; they belong with the library types.
-        ("Approved folders", VisibleLocations.Where(location => !IsMachineLocation(location) && !IsTuvimaOwn(location)).ToList()),
+        ("Approved folders", VisibleLocations.Where(location => !IsMachineLocation(location)).ToList()),
     }.Where(group => group.Locations.Count > 0);
 
-    private static string DisplayName(ServerStorageLocationDto location) => location.Id switch
-    {
-        "media" => "Tuvima library folder",
-        "incoming" => "Tuvima drop-off folder",
-        _ => location.Label,
-    };
+    private static string DisplayName(ServerStorageLocationDto location) => location.Label;
 
     private IReadOnlyList<ServerStorageLocationDto> VisibleLocations => _locations
         .Where(location => AllowedStorageLocationIds is null
@@ -234,7 +225,7 @@
             ? await ApiClient.GetServerFolderRootsAsync(_lifetime.Token)
             : await ApiClient.GetSetupServerFolderRootsAsync(SetupSession, _lifetime.Token)).ToList();
         _loadingRoots = false;
-        var first = VisibleLocations.FirstOrDefault(location => ServerFolderSelectionModes.RequiresWrite(SelectionMode) || !IsTuvimaOwn(location)) ?? VisibleLocations.FirstOrDefault();
+        var first = VisibleLocations.FirstOrDefault();
         if (first is null) return;
 
         if (!string.IsNullOrWhiteSpace(InitialPath))

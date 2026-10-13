@@ -53,8 +53,8 @@ Core Engine settings. Most changes are read at startup. Ingestion sources and de
 |---|---|---|---|
 | `schema_version` | string | `"2.0"` | Config schema version. Used for migration compatibility checks. |
 | `database_path` | string | `".data/database/library.db"` | Path to the SQLite database file. Relative paths resolve from `data_root`. |
-| `data_root` | string | `""` | Root directory for all internal Engine storage (`.data/`). Must be set before first run. |
-| `library_root` | string | `""` | Root directory where the Engine places organized media after promotion. |
+| `data_root` | string | `""` | Root directory for generated Engine data (artwork, derived files, staging). Empty means `.data/` inside `library_root`. |
+| `library_root` | string | `""` | Tuvima's own library folder, where the Engine places organized media and keeps `.data/`. The shipped file uses `{TuvimaData}/library`, so a fresh install follows the server's data location (see below). |
 | `organization_template` | string | - | Default file organization template. Tokens: `{Category}`, `{Title}`, `{Qid}`, `{Ext}`. |
 | `organization_templates` | object | - | Per-media-type templates. Keys: `default`, `Books`, `Audiobooks`, `Movies`, `TV`, `Comics`, `Music`. TV supports `{Series}`, `{Season}`, `{Episode}` tokens; `{Episode}` reads `01-e02` for a file that covers episodes 1 and 2. Music supports `{Artist}`, `{Album}`, `{TrackNumber}` tokens. |
 | `server_name` | string | `"Tuvima Library"` | Display name shown in the Dashboard title bar and system status. |
@@ -68,6 +68,8 @@ Core Engine settings. Most changes are read at startup. Ingestion sources and de
 | `time_format` | string | `"system"` | Time display format. `"system"` uses the OS locale. |
 | `plugin_catalog.enabled` | bool | `true` | Enables the read-only approved plugin catalog lookup used by Settings > Plugins. |
 | `plugin_catalog.approved_plugins_url` | string | GitHub raw URL | HTTPS GitHub URL for the approved plugin catalog JSON. The Engine accepts `raw.githubusercontent.com` or `github.com` sources only. |
+
+**Server data location and the `{TuvimaData}` placeholder.** The shipped `config/core.json` and `config/libraries.json` contain no absolute paths. A path that starts with `{TuvimaData}` is replaced when the file is loaded by the server's data location: the `TUVIMA_DATA_DIR` environment variable if set, otherwise `%LOCALAPPDATA%\Tuvima\data` on Windows and `~/.local/share/tuvima` on Linux and macOS. Tuvima's own library folder (storage location id `media`, which also holds the View personal space) is created there automatically the first time the server runs. It is never shown in a folder picker or asked about in setup; if it cannot be created or written, the silent server check in setup fails with one message naming the folder and the fix. The Docker image ships its own `docker/config` files that use `/library`, so containers are unchanged. No import folder is shipped: the `incoming` storage location does not exist until someone sets one in Libraries. The developer real-media harness writes its own paths into `real-media-harness.json` and the configuration it prepares; it does not rely on shipped paths.
 
 **Backward compatibility:** `language` accepts both legacy string form (`"language": "en"`) and the new object form. The deserializer handles both.
 

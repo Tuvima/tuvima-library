@@ -3,7 +3,7 @@
   "storage_locations": [
     {
       "id": "media",
-      "label": "Tuvima library folder",
+      "label": "Tuvima data",
       "path": "/library",
       "allow_write": true
     }

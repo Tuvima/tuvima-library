@@ -102,13 +102,13 @@ public sealed class ServerFolderBrowserServiceTests
     }
 
     [Fact]
-    public void MachineRootsAreListedAlongsideConfiguredLocations()
+    public void MachineRootsAreListedAndTuvimasOwnFoldersAreNeverOffered()
     {
         using var fixture = new Fixture();
 
         var roots = fixture.Service.GetStorageLocations();
 
-        Assert.Contains(roots, root => root.Id == "media");
+        Assert.DoesNotContain(roots, root => root.Id is "media" or "incoming");
         Assert.Contains(roots, root => root.Id.StartsWith("drive-", StringComparison.Ordinal) || root.Id == "server-root");
     }
 
