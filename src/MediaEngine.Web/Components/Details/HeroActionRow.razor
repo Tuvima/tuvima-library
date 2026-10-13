@@ -24,7 +24,7 @@
             }
             else
             {
-                <AppTooltip Text="@TooltipFor(action)"><AppNativeButton Type="button" Class="hero-icon-circle" AriaLabel="@TooltipFor(action)" Disabled="@action.IsDisabled" aria-pressed="@(action.IsSelected ? "true" : "false")" OnClick="@(() => Select(action))"><PlaybackUtilityGlyph Glyph="@UtilityGlyphFor(action)" /></AppNativeButton></AppTooltip>
+                <AppTooltip Text="@TooltipFor(action)"><AppNativeButton Type="button" Class="hero-icon-circle" AriaLabel="@TooltipFor(action)" data-phone-label="@PhoneLabelFor(action)" Disabled="@action.IsDisabled" aria-pressed="@(action.IsSelected ? "true" : "false")" OnClick="@(() => Select(action))"><PlaybackUtilityGlyph Glyph="@UtilityGlyphFor(action)" /></AppNativeButton></AppTooltip>
             }
         }
         <OverflowActionMenu Actions="OverflowMenuActions" ButtonClass="hero-icon-circle" UsePlaybackGlyph="true" OnActionSelected="OnActionSelected" />
@@ -80,6 +80,9 @@
 
     private IReadOnlyDictionary<string, object>? AttributesFor(DetailAction action) =>
         ActionAttributes?.Invoke(action);
+
+    private static string PhoneLabelFor(DetailAction action)
+        => action.Key == "my-list" ? "My List" : action.Label;
 
     private static string TooltipFor(DetailAction action)
         => action.Tooltip ?? (action.IsStub ? $"{action.Label} (coming soon)" : action.Label);

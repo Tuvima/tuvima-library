@@ -1,27 +1,61 @@
 ﻿@namespace MediaEngine.Web.Components.Details
 @using MediaEngine.Contracts.Details
+@using MediaEngine.Web.Services.Theming
+@using MediaEngine.Web.Services.Ui
+@implements IDisposable
+@inject DeviceContextService DeviceContext
 
 @if (Actions.Count > 0)
 {
-    <AppOverflowMenu Icon="@AppMaterialIcons.Outlined.MoreHoriz"
-                     Label="@Label"
-                     AriaLabel="More actions"
-                     Class="tl-detail-overflow tl-detail-more-action"
-                     TriggerClass="@ButtonClass"
-                     PopoverClass="@PopoverRootClass"
-                     AnchorOrigin="AppOrigin.BottomRight"
-                     TransformOrigin="AppOrigin.TopRight">
-        <TriggerContent>
-            @if (UsePlaybackGlyph) { <PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.More" /> }
-            else { <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.MoreHoriz" /> }
-        </TriggerContent>
-        <ChildContent>
-        <ManageActionsMenu Actions="Actions" OnActionSelected="OnActionSelected" />
-        </ChildContent>
-    </AppOverflowMenu>
+    @* Phones list the same actions in a bottom sheet instead of a popover; everything else keeps the popover. *@
+    @if (DeviceContext.IsPhone)
+    {
+        <div class="app-overflow-menu app-control--compact tl-detail-overflow tl-detail-more-action">
+            <AppNativeButton Type="button"
+                             Class="@($"app-overflow-menu__trigger app-overflow-menu__trigger--icon {ButtonClass}")"
+                             AriaLabel="More actions"
+                             aria-haspopup="dialog"
+                             aria-expanded="@(_sheetOpen ? "true" : "false")"
+                             OnClick="OpenSheetAsync">
+                @if (UsePlaybackGlyph) { <PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.More" /> }
+                else { <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.MoreHoriz" /> }
+                @if (!string.IsNullOrWhiteSpace(Label)) { <span>@Label</span> }
+            </AppNativeButton>
+        </div>
+        @if (_sheetOpen)
+        {
+            <AppDialogFrame Open="true" Title="More" DialogOptions="SheetOptions" Class="tl-detail-more-sheet" OnCancel="CloseSheetAsync">
+                <div class="tl-detail-more-sheet__items" role="menu" aria-label="More actions">
+                    <ManageActionsMenu Actions="Actions" OnActionSelected="SelectFromSheetAsync" />
+                </div>
+            </AppDialogFrame>
+        }
+    }
+    else
+    {
+        <AppOverflowMenu Icon="@AppMaterialIcons.Outlined.MoreHoriz"
+                         Label="@Label"
+                         AriaLabel="More actions"
+                         Class="tl-detail-overflow tl-detail-more-action"
+                         TriggerClass="@ButtonClass"
+                         PopoverClass="@PopoverRootClass"
+                         AnchorOrigin="AppOrigin.BottomRight"
+                         TransformOrigin="AppOrigin.TopRight">
+            <TriggerContent>
+                @if (UsePlaybackGlyph) { <PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.More" /> }
+                else { <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.MoreHoriz" /> }
+            </TriggerContent>
+            <ChildContent>
+            <ManageActionsMenu Actions="Actions" OnActionSelected="OnActionSelected" />
+            </ChildContent>
+        </AppOverflowMenu>
+    }
 }
 
 @code {
+    private static readonly AppDialogOptions SheetOptions = new() { Sheet = AppDialogSheetMode.Phone, BackdropClick = true, CloseOnEscapeKey = true };
+    private bool _sheetOpen;
+
     [Parameter] public IReadOnlyList<DetailAction> Actions { get; set; } = [];
     [Parameter] public string? Label { get; set; }
     [Parameter] public string ButtonClass { get; set; } = "tl-detail-person-more-action";
@@ -30,4 +64,31 @@
 
     private string PopoverRootClass =>
         $"tl-detail-overflow-popover {(Actions.Count == 1 ? "tl-detail-overflow-popover--compact" : null)}";
+
+    protected override void OnInitialized() => DeviceContext.OnChanged += DeviceChanged;
+
+    public void Dispose() => DeviceContext.OnChanged -= DeviceChanged;
+
+    private void DeviceChanged() => _ = InvokeAsync(StateHasChanged);
+
+    private Task OpenSheetAsync()
+    {
+        _sheetOpen = true;
+        return Task.CompletedTask;
+    }
+
+    private Task CloseSheetAsync()
+    {
+        _sheetOpen = false;
+        return Task.CompletedTask;
+    }
+
+    private async Task SelectFromSheetAsync(DetailAction action)
+    {
+        // Close the sheet and let it leave the DOM before the action runs, so an action that opens
+        // another dialog is not stacked under a sheet that is still on screen.
+        _sheetOpen = false;
+        await InvokeAsync(StateHasChanged);
+        await OnActionSelected.InvokeAsync(action);
+    }
 }

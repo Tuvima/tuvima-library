@@ -135,7 +135,7 @@
 @media (max-width: 720px), (max-height: 620px) {
     .cinematic-hero-surface-scope ::deep .cinematic-hero-surface:not(.cinematic-hero--landing) {
         height: auto !important;
-        min-height: 100svh !important;
+        min-height: var(--cinematic-hero-phone-min-height, 100svh) !important;
         max-height: none !important;
     }
 

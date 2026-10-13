@@ -1,7 +1,9 @@
 @namespace MediaEngine.Web.Components.Cinematic
+@implements IAsyncDisposable
+@inject IJSRuntime JS
 
 <nav class="@RootClass" aria-label="@AriaLabel" role="tablist">
-    <div class="surface-tab-bar__items">
+    <div class="surface-tab-bar__items" @ref="_strip">
         @foreach (var item in Items)
         {
             <AppNativeButton Type="button"
@@ -39,7 +41,51 @@
     [Parameter] public string ItemClass { get; set; } = "surface-tab-bar__item";
     [Parameter] public RenderFragment? TrailingContent { get; set; }
 
+    private ElementReference _strip;
+    private IJSObjectReference? _module;
+    private string? _shownKey;
+
     private string RootClass => $"surface-tab-bar {Class}";
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        try
+        {
+            _module ??= await JS.InvokeAsync<IJSObjectReference>("import", "./js/scroll-edge-hint.js");
+            if (firstRender)
+            {
+                await _module.InvokeVoidAsync("attach", _strip);
+            }
+
+            if (!string.Equals(_shownKey, ActiveKey, StringComparison.Ordinal))
+            {
+                _shownKey = ActiveKey;
+                await _module.InvokeVoidAsync("showActive", _strip, "[aria-selected=\"true\"]");
+            }
+        }
+        catch (JSDisconnectedException)
+        {
+            // The circuit closed while the strip was rendering; there is nothing left to hint.
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_module is null)
+        {
+            return;
+        }
+
+        try
+        {
+            await _module.InvokeVoidAsync("detach", _strip);
+            await _module.DisposeAsync();
+        }
+        catch (JSDisconnectedException)
+        {
+            // The circuit is already gone, so the browser has dropped the listeners with the page.
+        }
+    }
 
     private string ItemClassFor(SurfaceTabItem item) =>
         $"{ItemClass} {(string.Equals(item.Key, ActiveKey, StringComparison.OrdinalIgnoreCase) ? "is-active" : null)}";

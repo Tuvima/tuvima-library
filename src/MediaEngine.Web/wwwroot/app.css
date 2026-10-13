@@ -4621,3 +4621,550 @@ input[type="reset"],
     background: var(--tl-accent-primary-soft);
     outline: none;
 }
+
+/* Details page, phone pass. Everything here is scoped to the phone form factor; tablet and desktop keep the
+   existing hero, tab and list rules. Phones never carry an editor entry point, and nothing relies on hover. */
+
+/* Hero: sized to its content, with room under the floating top bar, instead of one full screen of backdrop. */
+html[data-form-factor="phone"] .tl-detail-page {
+    --cinematic-hero-phone-min-height: 22rem;
+}
+
+html[data-form-factor="phone"] .tl-detail-page .tl-detail-hero .tl-detail-hero__inner {
+    padding: calc(var(--app-topbar-height, 65px) + 2.5rem) 16px 1.25rem;
+    align-items: flex-end;
+}
+
+html[data-form-factor="phone"] .tl-detail-page .tl-detail-hero .tl-detail-hero__copy {
+    max-width: 100%;
+    transform: none;
+}
+
+html[data-form-factor="phone"] .tl-detail-page .tl-detail-hero .tl-detail-hero__copy h1 {
+    max-width: 100%;
+    font-size: clamp(1.75rem, 8.5vw, 2.6rem);
+    line-height: 1.05;
+    overflow-wrap: anywhere;
+    text-wrap: balance;
+}
+
+/* Fact rows wrap as chips instead of scrolling sideways. */
+html[data-form-factor="phone"] .tl-detail-page .tl-detail-metadata-stack,
+html[data-form-factor="phone"] .tl-detail-page .tl-detail-hero--watch .tl-detail-metadata-stack {
+    width: 100%;
+    max-width: 100%;
+    overflow: visible;
+    justify-items: start;
+}
+
+html[data-form-factor="phone"] .tl-detail-page .tl-detail-metadata-row,
+html[data-form-factor="phone"] .tl-detail-page .tl-detail-watch-metadata-row,
+html[data-form-factor="phone"] .tl-detail-page .tl-detail-watch-metadata-row--facts {
+    width: 100%;
+    max-width: 100%;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    font-size: 0.9rem;
+}
+
+html[data-form-factor="phone"] .tl-detail-page .tl-detail-watch-metadata-separator {
+    display: none;
+}
+
+html[data-form-factor="phone"] .tl-detail-page .tl-detail-watch-metadata-item:not(.tl-detail-watch-metadata-item--classification) {
+    padding: 0.28rem 0.65rem;
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    border-radius: 999px;
+    background: rgba(6, 9, 17, 0.42);
+    white-space: normal;
+}
+
+/* Genre chips keep a 44px tap box; the visible pill is drawn smaller inside it. */
+html[data-form-factor="phone"] .tl-detail-page .tl-detail-hero-genres {
+    flex-wrap: wrap;
+    gap: 0 0.45rem;
+    margin-top: 0.25rem;
+}
+
+html[data-form-factor="phone"] .tl-detail-page .tl-detail-hero-genre {
+    position: relative;
+    isolation: isolate;
+    min-height: var(--tl-tap-target-min, 44px);
+    padding-inline: 0.9rem;
+    border: 0;
+    background: transparent;
+    backdrop-filter: none;
+    box-shadow: none;
+}
+
+html[data-form-factor="phone"] .tl-detail-page .tl-detail-hero-genre::before {
+    content: "";
+    position: absolute;
+    z-index: -1;
+    inset: 0.4rem 0;
+    border: 1px solid color-mix(in srgb, var(--tl-detail-primary, #8852FC) 48%, rgba(255, 255, 255, 0.2));
+    border-radius: 999px;
+    background: rgba(6, 9, 17, 0.42);
+}
+
+/* Actions: one full-width primary button, then a row of 44px round icons with their names underneath. */
+html[data-form-factor="phone"] .tl-detail-page .tl-detail-actions {
+    --media-rate-trigger-size: 44px;
+    flex-direction: column;
+    align-items: stretch;
+    flex-wrap: nowrap;
+    gap: 0.9rem;
+}
+
+html[data-form-factor="phone"] .tl-detail-page .tl-detail-primary-actions {
+    width: 100%;
+}
+
+html[data-form-factor="phone"] .tl-detail-page .tl-detail-actions .tl-detail-action--primary {
+    flex: 1 1 auto;
+    width: 100%;
+    height: 3rem;
+    min-height: 3rem;
+    font-size: var(--tl-font-size-lg);
+}
+
+html[data-form-factor="phone"] .tl-detail-page .tl-detail-actions .tl-detail-action--primary.tl-detail-action--has-progress {
+    height: 3.5rem;
+    min-height: 3.5rem;
+}
+
+html[data-form-factor="phone"] .tl-detail-page .tl-detail-actions .tl-detail-action--primary .tl-icon-root {
+    width: 24px;
+    height: 24px;
+    flex-basis: 24px;
+    font-size: 24px;
+}
+
+html[data-form-factor="phone"] .tl-detail-page .tl-detail-secondary-actions {
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: 0.25rem 1.1rem;
+    padding-bottom: 1.35rem;
+}
+
+html[data-form-factor="phone"] .tl-detail-page .tl-detail-actions .hero-icon-circle,
+html[data-form-factor="phone"] .tl-detail-page .tl-detail-actions .media-rate-control .hero-icon-circle {
+    position: relative;
+    flex: 0 0 var(--tl-tap-target-min, 44px);
+    width: var(--tl-tap-target-min, 44px);
+    height: var(--tl-tap-target-min, 44px);
+    min-width: var(--tl-tap-target-min, 44px);
+    min-height: var(--tl-tap-target-min, 44px);
+}
+
+html[data-form-factor="phone"] .tl-detail-page .tl-detail-actions .hero-icon-circle .playback-utility-glyph {
+    width: 22px;
+    height: 22px;
+}
+
+html[data-form-factor="phone"] .tl-detail-page .tl-detail-actions .hero-icon-circle::after {
+    content: attr(aria-label);
+    position: absolute;
+    top: calc(100% + 0.2rem);
+    left: 50%;
+    max-width: 5.5rem;
+    overflow: hidden;
+    transform: translateX(-50%);
+    color: rgba(255, 255, 255, 0.78);
+    font-size: 0.75rem;
+    font-weight: 500;
+    line-height: 1.3;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    pointer-events: none;
+}
+
+html[data-form-factor="phone"] .tl-detail-page .tl-detail-actions .hero-icon-circle[data-phone-label]::after {
+    content: attr(data-phone-label);
+}
+
+/* The More menu is a bottom sheet on phones. */
+.tl-detail-more-sheet__items {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.tl-detail-more-sheet {
+    --tl-menu-item-height: 48px;
+}
+
+.tl-detail-more-sheet__items {
+    padding: 4px 8px 12px;
+}
+
+.tl-detail-more-sheet__items .app-menu-item {
+    width: 100%;
+    justify-content: flex-start;
+    text-align: left;
+}
+
+/* Section tabs: the strip fades where more tabs wait off-screen, and tabs keep a comfortable minimum width. */
+html[data-form-factor="phone"] .surface-tab-bar__items,
+html[data-touch="true"] .surface-tab-bar__items {
+    overscroll-behavior-x: contain;
+}
+
+/* The touch contract forces min-width on buttons, so the 112px floor comes from the grid track instead. */
+html[data-form-factor="phone"] .surface-tab-bar__items {
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(112px, max-content);
+}
+
+html[data-form-factor="phone"] .surface-tab-bar__items > * {
+    justify-content: center;
+}
+
+html[data-form-factor="phone"] .tl-tab {
+    min-width: 112px;
+}
+
+html[data-form-factor="phone"] .surface-tab-bar__items[data-scroll-more-end="true"],
+html[data-touch="true"] .surface-tab-bar__items[data-scroll-more-end="true"] {
+    mask-image: linear-gradient(to right, #000 calc(100% - 2.5rem), transparent);
+}
+
+html[data-form-factor="phone"] .surface-tab-bar__items[data-scroll-more-start="true"],
+html[data-touch="true"] .surface-tab-bar__items[data-scroll-more-start="true"] {
+    mask-image: linear-gradient(to left, #000 calc(100% - 2.5rem), transparent);
+}
+
+html[data-form-factor="phone"] .surface-tab-bar__items[data-scroll-more-start="true"][data-scroll-more-end="true"],
+html[data-touch="true"] .surface-tab-bar__items[data-scroll-more-start="true"][data-scroll-more-end="true"] {
+    mask-image: linear-gradient(to right, transparent, #000 2.5rem, #000 calc(100% - 2.5rem), transparent);
+}
+
+/* Details page, phone pass: the episode and sequence panel, credits, people and lists. */
+html[data-form-factor="phone"] .tl-detail-page .tl-detail-stage--primary-before-navigation .tl-detail-primary-module--embedded,
+html[data-form-factor="phone"] .tl-detail-page .tl-detail-primary-module {
+    width: 100%;
+    margin-inline: 0;
+}
+
+html[data-form-factor="phone"] .tl-detail-page .tl-detail-primary-module__viewport {
+    width: 100%;
+    margin-inline: 0;
+}
+
+html[data-form-factor="phone"] .tl-detail-page .tl-series-detail,
+html[data-form-factor="phone"] .tl-detail-page .tl-series-placement {
+    width: 100%;
+    margin-inline: 0;
+    padding-inline: 16px;
+}
+
+/* Controls stack: the season picker is a 44px-tall full-width row, then the jump select below it. */
+html[data-form-factor="phone"] .tl-detail-page .tl-series-detail__controls {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.75rem;
+}
+
+html[data-form-factor="phone"] .tl-detail-page .tl-series-detail__selectors,
+html[data-form-factor="phone"] .tl-detail-page .tl-series-detail .tl-series-detail__control--group,
+html[data-form-factor="phone"] .tl-detail-page .tl-series-detail .tl-series-detail__control--container {
+    flex: 0 0 auto;
+    width: 100%;
+    min-width: 0;
+}
+
+html[data-form-factor="phone"] .tl-detail-page .tl-series-detail .tl-season-toggle {
+    width: 100%;
+    min-height: var(--tl-tap-target-min, 44px);
+    height: auto;
+    justify-content: space-between;
+}
+
+html[data-form-factor="phone"] .tl-detail-page .tl-series-detail .tl-season-toggle__art {
+    width: 2rem;
+    height: 2rem;
+    flex: 0 0 2rem;
+}
+
+html[data-form-factor="phone"] .tl-detail-page .tl-series-detail .tl-season-toggle__art img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+html[data-form-factor="phone"] .tl-detail-page .tl-series-detail .tl-season-toggle__label {
+    flex: 1 1 auto;
+    text-align: left;
+}
+
+html[data-form-factor="phone"] .tl-detail-page .tl-series-detail__jump {
+    flex-direction: column;
+    align-items: stretch;
+    width: 100%;
+    gap: 0.35rem;
+}
+
+html[data-form-factor="phone"] .tl-detail-page .tl-series-detail__jump .app-field,
+html[data-form-factor="phone"] .tl-detail-page .tl-series-detail__jump .tl-select,
+html[data-form-factor="phone"] .tl-detail-page .tl-series-detail__select {
+    width: 100%;
+    min-width: 0;
+}
+
+html[data-form-factor="phone"] .tl-detail-page .tl-series-detail__jump .tl-select {
+    min-height: var(--tl-tap-target-min, 44px);
+}
+
+/* The episode rail swipes: no arrow buttons, cards sized like Home's landscape shelf cards so the next one peeks. */
+html[data-form-factor="phone"] .tl-detail-page .tl-series-detail .tl-series-detail__carousel {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0;
+}
+
+html[data-form-factor="phone"] .tl-detail-page .tl-series-detail .tl-series-detail__carousel > .playback-tooltip-owner,
+html[data-form-factor="phone"] .tl-detail-page .tl-series-detail .tl-series-carousel__arrow {
+    display: none;
+}
+
+html[data-form-factor="phone"] .tl-detail-page .tl-series-detail {
+    height: auto;
+    grid-template-rows: none;
+}
+
+html[data-form-factor="phone"] .tl-detail-page .tl-series-detail .tl-series-detail__carousel {
+    overflow: visible;
+}
+
+html[data-form-factor="phone"] .tl-detail-page .tl-series-detail .tl-series-item {
+    max-height: none;
+}
+
+/* The art row takes its own height (it was squeezed into a one-line row meant for a caption). */
+html[data-form-factor="phone"] .tl-detail-page .tl-series-detail.tl-series-panel--landscape .tl-series-item,
+html[data-form-factor="phone"] .tl-detail-page .tl-series-detail.tl-series-panel--portrait .tl-series-item {
+    grid-template-rows: auto;
+}
+
+html[data-form-factor="phone"] .tl-detail-page .tl-series-detail.tl-series-panel--landscape .tl-series-detail__strip,
+html[data-form-factor="phone"] .tl-detail-page .tl-series-detail.tl-series-panel--portrait .tl-series-detail__strip {
+    grid-column: 1;
+    height: auto;
+    width: auto;
+    margin-inline: -16px;
+    padding-inline: 16px;
+    scroll-padding-inline: 16px;
+    scroll-snap-type: x proximity;
+}
+
+html[data-form-factor="phone"] .tl-detail-page .tl-series-detail.tl-series-panel--landscape .tl-series-detail__strip {
+    grid-auto-columns: min(86vw, 320px);
+    gap: 0.75rem;
+}
+
+html[data-form-factor="phone"] .tl-detail-page .tl-series-detail.tl-series-panel--landscape .tl-series-item {
+    min-width: 0;
+    scroll-snap-align: start;
+}
+
+/* Footer: pager, ownership counts and the show-missing control stack and wrap. */
+html[data-form-factor="phone"] .tl-detail-page .tl-series-detail__footer-utilities,
+html[data-form-factor="phone"] .tl-detail-page .tl-series-detail__missing,
+html[data-form-factor="phone"] .tl-detail-page .tl-series-detail__pager {
+    flex-wrap: wrap;
+    width: 100%;
+    margin-left: 0;
+}
+
+html[data-form-factor="phone"] .tl-detail-page .tl-series-detail__footer-utilities {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.5rem;
+}
+
+/* Older placement layout: rows wrap and nothing keeps a desktop minimum width. */
+html[data-form-factor="phone"] .tl-detail-page .tl-series-placement .tl-series-item,
+html[data-form-factor="phone"] .tl-detail-page .tl-series-placement.tl-series-panel--landscape .tl-series-item {
+    min-width: 0;
+    width: 100%;
+}
+
+html[data-form-factor="phone"] .tl-detail-page .tl-series-placement .tl-series-control-row,
+html[data-form-factor="phone"] .tl-detail-page .tl-series-placement .tl-series-missing-preference,
+html[data-form-factor="phone"] .tl-detail-page .tl-series-placement .tl-series-default-control {
+    flex-wrap: wrap;
+    min-width: 0;
+    white-space: normal;
+}
+
+html[data-form-factor="phone"] .tl-detail-page .tl-series-placement .tl-series-default-control small,
+html[data-form-factor="phone"] .tl-detail-page .tl-series-placement .tl-series-show-missing,
+html[data-form-factor="phone"] .tl-detail-page .tl-series-placement .tl-series-default-action {
+    white-space: normal;
+}
+
+html[data-form-factor="phone"] .tl-detail-page .tl-series-placement .tl-series-carousel__arrow,
+html[data-form-factor="phone"] .tl-detail-page .tl-series-placement .tl-series-default-action {
+    min-width: var(--tl-tap-target-min, 44px);
+    min-height: var(--tl-tap-target-min, 44px);
+}
+
+/* Credits and people: one column of credit groups, compact square people two to a row. */
+html[data-form-factor="phone"] .tl-detail-page .tl-media-overview-credits-list--video,
+html[data-form-factor="phone"] .tl-detail-page .tl-media-overview-credits-list--bookish {
+    grid-template-columns: minmax(0, 1fr);
+}
+
+html[data-form-factor="phone"] .tl-detail-page .tl-overview-credit-rows,
+html[data-form-factor="phone"] .tl-detail-page .tl-credit-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.75rem;
+}
+
+html[data-form-factor="phone"] .tl-detail-page .tl-overview-credit-rows .tl-credit-card--compact,
+html[data-form-factor="phone"] .tl-detail-page .tl-overview-credit-rows .tl-credit-card--compact:first-child {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    width: 100%;
+    max-width: none;
+}
+
+html[data-form-factor="phone"] .tl-detail-page .tl-source-link {
+    display: inline-flex;
+    align-items: center;
+    min-height: var(--tl-tap-target-min, 44px);
+}
+
+/* Lists: a narrower number column in the child list and a 44px chip row in Related. */
+html[data-form-factor="phone"] .tl-detail-page .tl-child-card {
+    grid-template-columns: 3rem minmax(0, 1fr);
+    gap: 0.75rem;
+}
+
+/* Details page, phone pass: track lists fit the screen as two-line rows instead of a sideways-scrolling table. */
+html[data-form-factor="phone"] .tl-detail-page .tl-embedded-audio {
+    height: auto;
+    max-height: none;
+}
+
+html[data-form-factor="phone"] .tl-detail-page .tl-embedded-audio__table {
+    width: 100%;
+    min-width: 0;
+}
+
+html[data-form-factor="phone"] .tl-detail-page .tl-embedded-audio__row {
+    grid-template-columns: 44px minmax(0, 1fr) auto 44px;
+    grid-template-areas:
+        "ordinal title duration actions"
+        "ordinal status status actions";
+    align-items: center;
+    column-gap: 0.5rem;
+    min-height: 56px;
+    padding-inline: 0;
+}
+
+html[data-form-factor="phone"] .tl-detail-page .tl-embedded-audio__ordinal {
+    grid-area: ordinal;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-width: 0;
+}
+
+html[data-form-factor="phone"] .tl-detail-page .tl-embedded-audio__ordinal > span:not([class]) {
+    position: static;
+    font-size: 0.75rem;
+    line-height: 1;
+    opacity: 0.7;
+}
+
+html[data-form-factor="phone"] .tl-detail-page .tl-embedded-audio__title {
+    grid-area: title;
+    min-width: 0;
+}
+
+html[data-form-factor="phone"] .tl-detail-page .tl-embedded-audio__duration {
+    grid-area: duration;
+    min-width: 0;
+}
+
+html[data-form-factor="phone"] .tl-detail-page .tl-embedded-audio__status {
+    grid-area: status;
+    justify-self: start;
+    min-width: 0;
+}
+
+html[data-form-factor="phone"] .tl-detail-page .tl-embedded-audio__row > .playback-tooltip-owner {
+    grid-area: actions;
+    justify-self: center;
+}
+
+/* Check boxes keep a 44px tap box: the real input covers the whole label and a drawn box shows the state. */
+html[data-form-factor="phone"] .tl-detail-page .tl-embedded-audio__missing,
+html[data-form-factor="phone"] .tl-detail-page .tl-detail-track-toggle {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    min-height: var(--tl-tap-target-min, 44px);
+}
+
+html[data-form-factor="phone"] .tl-detail-page .tl-embedded-audio__missing input[type="checkbox"],
+html[data-form-factor="phone"] .tl-detail-page .tl-detail-track-toggle input[type="checkbox"] {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    opacity: 0;
+}
+
+html[data-form-factor="phone"] .tl-detail-page .tl-embedded-audio__missing span::before,
+html[data-form-factor="phone"] .tl-detail-page .tl-detail-track-toggle span::before {
+    content: "";
+    display: inline-block;
+    width: 18px;
+    height: 18px;
+    margin-right: 0.5rem;
+    border: 2px solid rgba(255, 255, 255, 0.55);
+    border-radius: 4px;
+    vertical-align: -4px;
+}
+
+html[data-form-factor="phone"] .tl-detail-page .tl-embedded-audio__missing input:checked + span::before,
+html[data-form-factor="phone"] .tl-detail-page .tl-detail-track-toggle input:checked + span::before {
+    border-color: var(--tl-accent-primary);
+    background: var(--tl-accent-primary);
+}
+
+html[data-form-factor="phone"] .tl-detail-page .tl-embedded-audio__missing input:focus-visible + span::before,
+html[data-form-factor="phone"] .tl-detail-page .tl-detail-track-toggle input:focus-visible + span::before {
+    outline: 2px solid var(--tl-accent-primary);
+    outline-offset: 2px;
+}
+
+/* The queue button's size is forced in AudioItemTable's own styles, so phones raise it through this value. */
+html[data-form-factor="phone"] .tl-detail-page {
+    --tl-embedded-audio-more-size: var(--tl-tap-target-min, 44px);
+}
+
+/* Works, tracks and collection rails (person, universe, album): the same peek sizing as Home's shelves. */
+html[data-form-factor="phone"] .tl-detail-page .tl-detail-primary-module__rail {
+    gap: 12px;
+    padding-inline: 16px;
+    scroll-padding-inline: 16px;
+}
+
+html[data-form-factor="phone"] .tl-detail-page .tl-detail-primary-module__rail .tl-detail-primary-module__item--portrait {
+    width: calc((100vw - 32px) / 2.6);
+}
+
+html[data-form-factor="phone"] .tl-detail-page .tl-detail-primary-module__rail .tl-detail-primary-module__item--square {
+    width: calc((100vw - 32px) / 2.4);
+}
+
+html[data-form-factor="phone"] .tl-detail-page .tl-detail-primary-module__rail .tl-detail-primary-module__item--wide {
+    width: min(86vw, 320px);
+}
