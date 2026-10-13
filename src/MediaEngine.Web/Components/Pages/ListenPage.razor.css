@@ -834,6 +834,7 @@
 
 .listen-artists__list-body {
     max-height: calc(100vh - 250px);
+    max-height: calc(100dvh - 250px);
     overflow: auto;
     padding-right: 4px;
 }

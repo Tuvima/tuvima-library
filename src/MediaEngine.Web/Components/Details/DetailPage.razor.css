@@ -1,5 +1,6 @@
 .tl-detail-page {
     min-height: 100vh;
+    min-height: 100dvh;
     background:
         radial-gradient(circle at 80% 8%, rgba(71, 53, 122, 0.26), transparent 30rem),
         radial-gradient(circle at 12% 20%, rgba(194, 135, 48, 0.18), transparent 24rem),

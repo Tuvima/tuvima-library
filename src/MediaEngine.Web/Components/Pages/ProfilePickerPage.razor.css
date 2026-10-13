@@ -1,4 +1,4 @@
-.who-page { display: grid; justify-items: center; align-content: center; gap: clamp(20px, 4vh, 36px); min-height: 100svh; box-sizing: border-box; padding: 32px 16px; text-align: center; }
+.who-page { display: grid; justify-items: center; align-content: center; gap: clamp(20px, 4vh, 36px); min-height: 100svh; box-sizing: border-box; padding: max(32px, var(--tl-safe-area-top)) max(16px, var(--tl-safe-area-right)) max(32px, var(--tl-safe-area-bottom)) max(16px, var(--tl-safe-area-left)); text-align: center; }
 .who-page__title { margin: 0; font-size: clamp(1.7rem, 4vw, 2.6rem); font-weight: 700; }
 .who-page__status { margin: 0; color: var(--tl-text-muted); }
 .who-page__error { margin: 0; color: var(--tl-danger, #ff6b6b); }

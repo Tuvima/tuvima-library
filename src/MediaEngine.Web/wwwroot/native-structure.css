@@ -96,7 +96,7 @@ strong,b { font-weight:700; }
 .tl-list-item-button:hover { background:rgba(255,255,255,.04); }
 .tl-list-dense .tl-list-item,.tl-list-dense .tl-list-item-button { padding-block:4px; }
 .tl-chart { display:block;overflow:visible; }
-.tl-layout { position:relative;min-height:100vh; }
+.tl-layout { position:relative;min-height:100vh;min-height:100dvh; }
 .tl-appbar { width:100%;display:flex;z-index:var(--tl-zindex-appbar,1300);position:relative;box-sizing:border-box;flex-shrink:0;flex-direction:column;color:var(--tl-palette-appbar-text,var(--tl-text-primary,#f5f7fb));background-color:var(--tl-palette-appbar-background,var(--app-surface,#0b1020));transition:margin 225ms cubic-bezier(0,0,.2,1) 0ms,width 225ms cubic-bezier(0,0,.2,1) 0ms; }
 .tl-appbar.tl-appbar-fixed-top { position:fixed;top:0;right:0;left:0; }
 .tl-toolbar { display:flex;position:relative;align-items:center;min-height:64px;padding-inline:16px; }

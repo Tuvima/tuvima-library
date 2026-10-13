@@ -1,6 +1,7 @@
 .app-bg {
     background: var(--app-bg, #17181e);
     min-height: 100vh;
+    min-height: 100dvh;
 }
 
 /* The audio dock is a real row of the application viewport. Content scrolls

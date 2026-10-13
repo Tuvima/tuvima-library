@@ -74,7 +74,7 @@
 .see-category:hover, .see-category:focus-visible { border-color: var(--app-accent, #8852FC); outline: none; }
 .see-category.is-active { border-color: var(--app-accent, #8852FC); background: color-mix(in srgb, var(--app-accent, #8852FC) 18%, transparent); }
 
-.see-selector-popover { position: fixed; z-index: 1500; width: min(27.5rem, calc(100vw - 1.5rem)); max-width: calc(100vw - 1.5rem); max-height: min(23rem, calc(100vh - 1.5rem)); overflow: auto; margin: 0; padding: .85rem; border: 1px solid rgba(255,255,255,.14); border-radius: .8rem; background: var(--app-surface, #201c29); box-shadow: 0 1rem 2.4rem rgba(0,0,0,.35); }
+.see-selector-popover { position: fixed; z-index: 1500; width: min(27.5rem, calc(100vw - 1.5rem)); max-width: calc(100vw - 1.5rem); max-height: min(23rem, calc(100vh - 1.5rem)); max-height: min(23rem, calc(100dvh - 1.5rem)); overflow: auto; margin: 0; padding: .85rem; border: 1px solid rgba(255,255,255,.14); border-radius: .8rem; background: var(--app-surface, #201c29); box-shadow: 0 1rem 2.4rem rgba(0,0,0,.35); }
 .see-selector-popover:focus-visible { outline: 2px solid var(--app-accent, #8852FC); outline-offset: 2px; }
 .see-popover-heading { display: flex; align-items: center; justify-content: space-between; margin-bottom: .5rem; }
 .see-popover-heading button { border: 0; background: transparent; color: inherit; cursor: pointer; font: inherit; font-size: 1.3rem; }
