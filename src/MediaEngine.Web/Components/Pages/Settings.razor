@@ -79,7 +79,7 @@ else
 
         <SidebarPageHeader Eyebrow="@GetHeroEyebrow()"
                            Title="@GetHeroTitle()"
-                           Subtitle="@GetSectionDescription(_activeSection)" />
+                           Subtitle="@(IsEditingOtherPlaybackProfile ? null : GetSectionDescription(_activeSection))" />
 
         <div @key="DeviceContext.DeviceClass" class="@PageCanvasClass">
             <AdministratorSurfaceGate Required="@(_profileRoleLoaded && SettingsNav.GetItem(_activeSection).AdminOnly)">
@@ -125,9 +125,16 @@ else
                             <OverviewTab ReviewCount="_reviewCount" Subsection="@_activeSubsection" />
                             break;
                         case SettingsSection.Playback:
+                            <PlaybackSettingsPage @key="@PlaybackProfileId"
+                                                  Mode="PlaybackSettingsMode.Watching"
+                                                  ProfileId="@PlaybackProfileId"
+                                                  TargetNameChanged="OnPlaybackTargetNameChanged" />
+                            break;
                         case SettingsSection.Listening:
+                            <PlaybackSettingsPage Mode="PlaybackSettingsMode.Listening" />
+                            break;
                         case SettingsSection.Reading:
-                            <PlaybackTab />
+                            <PlaybackSettingsPage Mode="PlaybackSettingsMode.Reading" />
                             break;
                         case SettingsSection.Privacy:
                             <PrivacyHistoryTab Subsection="@_activeSubsection" />
@@ -199,6 +206,17 @@ else
     [SupplyParameterFromQuery(Name = "runId")] public Guid? IngestionRunId { get; set; }
     [SupplyParameterFromQuery(Name = "review")] public string? ReviewState { get; set; }
     [SupplyParameterFromQuery(Name = "q")] public string? RecentSearch { get; set; }
+    [SupplyParameterFromQuery(Name = "profile")] public Guid? PlaybackProfileId { get; set; }
+    private string? _playbackTargetName;
+    private void OnPlaybackTargetNameChanged(string? name)
+    {
+        _playbackTargetName = name;
+        StateHasChanged();
+    }
+
+    /// <summary>An administrator is editing another household profile's playback settings.</summary>
+    private bool IsEditingOtherPlaybackProfile => _activeSection == SettingsSection.Playback
+        && PlaybackProfileId is { } id && id != Guid.Empty && id != _activeProfile?.Id;
 
     private SettingsSection _activeSection = SettingsSection.Profiles;
     private string _activeSubsection = string.Empty;
@@ -651,6 +669,14 @@ else
         {
             new("Settings", SettingsNav.RouteFor(SettingsSection.Profiles)),
         };
+
+        if (IsEditingOtherPlaybackProfile)
+        {
+            breadcrumbs.Add(new SettingsBreadcrumb("Profiles", SettingsNav.RouteFor(SettingsSection.Profiles)));
+            breadcrumbs.Add(new SettingsBreadcrumb(_playbackTargetName ?? "Profile", $"/settings/profiles/{PlaybackProfileId}"));
+            breadcrumbs.Add(new SettingsBreadcrumb("Playback", null));
+            return breadcrumbs;
+        }
 
         breadcrumbs.Add(new SettingsBreadcrumb(
             CurrentGroup.Label,

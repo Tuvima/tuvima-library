@@ -796,14 +796,12 @@ public sealed class UiShellRenderTests : AsyncBunitContext
         {
             Assert.Empty(cut.FindAll(".tl-tabs"));
             Assert.Empty(cut.FindAll(".settings-subsection-nav"));
-            Assert.True(cut.FindAll(".playback-settings-card").Count >= 5);
+            Assert.Equal(3, cut.FindAll(".playback-settings-card").Count);
             Assert.NotEmpty(cut.FindAll(".settings-section-header"));
             Assert.NotEmpty(cut.FindAll(".playback-preference-row"));
-            Assert.Contains("Resume &amp; Progress", cut.Markup);
-            Assert.Contains("Watching", cut.Markup);
-            Assert.Contains("Listening", cut.Markup);
-            Assert.Contains("Reading", cut.Markup);
-            Assert.Contains("Subtitles &amp; Languages", cut.Markup);
+            Assert.Contains("Autoplay", cut.Markup);
+            Assert.Contains("Resume", cut.Markup);
+            Assert.DoesNotContain("Subtitles &amp; Languages", cut.Markup);
             Assert.DoesNotContain("Theme", cut.Markup);
             Assert.DoesNotContain("Sleep timer", cut.Markup);
             Assert.DoesNotContain("Preferred quality", cut.Markup);
@@ -820,7 +818,7 @@ public sealed class UiShellRenderTests : AsyncBunitContext
     }
 
     [Fact]
-    public void PlaybackTab_RendersOneUsefulPageWithoutSubsectionRouting()
+    public void PlaybackSettingsPage_RendersOneWatchingPageWithoutSubsectionRouting()
     {
         var cut = Render(builder =>
         {
@@ -830,17 +828,18 @@ public sealed class UiShellRenderTests : AsyncBunitContext
             builder.CloseComponent();
             builder.OpenComponent<AppToastHost>(2);
             builder.CloseComponent();
-            builder.OpenComponent<PlaybackTab>(3);
+            builder.OpenComponent<PlaybackSettingsPage>(3);
             builder.CloseComponent();
         });
 
         cut.WaitForAssertion(() =>
         {
             Assert.Equal("overview", cut.Find(".settings-playback-page").GetAttribute("data-playback-section"));
-            Assert.Contains("Default playback speed", cut.Markup);
-            Assert.Contains("Audiobook default speed", cut.Markup);
-            Assert.Contains("Adjust text while reading", cut.Markup);
-            Assert.Contains("Choose tracks in the player", cut.Markup);
+            Assert.Contains("Autoplay next episode", cut.Markup);
+            Assert.DoesNotContain("Default playback speed", cut.Markup);
+            Assert.DoesNotContain("Audiobook default speed", cut.Markup);
+            Assert.DoesNotContain("Adjust text while reading", cut.Markup);
+            Assert.DoesNotContain("Choose tracks in the player", cut.Markup);
         });
     }
 
@@ -850,16 +849,16 @@ public sealed class UiShellRenderTests : AsyncBunitContext
         var pending = new TaskCompletionSource<UserPlaybackSettingsDto?>();
         var stub = (EngineApiClientStub)(object)Services.GetRequiredService<IEngineApiClient>();
         stub.SetHandler(nameof(IEngineApiClient.GetPlaybackSettingsAsync), _ => pending.Task);
-        var cut = Render<PlaybackTab>();
+        var cut = Render<PlaybackSettingsPage>();
         Assert.Equal("width:;height:220px", cut.Find(".app-skeleton").GetAttribute("style"));
         pending.SetResult(null);
         cut.WaitForAssertion(() => Assert.Empty(cut.FindAll(".app-skeleton")));
     }
 
     [Fact]
-    public void PlaybackTab_UsesSharedControlsAndRealApiSavePath()
+    public void PlaybackSettingsPage_UsesSharedControlsAndRealApiSavePath()
     {
-        var source = File.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "Components", "Settings", "PlaybackTab.razor"));
+        var source = File.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "Components", "Settings", "PlaybackSettingsPage.razor"));
 
         Assert.DoesNotContain("<AppTabs", source);
         Assert.DoesNotContain("settings-playback-tabs", source);
@@ -868,7 +867,7 @@ public sealed class UiShellRenderTests : AsyncBunitContext
         Assert.DoesNotContain("settings-field--compact", source);
         Assert.Contains("playback-preference-row", source);
         Assert.Contains("UpdateAndSaveAsync", source);
-        Assert.Contains("Default playback speed", source);
+        Assert.DoesNotContain("Default playback speed", source);
         Assert.Contains("Audiobook default speed", source);
         Assert.DoesNotContain("DetectShortIntroChapters", source);
         Assert.DoesNotContain("ShortIntroMaxSeconds", source);

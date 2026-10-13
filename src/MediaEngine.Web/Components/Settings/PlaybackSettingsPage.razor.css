@@ -54,6 +54,28 @@
     min-width: 150px;
 }
 
+.playback-profile-heading {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-bottom: 18px;
+}
+
+.playback-profile-heading__avatar {
+    display: inline-flex;
+    width: 40px;
+    height: 40px;
+}
+
+.playback-profile-heading__back {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    margin-left: auto;
+    color: var(--tl-text-secondary);
+}
+
 .playback-guidance {
     display: grid;
     grid-template-columns: auto minmax(0, 1fr);

@@ -157,7 +157,7 @@
                 <div class="video-playback-host__end-card-content">
                     @if (MediaTileArtworkUrl.Sized(nextEpisode.StillUrl, "s") is { } still) { <img src="@still" srcset="@VideoContextPanel.EpisodeArtworkSrcSet(nextEpisode)" width="112" height="63" sizes="112px" data-artwork-purpose="episode-still" alt="" /> }
                     else { <span class="video-playback-host__end-card-placeholder" aria-hidden="true"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Movie" /></span> }
-                    <span><strong>@nextEpisode.Title</strong><span role="status">Starts in @((int)Math.Ceiling(_endCard.RemainingSeconds)) seconds</span></span>
+                    <span><strong>@nextEpisode.Title</strong>@if (_endCard.AutoAdvance) { <span role="status">Starts in @((int)Math.Ceiling(_endCard.RemainingSeconds)) seconds</span> }</span>
                 </div>
                 <div class="video-playback-host__end-card-actions">
                     <AppTooltip Text="Play next episode now"><AppNativeButton Class="video-playback-host__icon" AriaLabel="Play next episode now" OnClick="AdvanceCurrentVideoAsync"><AppMaterialIcon Icon="@AppMaterialIcons.Filled.PlayArrow" /></AppNativeButton></AppTooltip>
@@ -619,7 +619,8 @@
         return AdvanceVideoAsync(new(profileId, workId, assetId, requestVersion));
     }
 
-    private void ObserveEndCard() => _endCard.Observe(VideoPlaybackIdentity.Capture(Playback), EligibleNextEpisode?.WorkId,
+    private void ObserveEndCard() { _endCard.AutoAdvance = Playback.AutoplayNextEpisode; ObserveEndCardCore(); }
+    private void ObserveEndCardCore() => _endCard.Observe(VideoPlaybackIdentity.Capture(Playback), EligibleNextEpisode?.WorkId,
         Playback.CurrentTimeSeconds, Playback.DurationSeconds, Playback.CurrentManifest?.Segments ?? []);
     [JSInvokable] public async Task HandleEndCardTick(Guid profileId, Guid workId, Guid assetId, long requestVersion, double elapsedSeconds)
     {
@@ -629,10 +630,10 @@
         if (!_disposed) await InvokeAsync(StateHasChanged);
     }
     private Task AdvanceCurrentVideoAsync() => VideoPlaybackIdentity.Capture(Playback) is { } identity
-        ? AdvanceVideoAsync(identity) : Task.CompletedTask;
-    private async Task AdvanceVideoAsync(VideoPlaybackIdentity identity)
+        ? AdvanceVideoAsync(identity, userRequested: true) : Task.CompletedTask;
+    private async Task AdvanceVideoAsync(VideoPlaybackIdentity identity, bool userRequested = false)
     {
-        if (!await Playback.CompleteVideoOnceAsync(identity) && identity.IsCurrent(Playback))
+        if (!await Playback.CompleteVideoOnceAsync(identity, userRequested: userRequested) && identity.IsCurrent(Playback))
         {
             if (_presentationContext is not null) _presentationContext = _presentationContext with { NextEpisode = null };
             ObserveEndCard();

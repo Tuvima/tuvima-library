@@ -20,12 +20,16 @@ public sealed class PersonalSettingsSimplificationTests
     [Fact]
     public void PlaybackPage_OnlySurfacesRuntimeBackedGlobalDefaults()
     {
-        var source = ReadRepoFile("src", "MediaEngine.Web", "Components", "Settings", "PlaybackTab.razor");
+        var source = ReadRepoFile("src", "MediaEngine.Web", "Components", "Settings", "PlaybackSettingsPage.razor");
 
-        Assert.Contains("Resume & Progress", source, StringComparison.Ordinal);
-        Assert.Contains("Default playback speed", source, StringComparison.Ordinal);
+        Assert.Contains("Autoplay next episode", source, StringComparison.Ordinal);
+        Assert.Contains("Resume where you left off", source, StringComparison.Ordinal);
+        Assert.Contains("Skip back", source, StringComparison.Ordinal);
+        Assert.Contains("Skip forward", source, StringComparison.Ordinal);
         Assert.Contains("Audiobook default speed", source, StringComparison.Ordinal);
         Assert.Contains("Resume rewind", source, StringComparison.Ordinal);
+        Assert.DoesNotContain("Default playback speed", source, StringComparison.Ordinal);
+        Assert.DoesNotContain("Choose tracks in the player", source, StringComparison.Ordinal);
         Assert.DoesNotContain("Theme", source, StringComparison.Ordinal);
         Assert.DoesNotContain("DefaultSleepTimer", source, StringComparison.Ordinal);
         Assert.DoesNotContain("PreferredVideoQuality", source, StringComparison.Ordinal);
