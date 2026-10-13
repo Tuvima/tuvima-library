@@ -185,6 +185,38 @@
             </AppTable>
         </AppCard>
 
+        <AppCard Title="Phone primitives" Description="Bottom-sheet dialog, cards-mode table, and row menu. Resize below 600px to see the phone forms.">
+            <div class="design-system-preview__row">
+                <AppButton Label="Open sheet dialog" OnClick="@(() => _sheetOpen = true)" />
+            </div>
+            <AppDialog Visible="_sheetOpen" Title="Sheet dialog" Options="@SheetDialogOptions" OnClose="@(() => _sheetOpen = false)">
+                <p>On a phone this slides up from the bottom edge, scrolls inside, and closes on a backdrop tap, Escape, or a swipe down on the grip. On tablets and desktops it stays a centred dialog.</p>
+            </AppDialog>
+            <AppTable CardsOn="AppTableCardsMode.Phone" Hover="true">
+                <thead>
+                    <tr>
+                        <th data-card-role="title">Title</th>
+                        <th data-card-role="subtitle">Format</th>
+                        <th data-card-role="value">Size</th>
+                        <th data-card-role="actions"><span class="sr-only">Actions</span></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var row in PhoneTableRows)
+                    {
+                        <tr @key="row.Title">
+                            <td data-card-role="title">@row.Title</td>
+                            <td data-card-role="subtitle">@row.Format</td>
+                            <td data-card-role="value">@row.Size</td>
+                            <td data-card-role="actions">
+                                <AppRowMenu AriaLabel="@($"Actions for {row.Title}")" Title="@row.Title" Items="@RowMenuItems" />
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </AppTable>
+        </AppCard>
+
         <AppCard Title="Media And Provider Primitives" Description="Reusable artwork, provider logo, and avatar sizing.">
             <div class="design-system-preview__row">
                 @foreach (var size in Sizes)
@@ -226,6 +258,24 @@
 
 @code {
     private string _seriesSet = "complete";
+    private bool _sheetOpen;
+    private static readonly AppDialogOptions SheetDialogOptions = new() { NoHeader = true, MaxWidth = AppMaxWidth.Small, FullWidth = true, CloseOnEscapeKey = true, BackdropClick = true, Sheet = AppDialogSheetMode.Phone };
+    private static readonly IReadOnlyList<PhoneTableRow> PhoneTableRows =
+    [
+        new("Dune", "EPUB", "2.4 MB"),
+        new("The Left Hand of Darkness", "M4B audiobook", "612 MB"),
+        new("Arrival", "MKV · 4K HDR", "38.2 GB"),
+        new("Kind of Blue", "FLAC album", "310 MB"),
+        new("Saga, Volume One", "CBZ", "148 MB"),
+    ];
+    private static readonly IReadOnlyList<AppRowMenuItem> RowMenuItems =
+    [
+        new() { Label = "Open details", Icon = AppMaterialIcons.Outlined.Info },
+        new() { Label = "Add to a series", Icon = AppMaterialIcons.Outlined.Add },
+        new() { Label = "Unavailable action", Icon = AppMaterialIcons.Outlined.Block, Disabled = true },
+        new() { Label = "Remove from library", Icon = AppMaterialIcons.Outlined.Delete, Destructive = true },
+    ];
+    private sealed record PhoneTableRow(string Title, string Format, string Size);
     private static readonly IReadOnlyList<AppSelectOption> SeriesSetOptions = [
         new("complete", "The Complete Coastal Chronicles: Main Sequence, Collected Stories, and Illustrated Companion Volumes"),
         new("main", "Main sequence")

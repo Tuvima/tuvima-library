@@ -1,0 +1,94 @@
+@namespace MediaEngine.Web.Components.Shared
+@using MediaEngine.Web.Services.Theming
+@using MediaEngine.Web.Services.Ui
+@implements IDisposable
+@inject DeviceContextService DeviceContext
+
+@* Row actions without hover or drag: a "more" button that opens a bottom sheet on phones and the shared
+   overflow popover everywhere else. Supply Items, ChildContent (AppMenuItem), or both. *@
+@if (DeviceContext.IsPhone)
+{
+    <button type="button"
+            class="@PhoneTriggerClass"
+            aria-label="@AriaLabel"
+            aria-haspopup="dialog"
+            aria-expanded="@(_open ? "true" : "false")"
+            @onclick="OpenAsync">
+        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.MoreVert" />
+    </button>
+    @if (_open)
+    {
+        <AppDialogFrame Open="true" Title="@Title" DialogOptions="SheetOptions" Class="app-row-menu__sheet" OnCancel="CloseAsync">
+            <div class="app-row-menu__items" role="menu" aria-label="@AriaLabel">
+                @foreach (var item in Items)
+                {
+                    <AppMenuItem Label="@item.Label" Icon="@item.Icon" Disabled="@item.Disabled"
+                                 Tone="@ToneFor(item)" OnClick="@SelectCallback(item)" />
+                }
+                @if (ChildContent is not null)
+                {
+                    @* Items passed as ChildContent do not know about the sheet, so a tap on one closes it. The wrapper
+                       has no box (display: contents), so taps between items never reach it. *@
+                    <div class="app-row-menu__extra" @onclick="CloseAsync">@ChildContent</div>
+                }
+            </div>
+        </AppDialogFrame>
+    }
+}
+else
+{
+    <AppOverflowMenu AriaLabel="@AriaLabel" Size="AppControlSize.Normal" TriggerClass="@TriggerClass" Class="@Class">
+        @foreach (var item in Items)
+        {
+            <AppMenuItem Label="@item.Label" Icon="@item.Icon" Disabled="@item.Disabled"
+                         Tone="@ToneFor(item)" OnClick="@item.OnClick" />
+        }
+        @ChildContent
+    </AppOverflowMenu>
+}
+
+@code {
+    private bool _open;
+
+    /// <summary>Accessible name of the "more" button and of the menu.</summary>
+    [Parameter] public string AriaLabel { get; set; } = "More actions";
+    /// <summary>Optional visible heading of the phone sheet.</summary>
+    [Parameter] public string? Title { get; set; }
+    /// <summary>Actions listed in order. Destructive items use the error tone.</summary>
+    [Parameter] public IReadOnlyList<AppRowMenuItem> Items { get; set; } = Array.Empty<AppRowMenuItem>();
+    /// <summary>Extra <see cref="AppMenuItem"/> content rendered after <see cref="Items"/>.</summary>
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+    [Parameter] public string? Class { get; set; }
+
+    // Only rendered inside the DeviceContext.IsPhone branch, so Sheet = Phone always matches the frame's own check.
+    private static readonly AppDialogOptions NoTitleSheet = new() { Sheet = AppDialogSheetMode.Phone, NoHeader = true, BackdropClick = true, CloseOnEscapeKey = true };
+    private static readonly AppDialogOptions TitledSheet = new() { Sheet = AppDialogSheetMode.Phone, BackdropClick = true, CloseOnEscapeKey = true };
+    private AppDialogOptions SheetOptions => string.IsNullOrWhiteSpace(Title) ? NoTitleSheet : TitledSheet;
+    private string TriggerClass => "app-row-menu__trigger";
+    private string PhoneTriggerClass => $"app-overflow-menu__trigger app-overflow-menu__trigger--icon app-row-menu__trigger {Class}".Trim();
+
+    protected override void OnInitialized() => DeviceContext.OnChanged += DeviceChanged;
+    public void Dispose() => DeviceContext.OnChanged -= DeviceChanged;
+    private void DeviceChanged() => _ = InvokeAsync(StateHasChanged);
+
+    private static AppUiTone ToneFor(AppRowMenuItem item) => item.Destructive ? AppUiTone.Error : AppUiTone.Neutral;
+    private Task OpenAsync()
+    {
+        _open = true;
+        return Task.CompletedTask;
+    }
+    private Task CloseAsync()
+    {
+        _open = false;
+        return Task.CompletedTask;
+    }
+
+    private EventCallback SelectCallback(AppRowMenuItem item) => EventCallback.Factory.Create(this, async () =>
+    {
+        // Close the sheet and let it leave the DOM before the action runs, so an action that opens
+        // another dialog is not stacked under a sheet that is still on screen.
+        _open = false;
+        await InvokeAsync(StateHasChanged);
+        await item.OnClick.InvokeAsync();
+    });
+}

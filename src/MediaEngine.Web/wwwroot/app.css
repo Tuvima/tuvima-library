@@ -2369,6 +2369,92 @@ input.app-control.tl-input-slot,
     background: var(--app-hover-overlay);
 }
 
+/* AppTable cards mode (CardsOn). CSS cannot read a header cell's column, so consumers mark the header cell AND
+   every body cell of that column with data-card-role="title|subtitle|value|actions|hidden". Cells with no role
+   stack full width beneath the card (optional data-label prefixes them). The thead stays in the accessibility
+   tree, and AppTable adds explicit table/row/cell roles (tuvimaTableCards in app.js) because display:block
+   and grid can drop native table semantics. */
+:is(html[data-form-factor="phone"] .app-table-shell--cards, html[data-form-factor="tablet"] .app-table-shell--cards-tablet) {
+    padding: 0;
+    overflow: hidden;
+}
+
+:is(html[data-form-factor="phone"] .app-table-shell--cards, html[data-form-factor="tablet"] .app-table-shell--cards-tablet) table,
+:is(html[data-form-factor="phone"] .app-table-shell--cards, html[data-form-factor="tablet"] .app-table-shell--cards-tablet) tbody,
+:is(html[data-form-factor="phone"] .app-table-shell--cards, html[data-form-factor="tablet"] .app-table-shell--cards-tablet) tr,
+:is(html[data-form-factor="phone"] .app-table-shell--cards, html[data-form-factor="tablet"] .app-table-shell--cards-tablet) td {
+    display: block;
+}
+
+:is(html[data-form-factor="phone"] .app-table-shell--cards, html[data-form-factor="tablet"] .app-table-shell--cards-tablet) thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+}
+
+:is(html[data-form-factor="phone"] .app-table-shell--cards, html[data-form-factor="tablet"] .app-table-shell--cards-tablet) tbody tr {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    grid-template-areas:
+        "title value actions"
+        "subtitle value actions";
+    align-items: center;
+    column-gap: var(--tl-space-3);
+    row-gap: 2px;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--tl-border-subtle);
+}
+
+:is(html[data-form-factor="phone"] .app-table-shell--cards, html[data-form-factor="tablet"] .app-table-shell--cards-tablet) tbody tr:last-child {
+    border-bottom: 0;
+}
+
+:is(html[data-form-factor="phone"] .app-table-shell--cards, html[data-form-factor="tablet"] .app-table-shell--cards-tablet) td {
+    min-width: 0;
+    padding: 0;
+    border: 0;
+    overflow-wrap: anywhere;
+}
+
+:is(html[data-form-factor="phone"] .app-table-shell--cards, html[data-form-factor="tablet"] .app-table-shell--cards-tablet) td:empty,
+:is(html[data-form-factor="phone"] .app-table-shell--cards, html[data-form-factor="tablet"] .app-table-shell--cards-tablet) td[data-card-role="hidden"] {
+    display: none;
+}
+
+:is(html[data-form-factor="phone"] .app-table-shell--cards, html[data-form-factor="tablet"] .app-table-shell--cards-tablet) td[data-card-role="title"] {
+    grid-area: title;
+    font-weight: 600;
+}
+
+:is(html[data-form-factor="phone"] .app-table-shell--cards, html[data-form-factor="tablet"] .app-table-shell--cards-tablet) td[data-card-role="subtitle"] {
+    grid-area: subtitle;
+    color: var(--tl-text-muted);
+    font-size: var(--tl-font-size-xs);
+}
+
+:is(html[data-form-factor="phone"] .app-table-shell--cards, html[data-form-factor="tablet"] .app-table-shell--cards-tablet) td[data-card-role="value"] {
+    grid-area: value;
+    justify-self: end;
+    text-align: right;
+}
+
+:is(html[data-form-factor="phone"] .app-table-shell--cards, html[data-form-factor="tablet"] .app-table-shell--cards-tablet) td[data-card-role="actions"] {
+    grid-area: actions;
+    justify-self: end;
+}
+
+:is(html[data-form-factor="phone"] .app-table-shell--cards, html[data-form-factor="tablet"] .app-table-shell--cards-tablet) td:not([data-card-role]) {
+    grid-column: 1 / -1;
+}
+
+:is(html[data-form-factor="phone"] .app-table-shell--cards, html[data-form-factor="tablet"] .app-table-shell--cards-tablet) td[data-label]:not([data-card-role])::before {
+    content: attr(data-label) ": ";
+    color: var(--tl-text-muted);
+}
+
 .app-form--compact {
     gap: var(--tl-space-3);
 }
@@ -3544,6 +3630,7 @@ button.app-menu-item {
     :root:root .tl-embedded-audio__row-play,
     :root:root .tl-select-trigger,
     :root:root .top-nav-account-menu__trigger,
+    :root:root .app-row-menu__trigger,
     :root:root .layout-shell__engine-banner-retry {
         min-width: var(--tl-tap-target-min);
         min-height: var(--tl-tap-target-min);
@@ -3682,6 +3769,26 @@ input[type="reset"],
     padding: 0.4rem 0.68rem !important;
     border-radius: 0.5rem;
     font-size: 0.84rem;
+}
+
+/* AppRowMenu: the trigger takes its 44px size from the shared tap-target contract; phone rows open as 48px items in a bottom sheet. */
+.app-row-menu__trigger.app-overflow-menu__trigger--icon {
+    border-radius: var(--tl-radius-md);
+}
+
+.app-row-menu__sheet {
+    --tl-menu-item-height: 48px;
+}
+
+.app-row-menu__extra {
+    display: contents;
+}
+
+.app-row-menu__items {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 4px 8px 12px;
 }
 
 .app-overflow-menu__trigger--labeled {
