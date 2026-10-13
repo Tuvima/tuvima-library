@@ -133,3 +133,10 @@
 
 .home-discovery-shelves ::deep .media-tile-shelf .media-tile.is-portrait, .home-discovery-shelves ::deep .media-tile-shelf .media-tile.is-square, .home-discovery-shelves ::deep .media-tile-shelf .media-tile.is-landscape { --media-tile-media-height:var(--home-shelf-height); }
 @media(max-width:720px) { .home-discovery-shelves { --home-shelf-height:180px; padding:0 .75rem 1rem; } }
+
+/* Phones: every Home shelf shares one artwork height (about 2.6 portrait cards across) and a 16 px gutter. */
+:root[data-form-factor="phone"] .home-discovery-shelves {
+    --home-shelf-height: calc((100vw - 32px) / 2.6 * 1.5);
+    --phone-shelf-height: var(--home-shelf-height);
+    padding-inline: 16px;
+}

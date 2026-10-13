@@ -304,3 +304,7 @@
         padding-bottom: 48px;
     }
 }
+
+:root[data-form-factor="phone"] .collections-section {
+    --collections-content-gutter: 16px;
+}

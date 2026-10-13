@@ -3656,6 +3656,26 @@ button.app-menu-item {
         align-items: center;
         min-height: var(--tl-tap-target-min);
     }
+
+    /* A short "View all" label is still a full-width tap target. */
+    :root:root .shelf-header__link,
+    :root:root .media-tile-shelf-link {
+        min-width: var(--tl-tap-target-min);
+        justify-content: flex-end;
+    }
+
+    /* Search overlay: the text field and each section's "See all" link. */
+    :root:root .universal-results__section header a {
+        display: inline-flex;
+        align-items: center;
+        justify-content: flex-end;
+        min-width: var(--tl-tap-target-min);
+        min-height: var(--tl-tap-target-min);
+    }
+
+    :root:root .universal-search-overlay__input-shell input {
+        min-height: var(--tl-tap-target-min);
+    }
 }
 
 /* Icon-only buttons that were 25-34px stay compact with a mouse but never drop below 36px. */
