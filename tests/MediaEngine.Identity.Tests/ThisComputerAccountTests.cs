@@ -120,10 +120,23 @@ public sealed class ThisComputerAccountTests : IDisposable
     }
 
     [Fact]
-    public async Task Setup_WithoutAnEmail_IsRefusedAndCreatesNothing()
+    public async Task Setup_WithoutAnEmail_CreatesAThisComputerAccountWithNone()
+    {
+        await _service.BootstrapThisComputerAdministratorAsync(
+            "", "Owner", "device", "Browser", "Dashboard");
+
+        Assert.True(await _service.IsAdministratorConfiguredAsync());
+        var account = Assert.Single(await _accounts.GetAllAsync());
+        Assert.True(account.IsThisComputerOnly);
+        Assert.Null(account.Email);
+        Assert.Null(account.NormalizedEmail);
+    }
+
+    [Fact]
+    public async Task Setup_WithAnEmailThatIsNotAnEmail_IsRefusedAndCreatesNothing()
     {
         await Assert.ThrowsAsync<ArgumentException>(() => _service.BootstrapThisComputerAdministratorAsync(
-            "", "Owner", "device", "Browser", "Dashboard"));
+            "not an email", "Owner", "device", "Browser", "Dashboard"));
 
         Assert.False(await _service.IsAdministratorConfiguredAsync());
     }

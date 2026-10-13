@@ -1031,6 +1031,7 @@ MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.Interc
 
 MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.LinkAccountExternalLoginRequest
   TransactionTicket: System.String | nullability=not-null | accessors=get,init
+  Email: System.String | nullability=nullable | accessors=get,init
 
 MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.LocalLoginRequest
   Email: System.String | nullability=nullable | accessors=get,init
@@ -1164,6 +1165,7 @@ MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.SaveAp
   ExpectedVersion: System.Int64? | nullability=nullable | accessors=get,init
 
 MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.SecureAccountRequest
+  Email: System.String | nullability=nullable | accessors=get,init
   Password: System.String | nullability=nullable | accessors=get,init
   PasskeyCredentialJson: System.String | nullability=nullable | accessors=get,init
   PasskeyState: System.String | nullability=nullable | accessors=get,init

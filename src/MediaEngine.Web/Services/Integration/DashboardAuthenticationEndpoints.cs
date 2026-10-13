@@ -476,6 +476,7 @@ public static class DashboardAuthenticationEndpoints
 
             var result = await identity.SecureAccountAsync(new SecureAccountRequest
             {
+                Email = form["email"].ToString(),
                 Password = password,
                 DeviceId = EnsureDeviceCookie(context),
                 DeviceName = SanitizeDeviceName(context.Request.Headers.UserAgent.ToString()),
@@ -484,9 +485,14 @@ public static class DashboardAuthenticationEndpoints
             if (!result.Succeeded || result.Value is not { } issued)
             {
                 return Results.Content(
-                    SecureAccountFailurePage(result.Failure == DashboardAccessMutationFailure.Validation
-                        ? "Use at least 12 characters, and avoid common passwords or your email address."
-                        : "Your account could not be secured. Nothing has changed. Try again."),
+                    SecureAccountFailurePage(result.Failure switch
+                    {
+                        DashboardAccessMutationFailure.Validation =>
+                            "Check the email address, and use at least 12 characters for the password, avoiding common passwords or your email address.",
+                        DashboardAccessMutationFailure.Conflict =>
+                            "That email is already used, or this account is already secured. Nothing has changed.",
+                        _ => "Your account could not be secured. Nothing has changed. Try again.",
+                    }),
                     "text/html", Encoding.UTF8, StatusCodes.Status400BadRequest);
             }
 

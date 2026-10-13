@@ -261,7 +261,8 @@ public static class AuthenticationEndpoints
                     verified.Subject,
                     verified.Email,
                     verified.DisplayName,
-                    ct).ConfigureAwait(false);
+                    ct,
+                    request.Email).ConfigureAwait(false);
                 return Results.Ok(ProfileContractMapper.ToResponse(linked));
             }
             catch (ArgumentException ex) { return ApiErrors.BadRequest(ex.Message); }
@@ -820,7 +821,7 @@ public static class AuthenticationEndpoints
             // Refuse a weak password before the passkey is saved, so nothing is left behind.
             try
             {
-                await identity.ValidateSecureThisComputerAccountAsync(accountId, request.Password, ct).ConfigureAwait(false);
+                await identity.ValidateSecureThisComputerAccountAsync(accountId, request.Password, ct, request.Email).ConfigureAwait(false);
             }
             catch (ArgumentException ex) { return ApiErrors.BadRequest(ex.Message); }
             catch (InvalidOperationException ex) { return ApiErrors.Conflict(ex.Message); }
@@ -848,7 +849,7 @@ public static class AuthenticationEndpoints
             try
             {
                 issued = await identity.SecureThisComputerAccountAsync(accountId, request.Password, hasPasskey,
-                    request.DeviceId, request.DeviceName, request.Client, ct).ConfigureAwait(false);
+                    request.DeviceId, request.DeviceName, request.Client, ct, request.Email).ConfigureAwait(false);
             }
             catch (ArgumentException ex) { return ApiErrors.BadRequest(ex.Message); }
             catch (InvalidOperationException ex) { return ApiErrors.Conflict(ex.Message); }

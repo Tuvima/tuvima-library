@@ -1213,7 +1213,8 @@
 [contracts] MediaEngine.Contracts.Authentication.LinkAccountExternalLoginRequest
   kind=class | converter=default | number-handling=default | unmapped=default
   TransactionTicket: System.String | json=transaction_ticket | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  sample={"transaction_ticket":"sample"}
+  Email: System.String | json=email | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"transaction_ticket":"sample","email":"sample"}
 
 [contracts] MediaEngine.Contracts.Authentication.LocalLoginRequest
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -1376,6 +1377,7 @@
 
 [contracts] MediaEngine.Contracts.Authentication.SecureAccountRequest
   kind=class | converter=default | number-handling=default | unmapped=default
+  Email: System.String | json=email | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Password: System.String | json=password | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   PasskeyCredentialJson: System.String | json=passkey_credential_json | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   PasskeyState: System.String | json=passkey_state | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
@@ -1383,7 +1385,7 @@
   DeviceId: System.String | json=device_id | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   DeviceName: System.String | json=device_name | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Client: System.String | json=client | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  sample={"password":"sample","passkey_credential_json":"sample","passkey_state":"sample","passkey_name":"sample","device_id":"sample","device_name":"sample","client":"sample"}
+  sample={"email":"sample","password":"sample","passkey_credential_json":"sample","passkey_state":"sample","passkey_name":"sample","device_id":"sample","device_name":"sample","client":"sample"}
 
 [contracts] MediaEngine.Contracts.Authentication.SessionValidationResponse
   kind=class | converter=default | number-handling=default | unmapped=default

@@ -34,8 +34,11 @@ public interface IFirstPartyIdentityService
 {
     Task<bool> IsAdministratorConfiguredAsync(CancellationToken ct = default);
     Task<SessionIssueResult> BootstrapAdministratorAsync(string email, string password, string displayName, string deviceId, string deviceName, string client, CancellationToken ct = default, string? pin = null, string ingress = ClientIngress.Remote);
-    /// <summary>Creates the first administrator with a name and email but no password; it works only on this computer until secured.</summary>
-    Task<SessionIssueResult> BootstrapThisComputerAdministratorAsync(string email, string displayName, string deviceId, string deviceName, string client, CancellationToken ct = default, string? pin = null);
+    /// <summary>
+    /// Creates the first administrator with a name but no password and no email; it works only on this computer until
+    /// secured. An <paramref name="email"/> is optional here: it is only needed once the account is used away from this computer.
+    /// </summary>
+    Task<SessionIssueResult> BootstrapThisComputerAdministratorAsync(string? email, string displayName, string deviceId, string deviceName, string client, CancellationToken ct = default, string? pin = null);
     /// <summary>Signs in the this-computer-only account without a password; <c>null</c> when there is no such account.</summary>
     Task<SessionIssueResult?> SignInThisComputerAccountAsync(string deviceId, string deviceName, string client, string? clientIngress = null, CancellationToken ct = default);
     /// <summary>The display name of the this-computer-only account, or <c>null</c> when there is none.</summary>
@@ -75,10 +78,13 @@ public interface IFirstPartyIdentityService
     /// Recovery codes come back only when a password was set.
     /// </summary>
     /// <exception cref="InvalidOperationException">The account is not a this-computer-only account, or no sign-in method was given.</exception>
-    /// <summary>Throws (<see cref="InvalidOperationException"/>, <see cref="ArgumentException"/>) when securing with this password would be refused; changes nothing.</summary>
-    Task ValidateSecureThisComputerAccountAsync(Guid accountId, string? password, CancellationToken ct = default);
+    /// <summary>
+    /// Throws (<see cref="InvalidOperationException"/>, <see cref="ArgumentException"/>) when securing with this password or email would be refused; changes nothing.
+    /// An account with no email must be given one (<paramref name="email"/>) to be secured; an account that has one keeps it.
+    /// </summary>
+    Task ValidateSecureThisComputerAccountAsync(Guid accountId, string? password, CancellationToken ct = default, string? email = null);
 
-    Task<SessionIssueResult> SecureThisComputerAccountAsync(Guid accountId, string? password, bool hasPasskey, string deviceId, string deviceName, string client, CancellationToken ct = default);
+    Task<SessionIssueResult> SecureThisComputerAccountAsync(Guid accountId, string? password, bool hasPasskey, string deviceId, string deviceName, string client, CancellationToken ct = default, string? email = null);
     /// <summary>
     /// True when the session is active and the person signed in or confirmed within <see cref="RecentSignIn.Window"/>.
     /// A this-computer session counts as recent: it has no password to ask for and works only on this computer.

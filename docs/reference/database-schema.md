@@ -678,13 +678,13 @@ API keys for Engine authentication.
 
 ### accounts
 
-One row per person who signs in. Every account has an email: there are no email-less "local-only" accounts. A data store from before this rule is migrated at startup (each email-less account's profiles move into the server administrator's household, the email-less account and its sessions are removed, and the table is rebuilt with the required email).
+One row per person who signs in. A sign-in that works away from this computer has an email. The only account without one is a this-computer account made at setup (`this_computer_only = 1`); it gets an email when it is secured. There are no email-less "local-only" accounts: a data store from before that rule is migrated at startup (each such account's profiles move into the server administrator's household and the account and its sessions are removed). An idempotent startup migration (`EnsureAccountEmailIsOptional`) rebuilds `accounts` once so `email` and `normalized_email` allow NULL, keeping every column, the unique index and the household index; a data store that already allows NULL is left alone.
 
 | Column | Type | Notes |
 |---|---|---|
 | `id` | BLOB | GUID, primary key |
-| `email` | TEXT | Sign-in email as entered. Required. |
-| `normalized_email` | TEXT | Lower-cased form used for lookups. Required and unique. |
+| `email` | TEXT | Sign-in email as entered. Null only for a this-computer account that has not been secured yet. |
+| `normalized_email` | TEXT | Upper-cased form used for lookups. Unique; many rows may be null. |
 | `is_enabled` | INTEGER | 1 when the account can sign in |
 | `is_administrator` | INTEGER | 1 when the account is eligible for administration |
 | `authorization_version` | INTEGER | Bumped whenever access changes, so open sessions re-check |

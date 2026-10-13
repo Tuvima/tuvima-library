@@ -126,6 +126,107 @@ public sealed class SecureAccountAndRecentSignInTests : IDisposable
     }
 
     [Fact]
+    public async Task ThisComputerAccount_CanBeMadeWithoutAnEmail_AndStillSignsInOnThisComputer()
+    {
+        var issued = await _service.BootstrapThisComputerAdministratorAsync(null, "Owner", "device", "Browser", "Dashboard");
+
+        var account = Assert.Single(await _accounts.GetAllAsync());
+        Assert.Null(account.Email);
+        Assert.Null(account.NormalizedEmail);
+        Assert.True(account.IsThisComputerOnly);
+        Assert.NotNull(await _service.ValidateSessionAsync(issued.PlaintextToken, touch: false, currentIngress: ClientIngress.ThisComputer));
+        Assert.NotNull(await _service.SignInThisComputerAccountAsync("device-2", "Other tab", "Dashboard"));
+    }
+
+    [Fact]
+    public async Task APasswordAdministrator_StillNeedsAnEmail()
+    {
+        await Assert.ThrowsAsync<ArgumentException>(() => _service.BootstrapAdministratorAsync(
+            " ", Password, "Owner", "device", "Browser", "Dashboard"));
+        Assert.False(await _service.IsAdministratorConfiguredAsync());
+    }
+
+    [Fact]
+    public async Task AccountWithoutAnEmail_CannotUseEmailSignInOrRecovery()
+    {
+        await _service.BootstrapThisComputerAdministratorAsync(null, "Owner", "device", "Browser", "Dashboard");
+
+        var password = await _service.AuthenticatePasswordAsync("", Password, "tv", "TV", "Dashboard", ingress: ClientIngress.HomeNetwork);
+        Assert.False(password.Succeeded);
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
+            _service.ResetPasswordWithRecoveryCodeAsync("", "AAAAA-BBBBB-CCCCC-DDDDD", "a brand new password"));
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
+            _service.ResetPasswordWithRecoveryCodeAsync("  ", "AAAAA-BBBBB-CCCCC-DDDDD", "a brand new password"));
+        Assert.Null(await _service.BeginPasswordResetAsync(""));
+    }
+
+    [Fact]
+    public async Task Secure_AnAccountWithNoEmail_NeedsOne_WhateverSignInIsAdded()
+    {
+        var issued = await _service.BootstrapThisComputerAdministratorAsync(null, "Owner", "device", "Browser", "Dashboard");
+        var id = issued.Account.Id;
+
+        var withPassword = await Assert.ThrowsAsync<ArgumentException>(() =>
+            _service.SecureThisComputerAccountAsync(id, Password, hasPasskey: false, "device", "Browser", "Dashboard"));
+        Assert.Equal("Add an email to secure this account.", withPassword.Message);
+        await Assert.ThrowsAsync<ArgumentException>(() =>
+            _service.SecureThisComputerAccountAsync(id, null, hasPasskey: true, "device", "Browser", "Dashboard", email: "  "));
+        await Assert.ThrowsAsync<ArgumentException>(() =>
+            _service.SecureThisComputerAccountAsync(id, Password, hasPasskey: false, "device", "Browser", "Dashboard", email: "not an email"));
+
+        var account = (await _accounts.GetByIdAsync(id))!;
+        Assert.True(account.IsThisComputerOnly);
+        Assert.Null(account.Email);
+        Assert.Null(await _identities.GetAccountCredentialAsync(id, AccountCredentialKind.Password));
+    }
+
+    [Fact]
+    public async Task Secure_AnAccountWithNoEmail_StoresTheNormalisedEmail_AndThatEmailSignsIn()
+    {
+        var issued = await _service.BootstrapThisComputerAdministratorAsync(null, "Owner", "device", "Browser", "Dashboard");
+
+        await _service.SecureThisComputerAccountAsync(issued.Account.Id, Password, hasPasskey: false, "device", "Browser", "Dashboard", email: " Owner@Example.com ");
+
+        var account = (await _accounts.GetByIdAsync(issued.Account.Id))!;
+        Assert.Equal("Owner@Example.com", account.Email);
+        Assert.Equal("OWNER@EXAMPLE.COM", account.NormalizedEmail);
+        Assert.False(account.IsThisComputerOnly);
+        var signIn = await _service.AuthenticatePasswordAsync("owner@example.com", Password, "tv", "TV", "Dashboard", ingress: ClientIngress.HomeNetwork);
+        Assert.True(signIn.Succeeded);
+    }
+
+    [Fact]
+    public async Task Secure_RefusesAnEmailTheAdministratorAlreadyUses_AndAPasswordThatIsTheEmail()
+    {
+        var issued = await _service.BootstrapThisComputerAdministratorAsync(null, "Owner", "device", "Browser", "Dashboard");
+        var now = DateTimeOffset.UtcNow;
+        var otherId = Guid.NewGuid();
+        await _accounts.CreateAccountAsync(
+            new Account { Id = otherId, Email = "taken@example.com", NormalizedEmail = "TAKEN@EXAMPLE.COM", IsEnabled = true, AuthorizationVersion = 1, CreatedAt = now, UpdatedAt = now },
+            new AccountProfileGrant { AccountId = otherId, ProfileId = MediaEngine.Domain.Aggregates.Profile.SeedProfileId, IsDefault = true, IsEnabled = true, AuthorizationVersion = 1, GrantedAt = now },
+            new HashSet<AccountFeatureId>(), new HashSet<Guid>());
+
+        var taken = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            _service.SecureThisComputerAccountAsync(issued.Account.Id, Password, hasPasskey: false, "device", "Browser", "Dashboard", email: "TAKEN@example.com"));
+        Assert.Equal("That email is already used.", taken.Message);
+        await Assert.ThrowsAsync<ArgumentException>(() =>
+            _service.SecureThisComputerAccountAsync(issued.Account.Id, "new.owner@example.com", hasPasskey: false, "device", "Browser", "Dashboard", email: "new.owner@example.com"));
+
+        Assert.Null((await _accounts.GetByIdAsync(issued.Account.Id))!.Email);
+        Assert.True((await _accounts.GetByIdAsync(issued.Account.Id))!.IsThisComputerOnly);
+    }
+
+    [Fact]
+    public async Task Secure_AnAccountThatAlreadyHasAnEmail_KeepsIt()
+    {
+        var issued = await _service.BootstrapThisComputerAdministratorAsync("owner@example.com", "Owner", "device", "Browser", "Dashboard");
+
+        await _service.SecureThisComputerAccountAsync(issued.Account.Id, Password, hasPasskey: false, "device", "Browser", "Dashboard", email: "someone.else@example.com");
+
+        Assert.Equal("owner@example.com", (await _accounts.GetByIdAsync(issued.Account.Id))!.Email);
+    }
+
+    [Fact]
     public async Task SignIn_IsRecentForTenMinutes_ThenAsksToConfirm()
     {
         var issued = await _service.BootstrapAdministratorAsync(

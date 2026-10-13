@@ -44,7 +44,7 @@ public sealed class ManagedClientDeviceService(
             if (!accountNames.TryGetValue(device.AccountId, out var accountName))
             {
                 var account = await accounts.GetByIdAsync(device.AccountId, ct).ConfigureAwait(false);
-                accountName = string.IsNullOrWhiteSpace(account?.Email) ? "Unknown account" : account.Email;
+                accountName = account is null ? "Unknown account" : string.IsNullOrWhiteSpace(account.Email) ? "No email" : account.Email;
                 accountNames[device.AccountId] = accountName;
                 accountHouseholds[device.AccountId] = account?.HouseholdId;
             }
