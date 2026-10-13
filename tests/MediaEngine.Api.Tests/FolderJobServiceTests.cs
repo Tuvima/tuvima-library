@@ -91,7 +91,9 @@ public sealed class FolderJobServiceTests : IDisposable
         await _f.AddMovieAsync(folder, "raw alien.mkv", "Alien", "1979");
         var job = await _f.Jobs.StartConversionAsync(folder.Id, default);
 
-        await _f.RunWorkerUntilAsync(() => _f.IsFinishedAsync(job.OperationId));
+        // The worker marks the job done first and settles the folder right after, so wait for both.
+        await _f.RunWorkerUntilAsync(async () => await _f.IsFinishedAsync(job.OperationId)
+            && _f.Source(folder.Id).ConversionState == LibrarySourceConversionStates.Converted);
 
         var done = await _f.Jobs.GetAsync(Guid.Parse(job.OperationId), default);
         Assert.Equal("completed", done!.State);
