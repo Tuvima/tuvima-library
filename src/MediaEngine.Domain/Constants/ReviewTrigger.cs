@@ -133,4 +133,10 @@ public static class ReviewTrigger
     /// carries the TMDB TV suggestion.
     /// </summary>
     public const string MovieMatchedAsTv = "MovieMatchedAsTv";
+
+    /// <summary>
+    /// Two different files want the same standard name while a folder is converted to Managed. Neither was overwritten:
+    /// the second kept a numbered name so a person can decide which one is which.
+    /// </summary>
+    public const string NameCollision = "NameCollision";
 }

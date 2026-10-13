@@ -7,6 +7,7 @@ using MediaEngine.Domain.Enums;
 using MediaEngine.Domain.Services;
 using MediaEngine.Ingestion.Contracts;
 using MediaEngine.Ingestion.Models;
+using MediaEngine.Ingestion.Organise;
 using MediaEngine.Ingestion.Services;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -40,6 +41,7 @@ public sealed class AutoOrganizeService : IAutoOrganizeService
     private readonly IImportFolderService? _importFolders;
     private readonly ImportFileMover? _importMover;
     private readonly ImportFilingJournal? _importJournal;
+    private readonly SidecarMover? _sidecars;
 
     // Filing out of the Import folder runs one file at a time, so two passes (the pipeline and the sweep) can't file the
     // same file twice or race for the same unique name.
@@ -64,8 +66,10 @@ public sealed class AutoOrganizeService : IAutoOrganizeService
         IMediaAssetCoverageRepository? coverageRepo = null,
         IImportFolderService? importFolders = null,
         ImportFileMover? importMover = null,
-        ImportFilingJournal? importJournal = null)
+        ImportFilingJournal? importJournal = null,
+        SidecarMover? sidecars = null)
     {
+        _sidecars = sidecars;
         _importJournal = importJournal;
         _importFolders = importFolders;
         _importMover = importMover;
@@ -286,6 +290,7 @@ public sealed class AutoOrganizeService : IAutoOrganizeService
         // AssetPathService.GetMediaFilePosterPath, so companion files must always be moved
         // on promotion when storage policy enables local artwork mirrors.
         MoveCompanionFiles(sourcePath, destPath);
+        MoveSidecarFiles(sourcePath, destPath);
 
         // Clean up any .tuvima.bak files left behind by metadata taggers.
         // These backups are normally deleted on success, but can persist when the
@@ -489,6 +494,7 @@ public sealed class AutoOrganizeService : IAutoOrganizeService
         await MarkPresentedAndPublishAsync(assetId, metadata, mediaType, ct).ConfigureAwait(false);
 
         MoveCompanionFiles(sourcePath, finalPath, destination);
+        MoveSidecarFiles(sourcePath, finalPath, destination);
         var sourceFolder = Path.GetDirectoryName(sourcePath) ?? string.Empty;
         CleanStagingBakFiles(sourceFolder);
         if (CanMutate(sourceFolder, SourceMutationKind.Delete, allowDelete: true))
@@ -547,7 +553,7 @@ public sealed class AutoOrganizeService : IAutoOrganizeService
     /// whose picker changed, must not be named for a range nobody confirmed. Only an unbroken run of
     /// recorded episodes becomes a range; anything else is named as a single episode.
     /// </summary>
-    private async Task ApplyRecordedEpisodeRangeAsync(
+    internal async Task ApplyRecordedEpisodeRangeAsync(
         Guid assetId, Dictionary<string, string> metadata, MediaType? mediaType, CancellationToken ct)
     {
         if (mediaType != MediaType.TV)
@@ -621,6 +627,7 @@ public sealed class AutoOrganizeService : IAutoOrganizeService
             await MarkPresentedAndPublishAsync(assetId, metadata, mediaType, ct).ConfigureAwait(false);
 
             MoveCompanionFiles(oldPath, newDest);
+            MoveSidecarFiles(oldPath, newDest);
 
             var sourceRoot = _libraryResolver?.ResolveSourceForPath(oldPath)?.Source.Path;
             CleanEmptyParents(oldFolder, sourceRoot ?? oldFolder);
@@ -695,7 +702,31 @@ public sealed class AutoOrganizeService : IAutoOrganizeService
         }
     }
 
-    private void MoveCompanionFiles(string oldMediaPath, string newMediaPath, ImportDestination? importDestination = null)
+    /// <summary>
+    /// Subtitles, notes, artwork, cue sheets, lyrics and playlists that share the media file's name travel with it
+    /// (keeping a language suffix such as <c>.en.srt</c>). Anything else in the folder is left where it is.
+    /// </summary>
+    private void MoveSidecarFiles(string oldMediaPath, string newMediaPath, ImportDestination? importDestination = null)
+    {
+        if (_sidecars is null
+            || string.IsNullOrWhiteSpace(oldMediaPath)
+            || string.IsNullOrWhiteSpace(newMediaPath)
+            || string.Equals(oldMediaPath, newMediaPath, StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        try
+        {
+            _sidecars.Move(oldMediaPath, newMediaPath, (from, to) => CanMoveBetween(from, to, importDestination));
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            _logger.LogDebug(ex, "Sidecar files beside {Path} were not moved", oldMediaPath);
+        }
+    }
+
+    internal void MoveCompanionFiles(string oldMediaPath, string newMediaPath, ImportDestination? importDestination = null)
     {
         if (string.IsNullOrWhiteSpace(oldMediaPath) || string.IsNullOrWhiteSpace(newMediaPath))
         {
@@ -901,7 +932,7 @@ public sealed class AutoOrganizeService : IAutoOrganizeService
         catch { /* best-effort cleanup */ }
     }
 
-    private void CleanEmptyParents(string folder, string stopAt)
+    internal void CleanEmptyParents(string folder, string stopAt)
     {
         try
         {
@@ -944,8 +975,14 @@ public sealed class AutoOrganizeService : IAutoOrganizeService
                 ? SourceMutationKind.Rename
                 : SourceMutationKind.Move;
 
+        // A move inside one managed folder only needs that folder to allow moving and renaming. Receiving a file from
+        // somewhere else is what "destination" permission is for.
+        var sameSource = _libraryResolver?.ResolveSourceForPath(sourcePath) is { } from
+            && _libraryResolver.ResolveSourceForPath(destinationPath) is { } to
+            && string.Equals(from.Source.Id, to.Source.Id, StringComparison.OrdinalIgnoreCase);
+
         return CanMutate(sourcePath, mutation)
-            && CanMutate(destinationPath, SourceMutationKind.UseAsDestination);
+            && CanMutate(destinationPath, sameSource ? mutation : SourceMutationKind.UseAsDestination);
     }
 
     /// <summary>

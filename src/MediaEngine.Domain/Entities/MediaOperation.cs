@@ -61,6 +61,9 @@ public static class MediaOperationStatus
     public const string Cancelled = "cancelled";
     public const string Interrupted = "interrupted";
     public const string Skipped = "skipped";
+
+    /// <summary>A person paused a long-running job. It keeps its place and its progress and is not picked up again until it is resumed.</summary>
+    public const string Paused = "paused";
 }
 
 public static class MediaOperationKind
@@ -96,6 +99,16 @@ public static class MediaOperationType
     public const string AiSmartLabels = "ai.smart_labels";
     public const string ViewDocumentTextRead = "view.document_text_read";
     public const string ViewDocumentOcr = "view.document_ocr";
+
+    /// <summary>Converts a folder from As-is to Managed: renames and reorganises the files already there.</summary>
+    public const string OrganiseFolder = "organise_folder";
+}
+
+/// <summary>Queue names for operations that need more than the default queue.</summary>
+public static class MediaOperationQueue
+{
+    /// <summary>Long folder jobs (organising a folder, merging folders). They run one at a time.</summary>
+    public const string FolderJobs = "folder_jobs";
 }
 
 public static class MediaOperationStage
@@ -118,4 +131,6 @@ public static class MediaOperationStage
     public const string WritingArtifact = "writing_artifact";
     public const string NoResult = "no_result";
     public const string Blocked = "blocked";
+    public const string Organising = "organising";
+    public const string Paused = "paused";
 }

@@ -112,6 +112,13 @@ public interface IMediaAssetRepository
     Task<HashSet<string>> GetAllFilePathsAsync(CancellationToken ct = default);
 
     /// <summary>
+    /// Lists the original (non-rendition) files the data store holds under <paramref name="folderPath"/>, in path order.
+    /// Used by the organising job and its preview to see what a folder already holds without scanning the disk.
+    /// </summary>
+    Task<IReadOnlyList<MediaAssetFileRef>> ListFilesUnderAsync(string folderPath, CancellationToken ct = default)
+        => Task.FromResult<IReadOnlyList<MediaAssetFileRef>>([]);
+
+    /// <summary>
     /// Returns assets whose <c>writeback_fields_hash</c> does not match the
     /// expected hash for their media type — these are the assets the auto
     /// re-tag sweep needs to process. Skips assets whose
@@ -209,3 +216,6 @@ public sealed record StaleRetagAsset(
     string MediaType,
     string? CurrentHash,
     int Attempts);
+
+/// <summary>A catalogued file: which asset it is, where it is, and its fingerprint.</summary>
+public sealed record MediaAssetFileRef(Guid AssetId, string FilePath, string ContentHash, string? LibraryId);

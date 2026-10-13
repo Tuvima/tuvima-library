@@ -40,6 +40,25 @@ public interface IMediaOperationRepository
     Task MarkCancelledAsync(Guid id, string? reason = null, CancellationToken ct = default);
     Task MarkInterruptedAsync(Guid id, string? reason = null, CancellationToken ct = default);
     Task RequeueAsync(Guid id, CancellationToken ct = default);
+
+    /// <summary>
+    /// Records how far a long job has got (items done, items that failed, a percentage) and keeps its lease and heartbeat
+    /// fresh. It never changes the status, so a pause or cancel a person asked for in the meantime is not overwritten.
+    /// </summary>
+    Task RecordProgressAsync(
+        Guid id,
+        int itemsTotal,
+        int itemsCompleted,
+        int itemsFailed,
+        int progressPercent,
+        TimeSpan? extendLease = null,
+        CancellationToken ct = default);
+
+    /// <summary>Pauses a job that has not finished. Returns <see langword="false"/> when it already finished or is already paused.</summary>
+    Task<bool> PauseAsync(Guid id, CancellationToken ct = default);
+
+    /// <summary>Puts a paused job back in the queue. Returns <see langword="false"/> when it was not paused.</summary>
+    Task<bool> ResumePausedAsync(Guid id, CancellationToken ct = default);
     Task<int> ReclaimStuckAsync(TimeSpan stuckThreshold, CancellationToken ct = default);
     Task<IReadOnlyDictionary<string, int>> GetSummaryAsync(CancellationToken ct = default);
 }
