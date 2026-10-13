@@ -25,4 +25,20 @@ public sealed class ViewProfilePolicyContractTests
         Assert.Equal(submitToSharedLibrary, contract.SubmitToSharedLibrary);
         Assert.True(contract.AllowGallerySharing);
     }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void DocumentsSwitchRoundTripsAndDefaultsOnForOlderClients(bool allowDocuments)
+    {
+        var policy = ProfileContractMapper.ToDomain(Guid.NewGuid(), new UpdateViewProfilePolicyRequest
+        {
+            ViewEnabled = true,
+            AllowDocuments = allowDocuments,
+        });
+
+        Assert.Equal(allowDocuments, policy.DocumentsEnabled);
+        Assert.Equal(allowDocuments, ProfileContractMapper.ToResponse(policy).AllowDocuments);
+        Assert.True(new UpdateViewProfilePolicyRequest().AllowDocuments);
+    }
 }

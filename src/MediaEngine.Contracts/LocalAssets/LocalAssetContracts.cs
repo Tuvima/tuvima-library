@@ -56,7 +56,26 @@ public sealed record LocalAssetDto(
     [property: JsonPropertyName("embedded_longitude")] double? EmbeddedLongitude = null,
     [property: JsonPropertyName("embedded_captured_at")] DateTimeOffset? EmbeddedCapturedAt = null,
     [property: JsonPropertyName("captured_at_user_override")] bool CapturedAtUserOverride = false,
-    [property: JsonPropertyName("people")] IReadOnlyList<string>? People = null);
+    [property: JsonPropertyName("people")] IReadOnlyList<string>? People = null,
+    [property: JsonPropertyName("snippet")] string? Snippet = null,
+    [property: JsonPropertyName("document_info")] LocalAssetDocumentInfoDto? DocumentInfo = null);
+
+/// <summary>
+/// What is known about the words read from a document. <c>text_source</c> is embedded, ocr, mixed, none or null
+/// (not read yet). The flags come from the same read and are false when nothing was recorded.
+/// </summary>
+public sealed record LocalAssetDocumentInfoDto(
+    [property: JsonPropertyName("text_source")] string? TextSource,
+    [property: JsonPropertyName("text_truncated")] bool TextTruncated,
+    [property: JsonPropertyName("encrypted")] bool Encrypted,
+    [property: JsonPropertyName("has_text")] bool HasText);
+
+/// <summary>The readable text of one document, for the Documents viewer's text panel.</summary>
+public sealed record ViewDocumentTextDto(
+    [property: JsonPropertyName("item_id")] Guid ItemId,
+    [property: JsonPropertyName("text")] string Text,
+    [property: JsonPropertyName("shown_truncated")] bool ShownTruncated,
+    [property: JsonPropertyName("document_info")] LocalAssetDocumentInfoDto DocumentInfo);
 
 public sealed record LocalAssetFileDto(
     [property: JsonPropertyName("id")] Guid Id,
@@ -104,7 +123,8 @@ public sealed record ViewScopeOptionDto(
 public sealed record ViewScopeResolutionDto(
     [property: JsonPropertyName("scope")] ViewResolvedScopeDto Scope,
     [property: JsonPropertyName("available_scopes")] IReadOnlyList<ViewScopeOptionDto> AvailableScopes,
-    [property: JsonPropertyName("can_browse_other_people")] bool CanBrowseOtherPeople = false);
+    [property: JsonPropertyName("can_browse_other_people")] bool CanBrowseOtherPeople = false,
+    [property: JsonPropertyName("can_view_documents")] bool CanViewDocuments = true);
 
 public sealed record ViewPreferencesDto(
     [property: JsonPropertyName("profile_id")] Guid ProfileId,

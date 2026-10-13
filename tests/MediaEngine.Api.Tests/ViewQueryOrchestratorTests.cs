@@ -34,6 +34,26 @@ public sealed class ViewQueryOrchestratorTests
         Assert.Equal("lake", plan.Search);
     }
 
+    [Theory]
+    [InlineData("document", false)]
+    [InlineData("image", true)]
+    public async Task DocumentsOnlyListingIsNotNarrowedToTimelineEligibleSources(string kind, bool timelineEligible)
+    {
+        var caller = State(access: true, include: false);
+        var http = new DefaultHttpContext();
+        var context = new HttpViewRequestProfileContext(
+            new HttpContextAccessor { HttpContext = http }, TestViewAuthorityResolver.Human(caller.Policy.ProfileId));
+        var resolver = new ViewScopeResolver(new ViewScopeResolverTests.ScopeStore(caller));
+        var authorization = new ViewResourceAuthorizationService(resolver, new EmptyResourceStore(), new TestAllowAuthorizationEvaluator());
+        var backend = new CapturingBackend();
+        var orchestrator = new ViewQueryOrchestrator(context, authorization, backend);
+
+        var result = await orchestrator.QueryAsync(new ViewAssetQueryRequest(ViewScopeRequest.Mine, MediaKinds: [kind]));
+
+        Assert.Equal(ViewAccessOutcome.Allowed, result.Outcome);
+        Assert.Equal(timelineEligible, Assert.IsType<ViewAssetQueryPlan>(backend.Plan).TimelineEligibleOnly);
+    }
+
     [Fact]
     public async Task QueryDoesNotReachBackendWithoutTrustedProfileContext()
     {

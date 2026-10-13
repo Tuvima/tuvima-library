@@ -187,14 +187,15 @@ unauthorized identifiers return the same not-found shape as missing resources.
 | GET | `/view/other-people` | List other households and their people for read-only browsing ("Other people"); never includes the caller's own household | Server administrator signed in as a person (household administrators, members and apps get 403) |
 | GET | `/view/photo-views` | Page the times a server administrator opened your photos, newest first (the whole household for a household administrator, your own photos otherwise) | Required |
 | GET, PUT | `/view/preferences` | Read or persist the active profile's last scope and timeline density | Required + trusted profile |
-| GET | `/view/assets` | Cursor-page authorized mixed local assets by scope, search, kind, state, or Gallery | Required + scope read |
+| GET | `/view/assets` | Cursor-page authorized mixed local assets by scope, search, kind, state, or Gallery. With `q`, each item carries a `snippet` (words around the match, matches wrapped in control characters U+0001 and U+0002 so text is never markup); every document carries `document_info` (`text_source`, `text_truncated`, `encrypted`, `has_text`). `kind=document` is not narrowed to Photos-timeline sources. A profile without the Documents permission never gets documents back, and asking only for documents returns 403 | Required + scope read |
 | GET | `/view/folders` | Page authorized source roots or one indexed folder hierarchy with URL-backed path breadcrumb, scoped search, and optional descendants | Required + scope read |
 | PUT | `/view/folders/pin` | Pin or unpin an authorized folder for the active profile | Required + scope read |
 | PUT | `/view/folders/timeline-policy` | Set or clear the source-owner branch override inherited by the Photos timeline | Source owner or administrator |
 | POST | `/view/uploads` | Upload to the caller's server-resolved Personal Space | Required + Personal Space owner |
-| GET | `/view/items/{id}` | Read authorized personal-asset metadata | Required + asset read |
+| GET | `/view/items/{id}` | Read authorized personal-asset metadata (documents also need the Documents permission, as do `content`, `thumbnail` and `preview`; `/view/folders` omits documents without it) | Required + asset read |
 | GET | `/view/items/{id}/content` | Stream an authorized original with range support | Required + asset read |
-| GET | `/view/items/{id}/thumbnail` | Return a bounded local image preview when supported | Required + asset read |
+| GET | `/view/items/{id}/thumbnail` | Return a bounded local image preview when supported; a PDF returns a small picture of its first page (drawn once in the background and cached), other documents get the generic placeholder | Required + asset read |
+| GET | `/view/items/{id}/text` | Return the readable text of one document (at most 200,000 characters, with `shown_truncated`) and its `document_info` for the Documents viewer text panel | Required + asset read + Documents permission |
 | PUT | `/view/items/{id}/favorite` | Set favorite state on an owned asset | Required + asset owner |
 | PUT | `/view/items/{id}/hidden` | Set hidden state on an owned asset | Required + asset owner |
 | POST | `/view/items/{id}/archive` | Archive an owned asset without changing its file | Required + asset owner |

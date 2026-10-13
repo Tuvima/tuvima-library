@@ -73,6 +73,14 @@ public sealed class ViewQueryOrchestrator(
     IViewAssetQueryBackend backend,
     IViewSmartGalleryQueryService? smartGalleries = null) : IViewQueryOrchestrator
 {
+    /// <summary>
+    /// The Documents page lists every document the person may see, including those in folders kept out of the Photos
+    /// timeline, so a documents-only listing is not narrowed to timeline-eligible sources.
+    /// </summary>
+    private static bool AsksOnlyForDocuments(IReadOnlyList<string>? kinds) =>
+        kinds is { Count: > 0 }
+        && kinds.All(kind => string.Equals(kind?.Trim(), LocalAssetMediaKinds.Document, StringComparison.OrdinalIgnoreCase));
+
     public async Task<ViewQueryResult> QueryAsync(
         ViewAssetQueryRequest request,
         CancellationToken ct = default)
@@ -124,7 +132,8 @@ public sealed class ViewQueryOrchestrator(
             smartRule is null ? request.GalleryId : null,
             request.Lifecycle,
             smartRule,
-            !request.SortByAddedAt && request.GalleryId is null && string.IsNullOrWhiteSpace(request.Search) && !request.WithoutLocation && request.PersonKey is null,
+            !request.SortByAddedAt && request.GalleryId is null && string.IsNullOrWhiteSpace(request.Search) && !request.WithoutLocation && request.PersonKey is null
+                && !AsksOnlyForDocuments(request.MediaKinds),
             decision.Scope.Kind == ViewScopeKind.Shared,
             request.AnchorBefore, request.WithoutLocation, request.PersonKey, request.From, request.To, request.SortByAddedAt, request.AddedBefore, request.AddedAfterKey);
         var page = await backend.QueryAsync(plan, ct).ConfigureAwait(false);

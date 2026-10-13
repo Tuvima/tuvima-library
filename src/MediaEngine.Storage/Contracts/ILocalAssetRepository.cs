@@ -14,6 +14,15 @@ public interface ILocalAssetRepository
     LocalAssetTimelinePage QueryTimeline(LocalAssetTimelineQuery query, CancellationToken ct = default);
     IReadOnlyList<LocalAssetTimelineBucket> QueryTimelineIndex(LocalAssetTimelineQuery query, CancellationToken ct = default);
     LocalAssetDto? Find(Guid itemId, CancellationToken ct = default);
+
+    /// <summary>True when the item is a document (PDF, Office or text file) rather than a photo, video or audio.</summary>
+    bool IsDocument(Guid itemId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Reads at most <paramref name="maxCharacters"/> characters of an item's extracted document text; the second value
+    /// says whether more existed. Returns null when no text is stored.
+    /// </summary>
+    (string Text, bool Cut)? GetDocumentText(Guid itemId, int maxCharacters, CancellationToken ct = default);
     LocalAssetContentLocation? ResolveContent(
         Guid itemId,
         string role = LocalAssetFileRoles.Primary,

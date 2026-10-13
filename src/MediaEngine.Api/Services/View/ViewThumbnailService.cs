@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using MediaEngine.Api.Services.LocalAssets.Ocr;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Services;
 using MediaEngine.Storage.Contracts;
@@ -39,7 +40,8 @@ public sealed class ViewThumbnailService(
     {
         if (itemId == Guid.Empty
             || (!source.MimeType.StartsWith("image/", StringComparison.OrdinalIgnoreCase)
-                && !source.MimeType.StartsWith("video/", StringComparison.OrdinalIgnoreCase))
+                && !source.MimeType.StartsWith("video/", StringComparison.OrdinalIgnoreCase)
+                && !IsPdf(source.MimeType))
             || !File.Exists(source.FilePath))
         {
             return null;
@@ -74,6 +76,14 @@ public sealed class ViewThumbnailService(
                     : null;
             }
 
+            if (IsPdf(source.MimeType))
+            {
+                // First page only, drawn small off the request thread; the two decode slots above cap how many run at once.
+                return await Task.Run(() => GeneratePdfFirstPage(source.FilePath, target, maximumEdge), ct).ConfigureAwait(false)
+                    ? target
+                    : null;
+            }
+
             var decoded = false;
             try { decoded = await Task.Run(() => GenerateImage(source.FilePath, target, maximumEdge), ct).ConfigureAwait(false); }
             catch (Exception ex) when (ex is not OperationCanceledException)
@@ -99,6 +109,24 @@ public sealed class ViewThumbnailService(
                 _decodeSlots.Release();
             }
             gate.Release();
+        }
+    }
+
+    private static bool IsPdf(string mimeType) =>
+        string.Equals(mimeType, "application/pdf", StringComparison.OrdinalIgnoreCase);
+
+    private bool GeneratePdfFirstPage(string source, string target, int maximumEdge)
+    {
+        try
+        {
+            using var bitmap = PdfPageRenderer.RenderPage(source, 0, 96, maximumEdge);
+            return SaveJpeg(bitmap, target, maximumEdge);
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            // Password-protected, damaged or empty PDFs simply keep the document tile.
+            logger.LogDebug(exception, "Could not draw the first page of {Source}", Path.GetFileName(source));
+            return false;
         }
     }
 
@@ -179,6 +207,16 @@ public sealed class ViewThumbnailService(
         using var input = File.Open(source, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
         using var bitmap = SKBitmap.Decode(input);
         if (bitmap is null || bitmap.Width <= 0 || bitmap.Height <= 0)
+        {
+            return false;
+        }
+
+        return SaveJpeg(bitmap, target, maximumEdge);
+    }
+
+    private static bool SaveJpeg(SKBitmap bitmap, string target, int maximumEdge)
+    {
+        if (bitmap.Width <= 0 || bitmap.Height <= 0)
         {
             return false;
         }

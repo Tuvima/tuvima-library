@@ -341,9 +341,12 @@ reapplies View authorization.
 ### Profile policy and preferences
 
 `profile_view_policies` stores independent administrator-managed capabilities:
-View enabled, open the household's Shared Library, send items to it, and share
-Galleries. Opening and sending default on (sending stays off for a child profile
-until a household administrator allows it). Reviewing contributions is not a
+View enabled, open the household's Shared Library, send items to it, share
+Galleries, and see Documents (`documents_enabled`). Opening and sending default
+on (sending stays off for a child profile until a household administrator allows
+it). Documents default on for everyone except a child profile, which starts with
+it off; the Documents page, its Engine list and open actions, and the document
+files behind them all follow this one switch. Reviewing contributions is not a
 per-profile setting: the former `review_shared_library_contributions` column is
 dropped once on upgrade, and household administrators review.
 

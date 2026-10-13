@@ -78,6 +78,7 @@ public sealed partial class UiConsistencyGuardrailTests
             .SelectMany(root => Directory.EnumerateFiles(root, "*", SearchOption.AllDirectories))
             .Where(path => path.EndsWith(".css", StringComparison.OrdinalIgnoreCase)
                 || path.EndsWith(".razor", StringComparison.OrdinalIgnoreCase))
+            .Where(path => !path.Contains($"wwwroot{Path.DirectorySeparatorChar}vendor{Path.DirectorySeparatorChar}", StringComparison.OrdinalIgnoreCase))
             .Where(path => NumericFontSize().Matches(File.ReadAllText(path)).Any(match => ToPixels(match) < 12d))
             .Select(Relative)
             .ToArray();

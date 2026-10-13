@@ -16,7 +16,8 @@ public sealed class ViewProfileRepository(IDatabaseConnection database) : IViewP
             SELECT profile_id AS ProfileId, view_enabled AS ViewEnabled,
                    access_shared_library AS AccessSharedLibrary,
                    submit_to_shared_library AS SubmitToSharedLibrary,
-                   share_galleries AS ShareGalleries, updated_at AS UpdatedAt
+                   share_galleries AS ShareGalleries, documents_enabled AS DocumentsEnabled,
+                   updated_at AS UpdatedAt
               FROM profile_view_policies
              WHERE profile_id = @profileId;
             """, new { profileId }, cancellationToken: ct));
@@ -50,15 +51,16 @@ public sealed class ViewProfileRepository(IDatabaseConnection database) : IViewP
             connection.Execute(new CommandDefinition("""
                 INSERT INTO profile_view_policies
                     (profile_id, view_enabled, access_shared_library, submit_to_shared_library,
-                     share_galleries, updated_at)
+                     share_galleries, documents_enabled, updated_at)
                 VALUES
                     (@ProfileId, @ViewEnabled, @AccessSharedLibrary, @SubmitToSharedLibrary,
-                     @ShareGalleries, @now)
+                     @ShareGalleries, @DocumentsEnabled, @now)
                 ON CONFLICT(profile_id) DO UPDATE SET
                     view_enabled = excluded.view_enabled,
                     access_shared_library = excluded.access_shared_library,
                     submit_to_shared_library = excluded.submit_to_shared_library,
                     share_galleries = excluded.share_galleries,
+                    documents_enabled = excluded.documents_enabled,
                     updated_at = excluded.updated_at;
                 """, new
             {
@@ -67,6 +69,7 @@ public sealed class ViewProfileRepository(IDatabaseConnection database) : IViewP
                 AccessSharedLibrary = policy.AccessSharedLibrary ? 1 : 0,
                 SubmitToSharedLibrary = policy.SubmitToSharedLibrary ? 1 : 0,
                 ShareGalleries = policy.ShareGalleries ? 1 : 0,
+                DocumentsEnabled = policy.DocumentsEnabled ? 1 : 0,
                 now,
             }, transaction, cancellationToken: token));
             return true;
@@ -151,7 +154,7 @@ public sealed class ViewProfileRepository(IDatabaseConnection database) : IViewP
     private static ViewProfilePolicy Map(PolicyRow row) => new(
         row.ProfileId, row.ViewEnabled != 0, row.AccessSharedLibrary != 0,
         row.SubmitToSharedLibrary != 0,
-        row.ShareGalleries != 0, ParseDate(row.UpdatedAt));
+        row.ShareGalleries != 0, ParseDate(row.UpdatedAt), row.DocumentsEnabled != 0);
 
     private static ViewProfilePreferences Map(PreferencesRow row) => new(
         row.ProfileId,
@@ -211,6 +214,7 @@ public sealed class ViewProfileRepository(IDatabaseConnection database) : IViewP
         public long AccessSharedLibrary { get; init; }
         public long SubmitToSharedLibrary { get; init; }
         public long ShareGalleries { get; init; }
+        public long DocumentsEnabled { get; init; } = 1;
         public string? UpdatedAt { get; init; }
     }
 

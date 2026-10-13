@@ -45,6 +45,52 @@ public sealed class ViewThumbnailServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task GetOrCreateAsync_DrawsTheFirstPageOfAPdfOnceAndReusesTheCachedPicture()
+    {
+        Directory.CreateDirectory(_root);
+        var sourcePath = Path.Combine(_root, "lease.pdf");
+        await File.WriteAllBytesAsync(sourcePath, OcrFixtures.Pdf("first page words", "second page words"));
+        var originalBytes = await File.ReadAllBytesAsync(sourcePath);
+        var itemId = Guid.NewGuid();
+        var paths = new AssetPathService(_root);
+        var service = new ViewThumbnailService(paths, NullLogger<ViewThumbnailService>.Instance);
+        var location = Location(itemId, sourcePath) with { MimeType = "application/pdf" };
+
+        var first = await service.GetOrCreateAsync(itemId, location);
+
+        Assert.NotNull(first);
+        Assert.StartsWith(paths.DerivedRoot, first, StringComparison.OrdinalIgnoreCase);
+        using (var picture = SKBitmap.Decode(first))
+        {
+            Assert.NotNull(picture);
+            Assert.InRange(Math.Max(picture.Width, picture.Height), 1, 640);
+            Assert.True(picture.Height > picture.Width, "A4 pages are taller than wide.");
+        }
+
+        var writtenAt = File.GetLastWriteTimeUtc(first);
+        var second = await service.GetOrCreateAsync(itemId, location);
+        Assert.Equal(first, second);
+        Assert.Equal(writtenAt, File.GetLastWriteTimeUtc(first));
+        Assert.Equal(originalBytes, await File.ReadAllBytesAsync(sourcePath));
+    }
+
+    [Fact]
+    public async Task GetOrCreateAsync_KeepsTheDocumentTileForABrokenPdf()
+    {
+        Directory.CreateDirectory(_root);
+        var sourcePath = Path.Combine(_root, "broken.pdf");
+        await File.WriteAllTextAsync(sourcePath, "this is not a pdf");
+        var itemId = Guid.NewGuid();
+        var service = new ViewThumbnailService(
+            new AssetPathService(_root), NullLogger<ViewThumbnailService>.Instance);
+
+        var result = await service.GetOrCreateAsync(
+            itemId, Location(itemId, sourcePath) with { MimeType = "application/pdf" });
+
+        Assert.Null(result);
+    }
+
+    [Fact]
     public async Task GetOrCreateAsync_ReturnsNull_ForNonImageContent()
     {
         Directory.CreateDirectory(_root);

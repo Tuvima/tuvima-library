@@ -64,6 +64,7 @@ internal static class ProfileContractMapper
         AccessSharedLibrary = policy.AccessSharedLibrary,
         SubmitToSharedLibrary = policy.SubmitToSharedLibrary,
         AllowGallerySharing = policy.ShareGalleries,
+        AllowDocuments = policy.DocumentsEnabled,
         UpdatedAt = policy.UpdatedAt,
     };
 
@@ -75,7 +76,8 @@ internal static class ProfileContractMapper
             request.AccessSharedLibrary,
             request.SubmitToSharedLibrary,
             request.AllowGallerySharing,
-            null);
+            null,
+            request.AllowDocuments);
 
     internal static TasteProfileDto ToResponse(TasteProfile profile) => new()
     {
