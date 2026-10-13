@@ -96,6 +96,7 @@ ENV TUVIMA_AI_RUNTIME_DIR=bundled
 
 # FFmpeg/FFprobe provide probing, thumbnails and transcodes. libfontconfig and
 # libgomp are required by the bundled SkiaSharp and LLamaSharp CPU runtimes.
+# tesseract-ocr (with its English data) reads scanned documents; it is the distro package, found on PATH.
 RUN apt-get update \
  && apt-get install -y --no-install-recommends \
       ca-certificates \
@@ -103,6 +104,8 @@ RUN apt-get update \
       gosu \
       libfontconfig1 \
       libgomp1 \
+      tesseract-ocr \
+      tesseract-ocr-eng \
       xz-utils \
  && rm -rf /var/lib/apt/lists/*
 
@@ -125,7 +128,8 @@ RUN case "$TARGETARCH" in \
  && install -m 0644 "$(find /tmp/tuvima-ffmpeg-extract -type f -name 'LICENSE.txt' -print -quit)" /usr/share/licenses/tuvima-ffmpeg/LICENSE.txt \
  && rm -rf /tmp/tuvima-ffmpeg.tar.xz /tmp/tuvima-ffmpeg-extract
 
-RUN ffmpeg -version >/dev/null \
+RUN tesseract --version >/dev/null \
+ && ffmpeg -version >/dev/null \
  && ffprobe -version >/dev/null \
  && ffmpeg -hide_banner -encoders 2>&1 | grep -q 'libx264' \
  && ffmpeg -hide_banner -encoders 2>&1 | grep -q ' aac ' \

@@ -253,11 +253,15 @@ kind, favorites, and active discovery.
 - `local_item_metadata` stores dimensions, duration, page count, camera/device,
   GPS, normalized place, safely extracted document text, and additional local
   metadata JSON. `text_source` records where `document_text` came from:
-  `embedded` (the file's own text layer or text), `ocr`, `none` (the file was
-  read and holds no readable text, is protected, or is corrupt), or NULL (not
-  read yet). The text job writes through `SetDocumentTextAsync`, which also
+  `embedded` (the file's own text layer or text), `ocr` (every readable page
+  came from text recognition), `mixed` (some pages came from the file's own
+  text layer and others from text recognition), `none` (the file was read and
+  holds no readable text, is protected, or is corrupt), or NULL (not read yet). The text job writes through `SetDocumentTextAsync`, which also
   rebuilds the search document, and records `document_text_truncated` and
-  `document_encrypted` flags in the metadata JSON. A file edited in place (same
+  `document_encrypted` flags in the metadata JSON. Text recognition also records
+  `ocr_average_confidence` (0-100) and `ocr_pages` there and keeps low-confidence
+  text. Startup widens the stored `text_source` check on older data stores to
+  accept `mixed`. A file edited in place (same
   library and path, new bytes) updates its existing item rather than adding a
   duplicate, clearing the stale text until it is read again.
 - `local_files` stores one exact content hash, size, MIME type, extension, and

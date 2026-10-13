@@ -7362,6 +7362,31 @@ MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.NetworkTestResultD
   TestedAt: System.DateTimeOffset | nullability=not-null | accessors=get,set
   Checks: System.Collections.Generic.List<MediaEngine.Contracts.Settings.NetworkTestCheckDto> | nullability=not-null | accessors=get,set
 
+MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.OcrLanguageStatusDto
+  Code: System.String | nullability=not-null | accessors=get,set
+  Name: System.String | nullability=not-null | accessors=get,set
+  Installed: System.Boolean | nullability=not-null | accessors=get,set
+  Selected: System.Boolean | nullability=not-null | accessors=get,set
+
+MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.OcrMessageDto
+  Message: System.String | nullability=not-null | accessors=get,set
+
+MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.OcrSettingsDto
+  Enabled: System.Boolean | nullability=not-null | accessors=get,set
+  Effort: System.String | nullability=not-null | accessors=get,set
+  Languages: System.Collections.Generic.List<System.String> | nullability=not-null | accessors=get,set
+
+MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.OcrStatusDto
+  Settings: MediaEngine.Contracts.Settings.OcrSettingsDto | nullability=not-null | accessors=get,set
+  Installed: System.Boolean | nullability=not-null | accessors=get,set
+  Message: System.String | nullability=nullable | accessors=get,set
+  Version: System.String | nullability=nullable | accessors=get,set
+  Languages: System.Collections.Generic.List<MediaEngine.Contracts.Settings.OcrLanguageStatusDto> | nullability=not-null | accessors=get,set
+  QueueLength: System.Int32 | nullability=not-null | accessors=get,set
+  CurrentFileName: System.String | nullability=nullable | accessors=get,set
+  RereadRunning: System.Boolean | nullability=not-null | accessors=get,set
+  RereadQueued: System.Int32 | nullability=not-null | accessors=get,set
+
 MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.OrganizationTemplateDto
   Template: System.String | nullability=not-null | accessors=get,init
   Preview: System.String | nullability=nullable | accessors=get,init

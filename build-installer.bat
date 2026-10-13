@@ -27,6 +27,7 @@ if "%ISCC%"=="" (
 set "ENGINE_OUT=dist\win\engine"
 set "DASHBOARD_OUT=dist\win\dashboard"
 set "FFMPEG_SOURCE=tools\ffmpeg"
+set "TESSERACT_SOURCE=tools\tesseract"
 
 if not exist "%FFMPEG_SOURCE%\ffmpeg.exe" (
     echo ERROR: Packaged FFmpeg is missing: %FFMPEG_SOURCE%\ffmpeg.exe
@@ -50,6 +51,20 @@ powershell -NoProfile -Command "if ((Get-FileHash -Algorithm SHA256 -LiteralPath
 "%FFMPEG_SOURCE%\ffmpeg.exe" -hide_banner -encoders 2>&1 | findstr /c:" aac " >nul || exit /b 1
 "%FFMPEG_SOURCE%\ffmpeg.exe" -hide_banner -encoders 2>&1 | findstr /c:" webvtt " >nul || exit /b 1
 "%FFMPEG_SOURCE%\ffmpeg.exe" -hide_banner -muxers 2>&1 | findstr /c:" hls " >nul || exit /b 1
+
+if not exist "%TESSERACT_SOURCE%\tesseract.exe" (
+    echo ERROR: Packaged Tesseract is missing: %TESSERACT_SOURCE%\tesseract.exe ^(run tools\Download-Tesseract.ps1^)
+    exit /b 1
+)
+if not exist "%TESSERACT_SOURCE%\tessdata\eng.traineddata" (
+    echo ERROR: Packaged Tesseract English data is missing: %TESSERACT_SOURCE%\tessdata\eng.traineddata
+    exit /b 1
+)
+powershell -NoProfile -Command "if ((Get-FileHash -Algorithm SHA256 -LiteralPath '%TESSERACT_SOURCE%\tesseract.exe').Hash -ne 'BABB405F4366B480D02CD8FF2BAC8D497170F6C1711CE6F3D5D8BF0FB7FA6ED9') { exit 1 }" || (
+    echo ERROR: Packaged Tesseract checksum does not match the approved release.
+    exit /b 1
+)
+"%TESSERACT_SOURCE%\tesseract.exe" --version >nul 2>&1 || exit /b 1
 
 echo.
 echo ── Cleaning previous build output ──────────────────────────────────────

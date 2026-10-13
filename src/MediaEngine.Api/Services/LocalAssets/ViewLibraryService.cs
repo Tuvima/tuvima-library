@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Security.Cryptography;
 using System.Text.RegularExpressions;
+using MediaEngine.Api.Services.LocalAssets.Ocr;
 using MediaEngine.Contracts.LocalAssets;
 using MediaEngine.Domain.Configuration;
 using MediaEngine.Domain.Contracts;
@@ -22,7 +23,8 @@ public sealed class ViewLibraryService(
     ViewStorageService storage,
     ILogger<ViewLibraryService> logger,
     IFFmpegService? ffmpeg = null,
-    IMediaOperationRepository? operations = null) : IViewPathIndexer
+    IMediaOperationRepository? operations = null,
+    DocumentOcrQueue? ocrQueue = null) : IViewPathIndexer
 {
     private const int MaxDocumentCharacters = 256 * 1024;
 
@@ -388,9 +390,10 @@ public sealed class ViewLibraryService(
         IReadOnlyList<LocalAssetFileRegistration> registrations,
         CancellationToken ct)
     {
+        var isPhotoOfPaper = primary.Type.MediaKind == LocalAssetMediaKinds.Image && OcrFormats.IsImage(primary.Extension);
         if (operations is null
-            || primary.Type.MediaKind != LocalAssetMediaKinds.Document
-            || !DocumentTextReadService.NeedsBackgroundRead(primary.Extension))
+            || (primary.Type.MediaKind != LocalAssetMediaKinds.Document && !isPhotoOfPaper)
+            || (!isPhotoOfPaper && !DocumentTextReadService.NeedsBackgroundRead(primary.Extension)))
         {
             return;
         }
@@ -404,6 +407,17 @@ public sealed class ViewLibraryService(
 
         try
         {
+            if (isPhotoOfPaper)
+            {
+                // Photos go straight to text recognition; it only queues while recognition is on and installed.
+                if (ocrQueue is not null)
+                {
+                    await ocrQueue.TryQueueAsync(itemId, file.ContentHash, file.FilePath, ct);
+                }
+
+                return;
+            }
+
             await DocumentTextReadService.QueueAsync(operations, itemId, file.ContentHash, file.FilePath, ct);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)

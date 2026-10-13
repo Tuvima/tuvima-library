@@ -63,6 +63,7 @@ public sealed class ConfigurationDirectoryLoader : IConfigurationLoader, IDispos
     private const string MediaTypesFileName = "media_types.json";
     private const string DisambiguationFileName = "disambiguation.json";
     private const string TranscodingFileName = "transcoding.json";
+    private const string OcrFileName = "ocr.json";
     private const string NetworkFileName = "network.json";
     private const string FieldPrioritiesFileName = "field_priorities.json";
     private const string PipelinesFileName = "pipelines.json";
@@ -159,6 +160,14 @@ public sealed class ConfigurationDirectoryLoader : IConfigurationLoader, IDispos
     /// <inheritdoc/>
     public void SaveTranscoding(TranscodingSettings settings) =>
         SaveFile(TranscodingFileName, settings);
+
+    /// <inheritdoc/>
+    public OcrSettings LoadOcr() =>
+        LoadFile<OcrSettings>(OcrFileName) ?? new();
+
+    /// <inheritdoc/>
+    public void SaveOcr(OcrSettings settings) =>
+        SaveFile(OcrFileName, settings);
 
     /// <inheritdoc/>
     public NetworkSettings LoadNetwork() =>

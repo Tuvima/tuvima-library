@@ -1,3 +1,4 @@
+using MediaEngine.Api.Services.LocalAssets.Ocr;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Entities;
 using MediaEngine.Storage.Contracts;
@@ -27,7 +28,8 @@ public sealed record DocumentTextReadOutcome(DocumentTextReadStatus Status, stri
 public sealed class DocumentTextReadService(
     ILocalAssetRepository repository,
     IConfigurationLoader configuration,
-    ILogger<DocumentTextReadService> logger)
+    ILogger<DocumentTextReadService> logger,
+    DocumentOcrQueue? ocrQueue = null)
 {
     /// <summary>True when a file with this extension has its text read by the background job.</summary>
     public static bool NeedsBackgroundRead(string extension) => DocumentTextReader.IsSupported(extension);
@@ -44,7 +46,8 @@ public sealed class DocumentTextReadService(
         var limits = new DocumentTextReadLimits(
             Math.Max(1, policy.DocumentTextMaxCharacters),
             Math.Max(1, policy.DocumentTextMaxPdfPages),
-            TimeSpan.FromSeconds(Math.Max(1, policy.DocumentTextReadTimeoutSeconds)));
+            TimeSpan.FromSeconds(Math.Max(1, policy.DocumentTextReadTimeoutSeconds)),
+            Math.Max(1, configuration.LoadOcr().TextLayerMinCharacters));
         var fileName = Path.GetFileName(location.FilePath);
 
         var result = await Task.Run(() => DocumentTextReader.Read(location.FilePath, limits, ct), ct).ConfigureAwait(false);
@@ -71,11 +74,40 @@ public sealed class DocumentTextReadService(
         logger.LogDebug(
             "Read {Characters} characters from document {FileName} (encrypted {Encrypted}, truncated {Truncated}).",
             result.Text?.Length ?? 0, fileName, result.Encrypted, result.Truncated);
+        await QueueRecognitionIfScannedAsync(location, result, ct).ConfigureAwait(false);
         return hasText
             ? new DocumentTextReadOutcome(DocumentTextReadStatus.Read, $"Read {result.Text!.Length} characters of text.")
             : new DocumentTextReadOutcome(
                 DocumentTextReadStatus.NoText,
                 result.Encrypted ? "The document is password protected." : "The document has no embedded text.");
+    }
+
+    /// <summary>
+    /// A PDF with pages that have no text layer is handed to text recognition. A failure to queue never
+    /// fails the text read; the next scan or "read again" queues it.
+    /// </summary>
+    private async Task QueueRecognitionIfScannedAsync(
+        LocalAssetContentLocation location,
+        DocumentTextReadResult result,
+        CancellationToken ct)
+    {
+        if (ocrQueue is null
+            || result.Failed
+            || result.Encrypted
+            || result.LowTextPages <= 0
+            || !OcrFormats.IsPdf(Path.GetExtension(location.FilePath)))
+        {
+            return;
+        }
+
+        try
+        {
+            await ocrQueue.TryQueueAsync(location.ItemId, location.ContentHash, location.FilePath, ct).ConfigureAwait(false);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            logger.LogWarning(ex, "Could not queue text recognition for {FileName}.", Path.GetFileName(location.FilePath));
+        }
     }
 
     /// <summary>Queues the text read for an item. The key includes the content hash, so each edit queues once.</summary>

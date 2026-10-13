@@ -95,6 +95,7 @@ public static class MediaOperationType
     public const string AiVibeTags = "ai.vibe_tags";
     public const string AiSmartLabels = "ai.smart_labels";
     public const string ViewDocumentTextRead = "view.document_text_read";
+    public const string ViewDocumentOcr = "view.document_ocr";
 }
 
 public static class MediaOperationStage

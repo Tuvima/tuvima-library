@@ -79,6 +79,12 @@ src/*/*/config/
 # See tools/Download-FFmpeg.ps1 or place ffmpeg.exe + ffprobe.exe in tools/ffmpeg/ manually.
 tools/ffmpeg/*.exe
 tools/ffmpeg/*.dll
+
+# Tesseract OCR helper - platform-specific executables and language data, downloaded by setup script.
+# See tools/Download-Tesseract.ps1.
+tools/tesseract/*.exe
+tools/tesseract/*.dll
+tools/tesseract/tessdata/
 tools/reports/*.txt
 tools/reports/*.log
 

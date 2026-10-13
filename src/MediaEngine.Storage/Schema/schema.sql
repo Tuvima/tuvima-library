@@ -981,7 +981,7 @@ CREATE TABLE IF NOT EXISTS local_item_metadata (
     video_codec         TEXT,
     frame_rate          REAL,
     document_text       TEXT,
-    text_source         TEXT CHECK (text_source IS NULL OR text_source IN ('embedded', 'ocr', 'none')),
+    text_source         TEXT CHECK (text_source IS NULL OR text_source IN ('embedded', 'ocr', 'mixed', 'none')),
     metadata_json       TEXT,
     updated_at          TEXT NOT NULL
 );
