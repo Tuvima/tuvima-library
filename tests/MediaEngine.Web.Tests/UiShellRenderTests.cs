@@ -33,7 +33,8 @@ public sealed class UiShellRenderTests : AsyncBunitContext
     public UiShellRenderTests()
     {
         JSInterop.Mode = JSRuntimeMode.Loose;
-        JSInterop.Setup<string>("detectDeviceClass").SetResult("web");
+        JSInterop.Setup<MediaEngine.Web.Services.Theming.DeviceContextSnapshot>("detectDeviceSnapshot")
+            .SetResult(new MediaEngine.Web.Services.Theming.DeviceContextSnapshot("web", "desktop", false));
 
         var configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
