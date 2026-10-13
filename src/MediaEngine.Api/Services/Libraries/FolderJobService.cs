@@ -454,6 +454,8 @@ public sealed class FolderJobService
     {
         await RequireJobAsync(operationId, ct).ConfigureAwait(false);
         await using var writer = new StreamWriter(destination, new UTF8Encoding(encoderShouldEmitUTF8Identifier: true), leaveOpen: true);
+        // CSV lines end with a carriage return and line feed on every system.
+        writer.NewLine = "\r\n";
         await writer.WriteLineAsync("old_path,new_path,outcome,detail,at").ConfigureAwait(false);
         var offset = 0;
         while (true)
