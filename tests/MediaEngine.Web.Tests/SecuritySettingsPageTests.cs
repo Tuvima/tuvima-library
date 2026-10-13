@@ -37,21 +37,20 @@ public sealed class SecuritySettingsPageTests : AsyncBunitContext
         _handler.HasPassword = false;
         var cut = Render<SecuritySettingsPage>();
 
-        cut.WaitForAssertion(() => Assert.Equal(["password", "email"], RowKeys(cut)));
+        cut.WaitForAssertion(() => Assert.Equal(["password", "email", "sign-out-others"], RowKeys(cut)));
         Assert.Contains("Not set", cut.Find("[data-nav-row='password']").TextContent, StringComparison.Ordinal);
         Assert.Contains("owner@example.test", cut.Find("[data-nav-row='email']").TextContent, StringComparison.Ordinal);
-        Assert.Single(cut.FindAll(".security-settings__group-title"));
     }
 
     [Fact]
-    public void WithAPassword_ExtraProtectionAppearsAndAccessStaysHiddenForNonAdministrators()
+    public void WithAPassword_ExtraProtectionAppears_AndMembersKeepSignOutButNotTheDevicesLink()
     {
         _handler.HasPassword = true;
         var cut = Render<SecuritySettingsPage>();
 
-        cut.WaitForAssertion(() => Assert.Equal(["password", "email", "extra-protection"], RowKeys(cut)));
+        cut.WaitForAssertion(() => Assert.Equal(["password", "email", "extra-protection", "sign-out-others"], RowKeys(cut)));
         Assert.Contains("Off", cut.Find("[data-nav-row='extra-protection']").TextContent, StringComparison.Ordinal);
-        Assert.Single(cut.FindAll(".security-settings__group-title"));
+        Assert.Empty(cut.FindAll("[data-nav-row='devices']"));
         Assert.Empty(cut.FindAll("[role='dialog']"));
     }
 
@@ -83,6 +82,19 @@ public sealed class SecuritySettingsPageTests : AsyncBunitContext
 
         Assert.Contains("Change password", cut.Find("[role='dialog']").TextContent, StringComparison.Ordinal);
         Assert.Contains("New password", cut.Markup, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task ClosingTheSheet_ClearsTypedPasswords()
+    {
+        _handler.HasPassword = true;
+        var cut = Render<SecuritySettingsPage>();
+        cut.WaitForElement("[data-nav-row='password']");
+        await cut.InvokeAsync(() => cut.Find("[data-nav-row='password']").Click());
+        cut.Find("input[type='password']").Input("a-long-test-password");
+        await cut.InvokeAsync(() => cut.Find(".settings-sheet-backdrop").Click());
+        await cut.InvokeAsync(() => cut.Find("[data-nav-row='password']").Click());
+        Assert.Equal(string.Empty, cut.Find("input[type='password']").GetAttribute("value") ?? string.Empty);
     }
 
     [Fact]

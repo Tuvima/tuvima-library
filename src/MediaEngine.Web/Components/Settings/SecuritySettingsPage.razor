@@ -51,30 +51,31 @@
                 </ul>
             </section>
 
-            @if (IsAdministrator)
-            {
-                <section class="security-settings__group" aria-labelledby="security-access">
-                    <h3 id="security-access" class="security-settings__group-title">Access</h3>
-                    <ul class="security-settings__list" role="list">
-                        <li class="security-settings__item">
-                            <SettingsNavRow Key="sign-out-others" Icon="@AppMaterialIcons.Outlined.Logout" Title="Sign out everywhere else" Status="@OtherSessionsStatus"
-                                            Disabled="@(!_sessionsLoading && _sessionsError is null && !OtherSessions.Any())" ShowChevron="false" OnClick="RevokeOtherSessionsAsync" />
-                        </li>
+            @* Signing out other sessions and revoking paired devices stay available to every member: they protect a lost or stolen device. *@
+            <section class="security-settings__group" aria-labelledby="security-access">
+                <h3 id="security-access" class="security-settings__group-title">Access</h3>
+                <ul class="security-settings__list" role="list">
+                    <li class="security-settings__item">
+                        <SettingsNavRow Key="sign-out-others" Icon="@AppMaterialIcons.Outlined.Logout" Title="Sign out everywhere else" Status="@OtherSessionsStatus"
+                                        Disabled="@(!_sessionsLoading && _sessionsError is null && !OtherSessions.Any())" ShowChevron="false" OnClick="RevokeOtherSessionsAsync" />
+                    </li>
+                    @if (IsServerAdministrator)
+                    {
                         <li class="security-settings__item">
                             @* S13 moves devices to Administration > Devices and updates this address. *@
                             <SettingsNavRow Key="devices" Icon="@AppMaterialIcons.Outlined.Devices" Title="Devices" Status="Paired phones and TVs, signed-in sessions" Href="/settings/network/apps" />
                         </li>
-                    </ul>
-                </section>
+                    }
+                </ul>
+            </section>
 
-                @* S13 moves this to Administration > Devices, so paired phones and TVs stay reachable until then. *@
-                <PairedDevicesSection />
-            }
+            @* S13 moves this to Administration > Devices; until then paired phones and TVs stay reachable here for everyone, as before. *@
+            <PairedDevicesSection />
         </div>
 
         @if (_sheet != SecuritySheet.None)
         {
-            <div class="settings-sheet-backdrop" @onclick="CloseSheet">
+            <div class="settings-sheet-backdrop" @onclick="DismissSheet">
                 <div @ref="_sheetRoot"
                      class="settings-sheet"
                      role="dialog"
@@ -354,7 +355,7 @@
     private bool _focusSheet;
 
     private AccountSecurityCapabilitiesResponse Capabilities => _account!.SecurityCapabilities;
-    private bool IsAdministrator => Session.Authority?.EffectiveAdministrator == true || Session.HasAction("household.manage");
+    private bool IsServerAdministrator => Session.Authority?.EffectiveAdministrator == true;
     private string PasswordStatus => Capabilities.HasPassword ? "Set"
         : _thisComputerOnly ? "Not set · works on this computer only" : "Not set";
     private string EmailStatus => string.IsNullOrWhiteSpace(_account?.Email) ? "None · only needed away from home" : _account.Email;
@@ -390,6 +391,14 @@
         _focusSheet = true;
     }
 
+    // A click on the backdrop or Escape never throws away recovery codes that were just shown; the Done button does.
+    private bool ShowingRecoveryCodes => _recoveryCodes.Count > 0 || _twoStepRecoveryCodes.Count > 0;
+
+    private void DismissSheet()
+    {
+        if (!ShowingRecoveryCodes) CloseSheet();
+    }
+
     private void CloseSheet()
     {
         if (_busy) return;
@@ -407,7 +416,7 @@
 
     private void OnSheetKeyDown(KeyboardEventArgs args)
     {
-        if (args.Key == "Escape") CloseSheet();
+        if (args.Key == "Escape") DismissSheet();
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)

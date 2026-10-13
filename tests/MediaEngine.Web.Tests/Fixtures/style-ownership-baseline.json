@@ -500,8 +500,8 @@
       "deep": 1
     },
     "src/MediaEngine.Web/Components/Settings/SecuritySettingsPage.razor.css": {
-      "important": 4,
-      "deep": 11
+      "important": 0,
+      "deep": 0
     },
     "src/MediaEngine.Web/Components/Settings/AddLibraryWizard.razor.css": {
       "important": 0,
@@ -1530,8 +1530,8 @@
       "deep": 1
     },
     "src/MediaEngine.Web/Components/Settings/SecuritySettingsPage.razor.css": {
-      "important": 4,
-      "deep": 11
+      "important": 0,
+      "deep": 0
     },
     "src/MediaEngine.Web/Components/Settings/LibraryFoldersPanel.razor.css": {
       "important": 0,
