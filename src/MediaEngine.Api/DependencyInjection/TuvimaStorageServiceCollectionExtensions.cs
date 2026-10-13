@@ -66,6 +66,7 @@ public static class TuvimaStorageServiceCollectionExtensions
         services.AddHostedService<ViewSharedContributionHostedService>();
         services.AddSingleton<LibraryReorganizationService>();
         services.AddSingleton<ServerFolderBrowserService>();
+        services.AddSingleton<ImportFolderApplier>();
         services.AddSingleton<SetupMediaLocationValidationService>();
         services.AddSingleton<IFileHashCacheRepository, FileHashCacheRepository>();
         services.AddSingleton(_ => new TuvimaDataPaths(configuredPath: null));

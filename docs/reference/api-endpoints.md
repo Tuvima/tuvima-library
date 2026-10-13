@@ -293,6 +293,7 @@ unauthorized identifiers return the same not-found shape as missing resources.
 | POST | `/ingestion/scan` | Dry-run scan of configured library folders. Reports what would be ingested without making changes. | Administrator |
 | POST | `/ingestion/library-scan` | Scan library folders and update known file paths. Triggers ingestion for new files. | Administrator |
 | POST | `/ingestion/upload` | Upload a file to the library's explicit destination (a folder Tuvima manages, checked through the source-mutation gate as a destination, with no fallback folder) identified by multipart `destinationLibraryId`; catalogued files retain stable intake IDs, while personal files are indexed directly into View without catalogue/provider work | Administrator |
+| GET | `/ingestion/import-folder/waiting` | What is being left untouched in the optional Import folder because a media type has no managed folder yet (`reason` `no_managed_folder`) or its New media folder is offline, full or not writable (`folder_unavailable`). One entry per type with `media_type`, `folder`, `file_count` and a plain-language `message`; empty when nothing is waiting. A situation, not a state of the Import folder. | Effective administrator or precise Application permission |
 | GET | `/ingestion/operations` | Dashboard snapshot backed by durable ingestion operation counts, numbered `stage_progress` rows, current activity, review state, provider health, and recent batch summaries. | Effective administrator or precise Application permission |
 | GET | `/ingestion/batches` | Recent ingestion batches. | Effective administrator or precise Application permission |
 | GET | `/ingestion/batches/{batchId}` | Single ingestion batch summary. | Effective administrator or precise Application permission |
@@ -333,7 +334,7 @@ The Dashboard renders Stages 1-8 as compact progress rows. Review/attention stat
 
 | Method | Path | Description | Auth |
 |---|---|---|---|
-| GET | `/review/pending` | All items currently in the review queue | Effective administrator or precise Application permission |
+| GET | `/review/pending` | All items currently in the review queue; `from_import_folder` is true for a file still in the Import folder (the "From the Import folder" badge) | Effective administrator or precise Application permission |
 | GET | `/review/count` | Count of pending review items. Used for media library badge. | Required |
 | GET | `/review/{id}` | Full detail for a single review item including candidates | Effective administrator or precise Application permission |
 | POST | `/review/{id}/resolve` | Resolve a review item by selecting a candidate or confirming corrected local metadata | Effective administrator or precise Application permission |

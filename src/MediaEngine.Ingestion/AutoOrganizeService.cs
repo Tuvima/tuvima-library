@@ -37,6 +37,12 @@ public sealed class AutoOrganizeService : IAutoOrganizeService
     private readonly AssetPathService? _assetPathService;
     private readonly ILibraryFolderResolver? _libraryResolver;
     private readonly ISourceMutationPolicyGate _sourceMutationGate;
+    private readonly IImportFolderService? _importFolders;
+    private readonly ImportFileMover? _importMover;
+
+    // Filing out of the Import folder runs one file at a time, so two passes (the pipeline and the sweep) can't file the
+    // same file twice or race for the same unique name.
+    private readonly SemaphoreSlim _importFilingGate = new(1, 1);
     private readonly ILogger<AutoOrganizeService> _logger;
 
     public AutoOrganizeService(
@@ -54,8 +60,12 @@ public sealed class AutoOrganizeService : IAutoOrganizeService
         AssetPathService? assetPathService = null,
         ILibraryFolderResolver? libraryResolver = null,
         ISourceMutationPolicyGate? sourceMutationGate = null,
-        IMediaAssetCoverageRepository? coverageRepo = null)
+        IMediaAssetCoverageRepository? coverageRepo = null,
+        IImportFolderService? importFolders = null,
+        ImportFileMover? importMover = null)
     {
+        _importFolders = importFolders;
+        _importMover = importMover;
         _coverageRepo = coverageRepo;
         _assetRepo = assetRepo;
         _canonicalRepo = canonicalRepo;
@@ -88,6 +98,29 @@ public sealed class AutoOrganizeService : IAutoOrganizeService
             _logger.LogWarning(
                 "Auto-organize skipped for {Id}: file missing at {Path}",
                 assetId, asset.FilePathRoot);
+            return;
+        }
+
+        // A file in the Import folder is filed into its type's one managed folder, or left exactly where it is.
+        if (_importFolders is not null && _importMover is not null && _importFolders.IsInImportFolder(asset.FilePathRoot))
+        {
+            await _importFilingGate.WaitAsync(ct).ConfigureAwait(false);
+            try
+            {
+                // Another pass may have filed it while this one waited.
+                var current = await _assetRepo.FindByIdAsync(assetId, ct).ConfigureAwait(false);
+                if (current is not null
+                    && File.Exists(current.FilePathRoot)
+                    && _importFolders.IsInImportFolder(current.FilePathRoot))
+                {
+                    await TryFileFromImportAsync(current, assetId, ingestionRunId, ct).ConfigureAwait(false);
+                }
+            }
+            finally
+            {
+                _importFilingGate.Release();
+            }
+
             return;
         }
 
@@ -330,6 +363,166 @@ public sealed class AutoOrganizeService : IAutoOrganizeService
     }
 
     // -------------------------------------------------------------------------
+    // Import folder
+    // -------------------------------------------------------------------------
+
+    /// <summary>
+    /// Files one asset out of the Import folder. The file goes to exactly one place: the managed folder marked New media for
+    /// its type, named with that type's preset. When it can't go there (a review is still open, the type has no managed
+    /// folder, or the folder is offline, full or unwritable) it is left untouched in the Import folder and the next pass,
+    /// the periodic sweep or a manual folder check, tries again. Nothing is ever filed into another folder.
+    /// </summary>
+    private async Task TryFileFromImportAsync(
+        Domain.Aggregates.MediaAsset asset,
+        Guid assetId,
+        Guid? ingestionRunId,
+        CancellationToken ct)
+    {
+        var canonicals = await _canonicalRepo.GetByEntityAsync(assetId, ct).ConfigureAwait(false);
+        if (canonicals.Count == 0)
+        {
+            _logger.LogDebug("Import filing skipped for {Id}: no canonical values yet", assetId);
+            return;
+        }
+
+        var metadata = canonicals.ToDictionary(
+            c => c.Key, c => c.Value, StringComparer.OrdinalIgnoreCase);
+        if (!metadata.TryGetValue("media_type", out var mediaTypeText)
+            || !Enum.TryParse<MediaType>(mediaTypeText, ignoreCase: true, out var mediaType)
+            || mediaType == MediaType.Unknown)
+        {
+            _logger.LogDebug("Import filing waits for {Id}: its media type is not settled", assetId);
+            return;
+        }
+
+        var pendingReviews = await _reviewRepo.GetPendingByEntityAsync(assetId, ct).ConfigureAwait(false);
+        var blocking = pendingReviews.FirstOrDefault(review =>
+            review.ReviewReadyAt is not null
+            && !string.Equals(review.Trigger, nameof(ReviewTrigger.WritebackFailed), StringComparison.OrdinalIgnoreCase));
+        if (blocking is not null)
+        {
+            _logger.LogDebug(
+                "Import filing blocked for {Id}: review '{Trigger}' must be resolved first", assetId, blocking.Trigger);
+            return;
+        }
+
+        var title = metadata.GetValueOrDefault("title");
+        if (string.IsNullOrWhiteSpace(title) || title is "Untitled" or "Unknown")
+        {
+            _logger.LogDebug("Import filing blocked for {Id}: no resolved title", assetId);
+            return;
+        }
+
+        await ApplyRecordedEpisodeRangeAsync(assetId, metadata, mediaType, ct).ConfigureAwait(false);
+
+        var fileSize = new FileInfo(asset.FilePathRoot).Length;
+        var destination = _importFolders!.ResolveDestination(mediaType, fileSize);
+        if (!destination.IsReady)
+        {
+            _logger.LogDebug(
+                "Import filing held for {Id}: {State} for {Type}. {Reason}",
+                assetId, destination.State, destination.TypeLabel, destination.Reason);
+            return;
+        }
+
+        var synth = new IngestionCandidate
+        {
+            Path = asset.FilePathRoot,
+            EventType = FileEventType.Created,
+            DetectedAt = DateTimeOffset.UtcNow,
+            ReadyAt = DateTimeOffset.UtcNow,
+            Metadata = metadata,
+            DetectedMediaType = mediaType,
+        };
+
+        var relative = LibraryOrganizationPath.Calculate(
+            _organizer, synth, destination.Library, _options.ResolveTemplate(mediaType.ToString()));
+        var gateResult = _gate.Evaluate(
+            overallConfidence: 1.0,
+            canonicalValues: metadata,
+            hasUserLock: false,
+            mediaTypeNeedsReview: false,
+            resolvedRelativePath: relative);
+        if (!gateResult.CanOrganize)
+        {
+            _logger.LogDebug("Import filing blocked for {Id}: {Reason}", assetId, gateResult.BlockReason);
+            return;
+        }
+
+        var destPath = Path.GetFullPath(Path.Combine(destination.Source!.Path, relative));
+        var sourcePath = asset.FilePathRoot;
+        if (!CanMoveBetween(sourcePath, destPath, destination))
+        {
+            _logger.LogInformation(
+                "Import filing blocked by source policy for {Id}: {Source} -> {Dest}", assetId, sourcePath, destPath);
+            return;
+        }
+
+        var finalPath = await _importMover!.MoveAsync(sourcePath, destPath, asset.ContentHash, adoptIdenticalCopy: true, ct: ct).ConfigureAwait(false);
+        if (finalPath is null)
+        {
+            _logger.LogWarning("Import filing did not move {Id}; it stays in the Import folder: {Source}", assetId, sourcePath);
+            return;
+        }
+
+        await _assetRepo.UpdateFilePathAsync(assetId, finalPath, ct).ConfigureAwait(false);
+        if (!string.Equals(asset.LibraryId, destination.Library!.Id, StringComparison.OrdinalIgnoreCase))
+        {
+            await _assetRepo.SetLibraryIdAsync(assetId, destination.Library.Id, ct).ConfigureAwait(false);
+        }
+
+        await MarkPresentedAndPublishAsync(assetId, metadata, mediaType, ct).ConfigureAwait(false);
+
+        MoveCompanionFiles(sourcePath, finalPath, destination);
+        var sourceFolder = Path.GetDirectoryName(sourcePath) ?? string.Empty;
+        CleanStagingBakFiles(sourceFolder);
+        if (CanMutate(sourceFolder, SourceMutationKind.Delete, allowDelete: true))
+        {
+            _importFolders.RemoveEmptyFolders(sourceFolder);
+        }
+
+        _logger.LogInformation("Filed asset {Id} from the Import folder: {Source} -> {Dest}", assetId, sourcePath, finalPath);
+
+        try
+        {
+            await _activityRepo.LogAsync(new SystemActivityEntry
+            {
+                ActionType = SystemActionType.PathUpdated,
+                EntityId = assetId,
+                EntityType = "MediaAsset",
+                CollectionName = title,
+                Detail = $"Filed from the Import folder: {Path.GetFileName(sourcePath)} -> {Path.GetRelativePath(destination.Source.Path, finalPath)}",
+                IngestionRunId = ingestionRunId,
+            }, ct).ConfigureAwait(false);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _logger.LogDebug(ex, "Activity log failed for import filing of {Id}; continuing", assetId);
+        }
+
+        try
+        {
+            await _reviewRepo.ResolveAllByEntityAsync(assetId, "system:auto-organize", ct).ConfigureAwait(false);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _logger.LogDebug(ex, "Review auto-resolve failed for {Id} after import filing; continuing", assetId);
+        }
+
+        try
+        {
+            await _publisher.PublishAsync(
+                SignalREvents.IngestionCompleted,
+                new AutoOrganizedIngestionCompletedEvent(finalPath, mediaType.ToString(), DateTimeOffset.UtcNow),
+                ct).ConfigureAwait(false);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _logger.LogDebug(ex, "Event publish failed for import filing of {Id}; continuing", assetId);
+        }
+    }
+
+    // -------------------------------------------------------------------------
     // Already-organized path (QID updated after hydration)
     // -------------------------------------------------------------------------
 
@@ -487,7 +680,7 @@ public sealed class AutoOrganizeService : IAutoOrganizeService
         }
     }
 
-    private void MoveCompanionFiles(string oldMediaPath, string newMediaPath)
+    private void MoveCompanionFiles(string oldMediaPath, string newMediaPath, ImportDestination? importDestination = null)
     {
         if (string.IsNullOrWhiteSpace(oldMediaPath) || string.IsNullOrWhiteSpace(newMediaPath))
         {
@@ -501,22 +694,25 @@ public sealed class AutoOrganizeService : IAutoOrganizeService
             return;
         }
 
-        MoveScopedCompanionFiles(oldMediaPath, newMediaPath, "poster", ".jpg", ".png");
-        MoveScopedCompanionFiles(oldMediaPath, newMediaPath, "fanart", ".jpg", ".png");
-        MoveScopedCompanionFiles(oldMediaPath, newMediaPath, "logo", ".png", ".jpg");
+        MoveScopedCompanionFiles(oldMediaPath, newMediaPath, importDestination, "poster", ".jpg", ".png");
+        MoveScopedCompanionFiles(oldMediaPath, newMediaPath, importDestination, "fanart", ".jpg", ".png");
+        MoveScopedCompanionFiles(oldMediaPath, newMediaPath, importDestination, "logo", ".png", ".jpg");
 
         MoveCompanionCandidates(
             [Path.Combine(oldFolder, "cover.jpg"), Path.Combine(oldFolder, "cover.jpeg"), Path.Combine(oldFolder, "cover.png")],
-            Path.Combine(newFolder, "cover.jpg"));
+            Path.Combine(newFolder, "cover.jpg"),
+            importDestination);
         MoveCompanionCandidates(
             [Path.Combine(oldFolder, "metadata.json")],
-            Path.Combine(newFolder, "metadata.json"));
+            Path.Combine(newFolder, "metadata.json"),
+            importDestination);
         MoveCompanionCandidates(
             [Path.Combine(oldFolder, "metadata.opf")],
-            Path.Combine(newFolder, "metadata.opf"));
+            Path.Combine(newFolder, "metadata.opf"),
+            importDestination);
     }
 
-    private void MoveCompanionCandidates(IEnumerable<string> sourceCandidates, string destinationPath)
+    private void MoveCompanionCandidates(IEnumerable<string> sourceCandidates, string destinationPath, ImportDestination? importDestination = null)
     {
         var existingSources = sourceCandidates
             .Where(path => !string.IsNullOrWhiteSpace(path))
@@ -538,7 +734,7 @@ public sealed class AutoOrganizeService : IAutoOrganizeService
 
             try
             {
-                if (!CanMoveBetween(sourcePath, destinationPath))
+                if (!CanMoveBetween(sourcePath, destinationPath, importDestination))
                 {
                     continue;
                 }
@@ -586,6 +782,7 @@ public sealed class AutoOrganizeService : IAutoOrganizeService
     private void MoveScopedCompanionFiles(
         string oldMediaPath,
         string newMediaPath,
+        ImportDestination? importDestination,
         string artKind,
         params string[] extensions)
     {
@@ -626,7 +823,7 @@ public sealed class AutoOrganizeService : IAutoOrganizeService
                          .Distinct(StringComparer.OrdinalIgnoreCase))
             {
                 var destinationPath = BuildScopedCompanionDestination(newMediaPath, oldBaseName, sourcePath);
-                MoveCompanionCandidates([sourcePath], destinationPath);
+                MoveCompanionCandidates([sourcePath], destinationPath, importDestination);
             }
         }
     }
@@ -718,8 +915,13 @@ public sealed class AutoOrganizeService : IAutoOrganizeService
         catch { /* best-effort cleanup */ }
     }
 
-    private bool CanMoveBetween(string sourcePath, string destinationPath)
+    private bool CanMoveBetween(string sourcePath, string destinationPath, ImportDestination? importDestination = null)
     {
+        if (importDestination is not null)
+        {
+            return CanFileFromImport(sourcePath, destinationPath, importDestination);
+        }
+
         var mutation = string.Equals(
             Path.GetDirectoryName(sourcePath),
             Path.GetDirectoryName(destinationPath),
@@ -731,11 +933,41 @@ public sealed class AutoOrganizeService : IAutoOrganizeService
             && CanMutate(destinationPath, SourceMutationKind.UseAsDestination);
     }
 
+    /// <summary>
+    /// A file leaves the Import folder only into the one managed folder marked New media for its type. Both ends pass the
+    /// source-policy gate: the import folder must allow the move, and the destination must be a managed destination.
+    /// </summary>
+    private bool CanFileFromImport(string sourcePath, string destinationPath, ImportDestination destination)
+    {
+        var allowed = ImportFolderGate.CanFile(
+            _sourceMutationGate, _importFolders!, sourcePath, destinationPath, destination, out var reason);
+        if (!allowed)
+        {
+            _logger.LogDebug(
+                "Import filing denied for {Source} -> {Destination}: {Reason}", sourcePath, destinationPath, reason);
+        }
+
+        return allowed;
+    }
+
     private bool CanMutate(
         string path,
         SourceMutationKind mutation,
         bool allowDelete = false)
     {
+        if (_importFolders?.IsInImportFolder(path) == true)
+        {
+            // The import folder is not a library source; it has its own policy.
+            var importPolicy = _importFolders.CreateImportPolicy(allowDelete);
+            return importPolicy is not null
+                && _sourceMutationGate.Evaluate(new SourceMutationRequest
+                {
+                    Source = importPolicy,
+                    Mutation = mutation,
+                    Path = path,
+                }).Allowed;
+        }
+
         var resolved = _libraryResolver?.ResolveSourceForPath(path);
         FileSourceMutationPolicy? policy = resolved is not null
             ? FileSourceMutationPolicyFactory.Create(

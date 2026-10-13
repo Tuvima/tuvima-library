@@ -133,6 +133,8 @@ public sealed partial class IngestionEngine : BackgroundService, IIngestionEngin
     private readonly IdentityJobStageDependencies _identityStageDependencies;
     private readonly ILibraryFolderResolver? _libraryFolderResolver;
     private readonly ISourceMutationPolicyGate? _sourceMutationPolicyGate;
+    private readonly IImportFolderService? _importFolders;
+    private readonly IImportFolderFiler? _importFiler;
     private readonly IReadOnlyList<IIngestionStage> _ingestionStages;
 
     // Centralized concurrency guard (Principle 5: formalized lock hierarchy).
@@ -198,8 +200,12 @@ public sealed partial class IngestionEngine : BackgroundService, IIngestionEngin
         ISourceMutationPolicyGate? sourceMutationPolicyGate = null,
         OnboardingActivationGate? onboardingGate = null,
         PlaybackInspectionWriter? playbackInspection = null,
-        ICanonicalValueArrayRepository? arrayRepo = null)
+        ICanonicalValueArrayRepository? arrayRepo = null,
+        IImportFolderService? importFolders = null,
+        IImportFolderFiler? importFiler = null)
     {
+        _importFolders = importFolders;
+        _importFiler = importFiler;
         _playbackInspection = playbackInspection;
         _arrayRepo = arrayRepo;
         _watcher = watcher;
@@ -300,6 +306,8 @@ public sealed partial class IngestionEngine : BackgroundService, IIngestionEngin
         }
 
         // -- Step 3: Start watching + initial scan ------------------------
+        // The import folder, when one is set, gets its per-type folders (never the folder itself, so an offline drive stays offline).
+        _importFolders?.EnsureSubfolders();
         var scanTargets = GetConfiguredScanTargets();
         if (scanTargets.Count > 0)
         {
@@ -423,18 +431,6 @@ public sealed partial class IngestionEngine : BackgroundService, IIngestionEngin
     /// <inheritdoc/>
     Task IIngestionEngine.ScanDirectories(IReadOnlyList<IngestionScanTarget> targets, CancellationToken ct)
         => ScanExistingFilesAsync(targets, ct);
-
-    private IReadOnlyList<IngestionScanTarget> GetConfiguredScanTargets() =>
-        _options.LibraryFolders
-            .Where(library => string.Equals(library.Kind, LibraryKinds.Catalogued, StringComparison.OrdinalIgnoreCase))
-            .SelectMany(library => library.Sources.Select(source =>
-                new IngestionScanTarget(source.Path, source.IncludeSubdirectories)))
-            .Where(target => !string.IsNullOrWhiteSpace(target.Path))
-            .GroupBy(target => target.Path, StringComparer.OrdinalIgnoreCase)
-            .Select(group => new IngestionScanTarget(
-                group.Key,
-                group.Any(target => target.IncludeSubdirectories)))
-            .ToList();
 
     /// <inheritdoc/>
     async Task IIngestionEngine.PauseWatcherAsync(CancellationToken ct)

@@ -2,9 +2,11 @@ using Dapper;
 using MediaEngine.Application.ReadModels;
 using MediaEngine.Application.Services;
 using MediaEngine.Contracts.Review;
+using MediaEngine.Domain.Configuration;
 using MediaEngine.Domain.Constants;
 using MediaEngine.Domain.Entities;
 using MediaEngine.Domain.Enums;
+using MediaEngine.Ingestion.Contracts;
 using MediaEngine.Storage;
 using MediaEngine.Storage.Contracts;
 
@@ -38,11 +40,13 @@ public sealed class ReviewQueueReadService : IReviewQueueReadService
     ];
 
     private readonly IDatabaseConnection _db;
+    private readonly IImportFolderService? _importFolders;
 
-    public ReviewQueueReadService(IDatabaseConnection db)
+    public ReviewQueueReadService(IDatabaseConnection db, IImportFolderService? importFolders = null)
     {
         ArgumentNullException.ThrowIfNull(db);
         _db = db;
+        _importFolders = importFolders;
     }
 
     public async Task<IReadOnlyList<ReviewItemDto>> GetPendingAsync(int limit, CancellationToken ct = default)
@@ -131,7 +135,8 @@ public sealed class ReviewQueueReadService : IReviewQueueReadService
                 COALESCE(
                     (SELECT cv.value FROM canonical_values cv WHERE cv.entity_id = p.asset_id AND cv.key IN ('cover_url', 'cover', 'poster_url') AND cv.value <> '' LIMIT 1),
                     (SELECT cv.value FROM canonical_values cv WHERE cv.entity_id = p.work_id AND cv.key IN ('cover_url', 'cover', 'poster_url') AND cv.value <> '' LIMIT 1)
-                ) AS CoverUrl
+                ) AS CoverUrl,
+                ma.file_path_root AS FilePath
             FROM pending p
             LEFT JOIN media_assets ma ON ma.id = p.asset_id
             LEFT JOIN works w ON w.id = p.work_id
@@ -142,13 +147,16 @@ public sealed class ReviewQueueReadService : IReviewQueueReadService
             LIMIT @limit;
             """, new { status = ReviewStatus.Pending, limit })).AsList();
 
+        var importPath = _importFolders?.GetImportPath();
         var result = new List<ReviewItemDto>(rows.Count);
         foreach (var row in rows)
         {
             var entry = ToEntry(row);
             var bridgeIds = await ReadBridgeIdentifiersAsync(conn, row, ct).ConfigureAwait(false);
             var detectedFacts = await ReadDetectedFactsAsync(conn, row, ct).ConfigureAwait(false);
-            result.Add(ToContract(entry, row.MediaType, row.EntityTitle, row.CoverUrl, bridgeIds, detectedFacts));
+            result.Add(ToContract(
+                entry, row.MediaType, row.EntityTitle, row.CoverUrl, bridgeIds, detectedFacts,
+                IsFromImportFolder(importPath, row.FilePath)));
         }
 
         return result;
@@ -239,7 +247,8 @@ public sealed class ReviewQueueReadService : IReviewQueueReadService
                 COALESCE(
                     (SELECT cv.value FROM canonical_values cv WHERE cv.entity_id = i.asset_id AND cv.key IN ('cover_url', 'cover', 'poster_url') AND cv.value <> '' LIMIT 1),
                     (SELECT cv.value FROM canonical_values cv WHERE cv.entity_id = i.work_id AND cv.key IN ('cover_url', 'cover', 'poster_url') AND cv.value <> '' LIMIT 1)
-                ) AS CoverUrl
+                ) AS CoverUrl,
+                ma.file_path_root AS FilePath
             FROM item i
             LEFT JOIN media_assets ma ON ma.id = i.asset_id
             LEFT JOIN works w ON w.id = i.work_id
@@ -256,7 +265,9 @@ public sealed class ReviewQueueReadService : IReviewQueueReadService
         var entry = ToEntry(row);
         var bridgeIds = await ReadBridgeIdentifiersAsync(conn, row, ct).ConfigureAwait(false);
         var detectedFacts = await ReadDetectedFactsAsync(conn, row, ct).ConfigureAwait(false);
-        return ToContract(entry, row.MediaType, row.EntityTitle, row.CoverUrl, bridgeIds, detectedFacts);
+        return ToContract(
+            entry, row.MediaType, row.EntityTitle, row.CoverUrl, bridgeIds, detectedFacts,
+            IsFromImportFolder(_importFolders?.GetImportPath(), row.FilePath));
     }
 
     public async Task<int> GetPendingCountAsync(CancellationToken ct = default)
@@ -335,7 +346,8 @@ public sealed class ReviewQueueReadService : IReviewQueueReadService
         string? entityTitle,
         string? coverUrl,
         Dictionary<string, string> bridgeIdentifiers,
-        Dictionary<string, string> detectedFacts) => new()
+        Dictionary<string, string> detectedFacts,
+        bool fromImportFolder) => new()
         {
             Id = entry.Id,
             EntityId = entry.EntityId,
@@ -357,7 +369,13 @@ public sealed class ReviewQueueReadService : IReviewQueueReadService
             CoverUrl = coverUrl,
             BridgeIdentifiers = bridgeIdentifiers,
             DetectedFacts = detectedFacts,
+            FromImportFolder = fromImportFolder,
         };
+
+    private static bool IsFromImportFolder(string? importPath, string? filePath) =>
+        !string.IsNullOrWhiteSpace(importPath)
+        && !string.IsNullOrWhiteSpace(filePath)
+        && ImportFolderRules.IsInside(importPath, filePath);
 
     private static async Task<Dictionary<string, string>> ReadDetectedFactsAsync(
         System.Data.IDbConnection conn,
@@ -466,6 +484,7 @@ public sealed class ReviewQueueReadService : IReviewQueueReadService
         public string? MediaType { get; init; }
         public string? EntityTitle { get; init; }
         public string? CoverUrl { get; init; }
+        public string? FilePath { get; init; }
     }
 
     private sealed record KeyValueRow(string Key, string Value);

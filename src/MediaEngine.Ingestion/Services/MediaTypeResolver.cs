@@ -1,5 +1,6 @@
 using System.Text.Json;
 using MediaEngine.Domain;
+using MediaEngine.Domain.Configuration;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Enums;
 using MediaEngine.Domain.Models;
@@ -21,6 +22,7 @@ public sealed class MediaTypeResolver : IMediaTypeResolver
     private readonly ILibraryFolderResolver _libraryFolderResolver;
     private readonly IMediaTypeAdvisor _typeAdvisor;
     private readonly IMediaTypeExtensionCatalog _extensionCatalog;
+    private readonly IImportFolderService? _importFolders;
     private readonly ILogger<MediaTypeResolver> _logger;
 
     public MediaTypeResolver(
@@ -28,8 +30,10 @@ public sealed class MediaTypeResolver : IMediaTypeResolver
         ILibraryFolderResolver libraryFolderResolver,
         IMediaTypeAdvisor typeAdvisor,
         IMediaTypeExtensionCatalog extensionCatalog,
-        ILogger<MediaTypeResolver> logger)
+        ILogger<MediaTypeResolver> logger,
+        IImportFolderService? importFolders = null)
     {
+        _importFolders = importFolders;
         _options = options;
         _libraryFolderResolver = libraryFolderResolver;
         _typeAdvisor = typeAdvisor;
@@ -116,7 +120,7 @@ public sealed class MediaTypeResolver : IMediaTypeResolver
         List<MediaTypeCandidate> candidateList,
         ref MediaType resolvedMediaType)
     {
-        var matchedFolder = _libraryFolderResolver.ResolveForPath(filePath);
+        var matchedFolder = ResolveFolderForPrior(filePath);
         if (matchedFolder is null || matchedFolder.MediaTypes.Count == 0)
         {
             return;
@@ -210,6 +214,26 @@ public sealed class MediaTypeResolver : IMediaTypeResolver
         }
     }
 
+    /// <summary>
+    /// The library folder that gives a file its media type prior. A file in one of the Import folder's per-type folders
+    /// (Movies, TV, Music, Books, Audiobooks, Comics) gets that type, even before its type has a library of its own.
+    /// </summary>
+    private LibraryFolderEntry? ResolveFolderForPrior(string filePath)
+    {
+        var library = _libraryFolderResolver.ResolveForPath(filePath);
+        if (library is not null || _importFolders?.ResolveTypePrior(filePath) is not { } importType)
+        {
+            return library;
+        }
+
+        return new LibraryFolderEntry
+        {
+            Id = ImportFolderRules.LocationId,
+            Name = "Import folder",
+            MediaTypes = [importType],
+        };
+    }
+
     private bool CanSingleTypeFolderOverride(
         string filePath,
         MediaType processorType,
@@ -245,7 +269,7 @@ public sealed class MediaTypeResolver : IMediaTypeResolver
         out string? detail)
     {
         detail = null;
-        var matchedFolder = _libraryFolderResolver.ResolveForPath(filePath);
+        var matchedFolder = ResolveFolderForPrior(filePath);
         var sourcePath = _libraryFolderResolver.ResolveSourcePath(filePath)
             ?? options.EffectiveWatchDirectories
                 .Where(path => !string.IsNullOrWhiteSpace(path))

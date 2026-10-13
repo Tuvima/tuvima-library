@@ -209,6 +209,20 @@ The Engine monitors every catalogued library source for new files. Existing-libr
 
 The `.staging/` directory within the library root is excluded from library source monitoring to prevent re-ingestion loops.
 
+### Import folder
+
+The optional Import folder (storage location `incoming`) is watched like a library source but is not one: it is never a destination and no library claims it. `ImportFolderService` answers every question about it from the current configuration, so a change applies without a restart: where the folder is, which media type a per-type folder implies (`Movies`, `TV`, `Music`, `Books`, `Audiobooks`, `Comics`), and the one managed folder marked New media for a type (checked right now for being reachable, writable and roomy enough; an as-is folder is never returned and there is no fallback).
+
+A file takes the same path as every other file (Settle, Lock, Fingerprint, Scan, Identify), with these differences:
+
+- **Type prior.** The per-type folder gives the file a strong media type prior and its type's library (`MediaTypeResolver`, `IngestionEngine`). A file at the root is classified from its content; an ambiguous one goes to Review as a root drop. Files inside the Import folder's `.data` working folder are never ingested.
+- **Filing.** After identity matching, `AutoOrganizeService` files the asset (`TryFileFromImportAsync`): pending reviews, an unresolved title or type, or a destination that is not ready all leave the file exactly where it is. Both ends pass the source-policy gate (`ImportFolderGate`): the Import folder must allow the move and the destination must be a managed destination. `ImportFileMover` renames on one drive and copies, verifies against the ingestion fingerprint, renames into place and then removes the original across drives; a byte-identical file already at the destination is adopted so a restart never leaves two copies. Filing is serialised, so the pipeline and the sweep cannot file one file twice.
+- **Sweep.** `ImportFolderFiler.FilePendingAsync` runs on the poll interval, on **Check folders for changes** (`POST /ingestion/rescan`, through `IIngestionEngine.RefreshImportFolderAsync`) and after the folder settings are saved. It retries registered files whose identity work has settled, which is how files wait for a managed folder, a returning drive or a resolved review without any waiting state.
+- **Duplicates.** `file_handling.duplicate_policy` applies: `keep_one` removes the import copy only (gate-checked delete of that one path); `keep_both` files the import copy beside the held copy with a unique name (`FileDuplicateCopyAsync`), or marks the operation interrupted so the next pass retries when the destination is not ready. A copy held in a library folder is never deleted.
+- **Cleanup.** Empty folders left by a download program are removed inside the Import folder only; the per-type folders, the Import folder and `.data` are kept.
+
+`ImportFolderWaitingReader` describes the files left in the Import folder for want of a managed folder or an available one (`GET /ingestion/import-folder/waiting`); review items carry `from_import_folder` for the "From the Import folder" badge.
+
 ### Import Mode
 
 Import mode performs a one-time scan of an existing collection. It follows the same processing steps as Watch mode, then either **moves** or **copies** the file depending on `import_action`. Copy mode leaves originals untouched. After an import completes, the folder can optionally be switched to Watch mode for ongoing monitoring.

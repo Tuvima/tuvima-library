@@ -68,6 +68,10 @@ public static class MediaEngineIngestionServiceCollectionExtensions
         services.TryAddSingleton<IWriteBackOutcomeService>(sp => sp.GetRequiredService<WriteBackService>());
         services.TryAddSingleton<IBackgroundWorker, BackgroundWorker>();
         services.TryAddSingleton<IOrganizationGate, OrganizationGate>();
+        services.TryAddSingleton<IImportFolderService, ImportFolderService>();
+        services.TryAddSingleton<ImportFileMover>();
+        services.TryAddSingleton<IImportFolderFiler, ImportFolderFiler>();
+        services.TryAddSingleton<IImportFolderWaitingReader, ImportFolderWaitingReader>();
         services.TryAddSingleton<IAutoOrganizeService, AutoOrganizeService>();
         services.TryAddSingleton<ILibraryScanner, LibraryScanner>();
         services.TryAddSingleton<IMediaTypeResolver, MediaTypeResolver>();
@@ -170,36 +174,7 @@ public static class MediaEngineIngestionServiceCollectionExtensions
                 var libraries = configLoader.LoadLibraries();
                 opts.DuplicatePolicy = libraries.FileHandling.DuplicatePolicy;
                 opts.LibraryFolders = libraries.Libraries
-                    .Select(l =>
-                    {
-                        return new LibraryFolderEntry
-                        {
-                            Id = l.Id,
-                            Name = l.Name,
-                            WriteTags = l.OrganizationPolicy.WriteTags,
-                            OrganizationMode = l.OrganizationPolicy.Mode,
-                            CustomOrganizationTemplate = l.OrganizationPolicy.CustomTemplate,
-                            Kind = l.Kind,
-                            Area = l.Area,
-                            Presentation = l.Presentation,
-                            MetadataPolicy = l.MetadataPolicy,
-                            Sources = l.Sources.Select(source => new LibrarySourceEntry
-                            {
-                                Id = source.Id,
-                                Path = source.Path,
-                                ManagementMode = source.ManagementMode,
-                                AccessMode = source.AccessMode,
-                                IncludeSubdirectories = source.IncludeSubdirectories,
-                                ConversionState = source.ConversionState,
-                            }).ToList(),
-                            PrimaryDestinationSourceId = l.PrimaryDestinationSourceId,
-                            MediaTypes = l.MediaTypes
-                                .Select(MediaTypeParser.Parse)
-                                .Where(mt => mt != MediaType.Unknown)
-                                .ToList(),
-                            AcceptedIntakeModes = l.AcceptedIntakeModes.ToList(),
-                        };
-                    })
+                    .Select(LibraryFolderEntryFactory.Create)
                     .Where(e => e.EffectiveSourcePaths.Count > 0)
                     .ToList();
 
@@ -214,7 +189,14 @@ public static class MediaEngineIngestionServiceCollectionExtensions
                     .Where(path => !string.IsNullOrWhiteSpace(path))
                     .Distinct(StringComparer.OrdinalIgnoreCase)
                     .ToList();
-                opts.WatchDirectories = sourcePaths;
+                var importFolder = ImportFolderRules.Find(libraries);
+                opts.ImportFolderPath = importFolder?.Path;
+                if (importFolder is not null)
+                {
+                    sourcePaths.Add(importFolder.Path);
+                }
+
+                opts.WatchDirectories = sourcePaths.Distinct(StringComparer.OrdinalIgnoreCase).ToList();
             }
             catch (InvalidOperationException ex)
             {

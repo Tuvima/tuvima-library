@@ -136,8 +136,7 @@ public sealed partial class IngestionEngine
         try
         {
             var result = await _processors.ProcessAsync(filePath, ct).ConfigureAwait(false);
-            if (_libraryFolderResolver?.ResolveForPath(filePath)?.MediaTypes.Contains(MediaType.Audiobooks) == true
-                && _libraryFolderResolver.ResolveSourcePath(filePath) is { } audiobookSource)
+            if (ResolveAudiobookHintRoot(_libraryFolderResolver?.ResolveForPath(filePath), filePath) is { } audiobookSource)
             {
                 result = Services.AudiobookFolderHints.Apply(result, audiobookSource);
             }
