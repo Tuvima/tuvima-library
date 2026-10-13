@@ -1,6 +1,7 @@
 using MediaEngine.Api.Http;
 using MediaEngine.Api.Security;
 using MediaEngine.Api.Services.Libraries;
+using MediaEngine.Contracts.Paging;
 using MediaEngine.Contracts.Settings;
 using Microsoft.AspNetCore.Mvc;
 
@@ -104,7 +105,8 @@ public static class FolderJobEndpoints
         {
             try
             {
-                return Results.Ok(await jobs.GetLogAsync(operationId, offset ?? 0, limit ?? 0, ct));
+                var paged = PagedRequest.From(offset, limit, defaultLimit: 200, maxLimit: 1000);
+                return Results.Ok(await jobs.GetLogAsync(operationId, paged.Offset, paged.Limit, ct));
             }
             catch (FolderJobException exception)
             {

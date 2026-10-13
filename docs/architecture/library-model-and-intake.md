@@ -112,7 +112,64 @@ upload stream, or family archive never creates another user-facing library.
 An as-is source may be scanned, identified, and indexed, but Tuvima
 must not move, rename, tag, overwrite, or delete its files, and it is never
 a destination. Switching the source to managed is a separate conversion with its
-own progress (`conversion_state`); changing the setting alone does not move files.
+own progress (`conversion_state`): the Engine's organising job (below) renames and
+reorganises the files already there. The Engine owns `conversion_state` and
+`conversion_operation_id`: a settings save keeps whatever the Engine has for a folder it
+already knew, and saving a folder as As-is clears both.
+
+### Organising job (converting a folder to Managed)
+
+`POST /settings/libraries/folders/convert` makes the folder Managed and queues one
+durable `media_operations` row (`organise_folder`, queue `folder_jobs`, one job at a
+time) in the same step; the folder's `conversion_state` is `converting` until it ends
+and `converted` afterwards, whether it finished, was cancelled or failed. The
+`FolderOrganiseJobWorker` leases the job and `FolderOrganiseRunner` walks the folder's
+media files in path order:
+
+- **Per file.** The file's standard path comes from the type's naming preset exactly as
+  normal organising computes it, but the target always stays inside the folder being
+  converted (files organise within the folder they live in). The move is a plain
+  same-drive rename, never an overwrite. The data store points at the new path only
+  after the rename succeeds, a History line (`PathUpdated`) records old and new path,
+  artwork companions and sidecars move with the file, tags are written afterwards when
+  the type has them on, and an old folder is removed only once it is empty (the
+  converted folder itself never is). A file waiting in Review, or without a confirmed
+  title, is not renamed (`needs_review`).
+- **Sidecars.** Files that share the media file's base name travel with it, keeping a
+  language suffix (`Movie.en.srt`, `Movie.pt-BR.forced.srt`): subtitles
+  (`.srt .ass .ssa .sub .idx .vtt .sup`), `.nfo`, artwork (`.jpg .jpeg .png .webp`),
+  `.cue`, `.lrc` and `.m3u/.m3u8` (whose lines naming the media file are updated). A
+  neighbour with a longer name keeps its own sidecars. Anything else is left where it
+  is and listed as `not_moved`.
+- **Collisions.** A different file already at the standard name is never overwritten:
+  the file takes a numbered name (`Name (2).ext`) and a Review item ("Two different
+  files want the same name", trigger `NameCollision`) is opened. An identical file
+  there follows the global rule: under *Keep one copy* this copy is removed (its
+  sidecars move beside the kept copy unless the kept copy already has an identical
+  one); under *Keep both* it takes a numbered name. Media files the library does not
+  know yet are checked for being exact copies of a held file (the same rule) and
+  otherwise sent through the normal identification pipeline, which names them when it
+  finishes.
+- **Durability.** Each file writes an intent to `folder_organise_log` before it moves
+  and a final outcome afterwards. After a restart the job's lease is released, the
+  unfinished intents are finished (file already at its new name) or retired (nothing
+  moved), and files with a final outcome are skipped, so no file is lost, doubled or
+  left half moved.
+- **Control.** Pause stops after the current file and keeps the place; Resume puts the
+  job back in the queue; Cancel stops after the current file and leaves the folder
+  Managed with the work done so far ("Stopped after 1,240 of 8,310; the rest will be
+  tidied gradually by normal scans"). Saving the folder as As-is cancels a running job
+  and changes nothing on disk. A file in use is skipped, retried at the end of the
+  pass with a growing wait, and counted as failed only if it stays locked; the job
+  continues past it.
+- **Estimate.** Up front: files times the average measured by the last finished job, or
+  about 5 seconds per video and 1 second per other file; replaced by the live rate
+  once 50 files are done.
+- **Safety.** The job only moves and renames, and deletes only exact duplicate copies
+  and folders it has emptied. A folder that is not Managed denies every change through
+  the same source-mutation gate; the job reads the saved folder settings again every
+  few seconds and stops when the folder stops being Managed. Saving `libraries.json`
+  refreshes the in-memory folder list, so a switch takes effect without a restart.
 
 ### Managed source
 

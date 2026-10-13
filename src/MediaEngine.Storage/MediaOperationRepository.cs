@@ -450,6 +450,23 @@ public sealed class MediaOperationRepository : IMediaOperationRepository
         return Task.FromResult(changed > 0);
     }
 
+    public Task<bool> InterruptIfRunningAsync(Guid id, string? reason = null, CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+        using var conn = _db.CreateConnection();
+        var changed = conn.Execute("""
+            UPDATE media_operations
+            SET status = 'interrupted',
+                lease_owner = NULL,
+                lease_expires_at = NULL,
+                last_error = COALESCE(@reason, last_error),
+                updated_at = @now
+            WHERE id = @id
+              AND status IN ('leased','running');
+            """, new { id, reason, now = DateTimeOffset.UtcNow.ToString("O") });
+        return Task.FromResult(changed > 0);
+    }
+
     public Task<bool> ResumePausedAsync(Guid id, CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested();

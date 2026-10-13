@@ -37,6 +37,7 @@ public static class ReviewIssueClassifier
             "LanguageMismatch" => new(ReviewIssueBucket.ManualReview, "Language needs confirmation", "The file language conflicts with the configured library language.", false),
             "AmbiguousMediaType" or "RootWatchFolder" => new(ReviewIssueBucket.ManualReview, "Media type is uncertain", "The file could belong to more than one media lane and needs a person to choose.", false),
             "MovieMatchedAsTv" => new(ReviewIssueBucket.ManualReview, "Found as a TV title", "TMDB lists this film as a TV series. Nothing changes until you choose.", false),
+            "NameCollision" => new(ReviewIssueBucket.ManualReview, "Two different files want the same name", "Neither file was overwritten. The second one kept a numbered name so you can decide which is which.", false),
             "RetailMatchAmbiguous" => new(ReviewIssueBucket.ManualReview, "Match needs confirmation", "More than one provider record may match the detected item.", false),
             "MultipleQidMatches" => new(ReviewIssueBucket.ManualReview, "Canonical identity needs confirmation", "More than one Wikidata identity may match the confirmed retail record.", false),
             "RetailMatchFailed" => new(ReviewIssueBucket.ManualReview, "No reliable match", "No configured provider returned a sufficiently reliable match.", false),

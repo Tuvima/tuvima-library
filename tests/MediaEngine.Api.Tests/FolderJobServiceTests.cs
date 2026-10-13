@@ -176,7 +176,9 @@ public sealed class FolderJobServiceTests : IDisposable
             }
         };
 
-        await _f.RunWorkerUntilAsync(() => _f.IsFinishedAsync(job.OperationId));
+        // Wait for the worker to notice the cancel and settle the folder, not just for the cancel itself.
+        await _f.RunWorkerUntilAsync(() => Task.FromResult(
+            _f.Source(folder.Id).ConversionState == LibrarySourceConversionStates.Converted));
 
         var done = await _f.Jobs.GetAsync(operationId, default);
         Assert.Equal("cancelled", done!.State);

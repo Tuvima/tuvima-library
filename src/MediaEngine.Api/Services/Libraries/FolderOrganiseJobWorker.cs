@@ -94,7 +94,7 @@ public sealed class FolderOrganiseJobWorker : BackgroundService
             if (operation.OperationType == MediaOperationType.OrganiseFolder
                 && operation.Status is MediaOperationStatus.Leased or MediaOperationStatus.Running)
             {
-                await _operations.MarkInterruptedAsync(operation.Id, "The Engine restarted; resuming from where it stopped.", ct)
+                await _operations.InterruptIfRunningAsync(operation.Id, "The Engine restarted; resuming from where it stopped.", ct)
                     .ConfigureAwait(false);
                 _logger.LogInformation("Folder job {OperationId} was running when the Engine stopped; it will resume.", operation.Id);
             }
@@ -120,7 +120,8 @@ public sealed class FolderOrganiseJobWorker : BackgroundService
         catch (OperationCanceledException) when (ct.IsCancellationRequested)
         {
             // The Engine is stopping. The ledger keeps the place; the job continues on the next start.
-            await _operations.MarkInterruptedAsync(operation.Id, "The Engine stopped; the job resumes on the next start.", CancellationToken.None)
+            // Only a job still running is released: one the person paused or cancelled meanwhile keeps that state.
+            await _operations.InterruptIfRunningAsync(operation.Id, "The Engine stopped; the job resumes on the next start.", CancellationToken.None)
                 .ConfigureAwait(false);
             throw;
         }

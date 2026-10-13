@@ -3,7 +3,7 @@
 # Compatibility is enforced separately by wire-compatibility.approved.txt.
 # Serializer: System.Text.Json JsonSerializerDefaults.Web; DefaultIgnoreCondition=Never
 # Regenerate intentionally with TUVIMA_UPDATE_WIRE_SNAPSHOT=1.
-# scopes: contracts=963; api=0; web-client=86
+# scopes: contracts=972; api=0; web-client=86
 
 [contracts] MediaEngine.Contracts.Activity.ActivityBatchInsightsDto
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -8403,6 +8403,89 @@
   kind=class | converter=default | number-handling=default | unmapped=default
   DuplicatePolicy: System.String | json=duplicate_policy | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   sample={"duplicate_policy":"sample"}
+
+[contracts] MediaEngine.Contracts.Settings.FolderConversionPreviewRequest
+  kind=class | converter=default | number-handling=default | unmapped=default
+  SourceId: System.String | json=source_id | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Quick: System.Boolean | json=quick | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  FileLimit: System.Int32 | json=file_limit | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"source_id":"sample","quick":true,"file_limit":7}
+
+[contracts] MediaEngine.Contracts.Settings.FolderConversionPreviewResponse
+  kind=class | converter=default | number-handling=default | unmapped=default
+  SourceId: System.String | json=source_id | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  TotalFiles: System.Int32 | json=total_files | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  VideoFiles: System.Int32 | json=video_files | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Examined: System.Int32 | json=examined | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Complete: System.Boolean | json=complete | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  ToRename: System.Int32 | json=to_rename | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  AlreadyCorrect: System.Int32 | json=already_correct | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  DuplicatesToRemove: System.Int32 | json=duplicates_to_remove | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  NeedsReview: System.Int32 | json=needs_review | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  NameCollisions: System.Int32 | json=name_collisions | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Skipped: System.Int32 | json=skipped | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  SkipReasons: System.Collections.Generic.List<MediaEngine.Contracts.Settings.FolderConversionSkipDto> | json=skip_reasons | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Samples: System.Collections.Generic.List<MediaEngine.Contracts.Settings.FolderConversionSampleDto> | json=samples | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  EstimatedSeconds: System.Int32 | json=estimated_seconds | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  DuplicatePolicy: System.String | json=duplicate_policy | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"source_id":"sample","total_files":7,"video_files":7,"examined":7,"complete":true,"to_rename":7,"already_correct":7,"duplicates_to_remove":7,"needs_review":7,"name_collisions":7,"skipped":7,"skip_reasons":[],"samples":[],"estimated_seconds":7,"duplicate_policy":"sample"}
+
+[contracts] MediaEngine.Contracts.Settings.FolderConversionSampleDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  OldPath: System.String | json=old_path | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  NewPath: System.String | json=new_path | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"old_path":"sample","new_path":"sample"}
+
+[contracts] MediaEngine.Contracts.Settings.FolderConversionSkipDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Reason: System.String | json=reason | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Count: System.Int32 | json=count | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"reason":"sample","count":7}
+
+[contracts] MediaEngine.Contracts.Settings.FolderConvertRequest
+  kind=class | converter=default | number-handling=default | unmapped=default
+  SourceId: System.String | json=source_id | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"source_id":"sample"}
+
+[contracts] MediaEngine.Contracts.Settings.FolderJobControlRequest
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Action: System.String | json=action | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"action":"sample"}
+
+[contracts] MediaEngine.Contracts.Settings.FolderJobLogDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  OperationId: System.String | json=operation_id | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Total: System.Int32 | json=total | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Offset: System.Int32 | json=offset | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Entries: System.Collections.Generic.List<MediaEngine.Contracts.Settings.FolderJobLogEntryDto> | json=entries | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"operation_id":"sample","total":7,"offset":7,"entries":[]}
+
+[contracts] MediaEngine.Contracts.Settings.FolderJobLogEntryDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  OldPath: System.String | json=old_path | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  NewPath: System.String | json=new_path | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Outcome: System.String | json=outcome | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Detail: System.String | json=detail | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  At: System.DateTimeOffset | json=at | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"old_path":"sample","new_path":"sample","outcome":"sample","detail":"sample","at":"2025-01-02T03:04:05+00:00"}
+
+[contracts] MediaEngine.Contracts.Settings.FolderJobStatusDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  OperationId: System.String | json=operation_id | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  SourceId: System.String | json=source_id | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  JobType: System.String | json=job_type | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  State: System.String | json=state | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  ItemsTotal: System.Int32 | json=items_total | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  ItemsCompleted: System.Int32 | json=items_completed | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  ItemsFailed: System.Int32 | json=items_failed | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  ProgressPercent: System.Int32 | json=progress_percent | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  EstimatedSecondsRemaining: System.Int32? | json=estimated_seconds_remaining | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Message: System.String | json=message | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  QueuedBehind: System.String | json=queued_behind | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  StartedAt: System.DateTimeOffset? | json=started_at | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  CompletedAt: System.DateTimeOffset? | json=completed_at | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  HasLog: System.Boolean | json=has_log | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"operation_id":"sample","source_id":"sample","job_type":"sample","state":"sample","items_total":7,"items_completed":7,"items_failed":7,"progress_percent":7,"estimated_seconds_remaining":7,"message":"sample","queued_behind":"sample","started_at":"2025-01-02T03:04:05+00:00","completed_at":"2025-01-02T03:04:05+00:00","has_log":true}
 
 [contracts] MediaEngine.Contracts.Settings.HlsRenditionProfile
   kind=class | converter=default | number-handling=default | unmapped=default

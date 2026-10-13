@@ -1,0 +1,49 @@
+.convert-folder {
+    display: grid;
+    gap: 12px;
+    max-width: 62ch;
+}
+
+.convert-folder p {
+    margin: 0;
+    line-height: 1.5;
+}
+
+.convert-folder h4 {
+    margin: 4px 0 0;
+    font-size: 0.9rem;
+}
+
+.convert-folder__counts,
+.convert-folder__reasons,
+.convert-folder__samples {
+    display: grid;
+    gap: 6px;
+    margin: 0;
+    padding-left: 1.2rem;
+}
+
+.convert-folder__reasons {
+    color: var(--tl-text-muted);
+    font-size: 0.85rem;
+}
+
+.convert-folder__samples {
+    padding-left: 0;
+    list-style: none;
+}
+
+.convert-folder__samples li {
+    display: grid;
+    gap: 2px;
+    min-width: 0;
+}
+
+.convert-folder__samples code {
+    overflow-wrap: anywhere;
+    font-size: 0.8rem;
+}
+
+.convert-folder__time {
+    color: var(--tl-text-muted);
+}

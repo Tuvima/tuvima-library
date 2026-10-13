@@ -151,6 +151,13 @@ through compatibility routes.
 | PUT | `/settings/incoming-sources` | Validate and replace universal incoming folders | Administrator |
 | POST | `/settings/libraries/{libraryId}/reorganization/plan` | Produce a read-only, expiring move/rename plan with stable source IDs, conflicts, blocked work, and an exact confirmation fingerprint | Administrator |
 | POST | `/settings/libraries/{libraryId}/reorganization/execute` | Execute one confirmed plan once, revalidating source policy, files, collisions, and free space immediately before each operation | Administrator |
+| POST | `/settings/libraries/folders/conversion/preview` | `{source_id, quick, file_limit}`. `quick: true` counts the folder's media files from folder listings only (`total_files`, `video_files`, time estimate, `duplicate_policy`). Otherwise a read-only dry run over the first `file_limit` files (0 = all): `to_rename`, `already_correct`, `duplicates_to_remove`, `needs_review`, `name_collisions`, `skipped` with `skip_reasons`, five `samples` of old to new path, and `estimated_seconds`. Nothing is changed | Administrator |
+| POST | `/settings/libraries/folders/convert` | `{source_id}`. Makes the folder Managed (`conversion_state: converting`) and queues one `organise_folder` job on the `folder_jobs` queue; a folder that already has an open job gets that job back. Returns the job status | Administrator |
+| GET | `/settings/libraries/folders/jobs` | The open folder jobs and each folder's most recent finished job from the last week (`state`, `items_total/completed/failed`, `progress_percent`, `estimated_seconds_remaining`, `message`, `queued_behind`, `has_log`) | Administrator |
+| GET | `/settings/libraries/folders/jobs/{id}` | One folder job | Administrator |
+| POST | `/settings/libraries/folders/jobs/{id}/control` | `{action}` of `pause`, `resume` or `cancel`; `409` when the job has already finished (or is not paused) | Administrator |
+| GET | `/settings/libraries/folders/jobs/{id}/log` | A page (`offset`, `limit`) of the job's log: every file, old path to new path, with its outcome | Administrator |
+| GET | `/settings/libraries/folders/jobs/{id}/log/export` | The whole log as a CSV download (the Dashboard serves it at `/engine-folder-log/{id}`) | Administrator |
 
 Reorganization execution requires both the returned `plan_id` and its exact
 `fingerprint`. A plan expires after 15 minutes and cannot be reused. Partial

@@ -26,6 +26,18 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
     private UpdateLibrariesRequest? _lastUpdate;
     private MediaEngine.Contracts.Ingestion.ImportFolderWaitingResponse? _waiting;
     private Func<string, PathTestResultDto> _pathProbe = _ => new() { Exists = true, HasRead = true, HasWrite = true };
+
+    // The Engine's side of converting a folder: a quick count, a preview, the open jobs, and what was asked of them.
+    private FolderConversionPreviewResponse _quick = new() { TotalFiles = 2140, VideoFiles = 2140, EstimatedSeconds = 10700, DuplicatePolicy = "keep_one" };
+    private FolderConversionPreviewResponse _preview = new()
+    {
+        TotalFiles = 2140, Examined = 500, Complete = false, ToRename = 410, AlreadyCorrect = 60, DuplicatesToRemove = 12, NeedsReview = 15, NameCollisions = 3, Skipped = 0,
+        EstimatedSeconds = 10700, DuplicatePolicy = "keep_one",
+        Samples = [new() { OldPath = "raw/Dune.2021.mkv", NewPath = "Movies/Dune (2021)/Dune (2021).mkv" }],
+    };
+    private List<FolderJobStatusDto> _jobs = [];
+    private readonly List<string> _converted = [];
+    private readonly List<(string Id, string Action)> _controls = [];
     private IRenderedComponent<AppPopoverHost> _popovers = null!;
 
     private static LibrariesConfigurationDto BuildConfiguration() => new()
@@ -91,6 +103,31 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
                 var libraries = _configuration.Libraries.Select(library => library.Id == _lastLibrary!.Id ? _lastLibrary : library).ToList();
                 _configuration = new LibrariesConfigurationDto { StorageLocations = _configuration.StorageLocations, Libraries = libraries, FileHandling = _configuration.FileHandling };
                 return Task.FromResult<LibrariesConfigurationDto?>(_configuration);
+            });
+            stub.SetHandler(nameof(IEngineApiClient.PreviewFolderConversionAsync), args =>
+                Task.FromResult<FolderConversionPreviewResponse?>(((FolderConversionPreviewRequest)args![0]!).Quick ? _quick : _preview));
+            stub.SetHandler(nameof(IEngineApiClient.GetFolderJobsAsync), _ => Task.FromResult<IReadOnlyList<FolderJobStatusDto>>(_jobs));
+            stub.SetHandler(nameof(IEngineApiClient.ConvertFolderAsync), args =>
+            {
+                var id = (string)args![0]!;
+                _converted.Add(id);
+                var source = _configuration.Libraries.SelectMany(library => library.Sources).Single(item => item.Id == id);
+                source.ManagementMode = "managed_by_tuvima";
+                source.AccessMode = "writable";
+                source.ConversionState = "converting";
+                source.ConversionOperationId = Guid.NewGuid().ToString("D");
+                var job = new FolderJobStatusDto { OperationId = source.ConversionOperationId, SourceId = id, State = "queued", ItemsTotal = _quick.TotalFiles };
+                _jobs = [.. _jobs.Where(item => item.SourceId != id), job];
+                return Task.FromResult<FolderJobStatusDto?>(job);
+            });
+            stub.SetHandler(nameof(IEngineApiClient.ControlFolderJobAsync), args =>
+            {
+                var id = (string)args![0]!;
+                var action = (string)args![1]!;
+                _controls.Add((id, action));
+                var job = _jobs.Single(item => item.OperationId == id);
+                job.State = action switch { "pause" => "paused", "resume" => "running", _ => "cancelled" };
+                return Task.FromResult<FolderJobStatusDto?>(job);
             });
             stub.SetHandler(nameof(IEngineApiClient.GetArtworkWritebackSettingsAsync), _ => Task.FromResult<ArtworkWritebackSettingsDto?>(new ArtworkWritebackSettingsDto(true, true)));
             stub.SetHandler(nameof(IEngineApiClient.GetOrganizationTemplateAsync), _ => Task.FromResult<OrganizationTemplateDto?>(
@@ -285,17 +322,221 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
         Assert.DoesNotContain("Add a managed folder to import or upload", Open("Movies").Markup);
     }
 
-    // A5 (this packet): tapping Handling on an as-is folder confirms, then uses the existing switch to Managed.
+    // Switching an as-is folder that has files to Managed asks honestly first, then queues one organising job.
     [Fact]
-    public void TappingAsIsHandlingConfirmsThenSwitchesToManaged()
+    public void TappingAsIsHandlingExplainsThenConvertsTheFolder()
     {
         var dialogs = Render<AppDialogHost>();
         var cut = Open("Movies");
         cut.FindAll(".folder-table__row")[2].QuerySelector(".folder-table__chip")!.Click();
         dialogs.WaitForAssertion(() => Assert.Contains("Let Tuvima manage F:\\Movies?", dialogs.Markup));
         Assert.Equal(0, _saves);
-        dialogs.FindAll("button").Single(x => x.TextContent.Trim() == "Let Tuvima manage it").Click();
+        Assert.Empty(_converted);
+        dialogs.FindAll("button").Single(x => x.TextContent.Trim() == "Convert").Click();
+        cut.WaitForAssertion(() => Assert.Equal(["movies-old"], _converted));
+        // The Engine makes the folder Managed itself, in the same step: the Dashboard never saves the mode first.
+        Assert.Equal(0, _saves);
+        cut.WaitForAssertion(() => Assert.Contains("Converting…", Text(cut.FindAll(".folder-table__row")[2].QuerySelector(".folder-table__handling")!)));
+    }
+
+    // The confirmation says what the plan promises: renames, hours, other apps, no automatic undo, and the duplicate rule.
+    [Fact]
+    public void TheConfirmationIsHonestAboutRenamingTimeOtherAppsAndUndo()
+    {
+        var dialogs = Render<AppDialogHost>();
+        var cut = Open("Movies");
+        cut.FindAll(".folder-table__row")[2].QuerySelector(".folder-table__chip")!.Click();
+        dialogs.WaitForAssertion(() => Assert.Contains("2,140 files", dialogs.Markup));
+        var text = Text(dialogs.Find(".convert-folder"));
+        Assert.Contains("rename and reorganise the 2,140 files", text);
+        Assert.Contains("write tags where the file type allows it", text);
+        Assert.Contains("exact duplicate copies", text);
+        Assert.Contains("Keep one copy", text);
+        Assert.Contains("This can take hours for a large folder", text);
+        Assert.Contains("about 3 h here, based on 2,140 files", text);
+        Assert.Contains("You can keep using Tuvima while it runs", text);
+        Assert.Contains("Plex, Jellyfin", text);
+        Assert.Contains("This cannot be undone automatically", text);
+        Assert.Contains("full log of every move", text);
+        Assert.Contains("Nothing is ever deleted except exact duplicate copies", text);
+        var buttons = dialogs.FindAll("button").Select(Text).ToList();
+        Assert.Contains("Preview first", buttons);
+        Assert.Contains("Convert", buttons);
+        Assert.Contains("Keep as-is", buttons);
+    }
+
+    // Preview first shows the counts and examples, changes nothing, and still offers Convert and Keep as-is.
+    [Fact]
+    public void PreviewFirstShowsWhatWouldChangeWithoutChangingAnything()
+    {
+        var dialogs = Render<AppDialogHost>();
+        var cut = Open("Movies");
+        cut.FindAll(".folder-table__row")[2].QuerySelector(".folder-table__chip")!.Click();
+        dialogs.WaitForElement(".convert-folder");
+        dialogs.FindAll("button").Single(x => Text(x) == "Preview first").Click();
+        dialogs.WaitForAssertion(() => Assert.Contains("Nothing has changed yet", dialogs.Markup));
+        var text = Text(dialogs.Find(".convert-folder"));
+        Assert.Contains("Looked at the first 500 of 2,140 files", text);
+        Assert.Contains("410 to rename or move", text);
+        Assert.Contains("60 already correct", text);
+        Assert.Contains("12 exact duplicate copies to remove", text);
+        Assert.Contains("18 will need Review", text);
+        Assert.Contains("Movies/Dune (2021)/Dune (2021).mkv", text);
+        Assert.Contains("Scan everything", dialogs.FindAll("button").Select(Text));
+        Assert.Contains("Convert", dialogs.FindAll("button").Select(Text));
+        Assert.Equal(0, _saves);
+        Assert.Empty(_converted);
+        dialogs.FindAll("button").Single(x => Text(x) == "Keep as-is").Click();
+        Assert.Empty(_converted);
+    }
+
+    // A folder with nothing in it just asks plainly; there is no job to run.
+    [Fact]
+    public void AnEmptyFolderIsSwitchedWithoutAnOrganisingJob()
+    {
+        _quick = new() { TotalFiles = 0, DuplicatePolicy = "keep_one" };
+        var dialogs = Render<AppDialogHost>();
+        var cut = Open("Movies");
+        cut.FindAll(".folder-table__row")[2].QuerySelector(".folder-table__chip")!.Click();
+        dialogs.WaitForAssertion(() => Assert.Contains("no media files in this folder yet", dialogs.Markup));
+        dialogs.FindAll("button").Single(x => Text(x) == "Let Tuvima manage it").Click();
         cut.WaitForAssertion(() => Assert.Equal("managed_by_tuvima", _lastLibrary?.Sources.Single(x => x.Id == "movies-old").ManagementMode));
+        Assert.Empty(_converted);
+    }
+
+    // The folder row shows the job: Handling says Converting, one progress line with a time left, and Pause and Cancel.
+    [Fact]
+    public void ARunningJobShowsProgressOnTheFolderRowWithPauseAndCancel()
+    {
+        _configuration.Libraries[0].Sources[1].ConversionState = "converting";
+        _configuration.Libraries[0].Sources[1].ConversionOperationId = "job-1";
+        _jobs = [new() { OperationId = "job-1", SourceId = "movies-plex", State = "running", ItemsTotal = 8310, ItemsCompleted = 1240, ProgressPercent = 15, EstimatedSecondsRemaining = 9000 }];
+        var cut = Open("Movies");
+        var row = cut.FindAll(".folder-table__row")[1];
+        cut.WaitForAssertion(() => Assert.Contains("Organising 1,240 of 8,310", Text(row.QuerySelector(".folder-job")!)));
+        Assert.Contains("about 2.5 h left", Text(row.QuerySelector(".folder-job")!));
+        Assert.Contains("Converting…", Text(row.QuerySelector(".folder-table__handling")!));
+        Assert.NotNull(row.QuerySelector(".folder-job [role=progressbar]"));
+        var buttons = row.QuerySelectorAll(".folder-job button").Select(Text).ToList();
+        Assert.Equal(["Pause", "Cancel"], buttons);
+
+        row.QuerySelectorAll(".folder-job button").Single(x => Text(x) == "Pause").Click();
+        cut.WaitForAssertion(() => Assert.Equal([("job-1", "pause")], _controls));
+        cut.WaitForAssertion(() => Assert.Contains("Paused at 1,240 of 8,310", Text(cut.FindAll(".folder-table__row")[1].QuerySelector(".folder-job")!)));
+        Assert.Contains("Resume", cut.FindAll(".folder-table__row")[1].QuerySelectorAll(".folder-job button").Select(Text));
+    }
+
+    [Fact]
+    public void CancellingAJobAsksFirstAndKeepsTheFolderManaged()
+    {
+        var dialogs = Render<AppDialogHost>();
+        _configuration.Libraries[0].Sources[1].ConversionState = "converting";
+        _jobs = [new() { OperationId = "job-1", SourceId = "movies-plex", State = "running", ItemsTotal = 100, ItemsCompleted = 10 }];
+        var cut = Open("Movies");
+        cut.WaitForElement(".folder-job");
+        cut.Find(".folder-job button[aria-label='Cancel organising Plex Movies']").Click();
+        dialogs.WaitForAssertion(() => Assert.Contains("Stop organising Plex Movies?", dialogs.Markup));
+        Assert.Contains("the rest will be tidied gradually by normal scans", dialogs.Markup);
+        Assert.Empty(_controls);
+        dialogs.FindAll("button").Single(x => Text(x) == "Keep going").Click();
+        Assert.Empty(_controls);
+
+        cut.Find(".folder-job button[aria-label='Cancel organising Plex Movies']").Click();
+        dialogs.WaitForAssertion(() => Assert.Contains("Stop organising Plex Movies?", dialogs.Markup));
+        dialogs.FindAll("button").Single(x => Text(x) == "Stop organising").Click();
+        cut.WaitForAssertion(() => Assert.Equal([("job-1", "cancel")], _controls));
+    }
+
+    [Fact]
+    public void ASecondJobSaysWhichFolderItIsWaitingBehind()
+    {
+        _configuration.Libraries[0].Sources[0].ConversionState = "converting";
+        _configuration.Libraries[0].Sources[1].ConversionState = "converting";
+        _jobs =
+        [
+            new() { OperationId = "job-1", SourceId = "movies-main", State = "running", ItemsTotal = 100, ItemsCompleted = 10 },
+            new() { OperationId = "job-2", SourceId = "movies-plex", State = "queued", ItemsTotal = 50, QueuedBehind = "Library Movies" },
+        ];
+        var cut = Open("Movies");
+
+        cut.WaitForAssertion(() => Assert.Contains("Queued behind Library Movies", Text(cut.FindAll(".folder-table__row")[1].QuerySelector(".folder-job")!)));
+    }
+
+    // When a job ends the row says how it went and links the log of every move.
+    [Fact]
+    public void AFinishedJobSaysHowItWentAndLinksTheLog()
+    {
+        _jobs = [new() { OperationId = "job-9", SourceId = "movies-plex", State = "completed", ItemsTotal = 8310, ItemsCompleted = 8310, ItemsFailed = 20, ProgressPercent = 100, HasLog = true, Message = "8,290 organised, 20 could not be moved - see log." }];
+        var cut = Open("Movies");
+        var row = cut.FindAll(".folder-table__row")[1];
+
+        cut.WaitForAssertion(() => Assert.Contains("8,290 organised, 20 could not be moved", Text(row.QuerySelector(".folder-job")!)));
+        Assert.Equal("/engine-folder-log/job-9", row.QuerySelector(".folder-job a")!.GetAttribute("href"));
+        Assert.Empty(row.QuerySelectorAll(".folder-job button"));
+        Assert.Contains("Managed", Text(row.QuerySelector(".folder-table__handling")!));
+    }
+
+    // A managed folder can be organised on request, with the same honest question.
+    [Fact]
+    public void OrganiseFilesNowOnAManagedFolderAsksThenQueuesTheJob()
+    {
+        var dialogs = Render<AppDialogHost>();
+        var cut = Open("Movies");
+        OpenMenuItem(cut, 0, "Organise files now");
+        dialogs.WaitForAssertion(() => Assert.Contains("Organise E:\\Library\\Movies now?", dialogs.Markup));
+        Assert.Contains("This cannot be undone automatically", dialogs.Markup);
+        dialogs.FindAll("button").Single(x => Text(x) == "Organise now").Click();
+        cut.WaitForAssertion(() => Assert.Equal(["movies-main"], _converted));
+    }
+
+    // Changing a naming preset asks before touching existing files; Only new files keeps today's behaviour.
+    [Fact]
+    public void ANamingChangeAsksWhetherToApplyToExistingFilesAndNeverStartsAJobSilently()
+    {
+        var dialogs = Render<AppDialogHost>();
+        var cut = Open("Movies");
+        cut.FindAll(".library-advanced__type button").First(x => Text(x) == "Keep original names").Click();
+        cut.WaitForAssertion(() => Assert.Equal("keep_original_names", _lastLibrary?.OrganizationPolicy.Mode));
+        dialogs.WaitForAssertion(() => Assert.Contains("Apply the new naming to your existing Movies?", dialogs.Markup));
+        Assert.Contains("4,280 files", dialogs.Markup);
+        Assert.Contains("cannot be undone automatically", dialogs.Markup);
+        Assert.Empty(_converted);
+        dialogs.FindAll("button").Single(x => Text(x) == "Only new files").Click();
+        Assert.Empty(_converted);
+    }
+
+    [Fact]
+    public void ApplyToExistingFilesNowQueuesAJobForEachManagedFolder()
+    {
+        var dialogs = Render<AppDialogHost>();
+        var cut = Open("Movies");
+        cut.FindAll(".library-advanced__type button").First(x => Text(x) == "Keep original names").Click();
+        dialogs.WaitForAssertion(() => Assert.Contains("Apply the new naming to your existing Movies?", dialogs.Markup));
+        dialogs.FindAll("button").Single(x => Text(x) == "Apply to existing files now").Click();
+        cut.WaitForAssertion(() => Assert.Equal(["movies-main", "movies-plex"], _converted));
+    }
+
+    // The tags switch is not a naming change, so it never asks.
+    [Fact]
+    public void ChangingOnlyTheTagsSettingDoesNotAskAboutExistingFiles()
+    {
+        var dialogs = Render<AppDialogHost>();
+        var cut = Open("Movies");
+        cut.FindAll(".library-advanced__type input[role=switch]").Single().Change(false);
+        cut.WaitForAssertion(() => Assert.False(_lastLibrary?.OrganizationPolicy.WriteTags));
+        Assert.DoesNotContain("Apply the new naming", dialogs.Markup);
+        Assert.Empty(_converted);
+    }
+
+    [Fact]
+    public void SwitchingBackToAsIsWarnsThatRenamedFilesKeepTheirNames()
+    {
+        var dialogs = Render<AppDialogHost>();
+        var cut = Open("Movies");
+        cut.FindAll(".folder-table__row")[1].QuerySelector(".folder-table__chip")!.Click();
+        dialogs.WaitForAssertion(() => Assert.Contains("Use D:\\Plex\\Movies as-is?", dialogs.Markup));
+        Assert.Contains("Tuvima will stop organising this folder", dialogs.Markup);
+        Assert.Contains("Files already renamed keep their new names", dialogs.Markup);
     }
 
     [Fact]
@@ -307,6 +548,7 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
         dialogs.WaitForAssertion(() => Assert.Contains("Let Tuvima manage F:\\Movies?", dialogs.Markup));
         dialogs.FindAll("button").Single(x => x.TextContent.Trim() == "Keep as-is").Click();
         Assert.Equal(0, _saves);
+        Assert.Empty(_converted);
     }
 
     // A6: the Files cell follows the type's tag setting.
@@ -437,6 +679,7 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
         Assert.Contains("is-marked", row.ClassList);
         Assert.Contains("Organising…", row.TextContent);
         Assert.Contains("Converting…", Text(row.QuerySelector(".folder-table__handling")!));
+        Assert.Empty(row.QuerySelectorAll(".folder-job"));
         Assert.Single(cut.FindAll(".folder-table__marker.is-marked"));
     }
 

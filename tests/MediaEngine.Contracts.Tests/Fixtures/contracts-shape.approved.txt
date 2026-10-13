@@ -7111,6 +7111,71 @@ MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.FieldMappingDto
 MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.FileHandlingDto
   DuplicatePolicy: System.String | nullability=not-null | accessors=get,set
 
+MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.FolderConversionPreviewRequest
+  SourceId: System.String | nullability=not-null | accessors=get,set
+  Quick: System.Boolean | nullability=not-null | accessors=get,set
+  FileLimit: System.Int32 | nullability=not-null | accessors=get,set
+
+MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.FolderConversionPreviewResponse
+  SourceId: System.String | nullability=not-null | accessors=get,set
+  TotalFiles: System.Int32 | nullability=not-null | accessors=get,set
+  VideoFiles: System.Int32 | nullability=not-null | accessors=get,set
+  Examined: System.Int32 | nullability=not-null | accessors=get,set
+  Complete: System.Boolean | nullability=not-null | accessors=get,set
+  ToRename: System.Int32 | nullability=not-null | accessors=get,set
+  AlreadyCorrect: System.Int32 | nullability=not-null | accessors=get,set
+  DuplicatesToRemove: System.Int32 | nullability=not-null | accessors=get,set
+  NeedsReview: System.Int32 | nullability=not-null | accessors=get,set
+  NameCollisions: System.Int32 | nullability=not-null | accessors=get,set
+  Skipped: System.Int32 | nullability=not-null | accessors=get,set
+  SkipReasons: System.Collections.Generic.List<MediaEngine.Contracts.Settings.FolderConversionSkipDto> | nullability=not-null | accessors=get,set
+  Samples: System.Collections.Generic.List<MediaEngine.Contracts.Settings.FolderConversionSampleDto> | nullability=not-null | accessors=get,set
+  EstimatedSeconds: System.Int32 | nullability=not-null | accessors=get,set
+  DuplicatePolicy: System.String | nullability=not-null | accessors=get,set
+
+MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.FolderConversionSampleDto
+  OldPath: System.String | nullability=not-null | accessors=get,set
+  NewPath: System.String | nullability=not-null | accessors=get,set
+
+MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.FolderConversionSkipDto
+  Reason: System.String | nullability=not-null | accessors=get,set
+  Count: System.Int32 | nullability=not-null | accessors=get,set
+
+MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.FolderConvertRequest
+  SourceId: System.String | nullability=not-null | accessors=get,set
+
+MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.FolderJobControlRequest
+  Action: System.String | nullability=not-null | accessors=get,set
+
+MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.FolderJobLogDto
+  OperationId: System.String | nullability=not-null | accessors=get,set
+  Total: System.Int32 | nullability=not-null | accessors=get,set
+  Offset: System.Int32 | nullability=not-null | accessors=get,set
+  Entries: System.Collections.Generic.List<MediaEngine.Contracts.Settings.FolderJobLogEntryDto> | nullability=not-null | accessors=get,set
+
+MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.FolderJobLogEntryDto
+  OldPath: System.String | nullability=not-null | accessors=get,set
+  NewPath: System.String | nullability=not-null | accessors=get,set
+  Outcome: System.String | nullability=not-null | accessors=get,set
+  Detail: System.String | nullability=nullable | accessors=get,set
+  At: System.DateTimeOffset | nullability=not-null | accessors=get,set
+
+MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.FolderJobStatusDto
+  OperationId: System.String | nullability=not-null | accessors=get,set
+  SourceId: System.String | nullability=not-null | accessors=get,set
+  JobType: System.String | nullability=not-null | accessors=get,set
+  State: System.String | nullability=not-null | accessors=get,set
+  ItemsTotal: System.Int32 | nullability=not-null | accessors=get,set
+  ItemsCompleted: System.Int32 | nullability=not-null | accessors=get,set
+  ItemsFailed: System.Int32 | nullability=not-null | accessors=get,set
+  ProgressPercent: System.Int32 | nullability=not-null | accessors=get,set
+  EstimatedSecondsRemaining: System.Int32? | nullability=nullable | accessors=get,set
+  Message: System.String | nullability=nullable | accessors=get,set
+  QueuedBehind: System.String | nullability=nullable | accessors=get,set
+  StartedAt: System.DateTimeOffset? | nullability=nullable | accessors=get,set
+  CompletedAt: System.DateTimeOffset? | nullability=nullable | accessors=get,set
+  HasLog: System.Boolean | nullability=not-null | accessors=get,set
+
 MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.HlsRenditionProfile
   Name: System.String | nullability=not-null | accessors=get,set
   Height: System.Int32 | nullability=not-null | accessors=get,set

@@ -1,12 +1,16 @@
 @namespace MediaEngine.Web.Components.Settings
 @using System.Text.Json
 @using MediaEngine.Contracts.Ingestion
+@using MediaEngine.Contracts.Settings
+@using MediaEngine.Web.Services.Formatting
 @using MediaEngine.Web.Components.Shared
 @using MediaEngine.Web.Models.ViewDTOs
 @inject UIOrchestratorService Orchestrator
 @inject IEngineApiClient ApiClient
 @inject IAppDialogService DialogService
 @inject IAppToastService Snackbar
+@inject NavigationManager Navigation
+@implements IDisposable
 
 @* One screen for libraries: media types on the left, the selected type's folders on the right.
    Used by the first-run setup step and by Settings > Libraries, so both behave identically. *@
@@ -203,7 +207,10 @@
                                         OnChangeHandling="ChangeModeAsync"
                                         OnSetDestination="SetDestinationAsync"
                                         OnLabel="LabelFolderAsync"
-                                        OnRemove="RemoveFolderAsync" />
+                                        OnRemove="RemoveFolderAsync"
+                                        Jobs="@_jobs"
+                                        OnJobControl="ControlJobAsync"
+                                        OnOrganiseNow="OrganiseNowAsync" />
                     @if (!SelectedLibrary.Sources.Any(IsManaged))
                     {
                         <p class="library-folders__hint">Add a managed folder to import or upload @Selected.PluralLabel.</p>
@@ -297,6 +304,7 @@
         await InvokeAsync(StateHasChanged);
         await RefreshPathIssuesAsync();
         await RefreshWaitingAsync();
+        await RefreshJobsAsync();
     }
 
     // Live read/write check of every folder; a problem shows as one status line under the path, nothing when healthy.
@@ -494,17 +502,29 @@
         };
         if (string.IsNullOrWhiteSpace(source.Notes)) source.Notes = selected.Path;
         library.Sources.Add(source);
-        await SaveAsync(library, "Folder added.");
+        var saved = await SaveAsync(library, "Folder added.");
+        if (saved && managed && selected.ContainsFiles)
+        {
+            // The files already in it are not touched until the person says so.
+            var added = SelectedLibrary?.Sources.FirstOrDefault(item => item.Id == source.Id);
+            if (added is not null) await OfferOrganiseAsync(added, alreadyManaged: true, quiet: true);
+        }
     }
 
-    // Tapping Handling. As-is to Managed asks first (the organising job arrives later, so today this is the plain mode switch);
-    // Managed to As-is also asks, and stops any job that is running. Nothing already done is undone.
+    // Tapping Handling. As-is to Managed asks honestly first and then queues the organising job (the setup wizard has no files to
+    // organise yet, so it keeps the plain switch); Managed to As-is also asks, and stops any job that is running.
     private async Task ChangeModeAsync(LibrarySourceDto source)
     {
         var library = Clone(SelectedLibrary);
         var target = library?.Sources.FirstOrDefault(item => item.Id == source.Id);
         if (library is null || target is null || _saving) return;
         var managed = !IsManaged(target);
+        if (managed && !Embedded)
+        {
+            await ConvertToManagedAsync(library, target);
+            return;
+        }
+
         var confirmed = managed
             ? await DialogService.ShowMessageBoxAsync(
                 $"Let Tuvima manage {target.Path}?",
@@ -512,9 +532,15 @@
                 yesText: "Let Tuvima manage it", cancelText: "Keep as-is")
             : await DialogService.ShowMessageBoxAsync(
                 $"Use {target.Path} as-is?",
-                "Tuvima stops renaming, moving or tagging files here, and any organising that is running stops. Nothing is undone and your files stay where they are.",
+                "Tuvima will stop organising this folder, and any organising that is running stops. Files already renamed keep their new names; nothing is undone and nothing else on disk changes.",
                 yesText: "Use as-is", cancelText: "Keep managed");
         if (confirmed != true) return;
+        await ApplyModeAsync(library, target, managed);
+    }
+
+    // The plain mode switch: validate the folder for the new mode, then save it.
+    private async Task ApplyModeAsync(LibraryFolderDto library, LibrarySourceDto target, bool managed)
+    {
         var validation = await ValidateAsync(target.Path, managed ? ServerFolderSelectionModes.ManagedLibrary : ServerFolderSelectionModes.ExistingLibrary, target.Id);
         if (validation is null || !validation.CanSelect)
         {
@@ -531,6 +557,99 @@
             target.ConversionOperationId = null;
         }
         await SaveAsync(library, managed ? "Tuvima will now manage this folder." : "This folder will be used as-is.");
+    }
+
+    // As-is to Managed for a folder in the signed-in Settings: count what is there, ask, then let the Engine convert it.
+    private async Task ConvertToManagedAsync(LibraryFolderDto library, LibrarySourceDto target)
+    {
+        var validation = await ValidateAsync(target.Path, ServerFolderSelectionModes.ManagedLibrary, target.Id);
+        if (validation is null || !validation.CanSelect)
+        {
+            _notice = validation?.Issues.FirstOrDefault()?.Message ?? ApiClient.LastError ?? "This folder does not meet the access needed for that choice.";
+            return;
+        }
+
+        var quick = await ApiClient.PreviewFolderConversionAsync(new FolderConversionPreviewRequest { SourceId = target.Id, Quick = true });
+        if (quick is null)
+        {
+            _notice = ApiClient.LastError ?? "Tuvima could not count the files in this folder, so it was not changed.";
+            return;
+        }
+
+        if (quick.TotalFiles == 0)
+        {
+            var plain = await DialogService.ShowMessageBoxAsync(
+                $"Let Tuvima manage {target.Path}?",
+                "There are no media files in this folder yet. Tuvima will name and organise the files it adds here from now on.",
+                yesText: "Let Tuvima manage it", cancelText: "Keep as-is");
+            if (plain == true) await ApplyModeAsync(library, target, managed: true);
+            return;
+        }
+
+        if (await AskToConvertAsync(target, quick, alreadyManaged: false)) await StartConversionAsync(target);
+    }
+
+    private async Task<bool> AskToConvertAsync(LibrarySourceDto target, FolderConversionPreviewResponse quick, bool alreadyManaged)
+    {
+        var parameters = new AppDialogParameters<ConvertFolderDialog>
+        {
+            { component => component.SourceId, target.Id },
+            { component => component.Path, target.Path },
+            { component => component.AlreadyManaged, alreadyManaged },
+            { component => component.Initial, quick },
+        };
+        var dialog = await DialogService.ShowAsync<ConvertFolderDialog>(string.Empty, parameters, new AppDialogOptions
+        {
+            MaxWidth = AppMaxWidth.Medium,
+            FullWidth = true,
+            CloseButton = false,
+            NoHeader = true,
+            CloseOnEscapeKey = true,
+            Sheet = AppDialogSheetMode.PhoneAndTablet,
+        });
+        return await dialog.Result is { Canceled: false, Data: ConvertFolderDialog.Convert };
+    }
+
+    // Queues the organising job for a folder, makes it Managed in the same step, and starts watching its progress.
+    private async Task StartConversionAsync(LibrarySourceDto source)
+    {
+        if (_saving) return;
+        _saving = true;
+        FolderJobStatusDto? job;
+        try { job = await ApiClient.ConvertFolderAsync(source.Id); }
+        finally { _saving = false; }
+        if (job is null)
+        {
+            _notice = ApiClient.LastError ?? "Tuvima could not start organising this folder.";
+            return;
+        }
+
+        Snackbar.Add($"Tuvima is organising {source.DisplayName()}. You can keep using Tuvima meanwhile.", AppSeverity.Success);
+        await ReloadConfigurationAsync();
+        await RefreshJobsAsync();
+        await Changed.InvokeAsync();
+    }
+
+    // Row menu "Organise files now", and the offer after adding a folder that already has files.
+    private async Task OrganiseNowAsync(LibrarySourceDto source) => await OfferOrganiseAsync(source, alreadyManaged: true, quiet: false);
+
+    private async Task OfferOrganiseAsync(LibrarySourceDto source, bool alreadyManaged, bool quiet)
+    {
+        if (_saving || Embedded) return;
+        var quick = await ApiClient.PreviewFolderConversionAsync(new FolderConversionPreviewRequest { SourceId = source.Id, Quick = true });
+        if (quick is null)
+        {
+            if (!quiet) _notice = ApiClient.LastError ?? "Tuvima could not count the files in this folder.";
+            return;
+        }
+
+        if (quick.TotalFiles == 0)
+        {
+            if (!quiet) Snackbar.Add("There are no media files in this folder to organise.", AppSeverity.Normal);
+            return;
+        }
+
+        if (await AskToConvertAsync(source, quick, alreadyManaged)) await StartConversionAsync(source);
     }
 
     // Tapping the New media radio on another managed folder moves the marker. It only affects future imports and uploads.
@@ -558,7 +677,57 @@
         await SaveAsync(library, "Label saved.");
     }
 
-    private Task SaveAdvancedLibraryAsync(LibraryFolderDto library) => SaveAsync(library, "Saved.");
+    // A naming change applies to files Tuvima adds from now on. When the type already has files in managed folders the person is
+    // asked, never surprised with a long job: Apply to existing files now, or Only new files.
+    private async Task SaveAdvancedLibraryAsync(LibraryFolderDto library)
+    {
+        var before = _configuration?.Libraries.FirstOrDefault(item => item.Id == library.Id)?.OrganizationPolicy;
+        var namingChanged = before is not null
+            && (!string.Equals(before.Mode, library.OrganizationPolicy.Mode, StringComparison.Ordinal)
+                || !string.Equals(before.CustomTemplate ?? string.Empty, library.OrganizationPolicy.CustomTemplate ?? string.Empty, StringComparison.Ordinal));
+        var saved = await SaveAsync(library, "Saved.");
+        if (saved && namingChanged && !Embedded && !ReadOnly) await OfferApplyNamingAsync(library.Id);
+    }
+
+    private async Task OfferApplyNamingAsync(string libraryId)
+    {
+        var library = _configuration?.Libraries.FirstOrDefault(item => item.Id == libraryId);
+        var managed = library?.Sources.Where(IsManaged).ToList() ?? [];
+        if (library is null || managed.Count == 0) return;
+
+        var files = 0;
+        foreach (var folder in managed)
+        {
+            var quick = await ApiClient.PreviewFolderConversionAsync(new FolderConversionPreviewRequest { SourceId = folder.Id, Quick = true });
+            files += quick?.TotalFiles ?? 0;
+        }
+
+        if (files == 0) return;
+        var name = string.IsNullOrWhiteSpace(library.Name) ? "library" : library.Name;
+        var apply = await DialogService.ShowMessageBoxAsync(
+            $"Apply the new naming to your existing {name}?",
+            $"{files:N0} {(files == 1 ? "file" : "files")} in your managed {(managed.Count == 1 ? "folder" : "folders")} would be renamed. " +
+            "This can take hours for a large folder; you can keep using Tuvima while it runs. Other programs that use these folders (Plex, Jellyfin) will need to rescan, " +
+            "and it cannot be undone automatically (Tuvima keeps a full log of every move). Or choose Only new files: nothing is renamed now, and the new naming applies to files added from now on.",
+            yesText: "Apply to existing files now", noText: "Only new files");
+        if (apply != true) return;
+
+        foreach (var folder in managed)
+        {
+            var job = await ApiClient.ConvertFolderAsync(folder.Id);
+            if (job is null)
+            {
+                _notice = ApiClient.LastError ?? $"Tuvima could not start organising {folder.DisplayName()}.";
+                break;
+            }
+        }
+
+        Snackbar.Add($"Tuvima is renaming your existing {name}. You can keep using Tuvima meanwhile.", AppSeverity.Success);
+        await ReloadConfigurationAsync();
+        await RefreshJobsAsync();
+        await Changed.InvokeAsync();
+    }
+
 
     // Copy the saved file handling and change only the duplicate rule, so settings added later are not dropped.
     private static FileHandlingDto WithDuplicatePolicy(FileHandlingDto current, string policy)
@@ -670,9 +839,9 @@
         await SaveAsync(library, "Folder removed.");
     }
 
-    private async Task SaveAsync(LibraryFolderDto library, string message)
+    private async Task<bool> SaveAsync(LibraryFolderDto library, string message)
     {
-        if (_configuration is null || _saving) return;
+        if (_configuration is null || _saving) return false;
         _saving = true;
         try
         {
@@ -701,7 +870,7 @@
             if (saved is null)
             {
                 _notice = ApiClient.LastError ?? "That change could not be saved. Check the folder and try again.";
-                return;
+                return false;
             }
             _configuration = saved;
             _baseline = JsonSerializer.Serialize(saved);
@@ -711,7 +880,134 @@
         await Changed.InvokeAsync();
         await RefreshPathIssuesAsync();
         await RefreshWaitingAsync();
+        await RefreshJobsAsync();
+        return true;
     }
+
+    // ── Folder jobs (converting a folder to Managed) ───────────────────────────────────────────────────────────
+
+    private IReadOnlyDictionary<string, FolderJobStatusDto> _jobs = new Dictionary<string, FolderJobStatusDto>();
+    private CancellationTokenSource? _pollCancellation;
+    private bool _polling;
+
+    // Reads the saved configuration again without the loading flash (the conversion state changes when a job starts or ends).
+    private async Task ReloadConfigurationAsync()
+    {
+        var fresh = Embedded ? await ApiClient.GetSetupLibrariesAsync(SetupSession) : await Orchestrator.GetLibrariesAsync();
+        if (fresh is null) return;
+        _configuration = fresh;
+        _baseline = JsonSerializer.Serialize(fresh);
+        await InvokeAsync(StateHasChanged);
+    }
+
+    // Asks the Engine for the folder jobs. A job that has just ended gets a toast with a link to its log, and the folder rows are
+    // refreshed because the Engine has flipped the folder from Converting to Managed. Polling continues only while a job is open.
+    private async Task RefreshJobsAsync()
+    {
+        if (Embedded || _configuration is null) return;
+        var list = await ApiClient.GetFolderJobsAsync();
+        var previous = _jobs;
+        var latest = new Dictionary<string, FolderJobStatusDto>(StringComparer.OrdinalIgnoreCase);
+        foreach (var job in list.OrderBy(item => FolderJobFormat.IsOpen(item) ? 0 : 1))
+        {
+            latest.TryAdd(job.SourceId, job);
+        }
+
+        var justEnded = latest.Values.Where(job => !FolderJobFormat.IsOpen(job)
+            && previous.TryGetValue(job.SourceId, out var before)
+            && string.Equals(before.OperationId, job.OperationId, StringComparison.OrdinalIgnoreCase)
+            && FolderJobFormat.IsOpen(before)).ToList();
+        _jobs = latest;
+        await InvokeAsync(StateHasChanged);
+
+        foreach (var job in justEnded)
+        {
+            AnnounceEnded(job);
+        }
+
+        if (justEnded.Count > 0)
+        {
+            await ReloadConfigurationAsync();
+            await Changed.InvokeAsync();
+        }
+
+        if (latest.Values.Any(FolderJobFormat.IsOpen)) EnsurePolling();
+    }
+
+    private void AnnounceEnded(FolderJobStatusDto job)
+    {
+        var folder = _configuration?.Libraries.SelectMany(library => library.Sources).FirstOrDefault(item => item.Id == job.SourceId);
+        var name = folder?.DisplayName() ?? "the folder";
+        var text = job.State == "failed"
+            ? $"Organising {name} stopped. {job.Message}"
+            : $"{name}: {job.Message}";
+        Snackbar.Add(text, job.State == "failed" ? AppSeverity.Error : AppSeverity.Success, options =>
+        {
+            options.RequireInteraction = true;
+            if (!job.HasLog) return;
+            options.Action = "Download log";
+            options.OnClick = _ =>
+            {
+                Navigation.NavigateTo($"/engine-folder-log/{job.OperationId}", forceLoad: true);
+                return Task.CompletedTask;
+            };
+        });
+    }
+
+    private void EnsurePolling()
+    {
+        if (_polling || Embedded) return;
+        _polling = true;
+        _pollCancellation = new CancellationTokenSource();
+        _ = PollJobsAsync(_pollCancellation.Token);
+    }
+
+    private async Task PollJobsAsync(CancellationToken ct)
+    {
+        try
+        {
+            using var timer = new PeriodicTimer(TimeSpan.FromSeconds(2));
+            while (await timer.WaitForNextTickAsync(ct))
+            {
+                await InvokeAsync(RefreshJobsAsync);
+                if (!_jobs.Values.Any(FolderJobFormat.IsOpen)) break;
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // The page was closed; there is nothing left to refresh.
+        }
+        finally { _polling = false; }
+    }
+
+    // Pause, Resume and Cancel on a folder's job. Cancel asks first, because it ends the work for good.
+    private async Task ControlJobAsync(LibraryFolderTable.FolderJobControl request)
+    {
+        if (request.Action == "cancel")
+        {
+            var confirmed = await DialogService.ShowMessageBoxAsync(
+                $"Stop organising {request.Source.DisplayName()}?",
+                "The folder stays Managed with the work done so far. Files already renamed keep their new names, and the rest will be tidied gradually by normal scans.",
+                yesText: "Stop organising", cancelText: "Keep going");
+            if (confirmed != true) return;
+        }
+
+        var updated = await ApiClient.ControlFolderJobAsync(request.Job.OperationId, request.Action);
+        if (updated is null)
+        {
+            _notice = ApiClient.LastError ?? "That could not be done. The job may already have finished.";
+        }
+
+        await RefreshJobsAsync();
+        if (request.Action == "cancel") await ReloadConfigurationAsync();
+    }
+
+    public void Dispose()
+    {
+        _pollCancellation?.Cancel();
+        _pollCancellation?.Dispose();
+    }
+
 
     private static LibraryFolderDto? Clone(LibraryFolderDto? library) => library is null
         ? null

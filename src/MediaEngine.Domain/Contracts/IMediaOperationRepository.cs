@@ -57,6 +57,12 @@ public interface IMediaOperationRepository
     /// <summary>Pauses a job that has not finished. Returns <see langword="false"/> when it already finished or is already paused.</summary>
     Task<bool> PauseAsync(Guid id, CancellationToken ct = default);
 
+    /// <summary>
+    /// Releases a job that is still running because its worker is stopping, so it is picked up again on the next start. A
+    /// job that was paused, cancelled or finished in the meantime is left exactly as it is. Returns whether it was released.
+    /// </summary>
+    Task<bool> InterruptIfRunningAsync(Guid id, string? reason = null, CancellationToken ct = default);
+
     /// <summary>Puts a paused job back in the queue. Returns <see langword="false"/> when it was not paused.</summary>
     Task<bool> ResumePausedAsync(Guid id, CancellationToken ct = default);
     Task<int> ReclaimStuckAsync(TimeSpan stuckThreshold, CancellationToken ct = default);

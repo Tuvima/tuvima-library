@@ -17,16 +17,24 @@
     {
         var managed = IsManaged(source);
         var converting = IsConverting(source);
+        var job = JobFor(source);
         var marked = IsNewMediaFolder(source);
         var issue = IssueFor(source);
         var name = source.DisplayName();
         <div class="@RowClass(source)" role="row" @key="source.Id">
             <div class="folder-table__folder" role="cell">
                 <AppMaterialIcon Icon="@AppMaterialIcons.Filled.Folder" />
-                <span class="folder-table__folder-text">
+                <div class="folder-table__folder-text">
                     <strong>@name</strong>
                     <span class="folder-table__path" title="@source.Path">@source.Path</span>
-                    @if (converting)
+                    @if (job is not null)
+                    {
+                        <FolderJobStatusLine Job="@job"
+                                             Name="@name"
+                                             ReadOnly="@(ReadOnly || Busy)"
+                                             OnControl="@(action => OnJobControl.InvokeAsync(new FolderJobControl(source, job, action)))" />
+                    }
+                    else if (converting)
                     {
                         <span class="folder-table__status" role="status">Organising…</span>
                     }
@@ -34,7 +42,7 @@
                     {
                         <span class="folder-table__status folder-table__status--warning">@issue</span>
                     }
-                </span>
+                </div>
             </div>
             <div class="folder-table__handling" role="cell">
                 <AppNativeButton Type="button"
@@ -83,6 +91,10 @@
                         {
                             <AppMenuItem Label="@($"Make this the place for new {PluralLabel}")" Icon="@AppMaterialIcons.Outlined.RadioButtonUnchecked" OnClick="@(() => OnSetDestination.InvokeAsync(source))" />
                         }
+                        @if (managed && job is null)
+                        {
+                            <AppMenuItem Label="Organise files now" Icon="@AppMaterialIcons.Outlined.DriveFileMove" OnClick="@(() => OnOrganiseNow.InvokeAsync(source))" />
+                        }
                         <AppMenuItem Label="@(managed ? "Switch to As-is" : "Switch to Managed")" Icon="@(managed ? AppMaterialIcons.Outlined.Lock : AppMaterialIcons.Outlined.DriveFileMove)" OnClick="@(() => OnChangeHandling.InvokeAsync(source))" />
                         <AppMenuItem Label="Label" Icon="@AppMaterialIcons.Outlined.Edit" OnClick="@(() => OnLabel.InvokeAsync(source))" />
                         <AppMenuItem Label="Remove folder" Icon="@AppMaterialIcons.Outlined.Delete" Tone="AppUiTone.Error" DividerBefore="true" OnClick="@(() => OnRemove.InvokeAsync(source))" />
@@ -105,6 +117,15 @@
     [Parameter] public EventCallback<LibrarySourceDto> OnSetDestination { get; set; }
     [Parameter] public EventCallback<LibrarySourceDto> OnLabel { get; set; }
     [Parameter] public EventCallback<LibrarySourceDto> OnRemove { get; set; }
+    /// <summary>The latest folder job for each folder (by folder id): progress while it runs, how it went afterwards.</summary>
+    [Parameter] public IReadOnlyDictionary<string, FolderJobStatusDto>? Jobs { get; set; }
+    /// <summary>Raised when Pause, Resume or Cancel is chosen on a folder's job.</summary>
+    [Parameter] public EventCallback<FolderJobControl> OnJobControl { get; set; }
+    /// <summary>Raised from the row menu to organise the files already in a managed folder.</summary>
+    [Parameter] public EventCallback<LibrarySourceDto> OnOrganiseNow { get; set; }
+
+    /// <summary>One press of Pause, Resume or Cancel on a folder's job.</summary>
+    public sealed record FolderJobControl(LibrarySourceDto Source, FolderJobStatusDto Job, string Action);
 
     private readonly HashSet<string> _expanded = new(StringComparer.OrdinalIgnoreCase);
 
@@ -125,10 +146,18 @@
 
     private string FilesLabel(LibrarySourceDto source) => FilesText(Library, source);
 
-    private string HandlingLabel(LibrarySourceDto source) => IsConverting(source) ? "Converting…" : IsManaged(source) ? "Managed" : "As-is";
+    private FolderJobStatusDto? JobFor(LibrarySourceDto source) =>
+        Jobs is not null && Jobs.TryGetValue(source.Id, out var job) && (job.State is "queued" or "running" or "paused" || job.HasLog || !string.IsNullOrWhiteSpace(job.Message))
+            ? job
+            : null;
+
+    private bool IsOrganising(LibrarySourceDto source) =>
+        IsConverting(source) || (JobFor(source) is { State: "queued" or "running" or "paused" });
+
+    private string HandlingLabel(LibrarySourceDto source) => IsOrganising(source) ? "Converting…" : IsManaged(source) ? "Managed" : "As-is";
 
     private string HandlingClass(LibrarySourceDto source) =>
-        $"folder-table__chip {(IsConverting(source) ? "is-converting" : IsManaged(source) ? "is-managed" : "is-asis")}";
+        $"folder-table__chip {(IsOrganising(source) ? "is-converting" : IsManaged(source) ? "is-managed" : "is-asis")}";
 
     private string HandlingAriaLabel(LibrarySourceDto source) => IsManaged(source)
         ? $"{source.DisplayName()} is managed by Tuvima. Choose to use it as-is."
