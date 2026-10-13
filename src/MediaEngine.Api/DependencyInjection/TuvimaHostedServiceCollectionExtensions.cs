@@ -1,4 +1,5 @@
 using MediaEngine.Api.Services;
+using MediaEngine.Api.Services.Libraries;
 using MediaEngine.Api.Services.LocalAssets;
 using MediaEngine.Api.Services.LocalAssets.Ocr;
 using MediaEngine.Api.Services.Playback;
@@ -30,6 +31,7 @@ public static class TuvimaHostedServiceCollectionExtensions
         services.AddHostedService<ProviderStartupCheckService>();
         services.AddHostedService<ActivityPruningService>();
         services.AddHostedService<MediaOperationRecoveryHostedService>();
+        services.AddHostedService<FolderOrganiseJobWorker>();
         services.AddHostedService<MediaFileWriteIntentDispatcher>();
         services.AddHostedService<IngestionBatchProgressHostedService>();
         services.AddHostedService<TextTrackRefreshOperationWorker>();

@@ -203,7 +203,7 @@ public sealed class MediaOperationRepository : IMediaOperationRepository
             SelectSql + """
              WHERE (@queueName IS NULL OR queue_name = @queueName)
              ORDER BY CASE
-                        WHEN status IN ('queued','retry_waiting','interrupted','leased','running') THEN 0
+                        WHEN status IN ('queued','retry_waiting','interrupted','leased','running','paused') THEN 0
                         ELSE 1
                       END,
                       priority ASC,
@@ -395,6 +395,95 @@ public sealed class MediaOperationRepository : IMediaOperationRepository
                 updated_at = @now
             WHERE id = @id;
             """, id, ct);
+
+    public Task RecordProgressAsync(
+        Guid id,
+        int itemsTotal,
+        int itemsCompleted,
+        int itemsFailed,
+        int progressPercent,
+        TimeSpan? extendLease = null,
+        CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+        var now = DateTimeOffset.UtcNow;
+        using var conn = _db.CreateConnection();
+        conn.Execute("""
+            UPDATE media_operations
+            SET items_total = @itemsTotal,
+                items_completed = @itemsCompleted,
+                items_failed = @itemsFailed,
+                progress_percent = @progressPercent,
+                heartbeat_at = @now,
+                lease_expires_at = CASE WHEN @leaseExpiresAt IS NOT NULL AND status IN ('leased','running')
+                                        THEN @leaseExpiresAt ELSE lease_expires_at END,
+                updated_at = @now
+            WHERE id = @id;
+            """,
+            new
+            {
+                id,
+                itemsTotal = Math.Max(0, itemsTotal),
+                itemsCompleted = Math.Max(0, itemsCompleted),
+                itemsFailed = Math.Max(0, itemsFailed),
+                progressPercent = ClampPercent(progressPercent) ?? 0,
+                now = now.ToString("O"),
+                leaseExpiresAt = extendLease is { } lease ? now.Add(lease).ToString("O") : null,
+            });
+        return Task.CompletedTask;
+    }
+
+    public Task<bool> PauseAsync(Guid id, CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+        using var conn = _db.CreateConnection();
+        var changed = conn.Execute("""
+            UPDATE media_operations
+            SET status = 'paused',
+                stage = 'paused',
+                lease_owner = NULL,
+                lease_expires_at = NULL,
+                updated_at = @now
+            WHERE id = @id
+              AND status IN ('pending','queued','leased','running','retry_waiting','interrupted');
+            """, new { id, now = DateTimeOffset.UtcNow.ToString("O") });
+        return Task.FromResult(changed > 0);
+    }
+
+    public Task<bool> InterruptIfRunningAsync(Guid id, string? reason = null, CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+        using var conn = _db.CreateConnection();
+        var changed = conn.Execute("""
+            UPDATE media_operations
+            SET status = 'interrupted',
+                lease_owner = NULL,
+                lease_expires_at = NULL,
+                last_error = COALESCE(@reason, last_error),
+                updated_at = @now
+            WHERE id = @id
+              AND status IN ('leased','running');
+            """, new { id, reason, now = DateTimeOffset.UtcNow.ToString("O") });
+        return Task.FromResult(changed > 0);
+    }
+
+    public Task<bool> ResumePausedAsync(Guid id, CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+        using var conn = _db.CreateConnection();
+        var changed = conn.Execute("""
+            UPDATE media_operations
+            SET status = 'queued',
+                stage = 'queued',
+                lease_owner = NULL,
+                lease_expires_at = NULL,
+                next_retry_at = NULL,
+                updated_at = @now
+            WHERE id = @id
+              AND status = 'paused';
+            """, new { id, now = DateTimeOffset.UtcNow.ToString("O") });
+        return Task.FromResult(changed > 0);
+    }
 
     public Task<int> ReclaimStuckAsync(TimeSpan stuckThreshold, CancellationToken ct = default)
     {

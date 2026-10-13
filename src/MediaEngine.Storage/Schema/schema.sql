@@ -1216,8 +1216,9 @@ CREATE TABLE IF NOT EXISTS media_operation_events (
 );
 
 -- One row per file moved while a folder is converted from as-is to managed (the organise job). Written as each file
--- moves, so an interrupted conversion resumes and a finished one can be undone. operation_id is the media_operations
--- row that owns the conversion; it is kept without a foreign key so the history outlives the operation row.
+-- moves, so an interrupted conversion resumes and every move can be read back or exported (there is no automatic undo). operation_id is the media_operations
+-- row that owns the conversion; it is kept without a foreign key so the history outlives the operation row. outcome
+-- 'moving' is the intent written before a file moves; detail carries the plain-English reason for any outcome that needs one.
 CREATE TABLE IF NOT EXISTS folder_organise_log (
   operation_id BLOB NOT NULL,
   source_id    BLOB NOT NULL,
@@ -1225,6 +1226,7 @@ CREATE TABLE IF NOT EXISTS folder_organise_log (
   new_path     TEXT NOT NULL,
   outcome      TEXT NOT NULL,
   at           TEXT NOT NULL,
+  detail       TEXT,
   PRIMARY KEY (operation_id, old_path)
 );
 

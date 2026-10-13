@@ -5,6 +5,7 @@ using MediaEngine.Domain.Enums;
 using MediaEngine.Domain.Services;
 using MediaEngine.Ingestion.Contracts;
 using MediaEngine.Ingestion.Models;
+using MediaEngine.Ingestion.Organise;
 using MediaEngine.Ingestion.Pipeline;
 using MediaEngine.Ingestion.Services;
 using MediaEngine.Processors;
@@ -73,7 +74,14 @@ public static class MediaEngineIngestionServiceCollectionExtensions
         services.TryAddSingleton<ImportFilingJournal>();
         services.TryAddSingleton<IImportFolderFiler, ImportFolderFiler>();
         services.TryAddSingleton<IImportFolderWaitingReader, ImportFolderWaitingReader>();
-        services.TryAddSingleton<IAutoOrganizeService, AutoOrganizeService>();
+        services.TryAddSingleton<IOrganiseFileMover, SystemOrganiseFileMover>();
+        services.TryAddSingleton<SidecarMover>();
+        services.TryAddSingleton<AutoOrganizeService>();
+        services.TryAddSingleton<IAutoOrganizeService>(sp => sp.GetRequiredService<AutoOrganizeService>());
+        services.TryAddSingleton<IFileIntake, IngestionEngineFileIntake>();
+        services.TryAddSingleton<FolderConversionOrganiser>();
+        services.TryAddSingleton<FolderOrganiseRunner>();
+        services.TryAddSingleton<FolderConversionPreviewer>();
         services.TryAddSingleton<ILibraryScanner, LibraryScanner>();
         services.TryAddSingleton<IMediaTypeResolver, MediaTypeResolver>();
         services.TryAddSingleton<IDuplicateResolver, DuplicateResolver>();
@@ -129,6 +137,11 @@ public static class MediaEngineIngestionServiceCollectionExtensions
         IConfigurationLoader configLoader)
     {
         services.Configure<IngestionOptions>(configuration.GetSection(IngestionOptions.SectionName));
+
+        // Saving libraries.json refreshes the folder list the file-source policy reads, with no restart.
+        var libraryChanges = new LibrariesOptionsChangeTokenSource(configLoader);
+        services.AddSingleton(libraryChanges);
+        services.AddSingleton<Microsoft.Extensions.Options.IOptionsChangeTokenSource<IngestionOptions>>(libraryChanges);
 
         services.PostConfigure<IngestionOptions>(opts =>
         {

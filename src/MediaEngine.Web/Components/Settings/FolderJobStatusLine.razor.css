@@ -1,0 +1,39 @@
+.folder-job {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px 12px;
+    min-width: 0;
+    margin-top: 4px;
+    font-size: 0.82rem;
+    color: var(--tl-text-muted);
+}
+
+.folder-job__bar {
+    flex: 1 1 100%;
+    max-width: 360px;
+}
+
+.folder-job__text {
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+.folder-job__actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.folder-job__log {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    color: var(--tl-accent-primary);
+    text-decoration: underline;
+}
+
+.folder-job__log:focus-visible {
+    outline: 2px solid var(--tl-accent-primary);
+    outline-offset: 2px;
+}

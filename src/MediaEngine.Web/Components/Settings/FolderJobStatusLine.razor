@@ -1,0 +1,53 @@
+@namespace MediaEngine.Web.Components.Settings
+@using MediaEngine.Contracts.Settings
+@using MediaEngine.Web.Services.Formatting
+
+@* What a folder job is doing, on the folder's row: a progress bar, one plain sentence, and Pause / Resume / Cancel while it is
+   open. After it ends the sentence says how it went and links the log of every move. The host owns every action. *@
+<div class="folder-job" role="status" aria-live="polite">
+    @if (Open && Job.State != "queued")
+    {
+        <div class="folder-job__bar"><AppProgressBar Value="@Job.ProgressPercent" Title="@FolderJobFormat.Line(Job)" /></div>
+    }
+    <span class="folder-job__text">@FolderJobFormat.Line(Job)</span>
+    @if (Open && !ReadOnly)
+    {
+        <span class="folder-job__actions">
+            @if (Job.State == "paused")
+            {
+                <AppButton Label="Resume" Size="AppControlSize.Compact" ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Primary"
+                           aria-label="@($"Resume organising {Name}")" OnClick="@(() => Control("resume"))" />
+            }
+            else
+            {
+                <AppButton Label="Pause" Size="AppControlSize.Compact" ButtonStyle="AppButtonStyle.Text"
+                           Disabled="@(Job.State == "queued")"
+                           aria-label="@($"Pause organising {Name}")" OnClick="@(() => Control("pause"))" />
+            }
+            <AppButton Label="Cancel" Size="AppControlSize.Compact" ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Error"
+                       aria-label="@($"Cancel organising {Name}")" OnClick="@(() => Control("cancel"))" />
+        </span>
+    }
+    @if (!Open && Job.HasLog)
+    {
+        <a class="folder-job__log" href="@LogUrl" download="@LogFileName">Download log</a>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public FolderJobStatusDto Job { get; set; } = new();
+    /// <summary>The folder's display name, for the accessible names of the buttons.</summary>
+    [Parameter] public string Name { get; set; } = "this folder";
+    [Parameter] public bool ReadOnly { get; set; }
+    /// <summary>Raised with <c>pause</c>, <c>resume</c> or <c>cancel</c>.</summary>
+    [Parameter] public EventCallback<string> OnControl { get; set; }
+
+    private bool Open => FolderJobFormat.IsOpen(Job);
+
+    /// <summary>The Dashboard hands the Engine's CSV to the browser; the Engine itself is never reached directly.</summary>
+    private string LogUrl => $"/engine-folder-log/{Job.OperationId}";
+
+    private string LogFileName => $"tuvima-folder-log-{Job.OperationId[..Math.Min(8, Job.OperationId.Length)]}.csv";
+
+    private Task Control(string action) => OnControl.InvokeAsync(action);
+}

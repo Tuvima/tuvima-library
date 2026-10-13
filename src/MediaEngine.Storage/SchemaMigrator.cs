@@ -891,12 +891,15 @@ internal sealed class SchemaMigrator
                 new_path TEXT NOT NULL,
                 outcome TEXT NOT NULL,
                 at TEXT NOT NULL,
+                detail TEXT,
                 PRIMARY KEY (operation_id, old_path)
             );
             CREATE INDEX IF NOT EXISTS idx_folder_organise_log_source
                 ON folder_organise_log(source_id, at);
             """;
         command.ExecuteNonQuery();
+        AddColumnIfMissing(conn, "folder_organise_log", "detail",
+            "ALTER TABLE folder_organise_log ADD COLUMN detail TEXT;");
     }
 
     private static void EnsureMediaEditorCommitSchema(SqliteConnection conn)
