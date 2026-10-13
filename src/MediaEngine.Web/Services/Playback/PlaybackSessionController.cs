@@ -150,6 +150,10 @@ public sealed partial class PlaybackSessionController
     public int ResumeRewindSeconds { get; private set; }
     public int AudiobookNearStartGuardSeconds { get; private set; }
     public IReadOnlyList<int> SleepTimerOptionsMinutes { get; private set; } = [];
+    /// <summary>The profile's default sleep timer length, or null when the default is Off.</summary>
+    public int? DefaultSleepTimerMinutes { get; private set; }
+    /// <summary>Whether this profile offers the end-of-chapter sleep timer choices.</summary>
+    public bool AllowEndOfChapterSleepTimer => _allowEndOfChapterSleepTimer;
     public AudiobookSleepTimerStateDto SleepTimerState { get; private set; } = new();
     public AudiobookSleepTimerAvailabilityDto SleepTimerAvailability => GetSleepTimerAvailability();
     public string SleepTimerLabel => SleepTimerState.Mode switch
@@ -214,6 +218,8 @@ public sealed partial class PlaybackSessionController
         ResumeRewindSeconds = ResumeRewindSeconds,
         AudiobookNearStartGuardSeconds = AudiobookNearStartGuardSeconds,
         SleepTimerOptionsMinutes = SleepTimerOptionsMinutes,
+        DefaultSleepTimerMinutes = DefaultSleepTimerMinutes,
+        AllowEndOfChapterSleepTimer = AllowEndOfChapterSleepTimer,
         SleepTimerState = SleepTimerState,
         SleepTimerAvailability = SleepTimerAvailability,
         CurrentItem = CurrentItem,
@@ -2607,6 +2613,8 @@ public sealed partial class PlaybackSessionController
         SkipBackSeconds = SkipBackSeconds,
         SkipForwardSeconds = SkipForwardSeconds,
         SleepTimerOptionsMinutes = SleepTimerOptionsMinutes.ToList(),
+        DefaultSleepTimerMinutes = DefaultSleepTimerMinutes,
+        AllowEndOfChapterSleepTimer = AllowEndOfChapterSleepTimer,
         PlaybackStartVersion = PlaybackStartVersion,
         SleepTimerState = SleepTimerState,
         SleepTimerAvailability = SleepTimerAvailability,
@@ -3094,7 +3102,15 @@ public sealed partial class PlaybackSessionController
         AudiobookNearStartGuardSeconds = settings.AudiobookNearStartGuardSeconds;
         SleepTimerOptionsMinutes = NormalizeSleepTimerOptions(settings.SleepTimerOptionsMinutes);
         _allowEndOfChapterSleepTimer = settings.AllowEndOfChapterSleepTimer;
+        DefaultSleepTimerMinutes = ParseDefaultSleepTimer(settings.DefaultSleepTimer, SleepTimerOptionsMinutes);
     }
+
+    /// <summary>Reads the stored default (minutes or "Off"); anything that is not an available length means no default.</summary>
+    public static int? ParseDefaultSleepTimer(string? value, IReadOnlyList<int> options) =>
+        int.TryParse(value, System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out var minutes) && options.Contains(minutes)
+            ? minutes
+            : null;
+
 
     private void ApplyExperienceSettings(UserPlaybackSettingsDto settings)
     {

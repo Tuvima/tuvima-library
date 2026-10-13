@@ -18,6 +18,8 @@
         {
             <PlaybackSleepTimerControl State="@SleepTimerState"
                                        OptionsMinutes="@SleepTimerOptionsMinutes"
+                                       DefaultMinutes="@SleepTimerDefaultMinutes"
+                                       OffersEndOfChapter="@SleepTimerOffersEndOfChapter"
                                        Availability="@SleepTimerAvailability"
                                        Surface="@Surface"
                                        Open="@SleepMenuOpen"
@@ -74,6 +76,8 @@
     [Parameter] public AudiobookSleepTimerStateDto? SleepTimerState { get; set; }
     [Parameter] public AudiobookSleepTimerAvailabilityDto? SleepTimerAvailability { get; set; }
     [Parameter] public IReadOnlyList<int> SleepTimerOptionsMinutes { get; set; } = [];
+    [Parameter] public int? SleepTimerDefaultMinutes { get; set; }
+    [Parameter] public bool SleepTimerOffersEndOfChapter { get; set; } = true;
     [Parameter] public EventCallback<AudiobookSleepTimerSelectionDto> SleepTimerChanged { get; set; }
     [Parameter] public bool SleepMenuOpen { get; set; }
     [Parameter] public EventCallback<PlaybackSpeedMenuState> SleepMenuOpenChanged { get; set; }

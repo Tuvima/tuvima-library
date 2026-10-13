@@ -4,6 +4,5 @@ namespace MediaEngine.Web.Components.Settings;
 public enum PlaybackSettingsMode
 {
     Watching,
-    Listening,
     Reading,
 }

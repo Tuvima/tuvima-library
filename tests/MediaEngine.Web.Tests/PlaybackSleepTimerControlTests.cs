@@ -130,4 +130,50 @@ public sealed class PlaybackSleepTimerControlTests : AsyncBunitContext
             && !option.Disabled && option.Label == "End of next chapter");
         Assert.Equal("Sleep timer: End of next chapter: Chapter 8. Choose when playback stops.", select.AriaLabel);
     }
+
+    [Fact]
+    public void IdleTimerPreSelectsTheProfileDefaultLength()
+    {
+        Render<AppPopoverHost>();
+        var cut = Render<PlaybackSleepTimerControl>(parameters => parameters
+            .Add(component => component.State, new AudiobookSleepTimerStateDto())
+            .Add(component => component.OptionsMinutes, new[] { 5, 10, 15, 30, 45, 60 })
+            .Add(component => component.DefaultMinutes, 45));
+
+        Assert.Equal("minutes:45", cut.FindComponent<AppSelect>().Instance.Value);
+    }
+
+    [Fact]
+    public void IdleTimerWithOffDefaultStaysOff()
+    {
+        Render<AppPopoverHost>();
+        var cut = Render<PlaybackSleepTimerControl>(parameters => parameters
+            .Add(component => component.State, new AudiobookSleepTimerStateDto()));
+
+        Assert.Equal(AudiobookSleepTimerModes.Off, cut.FindComponent<AppSelect>().Instance.Value);
+    }
+
+    [Fact]
+    public void RunningTimerWinsOverTheDefault()
+    {
+        Render<AppPopoverHost>();
+        var cut = Render<PlaybackSleepTimerControl>(parameters => parameters
+            .Add(component => component.State, new AudiobookSleepTimerStateDto { Mode = AudiobookSleepTimerModes.Timer, ChosenMinutes = 15, DeadlineUtc = DateTimeOffset.UtcNow.AddMinutes(10) })
+            .Add(component => component.DefaultMinutes, 45));
+
+        Assert.Equal("minutes:15", cut.FindComponent<AppSelect>().Instance.Value);
+    }
+
+    [Fact]
+    public void EndOfChapterChoicesAreHiddenWhenTheProfileTurnedThemOff()
+    {
+        Render<AppPopoverHost>();
+        var cut = Render<PlaybackSleepTimerControl>(parameters => parameters
+            .Add(component => component.State, new AudiobookSleepTimerStateDto())
+            .Add(component => component.OffersEndOfChapter, false));
+
+        var options = cut.FindComponent<AppSelect>().Instance.Options!;
+        Assert.DoesNotContain(options, option => option.Value is AudiobookSleepTimerModes.EndCurrent or AudiobookSleepTimerModes.EndNext);
+        Assert.Contains(options, option => option.Value == "minutes:30");
+    }
 }

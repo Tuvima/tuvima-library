@@ -128,15 +128,8 @@ public sealed class PlaybackSettingsPageTests : AsyncBunitContext
     }
 
     [Fact]
-    public void ListeningAndReadingModes_KeepTheirOwnCardsOnly()
+    public void ReadingMode_KeepsItsOwnCardOnly()
     {
-        var listening = Render<PlaybackSettingsPage>(parameters => parameters.Add(page => page.Mode, PlaybackSettingsMode.Listening));
-        listening.WaitForAssertion(() =>
-        {
-            Assert.Contains("Audiobook default speed", listening.Markup);
-            Assert.DoesNotContain("Autoplay next episode", listening.Markup);
-        });
-
         var reading = Render<PlaybackSettingsPage>(parameters => parameters.Add(page => page.Mode, PlaybackSettingsMode.Reading));
         reading.WaitForAssertion(() =>
         {

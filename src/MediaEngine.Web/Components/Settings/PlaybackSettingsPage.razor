@@ -89,38 +89,6 @@ else if (_settings is not null)
                 @* S6b: the subtitles group goes here. *@
             }
 
-            @if (Mode == PlaybackSettingsMode.Listening)
-            {
-                <SettingsSectionPanel Title="Listening"
-                                      Description="Defaults used when an audiobook playback session starts."
-                                      Class="tl-card settings-section-card playback-settings-card">
-                    @DecimalSelectRow(
-                        "Audiobook default speed",
-                        "Applied when an audiobook begins.",
-                        _settings.Listening.AudiobookDefaultSpeed,
-                        AudiobookSpeedOptions,
-                        value => UpdateAndSaveAsync(() => _settings.Listening.AudiobookDefaultSpeed = value))
-                    @IntSelectRow(
-                        "Skip back",
-                        "The default amount used by the player rewind control.",
-                        _settings.Listening.SkipBackSeconds,
-                        ListeningSkipBackOptions,
-                        value => UpdateAndSaveAsync(() => _settings.Listening.SkipBackSeconds = value))
-                    @IntSelectRow(
-                        "Skip forward",
-                        "The default amount used by the player forward control.",
-                        _settings.Listening.SkipForwardSeconds,
-                        ListeningSkipForwardOptions,
-                        value => UpdateAndSaveAsync(() => _settings.Listening.SkipForwardSeconds = value))
-                    @IntSelectRow(
-                        "Resume rewind",
-                        "Rewind slightly when resuming so spoken context is not lost.",
-                        _settings.Listening.ResumeRewindSeconds,
-                        ListeningResumeRewindOptions,
-                        value => UpdateAndSaveAsync(() => _settings.Listening.ResumeRewindSeconds = value))
-                </SettingsSectionPanel>
-            }
-
             @if (Mode == PlaybackSettingsMode.Reading)
             {
                 <SettingsSectionPanel Title="Reading"
@@ -162,12 +130,8 @@ else if (_settings is not null)
     private bool IsOtherProfile => Mode == PlaybackSettingsMode.Watching
         && ProfileId is { } id && id != Guid.Empty && id != _activeProfile?.Id;
 
-    private static readonly decimal[] AudiobookSpeedOptions = [0.5m, 0.75m, 1m, 1.25m, 1.5m, 1.75m, 2m, 2.5m, 3m];
     private static readonly int[] WatchingSkipBackOptions = [5, 10, 15, 30];
     private static readonly int[] WatchingSkipForwardOptions = [10, 30, 60, 90];
-    private static readonly int[] ListeningSkipBackOptions = [10, 15, 30];
-    private static readonly int[] ListeningSkipForwardOptions = [15, 30, 60];
-    private static readonly int[] ListeningResumeRewindOptions = [0, 5, 10, 15, 30];
 
     protected override async Task OnInitializedAsync()
     {
@@ -236,36 +200,6 @@ else if (_settings is not null)
             }
         </AppIntSelect>
     </div>;
-
-    private RenderFragment DecimalSelectRow(
-        string title,
-        string description,
-        decimal value,
-        IReadOnlyList<decimal> options,
-        Func<decimal, Task> changed) => @<div class="playback-preference-row">
-        <div class="playback-preference-row__copy">
-            <AppText Typo="AppTypo.body1">@title</AppText>
-            <AppText Typo="AppTypo.body2" Color="AppColor.Secondary">@description</AppText>
-        </div>
-        <AppSelect Value="@value.ToString(System.Globalization.CultureInfo.InvariantCulture)"
-                   ValueChanged="@(raw => OnDecimalChangedAsync(raw, changed))"
-                   Variant="AppVariant.Outlined"
-                   Margin="AppMargin.Dense"
-                   Dense="true"
-                   Size="AppControlSize.Compact"
-                   Class="playback-preference-row__select"
-                   aria-label="@title">
-            @foreach (var option in options)
-            {
-                <AppSelectItem T="string" Value="@option.ToString(System.Globalization.CultureInfo.InvariantCulture)">@DisplayFormat.FormatSpeedSetting(option)</AppSelectItem>
-            }
-        </AppSelect>
-    </div>;
-
-    private static Task OnDecimalChangedAsync(string? raw, Func<decimal, Task> changed) =>
-        decimal.TryParse(raw, System.Globalization.NumberStyles.Number, System.Globalization.CultureInfo.InvariantCulture, out var value)
-            ? changed(value)
-            : Task.CompletedTask;
 
     private async Task UpdateAndSaveAsync(Action update)
     {
