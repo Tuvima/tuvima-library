@@ -1638,7 +1638,8 @@ internal sealed class SchemaMigrator
         AddColumnIfMissing(conn, "local_item_metadata", "focal_length_mm", "ALTER TABLE local_item_metadata ADD COLUMN focal_length_mm REAL;");
         AddColumnIfMissing(conn, "local_item_metadata", "video_codec", "ALTER TABLE local_item_metadata ADD COLUMN video_codec TEXT;");
         AddColumnIfMissing(conn, "local_item_metadata", "frame_rate", "ALTER TABLE local_item_metadata ADD COLUMN frame_rate REAL;");
-        AddColumnIfMissing(conn, "local_item_metadata", "text_source", "ALTER TABLE local_item_metadata ADD COLUMN text_source TEXT CHECK (text_source IS NULL OR text_source IN ('embedded', 'ocr', 'none'));");
+        AddColumnIfMissing(conn, "local_item_metadata", "text_source", "ALTER TABLE local_item_metadata ADD COLUMN text_source TEXT CHECK (text_source IS NULL OR text_source IN ('embedded', 'ocr', 'mixed', 'none'));");
+        WidenTextSourceCheck(conn);
         AddColumnIfMissing(conn, "profile_view_preferences", "viewer_info_open", "ALTER TABLE profile_view_preferences ADD COLUMN viewer_info_open INTEGER NOT NULL DEFAULT 1;");
         var addedEmbeddedCapturedAt = AddColumnIfMissing(conn, "local_items", "embedded_captured_at", "ALTER TABLE local_items ADD COLUMN embedded_captured_at TEXT;");
         AddColumnIfMissing(conn, "local_items", "captured_at_user_override", "ALTER TABLE local_items ADD COLUMN captured_at_user_override INTEGER NOT NULL DEFAULT 0;");
@@ -2097,6 +2098,36 @@ internal sealed class SchemaMigrator
                 WHERE rule_hash IS NOT NULL AND is_enabled = 1 AND collection_type = 'Custom';
             """;
         cmd.ExecuteNonQuery();
+    }
+
+    /// <summary>
+    /// Databases created before OCR only allowed embedded, ocr and none in <c>text_source</c>.
+    /// SQLite cannot alter a CHECK constraint, so the stored table definition is widened in place
+    /// (the documented writable-schema procedure; no row changes and no data is rewritten).
+    /// </summary>
+    private static void WidenTextSourceCheck(SqliteConnection conn)
+    {
+        var definition = conn.ExecuteScalar<string?>(
+            "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'local_item_metadata';");
+        const string Old = "IN ('embedded', 'ocr', 'none')";
+        if (definition is null || !definition.Contains(Old, StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        var version = conn.ExecuteScalar<long>("PRAGMA schema_version;");
+        conn.Execute("PRAGMA writable_schema = ON;");
+        try
+        {
+            conn.Execute(
+                "UPDATE sqlite_master SET sql = replace(sql, @old, @new) WHERE type = 'table' AND name = 'local_item_metadata';",
+                new { old = Old, @new = "IN ('embedded', 'ocr', 'mixed', 'none')" });
+            conn.Execute($"PRAGMA schema_version = {version + 1};");
+        }
+        finally
+        {
+            conn.Execute("PRAGMA writable_schema = OFF;");
+        }
     }
 
     private static bool AddColumnIfMissing(

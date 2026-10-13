@@ -12,7 +12,7 @@ using W = DocumentFormat.OpenXml.Wordprocessing;
 namespace MediaEngine.Api.Services.LocalAssets;
 
 /// <summary>Limits applied to one document text read.</summary>
-public sealed record DocumentTextReadLimits(int MaxCharacters, int MaxPdfPages, TimeSpan Timeout);
+public sealed record DocumentTextReadLimits(int MaxCharacters, int MaxPdfPages, TimeSpan Timeout, int TextLayerMinCharacters = 25);
 
 /// <summary>
 /// What a read found. <see cref="HasText"/> false means no embedded text (not an error);
@@ -24,7 +24,8 @@ public sealed record DocumentTextReadResult(
     bool Encrypted,
     bool Failed,
     int? PageCount,
-    string? FailureReason = null)
+    string? FailureReason = null,
+    int LowTextPages = 0)
 {
     public bool HasText => !string.IsNullOrWhiteSpace(Text);
 }
@@ -59,10 +60,11 @@ public static class DocumentTextReader
                 path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete,
                 bufferSize: 81920, FileOptions.SequentialScan);
             int? pages = null;
+            var lowTextPages = 0;
             switch (extension)
             {
                 case ".pdf":
-                    pages = ReadPdf(stream, text, limits.MaxPdfPages, token);
+                    (pages, lowTextPages) = ReadPdf(stream, text, limits.MaxPdfPages, limits.TextLayerMinCharacters, token);
                     break;
                 case ".docx":
                     ReadDocx(stream, text, token);
@@ -83,7 +85,7 @@ public static class DocumentTextReader
                     return new DocumentTextReadResult(null, false, false, true, null, "unsupported format");
             }
 
-            return new DocumentTextReadResult(text.ToString(), text.Truncated, false, false, pages);
+            return new DocumentTextReadResult(text.ToString(), text.Truncated, false, false, pages, LowTextPages: lowTextPages);
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested)
         {
@@ -126,15 +128,26 @@ public static class DocumentTextReader
         }
     }
 
-    private static int ReadPdf(Stream stream, CappedText text, int maxPages, CancellationToken ct)
+    private static (int PageCount, int LowTextPages) ReadPdf(
+        Stream stream, CappedText text, int maxPages, int minTextLayerCharacters, CancellationToken ct)
     {
         using var document = PdfDocument.Open(stream, new ParsingOptions { UseLenientParsing = true, SkipMissingFonts = true });
         var total = document.NumberOfPages;
         var limit = Math.Min(total, Math.Max(1, maxPages));
-        for (var page = 1; page <= limit && !text.Full; page++)
+        var lowTextPages = 0;
+        for (var page = 1; page <= limit; page++)
         {
             ct.ThrowIfCancellationRequested();
-            text.AppendLine(document.GetPage(page).Text);
+            var pageText = document.GetPage(page).Text;
+            if (Ocr.PdfPageSelection.CountNonWhitespace(pageText) < minTextLayerCharacters)
+            {
+                lowTextPages++;
+            }
+
+            if (!text.Full)
+            {
+                text.AppendLine(pageText);
+            }
         }
 
         if (limit < total)
@@ -142,7 +155,7 @@ public static class DocumentTextReader
             text.MarkTruncated();
         }
 
-        return total;
+        return (total, lowTextPages);
     }
 
     private static void ReadDocx(Stream stream, CappedText text, CancellationToken ct)

@@ -948,7 +948,7 @@ public sealed class LocalAssetRepository(IDatabaseConnection database) : ILocalA
         }
 
         ArgumentNullException.ThrowIfNull(write);
-        if (write.TextSource is not (LocalAssetTextSources.Embedded or LocalAssetTextSources.Ocr or LocalAssetTextSources.None))
+        if (write.TextSource is not (LocalAssetTextSources.Embedded or LocalAssetTextSources.Ocr or LocalAssetTextSources.Mixed or LocalAssetTextSources.None))
         {
             throw new ArgumentOutOfRangeException(nameof(write), "Unknown text source.");
         }
@@ -963,10 +963,20 @@ public sealed class LocalAssetRepository(IDatabaseConnection database) : ILocalA
                    SET document_text = @text,
                        text_source = @TextSource,
                        page_count = COALESCE(@PageCount, page_count),
-                       metadata_json = json_set(
-                           CASE WHEN metadata_json IS NOT NULL AND json_valid(metadata_json) THEN metadata_json ELSE '{}' END,
-                           '$.document_text_truncated', json(@truncated),
-                           '$.document_encrypted', json(@encrypted)),
+                       metadata_json = CASE
+                           WHEN @ocrConfidence IS NULL THEN json_remove(
+                               json_set(
+                                   CASE WHEN metadata_json IS NOT NULL AND json_valid(metadata_json) THEN metadata_json ELSE '{}' END,
+                                   '$.document_text_truncated', json(@truncated),
+                                   '$.document_encrypted', json(@encrypted)),
+                               '$.ocr_average_confidence', '$.ocr_pages')
+                           ELSE json_set(
+                               CASE WHEN metadata_json IS NOT NULL AND json_valid(metadata_json) THEN metadata_json ELSE '{}' END,
+                               '$.document_text_truncated', json(@truncated),
+                               '$.document_encrypted', json(@encrypted),
+                               '$.ocr_average_confidence', @ocrConfidence,
+                               '$.ocr_pages', @ocrPages)
+                       END,
                        updated_at = @now
                  WHERE item_id = @itemId;
                 """, new
@@ -977,6 +987,8 @@ public sealed class LocalAssetRepository(IDatabaseConnection database) : ILocalA
                 write.PageCount,
                 truncated = write.Truncated ? "true" : "false",
                 encrypted = write.Encrypted ? "true" : "false",
+                ocrConfidence = write.OcrAverageConfidence,
+                ocrPages = write.OcrPages,
                 now = DateTimeOffset.UtcNow,
             }, transaction) > 0;
             if (changed)
@@ -986,6 +998,47 @@ public sealed class LocalAssetRepository(IDatabaseConnection database) : ILocalA
 
             return changed;
         }, ct);
+    }
+
+    public Task<IReadOnlyList<LocalAssetOcrCandidate>> GetOcrCandidatesAsync(
+        Guid? afterItemId,
+        int limit,
+        IReadOnlyCollection<string> imageExtensions,
+        CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+        var extensions = imageExtensions.Select(extension => extension.TrimStart('.').ToLowerInvariant()).Append("pdf").Distinct().ToArray();
+        var parameters = new DynamicParameters();
+        parameters.Add("after", afterItemId);
+        parameters.Add("limit", Math.Clamp(limit, 1, 1000));
+        var matches = new List<string>();
+        for (var i = 0; i < extensions.Length; i++)
+        {
+            parameters.Add($"ext{i}", "%." + extensions[i]);
+            matches.Add($"lower(li.primary_file_name) LIKE @ext{i}");
+        }
+
+        using var connection = database.CreateConnection();
+        var rows = connection.Query<(Guid ItemId, string ContentHash, string FilePath)>($"""
+            SELECT li.id AS ItemId, lf.content_hash AS ContentHash, MIN(lfs.file_path) AS FilePath
+              FROM local_items li
+              LEFT JOIN local_item_metadata m ON m.item_id = li.id
+              JOIN local_item_files lif ON lif.item_id = li.id AND lif.role = 'primary'
+              JOIN local_files lf ON lf.id = lif.file_id
+              JOIN local_file_sources lfs ON lfs.file_id = lf.id AND lfs.library_id = li.library_id
+             WHERE li.media_kind IN ('document', 'image')
+               AND li.trashed_at IS NULL
+               AND (@after IS NULL OR li.id > @after)
+               AND (m.text_source IS NULL OR m.text_source = 'none')
+               AND CASE WHEN m.metadata_json IS NOT NULL AND json_valid(m.metadata_json)
+                        THEN COALESCE(json_extract(m.metadata_json, '$.document_encrypted'), 0) ELSE 0 END = 0
+               AND ({string.Join(" OR ", matches)})
+             GROUP BY li.id
+             ORDER BY li.id
+             LIMIT @limit;
+            """, parameters).ToList();
+        return Task.FromResult<IReadOnlyList<LocalAssetOcrCandidate>>(
+            rows.Select(row => new LocalAssetOcrCandidate(row.ItemId, row.ContentHash, row.FilePath)).ToList());
     }
 
     public Task<bool> SetFlagsAsync(

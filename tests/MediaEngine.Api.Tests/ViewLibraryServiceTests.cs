@@ -314,7 +314,7 @@ public sealed class ViewLibraryServiceTests
     private static string LocalAssetContentHashFor(string path) =>
         Convert.ToHexStringLower(System.Security.Cryptography.SHA256.HashData(System.IO.File.ReadAllBytes(path)));
 
-    private sealed class ViewFixture : IDisposable
+    internal sealed class ViewFixture : IDisposable
     {
         private readonly string _root = Path.Combine(
             Path.GetTempPath(),
@@ -323,7 +323,7 @@ public sealed class ViewLibraryServiceTests
         private readonly ConfigurationDirectoryLoader _configuration;
         private readonly DatabaseConnection _database;
 
-        public ViewFixture()
+        public ViewFixture(MediaEngine.Api.Services.LocalAssets.Ocr.IOcrService? ocr = null)
         {
             PersonalRoot = Path.Combine(_root, "personal");
             CatalogueRoot = Path.Combine(_root, "catalogue");
@@ -382,19 +382,30 @@ public sealed class ViewLibraryServiceTests
                 IncludeSubdirectories: true, Enabled: true)).GetAwaiter().GetResult();
             var storage = new ViewStorageService(_configuration, spaces, new ViewSharedLibraryRepository(_database));
             Operations = new MediaOperationRepository(_database);
+            if (ocr is not null)
+            {
+                OcrQueue = new MediaEngine.Api.Services.LocalAssets.Ocr.DocumentOcrQueue(
+                    Operations, Repository, ocr, _configuration,
+                    NullLogger<MediaEngine.Api.Services.LocalAssets.Ocr.DocumentOcrQueue>.Instance);
+            }
+
             Service = new ViewLibraryService(
                 Repository,
                 _configuration,
                 spaces,
                 storage,
                 NullLogger<ViewLibraryService>.Instance,
-                operations: Operations);
-            TextReader = new DocumentTextReadService(Repository, _configuration, NullLogger<DocumentTextReadService>.Instance);
+                operations: Operations,
+                ocrQueue: OcrQueue);
+            TextReader = new DocumentTextReadService(
+                Repository, _configuration, NullLogger<DocumentTextReadService>.Instance, OcrQueue);
             Worker = new DocumentTextReadOperationWorker(
                 Operations, TextReader, NullLogger<DocumentTextReadOperationWorker>.Instance);
         }
 
         public MediaOperationRepository Operations { get; }
+        public MediaEngine.Api.Services.LocalAssets.Ocr.DocumentOcrQueue? OcrQueue { get; }
+        public ConfigurationDirectoryLoader Configuration => _configuration;
         public DocumentTextReadService TextReader { get; }
         public DocumentTextReadOperationWorker Worker { get; }
 

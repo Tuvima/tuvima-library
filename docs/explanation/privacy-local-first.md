@@ -29,6 +29,12 @@ Provider behavior depends on configuration, credentials, media type, and process
 
 Refreshing the approved plugin catalog contacts GitHub. Installed plugins can use external services according to their implementation and declared permissions. Only install code you trust.
 
+## Know how scanned documents are read
+
+Scanned pages and photos of paper are read by Tesseract, a program that runs on your own host. The text stays in your data store and is private to the owner's space. Nothing is uploaded.
+
+Text recognition uses the network in exactly one case: when you choose an extra language under **Settings > Libraries > View > Documents** and press **Download**. That downloads the language file from GitHub. English is included with Tuvima Library and needs no download.
+
 ## Understand Places map requests
 
 **View > Places** opens Tuvima Atlas. It first attempts OpenFreeMap's dark map style, which can load external map resources. If that attempt fails, the map falls back to locally served country data.

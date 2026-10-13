@@ -3,7 +3,7 @@
 # Compatibility is enforced separately by wire-compatibility.approved.txt.
 # Serializer: System.Text.Json JsonSerializerDefaults.Web; DefaultIgnoreCondition=Never
 # Regenerate intentionally with TUVIMA_UPDATE_WIRE_SNAPSHOT=1.
-# scopes: contracts=959; api=0; web-client=86
+# scopes: contracts=963; api=0; web-client=86
 
 [contracts] MediaEngine.Contracts.Activity.ActivityBatchInsightsDto
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -8703,6 +8703,39 @@
   TestedAt: System.DateTimeOffset | json=tested_at | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Checks: System.Collections.Generic.List<MediaEngine.Contracts.Settings.NetworkTestCheckDto> | json=checks | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   sample={"kind":"sample","status":"sample","headline":"sample","detail":"sample","tested_at":"2025-01-02T03:04:05+00:00","checks":[]}
+
+[contracts] MediaEngine.Contracts.Settings.OcrLanguageStatusDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Code: System.String | json=code | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Name: System.String | json=name | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Installed: System.Boolean | json=installed | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Selected: System.Boolean | json=selected | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"code":"sample","name":"sample","installed":true,"selected":true}
+
+[contracts] MediaEngine.Contracts.Settings.OcrMessageDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Message: System.String | json=message | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"message":"sample"}
+
+[contracts] MediaEngine.Contracts.Settings.OcrSettingsDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Enabled: System.Boolean | json=enabled | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Effort: System.String | json=effort | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Languages: System.Collections.Generic.List<System.String> | json=languages | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"enabled":true,"effort":"sample","languages":[]}
+
+[contracts] MediaEngine.Contracts.Settings.OcrStatusDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Settings: MediaEngine.Contracts.Settings.OcrSettingsDto | json=settings | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Installed: System.Boolean | json=installed | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Message: System.String | json=message | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Version: System.String | json=version | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Languages: System.Collections.Generic.List<MediaEngine.Contracts.Settings.OcrLanguageStatusDto> | json=languages | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  QueueLength: System.Int32 | json=queue_length | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  CurrentFileName: System.String | json=current_file_name | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  RereadRunning: System.Boolean | json=reread_running | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  RereadQueued: System.Int32 | json=reread_queued | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"settings":null,"installed":true,"message":"sample","version":"sample","languages":[],"queue_length":7,"current_file_name":"sample","reread_running":true,"reread_queued":7}
 
 [contracts] MediaEngine.Contracts.Settings.OrganizationTemplateDto
   kind=class | converter=default | number-handling=default | unmapped=default

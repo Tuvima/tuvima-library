@@ -437,6 +437,30 @@ The Engine health and `/playback/diagnostics` responses report the HLS muxer, H.
 
 ---
 
+## config/ocr.json
+
+Controls text recognition (OCR) for scanned PDF pages and photos of paper. Tesseract runs as a child process on the Engine host; nothing is sent anywhere. Jobs are queued as `view.document_ocr` and run one file at a time.
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `enabled` | bool | `true` | Turns reading of scanned documents and photos on or off. It only runs when the helper is found. |
+| `tesseract_binary_path` | string | `""` | Explicit executable path. Empty uses the packaged `tools/tesseract` binaries and then `PATH`. An explicit missing path fails capability detection instead of silently falling back. |
+| `effort` | string | `"normal"` | `normal` or `low`. Low runs the helper at a lower process priority, limits it to one thread and pauses between files. |
+| `languages` | string[] | `["eng"]` | Tesseract language codes to read with. Only languages whose data is installed are used. |
+| `per_file_timeout_seconds` | int | `300` | Longest one file may take. Pages read before the limit are kept and the file is marked partly read. |
+| `max_pages_per_file` | int | `500` | Most pages recognised from one PDF. Longer files are marked partly read. |
+| `text_layer_min_characters` | int | `25` | A PDF page with fewer non-whitespace characters than this in its own text layer is drawn and recognised. Pages with a text layer are never re-read. |
+| `render_dpi` | int | `300` | Resolution used to draw PDF pages. |
+| `max_render_side_pixels` | int | `3500` | The longest side of a drawn page or photo is reduced to this many pixels. |
+| `min_image_side_pixels` | int | `200` | Smaller images are skipped; they cannot hold readable text. |
+| `rotation_retry_confidence` | int | `40` | A first pass with a lower average confidence (0-100) triggers orientation detection and one retry. |
+| `language_download_url` | string | pinned `tessdata_fast` commit | Where an extra language is downloaded from when the person asks in Settings. `{code}` is replaced with the language code. |
+| `available_languages[]` | object[] | 17 languages | `code` and `name` of each language offered in Settings. |
+
+English and orientation data are installed with the helper. Other languages are an explicit download from **Settings > Libraries > View > Documents** and are stored in `{DataRoot}/ocr/tessdata`, never in build output. Page images are written to `{DataRoot}/ocr/tmp` and removed as each file finishes.
+
+---
+
 ## config/ui/
 
 UI settings are layered: global defaults -> device profile -> user profile -> resolved effective settings.

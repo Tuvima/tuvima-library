@@ -45,6 +45,10 @@ Source: "dist\win\dashboard\*";             DestDir: "{app}\dashboard";         
 Source: "tools\ffmpeg\ffmpeg.exe";           DestDir: "{app}\engine\tools\ffmpeg";         Flags: ignoreversion
 Source: "tools\ffmpeg\ffprobe.exe";          DestDir: "{app}\engine\tools\ffmpeg";         Flags: ignoreversion
 Source: "tools\ffmpeg\LICENSE*";              DestDir: "{app}\licenses\ffmpeg";             Flags: ignoreversion skipifsourcedoesntexist
+Source: "tools\tesseract\tesseract.exe";     DestDir: "{app}\engine\tools\tesseract";      Flags: ignoreversion
+Source: "tools\tesseract\*.dll";             DestDir: "{app}\engine\tools\tesseract";      Flags: ignoreversion
+Source: "tools\tesseract\tessdata\*";        DestDir: "{app}\engine\tools\tesseract\tessdata"; Flags: ignoreversion
+Source: "tools\tesseract\LICENSE*";          DestDir: "{app}\licenses\tesseract";          Flags: ignoreversion skipifsourcedoesntexist
 Source: "config\*";                          DestDir: "{commonappdata}\Tuvima\config";       Flags: ignoreversion recursesubdirs createallsubdirs onlyifdoesntexist
 
 [Dirs]

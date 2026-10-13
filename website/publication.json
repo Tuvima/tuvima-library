@@ -217,6 +217,12 @@
       "section": "How it works"
     },
     {
+      "source": "explanation/how-documents-are-read.md",
+      "slug": "explanation/how-documents-are-read",
+      "group": "Guides",
+      "section": "How it works"
+    },
+    {
       "source": "explanation/privacy-local-first.md",
       "slug": "explanation/privacy-local-first",
       "group": "Guides",

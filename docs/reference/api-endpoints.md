@@ -143,6 +143,10 @@ through compatibility routes.
 |---|---|---|---|
 | GET | `/settings/libraries` | Return the complete library configuration, including stable sources and universal incoming sources | Administrator |
 | PUT | `/settings/libraries` | Validate and replace the complete schema-3 library configuration; the library responses (GET, PUT, mutation) include `import_folder_status` (whether the optional import folder is set and which types still need a destination) | Administrator |
+| GET | `/settings/ocr` | Text recognition settings, whether the helper and language data are installed, the language checklist, and the reading queue (length and current file name only) | Administrator |
+| PUT | `/settings/ocr` | Save text recognition on or off, effort (`normal` or `low`) and the languages to read with | Administrator |
+| POST | `/settings/ocr/languages/{code}` | Download the language data for one listed language; the only network use of text recognition | Administrator |
+| POST | `/settings/ocr/reread` | Queue every PDF and photo without text to be read again, in batches (`202`; `409` when already running or not ready) | Administrator |
 | GET | `/settings/incoming-sources` | Return universal unassigned intake folders | Administrator |
 | PUT | `/settings/incoming-sources` | Validate and replace universal incoming folders | Administrator |
 | POST | `/settings/libraries/{libraryId}/reorganization/plan` | Produce a read-only, expiring move/rename plan with stable source IDs, conflicts, blocked work, and an exact confirmation fingerprint | Administrator |

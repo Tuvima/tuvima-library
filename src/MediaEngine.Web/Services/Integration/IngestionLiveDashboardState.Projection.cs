@@ -563,6 +563,8 @@ public sealed partial class IngestionLiveDashboardState
             "ai.tldr" => "AI summary",
             "ai.vibe_tags" => "AI vibe tags",
             "ai.smart_labels" => "AI smart labels",
+            "view.document_text_read" => "Reading document text",
+            "view.document_ocr" => "Reading scanned documents",
             _ when value.StartsWith("plugin.", StringComparison.OrdinalIgnoreCase) => "Plugin work",
             _ when value.StartsWith("ai.", StringComparison.OrdinalIgnoreCase) => "AI enrichment",
             _ when value.Length > 0 => value.Replace('.', ' '),
