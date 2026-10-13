@@ -599,6 +599,12 @@
       "slug": "reference/glossary",
       "group": "Reference",
       "section": "Project"
+    },
+    {
+      "source": "reference/ui-supported-devices.md",
+      "slug": "reference/ui-supported-devices",
+      "group": "Reference",
+      "section": "Project"
     }
   ],
   "redirects": {

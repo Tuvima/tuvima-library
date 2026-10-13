@@ -51,15 +51,83 @@ public sealed class DeviceContextServiceTests
     }
 
     [Fact]
-    public async Task ResponsiveServiceDoesNotAcceptNativeDeviceClassesFromBrowserInput()
+    public async Task ResponsiveServiceDoesNotAcceptAutomotiveFromBrowserInput()
     {
         var service = new DeviceContextService(EngineApiClientStub.CreateDefault());
 
-        await service.InitialiseAsync("television");
-        await service.SwitchDeviceAsync("automotive");
+        await service.InitialiseAsync("automotive");
 
         Assert.Equal("web", service.DeviceClass);
         Assert.Equal("web", service.Settings.DeviceClass);
+    }
+
+    [Theory]
+    [InlineData("mobile", "phone", true, "mobile")]
+    [InlineData("web", "tablet", true, "web")]
+    [InlineData("web", "desktop", false, "web")]
+    [InlineData("television", "tv", false, "television")]
+    public async Task FormFactorMapsToEngineSettingsKey(string deviceClass, string formFactor, bool touch, string engineKey)
+    {
+        var requestedKeys = new List<string>();
+        var api = EngineApiClientStub.Create(stub => stub.SetHandler(
+            nameof(IEngineApiClient.GetResolvedUISettingsAsync),
+            args =>
+            {
+                requestedKeys.Add((string)args![0]!);
+                return Task.FromResult<ResolvedUISettingsViewModel?>(null);
+            }));
+        var service = new DeviceContextService(api);
+
+        await service.InitialiseAsync(new DeviceContextSnapshot(deviceClass, formFactor, touch));
+
+        Assert.Equal(formFactor, service.FormFactor);
+        Assert.Equal(engineKey, service.DeviceClass);
+        Assert.Equal(touch, service.IsTouch);
+        Assert.Equal([engineKey], requestedKeys);
+        Assert.Equal(formFactor == "phone", service.IsPhone);
+        Assert.Equal(formFactor == "tablet", service.IsTablet);
+        Assert.Equal(formFactor == "desktop", service.IsDesktop);
+        Assert.Equal(formFactor == "tv", service.IsTv);
+    }
+
+    [Fact]
+    public async Task TabletReportsTouchWithoutBeingMobile()
+    {
+        var service = new DeviceContextService(EngineApiClientStub.CreateDefault());
+
+        await service.InitialiseAsync(new DeviceContextSnapshot("web", "tablet", true));
+
+        Assert.True(service.IsTouch);
+        Assert.True(service.IsTablet);
+        Assert.False(service.IsMobile);
+        Assert.False(service.IsPhone);
+    }
+
+    [Fact]
+    public async Task TvSnapshotKeepsTelevisionClass()
+    {
+        var service = new DeviceContextService(EngineApiClientStub.CreateDefault());
+
+        await service.InitialiseAsync(new DeviceContextSnapshot("television", "tv", false));
+        await service.SwitchDeviceAsync(new DeviceContextSnapshot("television", "tv", false));
+
+        Assert.True(service.IsTv);
+        Assert.True(service.IsTelevision);
+        Assert.Equal("television", service.DeviceClass);
+    }
+
+    [Fact]
+    public async Task SwitchingDesktopToTabletPublishesEvenWhenEngineKeyIsUnchanged()
+    {
+        var service = new DeviceContextService(EngineApiClientStub.CreateDefault());
+        var changes = 0;
+        await service.InitialiseAsync(new DeviceContextSnapshot("web", "desktop", false));
+        service.OnChanged += () => changes++;
+
+        await service.SwitchDeviceAsync(new DeviceContextSnapshot("web", "tablet", true));
+
+        Assert.Equal("tablet", service.FormFactor);
+        Assert.True(changes >= 1);
     }
 
     [Fact]

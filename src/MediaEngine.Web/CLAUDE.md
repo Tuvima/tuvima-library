@@ -154,3 +154,4 @@ Release builds use build-only NUglify through `src/MediaEngine.Web/Build/Dashboa
 
 Dashboard CI publishes Release and runs scripts/build/verify-dashboard-css.mjs to verify minification, gzip/brotli content, fingerprints and the finalized scoped bundle ceiling. Docker copies src/MediaEngine.Web/Build/ before restore; DockerfileGuardrailTests protects explicit project imports. ComponentParameterGuardrailTests checks direct Razor component parameters, including captured HTML attributes, without accepting arbitrary retired parameter names.
 
+Visual checks target the four form factors (phone under 600, tablet 600-1023, desktop, tv) at the supported widths; new CSS breakpoints only 600 / 840 / 1180: `docs/reference/ui-supported-devices.md`.

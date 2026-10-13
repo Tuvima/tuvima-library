@@ -335,6 +335,7 @@ window.tuvimaResponsive = (function () {
     var breakpointMediaHandler = null;
     var viewportResizeObserver = null;
     var observerOwnerKey = null;
+    var observerWantsSnapshot = false;
 
     function readBreakpoint(name, fallback) {
         var value = window.getComputedStyle(document.documentElement)
@@ -344,16 +345,66 @@ window.tuvimaResponsive = (function () {
         return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
     }
 
-    function classifyViewport() {
-        var breakpoint = readBreakpoint('navigation', 840);
-        if (window.matchMedia) {
-            return window.matchMedia('(max-width: ' + breakpoint + 'px)').matches ? 'mobile' : 'web';
+    function isTvRequested() {
+        try {
+            var query = new URLSearchParams(window.location.search).get('device');
+            if (query !== null) {
+                if (query.toLowerCase() === 'tv') {
+                    window.sessionStorage.setItem('tuvima.device', 'tv');
+                } else {
+                    window.sessionStorage.removeItem('tuvima.device');
+                }
+            }
+            if (window.sessionStorage.getItem('tuvima.device') === 'tv') return true;
+        } catch (_) {
+            // Storage can be blocked; fall back to the ?device=tv query and user agent only.
+            if (/[?&]device=tv(&|$)/i.test(window.location.search)) return true;
         }
-        return window.innerWidth <= breakpoint ? 'mobile' : 'web';
+        return /Android TV|BRAVIA|SMART-TV|SmartTV|Tizen|Web0S|webOS/i.test(navigator.userAgent || '');
     }
 
-    function register(dotNetRef, ownerKey) {
+    function classifyFormFactor() {
+        if (isTvRequested()) return 'tv';
+        var phone = readBreakpoint('phone', 600);
+        var desktop = readBreakpoint('desktop', 1024);
+        var width = window.innerWidth;
+        if (window.matchMedia) {
+            if (window.matchMedia('(max-width: ' + (phone - 0.02) + 'px)').matches) return 'phone';
+            if (window.matchMedia('(max-width: ' + (desktop - 0.02) + 'px)').matches) return 'tablet';
+            return 'desktop';
+        }
+        return width < phone ? 'phone' : width < desktop ? 'tablet' : 'desktop';
+    }
+
+    function isTouch() {
+        return !!window.matchMedia && window.matchMedia('(hover: none), (pointer: coarse)').matches;
+    }
+
+    function deviceClassFor(formFactor) {
+        return formFactor === 'phone' ? 'mobile' : formFactor === 'tv' ? 'television' : 'web';
+    }
+
+    function snapshot() {
+        var formFactor = classifyFormFactor();
+        return { deviceClass: deviceClassFor(formFactor), formFactor: formFactor, touch: isTouch() };
+    }
+
+    function applyAttributes(state) {
+        var root = document.documentElement;
+        if (!root) return;
+        root.setAttribute('data-form-factor', state.formFactor);
+        root.setAttribute('data-touch', state.touch ? 'true' : 'false');
+    }
+
+    function classifyViewport() {
+        var state = snapshot();
+        applyAttributes(state);
+        return state.deviceClass;
+    }
+
+    function register(dotNetRef, ownerKey, withSnapshot) {
         unregister();
+        observerWantsSnapshot = !!withSnapshot;
         observer = dotNetRef;
         observerOwnerKey = ownerKey || {};
         lastObservedClass = null;
@@ -395,14 +446,21 @@ window.tuvimaResponsive = (function () {
     function notifyObserver() {
         if (!observer) return;
         var activeObserver = observer;
-        var next = classifyViewport();
+        var state = snapshot();
+        applyAttributes(state);
+        var next = observerWantsSnapshot
+            ? state.deviceClass + '|' + state.formFactor + '|' + state.touch
+            : state.deviceClass;
         if (next === pendingObservedClass
             || next === lastObservedClass && pendingObservedClass === null) return;
 
         var version = ++notificationVersion;
         pendingObservedClass = next;
         try {
-            Promise.resolve(activeObserver.invokeMethodAsync('HandleViewportDeviceClassChanged', next))
+            var call = observerWantsSnapshot
+                ? activeObserver.invokeMethodAsync('HandleViewportChanged', state)
+                : activeObserver.invokeMethodAsync('HandleViewportDeviceClassChanged', state.deviceClass);
+            Promise.resolve(call)
                 .then(function () {
                     if (observer !== activeObserver || version !== notificationVersion) return;
                     lastObservedClass = next;
@@ -450,6 +508,7 @@ window.tuvimaResponsive = (function () {
 
     return {
         resolveDeviceClass: classifyViewport,
+        resolveDeviceSnapshot: function () { var state = snapshot(); applyAttributes(state); return state; },
         registerDeviceClassObserver: register,
         unregisterDeviceClassObserver: unregister,
         navigationBreakpoint: function () { return readBreakpoint('navigation', 840); }
@@ -463,6 +522,14 @@ window.tuvimaResponsive = (function () {
  */
 window.detectDeviceClass = function () {
     return window.tuvimaResponsive.resolveDeviceClass();
+};
+
+/**
+ * Returns the full responsive snapshot and stamps data-form-factor / data-touch on <html>.
+ * @returns {{deviceClass: string, formFactor: string, touch: boolean}}
+ */
+window.detectDeviceSnapshot = function () {
+    return window.tuvimaResponsive.resolveDeviceSnapshot();
 };
 
 // -- Installable web app ----------------------------------------------------

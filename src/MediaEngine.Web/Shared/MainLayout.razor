@@ -342,12 +342,12 @@
         var startupToken = _authorityRefreshCancellation.Token;
         try
         {
-            var detectedDevice = await JS.InvokeAsync<string>("detectDeviceClass", startupToken);
+            var detectedDevice = await JS.InvokeAsync<DeviceContextSnapshot>("detectDeviceSnapshot", startupToken);
             if (ShouldStopStartup(startupToken)) return;
 
             var deviceInitialization = DeviceContext.InitialiseAsync(detectedDevice);
             _dotNetRef = DotNetObjectReference.Create(this);
-            await JS.InvokeVoidAsync("tuvimaResponsive.registerDeviceClassObserver", startupToken, _dotNetRef, _deviceObserverOwner);
+            await JS.InvokeVoidAsync("tuvimaResponsive.registerDeviceClassObserver", startupToken, _dotNetRef, _deviceObserverOwner, true);
             if (ShouldStopStartup(startupToken))
             {
                 await UnregisterBrowserObserversDuringStartupAsync();
