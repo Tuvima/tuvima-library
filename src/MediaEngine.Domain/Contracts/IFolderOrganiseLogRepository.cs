@@ -36,6 +36,24 @@ public static class FolderOrganiseOutcomes
     /// <summary>The file was not there any more, or is not ready to be named yet; normal scans tidy it later.</summary>
     public const string Skipped = "skipped";
 
+    /// <summary>Merge: the file was copied into the target folder at its standard name; the original was not touched.</summary>
+    public const string Copied = "copied";
+
+    /// <summary>Merge: copied, but the standard name was taken by a different file (or Keep both applies), so a numbered name was used.</summary>
+    public const string CopiedWithUniqueName = "copied_unique_name";
+
+    /// <summary>Merge: an exact copy already had the standard name in the target, so nothing was copied and the original was left alone.</summary>
+    public const string DuplicateSkipped = "duplicate_skipped";
+
+    /// <summary>Merge: a sidecar (subtitles, artwork, notes) that was copied beside its media file.</summary>
+    public const string SidecarCopied = "sidecar_copied";
+
+    /// <summary>Merge: the file could not be named yet, so it went to the target's From merge folder and waits in Review.</summary>
+    public const string MergedForReview = "merged_for_review";
+
+    /// <summary>Merge: the job was stopped before this file was reached, so it is still only in the source folder.</summary>
+    public const string LeftInSource = "left_in_source";
+
     public static bool IsFinal(string outcome) => !string.Equals(outcome, Moving, StringComparison.Ordinal);
 }
 

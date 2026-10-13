@@ -39,6 +39,9 @@ public enum FolderOrganiseStop
     Cancelled,
     SourceNotManaged,
     SourceMissing,
+
+    /// <summary>A merge's target folder was removed or is no longer a folder Tuvima manages.</summary>
+    TargetUnavailable,
 }
 
 public sealed class FolderOrganiseRunResult
@@ -50,6 +53,9 @@ public sealed class FolderOrganiseRunResult
     public int Completed { get; init; }
 
     public int Failed { get; init; }
+
+    /// <summary>For a merge: true when originals were moved (not just copied), so the completion message says so.</summary>
+    public bool IsMove { get; init; }
 
     /// <summary>How many log lines each outcome has, for the completion message.</summary>
     public IReadOnlyDictionary<string, int> Outcomes { get; init; } = new Dictionary<string, int>();
@@ -71,6 +77,12 @@ public sealed class FolderOrganiseTiming
 
     /// <summary>How often the saved folder settings are read again, so switching a folder to As-is stops the work.</summary>
     public TimeSpan SettingsRefresh { get; init; } = TimeSpan.FromSeconds(5);
+
+    /// <summary>
+    /// How often a merge reports in while one file is still being copied, so a very large file does not look like a stalled job
+    /// and its lease is kept. Zero turns it off.
+    /// </summary>
+    public TimeSpan HeartbeatInterval { get; init; } = TimeSpan.FromSeconds(30);
 }
 
 /// <summary>

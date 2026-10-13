@@ -61,7 +61,7 @@ public sealed class LibraryFolderResolver : ILibraryFolderResolver
             foreach (var source in entry.Sources)
             {
                 var sourcePath = source.Path;
-                if (string.IsNullOrWhiteSpace(sourcePath))
+                if (string.IsNullOrWhiteSpace(sourcePath) || source.IsMergedAway)
                 {
                     continue;
                 }

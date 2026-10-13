@@ -203,6 +203,25 @@ public sealed class LibrarySourceDto
     [JsonPropertyName("conversion_operation_id")]
     public string? ConversionOperationId { get; set; }
 
+    /// <summary>Progress of merging this folder into another managed folder: <c>none</c>, <c>merging</c> or <c>merged</c>.</summary>
+    [JsonPropertyName("merge_state")]
+    public string MergeState { get; set; } = "none";
+
+    [JsonPropertyName("merge_operation_id")]
+    public string? MergeOperationId { get; set; }
+
+    /// <summary>The managed folder this folder is being (or was) merged into.</summary>
+    [JsonPropertyName("merge_target_source_id")]
+    public string? MergeTargetSourceId { get; set; }
+
+    /// <summary><c>copy</c> or <c>move</c>.</summary>
+    [JsonPropertyName("merge_mode")]
+    public string? MergeMode { get; set; }
+
+    /// <summary>When the merge finished; set only once the folder is <c>merged</c>.</summary>
+    [JsonPropertyName("merged_at")]
+    public DateTimeOffset? MergedAt { get; set; }
+
     [JsonPropertyName("notes")]
     public string? Notes { get; set; }
 

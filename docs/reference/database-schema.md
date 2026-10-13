@@ -184,7 +184,7 @@ The ledger of the organising job: one row for each file, and each sidecar, the j
 | `source_id` | BLOB | The library source (folder) being switched |
 | `old_path` | TEXT | Where the file was. Part of the primary key. |
 | `new_path` | TEXT | Where the file went |
-| `outcome` | TEXT | `moving` (intent, not yet finished), `moved`, `moved_unique_name` (a different file had the name, so a numbered name was used), `already_correct`, `duplicate_removed` (an exact copy under Keep one copy), `sidecar_moved`, `not_moved`, `needs_review`, `queued_for_identification`, `skipped` or `failed` |
+| `outcome` | TEXT | `moving` (intent, not yet finished), `moved`, `moved_unique_name` (a different file had the name, so a numbered name was used), `already_correct`, `duplicate_removed` (an exact copy under Keep one copy), `sidecar_moved`, `not_moved`, `needs_review`, `queued_for_identification`, `skipped` or `failed`. A merge job (`operation_type = merge_folder`) also writes `copied`, `copied_unique_name`, `duplicate_skipped` (an exact copy already in the target, nothing copied), `sidecar_copied`, `merged_for_review` (put in the target's From merge folder) and `left_in_source` (the job stopped before reaching the file); for a merge `old_path` is the file in the source folder and `new_path` its copy in the target |
 | `at` | TEXT | Timestamp |
 | `detail` | TEXT | The plain-English reason for any outcome that needs one (nullable) |
 

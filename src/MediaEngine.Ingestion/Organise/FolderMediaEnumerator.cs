@@ -21,7 +21,8 @@ public static class FolderMediaEnumerator
         bool includeSubdirectories,
         IReadOnlySet<string> mediaExtensions,
         int stopAfter = int.MaxValue,
-        CancellationToken ct = default)
+        CancellationToken ct = default,
+        bool skipLinks = false)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(root);
         ArgumentNullException.ThrowIfNull(mediaExtensions);
@@ -42,7 +43,7 @@ public static class FolderMediaEnumerator
             {
                 foreach (var file in Directory.EnumerateFiles(folder))
                 {
-                    if (mediaExtensions.Contains(Path.GetExtension(file)))
+                    if (mediaExtensions.Contains(Path.GetExtension(file)) && !(skipLinks && IsLink(file)))
                     {
                         found.Add(file);
                         if (found.Count >= stopAfter)
@@ -56,7 +57,7 @@ public static class FolderMediaEnumerator
                 {
                     foreach (var child in Directory.EnumerateDirectories(folder))
                     {
-                        if (!Path.GetFileName(child).StartsWith('.'))
+                        if (!Path.GetFileName(child).StartsWith('.') && !(skipLinks && IsLink(child)))
                         {
                             pending.Push(child);
                         }
@@ -72,5 +73,50 @@ public static class FolderMediaEnumerator
 
         found.Sort(StringComparer.OrdinalIgnoreCase);
         return found;
+    }
+
+    /// <summary>True for a shortcut: a symbolic link or a Windows junction. The merge never follows these, so it can never reach a file through a second name.</summary>
+    public static bool IsLink(string path)
+    {
+        try
+        {
+            return File.GetAttributes(path).HasFlag(FileAttributes.ReparsePoint);
+        }
+        catch (Exception ex) when (ex is FileNotFoundException or DirectoryNotFoundException)
+        {
+            // Nothing there, so nothing is being reached through a shortcut.
+            _ = ex;
+            return false;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            // Something that cannot even be inspected is treated as a link, so it is left alone.
+            _ = ex;
+            return true;
+        }
+    }
+
+    /// <summary>True when the file, or any folder between it and <paramref name="root"/>, is a shortcut.</summary>
+    public static bool IsReachedThroughLink(string path, string root)
+    {
+        var current = path;
+        while (!string.IsNullOrEmpty(current))
+        {
+            if (IsLink(current))
+            {
+                return true;
+            }
+
+            var parent = Path.GetDirectoryName(current);
+            if (string.IsNullOrEmpty(parent)
+                || string.Equals(Path.TrimEndingDirectorySeparator(parent), Path.TrimEndingDirectorySeparator(root), StringComparison.OrdinalIgnoreCase))
+            {
+                return IsLink(root);
+            }
+
+            current = parent;
+        }
+
+        return false;
     }
 }

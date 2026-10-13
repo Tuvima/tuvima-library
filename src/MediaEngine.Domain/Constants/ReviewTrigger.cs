@@ -139,4 +139,10 @@ public static class ReviewTrigger
     /// the second kept a numbered name so a person can decide which one is which.
     /// </summary>
     public const string NameCollision = "NameCollision";
+
+    /// <summary>
+    /// A file arrived in a managed folder through a folder merge but could not be named yet (it was not identified, or a
+    /// person has to confirm what it is). It waits in the target's From merge folder until it is confirmed.
+    /// </summary>
+    public const string FromMerge = "FromMerge";
 }

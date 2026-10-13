@@ -75,6 +75,10 @@ Follow-up metadata work after basic identity is known, such as artwork, people, 
 
 A Review Queue reason for a Movies-library file whose only strong match is a TMDB miniseries or short TV title. Resolve it with Move to TV, Search again, or Keep as unmatched film.
 
+### From merge
+
+A Review Queue reason for a file that arrived in a managed folder through a folder merge but could not be named yet (it was not identified, was waiting in Review, or had no confirmed title). It waits in a folder called From merge inside the target until you confirm what it is.
+
 ## H
 
 ### Household
@@ -108,6 +112,10 @@ One of the main browse surfaces: Read, Watch, or Listen.
 ### Media Type
 
 The resolved category for a file: Books, Audiobooks, Movies, TV, Music, or Comics.
+
+### Merge
+
+A one-time job that brings the files of one existing folder into a managed folder of the same kind of media, with the same naming, duplicate and tag rules as the rest of the library. Copy (the default) never changes the original folder; Move removes each original only after its copy has been checked byte for byte. The Import folder is the way to keep feeding files in over time.
 
 ### Managed Artwork
 

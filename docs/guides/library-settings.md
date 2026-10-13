@@ -35,6 +35,20 @@ Switching from Existing to Managed changes the rules for future work. It does no
 
 The Engine checks each item again before moving it. A preview can expire. A source or item change can also make it invalid.
 
+## Merge an existing folder into a managed folder
+
+Use a merge to bring all the files of one existing folder into a folder Tuvima manages, once. To keep feeding files in over time, use the Import folder instead.
+
+1. Open **Settings > Libraries** and choose the media type.
+2. Open the folder's menu and choose **Merge into**. When you add a folder that already has files, you can choose **Merge into** there instead.
+3. Choose the managed folder to merge into. The New media folder is chosen for you.
+4. Choose **Copy** or, for a folder Tuvima manages, **Move instead of copy**. Copy never changes your folder. Move removes each file from your folder only after its copy has been checked byte for byte, and frees space on that drive.
+5. Choose **Preview first** to see what would happen, then **Merge**.
+
+Tuvima names the files the same way as the rest of your library. Exact duplicates follow your "same file twice" setting. Files Tuvima cannot name yet go to a folder called **From merge** inside the target and wait in **Review**.
+
+You can pause, resume or stop a merge. Stopping keeps what was already copied, and the log lists what is still only in your folder. A merge cannot be undone automatically, but you can download the log. When it finishes, the folder reads **Merged into** the target and is no longer scanned, so nothing appears twice. Remove the folder from the list when you are ready; its files stay on disk.
+
 ## Set up View storage
 
 Use **Settings > Libraries** to choose the single managed View root. Use **Settings > Users** for each enabled profile's Personal Space sources and devices.

@@ -1,0 +1,100 @@
+.merge-folder {
+    display: grid;
+    gap: 14px;
+    max-width: 62ch;
+}
+
+.merge-folder p {
+    margin: 0;
+    line-height: 1.5;
+}
+
+.merge-folder h4 {
+    margin: 4px 0 0;
+    font-size: 0.9rem;
+}
+
+.merge-folder__group {
+    display: grid;
+    gap: 8px;
+    min-width: 0;
+    margin: 0;
+    padding: 0;
+    border: 0;
+}
+
+.merge-folder__group legend {
+    padding: 0;
+    margin-bottom: 4px;
+    font-weight: 600;
+}
+
+.merge-folder__group [role="radiogroup"] {
+    display: grid;
+    gap: 8px;
+}
+
+.merge-folder__option span {
+    display: grid;
+    gap: 2px;
+    min-width: 0;
+}
+
+.merge-folder__option small {
+    color: var(--tl-text-muted);
+    overflow-wrap: anywhere;
+}
+
+.merge-folder__tag {
+    justify-self: start;
+    font-size: 0.78rem;
+    font-style: normal;
+    color: var(--tl-text-muted);
+}
+
+.merge-folder__note,
+.merge-folder__facts,
+.merge-folder__time {
+    color: var(--tl-text-muted);
+}
+
+.merge-folder__rules,
+.merge-folder__counts,
+.merge-folder__reasons,
+.merge-folder__samples {
+    display: grid;
+    gap: 6px;
+    margin: 0;
+    padding-left: 1.2rem;
+}
+
+.merge-folder__rules {
+    color: var(--tl-text-muted);
+    font-size: 0.88rem;
+}
+
+.merge-folder__reasons {
+    color: var(--tl-text-muted);
+    font-size: 0.85rem;
+}
+
+.merge-folder__samples {
+    padding-left: 0;
+    list-style: none;
+}
+
+.merge-folder__samples li {
+    display: grid;
+    gap: 2px;
+    min-width: 0;
+}
+
+.merge-folder__samples code {
+    overflow-wrap: anywhere;
+    font-size: 0.8rem;
+}
+
+.merge-folder__preview {
+    display: grid;
+    gap: 12px;
+}

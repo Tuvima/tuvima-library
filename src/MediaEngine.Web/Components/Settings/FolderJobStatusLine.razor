@@ -16,16 +16,16 @@
             @if (Job.State == "paused")
             {
                 <AppButton Label="Resume" Size="AppControlSize.Compact" ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Primary"
-                           aria-label="@($"Resume organising {Name}")" OnClick="@(() => Control("resume"))" />
+                           aria-label="@($"Resume {FolderJobFormat.Verb(Job)} {Name}")" OnClick="@(() => Control("resume"))" />
             }
             else
             {
                 <AppButton Label="Pause" Size="AppControlSize.Compact" ButtonStyle="AppButtonStyle.Text"
                            Disabled="@(Job.State == "queued")"
-                           aria-label="@($"Pause organising {Name}")" OnClick="@(() => Control("pause"))" />
+                           aria-label="@($"Pause {FolderJobFormat.Verb(Job)} {Name}")" OnClick="@(() => Control("pause"))" />
             }
             <AppButton Label="Cancel" Size="AppControlSize.Compact" ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Error"
-                       aria-label="@($"Cancel organising {Name}")" OnClick="@(() => Control("cancel"))" />
+                       aria-label="@($"Cancel {FolderJobFormat.Verb(Job)} {Name}")" OnClick="@(() => Control("cancel"))" />
         </span>
     }
     @if (!Open && Job.HasLog)

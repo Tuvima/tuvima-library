@@ -315,7 +315,11 @@ public sealed partial class IngestionEngine
                         else
                         {
                             var resolvedSource = _libraryFolderResolver?.ResolveSourceForPath(candidate.Path);
+                            // Never remove a duplicate unless the copy that stays is really there, and never from a folder that is
+                            // being merged into another one (its originals are the merge's to keep or remove, not this rule's).
                             var deleteAllowed = resolvedSource is not null
+                                && resolvedSource.Source.MergeState == MediaEngine.Domain.Configuration.LibrarySourceMergeStates.None
+                                && File.Exists(existing.FilePathRoot)
                                 && MediaEngine.Domain.Configuration.LibraryDuplicatePolicies.DeletesIncomingDuplicate(_options.DuplicatePolicy)
                                 && _sourceMutationPolicyGate?.Evaluate(new SourceMutationRequest
                                 {

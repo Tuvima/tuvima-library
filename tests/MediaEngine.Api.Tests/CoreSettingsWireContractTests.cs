@@ -67,6 +67,18 @@ public sealed class CoreSettingsWireContractTests
                             ConversionState = "converting",
                             ConversionOperationId = "cccccccc-cccc-4ccc-8ccc-cccccccccccc",
                         },
+                        new LibrarySourceDto
+                        {
+                            Id = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+                            Path = @"D:\Plex\Books",
+                            ManagementMode = "existing_library",
+                            AccessMode = "read_only",
+                            MergeState = "merged",
+                            MergeOperationId = "dddddddd-dddd-4ddd-8ddd-dddddddddddd",
+                            MergeTargetSourceId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+                            MergeMode = "copy",
+                            MergedAt = new DateTimeOffset(2026, 10, 13, 12, 30, 0, TimeSpan.Zero),
+                        },
                     ],
                     PrimaryDestinationSourceId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
                     AcceptedIntakeModes = ["drag_and_drop"],
@@ -89,6 +101,10 @@ public sealed class CoreSettingsWireContractTests
 
         Assert.Contains("\"conversion_state\":\"converting\"", libraryJson, StringComparison.Ordinal);
         Assert.Contains("\"conversion_operation_id\":\"cccccccc-cccc-4ccc-8ccc-cccccccccccc\"", libraryJson, StringComparison.Ordinal);
+        Assert.Contains("\"merge_state\":\"merged\"", libraryJson, StringComparison.Ordinal);
+        Assert.Contains("\"merge_target_source_id\":\"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa\"", libraryJson, StringComparison.Ordinal);
+        Assert.Contains("\"merge_mode\":\"copy\"", libraryJson, StringComparison.Ordinal);
+        Assert.Contains("\"merged_at\":\"2026-10-13T12:30:00+00:00\"", libraryJson, StringComparison.Ordinal);
         Assert.Contains("\"write_tags\":false", libraryJson, StringComparison.Ordinal);
         Assert.Contains("\"file_handling\":{\"duplicate_policy\":\"keep_one\"}", libraryJson, StringComparison.Ordinal);
         Assert.DoesNotContain("\"duplicate_policy\":\"skip_exact\"", libraryJson, StringComparison.Ordinal);

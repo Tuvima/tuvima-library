@@ -8,8 +8,9 @@ using Microsoft.AspNetCore.Mvc;
 namespace MediaEngine.Api.Endpoints;
 
 /// <summary>
-/// Converting a folder to Managed: the honest preview, starting the organising job, pausing, resuming and cancelling it,
-/// and reading or exporting the log of every move. The job itself is one durable operation on the folder-jobs queue.
+/// Converting a folder to Managed, or merging one into a managed folder: the honest preview, starting the job, pausing,
+/// resuming and cancelling it, and reading or exporting the log of every move. The job itself is one durable operation on the
+/// folder-jobs queue.
 /// </summary>
 public static class FolderJobEndpoints
 {
@@ -58,6 +59,47 @@ public static class FolderJobEndpoints
         .Produces<FolderJobStatusDto>()
         .ProducesProblem(StatusCodes.Status400BadRequest)
         .ProducesProblem(StatusCodes.Status404NotFound);
+
+        group.MapPost("/merge/preview", async (
+            [FromBody] FolderMergePreviewRequest request,
+            FolderJobService jobs,
+            CancellationToken ct) =>
+        {
+            try
+            {
+                return Results.Ok(await jobs.PreviewMergeAsync(request, ct));
+            }
+            catch (FolderJobException exception)
+            {
+                return Problem(exception);
+            }
+        })
+        .WithName("PreviewFolderMerge")
+        .WithSummary("Counts the media files a folder merge would bring in and the room it needs, or previews what it would do. Changes nothing.")
+        .Produces<FolderMergePreviewResponse>()
+        .ProducesProblem(StatusCodes.Status400BadRequest)
+        .ProducesProblem(StatusCodes.Status404NotFound);
+
+        group.MapPost("/merge", async (
+            [FromBody] FolderMergeRequest request,
+            FolderJobService jobs,
+            CancellationToken ct) =>
+        {
+            try
+            {
+                return Results.Ok(await jobs.StartMergeAsync(request, ct));
+            }
+            catch (FolderJobException exception)
+            {
+                return Problem(exception);
+            }
+        })
+        .WithName("MergeFolderIntoManaged")
+        .WithSummary("Queues the job that merges one existing folder, once, into a managed folder of the same library. Copy never writes the source.")
+        .Produces<FolderJobStatusDto>()
+        .ProducesProblem(StatusCodes.Status400BadRequest)
+        .ProducesProblem(StatusCodes.Status404NotFound)
+        .ProducesProblem(StatusCodes.Status409Conflict);
 
         group.MapGet("/jobs", async (FolderJobService jobs, CancellationToken ct) =>
             Results.Ok(await jobs.ListAsync(ct)))

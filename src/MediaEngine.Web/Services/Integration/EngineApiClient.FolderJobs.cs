@@ -19,6 +19,21 @@ public sealed partial class EngineApiClient
             new FolderConvertRequest { SourceId = sourceId },
             ct: ct);
 
+    public Task<FolderMergePreviewResponse?> PreviewFolderMergeAsync(
+        FolderMergePreviewRequest request, CancellationToken ct = default) =>
+        PostAsync<FolderMergePreviewRequest, FolderMergePreviewResponse>(
+            "POST /settings/libraries/folders/merge/preview",
+            "/settings/libraries/folders/merge/preview",
+            request,
+            ct: ct);
+
+    public Task<FolderJobStatusDto?> MergeFolderAsync(FolderMergeRequest request, CancellationToken ct = default) =>
+        PostAsync<FolderMergeRequest, FolderJobStatusDto>(
+            "POST /settings/libraries/folders/merge",
+            "/settings/libraries/folders/merge",
+            request,
+            ct: ct);
+
     public async Task<IReadOnlyList<FolderJobStatusDto>> GetFolderJobsAsync(CancellationToken ct = default) =>
         await GetAsync<List<FolderJobStatusDto>>(
             "GET /settings/libraries/folders/jobs",

@@ -17,7 +17,8 @@ public sealed partial class IngestionEngine
     private IReadOnlyList<IngestionScanTarget> GetConfiguredScanTargets() =>
         _options.LibraryFolders
             .Where(library => string.Equals(library.Kind, LibraryKinds.Catalogued, StringComparison.OrdinalIgnoreCase))
-            .SelectMany(library => library.Sources.Select(source =>
+            // A folder that was merged into another one is no longer scanned: its files are catalogued as the copies in the target.
+            .SelectMany(library => library.Sources.Where(source => !source.IsMergedAway).Select(source =>
                 new IngestionScanTarget(source.Path, source.IncludeSubdirectories)))
             .Concat(GetImportScanTargets())
             .Where(target => !string.IsNullOrWhiteSpace(target.Path))
