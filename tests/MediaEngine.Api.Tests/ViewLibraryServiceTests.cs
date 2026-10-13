@@ -223,7 +223,6 @@ public sealed class ViewLibraryServiceTests
             }).GetAwaiter().GetResult();
             _configuration.SaveLibraries(new LibrariesConfiguration
             {
-                SchemaVersion = "6.0",
                 StorageLocations =
                 [
                     new ServerStorageLocationConfig
@@ -305,12 +304,11 @@ public sealed class ViewLibraryServiceTests
                 MediaTypes = ["Images", "ShortVideos", "Documents", "AudioNotes"],
                 OwnerProfileId = ownerProfileId.ToString("D"),
                 Visibility = LibraryVisibility.Private,
-                DuplicatePolicy = LibraryDuplicatePolicies.SkipExact,
                 AcceptedIntakeModes = [LibraryIntakeModes.BrowserUpload],
                 OrganizationPolicy = new LibraryOrganizationPolicyConfig
                 {
                     Mode = LibraryOrganizationModes.KeepOriginalFolders,
-                    PreserveOriginals = true,
+                    WriteTags = false,
                 },
                 Sources =
             [
@@ -318,12 +316,10 @@ public sealed class ViewLibraryServiceTests
                 {
                     Id = sourceId,
                     Path = path,
-                    Role = LibrarySourceRoles.PrimaryDestination,
                     ManagementMode = LibrarySourceManagementModes.ManagedByTuvima,
                     SourceType = LibrarySourceTypes.LocalFolder,
                     IncludeSubdirectories = true,
                     AccessMode = LibrarySourceAccessModes.Writable,
-                    ParticipatesInOrganization = false,
                 },
             ],
                 PrimaryDestinationSourceId = sourceId,
@@ -341,14 +337,12 @@ public sealed class ViewLibraryServiceTests
             MetadataPolicy = LibraryMetadataPolicies.Enriched,
             MediaTypes = ["Books"],
             Visibility = LibraryVisibility.Household,
-            DuplicatePolicy = LibraryDuplicatePolicies.SkipExact,
             Sources =
             [
                 new LibrarySourceConfig
                 {
                     Id = Guid.NewGuid().ToString("D"),
                     Path = path,
-                    Role = LibrarySourceRoles.Secondary,
                     ManagementMode = LibrarySourceManagementModes.ExistingLibrary,
                     SourceType = LibrarySourceTypes.LocalFolder,
                     IncludeSubdirectories = true,

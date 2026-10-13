@@ -174,6 +174,19 @@ Many-to-many cross-links between works and collections for works that span multi
 | `work_id` | TEXT | FK -> `works.id` |
 | `link_type` | TEXT | Relationship type (e.g., `"adaptation"`, `"companion"`) |
 
+### folder_organise_log
+
+One row for each file moved while a folder is switched from as-is to managed. It is written as each file moves, so an interrupted switch resumes and a finished one can be undone. The owning operation is a `media_operations` row; the log keeps no foreign key so its history outlives that row.
+
+| Column | Type | Notes |
+|---|---|---|
+| `operation_id` | BLOB | The `media_operations` row that owns the switch. Part of the primary key. |
+| `source_id` | BLOB | The library source (folder) being switched |
+| `old_path` | TEXT | Where the file was. Part of the primary key. |
+| `new_path` | TEXT | Where the file went |
+| `outcome` | TEXT | What happened to this file |
+| `at` | TEXT | Timestamp |
+
 ---
 
 ## View Personal Media

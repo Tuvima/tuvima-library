@@ -101,23 +101,12 @@
     private readonly Dictionary<string, PathTestResultDto> _pathResults = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, string> _selectedLibraryIds = new(StringComparer.OrdinalIgnoreCase);
 
-    private static readonly IReadOnlyList<AppSelectOption> DuplicateOptions =
-    [
-        new("skip_exact", "Skip exact duplicates"),
-        new("keep_both", "Keep both"),
-    ];
+    private string DuplicateLabel => _configuration?.FileHandling.DuplicatePolicy == "keep_both" ? "Keep both copies" : "Keep one copy";
 
     private static readonly IReadOnlyList<AppSelectOption> ManagementOptions =
     [
         new("managed_by_tuvima", "Managed by Tuvima Library"),
         new("existing_library", "Existing library"),
-    ];
-
-    private static readonly IReadOnlyList<AppSelectOption> SourceRoleOptions =
-    [
-        new("primary_destination", "Primary destination"),
-        new("secondary", "Secondary source"),
-        new("intake", "Intake source"),
     ];
 
     private static readonly OrganizationDetailOption[] OrganizationDetailOptions =
@@ -150,12 +139,12 @@
             @if (_saving) { <p role="status">Saving…</p> }
             @if (library.Sources.Count == 0) { <p>No folders configured. Add a folder to enable intake.</p> }
             <div class="library-detail__folder-table">
-                <div class="library-detail__folder-head" aria-hidden="true"><span>Folder</span><span>Role</span><span>Management</span><span>Subfolders</span><span>Access</span><span>Status</span><span>Actions</span></div>
+                <div class="library-detail__folder-head" aria-hidden="true"><span>Folder</span><span>Destination</span><span>Management</span><span>Subfolders</span><span>Access</span><span>Status</span><span>Actions</span></div>
                 @foreach (var source in library.Sources)
                 {
                     <div class="library-detail__folder-editor" @key="source.Id">
                         <div class="library-detail__folder-path"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Folder" /><span><strong>@SourceFriendlyName(source)</strong><code>@source.Path</code></span></div>
-                        <AppSelect Label="Role" Value="@source.Role" Options="@SourceRoleOptions" ValueChanged="@((string? value) => EditAsync(library, () => SetSourceRole(library, source, value)))" Disabled="@(readOnly || _engineUnavailable || _saving)" />
+                        <span>@(IsDestination(library, source) ? "Destination for new media" : "-")</span>
                         <AppSelect Label="Management" Value="@source.ManagementMode" Options="@ManagementOptions" ValueChanged="@((string? value) => EditAsync(library, () => SetManagementMode(library, source, value)))" Disabled="@(readOnly || _engineUnavailable || _saving)" />
                         <AppSwitchRow Label="Include subfolders" Value="@source.IncludeSubdirectories" ValueChanged="@((bool value) => EditAsync(library, () => source.IncludeSubdirectories = value))" Disabled="@(readOnly || _engineUnavailable || _saving)" />
                         <span>@SourceAccess(source)</span>
@@ -190,17 +179,10 @@
         <AppCard Class="libraries-card">
             <div class="libraries-card__heading"><div><h3>File Handling</h3><p>Control how Tuvima Library handles existing files and common scenarios.</p></div></div>
             <div class="library-detail__policies">
-                <AppSwitchRow Label="Protect existing files" Description="Keep media already in library folders unchanged. New imports can still enter the managed destination." Value="@library.OrganizationPolicy.PreserveOriginals" ValueChanged="@((bool value) => EditAsync(library, () => library.OrganizationPolicy.PreserveOriginals = value))" Disabled="@(readOnly || _engineUnavailable || _saving)" />
-                <div class="library-detail__policy-row"><div><strong>When a duplicate is found</strong><small>Exact duplicate content is indexed once.</small></div><AppSelect Label="Duplicate handling" Value="@library.DuplicatePolicy" Options="@DuplicateOptions" ValueChanged="@((string? value) => EditAsync(library, () => library.DuplicatePolicy = value ?? "skip_exact"))" Disabled="@(readOnly || _engineUnavailable || _saving)" /></div>
+                <div class="library-detail__policy-row"><div><strong>When a duplicate is found</strong><small>Exact duplicate content is indexed once. This applies to every library.</small></div><span>@DuplicateLabel</span></div>
                 <div class="library-detail__policy-row"><div><strong>When a filename already exists</strong><small>The existing file is never overwritten.</small></div><span>Give the incoming file a unique name</span></div>
-                <div class="library-detail__policy-row"><div><strong>Metadata writeback</strong><small>Applied per managed folder; protection still takes precedence.</small></div><span>@WritebackState(library)</span></div>
+                <AppSwitchRow Label="Write tags to files" Description="Save tags into this type's media files. Only folders Tuvima manages are ever written to; folders used as-is are never touched." Value="@library.OrganizationPolicy.WriteTags" ValueChanged="@((bool value) => EditAsync(library, () => library.OrganizationPolicy.WriteTags = value))" Disabled="@(readOnly || _engineUnavailable || _saving)" />
                 <AppSwitchRow Label="Embed artwork in supported media files" Description="When metadata writeback is enabled, preferred artwork is embedded only in supported, writable media files." Value="@(_artworkWritebackSettings?.ArtworkEnabled ?? false)" ValueChanged="SetArtworkWritebackAsync" Disabled="@(readOnly || _engineUnavailable || _saving || _savingArtworkWriteback || !(_artworkWritebackSettings?.MetadataWritebackEnabled ?? false))" />
-                <details><summary>Folder writeback settings</summary>
-                    @foreach (var source in library.Sources)
-                    {
-                        <div class="library-detail__policy-row"><strong>@SourceFriendlyName(source)</strong><AppSelect Label="Metadata writeback" Value="@WritebackValue(source)" Options="@WritebackOptions" ValueChanged="@((string? value) => EditAsync(library, () => SetWriteback(source, value)))" Disabled="@(readOnly || _engineUnavailable || _saving || source.ManagementMode == "existing_library")" /></div>
-                    }
-                </details>
             </div>
         </AppCard>
         <details class="library-detail__advanced">
@@ -333,12 +315,10 @@
         var source = new LibrarySourceDto
         {
             Id = Guid.NewGuid().ToString("D"),
-            Role = "secondary",
             ManagementMode = "existing_library",
             SourceType = "local_folder",
             AccessMode = "read_only",
             IncludeSubdirectories = true,
-            IntakeRole = "none",
         };
         library.Sources.Add(source);
         await BrowseLibrarySourceAsync(library, source);
@@ -347,64 +327,21 @@
 
     private async Task RemoveLibrarySource(LibraryFolderDto library, LibrarySourceDto source)
     {
-        string? replacement = null;
-        var alternatives = library.Sources.Where(x => x != source && x.ManagementMode == "managed_by_tuvima").ToList();
-        if (library.PrimaryDestinationSourceId == source.Id && alternatives.Count > 0)
-        {
-            var dialog = await DialogService.ShowAsync<DetachLibraryFolderDialog>(string.Empty, new AppDialogParameters<DetachLibraryFolderDialog>
-            {
-                { x => x.FolderPath, source.Path },
-                { x => x.Replacements, alternatives.Select(x => new AppSelectOption(x.Id, SourceFriendlyName(x))).ToList() },
-            }, new AppDialogOptions { NoHeader = true, FullWidth = true, MaxWidth = AppMaxWidth.Small });
-            if (await dialog.Result is not { Canceled: false, Data: string chosen }) return;
-            replacement = chosen;
-        }
-        else if (await DialogService.ShowMessageBoxAsync("Detach folder?", $"Remove {source.Path} from {library.Name}? Files remain on disk.", yesText: "Detach folder", cancelText: "Cancel") != true) return;
+        // If this was the destination, the Engine hands the role to the earliest-added remaining managed folder on save.
+        if (await DialogService.ShowMessageBoxAsync("Detach folder?", $"Remove {source.Path} from {library.Name}? Files remain on disk.", yesText: "Detach folder", cancelText: "Cancel") != true) return;
         library.Sources.Remove(source);
-        if (library.PrimaryDestinationSourceId == source.Id) library.PrimaryDestinationSourceId = null;
-        if (replacement is not null) SetSourceRole(library, library.Sources.Single(x => x.Id == replacement), "primary_destination");
         await SaveLibraryAsync(library);
     }
 
-    private static void SetSourceRole(LibraryFolderDto library, LibrarySourceDto source, string? role)
-    {
-        source.Role = role ?? "secondary";
-        if (source.Role == "primary_destination")
-        {
-            foreach (var other in library.Sources.Where(other => other != source && other.Role == "primary_destination")) other.Role = "secondary";
-            source.ManagementMode = "managed_by_tuvima";
-            source.AccessMode = "writable";
-            source.ParticipatesInOrganization = true;
-            library.PrimaryDestinationSourceId = source.Id;
-        }
-        else if (library.PrimaryDestinationSourceId == source.Id)
-        {
-            library.PrimaryDestinationSourceId = null;
-        }
-    }
+    private static bool IsDestination(LibraryFolderDto library, LibrarySourceDto source) =>
+        source.ManagementMode == "managed_by_tuvima"
+        && string.Equals(library.PrimaryDestinationSourceId, source.Id, StringComparison.OrdinalIgnoreCase);
 
+    // As-is folders are read-only and never a destination; the Engine re-picks the destination when it saves.
     private static void SetManagementMode(LibraryFolderDto library, LibrarySourceDto source, string? mode)
     {
         source.ManagementMode = mode ?? "existing_library";
-        if (source.ManagementMode == "existing_library")
-        {
-            source.AccessMode = "read_only";
-            source.ParticipatesInOrganization = false;
-            source.WritebackOverride = false;
-            if (source.Role == "primary_destination")
-            {
-                source.Role = "secondary";
-                library.PrimaryDestinationSourceId = null;
-            }
-        }
-        else
-        {
-            source.AccessMode = "writable";
-            source.ParticipatesInOrganization = true;
-            source.WritebackOverride = null;
-            if (library.PrimaryDestinationSourceId is null)
-                SetSourceRole(library, source, "primary_destination");
-        }
+        source.AccessMode = source.ManagementMode == "existing_library" ? "read_only" : "writable";
     }
 
     private async Task CheckPathAsync(string path)
@@ -542,15 +479,6 @@
     private AppUiTone SourceTone(LibrarySourceDto source) => SourceStatus(source) == "Healthy" ? AppUiTone.Success : PathTone(source.Path);
     private string SourceAccess(LibrarySourceDto source) => _pathResults.TryGetValue(source.Path, out var result)
         ? !result.HasRead ? "No read access" : result.HasWrite ? "Read / Write" : "Read-only" : "Not checked";
-    private string WritebackState(LibraryFolderDto library)
-    {
-        var values = library.Sources.Where(source => source.ManagementMode == "managed_by_tuvima").Select(source => source.WritebackOverride).Distinct().ToList();
-        return values.Count > 1 ? "Mixed — set per folder" : values.Count == 0 ? "Off — read-only sources" : values[0] is null ? "Inherited — set per folder" : values[0] == true ? "On for eligible files" : "Off";
-    }
-    private static readonly IReadOnlyList<AppSelectOption> WritebackOptions = [new("inherit", "Use global setting"), new("off", "Off"), new("on", "On")];
-    private static string WritebackValue(LibrarySourceDto source) => source.WritebackOverride is null ? "inherit" : source.WritebackOverride == true ? "on" : "off";
-    private static void SetWriteback(LibrarySourceDto source, string? value) => source.WritebackOverride = value == "inherit" ? null : value == "on";
-
     private string LibraryStatus(LibraryFolderDto library)
     {
         if (library.Sources.Count == 0) return "No sources";

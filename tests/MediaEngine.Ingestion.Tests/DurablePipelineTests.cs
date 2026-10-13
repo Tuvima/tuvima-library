@@ -475,6 +475,32 @@ public sealed class DurablePipelineTests : IDisposable
         Assert.Equal(0, GetOwnedTaskCount(engine));
     }
 
+    [Theory]
+    [InlineData(LibraryDuplicatePolicies.KeepOne, true, 1)]
+    [InlineData(LibraryDuplicatePolicies.KeepBoth, true, 2)]
+    [InlineData(LibraryDuplicatePolicies.KeepOne, false, 2)]
+    public async Task IngestionEngine_ExactDuplicate_FollowsTheGlobalDuplicatePolicy(
+        string duplicatePolicy, bool managedWatchFolder, int expectedCopiesLeft)
+    {
+        var firstPath = CreateWatchFile("Dune.epub", "same bytes");
+        CreateWatchFile("Dune Copy.epub", "same bytes");
+
+        _processors.QueueResult(new ProcessorResult
+        {
+            FilePath = firstPath,
+            DetectedType = MediaType.Books,
+            Claims = [new ExtractedClaim { Key = "title", Value = "Dune", Confidence = 0.95 }],
+        });
+
+        await RunPipelineAsync(duplicatePolicy: duplicatePolicy, managedWatchFolder: managedWatchFolder);
+
+        // keep_one removes the incoming copy, but only from a folder Tuvima manages; keep_both and an as-is folder keep it.
+        var copies = Directory.EnumerateFiles(_tempRoot, "*.epub", SearchOption.AllDirectories).Count();
+        Assert.Equal(expectedCopiesLeft, copies);
+        using var conn = _dbFactory.Connection.CreateConnection();
+        Assert.Equal(1, conn.ExecuteScalar<int>("SELECT COUNT(*) FROM media_assets;"));
+    }
+
     [Fact]
     public async Task IngestionEngine_DuplicateDifferentPath_RecordsDuplicateOutcome()
     {
@@ -1527,7 +1553,9 @@ public sealed class DurablePipelineTests : IDisposable
     private async Task RunPipelineAsync(
         bool localOnly = false,
         bool applyMediaTypePrior = true,
-        ILogger<IngestionEngine>? logger = null)
+        ILogger<IngestionEngine>? logger = null,
+        string duplicatePolicy = LibraryDuplicatePolicies.KeepOne,
+        bool managedWatchFolder = false)
     {
         var libraryId = localOnly
             ? "99999999-9999-4999-8999-999999999999"
@@ -1539,6 +1567,7 @@ public sealed class DurablePipelineTests : IDisposable
             AutoOrganize = true,
             IncludeSubdirectories = false,
             PollIntervalSeconds = 0,
+            DuplicatePolicy = duplicatePolicy,
             LibraryFolders =
             [
                 new LibraryFolderEntry
@@ -1554,12 +1583,17 @@ public sealed class DurablePipelineTests : IDisposable
                             Id = $"{libraryId}-source",
                             Path = _watchDir,
                             IncludeSubdirectories = false,
+                            ManagementMode = managedWatchFolder
+                                ? LibrarySourceManagementModes.ManagedByTuvima
+                                : LibrarySourceManagementModes.ExistingLibrary,
+                            AccessMode = managedWatchFolder
+                                ? LibrarySourceAccessModes.Writable
+                                : LibrarySourceAccessModes.ReadOnly,
                         },
                         new LibrarySourceEntry
                         {
                             Id = $"{libraryId}-destination",
                             Path = _libraryDir,
-                            Role = LibrarySourceRoles.PrimaryDestination,
                             ManagementMode = LibrarySourceManagementModes.ManagedByTuvima,
                             AccessMode = LibrarySourceAccessModes.Writable,
                         },
@@ -1583,7 +1617,7 @@ public sealed class DurablePipelineTests : IDisposable
 
         using var debounce = new DebounceQueue(debounceOptions);
 
-        using var engine = CreateEngine(debounce, options, logger);
+        using var engine = CreateEngine(debounce, options, logger, mutationGate: managedWatchFolder ? new SourceMutationPolicyGate() : null);
 
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
         try
@@ -1606,7 +1640,8 @@ public sealed class DurablePipelineTests : IDisposable
         DebounceQueue debounce,
         IngestionOptions options,
         ILogger<IngestionEngine>? logger = null,
-        IMediaEntityChainFactory? chainFactory = null) =>
+        IMediaEntityChainFactory? chainFactory = null,
+        ISourceMutationPolicyGate? mutationGate = null) =>
         new(
             _watcher,
             debounce,
@@ -1650,7 +1685,8 @@ public sealed class DurablePipelineTests : IDisposable
             new IdentityJobStageDependencies(new IdentityPipelineSignal()),
             operationTracker: _operationTracker,
             operationRepository: _operationRepo,
-            libraryFolderResolver: new LibraryFolderResolver(new OptionsMonitorStub<IngestionOptions>(options)));
+            libraryFolderResolver: new LibraryFolderResolver(new OptionsMonitorStub<IngestionOptions>(options)),
+            sourceMutationPolicyGate: mutationGate);
 
     private static StageOutcomeFactory CreateOutcomeFactory() =>
         new StageOutcomeFactory(

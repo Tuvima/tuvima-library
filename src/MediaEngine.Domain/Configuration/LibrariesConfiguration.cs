@@ -6,8 +6,14 @@ namespace MediaEngine.Domain.Configuration;
 /// <summary>Root model for the clean, pre-beta <c>libraries.json</c> contract.</summary>
 public sealed class LibrariesConfiguration
 {
+    /// <summary>
+    /// The only supported file version. 7.0 replaced the per-folder role, intake and write-back fields with two folder
+    /// states (managed or as-is), one destination per library, and global duplicate handling. Older files are refused.
+    /// </summary>
+    public const string CurrentSchemaVersion = "7.0";
+
     [JsonPropertyName("schema_version")]
-    public string SchemaVersion { get; set; } = "6.0";
+    public string SchemaVersion { get; set; } = CurrentSchemaVersion;
 
     [JsonPropertyName("storage_locations")]
     public List<ServerStorageLocationConfig> StorageLocations { get; set; } = [];
@@ -20,6 +26,20 @@ public sealed class LibrariesConfiguration
 
     [JsonPropertyName("personal_library_policy")]
     public PersonalLibraryPolicyConfig PersonalLibraryPolicy { get; set; } = new();
+
+    [JsonPropertyName("file_handling")]
+    public FileHandlingConfig FileHandling { get; set; } = new();
+
+    [JsonExtensionData]
+    public Dictionary<string, JsonElement>? UnmappedProperties { get; set; }
+}
+
+/// <summary>Server-wide rules for files that arrive in a library. They apply to every library the same way.</summary>
+public sealed class FileHandlingConfig
+{
+    /// <summary>What to do with an exact copy of a file already held: <c>keep_one</c> (default) or <c>keep_both</c>.</summary>
+    [JsonPropertyName("duplicate_policy")]
+    public string DuplicatePolicy { get; set; } = LibraryDuplicatePolicies.KeepOne;
 
     [JsonExtensionData]
     public Dictionary<string, JsonElement>? UnmappedProperties { get; set; }
@@ -122,7 +142,11 @@ public sealed class LibraryFolderConfig
     [JsonPropertyName("sources")]
     public List<LibrarySourceConfig> Sources { get; set; } = [];
 
-    /// <summary>Stable source ID, never an array position.</summary>
+    /// <summary>
+    /// The one folder new media is filed into: a stable source ID (never an array position) of a managed folder,
+    /// or <see langword="null"/> when the library has no managed folder. Normalised on save by
+    /// <see cref="LibrariesConfigurationNormalizer"/>.
+    /// </summary>
     [JsonPropertyName("primary_destination_source_id")]
     public string? PrimaryDestinationSourceId { get; set; }
 
@@ -138,9 +162,6 @@ public sealed class LibraryFolderConfig
     [JsonPropertyName("accepted_intake_modes")]
     public List<string> AcceptedIntakeModes { get; set; } = [];
 
-    [JsonPropertyName("duplicate_policy")]
-    public string DuplicatePolicy { get; set; } = LibraryDuplicatePolicies.SkipExact;
-
     [JsonPropertyName("organization_policy")]
     public LibraryOrganizationPolicyConfig OrganizationPolicy { get; set; } = new();
 
@@ -154,12 +175,14 @@ public sealed class LibraryFolderConfig
     public IEnumerable<LibrarySourceConfig> ScannableSources =>
         Sources.Where(source => !string.IsNullOrWhiteSpace(source.Path));
 
+    /// <summary>The destination folder. An as-is folder is never returned, even if the id points at one.</summary>
     [JsonIgnore]
     public LibrarySourceConfig? PrimaryDestination =>
         string.IsNullOrWhiteSpace(PrimaryDestinationSourceId)
             ? null
             : Sources.FirstOrDefault(source =>
-                string.Equals(source.Id, PrimaryDestinationSourceId, StringComparison.OrdinalIgnoreCase));
+                source.IsManaged
+                && string.Equals(source.Id, PrimaryDestinationSourceId, StringComparison.OrdinalIgnoreCase));
 }
 
 public sealed class LibrarySourceConfig
@@ -170,9 +193,10 @@ public sealed class LibrarySourceConfig
     [JsonPropertyName("path")]
     public string Path { get; set; } = string.Empty;
 
-    [JsonPropertyName("role")]
-    public string Role { get; set; } = LibrarySourceRoles.Secondary;
-
+    /// <summary>
+    /// <c>managed_by_tuvima</c>: Tuvima moves, renames and tags files here, including ones already there.
+    /// <c>existing_library</c> (as-is): read-only, never touched and never a destination.
+    /// </summary>
     [JsonPropertyName("management_mode")]
     public string ManagementMode { get; set; } = LibrarySourceManagementModes.ExistingLibrary;
 
@@ -182,24 +206,17 @@ public sealed class LibrarySourceConfig
     [JsonPropertyName("include_subdirectories")]
     public bool IncludeSubdirectories { get; set; } = true;
 
+    /// <summary>Derived from <see cref="ManagementMode"/> whenever the file is saved: managed is writable, as-is is read-only.</summary>
     [JsonPropertyName("access_mode")]
     public string AccessMode { get; set; } = LibrarySourceAccessModes.ReadOnly;
 
-    [JsonPropertyName("writeback_override")]
-    public bool? WritebackOverride { get; set; }
+    /// <summary>Progress of switching this folder from as-is to managed: <c>none</c>, <c>converting</c> or <c>converted</c>.</summary>
+    [JsonPropertyName("conversion_state")]
+    public string ConversionState { get; set; } = LibrarySourceConversionStates.None;
 
-    [JsonPropertyName("participates_in_organization")]
-    public bool ParticipatesInOrganization { get; set; }
-
-    [JsonPropertyName("intake_role")]
-    public string IntakeRole { get; set; } = LibrarySourceIntakeRoles.None;
-
-    /// <summary>
-    /// For an as-is (existing library) folder: new media may be added to it, for example from the import folder.
-    /// Files already there are never renamed, moved or changed, and access stays read-only for them.
-    /// </summary>
-    [JsonPropertyName("accepts_new_media")]
-    public bool AcceptsNewMedia { get; set; }
+    /// <summary>The media operation that is converting this folder, set only while <see cref="ConversionState"/> is <c>converting</c>.</summary>
+    [JsonPropertyName("conversion_operation_id")]
+    public string? ConversionOperationId { get; set; }
 
     [JsonPropertyName("notes")]
     public string? Notes { get; set; }
@@ -231,8 +248,12 @@ public sealed class LibraryOrganizationPolicyConfig
     [JsonPropertyName("custom_template")]
     public string? CustomTemplate { get; set; }
 
-    [JsonPropertyName("preserve_originals")]
-    public bool PreserveOriginals { get; set; } = true;
+    /// <summary>
+    /// Write tags into this type's media files. Applies only in managed folders, only to formats that can carry tags,
+    /// and only to fields allowed by <c>writeback-fields.json</c>. Switch off to leave files' own tags alone.
+    /// </summary>
+    [JsonPropertyName("write_tags")]
+    public bool WriteTags { get; set; } = true;
 
     [JsonExtensionData]
     public Dictionary<string, JsonElement>? UnmappedProperties { get; set; }

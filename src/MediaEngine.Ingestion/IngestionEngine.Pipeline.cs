@@ -301,7 +301,7 @@ public sealed partial class IngestionEngine
                     {
                         var resolvedSource = _libraryFolderResolver?.ResolveSourceForPath(candidate.Path);
                         var deleteAllowed = resolvedSource is not null
-                            && resolvedSource.Library.DuplicatePolicy == MediaEngine.Domain.Configuration.LibraryDuplicatePolicies.SkipExact
+                            && MediaEngine.Domain.Configuration.LibraryDuplicatePolicies.DeletesIncomingDuplicate(_options.DuplicatePolicy)
                             && _sourceMutationPolicyGate?.Evaluate(new SourceMutationRequest
                             {
                                 Source = FileSourceMutationPolicyFactory.Create(
@@ -1064,8 +1064,7 @@ public sealed partial class IngestionEngine
                 {
                     Source = FileSourceMutationPolicyFactory.Create(
                         resolvedSource.Library,
-                        resolvedSource.Source,
-                        globalMetadataWritebackEnabled: _options.WriteBack),
+                        resolvedSource.Source),
                     Mutation = SourceMutationKind.MetadataWriteback,
                     Path = currentPath,
                 }).Allowed == true;

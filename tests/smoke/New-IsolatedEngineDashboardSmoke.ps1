@@ -280,10 +280,10 @@ Set-JsonFile (Join-Path $paths.Config 'libraries.json') {
         foreach ($source in $library.sources) {
             $source.path = Join-Path (Join-Path $paths.Library 'media') $library.category
             New-Item -ItemType Directory -Force -Path $source.path | Out-Null
+            $source.management_mode = 'existing_library'
             $source.access_mode = 'read_only'
-            $source.participates_in_organization = $false
-            $source.intake_role = 'none'
         }
+        $library.primary_destination_source_id = $null
     }
 }
 

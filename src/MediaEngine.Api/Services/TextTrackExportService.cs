@@ -42,15 +42,14 @@ public sealed class TextTrackExportService(
         var exportPath = AssetPathService.BuildSubtitleSidecarPath(asset.FilePathRoot, track.Language, ".vtt");
         var writebackEnabled = configurationLoader
             .LoadConfig<WriteBackConfiguration>(string.Empty, "writeback")?.Enabled == true;
-        var decision = mutationPolicyGate.Evaluate(new SourceMutationRequest
-        {
-            Source = FileSourceMutationPolicyFactory.Create(
-                resolvedSource.Library,
-                resolvedSource.Source,
-                globalMetadataWritebackEnabled: writebackEnabled),
-            Mutation = SourceMutationKind.MetadataWriteback,
-            Path = exportPath,
-        });
+        var decision = writebackEnabled
+            ? mutationPolicyGate.Evaluate(new SourceMutationRequest
+            {
+                Source = FileSourceMutationPolicyFactory.Create(resolvedSource.Library, resolvedSource.Source),
+                Mutation = SourceMutationKind.MetadataWriteback,
+                Path = exportPath,
+            })
+            : SourceMutationDecision.Deny("Write-back is turned off.");
         if (!decision.Allowed)
         {
             logger.LogInformation(

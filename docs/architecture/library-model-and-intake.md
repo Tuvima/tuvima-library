@@ -78,12 +78,15 @@ not configure or browse them.
 
 A library owns policy and presentation. A source represents one concrete
 folder or intake endpoint. Every source has a stable ID and declares its path,
-role, management mode, recursion behavior, filesystem access, writeback
-override, organization participation, intake role, health, and optional device
-or profile association.
+management mode (managed or as-is), recursion behavior, filesystem access
+(derived from the management mode), conversion state, health, and optional
+device or profile association.
 
-One catalogued managed source may be the explicit primary destination. Array order never
-selects a destination.
+A catalogued library has at most one destination, the managed source new media is
+filed into. When none is chosen the first managed folder added becomes the
+destination; if it is removed or switched to as-is, the earliest-added remaining
+managed folder takes over, and with none left there is no destination. Source order
+means nothing else, and an as-is source is never a destination.
 
 ## View root and profile sources
 
@@ -104,17 +107,19 @@ Tuvima does not move, rename, write back, overwrite, or delete their files.
 View source/device records live in the database so adding a phone, browser
 upload stream, or family archive never creates another user-facing library.
 
-### Existing library source
+### As-is source (existing library)
 
-An existing-library source may be scanned, identified, and indexed, but Tuvima
-must not move, rename, tag, overwrite, or delete its files. Changing the source
-to managed changes policy only; it does not mutate existing files.
+An as-is source may be scanned, identified, and indexed, but Tuvima
+must not move, rename, tag, overwrite, or delete its files, and it is never
+a destination. Switching the source to managed is a separate conversion with its
+own progress (`conversion_state`); changing the setting alone does not move files.
 
 ### Managed source
 
-A managed source may accept new files and participate in organization when the
-source is writable and both library and source policy permit the operation.
-Organization and embedded metadata writeback remain separate permissions.
+A managed source is one Tuvima looks after: it may move, rename and delete (when
+a caller asks) within the source, and write tags when the type's `write_tags` is
+on and the format supports it. Only the library's destination, or a merge target
+the person started, may receive files.
 
 Every mutating operation passes through the shared source-mutation policy gate.
 Code paths must not infer permission from a path, a global option, or a UI

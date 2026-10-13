@@ -300,7 +300,6 @@ public sealed class ServerFolderBrowserServiceTests
                         {
                             Id = Guid.NewGuid().ToString("D"),
                             Path = path,
-                            Role = LibrarySourceRoles.Secondary,
                             ManagementMode = LibrarySourceManagementModes.ExistingLibrary,
                             AccessMode = LibrarySourceAccessModes.ReadOnly,
                         },
@@ -314,7 +313,6 @@ public sealed class ServerFolderBrowserServiceTests
         {
             Configuration.SaveLibraries(new LibrariesConfiguration
             {
-                SchemaVersion = "6.0",
                 StorageLocations =
                 [
                     new ServerStorageLocationConfig

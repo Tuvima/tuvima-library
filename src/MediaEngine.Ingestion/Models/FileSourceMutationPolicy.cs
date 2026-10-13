@@ -13,7 +13,6 @@ public sealed record FileSourceMutationPolicy
     public required string RootPath { get; init; }
     public required FileSourceManagementMode ManagementMode { get; init; }
     public bool IsWritable { get; init; }
-    public bool ProtectExistingFiles { get; init; }
     public bool AllowMove { get; init; }
     public bool AllowRename { get; init; }
     public bool AllowMetadataWriteback { get; init; }

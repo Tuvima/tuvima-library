@@ -197,7 +197,6 @@ public sealed class IngestionLibraryRegistrationTests
     {
         Id = Guid.NewGuid().ToString(),
         Path = path,
-        Role = LibrarySourceRoles.Secondary,
         ManagementMode = LibrarySourceManagementModes.ManagedByTuvima,
         AccessMode = LibrarySourceAccessModes.Writable,
     };

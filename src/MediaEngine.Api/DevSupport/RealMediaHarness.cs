@@ -184,7 +184,7 @@ public static class RealMediaHarness
         var sources = libraries.Libraries.SelectMany(l => l.Sources).ToArray();
         if (sources.Length != CatalogueFolders.Length || libraries.Libraries.Count != CatalogueFolders.Length
             || sources.Any(s => s.ManagementMode != LibrarySourceManagementModes.ExistingLibrary
-                || s.AccessMode != LibrarySourceAccessModes.ReadOnly || s.ParticipatesInOrganization || s.WritebackOverride != false)
+                || s.AccessMode != LibrarySourceAccessModes.ReadOnly)
             || CatalogueFolders.Any(folder => sources.Count(s => string.Equals(Path.GetFullPath(s.Path), Path.Combine(sourceRoot, folder), StringComparison.OrdinalIgnoreCase)) != 1)
             || libraries.PersonalLibraryPolicy.AllowBrowserUpload || libraries.PersonalLibraryPolicy.AllowConnectedDeviceImport
             || libraries.Libraries.Any(l => l.PrimaryDestinationSourceId is not null || l.AcceptedIntakeModes.Count != 0))
@@ -292,10 +292,10 @@ public static class RealMediaHarness
             var folder = library.Category!.ToLowerInvariant();
             library.Sources = [new LibrarySourceConfig { Id = library.Sources.FirstOrDefault()?.Id ?? Guid.NewGuid().ToString(), Path = Path.Combine(sourceRoot, folder),
                 ManagementMode = LibrarySourceManagementModes.ExistingLibrary, AccessMode = LibrarySourceAccessModes.ReadOnly,
-                WritebackOverride = false, IncludeSubdirectories = true }];
+                IncludeSubdirectories = true }];
             library.PrimaryDestinationSourceId = null;
             library.AcceptedIntakeModes = [];
-            library.OrganizationPolicy = new() { Mode = LibraryOrganizationModes.KeepOriginalFolders, PreserveOriginals = true };
+            library.OrganizationPolicy = new() { Mode = LibraryOrganizationModes.KeepOriginalFolders, WriteTags = false };
         }
         libraries.StorageLocations.RemoveAll(s => Contains(sourceRoot, s.Path) || Contains(s.Path, sourceRoot));
         libraries.StorageLocations.Add(new() { Id = "real-media", Label = "Real media (read only)", Path = sourceRoot, AllowWrite = false });

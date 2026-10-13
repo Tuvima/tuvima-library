@@ -26,7 +26,6 @@ public sealed class ViewSharedSourceServiceTests : IDisposable
         _configuration = new ConfigurationDirectoryLoader(Path.Combine(_root, "config"));
         _configuration.SaveLibraries(new LibrariesConfiguration
         {
-            SchemaVersion = "6.0",
             StorageLocations =
             [
                 new ServerStorageLocationConfig

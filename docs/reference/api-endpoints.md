@@ -292,7 +292,7 @@ unauthorized identifiers return the same not-found shape as missing resources.
 |---|---|---|---|
 | POST | `/ingestion/scan` | Dry-run scan of configured library folders. Reports what would be ingested without making changes. | Administrator |
 | POST | `/ingestion/library-scan` | Scan library folders and update known file paths. Triggers ingestion for new files. | Administrator |
-| POST | `/ingestion/upload` | Upload a file to the explicit managed, writable primary destination identified by multipart `destinationLibraryId`; catalogued files retain stable intake IDs, while personal files are indexed directly into View without catalogue/provider work | Administrator |
+| POST | `/ingestion/upload` | Upload a file to the library's explicit destination (a folder Tuvima manages, checked through the source-mutation gate as a destination, with no fallback folder) identified by multipart `destinationLibraryId`; catalogued files retain stable intake IDs, while personal files are indexed directly into View without catalogue/provider work | Administrator |
 | GET | `/ingestion/operations` | Dashboard snapshot backed by durable ingestion operation counts, numbered `stage_progress` rows, current activity, review state, provider health, and recent batch summaries. | Effective administrator or precise Application permission |
 | GET | `/ingestion/batches` | Recent ingestion batches. | Effective administrator or precise Application permission |
 | GET | `/ingestion/batches/{batchId}` | Single ingestion batch summary. | Effective administrator or precise Application permission |

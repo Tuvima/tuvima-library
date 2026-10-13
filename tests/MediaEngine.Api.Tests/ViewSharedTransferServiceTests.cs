@@ -576,7 +576,6 @@ public sealed class ViewSharedTransferServiceTests
             _configuration = new ConfigurationDirectoryLoader(Path.Combine(Root, "config"));
             _configuration.SaveLibraries(new LibrariesConfiguration
             {
-                SchemaVersion = "6.0",
                 StorageLocations =
                 [
                     new ServerStorageLocationConfig

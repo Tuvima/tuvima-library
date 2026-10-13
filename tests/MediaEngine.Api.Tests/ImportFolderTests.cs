@@ -19,26 +19,25 @@ public sealed class ImportFolderTests
     {
         Id = Guid.NewGuid().ToString("D"),
         Path = Path.Combine(Root, folder),
-        Role = LibrarySourceRoles.PrimaryDestination,
         ManagementMode = LibrarySourceManagementModes.ManagedByTuvima,
         AccessMode = LibrarySourceAccessModes.Writable,
     };
 
-    private static LibrarySourceConfig AsIs(string folder, bool acceptsNewMedia = false) => new()
+    private static LibrarySourceConfig AsIs(string folder) => new()
     {
         Id = Guid.NewGuid().ToString("D"),
         Path = Path.Combine(Root, folder),
         ManagementMode = LibrarySourceManagementModes.ExistingLibrary,
         AccessMode = LibrarySourceAccessModes.ReadOnly,
-        AcceptsNewMedia = acceptsNewMedia,
     };
 
-    private static LibrariesConfiguration AllTypes(Func<string, LibrarySourceConfig> source, string? importFolder = "import") => new()
-    {
-        StorageLocations = importFolder is null ? [] :
-            [new ServerStorageLocationConfig { Id = ImportFolderRules.LocationId, Label = "Import", Path = Path.Combine(Root, importFolder), AllowWrite = true }],
-        Libraries = [.. ImportFolderRules.Types.Select(type => Library(type.Label, type.MediaTypes[0], source(type.Label)))],
-    };
+    private static LibrariesConfiguration AllTypes(Func<string, LibrarySourceConfig> source, string? importFolder = "import") =>
+        LibrariesConfigurationNormalizer.Normalize(new LibrariesConfiguration
+        {
+            StorageLocations = importFolder is null ? [] :
+                [new ServerStorageLocationConfig { Id = ImportFolderRules.LocationId, Label = "Import", Path = Path.Combine(Root, importFolder), AllowWrite = true }],
+            Libraries = [.. ImportFolderRules.Types.Select(type => Library(type.Label, type.MediaTypes[0], source(type.Label)))],
+        });
 
     [Fact]
     public void NoImportFolderMeansNothingToCheck()
@@ -61,13 +60,57 @@ public sealed class ImportFolderTests
     }
 
     [Fact]
-    public void ManagedFoldersAndAsIsFoldersThatAcceptNewMediaCountAsDestinations()
+    public void OnlyFoldersTuvimaManagesCountAsDestinations()
     {
-        var config = AllTypes(label => label is "Books" or "Movies" ? Managed(label) : AsIs(label, acceptsNewMedia: true));
+        var config = AllTypes(label => label is "Books" or "Movies" ? Managed(label) : AsIs(label));
+
+        var status = ImportFolderRules.Evaluate(config);
+
+        Assert.False(status.Ready);
+        Assert.Equal(["Audiobooks", "TV Shows", "Music", "Comics"], status.MissingTypes);
+    }
+
+    [Fact]
+    public void ImportIsReadyWhenEveryTypeHasAManagedDestination()
+    {
+        var config = AllTypes(label => Managed(label));
 
         var status = ImportFolderRules.Evaluate(config);
 
         Assert.True(status.Ready);
+        Assert.Equal(6, status.Destinations.Count);
+        Assert.All(status.Destinations, destination =>
+        {
+            Assert.True(destination.HasDestination);
+            Assert.Equal(Path.Combine(Root, destination.MediaType), destination.Path);
+        });
+    }
+
+    [Fact]
+    public void TheDestinationIsTheFirstManagedFolderEvenWhenAnAsIsFolderComesFirst()
+    {
+        var config = AllTypes(label => AsIs(label + "-old"));
+        var books = config.Libraries.Single(library => library.Name == "Books");
+        books.Sources.Add(Managed("Books"));
+        books.Sources.Add(Managed("Books-second"));
+        LibrariesConfigurationNormalizer.Normalize(config);
+
+        var status = ImportFolderRules.Evaluate(config);
+
+        Assert.Equal(Path.Combine(Root, "Books"), status.Destinations.Single(destination => destination.MediaType == "Books").Path);
+    }
+
+    [Fact]
+    public void ContractCarriesTheDestinationOfEachType()
+    {
+        var config = AllTypes(label => label == "Movies" ? AsIs(label) : Managed(label));
+
+        var dto = MediaEngine.Api.Endpoints.SettingsContractMapper.ToContract(config);
+
+        Assert.Equal(6, dto.ImportFolderStatus.Destinations.Count);
+        Assert.Null(dto.ImportFolderStatus.Destinations.Single(destination => destination.MediaType == "Movies").DestinationSourceId);
+        Assert.NotNull(dto.ImportFolderStatus.Destinations.Single(destination => destination.MediaType == "Books").DestinationSourceId);
+        Assert.Equal(["Movies"], dto.ImportFolderStatus.MissingTypes);
     }
 
     [Fact]

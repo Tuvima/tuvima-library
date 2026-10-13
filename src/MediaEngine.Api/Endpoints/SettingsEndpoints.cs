@@ -1638,9 +1638,9 @@ public static class SettingsEndpoints
 
     internal static string? ValidateViewStorage(LibrariesConfiguration config)
     {
-        if (!string.Equals(config.SchemaVersion, "6.0", StringComparison.Ordinal))
+        if (!string.Equals(config.SchemaVersion, LibrariesConfiguration.CurrentSchemaVersion, StringComparison.Ordinal))
         {
-            return "libraries.json must use schema_version 6.0.";
+            return $"libraries.json must use schema_version {LibrariesConfiguration.CurrentSchemaVersion}.";
         }
 
         if (config.Libraries.Any(library =>

@@ -235,13 +235,14 @@ Common fields configured here: `cover`, `description`, `rating`, `narrator`, `du
 
 ## config/libraries.json
 
-Defines the clean schema 6 library model used by **Settings > Libraries**. The root contains explicitly approved `storage_locations`, `personal_library_policy`, and `libraries`.
+Defines the clean schema 7 library model used by **Settings > Libraries**. The root contains explicitly approved `storage_locations`, `personal_library_policy`, `file_handling`, and `libraries`.
 
 | Field | Type | Description |
 |---|---|---|
-| `schema_version` | string | Must be `6.0`. Older schemas are rejected and development state is reset/reingested rather than migrated. |
+| `schema_version` | string | Must be `7.0`. Older files (including `6.0`) are refused with a plain message and are not converted; move the file aside to start from a fresh default and add folders again. |
 | `storage_locations` | array | Explicit server/container roots administrators may browse. Each entry has a stable `id`, friendly `label`, absolute `path`, and `allow_write` policy. |
 | `personal_library_policy` | object | Administrator defaults and capability switches for the internal personal-library bridge, managed/existing storage, browser upload, reserved future intake producers, and default visibility. |
+| `file_handling.duplicate_policy` | string | What happens to an exact copy of a file already held, for every library: `keep_one` (default; the copy is indexed once and the incoming duplicate is removed where its folder is managed) or `keep_both` (both files stay). A name clash between different files always gives the incoming file a unique name. |
 | `id` | GUID string | Stable library identity used by intake, indexing, access, and Dashboard editing. Required. |
 | `name` | string | Configuration/admin name. For View, the profile-facing identity is the Personal Space, not this library record. |
 | `category` | string? | Structured subtype such as Books, Movies, TV, Music, Audiobooks, or Comics. Personal libraries may omit it. |
@@ -251,15 +252,14 @@ Defines the clean schema 6 library model used by **Settings > Libraries**. The r
 | `metadata_policy` | string | `enriched`, `local_preferred`, `local_only`, or `manual`. The last two bypass external identity/provider work. |
 | `media_types` | string[] | Structured media types expected by catalogued libraries. A View Personal Space may index mixed local media through its backing personal library. Each media type may belong to only one catalogued library; the Engine rejects a change that adds a second one (older duplicates already saved are tolerated). |
 | `sources` | object[] | Stable source objects; see below. Array order has no meaning. |
-| `primary_destination_source_id` | GUID string? | Explicit managed destination source ID. It is never inferred from array position. |
+| `primary_destination_source_id` | GUID string? | The one folder new media is filed into: a managed source of this library, or `null` when there is none. An as-is folder is never a destination. On save the first managed folder added becomes the destination; if it is removed or switched to as-is, the earliest-added remaining managed folder takes over, and with none left it is `null`. If the destination is unavailable, files wait in Import; there is no fallback to another folder. |
 | `owner_profile_id` | GUID string? | Owning profile for personal access decisions. |
 | `visibility` | string | `private` or `shared` for current product presentation. Shared View contribution is separately controlled by profile View policy. |
 | `authorized_profile_ids` | GUID string[] | Explicit members of a shared library. |
 | `accepted_intake_modes` | string[] | Accepted producer vocabulary. Incoming folder and browser upload have current paths; drag-and-drop, mobile backup, connected-device import, and direct API producers are reserved until a real client is implemented. |
-| `duplicate_policy` | string | `skip_exact`, `keep_both`, or `replace_existing`. |
-| `organization_policy` | object | Organization mode, optional custom template, and original-preservation policy. |
+| `organization_policy` | object | `mode`, optional `custom_template`, and `write_tags` (default `true`): write tags into this type's media files, only in managed folders, only for formats that can carry tags, and only for fields allowed by `writeback-fields.json`. |
 
-Each source owns `id`, `path`, `role`, `management_mode`, `source_type`, `include_subdirectories`, `access_mode`, `writeback_override`, `participates_in_organization`, `intake_role`, and `accepts_new_media`. **Existing library** sources must be read-only and are never moved, renamed, tagged or deleted. They are used as a destination only when `accepts_new_media` is true, which lets new files be added without touching the ones already there (rejected on managed sources). The optional import folder is the storage location with id `incoming`; when it is set, every media type needs a destination (a managed primary destination or an as-is source with `accepts_new_media`) before import runs. Only **Managed by Tuvima** plus writable sources can authorize mutation.
+Each source owns `id`, `path`, `management_mode`, `source_type`, `include_subdirectories`, `access_mode`, `conversion_state`, `conversion_operation_id`, `notes`, `device_id`, and `profile_id`. A folder is in one of two states. **Managed by Tuvima** (`managed_by_tuvima`): Tuvima moves, renames and tags files, including the ones already there. **As-is** (`existing_library`): read-only, never moved, renamed, tagged or deleted, and never a destination. `access_mode` follows the management mode and is set when the file is saved (managed is `writable`, as-is is `read_only`). `conversion_state` is `none`, `converting` or `converted` while an as-is folder is being switched to managed; `conversion_operation_id` names the operation doing it and is set only while converting. The optional import folder is the storage location with id `incoming`; when it is set, every media type needs a destination (a managed folder chosen as that type's destination) before import runs. Only **Managed by Tuvima** plus writable sources can authorize mutation, and only the destination (or a merge target the person started) can receive files.
 
 Each enabled profile resolves one View Personal Space, backed by one internal
 `personal` library bridge and any number of sources/devices. It indexes mixed

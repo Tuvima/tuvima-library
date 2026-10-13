@@ -134,8 +134,7 @@ public sealed class WriteBackService : IWriteBackOutcomeService
 
         var sourcePolicy = FileSourceMutationPolicyFactory.Create(
             resolvedSource.Library,
-            resolvedSource.Source,
-            globalMetadataWritebackEnabled: config.Enabled);
+            resolvedSource.Source);
         var mutationDecision = _sourceMutationGate.Evaluate(new SourceMutationRequest
         {
             Source = sourcePolicy,

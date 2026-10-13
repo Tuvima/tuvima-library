@@ -56,6 +56,16 @@ if [ -z "$(find /config -mindepth 1 -maxdepth 1 -print -quit 2>/dev/null)" ]; th
     echo "[Tuvima] To finish setup from another device, run: docker exec -it <container> tuvima-admin setup code"
 fi
 
+# libraries.json changed format in version 7.0 (two folder states, one destination per library). An older file is not
+# converted: say so plainly and show how to start from a fresh default instead of failing later with a vague error.
+if [ -f /config/libraries.json ] && ! grep -Eq '"schema_version"[[:space:]]*:[[:space:]]*"7\.0"' /config/libraries.json; then
+    fail "/config/libraries.json is in an older format and is not converted. Rename or delete it and restart to get a fresh default, then add your library folders again."
+fi
+if [ ! -f /config/libraries.json ] && [ -f /app/docker-config/libraries.json ]; then
+    echo "[Tuvima] /config/libraries.json is missing; seeding the fresh default."
+    cp /app/docker-config/libraries.json /config/libraries.json
+fi
+
 for required_config in core.json libraries.json ai.json pipelines.json transcoding.json network.json; do
     [ -f "/config/$required_config" ] || fail "/config/$required_config is required. Empty the disposable pre-beta config volume to reseed it."
 done

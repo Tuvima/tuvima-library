@@ -29,6 +29,7 @@ internal sealed class SchemaMigrator
         EnsureEditionArtworkOwnerSchema(conn);
         EnsureCanonicalArtworkSchema(conn);
         EnsureArtworkWritebackSchema(conn);
+        EnsureFolderOrganiseLogSchema(conn);
         EnsureMediaEditorCommitSchema(conn);
         EnsureAssetRenditionSchema(conn);
         var sessionsGainedIngress = !ColumnExists(conn, "auth_sessions", "issued_ingress");
@@ -877,6 +878,25 @@ internal sealed class SchemaMigrator
         command.ExecuteNonQuery();
         AddColumnIfMissing(conn, "media_artwork_writeback", "desired_version",
             "ALTER TABLE media_artwork_writeback ADD COLUMN desired_version TEXT;");
+    }
+
+    private static void EnsureFolderOrganiseLogSchema(SqliteConnection conn)
+    {
+        using var command = conn.CreateCommand();
+        command.CommandText = """
+            CREATE TABLE IF NOT EXISTS folder_organise_log (
+                operation_id BLOB NOT NULL,
+                source_id BLOB NOT NULL,
+                old_path TEXT NOT NULL,
+                new_path TEXT NOT NULL,
+                outcome TEXT NOT NULL,
+                at TEXT NOT NULL,
+                PRIMARY KEY (operation_id, old_path)
+            );
+            CREATE INDEX IF NOT EXISTS idx_folder_organise_log_source
+                ON folder_organise_log(source_id, at);
+            """;
+        command.ExecuteNonQuery();
     }
 
     private static void EnsureMediaEditorCommitSchema(SqliteConnection conn)

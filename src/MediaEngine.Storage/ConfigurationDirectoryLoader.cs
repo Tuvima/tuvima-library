@@ -230,7 +230,7 @@ public sealed class ConfigurationDirectoryLoader : IConfigurationLoader, IDispos
     public void SaveLibraries(LibrariesConfiguration config)
     {
         ArgumentNullException.ThrowIfNull(config);
-        SaveFile(LibrariesFileName, config);
+        SaveFile(LibrariesFileName, LibrariesConfigurationNormalizer.Normalize(config));
     }
 
     /// <inheritdoc/>

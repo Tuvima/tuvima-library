@@ -60,8 +60,7 @@ public sealed class ArtworkWritebackService(
         }
         var decision = mutationGate.Evaluate(new SourceMutationRequest
         {
-            Source = FileSourceMutationPolicyFactory.Create(
-                source.Library, source.Source, globalMetadataWritebackEnabled: settings.Enabled),
+            Source = FileSourceMutationPolicyFactory.Create(source.Library, source.Source),
             Mutation = SourceMutationKind.MetadataWriteback,
             Path = asset.FilePath,
         });
@@ -84,7 +83,7 @@ public sealed class ArtworkWritebackService(
         var image = imagePath is not null && File.Exists(imagePath) ? new FileInfo(imagePath) : null;
         var desiredVersion = $"{variant.ArtworkAssetId:N}:v{ArtworkEmbeddingSupport.FormatVersion}:" +
             $"{Path.GetExtension(asset.FilePath).ToLowerInvariant()}:{source.Source.Id}:" +
-            $"{source.Source.WritebackOverride}:{image?.LastWriteTimeUtc.Ticks}:{image?.Length}";
+            $"{source.Library.WriteTags}:{image?.LastWriteTimeUtc.Ticks}:{image?.Length}";
         var saved = LoadState(mediaAssetId);
         var file = new FileInfo(asset.FilePath);
         var isCurrent = saved?.EmbeddedArtworkAssetId == variant.ArtworkAssetId

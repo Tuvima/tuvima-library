@@ -61,21 +61,19 @@ public sealed class CoreSettingsWireContractTests
                         {
                             Id = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
                             Path = @"D:\Library\Read",
-                            Role = "primary_destination",
                             ManagementMode = "managed_by_tuvima",
                             IncludeSubdirectories = false,
                             AccessMode = "writable",
-                            WritebackOverride = false,
-                            ParticipatesInOrganization = true,
+                            ConversionState = "converting",
+                            ConversionOperationId = "cccccccc-cccc-4ccc-8ccc-cccccccccccc",
                         },
                     ],
                     PrimaryDestinationSourceId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
                     AcceptedIntakeModes = ["drag_and_drop"],
-                    DuplicatePolicy = "skip_exact",
                     OrganizationPolicy = new LibraryOrganizationPolicyDto
                     {
                         Mode = "tuvima_standard",
-                        PreserveOriginals = true,
+                        WriteTags = false,
                     },
                     Notes = "NAS mirror",
                 },
@@ -89,7 +87,16 @@ public sealed class CoreSettingsWireContractTests
         var libraryJson = JsonSerializer.Serialize(libraries, JsonOptions);
         var organizationJson = JsonSerializer.Serialize(organization, JsonOptions);
 
-        Assert.Contains("\"writeback_override\":false", libraryJson, StringComparison.Ordinal);
+        Assert.Contains("\"conversion_state\":\"converting\"", libraryJson, StringComparison.Ordinal);
+        Assert.Contains("\"conversion_operation_id\":\"cccccccc-cccc-4ccc-8ccc-cccccccccccc\"", libraryJson, StringComparison.Ordinal);
+        Assert.Contains("\"write_tags\":false", libraryJson, StringComparison.Ordinal);
+        Assert.Contains("\"file_handling\":{\"duplicate_policy\":\"keep_one\"}", libraryJson, StringComparison.Ordinal);
+        Assert.DoesNotContain("\"duplicate_policy\":\"skip_exact\"", libraryJson, StringComparison.Ordinal);
+        foreach (var removed in new[] { "writeback_override", "participates_in_organization", "intake_role", "accepts_new_media", "preserve_originals", "\"role\"" })
+        {
+            Assert.DoesNotContain(removed, libraryJson, StringComparison.Ordinal);
+        }
+
         Assert.Contains("\"include_subdirectories\":false", libraryJson, StringComparison.Ordinal);
         Assert.Contains("\"primary_destination_source_id\":\"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa\"", libraryJson, StringComparison.Ordinal);
         Assert.DoesNotContain("source_paths", libraryJson, StringComparison.Ordinal);
@@ -97,11 +104,11 @@ public sealed class CoreSettingsWireContractTests
     }
 
     [Fact]
-    public void LibrarySettingsMapper_PreservesSchemaSixLibrariesAndViewStorage()
+    public void LibrarySettingsMapper_PreservesSchemaSevenLibrariesAndViewStorage()
     {
         var request = new UpdateLibrariesRequest
         {
-            SchemaVersion = "6.0",
+            FileHandling = new FileHandlingDto { DuplicatePolicy = "keep_both" },
             StorageLocations =
             [
                 new ServerStorageLocationDto
@@ -141,10 +148,8 @@ public sealed class CoreSettingsWireContractTests
                         {
                             Id = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
                             Path = @"D:\Media\Movies",
-                            Role = "primary_destination",
                             ManagementMode = "managed_by_tuvima",
                             AccessMode = "writable",
-                            ParticipatesInOrganization = true,
                         },
                     ],
                     PrimaryDestinationSourceId = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
@@ -156,7 +161,9 @@ public sealed class CoreSettingsWireContractTests
         var storage = SettingsContractMapper.ToStorage(request);
         var contract = SettingsContractMapper.ToContract(storage);
 
-        Assert.Equal("6.0", storage.SchemaVersion);
+        Assert.Equal("7.0", storage.SchemaVersion);
+        Assert.Equal("keep_both", storage.FileHandling.DuplicatePolicy);
+        Assert.Equal("keep_both", contract.FileHandling.DuplicatePolicy);
         Assert.Equal(@"D:\Media", storage.StorageLocations.Single().Path);
         Assert.Equal("View", contract.ViewStorage.RelativeRoot);
         Assert.Equal(@"D:\Media\Movies", storage.Libraries.Single().PrimaryDestination?.Path);

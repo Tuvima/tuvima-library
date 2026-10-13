@@ -17,7 +17,7 @@ Bring files into Tuvima Library from a watched folder or an existing collection.
 | --- | --- |
 | Add books, comics, movies, TV, music, or audiobooks | A structured library with catalogue matching |
 | Keep an existing collection unchanged | An **Existing library** source with read-only access |
-| Let Tuvima organize eligible incoming files | A **Managed by Tuvima** source and primary destination |
+| Let Tuvima organize eligible incoming files | A **Managed by Tuvima** source (the first one you add becomes the destination for new media) |
 | Keep photos, home videos, documents, or notes private | A profile's View Personal Space |
 
 Start with one media type and a few files. Large imports are easier to check after providers and permissions work.
@@ -33,7 +33,7 @@ Start with one media type and a few files. Large imports are easier to check aft
 
 New files in watched folders are picked up automatically. **Check folders for changes** (in the Ingestion page "⋯" menu) explicitly starts an extra scan. Operations at `/settings/ingestion` shows current work and bounded batch history without manual refresh.
 
-Existing sources are never modified. Keep **Protect existing files** enabled unless you understand the managed source's write behavior.
+Folders you use as-is are never modified. A folder Tuvima manages can have its files moved, renamed and tagged, including the ones already there, so choose **Managed by Tuvima** only for folders no other app depends on.
 
 ## Check supported files
 

@@ -78,6 +78,13 @@ internal static class SettingsContractMapper
             Path = status.Path,
             Ready = status.Ready,
             MissingTypes = [.. status.MissingTypes],
+            Destinations = [.. status.Destinations.Select(destination => new ImportFolderDestinationDto
+            {
+                MediaType = destination.MediaType,
+                LibraryId = destination.LibraryId,
+                DestinationSourceId = destination.SourceId,
+                Path = destination.Path,
+            })],
         };
         return result;
     }
@@ -96,15 +103,18 @@ internal static class SettingsContractMapper
         result.Libraries ??= [];
         result.ViewStorage ??= new ViewStorageConfig();
         result.PersonalLibraryPolicy ??= new PersonalLibraryPolicyConfig();
+        result.FileHandling ??= new FileHandlingConfig();
         foreach (var library in result.Libraries)
         {
             library.MediaTypes ??= [];
             library.Sources ??= [];
             library.AuthorizedProfileIds ??= [];
             library.AcceptedIntakeModes ??= [];
+            library.OrganizationPolicy ??= new LibraryOrganizationPolicyConfig();
         }
 
-        return result;
+        // Access follows management mode and each library gets its destination, whoever sent the change.
+        return LibrariesConfigurationNormalizer.Normalize(result);
     }
 
     private static TTarget Convert<TTarget>(object source) =>

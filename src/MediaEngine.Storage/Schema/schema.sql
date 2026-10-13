@@ -1214,6 +1214,22 @@ CREATE TABLE IF NOT EXISTS media_operation_events (
   occurred_at    TEXT NOT NULL
 );
 
+-- One row per file moved while a folder is converted from as-is to managed (the organise job). Written as each file
+-- moves, so an interrupted conversion resumes and a finished one can be undone. operation_id is the media_operations
+-- row that owns the conversion; it is kept without a foreign key so the history outlives the operation row.
+CREATE TABLE IF NOT EXISTS folder_organise_log (
+  operation_id BLOB NOT NULL,
+  source_id    BLOB NOT NULL,
+  old_path     TEXT NOT NULL,
+  new_path     TEXT NOT NULL,
+  outcome      TEXT NOT NULL,
+  at           TEXT NOT NULL,
+  PRIMARY KEY (operation_id, old_path)
+);
+
+CREATE INDEX IF NOT EXISTS idx_folder_organise_log_source
+  ON folder_organise_log(source_id, at);
+
 CREATE TABLE IF NOT EXISTS media_operations (
   id                  BLOB PRIMARY KEY,
   operation_type      TEXT NOT NULL,

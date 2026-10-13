@@ -103,7 +103,7 @@ docker exec --user 10001:10001 "$CONTAINER" sh -exc '
     test ! -e /config/backups/tuvima-backup-20260819-230724.zip
     test -z "$(find /config/secrets -type f -print -quit)"
     test -z "$(find /config -name "*.bak" -print -quit)"
-    grep -q "schema_version.*6.0" /config/libraries.json
+    grep -q "schema_version.*7.0" /config/libraries.json
     grep -q "view_storage" /config/libraries.json
     test -z "$(grep "kind.*photos" /config/libraries.json || true)"
     grep -q "ffmpeg_binary_path.*/usr/bin/ffmpeg" /config/transcoding.json

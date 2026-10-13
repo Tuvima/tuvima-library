@@ -13,6 +13,7 @@ using MediaEngine.Domain.Entities;
 using MediaEngine.Domain.Services;
 using MediaEngine.Ingestion.Contracts;
 using MediaEngine.Ingestion.Models;
+using MediaEngine.Ingestion.Services;
 using MediaEngine.Storage.Contracts;
 using Microsoft.Extensions.Options;
 
@@ -457,6 +458,7 @@ public static class IngestionEndpoints
             IConfigurationLoader configLoader,
             IIngestionEngine engine,
             IOptions<IngestionOptions> opts,
+            ISourceMutationPolicyGate mutationGate,
             CancellationToken ct) =>
         {
             var form = await request.ReadFormAsync(ct);
@@ -494,10 +496,19 @@ public static class IngestionEndpoints
                 return ApiErrors.BadRequest($"Library '{library.Name}' does not accept browser uploads.");
             }
 
+            // Uploads go to the library's one explicit destination, which is always a folder Tuvima manages.
+            // An as-is folder is never written to, and there is no fallback to another folder.
             var destination = library.PrimaryDestination;
-            if (destination is null || !destination.AllowsFileMutation)
+            if (destination is null
+                || !destination.AllowsFileMutation
+                || !mutationGate.Evaluate(new SourceMutationRequest
+                {
+                    Source = FileSourceMutationPolicyFactory.Create(library, destination),
+                    Mutation = SourceMutationKind.UseAsDestination,
+                    Path = destination.Path,
+                }).Allowed)
             {
-                return ApiErrors.BadRequest($"Library '{library.Name}' has no managed, writable primary destination.");
+                return ApiErrors.BadRequest($"Library '{library.Name}' has no managed folder set as its destination for new media.");
             }
 
             if (string.IsNullOrWhiteSpace(mediaType)
