@@ -22,6 +22,14 @@ public interface ILocalAssetRepository
     Task<LocalAssetUpsertResult> UpsertAsync(
         LocalAssetRegistration registration,
         CancellationToken ct = default);
+    /// <summary>
+    /// Replaces an item's extracted document text and its <c>text_source</c>, then rebuilds the search document.
+    /// Passing no text clears it. Prefer this over <see cref="UpsertAsync"/> for text reads.
+    /// </summary>
+    Task<bool> SetDocumentTextAsync(
+        Guid itemId,
+        LocalAssetDocumentTextWrite write,
+        CancellationToken ct = default);
     Task<bool> SetFlagsAsync(
         Guid itemId,
         bool? favorite,
@@ -150,6 +158,21 @@ public sealed record LocalAssetLocationUpdate(
     string? Country = null,
     string? CountryCode = null,
     bool ResetToEmbedded = false);
+
+/// <summary>Where an item's document text came from.</summary>
+public static class LocalAssetTextSources
+{
+    public const string Embedded = "embedded";
+    public const string Ocr = "ocr";
+    public const string None = "none";
+}
+
+public sealed record LocalAssetDocumentTextWrite(
+    string? Text,
+    string TextSource,
+    bool Truncated = false,
+    bool Encrypted = false,
+    int? PageCount = null);
 
 public static class LocalAssetScopeKinds
 {

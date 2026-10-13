@@ -242,6 +242,9 @@ Defines the clean schema 7 library model used by **Settings > Libraries**. The r
 | `schema_version` | string | Must be `7.0`. Older files (including `6.0`) are refused with a plain message and are not converted; move the file aside to start from a fresh default and add folders again. |
 | `storage_locations` | array | Explicit server/container roots administrators may browse. Each entry has a stable `id`, friendly `label`, absolute `path`, and `allow_write` policy. |
 | `personal_library_policy` | object | Administrator defaults and capability switches for the internal personal-library bridge, managed/existing storage, browser upload, reserved future intake producers, and default visibility. |
+| `personal_library_policy.document_text_max_characters` | integer | Most characters of embedded text stored per View document (default 1000000); longer text is cut and flagged as truncated. |
+| `personal_library_policy.document_text_max_pdf_pages` | integer | Most PDF pages whose text layer is read (default 2000). |
+| `personal_library_policy.document_text_read_timeout_seconds` | integer | Longest one document may take to read before it is abandoned (default 60). |
 | `file_handling.duplicate_policy` | string | What happens to an exact copy of a file already held, for every library: `keep_one` (default; the copy is indexed once and the incoming duplicate is removed where its folder is managed) or `keep_both` (both files stay). A name clash between different files always gives the incoming file a unique name. |
 | `id` | GUID string | Stable library identity used by intake, indexing, access, and Dashboard editing. Required. |
 | `name` | string | Configuration/admin name. For View, the profile-facing identity is the Personal Space, not this library record. |
