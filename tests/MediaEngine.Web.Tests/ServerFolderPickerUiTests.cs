@@ -18,8 +18,8 @@ public sealed class ServerFolderPickerUiTests
         Assert.Contains("GetServerFolderRootsAsync", picker, StringComparison.Ordinal);
         Assert.Contains("BrowseServerFoldersAsync", picker, StringComparison.Ordinal);
         Assert.Contains("ValidateServerFolderAsync", picker, StringComparison.Ordinal);
-        Assert.Contains("Enter path manually", picker, StringComparison.Ordinal);
-        Assert.Contains("Select this folder", picker, StringComparison.Ordinal);
+        Assert.DoesNotContain("Enter path manually", picker, StringComparison.Ordinal);
+        Assert.Contains("Label=\"Add\"", picker, StringComparison.Ordinal);
         Assert.DoesNotContain("InputFile", picker, StringComparison.Ordinal);
         Assert.Contains("TimeSpan.FromMilliseconds(275)", picker, StringComparison.Ordinal);
         Assert.Contains("preserveSelection: true", picker, StringComparison.Ordinal);

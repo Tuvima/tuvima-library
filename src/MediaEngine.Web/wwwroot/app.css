@@ -4288,3 +4288,54 @@ input[type="reset"],
 .settings-nav-row--disabled { cursor: default; opacity: .6; }
 .settings-nav-row--disabled:hover { background: transparent; }
 @media (min-width: 1600px) { .settings-nav-row { min-height: 72px; gap: 20px; font-size: 1.15rem; } .settings-nav-row__status { font-size: 1rem; } }
+
+/* Server folder picker rows: the row is an AppNativeButton, so its styles live here (isolated CSS does not reach the child root). */
+.server-folder-picker .server-folder-picker__folder {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 170px;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    min-height: 52px;
+    padding: 0 12px;
+    border: 0;
+    border-bottom: 1px solid var(--tl-border-subtle);
+    background: transparent;
+    color: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+
+.server-folder-picker .server-folder-picker__folder:hover,
+.server-folder-picker .server-folder-picker__folder.is-highlighted {
+    background: var(--tl-accent-primary-soft);
+}
+
+.server-folder-picker__list:focus-visible .server-folder-picker__folder.is-highlighted {
+    box-shadow: inset 0 0 0 2px var(--tl-accent-primary);
+}
+
+.server-folder-picker__folder-name {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+    overflow: hidden;
+}
+
+.server-folder-picker__folder-name .tl-icon-root { color: #f5b71b; }
+
+.server-folder-picker__modified {
+    color: var(--tl-text-muted);
+    font-size: 0.82rem;
+    text-align: right;
+}
+
+@media (min-width: 1600px) {
+    .server-folder-picker .server-folder-picker__folder { min-height: 60px; }
+}
+
+@media (max-width: 800px) {
+    .server-folder-picker .server-folder-picker__folder { grid-template-columns: minmax(0, 1fr); min-height: 56px; }
+    .server-folder-picker__modified { display: none; }
+}
