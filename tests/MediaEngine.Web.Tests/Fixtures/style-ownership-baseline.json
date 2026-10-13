@@ -635,7 +635,7 @@
       "important": 0,
       "deep": 2
     },
-    "src/MediaEngine.Web/Components/Settings/PlaybackTab.razor.css": {
+    "src/MediaEngine.Web/Components/Settings/PlaybackSettingsPage.razor.css": {
       "important": 0,
       "deep": 9
     },
@@ -1665,7 +1665,7 @@
       "important": 0,
       "deep": 2
     },
-    "src/MediaEngine.Web/Components/Settings/PlaybackTab.razor.css": {
+    "src/MediaEngine.Web/Components/Settings/PlaybackSettingsPage.razor.css": {
       "important": 0,
       "deep": 9
     },

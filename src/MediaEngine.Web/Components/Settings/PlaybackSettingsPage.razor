@@ -1,0 +1,314 @@
+@namespace MediaEngine.Web.Components.Settings
+@using System.Text.Json
+@using MediaEngine.Contracts.Playback
+@using MediaEngine.Web.Components.Shared
+@using MediaEngine.Web.Models.ViewDTOs
+@using MediaEngine.Web.Services.Integration
+@using MediaEngine.Web.Services.Playback
+@inject UIOrchestratorService Orchestrator
+@inject IEngineApiClient ApiClient
+@inject IUserPlaybackPreferencesAccessor PreferencesAccessor
+@inject IAppToastService Snackbar
+
+@if (_loading)
+{
+    <div class="playback-settings-skeleton" aria-label="Loading playback preferences">
+        @for (var index = 0; index < 3; index++)
+        {
+            <AppSkeleton Height="220px" />
+        }
+    </div>
+}
+else if (_forbidden)
+{
+    <AppAlert Severity="AppSeverity.Warning" Variant="AppVariant.Outlined">You can't change this person's settings.</AppAlert>
+}
+else if (!string.IsNullOrWhiteSpace(_loadError))
+{
+    <AppAlert Severity="AppSeverity.Error" Variant="AppVariant.Outlined">@_loadError</AppAlert>
+}
+else if (_settings is not null)
+{
+    <div class="settings-playback-page" data-playback-section="overview" data-playback-mode="@Mode">
+        @if (!string.IsNullOrWhiteSpace(_saveError))
+        {
+            <AppAlert Severity="AppSeverity.Error" Variant="AppVariant.Outlined" Dense="true">@_saveError</AppAlert>
+        }
+
+        @if (IsOtherProfile && _target is not null)
+        {
+            <div class="playback-profile-heading">
+                <span class="playback-profile-heading__avatar">
+                    <ProfileAvatar DisplayName="@_target.DisplayName" ImageUrl="@_target.AvatarImageUrl" Color="@_target.AvatarColor" Icon="@_target.AvatarIcon" />
+                </span>
+                <AppText Typo="AppTypo.h6">How @_target.DisplayName watches.</AppText>
+                <a class="playback-profile-heading__back" href="@($"/settings/profiles/{ProfileId}")">Back to @_target.DisplayName</a>
+            </div>
+        }
+
+        <div class="playback-settings-grid">
+            @if (Mode == PlaybackSettingsMode.Watching)
+            {
+                <SettingsSectionPanel Title="Autoplay"
+                                      Description="What happens when an episode ends."
+                                      Class="tl-card settings-section-card playback-settings-card">
+                    @BoolRow(
+                        "Autoplay next episode",
+                        "Start the next episode after a short countdown. Turn off to choose it yourself.",
+                        _settings.Watching.AutoplayNextEpisode,
+                        value => UpdateAndSaveAsync(() => _settings.Watching.AutoplayNextEpisode = value))
+                </SettingsSectionPanel>
+
+                <SettingsSectionPanel Title="Resume"
+                                      Description="Where a movie or episode starts when you come back."
+                                      Class="tl-card settings-section-card playback-settings-card">
+                    @BoolRow(
+                        "Resume where you left off",
+                        "Continue from your last saved position.",
+                        _settings.General.ResumePlayback,
+                        value => UpdateAndSaveAsync(() => _settings.General.ResumePlayback = value))
+                </SettingsSectionPanel>
+
+                <SettingsSectionPanel Title="Skip"
+                                      Description="How far the player skip buttons jump."
+                                      Class="tl-card settings-section-card playback-settings-card">
+                    @IntSelectRow(
+                        "Skip back",
+                        "The amount used by the rewind control.",
+                        _settings.Watching.SkipBackSeconds,
+                        WatchingSkipBackOptions,
+                        value => UpdateAndSaveAsync(() => _settings.Watching.SkipBackSeconds = value))
+                    @IntSelectRow(
+                        "Skip forward",
+                        "The amount used by the forward control.",
+                        _settings.Watching.SkipForwardSeconds,
+                        WatchingSkipForwardOptions,
+                        value => UpdateAndSaveAsync(() => _settings.Watching.SkipForwardSeconds = value))
+                </SettingsSectionPanel>
+
+                @* S6b: the subtitles group goes here. *@
+            }
+
+            @if (Mode == PlaybackSettingsMode.Listening)
+            {
+                <SettingsSectionPanel Title="Listening"
+                                      Description="Defaults used when an audiobook playback session starts."
+                                      Class="tl-card settings-section-card playback-settings-card">
+                    @DecimalSelectRow(
+                        "Audiobook default speed",
+                        "Applied when an audiobook begins.",
+                        _settings.Listening.AudiobookDefaultSpeed,
+                        AudiobookSpeedOptions,
+                        value => UpdateAndSaveAsync(() => _settings.Listening.AudiobookDefaultSpeed = value))
+                    @IntSelectRow(
+                        "Skip back",
+                        "The default amount used by the player rewind control.",
+                        _settings.Listening.SkipBackSeconds,
+                        ListeningSkipBackOptions,
+                        value => UpdateAndSaveAsync(() => _settings.Listening.SkipBackSeconds = value))
+                    @IntSelectRow(
+                        "Skip forward",
+                        "The default amount used by the player forward control.",
+                        _settings.Listening.SkipForwardSeconds,
+                        ListeningSkipForwardOptions,
+                        value => UpdateAndSaveAsync(() => _settings.Listening.SkipForwardSeconds = value))
+                    @IntSelectRow(
+                        "Resume rewind",
+                        "Rewind slightly when resuming so spoken context is not lost.",
+                        _settings.Listening.ResumeRewindSeconds,
+                        ListeningResumeRewindOptions,
+                        value => UpdateAndSaveAsync(() => _settings.Listening.ResumeRewindSeconds = value))
+                </SettingsSectionPanel>
+            }
+
+            @if (Mode == PlaybackSettingsMode.Reading)
+            {
+                <SettingsSectionPanel Title="Reading"
+                                      Description="Reading controls stay close to the book you are using."
+                                      Class="tl-card settings-section-card playback-settings-card playback-settings-card--guidance">
+                    <div class="playback-guidance">
+                        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.MenuBook" Size="AppSize.Medium" aria-hidden="true" />
+                        <div>
+                            <AppText Typo="AppTypo.body1">Adjust text while reading</AppText>
+                            <AppText Typo="AppTypo.body2" Color="AppColor.Secondary">
+                                Font, spacing, margins, and page controls are available in the reader and are saved on that device.
+                            </AppText>
+                        </div>
+                    </div>
+                </SettingsSectionPanel>
+            }
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public PlaybackSettingsMode Mode { get; set; } = PlaybackSettingsMode.Watching;
+
+    /// <summary>Another household profile to edit (administrators only). Null or the active profile edits your own.</summary>
+    [Parameter] public Guid? ProfileId { get; set; }
+
+    /// <summary>Raised with the other profile's name once it is known, so the page can show it in the breadcrumb.</summary>
+    [Parameter] public EventCallback<string?> TargetNameChanged { get; set; }
+
+    private readonly JsonSerializerOptions _jsonOptions = MediaEngineJson.Web;
+    private UserPlaybackSettingsDto? _settings;
+    private ProfileViewModel? _activeProfile;
+    private ProfileViewModel? _target;
+    private bool _forbidden;
+    private bool _loading = true;
+    private string? _loadError;
+    private string? _saveError;
+
+    private bool IsOtherProfile => Mode == PlaybackSettingsMode.Watching
+        && ProfileId is { } id && id != Guid.Empty && id != _activeProfile?.Id;
+
+    private static readonly decimal[] AudiobookSpeedOptions = [0.5m, 0.75m, 1m, 1.25m, 1.5m, 1.75m, 2m, 2.5m, 3m];
+    private static readonly int[] WatchingSkipBackOptions = [5, 10, 15, 30];
+    private static readonly int[] WatchingSkipForwardOptions = [10, 30, 60, 90];
+    private static readonly int[] ListeningSkipBackOptions = [10, 15, 30];
+    private static readonly int[] ListeningSkipForwardOptions = [15, 30, 60];
+    private static readonly int[] ListeningResumeRewindOptions = [0, 5, 10, 15, 30];
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _activeProfile = await Orchestrator.GetActiveProfileAsync();
+            if (IsOtherProfile)
+            {
+                var profiles = await Orchestrator.GetProfilesAsync();
+                _target = profiles.FirstOrDefault(profile => profile.Id == ProfileId);
+                var loaded = await ApiClient.GetPlaybackSettingsAsync(ProfileId!.Value);
+                if (loaded is null || _target is null)
+                {
+                    _forbidden = true;
+                    return;
+                }
+
+                _settings = Clone(loaded);
+                await TargetNameChanged.InvokeAsync(_target.DisplayName);
+            }
+            else
+            {
+                var loaded = await PreferencesAccessor.GetAsync();
+                _settings = Clone(loaded ?? UserPlaybackSettingsDto.CreateDefaults(_activeProfile?.Id ?? Guid.Empty));
+            }
+        }
+        catch
+        {
+            _loadError = "Playback settings could not be loaded.";
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private RenderFragment BoolRow(string title, string description, bool value, Func<bool, Task> changed) => @<div class="playback-preference-row">
+        <div class="playback-preference-row__copy">
+            <AppText Typo="AppTypo.body1">@title</AppText>
+            <AppText Typo="AppTypo.body2" Color="AppColor.Secondary">@description</AppText>
+        </div>
+        <AppSwitchRow T="bool" Value="@value" ValueChanged="@changed" Color="AppColor.Primary" AriaLabel="@title" />
+    </div>;
+
+    private RenderFragment IntSelectRow(
+        string title,
+        string description,
+        int value,
+        IReadOnlyList<int> options,
+        Func<int, Task> changed) => @<div class="playback-preference-row">
+        <div class="playback-preference-row__copy">
+            <AppText Typo="AppTypo.body1">@title</AppText>
+            <AppText Typo="AppTypo.body2" Color="AppColor.Secondary">@description</AppText>
+        </div>
+        <AppIntSelect Value="@value"
+                      ValueChanged="@changed"
+                      Variant="AppVariant.Outlined"
+                      Margin="AppMargin.Dense"
+                      Dense="true"
+                      Size="AppControlSize.Compact"
+                      Class="playback-preference-row__select"
+                      aria-label="@title">
+            @foreach (var option in options)
+            {
+                <AppSelectItem T="int" Value="@option">@($"{option} seconds")</AppSelectItem>
+            }
+        </AppIntSelect>
+    </div>;
+
+    private RenderFragment DecimalSelectRow(
+        string title,
+        string description,
+        decimal value,
+        IReadOnlyList<decimal> options,
+        Func<decimal, Task> changed) => @<div class="playback-preference-row">
+        <div class="playback-preference-row__copy">
+            <AppText Typo="AppTypo.body1">@title</AppText>
+            <AppText Typo="AppTypo.body2" Color="AppColor.Secondary">@description</AppText>
+        </div>
+        <AppSelect Value="@value.ToString(System.Globalization.CultureInfo.InvariantCulture)"
+                   ValueChanged="@(raw => OnDecimalChangedAsync(raw, changed))"
+                   Variant="AppVariant.Outlined"
+                   Margin="AppMargin.Dense"
+                   Dense="true"
+                   Size="AppControlSize.Compact"
+                   Class="playback-preference-row__select"
+                   aria-label="@title">
+            @foreach (var option in options)
+            {
+                <AppSelectItem T="string" Value="@option.ToString(System.Globalization.CultureInfo.InvariantCulture)">@DisplayFormat.FormatSpeedSetting(option)</AppSelectItem>
+            }
+        </AppSelect>
+    </div>;
+
+    private static Task OnDecimalChangedAsync(string? raw, Func<decimal, Task> changed) =>
+        decimal.TryParse(raw, System.Globalization.NumberStyles.Number, System.Globalization.CultureInfo.InvariantCulture, out var value)
+            ? changed(value)
+            : Task.CompletedTask;
+
+    private async Task UpdateAndSaveAsync(Action update)
+    {
+        update();
+        _saveError = null;
+        await SaveAsync();
+    }
+
+    private async Task SaveAsync()
+    {
+        if (_settings is null)
+            return;
+
+        try
+        {
+            var other = IsOtherProfile;
+            var saved = other
+                ? await ApiClient.UpdatePlaybackSettingsAsync(ProfileId!.Value, _settings)
+                : await Orchestrator.SavePlaybackSettingsAsync(_settings);
+            if (saved is null)
+            {
+                _saveError = "Playback settings could not be saved.";
+                Snackbar.Add(_saveError, AppSeverity.Error);
+                return;
+            }
+
+            _settings = Clone(saved);
+            if (!other)
+                PreferencesAccessor.UpdateCache(saved);
+        }
+        catch
+        {
+            _saveError = "Playback settings could not be saved.";
+            Snackbar.Add(_saveError, AppSeverity.Error);
+        }
+        finally
+        {
+            StateHasChanged();
+        }
+    }
+
+    private UserPlaybackSettingsDto Clone(UserPlaybackSettingsDto source) =>
+        JsonSerializer.Deserialize<UserPlaybackSettingsDto>(
+            JsonSerializer.Serialize(source, _jsonOptions),
+            _jsonOptions) ?? UserPlaybackSettingsDto.CreateDefaults(source.ProfileId);
+}

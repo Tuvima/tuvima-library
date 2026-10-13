@@ -145,6 +145,8 @@ public sealed partial class PlaybackSessionController
     public string? CurrentError { get; private set; }
     public int SkipBackSeconds { get; private set; }
     public int SkipForwardSeconds { get; private set; }
+    /// <summary>When false the player shows the next episode at the end but never advances on its own.</summary>
+    public bool AutoplayNextEpisode { get; private set; } = true;
     public int ResumeRewindSeconds { get; private set; }
     public int AudiobookNearStartGuardSeconds { get; private set; }
     public IReadOnlyList<int> SleepTimerOptionsMinutes { get; private set; } = [];
@@ -1116,7 +1118,7 @@ public sealed partial class PlaybackSessionController
     private readonly SemaphoreSlim _videoCompletionGate = new(1, 1);
     private (Guid Asset, long Request)? _completedVideoInstance;
 
-    public async Task<bool> CompleteVideoOnceAsync(VideoPlaybackIdentity identity, CancellationToken ct = default)
+    public async Task<bool> CompleteVideoOnceAsync(VideoPlaybackIdentity identity, CancellationToken ct = default, bool userRequested = false)
     {
         await _videoCompletionGate.WaitAsync(ct);
         try
@@ -1134,6 +1136,12 @@ public sealed partial class PlaybackSessionController
                 {
                     return false;
                 }
+            }
+            if (next is not null && !AutoplayNextEpisode && !userRequested)
+            {
+                // Autoplay is off: record the end, then wait for the viewer to choose the next episode.
+                await CompleteCurrentCoreAsync(identity.AssetId, identity.RequestVersion, ct, expectedProfileId: identity.ProfileId, holdAtEnd: true);
+                return true;
             }
             _completedVideoInstance = (identity.AssetId, identity.RequestVersion);
             await CompleteCurrentCoreAsync(identity.AssetId, identity.RequestVersion, ct, expectedProfileId: identity.ProfileId);
@@ -1193,7 +1201,7 @@ public sealed partial class PlaybackSessionController
     }
 
     private async Task CompleteCurrentCoreAsync(Guid? expectedAssetId, long? expectedRequestVersion, CancellationToken ct,
-        double? nativeEndPositionSeconds = null, Guid? expectedProfileId = null)
+        double? nativeEndPositionSeconds = null, Guid? expectedProfileId = null, bool holdAtEnd = false)
     {
         bool IsExpectedSubjectCurrent() => (expectedAssetId is null
             || IsCurrentNativeEndedSubject(expectedAssetId.Value, expectedRequestVersion!.Value))
@@ -1235,6 +1243,13 @@ public sealed partial class PlaybackSessionController
             return;
         }
         var nextIndex = ResolveNextIndex(automaticAdvance: true);
+        if (holdAtEnd && nextIndex.HasValue)
+        {
+            IsPlaying = false;
+            _stateMachine.SetEnded();
+            NotifyChanged();
+            return;
+        }
         if (CurrentItem is not null
             && (!nextIndex.HasValue || nextIndex.Value == CurrentIndex))
         {
@@ -3087,6 +3102,7 @@ public sealed partial class PlaybackSessionController
         {
             SkipBackSeconds = settings.Watching.SkipBackSeconds;
             SkipForwardSeconds = settings.Watching.SkipForwardSeconds;
+            AutoplayNextEpisode = settings.Watching.AutoplayNextEpisode;
             return;
         }
 

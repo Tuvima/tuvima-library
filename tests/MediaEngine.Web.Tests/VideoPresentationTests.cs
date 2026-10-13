@@ -266,6 +266,63 @@ public sealed class VideoPresentationTests
     }
 
     [Fact]
+    public void EndCardWithAutoplayOffStaysUpWithoutACountdownAndNeverAsksToAdvance()
+    {
+        var identity = new VideoPlaybackIdentity(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), 1);
+        var card = new VideoEndCardState { AutoAdvance = false };
+        card.Observe(identity, Guid.NewGuid(), 90, 100, []);
+        Assert.True(card.Visible);
+        for (var tick = 0; tick < 30; tick++)
+        {
+            Assert.False(card.Tick(identity, 1, true));
+        }
+        Assert.Equal(10, card.RemainingSeconds);
+        Assert.True(card.Visible);
+    }
+
+    [Fact]
+    public async Task AutoplayOffHoldsAtTheEndUntilTheViewerPicksTheNextEpisode()
+    {
+        var settings = UserPlaybackSettingsDto.CreateDefaults(Guid.NewGuid());
+        settings.Watching.AutoplayNextEpisode = false;
+        var playback = new PlaybackSessionController(null!, EngineApiClientStub.CreateDefault(), preferences: new SettingsPreferences(settings));
+        var first = Video(); var second = Video();
+        await playback.PlayVideoAsync(first, "Show");
+        playback.RestoreState(new() { Queue = [first, second], CurrentIndex = 0, Experience = PlayerExperienceModes.Video });
+        Assert.False(playback.AutoplayNextEpisode);
+        var identity = VideoPlaybackIdentity.Capture(playback)!;
+
+        Assert.True(await playback.CompleteVideoOnceAsync(identity));
+        Assert.Equal(0, playback.CurrentIndex);
+        Assert.Equal(first.WorkId, playback.CurrentItem!.WorkId);
+
+        Assert.True(await playback.CompleteVideoOnceAsync(identity, userRequested: true));
+        Assert.Equal(1, playback.CurrentIndex);
+    }
+
+    [Fact]
+    public async Task AutoplayOnStillAdvancesWithoutAViewerChoice()
+    {
+        var settings = UserPlaybackSettingsDto.CreateDefaults(Guid.NewGuid());
+        var playback = new PlaybackSessionController(null!, EngineApiClientStub.CreateDefault(), preferences: new SettingsPreferences(settings));
+        var current = Video();
+        await playback.PlayVideoAsync(current, "Show");
+        playback.RestoreState(new() { Queue = [current, Video()], CurrentIndex = 0, Experience = PlayerExperienceModes.Video });
+        Assert.True(playback.AutoplayNextEpisode);
+
+        await playback.CompleteVideoOnceAsync(VideoPlaybackIdentity.Capture(playback)!);
+        Assert.Equal(1, playback.CurrentIndex);
+    }
+
+    private sealed class SettingsPreferences(UserPlaybackSettingsDto settings) : IUserPlaybackPreferencesAccessor
+    {
+        public Guid? ActiveProfileId { get; } = settings.ProfileId;
+        public Task<UserPlaybackSettingsDto?> GetAsync(CancellationToken ct = default) => Task.FromResult<UserPlaybackSettingsDto?>(settings);
+        public void UpdateCache(UserPlaybackSettingsDto next) { }
+        public void Invalidate() { }
+    }
+
+    [Fact]
     public void CreditsTriggerRequiresVerifiedValidDataAndUnknownDurationHasNoCard()
     {
         var identity = new VideoPlaybackIdentity(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), 1);

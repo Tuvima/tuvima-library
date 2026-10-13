@@ -172,6 +172,8 @@ public sealed class VideoEndCardState
     private bool _dismissed;
     public bool Visible { get; private set; }
     public double RemainingSeconds { get; private set; } = 10;
+    /// <summary>False when the viewer turned autoplay off: the card stays up with no countdown and never asks to advance.</summary>
+    public bool AutoAdvance { get; set; } = true;
     public void Observe(VideoPlaybackIdentity? identity, Guid? next, double position, double duration,
         IReadOnlyList<PlaybackSegmentDto> segments)
     {
@@ -192,7 +194,7 @@ public sealed class VideoEndCardState
     }
     public bool Tick(double elapsedSeconds, bool active)
     {
-        if (!Visible || !active || !double.IsFinite(elapsedSeconds) || elapsedSeconds <= 0)
+        if (!AutoAdvance || !Visible || !active || !double.IsFinite(elapsedSeconds) || elapsedSeconds <= 0)
         {
             return false;
         }
