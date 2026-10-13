@@ -39,12 +39,13 @@ public sealed class ThisComputerDashboardTests : AsyncBunitContext
     }
 
     [Fact]
-    public void Setup_UseOnThisComputerAsksOnlyForNameAndEmail()
+    public void Setup_UseOnThisComputerAsksOnlyForAName()
     {
         var form = RenderStage(available: true, mode: SetupSignInModes.ThisComputer);
 
         Assert.Contains("Display name", form.Markup);
-        Assert.Contains("Email", form.Markup);
+        Assert.DoesNotContain("Email", form.Markup.Replace("Add an email and password any time", string.Empty, StringComparison.Ordinal));
+        Assert.Contains("Add an email and password any time to use it away from home", form.Markup);
         Assert.DoesNotContain("Password", form.Markup);
         Assert.DoesNotContain("PIN", form.Markup);
     }
@@ -55,7 +56,23 @@ public sealed class ThisComputerDashboardTests : AsyncBunitContext
         var form = RenderStage(available: true, mode: SetupSignInModes.Password);
 
         Assert.Contains("Confirm password", form.Markup);
+        Assert.Contains("Email", form.Markup);
         Assert.DoesNotContain("Start without a password", form.Markup);
+    }
+
+    [Fact]
+    public void Setup_UseOnThisComputer_CanBeCreatedWithJustAName()
+    {
+        var form = RenderStage(available: true, mode: SetupSignInModes.ThisComputer);
+        var create = () => form.FindAll("button").Single(button => button.TextContent.Contains("Create administrator", StringComparison.Ordinal));
+        Assert.True(create().HasAttribute("disabled"));
+
+        var named = Render<SetupAdministratorStage>(parameters => parameters
+            .Add(stage => stage.ThisComputerAvailable, true)
+            .Add(stage => stage.SignInMode, SetupSignInModes.ThisComputer)
+            .Add(stage => stage.DisplayName, "Owner"));
+
+        Assert.False(named.FindAll("button").Single(button => button.TextContent.Contains("Create administrator", StringComparison.Ordinal)).HasAttribute("disabled"));
     }
 
     [Fact]

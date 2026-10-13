@@ -260,9 +260,14 @@ public sealed class AccountAccessMutationService(
             }
         }
 
-        var email = NormalizeEmail(command.Email);
-        account.Email = email;
-        account.NormalizedEmail = email.ToUpperInvariant();
+        // An account made on this computer has no email yet; turning it on or off must not demand one.
+        if (!string.IsNullOrWhiteSpace(command.Email) || account.HasEmail)
+        {
+            var email = NormalizeEmail(command.Email);
+            account.Email = email;
+            account.NormalizedEmail = email.ToUpperInvariant();
+        }
+
         account.IsEnabled = command.IsEnabled;
         account.IsAdministrator = command.IsAdministrator;
         account.UpdatedAt = clock.GetUtcNow();
@@ -1173,7 +1178,7 @@ public sealed class AccountAccessMutationService(
     {
         if (string.IsNullOrWhiteSpace(raw))
         {
-            throw new ArgumentException("Email is required.");
+            throw new ArgumentException("An email is needed for a sign-in that works away from home.");
         }
 
         try

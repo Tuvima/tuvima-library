@@ -8,6 +8,9 @@ public sealed class Account
     public Guid Id { get; set; }
     public string? Email { get; set; }
     public string? NormalizedEmail { get; set; }
+
+    /// <summary>True when the account has an email to sign in with. Only a this-computer account made without one is false.</summary>
+    public bool HasEmail => !string.IsNullOrWhiteSpace(Email) && !string.IsNullOrWhiteSpace(NormalizedEmail);
     public bool IsEnabled { get; set; } = true;
     public bool IsAdministrator { get; set; }
     public long AuthorizationVersion { get; set; } = 1;

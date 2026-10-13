@@ -194,9 +194,10 @@ public static class SetupEndpoints
                         return ApiErrors.BadRequest("Leave the password empty to start without one.");
                     }
 
-                    if (string.IsNullOrWhiteSpace(request.Email) || string.IsNullOrWhiteSpace(request.DisplayName))
+                    // Only a name: an email is asked for later, when the account is secured for use away from this computer.
+                    if (string.IsNullOrWhiteSpace(request.DisplayName))
                     {
-                        return ApiErrors.BadRequest("Enter a name and an email address.");
+                        return ApiErrors.BadRequest("Enter a name.");
                     }
 
                     // Close the door first: if anything below fails, Tuvima is left more closed, never more open.
@@ -210,7 +211,7 @@ public static class SetupEndpoints
                     network.NativeAppAccess.Enabled = false;
                     configuration.SaveNetwork(network);
                     issued = await identity.BootstrapThisComputerAdministratorAsync(
-                        request.Email, request.DisplayName, request.DeviceId, request.DeviceName, "Tuvima Setup", ct, request.Pin).ConfigureAwait(false);
+                        null, request.DisplayName, request.DeviceId, request.DeviceName, "Tuvima Setup", ct, request.Pin).ConfigureAwait(false);
                 }
                 else
                 {

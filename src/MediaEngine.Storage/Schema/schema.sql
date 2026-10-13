@@ -1621,8 +1621,8 @@ CREATE TABLE IF NOT EXISTS profiles (
 
 CREATE TABLE IF NOT EXISTS accounts (
     id               BLOB NOT NULL PRIMARY KEY,
-    email            TEXT NOT NULL,
-    normalized_email TEXT NOT NULL,
+    email            TEXT,
+    normalized_email TEXT,
     is_enabled       INTEGER NOT NULL DEFAULT 1 CHECK (is_enabled IN (0, 1)),
     is_administrator INTEGER NOT NULL DEFAULT 0 CHECK (is_administrator IN (0, 1)),
     authorization_version INTEGER NOT NULL DEFAULT 1 CHECK (authorization_version > 0),

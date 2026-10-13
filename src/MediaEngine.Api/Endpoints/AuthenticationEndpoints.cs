@@ -261,11 +261,14 @@ public static class AuthenticationEndpoints
                     verified.Subject,
                     verified.Email,
                     verified.DisplayName,
-                    ct).ConfigureAwait(false);
+                    ct,
+                    request.Email).ConfigureAwait(false);
                 return Results.Ok(ProfileContractMapper.ToResponse(linked));
             }
             catch (ArgumentException ex) { return ApiErrors.BadRequest(ex.Message); }
             catch (InvalidOperationException ex) { return ApiErrors.Conflict(ex.Message); }
+            // Another sign-in took the email between the check and the save.
+            catch (Microsoft.Data.Sqlite.SqliteException ex) when (ex.SqliteErrorCode == 19) { return ApiErrors.Conflict("That email is already used."); }
         }).WithName("LinkExternalIdentity")
           .Produces<AccountExternalLoginDto>()
           .RequireRateLimiting("authentication")
@@ -820,7 +823,7 @@ public static class AuthenticationEndpoints
             // Refuse a weak password before the passkey is saved, so nothing is left behind.
             try
             {
-                await identity.ValidateSecureThisComputerAccountAsync(accountId, request.Password, ct).ConfigureAwait(false);
+                await identity.ValidateSecureThisComputerAccountAsync(accountId, request.Password, ct, request.Email).ConfigureAwait(false);
             }
             catch (ArgumentException ex) { return ApiErrors.BadRequest(ex.Message); }
             catch (InvalidOperationException ex) { return ApiErrors.Conflict(ex.Message); }
@@ -848,11 +851,13 @@ public static class AuthenticationEndpoints
             try
             {
                 issued = await identity.SecureThisComputerAccountAsync(accountId, request.Password, hasPasskey,
-                    request.DeviceId, request.DeviceName, request.Client, ct).ConfigureAwait(false);
+                    request.DeviceId, request.DeviceName, request.Client, ct, request.Email).ConfigureAwait(false);
             }
             catch (ArgumentException ex) { return ApiErrors.BadRequest(ex.Message); }
             catch (InvalidOperationException ex) { return ApiErrors.Conflict(ex.Message); }
             catch (KeyNotFoundException ex) { return ApiErrors.NotFound(ex.Message); }
+            // Another sign-in took the email between the check and the save; nothing else was written yet.
+            catch (Microsoft.Data.Sqlite.SqliteException ex) when (ex.SqliteErrorCode == 19) { return ApiErrors.Conflict("That email is already used."); }
 
             await MoveToHomeNetworkIfFirstAdministratorAsync(accounts, configuration, loggers.CreateLogger("MediaEngine.Api.Endpoints.AuthenticationEndpoints"), accountId, ct).ConfigureAwait(false);
             return Results.Ok(await ToResponseAsync(issued, projector, ct));

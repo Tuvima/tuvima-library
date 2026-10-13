@@ -5,7 +5,7 @@ namespace MediaEngine.Storage.Tests;
 /// <summary>
 /// Every account signs in with an email. A data store from before that rule has email-less "local-only" accounts;
 /// the startup migration moves their profiles into the server administrator's household, removes those accounts,
-/// and rebuilds <c>accounts</c> with a required email.
+/// and rebuilds <c>accounts</c> (the email is made optional again afterwards; see <c>AccountEmailOptionalMigrationTests</c>).
 /// </summary>
 public sealed class RetireLocalOnlyAccountsMigrationTests : IDisposable
 {
@@ -35,8 +35,8 @@ public sealed class RetireLocalOnlyAccountsMigrationTests : IDisposable
 
         Assert.Equal(1, Scalar(path, "SELECT COUNT(*) FROM accounts;"));
         Assert.Equal(0, Scalar(path, "SELECT COUNT(*) FROM pragma_table_info('accounts') WHERE name = 'is_local_only';"));
-        Assert.Equal(1, Scalar(path, "SELECT \"notnull\" FROM pragma_table_info('accounts') WHERE name = 'email';"));
-        Assert.Equal(1, Scalar(path, "SELECT \"notnull\" FROM pragma_table_info('accounts') WHERE name = 'normalized_email';"));
+        Assert.Equal(0, Scalar(path, "SELECT \"notnull\" FROM pragma_table_info('accounts') WHERE name = 'email';"));
+        Assert.Equal(0, Scalar(path, "SELECT \"notnull\" FROM pragma_table_info('accounts') WHERE name = 'normalized_email';"));
 
         // The administrator's household now holds the original profile plus the two moved ones.
         Assert.Equal(3, Scalar(path, "SELECT COUNT(*) FROM account_profile_grants WHERE account_id = @a;", ("@a", AdminAccount)));
@@ -99,7 +99,7 @@ public sealed class RetireLocalOnlyAccountsMigrationTests : IDisposable
         }
 
         Assert.Equal(1, Scalar(path, "SELECT COUNT(*) FROM accounts;"));
-        Assert.Equal(1, Scalar(path, "SELECT \"notnull\" FROM pragma_table_info('accounts') WHERE name = 'email';"));
+        Assert.Equal(0, Scalar(path, "SELECT \"notnull\" FROM pragma_table_info('accounts') WHERE name = 'email';"));
         Assert.Equal(1, Scalar(path, "SELECT COUNT(*) FROM account_profile_grants WHERE account_id = @a;", ("@a", AdminAccount)));
         Assert.Equal(1, Scalar(path, "SELECT COUNT(*) FROM account_credentials WHERE account_id = @a;", ("@a", AdminAccount)));
     }

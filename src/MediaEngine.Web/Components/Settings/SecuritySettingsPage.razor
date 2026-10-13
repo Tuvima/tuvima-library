@@ -116,6 +116,14 @@
             <p>Add a password to use Tuvima on your phone, TV and other devices at home. Your library, history and favourites stay just as they are.</p>
             <form method="post" action="/account/secure" class="security-sheet__fields">
                 <AntiforgeryToken />
+                @if (NeedsEmail)
+                {
+                    <AppTextField T="string" @bind-Value="_secureEmail" Label="Email" name="email" required="true"
+                                  InputType="AppInputType.Email" autocomplete="email" MaxLength="254"
+                                  Error="@(_secureEmail.Length > 0 && !SecureEmailValid)"
+                                  ErrorText="Enter a valid email address."
+                                  HelpText="You'll sign in with this email away from home." />
+                }
                 <AppTextField T="string" @bind-Value="_securePassword" Label="Password" name="password"
                               InputType="AppInputType.Password" autocomplete="new-password" MaxLength="128"
                               Error="@(_securePassword.Length > 0 && !SecurePasswordValid)"
@@ -161,7 +169,14 @@
     private RenderFragment EmailSheetContent => __builder =>
     {
         <p><strong>@EmailStatus</strong></p>
-        <p class="security-sheet__hint">Ask an administrator to change it.</p>
+        @if (NeedsEmail)
+        {
+            <p class="security-sheet__hint">An email is only needed to use Tuvima away from home. You'll add one when you add a password.</p>
+        }
+        else
+        {
+            <p class="security-sheet__hint">Ask an administrator to change it.</p>
+        }
     };
 
     private RenderFragment ExtraProtectionSheetContent => __builder =>
@@ -333,6 +348,7 @@
     private IReadOnlyList<string> _recoveryCodes = [];
     private string _securePassword = string.Empty;
     private string _secureConfirm = string.Empty;
+    private string _secureEmail = string.Empty;
     private bool _thisComputerOnly;
     private string _newPassword = string.Empty;
     private string _confirmPassword = string.Empty;
@@ -403,7 +419,7 @@
     {
         if (_busy) return;
         _sheet = SecuritySheet.None;
-        _newPassword = _confirmPassword = _securePassword = _secureConfirm = string.Empty;
+        _newPassword = _confirmPassword = _securePassword = _secureConfirm = _secureEmail = string.Empty;
         _passwordChanged = false;
         _twoStepSetup = null;
         _twoStepQr = string.Empty;
@@ -433,7 +449,10 @@
     private bool CanChangePassword => !_busy && !_changingPassword && NewPasswordValid && PasswordsMatch;
     private bool SecurePasswordValid => _securePassword.Length is >= 12 and <= 128;
     private bool SecurePasswordsMatch => string.Equals(_securePassword, _secureConfirm, StringComparison.Ordinal);
-    private bool CanSecureAccount => SecurePasswordValid && SecurePasswordsMatch;
+    private bool NeedsEmail => string.IsNullOrWhiteSpace(_account?.Email);
+    private bool SecureEmailValid => !NeedsEmail
+        || (System.Net.Mail.MailAddress.TryCreate(_secureEmail.Trim(), out var address) && string.Equals(address.Address, _secureEmail.Trim(), StringComparison.Ordinal));
+    private bool CanSecureAccount => SecurePasswordValid && SecurePasswordsMatch && SecureEmailValid;
     private string PasskeyUnavailableMessage => Capabilities.PasskeyReady
         ? "Passkeys are unavailable from this connection. Use a secure connection or local access."
         : "Passkeys are not available on this server.";

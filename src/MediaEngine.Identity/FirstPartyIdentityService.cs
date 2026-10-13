@@ -49,10 +49,10 @@ public sealed class FirstPartyIdentityService(
         BootstrapCoreAsync(email, password, displayName, deviceId, deviceName, client, pin, ingress, ct);
 
     /// <summary>
-    /// Desktop "use on this computer" start: the administrator has a name and an email but no password, so the
+    /// Desktop "use on this computer" start: the administrator has a name but no password and no email, so the
     /// account works only on this computer until it is secured. The session is issued from this computer.
     /// </summary>
-    public Task<SessionIssueResult> BootstrapThisComputerAdministratorAsync(string email, string displayName, string deviceId, string deviceName, string client, CancellationToken ct = default, string? pin = null) =>
+    public Task<SessionIssueResult> BootstrapThisComputerAdministratorAsync(string? email, string displayName, string deviceId, string deviceName, string client, CancellationToken ct = default, string? pin = null) =>
         BootstrapCoreAsync(email, null, displayName, deviceId, deviceName, client, pin, ClientIngress.ThisComputer, ct);
 
     public async Task<SessionIssueResult?> SignInThisComputerAccountAsync(string deviceId, string deviceName, string client, string? clientIngress = null, CancellationToken ct = default)
@@ -89,7 +89,7 @@ public sealed class FirstPartyIdentityService(
             .OrderBy(account => account.CreatedAt)
             .FirstOrDefault();
 
-    private async Task<SessionIssueResult> BootstrapCoreAsync(string email, string? password, string displayName, string deviceId, string deviceName, string client, string? pin, string ingress, CancellationToken ct)
+    private async Task<SessionIssueResult> BootstrapCoreAsync(string? email, string? password, string displayName, string deviceId, string deviceName, string client, string? pin, string ingress, CancellationToken ct)
     {
         var withPassword = password is not null;
         await bootstrapGate.WaitAsync(ct).ConfigureAwait(false);
@@ -110,7 +110,9 @@ public sealed class FirstPartyIdentityService(
                 ValidatePin(pin);
             }
 
-            var normalizedEmail = NormalizeEmail(email);
+            // A password account signs in by email, so it needs one. A this-computer account needs none until it is secured.
+            var hasEmail = !string.IsNullOrWhiteSpace(email);
+            var normalizedEmail = withPassword || hasEmail ? NormalizeEmail(email!) : null;
             if (withPassword)
             {
                 RejectPasswordMatchingIdentity(password!, email, displayName);
@@ -125,7 +127,7 @@ public sealed class FirstPartyIdentityService(
             }
 
             var now = UtcNow;
-            var account = new Account { Id = Account.SeedAccountId, Email = email.Trim(), NormalizedEmail = normalizedEmail, IsEnabled = true, IsAdministrator = true, AuthorizationVersion = 1, CreatedAt = now, UpdatedAt = now };
+            var account = new Account { Id = Account.SeedAccountId, Email = hasEmail ? email!.Trim() : null, NormalizedEmail = normalizedEmail, IsEnabled = true, IsAdministrator = true, AuthorizationVersion = 1, CreatedAt = now, UpdatedAt = now };
             if (!withPassword)
             {
                 account.MarkThisComputerOnly();
@@ -419,6 +421,12 @@ public sealed class FirstPartyIdentityService(
     public async Task<IReadOnlyList<string>> ResetPasswordWithRecoveryCodeAsync(string email, string recoveryCode, string newPassword, CancellationToken ct = default)
     {
         ValidatePassword(newPassword);
+        // A blank email cannot have recovery codes (an account without an email has no email recovery): same answer as any wrong email.
+        if (string.IsNullOrWhiteSpace(email))
+        {
+            throw InvalidRecovery();
+        }
+
         var account = await accounts.GetByNormalizedEmailAsync(NormalizeEmail(email), ct).ConfigureAwait(false) ?? throw InvalidRecovery();
         var credential = await identities.GetAccountCredentialAsync(account.Id, AccountCredentialKind.Password, ct).ConfigureAwait(false) ?? throw InvalidRecovery();
         await RejectPasswordMatchingAccountAsync(account.Id, newPassword, ct).ConfigureAwait(false);
@@ -496,7 +504,7 @@ public sealed class FirstPartyIdentityService(
         return codes;
     }
 
-    public async Task ValidateSecureThisComputerAccountAsync(Guid accountId, string? password, CancellationToken ct = default)
+    public async Task ValidateSecureThisComputerAccountAsync(Guid accountId, string? password, CancellationToken ct = default, string? email = null)
     {
         var account = await accounts.GetByIdAsync(accountId, ct).ConfigureAwait(false) ?? throw new KeyNotFoundException("Account was not found.");
         if (!account.IsThisComputerOnly)
@@ -504,14 +512,42 @@ public sealed class FirstPartyIdentityService(
             throw new InvalidOperationException("This account is already secured.");
         }
 
+        var newEmail = await ResolveEmailForSecuringAsync(account, email, ct).ConfigureAwait(false);
         if (!string.IsNullOrEmpty(password))
         {
             ValidatePassword(password);
             await RejectPasswordMatchingAccountAsync(accountId, password, ct).ConfigureAwait(false);
+            RejectPasswordMatchingIdentity(password, newEmail?.Display, null);
         }
     }
 
-    public async Task<SessionIssueResult> SecureThisComputerAccountAsync(Guid accountId, string? password, bool hasPasskey, string deviceId, string deviceName, string client, CancellationToken ct = default)
+    /// <summary>
+    /// A sign-in that works away from this computer needs an email. An account that already has one keeps it (nothing
+    /// is asked); an account made without one must be given one now. Null when the account already has an email.
+    /// </summary>
+    private async Task<(string Display, string Normalized)?> ResolveEmailForSecuringAsync(Account account, string? email, CancellationToken ct)
+    {
+        if (account.HasEmail)
+        {
+            return null;
+        }
+
+        if (string.IsNullOrWhiteSpace(email))
+        {
+            throw new ArgumentException("Add an email to secure this account.");
+        }
+
+        var normalized = NormalizeEmail(email);
+        var existing = await accounts.GetByNormalizedEmailAsync(normalized, ct).ConfigureAwait(false);
+        if (existing is not null && existing.Id != account.Id)
+        {
+            throw new InvalidOperationException("That email is already used.");
+        }
+
+        return (new MailAddress(email.Trim()).Address, normalized);
+    }
+
+    public async Task<SessionIssueResult> SecureThisComputerAccountAsync(Guid accountId, string? password, bool hasPasskey, string deviceId, string deviceName, string client, CancellationToken ct = default, string? email = null)
     {
         var withPassword = !string.IsNullOrEmpty(password);
         if (!withPassword && !hasPasskey)
@@ -520,8 +556,22 @@ public sealed class FirstPartyIdentityService(
         }
 
         // Everything that can be refused is checked before anything is changed.
-        await ValidateSecureThisComputerAccountAsync(accountId, password, ct).ConfigureAwait(false);
+        await ValidateSecureThisComputerAccountAsync(accountId, password, ct, email).ConfigureAwait(false);
         var account = await accounts.GetByIdAsync(accountId, ct).ConfigureAwait(false) ?? throw new KeyNotFoundException("Account was not found.");
+        var newEmail = await ResolveEmailForSecuringAsync(account, email, ct).ConfigureAwait(false);
+
+        // The email goes in first: if another sign-in took it in the meantime the unique index refuses it here,
+        // before a password or recovery codes are written, and the account is left as it was.
+        if (newEmail is { } added)
+        {
+            account.Email = added.Display;
+            account.NormalizedEmail = added.Normalized;
+            account.UpdatedAt = UtcNow;
+            if (!await accounts.UpdateAsync(account, ct).ConfigureAwait(false))
+            {
+                throw new InvalidOperationException("The account could not be updated.");
+            }
+        }
 
         var profile = await GetDefaultProfileAsync(accountId, ct).ConfigureAwait(false);
         AccountCredential? credential = null;

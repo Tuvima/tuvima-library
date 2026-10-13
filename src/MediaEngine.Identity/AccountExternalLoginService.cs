@@ -36,7 +36,8 @@ public sealed class AccountExternalLoginService : IAccountExternalLoginService
         string subject,
         string? email,
         string? displayName,
-        CancellationToken ct = default)
+        CancellationToken ct = default,
+        string? accountEmail = null)
     {
         ValidateIdentity(provider, issuer, subject);
 
@@ -57,6 +58,13 @@ public sealed class AccountExternalLoginService : IAccountExternalLoginService
             throw new InvalidOperationException("That external sign-in account is already linked.");
         }
 
+        var needsEmail = !account.HasEmail;
+        (string Display, string Normalized)? addedEmail = null;
+        if (needsEmail)
+        {
+            addedEmail = await ChooseAccountEmailAsync(account, email, accountEmail, ct).ConfigureAwait(false);
+        }
+
         var login = new AccountExternalLogin
         {
             Id = Guid.NewGuid(),
@@ -69,8 +77,75 @@ public sealed class AccountExternalLoginService : IAccountExternalLoginService
             LinkedAt = DateTimeOffset.UtcNow,
         };
 
+        if (addedEmail is { } chosen)
+        {
+            account.Email = chosen.Display;
+            account.NormalizedEmail = chosen.Normalized;
+            account.UpdatedAt = DateTimeOffset.UtcNow;
+            if (!await _accountRepository.UpdateAsync(account, ct).ConfigureAwait(false))
+            {
+                throw new InvalidOperationException("The account could not be updated.");
+            }
+        }
+
         await _loginRepository.InsertAsync(login, ct).ConfigureAwait(false);
         return login;
+    }
+
+    /// <summary>The provider's email when it is usable and free, otherwise the one the person typed; one of them is required.</summary>
+    private async Task<(string Display, string Normalized)> ChooseAccountEmailAsync(
+        Account account, string? providerEmail, string? typedEmail, CancellationToken ct)
+    {
+        if (TryNormalize(providerEmail, out var providerNormalized)
+            && await IsFreeAsync(account, providerNormalized, ct).ConfigureAwait(false))
+        {
+            return (CanonicalAddress(providerEmail!), providerNormalized);
+        }
+
+        if (string.IsNullOrWhiteSpace(typedEmail))
+        {
+            throw new ArgumentException("Add an email to link this sign-in.");
+        }
+
+        if (!TryNormalize(typedEmail, out var typedNormalized))
+        {
+            throw new ArgumentException("Enter a valid email address.");
+        }
+
+        if (!await IsFreeAsync(account, typedNormalized, ct).ConfigureAwait(false))
+        {
+            throw new InvalidOperationException("That email is already used.");
+        }
+
+        return (CanonicalAddress(typedEmail), typedNormalized);
+    }
+
+    private async Task<bool> IsFreeAsync(Account account, string normalized, CancellationToken ct)
+    {
+        var owner = await _accountRepository.GetByNormalizedEmailAsync(normalized, ct).ConfigureAwait(false);
+        return owner is null || owner.Id == account.Id;
+    }
+
+    // The address as stored for display: the bare address, so Identity's user-name validation accepts it.
+    private static string CanonicalAddress(string value) => new System.Net.Mail.MailAddress(value.Trim()).Address;
+
+    private static bool TryNormalize(string? value, out string normalized)
+    {
+        normalized = string.Empty;
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return false;
+        }
+
+        try
+        {
+            normalized = new System.Net.Mail.MailAddress(value.Trim()).Address.ToUpperInvariant();
+            return true;
+        }
+        catch (FormatException)
+        {
+            return false;
+        }
     }
 
     public Task<bool> UnlinkAsync(Guid id, CancellationToken ct = default) =>

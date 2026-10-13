@@ -35,6 +35,8 @@ internal sealed class SchemaMigrator
         var sessionsGainedIngress = !ColumnExists(conn, "auth_sessions", "issued_ingress");
         EnsureCurrentColumns(conn);
         EnsureHouseholdAdministrators(conn);
+        // After every accounts column exists (households and administrators add theirs above), so the rebuild keeps them all.
+        EnsureAccountEmailIsOptional(conn);
         AddColumnIfMissing(conn, "profiles", "avatar_icon",
             "ALTER TABLE profiles ADD COLUMN avatar_icon TEXT;");
         AddColumnIfMissing(conn, "profiles", "content_limit",
@@ -1850,6 +1852,83 @@ internal sealed class SchemaMigrator
                 """;
             cmd.ExecuteNonQuery();
         });
+    }
+
+    /// <summary>
+    /// A this-computer account needs no email until it is secured for use away from home, so <c>accounts.email</c> and
+    /// <c>normalized_email</c> allow NULL (the unique index stays; SQLite allows many NULLs). SQLite cannot drop a
+    /// NOT NULL, so the table is rebuilt once with every column and the index kept. Does nothing afterwards.
+    /// Foreign keys are off during the swap so ON DELETE CASCADE cannot erase grants, credentials or sessions.
+    /// </summary>
+    private static void EnsureAccountEmailIsOptional(SqliteConnection conn)
+    {
+        bool stillRequired;
+        using (var read = conn.CreateCommand())
+        {
+            read.CommandText = "SELECT \"notnull\" FROM pragma_table_info('accounts') WHERE name='normalized_email';";
+            var result = read.ExecuteScalar();
+            stillRequired = result is not null && Convert.ToInt32(result, System.Globalization.CultureInfo.InvariantCulture) != 0;
+        }
+
+        if (!stillRequired)
+        {
+            return;
+        }
+
+        bool foreignKeysWereOn;
+        using (var read = conn.CreateCommand())
+        {
+            read.CommandText = "PRAGMA foreign_keys;";
+            foreignKeysWereOn = Convert.ToInt32(read.ExecuteScalar(), System.Globalization.CultureInfo.InvariantCulture) != 0;
+        }
+
+        SetForeignKeys(conn, false);
+        try
+        {
+            DatabaseConnection.ExecuteStartupTransaction(conn, transaction =>
+            {
+                using var cmd = conn.CreateCommand();
+                cmd.Transaction = transaction;
+                cmd.CommandText = """
+                    DROP TABLE IF EXISTS accounts_rebuild;
+                    CREATE TABLE accounts_rebuild (
+                        id               BLOB NOT NULL PRIMARY KEY,
+                        email            TEXT,
+                        normalized_email TEXT,
+                        is_enabled       INTEGER NOT NULL DEFAULT 1 CHECK (is_enabled IN (0, 1)),
+                        is_administrator INTEGER NOT NULL DEFAULT 0 CHECK (is_administrator IN (0, 1)),
+                        authorization_version INTEGER NOT NULL DEFAULT 1 CHECK (authorization_version > 0),
+                        created_at       TEXT NOT NULL,
+                        updated_at       TEXT NOT NULL,
+                        household_id     BLOB REFERENCES households(id),
+                        household_admin  INTEGER NOT NULL DEFAULT 0 CHECK (household_admin IN (0, 1)),
+                        grants_inherit_from_account_id BLOB REFERENCES accounts(id) ON DELETE SET NULL,
+                        this_computer_only INTEGER NOT NULL DEFAULT 0 CHECK (this_computer_only IN (0, 1)),
+                        must_change_password INTEGER NOT NULL DEFAULT 0 CHECK (must_change_password IN (0, 1)),
+                        temporary_password_expires_at TEXT
+                    );
+
+                    INSERT INTO accounts_rebuild
+                        (id, email, normalized_email, is_enabled, is_administrator, authorization_version, created_at, updated_at,
+                         household_id, household_admin, grants_inherit_from_account_id, this_computer_only,
+                         must_change_password, temporary_password_expires_at)
+                    SELECT id, email, normalized_email, is_enabled, is_administrator, authorization_version, created_at, updated_at,
+                           household_id, household_admin, grants_inherit_from_account_id, this_computer_only,
+                           must_change_password, temporary_password_expires_at
+                    FROM accounts;
+
+                    DROP TABLE accounts;
+                    ALTER TABLE accounts_rebuild RENAME TO accounts;
+                    CREATE UNIQUE INDEX IF NOT EXISTS ux_accounts_normalized_email ON accounts(normalized_email);
+                    CREATE INDEX IF NOT EXISTS ix_accounts_household ON accounts(household_id);
+                    """;
+                cmd.ExecuteNonQuery();
+            });
+        }
+        finally
+        {
+            SetForeignKeys(conn, foreignKeysWereOn);
+        }
     }
 
     /// <summary>

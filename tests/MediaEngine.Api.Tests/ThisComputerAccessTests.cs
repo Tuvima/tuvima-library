@@ -64,7 +64,7 @@ public sealed class ThisComputerAccessTests : IDisposable
     // ---- Setup ----
 
     [Fact]
-    public async Task Setup_ThisComputer_OutsideAContainer_NeedsOnlyANameAndEmail()
+    public async Task Setup_ThisComputer_OutsideAContainer_NeedsOnlyAName()
     {
         await using var app = BuildSetupApplication();
         var token = await BeginSetupAsync(ClientIngress.ThisComputer);
@@ -72,7 +72,6 @@ public sealed class ThisComputerAccessTests : IDisposable
         var response = await SendAsync(app, "POST", "/setup/v1/administrator", new SetupAdministratorRequest
         {
             SignIn = SetupSignInModes.ThisComputer,
-            Email = "owner@example.com",
             DisplayName = "Owner",
             DeviceId = "browser",
             DeviceName = "Browser",
@@ -84,6 +83,8 @@ public sealed class ThisComputerAccessTests : IDisposable
         Assert.Equal(0, response.Json.GetProperty("recovery_codes").GetArrayLength());
         var account = Assert.Single(await _accounts.GetAllAsync());
         Assert.True(account.IsThisComputerOnly);
+        Assert.Null(account.Email);
+        Assert.Null(account.NormalizedEmail);
         Assert.Null(await _identities.GetAccountCredentialAsync(account.Id, AccountCredentialKind.Password));
         Assert.Equal(WhoCanConnectModes.HomeNetwork, _configuration.LoadNetwork().WhoCanConnect);
     }
@@ -125,16 +126,93 @@ public sealed class ThisComputerAccessTests : IDisposable
             DisplayName = "Owner",
             OriginalClientIngress = ClientIngress.ThisComputer,
         }, setupToken: token);
-        var withoutEmail = await SendAsync(app, "POST", "/setup/v1/administrator", new SetupAdministratorRequest
+        var withoutName = await SendAsync(app, "POST", "/setup/v1/administrator", new SetupAdministratorRequest
         {
             SignIn = SetupSignInModes.ThisComputer,
-            DisplayName = "Owner",
+            DisplayName = " ",
             OriginalClientIngress = ClientIngress.ThisComputer,
         }, setupToken: token);
 
         Assert.Equal(StatusCodes.Status400BadRequest, withPassword.Status);
-        Assert.Equal(StatusCodes.Status400BadRequest, withoutEmail.Status);
+        Assert.Equal(StatusCodes.Status400BadRequest, withoutName.Status);
         Assert.False(await _identity.IsAdministratorConfiguredAsync());
+    }
+
+    [Fact]
+    public async Task Setup_WithAPasswordButNoEmail_IsRefused()
+    {
+        await using var app = BuildSetupApplication();
+        var token = await BeginSetupAsync(ClientIngress.ThisComputer);
+
+        var response = await SendAsync(app, "POST", "/setup/v1/administrator", new SetupAdministratorRequest
+        {
+            Password = "correct horse battery staple",
+            DisplayName = "Owner",
+        }, setupToken: token);
+
+        Assert.Equal(StatusCodes.Status400BadRequest, response.Status);
+        Assert.False(await _identity.IsAdministratorConfiguredAsync());
+    }
+
+    // ---- Securing an account that has no email ----
+
+    [Fact]
+    public async Task Secure_WithoutAnEmail_OnAnAccountWithNone_IsRefusedAndChangesNothing()
+    {
+        var issued = await _identity.BootstrapThisComputerAdministratorAsync(null, "Owner", "d", "Browser", "Dashboard");
+        await using var app = BuildAuthenticationApplication();
+
+        var response = await SendAsync(app, "POST", "/auth/account/secure",
+            new SecureAccountRequest { Password = "correct horse battery staple", DeviceId = "d", DeviceName = "Browser" },
+            ingress: ClientIngress.ThisComputer, accountId: issued.Account.Id);
+
+        Assert.Equal(StatusCodes.Status400BadRequest, response.Status);
+        Assert.Contains("Add an email to secure this account.", response.Text);
+        var account = (await _accounts.GetByIdAsync(issued.Account.Id))!;
+        Assert.True(account.IsThisComputerOnly);
+        Assert.Null(account.Email);
+        Assert.Null(await _identities.GetAccountCredentialAsync(account.Id, AccountCredentialKind.Password));
+    }
+
+    [Fact]
+    public async Task Secure_WithAnEmail_StoresItAndTheEmailThenSignsIn()
+    {
+        var issued = await _identity.BootstrapThisComputerAdministratorAsync(null, "Owner", "d", "Browser", "Dashboard");
+        await using var app = BuildAuthenticationApplication();
+
+        var response = await SendAsync(app, "POST", "/auth/account/secure",
+            new SecureAccountRequest { Email = " Owner@Example.com ", Password = "correct horse battery staple", DeviceId = "d", DeviceName = "Browser" },
+            ingress: ClientIngress.ThisComputer, accountId: issued.Account.Id);
+
+        Assert.Equal(StatusCodes.Status200OK, response.Status);
+        var account = (await _accounts.GetByIdAsync(issued.Account.Id))!;
+        Assert.False(account.IsThisComputerOnly);
+        Assert.Equal("Owner@Example.com", account.Email);
+        Assert.Equal("OWNER@EXAMPLE.COM", account.NormalizedEmail);
+        var signIn = await _identity.AuthenticatePasswordAsync("owner@example.com", "correct horse battery staple", "tv", "TV", "Dashboard", ingress: ClientIngress.HomeNetwork);
+        Assert.True(signIn.Succeeded);
+    }
+
+    [Fact]
+    public async Task Secure_WithAnEmailAnotherAccountUses_IsRefused()
+    {
+        var issued = await _identity.BootstrapThisComputerAdministratorAsync(null, "Owner", "d", "Browser", "Dashboard");
+        var now = DateTimeOffset.UtcNow;
+        var otherId = Guid.NewGuid();
+        await _accounts.CreateAccountAsync(
+            new Account { Id = otherId, Email = "taken@example.com", NormalizedEmail = "TAKEN@EXAMPLE.COM", IsEnabled = true, AuthorizationVersion = 1, CreatedAt = now, UpdatedAt = now },
+            new AccountProfileGrant { AccountId = otherId, ProfileId = MediaEngine.Domain.Aggregates.Profile.SeedProfileId, IsDefault = true, IsEnabled = true, AuthorizationVersion = 1, GrantedAt = now },
+            new HashSet<AccountFeatureId>(), new HashSet<Guid>());
+        await using var app = BuildAuthenticationApplication();
+
+        var response = await SendAsync(app, "POST", "/auth/account/secure",
+            new SecureAccountRequest { Email = "TAKEN@example.com", Password = "another long password here", DeviceId = "d", DeviceName = "Browser" },
+            ingress: ClientIngress.ThisComputer, accountId: issued.Account.Id);
+
+        Assert.Equal(StatusCodes.Status409Conflict, response.Status);
+        var account = (await _accounts.GetByIdAsync(issued.Account.Id))!;
+        Assert.Null(account.Email);
+        Assert.True(account.IsThisComputerOnly);
     }
 
     [Fact]
@@ -395,8 +473,9 @@ public sealed class ThisComputerAccessTests : IDisposable
         builder.Services.AddSingleton<ISelfServiceAuthorizationService>(_ => null!);
         builder.Services.AddSingleton<IRequestAuthorityResolver>(_ => null!);
         builder.Services.AddSingleton<PhoneBackupProfileService>(_ => null!);
-        builder.Services.AddSingleton<IPasskeyHandler<Account>>(_ => null!);
-        builder.Services.AddSingleton<UserManager<Account>>(_ => null!);
+        // The secure endpoint binds both, but only touches them when a passkey is sent; these stand-ins are never called.
+        builder.Services.AddSingleton(Unused<IPasskeyHandler<Account>>());
+        builder.Services.AddSingleton((UserManager<Account>)System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(typeof(UserManager<Account>)));
         builder.Services.AddSingleton(new DashboardAuthorityProjector(
             _accounts,
             new ProfileRepository(_database),
@@ -481,7 +560,8 @@ public sealed class ThisComputerAccessTests : IDisposable
         bool dashboard = true,
         string? setupToken = null,
         string? sessionToken = null,
-        Dictionary<string, string>? extraHeaders = null)
+        Dictionary<string, string>? extraHeaders = null,
+        Guid? accountId = null)
     {
         var endpoint = Assert.Single(((IEndpointRouteBuilder)app).DataSources
             .SelectMany(source => source.Endpoints)
@@ -511,7 +591,9 @@ public sealed class ThisComputerAccessTests : IDisposable
         if (dashboard)
         {
             context.User = new ClaimsPrincipal(new ClaimsIdentity(
-                [new Claim(TuvimaClaimTypes.DashboardService, "true")], "test"));
+                accountId is { } id
+                    ? [new Claim(TuvimaClaimTypes.DashboardService, "true"), new Claim(TuvimaClaimTypes.AccountId, id.ToString("D"))]
+                    : [new Claim(TuvimaClaimTypes.DashboardService, "true")], "test"));
         }
 
         if (ingress is not null)

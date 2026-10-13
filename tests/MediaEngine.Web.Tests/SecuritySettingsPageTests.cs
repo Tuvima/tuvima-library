@@ -112,6 +112,41 @@ public sealed class SecuritySettingsPageTests : AsyncBunitContext
     }
 
     [Fact]
+    public async Task SecureSheet_AsksForAnEmail_WhenTheAccountHasNone()
+    {
+        _handler.HasPassword = false;
+        _handler.Email = null;
+        var cut = Render<SecuritySettingsPage>();
+        cut.WaitForElement("[data-nav-row='password']");
+        Assert.Contains("None", cut.Find("[data-nav-row='email']").TextContent, StringComparison.Ordinal);
+
+        await cut.InvokeAsync(() => cut.Find("[data-nav-row='password']").Click());
+
+        var form = cut.Find("[role='dialog'] form[action='/account/secure']");
+        Assert.NotNull(form.QuerySelector("input[name='email']"));
+        var submit = form.QuerySelector("button[type='submit']")!;
+        Assert.True(submit.HasAttribute("disabled"));
+        cut.Find("input[name='email']").Input("not an email");
+        cut.Find("input[name='password']").Input("a-long-test-password");
+        cut.Find("input[name='confirmPassword']").Input("a-long-test-password");
+        Assert.True(cut.Find("[role='dialog'] button[type='submit']").HasAttribute("disabled"));
+        cut.Find("input[name='email']").Input("owner@example.test");
+        Assert.False(cut.Find("[role='dialog'] button[type='submit']").HasAttribute("disabled"));
+    }
+
+    [Fact]
+    public async Task SecureSheet_DoesNotAskForAnEmail_WhenTheAccountAlreadyHasOne()
+    {
+        _handler.HasPassword = false;
+        var cut = Render<SecuritySettingsPage>();
+        cut.WaitForElement("[data-nav-row='password']");
+
+        await cut.InvokeAsync(() => cut.Find("[data-nav-row='password']").Click());
+
+        Assert.Null(cut.Find("[role='dialog'] form[action='/account/secure']").QuerySelector("input[name='email']"));
+    }
+
+    [Fact]
     public async Task Administrator_SeesAccessRows_AndSignOutEverywhereElseRevokesAfterConfirmation()
     {
         _handler.HasPassword = true;
@@ -172,6 +207,7 @@ public sealed class SecuritySettingsPageTests : AsyncBunitContext
         public Guid Profile { get; } = Guid.NewGuid();
         public Guid CurrentSession { get; } = Guid.NewGuid();
         public bool HasPassword { get; set; }
+        public string? Email { get; set; } = "owner@example.test";
         public int Revokes { get; private set; }
 
         public DashboardAuthorityResponse AdminAuthority() => new(
@@ -191,7 +227,7 @@ public sealed class SecuritySettingsPageTests : AsyncBunitContext
             var response = path switch
             {
                 "/access/self-service" => Json(new AccountSelfServiceResponse(
-                    Account, "owner@example.test", Profile, Profile, [], [],
+                    Account, Email, Profile, Profile, [], [],
                     new AccountSecurityCapabilitiesResponse(HasPassword, false, false, HasPassword, false, false, false, []))),
                 "/auth/sessions" => Json(Sessions()),
                 "/auth/passkeys" => Json(Array.Empty<PasskeyCredentialResponse>()),

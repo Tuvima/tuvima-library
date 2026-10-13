@@ -35,7 +35,7 @@ This page sets a password only; passkeys can be added afterwards in **Settings �
 
 Choose **Set a temporary password** to type one yourself or press **Generate** for a random 16-character one. It is shown once, with a **Copy** button. The first time the person signs in with it, Tuvima asks them to choose their own password and nothing else works until they do. (On a person's own **Sign-in** sheet the **Must change it at first sign-in** switch is on by default; turning it off sets an ordinary password that does not expire.) Choosing a new one signs out every other device. A temporary password stops working after 7 days; after that the person sees "Ask your administrator for a new temporary password." and you can set another from the user's actions menu (**Set temporary password**), which also signs them out everywhere.
 
-Every account needs an email address to sign in. Someone who does not need their own sign-in is added as a profile in an existing household instead, and is opened by switching profiles.
+Every sign-in that works away from home needs an email address. The administrator you create at setup with **Start without a password** has only a name until you secure the account in **Settings → Security**. Someone who does not need their own sign-in is added as a profile in an existing household instead, and is opened by switching profiles.
 
 ## Add a person, and give them their own sign-in
 
@@ -75,7 +75,7 @@ Passkeys need a secure browser origin. Development on `localhost` is allowed; ot
 
 ## Secure a this-computer account
 
-If you started Tuvima on your desktop without a password, open **Settings → Security → Password**, which shows **Secure your account**. Enter a password (at least 12 characters) and confirm it. You get a new set of recovery codes, and the account becomes a normal one: it can sign in from other devices once **Who can connect** allows it. You can add a passkey afterwards. Until you do this, Tuvima will not let you open the door wider than *This computer*. (Installs that start with a password begin on *Home network* instead.)
+If you started Tuvima on your desktop without a password, open **Settings → Security → Password**, which shows **Secure your account**. Enter an email (only if the account has none; you sign in with it away from home), then a password (at least 12 characters), and confirm it. You get a new set of recovery codes, and the account becomes a normal one: it can sign in from other devices once **Who can connect** allows it. You can add a passkey afterwards. Until you do this, Tuvima will not let you open the door wider than *This computer*. (Installs that start with a password begin on *Home network* instead.)
 
 ## Confirm it's you
 

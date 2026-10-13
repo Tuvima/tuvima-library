@@ -14,7 +14,8 @@ public sealed class AccountPasskeyStore(IAccountRepository accounts, IDatabaseCo
     public Task<string?> GetUserNameAsync(Account user, CancellationToken ct) => Task.FromResult<string?>(user.Email ?? user.Id.ToString("D"));
     public Task SetUserNameAsync(Account user, string? userName, CancellationToken ct) => Task.CompletedTask;
     public Task<string?> GetNormalizedUserNameAsync(Account user, CancellationToken ct) => Task.FromResult(user.NormalizedEmail);
-    public Task SetNormalizedUserNameAsync(Account user, string? normalizedName, CancellationToken ct) { user.NormalizedEmail = normalizedName; return Task.CompletedTask; }
+    // Tuvima owns normalized_email (it is null until an account has an email), so Identity's own normalising must not write the account id into it.
+    public Task SetNormalizedUserNameAsync(Account user, string? normalizedName, CancellationToken ct) => Task.CompletedTask;
     public async Task<IdentityResult> CreateAsync(Account user, CancellationToken ct) { await accounts.InsertAsync(user, ct); return IdentityResult.Success; }
     public async Task<IdentityResult> UpdateAsync(Account user, CancellationToken ct) => await accounts.UpdateAsync(user, ct) ? IdentityResult.Success : IdentityResult.Failed(new IdentityError { Description = "Account was not found." });
     public Task<IdentityResult> DeleteAsync(Account user, CancellationToken ct) => Task.FromResult(IdentityResult.Failed(new IdentityError { Description = "Account deletion is managed by Tuvima." }));

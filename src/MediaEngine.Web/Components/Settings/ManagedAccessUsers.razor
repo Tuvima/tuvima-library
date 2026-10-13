@@ -1063,7 +1063,7 @@
     private string ProfileAvatarColor(Guid id) => _profiles.FirstOrDefault(profile => profile.Id == id)?.AvatarColor ?? "#7C4DFF";
     private string Pin(Guid id) => _pins.GetValueOrDefault(id, "");
     private string ProtectionOption(Guid id) => _protectionOptions.GetValueOrDefault(id, "FixedDuration:30");
-    private static string AccountLabel(AccountAccessResponse account) => account.Email ?? "Account";
+    private static string AccountLabel(AccountAccessResponse account) => string.IsNullOrWhiteSpace(account.Email) ? "No email" : account.Email;
     private static string Initials(string value) => string.Concat(value.Split(' ', StringSplitOptions.RemoveEmptyEntries).Take(2).Select(part => char.ToUpperInvariant(part[0])));
     private void ClearMessages() => _error = _drawerMessage = string.Empty;
 

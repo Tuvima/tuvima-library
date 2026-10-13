@@ -205,6 +205,8 @@ public sealed class SetProfilePinRequest
 /// </summary>
 public sealed class SecureAccountRequest
 {
+    /// <summary>The email to sign in with away from this computer. Required when the account has none; ignored when it has one.</summary>
+    [JsonPropertyName("email")] public string? Email { get; init; }
     [JsonPropertyName("password")] public string? Password { get; init; }
     [JsonPropertyName("passkey_credential_json")] public string? PasskeyCredentialJson { get; init; }
     [JsonPropertyName("passkey_state")] public string? PasskeyState { get; init; }
@@ -342,6 +344,8 @@ public sealed record AcceptAccountInvitationRequest(
 public sealed class LinkAccountExternalLoginRequest
 {
     [JsonPropertyName("transaction_ticket")] public string TransactionTicket { get; init; } = string.Empty;
+    /// <summary>The email for an account that has none, used when the outside sign-in does not supply a usable one.</summary>
+    [JsonPropertyName("email")] public string? Email { get; init; }
 }
 
 public sealed class AccountExternalLoginDto
