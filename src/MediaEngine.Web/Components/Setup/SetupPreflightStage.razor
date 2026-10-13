@@ -1,144 +1,56 @@
 @namespace MediaEngine.Web.Components.Setup
 @using MediaEngine.Contracts.Setup
-@using MediaEngine.Contracts.Settings
 
 <div class="setup-stage-content">
-    <div class="setup-stage__heading">
-        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.FactCheck" />
-        <div><h2 id="setup-stage-title">Checking your server</h2><p>One moment while Tuvima checks that it can store its catalogue and read your drives.</p></div>
-    </div>
-
-    @if (ShowRestore)
+    @if (!Busy && NeedsAttention)
     {
-        <div class="setup-restore">
-            <h3>Restore a backup file</h3>
-            <p>Choose a Tuvima Library backup ZIP. It is inspected before anything is replaced.</p>
-            <InputFile OnChange="UploadBackup" accept=".zip,application/zip" class="setup-file-input" />
-            @if (Backup is not null)
+        <div class="setup-stage__heading">
+            <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.FactCheck" />
+            <div><h2 id="setup-stage-title">Tuvima needs a hand</h2><p>Something on this server stopped setup from getting ready.</p></div>
+        </div>
+        <AppAlert Tone="AppUiTone.Error">
+            @if (Problems.Count == 0)
             {
-                <dl class="setup-facts"><div><dt>File</dt><dd>@Backup.FileName</dd></div><div><dt>Created</dt><dd>@(Backup.CreatedAt?.ToString("g") ?? "Unknown")</dd></div><div><dt>Database epoch</dt><dd>@Backup.DatabaseEpoch</dd></div><div><dt>Entries</dt><dd>@Backup.EntryCount</dd></div></dl>
-                <AppAlert Tone="AppUiTone.Warning">@Backup.Warning The application will restart after confirmation.</AppAlert>
-                <div class="setup-actions"><AppButton Label="Cancel restore" OnClick="CancelRestore" /><AppButton Label="Restore and restart" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Warning" Loading="@Busy" OnClick="ConfirmRestore" /></div>
+                <p>@Error</p>
             }
             else
             {
-                <div class="setup-actions"><AppButton Label="Cancel restore" OnClick="CancelRestore" /></div>
+                @foreach (var problem in Problems)
+                {
+                    <p>@problem</p>
+                }
             }
-        </div>
-    }
-    else if (!Busy && !string.IsNullOrWhiteSpace(Error))
-    {
-        <AppAlert Tone="AppUiTone.Error">@Error</AppAlert>
-        <div class="setup-actions"><AppButton Label="Retry checks" OnClick="Retry" /></div>
-        @if (Revisiting) { <SetupStageFooter Back="Back" ShowReturnToCurrentStep="true" ReturnToCurrentStep="ReturnToCurrentStep" /> }
-    }
-    else if (Preflight is null || Busy)
-    {
-        <div class="setup-preparing" role="status" aria-live="polite">
-            <AppSpinner Indeterminate="true" Color="AppColor.Primary" />
-            <div><h3>Preparing your server…</h3><p>These checks usually take only a moment.</p></div>
-        </div>
-        <ul class="setup-preparing__checks">
-            <li>Checking storage</li><li>Checking configuration</li><li>Checking database</li><li>Checking media tools</li>
-        </ul>
-    }
-    else if (Preflight.Passed && Revisiting)
-    {
-        <AppAlert Tone="AppUiTone.Success">Server checks passed. Storage, configuration, database and media tools are all ready.</AppAlert>
-        <SetupStageFooter Back="Back" ShowReturnToCurrentStep="true" ReturnToCurrentStep="ReturnToCurrentStep">
-            <AppButton Label="Continue" EndIcon="@AppMaterialIcons.Outlined.ArrowForward" OnClick="Next" />
-        </SetupStageFooter>
-    }
-    else if (Preflight.Passed)
-    {
-        <AppAlert Tone="AppUiTone.Success">Server checks passed. Continuing to administrator setup…</AppAlert>
+            <p>Fix this on the server, then try again.</p>
+        </AppAlert>
+        <div class="setup-actions"><AppButton Label="Retry" StartIcon="@AppMaterialIcons.Outlined.Refresh" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Loading="@Busy" OnClick="Retry" /></div>
     }
     else
     {
-        <AppAlert Tone="AppUiTone.Error">Tuvima Library needs attention before setup can continue. Fix the blocked location below, then run the checks again.</AppAlert>
-        @if (Libraries is not null)
-        {
-            <div class="setup-storage-editor">
-                <div><h3>Server storage locations</h3><p>Use paths visible to the Tuvima Library server or container. Writable locations must permit server-side writes.</p></div>
-                @foreach (var location in Libraries.StorageLocations)
-                {
-                    <div class="setup-storage-row">
-                        <AppTextField Label="@location.Label" Value="@location.Path" ValueChanged="@((string? value) => location.Path = value?.Trim() ?? string.Empty)" />
-                        <AppStatusBadge Text="@(location.AllowWrite ? "Writable" : "Read only")" Tone="@(location.AllowWrite ? AppUiTone.Success : AppUiTone.Neutral)" />
-                        @if (CanIgnore(location))
-                        {
-                            <AppButton Label="Ignore this location" ButtonStyle="AppButtonStyle.Text" Loading="@Busy" OnClick="@(() => IgnoreAsync(location))" />
-                        }
-                    </div>
-                }
-                <div class="setup-actions"><AppButton Label="Save and check again" StartIcon="@AppMaterialIcons.Outlined.Refresh" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Loading="@Busy" OnClick="SaveStorageLocations" /></div>
-            </div>
-        }
-        <div class="setup-actions setup-actions--secondary"><AppButton Label="Run checks again" StartIcon="@AppMaterialIcons.Outlined.Refresh" ButtonStyle="AppButtonStyle.Text" Loading="@Busy" OnClick="Retry" /></div>
-    }
-
-    @if (Preflight is { Passed: false })
-    {
-        <ul class="setup-problems">
-            @foreach (var check in Preflight.Checks.Where(check => check.Status != "passed"))
-            {
-                <li><strong>@check.Label</strong> <small>@check.Detail</small></li>
-            }
-        </ul>
-    }
-
-    @if (Revisiting && Preflight is { Passed: false })
-    {
-        <SetupStageFooter Back="Back" ShowReturnToCurrentStep="true" ReturnToCurrentStep="ReturnToCurrentStep" />
-    }
-
-    @if (!ShowRestore)
-    {
-        <div class="setup-actions setup-actions--secondary"><AppButton Label="Restore a backup instead" StartIcon="@AppMaterialIcons.Outlined.Restore" ButtonStyle="AppButtonStyle.Text" OnClick="OpenRestore" /></div>
+        <div class="setup-stage__heading">
+            <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.FactCheck" />
+            <div><h2 id="setup-stage-title">Getting things ready</h2><p>This usually takes only a moment.</p></div>
+        </div>
+        <div class="setup-preparing" role="status" aria-live="polite">
+            <AppSpinner Indeterminate="true" Color="AppColor.Primary" />
+            <span>Getting things ready…</span>
+        </div>
     }
 </div>
 
 @code {
     [Parameter] public SetupPreflightDto? Preflight { get; set; }
-    [Parameter] public SetupBackupInspectionDto? Backup { get; set; }
-    [Parameter] public LibrariesConfigurationDto? Libraries { get; set; }
     [Parameter] public string? Error { get; set; }
     [Parameter] public bool Busy { get; set; }
-    [Parameter] public bool ShowRestore { get; set; }
-    [Parameter] public EventCallback OpenRestore { get; set; }
-    [Parameter] public EventCallback CancelRestore { get; set; }
-    [Parameter] public EventCallback<InputFileChangeEventArgs> UploadBackup { get; set; }
-    [Parameter] public EventCallback ConfirmRestore { get; set; }
     [Parameter] public EventCallback Retry { get; set; }
-    // True when the person came back to this step after it was already finished (sidebar or Back).
-    [Parameter] public bool Revisiting { get; set; }
-    [Parameter] public EventCallback Back { get; set; }
-    [Parameter] public EventCallback Next { get; set; }
-    [Parameter] public EventCallback ReturnToCurrentStep { get; set; }
-    [Parameter] public EventCallback SaveStorageLocations { get; set; }
 
-    // A location that fails its check can be dropped so setup can carry on; the one View uses is needed and stays.
-    private bool CanIgnore(ServerStorageLocationDto location) =>
-        Libraries is not null
-        && !string.Equals(Libraries.ViewStorage.StorageLocationId, location.Id, StringComparison.OrdinalIgnoreCase)
-        && Preflight?.Checks.Any(check => check.Key == $"storage-{location.Id}" && check.Status != "passed") == true;
+    private bool NeedsAttention => !string.IsNullOrWhiteSpace(Error) || Preflight is { Passed: false };
 
-    private async Task IgnoreAsync(ServerStorageLocationDto location)
-    {
-        if (Libraries is null) return;
-        Libraries.StorageLocations.Remove(location);
-        // Folders that sit inside the ignored location are ignored with it, so nothing is left pointing at it.
-        var root = Path.TrimEndingDirectorySeparator(location.Path);
-        foreach (var library in Libraries.Libraries)
-        {
-            library.Sources.RemoveAll(source =>
-                source.Path.StartsWith(root + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase)
-                || source.Path.StartsWith(root + Path.AltDirectorySeparatorChar, StringComparison.OrdinalIgnoreCase)
-                || string.Equals(source.Path, root, StringComparison.OrdinalIgnoreCase));
-            if (library.Sources.All(source => source.Id != library.PrimaryDestinationSourceId)) library.PrimaryDestinationSourceId = null;
-        }
-        await SaveStorageLocations.InvokeAsync();
-    }
-
-    private static string Friendly(string value) => char.ToUpperInvariant(value[0]) + value[1..].Replace('_', ' ');
+    // The failing checks' own explanations, in everyday words; the internal check names are never shown.
+    private IReadOnlyList<string> Problems => Preflight is { Passed: false }
+        ? Preflight.Checks
+            .Where(check => check.Status != "passed" && !string.IsNullOrWhiteSpace(check.Detail))
+            .Select(check => check.Detail.Trim())
+            .Distinct(StringComparer.Ordinal)
+            .ToList()
+        : [];
 }

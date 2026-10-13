@@ -1,4 +1,5 @@
 @namespace MediaEngine.Web.Components.Setup
+@using MediaEngine.Contracts.Setup
 
 <div class="setup-stage-content">
     <div class="setup-stage__heading">
@@ -18,6 +19,29 @@
         <AppButton Label="Continue" EndIcon="@AppMaterialIcons.Outlined.ArrowForward" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary"
                    Loading="@Busy" Disabled="@(string.IsNullOrWhiteSpace(ServerName))" OnClick="Save" />
     </SetupStageFooter>
+
+    @if (ShowRestore)
+    {
+        <div class="setup-restore">
+            <h3>Restore a backup file</h3>
+            <p>Choose a Tuvima Library backup ZIP. It is inspected before anything is replaced.</p>
+            <InputFile OnChange="UploadBackup" accept=".zip,application/zip" class="setup-file-input" />
+            @if (Backup is not null)
+            {
+                <dl class="setup-facts"><div><dt>File</dt><dd>@Backup.FileName</dd></div><div><dt>Created</dt><dd>@(Backup.CreatedAt?.ToString("g") ?? "Unknown")</dd></div><div><dt>Database epoch</dt><dd>@Backup.DatabaseEpoch</dd></div><div><dt>Entries</dt><dd>@Backup.EntryCount</dd></div></dl>
+                <AppAlert Tone="AppUiTone.Warning">@Backup.Warning The application will restart after confirmation.</AppAlert>
+                <div class="setup-actions"><AppButton Label="Cancel restore" OnClick="CancelRestore" /><AppButton Label="Restore and restart" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Warning" Loading="@Busy" OnClick="ConfirmRestore" /></div>
+            }
+            else
+            {
+                <div class="setup-actions"><AppButton Label="Cancel restore" OnClick="CancelRestore" /></div>
+            }
+        </div>
+    }
+    else
+    {
+        <div class="setup-actions setup-actions--secondary"><AppButton Label="Restore a backup instead" StartIcon="@AppMaterialIcons.Outlined.Restore" ButtonStyle="AppButtonStyle.Text" OnClick="OpenRestore" /></div>
+    }
 </div>
 
 @code {
@@ -30,6 +54,12 @@
     [Parameter] public EventCallback Back { get; set; }
     [Parameter] public bool ShowReturnToCurrentStep { get; set; }
     [Parameter] public EventCallback ReturnToCurrentStep { get; set; }
+    [Parameter] public SetupBackupInspectionDto? Backup { get; set; }
+    [Parameter] public bool ShowRestore { get; set; }
+    [Parameter] public EventCallback OpenRestore { get; set; }
+    [Parameter] public EventCallback CancelRestore { get; set; }
+    [Parameter] public EventCallback<InputFileChangeEventArgs> UploadBackup { get; set; }
+    [Parameter] public EventCallback ConfirmRestore { get; set; }
 
     // The network name follows the friendly name until the person edits it themselves.
     private bool _hostEdited;
