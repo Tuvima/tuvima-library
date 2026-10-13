@@ -45,6 +45,7 @@ internal static class LibraryMutationEndpoints
                     StorageLocations = dto.StorageLocations,
                     ViewStorage = dto.ViewStorage,
                     PersonalLibraryPolicy = dto.PersonalLibraryPolicy,
+                    FileHandling = dto.FileHandling,
                 });
                 var error = SettingsEndpoints.ValidateViewStorage(proposed)
                     ?? SettingsEndpoints.ValidateViewRootChange(current, proposed)

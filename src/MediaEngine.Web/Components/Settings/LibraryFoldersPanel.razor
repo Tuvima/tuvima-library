@@ -98,21 +98,13 @@
                             <span class="library-folders__name"><AppMaterialIcon Icon="@AppMaterialIcons.Filled.Folder" /><strong>@FriendlyName(source)</strong></span>
                             <span class="library-folders__path" title="@source.Path">@source.Path</span>
                             <span class="library-folders__row-actions">
-                                @if (source.AcceptsNewMedia)
+                                @if (IsDestination(source))
                                 {
-                                    <AppStatusBadge Text="Accepts new media" Tone="AppUiTone.Success" />
+                                    <AppStatusBadge Text="Destination" Tone="AppUiTone.Success" />
                                 }
                                 <AppStatusBadge Text="@ModeLabel(source)" Tone="@(IsManaged(source) ? AppUiTone.Info : AppUiTone.Neutral)" />
                                 @if (!ReadOnly)
                                 {
-                                    @if (!IsManaged(source))
-                                    {
-                                        <AppIconButton Icon="@(source.AcceptsNewMedia ? AppMaterialIcons.Outlined.DownloadDone : AppMaterialIcons.Outlined.MoveToInbox)"
-                                                       Tooltip="@(source.AcceptsNewMedia ? "Stop accepting new media" : "Accept new media: imported files can be added here")"
-                                                       AriaLabel="@(source.AcceptsNewMedia ? $"Stop {FriendlyName(source)} accepting new media" : $"Let {FriendlyName(source)} accept new media")"
-                                                       Disabled="@_saving"
-                                                       OnClick="@(() => ToggleAcceptsNewMediaAsync(source))" />
-                                    }
                                     <AppIconButton Icon="@(IsManaged(source) ? AppMaterialIcons.Outlined.Lock : AppMaterialIcons.Outlined.DriveFileMove)"
                                                    Tooltip="@(IsManaged(source) ? "Leave as-is" : "Let Tuvima manage this folder")"
                                                    AriaLabel="@(IsManaged(source) ? $"Leave {FriendlyName(source)} as-is" : $"Let Tuvima manage {FriendlyName(source)}")"
@@ -167,7 +159,7 @@
                 {
                     <AppAlert Tone="AppUiTone.Warning">
                         Import won't run until every type has a destination. Still needed: @string.Join(", ", ImportStatus.MissingTypes).
-                        Add a folder that Tuvima manages, or choose Accept new media on a folder you use as-is.
+                        Add a folder that Tuvima manages for each type. Folders used as-is are never changed, so they can't take imports.
                     </AppAlert>
                 }
             }
@@ -271,6 +263,8 @@
     private string TypeClass(LibraryTypeOption type) => $"library-folders__type{(type.Key == _selected.Key ? " is-active" : string.Empty)}";
     private void Select(LibraryTypeOption type) { _selected = type; _notice = null; }
     private static bool IsManaged(LibrarySourceDto source) => source.ManagementMode == "managed_by_tuvima";
+    private bool IsDestination(LibrarySourceDto source) => IsManaged(source)
+        && string.Equals(source.Id, SelectedLibrary?.PrimaryDestinationSourceId, StringComparison.OrdinalIgnoreCase);
     private static string ModeLabel(LibrarySourceDto source) => IsManaged(source) ? "Managed by Tuvima" : "Used as-is";
     private static string FriendlyName(LibrarySourceDto source) => string.IsNullOrWhiteSpace(source.Notes)
         ? Path.GetFileName(source.Path.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar))
@@ -328,24 +322,19 @@
         }
 
         var library = Clone(SelectedLibrary) ?? NewLibrary(_selected);
-        var isPrimary = managed && library.GetPrimaryDestination() is null;
+        // The Engine makes the first managed folder the library's destination when it saves.
         var source = new LibrarySourceDto
         {
             Id = Guid.NewGuid().ToString("D"),
             Path = selected.Path,
             Notes = Path.GetFileName(selected.Path.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)),
-            Role = isPrimary ? "primary_destination" : "secondary",
             ManagementMode = managed ? "managed_by_tuvima" : "existing_library",
             SourceType = "local_folder",
             IncludeSubdirectories = true,
             AccessMode = managed ? "writable" : "read_only",
-            ParticipatesInOrganization = managed,
-            IntakeRole = isPrimary ? "direct" : "none",
-            WritebackOverride = false,
         };
         if (string.IsNullOrWhiteSpace(source.Notes)) source.Notes = selected.Path;
         library.Sources.Add(source);
-        if (isPrimary) library.PrimaryDestinationSourceId = source.Id;
         await SaveAsync(library, "Folder added.");
     }
 
@@ -366,34 +355,10 @@
             return;
         }
 
-        if (managed) target.AcceptsNewMedia = false; // managed folders already take new media
+        // The Engine keeps or re-picks the library's destination when it saves.
         target.ManagementMode = managed ? "managed_by_tuvima" : "existing_library";
         target.AccessMode = managed ? "writable" : "read_only";
-        target.ParticipatesInOrganization = managed;
-        target.WritebackOverride = false;
-        NormalizePrimaryDestination(library);
         await SaveAsync(library, managed ? "Tuvima will now manage this folder." : "This folder will be used as-is.");
-    }
-
-    private async Task ToggleAcceptsNewMediaAsync(LibrarySourceDto source)
-    {
-        var library = Clone(SelectedLibrary);
-        var target = library?.Sources.FirstOrDefault(item => item.Id == source.Id);
-        if (library is null || target is null || _saving || IsManaged(target)) return;
-        var accept = !target.AcceptsNewMedia;
-        if (accept)
-        {
-            // New files are added to the folder, so Tuvima must be able to write there. Existing files are never touched.
-            var validation = await ValidateAsync(target.Path, ServerFolderSelectionModes.ManagedLibrary, target.Id);
-            if (validation is null || !validation.CanSelect)
-            {
-                _notice = validation?.Issues.FirstOrDefault()?.Message ?? ApiClient.LastError ?? "Tuvima can't add files to this folder.";
-                return;
-            }
-        }
-
-        target.AcceptsNewMedia = accept;
-        await SaveAsync(library, accept ? "New media can now be added to this folder." : "This folder no longer accepts new media.");
     }
 
     private async Task ChooseImportFolderAsync()
@@ -449,6 +414,7 @@
                 ViewStorage = baseline.ViewStorage,
                 Libraries = baseline.Libraries,
                 PersonalLibraryPolicy = baseline.PersonalLibraryPolicy,
+                FileHandling = baseline.FileHandling,
             };
             var saved = Embedded ? await ApiClient.UpdateSetupLibrariesAsync(request, SetupSession) : await ApiClient.UpdateLibrariesAsync(request);
             if (saved is null)
@@ -474,7 +440,6 @@
             yesText: "Remove", cancelText: "Keep");
         if (confirmed != true) return;
         library.Sources.RemoveAll(item => item.Id == source.Id);
-        NormalizePrimaryDestination(library);
         await SaveAsync(library, "Folder removed.");
     }
 
@@ -498,6 +463,7 @@
                     ViewStorage = baseline.ViewStorage,
                     Libraries = libraries,
                     PersonalLibraryPolicy = baseline.PersonalLibraryPolicy,
+                    FileHandling = baseline.FileHandling,
                 }, SetupSession);
             }
             else
@@ -534,36 +500,6 @@
         MediaTypes = [option.MediaTypes[0]],
         Visibility = "household",
         AcceptedIntakeModes = ["incoming_folder"],
-        DuplicatePolicy = "skip_exact",
-        OrganizationPolicy = new LibraryOrganizationPolicyDto { Mode = "tuvima_standard", PreserveOriginals = true },
+        OrganizationPolicy = new LibraryOrganizationPolicyDto { Mode = "tuvima_standard", WriteTags = true },
     };
-
-    // Exactly one managed folder is the primary destination; as-is folders are never one.
-    private static void NormalizePrimaryDestination(LibraryFolderDto library)
-    {
-        foreach (var source in library.Sources.Where(source => source.ManagementMode != "managed_by_tuvima"))
-        {
-            source.Role = "secondary";
-            source.IntakeRole = "none";
-        }
-
-        var managed = library.Sources.Where(source => source.ManagementMode == "managed_by_tuvima").ToList();
-        if (managed.Count == 0)
-        {
-            library.PrimaryDestinationSourceId = null;
-            return;
-        }
-
-        var primary = managed.FirstOrDefault(source => source.Role == "primary_destination"
-                && string.Equals(source.Id, library.PrimaryDestinationSourceId, StringComparison.OrdinalIgnoreCase))
-            ?? managed.FirstOrDefault(source => source.Role == "primary_destination")
-            ?? managed[0];
-        foreach (var source in managed)
-        {
-            var isPrimary = ReferenceEquals(source, primary);
-            source.Role = isPrimary ? "primary_destination" : "secondary";
-            source.IntakeRole = isPrimary ? "direct" : "none";
-        }
-        library.PrimaryDestinationSourceId = primary.Id;
-    }
 }

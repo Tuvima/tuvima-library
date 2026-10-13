@@ -60,12 +60,22 @@ public static class LibraryIntakeModes
         IncomingFolder or DragAndDrop or BrowserUpload or MobileBackup or ConnectedDeviceImport or Api;
 }
 
+/// <summary>
+/// What happens when a file turns out to be an exact copy of one already in the library. A name clash between
+/// different files is not a policy: the incoming file always gets a unique name.
+/// </summary>
 public static class LibraryDuplicatePolicies
 {
-    public const string SkipExact = "skip_exact";
+    /// <summary>The exact copy is indexed once and the incoming duplicate is removed where its folder allows it.</summary>
+    public const string KeepOne = "keep_one";
+
+    /// <summary>The exact copy is indexed once and both files stay on disk.</summary>
     public const string KeepBoth = "keep_both";
-    public const string ReplaceExisting = "replace_existing";
-    public static bool IsValid(string? value) => value is SkipExact or KeepBoth or ReplaceExisting;
+
+    public static bool IsValid(string? value) => value is KeepOne or KeepBoth;
+
+    /// <summary>Whether an incoming exact duplicate may be deleted (still subject to its folder's delete permission).</summary>
+    public static bool DeletesIncomingDuplicate(string? value) => value == KeepOne;
 }
 
 public static class LibraryOrganizationModes
@@ -80,14 +90,6 @@ public static class LibraryOrganizationModes
     public static bool IsValid(string? value) => value is
         TuvimaStandard or KeepOriginalNames or CaptureYearMonth or YearMonthDay
         or KeepOriginalFolders or FlatFolder or Custom;
-}
-
-public static class LibrarySourceRoles
-{
-    public const string PrimaryDestination = "primary_destination";
-    public const string Secondary = "secondary";
-    public const string Intake = "intake";
-    public static bool IsValid(string? value) => value is PrimaryDestination or Secondary or Intake;
 }
 
 public static class LibrarySourceManagementModes
@@ -114,11 +116,11 @@ public static class LibrarySourceAccessModes
     public static bool IsValid(string? value) => value is Writable or ReadOnly;
 }
 
-public static class LibrarySourceIntakeRoles
+/// <summary>Where a folder is in a switch from as-is to managed (Tuvima organising the files already there).</summary>
+public static class LibrarySourceConversionStates
 {
     public const string None = "none";
-    public const string Direct = "direct";
-    public const string MobileBackup = "mobile_backup";
-    public const string DeviceImport = "device_import";
-    public static bool IsValid(string? value) => value is None or Direct or MobileBackup or DeviceImport;
+    public const string Converting = "converting";
+    public const string Converted = "converted";
+    public static bool IsValid(string? value) => value is None or Converting or Converted;
 }

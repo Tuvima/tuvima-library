@@ -175,9 +175,8 @@ function Resolve-BookLibrarySourceFromSettings {
         Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_.path) }
     $source = $sources |
         Sort-Object @{ Expression = {
-            if ($_.role -eq "intake") { 0 }
-            elseif ($_.role -eq "primary_destination") { 1 }
-            else { 2 }
+            if ($_.id -eq $bookLibrary.primary_destination_source_id) { 0 }
+            else { 1 }
         } } |
         Select-Object -First 1
     if ($source) { return [string]$source.path }

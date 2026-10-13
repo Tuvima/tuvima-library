@@ -121,7 +121,8 @@ public sealed class TestHarnessGuardrailTests
         Assert.Contains("Resolve-BookLibrarySourceFromSettings", source);
         Assert.Contains("Invoke-Api \"/settings/libraries\"", source);
         Assert.Contains("$_.category -eq \"Books\"", source);
-        Assert.Contains("$_.role -eq \"intake\"", source);
+        Assert.Contains("$_.id -eq $bookLibrary.primary_destination_source_id", source);
+        Assert.DoesNotContain("$_.role", source);
         Assert.DoesNotContain("[\"watch_directories\"]", source);
         Assert.DoesNotContain("[\"watch_directory\"]", source);
     }

@@ -93,7 +93,6 @@ public sealed class SourceMutationIntegrationTests
                 new LibraryFolderEntry
                 {
                     Id = "library",
-                    PreserveOriginals = false,
                     PrimaryDestinationSourceId = sources.FirstOrDefault()?.Id,
                     Sources = sources,
                 },
@@ -108,7 +107,6 @@ public sealed class SourceMutationIntegrationTests
         Path = path,
         ManagementMode = managementMode,
         AccessMode = accessMode,
-        ParticipatesInOrganization = true,
     };
 
     private static string NewRoot(string name)

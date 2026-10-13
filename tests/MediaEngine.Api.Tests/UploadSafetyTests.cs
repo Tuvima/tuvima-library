@@ -22,11 +22,53 @@ public sealed class UploadSafetyTests
         Assert.Contains("engine.EnqueueIntakeAsync(new IntakeFileRequest", source, StringComparison.Ordinal);
         Assert.Contains("DestinationLibraryId = library.Id", source, StringComparison.Ordinal);
         Assert.Contains("SourceId = destination.Id", source, StringComparison.Ordinal);
+        // The upload goes through the same gate as every other filesystem change, as a destination, with no fallback folder.
+        Assert.Contains("FileSourceMutationPolicyFactory.Create(library, destination)", source, StringComparison.Ordinal);
+        Assert.Contains("Mutation = SourceMutationKind.UseAsDestination", source, StringComparison.Ordinal);
         Assert.DoesNotContain("ViewLibraryService", source, StringComparison.Ordinal);
         Assert.Contains("service.UploadAsync", view, StringComparison.Ordinal);
         Assert.Contains("EnsurePersonalSpaceAsync", view, StringComparison.Ordinal);
         Assert.Contains("UploadSafety.FinalizeUploadAsync", source, StringComparison.Ordinal);
         Assert.DoesNotContain("FirstOrDefault(path => !string.IsNullOrWhiteSpace(path) && Directory.Exists(path))", source, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData(true, true, true)]
+    [InlineData(true, false, false)]
+    [InlineData(false, true, false)]
+    public void UploadDestination_IsOnlyTheExplicitManagedFolder(bool managed, bool isExplicitDestination, bool expected)
+    {
+        var path = Path.Combine(Path.GetTempPath(), "tuvima-upload-destination", Guid.NewGuid().ToString("N"));
+        var chosen = new LibrarySourceConfig
+        {
+            Id = "chosen",
+            Path = path,
+            ManagementMode = managed ? LibrarySourceManagementModes.ManagedByTuvima : LibrarySourceManagementModes.ExistingLibrary,
+        };
+        var other = new LibrarySourceConfig
+        {
+            Id = "other",
+            Path = path + "-other",
+            ManagementMode = LibrarySourceManagementModes.ManagedByTuvima,
+        };
+        var library = new LibraryFolderConfig
+        {
+            Id = "library",
+            Sources = [other, chosen],
+            PrimaryDestinationSourceId = isExplicitDestination ? "chosen" : "other",
+        };
+        LibrariesConfigurationNormalizer.Normalize(new LibrariesConfiguration { Libraries = [library] });
+
+        var destination = library.PrimaryDestination;
+        var allowed = destination is not null && new MediaEngine.Ingestion.SourceMutationPolicyGate().Evaluate(new SourceMutationRequest
+        {
+            Source = MediaEngine.Ingestion.Services.FileSourceMutationPolicyFactory.Create(library, destination),
+            Mutation = SourceMutationKind.UseAsDestination,
+            Path = destination.Path,
+        }).Allowed;
+
+        // The upload lands in the library's explicit destination, never in another folder of the library.
+        Assert.Equal(expected, allowed && destination!.Id == "chosen");
     }
 
     [Fact]

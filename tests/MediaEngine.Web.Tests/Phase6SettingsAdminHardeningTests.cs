@@ -108,8 +108,13 @@ public sealed class Phase6SettingsAdminHardeningTests
         Assert.Contains("/settings/libraries/view", source, StringComparison.Ordinal);
         Assert.Contains("Not checked", source, StringComparison.Ordinal);
         Assert.Contains("<h3>Folders</h3>", source, StringComparison.Ordinal);
-        Assert.Contains("Primary destination", source, StringComparison.Ordinal);
-        Assert.Contains("Duplicate handling", source, StringComparison.Ordinal);
+        Assert.Contains("Destination for new media", source, StringComparison.Ordinal);
+        Assert.Contains("When a duplicate is found", source, StringComparison.Ordinal);
+        Assert.Contains("Write tags to files", source, StringComparison.Ordinal);
+        Assert.DoesNotContain("Protect existing files", source, StringComparison.Ordinal);
+        Assert.DoesNotContain("Folder writeback settings", source, StringComparison.Ordinal);
+        Assert.DoesNotContain("IntakeRole", source, StringComparison.Ordinal);
+        Assert.DoesNotContain("ParticipatesInOrganization", source, StringComparison.Ordinal);
         Assert.Contains("Visibility", source, StringComparison.Ordinal);
         Assert.Contains("AppDialogParameters<ServerFolderPicker>", source, StringComparison.Ordinal);
         Assert.Contains("GetLibrariesAsync", source, StringComparison.Ordinal);

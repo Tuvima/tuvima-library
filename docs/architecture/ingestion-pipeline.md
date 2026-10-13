@@ -100,16 +100,17 @@ The Engine is configured with logical **Libraries**, each declaring:
 | `area` | Read, Watch, Listen, or View |
 | `metadata_policy` | Enriched, local-preferred, local-only, or manual |
 | `sources` | Stable per-folder source identities and safety policy |
-| `primary_destination_source_id` | The explicit managed destination; never inferred from ordering |
+| `primary_destination_source_id` | The one managed folder new media goes into (null when there is none); an as-is folder is never one |
 | `accepted_intake_modes` | The direct intake mechanisms accepted by this library |
 
-Configuration lives in `config/libraries.json`. Schema 6 is required; obsolete top-level watch folders, flat source paths, and read-only flags are rejected.
+Configuration lives in `config/libraries.json`. Schema 7 is required (older files are refused, not converted); obsolete top-level watch folders, flat source paths, read-only flags, and the removed per-folder role, intake, write-back and "accepts new media" fields are rejected.
 
 File watching is source-folder aware. A flush that contains files from one source records that source path on the ingestion batch; a flush that spans more than one source records `Multiple source folders`. Watcher noise is buffered for `Ingestion:FswQuietPeriodSeconds` seconds, defaulting to 30 seconds, before the batch is released to the debounce queue.
 
 ```json
 {
-  "schema_version": "6.0",
+  "schema_version": "7.0",
+  "file_handling": { "duplicate_policy": "keep_one" },
   "libraries": [
     {
       "id": "44444444-4444-4444-8444-444444444444",
@@ -123,19 +124,16 @@ File watching is source-folder aware. A flush that contains files from one sourc
       "sources": [{
         "id": "44444444-aaaa-4444-8444-444444444444",
         "path": "/media/library/movies",
-        "role": "primary_destination",
         "management_mode": "managed_by_tuvima",
         "source_type": "local_folder",
         "include_subdirectories": true,
         "access_mode": "writable",
-        "participates_in_organization": true,
-        "intake_role": "direct"
+        "conversion_state": "none"
       }],
       "primary_destination_source_id": "44444444-aaaa-4444-8444-444444444444",
       "visibility": "shared",
       "accepted_intake_modes": ["incoming_folder", "browser_upload"],
-      "duplicate_policy": "skip_exact",
-      "organization_policy": { "mode": "tuvima_standard", "preserve_originals": true }
+      "organization_policy": { "mode": "tuvima_standard", "write_tags": true }
     }
   ]
 }

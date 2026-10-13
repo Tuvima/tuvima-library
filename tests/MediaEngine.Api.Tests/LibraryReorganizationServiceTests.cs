@@ -9,13 +9,13 @@ namespace MediaEngine.Api.Tests;
 public sealed class LibraryReorganizationServiceTests
 {
     [Fact]
-    public void ProtectedOriginals_BlockReorganizationWithoutTouchingFiles()
+    public void AsIsFolder_BlocksReorganizationWithoutTouchingFiles()
     {
         using var fixture = new Fixture();
         var original = fixture.Write("owned.txt", "owned content");
         var destination = Path.Combine(fixture.LibraryRoot, "renamed.txt");
         var configuration = fixture.Configuration.LoadLibraries();
-        configuration.Libraries[0].OrganizationPolicy.PreserveOriginals = true;
+        configuration.Libraries[0].Sources[0].ManagementMode = LibrarySourceManagementModes.ExistingLibrary;
         fixture.Configuration.SaveLibraries(configuration);
 
         var plan = fixture.Service.CreatePlan(fixture.LibraryId, fixture.Request(original, destination));
@@ -113,7 +113,6 @@ public sealed class LibraryReorganizationServiceTests
             Configuration = new ConfigurationDirectoryLoader(Path.Combine(_root, "config"));
             Configuration.SaveLibraries(new LibrariesConfiguration
             {
-                SchemaVersion = "6.0",
                 StorageLocations =
                 [
                     new ServerStorageLocationConfig
@@ -135,7 +134,7 @@ public sealed class LibraryReorganizationServiceTests
                     {
                         Id = LibraryId.ToString("D"),
                         Name = "Managed Movies library",
-                        OrganizationPolicy = new LibraryOrganizationPolicyConfig { PreserveOriginals = false },
+                        OrganizationPolicy = new LibraryOrganizationPolicyConfig(),
                         Category = "Movies",
                         Kind = LibraryKinds.Catalogued,
                         Area = LibraryAreas.Watch,
@@ -148,11 +147,9 @@ public sealed class LibraryReorganizationServiceTests
                             {
                                 Id = SourceId.ToString("D"),
                                 Path = LibraryRoot,
-                                Role = LibrarySourceRoles.PrimaryDestination,
                                 ManagementMode = LibrarySourceManagementModes.ManagedByTuvima,
                                 SourceType = LibrarySourceTypes.LocalFolder,
                                 AccessMode = LibrarySourceAccessModes.Writable,
-                                ParticipatesInOrganization = true,
                             },
                         ],
                     },

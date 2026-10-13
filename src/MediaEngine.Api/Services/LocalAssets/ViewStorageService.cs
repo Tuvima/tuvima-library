@@ -19,9 +19,10 @@ public sealed class ViewStorageService(
     public string GetRootPath()
     {
         var settings = configuration.LoadLibraries();
-        if (!string.Equals(settings.SchemaVersion, "6.0", StringComparison.Ordinal))
+        if (!string.Equals(settings.SchemaVersion, LibrariesConfiguration.CurrentSchemaVersion, StringComparison.Ordinal))
         {
-            throw new InvalidOperationException("View storage requires libraries.json schema_version 6.0.");
+            throw new InvalidOperationException(
+                $"View storage requires libraries.json schema_version {LibrariesConfiguration.CurrentSchemaVersion}.");
         }
 
         if (settings.Libraries.Any(library =>

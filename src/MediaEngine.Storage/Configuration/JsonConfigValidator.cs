@@ -321,12 +321,29 @@ public static class JsonConfigValidator
 
     private static void ValidateLibraries(LibrariesConfiguration config, List<string> errors)
     {
-        if (!string.Equals(config.SchemaVersion, "6.0", StringComparison.Ordinal))
+        if (!string.Equals(config.SchemaVersion, LibrariesConfiguration.CurrentSchemaVersion, StringComparison.Ordinal))
         {
-            errors.Add("schema_version must be 6.0; pre-beta library configuration is not migrated in place.");
+            errors.Add(
+                $"This libraries.json is in the older {config.SchemaVersion} format, and this version of Tuvima needs "
+                + $"{LibrariesConfiguration.CurrentSchemaVersion}. Library folder settings changed and are not converted. "
+                + "Move the file aside and Tuvima will start from a fresh default; then add your folders again.");
         }
 
         AddNoUnmappedProperties(config.UnmappedProperties, "$", errors);
+
+        if (config.FileHandling is null)
+        {
+            errors.Add("file_handling is required.");
+        }
+        else
+        {
+            if (!LibraryDuplicatePolicies.IsValid(config.FileHandling.DuplicatePolicy))
+            {
+                errors.Add("file_handling.duplicate_policy must be keep_one or keep_both.");
+            }
+
+            AddNoUnmappedProperties(config.FileHandling.UnmappedProperties, "file_handling", errors);
+        }
 
         var storageLocationIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var storageLocationPaths = new List<(string Path, string Field)>();
@@ -456,11 +473,6 @@ public static class JsonConfigValidator
             if (!LibraryVisibility.IsValid(library.Visibility))
             {
                 errors.Add($"{prefix}.visibility must be private, shared, or household.");
-            }
-
-            if (!LibraryDuplicatePolicies.IsValid(library.DuplicatePolicy))
-            {
-                errors.Add($"{prefix}.duplicate_policy must be skip_exact, keep_both, or replace_existing.");
             }
 
             if (library.OrganizationPolicy is null)
@@ -621,11 +633,6 @@ public static class JsonConfigValidator
             errors.Add($"{prefix}.path must be an absolute path.");
         }
 
-        if (!LibrarySourceRoles.IsValid(source.Role))
-        {
-            errors.Add($"{prefix}.role is unsupported.");
-        }
-
         if (!LibrarySourceManagementModes.IsValid(source.ManagementMode))
         {
             errors.Add($"{prefix}.management_mode must be managed_by_tuvima or existing_library.");
@@ -641,44 +648,43 @@ public static class JsonConfigValidator
             errors.Add($"{prefix}.access_mode must be writable or read_only.");
         }
 
-        if (!LibrarySourceIntakeRoles.IsValid(source.IntakeRole))
+        // Access follows the management mode: a folder Tuvima manages is writable, an as-is folder never is.
+        if (source.ManagementMode == LibrarySourceManagementModes.ExistingLibrary
+            && source.AccessMode != LibrarySourceAccessModes.ReadOnly)
         {
-            errors.Add($"{prefix}.intake_role is unsupported.");
+            errors.Add($"{prefix}.as-is (existing_library) folders must use read_only access.");
+        }
+        else if (source.ManagementMode == LibrarySourceManagementModes.ManagedByTuvima
+            && source.AccessMode != LibrarySourceAccessModes.Writable)
+        {
+            errors.Add($"{prefix}.managed folders must use writable access.");
         }
 
-        if (source.AcceptsNewMedia && source.ManagementMode != LibrarySourceManagementModes.ExistingLibrary)
+        if (!LibrarySourceConversionStates.IsValid(source.ConversionState))
         {
-            errors.Add($"{prefix}.accepts_new_media applies only to existing library folders; managed folders already take new media.");
+            errors.Add($"{prefix}.conversion_state must be none, converting, or converted.");
         }
-
-        if (source.ManagementMode == LibrarySourceManagementModes.ExistingLibrary)
+        else if (source.ConversionState != LibrarySourceConversionStates.None
+            && source.ManagementMode != LibrarySourceManagementModes.ManagedByTuvima)
         {
-            if (source.AccessMode != LibrarySourceAccessModes.ReadOnly)
+            errors.Add($"{prefix}.conversion_state {source.ConversionState} requires a folder Tuvima manages (managed_by_tuvima).");
+        }
+        else if (source.ConversionState == LibrarySourceConversionStates.Converting)
+        {
+            if (!Guid.TryParse(source.ConversionOperationId, out var operationId) || operationId == Guid.Empty)
             {
-                errors.Add($"{prefix}.existing libraries must use read_only access.");
-            }
-
-            if (source.ParticipatesInOrganization)
-            {
-                errors.Add($"{prefix}.existing libraries cannot participate in organization.");
-            }
-
-            if (source.WritebackOverride == true)
-            {
-                errors.Add($"{prefix}.existing libraries cannot enable writeback.");
-            }
-
-            if (source.Role == LibrarySourceRoles.PrimaryDestination)
-            {
-                errors.Add($"{prefix}.existing libraries cannot be a primary destination.");
+                errors.Add($"{prefix}.conversion_operation_id must be a non-empty GUID while the folder is converting.");
             }
         }
-
-        if (source.Role == LibrarySourceRoles.PrimaryDestination
-            && (source.ManagementMode != LibrarySourceManagementModes.ManagedByTuvima
-                || source.AccessMode != LibrarySourceAccessModes.Writable))
+        else if (source.ConversionState == LibrarySourceConversionStates.None
+            && !string.IsNullOrWhiteSpace(source.ConversionOperationId))
         {
-            errors.Add($"{prefix}.primary destinations must be managed and writable.");
+            errors.Add($"{prefix}.conversion_operation_id is only valid when the folder is converting or converted.");
+        }
+        else if (!string.IsNullOrWhiteSpace(source.ConversionOperationId)
+            && (!Guid.TryParse(source.ConversionOperationId, out var convertedOperationId) || convertedOperationId == Guid.Empty))
+        {
+            errors.Add($"{prefix}.conversion_operation_id must be a non-empty GUID.");
         }
 
         if (!string.IsNullOrWhiteSpace(source.ProfileId)
@@ -692,21 +698,16 @@ public static class JsonConfigValidator
 
     private static void ValidatePrimaryDestination(LibraryFolderConfig library, string prefix, List<string> errors)
     {
-        var primaryRoles = library.Sources.Where(source => source.Role == LibrarySourceRoles.PrimaryDestination).ToList();
-        var hasManagedSource = library.Sources.Any(source => source.ManagementMode == LibrarySourceManagementModes.ManagedByTuvima);
-        if (!hasManagedSource)
+        // No destination is fine (a library with no managed folder has nowhere to file new media); Tuvima picks one
+        // when a managed folder exists.
+        if (string.IsNullOrWhiteSpace(library.PrimaryDestinationSourceId))
         {
-            if (!string.IsNullOrWhiteSpace(library.PrimaryDestinationSourceId) || primaryRoles.Count > 0)
-            {
-                errors.Add($"{prefix} cannot define a primary destination without a managed source.");
-            }
-
             return;
         }
 
         if (!Guid.TryParse(library.PrimaryDestinationSourceId, out var primaryId) || primaryId == Guid.Empty)
         {
-            errors.Add($"{prefix}.primary_destination_source_id must identify the managed primary source.");
+            errors.Add($"{prefix}.primary_destination_source_id must be a source ID or null.");
             return;
         }
 
@@ -716,14 +717,9 @@ public static class JsonConfigValidator
         {
             errors.Add($"{prefix}.primary_destination_source_id must reference a source in this library.");
         }
-        else if (selected.Role != LibrarySourceRoles.PrimaryDestination)
+        else if (selected.ManagementMode != LibrarySourceManagementModes.ManagedByTuvima)
         {
-            errors.Add($"{prefix}.primary_destination_source_id must reference the source with role primary_destination.");
-        }
-
-        if (primaryRoles.Count != 1)
-        {
-            errors.Add($"{prefix}.sources must contain exactly one primary_destination role when managed sources exist.");
+            errors.Add($"{prefix}.primary_destination_source_id must reference a folder Tuvima manages; an as-is folder is never a destination.");
         }
     }
 
@@ -787,7 +783,7 @@ public static class JsonConfigValidator
     {
         foreach (var property in properties?.Keys ?? Enumerable.Empty<string>())
         {
-            errors.Add($"{prefix}.{property} is not supported by libraries schema 6.0.");
+            errors.Add($"{prefix}.{property} is not supported by libraries schema {LibrariesConfiguration.CurrentSchemaVersion}.");
         }
     }
 

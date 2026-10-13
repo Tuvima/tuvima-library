@@ -13,25 +13,154 @@ public sealed class SourceMutationPolicyGateTests
     [InlineData(SourceMutationKind.Rename)]
     [InlineData(SourceMutationKind.Delete)]
     [InlineData(SourceMutationKind.MetadataWriteback)]
-    public void ProtectedManagedOriginals_DenyMutationButAllowIncomingStaging(SourceMutationKind mutation)
+    public void ManagedFolder_MayChangeFilesThatAreAlreadyThere(SourceMutationKind mutation)
+    {
+        var root = NewRoot();
+        var (library, source) = ManagedLibrary(root);
+        var policy = FileSourceMutationPolicyFactory.Create(library, source, allowDelete: true);
+
+        // Existing files are not protected: Tuvima moves, renames and tags what is already in a managed folder.
+        Assert.True(_gate.Evaluate(new SourceMutationRequest { Source = policy, Mutation = mutation, Path = Path.Combine(root, "owned.txt") }).Allowed);
+        Assert.True(_gate.Evaluate(new SourceMutationRequest { Source = policy, Mutation = SourceMutationKind.UseAsDestination, Path = Path.Combine(root, "new.txt") }).Allowed);
+        // A path outside the folder is never reachable through it.
+        Assert.False(_gate.Evaluate(new SourceMutationRequest { Source = policy, Mutation = mutation, Path = Path.Combine(Path.GetDirectoryName(root)!, "elsewhere", "owned.txt") }).Allowed);
+    }
+
+    [Fact]
+    public void ManagedFolder_DeleteNeedsTheCallerToAskForIt()
+    {
+        var root = NewRoot();
+        var (library, source) = ManagedLibrary(root);
+
+        var policy = FileSourceMutationPolicyFactory.Create(library, source);
+
+        Assert.False(policy.AllowDelete);
+        Assert.True(FileSourceMutationPolicyFactory.Create(library, source, allowDelete: true).AllowDelete);
+    }
+
+    [Fact]
+    public void AsIsFolder_DeniesMoveRenameWritebackDeleteAndDestinationUse_EvenWhenEverythingElseSaysYes()
     {
         var root = NewRoot();
         var source = new LibrarySourceConfig
         {
             Id = "source",
             Path = root,
+            ManagementMode = LibrarySourceManagementModes.ExistingLibrary,
+            AccessMode = LibrarySourceAccessModes.Writable,
+        };
+        // The destination id points at the as-is folder, the type is set to write tags, delete and merge are requested.
+        var library = new LibraryFolderConfig
+        {
+            Id = "library",
+            Sources = [source],
+            PrimaryDestinationSourceId = "source",
+            OrganizationPolicy = new() { WriteTags = true },
+        };
+
+        var policy = FileSourceMutationPolicyFactory.Create(library, source, allowDelete: true, isMergeTarget: true);
+
+        Assert.Null(library.PrimaryDestination);
+        Assert.False(policy.AllowMove);
+        Assert.False(policy.AllowRename);
+        Assert.False(policy.AllowMetadataWriteback);
+        Assert.False(policy.AllowDelete);
+        Assert.False(policy.AllowAsDestination);
+        foreach (var mutation in Enum.GetValues<SourceMutationKind>())
+        {
+            Assert.False(
+                _gate.Evaluate(new SourceMutationRequest { Source = policy, Mutation = mutation, Path = Path.Combine(root, "item.mkv") }).Allowed,
+                $"{mutation} must be denied in an as-is folder");
+        }
+    }
+
+    [Theory]
+    [InlineData(true, true, true)]
+    [InlineData(true, false, false)]
+    [InlineData(false, true, false)]
+    [InlineData(false, false, false)]
+    public void TagsAreWrittenOnlyForManagedFoldersWhoseTypeWritesTags(bool managed, bool writeTags, bool expected)
+    {
+        var root = NewRoot();
+        var source = new LibrarySourceConfig
+        {
+            Id = "source",
+            Path = root,
+            ManagementMode = managed ? LibrarySourceManagementModes.ManagedByTuvima : LibrarySourceManagementModes.ExistingLibrary,
+            AccessMode = managed ? LibrarySourceAccessModes.Writable : LibrarySourceAccessModes.ReadOnly,
+        };
+        var library = new LibraryFolderConfig
+        {
+            Id = "library",
+            Sources = [source],
+            OrganizationPolicy = new() { WriteTags = writeTags },
+        };
+
+        var policy = FileSourceMutationPolicyFactory.Create(library, source);
+        var decision = _gate.Evaluate(new SourceMutationRequest
+        {
+            Source = policy,
+            Mutation = SourceMutationKind.MetadataWriteback,
+            Path = Path.Combine(root, "book.epub"),
+        });
+
+        Assert.Equal(expected, decision.Allowed);
+        // The format check is separate: an EPUB can carry tags and a plain text file cannot.
+        Assert.True(WriteableFormats.CanCarryTags("book.epub"));
+        Assert.False(WriteableFormats.CanCarryTags("notes.txt"));
+    }
+
+    [Fact]
+    public void OnlyTheDestinationOrAMergeTargetMayReceiveFiles()
+    {
+        var firstRoot = NewRoot();
+        var secondRoot = NewRoot();
+        var first = new LibrarySourceConfig { Id = "first", Path = firstRoot, ManagementMode = LibrarySourceManagementModes.ManagedByTuvima, AccessMode = LibrarySourceAccessModes.Writable };
+        var second = new LibrarySourceConfig { Id = "second", Path = secondRoot, ManagementMode = LibrarySourceManagementModes.ManagedByTuvima, AccessMode = LibrarySourceAccessModes.Writable };
+        var library = new LibraryFolderConfig { Id = "library", Sources = [first, second], PrimaryDestinationSourceId = "first" };
+
+        Assert.True(FileSourceMutationPolicyFactory.Create(library, first).AllowAsDestination);
+        Assert.False(FileSourceMutationPolicyFactory.Create(library, second).AllowAsDestination);
+        Assert.True(FileSourceMutationPolicyFactory.Create(library, second, isMergeTarget: true).AllowAsDestination);
+        // The second folder can still be reorganised in place.
+        Assert.True(FileSourceMutationPolicyFactory.Create(library, second).AllowMove);
+    }
+
+    [Fact]
+    public void AConvertingFolderCanStillBeTheDestination()
+    {
+        var root = NewRoot();
+        var (library, source) = ManagedLibrary(root);
+        source.ConversionState = LibrarySourceConversionStates.Converting;
+        source.ConversionOperationId = Guid.NewGuid().ToString("D");
+
+        Assert.True(FileSourceMutationPolicyFactory.Create(library, source).AllowAsDestination);
+    }
+
+    private static (LibraryFolderConfig Library, LibrarySourceConfig Source) ManagedLibrary(string root)
+    {
+        var source = new LibrarySourceConfig
+        {
+            Id = "source",
+            Path = root,
             ManagementMode = LibrarySourceManagementModes.ManagedByTuvima,
             AccessMode = LibrarySourceAccessModes.Writable,
-            ParticipatesInOrganization = true,
-            WritebackOverride = true,
         };
-        var library = new LibraryFolderConfig { Id = "library", Sources = [source] };
-        var policy = FileSourceMutationPolicyFactory.Create(library, source, allowDelete: true);
-        Assert.False(_gate.Evaluate(new SourceMutationRequest { Source = policy, Mutation = mutation, Path = Path.Combine(root, "owned.txt") }).Allowed);
-        Assert.True(_gate.Evaluate(new SourceMutationRequest { Source = policy, Mutation = mutation, Path = Path.Combine(root, ".data", "staging", "incoming.txt") }).Allowed);
-        Assert.True(_gate.Evaluate(new SourceMutationRequest { Source = policy, Mutation = SourceMutationKind.UseAsDestination, Path = Path.Combine(root, "new.txt") }).Allowed);
-        // A similarly named user folder is not the Engine's staging area.
-        Assert.False(_gate.Evaluate(new SourceMutationRequest { Source = policy, Mutation = mutation, Path = Path.Combine(root, ".data", "staging-other", "owned.txt") }).Allowed);
+        var library = new LibraryFolderConfig { Id = "library", Sources = [source], PrimaryDestinationSourceId = "source" };
+        return (library, source);
+    }
+
+    /// <summary>Tags can be written only to a format a tagger handles. Uses the real taggers' own answer.</summary>
+    private static class WriteableFormats
+    {
+        public static bool CanCarryTags(string path)
+        {
+            var taggers = new MediaEngine.Ingestion.Contracts.IMetadataTagger[]
+            {
+                new EpubMetadataTagger(Microsoft.Extensions.Logging.Abstractions.NullLogger<EpubMetadataTagger>.Instance),
+            };
+            return taggers.Any(tagger => tagger.CanHandle(path));
+        }
     }
 
     [Theory]
@@ -135,20 +264,19 @@ public sealed class SourceMutationPolicyGateTests
             Path = NewRoot(),
             ManagementMode = "unexpected-mode",
             AccessMode = LibrarySourceAccessModes.Writable,
-            ParticipatesInOrganization = true,
-            WritebackOverride = true,
         };
         var library = new LibraryFolderConfig
         {
             Id = "library",
             Sources = [source],
+            PrimaryDestinationSourceId = "source",
         };
 
         var policy = FileSourceMutationPolicyFactory.Create(
             library,
             source,
-            globalMetadataWritebackEnabled: true,
-            allowDelete: true);
+            allowDelete: true,
+            isMergeTarget: true);
 
         Assert.Equal(FileSourceManagementMode.ExistingLibrary, policy.ManagementMode);
         Assert.False(policy.AllowMove);

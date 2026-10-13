@@ -78,40 +78,28 @@ public sealed class SetupMediaLocationValidationService(
             true,
             sources.Count,
             readable,
-            $"All {sources.Count} configured media {noun} passed server access and library-role validation.");
+            $"All {sources.Count} configured media {noun} passed server access and destination validation.");
     }
 
     private static string? ValidatePrimaryDestination(LibraryFolderConfig library)
     {
-        var managed = library.Sources
-            .Where(source => source.ManagementMode == LibrarySourceManagementModes.ManagedByTuvima)
-            .ToList();
-        var primaryRoles = library.Sources
-            .Where(source => source.Role == LibrarySourceRoles.PrimaryDestination)
-            .ToList();
-
-        if (managed.Count == 0)
+        var hasManaged = library.Sources.Any(source => source.ManagementMode == LibrarySourceManagementModes.ManagedByTuvima);
+        if (!hasManaged)
         {
-            return string.IsNullOrWhiteSpace(library.PrimaryDestinationSourceId) && primaryRoles.Count == 0
+            return string.IsNullOrWhiteSpace(library.PrimaryDestinationSourceId)
                 ? null
-                : "A read-only library cannot define a primary destination.";
+                : "A library with only as-is folders cannot have a destination, because Tuvima never adds files to an as-is folder.";
         }
 
-        if (primaryRoles.Count != 1)
+        var destination = library.PrimaryDestination;
+        if (destination is null)
         {
-            return "A library with managed folders must have exactly one primary destination.";
+            return "A library with folders Tuvima manages needs one of them as its destination for new media.";
         }
 
-        var primary = primaryRoles[0];
-        if (primary.ManagementMode != LibrarySourceManagementModes.ManagedByTuvima
-            || primary.AccessMode != LibrarySourceAccessModes.Writable)
-        {
-            return "The primary destination must be a managed writable folder.";
-        }
-
-        return string.Equals(library.PrimaryDestinationSourceId, primary.Id, StringComparison.OrdinalIgnoreCase)
+        return destination.AccessMode == LibrarySourceAccessModes.Writable
             ? null
-            : "The library primary destination must reference its managed primary folder.";
+            : "The destination must be a managed, writable folder.";
     }
 
     private static SetupMediaLocationsDto Failure(

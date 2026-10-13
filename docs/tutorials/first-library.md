@@ -30,7 +30,7 @@ Use [View Personal Space](../guides/view-personal-space.md) for private photos, 
 
 The path belongs to the server running the Engine. For Docker, use the path inside the container, such as `/library`, rather than its host path.
 
-**Protect existing files** starts on. Existing-library sources always stay read-only. Saving a naming template does not reorganize existing files. A filename collision preserves the existing file and gives the incoming file a unique name.
+Folders used as-is always stay read-only. Saving a naming template does not reorganize existing files. A filename collision preserves the existing file and gives the incoming file a unique name.
 
 ## Import a small batch
 

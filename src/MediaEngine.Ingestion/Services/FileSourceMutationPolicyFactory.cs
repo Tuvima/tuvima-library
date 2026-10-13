@@ -5,16 +5,19 @@ namespace MediaEngine.Ingestion.Services;
 
 /// <summary>
 /// Converts the authoritative configuration model into the immutable snapshot
-/// consumed by the mutation gate. Resolving global policy here keeps the gate
-/// independent from mutable configuration and makes a plan reproducible.
+/// consumed by the mutation gate. A folder is in one of two states, so the policy is
+/// simple: a managed folder may be moved within, renamed, tagged and cleaned up;
+/// an as-is folder allows nothing and is never a destination.
 /// </summary>
 public static class FileSourceMutationPolicyFactory
 {
+    /// <param name="allowDelete">The caller explicitly asks for deletion (duplicate removal, empty-folder clean-up).</param>
+    /// <param name="isMergeTarget">The folder is the target of a merge the person started, so it may receive files even though it is not the destination.</param>
     public static FileSourceMutationPolicy Create(
         LibraryFolderEntry library,
         LibrarySourceEntry source,
-        bool globalMetadataWritebackEnabled = false,
-        bool allowDelete = false)
+        bool allowDelete = false,
+        bool isMergeTarget = false)
     {
         ArgumentNullException.ThrowIfNull(library);
         ArgumentNullException.ThrowIfNull(source);
@@ -27,30 +30,23 @@ public static class FileSourceMutationPolicyFactory
             throw new ArgumentException("The source is not part of the supplied library.", nameof(source));
         }
 
-        bool managed = string.Equals(
-            source.ManagementMode,
-            LibrarySourceManagementModes.ManagedByTuvima,
-            StringComparison.OrdinalIgnoreCase);
-        bool participates = managed && source.ParticipatesInOrganization;
-
         return CreateCore(
             library.Id,
             source.Id,
             source.Path,
-            managed,
+            IsManaged(source.ManagementMode),
             source.IsWritable,
-            participates,
-            source.WritebackOverride,
-            globalMetadataWritebackEnabled,
-            allowDelete,
-            library.PreserveOriginals && source.Role != LibrarySourceRoles.Intake);
+            isDestination: string.Equals(library.PrimaryDestination?.Id, source.Id, StringComparison.OrdinalIgnoreCase),
+            isMergeTarget,
+            library.WriteTags,
+            allowDelete);
     }
 
     public static FileSourceMutationPolicy Create(
         LibraryFolderConfig library,
         LibrarySourceConfig source,
-        bool globalMetadataWritebackEnabled = false,
-        bool allowDelete = false)
+        bool allowDelete = false,
+        bool isMergeTarget = false)
     {
         ArgumentNullException.ThrowIfNull(library);
         ArgumentNullException.ThrowIfNull(source);
@@ -63,24 +59,22 @@ public static class FileSourceMutationPolicyFactory
             throw new ArgumentException("The source is not part of the supplied library.", nameof(source));
         }
 
-        bool managed = string.Equals(
-            source.ManagementMode,
-            LibrarySourceManagementModes.ManagedByTuvima,
-            StringComparison.OrdinalIgnoreCase);
-        bool participates = managed && source.ParticipatesInOrganization;
-
         return CreateCore(
             library.Id,
             source.Id,
             source.Path,
-            managed,
+            IsManaged(source.ManagementMode),
             source.IsWritable,
-            participates,
-            source.WritebackOverride,
-            globalMetadataWritebackEnabled,
-            allowDelete,
-            library.OrganizationPolicy.PreserveOriginals && source.Role != LibrarySourceRoles.Intake);
+            isDestination: string.Equals(library.PrimaryDestination?.Id, source.Id, StringComparison.OrdinalIgnoreCase),
+            isMergeTarget,
+            library.OrganizationPolicy.WriteTags,
+            allowDelete);
     }
+
+    private static bool IsManaged(string managementMode) => string.Equals(
+        managementMode,
+        LibrarySourceManagementModes.ManagedByTuvima,
+        StringComparison.OrdinalIgnoreCase);
 
     private static FileSourceMutationPolicy CreateCore(
         string libraryId,
@@ -88,11 +82,10 @@ public static class FileSourceMutationPolicyFactory
         string sourcePath,
         bool managed,
         bool writable,
-        bool participates,
-        bool? writebackOverride,
-        bool globalMetadataWritebackEnabled,
-        bool allowDelete,
-        bool protectExisting)
+        bool isDestination,
+        bool isMergeTarget,
+        bool writeTags,
+        bool allowDelete)
         => new()
         {
             LibraryId = libraryId,
@@ -102,12 +95,10 @@ public static class FileSourceMutationPolicyFactory
                 ? FileSourceManagementMode.ManagedByTuvima
                 : FileSourceManagementMode.ExistingLibrary,
             IsWritable = writable,
-            ProtectExistingFiles = protectExisting,
-            AllowMove = participates,
-            AllowRename = participates,
-            AllowMetadataWriteback = managed
-                && (writebackOverride ?? globalMetadataWritebackEnabled),
-            AllowDelete = participates && allowDelete,
-            AllowAsDestination = participates,
+            AllowMove = managed,
+            AllowRename = managed,
+            AllowMetadataWriteback = managed && writeTags,
+            AllowDelete = managed && allowDelete,
+            AllowAsDestination = managed && (isDestination || isMergeTarget),
         };
 }

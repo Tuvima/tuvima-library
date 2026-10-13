@@ -349,6 +349,8 @@ public sealed class DatabaseStartupSafetyTests
             ("media_operations", "id"),
             ("media_operations", "entity_id"),
             ("media_operations", "batch_id"),
+            ("folder_organise_log", "operation_id"),
+            ("folder_organise_log", "source_id"),
             ("media_operation_events", "id"),
             ("media_operation_events", "operation_id"),
             ("media_operation_events", "entity_id"),

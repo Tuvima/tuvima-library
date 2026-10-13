@@ -52,13 +52,14 @@ public sealed class ServerFolderPickerUiTests
     }
 
     [Fact]
-    public void LibraryFoldersPanel_OffersImportFolderAndAcceptNewMedia()
+    public void LibraryFoldersPanel_OffersImportFolderAndHasNoAcceptNewMediaSwitch()
     {
         var panel = Read("src/MediaEngine.Web/Components/Settings/LibraryFoldersPanel.razor");
 
         Assert.Contains("Import folder", panel, StringComparison.Ordinal);
         Assert.Contains("Waiting for destinations", panel, StringComparison.Ordinal);
-        Assert.Contains("ToggleAcceptsNewMediaAsync", panel, StringComparison.Ordinal);
+        Assert.DoesNotContain("AcceptsNewMedia", panel, StringComparison.Ordinal);
+        Assert.DoesNotContain("PrimaryDestinationSourceId =", panel, StringComparison.Ordinal);
         Assert.Contains("ImportFolderStatus", panel, StringComparison.Ordinal);
     }
 

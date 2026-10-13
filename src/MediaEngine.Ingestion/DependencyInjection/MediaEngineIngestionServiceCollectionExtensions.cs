@@ -168,6 +168,7 @@ public static class MediaEngineIngestionServiceCollectionExtensions
             try
             {
                 var libraries = configLoader.LoadLibraries();
+                opts.DuplicatePolicy = libraries.FileHandling.DuplicatePolicy;
                 opts.LibraryFolders = libraries.Libraries
                     .Select(l =>
                     {
@@ -175,10 +176,9 @@ public static class MediaEngineIngestionServiceCollectionExtensions
                         {
                             Id = l.Id,
                             Name = l.Name,
-                            PreserveOriginals = l.OrganizationPolicy.PreserveOriginals,
+                            WriteTags = l.OrganizationPolicy.WriteTags,
                             OrganizationMode = l.OrganizationPolicy.Mode,
                             CustomOrganizationTemplate = l.OrganizationPolicy.CustomTemplate,
-                            DuplicatePolicy = l.DuplicatePolicy,
                             Kind = l.Kind,
                             Area = l.Area,
                             Presentation = l.Presentation,
@@ -187,13 +187,10 @@ public static class MediaEngineIngestionServiceCollectionExtensions
                             {
                                 Id = source.Id,
                                 Path = source.Path,
-                                Role = source.Role,
                                 ManagementMode = source.ManagementMode,
                                 AccessMode = source.AccessMode,
                                 IncludeSubdirectories = source.IncludeSubdirectories,
-                                ParticipatesInOrganization = source.ParticipatesInOrganization,
-                                IntakeRole = source.IntakeRole,
-                                WritebackOverride = source.WritebackOverride,
+                                ConversionState = source.ConversionState,
                             }).ToList(),
                             PrimaryDestinationSourceId = l.PrimaryDestinationSourceId,
                             MediaTypes = l.MediaTypes

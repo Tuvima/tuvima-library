@@ -118,7 +118,6 @@ public sealed class ConfigurationDirectoryLoaderValidationTests
         var loader = new ConfigurationDirectoryLoader(temp.Path);
         var config = new LibrariesConfiguration
         {
-            SchemaVersion = "6.0",
             StorageLocations =
             [
                 new ServerStorageLocationConfig
@@ -153,18 +152,13 @@ public sealed class ConfigurationDirectoryLoaderValidationTests
                         {
                             Id = "44444444-aaaa-4444-8444-444444444444",
                             Path = P(Drive, "media/home-movies"),
-                            Role = LibrarySourceRoles.PrimaryDestination,
                             ManagementMode = LibrarySourceManagementModes.ManagedByTuvima,
                             AccessMode = LibrarySourceAccessModes.Writable,
-                            ParticipatesInOrganization = true,
-                            IntakeRole = LibrarySourceIntakeRoles.Direct,
-                            WritebackOverride = false,
                         },
                         new LibrarySourceConfig
                         {
                             Id = "44444444-bbbb-4444-8444-444444444444",
                             Path = P(OtherDrive, "archive/home-movies"),
-                            Role = LibrarySourceRoles.Secondary,
                             ManagementMode = LibrarySourceManagementModes.ExistingLibrary,
                             AccessMode = LibrarySourceAccessModes.ReadOnly,
                         },
@@ -172,11 +166,10 @@ public sealed class ConfigurationDirectoryLoaderValidationTests
                     PrimaryDestinationSourceId = "44444444-aaaa-4444-8444-444444444444",
                     Visibility = LibraryVisibility.Household,
                     AcceptedIntakeModes = [LibraryIntakeModes.DragAndDrop, LibraryIntakeModes.BrowserUpload],
-                    DuplicatePolicy = LibraryDuplicatePolicies.SkipExact,
                     OrganizationPolicy = new()
                     {
                         Mode = LibraryOrganizationModes.KeepOriginalNames,
-                        PreserveOriginals = true,
+                        WriteTags = false,
                     },
                 },
             ],
@@ -303,7 +296,6 @@ public sealed class ConfigurationDirectoryLoaderValidationTests
 
         Assert.Contains("id must be a non-empty GUID", ex.Message);
         Assert.Contains("metadata_policy", ex.Message);
-        Assert.Contains("primary_destination_source_id", ex.Message);
     }
 
     [Fact]
@@ -329,7 +321,7 @@ public sealed class ConfigurationDirectoryLoaderValidationTests
         var loader = new ConfigurationDirectoryLoader(temp.Path);
         var ex = Assert.Throws<ConfigValidationException>(() => loader.LoadLibraries());
 
-        Assert.Contains("schema_version must be 6.0", ex.Message);
+        Assert.Contains("older 2.0 format", ex.Message);
         Assert.Contains("kind must be catalogued or personal", ex.Message);
         Assert.Contains("source_paths is not supported", ex.Message);
         Assert.Contains("library_root is not supported", ex.Message);
@@ -337,20 +329,169 @@ public sealed class ConfigurationDirectoryLoaderValidationTests
     }
 
     [Fact]
-    public void SaveLibraries_RejectsAcceptsNewMediaOnManagedSources()
+    public void LoadLibraries_RefusesTheOlderSixPointZeroFormatWithAPlainMessage()
+    {
+        using var temp = TempConfig.Create();
+        File.WriteAllText(System.IO.Path.Combine(temp.Path, "libraries.json"), """
+            {
+              "schema_version": "6.0",
+              "storage_locations": [ { "id": "media", "label": "Media", "path": "C:\\media", "allow_write": true } ],
+              "view_storage": { "storage_location_id": "media", "relative_root": "View" },
+              "libraries": []
+            }
+            """);
+
+        var loader = new ConfigurationDirectoryLoader(temp.Path);
+        var ex = Assert.Throws<ConfigValidationException>(() => loader.LoadLibraries());
+
+        Assert.Contains("older 6.0 format", ex.Message);
+        Assert.Contains("fresh default", ex.Message);
+    }
+
+    [Fact]
+    public void SaveLibraries_RefusesTheOlderSixPointZeroVersion()
     {
         using var temp = TempConfig.Create();
         var loader = new ConfigurationDirectoryLoader(temp.Path);
         var config = CreateValidCataloguedLibrary();
-        config.Libraries[0].Sources[0].AcceptsNewMedia = true;
+        config.SchemaVersion = "6.0";
 
         var ex = Assert.Throws<ConfigValidationException>(() => loader.SaveLibraries(config));
 
-        Assert.Contains("accepts_new_media applies only to existing library folders", ex.Message);
+        Assert.Contains("older 6.0 format", ex.Message);
     }
 
     [Fact]
-    public void SaveLibraries_RejectsOverlappingAndUnsafeExistingSources()
+    public void LoadLibraries_RejectsTheRemovedFolderFieldsAsUnsupported()
+    {
+        using var temp = TempConfig.Create();
+        new ConfigurationDirectoryLoader(temp.Path).SaveLibraries(CreateValidCataloguedLibrary());
+        var path = System.IO.Path.Combine(temp.Path, "libraries.json");
+        var json = File.ReadAllText(path)
+            .Replace("\"access_mode\"", "\"role\": \"primary_destination\", \"intake_role\": \"direct\", \"accepts_new_media\": true, \"access_mode\"")
+            .Replace("\"mode\"", "\"preserve_originals\": true, \"mode\"");
+        File.WriteAllText(path, json);
+        File.Delete(path + ".bak");
+
+        var loader = new ConfigurationDirectoryLoader(temp.Path);
+        var ex = Assert.Throws<ConfigValidationException>(() => loader.LoadLibraries());
+
+        Assert.Contains("role is not supported", ex.Message);
+        Assert.Contains("intake_role is not supported", ex.Message);
+        Assert.Contains("accepts_new_media is not supported", ex.Message);
+        Assert.Contains("preserve_originals is not supported", ex.Message);
+    }
+
+    [Fact]
+    public void SaveLibraries_RejectsADuplicatePolicyThatIsNotKeepOneOrKeepBoth()
+    {
+        using var temp = TempConfig.Create();
+        var loader = new ConfigurationDirectoryLoader(temp.Path);
+        var config = CreateValidCataloguedLibrary();
+        config.FileHandling.DuplicatePolicy = "replace_existing";
+
+        var ex = Assert.Throws<ConfigValidationException>(() => loader.SaveLibraries(config));
+
+        Assert.Contains("file_handling.duplicate_policy must be keep_one or keep_both", ex.Message);
+    }
+
+    [Theory]
+    [InlineData(LibraryDuplicatePolicies.KeepOne)]
+    [InlineData(LibraryDuplicatePolicies.KeepBoth)]
+    public void SaveLibraries_AcceptsBothDuplicatePolicies(string policy)
+    {
+        using var temp = TempConfig.Create();
+        var loader = new ConfigurationDirectoryLoader(temp.Path);
+        var config = CreateValidCataloguedLibrary();
+        config.FileHandling.DuplicatePolicy = policy;
+
+        loader.SaveLibraries(config);
+
+        Assert.Equal(policy, loader.LoadLibraries().FileHandling.DuplicatePolicy);
+    }
+
+    [Fact]
+    public void Validator_RejectsADestinationThatIsAsIs()
+    {
+        var config = CreateValidCataloguedLibrary();
+        var library = config.Libraries[0];
+        library.Sources.Add(new LibrarySourceConfig
+        {
+            Id = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+            Path = P(OtherDrive, "archive/movies"),
+            ManagementMode = LibrarySourceManagementModes.ExistingLibrary,
+            AccessMode = LibrarySourceAccessModes.ReadOnly,
+        });
+        library.PrimaryDestinationSourceId = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
+
+        // Validate the raw configuration, the way a hand-edited file arrives (saving re-picks a destination first).
+        var errors = JsonConfigValidator.Validate(config, "libraries.json");
+
+        Assert.Contains(errors, error => error.Contains("an as-is folder is never a destination"));
+    }
+
+    [Fact]
+    public void Validator_RejectsADestinationThatIsNotInTheLibrary()
+    {
+        var config = CreateValidCataloguedLibrary();
+        config.Libraries[0].PrimaryDestinationSourceId = "cccccccc-cccc-4ccc-8ccc-cccccccccccc";
+
+        var errors = JsonConfigValidator.Validate(config, "libraries.json");
+
+        Assert.Contains(errors, error => error.Contains("must reference a source in this library"));
+    }
+
+    [Fact]
+    public void Validator_AcceptsANullDestination()
+    {
+        var config = CreateValidCataloguedLibrary();
+        config.Libraries[0].PrimaryDestinationSourceId = null;
+
+        Assert.Empty(JsonConfigValidator.Validate(config, "libraries.json"));
+    }
+
+    [Fact]
+    public void Validator_ChecksConversionStateAndOperation()
+    {
+        var config = CreateValidCataloguedLibrary();
+        var source = config.Libraries[0].Sources[0];
+        source.ConversionState = LibrarySourceConversionStates.Converting;
+        source.ConversionOperationId = null;
+        Assert.Contains(JsonConfigValidator.Validate(config, "libraries.json"),
+            error => error.Contains("conversion_operation_id must be a non-empty GUID while the folder is converting"));
+
+        source.ConversionOperationId = "dddddddd-dddd-4ddd-8ddd-dddddddddddd";
+        Assert.Empty(JsonConfigValidator.Validate(config, "libraries.json"));
+
+        source.ConversionState = LibrarySourceConversionStates.None;
+        Assert.Contains(JsonConfigValidator.Validate(config, "libraries.json"),
+            error => error.Contains("only valid when the folder is converting or converted"));
+
+        source.ConversionState = "half-way";
+        Assert.Contains(JsonConfigValidator.Validate(config, "libraries.json"),
+            error => error.Contains("conversion_state must be none, converting, or converted"));
+    }
+
+    [Theory]
+    [InlineData(LibrarySourceConversionStates.Converting)]
+    [InlineData(LibrarySourceConversionStates.Converted)]
+    public void Validator_ConversionRequiresAFolderTuvimaManages(string state)
+    {
+        var config = CreateValidCataloguedLibrary();
+        var source = config.Libraries[0].Sources[0];
+        source.ManagementMode = LibrarySourceManagementModes.ExistingLibrary;
+        source.AccessMode = LibrarySourceAccessModes.ReadOnly;
+        source.ConversionState = state;
+        source.ConversionOperationId = "dddddddd-dddd-4ddd-8ddd-dddddddddddd";
+        config.Libraries[0].PrimaryDestinationSourceId = null;
+
+        var errors = JsonConfigValidator.Validate(config, "libraries.json");
+
+        Assert.Contains(errors, error => error.Contains("requires a folder Tuvima manages"));
+    }
+
+    [Fact]
+    public void SaveLibraries_DerivesAccessFromManagementMode()
     {
         using var temp = TempConfig.Create();
         var loader = new ConfigurationDirectoryLoader(temp.Path);
@@ -358,19 +499,84 @@ public sealed class ConfigurationDirectoryLoaderValidationTests
         config.Libraries[0].Sources.Add(new LibrarySourceConfig
         {
             Id = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+            Path = P(OtherDrive, "archive/movies"),
+            ManagementMode = LibrarySourceManagementModes.ExistingLibrary,
+            AccessMode = LibrarySourceAccessModes.Writable,
+        });
+        config.Libraries[0].Sources[0].AccessMode = LibrarySourceAccessModes.ReadOnly;
+
+        loader.SaveLibraries(config);
+
+        var saved = loader.LoadLibraries().Libraries[0].Sources;
+        Assert.Equal(LibrarySourceAccessModes.Writable, saved[0].AccessMode);
+        Assert.Equal(LibrarySourceAccessModes.ReadOnly, saved[1].AccessMode);
+    }
+
+    [Fact]
+    public void SaveLibraries_PicksTheFirstManagedFolderAsDestinationWhenNoneIsSet()
+    {
+        using var temp = TempConfig.Create();
+        var loader = new ConfigurationDirectoryLoader(temp.Path);
+        var config = CreateValidCataloguedLibrary();
+        config.Libraries[0].PrimaryDestinationSourceId = null;
+
+        loader.SaveLibraries(config);
+
+        Assert.Equal("aaaaaaaa-bbbb-4aaa-8aaa-aaaaaaaaaaaa", loader.LoadLibraries().Libraries[0].PrimaryDestinationSourceId);
+    }
+
+    [Fact]
+    public void ShippedConfigurationIsValidSevenPointZeroWithoutDeveloperPaths()
+    {
+        var repoRoot = FindRepoRoot();
+        foreach (var path in new[]
+        {
+            System.IO.Path.Combine(repoRoot, "config", "libraries.json"),
+            System.IO.Path.Combine(repoRoot, "docker", "config", "libraries.json"),
+        })
+        {
+            var json = File.ReadAllText(path);
+            Assert.DoesNotContain("real-media", json, StringComparison.OrdinalIgnoreCase);
+            Assert.DoesNotContain("real_import", json, StringComparison.OrdinalIgnoreCase);
+            Assert.DoesNotContain("C:\\\\temp", json, StringComparison.OrdinalIgnoreCase);
+            Assert.DoesNotContain("\"role\"", json, StringComparison.Ordinal);
+            Assert.DoesNotContain("preserve_originals", json, StringComparison.Ordinal);
+            var parsed = System.Text.Json.JsonSerializer.Deserialize<LibrariesConfiguration>(json)!;
+            Assert.Equal("7.0", parsed.SchemaVersion);
+            Assert.Equal(LibraryDuplicatePolicies.KeepOne, parsed.FileHandling.DuplicatePolicy);
+            Assert.NotEmpty(parsed.Libraries);
+            Assert.All(parsed.Libraries, library => Assert.NotNull(library.PrimaryDestination));
+        }
+    }
+
+    private static string FindRepoRoot()
+    {
+        var directory = new DirectoryInfo(AppContext.BaseDirectory);
+        while (directory is not null && !File.Exists(System.IO.Path.Combine(directory.FullName, "MediaEngine.slnx")))
+        {
+            directory = directory.Parent;
+        }
+
+        return directory?.FullName ?? throw new InvalidOperationException("Could not find repository root.");
+    }
+
+    [Fact]
+    public void Validator_RejectsOverlappingAndWritableAsIsSources()
+    {
+        var config = CreateValidCataloguedLibrary();
+        config.Libraries[0].Sources.Add(new LibrarySourceConfig
+        {
+            Id = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
             Path = P(Drive, "media/movies/archive"),
             ManagementMode = LibrarySourceManagementModes.ExistingLibrary,
             AccessMode = LibrarySourceAccessModes.Writable,
-            WritebackOverride = true,
-            ParticipatesInOrganization = true,
         });
 
-        var ex = Assert.Throws<ConfigValidationException>(() => loader.SaveLibraries(config));
+        // Saving derives access from the management mode first, so check the raw configuration as a hand-edited file arrives.
+        var message = string.Join(" ", JsonConfigValidator.Validate(config, "libraries.json"));
 
-        Assert.Contains("must not overlap", ex.Message);
-        Assert.Contains("existing libraries must use read_only access", ex.Message);
-        Assert.Contains("existing libraries cannot participate in organization", ex.Message);
-        Assert.Contains("existing libraries cannot enable writeback", ex.Message);
+        Assert.Contains("must not overlap", message);
+        Assert.Contains("as-is (existing_library) folders must use read_only access", message);
     }
 
     [Fact]
@@ -632,6 +838,10 @@ public sealed class ConfigurationDirectoryLoaderValidationTests
 
     private static LibrariesConfiguration CreateValidCataloguedLibrary() => new()
     {
+        StorageLocations =
+        [
+            new ServerStorageLocationConfig { Id = "media", Label = "Media", Path = Drive, AllowWrite = true },
+        ],
         Libraries =
         [
             new LibraryFolderConfig
@@ -650,16 +860,13 @@ public sealed class ConfigurationDirectoryLoaderValidationTests
                     {
                         Id = "aaaaaaaa-bbbb-4aaa-8aaa-aaaaaaaaaaaa",
                         Path = P(Drive, "media/movies"),
-                        Role = LibrarySourceRoles.PrimaryDestination,
                         ManagementMode = LibrarySourceManagementModes.ManagedByTuvima,
                         AccessMode = LibrarySourceAccessModes.Writable,
-                        ParticipatesInOrganization = true,
                     },
                 ],
                 PrimaryDestinationSourceId = "aaaaaaaa-bbbb-4aaa-8aaa-aaaaaaaaaaaa",
                 Visibility = LibraryVisibility.Household,
                 AcceptedIntakeModes = [LibraryIntakeModes.IncomingFolder],
-                DuplicatePolicy = LibraryDuplicatePolicies.SkipExact,
                 OrganizationPolicy = new()
                 {
                     Mode = LibraryOrganizationModes.TuvimaStandard,
@@ -685,17 +892,14 @@ public sealed class ConfigurationDirectoryLoaderValidationTests
             {
                 Id = sourceId,
                 Path = path,
-                Role = LibrarySourceRoles.PrimaryDestination,
                 ManagementMode = LibrarySourceManagementModes.ManagedByTuvima,
                 AccessMode = LibrarySourceAccessModes.Writable,
-                ParticipatesInOrganization = true,
             },
         ],
             PrimaryDestinationSourceId = sourceId,
             OwnerProfileId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
             Visibility = LibraryVisibility.Private,
             AcceptedIntakeModes = [LibraryIntakeModes.BrowserUpload],
-            DuplicatePolicy = LibraryDuplicatePolicies.SkipExact,
             OrganizationPolicy = new() { Mode = LibraryOrganizationModes.CaptureYearMonth },
         };
 

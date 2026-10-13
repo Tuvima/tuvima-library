@@ -170,9 +170,6 @@ public sealed class LibraryFolderDto
     [JsonPropertyName("accepted_intake_modes")]
     public List<string> AcceptedIntakeModes { get; set; } = [];
 
-    [JsonPropertyName("duplicate_policy")]
-    public string DuplicatePolicy { get; set; } = "skip_exact";
-
     [JsonPropertyName("organization_policy")]
     public LibraryOrganizationPolicyDto OrganizationPolicy { get; set; } = new();
 
@@ -188,9 +185,6 @@ public sealed class LibrarySourceDto
     [JsonPropertyName("path")]
     public string Path { get; set; } = string.Empty;
 
-    [JsonPropertyName("role")]
-    public string Role { get; set; } = "secondary";
-
     [JsonPropertyName("management_mode")]
     public string ManagementMode { get; set; } = "existing_library";
 
@@ -203,17 +197,11 @@ public sealed class LibrarySourceDto
     [JsonPropertyName("access_mode")]
     public string AccessMode { get; set; } = "read_only";
 
-    [JsonPropertyName("writeback_override")]
-    public bool? WritebackOverride { get; set; }
+    [JsonPropertyName("conversion_state")]
+    public string ConversionState { get; set; } = "none";
 
-    [JsonPropertyName("participates_in_organization")]
-    public bool ParticipatesInOrganization { get; set; }
-
-    [JsonPropertyName("intake_role")]
-    public string IntakeRole { get; set; } = "none";
-
-    [JsonPropertyName("accepts_new_media")]
-    public bool AcceptsNewMedia { get; set; }
+    [JsonPropertyName("conversion_operation_id")]
+    public string? ConversionOperationId { get; set; }
 
     [JsonPropertyName("notes")]
     public string? Notes { get; set; }
@@ -233,14 +221,20 @@ public sealed class LibraryOrganizationPolicyDto
     [JsonPropertyName("custom_template")]
     public string? CustomTemplate { get; set; }
 
-    [JsonPropertyName("preserve_originals")]
-    public bool PreserveOriginals { get; set; } = true;
+    [JsonPropertyName("write_tags")]
+    public bool WriteTags { get; set; } = true;
+}
+
+public sealed class FileHandlingDto
+{
+    [JsonPropertyName("duplicate_policy")]
+    public string DuplicatePolicy { get; set; } = "keep_one";
 }
 
 public sealed class UpdateLibrariesRequest
 {
     [JsonPropertyName("schema_version")]
-    public string SchemaVersion { get; init; } = "6.0";
+    public string SchemaVersion { get; init; } = "7.0";
 
     [JsonPropertyName("storage_locations")]
     public List<ServerStorageLocationDto> StorageLocations { get; init; } = [];
@@ -253,12 +247,15 @@ public sealed class UpdateLibrariesRequest
 
     [JsonPropertyName("personal_library_policy")]
     public PersonalLibraryPolicyDto PersonalLibraryPolicy { get; init; } = new();
+
+    [JsonPropertyName("file_handling")]
+    public FileHandlingDto FileHandling { get; init; } = new();
 }
 
 public sealed class LibrariesConfigurationDto
 {
     [JsonPropertyName("schema_version")]
-    public string SchemaVersion { get; init; } = "6.0";
+    public string SchemaVersion { get; init; } = "7.0";
 
     [JsonPropertyName("storage_locations")]
     public List<ServerStorageLocationDto> StorageLocations { get; init; } = [];
@@ -271,6 +268,9 @@ public sealed class LibrariesConfigurationDto
 
     [JsonPropertyName("personal_library_policy")]
     public PersonalLibraryPolicyDto PersonalLibraryPolicy { get; init; } = new();
+
+    [JsonPropertyName("file_handling")]
+    public FileHandlingDto FileHandling { get; init; } = new();
 
     /// <summary>Read-only: whether the optional import folder is set and every media type has a destination for it.</summary>
     [JsonPropertyName("import_folder_status")]
@@ -292,6 +292,27 @@ public sealed class ImportFolderStatusDto
     /// <summary>Plain names of the media types that still need a destination.</summary>
     [JsonPropertyName("missing_types")]
     public List<string> MissingTypes { get; set; } = [];
+
+    /// <summary>One entry per media type: the folder its imported files go to, or none yet.</summary>
+    [JsonPropertyName("destinations")]
+    public List<ImportFolderDestinationDto> Destinations { get; set; } = [];
+}
+
+public sealed class ImportFolderDestinationDto
+{
+    /// <summary>Plain name of the media type, for example "TV Shows".</summary>
+    [JsonPropertyName("media_type")]
+    public string MediaType { get; set; } = string.Empty;
+
+    [JsonPropertyName("library_id")]
+    public string? LibraryId { get; set; }
+
+    /// <summary>The managed folder imported files of this type are filed into; null when the type has none.</summary>
+    [JsonPropertyName("destination_source_id")]
+    public string? DestinationSourceId { get; set; }
+
+    [JsonPropertyName("path")]
+    public string? Path { get; set; }
 }
 
 public sealed class ViewStorageDto

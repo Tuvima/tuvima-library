@@ -16,11 +16,10 @@ public sealed class LibraryFolderEntry
 
     public string Name { get; init; } = string.Empty;
 
-    public bool PreserveOriginals { get; init; } = true;
+    /// <summary>Write tags into this library's media files (managed folders only; see the mutation policy).</summary>
+    public bool WriteTags { get; init; } = true;
     public string OrganizationMode { get; init; } = LibraryOrganizationModes.TuvimaStandard;
     public string? CustomOrganizationTemplate { get; init; }
-
-    public string DuplicatePolicy { get; init; } = LibraryDuplicatePolicies.SkipExact;
 
     public string Kind { get; init; } = LibraryKinds.Catalogued;
 
@@ -52,11 +51,13 @@ public sealed class LibraryFolderEntry
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
 
+    /// <summary>The destination folder. An as-is folder is never returned, even if the id points at one.</summary>
     public LibrarySourceEntry? PrimaryDestination =>
         string.IsNullOrWhiteSpace(PrimaryDestinationSourceId)
             ? null
             : Sources.FirstOrDefault(source =>
-                string.Equals(source.Id, PrimaryDestinationSourceId, StringComparison.OrdinalIgnoreCase));
+                source.IsManaged
+                && string.Equals(source.Id, PrimaryDestinationSourceId, StringComparison.OrdinalIgnoreCase));
 
     public string LibraryRoot => PrimaryDestination?.Path ?? string.Empty;
 
@@ -78,13 +79,6 @@ public sealed class LibraryFolderEntry
     /// </summary>
     public bool ReadOnly => Sources.Count == 0 || Sources.All(source => !source.AllowsFileMutation);
 
-    /// <summary>
-    /// Per-library override for metadata writeback. <see langword="null"/> means
-    /// use the global writeback flag; <see langword="true"/> or <see langword="false"/>
-    /// forces on/off for this library only. Spec: side-by-side-with-Plex plan §I.
-    /// </summary>
-    public bool? WritebackOverride => PrimaryDestination?.WritebackOverride;
-
     public bool BypassesExternalIdentity =>
         LibraryMetadataPolicies.BypassesExternalIdentity(MetadataPolicy);
 }
@@ -96,19 +90,13 @@ public sealed class LibrarySourceEntry
 
     public string Path { get; init; } = string.Empty;
 
-    public string Role { get; init; } = LibrarySourceRoles.Secondary;
-
     public string ManagementMode { get; init; } = LibrarySourceManagementModes.ExistingLibrary;
 
     public string AccessMode { get; init; } = LibrarySourceAccessModes.ReadOnly;
 
     public bool IncludeSubdirectories { get; init; } = true;
 
-    public bool ParticipatesInOrganization { get; init; }
-
-    public string IntakeRole { get; init; } = LibrarySourceIntakeRoles.None;
-
-    public bool? WritebackOverride { get; init; }
+    public string ConversionState { get; init; } = LibrarySourceConversionStates.None;
 
     public bool IsManaged => ManagementMode == LibrarySourceManagementModes.ManagedByTuvima;
 
@@ -222,6 +210,12 @@ public sealed class IngestionOptions
     /// Default: <see langword="false"/>.
     /// </summary>
     public bool WriteBack { get; set; }
+
+    /// <summary>
+    /// What to do with an exact copy of a file already held, for every library alike. Comes from
+    /// <c>file_handling.duplicate_policy</c> in <c>libraries.json</c>.
+    /// </summary>
+    public string DuplicatePolicy { get; set; } = LibraryDuplicatePolicies.KeepOne;
 
     /// <summary>
     /// Whether to also watch sub-directories of configured source directories.

@@ -1,7 +1,12 @@
 {
-  "schema_version": "6.0",
+  "schema_version": "7.0",
   "storage_locations": [
-    { "id": "media", "label": "Tuvima library folder", "path": "/library", "allow_write": true }
+    {
+      "id": "media",
+      "label": "Tuvima library folder",
+      "path": "/library",
+      "allow_write": true
+    }
   ],
   "view_storage": {
     "storage_location_id": "media",
@@ -25,25 +30,32 @@
       "area": "read",
       "presentation": "catalogue",
       "metadata_policy": "enriched",
-      "media_types": ["Books"],
-      "sources": [{
-        "id": "11111111-aaaa-4111-8111-111111111111",
-        "path": "/library/Books",
-        "role": "primary_destination",
-        "management_mode": "managed_by_tuvima",
-        "source_type": "local_folder",
-        "include_subdirectories": true,
-        "access_mode": "writable",
-        "writeback_override": null,
-        "participates_in_organization": true,
-        "intake_role": "direct"
-      }],
+      "media_types": [
+        "Books"
+      ],
+      "sources": [
+        {
+          "id": "11111111-aaaa-4111-8111-111111111111",
+          "path": "/library/Books",
+          "management_mode": "managed_by_tuvima",
+          "source_type": "local_folder",
+          "include_subdirectories": true,
+          "access_mode": "writable",
+          "conversion_state": "none"
+        }
+      ],
       "primary_destination_source_id": "11111111-aaaa-4111-8111-111111111111",
       "visibility": "household",
       "authorized_profile_ids": [],
-      "accepted_intake_modes": ["incoming_folder", "drag_and_drop", "browser_upload"],
-      "duplicate_policy": "skip_exact",
-      "organization_policy": { "mode": "tuvima_standard", "preserve_originals": true }
+      "accepted_intake_modes": [
+        "incoming_folder",
+        "drag_and_drop",
+        "browser_upload"
+      ],
+      "organization_policy": {
+        "mode": "tuvima_standard",
+        "write_tags": true
+      }
     },
     {
       "id": "22222222-2222-4222-8222-222222222222",
@@ -53,25 +65,32 @@
       "area": "listen",
       "presentation": "catalogue",
       "metadata_policy": "enriched",
-      "media_types": ["Audiobooks"],
-      "sources": [{
-        "id": "22222222-aaaa-4222-8222-222222222222",
-        "path": "/library/Audiobooks",
-        "role": "primary_destination",
-        "management_mode": "managed_by_tuvima",
-        "source_type": "local_folder",
-        "include_subdirectories": true,
-        "access_mode": "writable",
-        "writeback_override": null,
-        "participates_in_organization": true,
-        "intake_role": "direct"
-      }],
+      "media_types": [
+        "Audiobooks"
+      ],
+      "sources": [
+        {
+          "id": "22222222-aaaa-4222-8222-222222222222",
+          "path": "/library/Audiobooks",
+          "management_mode": "managed_by_tuvima",
+          "source_type": "local_folder",
+          "include_subdirectories": true,
+          "access_mode": "writable",
+          "conversion_state": "none"
+        }
+      ],
       "primary_destination_source_id": "22222222-aaaa-4222-8222-222222222222",
       "visibility": "household",
       "authorized_profile_ids": [],
-      "accepted_intake_modes": ["incoming_folder", "drag_and_drop", "browser_upload"],
-      "duplicate_policy": "skip_exact",
-      "organization_policy": { "mode": "tuvima_standard", "preserve_originals": true }
+      "accepted_intake_modes": [
+        "incoming_folder",
+        "drag_and_drop",
+        "browser_upload"
+      ],
+      "organization_policy": {
+        "mode": "tuvima_standard",
+        "write_tags": true
+      }
     },
     {
       "id": "33333333-3333-4333-8333-333333333333",
@@ -81,25 +100,32 @@
       "area": "watch",
       "presentation": "catalogue",
       "metadata_policy": "enriched",
-      "media_types": ["TV"],
-      "sources": [{
-        "id": "33333333-aaaa-4333-8333-333333333333",
-        "path": "/library/TV",
-        "role": "primary_destination",
-        "management_mode": "managed_by_tuvima",
-        "source_type": "local_folder",
-        "include_subdirectories": true,
-        "access_mode": "writable",
-        "writeback_override": null,
-        "participates_in_organization": true,
-        "intake_role": "direct"
-      }],
+      "media_types": [
+        "TV"
+      ],
+      "sources": [
+        {
+          "id": "33333333-aaaa-4333-8333-333333333333",
+          "path": "/library/TV",
+          "management_mode": "managed_by_tuvima",
+          "source_type": "local_folder",
+          "include_subdirectories": true,
+          "access_mode": "writable",
+          "conversion_state": "none"
+        }
+      ],
       "primary_destination_source_id": "33333333-aaaa-4333-8333-333333333333",
       "visibility": "household",
       "authorized_profile_ids": [],
-      "accepted_intake_modes": ["incoming_folder", "drag_and_drop", "browser_upload"],
-      "duplicate_policy": "skip_exact",
-      "organization_policy": { "mode": "tuvima_standard", "preserve_originals": true }
+      "accepted_intake_modes": [
+        "incoming_folder",
+        "drag_and_drop",
+        "browser_upload"
+      ],
+      "organization_policy": {
+        "mode": "tuvima_standard",
+        "write_tags": true
+      }
     },
     {
       "id": "44444444-4444-4444-8444-444444444444",
@@ -109,25 +135,32 @@
       "area": "watch",
       "presentation": "catalogue",
       "metadata_policy": "enriched",
-      "media_types": ["Movies"],
-      "sources": [{
-        "id": "44444444-aaaa-4444-8444-444444444444",
-        "path": "/library/Movies",
-        "role": "primary_destination",
-        "management_mode": "managed_by_tuvima",
-        "source_type": "local_folder",
-        "include_subdirectories": true,
-        "access_mode": "writable",
-        "writeback_override": null,
-        "participates_in_organization": true,
-        "intake_role": "direct"
-      }],
+      "media_types": [
+        "Movies"
+      ],
+      "sources": [
+        {
+          "id": "44444444-aaaa-4444-8444-444444444444",
+          "path": "/library/Movies",
+          "management_mode": "managed_by_tuvima",
+          "source_type": "local_folder",
+          "include_subdirectories": true,
+          "access_mode": "writable",
+          "conversion_state": "none"
+        }
+      ],
       "primary_destination_source_id": "44444444-aaaa-4444-8444-444444444444",
       "visibility": "household",
       "authorized_profile_ids": [],
-      "accepted_intake_modes": ["incoming_folder", "drag_and_drop", "browser_upload"],
-      "duplicate_policy": "skip_exact",
-      "organization_policy": { "mode": "tuvima_standard", "preserve_originals": true }
+      "accepted_intake_modes": [
+        "incoming_folder",
+        "drag_and_drop",
+        "browser_upload"
+      ],
+      "organization_policy": {
+        "mode": "tuvima_standard",
+        "write_tags": true
+      }
     },
     {
       "id": "55555555-5555-4555-8555-555555555555",
@@ -137,25 +170,32 @@
       "area": "listen",
       "presentation": "catalogue",
       "metadata_policy": "enriched",
-      "media_types": ["Music"],
-      "sources": [{
-        "id": "55555555-aaaa-4555-8555-555555555555",
-        "path": "/library/Music",
-        "role": "primary_destination",
-        "management_mode": "managed_by_tuvima",
-        "source_type": "local_folder",
-        "include_subdirectories": true,
-        "access_mode": "writable",
-        "writeback_override": null,
-        "participates_in_organization": true,
-        "intake_role": "direct"
-      }],
+      "media_types": [
+        "Music"
+      ],
+      "sources": [
+        {
+          "id": "55555555-aaaa-4555-8555-555555555555",
+          "path": "/library/Music",
+          "management_mode": "managed_by_tuvima",
+          "source_type": "local_folder",
+          "include_subdirectories": true,
+          "access_mode": "writable",
+          "conversion_state": "none"
+        }
+      ],
       "primary_destination_source_id": "55555555-aaaa-4555-8555-555555555555",
       "visibility": "household",
       "authorized_profile_ids": [],
-      "accepted_intake_modes": ["incoming_folder", "drag_and_drop", "browser_upload"],
-      "duplicate_policy": "skip_exact",
-      "organization_policy": { "mode": "tuvima_standard", "preserve_originals": true }
+      "accepted_intake_modes": [
+        "incoming_folder",
+        "drag_and_drop",
+        "browser_upload"
+      ],
+      "organization_policy": {
+        "mode": "tuvima_standard",
+        "write_tags": true
+      }
     },
     {
       "id": "66666666-6666-4666-8666-666666666666",
@@ -165,25 +205,35 @@
       "area": "read",
       "presentation": "catalogue",
       "metadata_policy": "enriched",
-      "media_types": ["Comics"],
-      "sources": [{
-        "id": "66666666-aaaa-4666-8666-666666666666",
-        "path": "/library/Comics",
-        "role": "primary_destination",
-        "management_mode": "managed_by_tuvima",
-        "source_type": "local_folder",
-        "include_subdirectories": true,
-        "access_mode": "writable",
-        "writeback_override": null,
-        "participates_in_organization": true,
-        "intake_role": "direct"
-      }],
+      "media_types": [
+        "Comics"
+      ],
+      "sources": [
+        {
+          "id": "66666666-aaaa-4666-8666-666666666666",
+          "path": "/library/Comics",
+          "management_mode": "managed_by_tuvima",
+          "source_type": "local_folder",
+          "include_subdirectories": true,
+          "access_mode": "writable",
+          "conversion_state": "none"
+        }
+      ],
       "primary_destination_source_id": "66666666-aaaa-4666-8666-666666666666",
       "visibility": "household",
       "authorized_profile_ids": [],
-      "accepted_intake_modes": ["incoming_folder", "drag_and_drop", "browser_upload"],
-      "duplicate_policy": "skip_exact",
-      "organization_policy": { "mode": "tuvima_standard", "preserve_originals": true }
+      "accepted_intake_modes": [
+        "incoming_folder",
+        "drag_and_drop",
+        "browser_upload"
+      ],
+      "organization_policy": {
+        "mode": "tuvima_standard",
+        "write_tags": true
+      }
     }
-  ]
+  ],
+  "file_handling": {
+    "duplicate_policy": "keep_one"
+  }
 }

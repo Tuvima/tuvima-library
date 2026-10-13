@@ -35,8 +35,7 @@ public sealed class SetupMediaLocationValidationServiceTests
             Source(
                 managed,
                 LibrarySourceManagementModes.ManagedByTuvima,
-                primaryId,
-                LibrarySourceRoles.PrimaryDestination),
+                primaryId),
         ], primaryId);
 
         var result = fixture.Service.Validate();
@@ -58,8 +57,7 @@ public sealed class SetupMediaLocationValidationServiceTests
             Source(
                 managed,
                 LibrarySourceManagementModes.ManagedByTuvima,
-                primaryId,
-                LibrarySourceRoles.PrimaryDestination),
+                primaryId),
             Source(archive, LibrarySourceManagementModes.ExistingLibrary),
         ], primaryId);
 
@@ -68,6 +66,28 @@ public sealed class SetupMediaLocationValidationServiceTests
         Assert.True(result.Passed);
         Assert.Equal(2, result.Configured);
         Assert.Equal(2, result.Readable);
+    }
+
+    [Fact]
+    public void ManagedLibraryWithoutAChosenDestinationGetsTheFirstManagedFolder()
+    {
+        using var fixture = new Fixture();
+        var archive = fixture.CreateFolder("Archive");
+        var first = fixture.CreateFolder("First");
+        var second = fixture.CreateFolder("Second");
+        fixture.SaveLibrary(
+        [
+            Source(archive, LibrarySourceManagementModes.ExistingLibrary),
+            Source(first, LibrarySourceManagementModes.ManagedByTuvima),
+            Source(second, LibrarySourceManagementModes.ManagedByTuvima),
+        ]);
+
+        var result = fixture.Service.Validate();
+
+        Assert.True(result.Passed);
+        var saved = fixture.Configuration.LoadLibraries().Libraries.Single();
+        Assert.Equal(first, saved.PrimaryDestination?.Path);
+        Assert.Contains("destination validation", result.Detail, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -102,21 +122,15 @@ public sealed class SetupMediaLocationValidationServiceTests
     private static LibrarySourceConfig Source(
         string path,
         string managementMode,
-        string? id = null,
-        string role = LibrarySourceRoles.Secondary) => new()
+        string? id = null) => new()
         {
             Id = id ?? Guid.NewGuid().ToString("D"),
             Path = path,
-            Role = role,
             ManagementMode = managementMode,
             SourceType = LibrarySourceTypes.LocalFolder,
             AccessMode = managementMode == LibrarySourceManagementModes.ManagedByTuvima
                 ? LibrarySourceAccessModes.Writable
                 : LibrarySourceAccessModes.ReadOnly,
-            ParticipatesInOrganization = managementMode == LibrarySourceManagementModes.ManagedByTuvima,
-            IntakeRole = role == LibrarySourceRoles.PrimaryDestination
-                ? LibrarySourceIntakeRoles.Direct
-                : LibrarySourceIntakeRoles.None,
         };
 
     private static string FindRepoRoot()
@@ -182,7 +196,6 @@ public sealed class SetupMediaLocationValidationServiceTests
                 };
             Configuration.SaveLibraries(new LibrariesConfiguration
             {
-                SchemaVersion = "6.0",
                 StorageLocations =
                 [
                     new ServerStorageLocationConfig
