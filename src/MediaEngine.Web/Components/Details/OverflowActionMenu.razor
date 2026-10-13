@@ -69,7 +69,16 @@
 
     public void Dispose() => DeviceContext.OnChanged -= DeviceChanged;
 
-    private void DeviceChanged() => _ = InvokeAsync(StateHasChanged);
+    private void DeviceChanged()
+    {
+        // The sheet only exists on phones; leaving the phone form factor must not leave it armed for the way back.
+        if (!DeviceContext.IsPhone)
+        {
+            _sheetOpen = false;
+        }
+
+        _ = InvokeAsync(StateHasChanged);
+    }
 
     private Task OpenSheetAsync()
     {
@@ -89,6 +98,7 @@
         // another dialog is not stacked under a sheet that is still on screen.
         _sheetOpen = false;
         await InvokeAsync(StateHasChanged);
+        await Task.Yield();
         await OnActionSelected.InvokeAsync(action);
     }
 }

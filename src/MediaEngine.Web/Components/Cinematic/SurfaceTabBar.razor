@@ -67,6 +67,10 @@
         {
             // The circuit closed while the strip was rendering; there is nothing left to hint.
         }
+        catch (JSException)
+        {
+            // The edge hint is a best-effort nicety (for example a stale cached module); tabs work without it.
+        }
     }
 
     public async ValueTask DisposeAsync()

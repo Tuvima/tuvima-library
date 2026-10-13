@@ -180,7 +180,7 @@ public sealed class DetailsPhoneTests : AsyncBunitContext
         Assert.True(marker > 0, "The phone details block is missing from app.css.");
         var block = Regex.Replace(appCss[marker..], @"/\*.*?\*/", string.Empty, RegexOptions.Singleline);
 
-        // No media-query or unscoped rule may slip into the phone block: tablet and desktop keep their own layout.
+        // No media-query or unscoped rule may slip into the phone block: tablet, desktop and non-detail pages keep their own layout.
         var selectors = block
             .Split('{')
             .Select(part => part.Split('}').Last().Trim())
@@ -189,8 +189,7 @@ public sealed class DetailsPhoneTests : AsyncBunitContext
         {
             foreach (var single in selector.Split(',').Select(part => part.Trim()).Where(part => part.Length > 0))
             {
-                var scoped = single.StartsWith("html[data-form-factor=\"phone\"]", StringComparison.Ordinal)
-                    || single.StartsWith("html[data-touch=\"true\"]", StringComparison.Ordinal)
+                var scoped = single.StartsWith("html[data-form-factor=\"phone\"] .tl-detail-page", StringComparison.Ordinal)
                     || single.StartsWith(".tl-detail-more-sheet", StringComparison.Ordinal);
                 Assert.True(scoped, $"Unscoped selector in the phone details block: {single}");
             }

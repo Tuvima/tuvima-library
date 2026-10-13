@@ -4804,39 +4804,28 @@ html[data-form-factor="phone"] .tl-detail-page .tl-detail-actions .hero-icon-cir
     text-align: left;
 }
 
-/* Section tabs: the strip fades where more tabs wait off-screen, and tabs keep a comfortable minimum width. */
-html[data-form-factor="phone"] .surface-tab-bar__items,
-html[data-touch="true"] .surface-tab-bar__items {
-    overscroll-behavior-x: contain;
-}
-
-/* The touch contract forces min-width on buttons, so the 112px floor comes from the grid track instead. */
-html[data-form-factor="phone"] .surface-tab-bar__items {
+/* Section tabs on detail pages: the strip fades where more tabs wait off-screen, and tabs keep a comfortable
+   minimum width. The touch contract forces min-width on buttons, so the 112px floor comes from the grid track. */
+html[data-form-factor="phone"] .tl-detail-page .surface-tab-bar__items {
     display: grid;
     grid-auto-flow: column;
     grid-auto-columns: minmax(112px, max-content);
+    overscroll-behavior-x: contain;
 }
 
-html[data-form-factor="phone"] .surface-tab-bar__items > * {
+html[data-form-factor="phone"] .tl-detail-page .surface-tab-bar__items > * {
     justify-content: center;
 }
 
-html[data-form-factor="phone"] .tl-tab {
-    min-width: 112px;
-}
-
-html[data-form-factor="phone"] .surface-tab-bar__items[data-scroll-more-end="true"],
-html[data-touch="true"] .surface-tab-bar__items[data-scroll-more-end="true"] {
+html[data-form-factor="phone"] .tl-detail-page .surface-tab-bar__items[data-scroll-more-end="true"] {
     mask-image: linear-gradient(to right, #000 calc(100% - 2.5rem), transparent);
 }
 
-html[data-form-factor="phone"] .surface-tab-bar__items[data-scroll-more-start="true"],
-html[data-touch="true"] .surface-tab-bar__items[data-scroll-more-start="true"] {
+html[data-form-factor="phone"] .tl-detail-page .surface-tab-bar__items[data-scroll-more-start="true"] {
     mask-image: linear-gradient(to left, #000 calc(100% - 2.5rem), transparent);
 }
 
-html[data-form-factor="phone"] .surface-tab-bar__items[data-scroll-more-start="true"][data-scroll-more-end="true"],
-html[data-touch="true"] .surface-tab-bar__items[data-scroll-more-start="true"][data-scroll-more-end="true"] {
+html[data-form-factor="phone"] .tl-detail-page .surface-tab-bar__items[data-scroll-more-start="true"][data-scroll-more-end="true"] {
     mask-image: linear-gradient(to right, transparent, #000 2.5rem, #000 calc(100% - 2.5rem), transparent);
 }
 
