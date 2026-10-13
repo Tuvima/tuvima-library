@@ -4576,6 +4576,18 @@ input[type="reset"],
 .library-advanced__tabs .tl-tab { flex: 0 0 auto; white-space: nowrap; }
 .library-folders__add.is-highlighted { box-shadow: 0 0 0 2px var(--tl-accent-primary); }
 
+/* Merge into sheet (MergeFolderDialog): the target and Copy or Move choices are AppNativeButton radios, so their root styles live here. */
+.merge-folder__option { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 12px; align-items: start; width: 100%; min-height: 44px; padding: 12px; color: var(--tl-text-primary); text-align: left; border: 1px solid var(--tl-border-subtle); border-radius: var(--tl-radius-md, 10px); background: transparent; font: inherit; cursor: pointer; }
+.merge-folder__option[aria-checked="true"] { border-color: var(--tl-accent-primary); background: var(--tl-accent-primary-soft); }
+.merge-folder__option[aria-checked="true"] .tl-icon-root { color: var(--tl-accent-primary); }
+.merge-folder__option:focus-visible { outline: 2px solid var(--tl-accent-primary); outline-offset: 2px; }
+.merge-folder__option:disabled { cursor: wait; opacity: .65; }
+
+/* Add Folder > "This folder already has files in it": the three choice cards are AppChoiceCard roots, so their styles live here. */
+.add-folder-choice__card { display: grid; gap: 4px; justify-items: start; min-height: 44px; padding: 14px 16px; color: var(--tl-text-primary); text-align: left; border: 1px solid var(--tl-border-subtle); border-radius: var(--tl-radius-md, 10px); background: transparent; font: inherit; cursor: pointer; }
+.add-folder-choice__card span { color: var(--tl-text-muted); font-size: 0.88rem; line-height: 1.4; }
+.add-folder-choice__card:hover, .add-folder-choice__card:focus-visible { border-color: var(--tl-accent-primary); outline: none; background: var(--tl-accent-primary-soft); }
+
 /* Phone search: the visible Cancel button next to the full-screen search field. */
 .universal-search-overlay__cancel {
     min-width: 44px;

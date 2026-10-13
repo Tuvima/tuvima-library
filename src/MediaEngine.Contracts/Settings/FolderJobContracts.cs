@@ -99,6 +99,113 @@ public sealed class FolderConvertRequest
     public string SourceId { get; set; } = string.Empty;
 }
 
+/// <summary>Merges one existing folder, once, into a managed folder of the same library.</summary>
+public sealed class FolderMergeRequest
+{
+    /// <summary>The folder whose files are merged.</summary>
+    [JsonPropertyName("source_id")]
+    public string SourceId { get; set; } = string.Empty;
+
+    /// <summary>The managed folder the files go into.</summary>
+    [JsonPropertyName("target_source_id")]
+    public string TargetSourceId { get; set; } = string.Empty;
+
+    /// <summary><c>copy</c> (the default: the source is never written) or <c>move</c> (each original is removed once its copy is checked).</summary>
+    [JsonPropertyName("mode")]
+    public string Mode { get; set; } = "copy";
+}
+
+/// <summary>Asks what merging a folder would do. Nothing is changed.</summary>
+public sealed class FolderMergePreviewRequest
+{
+    [JsonPropertyName("source_id")]
+    public string SourceId { get; set; } = string.Empty;
+
+    [JsonPropertyName("target_source_id")]
+    public string TargetSourceId { get; set; } = string.Empty;
+
+    [JsonPropertyName("mode")]
+    public string Mode { get; set; } = "copy";
+
+    /// <summary>True for the quick answer the sheet opens with: a count and the room needed, read from folder listings only.</summary>
+    [JsonPropertyName("quick")]
+    public bool Quick { get; set; }
+
+    /// <summary>For the preview, how many files to examine. 0 examines every file; a large folder is sampled first.</summary>
+    [JsonPropertyName("file_limit")]
+    public int FileLimit { get; set; }
+}
+
+/// <summary>What merging a folder would do, worked out without changing anything.</summary>
+public sealed class FolderMergePreviewResponse
+{
+    [JsonPropertyName("source_id")]
+    public string SourceId { get; set; } = string.Empty;
+
+    [JsonPropertyName("target_source_id")]
+    public string TargetSourceId { get; set; } = string.Empty;
+
+    [JsonPropertyName("mode")]
+    public string Mode { get; set; } = "copy";
+
+    /// <summary>Every media file in the source folder (a quick count, not a scan).</summary>
+    [JsonPropertyName("total_files")]
+    public int TotalFiles { get; set; }
+
+    [JsonPropertyName("video_files")]
+    public int VideoFiles { get; set; }
+
+    /// <summary>How many files the preview examined; fewer than <see cref="TotalFiles"/> for a sampled large folder.</summary>
+    [JsonPropertyName("examined")]
+    public int Examined { get; set; }
+
+    [JsonPropertyName("complete")]
+    public bool Complete { get; set; }
+
+    /// <summary>Files that would be copied (or moved) to their standard names.</summary>
+    [JsonPropertyName("to_transfer")]
+    public int ToTransfer { get; set; }
+
+    /// <summary>Files an identical copy of which is already held: at the standard name in the target, or elsewhere in the library.</summary>
+    [JsonPropertyName("already_in_target")]
+    public int AlreadyInTarget { get; set; }
+
+    /// <summary>Files that cannot be named yet; they go to the target's From merge folder and wait in Review.</summary>
+    [JsonPropertyName("needs_review")]
+    public int NeedsReview { get; set; }
+
+    [JsonPropertyName("name_collisions")]
+    public int NameCollisions { get; set; }
+
+    [JsonPropertyName("skipped")]
+    public int Skipped { get; set; }
+
+    [JsonPropertyName("skip_reasons")]
+    public List<FolderConversionSkipDto> SkipReasons { get; set; } = [];
+
+    [JsonPropertyName("samples")]
+    public List<FolderConversionSampleDto> Samples { get; set; } = [];
+
+    [JsonPropertyName("estimated_seconds")]
+    public int EstimatedSeconds { get; set; }
+
+    /// <summary>The "same file twice" setting: <c>keep_one</c> or <c>keep_both</c>.</summary>
+    [JsonPropertyName("duplicate_policy")]
+    public string DuplicatePolicy { get; set; } = "keep_one";
+
+    /// <summary>Total size of the source folder's media files, in bytes.</summary>
+    [JsonPropertyName("source_bytes")]
+    public long SourceBytes { get; set; }
+
+    /// <summary>Room left on the target folder's drive, in bytes; null when it cannot be read.</summary>
+    [JsonPropertyName("target_free_bytes")]
+    public long? TargetFreeBytes { get; set; }
+
+    /// <summary>Why the merge cannot start right now, in plain words; null when it can.</summary>
+    [JsonPropertyName("blocked_reason")]
+    public string? BlockedReason { get; set; }
+}
+
 /// <summary>Pause, resume or cancel a folder job. <see cref="Action"/> is <c>pause</c>, <c>resume</c> or <c>cancel</c>.</summary>
 public sealed class FolderJobControlRequest
 {

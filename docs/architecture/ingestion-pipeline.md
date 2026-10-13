@@ -128,7 +128,8 @@ File watching is source-folder aware. A flush that contains files from one sourc
         "source_type": "local_folder",
         "include_subdirectories": true,
         "access_mode": "writable",
-        "conversion_state": "none"
+        "conversion_state": "none",
+        "merge_state": "none"
       }],
       "primary_destination_source_id": "44444444-aaaa-4444-8444-444444444444",
       "visibility": "shared",

@@ -46,6 +46,7 @@ public sealed class LibraryFolderEntry
     /// </summary>
     public IReadOnlyList<string> EffectiveSourcePaths =>
         Sources
+            .Where(source => !source.IsMergedAway)
             .Select(source => source.Path)
             .Where(path => !string.IsNullOrWhiteSpace(path))
             .Distinct(StringComparer.OrdinalIgnoreCase)
@@ -97,6 +98,11 @@ public sealed class LibrarySourceEntry
     public bool IncludeSubdirectories { get; init; } = true;
 
     public string ConversionState { get; init; } = LibrarySourceConversionStates.None;
+
+    public string MergeState { get; init; } = LibrarySourceMergeStates.None;
+
+    /// <summary>True once the folder was merged into another one: it is no longer watched or scanned.</summary>
+    public bool IsMergedAway => MergeState == LibrarySourceMergeStates.Merged;
 
     public bool IsManaged => ManagementMode == LibrarySourceManagementModes.ManagedByTuvima;
 

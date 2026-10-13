@@ -182,6 +182,9 @@ public sealed record OrganiseDecision(
     string? Reason = null,
     string? Occupant = null);
 
+/// <summary>The standard name of a file, or why it cannot be named yet (<see cref="Blocked"/>).</summary>
+public sealed record StandardName(string? RelativePath, OrganiseDecision? Blocked);
+
 /// <summary>What applying a decision did. <see cref="Locked"/> means the file could not be touched yet and should be retried.</summary>
 public sealed record ConversionOutcome(string Outcome, string? NewPath = null, string? Detail = null, bool Locked = false);
 

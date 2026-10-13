@@ -104,6 +104,132 @@ public sealed class SidecarMover
         return results;
     }
 
+    /// <summary>
+    /// Copies every sidecar of <paramref name="oldMediaPath"/> so it sits beside <paramref name="newMediaPath"/>, for a merge.
+    /// Each copy is checked byte for byte before it is put in place. When <paramref name="move"/> is true the original is
+    /// removed afterwards, but only when <paramref name="mayRemove"/> allows it. Nothing is ever overwritten, and an identical
+    /// copy that is already there is simply left (nothing is reported for it).
+    /// </summary>
+    /// <param name="mayWrite">Asks the target folder's policy whether a file may be created at that path.</param>
+    public IReadOnlyList<SidecarMoveResult> Transfer(
+        string oldMediaPath,
+        string newMediaPath,
+        bool move,
+        Func<string, bool> mayWrite,
+        Func<string, bool>? mayRemove = null)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(oldMediaPath);
+        ArgumentException.ThrowIfNullOrWhiteSpace(newMediaPath);
+        ArgumentNullException.ThrowIfNull(mayWrite);
+
+        var results = new List<SidecarMoveResult>();
+        var candidates = SidecarFiles.Find(oldMediaPath, MediaExtensions).ToList();
+        // A copy can share a folder's cover with every file in it. A move takes it only with the last media file to leave.
+        var oldFolder = Path.GetDirectoryName(oldMediaPath)!;
+        candidates.AddRange(SidecarFiles.FindArtwork(oldMediaPath, MediaExtensions, includeFolderLevel: !move || !HasMediaLeft(oldFolder)));
+
+        foreach (var sidecar in candidates)
+        {
+            var target = SidecarFiles.DestinationFor(sidecar, newMediaPath);
+            if (!mayWrite(target))
+            {
+                results.Add(new SidecarMoveResult(sidecar.Path, sidecar.Path, FolderOrganiseOutcomes.NotMoved, "The target folder's settings do not allow writing it."));
+                continue;
+            }
+
+            if (File.Exists(target))
+            {
+                if (SameBytes(sidecar.Path, target))
+                {
+                    // Already there (a shared cover picked up by an earlier file, or an earlier run). A move can now drop its original.
+                    if (move && mayRemove is not null && mayRemove(sidecar.Path) && TryDelete(sidecar.Path))
+                    {
+                        results.Add(new SidecarMoveResult(sidecar.Path, target, FolderOrganiseOutcomes.DuplicateRemoved, "An identical copy was already there."));
+                    }
+
+                    continue;
+                }
+
+                results.Add(new SidecarMoveResult(sidecar.Path, sidecar.Path, FolderOrganiseOutcomes.NotMoved, "A different file already has that name, so this one was not copied."));
+                continue;
+            }
+
+            var copied = CopyVerified(sidecar.Path, target);
+            if (copied is not null)
+            {
+                results.Add(new SidecarMoveResult(sidecar.Path, sidecar.Path, FolderOrganiseOutcomes.Failed, copied));
+                continue;
+            }
+
+            string? detail = null;
+            if (sidecar.IsPlaylist)
+            {
+                detail = RewritePlaylistEntries(target, Path.GetFileName(oldMediaPath), Path.GetFileName(newMediaPath));
+            }
+
+            if (move)
+            {
+                if (mayRemove is not null && mayRemove(sidecar.Path) && TryDelete(sidecar.Path))
+                {
+                    results.Add(new SidecarMoveResult(sidecar.Path, target, FolderOrganiseOutcomes.SidecarMoved, detail));
+                    continue;
+                }
+
+                detail = "Copied, but the original could not be removed.";
+            }
+
+            results.Add(new SidecarMoveResult(sidecar.Path, target, FolderOrganiseOutcomes.SidecarCopied, detail));
+        }
+
+        return results;
+    }
+
+    /// <summary>Copies through a temporary file and renames it into place once its bytes match. Returns a reason on failure, null on success.</summary>
+    private string? CopyVerified(string source, string target)
+    {
+        var temporary = Path.Combine(
+            Path.GetDirectoryName(target)!, $".{Path.GetFileName(target)}.{Guid.NewGuid():N}{MergeFileTransfer.PartSuffix}");
+        try
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(target)!);
+            File.Copy(source, temporary, overwrite: false);
+            if (!SameBytes(source, temporary))
+            {
+                return "The copy did not match the original, so it was discarded.";
+            }
+
+            File.Move(temporary, target, overwrite: false);
+            return null;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            _logger.LogWarning(ex, "Could not copy the sidecar {Sidecar} to {Target}", source, target);
+            return ex.Message;
+        }
+        finally
+        {
+            TryDelete(temporary);
+        }
+    }
+
+    private bool TryDelete(string path)
+    {
+        try
+        {
+            if (File.Exists(path))
+            {
+                File.Delete(path);
+            }
+
+            return true;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            _logger.LogDebug(ex, "Could not remove {Path}", path);
+            return false;
+        }
+    }
+
     private bool HasMediaLeft(string folder)
     {
         try

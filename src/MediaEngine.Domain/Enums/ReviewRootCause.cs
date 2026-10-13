@@ -9,7 +9,7 @@ public enum ReviewRootCause
 {
     /// <summary>
     /// Not enough data to identify the item.
-    /// Maps from: RetailMatchFailed, StagedUnidentifiable, PlaceholderTitle, RootWatchFolder.
+    /// Maps from: RetailMatchFailed, StagedUnidentifiable, PlaceholderTitle, RootWatchFolder, FromMerge.
     /// </summary>
     InsufficientEvidence,
 
@@ -40,7 +40,7 @@ public static class ReviewRootCauseExtensions
     /// <summary>Maps a <see cref="Constants.ReviewTrigger"/> string value to its root cause category.</summary>
     public static ReviewRootCause? FromTrigger(string? trigger) => trigger switch
     {
-        "RetailMatchFailed" or "StagedUnidentifiable" or "PlaceholderTitle" or "RootWatchFolder"
+        "RetailMatchFailed" or "StagedUnidentifiable" or "PlaceholderTitle" or "RootWatchFolder" or "FromMerge"
             => ReviewRootCause.InsufficientEvidence,
         "RetailMatchAmbiguous" or "MultipleQidMatches" or "AmbiguousMediaType" or "LowConfidence" or "MovieMatchedAsTv" or "NameCollision"
             => ReviewRootCause.ConflictingEvidence,

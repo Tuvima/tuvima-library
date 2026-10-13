@@ -185,7 +185,7 @@ public sealed class LibraryFolderConfig
 
     [JsonIgnore]
     public IEnumerable<LibrarySourceConfig> ScannableSources =>
-        Sources.Where(source => !string.IsNullOrWhiteSpace(source.Path));
+        Sources.Where(source => !string.IsNullOrWhiteSpace(source.Path) && !source.IsMergedAway);
 
     /// <summary>The destination folder. An as-is folder is never returned, even if the id points at one.</summary>
     [JsonIgnore]
@@ -230,6 +230,29 @@ public sealed class LibrarySourceConfig
     [JsonPropertyName("conversion_operation_id")]
     public string? ConversionOperationId { get; set; }
 
+    /// <summary>
+    /// Progress of merging this folder into another managed folder: <c>none</c>, <c>merging</c> or <c>merged</c>. Like the
+    /// conversion state it belongs to the Engine, which keeps it when the Dashboard saves the folder settings.
+    /// </summary>
+    [JsonPropertyName("merge_state")]
+    public string MergeState { get; set; } = LibrarySourceMergeStates.None;
+
+    /// <summary>The media operation that is merging this folder, set only while <see cref="MergeState"/> is <c>merging</c>.</summary>
+    [JsonPropertyName("merge_operation_id")]
+    public string? MergeOperationId { get; set; }
+
+    /// <summary>The managed folder this folder is being (or was) merged into.</summary>
+    [JsonPropertyName("merge_target_source_id")]
+    public string? MergeTargetSourceId { get; set; }
+
+    /// <summary><c>copy</c> keeps every original file; <c>move</c> removes each one once its copy has been checked.</summary>
+    [JsonPropertyName("merge_mode")]
+    public string? MergeMode { get; set; }
+
+    /// <summary>When the merge finished, set only while <see cref="MergeState"/> is <c>merged</c>.</summary>
+    [JsonPropertyName("merged_at")]
+    public DateTimeOffset? MergedAt { get; set; }
+
     [JsonPropertyName("notes")]
     public string? Notes { get; set; }
 
@@ -241,6 +264,10 @@ public sealed class LibrarySourceConfig
 
     [JsonExtensionData]
     public Dictionary<string, JsonElement>? UnmappedProperties { get; set; }
+
+    /// <summary>True once this folder has been merged into another one: its files are catalogued as the target's copies and it is no longer scanned.</summary>
+    [JsonIgnore]
+    public bool IsMergedAway => MergeState == LibrarySourceMergeStates.Merged;
 
     [JsonIgnore]
     public bool IsWritable => AccessMode == LibrarySourceAccessModes.Writable;

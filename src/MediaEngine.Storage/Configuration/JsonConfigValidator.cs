@@ -687,6 +687,8 @@ public static class JsonConfigValidator
             errors.Add($"{prefix}.conversion_operation_id must be a non-empty GUID.");
         }
 
+        ValidateMergeState(source, prefix, errors);
+
         if (!string.IsNullOrWhiteSpace(source.ProfileId)
             && (!Guid.TryParse(source.ProfileId, out var profileId) || profileId == Guid.Empty))
         {
@@ -694,6 +696,44 @@ public static class JsonConfigValidator
         }
 
         AddNoUnmappedProperties(source.UnmappedProperties, prefix, errors);
+    }
+
+    private static void ValidateMergeState(LibrarySourceConfig source, string prefix, List<string> errors)
+    {
+        if (!LibrarySourceMergeStates.IsValid(source.MergeState))
+        {
+            errors.Add($"{prefix}.merge_state must be none, merging, or merged.");
+            return;
+        }
+
+        if (source.MergeState == LibrarySourceMergeStates.None)
+        {
+            if (!string.IsNullOrWhiteSpace(source.MergeOperationId)
+                || !string.IsNullOrWhiteSpace(source.MergeTargetSourceId)
+                || !string.IsNullOrWhiteSpace(source.MergeMode)
+                || source.MergedAt is not null)
+            {
+                errors.Add($"{prefix}.merge_* details are only valid while the folder is merging or merged.");
+            }
+
+            return;
+        }
+
+        if (!Guid.TryParse(source.MergeTargetSourceId, out var targetId) || targetId == Guid.Empty)
+        {
+            errors.Add($"{prefix}.merge_target_source_id must be a non-empty GUID once a merge has started.");
+        }
+
+        if (!LibraryMergeModes.IsValid(source.MergeMode))
+        {
+            errors.Add($"{prefix}.merge_mode must be copy or move once a merge has started.");
+        }
+
+        if (source.MergeState == LibrarySourceMergeStates.Merging
+            && (!Guid.TryParse(source.MergeOperationId, out var operationId) || operationId == Guid.Empty))
+        {
+            errors.Add($"{prefix}.merge_operation_id must be a non-empty GUID while the folder is merging.");
+        }
     }
 
     private static void ValidatePrimaryDestination(LibraryFolderConfig library, string prefix, List<string> errors)

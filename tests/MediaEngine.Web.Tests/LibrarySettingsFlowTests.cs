@@ -44,6 +44,29 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
         DuplicatePolicy = "keep_one",
         Samples = [new() { OldPath = "raw/Dune.2021.mkv", NewPath = "Movies/Dune (2021)/Dune (2021).mkv" }],
     };
+    // The Engine's side of merging a folder: a quick count, a preview, and what was asked of it.
+    private FolderMergePreviewResponse _mergeQuick = new()
+    {
+        TotalFiles = 12,
+        VideoFiles = 12,
+        SourceBytes = 48L * 1024 * 1024 * 1024,
+        TargetFreeBytes = 900L * 1024 * 1024 * 1024,
+        EstimatedSeconds = 3000,
+        DuplicatePolicy = "keep_one",
+    };
+    private FolderMergePreviewResponse _mergePreview = new()
+    {
+        TotalFiles = 12,
+        Examined = 12,
+        Complete = true,
+        ToTransfer = 9,
+        AlreadyInTarget = 1,
+        NeedsReview = 2,
+        EstimatedSeconds = 3000,
+        DuplicatePolicy = "keep_one",
+        Samples = [new() { OldPath = "raw/Dune.2021.mkv", NewPath = "Movies/Dune (2021)/Dune (2021).mkv" }],
+    };
+    private readonly List<FolderMergeRequest> _merges = [];
     private List<FolderJobStatusDto> _jobs = [];
     private readonly List<string> _converted = [];
     private readonly List<(string Id, string Action)> _controls = [];
@@ -115,6 +138,21 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
             });
             stub.SetHandler(nameof(IEngineApiClient.PreviewFolderConversionAsync), args =>
                 Task.FromResult<FolderConversionPreviewResponse?>(((FolderConversionPreviewRequest)args![0]!).Quick ? _quick : _preview));
+            stub.SetHandler(nameof(IEngineApiClient.PreviewFolderMergeAsync), args =>
+                Task.FromResult<FolderMergePreviewResponse?>(((FolderMergePreviewRequest)args![0]!).Quick ? _mergeQuick : _mergePreview));
+            stub.SetHandler(nameof(IEngineApiClient.MergeFolderAsync), args =>
+            {
+                var request = (FolderMergeRequest)args![0]!;
+                _merges.Add(request);
+                var source = _configuration.Libraries.SelectMany(library => library.Sources).Single(item => item.Id == request.SourceId);
+                source.MergeState = "merging";
+                source.MergeOperationId = Guid.NewGuid().ToString("D");
+                source.MergeTargetSourceId = request.TargetSourceId;
+                source.MergeMode = request.Mode;
+                var job = new FolderJobStatusDto { OperationId = source.MergeOperationId, SourceId = source.Id, JobType = "merge_folder", State = "queued", ItemsTotal = _mergeQuick.TotalFiles };
+                _jobs = [.. _jobs.Where(item => item.SourceId != source.Id), job];
+                return Task.FromResult<FolderJobStatusDto?>(job);
+            });
             stub.SetHandler(nameof(IEngineApiClient.GetFolderJobsAsync), _ => Task.FromResult<IReadOnlyList<FolderJobStatusDto>>(_jobs));
             stub.SetHandler(nameof(IEngineApiClient.ConvertFolderAsync), args =>
             {
@@ -227,7 +265,9 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
         var lines = cut.FindAll(".library-folders__destination").Select(Text).ToList();
         Assert.Contains(lines, line => line.StartsWith("Movies") && line.Contains("Library Movies") && line.Contains("E:\\Library\\Movies"));
         Assert.Contains(lines, line => line.StartsWith("Audiobooks") && line.Contains("Add a managed folder to import Audiobooks") && line.Contains("Choose"));
-        Assert.DoesNotContain("Merge into", cut.Markup);
+        // Merge into now exists, so the panel says when to use it instead of the Import folder.
+        Assert.True(LibraryFolderTable.HasMergeAction);
+        Assert.Contains("To bring in a whole existing folder once, use Merge into on a managed folder.", cut.Markup);
     }
 
     // Choose jumps to that type's folders and points at Add Folder.
@@ -496,6 +536,210 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
         Assert.Contains("This cannot be undone automatically", dialogs.Markup);
         dialogs.FindAll("button").Single(x => Text(x) == "Organise now").Click();
         cut.WaitForAssertion(() => Assert.Equal(["movies-main"], _converted));
+    }
+
+    // ── Merge into ───────────────────────────────────────────────────────────────────────────────────────────────
+
+    [Fact]
+    public void MergeIntoIsOfferedForEveryFolderExceptTheNewMediaFolderAndOnlyWhenAnotherManagedFolderCanReceive()
+    {
+        var movies = _configuration.Libraries[0];
+        var main = movies.Sources[0];
+        var plex = movies.Sources[1];
+        var old = movies.Sources[2];
+
+        Assert.False(LibraryFolderTable.CanMergeInto(movies, main, jobOpen: false));
+        Assert.True(LibraryFolderTable.CanMergeInto(movies, plex, jobOpen: false));
+        Assert.True(LibraryFolderTable.CanMergeInto(movies, old, jobOpen: false));
+        Assert.False(LibraryFolderTable.CanMergeInto(movies, plex, jobOpen: true));
+        plex.ConversionState = "converting";
+        Assert.False(LibraryFolderTable.CanMergeInto(movies, plex, jobOpen: false));
+        plex.ConversionState = "none";
+        old.MergeState = "merging";
+        Assert.False(LibraryFolderTable.CanMergeInto(movies, old, jobOpen: false));
+        old.MergeState = "merged";
+        Assert.False(LibraryFolderTable.CanMergeInto(movies, old, jobOpen: false));
+        old.MergeState = "none";
+
+        // The only managed folder of a type has nowhere to merge into, and a merged-away folder is never a target.
+        var tv = _configuration.Libraries[1];
+        Assert.False(LibraryFolderTable.CanMergeInto(tv, tv.Sources[0], jobOpen: false));
+        Assert.Equal(["movies-main", "movies-plex"], LibraryFolderTable.MergeTargets(movies, old).Select(x => x.Id));
+        plex.MergeState = "merged";
+        Assert.Equal(["movies-main"], LibraryFolderTable.MergeTargets(movies, old).Select(x => x.Id));
+        plex.MergeState = "merging";
+        Assert.Equal(["movies-main"], LibraryFolderTable.MergeTargets(movies, old).Select(x => x.Id));
+    }
+
+    [Fact]
+    public void MergeIntoShowsInTheRowMenuNextToOrganiseFilesNow()
+    {
+        var cut = Open("Movies");
+        cut.FindAll(".folder-table__row")[1].QuerySelector(".folder-table__menu-trigger")!.Click();
+        cut.WaitForAssertion(() => Assert.Contains(cut.FindAll("[role=menuitem]"), x => Text(x) == "Merge into…"));
+        var labels = cut.FindAll("[role=menuitem]").Select(Text).ToList();
+        Assert.True(labels.IndexOf("Merge into…") == labels.IndexOf("Organise files now") + 1);
+    }
+
+    [Fact]
+    public void TheMergeSheetPreselectsTheNewMediaFolderAndCopyAndStartsTheJob()
+    {
+        var dialogs = Render<AppDialogHost>();
+        var cut = Open("Movies");
+        OpenMenuItem(cut, 2, "Merge into…");
+        dialogs.WaitForAssertion(() => Assert.Contains("Merge Old drive into a managed folder", dialogs.Markup));
+        dialogs.WaitForAssertion(() => Assert.Contains("12 files", Text(dialogs.Find(".merge-folder__facts"))));
+        Assert.Contains("48 GB", Text(dialogs.Find(".merge-folder__facts")));
+
+        // Both managed folders are offered, with the New media folder chosen; the folder itself is not.
+        var targets = dialogs.FindAll("[role=radiogroup][aria-label='Merge into'] [role=radio]");
+        Assert.Equal(2, targets.Count);
+        Assert.Contains("Library Movies", Text(targets[0]));
+        Assert.Contains("New media folder", Text(targets[0]));
+        Assert.Equal("true", targets[0].GetAttribute("aria-checked"));
+        Assert.Equal("false", targets[1].GetAttribute("aria-checked"));
+        Assert.Equal("true", dialogs.FindAll("[role=radiogroup][aria-label='Copy or move'] [role=radio]")[0].GetAttribute("aria-checked"));
+
+        // A folder used as-is can only be copied.
+        Assert.DoesNotContain("Move instead of copy", dialogs.Markup);
+        Assert.Contains("Move is not offered because Tuvima uses this folder as-is", dialogs.Markup);
+        Assert.Contains("Your folder is never changed", dialogs.Markup);
+        Assert.Empty(_merges);
+
+        dialogs.FindAll("button").Single(x => Text(x) == "Merge").Click();
+        cut.WaitForAssertion(() => Assert.Single(_merges));
+        Assert.Equal(("movies-old", "movies-main", "copy"), (_merges[0].SourceId, _merges[0].TargetSourceId, _merges[0].Mode));
+        cut.WaitForAssertion(() => Assert.Contains("Merging…", Text(cut.FindAll(".folder-table__row")[2].QuerySelector(".folder-table__handling")!)));
+    }
+
+    [Fact]
+    public void AManagedFolderCanBeMovedAndThePersonCanPickAnotherTarget()
+    {
+        _configuration.Libraries[0].Sources.Add(new() { Id = "movies-third", Path = "G:\\Films", Notes = "Third", ManagementMode = "managed_by_tuvima", AccessMode = "writable" });
+        var dialogs = Render<AppDialogHost>();
+        var cut = Open("Movies");
+        OpenMenuItem(cut, 1, "Merge into…");
+        dialogs.WaitForAssertion(() => Assert.Contains("Merge Plex Movies into a managed folder", dialogs.Markup));
+        dialogs.WaitForAssertion(() => Assert.Contains("Move instead of copy", dialogs.Markup));
+        Assert.Contains("drive D:", dialogs.Markup);
+        Assert.Contains("only after its copy has been checked byte for byte", dialogs.Markup);
+
+        dialogs.FindAll("[role=radiogroup][aria-label='Merge into'] [role=radio]").Single(x => Text(x).Contains("Third")).Click();
+        dialogs.WaitForAssertion(() => Assert.Equal("true", dialogs.FindAll("[role=radiogroup][aria-label='Merge into'] [role=radio]").Single(x => Text(x).Contains("Third")).GetAttribute("aria-checked")));
+        dialogs.FindAll("[role=radiogroup][aria-label='Copy or move'] [role=radio]").Single(x => Text(x).StartsWith("Move")).Click();
+        dialogs.WaitForAssertion(() => Assert.Equal("true", dialogs.FindAll("[role=radiogroup][aria-label='Copy or move'] [role=radio]").Single(x => Text(x).StartsWith("Move")).GetAttribute("aria-checked")));
+        dialogs.FindAll("button").Single(x => Text(x) == "Merge").Click();
+
+        cut.WaitForAssertion(() => Assert.Single(_merges));
+        Assert.Equal(("movies-plex", "movies-third", "move"), (_merges[0].SourceId, _merges[0].TargetSourceId, _merges[0].Mode));
+    }
+
+    [Fact]
+    public void PreviewFirstShowsWhatWouldHappenWithoutStartingAnything()
+    {
+        var dialogs = Render<AppDialogHost>();
+        var cut = Open("Movies");
+        OpenMenuItem(cut, 1, "Merge into…");
+        dialogs.WaitForAssertion(() => Assert.Contains("12 files", dialogs.Markup));
+
+        dialogs.FindAll("button").Single(x => Text(x) == "Preview first").Click();
+
+        dialogs.WaitForAssertion(() => Assert.Contains("Nothing has changed yet", dialogs.Markup));
+        var counts = Text(dialogs.Find(".merge-folder__counts"));
+        Assert.Contains("9 to copy to their standard names", counts);
+        Assert.Contains("1 already in your library", counts);
+        Assert.Contains("2 to the From merge folder, waiting in Review", counts);
+        Assert.Contains("Movies/Dune (2021)/Dune (2021).mkv", dialogs.Markup);
+        Assert.Empty(_merges);
+    }
+
+    [Fact]
+    public void AMergeThatCannotStartBecauseOfRoomIsExplainedAndTheMergeButtonIsOff()
+    {
+        _mergeQuick = new() { TotalFiles = 3, SourceBytes = 90L * 1024 * 1024 * 1024, TargetFreeBytes = 10L * 1024 * 1024 * 1024, BlockedReason = "There is not enough room on the drive that holds the target folder.", DuplicatePolicy = "keep_one" };
+        var dialogs = Render<AppDialogHost>();
+        var cut = Open("Movies");
+        OpenMenuItem(cut, 1, "Merge into…");
+
+        dialogs.WaitForAssertion(() => Assert.Contains("not enough room on the drive", dialogs.Markup));
+        Assert.True(dialogs.FindAll("button").Single(x => Text(x) == "Merge").HasAttribute("disabled"));
+    }
+
+    [Fact]
+    public void AMergedFolderSaysWhereItWentAndOffersNoSecondMerge()
+    {
+        var when = new DateTimeOffset(2026, 10, 13, 12, 0, 0, TimeSpan.Zero);
+        var old = _configuration.Libraries[0].Sources[2];
+        old.MergeState = "merged";
+        old.MergeTargetSourceId = "movies-main";
+        old.MergeMode = "copy";
+        old.MergedAt = when;
+        var cut = Open("Movies");
+        var row = cut.FindAll(".folder-table__row")[2];
+
+        Assert.Contains($"Merged into Library Movies on {when.LocalDateTime.ToString("d MMM yyyy", System.Globalization.CultureInfo.CurrentCulture)}", Text(row));
+
+        row.QuerySelector(".folder-table__menu-trigger")!.Click();
+        cut.WaitForAssertion(() => Assert.Contains(cut.FindAll("[role=menuitem]"), x => Text(x) == "Remove folder"));
+        Assert.DoesNotContain(cut.FindAll("[role=menuitem]"), x => Text(x) == "Merge into…");
+    }
+
+    [Fact]
+    public void ARunningMergeShowsProgressOnTheSourceRowAndStoppingItAsksFirst()
+    {
+        var dialogs = Render<AppDialogHost>();
+        var plex = _configuration.Libraries[0].Sources[1];
+        plex.MergeState = "merging";
+        plex.MergeOperationId = "merge-1";
+        plex.MergeTargetSourceId = "movies-main";
+        plex.MergeMode = "copy";
+        _jobs = [new() { OperationId = "merge-1", SourceId = "movies-plex", JobType = "merge_folder", State = "running", ItemsTotal = 12, ItemsCompleted = 4, ProgressPercent = 33, EstimatedSecondsRemaining = 1500 }];
+        var cut = Open("Movies");
+        var row = cut.FindAll(".folder-table__row")[1];
+
+        cut.WaitForAssertion(() => Assert.Contains("Merging 4 of 12", Text(row.QuerySelector(".folder-job")!)));
+        Assert.Contains("about 25 min left", Text(row.QuerySelector(".folder-job")!));
+        Assert.Contains("Merging…", Text(row.QuerySelector(".folder-table__handling")!));
+        Assert.Equal(["Pause", "Cancel"], row.QuerySelectorAll(".folder-job button").Select(Text));
+
+        cut.Find(".folder-job button[aria-label='Cancel merging Plex Movies']").Click();
+        dialogs.WaitForAssertion(() => Assert.Contains("Stop merging Plex Movies?", dialogs.Markup));
+        Assert.Contains("What was already copied stays in the target folder", dialogs.Markup);
+        dialogs.FindAll("button").Single(x => Text(x) == "Stop merging").Click();
+        cut.WaitForAssertion(() => Assert.Equal([("merge-1", "cancel")], _controls));
+    }
+
+    [Fact]
+    public async Task AddingAFolderThatHasFilesOffersThreeChoicesAndMergeOnlyWhenAManagedFolderExists()
+    {
+        var dialogs = Render<AppDialogHost>();
+        var service = Services.GetRequiredService<IAppDialogService>();
+
+        async Task<(string[] Labels, object? Data)> AskAsync(bool canMerge, string pick)
+        {
+            var parameters = new AppDialogParameters<AddFolderChoiceDialog>
+            {
+                { component => component.TypeLabel, "Movies" },
+                { component => component.CanMerge, canMerge },
+            };
+            var reference = await service.ShowAsync<AddFolderChoiceDialog>(string.Empty, parameters, new AppDialogOptions());
+            dialogs.WaitForAssertion(() => Assert.Contains("This folder already has files in it", dialogs.Markup));
+            var labels = dialogs.FindAll(".add-folder-choice button").Select(x => Text(x.QuerySelector("strong")!)).ToArray();
+            dialogs.FindAll(".add-folder-choice button").Single(x => Text(x.QuerySelector("strong")!) == pick).Click();
+            var result = await reference.Result;
+            return (labels, result?.Data);
+        }
+
+        var with = await AskAsync(canMerge: true, pick: "Merge into Movies");
+        Assert.Equal(["Use as-is (recommended)", "Merge into Movies", "Let Tuvima manage it"], with.Labels);
+        Assert.Equal(AddFolderChoiceDialog.Merge, with.Data);
+
+        var without = await AskAsync(canMerge: false, pick: "Use as-is (recommended)");
+        Assert.Equal(["Use as-is (recommended)", "Let Tuvima manage it"], without.Labels);
+        Assert.Equal(AddFolderChoiceDialog.AsIs, without.Data);
+
+        var managed = await AskAsync(canMerge: true, pick: "Let Tuvima manage it");
+        Assert.Equal(AddFolderChoiceDialog.Managed, managed.Data);
     }
 
     // Changing a naming preset asks before touching existing files; Only new files keeps today's behaviour.

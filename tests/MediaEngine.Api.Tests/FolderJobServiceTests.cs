@@ -91,7 +91,9 @@ public sealed class FolderJobServiceTests : IDisposable
         await _f.AddMovieAsync(folder, "raw alien.mkv", "Alien", "1979");
         var job = await _f.Jobs.StartConversionAsync(folder.Id, default);
 
-        await _f.RunWorkerUntilAsync(() => _f.IsFinishedAsync(job.OperationId));
+        // The worker marks the job done first and settles the folder right after, so wait for both.
+        await _f.RunWorkerUntilAsync(async () => await _f.IsFinishedAsync(job.OperationId)
+            && _f.Source(folder.Id).ConversionState == LibrarySourceConversionStates.Converted);
 
         var done = await _f.Jobs.GetAsync(Guid.Parse(job.OperationId), default);
         Assert.Equal("completed", done!.State);
@@ -304,6 +306,322 @@ public sealed class FolderJobServiceTests : IDisposable
         Assert.Empty(await _f.Operations.GetQueueAsync(MediaOperationQueue.FolderJobs, 10));
     }
 
+    // ── Merging one folder into a managed folder ─────────────────────────────────────────────────────────────────
+
+    [Fact]
+    public async Task Merging_a_folder_creates_one_durable_job_and_marks_the_folder_merging()
+    {
+        var source = _f.AddAsIsFolder("Plex Movies", fileCount: 3);
+        var target = _f.AddManagedFolder("Tuvima Movies");
+
+        var status = await _f.Jobs.StartMergeAsync(MergeRequest(source, target), default);
+
+        Assert.Equal("queued", status.State);
+        Assert.Equal("merge_folder", status.JobType);
+        Assert.Equal(3, status.ItemsTotal);
+        Assert.Equal(source.Id, status.SourceId);
+        var operation = await _f.Operations.GetByIdAsync(Guid.Parse(status.OperationId));
+        Assert.Equal(MediaOperationType.MergeFolder, operation!.OperationType);
+        Assert.Equal(MediaOperationQueue.FolderJobs, operation.QueueName);
+
+        var saved = _f.Source(source.Id);
+        Assert.Equal(LibrarySourceMergeStates.Merging, saved.MergeState);
+        Assert.Equal(status.OperationId, saved.MergeOperationId);
+        Assert.Equal(target.Id, saved.MergeTargetSourceId);
+        Assert.Equal(LibraryMergeModes.Copy, saved.MergeMode);
+        // The source stays exactly what it was: still As-is, still read only.
+        Assert.Equal(LibrarySourceManagementModes.ExistingLibrary, saved.ManagementMode);
+        Assert.Equal(LibrarySourceAccessModes.ReadOnly, saved.AccessMode);
+
+        var again = await _f.Jobs.StartMergeAsync(MergeRequest(source, target), default);
+        Assert.Equal(status.OperationId, again.OperationId);
+        Assert.Single(await _f.Operations.GetQueueAsync(MediaOperationQueue.FolderJobs, 50));
+    }
+
+    [Fact]
+    public async Task A_copy_merge_runs_to_the_end_leaves_the_source_alone_and_the_row_says_Merged_into()
+    {
+        var source = _f.AddAsIsFolder("Plex Movies", fileCount: 0);
+        var target = _f.AddManagedFolder("Tuvima Movies");
+        var dune = await _f.AddMovieAsync(source, "raw dune.mkv", "Dune", "2021");
+        await _f.AddMovieAsync(source, "raw alien.mkv", "Alien", "1979");
+        var sourceBefore = _f.FilesIn(source);
+        var job = await _f.Jobs.StartMergeAsync(MergeRequest(source, target), default);
+
+        await _f.RunWorkerUntilAsync(() => Task.FromResult(_f.Source(source.Id).MergeState == LibrarySourceMergeStates.Merged));
+
+        var done = await _f.Jobs.GetAsync(Guid.Parse(job.OperationId), default);
+        Assert.Equal("completed", done!.State);
+        Assert.Equal(2, done.ItemsCompleted);
+        Assert.Equal(100, done.ProgressPercent);
+        Assert.Equal("2 copied.", done.Message);
+        Assert.True(done.HasLog);
+        Assert.Equal(sourceBefore, _f.FilesIn(source));
+        Assert.Equal(
+            ["Movies/Alien (1979)/Alien (1979).mkv", "Movies/Dune (2021)/Dune (2021).mkv"],
+            _f.FilesIn(target));
+
+        var saved = _f.Source(source.Id);
+        Assert.Equal(LibrarySourceMergeStates.Merged, saved.MergeState);
+        Assert.Equal(target.Id, saved.MergeTargetSourceId);
+        Assert.NotNull(saved.MergedAt);
+        Assert.True(saved.IsMergedAway);
+        Assert.Equal(LibrarySourceManagementModes.ExistingLibrary, saved.ManagementMode);
+
+        // The merged folder is no longer scanned, and its items are catalogued once, as the copies in the target.
+        var library = _f.Config.LoadLibraries().Libraries[0];
+        Assert.DoesNotContain(library.ScannableSources, item => item.Id == source.Id);
+        Assert.Contains(library.ScannableSources, item => item.Id == target.Id);
+        Assert.DoesNotContain(LibraryFolderEntryFactory.Create(library).EffectiveSourcePaths, path => path == source.Path);
+        Assert.Equal(Path.Combine(target.Path, "Movies", "Dune (2021)", "Dune (2021).mkv"), await _f.AssetPathAsync(dune));
+        Assert.Equal(0, await _f.CountAssetsUnderAsync(source));
+
+        var log = await _f.Jobs.GetLogAsync(Guid.Parse(job.OperationId), 0, 100, default);
+        Assert.Equal(2, log.Total);
+        Assert.All(log.Entries, entry => Assert.Equal("copied", entry.Outcome));
+        using var csv = new MemoryStream();
+        await _f.Jobs.WriteLogCsvAsync(Guid.Parse(job.OperationId), csv, default);
+        Assert.Equal(3, System.Text.Encoding.UTF8.GetString(csv.ToArray()).Split("\r\n", StringSplitOptions.RemoveEmptyEntries).Length);
+    }
+
+    [Fact]
+    public async Task A_move_merge_empties_the_managed_source_into_the_target_and_reports_moved()
+    {
+        var target = _f.AddManagedFolder("Tuvima Movies");
+        var source = _f.AddManagedFolder("Old Movies");
+        await _f.AddMovieAsync(source, "raw dune.mkv", "Dune", "2021");
+        var job = await _f.Jobs.StartMergeAsync(MergeRequest(source, target, LibraryMergeModes.Move), default);
+
+        await _f.RunWorkerUntilAsync(() => Task.FromResult(_f.Source(source.Id).MergeState == LibrarySourceMergeStates.Merged));
+
+        Assert.Equal("1 moved.", (await _f.Jobs.GetAsync(Guid.Parse(job.OperationId), default))!.Message);
+        Assert.Empty(_f.FilesIn(source));
+        Assert.True(Directory.Exists(source.Path));
+        Assert.Equal(["Movies/Dune (2021)/Dune (2021).mkv"], _f.FilesIn(target));
+        Assert.Equal(LibraryMergeModes.Move, _f.Source(source.Id).MergeMode);
+    }
+
+    [Fact]
+    public async Task A_merge_into_a_folder_used_as_is_or_a_move_out_of_one_is_refused_and_nothing_is_saved()
+    {
+        var source = _f.AddAsIsFolder("Plex Movies", fileCount: 1);
+        var asIsTarget = _f.AddAsIsFolder("Other Plex", fileCount: 0);
+        var managed = _f.AddManagedFolder("Tuvima Movies");
+
+        var intoAsIs = await Assert.ThrowsAsync<FolderJobException>(() => _f.Jobs.StartMergeAsync(MergeRequest(source, asIsTarget), default));
+        var moveFromAsIs = await Assert.ThrowsAsync<FolderJobException>(
+            () => _f.Jobs.StartMergeAsync(MergeRequest(source, managed, LibraryMergeModes.Move), default));
+        var missing = await Assert.ThrowsAsync<FolderJobException>(
+            () => _f.Jobs.StartMergeAsync(new FolderMergeRequest { SourceId = source.Id, TargetSourceId = Guid.NewGuid().ToString("D") }, default));
+
+        Assert.Contains("An As-is folder is never written to", intoAsIs.Message);
+        Assert.Contains("Move is only available", moveFromAsIs.Message);
+        Assert.True(missing.NotFound);
+        Assert.Equal(LibrarySourceMergeStates.None, _f.Source(source.Id).MergeState);
+        Assert.Empty(await _f.Operations.GetQueueAsync(MediaOperationQueue.FolderJobs, 10));
+        Assert.Equal(["file0.mkv"], _f.FilesIn(source));
+    }
+
+    [Fact]
+    public async Task A_folder_with_a_merge_in_progress_cannot_also_be_converted_and_the_other_way_round()
+    {
+        var source = _f.AddAsIsFolder("Plex Movies", fileCount: 1);
+        var other = _f.AddAsIsFolder("Second Plex", fileCount: 1);
+        var target = _f.AddManagedFolder("Tuvima Movies");
+        await _f.Jobs.StartMergeAsync(MergeRequest(source, target), default);
+        await _f.Jobs.StartConversionAsync(other.Id, default);
+
+        var convert = await Assert.ThrowsAsync<FolderJobException>(() => _f.Jobs.StartConversionAsync(source.Id, default));
+        var merge = await Assert.ThrowsAsync<FolderJobException>(() => _f.Jobs.StartMergeAsync(MergeRequest(other, target), default));
+
+        Assert.True(convert.Conflict);
+        Assert.True(merge.Conflict);
+    }
+
+    [Fact]
+    public async Task A_paused_merge_waits_and_resumes_and_a_merge_not_yet_started_can_be_cancelled_cleanly()
+    {
+        var source = _f.AddAsIsFolder("Plex Movies", fileCount: 0);
+        var target = _f.AddManagedFolder("Tuvima Movies");
+        await _f.AddMovieAsync(source, "raw dune.mkv", "Dune", "2021");
+        var job = await _f.Jobs.StartMergeAsync(MergeRequest(source, target), default);
+
+        var paused = await _f.Jobs.ControlAsync(Guid.Parse(job.OperationId), "pause", default);
+        Assert.Equal("paused", paused.State);
+        await _f.RunWorkerForAsync(TimeSpan.FromMilliseconds(600));
+        Assert.Empty(_f.FilesIn(target));
+
+        var resumed = await _f.Jobs.ControlAsync(Guid.Parse(job.OperationId), "resume", default);
+        Assert.Equal("queued", resumed.State);
+        await _f.RunWorkerUntilAsync(() => Task.FromResult(_f.Source(source.Id).MergeState == LibrarySourceMergeStates.Merged));
+        Assert.Equal(["Movies/Dune (2021)/Dune (2021).mkv"], _f.FilesIn(target));
+    }
+
+    [Fact]
+    public async Task Cancelling_a_merge_keeps_what_was_copied_changes_no_source_file_and_the_folder_is_just_a_folder_again()
+    {
+        var source = _f.AddAsIsFolder("Plex Movies", fileCount: 2);
+        var target = _f.AddManagedFolder("Tuvima Movies");
+        var job = await _f.Jobs.StartMergeAsync(MergeRequest(source, target), default);
+
+        var cancelled = await _f.Jobs.ControlAsync(Guid.Parse(job.OperationId), "cancel", default);
+
+        Assert.Equal("cancelled", cancelled.State);
+        Assert.Contains("still in the source folder", cancelled.Message);
+        var saved = _f.Source(source.Id);
+        Assert.Equal(LibrarySourceMergeStates.None, saved.MergeState);
+        Assert.Null(saved.MergeOperationId);
+        Assert.Null(saved.MergeTargetSourceId);
+        Assert.Equal(["file0.mkv", "file1.mkv"], _f.FilesIn(source));
+        await Assert.ThrowsAsync<FolderJobException>(() => _f.Jobs.ControlAsync(Guid.Parse(job.OperationId), "cancel", default));
+        // It can be merged again later.
+        var again = await _f.Jobs.StartMergeAsync(MergeRequest(source, target), default);
+        Assert.NotEqual(job.OperationId, again.OperationId);
+    }
+
+    [Fact]
+    public async Task A_merge_left_running_when_the_Engine_stopped_resumes_when_it_starts_again()
+    {
+        var source = _f.AddAsIsFolder("Plex Movies", fileCount: 0);
+        var target = _f.AddManagedFolder("Tuvima Movies");
+        await _f.AddMovieAsync(source, "raw dune.mkv", "Dune", "2021");
+        await _f.AddMovieAsync(source, "raw alien.mkv", "Alien", "1979");
+        var job = await _f.Jobs.StartMergeAsync(MergeRequest(source, target), default);
+        await _f.Operations.LeaseNextAsync("dead-engine", [MediaOperationType.MergeFolder], 1, TimeSpan.FromHours(1));
+        await _f.Operations.UpdateStageAsync(Guid.Parse(job.OperationId), "organising", 10);
+        Assert.Equal("running", (await _f.Jobs.GetAsync(Guid.Parse(job.OperationId), default))!.State);
+
+        await _f.RunWorkerUntilAsync(() => Task.FromResult(_f.Source(source.Id).MergeState == LibrarySourceMergeStates.Merged));
+
+        Assert.Equal(2, _f.FilesIn(target).Count);
+        Assert.Equal("completed", (await _f.Jobs.GetAsync(Guid.Parse(job.OperationId), default))!.State);
+    }
+
+    [Fact]
+    public async Task Switching_the_target_to_As_is_stops_the_merge_and_the_folder_is_just_a_folder_again()
+    {
+        var source = _f.AddAsIsFolder("Plex Movies", fileCount: 2);
+        var target = _f.AddManagedFolder("Tuvima Movies");
+        var job = await _f.Jobs.StartMergeAsync(MergeRequest(source, target), default);
+
+        var libraries = _f.Config.LoadLibraries();
+        libraries.Libraries[0].Sources.First(item => item.Id == target.Id).ManagementMode = LibrarySourceManagementModes.ExistingLibrary;
+        _f.Config.SaveLibraries(libraries);
+        await _f.Jobs.StopJobsForUnmanagedFoldersAsync(libraries, default);
+
+        var stopped = await _f.Jobs.GetAsync(Guid.Parse(job.OperationId), default);
+        Assert.Equal("cancelled", stopped!.State);
+        Assert.Equal(LibrarySourceMergeStates.None, _f.Source(source.Id).MergeState);
+        await _f.RunWorkerForAsync(TimeSpan.FromMilliseconds(500));
+        Assert.Empty(_f.FilesIn(target));
+        Assert.Equal(["file0.mkv", "file1.mkv"], _f.FilesIn(source));
+    }
+
+    [Fact]
+    public void A_saved_library_keeps_the_merge_details_the_Engine_has_not_the_ones_a_screen_last_read()
+    {
+        var merged = new LibrarySourceConfig
+        {
+            Id = "a",
+            MergeState = LibrarySourceMergeStates.Merged,
+            MergeOperationId = "op",
+            MergeTargetSourceId = "t",
+            MergeMode = LibraryMergeModes.Copy,
+            MergedAt = new DateTimeOffset(2026, 10, 13, 12, 0, 0, TimeSpan.Zero),
+        };
+        var current = new LibrariesConfiguration { Libraries = [new LibraryFolderConfig { Sources = [merged] }] };
+        var proposed = new LibrariesConfiguration
+        {
+            Libraries =
+            [
+                new LibraryFolderConfig
+                {
+                    Sources =
+                    [
+                        new LibrarySourceConfig { Id = "a", MergeState = LibrarySourceMergeStates.None },
+                        new LibrarySourceConfig { Id = "new", MergeState = LibrarySourceMergeStates.Merged, MergeTargetSourceId = "made-up" },
+                    ],
+                },
+            ],
+        };
+
+        FolderJobService.KeepEngineOwnedConversionState(current, proposed);
+
+        var sources = proposed.Libraries[0].Sources;
+        Assert.Equal((LibrarySourceMergeStates.Merged, "t", merged.MergedAt), (sources[0].MergeState, sources[0].MergeTargetSourceId, sources[0].MergedAt));
+        Assert.Equal((LibrarySourceMergeStates.None, (string?)null), (sources[1].MergeState, sources[1].MergeTargetSourceId));
+    }
+
+    [Fact]
+    public async Task A_folder_still_marked_merging_for_a_job_that_is_over_is_settled()
+    {
+        var source = _f.AddAsIsFolder("Plex Movies", fileCount: 1);
+        var target = _f.AddManagedFolder("Tuvima Movies");
+        var job = await _f.Jobs.StartMergeAsync(MergeRequest(source, target), default);
+        await _f.Operations.MarkCancelledAsync(Guid.Parse(job.OperationId), "Cancelled by user.");
+        Assert.Equal(LibrarySourceMergeStates.Merging, _f.Source(source.Id).MergeState);
+
+        await _f.Jobs.ReconcileAsync(default);
+
+        Assert.Equal(LibrarySourceMergeStates.None, _f.Source(source.Id).MergeState);
+    }
+
+    [Fact]
+    public async Task The_merge_preview_counts_files_and_room_and_changes_nothing()
+    {
+        var source = _f.AddAsIsFolder("Plex Movies", fileCount: 4);
+        var target = _f.AddManagedFolder("Tuvima Movies");
+
+        var quick = await _f.Jobs.PreviewMergeAsync(
+            new FolderMergePreviewRequest { SourceId = source.Id, TargetSourceId = target.Id, Quick = true }, default);
+        var full = await _f.Jobs.PreviewMergeAsync(
+            new FolderMergePreviewRequest { SourceId = source.Id, TargetSourceId = target.Id }, default);
+
+        Assert.Equal(4, quick.TotalFiles);
+        Assert.Equal(4, quick.VideoFiles);
+        Assert.True(quick.SourceBytes > 0);
+        Assert.Equal("copy", quick.Mode);
+        Assert.Null(quick.BlockedReason);
+        Assert.True(quick.EstimatedSeconds >= 2);
+        Assert.Equal(4, full.NeedsReview);
+        Assert.True(full.Complete);
+        Assert.Equal(LibrarySourceMergeStates.None, _f.Source(source.Id).MergeState);
+        Assert.Empty(_f.FilesIn(target));
+        Assert.Empty(await _f.Operations.GetQueueAsync(MediaOperationQueue.FolderJobs, 10));
+        await Assert.ThrowsAsync<FolderJobException>(() => _f.Jobs.PreviewMergeAsync(
+            new FolderMergePreviewRequest { SourceId = source.Id, TargetSourceId = source.Id, Quick = true }, default));
+    }
+
+    [Fact]
+    public async Task A_move_stops_when_its_source_is_switched_to_As_is_and_a_busy_target_is_refused()
+    {
+        var target = _f.AddManagedFolder("Tuvima Movies");
+        var source = _f.AddManagedFolder("Old Movies");
+        var other = _f.AddManagedFolder("Second Movies");
+        var busy = await Assert.ThrowsAnyAsync<FolderJobException>(async () =>
+        {
+            var libraries = _f.Config.LoadLibraries();
+            libraries.Libraries[0].Sources.First(item => item.Id == other.Id).MergeState = LibrarySourceMergeStates.Merged;
+            libraries.Libraries[0].Sources.First(item => item.Id == other.Id).MergeTargetSourceId = target.Id;
+            libraries.Libraries[0].Sources.First(item => item.Id == other.Id).MergeMode = LibraryMergeModes.Copy;
+            _f.Config.SaveLibraries(libraries);
+            await _f.Jobs.StartMergeAsync(MergeRequest(source, other), default);
+        });
+        Assert.True(busy.Conflict);
+
+        var job = await _f.Jobs.StartMergeAsync(MergeRequest(source, target, LibraryMergeModes.Move), default);
+        var current = _f.Config.LoadLibraries();
+        current.Libraries[0].Sources.First(item => item.Id == source.Id).ManagementMode = LibrarySourceManagementModes.ExistingLibrary;
+        _f.Config.SaveLibraries(current);
+        await _f.Jobs.StopJobsForUnmanagedFoldersAsync(current, default);
+
+        Assert.Equal("cancelled", (await _f.Jobs.GetAsync(Guid.Parse(job.OperationId), default))!.State);
+        Assert.Equal(LibrarySourceMergeStates.None, _f.Source(source.Id).MergeState);
+    }
+
+    private static FolderMergeRequest MergeRequest(LibrarySourceConfig source, LibrarySourceConfig target, string mode = LibraryMergeModes.Copy) =>
+        new() { SourceId = source.Id, TargetSourceId = target.Id, Mode = mode };
+
     // ── The fixture ──────────────────────────────────────────────────────────────────────────────────────────────
 
     private sealed class FolderJobFixture : IDisposable
@@ -393,11 +711,19 @@ public sealed class FolderJobServiceTests : IDisposable
                 Config, _assets, Ledger, organiser, NullLogger<FolderOrganiseRunner>.Instance,
                 timing: new FolderOrganiseTiming { RetryDelay = TimeSpan.FromMilliseconds(5), ProgressInterval = TimeSpan.Zero });
             var previewer = new FolderConversionPreviewer(Config, _assets, organiser, NullLogger<FolderConversionPreviewer>.Instance);
+            var mergeOrganiser = new FolderMergeOrganiser(
+                organiser, _assets, new ReviewQueueRepository(_database), new SystemActivityRepository(_database), Ledger, hasher,
+                new SourceMutationPolicyGate(), new MergeFileTransfer(hasher, NullLogger<MergeFileTransfer>.Instance), sidecars,
+                NullLogger<FolderMergeOrganiser>.Instance);
+            var mergeRunner = new FolderMergeRunner(
+                Config, _assets, Ledger, mergeOrganiser, NullLogger<FolderMergeRunner>.Instance,
+                timing: new FolderOrganiseTiming { RetryDelay = TimeSpan.FromMilliseconds(5), ProgressInterval = TimeSpan.Zero });
+            var mergePreviewer = new FolderMergePreviewer(Config, _assets, mergeOrganiser, NullLogger<FolderMergePreviewer>.Instance);
             Jobs = new FolderJobService(
-                Config, Operations, tracker, Ledger, previewer,
+                Config, Operations, tracker, Ledger, previewer, mergePreviewer,
                 new ServerFolderBrowserService(Config, NullLogger<ServerFolderBrowserService>.Instance),
                 NullLogger<FolderJobService>.Instance);
-            Worker = new FolderOrganiseJobWorker(Operations, tracker, _runner, Jobs, NullLogger<FolderOrganiseJobWorker>.Instance);
+            Worker = new FolderOrganiseJobWorker(Operations, tracker, _runner, mergeRunner, Jobs, NullLogger<FolderOrganiseJobWorker>.Instance);
         }
 
         private FolderOrganiseJobWorker Worker { get; }
@@ -426,6 +752,30 @@ public sealed class FolderJobServiceTests : IDisposable
             return source;
         }
 
+        /// <summary>Adds a managed folder to the Movies library. The first one is the library's New media folder.</summary>
+        public LibrarySourceConfig AddManagedFolder(string name)
+        {
+            var path = Path.Combine(_allowedRoot, name);
+            Directory.CreateDirectory(path);
+            var libraries = Config.LoadLibraries();
+            var source = new LibrarySourceConfig
+            {
+                Id = Guid.NewGuid().ToString("D"),
+                Path = path,
+                Notes = name,
+                ManagementMode = LibrarySourceManagementModes.ManagedByTuvima,
+                AccessMode = LibrarySourceAccessModes.Writable,
+            };
+            libraries.Libraries[0].Sources.Add(source);
+            libraries.Libraries[0].PrimaryDestinationSourceId ??= source.Id;
+            Config.SaveLibraries(libraries);
+            return source;
+        }
+
+        public async Task<string?> AssetPathAsync(Guid assetId) => (await _assets.FindByIdAsync(assetId))?.FilePathRoot;
+
+        public async Task<int> CountAssetsUnderAsync(LibrarySourceConfig folder) => (await _assets.ListFilesUnderAsync(folder.Path)).Count;
+
         public LibrarySourceConfig Source(string id) =>
             Config.LoadLibraries().Libraries[0].Sources.First(source => source.Id == id);
 
@@ -436,7 +786,7 @@ public sealed class FolderJobServiceTests : IDisposable
                 .ToList();
 
         /// <summary>Writes a media file and registers it in the library the way ingestion would have.</summary>
-        public async Task AddMovieAsync(LibrarySourceConfig folder, string fileName, string title, string year)
+        public async Task<Guid> AddMovieAsync(LibrarySourceConfig folder, string fileName, string title, string year)
         {
             var path = Path.Combine(folder.Path, fileName);
             File.WriteAllText(path, $"{title} {year} bytes");
@@ -461,6 +811,7 @@ public sealed class FolderJobServiceTests : IDisposable
                 new CanonicalValue { EntityId = assetId, Key = "media_type", Value = "Movies", LastScoredAt = DateTimeOffset.UtcNow },
                 new CanonicalValue { EntityId = assetId, Key = "year", Value = year, LastScoredAt = DateTimeOffset.UtcNow },
             ]);
+            return assetId;
         }
 
         public async Task<bool> IsFinishedAsync(string operationId)

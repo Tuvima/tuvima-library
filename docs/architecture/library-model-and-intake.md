@@ -171,6 +171,77 @@ media files in path order:
   few seconds and stops when the folder stops being Managed. Saving `libraries.json`
   refreshes the in-memory folder list, so a switch takes effect without a restart.
 
+### Merge job (merging a folder into a managed folder)
+
+Merge is for one existing folder, once; the Import folder is the way to keep feeding
+files in over time. `POST /settings/libraries/folders/merge` (`{source_id,
+target_source_id, mode}`) queues one durable `media_operations` row (`merge_folder`,
+the same `folder_jobs` queue, one job at a time) and records the merge on the source
+folder: `merge_state` (`none`, `merging`, `merged`), `merge_operation_id`,
+`merge_target_source_id`, `merge_mode` (`copy` or `move`) and, once it ends, `merged_at`.
+Like the conversion state these belong to the Engine: a settings save keeps what the
+Engine has. `FolderOrganiseJobWorker` runs it with `FolderMergeRunner`, which reuses the
+organising job's control, progress, retry and ledger plumbing (`folder_organise_log`,
+exportable log, pause, resume, cancel, restart-resume).
+
+- **Who can merge into whom.** The target must be a managed, writable folder of the same
+  library (the same kind of media), not the source itself and not nested inside it. It
+  does not have to be the New media folder, but that folder is preselected. The target is
+  authorised through `FileSourceMutationPolicyFactory.Create(..., isMergeTarget: true)`,
+  so `AllowAsDestination` is true for a managed target only; an As-is or otherwise
+  non-managed target is refused by the source-mutation gate and by the request check.
+  The folder that is the library's New media folder cannot itself be merged away.
+- **Copy (the default).** The source is never written: no rename, tag, sidecar move,
+  deletion or temporary file lands in it, and that holds for a managed source as well. Each
+  original is read once, written to a temporary file in the target (`.name.guid.merge-part`),
+  compared by size and SHA-256 with what was read, and renamed into place without
+  overwriting. Tags are written into the copy only.
+- **Move.** Offered only when the source is a folder Tuvima manages. The copy is made and
+  verified exactly as above; then the data store is pointed at the copy, and only then is
+  the original deleted, after the copy is confirmed byte for byte once more. A copy that
+  does not match is discarded and the original is never deleted. Sidecars follow the same
+  rule; source subfolders left empty are removed, the source folder itself is not.
+- **Naming and duplicates.** Files get the type's standard name inside the target (the
+  same preset, the same rules as converting). A different file at that name is never
+  overwritten: the copy takes a numbered name and a `NameCollision` Review item is opened.
+  An exact duplicate follows the global rule: *Keep one copy* does not copy it (Copy) or
+  removes the source duplicate (Move), and the item is catalogued once, as the copy the
+  target already had; *Keep both* copies it under a numbered name.
+- **Unmatched files.** A file that cannot be named yet (not identified, waiting in Review,
+  no confirmed title) is copied or moved to `From merge/<source folder name>/` inside the
+  target, and a Review item with trigger `FromMerge` (badge "From merge", root cause
+  insufficient evidence) is opened unless something else is already waiting for that item.
+  A file the library has never catalogued is put there too and sent through the normal
+  identification pipeline.
+- **After a Copy merge.** The source row reads "Merged into NAME on DATE" (`merge_state:
+  merged`). The folder is no longer scanned or watched (`ScannableSources` and the entry's
+  effective source paths leave it out), the items that were in it are catalogued once, as
+  the copies in the target (their asset rows are pointed at the copy, not deleted), and
+  the person removes the folder when ready. Tuvima never removes it automatically.
+- **Cancel and restart.** Cancel keeps what was copied; the ledger lists every file the
+  job had not reached as `left_in_source`, and the folder is just a folder again
+  (`merge_state: none`). There is no automatic undo; the log is exportable. Each file
+  writes an intent to the ledger before its copy and a final outcome after the data store
+  is updated, so after a restart a verified copy is completed, anything else is retired,
+  leftover temporary copies are cleared, and finished files are not repeated. The job reads
+  the saved settings again every few seconds and stops (keeping what was copied) when the
+  merge is cancelled, a folder is removed, or the target stops being managed.
+- **Shortcuts and busy folders.** Symbolic links and Windows junctions inside the source
+  are never listed, copied or removed (a file reached through one may really live in
+  another folder), and an original is never removed when it and its "copy" are the same
+  file. A target that is itself being merged elsewhere, or was merged away, is refused.
+  A Move reads the saved settings before every file and stops the moment its source is
+  switched to As-is.
+- **Duplicate removal by normal ingestion.** While a folder is merging, or once merged, the
+  ingestion pipeline's own "exact duplicate" removal never deletes from it, and never
+  removes any duplicate whose kept copy is missing. A merged folder is dropped from the
+  scan targets and from folder resolution. After a *cancelled* Copy merge the folder is a
+  normal folder again, so if it is a managed folder, normal duplicate handling may remove
+  originals whose verified copies are already in the target (as for any managed folder).
+- **Known caveat.** `AutoOrganizeService` still moves files out of a managed folder that
+  is not the destination into the destination's root; a merge into such a target is
+  unaffected by this job, but later organising of that target may.
+
 ### Managed source
 
 A managed source is one Tuvima looks after: it may move, rename and delete (when
