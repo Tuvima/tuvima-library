@@ -14,6 +14,7 @@ public enum FolderMergeProblem
     SameFolder,
     NestedFolders,
     TargetNotManaged,
+    TargetBusy,
     SourceIsNewMediaFolder,
     SourceBusy,
     MoveNeedsManagedSource,
@@ -194,6 +195,15 @@ public sealed class FolderMergeContext
             check = new FolderMergeCheck(
                 FolderMergeProblem.TargetNotManaged,
                 "Files can only be merged into a folder Tuvima manages. An As-is folder is never written to.");
+            return null;
+        }
+
+        // A folder that is itself being merged elsewhere, or was merged away, is no place to put more files.
+        if (target.MergeState != LibrarySourceMergeStates.None)
+        {
+            check = new FolderMergeCheck(
+                FolderMergeProblem.TargetBusy,
+                "The folder you are merging into is itself being merged into another folder, or has been merged away.");
             return null;
         }
 

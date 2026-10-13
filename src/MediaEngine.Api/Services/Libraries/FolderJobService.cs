@@ -597,7 +597,11 @@ public sealed class FolderJobService
             ? null
             : libraries.Libraries.SelectMany(library => library.Sources)
                 .FirstOrDefault(candidate => string.Equals(candidate.Id, source.MergeTargetSourceId, StringComparison.OrdinalIgnoreCase));
-        if (source is not null && target is { IsManaged: true })
+        // A Move deletes originals, so it also stops the moment its source is no longer a folder Tuvima manages.
+        var moveLostItsSource = source is not null
+            && string.Equals(source.MergeMode, LibraryMergeModes.Move, StringComparison.Ordinal)
+            && !source.IsManaged;
+        if (source is not null && target is { IsManaged: true } && !moveLostItsSource)
         {
             return;
         }
@@ -776,10 +780,11 @@ public sealed class FolderJobService
             + result.Count(FolderOrganiseOutcomes.CopiedWithUniqueName)
             + result.Count(FolderOrganiseOutcomes.Moved)
             + result.Count(FolderOrganiseOutcomes.MovedWithUniqueName);
-        var parts = new List<string>
+        var parts = new List<string>();
+        if (transferred > 0)
         {
-            $"{transferred.ToString("N0", CultureInfo.InvariantCulture)} {(result.IsMove ? "moved" : "copied")}",
-        };
+            parts.Add($"{transferred.ToString("N0", CultureInfo.InvariantCulture)} {(result.IsMove ? "moved" : "copied")}");
+        }
 
         var skipped = result.Count(FolderOrganiseOutcomes.DuplicateSkipped);
         if (skipped > 0)
@@ -804,7 +809,7 @@ public sealed class FolderJobService
             parts.Add($"{result.Failed.ToString("N0", CultureInfo.InvariantCulture)} could not be copied - see log");
         }
 
-        return string.Join(", ", parts) + ".";
+        return parts.Count == 0 ? "Nothing needed to be copied." : string.Join(", ", parts) + ".";
     }
 
     /// <summary>The sentence shown when a conversion finishes: what was organised, and what needs a look.</summary>
@@ -885,7 +890,7 @@ public sealed class FolderJobService
     private static FolderJobException MergeProblem(FolderMergeCheck check) => new(
         check.Message ?? "This folder cannot be merged.",
         notFound: check.Problem is FolderMergeProblem.SourceRemoved or FolderMergeProblem.TargetRemoved,
-        conflict: check.Problem is FolderMergeProblem.SourceBusy);
+        conflict: check.Problem is FolderMergeProblem.SourceBusy or FolderMergeProblem.TargetBusy);
 
     /// <summary>
     /// About how long a merge takes: every file is read, written and read back, so it is sized by bytes (about 60 MB a

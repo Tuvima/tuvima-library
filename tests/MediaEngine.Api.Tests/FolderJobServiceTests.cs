@@ -590,6 +590,33 @@ public sealed class FolderJobServiceTests : IDisposable
             new FolderMergePreviewRequest { SourceId = source.Id, TargetSourceId = source.Id, Quick = true }, default));
     }
 
+    [Fact]
+    public async Task A_move_stops_when_its_source_is_switched_to_As_is_and_a_busy_target_is_refused()
+    {
+        var target = _f.AddManagedFolder("Tuvima Movies");
+        var source = _f.AddManagedFolder("Old Movies");
+        var other = _f.AddManagedFolder("Second Movies");
+        var busy = await Assert.ThrowsAnyAsync<FolderJobException>(async () =>
+        {
+            var libraries = _f.Config.LoadLibraries();
+            libraries.Libraries[0].Sources.First(item => item.Id == other.Id).MergeState = LibrarySourceMergeStates.Merged;
+            libraries.Libraries[0].Sources.First(item => item.Id == other.Id).MergeTargetSourceId = target.Id;
+            libraries.Libraries[0].Sources.First(item => item.Id == other.Id).MergeMode = LibraryMergeModes.Copy;
+            _f.Config.SaveLibraries(libraries);
+            await _f.Jobs.StartMergeAsync(MergeRequest(source, other), default);
+        });
+        Assert.True(busy.Conflict);
+
+        var job = await _f.Jobs.StartMergeAsync(MergeRequest(source, target, LibraryMergeModes.Move), default);
+        var current = _f.Config.LoadLibraries();
+        current.Libraries[0].Sources.First(item => item.Id == source.Id).ManagementMode = LibrarySourceManagementModes.ExistingLibrary;
+        _f.Config.SaveLibraries(current);
+        await _f.Jobs.StopJobsForUnmanagedFoldersAsync(current, default);
+
+        Assert.Equal("cancelled", (await _f.Jobs.GetAsync(Guid.Parse(job.OperationId), default))!.State);
+        Assert.Equal(LibrarySourceMergeStates.None, _f.Source(source.Id).MergeState);
+    }
+
     private static FolderMergeRequest MergeRequest(LibrarySourceConfig source, LibrarySourceConfig target, string mode = LibraryMergeModes.Copy) =>
         new() { SourceId = source.Id, TargetSourceId = target.Id, Mode = mode };
 

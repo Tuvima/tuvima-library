@@ -50,7 +50,8 @@ internal sealed class FolderMergeHarness : IDisposable
         string duplicatePolicy = LibraryDuplicatePolicies.KeepOne,
         bool sourceManaged = false,
         bool move = false,
-        Action<CrashProxy<IMediaAssetRepository>>? scriptAssets = null)
+        Action<CrashProxy<IMediaAssetRepository>>? scriptAssets = null,
+        TimeSpan? heartbeat = null)
     {
         Root = Path.Combine(Path.GetTempPath(), $"tuvima_merge_{Guid.NewGuid():N}");
         SourceDir = Path.Combine(Root, "Plex", "Movies");
@@ -171,6 +172,7 @@ internal sealed class FolderMergeHarness : IDisposable
                 RetryRounds = 3,
                 ProgressInterval = TimeSpan.Zero,
                 SettingsRefresh = TimeSpan.Zero,
+                HeartbeatInterval = heartbeat ?? TimeSpan.Zero,
             });
         Previewer = new FolderMergePreviewer(Config, Assets, Organiser, NullLogger<FolderMergePreviewer>.Instance);
     }

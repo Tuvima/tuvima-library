@@ -185,8 +185,15 @@ public sealed class FolderOrganiseJobWorker : BackgroundService
             case FolderOrganiseStop.SourceNotManaged:
                 await _operations.MarkCancelledAsync(
                     operation.Id,
-                    "The folder was switched to As-is, so Tuvima stopped organising it. Nothing was undone.",
+                    merging
+                        ? "The folder was switched to As-is, so Tuvima stopped moving its files. What was already moved stays in the target; the log lists what remains."
+                        : "The folder was switched to As-is, so Tuvima stopped organising it. Nothing was undone.",
                     ct).ConfigureAwait(false);
+                if (merging)
+                {
+                    await FinishAsync(operation, sourceId, completed: false, ct).ConfigureAwait(false);
+                }
+
                 break;
 
             default:

@@ -7176,6 +7176,39 @@ MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.FolderJobStatusDto
   CompletedAt: System.DateTimeOffset? | nullability=nullable | accessors=get,set
   HasLog: System.Boolean | nullability=not-null | accessors=get,set
 
+MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.FolderMergePreviewRequest
+  SourceId: System.String | nullability=not-null | accessors=get,set
+  TargetSourceId: System.String | nullability=not-null | accessors=get,set
+  Mode: System.String | nullability=not-null | accessors=get,set
+  Quick: System.Boolean | nullability=not-null | accessors=get,set
+  FileLimit: System.Int32 | nullability=not-null | accessors=get,set
+
+MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.FolderMergePreviewResponse
+  SourceId: System.String | nullability=not-null | accessors=get,set
+  TargetSourceId: System.String | nullability=not-null | accessors=get,set
+  Mode: System.String | nullability=not-null | accessors=get,set
+  TotalFiles: System.Int32 | nullability=not-null | accessors=get,set
+  VideoFiles: System.Int32 | nullability=not-null | accessors=get,set
+  Examined: System.Int32 | nullability=not-null | accessors=get,set
+  Complete: System.Boolean | nullability=not-null | accessors=get,set
+  ToTransfer: System.Int32 | nullability=not-null | accessors=get,set
+  AlreadyInTarget: System.Int32 | nullability=not-null | accessors=get,set
+  NeedsReview: System.Int32 | nullability=not-null | accessors=get,set
+  NameCollisions: System.Int32 | nullability=not-null | accessors=get,set
+  Skipped: System.Int32 | nullability=not-null | accessors=get,set
+  SkipReasons: System.Collections.Generic.List<MediaEngine.Contracts.Settings.FolderConversionSkipDto> | nullability=not-null | accessors=get,set
+  Samples: System.Collections.Generic.List<MediaEngine.Contracts.Settings.FolderConversionSampleDto> | nullability=not-null | accessors=get,set
+  EstimatedSeconds: System.Int32 | nullability=not-null | accessors=get,set
+  DuplicatePolicy: System.String | nullability=not-null | accessors=get,set
+  SourceBytes: System.Int64 | nullability=not-null | accessors=get,set
+  TargetFreeBytes: System.Int64? | nullability=nullable | accessors=get,set
+  BlockedReason: System.String | nullability=nullable | accessors=get,set
+
+MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.FolderMergeRequest
+  SourceId: System.String | nullability=not-null | accessors=get,set
+  TargetSourceId: System.String | nullability=not-null | accessors=get,set
+  Mode: System.String | nullability=not-null | accessors=get,set
+
 MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.HlsRenditionProfile
   Name: System.String | nullability=not-null | accessors=get,set
   Height: System.Int32 | nullability=not-null | accessors=get,set
@@ -7313,6 +7346,11 @@ MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.LibrarySourceDto
   AccessMode: System.String | nullability=not-null | accessors=get,set
   ConversionState: System.String | nullability=not-null | accessors=get,set
   ConversionOperationId: System.String | nullability=nullable | accessors=get,set
+  MergeState: System.String | nullability=not-null | accessors=get,set
+  MergeOperationId: System.String | nullability=nullable | accessors=get,set
+  MergeTargetSourceId: System.String | nullability=nullable | accessors=get,set
+  MergeMode: System.String | nullability=nullable | accessors=get,set
+  MergedAt: System.DateTimeOffset? | nullability=nullable | accessors=get,set
   Notes: System.String | nullability=nullable | accessors=get,set
   DeviceId: System.String | nullability=nullable | accessors=get,set
   ProfileId: System.String | nullability=nullable | accessors=get,set

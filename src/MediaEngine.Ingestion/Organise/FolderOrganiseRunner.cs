@@ -77,6 +77,12 @@ public sealed class FolderOrganiseTiming
 
     /// <summary>How often the saved folder settings are read again, so switching a folder to As-is stops the work.</summary>
     public TimeSpan SettingsRefresh { get; init; } = TimeSpan.FromSeconds(5);
+
+    /// <summary>
+    /// How often a merge reports in while one file is still being copied, so a very large file does not look like a stalled job
+    /// and its lease is kept. Zero turns it off.
+    /// </summary>
+    public TimeSpan HeartbeatInterval { get; init; } = TimeSpan.FromSeconds(30);
 }
 
 /// <summary>

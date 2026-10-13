@@ -168,7 +168,7 @@
         .Where(candidate => !ReferenceEquals(candidate, source)
             && candidate.Id != source.Id
             && IsManaged(candidate)
-            && !string.Equals(candidate.MergeState, "merged", StringComparison.OrdinalIgnoreCase))
+            && string.Equals(candidate.MergeState, "none", StringComparison.OrdinalIgnoreCase))
         .ToList();
 
     private static bool IsManaged(LibrarySourceDto source) => source.ManagementMode == "managed_by_tuvima";

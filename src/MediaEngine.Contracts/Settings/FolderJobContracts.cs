@@ -166,7 +166,7 @@ public sealed class FolderMergePreviewResponse
     [JsonPropertyName("to_transfer")]
     public int ToTransfer { get; set; }
 
-    /// <summary>Files an identical copy of which already has the standard name in the target.</summary>
+    /// <summary>Files an identical copy of which is already held: at the standard name in the target, or elsewhere in the library.</summary>
     [JsonPropertyName("already_in_target")]
     public int AlreadyInTarget { get; set; }
 

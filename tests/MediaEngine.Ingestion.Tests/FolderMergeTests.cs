@@ -29,9 +29,10 @@ public sealed class FolderMergeTests : IDisposable
         string duplicatePolicy = LibraryDuplicatePolicies.KeepOne,
         bool sourceManaged = false,
         bool move = false,
-        Action<CrashProxy<IMediaAssetRepository>>? scriptAssets = null)
+        Action<CrashProxy<IMediaAssetRepository>>? scriptAssets = null,
+        TimeSpan? heartbeat = null)
     {
-        var harness = new FolderMergeHarness(duplicatePolicy, sourceManaged, move, scriptAssets);
+        var harness = new FolderMergeHarness(duplicatePolicy, sourceManaged, move, scriptAssets, heartbeat);
         _harnesses.Add(harness);
         return harness;
     }
@@ -181,6 +182,64 @@ public sealed class FolderMergeTests : IDisposable
         var entry = await h.Ledger.GetAsync(h.OperationId, dune);
         Assert.Equal(FolderOrganiseOutcomes.Copied, entry!.Outcome);
         Assert.Contains("original could not be removed", entry.Detail);
+    }
+
+    [Fact]
+    public async Task A_folders_shared_artwork_is_copied_beside_each_film_in_a_copy_and_moved_with_the_last_one_in_a_move()
+    {
+        var copy = NewHarness();
+        var alien = copy.WriteSource("alien.mkv", "alien");
+        var brazil = copy.WriteSource("brazil.mkv", "brazil");
+        copy.WriteSource("poster.jpg", "shared poster");
+        await copy.RegisterAsync(alien, "Alien", "1979");
+        await copy.RegisterAsync(brazil, "Brazil", "1985");
+        var before = FolderMergeHarness.Fingerprint(copy.SourceDir);
+
+        await copy.RunAsync();
+
+        Assert.Equal(before, FolderMergeHarness.Fingerprint(copy.SourceDir));
+        Assert.Equal("shared poster", File.ReadAllText(Path.Combine(copy.TargetDir, "Movies", "Alien (1979)", "poster.jpg")));
+        Assert.Equal("shared poster", File.ReadAllText(Path.Combine(copy.TargetDir, "Movies", "Brazil (1985)", "poster.jpg")));
+
+        var move = NewHarness(sourceManaged: true, move: true);
+        var dune = move.WriteSource(Path.Combine("one film", "Dune.2021.mkv"), "dune");
+        move.WriteSource(Path.Combine("one film", "cover.jpg"), "cover");
+        var heat = move.WriteSource(Path.Combine("two films", "heat.mkv"), "heat");
+        var ronin = move.WriteSource(Path.Combine("two films", "ronin.mkv"), "ronin");
+        move.WriteSource(Path.Combine("two films", "poster.jpg"), "shared");
+        await move.RegisterAsync(dune, "Dune", "2021");
+        await move.RegisterAsync(heat, "Heat", "1995");
+        await move.RegisterAsync(ronin, "Ronin", "1998");
+
+        await move.RunAsync();
+
+        // The only film in its folder takes the cover with it; with two films the shared poster goes with the last to leave.
+        Assert.Equal("cover", File.ReadAllText(Path.Combine(move.TargetDir, "Movies", "Dune (2021)", "cover.jpg")));
+        Assert.Empty(move.SourceFiles());
+        Assert.Contains("Movies/Ronin (1998)/poster.jpg", move.TargetFiles());
+        Assert.DoesNotContain("Movies/Heat (1995)/poster.jpg", move.TargetFiles());
+    }
+
+    [Fact]
+    public async Task While_a_big_file_is_copied_the_job_keeps_reporting_in()
+    {
+        var h = NewHarness(heartbeat: TimeSpan.FromMilliseconds(20));
+        var dune = h.WriteSource("Dune.2021.mkv", "dune");
+        await h.RegisterAsync(dune, "Dune", "2021");
+        h.Hasher.Override = path =>
+        {
+            if (path.EndsWith(MergeFileTransfer.PartSuffix, StringComparison.Ordinal))
+            {
+                Thread.Sleep(250);
+            }
+
+            return null;
+        };
+        var host = new TestHost();
+
+        await h.RunAsync(host);
+
+        Assert.True(host.Progress.Count(progress => progress.Completed == 0 && progress.CurrentPath == dune) >= 2);
     }
 
     // ── Duplicates follow the global rule ────────────────────────────────────────────────────────────────────────
@@ -451,6 +510,151 @@ public sealed class FolderMergeTests : IDisposable
         Assert.Equal(FolderOrganiseStop.TargetUnavailable, result.Stop);
         Assert.Single(h.TargetFiles());
         Assert.Equal(2, result.Count(FolderOrganiseOutcomes.LeftInSource));
+    }
+
+    [Fact]
+    public async Task A_move_stops_as_soon_as_its_source_is_switched_to_As_is_and_deletes_nothing_more()
+    {
+        var h = NewHarness(sourceManaged: true, move: true);
+        await ThreeFilmsAsync(h);
+        var host = new TestHost
+        {
+            Signal = asked =>
+            {
+                if (asked == 1)
+                {
+                    h.Source.ManagementMode = LibrarySourceManagementModes.ExistingLibrary;
+                    h.Source.AccessMode = LibrarySourceAccessModes.ReadOnly;
+                }
+
+                return FolderJobSignal.Continue;
+            },
+        };
+
+        var result = await h.RunAsync(host);
+
+        Assert.Equal(FolderOrganiseStop.SourceNotManaged, result.Stop);
+        Assert.Equal(["b.mkv", "c.mkv"], h.SourceFiles());
+        Assert.Single(h.TargetFiles());
+        Assert.Equal(2, result.Count(FolderOrganiseOutcomes.LeftInSource));
+    }
+
+    [Fact]
+    public async Task After_a_paused_move_resumes_the_total_still_counts_the_files_already_moved()
+    {
+        var h = NewHarness(sourceManaged: true, move: true);
+        await ThreeFilmsAsync(h);
+
+        var paused = await h.RunAsync(new TestHost { Signal = asked => asked == 1 ? FolderJobSignal.Pause : FolderJobSignal.Continue });
+        var resumed = await h.RunAsync();
+
+        Assert.Equal(3, paused.Total);
+        Assert.Equal(3, resumed.Total);
+        Assert.Equal(3, resumed.Completed);
+        Assert.Empty(h.SourceFiles());
+    }
+
+    [Fact]
+    public async Task A_stop_after_a_copy_that_took_a_numbered_name_is_finished_at_that_name_without_a_second_copy()
+    {
+        var h = NewHarness(scriptAssets: assets => assets.CrashOnNext("UpdateFilePathAsync"));
+        var dune = h.WriteSource("Dune.2021.mkv", "the new dune");
+        h.WriteTarget(Standard("Dune", "2021"), "the old dune");
+        var id = await h.RegisterAsync(dune, "Dune", "2021");
+
+        await Assert.ThrowsAsync<SimulatedCrashException>(() => h.RunAsync());
+        var unfinished = Assert.Single(await h.Ledger.ListUnfinishedAsync(h.OperationId));
+        Assert.EndsWith("Dune (2021) (2).mkv", unfinished.NewPath, StringComparison.Ordinal);
+
+        var result = await h.NewRunner(h.RealAssets).RunAsync(h.Job, new TestHost());
+
+        Assert.Equal(FolderOrganiseStop.Finished, result.Stop);
+        Assert.Equal(2, h.TargetFiles().Count());
+        Assert.Equal(unfinished.NewPath, (await h.RealAssets.FindByIdAsync(id))!.FilePathRoot);
+        Assert.Equal("the old dune", File.ReadAllText(Path.Combine(h.TargetDir, "Movies", "Dune (2021)", "Dune (2021).mkv")));
+    }
+
+    [Fact]
+    public async Task A_folder_reached_through_a_shortcut_is_never_listed_copied_or_removed()
+    {
+        var h = NewHarness(sourceManaged: true, move: true);
+        var outside = Path.Combine(h.Root, "elsewhere");
+        Directory.CreateDirectory(outside);
+        var real = Path.Combine(outside, "Heat.1995.mkv");
+        File.WriteAllText(real, "heat");
+        var link = Path.Combine(h.SourceDir, "Link");
+        if (!TryCreateJunction(link, outside))
+        {
+            // This machine does not allow creating a link, so there is nothing to prove here.
+            return;
+        }
+
+        h.WriteSource("Dune.2021.mkv", "dune");
+        await h.RegisterAsync(Path.Combine(h.SourceDir, "Dune.2021.mkv"), "Dune", "2021");
+        await h.RegisterAsync(real, "Heat", "1995");
+
+        var result = await h.RunAsync();
+
+        Assert.Equal(1, result.Total);
+        Assert.True(File.Exists(real));
+        Assert.Equal("heat", File.ReadAllText(real));
+        Assert.Equal([Standard("Dune", "2021")], h.TargetFiles());
+        Directory.Delete(link);
+    }
+
+    private static bool TryCreateJunction(string link, string target)
+    {
+        try
+        {
+            if (OperatingSystem.IsWindows())
+            {
+                using var process = System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("cmd.exe", $"/c mklink /J \"{link}\" \"{target}\"")
+                {
+                    CreateNoWindow = true,
+                    UseShellExecute = false,
+                    RedirectStandardOutput = true,
+                });
+                process!.WaitForExit();
+                return Directory.Exists(link);
+            }
+
+            Directory.CreateSymbolicLink(link, target);
+            return Directory.Exists(link);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.ComponentModel.Win32Exception)
+        {
+            _ = ex;
+            return false;
+        }
+    }
+
+    [Fact]
+    public void A_target_that_is_itself_merging_or_merged_away_is_refused()
+    {
+        var h = NewHarness();
+        h.Source.MergeState = LibrarySourceMergeStates.None;
+
+        h.Target.MergeState = LibrarySourceMergeStates.Merging;
+        Assert.Equal(FolderMergeProblem.TargetBusy, Check(h, h.TargetId.ToString("D")));
+        h.Target.MergeState = LibrarySourceMergeStates.Merged;
+        Assert.Equal(FolderMergeProblem.TargetBusy, Check(h, h.TargetId.ToString("D")));
+        h.Target.MergeState = LibrarySourceMergeStates.None;
+        Assert.Equal(FolderMergeProblem.None, Check(h, h.TargetId.ToString("D")));
+    }
+
+    [Fact]
+    public void A_merged_away_folder_is_neither_scanned_nor_resolved_as_a_library_folder()
+    {
+        var h = NewHarness();
+        h.Source.MergeState = LibrarySourceMergeStates.Merged;
+        var entry = MediaEngine.Ingestion.Services.LibraryFolderEntryFactory.Create(h.Config.Libraries.Libraries[0]);
+        h.Options.LibraryFolders = [entry];
+        var resolver = new MediaEngine.Ingestion.Services.LibraryFolderResolver(new OptionsMonitorStub<MediaEngine.Ingestion.Models.IngestionOptions>(h.Options));
+
+        Assert.DoesNotContain(h.SourceDir, entry.EffectiveSourcePaths);
+        Assert.Contains(h.TargetDir, entry.EffectiveSourcePaths);
+        Assert.Null(resolver.ResolveSourceForPath(Path.Combine(h.SourceDir, "Dune.2021.mkv")));
+        Assert.NotNull(resolver.ResolveSourceForPath(Path.Combine(h.TargetDir, "Movies", "x.mkv")));
     }
 
     // ── Rules about the target and the source ────────────────────────────────────────────────────────────────────

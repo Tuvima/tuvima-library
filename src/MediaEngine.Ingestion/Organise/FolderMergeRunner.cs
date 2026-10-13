@@ -75,12 +75,13 @@ public sealed class FolderMergeRunner
         }
 
         // 2. See what the folder holds now: files on disk, and which of them the library already knows.
-        var disk = FolderMediaEnumerator.Enumerate(context.SourceRoot, context.Source.IncludeSubdirectories, MediaExtensions, ct: ct);
+        var disk = FolderMediaEnumerator.Enumerate(context.SourceRoot, context.Source.IncludeSubdirectories, MediaExtensions, ct: ct, skipLinks: true);
         var catalogued = await CataloguedByPathAsync(context, ct).ConfigureAwait(false);
         var finished = await _ledger.GetFinishedPathsAsync(job.OperationId, ct).ConfigureAwait(false);
         var work = disk.Where(path => !finished.Contains(path)).ToList();
 
-        var total = disk.Count;
+        // After a Move resumes, the files already moved are no longer on disk but still count towards the job's total.
+        var total = disk.Count + await CountFinishedAndGoneAsync(job, disk, ct).ConfigureAwait(false);
         var completed = Math.Max(0, total - work.Count);
         var failed = (await _ledger.CountByOutcomeAsync(job.OperationId, ct).ConfigureAwait(false))
             .GetValueOrDefault(FolderOrganiseOutcomes.Failed);
@@ -104,7 +105,8 @@ public sealed class FolderMergeRunner
                 return await StopAsync(job, host, FromSignal(signal), remaining, total, completed, failed, ct).ConfigureAwait(false);
             }
 
-            if (lastRefresh.Elapsed >= _timing.SettingsRefresh)
+            // A Move deletes originals, so it reads the saved settings before every file; a Copy only needs the regular refresh.
+            if (context.IsMove || lastRefresh.Elapsed >= _timing.SettingsRefresh)
             {
                 lastRefresh.Restart();
                 var refreshed = Resolve(job, out var refreshCheck);
@@ -117,7 +119,8 @@ public sealed class FolderMergeRunner
                 context = refreshed;
             }
 
-            var outcome = await ProcessAsync(path, catalogued, context, ct).ConfigureAwait(false);
+            var outcome = await ProcessAsync(path, catalogued, context, host, () => new FolderOrganiseProgress(total, completed, failed, path), ct)
+                .ConfigureAwait(false);
             if (outcome.Locked)
             {
                 deferred.Add(path);
@@ -154,7 +157,8 @@ public sealed class FolderMergeRunner
                     return await StopAsync(job, host, FromSignal(signal), remaining, total, completed, failed, ct).ConfigureAwait(false);
                 }
 
-                var outcome = await ProcessAsync(path, catalogued, context, ct).ConfigureAwait(false);
+                var outcome = await ProcessAsync(path, catalogued, context, host, () => new FolderOrganiseProgress(total, completed, failed, path), ct)
+                    .ConfigureAwait(false);
                 if (outcome.Locked)
                 {
                     stillLocked.Add(path);
@@ -205,6 +209,32 @@ public sealed class FolderMergeRunner
         };
     }
 
+    /// <summary>Media files the ledger finished that are no longer in the source (moved out, or removed as duplicates).</summary>
+    private async Task<int> CountFinishedAndGoneAsync(FolderMergeJob job, IReadOnlyList<string> disk, CancellationToken ct)
+    {
+        var onDisk = new HashSet<string>(disk, PathSafety.Comparer);
+        var count = 0;
+        var offset = 0;
+        const int pageSize = 1000;
+        while (true)
+        {
+            var page = await _ledger.ListAsync(job.OperationId, offset, pageSize, ct).ConfigureAwait(false);
+            count += page.Count(entry => entry.Outcome is FolderOrganiseOutcomes.Moved
+                or FolderOrganiseOutcomes.MovedWithUniqueName
+                or FolderOrganiseOutcomes.DuplicateRemoved
+                or FolderOrganiseOutcomes.MergedForReview
+                && MediaExtensions.Contains(Path.GetExtension(entry.OldPath))
+                && !onDisk.Contains(entry.OldPath)
+                && !File.Exists(entry.OldPath));
+            if (page.Count < pageSize)
+            {
+                return count;
+            }
+
+            offset += pageSize;
+        }
+    }
+
     private IReadOnlySet<string> MediaExtensions =>
         _extensions?.GetAllMediaExtensions() ?? FolderMediaEnumerator.DefaultMediaExtensions;
 
@@ -215,6 +245,7 @@ public sealed class FolderMergeRunner
     {
         FolderMergeProblem.SourceRemoved => FolderOrganiseStop.SourceMissing,
         FolderMergeProblem.NotActive => FolderOrganiseStop.Cancelled,
+        FolderMergeProblem.MoveNeedsManagedSource => FolderOrganiseStop.SourceNotManaged,
         _ => FolderOrganiseStop.TargetUnavailable,
     };
 
@@ -222,15 +253,57 @@ public sealed class FolderMergeRunner
         string path,
         IReadOnlyDictionary<string, MediaAssetFileRef> catalogued,
         FolderMergeContext context,
+        IFolderOrganiseHost host,
+        Func<FolderOrganiseProgress> snapshot,
         CancellationToken ct)
     {
-        if (!catalogued.TryGetValue(path, out var file))
+        // A big file can take longer than the job's lease to copy; the job keeps reporting in while it does.
+        using var beating = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        var heartbeat = HeartbeatAsync(host, snapshot, beating.Token);
+        try
         {
-            return await _organiser.HandleUncataloguedAsync(path, context, _intake, ct).ConfigureAwait(false);
+            if (!catalogued.TryGetValue(path, out var file))
+            {
+                return await _organiser.HandleUncataloguedAsync(path, context, _intake, ct).ConfigureAwait(false);
+            }
+
+            var decision = await _organiser.DecideAsync(file, context, plannedTargets: null, ct).ConfigureAwait(false);
+            return await _organiser.ApplyAsync(file, decision, context, ct).ConfigureAwait(false);
+        }
+        finally
+        {
+            await beating.CancelAsync().ConfigureAwait(false);
+            try
+            {
+                await heartbeat.ConfigureAwait(false);
+            }
+            catch (OperationCanceledException)
+            {
+                // The file is done (or the job is stopping); the heartbeat ending is the expected way for it to finish.
+            }
+        }
+    }
+
+    private async Task HeartbeatAsync(IFolderOrganiseHost host, Func<FolderOrganiseProgress> snapshot, CancellationToken ct)
+    {
+        if (_timing.HeartbeatInterval <= TimeSpan.Zero)
+        {
+            return;
         }
 
-        var decision = await _organiser.DecideAsync(file, context, plannedTargets: null, ct).ConfigureAwait(false);
-        return await _organiser.ApplyAsync(file, decision, context, ct).ConfigureAwait(false);
+        using var timer = new PeriodicTimer(_timing.HeartbeatInterval);
+        while (await timer.WaitForNextTickAsync(ct).ConfigureAwait(false))
+        {
+            try
+            {
+                await host.ReportProgressAsync(snapshot(), ct).ConfigureAwait(false);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                // A missed progress report must never fail the merge; the next beat (or the end of the file) reports again.
+                _logger.LogDebug(ex, "A merge progress report did not go through");
+            }
+        }
     }
 
     private async Task<IReadOnlyDictionary<string, MediaAssetFileRef>> CataloguedByPathAsync(

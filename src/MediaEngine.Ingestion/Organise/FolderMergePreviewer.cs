@@ -97,7 +97,7 @@ public sealed class FolderMergePreviewer
             return null;
         }
 
-        var files = FolderMediaEnumerator.Enumerate(context.SourceRoot, context.Source.IncludeSubdirectories, MediaExtensions, ct: ct);
+        var files = FolderMediaEnumerator.Enumerate(context.SourceRoot, context.Source.IncludeSubdirectories, MediaExtensions, ct: ct, skipLinks: true);
         return Summarise(context, files, examined: 0, new Tally(), ct);
     }
 
@@ -111,7 +111,7 @@ public sealed class FolderMergePreviewer
             return null;
         }
 
-        var disk = FolderMediaEnumerator.Enumerate(context.SourceRoot, context.Source.IncludeSubdirectories, MediaExtensions, ct: ct);
+        var disk = FolderMediaEnumerator.Enumerate(context.SourceRoot, context.Source.IncludeSubdirectories, MediaExtensions, ct: ct, skipLinks: true);
         var catalogued = new Dictionary<string, MediaAssetFileRef>(PathSafety.Comparer);
         foreach (var file in await _assets.ListFilesUnderAsync(context.SourceRoot, ct).ConfigureAwait(false))
         {

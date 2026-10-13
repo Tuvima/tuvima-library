@@ -30,7 +30,7 @@
                     </p>
                     <ul class="merge-folder__counts">
                         <li><strong>@Count(_preview.ToTransfer)</strong> to @(_mode == "move" ? "move" : "copy") to their standard names</li>
-                        <li><strong>@Count(_preview.AlreadyInTarget)</strong> already in the target (exact copies)</li>
+                        <li><strong>@Count(_preview.AlreadyInTarget)</strong> already in your library (exact copies)</li>
                         <li><strong>@Count(_preview.NeedsReview)</strong> to the From merge folder, waiting in Review</li>
                         <li><strong>@Count(_preview.NameCollisions)</strong> will get a numbered name and need Review</li>
                         <li><strong>@Count(_preview.Skipped)</strong> left where they are</li>
@@ -74,11 +74,12 @@
                     <div role="radiogroup" aria-label="Merge into">
                         @foreach (var option in Targets)
                         {
-                            <label class="merge-folder__option" @key="option.Id">
-                                <AppNativeInput Type="radio" Name="merge-target" Value="@option.Id"
-                                                Checked="@(_targetId == option.Id)"
-                                                Disabled="@_starting"
-                                                OnChange="@(_ => SelectTargetAsync(option.Id))" />
+                            var selected = _targetId == option.Id;
+                            <AppNativeButton Type="button" role="radio" Class="merge-folder__option" @key="option.Id"
+                                             aria-checked="@(selected ? "true" : "false")"
+                                             Disabled="@_starting"
+                                             OnClick="@(_ => SelectTargetAsync(option.Id))">
+                                <AppMaterialIcon Icon="@(selected ? AppMaterialIcons.Filled.RadioButtonChecked : AppMaterialIcons.Outlined.RadioButtonUnchecked)" />
                                 <span>
                                     <strong>@option.Name</strong>
                                     @if (option.IsNewMediaFolder)
@@ -87,7 +88,7 @@
                                     }
                                     <small>@option.Path</small>
                                 </span>
-                            </label>
+                            </AppNativeButton>
                         }
                     </div>
                 </fieldset>
@@ -95,26 +96,28 @@
                 <fieldset class="merge-folder__group">
                     <legend>What happens to the originals</legend>
                     <div role="radiogroup" aria-label="Copy or move">
-                        <label class="merge-folder__option">
-                            <AppNativeInput Type="radio" Name="merge-mode" Value="@("copy")"
-                                            Checked="@(_mode == "copy")" Disabled="@_starting"
-                                            OnChange="@(_ => SelectModeAsync("copy"))" />
+                        <AppNativeButton Type="button" role="radio" Class="merge-folder__option"
+                                         aria-checked="@(_mode == "copy" ? "true" : "false")"
+                                         Disabled="@_starting"
+                                         OnClick="@(_ => SelectModeAsync("copy"))">
+                            <AppMaterialIcon Icon="@(_mode == "copy" ? AppMaterialIcons.Filled.RadioButtonChecked : AppMaterialIcons.Outlined.RadioButtonUnchecked)" />
                             <span>
                                 <strong>Copy</strong>
                                 <small>Your folder is never changed. The files stay here as well, so they use room on the target's drive too.</small>
                             </span>
-                        </label>
+                        </AppNativeButton>
                         @if (CanMove)
                         {
-                            <label class="merge-folder__option">
-                                <AppNativeInput Type="radio" Name="merge-mode" Value="@("move")"
-                                                Checked="@(_mode == "move")" Disabled="@_starting"
-                                                OnChange="@(_ => SelectModeAsync("move"))" />
+                            <AppNativeButton Type="button" role="radio" Class="merge-folder__option"
+                                             aria-checked="@(_mode == "move" ? "true" : "false")"
+                                             Disabled="@_starting"
+                                             OnClick="@(_ => SelectModeAsync("move"))">
+                                <AppMaterialIcon Icon="@(_mode == "move" ? AppMaterialIcons.Filled.RadioButtonChecked : AppMaterialIcons.Outlined.RadioButtonUnchecked)" />
                                 <span>
                                     <strong>Move instead of copy</strong>
                                     <small>Each file is removed from here only after its copy has been checked byte for byte. This frees space on @FolderJobFormat.DriveLabel(Path).</small>
                                 </span>
-                            </label>
+                            </AppNativeButton>
                         }
                     </div>
                     @if (!CanMove)
@@ -151,7 +154,7 @@
                         Exact duplicates follow your &ldquo;same file twice&rdquo; setting, which is
                         <em>@(_keepOne ? "Keep one copy" : "Keep both")</em>@(_keepOne ? "." : ", so both copies are kept under different names.")
                     </li>
-                    <li>Files Tuvima cannot name yet go to a folder called <em>From merge</em> inside the target and wait in Review.</li>
+                    <li>Files Tuvima cannot name yet (including any it has not finished scanning) go to a folder called <em>From merge</em> inside the target and wait in Review.</li>
                     <li>
                         Afterwards this folder shows &ldquo;Merged into&rdquo; the target and is no longer scanned, so nothing appears twice.
                         Tuvima never removes the folder itself; you do that when you are ready.

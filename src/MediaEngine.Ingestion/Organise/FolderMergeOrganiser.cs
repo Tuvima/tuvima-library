@@ -199,7 +199,10 @@ public sealed class FolderMergeOrganiser
     {
         var current = Path.GetFullPath(file.FilePath);
 
-        // The intent is written first, so a stop between the copy and the data store update is finished on restart.
+        // The name the copy will really have is chosen first and written into the intent, so a stop after the copy lands is
+        // finished at that exact path on restart (never at a name another file happens to hold).
+        var wanted = target;
+        target = File.Exists(target) ? MergeFileTransfer.UniqueName(target) : target;
         await WriteLedgerAsync(context, current, target, FolderOrganiseOutcomes.Moving, Intent(tag, note), ct).ConfigureAwait(false);
         var copy = await _transfer.CopyVerifiedAsync(current, target, ct).ConfigureAwait(false);
         if (copy.FinalPath is null)
@@ -208,7 +211,13 @@ public sealed class FolderMergeOrganiser
                 FolderOrganiseOutcomes.Failed, current, copy.Failure ?? "The file could not be copied yet.", Locked: true);
         }
 
-        var unique = copy.UniqueName || tag is TagUnique or TagCollision;
+        if (!string.Equals(copy.FinalPath, target, StringComparison.Ordinal))
+        {
+            // Someone took the name a moment ago and the copy went to the next free one: the intent says so too.
+            await WriteLedgerAsync(context, current, copy.FinalPath, FolderOrganiseOutcomes.Moving, Intent(tag, note), ct).ConfigureAwait(false);
+        }
+
+        var unique = copy.UniqueName || !string.Equals(wanted, target, StringComparison.Ordinal) || tag is TagUnique or TagCollision;
         return await CompleteTransferAsync(file, current, copy.FinalPath, tag, note, unique, context, ct).ConfigureAwait(false);
     }
 
@@ -243,8 +252,6 @@ public sealed class FolderMergeOrganiser
             }
         }
 
-        await TransferSidecarsAsync(oldPath, newPath, context, ct).ConfigureAwait(false);
-
         var detail = note;
         var removedOriginal = false;
         if (context.IsMove)
@@ -260,8 +267,6 @@ public sealed class FolderMergeOrganiser
                 {
                     await _hashCache.DeleteAsync(oldPath, ct).ConfigureAwait(false);
                 }
-
-                RemoveEmptySourceFolders(Path.GetDirectoryName(oldPath)!, context);
             }
             else
             {
@@ -269,7 +274,20 @@ public sealed class FolderMergeOrganiser
             }
         }
 
-        await WriteTagsAsync(file.AssetId, context, ct).ConfigureAwait(false);
+        // Sidecars travel after the media file, so a folder's shared artwork moves only with the last file to leave it. They are
+        // only moved (not just copied) when their media file really was.
+        await TransferSidecarsAsync(oldPath, newPath, context, move: removedOriginal, ct).ConfigureAwait(false);
+        if (removedOriginal)
+        {
+            RemoveEmptySourceFolders(Path.GetDirectoryName(oldPath)!, context);
+        }
+
+        // Tags go into the copy only; an item that still points at the original is never tagged by a merge.
+        if (repointed)
+        {
+            await WriteTagsAsync(file.AssetId, context, ct).ConfigureAwait(false);
+        }
+
         await LogHistoryAsync(file.AssetId, oldPath, newPath, context, ct).ConfigureAwait(false);
 
         var outcome = tag == TagReview
@@ -297,7 +315,7 @@ public sealed class FolderMergeOrganiser
         if (!context.IsMove)
         {
             await RepointAsync(file.AssetId, kept, ct).ConfigureAwait(false);
-            await TransferSidecarsAsync(current, kept, context, ct).ConfigureAwait(false);
+            await TransferSidecarsAsync(current, kept, context, move: false, ct).ConfigureAwait(false);
             await LogHistoryAsync(file.AssetId, current, kept, context, ct, "Merge found an identical copy already in the target").ConfigureAwait(false);
             return await FinishAsync(
                 context, current, kept, FolderOrganiseOutcomes.DuplicateSkipped,
@@ -336,7 +354,7 @@ public sealed class FolderMergeOrganiser
             await _hashCache.DeleteAsync(current, ct).ConfigureAwait(false);
         }
 
-        await TransferSidecarsAsync(current, kept, context, ct).ConfigureAwait(false);
+        await TransferSidecarsAsync(current, kept, context, move: true, ct).ConfigureAwait(false);
         await LogHistoryAsync(file.AssetId, current, kept, context, ct, "Merge removed an exact duplicate copy").ConfigureAwait(false);
         RemoveEmptySourceFolders(Path.GetDirectoryName(current)!, context);
         return await FinishAsync(
@@ -553,9 +571,10 @@ public sealed class FolderMergeOrganiser
             return new ConversionOutcome(FolderOrganiseOutcomes.Failed, full, copy.Failure ?? "The file could not be copied yet.", Locked: true);
         }
 
-        await TransferSidecarsAsync(full, copy.FinalPath, context, ct).ConfigureAwait(false);
-        if (context.IsMove && DenySource(context, SourceMutationKind.Delete, full) is null
-            && await _transfer.DeleteOriginalIfCopyMatchesAsync(full, copy.FinalPath, ct).ConfigureAwait(false))
+        var removed = context.IsMove && DenySource(context, SourceMutationKind.Delete, full) is null
+            && await _transfer.DeleteOriginalIfCopyMatchesAsync(full, copy.FinalPath, ct).ConfigureAwait(false);
+        await TransferSidecarsAsync(full, copy.FinalPath, context, move: removed, ct).ConfigureAwait(false);
+        if (removed)
         {
             RemoveEmptySourceFolders(Path.GetDirectoryName(full)!, context);
         }
@@ -600,6 +619,15 @@ public sealed class FolderMergeOrganiser
 
     private string? DenySource(FolderMergeContext context, SourceMutationKind kind, string path)
     {
+        // A file reached through a shortcut may really live somewhere else (even in another library folder), so a merge never
+        // moves or removes it.
+        if (kind is SourceMutationKind.Delete or SourceMutationKind.Move
+            && File.Exists(path)
+            && FolderMediaEnumerator.IsReachedThroughLink(path, context.SourceRoot))
+        {
+            return "This file is reached through a shortcut (link), so it is left where it is.";
+        }
+
         var decision = _policyGate.Evaluate(new SourceMutationRequest
         {
             Source = context.SourcePolicy,
@@ -623,14 +651,14 @@ public sealed class FolderMergeOrganiser
         return true;
     }
 
-    private async Task TransferSidecarsAsync(string oldPath, string newPath, FolderMergeContext context, CancellationToken ct)
+    private async Task TransferSidecarsAsync(string oldPath, string newPath, FolderMergeContext context, bool move, CancellationToken ct)
     {
         var results = _sidecars.Transfer(
             oldPath,
             newPath,
-            context.IsMove,
+            move,
             mayWrite: target => DenyTarget(context, target) is null,
-            mayRemove: context.IsMove ? source => DenySource(context, SourceMutationKind.Delete, source) is null : null);
+            mayRemove: move ? source => DenySource(context, SourceMutationKind.Delete, source) is null : null);
         foreach (var result in results)
         {
             await WriteLedgerAsync(context, result.From, result.To, result.Outcome, result.Detail, ct).ConfigureAwait(false);

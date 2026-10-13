@@ -504,7 +504,7 @@
         };
         if (string.IsNullOrWhiteSpace(source.Notes)) source.Notes = selected.Path;
         library.Sources.Add(source);
-        var saved = await SaveAsync(library, "Folder added.");
+        var saved = await SaveAsync(library, mergeAfter ? "Folder added as-is. Choose where its files should go." : "Folder added.");
         if (saved && managed && selected.ContainsFiles)
         {
             // The files already in it are not touched until the person says so.
@@ -560,7 +560,7 @@
             { component => component.SourceId, source.Id },
             { component => component.Path, source.Path },
             { component => component.SourceName, source.DisplayName() },
-            { component => component.CanMove, IsManaged(source) },
+            { component => component.CanMove, IsManaged(source) && source.AccessMode == "writable" },
             { component => component.Targets, options },
         };
         var dialog = await DialogService.ShowAsync<MergeFolderDialog>(string.Empty, parameters, new AppDialogOptions

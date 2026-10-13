@@ -124,7 +124,9 @@ public sealed class SidecarMover
 
         var results = new List<SidecarMoveResult>();
         var candidates = SidecarFiles.Find(oldMediaPath, MediaExtensions).ToList();
-        candidates.AddRange(SidecarFiles.FindArtwork(oldMediaPath, MediaExtensions, includeFolderLevel: true));
+        // A copy can share a folder's cover with every file in it. A move takes it only with the last media file to leave.
+        var oldFolder = Path.GetDirectoryName(oldMediaPath)!;
+        candidates.AddRange(SidecarFiles.FindArtwork(oldMediaPath, MediaExtensions, includeFolderLevel: !move || !HasMediaLeft(oldFolder)));
 
         foreach (var sidecar in candidates)
         {

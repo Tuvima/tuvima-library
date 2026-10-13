@@ -152,6 +152,12 @@ public sealed class MergeFileTransfer
             return true;
         }
 
+        // Two names for one file must never count as "a copy": removing the original would remove the only file.
+        if (string.Equals(Path.GetFullPath(sourcePath), Path.GetFullPath(copyPath), StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
         if (!await SameContentAsync(sourcePath, copyPath, ct).ConfigureAwait(false))
         {
             _logger.LogWarning("Not removing {Source}: the copy at {Copy} could not be confirmed byte for byte", sourcePath, copyPath);
