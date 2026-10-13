@@ -2,7 +2,7 @@
   "schema_version": "2.0",
   "database_path": "library.db",
   "data_root": "",
-  "library_root": "C:\\Users\\shaya\\AppData\\Local\\Tuvima\\data\\library",
+  "library_root": "{TuvimaData}/library",
   "organization_template": "{Category}/{Title} ({Year})/{Title}{Ext}",
   "organization_templates": {
     "default": "{Category}/{Title} ({Year})/{Title}{Ext}",
