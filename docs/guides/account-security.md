@@ -23,6 +23,8 @@ An account signs in. A profile holds personal history, preferences, and View Per
 
 Only administrators create accounts. There is no public sign-up, and Tuvima never sends email for this.
 
+On a phone, **Settings → Users & Access** shows people and applications as read-only cards (name, role or kind, status and last active). Make changes on a computer or tablet.
+
 ### Invitation code
 
 An invitation is a short code such as `KQ7M4-XH2TA` (ten letters and digits; the confusing ones, 0, O, 1, I and L, are left out). Tuvima shows the code, a link (`<address>/auth/invite?code=KQ7M4-XH2TA`), a QR code, a **Copy** button for the code and the link, and the expiry. The link uses the server's public address when one is set under **Settings → Network**, and otherwise the address you are using now. Only a fingerprint of the code is stored, so it cannot be shown again.

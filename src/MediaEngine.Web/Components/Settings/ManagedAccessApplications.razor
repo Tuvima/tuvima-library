@@ -3,6 +3,8 @@
 @using MediaEngine.Web.Services.Integration
 @inject DashboardIdentityClient Identity
 @inject DashboardSessionAccessor Session
+@inject DeviceContextService DeviceContext
+@implements IDisposable
 
 <SettingsSectionPanel Title="Applications" Description="Applications receive live service permissions. Credentials identify an application without storing its authorization." Icon="@AppMaterialIcons.Outlined.Apps">
     @if (!CanManage)
@@ -11,10 +13,47 @@
     }
     else
     {
+        @if (DeviceContext.IsPhone)
+        {
+            <p class="access-phone-note" role="note">Manage on a computer or tablet.</p>
+        }
         @if (!string.IsNullOrWhiteSpace(_notice)) { <AppAlert Severity="AppSeverity.Success" Class="access-notice">@_notice</AppAlert> }
-        <div class="access-toolbar" @ref="_returnFocus" tabindex="-1"><AppButton Label="New application" StartIcon="@AppMaterialIcons.Outlined.Add" Tone="AppUiTone.Primary" ButtonStyle="AppButtonStyle.Filled" OnClick="NewApplication" /></div>
+        <div class="access-toolbar" @ref="_returnFocus" tabindex="-1">
+            @if (!DeviceContext.IsPhone)
+            {
+                <AppButton Label="New application" StartIcon="@AppMaterialIcons.Outlined.Add" Tone="AppUiTone.Primary" ButtonStyle="AppButtonStyle.Filled" OnClick="NewApplication" />
+            }
+        </div>
         @if (_loading) { <AppProgressBar Indeterminate="true" aria-label="Loading applications" /> }
         else if (_applications.Count == 0) { <AppEmptyState Title="No applications" Message="Create an application to issue a scoped credential." /> }
+        else if (DeviceContext.IsPhone)
+        {
+            <AppTable CardsOn="AppTableCardsMode.Phone" Class="access-applications">
+                <caption class="sr-only">Applications</caption>
+                <thead>
+                    <tr>
+                        <th data-card-role="title">Application</th>
+                        <th data-card-role="subtitle">Kind</th>
+                        <th data-card-role="value">Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var app in _applications)
+                    {
+                        <tr @key="app.Id">
+                            <td data-card-role="title">@app.Name</td>
+                            <td data-card-role="subtitle">@TypeLabel(app.ApplicationType)</td>
+                            <td data-card-role="value">
+                                <div class="access-phone-card__value">
+                                    <span class="access-status @(app.IsEnabled ? "access-status--enabled" : "access-status--disabled")">@(app.IsEnabled ? "Enabled" : "Disabled")</span>
+                                    <small>@(app.LastUsedAt is null ? "Never used" : $"Last used {app.LastUsedAt.Value.ToLocalTime():g}")</small>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </AppTable>
+        }
         else
         {
             <div class="access-applications" role="table" aria-label="Applications">
@@ -177,6 +216,17 @@
     private bool CanManage => Session.HasAction("applications.manage");
     private string DrawerTitle => _deleteMode ? $"Delete · {_editing?.Name}" : _editing?.Name ?? "New application";
     private IEnumerable<ApplicationPermissionDefinitionDto> CompatiblePermissions => _permissions.Where(permission => permission.ApplicationTypes.Contains(_type)).OrderBy(permission => permission.Category).ThenBy(permission => permission.SortOrder);
+
+    protected override void OnInitialized() => DeviceContext.OnChanged += DeviceChanged;
+
+    public void Dispose() => DeviceContext.OnChanged -= DeviceChanged;
+
+    private void DeviceChanged() => InvokeAsync(() =>
+    {
+        // Editing drawers never open on phones, so a switch to the phone form factor closes one that is already open.
+        if (DeviceContext.IsPhone && _open) Close();
+        StateHasChanged();
+    });
 
     protected override async Task OnInitializedAsync()
     {

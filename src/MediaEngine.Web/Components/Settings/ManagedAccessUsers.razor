@@ -6,6 +6,8 @@
 @inject DashboardSessionAccessor Session
 @inject ConfirmedActionRunner Confirmed
 @inject IAppDialogService Dialogs
+@inject DeviceContextService DeviceContext
+@implements IDisposable
 
 <SettingsSectionPanel Title="Households and users" Description="Accounts control access. Profiles retain each person's library experience and history." Icon="@AppMaterialIcons.Outlined.Group">
     @if (!CanManage)
@@ -14,19 +16,26 @@
     }
     else
     {
+        @if (DeviceContext.IsPhone)
+        {
+            <p class="access-phone-note" role="note">Manage on a computer or tablet.</p>
+        }
         @if (!string.IsNullOrWhiteSpace(_notice))
         {
             <AppAlert Severity="AppSeverity.Success" Class="access-notice">@_notice</AppAlert>
         }
         <div class="access-toolbar" @ref="_returnFocus" tabindex="-1">
-            <AppButton Label="Invite user" StartIcon="@AppMaterialIcons.Outlined.Mail" OnClick="OpenInvitation" />
-            <AppButton Label="Invite someone outside your household" StartIcon="@AppMaterialIcons.Outlined.PersonAdd" Tone="AppUiTone.Primary" ButtonStyle="AppButtonStyle.Filled" OnClick="NewUser" />
+            @if (!DeviceContext.IsPhone)
+            {
+                <AppButton Label="Invite user" StartIcon="@AppMaterialIcons.Outlined.Mail" OnClick="OpenInvitation" />
+                <AppButton Label="Invite someone outside your household" StartIcon="@AppMaterialIcons.Outlined.PersonAdd" Tone="AppUiTone.Primary" ButtonStyle="AppButtonStyle.Filled" OnClick="NewUser" />
+            }
         </div>
         @if (!_loading && Households.Count > 0)
         {
             <section class="access-form-section" aria-label="Households">
                 <AppText Typo="AppTypo.subtitle1">Households</AppText>
-                <small>Each household has its own people, library access and Shared Library. Look after its people, PINs and sign-ins from <a href="/settings/profiles">Profiles</a>.</small>
+                <p class="access-form-section__hint">Each household has its own people, library access and Shared Library. Look after its people, PINs and sign-ins from <a href="/settings/profiles">Profiles</a>.</p>
                 <div class="access-users" role="table" aria-label="Households">
                     @foreach (var household in Households)
                     {
@@ -51,6 +60,34 @@
         else if (_accounts.Count == 0)
         {
             <AppEmptyState Title="No users" Message="Create a local account or invite someone to an existing profile." />
+        }
+        else if (DeviceContext.IsPhone)
+        {
+            <AppTable CardsOn="AppTableCardsMode.Phone" Class="access-users">
+                <caption class="sr-only">User accounts</caption>
+                <thead>
+                    <tr>
+                        <th data-card-role="title">Account</th>
+                        <th data-card-role="subtitle">Role</th>
+                        <th data-card-role="value">Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var account in _accounts)
+                    {
+                        <tr @key="account.Id">
+                            <td data-card-role="title">@AccountLabel(account)</td>
+                            <td data-card-role="subtitle">@(account.IsAdministrator ? "Administrator" : "Member")</td>
+                            <td data-card-role="value">
+                                <div class="access-phone-card__value">
+                                    <span class="access-status @(account.IsEnabled ? "access-status--enabled" : "access-status--disabled")">@(account.IsEnabled ? "Enabled" : "Disabled")</span>
+                                    <small>@(account.LastActiveAt is null ? "Never active" : $"Last active {account.LastActiveAt.Value.ToLocalTime():g}")</small>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </AppTable>
         }
         else
         {
@@ -374,6 +411,17 @@
     private List<ManagedProfileResponse> GrantableProfiles => _editing is null
         ? []
         : _profiles.Where(profile => _editing.ProfileGrants.All(grant => grant.ProfileId != profile.Id)).ToList();
+
+    protected override void OnInitialized() => DeviceContext.OnChanged += DeviceChanged;
+
+    public void Dispose() => DeviceContext.OnChanged -= DeviceChanged;
+
+    private void DeviceChanged() => InvokeAsync(() =>
+    {
+        // Editing drawers never open on phones, so a switch to the phone form factor closes one that is already open.
+        if (DeviceContext.IsPhone && _open) Close();
+        StateHasChanged();
+    });
 
     protected override async Task OnInitializedAsync()
     {

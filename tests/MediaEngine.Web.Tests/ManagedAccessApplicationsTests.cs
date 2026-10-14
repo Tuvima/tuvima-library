@@ -5,6 +5,8 @@ using Bunit;
 using MediaEngine.Contracts.Authentication;
 using MediaEngine.Web.Components.Settings;
 using MediaEngine.Web.Services.Integration;
+using MediaEngine.Web.Services.Theming;
+using MediaEngine.Web.Tests.Support;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace MediaEngine.Web.Tests;
@@ -352,6 +354,39 @@ public sealed class ManagedAccessApplicationsTests : AsyncBunitContext
             "_signingSecret",
             System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!;
         Assert.Null(secretField.GetValue(instance));
+    }
+
+    [Fact]
+    public async Task OnAPhone_ApplicationsReadAsCardsWithoutManageControls()
+    {
+        await UsePhoneAsync();
+
+        var cut = RenderApplications();
+
+        Assert.NotEmpty(cut.FindAll(".app-table-shell--cards"));
+        Assert.Equal("Living room", cut.Find("td[data-card-role='title']").TextContent.Trim());
+        Assert.Equal("User Client", cut.Find("td[data-card-role='subtitle']").TextContent.Trim());
+        Assert.Contains("Disabled", cut.Find("td[data-card-role='value']").TextContent);
+        Assert.Contains("Manage on a computer or tablet", cut.Find("p[role='note']").TextContent);
+        Assert.Empty(cut.FindAll("button[aria-label^='Actions for']"));
+        Assert.DoesNotContain(cut.FindAll("button"), button => button.TextContent.Contains("New application"));
+    }
+
+    [Fact]
+    public void OnADesktop_ApplicationsKeepTheRowActionsAndNoPhoneNote()
+    {
+        var cut = RenderApplications();
+
+        Assert.Empty(cut.FindAll(".app-table-shell--cards"));
+        Assert.NotEmpty(cut.FindAll("button[aria-label='Actions for Living room']"));
+        Assert.DoesNotContain("Manage on a computer or tablet", cut.Markup);
+    }
+
+    private async Task UsePhoneAsync()
+    {
+        var device = new DeviceContextService(EngineApiClientStub.CreateDefault());
+        await device.InitialiseAsync(new DeviceContextSnapshot("mobile", "phone", true));
+        Services.AddScoped(_ => device);
     }
 
     private IRenderedComponent<ManagedAccessApplications> RenderApplications()
