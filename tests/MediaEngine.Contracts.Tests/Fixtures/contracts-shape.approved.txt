@@ -4312,6 +4312,7 @@ MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewSharedCo
   DecisionReason: System.String | nullability=nullable | accessors=get,init
   Items: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.LocalAssets.ViewSharedContributionItemDto> | nullability=not-null | accessors=get,init
   Events: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.LocalAssets.ViewSharedContributionEventDto> | nullability=not-null | accessors=get,init
+  IncludesHiddenItems: System.Boolean | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewSharedContributionEventDto
   Id: System.Guid | nullability=not-null | accessors=get,init

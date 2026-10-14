@@ -470,6 +470,14 @@ public sealed class ViewLibraryService(
             now), ct);
     }
 
+    /// <summary>
+    /// True when View would index a file with this name as a document. Uploads use it to refuse documents before the
+    /// file is stored, so no answer about an existing document (such as "already added") can reach a profile that
+    /// may not use Documents.
+    /// </summary>
+    public static bool IsDocumentFileName(string fileName) =>
+        TryCreateCandidate(Path.GetFileName(fileName)) is { Type.MediaKind: LocalAssetMediaKinds.Document };
+
     private static FileCandidate? TryCreateCandidate(string path)
     {
         var extension = Path.GetExtension(path);

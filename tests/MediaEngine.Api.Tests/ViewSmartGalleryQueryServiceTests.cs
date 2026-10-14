@@ -41,18 +41,18 @@ public sealed class ViewSmartGalleryQueryServiceTests
 
     private sealed class GalleryStore(params ViewGallery[] galleries) : IViewGalleryRepository
     {
-        public Task<ViewGallery?> GetAsync(Guid galleryId, CancellationToken ct = default) =>
+        public Task<ViewGallery?> GetAsync(Guid galleryId, bool includeDocuments = true, CancellationToken ct = default) =>
             Task.FromResult(galleries.SingleOrDefault(gallery => gallery.Id == galleryId));
 
-        public Task<IReadOnlyList<ViewGallery>> GetOwnedAsync(Guid ownerProfileId, CancellationToken ct = default) => throw new NotSupportedException();
-        public Task<IReadOnlyList<ViewGallery>> GetSharedWithAsync(Guid profileId, CancellationToken ct = default) => throw new NotSupportedException();
+        public Task<IReadOnlyList<ViewGallery>> GetOwnedAsync(Guid ownerProfileId, bool includeDocuments = true, CancellationToken ct = default) => throw new NotSupportedException();
+        public Task<IReadOnlyList<ViewGallery>> GetSharedWithAsync(Guid profileId, bool includeDocuments = true, CancellationToken ct = default) => throw new NotSupportedException();
         public Task<ViewGallery> CreateAsync(CreateViewGalleryCommand command, CancellationToken ct = default) => throw new NotSupportedException();
         public Task<ViewGallery?> UpdateAsync(UpdateViewGalleryCommand command, CancellationToken ct = default) => throw new NotSupportedException();
         public Task<bool> DeleteAsync(Guid galleryId, CancellationToken ct = default) => throw new NotSupportedException();
-        public Task<ViewGalleryItemPage> GetItemsAsync(Guid galleryId, int? afterPosition = null, Guid? afterItemId = null, int limit = 100, CancellationToken ct = default) => throw new NotSupportedException();
-        public Task<AddViewGalleryItemsResult> AddItemsAsync(Guid galleryId, IReadOnlyCollection<Guid> itemIds, CancellationToken ct = default) => throw new NotSupportedException();
-        public Task<int> RemoveItemsAsync(Guid galleryId, IReadOnlyCollection<Guid> itemIds, CancellationToken ct = default) => throw new NotSupportedException();
-        public Task<bool> SetItemPositionAsync(Guid galleryId, Guid itemId, int position, CancellationToken ct = default) => throw new NotSupportedException();
+        public Task<ViewGalleryItemPage> GetItemsAsync(Guid galleryId, int? afterPosition = null, Guid? afterItemId = null, int limit = 100, bool includeDocuments = true, CancellationToken ct = default) => throw new NotSupportedException();
+        public Task<AddViewGalleryItemsResult> AddItemsAsync(Guid galleryId, IReadOnlyCollection<Guid> itemIds, bool includeDocuments = true, CancellationToken ct = default) => throw new NotSupportedException();
+        public Task<int> RemoveItemsAsync(Guid galleryId, IReadOnlyCollection<Guid> itemIds, bool includeDocuments = true, CancellationToken ct = default) => throw new NotSupportedException();
+        public Task<bool> SetItemPositionAsync(Guid galleryId, Guid itemId, int position, bool includeDocuments = true, CancellationToken ct = default) => throw new NotSupportedException();
         public Task ReplaceSharesAsync(Guid galleryId, IReadOnlyCollection<(Guid ProfileId, ViewGallerySharePermission Permission)> shares, CancellationToken ct = default) => throw new NotSupportedException();
         public Task<IReadOnlyList<ViewGalleryShare>> GetSharesAsync(Guid galleryId, CancellationToken ct = default) => throw new NotSupportedException();
         public Task<bool> IsItemSharedWithProfileAsync(Guid itemId, Guid profileId, CancellationToken ct = default) => throw new NotSupportedException();

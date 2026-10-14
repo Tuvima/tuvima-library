@@ -9,7 +9,7 @@ public sealed class ViewSmartGalleryQueryService(IViewGalleryRepository gallerie
 {
     public async Task<CollectionRuleDefinition?> ResolveRuleAsync(Guid galleryId, CancellationToken ct = default)
     {
-        var gallery = await galleries.GetAsync(galleryId, ct).ConfigureAwait(false);
+        var gallery = await galleries.GetAsync(galleryId, ct: ct).ConfigureAwait(false);
         if (gallery is null)
         {
             throw new InvalidOperationException("The Smart Gallery no longer exists.");
