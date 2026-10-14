@@ -33,3 +33,7 @@
 .access-credential-secret code { margin-top: .6rem; padding: .65rem; overflow-wrap: anywhere; border-radius: var(--app-radius-sm); background: rgb(0 0 0 / 28%); user-select: all; }
 @media (max-width: 1050px) { .access-applications__header { display: none; } .access-applications__row { grid-template-columns: minmax(0, 1fr) auto auto; gap: .65rem; } .access-applications__row > div:nth-child(4) { grid-column: 1 / -1; } .access-applications__actions { grid-column: 3; grid-row: 1; } }
 @media (max-width: 640px) { .access-drawer__body { padding: 1rem; } .access-drawer__header, .access-drawer__footer { padding-inline: 1rem; } .access-credential-row, .access-credential-issue { grid-template-columns: minmax(0, 1fr); } }
+
+.access-phone-note { margin: 0 0 1rem; color: var(--app-text-muted); font-size: .9rem; }
+.access-phone-card__value { display: grid; justify-items: end; gap: .15rem; }
+.access-phone-card__value small { color: var(--app-text-muted); font-size: .82rem; }
