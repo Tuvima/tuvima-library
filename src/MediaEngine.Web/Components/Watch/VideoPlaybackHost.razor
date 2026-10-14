@@ -150,6 +150,14 @@
             </div>
         </BottomContent>
         </PlaybackVideoChrome>
+        <div class="video-touch-feedback" data-video-touch-feedback aria-hidden="true"></div>
+        <div class="sr-only" role="status" aria-live="polite" data-video-touch-announce></div>
+        <div class="video-touch-hint" data-video-touch-hint hidden>
+            <span>Turn your phone for full screen</span>
+            <AppTooltip Text="Dismiss hint"><AppNativeButton Type="button" Class="video-playback-host__icon" AriaLabel="Dismiss hint" data-video-touch-hint-dismiss="true">
+                <PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.Close" />
+            </AppNativeButton></AppTooltip>
+        </div>
         @if (_endCard.Visible && EligibleNextEpisode is { } nextEpisode)
         {
             <aside class="video-playback-host__end-card" aria-label="Next episode" data-playback-chrome data-chrome-hold>
@@ -186,7 +194,8 @@
 
 @code {
     private ElementReference _hostRef;
-    private IJSObjectReference? _chromeModule, _presentationModule;
+    private IJSObjectReference? _chromeModule, _presentationModule, _touchModule, _mediaSessionModule;
+    private string? _mediaSessionSubject;
     private VideoPlaybackIdentity? _observedIdentity;
     private VideoPresentationContext? _presentationContext;
     private CancellationTokenSource? _metadataCancellation;
@@ -429,6 +438,8 @@
 
         _chromeModule ??= await JS.InvokeAsync<IJSObjectReference>("import", "./js/playback-chrome.js");
         _presentationModule ??= await JS.InvokeAsync<IJSObjectReference>("import", "./js/video-presentation.js");
+        _touchModule ??= await JS.InvokeAsync<IJSObjectReference>("import", "./js/video-touch.js");
+        _mediaSessionModule ??= await JS.InvokeAsync<IJSObjectReference>("import", "./js/playback-media-session.js");
         if (_disposed)
         {
             await ReleaseBrowserClientAsync();
@@ -445,6 +456,12 @@
         {
             await _presentationModule.InvokeVoidAsync("attach", _hostRef, _videoRef, _selfReference);
             await _presentationModule.InvokeVoidAsync("update", _hostRef, _endCard.Visible);
+        }
+        if (_touchModule is not null) await _touchModule.InvokeVoidAsync("attach", _hostRef, _videoRef, _selfReference);
+        if (_mediaSessionModule is not null)
+        {
+            await _mediaSessionModule.InvokeVoidAsync("attachVideo", _videoRef, _selfReference);
+            await SyncMediaSessionAsync();
         }
 
         if (Playback.IsVideoMode && !string.IsNullOrWhiteSpace(Playback.CurrentBrowserStreamUrl))
@@ -644,6 +661,44 @@
         await Playback.ReportHeartbeatAsync(force: true);
     }
 
+    // Touch gestures reuse the visible controls' seek and play paths, so resume, heartbeat and the end-card clock behave the same.
+    [JSInvokable] public async Task HandleTouchSeek(string assetId, long requestVersion, double targetSeconds)
+    {
+        if (_disposed || !Playback.IsVideoMode || !Playback.IsVideoExpanded || !double.IsFinite(targetSeconds)) return;
+        // A tap that lands after the queue moved on must not seek the next item.
+        if (requestVersion != Playback.PlaybackRequestVersion || !Guid.TryParse(assetId, out var asset) || Playback.CurrentItem?.AssetId != asset) return;
+        await SeekOnHostAsync(targetSeconds);
+    }
+    [JSInvokable] public async Task HandleTouchTogglePlay()
+    {
+        if (_disposed || !Playback.IsVideoMode || !Playback.IsVideoExpanded) return;
+        await TogglePlayPauseAsync();
+    }
+    [JSInvokable] public async Task MediaSessionActionAsync(string action, double? value)
+    {
+        if (_disposed || !Playback.IsVideoMode || Playback.IsDismissed || Playback.CurrentItem is null) return;
+        switch (action)
+        {
+            case "play" when !Playback.IsPlaying || Playback.NeedsUserGestureToStart: await TogglePlayPauseAsync(); break;
+            case "pause" when Playback.IsPlaying: await PauseAsync(); break;
+            case "previoustrack": await Playback.SkipPreviousAsync(); break;
+            case "nexttrack": await Playback.SkipNextAsync(); break;
+            case "seekbackward": await SeekOnHostAsync(Playback.CurrentTimeSeconds - (value ?? Playback.SkipBackSeconds)); break;
+            case "seekforward": await SeekOnHostAsync(Playback.CurrentTimeSeconds + (value ?? Playback.SkipForwardSeconds)); break;
+            case "seekto" when value.HasValue: await SeekOnHostAsync(value.Value); break;
+        }
+    }
+    private async Task SyncMediaSessionAsync()
+    {
+        if (_mediaSessionModule is null || _disposed) return;
+        var item = Playback.CurrentItem;
+        var shown = Playback.IsVideoMode && !Playback.IsDismissed && item is not null;
+        var showTitle = _presentationContext?.ShowTitle;
+        var subject = shown ? $"{Playback.ActiveProfileId}:{item!.WorkId}:{item.AssetId}:{Playback.PlaybackRequestVersion}:{showTitle}" : null;
+        if (_mediaSessionSubject == subject) return;
+        _mediaSessionSubject = subject;
+        await _mediaSessionModule.InvokeVoidAsync("videoMetadata", shown ? VideoMediaSessionMetadata.Create(item!, showTitle, new Uri(Nav.BaseUri)) : null);
+    }
     [JSInvokable] public Task HandleNativeVideoEnded(Guid profileId, Guid workId, Guid assetId, long requestVersion)
     {
         return AdvanceVideoAsync(new(profileId, workId, assetId, requestVersion));
@@ -1130,12 +1185,18 @@
 
         var chrome = _chromeModule;
         var presentation = _presentationModule;
+        var touch = _touchModule;
+        var mediaSession = _mediaSessionModule;
         _chromeModule = null;
         _presentationModule = null;
-        foreach (var module in new[] { chrome, presentation })
+        _touchModule = null;
+        _mediaSessionModule = null;
+        _mediaSessionSubject = null;
+        foreach (var (module, detach, element) in new[] { (chrome, "detach", _hostRef), (presentation, "detach", _hostRef),
+            (touch, "detach", _hostRef), (mediaSession, "detachVideo", _videoRef) })
         {
             if (module is null) continue;
-            try { await module.InvokeVoidAsync("detach", _hostRef); await module.DisposeAsync(); }
+            try { await module.InvokeVoidAsync(detach, element); await module.DisposeAsync(); }
             catch (JSDisconnectedException)
             {
                 // The browser connection is gone, so the module is already released.
