@@ -4,6 +4,7 @@ using MediaEngine.Application.Services;
 using MediaEngine.Contracts.Review;
 using MediaEngine.Domain.Configuration;
 using MediaEngine.Domain.Constants;
+using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Entities;
 using MediaEngine.Domain.Enums;
 using MediaEngine.Ingestion.Contracts;
@@ -41,12 +42,17 @@ public sealed class ReviewQueueReadService : IReviewQueueReadService
 
     private readonly IDatabaseConnection _db;
     private readonly IImportFolderService? _importFolders;
+    private readonly IConfigurationLoader? _configuration;
 
-    public ReviewQueueReadService(IDatabaseConnection db, IImportFolderService? importFolders = null)
+    public ReviewQueueReadService(
+        IDatabaseConnection db,
+        IImportFolderService? importFolders = null,
+        IConfigurationLoader? configuration = null)
     {
         ArgumentNullException.ThrowIfNull(db);
         _db = db;
         _importFolders = importFolders;
+        _configuration = configuration;
     }
 
     public async Task<IReadOnlyList<ReviewItemDto>> GetPendingAsync(int limit, CancellationToken ct = default)
@@ -148,6 +154,7 @@ public sealed class ReviewQueueReadService : IReviewQueueReadService
             """, new { status = ReviewStatus.Pending, limit })).AsList();
 
         var importPath = _importFolders?.GetImportPath();
+        var managedRoots = ManagedFolderRoots();
         var result = new List<ReviewItemDto>(rows.Count);
         foreach (var row in rows)
         {
@@ -156,7 +163,8 @@ public sealed class ReviewQueueReadService : IReviewQueueReadService
             var detectedFacts = await ReadDetectedFactsAsync(conn, row, ct).ConfigureAwait(false);
             result.Add(ToContract(
                 entry, row.MediaType, row.EntityTitle, row.CoverUrl, bridgeIds, detectedFacts,
-                IsFromImportFolder(importPath, row.FilePath)));
+                IsFromImportFolder(importPath, row.FilePath),
+                IsFromMerge(managedRoots, row.FilePath)));
         }
 
         return result;
@@ -267,7 +275,8 @@ public sealed class ReviewQueueReadService : IReviewQueueReadService
         var detectedFacts = await ReadDetectedFactsAsync(conn, row, ct).ConfigureAwait(false);
         return ToContract(
             entry, row.MediaType, row.EntityTitle, row.CoverUrl, bridgeIds, detectedFacts,
-            IsFromImportFolder(_importFolders?.GetImportPath(), row.FilePath));
+            IsFromImportFolder(_importFolders?.GetImportPath(), row.FilePath),
+            IsFromMerge(ManagedFolderRoots(), row.FilePath));
     }
 
     public async Task<int> GetPendingCountAsync(CancellationToken ct = default)
@@ -347,7 +356,8 @@ public sealed class ReviewQueueReadService : IReviewQueueReadService
         string? coverUrl,
         Dictionary<string, string> bridgeIdentifiers,
         Dictionary<string, string> detectedFacts,
-        bool fromImportFolder) => new()
+        bool fromImportFolder,
+        bool fromMerge) => new()
         {
             Id = entry.Id,
             EntityId = entry.EntityId,
@@ -370,12 +380,26 @@ public sealed class ReviewQueueReadService : IReviewQueueReadService
             BridgeIdentifiers = bridgeIdentifiers,
             DetectedFacts = detectedFacts,
             FromImportFolder = fromImportFolder,
+            FromMerge = fromMerge,
         };
 
     private static bool IsFromImportFolder(string? importPath, string? filePath) =>
         !string.IsNullOrWhiteSpace(importPath)
         && !string.IsNullOrWhiteSpace(filePath)
         && ImportFolderRules.IsInside(importPath, filePath);
+
+    /// <summary>The folders Tuvima manages, read once per request. Path-based, so it does not depend on how the file got there.</summary>
+    private List<string> ManagedFolderRoots() =>
+        _configuration?.LoadLibraries().Libraries
+            .SelectMany(library => library.Sources)
+            .Where(source => source.IsManaged && !string.IsNullOrWhiteSpace(source.Path))
+            .Select(source => source.Path)
+            .ToList()
+        ?? [];
+
+    private static bool IsFromMerge(List<string> managedRoots, string? filePath) =>
+        !string.IsNullOrWhiteSpace(filePath)
+        && managedRoots.Any(root => FolderMergeFolders.IsInsideHoldingFolder(root, filePath));
 
     private static async Task<Dictionary<string, string>> ReadDetectedFactsAsync(
         System.Data.IDbConnection conn,

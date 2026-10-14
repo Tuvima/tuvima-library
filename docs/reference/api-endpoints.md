@@ -366,7 +366,7 @@ The Dashboard renders Stages 1-8 as compact progress rows. Review/attention stat
 
 | Method | Path | Description | Auth |
 |---|---|---|---|
-| GET | `/review/pending` | All items currently in the review queue; `from_import_folder` is true for a file still in the Import folder (the "From the Import folder" badge) | Effective administrator or precise Application permission |
+| GET | `/review/pending` | All items currently in the review queue; `from_import_folder` is true for a file still in the Import folder (the "From the Import folder" badge); `from_merge` is true for a file inside a managed folder's From merge folder (the "From merge" badge) | Effective administrator or precise Application permission |
 | GET | `/review/count` | Count of pending review items. Used for media library badge. | Required |
 | GET | `/review/{id}` | Full detail for a single review item including candidates | Effective administrator or precise Application permission |
 | POST | `/review/{id}/resolve` | Resolve a review item by selecting a candidate or confirming corrected local metadata | Effective administrator or precise Application permission |
