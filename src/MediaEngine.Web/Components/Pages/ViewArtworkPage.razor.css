@@ -224,24 +224,6 @@
     font-size: 3rem;
 }
 
-.view-artwork-card__open {
-    position: absolute;
-    right: .55rem;
-    bottom: .55rem;
-    display: inline-flex;
-    align-items: center;
-    gap: .25rem;
-    padding: .35rem .55rem;
-    border-radius: 999px;
-    background: rgba(9, 8, 16, .86);
-    color: #fff;
-    font-size: .75rem;
-    font-weight: 700;
-    opacity: 0;
-    transform: translateY(.25rem);
-    transition: opacity 150ms ease, transform 150ms ease;
-}
-
 .view-artwork-card__count {
     position: absolute;
     right: .55rem;
@@ -259,17 +241,6 @@
 
 .view-artwork-card__count ::deep .tl-icon-root {
     font-size: .85rem;
-}
-
-.view-artwork-card:hover .view-artwork-card__count,
-.view-artwork-card:focus-visible .view-artwork-card__count {
-    opacity: 0;
-}
-
-.view-artwork-card:hover .view-artwork-card__open,
-.view-artwork-card:focus-visible .view-artwork-card__open {
-    opacity: 1;
-    transform: none;
 }
 
 .view-artwork-card__body {

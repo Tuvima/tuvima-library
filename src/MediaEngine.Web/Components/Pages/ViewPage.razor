@@ -9,6 +9,7 @@
 @inject ViewMediaGrantService MediaGrants
 @inject IJSRuntime JS
 @inject IAppDialogService DialogService
+@inject DeviceContextService DeviceContext
 @implements IDisposable
 @implements IAsyncDisposable
 @namespace MediaEngine.Web.Components.Pages
@@ -24,6 +25,7 @@
         <label><span>Scope</span><AppNativeSelect Value="@SelectedScopeValue" OnChange="ScopeChangedAsync" aria-label="Authorized photo scope"><ViewScopeOptions Scopes="@Workspace.Scopes.AvailableScopes" OtherPeople="@Workspace.OtherPeople" /></AppNativeSelect></label>
         <label><span>Density</span><AppNativeSelect Value="@Workspace.Density.ToString()" OnChange="DensityChangedAsync" aria-label="Timeline density">@foreach (var density in Enum.GetValues<ViewTimelineDensity>()) { <option value="@density">@density</option> }</AppNativeSelect></label>
         <AppButton Href="/view/contributions" Label="Contributions" StartIcon="@AppMaterialIcons.Outlined.MoveToInbox" ButtonStyle="AppButtonStyle.Text" />
+        @if (DeviceContext.IsTouch) { <AppButton Class="view-select-toggle" ButtonStyle="AppButtonStyle.Outlined" StartIcon="@AppMaterialIcons.Outlined.CheckCircleOutline" Label="@(_selectMode ? "Done" : "Select")" aria-pressed="@(_selectMode ? "true" : "false")" OnClick="ToggleSelectMode" /> }
         @if (!Workspace.ScopeKind.CarriesProfileId()) { <label class="view-add-media@(_uploading ? " is-busy" : string.Empty)" aria-disabled="@_uploading"><InputFile class="view-add-media__input" OnChange="UploadMediaAsync" disabled="@_uploading" accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt" /><span class="view-add-media__label"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Add" />@(_uploading ? "Uploading…" : "Add media")</span></label> }
     }
 </HeaderActions>
@@ -54,7 +56,7 @@ else
             <AppNativeButton Type="button" Class="@FilterClass("documents")" OnClick="@(_ => SetFilterAsync("documents"))">Documents</AppNativeButton>
         </AdvancedFilters>
     </AppDiscoveryFilterBar>
-    @if (_selected.Count > 0) { <ViewSelectionToolbar Count="@_selected.Count" ManualGalleries="@Workspace.OwnedGalleries.Where(g => g.Kind == ViewGalleryKind.Manual).ToList()" OnClear="ClearSelection" OnAddToGallery="AddSelectionToGalleryAsync" OnCreateGallery="CreateGalleryFromSelectionAsync" OnSharedLibrary="SubmitSelectionToSharedAsync" ShowSharedLibrary="@(Workspace.ScopeKind == ViewScopeKind.Mine)" OnFavorite="FavoriteSelectionAsync" OnArchive="ArchiveSelectionAsync" OnRestore="RestoreSelectionAsync" ShowRestore="@(_filter is "archive" or "trash")" OnTrash="TrashSelectionAsync" ShowTrash="@(_filter != "trash")" /> }
+    @if (_selected.Count > 0) { <ViewSelectionToolbar Count="@_selected.Count" Phone="@DeviceContext.IsPhone" ManualGalleries="@Workspace.OwnedGalleries.Where(g => g.Kind == ViewGalleryKind.Manual).ToList()" OnClear="CancelSelection" OnAddToGallery="AddSelectionToGalleryAsync" OnCreateGallery="@CreateGalleryCallback" OnDownload="DownloadSelectionAsync" OnSharedLibrary="SubmitSelectionToSharedAsync" ShowSharedLibrary="@(Workspace.ScopeKind == ViewScopeKind.Mine)" OnFavorite="FavoriteSelectionAsync" OnArchive="ArchiveSelectionAsync" OnRestore="RestoreSelectionAsync" ShowRestore="@(_filter is "archive" or "trash")" OnTrash="TrashSelectionAsync" ShowTrash="@(_filter != "trash")" /> }
     @if (_loading) { <AppPageState Kind="AppPageStateKind.Loading" Title="Loading Photos" Message="Building your personal timeline." /> }
     else if (_page is null) { <AppErrorState Title="Photos could not be loaded" Message="The Engine did not return a timeline." Retry="@(() => LoadAsync())" /> }
     else if (_page.Items.Count == 0) { <AppPageState Kind="AppPageStateKind.Empty" Title="@EmptyTitle" Message="@EmptyMessage" /> }
@@ -62,7 +64,7 @@ else
     {
         @if (_olderWindow) { <AppButton Label="Back to newest photos" OnClick="@(() => LoadAsync(preserveSelection: true))" /> }
         <div class="view-timeline-layout">
-            <ViewPhotoTimeline Items="@_page.Items" Selected="@_selected" SelectEntireDate="true" Density="@Workspace.Density" ThumbnailUrl="@(item => AssetUrl(item, ViewMediaResourceKind.Thumbnail))" OnOpen="OpenItem" OnToggleSelection="ToggleSelection" OnToggleSelectionRequested="ToggleSelectionRequested" OnSelectDateGroup="SelectDateGroup" OnDragStarted="BeginDrag" OnDragEnded="EndDrag" />
+            <ViewPhotoTimeline Items="@_page.Items" Selected="@_selected" SelectMode="@_selectMode" SelectEntireDate="true" Density="@Workspace.Density" ThumbnailUrl="@(item => AssetUrl(item, ViewMediaResourceKind.Thumbnail))" OnOpen="OpenItem" OnToggleSelection="ToggleSelection" OnToggleSelectionRequested="ToggleSelectionRequested" OnSelectDateGroup="SelectDateGroup" OnDragStarted="BeginDrag" OnDragEnded="EndDrag" />
             <ViewTimelineScrubber Buckets="@(_timelineIndex?.Buckets ?? [])" ActiveYear="@_activeYear" ActiveMonth="@_activeMonth" OnJump="JumpToBucketAsync" />
         </div>
         <span class="view-timeline-observer-anchor" @ref="_timelineSentinel" aria-hidden="true"></span>
@@ -82,7 +84,9 @@ else
     private ViewSectionShell? _viewSectionShell; private ViewAssetTimelinePageDto? _page; private ViewTimelineIndexDto? _timelineIndex; private LocalAssetDto? _activeItem; private readonly HashSet<Guid> _selected = []; private readonly Dictionary<(Guid, Guid, ViewMediaResourceKind, ViewMediaResourceRole, ViewScopeKind, Guid?), CachedMediaGrant> _grants = [];
     private CancellationTokenSource? _searchCts; private Guid? _profileId; private string _search = ""; private string _filter = "all"; private bool _initializing = true, _loading, _loadingMore, _uploading; private string? _uploadFileName, _uploadError;
     private DateTimeOffset? _anchorBefore; private Guid? _selectionAnchor; private int? _activeYear, _activeMonth; private ElementReference _timelineSentinel; private IJSObjectReference? _timelineModule; private DotNetObjectReference<ViewPage>? _timelineReference; private bool _observeTimeline, _focusAnchoredPeriod;
-    protected override async Task OnInitializedAsync() { Orchestrator.OnProfileChanged += OnProfileChanged; await InitializeAsync(); }
+    private bool _selectMode;
+    protected override async Task OnInitializedAsync() { Orchestrator.OnProfileChanged += OnProfileChanged; DeviceContext.OnChanged += DeviceChanged; await InitializeAsync(); }
+    private void DeviceChanged() => _ = InvokeAsync(() => { if (!DeviceContext.IsTouch) { _selectMode = false; } StateHasChanged(); });
     private async Task InitializeAsync() { _initializing = true; _profileId = (await Orchestrator.GetActiveProfileAsync())?.Id; await Workspace.InitializeAsync(); await Workspace.LoadGalleriesAsync(); _initializing = false; await LoadAsync(); }
     private ViewAssetQueryOptions Query(string? cursor = null, DateTimeOffset? anchorBefore = null) => new(Workspace.ScopeKind, Workspace.ScopeProfileId, cursor, _search, _filter switch { "videos" => ["video"], "documents" => ["document"], _ => null }, _filter == "favorites", _filter == "hidden", _filter switch { "archive" => "archived", "trash" => "trashed", _ => "active" }, AnchorBefore: anchorBefore);
     private int _loadVersion;
@@ -208,6 +212,20 @@ else
         finally { _selectingDate = false; }
     }
     private void ClearSelection() { _selected.Clear(); _selectionAnchor = null; }
+    // Select mode is a touch affordance: Done and Cancel both leave it and drop the selection.
+    private void ToggleSelectMode() { _selectMode = !_selectMode; if (!_selectMode) ClearSelection(); }
+    private void CancelSelection() { ClearSelection(); _selectMode = false; }
+    // Phones never open the Gallery editor, so the bar's "New Gallery" item is withheld there; adding to an existing Gallery stays.
+    private EventCallback CreateGalleryCallback => DeviceContext.IsPhone ? default : EventCallback.Factory.Create(this, CreateGalleryFromSelectionAsync);
+    private async Task DownloadSelectionAsync()
+    {
+        if (_page is null || _selected.Count == 0) return;
+        var files = _page.Items.Where(item => _selected.Contains(item.Id)).Select(item => new { url = AssetUrl(item, ViewMediaResourceKind.Content), name = item.FileName }).Where(file => !string.IsNullOrEmpty(file.url)).ToList();
+        if (files.Count < _selected.Count) Snackbar.Add($"{_selected.Count - files.Count} selected items are outside the loaded photos and were not downloaded.", AppSeverity.Warning);
+        if (files.Count == 0) return;
+        _timelineModule ??= await JS.InvokeAsync<IJSObjectReference>("import", "./js/view-timeline.js");
+        await _timelineModule.InvokeVoidAsync("downloadFiles", files);
+    }
     private void BeginDrag(Guid id) => AssetDrag.Begin(_selected.Contains(id) ? _selected : [id]); private void EndDrag() => AssetDrag.Clear();
     private async Task AddSelectionToGalleryAsync(Guid id) { var result = await ApiClient.AddViewGalleryItemsAsync(id, _selected); if (result is null) { Snackbar.Add("The selected items could not be added to the Gallery.", AppSeverity.Error); return; } Snackbar.Add(GalleryResult(result), AppSeverity.Success); ClearSelection(); await Workspace.LoadGalleriesAsync(force: true); }
     private async Task CreateGalleryFromSelectionAsync() { if (_viewSectionShell is null) return; await _viewSectionShell.BeginManualGalleryCreateAsync(_selected); ClearSelection(); }
@@ -293,7 +311,7 @@ else
         _observeTimeline = false;
         if (_focusAnchoredPeriod) { _focusAnchoredPeriod = false; await _timelineModule.InvokeVoidAsync("focusFirstPeriod"); }
     }
-    private void OnProfileChanged() => _ = InvokeAsync(async () => { _grants.Clear(); Workspace.Reset(); await InitializeAsync(); StateHasChanged(); }); public void Dispose() { Orchestrator.OnProfileChanged -= OnProfileChanged; _searchCts?.Cancel(); _searchCts?.Dispose(); }
+    private void OnProfileChanged() => _ = InvokeAsync(async () => { _grants.Clear(); Workspace.Reset(); await InitializeAsync(); StateHasChanged(); }); public void Dispose() { Orchestrator.OnProfileChanged -= OnProfileChanged; DeviceContext.OnChanged -= DeviceChanged; _searchCts?.Cancel(); _searchCts?.Dispose(); }
     public async ValueTask DisposeAsync() { Dispose(); if (_timelineModule is not null) { try { await _timelineModule.InvokeVoidAsync("disconnectTimeline", _timelineSentinel); await _timelineModule.DisposeAsync(); } catch (JSDisconnectedException) { } } _timelineReference?.Dispose(); }
     private sealed record CachedMediaGrant(string Url, DateTimeOffset ExpiresAt);
 }

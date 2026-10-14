@@ -6,7 +6,22 @@
     <JustifiedGalleryLayout />
     @foreach (var item in Items)
     {
-        <AppNativeButton @key="@ItemKey(item)"
+        @if (RowActions is null)
+        {
+            @Card(item)
+        }
+        else
+        {
+            <div @key="@ItemKey(item)" @attributes="WrapperAttributes(item)">
+                @Card(item)
+                <div class="view-artwork-row-menu">@RowActions(item)</div>
+            </div>
+        }
+    }
+</div>
+
+@code {
+    private RenderFragment Card(TItem item) => @<AppNativeButton @key="@ItemKey(item)"
                          Type="button"
                          Class="@CardClass(item)"
                          InlineStyle="@CardStyle(item)"
@@ -35,11 +50,8 @@
                 }
             </span>
             <span class="artwork-justified-gallery__caption"><strong>@Title(item)</strong><small>@SupportingText(item)</small></span>
-        </AppNativeButton>
-    }
-</div>
+        </AppNativeButton>;
 
-@code {
     private readonly HashSet<string> _failedPreviews = [];
     [Parameter, EditorRequired] public IReadOnlyList<TItem> Items { get; set; } = [];
     [Parameter, EditorRequired] public Func<TItem, string> ItemKey { get; set; } = _ => string.Empty;
@@ -58,7 +70,16 @@
     [Parameter] public Func<TItem, bool> IsDisabled { get; set; } = _ => false;
     [Parameter] public string AriaLabel { get; set; } = "Artwork images";
 
+    /// <summary>Optional actions beside a card (a three-dot <c>AppRowMenu</c>). The card is a button, so they sit next to it, never inside it.</summary>
+    [Parameter] public RenderFragment<TItem>? RowActions { get; set; }
+
     private string CardClass(TItem item) => $"artwork-justified-gallery__card {AspectClass(item)}{(IsSelected(item) ? " is-selected" : string.Empty)}";
+
+    private IReadOnlyDictionary<string, object> WrapperAttributes(TItem item) => new Dictionary<string, object>
+    {
+        ["class"] = "artwork-justified-gallery__item",
+        ["style"] = CardStyle(item),
+    };
 
     private string CardStyle(TItem item) => $"--artwork-gallery-aspect:{AspectRatio(item).ToString("0.###", CultureInfo.InvariantCulture)}";
 

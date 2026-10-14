@@ -125,7 +125,7 @@
 }
 
 .view-kind-tabs {
-    min-width: 440px;
+    min-width: 0;
     padding: 8px;
     border-radius: var(--tl-radius-md);
     background: rgba(24, 35, 54, 0.76);
