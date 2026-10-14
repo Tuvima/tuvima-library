@@ -100,6 +100,33 @@ public sealed class ViewDiscoveryRepositoryTests : IDisposable
     }
 
     [Fact]
+    public async Task Places_Atlas_PlaceMediaAndPeople_NeverIncludeADocumentEvenWithLocationOrPersonMetadata()
+    {
+        var owner = await CreateOwnership();
+        var photo = await AddAsset(owner, "Chicago photo", 41.8781, -87.6298, "Chicago");
+        var lease = await AddAsset(owner, "Lease scan", 41.8790, -87.6301, "Chicago", mediaKind: LocalAssetMediaKinds.Document);
+        var passport = await AddAsset(owner, "Passport scan", 48.8566, 2.3522, "Paris", mediaKind: LocalAssetMediaKinds.Document);
+        await _assets.AddAnnotationAsync(lease, new LocalAssetAnnotation("person_name", "Landlord Lee", "user"));
+
+        var places = _discovery.QueryPlaces(new ViewPlaceDiscoveryQuery([owner.LibraryId], Limit: 10));
+        var chicago = Assert.Single(places.Items);
+        Assert.Equal(1, chicago.AssetCount);
+        Assert.Equal(photo, chicago.RepresentativeAssetId);
+
+        var atlas = _discovery.QueryAtlas(new ViewAtlasDiscoveryQuery([owner.LibraryId]));
+        Assert.Equal(1, Assert.Single(atlas.Hotspots).AssetCount);
+        Assert.Equal(1, atlas.MappedAssetCount);
+
+        var media = _discovery.QueryPlaceAssets(new ViewPlaceAssetDiscoveryQuery(
+            [owner.LibraryId], chicago.Key, 0, 50));
+        Assert.Equal(photo, Assert.Single(media.AssetIds));
+        Assert.DoesNotContain(passport, media.AssetIds);
+
+        var people = _discovery.QueryPeople(new ViewPeopleDiscoveryQuery([owner.LibraryId]));
+        Assert.DoesNotContain(people.Items, person => person.DisplayName == "Landlord Lee");
+    }
+
+    [Fact]
     public async Task Atlas_ReturnsTruthfulFacetsAndDateOrderedPlaceStoryMedia()
     {
         var owner = await CreateOwnership();

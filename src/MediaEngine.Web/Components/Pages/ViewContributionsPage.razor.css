@@ -3,7 +3,7 @@
 .view-contributions-header, .view-contributions-controls, .view-contribution-card, .view-contribution-detail__summary, .view-contribution-items > div { display: flex; align-items: center; gap: 1rem; }
 .view-contributions-header { justify-content: space-between; }
 .view-contributions-header h1 { margin: .15rem 0; }
-.view-contributions-header p, .view-contribution-card small, .view-contribution-items small { color: var(--tl-text-secondary); }
+.view-contributions-header p, .view-contribution-card small, .view-contribution-items small, .view-contribution-hidden-note { color: var(--tl-text-secondary); }
 .view-contributions-controls { justify-content: space-between; }
 .view-contributions-controls [role=tablist] { display: flex; gap: .5rem; }
 .view-contributions-controls .is-selected { border-color: var(--tl-accent-primary); color: var(--tl-accent-primary); }
