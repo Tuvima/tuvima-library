@@ -41,7 +41,8 @@ public static class ViewClientEndpoints
         group.MapGet("/timeline", async (string? cursor, int? limit,
             IViewRequestProfileContext identity, IViewQueryOrchestrator queries, CancellationToken ct) =>
         {
-            if ((await ResolvePairedAppAsync(identity, ct)).Refusal is { } refusal)
+            var (authority, refusal) = await ResolvePairedAppAsync(identity, ct);
+            if (refusal is not null)
             {
                 return refusal;
             }
@@ -52,7 +53,7 @@ public static class ViewClientEndpoints
                     ViewScopeRequest.Mine, PagedRequest.From(0, limit, 100, 200).Limit, cursor,
                     MediaKinds: PhotoKinds), ct);
                 return result.Outcome == ViewAccessOutcome.Allowed && result.Page is { } page
-                    ? Results.Ok(ToTimeline(page)) : Refuse(result.Outcome);
+                    ? Results.Ok(ToTimeline(page, authority!.ActiveProfileId!.Value)) : Refuse(result.Outcome);
             }
             catch (ArgumentException exception) { return ApiErrors.BadRequest(exception.Message); }
         })
@@ -84,10 +85,10 @@ public static class ViewClientEndpoints
             return Results.Ok(new ViewGalleryListResponse(
                 (await galleries.GetOwnedAsync(profileId, false, ct))
                     .Where(gallery => !ViewEndpoints.IsDocumentView(gallery))
-                    .Select(gallery => ViewEndpoints.ToContract(gallery, false, assets)).ToList(),
+                    .Select(gallery => ToClient(gallery, profileId, assets)).ToList(),
                 (await galleries.GetSharedWithAsync(profileId, false, ct))
                     .Where(gallery => !ViewEndpoints.IsDocumentView(gallery))
-                    .Select(gallery => ViewEndpoints.ToContract(gallery, false, assets)).ToList()));
+                    .Select(gallery => ToClient(gallery, profileId, assets)).ToList()));
         })
             .WithName("GetViewClientGalleries")
             .WithSummary("The paired person's Galleries, and Galleries shared with them, without document counts.")
@@ -98,9 +99,17 @@ public static class ViewClientEndpoints
             IViewRequestProfileContext identity, IViewQueryOrchestrator queries, IViewGalleryRepository galleries,
             ILocalAssetRepository assets, CancellationToken ct) =>
         {
-            if ((await ResolvePairedAppAsync(identity, ct)).Refusal is { } refusal)
+            var (authority, refusal) = await ResolvePairedAppAsync(identity, ct);
+            if (refusal is not null)
             {
                 return refusal;
+            }
+
+            // A saved Documents view reads as a Gallery that does not exist. This is decided before the cursor is read,
+            // so a bad cursor on it answers 404 like it does for an id nobody has, never 400.
+            if (await galleries.GetAsync(id, false, ct) is { } existing && ViewEndpoints.IsDocumentView(existing))
+            {
+                return Missing();
             }
 
             try
@@ -108,15 +117,8 @@ public static class ViewClientEndpoints
                 var result = await queries.QueryAsync(new ViewAssetQueryRequest(
                     ViewScopeRequest.Mine, PagedRequest.From(0, limit, 100, 200).Limit, cursor,
                     MediaKinds: PhotoKinds, GalleryId: id), ct);
-                if (result.Outcome != ViewAccessOutcome.Allowed || result.Page is not { } page)
-                {
-                    return Refuse(result.Outcome);
-                }
-
-                // A saved Documents view reads as a Gallery that does not exist.
-                return await galleries.GetAsync(id, false, ct) is not { } gallery || ViewEndpoints.IsDocumentView(gallery)
-                    ? Missing()
-                    : Results.Ok(ToItems(page));
+                return result.Outcome == ViewAccessOutcome.Allowed && result.Page is { } page
+                    ? Results.Ok(ToItems(page, authority!.ActiveProfileId!.Value)) : Refuse(result.Outcome);
             }
             catch (ArgumentException exception) { return ApiErrors.BadRequest(exception.Message); }
         })
@@ -153,7 +155,8 @@ public static class ViewClientEndpoints
         group.MapGet("/people/{key}/items", async (string key, string? cursor, int? limit,
             IViewRequestProfileContext identity, IViewQueryOrchestrator queries, CancellationToken ct) =>
         {
-            if ((await ResolvePairedAppAsync(identity, ct)).Refusal is { } refusal)
+            var (authority, refusal) = await ResolvePairedAppAsync(identity, ct);
+            if (refusal is not null)
             {
                 return refusal;
             }
@@ -169,7 +172,7 @@ public static class ViewClientEndpoints
                     ViewScopeRequest.Mine, PagedRequest.From(0, limit, 100, 200).Limit, cursor,
                     MediaKinds: PhotoKinds, PersonKey: key), ct);
                 return result.Outcome == ViewAccessOutcome.Allowed && result.Page is { } page
-                    ? Results.Ok(ToItems(page)) : Refuse(result.Outcome);
+                    ? Results.Ok(ToItems(page, authority!.ActiveProfileId!.Value)) : Refuse(result.Outcome);
             }
             catch (ArgumentException exception) { return ApiErrors.BadRequest(exception.Message); }
         })
@@ -219,7 +222,7 @@ public static class ViewClientEndpoints
             }
 
             return assets.Find(id, ct) is { } item && IsPhotoOrVideo(item.MediaKind)
-                ? Results.Ok(ToClient(item)) : Missing();
+                ? Results.Ok(ToClient(item, authority!.ActiveProfileId!.Value)) : Missing();
         })
             .WithName("GetViewClientItem")
             .WithSummary("Size, taken date, camera, location and kind (image or video) of one photo or video.")
@@ -227,7 +230,7 @@ public static class ViewClientEndpoints
             .ProducesProblem(StatusCodes.Status404NotFound)
             .RequireClientScope(ApplicationPermissionIds.ViewPersonalRead.Value);
 
-        group.MapGet("/items/{id:guid}/thumbnail", async (Guid id, int? size,
+        group.MapGet("/items/{id:guid}/thumbnail", async (Guid id, int? size, HttpResponse response,
             IViewRequestProfileContext identity, IViewResourceAuthorizationService authorization,
             IViewResourceStore resources, ViewThumbnailService thumbnails, ILocalAssetRepository assets,
             CancellationToken ct) =>
@@ -246,6 +249,7 @@ public static class ViewClientEndpoints
             }
 
             var derivative = await thumbnails.GetOrCreateSizedAsync(id, file!, edge, ct);
+            response.Headers.CacheControl = "private, no-cache";
             return derivative is null ? StreamEndpoints.CreateArtworkPlaceholderResult() : Results.File(derivative, "image/jpeg");
         })
             .WithName("GetViewClientItemThumbnail")
@@ -256,7 +260,7 @@ public static class ViewClientEndpoints
             .RequireClientScope(ApplicationPermissionIds.ViewPersonalRead.Value)
             .RequireRateLimiting("view_images");
 
-        group.MapGet("/items/{id:guid}/preview", async (Guid id, int? size,
+        group.MapGet("/items/{id:guid}/preview", async (Guid id, int? size, HttpResponse response,
             IViewRequestProfileContext identity, IViewResourceAuthorizationService authorization,
             IViewResourceStore resources, ViewThumbnailService thumbnails, ILocalAssetRepository assets,
             CancellationToken ct) =>
@@ -275,6 +279,7 @@ public static class ViewClientEndpoints
             }
 
             var derivative = await thumbnails.GetOrCreateSizedAsync(id, file!, edge, ct);
+            response.Headers.CacheControl = "private, no-cache";
             return derivative is null ? StreamEndpoints.CreateArtworkPlaceholderResult() : Results.File(derivative, "image/jpeg");
         })
             .WithName("GetViewClientItemPreview")
@@ -407,20 +412,57 @@ public static class ViewClientEndpoints
         mimeType.StartsWith("image/", StringComparison.OrdinalIgnoreCase)
         || mimeType.StartsWith("video/", StringComparison.OrdinalIgnoreCase);
 
-    /// <summary>Points the item's addresses at this surface and drops anything only Documents use.</summary>
-    private static LocalAssetDto ToClient(LocalAssetDto item) => item with
+    /// <summary>
+    /// Points the item's addresses at this surface and drops anything only Documents use. An item that is not the
+    /// caller's own (it reached them through a shared Gallery) loses everything that lives in the owner's space: the
+    /// owner and space ids, the embedded location and date a photo carries after its owner removed or changed them,
+    /// and the owner's people and tags.
+    /// </summary>
+    private static LocalAssetDto ToClient(LocalAssetDto item, Guid profileId)
     {
-        ThumbnailUrl = $"{BasePath}/items/{item.Id:D}/thumbnail",
-        ContentUrl = $"{BasePath}/items/{item.Id:D}/original",
-        DocumentInfo = null,
-        Snippet = null,
-    };
+        var own = item.OwnerProfileId == profileId;
+        var client = item with
+        {
+            ThumbnailUrl = $"{BasePath}/items/{item.Id:D}/thumbnail",
+            ContentUrl = $"{BasePath}/items/{item.Id:D}/original",
+            DocumentInfo = null,
+            Snippet = null,
+        };
+        return own
+            ? client
+            : client with
+            {
+                OwnerProfileId = null,
+                PersonalSpaceId = null,
+                EmbeddedLatitude = null,
+                EmbeddedLongitude = null,
+                EmbeddedCapturedAt = null,
+                LocationUserOverride = false,
+                CapturedAtUserOverride = false,
+                People = [],
+                Tags = [],
+            };
+    }
 
-    private static ViewClientItemPageDto ToItems(ViewAssetTimelinePageDto page) =>
-        new(page.Items.Where(item => IsPhotoOrVideo(item.MediaKind)).Select(ToClient).ToList(), page.NextCursor, page.HasMore);
+    /// <summary>
+    /// A Gallery someone else shared keeps its name, description and cover, but not the owner's space or the rule behind
+    /// a Smart Gallery. The contract's ids are not nullable, so they read as empty.
+    /// </summary>
+    private static ViewGalleryDto ToClient(ViewGallery gallery, Guid profileId, ILocalAssetRepository assets)
+    {
+        var dto = ViewEndpoints.ToContract(gallery, false, assets);
+        return gallery.OwnerProfileId == profileId
+            ? dto
+            : dto with { OwnerProfileId = Guid.Empty, PersonalSpaceId = Guid.Empty, SmartRuleJson = null };
+    }
+
+    private static ViewClientItemPageDto ToItems(ViewAssetTimelinePageDto page, Guid profileId) =>
+        new(page.Items.Where(item => IsPhotoOrVideo(item.MediaKind)).Select(item => ToClient(item, profileId)).ToList(),
+            page.NextCursor, page.HasMore);
+
 
     /// <summary>Groups a newest-first page into UTC calendar months of the date the timeline sorts by.</summary>
-    private static ViewClientTimelinePageDto ToTimeline(ViewAssetTimelinePageDto page)
+    private static ViewClientTimelinePageDto ToTimeline(ViewAssetTimelinePageDto page, Guid profileId)
     {
         var months = new List<ViewClientTimelineMonthDto>();
         var current = new List<LocalAssetDto>();
@@ -436,7 +478,7 @@ public static class ViewClientEndpoints
             }
 
             currentKey = key;
-            current.Add(ToClient(item));
+            current.Add(ToClient(item, profileId));
         }
 
         if (currentKey is not null)

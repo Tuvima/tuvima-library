@@ -618,6 +618,98 @@ public sealed class ViewClientEndpointTests : IAsyncLifetime
         Assert.DoesNotContain("Clerk", people.Body, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public async Task ASharedGalleryNeverCarriesTheOwnersSpaceRuleRemovedLocationPeopleOrTags()
+    {
+        var benPhoto = _ben.Photos[0];
+        await _assets.ReplaceTagsAsync(benPhoto, ["Secret tag"]);
+        var benSpace = (await _spaces.GetByOwnerAsync(_ben.ProfileId))!;
+        var manual = await _galleries.CreateAsync(new CreateViewGalleryCommand(_ben.ProfileId, benSpace.Id, "Manual share", ViewGalleryKind.Manual));
+        await _galleries.AddItemsAsync(manual.Id, [benPhoto], false);
+        await _galleries.ReplaceSharesAsync(manual.Id, [(_ana.ProfileId, ViewGallerySharePermission.View)]);
+        var smart = await _galleries.CreateAsync(new CreateViewGalleryCommand(
+            _ben.ProfileId, benSpace.Id, "Smart share", ViewGalleryKind.Smart, SmartRuleJson: ImageRule()));
+        await _galleries.ReplaceSharesAsync(smart.Id, [(_ana.ProfileId, ViewGallerySharePermission.View)]);
+        // Ben removes the photo's location: the place is gone, but the photo still carries where it was embedded.
+        Assert.True(await _assets.UpdateLocationAsync(benPhoto, new LocalAssetLocationUpdate(null, null)));
+
+        // The owner still sees everything of their own.
+        _actor.Current = _ben.Authority;
+        var own = (await _client.GetFromJsonAsync<LocalAssetDto>($"/api/v1/view/items/{benPhoto:D}"))!;
+        Assert.Null(own.Latitude);
+        Assert.NotNull(own.EmbeddedLatitude);
+        Assert.NotNull(own.EmbeddedLongitude);
+        Assert.Equal(["Ben"], own.People);
+        Assert.Equal(["Secret tag"], own.Tags);
+        Assert.Equal(_ben.ProfileId, own.OwnerProfileId);
+        var ownGalleries = (await _client.GetFromJsonAsync<ViewGalleryListResponse>("/api/v1/view/galleries"))!;
+        var ownSmart = ownGalleries.Owned.Single(gallery => gallery.Id == smart.Id);
+        Assert.NotNull(ownSmart.SmartRuleJson);
+        Assert.Equal(benSpace.Id, ownSmart.PersonalSpaceId);
+
+        // The person it was shared with sees the gallery and the photo, but nothing from Ben's space.
+        _actor.Current = _ana.Authority;
+        var galleries = (await _client.GetFromJsonAsync<ViewGalleryListResponse>("/api/v1/view/galleries"))!;
+        Assert.Equal(new[] { manual.Id, smart.Id }.Order(), galleries.SharedWithYou.Select(gallery => gallery.Id).Order());
+        Assert.All(galleries.SharedWithYou, gallery =>
+        {
+            Assert.Null(gallery.SmartRuleJson);
+            Assert.Equal(Guid.Empty, gallery.OwnerProfileId);
+            Assert.Equal(Guid.Empty, gallery.PersonalSpaceId);
+        });
+        Assert.DoesNotContain(benSpace.Id.ToString("D"), await _client.GetStringAsync("/api/v1/view/galleries"), StringComparison.OrdinalIgnoreCase);
+
+        var viaGallery = (await _client.GetFromJsonAsync<ViewClientItemPageDto>($"/api/v1/view/galleries/{manual.Id:D}/items"))!;
+        var viaItem = (await _client.GetFromJsonAsync<LocalAssetDto>($"/api/v1/view/items/{benPhoto:D}"))!;
+        foreach (var shared in new[] { Assert.Single(viaGallery.Items), viaItem })
+        {
+            Assert.Equal(benPhoto, shared.Id);
+            Assert.Null(shared.Latitude);
+            Assert.Null(shared.EmbeddedLatitude);
+            Assert.Null(shared.EmbeddedLongitude);
+            Assert.Null(shared.EmbeddedCapturedAt);
+            Assert.Null(shared.OwnerProfileId);
+            Assert.Null(shared.PersonalSpaceId);
+            Assert.Empty(shared.People!);
+            Assert.Empty(shared.Tags);
+        }
+    }
+
+    [Fact]
+    public async Task ThumbnailsAndPreviewsAreMarkedPrivateSoNoSharedCacheKeepsThem()
+    {
+        foreach (var route in new[] { "thumbnail", "thumbnail?size=160", "preview", "preview?size=1280" })
+        {
+            using var response = await _client.GetAsync($"/api/v1/view/items/{_anaTimeline[0]:D}/{route}");
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            Assert.True(response.Headers.CacheControl is { Private: true, Public: false }, $"{route} is not marked private.");
+        }
+    }
+
+    [Fact]
+    public async Task ASavedDocumentsViewWithABadCursorAnswersLikeAGalleryNobodyHas()
+    {
+        await _policies.SavePolicyAsync(ViewProfilePolicy.Default(_noDocuments.ProfileId) with { DocumentsEnabled = false });
+        var space = (await _spaces.GetByOwnerAsync(_noDocuments.ProfileId))!;
+        var savedView = await _galleries.CreateAsync(new CreateViewGalleryCommand(
+            _noDocuments.ProfileId, space.Id, "Old saved view", ViewGalleryKind.Smart, SmartRuleJson: DocumentViewRule()));
+        var ordinary = await _galleries.CreateAsync(new CreateViewGalleryCommand(
+            _noDocuments.ProfileId, space.Id, "Ordinary", ViewGalleryKind.Manual));
+        _actor.Current = _noDocuments.Authority;
+
+        foreach (var cursor in new[] { "", "?cursor=not-a-cursor", "?cursor=%00%00" })
+        {
+            var savedViewAnswer = await Answer($"/api/v1/view/galleries/{savedView.Id:D}/items{cursor}");
+            var nobodysAnswer = await Answer($"/api/v1/view/galleries/{Guid.NewGuid():D}/items{cursor}");
+            Assert.Equal(HttpStatusCode.NotFound, nobodysAnswer.Status);
+            Assert.Equal(nobodysAnswer, savedViewAnswer);
+        }
+
+        // A real Gallery of their own still says plainly that the cursor is bad.
+        var bad = await Answer($"/api/v1/view/galleries/{ordinary.Id:D}/items?cursor=not-a-cursor");
+        Assert.Equal(HttpStatusCode.BadRequest, bad.Status);
+    }
+
     // ------------------------------------------------------------------ route inventory
 
     [Fact]
@@ -667,6 +759,12 @@ public sealed class ViewClientEndpointTests : IAsyncLifetime
         ApplicationPermissionIds.ViewOriginalsRead.Value,
         ApplicationPermissionIds.ViewGalleriesRead.Value,
     ];
+
+    private static string ImageRule() =>
+        ViewSmartGalleryRules.Serialize(CollectionRuleDefinition.SingleGroup(
+        [
+            new CollectionRulePredicate { Field = "media_type", Op = "eq", Value = "image" },
+        ]));
 
     private static string DocumentViewRule() =>
         ViewSmartGalleryRules.Serialize(CollectionRuleDefinition.SingleGroup(
