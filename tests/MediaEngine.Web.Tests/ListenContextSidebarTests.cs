@@ -835,7 +835,11 @@ public sealed class ListenContextSidebarTests : AsyncBunitContext
 
         protected override void BuildRenderTree(Microsoft.AspNetCore.Components.Rendering.RenderTreeBuilder builder)
         {
-            if (!Show) return;
+            if (!Show)
+            {
+                return;
+            }
+
             builder.OpenComponent<ListenNowPlayingBar>(0);
             builder.CloseComponent();
         }

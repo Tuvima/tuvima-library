@@ -126,14 +126,21 @@ public sealed class DeepLinkReloadTests : AsyncBunitContext
         {
             try
             {
-                if (condition()) return;
+                if (condition())
+                {
+                    return;
+                }
             }
             catch (InvalidOperationException)
             {
                 // The recorded calls were being added to while they were read; look again.
             }
 
-            if (DateTime.UtcNow > deadline) throw new TimeoutException("The expected browser call did not happen.");
+            if (DateTime.UtcNow > deadline)
+            {
+                throw new TimeoutException("The expected browser call did not happen.");
+            }
+
             await Task.Delay(10);
         }
     }
@@ -152,7 +159,11 @@ public sealed class DeepLinkReloadTests : AsyncBunitContext
 
         protected override void BuildRenderTree(RenderTreeBuilder builder)
         {
-            if (!Show) return;
+            if (!Show)
+            {
+                return;
+            }
+
             builder.OpenComponent<TComponent>(0);
             builder.CloseComponent();
         }
