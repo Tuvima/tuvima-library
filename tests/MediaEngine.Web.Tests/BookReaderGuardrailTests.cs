@@ -186,6 +186,51 @@ public sealed class BookReaderGuardrailTests
     }
 
     [Fact]
+    public void LoadSettings_MergesTheDeviceOnTopOfTheProfileBase()
+    {
+        var adapter = Read($"{Web}/wwwroot/js/book-reader.js");
+        var merge = Read($"{Web}/wwwroot/js/book-reader-settings.js");
+
+        // The script takes the profile's settings as the base and puts what this device saved on top (device wins per key).
+        Assert.Matches(new Regex(@"export function loadSettings\(profile\)\s*\{\s*return mergeSettings\(profile, readDeviceSettings\(globalThis\.localStorage\)\);"), adapter);
+        Assert.Matches(new Regex(@"return \{ \.\.\.sanitizeSettings\(profile\), \.\.\.sanitizeSettings\(device\) \};"), merge);
+        Assert.Contains("'tuvima-reader-settings'", merge);
+        // Reset forgets the device choices; saving is validated and clamped.
+        Assert.Matches(new Regex(@"export function clearSettings\(\)"), adapter);
+        Assert.Contains("FONT_SIZE_RANGE", merge);
+        Assert.Contains("LINE_HEIGHT_RANGE", merge);
+    }
+
+    [Fact]
+    public void BookReaderPage_StartsFromTheProfileDefaultsAndSavesChangesBackDebounced()
+    {
+        var page = Read($"{Web}/Components/Pages/BookReader.razor");
+
+        Assert.Contains("IUserPlaybackPreferencesAccessor", page);
+        Assert.Contains("InvokeAsync<BookReaderOpenOptions>(\"loadSettings\", _profileBase)", page);
+        Assert.Contains("ReaderProfileSettings.ToOpenOptions", page);
+        Assert.Contains("TimeSpan.FromMilliseconds(600)", page);
+        Assert.Contains("Orchestrator.SavePlaybackSettingsAsync", page);
+        Assert.Contains("Reset to my defaults", page);
+        Assert.Contains("\"clearSettings\"", page);
+    }
+
+    [Fact]
+    public void ReadingSettingsPage_FollowsTheSettingsPageRules()
+    {
+        var page = Read($"{Web}/Components/Settings/ReadingSettingsPage.razor");
+        var settings = Read($"{Web}/Components/Pages/Settings.razor");
+
+        Assert.DoesNotContain("style=\"", page);
+        Assert.DoesNotContain("<input", page);
+        Assert.DoesNotContain("<button", page);
+        Assert.Contains("ApiClient.UpdatePlaybackSettingsAsync(ProfileId!.Value, _settings)", page);
+        Assert.Contains("Orchestrator.SavePlaybackSettingsAsync(_settings)", page);
+        Assert.Contains("<ReadingSettingsPage ", settings);
+        Assert.DoesNotContain("PlaybackSettingsMode.Reading", settings);
+    }
+
+    [Fact]
     public void Highlights_AreAnchoredByCfiRangeNeverByCharacterOffsets()
     {
         var page = Read($"{Web}/Components/Pages/BookReader.razor");

@@ -575,6 +575,42 @@ public sealed class ReadingSettingsDto
     public bool ShowChapterProgress { get; set; } = true;
     public bool ShowPageNumbers { get; set; } = true;
     public string DefaultComicMode { get; set; } = PlaybackPreferenceValues.Page;
+
+    /// <summary>Book reader paper: "light", "sepia", "dark" or "system" (match the app).</summary>
+    public string Theme { get; set; } = ReadingPreferenceValues.ThemeSystem;
+
+    /// <summary>Book reader typeface: "book" (the book's own), "serif" or "sans".</summary>
+    public string Font { get; set; } = ReadingPreferenceValues.FontBook;
+
+    /// <summary>Book reader text size in pixels, 12 to 32.</summary>
+    public int FontSizePx { get; set; } = ReadingPreferenceValues.DefaultFontSizePx;
+
+    /// <summary>Book reader line height as a multiplier, 1.2 to 2.4.</summary>
+    public decimal LineHeight { get; set; } = ReadingPreferenceValues.DefaultLineHeight;
+
+    /// <summary>Book reader page width: "narrow", "standard" or "wide".</summary>
+    public string PageWidth { get; set; } = ReadingPreferenceValues.PageWidthStandard;
+}
+
+/// <summary>Values and ranges for the book reader fields of <see cref="ReadingSettingsDto"/>; the reader's own names.</summary>
+public static class ReadingPreferenceValues
+{
+    public const string ThemeLight = "light";
+    public const string ThemeSepia = "sepia";
+    public const string ThemeDark = "dark";
+    public const string ThemeSystem = "system";
+    public const string FontBook = "book";
+    public const string FontSerif = "serif";
+    public const string FontSans = "sans";
+    public const string PageWidthNarrow = "narrow";
+    public const string PageWidthStandard = "standard";
+    public const string PageWidthWide = "wide";
+    public const int MinFontSizePx = 12;
+    public const int MaxFontSizePx = 32;
+    public const int DefaultFontSizePx = 18;
+    public const decimal MinLineHeight = 1.2m;
+    public const decimal MaxLineHeight = 2.4m;
+    public const decimal DefaultLineHeight = 1.5m;
 }
 
 public sealed class SubtitleLanguageSettingsDto

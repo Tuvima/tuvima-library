@@ -53,6 +53,19 @@ public sealed class UserPlaybackSettingsService : IUserPlaybackSettingsService
         PlaybackPreferenceValues.Narrow,
         PlaybackPreferenceValues.Medium,
         PlaybackPreferenceValues.Wide);
+    private static readonly HashSet<string> ReadingThemeValues = BuildSet(
+        ReadingPreferenceValues.ThemeLight,
+        ReadingPreferenceValues.ThemeSepia,
+        ReadingPreferenceValues.ThemeDark,
+        ReadingPreferenceValues.ThemeSystem);
+    private static readonly HashSet<string> ReadingFontValues = BuildSet(
+        ReadingPreferenceValues.FontBook,
+        ReadingPreferenceValues.FontSerif,
+        ReadingPreferenceValues.FontSans);
+    private static readonly HashSet<string> ReadingPageWidthValues = BuildSet(
+        ReadingPreferenceValues.PageWidthNarrow,
+        ReadingPreferenceValues.PageWidthStandard,
+        ReadingPreferenceValues.PageWidthWide);
     private static readonly HashSet<string> ComicModeValues = BuildSet(
         PlaybackPreferenceValues.Page,
         PlaybackPreferenceValues.Webtoon,
@@ -238,6 +251,11 @@ public sealed class UserPlaybackSettingsService : IUserPlaybackSettingsService
         settings.Reading.LineSpacing = NormalizeToken(settings.Reading.LineSpacing);
         settings.Reading.Margins = NormalizeToken(settings.Reading.Margins);
         settings.Reading.DefaultComicMode = NormalizeToken(settings.Reading.DefaultComicMode);
+        settings.Reading.Theme = NormalizeToken(settings.Reading.Theme).ToLowerInvariant();
+        settings.Reading.Font = NormalizeToken(settings.Reading.Font).ToLowerInvariant();
+        settings.Reading.PageWidth = NormalizeToken(settings.Reading.PageWidth).ToLowerInvariant();
+        settings.Reading.FontSizePx = Math.Clamp(settings.Reading.FontSizePx, ReadingPreferenceValues.MinFontSizePx, ReadingPreferenceValues.MaxFontSizePx);
+        settings.Reading.LineHeight = Math.Clamp(settings.Reading.LineHeight, ReadingPreferenceValues.MinLineHeight, ReadingPreferenceValues.MaxLineHeight);
         settings.Subtitles.ForcedSubtitlesMode = NormalizeToken(settings.Subtitles.ForcedSubtitlesMode);
         settings.Subtitles.SubtitleSize = NormalizeToken(settings.Subtitles.SubtitleSize);
         settings.Subtitles.SubtitlePosition = NormalizeToken(settings.Subtitles.SubtitlePosition);
@@ -287,6 +305,9 @@ public sealed class UserPlaybackSettingsService : IUserPlaybackSettingsService
         RequireAllowed(settings.Reading.LineSpacing, LineSpacingValues, nameof(settings.Reading.LineSpacing));
         RequireAllowed(settings.Reading.Margins, MarginValues, nameof(settings.Reading.Margins));
         RequireAllowed(settings.Reading.DefaultComicMode, ComicModeValues, nameof(settings.Reading.DefaultComicMode));
+        RequireAllowed(settings.Reading.Theme, ReadingThemeValues, nameof(settings.Reading.Theme));
+        RequireAllowed(settings.Reading.Font, ReadingFontValues, nameof(settings.Reading.Font));
+        RequireAllowed(settings.Reading.PageWidth, ReadingPageWidthValues, nameof(settings.Reading.PageWidth));
         RequireAllowed(settings.Subtitles.ForcedSubtitlesMode, ForcedSubtitleValues, nameof(settings.Subtitles.ForcedSubtitlesMode));
         RequireAllowed(settings.Subtitles.SubtitleSize, SubtitleSizeValues, nameof(settings.Subtitles.SubtitleSize));
         RequireAllowed(settings.Subtitles.SubtitlePosition, SubtitlePositionValues, nameof(settings.Subtitles.SubtitlePosition));

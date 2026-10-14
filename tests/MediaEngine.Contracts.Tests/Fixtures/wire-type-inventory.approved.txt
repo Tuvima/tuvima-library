@@ -7436,7 +7436,12 @@
   ShowChapterProgress: System.Boolean | json=showChapterProgress | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   ShowPageNumbers: System.Boolean | json=showPageNumbers | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   DefaultComicMode: System.String | json=defaultComicMode | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  sample={"readingMode":"sample","fontSizePercent":7,"lineSpacing":"sample","margins":"sample","keepScreenAwake":true,"showChapterProgress":true,"showPageNumbers":true,"defaultComicMode":"sample"}
+  Theme: System.String | json=theme | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Font: System.String | json=font | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  FontSizePx: System.Int32 | json=fontSizePx | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  LineHeight: System.Decimal | json=lineHeight | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  PageWidth: System.String | json=pageWidth | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"readingMode":"sample","fontSizePercent":7,"lineSpacing":"sample","margins":"sample","keepScreenAwake":true,"showChapterProgress":true,"showPageNumbers":true,"defaultComicMode":"sample","theme":"sample","font":"sample","fontSizePx":7,"lineHeight":7,"pageWidth":"sample"}
 
 [contracts] MediaEngine.Contracts.Playback.RefreshTextTracksResponse
   kind=class | converter=default | number-handling=default | unmapped=default

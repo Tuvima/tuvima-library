@@ -75,6 +75,13 @@
         BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif;
     --font-brand: "Montserrat", sans-serif;
     --font-reader: "Merriweather", Georgia, serif;
+    --font-reader-serif: Georgia, "Iowan Old Style", "Times New Roman", serif;
+    --tl-reader-light-bg: #FAF8F2;
+    --tl-reader-light-fg: #161B2A;
+    --tl-reader-sepia-bg: #EEE0BD;
+    --tl-reader-sepia-fg: #3A2C1B;
+    --tl-reader-dark-bg: #101319;
+    --tl-reader-dark-fg: #E8E2D9;
     --tl-font-mono: 'JetBrains Mono', 'Cascadia Code', Consolas, monospace;
     --tl-font-size-xs: 0.75rem;
     --tl-font-size-sm: 0.875rem;

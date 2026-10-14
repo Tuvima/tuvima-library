@@ -4918,6 +4918,30 @@ input[type="reset"],
     .listening-preference-row__select { width: 100%; min-width: 0; }
 }
 
+/* Settings > Reading page. */
+.settings-reading-page { container-name: reading-settings; container-type: inline-size; }
+.reading-settings-skeleton,
+.reading-settings-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr)); gap: 18px; }
+.reading-settings-card { min-width: 0; height: 100%; padding: 20px; }
+.reading-preference-row { display: grid; gap: 12px; min-height: 66px; padding: 14px 0; border-top: 1px solid var(--tl-divider); }
+.reading-preference-row__copy { min-width: 0; }
+.reading-preference-row__copy .tl-typography-body1 { color: var(--tl-text-primary); font-weight: 600; }
+.reading-preference-row__copy .tl-typography-body2 { margin-top: 3px; color: var(--tl-text-muted); line-height: 1.45; }
+.reading-preference-row__control.app-segmented-control { display: flex; }
+.reading-preference-row__control .app-segmented-control__item { flex: 1 1 0; justify-content: center; min-height: 44px; padding: 0 8px; }
+.reading-profile-heading { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 18px; }
+.reading-profile-heading__avatar { display: inline-flex; width: 40px; height: 40px; }
+.reading-profile-heading__back { display: inline-flex; align-items: center; min-height: var(--tl-tap-target-min, 44px); margin-left: auto; color: var(--tl-text-secondary); }
+.reading-sample { --reading-paper-bg: var(--tl-reader-light-bg); --reading-paper-fg: var(--tl-reader-light-fg); margin-bottom: 18px; padding: 24px; border: 1px solid var(--tl-border-subtle); border-radius: var(--tl-radius-lg); background: var(--reading-paper-bg); color: var(--reading-paper-fg); font-family: var(--font-reader); font-size: var(--reading-sample-size, 18px); line-height: var(--reading-sample-line-height, 1.5); }
+.reading-sample[data-theme="sepia"] { --reading-paper-bg: var(--tl-reader-sepia-bg); --reading-paper-fg: var(--tl-reader-sepia-fg); }
+.reading-sample[data-theme="dark"] { --reading-paper-bg: var(--tl-reader-dark-bg); --reading-paper-fg: var(--tl-reader-dark-fg); }
+@media (prefers-color-scheme: dark) {
+    .reading-sample[data-theme="system"] { --reading-paper-bg: var(--tl-reader-dark-bg); --reading-paper-fg: var(--tl-reader-dark-fg); }
+}
+.reading-sample[data-font="serif"] { font-family: var(--font-reader-serif); }
+.reading-sample[data-font="sans"] { font-family: var(--font-ui); }
+.reading-sample__text { max-width: 60ch; margin: 0; }
+
 /* Library folder table (Settings > Libraries): classes on AppNativeButton / AppOverflowMenu live here because isolated CSS does not reach child roots. */
 .folder-table__chip { min-height: 44px; padding: 0 14px; color: var(--tl-text-secondary); border: 1px solid var(--tl-border-subtle); border-radius: 999px; background: transparent; font: inherit; font-size: 0.85rem; font-weight: 600; cursor: pointer; }
 .folder-table__chip.is-managed { color: var(--tl-accent-primary); border-color: var(--tl-accent-primary-border); background: var(--tl-accent-primary-soft); }

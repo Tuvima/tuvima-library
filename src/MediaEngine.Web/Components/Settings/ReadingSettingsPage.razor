@@ -1,0 +1,286 @@
+@namespace MediaEngine.Web.Components.Settings
+@using System.Globalization
+@using System.Text.Json
+@using MediaEngine.Contracts.Playback
+@using MediaEngine.Web.Components.Shared
+@using MediaEngine.Web.Models.ViewDTOs
+@using MediaEngine.Web.Services.Integration
+@using MediaEngine.Web.Services.Playback
+@inject UIOrchestratorService Orchestrator
+@inject IEngineApiClient ApiClient
+@inject IUserPlaybackPreferencesAccessor PreferencesAccessor
+@inject IAppToastService Snackbar
+@inject ILogger<ReadingSettingsPage> Logger
+
+@if (_loading)
+{
+    <div class="reading-settings-skeleton" aria-label="Loading reading preferences">
+        @for (var index = 0; index < 2; index++)
+        {
+            <AppSkeleton Height="200px" />
+        }
+    </div>
+}
+else if (_forbidden)
+{
+    <AppAlert Severity="AppSeverity.Warning" Variant="AppVariant.Outlined">You can't change this person's settings.</AppAlert>
+}
+else if (!string.IsNullOrWhiteSpace(_loadError))
+{
+    <AppAlert Severity="AppSeverity.Error" Variant="AppVariant.Outlined">@_loadError</AppAlert>
+}
+else if (_settings is not null)
+{
+    <div class="settings-reading-page" data-reading-section="overview">
+        @if (!string.IsNullOrWhiteSpace(_saveError))
+        {
+            <AppAlert Severity="AppSeverity.Error" Variant="AppVariant.Outlined" Dense="true">@_saveError</AppAlert>
+        }
+
+        @if (IsOtherProfile && _target is not null)
+        {
+            <div class="reading-profile-heading">
+                <span class="reading-profile-heading__avatar">
+                    <ProfileAvatar DisplayName="@_target.DisplayName" ImageUrl="@_target.AvatarImageUrl" Color="@_target.AvatarColor" Icon="@_target.AvatarIcon" />
+                </span>
+                <AppText Typo="AppTypo.h6">How @_target.DisplayName reads.</AppText>
+                <a class="reading-profile-heading__back" href="@($"/settings/profiles/{ProfileId}")">Back to @_target.DisplayName</a>
+            </div>
+        }
+
+        <AppCssElement Tag="div"
+                       Class="reading-sample"
+                       Css="@SampleCss"
+                       data-theme="@Reading.Theme"
+                       data-font="@Reading.Font"
+                       role="group"
+                       aria-label="Sample of the reading style">
+            <p class="reading-sample__text">The reading room was quiet. Outside, the rain had settled into a steady rhythm against the glass, and the lamp on the desk made a small circle of gold. She turned the page and kept reading.</p>
+        </AppCssElement>
+
+        <div class="reading-settings-grid">
+            <SettingsSectionPanel Title="Look"
+                                  Description="The paper, typeface and size the book reader starts with."
+                                  Class="tl-card settings-section-card reading-settings-card">
+                <div class="reading-preference-row">
+                    <div class="reading-preference-row__copy">
+                        <AppText Typo="AppTypo.body1">Theme</AppText>
+                        <AppText Typo="AppTypo.body2" Color="AppColor.Secondary">The page colour. Match app follows your device.</AppText>
+                    </div>
+                    <AppSegmentedControl Options="ThemeOptions"
+                                         Value="@Reading.Theme"
+                                         ValueChanged="@(value => UpdateAndSaveAsync(() => Reading.Theme = value))"
+                                         AriaLabel="Theme"
+                                         Class="reading-preference-row__control" />
+                </div>
+                <div class="reading-preference-row">
+                    <div class="reading-preference-row__copy">
+                        <AppText Typo="AppTypo.body1">Typeface</AppText>
+                        <AppText Typo="AppTypo.body2" Color="AppColor.Secondary">Use the book's own typeface, or one that is easy on your eyes.</AppText>
+                    </div>
+                    <AppSegmentedControl Options="FontOptions"
+                                         Value="@Reading.Font"
+                                         ValueChanged="@(value => UpdateAndSaveAsync(() => Reading.Font = value))"
+                                         AriaLabel="Typeface"
+                                         Class="reading-preference-row__control" />
+                </div>
+                <div class="reading-preference-row">
+                    <div class="reading-preference-row__copy">
+                        <AppText Typo="AppTypo.body1">Text size</AppText>
+                        <AppText Typo="AppTypo.body2" Color="AppColor.Secondary">@($"{Reading.FontSizePx} px")</AppText>
+                    </div>
+                    <AppRangeSlider Class="reading-preference-row__control"
+                                    Value="@((double)Reading.FontSizePx)"
+                                    ValueChanged="@(value => UpdateAndSaveAsync(() => Reading.FontSizePx = Math.Clamp((int)Math.Round(value), ReadingPreferenceValues.MinFontSizePx, ReadingPreferenceValues.MaxFontSizePx)))"
+                                    Min="@((double)ReadingPreferenceValues.MinFontSizePx)"
+                                    Max="@((double)ReadingPreferenceValues.MaxFontSizePx)"
+                                    Step="1d"
+                                    ShowTicks="false"
+                                    CommitOnChange="true"
+                                    ValueFormatter="@(value => $"{(int)Math.Round(value)} px")"
+                                    AriaLabel="Text size" />
+                </div>
+                <div class="reading-preference-row">
+                    <div class="reading-preference-row__copy">
+                        <AppText Typo="AppTypo.body1">Line spacing</AppText>
+                        <AppText Typo="AppTypo.body2" Color="AppColor.Secondary">@FormatLineHeight(Reading.LineHeight)</AppText>
+                    </div>
+                    <AppRangeSlider Class="reading-preference-row__control"
+                                    Value="@((double)Reading.LineHeight)"
+                                    ValueChanged="@(value => UpdateAndSaveAsync(() => Reading.LineHeight = Math.Clamp(Math.Round((decimal)value, 1), ReadingPreferenceValues.MinLineHeight, ReadingPreferenceValues.MaxLineHeight)))"
+                                    Min="@((double)ReadingPreferenceValues.MinLineHeight)"
+                                    Max="@((double)ReadingPreferenceValues.MaxLineHeight)"
+                                    Step="0.1d"
+                                    ShowTicks="false"
+                                    CommitOnChange="true"
+                                    ValueFormatter="@(value => FormatLineHeight((decimal)value))"
+                                    AriaLabel="Line spacing" />
+                </div>
+            </SettingsSectionPanel>
+
+            <SettingsSectionPanel Title="Layout"
+                                  Description="How the pages are set out."
+                                  Class="tl-card settings-section-card reading-settings-card">
+                <div class="reading-preference-row">
+                    <div class="reading-preference-row__copy">
+                        <AppText Typo="AppTypo.body1">Page width</AppText>
+                        <AppText Typo="AppTypo.body2" Color="AppColor.Secondary">How wide a page of text may grow on a big screen.</AppText>
+                    </div>
+                    <AppSegmentedControl Options="WidthOptions"
+                                         Value="@Reading.PageWidth"
+                                         ValueChanged="@(value => UpdateAndSaveAsync(() => Reading.PageWidth = value))"
+                                         AriaLabel="Page width"
+                                         Class="reading-preference-row__control" />
+                </div>
+                <div class="reading-preference-row">
+                    <div class="reading-preference-row__copy">
+                        <AppText Typo="AppTypo.body1">Layout</AppText>
+                        <AppText Typo="AppTypo.body2" Color="AppColor.Secondary">Turn pages, or scroll one long page.</AppText>
+                    </div>
+                    <AppSegmentedControl Options="LayoutOptions"
+                                         Value="@Reading.ReadingMode"
+                                         ValueChanged="@(value => UpdateAndSaveAsync(() => Reading.ReadingMode = value))"
+                                         AriaLabel="Layout"
+                                         Class="reading-preference-row__control" />
+                </div>
+            </SettingsSectionPanel>
+        </div>
+    </div>
+}
+
+@code {
+    /// <summary>Another household profile to edit (administrators only). Null or the active profile edits your own.</summary>
+    [Parameter] public Guid? ProfileId { get; set; }
+
+    /// <summary>Raised with the other profile's name once it is known, so the page can show it in the breadcrumb.</summary>
+    [Parameter] public EventCallback<string?> TargetNameChanged { get; set; }
+
+    private readonly JsonSerializerOptions _jsonOptions = MediaEngineJson.Web;
+    private UserPlaybackSettingsDto? _settings;
+    private ProfileViewModel? _activeProfile;
+    private ProfileViewModel? _target;
+    private bool _forbidden;
+    private bool _loading = true;
+    private string? _loadError;
+    private string? _saveError;
+
+    private static readonly IReadOnlyList<AppSelectOption> ThemeOptions =
+    [
+        new(ReadingPreferenceValues.ThemeLight, "Light"),
+        new(ReadingPreferenceValues.ThemeSepia, "Sepia"),
+        new(ReadingPreferenceValues.ThemeDark, "Dark"),
+        new(ReadingPreferenceValues.ThemeSystem, "Match app"),
+    ];
+
+    private static readonly IReadOnlyList<AppSelectOption> FontOptions =
+    [
+        new(ReadingPreferenceValues.FontBook, "Book's own"),
+        new(ReadingPreferenceValues.FontSerif, "Serif"),
+        new(ReadingPreferenceValues.FontSans, "Sans"),
+    ];
+
+    private static readonly IReadOnlyList<AppSelectOption> WidthOptions =
+    [
+        new(ReadingPreferenceValues.PageWidthNarrow, "Narrow"),
+        new(ReadingPreferenceValues.PageWidthStandard, "Standard"),
+        new(ReadingPreferenceValues.PageWidthWide, "Wide"),
+    ];
+
+    private static readonly IReadOnlyList<AppSelectOption> LayoutOptions =
+    [
+        new(PlaybackPreferenceValues.Paginated, "Paginated"),
+        new(PlaybackPreferenceValues.Scroll, "Scrolled"),
+    ];
+
+    private bool IsOtherProfile => ProfileId is { } id && id != Guid.Empty && id != _activeProfile?.Id;
+
+    private ReadingSettingsDto Reading => _settings!.Reading;
+
+    private string SampleCss => string.Create(
+        CultureInfo.InvariantCulture,
+        $"--reading-sample-size: {Math.Clamp(Reading.FontSizePx, ReadingPreferenceValues.MinFontSizePx, ReadingPreferenceValues.MaxFontSizePx)}px; --reading-sample-line-height: {Reading.LineHeight:0.0#}");
+
+    private static string FormatLineHeight(decimal value) => value.ToString("0.0", CultureInfo.InvariantCulture);
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _activeProfile = await Orchestrator.GetActiveProfileAsync();
+            if (IsOtherProfile)
+            {
+                var profiles = await Orchestrator.GetProfilesAsync();
+                _target = profiles.FirstOrDefault(profile => profile.Id == ProfileId);
+                var loaded = await ApiClient.GetPlaybackSettingsAsync(ProfileId!.Value);
+                if (loaded is null || _target is null)
+                {
+                    _forbidden = true;
+                    return;
+                }
+
+                _settings = Clone(loaded);
+                await TargetNameChanged.InvokeAsync(_target.DisplayName);
+            }
+            else
+            {
+                var loaded = await PreferencesAccessor.GetAsync();
+                _settings = Clone(loaded ?? UserPlaybackSettingsDto.CreateDefaults(_activeProfile?.Id ?? Guid.Empty));
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "Reading settings could not be loaded.");
+            _loadError = "Reading settings could not be loaded.";
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task UpdateAndSaveAsync(Action update)
+    {
+        update();
+        _saveError = null;
+        await SaveAsync();
+    }
+
+    private async Task SaveAsync()
+    {
+        if (_settings is null)
+            return;
+
+        try
+        {
+            var other = IsOtherProfile;
+            var saved = other
+                ? await ApiClient.UpdatePlaybackSettingsAsync(ProfileId!.Value, _settings)
+                : await Orchestrator.SavePlaybackSettingsAsync(_settings);
+            if (saved is null)
+            {
+                _saveError = "Reading settings could not be saved.";
+                Snackbar.Add(_saveError, AppSeverity.Error);
+                return;
+            }
+
+            _settings = Clone(saved);
+            if (!other)
+                PreferencesAccessor.UpdateCache(saved);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "Reading settings could not be saved.");
+            _saveError = "Reading settings could not be saved.";
+            Snackbar.Add(_saveError, AppSeverity.Error);
+        }
+        finally
+        {
+            StateHasChanged();
+        }
+    }
+
+    private UserPlaybackSettingsDto Clone(UserPlaybackSettingsDto source) =>
+        JsonSerializer.Deserialize<UserPlaybackSettingsDto>(
+            JsonSerializer.Serialize(source, _jsonOptions),
+            _jsonOptions) ?? UserPlaybackSettingsDto.CreateDefaults(source.ProfileId);
+}

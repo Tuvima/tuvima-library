@@ -10,7 +10,7 @@ function setup() {
     const window = {location:{pathname:'/listen',search:'',href:'http://fixture/listen'},scrollY:400,
         scrollTo:({top})=>{window.scrollY=top;}, requestAnimationFrame:fn=>frames.push(fn),setTimeout:fn=>timers.push(fn),
         addEventListener:()=>{},history:{back:()=>{}},};
-    const document = {body:{},activeElement:null,addEventListener:()=>{},querySelectorAll:()=>containers};
+    const document = {body:{},activeElement:null,addEventListener:()=>{},querySelectorAll:()=>containers,querySelector:()=>null};
     class MutationObserver {constructor(fn){mutation=fn;}observe(){}disconnect(){}}
     vm.runInNewContext(code,{window,document,MutationObserver,URL,HTMLAnchorElement:class {},Element:class {},
         sessionStorage:{getItem:key=>store.get(key),setItem:(key,value)=>store.set(key,value)},
