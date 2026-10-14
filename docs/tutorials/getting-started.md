@@ -63,6 +63,8 @@ If the image download is refused, [build the image from source](../install/docke
 
 Only the Dashboard is published. Leave Engine port `61495` internal.
 
+You can add the Dashboard to your home screen or install it as an app from your browser's menu. Browsers offer installation only over HTTPS or from `localhost`, so a plain `http://SERVER-IP:5016` address may not show the option. An installed copy opens in its own window and reconnects when the server is reachable; it does not keep a copy of your library offline.
+
 ## The setup steps
 
 Setup has six steps. A side list shows where you are, and you can go back at any time.

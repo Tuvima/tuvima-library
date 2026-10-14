@@ -5,7 +5,7 @@
     <div class="tl-character-card__image">
         @if (!string.IsNullOrWhiteSpace(Credit.ImageUrl))
         {
-            <img src="@Credit.ImageUrl" alt="@Credit.DisplayName" />
+            <img src="@Credit.ImageUrl" alt="@Credit.DisplayName" loading="lazy" decoding="async" />
         }
         else
         {

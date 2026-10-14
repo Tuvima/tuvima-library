@@ -73,7 +73,7 @@
                      sizes="@Item.TileImageSizes"
                      alt="@Item.Title"
                      class="media-tile-image @TileImageFitClass"
-                     loading="lazy"
+                     loading="@CardImageLoading"
                      decoding="async" />
             }
             else
@@ -185,7 +185,7 @@
 
                     @if (ShowHoverLogo)
                     {
-                        <img src="@Item.LogoUrl" alt="@Item.Title" class="media-tile-hover-logo" />
+                        <img src="@Item.LogoUrl" alt="@Item.Title" class="media-tile-hover-logo" loading="lazy" decoding="async" />
                     }
 
                     @if (!UsesCinematicHover && (UseCompactHover || ShowRichHoverFacts))
@@ -311,9 +311,11 @@
     [Parameter] public bool HideGroupCount { get; set; }
     [Parameter] public bool ShowCompactCaption { get; set; }
     [Parameter] public RenderFragment? CaptionContent { get; set; }
+    [Parameter] public bool EagerArtwork { get; set; }
 
     private bool ShouldHideGroupKind => HideGroupIndicators || HideGroupKind;
     private bool ShouldHideGroupCount => HideGroupIndicators || HideGroupCount;
+    private string CardImageLoading => EagerArtwork ? "eager" : "lazy";
 
     private bool _hoverRegistered;
     private int _hoverImageIndex;
