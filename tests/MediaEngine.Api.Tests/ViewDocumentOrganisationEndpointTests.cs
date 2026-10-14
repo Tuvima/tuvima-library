@@ -12,6 +12,7 @@ using MediaEngine.Api.Services.LocalAssets.Filing;
 using MediaEngine.Api.Services.View;
 using MediaEngine.Contracts.LocalAssets;
 using MediaEngine.Domain.Authorization;
+using MediaEngine.Domain.Configuration;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Entities;
 using MediaEngine.Domain.Models;
@@ -1245,6 +1246,71 @@ public sealed class ViewDocumentOrganisationEndpointTests : IAsyncLifetime
         Assert.Equal(HttpStatusCode.OK, (await AddAsync(owner, photo)).Status);
     }
 
+    [Fact]
+    public async Task ADocumentUploadIsRefusedBeforeAnythingIsStoredForAProfileWithoutDocuments()
+    {
+        var root = Path.Combine(Path.GetTempPath(), $"tuvima-view-upload-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(root);
+        var configuration = new ConfigurationDirectoryLoader(Path.Combine(root, "config"));
+        configuration.SaveLibraries(new LibrariesConfiguration
+        {
+            StorageLocations = [new ServerStorageLocationConfig { Id = "view", Label = "View", Path = Path.Combine(root, "storage"), AllowWrite = true }],
+            ViewStorage = new ViewStorageConfig { StorageLocationId = "view", RelativeRoot = "View" },
+        });
+        var storage = new ViewStorageService(configuration, _spaces, new ViewSharedLibraryRepository(_database));
+        var library = new ViewLibraryService(_assets, configuration, _spaces, storage, NullLogger<ViewLibraryService>.Instance);
+        var blocked = await CreatePersonWithoutDocuments();
+        var allowed = await CreatePerson("StandardUser");
+
+        var (app, client) = await StartAsync(
+            StandIns.Where(stub => stub != typeof(IConfigurationLoader) && stub != typeof(ViewLibraryService)).ToArray(),
+            services =>
+            {
+                services.AddSingleton<IConfigurationLoader>(configuration);
+                services.AddSingleton(storage);
+                services.AddSingleton(library);
+                services.AddSingleton((PhoneBackupProfileService)RuntimeHelpers.GetUninitializedObject(typeof(PhoneBackupProfileService)));
+            });
+        try
+        {
+            async Task<HttpStatusCode> UploadAsync(Person person, string name, params byte[] bytes)
+            {
+                _actor.Current = person.Authority;
+                using var form = new MultipartFormDataContent { { new ByteArrayContent(bytes), "file", name } };
+                using var response = await client.PostAsync("/view/uploads", form);
+                return response.StatusCode;
+            }
+
+            int ItemsOf(Person person)
+            {
+                using var connection = _database.CreateConnection();
+                return connection.ExecuteScalar<int>("SELECT COUNT(*) FROM local_items WHERE owner_profile_id = @profileId;", new { profileId = person.ProfileId });
+            }
+
+            // A person with Documents uploads a document; the same file from someone without Documents is refused
+            // outright, so there is no "already added" answer and nothing is stored in their space.
+            Assert.Equal(HttpStatusCode.OK, await UploadAsync(allowed, "Lease.pdf", 1, 2, 3, 4));
+            Assert.Equal(HttpStatusCode.Forbidden, await UploadAsync(blocked, "Lease.pdf", 1, 2, 3, 4));
+            Assert.Equal(HttpStatusCode.Forbidden, await UploadAsync(blocked, "notes.txt", 5, 6, 7));
+            Assert.Equal(0, ItemsOf(blocked));
+
+            // Photos still upload for both.
+            Assert.Equal(HttpStatusCode.OK, await UploadAsync(blocked, "Beach.jpg", 9, 8, 7, 6));
+            Assert.Equal(1, ItemsOf(blocked));
+            Assert.Equal(HttpStatusCode.OK, await UploadAsync(allowed, "Hill.jpg", 4, 3, 2, 1));
+        }
+        finally
+        {
+            client.Dispose();
+            await app.DisposeAsync();
+            configuration.Dispose();
+            if (Directory.Exists(root))
+            {
+                Directory.Delete(root, recursive: true);
+            }
+        }
+    }
+
     private async Task<Guid> AddSharedPhoto(Guid libraryId, char seed)
     {
         var sourceId = Guid.NewGuid();
@@ -1329,7 +1395,7 @@ public sealed class ViewDocumentOrganisationEndpointTests : IAsyncLifetime
             Assert.Equal(new[] { photosOnly, mixed }.Order(), list!.Items.Select(value => value.Id).Order());
             var shown = list.Items.Single(value => value.Id == mixed);
             Assert.Equal(photo, Assert.Single(shown.Items).ItemId);
-            Assert.Equal(1, shown.HiddenItemCount);
+            Assert.True(shown.IncludesHiddenItems);
             var body = await client.GetStringAsync("/view/shared/contributions?mode=review");
             Assert.DoesNotContain("Tax return", body, StringComparison.Ordinal);
             Assert.DoesNotContain(document.ToString("D"), body, StringComparison.OrdinalIgnoreCase);
@@ -1338,7 +1404,7 @@ public sealed class ViewDocumentOrganisationEndpointTests : IAsyncLifetime
             using var hidden = await client.GetAsync($"/view/shared/contributions/{documentsOnly:D}");
             Assert.Equal(HttpStatusCode.NotFound, hidden.StatusCode);
             var detail = await client.GetFromJsonAsync<ViewSharedContributionDto>($"/view/shared/contributions/{mixed:D}");
-            Assert.Equal(1, detail!.HiddenItemCount);
+            Assert.True(detail!.IncludesHiddenItems);
             Assert.Single(detail.Items);
 
             // Approving or declining one that holds a document is refused; a missing one is not found; others work.
@@ -1370,6 +1436,7 @@ public sealed class ViewDocumentOrganisationEndpointTests : IAsyncLifetime
     private const string ContributionService = "AReviewerWithoutDocumentsNeverSeesADocumentInAContribution";
     private const string ContributionSend = "AProfileWithoutDocumentsCannotPreviewSubmitOrDirectAddADocument";
     private const string Discovery = "Places_Atlas_PlaceMediaAndPeople_NeverIncludeADocumentEvenWithLocationOrPersonMetadata";
+    private const string UploadRefusal = "ADocumentUploadIsRefusedBeforeAnythingIsStoredForAProfileWithoutDocuments";
     private const string NoItems = "none:";
 
     /// <summary>A covering test plus a phrase its source must contain (the call or path that makes the claim true).</summary>
@@ -1448,7 +1515,7 @@ public sealed class ViewDocumentOrganisationEndpointTests : IAsyncLifetime
         ["POST /view/shared/contributions/preview"] = Covers(ContributionSend, "PreviewAsync"),
         ["POST /view/shared/items/direct"] = Covers(ContributionSend, "AddDirectAsync"),
         ["POST /view/tags"] = Refused,
-        ["POST /view/uploads"] = NoItems + "answers with the id of the file the person just sent, nothing existing",
+        ["POST /view/uploads"] = Covers(UploadRefusal, "\"Lease.pdf\""),
         ["PUT /view/admin/profiles/{profileId:guid}/sources/{sourceId:guid}"] = NoItems + "administrator source settings, no items",
         ["PUT /view/admin/shared/sources/{sourceId:guid}"] = NoItems + "administrator source settings, no items",
         ["PUT /view/correspondents/{id:guid}"] = Refused,

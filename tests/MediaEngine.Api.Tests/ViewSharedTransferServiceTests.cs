@@ -662,10 +662,16 @@ public sealed class ViewSharedTransferServiceTests
 
         var admin = fixture.HouseholdAdministrator(ProfileTestData.TestHouseholdId);
 
+        // The transfer log has one line per item per step (and an error can name a file), so for the mixed one it
+        // would show how many items were left out.
+        fixture.AddEvent(mixed.Id, "transfer_transferring", null);
+        fixture.AddEvent(mixed.Id, "transfer_needs_attention", "Could not move Lawyer letter.txt");
+
         // With Documents the reviewer sees all three, document names included.
         var everything = await fixture.Contributions.ListAsync(admin, "review", null, 0, 20);
         Assert.Equal(3, everything.Items.Count);
-        Assert.All(everything.Items, contribution => Assert.Equal(0, contribution.HiddenItemCount));
+        Assert.Equal(2, everything.Items.Single(contribution => contribution.Id == mixed.Id).Events.Count(entry => entry.EventType.StartsWith("transfer_", StringComparison.Ordinal)));
+        Assert.All(everything.Items, contribution => Assert.False(contribution.IncludesHiddenItems));
         Assert.Equal(2, everything.Items.Single(contribution => contribution.Id == mixed.Id).Items.Count);
 
         await fixture.Policies.SavePolicyAsync(
@@ -677,8 +683,8 @@ public sealed class ViewSharedTransferServiceTests
         Assert.Equal(new[] { photosOnly.Id, mixed.Id }.Order(), visible.Items.Select(contribution => contribution.Id).Order());
         var mixedView = visible.Items.Single(contribution => contribution.Id == mixed.Id);
         Assert.Equal(beach, Assert.Single(mixedView.Items).ItemId);
-        Assert.Equal(1, mixedView.HiddenItemCount);
-        Assert.Equal(0, visible.Items.Single(contribution => contribution.Id == photosOnly.Id).HiddenItemCount);
+        Assert.True(mixedView.IncludesHiddenItems);
+        Assert.False(visible.Items.Single(contribution => contribution.Id == photosOnly.Id).IncludesHiddenItems);
         var wire = System.Text.Json.JsonSerializer.Serialize(visible);
         foreach (var leak in new[] { "Tax return", "Lawyer letter", tax.ToString("D"), letter.ToString("D"), "\"document\"", ".txt" })
         {
@@ -686,12 +692,13 @@ public sealed class ViewSharedTransferServiceTests
         }
 
         Assert.Equal("1 item(s) submitted.", Assert.Single(mixedView.Events, entry => entry.EventType == "submitted").Detail);
+        Assert.DoesNotContain(mixedView.Events, entry => entry.EventType.StartsWith("transfer_", StringComparison.Ordinal));
 
         // Opening them directly: the documents-only one does not exist, the mixed one is filtered the same way.
         await Assert.ThrowsAsync<KeyNotFoundException>(() => fixture.Contributions.GetRequiredAsync(admin, documentsOnly.Id));
         await Assert.ThrowsAsync<KeyNotFoundException>(() => fixture.Contributions.GetRequiredAsync(admin, documentsOnly.Id, true));
         var detail = await fixture.Contributions.GetRequiredAsync(admin, mixed.Id);
-        Assert.Equal(1, detail.HiddenItemCount);
+        Assert.True(detail.IncludesHiddenItems);
         Assert.DoesNotContain("Lawyer letter", System.Text.Json.JsonSerializer.Serialize(detail), StringComparison.OrdinalIgnoreCase);
 
         // Approving or declining a contribution that holds a document is refused, nothing changes; one without is fine.
@@ -712,7 +719,7 @@ public sealed class ViewSharedTransferServiceTests
             (await fixture.Policies.GetPolicyAsync(maryId)) with { DocumentsEnabled = false });
         var mine = await fixture.Contributions.ListAsync(mary, "mine", null, 0, 20);
         Assert.DoesNotContain(mine.Items, contribution => contribution.Id == documentsOnly.Id);
-        Assert.Equal(1, mine.Items.Single(contribution => contribution.Id == mixed.Id).HiddenItemCount);
+        Assert.True(mine.Items.Single(contribution => contribution.Id == mixed.Id).IncludesHiddenItems);
 
         // Only the person who submitted it can cancel it: a reviewer is told it is not there. Without Documents the
         // contributor cannot cancel a documents-only one (it does not exist for them), and cancelling a mixed one
@@ -722,7 +729,7 @@ public sealed class ViewSharedTransferServiceTests
         var cancelledMixed = await fixture.Contributions.CancelAsync(mary, mixed.Id, mixed.Revision);
         Assert.Equal("cancelled", cancelledMixed.Status);
         Assert.Equal(beach, Assert.Single(cancelledMixed.Items).ItemId);
-        Assert.Equal(1, cancelledMixed.HiddenItemCount);
+        Assert.True(cancelledMixed.IncludesHiddenItems);
 
         // The reviewer with Documents back sees it all again.
         await fixture.Policies.SavePolicyAsync(
@@ -929,6 +936,15 @@ public sealed class ViewSharedTransferServiceTests
             return connection.QuerySingle<Guid>(
                 "SELECT item_id FROM view_shared_assets WHERE origin_item_id=@originItemId;",
                 new { originItemId });
+        }
+
+        public void AddEvent(Guid contributionId, string eventType, string? detail)
+        {
+            using var connection = _database.CreateConnection();
+            connection.Execute("""
+                INSERT INTO view_shared_contribution_events (id, contribution_id, actor_name, event_type, detail, occurred_at)
+                VALUES (@id, @contributionId, 'Tuvima Library', @eventType, @detail, @now);
+                """, new { id = Guid.NewGuid(), contributionId, eventType, detail, now = DateTimeOffset.UtcNow });
         }
 
         public Guid FileIdForPath(string path)

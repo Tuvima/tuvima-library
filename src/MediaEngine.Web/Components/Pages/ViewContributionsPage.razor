@@ -48,7 +48,7 @@
                     @foreach (var contribution in _page.Items)
                     {
                         <AppNativeButton Type="button" Class="view-contribution-card" OnClick="@(_ => Open(contribution.Id))">
-                            <span class="view-contribution-card__identity"><strong>@contribution.SubmittedByName</strong><small>@contribution.Items.Count item@(contribution.Items.Count == 1 ? "" : "s") · @Destination(contribution)</small>@if (contribution.HiddenItemCount > 0) { <small>@HiddenItemsNote</small> }</span>
+                            <span class="view-contribution-card__identity"><strong>@contribution.SubmittedByName</strong><small>@contribution.Items.Count item@(contribution.Items.Count == 1 ? "" : "s") · @Destination(contribution)</small>@if (contribution.IncludesHiddenItems) { <small>@HiddenItemsNote</small> }</span>
                             <span><AppStatusBadge Text="@StatusLabel(contribution.Status)" Tone="@StatusTone(contribution.Status)" /><small>@contribution.SubmittedAt.ToLocalTime().ToString("MMM d, yyyy · h:mm tt")</small></span>
                             <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ChevronRight" />
                         </AppNativeButton>
@@ -108,7 +108,7 @@
             </div>
             @if (!string.IsNullOrWhiteSpace(contribution.Note)) { <div class="view-contribution-note"><span>Contributor note</span><p>@contribution.Note</p></div> }
             @if (!string.IsNullOrWhiteSpace(contribution.DecisionReason)) { <div class="view-contribution-note"><span>Reviewer note</span><p>@contribution.DecisionReason</p></div> }
-            @if (contribution.Status == "pending" && _page?.CanReview == true && contribution.HiddenItemCount == 0)
+            @if (contribution.Status == "pending" && _page?.CanReview == true && !contribution.IncludesHiddenItems)
             {
                 <div class="view-contribution-decision">
                     <label><span>Accepted destination</span><AppNativeSelect Value="@_decisionKind" OnChange="DecisionKindChanged" aria-label="Accepted Shared Library destination"><option value="timeline">Shared Timeline</option><option value="folder">Named Shared folder</option></AppNativeSelect></label>
@@ -118,20 +118,20 @@
             }
         </AppCard>
         <section class="view-contribution-items" aria-labelledby="contribution-items-heading"><h2 id="contribution-items-heading">Submitted items</h2>
-            @if (contribution.HiddenItemCount > 0) { <p class="view-contribution-hidden-note">@HiddenItemsNote</p> }
+            @if (contribution.IncludesHiddenItems) { <p class="view-contribution-hidden-note">@HiddenItemsNote</p> }
             @foreach (var item in contribution.Items) { <div><AppMaterialIcon Icon="@MediaIcon(item.MediaKind)" /><span><strong>@item.Title</strong><small>@item.MediaKind · @OperationLabel(item.Operation)</small>@if (!string.IsNullOrWhiteSpace(item.Error)) { <em>@item.Error</em> }</span><AppStatusBadge Text="@ExecutionLabel(item.ExecutionState)" Tone="@ExecutionTone(item.ExecutionState)" /></div> }
         </section>
         <section class="view-contribution-events" aria-labelledby="contribution-events-heading"><h2 id="contribution-events-heading">Activity</h2>
             @foreach (var entry in contribution.Events.Reverse()) { <div><strong>@ExecutionLabel(entry.EventType)</strong><span>@entry.ActorName · @entry.OccurredAt.ToLocalTime().ToString("MMM d, yyyy · h:mm tt")</span>@if (!string.IsNullOrWhiteSpace(entry.Detail)) { <p>@entry.Detail</p> }</div> }
         </section>
         <AppActionBar>
-            @if (contribution.Status == "pending" && _page?.CanReview == true && contribution.HiddenItemCount == 0)
+            @if (contribution.Status == "pending" && _page?.CanReview == true && !contribution.IncludesHiddenItems)
             {
                 <AppButton Label="Decline" ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Error" OnClick="@(() => DecideAsync(contribution, "declined"))" />
                 <AppButton Label="Accept and transfer" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" OnClick="@(() => DecideAsync(contribution, "accepted"))" />
             }
             else if (contribution.Status == "pending" && _page?.CanReview != true) { <AppButton Label="Cancel submission" ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Error" OnClick="@(() => CancelAsync(contribution))" /> }
-            @if (contribution.Status == "accepted" && contribution.Items.Any(item => item.ExecutionState is "needs_attention" or "failed" or "cleanup_pending") && _page?.CanReview == true && contribution.HiddenItemCount == 0)
+            @if (contribution.Status == "accepted" && contribution.Items.Any(item => item.ExecutionState is "needs_attention" or "failed" or "cleanup_pending") && _page?.CanReview == true && !contribution.IncludesHiddenItems)
             { <AppButton Label="Retry transfer" StartIcon="@AppMaterialIcons.Outlined.Refresh" OnClick="@(() => RetryAsync(contribution))" /> }
         </AppActionBar>
     </div>;

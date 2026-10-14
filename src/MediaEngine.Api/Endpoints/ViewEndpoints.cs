@@ -417,6 +417,15 @@ public static partial class ViewEndpoints
                 return ApiErrors.Conflict("backup_profile_view_off", "View is turned off for the person this phone backs up.");
             }
 
+            // A document is refused before anything is stored or compared, for a person who may not use Documents and
+            // for the person whose space it would land in, so no "already there" answer can mention an existing one.
+            if (ViewLibraryService.IsDocumentFileName(file.FileName)
+                && (!await MayUseDocumentsAsync(authority, policies, ct)
+                    || !(await policies.GetPolicyAsync(targetProfileId, ct)).DocumentsEnabled))
+            {
+                return DocumentsNotAllowed();
+            }
+
             profileId = targetProfileId;
 
             await storage.EnsurePersonalSpaceAsync(profileId, ct);

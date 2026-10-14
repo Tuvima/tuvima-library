@@ -323,7 +323,7 @@ public sealed class ViewSharedContributionService(
         }
 
         // Deciding or retrying acts on every item, so a reviewer who cannot see some of them may not do it.
-        if (requireReview && contribution.HiddenItemCount > 0)
+        if (requireReview && contribution.IncludesHiddenItems)
         {
             throw new UnauthorizedAccessException(DocumentsNotAvailable);
         }
@@ -669,8 +669,8 @@ public sealed class ViewSharedContributionService(
 
     /// <summary>
     /// Reads one contribution. Without <paramref name="includeDocuments"/> its documents are left out of the items,
-    /// the count and the transfer log, and the number left out is returned as <c>HiddenItemCount</c>; a contribution
-    /// that holds nothing else comes back as null.
+    /// the item count and the log, and <c>IncludesHiddenItems</c> says only that something was left out (never how
+    /// many); a contribution that holds nothing else comes back as null.
     /// </summary>
     private static ViewSharedContributionDto? Read(
         System.Data.IDbConnection connection, Guid id, bool includeDocuments, CancellationToken ct)
@@ -712,31 +712,15 @@ public sealed class ViewSharedContributionService(
                    detail AS Detail, occurred_at AS OccurredAt
               FROM view_shared_contribution_events
              WHERE contribution_id = @id ORDER BY occurred_at, id;
-            """, new { id }, cancellationToken: ct)).Select(value => new ViewSharedContributionEventDto(
-                value.Id, value.ActorName, value.EventType, HideDocumentDetail(value, hidden, visibleItems.Count),
+            """, new { id }, cancellationToken: ct))
+            .Where(value => hidden == 0 || !value.EventType.StartsWith("transfer_", StringComparison.Ordinal))
+            .Select(value => new ViewSharedContributionEventDto(
+                value.Id, value.ActorName, value.EventType,
+                hidden > 0 && value.EventType == "submitted" ? $"{visibleItems.Count} item(s) submitted." : value.Detail,
                 value.OccurredAt)).ToList();
         return new(row.Id, row.SubmittedByProfileId, row.SubmittedByName, row.Status,
             row.DestinationKind, row.DestinationLabel, row.Note, row.Revision,
-            row.SubmittedAt, row.DecidedAt, row.DecidedByName, row.DecisionReason, visibleItems, events, hidden);
-    }
-
-    /// <summary>
-    /// For a profile that cannot see some of a contribution's items, the log lines that count items or carry a
-    /// transfer error (which can name a file) are rewritten so they never reveal what was left out.
-    /// </summary>
-    private static string? HideDocumentDetail(ContributionEventRow value, int hidden, int visible)
-    {
-        if (hidden == 0)
-        {
-            return value.Detail;
-        }
-
-        return value.EventType switch
-        {
-            "submitted" => $"{visible} item(s) submitted.",
-            _ when value.EventType.StartsWith("transfer_", StringComparison.Ordinal) => null,
-            _ => value.Detail,
-        };
+            row.SubmittedAt, row.DecidedAt, row.DecidedByName, row.DecisionReason, visibleItems, events, hidden > 0);
     }
 
     private static ViewSharedContributionPreviewDto BuildPreview(
