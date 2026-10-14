@@ -140,6 +140,30 @@ public sealed class FolderConversionLinkTests : IDisposable
         Assert.True(File.Exists(outsideFile));
     }
 
+    [Fact]
+    public void A_folder_that_is_itself_a_shortcut_is_not_treated_as_a_shortcut_inside_it()
+    {
+        var h = NewHarness();
+        var real = Path.Combine(h.Root, "real");
+        Directory.CreateDirectory(Path.Combine(real, "sub"));
+        var file = Path.Combine(real, "sub", "Dune.2021.mkv");
+        File.WriteAllText(file, "dune");
+        var rootLink = Path.Combine(h.Root, "RootLink");
+        if (!TryCreateDirectoryLink(rootLink, real, junction: OperatingSystem.IsWindows()))
+        {
+            return; // This machine does not allow creating a link.
+        }
+
+        _links.Add(rootLink);
+        var throughRoot = Path.Combine(rootLink, "sub", "Dune.2021.mkv");
+
+        // The chosen folder being a shortcut is fine for conversion; the merge still refuses it.
+        Assert.False(FolderMediaEnumerator.IsReachedThroughLink(throughRoot, rootLink, includeRoot: false));
+        Assert.True(FolderMediaEnumerator.IsReachedThroughLink(throughRoot, rootLink));
+        Assert.Equal([Path.Combine(rootLink, "sub", "Dune.2021.mkv")], FolderMediaEnumerator.Enumerate(
+            rootLink, includeSubdirectories: true, FolderMediaEnumerator.DefaultMediaExtensions, skipLinks: true));
+    }
+
     private async Task AssertLeftAloneAsync(FolderConversionHarness h, string outsideFile)
     {
         var inside = h.Write("Dune.2021.mkv", "dune");

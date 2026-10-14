@@ -111,7 +111,15 @@ public static class FolderMediaEnumerator
     {
         try
         {
-            return File.GetAttributes(path).HasFlag(FileAttributes.ReparsePoint);
+            if (!File.GetAttributes(path).HasFlag(FileAttributes.ReparsePoint))
+            {
+                return false;
+            }
+
+            // Cloud placeholders (OneDrive, Dropbox) and deduplicated files are reparse points too, but they are ordinary files
+            // that live where they appear; only a symbolic link or junction has a target.
+            FileSystemInfo info = Directory.Exists(path) ? new DirectoryInfo(path) : new FileInfo(path);
+            return info.LinkTarget is not null;
         }
         catch (Exception ex) when (ex is FileNotFoundException or DirectoryNotFoundException)
         {
@@ -127,8 +135,12 @@ public static class FolderMediaEnumerator
         }
     }
 
-    /// <summary>True when the file, or any folder between it and <paramref name="root"/>, is a shortcut.</summary>
-    public static bool IsReachedThroughLink(string path, string root)
+    /// <summary>
+    /// True when the file, or any folder between it and <paramref name="root"/>, is a shortcut. With
+    /// <paramref name="includeRoot"/> false the root itself is not tested: a folder that is configured through a shortcut is
+    /// still the folder the person chose, and only shortcuts inside it are a surprise.
+    /// </summary>
+    public static bool IsReachedThroughLink(string path, string root, bool includeRoot = true)
     {
         var current = path;
         while (!string.IsNullOrEmpty(current))
@@ -142,7 +154,7 @@ public static class FolderMediaEnumerator
             if (string.IsNullOrEmpty(parent)
                 || string.Equals(Path.TrimEndingDirectorySeparator(parent), Path.TrimEndingDirectorySeparator(root), StringComparison.OrdinalIgnoreCase))
             {
-                return IsLink(root);
+                return includeRoot && IsLink(root);
             }
 
             current = parent;

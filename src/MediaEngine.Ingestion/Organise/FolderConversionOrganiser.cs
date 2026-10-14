@@ -674,7 +674,7 @@ public sealed class FolderConversionOrganiser
     {
         // Anything reached through a shortcut may really live somewhere else (an as-is folder, another drive), so it is never
         // moved, renamed or deleted. The folder walk already leaves shortcuts out; this also covers one created mid-run.
-        if (FolderMediaEnumerator.IsReachedThroughLink(path, context.SourceRoot))
+        if (FolderMediaEnumerator.IsReachedThroughLink(path, context.SourceRoot, includeRoot: false))
         {
             return "This is reached through a shortcut (link), so it is left where it is.";
         }

@@ -382,7 +382,7 @@ public sealed class FolderOrganiseRunner
 
             foreach (var file in left.OrderBy(path => path, StringComparer.OrdinalIgnoreCase))
             {
-                if (finished.Contains(file) || listed >= LeftoverListLimit)
+                if (finished.Contains(file) || listed >= LeftoverListLimit || FolderMediaEnumerator.IsLink(file))
                 {
                     continue;
                 }
