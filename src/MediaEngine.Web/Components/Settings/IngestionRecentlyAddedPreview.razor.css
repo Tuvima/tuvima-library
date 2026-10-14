@@ -14,5 +14,5 @@
 .ingestion-recent-preview__identity small, .ingestion-recent-preview__result small { color: var(--tl-palette-text-secondary); font-size: .76rem; }
 .ingestion-recent-preview__status { display: flex; align-items: center; gap: .4rem; color: var(--tl-palette-success); font-size: .78rem; font-weight: 700; }
 .ingestion-recent-preview__status ::deep .tl-icon-root { font-size: 1.15rem; }
-@media (max-width: 900px) { .ingestion-recent-preview__list article { grid-template-columns: 4.5rem 2.5rem minmax(0, 1fr) auto; } .ingestion-recent-preview__result, .ingestion-recent-preview__status { display: none; } }
-@media (max-width: 520px) { .ingestion-recent-preview__list article { grid-template-columns: 2.5rem minmax(0, 1fr) auto; } .ingestion-recent-preview__list time { grid-column: 1 / -1; } }
+@media (max-width: 840px) { .ingestion-recent-preview__list article { grid-template-columns: 4.5rem 2.5rem minmax(0, 1fr) auto; } .ingestion-recent-preview__result, .ingestion-recent-preview__status { display: none; } }
+@media (max-width: 600px) { .ingestion-recent-preview__list article { grid-template-columns: 2.5rem minmax(0, 1fr) auto; } .ingestion-recent-preview__list time { grid-column: 1 / -1; } }

@@ -80,7 +80,7 @@ else
             New Lore Discovered: @_loreDeltaChanges entities have been updated on Wikidata since last enrichment.
         </AppAlert>
     }
-<AppTabs @bind-ActivePanelIndex="_activeMode" Class="mb-3"
+<AppTabs @bind-ActivePanelIndex="_activeMode" Class="chronicle-explorer-tabs mb-3"
              ApplyEffectsToContainer="false"
              SliderColor="AppColor.Warning"
              Rounded="false">
@@ -181,7 +181,7 @@ else
                                       Variant="AppVariant.Outlined"
                                       Adornment="AppAdornment.Start"
                                       AdornmentIcon="@AppMaterialIcons.Filled.Search"
-                                      Immediate="true" Class="mb-3" />
+                                      Immediate="true" Class="chronicle-explorer-search mb-3" />
                         @* Keyboard, remote and screen-reader path to every node: each row is a real button. *@
                         <AppList T="GraphNodeDto" Dense="true" Class="chronicle-node-list" aria-label="Entities in this Universe">
                             @foreach (var entry in NodeListEntries)

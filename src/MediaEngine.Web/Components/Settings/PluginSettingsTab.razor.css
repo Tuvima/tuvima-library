@@ -88,7 +88,7 @@
     font-size: 18px;
 }
 
-@media (max-width: 800px) {
+@media (max-width: 840px) {
     .settings-plugin-summary__grid {
         grid-template-columns: 1fr;
     }
@@ -101,7 +101,7 @@
     }
 }
 
-@media (max-width: 520px) {
+@media (max-width: 600px) {
     .settings-plugin-page ::deep .settings-plugin-installed-table th:nth-child(3),
     .settings-plugin-page ::deep .settings-plugin-installed-table td:nth-child(3) {
         display: none;

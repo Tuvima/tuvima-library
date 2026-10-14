@@ -166,7 +166,7 @@
     min-height: 52px;
 }
 
-@media (max-width: 620px) {
+@media (max-width: 600px) {
     .provider-onboarding {
         min-height: 0;
         padding: 18px;

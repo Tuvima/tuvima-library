@@ -148,7 +148,7 @@
     .network-settings ::deep .network-setting-rows > .app-switch-row { grid-template-columns: 1fr; gap: 10px; }
 }
 
-@media (max-width: 620px) {
+@media (max-width: 600px) {
     .network-settings ::deep .network-status-grid,
     .network-settings ::deep .network-facts,
     .network-settings ::deep .network-bandwidth-grid,

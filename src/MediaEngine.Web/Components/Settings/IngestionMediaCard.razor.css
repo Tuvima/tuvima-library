@@ -141,14 +141,14 @@
 .ingestion-media-list-row__details { display: block; min-width: 0; }
 .ingestion-media-list-row__details ::deep .ingestion-facets { min-height: 2rem; border-top: 0; }
 
-@media (max-width: 800px) {
+@media (max-width: 840px) {
     .ingestion-media-card-shell ::deep .ingestion-media-list-row {
         grid-template-columns: minmax(11rem, 1.6fr) minmax(7rem, .7fr) minmax(7rem, .7fr);
     }
     .ingestion-media-list-row__details { display: none; }
 }
 
-@media (max-width: 560px) {
+@media (max-width: 600px) {
     .ingestion-media-card-shell ::deep .ingestion-media-list-row {
         grid-template-columns: minmax(0, 1fr) auto;
         gap: .45rem .7rem;
