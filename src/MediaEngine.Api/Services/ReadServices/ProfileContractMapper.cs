@@ -70,14 +70,15 @@ internal static class ProfileContractMapper
 
     internal static ViewProfilePolicy ToDomain(
         Guid profileId,
-        UpdateViewProfilePolicyRequest request) => new(
+        UpdateViewProfilePolicyRequest request,
+        bool currentDocumentsEnabled) => new(
             profileId,
             request.ViewEnabled,
             request.AccessSharedLibrary,
             request.SubmitToSharedLibrary,
             request.AllowGallerySharing,
             null,
-            request.AllowDocuments);
+            request.AllowDocuments ?? currentDocumentsEnabled);
 
     internal static TasteProfileDto ToResponse(TasteProfile profile) => new()
     {

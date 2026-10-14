@@ -73,6 +73,11 @@
         }
     </ul>
 
+    @if (!CanFile && !string.IsNullOrWhiteSpace(Note))
+    {
+        <p class="view-inbox-card__note">@Note</p>
+    }
+
     @if (CanFile || OnOpen.HasDelegate)
     {
         <div class="view-inbox-card__actions">
@@ -105,6 +110,9 @@
 
     /// <summary>True only in the person's own space on a phone, tablet or desktop; false (read-only chips, no buttons) elsewhere and on a TV.</summary>
     [Parameter] public bool CanFile { get; set; }
+
+    /// <summary>Shown when the card is read-only, for example in the Shared Library Inbox, which only a household administrator files.</summary>
+    [Parameter] public string? Note { get; set; }
 
     /// <summary>True on a desktop screen, where Enter on the focused card files it the same way the File button does.</summary>
     [Parameter] public bool EnterAccepts { get; set; }

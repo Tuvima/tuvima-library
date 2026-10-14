@@ -98,6 +98,7 @@ public sealed class ViewDiscoveryRepository(IDatabaseConnection database) : IVie
                    AND li.hidden = 0
                    AND li.archived_at IS NULL
                    AND li.trashed_at IS NULL
+                   AND LOWER(li.media_kind) IN ('image', 'video')
                    AND lm.latitude IS NOT NULL
                    AND lm.longitude IS NOT NULL);
             """, parameters, cancellationToken: ct));
@@ -121,6 +122,7 @@ public sealed class ViewDiscoveryRepository(IDatabaseConnection database) : IVie
                    AND li.hidden = 0
                    AND li.archived_at IS NULL
                    AND li.trashed_at IS NULL
+                   AND LOWER(li.media_kind) IN ('image', 'video')
                    AND lm.latitude IS NOT NULL
                    AND lm.longitude IS NOT NULL
                    AND (@SearchPattern IS NULL
@@ -388,6 +390,7 @@ public sealed class ViewDiscoveryRepository(IDatabaseConnection database) : IVie
                   JOIN local_item_metadata lm ON lm.item_id = li.id
                  WHERE ({{libraryPredicate}})
                    AND li.hidden = 0 AND li.archived_at IS NULL AND li.trashed_at IS NULL
+                   AND LOWER(li.media_kind) IN ('image', 'video')
                    AND lm.latitude BETWEEN -90 AND 90 AND lm.longitude BETWEEN -180 AND 180
                    AND (@Year IS NULL OR CAST(strftime('%Y', COALESCE(li.captured_at, li.created_at)) AS INTEGER) = @Year)
                    AND (@MediaKind IS NULL OR LOWER(li.media_kind) = @MediaKind)
@@ -443,6 +446,7 @@ public sealed class ViewDiscoveryRepository(IDatabaseConnection database) : IVie
                    AND li.hidden = 0
                    AND li.archived_at IS NULL
                    AND li.trashed_at IS NULL
+                   AND LOWER(li.media_kind) IN ('image', 'video')
                    AND TRIM(lia.annotation_value) <> ''
                    AND {{evidencePredicate}});
             """, parameters, cancellationToken: ct));
@@ -462,6 +466,7 @@ public sealed class ViewDiscoveryRepository(IDatabaseConnection database) : IVie
                    AND li.hidden = 0
                    AND li.archived_at IS NULL
                    AND li.trashed_at IS NULL
+                   AND LOWER(li.media_kind) IN ('image', 'video')
                    AND TRIM(lia.annotation_value) <> ''
                    AND {{evidencePredicate}}
                    AND (@SearchPattern IS NULL

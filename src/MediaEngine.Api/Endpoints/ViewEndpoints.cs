@@ -113,6 +113,7 @@ public static partial class ViewEndpoints
                 // Only a server administrator signed in as a person sees "Other people" in the scope picker.
                 CanBrowseOtherPeople = authority.PrincipalKind == PrincipalKind.Human && authority.IsEffectiveAdministrator,
                 CanViewDocuments = await MayUseDocumentsAsync(authority, preferences, ct),
+                CanFileSharedInbox = ViewSharedInboxAccess.CanFile(authority) && await MayUseDocumentsAsync(authority, preferences, ct),
             });
         }).WithName("GetViewScopes").Produces<ViewScopeResolutionDto>();
 
@@ -251,8 +252,16 @@ public static partial class ViewEndpoints
                 var requested = authority.ActiveProfileId is { } profileId
                     ? await GetScopeAsync(profileId, scope, scopeProfileId, preferences, ct)
                     : ParseScope(scope, scopeProfileId);
+                // The index counts and searches the same rows as the list, so a profile without Documents never
+                // gets document-derived counts or document-text matches from it either.
+                var allowedKinds = await KindsWithoutBlockedDocumentsAsync(authority, kind, preferences, ct);
+                if (allowedKinds is null)
+                {
+                    return DocumentsNotAllowed();
+                }
+
                 var result = await queries.IndexAsync(new ViewAssetQueryRequest(
-                    requested, 120, Search: q, MediaKinds: kind,
+                    requested, 120, Search: q, MediaKinds: allowedKinds,
                     FavoritesOnly: favorite == true,
                     IncludeHidden: hidden == true,
                     HiddenOnly: hidden == true,
@@ -298,16 +307,13 @@ public static partial class ViewEndpoints
                 }
 
                 var page = PagedRequest.From(offset, limit, 100, 200);
+                // A profile without the Documents permission never sees document files, even inside a folder: the
+                // service leaves them out of the source counts, folder counts and pages themselves.
                 var folderPage = await folders.QueryAsync(authority.ActiveProfileId ?? Guid.Empty,
                     decision.Scope, sourceId, path,
-                    recursive == true, q, page.Offset, page.Limit, ct);
-                // A profile without the Documents permission never sees document files, even inside a folder.
-                return Results.Ok(await MayUseDocumentsAsync(authority, preferences, ct)
-                    ? folderPage
-                    : folderPage with
-                    {
-                        Items = folderPage.Items.Where(item => item.MediaKind != LocalAssetMediaKinds.Document).ToList(),
-                    });
+                    recursive == true, q, page.Offset, page.Limit,
+                    await MayUseDocumentsAsync(authority, preferences, ct), ct);
+                return Results.Ok(folderPage);
             }
             catch (ArgumentException exception) { return ApiErrors.BadRequest(exception.Message); }
             catch (KeyNotFoundException) { return Missing(); }
@@ -567,12 +573,17 @@ public static partial class ViewEndpoints
 
         group.MapPut("/items/{id:guid}/description", async (Guid id,
             UpdateLocalAssetDescriptionRequest request, IViewRequestProfileContext identity,
+            IViewProfileRepository preferences,
             IViewResourceAuthorizationService authorization, ILocalAssetRepository assets, CancellationToken ct) =>
         {
             var decision = await AuthorizeOwnedItemAsync(id, identity, authorization, ct);
             if (!decision.IsAllowed)
             {
                 return Access(decision.Outcome);
+            }
+            if (await DocumentsBlockedAsync(id, assets, identity, preferences, ct))
+            {
+                return DocumentsNotAllowed();
             }
             try
             {
@@ -587,12 +598,17 @@ public static partial class ViewEndpoints
 
         group.MapPut("/items/{id:guid}/captured-at", async (Guid id,
             UpdateLocalAssetCapturedAtRequest request, IViewRequestProfileContext identity,
+            IViewProfileRepository preferences,
             IViewResourceAuthorizationService authorization, ILocalAssetRepository assets, CancellationToken ct) =>
         {
             var decision = await AuthorizeOwnedItemAsync(id, identity, authorization, ct);
             if (!decision.IsAllowed)
             {
                 return Access(decision.Outcome);
+            }
+            if (await DocumentsBlockedAsync(id, assets, identity, preferences, ct))
+            {
+                return DocumentsNotAllowed();
             }
             try
             {
@@ -611,6 +627,7 @@ public static partial class ViewEndpoints
 
         group.MapPut("/items/{id:guid}/people", async (Guid id,
             UpdateLocalAssetPeopleRequest request, IViewRequestProfileContext identity,
+            IViewProfileRepository preferences,
             IViewResourceAuthorizationService authorization, ILocalAssetRepository assets,
             ViewDiscoveryService discovery, CancellationToken ct) =>
         {
@@ -618,6 +635,10 @@ public static partial class ViewEndpoints
             if (!decision.IsAllowed)
             {
                 return Access(decision.Outcome);
+            }
+            if (await DocumentsBlockedAsync(id, assets, identity, preferences, ct))
+            {
+                return DocumentsNotAllowed();
             }
             try
             {
@@ -642,12 +663,17 @@ public static partial class ViewEndpoints
 
         group.MapPut("/items/{id:guid}/location", async (Guid id,
             UpdateLocalAssetLocationRequest request, IViewRequestProfileContext identity,
+            IViewProfileRepository preferences,
             IViewResourceAuthorizationService authorization, ILocalAssetRepository assets, CancellationToken ct) =>
         {
             var decision = await AuthorizeOwnedItemAsync(id, identity, authorization, ct);
             if (!decision.IsAllowed)
             {
                 return Access(decision.Outcome);
+            }
+            if (await DocumentsBlockedAsync(id, assets, identity, preferences, ct))
+            {
+                return DocumentsNotAllowed();
             }
             try
             {

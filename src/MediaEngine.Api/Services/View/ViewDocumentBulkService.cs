@@ -18,6 +18,7 @@ public sealed class ViewDocumentBulkService(
     ILogger<ViewDocumentBulkService> logger)
 {
     public const string SharedReason = "In the Shared Library: only filing rules can change it.";
+    public const string SharedFilingReason = "Filed by a household administrator.";
     public const string NotYoursReason = "You can't change this document.";
     public const string NotAvailableReason = "This document is not available.";
 
@@ -115,15 +116,29 @@ public sealed class ViewDocumentBulkService(
 
         if (subject.IsShared)
         {
-            return Skipped(id, SharedReason);
+            // Shared Library documents are not edited in bulk. The one exception is Mark filed, which a household
+            // or server administrator can use to empty the Shared Inbox.
+            if (operation != ViewDocumentBulkOperations.MarkFiled)
+            {
+                return Skipped(id, SharedReason);
+            }
+
+            if (!ViewSharedInboxAccess.CanFile(authority))
+            {
+                return Skipped(id, SharedFilingReason);
+            }
         }
 
-        var decision = await authorization.AuthorizeAsync(authority,
-            new ViewResourceRequest(ViewScopeRequest.Mine, ViewResourceKind.Asset, id, ViewResourceAction.Manage), ct)
-            .ConfigureAwait(false);
-        if (!decision.IsAllowed)
+        // A Shared Library document is not the administrator's own, so the ownership check applies to the rest only.
+        if (!subject.IsShared)
         {
-            return Skipped(id, NotYoursReason);
+            var decision = await authorization.AuthorizeAsync(authority,
+                new ViewResourceRequest(ViewScopeRequest.Mine, ViewResourceKind.Asset, id, ViewResourceAction.Manage), ct)
+                .ConfigureAwait(false);
+            if (!decision.IsAllowed)
+            {
+                return Skipped(id, NotYoursReason);
+            }
         }
 
         try
