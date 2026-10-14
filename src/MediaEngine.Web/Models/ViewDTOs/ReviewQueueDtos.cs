@@ -80,6 +80,10 @@ public sealed class ReviewItemViewModel
     /// <summary>True when the file arrived through the Import folder; the Review list shows a badge.</summary>
     [JsonPropertyName("from_import_folder")]
     public bool FromImportFolder { get; set; }
+
+    /// <summary>True when the file sits in a managed folder's From merge holding folder; the Review list shows a badge.</summary>
+    [JsonPropertyName("from_merge")]
+    public bool FromMerge { get; set; }
 }
 
 /// <summary>Request body for resolving a review queue item.</summary>

@@ -27,6 +27,9 @@ public sealed class ReviewItemDto
 
     /// <summary>True when the file is still in the Import folder. The Review queue shows the badge "From the Import folder".</summary>
     [JsonPropertyName("from_import_folder")] public bool FromImportFolder { get; init; }
+
+    /// <summary>True when the file sits in a managed folder's From merge holding folder. The Review queue shows the badge "From merge".</summary>
+    [JsonPropertyName("from_merge")] public bool FromMerge { get; init; }
 }
 
 public sealed class ReviewResolveRequestDto

@@ -37,9 +37,6 @@ public sealed record FolderMergeCheck(FolderMergeProblem Problem, string? Messag
 /// </summary>
 public sealed class FolderMergeContext
 {
-    /// <summary>Where files that cannot be named yet are put inside the target, so a person can sort them in Review.</summary>
-    public const string HoldingFolderName = "From merge";
-
     private FolderMergeContext(
         Guid operationId,
         LibraryFolderConfig library,
@@ -110,7 +107,7 @@ public sealed class FolderMergeContext
         }
 
         return Path.GetFullPath(Path.Combine(
-            TargetRoot, HoldingFolderName, folderName, Path.GetRelativePath(SourceRoot, sourceFile)));
+            TargetRoot, FolderMergeFolders.HoldingFolderName, folderName, Path.GetRelativePath(SourceRoot, sourceFile)));
     }
 
     /// <summary>
