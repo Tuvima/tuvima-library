@@ -1,4 +1,6 @@
 @namespace MediaEngine.Web.Components.Shared
+@implements IAsyncDisposable
+@inject IJSRuntime JS
 
 <section class="app-discovery-filter" aria-label="@AriaLabel">
     <label class="app-discovery-filter__search">
@@ -10,7 +12,7 @@
                         AriaLabel="@SearchAriaLabel" />
     </label>
     <div class="app-discovery-filter__controls">
-        <div class="app-discovery-filter__tabs" role="tablist" aria-label="@QuickFilterAriaLabel">
+        <div class="app-discovery-filter__tabs" role="tablist" aria-label="@QuickFilterAriaLabel" @ref="_strip">
             @QuickFilters
         </div>
         @if (AdvancedFilters is not null)
@@ -41,11 +43,62 @@
     [Parameter] public string QuickFilterAriaLabel { get; set; } = "Quick filters";
     [Parameter] public string AdvancedFilterAriaLabel { get; set; } = "More filters";
     [Parameter] public bool HasActiveAdvancedFilters { get; set; }
+
+    /// <summary>Identifies the active quick filter. The phone chip row scrolls it into view when this changes; left unset, it is only scrolled once on first render.</summary>
+    [Parameter] public string? ActiveKey { get; set; }
     [Parameter] public EventCallback<object?> SearchChanged { get; set; }
     [Parameter] public RenderFragment? QuickFilters { get; set; }
     [Parameter] public RenderFragment? AdvancedFilters { get; set; }
 
     private bool _expanded;
+    private ElementReference _strip;
+    private IJSObjectReference? _module;
+    private string? _shownKey;
+
+    // On phones the quick filters are a horizontal chip row: mark the edge that still has chips and keep the active chip in view.
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        try
+        {
+            _module ??= await JS.InvokeAsync<IJSObjectReference>("import", "./js/scroll-edge-hint.js");
+            if (firstRender)
+            {
+                await _module.InvokeVoidAsync("attach", _strip);
+            }
+
+            if (firstRender || !string.Equals(_shownKey, ActiveKey, StringComparison.Ordinal))
+            {
+                _shownKey = ActiveKey;
+                await _module.InvokeVoidAsync("showActive", _strip, ".is-active");
+            }
+        }
+        catch (JSDisconnectedException)
+        {
+            // The circuit closed while the chips were rendering; there is nothing left to hint.
+        }
+        catch (JSException)
+        {
+            // The edge hint is a best-effort nicety (for example a stale cached module); the filters work without it.
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_module is null)
+        {
+            return;
+        }
+
+        try
+        {
+            await _module.InvokeVoidAsync("detach", _strip);
+            await _module.DisposeAsync();
+        }
+        catch (JSDisconnectedException)
+        {
+            // The circuit is already gone, so the browser has dropped the listeners with the page.
+        }
+    }
     private string AdvancedButtonClass => $"app-discovery-filter__more{(_expanded || HasActiveAdvancedFilters ? " is-active" : string.Empty)}";
     private Task HandleSearch(ChangeEventArgs args) => SearchChanged.InvokeAsync(args.Value);
 }

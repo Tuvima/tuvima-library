@@ -1,14 +1,14 @@
 @using MediaEngine.Contracts.LocalAssets
 @namespace MediaEngine.Web.Components.Pages
 
-<section class="view-selection-toolbar" role="toolbar" aria-label="@AriaLabel">
+<section class="view-selection-toolbar@(Phone ? " view-selection-toolbar--phone" : string.Empty)" role="toolbar" aria-label="@AriaLabel">
     <div class="view-selection-toolbar__count">
         <strong>@Count selected</strong>
     </div>
     <span class="view-selection-toolbar__divider" aria-hidden="true"></span>
     <div class="view-selection-toolbar__actions">
         @ChildContent
-        @if (OnAddToGallery.HasDelegate || OnCreateGallery.HasDelegate)
+        @if ((OnAddToGallery.HasDelegate && ManualGalleries.Count > 0) || OnCreateGallery.HasDelegate)
         {
         <AppOverflowMenu Label="Add to Gallery"
                          Icon="@AppMaterialIcons.Outlined.PhotoLibrary"
@@ -22,33 +22,58 @@
                              Icon="@AppMaterialIcons.Outlined.PhotoAlbum"
                              OnClick="@(() => OnAddToGallery.InvokeAsync(gallery.Id))" />
             }
+            @if (OnCreateGallery.HasDelegate)
+            {
             <AppMenuItem Label="New Gallery"
                          Icon="@AppMaterialIcons.Outlined.Add"
                          DividerBefore="@(ManualGalleries.Count > 0)"
                          OnClick="@(() => OnCreateGallery.InvokeAsync())" />
+            }
         </AppOverflowMenu>
         }
         @if (ShowSharedLibrary)
         {
-            <AppNativeButton Type="button" Class="view-selection-toolbar__action" OnClick="@(_ => OnSharedLibrary.InvokeAsync())"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.GroupWork" />Submit to Shared Library</AppNativeButton>
+            <AppNativeButton Type="button" Class="view-selection-toolbar__action" AriaLabel="Submit to Shared Library" OnClick="@(_ => OnSharedLibrary.InvokeAsync())"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.GroupWork" />@(Phone ? "Share" : "Submit to Shared Library")</AppNativeButton>
         }
-        @if (OnFavorite.HasDelegate) { <AppNativeButton Type="button" Class="view-selection-toolbar__action" OnClick="@(_ => OnFavorite.InvokeAsync())"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.FavoriteBorder" />Favorite</AppNativeButton> }
-        @if (ShowRestore)
+        @if (OnDownload.HasDelegate)
         {
-            <AppNativeButton Type="button" Class="view-selection-toolbar__action" OnClick="@(_ => OnRestore.InvokeAsync())"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Restore" />Restore</AppNativeButton>
+            <AppNativeButton Type="button" Class="view-selection-toolbar__action" AriaLabel="Download selected items" OnClick="@(_ => OnDownload.InvokeAsync())"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Download" />Download</AppNativeButton>
         }
-        else if (OnArchive.HasDelegate)
+        @if (Phone)
         {
-            <AppNativeButton Type="button" Class="view-selection-toolbar__action" OnClick="@(_ => OnArchive.InvokeAsync())"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Inventory2" />Archive</AppNativeButton>
+            @* Phones keep the bar to Add to gallery, Share, Download and Cancel; the rest sit behind one three-dot menu (a bottom sheet). *@
+            @if (SecondaryItems.Count > 0)
+            {
+                <AppRowMenu AriaLabel="More actions for the selected items" Title="@($"{Count} selected")" Items="@SecondaryItems" Class="view-selection-toolbar__more" />
+            }
         }
-        @if (ShowTrash && OnTrash.HasDelegate)
+        else
         {
-            <AppNativeButton Type="button" Class="view-selection-toolbar__action" OnClick="@(_ => OnTrash.InvokeAsync())"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.DeleteOutline" />Trash</AppNativeButton>
+            @if (OnFavorite.HasDelegate) { <AppNativeButton Type="button" Class="view-selection-toolbar__action" OnClick="@(_ => OnFavorite.InvokeAsync())"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.FavoriteBorder" />Favorite</AppNativeButton> }
+            @if (ShowRestore)
+            {
+                <AppNativeButton Type="button" Class="view-selection-toolbar__action" OnClick="@(_ => OnRestore.InvokeAsync())"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Restore" />Restore</AppNativeButton>
+            }
+            else if (OnArchive.HasDelegate)
+            {
+                <AppNativeButton Type="button" Class="view-selection-toolbar__action" OnClick="@(_ => OnArchive.InvokeAsync())"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Inventory2" />Archive</AppNativeButton>
+            }
+            @if (ShowTrash && OnTrash.HasDelegate)
+            {
+                <AppNativeButton Type="button" Class="view-selection-toolbar__action" OnClick="@(_ => OnTrash.InvokeAsync())"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.DeleteOutline" />Trash</AppNativeButton>
+            }
+            @if (OnRemoveFromGallery.HasDelegate) { <AppNativeButton Type="button" Class="view-selection-toolbar__action" OnClick="@(_ => OnRemoveFromGallery.InvokeAsync())"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.RemoveCircleOutline" />Remove from Gallery</AppNativeButton> }
         }
-        @if (OnRemoveFromGallery.HasDelegate) { <AppNativeButton Type="button" Class="view-selection-toolbar__action" OnClick="@(_ => OnRemoveFromGallery.InvokeAsync())"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.RemoveCircleOutline" />Remove from Gallery</AppNativeButton> }
     </div>
     <span class="view-selection-toolbar__divider" aria-hidden="true"></span>
-    <AppNativeButton Type="button" Class="view-selection-toolbar__close" AriaLabel="Clear photo selection" OnClick="@(_ => OnClear.InvokeAsync())"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Close" /></AppNativeButton>
+    @if (Phone)
+    {
+        <AppNativeButton Type="button" Class="view-selection-toolbar__close" AriaLabel="Cancel photo selection" OnClick="@(_ => OnClear.InvokeAsync())"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Close" />Cancel</AppNativeButton>
+    }
+    else
+    {
+        <AppNativeButton Type="button" Class="view-selection-toolbar__close" AriaLabel="Clear photo selection" OnClick="@(_ => OnClear.InvokeAsync())"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Close" /></AppNativeButton>
+    }
 </section>
 
 @code {
@@ -72,4 +97,24 @@
     [Parameter] public EventCallback<Guid> OnAddToGallery { get; set; }
     [Parameter] public EventCallback OnCreateGallery { get; set; }
     [Parameter] public EventCallback OnRemoveFromGallery { get; set; }
+
+    /// <summary>Downloads the selected originals. Left unset, the Download action does not render.</summary>
+    [Parameter] public EventCallback OnDownload { get; set; }
+
+    /// <summary>The phone bar: fixed above the dock, four primary actions, and the secondary ones behind a three-dot menu.</summary>
+    [Parameter] public bool Phone { get; set; }
+
+    private IReadOnlyList<AppRowMenuItem> SecondaryItems
+    {
+        get
+        {
+            var items = new List<AppRowMenuItem>();
+            if (OnFavorite.HasDelegate) { items.Add(new() { Label = "Favorite", Icon = AppMaterialIcons.Outlined.FavoriteBorder, OnClick = OnFavorite }); }
+            if (ShowRestore) { items.Add(new() { Label = "Restore", Icon = AppMaterialIcons.Outlined.Restore, OnClick = OnRestore }); }
+            else if (OnArchive.HasDelegate) { items.Add(new() { Label = "Archive", Icon = AppMaterialIcons.Outlined.Inventory2, OnClick = OnArchive }); }
+            if (ShowTrash && OnTrash.HasDelegate) { items.Add(new() { Label = "Trash", Icon = AppMaterialIcons.Outlined.DeleteOutline, Destructive = true, OnClick = OnTrash }); }
+            if (OnRemoveFromGallery.HasDelegate) { items.Add(new() { Label = "Remove from Gallery", Icon = AppMaterialIcons.Outlined.RemoveCircleOutline, OnClick = OnRemoveFromGallery }); }
+            return items;
+        }
+    }
 }

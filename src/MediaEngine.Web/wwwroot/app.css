@@ -3711,6 +3711,12 @@ button.app-menu-item {
     :root:root .tl-select-trigger,
     :root:root .top-nav-account-menu__trigger,
     :root:root .app-row-menu__trigger,
+    :root:root .view-select-toggle,
+    :root:root .view-selection-toolbar__close,
+    :root:root .media-viewer__navigate,
+    :root:root .maplibregl-ctrl-group button,
+    :root:root .maplibregl-ctrl-attrib.maplibregl-compact,
+    :root:root .maplibregl-ctrl-attrib.maplibregl-compact .maplibregl-ctrl-attrib-button,
     :root:root .layout-shell__engine-banner-retry,
     :root:root .layout-shell__nav-link,
     :root:root .layout-shell__search-action,
@@ -3817,10 +3823,43 @@ html[data-form-factor="tablet"] .tl-detail-page {
    lifts the contract over them without !important. */
 @media (hover: none), (pointer: coarse), (max-width: 1023px) {
     :root:root:root .app-browse-mode__option,
+    :root:root:root .app-discovery-filter__tab,
+    :root:root:root .app-discovery-filter__more,
+    :root:root:root .app-discovery-filter__clear,
+    :root:root:root .view-tile__select-control,
+    :root:root:root .view-date-group__select,
     :root:root:root .listen-button,
     :root:root:root .listen-detail__edit,
     :root:root:root .app-overflow-menu__trigger--icon,
     :root:root:root .listen-song-table__sort-header {
+        min-width: var(--tl-tap-target-min);
+        min-height: var(--tl-tap-target-min);
+    }
+
+    /* Native selects and the discovery search box (View, Documents, Artwork) reach the 44 px minimum. */
+    :root:root:root select.app-native-select,
+    :root:root:root .app-discovery-filter__search input,
+    :root:root:root .view-search input,
+    :root:root:root .view-atlas__search input,
+    :root:root:root .places-timeline__range input {
+        min-height: var(--tl-tap-target-min);
+    }
+
+    :root:root:root .view-atlas__types button,
+    :root:root:root .view-atlas__filters-button,
+    :root:root:root .places-timeline__controls button,
+    :root:root:root .places-timeline__reset {
+        min-height: var(--tl-tap-target-min);
+    }
+
+    :root:root:root .view-timeline-layout .view-timeline-scrubber button {
+        min-width: var(--tl-tap-target-min);
+        min-height: var(--tl-tap-target-min);
+    }
+
+    :root:root:root .view-contributions-breadcrumbs a {
+        display: inline-flex;
+        align-items: center;
         min-width: var(--tl-tap-target-min);
         min-height: var(--tl-tap-target-min);
     }
@@ -3836,6 +3875,205 @@ html[data-form-factor="tablet"] .tl-detail-page {
     :root:root:root .listen-column-resizer {
         display: none;
     }
+}
+
+/* View on phones, touch sizing for the rows that are not buttons of their own: the shared maplibre map controls,
+   and the artwork card actions that sit beside (never inside) a card's button. */
+.view-artwork-row-menu {
+    position: absolute;
+    z-index: 3;
+    right: 4px;
+    bottom: 4px;
+}
+
+.view-artwork-row-menu .app-row-menu__trigger {
+    border-radius: 999px;
+    background: rgba(2, 6, 16, 0.72);
+    color: var(--tl-text-primary);
+}
+
+.view-artwork-row-menu .app-row-menu__trigger:focus-visible {
+    outline: 2px solid var(--tl-accent-primary);
+    outline-offset: 2px;
+}
+
+/* A justified-gallery item that carries a row menu: the wrapper takes the card's size, the card fills it. */
+.artwork-justified-gallery__item {
+    position: relative;
+    flex-grow: calc(var(--artwork-gallery-aspect) * 100);
+    flex-basis: calc(var(--artwork-gallery-aspect) * 11.5rem);
+    height: 11.5rem;
+    min-width: 4.5rem;
+    max-width: min(100%, 36rem);
+}
+
+.artwork-justified-gallery__item--panorama {
+    max-width: min(100%, 32rem);
+}
+
+:root:root .artwork-justified-gallery__item > .artwork-justified-gallery__card {
+    width: 100%;
+    height: 100%;
+    max-width: none;
+}
+
+@media (max-width: 600px) {
+    .artwork-justified-gallery__item {
+        flex-basis: calc(var(--artwork-gallery-aspect) * 8rem);
+        height: 8rem;
+    }
+}
+
+/* Touch devices never reveal a caption by hovering, so artwork cards with a row menu show their title and facts. */
+@media (hover: none), (pointer: coarse) {
+    :root .artwork-justified-gallery__item .artwork-justified-gallery__caption {
+        opacity: 1;
+        transform: none;
+        padding-right: 52px;
+    }
+}
+
+/* View selection bar on phones: fixed above the dock (the dock token already includes the bottom safe area) with the
+   side safe areas as padding. Row one is the count and Cancel, row two the actions in equal columns. The component's
+   own rules are scoped, so the extra :root selectors lift these over them. */
+:root:root .view-selection-toolbar--phone {
+    position: fixed;
+    z-index: 1200;
+    right: max(0.5rem, env(safe-area-inset-right, 0px));
+    bottom: calc(var(--tl-bottom-dock-height, 0px) + var(--tl-audio-dock-height, 0px) + 0.5rem);
+    left: max(0.5rem, env(safe-area-inset-left, 0px));
+    display: grid;
+    grid-template-areas: "count close" "actions actions";
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 0.25rem 0.5rem;
+    width: auto;
+    max-width: none;
+    min-height: 0;
+    padding: 0.5rem max(0.6rem, env(safe-area-inset-right, 0px)) 0.5rem max(0.6rem, env(safe-area-inset-left, 0px));
+    overflow: hidden;
+    transform: none;
+}
+
+:root:root .view-selection-toolbar--phone .view-selection-toolbar__count {
+    position: static;
+    grid-area: count;
+    justify-items: start;
+    min-width: 0;
+    padding: 0 0.25rem;
+    background: transparent;
+}
+
+:root:root .view-selection-toolbar--phone .view-selection-toolbar__divider {
+    display: none;
+}
+
+:root:root .view-selection-toolbar--phone .view-selection-toolbar__actions {
+    grid-area: actions;
+    display: flex;
+    gap: 0.25rem;
+    padding: 0;
+    overflow: visible;
+}
+
+:root:root .view-selection-toolbar--phone .view-selection-toolbar__actions > * {
+    flex: 1 1 0;
+    min-width: 0;
+}
+
+:root:root .view-selection-toolbar--phone .view-selection-toolbar__actions > .app-row-menu__trigger,
+:root:root .view-selection-toolbar--phone .view-selection-toolbar__actions > .view-selection-toolbar__more {
+    flex: 0 0 var(--tl-tap-target-min);
+    align-self: center;
+}
+
+:root:root .view-selection-toolbar--phone .view-selection-toolbar__action,
+:root:root .view-selection-toolbar--phone .view-selection-toolbar__gallery .app-overflow-menu__trigger {
+    width: 100%;
+    min-width: 0;
+    min-height: 3.5rem;
+    padding: 0.35rem 0.25rem;
+    font-size: var(--tl-font-size-xs);
+}
+
+:root:root .view-selection-toolbar--phone .view-selection-toolbar__close {
+    position: static;
+    grid-area: close;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    width: auto;
+    min-height: var(--tl-tap-target-min);
+    padding: 0 0.75rem;
+    background: transparent;
+}
+
+/* Photo date headings on touch or narrow windows: the "select all on this day" control sits in the heading row
+   instead of hanging in the page gutter, where a 44px target would run off the screen edge. */
+@media (hover: none), (max-width: 1023px) {
+    :root:root .view-date-group__select {
+        position: static;
+        flex: none;
+        margin-right: 0.25rem;
+    }
+}
+
+/* The Select toggle in the Photos header: a pressed state that reads as "on". */
+.view-select-toggle[aria-pressed="true"] {
+    border-color: var(--tl-accent-primary);
+    color: var(--tl-text-primary);
+}
+
+/* Discovery quick filters on phones: one scrolling chip row that fades where more chips wait off-screen. */
+html[data-form-factor="phone"] .app-discovery-filter__tabs {
+    display: flex;
+    flex-wrap: nowrap;
+    gap: 8px;
+    min-width: 0;
+    padding: 4px;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scrollbar-width: none;
+}
+
+html[data-form-factor="phone"] .app-discovery-filter__tabs::-webkit-scrollbar {
+    display: none;
+}
+
+html[data-form-factor="phone"] .app-discovery-filter__tabs > * {
+    flex: 0 0 auto;
+    min-width: max-content;
+    white-space: nowrap;
+    justify-content: center;
+}
+
+html[data-form-factor="phone"] .app-discovery-filter__tabs[data-scroll-more-end="true"] {
+    mask-image: linear-gradient(to right, #000 calc(100% - 2.5rem), transparent);
+}
+
+html[data-form-factor="phone"] .app-discovery-filter__tabs[data-scroll-more-start="true"] {
+    mask-image: linear-gradient(to left, #000 calc(100% - 2.5rem), transparent);
+}
+
+html[data-form-factor="phone"] .app-discovery-filter__tabs[data-scroll-more-start="true"][data-scroll-more-end="true"] {
+    mask-image: linear-gradient(to right, transparent, #000 2.5rem, #000 calc(100% - 2.5rem), transparent);
+}
+
+/* The map's own controls (zoom in/out) are 44px, and on phones the bottom corners clear the dock and the audio bar. */
+@media (hover: none), (pointer: coarse), (max-width: 1023px) {
+    :root:root .maplibregl-ctrl-group button {
+        width: var(--tl-tap-target-min);
+        height: var(--tl-tap-target-min);
+    }
+
+    :root:root .maplibregl-ctrl-attrib.maplibregl-compact {
+        box-sizing: border-box;
+        padding-right: var(--tl-tap-target-min);
+    }
+}
+
+html[data-form-factor="phone"] .view-map .maplibregl-ctrl-bottom-left,
+html[data-form-factor="phone"] .view-map .maplibregl-ctrl-bottom-right {
+    margin-bottom: calc(var(--tl-bottom-dock-height, 0px) + var(--tl-audio-dock-height, 0px));
 }
 
 /* The playlist row's play button overlays its artwork (hover or focus reveals it); the scoped page styles cannot reach it. */
