@@ -7,18 +7,19 @@ namespace MediaEngine.Storage;
 
 public sealed class ViewGalleryRepository(IDatabaseConnection database) : IViewGalleryRepository
 {
-    public Task<ViewGallery?> GetAsync(Guid galleryId, CancellationToken ct = default)
+    public Task<ViewGallery?> GetAsync(Guid galleryId, bool includeDocuments = true, CancellationToken ct = default)
     {
         ValidateId(galleryId, nameof(galleryId));
         ct.ThrowIfCancellationRequested();
         using var connection = database.CreateConnection();
         var row = connection.QuerySingleOrDefault<GalleryRow>(new CommandDefinition(
             SelectGallerySql + " WHERE vg.id = @galleryId GROUP BY vg.id;",
-            new { galleryId }, cancellationToken: ct));
-        return Task.FromResult(row is null ? null : MapWithDynamicCount(connection, row, ct));
+            new { galleryId, includeDocuments = includeDocuments ? 1 : 0 }, cancellationToken: ct));
+        return Task.FromResult(row is null ? null : MapWithDynamicCount(connection, row, includeDocuments, ct));
     }
 
-    public Task<IReadOnlyList<ViewGallery>> GetOwnedAsync(Guid ownerProfileId, CancellationToken ct = default)
+    public Task<IReadOnlyList<ViewGallery>> GetOwnedAsync(
+        Guid ownerProfileId, bool includeDocuments = true, CancellationToken ct = default)
     {
         ValidateId(ownerProfileId, nameof(ownerProfileId));
         ct.ThrowIfCancellationRequested();
@@ -28,12 +29,13 @@ public sealed class ViewGalleryRepository(IDatabaseConnection database) : IViewG
              WHERE vg.owner_profile_id = @ownerProfileId
              GROUP BY vg.id
              ORDER BY vg.sort_order, vg.updated_at DESC, vg.id;
-            """, new { ownerProfileId }, cancellationToken: ct));
+            """, new { ownerProfileId, includeDocuments = includeDocuments ? 1 : 0 }, cancellationToken: ct));
         return Task.FromResult<IReadOnlyList<ViewGallery>>(
-            rows.Select(row => MapWithDynamicCount(connection, row, ct)).ToList());
+            rows.Select(row => MapWithDynamicCount(connection, row, includeDocuments, ct)).ToList());
     }
 
-    public Task<IReadOnlyList<ViewGallery>> GetSharedWithAsync(Guid profileId, CancellationToken ct = default)
+    public Task<IReadOnlyList<ViewGallery>> GetSharedWithAsync(
+        Guid profileId, bool includeDocuments = true, CancellationToken ct = default)
     {
         ValidateId(profileId, nameof(profileId));
         ct.ThrowIfCancellationRequested();
@@ -44,9 +46,9 @@ public sealed class ViewGalleryRepository(IDatabaseConnection database) : IViewG
              WHERE vgs.profile_id = @profileId
              GROUP BY vg.id
              ORDER BY vgs.shared_at DESC, vg.id;
-            """, new { profileId }, cancellationToken: ct));
+            """, new { profileId, includeDocuments = includeDocuments ? 1 : 0 }, cancellationToken: ct));
         return Task.FromResult<IReadOnlyList<ViewGallery>>(
-            rows.Select(row => MapWithDynamicCount(connection, row, ct)).ToList());
+            rows.Select(row => MapWithDynamicCount(connection, row, includeDocuments, ct)).ToList());
     }
 
     public Task<ViewGallery> CreateAsync(CreateViewGalleryCommand command, CancellationToken ct = default)
@@ -139,7 +141,7 @@ public sealed class ViewGalleryRepository(IDatabaseConnection database) : IViewG
                 command, transaction, cancellationToken: token));
             var row = connection.QuerySingle<GalleryRow>(new CommandDefinition(
                 SelectGallerySql + " WHERE vg.id = @GalleryId GROUP BY vg.id;",
-                command, transaction, cancellationToken: token));
+                new { command.GalleryId, includeDocuments = 1 }, transaction, cancellationToken: token));
             return Map(row) with { ItemCount = count };
         }, ct);
     }
@@ -158,6 +160,7 @@ public sealed class ViewGalleryRepository(IDatabaseConnection database) : IViewG
         int? afterPosition = null,
         Guid? afterItemId = null,
         int limit = 100,
+        bool includeDocuments = true,
         CancellationToken ct = default)
     {
         ValidateId(galleryId, nameof(galleryId));
@@ -179,9 +182,19 @@ public sealed class ViewGalleryRepository(IDatabaseConnection database) : IViewG
              WHERE gallery_id = @galleryId
                AND (@afterPosition IS NULL OR position > @afterPosition
                     OR (position = @afterPosition AND item_id > @afterItemId))
+               AND (@includeDocuments = 1 OR NOT EXISTS (
+                        SELECT 1 FROM local_items li
+                         WHERE li.id = view_gallery_items.item_id AND li.media_kind = 'document'))
              ORDER BY position, item_id
              LIMIT @take;
-            """, new { galleryId, afterPosition, afterItemId, take = limit + 1 }, cancellationToken: ct)).ToList();
+            """, new
+        {
+            galleryId,
+            afterPosition,
+            afterItemId,
+            take = limit + 1,
+            includeDocuments = includeDocuments ? 1 : 0,
+        }, cancellationToken: ct)).ToList();
         var hasMore = rows.Count > limit;
         if (hasMore)
         {
@@ -198,6 +211,7 @@ public sealed class ViewGalleryRepository(IDatabaseConnection database) : IViewG
     public Task<AddViewGalleryItemsResult> AddItemsAsync(
         Guid galleryId,
         IReadOnlyCollection<Guid> itemIds,
+        bool includeDocuments = true,
         CancellationToken ct = default)
     {
         ValidateId(galleryId, nameof(galleryId));
@@ -214,6 +228,14 @@ public sealed class ViewGalleryRepository(IDatabaseConnection database) : IViewG
                     transaction, cancellationToken: token)) == 0))
             {
                 throw new InvalidOperationException("Every Gallery item must belong to the Gallery owner's Personal Space.");
+            }
+
+            // A profile without Documents cannot put one in a Gallery (the items are already known to be the owner's).
+            if (!includeDocuments && distinctIds.Any(itemId => connection.ExecuteScalar<long>(new CommandDefinition("""
+                    SELECT COUNT(1) FROM local_items WHERE id = @itemId AND media_kind = 'document';
+                    """, new { itemId }, transaction, cancellationToken: token)) != 0))
+            {
+                throw new UnauthorizedAccessException("Documents are not available for this profile.");
             }
             var position = connection.ExecuteScalar<int>(new CommandDefinition(
                 "SELECT COALESCE(MAX(position), -1) + 1 FROM view_gallery_items WHERE gallery_id = @galleryId;",
@@ -240,7 +262,8 @@ public sealed class ViewGalleryRepository(IDatabaseConnection database) : IViewG
         }, ct);
     }
 
-    public Task<int> RemoveItemsAsync(Guid galleryId, IReadOnlyCollection<Guid> itemIds, CancellationToken ct = default)
+    public Task<int> RemoveItemsAsync(
+        Guid galleryId, IReadOnlyCollection<Guid> itemIds, bool includeDocuments = true, CancellationToken ct = default)
     {
         ValidateId(galleryId, nameof(galleryId));
         ArgumentNullException.ThrowIfNull(itemIds);
@@ -251,9 +274,13 @@ public sealed class ViewGalleryRepository(IDatabaseConnection database) : IViewG
             var removed = 0;
             foreach (var itemId in ids)
             {
-                removed += connection.Execute(new CommandDefinition(
-                    "DELETE FROM view_gallery_items WHERE gallery_id = @galleryId AND item_id = @itemId;",
-                    new { galleryId, itemId }, transaction, cancellationToken: token));
+                removed += connection.Execute(new CommandDefinition("""
+                    DELETE FROM view_gallery_items
+                     WHERE gallery_id = @galleryId AND item_id = @itemId
+                       AND (@includeDocuments = 1 OR NOT EXISTS (
+                            SELECT 1 FROM local_items li WHERE li.id = @itemId AND li.media_kind = 'document'));
+                    """, new { galleryId, itemId, includeDocuments = includeDocuments ? 1 : 0 },
+                    transaction, cancellationToken: token));
             }
             if (removed != 0)
             {
@@ -267,7 +294,7 @@ public sealed class ViewGalleryRepository(IDatabaseConnection database) : IViewG
     }
 
     public Task<bool> SetItemPositionAsync(
-        Guid galleryId, Guid itemId, int position, CancellationToken ct = default)
+        Guid galleryId, Guid itemId, int position, bool includeDocuments = true, CancellationToken ct = default)
     {
         ValidateId(galleryId, nameof(galleryId)); ValidateId(itemId, nameof(itemId));
         if (position < 0)
@@ -280,8 +307,11 @@ public sealed class ViewGalleryRepository(IDatabaseConnection database) : IViewG
             RequireManualGallery(connection, transaction, galleryId, token);
             var changed = connection.Execute(new CommandDefinition("""
                 UPDATE view_gallery_items SET position = @position
-                 WHERE gallery_id = @galleryId AND item_id = @itemId;
-                """, new { galleryId, itemId, position }, transaction, cancellationToken: token)) != 0;
+                 WHERE gallery_id = @galleryId AND item_id = @itemId
+                   AND (@includeDocuments = 1 OR NOT EXISTS (
+                        SELECT 1 FROM local_items li WHERE li.id = @itemId AND li.media_kind = 'document'));
+                """, new { galleryId, itemId, position, includeDocuments = includeDocuments ? 1 : 0 },
+                transaction, cancellationToken: token)) != 0;
             if (changed)
             {
                 connection.Execute(new CommandDefinition(
@@ -352,10 +382,12 @@ public sealed class ViewGalleryRepository(IDatabaseConnection database) : IViewG
                vg.description AS Description, vg.gallery_kind AS GalleryKind,
                vg.smart_rule_json AS SmartRuleJson, vg.cover_item_id AS CoverItemId,
                vg.soundtrack_playlist_id AS SoundtrackPlaylistId,
-               vg.sort_order AS SortOrder, COUNT(vgi.item_id) AS ItemCount,
+               vg.sort_order AS SortOrder,
+               COUNT(CASE WHEN @includeDocuments = 1 OR vli.media_kind <> 'document' THEN vgi.item_id END) AS ItemCount,
                vg.created_at AS CreatedAt, vg.updated_at AS UpdatedAt
           FROM view_galleries vg
           LEFT JOIN view_gallery_items vgi ON vgi.gallery_id = vg.id
+          LEFT JOIN local_items vli ON vli.id = vgi.item_id
         """;
 
     private static (Guid PersonalSpaceId, string Kind) RequireManualGallery(
@@ -527,6 +559,7 @@ public sealed class ViewGalleryRepository(IDatabaseConnection database) : IViewG
     private static ViewGallery MapWithDynamicCount(
         System.Data.IDbConnection connection,
         GalleryRow row,
+        bool includeDocuments,
         CancellationToken ct)
     {
         var gallery = Map(row);
@@ -541,6 +574,7 @@ public sealed class ViewGalleryRepository(IDatabaseConnection database) : IViewG
                 ViewSmartGalleryRules.Parse(gallery.SmartRuleJson));
             var parameters = new DynamicParameters();
             parameters.Add("SmartSpaceId", GuidSql.ToBlob(gallery.PersonalSpaceId), System.Data.DbType.Binary);
+            parameters.Add("SmartIncludeDocuments", includeDocuments ? 1 : 0);
             parameters.AddDynamicParams(compiled.Parameters);
             var count = connection.ExecuteScalar<int>(new CommandDefinition($$"""
                 SELECT COUNT(1)
@@ -550,6 +584,7 @@ public sealed class ViewGalleryRepository(IDatabaseConnection database) : IViewG
                    AND li.hidden = 0
                    AND li.archived_at IS NULL
                    AND li.trashed_at IS NULL
+                   AND (@SmartIncludeDocuments = 1 OR li.media_kind <> 'document')
                    AND ({{compiled.Predicate}});
                 """, parameters, cancellationToken: ct));
             return gallery with { ItemCount = count };

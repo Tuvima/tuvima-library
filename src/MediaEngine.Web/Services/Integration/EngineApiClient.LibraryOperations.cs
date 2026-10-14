@@ -178,66 +178,6 @@ public sealed partial class EngineApiClient
         }
     }
 
-    public async Task<bool> AcceptUniverseCandidateAsync(
-        Guid workId,
-        string targetCollectionQid,
-        CancellationToken ct = default)
-    {
-        try
-        {
-            var response = await _http.PostAsJsonAsync(
-                $"library/universe-candidates/{workId}/accept",
-                new { target_collection_qid = targetCollectionQid },
-                ct);
-            return response.IsSuccessStatusCode;
-        }
-        catch (OperationCanceledException) { return false; }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "POST /library/universe-candidates/{WorkId}/accept failed", workId);
-            return false;
-        }
-    }
-
-    public async Task<bool> RejectUniverseCandidateAsync(Guid workId, CancellationToken ct = default)
-    {
-        try
-        {
-            var response = await _http.PostAsJsonAsync($"library/universe-candidates/{workId}/reject", new { }, ct);
-            return response.IsSuccessStatusCode;
-        }
-        catch (OperationCanceledException) { return false; }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "POST /library/universe-candidates/{WorkId}/reject failed", workId);
-            return false;
-        }
-    }
-
-    public async Task<int> BatchAcceptUniverseCandidatesAsync(List<Guid> workIds, CancellationToken ct = default)
-    {
-        try
-        {
-            var response = await _http.PostAsJsonAsync(
-                "library/universe-candidates/batch-accept",
-                new { work_ids = workIds },
-                ct);
-            if (!response.IsSuccessStatusCode)
-            {
-                return 0;
-            }
-
-            var result = await response.Content.ReadFromJsonAsync<JsonElement>(ct);
-            return result.TryGetProperty("accepted_count", out var count) ? count.GetInt32() : 0;
-        }
-        catch (OperationCanceledException) { return 0; }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "POST /library/universe-candidates/batch-accept failed");
-            return 0;
-        }
-    }
-
     public async Task<List<UnlinkedWorkViewModel>> GetUniverseUnlinkedAsync(CancellationToken ct = default)
     {
         try
@@ -250,27 +190,6 @@ public sealed partial class EngineApiClient
         {
             _logger.LogWarning(ex, "GET /library/universe-unlinked failed");
             return [];
-        }
-    }
-
-    public async Task<bool> ManualUniverseAssignAsync(
-        Guid workId,
-        Guid collectionId,
-        CancellationToken ct = default)
-    {
-        try
-        {
-            var response = await _http.PostAsJsonAsync(
-                "library/universe-assign",
-                new { work_id = workId, collection_id = collectionId },
-                ct);
-            return response.IsSuccessStatusCode;
-        }
-        catch (OperationCanceledException) { return false; }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "POST /library/universe-assign failed for work {WorkId}", workId);
-            return false;
         }
     }
 }

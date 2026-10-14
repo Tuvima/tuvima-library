@@ -107,6 +107,42 @@ public sealed class ViewDocumentsGuardrailTests
     }
 
     [Fact]
+    public void ItemActionsGalleryItemRoutesAndContributionsAskThePermissionToo()
+    {
+        var root = FindRepoRoot();
+        var endpoint = File.ReadAllText(Path.Combine(root, "src", "MediaEngine.Api", "Endpoints", "ViewEndpoints.cs"));
+
+        // Favourite, hide, archive, trash and restore move a document in or out of the Documents page.
+        foreach (var helper in new[] { "private static void MapFlag(", "private static void MapLifecycle(" })
+        {
+            var start = endpoint.IndexOf(helper, StringComparison.Ordinal);
+            Assert.True(start >= 0, $"{helper} is missing.");
+            var end = endpoint.IndexOf(".WithName(", start, StringComparison.Ordinal);
+            Assert.Contains("DocumentsBlockedAsync", endpoint[start..end], StringComparison.Ordinal);
+        }
+
+        // A Gallery's items, counts and covers are narrowed for a profile without Documents.
+        foreach (var route in new[]
+                 {
+                     "group.MapGet(\"/galleries/{id:guid}/items\"",
+                     "group.MapPost(\"/galleries/{id:guid}/items\"",
+                     "group.MapDelete(\"/galleries/{id:guid}/items\"",
+                     "group.MapPut(\"/galleries/{id:guid}/items/{itemId:guid}/position\"",
+                 })
+        {
+            var start = endpoint.IndexOf(route, StringComparison.Ordinal);
+            Assert.True(start >= 0, $"{route} is missing.");
+            var end = endpoint.IndexOf(".WithName(", start, StringComparison.Ordinal);
+            Assert.Contains("MayUseDocumentsAsync", endpoint[start..end], StringComparison.Ordinal);
+        }
+
+        // The contribution list and detail read items through one place that leaves documents out.
+        var contributions = File.ReadAllText(Path.Combine(root, "src", "MediaEngine.Api", "Services", "View", "ViewSharedContributionService.cs"));
+        Assert.Contains("media_kind <> 'document'", contributions, StringComparison.Ordinal);
+        Assert.Contains("includeDocuments", contributions, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void HomeRecentlyAddedAsksViewForPhotosAndVideosOnly()
     {
         var composer = File.ReadAllText(Path.Combine(FindRepoRoot(), "src", "MediaEngine.Api", "Services", "Display", "DisplayRecentComposerService.cs"));

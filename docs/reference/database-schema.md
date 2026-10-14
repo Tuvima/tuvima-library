@@ -793,11 +793,12 @@ User profiles for multi-user support.
 
 | Column | Type | Notes |
 |---|---|---|
-| `id` | TEXT | UUID, primary key |
-| `name` | TEXT | Display name |
-| `pin_hash` | TEXT | PIN hash. NULL if no PIN set. |
-| `role` | TEXT | |
+| `id` | BLOB | GUID, primary key |
+| `display_name` | TEXT | Name shown on the profile picker and in Settings |
+| `role` | TEXT | `Administrator`, `StandardUser` or `RestrictedProfile` (a Kids profile) |
 | `created_at` | TEXT | Timestamp |
+
+The PIN is not stored on this row. It is the `profile_credentials` row described below.
 
 ### account_two_step
 
@@ -833,6 +834,62 @@ Revocable, device-scoped sign-in sessions. A session remembers where it started.
 | `device_id` | TEXT | The `Tuvima.Device` cookie value stored in `auth_sessions.device_id` |
 | `profile_id` | BLOB | The profile to open as; deleting the profile removes the row. A saved profile the account no longer has is ignored |
 | `updated_at` | TEXT | Timestamp |
+
+### account_credentials
+
+The account password (`credential_kind` = `Password`, one row per account). Only a hash is stored: `secret_hash`, `hash_scheme` and `hash_version`, with a `security_stamp`, the failed-attempt and lockout fields, and the usual timestamps.
+
+### profile_credentials
+
+A profile's PIN, when one is set (`credential_kind` = `ProfilePin`, one row per profile). Only a hash is stored: `secret_hash`, `hash_scheme`, `hash_version`, `security_stamp`, `failed_attempt_count`, `locked_until`, `created_at`, `updated_at` and `last_used_at`. Deleting the profile removes the row.
+
+### account_passkeys
+
+Passkeys a person added under **Settings > Security**. `credential_id` (BLOB, primary key), `account_id` (deleting the account removes its passkeys), `name`, `data_json` (the stored credential), `created_at`, and `last_used_at` (NULL until the passkey is used).
+
+### account_external_logins
+
+Linked sign-ins: an account at an outside provider, linked under **Settings > Security > Extra protection > Linked sign-ins**. `id`, `account_id`, `provider`, `issuer`, `subject` (unique together with `provider` and `issuer`), `email`, `display_name`, `linked_at` and `last_login_at`.
+
+### password_recovery_codes
+
+The saved one-time recovery codes for an account, made under **Settings > Security > Extra protection > Recovery codes**. `id`, `account_id`, `code_hash` (unique per account), `created_at`, `expires_at` and `consumed_at`. Only a hash is stored, and each code works once.
+
+### password_reset_challenges
+
+Email password-reset links, used only when email recovery is set up. `id`, `account_id`, `token_hash` (unique), `created_at`, `expires_at` (30 minutes) and `consumed_at`. Only a hash is stored, and each link works once.
+
+### account_invitations
+
+Invitation codes made by an administrator (**Users & Access > Households**). `id`, `account_id`, `token_hash` (unique; only a fingerprint of the code is stored), `created_at`, `expires_at` (seven days) and `consumed_at`.
+
+### account_profile_grants
+
+Which profiles an account may open: one row per account and profile (primary key `account_id` and `profile_id`). `is_default` (the profile the account opens to), `is_enabled`, `admin_enabled` (the grant opens the admin dashboard), `authorization_version` (bumped when access changes) and `granted_at`. Deleting either side removes the row.
+
+### account_feature_grants
+
+The features an account may use: `account_id` and `feature_id` (`read`, `watch`, `listen` or `view`, primary key together) and `granted_at`.
+
+### account_library_grants
+
+The libraries an account may open: `account_id` and `library_id` (primary key together) and `granted_at`.
+
+### grant_admin_protections
+
+Administrator PIN protection on one account-profile grant, set under **Protect admin settings**. `account_id` and `profile_id` (primary key; references `account_profile_grants`), `is_enabled`, `unlock_mode` (`FixedDuration`, `UntilProfileSwitch` or `LockOnLeave`), `unlock_minutes`, `pin_hash` and `hash_scheme` (both set while enabled), `failed_attempt_count`, `locked_until`, `protection_version` and `updated_at`.
+
+### grant_admin_unlocks
+
+An administrator unlock held by one signed-in session. `session_id` (primary key, references `auth_sessions`), `account_id`, `profile_id`, `protection_version`, `method`, `granted_at` and `expires_at` (NULL when the unlock has no fixed end).
+
+### client_devices
+
+Paired phones and TVs, listed under **Settings > Administration > Devices**. `id`, `application_id`, `account_id`, `profile_id`, `device_name`, `device_class` (`web`, `mobile`, `television` or `automotive`), `client_id`, `client_name`, `client_version`, `scopes`, `capabilities_json`, `created_at`, `last_seen_at`, `revoked_at` and `revoked_reason`. `backup_profile_id` is the profile a phone backs its photos up to (NULL means not chosen; it is cleared if that profile is deleted).
+
+### device_pairing_requests
+
+An app's request to pair, waiting for approval or already decided. `id`, `application_id`, `device_code_hash` and `user_code_hash` (both unique; only hashes are stored), `client_id`, `client_name`, `client_version`, `device_name`, `device_class`, `requested_scopes`, `approved_scopes`, `capabilities_json`, `status` (`pending`, `approved`, `denied`, `consumed` or `expired`), `poll_interval_seconds`, `last_polled_at`, `profile_id`, `account_id`, `approved_by_profile_id`, `created_at`, `expires_at`, `decided_at` and `consumed_at`.
 
 ### setup_codes
 

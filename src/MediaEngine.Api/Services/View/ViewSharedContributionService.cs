@@ -40,11 +40,12 @@ public sealed class ViewSharedContributionService(
     {
         var (actorProfileId, _) = await RequireActorAsync(authority, review: false, lookupReviewer: false, ct);
         await RequireSubmitAsync(actorProfileId, ct);
-        return PreviewForActor(actorProfileId, request, ct);
+        return PreviewForActor(actorProfileId, await MayUseDocumentsAsync(actorProfileId, ct), request, ct);
     }
 
     private ViewSharedContributionPreviewDto PreviewForActor(
         Guid actorProfileId,
+        bool documentsAllowed,
         ViewSharedContributionPreviewRequest request,
         CancellationToken ct)
     {
@@ -56,6 +57,15 @@ public sealed class ViewSharedContributionService(
             if (!CanSend(actorProfileId, item))
             {
                 throw new KeyNotFoundException("A selected View item was not found.");
+            }
+
+            // A profile without Documents cannot send one. Only the owner is told why (the item is theirs); anyone
+            // else in the household gets the same answer as for an item that does not exist.
+            if (!documentsAllowed && item.MediaKind == LocalAssetMediaKinds.Document)
+            {
+                throw item.OwnerProfileId == actorProfileId
+                    ? new UnauthorizedAccessException(DocumentsNotAvailable)
+                    : new KeyNotFoundException("A selected View item was not found.");
             }
 
             // Someone else's photo is shared as a copy: the owner's original always stays in their own space.
@@ -102,7 +112,7 @@ public sealed class ViewSharedContributionService(
             await RequireSubmitAsync(actorProfileId, ct);
         }
 
-        var preview = PreviewForActor(actorProfileId, previewRequest, ct);
+        var preview = PreviewForActor(actorProfileId, await MayUseDocumentsAsync(actorProfileId, ct), previewRequest, ct);
         if (!CryptographicOperations.FixedTimeEquals(
                 Encoding.UTF8.GetBytes(preview.PreviewRevision),
                 Encoding.UTF8.GetBytes(request.PreviewRevision ?? string.Empty)))
@@ -187,7 +197,7 @@ public sealed class ViewSharedContributionService(
         RequestAuthority authority, ViewSharedDirectAddRequest request, CancellationToken ct = default)
     {
         var (actorProfileId, reviewer) = await RequireActorAsync(authority, review: true, lookupReviewer: true, ct);
-        var preview = PreviewForActor(actorProfileId,
+        var preview = PreviewForActor(actorProfileId, await MayUseDocumentsAsync(actorProfileId, ct),
             new ViewSharedContributionPreviewRequest(request.ItemIds, request.DestinationKind, request.FolderName), ct);
         var key = string.IsNullOrWhiteSpace(request.IdempotencyKey) ? Guid.NewGuid().ToString("N") : request.IdempotencyKey.Trim();
         var pending = await SubmitCoreAsync(actorProfileId, new ViewSharedContributionSubmitRequest(
@@ -225,6 +235,7 @@ public sealed class ViewSharedContributionService(
         var policy = await policies.GetPolicyAsync(actorProfileId, ct);
 
         var normalizedStatus = NormalizeStatusFilter(status);
+        var documentsAllowed = policy.DocumentsEnabled;
         using var connection = database.CreateConnection();
         var ids = connection.Query<Guid>(new CommandDefinition("""
             SELECT id FROM view_shared_contributions
@@ -235,6 +246,11 @@ public sealed class ViewSharedContributionService(
                            AND submitter.household_id = @reviewerHousehold)))
                     OR submitted_by_profile_id = @actorProfileId)
                AND (@status IS NULL OR status = @status)
+               -- Without Documents, a contribution that holds only documents is left out entirely.
+               AND (@documentsAllowed = 1 OR EXISTS (
+                        SELECT 1 FROM view_shared_contribution_items ci
+                          JOIN local_items li ON li.id = ci.item_id
+                         WHERE ci.contribution_id = view_shared_contributions.id AND li.media_kind <> 'document'))
              ORDER BY CASE status WHEN 'pending' THEN 0 ELSE 1 END, submitted_at DESC
              LIMIT @take OFFSET @offset;
             """, new
@@ -244,6 +260,7 @@ public sealed class ViewSharedContributionService(
             reviewerHousehold = reviewer.HouseholdId,
             actorProfileId,
             status = normalizedStatus,
+            documentsAllowed = documentsAllowed ? 1 : 0,
             take = limit + 1,
             offset,
         },
@@ -257,7 +274,10 @@ public sealed class ViewSharedContributionService(
         var rows = new List<ViewSharedContributionDto>(ids.Count);
         foreach (var id in ids)
         {
-            rows.Add(Read(connection, id, ct)!);
+            if (Read(connection, id, documentsAllowed, ct) is { } row)
+            {
+                rows.Add(row);
+            }
         }
 
         return new(rows, offset, hasMore, policy.SubmitToSharedLibrary, reviewer.IsReviewer);
@@ -281,8 +301,10 @@ public sealed class ViewSharedContributionService(
         (RequestAuthority Authority, string Action)? audited = null)
     {
         ct.ThrowIfCancellationRequested();
+        var documentsAllowed = await MayUseDocumentsAsync(actorProfileId, ct);
         using var connection = database.CreateConnection();
-        var contribution = Read(connection, contributionId, ct) ?? throw new KeyNotFoundException();
+        // A contribution that holds only documents does not exist as far as a profile without Documents can tell.
+        var contribution = Read(connection, contributionId, documentsAllowed, ct) ?? throw new KeyNotFoundException();
         var submitterHousehold = contribution.SubmittedByProfileId is { } submitter
             ? connection.QuerySingleOrDefault<Guid?>(
                 "SELECT household_id FROM profiles WHERE id = @submitter;", new { submitter })
@@ -298,6 +320,12 @@ public sealed class ViewSharedContributionService(
             || (!canReview && contribution.SubmittedByProfileId != actorProfileId))
         {
             throw new KeyNotFoundException("This contribution is unavailable.");
+        }
+
+        // Deciding or retrying acts on every item, so a reviewer who cannot see some of them may not do it.
+        if (requireReview && contribution.IncludesHiddenItems)
+        {
+            throw new UnauthorizedAccessException(DocumentsNotAvailable);
         }
 
         if (audited is { } access && reviewer.Kind == ReviewerKind.Server && submitterHousehold != reviewer.HouseholdId)
@@ -473,7 +501,7 @@ public sealed class ViewSharedContributionService(
     public async Task ProcessAsync(Guid contributionId, CancellationToken ct = default)
     {
         using var readConnection = database.CreateConnection();
-        var batch = Read(readConnection, contributionId, ct)!;
+        var batch = Read(readConnection, contributionId, includeDocuments: true, ct)!;
         var actorProfileId = readConnection.QuerySingle<Guid?>(new CommandDefinition(
             "SELECT decided_by_profile_id FROM view_shared_contributions WHERE id = @contributionId;",
             new { contributionId }, cancellationToken: ct))
@@ -496,6 +524,11 @@ public sealed class ViewSharedContributionService(
             }
         }
     }
+
+    private const string DocumentsNotAvailable = "Documents are not available for this profile.";
+
+    private async Task<bool> MayUseDocumentsAsync(Guid profileId, CancellationToken ct) =>
+        (await policies.GetPolicyAsync(profileId, ct)).DocumentsEnabled;
 
     private async Task RequireSubmitAsync(Guid profileId, CancellationToken ct)
     {
@@ -634,7 +667,13 @@ public sealed class ViewSharedContributionService(
             ?? throw new KeyNotFoundException("The profile was not found.");
     }
 
-    private static ViewSharedContributionDto? Read(System.Data.IDbConnection connection, Guid id, CancellationToken ct)
+    /// <summary>
+    /// Reads one contribution. Without <paramref name="includeDocuments"/> its documents are left out of the items,
+    /// the item count and the log, and <c>IncludesHiddenItems</c> says only that something was left out (never how
+    /// many); a contribution that holds nothing else comes back as null.
+    /// </summary>
+    private static ViewSharedContributionDto? Read(
+        System.Data.IDbConnection connection, Guid id, bool includeDocuments, CancellationToken ct)
     {
         var row = connection.QuerySingleOrDefault<ContributionRow>(new CommandDefinition("""
             SELECT id AS Id, submitted_by_profile_id AS SubmittedByProfileId,
@@ -657,7 +696,15 @@ public sealed class ViewSharedContributionService(
               FROM view_shared_contribution_items sci
               JOIN local_items li ON li.id = sci.item_id
              WHERE sci.contribution_id = @id ORDER BY sci.position;
-            """, new { id }, cancellationToken: ct)).Select(value => new ViewSharedContributionItemDto(
+            """, new { id }, cancellationToken: ct)).ToList();
+        var hidden = includeDocuments ? 0 : items.Count(value => value.MediaKind == LocalAssetMediaKinds.Document);
+        if (hidden > 0 && hidden == items.Count)
+        {
+            return null;
+        }
+
+        var visibleItems = items.Where(value => includeDocuments || value.MediaKind != LocalAssetMediaKinds.Document)
+            .Select(value => new ViewSharedContributionItemDto(
                 value.Id, value.ItemId, value.Title ?? "Untitled", value.MediaKind, value.Operation,
                 value.ExecutionState, value.Error)).ToList();
         var events = connection.Query<ContributionEventRow>(new CommandDefinition("""
@@ -665,11 +712,15 @@ public sealed class ViewSharedContributionService(
                    detail AS Detail, occurred_at AS OccurredAt
               FROM view_shared_contribution_events
              WHERE contribution_id = @id ORDER BY occurred_at, id;
-            """, new { id }, cancellationToken: ct)).Select(value => new ViewSharedContributionEventDto(
-                value.Id, value.ActorName, value.EventType, value.Detail, value.OccurredAt)).ToList();
+            """, new { id }, cancellationToken: ct))
+            .Where(value => hidden == 0 || !value.EventType.StartsWith("transfer_", StringComparison.Ordinal))
+            .Select(value => new ViewSharedContributionEventDto(
+                value.Id, value.ActorName, value.EventType,
+                hidden > 0 && value.EventType == "submitted" ? $"{visibleItems.Count} item(s) submitted." : value.Detail,
+                value.OccurredAt)).ToList();
         return new(row.Id, row.SubmittedByProfileId, row.SubmittedByName, row.Status,
             row.DestinationKind, row.DestinationLabel, row.Note, row.Revision,
-            row.SubmittedAt, row.DecidedAt, row.DecidedByName, row.DecisionReason, items, events);
+            row.SubmittedAt, row.DecidedAt, row.DecidedByName, row.DecisionReason, visibleItems, events, hidden > 0);
     }
 
     private static ViewSharedContributionPreviewDto BuildPreview(
