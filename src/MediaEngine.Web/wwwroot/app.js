@@ -586,6 +586,190 @@ window.detectDeviceSnapshot = function () {
     return window.tuvimaResponsive.resolveDeviceSnapshot();
 };
 
+// -- Spatial navigation (keyboard and TV remote) ----------------------------
+// Arrow keys move focus by geometry, Enter activates, Escape/Backspace go back. On the tv form factor it is always
+// on; elsewhere it arms on the first arrow key pressed while focus is on a shelf tile. It never acts inside text
+// fields, selects, sliders, contenteditable regions or while a modal/dialog is open.
+
+window.tuvimaSpatialNav = (function () {
+    var DIRECTIONS = { ArrowLeft: 'left', ArrowRight: 'right', ArrowUp: 'up', ArrowDown: 'down' };
+    var FOCUSABLE = 'a[href], button, summary, [tabindex], [role="button"], [role="tab"], [role="link"], [role="menuitem"], input, select, textarea';
+    var ROW = '.media-tile-shelf-scroll, [data-spatial-row]';
+    var SHELF = '.media-tile-shelf, .media-tile-shelf-track';
+    var DOCK = '.layout-shell__intent-dock';
+    var MODAL = 'dialog[open], [aria-modal="true"], [role="dialog"], [role="alertdialog"]';
+    var EDITABLE_ROLES = { textbox: 1, searchbox: 1, combobox: 1, listbox: 1, slider: 1, spinbutton: 1 };
+    var NON_TEXT_INPUTS = { button: 1, submit: 1, reset: 1, checkbox: 1, image: 1 };
+    var NATIVE_ACTIVATORS = { A: 1, BUTTON: 1, SUMMARY: 1, INPUT: 1, SELECT: 1, TEXTAREA: 1 };
+
+    function center(rect) {
+        return { x: (rect.left + rect.right) / 2, y: (rect.top + rect.bottom) / 2 };
+    }
+
+    // Pure geometry: the nearest item in a direction. Distance along the axis plus double the sideways offset.
+    function pickNext(from, items, direction) {
+        var origin = center(from);
+        var horizontal = direction === 'left' || direction === 'right';
+        var best = null;
+        var bestScore = Infinity;
+        items.forEach(function (item) {
+            if (item.rect === from) return;
+            var point = center(item.rect);
+            var along = horizontal ? point.x - origin.x : point.y - origin.y;
+            var across = horizontal ? point.y - origin.y : point.x - origin.x;
+            if (direction === 'left' || direction === 'up') along = -along;
+            if (along <= 1) return;
+            var score = along + 2 * Math.abs(across);
+            if (score < bestScore) { bestScore = score; best = item; }
+        });
+        return best;
+    }
+
+    function isEditable(el) {
+        if (!el || !el.tagName) return false;
+        var tag = el.tagName.toUpperCase();
+        if (tag === 'TEXTAREA' || tag === 'SELECT' || el.isContentEditable) return true;
+        if (tag === 'INPUT') return !NON_TEXT_INPUTS[String(el.type || 'text').toLowerCase()];
+        var role = el.getAttribute && el.getAttribute('role');
+        return !!(role && EDITABLE_ROLES[role]);
+    }
+
+    function isShown(el) {
+        return !!el.getClientRects && el.getClientRects().length > 0;
+    }
+
+    function hasOpenModal(doc) {
+        var modals = doc.querySelectorAll(MODAL);
+        for (var i = 0; i < modals.length; i++) {
+            if (isShown(modals[i])) return true;
+        }
+        return false;
+    }
+
+    function isCandidate(el) {
+        if (isEditable(el) || el.disabled || !isShown(el)) return false;
+        if (el.getAttribute('tabindex') === '-1') return false;
+        if (el.classList && el.classList.contains('skip-to-content')) return false; // Reachable with Tab; it sits off screen.
+        return !el.closest('[inert], [aria-hidden="true"]');
+    }
+
+    function registerSpatialNav(root) {
+        root = root || document;
+        if (root.__tuvimaSpatialNav) return root.__tuvimaSpatialNav;
+        var doc = root.ownerDocument || root;
+        var armed = false;
+
+        function isTv() {
+            return !!doc.documentElement && doc.documentElement.getAttribute('data-form-factor') === 'tv';
+        }
+
+        function candidates() {
+            var out = [];
+            var nodes = root.querySelectorAll(FOCUSABLE);
+            for (var i = 0; i < nodes.length; i++) {
+                if (isCandidate(nodes[i])) out.push({ el: nodes[i], rect: nodes[i].getBoundingClientRect() });
+            }
+            return out;
+        }
+
+        function reveal(el, horizontal) {
+            var behavior = typeof window.tuvimaPrefersReducedMotion === 'function' && window.tuvimaPrefersReducedMotion() ? 'auto' : 'smooth';
+            el.focus({ preventScroll: true });
+            el.scrollIntoView({ block: horizontal ? 'nearest' : 'center', inline: horizontal ? 'center' : 'nearest', behavior: behavior });
+        }
+
+        function moveFocus(event, direction, active) {
+            var horizontal = direction === 'left' || direction === 'right';
+            var items = candidates();
+            var anchored = active && active !== doc.body && active !== doc.documentElement && root.contains(active);
+            if (!anchored) {
+                // Nothing focused yet: start from the first control in view (top row, then left to right).
+                var visible = items.filter(function (item) { return item.rect.bottom > 0 && item.rect.top < (window.innerHeight || Infinity); });
+                visible.sort(function (a, b) { return (a.rect.top - b.rect.top) || (a.rect.left - b.rect.left); });
+                if (visible.length === 0) return;
+                event.preventDefault();
+                reveal(visible[0].el, horizontal);
+                return;
+            }
+
+            var row = horizontal && active.closest ? active.closest(ROW) : null;
+            if (row) items = items.filter(function (item) { return item.el.closest(ROW) === row; });
+            // The dock is fixed to the bottom of the screen, so it is always the nearest thing below the content.
+            // Moving up or down through the page therefore skips it while content remains, and falls back to it at the end.
+            var inDock = !!(active.closest && active.closest(DOCK));
+            var next = null;
+            if (!horizontal && !inDock) {
+                var content = items.filter(function (item) { return !item.el.closest(DOCK); });
+                next = pickNext(active.getBoundingClientRect(), content, direction);
+            }
+            if (!next) next = pickNext(active.getBoundingClientRect(), items, direction);
+            if (next) {
+                event.preventDefault();
+                reveal(next.el, horizontal);
+            } else if (row) {
+                event.preventDefault(); // End of a shelf: stay put instead of scrolling the page sideways.
+            }
+        }
+
+        function hasExpandedPopup() {
+            var nodes = doc.querySelectorAll('[aria-expanded="true"]');
+            for (var i = 0; i < nodes.length; i++) {
+                if (isShown(nodes[i])) return true;
+            }
+            return false;
+        }
+
+        function onKeyDown(event) {
+            if (event.defaultPrevented || event.ctrlKey || event.altKey || event.metaKey) return;
+            var key = event.key;
+            var direction = DIRECTIONS[key];
+            var back = key === 'Escape' || key === 'Backspace';
+            if (!direction && !back && key !== 'Enter') return;
+            if (direction && event.shiftKey) return;
+
+            var active = doc.activeElement;
+            if (isEditable(active) || isEditable(event.target)) return;
+            if (hasOpenModal(doc)) return;
+            if (active && active.closest && active.closest('[data-spatial-nav="off"]')) return;
+
+            if (!isTv() && !armed) {
+                var onShelf = direction && active && active.closest && active.closest(SHELF);
+                if (!onShelf) return;
+                armed = true;
+            }
+
+            if (direction) {
+                moveFocus(event, direction, active);
+            } else if (key === 'Enter') {
+                var role = active && active.getAttribute && active.getAttribute('role');
+                var custom = active && !NATIVE_ACTIVATORS[active.tagName] && (role === 'button' || role === 'link' || role === 'tab' || role === 'menuitem' || active.hasAttribute('tabindex'));
+                if (custom && active.getAttribute('tabindex') !== '-1') {
+                    event.preventDefault();
+                    active.click();
+                }
+            } else if (!hasExpandedPopup() && window.history.length > 1) {
+                event.preventDefault();
+                window.history.back();
+            }
+        }
+
+        root.addEventListener('keydown', onKeyDown);
+        var unregister = function () {
+            root.removeEventListener('keydown', onKeyDown);
+            delete root.__tuvimaSpatialNav;
+        };
+        root.__tuvimaSpatialNav = unregister;
+        return unregister;
+    }
+
+    return { registerSpatialNav: registerSpatialNav, pickNext: pickNext, isEditable: isEditable };
+})();
+
+window.registerSpatialNav = window.tuvimaSpatialNav.registerSpatialNav;
+
+// -- Spatial navigation start
+window.registerSpatialNav(document);
+
 // -- Installable web app ----------------------------------------------------
 
 window.tuvimaPwa = (function () {

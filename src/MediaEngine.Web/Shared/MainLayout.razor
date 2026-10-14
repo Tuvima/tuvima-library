@@ -269,7 +269,7 @@
     // The Kids shell keeps only the lanes a child needs; "My List" stays in the top bar.
     private static readonly string[] _kidsNavPaths = ["/watch", "/listen", "/read"];
 
-    // A bottom sheet on phones; TV and automotive render the same dock, where the frame falls back to a centred dialog.
+    // A bottom sheet on phones; TV renders the same dock, where the frame falls back to a centred dialog.
     private static readonly AppDialogOptions LibrariesSheetOptions = new() { Sheet = AppDialogSheetMode.Phone, BackdropClick = true, CloseOnEscapeKey = true };
 
     private bool _librariesOpen;
@@ -299,14 +299,14 @@
     private bool CanViewSystemActivity => _session.HasNavigation("settings.administration");
     private IReadOnlyList<ShellDockEntry> IntentDockEntries => ShellDock.Resolve(DeviceContext.Settings.Shell.IntentDockItems, _isKids);
     private bool OnLibrarySurface => ShellDock.IsLibrarySurface(_currentPath);
-    // The five-tab dock is the phone's navigation (tablets keep the top navigation); TV and automotive keep their own dock.
+    // The five-tab dock is the phone's navigation (tablets keep the top navigation); TV keeps its own dock.
     private bool ShowIntentDock => DeviceContext.Settings.Shell.DockVisible
-        && (DeviceContext.IsPhone || DeviceContext.IsTelevision || DeviceContext.IsAutomotive);
+        && (DeviceContext.IsPhone || DeviceContext.IsTelevision);
     private string IntentDockClass => string.Join(' ', new[]
     {
         "layout-shell__intent-dock",
         $"layout-shell__intent-dock--{NormalizeCssToken(DeviceContext.Settings.Shell.IntentDockStyle)}",
-        DeviceContext.IsTelevision || DeviceContext.IsAutomotive ? "is-device-profile-dock" : null,
+        DeviceContext.IsTelevision ? "is-device-profile-dock" : null,
     }.Where(value => !string.IsNullOrWhiteSpace(value)));
 
     [Inject] private IJSRuntime JS { get; set; } = default!;
@@ -481,7 +481,7 @@
     [JSInvokable]
     public async Task HandleViewportDeviceClassChanged(string deviceClass)
     {
-        if (_disposed || DeviceContext.IsTelevision || DeviceContext.IsAutomotive)
+        if (_disposed || DeviceContext.IsTelevision)
             return;
 
         await DeviceContext.SwitchDeviceAsync(deviceClass, _activeProfileId?.ToString());
