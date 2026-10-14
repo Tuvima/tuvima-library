@@ -275,6 +275,8 @@
     --tl-shadow-lg: 0 24px 64px rgba(0, 0, 0, 0.36);
     --tl-shadow-focus: 0 0 0 3px rgba(136, 82, 252, 0.22);
     --tl-focus-ring: #A78BFA;
+    --tl-focus-ring-width: 3px;
+    --tl-focus-ring-offset: 2px;
     --tl-shadow-raised: 0 18px 44px rgba(0, 0, 0, 0.28);
     --tl-shadow-hover-quiet: 0 10px 24px rgba(0, 0, 0, 0.24);
     --tl-shadow-hover-standard: 0 18px 42px rgba(0, 0, 0, 0.32), 0 0 0 1px var(--tl-hover-glow-color);

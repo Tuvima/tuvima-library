@@ -15,7 +15,7 @@ public sealed record DeviceContextSnapshot(string DeviceClass, string FormFactor
 /// fully-resolved UI settings for this browser session.
 ///
 /// <para>
-/// Replaces the former AutomotiveModeService with a generalised device-context
+/// A generalised device-context
 /// model. Each Blazor Server circuit maintains its own device class and resolved
 /// settings so that a TV in television mode does not affect a phone in mobile mode.
 /// </para>
@@ -23,7 +23,7 @@ public sealed record DeviceContextSnapshot(string DeviceClass, string FormFactor
 /// <para>
 /// Initialised by <c>MainLayout.OnAfterRenderAsync</c> via JS interop — the browser
 /// calls <c>detectDeviceClass()</c> to select responsive web/mobile presentation.
-/// Native television and automotive identity is issued by the Engine during pairing
+/// Native television identity is issued by the Engine during pairing
 /// and is not derived from browser-controlled state.
 /// </para>
 ///
@@ -42,7 +42,7 @@ public sealed class DeviceContextService
         _apiClient = apiClient;
     }
 
-    /// <summary>The active device class for this circuit (web, mobile, television, automotive).</summary>
+    /// <summary>The active device class for this circuit (web, mobile, television).</summary>
     public string DeviceClass { get; private set; } = "web";
 
     /// <summary>The form factor for this circuit: phone, tablet, desktop or tv.</summary>
@@ -207,9 +207,6 @@ public sealed class DeviceContextService
 
     /// <summary>Shorthand: returns <c>true</c> if the named page is disabled.</summary>
     public bool IsPageDisabled(string page) => Settings.IsPageDisabled(page);
-
-    /// <summary>Whether the device is automotive.</summary>
-    public bool IsAutomotive => string.Equals(DeviceClass, "automotive", StringComparison.OrdinalIgnoreCase);
 
     /// <summary>Whether the device is television.</summary>
     public bool IsTelevision => string.Equals(DeviceClass, "television", StringComparison.OrdinalIgnoreCase);

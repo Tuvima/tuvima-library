@@ -76,28 +76,6 @@ body {
 
 /* Metadata/Labels: Medium (500), wide tracking, 70% opacity */
 
-/* -- Automotive Mode tile ---------------------------------------------- */
-.automotive-tile {
-    min-height: 80px !important;
-    cursor: pointer;
-}
-
-.automotive-tile .bento-collection-content {
-    padding: 1.75rem 2rem !important;
-    gap: 0.5rem;
-}
-
-.automotive-tile .tl-typography-h5,
-.automotive-tile .tl-typography-h6 {
-    font-size:   1.5rem !important;
-    font-weight: 700    !important;
-    line-height: 1.2    !important;
-}
-
-.automotive-tile .tl-typography-body2 {
-    font-size: 1.1rem !important;
-}
-
 /* -- Glassmorphic AppSegmentedControl overrides ------------------------------ */
 
 .tl-tab,
@@ -5547,6 +5525,54 @@ button.view-inbox-chip:disabled { cursor: default; opacity: .6; }
 .view-inbox-dialog__choices { display: flex; flex-wrap: wrap; gap: var(--tl-space-1); max-height: 12rem; margin: 0; padding: 0; overflow: auto; list-style: none; }
 .view-inbox-dialog__choice { min-height: var(--tl-tap-target-min); padding: 0 var(--tl-space-3); border: 1px solid var(--tl-border-subtle); border-radius: 999px; background: var(--tl-bg-surface); color: var(--tl-text-primary); font: inherit; cursor: pointer; }
 .view-inbox-dialog__choice:focus-visible { outline: 2px solid var(--tl-accent-primary); outline-offset: 2px; }
+
+/* Shared keyboard/remote focus ring: one visible ring on tiles, dock items, chips, buttons, table rows and hero controls.
+   --tl-focus-ring (tuvima.tokens.css) is the colour; width and offset (--tl-focus-ring-width, --tl-focus-ring-offset) are tokens beside it. The doubled :root raises specificity
+   above older component rules that remove the outline, so every focusable control shows the same ring. Text fields keep
+   their own field focus styling and are not listed. */
+:root:root :is(a[href], button, summary, [role="button"], [role="tab"], [role="link"], [role="menuitem"], tr[tabindex], [tabindex]:not([tabindex="-1"]), .tl-chip, .same-file-chip--action, .media-tile-link, .media-tile-media, .layout-shell__intent-dock-link):focus-visible:not(:disabled) {
+    outline: var(--tl-focus-ring-width) solid var(--tl-focus-ring);
+    outline-offset: var(--tl-focus-ring-offset);
+}
+
+/* tv form factor: 10-foot presentation for remote-driven televisions. Larger root type, 56px dock targets, 14px dock
+   labels, a wider shelf gutter and a readable hero line length. Phone and desktop layouts are untouched. */
+html[data-form-factor="tv"] {
+    font-size: 18px;
+    --media-shelf-gutter: 48px;
+    --tl-control-height-sm: 56px;
+    --tl-control-height-md: 56px;
+}
+
+html[data-form-factor="tv"] .layout-shell__intent-dock-link {
+    min-width: 56px;
+    min-height: 56px;
+}
+
+html[data-form-factor="tv"] .layout-shell__intent-dock-link span {
+    font-size: 14px;
+}
+
+/* Every control a remote can land on is at least 56px square. min-* wins over the fixed sizes components set. */
+html[data-form-factor="tv"] :is(button, summary, select, [role="button"], [role="tab"], a[href]:not(.skip-to-content), input:not([type="hidden"], [type="range"], [type="checkbox"], [type="radio"])) {
+    min-width: 56px;
+    min-height: 56px;
+}
+
+html[data-form-factor="tv"] :is(a.media-tile-shelf-link, a.recent-view-all) {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+html[data-form-factor="tv"] .media-tile-caption__title {
+    font-size: 0.9rem;
+}
+
+html[data-form-factor="tv"] .tl-detail-hero__subtitle,
+html[data-form-factor="tv"] .tl-detail-hero__synopsis {
+    max-width: 60ch;
+}
 
 /* Details page, phone pass. Everything here is scoped to the phone form factor; tablet and desktop keep the
    existing hero, tab and list rules. Phones never carry an editor entry point, and nothing relies on hover. */

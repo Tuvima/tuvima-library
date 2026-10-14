@@ -404,7 +404,7 @@ builder.Services.AddScoped<ProviderCatalogueService>();
 builder.Services.AddScoped<MetadataSettingsStateService>();
 
 // ── Device Context (scoped = per-tab; a TV in television mode won't affect a mobile session) ──
-// Generalised device-context model supporting web, mobile, television, and automotive classes.
+// Generalised device-context model supporting web, mobile, and television classes.
 builder.Services.AddScoped<DeviceContextService>();
 
 // ── Build ─────────────────────────────────────────────────────────────────────

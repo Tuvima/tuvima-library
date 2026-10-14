@@ -233,7 +233,7 @@ public sealed class UIServerSettingsPageSettingsDto
 
     /// <summary>
     /// Sidebar layout for the unified Settings page.
-    /// Values: "persistent" (web), "drawer" (mobile), "focus-nav" (television), "single" (automotive).
+    /// Values: "persistent" (web), "drawer" (mobile), "focus-nav" (television).
     /// </summary>
     [JsonPropertyName("sidebar_layout")]
     public string SidebarLayout { get; set; } = "persistent";

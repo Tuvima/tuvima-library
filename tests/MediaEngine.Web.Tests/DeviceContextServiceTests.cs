@@ -51,11 +51,11 @@ public sealed class DeviceContextServiceTests
     }
 
     [Fact]
-    public async Task ResponsiveServiceDoesNotAcceptAutomotiveFromBrowserInput()
+    public async Task ResponsiveServiceDoesNotAcceptUnknownNativeClassFromBrowserInput()
     {
         var service = new DeviceContextService(EngineApiClientStub.CreateDefault());
 
-        await service.InitialiseAsync("automotive");
+        await service.InitialiseAsync("unknown-native-class");
 
         Assert.Equal("web", service.DeviceClass);
         Assert.Equal("web", service.Settings.DeviceClass);
