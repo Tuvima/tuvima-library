@@ -6,3 +6,8 @@
 .offline-downloads-table {
     min-width: 760px;
 }
+
+/* Phones stack each job as a card (AppTable CardsOn), so the desktop table width does not apply there. */
+:root[data-form-factor="phone"] .offline-downloads-table {
+    min-width: 0;
+}

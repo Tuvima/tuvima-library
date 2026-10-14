@@ -24,27 +24,27 @@
         else
         {
             <div class="offline-downloads-table-wrap">
-                <AppTable Class="offline-downloads-table">
+                <AppTable Class="offline-downloads-table" CardsOn="AppTableCardsMode.Phone">
                     <thead>
                         <tr>
-                            <th>Asset</th>
-                            <th>Profile</th>
-                            <th>Status</th>
+                            <th data-card-role="title">Asset</th>
+                            <th data-card-role="subtitle">Profile</th>
+                            <th data-card-role="value">Status</th>
                             <th>Progress</th>
                             <th>Scheduled</th>
-                            <th></th>
+                            <th data-card-role="actions"><span class="sr-only">Actions</span></th>
                         </tr>
                     </thead>
                     <tbody>
                         @foreach (var job in _jobs)
                         {
                             <tr>
-                                <td>@job.AssetId</td>
-                                <td>@job.ProfileKey</td>
-                                <td><AppChip Text="@job.Status" Tone="@StatusTone(job.Status)" /></td>
-                                <td>@job.ProgressPct.ToString("0.#")%</td>
-                                <td>@(job.ScheduledFor?.LocalDateTime.ToString("g") ?? "Immediate")</td>
-                                <td>
+                                <td data-card-role="title">@job.AssetId</td>
+                                <td data-card-role="subtitle">@job.ProfileKey</td>
+                                <td data-card-role="value"><AppChip Text="@job.Status" Tone="@StatusTone(job.Status)" /></td>
+                                <td data-label="Progress">@job.ProgressPct.ToString("0.#")%</td>
+                                <td data-label="Scheduled">@(job.ScheduledFor?.LocalDateTime.ToString("g") ?? "Immediate")</td>
+                                <td data-card-role="actions">
                                     <AppButton Label="Cancel"
                                                ButtonStyle="AppButtonStyle.Text"
                                                Tone="AppUiTone.Warning"
