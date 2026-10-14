@@ -8703,11 +8703,12 @@
   NeedsReview: System.Int32 | json=needs_review | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   NameCollisions: System.Int32 | json=name_collisions | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Skipped: System.Int32 | json=skipped | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  SkippedLinks: System.Int32 | json=skipped_links | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   SkipReasons: System.Collections.Generic.List<MediaEngine.Contracts.Settings.FolderConversionSkipDto> | json=skip_reasons | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Samples: System.Collections.Generic.List<MediaEngine.Contracts.Settings.FolderConversionSampleDto> | json=samples | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   EstimatedSeconds: System.Int32 | json=estimated_seconds | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   DuplicatePolicy: System.String | json=duplicate_policy | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  sample={"source_id":"sample","total_files":7,"video_files":7,"examined":7,"complete":true,"to_rename":7,"already_correct":7,"duplicates_to_remove":7,"needs_review":7,"name_collisions":7,"skipped":7,"skip_reasons":[],"samples":[],"estimated_seconds":7,"duplicate_policy":"sample"}
+  sample={"source_id":"sample","total_files":7,"video_files":7,"examined":7,"complete":true,"to_rename":7,"already_correct":7,"duplicates_to_remove":7,"needs_review":7,"name_collisions":7,"skipped":7,"skipped_links":7,"skip_reasons":[],"samples":[],"estimated_seconds":7,"duplicate_policy":"sample"}
 
 [contracts] MediaEngine.Contracts.Settings.FolderConversionSampleDto
   kind=class | converter=default | number-handling=default | unmapped=default

@@ -16,7 +16,21 @@ public static class FolderMediaEnumerator
     /// dot (Tuvima's own working folders, hidden folders) are skipped.
     /// </summary>
     /// <param name="stopAfter">Stop once this many files are found (for a quick count of a very large folder).</param>
+    /// <param name="skipLinks">Leave out shortcuts (links and junctions): the walk never follows one, so it cannot loop or leave the folder.</param>
     public static List<string> Enumerate(
+        string root,
+        bool includeSubdirectories,
+        IReadOnlySet<string> mediaExtensions,
+        int stopAfter = int.MaxValue,
+        CancellationToken ct = default,
+        bool skipLinks = false) =>
+        EnumerateCountingLinks(root, includeSubdirectories, mediaExtensions, stopAfter, ct, skipLinks).Files;
+
+    /// <summary>
+    /// The same walk as <see cref="Enumerate"/>, also reporting how many shortcuts it passed over (media files that are
+    /// links, and folders that are links), so a preview can say that some were left alone.
+    /// </summary>
+    public static (List<string> Files, int SkippedLinks) EnumerateCountingLinks(
         string root,
         bool includeSubdirectories,
         IReadOnlySet<string> mediaExtensions,
@@ -28,9 +42,10 @@ public static class FolderMediaEnumerator
         ArgumentNullException.ThrowIfNull(mediaExtensions);
 
         var found = new List<string>();
+        var skippedLinks = 0;
         if (!Directory.Exists(root))
         {
-            return found;
+            return (found, skippedLinks);
         }
 
         var pending = new Stack<string>();
@@ -43,13 +58,21 @@ public static class FolderMediaEnumerator
             {
                 foreach (var file in Directory.EnumerateFiles(folder))
                 {
-                    if (mediaExtensions.Contains(Path.GetExtension(file)) && !(skipLinks && IsLink(file)))
+                    if (!mediaExtensions.Contains(Path.GetExtension(file)))
                     {
-                        found.Add(file);
-                        if (found.Count >= stopAfter)
-                        {
-                            break;
-                        }
+                        continue;
+                    }
+
+                    if (skipLinks && IsLink(file))
+                    {
+                        skippedLinks++;
+                        continue;
+                    }
+
+                    found.Add(file);
+                    if (found.Count >= stopAfter)
+                    {
+                        break;
                     }
                 }
 
@@ -57,10 +80,18 @@ public static class FolderMediaEnumerator
                 {
                     foreach (var child in Directory.EnumerateDirectories(folder))
                     {
-                        if (!Path.GetFileName(child).StartsWith('.') && !(skipLinks && IsLink(child)))
+                        if (Path.GetFileName(child).StartsWith('.'))
                         {
-                            pending.Push(child);
+                            continue;
                         }
+
+                        if (skipLinks && IsLink(child))
+                        {
+                            skippedLinks++;
+                            continue;
+                        }
+
+                        pending.Push(child);
                     }
                 }
             }
@@ -72,7 +103,7 @@ public static class FolderMediaEnumerator
         }
 
         found.Sort(StringComparer.OrdinalIgnoreCase);
-        return found;
+        return (found, skippedLinks);
     }
 
     /// <summary>True for a shortcut: a symbolic link or a Windows junction. The merge never follows these, so it can never reach a file through a second name.</summary>
@@ -80,7 +111,15 @@ public static class FolderMediaEnumerator
     {
         try
         {
-            return File.GetAttributes(path).HasFlag(FileAttributes.ReparsePoint);
+            if (!File.GetAttributes(path).HasFlag(FileAttributes.ReparsePoint))
+            {
+                return false;
+            }
+
+            // Cloud placeholders (OneDrive, Dropbox) and deduplicated files are reparse points too, but they are ordinary files
+            // that live where they appear; only a symbolic link or junction has a target.
+            FileSystemInfo info = Directory.Exists(path) ? new DirectoryInfo(path) : new FileInfo(path);
+            return info.LinkTarget is not null;
         }
         catch (Exception ex) when (ex is FileNotFoundException or DirectoryNotFoundException)
         {
@@ -96,8 +135,12 @@ public static class FolderMediaEnumerator
         }
     }
 
-    /// <summary>True when the file, or any folder between it and <paramref name="root"/>, is a shortcut.</summary>
-    public static bool IsReachedThroughLink(string path, string root)
+    /// <summary>
+    /// True when the file, or any folder between it and <paramref name="root"/>, is a shortcut. With
+    /// <paramref name="includeRoot"/> false the root itself is not tested: a folder that is configured through a shortcut is
+    /// still the folder the person chose, and only shortcuts inside it are a surprise.
+    /// </summary>
+    public static bool IsReachedThroughLink(string path, string root, bool includeRoot = true)
     {
         var current = path;
         while (!string.IsNullOrEmpty(current))
@@ -111,7 +154,7 @@ public static class FolderMediaEnumerator
             if (string.IsNullOrEmpty(parent)
                 || string.Equals(Path.TrimEndingDirectorySeparator(parent), Path.TrimEndingDirectorySeparator(root), StringComparison.OrdinalIgnoreCase))
             {
-                return IsLink(root);
+                return includeRoot && IsLink(root);
             }
 
             current = parent;

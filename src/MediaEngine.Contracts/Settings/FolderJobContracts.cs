@@ -77,6 +77,10 @@ public sealed class FolderConversionPreviewResponse
     [JsonPropertyName("skipped")]
     public int Skipped { get; set; }
 
+    /// <summary>Shortcuts (links and junctions) inside the folder that the job leaves alone.</summary>
+    [JsonPropertyName("skipped_links")]
+    public int SkippedLinks { get; set; }
+
     [JsonPropertyName("skip_reasons")]
     public List<FolderConversionSkipDto> SkipReasons { get; set; } = [];
 

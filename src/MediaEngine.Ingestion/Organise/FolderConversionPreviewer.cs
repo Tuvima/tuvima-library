@@ -35,6 +35,9 @@ public sealed class FolderConversionPreview
 
     public int Skipped { get; init; }
 
+    /// <summary>Shortcuts (links and junctions) inside the folder that the job never follows or touches.</summary>
+    public int SkippedLinks { get; init; }
+
     public IReadOnlyList<FolderConversionSkipGroup> SkipReasons { get; init; } = [];
 
     public IReadOnlyList<FolderConversionSample> Samples { get; init; } = [];
@@ -138,7 +141,7 @@ public sealed class FolderConversionPreviewer
             return Task.FromResult<(int, int)?>(null);
         }
 
-        var files = FolderMediaEnumerator.Enumerate(context.SourceRoot, context.Source.IncludeSubdirectories, MediaExtensions, ct: ct);
+        var files = FolderMediaEnumerator.Enumerate(context.SourceRoot, context.Source.IncludeSubdirectories, MediaExtensions, ct: ct, skipLinks: true);
         var video = files.Count(path => IsVideo(path));
         return Task.FromResult<(int, int)?>((files.Count, video));
     }
@@ -155,7 +158,8 @@ public sealed class FolderConversionPreviewer
             return null;
         }
 
-        var disk = FolderMediaEnumerator.Enumerate(context.SourceRoot, context.Source.IncludeSubdirectories, MediaExtensions, ct: ct);
+        var (disk, skippedLinks) = FolderMediaEnumerator.EnumerateCountingLinks(
+            context.SourceRoot, context.Source.IncludeSubdirectories, MediaExtensions, ct: ct, skipLinks: true);
         var catalogued = new Dictionary<string, MediaAssetFileRef>(PathSafety.Comparer);
         foreach (var file in await _assets.ListFilesUnderAsync(context.SourceRoot, ct).ConfigureAwait(false))
         {
@@ -237,6 +241,7 @@ public sealed class FolderConversionPreviewer
             NeedsReview = needsReview,
             NameCollisions = collisions,
             Skipped = skipped,
+            SkippedLinks = skippedLinks,
             SkipReasons = skips.OrderByDescending(pair => pair.Value)
                 .Select(pair => new FolderConversionSkipGroup(pair.Key, pair.Value)).ToList(),
             Samples = samples,
