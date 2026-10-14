@@ -1080,7 +1080,7 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
         // The last 840px block of the panel stylesheet is the read-only one.
         var phone = panel[panel.LastIndexOf("@media (max-width: 840px)", StringComparison.Ordinal)..];
         Assert.Contains(".library-folders__phone-note", phone);
-        foreach (var hidden in new[] { ".library-folders__detail-actions", ".library-folders__row-actions", ".library-folders__choose", ".library-folders__empty-action" })
+        foreach (var hidden in new[] { ".library-folders__detail-actions", ".library-folders__row-actions", ".library-folders__choose", ".library-folders__empty-action", ".library-folders__hint--merge", ".library-folders__advanced" })
         {
             Assert.Contains(hidden, phone);
         }

@@ -145,6 +145,32 @@ public sealed partial class IngestionEngine
         }
     }
 
+    /// <summary>
+    /// The copy that stays must still be there, must be a different file from the one being removed, and must still hold the
+    /// same bytes right now. It is read fresh: the stored fingerprint only says what the file held when it was catalogued, and a
+    /// file edited or replaced since must never make its twin look safe to delete.
+    /// </summary>
+    private async Task<bool> KeptCopyStillMatchesAsync(
+        string duplicatePath, string keptPath, string expectedHash, CancellationToken ct)
+    {
+        try
+        {
+            if (!File.Exists(keptPath) || MediaEngine.Ingestion.Organise.FileIdentity.AreSameFile(duplicatePath, keptPath))
+            {
+                return false;
+            }
+
+            var fresh = await _hasher.ComputeAsync(keptPath, ct).ConfigureAwait(false);
+            return string.Equals(fresh.Hex, expectedHash, StringComparison.OrdinalIgnoreCase);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            // A copy that cannot be read is not treated as identical, so nothing is removed on a guess.
+            _logger.LogWarning(ex, "Could not confirm the copy at {Kept} before removing {Duplicate}", keptPath, duplicatePath);
+            return false;
+        }
+    }
+
     // =========================================================================
     // Dry-run simulation
     // =========================================================================

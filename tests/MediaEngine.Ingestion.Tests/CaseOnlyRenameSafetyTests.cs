@@ -134,6 +134,33 @@ public sealed class CaseOnlyRenameSafetyTests : IDisposable
     }
 
     [Fact]
+    public void A_sidecar_whose_letter_case_change_cannot_be_proven_to_be_one_file_is_left_alone_like_the_media_file()
+    {
+        var mover = new ScriptedMover { IdentityUnproven = true };
+        var sidecars = new SidecarMover(mover, NullLogger<SidecarMover>.Instance);
+        var oldMedia = Path.Combine(_scratch, "dune.mkv");
+        var newMedia = Path.Combine(_scratch, "Dune.mkv");
+        File.WriteAllText(oldMedia, "media");
+        var sidecar = Path.Combine(_scratch, "dune.srt");
+        File.WriteAllText(sidecar, "subtitles");
+        var target = Path.Combine(_scratch, "Dune.srt");
+        if (!File.Exists(target))
+        {
+            // A drive that keeps letter case apart holds the new spelling as a second file; one that ignores it already shows it.
+            File.WriteAllText(target, "other subtitles");
+        }
+
+        var results = sidecars.Move(oldMedia, newMedia, (_, _) => true, mayDelete: _ => true);
+
+        var skipped = Assert.Single(results);
+        Assert.Equal(FolderOrganiseOutcomes.Skipped, skipped.Outcome);
+        Assert.Equal(CaseSafeRename.UnprovenReason, skipped.Detail);
+        Assert.Empty(mover.Moves);
+        Assert.True(File.Exists(sidecar));
+        Assert.True(File.Exists(target));
+    }
+
+    [Fact]
     public void A_sidecar_rename_stopped_between_its_two_steps_is_restored_and_finished_on_the_next_move()
     {
         var mover = new ScriptedMover { SameFile = (first, second) => string.Equals(first, second, StringComparison.OrdinalIgnoreCase) };

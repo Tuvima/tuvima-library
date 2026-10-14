@@ -131,6 +131,40 @@ public sealed class ImportFolderPipelineTests : IDisposable
         Assert.Single(h.FilesUnder(h.MoviesDir));
     }
 
+    // ── The copy that stays is read again before anything is removed ────
+
+    [Fact]
+    public async Task Keep_one_copy_keeps_the_import_copy_when_the_held_copy_no_longer_matches_its_stored_fingerprint()
+    {
+        var h = NewHarness(LibraryDuplicatePolicies.KeepOne);
+        var (held, _) = await SeedHeldCopyAsync(h, "same bytes");
+        File.WriteAllText(held, "edited since it was catalogued");
+        var copy = h.WriteImportFile(Path.Combine("Movies", "Dune Copy.mkv"), "same bytes");
+
+        await RunEngineAsync(h, new TestProcessorLibraryItem(), () => HasIngestionStatusAsync(h, "duplicate"));
+        await Task.Delay(500);
+
+        Assert.True(File.Exists(copy), "a stored fingerprint alone never authorizes a delete");
+        Assert.Equal("edited since it was catalogued", File.ReadAllText(held));
+    }
+
+    [Fact]
+    public async Task Keep_one_copy_keeps_a_duplicate_in_a_managed_folder_when_the_held_copy_no_longer_matches_its_stored_fingerprint()
+    {
+        var h = NewHarness(LibraryDuplicatePolicies.KeepOne);
+        var (held, _) = await SeedHeldCopyAsync(h, "same bytes");
+        File.WriteAllText(held, "edited since it was catalogued");
+        var spare = Path.Combine(h.ElsewhereDir, "Dune.2021.mkv");
+        File.WriteAllText(spare, "same bytes");
+        h.Options.WatchDirectories = [.. h.Options.WatchDirectories, h.ElsewhereDir];
+
+        await RunEngineAsync(h, new TestProcessorLibraryItem(), () => HasIngestionStatusAsync(h, "duplicate"));
+        await Task.Delay(500);
+
+        Assert.True(File.Exists(spare), "the copy that should stay could not be confirmed, so nothing was removed");
+        Assert.Equal("edited since it was catalogued", File.ReadAllText(held));
+    }
+
     // ── Originals left behind by a cancelled merge ────────────────────────
 
     [Fact]

@@ -333,6 +333,16 @@ public sealed partial class IngestionEngine
                                     Path = candidate.Path,
                                 }).Allowed == true;
 
+                            // The copy that stays is read again right now; the stored fingerprint alone never authorizes a delete.
+                            if (deleteAllowed
+                                && !await KeptCopyStillMatchesAsync(candidate.Path, existing.FilePathRoot, hash.Hex, ct).ConfigureAwait(false))
+                            {
+                                deleteAllowed = false;
+                                _logger.LogWarning(
+                                    "Exact duplicate {Path} was kept: the copy at {Kept} could not be confirmed as identical",
+                                    candidate.Path, existing.FilePathRoot);
+                            }
+
                             if (deleteAllowed && File.Exists(candidate.Path))
                             {
                                 File.Delete(candidate.Path);
@@ -341,7 +351,7 @@ public sealed partial class IngestionEngine
                             if (!deleteAllowed)
                             {
                                 _logger.LogInformation(
-                                    "Exact duplicate was indexed without deleting {Path}; its source policy does not authorize deletion",
+                                    "Exact duplicate was indexed without deleting {Path}; its source policy or the copy that stays does not authorize deletion",
                                     candidate.Path);
                             }
 

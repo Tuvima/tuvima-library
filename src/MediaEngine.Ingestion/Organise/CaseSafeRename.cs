@@ -20,6 +20,13 @@ public static class CaseSafeRename
     public static string TemporaryName(string from) =>
         Path.Combine(Path.GetDirectoryName(from)!, $".{Path.GetFileName(from)}{TemporarySuffix}");
 
+    /// <summary>
+    /// Why a name that differs only in letter case is left as it is when nothing proves the two names are one file. Recorded for
+    /// the media file and for each of its sidecars.
+    /// </summary>
+    public const string UnprovenReason =
+        "Tuvima could not confirm the name differs only in letter case (the file may be in use, or this drive does not support the check), so the name was left as it is.";
+
     /// <summary>True when the two paths are the same except for letter case.</summary>
     public static bool IsCaseOnlyChange(string from, string to) =>
         !string.Equals(from, to, StringComparison.Ordinal)

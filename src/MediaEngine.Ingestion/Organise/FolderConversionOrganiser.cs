@@ -141,9 +141,7 @@ public sealed class FolderConversionOrganiser
                     _logger.LogWarning(
                         "Left {Current} alone: it differs from {Target} only in letter case and Tuvima could not prove they are the same file (it may be in use, or the drive does not support the check)",
                         current, target);
-                    return new OrganiseDecision(
-                        OrganiseDecisionKind.Skip,
-                        Reason: "Tuvima could not confirm the name differs only in letter case (the file may be in use, or this drive does not support the check), so the name was left as it is.");
+                    return new OrganiseDecision(OrganiseDecisionKind.Skip, Reason: CaseSafeRename.UnprovenReason);
             }
         }
 
@@ -460,7 +458,7 @@ public sealed class FolderConversionOrganiser
             }
         }
 
-        if (File.Exists(entry.OldPath) || string.IsNullOrEmpty(entry.NewPath) || !File.Exists(entry.NewPath))
+        if (!OldNameIsGone(entry.OldPath, entry.NewPath) || string.IsNullOrEmpty(entry.NewPath) || !File.Exists(entry.NewPath))
         {
             return;
         }
@@ -479,6 +477,40 @@ public sealed class FolderConversionOrganiser
     }
 
     /// <summary>
+    /// True when nothing is left under the old name. On a drive that ignores letter case (Windows, macOS, SMB) a file whose
+    /// letter-case rename already finished still "exists" under the old spelling, so the old name counts as gone when it is
+    /// the same file, proven so, and the file really carries the new spelling. A file still carrying the old spelling has not
+    /// moved yet.
+    /// </summary>
+    private bool OldNameIsGone(string oldPath, string? newPath)
+    {
+        if (!File.Exists(oldPath))
+        {
+            return true;
+        }
+
+        if (string.IsNullOrEmpty(newPath)
+            || !CaseSafeRename.IsCaseOnlyChange(oldPath, newPath)
+            || _mover.CompareFiles(oldPath, newPath) != FileIdentityResult.Same)
+        {
+            return false;
+        }
+
+        try
+        {
+            var newName = Path.GetFileName(newPath);
+            return Directory.EnumerateFiles(Path.GetDirectoryName(newPath)!)
+                .Any(file => string.Equals(Path.GetFileName(file), newName, StringComparison.Ordinal));
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            // A folder that cannot be listed proves nothing, so the file is treated as not moved yet.
+            _ = ex;
+            return false;
+        }
+    }
+
+    /// <summary>
     /// Finishes what a stopped job left half done: for each move that was started but never recorded as finished, completes
     /// it when the file is already at its new name, or retires the intent when nothing moved.
     /// </summary>
@@ -487,8 +519,8 @@ public sealed class FolderConversionOrganiser
         ArgumentNullException.ThrowIfNull(entry);
         ArgumentNullException.ThrowIfNull(context);
 
-        var oldExists = File.Exists(entry.OldPath);
         var newExists = !string.IsNullOrEmpty(entry.NewPath) && File.Exists(entry.NewPath);
+        var oldExists = !OldNameIsGone(entry.OldPath, entry.NewPath);
 
         // A letter-case rename stopped between its two steps leaves the file under its temporary name: finish the second step.
         if (!oldExists && !newExists && !string.IsNullOrEmpty(entry.NewPath)

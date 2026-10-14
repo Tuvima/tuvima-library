@@ -229,7 +229,7 @@ public sealed class FileOrganizer : IFileOrganizer
     }
 
     /// <inheritdoc/>
-    public async Task<bool> ExecuteMoveAsync(
+    public async Task<string?> ExecuteMoveAsync(
         string sourcePath,
         string destinationPath,
         CancellationToken ct = default)
@@ -240,7 +240,7 @@ public sealed class FileOrganizer : IFileOrganizer
         if (!File.Exists(sourcePath))
         {
             _logger.LogWarning("Move skipped — source file not found: {Source}", sourcePath);
-            return false;
+            return null;
         }
 
         // Ensure the destination directory exists.
@@ -259,7 +259,7 @@ public sealed class FileOrganizer : IFileOrganizer
             _logger.LogDebug(
                 "Move skipped — source already matches destination: {Destination}",
                 destinationPath);
-            return true;
+            return sourcePath;
         }
 
         // Resolve collision: if destination exists with different content, find a free name.
@@ -280,7 +280,7 @@ public sealed class FileOrganizer : IFileOrganizer
                         ct).ConfigureAwait(false);
                 }
                 _logger.LogInformation("Moved {Source} → {Destination}", sourcePath, finalDest);
-                return true;
+                return finalDest;
             }
             catch (IOException ex) when (attempt < MaxMoveAttempts)
             {
@@ -295,11 +295,11 @@ public sealed class FileOrganizer : IFileOrganizer
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Failed to move {Source} → {Destination}.", sourcePath, finalDest);
-                return false;
+                return null;
             }
         }
 
-        return false;
+        return null;
     }
 
     // -------------------------------------------------------------------------

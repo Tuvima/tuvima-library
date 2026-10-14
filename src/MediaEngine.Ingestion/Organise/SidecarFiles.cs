@@ -158,7 +158,7 @@ public static class SidecarFiles
         foreach (var path in siblings.OrderBy(path => path, StringComparer.OrdinalIgnoreCase))
         {
             var name = System.IO.Path.GetFileName(path);
-            if (includeFolderLevel && FolderLevelNames.Contains(name))
+            if (includeFolderLevel && (FolderLevelNames.Contains(name) || IsFolderLevelArtworkVariant(name)))
             {
                 found.Add(new Sidecar(path, name, KeepName: true));
                 continue;
@@ -187,6 +187,11 @@ public static class SidecarFiles
 
         return found;
     }
+
+    /// <summary>A numbered or identified folder-level artwork variant such as <c>poster-0f3a...jpg</c> or <c>fanart-1.png</c>.</summary>
+    private static bool IsFolderLevelArtworkVariant(string name) =>
+        ArtworkExtensions.Contains(System.IO.Path.GetExtension(name))
+        && ArtKinds.Any(kind => name.StartsWith(kind + "-", StringComparison.OrdinalIgnoreCase));
 
     /// <summary>Where a sidecar goes once its media file has moved: the new base name plus the same remainder.</summary>
     public static string DestinationFor(Sidecar sidecar, string newMediaPath)

@@ -76,8 +76,21 @@ public sealed class SidecarMover
             }
 
             // A name that differs only in letter case is this same file, so it is renamed, never treated as a copy to remove.
-            var sameFile = File.Exists(target) && _mover.IsSameFile(sidecar.Path, target);
-            if (File.Exists(target) && !(sameFile && CaseSafeRename.IsCaseOnlyChange(sidecar.Path, target)))
+            var targetExists = File.Exists(target);
+            var identity = targetExists ? _mover.CompareFiles(sidecar.Path, target) : FileIdentityResult.Different;
+            var caseOnly = CaseSafeRename.IsCaseOnlyChange(sidecar.Path, target);
+            if (targetExists && caseOnly && identity == FileIdentityResult.Unproven)
+            {
+                // Nothing proves it is one file, so it is left as it is, exactly like the media file.
+                _logger.LogWarning(
+                    "Left {Sidecar} alone: it differs from {Target} only in letter case and Tuvima could not prove they are the same file",
+                    sidecar.Path, target);
+                results.Add(new SidecarMoveResult(sidecar.Path, sidecar.Path, FolderOrganiseOutcomes.Skipped, CaseSafeRename.UnprovenReason));
+                continue;
+            }
+
+            var sameFile = identity != FileIdentityResult.Different;
+            if (targetExists && !(sameFile && caseOnly))
             {
                 results.Add(sameFile
                     ? new SidecarMoveResult(sidecar.Path, sidecar.Path, FolderOrganiseOutcomes.NotMoved, "That name already leads to this same file.")

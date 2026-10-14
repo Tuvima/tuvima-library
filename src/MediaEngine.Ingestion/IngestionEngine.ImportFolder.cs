@@ -131,6 +131,16 @@ public sealed partial class IngestionEngine
                     Path = candidate.Path,
                 }).Allowed == true;
 
+            // The copy already held must still be there and still match, read fresh, before the import copy is removed.
+            if (deleteAllowed
+                && !await KeptCopyStillMatchesAsync(candidate.Path, existing.FilePathRoot, contentHash, ct).ConfigureAwait(false))
+            {
+                deleteAllowed = false;
+                _logger.LogWarning(
+                    "Exact duplicate {Path} was kept: the copy at {Kept} could not be confirmed as identical",
+                    candidate.Path, existing.FilePathRoot);
+            }
+
             if (deleteAllowed)
             {
                 // A locked file is retried, and if it still can't be removed the operation stays open so the next pass tries again.
@@ -144,7 +154,7 @@ public sealed partial class IngestionEngine
             else
             {
                 _logger.LogInformation(
-                    "Exact duplicate was indexed without deleting {Path}; the import folder's policy does not authorize deletion",
+                    "Exact duplicate was indexed without deleting {Path}; the import folder's policy or the copy already held does not authorize deletion",
                     candidate.Path);
             }
 

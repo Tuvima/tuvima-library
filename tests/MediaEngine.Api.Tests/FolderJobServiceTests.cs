@@ -683,6 +683,26 @@ public sealed class FolderJobServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task A_conversion_that_cannot_be_queued_keeps_a_managed_read_only_folder_read_only()
+    {
+        // The real loader forces a managed folder to Writable on every save, so the settings are held as the service sees them
+        // (a hand-edited file can say managed and read-only) and what the service asks to save is read back unchanged.
+        var folder = _f.AddManagedFolder("Tuvima Movies");
+        var held = _f.Config.LoadLibraries();
+        held.Libraries[0].Sources.First(item => item.Id == folder.Id).AccessMode = LibrarySourceAccessModes.ReadOnly;
+        var configuration = HeldLibrariesLoader.Create(_f.Config, held);
+        var jobs = _f.CreateJobs(new FailingTracker(), configuration);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => jobs.StartConversionAsync(folder.Id, default));
+
+        var saved = configuration.LoadLibraries().Libraries[0].Sources.First(item => item.Id == folder.Id);
+        Assert.Equal(LibrarySourceManagementModes.ManagedByTuvima, saved.ManagementMode);
+        Assert.Equal(LibrarySourceAccessModes.ReadOnly, saved.AccessMode);
+        Assert.Equal(LibrarySourceConversionStates.None, saved.ConversionState);
+        Assert.Null(saved.ConversionOperationId);
+    }
+
+    [Fact]
     public async Task A_rollback_that_cannot_be_saved_is_logged_and_the_first_error_stays_the_one_shown()
     {
         var folder = _f.AddAsIsFolder("Plex Movies", fileCount: 1);
@@ -862,6 +882,45 @@ public sealed class FolderJobServiceTests : IDisposable
             if (targetMethod?.Name == nameof(IConfigurationLoader.SaveLibraries) && ++_saves >= _failFromSave)
             {
                 throw new IOException("The libraries file is locked.");
+            }
+
+            try
+            {
+                return targetMethod!.Invoke(_inner, args);
+            }
+            catch (TargetInvocationException ex) when (ex.InnerException is not null)
+            {
+                throw ex.InnerException;
+            }
+        }
+    }
+
+    /// <summary>Forwards everything to the real loader except the libraries, which are held as given and saved without normalizing.</summary>
+    public class HeldLibrariesLoader : DispatchProxy
+    {
+        private IConfigurationLoader _inner = null!;
+        private string _held = string.Empty;
+
+        public static IConfigurationLoader Create(IConfigurationLoader inner, LibrariesConfiguration held)
+        {
+            var proxy = Create<IConfigurationLoader, HeldLibrariesLoader>();
+            var loader = (HeldLibrariesLoader)(object)proxy;
+            loader._inner = inner;
+            loader._held = System.Text.Json.JsonSerializer.Serialize(held);
+            return proxy;
+        }
+
+        protected override object? Invoke(MethodInfo? targetMethod, object?[]? args)
+        {
+            if (targetMethod?.Name == nameof(IConfigurationLoader.LoadLibraries))
+            {
+                return System.Text.Json.JsonSerializer.Deserialize<LibrariesConfiguration>(_held);
+            }
+
+            if (targetMethod?.Name == nameof(IConfigurationLoader.SaveLibraries))
+            {
+                _held = System.Text.Json.JsonSerializer.Serialize((LibrariesConfiguration)args![0]!);
+                return null;
             }
 
             try
