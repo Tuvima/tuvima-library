@@ -73,6 +73,22 @@ public sealed class HydrationDataSafetyTests : IDisposable
     }
 
     [Fact]
+    public async Task A_companion_left_in_the_old_folder_is_recorded_in_history_so_the_user_can_clear_it()
+    {
+        var h = NewConversionHarness();
+        var source = h.Write(Path.Combine("downloads", "Dune.2021.mkv"), "dune");
+        h.Write(Path.Combine("downloads", "cover.jpg"), "same cover");
+        h.Write(Path.Combine("Movies", "Dune (2021)", "cover.jpg"), "same cover");
+        var id = await h.RegisterAsync(source, "Dune", "2021");
+
+        await h.Auto.TryAutoOrganizeAsync(id);
+
+        var recent = await h.Activity.GetRecentAsync(50);
+        var entry = Assert.Single(recent, e => e.EntityId == id && (e.Detail ?? string.Empty).StartsWith("Kept folder:", StringComparison.Ordinal));
+        Assert.Contains("cover.jpg", entry.Detail);
+    }
+
+    [Fact]
     public async Task A_folder_level_cover_stays_while_other_media_remain_in_the_old_folder()
     {
         var h = NewConversionHarness();
