@@ -30,7 +30,7 @@ The Universe Graph connects fictional characters, locations, organizations, and 
 
 The graph is populated automatically during hydration using Wikidata as the canonical data source. Approved plugins can add supplemental lore, but plugin data stays marked as supplemental and keeps source attribution instead of becoming canonical Wikidata data. It is stored in SQLite and loaded into an in-memory EntityGraph for graph queries and pathfinding.
 
-Current serving rule: graph APIs and UI must remain truthful. `GET /universes` returns narrative roots with real entity and relationship counts plus an enrichment status. Chronicle Explorer loads graph data lazily only when opened, renders a graph only when real nodes and edges exist, disables the explorer on mobile, and disables the timeline control on television devices. Empty, partial, and pending graph states are surfaced as data lifecycle states rather than replaced with fake entities or links.
+Current serving rule: graph APIs and UI must remain truthful. `GET /universes` returns narrative roots with real entity and relationship counts plus an enrichment status. Chronicle Explorer loads graph data lazily only when opened, renders a graph only when real nodes and edges exist, keeps the explorer usable on phones (shorter full-width graph, touch zoom and pan, a node list under it), and disables the timeline control on television devices. Empty, partial, and pending graph states are surfaced as data lifecycle states rather than replaced with fake entities or links.
 
 Supplemental serving rule: approved plugin lore appears only when a caller asks for the overlay with `include_supplemental_lore=true`. Plugin nodes and edges include `supplemental=true`, `provenance=plugin`, `source_plugin`, and `source_url` so UI and API clients can distinguish them from Wikidata facts.
 
@@ -177,7 +177,7 @@ Relationships carry `StartTime` and `EndTime` (nullable ISO 8601 strings) source
 
 Route: `/universe/{Qid}/explore`
 
-The Chronicle Explorer Dashboard page renders the full universe graph using Cytoscape.js (vendored at `wwwroot/lib/cytoscape/cytoscape.min.js`, MIT license). JS interop module at `wwwroot/js/cytoscape-interop.js` exposes: `initGraph`, `updateGraph`, `filterByTimelineYear`, `focusNode`, `setLayout`, `destroy`.
+The Chronicle Explorer Dashboard page renders the full universe graph using Cytoscape.js (vendored at `wwwroot/lib/cytoscape/cytoscape.min.js`, MIT license). JS interop module at `wwwroot/js/cytoscape-interop.js` exposes: `initGraph`, `updateGraph`, `filterByTimelineYear`, `focusNode`, `zoomIn`, `zoomOut`, `fit`, `resetView`, `setLayout`, `destroy`.
 
 Features:
 - Universe header with entity and edge count chips
@@ -187,9 +187,10 @@ Features:
 - Type filter toggle chips (Character / Location / Organization)
 - Layout selector (force-directed / concentric / grid)
 - Cytoscape.js graph panel (60%) with node-click detail drawer
-- Searchable entity list panel (40%)
+- Searchable entity list panel (40%): every node sorted by label with its type and relationship count, one real button per row that centres the node and opens the same detail drawer as a graph tap
+- Zoom in, Zoom out, Fit and Reset buttons above the graph (the pinch-free path for remotes and keyboards)
 
-Device constraints: Chronicle Explorer is disabled on mobile. The timeline slider is disabled on television.
+Device constraints: on phones the graph is full width with a height of at most 70% of the viewport and the controls wrap; pinch-zoom and drag-pan are Cytoscape's native touch gestures. The timeline slider is disabled on television.
 
 ## Supplemental Lore Approval
 

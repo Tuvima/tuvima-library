@@ -36,6 +36,68 @@
     border: 1px solid var(--tl-border-default);
 }
 
+.chronicle-explorer-zoom {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 8px;
+}
+
+/* Phones: the graph is a shorter, full-width canvas so the page keeps room to scroll past it, and the node list
+   below it is a normal-height block instead of a 600px scroller. Desktop and tablet sizes are untouched. */
+:root[data-form-factor="phone"] .chronicle-explorer-graph {
+    width: 100%;
+    height: min(70vh, 600px);
+    height: min(70dvh, 600px);
+}
+
+:root[data-form-factor="phone"] .chronicle-explorer-panel {
+    height: auto;
+    max-height: min(60vh, 480px);
+    max-height: min(60dvh, 480px);
+}
+
+/* The accessible node list: label with type and relationship count under it, one real button per row. */
+.chronicle-node-list__row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-width: 0;
+}
+
+.chronicle-node-list__text {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.chronicle-node-list__label {
+    overflow-wrap: anywhere;
+}
+
+.chronicle-node-list__meta {
+    font-size: 0.78rem;
+    color: var(--tl-text-secondary);
+}
+
+@media (max-width: 600px) {
+    .chronicle-explorer-controls {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .chronicle-explorer-timeline {
+        min-width: 0;
+        max-width: none;
+        width: 100%;
+    }
+
+    .chronicle-explorer-layout {
+        max-width: none;
+        width: 100%;
+    }
+}
+
 .chronicle-explorer-panel {
     height: 600px;
     overflow-y: auto;
