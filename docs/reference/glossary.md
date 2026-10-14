@@ -67,6 +67,10 @@ The Blazor Server web UI (`MediaEngine.Web`) used to browse, search, read, play,
 
 The page for a work, collection, book, movie, TV show, episode, person, or other supported entity. Detail pages are the normal place to inspect an item and launch inline corrections.
 
+### Devices
+
+The **Settings → Administration → Devices** page. It lists the phones and TVs paired to this server (revoke one, or choose whose photos a phone backs up), shows the *Allow apps to connect* switch and address to type in an app (server administrators only), and lists the signed-in sessions of the people the viewer looks after, with **Sign out** for each. A household administrator sees only their own household's devices and sessions.
+
 ### Document type
 
 What kind of document it is, such as an invoice, letter or contract. Document types are one list for the whole server, shown to each person on the same terms as correspondents.
@@ -84,6 +88,10 @@ The backend application (`MediaEngine.Api`) that runs ingestion, enrichment, sto
 ### Enrichment
 
 Follow-up metadata work after basic identity is known, such as artwork, people, relationships, descriptions, summaries, and universe graph data.
+
+### Extra protection
+
+The **Extra protection** row under **Settings → Security**, which opens one sheet for optional sign-in protection: passkeys, two-step codes, linked sign-ins (when an external provider is set up) and recovery codes. The row appears once the account has a password and shows *Off*, *Passkey added*, *Two-step codes on*, or both.
 
 ## F
 
@@ -300,7 +308,7 @@ Separate household-owned View storage containing accepted contributions. Each ho
 
 ### Household administrator
 
-The person who looks after one household: adds and removes people, gives people their own sign-ins, sets PINs, and hands out libraries and features the household already has. They work from **Settings → Profiles** and never reach another household or the server's settings, which stay with the **server administrator**.
+The person who looks after one household: adds and removes people, gives people their own sign-ins, sets PINs, and hands out libraries and features the household already has. They work from **Settings → Profiles**, and from **Settings → Administration → Devices** for their own household's devices and sessions. They never reach another household or the server's settings, which stay with the **server administrator**.
 
 ### Account
 

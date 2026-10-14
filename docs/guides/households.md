@@ -50,7 +50,7 @@ Changing your own email or password is not done here: your own **Sign-in** row o
 
 ## Change what someone can open
 
-For a person with their own sign-in, the **Household access** group on their profile page lets an administrator manage their access. **Libraries and lanes** opens a sheet where you choose which of Read, Watch, Listen and View they get and which Libraries they can open; you can only give what your household has. **Two-step codes** turns their codes off if they lost their phone, after asking you to confirm. Members never see this group, and a person who signs in from Who's watching has no access of their own to manage.
+For a person with their own sign-in, the **Household access** group on their profile page lets an administrator manage their access: a household administrator for the people in their own household, and a server administrator for anyone. **Libraries and lanes** opens a sheet where you choose which of Read, Watch, Listen and View they get and which Libraries they can open; you can only give what your household has. **Two-step codes** turns their codes off if they lost their phone, after asking you to confirm. Members never see this group, and a person who signs in from Who's watching has no access of their own to manage.
 
 ## Someone from outside your household
 
@@ -79,7 +79,7 @@ Your private photo space stays private until you choose to submit something.
 
 ## What a household administrator can and cannot do
 
-A household administrator can add and remove people in their own household, give them their own sign-ins, change their sign-in email, and set their PINs and passwords, all from each person's page under **Settings → Profiles**. They cannot give an own sign-in to a person that belongs to an administrator. Resetting two-step codes, sharing libraries and lanes, and looking after the household's main sign-ins are done by a server administrator under **Settings → Users & Access**.
+A household administrator can add and remove people in their own household, give them their own sign-ins, change their sign-in email, and set their PINs and passwords, all from each person's page under **Settings → Profiles**. They cannot give an own sign-in to a person that belongs to an administrator. Libraries and lanes and two-step codes are changed under **Household access** on the person's page, which a household administrator can use for their own household. The Households list and the rest of **Settings → Users & Access** stay with a server administrator.
 
 They cannot change another household, act on a server administrator or another household administrator, or turn on administrator access for anyone. Administrator access is always set by a server administrator.
 

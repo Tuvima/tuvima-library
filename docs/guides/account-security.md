@@ -41,8 +41,8 @@ Every sign-in that works away from home needs an email address. The administrato
 
 A person is looked after from their own page under **Settings → Profiles**. What you see depends on who you are:
 
-- A **household administrator** sees the people in their own household (up to 8). Nothing else from Users & Access is shown, and they cannot reach another household.
-- A **server administrator** sees every household under **Settings → Profiles**, and a **Households** tab under **Settings → Users & Access** that lists each household (name, how many people, main sign-in). Old links to the retired **My household** tab open the **Households** tab.
+- A **household administrator** sees the people in their own household (up to 8), and under Administration only **Devices**, which lists the paired devices and signed-in sessions in their household. Nothing else from Users & Access is shown, and they cannot reach another household.
+- A **server administrator** sees every household under **Settings → Profiles**, and a **Households** tab under **Settings → Users & Access** that lists each household (name, how many people, main sign-in). Older links that pointed at a household tab under Users & Access open the **Households** tab.
 - Anyone else sees only their own profile. Their **Sign-in** row opens **Settings → Security**.
 
 On a person's page:
@@ -58,7 +58,7 @@ Library and lane access is not set per person. A person's own sign-in follows th
 
 Admin access requires both an eligible account and an active profile grant with admin access.
 
-1. In **Users**, open the account's **Manage profiles** action.
+1. Under **Settings → Users & Access → Households**, open the account and choose its **Manage profiles** action.
 2. Enable admin settings only for the intended grant.
 3. Turn on its optional admin protection and set a separate PIN.
 4. Choose the unlock duration offered by the control and save.
@@ -88,7 +88,7 @@ Two-step codes add a second check to password sign-in. You turn them on yourself
 - Passkey and **Sign in with…** sign-ins never ask for a code. They are already a second kind of proof.
 - **Confirm it's you** also asks for the code while two-step is on.
 - To turn it off, confirm it's you, then enter a fresh code (wait for the next one if you just used one) or a recovery code.
-- If someone loses both their phone and their recovery codes, a server administrator can use **Turn off two-step codes** on their account in Settings → Users & Access. This is recorded in the audit log. You can also run `tuvima-admin auth reset-two-step --email someone@example.com` on the computer that hosts Tuvima.
+- If someone loses both their phone and their recovery codes, an administrator can turn their codes off from that person's page under **Settings → Profiles**, in **Household access** → **Two-step codes** (for a person with their own sign-in): a server administrator for anyone, a household administrator for their own household. This is recorded in the audit log. You can also run `tuvima-admin auth reset-two-step --email someone@example.com` on the computer that hosts Tuvima.
 - Codes are checked offline against a secret stored encrypted on your server. Nothing is sent to any service, and there are no text or email codes.
 
 ## Password rules
