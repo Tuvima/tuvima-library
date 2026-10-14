@@ -97,8 +97,8 @@ Remaining P1 acceptance work verifies those workflows on clean installations and
 supported desktop, tablet, and phone browsers. Check permissions, empty and
 unavailable states, interrupted transfers, restore paths, keyboard access,
 focus, and responsive layouts. Places also needs explicit network/privacy
-verification because Atlas can request external map resources. Production face,
-object, and OCR processing remains separate P3 work, not an unconnected P1 action.
+verification because Atlas can request external map resources. Production face
+and object processing remains separate P3 work, not an unconnected P1 action.
 
 ### 3. Regression and release gates — required for every beta candidate
 
@@ -143,7 +143,7 @@ Prioritize these during beta when diagnostics, issue reports, or real collection
 ### 1. Local search intelligence
 
 - Local-only face clustering with explicit opt-in, model provenance, and a way to merge or forget identities.
-- Object, scene, and OCR indexing with explainable search results.
+- Object and scene indexing with explainable search results. (Reading text in scanned documents and photos of paper is already live in View > Documents.)
 - A local semantic-search index that can be rebuilt independently of source files.
 
 ### 2. Places and memories

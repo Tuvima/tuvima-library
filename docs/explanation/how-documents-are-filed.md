@@ -49,7 +49,7 @@ A rule says "when a document looks like this, do that". Make them from the **Aut
 - **Try it:** "Test on my documents" lists up to ten of your documents the rule would match.
 - **Apply to existing documents** runs your rules again over documents you already have.
 
-A rule never replaces something you set yourself, including a value you cleared. A value a rule set earlier can be replaced by a rule. Tags are only ever added, so a tag a rule adds comes back the next time the rule runs if you take it off by hand; change the rule instead.
+A rule never replaces something you set yourself, including a value you cleared. A value a rule set earlier can be replaced by a rule. Tags are only ever added, so a tag a rule adds comes back the next time the rule runs if you take it off by hand, because Tuvima Library does not remember that you removed it. Change the rule instead.
 
 ### Whose rules, whose documents
 
@@ -59,4 +59,6 @@ A rule belongs to the person who made it and only applies to documents in their 
 
 When a document is copied to the Shared Library, its date, correspondent, type, tags, archive number, notes and custom field values go with it, as a filed document.
 
-Related: [How documents are read](how-documents-are-read.md).
+Documents that were added to the Shared Library from a shared folder can show up in the Shared Library's Inbox. Nobody files them by hand or in bulk. Only the auto-filing rules of a household administrator file them.
+
+Related: [Documents in View](documents-in-view.md) and [How documents are read](how-documents-are-read.md).

@@ -21,6 +21,10 @@ Look up a product term in Tuvima Library in a minute. These are the terms used t
 
 Whether artwork is present, missing after an explicit artwork pass, or still pending.
 
+### Auto-filing rule
+
+A rule a person makes that files new documents for them: when a document's words, file name, folder, source or file kind match, it adds tags, sets the correspondent, type or a custom field, and can file the document straight away. Rules run in order, never replace something a person set, belong to the person who made them (a household administrator can also make them for the Shared Library) and use plain words with no patterns. See [How documents are filed](../explanation/how-documents-are-filed.md).
+
 ## B
 
 ### Browse Readiness Gate
@@ -45,15 +49,15 @@ A grouping of media with explicit purpose and access. Automatic Collections conn
 
 One video file that holds several episodes of a show, such as `Show S01E01E02.mkv`. It stays one file: it is never split, and playing, resuming and watching it act on the file. Its covered episodes are recorded separately, and the organiser names it with the episode run (for example `s01e01-e02`).
 
-## D
+### Correspondent
+
+The person or organisation a document came from or is about, such as a bank or a clinic. Correspondents are one list for the whole server. A person only sees the correspondents used on documents they can open, plus ones they added themselves.
 
 ### Custom field
 
 A field a person defines for their documents, such as "Policy number" or "Amount due". Its kind is text, number, date, money (an amount with a currency code), yes/no, or one of a list of choices. Custom fields are one list for the whole server; each document stores its own value. Searching finds text values.
 
-### Correspondent
-
-The person or organisation a document came from or is about, such as a bank or a clinic. Correspondents are one list for the whole server. A person only sees the correspondents used on documents they can open, plus ones they added themselves.
+## D
 
 ### Dashboard
 
@@ -62,10 +66,6 @@ The Blazor Server web UI (`MediaEngine.Web`) used to browse, search, read, play,
 ### Detail Page
 
 The page for a work, collection, book, movie, TV show, episode, person, or other supported entity. Detail pages are the normal place to inspect an item and launch inline corrections.
-
-### Auto-filing rule
-
-A rule a person makes that files new documents for them: when a document's words, file name, folder, source or file kind match, it adds tags, sets the correspondent, type or a custom field, and can file the document straight away. Rules run in order, never replace something a person set, belong to the person who made them (a household administrator can also make them for the Shared Library) and use plain words with no patterns. See [How documents are filed](../explanation/how-documents-are-filed.md).
 
 ### Document type
 
@@ -213,7 +213,7 @@ The exception workflow for blocked, uncertain, low-confidence, or unresolved ite
 
 ### Saved view
 
-A set of Documents filters a person keeps under a name: a Smart Gallery whose rule says "these are documents" and lists tags (all of them), correspondent, type, a document date range (fixed or relative, such as the last 30 days), the Inbox, custom field values and words inside the document. It shows at the top of the Documents filter rail and in Galleries, is private to its owner unless the Gallery is shared, and can be renamed or deleted from its menu. Deleting one never changes a document.
+A set of Documents filters a person keeps under a name: a Smart Gallery whose rule says "these are documents" and lists tags (all of them), correspondent, type, a document date range (fixed or relative, such as the last 30 days), the Inbox, custom field values and words inside the document. It shows at the top of the Documents filter rail and in Galleries, is always private to its owner (it cannot be shared and is never offered as a Collection source), and can be renamed or deleted from its menu. Deleting one never changes a document.
 
 ### Series
 
@@ -249,6 +249,10 @@ The safe on-disk and database holding state between file discovery and final org
 ### Tag
 
 A short label on a View photo, video or document, such as "Taxes" or "Holiday". Tags are one list for the whole server, matched without regard to letter case. A person only sees the tags used on items they can open, plus ones they created; deleting a tag removes it from items and never removes an item.
+
+### Text recognition (OCR)
+
+Reading the words in a picture of text. Tuvima Library uses it for scanned PDF pages and photos of paper in View, so those documents can be searched. It runs on your own computer with Tesseract, one file at a time, and never changes the original. English is included; other languages are an optional download, the only time it uses the internet.
 
 ## U
 

@@ -134,6 +134,33 @@ rename or delete a name. Document text, notes and custom field values stay in
 the View search document only and never reach Home, global Search or
 Recommendations.
 
+## Reading document text
+
+A document is searchable by its words. Plain text files are read during the
+scan. Every other readable format is read by a `view.document_text_read`
+background operation (`DocumentTextReadOperationWorker`, `DocumentTextReadService`,
+`DocumentTextReader`): PdfPig for a PDF's text layer and the Open XML SDK for
+`.docx`, `.xlsx` and `.pptx`, within the `personal_library_policy.document_text_*`
+limits. `ILocalAssetRepository.SetDocumentTextAsync` stores the words and
+`text_source`, then rebuilds the item's search document. A PDF with pages that
+have too little text of their own (`text_layer_min_characters` in
+`config/ocr.json`) is then queued as `view.document_ocr`; a photo of paper is
+queued by the scan.
+
+`DocumentOcrOperationWorker` reads one file at a time and waits while
+`IPlaybackActivityProbe` reports playback. `DocumentOcrService` draws each
+low-text PDF page with PDFtoImage (PDFium) or prepares the photo, then
+`OcrService` runs Tesseract as a child process (`OcrProcessRunner`, never
+in-process) with an orientation retry for poor reads. Pages that already have
+text are never re-read, a failed re-read keeps the earlier words, and
+`text_source` becomes `ocr` or `mixed`. English data ships with the helper;
+other languages are an explicit administrator download
+(`OcrLanguageDownloader`, `POST /settings/ocr/languages/{code}`) stored under
+`{DataRoot}/ocr/tessdata`, and that download is the only network use. After
+either read, `DocumentRulesQueue` queues `view.document_apply_rules` so rules and
+suggestions see the words. Document words are written only to the owner's
+search document.
+
 ## Saved views, bulk editing and export
 
 A saved Documents view is a Smart Gallery (`view_galleries`, `smart_rule_json`)
@@ -271,24 +298,27 @@ same readable calendar convention as personal uploads.
 ## People, Places, and AI
 
 Places works from extracted GPS metadata and does not require AI. Map rendering
-must have an accessible list fallback and must not make an unconfigured
-third-party tile request.
+must have an accessible list fallback. The Places client first attempts
+OpenFreeMap's dark map style (`https://tiles.openfreemap.org/styles/dark`), an
+explicit external request that can load remote map resources; if it fails, the
+map falls back to locally served country data (`/maps/world-countries.geojson`).
+See [privacy and network access](../explanation/privacy-local-first.md).
 
 People consumes provenance-aware local annotations when a real processor has
 produced them. When processing is unavailable or incomplete, the UI presents a
 truthful capability state. Face recognition, semantic search, OCR, object
-detection, captions, and embeddings are future integrations. If implemented,
+detection, captions, and embeddings are future integrations (text recognition for documents and photos of paper is implemented, see Reading document text). If implemented,
 they must run asynchronously through the existing Local AI architecture and
 must never block ingestion or asset availability.
 
 Current implementation truth: the Engine and Dashboard expose authorized Places
 and People queries. Places aggregates only real GPS/place metadata and renders a
-local, privacy-safe coordinate cluster plus an accessible list; no third-party
-map tiles are loaded. People returns only named or reviewed provenance-aware
+map (OpenFreeMap tiles when reachable, otherwise locally served country data)
+plus an accessible list. People returns only named or reviewed provenance-aware
 annotations and presents a truthful capability state when no capable producer
-has created them. Face recognition, object/scene detection, OCR, captions,
-embeddings, semantic search, mobile backup/sync, public-link sharing, and
-third-party map rendering are not implemented features.
+has created them. Face recognition, object/scene detection, captions,
+embeddings, semantic search, mobile backup/sync and public-link sharing are not
+implemented features.
 
 ## Scale and safety
 
