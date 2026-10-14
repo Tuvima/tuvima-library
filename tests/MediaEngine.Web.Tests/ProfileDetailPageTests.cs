@@ -1,11 +1,13 @@
 using System.Net;
 using System.Net.Http.Json;
+using System.Reflection;
 using Bunit;
 using MediaEngine.Contracts.Authentication;
 using MediaEngine.Contracts.Playback;
 using MediaEngine.Web.Components.Settings;
 using MediaEngine.Web.Models.ViewDTOs;
 using MediaEngine.Web.Services.Integration;
+using MediaEngine.Web.Services.Ui;
 using MediaEngine.Web.Tests.Support;
 using Microsoft.AspNetCore.Components;
 using Microsoft.Extensions.Configuration;
@@ -27,6 +29,13 @@ public sealed class ProfileDetailPageTests : AsyncBunitContext
     private readonly List<ManagedProfileResponse> _managed = [];
     private string? _lastError;
     private bool _settingsAvailable = true;
+    private readonly List<AccountAccessResponse> _accounts = [];
+    private readonly List<AccessLibraryOptionDto> _libraries = [];
+    private HttpStatusCode _accessSaveStatus = HttpStatusCode.OK;
+    private bool _confirmTwoStepOff = true;
+    private int _confirmCount;
+    private static readonly Guid LibraryA = Guid.Parse("00000000-0000-0000-0000-00000000000a");
+    private static readonly Guid LibraryB = Guid.Parse("00000000-0000-0000-0000-00000000000b");
 
     public ProfileDetailPageTests()
     {
@@ -41,6 +50,168 @@ public sealed class ProfileDetailPageTests : AsyncBunitContext
         Services.AddScoped<DashboardIdentityClient>();
         Services.AddScoped<IItsYouConfirmer>(_ => new ConfirmedActionRunnerTests.SpyConfirmer(confirmed: false));
         Services.AddScoped<ConfirmedActionRunner>();
+        var dialogs = DispatchProxy.Create<IAppDialogService, ConfirmSpy>();
+        ((ConfirmSpy)(object)dialogs).Owner = this;
+        Services.AddScoped(_ => dialogs);
+    }
+
+    private class ConfirmSpy : DispatchProxy
+    {
+        public ProfileDetailPageTests? Owner { get; set; }
+
+        protected override object? Invoke(MethodInfo? targetMethod, object?[]? args)
+        {
+            if (targetMethod?.Name == "ShowMessageBoxAsync")
+            {
+                Owner!._confirmCount++;
+                return Task.FromResult<bool?>(Owner._confirmTwoStepOff);
+            }
+
+            return null;
+        }
+    }
+
+    private static AccountAccessResponse SamAccess(bool twoStep = true, string[]? lanes = null, Guid[]? libraries = null) =>
+        new(SamAccountId, "sam@home.test", true, false, 1,
+            (lanes ?? ["read", "watch"]).Select(lane => new AccountFeatureGrantDto(lane, true)).ToList(),
+            (libraries ?? [LibraryA]).Select(id => new AccountLibraryGrantDto(id, id == LibraryA ? "Books" : "Films", true)).ToList(),
+            [], DateTimeOffset.UtcNow, DateTimeOffset.UtcNow, null, HouseholdId, HasTwoStep: twoStep);
+
+    private void SamWithSignIn(bool twoStep = true)
+    {
+        Setup(actions: ["household.manage"], navigation: []);
+        _managed.AddRange([Person(OwnId, "Test User", false), Person(SamId, "Sam", false, new ManagedProfileSignInDto(SamAccountId, "sam@home.test", false, true))]);
+        _accounts.Add(SamAccess(twoStep));
+        _libraries.AddRange([new AccessLibraryOptionDto(LibraryA, "Books", null, "Read")]);
+    }
+
+    [Fact]
+    public void HouseholdAccess_IsShownToAnAdministrator_ForSomeoneWithTheirOwnSignIn()
+    {
+        SamWithSignIn();
+
+        var cut = RenderFor(SamId);
+
+        cut.WaitForAssertion(() => Assert.Contains("Read, Watch · 1 library", Row(cut, "access").TextContent));
+        Assert.Single(cut.FindAll("[data-profile-section='household-access']"));
+        Assert.Contains("On", Row(cut, "two-step").TextContent);
+    }
+
+    [Fact]
+    public void HouseholdAccess_IsShownToAServerAdministrator()
+    {
+        Setup(actions: [], navigation: ["settings.administration"]);
+        _managed.AddRange([Person(OwnId, "Test User", false), Person(SamId, "Sam", false, new ManagedProfileSignInDto(SamAccountId, "sam@home.test", false, true))]);
+        _accounts.Add(SamAccess());
+
+        var cut = RenderFor(SamId);
+
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-nav-row='access']")));
+    }
+
+    [Fact]
+    public void HouseholdAccess_IsHiddenFromAMember()
+    {
+        Setup(actions: [], navigation: []);
+        _managed.AddRange([Person(OwnId, "Test User", false), Person(SamId, "Sam", false, new ManagedProfileSignInDto(SamAccountId, "sam@home.test", false, true))]);
+
+        var cut = RenderFor(OwnId);
+
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-nav-row='details']")));
+        Assert.Empty(cut.FindAll("[data-profile-section='household-access']"));
+    }
+
+    [Fact]
+    public void HouseholdAccess_IsHidden_ForSomeoneWithoutTheirOwnSignIn()
+    {
+        Setup(actions: ["household.manage"], navigation: []);
+        _managed.AddRange([Person(OwnId, "Test User", false), Person(SamId, "Sam", false)]);
+
+        var cut = RenderFor(SamId);
+
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-nav-row='details']")));
+        Assert.Empty(cut.FindAll("[data-profile-section='household-access']"));
+        Assert.Empty(cut.FindAll("[data-nav-row='access']"));
+    }
+
+    [Fact]
+    public void LibrariesAndLanes_OffersOnlyTheLibrariesTheEngineListed_AndSavesOrderedIdsForThatAccount()
+    {
+        SamWithSignIn();
+        var cut = RenderFor(SamId);
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-nav-row='access']")));
+
+        Row(cut, "access").Click();
+
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".profile-access-sheet .access-user-permissions__libraries")));
+        var libraryLabels = cut.FindAll(".profile-access-sheet .access-user-permissions__libraries label").Select(label => label.TextContent.Trim()).ToList();
+        Assert.Equal(["Books"], libraryLabels);
+        Assert.Contains(_requests, request => request.Method == HttpMethod.Get && request.Path == "/access/libraries");
+
+        // Add the Listen lane; Read and Watch (and the Books library) were already on.
+        var listen = cut.FindAll(".profile-access-sheet input[role='switch']").Single(input => input.GetAttribute("aria-label") == "Listen");
+        listen.Change(true);
+        cut.FindAll(".profile-access-sheet button").Single(button => button.TextContent.Trim() == "Save").Click();
+
+        cut.WaitForAssertion(() => Assert.Empty(cut.FindAll(".profile-access-sheet")));
+        var put = Assert.Single(_requests, request => request.Method == HttpMethod.Put && request.Path == $"/access/accounts/{SamAccountId:D}/access");
+        using var body = System.Text.Json.JsonDocument.Parse(put.Body);
+        Assert.Equal("listen,read,watch", string.Join(",", body.RootElement.GetProperty("feature_ids").EnumerateArray().Select(item => item.GetString())));
+        Assert.Equal(LibraryA.ToString("D"), string.Join(",", body.RootElement.GetProperty("library_ids").EnumerateArray().Select(item => item.GetString())));
+    }
+
+    [Fact]
+    public void LibrariesAndLanes_WhenTheEngineRefuses_StaysOpenWithAReason()
+    {
+        SamWithSignIn();
+        _accessSaveStatus = HttpStatusCode.Forbidden;
+        var cut = RenderFor(SamId);
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-nav-row='access']")));
+        Row(cut, "access").Click();
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".profile-access-sheet button")));
+
+        cut.FindAll(".profile-access-sheet button").Single(button => button.TextContent.Trim() == "Save").Click();
+
+        cut.WaitForAssertion(() => Assert.Contains("only give what your household has", cut.Find(".profile-access-sheet [role='alert']").TextContent));
+        Assert.NotEmpty(cut.FindAll(".profile-access-sheet"));
+    }
+
+    [Fact]
+    public void TwoStepCodes_AsksFirst_ThenResetsThatAccountOnce()
+    {
+        SamWithSignIn();
+        var cut = RenderFor(SamId);
+        cut.WaitForAssertion(() => Assert.Contains("On", Row(cut, "two-step").TextContent));
+
+        Row(cut, "two-step").Click();
+
+        cut.WaitForAssertion(() => Assert.Single(_requests, request => request.Method == HttpMethod.Post && request.Path == $"/access/accounts/{SamAccountId:D}/two-step/reset"));
+        Assert.Equal(1, _confirmCount);
+    }
+
+    [Fact]
+    public void TwoStepCodes_WhenDeclined_ChangesNothing()
+    {
+        SamWithSignIn();
+        _confirmTwoStepOff = false;
+        var cut = RenderFor(SamId);
+        cut.WaitForAssertion(() => Assert.Contains("On", Row(cut, "two-step").TextContent));
+
+        Row(cut, "two-step").Click();
+
+        cut.WaitForAssertion(() => Assert.Equal(1, _confirmCount));
+        Assert.DoesNotContain(_requests, request => request.Path.EndsWith("/two-step/reset", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void TwoStepCodes_WhenAlreadyOff_ShowsOffAndOpensNothing()
+    {
+        SamWithSignIn(twoStep: false);
+
+        var cut = RenderFor(SamId);
+
+        cut.WaitForAssertion(() => Assert.Contains("Off", Row(cut, "two-step").TextContent));
+        Assert.Equal("true", Row(cut, "two-step").GetAttribute("aria-disabled"));
     }
 
     [Fact]
@@ -444,6 +615,26 @@ public sealed class ProfileDetailPageTests : AsyncBunitContext
             if (path == "/access/profiles" && request.Method == HttpMethod.Get)
             {
                 return new HttpResponseMessage(HttpStatusCode.OK) { Content = JsonContent.Create(owner._managed) };
+            }
+
+            if (path == "/access/accounts" && request.Method == HttpMethod.Get)
+            {
+                return new HttpResponseMessage(HttpStatusCode.OK) { Content = JsonContent.Create(owner._accounts) };
+            }
+
+            if (path == "/access/libraries" && request.Method == HttpMethod.Get)
+            {
+                return new HttpResponseMessage(HttpStatusCode.OK) { Content = JsonContent.Create(owner._libraries) };
+            }
+
+            if (request.Method == HttpMethod.Put && path.EndsWith("/access", StringComparison.Ordinal))
+            {
+                return new HttpResponseMessage(owner._accessSaveStatus) { Content = JsonContent.Create(new { }) };
+            }
+
+            if (request.Method == HttpMethod.Post && path.EndsWith("/two-step/reset", StringComparison.Ordinal))
+            {
+                return new HttpResponseMessage(HttpStatusCode.OK) { Content = JsonContent.Create(SamAccess(twoStep: false)) };
             }
 
             if (request.Method == HttpMethod.Post && path.EndsWith("/own-sign-in", StringComparison.Ordinal))

@@ -4,12 +4,15 @@
 @using MediaEngine.Web.Components.Profiles
 @using MediaEngine.Web.Models.ViewDTOs
 @using MediaEngine.Web.Services.Integration
+@using MediaEngine.Web.Services.Ui
 @inject UIOrchestratorService Orchestrator
 @inject IEngineApiClient ApiClient
 @inject DashboardSessionAccessor Session
 @inject DashboardIdentityClient Identity
 @inject ConfirmedActionRunner Confirmed
 @inject NavigationManager Nav
+@inject IAppDialogService Dialogs
+@inject IAppToastService Toasts
 @inject ILogger<ProfileDetailPage> Logger
 
 @* Settings > Profiles > one person: a short list of rows, the same for your own profile and (for administrators) anyone in the household. *@
@@ -111,6 +114,32 @@
             </section>
         }
 
+        @if (ShowHouseholdAccess)
+        {
+            <section class="profile-detail__group" aria-labelledby="profile-detail-access" data-profile-section="household-access">
+                <h3 id="profile-detail-access" class="profile-detail__group-title">Household access</h3>
+                @if (!string.IsNullOrWhiteSpace(_accessMessage))
+                {
+                    <p class="who-page__error" role="alert">@_accessMessage</p>
+                }
+                <ul class="profile-detail__list" role="list">
+                    <li class="profile-detail__item">
+                        <SettingsNavRow Key="access" Icon="@AppMaterialIcons.Outlined.LibraryBooks" Title="Libraries and lanes" Status="@AccessStatus" OnClick="OpenAccess" />
+                    </li>
+                    <li class="profile-detail__item">
+                        @if (_access is { HasTwoStep: false })
+                        {
+                            <SettingsNavRow Key="two-step" Icon="@AppMaterialIcons.Outlined.Key" Title="Two-step codes" Status="Off" Disabled="true" />
+                        }
+                        else
+                        {
+                            <SettingsNavRow Key="two-step" Icon="@AppMaterialIcons.Outlined.Key" Title="Two-step codes" Status="@(_access is null ? null : "On")" Note="Turn off if they lost their phone" ShowChevron="false" OnClick="ResetTwoStepAsync" />
+                        }
+                    </li>
+                </ul>
+            </section>
+        }
+
         @if (CanDelete)
         {
             <section class="profile-detail__group" aria-label="Delete profile">
@@ -150,6 +179,16 @@
                     OnRemove="RemoveSignInAsync"
                     OnClose="CloseSignIn" />
 
+<ProfileAccessSheet Open="@_accessOpen"
+                    PersonName="@(_person?.DisplayName ?? string.Empty)"
+                    Loading="@_accessLoading"
+                    Saving="@_accessSaving"
+                    Error="@_accessError"
+                    Libraries="@_accessLibraries"
+                    Account="@_access"
+                    OnSave="SaveAccessAsync"
+                    OnClose="CloseAccess" />
+
 <AdminUnlockDialog Open="@_needsUnlock" Busy="@_unlocking" Error="@_unlockError" OnUnlock="UnlockAsync" OnCancel="CancelUnlock" />
 
 @code {
@@ -174,6 +213,13 @@
     private bool _signInSaving;
     private string? _signInError;
     private SignInIssued? _signInIssued;
+    private AccountAccessResponse? _access;
+    private List<AccessLibraryOptionDto> _accessLibraries = [];
+    private bool _accessOpen;
+    private bool _accessLoading;
+    private bool _accessSaving;
+    private string? _accessError;
+    private string? _accessMessage;
     private bool _needsUnlock;
     private bool _unlocking;
     private bool _justUnlocked;
@@ -198,6 +244,28 @@
         : OwnSignIn?.Email ?? "Switches from Who's watching";
 
     private string? SignInNote => OwnSignIn is { MustChangePassword: true } ? "Must change password at first sign-in" : null;
+
+    // Their access is only theirs to manage when they have a sign-in of their own; your own access is never edited from here.
+    private bool ShowHouseholdAccess => IsAdministrator && !IsSelf && OwnSignIn is not null;
+
+    private string? AccessStatus
+    {
+        get
+        {
+            if (_access is null)
+            {
+                return null;
+            }
+
+            var lanes = ManagedAccessUserPermissions.Features
+                .Where(feature => _access.FeatureGrants.Any(grant => grant.Allowed && grant.Feature == feature.Id))
+                .Select(feature => feature.Label)
+                .ToList();
+            var libraries = _access.LibraryGrants.Count(grant => grant.Allowed);
+            var laneText = lanes.Count == 0 ? "No lanes" : string.Join(", ", lanes);
+            return $"{laneText} · {libraries} {(libraries == 1 ? "library" : "libraries")}";
+        }
+    }
 
     private bool IsAdministrator => Session.HasAction("household.manage") || Session.HasNavigation("settings.administration");
 
@@ -313,6 +381,7 @@
             {
                 await NameChanged.InvokeAsync(_person.DisplayName);
                 await LoadSettingsAsync();
+                await LoadAccessAsync();
             }
         }
         catch (Exception exception) when (exception is HttpRequestException or TaskCanceledException or System.Text.Json.JsonException)
@@ -371,6 +440,126 @@
             _notice = "The change was saved, but the page couldn't be refreshed. Reload the page to see the latest.";
         }
     }
+
+    private async Task LoadAccessAsync()
+    {
+        _access = null;
+        if (!ShowHouseholdAccess || OwnSignIn is not { } signIn)
+        {
+            return;
+        }
+
+        try
+        {
+            var accounts = await Identity.GetManagedAccountsAsync();
+            _access = accounts.FirstOrDefault(account => account.Id == signIn.AccountId);
+        }
+        catch (Exception exception) when (exception is HttpRequestException or TaskCanceledException or System.Text.Json.JsonException)
+        {
+            Logger.LogWarning(exception, "Could not load this person's access.");
+        }
+    }
+
+    private async Task OpenAccess()
+    {
+        _accessError = null;
+        _accessMessage = null;
+        _accessLoading = true;
+        _accessOpen = true;
+        try
+        {
+            // The list is what this administrator may hand out, so a Library the household lacks is never offered.
+            var libraries = Identity.GetAccessLibrariesAsync();
+            await LoadAccessAsync();
+            _accessLibraries = await libraries;
+        }
+        catch (Exception exception) when (exception is HttpRequestException or TaskCanceledException or System.Text.Json.JsonException)
+        {
+            Logger.LogWarning(exception, "Could not load the Libraries to choose from.");
+            _accessError = "The Engine is unavailable. Try again.";
+        }
+        finally
+        {
+            _accessLoading = false;
+        }
+    }
+
+    private void CloseAccess()
+    {
+        if (!_accessSaving)
+        {
+            _accessOpen = false;
+            _accessError = null;
+        }
+    }
+
+    private async Task SaveAccessAsync(ReplaceAccountAccessRequest request)
+    {
+        if (_accessSaving || OwnSignIn is not { } signIn)
+        {
+            return;
+        }
+
+        _accessSaving = true;
+        _accessError = null;
+        try
+        {
+            var result = await Identity.ReplaceManagedAccountAccessResultAsync(signIn.AccountId, request);
+            if (!result.Succeeded)
+            {
+                _accessError = AccessFailureMessage(result.Failure);
+                return;
+            }
+
+            await LoadAccessAsync();
+            _accessOpen = false;
+            Toasts.Add($"Access for {PersonName} was saved.", AppSeverity.Success);
+        }
+        finally
+        {
+            _accessSaving = false;
+        }
+    }
+
+    // For someone who lost their phone and their recovery codes. The Engine records who did this.
+    private async Task ResetTwoStepAsync()
+    {
+        if (OwnSignIn is not { } signIn)
+        {
+            return;
+        }
+
+        _accessMessage = null;
+        if (await Dialogs.ShowMessageBoxAsync($"Turn off two-step codes for {PersonName}?",
+                "They can sign in with just their password until they turn two-step codes on again. This is recorded in the activity log.",
+                yesText: "Turn off", cancelText: "Cancel") != true)
+        {
+            return;
+        }
+
+        var result = await Confirmed.RunAsync(() => Identity.ResetAccountTwoStepResultAsync(signIn.AccountId));
+        if (result.Succeeded && result.Value is not null)
+        {
+            _access = result.Value;
+            Toasts.Add($"Two-step codes are off for {PersonName}.", AppSeverity.Success);
+            return;
+        }
+
+        _accessMessage = result.Failure == DashboardAccessMutationFailure.ConfirmItsYou
+            ? "Nothing was changed. Confirm it's you to continue."
+            : AccessFailureMessage(result.Failure);
+    }
+
+    private static string AccessFailureMessage(DashboardAccessMutationFailure failure) => failure switch
+    {
+        DashboardAccessMutationFailure.Validation or DashboardAccessMutationFailure.Forbidden
+            => "That wasn't saved. You can only give what your household has, and only to people in it.",
+        DashboardAccessMutationFailure.Conflict => "This change conflicts with the current account state.",
+        DashboardAccessMutationFailure.Unauthorized => "Your session has expired.",
+        DashboardAccessMutationFailure.NotFound => "This account no longer exists.",
+        DashboardAccessMutationFailure.Transient => "The Engine is unavailable. Try again.",
+        _ => "The change could not be saved. Try again.",
+    };
 
     private void OpenEditor()
     {

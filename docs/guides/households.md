@@ -48,6 +48,10 @@ Once a person has their own sign-in, their **Sign-in** row shows the email (and 
 
 Changing your own email or password is not done here: your own **Sign-in** row opens **Settings → Security**.
 
+## Change what someone can open
+
+For a person with their own sign-in, the **Household access** group on their profile page lets an administrator manage their access. **Libraries and lanes** opens a sheet where you choose which of Read, Watch, Listen and View they get and which Libraries they can open; you can only give what your household has. **Two-step codes** turns their codes off if they lost their phone, after asking you to confirm. Members never see this group, and a person who signs in from Who's watching has no access of their own to manage.
+
 ## Someone from outside your household
 
 A server administrator can invite someone who is not part of an existing household. Choose **Invite someone outside your household** under **Users & Access → Households**. They start a household of their own and become its household administrator, with only what you give them.
