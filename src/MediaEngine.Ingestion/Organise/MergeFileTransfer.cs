@@ -153,7 +153,8 @@ public sealed class MergeFileTransfer
         }
 
         // Two names for one file must never count as "a copy": removing the original would remove the only file.
-        if (string.Equals(Path.GetFullPath(sourcePath), Path.GetFullPath(copyPath), StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(Path.GetFullPath(sourcePath), Path.GetFullPath(copyPath), StringComparison.OrdinalIgnoreCase)
+            || FileIdentity.AreSameFile(sourcePath, copyPath))
         {
             return false;
         }

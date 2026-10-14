@@ -247,6 +247,14 @@ internal sealed class ScriptedMover : IOrganiseFileMover
     /// <summary>The file counts as open for playback for this many attempts.</summary>
     public void LockFor(string path, int attempts) => _lockedFor[Path.GetFullPath(path)] = attempts;
 
+    /// <summary>
+    /// Stands in for a drive that ignores letter case: when set and it returns true, the two names count as one file.
+    /// When it is not set the real file identity check runs.
+    /// </summary>
+    public Func<string, string, bool>? SameFile { get; set; }
+
+    public bool IsSameFile(string first, string second) => SameFile?.Invoke(first, second) ?? FileIdentity.AreSameFile(first, second);
+
     public void Move(string from, string to)
     {
         var key = Path.GetFullPath(from);

@@ -320,6 +320,8 @@ public sealed partial class IngestionEngine
                             var deleteAllowed = resolvedSource is not null
                                 && resolvedSource.Source.MergeState == MediaEngine.Domain.Configuration.LibrarySourceMergeStates.None
                                 && File.Exists(existing.FilePathRoot)
+                                && !string.Equals(Path.GetFullPath(candidate.Path), Path.GetFullPath(existing.FilePathRoot), StringComparison.OrdinalIgnoreCase)
+                                && !MediaEngine.Ingestion.Organise.FileIdentity.AreSameFile(candidate.Path, existing.FilePathRoot)
                                 && MediaEngine.Domain.Configuration.LibraryDuplicatePolicies.DeletesIncomingDuplicate(_options.DuplicatePolicy)
                                 && _sourceMutationPolicyGate?.Evaluate(new SourceMutationRequest
                                 {

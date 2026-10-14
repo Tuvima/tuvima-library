@@ -125,13 +125,22 @@ public sealed class FolderConversionOrganiser
             return new OrganiseDecision(OrganiseDecisionKind.Denied, Reason: denied);
         }
 
-        // The same file with different letter case is a rename, not a collision.
-        if (string.Equals(current, target, StringComparison.OrdinalIgnoreCase) && OperatingSystem.IsWindows())
+        // The same file with different letter case is a rename, not a collision and never a duplicate. On a drive that ignores
+        // case (Windows, SMB and CIFS shares, exFAT, macOS) the new name "exists" because it is this very file, so the check is
+        // by file identity on every system. Where the drive keeps both names as two files, they fall through to the checks below.
+        if (string.Equals(current, target, StringComparison.OrdinalIgnoreCase) && _mover.IsSameFile(current, target))
         {
             return new OrganiseDecision(OrganiseDecisionKind.Move, Target: target);
         }
 
         var occupiedByDisk = File.Exists(target);
+        if (occupiedByDisk && _mover.IsSameFile(current, target))
+        {
+            // Another name for this same file (a link, or a folder reached two ways): nothing here is a copy to remove.
+            return new OrganiseDecision(
+                OrganiseDecisionKind.Skip, Reason: "That name already leads to this same file, so nothing was changed.");
+        }
+
         var occupiedByPlan = plannedTargets?.Contains(target) == true;
         if (!occupiedByDisk && !occupiedByPlan)
         {
@@ -293,7 +302,7 @@ public sealed class FolderConversionOrganiser
             {
                 Directory.CreateDirectory(Path.GetDirectoryName(target)!);
                 // A name that differs only in letter case is one rename on every drive (it is the same file).
-                _mover.Move(current, target);
+                CaseSafeRename.Move(_mover, current, target, _logger);
             }
             catch (IOException ex) when (File.Exists(target)
                 && !string.Equals(current, target, StringComparison.OrdinalIgnoreCase)
@@ -369,6 +378,14 @@ public sealed class FolderConversionOrganiser
             return await FinishAsync(context, current, current, FolderOrganiseOutcomes.NotMoved, denied, ct).ConfigureAwait(false);
         }
 
+        // Two names for one file are not a copy: removing one would remove the only file.
+        if (_mover.IsSameFile(current, kept))
+        {
+            return await FinishAsync(
+                context, current, current, FolderOrganiseOutcomes.NotMoved,
+                "Both names lead to the same file, so nothing was removed.", ct).ConfigureAwait(false);
+        }
+
         // The copy that stays must still be there and still identical before the other is removed.
         if (!File.Exists(kept) || !await IsIdenticalAsync(file, kept, ct).ConfigureAwait(false))
         {
@@ -411,6 +428,24 @@ public sealed class FolderConversionOrganiser
     public async Task RecoverPathOnlyAsync(FolderOrganiseLogEntry entry, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(entry);
+
+        // A letter-case rename stopped between its two steps leaves the file under a hidden temporary name; putting it under its
+        // new name is the second half of a move the job already started, and leaves nothing stranded.
+        if (!File.Exists(entry.OldPath) && !string.IsNullOrEmpty(entry.NewPath) && !File.Exists(entry.NewPath)
+            && CaseSafeRename.IsCaseOnlyChange(entry.OldPath, entry.NewPath)
+            && File.Exists(CaseSafeRename.TemporaryName(entry.OldPath)))
+        {
+            try
+            {
+                _mover.Move(CaseSafeRename.TemporaryName(entry.OldPath), entry.NewPath);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                _logger.LogWarning(ex, "Could not finish the interrupted rename of {Old} to {New} yet", entry.OldPath, entry.NewPath);
+                return;
+            }
+        }
+
         if (File.Exists(entry.OldPath) || string.IsNullOrEmpty(entry.NewPath) || !File.Exists(entry.NewPath))
         {
             return;
@@ -440,6 +475,23 @@ public sealed class FolderConversionOrganiser
 
         var oldExists = File.Exists(entry.OldPath);
         var newExists = !string.IsNullOrEmpty(entry.NewPath) && File.Exists(entry.NewPath);
+
+        // A letter-case rename stopped between its two steps leaves the file under its temporary name: finish the second step.
+        if (!oldExists && !newExists && !string.IsNullOrEmpty(entry.NewPath)
+            && CaseSafeRename.IsCaseOnlyChange(entry.OldPath, entry.NewPath)
+            && File.Exists(CaseSafeRename.TemporaryName(entry.OldPath)))
+        {
+            try
+            {
+                _mover.Move(CaseSafeRename.TemporaryName(entry.OldPath), entry.NewPath);
+                newExists = true;
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                _logger.LogWarning(ex, "Could not finish the interrupted rename of {Old} to {New} yet", entry.OldPath, entry.NewPath);
+                return;
+            }
+        }
 
         if (!oldExists && newExists)
         {
@@ -557,6 +609,7 @@ public sealed class FolderConversionOrganiser
             }
 
             if (!File.Exists(kept)
+                || _mover.IsSameFile(full, kept)
                 || new FileInfo(kept).Length != new FileInfo(full).Length
                 || !string.Equals(await HashAsync(kept, ct).ConfigureAwait(false), await HashAsync(full, ct).ConfigureAwait(false), StringComparison.OrdinalIgnoreCase))
             {

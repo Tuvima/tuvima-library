@@ -182,13 +182,34 @@ public sealed class AutoOrganizeService : IAutoOrganizeService
             && asset.FilePathRoot.StartsWith(
                 stagingPath, StringComparison.OrdinalIgnoreCase);
 
+        // A file that already lives in one of the library's folders is only ever tidied inside that same folder. It is
+        // never moved into the New media folder or into any other folder, so a managed folder that is not marked New
+        // media keeps its files (it just receives nothing new), and an as-is folder is left exactly as it is. Only a file
+        // still waiting in staging is promoted into the New media folder.
+        var owningSource = isInStaging ? null : _libraryResolver?.ResolveSourceForPath(asset.FilePathRoot);
+        if (owningSource is not null)
+        {
+            if (!owningSource.Source.AllowsFileMutation)
+            {
+                _logger.LogDebug(
+                    "Auto-organize skipped for {Id}: its folder is used as-is ({Path})",
+                    assetId, asset.FilePathRoot);
+                return;
+            }
+
+            await HandleAlreadyOrganizedAsync(
+                asset, assetId, metadata, mediaType, owningSource.Source.Path, owningSource.Library, ct)
+                .ConfigureAwait(false);
+            return;
+        }
+
         bool alreadyOrganized = !isInStaging
             && asset.FilePathRoot.StartsWith(
                 libraryRoot, StringComparison.OrdinalIgnoreCase);
 
         if (alreadyOrganized)
         {
-            await HandleAlreadyOrganizedAsync(asset, assetId, metadata, mediaType, libraryRoot, ct)
+            await HandleAlreadyOrganizedAsync(asset, assetId, metadata, mediaType, libraryRoot, owningLibrary, ct)
                 .ConfigureAwait(false);
             return;
         }
@@ -581,6 +602,7 @@ public sealed class AutoOrganizeService : IAutoOrganizeService
         Domain.Aggregates.MediaAsset asset, Guid assetId,
         Dictionary<string, string> metadata, MediaType? mediaType,
         string libraryRoot,
+        LibraryFolderEntry? library,
         CancellationToken ct)
     {
         var checkSynth = new IngestionCandidate
@@ -593,8 +615,9 @@ public sealed class AutoOrganizeService : IAutoOrganizeService
             DetectedMediaType = mediaType,
         };
         var checkTemplate = _options.ResolveTemplate(mediaType?.ToString());
-        var checkRelative = LibraryOrganizationPath.Calculate(_organizer, checkSynth, _libraryResolver?.ResolveById(asset.LibraryId ?? ""), checkTemplate);
-        var newDest = Path.Combine(libraryRoot, checkRelative);
+        var checkRelative = LibraryOrganizationPath.Calculate(
+            _organizer, checkSynth, library ?? _libraryResolver?.ResolveById(asset.LibraryId ?? ""), checkTemplate);
+        var newDest = Path.GetFullPath(Path.Combine(libraryRoot, checkRelative));
 
         if (string.Equals(asset.FilePathRoot, newDest, StringComparison.OrdinalIgnoreCase))
         {
@@ -607,9 +630,48 @@ public sealed class AutoOrganizeService : IAutoOrganizeService
             return;
         }
 
+        // A file still waiting for a person to confirm what it is is not renamed in place: the name would come from an
+        // unconfirmed match. (A name clash or a merge arrival is not a question about identity and does not hold it back.)
+        var pendingReviews = await _reviewRepo.GetPendingByEntityAsync(assetId, ct).ConfigureAwait(false);
+        var blockingReview = pendingReviews.FirstOrDefault(review =>
+            review.ReviewReadyAt is not null
+            && !string.Equals(review.Trigger, nameof(ReviewTrigger.WritebackFailed), StringComparison.OrdinalIgnoreCase)
+            && !string.Equals(review.Trigger, ReviewTrigger.NameCollision, StringComparison.OrdinalIgnoreCase)
+            && !string.Equals(review.Trigger, ReviewTrigger.FromMerge, StringComparison.OrdinalIgnoreCase));
+        if (blockingReview is not null)
+        {
+            _logger.LogDebug(
+                "Re-organization held for {Id}: review '{Trigger}' must be resolved first", assetId, blockingReview.Trigger);
+            return;
+        }
+
         // Path changed (QID now available) — move file to new location.
         var oldPath = asset.FilePathRoot;
         var oldFolder = Path.GetDirectoryName(oldPath) ?? string.Empty;
+
+        // The new name must stay inside the folder the file already lives in. Anything that would leave it is refused,
+        // so tidying can never carry a file across folders or drives.
+        if (!StaysInsideRoot(oldPath, newDest, libraryRoot))
+        {
+            _logger.LogWarning(
+                "Re-organization refused for {Id}: {Dest} is outside the folder {Root} the file lives in",
+                assetId, newDest, libraryRoot);
+            return;
+        }
+
+        var gateResult = _gate.Evaluate(
+            overallConfidence: 1.0,
+            canonicalValues: metadata,
+            hasUserLock: false,
+            mediaTypeNeedsReview: false,
+            resolvedRelativePath: checkRelative);
+        if (!gateResult.CanOrganize)
+        {
+            _logger.LogDebug(
+                "Re-organization blocked for {Id}: {Reason}", assetId, gateResult.BlockReason);
+            return;
+        }
+
         if (!CanMoveBetween(asset.FilePathRoot, newDest))
         {
             _logger.LogInformation(
@@ -959,6 +1021,27 @@ public sealed class AutoOrganizeService : IAutoOrganizeService
             }
         }
         catch { /* best-effort cleanup */ }
+    }
+
+    /// <summary>
+    /// True when both paths sit under <paramref name="root"/> on the same drive. A tidy-up inside a folder is a plain rename
+    /// there; a path that would leave the folder (or the drive) is never a tidy-up.
+    /// </summary>
+    public static bool StaysInsideRoot(string currentPath, string newPath, string root)
+    {
+        if (string.IsNullOrWhiteSpace(root))
+        {
+            return false;
+        }
+
+        var fullRoot = Path.GetFullPath(root).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
+            + Path.DirectorySeparatorChar;
+        var fullCurrent = Path.GetFullPath(currentPath);
+        var fullNew = Path.GetFullPath(newPath);
+
+        return fullCurrent.StartsWith(fullRoot, StringComparison.OrdinalIgnoreCase)
+            && fullNew.StartsWith(fullRoot, StringComparison.OrdinalIgnoreCase)
+            && string.Equals(Path.GetPathRoot(fullCurrent), Path.GetPathRoot(fullNew), StringComparison.OrdinalIgnoreCase);
     }
 
     private bool CanMoveBetween(string sourcePath, string destinationPath, ImportDestination? importDestination = null)
