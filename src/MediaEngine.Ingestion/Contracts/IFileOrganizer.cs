@@ -37,8 +37,12 @@ public interface IFileOrganizer
     /// Spec: "If a naming conflict occurs … MUST append a unique suffix."
     ///
     /// Lock handling: MUST retry with exponential backoff on <see cref="IOException"/>.
+    ///
+    /// Returns the path the file really ended up at (the requested one, or the one with a unique suffix when the
+    /// requested name was taken), or <see langword="null"/> when the file was not moved. Callers record that path,
+    /// never the requested one.
     /// </summary>
-    Task<bool> ExecuteMoveAsync(
+    Task<string?> ExecuteMoveAsync(
         string sourcePath,
         string destinationPath,
         CancellationToken ct = default);

@@ -223,7 +223,8 @@
 }
 
 /* Under the one card breakpoint (840px, by viewport width, so portrait tablets too) folders are read-only: the note says where to
-   change them, and every control that adds, converts or merges is display:none, so it is not focusable either. */
+   change them, and every control that adds, converts or merges is display:none, so it is not focusable either. The Advanced
+   settings (file handling, duplicates, naming) and the hint that points at Merge into go with them. */
 @media (max-width: 840px) {
     .library-folders__phone-note {
         display: block;
@@ -232,7 +233,9 @@
     .library-folders__detail-actions,
     .library-folders__row-actions,
     .library-folders__choose,
-    .library-folders__empty-action {
+    .library-folders__empty-action,
+    .library-folders__hint--merge,
+    .library-folders__advanced {
         display: none;
     }
 }

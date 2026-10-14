@@ -4,6 +4,7 @@ using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Entities;
 using MediaEngine.Domain.Enums;
 using MediaEngine.Ingestion.Models;
+using MediaEngine.Ingestion.Organise;
 using MediaEngine.Ingestion.Services;
 using MediaEngine.Intelligence.Models;
 using MediaEngine.Storage;
@@ -130,7 +131,8 @@ internal sealed class ImportFolderHarness : IDisposable
             sourceMutationGate: new SourceMutationPolicyGate(),
             importFolders: Importer,
             importMover: Mover,
-            importJournal: Journal);
+            importJournal: Journal,
+            sidecars: new SidecarMover(new SystemOrganiseFileMover(), NullLogger<SidecarMover>.Instance));
         Filer = new ImportFolderFiler(
             Importer,
             Assets,

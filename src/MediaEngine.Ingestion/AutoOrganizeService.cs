@@ -289,10 +289,12 @@ public sealed class AutoOrganizeService : IAutoOrganizeService
             return;
         }
 
-        bool moved = await _organizer.ExecuteMoveAsync(asset.FilePathRoot, destPath, ct)
+        // The name actually used can differ from the one asked for (a taken name gets a unique suffix); the data store and the
+        // files that travel with it follow the real name.
+        var promotedPath = await _organizer.ExecuteMoveAsync(asset.FilePathRoot, destPath, ct)
             .ConfigureAwait(false);
 
-        if (!moved)
+        if (promotedPath is null)
         {
             _logger.LogWarning(
                 "Auto-organize move failed for {Id}: {Source} → {Dest}",
@@ -300,18 +302,16 @@ public sealed class AutoOrganizeService : IAutoOrganizeService
             return;
         }
 
-        await _assetRepo.UpdateFilePathAsync(assetId, destPath, ct).ConfigureAwait(false);
+        await _assetRepo.UpdateFilePathAsync(assetId, promotedPath, ct).ConfigureAwait(false);
         await MarkPresentedAndPublishAsync(assetId, metadata, mediaType, ct).ConfigureAwait(false);
 
         string sourcePath = asset.FilePathRoot;
-        string editionFolder = Path.GetDirectoryName(destPath) ?? string.Empty;
 
-        // Move companion artwork files from staging to the library edition folder.
+        // Move companion artwork and sidecars from staging to the library edition folder.
         // CoverArtWorker writes poster.jpg next to the media file (even in staging) via
         // AssetPathService.GetMediaFilePosterPath, so companion files must always be moved
-        // on promotion when storage policy enables local artwork mirrors.
-        MoveCompanionFiles(sourcePath, destPath);
-        MoveSidecarFiles(sourcePath, destPath);
+        // on promotion. Nothing is overwritten or removed: a name that is already taken stays where it is.
+        MoveSidecarFiles(sourcePath, promotedPath);
 
         // Clean up any .tuvima.bak files left behind by metadata taggers.
         // These backups are normally deleted on success, but can persist when the
@@ -326,7 +326,7 @@ public sealed class AutoOrganizeService : IAutoOrganizeService
 
         _logger.LogInformation(
             "Promoted asset {Id} from staging to library: {Source} → {Dest}",
-            assetId, asset.FilePathRoot, destPath);
+            assetId, asset.FilePathRoot, promotedPath);
 
         // History: promoted to library.
         try
@@ -348,7 +348,7 @@ public sealed class AutoOrganizeService : IAutoOrganizeService
                 EntityId = assetId,
                 EntityType = "MediaAsset",
                 CollectionName = metadata.GetValueOrDefault("title", "Unknown"),
-                Detail = $"Promoted from staging: {Path.GetFileName(asset.FilePathRoot)} → {Path.GetRelativePath(libraryRoot, destPath)}",
+                Detail = $"Promoted from staging: {Path.GetFileName(asset.FilePathRoot)} → {Path.GetRelativePath(libraryRoot, promotedPath)}",
                 IngestionRunId = ingestionRunId,
             }, ct).ConfigureAwait(false);
         }
@@ -380,7 +380,7 @@ public sealed class AutoOrganizeService : IAutoOrganizeService
             await _publisher.PublishAsync(
                 SignalREvents.IngestionCompleted,
                 new AutoOrganizedIngestionCompletedEvent(
-                    destPath,
+                    promotedPath,
                     mediaType?.ToString() ?? "Unknown",
                     DateTimeOffset.UtcNow),
                 ct).ConfigureAwait(false);
@@ -514,7 +514,6 @@ public sealed class AutoOrganizeService : IAutoOrganizeService
 
         await MarkPresentedAndPublishAsync(assetId, metadata, mediaType, ct).ConfigureAwait(false);
 
-        MoveCompanionFiles(sourcePath, finalPath, destination);
         MoveSidecarFiles(sourcePath, finalPath, destination);
         var sourceFolder = Path.GetDirectoryName(sourcePath) ?? string.Empty;
         CleanStagingBakFiles(sourceFolder);
@@ -680,23 +679,33 @@ public sealed class AutoOrganizeService : IAutoOrganizeService
             return;
         }
 
-        bool relocated = await _organizer.ExecuteMoveAsync(asset.FilePathRoot, newDest, ct)
+        // Tidying never renames one file onto the name another file already holds (two editions can share a standard name):
+        // the file stays as it is rather than being given a "(2)" name that the next pass would change again.
+        if (File.Exists(newDest))
+        {
+            _logger.LogInformation(
+                "Re-organization skipped for {Id}: {Dest} is already taken by another file, so {Source} stays where it is",
+                assetId, newDest, oldPath);
+            return;
+        }
+
+        var relocatedPath = await _organizer.ExecuteMoveAsync(asset.FilePathRoot, newDest, ct)
             .ConfigureAwait(false);
 
-        if (relocated)
+        if (relocatedPath is not null)
         {
-            await _assetRepo.UpdateFilePathAsync(assetId, newDest, ct).ConfigureAwait(false);
+            // The data store and the files that travel with it follow the path the file really ended up at.
+            await _assetRepo.UpdateFilePathAsync(assetId, relocatedPath, ct).ConfigureAwait(false);
             await MarkPresentedAndPublishAsync(assetId, metadata, mediaType, ct).ConfigureAwait(false);
 
-            MoveCompanionFiles(oldPath, newDest);
-            MoveSidecarFiles(oldPath, newDest);
+            MoveSidecarFiles(oldPath, relocatedPath);
 
             var sourceRoot = _libraryResolver?.ResolveSourceForPath(oldPath)?.Source.Path;
             CleanEmptyParents(oldFolder, sourceRoot ?? oldFolder);
 
             _logger.LogInformation(
                 "Re-organized asset {Id} after hydration (QID in path): {Old} → {New}",
-                assetId, asset.FilePathRoot, newDest);
+                assetId, asset.FilePathRoot, relocatedPath);
 
             try
             {
@@ -705,7 +714,7 @@ public sealed class AutoOrganizeService : IAutoOrganizeService
                     ActionType = SystemActionType.PathUpdated,
                     EntityId = assetId,
                     EntityType = mediaType?.ToString() ?? "Unknown",
-                    Detail = $"Re-organized after hydration: {Path.GetFileName(newDest)}",
+                    Detail = $"Re-organized after hydration: {Path.GetFileName(relocatedPath)}",
                 }, ct).ConfigureAwait(false);
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
@@ -766,7 +775,11 @@ public sealed class AutoOrganizeService : IAutoOrganizeService
 
     /// <summary>
     /// Subtitles, notes, artwork, cue sheets, lyrics and playlists that share the media file's name travel with it
-    /// (keeping a language suffix such as <c>.en.srt</c>). Anything else in the folder is left where it is.
+    /// (keeping a language suffix such as <c>.en.srt</c>). The folder-wide files (cover, poster, metadata.json, metadata.opf)
+    /// travel only once no other media file is left in the old folder. Poster, fanart and logo pictures take the name the new
+    /// folder expects: <c>poster.jpg</c> when the media file is alone in its folder, <c>{name}-poster.jpg</c> when the folder is
+    /// shared (so a picture never becomes another file's folder-wide one). Nothing is ever overwritten or deleted: a file whose
+    /// new name is already taken (even by an identical file) stays where it is. Anything else in the folder is left alone.
     /// </summary>
     private void MoveSidecarFiles(string oldMediaPath, string newMediaPath, ImportDestination? importDestination = null)
     {
@@ -780,84 +793,16 @@ public sealed class AutoOrganizeService : IAutoOrganizeService
 
         try
         {
-            _sidecars.Move(oldMediaPath, newMediaPath, (from, to) => CanMoveBetween(from, to, importDestination));
+            var results = _sidecars.Move(
+                oldMediaPath, newMediaPath, (from, to) => CanMoveBetween(from, to, importDestination), mayDelete: null, includeArtwork: true, renameArtworkToFolder: true);
+            foreach (var result in results.Where(result => result.Outcome is FolderOrganiseOutcomes.NotMoved or FolderOrganiseOutcomes.Failed))
+            {
+                _logger.LogInformation("Left {Sidecar} where it is: {Reason}", result.From, result.Detail);
+            }
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             _logger.LogDebug(ex, "Sidecar files beside {Path} were not moved", oldMediaPath);
-        }
-    }
-
-    private void MoveCompanionFiles(string oldMediaPath, string newMediaPath, ImportDestination? importDestination = null)
-    {
-        if (string.IsNullOrWhiteSpace(oldMediaPath) || string.IsNullOrWhiteSpace(newMediaPath))
-        {
-            return;
-        }
-
-        var oldFolder = Path.GetDirectoryName(oldMediaPath) ?? string.Empty;
-        var newFolder = Path.GetDirectoryName(newMediaPath) ?? string.Empty;
-        if (string.IsNullOrWhiteSpace(oldFolder) || string.IsNullOrWhiteSpace(newFolder))
-        {
-            return;
-        }
-
-        MoveScopedCompanionFiles(oldMediaPath, newMediaPath, importDestination, "poster", ".jpg", ".png");
-        MoveScopedCompanionFiles(oldMediaPath, newMediaPath, importDestination, "fanart", ".jpg", ".png");
-        MoveScopedCompanionFiles(oldMediaPath, newMediaPath, importDestination, "logo", ".png", ".jpg");
-
-        MoveCompanionCandidates(
-            [Path.Combine(oldFolder, "cover.jpg"), Path.Combine(oldFolder, "cover.jpeg"), Path.Combine(oldFolder, "cover.png")],
-            Path.Combine(newFolder, "cover.jpg"),
-            importDestination);
-        MoveCompanionCandidates(
-            [Path.Combine(oldFolder, "metadata.json")],
-            Path.Combine(newFolder, "metadata.json"),
-            importDestination);
-        MoveCompanionCandidates(
-            [Path.Combine(oldFolder, "metadata.opf")],
-            Path.Combine(newFolder, "metadata.opf"),
-            importDestination);
-    }
-
-    private void MoveCompanionCandidates(IEnumerable<string> sourceCandidates, string destinationPath, ImportDestination? importDestination = null)
-    {
-        var existingSources = sourceCandidates
-            .Where(path => !string.IsNullOrWhiteSpace(path))
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .Where(File.Exists)
-            .ToList();
-
-        if (existingSources.Count == 0 || string.IsNullOrWhiteSpace(destinationPath))
-        {
-            return;
-        }
-
-        foreach (var sourcePath in existingSources)
-        {
-            if (string.Equals(sourcePath, destinationPath, StringComparison.OrdinalIgnoreCase))
-            {
-                continue;
-            }
-
-            try
-            {
-                if (!CanMoveBetween(sourcePath, destinationPath, importDestination))
-                {
-                    continue;
-                }
-
-                AssetPathService.EnsureDirectory(destinationPath);
-                if (!File.Exists(destinationPath))
-                {
-                    File.Move(sourcePath, destinationPath);
-                }
-                else if (CanMutate(sourcePath, SourceMutationKind.Delete, allowDelete: true))
-                {
-                    File.Delete(sourcePath);
-                }
-            }
-            catch { /* best-effort */ }
         }
     }
 
@@ -885,90 +830,6 @@ public sealed class AutoOrganizeService : IAutoOrganizeService
             Path.Combine(folder, "poster-thumb.jpg"),
             Path.Combine(folder, $"{basename}-poster-thumb.jpg"),
         };
-    }
-
-    private void MoveScopedCompanionFiles(
-        string oldMediaPath,
-        string newMediaPath,
-        ImportDestination? importDestination,
-        string artKind,
-        params string[] extensions)
-    {
-        if (string.IsNullOrWhiteSpace(oldMediaPath) || string.IsNullOrWhiteSpace(newMediaPath))
-        {
-            return;
-        }
-
-        var oldFolder = Path.GetDirectoryName(oldMediaPath) ?? string.Empty;
-        if (string.IsNullOrWhiteSpace(oldFolder) || !Directory.Exists(oldFolder))
-        {
-            return;
-        }
-
-        var oldBaseName = Path.GetFileNameWithoutExtension(oldMediaPath);
-        foreach (var extension in extensions
-                     .Where(ext => !string.IsNullOrWhiteSpace(ext))
-                     .Distinct(StringComparer.OrdinalIgnoreCase))
-        {
-            var normalizedExtension = extension.StartsWith(".", StringComparison.Ordinal)
-                ? extension
-                : "." + extension;
-
-            var sources = new List<string>
-            {
-                BuildScopedCompanionPath(oldMediaPath, artKind, normalizedExtension),
-            };
-
-            sources.AddRange(Directory.EnumerateFiles(oldFolder, $"{artKind}-*{normalizedExtension}"));
-
-            if (!string.IsNullOrWhiteSpace(oldBaseName))
-            {
-                sources.AddRange(Directory.EnumerateFiles(oldFolder, $"{oldBaseName}-{artKind}-*{normalizedExtension}"));
-            }
-
-            foreach (var sourcePath in sources
-                         .Where(path => !string.IsNullOrWhiteSpace(path))
-                         .Distinct(StringComparer.OrdinalIgnoreCase))
-            {
-                var destinationPath = BuildScopedCompanionDestination(newMediaPath, oldBaseName, sourcePath);
-                MoveCompanionCandidates([sourcePath], destinationPath, importDestination);
-            }
-        }
-    }
-
-    private static string BuildScopedCompanionPath(string mediaPath, string artKind, string extension) =>
-        artKind switch
-        {
-            "poster" => Path.ChangeExtension(AssetPathService.GetMediaFilePosterPath(mediaPath), extension),
-            "poster-thumb" => Path.ChangeExtension(AssetPathService.GetMediaFileThumbPath(mediaPath), extension),
-            "fanart" => Path.ChangeExtension(AssetPathService.GetMediaFileFanartPath(mediaPath), extension),
-            "logo" => Path.ChangeExtension(AssetPathService.GetMediaFileLogoPath(mediaPath), extension),
-            _ => throw new ArgumentOutOfRangeException(nameof(artKind), artKind, "Unsupported companion art kind."),
-        };
-
-    private static string BuildScopedCompanionDestination(
-        string newMediaPath,
-        string oldBaseName,
-        string sourcePath)
-    {
-        var newFolder = Path.GetDirectoryName(newMediaPath) ?? string.Empty;
-        var newBaseName = Path.GetFileNameWithoutExtension(newMediaPath);
-        var sourceFileName = Path.GetFileName(sourcePath);
-        var oldPrefix = string.IsNullOrWhiteSpace(oldBaseName)
-            ? string.Empty
-            : oldBaseName + "-";
-
-        var scopedFileName = !string.IsNullOrWhiteSpace(oldPrefix)
-            && sourceFileName.StartsWith(oldPrefix, StringComparison.OrdinalIgnoreCase)
-            ? sourceFileName[oldPrefix.Length..]
-            : sourceFileName;
-
-        if (AssetPathService.GetMediaFileArtScope(newMediaPath) == MediaFileArtScope.Dedicated)
-        {
-            return Path.Combine(newFolder, scopedFileName);
-        }
-
-        return Path.Combine(newFolder, $"{newBaseName}-{scopedFileName}");
     }
 
     private void CleanStagingBakFiles(string folder)

@@ -363,10 +363,11 @@ public sealed class FolderJobService
                 {
                     saved.ConversionState = previousState.ConversionState;
                     saved.ConversionOperationId = previousState.ConversionOperationId;
+                    // A managed read-only folder was made writable for the job, so its access goes back whether or not it was managed.
+                    saved.AccessMode = previousAccess;
                     if (!wasManaged)
                     {
                         saved.ManagementMode = previousManagement;
-                        saved.AccessMode = previousAccess;
                     }
                 });
                 throw;

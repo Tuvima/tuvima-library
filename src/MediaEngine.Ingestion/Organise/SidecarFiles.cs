@@ -1,3 +1,5 @@
+using MediaEngine.Domain.Services;
+
 namespace MediaEngine.Ingestion.Organise;
 
 /// <summary>
@@ -24,7 +26,8 @@ public static class SidecarFiles
     /// <param name="Path">Where the sidecar is now.</param>
     /// <param name="Remainder">Everything after the media file's base name, for example <c>.en.forced.srt</c>.</param>
     /// <param name="KeepName">True for a file that keeps its own name in the new folder (a folder-level cover or poster).</param>
-    public sealed record Sidecar(string Path, string Remainder, bool KeepName = false)
+    /// <param name="IsArtwork">True for poster, fanart and logo pictures (folder-level or named after the media file), whose name depends on how the new folder is shared.</param>
+    public sealed record Sidecar(string Path, string Remainder, bool KeepName = false, bool IsArtwork = false)
     {
         /// <summary>True for a playlist whose lines may name the media file.</summary>
         public bool IsPlaylist => Remainder.EndsWith(".m3u", StringComparison.OrdinalIgnoreCase)
@@ -158,9 +161,9 @@ public static class SidecarFiles
         foreach (var path in siblings.OrderBy(path => path, StringComparer.OrdinalIgnoreCase))
         {
             var name = System.IO.Path.GetFileName(path);
-            if (includeFolderLevel && FolderLevelNames.Contains(name))
+            if (includeFolderLevel && (FolderLevelNames.Contains(name) || IsFolderLevelArtworkVariant(name)))
             {
-                found.Add(new Sidecar(path, name, KeepName: true));
+                found.Add(new Sidecar(path, name, KeepName: true, IsArtwork: IsPictureOfKind(name)));
                 continue;
             }
 
@@ -182,19 +185,45 @@ public static class SidecarFiles
                 continue;
             }
 
-            found.Add(new Sidecar(path, name[stem.Length..]));
+            found.Add(new Sidecar(path, name[stem.Length..], IsArtwork: true));
         }
 
         return found;
     }
 
+    /// <summary>True for a poster, fanart or logo picture name (<c>poster.jpg</c>, <c>poster-thumb.jpg</c>, <c>fanart-1.png</c>), not for <c>cover.jpg</c>.</summary>
+    private static bool IsPictureOfKind(string name) =>
+        ArtworkExtensions.Contains(System.IO.Path.GetExtension(name))
+        && ArtKinds.Any(kind => name.StartsWith(kind, StringComparison.OrdinalIgnoreCase));
+
+    /// <summary>A numbered or identified folder-level artwork variant such as <c>poster-0f3a...jpg</c> or <c>fanart-1.png</c>.</summary>
+    private static bool IsFolderLevelArtworkVariant(string name) =>
+        ArtworkExtensions.Contains(System.IO.Path.GetExtension(name))
+        && ArtKinds.Any(kind => name.StartsWith(kind + "-", StringComparison.OrdinalIgnoreCase));
+
     /// <summary>Where a sidecar goes once its media file has moved: the new base name plus the same remainder.</summary>
-    public static string DestinationFor(Sidecar sidecar, string newMediaPath)
+    /// <param name="artScope">
+    /// When given, a poster, fanart or logo picture takes the name the new folder expects (the same rule as
+    /// <see cref="AssetPathService.GetMediaFilePosterPath"/>): the folder-level name (<c>poster.jpg</c>) when the media file is
+    /// alone in its folder, <c>{new name}-poster.jpg</c> when the folder is shared. Everything else is named as without it.
+    /// </param>
+    public static string DestinationFor(Sidecar sidecar, string newMediaPath, MediaFileArtScope? artScope = null)
     {
         ArgumentNullException.ThrowIfNull(sidecar);
         ArgumentException.ThrowIfNullOrWhiteSpace(newMediaPath);
 
         var folder = System.IO.Path.GetDirectoryName(newMediaPath) ?? string.Empty;
+        if (artScope is { } scope && sidecar.IsArtwork)
+        {
+            // "-poster.jpg" (named after the media file) and "poster.jpg" (folder-level) are the same picture in two scopes.
+            var folderLevelName = sidecar.KeepName
+                ? System.IO.Path.GetFileName(sidecar.Path)
+                : sidecar.Remainder.TrimStart('-');
+            return scope == MediaFileArtScope.Dedicated
+                ? System.IO.Path.Combine(folder, folderLevelName)
+                : System.IO.Path.Combine(folder, $"{System.IO.Path.GetFileNameWithoutExtension(newMediaPath)}-{folderLevelName}");
+        }
+
         if (sidecar.KeepName)
         {
             return System.IO.Path.Combine(folder, System.IO.Path.GetFileName(sidecar.Path));

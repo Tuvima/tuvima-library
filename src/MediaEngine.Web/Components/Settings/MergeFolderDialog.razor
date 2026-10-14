@@ -21,7 +21,7 @@
             }
             else if (_showingPreview && _preview is not null)
             {
-                <div class="merge-folder__preview" aria-label="Preview">
+                <div class="merge-folder__preview">
                     <p class="merge-folder__lead">
                         @(_preview.Complete
                             ? $"Looked at all {Count(_preview.TotalFiles)} files."

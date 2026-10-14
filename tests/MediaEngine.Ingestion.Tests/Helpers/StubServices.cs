@@ -180,7 +180,7 @@ internal sealed class StubFileOrganizer : IFileOrganizer
         return template;
     }
 
-    public Task<bool> ExecuteMoveAsync(string sourcePath, string destinationPath, CancellationToken ct = default)
+    public Task<string?> ExecuteMoveAsync(string sourcePath, string destinationPath, CancellationToken ct = default)
     {
         var dir = Path.GetDirectoryName(destinationPath);
         if (dir is not null)
@@ -193,7 +193,7 @@ internal sealed class StubFileOrganizer : IFileOrganizer
             File.Move(sourcePath, destinationPath, overwrite: true);
         }
 
-        return Task.FromResult(true);
+        return Task.FromResult<string?>(destinationPath);
     }
 }
 

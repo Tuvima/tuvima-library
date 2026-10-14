@@ -1,5 +1,6 @@
 using System.Text;
 using MediaEngine.Domain.Contracts;
+using MediaEngine.Domain.Services;
 using Microsoft.Extensions.Logging;
 
 namespace MediaEngine.Ingestion.Organise;
@@ -40,12 +41,19 @@ public sealed class SidecarMover
     /// as the file already at its new name is removed (used when an exact duplicate of the media file is being dropped).
     /// Pass <see langword="null"/> to never remove anything.
     /// </param>
+    /// <param name="includeArtwork">Also moves poster, fanart and logo pictures (named after the media file, or folder-level when nothing else is left in the old folder).</param>
+    /// <param name="renameArtworkToFolder">
+    /// Only with <paramref name="includeArtwork"/>: poster, fanart and logo pictures take the name the new folder expects, the
+    /// folder-level name (<c>poster.jpg</c>) when the media file is alone there, <c>{new name}-poster.jpg</c> when the folder is
+    /// shared. A picture whose resulting name is taken stays where it is.
+    /// </param>
     public IReadOnlyList<SidecarMoveResult> Move(
         string oldMediaPath,
         string newMediaPath,
         Func<string, string, bool> mayMove,
         Func<string, bool>? mayDelete = null,
-        bool includeArtwork = false)
+        bool includeArtwork = false,
+        bool renameArtworkToFolder = false)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(oldMediaPath);
         ArgumentException.ThrowIfNullOrWhiteSpace(newMediaPath);
@@ -61,9 +69,13 @@ public sealed class SidecarMover
             candidates.AddRange(SidecarFiles.FindArtwork(oldMediaPath, MediaExtensions, includeFolderLevel: !HasMediaLeft(oldFolder)));
         }
 
+        MediaFileArtScope? artScope = includeArtwork && renameArtworkToFolder
+            ? AssetPathService.GetMediaFileArtScope(newMediaPath)
+            : null;
+
         foreach (var sidecar in candidates)
         {
-            var target = SidecarFiles.DestinationFor(sidecar, newMediaPath);
+            var target = SidecarFiles.DestinationFor(sidecar, newMediaPath, artScope);
             if (string.Equals(sidecar.Path, target, StringComparison.Ordinal))
             {
                 continue;
@@ -76,8 +88,21 @@ public sealed class SidecarMover
             }
 
             // A name that differs only in letter case is this same file, so it is renamed, never treated as a copy to remove.
-            var sameFile = File.Exists(target) && _mover.IsSameFile(sidecar.Path, target);
-            if (File.Exists(target) && !(sameFile && CaseSafeRename.IsCaseOnlyChange(sidecar.Path, target)))
+            var targetExists = File.Exists(target);
+            var identity = targetExists ? _mover.CompareFiles(sidecar.Path, target) : FileIdentityResult.Different;
+            var caseOnly = CaseSafeRename.IsCaseOnlyChange(sidecar.Path, target);
+            if (targetExists && caseOnly && identity == FileIdentityResult.Unproven)
+            {
+                // Nothing proves it is one file, so it is left as it is, exactly like the media file.
+                _logger.LogWarning(
+                    "Left {Sidecar} alone: it differs from {Target} only in letter case and Tuvima could not prove they are the same file",
+                    sidecar.Path, target);
+                results.Add(new SidecarMoveResult(sidecar.Path, sidecar.Path, FolderOrganiseOutcomes.Skipped, CaseSafeRename.UnprovenReason));
+                continue;
+            }
+
+            var sameFile = identity != FileIdentityResult.Different;
+            if (targetExists && !(sameFile && caseOnly))
             {
                 results.Add(sameFile
                     ? new SidecarMoveResult(sidecar.Path, sidecar.Path, FolderOrganiseOutcomes.NotMoved, "That name already leads to this same file.")
