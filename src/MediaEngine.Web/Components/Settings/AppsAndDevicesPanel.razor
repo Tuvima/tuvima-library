@@ -6,11 +6,18 @@
 @inject IAppToastService Snackbar
 @inject IJSRuntime JS
 
-<div class="network-panel apps-devices">
-    <header class="network-panel__heading">
-        <div><h3>Apps &amp; devices</h3><p>Let the Tuvima apps on phones and TVs connect, and see which ones are paired.</p></div>
-    </header>
-
+@if (_loading)
+{
+    <AppSkeleton Size="AppControlSize.Large" />
+}
+else if (Settings is null)
+{
+    <AppErrorState Title="App settings are unavailable"
+                   Message="Start the Engine or retry before changing which apps can connect." />
+}
+else
+{
+<div class="apps-devices" data-devices-panel="apps">
     <SettingsSectionPanel Title="Allow apps" Icon="@AppMaterialIcons.Outlined.Devices"
                           Description="Phones and TVs connect over your internet address and sign in with a paired code.">
         <AppSwitchRow Label="Allow apps to connect"
@@ -37,11 +44,11 @@
             }
             else
             {
-                <dl class="network-facts">
+                <dl class="apps-devices__facts">
                     <div><dt>Address</dt><dd>@Settings.Remote.PublicHostname</dd></div>
                 </dl>
             }
-            <div class="network-card-actions">
+            <div class="apps-devices__actions">
                 @if (!string.IsNullOrWhiteSpace(Settings.Remote.PublicHostname))
                 {
                     <AppButton Label="Copy" StartIcon="@AppMaterialIcons.Outlined.ContentCopy" OnClick="CopyAddressAsync" />
@@ -50,27 +57,36 @@
             </div>
         </SettingsSectionPanel>
     }
-
-    <PairedDevicesSection />
 </div>
+}
 
 <NetworkTestDialog @bind-Visible="_testDialogOpen" Busy="@_testing" Result="@_testResult" />
 
 @code {
-    [Parameter, EditorRequired] public NetworkSettingsDto Settings { get; set; } = new();
-    [Parameter] public NetworkRuntimeStatusDto? Status { get; set; }
-    [Parameter] public EventCallback StatusRefreshRequested { get; set; }
-
+    // The switch and the address belong to the server administrator; the page that hosts this panel decides who sees it.
+    private NetworkSettingsDto? Settings { get; set; }
     private NetworkTestResultDto? _testResult;
+    private bool _loading = true;
     private bool _saving;
     private bool _testing;
     private bool _testDialogOpen;
     private bool _secureAccountFirst;
 
-    private bool AllowsInternet => Settings.WhoCanConnect == "anywhere";
+    private bool AllowsInternet => Settings?.WhoCanConnect == "anywhere";
+
+    protected override async Task OnInitializedAsync()
+    {
+        Settings = await ApiClient.GetNetworkSettingsAsync();
+        _loading = false;
+    }
 
     private async Task SetAppAccessAsync(bool enabled)
     {
+        if (Settings is null)
+        {
+            return;
+        }
+
         _saving = true;
         _secureAccountFirst = false;
         try
@@ -101,7 +117,6 @@
 
             Settings.NativeAppAccess.Enabled = enabled;
             Snackbar.Add(enabled ? "Apps can connect." : "Apps can no longer connect.", AppSeverity.Success);
-            await StatusRefreshRequested.InvokeAsync();
         }
         finally
         {
@@ -111,7 +126,7 @@
 
     private async Task CopyAddressAsync()
     {
-        await JS.InvokeVoidAsync("navigator.clipboard.writeText", Settings.Remote.PublicHostname);
+        await JS.InvokeVoidAsync("navigator.clipboard.writeText", Settings?.Remote.PublicHostname ?? string.Empty);
         Snackbar.Add("Address copied.", AppSeverity.Success);
     }
 

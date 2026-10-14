@@ -214,3 +214,15 @@ public sealed record AuthorizationAuditEntryResponse(
     [property: JsonPropertyName("subject_type")] string SubjectType,
     [property: JsonPropertyName("subject_id")] string SubjectId,
     [property: JsonPropertyName("changes")] IReadOnlyDictionary<string, string?> Changes);
+
+/// <summary>
+/// One person's signed-in sessions as the Devices page shows them to an administrator. <c>account_label</c> is the email,
+/// or the person's name when the sign-in has no email; <c>profile_display_name</c> is set only for a person's own sign-in.
+/// </summary>
+public sealed record ManagedAccountSessionsResponse(
+    [property: JsonPropertyName("account_id")] Guid AccountId,
+    [property: JsonPropertyName("account_label")] string AccountLabel,
+    [property: JsonPropertyName("email")] string? Email,
+    [property: JsonPropertyName("household_id")] Guid? HouseholdId,
+    [property: JsonPropertyName("profile_display_name")] string? ProfileDisplayName,
+    [property: JsonPropertyName("sessions")] IReadOnlyList<DeviceSessionResponse> Sessions);

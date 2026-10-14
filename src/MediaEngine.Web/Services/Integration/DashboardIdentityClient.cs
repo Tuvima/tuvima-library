@@ -404,6 +404,52 @@ public sealed class DashboardIdentityClient(
         SendMutationAsync(HttpMethod.Put, $"/access/devices/{deviceId:D}/backup-profile",
             new SetManagedDeviceBackupProfileRequest { ProfileId = profileId }, ct);
 
+    /// <summary>
+    /// Everyone's signed-in sessions for the Devices page: a server administrator sees every account, a household
+    /// administrator their household. A refusal comes back as a failure so the page can ask for the administrator PIN.
+    /// </summary>
+    public async Task<DashboardAccessMutationResult<List<ManagedAccountSessionsResponse>>> GetManagedSessionsAsync(CancellationToken ct = default)
+    {
+        try
+        {
+            using var response = await Client.GetAsync("/access/sessions", ct).ConfigureAwait(false);
+            if (!response.IsSuccessStatusCode)
+            {
+                return await ReadMutationFailureAsync<List<ManagedAccountSessionsResponse>>(response, ct).ConfigureAwait(false);
+            }
+
+            var value = await response.Content.ReadFromJsonAsync<List<ManagedAccountSessionsResponse>>(cancellationToken: ct).ConfigureAwait(false);
+            return value is null
+                ? DashboardAccessMutationResult<List<ManagedAccountSessionsResponse>>.FailureResult(
+                    DashboardAccessMutationFailure.InvalidResponse, response.StatusCode)
+                : DashboardAccessMutationResult<List<ManagedAccountSessionsResponse>>.Success(value);
+        }
+        catch (Exception exception) when (exception is JsonException or NotSupportedException)
+        {
+            return DashboardAccessMutationResult<List<ManagedAccountSessionsResponse>>.FailureResult(DashboardAccessMutationFailure.InvalidResponse);
+        }
+        catch (HttpRequestException)
+        {
+            return DashboardAccessMutationResult<List<ManagedAccountSessionsResponse>>.FailureResult(DashboardAccessMutationFailure.Transient);
+        }
+        catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+        {
+            return DashboardAccessMutationResult<List<ManagedAccountSessionsResponse>>.FailureResult(DashboardAccessMutationFailure.Transient);
+        }
+    }
+
+    /// <summary>Signs out one session of someone the administrator looks after; screens open on that session close.</summary>
+    public async Task<DashboardAccessMutationResult> RevokeManagedSessionAsync(Guid sessionId, CancellationToken ct = default)
+    {
+        var result = await SendMutationAsync(HttpMethod.Delete, $"/access/sessions/{sessionId:D}", ct).ConfigureAwait(false);
+        if (result.Succeeded)
+        {
+            openScreens?.CloseWhere(screen => screen.SessionId == sessionId);
+        }
+
+        return result;
+    }
+
     public async Task<List<ManagedProfileResponse>> GetManagedProfilesAsync(CancellationToken ct = default) =>
         await GetAsync<List<ManagedProfileResponse>>("/access/profiles", ct).ConfigureAwait(false) ?? [];
 

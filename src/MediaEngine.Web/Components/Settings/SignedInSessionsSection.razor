@@ -1,0 +1,288 @@
+@namespace MediaEngine.Web.Components.Settings
+@using MediaEngine.Contracts.Authentication
+@using MediaEngine.Web.Components.Profiles
+@using MediaEngine.Web.Services.Integration
+@inject DashboardIdentityClient Identity
+@inject DashboardSessionAccessor Session
+@inject ConfirmedActionRunner Confirmed
+@inject IAppToastService Snackbar
+@inject ILogger<SignedInSessionsSection> Logger
+@implements IDisposable
+
+@* Everyone an administrator looks after who is signed in somewhere: grouped by person, with Sign out for each device. *@
+<SettingsSectionPanel Title="Signed-in sessions" Icon="@AppMaterialIcons.Outlined.Logout"
+                      Description="Where people are signed in right now. Sign one out to end that sign-in at once.">
+    @if (_loading)
+    {
+        <AppSkeleton Size="AppControlSize.Compact" />
+    }
+    else if (_locked)
+    {
+        <AppAlert Tone="AppUiTone.Warning">Enter your administrator PIN to see who is signed in.</AppAlert>
+        <div class="signed-in-sessions__actions">
+            <AppButton Label="Enter PIN" StartIcon="@AppMaterialIcons.Outlined.LockOpen" OnClick="OpenUnlock" />
+        </div>
+    }
+    else if (_loadFailed)
+    {
+        <AppAlert Tone="AppUiTone.Error">Signed-in sessions could not be loaded. Try again in a moment.</AppAlert>
+        <div class="signed-in-sessions__actions">
+            <AppButton Label="Try again" StartIcon="@AppMaterialIcons.Outlined.Refresh" OnClick="LoadAsync" />
+        </div>
+    }
+    else
+    {
+        @if (!HasOtherSessions)
+        {
+            <AppEmptyState Class="app-page-state--compact" Title="Nobody else is signed in"
+                           Message="When someone signs in on another device, it shows up here." />
+        }
+
+        @foreach (var person in _people)
+        {
+            <section class="signed-in-sessions__person" data-session-person="@person.AccountId" aria-label="@PersonName(person)">
+                <header class="signed-in-sessions__person-header">
+                    <span class="signed-in-sessions__avatar" aria-hidden="true">
+                        <ProfileAvatar DisplayName="@PersonName(person)" />
+                    </span>
+                    <span class="signed-in-sessions__who">
+                        <span class="signed-in-sessions__name">@PersonName(person)</span>
+                        @if (PersonDetail(person) is { } detail)
+                        {
+                            <span class="signed-in-sessions__detail">@detail</span>
+                        }
+                    </span>
+                </header>
+                <ul class="signed-in-sessions__list" role="list">
+                    @foreach (var session in person.Sessions)
+                    {
+                        var display = SecuritySessionDisplayFormatter.Format(session);
+                        <li class="signed-in-sessions__row" data-session-row="@session.Id" @key="session.Id">
+                            <span class="signed-in-sessions__device">
+                                <span class="signed-in-sessions__device-name">
+                                    @display.DeviceName
+                                    @if (IsCurrent(session))
+                                    {
+                                        <span class="signed-in-sessions__tag" data-session-tag="this-device">This device</span>
+                                    }
+                                </span>
+                                <span class="signed-in-sessions__client">@display.ClientDescription</span>
+                                <span class="signed-in-sessions__seen">Last seen @session.LastSeenAt.LocalDateTime.ToString("g")</span>
+                            </span>
+                            @if (!IsCurrent(session))
+                            {
+                                <AppButton Label="Sign out" ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Error"
+                                           Size="AppControlSize.Compact" OnClick="@(() => AskSignOut(person, session))" />
+                            }
+                        </li>
+                    }
+                </ul>
+            </section>
+        }
+    }
+</SettingsSectionPanel>
+
+<AppDialog Visible="@(_pending is not null)"
+           VisibleChanged="@(_ => CancelSignOut())"
+           Title="Sign this device out?"
+           Subtitle="@(_pending is null ? null : $"{PendingDeviceName} will be signed out and the person has to sign in again.")"
+           Icon="@AppMaterialIcons.Outlined.Logout"
+           Size="Small">
+    <ChildContent>
+        <p>It stops working straight away. Nothing is deleted from the library.</p>
+    </ChildContent>
+    <FooterContent>
+        <div class="signed-in-sessions__dialog-actions">
+            <AppButton Label="Cancel" OnClick="CancelSignOut" />
+            <AppButton Label="Sign out" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Error"
+                       Disabled="@_signingOut" OnClick="ConfirmSignOutAsync" />
+        </div>
+    </FooterContent>
+</AppDialog>
+
+<AdminUnlockDialog Open="@_needsUnlock" Busy="@_unlocking" Error="@_unlockError" OnUnlock="UnlockAsync" OnCancel="CancelUnlock" />
+
+@code {
+    private const string NoEmail = "No email";
+
+    private readonly CancellationTokenSource _lifetime = new();
+    private List<ManagedAccountSessionsResponse> _people = [];
+    private (ManagedAccountSessionsResponse Person, DeviceSessionResponse Session)? _pending;
+    private bool _loading = true;
+    private bool _loadFailed;
+    private bool _locked;
+    private bool _signingOut;
+    private bool _needsUnlock;
+    private bool _unlocking;
+    private string? _unlockError;
+    private Func<Task>? _afterUnlock;
+
+    private bool HasOtherSessions => _people.Any(person => person.Sessions.Any(session => !IsCurrent(session)));
+    private string PendingDeviceName => _pending is { } pending ? SecuritySessionDisplayFormatter.Format(pending.Session).DeviceName : string.Empty;
+
+    protected override Task OnInitializedAsync() => LoadAsync();
+
+    private bool IsCurrent(DeviceSessionResponse session) => Session.SessionId == session.Id;
+
+    private static string PersonName(ManagedAccountSessionsResponse person) =>
+        !string.IsNullOrWhiteSpace(person.ProfileDisplayName) ? person.ProfileDisplayName! : person.AccountLabel;
+
+    // The line under the name: the email, or "No email" when the sign-in has none (unless the name already says so).
+    private static string? PersonDetail(ManagedAccountSessionsResponse person)
+    {
+        if (!string.IsNullOrWhiteSpace(person.Email))
+        {
+            return string.Equals(person.Email, PersonName(person), StringComparison.OrdinalIgnoreCase) ? null : person.Email;
+        }
+
+        return string.Equals(PersonName(person), NoEmail, StringComparison.Ordinal) ? null : NoEmail;
+    }
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        _loadFailed = false;
+        _locked = false;
+        try
+        {
+            var result = await Identity.GetManagedSessionsAsync(_lifetime.Token);
+            if (result.Succeeded && result.Value is { } people)
+            {
+                _people = people;
+            }
+            else if (result.Failure == DashboardAccessMutationFailure.Forbidden)
+            {
+                // A household administrator who turned on an administrator PIN is refused until it is entered.
+                _locked = true;
+                RequestUnlock(LoadAsync);
+            }
+            else
+            {
+                _loadFailed = true;
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // The page was left before the list arrived; nothing to show.
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private void AskSignOut(ManagedAccountSessionsResponse person, DeviceSessionResponse session) => _pending = (person, session);
+
+    private void CancelSignOut() => _pending = null;
+
+    private async Task ConfirmSignOutAsync()
+    {
+        if (_pending is not { } pending || _signingOut)
+        {
+            return;
+        }
+
+        _signingOut = true;
+        try
+        {
+            var result = await Confirmed.RunAsync(() => Identity.RevokeManagedSessionAsync(pending.Session.Id, _lifetime.Token), _lifetime.Token);
+            _pending = null;
+            if (result.Succeeded)
+            {
+                Snackbar.Add($"{SecuritySessionDisplayFormatter.Format(pending.Session).DeviceName} was signed out.", AppSeverity.Success);
+                await LoadAsync();
+            }
+            else if (result.Failure == DashboardAccessMutationFailure.Forbidden)
+            {
+                RequestUnlock(() => ConfirmAfterUnlockAsync(pending));
+            }
+            else
+            {
+                Snackbar.Add(FailureText(result.Failure), AppSeverity.Error);
+                await LoadAsync();
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // The page was left while signing out; the Engine answers on its own.
+        }
+        finally
+        {
+            _signingOut = false;
+        }
+    }
+
+    private Task ConfirmAfterUnlockAsync((ManagedAccountSessionsResponse Person, DeviceSessionResponse Session) pending)
+    {
+        _pending = pending;
+        return ConfirmSignOutAsync();
+    }
+
+    private static string FailureText(DashboardAccessMutationFailure failure) => failure switch
+    {
+        DashboardAccessMutationFailure.ConfirmItsYou => "Nothing was changed. Confirm it's you to continue.",
+        DashboardAccessMutationFailure.NotFound => "That sign-in has already ended.",
+        DashboardAccessMutationFailure.Validation => "Use Sign out in your own security settings for this device.",
+        DashboardAccessMutationFailure.Transient => "The Engine is unavailable. Try again.",
+        _ => "That device could not be signed out.",
+    };
+
+    private void RequestUnlock(Func<Task> retry)
+    {
+        _unlockError = null;
+        _afterUnlock = retry;
+        _needsUnlock = true;
+    }
+
+    private void OpenUnlock() => RequestUnlock(LoadAsync);
+
+    private async Task UnlockAsync(string pin)
+    {
+        if (_unlocking)
+        {
+            return;
+        }
+
+        _unlocking = true;
+        _unlockError = null;
+        try
+        {
+            var unlocked = await Identity.UnlockAdministratorAsync(new GrantAdminUnlockRequest(pin), _lifetime.Token);
+            if (unlocked?.Unlocked != true)
+            {
+                _unlockError = "That PIN did not work. Try again.";
+                return;
+            }
+        }
+        catch (Exception exception) when (exception is HttpRequestException or TaskCanceledException or System.Text.Json.JsonException)
+        {
+            Logger.LogWarning(exception, "Could not unlock administrator access from the Devices page.");
+            _unlockError = "The Engine is unavailable. Try again.";
+            return;
+        }
+        finally
+        {
+            _unlocking = false;
+        }
+
+        var retry = _afterUnlock;
+        _needsUnlock = false;
+        _afterUnlock = null;
+        if (retry is not null)
+        {
+            await retry();
+        }
+    }
+
+    private void CancelUnlock()
+    {
+        _needsUnlock = false;
+        _afterUnlock = null;
+    }
+
+    public void Dispose()
+    {
+        _lifetime.Cancel();
+        _lifetime.Dispose();
+    }
+}

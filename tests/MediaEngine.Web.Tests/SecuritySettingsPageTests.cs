@@ -37,18 +37,19 @@ public sealed class SecuritySettingsPageTests : AsyncBunitContext
         _handler.HasPassword = false;
         var cut = Render<SecuritySettingsPage>();
 
-        cut.WaitForAssertion(() => Assert.Equal(["password", "email", "sign-out-others"], RowKeys(cut)));
+        cut.WaitForAssertion(() => Assert.Equal(["password", "email"], RowKeys(cut)));
         Assert.Contains("Not set", cut.Find("[data-nav-row='password']").TextContent, StringComparison.Ordinal);
         Assert.Contains("owner@example.test", cut.Find("[data-nav-row='email']").TextContent, StringComparison.Ordinal);
     }
 
     [Fact]
-    public void WithAPassword_ExtraProtectionAppears_AndMembersKeepSignOutButNotTheDevicesLink()
+    public void WithAPassword_ExtraProtectionAppears_AndMembersGetNeitherSignOutEverywhereNorTheDevicesLink()
     {
         _handler.HasPassword = true;
         var cut = Render<SecuritySettingsPage>();
 
-        cut.WaitForAssertion(() => Assert.Equal(["password", "email", "extra-protection", "sign-out-others"], RowKeys(cut)));
+        cut.WaitForAssertion(() => Assert.Equal(["password", "email", "extra-protection"], RowKeys(cut)));
+        Assert.Empty(cut.FindAll("[data-nav-row='sign-out-others']"));
         Assert.Contains("Off", cut.Find("[data-nav-row='extra-protection']").TextContent, StringComparison.Ordinal);
         Assert.Empty(cut.FindAll("[data-nav-row='devices']"));
         Assert.Empty(cut.FindAll("[role='dialog']"));
@@ -156,7 +157,10 @@ public sealed class SecuritySettingsPageTests : AsyncBunitContext
 
         cut.WaitForAssertion(() => Assert.Equal(["password", "email", "extra-protection", "sign-out-others", "devices"], RowKeys(cut)));
         cut.WaitForAssertion(() => Assert.Contains("1 other session", cut.Find("[data-nav-row='sign-out-others']").TextContent, StringComparison.Ordinal));
-        Assert.Equal("/settings/network/apps", cut.Find("[data-nav-row='devices']").GetAttribute("href"));
+        Assert.Equal("/settings/devices", cut.Find("[data-nav-row='devices']").GetAttribute("href"));
+        // Paired phones and TVs moved to the Devices page; Security no longer lists or loads them.
+        Assert.DoesNotContain("Paired devices", cut.Markup, StringComparison.Ordinal);
+        Assert.DoesNotContain(_handler.Paths, path => path.StartsWith("/access/devices", StringComparison.Ordinal));
 
         await cut.InvokeAsync(() => cut.Find("[data-nav-row='sign-out-others']").Click());
         Assert.Equal(0, _handler.Revokes);
@@ -165,6 +169,17 @@ public sealed class SecuritySettingsPageTests : AsyncBunitContext
 
         cut.WaitForAssertion(() => Assert.Equal(1, _handler.Revokes));
         cut.WaitForAssertion(() => Assert.Contains("No other sessions", cut.Find("[data-nav-row='sign-out-others']").TextContent, StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void HouseholdAdministrator_GetsSignOutEverywhereElseAndTheDevicesLink()
+    {
+        _handler.HasPassword = true;
+        _session.Set("session", _handler.Account, _handler.Profile, _handler.CurrentSession, _handler.HouseholdAdminAuthority());
+        var cut = Render<SecuritySettingsPage>();
+
+        cut.WaitForAssertion(() => Assert.Equal(["password", "email", "extra-protection", "sign-out-others", "devices"], RowKeys(cut)));
+        Assert.Equal("/settings/devices", cut.Find("[data-nav-row='devices']").GetAttribute("href"));
     }
 
     [Fact]
@@ -210,6 +225,12 @@ public sealed class SecuritySettingsPageTests : AsyncBunitContext
         public string? Email { get; set; } = "owner@example.test";
         public int Revokes { get; private set; }
 
+        public System.Collections.Concurrent.ConcurrentQueue<string> Paths { get; } = new();
+
+        public DashboardAuthorityResponse HouseholdAdminAuthority() => new(
+            Account, Profile, true, true, 1, 1, false, false, null, 1, [],
+            [], ["household.manage"]);
+
         public DashboardAuthorityResponse AdminAuthority() => new(
             Account, Profile, true, true, 1, 1, true, true, null, 1, [],
             ["settings.administration"], ["household.manage"]);
@@ -217,6 +238,7 @@ public sealed class SecuritySettingsPageTests : AsyncBunitContext
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
             var path = request.RequestUri!.AbsolutePath;
+            Paths.Enqueue(path);
             if (request.Method == HttpMethod.Delete && path == "/auth/sessions/others")
             {
                 Revokes++;

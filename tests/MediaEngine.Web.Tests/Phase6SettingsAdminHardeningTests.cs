@@ -74,7 +74,7 @@ public sealed class Phase6SettingsAdminHardeningTests
         Assert.DoesNotContain("Engine online", source, StringComparison.Ordinal);
         Assert.Contains("Engine state could not be loaded", source, StringComparison.Ordinal);
         Assert.Contains("ShouldDeferForRoleResolution", source, StringComparison.Ordinal);
-        Assert.Contains("SettingsNav.ResolveRoute(Section, CanManageAdministration)", source, StringComparison.Ordinal);
+        Assert.Contains("SettingsNav.ResolveRoute(Section, CanManageAdministration, CanManageHousehold)", source, StringComparison.Ordinal);
     }
 
     [Fact]

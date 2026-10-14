@@ -25,6 +25,7 @@ public enum SettingsSection
     Plugins,
     Delivery,
     Network,
+    Devices,
     Access,
     Server,
 
@@ -68,7 +69,8 @@ public sealed record SettingsItemDef(
     bool Placeholder = false,
     SettingsStatusKind Status = SettingsStatusKind.Planned,
     SettingsMobileAvailability MobileAvailability = SettingsMobileAvailability.Full,
-    bool SectionBreakBefore = false);
+    bool SectionBreakBefore = false,
+    bool HouseholdAdminAccess = false);
 
 public sealed record LaunchFeatureEvidence(
     bool Implemented,
@@ -134,6 +136,7 @@ public static class SettingsNav
             [SettingsSection.Providers] = Complete(),
             [SettingsSection.Review] = Complete(),
             [SettingsSection.Network] = Complete(),
+            [SettingsSection.Devices] = Complete(),
             [SettingsSection.Server] = Complete(),
             [SettingsSection.LocalAi] = Complete(),
             [SettingsSection.Delivery] = Complete(),
@@ -170,6 +173,7 @@ public static class SettingsNav
         new(SettingsSection.Providers, "administration", "metadata", AppMaterialIcons.Outlined.Storage, "Metadata Providers", true, null, [], Status: SettingsStatusKind.Live, MobileAvailability: SettingsMobileAvailability.SummaryOnly),
         new(SettingsSection.Review, "administration", "review", AppMaterialIcons.Outlined.RateReview, "Needs Review", true, "review", [], "mixed", Status: SettingsStatusKind.Live, MobileAvailability: SettingsMobileAvailability.DesktopOnly),
         new(SettingsSection.Network, "administration", "network", AppMaterialIcons.Outlined.WifiTethering, "Network & Remote Access", true, null, [], "json+runtime", Status: SettingsStatusKind.Live, MobileAvailability: SettingsMobileAvailability.SummaryOnly),
+        new(SettingsSection.Devices, "administration", "devices", AppMaterialIcons.Outlined.Devices, "Devices", true, null, ["apps"], "json+sqlite", Status: SettingsStatusKind.Live, MobileAvailability: SettingsMobileAvailability.Full, HouseholdAdminAccess: true),
         new(SettingsSection.Delivery, "administration", "delivery", AppMaterialIcons.Outlined.VideoSettings, "Playback & Delivery", true, null, [], Status: SettingsStatusKind.Live, MobileAvailability: SettingsMobileAvailability.SummaryOnly),
         new(SettingsSection.Access, "administration", "access", AppMaterialIcons.Outlined.Group, "Users & Access", true, null, [], Status: SettingsStatusKind.Live, MobileAvailability: SettingsMobileAvailability.Full),
         new(SettingsSection.Server, "administration", "backup-recovery", AppMaterialIcons.Outlined.Backup, "Backup & Recovery", true, null, [], Status: SettingsStatusKind.Live, MobileAvailability: SettingsMobileAvailability.SummaryOnly),
@@ -189,6 +193,7 @@ public static class SettingsNav
             [
                 SettingsSection.AdminOverview,
                 SettingsSection.Network,
+                SettingsSection.Devices,
                 SettingsSection.Delivery,
                 SettingsSection.Access,
                 SettingsSection.Server,
@@ -254,7 +259,6 @@ public static class SettingsNav
                 new("overview", "Overview", AppMaterialIcons.Outlined.Dashboard),
                 new("local", "Local Network", AppMaterialIcons.Outlined.Lan),
                 new("remote", "Remote Access", AppMaterialIcons.Outlined.Public),
-                new("apps", "Apps & devices", AppMaterialIcons.Outlined.Devices),
                 new("streaming", "Streaming", AppMaterialIcons.Outlined.Stream),
                 new("advanced", "Advanced", AppMaterialIcons.Outlined.Tune),
             ],
@@ -264,6 +268,7 @@ public static class SettingsNav
                 new("applications", "Applications", AppMaterialIcons.Outlined.Apps),
                 new("authentication", "Authentication", AppMaterialIcons.Outlined.AdminPanelSettings),
             ],
+            [SettingsSection.Devices] = [],
             [SettingsSection.Server] = [],
             [SettingsSection.Review] = [],
             [SettingsSection.ProviderTester] = [new("overview", "Overview", AppMaterialIcons.Outlined.Biotech)],
@@ -301,6 +306,7 @@ public static class SettingsNav
         SettingsSection.RecentlyAdded,
         SettingsSection.Review,
         SettingsSection.Delivery,
+        SettingsSection.Devices,
         SettingsSection.Access,
         SettingsSection.Server,
         SettingsSection.LocalAi,
@@ -312,30 +318,39 @@ public static class SettingsNav
     public static IEnumerable<SettingsGroupDef> FilteredGroups(bool administrationAllowed) =>
         AllGroups.Where(group => !group.AdminOnly || administrationAllowed);
 
-    public static IEnumerable<SettingsTreeGroupDef> FilteredTreeGroups(bool administrationAllowed)
+    /// <param name="householdAdministrator">
+    /// A household administrator who is not a server administrator: they also see the administration pages marked
+    /// <see cref="SettingsItemDef.HouseholdAdminAccess"/> (today only Devices), and nothing else in Administration.
+    /// </param>
+    public static IEnumerable<SettingsTreeGroupDef> FilteredTreeGroups(bool administrationAllowed, bool householdAdministrator = false)
     {
-        var hasAdmin = administrationAllowed;
         return TreeGroups
             .Where(group => string.IsNullOrWhiteSpace(group.ParentKey))
-            .Where(group => !group.AdminOnly || hasAdmin)
-            .Where(group => group.Sections.Any(section => IsVisible(section, administrationAllowed))
-                            || FilteredChildTreeGroups(group, administrationAllowed).Any());
+            .Where(group => GroupAllowed(group, administrationAllowed, householdAdministrator))
+            .Where(group => group.Sections.Any(section => IsVisible(section, administrationAllowed, householdAdministrator))
+                            || FilteredChildTreeGroups(group, administrationAllowed, householdAdministrator).Any());
     }
 
-    public static IEnumerable<SettingsTreeGroupDef> FilteredChildTreeGroups(SettingsTreeGroupDef parent, bool administrationAllowed)
+    public static IEnumerable<SettingsTreeGroupDef> FilteredChildTreeGroups(
+        SettingsTreeGroupDef parent, bool administrationAllowed, bool householdAdministrator = false)
     {
-        var hasAdmin = administrationAllowed;
         return TreeGroups
             .Where(group => string.Equals(group.ParentKey, parent.Key, StringComparison.OrdinalIgnoreCase))
-            .Where(group => !group.AdminOnly || hasAdmin)
-            .Where(group => group.Sections.Any(section => IsVisible(section, administrationAllowed)));
+            .Where(group => GroupAllowed(group, administrationAllowed, householdAdministrator))
+            .Where(group => group.Sections.Any(section => IsVisible(section, administrationAllowed, householdAdministrator)));
     }
 
-    public static IReadOnlyList<SettingsItemDef> FilteredTreeItems(SettingsTreeGroupDef group, bool administrationAllowed) =>
+    public static IReadOnlyList<SettingsItemDef> FilteredTreeItems(
+        SettingsTreeGroupDef group, bool administrationAllowed, bool householdAdministrator = false) =>
         group.Sections
             .Select(GetItem)
-            .Where(item => IsVisible(item.Value, administrationAllowed))
+            .Where(item => IsVisible(item.Value, administrationAllowed, householdAdministrator))
             .ToList();
+
+    private static bool GroupAllowed(SettingsTreeGroupDef group, bool administrationAllowed, bool householdAdministrator) =>
+        !group.AdminOnly
+        || administrationAllowed
+        || householdAdministrator && group.Sections.Any(section => GetItem(section).HouseholdAdminAccess);
 
     public static IReadOnlyList<SettingsItemDef> FilteredItems(SettingsGroupDef group, bool administrationAllowed)
     {
@@ -389,7 +404,7 @@ public static class SettingsNav
 
     public static SettingsSection GetDefaultSection(string groupKey) => _groupsByKey[groupKey].DefaultSection;
 
-    public static bool IsVisible(SettingsSection section, bool administrationAllowed)
+    public static bool IsVisible(SettingsSection section, bool administrationAllowed, bool householdAdministrator = false)
     {
         var item = GetItem(section);
         if (_productionMode
@@ -405,11 +420,12 @@ public static class SettingsNav
 
         return administrationAllowed || section is SettingsSection.Profiles
             or SettingsSection.Playback or SettingsSection.Listening
-            or SettingsSection.Reading or SettingsSection.Security;
+            or SettingsSection.Reading or SettingsSection.Security
+            || householdAdministrator && item.HouseholdAdminAccess;
     }
 
-    public static SettingsSection FirstVisibleSection(bool administrationAllowed) =>
-        AllItems.First(item => IsVisible(item.Value, administrationAllowed)).Value;
+    public static SettingsSection FirstVisibleSection(bool administrationAllowed, bool householdAdministrator = false) =>
+        AllItems.First(item => IsVisible(item.Value, administrationAllowed, householdAdministrator)).Value;
 
     public static string RouteFor(SettingsSection section)
     {
@@ -469,7 +485,7 @@ public static class SettingsNav
         return $"{SectionRouteFor(section)}/{subsection.Slug}";
     }
 
-    public static SettingsRouteResolution ResolveRoute(string? segment, bool administrationAllowed)
+    public static SettingsRouteResolution ResolveRoute(string? segment, bool administrationAllowed, bool householdAdministrator = false)
     {
         if (string.IsNullOrWhiteSpace(segment))
         {
@@ -485,7 +501,7 @@ public static class SettingsNav
 
         if (_itemsBySlug.TryGetValue(normalized, out var canonicalItem))
         {
-            if (IsVisible(canonicalItem.Value, administrationAllowed))
+            if (IsVisible(canonicalItem.Value, administrationAllowed, householdAdministrator))
             {
                 return new SettingsRouteResolution(
                     canonicalItem.Value,
@@ -495,7 +511,7 @@ public static class SettingsNav
                     RequestedSectionAllowed: true);
             }
 
-            var fallback = FirstVisibleSection(administrationAllowed);
+            var fallback = FirstVisibleSection(administrationAllowed, householdAdministrator);
             return new SettingsRouteResolution(
                 fallback,
                 RouteFor(fallback),
@@ -506,7 +522,7 @@ public static class SettingsNav
 
         if (_itemsByAlias.TryGetValue(normalized, out var aliasedItem))
         {
-            if (IsVisible(aliasedItem.Value, administrationAllowed))
+            if (IsVisible(aliasedItem.Value, administrationAllowed, householdAdministrator))
             {
                 return new SettingsRouteResolution(
                     aliasedItem.Value,
@@ -516,7 +532,7 @@ public static class SettingsNav
                     RequestedSectionAllowed: true);
             }
 
-            var fallback = FirstVisibleSection(administrationAllowed);
+            var fallback = FirstVisibleSection(administrationAllowed, householdAdministrator);
             return new SettingsRouteResolution(
                 fallback,
                 RouteFor(fallback),
@@ -526,12 +542,22 @@ public static class SettingsNav
         }
 
         return new SettingsRouteResolution(
-            FirstVisibleSection(administrationAllowed),
+            FirstVisibleSection(administrationAllowed, householdAdministrator),
             "/not-found",
             IsCanonicalRoute: false,
             IsKnownRoute: false,
             RequestedSectionAllowed: false);
     }
+
+    /// <summary>
+    /// Old addresses that now live elsewhere: the Apps &amp; devices tab of Network became the Devices page.
+    /// Returns the address to send the visitor to, or <see langword="null"/> when the address is current.
+    /// </summary>
+    public static string? LegacyRedirect(string? section, string? subsection) =>
+        string.Equals(section, "network", StringComparison.OrdinalIgnoreCase)
+        && string.Equals(subsection, "apps", StringComparison.OrdinalIgnoreCase)
+            ? RouteFor(SettingsSection.Devices)
+            : null;
 
     public static SettingsSection? ParseFromRoute(string? segment)
     {

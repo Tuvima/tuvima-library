@@ -24,6 +24,7 @@ public static class AccountEndpoints
         MapManagedAccounts(access);
         MapManagedProfiles(access);
         MapManagedDevices(access);
+        MapManagedSessions(access);
         return app;
     }
 
@@ -83,6 +84,46 @@ public static class AccountEndpoints
         .Produces(StatusCodes.Status204NoContent)
         .ProducesProblem(StatusCodes.Status403Forbidden)
         .ProducesProblem(StatusCodes.Status404NotFound);
+    }
+
+    /// <summary>
+    /// The Devices page's signed-in sessions: a server administrator sees every account's, a household administrator
+    /// their household's. Signing one out ends that device's sign-in; your own session is ended with Sign out.
+    /// </summary>
+    private static void MapManagedSessions(RouteGroupBuilder access)
+    {
+        var sessions = access.MapGroup("/sessions");
+        sessions.MapGet("/", async (HttpContext http, IRequestAuthorityResolver resolver,
+            [FromServices] ManagedSessionService service, CancellationToken ct) => await ExecuteAsync(async () =>
+                Results.Ok(await service.ListAsync(await resolver.ResolveAsync(http, ct), ct))))
+            .RequireEffectiveAdministratorOrHouseholdAdministrator()
+            .WithName("ListManagedAccountSessions")
+            .Produces<IReadOnlyList<ManagedAccountSessionsResponse>>()
+            .ProducesProblem(StatusCodes.Status403Forbidden);
+
+        sessions.MapDelete("/{sessionId:guid}", async (Guid sessionId, HttpContext http,
+            IRequestAuthorityResolver resolver, [FromServices] ManagedSessionService service,
+            [FromServices] RecentSignInGuard recentSignIn, CancellationToken ct) => await ExecuteAsync(async () =>
+        {
+            if (await recentSignIn.RefuseHumanIfStaleAsync(http.User, ct).ConfigureAwait(false) is { } stale)
+            {
+                return stale;
+            }
+
+            return await service.RevokeAsync(await resolver.ResolveAsync(http, ct), sessionId, ct) switch
+            {
+                ManagedSessionRevokeOutcome.Revoked => Results.NoContent(),
+                ManagedSessionRevokeOutcome.OwnSession => ApiErrors.BadRequest(ManagedSessionService.OwnSessionMessage),
+                ManagedSessionRevokeOutcome.Forbidden => ApiErrors.Forbidden("That sign-in belongs to someone you do not look after."),
+                _ => ApiErrors.NotFound("Session not found or already signed out."),
+            };
+        }))
+            .RequireEffectiveAdministratorOrHouseholdAdministrator()
+            .WithName("RevokeManagedAccountSession")
+            .Produces(StatusCodes.Status204NoContent)
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
+            .ProducesProblem(StatusCodes.Status404NotFound);
     }
 
     private static void MapSelfService(RouteGroupBuilder access)
