@@ -123,6 +123,38 @@ public sealed class SetDeviceBackupProfileRequest
     [JsonPropertyName("pin")] public string? Pin { get; init; }
 }
 
+/// <summary>One person a paired app may switch to without re-pairing.</summary>
+public sealed class DeviceProfileDto
+{
+    [JsonPropertyName("profile_id")] public Guid ProfileId { get; init; }
+    [JsonPropertyName("display_name")] public string DisplayName { get; init; } = string.Empty;
+
+    /// <summary>Reserved. Always null today: avatar images are not served to paired apps, which draw the initial instead.</summary>
+    [JsonPropertyName("avatar_url")] public string? AvatarUrl { get; init; }
+
+    /// <summary>True for a Kids (restricted) profile.</summary>
+    [JsonPropertyName("is_kids")] public bool IsKids { get; init; }
+
+    /// <summary>True when switching to this person needs their PIN.</summary>
+    [JsonPropertyName("requires_pin")] public bool RequiresPin { get; init; }
+
+    /// <summary>True for the profile this device is using now.</summary>
+    [JsonPropertyName("is_active")] public bool IsActive { get; init; }
+}
+
+/// <summary>The people the calling paired app may switch to (the profiles its account is granted), the active one included.</summary>
+public sealed class DeviceProfileListDto
+{
+    [JsonPropertyName("profiles")] public IReadOnlyList<DeviceProfileDto> Profiles { get; init; } = [];
+}
+
+/// <summary>A paired app switching person without re-pairing. The person's PIN is needed when they have one.</summary>
+public sealed class SwitchDeviceProfileRequest
+{
+    [JsonPropertyName("profile_id")] public Guid ProfileId { get; init; }
+    [JsonPropertyName("pin")] public string? Pin { get; init; }
+}
+
 public sealed class ClientCapabilitiesDto
 {
     [JsonPropertyName("schema_version")] public int SchemaVersion { get; init; } = 1;

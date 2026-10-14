@@ -934,25 +934,39 @@ public sealed class FirstPartyIdentityService(
                 throw new ProfilePinRequiredException();
             }
 
+            // The attempt is reserved before the guess is checked, in one conditional statement in the data store, so a
+            // burst of parallel guesses cannot all see "unlocked": once the limit's worth of attempts is out (or the
+            // credential is locked) no row is reserved and the guess is refused without being checked at all.
+            int? attempt = null;
+            if (countsTowardLockout)
+            {
+                attempt = await identities.ReserveCredentialAttemptAsync(credential.Id, MaxFailedAttempts, now, ct).ConfigureAwait(false);
+                if (attempt is null)
+                {
+                    // Also turns "limit used up but the lock was never written" (a guess that never finished) into a real, expiring lock.
+                    // Not tied to the request: a dropped connection must not leave the limit used up with no lock.
+                    await identities.LockExhaustedCredentialAsync(credential.Id, MaxFailedAttempts, now.Add(LockoutDuration), CancellationToken.None).ConfigureAwait(false);
+                    throw new ProfilePinLockedException();
+                }
+            }
+
             if (!Verify(credential, pin, out _))
             {
-                if (countsTowardLockout)
+                if (attempt is { } counted && counted >= MaxFailedAttempts)
                 {
-                    var failures = credential.FailedAttemptCount + 1;
-                    DateTimeOffset? locked = failures >= MaxFailedAttempts ? now.Add(LockoutDuration) : null;
-                    await identities.UpdateCredentialAttemptAsync(credential.Id, failures, locked, null, ct).ConfigureAwait(false);
-                    if (locked is not null)
-                    {
-                        throw new ProfilePinLockedException();
-                    }
+                    // From here on the attempt is already counted, so finishing it (the lock, or the reset below) is
+                    // not tied to the request: cancelling the call must not leave a counted guess half done.
+                    await identities.LockExhaustedCredentialAsync(credential.Id, MaxFailedAttempts, now.Add(LockoutDuration), CancellationToken.None).ConfigureAwait(false);
+                    throw new ProfilePinLockedException();
                 }
 
                 throw new ProfilePinRequiredException();
             }
 
-            if (countsTowardLockout && credential.FailedAttemptCount > 0)
+            // A right guess clears the count only while no lock is running; a lock a parallel burst just set is never undone by it.
+            if (countsTowardLockout && !await identities.ResetCredentialAttemptsIfUnlockedAsync(credential.Id, now, CancellationToken.None).ConfigureAwait(false))
             {
-                await identities.UpdateCredentialAttemptAsync(credential.Id, 0, null, now, ct).ConfigureAwait(false);
+                throw new ProfilePinLockedException();
             }
         }
     }

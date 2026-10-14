@@ -52,9 +52,17 @@ when all evidence in its final column is attached to the release candidate.
 
 ## Product boundaries
 
-The currently frozen client authorization contract binds one device grant to
-one profile. Switching profile therefore re-pairs the client. A future in-app
-household profile switch requires a separately approved additive API contract.
+A paired phone or television switches profile inside the app without
+re-pairing. The app lists the people its account may use
+(`GET /api/v1/devices/current/profiles`) and switches with
+`POST /api/v1/devices/current/switch-profile`. The device keeps its identity and
+approved scopes; each device has exactly one active profile, so a switch issues
+a new token pair for the chosen person and revokes the old one at once. The
+person's PIN is checked at every switch, including when moving out of a Kids
+profile, with the same lockout as the Dashboard. Only people the account is
+granted can be listed or chosen, and a Kids profile keeps its content limit
+after the switch. Choosing the profile already in use is refused (`409`), and
+each device may list or switch at most 30 times a minute.
 
 Automotive clients expose only Listen content and native media controls. They
 do not expose Watch, Read, View, administration, metadata correction, or the
