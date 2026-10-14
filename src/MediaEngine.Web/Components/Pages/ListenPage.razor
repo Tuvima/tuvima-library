@@ -64,9 +64,12 @@ else
                             <AppMenuItem Label="New Playlist"
                                          Icon="@AppMaterialIcons.Outlined.PlaylistAdd"
                                          OnClick="BeginPlaylistInlineCreate" />
-                            <AppMenuItem Label="New Smart Playlist"
-                                         Icon="@AppMaterialIcons.Outlined.AutoAwesome"
-                                         OnClick='@(() => OpenPlaylistCreateDialog("Smart"))' />
+                            @if (!DeviceContext.IsPhone)
+                            {
+                                <AppMenuItem Label="New Smart Playlist"
+                                             Icon="@AppMaterialIcons.Outlined.AutoAwesome"
+                                             OnClick='@(() => OpenPlaylistCreateDialog("Smart"))' />
+                            }
                         </AppOverflowMenu>
                     </div>
 
@@ -817,9 +820,12 @@ else
                                         <AppNativeButton Type="button" Class="listen-icon-button" Title="Add to queue" AriaLabel="@($" Add {track.Title} to queue")" StopPropagation="true" OnClick="@(() => QueueTrackAsync(track))">
                                             <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.PlaylistAdd" Size="AppSize.Small" />
                                         </AppNativeButton>
-                                        <AppNativeButton Type="button" Class="listen-icon-button" Title="Edit song" AriaLabel="@($" Edit {track.Title}")" StopPropagation="true" OnClick="@(() => EditTrackAsync(track))">
-                                            <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Edit" Size="AppSize.Small" />
-                                        </AppNativeButton>
+                                        @if (!DeviceContext.IsPhone)
+                                        {
+                                            <AppNativeButton Type="button" Class="listen-icon-button" Title="Edit song" AriaLabel="@($" Edit {track.Title}")" StopPropagation="true" OnClick="@(() => EditTrackAsync(track))">
+                                                <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Edit" Size="AppSize.Small" />
+                                            </AppNativeButton>
+                                        }
                                         <AppNativeButton Type="button" Class="listen-icon-button listen-icon-button--danger" Title="Remove from playlist" AriaLabel="@($" Remove {track.Title} from playlist")" Disabled="@(item is null)" StopPropagation="true" OnClick="@(() => item is null ? Task.CompletedTask : RemovePlaylistTrackAsync(item.Id))">
                                             <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Delete" Size="AppSize.Small" />
                                         </AppNativeButton>

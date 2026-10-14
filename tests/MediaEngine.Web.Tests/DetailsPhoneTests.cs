@@ -114,6 +114,48 @@ public sealed class DetailsPhoneTests : AsyncBunitContext
     }
 
     [Fact]
+    public async Task PhoneMoreSheetHasNoEditItemAndShowsOneDisabledNote()
+    {
+        await UseAsync("phone");
+        DetailAction[] actions = [.. OverflowActions, Action("edit", "Edit details", "edit")];
+        var menu = Render<OverflowActionMenu>(parameters => parameters
+            .Add(component => component.Actions, actions)
+            .Add(component => component.ButtonClass, "hero-icon-circle"));
+
+        menu.Find("button.hero-icon-circle").Click();
+
+        var labels = menu.FindAll("[role='menuitem']").Select(item => item.TextContent.Trim()).ToList();
+        Assert.DoesNotContain("Edit details", labels);
+        Assert.Equal(1, labels.Count(label => label == "Edit on a computer or tablet"));
+        var note = menu.FindAll("[role='menuitem']").Single(item => item.TextContent.Contains("Edit on a computer or tablet"));
+        Assert.True(note.HasAttribute("disabled") || note.GetAttribute("aria-disabled") == "true");
+    }
+
+    [Fact]
+    public async Task PhoneMoreMenuThatHeldOnlyEditDisappears()
+    {
+        await UseAsync("phone");
+        var menu = Render<OverflowActionMenu>(parameters => parameters
+            .Add(component => component.Actions, [Action("edit", "Edit details", "edit")]));
+
+        Assert.Empty(menu.FindAll("button"));
+    }
+
+    [Theory]
+    [InlineData("tablet")]
+    [InlineData("desktop")]
+    public async Task TabletAndDesktopMoreMenuKeepsTheEditItem(string formFactor)
+    {
+        await UseAsync(formFactor);
+        var menu = Render<OverflowActionMenu>(parameters => parameters
+            .Add(component => component.Actions, [Action("edit", "Edit details", "edit")]));
+
+        menu.Find("button[aria-label='More actions']").Click();
+
+        Assert.Contains(menu.FindAll("[role='menuitem']"), item => item.TextContent.Contains("Edit details"));
+    }
+
+    [Fact]
     public async Task MoreMenuKeepsThePopoverOnDesktop()
     {
         await UseAsync("desktop");

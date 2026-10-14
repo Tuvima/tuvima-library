@@ -1041,12 +1041,26 @@
     font-weight: 600;
 }
 
+/* Touch tablets above the 960px full-screen breakpoint: fill the visible viewport, not 90vh. */
+@media (hover: none), (pointer: coarse) {
+.sme-shell {
+        height: min(100vh - 32px, 980px);
+        height: min(100dvh - 32px, 980px);
+        min-height: min(100vh - 32px, 760px);
+        min-height: min(100dvh - 32px, 760px);
+        max-height: min(100vh - 32px, 980px);
+        max-height: min(100dvh - 32px, 980px);
+    }
+}
+
 @media (max-width: 960px) {
 .sme-shell {
-        min-height: 100vh;
-        min-height: 100dvh;
-        max-height: 100vh;
-        max-height: 100dvh;
+        height: calc(100vh - 16px);
+        height: calc(100dvh - 16px);
+        min-height: calc(100vh - 16px);
+        min-height: calc(100dvh - 16px);
+        max-height: calc(100vh - 16px);
+        max-height: calc(100dvh - 16px);
         border-radius: 0;
     }
 
