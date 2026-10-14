@@ -65,7 +65,7 @@
                                       Value="@_pathText"
                                       ValueChanged="PathChanged"
                                       OnKeyDown="PathKeyDownAsync"
-                                      Placeholder="Type a folder path and press Enter" />
+                                      Placeholder="Type a folder path (for example /media/movies) and press Enter" />
                         <AppButton Label="Go"
                                    ButtonStyle="AppButtonStyle.Outlined"
                                    Disabled="@(string.IsNullOrWhiteSpace(_pathText) || _loadingBrowse)"
