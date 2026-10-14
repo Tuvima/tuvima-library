@@ -52,7 +52,7 @@ else
 <AppText Typo="AppTypo.h4" Class="chronicle-explorer-title mb-2">
         @(_graph?.Universe.Label ?? "Loading...")
     </AppText>
-    @if (_canEditUniverse)
+    @if (_canEditUniverse && !DeviceContext.IsPhone)
     {
         <AppButton ButtonStyle="AppButtonStyle.Outlined" StartIcon="@AppMaterialIcons.Outlined.Edit" Disabled="@_openingEditor" OnClick="@(() => EditUniverseAsync(null))">Edit Universe</AppButton>
     }
@@ -376,7 +376,7 @@ else
                 QID: @_selectedEntity.Id
             </AppText>
 
-            @if (_canEditUniverse && !_selectedEntity.Supplemental)
+            @if (_canEditUniverse && !_selectedEntity.Supplemental && !DeviceContext.IsPhone)
             {
                 <AppButton ButtonStyle="AppButtonStyle.Outlined" StartIcon="@AppMaterialIcons.Outlined.Edit" Disabled="@_openingEditor" OnClick="@(() => EditUniverseAsync(_selectedEntity))">Edit @_selectedEntity.Label</AppButton>
             }

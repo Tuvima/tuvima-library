@@ -1,11 +1,12 @@
 ﻿@namespace MediaEngine.Web.Components.Details
 @using MediaEngine.Contracts.Details
+@using MediaEngine.Web.Services.Editing
 @using MediaEngine.Web.Services.Theming
 @using MediaEngine.Web.Services.Ui
 @implements IDisposable
 @inject DeviceContextService DeviceContext
 
-@if (Actions.Count > 0)
+@if (DeviceContext.IsPhone ? PhoneActions.Count > 0 : Actions.Count > 0)
 {
     @* Phones list the same actions in a bottom sheet instead of a popover; everything else keeps the popover. *@
     @if (DeviceContext.IsPhone)
@@ -26,7 +27,7 @@
         {
             <AppDialogFrame Open="true" Title="More" DialogOptions="SheetOptions" Class="tl-detail-more-sheet" OnCancel="CloseSheetAsync">
                 <div class="tl-detail-more-sheet__items" role="menu" aria-label="More actions">
-                    <ManageActionsMenu Actions="Actions" OnActionSelected="SelectFromSheetAsync" />
+                    <ManageActionsMenu Actions="PhoneActions" OnActionSelected="SelectFromSheetAsync" />
                 </div>
             </AppDialogFrame>
         }
@@ -54,6 +55,7 @@
 
 @code {
     private static readonly AppDialogOptions SheetOptions = new() { Sheet = AppDialogSheetMode.Phone, BackdropClick = true, CloseOnEscapeKey = true };
+    private const string EditUnavailableKey = "edit-unavailable";
     private bool _sheetOpen;
 
     [Parameter] public IReadOnlyList<DetailAction> Actions { get; set; } = [];
@@ -61,6 +63,25 @@
     [Parameter] public string ButtonClass { get; set; } = "tl-detail-person-more-action";
     [Parameter] public bool UsePlaybackGlyph { get; set; }
     [Parameter] public EventCallback<DetailAction> OnActionSelected { get; set; }
+
+    /// <summary>
+    /// Phones are consumption devices: edit actions are replaced by one disabled note row.
+    /// A menu that held only edit actions disappears instead of showing just the note.
+    /// </summary>
+    private IReadOnlyList<DetailAction> PhoneActions
+    {
+        get
+        {
+            var kept = Actions.Where(action => action.Key is not ("edit" or "edit-media")).ToList();
+            if (kept.Count == Actions.Count || kept.Count == 0)
+            {
+                return kept;
+            }
+
+            kept.Add(new DetailAction { Key = EditUnavailableKey, Label = EditorPhoneRule.Message, Icon = "edit", IsDisabled = true });
+            return kept;
+        }
+    }
 
     private string PopoverRootClass =>
         $"tl-detail-overflow-popover {(Actions.Count == 1 ? "tl-detail-overflow-popover--compact" : null)}";

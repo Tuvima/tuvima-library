@@ -5,6 +5,7 @@
 @using MediaEngine.Web.Services.Editing
 @using MediaEngine.Web.Services.Integration
 @inject IServiceProvider Services
+@inject DeviceContextService DeviceContext
 @implements IAsyncDisposable
 @inject PlaybackLyricsPresenter Presenter
 @inject IJSRuntime JS
@@ -79,7 +80,7 @@
             return _timeline;
         }
     }
-    private bool CanManageLyrics => Services.GetService<DashboardSessionAccessor>()?.Authority?.EffectiveAdministrator == true;
+    private bool CanManageLyrics => !DeviceContext.IsPhone && Services.GetService<DashboardSessionAccessor>()?.Authority?.EffectiveAdministrator == true;
     private async Task ManageLyricsAsync()
     {
         if (CanManageLyrics && _identity is { } identity && Services.GetService<MediaEditorLauncherService>() is { } editor)

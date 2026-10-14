@@ -1,6 +1,7 @@
 using MediaEngine.Web.Components.Collections;
 using MediaEngine.Web.Components.Shared;
 using MediaEngine.Web.Services.Integration;
+using MediaEngine.Web.Services.Theming;
 using MediaEngine.Web.Services.Ui;
 
 namespace MediaEngine.Web.Services.Editing;
@@ -9,11 +10,19 @@ public sealed class CollectionEditorLauncherService
 {
     private readonly IAppDialogService _dialogService;
     private readonly AdministratorSurfaceAccessService? _administratorAccess;
+    private readonly DeviceContextService? _device;
+    private readonly IAppToastService? _toasts;
 
-    public CollectionEditorLauncherService(IAppDialogService dialogService, AdministratorSurfaceAccessService? administratorAccess = null)
+    public CollectionEditorLauncherService(
+        IAppDialogService dialogService,
+        AdministratorSurfaceAccessService? administratorAccess = null,
+        DeviceContextService? device = null,
+        IAppToastService? toasts = null)
     {
         _dialogService = dialogService;
         _administratorAccess = administratorAccess;
+        _device = device;
+        _toasts = toasts;
     }
 
     public CollectionEditorInlineSession BeginInline(CollectionEditorLaunchRequest request)
@@ -27,14 +36,25 @@ public sealed class CollectionEditorLauncherService
         return new CollectionEditorInlineSession(request);
     }
 
-    public async Task<bool> OpenAsync(CollectionEditorLaunchRequest request)
+    /// <summary>Opens the editor; true only when the user applied a change.</summary>
+    public async Task<bool> OpenAsync(CollectionEditorLaunchRequest request) =>
+        await TryOpenAsync(request) == EditorLaunchResult.Applied;
+
+    public async Task<EditorLaunchResult> TryOpenAsync(CollectionEditorLaunchRequest request)
     {
         ArgumentNullException.ThrowIfNull(request);
+
+        // Phones are consumption devices: the editor shell never opens there.
+        if (EditorPhoneRule.TryRefuse(_device, _toasts))
+        {
+            return EditorLaunchResult.NotAvailableOnPhone;
+        }
+
         var isPlaylist = request.Kind == ContainerEditorKind.Playlist;
 
         if (!isPlaylist && _administratorAccess is not null && !await _administratorAccess.EnsureUnlockedAsync())
         {
-            return false;
+            return EditorLaunchResult.NotAvailable;
         }
 
         var isCollectionEditor = !isPlaylist;
@@ -56,11 +76,11 @@ public sealed class CollectionEditorLauncherService
 
         if (dialog is null)
         {
-            return false;
+            return EditorLaunchResult.NotAvailable;
         }
 
         var result = await dialog.Result;
-        return result is not null && !result.Canceled;
+        return result is not null && !result.Canceled ? EditorLaunchResult.Applied : EditorLaunchResult.Dismissed;
     }
 
     private static string DialogTitleFor(CollectionEditorLaunchRequest request) =>

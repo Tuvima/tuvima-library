@@ -4,6 +4,7 @@
 @using Microsoft.AspNetCore.Components.Web
 
 @inject IStringLocalizer<SharedStrings> L
+@inject DeviceContextService DeviceContext
 
 @if (Items.Count == 0 && !Loading)
 {
@@ -638,7 +639,7 @@ else
 
                                     case ColumnRenderType.ManageActions:
                                         <div class="vmt-manage-actions">
-                                            @if (OnEditClicked.HasDelegate)
+                                            @if (OnEditClicked.HasDelegate && !DeviceContext.IsPhone)
                                             {
                                                 <span @onclick:stopPropagation="true">
                                                     <AppIconButton Icon="@AppMaterialIcons.Outlined.Edit"

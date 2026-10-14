@@ -2,6 +2,7 @@ using MediaEngine.Contracts.Universe;
 using MediaEngine.Web.Components.MediaEditor;
 using MediaEngine.Web.Components.Shared;
 using MediaEngine.Web.Services.Integration;
+using MediaEngine.Web.Services.Theming;
 using MediaEngine.Web.Services.Ui;
 
 namespace MediaEngine.Web.Services.Editing;
@@ -10,39 +11,57 @@ public sealed class MediaEditorLauncherService
 {
     private readonly IAppDialogService _dialogService;
     private readonly AdministratorSurfaceAccessService? _administratorAccess;
+    private readonly DeviceContextService? _device;
+    private readonly IAppToastService? _toasts;
 
-    public MediaEditorLauncherService(IAppDialogService dialogService, AdministratorSurfaceAccessService? administratorAccess = null)
+    public MediaEditorLauncherService(
+        IAppDialogService dialogService,
+        AdministratorSurfaceAccessService? administratorAccess = null,
+        DeviceContextService? device = null,
+        IAppToastService? toasts = null)
     {
         _dialogService = dialogService;
         _administratorAccess = administratorAccess;
+        _device = device;
+        _toasts = toasts;
     }
 
-    public async Task<bool> OpenAsync(MediaEditorLaunchRequest request)
+    /// <summary>Opens the editor; true only when the user applied a change.</summary>
+    public async Task<bool> OpenAsync(MediaEditorLaunchRequest request) =>
+        await TryOpenAsync(request) == EditorLaunchResult.Applied;
+
+    public async Task<EditorLaunchResult> TryOpenAsync(MediaEditorLaunchRequest request)
     {
         ArgumentNullException.ThrowIfNull(request);
+
+        // Phones are consumption devices: the editor shell never opens there.
+        if (EditorPhoneRule.TryRefuse(_device, _toasts))
+        {
+            return EditorLaunchResult.NotAvailableOnPhone;
+        }
 
         var sharedTarget = request.SharedEntityTarget;
         if (sharedTarget is null && request.EntityIds.Count == 0)
         {
-            return false;
+            return EditorLaunchResult.NotAvailable;
         }
 
         if (sharedTarget is not null
             && (request.Mode != SharedMediaEditorMode.Normal || !IsValidSharedTarget(sharedTarget)))
         {
-            return false;
+            return EditorLaunchResult.NotAvailable;
         }
 
         if (_administratorAccess is not null && !await _administratorAccess.EnsureUnlockedAsync())
         {
-            return false;
+            return EditorLaunchResult.NotAvailable;
         }
 
         // Legacy batch launches must not silently choose a representative
         // item or fan an editor change out across several owned works.
         if (request.Mode == SharedMediaEditorMode.Batch || request.EntityIds.Count > 1)
         {
-            return false;
+            return EditorLaunchResult.NotAvailable;
         }
 
         if (string.Equals(request.LaunchEntityKind, "Person", StringComparison.OrdinalIgnoreCase))
@@ -61,11 +80,11 @@ public sealed class MediaEditorLauncherService
                 });
             if (personDialog is null)
             {
-                return false;
+                return EditorLaunchResult.NotAvailable;
             }
 
             var personResult = await personDialog.Result;
-            return personResult is not null && !personResult.Canceled;
+            return personResult is not null && !personResult.Canceled ? EditorLaunchResult.Applied : EditorLaunchResult.Dismissed;
         }
 
         var dialog = await _dialogService.ShowAsync<SharedMediaEditorShell>(
@@ -85,11 +104,11 @@ public sealed class MediaEditorLauncherService
             });
         if (dialog is null)
         {
-            return false;
+            return EditorLaunchResult.NotAvailable;
         }
 
         var result = await dialog.Result;
-        return result is not null && !result.Canceled;
+        return result is not null && !result.Canceled ? EditorLaunchResult.Applied : EditorLaunchResult.Dismissed;
     }
 
     private static bool IsValidSharedTarget(SharedEntityEditorTargetDto target)

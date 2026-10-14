@@ -35,6 +35,8 @@ Tuvima no longer uses a separate media management workbench. Users browse throug
 
 ## Shared editor
 
+**Phone rule.** `MediaEditorLauncherService`, `CollectionEditorLauncherService` and `GalleryEditorLauncherService` check `DeviceContextService.IsPhone` before anything else (before the administrator unlock). On a phone `TryOpenAsync` returns `EditorLaunchResult.NotAvailableOnPhone`, shows the toast "Edit on a computer or tablet" and opens no dialog; `OpenAsync` keeps its boolean contract (true only when a change was applied). Entry points are also hidden on phones, so the refusal is a safety net for deep links and query-string launches. Tablets and desktops open the same shell as before.
+
 All media editing should launch through `MediaEditorLauncherService.OpenAsync` and render `SharedMediaEditorShell`. Detail pages, Review, and Batch use the same modal shell; Review supplies its review context and Batch is limited to a real selection. `MediaEditorSurface` supplies the common shell without duplicating editor state or persistence logic.
 
 The launch request should include the current context:

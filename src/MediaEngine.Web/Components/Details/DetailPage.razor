@@ -14,6 +14,7 @@
 @using MediaEngine.Web.Services.Playback
 @inject IEngineApiClient ApiClient
 @inject MediaEditorLauncherService MediaEditorLauncher
+@inject DeviceContextService DeviceContext
 @inject CollectionEditorLauncherService CollectionEditorLauncher
 @inject SavedItemService SavedItems
 @inject MediaReactionService Reactions
@@ -179,7 +180,7 @@
         || MediaKindClassifier.IsAudiobook(Model?.Facts?.MediaKind)
         || Model?.OwnedFormats.Any(format => format.FormatType == MediaFormatType.Audiobook) == true;
     private bool ShowDetailNavigation => Model?.EntityType != DetailEntityType.Person;
-    private bool CanEditMedia => Model?.OverflowActions.Any(action =>
+    private bool CanEditMedia => !DeviceContext.IsPhone && Model?.OverflowActions.Any(action =>
         !action.IsDisabled && action.Key is "edit" or "edit-media") == true;
 
     private bool HasPrimaryModuleBeforeNavigation => false;

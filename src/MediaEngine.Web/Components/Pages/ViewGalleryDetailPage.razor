@@ -9,6 +9,7 @@
 @inject ViewMediaGrantService MediaGrants
 @inject NavigationManager Nav
 @inject GalleryEditorLauncherService GalleryEditorLauncher
+@inject DeviceContextService DeviceContext
 @namespace MediaEngine.Web.Components.Pages
 
 <PageTitle>@(_gallery is null ? "Gallery" : _gallery.Name) - Tuvima Library</PageTitle>
@@ -46,7 +47,7 @@
                 @if (IsOwner)
                 {
                     <div class="view-feature-page__actions" role="group" aria-label="Gallery management">
-                        @if (_gallery.Kind == ViewGalleryKind.Smart)
+                        @if (_gallery.Kind == ViewGalleryKind.Smart && !DeviceContext.IsPhone)
                         {
                             <AppButton Label="Edit Gallery" ButtonStyle="AppButtonStyle.Outlined" OnClick="OpenEdit" />
                         }
