@@ -662,10 +662,12 @@
     }
 
     // Touch gestures reuse the visible controls' seek and play paths, so resume, heartbeat and the end-card clock behave the same.
-    [JSInvokable] public async Task HandleTouchSeek(double deltaSeconds)
+    [JSInvokable] public async Task HandleTouchSeek(string assetId, long requestVersion, double targetSeconds)
     {
-        if (_disposed || !Playback.IsVideoMode || !Playback.IsVideoExpanded || !double.IsFinite(deltaSeconds)) return;
-        await SeekOnHostAsync(Playback.CurrentTimeSeconds + deltaSeconds);
+        if (_disposed || !Playback.IsVideoMode || !Playback.IsVideoExpanded || !double.IsFinite(targetSeconds)) return;
+        // A tap that lands after the queue moved on must not seek the next item.
+        if (requestVersion != Playback.PlaybackRequestVersion || !Guid.TryParse(assetId, out var asset) || Playback.CurrentItem?.AssetId != asset) return;
+        await SeekOnHostAsync(targetSeconds);
     }
     [JSInvokable] public async Task HandleTouchTogglePlay()
     {
@@ -677,8 +679,8 @@
         if (_disposed || !Playback.IsVideoMode || Playback.IsDismissed || Playback.CurrentItem is null) return;
         switch (action)
         {
-            case "play" when !VideoIsPlaying: await TogglePlayPauseAsync(); break;
-            case "pause" when VideoIsPlaying: await PauseAsync(); break;
+            case "play" when !Playback.IsPlaying || Playback.NeedsUserGestureToStart: await TogglePlayPauseAsync(); break;
+            case "pause" when Playback.IsPlaying: await PauseAsync(); break;
             case "previoustrack": await Playback.SkipPreviousAsync(); break;
             case "nexttrack": await Playback.SkipNextAsync(); break;
             case "seekbackward": await SeekOnHostAsync(Playback.CurrentTimeSeconds - (value ?? Playback.SkipBackSeconds)); break;

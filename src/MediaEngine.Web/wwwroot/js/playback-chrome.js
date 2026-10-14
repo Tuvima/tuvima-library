@@ -4,7 +4,7 @@ export function cueLine(railTop, videoRect) { return Math.max(0, Math.min(95, (r
 
 export function attach(host, video) {
     if (!host || !video || states.has(host)) return;
-    const state = { host, video, timer: null, holds: new Set(), controls: new Map(), hidden: false, touch: false, listeners: [], disposed: false };
+    const state = { host, video, timer: null, holds: new Set(), controls: new Map(), hidden: false, touch: false, pressing: false, listeners: [], disposed: false };
     const listen = (target, name, handler, options) => {
         target.addEventListener(name, handler, options);
         state.listeners.push(() => target.removeEventListener(name, handler, options));
@@ -58,7 +58,7 @@ export function attach(host, video) {
         positionCues();
     };
     // After a touch tap the pressed button keeps :hover and :focus, so on touch only keyboard-visible focus holds the chrome open.
-    const held = () => state.holds.size > 0 || video.paused || video.ended || video.readyState < 2
+    const held = () => state.holds.size > 0 || state.pressing || video.paused || video.ended || video.readyState < 2
         || !!video.error || (!state.touch && host.querySelector('[data-chrome-hold]:hover') !== null)
         || host.querySelector(state.touch ? '[data-playback-chrome] :focus-visible' : '[data-playback-chrome]:focus-within') !== null;
     const schedule = () => {
@@ -81,7 +81,14 @@ export function attach(host, video) {
     const pointer = event => { state.touch = event.pointerType === 'touch'; reveal(); };
     listen(host, 'pointermove', pointer, { passive: true });
     // On touch every tap shows the controls and restarts the three second timer; they are never hidden by a tap.
-    listen(host, 'pointerdown', pointer, { passive: true });
+    listen(host, 'pointerdown', event => {
+        pointer(event);
+        // A finger held on a slider or button keeps the controls open even if it stops moving.
+        if (event.pointerType === 'touch' && event.target.closest?.('[data-playback-chrome]')) state.pressing = true;
+    }, { passive: true });
+    const release = () => { if (state.pressing) { state.pressing = false; schedule(); } };
+    listen(document, 'pointerup', release, { passive: true });
+    listen(document, 'pointercancel', release, { passive: true });
     listen(host, 'pointerenter', pointer, { passive: true });
     listen(host, 'pointerleave', schedule, { passive: true });
     listen(host, 'focusin', reveal);

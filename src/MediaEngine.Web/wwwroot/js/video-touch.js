@@ -133,7 +133,8 @@ export function attach(host, video, owner) {
             hideHint();
             if (fullscreenElement()) return;
             // Most browsers only allow fullscreen right after a tap; if this attempt is refused, the next tap completes it.
-            state.pendingFullscreen = !await enterFullscreen();
+            const entered = await enterFullscreen();
+            state.pendingFullscreen = !entered && !fullscreenElement();
         } else if (state.autoFullscreen && fullscreenElement() === host) {
             state.autoFullscreen = false; state.pendingFullscreen = false;
             try { await document.exitFullscreen?.(); }
@@ -142,7 +143,10 @@ export function attach(host, video, owner) {
     };
     listen(window, 'orientationchange', onOrientation);
     if (screen.orientation?.addEventListener) listen(screen.orientation, 'change', onOrientation);
-    listen(document, 'fullscreenchange', () => { if (!fullscreenElement()) state.autoFullscreen = false; });
+    listen(document, 'fullscreenchange', () => {
+        if (fullscreenElement()) state.pendingFullscreen = false;
+        else state.autoFullscreen = false;
+    });
 
     listen(video, 'play', maybeShowHint);
     listen(host, 'click', event => {
@@ -166,7 +170,10 @@ export function attach(host, video, owner) {
         const action = state.tracker.tap(now, event.clientX, event.clientY, video.getBoundingClientRect());
         if (action.kind === 'seek') {
             showSeekFeedback(action.side, action.total);
-            report('HandleTouchSeek', action.delta);
+            // The run's total is applied to where the run started, so quick taps never depend on a round trip.
+            if (Math.abs(action.total) === SEEK_SECONDS) state.seekBase = video.currentTime;
+            const target = Math.max(0, Math.min(Number.isFinite(video.duration) ? video.duration : Infinity, (state.seekBase ?? video.currentTime) + action.total));
+            report('HandleTouchSeek', video.dataset.playbackAssetId ?? '', Number(video.dataset.playbackRequestVersion) || 0, target);
         } else if (action.kind === 'toggle') report('HandleTouchTogglePlay');
     }, { passive: true });
     // The page-level click that follows a touch tap would toggle play on every single tap, so touch taps are

@@ -79,7 +79,7 @@ public sealed class VideoTouchTests
         var css = File.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/wwwroot/app.css"));
 
         // Gestures call the same seek and play paths as the visible controls; no new Engine call is introduced.
-        Assert.Contains("await SeekOnHostAsync(Playback.CurrentTimeSeconds + deltaSeconds)", razor, StringComparison.Ordinal);
+        Assert.Contains("await SeekOnHostAsync(targetSeconds)", razor, StringComparison.Ordinal);
         Assert.Contains("await TogglePlayPauseAsync();", razor, StringComparison.Ordinal);
         Assert.Contains("\"attachVideo\"", razor, StringComparison.Ordinal);
         Assert.Contains("\"detachVideo\"", razor, StringComparison.Ordinal);
@@ -92,6 +92,8 @@ public sealed class VideoTouchTests
         // Touch never hides the controls with a tap, and a pressed button does not hold them open.
         Assert.Contains("[data-playback-chrome] :focus-visible", chrome, StringComparison.Ordinal);
         Assert.DoesNotContain("else if (!held()) { clearTimeout(state.timer); hidden(true); }", chrome, StringComparison.Ordinal);
+        Assert.Contains("state.pressing", chrome, StringComparison.Ordinal);
+        Assert.Contains("requestVersion != Playback.PlaybackRequestVersion", razor, StringComparison.Ordinal);
         Assert.Contains("@media (prefers-reduced-motion: reduce)", css, StringComparison.Ordinal);
         Assert.Contains("@media (max-height: 450px)", css, StringComparison.Ordinal);
         Assert.Contains("playback-video-controls__identity { display: none; }", css, StringComparison.Ordinal);
