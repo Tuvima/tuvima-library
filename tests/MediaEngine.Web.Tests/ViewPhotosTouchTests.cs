@@ -151,7 +151,10 @@ public sealed class ViewPhotosTouchTests : AsyncBunitContext
         var actions = cut.FindAll(".view-selection-toolbar__action").Select(button => button.TextContent.Trim()).ToList();
         Assert.Equal(["Share", "Download"], actions);
         Assert.Single(cut.FindAll(".app-row-menu__trigger"));
-        Assert.DoesNotContain("New Gallery", cut.Markup, StringComparison.Ordinal);
+        Assert.Empty(cut.FindAll("[role='menuitem']"));
+
+        // The Gallery menu only renders its items while open, so open it before judging what it offers.
+        Assert.Equal(["Holidays"], OpenGalleryMenu(cut));
 
         cut.FindAll(".view-selection-toolbar__action")[1].Click();
         cut.Find(".view-selection-toolbar__close").Click();
@@ -171,7 +174,7 @@ public sealed class ViewPhotosTouchTests : AsyncBunitContext
             .Add(toolbar => toolbar.Phone, true)
             .Add(toolbar => toolbar.OnAddToGallery, EventCallback.Factory.Create<Guid>(this, _ => { })));
 
-        Assert.DoesNotContain("Add to Gallery", cut.Markup, StringComparison.Ordinal);
+        Assert.Empty(cut.FindAll("[aria-label='Add selected items to a Gallery']"));
         Assert.DoesNotContain("New Gallery", cut.Markup, StringComparison.Ordinal);
     }
 
@@ -194,6 +197,7 @@ public sealed class ViewPhotosTouchTests : AsyncBunitContext
         Assert.Equal(["Submit to Shared Library", "Favorite", "Trash"], actions);
         Assert.Empty(cut.FindAll(".app-row-menu__trigger"));
         Assert.Equal("Clear photo selection", cut.Find(".view-selection-toolbar__close").GetAttribute("aria-label"));
+        Assert.Equal(["New Gallery"], OpenGalleryMenu(cut));
     }
 
     [Fact]
@@ -225,6 +229,10 @@ public sealed class ViewPhotosTouchTests : AsyncBunitContext
         Assert.Contains("view-selection-toolbar--phone", cut.Find(".view-selection-toolbar").ClassList);
         Assert.Equal(2, cut.FindAll(".view-tile__surface[aria-pressed='true']").Count);
         Assert.Contains("Add to Gallery", cut.Find(".view-selection-toolbar").TextContent, StringComparison.Ordinal);
+
+        // Phones add to an existing Gallery but are never offered New Gallery (the Gallery editor).
+        Assert.Equal(["Holidays"], OpenGalleryMenu(cut));
+        Assert.Empty(cut.FindAll("button[aria-label='Create in Galleries']"));
         Assert.Contains("Download", cut.Find(".view-selection-toolbar").TextContent, StringComparison.Ordinal);
         Assert.Contains("Cancel", cut.Find(".view-selection-toolbar").TextContent, StringComparison.Ordinal);
 
@@ -246,6 +254,51 @@ public sealed class ViewPhotosTouchTests : AsyncBunitContext
         cut.WaitForAssertion(() => Assert.Single(cut.FindAll("article.view-tile")));
         Assert.Empty(cut.FindAll(".view-select-toggle"));
         Assert.Single(cut.FindAll("article.view-tile[draggable='true']"));
+    }
+
+    [Fact]
+    public async Task DesktopPhotosBarOffersNewGalleryButNoDownload()
+    {
+        await UseAsync("desktop", touch: false);
+        RegisterPageServices(new PhotosHandler([Photo("one"), Photo("two")]));
+
+        var cut = Render<ViewPage>();
+
+        cut.WaitForAssertion(() => Assert.Equal(2, cut.FindAll("article.view-tile").Count));
+        cut.FindAll(".view-tile__select-control")[0].Click();
+
+        var bar = cut.Find(".view-selection-toolbar");
+        Assert.DoesNotContain("view-selection-toolbar--phone", bar.ClassList);
+        Assert.DoesNotContain("Download", bar.TextContent, StringComparison.Ordinal);
+        Assert.Equal(["Holidays", "New Gallery"], OpenGalleryMenu(cut));
+        Assert.Single(cut.FindAll("button[aria-label='Create in Galleries']"));
+    }
+
+    [Fact]
+    public async Task SectionNavigationOffersNoGalleryEditingOnPhones()
+    {
+        await UseAsync("phone", touch: true);
+        RegisterPageServices(new PhotosHandler([Photo("one")]));
+
+        var cut = Render<ViewPage>();
+
+        cut.WaitForAssertion(() => Assert.Single(cut.FindAll("article.view-tile")));
+        Assert.Empty(cut.FindAll("button[aria-label='Create in Galleries']"));
+        Assert.Empty(cut.FindAll(".media-section-shell__drag-handle"));
+        Assert.Empty(cut.FindAll("[aria-label^='Manage ']"));
+    }
+
+    [Fact]
+    public async Task SectionNavigationKeepsGalleryEditingOnDesktop()
+    {
+        await UseAsync("desktop", touch: false);
+        RegisterPageServices(new PhotosHandler([Photo("one")]));
+
+        var cut = Render<ViewPage>();
+
+        cut.WaitForAssertion(() => Assert.Single(cut.FindAll("article.view-tile")));
+        Assert.Single(cut.FindAll("button[aria-label='Create in Galleries']"));
+        Assert.NotEmpty(cut.FindAll(".media-section-shell__drag-handle"));
     }
 
     [Fact]
@@ -273,6 +326,27 @@ public sealed class ViewPhotosTouchTests : AsyncBunitContext
         Assert.Single(item.QuerySelectorAll("button.artwork-justified-gallery__card"));
         Assert.Single(item.QuerySelectorAll(".view-artwork-row-menu .app-row-menu__trigger"));
         Assert.Empty(cut.FindAll(".artwork-justified-gallery__card .app-row-menu__trigger"));
+    }
+
+    [Fact]
+    public async Task PanoramaArtworkKeepsItsWidthCapWhenItCarriesARowMenu()
+    {
+        await UseAsync("desktop", touch: false);
+
+        var cut = Render<ArtworkJustifiedGallery<string>>(parameters => parameters
+            .Add(gallery => gallery.Items, ["wide", "normal"])
+            .Add(gallery => gallery.ItemKey, value => value)
+            .Add(gallery => gallery.ImageUrl, _ => "/image")
+            .Add(gallery => gallery.Width, value => value == "wide" ? 4000 : 1600)
+            .Add(gallery => gallery.Height, _ => 1000)
+            .Add(gallery => gallery.Title, value => value)
+            .Add(gallery => gallery.RowActions, value => builder => { }));
+
+        var items = cut.FindAll(".artwork-justified-gallery__item");
+        Assert.Contains("artwork-justified-gallery__item--panorama", items[0].ClassList);
+        Assert.DoesNotContain("artwork-justified-gallery__item--panorama", items[1].ClassList);
+        var css = File.ReadAllText(Path.Combine(RepoRoot, "src", "MediaEngine.Web", "wwwroot", "app.css"));
+        Assert.Contains(".artwork-justified-gallery__item--panorama {" + Environment.NewLine + "    max-width: min(100%, 32rem);", css, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -314,6 +388,23 @@ public sealed class ViewPhotosTouchTests : AsyncBunitContext
     }
 
     [Fact]
+    public async Task ChipRowScrollsTheActiveChipIntoViewOnlyWhenTheActiveKeyChanges()
+    {
+        await UseAsync("phone", touch: true);
+        var module = JSInterop.SetupModule("./js/scroll-edge-hint.js");
+        module.Mode = JSRuntimeMode.Loose;
+
+        var cut = Render<AppDiscoveryFilterBar>(parameters => parameters.Add(bar => bar.ActiveKey, "all"));
+        Assert.Single(module.Invocations["showActive"]);
+
+        cut.Render(parameters => parameters.Add(bar => bar.ActiveKey, "all").Add(bar => bar.HasActiveAdvancedFilters, true));
+        Assert.Single(module.Invocations["showActive"]);
+
+        cut.Render(parameters => parameters.Add(bar => bar.ActiveKey, "favorites"));
+        Assert.Equal(2, module.Invocations["showActive"].Count());
+    }
+
+    [Fact]
     public void PhoneChipRowAndTouchSizingLiveInAppCss()
     {
         var css = File.ReadAllText(Path.Combine(RepoRoot, "src", "MediaEngine.Web", "wwwroot", "app.css"));
@@ -336,6 +427,13 @@ public sealed class ViewPhotosTouchTests : AsyncBunitContext
         Assert.Contains("state.scale > 1", script, StringComparison.Ordinal);
         Assert.Contains(".media-viewer__navigate--next", script, StringComparison.Ordinal);
         Assert.Contains(".media-viewer__navigate--previous", script, StringComparison.Ordinal);
+    }
+
+    /// <summary>Opens the selection bar's Gallery menu and returns the labels of the items it offers.</summary>
+    private static List<string> OpenGalleryMenu(IRenderedComponent<IComponent> cut)
+    {
+        cut.Find("[aria-label='Add selected items to a Gallery']").Click();
+        return cut.FindAll("[role='menuitem']").Select(item => item.TextContent.Trim()).ToList();
     }
 
     private void RegisterPageServices(PhotosHandler handler)

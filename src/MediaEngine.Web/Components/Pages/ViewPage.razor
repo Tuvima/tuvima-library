@@ -37,6 +37,7 @@ else
     @if (_uploading) { <section class="view-upload-status" role="status" aria-live="polite"><span>Uploading @_uploadFileName…</span><AppProgressBar Color="AppColor.Primary" Indeterminate="true" /></section> }
     @if (!string.IsNullOrWhiteSpace(_uploadError)) { <section class="view-upload-status is-error" role="alert">@_uploadError</section> }
     <AppDiscoveryFilterBar AriaLabel="View filters"
+                           ActiveKey="@_filter"
                            SearchValue="@_search"
                            SearchChanged="SearchChanged"
                            SearchPlaceholder="Search photos, dates, devices, locations, and tags"
@@ -56,7 +57,7 @@ else
             <AppNativeButton Type="button" Class="@FilterClass("documents")" OnClick="@(_ => SetFilterAsync("documents"))">Documents</AppNativeButton>
         </AdvancedFilters>
     </AppDiscoveryFilterBar>
-    @if (_selected.Count > 0) { <ViewSelectionToolbar Count="@_selected.Count" Phone="@DeviceContext.IsPhone" ManualGalleries="@Workspace.OwnedGalleries.Where(g => g.Kind == ViewGalleryKind.Manual).ToList()" OnClear="CancelSelection" OnAddToGallery="AddSelectionToGalleryAsync" OnCreateGallery="@CreateGalleryCallback" OnDownload="DownloadSelectionAsync" OnSharedLibrary="SubmitSelectionToSharedAsync" ShowSharedLibrary="@(Workspace.ScopeKind == ViewScopeKind.Mine)" OnFavorite="FavoriteSelectionAsync" OnArchive="ArchiveSelectionAsync" OnRestore="RestoreSelectionAsync" ShowRestore="@(_filter is "archive" or "trash")" OnTrash="TrashSelectionAsync" ShowTrash="@(_filter != "trash")" /> }
+    @if (_selected.Count > 0) { <ViewSelectionToolbar Count="@_selected.Count" Phone="@DeviceContext.IsPhone" ManualGalleries="@Workspace.OwnedGalleries.Where(g => g.Kind == ViewGalleryKind.Manual).ToList()" OnClear="CancelSelection" OnAddToGallery="AddSelectionToGalleryAsync" OnCreateGallery="@CreateGalleryCallback" OnDownload="@DownloadCallback" OnSharedLibrary="SubmitSelectionToSharedAsync" ShowSharedLibrary="@(Workspace.ScopeKind == ViewScopeKind.Mine)" OnFavorite="FavoriteSelectionAsync" OnArchive="ArchiveSelectionAsync" OnRestore="RestoreSelectionAsync" ShowRestore="@(_filter is "archive" or "trash")" OnTrash="TrashSelectionAsync" ShowTrash="@(_filter != "trash")" /> }
     @if (_loading) { <AppPageState Kind="AppPageStateKind.Loading" Title="Loading Photos" Message="Building your personal timeline." /> }
     else if (_page is null) { <AppErrorState Title="Photos could not be loaded" Message="The Engine did not return a timeline." Retry="@(() => LoadAsync())" /> }
     else if (_page.Items.Count == 0) { <AppPageState Kind="AppPageStateKind.Empty" Title="@EmptyTitle" Message="@EmptyMessage" /> }
@@ -213,16 +214,37 @@ else
     }
     private void ClearSelection() { _selected.Clear(); _selectionAnchor = null; }
     // Select mode is a touch affordance: Done and Cancel both leave it and drop the selection.
-    private void ToggleSelectMode() { _selectMode = !_selectMode; if (!_selectMode) ClearSelection(); }
+    private void ToggleSelectMode()
+    {
+        _selectMode = !_selectMode;
+        if (!_selectMode)
+        {
+            ClearSelection();
+        }
+    }
     private void CancelSelection() { ClearSelection(); _selectMode = false; }
     // Phones never open the Gallery editor, so the bar's "New Gallery" item is withheld there; adding to an existing Gallery stays.
     private EventCallback CreateGalleryCallback => DeviceContext.IsPhone ? default : EventCallback.Factory.Create(this, CreateGalleryFromSelectionAsync);
+    // Download is part of the phone bar only; desktop and tablet bars keep their existing actions.
+    private EventCallback DownloadCallback => DeviceContext.IsPhone ? EventCallback.Factory.Create(this, DownloadSelectionAsync) : default;
     private async Task DownloadSelectionAsync()
     {
-        if (_page is null || _selected.Count == 0) return;
+        if (_page is null || _selected.Count == 0)
+        {
+            return;
+        }
+
         var files = _page.Items.Where(item => _selected.Contains(item.Id)).Select(item => new { url = AssetUrl(item, ViewMediaResourceKind.Content), name = item.FileName }).Where(file => !string.IsNullOrEmpty(file.url)).ToList();
-        if (files.Count < _selected.Count) Snackbar.Add($"{_selected.Count - files.Count} selected items are outside the loaded photos and were not downloaded.", AppSeverity.Warning);
-        if (files.Count == 0) return;
+        if (files.Count < _selected.Count)
+        {
+            Snackbar.Add($"{_selected.Count - files.Count} selected items are outside the loaded photos and were not downloaded.", AppSeverity.Warning);
+        }
+
+        if (files.Count == 0)
+        {
+            return;
+        }
+
         _timelineModule ??= await JS.InvokeAsync<IJSObjectReference>("import", "./js/view-timeline.js");
         await _timelineModule.InvokeVoidAsync("downloadFiles", files);
     }

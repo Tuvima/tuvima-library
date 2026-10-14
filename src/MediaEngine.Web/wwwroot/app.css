@@ -3852,7 +3852,7 @@ html[data-form-factor="tablet"] .tl-detail-page {
         min-height: var(--tl-tap-target-min);
     }
 
-    :root:root:root .view-timeline-scrubber button {
+    :root:root:root .view-timeline-layout .view-timeline-scrubber button {
         min-width: var(--tl-tap-target-min);
         min-height: var(--tl-tap-target-min);
     }
@@ -3907,13 +3907,17 @@ html[data-form-factor="tablet"] .tl-detail-page {
     max-width: min(100%, 36rem);
 }
 
+.artwork-justified-gallery__item--panorama {
+    max-width: min(100%, 32rem);
+}
+
 :root:root .artwork-justified-gallery__item > .artwork-justified-gallery__card {
     width: 100%;
     height: 100%;
     max-width: none;
 }
 
-@media (max-width: 720px) {
+@media (max-width: 600px) {
     .artwork-justified-gallery__item {
         flex-basis: calc(var(--artwork-gallery-aspect) * 8rem);
         height: 8rem;

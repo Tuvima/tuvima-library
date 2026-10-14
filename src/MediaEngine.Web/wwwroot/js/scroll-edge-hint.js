@@ -27,18 +27,6 @@ export function showActive(strip, selector) {
     sync(strip);
 }
 
-// Chip rows rebuilt by their parent on every render: scroll only when a different chip became active, so a user's own
-// swipe is not undone by an unrelated re-render.
-export function showActiveWhenChanged(strip, selector) {
-    const items = [...strip.children];
-    const index = items.findIndex(item => item.matches(selector));
-    const state = states.get(strip);
-    if (!state) { sync(strip); return; }
-    if (state.activeIndex === index) { sync(strip); return; }
-    state.activeIndex = index;
-    showActive(strip, selector);
-}
-
 export function detach(strip) {
     const state = states.get(strip);
     if (!state) return;

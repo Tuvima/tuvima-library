@@ -6,14 +6,32 @@
     <JustifiedGalleryLayout />
     @foreach (var item in Items)
     {
+        @* The key sits on the element rendered directly in the loop (the card, or the wrapper that carries a row menu), so diffing stays keyed. *@
         @if (RowActions is null)
         {
-            @Card(item)
+            <AppNativeButton @key="@ItemKey(item)"
+                             Type="button"
+                             Class="@CardClass(item)"
+                             InlineStyle="@CardStyle(item)"
+                             aria-pressed="@IsSelected(item)"
+                             Disabled="@(Disabled || IsDisabled(item))"
+                             OnClick="@(() => OnSelect.InvokeAsync(item))"
+                             AriaLabel="@($"Select {Title(item)}")">
+                @CardContent(item)
+            </AppNativeButton>
         }
         else
         {
             <div @key="@ItemKey(item)" @attributes="WrapperAttributes(item)">
-                @Card(item)
+                <AppNativeButton Type="button"
+                                 Class="@CardClass(item)"
+                                 InlineStyle="@CardStyle(item)"
+                                 aria-pressed="@IsSelected(item)"
+                                 Disabled="@(Disabled || IsDisabled(item))"
+                                 OnClick="@(() => OnSelect.InvokeAsync(item))"
+                                 AriaLabel="@($"Select {Title(item)}")">
+                    @CardContent(item)
+                </AppNativeButton>
                 <div class="view-artwork-row-menu">@RowActions(item)</div>
             </div>
         }
@@ -21,14 +39,7 @@
 </div>
 
 @code {
-    private RenderFragment Card(TItem item) => @<AppNativeButton @key="@ItemKey(item)"
-                         Type="button"
-                         Class="@CardClass(item)"
-                         InlineStyle="@CardStyle(item)"
-                         aria-pressed="@IsSelected(item)"
-                         Disabled="@(Disabled || IsDisabled(item))"
-                         OnClick="@(() => OnSelect.InvokeAsync(item))"
-                         AriaLabel="@($"Select {Title(item)}")">
+    private RenderFragment CardContent(TItem item) => @<text>
             <span class="artwork-justified-gallery__image @(UseContain(item) ? "is-contain" : "is-cover")">
                 @if (MultiSelect)
                 {
@@ -50,7 +61,7 @@
                 }
             </span>
             <span class="artwork-justified-gallery__caption"><strong>@Title(item)</strong><small>@SupportingText(item)</small></span>
-        </AppNativeButton>;
+        </text>;
 
     private readonly HashSet<string> _failedPreviews = [];
     [Parameter, EditorRequired] public IReadOnlyList<TItem> Items { get; set; } = [];
@@ -77,9 +88,12 @@
 
     private IReadOnlyDictionary<string, object> WrapperAttributes(TItem item) => new Dictionary<string, object>
     {
-        ["class"] = "artwork-justified-gallery__item",
+        ["class"] = IsPanorama(item) ? "artwork-justified-gallery__item artwork-justified-gallery__item--panorama" : "artwork-justified-gallery__item",
         ["style"] = CardStyle(item),
     };
+
+    // Panoramas keep the 32rem cap the card itself carries (see the component styles); the wrapper takes it over.
+    private bool IsPanorama(TItem item) => AspectRatio(item) >= 2.75;
 
     private string CardStyle(TItem item) => $"--artwork-gallery-aspect:{AspectRatio(item).ToString("0.###", CultureInfo.InvariantCulture)}";
 

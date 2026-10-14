@@ -43,6 +43,9 @@
     [Parameter] public string QuickFilterAriaLabel { get; set; } = "Quick filters";
     [Parameter] public string AdvancedFilterAriaLabel { get; set; } = "More filters";
     [Parameter] public bool HasActiveAdvancedFilters { get; set; }
+
+    /// <summary>Identifies the active quick filter. The phone chip row scrolls it into view when this changes; left unset, it is only scrolled once on first render.</summary>
+    [Parameter] public string? ActiveKey { get; set; }
     [Parameter] public EventCallback<object?> SearchChanged { get; set; }
     [Parameter] public RenderFragment? QuickFilters { get; set; }
     [Parameter] public RenderFragment? AdvancedFilters { get; set; }
@@ -50,6 +53,7 @@
     private bool _expanded;
     private ElementReference _strip;
     private IJSObjectReference? _module;
+    private string? _shownKey;
 
     // On phones the quick filters are a horizontal chip row: mark the edge that still has chips and keep the active chip in view.
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -62,7 +66,11 @@
                 await _module.InvokeVoidAsync("attach", _strip);
             }
 
-            await _module.InvokeVoidAsync("showActiveWhenChanged", _strip, ".is-active");
+            if (firstRender || !string.Equals(_shownKey, ActiveKey, StringComparison.Ordinal))
+            {
+                _shownKey = ActiveKey;
+                await _module.InvokeVoidAsync("showActive", _strip, ".is-active");
+            }
         }
         catch (JSDisconnectedException)
         {
