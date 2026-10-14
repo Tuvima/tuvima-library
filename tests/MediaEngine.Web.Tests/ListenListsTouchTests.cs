@@ -1,11 +1,11 @@
 using Bunit;
-using Microsoft.JSInterop;
 using MediaEngine.Web.Components.Listen;
 using MediaEngine.Web.Models.ViewDTOs;
 using MediaEngine.Web.Services.Theming;
 using MediaEngine.Web.Services.Ui;
 using MediaEngine.Web.Tests.Support;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.JSInterop;
 
 namespace MediaEngine.Web.Tests;
 

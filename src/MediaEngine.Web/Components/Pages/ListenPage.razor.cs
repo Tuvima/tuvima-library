@@ -1212,8 +1212,8 @@ public partial class ListenPage
         }
 
         var albumRoute = BuildAlbumRouteForTrack(track);
-        items.Add(new() { Label = "Go to album", Icon = AppMaterialIcons.Outlined.Album, Disabled = string.IsNullOrWhiteSpace(albumRoute), OnClick = EventCallback.Factory.Create(this, () => { if (!string.IsNullOrWhiteSpace(albumRoute)) NavigateTo(albumRoute); }) });
-        items.Add(new() { Label = "Go to artist", Icon = AppMaterialIcons.Outlined.Person, Disabled = track.ArtistPersonId is null, OnClick = EventCallback.Factory.Create(this, () => { if (track.ArtistPersonId is { } artistId) NavigateTo($"/details/person/{artistId:D}"); }) });
+        items.Add(new() { Label = "Go to album", Icon = AppMaterialIcons.Outlined.Album, Disabled = string.IsNullOrWhiteSpace(albumRoute), OnClick = EventCallback.Factory.Create(this, () => { if (!string.IsNullOrWhiteSpace(albumRoute)) { NavigateTo(albumRoute); } }) });
+        items.Add(new() { Label = "Go to artist", Icon = AppMaterialIcons.Outlined.Person, Disabled = track.ArtistPersonId is null, OnClick = EventCallback.Factory.Create(this, () => { if (track.ArtistPersonId is { } artistId) { NavigateTo($"/details/person/{artistId:D}"); } }) });
         if (item is not null)
         {
             items.Add(new() { Label = "Remove", Icon = AppMaterialIcons.Outlined.Delete, Destructive = true, OnClick = EventCallback.Factory.Create(this, () => RemovePlaylistTrackAsync(item.Id)) });
