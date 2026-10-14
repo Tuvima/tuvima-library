@@ -1,5 +1,5 @@
-using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Configuration;
+using MediaEngine.Domain.Contracts;
 using MediaEngine.Ingestion.Organise;
 using MediaEngine.Ingestion.Tests.Helpers;
 using Microsoft.Extensions.Logging.Abstractions;
