@@ -4,7 +4,7 @@ export function cueLine(railTop, videoRect) { return Math.max(0, Math.min(95, (r
 
 export function attach(host, video) {
     if (!host || !video || states.has(host)) return;
-    const state = { host, video, timer: null, holds: new Set(), controls: new Map(), hidden: false, listeners: [], disposed: false };
+    const state = { host, video, timer: null, holds: new Set(), controls: new Map(), hidden: false, touch: false, listeners: [], disposed: false };
     const listen = (target, name, handler, options) => {
         target.addEventListener(name, handler, options);
         state.listeners.push(() => target.removeEventListener(name, handler, options));
@@ -57,9 +57,10 @@ export function attach(host, video) {
         for (const element of controls()) element.inert = value || state.controls.get(element);
         positionCues();
     };
+    // After a touch tap the pressed button keeps :hover and :focus, so on touch only keyboard-visible focus holds the chrome open.
     const held = () => state.holds.size > 0 || video.paused || video.ended || video.readyState < 2
-        || !!video.error || host.querySelector('[data-chrome-hold]:hover') !== null
-        || host.querySelector('[data-playback-chrome]:focus-within') !== null;
+        || !!video.error || (!state.touch && host.querySelector('[data-chrome-hold]:hover') !== null)
+        || host.querySelector(state.touch ? '[data-playback-chrome] :focus-visible' : '[data-playback-chrome]:focus-within') !== null;
     const schedule = () => {
         clearTimeout(state.timer);
         if (held()) { hidden(false); return; }
@@ -67,6 +68,7 @@ export function attach(host, video) {
     };
     const reveal = () => { hidden(false); schedule(); };
     const onKey = event => {
+        state.touch = false;
         if (event.target.closest?.('input,textarea,select,[contenteditable="true"],[role="combobox"],[role="listbox"]')) return;
         if (!host.contains(event.target) && document.fullscreenElement !== host
             && event.target !== document.body && event.target !== document.documentElement) return;
@@ -76,13 +78,11 @@ export function attach(host, video) {
             document.exitFullscreen?.();
         }
     };
-    listen(host, 'pointermove', reveal, { passive: true });
-    listen(host, 'pointerdown', event => {
-        if (event.pointerType === 'touch' && !event.target.closest?.('button,input,select,[role="slider"]')) {
-            if (state.hidden) reveal(); else if (!held()) { clearTimeout(state.timer); hidden(true); }
-        } else reveal();
-    }, { passive: true });
-    listen(host, 'pointerenter', reveal, { passive: true });
+    const pointer = event => { state.touch = event.pointerType === 'touch'; reveal(); };
+    listen(host, 'pointermove', pointer, { passive: true });
+    // On touch every tap shows the controls and restarts the three second timer; they are never hidden by a tap.
+    listen(host, 'pointerdown', pointer, { passive: true });
+    listen(host, 'pointerenter', pointer, { passive: true });
     listen(host, 'pointerleave', schedule, { passive: true });
     listen(host, 'focusin', reveal);
     listen(host, 'focusout', () => queueMicrotask(schedule));
