@@ -64,6 +64,7 @@ public sealed class ProtectedSetupTests
 
     private static SetupPathCheckDto Probe(string path, bool write) =>
         (SetupPathCheckDto)typeof(SetupPreflightService)
-            .GetMethod("Probe", BindingFlags.NonPublic | BindingFlags.Static)!
-            .Invoke(null, new object[] { "test", "Test", path, "test", write })!;
+            .GetMethod("Probe", BindingFlags.NonPublic | BindingFlags.Instance)!
+            .Invoke(new SetupPreflightService(null!, null!, null!, Microsoft.Extensions.Logging.Abstractions.NullLogger<SetupPreflightService>.Instance),
+                new object[] { "test", "Test", path, "test", write })!;
 }
