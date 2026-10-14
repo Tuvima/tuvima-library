@@ -744,6 +744,8 @@
     // On a phone there is no Select button: pressing and holding a document starts picking, then taps add more.
     private void PressStarted(LocalAssetDto item)
     {
+        // A new press starts a new gesture: the click that trailed an earlier long press is either spent or never came.
+        _longPressed = null;
         if (!Device.IsPhone || !CanSelect || _selectMode)
         {
             return;

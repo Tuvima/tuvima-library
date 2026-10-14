@@ -58,6 +58,19 @@ public sealed class ViewDocumentBulkUiTests : AsyncBunitContext
         return cut;
     }
 
+    // Looks the card up and clicks it in one step on the renderer's own thread. Child components re-render after an
+    // interaction and hand out new event handler ids; reading the page from the test thread can land between those
+    // renders and click a stale id, which Blazor ignores. Doing both on the renderer thread cannot interleave with them.
+    private static Task ClickAsync(IRenderedComponent<ViewDocumentsPage> cut, int index) =>
+        cut.InvokeAsync(() => cut.FindAll(".view-document-card__open")[index].Click());
+
+    private static Task PressAndClickAsync(IRenderedComponent<ViewDocumentsPage> cut, int index) =>
+        cut.InvokeAsync(() =>
+        {
+            cut.FindAll("li.view-document-card")[index].TriggerEvent("onpointerdown", new PointerEventArgs());
+            cut.FindAll(".view-document-card__open")[index].Click();
+        });
+
     private static void EnterSelectMode(IRenderedComponent<ViewDocumentsPage> cut) =>
         cut.Find("button.view-documents-select").Click();
 
@@ -293,10 +306,27 @@ public sealed class ViewDocumentBulkUiTests : AsyncBunitContext
         cut.WaitForAssertion(() => Assert.Contains("1 selected", cut.Find(".view-selection-toolbar").TextContent, StringComparison.Ordinal), TimeSpan.FromSeconds(5));
         Assert.NotEmpty(cut.FindAll("button.view-documents-select"));
         Assert.Equal(3, cut.FindAll(".view-document-card__select").Count);
-        cut.FindAll(".view-document-card__open")[1].Click();
+        // The tap that ends the long press is swallowed: it must not open the document or undo the selection.
+        await ClickAsync(cut, 1);
         Assert.Contains("1 selected", cut.Find(".view-selection-toolbar").TextContent, StringComparison.Ordinal);
-        cut.FindAll(".view-document-card__open")[2].Click();
+        // The next tap, a new press, toggles normally.
+        await PressAndClickAsync(cut, 2);
         Assert.Contains("2 selected", cut.Find(".view-selection-toolbar").TextContent, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task AHoldThatIsNeverFollowedByAClickDoesNotSwallowTheNextRealTap()
+    {
+        await _device.InitialiseAsync(new DeviceContextSnapshot("mobile", "phone", true));
+        var cut = RenderLoaded();
+
+        // The finger slid away before lifting, so no click followed the hold.
+        await cut.InvokeAsync(() => cut.FindAll("li.view-document-card")[1].TriggerEvent("onpointerdown", new PointerEventArgs()));
+        cut.WaitForAssertion(() => Assert.Contains("1 selected", cut.Find(".view-selection-toolbar").TextContent, StringComparison.Ordinal), TimeSpan.FromSeconds(5));
+
+        // A later, ordinary tap on the same card is a new press and toggles it off rather than being ignored.
+        await PressAndClickAsync(cut, 1);
+        Assert.Empty(cut.FindAll(".view-document-card.is-selected"));
     }
 
     [Fact]
