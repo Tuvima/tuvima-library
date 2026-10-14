@@ -40,4 +40,4 @@ Under **Settings > Libraries > View > Documents** you can switch reading on or o
 
 If Tesseract is not installed, the section says **Text recognition is not installed** and everything else keeps working. Windows installers and containers include it. For other installs, see [configuration](../reference/configuration.md#configocrjson).
 
-For the privacy picture see [privacy and network access](privacy-local-first.md).
+For the whole Documents page see [Documents in View](documents-in-view.md). For the privacy picture see [privacy and network access](privacy-local-first.md).

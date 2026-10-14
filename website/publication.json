@@ -217,6 +217,12 @@
       "section": "How it works"
     },
     {
+      "source": "explanation/documents-in-view.md",
+      "slug": "explanation/documents-in-view",
+      "group": "Guides",
+      "section": "How it works"
+    },
+    {
       "source": "explanation/how-documents-are-read.md",
       "slug": "explanation/how-documents-are-read",
       "group": "Guides",
