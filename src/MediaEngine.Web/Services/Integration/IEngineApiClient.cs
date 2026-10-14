@@ -57,9 +57,6 @@ public partial interface IEngineApiClient
     /// <summary>GET /universe/{qid}/health — health score for a fictional universe.</summary>
     Task<UniverseHealthDto?> GetUniverseHealthAsync(string qid, CancellationToken ct = default);
 
-    /// <summary>GET /library/universes/{universeQid}/characters - characters in a universe with default actor/portrait.</summary>
-    Task<IReadOnlyList<UniverseCharacterDto>> GetUniverseCharactersAsync(string universeQid, CancellationToken ct = default);
-
     /// <summary>GET /library/persons/{personId}/character-roles - character roles with portraits for a person.</summary>
     Task<IReadOnlyList<CharacterRoleDto>> GetPersonCharacterRolesAsync(Guid personId, CancellationToken ct = default);
 
@@ -68,9 +65,6 @@ public partial interface IEngineApiClient
 
     /// <summary>GET /metadata/{entityId}/artwork — grouped artwork variants for the editor.</summary>
     Task<ArtworkEditorDto?> GetArtworkAsync(Guid entityId, CancellationToken ct = default);
-
-    /// <summary>POST /library/enrichment/universe/trigger - manually trigger Stage 3 universe enrichment.</summary>
-    Task TriggerUniverseEnrichmentAsync(CancellationToken ct = default);
     // ── Universe Graph (Chronicle Explorer) ─────────────────────────────────
 
     /// <summary>GET /universe/{qid}/graph — fetch the universe relationship graph with optional filters.</summary>
@@ -110,16 +104,6 @@ public partial interface IEngineApiClient
     /// <summary>POST /universe/{qid}/lore/enrich - import approved plugin lore for this universe.</summary>
     Task<UniverseLoreEnrichmentSummaryViewModel?> EnrichUniverseLoreAsync(
         string qid, CancellationToken ct = default);
-
-    /// <summary>GET /universes — list all narrative roots (fictional universes).</summary>
-    Task<IReadOnlyList<NarrativeRootDto>> GetUniversesAsync(CancellationToken ct = default);
-
-    /// <summary>
-    /// POST /universe/entity/{qid}/deep-enrich — triggers on-demand deep enrichment for an
-    /// entity and its un-enriched neighbors. Used by Chronicle Explorer when a user clicks
-    /// on an entity that hasn't been deep-enriched yet.
-    /// </summary>
-    Task<DeepEnrichResponse?> TriggerDeepEnrichAsync(string entityQid, int depth = 2, CancellationToken ct = default);
 
     /// <summary>GET /universe/{qid}/cast — characters with their real-world performers.</summary>
     Task<UniverseCastResponse?> GetUniverseCastAsync(string qid, CancellationToken ct = default);
@@ -211,18 +195,6 @@ public partial interface IEngineApiClient
     /// <summary>GET /library/universe-candidates - works with universe QIDs but no collection assignment.</summary>
     Task<List<UniverseCandidateViewModel>> GetUniverseCandidatesAsync(CancellationToken ct = default);
 
-    /// <summary>POST /library/universe-candidates/{workId}/accept - accept a universe assignment.</summary>
-    Task<bool> AcceptUniverseCandidateAsync(Guid workId, string targetCollectionQid, CancellationToken ct = default);
-
-    /// <summary>POST /library/universe-candidates/{workId}/reject - reject a universe candidate.</summary>
-    Task<bool> RejectUniverseCandidateAsync(Guid workId, CancellationToken ct = default);
-
-    /// <summary>POST /library/universe-candidates/batch-accept - batch accept universe assignments.</summary>
-    Task<int> BatchAcceptUniverseCandidatesAsync(List<Guid> workIds, CancellationToken ct = default);
-
     /// <summary>GET /library/universe-unlinked - works with QID but no universe properties.</summary>
     Task<List<UnlinkedWorkViewModel>> GetUniverseUnlinkedAsync(CancellationToken ct = default);
-
-    /// <summary>POST /library/universe-assign - manually assign a work to a collection.</summary>
-    Task<bool> ManualUniverseAssignAsync(Guid workId, Guid collectionId, CancellationToken ct = default);
 }

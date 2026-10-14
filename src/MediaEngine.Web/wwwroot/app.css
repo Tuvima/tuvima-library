@@ -3775,6 +3775,19 @@ button.app-menu-item {
     :root:root .universal-search-overlay__input-shell input {
         min-height: var(--tl-tap-target-min);
     }
+
+    /* Settings selects (compact AppSelect: Playback Skip back and Skip forward, and the Listening and Reading choices) stay at least
+       44px tall. Settings.razor.css gives compact fields a 42px --app-control-height, which the select rules above read (some with
+       !important). This higher-specificity rule restates the height on the AppSelect root only, so no !important is added. */
+    :root:root .settings-page-canvas .app-field.app-control--compact:has(.app-select),
+    :root:root .settings-page-canvas .app-control.app-control--compact.app-select,
+    :root:root .settings-page-canvas .app-control--compact .app-control.app-select {
+        --app-control-height: var(--tl-tap-target-min);
+    }
+
+    :root:root .settings-page-canvas select.app-native-select {
+        min-height: var(--tl-tap-target-min);
+    }
 }
 
 /* Tablets: check boxes keep a 44px tap box: the real input covers the whole label and a drawn box shows the state. */

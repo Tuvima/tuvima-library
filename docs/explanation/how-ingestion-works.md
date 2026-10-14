@@ -204,7 +204,7 @@ The pipeline is designed to fail safely:
 
 ## Watching Operations
 
-**Settings > Operations > Ingestion** is the single operational surface at `/settings/ingestion`. It answers what is happening now, whether the pipeline is waiting, whether anything needs attention, and what completed in earlier batches. **Needs Review** remains the human decision queue.
+**Settings > Administration > Live Ingestion** is the single operational surface at `/settings/ingestion`. It answers what is happening now, whether the pipeline is waiting, whether anything needs attention, and what completed in earlier batches. **Needs Review** remains the human decision queue.
 
 It shows real application state from the Engine:
 
