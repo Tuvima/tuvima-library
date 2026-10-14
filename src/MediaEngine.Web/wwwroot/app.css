@@ -3800,8 +3800,27 @@ button.app-menu-item {
        variable is raised by that border. Phones keep the browse search's own 44px input rule above, so only the
        Universe explorer field and the browse field on tablets and desktops take this variable. */
     :root:root .chronicle-explorer-search,
+    :root:root:not([data-form-factor="phone"]) .recently-added-filters__search,
     :root:root:not([data-form-factor="phone"]) .browse-shell__search {
         --app-control-height: calc(var(--tl-tap-target-min) + 2px);
+    }
+
+    /* Browse toolbars at tablet width (Watch, Read): the Cards/List toggle and the tile size slider, and the Manage/View/Open
+       links in Playback & Delivery rows. */
+    :root:root:root .browse-shell__layout-button,
+    :root:root:root .settings-advanced-link-row__action {
+        min-height: var(--tl-tap-target-min);
+    }
+
+    :root:root:root .browse-shell__tile-size input[type="range"] {
+        min-height: var(--tl-tap-target-min);
+    }
+
+    /* Links inside an alert (for example Devices > Open Remote Access) get a full 44px tap box. */
+    :root:root .tl-alert-message a {
+        display: inline-flex;
+        align-items: center;
+        min-height: var(--tl-tap-target-min);
     }
 
     /* Universe explorer: the 42px tabs read --tl-tab-min-height (their own !important rule), and the 24px filter chips and
@@ -4218,6 +4237,8 @@ html[data-form-factor="phone"] .view-map .maplibregl-ctrl-bottom-right {
 /* The browse search box sits in a 44px outlined container whose text input is 2px shorter (the border). On phones the
    input itself covers the full 44px, so the whole box is the tap target. */
 :root:root[data-form-factor="phone"] .browse-shell__search .tl-input-container.tl-input-container.tl-input-container > input.tl-input,
+:root:root[data-form-factor="phone"] .recently-added-filters__search .tl-input-container.tl-input-container.tl-input-container > input.tl-input,
+:root:root[data-form-factor="phone"] .chronicle-explorer-search .tl-input-container.tl-input-container.tl-input-container > input.tl-input,
 :root:root[data-form-factor="phone"] .search-page__input .tl-input-container.tl-input-container.tl-input-container > input.tl-input {
     height: 44px !important;
     min-height: 44px;
