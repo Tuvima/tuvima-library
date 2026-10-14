@@ -5,6 +5,8 @@ using Bunit;
 using MediaEngine.Contracts.Authentication;
 using MediaEngine.Web.Components.Settings;
 using MediaEngine.Web.Services.Integration;
+using MediaEngine.Web.Services.Theming;
+using MediaEngine.Web.Tests.Support;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace MediaEngine.Web.Tests;
@@ -241,6 +243,41 @@ public sealed class ManagedAccessUsersTests : AsyncBunitContext
 
         cut.WaitForAssertion(() => Assert.Contains("was deleted. Personal media files were kept.", cut.Markup));
         Assert.Contains(_handler.Requests, request => request.Method == HttpMethod.Delete && request.Path == $"/access/accounts/{_handler.AccountId:D}");
+    }
+
+    [Fact]
+    public async Task OnAPhone_UsersReadAsCardsWithoutManageControlsOrEditing()
+    {
+        await UsePhoneAsync();
+
+        var cut = RenderUsers();
+
+        Assert.NotEmpty(cut.FindAll(".app-table-shell--cards"));
+        Assert.Equal("owner@example.test", cut.Find("td[data-card-role='title']").TextContent.Trim());
+        Assert.Equal("Administrator", cut.Find("td[data-card-role='subtitle']").TextContent.Trim());
+        Assert.Contains("Enabled", cut.Find("td[data-card-role='value']").TextContent);
+        Assert.Contains("Last active", cut.Find("td[data-card-role='value']").TextContent);
+        Assert.Contains("Manage on a computer or tablet", cut.Find("p[role='note']").TextContent);
+        Assert.Empty(cut.FindAll("button[aria-label^='Actions for']"));
+        Assert.DoesNotContain(cut.FindAll("button"), button => button.TextContent.Contains("Invite"));
+        Assert.DoesNotContain("can use View", cut.Markup);
+    }
+
+    [Fact]
+    public async Task OnADesktop_UsersKeepTheRowActionsAndNoPhoneNote()
+    {
+        var cut = RenderUsers();
+
+        Assert.Empty(cut.FindAll(".app-table-shell--cards"));
+        Assert.NotEmpty(cut.FindAll("button[aria-label='Actions for owner@example.test']"));
+        Assert.DoesNotContain("Manage on a computer or tablet", cut.Markup);
+    }
+
+    private async Task UsePhoneAsync()
+    {
+        var device = new DeviceContextService(EngineApiClientStub.CreateDefault());
+        await device.InitialiseAsync(new DeviceContextSnapshot("mobile", "phone", true));
+        Services.AddScoped(_ => device);
     }
 
     private IRenderedComponent<ManagedAccessUsers> RenderUsers(string expectedEmail = "owner@example.test")
