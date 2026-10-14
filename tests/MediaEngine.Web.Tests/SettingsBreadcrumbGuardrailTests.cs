@@ -20,6 +20,21 @@ public sealed class SettingsBreadcrumbGuardrailTests
         Assert.DoesNotContain("<AppBreadcrumbs>", metadata, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void SettingsBreadcrumbLinks_KeepA44PixelTapTargetInTheSharedBlock()
+    {
+        var css = Read(@"src/MediaEngine.Web/wwwroot/app.css");
+        var block = css[css.IndexOf("Shared 44px tap-target contract", StringComparison.Ordinal)..];
+        var rule = block[block.IndexOf(":root:root .app-breadcrumbs.settings-breadcrumbs a {", StringComparison.Ordinal)..];
+        rule = rule[..rule.IndexOf('}', StringComparison.Ordinal)];
+
+        Assert.Contains("min-width: var(--tl-tap-target-min);", rule, StringComparison.Ordinal);
+        Assert.Contains("min-height: var(--tl-tap-target-min);", rule, StringComparison.Ordinal);
+        Assert.Contains("justify-content: center;", rule, StringComparison.Ordinal);
+        // The base rule keeps the links inline-flex so the label is centred inside the target.
+        Assert.Contains(":root:root .settings-breadcrumbs a,", block, StringComparison.Ordinal);
+    }
+
     private static string Read(string relativePath) =>
         File.ReadAllText(Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", relativePath)));
 }

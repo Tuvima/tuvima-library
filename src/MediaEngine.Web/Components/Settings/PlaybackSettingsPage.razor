@@ -5,10 +5,13 @@
 @using MediaEngine.Web.Models.ViewDTOs
 @using MediaEngine.Web.Services.Integration
 @using MediaEngine.Web.Services.Playback
+@using Microsoft.JSInterop
 @inject UIOrchestratorService Orchestrator
 @inject IEngineApiClient ApiClient
 @inject IUserPlaybackPreferencesAccessor PreferencesAccessor
 @inject IAppToastService Snackbar
+@inject NavigationManager Navigation
+@inject IJSRuntime JS
 
 @if (_loading)
 {
@@ -29,7 +32,7 @@ else if (!string.IsNullOrWhiteSpace(_loadError))
 }
 else if (_settings is not null)
 {
-    <div class="settings-playback-page" data-playback-section="overview" data-playback-mode="@Mode">
+    <div class="settings-playback-page" data-playback-section="overview">
         @if (!string.IsNullOrWhiteSpace(_saveError))
         {
             <AppAlert Severity="AppSeverity.Error" Variant="AppVariant.Outlined" Dense="true">@_saveError</AppAlert>
@@ -47,71 +50,101 @@ else if (_settings is not null)
         }
 
         <div class="playback-settings-grid">
-            @if (Mode == PlaybackSettingsMode.Watching)
-            {
-                <SettingsSectionPanel Title="Autoplay"
-                                      Description="What happens when an episode ends."
+            <SettingsSectionPanel Title="Autoplay"
+                                  Description="What happens when an episode ends."
+                                  Class="tl-card settings-section-card playback-settings-card">
+                @BoolRow(
+                    "Autoplay next episode",
+                    "Start the next episode after a short countdown. Turn off to choose it yourself.",
+                    _settings.Watching.AutoplayNextEpisode,
+                    value => UpdateAndSaveAsync(() => _settings.Watching.AutoplayNextEpisode = value))
+            </SettingsSectionPanel>
+
+            <SettingsSectionPanel Title="Resume"
+                                  Description="Where a movie or episode starts when you come back."
+                                  Class="tl-card settings-section-card playback-settings-card">
+                @BoolRow(
+                    "Resume where you left off",
+                    "Continue from your last saved position.",
+                    _settings.General.ResumePlayback,
+                    value => UpdateAndSaveAsync(() => _settings.General.ResumePlayback = value))
+            </SettingsSectionPanel>
+
+            <SettingsSectionPanel Title="Skip"
+                                  Description="How far the player skip buttons jump."
+                                  Class="tl-card settings-section-card playback-settings-card">
+                @IntSelectRow(
+                    "Skip back",
+                    "The amount used by the rewind control.",
+                    _settings.Watching.SkipBackSeconds,
+                    WatchingSkipBackOptions,
+                    value => UpdateAndSaveAsync(() => _settings.Watching.SkipBackSeconds = value))
+                @IntSelectRow(
+                    "Skip forward",
+                    "The amount used by the forward control.",
+                    _settings.Watching.SkipForwardSeconds,
+                    WatchingSkipForwardOptions,
+                    value => UpdateAndSaveAsync(() => _settings.Watching.SkipForwardSeconds = value))
+            </SettingsSectionPanel>
+
+            <div id="subtitles" class="playback-subtitles-group" data-playback-section="subtitles">
+                <SettingsSectionPanel Title="Subtitles & audio"
+                                      Description="Which language plays first, and when subtitles appear."
                                       Class="tl-card settings-section-card playback-settings-card">
-                    @BoolRow(
-                        "Autoplay next episode",
-                        "Start the next episode after a short countdown. Turn off to choose it yourself.",
-                        _settings.Watching.AutoplayNextEpisode,
-                        value => UpdateAndSaveAsync(() => _settings.Watching.AutoplayNextEpisode = value))
+                    @StringSelectRow(
+                        "Audio language",
+                        "The audio track the player starts with when a title has more than one.",
+                        LanguageValue(Subtitles.AudioLanguage),
+                        LanguageOptionsFor(Subtitles.AudioLanguage),
+                        value => UpdateAndSaveAsync(() => Subtitles.AudioLanguage = value))
+                    @StringSelectRow(
+                        "Subtitle language",
+                        "The subtitles the player picks when it shows them.",
+                        LanguageValue(Subtitles.DefaultSubtitleLanguage),
+                        LanguageOptionsFor(Subtitles.DefaultSubtitleLanguage),
+                        value => UpdateAndSaveAsync(() => Subtitles.DefaultSubtitleLanguage = value))
+                    @StringSelectRow(
+                        "Show subtitles",
+                        "Auto shows them only when the audio is not in your subtitle language.",
+                        ShowSubtitlesValue,
+                        ShowSubtitlesOptions,
+                        value => UpdateAndSaveAsync(() => Subtitles.ForcedSubtitlesMode = value),
+                        wide: true)
                 </SettingsSectionPanel>
 
-                <SettingsSectionPanel Title="Resume"
-                                      Description="Where a movie or episode starts when you come back."
+                <SettingsSectionPanel Title="Subtitle appearance"
+                                      Description="How subtitles look over the picture."
                                       Class="tl-card settings-section-card playback-settings-card">
-                    @BoolRow(
-                        "Resume where you left off",
-                        "Continue from your last saved position.",
-                        _settings.General.ResumePlayback,
-                        value => UpdateAndSaveAsync(() => _settings.General.ResumePlayback = value))
-                </SettingsSectionPanel>
-
-                <SettingsSectionPanel Title="Skip"
-                                      Description="How far the player skip buttons jump."
-                                      Class="tl-card settings-section-card playback-settings-card">
-                    @IntSelectRow(
-                        "Skip back",
-                        "The amount used by the rewind control.",
-                        _settings.Watching.SkipBackSeconds,
-                        WatchingSkipBackOptions,
-                        value => UpdateAndSaveAsync(() => _settings.Watching.SkipBackSeconds = value))
-                    @IntSelectRow(
-                        "Skip forward",
-                        "The amount used by the forward control.",
-                        _settings.Watching.SkipForwardSeconds,
-                        WatchingSkipForwardOptions,
-                        value => UpdateAndSaveAsync(() => _settings.Watching.SkipForwardSeconds = value))
-                </SettingsSectionPanel>
-
-                @* S6b: the subtitles group goes here. *@
-            }
-
-            @if (Mode == PlaybackSettingsMode.Reading)
-            {
-                <SettingsSectionPanel Title="Reading"
-                                      Description="Reading controls stay close to the book you are using."
-                                      Class="tl-card settings-section-card playback-settings-card playback-settings-card--guidance">
-                    <div class="playback-guidance">
-                        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.MenuBook" Size="AppSize.Medium" aria-hidden="true" />
-                        <div>
-                            <AppText Typo="AppTypo.body1">Adjust text while reading</AppText>
-                            <AppText Typo="AppTypo.body2" Color="AppColor.Secondary">
-                                Font, spacing, margins, and page controls are available in the reader and are saved on that device.
-                            </AppText>
-                        </div>
+                    <div class="subtitle-preview"
+                         data-subtitle-size="@NormalizedSubtitleSize"
+                         data-subtitle-background="@(Subtitles.SubtitleBackground ? "true" : "false")"
+                         role="img"
+                         aria-label="Sample of the subtitle style">
+                        <p class="subtitle-preview__line"><span class="subtitle-preview__text">The rain had stopped by the time we reached the station.</span></p>
                     </div>
+                    <div class="playback-preference-row">
+                        <div class="playback-preference-row__copy">
+                            <AppText Typo="AppTypo.body1">Text size</AppText>
+                            <AppText Typo="AppTypo.body2" Color="AppColor.Secondary">How large subtitles are in the player.</AppText>
+                        </div>
+                        <AppSegmentedControl Options="SubtitleSizeOptions"
+                                             Value="@NormalizedSubtitleSize"
+                                             ValueChanged="@(value => UpdateAndSaveAsync(() => Subtitles.SubtitleSize = value))"
+                                             AriaLabel="Text size"
+                                             Class="playback-preference-row__control" />
+                    </div>
+                    @BoolRow(
+                        "Background",
+                        "Put a dark box behind subtitles. Turn off to show the text with a soft shadow only.",
+                        Subtitles.SubtitleBackground,
+                        value => UpdateAndSaveAsync(() => Subtitles.SubtitleBackground = value))
                 </SettingsSectionPanel>
-            }
+            </div>
         </div>
     </div>
 }
 
 @code {
-    [Parameter] public PlaybackSettingsMode Mode { get; set; } = PlaybackSettingsMode.Watching;
-
     /// <summary>Another household profile to edit (administrators only). Null or the active profile edits your own.</summary>
     [Parameter] public Guid? ProfileId { get; set; }
 
@@ -127,11 +160,46 @@ else if (_settings is not null)
     private string? _loadError;
     private string? _saveError;
 
-    private bool IsOtherProfile => Mode == PlaybackSettingsMode.Watching
-        && ProfileId is { } id && id != Guid.Empty && id != _activeProfile?.Id;
+    private bool IsOtherProfile => ProfileId is { } id && id != Guid.Empty && id != _activeProfile?.Id;
+
+    private bool _scrolledToFragment;
+
+    private SubtitleLanguageSettingsDto Subtitles => _settings!.Subtitles;
 
     private static readonly int[] WatchingSkipBackOptions = [5, 10, 15, 30];
     private static readonly int[] WatchingSkipForwardOptions = [10, 30, 60, 90];
+
+    private static readonly IReadOnlyList<AppSelectOption> SubtitleSizeOptions =
+    [
+        new(PlaybackPreferenceValues.Small, "Small"),
+        new(PlaybackPreferenceValues.Medium, "Medium"),
+        new(PlaybackPreferenceValues.Large, "Large"),
+    ];
+
+    private static readonly IReadOnlyList<AppSelectOption> ShowSubtitlesOptions =
+    [
+        new(PlaybackPreferenceValues.Auto, "Auto (only when audio is not my language)"),
+        new(PlaybackPreferenceValues.Always, "Always"),
+        new(PlaybackPreferenceValues.Never, "Off"),
+    ];
+
+    // The Engine accepts ExtraLarge; this page offers three sizes, so it shows as the largest.
+    private string NormalizedSubtitleSize => Subtitles.SubtitleSize switch
+    {
+        var size when string.Equals(size, PlaybackPreferenceValues.Small, StringComparison.OrdinalIgnoreCase) => PlaybackPreferenceValues.Small,
+        var size when string.Equals(size, PlaybackPreferenceValues.Large, StringComparison.OrdinalIgnoreCase)
+            || string.Equals(size, PlaybackPreferenceValues.ExtraLarge, StringComparison.OrdinalIgnoreCase) => PlaybackPreferenceValues.Large,
+        _ => PlaybackPreferenceValues.Medium,
+    };
+
+    private string ShowSubtitlesValue =>
+        ShowSubtitlesOptions.FirstOrDefault(option => string.Equals(option.Value, Subtitles.ForcedSubtitlesMode, StringComparison.OrdinalIgnoreCase))?.Value
+        ?? PlaybackPreferenceValues.Auto;
+
+    // A saved language that differs only in case still selects its entry in the list.
+    private static string LanguageValue(string? language) =>
+        PlaybackLanguageOptions.WithCurrent(language).FirstOrDefault(option => string.Equals(option, language?.Trim(), StringComparison.OrdinalIgnoreCase))
+        ?? PlaybackLanguageOptions.Common[0];
 
     protected override async Task OnInitializedAsync()
     {
@@ -176,6 +244,35 @@ else if (_settings is not null)
         <AppSwitchRow T="bool" Value="@value" ValueChanged="@changed" Color="AppColor.Primary" AriaLabel="@title" />
     </div>;
 
+    private static IReadOnlyList<AppSelectOption> LanguageOptionsFor(string? current) =>
+        PlaybackLanguageOptions.WithCurrent(current).Select(language => new AppSelectOption(language, language)).ToList();
+
+    private RenderFragment StringSelectRow(
+        string title,
+        string description,
+        string value,
+        IReadOnlyList<AppSelectOption> options,
+        Func<string, Task> changed,
+        bool wide = false) => @<div class="playback-preference-row">
+        <div class="playback-preference-row__copy">
+            <AppText Typo="AppTypo.body1">@title</AppText>
+            <AppText Typo="AppTypo.body2" Color="AppColor.Secondary">@description</AppText>
+        </div>
+        <AppSelect Value="@value"
+                   ValueChanged="@(selected => changed(selected ?? value))"
+                   Variant="AppVariant.Outlined"
+                   Margin="AppMargin.Dense"
+                   Dense="true"
+                   Size="AppControlSize.Compact"
+                   Class="@(wide ? "playback-preference-row__select playback-preference-row__select--wide" : "playback-preference-row__select")"
+                   aria-label="@title">
+            @foreach (var option in options)
+            {
+                <AppSelectItem T="string" Value="@option.Value">@option.Label</AppSelectItem>
+            }
+        </AppSelect>
+    </div>;
+
     private RenderFragment IntSelectRow(
         string title,
         string description,
@@ -200,6 +297,26 @@ else if (_settings is not null)
             }
         </AppIntSelect>
     </div>;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        // The profile page links here as /settings/playback#subtitles. The group only exists once the settings have loaded,
+        // so the scroll happens after that render rather than relying on the browser's own fragment handling.
+        if (_scrolledToFragment || _settings is null || !string.Equals(new Uri(Navigation.Uri).Fragment, "#subtitles", StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        _scrolledToFragment = true;
+        try
+        {
+            await JS.InvokeVoidAsync("tuvimaEditorScrollTo", "#subtitles");
+        }
+        catch (Exception ex) when (ex is JSException or JSDisconnectedException or InvalidOperationException)
+        {
+            // Best effort: the group is still on the page if the scroll cannot run (for example when the circuit is closing).
+        }
+    }
 
     private async Task UpdateAndSaveAsync(Action update)
     {

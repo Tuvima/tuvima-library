@@ -1,7 +1,6 @@
 .video-playback-host { position:fixed; inset:auto auto 0 0; width:1px; height:1px; opacity:0; pointer-events:none; overflow:hidden; background:#000; color:var(--playback-text); }
 .video-playback-host.is-expanded { inset:0; width:100%; height:100%; opacity:1; pointer-events:auto; overflow:visible; z-index:1450; }
 .video-playback-host__media { display:block; width:100%; height:100%; object-fit:contain; background:#000; }
-.video-playback-host__media::cue { color:#fff; background:rgba(0,0,0,.58); font-size:clamp(var(--tl-font-size-xs),1.15vw,var(--tl-font-size-lg)); }
 .video-playback-host__segments { position:absolute; left:8px; right:8px; top:18px; height:7px; pointer-events:none; z-index:1; }
 .video-playback-host__segments ::deep .video-playback-host__segment { position:absolute; height:7px; background:rgba(255,255,255,.18); border-inline:1px solid rgba(255,255,255,.48); }
 .video-playback-host ::deep .playback-icon-button-shell--surface-video { width:44px; flex:0 0 44px; }

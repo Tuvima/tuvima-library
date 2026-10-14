@@ -797,7 +797,7 @@ public sealed class UiShellRenderTests : AsyncBunitContext
         {
             Assert.Empty(cut.FindAll(".tl-tabs"));
             Assert.Empty(cut.FindAll(".settings-subsection-nav"));
-            Assert.Equal(3, cut.FindAll(".playback-settings-card").Count);
+            Assert.Equal(5, cut.FindAll(".playback-settings-card").Count);
             Assert.NotEmpty(cut.FindAll(".settings-section-header"));
             Assert.NotEmpty(cut.FindAll(".playback-preference-row"));
             Assert.Contains("Autoplay", cut.Markup);
