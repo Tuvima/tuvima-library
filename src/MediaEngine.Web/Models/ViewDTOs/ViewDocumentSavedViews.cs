@@ -32,9 +32,10 @@ public static class ViewDocumentSavedViews
     public static bool CanSave(ViewDocumentFilterState state, string? search) =>
         (state.TagIds.Count > 0 || state.CorrespondentId.HasValue || state.DocumentTypeId.HasValue
             || state.DateFrom.HasValue || state.DateTo.HasValue || state.DatePreset is not null
-            || state.Fields.Count > 0 || state.InboxOnly || state.SavedViewId.HasValue
+            || state.Fields.Count > 0 || state.InboxOnly
             || !string.IsNullOrWhiteSpace(search))
-        && !state.TrashOnly;
+        // A view that is applied is not copied into the new one, so saving starts from a clean list.
+        && !state.TrashOnly && !state.SavedViewId.HasValue;
 
     /// <summary>
     /// The rule for the list as it is now. The words in the search box are saved as "text contains", and the Inbox

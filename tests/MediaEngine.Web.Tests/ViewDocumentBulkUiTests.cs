@@ -327,6 +327,18 @@ public sealed class ViewDocumentBulkUiTests : AsyncBunitContext
     }
 
     [Fact]
+    public void ASavedViewThatIsAppliedCannotBeSavedAgainAsIfItWereEverything()
+    {
+        var state = new ViewDocumentFilterState { SavedViewId = SavedViewId };
+        state.TagIds.Add(Guid.NewGuid());
+
+        Assert.False(ViewDocumentSavedViews.CanSave(state, "words"));
+        state.Clear();
+        Assert.False(ViewDocumentSavedViews.CanSave(state, null));
+        Assert.True(ViewDocumentSavedViews.CanSave(state, "words"));
+    }
+
+    [Fact]
     public void TheFilterStateKeepsRelativeRangesRelativeAndResolvesThemOnlyWhenAsking()
     {
         var state = new ViewDocumentFilterState { DatePreset = "last_30_days", Sort = ViewDocumentSorts.Title };

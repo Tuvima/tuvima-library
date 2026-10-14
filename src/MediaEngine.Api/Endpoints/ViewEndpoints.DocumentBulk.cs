@@ -124,6 +124,11 @@ public static partial class ViewEndpoints
                 return Unauthenticated();
             }
 
+            if (!await MayUseDocumentsAsync(authority, repository, ct))
+            {
+                return DocumentsNotAllowed();
+            }
+
             var access = await authorization.AuthorizeAsync(authority,
                 new ViewResourceRequest(ViewScopeRequest.Mine, ViewResourceKind.Preference, null, ViewResourceAction.Manage), ct);
             return access.IsAllowed
@@ -139,6 +144,11 @@ public static partial class ViewEndpoints
             if (authority.ActiveProfileId is not { } profileId)
             {
                 return Unauthenticated();
+            }
+
+            if (!await MayUseDocumentsAsync(authority, repository, ct))
+            {
+                return DocumentsNotAllowed();
             }
 
             var access = await authorization.AuthorizeAsync(authority,

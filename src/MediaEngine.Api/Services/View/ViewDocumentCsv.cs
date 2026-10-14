@@ -30,7 +30,9 @@ public static class ViewDocumentCsv
             return string.Empty;
         }
 
-        if (value[0] is '=' or '+' or '-' or '@' or '\t' or '\r')
+        // A plain signed number such as -12.50 is a value, not a formula, and stays a number in a spreadsheet.
+        if (value[0] is '=' or '+' or '-' or '@' or '\t' or '\r'
+            && !double.TryParse(value, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out _))
         {
             value = "'" + value;
         }

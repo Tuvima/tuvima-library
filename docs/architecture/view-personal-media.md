@@ -143,7 +143,7 @@ whose rule is one "all of these" group that includes `media_type` is `document`;
 saved view stores so a rename never breaks it, or by name), `document_date`
 (equals, comparisons, `between`, `known`/`unknown` and `within` a relative range
 worked out when the rule is evaluated), `filing_state`, `text_contains` (words in
-the document, private to the owner's own view) and `field:<field id>` for one
+the document) and `field:<field id>` for one
 custom field (equals, contains, a number or date range, known or unknown, judged
 by the field's kind). All of it compiles in `LocalAssetSmartRuleSqlCompiler` with
 values as parameters and the field id parsed as a GUID, so a rule can never
@@ -159,8 +159,9 @@ Inbox or the trash), asks the authorization service whether the person may manag
 that document, and only then calls the data store, one transaction per document so
 a failure never half-applies a change. The Shared Library is always refused (only
 rules file there). Trash and restore reuse `SetLifecycleStateAsync` and mark
-only; files are never deleted. Names and custom field values written in bulk
-record the person in `doc_item_field_sources`. The export reads the same query as
+only; files are never deleted. A correspondent or type written (or confirmed) in
+bulk records the person in `doc_item_field_sources`. A saved Documents view cannot
+be shared, because its rule can hold search words. The export reads the same query as
 the list through the query orchestrator (so access is identical), adds custom
 field values for those rows only, and streams `ViewDocumentCsv`.
 

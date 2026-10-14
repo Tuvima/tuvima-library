@@ -1340,6 +1340,12 @@ public static partial class ViewEndpoints
                 return Access(decision.Outcome);
             }
 
+            // A saved Documents view stays private: its rule can hold search words and it lists private documents.
+            if (await repository.GetAsync(id, ct) is { } shared && IsDocumentView(shared))
+            {
+                return ApiErrors.Forbidden("A saved Documents view is private and cannot be shared.");
+            }
+
             var targets = await GetGalleryShareTargetsAsync(
                 profileId, profiles, scopes, ct).ConfigureAwait(false);
             if (targets is null)

@@ -311,6 +311,23 @@ public sealed class DocumentSavedViewAndBulkTests : IDisposable
     }
 
     [Fact]
+    public async Task ConfirmingAValueARuleSetMakesItThePersons()
+    {
+        var alice = await CreateLibrary();
+        var a = await AddDocument(alice, 'a');
+        await _bulk.ApplyAsync(alice.Viewer(), a, new DocumentBulkChange(DocumentBulkChangeKind.SetCorrespondent, Name: "Acme"));
+        using (var connection = _database.CreateConnection())
+        {
+            connection.Execute("UPDATE doc_item_field_sources SET set_by = 'rule' WHERE item_id = @a;", new { a });
+        }
+
+        var again = await _bulk.ApplyAsync(alice.Viewer(), a, new DocumentBulkChange(DocumentBulkChangeKind.SetCorrespondent, Name: "Acme"));
+
+        Assert.Equal(DocumentBulkOutcome.Unchanged, again.Outcome);
+        Assert.Equal("person", Source(a, "correspondent"));
+    }
+
+    [Fact]
     public async Task BulkNeverReachesAnotherPersonsDocumentsOrNonDocuments()
     {
         var alice = await CreateLibrary();

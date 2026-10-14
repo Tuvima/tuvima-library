@@ -553,7 +553,8 @@
             Snackbar.Add("Filed.", AppSeverity.Success);
             // Names and tags the filing created, the count on this page and the badge on the Documents tab all change.
             await Task.WhenAll(LoadInboxCountAsync(), Workspace.RefreshDocumentInboxAsync(), LoadCatalogueAsync());
-            if (_items.Count == 0 && _page?.HasMore == true)
+            // A sorted list pages by position, so after a card leaves it the next page must be asked for again from the top.
+            if (_page?.HasMore == true && (_items.Count == 0 || !string.IsNullOrWhiteSpace(_filter.Sort)))
             {
                 await LoadAsync();
             }

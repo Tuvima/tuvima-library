@@ -165,6 +165,12 @@ public sealed class DocumentBulkRepository(IDatabaseConnection database) : IDocu
             $"SELECT {column} FROM doc_item_details WHERE item_id = @itemId;", new { itemId }, transaction);
         if (previous == newId)
         {
+            // Confirming a value a rule set makes it the person's, so a later rule change never replaces it.
+            if (newId is not null && DocumentFieldSources.Get(connection, transaction, itemId, slot, null) != DocumentFieldSources.Person)
+            {
+                DocumentFieldSources.Mark(connection, transaction, itemId, slot, null, DocumentFieldSources.Person);
+            }
+
             return DocumentBulkOutcome.Unchanged;
         }
 
