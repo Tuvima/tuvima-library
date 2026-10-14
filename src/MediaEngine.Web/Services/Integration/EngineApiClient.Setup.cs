@@ -102,8 +102,8 @@ public sealed partial class EngineApiClient
     public Task<LibrariesConfigurationDto?> UpdateSetupLibrariesAsync(UpdateLibrariesRequest request, string? setupSession, CancellationToken ct = default) =>
         SetupSendAsync<LibrariesConfigurationDto>(HttpMethod.Put, "/setup/v1/libraries", JsonContent.Create(request), setupSession, ct);
 
-    public async Task<IReadOnlyList<ServerStorageLocationDto>> GetSetupServerFolderRootsAsync(string? setupSession, CancellationToken ct = default) =>
-        await SetupSendAsync<List<ServerStorageLocationDto>>(HttpMethod.Get, "/setup/v1/server-folders/roots", null, setupSession, ct) ?? [];
+    public async Task<IReadOnlyList<ServerStorageLocationDto>?> GetSetupServerFolderRootsAsync(string? setupSession, CancellationToken ct = default) =>
+        await SetupSendAsync<List<ServerStorageLocationDto>>(HttpMethod.Get, "/setup/v1/server-folders/roots", null, setupSession, ct);
 
     public Task<BrowseServerFoldersResultDto?> BrowseSetupServerFoldersAsync(BrowseServerFoldersRequest request, string? setupSession, CancellationToken ct = default) =>
         SetupSendAsync<BrowseServerFoldersResultDto>(HttpMethod.Post, "/setup/v1/server-folders/browse", JsonContent.Create(request), setupSession, ct);

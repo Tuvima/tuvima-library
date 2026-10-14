@@ -381,13 +381,13 @@ public sealed partial class EngineApiClient
         }
     }
 
-    public async Task<IReadOnlyList<ServerStorageLocationDto>> GetServerFolderRootsAsync(
+    public async Task<IReadOnlyList<ServerStorageLocationDto>?> GetServerFolderRootsAsync(
         CancellationToken ct = default)
     {
         return await GetAsync<List<ServerStorageLocationDto>>(
             "GET /settings/server-folders/roots",
             "/settings/server-folders/roots",
-            ct: ct) ?? [];
+            ct: ct);
     }
 
     public async Task<BrowseServerFoldersResultDto?> BrowseServerFoldersAsync(

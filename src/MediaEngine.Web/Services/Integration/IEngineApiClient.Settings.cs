@@ -126,7 +126,8 @@ public partial interface IEngineApiClient
     Task<PathTestResultDto?> TestPathAsync(string path, CancellationToken ct = default);
 
     /// <summary>GET /settings/server-folders/roots — approved server/container roots.</summary>
-    Task<IReadOnlyList<ServerStorageLocationDto>> GetServerFolderRootsAsync(CancellationToken ct = default);
+    /// <summary>The server folder roots, or null when the Engine could not be reached (an empty list means there are none).</summary>
+    Task<IReadOnlyList<ServerStorageLocationDto>?> GetServerFolderRootsAsync(CancellationToken ct = default);
 
     /// <summary>POST /settings/server-folders/browse — list folders beneath an approved root.</summary>
     Task<BrowseServerFoldersResultDto?> BrowseServerFoldersAsync(

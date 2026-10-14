@@ -53,13 +53,13 @@ public sealed class ServerFolderBrowserServiceTests
     public void BrowseListsOnlyDirectoriesBeneathApprovedRoot()
     {
         using var fixture = new Fixture();
-        Directory.CreateDirectory(Path.Combine(fixture.AllowedRoot, "Movies"));
-        Directory.CreateDirectory(Path.Combine(fixture.AllowedRoot, "Books"));
-        File.WriteAllText(Path.Combine(fixture.AllowedRoot, "secret.txt"), "not a directory");
+        Directory.CreateDirectory(Path.Combine(fixture.SharedRoot, "Movies"));
+        Directory.CreateDirectory(Path.Combine(fixture.SharedRoot, "Books"));
+        File.WriteAllText(Path.Combine(fixture.SharedRoot, "secret.txt"), "not a directory");
 
         var result = fixture.Service.Browse(new BrowseServerFoldersRequest
         {
-            StorageLocationId = "media",
+            StorageLocationId = "shared",
         });
 
         Assert.Equal(["Books", "Movies"], result.Directories.Select(item => item.Name));
@@ -77,11 +77,82 @@ public sealed class ServerFolderBrowserServiceTests
         var exception = Assert.Throws<ServerFolderAccessException>(() => fixture.Service.Browse(
             new BrowseServerFoldersRequest
             {
-                StorageLocationId = "media",
+                StorageLocationId = "shared",
                 RelativePath = relativePath,
             }));
 
         Assert.Contains("cannot leave", exception.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void BrowseRefusesTuvimasOwnLocationsByIdWithAPlainMessage()
+    {
+        using var fixture = new Fixture();
+
+        foreach (var id in new[] { "media", "view" })
+        {
+            var exception = Assert.Throws<ServerFolderAccessException>(() => fixture.Service.Browse(
+                new BrowseServerFoldersRequest { StorageLocationId = id }));
+            Assert.Equal("This folder belongs to Tuvima and cannot be browsed.", exception.Message);
+        }
+    }
+
+    [Fact]
+    public void BrowsingTheDataLocationNeverListsTuvimasOwnFoldersAndRefusesThemDirectly()
+    {
+        using var fixture = new Fixture();
+        var dataRoot = fixture.UseDataRootInside(fixture.SharedRoot);
+        foreach (var name in new[] { "data", "config", "secrets", "logs" })
+        {
+            Directory.CreateDirectory(Path.Combine(dataRoot, name));
+        }
+
+        Directory.CreateDirectory(Path.Combine(fixture.SharedRoot, "Movies"));
+        if (OperatingSystem.IsWindows())
+        {
+            // The Hidden flag is only settable on Windows; elsewhere a dot name is what hides a folder.
+            Directory.CreateDirectory(Path.Combine(fixture.SharedRoot, "Hidden"));
+            File.SetAttributes(Path.Combine(fixture.SharedRoot, "Hidden"), FileAttributes.Hidden);
+        }
+
+        var listing = fixture.Service.Browse(new BrowseServerFoldersRequest { StorageLocationId = "shared" });
+        Assert.Equal(["Movies"], listing.Directories.Select(item => item.Name));
+
+        var ownRelative = Path.GetRelativePath(fixture.SharedRoot, dataRoot);
+        var refused = Assert.Throws<ServerFolderAccessException>(() => fixture.Service.Browse(
+            new BrowseServerFoldersRequest { StorageLocationId = "shared", RelativePath = ownRelative }));
+        Assert.Equal("This folder belongs to Tuvima and cannot be browsed.", refused.Message);
+        Assert.Throws<ServerFolderAccessException>(() => fixture.Service.Browse(
+            new BrowseServerFoldersRequest { StorageLocationId = "shared", RelativePath = Path.Combine(ownRelative, "secrets") }));
+    }
+
+    [Theory]
+    [InlineData("data")]
+    [InlineData("config")]
+    [InlineData("secrets")]
+    [InlineData("logs")]
+    public void ATypedPathIntoAnOwnFolderUnderTheManagedLibraryFolderIsRefused(string ownFolder)
+    {
+        using var fixture = new Fixture();
+        var dataRoot = fixture.UseDataRootInside(fixture.AllowedRoot);
+        var ownPath = Directory.CreateDirectory(Path.Combine(dataRoot, ownFolder, "inner")).FullName;
+        var movies = Directory.CreateDirectory(Path.Combine(fixture.AllowedRoot, "Movies")).FullName;
+
+        var refused = fixture.Service.Validate(new ValidateServerFolderRequest
+        {
+            ManualPath = ownPath,
+            SelectionMode = ServerFolderSelectionModes.ExistingLibrary,
+        });
+        Assert.False(refused.CanSelect);
+        Assert.Contains(refused.Issues, issue => issue.Code == "protected_path");
+
+        // The managed library folder itself, and its ordinary folders, are not caught by the own-folder check.
+        var ordinary = fixture.Service.Validate(new ValidateServerFolderRequest
+        {
+            ManualPath = movies,
+            SelectionMode = ServerFolderSelectionModes.ExistingLibrary,
+        });
+        Assert.DoesNotContain(ordinary.Issues, issue => issue.Code == "protected_path");
     }
 
     [Fact]
@@ -267,7 +338,9 @@ public sealed class ServerFolderBrowserServiceTests
             Root = Path.Combine(Path.GetTempPath(), "tuvima-server-folder-tests", Guid.NewGuid().ToString("N"));
             AllowedRoot = Path.Combine(Root, "allowed");
             ViewRoot = Path.Combine(Root, "view");
+            SharedRoot = Path.Combine(Root, "shared");
             Directory.CreateDirectory(AllowedRoot);
+            Directory.CreateDirectory(SharedRoot);
             Directory.CreateDirectory(ViewRoot);
             Configuration = new ConfigurationDirectoryLoader(Path.Combine(Root, "config"));
             SaveConfiguration([], allowWrite);
@@ -277,8 +350,19 @@ public sealed class ServerFolderBrowserServiceTests
         public string Root { get; }
         public string AllowedRoot { get; }
         public string ViewRoot { get; }
+        public string SharedRoot { get; }
         public ConfigurationDirectoryLoader Configuration { get; }
         public ServerFolderBrowserService Service { get; }
+
+        /// <summary>Points the data folder at a new folder inside <paramref name="parent"/> and returns it.</summary>
+        public string UseDataRootInside(string parent)
+        {
+            var dataRoot = Directory.CreateDirectory(Path.Combine(parent, "tuvima-data")).FullName;
+            var core = Configuration.LoadCore();
+            core.DataRoot = dataRoot;
+            Configuration.SaveCore(core);
+            return dataRoot;
+        }
 
         public void AddConfiguredSource(string path)
         {
@@ -321,6 +405,13 @@ public sealed class ServerFolderBrowserServiceTests
                         Label = "Media",
                         Path = AllowedRoot,
                         AllowWrite = allowWrite,
+                    },
+                    new ServerStorageLocationConfig
+                    {
+                        Id = "shared",
+                        Label = "Shared",
+                        Path = SharedRoot,
+                        AllowWrite = true,
                     },
                     new ServerStorageLocationConfig
                     {

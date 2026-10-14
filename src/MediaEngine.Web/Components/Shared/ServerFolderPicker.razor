@@ -38,12 +38,18 @@
             </aside>
 
             <section class="server-folder-picker__browser" aria-busy="@_loadingBrowse">
-                @if (_locations.Count == 0 && !_loadingRoots)
+                @if (_rootsFailed)
+                {
+                    <AppErrorState Title="Could not reach the server"
+                                   Message="Tuvima could not load the folders on this server. Check that the server is online, then try again."
+                                   Retry="RetryRootsAsync" />
+                }
+                else if (_locations.Count == 0 && !_loadingRoots)
                 {
                     <AppPageState Kind="AppPageStateKind.Empty"
                                   Icon="@AppMaterialIcons.Outlined.FolderOff"
-                                  Title="No approved storage locations"
-                                  Message="Add at least one server storage location to libraries.json before browsing folders." />
+                                  Title="No folders to browse"
+                                  Message="This server has no drives or folders available for Tuvima to browse." />
                 }
                 else
                 {
@@ -197,6 +203,7 @@
     private ElementReference _listElement;
     private string? _error;
     private bool _loadingRoots = true;
+    private bool _rootsFailed;
     private bool _loadingBrowse;
     private bool _validating;
 
@@ -219,12 +226,30 @@
             || AllowedStorageLocationIds.Contains(location.Id, StringComparer.OrdinalIgnoreCase))
         .ToList();
 
-    protected override async Task OnInitializedAsync()
+    protected override Task OnInitializedAsync() => LoadAsync();
+
+    private async Task RetryRootsAsync()
     {
-        _locations = (string.IsNullOrWhiteSpace(SetupSession)
+        _rootsFailed = false;
+        _loadingRoots = true;
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        var roots = string.IsNullOrWhiteSpace(SetupSession)
             ? await ApiClient.GetServerFolderRootsAsync(_lifetime.Token)
-            : await ApiClient.GetSetupServerFolderRootsAsync(SetupSession, _lifetime.Token)).ToList();
+            : await ApiClient.GetSetupServerFolderRootsAsync(SetupSession, _lifetime.Token);
         _loadingRoots = false;
+        if (roots is null)
+        {
+            // The Engine could not be reached: say so and offer Retry, rather than claiming there are no folders.
+            _rootsFailed = true;
+            _locations = [];
+            return;
+        }
+
+        _locations = roots.ToList();
         var first = VisibleLocations.FirstOrDefault();
         if (first is null) return;
 

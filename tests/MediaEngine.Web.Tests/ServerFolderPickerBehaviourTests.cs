@@ -16,6 +16,9 @@ public sealed class ServerFolderPickerBehaviourTests : AsyncBunitContext
     private bool _hasRead = true;
     private bool _hasWrite = true;
     private readonly List<string> _browsed = [];
+    private bool _rootsDown;
+    private bool _rootsEmpty;
+    private int _rootsCalls;
 
     public ServerFolderPickerBehaviourTests()
     {
@@ -25,7 +28,11 @@ public sealed class ServerFolderPickerBehaviourTests : AsyncBunitContext
         Services.AddSingleton<IConfiguration>(new ConfigurationBuilder().Build());
         Services.AddSingleton(EngineApiClientStub.Create(stub =>
         {
-            stub.SetHandler(nameof(IEngineApiClient.GetServerFolderRootsAsync), _ => Task.FromResult<IReadOnlyList<ServerStorageLocationDto>>([Drive]));
+            stub.SetHandler(nameof(IEngineApiClient.GetServerFolderRootsAsync), _ =>
+            {
+                _rootsCalls++;
+                return Task.FromResult<IReadOnlyList<ServerStorageLocationDto>?>(_rootsDown ? null : _rootsEmpty ? [] : [Drive]);
+            });
             stub.SetHandler(nameof(IEngineApiClient.BrowseServerFoldersAsync), args =>
             {
                 var request = (BrowseServerFoldersRequest)args![0]!;
@@ -82,6 +89,40 @@ public sealed class ServerFolderPickerBehaviourTests : AsyncBunitContext
 
     private static string PathBarValue(IRenderedComponent<AppDialogHost> host) =>
         host.Find(".server-folder-picker__pathbar input").GetAttribute("value") ?? string.Empty;
+
+    [Fact]
+    public async Task WhenTheServerCannotBeReachedThePickerSaysSoAndRetryAsksAgain()
+    {
+        _rootsDown = true;
+        var host = Render<AppDialogHost>();
+        var parameters = new AppDialogParameters<ServerFolderPicker> { { picker => picker.SelectionMode, ServerFolderSelectionModes.ExistingLibrary } };
+        await host.InvokeAsync(() => Services.GetRequiredService<IAppDialogService>().ShowAsync<ServerFolderPicker>(string.Empty, parameters));
+
+        host.WaitForAssertion(() => Assert.Contains("Could not reach the server", host.Markup, StringComparison.Ordinal));
+        Assert.DoesNotContain("libraries.json", host.Markup, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("No folders to browse", host.Markup, StringComparison.Ordinal);
+        Assert.Equal(1, _rootsCalls);
+
+        _rootsDown = false;
+        host.Find(".app-error-state__retry").Click();
+
+        host.WaitForElement(".server-folder-picker__folder");
+        Assert.Equal(2, _rootsCalls);
+        Assert.DoesNotContain("Could not reach the server", host.Markup, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task AGenuinelyEmptyListSaysThereAreNoFoldersInPlainWordsWithoutRetry()
+    {
+        _rootsEmpty = true;
+        var host = Render<AppDialogHost>();
+        var parameters = new AppDialogParameters<ServerFolderPicker> { { picker => picker.SelectionMode, ServerFolderSelectionModes.ExistingLibrary } };
+        await host.InvokeAsync(() => Services.GetRequiredService<IAppDialogService>().ShowAsync<ServerFolderPicker>(string.Empty, parameters));
+
+        host.WaitForAssertion(() => Assert.Contains("No folders to browse", host.Markup, StringComparison.Ordinal));
+        Assert.DoesNotContain("libraries.json", host.Markup, StringComparison.OrdinalIgnoreCase);
+        Assert.Empty(host.FindAll(".app-error-state__retry"));
+    }
 
     [Fact]
     public async Task ClickingAFolderOpensItAndThePathBarFollows()
