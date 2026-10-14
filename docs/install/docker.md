@@ -31,7 +31,7 @@ Choose a managed media folder and six application folders. Give the container's 
 
 All seven paths need persistent mounts. Replacing the container must reuse these same host folders.
 
-Keep user-owned originals separate from `/library` if Tuvima must not change them. Mount that folder read-only elsewhere, then add it as an **Existing library** source.
+Keep user-owned originals separate from `/library` if Tuvima must not change them. Mount that folder read-only elsewhere, then add it as an **As-is** folder.
 
 ## Start Tuvima
 

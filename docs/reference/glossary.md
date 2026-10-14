@@ -117,6 +117,26 @@ AI features that run on local model files through local runtimes. Local AI helps
 
 A single file on disk, such as one `.epub`, `.mkv`, `.m4b`, `.flac`, or `.cbz`.
 
+### As-is
+
+A folder handling mode. Tuvima only reads an As-is folder: it never moves, renames, tags or deletes its files, so other apps that use the folder are not affected. It is the recommended choice for folders that already have files. Stored as `management_mode: existing_library`.
+
+### Convert to Managed
+
+Switching an As-is folder to Managed. Tuvima shows a preview, then runs a background organising job (progress, pause, resume, cancel) that moves and renames the files to the type's standard layout. Sidecar files move with their media, every move is written to a downloadable log, and there is no automatic undo.
+
+### Import folder
+
+One optional folder, the seventh entry in Libraries, where new media is dropped. It holds one subfolder per media type, and each arrival is filed into that type's New media folder. Files that cannot be matched go to Review with the badge "From the Import folder". It is never a library folder.
+
+### Managed
+
+A folder handling mode. Tuvima may move, rename and (when the type's tag setting is on) tag files in a Managed folder, including the ones already there. Stored as `management_mode: managed_by_tuvima`.
+
+### New media goes here
+
+The one managed folder per media type that receives new files. The first managed folder added becomes it; any other managed folder can be made the place for new media from its row menu. There is no priority order.
+
 ### Media Lane
 
 One of the main browse surfaces: Read, Watch, or Listen.

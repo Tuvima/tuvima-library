@@ -63,6 +63,19 @@ If the image download is refused, [build the image from source](../install/docke
 
 Only the Dashboard is published. Leave Engine port `61495` internal.
 
+## The setup steps
+
+Setup has six steps. A side list shows where you are, and you can go back at any time.
+
+1. **Name your server.** Pick a friendly name that phones, TVs and other computers can find. A quick server check runs silently after this; if it fails you see one plain message and a **Retry** button. **Restore a backup** is offered on this first screen if you are moving from another server.
+2. **Your account.** Create the administrator (see below).
+3. **Libraries.** Choose a media type and add the folders it lives in, or **Skip for now**. You can also set an Import folder here. Nothing is required.
+4. **Language.** Display language, metadata language and country.
+5. **Enhance your library.** Optional providers. The one button reads **Skip for now** until you enter something, then **Continue**.
+6. **All set.**
+
+Tuvima's own library folder is created for you under the server's data location (`TUVIMA_DATA_DIR`, otherwise your per-user local data folder). You are never asked about it.
+
 ## Create your administrator
 
 1. Keep the server on a trusted private network during setup.
@@ -75,7 +88,7 @@ Opened from the server itself, setup needs no code; from another device on your 
 
 ## Choose your first media
 
-Use **Settings → Libraries** for books, comics, movies, TV, music, and audiobooks. Start with a few files so you can check matching and folder permissions.
+Use the **Libraries** step, or later **Settings → Libraries**, for books, comics, movies, TV, music, and audiobooks. Start with a few files so you can check matching and folder permissions.
 
 For private photos, home videos, or documents, use [View Personal Space](../guides/view-personal-space.md). Those files follow a local path without catalogue providers.
 

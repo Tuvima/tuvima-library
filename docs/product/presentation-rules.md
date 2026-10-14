@@ -101,7 +101,7 @@ Libraries is one master/detail screen shared by first-run setup and Settings > L
 
 ### Libraries settings and readable View storage
 
-Libraries now includes All/Read/Watch/Listen/View filters, a single View summary row, and a dedicated View settings page. Scope changes filter the mounted list without repeated library loads or filesystem probes. Add folder belongs inside Folders and saves immediately; detachment asks for confirmation and keeps files. Names and custom templates use focused Apply dialogs, while other library settings save individually with conflict detection. There is no page-wide Save. Breadcrumbs remain shell-owned and retain the selected scope.
+Libraries has no scope filter row and no separate View settings page; the View storage root is chosen on the Libraries screen. Adding a folder saves when the person chooses Add in the folder picker; removing a folder asks for confirmation and keeps files. Names and custom templates use focused Apply dialogs, while other settings save individually with conflict detection. There is no page-wide Save. Breadcrumbs remain shell-owned.
 
 New Personal Spaces use `View/Profiles/<stable-readable-label>/Timeline` and named managed folders beneath `Folders`. Persisted label reservations survive profile deletion so another profile cannot silently inherit the former folder. Display-name changes do not rename storage. `View/Shared` is the server household's Shared Library beside Profiles (every other household's lives under `View/Shared/Households/<id>`, and people only ever see their own household's); accepted contributions use verified transfer before managed-original cleanup. Existing obsolete View source state fails closed rather than moving originals or using compatibility paths. View source additions queue reconciliation in its dedicated hosted worker.
 
@@ -109,6 +109,8 @@ New Personal Spaces use `View/Profiles/<stable-readable-label>/Timeline` and nam
 ## Setup, Operations, and View storage (September 2026)
 
 Setup offers an optional 4–12 digit profile PIN alongside the administrator password, live password validation and reveal controls, and readable recovery codes. Media locations can be explicitly deferred and configured later through Libraries. Reloading setup must render fetched stage data after asynchronous initialization.
+
+Setup has six steps: Name your server, Your account, Libraries, Language, Enhance your library, All set. The server check (the `preflight` workflow step) runs silently after the name is saved and is hidden in the Dashboard; a failure shows one plain message with Retry. Restore a backup is on the first screen. Libraries is optional (Skip for now). Enhance your library has one button: Skip for now when nothing is entered, otherwise Continue. Tuvima's own library folder is created automatically and never asked about.
 
 Operations and the navbar consume the same Engine batch progress definition, including outstanding identity and enrichment work. Live media selection includes identity-job updates, ranks active/recent groups before limiting, and preserves server order on refresh. Comic covers remain issue-scoped. TV and comic ingestion counts never display a provider denominator. Active batches stay above server-filtered historical batches; every historical action is Open batch. Review counts remain visible throughout Settings. Processing details is removed.
 

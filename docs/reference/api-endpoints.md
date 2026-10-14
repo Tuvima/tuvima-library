@@ -312,6 +312,7 @@ unauthorized identifiers return the same not-found shape as missing resources.
 | Method | Path | Description | Auth |
 |---|---|---|---|
 | POST | `/ingestion/scan` | Dry-run scan of configured library folders. Reports what would be ingested without making changes. | Administrator |
+| POST | `/ingestion/rescan` | Scans the watched folders now (optional `{root_path, include_subdirectories}` for one folder). Also looks at the Import folder, even one set after startup, and files anything waiting in it. | Administrator |
 | POST | `/ingestion/library-scan` | Scan library folders and update known file paths. Triggers ingestion for new files. | Administrator |
 | POST | `/ingestion/upload` | Upload a file to the library's explicit destination (a folder Tuvima manages, checked through the source-mutation gate as a destination, with no fallback folder) identified by multipart `destinationLibraryId`; catalogued files retain stable intake IDs, while personal files are indexed directly into View without catalogue/provider work | Administrator |
 | GET | `/ingestion/import-folder/waiting` | What is being left untouched in the optional Import folder because a media type has no managed folder yet (`reason` `no_managed_folder`) or its New media folder is offline, full or not writable (`folder_unavailable`). One entry per type with `media_type`, `folder`, `file_count` and a plain-language `message`; empty when nothing is waiting. A situation, not a state of the Import folder. | Effective administrator or precise Application permission |

@@ -35,7 +35,7 @@ The repository also contains an [Unraid template](https://raw.githubusercontent.
 
 The configured user/group needs write access to managed media and every application folder. It needs only read access to an existing protected library.
 
-Keep originals in a separate read-only mapping and add them as an **Existing library** source. Do not use the managed `/library` mapping for originals Tuvima must never change.
+Keep originals in a separate read-only mapping and add them as an **As-is** folder. Do not use the managed `/library` mapping for originals Tuvima must never change.
 
 If a path is not writable, repair share ownership or ACLs. Do not enable privileged mode to bypass a permission error.
 
