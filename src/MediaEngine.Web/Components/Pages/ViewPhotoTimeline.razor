@@ -2,6 +2,8 @@
 @using MediaEngine.Contracts.LocalAssets
 @using MediaEngine.Domain.PersonalMedia
 @namespace MediaEngine.Web.Components.Pages
+@implements IDisposable
+@inject DeviceContextService DeviceContext
 <main class="view-timeline view-density--@Density.ToString().ToLowerInvariant()" aria-label="Photos timeline">
 @foreach (var month in Months)
 {
@@ -14,13 +16,22 @@
         <section class="view-date-group" aria-labelledby="@DayId(day.Key)"><div class="view-date-group__heading"><AppNativeButton Type="button" Class="@($"view-date-group__select is-{groupState}")" role="checkbox" aria-checked="@groupState" AriaLabel="@($"{(selectedCount == ids.Count ? "Clear" : "Select")} all {(SelectEntireDate ? "matching" : $"{ids.Count} loaded")} items from {day.Key:MMMM d}")" OnClick="@(_ => OnSelectDateGroup.InvokeAsync(ids))"><span aria-hidden="true"></span></AppNativeButton><h3 id="@DayId(day.Key)">@day.Key.ToString("dddd, MMM d", CultureInfo.CurrentCulture)</h3></div><div class="view-grid"><JustifiedGalleryLayout />
         @foreach (var item in day)
         {
-            <article @key="item.Id" class="@TileClass(item)" @attributes="@AspectAttributes(item)" draggable="true" @ondragstart="@(_ => OnDragStarted.InvokeAsync(item.Id))" @ondragend="@(_ => OnDragEnded.InvokeAsync())">
+            <article @key="item.Id" class="@TileClass(item)" @attributes="@TileAttributes(item)" @ondragstart="@(_ => OnDragStarted.InvokeAsync(item.Id))" @ondragend="@(_ => OnDragEnded.InvokeAsync())">
+                @if (SelectMode)
+                {
+                    @* Select mode: the whole tile is the control. A tap toggles it and Space does the same on the focused tile, because it is a native button. *@
+                    <AppNativeButton Type="button" Class="view-tile__surface" aria-pressed="@(Selected.Contains(item.Id) ? "true" : "false")" AriaLabel="@($"Select {Title(item)}")" OnClick="@(args => ToggleAsync(item.Id, args))">
+                        @TileFace(item)
+                        <span class="view-tile__check" aria-hidden="true"><AppMaterialIcon Icon="@AppMaterialIcons.Filled.Check" Size="AppSize.Small" /></span>
+                    </AppNativeButton>
+                }
+                else
+                {
                 <AppNativeButton Type="button" Class="view-tile__select-control" role="checkbox" aria-checked="@(Selected.Contains(item.Id) ? "true" : "false")" AriaLabel="@($"Select {Title(item)}")" OnClick="@(args => ToggleAsync(item.Id, args))" StopPropagation="true"><span aria-hidden="true"></span></AppNativeButton>
                 <AppNativeButton Type="button" Class="view-tile__surface" AriaLabel="@($"Open {Title(item)}")" OnClick="@(_ => OnOpen.InvokeAsync(item))">
-                    @if (Visual(item)) { <img src="@ThumbnailUrl(item)" alt="" width="@item.Width" height="@item.Height" loading="lazy" decoding="async" /> } else { <span class="view-tile__file-icon"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Description" /><strong>@Title(item)</strong><small>@item.MimeType</small></span> }
-                    @if (IsLive(item)) { <span class="view-tile__motion"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.MotionPhotosOn" /> Live</span> }
-                    @if (IsVideo(item)) { <span class="view-tile__duration"><AppMaterialIcon Icon="@AppMaterialIcons.Filled.Videocam" />@(item.DurationSeconds is > 0 ? Duration(item.DurationSeconds.Value) : "Video")</span> }
+                    @TileFace(item)
                 </AppNativeButton>
+                }
             </article>
         }
         </div></section>
@@ -29,6 +40,14 @@
 }
 </main>
 @code {
+    private RenderFragment TileFace(LocalAssetDto item) => @<text>
+        @if (Visual(item)) { <img src="@ThumbnailUrl(item)" alt="" width="@item.Width" height="@item.Height" loading="lazy" decoding="async" /> } else { <span class="view-tile__file-icon"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Description" /><strong>@Title(item)</strong><small>@item.MimeType</small></span> }
+        @if (IsLive(item)) { <span class="view-tile__motion"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.MotionPhotosOn" /> Live</span> }
+        @if (IsVideo(item)) { <span class="view-tile__duration"><AppMaterialIcon Icon="@AppMaterialIcons.Filled.Videocam" />@(item.DurationSeconds is > 0 ? Duration(item.DurationSeconds.Value) : "Video")</span> }
+    </text>;
+
+    /// <summary>True while tiles select on a tap instead of opening the viewer. The page owns the mode and its Select button.</summary>
+    [Parameter] public bool SelectMode { get; set; }
     [Parameter, EditorRequired] public IReadOnlyList<LocalAssetDto> Items { get; set; } = [];
     [Parameter, EditorRequired] public IReadOnlySet<Guid> Selected { get; set; } = new HashSet<Guid>();
     [Parameter] public ViewTimelineDensity Density { get; set; } = ViewTimelineDensity.Comfortable;
@@ -58,7 +77,14 @@
         ? item.Width.Value / (double)item.Height.Value
         : 16d / 11d;
     private static string AspectStyle(LocalAssetDto item) => FormattableString.Invariant($"--view-aspect:{Aspect(item):0.####}");
-    private static IReadOnlyDictionary<string, object> AspectAttributes(LocalAssetDto item) => new Dictionary<string, object> { ["style"] = AspectStyle(item) };
+    // Dragging a tile into a Gallery is a mouse gesture; nothing on a touch device depends on it (Select mode replaces it).
+    private IReadOnlyDictionary<string, object> TileAttributes(LocalAssetDto item) => DeviceContext.IsTouch
+        ? new Dictionary<string, object> { ["style"] = AspectStyle(item) }
+        : new Dictionary<string, object> { ["style"] = AspectStyle(item), ["draggable"] = "true" };
+
+    protected override void OnInitialized() => DeviceContext.OnChanged += DeviceChanged;
+    public void Dispose() => DeviceContext.OnChanged -= DeviceChanged;
+    private void DeviceChanged() => _ = InvokeAsync(StateHasChanged);
     private string TileClass(LocalAssetDto item) => $"view-tile view-tile--{Kind(item)} view-tile--{Orientation(item)}{(Aspect(item) > 3 ? " view-tile--panorama" : string.Empty)}{(Selected.Contains(item.Id) ? " is-selected" : string.Empty)}";
     private Task ToggleAsync(Guid id, MouseEventArgs args) => OnToggleSelectionRequested.HasDelegate
         ? OnToggleSelectionRequested.InvokeAsync(new SelectionRequest(id, args.ShiftKey))

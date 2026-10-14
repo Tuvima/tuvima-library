@@ -7,6 +7,7 @@
 
 <div class="artwork-asset-browser @(PickerMode ? "is-picker" : "is-library")">
     <AppDiscoveryFilterBar AriaLabel="Artwork filters"
+                           ActiveKey="@(PickerMode ? _scope.ToString() : _usage.ToString())"
                            SearchValue="@_search"
                            SearchChanged="SearchChangedValue"
                            SearchPlaceholder="Search titles, people, characters, universes, and IDs"
@@ -98,6 +99,7 @@
                                                                IsPreferred="IsPreferredAsset"
                                                                UseContain="ShouldContainAsset"
                                                                OnSelect="SelectAssetAsync"
+                                                               RowActions="ArtworkRowMenu"
                                                                AriaLabel="@($"Artwork added {day.Label}")" />
                                 </section>
                             }
@@ -149,6 +151,15 @@
     [Parameter] public IReadOnlySet<Guid> SelectedIds { get; set; } = new HashSet<Guid>();
     [Parameter] public EventCallback<int> ResultsChanged { get; set; }
     [Parameter] public EventCallback<ArtworkAssetDto> ManageRequested { get; set; }
+
+    /// <summary>The library cards keep their actions behind a three-dot menu (a bottom sheet on phones), so nothing waits on hover.</summary>
+    private RenderFragment<ArtworkAssetDto> ArtworkRowMenu => asset => @<AppRowMenu AriaLabel="@($"Actions for {AssetTitle(asset)}")" Title="@AssetTitle(asset)" Items="@RowMenuItems(asset)" />;
+
+    private IReadOnlyList<AppRowMenuItem> RowMenuItems(ArtworkAssetDto asset) =>
+    [
+        new AppRowMenuItem { Label = "Open", Icon = AppMaterialIcons.Outlined.OpenInNew, OnClick = EventCallback.Factory.Create(this, () => SelectAssetAsync(asset)) },
+        new AppRowMenuItem { Label = "Manage usage", Icon = AppMaterialIcons.Outlined.Edit, Disabled = !ManageRequested.HasDelegate, OnClick = EventCallback.Factory.Create(this, () => ManageRequested.InvokeAsync(asset)) },
+    ];
 
     private ArtworkAssetPageDto? _page;
     private Guid? _selectedAssetId;

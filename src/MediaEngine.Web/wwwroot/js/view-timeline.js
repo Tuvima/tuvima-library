@@ -134,3 +134,19 @@ export function focusFirstPeriod() {
   });
   heading.focus({ preventScroll: true });
 }
+
+// Select mode "Download": hands each original to the browser one after another. The grants are same-origin links, so
+// the download attribute makes them save instead of opening; the short gap keeps browsers from collapsing the burst.
+export async function downloadFiles(files) {
+  for (const file of files ?? []) {
+    if (!file?.url) continue;
+    const anchor = document.createElement('a');
+    anchor.href = file.url;
+    anchor.download = file.name || '';
+    anchor.rel = 'noopener';
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    await new Promise(resolve => setTimeout(resolve, 300));
+  }
+}

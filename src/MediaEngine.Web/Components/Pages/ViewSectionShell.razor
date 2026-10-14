@@ -7,6 +7,7 @@
 @inject ActiveProfileSessionService ActiveProfileSession
 @inject NavigationManager Nav
 @inject IAppToastService Snackbar
+@inject DeviceContextService DeviceContext
 @implements IDisposable
 
 <MediaSectionShell @ref="_shell"
@@ -32,6 +33,7 @@
     protected override async Task OnInitializedAsync()
     {
         Workspace.DocumentInboxChanged += InboxChanged;
+        DeviceContext.OnChanged += InboxChanged;
         await ActiveProfileSession.GetActiveProfileAsync();
         // The Documents tab only shows for profiles allowed to see documents, which the scopes response says.
         await Workspace.InitializeAsync();
@@ -40,7 +42,11 @@
 
     private void InboxChanged() => _ = InvokeAsync(StateHasChanged);
 
-    public void Dispose() => Workspace.DocumentInboxChanged -= InboxChanged;
+    public void Dispose()
+    {
+        Workspace.DocumentInboxChanged -= InboxChanged;
+        DeviceContext.OnChanged -= InboxChanged;
+    }
 
     public async Task BeginManualGalleryCreateAsync(IEnumerable<Guid>? assetIds = null)
     {
@@ -63,8 +69,9 @@
                     $"/view/galleries/{gallery.Id:D}",
                     gallery.Kind == ViewGalleryKind.Smart ? AppMaterialIcons.Outlined.AutoAwesome : AppMaterialIcons.Outlined.PhotoAlbum,
                     gallery.ItemCount.ToString(System.Globalization.CultureInfo.InvariantCulture),
-                    DropTarget: gallery.Kind == ViewGalleryKind.Manual ? new ManualGalleryNavigationDropTarget(gallery.Id) : null,
-                    Management: new MediaSectionNavigationItemManagement(gallery.Id, "gallery", IsSmart: gallery.Kind == ViewGalleryKind.Smart)))
+                    // Dragging, renaming, reordering and deleting Galleries are Gallery editing, which phones never offer.
+                    DropTarget: gallery.Kind == ViewGalleryKind.Manual && !DeviceContext.IsPhone ? new ManualGalleryNavigationDropTarget(gallery.Id) : null,
+                    Management: DeviceContext.IsPhone ? null : new MediaSectionNavigationItemManagement(gallery.Id, "gallery", IsSmart: gallery.Kind == ViewGalleryKind.Smart)))
                 .ToList();
             return items;
         }
@@ -97,6 +104,15 @@
         }
     }
 
+    // The "New Gallery" / "New Smart Gallery" menu opens the Gallery editor, so phones (even a landscape phone wide enough to show the rail) never get it.
+    private static readonly MediaSectionNavigationCreateOptions GalleryCreateOptions = new(
+        "New Gallery",
+        "New Smart Gallery",
+        "Gallery name",
+        new ManualGalleryCreateTarget(),
+        new SmartGalleryCreateTarget(),
+        new NewGalleryNavigationDropTarget());
+
     private IReadOnlyList<MediaSectionNavigationGroup> NavigationGroups =>
     [
         new("Personal", PersonalItems),
@@ -104,14 +120,7 @@
         [
             new("Artwork Library", "/view/artwork", AppMaterialIcons.Outlined.PhotoLibrary, Exact: false),
         ]),
-        new("Galleries", GalleryShortcuts,
-            new MediaSectionNavigationCreateOptions(
-                "New Gallery",
-                "New Smart Gallery",
-                "Gallery name",
-                new ManualGalleryCreateTarget(),
-                new SmartGalleryCreateTarget(),
-                new NewGalleryNavigationDropTarget())),
+        new("Galleries", GalleryShortcuts, DeviceContext.IsPhone ? null : GalleryCreateOptions),
     ];
 
     private async Task HandleNavigationDropAsync(MediaSectionNavigationDropEvent dropEvent)
