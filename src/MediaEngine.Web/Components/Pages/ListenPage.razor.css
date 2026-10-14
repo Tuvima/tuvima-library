@@ -978,22 +978,15 @@
     object-fit: cover;
 }
 
-.listen-playlist-track-row__art-play {
-    position: absolute;
-    inset: 0;
-    border: 0;
-    background: var(--tl-bg-overlay);
-    color: var(--tl-text-primary);
-    opacity: 0;
-    cursor: pointer;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-}
+@media (max-width: 1023px) {
+    .listen-playlist-track-row__song--no-handle {
+        grid-template-columns: 44px minmax(0, 1fr);
+    }
 
-.listen-playlist-track-row__art:hover .listen-playlist-track-row__art-play,
-.listen-playlist-track-row__art:focus-within .listen-playlist-track-row__art-play {
-    opacity: 1;
+    .listen-playlist-track-row__art {
+        width: 44px;
+        height: 44px;
+    }
 }
 
 .listen-playlist-track-row__title,

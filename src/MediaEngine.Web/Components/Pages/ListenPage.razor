@@ -834,6 +834,7 @@ else
                                          OnKeyDown="@((KeyboardEventArgs args) => HandlePlaylistRowKeyDownAsync(args, item))"
                                          OnDragStart="@((DragEventArgs _) => item is null ? Task.CompletedTask : BeginPlaylistTrackReorderAsync(item.Id))"
                                          OnDragEnd="@((DragEventArgs _) => EndPlaylistTrackReorder())"
+                                         OnClick="@((MouseEventArgs _) => DeviceContext.IsTouch ? PlayTracksAsync(ActivePlaylistTracks, track.Id, ActivePlaylistTitle) : Task.CompletedTask)"
                                          OnDoubleClick="@((MouseEventArgs _) => PlayTracksAsync(ActivePlaylistTracks, track.Id, ActivePlaylistTitle))"
                                          PreventDragOverDefault="true"
                                          OnDragOver="@((DragEventArgs _) => item is null ? Task.CompletedTask : SetPlaylistTrackDropTargetAsync(item.Id, false))"
