@@ -31,6 +31,29 @@ public sealed class ViewThumbnailService(
         LocalAssetContentLocation source,
         CancellationToken ct = default) => await GetOrCreateAsync(itemId, source, PreviewMaximumEdge, "preview", ct).ConfigureAwait(false);
 
+    /// <summary>
+    /// The longest edges a paired app may ask for. Up to the timeline size they are thumbnails, larger ones are
+    /// viewer previews; each size is a separate managed derivative and the original is never touched.
+    /// </summary>
+    public static IReadOnlyList<int> ThumbnailEdges { get; } = [160, 320, MaximumEdge];
+
+    public static IReadOnlyList<int> PreviewEdges { get; } = [1280, PreviewMaximumEdge];
+
+    public async Task<string?> GetOrCreateSizedAsync(
+        Guid itemId,
+        LocalAssetContentLocation source,
+        int maximumEdge,
+        CancellationToken ct = default)
+    {
+        if (!ThumbnailEdges.Contains(maximumEdge) && !PreviewEdges.Contains(maximumEdge))
+        {
+            throw new ArgumentOutOfRangeException(nameof(maximumEdge), "That derivative size is not offered.");
+        }
+
+        return await GetOrCreateAsync(
+            itemId, source, maximumEdge, maximumEdge <= MaximumEdge ? "thumbnail" : "preview", ct).ConfigureAwait(false);
+    }
+
     private async Task<string?> GetOrCreateAsync(
         Guid itemId,
         LocalAssetContentLocation source,

@@ -3866,6 +3866,21 @@ MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewCatalogu
   Name: System.String | nullability=not-null | accessors=get,init
   Colour: System.String | nullability=nullable | accessors=get,init
 
+MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewClientItemPageDto
+  Items: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.LocalAssets.LocalAssetDto> | nullability=not-null | accessors=get,init
+  NextCursor: System.String | nullability=nullable | accessors=get,init
+  HasMore: System.Boolean | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewClientTimelineMonthDto
+  Year: System.Int32 | nullability=not-null | accessors=get,init
+  Month: System.Int32 | nullability=not-null | accessors=get,init
+  Items: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.LocalAssets.LocalAssetDto> | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewClientTimelinePageDto
+  Months: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.LocalAssets.ViewClientTimelineMonthDto> | nullability=not-null | accessors=get,init
+  NextCursor: System.String | nullability=nullable | accessors=get,init
+  HasMore: System.Boolean | nullability=not-null | accessors=get,init
+
 MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewCorrespondentDto
   Id: System.Guid | nullability=not-null | accessors=get,init
   Name: System.String | nullability=not-null | accessors=get,init

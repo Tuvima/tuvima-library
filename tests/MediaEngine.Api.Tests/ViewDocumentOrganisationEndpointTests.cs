@@ -121,6 +121,7 @@ public sealed class ViewDocumentOrganisationEndpointTests : IAsyncLifetime
         app.UseAuthorization();
         app.MapViewEndpoints();
         app.MapViewDiscoveryEndpoints();
+        app.MapViewClientEndpoints();
         await app.StartAsync();
         var address = new Uri(app.Services.GetRequiredService<IServer>()
             .Features.Get<IServerAddressesFeature>()!.Addresses.Single());
@@ -1437,6 +1438,7 @@ public sealed class ViewDocumentOrganisationEndpointTests : IAsyncLifetime
     private const string ContributionSend = "AProfileWithoutDocumentsCannotPreviewSubmitOrDirectAddADocument";
     private const string Discovery = "Places_Atlas_PlaceMediaAndPeople_NeverIncludeADocumentEvenWithLocationOrPersonMetadata";
     private const string UploadRefusal = "ADocumentUploadIsRefusedBeforeAnythingIsStoredForAProfileWithoutDocuments";
+    private const string ClientDocuments = "AProfileWithoutDocumentsLearnsOfNoDocumentThroughTimelineGalleriesCountsPeoplePlacesItemsOrFiles";
     private const string NoItems = "none:";
 
     /// <summary>A covering test plus a phrase its source must contain (the call or path that makes the claim true).</summary>
@@ -1539,13 +1541,27 @@ public sealed class ViewDocumentOrganisationEndpointTests : IAsyncLifetime
         ["PUT /view/preferences"] = NoItems + "the person's own settings",
         ["PUT /view/preferences/documents-sort"] = Refused,
         ["PUT /view/tags/{id:guid}"] = Refused,
+
+        // The paired-app Photos routes are photos and videos only: a document is an id nobody has, for every profile.
+        ["GET /api/v1/view/galleries"] = Covers(ClientDocuments, "/api/v1/view/galleries\""),
+        ["GET /api/v1/view/galleries/{id:guid}/items"] = Covers(ClientDocuments, "/api/v1/view/galleries/{mixed.Id:D}/items"),
+        ["GET /api/v1/view/items/{id:guid}"] = Covers(ClientDocuments, "/api/v1/view/items/{document}{route}"),
+        ["GET /api/v1/view/items/{id:guid}/original"] = Covers(ClientDocuments, "\"/original\""),
+        ["GET /api/v1/view/items/{id:guid}/playback"] = Covers(ClientDocuments, "\"/playback\""),
+        ["GET /api/v1/view/items/{id:guid}/preview"] = Covers(ClientDocuments, "\"/preview\""),
+        ["GET /api/v1/view/items/{id:guid}/thumbnail"] = Covers(ClientDocuments, "\"/thumbnail\""),
+        ["GET /api/v1/view/people"] = Covers(ClientDocuments, "/api/v1/view/people\""),
+        ["GET /api/v1/view/people/{key}/items"] = Covers(ClientDocuments, "/api/v1/view/people/passport%20person/items"),
+        ["GET /api/v1/view/places"] = Covers(ClientDocuments, "/api/v1/view/places\""),
+        ["GET /api/v1/view/timeline"] = Covers(ClientDocuments, "/api/v1/view/timeline\""),
     };
 
     [Fact]
     public void EveryViewRouteIsReviewedForDocumentLeaksAndEachClaimNamesARealTest()
     {
         var registered = _app.Services.GetRequiredService<EndpointDataSource>().Endpoints.OfType<RouteEndpoint>()
-            .Where(endpoint => endpoint.RoutePattern.RawText?.StartsWith("/view", StringComparison.Ordinal) == true)
+            .Where(endpoint => endpoint.RoutePattern.RawText?.StartsWith("/view", StringComparison.Ordinal) == true
+                || endpoint.RoutePattern.RawText?.StartsWith("/api/v1/view", StringComparison.Ordinal) == true)
             .SelectMany(endpoint => endpoint.Metadata.GetMetadata<HttpMethodMetadata>()!.HttpMethods
                 .Select(method => $"{method} {endpoint.RoutePattern.RawText}"))
             .ToHashSet(StringComparer.Ordinal);

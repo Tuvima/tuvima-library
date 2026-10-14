@@ -60,6 +60,22 @@ Automotive clients expose only Listen content and native media controls. They
 do not expose Watch, Read, View, administration, metadata correction, or the
 general Dashboard.
 
+## Photos on API v1
+
+The Engine serves a paired phone or tablet its own photos and videos under
+`/api/v1/view`: a month-grouped timeline, Galleries, people, places, item
+details, thumbnails, previews, the original file, and a playback manifest for a
+personal video. It is read-only and shows only the person the device was paired
+to; the app cannot ask for anyone else's space or for a scope. Documents are not
+part of it: a document never appears, and asking for one answers exactly like an
+id that does not exist, so a profile without Documents cannot tell one is there.
+The routes and wire types are in the [API reference](../reference/api-endpoints.md)
+and the executable fixtures `view-timeline.json`, `view-item.json` and
+`view-galleries.json` under `tests/fixtures/native-client-v1`. Client impact is
+`client-required`: no released app has a Photos screen, and the feature stays
+unreachable from apps until the `view.*` pairing scopes and the Dashboard app
+door are approved for it.
+
 ## Release and update behavior
 
 Native clients are versioned and released independently from the Engine and
