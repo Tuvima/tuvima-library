@@ -40,7 +40,7 @@ public sealed class IngestionBatchHistoryGuardrailTests
         Assert.Contains("aspect-ratio: 1", cardCss, StringComparison.Ordinal);
         Assert.Contains("ingestion-media-list-row", cardCss, StringComparison.Ordinal);
         Assert.Contains("overflow-y:auto", drawerCss, StringComparison.Ordinal);
-        Assert.Contains("@media(max-width:900px)", historyCss, StringComparison.Ordinal);
+        Assert.Contains("@media(max-width:840px)", historyCss, StringComparison.Ordinal);
         Assert.DoesNotContain("Activity &amp; Audit", settings, StringComparison.Ordinal);
         Assert.DoesNotContain("ActivityLogs", settingsNav, StringComparison.Ordinal);
         Assert.DoesNotContain("\"activity\"", settingsNav, StringComparison.Ordinal);

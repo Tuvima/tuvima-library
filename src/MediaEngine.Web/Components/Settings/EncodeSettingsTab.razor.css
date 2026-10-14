@@ -35,7 +35,7 @@
     padding-inline-start: var(--tl-space-5);
 }
 
-@media (max-width: 1280px) {
+@media (max-width: 1180px) {
     .encode-settings__grid,
     .encode-settings__diagnostics {
         grid-template-columns: 1fr;

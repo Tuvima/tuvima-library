@@ -95,6 +95,7 @@
     .chronicle-explorer-layout {
         max-width: none;
         width: 100%;
+        flex: 1 1 100%;
     }
 }
 

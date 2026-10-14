@@ -446,7 +446,7 @@ body {
 }
 
 .tl-tab {
-    min-height: 42px !important;
+    min-height: var(--tl-tab-min-height, 42px) !important;
     padding: 0 16px 10px !important;
     border-radius: 0 !important;
     color: var(--app-text-muted) !important;
@@ -3789,6 +3789,34 @@ button.app-menu-item {
     :root:root .settings-page-canvas select.app-native-select {
         min-height: var(--tl-tap-target-min);
     }
+
+    /* Collection editor: the Manual / Dynamic membership toggle and the personal media "Add rule" control (both 42px or less). */
+    :root:root .collection-editor-membership-mode__options button,
+    :root:root .collection-personal-media__smart-toggle button {
+        min-height: var(--tl-tap-target-min);
+    }
+
+    /* Shared search field: the 44px field has a 1px border, so its text input stays 2px short unless the field's height
+       variable is raised by that border. Phones keep the browse search's own 44px input rule above, so only the
+       Universe explorer field and the browse field on tablets and desktops take this variable. */
+    :root:root .chronicle-explorer-search,
+    :root:root:not([data-form-factor="phone"]) .browse-shell__search {
+        --app-control-height: calc(var(--tl-tap-target-min) + 2px);
+    }
+
+    /* Universe explorer: the 42px tabs read --tl-tab-min-height (their own !important rule), and the 24px filter chips and
+       the layout select grow to the 44px minimum. */
+    :root:root .chronicle-explorer-tabs {
+        --tl-tab-min-height: var(--tl-tap-target-min);
+    }
+
+    :root:root .chronicle-explorer-controls .app-chip {
+        min-height: var(--tl-tap-target-min);
+    }
+
+    :root:root .chronicle-explorer-layout {
+        min-width: var(--tl-tap-target-min);
+    }
 }
 
 /* Tablets: check boxes keep a 44px tap box: the real input covers the whole label and a drawn box shows the state. */
@@ -5846,6 +5874,16 @@ html[data-form-factor="phone"] .tl-detail-page .tl-series-detail__footer-utiliti
     flex-direction: column;
     align-items: stretch;
     gap: 0.5rem;
+}
+
+/* The show-missing checkbox keeps a 44px tap box on phones: its label and its 42px control both grow to the minimum. */
+html[data-form-factor="phone"] .tl-detail-page .tl-series-detail__missing .app-checkbox {
+    min-height: var(--tl-tap-target-min, 44px);
+}
+
+html[data-form-factor="phone"] .tl-detail-page .tl-series-detail__missing .app-checkbox__control {
+    width: var(--tl-tap-target-min, 44px);
+    height: var(--tl-tap-target-min, 44px);
 }
 
 /* Older placement layout: rows wrap and nothing keeps a desktop minimum width. */

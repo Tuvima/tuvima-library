@@ -72,14 +72,14 @@
     min-width: 0;
 }
 
-@media (max-width: 1100px) {
+@media (max-width: 1023px) {
     .local-ai-settings__summary-grid,
     .local-ai-settings__diagnostics {
         grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 }
 
-@media (max-width: 700px) {
+@media (max-width: 600px) {
     .local-ai-settings__summary-grid,
     .local-ai-settings__feature-grid,
     .local-ai-settings__runtime-form,
