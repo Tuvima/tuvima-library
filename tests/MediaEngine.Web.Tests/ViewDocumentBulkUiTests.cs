@@ -1,6 +1,7 @@
 using System.Net;
 using System.Text;
 using System.Text.Json;
+using AngleSharp.Dom;
 using Bunit;
 using MediaEngine.Contracts.LocalAssets;
 using MediaEngine.Domain.PersonalMedia;
@@ -9,6 +10,7 @@ using MediaEngine.Web.Components.Shared;
 using MediaEngine.Web.Models.ViewDTOs;
 using MediaEngine.Web.Services.Integration;
 using MediaEngine.Web.Services.Theming;
+using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Web;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -71,18 +73,50 @@ public sealed class ViewDocumentBulkUiTests : AsyncBunitContext
             cut.FindAll(".view-document-card__open")[index].Click();
         });
 
-    private static void EnterSelectMode(IRenderedComponent<ViewDocumentsPage> cut) =>
-        cut.Find("button.view-documents-select").Click();
+    // The helpers below apply the same rule to any selector: find the element and act on it in one step on the renderer thread.
+    private static Task ClickAsync<TComponent>(IRenderedComponent<TComponent> cut, string selector, int index = 0)
+        where TComponent : IComponent =>
+        cut.InvokeAsync(() => cut.FindAll(selector)[index].Click());
+
+    private static Task ClickAsync<TComponent>(IRenderedComponent<TComponent> cut, string selector, Func<IElement, bool> match)
+        where TComponent : IComponent =>
+        cut.InvokeAsync(() => cut.FindAll(selector).Single(match).Click());
+
+    private static Task ShiftClickAsync(IRenderedComponent<ViewDocumentsPage> cut, int index) =>
+        cut.InvokeAsync(() => cut.FindAll(".view-document-card__open")[index].Click(new MouseEventArgs { ShiftKey = true }));
+
+    private static Task ChangeAsync<TComponent>(IRenderedComponent<TComponent> cut, string selector, object? value)
+        where TComponent : IComponent =>
+        cut.InvokeAsync(() => cut.Find(selector).Change(value));
+
+    private static Task ChangeAsync<TComponent>(IRenderedComponent<TComponent> cut, string selector, int index, object? value)
+        where TComponent : IComponent =>
+        cut.InvokeAsync(() => cut.FindAll(selector)[index].Change(value));
+
+    private static Task InputAsync<TComponent>(IRenderedComponent<TComponent> cut, string selector, string value)
+        where TComponent : IComponent =>
+        cut.InvokeAsync(() => cut.Find(selector).Input(value));
+
+    private static Task SubmitAsync<TComponent>(IRenderedComponent<TComponent> cut, string selector)
+        where TComponent : IComponent =>
+        cut.InvokeAsync(() => cut.Find(selector).Submit());
+
+    private static Task TriggerAsync<TComponent>(IRenderedComponent<TComponent> cut, string selector, int index, string eventName, EventArgs args)
+        where TComponent : IComponent =>
+        cut.InvokeAsync(() => cut.FindAll(selector)[index].TriggerEvent(eventName, args));
+
+    private static Task EnterSelectModeAsync(IRenderedComponent<ViewDocumentsPage> cut) =>
+        ClickAsync(cut, "button.view-documents-select");
 
     [Fact]
-    public void SelectModeShowsACheckboxPerCardAndTheBulkBarAppearsOnceSomethingIsPicked()
+    public async Task SelectModeShowsACheckboxPerCardAndTheBulkBarAppearsOnceSomethingIsPicked()
     {
         var cut = RenderLoaded();
         Assert.Empty(cut.FindAll(".view-selection-toolbar"));
 
-        EnterSelectMode(cut);
+        await EnterSelectModeAsync(cut);
         Assert.Equal(3, cut.FindAll(".view-document-card__select").Count);
-        cut.FindAll(".view-document-card__select input")[0].Change(true);
+        await ChangeAsync(cut, ".view-document-card__select input", 0, true);
 
         var bar = cut.Find(".view-selection-toolbar");
         Assert.Equal("Selected document actions", bar.GetAttribute("aria-label"));
@@ -93,39 +127,39 @@ public sealed class ViewDocumentBulkUiTests : AsyncBunitContext
     }
 
     [Fact]
-    public void ShiftAndClickSelectsEveryDocumentBetweenTheLastPickAndThisOne()
+    public async Task ShiftAndClickSelectsEveryDocumentBetweenTheLastPickAndThisOne()
     {
         var cut = RenderLoaded();
-        EnterSelectMode(cut);
-        cut.FindAll(".view-document-card__select input")[0].Change(true);
+        await EnterSelectModeAsync(cut);
+        await ChangeAsync(cut, ".view-document-card__select input", 0, true);
 
-        cut.FindAll(".view-document-card__open")[2].Click(new MouseEventArgs { ShiftKey = true });
+        await ShiftClickAsync(cut, 2);
 
         Assert.Contains("3 selected", cut.Find(".view-selection-toolbar").TextContent, StringComparison.Ordinal);
         Assert.Equal(3, cut.FindAll(".view-document-card.is-selected").Count);
     }
 
     [Fact]
-    public void TheTapAfterSelectModeStartsTogglesInsteadOfOpeningTheDocument()
+    public async Task TheTapAfterSelectModeStartsTogglesInsteadOfOpeningTheDocument()
     {
         var cut = RenderLoaded();
-        EnterSelectMode(cut);
+        await EnterSelectModeAsync(cut);
 
-        cut.FindAll(".view-document-card__open")[1].Click();
+        await ClickAsync(cut, 1);
 
         Assert.Contains("1 selected", cut.Find(".view-selection-toolbar").TextContent, StringComparison.Ordinal);
         Assert.Empty(cut.FindAll(".view-document-viewer"));
     }
 
     [Fact]
-    public void MovingToTheTrashSendsOneBulkCallAndSaysPlainlyWhatHappened()
+    public async Task MovingToTheTrashSendsOneBulkCallAndSaysPlainlyWhatHappened()
     {
         var cut = RenderLoaded();
-        EnterSelectMode(cut);
-        cut.FindAll(".view-document-card__select input")[0].Change(true);
-        cut.FindAll(".view-document-card__select input")[1].Change(true);
+        await EnterSelectModeAsync(cut);
+        await ChangeAsync(cut, ".view-document-card__select input", 0, true);
+        await ChangeAsync(cut, ".view-document-card__select input", 1, true);
 
-        cut.FindAll(".view-selection-toolbar__action").Single(button => button.TextContent.Contains("Trash", StringComparison.Ordinal)).Click();
+        await ClickAsync(cut, ".view-selection-toolbar__action", button => button.TextContent.Contains("Trash", StringComparison.Ordinal));
 
         cut.WaitForAssertion(() => Assert.NotNull(_handler.LastBulkBody));
         using var body = JsonDocument.Parse(_handler.LastBulkBody!);
@@ -136,20 +170,20 @@ public sealed class ViewDocumentBulkUiTests : AsyncBunitContext
     }
 
     [Fact]
-    public void APartialResultNamesTheDocumentsThatWereLeftAloneAndWhy()
+    public async Task APartialResultNamesTheDocumentsThatWereLeftAloneAndWhy()
     {
         _handler.BulkResponse = "{\"operation\":\"move_to_trash\",\"requested\":3,\"done\":1,\"skipped\":2,\"failed\":0,\"items\":["
             + $"{{\"item_id\":\"{ItemIds[0]}\",\"status\":\"done\"}},"
             + $"{{\"item_id\":\"{ItemIds[1]}\",\"status\":\"skipped\",\"reason\":\"In the Shared Library: only filing rules can change it.\"}},"
             + $"{{\"item_id\":\"{ItemIds[2]}\",\"status\":\"skipped\",\"reason\":\"In the Shared Library: only filing rules can change it.\"}}]}}";
         var cut = RenderLoaded();
-        EnterSelectMode(cut);
-        foreach (var box in cut.FindAll(".view-document-card__select input"))
+        await EnterSelectModeAsync(cut);
+        for (var index = 0; index < ItemIds.Length; index++)
         {
-            box.Change(true);
+            await ChangeAsync(cut, ".view-document-card__select input", index, true);
         }
 
-        cut.FindAll(".view-selection-toolbar__action").Single(button => button.TextContent.Contains("Trash", StringComparison.Ordinal)).Click();
+        await ClickAsync(cut, ".view-selection-toolbar__action", button => button.TextContent.Contains("Trash", StringComparison.Ordinal));
 
         cut.WaitForAssertion(() => Assert.Contains("Updated 1 of 3 documents.", cut.Find(".view-documents-bulk-report").TextContent, StringComparison.Ordinal));
         var reasons = cut.FindAll(".view-documents-bulk-report__reasons li").Select(item => item.TextContent.Trim()).ToList();
@@ -157,20 +191,20 @@ public sealed class ViewDocumentBulkUiTests : AsyncBunitContext
     }
 
     [Fact]
-    public void AddingTagsAsksWhichTagsFirstAndThenSendsThemByName()
+    public async Task AddingTagsAsksWhichTagsFirstAndThenSendsThemByName()
     {
         var cut = RenderLoaded();
-        EnterSelectMode(cut);
-        cut.FindAll(".view-document-card__select input")[0].Change(true);
+        await EnterSelectModeAsync(cut);
+        await ChangeAsync(cut, ".view-document-card__select input", 0, true);
 
-        cut.Find(".view-selection-toolbar button[aria-haspopup=menu]").Click();
+        await ClickAsync(cut, ".view-selection-toolbar button[aria-haspopup=menu]");
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[role=menuitem]")));
-        cut.FindAll("[role=menuitem]").Single(item => item.TextContent.Contains("Add tags", StringComparison.Ordinal)).Click();
+        await ClickAsync(cut, "[role=menuitem]", item => item.TextContent.Contains("Add tags", StringComparison.Ordinal));
 
         _dialogs.WaitForAssertion(() => Assert.Contains("Add tags", _dialogs.Markup, StringComparison.Ordinal));
-        _dialogs.Find("input[aria-label='Tag to add']").Input("Receipts");
-        _dialogs.Find("form.app-tag-input").Submit();
-        _dialogs.FindAll("button").Single(button => button.TextContent.Contains("Apply to 1 document", StringComparison.Ordinal)).Click();
+        await InputAsync(_dialogs, "input[aria-label='Tag to add']", "Receipts");
+        await SubmitAsync(_dialogs, "form.app-tag-input");
+        await ClickAsync(_dialogs, "button", button => button.TextContent.Contains("Apply to 1 document", StringComparison.Ordinal));
 
         cut.WaitForAssertion(() => Assert.NotNull(_handler.LastBulkBody));
         using var body = JsonDocument.Parse(_handler.LastBulkBody!);
@@ -179,18 +213,18 @@ public sealed class ViewDocumentBulkUiTests : AsyncBunitContext
     }
 
     [Fact]
-    public void SavingTheCurrentFiltersMakesASmartGalleryThatStaysRelative()
+    public async Task SavingTheCurrentFiltersMakesASmartGalleryThatStaysRelative()
     {
         var cut = RenderLoaded();
         cut.WaitForAssertion(() => Assert.Contains("Tax (3)", cut.Markup, StringComparison.Ordinal));
         Assert.Empty(cut.FindAll(".view-documents-saved__save"));
 
-        cut.Find("input[type=checkbox]").Change(true);
-        cut.Find("select[aria-label='Document date range']").Change("last_30_days");
+        await ChangeAsync(cut, "input[type=checkbox]", true);
+        await ChangeAsync(cut, "select[aria-label='Document date range']", "last_30_days");
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".view-documents-saved__save")));
-        cut.Find(".view-documents-saved__save").Click();
-        cut.Find("input[aria-label='Name for this view']").Input("Tax this month");
-        cut.Find(".view-documents-saved__form").Submit();
+        await ClickAsync(cut, ".view-documents-saved__save");
+        await InputAsync(cut, "input[aria-label='Name for this view']", "Tax this month");
+        await SubmitAsync(cut, ".view-documents-saved__form");
 
         cut.WaitForAssertion(() => Assert.NotNull(_handler.LastGalleryBody));
         using var body = JsonDocument.Parse(_handler.LastGalleryBody!);
@@ -205,7 +239,7 @@ public sealed class ViewDocumentBulkUiTests : AsyncBunitContext
     }
 
     [Fact]
-    public void ASavedViewSitsAtTheTopOfTheRailAndStartsTheListFromIt()
+    public async Task ASavedViewSitsAtTheTopOfTheRailAndStartsTheListFromIt()
     {
         _handler.Galleries = "{\"owned\":[" + SavedViewJson("Recent invoices") + "," + ManualGalleryJson("Holiday") + "],\"shared_with_you\":[]}";
         var cut = RenderLoaded();
@@ -216,7 +250,7 @@ public sealed class ViewDocumentBulkUiTests : AsyncBunitContext
         Assert.DoesNotContain("Holiday", rail.TextContent, StringComparison.Ordinal);
         Assert.Contains("Recent invoices", rail.TextContent, StringComparison.Ordinal);
 
-        cut.Find(".view-documents-saved__view").Click();
+        await ClickAsync(cut, ".view-documents-saved__view");
 
         cut.WaitForAssertion(() => Assert.Contains(_handler.Requests, request =>
             request.StartsWith("/view/assets", StringComparison.Ordinal) && request.Contains($"galleryId={SavedViewId:D}", StringComparison.Ordinal)));
@@ -224,17 +258,18 @@ public sealed class ViewDocumentBulkUiTests : AsyncBunitContext
     }
 
     [Fact]
-    public void RenamingASavedViewKeepsItsRule()
+    public async Task RenamingASavedViewKeepsItsRule()
     {
         _handler.Galleries = "{\"owned\":[" + SavedViewJson("Recent invoices") + "],\"shared_with_you\":[]}";
         var cut = RenderLoaded();
         cut.WaitForAssertion(() => Assert.Single(cut.FindAll(".view-documents-saved__view")));
 
-        cut.Find(".view-documents-saved__menu button[aria-haspopup=menu]").Click();
+        await ClickAsync(cut, ".view-documents-saved__menu button[aria-haspopup=menu]");
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[role=menuitem]")));
-        cut.FindAll("[role=menuitem]").Single(item => item.TextContent.Contains("Rename", StringComparison.Ordinal)).Click();
-        cut.WaitForElement("input[aria-label='New name for Recent invoices']").Input("Fresh invoices");
-        cut.Find(".view-documents-saved__form").Submit();
+        await ClickAsync(cut, "[role=menuitem]", item => item.TextContent.Contains("Rename", StringComparison.Ordinal));
+        cut.WaitForElement("input[aria-label='New name for Recent invoices']");
+        await InputAsync(cut, "input[aria-label='New name for Recent invoices']", "Fresh invoices");
+        await SubmitAsync(cut, ".view-documents-saved__form");
 
         cut.WaitForAssertion(() => Assert.NotNull(_handler.LastGalleryBody));
         using var body = JsonDocument.Parse(_handler.LastGalleryBody!);
@@ -244,11 +279,11 @@ public sealed class ViewDocumentBulkUiTests : AsyncBunitContext
     }
 
     [Fact]
-    public void ChoosingASortReloadsTheListAndRemembersItForTheProfile()
+    public async Task ChoosingASortReloadsTheListAndRemembersItForTheProfile()
     {
         var cut = RenderLoaded();
 
-        cut.Find("select[aria-label='Sort documents']").Change(ViewDocumentSorts.Correspondent);
+        await ChangeAsync(cut, "select[aria-label='Sort documents']", ViewDocumentSorts.Correspondent);
 
         cut.WaitForAssertion(() => Assert.Contains(_handler.Requests, request =>
             request.StartsWith("/view/assets", StringComparison.Ordinal) && request.Contains("docSort=correspondent", StringComparison.Ordinal)));
@@ -267,13 +302,13 @@ public sealed class ViewDocumentBulkUiTests : AsyncBunitContext
     }
 
     [Fact]
-    public void ExportingSendsTheCurrentFiltersDownloadsTheFileAndWarnsWhenTheListWasCut()
+    public async Task ExportingSendsTheCurrentFiltersDownloadsTheFileAndWarnsWhenTheListWasCut()
     {
         _handler.ExportTruncated = true;
         var cut = RenderLoaded();
-        cut.Find("select[aria-label='Document date range']").Change("this_year");
+        await ChangeAsync(cut, "select[aria-label='Document date range']", "this_year");
 
-        cut.Find("button.view-documents-export").Click();
+        await ClickAsync(cut, "button.view-documents-export");
 
         cut.WaitForAssertion(() => Assert.Contains(_handler.Requests, request => request.StartsWith("/view/documents/export", StringComparison.Ordinal)));
         var export = _handler.Requests.Last(request => request.StartsWith("/view/documents/export", StringComparison.Ordinal));
@@ -294,14 +329,12 @@ public sealed class ViewDocumentBulkUiTests : AsyncBunitContext
         Assert.Empty(cut.FindAll("button.view-documents-select"));
 
         // A quick tap that is released before the hold finishes is just a tap: nothing is selected.
-        var first = cut.FindAll("li.view-document-card")[0];
-        first.TriggerEvent("onpointerdown", new PointerEventArgs());
-        first.TriggerEvent("onpointerup", new PointerEventArgs());
+        await TriggerAsync(cut, "li.view-document-card", 0, "onpointerdown", new PointerEventArgs());
+        await TriggerAsync(cut, "li.view-document-card", 0, "onpointerup", new PointerEventArgs());
         await Task.Delay(700);
         Assert.Empty(cut.FindAll(".view-selection-toolbar"));
 
-        var held = cut.FindAll("li.view-document-card")[1];
-        held.TriggerEvent("onpointerdown", new PointerEventArgs());
+        await TriggerAsync(cut, "li.view-document-card", 1, "onpointerdown", new PointerEventArgs());
 
         cut.WaitForAssertion(() => Assert.Contains("1 selected", cut.Find(".view-selection-toolbar").TextContent, StringComparison.Ordinal), TimeSpan.FromSeconds(5));
         Assert.NotEmpty(cut.FindAll("button.view-documents-select"));
@@ -341,15 +374,15 @@ public sealed class ViewDocumentBulkUiTests : AsyncBunitContext
     }
 
     [Fact]
-    public void TheTrashViewOffersRestoreInsteadOfOrganising()
+    public async Task TheTrashViewOffersRestoreInsteadOfOrganising()
     {
         var cut = RenderLoaded();
-        cut.FindAll(".view-documents-rail [role=radio]").Single(radio => radio.TextContent.Trim() == "Trash").Click();
+        await ClickAsync(cut, ".view-documents-rail [role=radio]", radio => radio.TextContent.Trim() == "Trash");
         cut.WaitForAssertion(() => Assert.Contains(_handler.Requests, request => request.Contains("lifecycle=trashed", StringComparison.Ordinal)));
         cut.WaitForAssertion(() => Assert.Equal(3, cut.FindAll(".view-document-card").Count));
 
-        EnterSelectMode(cut);
-        cut.FindAll(".view-document-card__select input")[0].Change(true);
+        await EnterSelectModeAsync(cut);
+        await ChangeAsync(cut, ".view-document-card__select input", 0, true);
 
         var bar = cut.Find(".view-selection-toolbar");
         Assert.Contains("Restore", bar.TextContent, StringComparison.Ordinal);
