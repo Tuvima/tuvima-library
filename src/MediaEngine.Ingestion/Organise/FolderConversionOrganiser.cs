@@ -428,6 +428,24 @@ public sealed class FolderConversionOrganiser
     public async Task RecoverPathOnlyAsync(FolderOrganiseLogEntry entry, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(entry);
+
+        // A letter-case rename stopped between its two steps leaves the file under a hidden temporary name; putting it under its
+        // new name is the second half of a move the job already started, and leaves nothing stranded.
+        if (!File.Exists(entry.OldPath) && !string.IsNullOrEmpty(entry.NewPath) && !File.Exists(entry.NewPath)
+            && CaseSafeRename.IsCaseOnlyChange(entry.OldPath, entry.NewPath)
+            && File.Exists(CaseSafeRename.TemporaryName(entry.OldPath)))
+        {
+            try
+            {
+                _mover.Move(CaseSafeRename.TemporaryName(entry.OldPath), entry.NewPath);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                _logger.LogWarning(ex, "Could not finish the interrupted rename of {Old} to {New} yet", entry.OldPath, entry.NewPath);
+                return;
+            }
+        }
+
         if (File.Exists(entry.OldPath) || string.IsNullOrEmpty(entry.NewPath) || !File.Exists(entry.NewPath))
         {
             return;
