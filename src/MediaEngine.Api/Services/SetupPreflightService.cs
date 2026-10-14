@@ -11,7 +11,8 @@ namespace MediaEngine.Api.Services;
 public sealed class SetupPreflightService(
     IConfigurationLoader configuration,
     IDatabaseConnection database,
-    IFFmpegService ffmpeg)
+    IFFmpegService ffmpeg,
+    ILogger<SetupPreflightService> logger)
 {
     public async Task<SetupPreflightDto> RunAsync(CancellationToken ct)
     {
@@ -38,13 +39,16 @@ public sealed class SetupPreflightService(
             using var connection = database.CreateConnection();
             databaseHealthy = string.Equals(connection.ExecuteScalar<string>("PRAGMA quick_check;"), "ok", StringComparison.OrdinalIgnoreCase);
         }
-        catch
+        catch (Exception exception)
         {
+            // The person sees one plain message; the technical reason stays in the Engine log.
+            logger.LogWarning(exception, "Setup could not run the data store health check.");
             databaseHealthy = false;
         }
         if (!databaseHealthy)
         {
             var current = checks[0];
+            logger.LogWarning("Setup found the data store did not pass its health check.");
             checks[0] = current with { Status = "blocked", Detail = "SQLite quick_check did not pass." };
         }
 
@@ -58,7 +62,11 @@ public sealed class SetupPreflightService(
                     ? result.Output.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries).FirstOrDefault() ?? "available"
                     : "probe-failed";
             }
-            catch when (!ct.IsCancellationRequested) { ffmpegStatus = "probe-failed"; }
+            catch (Exception exception) when (!ct.IsCancellationRequested)
+            {
+                logger.LogWarning(exception, "Setup could not probe FFmpeg.");
+                ffmpegStatus = "probe-failed";
+            }
         }
 
         var inContainer = ContainerEnvironment.IsContainer();
@@ -75,7 +83,7 @@ public sealed class SetupPreflightService(
             checks);
     }
 
-    private static SetupPathCheckDto Probe(string key, string label, string rawPath, string source, bool requireWrite)
+    private SetupPathCheckDto Probe(string key, string label, string rawPath, string source, bool requireWrite)
     {
         try
         {
@@ -110,9 +118,10 @@ public sealed class SetupPreflightService(
             return new SetupPathCheckDto(key, label, path, source, passed ? "passed" : "blocked", readable, writable, free,
                 passed ? "Path is available." : UnusableFolderMessage(path));
         }
-        catch (Exception)
+        catch (Exception exception)
         {
             var path = string.IsNullOrWhiteSpace(rawPath) ? "Not configured" : rawPath;
+            logger.LogWarning(exception, "Setup could not use the folder {Path} for the {Check} check.", path, key);
             return new SetupPathCheckDto(key, label, path, source, "blocked", false, false, null,
                 UnusableFolderMessage(path));
         }
@@ -123,7 +132,7 @@ public sealed class SetupPreflightService(
         $"Tuvima could not use the folder {path}. Make sure the account running Tuvima can create and write to it, "
         + "or set TUVIMA_DATA_DIR to a folder it can use, then try again.";
 
-    private static SetupPathCheckDto ProbeFile(string key, string label, string rawPath, string source)
+    private SetupPathCheckDto ProbeFile(string key, string label, string rawPath, string source)
     {
         var path = Path.GetFullPath(rawPath);
         var directory = Path.GetDirectoryName(path)
@@ -155,9 +164,10 @@ public sealed class SetupPreflightService(
         }
         catch (Exception ex)
         {
+            logger.LogWarning(ex, "Setup could not check the database path {Path}.", path);
             return new SetupPathCheckDto(
                 key, label, path, source, "blocked", false, false, null,
-                $"{ex.GetType().Name}: the database path could not be checked.");
+                "The database path could not be checked.");
         }
     }
 

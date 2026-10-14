@@ -68,13 +68,37 @@ public sealed class SetupStepsTidyTests : AsyncBunitContext
 
         var cut = Render<SetupPreflightStage>(parameters => parameters.Add(p => p.Preflight, failed));
 
-        Assert.Contains("Tuvima cannot write to the folder it keeps your library in.", cut.Markup, StringComparison.Ordinal);
+        Assert.Contains("We could not check this server. Check that the data folder is writable and has free space, then try again.", cut.Markup, StringComparison.Ordinal);
+        Assert.DoesNotContain("Tuvima cannot write to the folder it keeps your library in.", cut.Markup, StringComparison.Ordinal);
         Assert.Contains("Retry", cut.Markup, StringComparison.Ordinal);
         Assert.DoesNotContain("Tuvima library folder", cut.Markup, StringComparison.Ordinal);
         Assert.DoesNotContain("Ignore this location", cut.Markup, StringComparison.Ordinal);
         Assert.DoesNotContain("Save and check again", cut.Markup, StringComparison.Ordinal);
         Assert.DoesNotContain("Server storage locations", cut.Markup, StringComparison.Ordinal);
         Assert.Empty(cut.FindAll("input"));
+    }
+
+    [Fact]
+    public void SeveralFailingChecksRenderOneMessage_AndRawExceptionTextIsNeverShown()
+    {
+        var failed = new SetupPreflightDto(false, false, string.Empty, "win-x64", "X64", "X64", "ok",
+        [
+            new SetupPathCheckDto("database", "Database", "/data/library.db", "config", "blocked", false, false, null,
+                "SQLite quick_check did not pass."),
+            new SetupPathCheckDto("artwork", "Artwork", "/data/.data", "config", "blocked", false, false, null,
+                "IOException: The process cannot access the file '/data/x' because it is being used by another process."),
+        ]);
+
+        var cut = Render<SetupPreflightStage>(parameters => parameters
+            .Add(p => p.Preflight, failed)
+            .Add(p => p.Error, "System.IO.IOException: disk I/O error"));
+
+        const string message = "We could not check this server. Check that the data folder is writable and has free space, then try again.";
+        Assert.Equal(1, cut.FindAll("p").Count(paragraph => paragraph.TextContent.Trim() == message));
+        Assert.DoesNotContain("quick_check", cut.Markup, StringComparison.Ordinal);
+        Assert.DoesNotContain("IOException", cut.Markup, StringComparison.Ordinal);
+        Assert.DoesNotContain("disk I/O", cut.Markup, StringComparison.Ordinal);
+        Assert.Contains("Retry", cut.Markup, StringComparison.Ordinal);
     }
 
     [Fact]

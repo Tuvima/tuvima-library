@@ -8,19 +8,9 @@
             <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.FactCheck" />
             <div><h2 id="setup-stage-title">Tuvima needs a hand</h2><p>Something on this server stopped setup from getting ready.</p></div>
         </div>
+        @* One plain message however many checks failed; the technical detail is only in the Engine log. *@
         <AppAlert Tone="AppUiTone.Error">
-            @if (Problems.Count == 0)
-            {
-                <p>@Error</p>
-            }
-            else
-            {
-                @foreach (var problem in Problems)
-                {
-                    <p>@problem</p>
-                }
-            }
-            <p>Fix this on the server, then try again.</p>
+            <p>@CouldNotCheckMessage</p>
         </AppAlert>
         <div class="setup-actions"><AppButton Label="Retry" StartIcon="@AppMaterialIcons.Outlined.Refresh" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Loading="@Busy" OnClick="Retry" /></div>
     }
@@ -45,12 +35,6 @@
 
     private bool NeedsAttention => !string.IsNullOrWhiteSpace(Error) || Preflight is { Passed: false };
 
-    // The failing checks' own explanations, in everyday words; the internal check names are never shown.
-    private IReadOnlyList<string> Problems => Preflight is { Passed: false }
-        ? Preflight.Checks
-            .Where(check => check.Status != "passed" && !string.IsNullOrWhiteSpace(check.Detail))
-            .Select(check => check.Detail.Trim())
-            .Distinct(StringComparer.Ordinal)
-            .ToList()
-        : [];
+    private const string CouldNotCheckMessage =
+        "We could not check this server. Check that the data folder is writable and has free space, then try again.";
 }
