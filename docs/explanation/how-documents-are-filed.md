@@ -59,6 +59,6 @@ A rule belongs to the person who made it and only applies to documents in their 
 
 When a document is copied to the Shared Library, its date, correspondent, type, tags, archive number, notes and custom field values go with it, as a filed document.
 
-Documents that were added to the Shared Library from a shared folder can show up in the Shared Library's Inbox. Nobody files them by hand or in bulk. Only the auto-filing rules of a household administrator file them.
+Documents that were added to the Shared Library from a shared folder can show up in the Shared Library's Inbox. A household administrator or the server administrator can file them by hand from the Inbox card, or in bulk with Mark filed, to empty the Shared Inbox. Everyone else, including child profiles, sees those cards read-only with the note "Filed by a household administrator", and the auto-filing rules of a household administrator still file them automatically.
 
 Related: [Documents in View](documents-in-view.md) and [How documents are read](how-documents-are-read.md).

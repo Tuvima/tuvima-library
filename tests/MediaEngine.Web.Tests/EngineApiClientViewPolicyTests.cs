@@ -51,6 +51,7 @@ public sealed class EngineApiClientViewPolicyTests
             AccessSharedLibrary = false,
             SubmitToSharedLibrary = true,
             AllowGallerySharing = true,
+            AllowDocuments = true,
         });
 
         Assert.NotNull(saved);
@@ -59,6 +60,33 @@ public sealed class EngineApiClientViewPolicyTests
         Assert.DoesNotContain("review_shared_library_contributions", requestJson, StringComparison.Ordinal);
         Assert.False(saved.AccessSharedLibrary);
         Assert.True(saved.SubmitToSharedLibrary);
+    }
+
+    [Fact]
+    public async Task UpdateViewProfilePolicyAsync_LeavesTheDocumentsSwitchNullWhenNotChosenSoTheEngineKeepsItsSavedValue()
+    {
+        string? requestJson = null;
+        using var http = CreateHttpClient(async request =>
+        {
+            requestJson = await request.Content!.ReadAsStringAsync();
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent($$"""
+                    {"profile_id":"{{ProfileId:D}}","view_enabled":true,"access_shared_library":true,"submit_to_shared_library":false,
+                     "allow_gallery_sharing":false,"allow_documents":false,"updated_at":null}
+                    """, Encoding.UTF8, "application/json"),
+            };
+        });
+        var client = new EngineApiClient(http, NullLogger<EngineApiClient>.Instance);
+
+        var saved = await client.UpdateViewProfilePolicyAsync(ProfileId, new UpdateViewProfilePolicyRequest
+        {
+            ViewEnabled = true,
+            AccessSharedLibrary = true,
+        });
+
+        Assert.Contains("\"allow_documents\":null", requestJson, StringComparison.Ordinal);
+        Assert.False(saved!.AllowDocuments);
     }
 
     [Fact]

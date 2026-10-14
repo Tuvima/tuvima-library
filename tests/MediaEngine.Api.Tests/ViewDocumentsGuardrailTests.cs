@@ -84,6 +84,36 @@ public sealed class ViewDocumentsGuardrailTests
         var listStart = endpoint.IndexOf("group.MapGet(\"/assets\"", StringComparison.Ordinal);
         var listEnd = endpoint.IndexOf(".WithName(\"GetViewAssets\")", listStart, StringComparison.Ordinal);
         Assert.Contains("KindsWithoutBlockedDocumentsAsync", endpoint[listStart..listEnd], StringComparison.Ordinal);
+
+        // The timeline index searches and counts the same rows as the list.
+        var indexStart = endpoint.IndexOf("group.MapGet(\"/assets/timeline-index\"", StringComparison.Ordinal);
+        var indexEnd = endpoint.IndexOf(".WithName(\"GetViewTimelineIndex\")", indexStart, StringComparison.Ordinal);
+        Assert.Contains("KindsWithoutBlockedDocumentsAsync", endpoint[indexStart..indexEnd], StringComparison.Ordinal);
+
+        // Every action that answers with the whole item (notes, field values, suggestions) asks the permission first.
+        foreach (var route in new[]
+                 {
+                     "group.MapPut(\"/items/{id:guid}/description\"",
+                     "group.MapPut(\"/items/{id:guid}/captured-at\"",
+                     "group.MapPut(\"/items/{id:guid}/people\"",
+                     "group.MapPut(\"/items/{id:guid}/location\"",
+                 })
+        {
+            var start = endpoint.IndexOf(route, StringComparison.Ordinal);
+            Assert.True(start >= 0, $"{route} is missing.");
+            var end = endpoint.IndexOf(".WithName(", start, StringComparison.Ordinal);
+            Assert.Contains("DocumentsBlockedAsync", endpoint[start..end], StringComparison.Ordinal);
+        }
+    }
+
+    [Fact]
+    public void HomeRecentlyAddedAsksViewForPhotosAndVideosOnly()
+    {
+        var composer = File.ReadAllText(Path.Combine(FindRepoRoot(), "src", "MediaEngine.Api", "Services", "Display", "DisplayRecentComposerService.cs"));
+
+        Assert.Contains("MediaKinds: HomeMediaKinds", composer, StringComparison.Ordinal);
+        Assert.Contains("[LocalAssetMediaKinds.Image, LocalAssetMediaKinds.Video]", composer, StringComparison.Ordinal);
+        Assert.DoesNotContain("LocalAssetMediaKinds.Document", composer, StringComparison.Ordinal);
     }
 
     private static string FindRepoRoot()

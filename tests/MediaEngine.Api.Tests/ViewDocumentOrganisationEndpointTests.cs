@@ -182,6 +182,7 @@ public sealed class ViewDocumentOrganisationEndpointTests : IAsyncLifetime
         var refused = new (HttpMethod Method, string Route, HttpContent? Body)[]
         {
             (HttpMethod.Get, "/view/assets?scope=mine&kind=document", null),
+            (HttpMethod.Get, "/view/assets/timeline-index?scope=mine&kind=document", null),
             (HttpMethod.Get, $"{itemRoute}?scope=mine", null),
             (HttpMethod.Get, $"{itemRoute}/content?scope=mine", null),
             (HttpMethod.Get, $"{itemRoute}/thumbnail?scope=mine", null),
@@ -190,6 +191,11 @@ public sealed class ViewDocumentOrganisationEndpointTests : IAsyncLifetime
             (HttpMethod.Get, $"{itemRoute}/document-details?scope=mine", null),
             (HttpMethod.Put, $"{itemRoute}/document-details", body),
             (HttpMethod.Put, $"{itemRoute}/tags", JsonContent.Create(new UpdateLocalAssetTagsRequest(["Sneaky"]))),
+            // Every other action that answers with the item (and so its notes, fields and suggestions) is closed too.
+            (HttpMethod.Put, $"{itemRoute}/description", JsonContent.Create(new UpdateLocalAssetDescriptionRequest("Sneaky"))),
+            (HttpMethod.Put, $"{itemRoute}/captured-at", JsonContent.Create(new UpdateLocalAssetCapturedAtRequest(DateTimeOffset.UtcNow))),
+            (HttpMethod.Put, $"{itemRoute}/people", JsonContent.Create(new UpdateLocalAssetPeopleRequest([]))),
+            (HttpMethod.Put, $"{itemRoute}/location", JsonContent.Create(new UpdateLocalAssetLocationRequest(1, 1))),
             (HttpMethod.Get, "/view/catalogue", null),
             (HttpMethod.Get, "/view/catalogue?scope=mine&kind=document", null),
             (HttpMethod.Post, "/view/tags", JsonContent.Create(new ViewCatalogueEntryRequest("Tag"))),
@@ -660,37 +666,88 @@ public sealed class ViewDocumentOrganisationEndpointTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task ASharedLibraryDocumentIsSkippedWithAClearReasonEvenForAnAdministrator()
+    public async Task ASharedLibraryDocumentIsSkippedInBulkWithAClearReasonExceptMarkFiledForAnAdministrator()
     {
         var household = Guid.NewGuid();
         var admin = await CreatePerson("StandardUser", household, householdAdmin: true);
+        var member = await CreatePerson("StandardUser", household);
         var shared = await new ViewSharedLibraryRepository(_database).EnsureForHouseholdAsync(household);
-        var sourceId = Guid.NewGuid();
-        using (var connection = _database.CreateConnection())
-        {
-            connection.Execute("""
-                INSERT INTO view_sources
-                    (id, scope_kind, personal_space_id, library_id, source_type, name, source_key, storage_mode,
-                     relative_path, external_path, include_subdirectories, enabled, created_at, updated_at)
-                VALUES (@sourceId, 'shared', NULL, @libraryId, 'folder', 'Shared folder', @sourceKey, 'managed',
-                        'Shared/Folders/test', NULL, 1, 1, @now, @now);
-                """, new { sourceId, libraryId = shared.LibraryId, sourceKey = $"shared:{sourceId:N}", now = DateTimeOffset.UtcNow });
-        }
-
-        var sharedDocument = (await _assets.UpsertAsync(new LocalAssetRegistration(
-            shared.LibraryId, null, null, LocalAssetMediaKinds.Document, "Shared lease", null,
-            [new LocalAssetFileRegistration(@"C:\shared\s.pdf", new string('f', 64), "s.pdf", "application/pdf", 1024, DateTimeOffset.UtcNow) with { SourceId = sourceId }],
-            ScopeKind: LocalAssetScopeKinds.Shared))).ItemId;
+        var sharedDocument = await AddSharedDocument(shared.LibraryId, "Shared lease", 'f');
         var mine = await AddDocument(admin, 'a');
-        _actor.Current = admin.Authority;
 
-        var result = await BulkAsync(new ViewDocumentBulkRequest([sharedDocument, mine], ViewDocumentBulkOperations.MarkFiled));
-        Assert.Equal(ViewDocumentBulkService.SharedReason, result.Items.Single(item => item.ItemId == sharedDocument).Reason);
-        Assert.Equal(ViewDocumentBulkStatuses.Done, result.Items.Single(item => item.ItemId == mine).Status);
+        // Another household member cannot file it, however they ask.
+        _actor.Current = member.Authority;
+        var memberAttempt = await BulkAsync(new ViewDocumentBulkRequest([sharedDocument], ViewDocumentBulkOperations.MarkFiled));
+        Assert.Equal(ViewDocumentBulkService.SharedFilingReason, Assert.Single(memberAttempt.Items).Reason);
+        Assert.Equal(ViewDocumentFilingStates.Inbox, _assets.Find(sharedDocument)!.DocumentInfo!.FilingState);
+
+        // An administrator still cannot edit it in bulk, but can mark it filed to empty the Shared Inbox.
+        _actor.Current = admin.Authority;
         var tagged = await BulkAsync(new ViewDocumentBulkRequest([sharedDocument], ViewDocumentBulkOperations.AddTags, Tags: ["Mine now"]));
         Assert.Equal((0, 1), (tagged.Done, tagged.Skipped));
+        Assert.Equal(ViewDocumentBulkService.SharedReason, Assert.Single(tagged.Items).Reason);
         Assert.Empty(_assets.Find(sharedDocument)!.Tags);
         Assert.Equal(ViewDocumentFilingStates.Inbox, _assets.Find(sharedDocument)!.DocumentInfo!.FilingState);
+
+        var result = await BulkAsync(new ViewDocumentBulkRequest([sharedDocument, mine], ViewDocumentBulkOperations.MarkFiled));
+        Assert.Equal(ViewDocumentBulkStatuses.Done, result.Items.Single(item => item.ItemId == sharedDocument).Status);
+        Assert.Equal(ViewDocumentBulkStatuses.Done, result.Items.Single(item => item.ItemId == mine).Status);
+        Assert.Equal(ViewDocumentFilingStates.Filed, _assets.Find(sharedDocument)!.DocumentInfo!.FilingState);
+
+        // The other bulk operations still skip a Shared document even once it is filed.
+        var trash = await BulkAsync(new ViewDocumentBulkRequest([sharedDocument], ViewDocumentBulkOperations.MoveToTrash));
+        Assert.Equal(ViewDocumentBulkService.SharedReason, Assert.Single(trash.Items).Reason);
+        Assert.Null(_assets.Find(sharedDocument)!.TrashedAt);
+    }
+
+    [Fact]
+    public async Task OnlyAHouseholdOrServerAdministratorFilesADocumentInTheSharedInbox()
+    {
+        var household = Guid.NewGuid();
+        var admin = await CreatePerson("StandardUser", household, householdAdmin: true);
+        var serverAdmin = await CreatePerson("StandardUser", household, serverAdmin: true);
+        var member = await CreatePerson("StandardUser", household);
+        var child = await CreatePerson("RestrictedProfile", household);
+        var childWithDocuments = await CreatePerson("RestrictedProfile", household);
+        await _policies.SavePolicyAsync(ViewProfilePolicy.Default(childWithDocuments.ProfileId, restricted: true) with { DocumentsEnabled = true });
+        var otherHousehold = await CreatePerson("StandardUser", Guid.NewGuid(), householdAdmin: true);
+        var shared = await new ViewSharedLibraryRepository(_database).EnsureForHouseholdAsync(household);
+        var first = await AddSharedDocument(shared.LibraryId, "Shared first", '5');
+        var second = await AddSharedDocument(shared.LibraryId, "Shared second", '6');
+        var third = await AddSharedDocument(shared.LibraryId, "Shared third", '7');
+        var request = new FileViewDocumentFromInboxRequest(AcceptSuggestions: false);
+
+        async Task<HttpStatusCode> FileAsync(Person person, Guid id)
+        {
+            _actor.Current = person.Authority;
+            using var response = await _client.PostAsJsonAsync($"/view/items/{id:D}/inbox/file", request);
+            return response.StatusCode;
+        }
+
+        bool IsFiled(Guid id) => _assets.Find(id)!.DocumentInfo!.FilingState == ViewDocumentFilingStates.Filed;
+
+        // Everyone else sees the Shared Inbox read-only; nothing changes.
+        Assert.Equal(HttpStatusCode.Forbidden, await FileAsync(member, first));
+        Assert.Equal(HttpStatusCode.Forbidden, await FileAsync(childWithDocuments, first));
+        Assert.Equal(HttpStatusCode.Forbidden, await FileAsync(child, first));
+        Assert.Equal(HttpStatusCode.NotFound, await FileAsync(otherHousehold, first));
+        Assert.False(IsFiled(first));
+
+        // The same rule tells the Dashboard whether to offer File on a Shared Inbox card.
+        Assert.False(ViewSharedInboxAccess.CanFile(member.Authority));
+        Assert.False(ViewSharedInboxAccess.CanFile(child.Authority));
+        Assert.False(ViewSharedInboxAccess.CanFile(childWithDocuments.Authority));
+        Assert.True(ViewSharedInboxAccess.CanFile(admin.Authority));
+        Assert.True(ViewSharedInboxAccess.CanFile(serverAdmin.Authority));
+
+        Assert.Equal(HttpStatusCode.OK, await FileAsync(admin, first));
+        Assert.True(IsFiled(first));
+        Assert.Equal(HttpStatusCode.OK, await FileAsync(serverAdmin, second));
+        Assert.True(IsFiled(second));
+        // A second tap changes nothing and is not an error; a photo or an unknown id is not an Inbox document.
+        Assert.Equal(HttpStatusCode.OK, await FileAsync(admin, first));
+        Assert.Equal(HttpStatusCode.NotFound, await FileAsync(admin, Guid.NewGuid()));
+        Assert.False(IsFiled(third));
     }
 
     [Fact]
@@ -816,6 +873,104 @@ public sealed class ViewDocumentOrganisationEndpointTests : IAsyncLifetime
         Assert.Equal(ids, seen);
     }
 
+    [Fact]
+    public async Task TheTimelineIndexNeverCountsOrSearchesDocumentsForAProfileWithoutThem()
+    {
+        var household = Guid.NewGuid();
+        var blocked = await CreatePerson("RestrictedProfile", household);
+        var allowed = await CreatePerson("StandardUser", household);
+        var shared = await new ViewSharedLibraryRepository(_database).EnsureForHouseholdAsync(household);
+        await AddSharedDocument(shared.LibraryId, "Zebra lease", '5');
+        await AddItem(blocked, 'd', LocalAssetMediaKinds.Document, "Zebra passport");
+        await AddItem(blocked, '1', LocalAssetMediaKinds.Image, "Zebra holiday");
+
+        async Task<int> CountAsync(string route)
+        {
+            var index = await _client.GetFromJsonAsync<ViewTimelineIndexDto>(route);
+            return index!.Buckets.Sum(bucket => bucket.AssetCount);
+        }
+
+        // A person with Documents finds the Shared document by its words; this is what the profile below must not get.
+        _actor.Current = allowed.Authority;
+        Assert.Equal(1, await CountAsync("/view/assets/timeline-index?scope=shared&q=Zebra"));
+
+        _actor.Current = blocked.Authority;
+        Assert.Equal(0, await CountAsync("/view/assets/timeline-index?scope=shared&q=Zebra"));
+        Assert.Equal(1, await CountAsync("/view/assets/timeline-index?scope=mine&q=Zebra"));
+        Assert.Equal(1, await CountAsync("/view/assets/timeline-index?scope=mine"));
+        Assert.Equal(1, await CountAsync("/view/assets/timeline-index?scope=mine&kind=image&kind=document"));
+        foreach (var route in new[]
+                 {
+                     "/view/assets/timeline-index?scope=mine&kind=document",
+                     "/view/assets/timeline-index?scope=shared&q=Zebra&kind=document",
+                 })
+        {
+            using var response = await _client.GetAsync(route);
+            Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+        }
+    }
+
+    [Fact]
+    public async Task TheItemActionsStillWorkForPhotosAndForPeopleWithDocuments()
+    {
+        var blocked = await CreatePerson("RestrictedProfile");
+        var alice = await CreatePerson("StandardUser");
+        var photo = await AddItem(blocked, '1', LocalAssetMediaKinds.Image, "Holiday");
+        var document = await AddItem(alice, 'd', LocalAssetMediaKinds.Document, "Passport");
+
+        // A profile without Documents still edits its photos, and the answer carries no document details.
+        _actor.Current = blocked.Authority;
+        using var described = await _client.PutAsJsonAsync($"/view/items/{photo:D}/description", new UpdateLocalAssetDescriptionRequest("Beach"));
+        Assert.Equal(HttpStatusCode.OK, described.StatusCode);
+        var asset = await described.Content.ReadFromJsonAsync<LocalAssetDto>();
+        Assert.Equal("Beach", asset!.Description);
+        Assert.Null(asset.DocumentInfo);
+        using var located = await _client.PutAsJsonAsync($"/view/items/{photo:D}/location", new UpdateLocalAssetLocationRequest(10, 20));
+        Assert.Equal(HttpStatusCode.OK, located.StatusCode);
+        using var dated = await _client.PutAsJsonAsync($"/view/items/{photo:D}/captured-at", new UpdateLocalAssetCapturedAtRequest(DateTimeOffset.UtcNow));
+        Assert.Equal(HttpStatusCode.OK, dated.StatusCode);
+        using var people = await _client.PutAsJsonAsync($"/view/items/{photo:D}/people", new UpdateLocalAssetPeopleRequest([]));
+        Assert.Equal(HttpStatusCode.OK, people.StatusCode);
+
+        // A person with Documents still edits a document and gets its details back.
+        _actor.Current = alice.Authority;
+        using var documentDescribed = await _client.PutAsJsonAsync($"/view/items/{document:D}/description", new UpdateLocalAssetDescriptionRequest("Scanned"));
+        Assert.Equal(HttpStatusCode.OK, documentDescribed.StatusCode);
+        Assert.NotNull((await documentDescribed.Content.ReadFromJsonAsync<LocalAssetDto>())!.DocumentInfo);
+    }
+
+    [Fact]
+    public async Task APersonReadsAndSavesTheirOwnPreferencesAndTheUnscopedListsOpen()
+    {
+        var alice = await CreatePerson("StandardUser");
+        var blocked = await CreatePerson("RestrictedProfile");
+        _actor.Current = alice.Authority;
+
+        var saved = await _client.GetFromJsonAsync<ViewPreferencesDto>("/view/preferences");
+        Assert.Equal(alice.ProfileId, saved!.ProfileId);
+        using var update = await _client.PutAsJsonAsync("/view/preferences",
+            new ViewPreferencesRequest("mine", null, ViewTimelineDensity.Compact, ViewerInfoOpen: false));
+        Assert.Equal(HttpStatusCode.OK, update.StatusCode);
+        var reread = await _client.GetFromJsonAsync<ViewPreferencesDto>("/view/preferences");
+        Assert.Equal((ViewScopeKind.Mine, ViewTimelineDensity.Compact, false), (reread!.Scope, reread.TimelineDensity, reread.ViewerInfoOpen));
+
+        // With no scope named, the lists follow the saved scope instead of answering 404.
+        foreach (var route in new[] { "/view/assets", "/view/assets/timeline-index", "/view/folders" })
+        {
+            using var response = await _client.GetAsync(route);
+            Assert.True(response.StatusCode == HttpStatusCode.OK, $"GET {route} returned {(int)response.StatusCode}.");
+        }
+
+        // The Documents sort stays on its own route, and another person's preferences are never reachable.
+        using var sort = await _client.PutAsJsonAsync("/view/preferences/documents-sort", new ViewDocumentsSortDto("title"));
+        Assert.Equal(HttpStatusCode.OK, sort.StatusCode);
+        _actor.Current = blocked.Authority;
+        Assert.Equal(blocked.ProfileId, (await _client.GetFromJsonAsync<ViewPreferencesDto>("/view/preferences"))!.ProfileId);
+        Assert.Null((await _client.GetFromJsonAsync<ViewPreferencesDto>("/view/preferences"))!.DocumentsSort);
+        using var blockedSort = await _client.GetAsync("/view/preferences/documents-sort");
+        Assert.Equal(HttpStatusCode.Forbidden, blockedSort.StatusCode);
+    }
+
     private async Task<ViewDocumentBulkResultDto> BulkAsync(ViewDocumentBulkRequest request)
     {
         using var response = await _client.PostAsJsonAsync("/view/documents/bulk", request);
@@ -881,6 +1036,52 @@ public sealed class ViewDocumentOrganisationEndpointTests : IAsyncLifetime
             person.LibraryId, space!.Id, person.ProfileId, LocalAssetMediaKinds.Document, $"Document {seed}", null,
             [new LocalAssetFileRegistration($@"C:\docs\{seed}.pdf", new string(seed, 64), $"{seed}.pdf", "application/pdf",
                 1024, DateTimeOffset.UtcNow)]))).ItemId;
+    }
+
+    private async Task<Guid> AddItem(Person person, char seed, string kind, string title)
+    {
+        var space = await _spaces.GetByOwnerAsync(person.ProfileId);
+        var isDocument = kind == LocalAssetMediaKinds.Document;
+        var extension = isDocument ? "pdf" : "jpg";
+        // A photo shows on the timeline only when it came from a source that is included in it.
+        Guid? sourceId = null;
+        if (!isDocument)
+        {
+            sourceId = Guid.NewGuid();
+            using var connection = _database.CreateConnection();
+            connection.Execute("""
+                INSERT INTO view_sources
+                    (id, scope_kind, personal_space_id, library_id, source_type, name, source_key, storage_mode,
+                     relative_path, external_path, include_subdirectories, enabled, created_at, updated_at)
+                VALUES (@sourceId, 'personal', @spaceId, @libraryId, 'browser_upload', 'Uploads', @sourceKey, 'managed',
+                        'Personal/Uploads/test', NULL, 1, 1, @now, @now);
+                """, new { sourceId, spaceId = space!.Id, libraryId = person.LibraryId, sourceKey = $"upload:{sourceId:N}", now = DateTimeOffset.UtcNow });
+        }
+
+        return (await _assets.UpsertAsync(new LocalAssetRegistration(
+            person.LibraryId, space!.Id, person.ProfileId, kind, title, null,
+            [new LocalAssetFileRegistration($@"C:\items\{seed}.{extension}", new string(seed, 64), $"{seed}.{extension}",
+                isDocument ? "application/pdf" : "image/jpeg", 1024, DateTimeOffset.UtcNow) with { SourceId = sourceId }]))).ItemId;
+    }
+
+    private async Task<Guid> AddSharedDocument(Guid libraryId, string title, char seed)
+    {
+        var sourceId = Guid.NewGuid();
+        using (var connection = _database.CreateConnection())
+        {
+            connection.Execute("""
+                INSERT INTO view_sources
+                    (id, scope_kind, personal_space_id, library_id, source_type, name, source_key, storage_mode,
+                     relative_path, external_path, include_subdirectories, enabled, created_at, updated_at)
+                VALUES (@sourceId, 'shared', NULL, @libraryId, 'folder', 'Shared folder', @sourceKey, 'managed',
+                        'Shared/Folders/test', NULL, 1, 1, @now, @now);
+                """, new { sourceId, libraryId, sourceKey = $"shared:{sourceId:N}", now = DateTimeOffset.UtcNow });
+        }
+
+        return (await _assets.UpsertAsync(new LocalAssetRegistration(
+            libraryId, null, null, LocalAssetMediaKinds.Document, title, null,
+            [new LocalAssetFileRegistration($@"C:\shared\{seed}.pdf", new string(seed, 64), $"{seed}.pdf", "application/pdf", 1024, DateTimeOffset.UtcNow) with { SourceId = sourceId }],
+            ScopeKind: LocalAssetScopeKinds.Shared))).ItemId;
     }
 
     private sealed class ActorBox

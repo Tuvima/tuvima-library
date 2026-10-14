@@ -134,7 +134,12 @@ public sealed class ViewResourceAuthorizationService(
                         && resolution.Scope.Kind == ViewScopeKind.Mine))
                 && (request.Action == ViewResourceAction.Manage
                     || request.Action == ViewResourceAction.Contribute);
-            return galleryRequest || scopedMutation
+            // A person reads their own saved preferences (scope, density, viewer info, Documents sort) without
+            // naming a resource; only the Mine scope, so no one reads another person's.
+            var ownPreferenceRead = request.Kind == ViewResourceKind.Preference
+                && request.Action == ViewResourceAction.Read
+                && resolution.Scope.Kind == ViewScopeKind.Mine;
+            return galleryRequest || scopedMutation || ownPreferenceRead
                 ? ViewAccessDecision.Allowed(resolution.Scope)
                 : ViewAccessDecision.NotFound(resolution.Scope);
         }

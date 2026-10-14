@@ -188,6 +188,8 @@ public sealed class ViewSharedTransferService(
                         SELECT @sharedItemId,slot,field_id,set_by
                           FROM doc_item_field_sources WHERE item_id=@itemId;
                         """, new { sharedItemId, sharedLibraryId, itemId, now }, transaction);
+                    // The copy is found by its words, tags, correspondent, type and notes from the moment it exists.
+                    LocalAssetRepository.RebuildSearchDocument(connection, transaction, sharedItemId);
                     foreach (var file in planned)
                     {
                         connection.Execute("""

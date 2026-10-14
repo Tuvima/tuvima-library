@@ -379,6 +379,29 @@ public sealed class ViewResourceAuthorizationTests
         Assert.Equal(0, store.ProfileReads);
     }
 
+    [Fact]
+    public async Task APersonReadsTheirOwnPreferencesWithoutNamingAResourceButNoOneElses()
+    {
+        var caller = State(access: true, include: false);
+        var other = State(access: true, include: false);
+        var service = Create([caller, other]);
+
+        var own = await service.AuthorizeAsync(
+            Identity(caller), new ViewResourceRequest(ViewScopeRequest.Mine, ViewResourceKind.Preference, null));
+        var write = await service.AuthorizeAsync(
+            Identity(caller), new ViewResourceRequest(ViewScopeRequest.Mine, ViewResourceKind.Preference, null, ViewResourceAction.Manage));
+        var shared = await service.AuthorizeAsync(
+            Identity(caller), new ViewResourceRequest(ViewScopeRequest.Shared, ViewResourceKind.Preference, null));
+        var someoneElse = await service.AuthorizeAsync(
+            Identity(caller), new ViewResourceRequest(ViewScopeRequest.ForProfile(other.Policy.ProfileId), ViewResourceKind.Preference, null));
+
+        Assert.True(own.IsAllowed);
+        Assert.Equal(ViewScopeKind.Mine, own.Scope!.Kind);
+        Assert.True(write.IsAllowed);
+        Assert.Equal(ViewAccessOutcome.NotFound, shared.Outcome);
+        Assert.False(someoneElse.IsAllowed);
+    }
+
     private static ViewResourceAuthorizationService Create(
         ViewScopeStoreEntry[] profiles,
         params ViewResourceDescriptor[] resources) =>

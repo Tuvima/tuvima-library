@@ -5109,6 +5109,7 @@
   AvailableScopes: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.LocalAssets.ViewScopeOptionDto> | json=available_scopes | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   CanBrowseOtherPeople: System.Boolean | json=can_browse_other_people | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   CanViewDocuments: System.Boolean | json=can_view_documents | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  CanFileSharedInbox: System.Boolean | json=can_file_shared_inbox | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
 
 [contracts] MediaEngine.Contracts.LocalAssets.ViewSharedContributionDecisionRequest
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -7817,7 +7818,7 @@
   AccessSharedLibrary: System.Boolean | json=access_shared_library | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   SubmitToSharedLibrary: System.Boolean | json=submit_to_shared_library | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   AllowGallerySharing: System.Boolean | json=allow_gallery_sharing | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  AllowDocuments: System.Boolean | json=allow_documents | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  AllowDocuments: System.Boolean? | json=allow_documents | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   sample={"view_enabled":true,"access_shared_library":true,"submit_to_shared_library":true,"allow_gallery_sharing":true,"allow_documents":true}
 
 [contracts] MediaEngine.Contracts.Profiles.ViewProfilePolicyDto

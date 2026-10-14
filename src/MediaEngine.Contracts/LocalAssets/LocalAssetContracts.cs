@@ -136,7 +136,8 @@ public sealed record ViewScopeResolutionDto(
     [property: JsonPropertyName("scope")] ViewResolvedScopeDto Scope,
     [property: JsonPropertyName("available_scopes")] IReadOnlyList<ViewScopeOptionDto> AvailableScopes,
     [property: JsonPropertyName("can_browse_other_people")] bool CanBrowseOtherPeople = false,
-    [property: JsonPropertyName("can_view_documents")] bool CanViewDocuments = true);
+    [property: JsonPropertyName("can_view_documents")] bool CanViewDocuments = true,
+    [property: JsonPropertyName("can_file_shared_inbox")] bool CanFileSharedInbox = false);
 
 public sealed record ViewPreferencesDto(
     [property: JsonPropertyName("profile_id")] Guid ProfileId,

@@ -17,7 +17,7 @@ public sealed class ViewProfilePolicyContractTests
             AccessSharedLibrary = accessSharedLibrary,
             SubmitToSharedLibrary = submitToSharedLibrary,
             AllowGallerySharing = true,
-        });
+        }, currentDocumentsEnabled: true);
 
         var contract = ProfileContractMapper.ToResponse(policy);
 
@@ -27,18 +27,30 @@ public sealed class ViewProfilePolicyContractTests
     }
 
     [Theory]
-    [InlineData(true)]
-    [InlineData(false)]
-    public void DocumentsSwitchRoundTripsAndDefaultsOnForOlderClients(bool allowDocuments)
+    [InlineData(true, false)]
+    [InlineData(false, true)]
+    public void DocumentsSwitchRoundTripsWhenTheRequestSetsIt(bool allowDocuments, bool saved)
     {
         var policy = ProfileContractMapper.ToDomain(Guid.NewGuid(), new UpdateViewProfilePolicyRequest
         {
             ViewEnabled = true,
             AllowDocuments = allowDocuments,
-        });
+        }, currentDocumentsEnabled: saved);
 
         Assert.Equal(allowDocuments, policy.DocumentsEnabled);
         Assert.Equal(allowDocuments, ProfileContractMapper.ToResponse(policy).AllowDocuments);
-        Assert.True(new UpdateViewProfilePolicyRequest().AllowDocuments);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void ARequestThatOmitsTheDocumentsSwitchKeepsTheSavedValue(bool saved)
+    {
+        var request = System.Text.Json.JsonSerializer.Deserialize<UpdateViewProfilePolicyRequest>(
+            """{"view_enabled":true,"access_shared_library":true}""")!;
+
+        Assert.Null(request.AllowDocuments);
+        Assert.Equal(saved, ProfileContractMapper.ToDomain(Guid.NewGuid(), request, saved).DocumentsEnabled);
+        Assert.Null(new UpdateViewProfilePolicyRequest().AllowDocuments);
     }
 }

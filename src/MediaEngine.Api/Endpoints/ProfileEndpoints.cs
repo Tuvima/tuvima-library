@@ -196,7 +196,9 @@ public static class ProfileEndpoints
                 return ApiErrors.Forbidden("Only a server administrator can manage this profile.");
             }
 
-            var policy = ProfileContractMapper.ToDomain(id, request);
+            // A request that leaves allow_documents out keeps the saved switch (a child profile's default is off).
+            var policy = ProfileContractMapper.ToDomain(
+                id, request, (await viewProfiles.GetPolicyAsync(id, ct)).DocumentsEnabled);
             if (!await viewProfiles.SavePolicyAsync(policy, ct))
             {
                 return ApiErrors.NotFound($"Profile '{id}' not found.");
