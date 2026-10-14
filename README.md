@@ -82,7 +82,7 @@ Edit the folder paths under `volumes` to point at your media and app-data folder
 docker compose up -d
 ```
 
-Open **http://YOUR-SERVER:5016**, create your administrator account, save your recovery codes, and add your media folders. The [Docker guide](https://tuvima.github.io/tuvima_library/install/docker/) explains every setting, and what to do if your host can't download the image.
+Open **http://YOUR-SERVER:5016**, work through the six setup steps (name your server, create your administrator account and save your recovery codes, add your media folders, choose your language, optionally enhance your library), and you are in. Libraries can be skipped and added later. The [Docker guide](https://tuvima.github.io/tuvima_library/install/docker/) explains every setting, and what to do if your host can't download the image.
 
 Other ways to install:
 
@@ -123,7 +123,7 @@ Tuvima Library is in **Early Access** and under active development. Browsing, re
 | I want to… | Start here |
 | --- | --- |
 | Use Tuvima Library | [Getting started](https://tuvima.github.io/tuvima_library/tutorials/getting-started/) · [Find your way around](https://tuvima.github.io/tuvima_library/guides/dashboard-tour/) |
-| Run a server | [Install with Docker](https://tuvima.github.io/tuvima_library/install/docker/) · [Library settings](https://tuvima.github.io/tuvima_library/guides/library-settings/) · [Troubleshooting](https://tuvima.github.io/tuvima_library/guides/troubleshooting/) |
+| Run a server | [Install with Docker](https://tuvima.github.io/tuvima_library/install/docker/) · [Manage libraries](https://tuvima.github.io/tuvima_library/guides/library-settings/) · [Troubleshooting](https://tuvima.github.io/tuvima_library/guides/troubleshooting/) |
 | Build plugins or providers | [Build a plugin](https://tuvima.github.io/tuvima_library/guides/building-a-plugin/) · [Add a provider](https://tuvima.github.io/tuvima_library/guides/adding-a-provider/) |
 | Contribute code or docs | [Contributing](CONTRIBUTING.md) · [Developer setup](https://tuvima.github.io/tuvima_library/tutorials/dev-setup/) · [Technical overview](https://tuvima.github.io/tuvima_library/architecture/technical-overview/) |
 

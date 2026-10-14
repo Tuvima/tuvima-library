@@ -259,9 +259,17 @@ exportable log, pause, resume, cancel, restart-resume).
   could resume has its unfinished lines closed as `copied` (`KeepUnfinishedMergeCopiesAsync`)
   so the original beside a copy that landed is protected too. If the ledger cannot be read
   the gate refuses (fail closed).
-- **Known caveat.** `AutoOrganizeService` still moves files out of a managed folder that
-  is not the destination into the destination's root; a merge into such a target is
-  unaffected by this job, but later organising of that target may.
+- **Known limits.** These are recorded, not fixed:
+  - `AutoOrganizeService` still moves files out of a managed folder that is not the
+    destination into the destination's root; a merge into such a target is unaffected by
+    this job, but later organising of that target may.
+  - Starting a stopped merge again into a *different* target, or restarting a *Move* merge
+    for files that went to `From merge`, cannot find the earlier copy and may add a numbered
+    copy beside it. Restarting into the same target carries on without copying.
+  - Side effect of the merge-ledger protection: after a *cancelled* merge of a Managed
+    folder, ordinary scans and Organise now cannot rename or move the originals the merge
+    listed (the folder is otherwise a normal Managed folder again). They are organised again
+    only if the person merges the folder again as a Move, or deletes the originals.
 
 ### Managed source
 

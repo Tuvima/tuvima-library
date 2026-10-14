@@ -16,24 +16,24 @@ Bring files into Tuvima Library from a watched folder or an existing collection.
 | What you want | Use |
 | --- | --- |
 | Add books, comics, movies, TV, music, or audiobooks | A structured library with catalogue matching |
-| Keep an existing collection unchanged | An **Existing library** source with read-only access |
-| Let Tuvima organize eligible incoming files | A **Managed by Tuvima** source (the first one you add becomes the destination for new media) |
+| Keep an existing collection unchanged | An **As-is** folder (read-only) |
+| Let Tuvima organize eligible incoming files | A **Managed** folder (the first one you add becomes the type's **New media goes here** folder) |
+| Feed new files in over time | The **Import folder** |
 | Keep photos, home videos, documents, or notes private | A profile's View Personal Space |
 
 Start with one media type and a few files. Large imports are easier to check after providers and permissions work.
 
 ## Configure a catalogue folder
 
-1. Open **Settings → Libraries**.
-2. Add a library, or open its **Folders** section and choose **Add folder**.
-3. Choose its type and server-side path.
-4. Select **Existing library** or **Managed by Tuvima**.
-5. Check access and confirm the addition.
-6. Open **Settings → Operations** and choose **Check folders for changes** (in the Ingestion page "⋯" menu) for an existing batch.
+1. Open **Settings → Libraries** and choose the media type.
+2. Choose **Add folder** and pick the folder on the server. Click a folder to open it, or type the path.
+3. If the folder has files, choose **Use as-is**, **Merge into**, or **Let Tuvima manage it**.
+4. Choose **Add**. It saves at once.
+5. Open **Settings → Operations** and choose **Check folders for changes** (in the Ingestion page "⋯" menu) for an existing batch.
 
 New files in watched folders are picked up automatically. **Check folders for changes** (in the Ingestion page "⋯" menu) explicitly starts an extra scan. Operations at `/settings/ingestion` shows current work and bounded batch history without manual refresh.
 
-Folders you use as-is are never modified. A folder Tuvima manages can have its files moved, renamed and tagged, including the ones already there, so choose **Managed by Tuvima** only for folders no other app depends on.
+Folders you use as-is are never modified. A folder Tuvima manages can have its files moved, renamed and tagged, including the ones already there, so choose **Managed** only for folders no other app depends on.
 
 ## Check supported files
 

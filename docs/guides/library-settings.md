@@ -11,29 +11,38 @@ status: current
 
 Use Settings in Tuvima Library to add folders and check background work. This five-minute guide helps you choose safe [sources](../reference/glossary.md#library-folder) and find the right admin page.
 
-## Choose a safe source
+## Choose how a folder is handled
 
-1. Open **Settings > Libraries** with admin access.
-2. Choose a Watch, Read, or Listen library.
-3. Add or check its source folders. Check that Tuvima can reach and read them.
-4. Choose **Existing library** to scan files where they are.
-5. Choose **Managed by Tuvima** only if you want allowed file moves or tag writes.
-6. Check the rules for intake, duplicates, details, and file layout before saving.
+Libraries is one screen: **Settings > Libraries**. The six media types (Books, Audiobooks, Movies, TV Shows, Music, Comics) are always listed, with the Import folder as a seventh entry. There is no separate Library settings page.
 
-An Existing source is read-only to Tuvima. Tuvima does not move, rename, tag, overwrite, or delete its files. A managed source also needs write access. Its rules must allow each change.
+1. Open **Settings > Libraries** with admin access and choose a media type.
+2. Choose **Add folder** and pick the folder. Click a folder to open it; the path bar is the selected folder and can be typed into. Only folders are listed, Tuvima's own folders never appear, and **Add** turns on when the folder is valid.
+3. If the folder already has files, choose **Use as-is** (recommended), **Merge into** a managed folder, or **Let Tuvima manage it**.
 
-Keep music album folders intact. Use tags or fingerprints to identify music before moving it. A library setting alone is not a reason to rename music files.
+Every folder is handled one of two ways:
 
-## Preview file moves
+- **As-is** is read-only. Tuvima never moves, renames, tags, overwrites or deletes its files, so other apps are not affected.
+- **Managed** means Tuvima may rename, move and (when the type's tag setting is on) tag the files, including the ones already there. Choose it only for folders no other app depends on.
 
-Switching from Existing to Managed changes the rules for future work. It does not move files at once.
+Each type has one **New media goes here** folder: the managed folder that receives new files. The first managed folder you add becomes it; use a managed folder's row menu to make another the place for new media. There is no priority order.
 
-1. Request a reorganization preview where offered.
-2. Check the counts for unchanged, moved, renamed, conflicting, unresolved, and blocked items.
-3. Confirm that exact preview if the proposed result is right.
-4. Check the result. Retry failed items after fixing their cause.
+The folder list is a table with Folder, Handling, New media and Files columns. The row menu offers Make this the place for new media, Organise files now, Merge into, Switch to As-is or Managed, Label and Remove folder. Removing a folder never deletes files.
 
-The Engine checks each item again before moving it. A preview can expire. A source or item change can also make it invalid.
+Keep music album folders intact. Tuvima uses tags or fingerprints to identify music before moving it.
+
+## Advanced settings
+
+Each type has an **Advanced** section with its naming template (**Naming template**, **Apply template**) and **Update tags inside files** (only affects managed folders). The section **File handling for every type** holds the library-wide rules **When the same file arrives twice** (**Keep one copy** or **Keep both**) and **Embed artwork in files**.
+
+## Convert a folder to Managed
+
+Switching an As-is folder to Managed asks for confirmation and shows a preview of the proposed moves and renames. Confirming starts a background organising job.
+
+1. Choose **Switch to Managed** in the folder's row menu.
+2. Check the preview: unchanged, moved, renamed, conflicting and blocked counts.
+3. Confirm. The row shows progress, and you can pause, resume or cancel.
+
+The job moves sidecar files (subtitles, artwork, notes) with their media. Every move is written to a log you can download. There is no automatic undo. Cancel keeps what was already done.
 
 ## Merge an existing folder into a managed folder
 
@@ -48,6 +57,12 @@ Use a merge to bring all the files of one existing folder into a folder Tuvima m
 Tuvima names the files the same way as the rest of your library. Exact duplicates follow your "same file twice" setting. Files Tuvima cannot name yet go to a folder called **From merge** inside the target and wait in **Review**.
 
 You can pause, resume or stop a merge. Stopping keeps what was already copied, and the log lists what is still only in your folder. A merge cannot be undone automatically, but you can download the log. When it finishes, the folder reads **Merged into** the target and is no longer scanned, so nothing appears twice. Remove the folder from the list when you are ready; its files stay on disk.
+
+A stopped merge reads "Merge stopped. Nothing was deleted. You can start it again." (a Move says the files already moved stay in the target) and the folder is a normal folder again. Two limits are known: starting it again into a different target, or restarting a Move of files that went to **From merge**, can add a numbered copy; and after a stopped merge of a Managed folder, ordinary scans cannot rename or move the originals that merge listed, to keep them safe.
+
+## Import folder
+
+The **Import folder** is the seventh entry in the Libraries list. Set it once and drop new media into it, for example from a download tool. Tuvima creates one subfolder per type and files each arrival into that type's New media folder. Files it cannot match go to **Review** with the badge **From the Import folder**. A type with no managed folder leaves its files untouched and says so in one sentence. Use **Check folders for changes** to scan it now.
 
 ## Set up View storage
 

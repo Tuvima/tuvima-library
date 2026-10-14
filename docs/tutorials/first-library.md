@@ -21,16 +21,14 @@ Use [View Personal Space](../guides/view-personal-space.md) for private photos, 
 
 ## Add a structured library
 
-1. Open **Settings → Libraries** and choose **Add library**.
-2. In **Pick a type**, select Books, Comics, Movies, TV Shows, Music, or Audiobooks.
-3. In **Pick a folder**, choose **Choose folder** and browse the server's drives (inside a container, whatever the container can see). Only administrators can browse, and Tuvima's own data folders cannot be chosen.
-4. If the folder already has files, Tuvima asks whether to manage it or leave it as-is. Leave it as-is for originals that must stay unchanged; let Tuvima manage it only for folders it may organize.
-5. Check read/write access and any overlap warnings.
-6. Review the settings and confirm the final action.
+1. Open **Settings → Libraries** and choose a media type: Books, Audiobooks, Movies, TV Shows, Music or Comics. There is no Add library step; a type's library is created when its first folder is added.
+2. Choose **Add folder**. Click a folder to open it, or type the path in the bar. You browse the server's drives (inside a container, whatever the container can see). Only administrators can browse, and Tuvima's own folders are never listed.
+3. If the folder already has files, Tuvima asks whether to use it as-is, merge it into a managed folder, or let Tuvima manage it. Use it as-is for originals that must stay unchanged.
+4. Choose **Add**. It saves at once.
 
 The path belongs to the server running the Engine. For Docker, use the path inside the container, such as `/library`, rather than its host path.
 
-Folders used as-is always stay read-only. Saving a naming template does not reorganize existing files. A filename collision preserves the existing file and gives the incoming file a unique name.
+As-is folders always stay read-only. Saving a naming template does not reorganize existing files. A filename collision preserves the existing file and gives the incoming file a unique name.
 
 ## Import a small batch
 
@@ -74,9 +72,9 @@ Opening the Shared Library and sending to it are separate permissions (both on b
 
 ## Adjust folders later
 
-Open the library to manage Folders, Organization, File Handling, and Advanced Settings.
+Open the media type to manage its folders and its **Advanced** section.
 
-**Add folder** saves at its final confirmation. Detaching requires confirmation and leaves files on disk. If the detached primary still serves managed folders, choose a replacement primary. Names and custom templates use their own Apply action.
+**Add folder** saves when you choose Add. Removing a folder asks for confirmation and leaves files on disk. If you remove the folder that receives new media, make another managed folder of that type the place for new media. Names and custom templates use their own Apply action.
 
 ## Next steps
 
