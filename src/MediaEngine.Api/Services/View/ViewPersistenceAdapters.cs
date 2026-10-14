@@ -207,7 +207,8 @@ public sealed class ViewAssetQueryService(ILocalAssetRepository assets) : IViewA
             plan.SmartRule,
             plan.TimelineEligibleOnly,
             plan.IncludeSharedLibraryAssets,
-            plan.AnchorBefore, plan.WithoutLocation, plan.PersonKey, plan.From, plan.To, plan.SortByAddedAt, plan.AddedBefore, plan.AddedAfterKey), ct);
+            plan.AnchorBefore, plan.WithoutLocation, plan.PersonKey, plan.From, plan.To, plan.SortByAddedAt, plan.AddedBefore, plan.AddedAfterKey,
+            plan.DocumentFilter), ct);
         return Task.FromResult(new ViewAssetTimelinePageDto(
             page.Items,
             plan.SortByAddedAt ? null : ViewTimelineCursorCodec.Encode(page.NextCursor),

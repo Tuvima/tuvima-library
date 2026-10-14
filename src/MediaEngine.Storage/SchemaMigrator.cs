@@ -54,6 +54,7 @@ internal sealed class SchemaMigrator
             PromoteRestrictedAdministratorProfiles(conn);
         }
 
+        MigrateLocalItemTagsToCatalogue(conn);
         EnsureCurrentIndexes(conn);
         SplitPackedMultiValuedCanonicals(conn);
         using (var recordingIndex = conn.CreateCommand())
@@ -1976,6 +1977,95 @@ internal sealed class SchemaMigrator
         });
     }
 
+    /// <summary>
+    /// View tags used to be free text on each item (<c>local_item_tags</c>). They are now one global list plus links.
+    /// Each distinct name (ignoring case) becomes one row in <c>tags</c>, credited to the owner of the first item that
+    /// carried it, every item keeps its tags through <c>local_item_tag_links</c>, and the old table is dropped. Runs
+    /// once; with the old table gone it does nothing. The search index needs no rebuild: the words are unchanged.
+    /// </summary>
+    private void MigrateLocalItemTagsToCatalogue(SqliteConnection conn)
+    {
+        using (var exists = conn.CreateCommand())
+        {
+            exists.CommandText = "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = 'local_item_tags';";
+            if (Convert.ToInt32(exists.ExecuteScalar(), System.Globalization.CultureInfo.InvariantCulture) == 0)
+            {
+                return;
+            }
+        }
+
+        var moved = 0;
+        DatabaseConnection.ExecuteStartupTransaction(conn, transaction =>
+        {
+            // Names merge ignoring case in every script (not only A-Z like SQLite's NOCASE), and each item is linked
+            // here rather than by a SQL join, so no item loses a tag to a difference in how case is folded.
+            var ids = new Dictionary<string, byte[]>(StringComparer.OrdinalIgnoreCase);
+            var links = new List<(byte[] ItemId, byte[] TagId, string AddedAt)>();
+            var tags = new List<(byte[] Id, string Name, byte[]? Creator, string AddedAt)>();
+            using (var read = conn.CreateCommand())
+            {
+                read.Transaction = transaction;
+                // The earliest use of a name decides how it is spelled and who it is credited to.
+                read.CommandText = """
+                    SELECT lit.item_id, lit.tag, li.owner_profile_id, lit.added_at
+                      FROM local_item_tags lit
+                      JOIN local_items li ON li.id = lit.item_id
+                     WHERE TRIM(lit.tag) <> ''
+                     ORDER BY lit.added_at, lit.item_id;
+                    """;
+                using var reader = read.ExecuteReader();
+                while (reader.Read())
+                {
+                    var name = reader.GetString(1).Trim();
+                    if (!ids.TryGetValue(name, out var tagId))
+                    {
+                        tagId = GuidSql.ToBlob(Guid.NewGuid());
+                        ids[name] = tagId;
+                        tags.Add((tagId, name, reader.IsDBNull(2) ? null : (byte[])reader.GetValue(2), reader.GetString(3)));
+                    }
+
+                    links.Add(((byte[])reader.GetValue(0), tagId, reader.GetString(3)));
+                }
+            }
+
+            foreach (var (id, name, creator, addedAt) in tags)
+            {
+                using var insert = conn.CreateCommand();
+                insert.Transaction = transaction;
+                insert.CommandText = """
+                    INSERT INTO tags (id, name, created_by_profile_id, created_at)
+                    VALUES (@id, @name, @creator, @addedAt);
+                    """;
+                insert.Parameters.AddWithValue("@id", id);
+                insert.Parameters.AddWithValue("@name", name);
+                insert.Parameters.AddWithValue("@creator", (object?)creator ?? DBNull.Value);
+                insert.Parameters.AddWithValue("@addedAt", addedAt);
+                insert.ExecuteNonQuery();
+                moved++;
+            }
+
+            foreach (var (itemId, tagId, addedAt) in links)
+            {
+                using var link = conn.CreateCommand();
+                link.Transaction = transaction;
+                link.CommandText = """
+                    INSERT OR IGNORE INTO local_item_tag_links (item_id, tag_id, added_at)
+                    VALUES (@itemId, @tagId, @addedAt);
+                    """;
+                link.Parameters.AddWithValue("@itemId", itemId);
+                link.Parameters.AddWithValue("@tagId", tagId);
+                link.Parameters.AddWithValue("@addedAt", addedAt);
+                link.ExecuteNonQuery();
+            }
+
+            using var drop = conn.CreateCommand();
+            drop.Transaction = transaction;
+            drop.CommandText = "DROP TABLE local_item_tags;";
+            drop.ExecuteNonQuery();
+        });
+        _notes.Add($"Moved {moved} existing View tag name(s) into the global tag list.");
+    }
+
     private static bool ColumnExists(SqliteConnection conn, string table, string column)
     {
         using var cmd = conn.CreateCommand();
@@ -2159,9 +2249,6 @@ internal sealed class SchemaMigrator
 
             CREATE INDEX IF NOT EXISTS ix_view_gallery_shares_profile
                 ON view_gallery_shares(profile_id, shared_at DESC, gallery_id);
-
-            CREATE INDEX IF NOT EXISTS ix_local_item_tags_tag
-                ON local_item_tags(tag, item_id);
 
             CREATE INDEX IF NOT EXISTS ix_local_item_annotations_lookup
                 ON local_item_annotations(annotation_kind, annotation_value, item_id);

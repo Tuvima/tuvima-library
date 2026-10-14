@@ -80,8 +80,8 @@ public sealed class ProfilePersonalMediaRepositoryTests : IDisposable
 
         await _media.AddTagAsync(person, "From Maya 2026-10-10", Now);
 
-        Assert.Equal(1, Count("SELECT COUNT(*) FROM local_item_tags WHERE item_id=@kept AND tag='From Maya 2026-10-10'", new { kept }));
-        Assert.Equal(0, Count("SELECT COUNT(*) FROM local_item_tags WHERE item_id=@trashed", new { trashed }));
+        Assert.Equal(1, Count("SELECT COUNT(*) FROM local_item_tag_links l JOIN tags t ON t.id=l.tag_id WHERE l.item_id=@kept AND t.name='From Maya 2026-10-10'", new { kept }));
+        Assert.Equal(0, Count("SELECT COUNT(*) FROM local_item_tag_links WHERE item_id=@trashed", new { trashed }));
     }
 
     [Fact]

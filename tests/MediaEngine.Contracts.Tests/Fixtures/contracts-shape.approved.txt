@@ -3661,6 +3661,14 @@ MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.LocalAssetDo
   TextTruncated: System.Boolean | nullability=not-null | accessors=get,init
   Encrypted: System.Boolean | nullability=not-null | accessors=get,init
   HasText: System.Boolean | nullability=not-null | accessors=get,init
+  DocumentDate: System.DateOnly? | nullability=nullable | accessors=get,init
+  Correspondent: MediaEngine.Contracts.LocalAssets.ViewCatalogueRefDto | nullability=nullable | accessors=get,init
+  DocumentType: MediaEngine.Contracts.LocalAssets.ViewCatalogueRefDto | nullability=nullable | accessors=get,init
+  ArchiveNumber: System.String | nullability=nullable | accessors=get,init
+  Notes: System.String | nullability=nullable | accessors=get,init
+  FilingState: System.String | nullability=not-null | accessors=get,init
+  Tags: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.LocalAssets.ViewCatalogueRefDto> | nullability=nullable | accessors=get,init
+  FieldValues: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.LocalAssets.ViewDocumentFieldValueDto> | nullability=nullable | accessors=get,init
 
 MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.LocalAssetDto
   Id: System.Guid | nullability=not-null | accessors=get,init
@@ -3764,6 +3772,19 @@ MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.UpdateLocalA
 
 MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.UpdateLocalAssetTagsRequest
   Tags: System.Collections.Generic.IReadOnlyCollection<System.String> | nullability=not-null | accessors=get,init
+  TagIds: System.Collections.Generic.IReadOnlyCollection<System.Guid> | nullability=nullable | accessors=get,init
+
+MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.UpdateViewDocumentDetailsRequest
+  Title: System.String | nullability=nullable | accessors=get,init
+  DocumentDate: System.DateOnly? | nullability=nullable | accessors=get,init
+  Correspondent: System.String | nullability=nullable | accessors=get,init
+  DocumentType: System.String | nullability=nullable | accessors=get,init
+  ArchiveNumber: System.String | nullability=nullable | accessors=get,init
+  Notes: System.String | nullability=nullable | accessors=get,init
+  FilingState: System.String | nullability=nullable | accessors=get,init
+  Tags: System.Collections.Generic.IReadOnlyCollection<System.String> | nullability=nullable | accessors=get,init
+  TagIds: System.Collections.Generic.IReadOnlyCollection<System.Guid> | nullability=nullable | accessors=get,init
+  FieldValues: System.Collections.Generic.IReadOnlyCollection<MediaEngine.Contracts.LocalAssets.ViewDocumentFieldValueRequest> | nullability=nullable | accessors=get,init
 
 MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.UpdateViewSourceRequest
   Name: System.String | nullability=not-null | accessors=get,init
@@ -3807,6 +3828,22 @@ MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewAtlasTim
   VideoCount: System.Int32 | nullability=not-null | accessors=get,init
   End: System.DateTimeOffset? | nullability=nullable | accessors=get,init
 
+MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewCatalogueEntryRequest
+  Name: System.String | nullability=not-null | accessors=get,init
+  Colour: System.String | nullability=nullable | accessors=get,init
+
+MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewCatalogueRefDto
+  Id: System.Guid | nullability=not-null | accessors=get,init
+  Name: System.String | nullability=not-null | accessors=get,init
+  Colour: System.String | nullability=nullable | accessors=get,init
+
+MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewCorrespondentDto
+  Id: System.Guid | nullability=not-null | accessors=get,init
+  Name: System.String | nullability=not-null | accessors=get,init
+  Colour: System.String | nullability=nullable | accessors=get,init
+  UsageCount: System.Int32 | nullability=not-null | accessors=get,init
+  CanManage: System.Boolean | nullability=not-null | accessors=get,init
+
 MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewDeviceAdminDto
   Id: System.Guid | nullability=not-null | accessors=get,init
   SourceId: System.Guid? | nullability=nullable | accessors=get,init
@@ -3827,11 +3864,69 @@ MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewDiscover
 
 MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewDiscoveryCapabilityStates
 
+MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewDocumentCatalogueDto
+  Tags: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.LocalAssets.ViewTagDto> | nullability=not-null | accessors=get,init
+  Correspondents: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.LocalAssets.ViewCorrespondentDto> | nullability=not-null | accessors=get,init
+  DocumentTypes: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.LocalAssets.ViewDocumentTypeDto> | nullability=not-null | accessors=get,init
+  Fields: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.LocalAssets.ViewDocumentFieldDto> | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewDocumentFieldDto
+  Id: System.Guid | nullability=not-null | accessors=get,init
+  Name: System.String | nullability=not-null | accessors=get,init
+  Kind: System.String | nullability=not-null | accessors=get,init
+  Choices: System.Collections.Generic.IReadOnlyList<System.String> | nullability=not-null | accessors=get,init
+  UsageCount: System.Int32 | nullability=not-null | accessors=get,init
+  CanManage: System.Boolean | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewDocumentFieldFilterDto
+  FieldId: System.Guid | nullability=not-null | accessors=get,init
+  Value: System.String | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewDocumentFieldKinds
+
+MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewDocumentFieldRequest
+  Name: System.String | nullability=not-null | accessors=get,init
+  Kind: System.String | nullability=not-null | accessors=get,init
+  Choices: System.Collections.Generic.IReadOnlyList<System.String> | nullability=nullable | accessors=get,init
+
+MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewDocumentFieldValueDto
+  FieldId: System.Guid | nullability=not-null | accessors=get,init
+  Name: System.String | nullability=not-null | accessors=get,init
+  Kind: System.String | nullability=not-null | accessors=get,init
+  TextValue: System.String | nullability=nullable | accessors=get,init
+  NumberValue: System.Double? | nullability=nullable | accessors=get,init
+  DateValue: System.DateOnly? | nullability=nullable | accessors=get,init
+  BoolValue: System.Boolean? | nullability=nullable | accessors=get,init
+
+MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewDocumentFieldValueRequest
+  FieldId: System.Guid | nullability=not-null | accessors=get,init
+  TextValue: System.String | nullability=nullable | accessors=get,init
+  NumberValue: System.Double? | nullability=nullable | accessors=get,init
+  DateValue: System.DateOnly? | nullability=nullable | accessors=get,init
+  BoolValue: System.Boolean? | nullability=nullable | accessors=get,init
+
+MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewDocumentFilingStates
+
+MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewDocumentFilterDto
+  TagIds: System.Collections.Generic.IReadOnlyList<System.Guid> | nullability=nullable | accessors=get,init
+  CorrespondentId: System.Guid? | nullability=nullable | accessors=get,init
+  DocumentTypeId: System.Guid? | nullability=nullable | accessors=get,init
+  DateFrom: System.DateOnly? | nullability=nullable | accessors=get,init
+  DateTo: System.DateOnly? | nullability=nullable | accessors=get,init
+  FilingState: System.String | nullability=nullable | accessors=get,init
+  Fields: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.LocalAssets.ViewDocumentFieldFilterDto> | nullability=nullable | accessors=get,init
+
 MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewDocumentTextDto
   ItemId: System.Guid | nullability=not-null | accessors=get,init
   Text: System.String | nullability=not-null | accessors=get,init
   ShownTruncated: System.Boolean | nullability=not-null | accessors=get,init
   DocumentInfo: MediaEngine.Contracts.LocalAssets.LocalAssetDocumentInfoDto | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewDocumentTypeDto
+  Id: System.Guid | nullability=not-null | accessors=get,init
+  Name: System.String | nullability=not-null | accessors=get,init
+  UsageCount: System.Int32 | nullability=not-null | accessors=get,init
+  CanManage: System.Boolean | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewFolderBreadcrumbDto
   Label: System.String | nullability=not-null | accessors=get,init
@@ -4177,6 +4272,13 @@ MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewSourceAd
   CreatedAt: System.DateTimeOffset | nullability=not-null | accessors=get,init
   UpdatedAt: System.DateTimeOffset | nullability=not-null | accessors=get,init
   IncludeInTimeline: System.Boolean | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewTagDto
+  Id: System.Guid | nullability=not-null | accessors=get,init
+  Name: System.String | nullability=not-null | accessors=get,init
+  Colour: System.String | nullability=nullable | accessors=get,init
+  UsageCount: System.Int32 | nullability=not-null | accessors=get,init
+  CanManage: System.Boolean | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewTimelineBucketDto
   Year: System.Int32 | nullability=not-null | accessors=get,init

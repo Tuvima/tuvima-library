@@ -74,7 +74,8 @@ public sealed record ViewAssetQueryOptions(
     bool WithoutLocation = false,
     string? PersonKey = null,
     DateTimeOffset? From = null,
-    DateTimeOffset? To = null);
+    DateTimeOffset? To = null,
+    ViewDocumentFilterDto? Documents = null);
 
 public sealed record ViewUploadResult(bool Success, ViewUploadResponseDto? Upload = null, string? ErrorMessage = null);
 

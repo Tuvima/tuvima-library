@@ -99,6 +99,36 @@ public sealed class ViewDocumentsPageTests : AsyncBunitContext
     }
 
     [Fact]
+    public void TheViewShellAloneLoadsTheViewSettingsAndThePageWaitsForThem()
+    {
+        var cut = Render<ViewDocumentsPage>();
+
+        cut.WaitForAssertion(() => Assert.Contains("No documents yet", cut.Markup, StringComparison.Ordinal));
+        Assert.Equal(1, _handler.Requests.Count(request => request.StartsWith("/view/scopes", StringComparison.Ordinal)));
+        Assert.Equal(1, _handler.Requests.Count(request => request.StartsWith("/view/preferences", StringComparison.Ordinal)));
+    }
+
+    [Fact]
+    public void ChoosingATagNarrowsTheListAndEachCardOffersEditingInYourOwnSpace()
+    {
+        _handler.Catalogue = "{\"tags\":[{\"id\":\"aaaaaaaa-0000-0000-0000-000000000001\",\"name\":\"Tax\",\"colour\":null,\"usage_count\":3,\"can_manage\":true}],"
+            + "\"correspondents\":[{\"id\":\"bbbbbbbb-0000-0000-0000-000000000001\",\"name\":\"Acme\",\"colour\":null,\"usage_count\":2,\"can_manage\":true}],\"document_types\":[],\"fields\":[]}";
+        _handler.Assets = "{\"items\":[" + Item("lease.pdf", "application/pdf", "Lease agreement") + "],\"next_cursor\":null,\"has_more\":false}";
+        var cut = Render<ViewDocumentsPage>();
+
+        cut.WaitForAssertion(() => Assert.Contains("Tax (3)", cut.Markup, StringComparison.Ordinal));
+        Assert.Contains("Acme (2)", cut.Markup, StringComparison.Ordinal);
+        Assert.NotEmpty(cut.FindAll("button.view-document-card__edit"));
+        Assert.Contains(_handler.Requests, request => request.StartsWith("/view/catalogue", StringComparison.Ordinal) && request.Contains("kind=document", StringComparison.Ordinal));
+
+        cut.Find("input[type=checkbox]").Change(true);
+
+        cut.WaitForAssertion(() => Assert.Contains(_handler.Requests, request =>
+            request.StartsWith("/view/assets", StringComparison.Ordinal)
+            && request.Contains("tag=aaaaaaaa-0000-0000-0000-000000000001", StringComparison.Ordinal)));
+    }
+
+    [Fact]
     public void NotesDescribeHowADocumentsWordsWereReadWithoutAnyErrors()
     {
         var scanned = Parse(Item("scan.pdf", "application/pdf", null, textSource: "ocr"));
@@ -165,6 +195,7 @@ public sealed class ViewDocumentsPageTests : AsyncBunitContext
         public List<string> Requests { get; } = [];
         public bool CanViewDocuments { get; set; } = true;
         public string Assets { get; set; } = "{\"items\":[],\"next_cursor\":null,\"has_more\":false}";
+        public string Catalogue { get; set; } = "{\"tags\":[],\"correspondents\":[],\"document_types\":[],\"fields\":[]}";
 
         public void Hold() => _gate = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
         public void Release() => _gate?.TrySetResult(true);
@@ -184,6 +215,7 @@ public sealed class ViewDocumentsPageTests : AsyncBunitContext
                 "/view/scopes" => "{\"scope\":{\"kind\":1,\"profile_id\":\"00000000-0000-0000-0000-000000000001\",\"was_fallback\":false},\"available_scopes\":[{\"kind\":1,\"profile_id\":\"00000000-0000-0000-0000-000000000001\",\"label\":\"Mine\",\"avatar_color\":null,\"avatar_url\":null}],\"can_browse_other_people\":false,\"can_view_documents\":"
                     + CanViewDocuments.ToString().ToLowerInvariant() + "}",
                 "/view/assets" => Assets,
+                "/view/catalogue" => Catalogue,
                 _ => "{\"owned\":[],\"shared_with_you\":[]}",
             };
             return new HttpResponseMessage(HttpStatusCode.OK)

@@ -58,11 +58,15 @@ public interface ILocalAssetRepository
         Guid itemId,
         LocalAssetLifecycleState state,
         CancellationToken ct = default);
+    /// <summary>
+    /// Replaces an item's tags by name with no viewer in the picture (ingest, imports and tests). Names that do not
+    /// exist yet are added to the global tag list with no creator. A person editing tags goes through
+    /// <see cref="IViewCatalogueRepository"/> instead, which checks what they may see.
+    /// </summary>
     Task ReplaceTagsAsync(
         Guid itemId,
         IReadOnlyCollection<string> tags,
         CancellationToken ct = default);
-    IReadOnlyList<string> GetTagSuggestions(Guid profileId, string? search, int limit, CancellationToken ct = default);
     Task ReplacePeopleAsync(Guid itemId, IReadOnlyCollection<string> people, CancellationToken ct = default);
     Task<bool> UpdateDescriptionAsync(Guid itemId, string? description, CancellationToken ct = default);
     Task<bool> UpdateCapturedAtAsync(Guid itemId, DateTimeOffset? capturedAt, bool resetToEmbedded, CancellationToken ct = default);
@@ -107,7 +111,24 @@ public sealed record LocalAssetTimelineQuery(
     DateTimeOffset? To = null,
     bool SortByAddedAt = false,
     DateTimeOffset? AddedBefore = null,
-    string? AddedAfterKey = null);
+    string? AddedAfterKey = null,
+    LocalAssetDocumentFilter? DocumentFilter = null);
+
+/// <summary>
+/// Organising conditions for document listings. Every listed tag must be present. The date range covers the
+/// document's own date, or the day it was added when it has none. Documents with no organising details count as
+/// filed.
+/// </summary>
+public sealed record LocalAssetDocumentFilter(
+    IReadOnlyList<Guid>? TagIds = null,
+    Guid? CorrespondentId = null,
+    Guid? DocumentTypeId = null,
+    DateOnly? DateFrom = null,
+    DateOnly? DateTo = null,
+    string? FilingState = null,
+    IReadOnlyList<LocalAssetFieldFilter>? Fields = null);
+
+public sealed record LocalAssetFieldFilter(Guid FieldId, string Value);
 
 public sealed record LocalAssetTimelineCursor(DateTimeOffset EffectiveAt, Guid ItemId);
 

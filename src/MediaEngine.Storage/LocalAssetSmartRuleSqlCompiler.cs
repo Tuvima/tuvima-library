@@ -56,7 +56,7 @@ public static class LocalAssetSmartRuleSqlCompiler
             "place" => Place(condition),
             "device" => Device(condition),
             "tags" => RelatedText(condition,
-                "SELECT 1 FROM local_item_tags lit WHERE lit.item_id = li.id", "lit.tag"),
+                "SELECT 1 FROM local_item_tag_links lit JOIN tags tg ON tg.id = lit.tag_id WHERE lit.item_id = li.id", "tg.name"),
             "favorite" => Boolean(condition, "li.favorite"),
             "owner" => Owner(condition),
             "source" => Source(condition),

@@ -31,10 +31,12 @@ public sealed class ProfilePersonalMediaRepository(IDatabaseConnection database)
         database.ExecuteWriteAsync((connection, transaction, token) =>
         {
             token.ThrowIfCancellationRequested();
+            // The tag joins the global list (credited to no one) if it is new, then every personal item links to it.
+            var tagId = ViewCatalogueSql.ResolveTagIds(connection, transaction, [tag], null, addedAt).Single();
             connection.Execute($"""
-                INSERT OR IGNORE INTO local_item_tags (item_id, tag, added_at)
-                SELECT id, @tag, @addedAt FROM ({PersonalItems} AND trashed_at IS NULL);
-                """, new { profileId, tag, addedAt }, transaction);
+                INSERT OR IGNORE INTO local_item_tag_links (item_id, tag_id, added_at)
+                SELECT id, @tagId, @addedAt FROM ({PersonalItems} AND trashed_at IS NULL);
+                """, new { profileId, tagId, addedAt }, transaction);
         }, ct);
 
     public Task<IReadOnlyList<ProfilePersonalFile>> GetPersonalFilesAsync(Guid profileId, CancellationToken ct = default) =>

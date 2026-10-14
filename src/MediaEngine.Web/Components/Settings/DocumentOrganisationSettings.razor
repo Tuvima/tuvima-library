@@ -1,0 +1,276 @@
+@namespace MediaEngine.Web.Components.Settings
+@using MediaEngine.Contracts.LocalAssets
+@inject IEngineApiClient ApiClient
+@inject IAppToastService Snackbar
+@inject IAppDialogService DialogService
+
+<AppCard Class="libraries-card">
+    <div class="document-access__heading">
+        <h3>Organising documents</h3>
+        <p>Tags, correspondents, document types and your own fields are one list for the whole server. You only see the names used on items you can open, plus the ones you made yourself. Only the person who made one, or an administrator, can rename or remove it. Removing a name never removes a document.</p>
+    </div>
+    @if (_loading)
+    {
+        <p role="status">Loading your lists…</p>
+    }
+    else if (_catalogue is null)
+    {
+        <AppAlert Tone="AppUiTone.Error">The lists could not be loaded. Documents may be turned off for your profile.</AppAlert>
+    }
+    else
+    {
+        <div class="view-documents-organise">
+            @Section("Tags", OrganiseKind.Tag, TagRows, "Add a tag", "Tag name")
+            @Section("Correspondents", OrganiseKind.Correspondent, CorrespondentRows, "Add a correspondent", "Correspondent name")
+            @Section("Document types", OrganiseKind.Type, TypeRows, "Add a document type", "Type name")
+            @Section("Custom fields", OrganiseKind.Field, FieldRows, "Add a field", "Field name")
+        </div>
+    }
+    @if (_error is not null)
+    {
+        <AppAlert Tone="AppUiTone.Error">@_error</AppAlert>
+    }
+</AppCard>
+
+@code {
+    [Parameter] public bool ReadOnly { get; set; }
+
+    private enum OrganiseKind { Tag, Correspondent, Type, Field }
+
+    private sealed record Row(Guid Id, string Name, int Count, bool CanManage, string? Detail, IReadOnlyList<string> Choices);
+
+    private static readonly IReadOnlyList<AppSelectOption> FieldKindOptions =
+    [
+        new(ViewDocumentFieldKinds.Text, "Text"),
+        new(ViewDocumentFieldKinds.Number, "Number"),
+        new(ViewDocumentFieldKinds.Date, "Date"),
+        new(ViewDocumentFieldKinds.Money, "Amount of money"),
+        new(ViewDocumentFieldKinds.Bool, "Yes or no"),
+        new(ViewDocumentFieldKinds.Choice, "One of a list"),
+    ];
+
+    private ViewDocumentCatalogueDto? _catalogue;
+    private bool _loading = true, _busy;
+    private string? _error;
+    private Guid? _editingId;
+    private string _editingName = string.Empty, _editingChoices = string.Empty;
+    private OrganiseKind? _adding;
+    private string _newName = string.Empty, _newKind = ViewDocumentFieldKinds.Text, _newChoices = string.Empty;
+
+    private IReadOnlyList<Row> TagRows => _catalogue?.Tags
+        .Select(tag => new Row(tag.Id, tag.Name, tag.UsageCount, tag.CanManage, null, [])).ToList() ?? [];
+
+    private IReadOnlyList<Row> CorrespondentRows => _catalogue?.Correspondents
+        .Select(item => new Row(item.Id, item.Name, item.UsageCount, item.CanManage, null, [])).ToList() ?? [];
+
+    private IReadOnlyList<Row> TypeRows => _catalogue?.DocumentTypes
+        .Select(item => new Row(item.Id, item.Name, item.UsageCount, item.CanManage, null, [])).ToList() ?? [];
+
+    private IReadOnlyList<Row> FieldRows => _catalogue?.Fields
+        .Select(item => new Row(item.Id, item.Name, item.UsageCount, item.CanManage,
+            FieldKindOptions.FirstOrDefault(option => option.Value == item.Kind)?.Label, item.Choices)).ToList() ?? [];
+
+    protected override async Task OnInitializedAsync() => await LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        _catalogue = await ApiClient.GetViewCatalogueAsync();
+        _loading = false;
+    }
+
+    private RenderFragment Section(string title, OrganiseKind kind, IReadOnlyList<Row> rows, string addLabel, string namePlaceholder) =>
+        @<section aria-label="@title">
+            <h4>@title</h4>
+            @if (rows.Count == 0)
+            {
+                <p class="view-documents-filters__hint">Nothing here yet.</p>
+            }
+            else
+            {
+                <ul class="view-documents-organise__list">
+                    @foreach (var row in rows)
+                    {
+                        <li class="view-documents-organise__row" @key="row.Id">
+                            @if (_editingId == row.Id)
+                            {
+                                <AppTextField Label="@($"Rename {row.Name}")" HideLabel="true" Value="@_editingName" ValueChanged="@(value => _editingName = value ?? string.Empty)" MaxLength="120" />
+                                @if (kind == OrganiseKind.Field && row.Choices.Count > 0)
+                                {
+                                    <AppTextField Label="Choices, separated by commas" HideLabel="true" Placeholder="Choices, separated by commas" Value="@_editingChoices" ValueChanged="@(value => _editingChoices = value ?? string.Empty)" />
+                                }
+                                <AppIconButton Icon="@AppMaterialIcons.Outlined.Check" Tooltip="Save" AriaLabel="@($"Save {row.Name}")" Disabled="@_busy" OnClick="@(() => SaveRenameAsync(kind, row))" />
+                                <AppIconButton Icon="@AppMaterialIcons.Outlined.Close" Tooltip="Cancel" AriaLabel="Cancel rename" OnClick="@(() => _editingId = null)" />
+                            }
+                            else
+                            {
+                                <span class="view-documents-organise__name">@row.Name@(row.Detail is null ? string.Empty : $" · {row.Detail}")@(row.Choices.Count == 0 ? string.Empty : $" ({string.Join(", ", row.Choices)})")</span>
+                                <span class="view-documents-organise__count">@(row.Count == 1 ? "1 item" : $"{row.Count} items")</span>
+                                @if (row.CanManage)
+                                {
+                                    <AppIconButton Icon="@AppMaterialIcons.Outlined.Edit" Tooltip="Rename" AriaLabel="@($"Rename {row.Name}")" Disabled="@(ReadOnly || _busy)" OnClick="@(() => BeginRename(row))" />
+                                    <AppIconButton Icon="@AppMaterialIcons.Outlined.Delete" Tooltip="Remove" AriaLabel="@($"Remove {row.Name}")" Disabled="@(ReadOnly || _busy)" OnClick="@(() => DeleteAsync(kind, row))" />
+                                }
+                            }
+                        </li>
+                    }
+                </ul>
+            }
+            @if (_adding == kind)
+            {
+                <form class="view-documents-organise__form" @onsubmit="@(() => CreateAsync(kind))" @onsubmit:preventDefault="true">
+                    <AppTextField Label="@namePlaceholder" Value="@_newName" ValueChanged="@(value => _newName = value ?? string.Empty)" MaxLength="120" AutoFocus="true" />
+                    @if (kind == OrganiseKind.Field)
+                    {
+                        <AppSelect Label="Kind" Value="@_newKind" ValueChanged="@(value => _newKind = value ?? ViewDocumentFieldKinds.Text)" Options="@FieldKindOptions" />
+                        @if (_newKind == ViewDocumentFieldKinds.Choice)
+                        {
+                            <AppTextField Label="Choices, separated by commas" Value="@_newChoices" ValueChanged="@(value => _newChoices = value ?? string.Empty)" />
+                        }
+                    }
+                    <AppButton Label="Add" ButtonStyle="AppButtonStyle.Filled" ButtonType="AppButtonType.Submit" Disabled="@(_busy || string.IsNullOrWhiteSpace(_newName))" />
+                    <AppButton Label="Cancel" ButtonStyle="AppButtonStyle.Text" OnClick="@(() => _adding = null)" />
+                </form>
+            }
+            else
+            {
+                <AppButton Label="@addLabel" StartIcon="@AppMaterialIcons.Outlined.Add" ButtonStyle="AppButtonStyle.Outlined" Disabled="@(ReadOnly || _busy)" OnClick="@(() => BeginAdd(kind))" />
+            }
+        </section>;
+
+    private void BeginRename(Row row)
+    {
+        _error = null;
+        _editingId = row.Id;
+        _editingName = row.Name;
+        _editingChoices = string.Join(", ", row.Choices);
+    }
+
+    private void BeginAdd(OrganiseKind kind)
+    {
+        _error = null;
+        _adding = kind;
+        _newName = string.Empty;
+        _newKind = ViewDocumentFieldKinds.Text;
+        _newChoices = string.Empty;
+    }
+
+    private static List<string> SplitChoices(string value) =>
+        value.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList();
+
+    private async Task CreateAsync(OrganiseKind kind)
+    {
+        if (_busy || string.IsNullOrWhiteSpace(_newName))
+        {
+            return;
+        }
+
+        _busy = true;
+        _error = null;
+        try
+        {
+            var entry = new ViewCatalogueEntryRequest(_newName.Trim());
+            var error = kind switch
+            {
+                OrganiseKind.Tag => (await ApiClient.CreateViewTagAsync(entry)).Error,
+                OrganiseKind.Correspondent => (await ApiClient.CreateViewCorrespondentAsync(entry)).Error,
+                OrganiseKind.Type => (await ApiClient.CreateViewDocumentTypeAsync(entry)).Error,
+                _ => (await ApiClient.CreateViewDocumentFieldAsync(new ViewDocumentFieldRequest(
+                    _newName.Trim(), _newKind, _newKind == ViewDocumentFieldKinds.Choice ? SplitChoices(_newChoices) : null))).Error,
+            };
+            if (error is not null)
+            {
+                _error = error;
+                return;
+            }
+
+            _adding = null;
+            await LoadAsync();
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private async Task SaveRenameAsync(OrganiseKind kind, Row row)
+    {
+        if (_busy || string.IsNullOrWhiteSpace(_editingName))
+        {
+            return;
+        }
+
+        _busy = true;
+        _error = null;
+        try
+        {
+            var entry = new ViewCatalogueEntryRequest(_editingName.Trim());
+            var error = kind switch
+            {
+                OrganiseKind.Tag => (await ApiClient.UpdateViewTagAsync(row.Id, entry)).Error,
+                OrganiseKind.Correspondent => (await ApiClient.UpdateViewCorrespondentAsync(row.Id, entry)).Error,
+                OrganiseKind.Type => (await ApiClient.UpdateViewDocumentTypeAsync(row.Id, entry)).Error,
+                _ => (await ApiClient.UpdateViewDocumentFieldAsync(row.Id, new ViewDocumentFieldRequest(
+                    _editingName.Trim(), FieldKindOf(row.Id), row.Choices.Count > 0 ? SplitChoices(_editingChoices) : null))).Error,
+            };
+            if (error is not null)
+            {
+                _error = error;
+                return;
+            }
+
+            _editingId = null;
+            await LoadAsync();
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private string FieldKindOf(Guid id) =>
+        _catalogue?.Fields.FirstOrDefault(item => item.Id == id)?.Kind ?? ViewDocumentFieldKinds.Text;
+
+    private async Task DeleteAsync(OrganiseKind kind, Row row)
+    {
+        if (_busy)
+        {
+            return;
+        }
+
+        var confirmed = await DialogService.ShowMessageBoxAsync(
+            $"Remove {row.Name}?",
+            row.Count == 0
+                ? "Nothing you can see uses it right now. If anything else does, it is taken off there too."
+                : $"It is used on {row.Count} {(row.Count == 1 ? "item" : "items")} you can see, and it is taken off every other item that carries it as well, including any you cannot see. Nothing else about them changes.",
+            "Remove", "Keep");
+        if (confirmed != true)
+        {
+            return;
+        }
+
+        _busy = true;
+        _error = null;
+        try
+        {
+            var result = kind switch
+            {
+                OrganiseKind.Tag => await ApiClient.DeleteViewTagAsync(row.Id),
+                OrganiseKind.Correspondent => await ApiClient.DeleteViewCorrespondentAsync(row.Id),
+                OrganiseKind.Type => await ApiClient.DeleteViewDocumentTypeAsync(row.Id),
+                _ => await ApiClient.DeleteViewDocumentFieldAsync(row.Id),
+            };
+            if (!result.Success)
+            {
+                _error = result.Error ?? $"{row.Name} could not be removed.";
+                return;
+            }
+
+            Snackbar.Add($"Removed {row.Name}.", AppSeverity.Success);
+            await LoadAsync();
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+}
