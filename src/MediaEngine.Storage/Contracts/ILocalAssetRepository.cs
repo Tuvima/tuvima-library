@@ -126,7 +126,9 @@ public sealed record LocalAssetDocumentFilter(
     DateOnly? DateFrom = null,
     DateOnly? DateTo = null,
     string? FilingState = null,
-    IReadOnlyList<LocalAssetFieldFilter>? Fields = null);
+    IReadOnlyList<LocalAssetFieldFilter>? Fields = null,
+    string? Sort = null,
+    int Offset = 0);
 
 public sealed record LocalAssetFieldFilter(Guid FieldId, string Value);
 

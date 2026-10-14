@@ -11,6 +11,8 @@
 @inject DeviceContextService Device
 @inject IAppToastService Snackbar
 @inject IAppDialogService DialogService
+@inject IJSRuntime Js
+@using Microsoft.JSInterop
 @implements IDisposable
 @namespace MediaEngine.Web.Components.Pages
 
@@ -27,7 +29,7 @@
                     <AppButton Label="Auto-filing rules" StartIcon="@AppMaterialIcons.Outlined.AutoAwesome" ButtonStyle="AppButtonStyle.Outlined" Href="/view/documents/rules" Class="view-documents-rules" />
                 }
 
-                @if (CanSelect && !_filter.InboxOnly)
+                @if (CanSelect)
                 {
                     <AppButton Label="@(_selectMode ? "Done" : "Select")" ButtonStyle="AppButtonStyle.Outlined" StartIcon="@AppMaterialIcons.Outlined.CheckCircleOutline" OnClick="ToggleSelectMode" Class="view-documents-select" />
                 }
@@ -56,9 +58,34 @@
                 <div class="view-documents-layout">
                 @if (!Device.IsPhone)
                 {
-                    <aside class="view-documents-rail"><ViewDocumentFilterRail Catalogue="_catalogue" State="_filter" InboxCount="_inboxCount" OnChanged="FilterChangedAsync" /></aside>
+                    <aside class="view-documents-rail"><ViewDocumentFilterRail Catalogue="_catalogue" State="_filter" InboxCount="_inboxCount" OnChanged="FilterChangedAsync"
+                                                                  ShowSavedViews="CanUseSavedViews" SavedViews="SavedViews" CanSaveView="CanSaveView" SavedViewsBusy="_savedViewsBusy"
+                                                                  OnApplyView="ApplySavedViewAsync" OnSaveView="SaveViewAsync" OnRenameView="RenameViewAsync" OnDeleteView="DeleteViewAsync"
+                                                                  OnSortChanged="SortChangedAsync" OnExport="@ExportCallback" Exporting="_exporting" ShowTrash="CanSelect" /></aside>
                 }
                 <div class="view-documents-results">
+                @if (_bulkReport is { } report)
+                {
+                    <AppAlert Tone="@(report.Failed + report.Skipped == 0 ? AppUiTone.Success : AppUiTone.Warning)" Class="view-documents-bulk-report">
+                        <strong>@ReportHeadline(report)</strong>
+                        @if (ReportReasons(report).Count > 0)
+                        {
+                            <ul class="view-documents-bulk-report__reasons">
+                                @foreach (var reason in ReportReasons(report))
+                                {
+                                    <li>@reason</li>
+                                }
+                            </ul>
+                        }
+                        <AppButton Label="Dismiss" ButtonStyle="AppButtonStyle.Text" OnClick="@(() => _bulkReport = null)" />
+                    </AppAlert>
+                }
+
+                @if (Device.IsPhone && _selectMode)
+                {
+                    <AppButton Label="Done selecting" ButtonStyle="AppButtonStyle.Outlined" StartIcon="@AppMaterialIcons.Outlined.CheckCircleOutline" OnClick="ToggleSelectMode" Class="view-documents-select" />
+                }
+
                 @if (_loading)
                 {
                     <AppPageState Kind="AppPageStateKind.Loading" Title="@(string.IsNullOrWhiteSpace(_search) ? "Loading documents" : "Searching documents")" />
@@ -72,6 +99,14 @@
                     @if (_filter.InboxOnly && !_filter.IsActive && string.IsNullOrWhiteSpace(_search))
                     {
                         <AppPageState Kind="AppPageStateKind.Empty" Icon="@AppMaterialIcons.Outlined.Description" Title="Your Inbox is empty" Message="New documents land here so you can file them in one tap." Class="view-documents-empty">
+                            <Actions>
+                                <AppButton Label="Show all documents" ButtonStyle="AppButtonStyle.Outlined" OnClick="ShowAllDocumentsAsync" />
+                            </Actions>
+                        </AppPageState>
+                    }
+                    else if (_filter.TrashOnly && !_filter.IsActive && string.IsNullOrWhiteSpace(_search))
+                    {
+                        <AppPageState Kind="AppPageStateKind.Empty" Icon="@AppMaterialIcons.Outlined.DeleteOutline" Title="The trash is empty" Message="Documents you move to the trash wait here. Their files are never deleted." Class="view-documents-empty">
                             <Actions>
                                 <AppButton Label="Show all documents" ButtonStyle="AppButtonStyle.Outlined" OnClick="ShowAllDocumentsAsync" />
                             </Actions>
@@ -103,7 +138,7 @@
                     <ul class="@ListClass" aria-label="Documents to file">
                         @foreach (var item in _items)
                         {
-                            <li class="view-inbox-card-item" @key="item.Id">
+                            <li class="view-inbox-card-item@(_selected.Contains(item.Id) ? " is-selected" : string.Empty)" @key="item.Id">
                                 <ViewDocumentInboxCard Item="item" ThumbnailUrl="@ThumbnailUrl(item)"
                                                        ShowPicture="@(ViewDocumentPresentation.HasPicture(item) && !_brokenThumbnails.Contains(item.Id))"
                                                        OnPictureError="@(() => _brokenThumbnails.Add(item.Id))"
@@ -112,9 +147,17 @@
                                                        Correspondents="@CorrespondentNames" DocumentTypes="@DocumentTypeNames" Tags="@TagNames"
                                                        OnFile="@(request => FileFromInboxAsync(item, request))"
                                                        OnOpen="@(() => Activate(item))" />
+                                @if (_selectMode)
+                                {
+                                    <AppCheckboxRow Label="@($"Select {ViewDocumentPresentation.DisplayTitle(item)}")" Value="@_selected.Contains(item.Id)" ValueChanged="@(_ => ToggleSelection(item.Id))" Class="view-document-card__select" />
+                                }
                             </li>
                         }
                     </ul>
+                    @if (_selected.Count > 0)
+                    {
+                        @BulkToolbar
+                    }
                     @if (_page.HasMore)
                     {
                         <AppButton Label="Load more" ButtonStyle="AppButtonStyle.Outlined" Disabled="@_loadingMore" Loading="@_loadingMore" OnClick="LoadMoreAsync" Class="view-documents-more" />
@@ -125,8 +168,10 @@
                     <ul class="@ListClass" aria-label="Documents">
                         @foreach (var item in _items)
                         {
-                            <li class="view-document-card@(_selected.Contains(item.Id) ? " is-selected" : string.Empty)" @key="item.Id">
-                                <AppNativeButton Type="button" Class="view-document-card__open" AriaLabel="@OpenLabel(item)" OnClick="@(_ => Activate(item))">
+                            <li class="view-document-card@(_selected.Contains(item.Id) ? " is-selected" : string.Empty)" @key="item.Id"
+                                @onpointerdown="@(() => PressStarted(item))" @onpointerup="PressEnded" @onpointercancel="PressEnded" @onpointerleave="PressEnded"
+                                @oncontextmenu="PressEnded" @oncontextmenu:preventDefault="@(Device.IsPhone && CanSelect)">
+                                <AppNativeButton Type="button" Class="view-document-card__open" AriaLabel="@OpenLabel(item)" OnClick="@(args => Activate(item, args))">
                                     <span class="view-document-card__thumb">
                                         @if (ViewDocumentPresentation.HasPicture(item) && !_brokenThumbnails.Contains(item.Id))
                                         {
@@ -173,7 +218,7 @@
                     </ul>
                     @if (_selected.Count > 0)
                     {
-                        <ViewSelectionToolbar Count="@_selected.Count" OnFavorite="FavoriteSelectionAsync" OnClear="@(() => _selected.Clear())" ShowTrash="false" />
+                        @BulkToolbar
                     }
                     @if (_page.HasMore)
                     {
@@ -193,7 +238,10 @@
         <div class="view-documents-sheet__body">
             @ScopePicker
             @LayoutPicker
-            <ViewDocumentFilterRail Catalogue="_catalogue" State="_filter" InboxCount="_inboxCount" OnChanged="FilterChangedAsync" />
+            <ViewDocumentFilterRail Catalogue="_catalogue" State="_filter" InboxCount="_inboxCount" OnChanged="FilterChangedAsync"
+                                    ShowSavedViews="CanUseSavedViews" SavedViews="SavedViews" CanSaveView="CanSaveView" SavedViewsBusy="_savedViewsBusy"
+                                    OnApplyView="ApplySavedViewAsync" OnSaveView="SaveViewAsync" OnRenameView="RenameViewAsync" OnDeleteView="DeleteViewAsync"
+                                    OnSortChanged="SortChangedAsync" OnExport="@ExportCallback" Exporting="_exporting" ShowTrash="CanSelect" />
             <AppButton Label="Done" ButtonStyle="AppButtonStyle.Filled" FullWidth="true" OnClick="@(() => _sheetOpen = false)" />
         </div>
     </AppDialogFrame>
@@ -222,6 +270,7 @@
 
 @code {
     private const int PageSize = 60;
+    private const int LongPressMilliseconds = 500;
     private static readonly AppDialogOptions SheetOptions = new() { Sheet = AppDialogSheetMode.Phone, BackdropClick = true, CloseOnEscapeKey = true };
     private static readonly IReadOnlyList<AppSelectOption> LayoutOptions =
         [new("grid", "Grid", AppMaterialIcons.Outlined.GridView), new("list", "List", AppMaterialIcons.Outlined.ViewList)];
@@ -240,6 +289,11 @@
     private string _search = string.Empty;
     private CancellationTokenSource? _searchCts;
     private int _loadVersion;
+    private bool _savedViewsBusy, _exporting, _bulkBusy;
+    private Guid? _selectionAnchor;
+    private ViewDocumentBulkResultDto? _bulkReport;
+    private CancellationTokenSource? _pressCts;
+    private Guid? _longPressed;
 
     // A profile that may not see Documents gets the plain "not available" page. Until the scopes load the answer is unknown.
     private bool CanBrowse => Workspace.Scopes?.CanViewDocuments != false;
@@ -249,6 +303,12 @@
     private bool CanEditDetails => !Device.IsPhone && !Device.IsTv && Workspace.ScopeKind == ViewScopeKind.Mine;
     // Filing from the Inbox is for your own space on a phone, tablet or desktop; a television only reads.
     private bool CanFileInbox => !Device.IsTv && Workspace.ScopeKind == ViewScopeKind.Mine;
+    // Saved views belong to the person's own documents on a screen that can pick and name them (not a television).
+    private bool CanUseSavedViews => !Device.IsTv && Workspace.ScopeKind == ViewScopeKind.Mine;
+    private bool CanSaveView => CanUseSavedViews && ViewDocumentSavedViews.CanSave(_filter, _search);
+    private EventCallback ExportCallback => Device.IsTv ? default : EventCallback.Factory.Create(this, ExportAsync);
+    private IReadOnlyList<ViewGalleryDto> SavedViews => Workspace.OwnedGalleries
+        .Where(gallery => gallery.Kind == ViewGalleryKind.Smart && ViewSmartGalleryRules.IsDocumentView(gallery.SmartRuleJson)).ToList();
     private IReadOnlyList<string> CorrespondentNames => (_catalogue?.Correspondents ?? []).Select(item => item.Name).ToList();
     private IReadOnlyList<string> DocumentTypeNames => (_catalogue?.DocumentTypes ?? []).Select(item => item.Name).ToList();
     private IReadOnlyList<string> TagNames => (_catalogue?.Tags ?? []).Select(item => item.Name).ToList();
@@ -267,7 +327,9 @@
         _policyKnown = true;
         if (CanBrowse)
         {
-            await Task.WhenAll(LoadAsync(), LoadCatalogueAsync(), LoadInboxCountAsync());
+            // The remembered sort has to be known before the first list is asked for.
+            _filter.Sort = await ApiClient.GetViewDocumentsSortAsync();
+            await Task.WhenAll(LoadAsync(), LoadCatalogueAsync(), LoadInboxCountAsync(), Workspace.LoadGalleriesAsync());
         }
         else
         {
@@ -278,7 +340,8 @@
     private void DeviceChanged() => _ = InvokeAsync(StateHasChanged);
 
     private ViewAssetQueryOptions Query(string? cursor = null) => new(
-        Workspace.ScopeKind, Workspace.ScopeProfileId, cursor, _search, ["document"], Limit: PageSize, Documents: _filter.ToDto());
+        Workspace.ScopeKind, Workspace.ScopeProfileId, cursor, _search, ["document"],
+        Lifecycle: _filter.TrashOnly ? "trashed" : "active", GalleryId: _filter.SavedViewId, Limit: PageSize, Documents: _filter.ToDto());
 
     private async Task LoadCatalogueAsync() =>
         _catalogue = await ApiClient.GetViewCatalogueAsync(Workspace.ScopeKind, Workspace.ScopeProfileId, ["document"]);
@@ -292,20 +355,176 @@
         }
     }
 
-    private async Task FilterChangedAsync()
-    {
-        if (_filter.InboxOnly)
-        {
-            _selectMode = false;
-        }
-
-        await LoadAsync();
-    }
+    private async Task FilterChangedAsync() => await LoadAsync();
 
     private async Task ShowAllDocumentsAsync()
     {
         _filter.InboxOnly = false;
+        _filter.TrashOnly = false;
         await LoadAsync();
+    }
+
+    private async Task SortChangedAsync(string? sort)
+    {
+        // Remembered for this profile so the next visit, on any device, opens in the same order.
+        if (!await ApiClient.SetViewDocumentsSortAsync(sort))
+        {
+            Snackbar.Add("Your sort could not be remembered. It still applies for now.", AppSeverity.Warning);
+        }
+    }
+
+    private async Task ApplySavedViewAsync(ViewGalleryDto view)
+    {
+        // The saved view becomes the starting point; the other filters narrow it, so the old ones are cleared first.
+        var sort = _filter.Sort;
+        if (_filter.SavedViewId == view.Id)
+        {
+            _filter.Clear();
+        }
+        else
+        {
+            _filter.Clear();
+            _filter.SavedViewId = view.Id;
+            _filter.SavedViewName = view.Name;
+        }
+
+        _filter.InboxOnly = false;
+        _filter.TrashOnly = false;
+        _filter.Sort = sort;
+        _search = string.Empty;
+        await LoadAsync();
+    }
+
+    private async Task SaveViewAsync(string name)
+    {
+        if (_savedViewsBusy)
+        {
+            return;
+        }
+
+        _savedViewsBusy = true;
+        try
+        {
+            var rule = ViewDocumentSavedViews.BuildRuleJson(_filter, _search, _catalogue);
+            var created = await ApiClient.CreateViewGalleryAsync(new ViewGalleryRequest(name, ViewGalleryKind.Smart, SmartRuleJson: rule));
+            if (created is null)
+            {
+                Snackbar.Add("This view could not be saved. Try again.", AppSeverity.Error);
+                return;
+            }
+
+            await Workspace.LoadGalleriesAsync(force: true);
+            Snackbar.Add($"Saved “{created.Name}”.", AppSeverity.Success);
+        }
+        catch (ArgumentException)
+        {
+            Snackbar.Add("This view is too large to save. Remove some filters and try again.", AppSeverity.Error);
+        }
+        finally
+        {
+            _savedViewsBusy = false;
+        }
+    }
+
+    private async Task RenameViewAsync((Guid Id, string Name) change)
+    {
+        var view = SavedViews.FirstOrDefault(value => value.Id == change.Id);
+        if (view is null || _savedViewsBusy)
+        {
+            return;
+        }
+
+        _savedViewsBusy = true;
+        try
+        {
+            var updated = await ApiClient.UpdateViewGalleryAsync(view.Id, new ViewGalleryRequest(
+                change.Name, view.Kind, view.Description, view.SmartRuleJson, view.CoverItemId, view.SortOrder, view.SoundtrackPlaylistId));
+            if (updated is null)
+            {
+                Snackbar.Add("This view could not be renamed. Try again.", AppSeverity.Error);
+                return;
+            }
+
+            if (_filter.SavedViewId == view.Id)
+            {
+                _filter.SavedViewName = updated.Name;
+            }
+
+            await Workspace.LoadGalleriesAsync(force: true);
+        }
+        finally
+        {
+            _savedViewsBusy = false;
+        }
+    }
+
+    private async Task DeleteViewAsync(ViewGalleryDto view)
+    {
+        if (_savedViewsBusy)
+        {
+            return;
+        }
+
+        var confirmed = await DialogService.ShowMessageBoxAsync(
+            $"Delete “{view.Name}”?",
+            "Only the saved view is removed. Your documents and their details stay exactly as they are.",
+            yesText: "Delete view",
+            cancelText: "Keep it");
+        if (confirmed != true)
+        {
+            return;
+        }
+
+        _savedViewsBusy = true;
+        try
+        {
+            if (!await ApiClient.DeleteViewGalleryAsync(view.Id))
+            {
+                Snackbar.Add("This view could not be deleted. Try again.", AppSeverity.Error);
+                return;
+            }
+
+            await Workspace.LoadGalleriesAsync(force: true);
+            if (_filter.SavedViewId == view.Id)
+            {
+                _filter.Clear();
+                await LoadAsync();
+            }
+        }
+        finally
+        {
+            _savedViewsBusy = false;
+        }
+    }
+
+    private async Task ExportAsync()
+    {
+        if (_exporting)
+        {
+            return;
+        }
+
+        _exporting = true;
+        try
+        {
+            var result = await ApiClient.ExportViewDocumentsAsync(Query() with { Limit = 500 });
+            if (!result.Success)
+            {
+                Snackbar.Add(result.Error ?? "The list could not be exported. Try again.", AppSeverity.Error);
+                return;
+            }
+
+            await using var stream = new MemoryStream(result.Bytes!, writable: false);
+            using var reference = new DotNetStreamReference(stream);
+            await Js.InvokeVoidAsync("tuvimaDownloads.fromStream", result.FileName, reference, "text/csv;charset=utf-8");
+            Snackbar.Add(result.Truncated
+                ? "Only the first 10,000 documents were exported. Narrow the list with filters or a saved view to export the rest."
+                : "Your list was exported.", result.Truncated ? AppSeverity.Warning : AppSeverity.Success);
+        }
+        finally
+        {
+            _exporting = false;
+        }
     }
 
     private async Task FileFromInboxAsync(LocalAssetDto item, FileViewDocumentFromInboxRequest request)
@@ -334,7 +553,8 @@
             Snackbar.Add("Filed.", AppSeverity.Success);
             // Names and tags the filing created, the count on this page and the badge on the Documents tab all change.
             await Task.WhenAll(LoadInboxCountAsync(), Workspace.RefreshDocumentInboxAsync(), LoadCatalogueAsync());
-            if (_items.Count == 0 && _page?.HasMore == true)
+            // A sorted list pages by position, so after a card leaves it the next page must be asked for again from the top.
+            if (_page?.HasMore == true && (_items.Count == 0 || !string.IsNullOrWhiteSpace(_filter.Sort)))
             {
                 await LoadAsync();
             }
@@ -498,6 +718,68 @@
         {
             _selected.Remove(id);
         }
+        else
+        {
+            _selectionAnchor = id;
+        }
+    }
+
+    // Shift and click selects everything between the last document picked and this one, on screens with a keyboard.
+    private void SelectRange(Guid id)
+    {
+        var from = _selectionAnchor is { } anchor ? _items.FindIndex(item => item.Id == anchor) : -1;
+        var to = _items.FindIndex(item => item.Id == id);
+        if (from < 0 || to < 0)
+        {
+            ToggleSelection(id);
+            return;
+        }
+
+        for (var index = Math.Min(from, to); index <= Math.Max(from, to); index++)
+        {
+            _selected.Add(_items[index].Id);
+        }
+    }
+
+    // On a phone there is no Select button: pressing and holding a document starts picking, then taps add more.
+    private void PressStarted(LocalAssetDto item)
+    {
+        if (!Device.IsPhone || !CanSelect || _selectMode)
+        {
+            return;
+        }
+
+        PressEnded();
+        var source = _pressCts = new CancellationTokenSource();
+        _ = HoldAsync(item, source.Token);
+    }
+
+    private async Task HoldAsync(LocalAssetDto item, CancellationToken token)
+    {
+        try
+        {
+            await Task.Delay(LongPressMilliseconds, token);
+        }
+        catch (OperationCanceledException)
+        {
+            // Released, scrolled or moved away before the hold finished: an ordinary tap, nothing to do.
+            return;
+        }
+
+        await InvokeAsync(() =>
+        {
+            _selectMode = true;
+            _longPressed = item.Id;
+            ToggleSelection(item.Id);
+            StateHasChanged();
+        });
+    }
+
+    private void PressEnded()
+    {
+        _pressCts?.Cancel();
+        _pressCts?.Dispose();
+        _pressCts = null;
     }
 
     private async Task FavoriteSelectionAsync()
@@ -515,16 +797,137 @@
         Snackbar.Add(failed == 0 ? "Added to favorites." : $"{failed} could not be added to favorites.", failed == 0 ? AppSeverity.Success : AppSeverity.Error);
     }
 
-    private void Activate(LocalAssetDto item)
+    private void Activate(LocalAssetDto item) => Activate(item, null);
+
+    private void Activate(LocalAssetDto item, MouseEventArgs? args)
     {
+        // The tap that ends a long press must not also open the document.
+        if (_longPressed == item.Id)
+        {
+            _longPressed = null;
+            return;
+        }
+
         if (_selectMode)
         {
-            ToggleSelection(item.Id);
+            if (args?.ShiftKey == true)
+            {
+                SelectRange(item.Id);
+            }
+            else
+            {
+                ToggleSelection(item.Id);
+            }
+
             return;
         }
 
         _active = item;
     }
+
+    private RenderFragment BulkToolbar => @<ViewSelectionToolbar Count="@_selected.Count" AriaLabel="Selected document actions"
+                                                                  OnFavorite="FavoriteSelectionAsync" OnClear="@(() => _selected.Clear())"
+                                                                  ShowTrash="@(!_filter.TrashOnly)" OnTrash="@(() => BulkAsync(ViewDocumentBulkOperations.MoveToTrash))"
+                                                                  ShowRestore="_filter.TrashOnly" OnRestore="@(() => BulkAsync(ViewDocumentBulkOperations.Restore))">
+        @if (!_filter.TrashOnly)
+        {
+            <AppOverflowMenu Label="Organise" Icon="@AppMaterialIcons.Outlined.LocalOffer" AriaLabel="Organise the selected documents"
+                             Class="view-selection-toolbar__gallery" Disabled="_bulkBusy" AnchorOrigin="AppOrigin.TopLeft" TransformOrigin="AppOrigin.BottomLeft">
+                <AppMenuItem Label="Add tags…" Icon="@AppMaterialIcons.Outlined.LocalOffer" OnClick="@(() => AskThenBulkAsync(ViewDocumentBulkOperations.AddTags))" />
+                <AppMenuItem Label="Remove tags…" Icon="@AppMaterialIcons.Outlined.RemoveCircleOutline" OnClick="@(() => AskThenBulkAsync(ViewDocumentBulkOperations.RemoveTags))" />
+                <AppMenuItem Label="Set correspondent…" Icon="@AppMaterialIcons.Outlined.PersonOutline" OnClick="@(() => AskThenBulkAsync(ViewDocumentBulkOperations.SetCorrespondent))" />
+                <AppMenuItem Label="Set type…" Icon="@AppMaterialIcons.Outlined.Description" OnClick="@(() => AskThenBulkAsync(ViewDocumentBulkOperations.SetDocumentType))" />
+                <AppMenuItem Label="Set date…" Icon="@AppMaterialIcons.Outlined.CalendarToday" OnClick="@(() => AskThenBulkAsync(ViewDocumentBulkOperations.SetDocumentDate))" />
+                <AppMenuItem Label="Mark filed" Icon="@AppMaterialIcons.Outlined.CheckCircleOutline" DividerBefore="true" OnClick="@(() => BulkAsync(ViewDocumentBulkOperations.MarkFiled))" />
+            </AppOverflowMenu>
+        }
+    </ViewSelectionToolbar>;
+
+    private async Task AskThenBulkAsync(string operation)
+    {
+        if (_selected.Count == 0)
+        {
+            return;
+        }
+
+        var dialog = await DialogService.ShowAsync<ViewDocumentBulkDialog>(string.Empty,
+            new AppDialogParameters<ViewDocumentBulkDialog>
+            {
+                { component => component.Operation, operation },
+                { component => component.Count, _selected.Count },
+                { component => component.Catalogue, _catalogue },
+            },
+            new AppDialogOptions { NoHeader = true, FullWidth = true, MaxWidth = AppMaxWidth.Small });
+        if (await dialog.Result is { Canceled: false, Data: ViewDocumentBulkRequest answer })
+        {
+            await BulkAsync(operation, answer);
+        }
+    }
+
+    // One call changes at most 500 documents, so a longer selection goes in batches and is reported as one result.
+    private async Task BulkAsync(string operation, ViewDocumentBulkRequest? answer = null)
+    {
+        if (_bulkBusy || _selected.Count == 0)
+        {
+            return;
+        }
+
+        _bulkBusy = true;
+        try
+        {
+            var ids = _selected.ToList();
+            var items = new List<ViewDocumentBulkItemResultDto>(ids.Count);
+            foreach (var batch in ids.Chunk(ViewDocumentBulkOperations.MaximumItems))
+            {
+                var request = (answer ?? new ViewDocumentBulkRequest([], operation)) with { ItemIds = batch, Operation = operation };
+                var result = await ApiClient.BulkEditViewDocumentsAsync(request);
+                if (!result.Success)
+                {
+                    Snackbar.Add(result.Error ?? "The change could not be made. Nothing was changed in the rest of the selection.", AppSeverity.Error);
+                    break;
+                }
+
+                items.AddRange(result.Value!.Items);
+            }
+
+            if (items.Count == 0)
+            {
+                return;
+            }
+
+            _bulkReport = new ViewDocumentBulkResultDto(
+                operation, items.Count,
+                items.Count(item => item.Status == ViewDocumentBulkStatuses.Done),
+                items.Count(item => item.Status == ViewDocumentBulkStatuses.Skipped),
+                items.Count(item => item.Status == ViewDocumentBulkStatuses.Failed), items);
+            _selectMode = false;
+            await Task.WhenAll(LoadAsync(), LoadCatalogueAsync(), LoadInboxCountAsync(), Workspace.RefreshDocumentInboxAsync());
+        }
+        finally
+        {
+            _bulkBusy = false;
+        }
+    }
+
+    private static string ReportHeadline(ViewDocumentBulkResultDto report)
+    {
+        var noun = report.Requested == 1 ? "document" : "documents";
+        return report.Done == report.Requested
+            ? $"Updated {(report.Requested == 1 ? "the" : "all")} {(report.Requested == 1 ? string.Empty : report.Requested + " ")}{noun}."
+            : report.Done == 0
+                ? $"Nothing was changed. {report.Requested} {noun} left as they were."
+                : $"Updated {report.Done} of {report.Requested} documents. The rest were left as they were.";
+    }
+
+    // The reasons, counted: "3 left as they were. In the Shared Library: only filing rules can change it."
+    private static IReadOnlyList<string> ReportReasons(ViewDocumentBulkResultDto report) => report.Items
+        .Where(item => item.Status != ViewDocumentBulkStatuses.Done)
+        .GroupBy(item => (item.Status, item.Reason ?? "No reason was given."))
+        .OrderByDescending(group => group.Count())
+        .Select(group => group.Key.Status == ViewDocumentBulkStatuses.Failed
+            ? $"{group.Count()} could not be changed. {group.Key.Item2}"
+            : $"{group.Count()} left as they were. {group.Key.Item2}")
+        .ToList();
 
     private void CloseActive() => _active = null;
 
@@ -565,6 +968,7 @@
     public void Dispose()
     {
         Device.OnChanged -= DeviceChanged;
+        PressEnded();
         _searchCts?.Cancel();
         _searchCts?.Dispose();
     }

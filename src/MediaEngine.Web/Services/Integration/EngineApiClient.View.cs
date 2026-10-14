@@ -67,23 +67,7 @@ public sealed partial class EngineApiClient
             AddQuery(query, "kind", kind);
         }
 
-        if (options.Documents is { } documents)
-        {
-            foreach (var tag in documents.TagIds ?? [])
-            {
-                AddQuery(query, "tag", tag.ToString("D"));
-            }
-
-            AddQuery(query, "correspondent", documents.CorrespondentId?.ToString("D"));
-            AddQuery(query, "docType", documents.DocumentTypeId?.ToString("D"));
-            AddQuery(query, "docFrom", documents.DateFrom?.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture));
-            AddQuery(query, "docTo", documents.DateTo?.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture));
-            AddQuery(query, "filing", documents.FilingState);
-            foreach (var field in documents.Fields ?? [])
-            {
-                AddQuery(query, "field", $"{field.FieldId:D}:{field.Value}");
-            }
-        }
+        AddDocumentFilterQuery(query, options.Documents);
 
         AddQuery(query, "favorite", options.FavoritesOnly ? "true" : null);
         AddQuery(query, "hidden", options.HiddenOnly ? "true" : null);
@@ -91,6 +75,31 @@ public sealed partial class EngineApiClient
         AddQuery(query, "galleryId", options.GalleryId?.ToString("D"));
         AddQuery(query, "limit", Math.Clamp(options.Limit, 1, 500).ToString(System.Globalization.CultureInfo.InvariantCulture));
         return GetAsync<ViewAssetTimelinePageDto>("GET /view/assets", $"/view/assets?{string.Join('&', query)}", ct: ct);
+    }
+
+    /// <summary>The Documents page's filters as the query values <c>GET /view/assets</c> and the export both read.</summary>
+    private static void AddDocumentFilterQuery(List<string> query, ViewDocumentFilterDto? documents)
+    {
+        if (documents is null)
+        {
+            return;
+        }
+
+        foreach (var tag in documents.TagIds ?? [])
+        {
+            AddQuery(query, "tag", tag.ToString("D"));
+        }
+
+        AddQuery(query, "correspondent", documents.CorrespondentId?.ToString("D"));
+        AddQuery(query, "docType", documents.DocumentTypeId?.ToString("D"));
+        AddQuery(query, "docFrom", documents.DateFrom?.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture));
+        AddQuery(query, "docTo", documents.DateTo?.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture));
+        AddQuery(query, "filing", documents.FilingState);
+        AddQuery(query, "docSort", documents.Sort);
+        foreach (var field in documents.Fields ?? [])
+        {
+            AddQuery(query, "field", $"{field.FieldId:D}:{field.Value}");
+        }
     }
 
     public Task<ViewTimelineIndexDto?> GetViewTimelineIndexAsync(ViewAssetQueryOptions options, CancellationToken ct = default)

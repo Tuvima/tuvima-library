@@ -1,0 +1,187 @@
+@using MediaEngine.Contracts.LocalAssets
+@inject IEngineApiClient ApiClient
+@namespace MediaEngine.Web.Components.Pages
+
+@* The one question a bulk edit asks before it runs: which tags, which correspondent, which type or which date. *@
+<AppDialogShell Title="@Title" Subtitle="@Subtitle" Size="Medium" OnClose="@(() => Dialog.Cancel())">
+    <ChildContent>
+        @if (!string.IsNullOrWhiteSpace(_error))
+        {
+            <AppAlert Tone="AppUiTone.Error">@_error</AppAlert>
+        }
+
+        <div class="view-document-details view-documents-bulk-dialog">
+            @switch (Operation)
+            {
+                case ViewDocumentBulkOperations.AddTags:
+                    <section class="view-document-details__group" aria-label="Tags to add">
+                        <AppTagInput Commit="CommitTagAsync" Search="SearchTagsAsync" />
+                        @if (_tags.Count > 0)
+                        {
+                            <ul class="view-document-details__chips" aria-label="Tags to add">
+                                @foreach (var tag in _tags)
+                                {
+                                    <li @key="tag"><AppChip Text="@tag" OnClose="@(() => _tags.Remove(tag))" /></li>
+                                }
+                            </ul>
+                        }
+                    </section>
+                    break;
+                case ViewDocumentBulkOperations.RemoveTags:
+                    <fieldset class="view-documents-filters__group">
+                        <legend>Tags to take off</legend>
+                        @if (UsedTags.Count == 0)
+                        {
+                            <p class="view-documents-filters__hint">None of your documents have tags yet.</p>
+                        }
+                        else
+                        {
+                            <ul class="view-documents-filters__list">
+                                @foreach (var tag in UsedTags)
+                                {
+                                    <li @key="tag.Id">
+                                        <AppCheckboxRow Label="@tag.Name" Value="@_tagIds.Contains(tag.Id)" ValueChanged="@(value => ToggleTag(tag.Id, value))" />
+                                    </li>
+                                }
+                            </ul>
+                        }
+                    </fieldset>
+                    break;
+                case ViewDocumentBulkOperations.SetCorrespondent:
+                    <AppAutocomplete TItem="string" Label="Correspondent" Value="@_name" ValueChanged="@(value => _name = value ?? string.Empty)"
+                                     SearchFunc="SearchCorrespondentsAsync" CoerceValue="true" ResetValueOnEmptyText="true" Placeholder="Who sent or issued these" Disabled="@_clear" />
+                    <AppCheckboxRow Label="Clear the correspondent instead" Value="@_clear" ValueChanged="@(value => _clear = value)" />
+                    break;
+                case ViewDocumentBulkOperations.SetDocumentType:
+                    <AppAutocomplete TItem="string" Label="Document type" Value="@_name" ValueChanged="@(value => _name = value ?? string.Empty)"
+                                     SearchFunc="SearchTypesAsync" CoerceValue="true" ResetValueOnEmptyText="true" Placeholder="Invoice, letter, contract…" Disabled="@_clear" />
+                    <AppCheckboxRow Label="Clear the type instead" Value="@_clear" ValueChanged="@(value => _clear = value)" />
+                    break;
+                case ViewDocumentBulkOperations.SetDocumentDate:
+                    <label class="view-document-details__field"><span>Date</span><AppNativeInput Type="date" Class="view-document-details__input" AriaLabel="Document date" Value="@_date" ValueChanged="@(value => _date = value?.ToString() ?? string.Empty)" Disabled="@_clear" /></label>
+                    <AppCheckboxRow Label="Clear the date instead" Value="@_clear" ValueChanged="@(value => _clear = value)" />
+                    break;
+            }
+        </div>
+    </ChildContent>
+    <FooterContent>
+        <AppButton Label="Cancel" ButtonStyle="AppButtonStyle.Text" OnClick="@(() => Dialog.Cancel())" />
+        <AppButton Label="@($"Apply to {Count} {(Count == 1 ? "document" : "documents")}")" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" OnClick="Apply" />
+    </FooterContent>
+</AppDialogShell>
+
+@code {
+    [CascadingParameter] private IAppDialogContext Dialog { get; set; } = default!;
+
+    /// <summary>One of <see cref="ViewDocumentBulkOperations"/> that needs an answer: tags, correspondent, type or date.</summary>
+    [Parameter, EditorRequired] public string Operation { get; set; } = ViewDocumentBulkOperations.AddTags;
+
+    [Parameter] public int Count { get; set; }
+    [Parameter] public ViewDocumentCatalogueDto? Catalogue { get; set; }
+
+    private readonly List<string> _tags = [];
+    private readonly HashSet<Guid> _tagIds = [];
+    private string _name = string.Empty, _date = string.Empty;
+    private bool _clear;
+    private string? _error;
+
+    private string Title => Operation switch
+    {
+        ViewDocumentBulkOperations.AddTags => "Add tags",
+        ViewDocumentBulkOperations.RemoveTags => "Remove tags",
+        ViewDocumentBulkOperations.SetCorrespondent => "Set correspondent",
+        ViewDocumentBulkOperations.SetDocumentType => "Set document type",
+        _ => "Set document date",
+    };
+
+    private string Subtitle => $"{Count} {(Count == 1 ? "document" : "documents")} selected";
+
+    private IReadOnlyList<ViewTagDto> UsedTags => (Catalogue?.Tags ?? []).Where(tag => tag.UsageCount > 0).ToList();
+
+    private void ToggleTag(Guid id, bool selected)
+    {
+        if (selected)
+        {
+            _tagIds.Add(id);
+        }
+        else
+        {
+            _tagIds.Remove(id);
+        }
+    }
+
+    private async Task<IEnumerable<string>> SearchTagsAsync(string? search, CancellationToken ct) =>
+        (await ApiClient.GetViewTagSuggestionsAsync(search, 30, ct)).Where(tag => !_tags.Contains(tag, StringComparer.OrdinalIgnoreCase));
+
+    private Task<IEnumerable<string>> SearchCorrespondentsAsync(string? search, CancellationToken ct) =>
+        Task.FromResult(Matching(Catalogue?.Correspondents.Select(item => item.Name), search));
+
+    private Task<IEnumerable<string>> SearchTypesAsync(string? search, CancellationToken ct) =>
+        Task.FromResult(Matching(Catalogue?.DocumentTypes.Select(item => item.Name), search));
+
+    private static IEnumerable<string> Matching(IEnumerable<string>? names, string? search) =>
+        (names ?? []).Where(name => string.IsNullOrWhiteSpace(search) || name.Contains(search.Trim(), StringComparison.OrdinalIgnoreCase)).Take(20).ToList();
+
+    private Task<bool> CommitTagAsync(string tag)
+    {
+        tag = tag.Trim();
+        if (tag.Length > 0 && !_tags.Contains(tag, StringComparer.OrdinalIgnoreCase))
+        {
+            _tags.Add(tag);
+        }
+
+        return Task.FromResult(true);
+    }
+
+    private void Apply()
+    {
+        var request = BuildRequest(out _error);
+        if (request is not null)
+        {
+            Dialog.Close(AppDialogResult.Ok(request));
+        }
+    }
+
+    /// <summary>The answer as a request with no documents yet (the page adds the selection), or null with the reason.</summary>
+    private ViewDocumentBulkRequest? BuildRequest(out string? problem)
+    {
+        problem = null;
+        switch (Operation)
+        {
+            case ViewDocumentBulkOperations.AddTags when _tags.Count > 0:
+                return new ViewDocumentBulkRequest([], Operation, Tags: _tags.ToList());
+            case ViewDocumentBulkOperations.AddTags:
+                problem = "Add at least one tag first.";
+                return null;
+            case ViewDocumentBulkOperations.RemoveTags when _tagIds.Count > 0:
+                return new ViewDocumentBulkRequest([], Operation, TagIds: _tagIds.ToList());
+            case ViewDocumentBulkOperations.RemoveTags:
+                problem = "Choose at least one tag to take off.";
+                return null;
+            case ViewDocumentBulkOperations.SetCorrespondent or ViewDocumentBulkOperations.SetDocumentType:
+                if (!_clear && string.IsNullOrWhiteSpace(_name))
+                {
+                    problem = "Choose a name, or tick the box to clear it.";
+                    return null;
+                }
+
+                return Operation == ViewDocumentBulkOperations.SetCorrespondent
+                    ? new ViewDocumentBulkRequest([], Operation, Correspondent: _clear ? null : _name.Trim(), Clear: _clear)
+                    : new ViewDocumentBulkRequest([], Operation, DocumentType: _clear ? null : _name.Trim(), Clear: _clear);
+            default:
+                if (_clear)
+                {
+                    return new ViewDocumentBulkRequest([], Operation, Clear: true);
+                }
+
+                if (!DateOnly.TryParseExact(_date, "yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture,
+                        System.Globalization.DateTimeStyles.None, out var date))
+                {
+                    problem = "Choose a date, or tick the box to clear it.";
+                    return null;
+                }
+
+                return new ViewDocumentBulkRequest([], Operation, DocumentDate: date);
+        }
+    }
+}

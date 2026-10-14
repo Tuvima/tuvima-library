@@ -1656,6 +1656,7 @@ internal sealed class SchemaMigrator
 
         AddColumnIfMissing(conn, "doc_item_details", "suggestions_json", "ALTER TABLE doc_item_details ADD COLUMN suggestions_json TEXT CHECK (suggestions_json IS NULL OR json_valid(suggestions_json));");
         AddColumnIfMissing(conn, "profile_view_preferences", "viewer_info_open", "ALTER TABLE profile_view_preferences ADD COLUMN viewer_info_open INTEGER NOT NULL DEFAULT 1;");
+        AddColumnIfMissing(conn, "profile_view_preferences", "documents_sort", "ALTER TABLE profile_view_preferences ADD COLUMN documents_sort TEXT CHECK (documents_sort IS NULL OR documents_sort IN ('added', 'document_date', 'title', 'correspondent'));");
         var addedEmbeddedCapturedAt = AddColumnIfMissing(conn, "local_items", "embedded_captured_at", "ALTER TABLE local_items ADD COLUMN embedded_captured_at TEXT;");
         AddColumnIfMissing(conn, "local_items", "captured_at_user_override", "ALTER TABLE local_items ADD COLUMN captured_at_user_override INTEGER NOT NULL DEFAULT 0;");
         if (addedEmbeddedCapturedAt)

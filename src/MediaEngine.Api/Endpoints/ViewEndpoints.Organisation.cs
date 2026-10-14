@@ -525,7 +525,7 @@ public static partial class ViewEndpoints
     /// <summary>Turns the Documents page's query values into one filter, or null when none were sent.</summary>
     internal static LocalAssetDocumentFilter? BuildDocumentFilter(
         Guid[]? tags, Guid? correspondent, Guid? documentType, DateOnly? from, DateOnly? to,
-        string? filingState, string[]? fields)
+        string? filingState, string[]? fields, string? sort = null)
     {
         var fieldFilters = new List<LocalAssetFieldFilter>();
         foreach (var field in fields ?? [])
@@ -540,13 +540,14 @@ public static partial class ViewEndpoints
         }
 
         if ((tags is null || tags.Length == 0) && correspondent is null && documentType is null && from is null
-            && to is null && string.IsNullOrWhiteSpace(filingState) && fieldFilters.Count == 0)
+            && to is null && string.IsNullOrWhiteSpace(filingState) && fieldFilters.Count == 0 && string.IsNullOrWhiteSpace(sort))
         {
             return null;
         }
 
         return new LocalAssetDocumentFilter(
             tags is { Length: > 0 } ? tags : null, correspondent, documentType, from, to,
-            string.IsNullOrWhiteSpace(filingState) ? null : filingState, fieldFilters.Count == 0 ? null : fieldFilters);
+            string.IsNullOrWhiteSpace(filingState) ? null : filingState, fieldFilters.Count == 0 ? null : fieldFilters,
+            string.IsNullOrWhiteSpace(sort) ? null : sort.Trim().ToLowerInvariant());
     }
 }

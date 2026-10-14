@@ -20,6 +20,7 @@ public static class ViewRuleCatalog
             new("discovery", "People & places", AppMaterialIcons.Outlined.People),
             new("capture", "Capture", AppMaterialIcons.Outlined.PhotoCamera),
             new("library", "My library", AppMaterialIcons.Outlined.Inventory2),
+            new("documents", "Documents", AppMaterialIcons.Outlined.Description),
         ],
         SortFields =
         [
@@ -37,10 +38,18 @@ public static class ViewRuleCatalog
             Lookup("discovery", "people", "People", AppMaterialIcons.Outlined.People, "view.people", "people-metadata"),
             Lookup("discovery", "place", "Place", AppMaterialIcons.Outlined.Place, "view.places", "place-metadata"),
             Lookup("library", "device", "Device", AppMaterialIcons.Outlined.Devices, "view.devices"),
-            Lookup("library", "tags", "Tags", AppMaterialIcons.Outlined.LocalOffer, "view.tags"),
+            new("library", "tags", "Tags", "Filter by tags metadata.", AppMaterialIcons.Outlined.LocalOffer,
+                [RuleOperators.Is, RuleOperators.IsAny, new("all", "has all of"), RuleOperators.IsNot, RuleOperators.Known, RuleOperators.Unknown],
+                new(RuleValueProviderKind.DeferredLookup, "view.tags", SearchPlaceholder: "Search tags…")),
             Boolean("library", "favorite", "Favorite", AppMaterialIcons.Outlined.FavoriteBorder),
             Lookup("library", "owner", "Owner", AppMaterialIcons.Outlined.PersonOutline, "view.owners"),
             Lookup("library", "source", "Source", AppMaterialIcons.Outlined.FolderOpen, "view.sources"),
+            Lookup("documents", "correspondent", "Correspondent", AppMaterialIcons.Outlined.PersonOutline, "view.correspondents"),
+            Lookup("documents", "document_type", "Document type", AppMaterialIcons.Outlined.Description, "view.document-types"),
+            Text("documents", "document_date", "Document date", AppMaterialIcons.Outlined.CalendarToday,
+                [new("eq", "is on"), new("gt", "is after"), new("lt", "is before"), new("between", "is between"), new("within", "is within the range"), RuleOperators.Known, RuleOperators.Unknown]),
+            Choice("documents", "filing_state", "Filing state", AppMaterialIcons.Outlined.Inbox, [new("inbox", "In the Inbox"), new("filed", "Filed")]),
+            Text("documents", "text_contains", "Words in the document", AppMaterialIcons.Outlined.Search, [RuleOperators.Contains]),
         ],
     };
 

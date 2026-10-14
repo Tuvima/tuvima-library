@@ -52,9 +52,10 @@ public sealed class ViewDocumentInboxUiTests : AsyncBunitContext
 
         cut.WaitForAssertion(() => Assert.Contains("Inbox (3 to file)", cut.Find(".view-documents-rail").TextContent, StringComparison.Ordinal));
         var choices = cut.FindAll(".view-documents-rail [role=radio]");
-        Assert.Equal(2, choices.Count);
+        Assert.Equal(3, choices.Count);
         Assert.StartsWith("Inbox", choices[0].TextContent.Trim(), StringComparison.Ordinal);
         Assert.Equal("All documents", choices[1].TextContent.Trim());
+        Assert.Equal("Trash", choices[2].TextContent.Trim());
         Assert.Equal("false", choices[0].GetAttribute("aria-checked"));
         Assert.Equal("true", choices[1].GetAttribute("aria-checked"));
         Assert.Empty(cut.FindAll(".view-inbox-card"));

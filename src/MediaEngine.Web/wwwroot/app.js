@@ -3255,9 +3255,9 @@ window.listenUi = {
 };
 
 window.tuvimaDownloads = {
-    fromStream: async function (fileName, streamReference) {
+    fromStream: async function (fileName, streamReference, contentType) {
         const buffer = await streamReference.arrayBuffer();
-        const blob = new Blob([buffer], { type: 'application/zip' });
+        const blob = new Blob([buffer], { type: contentType || 'application/zip' });
         const url = URL.createObjectURL(blob);
         const anchor = document.createElement('a');
         anchor.href = url;

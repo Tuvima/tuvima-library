@@ -27,6 +27,27 @@ public static class ViewDocumentFilingStates
     public const string Filed = "filed";
 }
 
+/// <summary>
+/// How the Documents list is ordered. Leaving the sort out keeps the usual order (newest date first). Stored and sent
+/// as these exact lowercase words.
+/// </summary>
+public static class ViewDocumentSorts
+{
+    /// <summary>The day the document was added, newest first.</summary>
+    public const string Added = "added";
+
+    /// <summary>The document's own date (or the day it was added when it has none), newest first.</summary>
+    public const string DocumentDate = "document_date";
+
+    /// <summary>Title from A to Z, falling back to the file name.</summary>
+    public const string Title = "title";
+
+    /// <summary>Correspondent from A to Z; documents with no correspondent last.</summary>
+    public const string Correspondent = "correspondent";
+
+    public static readonly IReadOnlyList<string> All = [Added, DocumentDate, Title, Correspondent];
+}
+
 /// <summary>A tag, correspondent or document type as attached to one item: the name plus enough to filter by.</summary>
 public sealed record ViewCatalogueRefDto(
     [property: JsonPropertyName("id")] Guid Id,
@@ -139,4 +160,5 @@ public sealed record ViewDocumentFilterDto(
     [property: JsonPropertyName("date_from")] DateOnly? DateFrom = null,
     [property: JsonPropertyName("date_to")] DateOnly? DateTo = null,
     [property: JsonPropertyName("filing_state")] string? FilingState = null,
-    [property: JsonPropertyName("fields")] IReadOnlyList<ViewDocumentFieldFilterDto>? Fields = null);
+    [property: JsonPropertyName("fields")] IReadOnlyList<ViewDocumentFieldFilterDto>? Fields = null,
+    [property: JsonPropertyName("sort")] string? Sort = null);

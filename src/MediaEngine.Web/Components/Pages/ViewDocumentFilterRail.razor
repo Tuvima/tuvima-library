@@ -4,6 +4,12 @@
 
 @* The Documents filters: tags, correspondent, type, date range and custom field values. Counts are the viewer's own. *@
 <section class="view-documents-filters" aria-label="Filter documents">
+    @if (ShowSavedViews)
+    {
+        <ViewDocumentSavedViewsPanel Views="SavedViews" ActiveId="State.SavedViewId" CanSave="CanSaveView" Busy="SavedViewsBusy"
+                                     OnApply="OnApplyView" OnSave="OnSaveView" OnRename="OnRenameView" OnDelete="OnDeleteView" />
+    }
+
     <header class="view-documents-filters__header">
         <h2>Filters</h2>
         @if (State.IsActive)
@@ -13,8 +19,23 @@
     </header>
 
     <div class="view-documents-mode" role="radiogroup" aria-label="Documents to show">
-        <AppNativeButton Type="button" role="radio" aria-checked="@(State.InboxOnly ? "true" : "false")" Class="@ModeClass(State.InboxOnly)" OnClick="@(_ => SetInboxOnlyAsync(true))">@InboxLabel</AppNativeButton>
-        <AppNativeButton Type="button" role="radio" aria-checked="@(State.InboxOnly ? "false" : "true")" Class="@ModeClass(!State.InboxOnly)" OnClick="@(_ => SetInboxOnlyAsync(false))">All documents</AppNativeButton>
+        <AppNativeButton Type="button" role="radio" aria-checked="@(State.InboxOnly ? "true" : "false")" Class="@ModeClass(State.InboxOnly)" OnClick="@(_ => SetModeAsync(inbox: true, trash: false))">@InboxLabel</AppNativeButton>
+        <AppNativeButton Type="button" role="radio" aria-checked="@(!State.InboxOnly && !State.TrashOnly ? "true" : "false")" Class="@ModeClass(!State.InboxOnly && !State.TrashOnly)" OnClick="@(_ => SetModeAsync(inbox: false, trash: false))">All documents</AppNativeButton>
+        @if (ShowTrash)
+        {
+            <AppNativeButton Type="button" role="radio" aria-checked="@(State.TrashOnly ? "true" : "false")" Class="@ModeClass(State.TrashOnly)" OnClick="@(_ => SetModeAsync(inbox: false, trash: true))">Trash</AppNativeButton>
+        }
+    </div>
+
+    <div class="view-documents-filters__group">
+        <span class="view-documents-filters__label">Sort by</span>
+        <AppNativeSelect aria-label="Sort documents" Value="@(State.Sort ?? string.Empty)" OnChange="SortChangedAsync">
+            <option value="">Newest date first</option>
+            <option value="@ViewDocumentSorts.Added">Date added</option>
+            <option value="@ViewDocumentSorts.DocumentDate">Document date</option>
+            <option value="@ViewDocumentSorts.Title">Title (A to Z)</option>
+            <option value="@ViewDocumentSorts.Correspondent">Correspondent (A to Z)</option>
+        </AppNativeSelect>
     </div>
 
     @if (Catalogue is null)
@@ -92,11 +113,25 @@
 
     <fieldset class="view-documents-filters__group view-documents-filters__dates">
         <legend>Date</legend>
+        <AppNativeSelect aria-label="Document date range" Value="@(State.DatePreset ?? string.Empty)" OnChange="DatePresetChangedAsync">
+            <option value="">Any time or custom dates</option>
+            @foreach (var preset in ViewDocumentSavedViews.DatePresets)
+            {
+                <option value="@preset.Value">@preset.Label</option>
+            }
+        </AppNativeSelect>
         <span class="view-documents-filters__label">From</span>
         <AppNativeInput Type="date" Class="view-documents-filters__input" AriaLabel="Documents dated from" Value="@DateText(State.DateFrom)" ValueChanged="@(value => DateChangedAsync(value, true))" />
         <span class="view-documents-filters__label">To</span>
         <AppNativeInput Type="date" Class="view-documents-filters__input" AriaLabel="Documents dated up to" Value="@DateText(State.DateTo)" ValueChanged="@(value => DateChangedAsync(value, false))" />
     </fieldset>
+
+    @if (OnExport.HasDelegate)
+    {
+        <div class="view-documents-filters__group">
+            <AppButton Label="Export list (CSV)" StartIcon="@AppMaterialIcons.Outlined.Download" ButtonStyle="AppButtonStyle.Outlined" Disabled="@Exporting" Loading="@Exporting" OnClick="OnExport" Class="view-documents-export" />
+        </div>
+    }
 </section>
 
 @code {
@@ -109,18 +144,65 @@
     /// <summary>How many documents wait in the Inbox of the scope being looked at; null while it is not known.</summary>
     [Parameter] public int? InboxCount { get; set; }
 
+    /// <summary>The person's saved Documents views, shown at the top of the rail.</summary>
+    [Parameter] public IReadOnlyList<ViewGalleryDto> SavedViews { get; set; } = [];
+
+    /// <summary>False where saving and applying views is not offered (another person's documents, the Shared Library).</summary>
+    [Parameter] public bool ShowSavedViews { get; set; }
+
+    /// <summary>True when the list has filters or search words worth saving as a view.</summary>
+    [Parameter] public bool CanSaveView { get; set; }
+
+    [Parameter] public bool SavedViewsBusy { get; set; }
+    [Parameter] public EventCallback<ViewGalleryDto> OnApplyView { get; set; }
+    [Parameter] public EventCallback<string> OnSaveView { get; set; }
+    [Parameter] public EventCallback<(Guid Id, string Name)> OnRenameView { get; set; }
+    [Parameter] public EventCallback<ViewGalleryDto> OnDeleteView { get; set; }
+
+    /// <summary>Raised when the person picks a different sort; the page remembers it for their profile.</summary>
+    [Parameter] public EventCallback<string?> OnSortChanged { get; set; }
+
+    /// <summary>The Export list (CSV) button is shown only when the page can export.</summary>
+    [Parameter] public EventCallback OnExport { get; set; }
+    [Parameter] public bool Exporting { get; set; }
+
+    /// <summary>Whether the Trash view is offered (your own documents only).</summary>
+    [Parameter] public bool ShowTrash { get; set; }
+
     private string InboxLabel => InboxCount is { } count ? $"Inbox ({count} to file)" : "Inbox";
 
     private static string ModeClass(bool selected) => selected ? "view-documents-mode__option is-selected" : "view-documents-mode__option";
 
-    private async Task SetInboxOnlyAsync(bool inboxOnly)
+    private async Task SetModeAsync(bool inbox, bool trash)
     {
-        if (State.InboxOnly == inboxOnly)
+        if (State.InboxOnly == inbox && State.TrashOnly == trash)
         {
             return;
         }
 
-        State.InboxOnly = inboxOnly;
+        State.InboxOnly = inbox;
+        State.TrashOnly = trash;
+        await OnChanged.InvokeAsync();
+    }
+
+    private async Task SortChangedAsync(ChangeEventArgs args)
+    {
+        var sort = string.IsNullOrWhiteSpace(args.Value?.ToString()) ? null : args.Value!.ToString();
+        State.Sort = sort;
+        await OnSortChanged.InvokeAsync(sort);
+        await OnChanged.InvokeAsync();
+    }
+
+    private async Task DatePresetChangedAsync(ChangeEventArgs args)
+    {
+        var preset = string.IsNullOrWhiteSpace(args.Value?.ToString()) ? null : args.Value!.ToString();
+        State.DatePreset = preset;
+        if (preset is not null)
+        {
+            State.DateFrom = null;
+            State.DateTo = null;
+        }
+
         await OnChanged.InvokeAsync();
     }
 
@@ -178,6 +260,11 @@
     {
         DateOnly? parsed = DateOnly.TryParseExact(value?.ToString(), "yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture,
             System.Globalization.DateTimeStyles.None, out var date) ? date : null;
+        if (parsed is not null)
+        {
+            State.DatePreset = null;
+        }
+
         if (from)
         {
             State.DateFrom = parsed;

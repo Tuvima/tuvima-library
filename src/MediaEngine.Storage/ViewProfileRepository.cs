@@ -85,7 +85,7 @@ public sealed class ViewProfileRepository(IDatabaseConnection database) : IViewP
             SELECT profile_id AS ProfileId, last_scope_kind AS LastScopeKind,
                    last_scope_profile_id AS LastScopeProfileId,
                    timeline_density AS TimelineDensity, viewer_info_open AS ViewerInfoOpen,
-                   updated_at AS UpdatedAt
+                   documents_sort AS DocumentsSort, updated_at AS UpdatedAt
               FROM profile_view_preferences
              WHERE profile_id = @profileId;
             """, new { profileId }, cancellationToken: ct));
@@ -142,6 +142,28 @@ public sealed class ViewProfileRepository(IDatabaseConnection database) : IViewP
         }, ct);
     }
 
+    public Task<bool> SaveDocumentsSortAsync(Guid profileId, string? sort, CancellationToken ct = default)
+    {
+        ValidateId(profileId, nameof(profileId));
+        return database.ExecuteWriteAsync((connection, transaction, token) =>
+        {
+            token.ThrowIfCancellationRequested();
+            if (!ProfileExists(connection, transaction, profileId, token))
+            {
+                return false;
+            }
+
+            connection.Execute(new CommandDefinition("""
+                INSERT INTO profile_view_preferences (profile_id, documents_sort, updated_at)
+                VALUES (@profileId, @sort, @now)
+                ON CONFLICT(profile_id) DO UPDATE SET
+                    documents_sort = excluded.documents_sort,
+                    updated_at = excluded.updated_at;
+                """, new { profileId, sort, now = DateTimeOffset.UtcNow }, transaction, cancellationToken: token));
+            return true;
+        }, ct);
+    }
+
     private static bool ProfileExists(
         System.Data.IDbConnection connection,
         System.Data.IDbTransaction transaction,
@@ -162,7 +184,8 @@ public sealed class ViewProfileRepository(IDatabaseConnection database) : IViewP
         row.LastScopeProfileId,
         ParseDensity(row.TimelineDensity),
         ParseDate(row.UpdatedAt),
-        row.ViewerInfoOpen != 0);
+        row.ViewerInfoOpen != 0,
+        row.DocumentsSort);
 
     private static string ToStorage(ViewScopeKind value) => value switch
     {
@@ -231,6 +254,7 @@ public sealed class ViewProfileRepository(IDatabaseConnection database) : IViewP
         public Guid? LastScopeProfileId { get; init; }
         public string TimelineDensity { get; init; } = "comfortable";
         public long ViewerInfoOpen { get; init; } = 1;
+        public string? DocumentsSort { get; init; }
         public string? UpdatedAt { get; init; }
     }
 }

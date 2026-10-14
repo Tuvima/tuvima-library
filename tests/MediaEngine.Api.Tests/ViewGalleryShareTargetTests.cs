@@ -110,5 +110,8 @@ public sealed class ViewGalleryShareTargetTests
 
         public Task<bool> SavePreferencesAsync(ViewProfilePreferences preferences, CancellationToken ct = default) =>
             throw new NotSupportedException();
+
+        public Task<bool> SaveDocumentsSortAsync(Guid profileId, string? sort, CancellationToken ct = default) =>
+            throw new NotSupportedException();
     }
 }

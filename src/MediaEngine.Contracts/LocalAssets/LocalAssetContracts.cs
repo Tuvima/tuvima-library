@@ -144,7 +144,8 @@ public sealed record ViewPreferencesDto(
     [property: JsonPropertyName("scope_profile_id")] Guid? ScopeProfileId,
     [property: JsonPropertyName("timeline_density")] ViewTimelineDensity TimelineDensity,
     [property: JsonPropertyName("viewer_info_open")] bool ViewerInfoOpen,
-    [property: JsonPropertyName("updated_at")] DateTimeOffset? UpdatedAt);
+    [property: JsonPropertyName("updated_at")] DateTimeOffset? UpdatedAt,
+    [property: JsonPropertyName("documents_sort")] string? DocumentsSort = null);
 
 public sealed record ViewUploadResponseDto(
     [property: JsonPropertyName("item_id")] Guid ItemId,

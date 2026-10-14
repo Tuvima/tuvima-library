@@ -2162,6 +2162,8 @@ CREATE TABLE IF NOT EXISTS profile_view_preferences (
     timeline_density        TEXT NOT NULL DEFAULT 'comfortable'
                                  CHECK (timeline_density IN ('compact', 'comfortable', 'relaxed')),
     viewer_info_open        INTEGER NOT NULL DEFAULT 1 CHECK (viewer_info_open IN (0, 1)),
+    -- How the Documents list is ordered for this profile; NULL means the default order.
+    documents_sort          TEXT CHECK (documents_sort IS NULL OR documents_sort IN ('added', 'document_date', 'title', 'correspondent')),
     updated_at              TEXT NOT NULL,
     CHECK ((last_scope_kind = 'profile' AND last_scope_profile_id IS NOT NULL)
         OR (last_scope_kind IS NULL OR last_scope_kind IN ('shared', 'mine'))

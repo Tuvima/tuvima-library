@@ -105,7 +105,7 @@ public sealed class ViewDocumentsPageTests : AsyncBunitContext
 
         cut.WaitForAssertion(() => Assert.Contains("No documents yet", cut.Markup, StringComparison.Ordinal));
         Assert.Equal(1, _handler.Requests.Count(request => request.StartsWith("/view/scopes", StringComparison.Ordinal)));
-        Assert.Equal(1, _handler.Requests.Count(request => request.StartsWith("/view/preferences", StringComparison.Ordinal)));
+        Assert.Equal(1, _handler.Requests.Count(request => request.StartsWith("/view/preferences", StringComparison.Ordinal) && !request.Contains("documents-sort", StringComparison.Ordinal)));
     }
 
     [Fact]

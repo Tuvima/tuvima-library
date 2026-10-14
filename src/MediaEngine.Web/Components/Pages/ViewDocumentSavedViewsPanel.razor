@@ -1,0 +1,128 @@
+@using MediaEngine.Contracts.LocalAssets
+@using MediaEngine.Web.Models.ViewDTOs
+@namespace MediaEngine.Web.Components.Pages
+
+@* Saved views: the filters a person keeps coming back to, kept as shelves at the top of the Documents filter rail. *@
+<section class="view-documents-saved" aria-label="Saved views">
+    <h3 class="view-documents-saved__title">Saved views</h3>
+    @if (Views.Count == 0)
+    {
+        <p class="view-documents-filters__hint">Filter the list, then save it here to come back to it in one tap.</p>
+    }
+    else
+    {
+        <ul class="view-documents-saved__list">
+            @foreach (var view in Views)
+            {
+                <li class="view-documents-saved__item" @key="view.Id">
+                    @if (_renamingId == view.Id)
+                    {
+                        <form class="view-documents-saved__form" @onsubmit="RenameAsync" @onsubmit:preventDefault>
+                            <AppNativeInput Type="text" Class="view-documents-saved__input" AriaLabel="@($"New name for {view.Name}")" maxlength="@ViewDocumentSavedViews.MaximumNameLength" Value="@_text" ValueChanged="@(value => _text = value?.ToString() ?? string.Empty)" />
+                            <AppNativeButton Type="submit" Class="view-documents-saved__action" Disabled="@(Busy || string.IsNullOrWhiteSpace(_text))">Save</AppNativeButton>
+                            <AppNativeButton Type="button" Class="view-documents-saved__action" OnClick="@(_ => CancelEdit())">Cancel</AppNativeButton>
+                        </form>
+                    }
+                    else
+                    {
+                        <AppNativeButton Type="button" Class="@ViewClass(view)" aria-pressed="@(ActiveId == view.Id ? "true" : "false")" OnClick="@(_ => OnApply.InvokeAsync(view))">
+                            <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.FilterList" />
+                            <span class="view-documents-saved__name">@view.Name</span>
+                            <small class="view-documents-saved__count">@view.ItemCount</small>
+                        </AppNativeButton>
+                        <AppOverflowMenu AriaLabel="@($"Actions for {view.Name}")" Class="view-documents-saved__menu" AnchorOrigin="AppOrigin.BottomRight" TransformOrigin="AppOrigin.TopRight">
+                            <AppMenuItem Label="Rename" Icon="@AppMaterialIcons.Outlined.Edit" OnClick="@(() => BeginRename(view))" />
+                            <AppMenuItem Label="Delete" Icon="@AppMaterialIcons.Outlined.DeleteOutline" Tone="AppUiTone.Error" OnClick="@(() => OnDelete.InvokeAsync(view))" />
+                        </AppOverflowMenu>
+                    }
+                </li>
+            }
+        </ul>
+    }
+
+    @if (CanSave)
+    {
+        @if (_saving)
+        {
+            <form class="view-documents-saved__form" @onsubmit="SaveAsync" @onsubmit:preventDefault>
+                <AppNativeInput Type="text" Class="view-documents-saved__input" AriaLabel="Name for this view" Placeholder="Name this view" maxlength="@ViewDocumentSavedViews.MaximumNameLength" Value="@_text" ValueChanged="@(value => _text = value?.ToString() ?? string.Empty)" />
+                <AppNativeButton Type="submit" Class="view-documents-saved__action" Disabled="@(Busy || string.IsNullOrWhiteSpace(_text))">Save</AppNativeButton>
+                <AppNativeButton Type="button" Class="view-documents-saved__action" OnClick="@(_ => CancelEdit())">Cancel</AppNativeButton>
+            </form>
+        }
+        else
+        {
+            <p class="view-documents-filters__hint">Words in the search box are saved as "words in the document contain".</p>
+            <AppButton Label="Save this view" StartIcon="@AppMaterialIcons.Outlined.BookmarkBorder" ButtonStyle="AppButtonStyle.Outlined" OnClick="BeginSave" Class="view-documents-saved__save" />
+        }
+    }
+</section>
+
+@code {
+    [Parameter] public IReadOnlyList<ViewGalleryDto> Views { get; set; } = [];
+    [Parameter] public Guid? ActiveId { get; set; }
+
+    /// <summary>True when the list has filters or search words worth saving.</summary>
+    [Parameter] public bool CanSave { get; set; }
+
+    /// <summary>True while the Engine is saving, renaming or deleting, so the buttons are not pressed twice.</summary>
+    [Parameter] public bool Busy { get; set; }
+
+    [Parameter] public EventCallback<ViewGalleryDto> OnApply { get; set; }
+    [Parameter] public EventCallback<string> OnSave { get; set; }
+    [Parameter] public EventCallback<(Guid Id, string Name)> OnRename { get; set; }
+    [Parameter] public EventCallback<ViewGalleryDto> OnDelete { get; set; }
+
+    private Guid? _renamingId;
+    private bool _saving;
+    private string _text = string.Empty;
+
+    private string ViewClass(ViewGalleryDto view) =>
+        ActiveId == view.Id ? "view-documents-saved__view is-selected" : "view-documents-saved__view";
+
+    private void BeginSave()
+    {
+        _renamingId = null;
+        _text = string.Empty;
+        _saving = true;
+    }
+
+    private void BeginRename(ViewGalleryDto view)
+    {
+        _saving = false;
+        _text = view.Name;
+        _renamingId = view.Id;
+    }
+
+    private void CancelEdit()
+    {
+        _saving = false;
+        _renamingId = null;
+        _text = string.Empty;
+    }
+
+    private async Task SaveAsync()
+    {
+        var name = _text.Trim();
+        if (name.Length == 0)
+        {
+            return;
+        }
+
+        _saving = false;
+        _text = string.Empty;
+        await OnSave.InvokeAsync(name);
+    }
+
+    private async Task RenameAsync()
+    {
+        var name = _text.Trim();
+        if (_renamingId is not { } id || name.Length == 0)
+        {
+            return;
+        }
+
+        CancelEdit();
+        await OnRename.InvokeAsync((id, name));
+    }
+}

@@ -38,11 +38,65 @@ public static class ViewSmartGalleryRules
             ["people"] = Set("eq", "neq", "in", "contains", "known", "unknown"),
             ["place"] = Set("eq", "neq", "in", "contains", "known", "unknown"),
             ["device"] = Set("eq", "neq", "in", "contains", "known", "unknown"),
-            ["tags"] = Set("eq", "neq", "in", "contains", "known", "unknown"),
+            ["tags"] = Set("eq", "neq", "in", "all", "contains", "known", "unknown"),
+            ["correspondent"] = Set("eq", "neq", "in", "contains", "known", "unknown"),
+            ["document_type"] = Set("eq", "neq", "in", "contains", "known", "unknown"),
+            ["document_date"] = Set("eq", "neq", "known", "unknown", "gt", "lt", "gte", "lte", "between", "within"),
+            ["filing_state"] = Set("eq", "neq"),
+            ["text_contains"] = Set("contains"),
             ["favorite"] = Set("eq", "neq", "known", "unknown"),
             ["owner"] = Set("eq", "neq", "in", "contains", "known", "unknown"),
             ["source"] = Set("eq", "neq", "in", "contains", "known", "unknown"),
         };
+
+    /// <summary>Prefix of a condition on one custom document field: <c>field:&lt;field id&gt;</c>.</summary>
+    public const string CustomFieldPrefix = "field:";
+
+    private static readonly IReadOnlySet<string> CustomFieldOperators =
+        Set("eq", "neq", "contains", "gt", "lt", "gte", "lte", "between", "known", "unknown");
+
+    /// <summary>The relative document-date ranges a rule can name, resolved when the rule is evaluated.</summary>
+    public static readonly IReadOnlyList<string> RelativeDateRanges =
+        ["last_7_days", "last_30_days", "last_90_days", "last_365_days", "this_month", "this_year", "last_year"];
+
+    /// <summary>The field key for a custom document field, or null when the key is not one.</summary>
+    public static bool TryParseCustomField(string? field, out Guid fieldId)
+    {
+        fieldId = Guid.Empty;
+        return field is not null
+            && field.StartsWith(CustomFieldPrefix, StringComparison.Ordinal)
+            && Guid.TryParseExact(field[CustomFieldPrefix.Length..], "D", out fieldId)
+            && fieldId != Guid.Empty;
+    }
+
+    public static string CustomFieldKey(Guid fieldId) =>
+        CustomFieldPrefix + fieldId.ToString("D", CultureInfo.InvariantCulture);
+
+    /// <summary>
+    /// True when the rule is a saved Documents view: one group in which every condition must hold and one of them
+    /// is "media type is document", so it can only ever match documents.
+    /// </summary>
+    public static bool IsDocumentView(string? json)
+    {
+        if (string.IsNullOrWhiteSpace(json) || json.Length > MaximumDocumentLength)
+        {
+            return false;
+        }
+
+        try
+        {
+            var definition = Parse(json);
+            return definition.Groups is [{ MatchMode: "all" } group] && group.Conditions.Any(IsDocumentCondition);
+        }
+        catch (ArgumentException)
+        {
+            return false;
+        }
+    }
+
+    private static bool IsDocumentCondition(CollectionRulePredicate condition) =>
+        condition.Field == "media_type" && condition.Op == "eq"
+        && condition.GetEffectiveValues() is [var only] && only.Trim().Equals("document", StringComparison.OrdinalIgnoreCase);
 
     public static CollectionRuleDefinition Parse(string json)
     {
@@ -69,6 +123,32 @@ public static class ViewSmartGalleryRules
 
     public static string Normalize(string json) =>
         JsonSerializer.Serialize(Parse(json), JsonOptions);
+
+    /// <summary>Validates a rule built in code and writes it as the stored rule document.</summary>
+    public static string Serialize(CollectionRuleDefinition definition)
+    {
+        Validate(definition);
+        var json = JsonSerializer.Serialize(definition, JsonOptions);
+        return json.Length > MaximumDocumentLength
+            ? throw new ArgumentException($"Smart Gallery rules cannot exceed {MaximumDocumentLength} characters.", nameof(definition))
+            : json;
+    }
+
+    /// <summary>
+    /// The first and last day a relative document-date range covers on <paramref name="today"/>. The range names are
+    /// <see cref="RelativeDateRanges"/>; anything else is refused.
+    /// </summary>
+    public static (DateOnly From, DateOnly To) ResolveRelativeRange(string name, DateOnly today) => name switch
+    {
+        "last_7_days" => (today.AddDays(-6), today),
+        "last_30_days" => (today.AddDays(-29), today),
+        "last_90_days" => (today.AddDays(-89), today),
+        "last_365_days" => (today.AddDays(-364), today),
+        "this_month" => (new DateOnly(today.Year, today.Month, 1), today),
+        "this_year" => (new DateOnly(today.Year, 1, 1), today),
+        "last_year" => (new DateOnly(today.Year - 1, 1, 1), new DateOnly(today.Year - 1, 12, 31)),
+        _ => throw new ArgumentException($"Unsupported document date range '{name}'.", nameof(name)),
+    };
 
     public static void Validate(CollectionRuleDefinition definition)
     {
@@ -116,7 +196,13 @@ public static class ViewSmartGalleryRules
 
         condition.Field = condition.Field.Trim().ToLowerInvariant();
         condition.Op = condition.Op.Trim().ToLowerInvariant();
-        if (!Operators.TryGetValue(condition.Field, out var supported))
+        IReadOnlySet<string>? supported;
+        if (TryParseCustomField(condition.Field, out var customFieldId))
+        {
+            condition.Field = CustomFieldKey(customFieldId);
+            supported = CustomFieldOperators;
+        }
+        else if (!Operators.TryGetValue(condition.Field, out supported))
         {
             throw new ArgumentException($"Smart Gallery field '{condition.Field}' is unsupported.");
         }
@@ -139,11 +225,11 @@ public static class ViewSmartGalleryRules
 
         var requiredCount = condition.Op == "between" ? 2 : 1;
         if (values.Length < requiredCount || values.Length > MaximumValuesPerCondition
-            || (condition.Op != "in" && values.Length != requiredCount))
+            || (condition.Op is not ("in" or "all") && values.Length != requiredCount))
         {
             throw new ArgumentException(condition.Op == "between"
                 ? $"Smart Gallery {label} requires exactly two values."
-                : condition.Op == "in"
+                : condition.Op is "in" or "all"
                     ? $"Smart Gallery {label} requires between 1 and {MaximumValuesPerCondition} values."
                     : $"Smart Gallery {label} requires exactly one value.");
         }
@@ -186,7 +272,22 @@ public static class ViewSmartGalleryRules
                 throw new ArgumentException("Smart Gallery duration between values must be in ascending order.");
             }
         }
-        if (condition.Field == "captured_date")
+        if (condition.Field == "filing_state" && values.Any(value => !FilingStates.Contains(value.Trim().ToLowerInvariant())))
+        {
+            throw new ArgumentException("Smart Gallery filing_state values must be inbox or filed.");
+        }
+
+        if (condition.Field == "document_date" && condition.Op == "within")
+        {
+            if (!RelativeDateRanges.Contains(values[0].Trim().ToLowerInvariant()))
+            {
+                throw new ArgumentException($"Smart Gallery document_date 'within' must be one of: {string.Join(", ", RelativeDateRanges)}.");
+            }
+
+            condition.Value = values[0].Trim().ToLowerInvariant();
+            condition.Values = null;
+        }
+        else if (condition.Field is "captured_date" or "document_date")
         {
             var parsed = new List<DateOnly>(values.Length);
             foreach (var value in values)
@@ -194,14 +295,14 @@ public static class ViewSmartGalleryRules
                 if (!DateOnly.TryParseExact(value, "yyyy-MM-dd", CultureInfo.InvariantCulture,
                     DateTimeStyles.None, out var date))
                 {
-                    throw new ArgumentException("Smart Gallery captured_date values must use yyyy-MM-dd.");
+                    throw new ArgumentException($"Smart Gallery {condition.Field} values must use yyyy-MM-dd.");
                 }
 
                 parsed.Add(date);
             }
             if (condition.Op == "between" && parsed[0] > parsed[1])
             {
-                throw new ArgumentException("Smart Gallery captured_date between values must be in ascending order.");
+                throw new ArgumentException($"Smart Gallery {condition.Field} between values must be in ascending order.");
             }
         }
     }
@@ -218,5 +319,6 @@ public static class ViewSmartGalleryRules
         new HashSet<string>(values, StringComparer.Ordinal);
 
     private static readonly IReadOnlySet<string> LocalMediaKinds = Set("image", "video", "document", "audio", "other");
+    private static readonly IReadOnlySet<string> FilingStates = Set("inbox", "filed");
     private static readonly IReadOnlySet<string> OrientationValues = Set("landscape", "portrait", "square");
 }

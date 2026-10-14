@@ -61,6 +61,69 @@ public sealed partial class EngineApiClient
     public Task<ViewCatalogueResult<bool>> DeleteViewDocumentFieldAsync(Guid id, CancellationToken ct = default) =>
         DeleteCatalogueAsync("DELETE /view/document-fields/{id}", $"/view/document-fields/{id:D}", ct);
 
+    public Task<ViewCatalogueResult<ViewDocumentBulkResultDto>> BulkEditViewDocumentsAsync(
+        ViewDocumentBulkRequest request, CancellationToken ct = default) =>
+        SendCatalogueAsync<ViewDocumentBulkResultDto>(HttpMethod.Post, "POST /view/documents/bulk", "/view/documents/bulk", request, ct);
+
+    public async Task<ViewDocumentExportResult> ExportViewDocumentsAsync(ViewAssetQueryOptions options, CancellationToken ct = default)
+    {
+        const string endpoint = "GET /view/documents/export";
+        var query = new List<string>();
+        AddQuery(query, "scope", ScopeValue(options.Scope));
+        AddQuery(query, "scopeProfileId", options.Scope.CarriesProfileId() ? options.ScopeProfileId?.ToString("D") : null);
+        AddQuery(query, "q", options.Search?.Trim());
+        AddQuery(query, "lifecycle", options.Lifecycle);
+        AddQuery(query, "galleryId", options.GalleryId?.ToString("D"));
+        AddDocumentFilterQuery(query, options.Documents);
+        var path = query.Count == 0 ? "/view/documents/export" : $"/view/documents/export?{string.Join('&', query)}";
+        try
+        {
+            using var request = new HttpRequestMessage(HttpMethod.Get, path);
+            using var response = await _http.SendAsync(request, ct);
+            if (!response.IsSuccessStatusCode)
+            {
+                var error = await ReadViewErrorAsync(response, ct);
+                await RecordHttpFailureAsync(endpoint, response, ct);
+                return new ViewDocumentExportResult(null, string.Empty, false, error ?? "The list could not be exported.");
+            }
+
+            ClearFailure(endpoint);
+            var truncated = response.Headers.TryGetValues("X-Tuvima-Export-Truncated", out var values)
+                && values.Any(value => string.Equals(value, "true", StringComparison.OrdinalIgnoreCase));
+            var fileName = response.Content.Headers.ContentDisposition?.FileNameStar
+                ?? response.Content.Headers.ContentDisposition?.FileName?.Trim('"')
+                ?? "documents.csv";
+            return new ViewDocumentExportResult(await response.Content.ReadAsByteArrayAsync(ct), fileName, truncated);
+        }
+        catch (OperationCanceledException) { return new ViewDocumentExportResult(null, string.Empty, false, "The request was canceled."); }
+        catch (Exception ex)
+        {
+            RecordExceptionFailure(endpoint, ex, true);
+            return new ViewDocumentExportResult(null, string.Empty, false, "The Dashboard could not reach the Engine.");
+        }
+    }
+
+    public async Task<string?> GetViewDocumentsSortAsync(CancellationToken ct = default) =>
+        (await GetAsync<ViewDocumentsSortDto>("GET /view/preferences/documents-sort", "/view/preferences/documents-sort", ct: ct))?.Sort;
+
+    public async Task<bool> SetViewDocumentsSortAsync(string? sort, CancellationToken ct = default)
+    {
+        const string endpoint = "PUT /view/preferences/documents-sort";
+        try
+        {
+            using var request = new HttpRequestMessage(HttpMethod.Put, "/view/preferences/documents-sort")
+            {
+                Content = JsonContent.Create(new ViewDocumentsSortDto(sort)),
+            };
+            using var response = await _http.SendAsync(request, ct);
+            if (!response.IsSuccessStatusCode) { await RecordHttpFailureAsync(endpoint, response, ct); return false; }
+            ClearFailure(endpoint);
+            return true;
+        }
+        catch (OperationCanceledException) { return false; }
+        catch (Exception ex) { RecordExceptionFailure(endpoint, ex, true); return false; }
+    }
+
     /// <summary>Sends a change and returns the new value, or the Engine's own reason (such as "a tag named X already exists").</summary>
     private async Task<ViewCatalogueResult<T>> SendCatalogueAsync<T>(
         HttpMethod method, string endpoint, string path, object body, CancellationToken ct)

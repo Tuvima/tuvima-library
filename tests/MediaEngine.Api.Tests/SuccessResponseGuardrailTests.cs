@@ -47,6 +47,8 @@ public sealed partial class SuccessResponseGuardrailTests
         "GetProfileAvatar",
         "GetTvdbMatchPreview",
         "GetPersonHeadshot",
+        // The Documents list export streams a CSV file, not JSON.
+        "ExportViewDocumentsCsv",
         "GetViewItemContent",
         "GetViewItemThumbnail",
         "GetProviderIcon",

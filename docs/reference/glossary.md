@@ -211,6 +211,10 @@ The exception workflow for blocked, uncertain, low-confidence, or unresolved ite
 
 ## S
 
+### Saved view
+
+A set of Documents filters a person keeps under a name: a Smart Gallery whose rule says "these are documents" and lists tags (all of them), correspondent, type, a document date range (fixed or relative, such as the last 30 days), the Inbox, custom field values and words inside the document. It shows at the top of the Documents filter rail and in Galleries, is private to its owner unless the Gallery is shared, and can be renamed or deleted from its menu. Deleting one never changes a document.
+
 ### Series
 
 A lane-level shelf, such as a book series in Read, a film series in Watch, or an album/audio series in Listen. Comics use volume/issue wording on user-facing surfaces even when the stored metadata field is still `series`.

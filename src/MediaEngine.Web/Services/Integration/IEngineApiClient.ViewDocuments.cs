@@ -24,6 +24,23 @@ public partial interface IEngineApiClient
     Task<ViewCatalogueResult<ViewDocumentFieldDto>> CreateViewDocumentFieldAsync(ViewDocumentFieldRequest request, CancellationToken ct = default);
     Task<ViewCatalogueResult<ViewDocumentFieldDto>> UpdateViewDocumentFieldAsync(Guid id, ViewDocumentFieldRequest request, CancellationToken ct = default);
     Task<ViewCatalogueResult<bool>> DeleteViewDocumentFieldAsync(Guid id, CancellationToken ct = default);
+
+    /// <summary>Applies one bulk edit to the selected documents and returns what happened to each.</summary>
+    Task<ViewCatalogueResult<ViewDocumentBulkResultDto>> BulkEditViewDocumentsAsync(ViewDocumentBulkRequest request, CancellationToken ct = default);
+
+    /// <summary>The CSV of the list the options describe (at most 10,000 rows), or the reason it could not be made.</summary>
+    Task<ViewDocumentExportResult> ExportViewDocumentsAsync(ViewAssetQueryOptions options, CancellationToken ct = default);
+
+    /// <summary>How this profile likes the Documents list ordered; null for the default order or when it could not be read.</summary>
+    Task<string?> GetViewDocumentsSortAsync(CancellationToken ct = default);
+
+    Task<bool> SetViewDocumentsSortAsync(string? sort, CancellationToken ct = default);
+}
+
+/// <summary>A finished export: the file, or the reason there is none. <see cref="Truncated"/> means the list was cut at the row cap.</summary>
+public sealed record ViewDocumentExportResult(byte[]? Bytes, string FileName, bool Truncated, string? Error = null)
+{
+    public bool Success => Error is null && Bytes is not null;
 }
 
 /// <summary>
