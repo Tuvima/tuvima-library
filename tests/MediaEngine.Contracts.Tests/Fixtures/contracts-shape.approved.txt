@@ -7154,6 +7154,7 @@ MediaEngine.Contracts.Review.MediaEngine.Contracts.Review.ReviewItemDto
   BridgeIdentifiers: System.Collections.Generic.Dictionary<System.String, System.String> | nullability=not-null | accessors=get,init
   DetectedFacts: System.Collections.Generic.Dictionary<System.String, System.String> | nullability=not-null | accessors=get,init
   FromImportFolder: System.Boolean | nullability=not-null | accessors=get,init
+  FromMerge: System.Boolean | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.Review.MediaEngine.Contracts.Review.ReviewMoveToTvResponse
   moved: System.Boolean | nullability=not-null | accessors=get,init

@@ -63,7 +63,7 @@
                 <article class="settings-review-row" @key="item.Id">
                     <div class="settings-review-row__item" data-label="Item">
                         <span class="settings-review-media-icon" aria-hidden="true"><AppMaterialIcon Icon="@MediaIcon(item.MediaType)" /></span>
-                        <span><strong>@DisplayTitle(item)</strong><small>@MediaLabel(item)</small>@if (item.FromImportFolder) {<AppStatusBadge Text="From the Import folder" Tone="AppUiTone.Info" />}</span>
+                        <span><strong>@DisplayTitle(item)</strong><small>@MediaLabel(item)</small>@if (item.FromImportFolder) {<AppStatusBadge Text="From the Import folder" Tone="AppUiTone.Info" />}@if (item.FromMerge) {<AppStatusBadge Text="From merge" Tone="AppUiTone.Info" />}</span>
                     </div>
                     <div class="settings-review-row__reason" data-label="Issue">
                         <strong>@issue.Label</strong>
