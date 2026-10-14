@@ -615,6 +615,9 @@
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
+        // A full reload of a deep URL can mount the bar and dispose it again while its first render is still
+        // awaiting the browser; the self reference is gone by then, so stop instead of using it.
+        if (_disposed) return;
         if (_openCompactToolPending && _compactContext is not null)
         {
             _openCompactToolPending = false;
@@ -622,27 +625,20 @@
         }
         if (firstRender)
         {
-            _selfReference = DotNetObjectReference.Create(this);
-            _audioPresentationModule = await JS.InvokeAsync<IJSObjectReference>("import", "./js/playback-audio-presentation.js");
-            if (_audioPresentationModule is not null) await _audioPresentationModule.InvokeVoidAsync("attach", _audioPresentationObserverId, _selfReference);
-            await JS.InvokeVoidAsync("listenPlayback.configure", Playback.ClientSettings);
-            await ConfigurePlaybackClientContextAsync();
-            await JS.InvokeVoidAsync("listenPlayback.registerCommandHandler", _selfReference);
-            await JS.InvokeVoidAsync(
-                "listenPlayback.registerAudioStateObserver",
-                _audioRef,
-                _selfReference,
-                Playback.ClientSettings.AudioObserverIntervalMilliseconds);
-
-            _audioCapabilitiesModule = await JS.InvokeAsync<IJSObjectReference>("import", "./js/playback-output.js");
-            if (_audioCapabilitiesModule is not null) {
-                var audioCapabilities = await _audioCapabilitiesModule.InvokeAsync<AudioOutputStateDto>("attach", _selfReference);
-                if (audioCapabilities is not null) Playback.SetAudioCapabilities(audioCapabilities.Supported, audioCapabilities.SoftwareVolumeSupported);
+            try
+            {
+                await RegisterBrowserClientAsync();
             }
-            _mediaSessionModule = await JS.InvokeAsync<IJSObjectReference>("import", "./js/playback-media-session.js");
-            if (_mediaSessionModule is not null) await _mediaSessionModule.InvokeVoidAsync("attach", _audioRef, _selfReference);
-            _restored = await RestorePlaybackStateStreamAsync();
-            await Playback.SetTransportHostReadyAsync();
+            catch (ObjectDisposedException) when (_disposed)
+            {
+                return;
+            }
+            catch (JSDisconnectedException)
+            {
+                return;
+            }
+
+            if (_disposed) return;
         }
 
         if (Playback.HasQueue && !Playback.IsVideoMode && !_shortcutsRegistered && _selfReference is not null)
@@ -690,6 +686,32 @@
             await JS.InvokeVoidAsync("playbackTools.restorePlayerFocus");
             _nowPlayingFocused = false;
         }
+    }
+
+    private async Task RegisterBrowserClientAsync()
+    {
+        _selfReference = DotNetObjectReference.Create(this);
+        _audioPresentationModule = await JS.InvokeAsync<IJSObjectReference>("import", "./js/playback-audio-presentation.js");
+        if (_audioPresentationModule is not null) await _audioPresentationModule.InvokeVoidAsync("attach", _audioPresentationObserverId, _selfReference);
+        await JS.InvokeVoidAsync("listenPlayback.configure", Playback.ClientSettings);
+        await ConfigurePlaybackClientContextAsync();
+        await JS.InvokeVoidAsync("listenPlayback.registerCommandHandler", _selfReference);
+        await JS.InvokeVoidAsync(
+            "listenPlayback.registerAudioStateObserver",
+            _audioRef,
+            _selfReference,
+            Playback.ClientSettings.AudioObserverIntervalMilliseconds);
+
+        _audioCapabilitiesModule = await JS.InvokeAsync<IJSObjectReference>("import", "./js/playback-output.js");
+        if (_audioCapabilitiesModule is not null) {
+            var audioCapabilities = await _audioCapabilitiesModule.InvokeAsync<AudioOutputStateDto>("attach", _selfReference);
+            if (audioCapabilities is not null) Playback.SetAudioCapabilities(audioCapabilities.Supported, audioCapabilities.SoftwareVolumeSupported);
+        }
+        _mediaSessionModule = await JS.InvokeAsync<IJSObjectReference>("import", "./js/playback-media-session.js");
+        if (_mediaSessionModule is not null) await _mediaSessionModule.InvokeVoidAsync("attach", _audioRef, _selfReference);
+        _restored = await RestorePlaybackStateStreamAsync();
+        if (_disposed) return;
+        await Playback.SetTransportHostReadyAsync();
     }
 
     private async Task ConfigurePlaybackClientContextAsync()

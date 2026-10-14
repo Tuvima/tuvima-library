@@ -36,6 +36,10 @@
 @container listen-dock (max-width:1280px) { .listen-player__volume ::deep .playback-range-slider { width:96px; } .listen-player__context { display:none; } }
 @container listen-dock (max-width:900px) { .listen-player-shell ::deep .listen-player__popup { display:none; } .listen-player__song-actions { display:none; } }
 @media(pointer:coarse) and (hover:none) { .listen-player__volume,.listen-player__more-volume { display:none; } }
+@media (max-width:1023px) {
+    .listen-player__meta { flex:1 1 auto; width:auto; min-width:0; }
+    .listen-player__transport { flex:1 1 auto; width:auto; min-width:0; }
+}
 @media(max-width:720px) { .listen-player-shell--expanded ::deep .listen-player { display:none; } }
 @media (max-width:720px) {
     .listen-player-shell ::deep .listen-player { --listen-dock-height:88px; height:calc(88px + var(--tl-safe-area-bottom)); min-height:calc(88px + var(--tl-safe-area-bottom)); max-height:calc(88px + var(--tl-safe-area-bottom)); grid-template-columns:minmax(0,1fr) 44px 44px; grid-template-rows:1fr; padding:32px max(8px,var(--tl-safe-area-right)) calc(8px + var(--tl-safe-area-bottom)) max(8px,var(--tl-safe-area-left)); gap:4px; }

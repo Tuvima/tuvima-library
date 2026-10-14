@@ -119,6 +119,8 @@ public partial class ListenPage
     private string? _playlistNavigationConfig;
     private List<Guid> _playlistOrder = [];
     private Guid? _draggingPlaylistId;
+    private Guid? _pendingPlaylistRowFocusId;
+    private string _playlistAnnouncement = string.Empty;
     private Guid? _draggingPlaylistTrackItemId;
     private Guid? _playlistTrackDropTargetItemId;
     private bool _playlistTrackDropAfter;
@@ -465,6 +467,12 @@ public partial class ListenPage
         if (_uiStateLoaded && !_loading && !_redirecting && !IsDefaultEntry)
         {
             await PersistUiStateAsync();
+        }
+
+        if (_pendingPlaylistRowFocusId is { } focusId)
+        {
+            _pendingPlaylistRowFocusId = null;
+            await JS.InvokeVoidAsync("tuvimaFocusById", PlaylistRowDomId(focusId));
         }
     }
 
@@ -1140,6 +1148,80 @@ public partial class ListenPage
         EndPlaylistTrackReorder();
     }
 
+    private static string PlaylistRowDomId(Guid itemId) => $"listen-playlist-row-{itemId:N}";
+
+    private static string PlaylistCardSubtitle(WorkViewModel track)
+    {
+        var artist = StringHelpers.FirstNonBlank(track.Artist, track.Author);
+        var album = StringHelpers.FirstNonBlank(track.Album);
+        return string.Join(" · ", new[] { artist, album }.Where(value => !string.IsNullOrWhiteSpace(value)));
+    }
+
+    // Menu and keyboard reorder share SavePlaylistTrackOrderAsync with the drag handlers, so there is one write path.
+    private async Task MovePlaylistTrackAsync(Guid itemId, int delta, bool keepFocus = false)
+    {
+        var currentItems = _playlistItems.OrderBy(item => item.SortOrder).ToList();
+        var sourceIndex = currentItems.FindIndex(item => item.Id == itemId);
+        var orderedItems = ListenPlaylistOrder.Move(currentItems, sourceIndex, delta);
+        if (orderedItems is null)
+        {
+            return;
+        }
+
+        var targetIndex = sourceIndex + delta;
+        var moved = currentItems[sourceIndex];
+        await SavePlaylistTrackOrderAsync(orderedItems);
+        var title = _workLookup.GetValueOrDefault(moved.WorkId)?.Title ?? "Song";
+        _playlistAnnouncement = $"{title} moved to position {targetIndex + 1} of {orderedItems.Count}";
+        if (keepFocus)
+        {
+            _pendingPlaylistRowFocusId = itemId;
+        }
+    }
+
+    private Task HandlePlaylistRowKeyDownAsync(KeyboardEventArgs args, CollectionItemDto? item, WorkViewModel? playOnEnter = null)
+    {
+        if (args.AltKey && item is not null && (args.Key == "ArrowUp" || args.Key == "ArrowDown"))
+        {
+            return MovePlaylistTrackAsync(item.Id, args.Key == "ArrowUp" ? -1 : 1, keepFocus: true);
+        }
+
+        if (playOnEnter is not null && (args.Key == "Enter" || args.Key == " "))
+        {
+            return PlayTracksAsync(ActivePlaylistTracks, playOnEnter.Id, ActivePlaylistTitle);
+        }
+
+        return Task.CompletedTask;
+    }
+
+    private IReadOnlyList<AppRowMenuItem> PlaylistRowMenuItems(ListenPlaylistTrackRow row)
+    {
+        var track = row.Work;
+        var item = row.Item;
+        var items = new List<AppRowMenuItem>
+        {
+            new() { Label = "Play next", Icon = AppMaterialIcons.Outlined.PlaylistPlay, OnClick = EventCallback.Factory.Create(this, () => PlayNextTrackAsync(track)) },
+            new() { Label = "Add to queue", Icon = AppMaterialIcons.Outlined.PlaylistAdd, OnClick = EventCallback.Factory.Create(this, () => QueueTrackAsync(track)) },
+        };
+
+        if (item is not null)
+        {
+            var lastIndex = _playlistItems.Count - 1;
+            items.Add(new() { Label = "Move up", Icon = AppMaterialIcons.Outlined.KeyboardArrowUp, Disabled = row.Index <= 0, OnClick = EventCallback.Factory.Create(this, () => MovePlaylistTrackAsync(item.Id, -1)) });
+            items.Add(new() { Label = "Move down", Icon = AppMaterialIcons.Outlined.KeyboardArrowDown, Disabled = row.Index >= lastIndex, OnClick = EventCallback.Factory.Create(this, () => MovePlaylistTrackAsync(item.Id, 1)) });
+        }
+
+        var albumRoute = BuildAlbumRouteForTrack(track);
+        items.Add(new() { Label = "Go to album", Icon = AppMaterialIcons.Outlined.Album, Disabled = string.IsNullOrWhiteSpace(albumRoute), OnClick = EventCallback.Factory.Create(this, () => { if (!string.IsNullOrWhiteSpace(albumRoute)) { NavigateTo(albumRoute); } }) });
+        items.Add(new() { Label = "Go to artist", Icon = AppMaterialIcons.Outlined.Person, Disabled = track.ArtistPersonId is null, OnClick = EventCallback.Factory.Create(this, () => { if (track.ArtistPersonId is { } artistId) { NavigateTo($"/details/person/{artistId:D}"); } }) });
+        if (item is not null)
+        {
+            items.Add(new() { Label = "Remove", Icon = AppMaterialIcons.Outlined.Delete, Destructive = true, OnClick = EventCallback.Factory.Create(this, () => RemovePlaylistTrackAsync(item.Id)) });
+        }
+
+        return items;
+    }
+
     private async Task DropPlaylistTrackAtEndAsync()
     {
         if (!_draggingPlaylistTrackItemId.HasValue)
@@ -1627,6 +1709,12 @@ public partial class ListenPage
     {
         await Playback.AddToQueueAsync(work);
         Snackbar.Add($"{work.Title} added to the queue", AppSeverity.Success);
+    }
+
+    private async Task PlayNextTrackAsync(WorkViewModel work)
+    {
+        await Playback.InsertNextAsync(work);
+        Snackbar.Add($"{work.Title} will play next", AppSeverity.Success);
     }
 
     private async Task EditTrackAsync(WorkViewModel work)

@@ -8,15 +8,92 @@
 @using MediaEngine.Web.Services.Playback
 @using Microsoft.AspNetCore.Components.Web
 @using MediaEngine.Web.Services.Ui
+@using MediaEngine.Web.Services.Theming
 @inject MediaReactionService Reactions
 @inject ListenAudioDragService AudioDrag
 @inject PlaybackSessionController Playback
 @inject UIOrchestratorService Orchestrator
 @inject IAppToastService Snackbar
+@inject DeviceContextService DeviceContext
+@inject NavigationManager Navigation
 
 @if (Items.Count > 0)
 {
-    @if (Compact)
+    @if (DeviceContext.IsPhone)
+    {
+        <section class="@(IsAudiobook ? "tl-audio-item-cards tl-audio-item-cards--audiobook" : "tl-audio-item-cards")" aria-label="@($"{SourceTitle} {ItemNounPlural}")">
+            @if (CompactToolbarLeadingContent is not null || SupportsMissingItems)
+            {
+                <header class="tl-audio-item-cards__toolbar">
+                    @if (CompactToolbarLeadingContent is not null)
+                    {
+                        <div class="tl-audio-item-cards__leading">@CompactToolbarLeadingContent</div>
+                    }
+                    @if (SupportsMissingItems)
+                    {
+                        <label class="tl-embedded-audio__missing">
+                            <AppNativeInput Type="checkbox" Checked="@_showMissingItems" OnChange="ToggleMissingItems" />
+                            <span>Show missing tracks</span>
+                        </label>
+                    }
+                </header>
+            }
+
+            <AppTable CardsOn="AppTableCardsMode.Phone" Hover="true" Class="tl-audio-item-cards__table">
+                <caption class="sr-only">@SourceTitle @ItemNounPlural</caption>
+                <thead>
+                    <tr>
+                        <th data-card-role="title">Title</th>
+                        <th data-card-role="subtitle">@(IsAudiobook ? "Progress" : "Artist")</th>
+                        <th data-card-role="value">Duration</th>
+                        <th data-card-role="actions"><span class="sr-only">Actions</span></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @for (var index = 0; index < VisibleItems.Count; index++)
+                    {
+                        var item = VisibleItems[index];
+                        var isPlaying = IsCurrentItem(item);
+                        <tr @key="item.Id"
+                            class="@RowClass(item, isPlaying)"
+                            data-audio-row="true"
+                            data-work-id="@item.Id"
+                            tabindex="@(item.IsOwned ? 0 : -1)"
+                            @onclick="@(() => PlayItemAsync(item))"
+                            @onkeydown="@((args) => HandleCardKeyDownAsync(args, item))">
+                            <td data-card-role="title">@DisplayOrdinal(item, index). @item.Title</td>
+                            <td data-card-role="subtitle">@CardSubtitle(item)</td>
+                            <td data-card-role="value">@DisplayDuration(item)</td>
+                            <td data-card-role="actions" class="tl-audio-item-cards__actions" @onclick:stopPropagation="true" @onkeydown:stopPropagation="true">
+                                @if (!IsAudiobook && CanFavorite(item))
+                                {
+                                    <AppNativeButton Type="button" Class="@($"tl-audio-item-table__icon-button {(_favoriteIds.Contains(ItemId(item)) ? " is-active" : null)}")" AriaLabel="@FavoriteLabel(item)" Title="@FavoriteLabel(item)" StopPropagation="true" OnClick="@(() => ToggleFavoriteAsync(item))">
+                                        <AppMaterialIcon Icon="@(_favoriteIds.Contains(ItemId(item)) ? AppMaterialIcons.Filled.Favorite : AppMaterialIcons.Outlined.FavoriteBorder)" Size="AppSize.Small" />
+                                    </AppNativeButton>
+                                }
+                                @if (IsAudiobook)
+                                {
+                                    <AppNativeButton Type="button" Class="tl-audio-item-table__icon-button" AriaLabel="@($"Play {item.Title}")" Title="Play" StopPropagation="true" OnClick="@(() => PlayItemAsync(item))">
+                                        <AppMaterialIcon Icon="@AppMaterialIcons.Filled.PlayArrow" Size="AppSize.Small" />
+                                    </AppNativeButton>
+                                }
+                                else if (item.IsOwned)
+                                {
+                                    <AppRowMenu AriaLabel="@($"Actions for {item.Title}")" Title="@item.Title" Items="@CardMenuItems(item)" />
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </AppTable>
+
+            @if (VisibleItems.Count == 0)
+            {
+                <div class="tl-detail-track-empty">No @ItemNounPlural match the current view.</div>
+            }
+        </section>
+    }
+    else if (Compact)
     {
         <section class="@CompactSectionClass" aria-label="@($"{SourceTitle} {ItemNounPlural}")">
             @if (CompactToolbarLeadingContent is not null || SupportsMissingItems)
@@ -402,6 +479,47 @@
         }
 
         await Playback.ReplaceQueueItemsAsync(playable.Select(ToQueueItem), index, SourceTitle, shuffle: false);
+    }
+
+    private string CardSubtitle(MediaGroupingItemViewModel item)
+    {
+        if (IsAudiobook)
+        {
+            return item.ProgressPercent.HasValue ? $"{Math.Round(item.ProgressPercent.Value)}% played" : string.Empty;
+        }
+
+        return item.IsOwned ? DisplayArtistOrEmpty(item) : "Missing";
+    }
+
+    private static string DisplayArtistOrEmpty(MediaGroupingItemViewModel item)
+        => string.IsNullOrWhiteSpace(item.Artist) ? string.Empty : item.Artist;
+
+    private Task HandleCardKeyDownAsync(KeyboardEventArgs args, MediaGroupingItemViewModel item)
+        => args.Key is "Enter" or " " ? PlayItemAsync(item) : Task.CompletedTask;
+
+    private IReadOnlyList<AppRowMenuItem> CardMenuItems(MediaGroupingItemViewModel item)
+    {
+        var items = new List<AppRowMenuItem>
+        {
+            new() { Label = "Play next", Icon = AppMaterialIcons.Outlined.PlaylistPlay, OnClick = EventCallback.Factory.Create(this, () => PlayItemNextAsync(item)) },
+            new() { Label = "Add to queue", Icon = AppMaterialIcons.Outlined.PlaylistAdd, Disabled = !CanQueue(item), OnClick = EventCallback.Factory.Create(this, () => QueueItemAsync(item)) },
+        };
+        if (Guid.TryParse(ArtistId, out var artistGuid) && artistGuid != Guid.Empty)
+        {
+            items.Add(new() { Label = "Go to artist", Icon = AppMaterialIcons.Outlined.Person, OnClick = EventCallback.Factory.Create(this, () => Navigation.NavigateTo($"/details/person/{artistGuid:D}")) });
+        }
+
+        return items;
+    }
+
+    private async Task PlayItemNextAsync(MediaGroupingItemViewModel item)
+    {
+        if (!item.IsOwned)
+        {
+            return;
+        }
+
+        await Playback.AddQueueItemAsync(ToQueueItem(item), next: true);
     }
 
     private async Task QueueItemAsync(MediaGroupingItemViewModel item)

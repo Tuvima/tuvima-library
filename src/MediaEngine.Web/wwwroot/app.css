@@ -2455,6 +2455,43 @@ input.app-control.tl-input-slot,
     color: var(--tl-text-muted);
 }
 
+/* Visually hidden, still announced: table captions and icon-only column headings in cards-mode tables. */
+.sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
+/* An actions cell may hold more than one control (for example a favourite button beside the row menu). */
+:is(html[data-form-factor="phone"] .app-table-shell--cards, html[data-form-factor="tablet"] .app-table-shell--cards-tablet) td[data-card-role="actions"] {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+}
+
+/* Phone song cards load in pages; the button is a full-width 44px target. */
+.listen-song-table-cards__more-button {
+    width: 100%;
+    min-height: var(--tl-tap-target-min, 44px);
+    border: 1px solid var(--tl-border-subtle);
+    border-radius: var(--tl-radius-sm);
+    background: transparent;
+    color: var(--tl-text-primary);
+}
+
+/* The playlist rail's "more" button is hover-revealed with a mouse and always visible on touch. */
+@media (hover: none), (pointer: coarse) {
+    :root:root .listen-rail__more {
+        opacity: 1;
+    }
+}
+
 .app-form--compact {
     gap: var(--tl-space-3);
 }
@@ -3623,6 +3660,13 @@ button.app-menu-item {
     :root:root .browse-multi-select__option,
     :root:root .media-group-tile__open-cue,
     :root:root .listen-icon-button,
+    :root:root .listen-song-table__favorite-button,
+    :root:root .listen-song-table__icon-button,
+    :root:root .listen-track-grid__favorite,
+    :root:root .tl-audio-item-table__icon-button,
+    :root:root .listen-rail__more,
+    :root:root .listen-rail__item,
+    :root:root .listen-song-table-cards__more-button,
     :root:root .tl-series-carousel__arrow,
     :root:root .sme-section-nav__item,
     :root:root .sme-shell .playback-tooltip-owner[data-tooltip-wrapper-target="true"],
@@ -3683,6 +3727,100 @@ button.app-menu-item {
     :root:root .universal-search-overlay__input-shell input {
         min-height: var(--tl-tap-target-min);
     }
+}
+
+/* Tablets: check boxes keep a 44px tap box: the real input covers the whole label and a drawn box shows the state. */
+html[data-form-factor="tablet"] .tl-detail-page .tl-embedded-audio__missing,
+html[data-form-factor="tablet"] .tl-detail-page .tl-detail-track-toggle {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    min-height: var(--tl-tap-target-min, 44px);
+}
+
+html[data-form-factor="tablet"] .tl-detail-page .tl-embedded-audio__missing input[type="checkbox"],
+html[data-form-factor="tablet"] .tl-detail-page .tl-detail-track-toggle input[type="checkbox"] {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    opacity: 0;
+}
+
+html[data-form-factor="tablet"] .tl-detail-page .tl-embedded-audio__missing span::before,
+html[data-form-factor="tablet"] .tl-detail-page .tl-detail-track-toggle span::before {
+    content: "";
+    display: inline-block;
+    width: 18px;
+    height: 18px;
+    margin-right: 0.5rem;
+    border: 2px solid rgba(255, 255, 255, 0.55);
+    border-radius: 4px;
+    vertical-align: -4px;
+}
+
+html[data-form-factor="tablet"] .tl-detail-page .tl-embedded-audio__missing input:checked + span::before,
+html[data-form-factor="tablet"] .tl-detail-page .tl-detail-track-toggle input:checked + span::before {
+    border-color: var(--tl-accent-primary);
+    background: var(--tl-accent-primary);
+}
+
+html[data-form-factor="tablet"] .tl-detail-page .tl-embedded-audio__missing input:focus-visible + span::before,
+html[data-form-factor="tablet"] .tl-detail-page .tl-detail-track-toggle input:focus-visible + span::before {
+    outline: 2px solid var(--tl-accent-primary);
+    outline-offset: 2px;
+}
+
+/* The queue button's size is forced in AudioItemTable's own styles, so tablets raise it through this value. */
+html[data-form-factor="tablet"] .tl-detail-page {
+    --tl-embedded-audio-more-size: var(--tl-tap-target-min, 44px);
+}
+
+/* Page-scoped component rules (a class plus a scope attribute) tie with the :root:root selectors above and are
+   bundled after them, so these Listen playlist controls keep their smaller height on tablets. One more :root
+   lifts the contract over them without !important. */
+@media (hover: none), (pointer: coarse), (max-width: 1023px) {
+    :root:root:root .app-browse-mode__option,
+    :root:root:root .listen-button,
+    :root:root:root .listen-detail__edit,
+    :root:root:root .app-overflow-menu__trigger--icon,
+    :root:root:root .listen-song-table__sort-header {
+        min-width: var(--tl-tap-target-min);
+        min-height: var(--tl-tap-target-min);
+    }
+
+    :root:root:root .listen-song-table__meta a {
+        display: inline-flex;
+        align-items: center;
+        min-height: var(--tl-tap-target-min);
+    }
+
+    /* Column resizing is a mouse affordance for the desktop form factor. */
+    :root:root:root .listen-song-table__resizer,
+    :root:root:root .listen-column-resizer {
+        display: none;
+    }
+}
+
+/* The playlist row's play button overlays its artwork (hover or focus reveals it); the scoped page styles cannot reach it. */
+.listen-playlist-track-row__art-play {
+    position: absolute;
+    inset: 0;
+    border: 0;
+    background: var(--tl-bg-overlay);
+    color: var(--tl-text-primary);
+    opacity: 0;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.listen-playlist-track-row__art:hover .listen-playlist-track-row__art-play,
+.listen-playlist-track-row__art:focus-within .listen-playlist-track-row__art-play {
+    opacity: 1;
 }
 
 /* Browse filter sheet (phones): the Filters button and the sheet's sticky Clear / Show footer. */
@@ -3832,11 +3970,6 @@ button.app-menu-item {
 
 :root:root .browse-filter-sheet__body .search-page__year-filter input {
     min-height: 44px;
-}
-
-/* The column-resize grips on the song table are a mouse affordance; touch screens do not show them. */
-:root:root[data-form-factor="phone"] .listen-song-table__resizer {
-    display: none;
 }
 
 :root:root .browse-filter-sheet__body input[type="range"] {
