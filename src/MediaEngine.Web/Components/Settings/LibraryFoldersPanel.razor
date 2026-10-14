@@ -28,6 +28,8 @@
     }
     else
     {
+        @* Shown on phones only (see the stylesheet): folders are read-only there, so every control that adds, converts or merges is hidden. *@
+        <p class="library-folders__phone-note">@(Embedded ? "Add or change folders on a computer or tablet. You can continue and set them up later." : "Add or change folders on a computer or tablet.")</p>
         <nav class="library-folders__types" aria-label="Library types">
             @foreach (var type in LibraryTypes)
             {
@@ -134,11 +136,13 @@
                                     <span class="library-folders__destination-path">Add a managed folder to import @destination.MediaType</span>
                                     @if (type is not null)
                                     {
-                                        <AppButton Label="Choose"
-                                                   ButtonStyle="AppButtonStyle.Outlined"
-                                                   Disabled="@_saving"
-                                                   aria-label="@($"Choose a managed folder for {destination.MediaType}")"
-                                                   OnClick="@(() => ChooseDestinationType(type))" />
+                                        <span class="library-folders__choose">
+                                            <AppButton Label="Choose"
+                                                       ButtonStyle="AppButtonStyle.Outlined"
+                                                       Disabled="@_saving"
+                                                       aria-label="@($"Choose a managed folder for {destination.MediaType}")"
+                                                       OnClick="@(() => ChooseDestinationType(type))" />
+                                        </span>
                                     }
                                 }
                                 else
@@ -193,7 +197,7 @@
                     <div class="library-folders__empty">
                         <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.FolderOpen" />
                         <strong>No folders yet</strong>
-                        <span>Choose Add Folder to point Tuvima at where your @Selected.PluralLabel live.</span>
+                        <span class="library-folders__empty-action">Choose Add Folder to point Tuvima at where your @Selected.PluralLabel live.</span>
                     </div>
                 }
                 else
@@ -204,6 +208,7 @@
                                         ReadOnly="@ReadOnly"
                                         Busy="@_saving"
                                         PathIssues="@_pathIssues"
+                                        ShowAdvancedHint="@(!Embedded)"
                                         OnChangeHandling="ChangeModeAsync"
                                         OnSetDestination="SetDestinationAsync"
                                         OnLabel="LabelFolderAsync"

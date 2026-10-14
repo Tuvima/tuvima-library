@@ -322,14 +322,14 @@ public sealed class ReconciliationAdapterTests : IDisposable
         var dir = Path.GetDirectoryName(typeof(ReconciliationAdapterTests).Assembly.Location);
         while (dir != null)
         {
-            if (Directory.Exists(Path.Combine(dir, ".git")))
+            if (File.Exists(Path.Combine(dir, "MediaEngine.slnx")))
             {
                 return dir;
             }
 
             dir = Path.GetDirectoryName(dir);
         }
-        throw new InvalidOperationException("Could not find repository root (.git directory)");
+        throw new InvalidOperationException("Could not find repository root (MediaEngine.slnx)");
     }
 
     private static IHttpClientFactory BuildHttpFactory(params string[] clientNames)

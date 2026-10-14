@@ -52,6 +52,7 @@ public sealed class SidecarMover
         ArgumentNullException.ThrowIfNull(mayMove);
 
         var results = new List<SidecarMoveResult>();
+        RestoreInterruptedRenames(Path.GetDirectoryName(oldMediaPath)!);
         var candidates = SidecarFiles.Find(oldMediaPath, MediaExtensions).ToList();
         if (includeArtwork)
         {
@@ -106,6 +107,56 @@ public sealed class SidecarMover
         }
 
         return results;
+    }
+
+    /// <summary>
+    /// A letter-case rename that stopped between its two steps leaves the sidecar under a hidden temporary name, so it has no
+    /// visible name at all and would never be found again. Before looking for sidecars, each such leftover in the folder is put
+    /// back under its own name (rolled back); the move that follows then renames it normally. A media file's own leftover is
+    /// not touched here: the organising job's ledger finishes that one. A name that is already taken is never overwritten.
+    /// </summary>
+    private void RestoreInterruptedRenames(string folder)
+    {
+        string[] leftovers;
+        try
+        {
+            leftovers = Directory.Exists(folder)
+                ? Directory.GetFiles(folder, $".*{CaseSafeRename.TemporarySuffix}")
+                : [];
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            // A folder that cannot be listed has nothing to restore; the move itself reports what it cannot do.
+            _ = ex;
+            return;
+        }
+
+        foreach (var leftover in leftovers)
+        {
+            var temporaryName = Path.GetFileName(leftover);
+            var original = temporaryName[1..^CaseSafeRename.TemporarySuffix.Length];
+            if (original.Length == 0 || MediaExtensions.Contains(Path.GetExtension(original)))
+            {
+                continue;
+            }
+
+            var originalPath = Path.Combine(folder, original);
+            if (File.Exists(originalPath))
+            {
+                _logger.LogWarning("Left {Leftover} alone: {Original} already exists, so it was not restored", leftover, originalPath);
+                continue;
+            }
+
+            try
+            {
+                _mover.Move(leftover, originalPath);
+                _logger.LogInformation("Restored {Original} from an interrupted letter-case rename", originalPath);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                _logger.LogWarning(ex, "Could not restore {Original} from {Leftover} yet", originalPath, leftover);
+            }
+        }
     }
 
     /// <summary>

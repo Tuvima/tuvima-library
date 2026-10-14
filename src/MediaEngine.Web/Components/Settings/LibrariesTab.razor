@@ -36,9 +36,10 @@
         </header>
         }
 
-        @if (readOnly)
+        @* The folders panel carries its own phone note; this one covers the View settings, which are read-only on a phone too. *@
+        @if (readOnly && section == "view")
         {
-            <p class="libraries__mobile-note">Library storage and intake are read-only on mobile. Use a desktop or tablet to add folders or change library configuration.</p>
+            <p class="libraries__mobile-note">Library storage and intake are read-only on mobile. Use a desktop or tablet to change library configuration.</p>
         }
 
         @if (_engineUnavailable)

@@ -4,7 +4,7 @@
 .setup-brand { display: flex; align-items: center; gap: 10px; font-size: 1.05rem; font-weight: 700; }
 .setup-stage { display: grid; min-height: 440px; padding: clamp(22px, 3vw, 34px); border: 1px solid var(--tl-border-subtle); border-radius: 14px; background: color-mix(in srgb, var(--tl-bg-surface-raised) 95%, transparent); box-shadow: 0 18px 52px rgb(0 0 0 / 20%); }
 ::deep .setup-stage__footer { display: flex; align-items: center; justify-content: space-between; align-self: end; gap: 16px; margin-top: auto; padding-top: 24px; border-top: 1px solid var(--tl-border-subtle); }
-::deep .setup-stage__footer-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 12px; }
+::deep .setup-stage__footer-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 12px; margin-left: auto; }
 ::deep .setup-stage-content { display: grid; align-content: start; gap: 20px; min-width: 0; min-height: 100%; }
 ::deep .setup-stage__heading { display: flex; align-items: flex-start; gap: 13px; }
 ::deep .setup-stage__heading > .tl-icon-root { flex: 0 0 auto; display: grid; width: 48px; height: 48px; margin-top: 1px; padding: 11px; border-radius: 12px; color: white; background: color-mix(in srgb, var(--tl-accent-primary) 76%, var(--tl-bg-surface-elevated)); font-size: 26px; }

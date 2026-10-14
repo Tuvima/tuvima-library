@@ -6,6 +6,7 @@ using MediaEngine.Web.Components.Setup;
 using MediaEngine.Web.Components.Shared;
 using MediaEngine.Web.Services.Integration;
 using MediaEngine.Web.Tests.Support;
+using Microsoft.AspNetCore.Components;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace MediaEngine.Web.Tests;
@@ -69,12 +70,68 @@ public sealed class SetupAndLivePresentationTests : AsyncBunitContext
             new SetupCapabilityDto("media-locations", "Media", "deferred", false, "Libraries can be added later.", "/setup?step=media-locations"),
         ]);
         var cut = Render<SetupReadinessStage>(parameters => parameters
-            .Add(component => component.Readiness, readiness));
+            .Add(component => component.Readiness, readiness)
+            .Add(component => component.Back, EventCallback.Factory.Create(this, () => { })));
 
         var footer = cut.Find(".setup-stage__footer");
         Assert.Contains("Back", footer.TextContent);
         Assert.Contains("Open my library", footer.TextContent);
         Assert.Single(cut.FindAll(".setup-stage__footer"));
+    }
+
+    [Fact]
+    public void ReadinessHidesTheSilentServerCheckAndUsesTheStepNames()
+    {
+        var readiness = new SetupReadinessDto(true,
+        [
+            new SetupCapabilityDto("preflight", "Preflight", "passed", true, "Server capabilities validated.", null),
+            new SetupCapabilityDto("administrator", "Administrator", "passed", true, "Administrator is ready.", null),
+            new SetupCapabilityDto("media-locations", "Media", "deferred", false, "Libraries can be added later.", "/setup?step=media-locations"),
+            new SetupCapabilityDto("providers", "Providers", "deferred", false, "Providers can be added later.", "/setup?step=providers"),
+        ]);
+        var cut = Render<SetupReadinessStage>(parameters => parameters.Add(component => component.Readiness, readiness));
+
+        var names = cut.FindAll(".setup-checks strong").Select(item => item.TextContent.Trim()).ToList();
+        Assert.Equal(["Your account", "Libraries", "Enhance your library"], names);
+        Assert.DoesNotContain("Core server capabilities", cut.Markup, StringComparison.Ordinal);
+        var links = cut.FindAll(".setup-checks a").Select(link => link.TextContent.Trim()).ToList();
+        Assert.Equal(["Set up", "Set up"], links);
+        Assert.DoesNotContain("Set up later", cut.Markup, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ReadinessSubtitleAgreesWithTheHeading()
+    {
+        var ready = Render<SetupReadinessStage>(parameters => parameters
+            .Add(component => component.Readiness, new SetupReadinessDto(true, [new SetupCapabilityDto("administrator", "Administrator", "passed", true, "Ready.", null)])));
+        Assert.Contains("You're all set", ready.Markup, StringComparison.Ordinal);
+        Assert.Contains("Tuvima is ready to start finding your media.", ready.Markup, StringComparison.Ordinal);
+
+        var blocked = Render<SetupReadinessStage>(parameters => parameters
+            .Add(component => component.Readiness, new SetupReadinessDto(false, [new SetupCapabilityDto("administrator", "Administrator", "blocked", false, "Create the first administrator.", "/setup?step=administrator")])));
+        Assert.Contains("Almost there", blocked.Markup, StringComparison.Ordinal);
+        Assert.DoesNotContain("Tuvima is ready to start finding your media.", blocked.Markup, StringComparison.Ordinal);
+        Assert.Contains("A few things need attention before you open your library.", blocked.Markup, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void FirstSetupStepHasNoBackButtonAndNoDatabaseEpoch()
+    {
+        var first = Render<SetupServerStage>(parameters => parameters
+            .Add(component => component.ServerName, "Home")
+            .Add(component => component.ShowRestore, true)
+            .Add(component => component.Backup, new SetupBackupInspectionDto(Guid.NewGuid(), "backup.zip", null, "1", "guid-blob-v1", 10, 20, 3, 2, "This replaces your library.")));
+
+        Assert.DoesNotContain(first.FindAll("button"), button => button.TextContent.Trim() == "Back");
+        Assert.DoesNotContain("Database epoch", first.Markup, StringComparison.Ordinal);
+        Assert.DoesNotContain("guid-blob-v1", first.Markup, StringComparison.Ordinal);
+        Assert.Contains("backup.zip", first.Markup, StringComparison.Ordinal);
+
+        // Every later step still has its Back button.
+        var later = Render<SetupStageFooter>(parameters => parameters.Add(component => component.Back, EventCallback.Factory.Create(this, () => { })));
+        Assert.Contains(later.FindAll("button"), button => button.TextContent.Trim() == "Back");
+        var none = Render<SetupStageFooter>();
+        Assert.DoesNotContain(none.FindAll("button"), button => button.TextContent.Trim() == "Back");
     }
 
     [Fact]

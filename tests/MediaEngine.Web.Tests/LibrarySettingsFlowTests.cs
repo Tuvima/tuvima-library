@@ -327,7 +327,7 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
     public void FolderTableHasFourColumnsAndAMenuPerFolder()
     {
         var cut = Open("Movies");
-        Assert.Equal(["Folder", "Handling", "New media", "Files", ""], cut.FindAll(".folder-table__head [role=columnheader]").Select(Text));
+        Assert.Equal(["Folder", "Handling", "New media", "Files", "Actions"], cut.FindAll(".folder-table__head [role=columnheader]").Select(Text));
         var rows = cut.FindAll(".folder-table__row");
         Assert.Equal(3, rows.Count);
         Assert.All(rows, row =>
@@ -809,10 +809,72 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
     public void FilesCellReadsNamedTaggedNamedOrNotTouched()
     {
         var movies = Open("Movies");
-        Assert.Equal(["Named + tagged", "Named + tagged", "Not touched"], movies.FindAll(".folder-table__files").Select(Text));
-        Assert.Contains("Advanced > Movies", movies.Find(".folder-table__files").GetAttribute("title"));
+        Assert.Equal(["Named + tagged", "Named + tagged", "Not touched"], movies.FindAll(".folder-table__files-value").Select(Text));
         var tv = Open("TV Shows");
-        Assert.Equal(["Named"], tv.FindAll(".folder-table__files").Select(Text));
+        Assert.Equal(["Named"], tv.FindAll(".folder-table__files-value").Select(Text));
+    }
+
+    // Where to change the naming is said in visible words under the value, never only in a hover title.
+    [Fact]
+    public void FilesCellSaysWhereToChangeItInVisibleText()
+    {
+        var movies = Open("Movies");
+        Assert.All(movies.FindAll(".folder-table__files"), cell =>
+        {
+            Assert.Equal("Change in Advanced > Movies", Text(cell.QuerySelector(".folder-table__files-hint")!));
+            Assert.False(cell.HasAttribute("title"));
+        });
+    }
+
+    // The setup step has no Advanced section, so it does not point at one.
+    [Fact]
+    public void SetupPanelDoesNotPointAtAnAdvancedSectionItDoesNotHave()
+    {
+        _configuration.Libraries[0].Sources.RemoveAll(x => x.Id != "movies-main");
+        var cut = Render<LibraryFoldersPanel>(parameters => parameters.Add(x => x.Embedded, true).Add(x => x.SetupSession, "session"));
+        cut.WaitForElement(".library-folders__type");
+        cut.FindAll(".library-folders__type").Single(x => x.TextContent.Contains("Movies")).Click();
+        cut.WaitForElement(".folder-table");
+        Assert.Empty(cut.FindAll(".folder-table__files-hint"));
+        Assert.Equal(
+            "Add or change folders on a computer or tablet. You can continue and set them up later.",
+            Text(cut.Find(".library-folders__phone-note")));
+    }
+
+    // The Settings screen uses the same note without the setup-only sentence.
+    [Fact]
+    public void SettingsPanelHasTheShortPhoneNote()
+    {
+        var cut = Open("Movies");
+        Assert.Equal("Add or change folders on a computer or tablet.", Text(cut.Find(".library-folders__phone-note")));
+    }
+
+    // The table is announced properly: a named actions column, one labelled radio group per New media cell, one live region.
+    [Fact]
+    public void FolderTableNamesItsActionsColumnItsRadiosAndHasOneLiveRegion()
+    {
+        var cut = Open("Movies");
+        var groups = cut.FindAll("[role=radiogroup][aria-label='Where new Movies go']");
+        Assert.Equal(2, groups.Count);
+        Assert.All(groups, group => Assert.Single(group.QuerySelectorAll("[role=radio]")));
+        Assert.Empty(cut.FindAll(".folder-table__row [role=status]"));
+        Assert.Single(cut.FindAll("[role=status]"));
+        Assert.Empty(cut.Find("[role=status]").TextContent.Trim());
+        Assert.All(cut.FindAll(".folder-table__none"), none => Assert.Equal("img", none.GetAttribute("role")));
+    }
+
+    // Each Handling cell also holds a plain label that phones show instead of the button (the stylesheet swaps them).
+    [Fact]
+    public void EachHandlingCellHoldsAPlainLabelBesideTheButton()
+    {
+        var cut = Open("Movies");
+        Assert.All(cut.FindAll(".folder-table__handling"), cell =>
+        {
+            var button = cell.QuerySelector("button.folder-table__chip")!;
+            var tag = cell.QuerySelector(".folder-table__tag")!;
+            Assert.Equal(Text(button), Text(tag));
+            Assert.Empty(cell.QuerySelectorAll(".folder-table__tag button"));
+        });
     }
 
     // A7: tags are on by default and a type can opt out.
@@ -824,7 +886,7 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
         Assert.True(tags.HasAttribute("checked"));
         tags.Change(false);
         cut.WaitForAssertion(() => Assert.False(_lastLibrary?.OrganizationPolicy.WriteTags));
-        cut.WaitForAssertion(() => Assert.Equal(["Named", "Named", "Not touched"], cut.FindAll(".folder-table__files").Select(Text)));
+        cut.WaitForAssertion(() => Assert.Equal(["Named", "Named", "Not touched"], cut.FindAll(".folder-table__files-value").Select(Text)));
     }
 
     // A7: a live example, and an invalid custom template is refused inline without saving.
@@ -972,14 +1034,44 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
         Assert.Equal(["LibraryReorganizationEndpoints.cs", "LibraryReorganizationService.cs", "TuvimaStorageServiceCollectionExtensions.cs"], users);
     }
 
-    // A11: the table collapses to stacked cards under 800px and adds no horizontal scroll of its own.
+    // A11: the table collapses to stacked cards under 860px of its own width and adds no horizontal scroll of its own.
+    // The panel and the folder picker use the same 860px, and Show details appears exactly where the Files value is folded away.
     [Fact]
-    public void FolderTableCollapsesToCardsOnPhones()
+    public void FolderTableCollapsesToCardsAtTheOneCardBreakpoint()
     {
-        var css = File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", "src", "MediaEngine.Web", "Components", "Settings", "LibraryFolderTable.razor.css"));
-        Assert.Contains("@media (max-width: 840px)", css);
-        Assert.Contains("grid-template-areas", css);
-        Assert.DoesNotContain("overflow-x", css);
+        var src = Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", "src", "MediaEngine.Web");
+        var table = File.ReadAllText(Path.Combine(src, "Components", "Settings", "LibraryFolderTable.razor.css"));
+        var panel = File.ReadAllText(Path.Combine(src, "Components", "Settings", "LibraryFoldersPanel.razor.css"));
+        var picker = File.ReadAllText(Path.Combine(src, "Components", "Shared", "ServerFolderPicker.razor.css"));
+        var app = File.ReadAllText(Path.Combine(src, "wwwroot", "app.css"));
+        Assert.Contains("@container folder-table (max-width: 860px)", table);
+        Assert.DoesNotContain("@media (max-width: 840px)", table);
+        Assert.Contains("grid-template-areas", table);
+        Assert.DoesNotContain("overflow-x", table);
+        Assert.Contains("@media (max-width: 860px)", panel);
+        Assert.Contains("@media (max-width: 860px)", picker);
+        Assert.DoesNotContain("max-width: 800px", panel + picker);
+        Assert.Contains("@container folder-table (max-width: 860px) { .folder-table__expand {", app);
+        Assert.DoesNotContain("@media (max-width: 840px) { .folder-table__expand", app);
+    }
+
+    // D23: a phone reads folders and never changes them, in Settings and in setup alike. With no browser to measure, the
+    // stylesheets are read: under 600px every control that adds, converts or merges is hidden and the note is shown.
+    [Fact]
+    public void PhonesHideEveryControlThatAddsConvertsOrMerges()
+    {
+        var src = Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", "src", "MediaEngine.Web");
+        var panel = File.ReadAllText(Path.Combine(src, "Components", "Settings", "LibraryFoldersPanel.razor.css"));
+        var app = File.ReadAllText(Path.Combine(src, "wwwroot", "app.css"));
+        var phone = panel[panel.IndexOf("@media (max-width: 600px)", StringComparison.Ordinal)..];
+        Assert.Contains(".library-folders__phone-note", phone);
+        foreach (var hidden in new[] { ".library-folders__detail-actions", ".library-folders__row-actions", ".library-folders__choose", ".library-folders__empty-action" })
+        {
+            Assert.Contains(hidden, phone);
+        }
+
+        Assert.Contains(".folder-table__handling .folder-table__chip, .folder-table__menu { display: none; }", app);
+        Assert.Contains(".folder-table__tag { display: inline-flex; }", app);
     }
 
     [Fact]

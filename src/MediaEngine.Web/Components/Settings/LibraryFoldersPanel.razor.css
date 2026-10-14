@@ -144,7 +144,8 @@
     text-align: center;
 }
 
-@media (max-width: 800px) {
+/* The one card breakpoint (shared with the folder picker and the folder table): the type list stacks above the folders. */
+@media (max-width: 860px) {
     .library-folders {
         grid-template-columns: 1fr;
         min-height: 0;
@@ -206,6 +207,32 @@
     .library-folders__path {
         grid-column: 1 / -1;
         grid-row: 2;
+    }
+}
+
+.library-folders__phone-note {
+    display: none;
+    grid-column: 1 / -1;
+    margin: 0;
+    padding: 10px 12px;
+    border: 1px solid var(--tl-border-subtle);
+    border-radius: var(--app-radius-md, 8px);
+    background: var(--app-glass-inner-bg);
+    color: var(--tl-text-secondary);
+    font-size: 0.9rem;
+}
+
+/* Phones read folders and never change them: the note says where to do it and every control that adds, converts or merges goes. */
+@media (max-width: 600px) {
+    .library-folders__phone-note {
+        display: block;
+    }
+
+    .library-folders__detail-actions,
+    .library-folders__row-actions,
+    .library-folders__choose,
+    .library-folders__empty-action {
+        display: none;
     }
 }
 

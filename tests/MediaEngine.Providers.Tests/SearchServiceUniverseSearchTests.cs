@@ -245,8 +245,8 @@ public sealed class SearchServiceUniverseSearchTests
         var dir = Path.GetDirectoryName(typeof(SearchServiceUniverseSearchTests).Assembly.Location);
         while (dir != null)
         {
-            var gitMarker = Path.Combine(dir, ".git");
-            if (Directory.Exists(gitMarker) || File.Exists(gitMarker))
+            var solutionMarker = Path.Combine(dir, "MediaEngine.slnx");
+            if (File.Exists(solutionMarker))
             {
                 return dir;
             }

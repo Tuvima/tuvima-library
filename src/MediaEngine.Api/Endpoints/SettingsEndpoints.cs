@@ -358,7 +358,7 @@ public static class SettingsEndpoints
             return Results.Ok(SettingsContractMapper.ToContract(configLoader.LoadLibraries()));
         })
         .WithName("GetLibraries")
-        .WithSummary("Returns schema 6 catalogued libraries, the single View root, and approved storage.")
+        .WithSummary("Returns schema 7 catalogued libraries, the single View root, and approved storage.")
         .Produces<LibrariesConfigurationSettingsDto>(StatusCodes.Status200OK)
         .RequireAdministratorOrApplication(ApplicationPermissionIds.StorageStatusRead);
 
@@ -411,7 +411,7 @@ public static class SettingsEndpoints
             finally { LibraryMutationEndpoints.WriteGate.Release(); }
         })
         .WithName("UpdateLibraries")
-        .WithSummary("Replaces schema 6 catalogued libraries, the single View root, and approved storage.")
+        .WithSummary("Replaces schema 7 catalogued libraries, the single View root, and approved storage.")
         .Produces<LibrariesConfigurationSettingsDto>(StatusCodes.Status200OK)
         .ProducesProblem(StatusCodes.Status400BadRequest)
         .RequireAdministratorOrApplication(ApplicationPermissionIds.StorageConfigWrite);

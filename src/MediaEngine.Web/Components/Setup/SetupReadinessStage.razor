@@ -2,10 +2,10 @@
 @using MediaEngine.Contracts.Setup
 
 <div class="setup-stage-content">
-    <div class="setup-stage__heading"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.TaskAlt" /><div><h2 id="setup-stage-title">@(Readiness?.CanComplete == true ? "You're all set" : "Almost there…")</h2><p>Tuvima is ready to start finding your media.</p></div></div>
+    <div class="setup-stage__heading"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.TaskAlt" /><div><h2 id="setup-stage-title">@(Readiness?.CanComplete == true ? "You're all set" : "Almost there…")</h2><p>@(Readiness?.CanComplete == true ? "Tuvima is ready to start finding your media." : "A few things need attention before you open your library.")</p></div></div>
     @if (Readiness is null || Busy && !Readiness.CanComplete)
     {
-        <div class="setup-preparing" role="status"><AppSpinner Indeterminate="true" Color="AppColor.Primary" /><span>Checking administrator, media locations, providers, and server capabilities…</span></div>
+        <div class="setup-preparing" role="status"><AppSpinner Indeterminate="true" Color="AppColor.Primary" /><span>Checking your account, libraries and providers…</span></div>
     }
     else
     {
@@ -14,11 +14,11 @@
             <AppAlert Tone="AppUiTone.Warning">Needs attention</AppAlert>
         }
         <div class="setup-checks">
-            @foreach (var capability in Readiness.Capabilities.Where(item => item.Key != "readiness"))
+            @foreach (var capability in Readiness.Capabilities.Where(ShowRow))
             {
                 <article>
                     <span class="setup-checks__icon"><AppMaterialIcon Icon="@CapabilityIcon(capability.Key)" /></span>
-                    <div><strong>@CapabilityLabel(capability.Key)</strong><small>@capability.Detail</small>@if (!string.IsNullOrWhiteSpace(capability.RepairTarget) && capability.Status is not "passed") { <a href="@capability.RepairTarget">@(capability.Status == "deferred" ? "Set up later" : "Fix") <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ArrowForward" Size="AppSize.Small" /></a> }</div>
+                    <div><strong>@CapabilityLabel(capability.Key)</strong><small>@capability.Detail</small>@if (!string.IsNullOrWhiteSpace(capability.RepairTarget) && capability.Status is not "passed") { <a href="@capability.RepairTarget">@(capability.Status == "deferred" ? "Set up" : "Fix") <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ArrowForward" Size="AppSize.Small" /></a> }</div>
                     <AppStatusBadge Text="@StatusLabel(capability.Status)" Tone="@StatusTone(capability.Status)" />
                 </article>
             }
@@ -42,7 +42,10 @@
     [Parameter] public EventCallback Back { get; set; }
     [Parameter] public bool ShowReturnToCurrentStep { get; set; }
     [Parameter] public EventCallback ReturnToCurrentStep { get; set; }
-    private static string CapabilityLabel(string key) => key switch { "preflight" => "Core server capabilities", "administrator" => "Administrator", "media-locations" => "Media locations", "providers" => "Metadata providers", _ => key.Replace('-', ' ') };
+    // The server check runs silently after the server is named, so it has no row unless it is blocked (then the person is told why
+    // they cannot open the library yet). Names match the step list.
+    private static bool ShowRow(SetupCapabilityDto item) => item.Key != "readiness" && (item.Key != "preflight" || item.Status == "blocked");
+    private static string CapabilityLabel(string key) => key switch { "preflight" => "Server check", "administrator" => "Your account", "media-locations" => "Libraries", "providers" => "Enhance your library", _ => key.Replace('-', ' ') };
     private static string CapabilityIcon(string key) => key switch { "preflight" => AppMaterialIcons.Outlined.Dns, "administrator" => AppMaterialIcons.Outlined.PersonOutline, "media-locations" => AppMaterialIcons.Outlined.FolderOpen, "providers" => AppMaterialIcons.Outlined.Storage, _ => AppMaterialIcons.Outlined.CheckCircleOutline };
     private static string StatusLabel(string status) => status switch { "passed" => "Ready", "deferred" => "Ready · later", "blocked" => "Needs attention", _ => "Not checked" };
     private static AppUiTone StatusTone(string status) => status switch { "passed" => AppUiTone.Success, "blocked" => AppUiTone.Error, "deferred" => AppUiTone.Neutral, _ => AppUiTone.Neutral };

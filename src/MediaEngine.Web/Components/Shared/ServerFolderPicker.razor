@@ -12,7 +12,7 @@
                  OnClose="Cancel">
     <ChildContent>
         <div class="@RootClass">
-            <aside class="server-folder-picker__locations" aria-label="Approved server storage locations">
+            <aside class="server-folder-picker__locations" aria-label="Pick a drive">
                 @if (_loadingRoots)
                 {
                     <AppProgressBar Indeterminate="true" />
@@ -98,7 +98,7 @@
                         }
                         else if (_browse is null)
                         {
-                            <div class="server-folder-picker__state">Choose an approved storage location.</div>
+                            <div class="server-folder-picker__state">Pick a drive to see its folders.</div>
                         }
                         else if (_browse.Directories.Count == 0)
                         {
@@ -178,7 +178,7 @@
 @code {
     [Parameter] public string? SetupSession { get; set; }
     [CascadingParameter] private IAppDialogContext DialogInstance { get; set; } = null!;
-    [Parameter] public string Title { get; set; } = "Select Folder";
+    [Parameter] public string Title { get; set; } = "Choose a folder";
     [Parameter] public string HelpText { get; set; } = "Choose a folder on the Tuvima Library server.";
     [Parameter] public string SelectionMode { get; set; } = ServerFolderSelectionModes.ExistingLibrary;
     [Parameter] public string? CurrentSourceId { get; set; }

@@ -135,14 +135,14 @@ compatibility versions.
 
 ## Media Management
 
-Library configuration uses schema `4.0`, including explicit server-visible folder-picker roots. Older flat-folder and Photos/General
+Library configuration uses schema `7.0`, including explicit server-visible folder-picker roots. Older flat-folder and Photos/General
 schemas are rejected during the pre-beta cutover rather than migrated or served
 through compatibility routes.
 
 | Method | Path | Description | Auth |
 |---|---|---|---|
 | GET | `/settings/libraries` | Return the complete library configuration, including stable sources and universal incoming sources | Administrator |
-| PUT | `/settings/libraries` | Validate and replace the complete schema-3 library configuration; the library responses (GET, PUT, mutation) include `import_folder_status` (whether the optional import folder is set and which types still need a destination) | Administrator |
+| PUT | `/settings/libraries` | Validate and replace the complete schema-7 library configuration; the library responses (GET, PUT, mutation) include `import_folder_status` (whether the optional import folder is set and which types still need a destination) | Administrator |
 | GET | `/settings/ocr` | Text recognition settings, whether the helper and language data are installed, the language checklist, and the reading queue (length and current file name only) | Administrator |
 | PUT | `/settings/ocr` | Save text recognition on or off, effort (`normal` or `low`) and the languages to read with | Administrator |
 | POST | `/settings/ocr/languages/{code}` | Download the language data for one listed language; the only network use of text recognition | Administrator |
@@ -160,6 +160,15 @@ through compatibility routes.
 | POST | `/settings/libraries/folders/jobs/{id}/control` | `{action}` of `pause`, `resume` or `cancel`; `409` when the job has already finished (or is not paused) | Administrator |
 | GET | `/settings/libraries/folders/jobs/{id}/log` | A page (`offset`, `limit`) of the job's log: every file, old path to new path, with its outcome | Administrator |
 | GET | `/settings/libraries/folders/jobs/{id}/log/export` | The whole log as a CSV download (the Dashboard serves it at `/engine-folder-log/{id}`) | Administrator |
+| POST | `/settings/libraries/mutations` | `{Library, ExpectedLibrary}` (or `{ViewStorage, ExpectedViewStorage}` for the View root). Saves one library's change (add, label, remove or switch a folder, move the New media marker) without replacing the rest of the configuration; `409` when the library changed since the screen read it. The folder pickers and the Libraries screen use this instead of the whole-configuration `PUT` | Administrator |
+| GET | `/settings/server-folders/roots` | The places the folder picker can start from: the server's drives and root, plus any administrator-approved folders (`id`, `label`, `path`, `allow_write`, `available_bytes`, `file_system`). Tuvima's own library, import and View folders are never listed. An unreachable location is left out and logged | Administrator |
+| POST | `/settings/server-folders/browse` | `{storage_location_id, relative_path, search}`. The sub-folders of one listed place (`directories` with `name`, `relative_path`, `modified_at`; `parent_relative_path`; `display_path`). Cannot leave the place or enter one of Tuvima's own folders; `400` when it tries | Administrator |
+| POST | `/settings/server-folders/validate` | `{storage_location_id, relative_path}` or `{manual_path}`, plus `selection_mode` (`managed_library`, `existing_library`, `personal_space_managed`, `personal_space_existing`) and optional `current_source_id`. Checks, from the server's side, that the folder exists, can be read (and written for the managed modes) and does not overlap another library, the import folder or a Tuvima folder. Returns `can_select`, `exists`, `has_read`, `has_write`, `contains_files` and `issues` (`code`, `message`, `library_name`, `severity`). `400` for a path outside every listed place | Administrator |
+| GET | `/setup/v1/libraries` | Setup-session protected. The library configuration, so the first-run Libraries step can show the folders added so far (the same shape as `GET /settings/libraries`) | Setup session |
+| PUT | `/setup/v1/libraries` | Setup-session protected. Replaces the library configuration during first-run setup, with the same checks as `PUT /settings/libraries`. Setup only prepares the folders; watching starts when setup is complete | Setup session |
+| GET | `/setup/v1/server-folders/roots` | Setup-session protected. The same list as `GET /settings/server-folders/roots`, for the folder picker inside setup | Setup session |
+| POST | `/setup/v1/server-folders/browse` | Setup-session protected. The same action and body as `POST /settings/server-folders/browse` | Setup session |
+| POST | `/setup/v1/server-folders/validate` | Setup-session protected. The same action and body as `POST /settings/server-folders/validate` | Setup session |
 
 Reorganization execution requires both the returned `plan_id` and its exact
 `fingerprint`. A plan expires after 15 minutes and cannot be reused. Partial

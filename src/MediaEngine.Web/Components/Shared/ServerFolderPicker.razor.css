@@ -159,8 +159,8 @@
     .server-folder-picker { grid-template-columns: 340px minmax(0, 1fr); }
 }
 
-/* Phone: drives become a compact row above the path bar, folders stay one column, Modified is hidden. */
-@media (max-width: 800px) {
+/* Under 860px (the one card breakpoint shared with the Libraries panel): drives become a compact row above the path bar, folders stay one column, Modified is hidden. */
+@media (max-width: 860px) {
     .server-folder-picker {
         grid-template-columns: minmax(0, 1fr);
         min-height: 0;

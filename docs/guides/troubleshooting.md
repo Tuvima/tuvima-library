@@ -88,6 +88,8 @@ A catalogue item needs a real title, resolved type, and settled artwork state be
 
 For View, confirm the owning profile, source attachment, and upload/import policy. Routine catalogue scans do not replace View's personal-source workflow.
 
+On a Linux network share mounted with CIFS options `noserverino,nobrl`, Tuvima cannot prove that two names which differ only in letter case are one file. A case-only rename is then skipped with a warning in the Engine log and the folder job's log, and is never forced; the file keeps its current letter case. Mount the share with server inode numbers (the CIFS default) if you want those names corrected.
+
 ## An import waits or needs review
 
 Operations reports durable queued jobs, retries, and provider waits. A settled file count can reach its target while required identity or organization work remains.

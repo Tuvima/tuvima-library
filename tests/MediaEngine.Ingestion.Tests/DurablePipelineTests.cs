@@ -524,6 +524,36 @@ public sealed class DurablePipelineTests : IDisposable
     }
 
     [Fact]
+    public async Task IngestionEngine_ExactDuplicate_ShowsDuplicateSkippedInTheItemHistory()
+    {
+        var firstPath = CreateWatchFile("Dune.epub", "same bytes");
+        CreateWatchFile("Dune Copy.epub", "same bytes");
+
+        _processors.QueueResult(new ProcessorResult
+        {
+            FilePath = firstPath,
+            DetectedType = MediaType.Books,
+            Claims = [new ExtractedClaim { Key = "title", Value = "Dune", Confidence = 0.95 }],
+        });
+
+        await RunPipelineAsync();
+
+        // The copy is skipped, and the kept item's History says so in plain words.
+        using var conn = _dbFactory.Connection.CreateConnection();
+        var keptAssetId = conn.ExecuteScalar<Guid>("SELECT id FROM media_assets LIMIT 1;");
+        var workId = conn.ExecuteScalar<Guid>(
+            "SELECT e.work_id FROM media_assets ma JOIN editions e ON e.id = ma.edition_id WHERE ma.id = @keptAssetId;",
+            new { keptAssetId });
+        var history = await new LibraryItemCurationRepository(_dbFactory.Connection).GetHistoryAsync(workId);
+
+        var skipped = Assert.Single(history, entry => entry.EventType == SystemActionType.DuplicateSkipped);
+        Assert.Equal("Duplicate skipped", skipped.Label);
+        Assert.Equal(keptAssetId, skipped.EntityId);
+        Assert.Contains("Dune Copy.epub", skipped.Detail, StringComparison.Ordinal);
+        Assert.Contains("identical to", skipped.Detail, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task IngestionEngine_UnknownMediaType_RecordsReviewOutcome()
     {
         var filePath = CreateWatchFile("mystery.bin");

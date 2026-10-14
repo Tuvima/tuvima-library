@@ -3,6 +3,22 @@ using Microsoft.Win32.SafeHandles;
 
 namespace MediaEngine.Ingestion.Organise;
 
+/// <summary>What a check of two paths could establish.</summary>
+public enum FileIdentityResult
+{
+    /// <summary>Proven to be two different files (or one of the paths holds no file).</summary>
+    Different,
+
+    /// <summary>Proven to be one file under two names.</summary>
+    Same,
+
+    /// <summary>
+    /// Could not be told: the drive does not give files an identity Tuvima can read (for example a network share mounted
+    /// without server inode numbers and without byte-range locks), or a file could not be opened to compare.
+    /// </summary>
+    Unproven,
+}
+
 /// <summary>
 /// Tells whether two paths are the same file on disk. Two names are not "a copy" of each other when they lead to one file:
 /// removing one of them would remove the only file. This is true for a letter-case-only rename on a drive that ignores case
@@ -15,7 +31,14 @@ public static class FileIdentity
     /// two files that both exist. The answer errs towards "same" on purpose: callers only use it to refuse a delete, so a
     /// doubt keeps both names. A path that does not exist is a different file (there is nothing there to be the same).
     /// </summary>
-    public static bool AreSameFile(string first, string second)
+    public static bool AreSameFile(string first, string second) => Compare(first, second) != FileIdentityResult.Different;
+
+    /// <summary>
+    /// The same check as <see cref="AreSameFile"/>, but a doubt is reported as <see cref="FileIdentityResult.Unproven"/>
+    /// instead of "same". A caller that would act on a "same" answer (rename a file whose folder differs only in letter case)
+    /// uses this so it can leave the file alone when identity cannot be proven.
+    /// </summary>
+    public static FileIdentityResult Compare(string first, string second)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(first);
         ArgumentException.ThrowIfNullOrWhiteSpace(second);
@@ -24,12 +47,12 @@ public static class FileIdentity
         var right = Path.GetFullPath(second);
         if (string.Equals(left, right, StringComparison.Ordinal))
         {
-            return true;
+            return FileIdentityResult.Same;
         }
 
         if (!File.Exists(left) || !File.Exists(right))
         {
-            return false;
+            return FileIdentityResult.Different;
         }
 
         // File names that differ only in letter case, in one folder, are one file unless the drive keeps them apart and holds
@@ -40,7 +63,7 @@ public static class FileIdentity
             && !string.Equals(Path.GetFileName(left), Path.GetFileName(right), StringComparison.Ordinal)
             && string.Equals(Path.GetFileName(left), Path.GetFileName(right), StringComparison.OrdinalIgnoreCase))
         {
-            return !BothStoredSeparately(left, right);
+            return BothStoredSeparately(left, right) ? FileIdentityResult.Different : FileIdentityResult.Same;
         }
 
         try
@@ -51,7 +74,7 @@ public static class FileIdentity
         {
             // A file that cannot be opened to be compared is not proven different.
             _ = ex;
-            return true;
+            return FileIdentityResult.Unproven;
         }
     }
 
@@ -89,16 +112,16 @@ public static class FileIdentity
         return false;
     }
 
-    private static bool SameOnWindows(string left, string right)
+    private static FileIdentityResult SameOnWindows(string left, string right)
     {
         using var a = new FileStream(left, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
         using var b = new FileStream(right, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
         if (!TryGetWindowsId(a.SafeFileHandle, out var idA) || !TryGetWindowsId(b.SafeFileHandle, out var idB))
         {
-            return true;
+            return FileIdentityResult.Unproven;
         }
 
-        return idA == idB;
+        return idA == idB ? FileIdentityResult.Same : FileIdentityResult.Different;
     }
 
     private static bool TryGetWindowsId(SafeFileHandle handle, out (uint Volume, uint High, uint Low) id)
@@ -116,16 +139,17 @@ public static class FileIdentity
     // On Linux and macOS .NET takes an exclusive advisory lock on a file opened with FileShare.None, and that lock belongs to
     // the file, not to the path. A second open of the same file by another name therefore fails; a different file opens. A
     // file that is busy for another reason also fails, which is the safe side of the answer.
-    private static bool SameOnUnix(string left, string right)
+    private static FileIdentityResult SameOnUnix(string left, string right)
     {
         using var first = new FileStream(left, FileMode.Open, FileAccess.Read, FileShare.None);
 
         // The probe only counts when locking really works on this drive: the same file opened twice must be refused. If it
-        // is not (locking switched off, or a network drive that does not lock), the answer is "cannot tell", which is "same".
+        // is not (locking switched off, or a network drive that does not lock), the answer is unproven; a caller that only
+        // refuses deletes treats that as "same".
         try
         {
             using var again = new FileStream(left, FileMode.Open, FileAccess.Read, FileShare.None);
-            return true;
+            return FileIdentityResult.Unproven;
         }
         catch (IOException)
         {
@@ -135,11 +159,11 @@ public static class FileIdentity
         try
         {
             using var second = new FileStream(right, FileMode.Open, FileAccess.Read, FileShare.None);
-            return false;
+            return FileIdentityResult.Different;
         }
         catch (IOException)
         {
-            return true;
+            return FileIdentityResult.Same;
         }
     }
 
