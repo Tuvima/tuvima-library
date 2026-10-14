@@ -1,0 +1,12 @@
+@page "/downloads"
+@namespace MediaEngine.Web.Components.Pages
+@inject IStringLocalizer<SharedStrings> L
+
+<PageTitle>@L["Nav_Downloads"] · Tuvima Library</PageTitle>
+@* Downloads for offline use happen in the Tuvima app, not in the browser; this page only says so. *@
+<div class="downloads-page">
+    <AppPageState Kind="AppPageStateKind.Empty"
+                  Icon="@AppMaterialIcons.Outlined.Download"
+                  Title="@L["Downloads_NativeAppTitle"]"
+                  Message="@L["Downloads_NativeAppMessage"]" />
+</div>

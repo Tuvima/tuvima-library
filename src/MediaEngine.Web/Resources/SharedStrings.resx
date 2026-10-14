@@ -149,11 +149,20 @@
   <data name="Search_Cancel" xml:space="preserve">
     <value>Cancel</value>
   </data>
-  <data name="Nav_Menu" xml:space="preserve">
-    <value>Menu</value>
-  </data>
   <data name="Nav_RecentlyAdded" xml:space="preserve">
     <value>Recently added</value>
+  </data>
+  <data name="Nav_Libraries" xml:space="preserve">
+    <value>Libraries</value>
+  </data>
+  <data name="Nav_Downloads" xml:space="preserve">
+    <value>Downloads</value>
+  </data>
+  <data name="Downloads_NativeAppTitle" xml:space="preserve">
+    <value>Downloads live in the Tuvima app</value>
+  </data>
+  <data name="Downloads_NativeAppMessage" xml:space="preserve">
+    <value>Download movies, shows, books and music in the Tuvima app to enjoy them offline.</value>
   </data>
   <data name="TopBar_SignedInAs" xml:space="preserve">
     <value>Signed in as</value>

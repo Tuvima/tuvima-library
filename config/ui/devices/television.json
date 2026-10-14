@@ -18,7 +18,7 @@
   "shell": {
     "appbar_style": "oversized",
     "logo_variant": "wordmark-large",
-    "intent_dock_items": ["Collections", "Watch", "Read", "Listen"],
+    "intent_dock_items": ["Home", "Libraries", "Search", "Downloads", "Settings"],
     "intent_dock_style": "oversized"
   },
   "pages": {

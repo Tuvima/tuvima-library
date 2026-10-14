@@ -147,7 +147,7 @@ public sealed class UIShellSettingsDto
     public string LogoVariant { get; set; } = "wordmark";
 
     [JsonPropertyName("intent_dock_items")]
-    public List<string> IntentDockItems { get; set; } = ["Home", "Read", "Watch", "Listen", "View", "Collections"];
+    public List<string> IntentDockItems { get; set; } = ["Home", "Libraries", "Search", "Downloads", "Settings"];
 
     [JsonPropertyName("intent_dock_style")]
     public string IntentDockStyle { get; set; } = "normal";

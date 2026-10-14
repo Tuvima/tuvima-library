@@ -1617,7 +1617,7 @@ public sealed class UiShellRenderTests : AsyncBunitContext
     }
 
     [Fact]
-    public async Task MainLayout_ShowsSixTabDockAndHamburgerOnlyOnPhones()
+    public async Task MainLayout_ShowsFiveTabDockOnPhonesWithoutAHamburger()
     {
         var cut = Render<MainLayout>(parameters => parameters
             .Add(layout => layout.Body, builder => builder.AddMarkupContent(0, "<section>Body</section>")));
@@ -1628,9 +1628,10 @@ public sealed class UiShellRenderTests : AsyncBunitContext
         cut.WaitForAssertion(() =>
         {
             var links = cut.FindAll(".layout-shell__intent-dock-link");
-            Assert.Equal(6, links.Count);
-            Assert.Equal(["/", "/read", "/watch", "/listen", "/view", "/collections"], links.Select(link => link.GetAttribute("href")!).ToArray());
-            Assert.Single(cut.FindAll(".shell-menu-button"));
+            Assert.Equal(["/", "/watch", "/search", "/downloads", "/settings"], links.Select(link => link.GetAttribute("href")!).ToArray());
+            Assert.Equal(["Home", "Libraries", "Search", "Downloads", "Settings"], links.Select(link => link.TextContent.Trim()).ToArray());
+            Assert.Empty(cut.FindAll(".shell-menu-button"));
+            Assert.Single(cut.FindAll(".top-nav-account-menu__trigger"));
         });
 
         await cut.InvokeAsync(() => device.SwitchDeviceAsync(new DeviceContextSnapshot("web", "tablet", true)));
@@ -1643,21 +1644,79 @@ public sealed class UiShellRenderTests : AsyncBunitContext
     }
 
     [Fact]
-    public void ShellMenuSheet_ListsFullMenuForAdultsAndOnlySearchAndSwitchProfileForKids()
+    public async Task MainLayout_LibrariesTabLinksToTheLastLibraryAndOpensTheSwitcherOnALibrarySurface()
     {
-        var adult = Render<MediaEngine.Web.Components.Navigation.ShellMenuSheet>(parameters => parameters.Add(p => p.IsKids, false));
-        var adultRows = adult.FindAll(".shell-menu-sheet__row");
-        Assert.Equal(["Recently added", "Search", "My List", "Settings", "Switch profile", "Sign out"],
-            adultRows.Select(row => row.TextContent.Trim()).ToArray());
-        Assert.Equal("/recently-added", adultRows[0].GetAttribute("href"));
-        Assert.Equal("/for-me", adultRows[2].GetAttribute("href"));
-        Assert.Equal("/settings", adultRows[3].GetAttribute("href"));
-        Assert.Equal("/who", adultRows[4].GetAttribute("href"));
-        Assert.Single(adult.FindAll("form[action='/auth/logout']"));
+        var cut = Render<MainLayout>(parameters => parameters
+            .Add(layout => layout.Body, builder => builder.AddMarkupContent(0, "<section>Body</section>")));
+        cut.WaitForAssertion(() => Assert.Single(cut.FindAll(".tl-appbar")));
+        var device = Services.GetRequiredService<DeviceContextService>();
+        var nav = Services.GetRequiredService<NavigationManager>();
+        await cut.InvokeAsync(() => device.SwitchDeviceAsync(new DeviceContextSnapshot("mobile", "phone", true)));
 
-        var kids = Render<MediaEngine.Web.Components.Navigation.ShellMenuSheet>(parameters => parameters.Add(p => p.IsKids, true));
-        Assert.Equal(["Search", "Switch profile"], kids.FindAll(".shell-menu-sheet__row").Select(row => row.TextContent.Trim()).ToArray());
-        Assert.Empty(kids.FindAll("a[href='/settings']"));
+        AngleSharp.Dom.IElement Libraries() => cut.FindAll(".layout-shell__intent-dock-link")[1];
+
+        // Off a library surface the tab is a plain link to the default library and opens nothing.
+        cut.WaitForAssertion(() => Assert.Equal("/watch", Libraries().GetAttribute("href")));
+        Assert.Null(Libraries().GetAttribute("aria-haspopup"));
+        Libraries().Click();
+        Assert.Empty(cut.FindAll(".library-switcher"));
+
+        // Visiting a lane makes it the one the tab returns to, and the tab is active on it.
+        await cut.InvokeAsync(() => nav.NavigateTo("/read"));
+        await cut.InvokeAsync(() => nav.NavigateTo("/details/work/abc"));
+        cut.WaitForAssertion(() =>
+        {
+            Assert.Equal("/read", Libraries().GetAttribute("href"));
+            Assert.DoesNotContain("is-active", Libraries().ClassName);
+        });
+
+        // On a library surface the tab is active and tapping it opens the switcher with six rows.
+        await cut.InvokeAsync(() => nav.NavigateTo("/listen"));
+        cut.WaitForAssertion(() =>
+        {
+            Assert.Contains("is-active", Libraries().ClassName);
+            Assert.Equal("dialog", Libraries().GetAttribute("aria-haspopup"));
+            Assert.Equal("/listen", Libraries().GetAttribute("href"));
+        });
+        Libraries().Click();
+        cut.WaitForAssertion(() =>
+        {
+            var rows = cut.FindAll(".library-switcher__row");
+            Assert.Equal(["Watch", "Read", "Listen", "View", "Collections", "Recently added"], rows.Select(row => row.TextContent.Trim()).ToArray());
+            Assert.Equal(["/watch", "/read", "/listen", "/view", "/collections", "/recently-added"], rows.Select(row => row.GetAttribute("href")!).ToArray());
+            Assert.Equal("page", rows[2].GetAttribute("aria-current"));
+        });
+
+        // Choosing a row closes the sheet.
+        cut.FindAll(".library-switcher__row")[1].Click();
+        cut.WaitForAssertion(() => Assert.Empty(cut.FindAll(".library-switcher")));
+    }
+
+    [Fact]
+    public async Task MainLayout_RemembersTheLastLibraryPerProfileInBrowserStorage()
+    {
+        var cut = Render<MainLayout>(parameters => parameters
+            .Add(layout => layout.Body, builder => builder.AddMarkupContent(0, "<section>Body</section>")));
+        cut.WaitForAssertion(() => Assert.Single(cut.FindAll(".tl-appbar")));
+        var device = Services.GetRequiredService<DeviceContextService>();
+        var nav = Services.GetRequiredService<NavigationManager>();
+        await cut.InvokeAsync(() => device.SwitchDeviceAsync(new DeviceContextSnapshot("mobile", "phone", true)));
+
+        var profileId = Guid.NewGuid();
+        typeof(MainLayout).GetField("_activeProfileId", BindingFlags.Instance | BindingFlags.NonPublic)!.SetValue(cut.Instance, profileId);
+        await cut.InvokeAsync(() => nav.NavigateTo("/view"));
+
+        var key = MediaEngine.Web.Services.Navigation.ShellDock.LastLibraryStorageKey(profileId);
+        cut.WaitForAssertion(() => Assert.Contains(
+            JSInterop.Invocations["localStorage.setItem"],
+            invocation => invocation.Arguments.Count == 2 && (string?)invocation.Arguments[0] == key && (string?)invocation.Arguments[1] == "/view"));
+    }
+
+    [Fact]
+    public void DownloadsPage_SaysDownloadsLiveInTheTuvimaApp()
+    {
+        var cut = Render<DownloadsPage>();
+        Assert.Contains("Downloads live in the Tuvima app", cut.Markup);
     }
 
     [Fact]
@@ -1690,7 +1749,8 @@ public sealed class UiShellRenderTests : AsyncBunitContext
 
         cut.WaitForAssertion(() =>
         {
-            Assert.Equal(6, cut.FindAll(".layout-shell__intent-dock-link").Count);
+            Assert.Equal(["/", "/watch", "/search", "/downloads", "/settings"],
+                cut.FindAll(".layout-shell__intent-dock-link").Select(link => link.GetAttribute("href")!).ToArray());
             Assert.Contains("is-device-profile-dock", cut.Find(".layout-shell__intent-dock").ClassName);
             Assert.Empty(cut.FindAll(".shell-menu-button"));
         });
@@ -1708,37 +1768,8 @@ public sealed class UiShellRenderTests : AsyncBunitContext
         typeof(MainLayout).GetField("_isKids", BindingFlags.Instance | BindingFlags.NonPublic)!.SetValue(cut.Instance, true);
         cut.Render();
 
-        cut.WaitForAssertion(() => Assert.Equal(["/", "/read", "/watch", "/listen"],
+        cut.WaitForAssertion(() => Assert.Equal(["/", "/watch", "/search", "/downloads"],
             cut.FindAll(".layout-shell__intent-dock-link").Select(link => link.GetAttribute("href")!).ToArray()));
-    }
-
-    [Fact]
-    public async Task ShellMenuButton_OpensAndClosesTheSheetAndSearchClosesItFirst()
-    {
-        Services.AddScoped<MediaEngine.Web.Services.Ui.IAppDialogService, MediaEngine.Web.Services.Ui.AppDialogService>();
-        var searchRaised = 0;
-        IRenderedComponent<MediaEngine.Web.Components.Navigation.ShellMenuButton>? cut = null;
-        cut = Render<MediaEngine.Web.Components.Navigation.ShellMenuButton>(parameters => parameters
-            .Add(p => p.OnSearch, Microsoft.AspNetCore.Components.EventCallback.Factory.Create(this, () =>
-            {
-                searchRaised++;
-            })));
-        Assert.Empty(cut.FindAll(".shell-menu-button")); // desktop: no hamburger
-
-        var device = Services.GetRequiredService<DeviceContextService>();
-        await cut.InvokeAsync(() => device.SwitchDeviceAsync(new DeviceContextSnapshot("mobile", "phone", true)));
-        cut.Find(".shell-menu-button").Click();
-        cut.WaitForAssertion(() => Assert.Single(cut.FindAll(".shell-menu-sheet")));
-
-        // Escape-style cancel from a link row closes it.
-        cut.Find(".shell-menu-sheet a[href='/settings']").Click();
-        cut.WaitForAssertion(() => Assert.Empty(cut.FindAll(".shell-menu-sheet")));
-
-        cut.Find(".shell-menu-button").Click();
-        cut.WaitForAssertion(() => Assert.Single(cut.FindAll(".shell-menu-sheet")));
-        cut.FindAll(".shell-menu-sheet__row").First(row => row.TextContent.Trim() == "Search").Click();
-        cut.WaitForAssertion(() => Assert.Equal(1, searchRaised));
-        Assert.Empty(cut.FindAll(".shell-menu-sheet"));
     }
 
     [Fact]

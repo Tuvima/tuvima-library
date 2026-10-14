@@ -27,11 +27,11 @@ public sealed class UIShellSettings
     public string LogoVariant { get; set; } = "wordmark";
 
     /// <summary>
-    /// Intent names displayed on the floating dock. Default: all four intents.
+    /// Tab names displayed on the dock (phone and TV). Default: Home, Libraries, Search, Downloads and Settings. Read, Watch, Listen, View and Collections remain valid names.
     /// Automotive restricts this to <c>["Collections", "Listen"]</c>.
     /// </summary>
     [JsonPropertyName("intent_dock_items")]
-    public List<string> IntentDockItems { get; set; } = ["Home", "Read", "Watch", "Listen", "View", "Collections"];
+    public List<string> IntentDockItems { get; set; } = ["Home", "Libraries", "Search", "Downloads", "Settings"];
 
     /// <summary>
     /// Intent Dock sizing: <c>normal</c> (standard) or <c>oversized</c> (TV/automotive).

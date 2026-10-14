@@ -1,0 +1,34 @@
+@namespace MediaEngine.Web.Components.Navigation
+@using MediaEngine.Web.Services.Navigation
+@inject IStringLocalizer<SharedStrings> L
+
+@* The Libraries dock tab, tapped while already on a library surface: one 56 px row per library surface, opened as a phone bottom sheet.
+   Kids see only the lanes a child needs. *@
+<nav class="library-switcher" aria-label="@L["Nav_Libraries"]">
+    @foreach (var row in ShellDock.SwitcherRows(IsKids))
+    {
+        <a class="@RowClass(row)"
+           href="@row.Path"
+           @key="row.Key"
+           aria-current="@(IsCurrent(row) ? "page" : null)"
+           @onclick="OnNavigate">
+            <AppMaterialIcon Icon="@row.Icon" />
+            <span>@L[row.LabelKey]</span>
+        </a>
+    }
+</nav>
+
+@code {
+    /// <summary>The current location, so the row for the surface the person is on is marked.</summary>
+    [Parameter] public string CurrentPath { get; set; } = "/";
+    /// <summary>True for a Kids profile: only Watch, Listen and Read are listed.</summary>
+    [Parameter] public bool IsKids { get; set; }
+    /// <summary>Raised when a row is tapped so the host can close the sheet.</summary>
+    [Parameter] public EventCallback OnNavigate { get; set; }
+
+    private bool IsCurrent(LibrarySurface row) =>
+        CurrentPath.Equals(row.Path, StringComparison.OrdinalIgnoreCase)
+        || CurrentPath.StartsWith(row.Path + "/", StringComparison.OrdinalIgnoreCase);
+
+    private string RowClass(LibrarySurface row) => IsCurrent(row) ? "library-switcher__row is-current" : "library-switcher__row";
+}
