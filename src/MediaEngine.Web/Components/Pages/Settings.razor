@@ -82,7 +82,7 @@ else
                            Subtitle="@(IsEditingOtherPlaybackProfile ? null : GetSectionDescription(_activeSection))" />
 
         <div @key="DeviceContext.DeviceClass" class="@PageCanvasClass">
-            <AdministratorSurfaceGate Required="@(_profileRoleLoaded && CanManageAdministration && SettingsNav.GetItem(_activeSection).AdminOnly)">
+            <AdministratorSurfaceGate Required="@(_profileRoleLoaded && RequiresAdministratorSurface)">
             @if (ShouldDeferForRoleResolution)
             {
                 <AppPageState Kind="AppPageStateKind.Loading"
@@ -448,6 +448,16 @@ else
 
     // A household administrator who is not the server administrator reaches the one administration page that is theirs (Devices).
     private bool CanManageHousehold => Session.HasAction("household.manage");
+
+    // Administration pages need the administrator gate, except the page a household administrator reaches without being the server administrator.
+    private bool RequiresAdministratorSurface
+    {
+        get
+        {
+            var item = SettingsNav.GetItem(_activeSection);
+            return item.AdminOnly && !(item.HouseholdAdminAccess && !CanManageAdministration && CanManageHousehold);
+        }
+    }
 
     private void ResolveSectionAndNormalize()
     {

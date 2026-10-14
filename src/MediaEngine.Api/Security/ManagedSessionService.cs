@@ -81,15 +81,21 @@ public sealed class ManagedSessionService(
         }
 
         var session = await identities.GetSessionByIdAsync(sessionId, ct).ConfigureAwait(false);
-        if (session is null || !session.IsActive(clock.GetUtcNow()))
+        if (session is null)
         {
             return ManagedSessionRevokeOutcome.NotFound;
         }
 
+        // Scope comes before "already ended", so an administrator cannot tell whether someone else's session is still live.
         var owner = await accounts.GetByIdAsync(session.AccountId, ct).ConfigureAwait(false);
         if (owner is null || !InScope(scope, actor, owner))
         {
             return ManagedSessionRevokeOutcome.Forbidden;
+        }
+
+        if (!session.IsActive(clock.GetUtcNow()))
+        {
+            return ManagedSessionRevokeOutcome.NotFound;
         }
 
         if (!await firstParty.RevokeSessionAsync(sessionId, RevokedReason, ct).ConfigureAwait(false))

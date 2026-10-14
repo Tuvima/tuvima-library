@@ -146,6 +146,15 @@ public sealed class ManagedSessionServiceTests
         Assert.Equal(ManagedSessionRevokeOutcome.NotFound, await world.Service.RevokeAsync(world.ServerAdmin, world.OwnerPhone.Id));
     }
 
+    [Fact]
+    public async Task AnotherHouseholdsEndedSession_IsStillForbidden_SoItsStateCannotBeProbed()
+    {
+        await using var world = await World.CreateAsync();
+        await world.Identities.RevokeSessionAsync(world.OtherOwnerPhone.Id, DateTimeOffset.UtcNow, "test");
+
+        Assert.Equal(ManagedSessionRevokeOutcome.Forbidden, await world.Service.RevokeAsync(world.HouseholdAdmin, world.OtherOwnerPhone.Id));
+    }
+
     private sealed class World : IAsyncDisposable
     {
         private readonly string _databasePath = Path.Combine(Path.GetTempPath(), $"tuvima-managed-sessions-{Guid.NewGuid():N}.db");
