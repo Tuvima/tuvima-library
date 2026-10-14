@@ -1673,9 +1673,9 @@ public sealed class LocalAssetRepository(IDatabaseConnection database) : ILocalA
     /// read from the document, its notes, and its tags, people, correspondent, type, archive number and text field
     /// values. Call after anything that changes any of them.
     /// </summary>
-    internal static void RebuildSearchDocument(
-        SqliteConnection connection,
-        SqliteTransaction transaction,
+    public static void RebuildSearchDocument(
+        System.Data.IDbConnection connection,
+        System.Data.IDbTransaction transaction,
         Guid itemId)
     {
         var row = connection.QuerySingle<SearchDocumentRow>("""

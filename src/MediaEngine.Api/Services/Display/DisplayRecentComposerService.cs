@@ -1,11 +1,14 @@
 using MediaEngine.Api.Services.View;
 using MediaEngine.Contracts.Display;
 using MediaEngine.Domain.PersonalMedia;
+using MediaEngine.Storage.Contracts;
 
 namespace MediaEngine.Api.Services.Display;
 
 internal sealed class DisplayRecentComposerService(RecentCatalogueReadService catalogue, IViewQueryOrchestrator view)
 {
+    private static readonly string[] HomeMediaKinds = [LocalAssetMediaKinds.Image, LocalAssetMediaKinds.Video];
+
     public async Task<DisplayRecentPageDto> LoadAsync(string? type, string? cursor, int? limit, Guid profileId, CancellationToken ct)
     {
         var scope = DisplayRecentCursor.NormalizeType(type);
@@ -26,8 +29,11 @@ internal sealed class DisplayRecentComposerService(RecentCatalogueReadService ca
         }
         if (scope is "all" or "view")
         {
+            // Home shows photos and videos only. A document's title, file name or id never reaches Home, for anyone;
+            // documents live on the Documents page behind the profile's Documents permission.
             var result = await view.QueryAsync(new ViewAssetQueryRequest(new ViewScopeRequest(ViewScopeKind.Mine),
-                Limit: take + 1, SortByAddedAt: true, AddedBefore: boundary?.AddedAt, AddedAfterKey: boundary?.Key), ct);
+                Limit: take + 1, MediaKinds: HomeMediaKinds, SortByAddedAt: true,
+                AddedBefore: boundary?.AddedAt, AddedAfterKey: boundary?.Key), ct);
             if (result.Page is { } page)
             {
                 foreach (var asset in page.Items)

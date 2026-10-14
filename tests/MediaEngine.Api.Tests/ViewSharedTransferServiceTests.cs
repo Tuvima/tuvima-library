@@ -8,6 +8,7 @@ using MediaEngine.Domain.Configuration;
 using MediaEngine.Domain.Enums;
 using MediaEngine.Domain.PersonalMedia;
 using MediaEngine.Storage;
+using MediaEngine.Storage.Contracts;
 using Microsoft.Extensions.Logging.Abstractions;
 
 namespace MediaEngine.Api.Tests;
@@ -294,6 +295,14 @@ public sealed class ViewSharedTransferServiceTests
         Assert.Equal(original2.Tags![0].Id, copy.Tags![0].Id);
         // And the original keeps its own.
         Assert.Equal("Pay by April, ask about the meter", original2.Notes);
+
+        // The copy is found in Shared by its text, notes, correspondent, type and tag as soon as it exists.
+        var sharedItemId = fixture.SharedItemId(indexed.ItemId);
+        foreach (var word in new[] { "house", "meter", "City", "Bill", "Home" })
+        {
+            var found = fixture.Assets.QueryTimeline(new LocalAssetTimelineQuery([fixture.SharedLibraryId()], Search: word));
+            Assert.True(found.Items.Any(item => item.Id == sharedItemId), $"Searching Shared for '{word}' should find the copy.");
+        }
     }
 
     [Fact]
@@ -336,6 +345,37 @@ public sealed class ViewSharedTransferServiceTests
         Assert.Equal(1, Assert.Single(root.Sources).ItemCount);
         Assert.Equal(1, Assert.Single(folders.Folders).ItemCount);
         Assert.Single(items.Items);
+    }
+
+    [Fact]
+    public async Task FolderCountsAndPages_LeaveDocumentsOutWhenTheProfileMayNotUseThem()
+    {
+        using var fixture = new Fixture();
+        var photo = fixture.WriteManaged(Path.Combine("Trip", "photo.jpg"), [1, 2, 3, 4]);
+        var document = fixture.WriteManaged(Path.Combine("Trip", "passport.pdf"), DocumentFixtures.Pdf("passport words"));
+        var deeper = fixture.WriteManaged(Path.Combine("Papers", "bill.pdf"), DocumentFixtures.Pdf("bill words"));
+        await fixture.Library.IndexPathAsync(fixture.Space.LibraryId, photo);
+        var indexedDocument = await fixture.Library.IndexPathAsync(fixture.Space.LibraryId, document);
+        await fixture.Library.IndexPathAsync(fixture.Space.LibraryId, deeper);
+        Assert.Equal(LocalAssetMediaKinds.Document, fixture.Assets.Find(indexedDocument!.ItemId)!.MediaKind);
+        var source = Assert.Single(await fixture.Sources.GetSourcesAsync(fixture.Space.Id));
+        var scope = new ResolvedViewScope(ViewScopeKind.Mine, fixture.ProfileId, new HashSet<Guid> { fixture.Space.LibraryId });
+
+        var withDocuments = await fixture.Folders.QueryAsync(fixture.ProfileId, scope, null, null, false, null, 0, 100);
+        var withoutDocuments = await fixture.Folders.QueryAsync(fixture.ProfileId, scope, null, null, false, null, 0, 100, includeDocuments: false);
+        Assert.Equal(3, Assert.Single(withDocuments.Sources).ItemCount);
+        Assert.Equal(1, Assert.Single(withoutDocuments.Sources).ItemCount);
+
+        var folders = await fixture.Folders.QueryAsync(fixture.ProfileId, scope, source.Id, null, false, null, 0, 100, includeDocuments: false);
+        Assert.Equal(["Trip"], folders.Folders.Select(folder => folder.Name).ToArray());
+        Assert.Equal(1, Assert.Single(folders.Folders).ItemCount);
+
+        // One photo and one document share the folder: a page of one has no "more" once the document is out of the query.
+        var page = await fixture.Folders.QueryAsync(fixture.ProfileId, scope, source.Id, "Trip", false, null, 0, 1, includeDocuments: false);
+        Assert.Equal("photo.jpg", Assert.Single(page.Items).FileName);
+        Assert.False(page.HasMore);
+        var unfiltered = await fixture.Folders.QueryAsync(fixture.ProfileId, scope, source.Id, "Trip", false, null, 0, 1);
+        Assert.True(unfiltered.HasMore);
     }
 
     [Fact]

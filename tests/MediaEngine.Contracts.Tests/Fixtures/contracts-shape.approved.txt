@@ -4288,6 +4288,7 @@ MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewScopeRes
   AvailableScopes: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.LocalAssets.ViewScopeOptionDto> | nullability=not-null | accessors=get,init
   CanBrowseOtherPeople: System.Boolean | nullability=not-null | accessors=get,init
   CanViewDocuments: System.Boolean | nullability=not-null | accessors=get,init
+  CanFileSharedInbox: System.Boolean | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewSharedContributionDecisionRequest
   Decision: System.String | nullability=not-null | accessors=get,init
@@ -6648,7 +6649,7 @@ MediaEngine.Contracts.Profiles.MediaEngine.Contracts.Profiles.UpdateViewProfileP
   AccessSharedLibrary: System.Boolean | nullability=not-null | accessors=get,init
   SubmitToSharedLibrary: System.Boolean | nullability=not-null | accessors=get,init
   AllowGallerySharing: System.Boolean | nullability=not-null | accessors=get,init
-  AllowDocuments: System.Boolean | nullability=not-null | accessors=get,init
+  AllowDocuments: System.Boolean? | nullability=nullable | accessors=get,init
 
 MediaEngine.Contracts.Profiles.MediaEngine.Contracts.Profiles.ViewProfilePolicyDto
   ProfileId: System.Guid | nullability=not-null | accessors=get,init

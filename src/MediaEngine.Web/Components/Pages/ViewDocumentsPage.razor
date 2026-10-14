@@ -142,7 +142,7 @@
                                 <ViewDocumentInboxCard Item="item" ThumbnailUrl="@ThumbnailUrl(item)"
                                                        ShowPicture="@(ViewDocumentPresentation.HasPicture(item) && !_brokenThumbnails.Contains(item.Id))"
                                                        OnPictureError="@(() => _brokenThumbnails.Add(item.Id))"
-                                                       CanFile="CanFileInbox" EnterAccepts="@(CanFileInbox && Device.IsDesktop)"
+                                                       CanFile="CanFileInbox" Note="@InboxNote" EnterAccepts="@(CanFileInbox && Device.IsDesktop)"
                                                        Busy="@_filing.Contains(item.Id)"
                                                        Correspondents="@CorrespondentNames" DocumentTypes="@DocumentTypeNames" Tags="@TagNames"
                                                        OnFile="@(request => FileFromInboxAsync(item, request))"
@@ -301,8 +301,14 @@
     private bool CanSelect => !Device.IsTv && Workspace.ScopeKind == ViewScopeKind.Mine;
     // Filing a document is for your own space on a pointer screen: phones and televisions only read and filter.
     private bool CanEditDetails => !Device.IsPhone && !Device.IsTv && Workspace.ScopeKind == ViewScopeKind.Mine;
-    // Filing from the Inbox is for your own space on a phone, tablet or desktop; a television only reads.
-    private bool CanFileInbox => !Device.IsTv && Workspace.ScopeKind == ViewScopeKind.Mine;
+    // Filing from the Inbox is for your own space on a phone, tablet or desktop; a television only reads. The Shared Library
+    // Inbox is filed by a household or server administrator; everyone else reads it.
+    private bool CanFileInbox => !Device.IsTv
+        && (Workspace.ScopeKind == ViewScopeKind.Mine
+            || Workspace.ScopeKind == ViewScopeKind.Shared && Workspace.Scopes?.CanFileSharedInbox == true);
+    private string? InboxNote => Workspace.ScopeKind == ViewScopeKind.Shared && Workspace.Scopes?.CanFileSharedInbox != true
+        ? "Filed by a household administrator"
+        : null;
     // Saved views belong to the person's own documents on a screen that can pick and name them (not a television).
     private bool CanUseSavedViews => !Device.IsTv && Workspace.ScopeKind == ViewScopeKind.Mine;
     private bool CanSaveView => CanUseSavedViews && ViewDocumentSavedViews.CanSave(_filter, _search);

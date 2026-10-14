@@ -243,6 +243,10 @@ public sealed class UpdateViewProfilePolicyRequest
     [JsonPropertyName("allow_gallery_sharing")]
     public bool AllowGallerySharing { get; init; }
 
+    /// <summary>
+    /// The Documents switch. Omitted (null) keeps what is already saved, so an older client that never sends it can
+    /// never turn Documents on for a child profile by accident.
+    /// </summary>
     [JsonPropertyName("allow_documents")]
-    public bool AllowDocuments { get; init; } = true;
+    public bool? AllowDocuments { get; init; }
 }

@@ -50,6 +50,10 @@ Tags, correspondents, types and custom fields are one list for the whole server,
 
 A new document first waits in your **Inbox**. Each Inbox card shows what Tuvima Library thinks the date, correspondent, type and tags are, and you accept them with one tap, change them first, or file the document as it is. **Auto-filing rules** can do the same for you when a document looks a certain way, for example "when the words contain the name of my bank, add the tag Banking". Nothing is filed silently except by a rule you made. [How documents are filed](how-documents-are-filed.md) explains suggestions and rules.
 
+## Tags a rule adds can come back
+
+Tuvima Library does not keep a record of tags you take off. If an auto-filing rule added a tag and you remove it by hand, the tag can come back when the rule applies again, for example after "Apply rules to existing documents" or when the document's words are read again. Editing the rule so it no longer matches, changing the tag it adds, or deleting the rule stops it. A value you set or cleared yourself is never replaced by a rule.
+
 ## Finding and keeping your lists
 
 - **Search and filters.** Search the words, or narrow the list by tag, correspondent, type, date and custom fields. The list can be sorted by date added, document date, title or correspondent, and your choice is remembered for your profile.
@@ -61,7 +65,7 @@ You can search, filter and file from the Inbox on a phone. Editing every detail 
 
 ## The Shared Library
 
-You can send documents to the household's Shared Library. A shared copy keeps its tags, date, correspondent, type, archive number, notes and custom field values. Documents that sit in the Shared Library can show up in its Inbox, but they are filed only by the household administrators' rules, not by bulk edits.
+You can send documents to the household's Shared Library. A shared copy keeps its tags, date, correspondent, type, archive number, notes and custom field values. Documents that sit in the Shared Library can show up in its Inbox. A household administrator or the server administrator files them from the Inbox card with **File**, or in bulk with **Mark filed**, so the Shared Inbox can be emptied; everyone else, including child profiles, sees those cards read-only with the note "Filed by a household administrator". Other bulk edits skip Shared documents, and household administrators' rules can still file them automatically.
 
 ## Who can see Documents
 
