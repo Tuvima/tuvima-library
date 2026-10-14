@@ -207,6 +207,12 @@ public sealed class CollectionRepository : ICollectionRepository
             RefreshSchedule = reader.IsDBNull(16) ? null : reader.GetString(16),
             LastRefreshedAt = reader.IsDBNull(17) ? null : DateTimeOffset.Parse(reader.GetString(17)),
             ModifiedAt = reader.IsDBNull(18) ? null : DateTimeOffset.Parse(reader.GetString(18)),
+            // Who owns it and who it is shared with decide who may see it, so they must never fall back to the
+            // library-wide defaults. The columns sit after the joined work columns (see GetAllAsync).
+            MembershipMode = AggregateStateSerializer.ParseContainerMembershipMode(reader.IsDBNull(27) ? null : reader.GetString(27)),
+            PrimaryArea = AggregateStateSerializer.ParseCollectionPrimaryArea(reader.IsDBNull(28) ? null : reader.GetString(28)),
+            OwnerKind = AggregateStateSerializer.ParseContainerOwnerKind(reader.IsDBNull(29) ? null : reader.GetString(29)),
+            Audience = AggregateStateSerializer.ParseContainerAudience(reader.IsDBNull(30) ? null : reader.GetString(30)),
         };
         collection.RestoreDefinition(
             reader.IsDBNull(7)
@@ -377,7 +383,8 @@ public sealed class CollectionRepository : ICollectionRepository
                        h.rule_json, h.refresh_schedule, h.last_refreshed_at, h.modified_at,
                        w.id, w.media_type, w.ordinal,
                        w.universe_mismatch, w.universe_mismatch_at,
-                       w.wikidata_status, w.wikidata_checked_at, w.wikidata_qid
+                       w.wikidata_status, w.wikidata_checked_at, w.wikidata_qid,
+                       h.membership_mode, h.primary_area, h.owner_kind, h.audience
                 FROM   collections h
                 LEFT JOIN works w ON w.collection_id = h.id
                 ORDER  BY h.created_at, w.id;
@@ -442,6 +449,11 @@ public sealed class CollectionRepository : ICollectionRepository
         }
 
         IReadOnlyList<Collection> result = collections.Values.ToList();
+        foreach (var chunk in result.Chunk(SqliteBatching.MaxParametersPerQuery))
+        {
+            HydrateAudienceProfiles(conn, chunk);
+        }
+
         return Task.FromResult(result);
     }
 
@@ -1554,7 +1566,8 @@ public sealed class CollectionRepository : ICollectionRepository
                        h.rule_json, h.refresh_schedule, h.last_refreshed_at, h.modified_at,
                        w.id, w.media_type, w.ordinal,
                        w.universe_mismatch, w.universe_mismatch_at,
-                       w.wikidata_status, w.wikidata_checked_at, w.wikidata_qid
+                       w.wikidata_status, w.wikidata_checked_at, w.wikidata_qid,
+                       h.membership_mode, h.primary_area, h.owner_kind, h.audience
                 FROM   collections h
                 INNER JOIN works w ON w.collection_id = h.id
                                AND {visibleWorkPredicate}
@@ -1580,6 +1593,11 @@ public sealed class CollectionRepository : ICollectionRepository
         LoadCanonicalValuesForLoadedWorks(conn, works, visibleAssetsOnly: true);
 
         IReadOnlyList<Collection> result = collections.Values.ToList();
+        foreach (var chunk in result.Chunk(SqliteBatching.MaxParametersPerQuery))
+        {
+            HydrateAudienceProfiles(conn, chunk);
+        }
+
         return Task.FromResult(result);
     }
 
@@ -1633,7 +1651,8 @@ public sealed class CollectionRepository : ICollectionRepository
                        h.rule_json, h.refresh_schedule, h.last_refreshed_at, h.modified_at,
                        w.id, w.media_type, w.ordinal,
                        w.universe_mismatch, w.universe_mismatch_at,
-                       w.wikidata_status, w.wikidata_checked_at, w.wikidata_qid
+                       w.wikidata_status, w.wikidata_checked_at, w.wikidata_qid,
+                       h.membership_mode, h.primary_area, h.owner_kind, h.audience
                 FROM   collections h
                 LEFT JOIN works w ON w.collection_id = h.id
                 WHERE  h.id IN ({string.Join(", ", parameterNames)})
@@ -1662,6 +1681,11 @@ public sealed class CollectionRepository : ICollectionRepository
 
         // Canonical values for file, leaf, parent, and root work rows.
         LoadCanonicalValuesForLoadedWorks(conn, works, visibleAssetsOnly: false);
+
+        foreach (var chunk in collectionsById.Values.Chunk(SqliteBatching.MaxParametersPerQuery))
+        {
+            HydrateAudienceProfiles(conn, chunk);
+        }
 
         return orderedIds
             .Where(collectionsById.ContainsKey)

@@ -128,6 +128,13 @@ public class CollectionManagementCatalogDto : ManagedCollectionDto
     [JsonPropertyName("system_key")]
     public string? SystemKey { get; init; }
 
+    /// <summary>
+    /// The user-facing kind of group: <c>show</c>, <c>series</c>, <c>collection</c> (a rollup across
+    /// shelves or a rule-built curated group) or <c>list</c> (a hand-picked or system list).
+    /// </summary>
+    [JsonPropertyName("group_type")]
+    public string GroupType { get; init; } = "collection";
+
     [JsonPropertyName("primary_lane")]
     public string PrimaryLane { get; init; } = "CrossMedia";
 

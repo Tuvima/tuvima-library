@@ -191,7 +191,12 @@ public sealed class CollectionCatalogReadService(
                 artworkItems,
                 artworkPalette,
                 entries.Count > 1 ? representative.Grouping?.Label : null,
-                person));
+                person,
+                groupType: ClassifyGroupType(
+                    representative.Collection,
+                    representative.Classification,
+                    mediaCounts,
+                    entries.Count > 1 || IsBroadRollupKey(representative.Grouping?.Key))));
         }
 
         return dtos
@@ -707,6 +712,48 @@ public sealed class CollectionCatalogReadService(
             byte[] bytes => System.Text.Encoding.UTF8.GetString(bytes),
             _ => Convert.ToString(value, CultureInfo.InvariantCulture),
         };
+
+    // A key such as "parent:...", "franchise:Q..." or "fictional_universe:Q..." joins several shelves; a bare "series:" key does not.
+    private static bool IsBroadRollupKey(string? key) =>
+        key is not null && !key.StartsWith("series:", StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// Names the group the way people see it: a TV show is a show, a book or movie sequence is a series, a rollup
+    /// across shelves or a rule-built group is a collection, and a hand-picked or system list is a list.
+    /// </summary>
+    private static string ClassifyGroupType(
+        Collection collection,
+        CollectionCatalogClassification classification,
+        CollectionMediaCounts mediaCounts,
+        bool isBroadRollup)
+    {
+        if (classification.IsSystem)
+        {
+            return CollectionGroupTypes.List;
+        }
+
+        if (CollectionAccessPolicy.IsManagedCollectionType(collection.CollectionType))
+        {
+            return collection.CollectionType is CollectionType.Playlist or CollectionType.PlaylistFolder
+                   || collection.MembershipMode == ContainerMembershipMode.Manual
+                ? CollectionGroupTypes.List
+                : CollectionGroupTypes.Collection;
+        }
+
+        if (!IsGeneratedSeriesCollection(collection))
+        {
+            return CollectionGroupTypes.Collection;
+        }
+
+        if (isBroadRollup || collection.CollectionType == CollectionType.Universe)
+        {
+            return CollectionGroupTypes.Collection;
+        }
+
+        return mediaCounts.TvCount > 0 && mediaCounts.TvCount == mediaCounts.TotalCount
+            ? CollectionGroupTypes.Show
+            : CollectionGroupTypes.Series;
+    }
 
     private static bool IsGeneratedSeriesCollection(Collection collection)
         => collection.CollectionType is CollectionType.Universe

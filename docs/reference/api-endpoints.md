@@ -53,6 +53,7 @@ Tokens are opaque bearer credentials and must be stored in the platform secure c
 | Browse/home | `GET /api/v1/display/home`, `/browse`, `/shelves/{key}`, `/groups/{id}` | `library.read` |
 | Search | `GET /api/v1/display/search?q=` | `library.read` |
 | Details | `GET /api/v1/details/{entityType}/{id}` | `library.read` |
+| Collections and Universes | `GET /api/v1/collections`, `/collections/{id}`, `/collections/{id}/items`, `GET /api/v1/universe/{qid}` | `library.read` |
 | Artwork/media bytes | URLs returned by display/detail/manifest models; `/api/v1/stream/{assetId}` supports ranges and signed `/api/v1/stream/hls/...` paths serve adaptive packages | `artwork.read` or `playback.read` as applicable |
 | Progress | `GET/PUT /api/v1/progress/{assetId}`, `GET /recent`, `GET /journey` | `progress.read` / `progress.write` |
 | Queues | `GET /api/v1/player/state`, mutations under `/api/v1/player/queue` | `queue.read` / `queue.write` |
@@ -74,6 +75,21 @@ Optional query parameters on the same route:
 | `sequenceOnly=true` | Return just `sequencePlacement`, without credits and the rest of the page. |
 
 The routes need no extra scope or permission: they are the same detail request.
+
+#### Collections and Universes (read only)
+
+Paired apps read the same Collections catalogue the Dashboard shows, limited to the profile the device token acts as. The profile comes from the token, never from a query value. Its content limit (Kids and maturity), libraries and features are applied before anything is listed or counted, so an item over the limit appears in no page, no `item_count`, no `total_count` and no artwork preview. There are no write, lore or graph routes on this surface; collection edits, personal-media sources and the relationship graph stay out of the app door.
+
+| Method and route | Answer |
+|---|---|
+| `GET /api/v1/collections?cursor=&limit=` | `PagedResponse` of catalogue entries (`CollectionManagementCatalogDto`), default 24, at most 250, with `total_count` and `next_cursor`. Collections with nothing the profile may see are left out. |
+| `GET /api/v1/collections/{id}` | One catalogue entry. |
+| `GET /api/v1/collections/{id}/items?cursor=&limit=` | `PagedResponse` of `CollectionItemDto` (title, creator, media type, cover, detail route), in the collection's order, default 24, with `total_count` (at most the first 5,000 items). |
+| `GET /api/v1/universe/{qid}` | `UniverseClientDetailDto`: the Universe's name, `item_count` and its member shelves. Each shelf is a `DisplayShelfDto` (the same card shape as `/api/v1/display`, first 24 cards, `seeAllRoute` pointing at `/api/v1/display/groups/{collection_id}`) with the member's own `collection_id`, `group_type` and total `item_count`. |
+
+`cursor` is the `next_cursor` of the previous page; pass it back unchanged. A malformed cursor is `400`. Catalogue entries carry `group_type`, the user-facing kind of group: `show`, `series`, `collection` (a rollup across shelves or a rule-built group) or `list` (a hand-picked or system list); the Universe detail uses `universe`. Authoring fields of an entry (`rule_json`, `rule_hash`, `selected_profile_ids`, `profile_id`, `refresh_schedule`, the `can_*` flags and the collection's own uploaded artwork URLs) are always blank for apps; member artwork is in `artwork_items`.
+
+An unknown id or QID, a collection that belongs to another profile, and one with nothing this profile may see all give the same empty `404`, so an app cannot tell them apart. Collections hold owned media only: a profile that has Documents turned off never sees a document here, because Documents are View files and are not part of any collection's items or counts.
 
 Capability negotiation declares containers, video/audio codecs, subtitle formats, protocols, maximum dimensions/bitrate/channels, HDR, speed, and offline-download support. The playback manifest compares those registered capabilities with inspected source media and returns `directPlaySupported`, `recommendedDelivery`, source/alternate URLs, tracks, chapters, resume state, warnings, and a conversion reason. For HLS it also returns `hlsStatus`, `hlsUrl`, and `hlsExpiresAt`. `preparing` means the client should retry the manifest; `ready` supplies the playable path. Clients must follow the manifest rather than independently guessing whether a file can direct-play.
 
