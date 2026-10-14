@@ -1,0 +1,19 @@
+@namespace MediaEngine.Web.Components.Settings
+@using MediaEngine.Web.Services.Integration
+@inject DashboardSessionAccessor Session
+
+@* Settings > Administration > Devices: everything that connects. The server administrator also sets whether apps may
+   connect; a household administrator sees the paired devices and the sign-ins of their own household. *@
+<div class="devices-tab" data-devices-tab>
+    @if (IsServerAdministrator)
+    {
+        <AppsAndDevicesPanel />
+    }
+
+    <PairedDevicesSection />
+    <SignedInSessionsSection />
+</div>
+
+@code {
+    private bool IsServerAdministrator => Session.Authority?.EffectiveAdministrator == true;
+}

@@ -85,7 +85,7 @@ Face recognition, object/scene detection, OCR, captions, semantic search, and AI
 <details>
 <summary>Technical details</summary>
 
-A phone backs its photos up to one person that is chosen for the phone, not to whoever the phone is browsing as. The phone's app asks for that person's PIN when they have one; an administrator can also choose under **Settings > Network > Apps & devices** (**Backs up to**). Until one is chosen, backups from that phone are refused.
+A phone backs its photos up to one person that is chosen for the phone, not to whoever the phone is browsing as. The phone's app asks for that person's PIN when they have one; an administrator can also choose under **Settings > Administration > Devices** (**Backs up to**). Until one is chosen, backups from that phone are refused.
 
 Settings > Libraries chooses the managed View root. Current paths use stable `profiles/<profile-id>/sources/<source-id>` folders. Accepted shared originals live in a separate `Shared` tree. Do not move files by hand to match old `View/Profiles` wording.
 

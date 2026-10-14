@@ -1,0 +1,104 @@
+.signed-in-sessions__actions,
+.signed-in-sessions__dialog-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--tl-space-3, 12px);
+}
+
+.signed-in-sessions__dialog-actions {
+    justify-content: flex-end;
+}
+
+.signed-in-sessions__person {
+    display: grid;
+    gap: var(--tl-space-2, 8px);
+    padding-top: var(--tl-space-3, 12px);
+}
+
+.signed-in-sessions__person + .signed-in-sessions__person {
+    border-top: 1px solid var(--tl-border-subtle);
+}
+
+.signed-in-sessions__person-header {
+    display: flex;
+    align-items: center;
+    gap: var(--tl-space-3, 12px);
+    min-width: 0;
+}
+
+.signed-in-sessions__avatar {
+    display: inline-grid;
+    flex: none;
+    width: 40px;
+    height: 40px;
+    place-items: center;
+}
+
+.signed-in-sessions__who {
+    display: grid;
+    min-width: 0;
+}
+
+.signed-in-sessions__name {
+    color: var(--tl-text-primary);
+    font-weight: 600;
+    overflow-wrap: anywhere;
+}
+
+.signed-in-sessions__detail,
+.signed-in-sessions__client,
+.signed-in-sessions__seen {
+    color: var(--tl-text-muted);
+    font-size: var(--tl-font-size-xs);
+    overflow-wrap: anywhere;
+}
+
+.signed-in-sessions__list {
+    display: grid;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.signed-in-sessions__row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--tl-space-3, 12px);
+    min-width: 0;
+    padding: var(--tl-space-2, 8px) 0 var(--tl-space-2, 8px) 52px;
+}
+
+.signed-in-sessions__row + .signed-in-sessions__row {
+    border-top: 1px solid var(--tl-border-subtle);
+}
+
+.signed-in-sessions__device {
+    display: grid;
+    min-width: 0;
+    gap: 2px;
+}
+
+.signed-in-sessions__device-name {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--tl-space-2, 8px);
+    color: var(--tl-text-primary);
+    overflow-wrap: anywhere;
+}
+
+.signed-in-sessions__tag {
+    padding: 2px 8px;
+    border: 1px solid var(--tl-accent-primary);
+    border-radius: 999px;
+    color: var(--tl-accent-primary);
+    font-size: .75rem;
+}
+
+@media (max-width: 640px) {
+    .signed-in-sessions__row {
+        padding-left: 0;
+    }
+}

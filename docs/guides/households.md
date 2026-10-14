@@ -60,7 +60,7 @@ On a device that only one person uses, tick **Always open as this person on this
 
 ## Phone backup
 
-A paired phone backs up its photos to one profile. Open **Settings → Network → Apps & devices**, find the phone in **Paired devices**, and choose a person in its **Whose photos … backs up** list. Only people in the phone's household are offered, and **Not chosen** turns backup off for that phone. The choice does not need a PIN. Photos go to that person's private photo space, and the phone keeps backing up to that profile even when someone else browses on it.
+A paired phone backs up its photos to one profile. Open **Settings → Administration → Devices**, find the phone in **Paired devices**, and choose a person in its **Whose photos … backs up** list. Only people in the phone's household are offered, and **Not chosen** turns backup off for that phone. The choice does not need a PIN. Photos go to that person's private photo space, and the phone keeps backing up to that profile even when someone else browses on it.
 
 ## Shared Library
 

@@ -51,26 +51,22 @@
                 </ul>
             </section>
 
-            @* Signing out other sessions and revoking paired devices stay available to every member: they protect a lost or stolen device. *@
-            <section class="security-settings__group" aria-labelledby="security-access">
-                <h3 id="security-access" class="security-settings__group-title">Access</h3>
-                <ul class="security-settings__list" role="list">
-                    <li class="security-settings__item">
-                        <SettingsNavRow Key="sign-out-others" Icon="@AppMaterialIcons.Outlined.Logout" Title="Sign out everywhere else" Status="@OtherSessionsStatus"
-                                        Disabled="@(!_sessionsLoading && _sessionsError is null && !OtherSessions.Any())" ShowChevron="false" OnClick="RevokeOtherSessionsAsync" />
-                    </li>
-                    @if (IsServerAdministrator)
-                    {
+            @* Signing out other sessions and the Devices page (paired phones and TVs, everyone's sessions) are for administrators, server or household. *@
+            @if (IsAdministrator)
+            {
+                <section class="security-settings__group" aria-labelledby="security-access">
+                    <h3 id="security-access" class="security-settings__group-title">Access</h3>
+                    <ul class="security-settings__list" role="list">
                         <li class="security-settings__item">
-                            @* S13 moves devices to Administration > Devices and updates this address. *@
-                            <SettingsNavRow Key="devices" Icon="@AppMaterialIcons.Outlined.Devices" Title="Devices" Status="Paired phones and TVs, signed-in sessions" Href="/settings/network/apps" />
+                            <SettingsNavRow Key="sign-out-others" Icon="@AppMaterialIcons.Outlined.Logout" Title="Sign out everywhere else" Status="@OtherSessionsStatus"
+                                            Disabled="@(!_sessionsLoading && _sessionsError is null && !OtherSessions.Any())" ShowChevron="false" OnClick="RevokeOtherSessionsAsync" />
                         </li>
-                    }
-                </ul>
-            </section>
-
-            @* S13 moves this to Administration > Devices; until then paired phones and TVs stay reachable here for everyone, as before. *@
-            <PairedDevicesSection />
+                        <li class="security-settings__item">
+                            <SettingsNavRow Key="devices" Icon="@AppMaterialIcons.Outlined.Devices" Title="Devices" Status="Paired phones and TVs, signed-in sessions" Href="/settings/devices" />
+                        </li>
+                    </ul>
+                </section>
+            }
         </div>
 
         @if (_sheet != SecuritySheet.None)
@@ -371,7 +367,8 @@
     private bool _focusSheet;
 
     private AccountSecurityCapabilitiesResponse Capabilities => _account!.SecurityCapabilities;
-    private bool IsServerAdministrator => Session.Authority?.EffectiveAdministrator == true;
+    // A server administrator, or a household administrator looking after their own household.
+    private bool IsAdministrator => Session.Authority?.EffectiveAdministrator == true || Session.HasAction("household.manage");
     private string PasswordStatus => Capabilities.HasPassword ? "Set"
         : _thisComputerOnly ? "Not set · works on this computer only" : "Not set";
     private string EmailStatus => string.IsNullOrWhiteSpace(_account?.Email) ? "None · only needed away from home" : _account.Email;

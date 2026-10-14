@@ -1042,6 +1042,14 @@ MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.LocalL
   OriginalClientIngress: System.String | nullability=not-null | accessors=get,init
   OriginalClientIsHttps: System.Boolean | nullability=not-null | accessors=get,init
 
+MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.ManagedAccountSessionsResponse
+  AccountId: System.Guid | nullability=not-null | accessors=get,init
+  AccountLabel: System.String | nullability=not-null | accessors=get,init
+  Email: System.String | nullability=nullable | accessors=get,init
+  HouseholdId: System.Guid? | nullability=nullable | accessors=get,init
+  ProfileDisplayName: System.String | nullability=nullable | accessors=get,init
+  Sessions: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Authentication.DeviceSessionResponse> | nullability=not-null | accessors=get,init
+
 MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.ManagedClientDeviceDto
   Id: System.Guid | nullability=not-null | accessors=get,init
   DeviceName: System.String | nullability=not-null | accessors=get,init

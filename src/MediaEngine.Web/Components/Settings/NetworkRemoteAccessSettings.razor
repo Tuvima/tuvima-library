@@ -33,10 +33,6 @@
                 <RemoteAccessSettingsPanel Settings="@_settings" Status="@_status"
                                            SaveRequested="SaveAsync" StatusRefreshRequested="RefreshStatusAsync" />
                 break;
-            case "apps":
-                <AppsAndDevicesPanel Settings="@_settings" Status="@_status"
-                                     StatusRefreshRequested="RefreshStatusAsync" />
-                break;
             case "streaming":
                 <NetworkStreamingSettingsPanel Settings="@_settings" Status="@_status"
                                                SaveRequested="SaveAsync" StatusRefreshRequested="RefreshStatusAsync" />
@@ -65,7 +61,6 @@
     {
         "local" => "local",
         "remote" => "remote",
-        "apps" => "apps",
         "streaming" => "streaming",
         "advanced" => "advanced",
         _ => "overview",

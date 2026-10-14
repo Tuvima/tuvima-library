@@ -65,7 +65,7 @@ public sealed class AuthenticationSettingsUiTests
         Assert.Contains("Key=\"devices\"", account, StringComparison.Ordinal);
         Assert.Contains("Capabilities.HasPassword", account, StringComparison.Ordinal);
         Assert.Contains("Capabilities.CanRegisterPasskey", account, StringComparison.Ordinal);
-        Assert.Contains("IsServerAdministrator", account, StringComparison.Ordinal);
+        Assert.Contains("IsAdministrator", account, StringComparison.Ordinal);
         Assert.DoesNotContain("IsLocalOnly", account, StringComparison.Ordinal);
         Assert.Contains("Passkeys are unavailable from this connection", account, StringComparison.Ordinal);
         Assert.Contains("Sign out other sessions", account, StringComparison.Ordinal);
