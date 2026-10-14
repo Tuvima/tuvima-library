@@ -56,7 +56,10 @@ public sealed class ServerFolderBrowserService(
         }
 
         var resolved = ResolveSelection(location, request.RelativePath);
-        var ownFolders = OwnFolderPaths(includeWholeDataRoot: true);
+        // Browsing also hides Tuvima's own locations (its library, import and View folders) when they are reached
+        // through a drive or the server root; they stay resolvable by id for validation only.
+        var ownFolders = OwnFolderPaths();
+        ownFolders.AddRange(OwnLocationRoots(configurationSnapshot));
         if (IsInsideOwnFolder(ownFolders, resolved.Path))
         {
             throw new ServerFolderAccessException("This folder belongs to Tuvima and cannot be browsed.");
@@ -595,7 +598,7 @@ public sealed class ServerFolderBrowserService(
         if (IsImplicit(location))
         {
             // A whole drive is browsable, so protect Tuvima's own folders by where they are rather than by name.
-            var own = OwnFolderPaths(includeWholeDataRoot: true);
+            var own = OwnFolderPaths();
             if (RelativeSegments(selection.Path).Any(segment => segment == ".data")
                 || own.Any(path => IsWithin(path, selection.Path) || (!IsDriveRoot(selection.Path) && IsWithin(selection.Path, path))))
             {
@@ -616,23 +619,20 @@ public sealed class ServerFolderBrowserService(
         }
 
         // A typed path under a configured location (such as the managed library folder) is matched to that location
-        // rather than to the whole drive, so it gets the same own-folder check here instead of skipping it.
+        // rather than to the whole drive, so it gets the same own-folder check here instead of skipping it. An own
+        // folder that contains the location itself (the data folder around the managed library folder) does not
+        // count: only the own folders inside the location do.
         var relative = Path.GetRelativePath(selection.RootPath, selection.Path);
+        var ownInsideLocation = OwnFolderPaths().Where(own => !IsWithin(own, selection.RootPath));
         if (RelativeSegments(relative).Any(segment => ProtectedSegments.Contains(segment, StringComparer.OrdinalIgnoreCase))
-            || IsInsideOwnFolder(OwnFolderPaths(includeWholeDataRoot: false), selection.Path))
+            || IsInsideOwnFolder(ownInsideLocation, selection.Path))
         {
             issues.Add(Issue("protected_path", "This folder is reserved for Tuvima application or generated data."));
         }
     }
 
-    private static readonly string[] DataRootOwnSubfolders = ["data", "config", "secrets", "logs"];
-
-    /// <summary>
-    /// Tuvima's own folders on this machine, as physical paths. With <paramref name="includeWholeDataRoot"/> the whole
-    /// data folder counts (right for a drive-wide view, where nothing in it is a library); without it only the data
-    /// folder's own data, config, secrets and logs folders do, because the managed library folder lives inside it.
-    /// </summary>
-    private List<string> OwnFolderPaths(bool includeWholeDataRoot)
+    /// <summary>Tuvima's own folders on this machine, as physical paths: configuration, data, logs, backups, keys and models.</summary>
+    private List<string> OwnFolderPaths()
     {
         var ownFolders = new List<string?>
         {
@@ -640,7 +640,8 @@ public sealed class ServerFolderBrowserService(
             Environment.GetEnvironmentVariable("TUVIMA_CONFIG_DIR"),
             Environment.GetEnvironmentVariable("TUVIMA_DATA_PROTECTION_DIR"),
             Environment.GetEnvironmentVariable("TUVIMA_BACKUP_DIR"),
-            Environment.GetEnvironmentVariable("TUVIMA_LOG_DIR"),
+            Environment.GetEnvironmentVariable("TUVIMA_LOG_DIR") ?? "logs",
+            Environment.GetEnvironmentVariable("TUVIMA_MODELS_DIR"),
         };
         var databasePath = Environment.GetEnvironmentVariable("TUVIMA_DB_PATH");
         if (!string.IsNullOrWhiteSpace(databasePath))
@@ -649,23 +650,8 @@ public sealed class ServerFolderBrowserService(
         }
 
         var core = configuration.LoadCore();
-        foreach (var dataRoot in new[] { core.DataRoot, new TuvimaDataPaths().Root })
-        {
-            if (string.IsNullOrWhiteSpace(dataRoot))
-            {
-                continue;
-            }
-
-            if (includeWholeDataRoot)
-            {
-                ownFolders.Add(dataRoot);
-            }
-            else
-            {
-                ownFolders.AddRange(DataRootOwnSubfolders.Select(name => Path.Combine(dataRoot, name)));
-            }
-        }
-
+        ownFolders.Add(core.DataRoot);
+        ownFolders.Add(new TuvimaDataPaths().Root);
         if (!string.IsNullOrWhiteSpace(core.LibraryRoot))
         {
             ownFolders.Add(Path.Combine(core.LibraryRoot, ".data"));
@@ -676,6 +662,14 @@ public sealed class ServerFolderBrowserService(
             .Select(path => PhysicalOrFull(path!))
             .ToList();
     }
+
+    /// <summary>The roots of the locations that are Tuvima's own (library, import folder, View), where they can be resolved.</summary>
+    private static IEnumerable<string> OwnLocationRoots(LibrariesConfiguration snapshot) =>
+        snapshot.StorageLocations
+            .Where(location => TuvimaOwnFolders.IsOwnLocation(snapshot, location.Id))
+            .Select(location => TryResolveLocationRoot(location, out var root, out _) ? root : null)
+            .Where(root => root is not null)
+            .Select(root => root!);
 
     private static bool IsInsideOwnFolder(IEnumerable<string> ownFolders, string path) =>
         ownFolders.Any(own => IsWithin(own, path));
