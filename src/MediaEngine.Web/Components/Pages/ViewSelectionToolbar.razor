@@ -1,12 +1,13 @@
 @using MediaEngine.Contracts.LocalAssets
 @namespace MediaEngine.Web.Components.Pages
 
-<section class="view-selection-toolbar" role="toolbar" aria-label="Selected photo actions">
+<section class="view-selection-toolbar" role="toolbar" aria-label="@AriaLabel">
     <div class="view-selection-toolbar__count">
         <strong>@Count selected</strong>
     </div>
     <span class="view-selection-toolbar__divider" aria-hidden="true"></span>
     <div class="view-selection-toolbar__actions">
+        @ChildContent
         @if (OnAddToGallery.HasDelegate || OnCreateGallery.HasDelegate)
         {
         <AppOverflowMenu Label="Add to Gallery"
@@ -52,6 +53,12 @@
 
 @code {
     [Parameter] public int Count { get; set; }
+
+    /// <summary>What a screen reader calls the bar; the Documents page says "documents" instead of "photo".</summary>
+    [Parameter] public string AriaLabel { get; set; } = "Selected photo actions";
+
+    /// <summary>Extra actions for a screen with its own kind of selection (the Documents bulk edit).</summary>
+    [Parameter] public RenderFragment? ChildContent { get; set; }
     [Parameter] public IReadOnlyList<ViewGalleryDto> ManualGalleries { get; set; } = [];
     [Parameter] public EventCallback OnClear { get; set; }
     [Parameter] public EventCallback OnFavorite { get; set; }

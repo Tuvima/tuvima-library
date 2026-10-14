@@ -416,7 +416,13 @@ dropped once on upgrade, and household administrators review.
 `profile_view_preferences` stores the last Shared/Mine/Profile scope and
 compact/comfortable/relaxed timeline density. The Profile form requires a
 profile ID; other forms forbid one. The authorization layer owns fallback when
-a saved scope is no longer permitted.
+a saved scope is no longer permitted. `documents_sort` (nullable; `added`,
+`document_date`, `title` or `correspondent`, NULL for the default order) is how
+the profile likes the Documents list ordered. It is added to existing data stores
+by an idempotent startup migration and saved on its own, so saving the scope or
+density never resets it. A saved Documents view is a row in `view_galleries`
+(`gallery_kind = 'smart'`) whose `smart_rule_json` contains a `media_type` is
+`document` condition; no table was added for it.
 
 ---
 

@@ -51,7 +51,8 @@ public sealed record ViewProfilePreferences(
     Guid? LastScopeProfileId,
     ViewTimelineDensity TimelineDensity,
     DateTimeOffset? UpdatedAt,
-    bool ViewerInfoOpen = true)
+    bool ViewerInfoOpen = true,
+    string? DocumentsSort = null)
 {
     public static ViewProfilePreferences Default(Guid profileId) =>
         new(profileId, null, null, ViewTimelineDensity.Comfortable, null, true);

@@ -79,6 +79,66 @@ public sealed class ViewCatalogueRepository(IDatabaseConnection database) : IVie
         return ReadEntries(connection, null, kind, viewer, null, id).SingleOrDefault();
     }
 
+    public IReadOnlyDictionary<Guid, IReadOnlyList<ViewDocumentFieldValueDto>> GetDocumentFieldValues(
+        ViewCatalogueViewer viewer, IReadOnlyCollection<Guid> itemIds, CancellationToken ct = default)
+    {
+        ValidateViewer(viewer);
+        ArgumentNullException.ThrowIfNull(itemIds);
+        ct.ThrowIfCancellationRequested();
+        var result = new Dictionary<Guid, IReadOnlyList<ViewDocumentFieldValueDto>>();
+        if (!viewer.IncludeDocuments || itemIds.Count == 0)
+        {
+            return result;
+        }
+
+        using var connection = database.CreateConnection();
+        var visibleFields = ReadEntries(connection, null, ViewCatalogueKind.Field, viewer, null, null)
+            .Select(entry => entry.Id).ToHashSet();
+        foreach (var batch in itemIds.Distinct().Chunk(200))
+        {
+            var parameters = new DynamicParameters();
+            var libraries = ViewCatalogueSql.LibraryPredicate("li", viewer.AccessibleLibraryIds, parameters);
+            var items = new List<string>(batch.Length);
+            for (var index = 0; index < batch.Length; index++)
+            {
+                parameters.Add($"ItemId{index}", GuidSql.ToBlob(batch[index]), System.Data.DbType.Binary);
+                items.Add($"fv.item_id = @ItemId{index}");
+            }
+
+            var rows = connection.Query<FieldValueRow>($$"""
+                SELECT fv.item_id AS ItemId, fv.field_id AS FieldId, fd.name AS Name, fd.kind AS Kind,
+                       fv.text_value AS TextValue, fv.number_value AS NumberValue, fv.date_value AS DateValue,
+                       fv.bool_value AS BoolValue
+                  FROM doc_field_values fv
+                  JOIN doc_field_definitions fd ON fd.id = fv.field_id
+                  JOIN local_items li ON li.id = fv.item_id
+                 WHERE ({{string.Join(" OR ", items)}}) AND {{libraries}} AND li.media_kind = 'document'
+                 ORDER BY fd.name COLLATE NOCASE;
+                """, parameters);
+            foreach (var group in rows.Where(row => visibleFields.Contains(row.FieldId)).GroupBy(row => row.ItemId))
+            {
+                result[group.Key] = group.Select(value => new ViewDocumentFieldValueDto(
+                    value.FieldId, value.Name, value.Kind, value.TextValue, value.NumberValue,
+                    DateOnly.TryParse(value.DateValue, CultureInfo.InvariantCulture, out var date) ? date : null,
+                    value.BoolValue is { } flag ? flag != 0 : null)).ToList();
+            }
+        }
+
+        return result;
+    }
+
+    private sealed class FieldValueRow
+    {
+        public Guid ItemId { get; init; }
+        public Guid FieldId { get; init; }
+        public string Name { get; init; } = string.Empty;
+        public string Kind { get; init; } = string.Empty;
+        public string? TextValue { get; init; }
+        public double? NumberValue { get; init; }
+        public string? DateValue { get; init; }
+        public long? BoolValue { get; init; }
+    }
+
     public IReadOnlyList<string> GetTagSuggestions(
         ViewCatalogueViewer viewer, string? search, int limit, CancellationToken ct = default)
     {
@@ -529,7 +589,7 @@ public sealed class ViewCatalogueRepository(IDatabaseConnection database) : IVie
     private static double FiniteNumber(double value) =>
         double.IsFinite(value) ? value : throw new ArgumentException("A number field needs a real number.");
 
-    private static List<Guid> ResolveVisibleTagIds(
+    internal static List<Guid> ResolveVisibleTagIds(
         SqliteConnection connection, SqliteTransaction transaction, ViewCatalogueViewer viewer,
         IEnumerable<string> names, IEnumerable<Guid> ids, DateTimeOffset now)
     {
@@ -637,7 +697,7 @@ public sealed class ViewCatalogueRepository(IDatabaseConnection database) : IVie
         }
     }
 
-    private static bool IsVisible(
+    internal static bool IsVisible(
         SqliteConnection connection, SqliteTransaction? transaction, ViewCatalogueKind kind, Guid id, ViewCatalogueViewer viewer) =>
         ReadEntries(connection, transaction, kind, viewer, null, id).Count != 0;
 

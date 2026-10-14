@@ -184,7 +184,7 @@ public static partial class ViewEndpoints
             bool? favorite, bool? hidden, Guid? galleryId, string? lifecycle,
             bool? withoutLocation, string? personKey, DateTimeOffset? from, DateTimeOffset? to,
             Guid[]? tag, Guid? correspondent, Guid? docType, DateOnly? docFrom, DateOnly? docTo,
-            string? filing, string[]? field,
+            string? filing, string[]? field, string? docSort,
             IViewRequestProfileContext identity, IViewProfileRepository preferences,
             IViewResourceAuthorizationService authorization,
             IViewQueryOrchestrator queries, CancellationToken ct) =>
@@ -213,7 +213,7 @@ public static partial class ViewEndpoints
                     return DocumentsNotAllowed();
                 }
 
-                var documentFilter = BuildDocumentFilter(tag, correspondent, docType, docFrom, docTo, filing, field);
+                var documentFilter = BuildDocumentFilter(tag, correspondent, docType, docFrom, docTo, filing, field, docSort);
                 var result = await queries.QueryAsync(new ViewAssetQueryRequest(
                     requested, PagedRequest.From(0, limit, 120, 500).Limit, cursor, q, allowedKinds,
                     favorite == true, hidden == true, hidden == true, galleryId,
@@ -607,6 +607,7 @@ public static partial class ViewEndpoints
 
         MapDocumentOrganisation(group);
         MapDocumentFiling(group);
+        MapDocumentBulk(group);
 
         group.MapPut("/items/{id:guid}/people", async (Guid id,
             UpdateLocalAssetPeopleRequest request, IViewRequestProfileContext identity,
@@ -1154,7 +1155,7 @@ public static partial class ViewEndpoints
     private static void MapGalleries(RouteGroupBuilder group)
     {
         group.MapGet("/galleries", async (IViewRequestProfileContext identity,
-            IViewResourceAuthorizationService authorization,
+            IViewResourceAuthorizationService authorization, IViewProfileRepository preferences,
             IViewGalleryRepository repository, CancellationToken ct) =>
         {
             var authority = await identity.ResolveAuthorityAsync(ct);
@@ -1170,20 +1171,28 @@ public static partial class ViewEndpoints
                 return Access(access.Outcome);
             }
 
+            // A saved Documents view is a shelf of documents, so a profile that may not use Documents never sees one.
+            var documents = await MayUseDocumentsAsync(authority, preferences, ct);
             return Results.Ok(new ViewGalleryListResponse(
-                (await repository.GetOwnedAsync(profileId, ct)).Select(ToContract).ToList(),
-                (await repository.GetSharedWithAsync(profileId, ct)).Select(ToContract).ToList()));
+                (await repository.GetOwnedAsync(profileId, ct)).Where(gallery => documents || !IsDocumentView(gallery)).Select(ToContract).ToList(),
+                (await repository.GetSharedWithAsync(profileId, ct)).Where(gallery => documents || !IsDocumentView(gallery)).Select(ToContract).ToList()));
         }).WithName("GetViewGalleries").Produces<ViewGalleryListResponse>();
 
         group.MapPost("/galleries", async (ViewGalleryRequest request,
             IViewRequestProfileContext identity, IViewPersonalSpaceRepository spaces,
-            IViewResourceAuthorizationService authorization,
+            IViewResourceAuthorizationService authorization, IViewProfileRepository preferences,
             IViewGalleryRepository repository, CancellationToken ct) =>
         {
             var authority = await identity.ResolveAuthorityAsync(ct);
             if (authority.ActiveProfileId is not { } profileId)
             {
                 return Unauthenticated();
+            }
+
+            if (request.Kind == ViewGalleryKind.Smart && ViewSmartGalleryRules.IsDocumentView(request.SmartRuleJson)
+                && !await MayUseDocumentsAsync(authority, preferences, ct))
+            {
+                return DocumentsNotAllowed();
             }
 
             var access = await authorization.AuthorizeAsync(authority,
@@ -1213,21 +1222,34 @@ public static partial class ViewEndpoints
 
         group.MapGet("/galleries/{id:guid}", async (Guid id,
             IViewRequestProfileContext identity, IViewResourceAuthorizationService authorization,
-            IViewGalleryRepository repository, CancellationToken ct) =>
+            IViewProfileRepository preferences, IViewGalleryRepository repository, CancellationToken ct) =>
         {
             var decision = await GalleryAccessAsync(id, ViewResourceAction.Read, identity, authorization, ct);
-            return decision.IsAllowed && await repository.GetAsync(id, ct) is { } gallery
-                ? Results.Ok(ToContract(gallery)) : Access(decision.Outcome);
+            if (decision.IsAllowed && await repository.GetAsync(id, ct) is { } gallery)
+            {
+                return IsDocumentView(gallery) && !await MayUseDocumentsAsync(await identity.ResolveAuthorityAsync(ct), preferences, ct)
+                    ? DocumentsNotAllowed()
+                    : Results.Ok(ToContract(gallery));
+            }
+
+            return Access(decision.Outcome);
         }).WithName("GetViewGallery").Produces<ViewGalleryDto>();
 
         group.MapPut("/galleries/{id:guid}", async (Guid id, ViewGalleryRequest request,
             IViewRequestProfileContext identity, IViewResourceAuthorizationService authorization,
-            IViewGalleryRepository repository, CancellationToken ct) =>
+            IViewProfileRepository preferences, IViewGalleryRepository repository, CancellationToken ct) =>
         {
             var decision = await GalleryAccessAsync(id, ViewResourceAction.Manage, identity, authorization, ct);
             if (!decision.IsAllowed)
             {
                 return Access(decision.Outcome);
+            }
+
+            if ((request.Kind == ViewGalleryKind.Smart && ViewSmartGalleryRules.IsDocumentView(request.SmartRuleJson)
+                    || await repository.GetAsync(id, ct) is { } existing && IsDocumentView(existing))
+                && !await MayUseDocumentsAsync(await identity.ResolveAuthorityAsync(ct), preferences, ct))
+            {
+                return DocumentsNotAllowed();
             }
 
             try
@@ -1415,6 +1437,9 @@ public static partial class ViewEndpoints
         }).WithName($"{char.ToUpperInvariant(name[0])}{name[1..]}ViewItem")
             .Produces<Microsoft.AspNetCore.Http.HttpResults.NoContent>(StatusCodes.Status204NoContent);
 
+    private static bool IsDocumentView(ViewGallery gallery) =>
+        gallery.Kind == ViewGalleryKind.Smart && ViewSmartGalleryRules.IsDocumentView(gallery.SmartRuleJson);
+
     /// <summary>The longest stretch of document text the viewer text panel is sent.</summary>
     private const int MaximumDocumentTextCharacters = 200_000;
 
@@ -1575,7 +1600,8 @@ public static partial class ViewEndpoints
             value.LastScopeProfileId,
             value.TimelineDensity,
             value.ViewerInfoOpen,
-            value.UpdatedAt);
+            value.UpdatedAt,
+            value.DocumentsSort);
 
     private static ViewGalleryDto ToContract(ViewGallery value) =>
         new(value.Id, value.OwnerProfileId, value.PersonalSpaceId, value.Name,

@@ -13,14 +13,18 @@ namespace MediaEngine.Storage;
 /// </summary>
 public static class LocalAssetSmartRuleSqlCompiler
 {
-    public static LocalAssetSmartRuleSql Compile(CollectionRuleDefinition definition)
+    /// <param name="today">
+    /// The day relative document-date ranges ("last 30 days", "this year") are worked out from. Defaults to today in UTC;
+    /// tests pass a fixed day.
+    /// </param>
+    public static LocalAssetSmartRuleSql Compile(CollectionRuleDefinition definition, DateOnly? today = null)
     {
         ViewSmartGalleryRules.Validate(definition);
-        var compiler = new Compiler();
+        var compiler = new Compiler(today ?? DateOnly.FromDateTime(DateTime.UtcNow));
         return compiler.Compile(definition);
     }
 
-    private sealed class Compiler
+    private sealed class Compiler(DateOnly today)
     {
         private readonly DynamicParameters _parameters = new();
         private int _parameterIndex;
@@ -55,13 +59,148 @@ public static class LocalAssetSmartRuleSqlCompiler
                 "lia.annotation_value"),
             "place" => Place(condition),
             "device" => Device(condition),
-            "tags" => RelatedText(condition,
-                "SELECT 1 FROM local_item_tag_links lit JOIN tags tg ON tg.id = lit.tag_id WHERE lit.item_id = li.id", "tg.name"),
+            "tags" => Tags(condition),
+            "correspondent" => DocumentName(condition, "doc_correspondents", "dcn", "correspondent_id"),
+            "document_type" => DocumentName(condition, "doc_types", "dtn", "doc_type_id"),
+            "document_date" => DocumentDate(condition),
+            "filing_state" => FilingState(condition),
+            "text_contains" => TextContains(condition),
             "favorite" => Boolean(condition, "li.favorite"),
             "owner" => Owner(condition),
             "source" => Source(condition),
+            _ when ViewSmartGalleryRules.TryParseCustomField(condition.Field, out var fieldId) => CustomField(condition, fieldId),
             _ => throw new ArgumentException($"Unsupported Smart Gallery field '{condition.Field}'."),
         };
+
+        /// <summary>Tags match by id (what a saved view stores) or by name. "all" needs every listed tag.</summary>
+        private string Tags(CollectionRulePredicate condition)
+        {
+            const string relation = "SELECT 1 FROM local_item_tag_links lit JOIN tags tg ON tg.id = lit.tag_id WHERE lit.item_id = li.id";
+            string Match(string value, bool contains)
+            {
+                if (Guid.TryParse(value, out var id))
+                {
+                    return $"tg.id = {AddGuid(id)}";
+                }
+
+                var parameter = Add(value.Trim().ToLowerInvariant());
+                return contains
+                    ? $"instr(lower(tg.name), {parameter}) > 0"
+                    : $"tg.name = {parameter} COLLATE NOCASE";
+            }
+
+            if (condition.Op != "all")
+            {
+                return ApplyRelatedOperation(condition, relation, Match);
+            }
+
+            var each = condition.GetEffectiveValues().Select(value => $"EXISTS ({relation} AND ({Match(value, false)}))");
+            return $"({string.Join(" AND ", each)})";
+        }
+
+        /// <summary>A document's correspondent or type, by id (what a saved view stores) or by name.</summary>
+        private string DocumentName(CollectionRulePredicate condition, string table, string alias, string column)
+        {
+            var relation = $"SELECT 1 FROM doc_item_details dd_{alias} JOIN {table} {alias} ON {alias}.id = dd_{alias}.{column} WHERE dd_{alias}.item_id = li.id";
+            string Match(string value, bool contains)
+            {
+                if (Guid.TryParse(value, out var id))
+                {
+                    return $"{alias}.id = {AddGuid(id)}";
+                }
+
+                var parameter = Add(value.Trim().ToLowerInvariant());
+                return contains
+                    ? $"instr(lower({alias}.name), {parameter}) > 0"
+                    : $"{alias}.name = {parameter} COLLATE NOCASE";
+            }
+            return ApplyRelatedOperation(condition, relation, Match);
+        }
+
+        /// <summary>
+        /// The document's own date, or the day it was added when it has none (the same day the Documents date filter
+        /// uses). Known and unknown look only at a date a person or the file really gave.
+        /// </summary>
+        private string DocumentDate(CollectionRulePredicate condition)
+        {
+            const string expression = "COALESCE((SELECT dds.document_date FROM doc_item_details dds WHERE dds.item_id = li.id), substr(COALESCE(li.captured_at, li.created_at), 1, 10))";
+            const string known = "EXISTS (SELECT 1 FROM doc_item_details ddk WHERE ddk.item_id = li.id AND ddk.document_date IS NOT NULL)";
+            if (condition.Op is "known" or "unknown")
+            {
+                return KnownUnknown(condition.Op, known);
+            }
+
+            if (condition.Op == "within")
+            {
+                var (from, to) = ViewSmartGalleryRules.ResolveRelativeRange(condition.GetEffectiveValues()[0].Trim().ToLowerInvariant(), today);
+                return $"({expression} BETWEEN {Add(Iso(from))} AND {Add(Iso(to))})";
+            }
+
+            var values = condition.GetEffectiveValues()
+                .Select(value => Iso(DateOnly.Parse(value, CultureInfo.InvariantCulture))).ToArray();
+            return condition.Op == "between"
+                ? $"({expression} BETWEEN {Add(values[0])} AND {Add(values[1])})"
+                : $"({expression} {SqlComparison(condition.Op)} {Add(values[0])})";
+        }
+
+        private static string Iso(DateOnly date) => date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+
+        /// <summary>Documents with no row count as filed, like the Inbox does.</summary>
+        private string FilingState(CollectionRulePredicate condition)
+        {
+            const string expression = "COALESCE((SELECT dfs.filing_state FROM doc_item_details dfs WHERE dfs.item_id = li.id), 'filed')";
+            var value = Add(condition.GetEffectiveValues()[0].Trim().ToLowerInvariant());
+            return condition.Op == "neq" ? $"{expression} <> {value}" : $"{expression} = {value}";
+        }
+
+        /// <summary>The words read from the document. Private text: it only ever narrows the owner's own view.</summary>
+        private string TextContains(CollectionRulePredicate condition)
+        {
+            var parameter = Add(condition.GetEffectiveValues()[0].Trim().ToLowerInvariant());
+            return $"EXISTS (SELECT 1 FROM local_item_metadata tcm WHERE tcm.item_id = li.id AND instr(lower(COALESCE(tcm.document_text, '')), {parameter}) > 0)";
+        }
+
+        /// <summary>One custom field: equals, contains or a number/date range, judged by the field's own kind.</summary>
+        private string CustomField(CollectionRulePredicate condition, Guid fieldId)
+        {
+            var id = AddGuid(fieldId);
+            var relation = $"SELECT 1 FROM doc_field_values cfv JOIN doc_field_definitions cfd ON cfd.id = cfv.field_id WHERE cfv.item_id = li.id AND cfv.field_id = {id}";
+            const string hasValue = "(cfv.text_value IS NOT NULL OR cfv.number_value IS NOT NULL OR cfv.date_value IS NOT NULL OR cfv.bool_value IS NOT NULL)";
+            if (condition.Op is "known" or "unknown")
+            {
+                return KnownUnknown(condition.Op, $"EXISTS ({relation} AND {hasValue})");
+            }
+
+            var values = condition.GetEffectiveValues();
+            string Compare(string op, string value)
+            {
+                var number = Add(double.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out var parsed) ? parsed : 0d);
+                var text = Add(value.Trim());
+                var lowered = Add(value.Trim().ToLowerInvariant());
+                var yes = Add(value.Trim().ToLowerInvariant() is "true" or "1" or "yes" ? 1 : 0);
+                var sql = SqlComparison(op);
+                return op == "eq"
+                    ? $"(CASE cfd.kind WHEN 'number' THEN cfv.number_value {sql} {number} WHEN 'money' THEN cfv.number_value {sql} {number} WHEN 'date' THEN cfv.date_value {sql} {text} WHEN 'bool' THEN cfv.bool_value {sql} {yes} ELSE lower(cfv.text_value) {sql} {lowered} END)"
+                    : $"(CASE cfd.kind WHEN 'number' THEN cfv.number_value {sql} {number} WHEN 'money' THEN cfv.number_value {sql} {number} WHEN 'date' THEN cfv.date_value {sql} {text} ELSE 0 END)";
+            }
+
+            string match;
+            if (condition.Op == "contains")
+            {
+                match = $"instr(lower(COALESCE(cfv.text_value, '')), {Add(values[0].Trim().ToLowerInvariant())}) > 0";
+            }
+            else if (condition.Op == "between")
+            {
+                match = $"({Compare("gte", values[0])} AND {Compare("lte", values[1])})";
+            }
+            else
+            {
+                match = Compare(condition.Op == "neq" ? "eq" : condition.Op, values[0]);
+            }
+
+            var anyMatch = $"EXISTS ({relation} AND {match})";
+            return condition.Op == "neq" ? $"(EXISTS ({relation} AND {hasValue}) AND NOT {anyMatch})" : anyMatch;
+        }
 
         private string FileType(CollectionRulePredicate condition)
         {

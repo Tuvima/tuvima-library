@@ -191,7 +191,11 @@ public sealed class ViewAssetQueryService(ILocalAssetRepository assets) : IViewA
         ViewAssetQueryPlan plan,
         CancellationToken ct = default)
     {
-        var cursor = ViewTimelineCursorCodec.Decode(plan.Cursor);
+        // A Documents sort pages by position: the cursor is an offset and the date boundary is not used.
+        var documentSorted = !string.IsNullOrWhiteSpace(plan.DocumentFilter?.Sort);
+        var offset = documentSorted ? ViewTimelineCursorCodec.DecodeOffset(plan.Cursor) : 0;
+        var documentFilter = documentSorted ? plan.DocumentFilter! with { Offset = offset } : plan.DocumentFilter;
+        var cursor = documentSorted ? null : ViewTimelineCursorCodec.Decode(plan.Cursor);
         var page = assets.QueryTimeline(new LocalAssetTimelineQuery(
             plan.Scope.LibraryIds,
             plan.Limit,
@@ -208,10 +212,13 @@ public sealed class ViewAssetQueryService(ILocalAssetRepository assets) : IViewA
             plan.TimelineEligibleOnly,
             plan.IncludeSharedLibraryAssets,
             plan.AnchorBefore, plan.WithoutLocation, plan.PersonKey, plan.From, plan.To, plan.SortByAddedAt, plan.AddedBefore, plan.AddedAfterKey,
-            plan.DocumentFilter), ct);
+            documentFilter), ct);
         return Task.FromResult(new ViewAssetTimelinePageDto(
             page.Items,
-            plan.SortByAddedAt ? null : ViewTimelineCursorCodec.Encode(page.NextCursor),
+            plan.SortByAddedAt ? null
+                : documentSorted
+                    ? (page.HasMore ? ViewTimelineCursorCodec.EncodeOffset(offset + page.Items.Count) : null)
+                    : ViewTimelineCursorCodec.Encode(page.NextCursor),
             page.HasMore));
     }
 
@@ -254,6 +261,36 @@ public static class ViewTimelineCursorCodec
             $"{cursor.EffectiveAt.UtcTicks}:{cursor.ItemId:N}");
         return Convert.ToBase64String(Encoding.UTF8.GetBytes(value))
             .TrimEnd('=').Replace('+', '-').Replace('/', '_');
+    }
+
+    public static string EncodeOffset(int offset) =>
+        Convert.ToBase64String(Encoding.UTF8.GetBytes(string.Create(CultureInfo.InvariantCulture, $"o:{offset}")))
+            .TrimEnd('=').Replace('+', '-').Replace('/', '_');
+
+    public static int DecodeOffset(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return 0;
+        }
+
+        try
+        {
+            var normalized = value.Replace('-', '+').Replace('_', '/');
+            normalized = normalized.PadRight(normalized.Length + ((4 - normalized.Length % 4) % 4), '=');
+            var decoded = Encoding.UTF8.GetString(Convert.FromBase64String(normalized));
+            if (!decoded.StartsWith("o:", StringComparison.Ordinal)
+                || !int.TryParse(decoded.AsSpan(2), NumberStyles.None, CultureInfo.InvariantCulture, out var offset))
+            {
+                throw new FormatException();
+            }
+
+            return offset;
+        }
+        catch (FormatException)
+        {
+            throw new ArgumentException("The View timeline cursor is invalid.", nameof(value));
+        }
     }
 
     public static LocalAssetTimelineCursor? Decode(string? value)

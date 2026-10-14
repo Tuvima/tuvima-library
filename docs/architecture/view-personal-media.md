@@ -134,6 +134,36 @@ rename or delete a name. Document text, notes and custom field values stay in
 the View search document only and never reach Home, global Search or
 Recommendations.
 
+## Saved views, bulk editing and export
+
+A saved Documents view is a Smart Gallery (`view_galleries`, `smart_rule_json`)
+whose rule is one "all of these" group that includes `media_type` is `document`;
+`ViewSmartGalleryRules.IsDocumentView` recognises it. The rule vocabulary gained
+`tags` with `all` (every tag), `correspondent`, `document_type` (by id, which a
+saved view stores so a rename never breaks it, or by name), `document_date`
+(equals, comparisons, `between`, `known`/`unknown` and `within` a relative range
+worked out when the rule is evaluated), `filing_state`, `text_contains` (words in
+the document, private to the owner's own view) and `field:<field id>` for one
+custom field (equals, contains, a number or date range, known or unknown, judged
+by the field's kind). All of it compiles in `LocalAssetSmartRuleSqlCompiler` with
+values as parameters and the field id parsed as a GUID, so a rule can never
+smuggle in a column or table name.
+
+The Documents sort (`docSort`) orders by an expression the data store chooses
+from a fixed list and pages by position; the cursor then carries an offset, not
+a date boundary. The remembered sort lives in `profile_view_preferences`.
+
+Bulk editing is `ViewDocumentBulkService` over `IDocumentBulkRepository`. The
+service resolves every id (reachable, a document, in the Shared Library, in the
+Inbox or the trash), asks the authorization service whether the person may manage
+that document, and only then calls the data store, one transaction per document so
+a failure never half-applies a change. The Shared Library is always refused (only
+rules file there). Trash and restore reuse `SetLifecycleStateAsync` and mark
+only; files are never deleted. Names and custom field values written in bulk
+record the person in `doc_item_field_sources`. The export reads the same query as
+the list through the query orchestrator (so access is identical), adds custom
+field values for those rows only, and streams `ViewDocumentCsv`.
+
 ## Filing documents: Inbox, suggestions and rules
 
 A new document gets a `doc_item_details` row in the `inbox` state when it is

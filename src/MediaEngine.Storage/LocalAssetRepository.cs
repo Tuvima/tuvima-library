@@ -337,6 +337,13 @@ public sealed class LocalAssetRepository(IDatabaseConnection database) : ILocalA
 
         var effectiveAtSql = query.SortByAddedAt ? "li.created_at" : "COALESCE(li.captured_at, li.created_at)";
         var orderSql = query.SortByAddedAt ? "li.created_at DESC, lower(hex(li.id)) ASC" : "COALESCE(li.captured_at, li.created_at) DESC, li.id DESC";
+        // A Documents sort pages by position (the caller passes the offset), not by the date boundary.
+        if (DocumentSortSql(query.DocumentFilter?.Sort) is { } documentOrder)
+        {
+            orderSql = documentOrder;
+        }
+
+        parameters.Add("DocOffset", Math.Max(0, query.DocumentFilter?.Offset ?? 0));
         using var connection = database.CreateConnection();
         var rows = connection.Query<ItemRow>(new CommandDefinition($$"""
             SELECT li.id AS Id, li.scope_kind AS ScopeKind, li.library_id AS LibraryId,
@@ -436,7 +443,7 @@ public sealed class LocalAssetRepository(IDatabaseConnection database) : ILocalA
                       AND (lia.annotation_kind IN ('person_name', 'named_person', 'face_name')
                            OR (lia.annotation_kind IN ('person_identity', 'face_identity') AND lia.reviewed_at IS NOT NULL))))
              ORDER BY {{orderSql}}
-             LIMIT @Take;
+             LIMIT @Take OFFSET @DocOffset;
             """, parameters, cancellationToken: ct)).ToList();
         var hasMore = rows.Count > query.Limit;
         if (hasMore)
@@ -1735,6 +1742,22 @@ public sealed class LocalAssetRepository(IDatabaseConnection database) : ILocalA
     /// The SQL for a document listing's organising conditions, with their values added to <paramref name="parameters"/>.
     /// Always a complete predicate (<c>1 = 1</c> when there is no filter) so it can be dropped into the item query.
     /// </summary>
+    /// <summary>The ORDER BY for a Documents sort, or null for the usual order. Unknown names are refused.</summary>
+    private static string? DocumentSortSql(string? sort)
+    {
+        const string title = "lower(COALESCE(NULLIF(trim(li.title), ''), li.primary_file_name, ''))";
+        return string.IsNullOrWhiteSpace(sort)
+            ? null
+            : sort.Trim().ToLowerInvariant() switch
+            {
+                ViewDocumentSorts.Added => "li.created_at DESC, li.id DESC",
+                ViewDocumentSorts.DocumentDate => "COALESCE(dd.document_date, substr(COALESCE(li.captured_at, li.created_at), 1, 10)) DESC, li.id DESC",
+                ViewDocumentSorts.Title => $"{title} ASC, li.id ASC",
+                ViewDocumentSorts.Correspondent => $"(dc.name IS NULL) ASC, lower(dc.name) ASC, {title} ASC, li.id ASC",
+                _ => throw new ArgumentException($"Documents can be sorted by: {string.Join(", ", ViewDocumentSorts.All)}.", nameof(sort)),
+            };
+    }
+
     private static string BuildDocumentFilter(LocalAssetDocumentFilter? filter, DynamicParameters parameters)
     {
         if (filter is null)
@@ -1742,6 +1765,7 @@ public sealed class LocalAssetRepository(IDatabaseConnection database) : ILocalA
             return "1 = 1";
         }
 
+        _ = DocumentSortSql(filter.Sort);
         var clauses = new List<string>();
         var tagIndex = 0;
         foreach (var tagId in (filter.TagIds ?? []).Distinct())

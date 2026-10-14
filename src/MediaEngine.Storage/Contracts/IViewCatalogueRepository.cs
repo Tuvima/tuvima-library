@@ -1,3 +1,5 @@
+using MediaEngine.Contracts.LocalAssets;
+
 namespace MediaEngine.Storage.Contracts;
 
 /// <summary>The four global lists a View item can be organised with.</summary>
@@ -82,6 +84,13 @@ public interface IViewCatalogueRepository
     /// <summary>One entry, or null when it does not exist or the viewer may not see it.</summary>
     ViewCatalogueEntry? FindEntry(
         ViewCatalogueViewer viewer, ViewCatalogueKind kind, Guid id, CancellationToken ct = default);
+
+    /// <summary>
+    /// The custom field values of the given documents, for the CSV export. Only documents in the viewer's libraries
+    /// are read, and only fields the viewer can see; anything else is simply absent from the answer.
+    /// </summary>
+    IReadOnlyDictionary<Guid, IReadOnlyList<ViewDocumentFieldValueDto>> GetDocumentFieldValues(
+        ViewCatalogueViewer viewer, IReadOnlyCollection<Guid> itemIds, CancellationToken ct = default);
 
     /// <summary>Tag names for the type-ahead: the viewer's visible tags, most used first, plus their saved tags.</summary>
     IReadOnlyList<string> GetTagSuggestions(
