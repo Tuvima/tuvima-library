@@ -1,0 +1,156 @@
+@namespace MediaEngine.Web.Components.Settings
+@using MediaEngine.Contracts.Authentication
+@using Microsoft.AspNetCore.Components.Web
+@using Microsoft.JSInterop
+@* The "Libraries and lanes" sheet on a person's profile page: which Libraries and which of Read / Watch / Listen / View this
+   person's own sign-in may use. It only gathers the choices and reports them; the page that opens it talks to the Engine, which
+   refuses anything the household does not have, and the reason it gives is shown here. *@
+@if (Open)
+{
+    <div class="settings-sheet-backdrop" @onclick="CloseAsync">
+        <div @ref="_root"
+             class="settings-sheet profile-access-sheet"
+             role="dialog"
+             aria-modal="true"
+             aria-labelledby="profile-access-sheet-title"
+             tabindex="-1"
+             @onclick:stopPropagation="true"
+             @onkeydown="OnKeyDown">
+            <h2 id="profile-access-sheet-title" class="settings-sheet__title">Libraries and lanes</h2>
+            <p class="sign-in-sheet__intro">
+                What @(string.IsNullOrWhiteSpace(PersonName) ? "this person" : PersonName) can open when they sign in as themselves.
+            </p>
+
+            @if (!string.IsNullOrWhiteSpace(Error))
+            {
+                <p class="who-page__error" role="alert">@Error</p>
+            }
+
+            @if (Loading)
+            {
+                <div role="status" aria-label="Loading access"><AppSkeleton Height="160px" /></div>
+            }
+            else
+            {
+                <ManagedAccessUserPermissions FeatureIds="_featureIds" LibraryIds="_libraryIds" Libraries="Libraries"
+                                              FeatureChanged="ToggleFeature" LibraryChanged="ToggleLibrary" />
+            }
+
+            <div class="sign-in-sheet__actions">
+                <span class="sign-in-sheet__spacer"></span>
+                <AppButton Label="Cancel" Disabled="@Saving" OnClick="CloseAsync" />
+                <AppButton Label="@(Saving ? "Saving…" : "Save")" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary"
+                           Disabled="@(Saving || Loading)" OnClick="SaveAsync" />
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private readonly HashSet<string> _featureIds = [];
+    private readonly HashSet<Guid> _libraryIds = [];
+    private ElementReference _root;
+    private bool _wasOpen;
+    private bool _wasLoading;
+    private bool _focused;
+
+    [Parameter] public bool Open { get; set; }
+    [Parameter] public string PersonName { get; set; } = string.Empty;
+    [Parameter] public bool Loading { get; set; }
+    [Parameter] public bool Saving { get; set; }
+    [Parameter] public string? Error { get; set; }
+
+    /// <summary>Only the Libraries the Engine says this administrator may hand out.</summary>
+    [Parameter] public IReadOnlyList<AccessLibraryOptionDto> Libraries { get; set; } = [];
+
+    /// <summary>The person's current lanes and Libraries, used each time the sheet opens or finishes loading.</summary>
+    [Parameter] public AccountAccessResponse? Account { get; set; }
+
+    [Parameter] public EventCallback<ReplaceAccountAccessRequest> OnSave { get; set; }
+    [Parameter] public EventCallback OnClose { get; set; }
+
+    protected override void OnParametersSet()
+    {
+        // Take the person's current access when the sheet opens, and again once it has finished loading.
+        if (Open && (!_wasOpen || (_wasLoading && !Loading)))
+        {
+            Seed();
+        }
+
+        _wasOpen = Open;
+        _wasLoading = Loading;
+    }
+
+    private void Seed()
+    {
+        _featureIds.Clear();
+        _libraryIds.Clear();
+        if (Account is { } account)
+        {
+            _featureIds.UnionWith(account.FeatureGrants.Where(grant => grant.Allowed).Select(grant => grant.Feature));
+            _libraryIds.UnionWith(account.LibraryGrants.Where(grant => grant.Allowed).Select(grant => grant.LibraryId));
+        }
+    }
+
+    private void ToggleFeature((string Id, bool Value) change)
+    {
+        if (change.Value)
+        {
+            _featureIds.Add(change.Id);
+        }
+        else
+        {
+            _featureIds.Remove(change.Id);
+        }
+    }
+
+    private void ToggleLibrary((Guid Id, bool Value) change)
+    {
+        if (change.Value)
+        {
+            _libraryIds.Add(change.Id);
+        }
+        else
+        {
+            _libraryIds.Remove(change.Id);
+        }
+    }
+
+    private Task SaveAsync() =>
+        OnSave.InvokeAsync(new ReplaceAccountAccessRequest(_featureIds.Order().ToArray(), _libraryIds.Order().ToArray()));
+
+    private Task CloseAsync() => Saving ? Task.CompletedTask : OnClose.InvokeAsync();
+
+    private async Task OnKeyDown(KeyboardEventArgs args)
+    {
+        if (args.Key == "Escape")
+        {
+            await CloseAsync();
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!Open)
+        {
+            _focused = false;
+            return;
+        }
+
+        if (_focused)
+        {
+            return;
+        }
+
+        _focused = true;
+        try
+        {
+            await _root.FocusAsync();
+        }
+        catch (JSDisconnectedException)
+        {
+            // The circuit closed while the sheet was opening; there is nothing left to focus.
+        }
+    }
+
+}
