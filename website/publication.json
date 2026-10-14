@@ -223,6 +223,12 @@
       "section": "How it works"
     },
     {
+      "source": "explanation/how-documents-are-filed.md",
+      "slug": "explanation/how-documents-are-filed",
+      "group": "Guides",
+      "section": "How it works"
+    },
+    {
       "source": "explanation/privacy-local-first.md",
       "slug": "explanation/privacy-local-first",
       "group": "Guides",

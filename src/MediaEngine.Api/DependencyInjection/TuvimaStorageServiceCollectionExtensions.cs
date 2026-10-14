@@ -2,6 +2,7 @@ using MediaEngine.Api.Security;
 using MediaEngine.Api.Services;
 using MediaEngine.Api.Services.Libraries;
 using MediaEngine.Api.Services.LocalAssets;
+using MediaEngine.Api.Services.LocalAssets.Filing;
 using MediaEngine.Api.Services.Playback;
 using MediaEngine.Api.Services.Settings;
 using MediaEngine.Api.Services.View;
@@ -35,6 +36,9 @@ public static class TuvimaStorageServiceCollectionExtensions
         services.AddSingleton<IMediaAssetRepository, MediaAssetRepository>();
         services.AddSingleton<ILocalAssetRepository, LocalAssetRepository>();
         services.AddSingleton<IViewCatalogueRepository, ViewCatalogueRepository>();
+        services.AddSingleton<IDocumentFilingRepository, DocumentFilingRepository>();
+        services.AddSingleton<IDocumentRuleRepository, DocumentRuleRepository>();
+        services.AddSingleton<DocumentRulesQueue>();
         services.AddSingleton<IViewProfileRepository, ViewProfileRepository>();
         services.AddSingleton<IViewPersonalSpaceRepository, ViewPersonalSpaceRepository>();
         services.AddSingleton<IViewSharedLibraryRepository, ViewSharedLibraryRepository>();
@@ -60,6 +64,7 @@ public static class TuvimaStorageServiceCollectionExtensions
         services.AddScoped<IViewQueryOrchestrator, ViewQueryOrchestrator>();
         services.AddScoped<ViewDiscoveryService>();
         services.AddScoped<ViewFolderService>();
+        services.AddSingleton<ViewDocumentRuleService>();
         services.AddSingleton<ViewSharedTransferService>();
         services.AddSingleton<IProfilePhotoDisposer, ProfilePhotoDisposer>();
         services.AddSingleton<IViewSharedContributionQueue, ViewSharedContributionQueue>();

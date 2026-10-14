@@ -1,0 +1,67 @@
+@using MediaEngine.Web.Services.Ui
+@namespace MediaEngine.Web.Components.Pages
+
+@* A small panel for one Inbox chip: type a name or pick one already in use. Done returns the text (empty means none); Clear returns empty. *@
+<AppDialogShell Title="@Title" Size="Small" OnClose="@(() => Dialog.Cancel())">
+    <ChildContent>
+        <div class="view-inbox-dialog">
+            <AppTextField Label="@FieldLabel" Value="@_text" ValueChanged="@(value => _text = value ?? string.Empty)" Placeholder="@Placeholder" MaxLength="120" AutoFocus="true" OnKeyDown="OnKeyDownAsync" />
+            @if (Matches.Count > 0)
+            {
+                <ul class="view-inbox-dialog__choices" aria-label="@ChoicesLabel">
+                    @foreach (var name in Matches)
+                    {
+                        <li @key="name">
+                            <AppNativeButton Type="button" Class="view-inbox-dialog__choice" OnClick="@(_ => _text = name)">@name</AppNativeButton>
+                        </li>
+                    }
+                </ul>
+            }
+        </div>
+    </ChildContent>
+    <FooterContent>
+        @if (AllowClear)
+        {
+            <AppButton Label="Clear" ButtonStyle="AppButtonStyle.Text" OnClick="@(() => Dialog.Close(AppDialogResult.Ok(string.Empty)))" />
+        }
+        <AppButton Label="Done" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" OnClick="DoneAsync" />
+    </FooterContent>
+</AppDialogShell>
+
+@code {
+    [CascadingParameter] private IAppDialogContext Dialog { get; set; } = default!;
+
+    /// <summary>What is being edited, such as "Correspondent", "Document type" or "Add tag".</summary>
+    [Parameter, EditorRequired] public string Title { get; set; } = string.Empty;
+
+    /// <summary>The value the text field starts with; empty when adding.</summary>
+    [Parameter] public string Value { get; set; } = string.Empty;
+
+    /// <summary>Names already in the catalogue, offered as one-tap choices and narrowed as the person types.</summary>
+    [Parameter] public IReadOnlyList<string> Choices { get; set; } = [];
+
+    [Parameter] public string? Placeholder { get; set; }
+
+    /// <summary>Whether to offer Clear (not useful when adding a tag).</summary>
+    [Parameter] public bool AllowClear { get; set; } = true;
+
+    private string _text = string.Empty;
+    private string FieldLabel => Title;
+    private string ChoicesLabel => $"{Title}: names already in use";
+
+    // Typing narrows the list to names that contain it; the name already in the field is not offered again.
+    private IReadOnlyList<string> Matches => Choices
+        .Where(name => !string.Equals(name, _text.Trim(), StringComparison.OrdinalIgnoreCase)
+            && (string.IsNullOrWhiteSpace(_text) || name.Contains(_text.Trim(), StringComparison.OrdinalIgnoreCase)))
+        .Take(30).ToList();
+
+    protected override void OnInitialized() => _text = Value;
+
+    private Task OnKeyDownAsync(KeyboardEventArgs args) => args.Key == "Enter" ? DoneAsync() : Task.CompletedTask;
+
+    private Task DoneAsync()
+    {
+        Dialog.Close(AppDialogResult.Ok(_text.Trim()));
+        return Task.CompletedTask;
+    }
+}

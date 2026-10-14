@@ -22,7 +22,12 @@
             {
                 @ScopePicker
                 @LayoutPicker
-                @if (CanSelect)
+                @if (!Device.IsTv)
+                {
+                    <AppButton Label="Auto-filing rules" StartIcon="@AppMaterialIcons.Outlined.AutoAwesome" ButtonStyle="AppButtonStyle.Outlined" Href="/view/documents/rules" Class="view-documents-rules" />
+                }
+
+                @if (CanSelect && !_filter.InboxOnly)
                 {
                     <AppButton Label="@(_selectMode ? "Done" : "Select")" ButtonStyle="AppButtonStyle.Outlined" StartIcon="@AppMaterialIcons.Outlined.CheckCircleOutline" OnClick="ToggleSelectMode" Class="view-documents-select" />
                 }
@@ -51,7 +56,7 @@
                 <div class="view-documents-layout">
                 @if (!Device.IsPhone)
                 {
-                    <aside class="view-documents-rail"><ViewDocumentFilterRail Catalogue="_catalogue" State="_filter" OnChanged="FilterChangedAsync" /></aside>
+                    <aside class="view-documents-rail"><ViewDocumentFilterRail Catalogue="_catalogue" State="_filter" InboxCount="_inboxCount" OnChanged="FilterChangedAsync" /></aside>
                 }
                 <div class="view-documents-results">
                 @if (_loading)
@@ -64,7 +69,15 @@
                 }
                 else if (_items.Count == 0)
                 {
-                    @if (_filter.IsActive)
+                    @if (_filter.InboxOnly && !_filter.IsActive && string.IsNullOrWhiteSpace(_search))
+                    {
+                        <AppPageState Kind="AppPageStateKind.Empty" Icon="@AppMaterialIcons.Outlined.Description" Title="Your Inbox is empty" Message="New documents land here so you can file them in one tap." Class="view-documents-empty">
+                            <Actions>
+                                <AppButton Label="Show all documents" ButtonStyle="AppButtonStyle.Outlined" OnClick="ShowAllDocumentsAsync" />
+                            </Actions>
+                        </AppPageState>
+                    }
+                    else if (_filter.IsActive)
                     {
                         <AppPageState Kind="AppPageStateKind.Empty" Icon="@AppMaterialIcons.Outlined.FilterList" Title="No documents match these filters" Message="Try removing a tag or widening the dates." Class="view-documents-empty">
                             <Actions>
@@ -83,6 +96,28 @@
                     else
                     {
                         <AppPageState Kind="AppPageStateKind.Empty" Icon="@AppMaterialIcons.Outlined.Search" Title="No documents match" Message="@($"Nothing in this view contains \"{_search.Trim()}\". Try fewer or different words.")" />
+                    }
+                }
+                else if (_filter.InboxOnly)
+                {
+                    <ul class="@ListClass" aria-label="Documents to file">
+                        @foreach (var item in _items)
+                        {
+                            <li class="view-inbox-card-item" @key="item.Id">
+                                <ViewDocumentInboxCard Item="item" ThumbnailUrl="@ThumbnailUrl(item)"
+                                                       ShowPicture="@(ViewDocumentPresentation.HasPicture(item) && !_brokenThumbnails.Contains(item.Id))"
+                                                       OnPictureError="@(() => _brokenThumbnails.Add(item.Id))"
+                                                       CanFile="CanFileInbox" EnterAccepts="@(CanFileInbox && Device.IsDesktop)"
+                                                       Busy="@_filing.Contains(item.Id)"
+                                                       Correspondents="@CorrespondentNames" DocumentTypes="@DocumentTypeNames" Tags="@TagNames"
+                                                       OnFile="@(request => FileFromInboxAsync(item, request))"
+                                                       OnOpen="@(() => Activate(item))" />
+                            </li>
+                        }
+                    </ul>
+                    @if (_page.HasMore)
+                    {
+                        <AppButton Label="Load more" ButtonStyle="AppButtonStyle.Outlined" Disabled="@_loadingMore" Loading="@_loadingMore" OnClick="LoadMoreAsync" Class="view-documents-more" />
                     }
                 }
                 else
@@ -158,7 +193,7 @@
         <div class="view-documents-sheet__body">
             @ScopePicker
             @LayoutPicker
-            <ViewDocumentFilterRail Catalogue="_catalogue" State="_filter" OnChanged="FilterChangedAsync" />
+            <ViewDocumentFilterRail Catalogue="_catalogue" State="_filter" InboxCount="_inboxCount" OnChanged="FilterChangedAsync" />
             <AppButton Label="Done" ButtonStyle="AppButtonStyle.Filled" FullWidth="true" OnClick="@(() => _sheetOpen = false)" />
         </div>
     </AppDialogFrame>
@@ -195,7 +230,9 @@
     private readonly HashSet<Guid> _selected = [];
     private readonly HashSet<Guid> _brokenThumbnails = [];
     private readonly ViewDocumentFilterState _filter = new();
+    private readonly HashSet<Guid> _filing = [];
     private ViewDocumentCatalogueDto? _catalogue;
+    private int? _inboxCount;
     private ViewAssetTimelinePageDto? _page;
     private LocalAssetDto? _active;
     private Guid? _profileId;
@@ -210,6 +247,11 @@
     private bool CanSelect => !Device.IsTv && Workspace.ScopeKind == ViewScopeKind.Mine;
     // Filing a document is for your own space on a pointer screen: phones and televisions only read and filter.
     private bool CanEditDetails => !Device.IsPhone && !Device.IsTv && Workspace.ScopeKind == ViewScopeKind.Mine;
+    // Filing from the Inbox is for your own space on a phone, tablet or desktop; a television only reads.
+    private bool CanFileInbox => !Device.IsTv && Workspace.ScopeKind == ViewScopeKind.Mine;
+    private IReadOnlyList<string> CorrespondentNames => (_catalogue?.Correspondents ?? []).Select(item => item.Name).ToList();
+    private IReadOnlyList<string> DocumentTypeNames => (_catalogue?.DocumentTypes ?? []).Select(item => item.Name).ToList();
+    private IReadOnlyList<string> TagNames => (_catalogue?.Tags ?? []).Select(item => item.Name).ToList();
     private string ListClass => $"view-documents-grid{(_list ? " view-documents-grid--list" : string.Empty)}";
     private int ActiveIndex => _active is null ? -1 : _items.FindIndex(item => item.Id == _active.Id);
 
@@ -225,7 +267,7 @@
         _policyKnown = true;
         if (CanBrowse)
         {
-            await Task.WhenAll(LoadAsync(), LoadCatalogueAsync());
+            await Task.WhenAll(LoadAsync(), LoadCatalogueAsync(), LoadInboxCountAsync());
         }
         else
         {
@@ -241,7 +283,67 @@
     private async Task LoadCatalogueAsync() =>
         _catalogue = await ApiClient.GetViewCatalogueAsync(Workspace.ScopeKind, Workspace.ScopeProfileId, ["document"]);
 
-    private async Task FilterChangedAsync() => await LoadAsync();
+    private async Task LoadInboxCountAsync()
+    {
+        var summary = await ApiClient.GetViewDocumentInboxSummaryAsync(Workspace.ScopeKind, Workspace.ScopeProfileId);
+        if (summary is not null)
+        {
+            _inboxCount = summary.Count;
+        }
+    }
+
+    private async Task FilterChangedAsync()
+    {
+        if (_filter.InboxOnly)
+        {
+            _selectMode = false;
+        }
+
+        await LoadAsync();
+    }
+
+    private async Task ShowAllDocumentsAsync()
+    {
+        _filter.InboxOnly = false;
+        await LoadAsync();
+    }
+
+    private async Task FileFromInboxAsync(LocalAssetDto item, FileViewDocumentFromInboxRequest request)
+    {
+        if (!CanFileInbox || !_filing.Add(item.Id))
+        {
+            return;
+        }
+
+        try
+        {
+            var result = await ApiClient.FileViewDocumentFromInboxAsync(item.Id, request);
+            if (!result.Success)
+            {
+                Snackbar.Add(result.Error ?? "This document could not be filed. Try again.", AppSeverity.Error);
+                return;
+            }
+
+            _items.RemoveAll(value => value.Id == item.Id);
+            _selected.Remove(item.Id);
+            if (_active?.Id == item.Id)
+            {
+                _active = null;
+            }
+
+            Snackbar.Add("Filed.", AppSeverity.Success);
+            // Names and tags the filing created, the count on this page and the badge on the Documents tab all change.
+            await Task.WhenAll(LoadInboxCountAsync(), Workspace.RefreshDocumentInboxAsync(), LoadCatalogueAsync());
+            if (_items.Count == 0 && _page?.HasMore == true)
+            {
+                await LoadAsync();
+            }
+        }
+        finally
+        {
+            _filing.Remove(item.Id);
+        }
+    }
 
     private async Task ClearFiltersAsync()
     {
@@ -369,7 +471,7 @@
         {
             _selectMode = false;
             _filter.Clear();
-            await Task.WhenAll(LoadAsync(), LoadCatalogueAsync());
+            await Task.WhenAll(LoadAsync(), LoadCatalogueAsync(), LoadInboxCountAsync());
         }
     }
 

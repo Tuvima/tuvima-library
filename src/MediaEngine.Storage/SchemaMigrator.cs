@@ -1654,6 +1654,7 @@ internal sealed class SchemaMigrator
             conn.Execute("UPDATE profile_view_policies SET documents_enabled = 0 WHERE profile_id IN (SELECT id FROM profiles WHERE role = 'RestrictedProfile');");
         }
 
+        AddColumnIfMissing(conn, "doc_item_details", "suggestions_json", "ALTER TABLE doc_item_details ADD COLUMN suggestions_json TEXT CHECK (suggestions_json IS NULL OR json_valid(suggestions_json));");
         AddColumnIfMissing(conn, "profile_view_preferences", "viewer_info_open", "ALTER TABLE profile_view_preferences ADD COLUMN viewer_info_open INTEGER NOT NULL DEFAULT 1;");
         var addedEmbeddedCapturedAt = AddColumnIfMissing(conn, "local_items", "embedded_captured_at", "ALTER TABLE local_items ADD COLUMN embedded_captured_at TEXT;");
         AddColumnIfMissing(conn, "local_items", "captured_at_user_override", "ALTER TABLE local_items ADD COLUMN captured_at_user_override INTEGER NOT NULL DEFAULT 0;");

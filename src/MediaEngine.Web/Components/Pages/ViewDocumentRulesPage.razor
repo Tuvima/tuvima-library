@@ -1,0 +1,51 @@
+@page "/view/documents/rules"
+@using MediaEngine.Web.Components.Settings
+@using MediaEngine.Web.Services.Theming
+@inject ViewWorkspaceService Workspace
+@inject DeviceContextService Device
+@implements IDisposable
+@namespace MediaEngine.Web.Components.Pages
+
+<PageTitle>Auto-filing rules - Tuvima Library</PageTitle>
+<ViewSectionShell>
+    <ViewContentPage Title="Auto-filing rules" Subtitle="File new documents for you: tag them, set who sent them, or skip the Inbox." Class="view-documents-page">
+        <HeaderActions>
+            <AppButton Label="Back to Documents" StartIcon="@AppMaterialIcons.Outlined.ArrowBack" ButtonStyle="AppButtonStyle.Outlined" Href="/view/documents" />
+        </HeaderActions>
+        <ChildContent>
+            @if (!_ready)
+            {
+                <AppPageState Kind="AppPageStateKind.Loading" Title="Loading rules" Message="Reading your auto-filing rules." />
+            }
+            else if (Workspace.Scopes?.CanViewDocuments == false)
+            {
+                <AppPageState Kind="AppPageStateKind.Unavailable" Icon="@AppMaterialIcons.Outlined.Lock" Title="Documents are not available for this profile" Message="Ask an administrator of this server to turn on Documents for you." Class="view-documents-denied" />
+            }
+            else if (Device.IsTv)
+            {
+                <AppPageState Kind="AppPageStateKind.Unavailable" Icon="@AppMaterialIcons.Outlined.DesktopAccessDisabled" Title="Rules are not available here" Message="Use a computer or tablet to see and change your auto-filing rules." />
+            }
+            else
+            {
+                @* Everyone with Documents reaches their own rules here; Settings > Libraries > View shows the same list to administrators. *@
+                <DocumentRulesSettings ReadOnly="@Device.IsPhone" />
+            }
+        </ChildContent>
+    </ViewContentPage>
+</ViewSectionShell>
+
+@code {
+    private bool _ready;
+
+    protected override async Task OnInitializedAsync()
+    {
+        Device.OnChanged += DeviceChanged;
+        // The View shell owns loading the View settings; this page only waits for them.
+        await Workspace.WhenReadyAsync();
+        _ready = true;
+    }
+
+    private void DeviceChanged() => _ = InvokeAsync(StateHasChanged);
+
+    public void Dispose() => Device.OnChanged -= DeviceChanged;
+}

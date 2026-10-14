@@ -273,7 +273,9 @@ public sealed class ViewCatalogueRepository(IDatabaseConnection database) : IVie
 
             var carriers = CarrierItemIds(connection, transaction, kind, id);
             // Links, details and values go with the entry (cascade or cleared); the items themselves are untouched.
+            // Auto-filing rule actions point at the entry without a foreign key, so they are removed here.
             connection.Execute($"DELETE FROM {spec.Table} WHERE id = @id;", new { id }, transaction);
+            connection.Execute("DELETE FROM doc_rule_actions WHERE ref_id = @id;", new { id }, transaction);
             foreach (var itemId in carriers)
             {
                 LocalAssetRepository.RebuildSearchDocument(connection, transaction, itemId);
@@ -355,6 +357,12 @@ public sealed class ViewCatalogueRepository(IDatabaseConnection database) : IVie
                     "SELECT filing_state FROM doc_item_details WHERE item_id = @itemId;", new { itemId }, transaction)
                 ?? ViewDocumentFilingStates.Filed;
 
+            var previousCorrespondent = connection.ExecuteScalar<Guid?>(
+                "SELECT correspondent_id FROM doc_item_details WHERE item_id = @itemId;", new { itemId }, transaction);
+            var previousType = connection.ExecuteScalar<Guid?>(
+                "SELECT doc_type_id FROM doc_item_details WHERE item_id = @itemId;", new { itemId }, transaction);
+            var previousFields = connection.Query<Guid>(
+                "SELECT field_id FROM doc_field_values WHERE item_id = @itemId;", new { itemId }, transaction).ToHashSet();
             connection.Execute("UPDATE local_items SET title = @title, updated_at = @now WHERE id = @itemId;",
                 new { itemId, title, now }, transaction);
             connection.Execute("""
@@ -368,6 +376,7 @@ public sealed class ViewCatalogueRepository(IDatabaseConnection database) : IVie
                     archive_number = excluded.archive_number,
                     notes = excluded.notes,
                     filing_state = excluded.filing_state,
+                    suggestions_json = CASE WHEN excluded.filing_state = 'inbox' THEN doc_item_details.suggestions_json ELSE NULL END,
                     updated_at = excluded.updated_at;
                 """, new
             {
@@ -381,6 +390,18 @@ public sealed class ViewCatalogueRepository(IDatabaseConnection database) : IVie
                 now,
             }, transaction);
             ViewCatalogueSql.ReplaceTagLinks(connection, transaction, itemId, tagIds, now);
+            // What the person saved here is theirs: an auto-filing rule never changes it afterwards. That covers a value
+            // they set and one they cleared on purpose, but not a value that was empty and stayed empty (fixing a title
+            // before a rule has had its say must not stop the rule from filling the rest in later).
+            if (correspondentId is not null || previousCorrespondent is not null)
+            {
+                DocumentFieldSources.Mark(connection, transaction, itemId, DocumentFieldSources.Correspondent, null, DocumentFieldSources.Person);
+            }
+
+            if (typeId is not null || previousType is not null)
+            {
+                DocumentFieldSources.Mark(connection, transaction, itemId, DocumentFieldSources.DocumentType, null, DocumentFieldSources.Person);
+            }
             if (fieldRows is not null)
             {
                 connection.Execute("DELETE FROM doc_field_values WHERE item_id = @itemId;", new { itemId }, transaction);
@@ -391,6 +412,16 @@ public sealed class ViewCatalogueRepository(IDatabaseConnection database) : IVie
                         VALUES (@itemId, @FieldId, @Text, @Number, @Date, @Flag);
                         """, new { itemId, row.FieldId, row.Text, row.Number, row.Date, row.Flag }, transaction);
                 }
+
+                // A field the editor sent with a value, or emptied after it had one, is the person's.
+                var kept = fieldRows.Select(row => row.FieldId).ToHashSet();
+                foreach (var submitted in write.Fields!.Select(field => field.FieldId).Distinct())
+                {
+                    if (kept.Contains(submitted) || previousFields.Contains(submitted))
+                    {
+                        DocumentFieldSources.Mark(connection, transaction, itemId, DocumentFieldSources.Field, submitted, DocumentFieldSources.Person);
+                    }
+                }
             }
 
             LocalAssetRepository.RebuildSearchDocument(connection, transaction, itemId);
@@ -398,14 +429,15 @@ public sealed class ViewCatalogueRepository(IDatabaseConnection database) : IVie
         }, ct);
     }
 
-    private sealed record FieldRow(Guid FieldId, string? Text, double? Number, string? Date, int? Flag);
+    internal sealed record FieldRow(Guid FieldId, string? Text, double? Number, string? Date, int? Flag);
 
     /// <summary>
     /// Checks every submitted value against its field definition (kind, choice list, money code) and that the viewer
-    /// may see the field. Values with nothing in them are dropped, which clears the field.
+    /// may see the field. Values with nothing in them are dropped, which clears the field. With no viewer (an
+    /// auto-filing rule applying a value that was checked when the rule was saved) only the field itself must exist.
     /// </summary>
-    private static List<FieldRow> ValidateFieldWrites(
-        SqliteConnection connection, SqliteTransaction transaction, ViewCatalogueViewer viewer,
+    internal static List<FieldRow> ValidateFieldWrites(
+        SqliteConnection connection, SqliteTransaction transaction, ViewCatalogueViewer? viewer,
         IReadOnlyCollection<ViewDocumentFieldWrite> writes)
     {
         var rows = new List<FieldRow>();
@@ -417,7 +449,11 @@ public sealed class ViewCatalogueRepository(IDatabaseConnection database) : IVie
                 throw new ArgumentException("A field can only be given once.");
             }
 
-            if (!IsVisible(connection, transaction, ViewCatalogueKind.Field, write.FieldId, viewer))
+            var reachable = viewer is null
+                ? connection.ExecuteScalar<long>(
+                    "SELECT COUNT(*) FROM doc_field_definitions WHERE id = @FieldId;", new { write.FieldId }, transaction) != 0
+                : IsVisible(connection, transaction, ViewCatalogueKind.Field, write.FieldId, viewer);
+            if (!reachable)
             {
                 throw new ViewCatalogueAccessException("That field is not available.");
             }
@@ -513,7 +549,7 @@ public sealed class ViewCatalogueRepository(IDatabaseConnection database) : IVie
     }
 
     /// <summary>Returns the item's media kind, or throws when it does not exist or is outside the viewer's libraries.</summary>
-    private static string RequireAccessibleItem(
+    internal static string RequireAccessibleItem(
         SqliteConnection connection, SqliteTransaction transaction, ViewCatalogueViewer viewer, Guid itemId)
     {
         if (itemId == Guid.Empty)

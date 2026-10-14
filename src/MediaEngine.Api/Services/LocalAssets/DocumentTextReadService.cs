@@ -1,3 +1,4 @@
+using MediaEngine.Api.Services.LocalAssets.Filing;
 using MediaEngine.Api.Services.LocalAssets.Ocr;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Entities;
@@ -29,7 +30,8 @@ public sealed class DocumentTextReadService(
     ILocalAssetRepository repository,
     IConfigurationLoader configuration,
     ILogger<DocumentTextReadService> logger,
-    DocumentOcrQueue? ocrQueue = null)
+    DocumentOcrQueue? ocrQueue = null,
+    DocumentRulesQueue? rulesQueue = null)
 {
     /// <summary>True when a file with this extension has its text read by the background job.</summary>
     public static bool NeedsBackgroundRead(string extension) => DocumentTextReader.IsSupported(extension);
@@ -74,6 +76,12 @@ public sealed class DocumentTextReadService(
         logger.LogDebug(
             "Read {Characters} characters from document {FileName} (encrypted {Encrypted}, truncated {Truncated}).",
             result.Text?.Length ?? 0, fileName, result.Encrypted, result.Truncated);
+        if (rulesQueue is not null)
+        {
+            // Auto-filing rules and Inbox suggestions look at the words just stored (or at none, for rules on names).
+            await rulesQueue.TryQueueAfterTextAsync(itemId, hasText ? result.Text : null, ct).ConfigureAwait(false);
+        }
+
         await QueueRecognitionIfScannedAsync(location, result, ct).ConfigureAwait(false);
         return hasText
             ? new DocumentTextReadOutcome(DocumentTextReadStatus.Read, $"Read {result.Text!.Length} characters of text.")

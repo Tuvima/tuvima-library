@@ -1,0 +1,355 @@
+@namespace MediaEngine.Web.Components.Settings
+@using MediaEngine.Contracts.LocalAssets
+@inject IEngineApiClient ApiClient
+
+@* One auto-filing rule: a name, when it applies (conditions), and what it does (actions). Words are matched ignoring letter case; there are no patterns. *@
+<AppDialogShell Title="@(Rule is null ? "New auto-filing rule" : "Edit auto-filing rule")" Subtitle="Rules run in order on new documents. Suggestions are only ever applied by a rule you make." Size="Medium" OnClose="@(() => Dialog.Cancel())">
+    <ChildContent>
+        @if (!string.IsNullOrWhiteSpace(_error))
+        {
+            <AppAlert Tone="AppUiTone.Error">@_error</AppAlert>
+        }
+
+        <div class="view-rule-editor">
+            <AppTextField Label="Rule name" Value="@_name" ValueChanged="@(value => _name = value ?? string.Empty)" MaxLength="120" AutoFocus="true" />
+            <AppSwitchRow Label="Enabled" Description="A rule that is off is kept but does nothing." Value="@_enabled" ValueChanged="@((bool value) => _enabled = value)" />
+
+            @if (Rule is null && CanManageShared)
+            {
+                <label class="view-rule-editor__field"><span>Applies to</span>
+                    <AppNativeSelect aria-label="Applies to" Value="@_scope" OnChange="@(args => ScopeChanged(args.Value?.ToString()))">
+                        <option value="@ViewDocumentRuleScopes.Mine">My documents</option>
+                        <option value="@ViewDocumentRuleScopes.Shared">The Shared Library (household)</option>
+                    </AppNativeSelect>
+                </label>
+            }
+            else if (_scope == ViewDocumentRuleScopes.Shared)
+            {
+                <p class="view-rule-editor__hint">This rule covers the Shared Library of your household.</p>
+            }
+
+            <section class="view-rule-editor__group" aria-label="Conditions">
+                <h3>When a document matches</h3>
+                <label class="view-rule-editor__field"><span>Match</span>
+                    <AppNativeSelect aria-label="Match mode" Value="@_matchMode" OnChange="@(args => _matchMode = args.Value?.ToString() ?? ViewDocumentRuleMatchModes.All)">
+                        <option value="@ViewDocumentRuleMatchModes.All">All of these</option>
+                        <option value="@ViewDocumentRuleMatchModes.Any">Any of these</option>
+                    </AppNativeSelect>
+                </label>
+                <ul class="view-rule-editor__list">
+                    @foreach (var condition in _conditions)
+                    {
+                        <li class="view-rule-editor__row" @key="condition">
+                            <AppNativeSelect aria-label="Condition" Value="@condition.Kind" OnChange="@(args => ConditionKindChanged(condition, args.Value?.ToString()))">
+                                @foreach (var option in ConditionKinds)
+                                {
+                                    <option value="@option.Value">@option.Label</option>
+                                }
+                            </AppNativeSelect>
+                            @switch (condition.Kind)
+                            {
+                                case ViewDocumentRuleConditionKinds.Source:
+                                    <AppNativeSelect aria-label="Source" Value="@condition.Value" OnChange="@(args => condition.Value = args.Value?.ToString() ?? string.Empty)">
+                                        <option value="">Choose a source</option>
+                                        @foreach (var source in ScopedSources)
+                                        {
+                                            <option value="@source.Id.ToString("D")">@source.Name</option>
+                                        }
+                                    </AppNativeSelect>
+                                    break;
+                                case ViewDocumentRuleConditionKinds.FileKind:
+                                    <AppNativeSelect aria-label="File kind" Value="@condition.Value" OnChange="@(args => condition.Value = args.Value?.ToString() ?? string.Empty)">
+                                        <option value="">Choose a kind</option>
+                                        <option value="@ViewDocumentFileKinds.Pdf">PDF</option>
+                                        <option value="@ViewDocumentFileKinds.Image">Image</option>
+                                        <option value="@ViewDocumentFileKinds.Office">Office document</option>
+                                    </AppNativeSelect>
+                                    break;
+                                default:
+                                    <AppNativeInput Type="text" Class="view-document-details__input" AriaLabel="Text to look for" Placeholder="Word or phrase" Value="@condition.Value" ValueChanged="@(value => condition.Value = value?.ToString() ?? string.Empty)" maxlength="200" />
+                                    break;
+                            }
+                            <AppIconButton Icon="@AppMaterialIcons.Outlined.Close" Tooltip="Remove condition" AriaLabel="Remove condition" Disabled="@(_conditions.Count <= 1)" OnClick="@(() => _conditions.Remove(condition))" />
+                        </li>
+                    }
+                </ul>
+                <AppButton Label="Add condition" StartIcon="@AppMaterialIcons.Outlined.Add" ButtonStyle="AppButtonStyle.Outlined" OnClick="AddCondition" />
+            </section>
+
+            <section class="view-rule-editor__group" aria-label="Actions">
+                <h3>Then</h3>
+                @if (_unavailableActions > 0)
+                {
+                    <p class="view-rule-editor__hint" role="note">@(_unavailableActions == 1 ? "One action points" : $"{_unavailableActions} actions point") at a name you can no longer see. It keeps running until you save; saving this rule removes it.</p>
+                }
+                <ul class="view-rule-editor__list">
+                    @foreach (var action in _actions)
+                    {
+                        <li class="view-rule-editor__row" @key="action">
+                            <AppNativeSelect aria-label="Action" Value="@action.Kind" OnChange="@(args => ActionKindChanged(action, args.Value?.ToString()))">
+                                @foreach (var option in ActionKinds)
+                                {
+                                    <option value="@option.Value">@option.Label</option>
+                                }
+                            </AppNativeSelect>
+                            @switch (action.Kind)
+                            {
+                                case ViewDocumentRuleActionKinds.AddTag:
+                                    @NameSelect("Tag", action, (Catalogue?.Tags ?? []).Select(item => (item.Id, item.Name)))
+                                    break;
+                                case ViewDocumentRuleActionKinds.SetCorrespondent:
+                                    @NameSelect("Correspondent", action, (Catalogue?.Correspondents ?? []).Select(item => (item.Id, item.Name)))
+                                    break;
+                                case ViewDocumentRuleActionKinds.SetDocumentType:
+                                    @NameSelect("Document type", action, (Catalogue?.DocumentTypes ?? []).Select(item => (item.Id, item.Name)))
+                                    break;
+                                default:
+                                    @NameSelect("Field", action, (Catalogue?.Fields ?? []).Select(item => (item.Id, item.Name)))
+                                    @FieldValueInput(action)
+                                    break;
+                            }
+                            <AppIconButton Icon="@AppMaterialIcons.Outlined.Close" Tooltip="Remove action" AriaLabel="Remove action" OnClick="@(() => _actions.Remove(action))" />
+                        </li>
+                    }
+                </ul>
+                <AppButton Label="Add action" StartIcon="@AppMaterialIcons.Outlined.Add" ButtonStyle="AppButtonStyle.Outlined" OnClick="AddAction" />
+                <AppSwitchRow Label="File automatically" Description="Mark the document as filed straight away, so it skips the Inbox. Off leaves it in the Inbox with these values filled in." Value="@_filesAutomatically" ValueChanged="@((bool value) => _filesAutomatically = value)" />
+            </section>
+
+            <section class="view-rule-editor__group" aria-label="Try this rule">
+                <AppButton Label="Test on my documents" ButtonStyle="AppButtonStyle.Outlined" Disabled="@_testing" Loading="@_testing" OnClick="TestAsync" />
+                @if (_tested is not null)
+                {
+                    <div role="status">
+                        @if (_tested.Matches.Count == 0)
+                        {
+                            <p>No documents match yet (@_tested.DocumentsChecked checked).</p>
+                        }
+                        else
+                        {
+                            <p>@(_tested.HasMore ? "More than " + _tested.Matches.Count : _tested.Matches.Count.ToString()) matching @(_tested.Matches.Count == 1 && !_tested.HasMore ? "document" : "documents"), for example:</p>
+                            <ul class="view-rule-editor__matches">
+                                @foreach (var match in _tested.Matches)
+                                {
+                                    <li @key="match.ItemId">@match.Title</li>
+                                }
+                            </ul>
+                        }
+                    </div>
+                }
+            </section>
+        </div>
+    </ChildContent>
+    <FooterContent>
+        <AppButton Label="Cancel" ButtonStyle="AppButtonStyle.Text" OnClick="@(() => Dialog.Cancel())" />
+        <AppButton Label="Save rule" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Disabled="@_saving" Loading="@_saving" OnClick="SaveAsync" />
+    </FooterContent>
+</AppDialogShell>
+
+@code {
+    [CascadingParameter] private IAppDialogContext Dialog { get; set; } = default!;
+
+    /// <summary>The rule being edited; null for a new one.</summary>
+    [Parameter] public ViewDocumentRuleDto? Rule { get; set; }
+    [Parameter] public IReadOnlyList<ViewDocumentRuleSourceDto> Sources { get; set; } = [];
+    [Parameter] public bool CanManageShared { get; set; }
+    [Parameter] public ViewDocumentCatalogueDto? Catalogue { get; set; }
+
+    private sealed class ConditionDraft
+    {
+        public string Kind { get; set; } = ViewDocumentRuleConditionKinds.TextContains;
+        public string Value { get; set; } = string.Empty;
+    }
+
+    private sealed class ActionDraft
+    {
+        public string Kind { get; set; } = ViewDocumentRuleActionKinds.AddTag;
+        public string RefId { get; set; } = string.Empty;
+        public string Text { get; set; } = string.Empty;
+    }
+
+    private sealed record Option(string Value, string Label);
+
+    private static readonly IReadOnlyList<Option> ConditionKinds =
+    [
+        new(ViewDocumentRuleConditionKinds.TextContains, "Words in the document contain"),
+        new(ViewDocumentRuleConditionKinds.FilenameContains, "File name contains"),
+        new(ViewDocumentRuleConditionKinds.FolderContains, "Folder path contains"),
+        new(ViewDocumentRuleConditionKinds.Source, "Came from source"),
+        new(ViewDocumentRuleConditionKinds.FileKind, "File kind is"),
+    ];
+
+    private static readonly IReadOnlyList<Option> ActionKinds =
+    [
+        new(ViewDocumentRuleActionKinds.AddTag, "Add tag"),
+        new(ViewDocumentRuleActionKinds.SetCorrespondent, "Set correspondent"),
+        new(ViewDocumentRuleActionKinds.SetDocumentType, "Set document type"),
+        new(ViewDocumentRuleActionKinds.SetField, "Set field"),
+    ];
+
+    private readonly List<ConditionDraft> _conditions = [];
+    private readonly List<ActionDraft> _actions = [];
+    private string _name = string.Empty, _matchMode = ViewDocumentRuleMatchModes.All, _scope = ViewDocumentRuleScopes.Mine;
+    private bool _enabled = true, _filesAutomatically, _saving, _testing;
+    private string? _error;
+    private ViewDocumentRuleTestDto? _tested;
+    private int _unavailableActions;
+
+    private IEnumerable<ViewDocumentRuleSourceDto> ScopedSources => Sources.Where(source => source.Scope == _scope);
+
+    protected override void OnInitialized()
+    {
+        if (Rule is { } rule)
+        {
+            _name = rule.Name;
+            _enabled = rule.Enabled;
+            _matchMode = rule.MatchMode;
+            _scope = rule.Scope;
+            _filesAutomatically = rule.FilesAutomatically;
+            _unavailableActions = rule.Actions.Count(action => action.Missing);
+            _conditions.AddRange(rule.Conditions.Select(condition => new ConditionDraft { Kind = condition.Kind, Value = condition.Value }));
+            _actions.AddRange(rule.Actions.Where(action => !action.Missing).Select(action => new ActionDraft
+            {
+                Kind = action.Kind,
+                RefId = action.RefId?.ToString("D") ?? string.Empty,
+                Text = action.TextValue ?? string.Empty,
+            }));
+        }
+
+        if (_conditions.Count == 0)
+        {
+            _conditions.Add(new ConditionDraft());
+        }
+    }
+
+    private RenderFragment NameSelect(string label, ActionDraft action, IEnumerable<(Guid Id, string Name)> names) =>
+        @<AppNativeSelect aria-label="@label" Value="@action.RefId" OnChange="@(args => action.RefId = args.Value?.ToString() ?? string.Empty)">
+            <option value="">@($"Choose a {label.ToLowerInvariant()}")</option>
+            @foreach (var (id, name) in names)
+            {
+                <option value="@id.ToString("D")">@name</option>
+            }
+        </AppNativeSelect>;
+
+    private RenderFragment FieldValueInput(ActionDraft action)
+    {
+        var field = Guid.TryParse(action.RefId, out var id) ? Catalogue?.Fields.FirstOrDefault(item => item.Id == id) : null;
+        return field?.Kind switch
+        {
+            ViewDocumentFieldKinds.Choice =>
+                @<AppNativeSelect aria-label="Value" Value="@action.Text" OnChange="@(args => action.Text = args.Value?.ToString() ?? string.Empty)">
+                    <option value="">Choose a value</option>
+                    @foreach (var choice in field.Choices)
+                    {
+                        <option value="@choice">@choice</option>
+                    }
+                </AppNativeSelect>,
+            ViewDocumentFieldKinds.Bool =>
+                @<AppNativeSelect aria-label="Value" Value="@action.Text" OnChange="@(args => action.Text = args.Value?.ToString() ?? string.Empty)">
+                    <option value="">Choose a value</option>
+                    <option value="true">Yes</option>
+                    <option value="false">No</option>
+                </AppNativeSelect>,
+            ViewDocumentFieldKinds.Date =>
+                @<AppNativeInput Type="date" Class="view-document-details__input" AriaLabel="Value" Value="@action.Text" ValueChanged="@(value => action.Text = value?.ToString() ?? string.Empty)" />,
+            _ =>
+                @<AppNativeInput Type="text" Class="view-document-details__input" AriaLabel="Value"
+                                 Placeholder="@(field?.Kind == ViewDocumentFieldKinds.Money ? "12.50 EUR" : field?.Kind == ViewDocumentFieldKinds.Number ? "12.5" : "Value")"
+                                 Value="@action.Text" ValueChanged="@(value => action.Text = value?.ToString() ?? string.Empty)" maxlength="200" />,
+        };
+    }
+
+    private void AddCondition() => _conditions.Add(new ConditionDraft());
+
+    private void AddAction() => _actions.Add(new ActionDraft());
+
+    private void ScopeChanged(string? scope)
+    {
+        _scope = scope == ViewDocumentRuleScopes.Shared ? ViewDocumentRuleScopes.Shared : ViewDocumentRuleScopes.Mine;
+        // A source belongs to one place, so a source condition from the other place is cleared.
+        foreach (var condition in _conditions.Where(item => item.Kind == ViewDocumentRuleConditionKinds.Source))
+        {
+            condition.Value = string.Empty;
+        }
+    }
+
+    private static void ConditionKindChanged(ConditionDraft condition, string? kind)
+    {
+        condition.Kind = kind ?? ViewDocumentRuleConditionKinds.TextContains;
+        condition.Value = string.Empty;
+    }
+
+    private static void ActionKindChanged(ActionDraft action, string? kind)
+    {
+        action.Kind = kind ?? ViewDocumentRuleActionKinds.AddTag;
+        action.RefId = string.Empty;
+        action.Text = string.Empty;
+    }
+
+    private SaveViewDocumentRuleRequest BuildRequest() => new(
+        _name.Trim(), _enabled, _matchMode, _filesAutomatically, _scope,
+        _conditions.Where(condition => !string.IsNullOrWhiteSpace(condition.Value))
+            .Select(condition => new ViewDocumentRuleConditionDto(condition.Kind, condition.Value.Trim())).ToList(),
+        _actions.Where(action => Guid.TryParse(action.RefId, out _))
+            .Select(action => new ViewDocumentRuleActionDto(
+                action.Kind, Guid.Parse(action.RefId),
+                action.Kind == ViewDocumentRuleActionKinds.SetField ? action.Text.Trim() : null)).ToList());
+
+    private async Task TestAsync()
+    {
+        if (_testing)
+        {
+            return;
+        }
+
+        _testing = true;
+        _error = null;
+        try
+        {
+            var result = await ApiClient.TestViewDocumentRuleAsync(BuildRequest());
+            if (result.Success)
+            {
+                _tested = result.Value;
+            }
+            else
+            {
+                _tested = null;
+                _error = result.Error ?? "The rule could not be tried. Check its conditions.";
+            }
+        }
+        finally
+        {
+            _testing = false;
+        }
+    }
+
+    private async Task SaveAsync()
+    {
+        if (_saving)
+        {
+            return;
+        }
+
+        _saving = true;
+        _error = null;
+        try
+        {
+            var request = BuildRequest();
+            var result = Rule is null
+                ? await ApiClient.CreateViewDocumentRuleAsync(request)
+                : await ApiClient.UpdateViewDocumentRuleAsync(Rule.Id, request);
+            if (result.Success)
+            {
+                Dialog.Close(AppDialogResult.Ok(result.Value));
+            }
+            else
+            {
+                _error = result.Error ?? "The rule could not be saved. Try again.";
+            }
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+}

@@ -12,6 +12,11 @@
         }
     </header>
 
+    <div class="view-documents-mode" role="radiogroup" aria-label="Documents to show">
+        <AppNativeButton Type="button" role="radio" aria-checked="@(State.InboxOnly ? "true" : "false")" Class="@ModeClass(State.InboxOnly)" OnClick="@(_ => SetInboxOnlyAsync(true))">@InboxLabel</AppNativeButton>
+        <AppNativeButton Type="button" role="radio" aria-checked="@(State.InboxOnly ? "false" : "true")" Class="@ModeClass(!State.InboxOnly)" OnClick="@(_ => SetInboxOnlyAsync(false))">All documents</AppNativeButton>
+    </div>
+
     @if (Catalogue is null)
     {
         <p class="view-documents-filters__hint" role="status">Filters will appear once your documents are organised with tags, correspondents or types.</p>
@@ -100,6 +105,24 @@
 
     /// <summary>Raised after any change so the page can load the narrowed list.</summary>
     [Parameter] public EventCallback OnChanged { get; set; }
+
+    /// <summary>How many documents wait in the Inbox of the scope being looked at; null while it is not known.</summary>
+    [Parameter] public int? InboxCount { get; set; }
+
+    private string InboxLabel => InboxCount is { } count ? $"Inbox ({count} to file)" : "Inbox";
+
+    private static string ModeClass(bool selected) => selected ? "view-documents-mode__option is-selected" : "view-documents-mode__option";
+
+    private async Task SetInboxOnlyAsync(bool inboxOnly)
+    {
+        if (State.InboxOnly == inboxOnly)
+        {
+            return;
+        }
+
+        State.InboxOnly = inboxOnly;
+        await OnChanged.InvokeAsync();
+    }
 
     // Only names that carry documents here are worth filtering by; a chosen one stays listed so it can be undone.
     private IReadOnlyList<ViewTagDto> VisibleTags => (Catalogue?.Tags ?? [])

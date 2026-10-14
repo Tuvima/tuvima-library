@@ -3653,6 +3653,14 @@ MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.CreateViewSo
   IncludeSubdirectories: System.Boolean | nullability=not-null | accessors=get,init
   IncludeInTimeline: System.Boolean | nullability=not-null | accessors=get,init
 
+MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.FileViewDocumentFromInboxRequest
+  AcceptSuggestions: System.Boolean | nullability=not-null | accessors=get,init
+  DocumentDate: System.DateOnly? | nullability=nullable | accessors=get,init
+  Correspondent: System.String | nullability=nullable | accessors=get,init
+  DocumentType: System.String | nullability=nullable | accessors=get,init
+  Tags: System.Collections.Generic.IReadOnlyCollection<System.String> | nullability=nullable | accessors=get,init
+  Suggestions: MediaEngine.Contracts.LocalAssets.ViewDocumentSuggestionsDto | nullability=nullable | accessors=get,init
+
 MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.LibraryCapacityDto
   Area: System.String | nullability=not-null | accessors=get,init
   Locations: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.LocalAssets.LibraryCapacityLocationDto> | nullability=not-null | accessors=get,init
@@ -3677,6 +3685,7 @@ MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.LocalAssetDo
   FilingState: System.String | nullability=not-null | accessors=get,init
   Tags: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.LocalAssets.ViewCatalogueRefDto> | nullability=nullable | accessors=get,init
   FieldValues: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.LocalAssets.ViewDocumentFieldValueDto> | nullability=nullable | accessors=get,init
+  Suggestions: MediaEngine.Contracts.LocalAssets.ViewDocumentSuggestionsDto | nullability=nullable | accessors=get,init
 
 MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.LocalAssetDto
   Id: System.Guid | nullability=not-null | accessors=get,init
@@ -3754,6 +3763,18 @@ MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.LocalAssetSc
   SourcesAdded: System.Int32 | nullability=not-null | accessors=get,init
   DuplicatesFound: System.Int32 | nullability=not-null | accessors=get,init
   Errors: System.Int32 | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ReorderViewDocumentRulesRequest
+  RuleIds: System.Collections.Generic.IReadOnlyList<System.Guid> | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.SaveViewDocumentRuleRequest
+  Name: System.String | nullability=not-null | accessors=get,init
+  Enabled: System.Boolean | nullability=not-null | accessors=get,init
+  MatchMode: System.String | nullability=not-null | accessors=get,init
+  FilesAutomatically: System.Boolean | nullability=not-null | accessors=get,init
+  Scope: System.String | nullability=not-null | accessors=get,init
+  Conditions: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.LocalAssets.ViewDocumentRuleConditionDto> | nullability=nullable | accessors=get,init
+  Actions: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.LocalAssets.ViewDocumentRuleActionDto> | nullability=nullable | accessors=get,init
 
 MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.SetLocalAssetFlagRequest
   Value: System.Boolean | nullability=not-null | accessors=get,init
@@ -3913,6 +3934,8 @@ MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewDocument
   DateValue: System.DateOnly? | nullability=nullable | accessors=get,init
   BoolValue: System.Boolean? | nullability=nullable | accessors=get,init
 
+MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewDocumentFileKinds
+
 MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewDocumentFilingStates
 
 MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewDocumentFilterDto
@@ -3923,6 +3946,71 @@ MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewDocument
   DateTo: System.DateOnly? | nullability=nullable | accessors=get,init
   FilingState: System.String | nullability=nullable | accessors=get,init
   Fields: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.LocalAssets.ViewDocumentFieldFilterDto> | nullability=nullable | accessors=get,init
+
+MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewDocumentInboxSummaryDto
+  Count: System.Int32 | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewDocumentRuleActionDto
+  Kind: System.String | nullability=not-null | accessors=get,init
+  RefId: System.Guid? | nullability=nullable | accessors=get,init
+  TextValue: System.String | nullability=nullable | accessors=get,init
+  DisplayName: System.String | nullability=nullable | accessors=get,init
+  Missing: System.Boolean | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewDocumentRuleActionKinds
+
+MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewDocumentRuleConditionDto
+  Kind: System.String | nullability=not-null | accessors=get,init
+  Value: System.String | nullability=not-null | accessors=get,init
+  DisplayValue: System.String | nullability=nullable | accessors=get,init
+
+MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewDocumentRuleConditionKinds
+
+MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewDocumentRuleDto
+  Id: System.Guid | nullability=not-null | accessors=get,init
+  Name: System.String | nullability=not-null | accessors=get,init
+  Enabled: System.Boolean | nullability=not-null | accessors=get,init
+  MatchMode: System.String | nullability=not-null | accessors=get,init
+  SortOrder: System.Int32 | nullability=not-null | accessors=get,init
+  FilesAutomatically: System.Boolean | nullability=not-null | accessors=get,init
+  Scope: System.String | nullability=not-null | accessors=get,init
+  Conditions: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.LocalAssets.ViewDocumentRuleConditionDto> | nullability=not-null | accessors=get,init
+  Actions: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.LocalAssets.ViewDocumentRuleActionDto> | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewDocumentRuleMatchModes
+
+MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewDocumentRuleScopes
+
+MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewDocumentRuleSourceDto
+  Id: System.Guid | nullability=not-null | accessors=get,init
+  Name: System.String | nullability=not-null | accessors=get,init
+  Scope: System.String | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewDocumentRuleTestDto
+  Matches: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.LocalAssets.ViewDocumentRuleTestMatchDto> | nullability=not-null | accessors=get,init
+  DocumentsChecked: System.Int32 | nullability=not-null | accessors=get,init
+  HasMore: System.Boolean | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewDocumentRuleTestMatchDto
+  ItemId: System.Guid | nullability=not-null | accessors=get,init
+  Title: System.String | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewDocumentRulesApplyResultDto
+  Queued: System.Int32 | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewDocumentRulesDto
+  Rules: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.LocalAssets.ViewDocumentRuleDto> | nullability=not-null | accessors=get,init
+  Sources: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.LocalAssets.ViewDocumentRuleSourceDto> | nullability=not-null | accessors=get,init
+  CanManageShared: System.Boolean | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewDocumentSuggestionsDto
+  DocumentDate: System.DateOnly? | nullability=nullable | accessors=get,init
+  DateFromFile: System.Boolean | nullability=not-null | accessors=get,init
+  Correspondent: System.String | nullability=nullable | accessors=get,init
+  DocumentType: System.String | nullability=nullable | accessors=get,init
+  Tags: System.Collections.Generic.IReadOnlyList<System.String> | nullability=nullable | accessors=get,init
+  Amount: System.Double? | nullability=nullable | accessors=get,init
+  Currency: System.String | nullability=nullable | accessors=get,init
 
 MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewDocumentTextDto
   ItemId: System.Guid | nullability=not-null | accessors=get,init

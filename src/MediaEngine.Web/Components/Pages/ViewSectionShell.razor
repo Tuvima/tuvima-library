@@ -7,6 +7,7 @@
 @inject ActiveProfileSessionService ActiveProfileSession
 @inject NavigationManager Nav
 @inject IAppToastService Snackbar
+@implements IDisposable
 
 <MediaSectionShell @ref="_shell"
                    Title="View"
@@ -30,11 +31,16 @@
 
     protected override async Task OnInitializedAsync()
     {
+        Workspace.DocumentInboxChanged += InboxChanged;
         await ActiveProfileSession.GetActiveProfileAsync();
         // The Documents tab only shows for profiles allowed to see documents, which the scopes response says.
         await Workspace.InitializeAsync();
-        await Workspace.LoadGalleriesAsync();
+        await Task.WhenAll(Workspace.LoadGalleriesAsync(), Workspace.RefreshDocumentInboxAsync());
     }
+
+    private void InboxChanged() => _ = InvokeAsync(StateHasChanged);
+
+    public void Dispose() => Workspace.DocumentInboxChanged -= InboxChanged;
 
     public async Task BeginManualGalleryCreateAsync(IEnumerable<Guid>? assetIds = null)
     {
@@ -76,7 +82,13 @@
             };
             if (Workspace.Scopes?.CanViewDocuments != false)
             {
-                items.Add(new("Documents", "/view/documents", AppMaterialIcons.Outlined.Description, Exact: true));
+                // Documents waiting in the person's own Inbox show as a count; nothing shows when there are none.
+                var waiting = Workspace.DocumentInboxCount;
+                items.Add(waiting > 0
+                    ? new("Documents", "/view/documents", AppMaterialIcons.Outlined.Description,
+                        waiting.ToString(System.Globalization.CultureInfo.InvariantCulture), Exact: true, MetaIsNotification: true,
+                        MetaAriaLabel: $"{waiting} document{(waiting == 1 ? string.Empty : "s")} to file")
+                    : new("Documents", "/view/documents", AppMaterialIcons.Outlined.Description, Exact: true));
             }
 
             items.Add(new("People", "/view/people", AppMaterialIcons.Outlined.People, Exact: true));

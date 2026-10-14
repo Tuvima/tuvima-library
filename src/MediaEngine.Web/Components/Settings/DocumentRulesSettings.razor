@@ -1,0 +1,254 @@
+@namespace MediaEngine.Web.Components.Settings
+@using MediaEngine.Contracts.LocalAssets
+@inject IEngineApiClient ApiClient
+@inject IAppToastService Snackbar
+@inject IAppDialogService DialogService
+
+<AppCard Class="view-rules-card">
+    <div class="view-rules__heading">
+        <h3>Auto-filing rules</h3>
+        <p>New documents land in your Inbox. A rule can tag them, set who sent them and what they are, or file them for you. Rules run top to bottom, and a rule never changes something you set yourself. Rules are yours alone@(_rules?.CanManageShared == true ? ", except Shared Library rules, which cover everyone in your household" : string.Empty).</p>
+    </div>
+    @if (ReadOnly)
+    {
+        <p class="view-rules__note" role="note">Edit on a computer or tablet. Your rules still run on every new document.</p>
+    }
+
+    @if (_loading)
+    {
+        <p role="status">Loading your rules…</p>
+    }
+    else if (_rules is null)
+    {
+        <AppAlert Tone="AppUiTone.Error">The rules could not be loaded. Documents may be turned off for your profile.</AppAlert>
+    }
+    else
+    {
+        @if (_rules.Rules.Count == 0)
+        {
+            <p class="view-documents-filters__hint">No rules yet. Documents stay in your Inbox until you file them.</p>
+        }
+        else
+        {
+            <ol class="view-rules__list" aria-label="Auto-filing rules in running order">
+                @for (var index = 0; index < _rules.Rules.Count; index++)
+                {
+                    var rule = _rules.Rules[index];
+                    var position = index;
+                    <li class="view-rules__row" @key="rule.Id">
+                        <div class="view-rules__text">
+                            <strong>@rule.Name</strong>
+                            @if (rule.Scope == ViewDocumentRuleScopes.Shared)
+                            {
+                                <AppChip Text="Shared Library" />
+                            }
+                            <small>@Summary(rule)</small>
+                        </div>
+                        @if (ReadOnly)
+                        {
+                            <span class="view-rules__state">@(rule.Enabled ? "On" : "Off")</span>
+                        }
+                        else
+                        {
+                            <AppSwitchRow AriaLabel="@($"{rule.Name} enabled")" Value="@rule.Enabled" ValueChanged="@((bool value) => SetEnabledAsync(rule, value))" Disabled="@_busy" Class="view-rules__switch" />
+                            <AppIconButton Icon="@AppMaterialIcons.Outlined.ArrowUpward" Tooltip="Move up" AriaLabel="@($"Move {rule.Name} up")" Disabled="@(_busy || !CanMove(position, -1))" OnClick="@(() => MoveAsync(position, -1))" />
+                            <AppIconButton Icon="@AppMaterialIcons.Outlined.ArrowDownward" Tooltip="Move down" AriaLabel="@($"Move {rule.Name} down")" Disabled="@(_busy || !CanMove(position, 1))" OnClick="@(() => MoveAsync(position, 1))" />
+                            <AppIconButton Icon="@AppMaterialIcons.Outlined.Edit" Tooltip="Edit" AriaLabel="@($"Edit {rule.Name}")" Disabled="@_busy" OnClick="@(() => EditAsync(rule))" />
+                            <AppIconButton Icon="@AppMaterialIcons.Outlined.Delete" Tooltip="Delete" AriaLabel="@($"Delete {rule.Name}")" Disabled="@_busy" OnClick="@(() => DeleteAsync(rule))" />
+                        }
+                    </li>
+                }
+            </ol>
+        }
+
+        @if (!ReadOnly)
+        {
+            <div class="view-rules__actions">
+                <AppButton Label="Add rule" StartIcon="@AppMaterialIcons.Outlined.Add" ButtonStyle="AppButtonStyle.Outlined" Disabled="@_busy" OnClick="@(() => EditAsync(null))" />
+                <AppButton Label="Apply rules to existing documents" ButtonStyle="AppButtonStyle.Text" Disabled="@(_busy || _rules.Rules.Count == 0)" OnClick="ApplyAsync" />
+            </div>
+        }
+    }
+
+    @if (_error is not null)
+    {
+        <AppAlert Tone="AppUiTone.Error">@_error</AppAlert>
+    }
+</AppCard>
+
+@code {
+    [Parameter] public bool ReadOnly { get; set; }
+
+    private ViewDocumentRulesDto? _rules;
+    private ViewDocumentCatalogueDto? _catalogue;
+    private bool _loading = true, _busy;
+    private string? _error;
+
+    protected override async Task OnInitializedAsync() => await LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        _rules = await ApiClient.GetViewDocumentRulesAsync();
+        _loading = false;
+    }
+
+    private bool CanMove(int index, int direction)
+    {
+        var target = index + direction;
+        return _rules is not null && target >= 0 && target < _rules.Rules.Count
+            && _rules.Rules[target].Scope == _rules.Rules[index].Scope;
+    }
+
+    private async Task MoveAsync(int index, int direction)
+    {
+        if (_busy || _rules is null || !CanMove(index, direction))
+        {
+            return;
+        }
+
+        var ids = _rules.Rules.Select(rule => rule.Id).ToList();
+        (ids[index], ids[index + direction]) = (ids[index + direction], ids[index]);
+        await RunAsync(async () => (await ApiClient.ReorderViewDocumentRulesAsync(ids)).Error);
+    }
+
+    private async Task SetEnabledAsync(ViewDocumentRuleDto rule, bool enabled) =>
+        await RunAsync(async () => (await ApiClient.UpdateViewDocumentRuleAsync(rule.Id, ToRequest(rule) with { Enabled = enabled })).Error);
+
+    private async Task EditAsync(ViewDocumentRuleDto? rule)
+    {
+        if (_rules is null || _busy)
+        {
+            return;
+        }
+
+        _catalogue ??= await ApiClient.GetViewCatalogueAsync();
+        var dialog = await DialogService.ShowAsync<DocumentRuleEditorDialog>(string.Empty,
+            new AppDialogParameters<DocumentRuleEditorDialog>
+            {
+                { component => component.Rule, rule },
+                { component => component.Sources, _rules.Sources },
+                { component => component.CanManageShared, _rules.CanManageShared },
+                { component => component.Catalogue, _catalogue },
+            },
+            new AppDialogOptions { NoHeader = true, FullWidth = true, MaxWidth = AppMaxWidth.Medium });
+        if (await dialog.Result is { Canceled: false })
+        {
+            Snackbar.Add("Rule saved.", AppSeverity.Success);
+            await LoadAsync();
+        }
+    }
+
+    private async Task DeleteAsync(ViewDocumentRuleDto rule)
+    {
+        var confirmed = await DialogService.ShowMessageBoxAsync(
+            $"Delete {rule.Name}?",
+            "Documents it already filed stay as they are. It just stops running.",
+            "Delete", "Keep");
+        if (confirmed != true)
+        {
+            return;
+        }
+
+        await RunAsync(async () => (await ApiClient.DeleteViewDocumentRuleAsync(rule.Id)).Error);
+    }
+
+    private async Task ApplyAsync()
+    {
+        if (_busy)
+        {
+            return;
+        }
+
+        _busy = true;
+        _error = null;
+        try
+        {
+            var result = await ApiClient.ApplyViewDocumentRulesAsync();
+            if (result.Success)
+            {
+                Snackbar.Add(result.Value!.Queued == 0
+                    ? "Nothing to apply the rules to yet."
+                    : $"Applying your rules to {result.Value.Queued} {(result.Value.Queued == 1 ? "document" : "documents")} in the background.", AppSeverity.Success);
+            }
+            else
+            {
+                _error = result.Error ?? "The rules could not be queued. Try again.";
+            }
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    /// <summary>Runs one change, shows the Engine's reason when it fails, and reloads the list.</summary>
+    private async Task RunAsync(Func<Task<string?>> change)
+    {
+        if (_busy)
+        {
+            return;
+        }
+
+        _busy = true;
+        _error = null;
+        try
+        {
+            _error = await change();
+            await LoadAsync();
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private static SaveViewDocumentRuleRequest ToRequest(ViewDocumentRuleDto rule) => new(
+        rule.Name, rule.Enabled, rule.MatchMode, rule.FilesAutomatically, rule.Scope,
+        rule.Conditions.Select(condition => new ViewDocumentRuleConditionDto(condition.Kind, condition.Value)).ToList(),
+        // Every action is sent back, including ones that point at names this person cannot see right now: the Engine
+        // keeps running them, so a switch must not quietly delete them (it answers with a reason if it cannot keep them).
+        rule.Actions.Select(action => new ViewDocumentRuleActionDto(action.Kind, action.RefId, action.TextValue)).ToList());
+
+    /// <summary>One plain sentence: "When words contain 'water' and file is a PDF: add tag Bills, file automatically".</summary>
+    internal static string Summary(ViewDocumentRuleDto rule)
+    {
+        var joiner = rule.MatchMode == ViewDocumentRuleMatchModes.Any ? " or " : " and ";
+        var when = string.Join(joiner, rule.Conditions.Select(Describe));
+        var does = rule.Actions.Select(Describe).ToList();
+        if (rule.FilesAutomatically)
+        {
+            does.Add("file automatically");
+        }
+
+        return $"When {when}: {(does.Count == 0 ? "nothing" : string.Join(", ", does))}";
+    }
+
+    private static string Describe(ViewDocumentRuleConditionDto condition) => condition.Kind switch
+    {
+        ViewDocumentRuleConditionKinds.TextContains => $"the words contain “{condition.Value}”",
+        ViewDocumentRuleConditionKinds.FilenameContains => $"the file name contains “{condition.Value}”",
+        ViewDocumentRuleConditionKinds.FolderContains => $"the folder contains “{condition.Value}”",
+        ViewDocumentRuleConditionKinds.Source => $"it came from {condition.DisplayValue ?? condition.Value}",
+        ViewDocumentRuleConditionKinds.FileKind => condition.Value switch
+        {
+            ViewDocumentFileKinds.Pdf => "it is a PDF",
+            ViewDocumentFileKinds.Image => "it is an image",
+            ViewDocumentFileKinds.Office => "it is an Office document",
+            _ => $"its kind is {condition.Value}",
+        },
+        _ => condition.Value,
+    };
+
+    private static string Describe(ViewDocumentRuleActionDto action)
+    {
+        var name = action.Missing ? "(removed)" : action.DisplayName ?? "?";
+        return action.Kind switch
+        {
+            ViewDocumentRuleActionKinds.AddTag => $"add tag {name}",
+            ViewDocumentRuleActionKinds.SetCorrespondent => $"set correspondent {name}",
+            ViewDocumentRuleActionKinds.SetDocumentType => $"set type {name}",
+            ViewDocumentRuleActionKinds.SetField => $"set {name} to {action.TextValue}",
+            _ => name,
+        };
+    }
+}

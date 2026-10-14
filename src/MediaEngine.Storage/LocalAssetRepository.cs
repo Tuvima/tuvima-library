@@ -67,6 +67,7 @@ public sealed class LocalAssetRepository(IDatabaseConnection database) : ILocalA
         public string? ArchiveNumber { get; init; }
         public string? Notes { get; init; }
         public string? FilingState { get; init; }
+        public string? SuggestionsJson { get; init; }
         public long Favorite { get; init; }
         public long Hidden { get; init; }
         public DateTimeOffset? ArchivedAt { get; init; }
@@ -198,7 +199,7 @@ public sealed class LocalAssetRepository(IDatabaseConnection database) : ILocalA
                    dd.document_date AS DocumentDate,
                    dd.correspondent_id AS CorrespondentId, dc.name AS CorrespondentName, dc.colour AS CorrespondentColour,
                    dd.doc_type_id AS DocumentTypeId, dt.name AS DocumentTypeName,
-                   dd.archive_number AS ArchiveNumber, dd.notes AS Notes, dd.filing_state AS FilingState,
+                   dd.archive_number AS ArchiveNumber, dd.notes AS Notes, dd.filing_state AS FilingState, dd.suggestions_json AS SuggestionsJson,
                    CASE WHEN lm.metadata_json IS NOT NULL AND json_valid(lm.metadata_json) THEN COALESCE(json_extract(lm.metadata_json, '$.document_text_truncated'), 0) ELSE 0 END AS TextTruncated,
                    CASE WHEN lm.metadata_json IS NOT NULL AND json_valid(lm.metadata_json) THEN COALESCE(json_extract(lm.metadata_json, '$.document_encrypted'), 0) ELSE 0 END AS TextEncrypted,
                    CASE WHEN lm.document_text IS NOT NULL AND lm.document_text <> '' THEN 1 ELSE 0 END AS HasText,
@@ -360,7 +361,7 @@ public sealed class LocalAssetRepository(IDatabaseConnection database) : ILocalA
                    dd.document_date AS DocumentDate,
                    dd.correspondent_id AS CorrespondentId, dc.name AS CorrespondentName, dc.colour AS CorrespondentColour,
                    dd.doc_type_id AS DocumentTypeId, dt.name AS DocumentTypeName,
-                   dd.archive_number AS ArchiveNumber, dd.notes AS Notes, dd.filing_state AS FilingState,
+                   dd.archive_number AS ArchiveNumber, dd.notes AS Notes, dd.filing_state AS FilingState, dd.suggestions_json AS SuggestionsJson,
                    CASE WHEN lm.metadata_json IS NOT NULL AND json_valid(lm.metadata_json) THEN COALESCE(json_extract(lm.metadata_json, '$.document_text_truncated'), 0) ELSE 0 END AS TextTruncated,
                    CASE WHEN lm.metadata_json IS NOT NULL AND json_valid(lm.metadata_json) THEN COALESCE(json_extract(lm.metadata_json, '$.document_encrypted'), 0) ELSE 0 END AS TextEncrypted,
                    CASE WHEN lm.document_text IS NOT NULL AND lm.document_text <> '' THEN 1 ELSE 0 END AS HasText,
@@ -633,7 +634,7 @@ public sealed class LocalAssetRepository(IDatabaseConnection database) : ILocalA
                    dd.document_date AS DocumentDate,
                    dd.correspondent_id AS CorrespondentId, dc.name AS CorrespondentName, dc.colour AS CorrespondentColour,
                    dd.doc_type_id AS DocumentTypeId, dt.name AS DocumentTypeName,
-                   dd.archive_number AS ArchiveNumber, dd.notes AS Notes, dd.filing_state AS FilingState,
+                   dd.archive_number AS ArchiveNumber, dd.notes AS Notes, dd.filing_state AS FilingState, dd.suggestions_json AS SuggestionsJson,
                    CASE WHEN lm.metadata_json IS NOT NULL AND json_valid(lm.metadata_json) THEN COALESCE(json_extract(lm.metadata_json, '$.document_text_truncated'), 0) ELSE 0 END AS TextTruncated,
                    CASE WHEN lm.metadata_json IS NOT NULL AND json_valid(lm.metadata_json) THEN COALESCE(json_extract(lm.metadata_json, '$.document_encrypted'), 0) ELSE 0 END AS TextEncrypted,
                    CASE WHEN lm.document_text IS NOT NULL AND lm.document_text <> '' THEN 1 ELSE 0 END AS HasText,
@@ -1645,7 +1646,8 @@ public sealed class LocalAssetRepository(IDatabaseConnection database) : ILocalA
                 row.Notes,
                 row.FilingState ?? ViewDocumentFilingStates.Filed,
                 tags,
-                fieldValues)
+                fieldValues,
+                row.FilingState == ViewDocumentFilingStates.Inbox ? DocumentFilingRepository.ReadSuggestions(row.SuggestionsJson) : null)
             : null;
 
     private static void ReplaceTags(

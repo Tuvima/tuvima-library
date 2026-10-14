@@ -606,6 +606,7 @@ public static partial class ViewEndpoints
         }).WithName("UpdateViewItemCapturedAt").Produces<LocalAssetDto>();
 
         MapDocumentOrganisation(group);
+        MapDocumentFiling(group);
 
         group.MapPut("/items/{id:guid}/people", async (Guid id,
             UpdateLocalAssetPeopleRequest request, IViewRequestProfileContext identity,

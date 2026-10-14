@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Security.Cryptography;
 using System.Text.RegularExpressions;
+using MediaEngine.Api.Services.LocalAssets.Filing;
 using MediaEngine.Api.Services.LocalAssets.Ocr;
 using MediaEngine.Contracts.LocalAssets;
 using MediaEngine.Domain.Configuration;
@@ -24,7 +25,8 @@ public sealed class ViewLibraryService(
     ILogger<ViewLibraryService> logger,
     IFFmpegService? ffmpeg = null,
     IMediaOperationRepository? operations = null,
-    DocumentOcrQueue? ocrQueue = null) : IViewPathIndexer
+    DocumentOcrQueue? ocrQueue = null,
+    DocumentRulesQueue? rulesQueue = null) : IViewPathIndexer
 {
     private const int MaxDocumentCharacters = 256 * 1024;
 
@@ -377,6 +379,13 @@ public sealed class ViewLibraryService(
             FrameRate: metadata.FrameRate,
             DocumentText: metadata.DocumentText), ct);
         await QueueDocumentTextReadAsync(upserted.ItemId, group.Primary, registrations, ct);
+        if (upserted.ItemAdded && rulesQueue is not null && group.Primary.Type.MediaKind == LocalAssetMediaKinds.Document)
+        {
+            // A new document waits in the Inbox: rules on its name, folder, source and kind apply at once, and the
+            // words (read a moment later) queue the rules again.
+            await rulesQueue.TryQueueAfterTextAsync(upserted.ItemId, metadata.DocumentText, ct);
+        }
+
         return upserted;
     }
 

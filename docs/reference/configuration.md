@@ -235,6 +235,12 @@ Common fields configured here: `cover`, `description`, `rating`, `narrator`, `du
 
 ---
 
+## Auto-filing rules
+
+Auto-filing rules are not a configuration file. Each person makes their own on the Documents page (**Auto-filing rules** button; administrators also see the list in Settings > Libraries > View) (a household administrator can also make rules for the household's Shared Library). They are stored in the data store (`doc_rules`, `doc_rule_conditions`, `doc_rule_actions`, see the [database schema](database-schema.md)) and run as the `view.document_apply_rules` background job, one document at a time after its words are read. Nothing is sent anywhere. Rules use plain words with no patterns, and are limited to 200 rules per person, 20 conditions and 20 actions per rule. The Inbox suggestions use the same job and need no setting.
+
+---
+
 ## config/libraries.json
 
 Defines the clean schema 7 library model used by **Settings > Libraries**. The root contains explicitly approved `storage_locations`, `personal_library_policy`, `file_handling`, and `libraries`.

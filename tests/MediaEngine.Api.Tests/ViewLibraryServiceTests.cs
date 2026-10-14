@@ -399,7 +399,7 @@ public sealed class ViewLibraryServiceTests
         private readonly ConfigurationDirectoryLoader _configuration;
         private readonly DatabaseConnection _database;
 
-        public ViewFixture(MediaEngine.Api.Services.LocalAssets.Ocr.IOcrService? ocr = null)
+        public ViewFixture(MediaEngine.Api.Services.LocalAssets.Ocr.IOcrService? ocr = null, bool withFiling = false)
         {
             PersonalRoot = Path.Combine(_root, "personal");
             CatalogueRoot = Path.Combine(_root, "catalogue");
@@ -450,7 +450,9 @@ public sealed class ViewLibraryServiceTests
                 ],
             });
             var spaces = new ViewPersonalSpaceRepository(_database);
+            Spaces = spaces;
             var space = spaces.CreateAsync(OwnerProfileId, PersonalLibraryId).GetAwaiter().GetResult();
+            PersonalSpaceId = space.Id;
             var now = DateTimeOffset.UtcNow;
             spaces.UpsertSourceAsync(new ViewSource(
                 Guid.NewGuid(), space.Id, ViewSourceType.Folder, "Existing personal files", "test:personal",
@@ -465,6 +467,21 @@ public sealed class ViewLibraryServiceTests
                     NullLogger<MediaEngine.Api.Services.LocalAssets.Ocr.DocumentOcrQueue>.Instance);
             }
 
+            if (withFiling)
+            {
+                FilingRepository = new DocumentFilingRepository(_database);
+                RulesRepository = new DocumentRuleRepository(_database);
+                Catalogue = new ViewCatalogueRepository(_database);
+                RulesQueue = new MediaEngine.Api.Services.LocalAssets.Filing.DocumentRulesQueue(
+                    Operations, FilingRepository,
+                    NullLogger<MediaEngine.Api.Services.LocalAssets.Filing.DocumentRulesQueue>.Instance);
+                FilingWorker = new MediaEngine.Api.Services.LocalAssets.Filing.DocumentApplyRulesOperationWorker(
+                    Operations,
+                    new MediaEngine.Api.Services.LocalAssets.Filing.DocumentFilingService(
+                        FilingRepository, NullLogger<MediaEngine.Api.Services.LocalAssets.Filing.DocumentFilingService>.Instance),
+                    NullLogger<MediaEngine.Api.Services.LocalAssets.Filing.DocumentApplyRulesOperationWorker>.Instance);
+            }
+
             Service = new ViewLibraryService(
                 Repository,
                 _configuration,
@@ -472,14 +489,31 @@ public sealed class ViewLibraryServiceTests
                 storage,
                 NullLogger<ViewLibraryService>.Instance,
                 operations: Operations,
-                ocrQueue: OcrQueue);
+                ocrQueue: OcrQueue,
+                rulesQueue: RulesQueue);
             TextReader = new DocumentTextReadService(
-                Repository, _configuration, NullLogger<DocumentTextReadService>.Instance, OcrQueue);
+                Repository, _configuration, NullLogger<DocumentTextReadService>.Instance, OcrQueue, RulesQueue);
             Worker = new DocumentTextReadOperationWorker(
                 Operations, TextReader, NullLogger<DocumentTextReadOperationWorker>.Instance);
         }
 
         public MediaOperationRepository Operations { get; }
+        public ViewPersonalSpaceRepository Spaces { get; }
+        public Guid PersonalSpaceId { get; }
+        public DocumentFilingRepository? FilingRepository { get; }
+        public DocumentRuleRepository? RulesRepository { get; }
+        public ViewCatalogueRepository? Catalogue { get; }
+        public MediaEngine.Api.Services.LocalAssets.Filing.DocumentRulesQueue? RulesQueue { get; }
+        public MediaEngine.Api.Services.LocalAssets.Filing.DocumentApplyRulesOperationWorker? FilingWorker { get; }
+
+        /// <summary>Runs the auto-filing worker until its queue is empty.</summary>
+        public async Task DrainFilingQueueAsync()
+        {
+            while (await FilingWorker!.RunBatchAsync(CancellationToken.None) > 0)
+            {
+            }
+        }
+
         public MediaEngine.Api.Services.LocalAssets.Ocr.DocumentOcrQueue? OcrQueue { get; }
         public ConfigurationDirectoryLoader Configuration => _configuration;
         public DocumentTextReadService TextReader { get; }

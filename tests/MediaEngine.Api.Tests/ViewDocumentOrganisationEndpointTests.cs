@@ -8,10 +8,12 @@ using Dapper;
 using MediaEngine.Api.Endpoints;
 using MediaEngine.Api.Security;
 using MediaEngine.Api.Services.LocalAssets;
+using MediaEngine.Api.Services.LocalAssets.Filing;
 using MediaEngine.Api.Services.View;
 using MediaEngine.Contracts.LocalAssets;
 using MediaEngine.Domain.Authorization;
 using MediaEngine.Domain.Contracts;
+using MediaEngine.Domain.Entities;
 using MediaEngine.Domain.PersonalMedia;
 using MediaEngine.Domain.Services;
 using MediaEngine.Storage;
@@ -75,6 +77,11 @@ public sealed class ViewDocumentOrganisationEndpointTests : IAsyncLifetime
         builder.Services.AddSingleton<IDatabaseConnection>(_database);
         builder.Services.AddSingleton<ILocalAssetRepository>(_assets);
         builder.Services.AddSingleton<IViewCatalogueRepository, ViewCatalogueRepository>();
+        builder.Services.AddSingleton<IDocumentFilingRepository, DocumentFilingRepository>();
+        builder.Services.AddSingleton<IDocumentRuleRepository, DocumentRuleRepository>();
+        builder.Services.AddSingleton<IMediaOperationRepository, MediaOperationRepository>();
+        builder.Services.AddSingleton<DocumentRulesQueue>();
+        builder.Services.AddSingleton<ViewDocumentRuleService>();
         builder.Services.AddSingleton<IViewProfileRepository>(_policies);
         builder.Services.AddSingleton<IViewPersonalSpaceRepository>(_spaces);
         builder.Services.AddSingleton<IViewGalleryRepository, ViewGalleryRepository>();
@@ -190,6 +197,17 @@ public sealed class ViewDocumentOrganisationEndpointTests : IAsyncLifetime
             (HttpMethod.Post, "/view/document-fields", JsonContent.Create(new ViewDocumentFieldRequest("Field", "text"))),
             (HttpMethod.Put, $"/view/document-fields/{anyId}", JsonContent.Create(new ViewDocumentFieldRequest("Field", "text"))),
             (HttpMethod.Delete, $"/view/document-fields/{anyId}", null),
+            // The Inbox and the auto-filing rules are closed to the same profiles.
+            (HttpMethod.Get, "/view/documents/inbox-summary?scope=mine", null),
+            (HttpMethod.Get, "/view/documents/inbox-summary", null),
+            (HttpMethod.Post, $"{itemRoute}/inbox/file", JsonContent.Create(new FileViewDocumentFromInboxRequest(AcceptSuggestions: true))),
+            (HttpMethod.Get, "/view/document-rules", null),
+            (HttpMethod.Post, "/view/document-rules", JsonContent.Create(new SaveViewDocumentRuleRequest("Rule"))),
+            (HttpMethod.Put, $"/view/document-rules/{anyId}", JsonContent.Create(new SaveViewDocumentRuleRequest("Rule"))),
+            (HttpMethod.Delete, $"/view/document-rules/{anyId}", null),
+            (HttpMethod.Put, "/view/document-rules/order", JsonContent.Create(new ReorderViewDocumentRulesRequest([]))),
+            (HttpMethod.Post, "/view/document-rules/test", JsonContent.Create(new SaveViewDocumentRuleRequest("Rule"))),
+            (HttpMethod.Post, "/view/document-rules/apply", JsonContent.Create(new { })),
         };
         foreach (var (method, route, content) in refused)
         {
@@ -249,6 +267,179 @@ public sealed class ViewDocumentOrganisationEndpointTests : IAsyncLifetime
         using var duplicate = await _client.PostAsJsonAsync("/view/correspondents", new ViewCatalogueEntryRequest("city water"));
         Assert.Equal(HttpStatusCode.Conflict, duplicate.StatusCode);
         Assert.Contains("already exists", await duplicate.Content.ReadAsStringAsync(), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task APersonManagesTheirOwnRulesTriesThemOnTheirOwnDocumentsAndQueuesThemAgain()
+    {
+        var alice = await CreatePerson("StandardUser");
+        var bob = await CreatePerson("StandardUser");
+        var mine = await AddDocument(alice, 'a');
+        var other = await AddDocument(alice, 'b');
+        var bobs = await AddDocument(bob, 'c');
+        using (var connection = _database.CreateConnection())
+        {
+            connection.Execute("""
+                UPDATE local_items SET primary_file_name = CASE id WHEN @mine THEN 'invoice-water.pdf'
+                                                                    WHEN @bobs THEN 'invoice-bobs.pdf' ELSE primary_file_name END
+                 WHERE id IN (@mine, @bobs);
+                """, new { mine, bobs });
+        }
+
+        _actor.Current = alice.Authority;
+        var tag = await PostAsync<ViewTagDto>("/view/tags", new ViewCatalogueEntryRequest("Invoices"));
+        var correspondent = await PostAsync<ViewCorrespondentDto>("/view/correspondents", new ViewCatalogueEntryRequest("Water Co"));
+        var rule = new SaveViewDocumentRuleRequest("Invoices", true, "all", true, ViewDocumentRuleScopes.Mine,
+            [new ViewDocumentRuleConditionDto(ViewDocumentRuleConditionKinds.FilenameContains, "INVOICE")],
+            [new ViewDocumentRuleActionDto(ViewDocumentRuleActionKinds.AddTag, tag.Id),
+             new ViewDocumentRuleActionDto(ViewDocumentRuleActionKinds.SetCorrespondent, correspondent.Id)]);
+
+        // The try-out lists only Alice's matching document: never Bob's, even though Bob's file matches too.
+        var tested = await PostAsync<ViewDocumentRuleTestDto>("/view/document-rules/test", rule);
+        Assert.Equal(mine, Assert.Single(tested.Matches).ItemId);
+        Assert.DoesNotContain(tested.Matches, match => match.ItemId == other || match.ItemId == bobs);
+        Assert.False(tested.HasMore);
+
+        var created = await PostAsync<ViewDocumentRuleDto>("/view/document-rules", rule);
+        Assert.Equal(ViewDocumentRuleScopes.Mine, created.Scope);
+        Assert.Equal("Invoices", created.Actions.Single(action => action.Kind == ViewDocumentRuleActionKinds.AddTag).DisplayName);
+        var second = await PostAsync<ViewDocumentRuleDto>("/view/document-rules", rule with { Name = "Second" });
+        var list = await _client.GetFromJsonAsync<ViewDocumentRulesDto>("/view/document-rules");
+        Assert.Equal([created.Id, second.Id], list!.Rules.Select(item => item.Id).ToArray());
+        Assert.False(list.CanManageShared);
+
+        using var reorder = await _client.PutAsJsonAsync("/view/document-rules/order", new ReorderViewDocumentRulesRequest([second.Id, created.Id]));
+        Assert.Equal(HttpStatusCode.NoContent, reorder.StatusCode);
+        Assert.Equal([second.Id, created.Id],
+            (await _client.GetFromJsonAsync<ViewDocumentRulesDto>("/view/document-rules"))!.Rules.Select(item => item.Id).ToArray());
+        using var strangers = await _client.PutAsJsonAsync("/view/document-rules/order", new ReorderViewDocumentRulesRequest([Guid.NewGuid()]));
+        Assert.Equal(HttpStatusCode.NotFound, strangers.StatusCode);
+
+        using var renamed = await _client.PutAsJsonAsync($"/view/document-rules/{created.Id:D}", rule with { Name = "Renamed", Enabled = false });
+        Assert.Equal("Renamed", (await renamed.Content.ReadFromJsonAsync<ViewDocumentRuleDto>())!.Name);
+
+        // Applying queues Alice's documents only (two), once per click.
+        var applied = await PostAsync<ViewDocumentRulesApplyResultDto>("/view/document-rules/apply", new { });
+        Assert.Equal(2, applied.Queued);
+        // Queueing runs in the background so the click returns at once; it finishes moments later.
+        for (var attempt = 0; attempt < 100 && CountOperations(MediaOperationType.ViewDocumentApplyRules) < 2; attempt++)
+        {
+            await Task.Delay(50);
+        }
+
+        Assert.Equal(2, CountOperations(MediaOperationType.ViewDocumentApplyRules));
+
+        // Bob sees none of it and cannot touch it.
+        _actor.Current = bob.Authority;
+        Assert.Empty((await _client.GetFromJsonAsync<ViewDocumentRulesDto>("/view/document-rules"))!.Rules);
+        using var bobPut = await _client.PutAsJsonAsync($"/view/document-rules/{created.Id:D}", rule);
+        Assert.Equal(HttpStatusCode.NotFound, bobPut.StatusCode);
+        using var bobDelete = await _client.DeleteAsync($"/view/document-rules/{created.Id:D}");
+        Assert.Equal(HttpStatusCode.NotFound, bobDelete.StatusCode);
+        // Bob cannot point a rule at Alice's private names, however he found the ids.
+        using var guessed = await _client.PostAsJsonAsync("/view/document-rules", rule);
+        Assert.Equal(HttpStatusCode.NotFound, guessed.StatusCode);
+
+        _actor.Current = alice.Authority;
+        using var deleted = await _client.DeleteAsync($"/view/document-rules/{created.Id:D}");
+        Assert.Equal(HttpStatusCode.NoContent, deleted.StatusCode);
+    }
+
+    [Fact]
+    public async Task OnlyAHouseholdAdministratorMakesSharedLibraryRulesAndRulesAreCheckedBeforeTheyAreSaved()
+    {
+        var household = Guid.NewGuid();
+        var member = await CreatePerson("StandardUser", household);
+        var admin = await CreatePerson("StandardUser", household, householdAdmin: true);
+        _actor.Current = member.Authority;
+        var correspondent = await PostAsync<ViewCorrespondentDto>("/view/correspondents", new ViewCatalogueEntryRequest("Water Co"));
+        var field = await PostAsync<ViewDocumentFieldDto>("/view/document-fields", new ViewDocumentFieldRequest("Cost", "money"));
+        ViewDocumentRuleConditionDto[] conditions = [new(ViewDocumentRuleConditionKinds.TextContains, "water")];
+        ViewDocumentRuleActionDto[] actions = [new(ViewDocumentRuleActionKinds.SetCorrespondent, correspondent.Id)];
+
+        using var memberShared = await _client.PostAsJsonAsync("/view/document-rules",
+            new SaveViewDocumentRuleRequest("Shared", Scope: ViewDocumentRuleScopes.Shared, Conditions: conditions, Actions: actions));
+        Assert.Equal(HttpStatusCode.Forbidden, memberShared.StatusCode);
+
+        // Bad rules are refused with a reason: no conditions, nothing to do, an unknown kind, a value that does not fit.
+        foreach (var bad in new[]
+                 {
+                     new SaveViewDocumentRuleRequest("No conditions", Actions: actions),
+                     new SaveViewDocumentRuleRequest("Does nothing", Conditions: conditions),
+                     new SaveViewDocumentRuleRequest("", Conditions: conditions, Actions: actions),
+                     new SaveViewDocumentRuleRequest("Odd kind", Conditions: [new("regex", ".*")], Actions: actions),
+                     new SaveViewDocumentRuleRequest("Odd file kind", Conditions: [new(ViewDocumentRuleConditionKinds.FileKind, "video")], Actions: actions),
+                     new SaveViewDocumentRuleRequest("Odd source", Conditions: [new(ViewDocumentRuleConditionKinds.Source, Guid.NewGuid().ToString("D"))], Actions: actions),
+                     new SaveViewDocumentRuleRequest("Bad mode", MatchMode: "some", Conditions: conditions, Actions: actions),
+                     new SaveViewDocumentRuleRequest("Bad amount", Conditions: conditions,
+                         Actions: [new(ViewDocumentRuleActionKinds.SetField, field.Id, "twelve")]),
+                     new SaveViewDocumentRuleRequest("Two correspondents", Conditions: conditions,
+                         Actions: [.. actions, .. actions]),
+                 })
+        {
+            using var refused = await _client.PostAsJsonAsync("/view/document-rules", bad);
+            Assert.True(refused.StatusCode == HttpStatusCode.BadRequest, $"'{bad.Name}' should be refused but returned {(int)refused.StatusCode}.");
+        }
+
+        using var fine = await _client.PostAsJsonAsync("/view/document-rules", new SaveViewDocumentRuleRequest(
+            "Cost", Conditions: conditions, Actions: [new(ViewDocumentRuleActionKinds.SetField, field.Id, "12.50 eur")]));
+        Assert.Equal(HttpStatusCode.OK, fine.StatusCode);
+
+        _actor.Current = admin.Authority;
+        var adminCorrespondent = await PostAsync<ViewCorrespondentDto>("/view/correspondents", new ViewCatalogueEntryRequest("Household Co"));
+        var shared = await PostAsync<ViewDocumentRuleDto>("/view/document-rules", new SaveViewDocumentRuleRequest(
+            "Shared rule", Scope: ViewDocumentRuleScopes.Shared, FilesAutomatically: true,
+            Conditions: conditions, Actions: [new(ViewDocumentRuleActionKinds.SetCorrespondent, adminCorrespondent.Id)]));
+        Assert.Equal(ViewDocumentRuleScopes.Shared, shared.Scope);
+        var list = await _client.GetFromJsonAsync<ViewDocumentRulesDto>("/view/document-rules");
+        Assert.True(list!.CanManageShared);
+        Assert.Equal(shared.Id, Assert.Single(list.Rules).Id);
+        // The member cannot see the administrator's rule.
+        _actor.Current = member.Authority;
+        Assert.DoesNotContain(shared.Id, (await _client.GetFromJsonAsync<ViewDocumentRulesDto>("/view/document-rules"))!.Rules.Select(item => item.Id));
+    }
+
+    [Fact]
+    public async Task TheInboxCountsFilesAndRefusesOtherPeoplesDocuments()
+    {
+        var alice = await CreatePerson("StandardUser");
+        var bob = await CreatePerson("StandardUser");
+        var first = await AddDocument(alice, 'a');
+        var second = await AddDocument(alice, 'b');
+        var bobs = await AddDocument(bob, 'c');
+        using (var connection = _database.CreateConnection())
+        {
+            connection.Execute("""
+                UPDATE doc_item_details SET suggestions_json = @json WHERE item_id = @first;
+                """, new { first, json = """{"document_date":"2026-03-01","date_from_file":false,"correspondent":"City Water","document_type":"Bill","tags":["Home"]}""" });
+        }
+
+        _actor.Current = alice.Authority;
+        Assert.Equal(2, (await _client.GetFromJsonAsync<ViewDocumentInboxSummaryDto>("/view/documents/inbox-summary?scope=mine"))!.Count);
+        var listed = await _client.GetFromJsonAsync<ViewAssetTimelinePageDto>("/view/assets?scope=mine&kind=document&filing=inbox");
+        Assert.Equal(2, listed!.Items.Count);
+        Assert.Equal("City Water", listed.Items.Single(item => item.Id == first).DocumentInfo!.Suggestions!.Correspondent);
+
+        // Bob cannot file Alice's document, and a stranger's id looks like any other missing item.
+        _actor.Current = bob.Authority;
+        using var refused = await _client.PostAsJsonAsync($"/view/items/{first:D}/inbox/file", new FileViewDocumentFromInboxRequest(true));
+        Assert.True(refused.StatusCode is HttpStatusCode.Forbidden or HttpStatusCode.NotFound);
+        Assert.Equal(ViewDocumentFilingStates.Inbox, _assets.Find(first)!.DocumentInfo!.FilingState);
+        Assert.Equal(1, (await _client.GetFromJsonAsync<ViewDocumentInboxSummaryDto>("/view/documents/inbox-summary?scope=mine"))!.Count);
+        Assert.Equal(ViewDocumentFilingStates.Inbox, _assets.Find(bobs)!.DocumentInfo!.FilingState);
+
+        _actor.Current = alice.Authority;
+        using var filed = await _client.PostAsJsonAsync($"/view/items/{first:D}/inbox/file", new FileViewDocumentFromInboxRequest(true));
+        Assert.Equal(HttpStatusCode.OK, filed.StatusCode);
+        var info = await filed.Content.ReadFromJsonAsync<LocalAssetDocumentInfoDto>();
+        Assert.Equal(ViewDocumentFilingStates.Filed, info!.FilingState);
+        Assert.Equal("City Water", info.Correspondent!.Name);
+        Assert.Equal(new DateOnly(2026, 3, 1), info.DocumentDate);
+        Assert.Equal(1, (await _client.GetFromJsonAsync<ViewDocumentInboxSummaryDto>("/view/documents/inbox-summary?scope=mine"))!.Count);
+
+        using var plain = await _client.PostAsJsonAsync($"/view/items/{second:D}/inbox/file", new FileViewDocumentFromInboxRequest());
+        Assert.Equal(HttpStatusCode.OK, plain.StatusCode);
+        Assert.Equal(0, (await _client.GetFromJsonAsync<ViewDocumentInboxSummaryDto>("/view/documents/inbox-summary?scope=mine"))!.Count);
     }
 
     [Fact]
@@ -367,6 +558,12 @@ public sealed class ViewDocumentOrganisationEndpointTests : IAsyncLifetime
             ActiveProfileIsRestricted: role == "RestrictedProfile",
             AccountHouseholdId: household, AccountIsHouseholdAdmin: householdAdmin);
         return new Person(profileId, libraryId, authority);
+    }
+
+    private int CountOperations(string operationType)
+    {
+        using var connection = _database.CreateConnection();
+        return connection.ExecuteScalar<int>("SELECT COUNT(*) FROM media_operations WHERE operation_type = @operationType;", new { operationType });
     }
 
     private async Task<Guid> AddDocument(Person person, char seed)
