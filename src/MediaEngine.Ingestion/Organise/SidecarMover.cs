@@ -74,16 +74,20 @@ public sealed class SidecarMover
                 continue;
             }
 
-            if (File.Exists(target))
+            // A name that differs only in letter case is this same file, so it is renamed, never treated as a copy to remove.
+            var sameFile = File.Exists(target) && _mover.IsSameFile(sidecar.Path, target);
+            if (File.Exists(target) && !(sameFile && CaseSafeRename.IsCaseOnlyChange(sidecar.Path, target)))
             {
-                results.Add(MeetExisting(sidecar, target, mayDelete));
+                results.Add(sameFile
+                    ? new SidecarMoveResult(sidecar.Path, sidecar.Path, FolderOrganiseOutcomes.NotMoved, "That name already leads to this same file.")
+                    : MeetExisting(sidecar, target, mayDelete));
                 continue;
             }
 
             try
             {
                 Directory.CreateDirectory(Path.GetDirectoryName(target)!);
-                _mover.Move(sidecar.Path, target);
+                CaseSafeRename.Move(_mover, sidecar.Path, target, _logger);
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
@@ -139,6 +143,12 @@ public sealed class SidecarMover
 
             if (File.Exists(target))
             {
+                if (_mover.IsSameFile(sidecar.Path, target))
+                {
+                    // One file under two names is not a copy; leave it.
+                    continue;
+                }
+
                 if (SameBytes(sidecar.Path, target))
                 {
                     // Already there (a shared cover picked up by an earlier file, or an earlier run). A move can now drop its original.

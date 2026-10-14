@@ -12,6 +12,12 @@ public interface IOrganiseFileMover
     /// <see cref="IOException"/> when the file is in use or <paramref name="to"/> already exists.
     /// </summary>
     void Move(string from, string to);
+
+    /// <summary>
+    /// True when both paths lead to one file on disk (a letter-case-only name on a drive that ignores case, a hard link, a
+    /// folder reached two ways), or when that cannot be told. Two names for one file are never a duplicate of each other.
+    /// </summary>
+    bool IsSameFile(string first, string second) => FileIdentity.AreSameFile(first, second);
 }
 
 /// <summary>The real thing: a plain rename that refuses to replace an existing file.</summary>
