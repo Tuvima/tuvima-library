@@ -63,7 +63,7 @@ public sealed class CollectionPersonalMediaService(
         }
 
         // A saved Documents view is a private shelf of documents, so it is never offered as a Collection source.
-        var owned = (await galleries.GetOwnedAsync(ownerProfileId, ct))
+        var owned = (await galleries.GetOwnedAsync(ownerProfileId, ct: ct))
             .Where(gallery => gallery.Kind != ViewGalleryKind.Smart || !ViewSmartGalleryRules.IsDocumentView(gallery.SmartRuleJson))
             .ToList();
         return owned.Select(gallery => new CollectionGalleryReferenceDto(

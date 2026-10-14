@@ -64,7 +64,8 @@ public sealed class ViewDocumentOrganisationEndpointTests : IAsyncLifetime
         (_app, _client) = await StartAsync(StandIns);
     }
 
-    private async Task<(WebApplication App, HttpClient Client)> StartAsync(IReadOnlyCollection<Type> stubs)
+    private async Task<(WebApplication App, HttpClient Client)> StartAsync(
+        IReadOnlyCollection<Type> stubs, Action<IServiceCollection>? configure = null)
     {
         var builder = WebApplication.CreateBuilder(new WebApplicationOptions { EnvironmentName = "Development" });
         builder.Logging.ClearProviders();
@@ -113,10 +114,12 @@ public sealed class ViewDocumentOrganisationEndpointTests : IAsyncLifetime
                 : RuntimeHelpers.GetUninitializedObject(stub));
         }
 
+        configure?.Invoke(builder.Services);
         var app = builder.Build();
         app.UseAuthentication();
         app.UseAuthorization();
         app.MapViewEndpoints();
+        app.MapViewDiscoveryEndpoints();
         await app.StartAsync();
         var address = new Uri(app.Services.GetRequiredService<IServer>()
             .Features.Get<IServerAddressesFeature>()!.Addresses.Single());
@@ -983,6 +986,465 @@ public sealed class ViewDocumentOrganisationEndpointTests : IAsyncLifetime
         using var response = await _client.PostAsJsonAsync(route, body);
         Assert.True(response.IsSuccessStatusCode, $"POST {route} returned {(int)response.StatusCode}.");
         return (await response.Content.ReadFromJsonAsync<T>())!;
+    }
+
+    private async Task<Person> CreatePersonWithoutDocuments(Guid? household = null, bool householdAdmin = false)
+    {
+        var person = await CreatePerson("StandardUser", household, householdAdmin);
+        await _policies.SavePolicyAsync(ViewProfilePolicy.Default(person.ProfileId) with { DocumentsEnabled = false });
+        return person;
+    }
+
+    private static string FavouriteRule() =>
+        ViewSmartGalleryRules.Serialize(CollectionRuleDefinition.SingleGroup(
+            [new CollectionRulePredicate { Field = "favorite", Op = "eq", Value = "true" }]));
+
+    private async Task<ViewGallery> CreateManualGallery(Person owner, string name, Guid? cover = null) =>
+        await new ViewGalleryRepository(_database).CreateAsync(new CreateViewGalleryCommand(
+            owner.ProfileId, (await _spaces.GetByOwnerAsync(owner.ProfileId))!.Id, name, ViewGalleryKind.Manual, CoverItemId: cover));
+
+    [Fact]
+    public async Task AGalleryNeverShowsOrCountsDocumentsToAProfileWithoutThem_SharedOrSmart()
+    {
+        var household = Guid.NewGuid();
+        var owner = await CreatePerson("StandardUser", household);
+        var child = await CreatePerson("RestrictedProfile", household);
+        var photo = await AddItem(owner, '1', LocalAssetMediaKinds.Image, "Beach");
+        var document = await AddDocument(owner, 'd');
+        var galleries = new ViewGalleryRepository(_database);
+        var manual = await CreateManualGallery(owner, "Trip", cover: document);
+        await galleries.AddItemsAsync(manual.Id, [photo, document]);
+        var smart = await galleries.CreateAsync(new CreateViewGalleryCommand(
+            owner.ProfileId, manual.PersonalSpaceId, "Starred", ViewGalleryKind.Smart, SmartRuleJson: FavouriteRule()));
+        await _assets.SetFlagsAsync(photo, true, null);
+        await _assets.SetFlagsAsync(document, true, null);
+        foreach (var gallery in new[] { manual, smart })
+        {
+            await galleries.ReplaceSharesAsync(gallery.Id, [(child.ProfileId, ViewGallerySharePermission.View)]);
+        }
+
+        // The person with Documents sees everything, including the document as the cover.
+        _actor.Current = owner.Authority;
+        var ownerList = await _client.GetFromJsonAsync<ViewGalleryListResponse>("/view/galleries");
+        Assert.Equal(2, ownerList!.Owned.Single(gallery => gallery.Id == manual.Id).ItemCount);
+        Assert.Equal(2, ownerList.Owned.Single(gallery => gallery.Id == smart.Id).ItemCount);
+        Assert.Equal(document, ownerList.Owned.Single(gallery => gallery.Id == manual.Id).CoverItemId);
+        var ownerItems = await _client.GetFromJsonAsync<ViewGalleryItemPageDto>($"/view/galleries/{manual.Id:D}/items");
+        Assert.Equal(2, ownerItems!.Items.Count);
+
+        // The profile without Documents is handed neither the document's id nor a count that includes it.
+        _actor.Current = child.Authority;
+        var childList = await _client.GetFromJsonAsync<ViewGalleryListResponse>("/view/galleries");
+        var sharedManual = childList!.SharedWithYou.Single(gallery => gallery.Id == manual.Id);
+        Assert.Equal(1, sharedManual.ItemCount);
+        Assert.Null(sharedManual.CoverItemId);
+        Assert.Equal(1, childList.SharedWithYou.Single(gallery => gallery.Id == smart.Id).ItemCount);
+
+        var childItems = await _client.GetFromJsonAsync<ViewGalleryItemPageDto>($"/view/galleries/{manual.Id:D}/items");
+        Assert.Equal(photo, Assert.Single(childItems!.Items).ItemId);
+        var single = await _client.GetFromJsonAsync<ViewGalleryDto>($"/view/galleries/{manual.Id:D}");
+        Assert.Equal(1, single!.ItemCount);
+        Assert.Null(single.CoverItemId);
+        Assert.Equal(1, (await _client.GetFromJsonAsync<ViewGalleryDto>($"/view/galleries/{smart.Id:D}"))!.ItemCount);
+    }
+
+    [Fact]
+    public async Task AProfileWithoutDocumentsCannotAddMoveOrCountDocumentsInAGallery()
+    {
+        var owner = await CreatePerson("StandardUser");
+        var photo = await AddItem(owner, '1', LocalAssetMediaKinds.Image, "Beach");
+        var document = await AddDocument(owner, 'd');
+        var galleries = new ViewGalleryRepository(_database);
+        var gallery = await CreateManualGallery(owner, "Trip");
+        _actor.Current = owner.Authority;
+
+        // With Documents the document can be added and reordered like anything else.
+        var added = await PostAsync<AddViewGalleryItemsResponseDto>($"/view/galleries/{gallery.Id:D}/items", new ViewGalleryItemsRequest([document]));
+        Assert.Equal(1, added.Added);
+        await galleries.AddItemsAsync(gallery.Id, [photo]);
+
+        await _policies.SavePolicyAsync(ViewProfilePolicy.Default(owner.ProfileId) with { DocumentsEnabled = false });
+
+        // Without Documents: the document is refused as a whole request (nothing is half-added) ...
+        var other = await AddDocument(owner, 'e');
+        using var refused = await _client.PostAsJsonAsync($"/view/galleries/{gallery.Id:D}/items", new ViewGalleryItemsRequest([photo, other]));
+        Assert.Equal(HttpStatusCode.Forbidden, refused.StatusCode);
+        Assert.DoesNotContain((await galleries.GetItemsAsync(gallery.Id)).Items, item => item.ItemId == other);
+
+        // ... it is never counted as removed or moved, so the answer cannot reveal it is in the Gallery ...
+        using var remove = new HttpRequestMessage(HttpMethod.Delete, $"/view/galleries/{gallery.Id:D}/items")
+        {
+            Content = JsonContent.Create(new ViewGalleryItemsRequest([document])),
+        };
+        using var removed = await _client.SendAsync(remove);
+        Assert.Equal(0, (await removed.Content.ReadFromJsonAsync<ViewItemsRemovedResponse>())!.Removed);
+        using var move = await _client.PutAsJsonAsync($"/view/galleries/{gallery.Id:D}/items/{document:D}/position", new ViewGalleryPositionRequest(7));
+        Assert.Equal(HttpStatusCode.NotFound, move.StatusCode);
+        Assert.Contains((await galleries.GetItemsAsync(gallery.Id)).Items, item => item.ItemId == document && item.Position != 7);
+
+        // ... and the Gallery answers with the photo only.
+        var items = await _client.GetFromJsonAsync<ViewGalleryItemPageDto>($"/view/galleries/{gallery.Id:D}/items");
+        Assert.Equal(photo, Assert.Single(items!.Items).ItemId);
+        var list = await _client.GetFromJsonAsync<ViewGalleryListResponse>("/view/galleries");
+        Assert.Equal(1, list!.Owned.Single().ItemCount);
+
+        // A photo still works, and so does a cover that is a photo; a document cover is refused.
+        using var photoOnly = await _client.PostAsJsonAsync($"/view/galleries/{gallery.Id:D}/items", new ViewGalleryItemsRequest([photo]));
+        Assert.Equal(HttpStatusCode.OK, photoOnly.StatusCode);
+        using var documentCover = await _client.PostAsJsonAsync("/view/galleries",
+            new ViewGalleryRequest("Cover", ViewGalleryKind.Manual, CoverItemId: document));
+        Assert.Equal(HttpStatusCode.Forbidden, documentCover.StatusCode);
+        using var updateCover = await _client.PutAsJsonAsync($"/view/galleries/{gallery.Id:D}",
+            new ViewGalleryRequest("Trip", ViewGalleryKind.Manual, CoverItemId: document));
+        Assert.Equal(HttpStatusCode.Forbidden, updateCover.StatusCode);
+        var counted = await _client.PutAsJsonAsync($"/view/galleries/{gallery.Id:D}", new ViewGalleryRequest("Trip", ViewGalleryKind.Manual));
+        Assert.Equal(1, (await counted.Content.ReadFromJsonAsync<ViewGalleryDto>())!.ItemCount);
+    }
+
+    [Fact]
+    public async Task FavouriteHideArchiveTrashAndRestoreAreRefusedOnADocumentWithoutDocuments()
+    {
+        var owner = await CreatePersonWithoutDocuments();
+        var other = await CreatePersonWithoutDocuments();
+        var document = await AddDocument(owner, 'd');
+        var photo = await AddItem(owner, '1', LocalAssetMediaKinds.Image, "Beach");
+        _actor.Current = owner.Authority;
+
+        var refused = new (HttpMethod Method, string Route, HttpContent? Body)[]
+        {
+            (HttpMethod.Put, $"/view/items/{document:D}/favorite", JsonContent.Create(new SetLocalAssetFlagRequest(true))),
+            (HttpMethod.Put, $"/view/items/{document:D}/hidden", JsonContent.Create(new SetLocalAssetFlagRequest(true))),
+            (HttpMethod.Post, $"/view/items/{document:D}/archive", null),
+            (HttpMethod.Post, $"/view/items/{document:D}/trash", null),
+            (HttpMethod.Post, $"/view/items/{document:D}/restore", null),
+        };
+        foreach (var (method, route, content) in refused)
+        {
+            using var request = new HttpRequestMessage(method, route) { Content = content };
+            using var response = await _client.SendAsync(request);
+            Assert.True(response.StatusCode == HttpStatusCode.Forbidden, $"{method} {route} returned {(int)response.StatusCode}.");
+        }
+
+        var unchanged = _assets.Find(document)!;
+        Assert.False(unchanged.Favorite);
+        Assert.False(unchanged.Hidden);
+        Assert.Null(unchanged.ArchivedAt);
+        Assert.Null(unchanged.TrashedAt);
+
+        // Someone else's document answers 404 first, whether or not they may use Documents.
+        _actor.Current = other.Authority;
+        using var notYours = await _client.PostAsync($"/view/items/{document:D}/trash", null);
+        Assert.Equal(HttpStatusCode.NotFound, notYours.StatusCode);
+
+        // The same actions on a photo are untouched.
+        _actor.Current = owner.Authority;
+        using var favourite = await _client.PutAsJsonAsync($"/view/items/{photo:D}/favorite", new SetLocalAssetFlagRequest(true));
+        Assert.Equal(HttpStatusCode.NoContent, favourite.StatusCode);
+        using var trash = await _client.PostAsync($"/view/items/{photo:D}/trash", null);
+        Assert.Equal(HttpStatusCode.NoContent, trash.StatusCode);
+        Assert.NotNull(_assets.Find(photo)!.TrashedAt);
+
+        // A person with Documents still organises their documents.
+        await _policies.SavePolicyAsync(ViewProfilePolicy.Default(owner.ProfileId));
+        using var allowed = await _client.PostAsync($"/view/items/{document:D}/trash", null);
+        Assert.Equal(HttpStatusCode.NoContent, allowed.StatusCode);
+    }
+
+    [Fact]
+    public async Task TagTypeAheadNeverOffersATagThatOnlyDocumentsCarryToAProfileWithoutDocuments()
+    {
+        var household = Guid.NewGuid();
+        var blocked = await CreatePerson("RestrictedProfile", household);
+        var allowed = await CreatePerson("StandardUser", household);
+        var shared = await new ViewSharedLibraryRepository(_database).EnsureForHouseholdAsync(household);
+        var sharedDocument = await AddSharedDocument(shared.LibraryId, "Shared lease", '5');
+        var sharedPhoto = await AddSharedPhoto(shared.LibraryId, '6');
+        var secret = Guid.NewGuid();
+        var holiday = Guid.NewGuid();
+        using (var connection = _database.CreateConnection())
+        {
+            connection.Execute("""
+                INSERT INTO tags (id, name, created_at) VALUES (@secret, 'Divorce papers', @now), (@holiday, 'Holiday', @now);
+                INSERT INTO local_item_tag_links (item_id, tag_id, added_at)
+                VALUES (@sharedDocument, @secret, @now), (@sharedPhoto, @holiday, @now);
+                """, new { secret, holiday, sharedDocument, sharedPhoto, now = DateTimeOffset.UtcNow });
+        }
+
+        _actor.Current = allowed.Authority;
+        var theirs = await _client.GetFromJsonAsync<List<string>>("/view/tag-suggestions");
+        Assert.Contains("Divorce papers", theirs!);
+
+        _actor.Current = blocked.Authority;
+        var suggestions = await _client.GetFromJsonAsync<List<string>>("/view/tag-suggestions");
+        Assert.Contains("Holiday", suggestions!);
+        Assert.DoesNotContain("Divorce papers", suggestions!);
+        var searched = await _client.GetFromJsonAsync<List<string>>("/view/tag-suggestions?q=divorce");
+        Assert.Empty(searched!);
+    }
+
+    private async Task<Guid> AddSharedPhoto(Guid libraryId, char seed)
+    {
+        var sourceId = Guid.NewGuid();
+        using (var connection = _database.CreateConnection())
+        {
+            connection.Execute("""
+                INSERT INTO view_sources
+                    (id, scope_kind, personal_space_id, library_id, source_type, name, source_key, storage_mode,
+                     relative_path, external_path, include_subdirectories, enabled, created_at, updated_at)
+                VALUES (@sourceId, 'shared', NULL, @libraryId, 'folder', 'Shared photos', @sourceKey, 'managed',
+                        'Shared/Photos/test', NULL, 1, 1, @now, @now);
+                """, new { sourceId, libraryId, sourceKey = $"shared:{sourceId:N}", now = DateTimeOffset.UtcNow });
+        }
+
+        return (await _assets.UpsertAsync(new LocalAssetRegistration(
+            libraryId, null, null, LocalAssetMediaKinds.Image, $"Shared photo {seed}", null,
+            [new LocalAssetFileRegistration($@"C:\shared\{seed}.jpg", new string(seed, 64), $"{seed}.jpg", "image/jpeg", 1024, DateTimeOffset.UtcNow) with { SourceId = sourceId }],
+            ScopeKind: LocalAssetScopeKinds.Shared))).ItemId;
+    }
+
+    private Guid InsertContribution(Person contributor, params Guid[] itemIds)
+    {
+        var contributionId = Guid.NewGuid();
+        var now = DateTimeOffset.UtcNow;
+        using var connection = _database.CreateConnection();
+        connection.Execute("""
+            INSERT INTO view_shared_contributions
+                (id, submitted_by_profile_id, submitted_by_name, status, destination_kind, revision, idempotency_key, submitted_at, updated_at)
+            VALUES (@contributionId, @profileId, 'Contributor', 'pending', 'timeline', 1, @key, @now, @now);
+            INSERT INTO view_shared_contribution_events (id, contribution_id, actor_profile_id, actor_name, event_type, detail, occurred_at)
+            VALUES (@eventId, @contributionId, @profileId, 'Contributor', 'submitted', @detail, @now);
+            """, new
+        {
+            contributionId,
+            profileId = contributor.ProfileId,
+            key = Guid.NewGuid().ToString("N"),
+            now,
+            eventId = Guid.NewGuid(),
+            detail = $"{itemIds.Length} item(s) submitted.",
+        });
+        for (var position = 0; position < itemIds.Length; position++)
+        {
+            connection.Execute("""
+                INSERT INTO view_shared_contribution_items
+                    (id, contribution_id, item_id, original_profile_id, original_profile_name, position, operation,
+                     source_manifest_json, execution_state, updated_at)
+                VALUES (@id, @contributionId, @itemId, @profileId, 'Contributor', @position, 'copy', '{}', 'waiting', @now);
+                """, new { id = Guid.NewGuid(), contributionId, itemId = itemIds[position], profileId = contributor.ProfileId, position, now });
+        }
+
+        return contributionId;
+    }
+
+    [Fact]
+    public async Task ContributionRoutesAnswerFilteredOrNotFoundOrRefusedForAReviewerWithoutDocuments()
+    {
+        var household = Guid.NewGuid();
+        var contributor = await CreatePerson("StandardUser", household);
+        var reviewer = await CreatePersonWithoutDocuments(household, householdAdmin: true);
+        var photo = await AddItem(contributor, '1', LocalAssetMediaKinds.Image, "Beach photo");
+        var document = await AddItem(contributor, 'd', LocalAssetMediaKinds.Document, "Tax return 2025");
+        var documentsOnly = InsertContribution(contributor, document);
+        var photosOnly = InsertContribution(contributor, photo);
+        var mixed = InsertContribution(contributor, photo, document);
+
+        var (app, client) = await StartAsync(
+            StandIns.Where(stub => stub != typeof(ViewSharedContributionService) && stub != typeof(IAccountAccessDecisionService)).ToArray(),
+            services =>
+            {
+                services.AddSingleton<IAccountAccessDecisionService, AdministratorDecisions>();
+                services.AddSingleton<IViewSharedContributionQueue, ViewSharedContributionQueue>();
+                services.AddSingleton<IAuthorizationAuditWriter, RecordingAuditWriter>();
+                services.AddSingleton((ViewSharedTransferService)RuntimeHelpers.GetUninitializedObject(typeof(ViewSharedTransferService)));
+                services.AddSingleton<ViewSharedContributionService>();
+            });
+        try
+        {
+            _actor.Current = reviewer.Authority;
+
+            // The review list leaves the documents-only contribution out and shows the mixed one without its document.
+            var list = await client.GetFromJsonAsync<ViewSharedContributionPageDto>("/view/shared/contributions?mode=review");
+            Assert.Equal(new[] { photosOnly, mixed }.Order(), list!.Items.Select(value => value.Id).Order());
+            var shown = list.Items.Single(value => value.Id == mixed);
+            Assert.Equal(photo, Assert.Single(shown.Items).ItemId);
+            Assert.Equal(1, shown.HiddenItemCount);
+            var body = await client.GetStringAsync("/view/shared/contributions?mode=review");
+            Assert.DoesNotContain("Tax return", body, StringComparison.Ordinal);
+            Assert.DoesNotContain(document.ToString("D"), body, StringComparison.OrdinalIgnoreCase);
+
+            // Detail by id: not found for the documents-only one, filtered for the mixed one.
+            using var hidden = await client.GetAsync($"/view/shared/contributions/{documentsOnly:D}");
+            Assert.Equal(HttpStatusCode.NotFound, hidden.StatusCode);
+            var detail = await client.GetFromJsonAsync<ViewSharedContributionDto>($"/view/shared/contributions/{mixed:D}");
+            Assert.Equal(1, detail!.HiddenItemCount);
+            Assert.Single(detail.Items);
+
+            // Approving or declining one that holds a document is refused; a missing one is not found; others work.
+            var decision = new ViewSharedContributionDecisionRequest("declined", 1);
+            using var refused = await client.PostAsJsonAsync($"/view/shared/contributions/{mixed:D}/decision", decision);
+            Assert.Equal(HttpStatusCode.Forbidden, refused.StatusCode);
+            using var retry = await client.PostAsJsonAsync($"/view/shared/contributions/{mixed:D}/retry", new ViewSharedContributionRevisionRequest(1));
+            Assert.Equal(HttpStatusCode.Forbidden, retry.StatusCode);
+            using var missing = await client.PostAsJsonAsync($"/view/shared/contributions/{documentsOnly:D}/decision", decision);
+            Assert.Equal(HttpStatusCode.NotFound, missing.StatusCode);
+            using var allowed = await client.PostAsJsonAsync($"/view/shared/contributions/{photosOnly:D}/decision", decision);
+            Assert.Equal(HttpStatusCode.OK, allowed.StatusCode);
+        }
+        finally
+        {
+            client.Dispose();
+            await app.DisposeAsync();
+        }
+    }
+
+    // Tests (named below) that prove a route leaks nothing to a profile without Documents.
+    private const string Refused = "AProfileWithoutDocumentsIsRefusedOnEveryDocumentsRoute";
+    private const string Lifecycle = "FavouriteHideArchiveTrashAndRestoreAreRefusedOnADocumentWithoutDocuments";
+    private const string GalleryRead = "AGalleryNeverShowsOrCountsDocumentsToAProfileWithoutThem_SharedOrSmart";
+    private const string GalleryWrite = "AProfileWithoutDocumentsCannotAddMoveOrCountDocumentsInAGallery";
+    private const string TagSuggestions = "TagTypeAheadNeverOffersATagThatOnlyDocumentsCarryToAProfileWithoutDocuments";
+    private const string TimelineIndex = "TheTimelineIndexNeverCountsOrSearchesDocumentsForAProfileWithoutThem";
+    private const string ContributionRoutes = "ContributionRoutesAnswerFilteredOrNotFoundOrRefusedForAReviewerWithoutDocuments";
+    private const string ContributionService = "AReviewerWithoutDocumentsNeverSeesADocumentInAContribution";
+    private const string ContributionSend = "AProfileWithoutDocumentsCannotPreviewSubmitOrDirectAddADocument";
+    private const string Discovery = "Places_Atlas_PlaceMediaAndPeople_NeverIncludeADocumentEvenWithLocationOrPersonMetadata";
+    private const string NoItems = "none:";
+
+    /// <summary>
+    /// Every View route, and why it cannot tell a profile without Documents that a document exists: the test that
+    /// proves it, or (after "none:") why it carries no item data. A new route must be added here on purpose; a route
+    /// that returns or changes items and is not covered by a test is a leak waiting to happen.
+    /// </summary>
+    private static readonly IReadOnlyDictionary<string, string> ReviewedRoutes = new Dictionary<string, string>
+    {
+        ["DELETE /view/admin/profiles/{profileId:guid}/sources/{sourceId:guid}"] = NoItems + "administrator source settings, no items",
+        ["DELETE /view/admin/shared/sources/{sourceId:guid}"] = NoItems + "administrator source settings, no items",
+        ["DELETE /view/correspondents/{id:guid}"] = Refused,
+        ["DELETE /view/document-fields/{id:guid}"] = Refused,
+        ["DELETE /view/document-rules/{id:guid}"] = Refused,
+        ["DELETE /view/document-types/{id:guid}"] = Refused,
+        ["DELETE /view/galleries/{id:guid}"] = NoItems + "deletes the Gallery and returns nothing",
+        ["DELETE /view/galleries/{id:guid}/items"] = GalleryWrite,
+        ["DELETE /view/tags/{id:guid}"] = Refused,
+        ["GET /view/admin/profiles/{profileId:guid}/sources"] = NoItems + "administrator source settings, no items",
+        ["GET /view/admin/shared/sources"] = NoItems + "administrator source settings, no items",
+        ["GET /view/assets"] = Refused,
+        ["GET /view/assets/timeline-index"] = TimelineIndex,
+        ["GET /view/catalogue"] = Refused,
+        ["GET /view/document-rules"] = Refused,
+        ["GET /view/documents/export"] = Refused,
+        ["GET /view/documents/inbox-summary"] = Refused,
+        ["GET /view/folders"] = Refused,
+        ["GET /view/galleries"] = GalleryRead,
+        ["GET /view/galleries/{id:guid}"] = GalleryRead,
+        ["GET /view/galleries/{id:guid}/items"] = GalleryRead,
+        ["GET /view/galleries/{id:guid}/shares"] = NoItems + "profile ids and permissions only",
+        ["GET /view/items/{id:guid}"] = Refused,
+        ["GET /view/items/{id:guid}/content"] = Refused,
+        ["GET /view/items/{id:guid}/document-details"] = Refused,
+        ["GET /view/items/{id:guid}/preview"] = Refused,
+        ["GET /view/items/{id:guid}/text"] = Refused,
+        ["GET /view/items/{id:guid}/thumbnail"] = Refused,
+        ["GET /view/library-capacity"] = NoItems + "disk space only",
+        ["GET /view/other-people"] = NoItems + "household and profile names only",
+        ["GET /view/people"] = Discovery,
+        ["GET /view/photo-views"] = NoItems + "audit of who opened photos, no items",
+        ["GET /view/places"] = Discovery,
+        ["GET /view/places/atlas"] = Discovery,
+        ["GET /view/places/media"] = Discovery,
+        ["GET /view/preferences"] = NoItems + "the person's own settings",
+        ["GET /view/preferences/documents-sort"] = Refused,
+        ["GET /view/scopes"] = NoItems + "scope names only",
+        ["GET /view/share-targets"] = NoItems + "profile names only",
+        ["GET /view/shared/contributions"] = ContributionRoutes,
+        ["GET /view/shared/contributions/{id:guid}"] = ContributionRoutes,
+        ["GET /view/tag-suggestions"] = TagSuggestions,
+        ["POST /view/admin/profiles/{profileId:guid}/reconcile"] = NoItems + "administrator scan, file totals only, no item data",
+        ["POST /view/admin/profiles/{profileId:guid}/sources"] = NoItems + "administrator source settings, no items",
+        ["POST /view/admin/shared/reconcile"] = NoItems + "administrator scan, file totals only, no item data",
+        ["POST /view/admin/shared/sources"] = NoItems + "administrator source settings, no items",
+        ["POST /view/correspondents"] = Refused,
+        ["POST /view/document-fields"] = Refused,
+        ["POST /view/document-rules"] = Refused,
+        ["POST /view/document-rules/apply"] = Refused,
+        ["POST /view/document-rules/test"] = Refused,
+        ["POST /view/document-types"] = Refused,
+        ["POST /view/documents/bulk"] = Refused,
+        ["POST /view/galleries"] = GalleryWrite,
+        ["POST /view/galleries/{id:guid}/items"] = GalleryWrite,
+        ["POST /view/items/{id:guid}/archive"] = Lifecycle,
+        ["POST /view/items/{id:guid}/inbox/file"] = Refused,
+        ["POST /view/items/{id:guid}/restore"] = Lifecycle,
+        ["POST /view/items/{id:guid}/trash"] = Lifecycle,
+        ["POST /view/shared/contributions"] = ContributionSend,
+        ["POST /view/shared/contributions/{id:guid}/cancel"] = ContributionService,
+        ["POST /view/shared/contributions/{id:guid}/decision"] = ContributionRoutes,
+        ["POST /view/shared/contributions/{id:guid}/retry"] = ContributionRoutes,
+        ["POST /view/shared/contributions/preview"] = ContributionSend,
+        ["POST /view/shared/items/direct"] = ContributionSend,
+        ["POST /view/tags"] = Refused,
+        ["POST /view/uploads"] = NoItems + "answers with the id of the file the person just sent, nothing existing",
+        ["PUT /view/admin/profiles/{profileId:guid}/sources/{sourceId:guid}"] = NoItems + "administrator source settings, no items",
+        ["PUT /view/admin/shared/sources/{sourceId:guid}"] = NoItems + "administrator source settings, no items",
+        ["PUT /view/correspondents/{id:guid}"] = Refused,
+        ["PUT /view/document-fields/{id:guid}"] = Refused,
+        ["PUT /view/document-rules/{id:guid}"] = Refused,
+        ["PUT /view/document-rules/order"] = Refused,
+        ["PUT /view/document-types/{id:guid}"] = Refused,
+        ["PUT /view/folders/pin"] = NoItems + "stores a path the person typed; never checks that anything is there",
+        ["PUT /view/folders/timeline-policy"] = NoItems + "stores a path the person typed; never checks that anything is there",
+        ["PUT /view/galleries/{id:guid}"] = Refused,
+        ["PUT /view/galleries/{id:guid}/items/{itemId:guid}/position"] = GalleryWrite,
+        ["PUT /view/galleries/{id:guid}/shares"] = Refused,
+        ["PUT /view/items/{id:guid}/captured-at"] = Refused,
+        ["PUT /view/items/{id:guid}/description"] = Refused,
+        ["PUT /view/items/{id:guid}/document-details"] = Refused,
+        ["PUT /view/items/{id:guid}/favorite"] = Lifecycle,
+        ["PUT /view/items/{id:guid}/hidden"] = Lifecycle,
+        ["PUT /view/items/{id:guid}/location"] = Refused,
+        ["PUT /view/items/{id:guid}/people"] = Refused,
+        ["PUT /view/items/{id:guid}/tags"] = Refused,
+        ["PUT /view/preferences"] = NoItems + "the person's own settings",
+        ["PUT /view/preferences/documents-sort"] = Refused,
+        ["PUT /view/tags/{id:guid}"] = Refused,
+    };
+
+    [Fact]
+    public void EveryViewRouteIsReviewedForDocumentLeaksAndEachClaimNamesARealTest()
+    {
+        var registered = _app.Services.GetRequiredService<EndpointDataSource>().Endpoints.OfType<RouteEndpoint>()
+            .Where(endpoint => endpoint.RoutePattern.RawText?.StartsWith("/view", StringComparison.Ordinal) == true)
+            .SelectMany(endpoint => endpoint.Metadata.GetMetadata<HttpMethodMetadata>()!.HttpMethods
+                .Select(method => $"{method} {endpoint.RoutePattern.RawText}"))
+            .ToHashSet(StringComparer.Ordinal);
+
+        var unreviewed = registered.Except(ReviewedRoutes.Keys).Order().ToList();
+        Assert.True(unreviewed.Count == 0,
+            "These View routes are new. Decide whether they can show or change a document, make a profile without Documents "
+            + "get a refusal or a filtered answer, add a test, and list them in ReviewedRoutes: " + string.Join("; ", unreviewed));
+        var stale = ReviewedRoutes.Keys.Except(registered).Order().ToList();
+        Assert.True(stale.Count == 0, "ReviewedRoutes lists routes that no longer exist: " + string.Join("; ", stale));
+
+        var testSources = string.Join('\n', Directory
+            .EnumerateFiles(Path.Combine(FindRepositoryRoot(), "tests"), "*.cs", SearchOption.AllDirectories)
+            .Where(path => !path.Contains($"{Path.DirectorySeparatorChar}obj{Path.DirectorySeparatorChar}", StringComparison.Ordinal))
+            .Select(File.ReadAllText));
+        foreach (var test in ReviewedRoutes.Values.Where(value => !value.StartsWith(NoItems, StringComparison.Ordinal)).Distinct())
+        {
+            Assert.True(
+                testSources.Contains($"Task {test}(", StringComparison.Ordinal) || testSources.Contains($"void {test}(", StringComparison.Ordinal),
+                $"ReviewedRoutes names the test '{test}', which does not exist.");
+        }
+    }
+
+    private static string FindRepositoryRoot()
+    {
+        var directory = new DirectoryInfo(AppContext.BaseDirectory);
+        while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "MediaEngine.slnx")))
+        {
+            directory = directory.Parent;
+        }
+
+        return directory?.FullName ?? throw new InvalidOperationException("Could not locate the repository root.");
     }
 
     private sealed class Person(Guid profileId, Guid libraryId, RequestAuthority authority)

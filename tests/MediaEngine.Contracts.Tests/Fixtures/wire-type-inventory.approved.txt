@@ -5135,6 +5135,7 @@
   DecisionReason: System.String | json=decision_reason | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Items: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.LocalAssets.ViewSharedContributionItemDto> | json=items | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Events: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.LocalAssets.ViewSharedContributionEventDto> | json=events | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  HiddenItemCount: System.Int32 | json=hidden_item_count | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
 
 [contracts] MediaEngine.Contracts.LocalAssets.ViewSharedContributionEventDto
   kind=class | converter=default | number-handling=default | unmapped=default

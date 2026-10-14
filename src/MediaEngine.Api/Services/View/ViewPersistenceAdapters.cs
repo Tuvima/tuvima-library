@@ -87,7 +87,7 @@ public sealed class ViewResourcePersistenceService(
     {
         if (kind == ViewResourceKind.Gallery)
         {
-            var gallery = await galleries.GetAsync(resourceId, ct).ConfigureAwait(false);
+            var gallery = await galleries.GetAsync(resourceId, ct: ct).ConfigureAwait(false);
             if (gallery is null)
             {
                 return null;

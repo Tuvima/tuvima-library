@@ -634,6 +634,129 @@ public sealed class ViewSharedTransferServiceTests
             fixture.Person(jimId), new ViewSharedContributionPreviewRequest([item])));
     }
 
+    private static async Task<ViewSharedContributionDto> SubmitManyAsync(
+        Fixture fixture, RequestAuthority person, string key, params Guid[] itemIds)
+    {
+        var preview = await fixture.Contributions.PreviewAsync(person, new ViewSharedContributionPreviewRequest(itemIds));
+        return await fixture.Contributions.SubmitAsync(person, new ViewSharedContributionSubmitRequest(
+            itemIds, "timeline", null, null, preview.PreviewRevision, key));
+    }
+
+    [Fact]
+    public async Task AReviewerWithoutDocumentsNeverSeesADocumentInAContribution()
+    {
+        using var fixture = new Fixture();
+        var maryId = Guid.NewGuid();
+        await fixture.InsertProfileAsync(new Profile { Id = maryId, DisplayName = "Mary", Role = ProfileRole.StandardUser });
+        var marySpace = await fixture.Storage.EnsurePersonalSpaceAsync(maryId);
+        async Task<Guid> IndexAsync(string name, byte[] bytes) =>
+            (await fixture.Library.IndexPathAsync(marySpace.LibraryId, fixture.WriteManagedFor(marySpace, name, bytes)))!.ItemId;
+        var tax = await IndexAsync("Tax return 2025.txt", [1, 2, 3]);
+        var letter = await IndexAsync("Lawyer letter.txt", [4, 5, 6]);
+        var beach = await IndexAsync("Beach day.jpg", [7, 8, 9]);
+        var sunset = await IndexAsync("Sunset walk.jpg", [10, 11, 12]);
+        var mary = fixture.Person(maryId);
+        var documentsOnly = await SubmitManyAsync(fixture, mary, "documents", tax);
+        var photosOnly = await SubmitManyAsync(fixture, mary, "photos", sunset);
+        var mixed = await SubmitManyAsync(fixture, mary, "mixed", letter, beach);
+
+        var admin = fixture.HouseholdAdministrator(ProfileTestData.TestHouseholdId);
+
+        // With Documents the reviewer sees all three, document names included.
+        var everything = await fixture.Contributions.ListAsync(admin, "review", null, 0, 20);
+        Assert.Equal(3, everything.Items.Count);
+        Assert.All(everything.Items, contribution => Assert.Equal(0, contribution.HiddenItemCount));
+        Assert.Equal(2, everything.Items.Single(contribution => contribution.Id == mixed.Id).Items.Count);
+
+        await fixture.Policies.SavePolicyAsync(
+            (await fixture.Policies.GetPolicyAsync(fixture.ProfileId)) with { DocumentsEnabled = false });
+
+        // Without Documents: the documents-only contribution is not listed at all, the mixed one shows its photo
+        // only, and nothing in the answer carries a document's name, kind, id or count.
+        var visible = await fixture.Contributions.ListAsync(admin, "review", null, 0, 20);
+        Assert.Equal(new[] { photosOnly.Id, mixed.Id }.Order(), visible.Items.Select(contribution => contribution.Id).Order());
+        var mixedView = visible.Items.Single(contribution => contribution.Id == mixed.Id);
+        Assert.Equal(beach, Assert.Single(mixedView.Items).ItemId);
+        Assert.Equal(1, mixedView.HiddenItemCount);
+        Assert.Equal(0, visible.Items.Single(contribution => contribution.Id == photosOnly.Id).HiddenItemCount);
+        var wire = System.Text.Json.JsonSerializer.Serialize(visible);
+        foreach (var leak in new[] { "Tax return", "Lawyer letter", tax.ToString("D"), letter.ToString("D"), "\"document\"", ".txt" })
+        {
+            Assert.DoesNotContain(leak, wire, StringComparison.OrdinalIgnoreCase);
+        }
+
+        Assert.Equal("1 item(s) submitted.", Assert.Single(mixedView.Events, entry => entry.EventType == "submitted").Detail);
+
+        // Opening them directly: the documents-only one does not exist, the mixed one is filtered the same way.
+        await Assert.ThrowsAsync<KeyNotFoundException>(() => fixture.Contributions.GetRequiredAsync(admin, documentsOnly.Id));
+        await Assert.ThrowsAsync<KeyNotFoundException>(() => fixture.Contributions.GetRequiredAsync(admin, documentsOnly.Id, true));
+        var detail = await fixture.Contributions.GetRequiredAsync(admin, mixed.Id);
+        Assert.Equal(1, detail.HiddenItemCount);
+        Assert.DoesNotContain("Lawyer letter", System.Text.Json.JsonSerializer.Serialize(detail), StringComparison.OrdinalIgnoreCase);
+
+        // Approving or declining a contribution that holds a document is refused, nothing changes; one without is fine.
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() => fixture.Contributions.DecideAsync(
+            admin, mixed.Id, new ViewSharedContributionDecisionRequest("accepted", mixed.Revision)));
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() => fixture.Contributions.DecideAsync(
+            admin, mixed.Id, new ViewSharedContributionDecisionRequest("declined", mixed.Revision)));
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() => fixture.Contributions.RetryAsync(admin, mixed.Id, mixed.Revision));
+        await Assert.ThrowsAsync<KeyNotFoundException>(() => fixture.Contributions.DecideAsync(
+            admin, documentsOnly.Id, new ViewSharedContributionDecisionRequest("declined", documentsOnly.Revision)));
+        Assert.Equal("pending", (await fixture.Contributions.GetRequiredAsync(admin, mixed.Id)).Status);
+        var decided = await fixture.Contributions.DecideAsync(
+            admin, photosOnly.Id, new ViewSharedContributionDecisionRequest("declined", photosOnly.Revision));
+        Assert.Equal("declined", decided.Status);
+
+        // The contributor's own "mine" list is held to the same rule once their Documents is off.
+        await fixture.Policies.SavePolicyAsync(
+            (await fixture.Policies.GetPolicyAsync(maryId)) with { DocumentsEnabled = false });
+        var mine = await fixture.Contributions.ListAsync(mary, "mine", null, 0, 20);
+        Assert.DoesNotContain(mine.Items, contribution => contribution.Id == documentsOnly.Id);
+        Assert.Equal(1, mine.Items.Single(contribution => contribution.Id == mixed.Id).HiddenItemCount);
+
+        // The reviewer with Documents back sees it all again.
+        await fixture.Policies.SavePolicyAsync(
+            (await fixture.Policies.GetPolicyAsync(fixture.ProfileId)) with { DocumentsEnabled = true });
+        Assert.Equal(2, (await fixture.Contributions.GetRequiredAsync(admin, mixed.Id)).Items.Count);
+        Assert.Single((await fixture.Contributions.GetRequiredAsync(admin, documentsOnly.Id)).Items);
+    }
+
+    [Fact]
+    public async Task AProfileWithoutDocumentsCannotPreviewSubmitOrDirectAddADocument()
+    {
+        using var fixture = new Fixture();
+        var maryId = Guid.NewGuid();
+        var jimId = Guid.NewGuid();
+        await fixture.InsertProfileAsync(new Profile { Id = maryId, DisplayName = "Mary", Role = ProfileRole.StandardUser });
+        await fixture.InsertProfileAsync(new Profile { Id = jimId, DisplayName = "Jim", Role = ProfileRole.StandardUser });
+        var marySpace = await fixture.Storage.EnsurePersonalSpaceAsync(maryId);
+        await fixture.Storage.EnsurePersonalSpaceAsync(jimId);
+        var document = (await fixture.Library.IndexPathAsync(marySpace.LibraryId,
+            fixture.WriteManagedFor(marySpace, "Passport scan.txt", [1, 2])))!.ItemId;
+        var photo = (await fixture.Library.IndexPathAsync(marySpace.LibraryId,
+            fixture.WriteManagedFor(marySpace, "Kitchen.jpg", [3, 4])))!.ItemId;
+        foreach (var id in new[] { maryId, jimId, fixture.ProfileId })
+        {
+            await fixture.Policies.SavePolicyAsync((await fixture.Policies.GetPolicyAsync(id)) with { DocumentsEnabled = false });
+        }
+
+        // The owner is told plainly; a household member is told what they would be told for something that is not there.
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() => fixture.Contributions.PreviewAsync(
+            fixture.Person(maryId), new ViewSharedContributionPreviewRequest([photo, document])));
+        await Assert.ThrowsAsync<KeyNotFoundException>(() => fixture.Contributions.PreviewAsync(
+            fixture.Person(jimId), new ViewSharedContributionPreviewRequest([document])));
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() => fixture.Contributions.SubmitAsync(
+            fixture.Person(maryId), new ViewSharedContributionSubmitRequest([document], "timeline", null, null, "x", "key")));
+        await Assert.ThrowsAsync<KeyNotFoundException>(() => fixture.Contributions.AddDirectAsync(
+            fixture.HouseholdAdministrator(ProfileTestData.TestHouseholdId) with { ActiveProfileId = fixture.ProfileId },
+            new ViewSharedDirectAddRequest([document])));
+
+        // Photos are unaffected.
+        var preview = await fixture.Contributions.PreviewAsync(
+            fixture.Person(maryId), new ViewSharedContributionPreviewRequest([photo]));
+        Assert.Single(preview.Items);
+    }
+
     private static async Task<ViewSharedContributionDto> SubmitAsync(
         Fixture fixture, RequestAuthority person, Guid itemId, string key)
     {

@@ -150,7 +150,8 @@ public sealed record ViewSharedContributionDto(
     [property: JsonPropertyName("decided_by_name")] string? DecidedByName,
     [property: JsonPropertyName("decision_reason")] string? DecisionReason,
     [property: JsonPropertyName("items")] IReadOnlyList<ViewSharedContributionItemDto> Items,
-    [property: JsonPropertyName("events")] IReadOnlyList<ViewSharedContributionEventDto> Events);
+    [property: JsonPropertyName("events")] IReadOnlyList<ViewSharedContributionEventDto> Events,
+    [property: JsonPropertyName("hidden_item_count")] int HiddenItemCount = 0);
 
 public sealed record ViewSharedContributionPageDto(
     [property: JsonPropertyName("items")] IReadOnlyList<ViewSharedContributionDto> Items,

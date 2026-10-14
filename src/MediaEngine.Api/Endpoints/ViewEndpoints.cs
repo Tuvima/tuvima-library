@@ -1182,7 +1182,7 @@ public static partial class ViewEndpoints
     {
         group.MapGet("/galleries", async (IViewRequestProfileContext identity,
             IViewResourceAuthorizationService authorization, IViewProfileRepository preferences,
-            IViewGalleryRepository repository, CancellationToken ct) =>
+            IViewGalleryRepository repository, ILocalAssetRepository assets, CancellationToken ct) =>
         {
             var authority = await identity.ResolveAuthorityAsync(ct);
             if (authority.ActiveProfileId is not { } profileId)
@@ -1198,16 +1198,17 @@ public static partial class ViewEndpoints
             }
 
             // A saved Documents view is a shelf of documents, so a profile that may not use Documents never sees one.
+            // Every other Gallery counts only the items that profile may see, and never names a document as its cover.
             var documents = await MayUseDocumentsAsync(authority, preferences, ct);
             return Results.Ok(new ViewGalleryListResponse(
-                (await repository.GetOwnedAsync(profileId, ct)).Where(gallery => documents || !IsDocumentView(gallery)).Select(ToContract).ToList(),
-                (await repository.GetSharedWithAsync(profileId, ct)).Where(gallery => documents || !IsDocumentView(gallery)).Select(ToContract).ToList()));
+                (await repository.GetOwnedAsync(profileId, documents, ct)).Where(gallery => documents || !IsDocumentView(gallery)).Select(gallery => ToContract(gallery, documents, assets)).ToList(),
+                (await repository.GetSharedWithAsync(profileId, documents, ct)).Where(gallery => documents || !IsDocumentView(gallery)).Select(gallery => ToContract(gallery, documents, assets)).ToList()));
         }).WithName("GetViewGalleries").Produces<ViewGalleryListResponse>();
 
         group.MapPost("/galleries", async (ViewGalleryRequest request,
             IViewRequestProfileContext identity, IViewPersonalSpaceRepository spaces,
             IViewResourceAuthorizationService authorization, IViewProfileRepository preferences,
-            IViewGalleryRepository repository, CancellationToken ct) =>
+            IViewGalleryRepository repository, ILocalAssetRepository assets, CancellationToken ct) =>
         {
             var authority = await identity.ResolveAuthorityAsync(ct);
             if (authority.ActiveProfileId is not { } profileId)
@@ -1215,8 +1216,9 @@ public static partial class ViewEndpoints
                 return Unauthenticated();
             }
 
-            if (request.Kind == ViewGalleryKind.Smart && ViewSmartGalleryRules.IsDocumentView(request.SmartRuleJson)
-                && !await MayUseDocumentsAsync(authority, preferences, ct))
+            var documents = await MayUseDocumentsAsync(authority, preferences, ct);
+            if (!documents && (request.Kind == ViewGalleryKind.Smart && ViewSmartGalleryRules.IsDocumentView(request.SmartRuleJson)
+                || IsOwnDocument(assets, request.CoverItemId, profileId)))
             {
                 return DocumentsNotAllowed();
             }
@@ -1241,21 +1243,26 @@ public static partial class ViewEndpoints
                     profileId, space.Id, request.Name, request.Kind,
                     request.Description, request.SmartRuleJson, request.CoverItemId,
                     request.SortOrder, request.SoundtrackPlaylistId), ct);
-                return Results.Created($"/view/galleries/{gallery.Id:D}", ToContract(gallery));
+                return Results.Created($"/view/galleries/{gallery.Id:D}", ToContract(gallery, documents, assets));
             }
             catch (ArgumentException exception) { return ApiErrors.BadRequest(exception.Message); }
         }).WithName("CreateViewGallery").Produces<ViewGalleryDto>(StatusCodes.Status201Created);
 
         group.MapGet("/galleries/{id:guid}", async (Guid id,
             IViewRequestProfileContext identity, IViewResourceAuthorizationService authorization,
-            IViewProfileRepository preferences, IViewGalleryRepository repository, CancellationToken ct) =>
+            IViewProfileRepository preferences, IViewGalleryRepository repository, ILocalAssetRepository assets,
+            CancellationToken ct) =>
         {
             var decision = await GalleryAccessAsync(id, ViewResourceAction.Read, identity, authorization, ct);
-            if (decision.IsAllowed && await repository.GetAsync(id, ct) is { } gallery)
+            if (decision.IsAllowed)
             {
-                return IsDocumentView(gallery) && !await MayUseDocumentsAsync(await identity.ResolveAuthorityAsync(ct), preferences, ct)
-                    ? DocumentsNotAllowed()
-                    : Results.Ok(ToContract(gallery));
+                var documents = await MayUseDocumentsAsync(await identity.ResolveAuthorityAsync(ct), preferences, ct);
+                if (await repository.GetAsync(id, documents, ct) is { } gallery)
+                {
+                    return IsDocumentView(gallery) && !documents
+                        ? DocumentsNotAllowed()
+                        : Results.Ok(ToContract(gallery, documents, assets));
+                }
             }
 
             return Access(decision.Outcome);
@@ -1263,7 +1270,8 @@ public static partial class ViewEndpoints
 
         group.MapPut("/galleries/{id:guid}", async (Guid id, ViewGalleryRequest request,
             IViewRequestProfileContext identity, IViewResourceAuthorizationService authorization,
-            IViewProfileRepository preferences, IViewGalleryRepository repository, CancellationToken ct) =>
+            IViewProfileRepository preferences, IViewGalleryRepository repository, ILocalAssetRepository assets,
+            CancellationToken ct) =>
         {
             var decision = await GalleryAccessAsync(id, ViewResourceAction.Manage, identity, authorization, ct);
             if (!decision.IsAllowed)
@@ -1271,9 +1279,11 @@ public static partial class ViewEndpoints
                 return Access(decision.Outcome);
             }
 
-            if ((request.Kind == ViewGalleryKind.Smart && ViewSmartGalleryRules.IsDocumentView(request.SmartRuleJson)
-                    || await repository.GetAsync(id, ct) is { } existing && IsDocumentView(existing))
-                && !await MayUseDocumentsAsync(await identity.ResolveAuthorityAsync(ct), preferences, ct))
+            var documents = await MayUseDocumentsAsync(await identity.ResolveAuthorityAsync(ct), preferences, ct);
+            var existing = await repository.GetAsync(id, documents, ct);
+            if (!documents && (request.Kind == ViewGalleryKind.Smart && ViewSmartGalleryRules.IsDocumentView(request.SmartRuleJson)
+                || existing is not null && IsDocumentView(existing)
+                || IsOwnDocument(assets, request.CoverItemId, existing?.OwnerProfileId)))
             {
                 return DocumentsNotAllowed();
             }
@@ -1284,7 +1294,10 @@ public static partial class ViewEndpoints
                     id, request.Name, request.Description, request.Kind,
                     request.SmartRuleJson, request.CoverItemId,
                     request.SortOrder, request.SoundtrackPlaylistId), ct);
-                return gallery is null ? Missing() : Results.Ok(ToContract(gallery));
+                // The answer counts only what this profile may see, like every other read of the Gallery.
+                return gallery is null ? Missing()
+                    : Results.Ok(ToContract(documents ? gallery : await repository.GetAsync(id, documents, ct) ?? gallery,
+                        documents, assets));
             }
             catch (ArgumentException exception) { return ApiErrors.BadRequest(exception.Message); }
         }).WithName("UpdateViewGallery").Produces<ViewGalleryDto>();
@@ -1299,45 +1312,68 @@ public static partial class ViewEndpoints
         }).WithName("DeleteViewGallery")
             .Produces<Microsoft.AspNetCore.Http.HttpResults.NoContent>(StatusCodes.Status204NoContent);
 
+        // The item routes below leave documents out for a profile that may not use Documents (the page, the add,
+        // the remove and the reorder alike), so a Gallery never tells that profile a document is in it.
         group.MapGet("/galleries/{id:guid}/items", async (Guid id,
             int? afterPosition, Guid? afterItemId, int? limit,
             IViewRequestProfileContext identity, IViewResourceAuthorizationService authorization,
-            IViewGalleryRepository repository, CancellationToken ct) =>
+            IViewProfileRepository preferences, IViewGalleryRepository repository, CancellationToken ct) =>
         {
             var decision = await GalleryAccessAsync(id, ViewResourceAction.Read, identity, authorization, ct);
-            return !decision.IsAllowed ? Access(decision.Outcome)
-                : Results.Ok(ToContract(await repository.GetItemsAsync(id, afterPosition, afterItemId,
-                    PagedRequest.From(0, limit, 100, 500).Limit, ct)));
+            if (!decision.IsAllowed)
+            {
+                return Access(decision.Outcome);
+            }
+
+            var documents = await MayUseDocumentsAsync(await identity.ResolveAuthorityAsync(ct), preferences, ct);
+            return Results.Ok(ToContract(await repository.GetItemsAsync(id, afterPosition, afterItemId,
+                PagedRequest.From(0, limit, 100, 500).Limit, documents, ct)));
         }).WithName("GetViewGalleryItems").Produces<ViewGalleryItemPageDto>();
 
         group.MapPost("/galleries/{id:guid}/items", async (Guid id, ViewGalleryItemsRequest request,
             IViewRequestProfileContext identity, IViewResourceAuthorizationService authorization,
-            IViewGalleryRepository repository, CancellationToken ct) =>
+            IViewProfileRepository preferences, IViewGalleryRepository repository, CancellationToken ct) =>
         {
             var decision = await GalleryAccessAsync(id, ViewResourceAction.Contribute, identity, authorization, ct);
-            return !decision.IsAllowed ? Access(decision.Outcome)
-                : Results.Ok(ToContract(await repository.AddItemsAsync(id, request.ItemIds, ct)));
+            if (!decision.IsAllowed)
+            {
+                return Access(decision.Outcome);
+            }
+
+            var documents = await MayUseDocumentsAsync(await identity.ResolveAuthorityAsync(ct), preferences, ct);
+            try { return Results.Ok(ToContract(await repository.AddItemsAsync(id, request.ItemIds, documents, ct))); }
+            catch (UnauthorizedAccessException) { return DocumentsNotAllowed(); }
         }).WithName("AddViewGalleryItems").Produces<AddViewGalleryItemsResponseDto>();
 
         group.MapDelete("/galleries/{id:guid}/items", async (Guid id, [FromBody] ViewGalleryItemsRequest request,
             IViewRequestProfileContext identity, IViewResourceAuthorizationService authorization,
-            IViewGalleryRepository repository, CancellationToken ct) =>
+            IViewProfileRepository preferences, IViewGalleryRepository repository, CancellationToken ct) =>
         {
             var decision = await GalleryAccessAsync(id, ViewResourceAction.Contribute, identity, authorization, ct);
-            return !decision.IsAllowed ? Access(decision.Outcome)
-                : Results.Ok(new ViewItemsRemovedResponse(
-                    await repository.RemoveItemsAsync(id, request.ItemIds, ct)));
+            if (!decision.IsAllowed)
+            {
+                return Access(decision.Outcome);
+            }
+
+            var documents = await MayUseDocumentsAsync(await identity.ResolveAuthorityAsync(ct), preferences, ct);
+            return Results.Ok(new ViewItemsRemovedResponse(
+                await repository.RemoveItemsAsync(id, request.ItemIds, documents, ct)));
         }).WithName("RemoveViewGalleryItems").Produces<ViewItemsRemovedResponse>();
 
         group.MapPut("/galleries/{id:guid}/items/{itemId:guid}/position", async (
             Guid id, Guid itemId, ViewGalleryPositionRequest request,
             IViewRequestProfileContext identity, IViewResourceAuthorizationService authorization,
-            IViewGalleryRepository repository, CancellationToken ct) =>
+            IViewProfileRepository preferences, IViewGalleryRepository repository, CancellationToken ct) =>
         {
             var decision = await GalleryAccessAsync(id, ViewResourceAction.Contribute, identity, authorization, ct);
-            return !decision.IsAllowed ? Access(decision.Outcome)
-                : await repository.SetItemPositionAsync(id, itemId, request.Position, ct)
-                    ? Results.NoContent() : Missing();
+            if (!decision.IsAllowed)
+            {
+                return Access(decision.Outcome);
+            }
+
+            var documents = await MayUseDocumentsAsync(await identity.ResolveAuthorityAsync(ct), preferences, ct);
+            return await repository.SetItemPositionAsync(id, itemId, request.Position, documents, ct)
+                ? Results.NoContent() : Missing();
         }).WithName("ReorderViewGalleryItem")
             .Produces<Microsoft.AspNetCore.Http.HttpResults.NoContent>(StatusCodes.Status204NoContent);
 
@@ -1367,7 +1403,7 @@ public static partial class ViewEndpoints
             }
 
             // A saved Documents view stays private: its rule can hold search words and it lists private documents.
-            if (await repository.GetAsync(id, ct) is { } shared && IsDocumentView(shared))
+            if (await repository.GetAsync(id, ct: ct) is { } shared && IsDocumentView(shared))
             {
                 return ApiErrors.Forbidden("A saved Documents view is private and cannot be shared.");
             }
@@ -1449,23 +1485,43 @@ public static partial class ViewEndpoints
     private static void MapFlag(RouteGroupBuilder group, string name,
         Func<ILocalAssetRepository, Guid, bool, CancellationToken, Task<bool>> operation) =>
         group.MapPut($"/items/{{id:guid}}/{name}", async (Guid id, SetLocalAssetFlagRequest request,
-            IViewRequestProfileContext identity,
+            IViewRequestProfileContext identity, IViewProfileRepository preferences,
             IViewResourceAuthorizationService authorization, ILocalAssetRepository assets, CancellationToken ct) =>
         {
             var decision = await AuthorizeOwnedItemAsync(id, identity, authorization, ct);
-            return !decision.IsAllowed ? Access(decision.Outcome)
-                : await operation(assets, id, request.Value, ct) ? Results.NoContent() : Missing();
+            if (!decision.IsAllowed)
+            {
+                return Access(decision.Outcome);
+            }
+
+            // Favouriting or hiding a document would change what the Documents page shows, so it needs Documents.
+            if (await DocumentsBlockedAsync(id, assets, identity, preferences, ct))
+            {
+                return DocumentsNotAllowed();
+            }
+
+            return await operation(assets, id, request.Value, ct) ? Results.NoContent() : Missing();
         }).WithName($"SetViewItem{char.ToUpperInvariant(name[0])}{name[1..]}")
             .Produces<Microsoft.AspNetCore.Http.HttpResults.NoContent>(StatusCodes.Status204NoContent);
 
     private static void MapLifecycle(RouteGroupBuilder group, string name, LocalAssetLifecycleState state) =>
         group.MapPost($"/items/{{id:guid}}/{name}", async (Guid id,
-            IViewRequestProfileContext identity,
+            IViewRequestProfileContext identity, IViewProfileRepository preferences,
             IViewResourceAuthorizationService authorization, ILocalAssetRepository assets, CancellationToken ct) =>
         {
             var decision = await AuthorizeOwnedItemAsync(id, identity, authorization, ct);
-            return !decision.IsAllowed ? Access(decision.Outcome)
-                : await assets.SetLifecycleStateAsync(id, state, ct) ? Results.NoContent() : Missing();
+            if (!decision.IsAllowed)
+            {
+                return Access(decision.Outcome);
+            }
+
+            // Archive, trash and restore move a document in or out of the Documents page, so they need Documents.
+            if (await DocumentsBlockedAsync(id, assets, identity, preferences, ct))
+            {
+                return DocumentsNotAllowed();
+            }
+
+            return await assets.SetLifecycleStateAsync(id, state, ct) ? Results.NoContent() : Missing();
         }).WithName($"{char.ToUpperInvariant(name[0])}{name[1..]}ViewItem")
             .Produces<Microsoft.AspNetCore.Http.HttpResults.NoContent>(StatusCodes.Status204NoContent);
 
@@ -1635,10 +1691,20 @@ public static partial class ViewEndpoints
             value.UpdatedAt,
             value.DocumentsSort);
 
-    private static ViewGalleryDto ToContract(ViewGallery value) =>
+    /// <summary>
+    /// A Gallery's cover is an item id. A profile that may not use Documents is never handed the id of a document
+    /// (the Dashboard would fall back to the Gallery's first photo).
+    /// </summary>
+    private static ViewGalleryDto ToContract(ViewGallery value, bool documents, ILocalAssetRepository assets) =>
         new(value.Id, value.OwnerProfileId, value.PersonalSpaceId, value.Name,
-            value.Description, value.Kind, value.SmartRuleJson, value.CoverItemId,
+            value.Description, value.Kind, value.SmartRuleJson,
+            !documents && value.CoverItemId is { } cover && assets.IsDocument(cover) ? null : value.CoverItemId,
             value.SortOrder, value.ItemCount, value.CreatedAt, value.UpdatedAt, value.SoundtrackPlaylistId);
+
+    /// <summary>True when the id is a document that belongs to this profile (so naming it is theirs to be refused).</summary>
+    private static bool IsOwnDocument(ILocalAssetRepository assets, Guid? itemId, Guid? ownerProfileId) =>
+        itemId is { } id && ownerProfileId is { } owner
+        && assets.Find(id) is { MediaKind: LocalAssetMediaKinds.Document } item && item.OwnerProfileId == owner;
 
     private static ViewGalleryItemPageDto ToContract(ViewGalleryItemPage value) =>
         new(value.Items.Select(item => new ViewGalleryItemDto(
