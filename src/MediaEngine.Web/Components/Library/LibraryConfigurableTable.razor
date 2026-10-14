@@ -73,7 +73,7 @@ else
 @if (_hoverCover is not null)
 {
     <AppCssElement Tag="div" Class="vmt-hover-overlay" Css="@($"top: {_hoverY}px; left: {_hoverX}px;")">
-        <img src="@_hoverCover" alt="" class="vmt-hover-img" />
+        <img src="@_hoverCover" alt="" class="vmt-hover-img" loading="lazy" decoding="async" />
     </AppCssElement>
 }
 

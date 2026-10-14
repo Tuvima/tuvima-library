@@ -36,5 +36,55 @@
       "type": "image/png",
       "purpose": "maskable"
     }
+  ],
+  "shortcuts": [
+    {
+      "name": "Watch",
+      "short_name": "Watch",
+      "url": "/watch",
+      "icons": [
+        {
+          "src": "/icons/tuvima-96.png",
+          "sizes": "96x96",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "Read",
+      "short_name": "Read",
+      "url": "/read",
+      "icons": [
+        {
+          "src": "/icons/tuvima-96.png",
+          "sizes": "96x96",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "Listen",
+      "short_name": "Listen",
+      "url": "/listen",
+      "icons": [
+        {
+          "src": "/icons/tuvima-96.png",
+          "sizes": "96x96",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "Search",
+      "short_name": "Search",
+      "url": "/search",
+      "icons": [
+        {
+          "src": "/icons/tuvima-96.png",
+          "sizes": "96x96",
+          "type": "image/png"
+        }
+      ]
+    }
   ]
 }

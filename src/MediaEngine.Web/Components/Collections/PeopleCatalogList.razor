@@ -14,7 +14,7 @@
             <span class="people-catalog-row__portrait">
                 @if (!string.IsNullOrWhiteSpace(person.headshot_url))
                 {
-                    <img src="@person.headshot_url" alt="" />
+                    <img src="@person.headshot_url" alt="" loading="lazy" decoding="async" />
                 }
                 else
                 {

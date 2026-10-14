@@ -135,7 +135,7 @@ else
                         <div class="listen-song-table__art">
                             @if (!string.IsNullOrWhiteSpace(track.CoverUrl))
                             {
-                                <img src="@track.CoverUrl" alt="" />
+                                <img src="@track.CoverUrl" alt="" loading="lazy" decoding="async" />
                             }
                             else
                             {

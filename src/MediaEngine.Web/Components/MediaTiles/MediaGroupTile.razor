@@ -33,7 +33,7 @@
                 <div class="media-group-tile__person" aria-hidden="true">
                     @if (!string.IsNullOrWhiteSpace(Item.Person!.ImageUrl))
                     {
-                        <img src="@Item.Person.ImageUrl" alt="" />
+                        <img src="@Item.Person.ImageUrl" alt="" loading="lazy" decoding="async" />
                     }
                     else
                     {
@@ -46,7 +46,7 @@
             else if (HasBrandLogo)
             {
                 <div class="media-group-tile__brand" aria-hidden="true">
-                    <img src="@Item.LogoUrl" alt="" />
+                    <img src="@Item.LogoUrl" alt="" loading="lazy" decoding="async" />
                 </div>
             }
 

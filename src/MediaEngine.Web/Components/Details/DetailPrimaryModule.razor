@@ -75,7 +75,7 @@
                             <span class="tl-detail-primary-module__art">
                                 @if (!string.IsNullOrWhiteSpace(item.ArtworkUrl))
                                 {
-                                    <img src="@item.ArtworkUrl" alt="" />
+                                    <img src="@item.ArtworkUrl" alt="" loading="lazy" decoding="async" />
                                 }
                                 else
                                 {
