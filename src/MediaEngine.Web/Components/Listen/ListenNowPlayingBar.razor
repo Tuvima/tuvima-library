@@ -417,6 +417,7 @@
     private readonly string _audioPresentationObserverId = Guid.NewGuid().ToString("D");
     private bool _restored;
     private bool _disposed;
+    private bool _browserClientRegistering;
     private string? _playbackRestoreError;
     private string? _lastAppliedStreamUrl;
     private string? _lastSeekedStreamUrl;
@@ -618,6 +619,22 @@
         // A full reload of a deep URL can mount the bar and dispose it again while its first render is still
         // awaiting the browser; the self reference is gone by then, so stop instead of using it.
         if (_disposed) return;
+        try
+        {
+            await RunAfterRenderAsync(firstRender);
+        }
+        catch (JSDisconnectedException)
+        {
+            // The browser connection is gone, so there is nothing left to synchronise.
+        }
+        catch (Exception exception) when (_disposed && exception is ObjectDisposedException or JSException or TaskCanceledException or InvalidOperationException)
+        {
+            Logger.LogDebug(exception, "The playback bar was disposed while its browser calls were still running.");
+        }
+    }
+
+    private async Task RunAfterRenderAsync(bool firstRender)
+    {
         if (_openCompactToolPending && _compactContext is not null)
         {
             _openCompactToolPending = false;
@@ -629,16 +646,23 @@
             {
                 await RegisterBrowserClientAsync();
             }
-            catch (ObjectDisposedException) when (_disposed)
-            {
-                return;
-            }
             catch (JSDisconnectedException)
             {
                 return;
             }
+            catch (Exception exception) when (_disposed && exception is ObjectDisposedException or JSException or TaskCanceledException)
+            {
+                Logger.LogDebug(exception, "The playback bar was disposed while it was connecting to the browser.");
+            }
 
-            if (_disposed) return;
+            if (_disposed)
+            {
+                // Disposal ran before registration finished and could not undo what registration added afterwards.
+                await DetachBrowserClientAsync();
+                _selfReference?.Dispose();
+                _selfReference = null;
+                return;
+            }
         }
 
         if (Playback.HasQueue && !Playback.IsVideoMode && !_shortcutsRegistered && _selfReference is not null)
@@ -690,8 +714,10 @@
 
     private async Task RegisterBrowserClientAsync()
     {
+        _browserClientRegistering = true;
         _selfReference = DotNetObjectReference.Create(this);
         _audioPresentationModule = await JS.InvokeAsync<IJSObjectReference>("import", "./js/playback-audio-presentation.js");
+        if (_disposed) return;
         if (_audioPresentationModule is not null) await _audioPresentationModule.InvokeVoidAsync("attach", _audioPresentationObserverId, _selfReference);
         await JS.InvokeVoidAsync("listenPlayback.configure", Playback.ClientSettings);
         await ConfigurePlaybackClientContextAsync();
@@ -701,6 +727,7 @@
             _audioRef,
             _selfReference,
             Playback.ClientSettings.AudioObserverIntervalMilliseconds);
+        if (_disposed) return;
 
         _audioCapabilitiesModule = await JS.InvokeAsync<IJSObjectReference>("import", "./js/playback-output.js");
         if (_audioCapabilitiesModule is not null) {
@@ -2033,22 +2060,37 @@
         Nav.LocationChanged -= HandleLocationChanged;
         DeviceContext.OnChanged -= HandleDeviceContextChanged;
 
+        await DetachBrowserClientAsync();
+
+        _selfReference?.Dispose();
+    }
+
+    // Safe to call more than once and before the browser client was ever registered.
+    private async Task DetachBrowserClientAsync()
+    {
+        if (!_browserClientRegistering) return;
+        var mediaSession = _mediaSessionModule;
+        var audioCapabilities = _audioCapabilitiesModule;
+        var audioPresentation = _audioPresentationModule;
+        _mediaSessionModule = null;
+        _audioCapabilitiesModule = null;
+        _audioPresentationModule = null;
         try
         {
-            if (_mediaSessionModule is not null)
+            if (mediaSession is not null)
             {
-                await _mediaSessionModule.InvokeVoidAsync("detach", _audioRef);
-                await _mediaSessionModule.DisposeAsync();
+                await mediaSession.InvokeVoidAsync("detach", _audioRef);
+                await mediaSession.DisposeAsync();
             }
-            if (_audioCapabilitiesModule is not null)
+            if (audioCapabilities is not null)
             {
-                await _audioCapabilitiesModule.InvokeVoidAsync("detach");
-                await _audioCapabilitiesModule.DisposeAsync();
+                await audioCapabilities.InvokeVoidAsync("detach");
+                await audioCapabilities.DisposeAsync();
             }
-            if (_audioPresentationModule is not null)
+            if (audioPresentation is not null)
             {
-                await _audioPresentationModule.InvokeVoidAsync("detach", _audioPresentationObserverId);
-                await _audioPresentationModule.DisposeAsync();
+                await audioPresentation.InvokeVoidAsync("detach", _audioPresentationObserverId);
+                await audioPresentation.DisposeAsync();
             }
             await JS.InvokeVoidAsync("listenPlayback.unregisterAudioStateObserver", _audioRef);
             await JS.InvokeVoidAsync("listenPlayback.unregisterPlayerShortcuts", _playerShellRef);
@@ -2056,13 +2098,12 @@
         }
         catch (JSDisconnectedException)
         {
+            // The browser connection is gone, so the handlers went with it.
         }
-        catch (InvalidOperationException ex)
+        catch (Exception ex) when (ex is InvalidOperationException or ObjectDisposedException or JSException or TaskCanceledException)
         {
             Logger.LogDebug(ex, "Failed to unregister listen playback command handler.");
         }
-
-        _selfReference?.Dispose();
     }
 
     public sealed class AudioMetrics
