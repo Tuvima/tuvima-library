@@ -1067,15 +1067,18 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
         Assert.DoesNotContain("@media (max-width: 840px) { .folder-table__expand", app);
     }
 
-    // D23: a phone reads folders and never changes them, in Settings and in setup alike. With no browser to measure, the
-    // stylesheets are read: under 600px every control that adds, converts or merges is hidden and the note is shown.
+    // D23: under the one card breakpoint (840px of viewport width, so portrait tablets too) folders are read-only, in Settings and
+    // in setup alike. With no browser to measure, the stylesheets are read: every control that adds, converts or merges is hidden
+    // (display:none) and the note is shown. The gate follows the viewport, not the device class.
     [Fact]
-    public void PhonesHideEveryControlThatAddsConvertsOrMerges()
+    public void EveryControlThatAddsConvertsOrMergesIsHiddenUnderTheCardBreakpoint()
     {
         var src = Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", "src", "MediaEngine.Web");
         var panel = File.ReadAllText(Path.Combine(src, "Components", "Settings", "LibraryFoldersPanel.razor.css"));
         var app = File.ReadAllText(Path.Combine(src, "wwwroot", "app.css"));
-        var phone = panel[panel.IndexOf("@media (max-width: 600px)", StringComparison.Ordinal)..];
+        Assert.DoesNotContain("max-width: 600px", panel);
+        // The last 840px block of the panel stylesheet is the read-only one.
+        var phone = panel[panel.LastIndexOf("@media (max-width: 840px)", StringComparison.Ordinal)..];
         Assert.Contains(".library-folders__phone-note", phone);
         foreach (var hidden in new[] { ".library-folders__detail-actions", ".library-folders__row-actions", ".library-folders__choose", ".library-folders__empty-action" })
         {

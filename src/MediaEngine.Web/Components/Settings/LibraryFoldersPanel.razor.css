@@ -222,8 +222,9 @@
     font-size: 0.9rem;
 }
 
-/* Phones read folders and never change them: the note says where to do it and every control that adds, converts or merges goes. */
-@media (max-width: 600px) {
+/* Under the one card breakpoint (840px, by viewport width, so portrait tablets too) folders are read-only: the note says where to
+   change them, and every control that adds, converts or merges is display:none, so it is not focusable either. */
+@media (max-width: 840px) {
     .library-folders__phone-note {
         display: block;
     }

@@ -62,7 +62,7 @@
                                  OnClick="@(_ => OnChangeHandling.InvokeAsync(source))">
                     @HandlingLabel(source)
                 </AppNativeButton>
-                @* Phones read folders only: the stylesheet swaps the button for this plain label. *@
+                @* Under 840px folders are read-only: the stylesheet swaps the button for this plain label. *@
                 <span class="@HandlingTagClass(source)">@HandlingLabel(source)</span>
             </div>
             <div class="@(marked ? "folder-table__marker is-marked" : "folder-table__marker")" role="cell">
