@@ -4,6 +4,7 @@
 @using MediaEngine.Web.Models.ViewDTOs
 @using Microsoft.AspNetCore.Components.Web
 @using MediaEngine.Web.Services.Ui
+@inject DeviceContextService DeviceContext
 
 <div class="listen-song-table"
      role="table"
@@ -146,9 +147,12 @@
                         break;
                     case "editDelete":
                         <div class="listen-song-table__edit-delete" role="cell">
-                            <AppNativeButton Type="button" Class="listen-song-table__icon-button" Disabled="@track.IsUpdatingDetails" Title="@(track.IsUpdatingDetails ? "Updating details" : "Edit song")" AriaLabel="@($" Edit {trackTitle}")" StopPropagation="true" OnClick="@(() => EditAsync(track))">
-                                <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Edit" Size="AppSize.Small" />
-                            </AppNativeButton>
+                            @if (!DeviceContext.IsPhone)
+                            {
+                                <AppNativeButton Type="button" Class="listen-song-table__icon-button" Disabled="@track.IsUpdatingDetails" Title="@(track.IsUpdatingDetails ? "Updating details" : "Edit song")" AriaLabel="@($" Edit {trackTitle}")" StopPropagation="true" OnClick="@(() => EditAsync(track))">
+                                    <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Edit" Size="AppSize.Small" />
+                                </AppNativeButton>
+                            }
                             <AppNativeButton Type="button" Class="listen-song-table__icon-button listen-song-table__icon-button--danger" Disabled="@track.IsUpdatingDetails" Title="Delete song" AriaLabel="@($" Delete {trackTitle}")" StopPropagation="true" OnClick="@(() => DeleteAsync(track))">
                                 <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Delete" Size="AppSize.Small" />
                             </AppNativeButton>

@@ -40,6 +40,7 @@ public partial class ListenPage
     [Inject] private MediaReactionService Reactions { get; set; } = default!;
     [Inject] private SavedItemService SavedItems { get; set; } = default!;
     [Inject] private MediaEditorLauncherService MediaEditorLauncher { get; set; } = default!;
+    [Inject] private MediaEngine.Web.Services.Theming.DeviceContextService DeviceContext { get; set; } = default!;
     [Inject] private CollectionEditorLauncherService CollectionEditorLauncher { get; set; } = default!;
     [Inject] private NavigationManager Nav { get; set; } = default!;
     [Inject] private IJSRuntime JS { get; set; } = default!;

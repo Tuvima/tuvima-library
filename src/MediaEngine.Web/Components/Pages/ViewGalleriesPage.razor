@@ -2,6 +2,7 @@
 @using MediaEngine.Domain.PersonalMedia
 @using MediaEngine.Web.Services.Editing
 @inject GalleryEditorLauncherService GalleryEditorLauncher
+@inject DeviceContextService DeviceContext
 @inject ViewWorkspaceService Workspace
 @namespace MediaEngine.Web.Components.Pages
 
@@ -9,8 +10,11 @@
 <ViewSectionShell>
     <ViewContentPage Title="Galleries" Subtitle="Organize personal photos and videos without changing their source files.">
         <HeaderActions>
-            <AppButton ButtonStyle="AppButtonStyle.Outlined" OnClick='@(() => OpenEditorAsync("Smart"))'><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.AutoAwesome" /> Smart Gallery</AppButton>
-            <AppButton ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" OnClick='@(() => OpenEditorAsync("Manual"))'><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Add" /> New Gallery</AppButton>
+            @if (!DeviceContext.IsPhone)
+            {
+                <AppButton ButtonStyle="AppButtonStyle.Outlined" OnClick='@(() => OpenEditorAsync("Smart"))'><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.AutoAwesome" /> Smart Gallery</AppButton>
+                <AppButton ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" OnClick='@(() => OpenEditorAsync("Manual"))'><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Add" /> New Gallery</AppButton>
+            }
         </HeaderActions>
         <ChildContent>
         @if (_loading)

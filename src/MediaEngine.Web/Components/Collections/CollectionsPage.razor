@@ -12,6 +12,7 @@
 @inject UIOrchestratorService Orchestrator
 @inject DashboardSessionAccessor Session
 @inject CollectionEditorLauncherService CollectionEditorLauncher
+@inject DeviceContextService DeviceContext
 @inject IAppToastService Snackbar
 @inject NavigationManager Nav
 @inject ILogger<CollectionsPage> Logger
@@ -28,12 +29,15 @@
         <Actions>
             @if (CanManageCuratedCollections)
             {
-                <AppButton ButtonStyle="AppButtonStyle.Filled"
-                           Tone="AppUiTone.Primary"
-                           StartIcon="@AppMaterialIcons.Filled.Add"
-                           OnClick="OpenCollectionBuilder">
-                    New Collection
-                </AppButton>
+                @if (!DeviceContext.IsPhone)
+                {
+                    <AppButton ButtonStyle="AppButtonStyle.Filled"
+                               Tone="AppUiTone.Primary"
+                               StartIcon="@AppMaterialIcons.Filled.Add"
+                               OnClick="OpenCollectionBuilder">
+                        New Collection
+                    </AppButton>
+                }
             }
         </Actions>
     </LibrarySectionHeader>
