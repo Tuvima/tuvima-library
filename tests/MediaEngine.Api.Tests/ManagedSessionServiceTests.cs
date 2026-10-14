@@ -279,8 +279,12 @@ public sealed class ManagedSessionServiceTests
             await _accounts.CreateAccountAsync(peer,
                 new AccountProfileGrant
                 {
-                    AccountId = peer.Id, ProfileId = ownerGrant.ProfileId, IsDefault = true, IsEnabled = true,
-                    AuthorizationVersion = 1, GrantedAt = now,
+                    AccountId = peer.Id,
+                    ProfileId = ownerGrant.ProfileId,
+                    IsDefault = true,
+                    IsEnabled = true,
+                    AuthorizationVersion = 1,
+                    GrantedAt = now,
                 },
                 new HashSet<AccountFeatureId>(), new HashSet<Guid>());
             await _mutations.SetHouseholdAdminAsync(_setupActor, peer.Id, true);
