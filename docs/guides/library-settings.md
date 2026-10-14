@@ -72,6 +72,17 @@ Use **Settings > Libraries** to choose the single managed View root. Use **Setti
 
 Browser uploads work today. Saved source and device records do not mean phone backup or device sync is ready. See [View Personal Space](view-personal-space.md).
 
+## Set up Documents
+
+**Settings > Libraries > View** has four Documents sections.
+
+- **Who can see Documents** switches the Documents page on or off for each profile. It is on for everyone except child profiles, which start with it off.
+- **Documents** controls text recognition for scanned pages and photos of paper: on or off, **Low** effort for a small server, the languages to read with (English is included, others are an optional download), the reading queue, and **Read all documents again**. If it says **Text recognition is not installed**, install Tesseract (see [configuration](../reference/configuration.md#configocrjson)); everything else keeps working.
+- **Organising documents** manages the shared lists of tags, correspondents, document types and custom fields.
+- **Auto-filing rules** lists the rules, including the household's Shared Library rules a household administrator can make.
+
+How the reading and filing work is in [Documents in View](../explanation/documents-in-view.md).
+
 ## Follow work in Operations
 
 Open **Settings > Operations > Ingestion**, or select the header activity icon. The page updates on its own. It shows the current run, active and queued work, results, provider waits, and recent batches.

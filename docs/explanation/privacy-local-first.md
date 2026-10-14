@@ -35,6 +35,8 @@ Scanned pages and photos of paper are read by Tesseract, a program that runs on 
 
 Text recognition uses the network in exactly one case: when you choose an extra language under **Settings > Libraries > View > Documents** and press **Download**. That downloads the language file from GitHub. English is included with Tuvima Library and needs no download.
 
+The words of every document, whether read from the file or recognised from a scan, are used only for search on the Documents page. They never appear on Home, in the global search or in recommendations. The PDF viewer is bundled with the Dashboard and loads no outside files. Inbox suggestions and auto-filing rules run on your host without AI and send nothing anywhere, and the CSV export holds names and labels, never the words inside documents or your notes. See [Documents in View](documents-in-view.md).
+
 ## Understand Places map requests
 
 **View > Places** opens Tuvima Atlas. It first attempts OpenFreeMap's dark map style, which can load external map resources. If that attempt fails, the map falls back to locally served country data.

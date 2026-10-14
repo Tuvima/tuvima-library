@@ -466,6 +466,8 @@ Controls text recognition (OCR) for scanned PDF pages and photos of paper. Tesse
 
 English and orientation data are installed with the helper. Other languages are an explicit download from **Settings > Libraries > View > Documents** and are stored in `{DataRoot}/ocr/tessdata`, never in build output. Page images are written to `{DataRoot}/ocr/tmp` and removed as each file finishes.
 
+The helper is found in this order: `tesseract_binary_path` when set, then `tools/tesseract/` next to the Engine, then `PATH`. Windows installers bundle it, and the container image installs the `tesseract-ocr` and `tesseract-ocr-eng` packages. From a source checkout on Windows run `pwsh -File tools/Download-Tesseract.ps1` (needs 7-Zip); on Linux or macOS install Tesseract with your package manager so it is on `PATH`. Without it, **Settings > Libraries > View > Documents** says **Text recognition is not installed** and reading text-layer documents carries on.
+
 ---
 
 ## config/ui/

@@ -1,6 +1,6 @@
 ---
 title: "Use your Personal Space in View"
-description: "Add and browse personal media, organize Galleries, and understand Shared Library access and Places privacy."
+description: "Add and browse personal media and documents, organize Galleries, and understand Shared Library access and Places privacy."
 audience: user
 category: guide
 product_area: view
@@ -39,6 +39,17 @@ Photos groups items by date and offers search and filters. Open an item in the v
 Folders keeps each source's real folder tree. Breadcrumbs show where you are. Use include-descendants to search child folders too. Private folder pins give you shortcuts.
 
 You can favorite, hide, archive, trash, or restore your own items. Archive removes an item from the normal Photos view. Trash can be restored. Browsing and making thumbnails do not change original files.
+
+## Find and file documents
+
+**View > Documents** lists the PDFs, Office files, scans and photos of paper in your Personal Space. Tuvima Library reads their words on your computer, so searching finds what a document says. New documents wait in the **Inbox** with suggested dates, correspondents, types and tags. File them with one tap, or make **Auto-filing rules** so Tuvima Library files them for you.
+
+1. Open **View > Documents**. If the tab is missing, an administrator has not turned on Documents for your profile (child profiles start with it off).
+2. Choose **Inbox** to see what is waiting, or **All documents** to browse and search.
+3. Use the filters on the left for tags, correspondent, type, date and custom fields. **Save this view** keeps a filter set under a name. Saved views are private to you.
+4. Choose **Select** to add tags or set a correspondent, type or date on up to 500 documents at once, or to move them to the **Trash**. **Export list (CSV)** downloads the list you are looking at.
+
+A television can browse and open documents but not change them. A phone can search, read and file from the Inbox, but editing every detail of a document and editing rules need a computer or tablet. Read [Documents in View](../explanation/documents-in-view.md) for the whole picture, and [How documents are filed](../explanation/how-documents-are-filed.md) for the Inbox and rules.
 
 ## Make Galleries
 
@@ -80,7 +91,7 @@ Places opens **Tuvima Atlas** from real GPS and place facts. Select a place to b
 
 **Places can make external map requests.** It first tries OpenFreeMap's dark style. That style can load outside map resources. If the request fails, Atlas uses a local country map. Opening Places is not always an offline or network-free action.
 
-Face recognition, object/scene detection, OCR, captions, semantic search, and AI memories are planned work. Stored annotations and browse pages do not prove that those AI workers run today.
+Face recognition, object/scene detection, captions, semantic search, and AI memories are planned work. Reading the words in scanned documents and photos of paper is already live (see Documents above). Stored annotations and browse pages do not prove that those AI workers run today.
 
 <details>
 <summary>Technical details</summary>
@@ -98,6 +109,7 @@ The map tries `https://tiles.openfreemap.org/styles/dark`. On failure it falls b
 ## Next steps
 
 - [Understand privacy and network access](../explanation/privacy-local-first.md)
+- [See how Documents work](../explanation/documents-in-view.md)
 - [Find your Galleries in For Me](for-me.md)
 - [Configure library and View storage](library-settings.md)
 - [Check current availability](../product/status.md)

@@ -36,6 +36,10 @@ Before starting, read `config/core.json` and `config/libraries.json`. The commit
 
 Keep originals read-only when evaluating. Put provider keys in ignored `config/secrets/` files. Local AI weights and native runtimes use separate storage; see [shared AI storage](../guides/shared-ai-storage.md).
 
+## Optional: scanned documents
+
+Scanned PDFs and photos of paper are read with Tesseract. On Windows run `pwsh -File tools/Download-Tesseract.ps1` once (it needs 7-Zip and places Tesseract in `tools/tesseract/`). On Linux or macOS install Tesseract with your package manager so it is on `PATH`. Without it, text recognition is switched off and the rest of Tuvima Library works. See [configuration](../reference/configuration.md#configocrjson).
+
 ## Start both apps
 
 1. Stop any existing Tuvima Engine or Dashboard development processes.
