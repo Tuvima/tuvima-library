@@ -7,6 +7,7 @@ using MediaEngine.Web.Models.ViewDTOs;
 using MediaEngine.Web.Services.Integration;
 using MediaEngine.Web.Services.Playback;
 using MediaEngine.Web.Tests.Support;
+using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -21,6 +22,7 @@ public sealed class PlaybackSettingsPageTests : AsyncBunitContext
 
     private readonly CountingAccessor _accessor = new(UserPlaybackSettingsDto.CreateDefaults(ActiveId));
     private readonly List<(Guid Profile, string Call)> _apiCalls = [];
+    private readonly List<UserPlaybackSettingsDto> _saved = [];
     private UserPlaybackSettingsDto? _otherSettings = UserPlaybackSettingsDto.CreateDefaults(OtherId);
 
     public PlaybackSettingsPageTests()
@@ -45,6 +47,7 @@ public sealed class PlaybackSettingsPageTests : AsyncBunitContext
             {
                 var id = (Guid)args![0]!;
                 _apiCalls.Add((id, "put"));
+                _saved.Add((UserPlaybackSettingsDto)args[1]!);
                 return Task.FromResult<UserPlaybackSettingsDto?>((UserPlaybackSettingsDto)args[1]!);
             });
         });
@@ -56,7 +59,7 @@ public sealed class PlaybackSettingsPageTests : AsyncBunitContext
     }
 
     [Fact]
-    public void WatchingMode_ShowsAutoplayResumeAndSkipOnly()
+    public void WatchingMode_ShowsAutoplayResumeSkipAndSubtitlesOnly()
     {
         var cut = Render<PlaybackSettingsPage>();
 
@@ -66,7 +69,7 @@ public sealed class PlaybackSettingsPageTests : AsyncBunitContext
             Assert.Contains("Resume where you left off", cut.Markup);
             Assert.Contains("Skip back", cut.Markup);
             Assert.Contains("Skip forward", cut.Markup);
-            Assert.Equal(3, cut.FindAll(".playback-settings-card").Count);
+            Assert.Equal(5, cut.FindAll(".playback-settings-card").Count);
             Assert.DoesNotContain("Default playback speed", cut.Markup);
             Assert.DoesNotContain("Audiobook default speed", cut.Markup);
             Assert.DoesNotContain("Adjust text while reading", cut.Markup);
@@ -128,18 +131,114 @@ public sealed class PlaybackSettingsPageTests : AsyncBunitContext
     }
 
     [Fact]
-    public void ReadingMode_KeepsItsOwnCardOnly()
+    public void SubtitlesGroup_IsTheSubtitlesAnchorWithThreeSelectsAndNoPositionOrStyle()
     {
-        var reading = Render<PlaybackSettingsPage>(parameters => parameters.Add(page => page.Mode, PlaybackSettingsMode.Reading));
-        reading.WaitForAssertion(() =>
+        var cut = Render<PlaybackSettingsPage>();
+
+        cut.WaitForAssertion(() =>
         {
-            Assert.Contains("Adjust text while reading", reading.Markup);
-            Assert.DoesNotContain("Autoplay next episode", reading.Markup);
+            var group = cut.Find("#subtitles");
+            Assert.Contains("Subtitles &amp; audio", group.InnerHtml);
+            Assert.Contains("Subtitle appearance", group.InnerHtml);
+            Assert.Equal(new[] { "Audio language", "Subtitle language", "Show subtitles" },
+                cut.FindComponents<AppSelect>().Select(select => (string)select.Instance.AdditionalAttributes!["aria-label"]).ToArray());
+            Assert.Contains("Auto (only when audio is not my language)", group.InnerHtml);
+            Assert.Contains("Text size", group.InnerHtml);
+            Assert.Contains("Background", group.InnerHtml);
+            Assert.DoesNotContain("Position", group.InnerHtml);
+            Assert.DoesNotContain("Style", group.InnerHtml);
         });
     }
 
+    [Fact]
+    public void SubtitlePreview_FollowsTextSizeAndBackgroundAndSavesThroughTheAccessorPath()
+    {
+        var cut = Render<PlaybackSettingsPage>();
+        cut.WaitForAssertion(() => Assert.Equal("Medium", cut.Find(".subtitle-preview").GetAttribute("data-subtitle-size")));
+        Assert.Equal("true", cut.Find(".subtitle-preview").GetAttribute("data-subtitle-background"));
+
+        cut.FindAll(".app-segmented-control button").Single(button => button.TextContent.Trim() == "Large").Click();
+        cut.WaitForAssertion(() =>
+        {
+            Assert.Equal("Large", cut.Find(".subtitle-preview").GetAttribute("data-subtitle-size"));
+            Assert.Equal(PlaybackPreferenceValues.Large, _accessor.Last!.Subtitles.SubtitleSize);
+        });
+
+        cut.Find("input[aria-label='Background']").Change(false);
+        cut.WaitForAssertion(() =>
+        {
+            Assert.Equal("false", cut.Find(".subtitle-preview").GetAttribute("data-subtitle-background"));
+            Assert.False(_accessor.Last!.Subtitles.SubtitleBackground);
+            // The size chosen a moment ago is written back unchanged.
+            Assert.Equal(PlaybackPreferenceValues.Large, _accessor.Last.Subtitles.SubtitleSize);
+        });
+    }
+
+    [Fact]
+    public async Task LanguageAndShowSubtitlesSelects_SaveTheDisplayNameAndTheEngineValues()
+    {
+        var cut = Render<PlaybackSettingsPage>();
+        cut.WaitForAssertion(() => Assert.Equal(3, cut.FindComponents<AppSelect>().Count));
+
+        await cut.InvokeAsync(() => SelectNamed(cut, "Audio language").Instance.ValueChanged.InvokeAsync("Japanese"));
+        await cut.InvokeAsync(() => SelectNamed(cut, "Subtitle language").Instance.ValueChanged.InvokeAsync("Spanish"));
+        await cut.InvokeAsync(() => SelectNamed(cut, "Show subtitles").Instance.ValueChanged.InvokeAsync(PlaybackPreferenceValues.Never));
+
+        cut.WaitForAssertion(() =>
+        {
+            var last = _accessor.Last!.Subtitles;
+            Assert.Equal("Japanese", last.AudioLanguage);
+            Assert.Equal("Spanish", last.DefaultSubtitleLanguage);
+            Assert.Equal(PlaybackPreferenceValues.Never, last.ForcedSubtitlesMode);
+        });
+    }
+
+    [Fact]
+    public async Task OtherProfile_SavesSubtitleChoicesThroughTheProfileIdClientCall()
+    {
+        var cut = Render<PlaybackSettingsPage>(parameters => parameters.Add(page => page.ProfileId, OtherId));
+        cut.WaitForAssertion(() => Assert.Contains("How Mira watches.", cut.Markup));
+
+        cut.FindAll(".app-segmented-control button").Single(button => button.TextContent.Trim() == "Small").Click();
+        await cut.InvokeAsync(() => SelectNamed(cut, "Show subtitles").Instance.ValueChanged.InvokeAsync(PlaybackPreferenceValues.Always));
+
+        cut.WaitForAssertion(() =>
+        {
+            Assert.Contains((OtherId, "put"), _apiCalls);
+            Assert.DoesNotContain(_apiCalls, call => call.Profile == ActiveId);
+            Assert.Equal(PlaybackPreferenceValues.Small, _saved.Last().Subtitles.SubtitleSize);
+            Assert.Equal(PlaybackPreferenceValues.Always, _saved.Last().Subtitles.ForcedSubtitlesMode);
+            Assert.Equal(0, _accessor.GetCalls);
+            Assert.Equal(0, _accessor.UpdateCalls);
+        });
+    }
+
+    [Fact]
+    public void SavedLanguageOutsideTheCommonList_IsStillOffered()
+    {
+        _accessor.Settings.Subtitles.DefaultSubtitleLanguage = "Klingon";
+
+        var cut = Render<PlaybackSettingsPage>();
+
+        cut.WaitForAssertion(() => Assert.Contains("Klingon", SelectNamed(cut, "Subtitle language").Markup));
+    }
+
+    [Fact]
+    public void SubtitlesFragment_ScrollsTheGroupIntoViewOnceItHasLoaded()
+    {
+        Services.GetRequiredService<NavigationManager>().NavigateTo("/settings/playback#subtitles");
+
+        Render<PlaybackSettingsPage>();
+
+        JSInterop.VerifyInvoke("tuvimaEditorScrollTo");
+    }
+
+    private static IRenderedComponent<AppSelect> SelectNamed(IRenderedComponent<PlaybackSettingsPage> cut, string label) =>
+        cut.FindComponents<AppSelect>().Single(select => (string)select.Instance.AdditionalAttributes!["aria-label"] == label);
+
     private sealed class CountingAccessor(UserPlaybackSettingsDto settings) : IUserPlaybackPreferencesAccessor
     {
+        public UserPlaybackSettingsDto Settings => settings;
         public int GetCalls { get; private set; }
         public int UpdateCalls { get; private set; }
         public UserPlaybackSettingsDto? Last { get; private set; }

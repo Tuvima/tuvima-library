@@ -3755,6 +3755,14 @@ button.app-menu-item {
         justify-content: flex-end;
     }
 
+    /* Settings breadcrumb links: a short label such as "Profiles" is still a full 44 x 44 tap target. The extra class beats
+       the isolated rule's min-width: 0. */
+    :root:root .app-breadcrumbs.settings-breadcrumbs a {
+        min-width: var(--tl-tap-target-min);
+        min-height: var(--tl-tap-target-min);
+        justify-content: center;
+    }
+
     /* Search overlay: the text field and each section's "See all" link. */
     :root:root .universal-results__section header a {
         display: inline-flex;
@@ -5179,6 +5187,32 @@ input[type="reset"],
 .reading-sample[data-font="serif"] { font-family: var(--font-reader-serif); }
 .reading-sample[data-font="sans"] { font-family: var(--font-ui); }
 .reading-sample__text { max-width: 60ch; margin: 0; }
+
+/* Settings > Playback > Subtitles & audio. The group is the #subtitles anchor; the cards inside keep the playback-settings-card rules. */
+.playback-subtitles-group { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; scroll-margin-top: var(--tl-space-5, 20px); }
+@container playback-settings (max-width: 880px) {
+    .playback-subtitles-group { grid-template-columns: 1fr; }
+}
+.playback-preference-row__control.app-segmented-control { display: flex; }
+.playback-preference-row__control .app-segmented-control__item { flex: 1 1 0; justify-content: center; min-height: var(--tl-tap-target-min, 44px); padding: 0 8px; }
+@container playback-settings (min-width: 521px) {
+    :root .settings-playback-page .playback-preference-row .playback-preference-row__select--wide { width: 260px; min-width: 260px; }
+}
+/* The live preview: a dark still frame with one sample line, using the same size and background choices as the player. */
+.subtitle-preview { --subtitle-preview-size: 18px; --subtitle-preview-bg: rgb(0 0 0 / 60%); --subtitle-preview-shadow: none; display: flex; align-items: flex-end; justify-content: center; min-height: 140px; margin-bottom: 14px; padding: 16px 20px; border: 1px solid var(--tl-border-subtle); border-radius: var(--tl-radius-lg); background: radial-gradient(120% 120% at 30% 20%, color-mix(in srgb, var(--tl-reader-dark-fg) 18%, var(--tl-reader-dark-bg)), var(--tl-reader-dark-bg)); }
+.subtitle-preview[data-subtitle-size="Small"] { --subtitle-preview-size: 14px; }
+.subtitle-preview[data-subtitle-size="Large"] { --subtitle-preview-size: 23px; }
+.subtitle-preview[data-subtitle-background="false"] { --subtitle-preview-bg: transparent; --subtitle-preview-shadow: 0 1px 3px black, 0 0 6px black; }
+.subtitle-preview__line { margin: 0; text-align: center; }
+.subtitle-preview__text { padding: 0.1em 0.4em; background: var(--subtitle-preview-bg); color: white; font-size: var(--subtitle-preview-size); line-height: 1.4; text-shadow: var(--subtitle-preview-shadow); box-decoration-break: clone; -webkit-box-decoration-break: clone; }
+
+/* Player subtitles. ::cue cannot be scoped, so the cue rules live here. VideoPlaybackHost sets data-subtitle-size and
+   data-subtitle-background from the profile; they become --tl-subtitle-size and --tl-subtitle-bg, which the cues read. */
+.video-playback-host { --tl-subtitle-size: max(14px, 2.8vh); --tl-subtitle-bg: rgb(0 0 0 / 60%); --tl-subtitle-shadow: none; }
+.video-playback-host[data-subtitle-size="Small"] { --tl-subtitle-size: max(14px, 2.2vh); }
+.video-playback-host[data-subtitle-size="Large"] { --tl-subtitle-size: max(14px, 3.6vh); }
+.video-playback-host[data-subtitle-background="false"] { --tl-subtitle-bg: transparent; --tl-subtitle-shadow: 0 1px 3px black, 0 0 6px black; }
+.video-playback-host__media::cue { color: white; background: var(--tl-subtitle-bg); font-size: var(--tl-subtitle-size); text-shadow: var(--tl-subtitle-shadow); }
 
 /* Library folder table (Settings > Libraries): classes on AppNativeButton / AppOverflowMenu live here because isolated CSS does not reach child roots. */
 .folder-table__chip { min-height: 44px; padding: 0 14px; color: var(--tl-text-secondary); border: 1px solid var(--tl-border-subtle); border-radius: 999px; background: transparent; font: inherit; font-size: 0.85rem; font-weight: 600; cursor: pointer; }

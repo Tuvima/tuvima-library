@@ -1856,8 +1856,15 @@ window.listenPlayback = (function () {
         if (!selection.explicit) {
             const preferred = Array.from(element.querySelectorAll('track')).find(node => node.dataset.playbackPreferred === 'true');
             const nativeDefault = Array.from(element.querySelectorAll('track')).find(node => node.default);
-            selection.key = preferred?.dataset.playbackTrackKey || choices.find(choice => choice.selected)?.key
-                || nativeDefault?.dataset.playbackTrackKey || null;
+            // Order: the title's own preferred subtitle, then the profile default ("off" or a track key set by the host), then
+            // whatever the browser or file marks as default. When the host changes its mind (for example after the audio
+            // track switched), the track the old default turned on no longer counts as the viewer's choice.
+            const profileDefault = element.dataset.playbackCaptionDefault || '';
+            const profileChanged = selection.profileDefault !== undefined && selection.profileDefault !== profileDefault;
+            selection.profileDefault = profileDefault;
+            const profileKey = profileDefault && profileDefault !== 'off' && choices.some(choice => choice.key === profileDefault) ? profileDefault : null;
+            const fallbackKey = (profileChanged ? null : choices.find(choice => choice.selected)?.key) || nativeDefault?.dataset.playbackTrackKey || null;
+            selection.key = preferred?.dataset.playbackTrackKey || (profileDefault === 'off' ? null : profileKey || fallbackKey);
         }
         const selected = choices.filter(choice => choice.selected);
         const showingNative = Array.from(element.textTracks || []).filter(track => (track.kind === 'captions' || track.kind === 'subtitles') && track.mode === 'showing');
@@ -2927,7 +2934,7 @@ window.listenPlayback = (function () {
                 observer.hostObserver.observe(host, { attributes: true, attributeFilter: ['class'] });
                 observer.captionNodesObserver = new MutationObserver(observer.onCaptionTracksChanged);
                 observer.captionNodesObserver.observe(element, { childList: true, subtree: true, attributes: true,
-                    attributeFilter: ['data-playback-preferred', 'default'] });
+                    attributeFilter: ['data-playback-preferred', 'default', 'data-playback-caption-default'] });
             }
             setAudioObserver(element, observer);
             observer.onCaptionTracksChanged();
