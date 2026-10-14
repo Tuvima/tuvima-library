@@ -52,7 +52,7 @@ public sealed class SidecarMover
         ArgumentNullException.ThrowIfNull(mayMove);
 
         var results = new List<SidecarMoveResult>();
-        RestoreInterruptedRenames(Path.GetDirectoryName(oldMediaPath)!);
+        RestoreInterruptedRenames(Path.GetDirectoryName(oldMediaPath)!, mayMove, results);
         var candidates = SidecarFiles.Find(oldMediaPath, MediaExtensions).ToList();
         if (includeArtwork)
         {
@@ -113,9 +113,11 @@ public sealed class SidecarMover
     /// A letter-case rename that stopped between its two steps leaves the sidecar under a hidden temporary name, so it has no
     /// visible name at all and would never be found again. Before looking for sidecars, each such leftover in the folder is put
     /// back under its own name (rolled back); the move that follows then renames it normally. A media file's own leftover is
-    /// not touched here: the organising job's ledger finishes that one. A name that is already taken is never overwritten.
+    /// not touched here: the organising job's ledger finishes that one. A name that is already taken is never overwritten, and
+    /// the folder's policy decides whether the restore may happen at all. Every restore, refusal or failure is added to
+    /// <paramref name="results"/>, so History and the job log show it.
     /// </summary>
-    private void RestoreInterruptedRenames(string folder)
+    private void RestoreInterruptedRenames(string folder, Func<string, string, bool> mayMove, List<SidecarMoveResult> results)
     {
         string[] leftovers;
         try
@@ -147,14 +149,22 @@ public sealed class SidecarMover
                 continue;
             }
 
+            if (!mayMove(leftover, originalPath))
+            {
+                results.Add(new SidecarMoveResult(leftover, leftover, FolderOrganiseOutcomes.NotMoved, "This folder's settings do not allow putting it back."));
+                continue;
+            }
+
             try
             {
                 _mover.Move(leftover, originalPath);
                 _logger.LogInformation("Restored {Original} from an interrupted letter-case rename", originalPath);
+                results.Add(new SidecarMoveResult(leftover, originalPath, FolderOrganiseOutcomes.SidecarMoved, "Put back under its own name after an interrupted letter-case rename."));
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
                 _logger.LogWarning(ex, "Could not restore {Original} from {Leftover} yet", originalPath, leftover);
+                results.Add(new SidecarMoveResult(leftover, leftover, FolderOrganiseOutcomes.Failed, ex.Message));
             }
         }
     }

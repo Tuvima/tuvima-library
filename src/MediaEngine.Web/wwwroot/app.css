@@ -5240,7 +5240,7 @@ input[type="reset"],
 .folder-table__tag.is-managed { color: var(--tl-accent-primary); border-color: var(--tl-accent-primary-border); background: var(--tl-accent-primary-soft); }
 .folder-table__tag.is-converting { color: var(--tl-status-warning); border-color: var(--tl-status-warning-border); background: var(--tl-status-warning-soft); }
 /* Show details only where the Files value is folded away (the card layout), which follows the table's own width. */
-@container folder-table (max-width: 860px) { .folder-table__expand { display: inline-flex; align-items: center; justify-content: center; } }
+@container folder-table (max-width: 840px) { .folder-table__expand { display: inline-flex; align-items: center; justify-content: center; } }
 /* Phones read folders and never change them: the Handling button becomes plain text and the row menu goes. */
 @media (max-width: 600px) {
     .folder-table__handling .folder-table__chip, .folder-table__menu { display: none; }

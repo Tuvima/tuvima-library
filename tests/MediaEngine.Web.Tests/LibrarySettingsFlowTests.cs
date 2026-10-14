@@ -841,6 +841,18 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
             Text(cut.Find(".library-folders__phone-note")));
     }
 
+    // With no folder yet the setup step offers only Skip for now, so its note must not promise Continue.
+    [Fact]
+    public void SetupPhoneNoteOffersSkipWhileThereAreNoFolders()
+    {
+        _configuration.Libraries.ForEach(library => library.Sources.Clear());
+        var cut = Render<LibraryFoldersPanel>(parameters => parameters.Add(x => x.Embedded, true).Add(x => x.SetupSession, "session"));
+        cut.WaitForElement(".library-folders__type");
+        Assert.Equal(
+            "Add or change folders on a computer or tablet. You can skip this step and set up folders later.",
+            Text(cut.Find(".library-folders__phone-note")));
+    }
+
     // The Settings screen uses the same note without the setup-only sentence.
     [Fact]
     public void SettingsPanelHasTheShortPhoneNote()
@@ -1034,8 +1046,8 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
         Assert.Equal(["LibraryReorganizationEndpoints.cs", "LibraryReorganizationService.cs", "TuvimaStorageServiceCollectionExtensions.cs"], users);
     }
 
-    // A11: the table collapses to stacked cards under 860px of its own width and adds no horizontal scroll of its own.
-    // The panel and the folder picker use the same 860px, and Show details appears exactly where the Files value is folded away.
+    // A11: the table collapses to stacked cards under 840px of its own width and adds no horizontal scroll of its own.
+    // The panel and the folder picker use the same 840px, and Show details appears exactly where the Files value is folded away.
     [Fact]
     public void FolderTableCollapsesToCardsAtTheOneCardBreakpoint()
     {
@@ -1044,14 +1056,14 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
         var panel = File.ReadAllText(Path.Combine(src, "Components", "Settings", "LibraryFoldersPanel.razor.css"));
         var picker = File.ReadAllText(Path.Combine(src, "Components", "Shared", "ServerFolderPicker.razor.css"));
         var app = File.ReadAllText(Path.Combine(src, "wwwroot", "app.css"));
-        Assert.Contains("@container folder-table (max-width: 860px)", table);
+        Assert.Contains("@container folder-table (max-width: 840px)", table);
         Assert.DoesNotContain("@media (max-width: 840px)", table);
         Assert.Contains("grid-template-areas", table);
         Assert.DoesNotContain("overflow-x", table);
-        Assert.Contains("@media (max-width: 860px)", panel);
-        Assert.Contains("@media (max-width: 860px)", picker);
+        Assert.Contains("@media (max-width: 840px)", panel);
+        Assert.Contains("@media (max-width: 840px)", picker);
         Assert.DoesNotContain("max-width: 800px", panel + picker);
-        Assert.Contains("@container folder-table (max-width: 860px) { .folder-table__expand {", app);
+        Assert.Contains("@container folder-table (max-width: 840px) { .folder-table__expand {", app);
         Assert.DoesNotContain("@media (max-width: 840px) { .folder-table__expand", app);
     }
 

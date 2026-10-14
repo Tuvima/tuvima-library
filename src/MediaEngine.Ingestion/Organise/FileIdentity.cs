@@ -13,8 +13,10 @@ public enum FileIdentityResult
     Same,
 
     /// <summary>
-    /// Could not be told: the drive does not give files an identity Tuvima can read (for example a network share mounted
-    /// without server inode numbers and without byte-range locks), or a file could not be opened to compare.
+    /// Could not be told. Either a file could not be opened to compare (another program holds it open without allowing
+    /// sharing, or Tuvima has no permission), or the drive gives no file identity to read (on Windows) or does not support the
+    /// file locks the comparison relies on (on Linux and macOS, for example a CIFS share mounted with <c>noserverino,nobrl</c>
+    /// and some NFS setups).
     /// </summary>
     Unproven,
 }
@@ -72,7 +74,8 @@ public static class FileIdentity
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            // A file that cannot be opened to be compared is not proven different.
+            // A file that cannot be opened to be compared (held open without sharing, or no permission) is not proven different,
+            // and not proven the same either.
             _ = ex;
             return FileIdentityResult.Unproven;
         }

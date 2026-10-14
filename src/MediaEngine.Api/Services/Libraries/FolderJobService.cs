@@ -241,9 +241,10 @@ public sealed class FolderJobService
                 throw new FolderJobException($"The folder settings could not be saved: {ex.Message}");
             }
 
+            MediaOperation operation;
             try
             {
-                var operation = await _tracker.EnsureQueuedAsync(new MediaOperation
+                operation = await _tracker.EnsureQueuedAsync(new MediaOperation
                 {
                     Id = operationId,
                     OperationType = MergeFolder,
@@ -257,7 +258,6 @@ public sealed class FolderJobService
                     ItemsTotal = count.TotalFiles,
                     IdempotencyKey = $"{MergeFolder}:{sourceId:D}:{operationId:N}",
                 }, ct).ConfigureAwait(false);
-                return await ToStatusAsync(operation, libraries, ct).ConfigureAwait(false);
             }
             catch
             {
@@ -265,6 +265,9 @@ public sealed class FolderJobService
                 RollBackFailedStart(sourceId, "merging", ClearMerge);
                 throw;
             }
+
+            // The job is queued. Reading its status back may fail (or be cancelled), but that never undoes the queued job.
+            return await ToStatusAsync(operation, libraries, ct).ConfigureAwait(false);
         }
         finally
         {
@@ -335,9 +338,10 @@ public sealed class FolderJobService
                 throw new FolderJobException($"The folder settings could not be saved: {ex.Message}");
             }
 
+            MediaOperation operation;
             try
             {
-                var operation = await _tracker.EnsureQueuedAsync(new MediaOperation
+                operation = await _tracker.EnsureQueuedAsync(new MediaOperation
                 {
                     Id = operationId,
                     OperationType = OrganiseFolder,
@@ -351,7 +355,6 @@ public sealed class FolderJobService
                     ItemsTotal = count?.Total ?? 0,
                     IdempotencyKey = $"{OrganiseFolder}:{sourceId:D}:{operationId:N}",
                 }, ct).ConfigureAwait(false);
-                return await ToStatusAsync(operation, libraries, ct).ConfigureAwait(false);
             }
             catch
             {
@@ -368,6 +371,9 @@ public sealed class FolderJobService
                 });
                 throw;
             }
+
+            // The job is queued. Reading its status back may fail (or be cancelled), but that never undoes the queued job.
+            return await ToStatusAsync(operation, libraries, ct).ConfigureAwait(false);
         }
         finally
         {

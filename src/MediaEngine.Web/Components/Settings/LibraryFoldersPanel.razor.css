@@ -145,7 +145,7 @@
 }
 
 /* The one card breakpoint (shared with the folder picker and the folder table): the type list stacks above the folders. */
-@media (max-width: 860px) {
+@media (max-width: 840px) {
     .library-folders {
         grid-template-columns: 1fr;
         min-height: 0;

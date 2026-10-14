@@ -4,7 +4,7 @@
 @using MediaEngine.Web.Models.ViewDTOs
 
 @* One media type's folders as a table: folder, how Tuvima handles it, where new media goes, and what happens to its files.
-   Under 860px of its own width each row becomes a stacked card. The host owns every save; this component only raises what was
+   Under 840px of its own width each row becomes a stacked card. The host owns every save; this component only raises what was
    tapped. One polite live region (below) announces what is organising or merging, instead of one per row. *@
 <span class="sr-only" role="status">@LiveStatusText</span>
 <div class="folder-table" role="table" aria-label="@($"{TypeLabel} folders")">
@@ -243,8 +243,16 @@
             return string.IsNullOrWhiteSpace(job.Message) ? string.Empty : $"{name}: {job.Message}";
         }
 
-        if (IsConverting(source)) return $"Organising {name}";
-        if (IsMerging(source)) return $"Merging {name}";
+        if (IsConverting(source))
+        {
+            return $"Organising {name}";
+        }
+
+        if (IsMerging(source))
+        {
+            return $"Merging {name}";
+        }
+
         return IsMerged(source) ? $"{name}: {MergedText(source)}" : string.Empty;
     }
 

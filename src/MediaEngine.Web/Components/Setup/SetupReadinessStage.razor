@@ -2,7 +2,7 @@
 @using MediaEngine.Contracts.Setup
 
 <div class="setup-stage-content">
-    <div class="setup-stage__heading"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.TaskAlt" /><div><h2 id="setup-stage-title">@(Readiness?.CanComplete == true ? "You're all set" : "Almost there…")</h2><p>@(Readiness?.CanComplete == true ? "Tuvima is ready to start finding your media." : "A few things need attention before you open your library.")</p></div></div>
+    <div class="setup-stage__heading"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.TaskAlt" /><div><h2 id="setup-stage-title">@(Readiness?.CanComplete == true ? "You're all set" : "Almost there…")</h2><p>@Subtitle</p></div></div>
     @if (Readiness is null || Busy && !Readiness.CanComplete)
     {
         <div class="setup-preparing" role="status"><AppSpinner Indeterminate="true" Color="AppColor.Primary" /><span>Checking your account, libraries and providers…</span></div>
@@ -44,6 +44,13 @@
     [Parameter] public EventCallback ReturnToCurrentStep { get; set; }
     // The server check runs silently after the server is named, so it has no row unless it is blocked (then the person is told why
     // they cannot open the library yet). Names match the step list.
+    // Neutral until the check has an answer, so the spinner never claims something needs attention.
+    private string Subtitle => Readiness is null
+        ? "One moment while Tuvima checks your setup."
+        : Readiness.CanComplete
+            ? "Tuvima is ready to start finding your media."
+            : "A few things need attention before you open your library.";
+
     private static bool ShowRow(SetupCapabilityDto item) => item.Key != "readiness" && (item.Key != "preflight" || item.Status == "blocked");
     private static string CapabilityLabel(string key) => key switch { "preflight" => "Server check", "administrator" => "Your account", "media-locations" => "Libraries", "providers" => "Enhance your library", _ => key.Replace('-', ' ') };
     private static string CapabilityIcon(string key) => key switch { "preflight" => AppMaterialIcons.Outlined.Dns, "administrator" => AppMaterialIcons.Outlined.PersonOutline, "media-locations" => AppMaterialIcons.Outlined.FolderOpen, "providers" => AppMaterialIcons.Outlined.Storage, _ => AppMaterialIcons.Outlined.CheckCircleOutline };

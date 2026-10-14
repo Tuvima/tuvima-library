@@ -153,11 +153,36 @@ public sealed class CaseOnlyRenameSafetyTests : IDisposable
         mover.AfterMove = null;
         var results = sidecars.Move(oldMedia, newMedia, (_, _) => true);
 
-        var moved = Assert.Single(results);
-        Assert.Equal(FolderOrganiseOutcomes.SidecarMoved, moved.Outcome);
+        // Two results reach the job log: the leftover put back under its own name, then the rename itself.
+        Assert.Equal(2, results.Count);
+        Assert.Equal(stranded, results[0].From);
+        Assert.Equal(FolderOrganiseOutcomes.SidecarMoved, results[0].Outcome);
+        Assert.Contains("interrupted", results[0].Detail, StringComparison.Ordinal);
+        Assert.Equal(FolderOrganiseOutcomes.SidecarMoved, results[1].Outcome);
         var survivor = Assert.Single(Directory.EnumerateFiles(_scratch, "*.srt*"));
         Assert.Equal("Dune.en.srt", Path.GetFileName(survivor));
         Assert.Equal("subtitles", File.ReadAllText(survivor));
+    }
+
+    [Fact]
+    public void A_leftover_temporary_sidecar_is_not_restored_in_a_folder_whose_policy_forbids_the_move()
+    {
+        var mover = new ScriptedMover { SameFile = (first, second) => string.Equals(first, second, StringComparison.OrdinalIgnoreCase) };
+        var sidecars = new SidecarMover(mover, NullLogger<SidecarMover>.Instance);
+        var oldMedia = Path.Combine(_scratch, "dune.mkv");
+        var newMedia = Path.Combine(_scratch, "Dune.mkv");
+        File.WriteAllText(oldMedia, "media");
+        var leftover = Path.Combine(_scratch, $".dune.en.srt{CaseSafeRename.TemporarySuffix}");
+        File.WriteAllText(leftover, "subtitles");
+
+        var results = sidecars.Move(oldMedia, newMedia, (_, _) => false);
+
+        // A read-only folder is never renamed in, and the refusal is reported rather than silent.
+        Assert.Empty(mover.Moves);
+        Assert.True(File.Exists(leftover));
+        var refused = Assert.Single(results);
+        Assert.Equal(FolderOrganiseOutcomes.NotMoved, refused.Outcome);
+        Assert.Equal(leftover, refused.From);
     }
 
     [Fact]

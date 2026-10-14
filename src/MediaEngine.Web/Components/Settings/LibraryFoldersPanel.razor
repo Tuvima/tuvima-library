@@ -29,7 +29,7 @@
     else
     {
         @* Shown on phones only (see the stylesheet): folders are read-only there, so every control that adds, converts or merges is hidden. *@
-        <p class="library-folders__phone-note">@(Embedded ? "Add or change folders on a computer or tablet. You can continue and set them up later." : "Add or change folders on a computer or tablet.")</p>
+        <p class="library-folders__phone-note">@PhoneNote</p>
         <nav class="library-folders__types" aria-label="Library types">
             @foreach (var type in LibraryTypes)
             {
@@ -299,6 +299,15 @@
     private ImportFolderStatusDto ImportStatus => _configuration?.ImportFolderStatus ?? new ImportFolderStatusDto();
 
     private LibraryTypeOption Selected => _selected;
+
+    // The setup step offers Continue once a folder exists and only Skip for now before that, so the note says the true one.
+    private bool AnyFolders => _configuration?.Libraries.Any(library => library.Sources.Count > 0) == true;
+
+    private string PhoneNote => !Embedded
+        ? "Add or change folders on a computer or tablet."
+        : AnyFolders
+            ? "Add or change folders on a computer or tablet. You can continue and set them up later."
+            : "Add or change folders on a computer or tablet. You can skip this step and set up folders later.";
     private LibraryFolderDto? SelectedLibrary => LibraryFor(_selected);
 
     protected override async Task OnInitializedAsync()

@@ -150,7 +150,6 @@ src/MediaEngine.Web/Components/Settings/LibrariesTab.razor.css:1000px
 src/MediaEngine.Web/Components/Settings/LibrariesTab.razor.css:1499px
 src/MediaEngine.Web/Components/Settings/LibrariesTab.razor.css:1500px
 src/MediaEngine.Web/Components/Settings/LibrariesTab.razor.css:700px
-src/MediaEngine.Web/Components/Settings/LibraryFoldersPanel.razor.css:860px
 src/MediaEngine.Web/Components/Settings/LocalAiSettingsTab.razor.css:1100px
 src/MediaEngine.Web/Components/Settings/LocalAiSettingsTab.razor.css:700px
 src/MediaEngine.Web/Components/Settings/ManagedAccessApplications.razor.css:1050px
@@ -194,7 +193,6 @@ src/MediaEngine.Web/Components/Shared/PlaybackVideoChrome.razor.css:720px
 src/MediaEngine.Web/Components/Shared/Providers/ProviderOnboardingDialog.razor.css:620px
 src/MediaEngine.Web/Components/Shared/ServerFolderPicker.razor.css:1600px
 src/MediaEngine.Web/Components/Shared/ServerFolderPicker.razor.css:520px
-src/MediaEngine.Web/Components/Shared/ServerFolderPicker.razor.css:860px
 src/MediaEngine.Web/Components/Shared/SettingsSubsectionNav.razor.css:720px
 src/MediaEngine.Web/Components/Shared/Shell/AppPageHeader.razor.css:700px
 src/MediaEngine.Web/Components/Shared/Shell/SidebarPageHeader.razor.css:980px

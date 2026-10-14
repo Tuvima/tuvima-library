@@ -78,7 +78,7 @@
 }
 
 /* The one card breakpoint: the table sits beside the list of media types, so it can be narrow on a wide screen. Cards follow the table's own width. */
-@container folder-table (max-width: 860px) {
+@container folder-table (max-width: 840px) {
     .folder-table__head {
         display: none;
     }

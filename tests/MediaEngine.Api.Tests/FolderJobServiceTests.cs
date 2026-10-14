@@ -718,6 +718,37 @@ public sealed class FolderJobServiceTests : IDisposable
         Assert.Contains(logger.Entries, item => item.Level == LogLevel.Error);
     }
 
+    [Fact]
+    public async Task A_conversion_that_was_queued_stays_queued_when_reading_its_status_back_fails()
+    {
+        var folder = _f.AddAsIsFolder("Plex Movies", fileCount: 1);
+        var gate = new StatusReadGate();
+        var jobs = _f.CreateJobs(new ArmingTracker(_f.Tracker, gate), operations: ThrowingQueueReads.Create(_f.Operations, gate));
+
+        await Assert.ThrowsAsync<IOException>(() => jobs.StartConversionAsync(folder.Id, default));
+
+        // The job exists, so the folder keeps saying it is being organised: nothing is rolled back under a running job.
+        var saved = _f.Source(folder.Id);
+        Assert.Equal(LibrarySourceManagementModes.ManagedByTuvima, saved.ManagementMode);
+        Assert.Equal(LibrarySourceAccessModes.Writable, saved.AccessMode);
+        Assert.Equal(LibrarySourceConversionStates.Converting, saved.ConversionState);
+        Assert.Single(await _f.Operations.GetQueueAsync(MediaOperationQueue.FolderJobs, 50));
+    }
+
+    [Fact]
+    public async Task A_merge_that_was_queued_stays_queued_when_reading_its_status_back_fails()
+    {
+        var source = _f.AddAsIsFolder("Plex Movies", fileCount: 2);
+        var target = _f.AddManagedFolder("Tuvima Movies");
+        var gate = new StatusReadGate();
+        var jobs = _f.CreateJobs(new ArmingTracker(_f.Tracker, gate), operations: ThrowingQueueReads.Create(_f.Operations, gate));
+
+        await Assert.ThrowsAsync<IOException>(() => jobs.StartMergeAsync(MergeRequest(source, target), default));
+
+        Assert.Equal(LibrarySourceMergeStates.Merging, _f.Source(source.Id).MergeState);
+        Assert.Single(await _f.Operations.GetQueueAsync(MediaOperationQueue.FolderJobs, 50));
+    }
+
     private static FolderMergeRequest MergeRequest(LibrarySourceConfig source, LibrarySourceConfig target, string mode = LibraryMergeModes.Copy) =>
         new() { SourceId = source.Id, TargetSourceId = target.Id, Mode = mode };
 
@@ -740,6 +771,74 @@ public sealed class FolderJobServiceTests : IDisposable
         public Task MarkFailedAsync(Guid operationId, Exception exception, bool terminal, CancellationToken ct = default) => Task.CompletedTask;
 
         public Task ReportProgressAsync(Guid operationId, int itemsTotal, int itemsCompleted, int itemsFailed, int progressPercent, TimeSpan? extendLease = null, CancellationToken ct = default) => Task.CompletedTask;
+    }
+
+    /// <summary>Set once a job has really been queued; from then on reading the queue back fails.</summary>
+    public sealed class StatusReadGate
+    {
+        public bool Armed { get; set; }
+    }
+
+    /// <summary>Queues for real, then arms the gate so the status read that follows fails.</summary>
+    private sealed class ArmingTracker(IMediaOperationTracker inner, StatusReadGate gate) : IMediaOperationTracker
+    {
+        public async Task<MediaOperation> EnsureQueuedAsync(MediaOperation operation, CancellationToken ct = default)
+        {
+            var queued = await inner.EnsureQueuedAsync(operation, ct);
+            gate.Armed = true;
+            return queued;
+        }
+
+        public Task UpdateStageAsync(Guid operationId, string stage, int? progressPercent = null, string? message = null, object? detail = null, CancellationToken ct = default) =>
+            inner.UpdateStageAsync(operationId, stage, progressPercent, message, detail, ct);
+
+        public Task MarkSucceededAsync(Guid operationId, string? resultSummary = null, object? detail = null, CancellationToken ct = default) =>
+            inner.MarkSucceededAsync(operationId, resultSummary, detail, ct);
+
+        public Task MarkNoResultAsync(Guid operationId, string? reason = null, object? detail = null, CancellationToken ct = default) =>
+            inner.MarkNoResultAsync(operationId, reason, detail, ct);
+
+        public Task MarkBlockedAsync(Guid operationId, string reason, object? detail = null, CancellationToken ct = default) =>
+            inner.MarkBlockedAsync(operationId, reason, detail, ct);
+
+        public Task MarkFailedAsync(Guid operationId, Exception exception, bool terminal, CancellationToken ct = default) =>
+            inner.MarkFailedAsync(operationId, exception, terminal, ct);
+
+        public Task ReportProgressAsync(Guid operationId, int itemsTotal, int itemsCompleted, int itemsFailed, int progressPercent, TimeSpan? extendLease = null, CancellationToken ct = default) =>
+            inner.ReportProgressAsync(operationId, itemsTotal, itemsCompleted, itemsFailed, progressPercent, extendLease, ct);
+    }
+
+    /// <summary>Forwards everything to the real repository, but fails queue reads once the gate is armed.</summary>
+    public class ThrowingQueueReads : DispatchProxy
+    {
+        private IMediaOperationRepository _inner = null!;
+        private StatusReadGate _gate = null!;
+
+        public static IMediaOperationRepository Create(IMediaOperationRepository inner, StatusReadGate gate)
+        {
+            var proxy = Create<IMediaOperationRepository, ThrowingQueueReads>();
+            var repository = (ThrowingQueueReads)(object)proxy;
+            repository._inner = inner;
+            repository._gate = gate;
+            return proxy;
+        }
+
+        protected override object? Invoke(MethodInfo? targetMethod, object?[]? args)
+        {
+            if (targetMethod?.Name == nameof(IMediaOperationRepository.GetQueueAsync) && _gate.Armed)
+            {
+                throw new IOException("The data store could not be read.");
+            }
+
+            try
+            {
+                return targetMethod!.Invoke(_inner, args);
+            }
+            catch (TargetInvocationException ex) when (ex.InnerException is not null)
+            {
+                throw ex.InnerException;
+            }
+        }
     }
 
     /// <summary>Forwards everything to the real loader except SaveLibraries, which throws from the given call onwards.</summary>
@@ -807,6 +906,7 @@ public sealed class FolderJobServiceTests : IDisposable
         public FolderJobService Jobs { get; }
         public ScriptedMover Mover { get; } = new();
         public IFolderOrganiseLogRepository Ledger { get; }
+        public IMediaOperationTracker Tracker { get; }
 
         public FolderJobFixture()
         {
@@ -851,6 +951,7 @@ public sealed class FolderJobServiceTests : IDisposable
             Ledger = new FolderOrganiseLogRepository(_database);
             var tracker = new MediaOperationTracker(
                 Operations, new MediaOperationEventRepository(_database), new NullPublisher(), NullLogger<MediaOperationTracker>.Instance);
+            Tracker = tracker;
 
             var options = new IngestionOptions { PollIntervalSeconds = 0, IncludeSubdirectories = true };
             var monitor = new StaticMonitor(options);
@@ -897,9 +998,9 @@ public sealed class FolderJobServiceTests : IDisposable
         private FolderOrganiseJobWorker Worker { get; }
 
         /// <summary>A second service over the same folders and data store, with its own tracker, configuration and logger.</summary>
-        public FolderJobService CreateJobs(IMediaOperationTracker tracker, IConfigurationLoader? configuration = null, ILogger<FolderJobService>? logger = null) =>
+        public FolderJobService CreateJobs(IMediaOperationTracker tracker, IConfigurationLoader? configuration = null, ILogger<FolderJobService>? logger = null, IMediaOperationRepository? operations = null) =>
             new(
-                configuration ?? Config, Operations, tracker, Ledger, _previewer, _mergePreviewer,
+                configuration ?? Config, operations ?? Operations, tracker, Ledger, _previewer, _mergePreviewer,
                 new ServerFolderBrowserService(Config, NullLogger<ServerFolderBrowserService>.Instance),
                 logger ?? NullLogger<FolderJobService>.Instance);
 

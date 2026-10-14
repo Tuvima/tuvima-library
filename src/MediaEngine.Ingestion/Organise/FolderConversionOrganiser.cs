@@ -128,9 +128,9 @@ public sealed class FolderConversionOrganiser
         // The same file with different letter case is a rename, not a collision and never a duplicate. On a drive that ignores
         // case (Windows, SMB and CIFS shares, exFAT, macOS) the new name "exists" because it is this very file, so the check is
         // by file identity on every system. Where the drive keeps both names as two files, they fall through to the checks below.
-        // When the drive gives no identity to compare (a network share mounted without server inode numbers and byte-range locks),
-        // a change of letter case alone is skipped with a warning rather than forced: nothing proves it is one file, and nothing
-        // is lost by leaving the letter case as it is.
+        // When identity cannot be proven (a file is held open without sharing, or the drive does not support the file locks the
+        // check relies on, as on a CIFS share mounted with noserverino,nobrl), a change of letter case alone is skipped with a
+        // warning rather than forced: nothing proves it is one file, and nothing is lost by leaving the letter case as it is.
         if (string.Equals(current, target, StringComparison.OrdinalIgnoreCase))
         {
             switch (_mover.CompareFiles(current, target))
@@ -139,11 +139,11 @@ public sealed class FolderConversionOrganiser
                     return new OrganiseDecision(OrganiseDecisionKind.Move, Target: target);
                 case FileIdentityResult.Unproven:
                     _logger.LogWarning(
-                        "Left {Current} alone: it differs from {Target} only in letter case and this drive does not show whether they are the same file",
+                        "Left {Current} alone: it differs from {Target} only in letter case and Tuvima could not prove they are the same file (it may be in use, or the drive does not support the check)",
                         current, target);
                     return new OrganiseDecision(
                         OrganiseDecisionKind.Skip,
-                        Reason: "This drive cannot show whether the name differs only in letter case, so the name was left as it is.");
+                        Reason: "Tuvima could not confirm the name differs only in letter case (the file may be in use, or this drive does not support the check), so the name was left as it is.");
             }
         }
 

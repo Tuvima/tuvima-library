@@ -115,6 +115,16 @@ public sealed class SetupAndLivePresentationTests : AsyncBunitContext
     }
 
     [Fact]
+    public void ReadinessSubtitleIsNeutralWhileTheCheckIsStillRunning()
+    {
+        var cut = Render<SetupReadinessStage>();
+
+        Assert.Contains("One moment while Tuvima checks your setup.", cut.Markup, StringComparison.Ordinal);
+        Assert.DoesNotContain("need attention", cut.Markup, StringComparison.Ordinal);
+        Assert.DoesNotContain("ready to start finding", cut.Markup, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void FirstSetupStepHasNoBackButtonAndNoDatabaseEpoch()
     {
         var first = Render<SetupServerStage>(parameters => parameters
