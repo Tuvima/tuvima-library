@@ -1,0 +1,263 @@
+@using MediaEngine.Contracts.LocalAssets
+@using MediaEngine.Web.Models.ViewDTOs
+@using MediaEngine.Web.Services.Ui
+@inject IAppDialogService DialogService
+@namespace MediaEngine.Web.Components.Pages
+
+@* One document waiting to be filed: its picture, title and date, the details worked out for it as chips, and File. Suggestions are shown here and only applied when the person files. *@
+<article class="view-inbox-card" aria-label="@Title" aria-busy="@(Busy ? "true" : "false")">
+    <div class="@SummaryClass" role="group" aria-label="@SummaryLabel" tabindex="@(EnterAccepts && CanFile ? 0 : (int?)null)" @onkeydown="OnSummaryKeyDownAsync">
+        <span class="view-document-card__thumb">
+            @if (ShowPicture)
+            {
+                <img src="@ThumbnailUrl" alt="" loading="lazy" decoding="async" @onerror="@(() => OnPictureError.InvokeAsync())" />
+            }
+            else
+            {
+                <span class="view-document-card__tile"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Description" /><strong>@ViewDocumentPresentation.ExtensionLabel(Item)</strong></span>
+            }
+        </span>
+        <span class="view-inbox-card__body">
+            <strong class="view-document-card__title">@Title</strong>
+            <small class="view-document-card__date"><time datetime="@ViewDocumentPresentation.InboxDateValue(Item)">@ViewDocumentPresentation.InboxDateLabel(Item)</time></small>
+        </span>
+    </div>
+
+    <ul class="view-inbox-card__chips" aria-label="Details to file">
+        @if (CorrespondentText is { } correspondent)
+        {
+            <li>@Chip(correspondent, $"Correspondent {correspondent}, change", () => EditNameAsync(isCorrespondent: true), "is-" + (CorrespondentIsSuggestion ? "suggested" : "set"))</li>
+        }
+        else if (CanFile)
+        {
+            <li>@Chip("Add correspondent", "Add a correspondent", () => EditNameAsync(isCorrespondent: true), "is-add")</li>
+        }
+
+        @if (TypeText is { } type)
+        {
+            <li>@Chip(type, $"Document type {type}, change", () => EditNameAsync(isCorrespondent: false), "is-" + (TypeIsSuggestion ? "suggested" : "set"))</li>
+        }
+        else if (CanFile)
+        {
+            <li>@Chip("Add type", "Add a document type", () => EditNameAsync(isCorrespondent: false), "is-add")</li>
+        }
+
+        @foreach (var tag in AppliedTags)
+        {
+            <li @key="@("applied:" + tag)"><span class="view-inbox-chip is-set">@tag</span></li>
+        }
+
+        @foreach (var tag in ProposedTags)
+        {
+            var off = _offTags.Contains(tag);
+            <li @key="@("proposed:" + tag)">
+                @if (CanFile)
+                {
+                    <AppNativeButton Type="button" Class="@("view-inbox-chip " + (off ? "is-off" : "is-suggested"))" AriaLabel="@($"Tag {tag}, {(off ? "left out" : "added when filed")}")" aria-pressed="@(off ? "false" : "true")" Disabled="Busy" OnClick="@(_ => ToggleTag(tag))">@tag</AppNativeButton>
+                }
+                else
+                {
+                    <span class="view-inbox-chip is-suggested">@tag</span>
+                }
+            </li>
+        }
+
+        @if (CanFile)
+        {
+            <li>@Chip("Add tag", "Add a tag", AddTagAsync, "is-add")</li>
+        }
+
+        @if (ViewDocumentPresentation.AmountLabel(Suggestions) is { } amount)
+        {
+            <li><span class="view-inbox-chip is-info">@amount</span></li>
+        }
+    </ul>
+
+    @if (CanFile || OnOpen.HasDelegate)
+    {
+        <div class="view-inbox-card__actions">
+            @if (CanFile)
+            {
+                <AppButton Label="File" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Disabled="Busy" Loading="Busy" OnClick="FileAsync" Class="view-inbox-card__file" />
+                <AppButton Label="File without changes" ButtonStyle="AppButtonStyle.Outlined" Disabled="Busy" OnClick="FileWithoutChangesAsync" Class="view-inbox-card__file-plain" />
+            }
+
+            @if (OnOpen.HasDelegate)
+            {
+                <AppButton Label="Open" ButtonStyle="AppButtonStyle.Text" Disabled="Busy" OnClick="OnOpen" aria-label="@($"Open {Title}")" Class="view-inbox-card__open" />
+            }
+        </div>
+    }
+</article>
+
+@code {
+    /// <summary>The document waiting to be filed. Its <c>DocumentInfo</c> carries the suggestions and anything a rule already set.</summary>
+    [Parameter, EditorRequired] public LocalAssetDto Item { get; set; } = default!;
+
+    /// <summary>The thumbnail address, used when <see cref="ShowPicture"/> is true.</summary>
+    [Parameter] public string ThumbnailUrl { get; set; } = string.Empty;
+
+    /// <summary>True when a first-page or image thumbnail can be shown instead of the typed tile.</summary>
+    [Parameter] public bool ShowPicture { get; set; }
+
+    /// <summary>Raised when the thumbnail could not be loaded so the page can show the typed tile instead.</summary>
+    [Parameter] public EventCallback OnPictureError { get; set; }
+
+    /// <summary>True only in the person's own space on a phone, tablet or desktop; false (read-only chips, no buttons) elsewhere and on a TV.</summary>
+    [Parameter] public bool CanFile { get; set; }
+
+    /// <summary>True on a desktop screen, where Enter on the focused card files it the same way the File button does.</summary>
+    [Parameter] public bool EnterAccepts { get; set; }
+
+    /// <summary>True while the page is waiting for the Engine to file this document; the buttons are off meanwhile.</summary>
+    [Parameter] public bool Busy { get; set; }
+
+    /// <summary>Correspondent names already in the catalogue, offered when editing the correspondent chip.</summary>
+    [Parameter] public IReadOnlyList<string> Correspondents { get; set; } = [];
+
+    /// <summary>Document type names already in the catalogue.</summary>
+    [Parameter] public IReadOnlyList<string> DocumentTypes { get; set; } = [];
+
+    /// <summary>Tag names already in the catalogue, offered when adding a tag.</summary>
+    [Parameter] public IReadOnlyList<string> Tags { get; set; } = [];
+
+    /// <summary>Raised with what the person chose when they file this document; the page makes the Engine call.</summary>
+    [Parameter] public EventCallback<FileViewDocumentFromInboxRequest> OnFile { get; set; }
+
+    /// <summary>When set, an Open button lets the person read the document before filing it.</summary>
+    [Parameter] public EventCallback OnOpen { get; set; }
+
+    private readonly HashSet<string> _offTags = new(StringComparer.OrdinalIgnoreCase);
+    private readonly List<string> _addedTags = [];
+
+    // null = not edited; empty = the person cleared it; otherwise the name they chose.
+    private string? _correspondentEdit;
+    private string? _typeEdit;
+
+    private string Title => ViewDocumentPresentation.DisplayTitle(Item);
+    private string SummaryLabel => EnterAccepts && CanFile ? $"{Title}. Press Enter to file." : Title;
+    private string SummaryClass => EnterAccepts && CanFile ? "view-inbox-card__summary is-focusable" : "view-inbox-card__summary";
+    private ViewDocumentSuggestionsDto? Suggestions => Item.DocumentInfo?.Suggestions;
+
+    // A value a rule or a person already set wins over the suggestion for the same field.
+    private string? SetCorrespondent => Item.DocumentInfo?.Correspondent?.Name;
+    private string? SetType => Item.DocumentInfo?.DocumentType?.Name;
+    private string? CorrespondentText => FirstText(_correspondentEdit, SetCorrespondent, Suggestions?.Correspondent);
+    private string? TypeText => FirstText(_typeEdit, SetType, Suggestions?.DocumentType);
+    private bool CorrespondentIsSuggestion => string.IsNullOrWhiteSpace(_correspondentEdit) && string.IsNullOrWhiteSpace(SetCorrespondent);
+    private bool TypeIsSuggestion => string.IsNullOrWhiteSpace(_typeEdit) && string.IsNullOrWhiteSpace(SetType);
+
+    private IReadOnlyList<string> AppliedTags => Item.DocumentInfo?.Tags?.Select(tag => tag.Name).ToList() ?? [];
+
+    // Suggested tags the document does not have yet, then the ones the person added here.
+    private IReadOnlyList<string> ProposedTags => (Suggestions?.Tags ?? []).Concat(_addedTags)
+        .Where(tag => !string.IsNullOrWhiteSpace(tag) && !AppliedTags.Contains(tag, StringComparer.OrdinalIgnoreCase))
+        .Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+
+    private static string? FirstText(params string?[] values) =>
+        values.FirstOrDefault(value => !string.IsNullOrWhiteSpace(value))?.Trim();
+
+    private RenderFragment Chip(string text, string label, Func<Task> edit, string state) => @<text>
+        @if (CanFile)
+        {
+            <AppNativeButton Type="button" Class="@("view-inbox-chip " + state)" AriaLabel="@label" Disabled="Busy" OnClick="@(_ => edit())">@text</AppNativeButton>
+        }
+        else
+        {
+            <span class="@("view-inbox-chip " + state)">@text</span>
+        }
+    </text>;
+
+    private async Task EditNameAsync(bool isCorrespondent)
+    {
+        var current = (isCorrespondent ? CorrespondentText : TypeText) ?? string.Empty;
+        var chosen = await AskAsync(isCorrespondent ? "Correspondent" : "Document type", current,
+            isCorrespondent ? Correspondents : DocumentTypes, isCorrespondent ? "Who sent or issued it" : "Invoice, letter, contract", allowClear: true);
+        if (chosen is null)
+        {
+            return;
+        }
+
+        if (isCorrespondent)
+        {
+            _correspondentEdit = chosen;
+        }
+        else
+        {
+            _typeEdit = chosen;
+        }
+    }
+
+    private async Task AddTagAsync()
+    {
+        var chosen = await AskAsync("Add tag", string.Empty, Tags.Where(tag => !AppliedTags.Contains(tag, StringComparer.OrdinalIgnoreCase)).ToList(), "A tag to add", allowClear: false);
+        if (string.IsNullOrWhiteSpace(chosen))
+        {
+            return;
+        }
+
+        // Adding a name that is already there only turns it back on.
+        _offTags.Remove(chosen);
+        if (!ProposedTags.Contains(chosen, StringComparer.OrdinalIgnoreCase) && !AppliedTags.Contains(chosen, StringComparer.OrdinalIgnoreCase))
+        {
+            _addedTags.Add(chosen);
+        }
+    }
+
+    private async Task<string?> AskAsync(string title, string value, IReadOnlyList<string> choices, string placeholder, bool allowClear)
+    {
+        var dialog = await DialogService.ShowAsync<ViewDocumentInboxChipDialog>(string.Empty,
+            new AppDialogParameters<ViewDocumentInboxChipDialog>
+            {
+                { component => component.Title, title },
+                { component => component.Value, value },
+                { component => component.Choices, choices },
+                { component => component.Placeholder, placeholder },
+                { component => component.AllowClear, allowClear },
+            },
+            new AppDialogOptions { NoHeader = true, FullWidth = true, MaxWidth = AppMaxWidth.Small, Sheet = AppDialogSheetMode.Phone });
+        var result = await dialog.Result;
+        return result is { Canceled: false, Data: string text } ? text : null;
+    }
+
+    private void ToggleTag(string tag)
+    {
+        if (!_offTags.Remove(tag))
+        {
+            _offTags.Add(tag);
+        }
+    }
+
+    private Task OnSummaryKeyDownAsync(KeyboardEventArgs args) =>
+        EnterAccepts && CanFile && !Busy && args.Key == "Enter" ? FileAsync() : Task.CompletedTask;
+
+    private Task FileWithoutChangesAsync() => Busy ? Task.CompletedTask : OnFile.InvokeAsync(new FileViewDocumentFromInboxRequest(AcceptSuggestions: false));
+
+    private Task FileAsync() => Busy ? Task.CompletedTask : OnFile.InvokeAsync(BuildAcceptingRequest());
+
+    /// <summary>
+    /// File sends exactly what the card shows: the suggestions as displayed, minus any the person cleared or switched
+    /// off, plus the values they typed. The Engine files that snapshot, not whatever it has stored by now, so a
+    /// suggestion that arrived while the card was open is never filed unseen.
+    /// </summary>
+    private FileViewDocumentFromInboxRequest BuildAcceptingRequest()
+    {
+        var clearedCorrespondent = _correspondentEdit is "" && string.IsNullOrWhiteSpace(SetCorrespondent);
+        var clearedType = _typeEdit is "" && string.IsNullOrWhiteSpace(SetType);
+        var shown = new ViewDocumentSuggestionsDto(
+            Suggestions?.DocumentDate,
+            Suggestions?.DateFromFile ?? false,
+            clearedCorrespondent ? null : Suggestions?.Correspondent,
+            clearedType ? null : Suggestions?.DocumentType,
+            ProposedTags.Where(tag => !_offTags.Contains(tag)).ToList(),
+            Suggestions?.Amount,
+            Suggestions?.Currency);
+        return new FileViewDocumentFromInboxRequest(
+            AcceptSuggestions: true,
+            Correspondent: Edited(_correspondentEdit),
+            DocumentType: Edited(_typeEdit),
+            Suggestions: shown);
+    }
+
+    private static string? Edited(string? edit) => string.IsNullOrWhiteSpace(edit) ? null : edit.Trim();
+}

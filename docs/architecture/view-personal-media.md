@@ -134,6 +134,32 @@ rename or delete a name. Document text, notes and custom field values stay in
 the View search document only and never reach Home, global Search or
 Recommendations.
 
+## Filing documents: Inbox, suggestions and rules
+
+A new document gets a `doc_item_details` row in the `inbox` state when it is
+first indexed. The `view.document_apply_rules` media operation (one per
+document and text version, so a scan whose words are replaced by text
+recognition runs again) loads the document and the rules that cover it
+(`DocumentFilingRepository.GetApplicableRulesAsync`: the owner's rules for a
+Personal Space item, a household administrator's rules for a Shared Library
+item), plans them with the plain `DocumentRuleEngine` (all matching rules apply,
+tags are united, the first rule to set a single value wins) and applies the plan
+without ever replacing a value a person set (`doc_item_field_sources`). If the
+document is still in the Inbox, `DocumentSuggester` stores suggestions from
+filed documents of the same library only (rare shared words found with the
+contents index, then a vote of the five most alike documents), plus the date
+and amount found in the words. No AI, no network.
+
+The Inbox list is the ordinary Documents list with `filing=inbox`; its count is
+`GET /view/documents/inbox-summary`. Filing a document (`POST
+/view/items/{id}/inbox/file`) is a person's action and records their values as
+theirs. Every Inbox, rule and suggestion action checks the same Documents
+permission as the document text route.
+
+A document copied to the Shared Library keeps its tags, date, correspondent,
+type, archive number, notes and custom field values as a filed document, all
+referencing the copy through the same relations as the original.
+
 ## Galleries
 
 A Gallery is a lightweight profile-owned personal-media container.

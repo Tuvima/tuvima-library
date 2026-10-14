@@ -5031,6 +5031,30 @@ input[type="reset"],
 .view-documents-organise__form { display: flex; flex-wrap: wrap; align-items: end; gap: var(--tl-space-2); }
 .view-documents-organise__form > * { min-width: 0; }
 .view-documents-organise__form > :first-child { flex: 1 1 12rem; }
+
+/* Auto-filing rules (Settings > Libraries > View): a plain list and an editor dialog. */
+.view-rules-card { display: flex; flex-direction: column; gap: var(--tl-space-4); padding: 20px; border: 1px solid var(--tl-border-subtle); background: color-mix(in srgb, var(--tl-bg-surface-raised) 65%, transparent); }
+.view-rules__heading h3 { margin: 0; font-size: 1.1rem; }
+.view-rules__heading p { margin: 5px 0 0; color: var(--tl-text-muted); font-size: .9rem; line-height: 1.5; }
+.view-rules__note { margin: 0; color: var(--tl-text-secondary); }
+.view-rules__list { display: grid; gap: var(--tl-space-2); margin: 0; padding: 0; list-style: none; }
+.view-rules__row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--tl-space-2); min-width: 0; min-height: var(--tl-tap-target-min); padding: var(--tl-space-2) 0; border-bottom: 1px solid var(--tl-border-subtle); }
+.view-rules__text { display: grid; flex: 1 1 14rem; gap: var(--tl-space-1); min-width: 0; }
+.view-rules__text small { color: var(--tl-text-secondary); overflow-wrap: anywhere; }
+.view-rules__switch { flex: 0 0 auto; }
+.view-rules__state { color: var(--tl-text-secondary); }
+.view-rules__actions { display: flex; flex-wrap: wrap; gap: var(--tl-space-2); }
+.view-rule-editor { display: grid; gap: var(--tl-space-4); min-width: 0; }
+.view-rule-editor__group { display: grid; gap: var(--tl-space-2); min-width: 0; }
+.view-rule-editor__group h3 { margin: 0; font-size: .9rem; }
+.view-rule-editor__field { display: grid; gap: var(--tl-space-1); min-width: 0; color: var(--tl-text-secondary); font-size: .8rem; }
+.view-rule-editor__hint { margin: 0; color: var(--tl-text-secondary); }
+.view-rule-editor__list { display: grid; gap: var(--tl-space-2); margin: 0; padding: 0; list-style: none; }
+.view-rule-editor__row { display: flex; flex-wrap: wrap; gap: var(--tl-space-2); align-items: center; min-width: 0; }
+.view-rule-editor__row > * { flex: 1 1 10rem; min-width: 0; }
+.view-rule-editor__row > :last-child { flex: 0 0 auto; }
+.view-rule-editor .app-native-select { min-height: var(--tl-tap-target-min); }
+.view-rule-editor__matches { margin: 0; padding-left: 1.25rem; overflow-wrap: anywhere; }
 @media (min-width: 600px) {
     .view-documents-layout { grid-template-columns: 15rem minmax(0, 1fr); }
 }
@@ -5068,6 +5092,36 @@ input[type="reset"],
 @media (min-width: 1180px) {
     .view-documents-grid { grid-template-columns: repeat(auto-fill, minmax(min(100%, 17rem), 1fr)); }
 }
+
+/* Documents Inbox: the Inbox / All documents choice in the filter rail and the cards for documents waiting to be filed.
+   Chips that can be tapped are real buttons at the shared 44px tap target; read-only chips are plain text pills. */
+.view-documents-mode { display: grid; gap: var(--tl-space-1); }
+.view-documents-mode__option { display: flex; align-items: center; min-height: var(--tl-tap-target-min); padding: 0 var(--tl-space-3); border: 1px solid var(--tl-border-subtle); border-radius: var(--tl-radius-md); background: var(--tl-bg-surface-raised); color: var(--tl-text-primary); font: inherit; text-align: left; cursor: pointer; }
+.view-documents-mode__option:hover { border-color: var(--tl-accent-primary-border); }
+.view-documents-mode__option.is-selected { border-color: var(--tl-accent-primary); background: var(--tl-accent-primary-soft); font-weight: 600; }
+.view-documents-mode__option:focus-visible { outline: 2px solid var(--tl-accent-primary); outline-offset: 2px; }
+.view-inbox-card-item { min-width: 0; }
+.view-inbox-card { display: grid; gap: var(--tl-space-2); min-width: 0; padding-bottom: var(--tl-space-3); border: 1px solid var(--tl-border-subtle); border-radius: var(--tl-radius-lg); background: var(--tl-bg-surface-raised); overflow: hidden; }
+.view-inbox-card:hover, .view-inbox-card:focus-within { border-color: var(--tl-accent-primary-border); }
+.view-inbox-card__summary { display: grid; min-width: 0; }
+.view-inbox-card__summary.is-focusable { cursor: default; }
+.view-inbox-card__summary:focus-visible { outline: 2px solid var(--tl-accent-primary); outline-offset: -2px; }
+.view-inbox-card__body { display: grid; gap: var(--tl-space-1); min-width: 0; padding: var(--tl-space-3) var(--tl-space-3) 0; }
+.view-inbox-card__chips { display: flex; flex-wrap: wrap; gap: var(--tl-space-1); margin: 0; padding: 0 var(--tl-space-3); list-style: none; }
+.view-inbox-card__actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--tl-space-2); padding: 0 var(--tl-space-3); }
+.view-inbox-chip { display: inline-flex; align-items: center; box-sizing: border-box; min-height: 1.75rem; max-width: 100%; padding: 0 var(--tl-space-3); overflow: hidden; border: 1px solid var(--tl-border-subtle); border-radius: 999px; background: var(--tl-bg-surface); color: var(--tl-text-primary); font: inherit; font-size: .85rem; text-overflow: ellipsis; white-space: nowrap; }
+button.view-inbox-chip { min-height: var(--tl-tap-target-min); cursor: pointer; }
+button.view-inbox-chip:hover { border-color: var(--tl-accent-primary-border); }
+button.view-inbox-chip:focus-visible { outline: 2px solid var(--tl-accent-primary); outline-offset: 2px; }
+button.view-inbox-chip:disabled { cursor: default; opacity: .6; }
+.view-inbox-chip.is-suggested { border-color: var(--tl-accent-primary-border); background: var(--tl-accent-primary-soft); }
+.view-inbox-chip.is-add { border-style: dashed; color: var(--tl-text-secondary); }
+.view-inbox-chip.is-off { color: var(--tl-text-muted); text-decoration: line-through; }
+.view-inbox-chip.is-info { color: var(--tl-text-secondary); }
+.view-inbox-dialog { display: grid; gap: var(--tl-space-3); min-width: 0; }
+.view-inbox-dialog__choices { display: flex; flex-wrap: wrap; gap: var(--tl-space-1); max-height: 12rem; margin: 0; padding: 0; overflow: auto; list-style: none; }
+.view-inbox-dialog__choice { min-height: var(--tl-tap-target-min); padding: 0 var(--tl-space-3); border: 1px solid var(--tl-border-subtle); border-radius: 999px; background: var(--tl-bg-surface); color: var(--tl-text-primary); font: inherit; cursor: pointer; }
+.view-inbox-dialog__choice:focus-visible { outline: 2px solid var(--tl-accent-primary); outline-offset: 2px; }
 
 /* Details page, phone pass. Everything here is scoped to the phone form factor; tablet and desktop keep the
    existing hero, tab and list rules. Phones never carry an editor entry point, and nothing relies on hover. */

@@ -63,6 +63,10 @@ The Blazor Server web UI (`MediaEngine.Web`) used to browse, search, read, play,
 
 The page for a work, collection, book, movie, TV show, episode, person, or other supported entity. Detail pages are the normal place to inspect an item and launch inline corrections.
 
+### Auto-filing rule
+
+A rule a person makes that files new documents for them: when a document's words, file name, folder, source or file kind match, it adds tags, sets the correspondent, type or a custom field, and can file the document straight away. Rules run in order, never replace something a person set, belong to the person who made them (a household administrator can also make them for the Shared Library) and use plain words with no patterns. See [How documents are filed](../explanation/how-documents-are-filed.md).
+
 ### Document type
 
 What kind of document it is, such as an invoice, letter or contract. Document types are one list for the whole server, shown to each person on the same terms as correspondents.
@@ -100,6 +104,12 @@ The people who live together and the sign-ins that open them. A household holds 
 ### Hydration
 
 The identity enrichment process after ingestion. Retail providers gather practical matches and bridge IDs; Wikidata resolution uses those IDs to find canonical identity when possible.
+
+## I
+
+### Inbox
+
+Where a new document waits on the Documents page until it is filed. Each card shows what was suggested (date, correspondent, type, tags) and can be filed in one tap, changed first, or marked filed without changes. A document from before filing existed counts as filed.
 
 ## L
 

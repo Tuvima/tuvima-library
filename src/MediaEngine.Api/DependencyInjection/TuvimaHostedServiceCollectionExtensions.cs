@@ -1,6 +1,7 @@
 using MediaEngine.Api.Services;
 using MediaEngine.Api.Services.Libraries;
 using MediaEngine.Api.Services.LocalAssets;
+using MediaEngine.Api.Services.LocalAssets.Filing;
 using MediaEngine.Api.Services.LocalAssets.Ocr;
 using MediaEngine.Api.Services.Playback;
 using MediaEngine.Api.Services.Plugins;
@@ -37,6 +38,8 @@ public static class TuvimaHostedServiceCollectionExtensions
         services.AddHostedService<TextTrackRefreshOperationWorker>();
         services.AddSingleton<DocumentTextReadService>();
         services.AddHostedService<DocumentTextReadOperationWorker>();
+        services.AddSingleton<DocumentFilingService>();
+        services.AddHostedService<DocumentApplyRulesOperationWorker>();
         services.AddSingleton<IOcrProcessRunner, OcrProcessRunner>();
         services.AddSingleton<IOcrService, OcrService>();
         services.AddSingleton<DocumentOcrQueue>();

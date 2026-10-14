@@ -298,6 +298,31 @@ kind, favorites, and active discovery.
   field (`text_value`, `number_value`, `date_value`, `bool_value`). Money keeps
   the amount in `number_value` and the ISO 4217 code in `text_value`; a choice
   keeps the chosen value in `text_value`.
+- `doc_item_details.suggestions_json` (nullable, valid JSON) holds what was
+  worked out for a document waiting in the Inbox: `document_date`,
+  `date_from_file`, `correspondent`, `document_type`, `tags`, `amount` and
+  `currency` (names, not ids). It is cleared when the document is filed and is
+  never applied on its own.
+- `doc_rules` (`id`, `owner_profile_id`, `personal_space_id`, `name`, `enabled`,
+  `match_mode` of `all` or `any`, `sort_order`, `files_automatically`,
+  `created_at`, `updated_at`) holds auto-filing rules. A rule belongs to its
+  creator and covers their Personal Space, or the household's Shared Library
+  when `personal_space_id` is null (household administrators only; the rule
+  stops applying while its maker is not an enabled household administrator).
+  `doc_rule_conditions` (`rule_id`, `position`, `kind`, `value`) holds the
+  conditions (`text_contains`, `filename_contains`, `folder_contains`, `source`
+  with a source id, `file_kind` of `pdf`, `image` or `office`);
+  `doc_rule_actions` (`rule_id`, `position`, `kind`, `ref_id`, `text_value`)
+  holds the actions (`add_tag`, `set_correspondent`, `set_document_type`,
+  `set_field` with its value in `text_value`). `ref_id` has no foreign key:
+  deleting the tag, correspondent, type or field also deletes the actions that
+  pointed at it. All ids are 16-byte BLOBs.
+- `doc_item_field_sources` (`item_id`, `slot` of `correspondent`,
+  `document_type` or `field`, `field_id`, `set_by` of `person` or `rule`)
+  remembers who last set a value so a rule never replaces one a person chose.
+  Saving the editor, accepting suggestions or filing from the Inbox with a
+  value records `person`; a rule records `rule`. A value with no row counts as
+  the person's. Shared Library copies carry the rows with them.
 - Tags, correspondents, document types and custom fields are global, but who
   sees a name is decided on every read, never stored: a person sees a name
   only when it is used on an item in a library their request is approved for

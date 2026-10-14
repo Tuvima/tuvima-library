@@ -74,6 +74,39 @@ public static class ViewDocumentPresentation
         return chips;
     }
 
+    /// <summary>
+    /// The date line of an Inbox card: a date someone or a rule already gave wins, then the date found in the words
+    /// ("Detected"), then the file's own time ("File date"), otherwise the day the document was added.
+    /// </summary>
+    public static string InboxDateLabel(LocalAssetDto item)
+    {
+        if (item.DocumentInfo?.DocumentDate is { } given)
+        {
+            return $"Dated {InboxDateText(given)}";
+        }
+
+        if (item.DocumentInfo?.Suggestions?.DocumentDate is { } suggested)
+        {
+            return $"{(item.DocumentInfo.Suggestions.DateFromFile ? "File date" : "Detected")} {InboxDateText(suggested)}";
+        }
+
+        return $"{(UsesAddedDate(item) ? "Added " : string.Empty)}{DateLabel(item)}";
+    }
+
+    /// <summary>The machine-readable form of <see cref="InboxDateLabel"/> for the time element.</summary>
+    public static string InboxDateValue(LocalAssetDto item) =>
+        item.DocumentInfo?.DocumentDate is null && item.DocumentInfo?.Suggestions?.DocumentDate is { } suggested
+            ? suggested.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture)
+            : DateValue(item);
+
+    /// <summary>An amount found in the words, such as "Amount 120.50 EUR"; null when none was found. Display only.</summary>
+    public static string? AmountLabel(ViewDocumentSuggestionsDto? suggestions) => suggestions?.Amount is { } amount
+        ? $"Amount {amount.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture)}{(string.IsNullOrWhiteSpace(suggestions.Currency) ? string.Empty : " " + suggestions.Currency!.Trim())}"
+        : null;
+
+    private static string InboxDateText(DateOnly date) =>
+        date.ToString("MMM d, yyyy", System.Globalization.CultureInfo.CurrentCulture);
+
     /// <summary>True while a document is waiting to be filed.</summary>
     public static bool IsInInbox(LocalAssetDto item) =>
         string.Equals(item.DocumentInfo?.FilingState, ViewDocumentFilingStates.Inbox, StringComparison.Ordinal);

@@ -1060,6 +1060,9 @@ CREATE TABLE IF NOT EXISTS doc_item_details (
     archive_number      TEXT,
     notes               TEXT,
     filing_state        TEXT NOT NULL DEFAULT 'filed' CHECK (filing_state IN ('inbox', 'filed')),
+    -- What was worked out for a document waiting in the Inbox (date, correspondent, type, tags, amount). Never applied
+    -- on its own; cleared once the document is filed.
+    suggestions_json    TEXT CHECK (suggestions_json IS NULL OR json_valid(suggestions_json)),
     updated_at          TEXT NOT NULL
 );
 
@@ -1088,6 +1091,52 @@ CREATE TABLE IF NOT EXISTS doc_field_values (
     date_value          TEXT,
     bool_value          INTEGER CHECK (bool_value IS NULL OR bool_value IN (0, 1)),
     PRIMARY KEY (item_id, field_id)
+);
+
+-- Who last set a document's correspondent, type or custom field value: a person (by hand, or by accepting a suggestion)
+-- or an auto-filing rule. A value with no row here and a person-set row are never overwritten by a rule; a rule-set
+-- value may be replaced by a rule. slot is correspondent, document_type or field (then field_id names the field).
+CREATE TABLE IF NOT EXISTS doc_item_field_sources (
+    item_id             BLOB NOT NULL REFERENCES local_items(id) ON DELETE CASCADE,
+    slot                TEXT NOT NULL CHECK (slot IN ('correspondent', 'document_type', 'field')),
+    field_id            BLOB REFERENCES doc_field_definitions(id) ON DELETE CASCADE,
+    set_by              TEXT NOT NULL CHECK (set_by IN ('person', 'rule')),
+    CHECK ((slot = 'field' AND field_id IS NOT NULL) OR (slot <> 'field' AND field_id IS NULL))
+);
+
+-- Auto-filing rules. A rule belongs to the person who made it and covers documents in their own Personal Space, or
+-- (personal_space_id NULL, household administrators only) the Shared Library of their household.
+CREATE TABLE IF NOT EXISTS doc_rules (
+    id                  BLOB NOT NULL PRIMARY KEY,
+    owner_profile_id    BLOB NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+    personal_space_id   BLOB REFERENCES view_personal_spaces(id) ON DELETE CASCADE,
+    name                TEXT NOT NULL,
+    enabled             INTEGER NOT NULL DEFAULT 1 CHECK (enabled IN (0, 1)),
+    match_mode          TEXT NOT NULL DEFAULT 'all' CHECK (match_mode IN ('all', 'any')),
+    sort_order          INTEGER NOT NULL DEFAULT 0,
+    files_automatically INTEGER NOT NULL DEFAULT 0 CHECK (files_automatically IN (0, 1)),
+    created_at          TEXT NOT NULL,
+    updated_at          TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS doc_rule_conditions (
+    rule_id             BLOB NOT NULL REFERENCES doc_rules(id) ON DELETE CASCADE,
+    position            INTEGER NOT NULL,
+    kind                TEXT NOT NULL
+                            CHECK (kind IN ('text_contains', 'filename_contains', 'folder_contains', 'source', 'file_kind')),
+    value               TEXT NOT NULL,
+    PRIMARY KEY (rule_id, position)
+);
+
+-- ref_id points at a tag, correspondent, document type or custom field depending on kind (no foreign key: the target
+-- can be removed, and the action then simply does nothing). A custom field's value is text_value.
+CREATE TABLE IF NOT EXISTS doc_rule_actions (
+    rule_id             BLOB NOT NULL REFERENCES doc_rules(id) ON DELETE CASCADE,
+    position            INTEGER NOT NULL,
+    kind                TEXT NOT NULL CHECK (kind IN ('add_tag', 'set_correspondent', 'set_document_type', 'set_field')),
+    ref_id              BLOB,
+    text_value          TEXT,
+    PRIMARY KEY (rule_id, position)
 );
 
 CREATE TABLE IF NOT EXISTS view_galleries (
@@ -1256,6 +1305,10 @@ CREATE INDEX IF NOT EXISTS ix_doc_item_details_state
     ON doc_item_details(filing_state, document_date);
 CREATE INDEX IF NOT EXISTS ix_doc_field_values_field
     ON doc_field_values(field_id, item_id);
+CREATE UNIQUE INDEX IF NOT EXISTS ux_doc_item_field_sources
+    ON doc_item_field_sources(item_id, slot, COALESCE(field_id, zeroblob(16)));
+CREATE INDEX IF NOT EXISTS ix_doc_rules_owner_order
+    ON doc_rules(owner_profile_id, personal_space_id, sort_order, id);
 CREATE INDEX IF NOT EXISTS ix_collection_view_sources_collection
     ON collection_view_sources(collection_id, position, id);
 CREATE INDEX IF NOT EXISTS ix_collection_view_sources_owner

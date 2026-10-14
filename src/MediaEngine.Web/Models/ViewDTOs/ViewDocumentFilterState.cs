@@ -14,6 +14,12 @@ public sealed class ViewDocumentFilterState
     public DateOnly? DateFrom { get; set; }
     public DateOnly? DateTo { get; set; }
 
+    /// <summary>
+    /// True while the page shows only the documents waiting to be filed. It is a way of looking at the list, not a
+    /// filter: it is not counted in <see cref="ActiveCount"/> and <see cref="Clear"/> leaves it as it is.
+    /// </summary>
+    public bool InboxOnly { get; set; }
+
     /// <summary>A value per custom field; fields with no value are not filtered on.</summary>
     public Dictionary<Guid, string> Fields { get; } = [];
 
@@ -45,7 +51,7 @@ public sealed class ViewDocumentFilterState
         }
     }
 
-    public ViewDocumentFilterDto? ToDto() => !IsActive
+    public ViewDocumentFilterDto? ToDto() => !IsActive && !InboxOnly
         ? null
         : new ViewDocumentFilterDto(
             TagIds.Count == 0 ? null : TagIds.ToList(),
@@ -53,6 +59,7 @@ public sealed class ViewDocumentFilterState
             DocumentTypeId,
             DateFrom,
             DateTo,
+            InboxOnly ? ViewDocumentFilingStates.Inbox : null,
             Fields: Fields.Count == 0
                 ? null
                 : Fields.Select(field => new ViewDocumentFieldFilterDto(field.Key, field.Value)).ToList());

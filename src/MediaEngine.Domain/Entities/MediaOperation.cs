@@ -100,6 +100,9 @@ public static class MediaOperationType
     public const string ViewDocumentTextRead = "view.document_text_read";
     public const string ViewDocumentOcr = "view.document_ocr";
 
+    /// <summary>Runs a person's auto-filing rules and works out Inbox suggestions for one document.</summary>
+    public const string ViewDocumentApplyRules = "view.document_apply_rules";
+
     /// <summary>Converts a folder from As-is to Managed: renames and reorganises the files already there.</summary>
     public const string OrganiseFolder = "organise_folder";
 

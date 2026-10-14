@@ -1,4 +1,5 @@
 using System.Text;
+using MediaEngine.Api.Services.LocalAssets.Filing;
 using MediaEngine.Domain.Configuration;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Storage.Contracts;
@@ -37,7 +38,8 @@ public sealed class DocumentOcrService(
     ILocalAssetRepository repository,
     IConfigurationLoader configuration,
     IOcrService ocr,
-    ILogger<DocumentOcrService> logger)
+    ILogger<DocumentOcrService> logger,
+    DocumentRulesQueue? rulesQueue = null)
 {
     public async Task<DocumentOcrOutcome> ReadItemAsync(
         Guid itemId,
@@ -110,6 +112,12 @@ public sealed class DocumentOcrService(
             if (!written)
             {
                 return new DocumentOcrOutcome(DocumentOcrStatus.Missing, "The item no longer has an index entry.");
+            }
+
+            if (rulesQueue is not null && repository.IsDocument(itemId))
+            {
+                // The recognised words replace whatever was there, so rules and suggestions are worked out again.
+                await rulesQueue.TryQueueAfterTextAsync(itemId, result.Text, ct).ConfigureAwait(false);
             }
 
             logger.LogDebug(

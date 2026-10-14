@@ -178,8 +178,15 @@ public sealed class ViewSharedTransferService(
                         SELECT @sharedItemId,tag_id,@now FROM local_item_tag_links WHERE item_id=@itemId;
                         INSERT OR IGNORE INTO doc_item_details
                             (item_id,document_date,correspondent_id,doc_type_id,archive_number,notes,filing_state,updated_at)
-                        SELECT @sharedItemId,document_date,correspondent_id,doc_type_id,archive_number,NULL,'filed',@now
+                        SELECT @sharedItemId,document_date,correspondent_id,doc_type_id,archive_number,notes,'filed',@now
                           FROM doc_item_details WHERE item_id=@itemId;
+                        INSERT OR IGNORE INTO doc_field_values
+                            (item_id,field_id,text_value,number_value,date_value,bool_value)
+                        SELECT @sharedItemId,field_id,text_value,number_value,date_value,bool_value
+                          FROM doc_field_values WHERE item_id=@itemId;
+                        INSERT OR IGNORE INTO doc_item_field_sources(item_id,slot,field_id,set_by)
+                        SELECT @sharedItemId,slot,field_id,set_by
+                          FROM doc_item_field_sources WHERE item_id=@itemId;
                         """, new { sharedItemId, sharedLibraryId, itemId, now }, transaction);
                     foreach (var file in planned)
                     {

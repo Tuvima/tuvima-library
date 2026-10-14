@@ -79,7 +79,8 @@ public sealed record LocalAssetDocumentInfoDto(
     [property: JsonPropertyName("notes")] string? Notes = null,
     [property: JsonPropertyName("filing_state")] string FilingState = ViewDocumentFilingStates.Filed,
     [property: JsonPropertyName("tags")] IReadOnlyList<ViewCatalogueRefDto>? Tags = null,
-    [property: JsonPropertyName("field_values")] IReadOnlyList<ViewDocumentFieldValueDto>? FieldValues = null);
+    [property: JsonPropertyName("field_values")] IReadOnlyList<ViewDocumentFieldValueDto>? FieldValues = null,
+    [property: JsonPropertyName("suggestions")] ViewDocumentSuggestionsDto? Suggestions = null);
 
 /// <summary>The readable text of one document, for the Documents viewer's text panel.</summary>
 public sealed record ViewDocumentTextDto(

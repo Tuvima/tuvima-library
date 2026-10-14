@@ -251,6 +251,52 @@ public sealed class ViewSharedTransferServiceTests
     }
 
     [Fact]
+    public async Task ADocumentCopiedToTheSharedLibraryKeepsItsDetailsNotesAndFieldValuesTogether()
+    {
+        using var fixture = new Fixture();
+        var linkedRoot = Directory.CreateDirectory(Path.Combine(fixture.Root, "linked-docs"));
+        await fixture.Storage.AddLinkedSourceAsync(fixture.Space, "Paperwork", linkedRoot.FullName, true);
+        var original = Path.Combine(linkedRoot.FullName, "water-bill.txt");
+        await File.WriteAllTextAsync(original, "Water bill for the house");
+        var indexed = await fixture.Library.IndexPathAsync(fixture.Space.LibraryId, original);
+        Assert.NotNull(indexed);
+        var viewer = new MediaEngine.Storage.Contracts.ViewCatalogueViewer(fixture.ProfileId, [fixture.Space.LibraryId]);
+        var status = await fixture.Catalogue.CreateFieldAsync(viewer, "Status", ViewDocumentFieldKinds.Choice, ["Open", "Paid"]);
+        var amount = await fixture.Catalogue.CreateFieldAsync(viewer, "Amount", ViewDocumentFieldKinds.Money, null);
+        await fixture.Catalogue.UpdateDocumentDetailsAsync(viewer, indexed!.ItemId,
+            new MediaEngine.Storage.Contracts.ViewDocumentDetailsWrite(
+                "Water bill", new DateOnly(2026, 3, 1), "City Water", "Bill", "A-17", "Pay by April, ask about the meter",
+                ViewDocumentFilingStates.Filed, ["Home"], [],
+                [
+                    new MediaEngine.Storage.Contracts.ViewDocumentFieldWrite(status.Id, Text: "Open"),
+                    new MediaEngine.Storage.Contracts.ViewDocumentFieldWrite(amount.Id, Text: "EUR", Number: 120.5),
+                ]));
+
+        await fixture.Transfers.ExecuteAsync(indexed.ItemId, fixture.ProfileId, "folder", "Paperwork");
+
+        var original2 = fixture.Assets.Find(indexed.ItemId)!.DocumentInfo!;
+        var copy = fixture.Assets.Find(fixture.SharedItemId(indexed.ItemId))!.DocumentInfo!;
+        Assert.Equal(new DateOnly(2026, 3, 1), copy.DocumentDate);
+        Assert.Equal("City Water", copy.Correspondent!.Name);
+        Assert.Equal("Bill", copy.DocumentType!.Name);
+        Assert.Equal("A-17", copy.ArchiveNumber);
+        Assert.Equal("Pay by April, ask about the meter", copy.Notes);
+        Assert.Equal(ViewDocumentFilingStates.Filed, copy.FilingState);
+        Assert.Equal(["Home"], copy.Tags!.Select(tag => tag.Name).ToArray());
+        Assert.Equal(
+            original2.FieldValues!.OrderBy(value => value.Name).Select(value => (value.Name, value.TextValue, value.NumberValue)),
+            copy.FieldValues!.OrderBy(value => value.Name).Select(value => (value.Name, value.TextValue, value.NumberValue)));
+        Assert.Equal(2, copy.FieldValues!.Count);
+
+        // The copy references the same shared names (one list for the install), not duplicates of them.
+        Assert.Equal(original2.Correspondent!.Id, copy.Correspondent.Id);
+        Assert.Equal(original2.DocumentType!.Id, copy.DocumentType.Id);
+        Assert.Equal(original2.Tags![0].Id, copy.Tags![0].Id);
+        // And the original keeps its own.
+        Assert.Equal("Pay by April, ask about the meter", original2.Notes);
+    }
+
+    [Fact]
     public async Task FolderPinsAndTimelinePolicies_AreScopedAndInherited()
     {
         using var fixture = new Fixture();
@@ -679,6 +725,9 @@ public sealed class ViewSharedTransferServiceTests
         {
             return new ViewSharedLibraryRepository(_database).GetAsync().GetAwaiter().GetResult().LibraryId;
         }
+
+        public MediaEngine.Storage.ViewCatalogueRepository Catalogue => new(_database);
+        public LocalAssetRepository Assets => _assets;
 
         public Guid SharedSourceId(string sourceKey)
         {

@@ -36,8 +36,45 @@ public sealed class ViewWorkspaceService(IEngineApiClient api)
     public IReadOnlyList<ViewGalleryDto> SharedGalleries { get; private set; } = [];
     public IReadOnlyList<Guid> PendingNewGalleryItems { get; private set; } = [];
 
+    /// <summary>How many of the person's own documents wait in the Inbox; the Documents tab shows it when above zero.</summary>
+    public int DocumentInboxCount { get; private set; }
+
+    /// <summary>Raised when <see cref="DocumentInboxCount"/> changes so the View shell can redraw its badge.</summary>
+    public event Action? DocumentInboxChanged;
+
+    /// <summary>
+    /// Loads the person's own Inbox count (never another scope's). Nothing is asked when the profile may not see
+    /// Documents. When the Engine cannot answer, the client has already logged it and the last count stays.
+    /// </summary>
+    public async Task RefreshDocumentInboxAsync(CancellationToken ct = default)
+    {
+        if (Scopes?.CanViewDocuments == false)
+        {
+            SetDocumentInboxCount(0);
+            return;
+        }
+
+        var summary = await api.GetViewDocumentInboxSummaryAsync(ViewScopeKind.Mine, null, ct);
+        if (summary is not null)
+        {
+            SetDocumentInboxCount(Math.Max(0, summary.Count));
+        }
+    }
+
+    private void SetDocumentInboxCount(int count)
+    {
+        if (DocumentInboxCount == count)
+        {
+            return;
+        }
+
+        DocumentInboxCount = count;
+        DocumentInboxChanged?.Invoke();
+    }
+
     public void Reset()
     {
+        DocumentInboxCount = 0;
         _initialized = false;
         _initializing = null;
         _generation++;
