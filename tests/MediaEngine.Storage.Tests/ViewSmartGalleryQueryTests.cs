@@ -166,7 +166,7 @@ public sealed class ViewSmartGalleryQueryTests : IDisposable
         Assert.Contains(plan, detail => detail.Contains("local_items", StringComparison.OrdinalIgnoreCase)
             && (detail.Contains("USING INDEX", StringComparison.OrdinalIgnoreCase)
                 || detail.Contains("USING COVERING INDEX", StringComparison.OrdinalIgnoreCase)));
-        Assert.Contains(plan, detail => detail.Contains("local_item_tags", StringComparison.OrdinalIgnoreCase)
+        Assert.Contains(plan, detail => detail.Contains("local_item_tag_links", StringComparison.OrdinalIgnoreCase)
             && (detail.Contains("USING INDEX", StringComparison.OrdinalIgnoreCase)
                 || detail.Contains("USING COVERING INDEX", StringComparison.OrdinalIgnoreCase)));
     }

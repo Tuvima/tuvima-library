@@ -67,6 +67,24 @@ public sealed partial class EngineApiClient
             AddQuery(query, "kind", kind);
         }
 
+        if (options.Documents is { } documents)
+        {
+            foreach (var tag in documents.TagIds ?? [])
+            {
+                AddQuery(query, "tag", tag.ToString("D"));
+            }
+
+            AddQuery(query, "correspondent", documents.CorrespondentId?.ToString("D"));
+            AddQuery(query, "docType", documents.DocumentTypeId?.ToString("D"));
+            AddQuery(query, "docFrom", documents.DateFrom?.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture));
+            AddQuery(query, "docTo", documents.DateTo?.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture));
+            AddQuery(query, "filing", documents.FilingState);
+            foreach (var field in documents.Fields ?? [])
+            {
+                AddQuery(query, "field", $"{field.FieldId:D}:{field.Value}");
+            }
+        }
+
         AddQuery(query, "favorite", options.FavoritesOnly ? "true" : null);
         AddQuery(query, "hidden", options.HiddenOnly ? "true" : null);
         AddQuery(query, "lifecycle", options.Lifecycle);

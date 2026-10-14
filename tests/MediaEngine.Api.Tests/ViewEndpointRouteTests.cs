@@ -70,7 +70,9 @@ public sealed class ViewEndpointRouteTests
             root, "src", "MediaEngine.Api", "DependencyInjection", "TuvimaHostedServiceCollectionExtensions.cs"));
         var endpointPath = Path.Combine(
             root, "src", "MediaEngine.Api", "Endpoints", "ViewEndpoints.cs");
-        var endpoint = File.ReadAllText(endpointPath);
+        // The View routes are one partial class split over two files: the core surface and the organising routes.
+        var endpoint = File.ReadAllText(endpointPath)
+            + File.ReadAllText(Path.Combine(Path.GetDirectoryName(endpointPath)!, "ViewEndpoints.Organisation.cs"));
 
         Assert.Contains("app.MapViewEndpoints();", routes, StringComparison.Ordinal);
         Assert.DoesNotContain("MapPhotoEndpoints", routes, StringComparison.Ordinal);

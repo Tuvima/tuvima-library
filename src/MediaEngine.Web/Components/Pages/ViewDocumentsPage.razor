@@ -10,6 +10,7 @@
 @inject ViewMediaGrantService MediaGrants
 @inject DeviceContextService Device
 @inject IAppToastService Snackbar
+@inject IAppDialogService DialogService
 @implements IDisposable
 @namespace MediaEngine.Web.Components.Pages
 
@@ -42,11 +43,17 @@
                     <QuickFilters>
                         @if (Device.IsPhone)
                         {
-                            <AppNativeButton Type="button" Class="view-documents-sheet-button" aria-haspopup="dialog" OnClick="@(_ => _sheetOpen = true)"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Tune" />View options</AppNativeButton>
+                            <AppNativeButton Type="button" Class="view-documents-sheet-button" aria-haspopup="dialog" OnClick="@(_ => _sheetOpen = true)"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Tune" />View options@(_filter.IsActive ? $" ({_filter.ActiveCount})" : string.Empty)</AppNativeButton>
                         }
                     </QuickFilters>
                 </AppDiscoveryFilterBar>
 
+                <div class="view-documents-layout">
+                @if (!Device.IsPhone)
+                {
+                    <aside class="view-documents-rail"><ViewDocumentFilterRail Catalogue="_catalogue" State="_filter" OnChanged="FilterChangedAsync" /></aside>
+                }
+                <div class="view-documents-results">
                 @if (_loading)
                 {
                     <AppPageState Kind="AppPageStateKind.Loading" Title="@(string.IsNullOrWhiteSpace(_search) ? "Loading documents" : "Searching documents")" />
@@ -57,7 +64,15 @@
                 }
                 else if (_items.Count == 0)
                 {
-                    @if (string.IsNullOrWhiteSpace(_search))
+                    @if (_filter.IsActive)
+                    {
+                        <AppPageState Kind="AppPageStateKind.Empty" Icon="@AppMaterialIcons.Outlined.FilterList" Title="No documents match these filters" Message="Try removing a tag or widening the dates." Class="view-documents-empty">
+                            <Actions>
+                                <AppButton Label="Clear filters" ButtonStyle="AppButtonStyle.Outlined" OnClick="ClearFiltersAsync" />
+                            </Actions>
+                        </AppPageState>
+                    }
+                    else if (string.IsNullOrWhiteSpace(_search))
                     {
                         <AppPageState Kind="AppPageStateKind.Empty" Icon="@AppMaterialIcons.Outlined.Description" Title="No documents yet" Message="Documents added to View sources or the Import folder appear here." Class="view-documents-empty">
                             <Actions>
@@ -89,7 +104,7 @@
                                     </span>
                                     <span class="view-document-card__body">
                                         <strong class="view-document-card__title">@ViewDocumentPresentation.DisplayTitle(item)</strong>
-                                        <small class="view-document-card__date">@(ViewDocumentPresentation.UsesAddedDate(item) ? "Added " : string.Empty)<time datetime="@ViewDocumentPresentation.DocumentDate(item).ToString("O")">@ViewDocumentPresentation.DocumentDate(item).LocalDateTime.ToString("MMM d, yyyy")</time></small>
+                                        <small class="view-document-card__date">@(ViewDocumentPresentation.UsesAddedDate(item) ? "Added " : string.Empty)<time datetime="@ViewDocumentPresentation.DateValue(item)">@ViewDocumentPresentation.DateLabel(item)</time></small>
                                         @if (!string.IsNullOrEmpty(item.Snippet))
                                         {
                                             <span class="view-document-card__snippet">@foreach (var part in ViewDocumentPresentation.SnippetParts(item.Snippet)) { if (part.Highlight) { <mark>@part.Text</mark> } else { <text>@part.Text</text> } }</span>
@@ -98,6 +113,10 @@
                                             @foreach (var chip in ViewDocumentPresentation.KindChips(item))
                                             {
                                                 <AppChip Text="@chip" />
+                                            }
+                                            @foreach (var chip in ViewDocumentPresentation.OrganisingChips(item))
+                                            {
+                                                <AppChip Text="@chip" Tone="AppUiTone.Primary" />
                                             }
                                             @foreach (var tag in item.Tags.Take(3))
                                             {
@@ -109,6 +128,10 @@
                                 @if (_selectMode)
                                 {
                                     <AppCheckboxRow Label="@($"Select {ViewDocumentPresentation.DisplayTitle(item)}")" Value="@_selected.Contains(item.Id)" ValueChanged="@(_ => ToggleSelection(item.Id))" Class="view-document-card__select" />
+                                }
+                                else if (CanEditDetails)
+                                {
+                                    <AppIconButton Icon="@AppMaterialIcons.Outlined.Edit" Tooltip="Edit details" AriaLabel="@($"Edit details of {ViewDocumentPresentation.DisplayTitle(item)}")" Class="view-document-card__edit" OnClick="@(() => EditDetailsAsync(item))" />
                                 }
                             </li>
                         }
@@ -122,6 +145,8 @@
                         <AppButton Label="Load more" ButtonStyle="AppButtonStyle.Outlined" Disabled="@_loadingMore" Loading="@_loadingMore" OnClick="LoadMoreAsync" Class="view-documents-more" />
                     }
                 }
+                </div>
+                </div>
             }
         </ChildContent>
     </ViewContentPage>
@@ -133,6 +158,7 @@
         <div class="view-documents-sheet__body">
             @ScopePicker
             @LayoutPicker
+            <ViewDocumentFilterRail Catalogue="_catalogue" State="_filter" OnChanged="FilterChangedAsync" />
             <AppButton Label="Done" ButtonStyle="AppButtonStyle.Filled" FullWidth="true" OnClick="@(() => _sheetOpen = false)" />
         </div>
     </AppDialogFrame>
@@ -146,14 +172,16 @@
             OriginalUrl="@ResourceUrl(_active, ViewMediaResourceKind.Content)" ThumbnailUrl="@ThumbnailUrl(_active)"
             HasPrevious="@(ActiveIndex > 0)" HasNext="@(ActiveIndex >= 0 && ActiveIndex < _items.Count - 1)"
             OnPrevious="PreviousItem" OnNext="NextItem" PositionLabel="@($"{ActiveIndex + 1} of {_items.Count}")"
-            OnClose="CloseActive" CanEdit="@(Workspace.ScopeKind == ViewScopeKind.Mine)" />
+            OnClose="CloseActive" CanEdit="@(Workspace.ScopeKind == ViewScopeKind.Mine)"
+            OnItemUpdated="ItemUpdated" />
     }
     else
     {
         <ViewDocumentViewer Item="@_active" OriginalUrl="@ResourceUrl(_active, ViewMediaResourceKind.Content)"
             ScopeKind="@Workspace.ScopeKind" ScopeProfileId="@Workspace.ScopeProfileId" SearchTerm="@_search"
             HasPrevious="@(ActiveIndex > 0)" HasNext="@(ActiveIndex >= 0 && ActiveIndex < _items.Count - 1)"
-            OnPrevious="PreviousItem" OnNext="NextItem" OnClose="CloseActive" />
+            OnPrevious="PreviousItem" OnNext="NextItem" OnClose="CloseActive"
+            CanEditDetails="CanEditDetails" OnEditDetails="@(() => EditDetailsAsync(_active))" />
     }
 }
 
@@ -166,6 +194,8 @@
     private readonly List<LocalAssetDto> _items = [];
     private readonly HashSet<Guid> _selected = [];
     private readonly HashSet<Guid> _brokenThumbnails = [];
+    private readonly ViewDocumentFilterState _filter = new();
+    private ViewDocumentCatalogueDto? _catalogue;
     private ViewAssetTimelinePageDto? _page;
     private LocalAssetDto? _active;
     private Guid? _profileId;
@@ -178,6 +208,8 @@
     private bool CanBrowse => Workspace.Scopes?.CanViewDocuments != false;
     // Choosing and favoriting documents is for your own space on a pointer or touch screen, never on a television.
     private bool CanSelect => !Device.IsTv && Workspace.ScopeKind == ViewScopeKind.Mine;
+    // Filing a document is for your own space on a pointer screen: phones and televisions only read and filter.
+    private bool CanEditDetails => !Device.IsPhone && !Device.IsTv && Workspace.ScopeKind == ViewScopeKind.Mine;
     private string ListClass => $"view-documents-grid{(_list ? " view-documents-grid--list" : string.Empty)}";
     private int ActiveIndex => _active is null ? -1 : _items.FindIndex(item => item.Id == _active.Id);
 
@@ -188,11 +220,12 @@
     {
         Device.OnChanged += DeviceChanged;
         _profileId = (await ActiveProfileSession.GetActiveProfileAsync())?.Id;
-        await Workspace.InitializeAsync();
+        // The View shell owns loading the View settings; this page only waits for them.
+        await Workspace.WhenReadyAsync();
         _policyKnown = true;
         if (CanBrowse)
         {
-            await LoadAsync();
+            await Task.WhenAll(LoadAsync(), LoadCatalogueAsync());
         }
         else
         {
@@ -203,7 +236,63 @@
     private void DeviceChanged() => _ = InvokeAsync(StateHasChanged);
 
     private ViewAssetQueryOptions Query(string? cursor = null) => new(
-        Workspace.ScopeKind, Workspace.ScopeProfileId, cursor, _search, ["document"], Limit: PageSize);
+        Workspace.ScopeKind, Workspace.ScopeProfileId, cursor, _search, ["document"], Limit: PageSize, Documents: _filter.ToDto());
+
+    private async Task LoadCatalogueAsync() =>
+        _catalogue = await ApiClient.GetViewCatalogueAsync(Workspace.ScopeKind, Workspace.ScopeProfileId, ["document"]);
+
+    private async Task FilterChangedAsync() => await LoadAsync();
+
+    private async Task ClearFiltersAsync()
+    {
+        _filter.Clear();
+        await LoadAsync();
+    }
+
+    private async Task EditDetailsAsync(LocalAssetDto? item)
+    {
+        if (item is null || !CanEditDetails)
+        {
+            return;
+        }
+
+        var dialog = await DialogService.ShowAsync<ViewDocumentDetailsDialog>(string.Empty,
+            new AppDialogParameters<ViewDocumentDetailsDialog>
+            {
+                { component => component.Item, item },
+                { component => component.ScopeKind, Workspace.ScopeKind },
+                { component => component.ScopeProfileId, Workspace.ScopeProfileId },
+            },
+            new AppDialogOptions { NoHeader = true, FullWidth = true, MaxWidth = AppMaxWidth.Medium });
+        if (await dialog.Result is not { Canceled: false, Data: LocalAssetDocumentInfoDto })
+        {
+            return;
+        }
+
+        // Take the saved details (and any new title or tags) from the Engine, then refresh the lists that count them.
+        var refreshed = await ApiClient.GetViewItemAsync(item.Id, Workspace.ScopeKind, Workspace.ScopeProfileId);
+        if (refreshed is not null)
+        {
+            ItemUpdated(refreshed);
+        }
+
+        Snackbar.Add("Details saved.", AppSeverity.Success);
+        await LoadCatalogueAsync();
+    }
+
+    private void ItemUpdated(LocalAssetDto updated)
+    {
+        var index = _items.FindIndex(value => value.Id == updated.Id);
+        if (index >= 0)
+        {
+            _items[index] = updated;
+        }
+
+        if (_active?.Id == updated.Id)
+        {
+            _active = updated;
+        }
+    }
 
     private async Task LoadAsync()
     {
@@ -279,7 +368,8 @@
         if (await Workspace.SelectScopeAsync(kind, profile))
         {
             _selectMode = false;
-            await LoadAsync();
+            _filter.Clear();
+            await Task.WhenAll(LoadAsync(), LoadCatalogueAsync());
         }
     }
 

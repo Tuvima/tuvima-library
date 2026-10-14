@@ -119,6 +119,21 @@ place, tags, media kind, and indexed document text. The query boundary permits
 future semantic results to be blended in, but semantic processing is never a
 prerequisite for ordinary metadata search.
 
+## Organising items: global tags, correspondents, types and fields
+
+Tags (for every View item) and correspondents, document types and custom fields
+(for documents) are one global list per install, kept in `tags`,
+`doc_correspondents`, `doc_types` and `doc_field_definitions`, and linked to
+items by `local_item_tag_links`, `doc_item_details` and `doc_field_values`. The
+lists are global but never shown globally: `ViewCatalogueRepository` decides on
+every read that a person sees a name only when an item that carries it is in a
+library the request was approved for (the same library test the timeline query
+uses) or they created it. Counts are the viewer's own, an id the viewer cannot
+see is answered like an unknown id, and only the creator or an administrator may
+rename or delete a name. Document text, notes and custom field values stay in
+the View search document only and never reach Home, global Search or
+Recommendations.
+
 ## Galleries
 
 A Gallery is a lightweight profile-owned personal-media container.

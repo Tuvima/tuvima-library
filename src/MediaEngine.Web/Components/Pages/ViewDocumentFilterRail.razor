@@ -1,0 +1,175 @@
+@using MediaEngine.Contracts.LocalAssets
+@using MediaEngine.Web.Models.ViewDTOs
+@namespace MediaEngine.Web.Components.Pages
+
+@* The Documents filters: tags, correspondent, type, date range and custom field values. Counts are the viewer's own. *@
+<section class="view-documents-filters" aria-label="Filter documents">
+    <header class="view-documents-filters__header">
+        <h2>Filters</h2>
+        @if (State.IsActive)
+        {
+            <AppButton Label="Clear all" ButtonStyle="AppButtonStyle.Text" OnClick="ClearAsync" Class="view-documents-filters__clear" />
+        }
+    </header>
+
+    @if (Catalogue is null)
+    {
+        <p class="view-documents-filters__hint" role="status">Filters will appear once your documents are organised with tags, correspondents or types.</p>
+    }
+    else
+    {
+        @if (VisibleTags.Count > 0)
+        {
+            <fieldset class="view-documents-filters__group">
+                <legend>Tags</legend>
+                <ul class="view-documents-filters__list">
+                    @foreach (var tag in VisibleTags)
+                    {
+                        <li @key="tag.Id">
+                            <AppCheckboxRow Label="@($"{tag.Name} ({tag.UsageCount})")" Value="@State.TagIds.Contains(tag.Id)"
+                                            ValueChanged="@(value => ToggleTagAsync(tag.Id, value))" />
+                        </li>
+                    }
+                </ul>
+            </fieldset>
+        }
+
+        @if (VisibleCorrespondents.Count > 0)
+        {
+            <div class="view-documents-filters__group">
+                <span class="view-documents-filters__label">Correspondent</span>
+                <AppNativeSelect aria-label="Filter by correspondent" Value="@(State.CorrespondentId?.ToString("D") ?? string.Empty)" OnChange="CorrespondentChangedAsync">
+                    <option value="">Any correspondent</option>
+                    @foreach (var correspondent in VisibleCorrespondents)
+                    {
+                        <option value="@correspondent.Id.ToString("D")">@($"{correspondent.Name} ({correspondent.UsageCount})")</option>
+                    }
+                </AppNativeSelect>
+            </div>
+        }
+
+        @if (VisibleTypes.Count > 0)
+        {
+            <div class="view-documents-filters__group">
+                <span class="view-documents-filters__label">Type</span>
+                <AppNativeSelect aria-label="Filter by document type" Value="@(State.DocumentTypeId?.ToString("D") ?? string.Empty)" OnChange="TypeChangedAsync">
+                    <option value="">Any type</option>
+                    @foreach (var type in VisibleTypes)
+                    {
+                        <option value="@type.Id.ToString("D")">@($"{type.Name} ({type.UsageCount})")</option>
+                    }
+                </AppNativeSelect>
+            </div>
+        }
+
+        @foreach (var field in FilterableFields)
+        {
+            <div class="view-documents-filters__group" @key="field.Id">
+                <span class="view-documents-filters__label">@field.Name</span>
+                <AppNativeSelect aria-label="@($"Filter by {field.Name}")" Value="@(State.Fields.GetValueOrDefault(field.Id) ?? string.Empty)" OnChange="@(args => FieldChangedAsync(field, args))">
+                    <option value="">Any</option>
+                    @if (field.Kind == ViewDocumentFieldKinds.Bool)
+                    {
+                        <option value="true">Yes</option>
+                        <option value="false">No</option>
+                    }
+                    else
+                    {
+                        @foreach (var choice in field.Choices)
+                        {
+                            <option value="@choice">@choice</option>
+                        }
+                    }
+                </AppNativeSelect>
+            </div>
+        }
+    }
+
+    <fieldset class="view-documents-filters__group view-documents-filters__dates">
+        <legend>Date</legend>
+        <span class="view-documents-filters__label">From</span>
+        <AppNativeInput Type="date" Class="view-documents-filters__input" AriaLabel="Documents dated from" Value="@DateText(State.DateFrom)" ValueChanged="@(value => DateChangedAsync(value, true))" />
+        <span class="view-documents-filters__label">To</span>
+        <AppNativeInput Type="date" Class="view-documents-filters__input" AriaLabel="Documents dated up to" Value="@DateText(State.DateTo)" ValueChanged="@(value => DateChangedAsync(value, false))" />
+    </fieldset>
+</section>
+
+@code {
+    [Parameter] public ViewDocumentCatalogueDto? Catalogue { get; set; }
+    [Parameter, EditorRequired] public ViewDocumentFilterState State { get; set; } = default!;
+
+    /// <summary>Raised after any change so the page can load the narrowed list.</summary>
+    [Parameter] public EventCallback OnChanged { get; set; }
+
+    // Only names that carry documents here are worth filtering by; a chosen one stays listed so it can be undone.
+    private IReadOnlyList<ViewTagDto> VisibleTags => (Catalogue?.Tags ?? [])
+        .Where(tag => tag.UsageCount > 0 || State.TagIds.Contains(tag.Id)).ToList();
+
+    private IReadOnlyList<ViewCorrespondentDto> VisibleCorrespondents => (Catalogue?.Correspondents ?? [])
+        .Where(item => item.UsageCount > 0 || State.CorrespondentId == item.Id).ToList();
+
+    private IReadOnlyList<ViewDocumentTypeDto> VisibleTypes => (Catalogue?.DocumentTypes ?? [])
+        .Where(item => item.UsageCount > 0 || State.DocumentTypeId == item.Id).ToList();
+
+    // Choice and yes/no fields are cheap to filter by; free text, numbers and dates are found with search instead.
+    private IReadOnlyList<ViewDocumentFieldDto> FilterableFields => (Catalogue?.Fields ?? [])
+        .Where(definition => definition.Kind is ViewDocumentFieldKinds.Choice or ViewDocumentFieldKinds.Bool
+            && (definition.UsageCount > 0 || State.Fields.ContainsKey(definition.Id))).ToList();
+
+    private static string DateText(DateOnly? date) =>
+        date?.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture) ?? string.Empty;
+
+    private async Task ToggleTagAsync(Guid id, bool selected)
+    {
+        if (selected)
+        {
+            State.TagIds.Add(id);
+        }
+        else
+        {
+            State.TagIds.Remove(id);
+        }
+
+        await OnChanged.InvokeAsync();
+    }
+
+    private async Task CorrespondentChangedAsync(ChangeEventArgs args)
+    {
+        State.CorrespondentId = Guid.TryParse(args.Value?.ToString(), out var id) ? id : null;
+        await OnChanged.InvokeAsync();
+    }
+
+    private async Task TypeChangedAsync(ChangeEventArgs args)
+    {
+        State.DocumentTypeId = Guid.TryParse(args.Value?.ToString(), out var id) ? id : null;
+        await OnChanged.InvokeAsync();
+    }
+
+    private async Task FieldChangedAsync(ViewDocumentFieldDto field, ChangeEventArgs args)
+    {
+        State.SetField(field.Id, args.Value?.ToString());
+        await OnChanged.InvokeAsync();
+    }
+
+    private async Task DateChangedAsync(object? value, bool from)
+    {
+        DateOnly? parsed = DateOnly.TryParseExact(value?.ToString(), "yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture,
+            System.Globalization.DateTimeStyles.None, out var date) ? date : null;
+        if (from)
+        {
+            State.DateFrom = parsed;
+        }
+        else
+        {
+            State.DateTo = parsed;
+        }
+
+        await OnChanged.InvokeAsync();
+    }
+
+    private async Task ClearAsync()
+    {
+        State.Clear();
+        await OnChanged.InvokeAsync();
+    }
+}

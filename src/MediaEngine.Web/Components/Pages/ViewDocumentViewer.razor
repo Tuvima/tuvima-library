@@ -22,6 +22,10 @@
             {
                 <AppIconButton Icon="@AppMaterialIcons.Outlined.ChevronRight" Tooltip="Next document" AriaLabel="Next document" OnClick="OnNext" />
             }
+            @if (CanEditDetails)
+            {
+                <AppButton Label="Edit details" StartIcon="@AppMaterialIcons.Outlined.Edit" ButtonStyle="AppButtonStyle.Outlined" OnClick="OnEditDetails" Class="view-document-viewer__edit" />
+            }
             <AppButton Label="Download original" StartIcon="@AppMaterialIcons.Outlined.Download" ButtonStyle="AppButtonStyle.Outlined"
                        Href="@OriginalUrl" download="@Item.FileName" Class="view-document-viewer__download" />
         </div>
@@ -110,6 +114,10 @@
     [Parameter] public EventCallback OnNext { get; set; }
     [Parameter] public EventCallback OnClose { get; set; }
 
+    /// <summary>True when the person may file this document (their own space, on a pointer screen).</summary>
+    [Parameter] public bool CanEditDetails { get; set; }
+    [Parameter] public EventCallback OnEditDetails { get; set; }
+
     private ElementReference _root, _scroller, _pages;
     private IJSObjectReference? _module;
     private DotNetObjectReference<ViewDocumentViewer>? _self;
@@ -128,9 +136,9 @@
     {
         get
         {
-            var date = ViewDocumentPresentation.DocumentDate(Item).LocalDateTime.ToString("MMM d, yyyy");
             var label = ViewDocumentPresentation.UsesAddedDate(Item) ? "Added" : "Dated";
-            return $"{string.Join(" · ", ViewDocumentPresentation.KindChips(Item))} · {label} {date}";
+            var parts = ViewDocumentPresentation.OrganisingChips(Item).Concat(ViewDocumentPresentation.KindChips(Item)).ToList();
+            return $"{string.Join(" · ", parts)} · {label} {ViewDocumentPresentation.DateLabel(Item)}";
         }
     }
 

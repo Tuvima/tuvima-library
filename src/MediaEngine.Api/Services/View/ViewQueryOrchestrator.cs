@@ -24,7 +24,8 @@ public sealed record ViewAssetQueryRequest(
     DateTimeOffset? To = null,
     bool SortByAddedAt = false,
     DateTimeOffset? AddedBefore = null,
-    string? AddedAfterKey = null);
+    string? AddedAfterKey = null,
+    LocalAssetDocumentFilter? DocumentFilter = null);
 
 /// <summary>
 /// Authorized persistence plan. Backends receive only library IDs approved by
@@ -51,7 +52,8 @@ public sealed record ViewAssetQueryPlan(
     DateTimeOffset? To = null,
     bool SortByAddedAt = false,
     DateTimeOffset? AddedBefore = null,
-    string? AddedAfterKey = null);
+    string? AddedAfterKey = null,
+    LocalAssetDocumentFilter? DocumentFilter = null);
 
 public sealed record ViewQueryResult(
     ViewAccessOutcome Outcome,
@@ -135,7 +137,8 @@ public sealed class ViewQueryOrchestrator(
             !request.SortByAddedAt && request.GalleryId is null && string.IsNullOrWhiteSpace(request.Search) && !request.WithoutLocation && request.PersonKey is null
                 && !AsksOnlyForDocuments(request.MediaKinds),
             decision.Scope.Kind == ViewScopeKind.Shared,
-            request.AnchorBefore, request.WithoutLocation, request.PersonKey, request.From, request.To, request.SortByAddedAt, request.AddedBefore, request.AddedAfterKey);
+            request.AnchorBefore, request.WithoutLocation, request.PersonKey, request.From, request.To, request.SortByAddedAt, request.AddedBefore, request.AddedAfterKey,
+            request.DocumentFilter);
         var page = await backend.QueryAsync(plan, ct).ConfigureAwait(false);
         return new ViewQueryResult(ViewAccessOutcome.Allowed, page, decision.Scope);
     }
