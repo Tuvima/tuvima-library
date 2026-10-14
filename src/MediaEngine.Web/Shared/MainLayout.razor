@@ -269,7 +269,7 @@
     // The Kids shell keeps only the lanes a child needs; "My List" stays in the top bar.
     private static readonly string[] _kidsNavPaths = ["/watch", "/listen", "/read"];
 
-    // Rendered only on phones (the switcher is a bottom sheet), so Sheet = Phone matches the frame's own check.
+    // A bottom sheet on phones; TV and automotive render the same dock, where the frame falls back to a centred dialog.
     private static readonly AppDialogOptions LibrariesSheetOptions = new() { Sheet = AppDialogSheetMode.Phone, BackdropClick = true, CloseOnEscapeKey = true };
 
     private bool _librariesOpen;
@@ -596,7 +596,8 @@
             if (load && lane is null)
             {
                 var stored = await JS.InvokeAsync<string?>("localStorage.getItem", key);
-                if (_disposed) return;
+                // A lane visited while the read was in flight is newer than the stored one.
+                if (_disposed || ShellDock.LaneForPath(_currentPath) is not null) return;
                 _lastLibraryPath = ShellDock.NormalizeLastLibrary(stored, _isKids);
             }
             else if (lane is not null)

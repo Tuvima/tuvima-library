@@ -489,6 +489,8 @@ One file per device profile: `web.json`, `mobile.json`, `television.json`, `auto
 
 Each file defines constraints appropriate for the device class: navigation style, poster size limits, swimlane behaviour, topbar variant, and SignalR reconnect policy.
 
+The `shell` block of each file (and of `global.json`) holds `appbar_style`, `logo_variant`, `intent_dock_style` and `intent_dock_items`, the tab names shown on the phone and TV dock. The default is `["Home", "Libraries", "Search", "Downloads", "Settings"]`. Libraries opens the last library surface used (a switcher sheet when tapped on one), Search opens the search overlay, and Downloads opens a page that says downloads live in the Tuvima app. Read, Watch, Listen, View and Collections remain valid names so settings saved before the five-tab dock still resolve; unknown names are ignored. A Kids profile always drops Settings. The Downloads tab itself is switched in code by `ShellDock.DownloadsMode` (`ExplainNativeApp` or `Hidden`).
+
 ### config/ui/profiles/*.json
 
 Per-user UI preference overrides. Stored server-side and merged into the resolved settings at circuit start. Controls: column visibility and order per media library media type (also persisted to localStorage), default sort column, sidebar collapsed state.

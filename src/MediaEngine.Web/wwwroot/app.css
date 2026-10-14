@@ -4960,13 +4960,17 @@ input[type="reset"],
 }
 
 .library-switcher__row:hover,
-.library-switcher__row:focus-visible,
-.library-switcher__row.is-current {
+.library-switcher__row:focus-visible {
     background: var(--tl-accent-primary-soft);
-    outline: none;
+}
+
+.library-switcher__row:focus-visible {
+    outline: 2px solid var(--tl-focus-ring);
+    outline-offset: -2px;
 }
 
 .library-switcher__row.is-current {
+    color: var(--tl-accent-primary);
     font-weight: 700;
 }
 

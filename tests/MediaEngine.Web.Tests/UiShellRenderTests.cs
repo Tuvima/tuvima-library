@@ -1693,6 +1693,43 @@ public sealed class UiShellRenderTests : AsyncBunitContext
     }
 
     [Fact]
+    public async Task MainLayout_SearchTabOpensTheOverlayInsteadOfNavigating()
+    {
+        var cut = Render<MainLayout>(parameters => parameters
+            .Add(layout => layout.Body, builder => builder.AddMarkupContent(0, "<section>Body</section>")));
+        cut.WaitForAssertion(() => Assert.Single(cut.FindAll(".tl-appbar")));
+        var device = Services.GetRequiredService<DeviceContextService>();
+        var nav = Services.GetRequiredService<NavigationManager>();
+        await cut.InvokeAsync(() => device.SwitchDeviceAsync(new DeviceContextSnapshot("mobile", "phone", true)));
+        var before = nav.Uri;
+
+        cut.WaitForAssertion(() => Assert.Equal(5, cut.FindAll(".layout-shell__intent-dock-link").Count));
+        cut.FindAll(".layout-shell__intent-dock-link")[2].Click();
+
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".universal-search-overlay")));
+        Assert.Equal(before, nav.Uri);
+    }
+
+    [Fact]
+    public async Task MainLayout_KidsLibrariesSwitcherListsOnlyWatchListenAndRead()
+    {
+        var cut = Render<MainLayout>(parameters => parameters
+            .Add(layout => layout.Body, builder => builder.AddMarkupContent(0, "<section>Body</section>")));
+        cut.WaitForAssertion(() => Assert.Single(cut.FindAll(".tl-appbar")));
+        var device = Services.GetRequiredService<DeviceContextService>();
+        var nav = Services.GetRequiredService<NavigationManager>();
+        await cut.InvokeAsync(() => device.SwitchDeviceAsync(new DeviceContextSnapshot("mobile", "phone", true)));
+        typeof(MainLayout).GetField("_isKids", BindingFlags.Instance | BindingFlags.NonPublic)!.SetValue(cut.Instance, true);
+        await cut.InvokeAsync(() => nav.NavigateTo("/watch"));
+
+        cut.WaitForAssertion(() => Assert.Contains("is-active", cut.FindAll(".layout-shell__intent-dock-link")[1].ClassName));
+        cut.FindAll(".layout-shell__intent-dock-link")[1].Click();
+
+        cut.WaitForAssertion(() => Assert.Equal(["Watch", "Listen", "Read"],
+            cut.FindAll(".library-switcher__row").Select(row => row.TextContent.Trim()).ToArray()));
+    }
+
+    [Fact]
     public async Task MainLayout_RemembersTheLastLibraryPerProfileInBrowserStorage()
     {
         var cut = Render<MainLayout>(parameters => parameters

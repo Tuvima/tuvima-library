@@ -51,12 +51,24 @@ public sealed class ShellDockTests
     }
 
     [Fact]
+    public void LibrariesAndWatchAreDifferentTabsEvenThoughLibrariesStartsAtWatch()
+    {
+        Assert.Equal(["Home", "Watch", "Libraries", "Search"], Keys(ShellDock.Resolve(["Home", "Watch", "Libraries", "Search"], isKids: false)));
+        Assert.Equal(["Home", "Libraries"], Keys(ShellDock.Resolve(["Home", "Libraries", "Libraries"], isKids: false)));
+    }
+
+    [Fact]
     public void LibrarySurfacesIncludeLanesSubPagesAndRecentlyAdded()
     {
         foreach (var path in new[] { "/watch", "/watch/movies", "/read", "/listen/music", "/view", "/collections", "/recently-added" })
+        {
             Assert.True(ShellDock.IsLibrarySurface(path), path);
+        }
+
         foreach (var path in new[] { "/", "/search", "/settings", "/downloads", "/details/work/1", "/watchlist" })
+        {
             Assert.False(ShellDock.IsLibrarySurface(path), path);
+        }
     }
 
     [Fact]

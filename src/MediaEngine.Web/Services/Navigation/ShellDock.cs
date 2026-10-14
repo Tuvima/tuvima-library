@@ -82,11 +82,19 @@ public static class ShellDock
         var entries = new List<ShellDockEntry>();
         foreach (var item in items)
         {
-            if (!Catalog.TryGetValue(item, out var entry)) continue;
-            if (isKids && !KidsDockKeys.Contains(entry.Key, StringComparer.OrdinalIgnoreCase)) continue;
-            if (downloadsMode == DownloadsTabMode.Hidden && entry.Key == "Downloads") continue;
-            if (entries.Any(existing => string.Equals(existing.Path, entry.Path, StringComparison.OrdinalIgnoreCase))) continue;
-            entries.Add(entry);
+            if (!Catalog.TryGetValue(item, out var entry))
+            {
+                continue;
+            }
+
+            var hiddenForKids = isKids && !KidsDockKeys.Contains(entry.Key, StringComparer.OrdinalIgnoreCase);
+            var hiddenDownloads = downloadsMode == DownloadsTabMode.Hidden && entry.Key == "Downloads";
+            // Duplicates are judged by key, not path: Libraries starts at /watch but is not the Watch tab.
+            var duplicate = entries.Any(existing => existing.Key == entry.Key);
+            if (!hiddenForKids && !hiddenDownloads && !duplicate)
+            {
+                entries.Add(entry);
+            }
         }
         return entries;
     }
@@ -108,7 +116,11 @@ public static class ShellDock
     public static string NormalizeLastLibrary(string? stored, bool isKids)
     {
         var lane = stored is null ? null : LibrarySurfaces.FirstOrDefault(surface => string.Equals(surface.Path, stored, StringComparison.OrdinalIgnoreCase)).Path;
-        if (lane is null) return DefaultLibraryPath;
+        if (lane is null)
+        {
+            return DefaultLibraryPath;
+        }
+
         return isKids && !KidsLibraryPaths.Contains(lane, StringComparer.OrdinalIgnoreCase) ? DefaultLibraryPath : lane;
     }
 
