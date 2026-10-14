@@ -184,21 +184,21 @@ public sealed class ProviderIntegrationTests
     }
 
     /// <summary>
-    /// Walks up from the test assembly location to find the repository root (.git directory).
+    /// Walks up from the test assembly location to find the repository root (MediaEngine.slnx).
     /// </summary>
     private static string FindRepoRoot()
     {
         var dir = Path.GetDirectoryName(typeof(ProviderIntegrationTests).Assembly.Location);
         while (dir != null)
         {
-            if (Directory.Exists(Path.Combine(dir, ".git")))
+            if (File.Exists(Path.Combine(dir, "MediaEngine.slnx")))
             {
                 return dir;
             }
 
             dir = Path.GetDirectoryName(dir);
         }
-        throw new InvalidOperationException("Could not find repository root (.git directory)");
+        throw new InvalidOperationException("Could not find repository root (MediaEngine.slnx)");
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────

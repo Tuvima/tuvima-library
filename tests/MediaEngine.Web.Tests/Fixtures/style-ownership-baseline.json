@@ -1599,7 +1599,7 @@
     },
     "src/MediaEngine.Web/Components/Settings/LibrariesTab.razor.css": {
       "important": 0,
-      "deep": 23
+      "deep": 1
     },
     "src/MediaEngine.Web/Components/Settings/LibraryDetailHeader.razor.css": {
       "important": 0,
@@ -1911,7 +1911,7 @@
     },
     "src/MediaEngine.Web/Components/Shared/ServerFolderPicker.razor.css": {
       "important": 0,
-      "deep": 12
+      "deep": 8
     },
     "src/MediaEngine.Web/Components/Shared/SettingsSubsectionNav.razor.css": {
       "important": 0,

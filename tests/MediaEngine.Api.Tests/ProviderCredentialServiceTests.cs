@@ -445,8 +445,7 @@ public sealed class ProviderCredentialServiceTests : IDisposable
         var directory = new DirectoryInfo(AppContext.BaseDirectory);
         while (directory is not null)
         {
-            if (Directory.Exists(Path.Combine(directory.FullName, ".git"))
-                || File.Exists(Path.Combine(directory.FullName, ".git")))
+            if (File.Exists(Path.Combine(directory.FullName, "MediaEngine.slnx")))
             {
                 return directory.FullName;
             }

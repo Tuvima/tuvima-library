@@ -253,7 +253,16 @@ internal sealed class ScriptedMover : IOrganiseFileMover
     /// </summary>
     public Func<string, string, bool>? SameFile { get; set; }
 
-    public bool IsSameFile(string first, string second) => SameFile?.Invoke(first, second) ?? FileIdentity.AreSameFile(first, second);
+    /// <summary>When set, the drive cannot say whether two names are one file (a share without inode numbers or byte-range locks).</summary>
+    public bool IdentityUnproven { get; set; }
+
+    public bool IsSameFile(string first, string second) => CompareFiles(first, second) != FileIdentityResult.Different;
+
+    public FileIdentityResult CompareFiles(string first, string second) => IdentityUnproven
+        ? FileIdentityResult.Unproven
+        : SameFile is null
+            ? FileIdentity.Compare(first, second)
+            : SameFile(first, second) ? FileIdentityResult.Same : FileIdentityResult.Different;
 
     public void Move(string from, string to)
     {

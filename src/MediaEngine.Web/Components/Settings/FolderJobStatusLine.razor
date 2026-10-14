@@ -3,8 +3,8 @@
 @using MediaEngine.Web.Services.Formatting
 
 @* What a folder job is doing, on the folder's row: a progress bar, one plain sentence, and Pause / Resume / Cancel while it is
-   open. After it ends the sentence says how it went and links the log of every move. The host owns every action. *@
-<div class="folder-job" role="status" aria-live="polite">
+   open. The table owns the one live region that announces job changes, so this line is not a live region itself. After it ends the sentence says how it went and links the log of every move. The host owns every action. *@
+<div class="folder-job">
     @if (Open && Job.State != "queued")
     {
         <div class="folder-job__bar"><AppProgressBar Value="@Job.ProgressPercent" Title="@FolderJobFormat.Line(Job)" /></div>

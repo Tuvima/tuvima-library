@@ -183,14 +183,14 @@ public sealed class Stage2ConfigTests
         var dir = Path.GetDirectoryName(typeof(Stage2ConfigTests).Assembly.Location);
         while (dir is not null)
         {
-            var gitMarker = Path.Combine(dir, ".git");
-            if (Directory.Exists(gitMarker) || File.Exists(gitMarker))
+            var solutionMarker = Path.Combine(dir, "MediaEngine.slnx");
+            if (File.Exists(solutionMarker))
             {
                 return dir;
             }
 
             dir = Path.GetDirectoryName(dir);
         }
-        throw new InvalidOperationException("Could not find repository root (.git directory or worktree file)");
+        throw new InvalidOperationException("Could not find repository root (MediaEngine.slnx)");
     }
 }

@@ -66,6 +66,24 @@ public sealed class CaseOnlyRenameSafetyTests : IDisposable
     }
 
     [Fact]
+    public async Task A_letter_case_only_change_is_skipped_not_forced_when_the_drive_cannot_show_file_identity()
+    {
+        var h = NewHarness(LibraryDuplicatePolicies.KeepOne);
+        h.Mover.IdentityUnproven = true;
+        var path = h.Write(Path.Combine("movies", "dune (2021)", "Dune (2021).mkv"), "the only copy");
+        await h.RegisterAsync(path, "Dune", "2021");
+
+        var result = await h.RunAsync();
+
+        // Nothing proves the two names are one file, so nothing is renamed, removed or reported as failed.
+        Assert.Equal(0, result.Failed);
+        Assert.Equal(1, result.Count(FolderOrganiseOutcomes.Skipped));
+        Assert.Empty(h.Mover.Moves);
+        Assert.Equal("the only copy", File.ReadAllText(path));
+        Assert.Equal(path, Directory.EnumerateFiles(Path.Combine(h.SourceDir, "movies", "dune (2021)")).Single());
+    }
+
+    [Fact]
     public async Task Two_names_for_one_file_are_never_removed_as_a_duplicate()
     {
         var h = NewHarness(LibraryDuplicatePolicies.KeepOne);
@@ -113,6 +131,78 @@ public sealed class CaseOnlyRenameSafetyTests : IDisposable
         var names = Directory.EnumerateFiles(_scratch, "*.srt").Select(Path.GetFileName).ToList();
         Assert.Equal(["Dune.srt"], names);
         Assert.Equal("subtitles", File.ReadAllText(Path.Combine(_scratch, "Dune.srt")));
+    }
+
+    [Fact]
+    public void A_sidecar_rename_stopped_between_its_two_steps_is_restored_and_finished_on_the_next_move()
+    {
+        var mover = new ScriptedMover { SameFile = (first, second) => string.Equals(first, second, StringComparison.OrdinalIgnoreCase) };
+        var sidecars = new SidecarMover(mover, NullLogger<SidecarMover>.Instance);
+        var oldMedia = Path.Combine(_scratch, "dune.mkv");
+        var newMedia = Path.Combine(_scratch, "Dune.mkv");
+        File.WriteAllText(oldMedia, "media");
+        File.WriteAllText(Path.Combine(_scratch, "dune.en.srt"), "subtitles");
+        mover.AfterMove = (_, _) => throw new SimulatedCrashException();
+
+        Assert.Throws<SimulatedCrashException>(() => sidecars.Move(oldMedia, newMedia, (_, _) => true));
+
+        // The subtitles now sit under the hidden temporary name: neither the old nor the new name exists.
+        var stranded = Assert.Single(Directory.EnumerateFiles(_scratch, "*.srt*"));
+        Assert.EndsWith(CaseSafeRename.TemporarySuffix, stranded, StringComparison.Ordinal);
+
+        mover.AfterMove = null;
+        var results = sidecars.Move(oldMedia, newMedia, (_, _) => true);
+
+        // Two results reach the job log: the leftover put back under its own name, then the rename itself.
+        Assert.Equal(2, results.Count);
+        Assert.Equal(stranded, results[0].From);
+        Assert.Equal(FolderOrganiseOutcomes.SidecarMoved, results[0].Outcome);
+        Assert.Contains("interrupted", results[0].Detail, StringComparison.Ordinal);
+        Assert.Equal(FolderOrganiseOutcomes.SidecarMoved, results[1].Outcome);
+        var survivor = Assert.Single(Directory.EnumerateFiles(_scratch, "*.srt*"));
+        Assert.Equal("Dune.en.srt", Path.GetFileName(survivor));
+        Assert.Equal("subtitles", File.ReadAllText(survivor));
+    }
+
+    [Fact]
+    public void A_leftover_temporary_sidecar_is_not_restored_in_a_folder_whose_policy_forbids_the_move()
+    {
+        var mover = new ScriptedMover { SameFile = (first, second) => string.Equals(first, second, StringComparison.OrdinalIgnoreCase) };
+        var sidecars = new SidecarMover(mover, NullLogger<SidecarMover>.Instance);
+        var oldMedia = Path.Combine(_scratch, "dune.mkv");
+        var newMedia = Path.Combine(_scratch, "Dune.mkv");
+        File.WriteAllText(oldMedia, "media");
+        var leftover = Path.Combine(_scratch, $".dune.en.srt{CaseSafeRename.TemporarySuffix}");
+        File.WriteAllText(leftover, "subtitles");
+
+        var results = sidecars.Move(oldMedia, newMedia, (_, _) => false);
+
+        // A read-only folder is never renamed in, and the refusal is reported rather than silent.
+        Assert.Empty(mover.Moves);
+        Assert.True(File.Exists(leftover));
+        var refused = Assert.Single(results);
+        Assert.Equal(FolderOrganiseOutcomes.NotMoved, refused.Outcome);
+        Assert.Equal(leftover, refused.From);
+    }
+
+    [Fact]
+    public void A_leftover_temporary_sidecar_is_never_restored_over_a_file_that_has_its_name()
+    {
+        var mover = new ScriptedMover { SameFile = (first, second) => string.Equals(first, second, StringComparison.OrdinalIgnoreCase) };
+        var sidecars = new SidecarMover(mover, NullLogger<SidecarMover>.Instance);
+        var oldMedia = Path.Combine(_scratch, "dune.mkv");
+        var newMedia = Path.Combine(_scratch, "Dune.mkv");
+        File.WriteAllText(oldMedia, "media");
+        File.WriteAllText(Path.Combine(_scratch, "dune.srt"), "current subtitles");
+        var leftover = Path.Combine(_scratch, $".dune.srt{CaseSafeRename.TemporarySuffix}");
+        File.WriteAllText(leftover, "older subtitles");
+
+        sidecars.Move(oldMedia, newMedia, (_, _) => true);
+
+        // Nothing is overwritten: the leftover keeps its own bytes, and the file that really has the name keeps its bytes too.
+        Assert.Equal("older subtitles", File.ReadAllText(leftover));
+        var visible = Assert.Single(Directory.EnumerateFiles(_scratch, "*.srt"));
+        Assert.Equal("current subtitles", File.ReadAllText(visible));
     }
 
     [Fact]

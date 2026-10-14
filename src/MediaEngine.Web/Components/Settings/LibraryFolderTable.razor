@@ -4,14 +4,16 @@
 @using MediaEngine.Web.Models.ViewDTOs
 
 @* One media type's folders as a table: folder, how Tuvima handles it, where new media goes, and what happens to its files.
-   Under 800px each row becomes a stacked card. The host owns every save; this component only raises what was tapped. *@
+   Under 840px of its own width each row becomes a stacked card. The host owns every save; this component only raises what was
+   tapped. One polite live region (below) announces what is organising or merging, instead of one per row. *@
+<span class="sr-only" role="status">@LiveStatusText</span>
 <div class="folder-table" role="table" aria-label="@($"{TypeLabel} folders")">
     <div class="folder-table__head" role="row">
         <span role="columnheader">Folder</span>
         <span role="columnheader">Handling</span>
         <span role="columnheader">New media</span>
         <span role="columnheader">Files</span>
-        <span role="columnheader"></span>
+        <span role="columnheader"><span class="sr-only">Actions</span></span>
     </div>
     @foreach (var source in Library.Sources)
     {
@@ -36,15 +38,15 @@
                     }
                     else if (converting)
                     {
-                        <span class="folder-table__status" role="status">Organising…</span>
+                        <span class="folder-table__status">Organising…</span>
                     }
                     else if (IsMerging(source))
                     {
-                        <span class="folder-table__status" role="status">Merging…</span>
+                        <span class="folder-table__status">Merging…</span>
                     }
                     @if (IsMerged(source))
                     {
-                        <span class="folder-table__status" role="status">@MergedText(source)</span>
+                        <span class="folder-table__status">@MergedText(source)</span>
                     }
                     @if (!string.IsNullOrWhiteSpace(issue))
                     {
@@ -60,30 +62,40 @@
                                  OnClick="@(_ => OnChangeHandling.InvokeAsync(source))">
                     @HandlingLabel(source)
                 </AppNativeButton>
+                @* Under 840px folders are read-only: the stylesheet swaps the button for this plain label. *@
+                <span class="@HandlingTagClass(source)">@HandlingLabel(source)</span>
             </div>
             <div class="@(marked ? "folder-table__marker is-marked" : "folder-table__marker")" role="cell">
                 @if (!managed)
                 {
-                    <span class="folder-table__none" aria-label="Not a place for new media">—</span>
+                    <span class="folder-table__none" role="img" aria-label="Not a place for new media">—</span>
                 }
                 else
                 {
-                    <AppNativeButton Type="button"
-                                     Class="folder-table__radio"
-                                     role="radio"
-                                     aria-checked="@(marked ? "true" : "false")"
-                                     Disabled="@(ReadOnly || Busy)"
-                                     AriaLabel="@(marked ? $"{name} is where new {PluralLabel} go" : $"Make {name} the place for new {PluralLabel}")"
-                                     OnClick="@(_ => marked ? Task.CompletedTask : OnSetDestination.InvokeAsync(source))">
-                        <AppMaterialIcon Icon="@(marked ? AppMaterialIcons.Filled.RadioButtonChecked : AppMaterialIcons.Outlined.RadioButtonUnchecked)" />
-                        @if (marked)
-                        {
-                            <span class="folder-table__radio-text">New media goes here</span>
-                        }
-                    </AppNativeButton>
+                    <div class="folder-table__radio-group" role="radiogroup" aria-label="@($"Where new {PluralLabel} go")">
+                        <AppNativeButton Type="button"
+                                         Class="folder-table__radio"
+                                         role="radio"
+                                         aria-checked="@(marked ? "true" : "false")"
+                                         Disabled="@(ReadOnly || Busy)"
+                                         AriaLabel="@(marked ? $"{name} is where new {PluralLabel} go" : $"Make {name} the place for new {PluralLabel}")"
+                                         OnClick="@(_ => marked ? Task.CompletedTask : OnSetDestination.InvokeAsync(source))">
+                            <AppMaterialIcon Icon="@(marked ? AppMaterialIcons.Filled.RadioButtonChecked : AppMaterialIcons.Outlined.RadioButtonUnchecked)" />
+                            @if (marked)
+                            {
+                                <span class="folder-table__radio-text">New media goes here</span>
+                            }
+                        </AppNativeButton>
+                    </div>
                 }
             </div>
-            <div class="folder-table__files" role="cell" title="@($"Change in Advanced > {TypeLabel}")">@FilesLabel(source)</div>
+            <div class="folder-table__files" role="cell">
+                <span class="folder-table__files-value">@FilesLabel(source)</span>
+                @if (ShowAdvancedHint)
+                {
+                    <small class="folder-table__files-hint">Change in Advanced &gt; @TypeLabel</small>
+                }
+            </div>
             <div class="folder-table__actions" role="cell">
                 <AppNativeButton Type="button"
                                  Class="folder-table__expand"
@@ -123,6 +135,8 @@
     [Parameter] public string PluralLabel { get; set; } = string.Empty;
     [Parameter] public bool ReadOnly { get; set; }
     [Parameter] public bool Busy { get; set; }
+    /// <summary>Shows "Change in Advanced > Type" under the Files value. Off where there is no Advanced section to go to (first-run setup).</summary>
+    [Parameter] public bool ShowAdvancedHint { get; set; } = true;
     /// <summary>Folder path to a plain-English problem ("Folder unavailable", "No access"); absent when the folder is fine.</summary>
     [Parameter] public IReadOnlyDictionary<string, string>? PathIssues { get; set; }
     [Parameter] public EventCallback<LibrarySourceDto> OnChangeHandling { get; set; }
@@ -204,8 +218,43 @@
         ? IsMerging(source) || (JobFor(source) is { } job && FolderJobFormat.IsMerge(job) && FolderJobFormat.IsOpen(job)) ? "Merging…" : "Converting…"
         : IsManaged(source) ? "Managed" : "As-is";
 
-    private string HandlingClass(LibrarySourceDto source) =>
-        $"folder-table__chip {(IsOrganising(source) ? "is-converting" : IsManaged(source) ? "is-managed" : "is-asis")}";
+    private string HandlingState(LibrarySourceDto source) =>
+        IsOrganising(source) ? "is-converting" : IsManaged(source) ? "is-managed" : "is-asis";
+
+    private string HandlingClass(LibrarySourceDto source) => $"folder-table__chip {HandlingState(source)}";
+
+    private string HandlingTagClass(LibrarySourceDto source) => $"folder-table__tag {HandlingState(source)}";
+
+    // What the one live region says: which folders are organising or merging, and how finished jobs ended. It carries no
+    // progress numbers, so it changes (and is read out) only when a job starts, pauses, ends or a folder is merged.
+    private string LiveStatusText => string.Join(". ", Library.Sources.Select(LiveStatusFor).Where(text => text.Length > 0));
+
+    private string LiveStatusFor(LibrarySourceDto source)
+    {
+        var name = source.DisplayName();
+        if (JobFor(source) is { } job)
+        {
+            if (FolderJobFormat.IsOpen(job))
+            {
+                var verb = FolderJobFormat.IsMerge(job) ? "Merging" : "Organising";
+                return job.State == "paused" ? $"{verb} {name} is paused" : $"{verb} {name}";
+            }
+
+            return string.IsNullOrWhiteSpace(job.Message) ? string.Empty : $"{name}: {job.Message}";
+        }
+
+        if (IsConverting(source))
+        {
+            return $"Organising {name}";
+        }
+
+        if (IsMerging(source))
+        {
+            return $"Merging {name}";
+        }
+
+        return IsMerged(source) ? $"{name}: {MergedText(source)}" : string.Empty;
+    }
 
     private string HandlingAriaLabel(LibrarySourceDto source) => IsManaged(source)
         ? $"{source.DisplayName()} is managed by Tuvima. Choose to use it as-is."

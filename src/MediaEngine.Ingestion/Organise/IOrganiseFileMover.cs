@@ -17,7 +17,13 @@ public interface IOrganiseFileMover
     /// True when both paths lead to one file on disk (a letter-case-only name on a drive that ignores case, a hard link, a
     /// folder reached two ways), or when that cannot be told. Two names for one file are never a duplicate of each other.
     /// </summary>
-    bool IsSameFile(string first, string second) => FileIdentity.AreSameFile(first, second);
+    bool IsSameFile(string first, string second) => CompareFiles(first, second) != FileIdentityResult.Different;
+
+    /// <summary>
+    /// Like <see cref="IsSameFile"/>, but says so when identity could not be proven, so a caller that would act on "same" can
+    /// leave the file alone instead.
+    /// </summary>
+    FileIdentityResult CompareFiles(string first, string second) => FileIdentity.Compare(first, second);
 }
 
 /// <summary>The real thing: a plain rename that refuses to replace an existing file.</summary>

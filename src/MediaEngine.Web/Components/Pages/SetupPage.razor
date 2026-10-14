@@ -50,7 +50,7 @@
                 case "server":
                     <SetupServerStage ServerName="@_serverName" ServerNameChanged="@((string value) => _serverName = value)"
                                       HostName="@_hostName" HostNameChanged="@((string value) => _hostName = value)"
-                                      Busy="@_busy" Save="SaveServerIdentityAsync" Back="GoBackAsync"
+                                      Busy="@_busy" Save="SaveServerIdentityAsync"
                                       Backup="@_backup" ShowRestore="@_showRestore" OpenRestore="@(() => _showRestore = true)" CancelRestore="CancelRestore"
                                       UploadBackup="UploadBackupAsync" ConfirmRestore="ConfirmRestoreAsync"
                                       ShowReturnToCurrentStep="@(CurrentStep != WorkflowStep)" ReturnToCurrentStep="ReturnToCurrentStep" />

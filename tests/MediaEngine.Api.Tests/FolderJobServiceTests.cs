@@ -1,3 +1,4 @@
+using System.Reflection;
 using Dapper;
 using MediaEngine.Api.Services;
 using MediaEngine.Api.Services.Libraries;
@@ -14,6 +15,7 @@ using MediaEngine.Ingestion.Organise;
 using MediaEngine.Ingestion.Services;
 using MediaEngine.Intelligence.Models;
 using MediaEngine.Storage;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 
@@ -664,8 +666,226 @@ public sealed class FolderJobServiceTests : IDisposable
         Assert.Equal(LibrarySourceMergeStates.None, _f.Source(source.Id).MergeState);
     }
 
+    [Fact]
+    public async Task A_conversion_that_cannot_be_queued_puts_the_folder_back_as_it_was_including_its_access()
+    {
+        var folder = _f.AddAsIsFolder("Plex Movies", fileCount: 1);
+        var jobs = _f.CreateJobs(new FailingTracker());
+
+        var failure = await Assert.ThrowsAsync<InvalidOperationException>(() => jobs.StartConversionAsync(folder.Id, default));
+
+        Assert.Equal(FailingTracker.Message, failure.Message);
+        var saved = _f.Source(folder.Id);
+        Assert.Equal(LibrarySourceManagementModes.ExistingLibrary, saved.ManagementMode);
+        Assert.Equal(LibrarySourceAccessModes.ReadOnly, saved.AccessMode);
+        Assert.Equal(LibrarySourceConversionStates.None, saved.ConversionState);
+        Assert.Null(saved.ConversionOperationId);
+    }
+
+    [Fact]
+    public async Task A_rollback_that_cannot_be_saved_is_logged_and_the_first_error_stays_the_one_shown()
+    {
+        var folder = _f.AddAsIsFolder("Plex Movies", fileCount: 1);
+        var logger = new RecordingLogger();
+        var configuration = FailingSaveLoader.Create(_f.Config, failFromSave: 2);
+        var jobs = _f.CreateJobs(new FailingTracker(), configuration, logger);
+
+        var failure = await Assert.ThrowsAsync<InvalidOperationException>(() => jobs.StartConversionAsync(folder.Id, default));
+
+        Assert.Equal(FailingTracker.Message, failure.Message);
+        var entry = Assert.Single(logger.Entries, item => item.Level == LogLevel.Error);
+        Assert.IsType<IOException>(entry.Exception);
+    }
+
+    [Fact]
+    public async Task A_merge_that_cannot_be_queued_puts_the_folder_back_and_keeps_the_first_error_when_the_rollback_also_fails()
+    {
+        var source = _f.AddAsIsFolder("Plex Movies", fileCount: 2);
+        var target = _f.AddManagedFolder("Tuvima Movies");
+        var plain = _f.CreateJobs(new FailingTracker());
+
+        var failure = await Assert.ThrowsAsync<InvalidOperationException>(() => plain.StartMergeAsync(MergeRequest(source, target), default));
+
+        Assert.Equal(FailingTracker.Message, failure.Message);
+        Assert.Equal(LibrarySourceMergeStates.None, _f.Source(source.Id).MergeState);
+
+        var logger = new RecordingLogger();
+        var stuck = _f.CreateJobs(new FailingTracker(), FailingSaveLoader.Create(_f.Config, failFromSave: 2), logger);
+
+        var again = await Assert.ThrowsAsync<InvalidOperationException>(() => stuck.StartMergeAsync(MergeRequest(source, target), default));
+
+        Assert.Equal(FailingTracker.Message, again.Message);
+        Assert.Contains(logger.Entries, item => item.Level == LogLevel.Error);
+    }
+
+    [Fact]
+    public async Task A_conversion_that_was_queued_stays_queued_when_reading_its_status_back_fails()
+    {
+        var folder = _f.AddAsIsFolder("Plex Movies", fileCount: 1);
+        var gate = new StatusReadGate();
+        var jobs = _f.CreateJobs(new ArmingTracker(_f.Tracker, gate), operations: ThrowingQueueReads.Create(_f.Operations, gate));
+
+        await Assert.ThrowsAsync<IOException>(() => jobs.StartConversionAsync(folder.Id, default));
+
+        // The job exists, so the folder keeps saying it is being organised: nothing is rolled back under a running job.
+        var saved = _f.Source(folder.Id);
+        Assert.Equal(LibrarySourceManagementModes.ManagedByTuvima, saved.ManagementMode);
+        Assert.Equal(LibrarySourceAccessModes.Writable, saved.AccessMode);
+        Assert.Equal(LibrarySourceConversionStates.Converting, saved.ConversionState);
+        Assert.Single(await _f.Operations.GetQueueAsync(MediaOperationQueue.FolderJobs, 50));
+    }
+
+    [Fact]
+    public async Task A_merge_that_was_queued_stays_queued_when_reading_its_status_back_fails()
+    {
+        var source = _f.AddAsIsFolder("Plex Movies", fileCount: 2);
+        var target = _f.AddManagedFolder("Tuvima Movies");
+        var gate = new StatusReadGate();
+        var jobs = _f.CreateJobs(new ArmingTracker(_f.Tracker, gate), operations: ThrowingQueueReads.Create(_f.Operations, gate));
+
+        await Assert.ThrowsAsync<IOException>(() => jobs.StartMergeAsync(MergeRequest(source, target), default));
+
+        Assert.Equal(LibrarySourceMergeStates.Merging, _f.Source(source.Id).MergeState);
+        Assert.Single(await _f.Operations.GetQueueAsync(MediaOperationQueue.FolderJobs, 50));
+    }
+
     private static FolderMergeRequest MergeRequest(LibrarySourceConfig source, LibrarySourceConfig target, string mode = LibraryMergeModes.Copy) =>
         new() { SourceId = source.Id, TargetSourceId = target.Id, Mode = mode };
+
+    /// <summary>A tracker that cannot queue anything, so a job fails to start after the folder was already saved as busy.</summary>
+    private sealed class FailingTracker : IMediaOperationTracker
+    {
+        public const string Message = "The job queue is unavailable.";
+
+        public Task<MediaOperation> EnsureQueuedAsync(MediaOperation operation, CancellationToken ct = default) =>
+            throw new InvalidOperationException(Message);
+
+        public Task UpdateStageAsync(Guid operationId, string stage, int? progressPercent = null, string? message = null, object? detail = null, CancellationToken ct = default) => Task.CompletedTask;
+
+        public Task MarkSucceededAsync(Guid operationId, string? resultSummary = null, object? detail = null, CancellationToken ct = default) => Task.CompletedTask;
+
+        public Task MarkNoResultAsync(Guid operationId, string? reason = null, object? detail = null, CancellationToken ct = default) => Task.CompletedTask;
+
+        public Task MarkBlockedAsync(Guid operationId, string reason, object? detail = null, CancellationToken ct = default) => Task.CompletedTask;
+
+        public Task MarkFailedAsync(Guid operationId, Exception exception, bool terminal, CancellationToken ct = default) => Task.CompletedTask;
+
+        public Task ReportProgressAsync(Guid operationId, int itemsTotal, int itemsCompleted, int itemsFailed, int progressPercent, TimeSpan? extendLease = null, CancellationToken ct = default) => Task.CompletedTask;
+    }
+
+    /// <summary>Set once a job has really been queued; from then on reading the queue back fails.</summary>
+    public sealed class StatusReadGate
+    {
+        public bool Armed { get; set; }
+    }
+
+    /// <summary>Queues for real, then arms the gate so the status read that follows fails.</summary>
+    private sealed class ArmingTracker(IMediaOperationTracker inner, StatusReadGate gate) : IMediaOperationTracker
+    {
+        public async Task<MediaOperation> EnsureQueuedAsync(MediaOperation operation, CancellationToken ct = default)
+        {
+            var queued = await inner.EnsureQueuedAsync(operation, ct);
+            gate.Armed = true;
+            return queued;
+        }
+
+        public Task UpdateStageAsync(Guid operationId, string stage, int? progressPercent = null, string? message = null, object? detail = null, CancellationToken ct = default) =>
+            inner.UpdateStageAsync(operationId, stage, progressPercent, message, detail, ct);
+
+        public Task MarkSucceededAsync(Guid operationId, string? resultSummary = null, object? detail = null, CancellationToken ct = default) =>
+            inner.MarkSucceededAsync(operationId, resultSummary, detail, ct);
+
+        public Task MarkNoResultAsync(Guid operationId, string? reason = null, object? detail = null, CancellationToken ct = default) =>
+            inner.MarkNoResultAsync(operationId, reason, detail, ct);
+
+        public Task MarkBlockedAsync(Guid operationId, string reason, object? detail = null, CancellationToken ct = default) =>
+            inner.MarkBlockedAsync(operationId, reason, detail, ct);
+
+        public Task MarkFailedAsync(Guid operationId, Exception exception, bool terminal, CancellationToken ct = default) =>
+            inner.MarkFailedAsync(operationId, exception, terminal, ct);
+
+        public Task ReportProgressAsync(Guid operationId, int itemsTotal, int itemsCompleted, int itemsFailed, int progressPercent, TimeSpan? extendLease = null, CancellationToken ct = default) =>
+            inner.ReportProgressAsync(operationId, itemsTotal, itemsCompleted, itemsFailed, progressPercent, extendLease, ct);
+    }
+
+    /// <summary>Forwards everything to the real repository, but fails queue reads once the gate is armed.</summary>
+    public class ThrowingQueueReads : DispatchProxy
+    {
+        private IMediaOperationRepository _inner = null!;
+        private StatusReadGate _gate = null!;
+
+        public static IMediaOperationRepository Create(IMediaOperationRepository inner, StatusReadGate gate)
+        {
+            var proxy = Create<IMediaOperationRepository, ThrowingQueueReads>();
+            var repository = (ThrowingQueueReads)(object)proxy;
+            repository._inner = inner;
+            repository._gate = gate;
+            return proxy;
+        }
+
+        protected override object? Invoke(MethodInfo? targetMethod, object?[]? args)
+        {
+            if (targetMethod?.Name == nameof(IMediaOperationRepository.GetQueueAsync) && _gate.Armed)
+            {
+                throw new IOException("The data store could not be read.");
+            }
+
+            try
+            {
+                return targetMethod!.Invoke(_inner, args);
+            }
+            catch (TargetInvocationException ex) when (ex.InnerException is not null)
+            {
+                throw ex.InnerException;
+            }
+        }
+    }
+
+    /// <summary>Forwards everything to the real loader except SaveLibraries, which throws from the given call onwards.</summary>
+    public class FailingSaveLoader : DispatchProxy
+    {
+        private IConfigurationLoader _inner = null!;
+        private int _failFromSave;
+        private int _saves;
+
+        public static IConfigurationLoader Create(IConfigurationLoader inner, int failFromSave)
+        {
+            var proxy = Create<IConfigurationLoader, FailingSaveLoader>();
+            var loader = (FailingSaveLoader)(object)proxy;
+            loader._inner = inner;
+            loader._failFromSave = failFromSave;
+            return proxy;
+        }
+
+        protected override object? Invoke(MethodInfo? targetMethod, object?[]? args)
+        {
+            if (targetMethod?.Name == nameof(IConfigurationLoader.SaveLibraries) && ++_saves >= _failFromSave)
+            {
+                throw new IOException("The libraries file is locked.");
+            }
+
+            try
+            {
+                return targetMethod!.Invoke(_inner, args);
+            }
+            catch (TargetInvocationException ex) when (ex.InnerException is not null)
+            {
+                throw ex.InnerException;
+            }
+        }
+    }
+
+    private sealed class RecordingLogger : ILogger<FolderJobService>
+    {
+        public List<(LogLevel Level, Exception? Exception)> Entries { get; } = [];
+
+        public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
+
+        public bool IsEnabled(LogLevel logLevel) => true;
+
+        public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter) =>
+            Entries.Add((logLevel, exception));
+    }
 
     // ── The fixture ──────────────────────────────────────────────────────────────────────────────────────────────
 
@@ -678,12 +898,15 @@ public sealed class FolderJobServiceTests : IDisposable
         private readonly MediaEngine.Ingestion.Organise.FolderOrganiseRunner _runner;
         private string _libraryId = Guid.NewGuid().ToString("D");
         private readonly string _allowedRoot;
+        private readonly FolderConversionPreviewer _previewer;
+        private readonly FolderMergePreviewer _mergePreviewer;
 
         public ConfigurationDirectoryLoader Config { get; }
         public IMediaOperationRepository Operations { get; }
         public FolderJobService Jobs { get; }
         public ScriptedMover Mover { get; } = new();
         public IFolderOrganiseLogRepository Ledger { get; }
+        public IMediaOperationTracker Tracker { get; }
 
         public FolderJobFixture()
         {
@@ -728,6 +951,7 @@ public sealed class FolderJobServiceTests : IDisposable
             Ledger = new FolderOrganiseLogRepository(_database);
             var tracker = new MediaOperationTracker(
                 Operations, new MediaOperationEventRepository(_database), new NullPublisher(), NullLogger<MediaOperationTracker>.Instance);
+            Tracker = tracker;
 
             var options = new IngestionOptions { PollIntervalSeconds = 0, IncludeSubdirectories = true };
             var monitor = new StaticMonitor(options);
@@ -755,7 +979,7 @@ public sealed class FolderJobServiceTests : IDisposable
             _runner = new FolderOrganiseRunner(
                 Config, _assets, Ledger, organiser, NullLogger<FolderOrganiseRunner>.Instance,
                 timing: new FolderOrganiseTiming { RetryDelay = TimeSpan.FromMilliseconds(5), ProgressInterval = TimeSpan.Zero });
-            var previewer = new FolderConversionPreviewer(Config, _assets, organiser, NullLogger<FolderConversionPreviewer>.Instance);
+            var previewer = _previewer = new FolderConversionPreviewer(Config, _assets, organiser, NullLogger<FolderConversionPreviewer>.Instance);
             var mergeOrganiser = new FolderMergeOrganiser(
                 organiser, _assets, new ReviewQueueRepository(_database), new SystemActivityRepository(_database), Ledger, hasher,
                 new SourceMutationPolicyGate(), new MergeFileTransfer(hasher, NullLogger<MergeFileTransfer>.Instance), sidecars,
@@ -763,7 +987,7 @@ public sealed class FolderJobServiceTests : IDisposable
             var mergeRunner = new FolderMergeRunner(
                 Config, _assets, Ledger, mergeOrganiser, NullLogger<FolderMergeRunner>.Instance,
                 timing: new FolderOrganiseTiming { RetryDelay = TimeSpan.FromMilliseconds(5), ProgressInterval = TimeSpan.Zero });
-            var mergePreviewer = new FolderMergePreviewer(Config, _assets, mergeOrganiser, NullLogger<FolderMergePreviewer>.Instance);
+            var mergePreviewer = _mergePreviewer = new FolderMergePreviewer(Config, _assets, mergeOrganiser, NullLogger<FolderMergePreviewer>.Instance);
             Jobs = new FolderJobService(
                 Config, Operations, tracker, Ledger, previewer, mergePreviewer,
                 new ServerFolderBrowserService(Config, NullLogger<ServerFolderBrowserService>.Instance),
@@ -772,6 +996,13 @@ public sealed class FolderJobServiceTests : IDisposable
         }
 
         private FolderOrganiseJobWorker Worker { get; }
+
+        /// <summary>A second service over the same folders and data store, with its own tracker, configuration and logger.</summary>
+        public FolderJobService CreateJobs(IMediaOperationTracker tracker, IConfigurationLoader? configuration = null, ILogger<FolderJobService>? logger = null, IMediaOperationRepository? operations = null) =>
+            new(
+                configuration ?? Config, operations ?? Operations, tracker, Ledger, _previewer, _mergePreviewer,
+                new ServerFolderBrowserService(Config, NullLogger<ServerFolderBrowserService>.Instance),
+                logger ?? NullLogger<FolderJobService>.Instance);
 
         /// <summary>Adds an As-is folder to the Movies library with plain media files in it that the library does not know.</summary>
         public LibrarySourceConfig AddAsIsFolder(string name, int fileCount)

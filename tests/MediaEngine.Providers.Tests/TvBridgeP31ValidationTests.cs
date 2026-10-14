@@ -141,7 +141,7 @@ public sealed class TvBridgeP31ValidationTests : IDisposable
         var dir = Path.GetDirectoryName(typeof(TvBridgeP31ValidationTests).Assembly.Location);
         while (dir != null)
         {
-            if (Directory.Exists(Path.Combine(dir, ".git")))
+            if (File.Exists(Path.Combine(dir, "MediaEngine.slnx")))
             {
                 return dir;
             }
@@ -149,7 +149,7 @@ public sealed class TvBridgeP31ValidationTests : IDisposable
             dir = Path.GetDirectoryName(dir);
         }
 
-        throw new InvalidOperationException("Could not find repository root (.git directory)");
+        throw new InvalidOperationException("Could not find repository root (MediaEngine.slnx)");
     }
 
     private sealed class StubHttpClientFactory : IHttpClientFactory

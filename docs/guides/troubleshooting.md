@@ -88,6 +88,8 @@ A catalogue item needs a real title, resolved type, and settled artwork state be
 
 For View, confirm the owning profile, source attachment, and upload/import policy. Routine catalogue scans do not replace View's personal-source workflow.
 
+When a folder job wants to change only the letter case of a file's name (or of a folder in its path), Tuvima first checks that the old and new names are the same file. If it cannot prove that, the rename is skipped with a warning in the Engine log and in the folder job's log, and is never forced; the file keeps its current letter case. This happens when the file is held open by another program, and on shares that do not support file locks, such as a CIFS mount with `noserverino,nobrl` or some NFS setups. Close the program using the file, rename it by hand, or mount the share with file locking enabled, then run the job again.
+
 ## An import waits or needs review
 
 Operations reports durable queued jobs, retries, and provider waits. A settled file count can reach its target while required identity or organization work remains.

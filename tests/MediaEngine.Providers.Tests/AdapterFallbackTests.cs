@@ -2066,7 +2066,7 @@ public sealed class AdapterFallbackTests
 
             dir = Path.GetDirectoryName(dir);
         }
-        throw new InvalidOperationException("Could not find repository root (.git directory)");
+        throw new InvalidOperationException("Could not find repository root (MediaEngine.slnx)");
     }
 
     // ── Stub HTTP helpers ────────────────────────────────────────────────────

@@ -5237,7 +5237,16 @@ input[type="reset"],
 .folder-table__expand { display: none; padding: 0; width: 48px; min-height: 44px; color: var(--tl-text-secondary); border: 0; background: transparent; cursor: pointer; }
 .folder-table__chip:focus-visible, .folder-table__radio:focus-visible, .folder-table__expand:focus-visible, .folder-table__menu-trigger:focus-visible { outline: 2px solid var(--tl-accent-primary); outline-offset: 2px; }
 .folder-table__actions .folder-table__menu .folder-table__menu-trigger.app-overflow-menu__trigger { min-width: 44px; min-height: 44px; }
-@media (max-width: 840px) { .folder-table__expand { display: inline-flex; align-items: center; justify-content: center; } }
+.folder-table__tag { display: none; align-items: center; min-height: 44px; padding: 0 14px; color: var(--tl-text-secondary); border: 1px solid var(--tl-border-subtle); border-radius: 999px; background: transparent; font-size: 0.85rem; font-weight: 600; }
+.folder-table__tag.is-managed { color: var(--tl-accent-primary); border-color: var(--tl-accent-primary-border); background: var(--tl-accent-primary-soft); }
+.folder-table__tag.is-converting { color: var(--tl-status-warning); border-color: var(--tl-status-warning-border); background: var(--tl-status-warning-soft); }
+/* Show details only where the Files value is folded away (the card layout), which follows the table's own width. */
+@container folder-table (max-width: 840px) { .folder-table__expand { display: inline-flex; align-items: center; justify-content: center; } }
+/* Under 840px folders are read-only: the Handling button becomes plain text and the row menu goes (display:none, so neither is focusable). */
+@media (max-width: 840px) {
+    .folder-table__handling .folder-table__chip, .folder-table__menu { display: none; }
+    .folder-table__tag { display: inline-flex; }
+}
 .library-advanced__tabs { min-width: 0; max-width: 100%; }
 .library-advanced__tabs .tl-tabs-toolbar { overflow-x: auto; }
 .library-advanced__tabs .tl-tab { flex: 0 0 auto; white-space: nowrap; }

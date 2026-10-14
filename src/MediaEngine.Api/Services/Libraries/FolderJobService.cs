@@ -241,9 +241,10 @@ public sealed class FolderJobService
                 throw new FolderJobException($"The folder settings could not be saved: {ex.Message}");
             }
 
+            MediaOperation operation;
             try
             {
-                var operation = await _tracker.EnsureQueuedAsync(new MediaOperation
+                operation = await _tracker.EnsureQueuedAsync(new MediaOperation
                 {
                     Id = operationId,
                     OperationType = MergeFolder,
@@ -257,20 +258,16 @@ public sealed class FolderJobService
                     ItemsTotal = count.TotalFiles,
                     IdempotencyKey = $"{MergeFolder}:{sourceId:D}:{operationId:N}",
                 }, ct).ConfigureAwait(false);
-                return await ToStatusAsync(operation, libraries, ct).ConfigureAwait(false);
             }
             catch
             {
                 // No job exists, so the folder must not be left saying it is merging.
-                var current = _configuration.LoadLibraries();
-                if (FindSource(current, sourceId) is { } saved)
-                {
-                    ClearMerge(saved);
-                    _configuration.SaveLibraries(current);
-                }
-
+                RollBackFailedStart(sourceId, "merging", ClearMerge);
                 throw;
             }
+
+            // The job is queued. Reading its status back may fail (or be cancelled), but that never undoes the queued job.
+            return await ToStatusAsync(operation, libraries, ct).ConfigureAwait(false);
         }
         finally
         {
@@ -324,6 +321,8 @@ public sealed class FolderJobService
             var count = await _previewer.CountAsync(sourceId, ct).ConfigureAwait(false);
             var operationId = Guid.NewGuid();
             var wasManaged = source.IsManaged;
+            var previousManagement = source.ManagementMode;
+            var previousAccess = source.AccessMode;
             var previousState = (source.ConversionState, source.ConversionOperationId);
 
             source.ManagementMode = LibrarySourceManagementModes.ManagedByTuvima;
@@ -339,9 +338,10 @@ public sealed class FolderJobService
                 throw new FolderJobException($"The folder settings could not be saved: {ex.Message}");
             }
 
+            MediaOperation operation;
             try
             {
-                var operation = await _tracker.EnsureQueuedAsync(new MediaOperation
+                operation = await _tracker.EnsureQueuedAsync(new MediaOperation
                 {
                     Id = operationId,
                     OperationType = OrganiseFolder,
@@ -355,26 +355,25 @@ public sealed class FolderJobService
                     ItemsTotal = count?.Total ?? 0,
                     IdempotencyKey = $"{OrganiseFolder}:{sourceId:D}:{operationId:N}",
                 }, ct).ConfigureAwait(false);
-                return await ToStatusAsync(operation, libraries, ct).ConfigureAwait(false);
             }
             catch
             {
-                // No job exists, so the folder must not be left saying it is converting.
-                var current = _configuration.LoadLibraries();
-                if (FindSource(current, sourceId) is { } saved)
+                // No job exists, so the folder must not be left saying it is converting, or managed and writable when it was not.
+                RollBackFailedStart(sourceId, "converting", saved =>
                 {
                     saved.ConversionState = previousState.ConversionState;
                     saved.ConversionOperationId = previousState.ConversionOperationId;
                     if (!wasManaged)
                     {
-                        saved.ManagementMode = LibrarySourceManagementModes.ExistingLibrary;
+                        saved.ManagementMode = previousManagement;
+                        saved.AccessMode = previousAccess;
                     }
-
-                    _configuration.SaveLibraries(current);
-                }
-
+                });
                 throw;
             }
+
+            // The job is queued. Reading its status back may fail (or be cancelled), but that never undoes the queued job.
+            return await ToStatusAsync(operation, libraries, ct).ConfigureAwait(false);
         }
         finally
         {
@@ -917,6 +916,27 @@ public sealed class FolderJobService
         source.MergeTargetSourceId = null;
         source.MergeMode = null;
         source.MergedAt = null;
+    }
+
+    /// <summary>
+    /// Puts a folder back as it was after its job could not be queued. This runs while the original failure is being rethrown, so
+    /// a rollback that cannot be saved is logged and swallowed: the person must keep seeing the first error, not a second one.
+    /// </summary>
+    private void RollBackFailedStart(Guid sourceId, string what, Action<LibrarySourceConfig> restore)
+    {
+        try
+        {
+            var current = _configuration.LoadLibraries();
+            if (FindSource(current, sourceId) is { } saved)
+            {
+                restore(saved);
+                _configuration.SaveLibraries(current);
+            }
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _logger.LogError(ex, "Folder {SourceId} could not be put back after {Job} failed to start; its saved settings may still say it is busy", sourceId, what);
+        }
     }
 
     private static FolderJobException MergeProblem(FolderMergeCheck check) => new(

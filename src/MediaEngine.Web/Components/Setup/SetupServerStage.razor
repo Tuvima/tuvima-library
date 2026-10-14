@@ -15,7 +15,7 @@
 
     <p class="setup-server-form__preview">Keep this Dashboard on your private network until the first administrator is created.</p>
 
-    <SetupStageFooter Back="Back" ShowReturnToCurrentStep="@ShowReturnToCurrentStep" ReturnToCurrentStep="ReturnToCurrentStep">
+    <SetupStageFooter ShowReturnToCurrentStep="@ShowReturnToCurrentStep" ReturnToCurrentStep="ReturnToCurrentStep">
         <AppButton Label="Continue" EndIcon="@AppMaterialIcons.Outlined.ArrowForward" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary"
                    Loading="@Busy" Disabled="@(string.IsNullOrWhiteSpace(ServerName))" OnClick="Save" />
     </SetupStageFooter>
@@ -28,7 +28,7 @@
             <InputFile OnChange="UploadBackup" accept=".zip,application/zip" class="setup-file-input" />
             @if (Backup is not null)
             {
-                <dl class="setup-facts"><div><dt>File</dt><dd>@Backup.FileName</dd></div><div><dt>Created</dt><dd>@(Backup.CreatedAt?.ToString("g") ?? "Unknown")</dd></div><div><dt>Database epoch</dt><dd>@Backup.DatabaseEpoch</dd></div><div><dt>Entries</dt><dd>@Backup.EntryCount</dd></div></dl>
+                <dl class="setup-facts"><div><dt>File</dt><dd>@Backup.FileName</dd></div><div><dt>Created</dt><dd>@(Backup.CreatedAt?.ToString("g") ?? "Unknown")</dd></div><div><dt>Entries</dt><dd>@Backup.EntryCount</dd></div></dl>
                 <AppAlert Tone="AppUiTone.Warning">@Backup.Warning The application will restart after confirmation.</AppAlert>
                 <div class="setup-actions"><AppButton Label="Cancel restore" OnClick="CancelRestore" /><AppButton Label="Restore and restart" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Warning" Loading="@Busy" OnClick="ConfirmRestore" /></div>
             }
@@ -51,7 +51,6 @@
     [Parameter] public EventCallback<string> HostNameChanged { get; set; }
     [Parameter] public bool Busy { get; set; }
     [Parameter] public EventCallback Save { get; set; }
-    [Parameter] public EventCallback Back { get; set; }
     [Parameter] public bool ShowReturnToCurrentStep { get; set; }
     [Parameter] public EventCallback ReturnToCurrentStep { get; set; }
     [Parameter] public SetupBackupInspectionDto? Backup { get; set; }
