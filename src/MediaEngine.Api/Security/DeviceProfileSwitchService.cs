@@ -22,12 +22,25 @@ public enum DeviceProfileSwitchOutcome
 
     /// <summary>The device, account or Application changed while switching, or another switch got there first.</summary>
     DeviceUnavailable,
+
+    /// <summary>The device used its per-minute allowance (see <see cref="DeviceActionThrottle"/>).</summary>
+    RateLimited,
+
+    /// <summary>The requested person is the one the device is already using.</summary>
+    AlreadyActive,
 }
 
 public sealed record DeviceProfileSwitchResult(
     DeviceProfileSwitchOutcome Outcome,
     OAuthTokenResponse? Tokens = null,
-    string? Description = null);
+    string? Description = null,
+    int RetryAfterSeconds = 0);
+
+/// <summary>The people a device may switch to, or why not (<see cref="DeviceProfileSwitchOutcome.Forbidden"/> or <see cref="DeviceProfileSwitchOutcome.RateLimited"/>).</summary>
+public sealed record DeviceProfileListResult(
+    DeviceProfileListDto? Profiles,
+    DeviceProfileSwitchOutcome Failure = DeviceProfileSwitchOutcome.Forbidden,
+    int RetryAfterSeconds = 0);
 
 /// <summary>
 /// Lets a paired phone or television switch person without re-pairing. It adds no rule of its own: the people offered
@@ -42,17 +55,24 @@ public sealed class DeviceProfileSwitchService(
     IProfileRepository profiles,
     IFirstPartyIdentityService identity,
     IProfilePinVerifier pins,
+    DeviceActionThrottle throttle,
     TimeProvider clock)
 {
     public const string AuditEvent = "device.profile_switched";
 
-    /// <summary>The people this device may switch to, or null when the caller is not the paired app of a live device of its own account.</summary>
-    public async Task<DeviceProfileListDto?> ListAsync(RequestAuthority authority, CancellationToken ct = default)
+    /// <summary>The people this device may switch to; no list when the caller is not the paired app of a live device of its own account, or when the device is over its allowance.</summary>
+    public async Task<DeviceProfileListResult> ListAsync(RequestAuthority authority, CancellationToken ct = default)
     {
         var device = await ResolveDeviceAsync(authority, ct).ConfigureAwait(false);
         if (device is null)
         {
-            return null;
+            return new(null);
+        }
+
+        // Only a verified live device of the caller's own account is ever counted, so nothing a caller makes up allocates an entry.
+        if (!throttle.TryAcquire(device.Id, out var retryAfter))
+        {
+            return new(null, DeviceProfileSwitchOutcome.RateLimited, retryAfter);
         }
 
         var grantedIds = await accounts.GetProfileIdsAsync(device.AccountId, ct).ConfigureAwait(false);
@@ -76,7 +96,7 @@ public sealed class DeviceProfileSwitchService(
             });
         }
 
-        return new DeviceProfileListDto { Profiles = list };
+        return new(new DeviceProfileListDto { Profiles = list });
     }
 
     /// <param name="callerTokenId">The caller's own access token (its <c>tuvima:token_id</c> claim); the switch needs it to still be live.</param>
@@ -87,6 +107,18 @@ public sealed class DeviceProfileSwitchService(
         if (device is null || callerTokenId == Guid.Empty || authority.ActiveProfileId is not { } expectedProfileId)
         {
             return new(DeviceProfileSwitchOutcome.Forbidden, Description: "Only the paired app of a live device can switch profile.");
+        }
+
+        // The allowance follows the device across token rotation, so switching again and again cannot buy a fresh one.
+        if (!throttle.TryAcquire(device.Id, out var retryAfter))
+        {
+            return new(DeviceProfileSwitchOutcome.RateLimited, Description: "Too many requests. Try again shortly.", RetryAfterSeconds: retryAfter);
+        }
+
+        // Switching to the person already in use would only mint a new token pair; refuse it before anything else is checked.
+        if (targetProfileId == expectedProfileId)
+        {
+            return new(DeviceProfileSwitchOutcome.AlreadyActive, Description: "This device is already using that profile.");
         }
 
         // Same grant check, in the same order, as the Dashboard's switch: an enabled grant on the device's own account.

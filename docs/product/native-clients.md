@@ -61,7 +61,8 @@ a new token pair for the chosen person and revokes the old one at once. The
 person's PIN is checked at every switch, including when moving out of a Kids
 profile, with the same lockout as the Dashboard. Only people the account is
 granted can be listed or chosen, and a Kids profile keeps its content limit
-after the switch.
+after the switch. Choosing the profile already in use is refused (`409`), and
+each device may list or switch at most 30 times a minute.
 
 Automotive clients expose only Listen content and native media controls. They
 do not expose Watch, Read, View, administration, metadata correction, or the

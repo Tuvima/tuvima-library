@@ -79,27 +79,6 @@ public static class AuthenticationRateLimitPartition
         return For(context);
     }
 
-    /// <summary>
-    /// Partitioning for the <c>"authentication-device"</c> policy, used by a paired app's own repeatable actions such as
-    /// listing and switching profile. The limiter runs before authentication and a paired app reaches the Engine through
-    /// the Dashboard's address, so a per-address bucket would be shared by every device. A request carrying a bearer
-    /// token gets an allowance of its own, keyed by a hash of that token (a device's id is not known yet), so one device
-    /// cannot use up another's. Anything without a bearer token falls back to <see cref="For"/>.
-    /// </summary>
-    public static RateLimitPartition<string> ForDevice(HttpContext context)
-    {
-        var authorization = context.Request.Headers.Authorization.ToString();
-        if (authorization.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase)
-            && authorization["Bearer ".Length..].Trim() is { Length: > 0 } token)
-        {
-            // Only a hash is kept, so the limiter never holds a usable token.
-            var key = "device:" + Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(token)));
-            return RateLimitPartition.GetFixedWindowLimiter(key, _ => Options(PerSessionPermitLimit));
-        }
-
-        return For(context);
-    }
-
     private static FixedWindowRateLimiterOptions Options(int permitLimit) => new()
     {
         PermitLimit = permitLimit,

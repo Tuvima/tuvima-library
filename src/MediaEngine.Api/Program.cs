@@ -297,7 +297,6 @@ builder.Services.AddSingleton<IConfigurationLoader>(configLoader);
                 }));
         options.AddPolicy("authentication", context => AuthenticationRateLimitPartition.For(context));
         options.AddPolicy("authentication-session", context => AuthenticationRateLimitPartition.ForSession(context));
-        options.AddPolicy("authentication-device", context => AuthenticationRateLimitPartition.ForDevice(context));
         options.AddPolicy("intercom", context =>
             RateLimitPartition.GetFixedWindowLimiter(
                 context.Connection.RemoteIpAddress?.ToString() ?? "unknown",

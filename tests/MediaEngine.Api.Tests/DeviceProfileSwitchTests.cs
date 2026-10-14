@@ -48,6 +48,8 @@ public sealed class DeviceProfileSwitchTests : IAsyncLifetime
     private Guid _phoneId;
     private OAuthTokenResponse _paired = null!;
     private string _access = null!;
+    private TestClock _clock = null!;
+    private DeviceActionThrottle _throttle = null!;
 
     public async Task InitializeAsync()
     {
@@ -70,8 +72,10 @@ public sealed class DeviceProfileSwitchTests : IAsyncLifetime
         _devices = new ClientAuthorizationRepository(_database);
         var applications = new ApplicationRepository(_database);
         _authorization = new ClientAuthorizationService(_devices, _accounts, applications, new PermissionRegistry(), TimeProvider.System);
+        _clock = new TestClock(DateTimeOffset.UtcNow);
+        _throttle = new DeviceActionThrottle(_clock);
         _service = new DeviceProfileSwitchService(
-            _devices, _authorization, _accounts, profiles, _identity, _identity, TimeProvider.System);
+            _devices, _authorization, _accounts, profiles, _identity, _identity, _throttle, TimeProvider.System);
 
         var bootstrap = Authority(Guid.NewGuid(), Guid.NewGuid(), serverAdmin: true);
         var serverAccount = await mutations.CreateAsync(bootstrap, NewAccount("server@example.com", administrator: true, "Server"));
@@ -107,7 +111,7 @@ public sealed class DeviceProfileSwitchTests : IAsyncLifetime
     {
         await _identity.SetProfilePinAsync(_jim.Id, Pin);
 
-        var list = Assert.IsType<DeviceProfileListDto>(await _service.ListAsync(PhoneAuthority(_mary.Id)));
+        var list = Assert.IsType<DeviceProfileListDto>((await _service.ListAsync(PhoneAuthority(_mary.Id))).Profiles);
 
         Assert.Equivalent(new[] { _mary.Id, _jim.Id, _sam.Id }, list.Profiles.Select(profile => profile.ProfileId));
         Assert.DoesNotContain(list.Profiles, profile => profile.ProfileId == _bea.Id);
@@ -130,7 +134,7 @@ public sealed class DeviceProfileSwitchTests : IAsyncLifetime
                 new { account = _homeOwner.Id, profile = _jim.Id });
         }
 
-        var list = Assert.IsType<DeviceProfileListDto>(await _service.ListAsync(PhoneAuthority(_mary.Id)));
+        var list = Assert.IsType<DeviceProfileListDto>((await _service.ListAsync(PhoneAuthority(_mary.Id))).Profiles);
         var result = await SwitchAsAsync(_mary.Id, _jim.Id, null);
 
         Assert.DoesNotContain(list.Profiles, profile => profile.ProfileId == _jim.Id);
@@ -285,12 +289,12 @@ public sealed class DeviceProfileSwitchTests : IAsyncLifetime
 
         foreach (var caller in new[] { browser, otherAccount, service })
         {
-            Assert.Null(await _service.ListAsync(caller));
+            Assert.Null((await _service.ListAsync(caller)).Profiles);
             Assert.Equal(DeviceProfileSwitchOutcome.Forbidden, (await _service.SwitchAsync(caller, tokenId, _sam.Id, null)).Outcome);
         }
 
         Assert.True(await _devices.RevokeDeviceByIdAsync(_phoneId, DateTimeOffset.UtcNow, "test"));
-        Assert.Null(await _service.ListAsync(PhoneAuthority(_mary.Id)));
+        Assert.Null((await _service.ListAsync(PhoneAuthority(_mary.Id))).Profiles);
         Assert.Equal(DeviceProfileSwitchOutcome.Forbidden, (await _service.SwitchAsync(PhoneAuthority(_mary.Id), tokenId, _sam.Id, null)).Outcome);
         Assert.Equal(0, AuditCount());
     }
@@ -473,18 +477,6 @@ public sealed class DeviceProfileSwitchTests : IAsyncLifetime
     }
 
     [Fact]
-    public void BothActions_AreRateLimited_ByTheDevicePolicy()
-    {
-        using var app = BuildHttpApplication();
-        foreach (var pattern in new[] { "/api/v1/devices/current/profiles", "/api/v1/devices/current/switch-profile" })
-        {
-            var endpoint = Assert.Single(EndpointsFor(app), candidate => candidate.RoutePattern.RawText == pattern);
-            Assert.Contains(endpoint.Metadata.GetOrderedMetadata<Microsoft.AspNetCore.RateLimiting.EnableRateLimitingAttribute>(),
-                attribute => attribute.PolicyName == "authentication-device");
-        }
-    }
-
-    [Fact]
     public async Task OverHttp_AWrongPinIs428_ABrowserWithADeviceIdIs403_AndAPairedBearerGetsTokens()
     {
         await _identity.SetProfilePinAsync(_jim.Id, Pin);
@@ -522,6 +514,202 @@ public sealed class DeviceProfileSwitchTests : IAsyncLifetime
         Assert.Contains($"\"profile_id\":\"{_jim.Id:D}\"", ok.Body);
         Assert.Contains($"\"device_id\":\"{_phoneId:D}\"", ok.Body);
         Assert.Equal(StatusCodes.Status403Forbidden, listForBrowser.Status);
+    }
+
+    [Fact]
+    public async Task ABurstOfParallelGuesses_NeverCountsMoreThanTheLimit_AndALockedPersonRefusesEvenTheRightPin()
+    {
+        await _identity.SetProfilePinAsync(_jim.Id, Pin);
+
+        // From fresh: 20 guesses at once, one of them right. At most 5 attempts are ever reserved in a cycle.
+        var burst = Enumerable.Range(0, 20).Select(index => VerifyAsync(_jim.Id, index == 7 ? Pin : "0000")).ToArray();
+        var outcomes = await Task.WhenAll(burst);
+
+        Assert.True(outcomes.Count(outcome => outcome == "ok") <= 1);
+        Assert.InRange(FailedPinCount(_jim.Id), 0, 5);
+        if (!outcomes.Contains("ok"))
+        {
+            Assert.Equal(5, FailedPinCount(_jim.Id));
+            Assert.NotNull(PinLockedUntil(_jim.Id));
+        }
+
+        // Bring Mary to the limit one guess at a time: the fifth wrong guess locks her.
+        await _identity.SetProfilePinAsync(_mary.Id, Pin);
+        for (var attempt = 1; attempt <= 4; attempt++)
+        {
+            Assert.Equal("required", await VerifyAsync(_mary.Id, "0000"));
+        }
+
+        Assert.Equal("locked", await VerifyAsync(_mary.Id, "0000"));
+        var lockedUntil = PinLockedUntil(_mary.Id);
+        Assert.NotNull(lockedUntil);
+
+        // Locked: a burst with the right PIN in it (ten times) can neither succeed nor clear the lock or the count.
+        var locked = await Task.WhenAll(Enumerable.Range(0, 20).Select(index => VerifyAsync(_mary.Id, index % 2 == 0 ? Pin : "0000")));
+
+        Assert.All(locked, outcome => Assert.Equal("locked", outcome));
+        Assert.Equal(lockedUntil, PinLockedUntil(_mary.Id));
+        Assert.Equal(5, FailedPinCount(_mary.Id));
+    }
+
+    [Fact]
+    public async Task AfterTheLockRunsOut_TheFirstMissCountsAsOne_AndARightPinStillWorks()
+    {
+        await _identity.SetProfilePinAsync(_jim.Id, Pin);
+        for (var attempt = 1; attempt <= 5; attempt++)
+        {
+            await VerifyAsync(_jim.Id, "0000");
+        }
+
+        Assert.Equal("locked", await VerifyAsync(_jim.Id, Pin));
+        ExpireThePinLock(_jim.Id);
+
+        Assert.Equal("required", await VerifyAsync(_jim.Id, "0000"));
+        Assert.Equal(1, FailedPinCount(_jim.Id));
+        Assert.Null(PinLockedUntil(_jim.Id));
+
+        ExpireThePinLock(_jim.Id);
+        Assert.Equal("ok", await VerifyAsync(_jim.Id, Pin));
+        Assert.Equal(0, FailedPinCount(_jim.Id));
+    }
+
+    [Fact]
+    public async Task TheFifthGuessCanStillSucceed_WhenTheFirstFourWereWrong()
+    {
+        await _identity.SetProfilePinAsync(_jim.Id, Pin);
+        for (var attempt = 1; attempt <= 4; attempt++)
+        {
+            Assert.Equal("required", await VerifyAsync(_jim.Id, "0000"));
+        }
+
+        Assert.Equal("ok", await VerifyAsync(_jim.Id, Pin));
+        Assert.Equal(0, FailedPinCount(_jim.Id));
+        Assert.Null(PinLockedUntil(_jim.Id));
+    }
+
+    [Fact]
+    public async Task SwitchingToTheProfileInUse_IsRefusedWith409_BeforeAnyPinCheck()
+    {
+        await _identity.SetProfilePinAsync(_mary.Id, Pin);
+
+        var same = await SwitchAsAsync(_mary.Id, _mary.Id, null);
+
+        Assert.Equal(DeviceProfileSwitchOutcome.AlreadyActive, same.Outcome);
+        Assert.Null(same.Tokens);
+        Assert.Equal(0, FailedPinCount(_mary.Id));
+        Assert.Equal(0, AuditCount());
+        Assert.NotNull(await _authorization.ValidateAccessTokenAsync(_paired.AccessToken));
+        Assert.Equal(_mary.Id, (await _devices.GetDeviceAsync(_phoneId))!.ProfileId);
+    }
+
+    [Fact]
+    public async Task TheAllowance_FollowsTheDeviceAcrossTokenRotation()
+    {
+        // Every success mints a new token; the allowance must not restart with it.
+        var switches = 0;
+        var current = _mary.Id;
+        DeviceProfileSwitchResult result;
+        do
+        {
+            var next = current == _mary.Id ? _sam.Id : _mary.Id;
+            result = await SwitchAsAsync(current, next, null);
+            if (result.Outcome == DeviceProfileSwitchOutcome.Switched)
+            {
+                switches++;
+                current = next;
+            }
+        }
+        while (result.Outcome == DeviceProfileSwitchOutcome.Switched && switches < DeviceActionThrottle.PermitLimit + 5);
+
+        Assert.Equal(DeviceActionThrottle.PermitLimit, switches);
+        Assert.Equal(DeviceProfileSwitchOutcome.RateLimited, result.Outcome);
+        Assert.True(result.RetryAfterSeconds is >= 1 and <= 60);
+        Assert.Equal(current, (await _devices.GetDeviceAsync(_phoneId))!.ProfileId);
+        var list = await _service.ListAsync(PhoneAuthority(current));
+        Assert.Null(list.Profiles);
+        Assert.Equal(DeviceProfileSwitchOutcome.RateLimited, list.Failure);
+
+        _clock.Advance(TimeSpan.FromSeconds(61));
+        Assert.NotNull((await _service.ListAsync(PhoneAuthority(current))).Profiles);
+    }
+
+    [Fact]
+    public async Task CallersThatAreNotAVerifiedDevice_AllocateNoThrottleEntry()
+    {
+        var browser = new RequestAuthority(PrincipalKind.Human, true, _homeOwner.Id, _mary.Id, DeviceId: _phoneId);
+        var unknownDevice = new RequestAuthority(
+            PrincipalKind.DelegatedUserClient, true, _homeOwner.Id, _mary.Id, DeviceId: Guid.NewGuid());
+        var otherAccount = new RequestAuthority(
+            PrincipalKind.DelegatedUserClient, true, Guid.NewGuid(), _bea.Id, DeviceId: _phoneId);
+
+        for (var index = 0; index < 100; index++)
+        {
+            foreach (var caller in new[] { browser, unknownDevice, otherAccount })
+            {
+                Assert.Null((await _service.ListAsync(caller)).Profiles);
+                Assert.Equal(DeviceProfileSwitchOutcome.Forbidden, (await _service.SwitchAsync(caller, Guid.NewGuid(), _sam.Id, null)).Outcome);
+            }
+        }
+
+        Assert.Equal(0, _throttle.TrackedDevices);
+        await _service.ListAsync(PhoneAuthority(_mary.Id));
+        Assert.Equal(1, _throttle.TrackedDevices);
+    }
+
+    [Fact]
+    public async Task OverHttp_TheCurrentProfileIs409_AndTheAllowanceIs429WithRetryAfter()
+    {
+        using var app = BuildHttpApplication();
+        var identity = Assert.IsType<ClientAccessIdentity>(await _authorization.ValidateAccessTokenAsync(_access));
+        var user = ContextFor(identity).User.Clone();
+        user.AddIdentity(new ClaimsIdentity([new Claim(TuvimaClaimTypes.TokenId, identity.Token.Id.ToString("D"))]));
+
+        var same = await PostSwitchAsync(app, user, _mary.Id, null);
+        Assert.Equal(StatusCodes.Status409Conflict, same.Status);
+        Assert.Contains("\"error\":\"already_active_profile\"", same.Body);
+
+        // Rejected calls count too, so the allowance cannot be probed for free.
+        (int Status, string Body, string? RetryAfter) limited = (0, "", null);
+        for (var call = 1; call <= DeviceActionThrottle.PermitLimit; call++)
+        {
+            limited = await PostSwitchWithHeadersAsync(app, user, _mary.Id, null);
+        }
+
+        Assert.Equal(StatusCodes.Status429TooManyRequests, limited.Status);
+        Assert.Contains("\"error\":\"rate_limited\"", limited.Body);
+        Assert.False(string.IsNullOrEmpty(limited.RetryAfter));
+    }
+
+    private async Task<string> VerifyAsync(Guid profileId, string pin)
+    {
+        try
+        {
+            await Task.Run(() => _identity.VerifyProfilePinAsync(profileId, pin, true));
+            return "ok";
+        }
+        catch (ProfilePinLockedException)
+        {
+            return "locked";
+        }
+        catch (ProfilePinRequiredException)
+        {
+            return "required";
+        }
+    }
+
+    private void ExpireThePinLock(Guid profileId)
+    {
+        using var connection = _database.CreateConnection();
+        connection.Execute(
+            "UPDATE profile_credentials SET locked_until = @past WHERE profile_id = @profileId AND locked_until IS NOT NULL;",
+            new { profileId, past = DateTimeOffset.UtcNow.AddMinutes(-1).ToString("O") });
+    }
+
+    private async Task<(int Status, string Body, string? RetryAfter)> PostSwitchWithHeadersAsync(
+        WebApplication app, ClaimsPrincipal user, Guid profileId, string? pin)
+    {
+        var (status, body, headers) = await InvokeSwitchAsync(app, user, profileId, pin);
+        return (status, body, headers.RetryAfter.ToString());
     }
 
     private int FailedPinCount(Guid profileId)
@@ -566,6 +754,13 @@ public sealed class DeviceProfileSwitchTests : IAsyncLifetime
 
     private static async Task<(int Status, string Body)> PostSwitchAsync(WebApplication app, ClaimsPrincipal user, Guid profileId, string? pin)
     {
+        var (status, body, _) = await InvokeSwitchAsync(app, user, profileId, pin);
+        return (status, body);
+    }
+
+    private static async Task<(int Status, string Body, IHeaderDictionary Headers)> InvokeSwitchAsync(
+        WebApplication app, ClaimsPrincipal user, Guid profileId, string? pin)
+    {
         var endpoint = Assert.Single(EndpointsFor(app), candidate =>
             candidate.RoutePattern.RawText == "/api/v1/devices/current/switch-profile" &&
             candidate.Metadata.GetMetadata<IHttpMethodMetadata>()?.HttpMethods.Contains("POST") == true);
@@ -587,7 +782,7 @@ public sealed class DeviceProfileSwitchTests : IAsyncLifetime
         context.Features.Set<IHttpRequestBodyDetectionFeature>(new RequestBodyDetectionFeature());
         await endpoint.RequestDelegate!(context);
         body.Position = 0;
-        return (context.Response.StatusCode, await new StreamReader(body).ReadToEndAsync());
+        return (context.Response.StatusCode, await new StreamReader(body).ReadToEndAsync(), context.Response.Headers);
     }
 
     private static async Task<(int Status, string Body)> GetProfilesAsync(WebApplication app, ClaimsPrincipal user)
@@ -598,6 +793,15 @@ public sealed class DeviceProfileSwitchTests : IAsyncLifetime
         await endpoint.RequestDelegate!(context);
         body.Position = 0;
         return (context.Response.StatusCode, await new StreamReader(body).ReadToEndAsync());
+    }
+
+    private sealed class TestClock(DateTimeOffset start) : TimeProvider
+    {
+        private DateTimeOffset _now = start;
+
+        public override DateTimeOffset GetUtcNow() => _now;
+
+        public void Advance(TimeSpan by) => _now += by;
     }
 
     private sealed class RequestBodyDetectionFeature : IHttpRequestBodyDetectionFeature
