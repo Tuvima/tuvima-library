@@ -137,7 +137,7 @@ public static class UniverseMapper
 
     /// <summary>
     /// Returns <see langword="true"/> when the raw media-type string maps to the
-    /// <see cref="MediaTypeBucket.Audio"/> bucket.  Used by Automotive Mode to
+    /// <see cref="MediaTypeBucket.Audio"/> bucket.  Used to
     /// filter the grid to audio-only content.
     /// </summary>
     public static bool IsAudio(string mediaType) =>
