@@ -714,11 +714,26 @@ public sealed class ViewSharedTransferServiceTests
         Assert.DoesNotContain(mine.Items, contribution => contribution.Id == documentsOnly.Id);
         Assert.Equal(1, mine.Items.Single(contribution => contribution.Id == mixed.Id).HiddenItemCount);
 
+        // Only the person who submitted it can cancel it: a reviewer is told it is not there. Without Documents the
+        // contributor cannot cancel a documents-only one (it does not exist for them), and cancelling a mixed one
+        // answers with the same filtered view.
+        await Assert.ThrowsAsync<KeyNotFoundException>(() => fixture.Contributions.CancelAsync(admin, mixed.Id, mixed.Revision));
+        await Assert.ThrowsAsync<KeyNotFoundException>(() => fixture.Contributions.CancelAsync(mary, documentsOnly.Id, documentsOnly.Revision));
+        var cancelledMixed = await fixture.Contributions.CancelAsync(mary, mixed.Id, mixed.Revision);
+        Assert.Equal("cancelled", cancelledMixed.Status);
+        Assert.Equal(beach, Assert.Single(cancelledMixed.Items).ItemId);
+        Assert.Equal(1, cancelledMixed.HiddenItemCount);
+
         // The reviewer with Documents back sees it all again.
         await fixture.Policies.SavePolicyAsync(
             (await fixture.Policies.GetPolicyAsync(fixture.ProfileId)) with { DocumentsEnabled = true });
         Assert.Equal(2, (await fixture.Contributions.GetRequiredAsync(admin, mixed.Id)).Items.Count);
         Assert.Single((await fixture.Contributions.GetRequiredAsync(admin, documentsOnly.Id)).Items);
+
+        // Once the contributor has Documents again they can cancel their documents-only contribution.
+        await fixture.Policies.SavePolicyAsync(
+            (await fixture.Policies.GetPolicyAsync(maryId)) with { DocumentsEnabled = true });
+        Assert.Equal("cancelled", (await fixture.Contributions.CancelAsync(mary, documentsOnly.Id, documentsOnly.Revision)).Status);
     }
 
     [Fact]

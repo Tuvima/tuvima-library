@@ -1182,6 +1182,69 @@ public sealed class ViewDocumentOrganisationEndpointTests : IAsyncLifetime
         Assert.Empty(searched!);
     }
 
+    [Fact]
+    public async Task SavingAGalleryWithoutDocumentsKeepsTheOwnersDocumentCover()
+    {
+        var owner = await CreatePerson("StandardUser");
+        var photo = await AddItem(owner, '1', LocalAssetMediaKinds.Image, "Beach");
+        var document = await AddDocument(owner, 'd');
+        var galleries = new ViewGalleryRepository(_database);
+        var gallery = await CreateManualGallery(owner, "Trip", cover: document);
+        await _policies.SavePolicyAsync(ViewProfilePolicy.Default(owner.ProfileId) with { DocumentsEnabled = false });
+        _actor.Current = owner.Authority;
+
+        // The profile reads "no cover" (the Dashboard sends that back unchanged), and a rename must not wipe the real one.
+        var read = await _client.GetFromJsonAsync<ViewGalleryDto>($"/view/galleries/{gallery.Id:D}");
+        Assert.Null(read!.CoverItemId);
+        using var renamed = await _client.PutAsJsonAsync($"/view/galleries/{gallery.Id:D}",
+            new ViewGalleryRequest("Holiday", ViewGalleryKind.Manual, CoverItemId: read.CoverItemId));
+        Assert.Equal(HttpStatusCode.OK, renamed.StatusCode);
+        Assert.Null((await renamed.Content.ReadFromJsonAsync<ViewGalleryDto>())!.CoverItemId);
+        var stored = (await galleries.GetAsync(gallery.Id))!;
+        Assert.Equal("Holiday", stored.Name);
+        Assert.Equal(document, stored.CoverItemId);
+
+        // An explicit photo cover from them does replace it; a later save with none then clears that photo cover.
+        using var chosen = await _client.PutAsJsonAsync($"/view/galleries/{gallery.Id:D}",
+            new ViewGalleryRequest("Holiday", ViewGalleryKind.Manual, CoverItemId: photo));
+        Assert.Equal(photo, (await chosen.Content.ReadFromJsonAsync<ViewGalleryDto>())!.CoverItemId);
+        using var cleared = await _client.PutAsJsonAsync($"/view/galleries/{gallery.Id:D}",
+            new ViewGalleryRequest("Holiday", ViewGalleryKind.Manual));
+        Assert.Equal(HttpStatusCode.OK, cleared.StatusCode);
+        Assert.Null((await galleries.GetAsync(gallery.Id))!.CoverItemId);
+    }
+
+    [Fact]
+    public async Task AGalleryContributorWithoutDocumentsCannotTellADocumentFromAnUnknownId()
+    {
+        var household = Guid.NewGuid();
+        var owner = await CreatePersonWithoutDocuments(household);
+        var contributor = await CreatePerson("RestrictedProfile", household);
+        var photo = await AddItem(owner, '1', LocalAssetMediaKinds.Image, "Beach");
+        var document = await AddDocument(owner, 'd');
+        var galleries = new ViewGalleryRepository(_database);
+        var gallery = await CreateManualGallery(owner, "Trip");
+        await galleries.ReplaceSharesAsync(gallery.Id, [(contributor.ProfileId, ViewGallerySharePermission.Contribute)]);
+
+        async Task<(HttpStatusCode Status, string Body)> AddAsync(Person person, Guid itemId)
+        {
+            _actor.Current = person.Authority;
+            using var response = await _client.PostAsJsonAsync($"/view/galleries/{gallery.Id:D}/items", new ViewGalleryItemsRequest([itemId]));
+            return (response.StatusCode, await response.Content.ReadAsStringAsync());
+        }
+
+        // The contributor gets the same answer for the owner's document as for an id that is not there ...
+        var unknown = await AddAsync(contributor, Guid.NewGuid());
+        var forDocument = await AddAsync(contributor, document);
+        Assert.Equal(HttpStatusCode.BadRequest, unknown.Status);
+        Assert.Equal(unknown.Status, forDocument.Status);
+        Assert.DoesNotContain("Documents", forDocument.Body, StringComparison.Ordinal);
+
+        // ... and only the owner, whose document it is, is told Documents is the reason.
+        Assert.Equal(HttpStatusCode.Forbidden, (await AddAsync(owner, document)).Status);
+        Assert.Equal(HttpStatusCode.OK, (await AddAsync(owner, photo)).Status);
+    }
+
     private async Task<Guid> AddSharedPhoto(Guid libraryId, char seed)
     {
         var sourceId = Guid.NewGuid();
@@ -1309,6 +1372,9 @@ public sealed class ViewDocumentOrganisationEndpointTests : IAsyncLifetime
     private const string Discovery = "Places_Atlas_PlaceMediaAndPeople_NeverIncludeADocumentEvenWithLocationOrPersonMetadata";
     private const string NoItems = "none:";
 
+    /// <summary>A covering test plus a phrase its source must contain (the call or path that makes the claim true).</summary>
+    private static string Covers(string test, string evidence) => $"{test}|{evidence}";
+
     /// <summary>
     /// Every View route, and why it cannot tell a profile without Documents that a document exists: the test that
     /// proves it, or (after "none:") why it carries no item data. A new route must be added here on purpose; a route
@@ -1323,20 +1389,20 @@ public sealed class ViewDocumentOrganisationEndpointTests : IAsyncLifetime
         ["DELETE /view/document-rules/{id:guid}"] = Refused,
         ["DELETE /view/document-types/{id:guid}"] = Refused,
         ["DELETE /view/galleries/{id:guid}"] = NoItems + "deletes the Gallery and returns nothing",
-        ["DELETE /view/galleries/{id:guid}/items"] = GalleryWrite,
+        ["DELETE /view/galleries/{id:guid}/items"] = Covers(GalleryWrite, "HttpMethod.Delete"),
         ["DELETE /view/tags/{id:guid}"] = Refused,
         ["GET /view/admin/profiles/{profileId:guid}/sources"] = NoItems + "administrator source settings, no items",
         ["GET /view/admin/shared/sources"] = NoItems + "administrator source settings, no items",
         ["GET /view/assets"] = Refused,
-        ["GET /view/assets/timeline-index"] = TimelineIndex,
+        ["GET /view/assets/timeline-index"] = Covers(TimelineIndex, "timeline-index"),
         ["GET /view/catalogue"] = Refused,
         ["GET /view/document-rules"] = Refused,
         ["GET /view/documents/export"] = Refused,
         ["GET /view/documents/inbox-summary"] = Refused,
         ["GET /view/folders"] = Refused,
-        ["GET /view/galleries"] = GalleryRead,
-        ["GET /view/galleries/{id:guid}"] = GalleryRead,
-        ["GET /view/galleries/{id:guid}/items"] = GalleryRead,
+        ["GET /view/galleries"] = Covers(GalleryRead, "\"/view/galleries\""),
+        ["GET /view/galleries/{id:guid}"] = Covers(GalleryRead, "ViewGalleryDto>($\"/view/galleries/"),
+        ["GET /view/galleries/{id:guid}/items"] = Covers(GalleryRead, "ViewGalleryItemPageDto>("),
         ["GET /view/galleries/{id:guid}/shares"] = NoItems + "profile ids and permissions only",
         ["GET /view/items/{id:guid}"] = Refused,
         ["GET /view/items/{id:guid}/content"] = Refused,
@@ -1346,18 +1412,18 @@ public sealed class ViewDocumentOrganisationEndpointTests : IAsyncLifetime
         ["GET /view/items/{id:guid}/thumbnail"] = Refused,
         ["GET /view/library-capacity"] = NoItems + "disk space only",
         ["GET /view/other-people"] = NoItems + "household and profile names only",
-        ["GET /view/people"] = Discovery,
+        ["GET /view/people"] = Covers(Discovery, "QueryPeople"),
         ["GET /view/photo-views"] = NoItems + "audit of who opened photos, no items",
-        ["GET /view/places"] = Discovery,
-        ["GET /view/places/atlas"] = Discovery,
-        ["GET /view/places/media"] = Discovery,
+        ["GET /view/places"] = Covers(Discovery, "QueryPlaces"),
+        ["GET /view/places/atlas"] = Covers(Discovery, "QueryAtlas"),
+        ["GET /view/places/media"] = Covers(Discovery, "QueryPlaceAssets"),
         ["GET /view/preferences"] = NoItems + "the person's own settings",
         ["GET /view/preferences/documents-sort"] = Refused,
         ["GET /view/scopes"] = NoItems + "scope names only",
         ["GET /view/share-targets"] = NoItems + "profile names only",
-        ["GET /view/shared/contributions"] = ContributionRoutes,
-        ["GET /view/shared/contributions/{id:guid}"] = ContributionRoutes,
-        ["GET /view/tag-suggestions"] = TagSuggestions,
+        ["GET /view/shared/contributions"] = Covers(ContributionRoutes, "mode=review"),
+        ["GET /view/shared/contributions/{id:guid}"] = Covers(ContributionRoutes, "contributions/{documentsOnly"),
+        ["GET /view/tag-suggestions"] = Covers(TagSuggestions, "/view/tag-suggestions"),
         ["POST /view/admin/profiles/{profileId:guid}/reconcile"] = NoItems + "administrator scan, file totals only, no item data",
         ["POST /view/admin/profiles/{profileId:guid}/sources"] = NoItems + "administrator source settings, no items",
         ["POST /view/admin/shared/reconcile"] = NoItems + "administrator scan, file totals only, no item data",
@@ -1369,18 +1435,18 @@ public sealed class ViewDocumentOrganisationEndpointTests : IAsyncLifetime
         ["POST /view/document-rules/test"] = Refused,
         ["POST /view/document-types"] = Refused,
         ["POST /view/documents/bulk"] = Refused,
-        ["POST /view/galleries"] = GalleryWrite,
-        ["POST /view/galleries/{id:guid}/items"] = GalleryWrite,
-        ["POST /view/items/{id:guid}/archive"] = Lifecycle,
+        ["POST /view/galleries"] = Covers(GalleryWrite, "PostAsJsonAsync(\"/view/galleries\""),
+        ["POST /view/galleries/{id:guid}/items"] = Covers(GalleryWrite, "PostAsJsonAsync($\"/view/galleries/{gallery.Id:D}/items\""),
+        ["POST /view/items/{id:guid}/archive"] = Covers(Lifecycle, "/archive"),
         ["POST /view/items/{id:guid}/inbox/file"] = Refused,
-        ["POST /view/items/{id:guid}/restore"] = Lifecycle,
-        ["POST /view/items/{id:guid}/trash"] = Lifecycle,
-        ["POST /view/shared/contributions"] = ContributionSend,
-        ["POST /view/shared/contributions/{id:guid}/cancel"] = ContributionService,
-        ["POST /view/shared/contributions/{id:guid}/decision"] = ContributionRoutes,
-        ["POST /view/shared/contributions/{id:guid}/retry"] = ContributionRoutes,
-        ["POST /view/shared/contributions/preview"] = ContributionSend,
-        ["POST /view/shared/items/direct"] = ContributionSend,
+        ["POST /view/items/{id:guid}/restore"] = Covers(Lifecycle, "/restore"),
+        ["POST /view/items/{id:guid}/trash"] = Covers(Lifecycle, "/trash"),
+        ["POST /view/shared/contributions"] = Covers(ContributionSend, "SubmitAsync"),
+        ["POST /view/shared/contributions/{id:guid}/cancel"] = Covers(ContributionService, "CancelAsync"),
+        ["POST /view/shared/contributions/{id:guid}/decision"] = Covers(ContributionRoutes, "/decision"),
+        ["POST /view/shared/contributions/{id:guid}/retry"] = Covers(ContributionRoutes, "/retry"),
+        ["POST /view/shared/contributions/preview"] = Covers(ContributionSend, "PreviewAsync"),
+        ["POST /view/shared/items/direct"] = Covers(ContributionSend, "AddDirectAsync"),
         ["POST /view/tags"] = Refused,
         ["POST /view/uploads"] = NoItems + "answers with the id of the file the person just sent, nothing existing",
         ["PUT /view/admin/profiles/{profileId:guid}/sources/{sourceId:guid}"] = NoItems + "administrator source settings, no items",
@@ -1393,13 +1459,13 @@ public sealed class ViewDocumentOrganisationEndpointTests : IAsyncLifetime
         ["PUT /view/folders/pin"] = NoItems + "stores a path the person typed; never checks that anything is there",
         ["PUT /view/folders/timeline-policy"] = NoItems + "stores a path the person typed; never checks that anything is there",
         ["PUT /view/galleries/{id:guid}"] = Refused,
-        ["PUT /view/galleries/{id:guid}/items/{itemId:guid}/position"] = GalleryWrite,
+        ["PUT /view/galleries/{id:guid}/items/{itemId:guid}/position"] = Covers(GalleryWrite, "/position"),
         ["PUT /view/galleries/{id:guid}/shares"] = Refused,
         ["PUT /view/items/{id:guid}/captured-at"] = Refused,
         ["PUT /view/items/{id:guid}/description"] = Refused,
         ["PUT /view/items/{id:guid}/document-details"] = Refused,
-        ["PUT /view/items/{id:guid}/favorite"] = Lifecycle,
-        ["PUT /view/items/{id:guid}/hidden"] = Lifecycle,
+        ["PUT /view/items/{id:guid}/favorite"] = Covers(Lifecycle, "/favorite"),
+        ["PUT /view/items/{id:guid}/hidden"] = Covers(Lifecycle, "/hidden"),
         ["PUT /view/items/{id:guid}/location"] = Refused,
         ["PUT /view/items/{id:guid}/people"] = Refused,
         ["PUT /view/items/{id:guid}/tags"] = Refused,
@@ -1428,11 +1494,24 @@ public sealed class ViewDocumentOrganisationEndpointTests : IAsyncLifetime
             .EnumerateFiles(Path.Combine(FindRepositoryRoot(), "tests"), "*.cs", SearchOption.AllDirectories)
             .Where(path => !path.Contains($"{Path.DirectorySeparatorChar}obj{Path.DirectorySeparatorChar}", StringComparison.Ordinal))
             .Select(File.ReadAllText));
-        foreach (var test in ReviewedRoutes.Values.Where(value => !value.StartsWith(NoItems, StringComparison.Ordinal)).Distinct())
+        foreach (var (route, review) in ReviewedRoutes.Where(entry => !entry.Value.StartsWith(NoItems, StringComparison.Ordinal)))
         {
-            Assert.True(
-                testSources.Contains($"Task {test}(", StringComparison.Ordinal) || testSources.Contains($"void {test}(", StringComparison.Ordinal),
-                $"ReviewedRoutes names the test '{test}', which does not exist.");
+            var parts = review.Split('|', 2);
+            var test = parts[0];
+            var start = testSources.IndexOf($"Task {test}(", StringComparison.Ordinal);
+            if (start < 0)
+            {
+                start = testSources.IndexOf($"void {test}(", StringComparison.Ordinal);
+            }
+
+            Assert.True(start >= 0, $"{route} names the test '{test}', which does not exist.");
+            if (parts.Length == 2)
+            {
+                var next = testSources.IndexOf("\n    [Fact]", start, StringComparison.Ordinal);
+                var body = next < 0 ? testSources[start..] : testSources[start..next];
+                Assert.True(body.Contains(parts[1], StringComparison.Ordinal),
+                    $"{route} says '{test}' covers it, but that test never mentions '{parts[1]}'.");
+            }
         }
     }
 
