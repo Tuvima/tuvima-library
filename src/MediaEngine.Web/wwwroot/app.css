@@ -3721,7 +3721,8 @@ button.app-menu-item {
     :root:root .layout-shell__nav-link,
     :root:root .layout-shell__search-action,
     :root:root .layout-shell__my-list,
-    :root:root .system-activity-indicator {
+    :root:root .system-activity-indicator,
+    :root:root .chronicle-node-list .tl-list-item-button {
         min-width: var(--tl-tap-target-min);
         min-height: var(--tl-tap-target-min);
     }

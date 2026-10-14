@@ -19,17 +19,7 @@
 <PageTitle>Chronicle Explorer - @(_graph?.Universe.Label ?? Qid)</PageTitle>
 
 <AppContainer MaxWidth="AppMaxWidth.False" Class="pa-4">
-@if (DeviceContext.IsMobile)
-{
-    <AppPanel Class="chronicle-explorer-empty pa-6">
-        <AppMaterialIcon Icon="@AppMaterialIcons.Filled.AccountTree" Size="AppSize.Large" Color="AppColor.Default" />
-        <AppText Typo="AppTypo.h5">Chronicle Explorer is unavailable on mobile</AppText>
-        <AppText Typo="AppTypo.body2" Color="AppColor.Secondary">
-            The relationship graph needs a larger workspace. Open this Universe from a desktop or tablet-sized web view.
-        </AppText>
-    </AppPanel>
-}
-else if (_loading)
+@if (_loading)
 {
     <AppPanel Class="chronicle-explorer-empty pa-6">
         <AppSpinner Indeterminate="true" Color="AppColor.Primary" />
@@ -168,6 +158,16 @@ else
         }
 <AppGrid>
             <AppItem xs="12" md="@(_activeMode == 0 ? 7 : 8)">
+                <div class="chronicle-explorer-zoom" role="group" aria-label="Graph view controls">
+                    <AppIconButton Icon="@AppMaterialIcons.Outlined.Add" Tooltip="Zoom in" AriaLabel="Zoom in"
+                                   OnClick="@(() => InvokeGraphViewAsync("CytoscapeInterop.zoomIn"))" />
+                    <AppIconButton Icon="@AppMaterialIcons.Outlined.Remove" Tooltip="Zoom out" AriaLabel="Zoom out"
+                                   OnClick="@(() => InvokeGraphViewAsync("CytoscapeInterop.zoomOut"))" />
+                    <AppIconButton Icon="@AppMaterialIcons.Outlined.FitScreen" Tooltip="Fit graph to view" AriaLabel="Fit graph to view"
+                                   OnClick="@(() => InvokeGraphViewAsync("CytoscapeInterop.fit"))" />
+                    <AppIconButton Icon="@AppMaterialIcons.Outlined.RestartAlt" Tooltip="Reset view" AriaLabel="Reset view"
+                                   OnClick="@(() => InvokeGraphViewAsync("CytoscapeInterop.resetView"))" />
+                </div>
                 <div id="cytoscape-container"
                      class="chronicle-explorer-graph">
                 </div>
@@ -182,20 +182,21 @@ else
                                       Adornment="AppAdornment.Start"
                                       AdornmentIcon="@AppMaterialIcons.Filled.Search"
                                       Immediate="true" Class="mb-3" />
-                        <AppList T="GraphNodeDto" Dense="true">
-                            @foreach (var entity in FilteredEntities)
+                        @* Keyboard, remote and screen-reader path to every node: each row is a real button. *@
+                        <AppList T="GraphNodeDto" Dense="true" Class="chronicle-node-list" aria-label="Entities in this Universe">
+                            @foreach (var entry in NodeListEntries)
                             {
+                                var entity = entry.Node;
                                 <AppListItem T="GraphNodeDto" OnClick="@(() => OnEntityClick(entity))">
-                                    <AppStack Row="true" AlignItems="AppAlignItems.Center" Spacing="2">
+                                    <span class="chronicle-node-list__row">
                                         <AppMaterialIcon Icon="@GetEntityIcon(entity.Type)"
                                                  Color="@GetEntityColor(entity.Type)"
                                                  Size="AppSize.Small" />
-                                        <AppText>@entity.Label</AppText>
-                                        <AppSpacer />
-                                        <AppText Typo="AppTypo.caption" Class="chronicle-explorer-entity-type">
-                                            @entity.Type
-                                        </AppText>
-                                    </AppStack>
+                                        <span class="chronicle-node-list__text">
+                                            <span class="chronicle-node-list__label">@entity.Label</span>
+                                            <span class="chronicle-node-list__meta">@entity.Type · @RelationshipText(entry.RelationshipCount)</span>
+                                        </span>
+                                    </span>
                                 </AppListItem>
                             }
                         </AppList>
@@ -480,17 +481,63 @@ else
     private AppSeverity _loreMessageSeverity = AppSeverity.Info;
     private List<UniverseLoreSourceViewModel> _loreSources = [];
 
-    private IEnumerable<GraphNodeDto> FilteredEntities =>
-        _graph?.Nodes.Where(n =>
-            string.IsNullOrWhiteSpace(_entitySearch) ||
-            n.Label.Contains(_entitySearch, StringComparison.OrdinalIgnoreCase)) ?? [];
+    private sealed record NodeListEntry(GraphNodeDto Node, int RelationshipCount);
+
+    private UniverseGraphResponse? _nodeListSource;
+    private IReadOnlyList<NodeListEntry> _nodeListAll = [];
+
+    /// <summary>
+    /// Every graph node sorted by label with its relationship count, optionally narrowed by the search box.
+    /// The sorted list is rebuilt only when the graph response changes.
+    /// </summary>
+    private IEnumerable<NodeListEntry> NodeListEntries
+    {
+        get
+        {
+            if (!ReferenceEquals(_nodeListSource, _graph))
+            {
+                _nodeListSource = _graph;
+                _nodeListAll = BuildNodeList(_graph);
+            }
+
+            return string.IsNullOrWhiteSpace(_entitySearch)
+                ? _nodeListAll
+                : _nodeListAll.Where(entry => entry.Node.Label.Contains(_entitySearch, StringComparison.OrdinalIgnoreCase));
+        }
+    }
+
+    private static List<NodeListEntry> BuildNodeList(UniverseGraphResponse? graph)
+    {
+        if (graph is null)
+        {
+            return [];
+        }
+
+        var counts = new Dictionary<string, int>(StringComparer.Ordinal);
+        foreach (var edge in graph.Edges)
+        {
+            counts[edge.Source] = counts.GetValueOrDefault(edge.Source) + 1;
+            if (!string.Equals(edge.Source, edge.Target, StringComparison.Ordinal))
+            {
+                counts[edge.Target] = counts.GetValueOrDefault(edge.Target) + 1;
+            }
+        }
+
+        return graph.Nodes
+            .OrderBy(node => node.Label, StringComparer.OrdinalIgnoreCase)
+            .Select(node => new NodeListEntry(node, counts.GetValueOrDefault(node.Id)))
+            .ToList();
+    }
+
+    private static string RelationshipText(int count) =>
+        count == 1 ? "1 relationship" : $"{count} relationships";
 
     private bool HasApprovedLoreSource =>
         _loreSources.Any(source => source.Status.Equals("Approved", StringComparison.OrdinalIgnoreCase));
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (firstRender && _graph is not null && _hasGraphData && !DeviceContext.IsMobile)
+        if (firstRender && _graph is not null && _hasGraphData)
         {
             await EnsureCytoscapeLoadedAsync();
             _dotNetRef = DotNetObjectReference.Create(this);
@@ -503,7 +550,7 @@ else
         }
         var needsGraph = _activeMode is 0 or 1 or 2;
         var prevNeedsGraph = _previousMode is 0 or 1 or 2;
-        if (!firstRender && needsGraph && !prevNeedsGraph && _graph is not null && _hasGraphData && !DeviceContext.IsMobile)
+        if (!firstRender && needsGraph && !prevNeedsGraph && _graph is not null && _hasGraphData)
         {
             _previousMode = _activeMode;
             await EnsureCytoscapeLoadedAsync();
@@ -630,6 +677,13 @@ else
                     System.Text.Json.JsonSerializer.Serialize(_graph.Edges));
             }
         }
+    }
+
+    /// <summary>Zoom in/out, fit and reset buttons: the pinch-free path for remotes, keyboards and screen readers.</summary>
+    private async Task InvokeGraphViewAsync(string method)
+    {
+        await EnsureCytoscapeLoadedAsync();
+        await JS.InvokeVoidAsync(method);
     }
 
     private async Task OnLayoutChanged(string layout)

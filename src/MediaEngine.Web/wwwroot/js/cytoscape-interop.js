@@ -4,6 +4,14 @@
 let _cy = null;
 let _dotNetRef = null;
 
+function zoomBy(factor) {
+    if (!_cy) return;
+    var level = Math.min(_cy.maxZoom(), Math.max(_cy.minZoom(), _cy.zoom() * factor));
+    _cy.animate({
+        zoom: { level: level, renderedPosition: { x: _cy.width() / 2, y: _cy.height() / 2 } }
+    }, { duration: 200 });
+}
+
 window.CytoscapeInterop = {
     /**
      * Initialize the Cytoscape graph in a container element.
@@ -154,7 +162,11 @@ window.CytoscapeInterop = {
             layout: { name: layout || 'cose', animate: true, animationDuration: 500 },
             minZoom: 0.3,
             maxZoom: 3,
-            wheelSensitivity: 0.3
+            wheelSensitivity: 0.3,
+            // Pinch to zoom and one- or two-finger drag to pan are Cytoscape's touch gestures. They are on by default;
+            // stated here so a phone never loses them by accident.
+            userZoomingEnabled: true,
+            userPanningEnabled: true
         });
 
         // Register click handlers
@@ -245,6 +257,38 @@ window.CytoscapeInterop = {
             _cy.elements().unselect();
             node.select();
         }
+    },
+
+    /**
+     * Zoom in one step about the middle of the graph (button path; pinch and wheel work natively).
+     */
+    zoomIn: function () {
+        zoomBy(1.25);
+    },
+
+    /**
+     * Zoom out one step about the middle of the graph.
+     */
+    zoomOut: function () {
+        zoomBy(0.8);
+    },
+
+    /**
+     * Fit every visible node into the graph area.
+     */
+    fit: function () {
+        if (!_cy) return;
+        _cy.animate({ fit: { eles: _cy.elements(':visible'), padding: 30 } }, { duration: 300 });
+    },
+
+    /**
+     * Clear selection and highlights, then fit the whole graph again.
+     */
+    resetView: function () {
+        if (!_cy) return;
+        _cy.elements().unselect();
+        window.CytoscapeInterop.resetHighlights();
+        window.CytoscapeInterop.fit();
     },
 
     /**
