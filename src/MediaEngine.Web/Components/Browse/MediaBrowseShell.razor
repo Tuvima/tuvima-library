@@ -283,6 +283,7 @@
                              OnPlayRequested="PlaySongTracksAsync"
                              OnFavoriteToggled="ToggleSongFavoriteAsync"
                              OnQueueRequested="QueueSongAsync"
+                             OnPlayNextRequested="PlayNextSongAsync"
                              OnAlbumRequested="OpenSongAlbumAsync"
                              OnDragStarted="BeginSongDragAsync"
                              OnDragEnded="EndSongDragAsync" />
@@ -1622,6 +1623,12 @@
     {
         await Playback.AddToQueueAsync(track);
         Snackbar.Add($"{track.Title} added to the queue.", AppSeverity.Success);
+    }
+
+    private async Task PlayNextSongAsync(WorkViewModel track)
+    {
+        await Playback.InsertNextAsync(track);
+        Snackbar.Add($"{track.Title} will play next.", AppSeverity.Success);
     }
 
     private Task OpenSongAlbumAsync(WorkViewModel track)

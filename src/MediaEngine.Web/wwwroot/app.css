@@ -2455,6 +2455,26 @@ input.app-control.tl-input-slot,
     color: var(--tl-text-muted);
 }
 
+/* An actions cell may hold more than one control (for example a favourite button beside the row menu). */
+:is(html[data-form-factor="phone"] .app-table-shell--cards, html[data-form-factor="tablet"] .app-table-shell--cards-tablet) td[data-card-role="actions"] {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+}
+
+/* Virtualize spacer rows carry only a height; they get none of the card padding or border. */
+:is(html[data-form-factor="phone"] .app-table-shell--cards, html[data-form-factor="tablet"] .app-table-shell--cards-tablet) tbody > tr[aria-hidden="true"] {
+    padding: 0;
+    border: 0;
+}
+
+/* The playlist rail's "more" button is hover-revealed with a mouse and always visible on touch. */
+@media (hover: none), (pointer: coarse) {
+    :root:root .listen-rail__more {
+        opacity: 1;
+    }
+}
+
 .app-form--compact {
     gap: var(--tl-space-3);
 }
@@ -3623,6 +3643,11 @@ button.app-menu-item {
     :root:root .browse-multi-select__option,
     :root:root .media-group-tile__open-cue,
     :root:root .listen-icon-button,
+    :root:root .listen-song-table__favorite-button,
+    :root:root .listen-song-table__icon-button,
+    :root:root .listen-track-grid__favorite,
+    :root:root .tl-audio-item-table__icon-button,
+    :root:root .listen-rail__more,
     :root:root .tl-series-carousel__arrow,
     :root:root .sme-section-nav__item,
     :root:root .sme-shell .playback-tooltip-owner[data-tooltip-wrapper-target="true"],
@@ -5405,8 +5430,8 @@ html[data-form-factor="phone"] .tl-detail-page .tl-embedded-audio__row > .playba
 }
 
 /* Check boxes keep a 44px tap box: the real input covers the whole label and a drawn box shows the state. */
-html[data-form-factor="phone"] .tl-detail-page .tl-embedded-audio__missing,
-html[data-form-factor="phone"] .tl-detail-page .tl-detail-track-toggle {
+html:is([data-form-factor="phone"], [data-form-factor="tablet"]) .tl-detail-page .tl-embedded-audio__missing,
+html:is([data-form-factor="phone"], [data-form-factor="tablet"]) .tl-detail-page .tl-detail-track-toggle {
     position: relative;
     display: inline-flex;
     align-items: center;
@@ -5414,8 +5439,8 @@ html[data-form-factor="phone"] .tl-detail-page .tl-detail-track-toggle {
     min-height: var(--tl-tap-target-min, 44px);
 }
 
-html[data-form-factor="phone"] .tl-detail-page .tl-embedded-audio__missing input[type="checkbox"],
-html[data-form-factor="phone"] .tl-detail-page .tl-detail-track-toggle input[type="checkbox"] {
+html:is([data-form-factor="phone"], [data-form-factor="tablet"]) .tl-detail-page .tl-embedded-audio__missing input[type="checkbox"],
+html:is([data-form-factor="phone"], [data-form-factor="tablet"]) .tl-detail-page .tl-detail-track-toggle input[type="checkbox"] {
     position: absolute;
     inset: 0;
     width: 100%;
@@ -5424,8 +5449,8 @@ html[data-form-factor="phone"] .tl-detail-page .tl-detail-track-toggle input[typ
     opacity: 0;
 }
 
-html[data-form-factor="phone"] .tl-detail-page .tl-embedded-audio__missing span::before,
-html[data-form-factor="phone"] .tl-detail-page .tl-detail-track-toggle span::before {
+html:is([data-form-factor="phone"], [data-form-factor="tablet"]) .tl-detail-page .tl-embedded-audio__missing span::before,
+html:is([data-form-factor="phone"], [data-form-factor="tablet"]) .tl-detail-page .tl-detail-track-toggle span::before {
     content: "";
     display: inline-block;
     width: 18px;
@@ -5436,20 +5461,20 @@ html[data-form-factor="phone"] .tl-detail-page .tl-detail-track-toggle span::bef
     vertical-align: -4px;
 }
 
-html[data-form-factor="phone"] .tl-detail-page .tl-embedded-audio__missing input:checked + span::before,
-html[data-form-factor="phone"] .tl-detail-page .tl-detail-track-toggle input:checked + span::before {
+html:is([data-form-factor="phone"], [data-form-factor="tablet"]) .tl-detail-page .tl-embedded-audio__missing input:checked + span::before,
+html:is([data-form-factor="phone"], [data-form-factor="tablet"]) .tl-detail-page .tl-detail-track-toggle input:checked + span::before {
     border-color: var(--tl-accent-primary);
     background: var(--tl-accent-primary);
 }
 
-html[data-form-factor="phone"] .tl-detail-page .tl-embedded-audio__missing input:focus-visible + span::before,
-html[data-form-factor="phone"] .tl-detail-page .tl-detail-track-toggle input:focus-visible + span::before {
+html:is([data-form-factor="phone"], [data-form-factor="tablet"]) .tl-detail-page .tl-embedded-audio__missing input:focus-visible + span::before,
+html:is([data-form-factor="phone"], [data-form-factor="tablet"]) .tl-detail-page .tl-detail-track-toggle input:focus-visible + span::before {
     outline: 2px solid var(--tl-accent-primary);
     outline-offset: 2px;
 }
 
-/* The queue button's size is forced in AudioItemTable's own styles, so phones raise it through this value. */
-html[data-form-factor="phone"] .tl-detail-page {
+/* The queue button's size is forced in AudioItemTable's own styles, so phones and tablets raise it through this value. */
+html:is([data-form-factor="phone"], [data-form-factor="tablet"]) .tl-detail-page {
     --tl-embedded-audio-more-size: var(--tl-tap-target-min, 44px);
 }
 

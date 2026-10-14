@@ -125,6 +125,23 @@ public sealed class ListenContextSidebarTests : AsyncBunitContext
     }
 
     [Fact]
+    public async Task BarRendersAndSettlesWithNoActiveSession()
+    {
+        // A full reload of a deep /watch or /read URL mounts the bar before any playback state exists.
+        var api = EngineApiClientStub.CreateDefault();
+        var playback = new PlaybackSessionController(null!, null!, preferences: new TestPlaybackPreferencesAccessor(Guid.NewGuid()));
+        AddBarServices(playback, api, new ListenContextSidebarState(new MemorySidebarPreferences()));
+        await Services.GetRequiredService<DeviceContextService>().SwitchDeviceAsync("mobile");
+
+        var cut = Render<ListenNowPlayingBar>();
+
+        cut.WaitForAssertion(() => Assert.Contains(JSInterop.Invocations, i => i.Identifier == "listenPlayback.hasState"));
+        Assert.False(playback.HasQueue);
+        Assert.Empty(cut.FindAll(".listen-player"));
+        Assert.Empty(cut.FindAll(".listen-player__error"));
+    }
+
+    [Fact]
     public async Task MobileClassKeepsTabletDockControlsAvailableAndExpandingKeepsTheCurrentRequest()
     {
         var api = EngineApiClientStub.CreateDefault();

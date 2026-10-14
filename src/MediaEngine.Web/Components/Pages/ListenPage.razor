@@ -363,6 +363,7 @@ else
                                      OnPlayRequested="PlayTracksAsync"
                                      OnFavoriteToggled="ToggleFavoriteAsync"
                                      OnQueueRequested="QueueTrackAsync"
+                                     OnPlayNextRequested="PlayNextTrackAsync"
                                      OnEditRequested="EditTrackAsync"
                                      OnDeleteRequested="DeleteTrackAsync"
                                      OnDragStarted="OnTrackDragStarted"
@@ -560,6 +561,7 @@ else
                                                      OnPlayRequested="PlayTracksAsync"
                                                      OnFavoriteToggled="ToggleFavoriteAsync"
                                                      OnQueueRequested="QueueTrackAsync"
+                                                     OnPlayNextRequested="PlayNextTrackAsync"
                                                      OnEditRequested="EditTrackAsync"
                                                      OnDeleteRequested="DeleteTrackAsync"
                                                      OnDragStarted="OnTrackDragStarted"
@@ -613,6 +615,7 @@ else
                                          OnPlayRequested="PlayTracksAsync"
                                          OnFavoriteToggled="ToggleFavoriteAsync"
                                          OnQueueRequested="QueueTrackAsync"
+                                         OnPlayNextRequested="PlayNextTrackAsync"
                                          OnEditRequested="EditTrackAsync"
                                          OnDeleteRequested="DeleteTrackAsync"
                                          OnDragStarted="OnTrackDragStarted"
@@ -725,118 +728,179 @@ else
                     }
                     else
                     {
-                        <div class="listen-playlist-track-list" role="table" aria-label="@($"{ActivePlaylistTitle} songs")">
-                            <AppCssElement Tag="div" Class="listen-playlist-track-list__head"
-                                 Css="@($"grid-template-columns: {PlaylistGridTemplate}")"
-                                 role="row"
-                                 @onmousemove="@(args => ResizeColumn(args.ClientX))"
-                                 @onmouseup="EndColumnResize"
-                                 @onmouseleave="EndColumnResize">
-                                <span class="listen-playlist-track-list__song-head" role="columnheader">
-                                    Song
-                                    <span class="listen-column-resizer" @onmousedown:stopPropagation="true" @onmousedown="@((args) => BeginColumnResize("playlist", "song", args.ClientX))"></span>
-                                </span>
-                                @if (IsPlaylistColumnVisible("favorite"))
-                                {
-                                    <span class="listen-playlist-track-list__favorite-head" role="columnheader">
-                                        Favorite
-                                        <span class="listen-column-resizer" @onmousedown:stopPropagation="true" @onmousedown="@((args) => BeginColumnResize("playlist", "favorite", args.ClientX))"></span>
-                                    </span>
-                                }
-                                @if (IsPlaylistColumnVisible("artist"))
-                                {
-                                    <span role="columnheader">
-                                        Artist
-                                        <span class="listen-column-resizer" @onmousedown:stopPropagation="true" @onmousedown="@((args) => BeginColumnResize("playlist", "artist", args.ClientX))"></span>
-                                    </span>
-                                }
-                                @if (IsPlaylistColumnVisible("album"))
-                                {
-                                    <span role="columnheader">
-                                        Album
-                                        <span class="listen-column-resizer" @onmousedown:stopPropagation="true" @onmousedown="@((args) => BeginColumnResize("playlist", "album", args.ClientX))"></span>
-                                    </span>
-                                }
-                                @if (IsPlaylistColumnVisible("time"))
-                                {
-                                    <span role="columnheader">
-                                        Time
-                                        <span class="listen-column-resizer" @onmousedown:stopPropagation="true" @onmousedown="@((args) => BeginColumnResize("playlist", "time", args.ClientX))"></span>
-                                    </span>
-                                }
-                                <span role="columnheader" class="listen-playlist-track-list__actions-label">Queue / Edit / Remove</span>
-                            </AppCssElement>
-                            @foreach (var row in ActivePlaylistTrackRows)
-                            {
-                                var track = row.Work;
-                                var item = row.Item;
-                                <AppCssElement Tag="div" Class='@($"listen-playlist-track-row {(item is not null && item.Id == _draggingPlaylistTrackItemId ? "is-dragging" : null)} {(item is not null && item.Id == _playlistTrackDropTargetItemId && !_playlistTrackDropAfter ? "is-drop-before" : null)}")'
+                        @if (DeviceContext.IsPhone)
+                        {
+                            <AppTable CardsOn="AppTableCardsMode.Phone" Hover="true" Class="listen-playlist-cards">
+                                <caption class="sr-only">@ActivePlaylistTitle songs</caption>
+                                <thead>
+                                    <tr>
+                                        <th data-card-role="title">Song</th>
+                                        <th data-card-role="subtitle">Artist and album</th>
+                                        <th data-card-role="value">Time</th>
+                                        <th data-card-role="actions"><span class="sr-only">Actions</span></th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var row in ActivePlaylistTrackRows)
+                                    {
+                                        var track = row.Work;
+                                        <tr @key="@(row.Item?.Id ?? track.Id)"
+                                            id="@(row.Item is { } rowItem ? PlaylistRowDomId(rowItem.Id) : null)"
+                                            tabindex="0"
+                                            @onclick="@(() => PlayTracksAsync(ActivePlaylistTracks, track.Id, ActivePlaylistTitle))"
+                                            @onkeydown="@((KeyboardEventArgs args) => HandlePlaylistRowKeyDownAsync(args, row.Item, track))">
+                                            <td data-card-role="title">@track.Title</td>
+                                            <td data-card-role="subtitle">@PlaylistCardSubtitle(track)</td>
+                                            <td data-card-role="value">@GetTrackDuration(track)</td>
+                                            <td data-card-role="actions" class="listen-playlist-cards__actions" @onclick:stopPropagation="true" @onkeydown:stopPropagation="true">
+                                                <AppNativeButton Type="button" Class='@($"listen-track-grid__favorite {(_favoriteWorkIds.Contains(track.Id) ? " is-active" : null)}")' AriaLabel="@($"Toggle favorite for {track.Title}")" Title="Toggle favorite" aria-pressed="@(_favoriteWorkIds.Contains(track.Id) ? "true" : "false")" StopPropagation="true" OnClick="@(() => ToggleFavoriteAsync(track))">
+                                                    <AppMaterialIcon Icon="@(_favoriteWorkIds.Contains(track.Id) ? AppMaterialIcons.Filled.Favorite : AppMaterialIcons.Outlined.FavoriteBorder)" Size="AppSize.Small" />
+                                                </AppNativeButton>
+                                                <AppRowMenu AriaLabel="@($"Actions for {track.Title}")" Title="@track.Title" Items="@PlaylistRowMenuItems(row)" />
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </AppTable>
+                        }
+                        else
+                        {
+                            <div class="listen-playlist-track-list" role="table" aria-label="@($"{ActivePlaylistTitle} songs")">
+                                <AppCssElement Tag="div" Class="listen-playlist-track-list__head"
                                      Css="@($"grid-template-columns: {PlaylistGridTemplate}")"
                                      role="row"
-                                     draggable="true"
-                                     OnDragStart="@((DragEventArgs _) => item is null ? Task.CompletedTask : BeginPlaylistTrackReorderAsync(item.Id))"
-                                     OnDragEnd="@((DragEventArgs _) => EndPlaylistTrackReorder())"
-                                     OnDoubleClick="@((MouseEventArgs _) => PlayTracksAsync(ActivePlaylistTracks, track.Id, ActivePlaylistTitle))"
-                                     PreventDragOverDefault="true"
-                                     OnDragOver="@((DragEventArgs _) => item is null ? Task.CompletedTask : SetPlaylistTrackDropTargetAsync(item.Id, false))"
-                                     OnDrop="@((DragEventArgs _) => item is null ? Task.CompletedTask : DropPlaylistTrackReorderAsync(item.Id))">
-                                    <div class="listen-playlist-track-row__song listen-playlist-track-row__song--no-handle" role="cell">
-                                        <div class="listen-playlist-track-row__art">
-                                            @if (!string.IsNullOrWhiteSpace(track.CoverUrl))
-                                            {
-                                                <img src="@track.CoverUrl" alt="" />
-                                            }
-                                            else
-                                            {
-                                                <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.MusicNote" Size="AppSize.Small" />
-                                            }
-                                            <AppNativeButton Type="button" Class="listen-playlist-track-row__art-play" Title="Play song" AriaLabel="@($" Play {track.Title}")" StopPropagation="true" OnClick="@(() => PlayTracksAsync(ActivePlaylistTracks, track.Id, ActivePlaylistTitle))">
-                                                <AppMaterialIcon Icon="@AppMaterialIcons.Filled.PlayArrow" Size="AppSize.Small" />
-                                            </AppNativeButton>
-                                        </div>
-                                        <span class="listen-playlist-track-row__title">@track.Title</span>
-                                    </div>
+                                     @onmousemove="@(args => ResizeColumn(args.ClientX))"
+                                     @onmouseup="EndColumnResize"
+                                     @onmouseleave="EndColumnResize">
+                                    <span class="listen-playlist-track-list__song-head" role="columnheader">
+                                        Song
+                                        @if (!DeviceContext.IsTouch)
+                                        {
+                                            <span class="listen-column-resizer" @onmousedown:stopPropagation="true" @onmousedown="@((args) => BeginColumnResize("playlist", "song", args.ClientX))"></span>
+                                        }
+                                    </span>
                                     @if (IsPlaylistColumnVisible("favorite"))
                                     {
-                                        <div class="listen-playlist-track-row__favorite" role="cell">
-                                            <AppNativeButton Type="button" Class='@($"listen-track-grid__favorite {(_favoriteWorkIds.Contains(track.Id) ? " is-active" : null)}")' AriaLabel="Toggle favorite" Title="Toggle favorite" StopPropagation="true" OnClick="@(() => ToggleFavoriteAsync(track))">
-                                                <AppMaterialIcon Icon="@(_favoriteWorkIds.Contains(track.Id) ? AppMaterialIcons.Filled.Favorite : AppMaterialIcons.Outlined.FavoriteBorder)" Size="AppSize.Small" />
-                                            </AppNativeButton>
-                                        </div>
+                                        <span class="listen-playlist-track-list__favorite-head" role="columnheader">
+                                            Favorite
+                                            @if (!DeviceContext.IsTouch)
+                                            {
+                                                <span class="listen-column-resizer" @onmousedown:stopPropagation="true" @onmousedown="@((args) => BeginColumnResize("playlist", "favorite", args.ClientX))"></span>
+                                            }
+                                        </span>
                                     }
                                     @if (IsPlaylistColumnVisible("artist"))
                                     {
-                                        <span class="listen-playlist-track-row__meta" role="cell">@StringHelpers.FirstNonBlankOr("-", track.Artist, track.Author)</span>
+                                        <span role="columnheader">
+                                            Artist
+                                            @if (!DeviceContext.IsTouch)
+                                            {
+                                                <span class="listen-column-resizer" @onmousedown:stopPropagation="true" @onmousedown="@((args) => BeginColumnResize("playlist", "artist", args.ClientX))"></span>
+                                            }
+                                        </span>
                                     }
                                     @if (IsPlaylistColumnVisible("album"))
                                     {
-                                        <span class="listen-playlist-track-row__meta" role="cell">@StringHelpers.FirstNonBlankOr("-", track.Album)</span>
+                                        <span role="columnheader">
+                                            Album
+                                            @if (!DeviceContext.IsTouch)
+                                            {
+                                                <span class="listen-column-resizer" @onmousedown:stopPropagation="true" @onmousedown="@((args) => BeginColumnResize("playlist", "album", args.ClientX))"></span>
+                                            }
+                                        </span>
                                     }
                                     @if (IsPlaylistColumnVisible("time"))
                                     {
-                                        <span class="listen-playlist-track-row__time" role="cell">@GetTrackDuration(track)</span>
+                                        <span role="columnheader">
+                                            Time
+                                            @if (!DeviceContext.IsTouch)
+                                            {
+                                                <span class="listen-column-resizer" @onmousedown:stopPropagation="true" @onmousedown="@((args) => BeginColumnResize("playlist", "time", args.ClientX))"></span>
+                                            }
+                                        </span>
                                     }
-                                    <div class="listen-playlist-track-row__actions" role="cell">
-                                        <AppNativeButton Type="button" Class="listen-icon-button" Title="Add to queue" AriaLabel="@($" Add {track.Title} to queue")" StopPropagation="true" OnClick="@(() => QueueTrackAsync(track))">
-                                            <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.PlaylistAdd" Size="AppSize.Small" />
-                                        </AppNativeButton>
-                                        @if (!DeviceContext.IsPhone)
-                                        {
-                                            <AppNativeButton Type="button" Class="listen-icon-button" Title="Edit song" AriaLabel="@($" Edit {track.Title}")" StopPropagation="true" OnClick="@(() => EditTrackAsync(track))">
-                                                <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Edit" Size="AppSize.Small" />
-                                            </AppNativeButton>
-                                        }
-                                        <AppNativeButton Type="button" Class="listen-icon-button listen-icon-button--danger" Title="Remove from playlist" AriaLabel="@($" Remove {track.Title} from playlist")" Disabled="@(item is null)" StopPropagation="true" OnClick="@(() => item is null ? Task.CompletedTask : RemovePlaylistTrackAsync(item.Id))">
-                                            <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Delete" Size="AppSize.Small" />
-                                        </AppNativeButton>
-                                    </div>
+                                    <span role="columnheader" class="listen-playlist-track-list__actions-label">Queue / Edit / Remove</span>
                                 </AppCssElement>
-                            }
-                            <div class="listen-playlist-track-end-zone @(_draggingPlaylistTrackItemId.HasValue ? "is-active" : null)"
-                                 @ondragover:preventDefault="true"
-                                 @ondragover="@(() => SetPlaylistTrackEndDropTargetAsync())"
-                                 @ondrop="DropPlaylistTrackAtEndAsync"></div>
-                        </div>
+                                @foreach (var row in ActivePlaylistTrackRows)
+                                {
+                                    var track = row.Work;
+                                    var item = row.Item;
+                                    <AppCssElement Tag="div" Class='@($"listen-playlist-track-row {(item is not null && item.Id == _draggingPlaylistTrackItemId ? "is-dragging" : null)} {(item is not null && item.Id == _playlistTrackDropTargetItemId && !_playlistTrackDropAfter ? "is-drop-before" : null)}")'
+                                         Css="@($"grid-template-columns: {PlaylistGridTemplate}")"
+                                         role="row"
+                                         id="@(item is null ? null : PlaylistRowDomId(item.Id))"
+                                         draggable="@(!DeviceContext.IsTouch)"
+                                         tabindex="0"
+                                         OnKeyDown="@((KeyboardEventArgs args) => HandlePlaylistRowKeyDownAsync(args, item))"
+                                         OnDragStart="@((DragEventArgs _) => item is null ? Task.CompletedTask : BeginPlaylistTrackReorderAsync(item.Id))"
+                                         OnDragEnd="@((DragEventArgs _) => EndPlaylistTrackReorder())"
+                                         OnDoubleClick="@((MouseEventArgs _) => PlayTracksAsync(ActivePlaylistTracks, track.Id, ActivePlaylistTitle))"
+                                         PreventDragOverDefault="true"
+                                         OnDragOver="@((DragEventArgs _) => item is null ? Task.CompletedTask : SetPlaylistTrackDropTargetAsync(item.Id, false))"
+                                         OnDrop="@((DragEventArgs _) => item is null ? Task.CompletedTask : DropPlaylistTrackReorderAsync(item.Id))">
+                                        <div class="listen-playlist-track-row__song listen-playlist-track-row__song--no-handle" role="cell">
+                                            <div class="listen-playlist-track-row__art">
+                                                @if (!string.IsNullOrWhiteSpace(track.CoverUrl))
+                                                {
+                                                    <img src="@track.CoverUrl" alt="" />
+                                                }
+                                                else
+                                                {
+                                                    <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.MusicNote" Size="AppSize.Small" />
+                                                }
+                                                <AppNativeButton Type="button" Class="listen-playlist-track-row__art-play" Title="Play song" AriaLabel="@($" Play {track.Title}")" StopPropagation="true" OnClick="@(() => PlayTracksAsync(ActivePlaylistTracks, track.Id, ActivePlaylistTitle))">
+                                                    <AppMaterialIcon Icon="@AppMaterialIcons.Filled.PlayArrow" Size="AppSize.Small" />
+                                                </AppNativeButton>
+                                            </div>
+                                            <span class="listen-playlist-track-row__title">@track.Title</span>
+                                        </div>
+                                        @if (IsPlaylistColumnVisible("favorite"))
+                                        {
+                                            <div class="listen-playlist-track-row__favorite" role="cell">
+                                                <AppNativeButton Type="button" Class='@($"listen-track-grid__favorite {(_favoriteWorkIds.Contains(track.Id) ? " is-active" : null)}")' AriaLabel="Toggle favorite" Title="Toggle favorite" StopPropagation="true" OnClick="@(() => ToggleFavoriteAsync(track))">
+                                                    <AppMaterialIcon Icon="@(_favoriteWorkIds.Contains(track.Id) ? AppMaterialIcons.Filled.Favorite : AppMaterialIcons.Outlined.FavoriteBorder)" Size="AppSize.Small" />
+                                                </AppNativeButton>
+                                            </div>
+                                        }
+                                        @if (IsPlaylistColumnVisible("artist"))
+                                        {
+                                            <span class="listen-playlist-track-row__meta" role="cell">@StringHelpers.FirstNonBlankOr("-", track.Artist, track.Author)</span>
+                                        }
+                                        @if (IsPlaylistColumnVisible("album"))
+                                        {
+                                            <span class="listen-playlist-track-row__meta" role="cell">@StringHelpers.FirstNonBlankOr("-", track.Album)</span>
+                                        }
+                                        @if (IsPlaylistColumnVisible("time"))
+                                        {
+                                            <span class="listen-playlist-track-row__time" role="cell">@GetTrackDuration(track)</span>
+                                        }
+                                        <div class="listen-playlist-track-row__actions" role="cell">
+                                            <AppNativeButton Type="button" Class="listen-icon-button" Title="Add to queue" AriaLabel="@($" Add {track.Title} to queue")" StopPropagation="true" OnClick="@(() => QueueTrackAsync(track))">
+                                                <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.PlaylistAdd" Size="AppSize.Small" />
+                                            </AppNativeButton>
+                                            @if (!DeviceContext.IsPhone)
+                                            {
+                                                <AppNativeButton Type="button" Class="listen-icon-button" Title="Edit song" AriaLabel="@($" Edit {track.Title}")" StopPropagation="true" OnClick="@(() => EditTrackAsync(track))">
+                                                    <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Edit" Size="AppSize.Small" />
+                                                </AppNativeButton>
+                                            }
+                                            @if (DeviceContext.IsTouch)
+                                            {
+                                                <AppRowMenu AriaLabel="@($"Actions for {track.Title}")" Title="@track.Title" Items="@PlaylistRowMenuItems(row)" />
+                                            }
+                                            <AppNativeButton Type="button" Class="listen-icon-button listen-icon-button--danger" Title="Remove from playlist" AriaLabel="@($" Remove {track.Title} from playlist")" Disabled="@(item is null)" StopPropagation="true" OnClick="@(() => item is null ? Task.CompletedTask : RemovePlaylistTrackAsync(item.Id))">
+                                                <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Delete" Size="AppSize.Small" />
+                                            </AppNativeButton>
+                                        </div>
+                                    </AppCssElement>
+                                }
+                                <div class="listen-playlist-track-end-zone @(_draggingPlaylistTrackItemId.HasValue ? "is-active" : null)"
+                                     @ondragover:preventDefault="true"
+                                     @ondragover="@(() => SetPlaylistTrackEndDropTargetAsync())"
+                                     @ondrop="DropPlaylistTrackAtEndAsync"></div>
+                            </div>
+                        }
+                        <div class="sr-only" role="status" aria-live="polite">@_playlistAnnouncement</div>
                     }
                 </section>
             }

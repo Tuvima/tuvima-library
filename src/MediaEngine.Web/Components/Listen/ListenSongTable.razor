@@ -4,176 +4,228 @@
 @using MediaEngine.Web.Models.ViewDTOs
 @using Microsoft.AspNetCore.Components.Web
 @using MediaEngine.Web.Services.Ui
+@using MediaEngine.Web.Components.Shared
 @inject DeviceContextService DeviceContext
+@inject NavigationManager Navigation
 
-<div class="listen-song-table"
-     role="table"
-     aria-label="@AriaLabel"
-     @onmousemove="@(args => ResizeColumn(args.ClientX))"
-     @onmouseup="EndColumnResize"
-     @onmouseleave="EndColumnResize">
-    <AppCssElement Tag="div" Class="listen-song-table__head" Css="@($"grid-template-columns: {GridTemplate}")" role="row">
-        @foreach (var column in VisibleColumns)
-        {
-            if (Sortable && IsSortableColumn(column.Key))
+@if (DeviceContext.IsPhone)
+{
+    <AppTable CardsOn="AppTableCardsMode.Phone" Hover="true" Class="listen-song-table-cards">
+        <caption class="sr-only">@AriaLabel</caption>
+        <thead>
+            <tr>
+                <th data-card-role="title">Song</th>
+                <th data-card-role="subtitle">Artist and album</th>
+                <th data-card-role="value">Time</th>
+                <th data-card-role="actions"><span class="sr-only">Actions</span></th>
+            </tr>
+        </thead>
+        <tbody>
+            <Virtualize Items="@DisplayTracks" Context="track" TItem="WorkViewModel" ItemSize="72" OverscanCount="8" SpacerElement="tr">
+                @{
+                    var trackTitle = DisplayTrackTitle(track);
+                }
+                <tr @key="track.Id"
+                    class="@(RowClass(track) + (track.IsUpdatingDetails ? " tl-enrichment-pending" : ""))"
+                    data-listen-immediate-start="music"
+                    data-listen-start-url="@(track.AssetId is { } sourceId ? $"/engine-stream/{sourceId:D}" : null)"
+                    tabindex="0"
+                    @onclick="@(() => PlayAsync(track.Id, false))"
+                    @onkeydown="@((args) => HandleRowKeyDownAsync(args, track.Id))">
+                    <td data-card-role="title">@trackTitle</td>
+                    <td data-card-role="subtitle">@CardSubtitle(track)</td>
+                    <td data-card-role="value">@GetTrackDuration(track)</td>
+                    <td data-card-role="actions" class="listen-song-table-cards__actions" @onclick:stopPropagation="true" @onkeydown:stopPropagation="true">
+                        @if (ShowFavorite)
+                        {
+                            <AppNativeButton Type="button" Class='@($"listen-song-table__favorite-button {(FavoriteIds.Contains(track.Id) ? " is-active" : null)}")' AriaLabel="@($"Toggle favorite for {trackTitle}")" Title="Toggle favorite" aria-pressed="@(FavoriteIds.Contains(track.Id) ? "true" : "false")" StopPropagation="true" OnClick="@(() => ToggleFavoriteAsync(track))">
+                                <AppMaterialIcon Icon="@(FavoriteIds.Contains(track.Id) ? AppMaterialIcons.Filled.Favorite : AppMaterialIcons.Outlined.FavoriteBorder)" Size="AppSize.Small" />
+                            </AppNativeButton>
+                        }
+                        <AppRowMenu AriaLabel="@($"Actions for {trackTitle}")" Title="@trackTitle" Items="@CardMenuItems(track)" />
+                    </td>
+                </tr>
+            </Virtualize>
+        </tbody>
+    </AppTable>
+}
+else
+{
+    <div class="listen-song-table"
+         role="table"
+         aria-label="@AriaLabel"
+         @onmousemove="@(args => ResizeColumn(args.ClientX))"
+         @onmouseup="EndColumnResize"
+         @onmouseleave="EndColumnResize">
+        <AppCssElement Tag="div" Class="listen-song-table__head" Css="@($"grid-template-columns: {GridTemplate}")" role="row">
+            @foreach (var column in VisibleColumns)
             {
-                <AppNativeButton Type="button" Class="@GetSortHeaderClass(column.Key)" role="columnheader" aria-sort="@AriaSort(column.Key)" OnClick="@(() => ToggleSort(column.Key))">
-                    <span>@column.Label</span>
-                    @if (!string.IsNullOrWhiteSpace(SortIndicator(column.Key)))
-                    {
-                        <AppMaterialIcon Icon="@SortIndicator(column.Key)" Size="AppSize.Small" />
-                    }
-                    <span class="listen-song-table__resizer"
-                          role="separator"
-                          aria-label="@($"Resize {column.Label} column")"
-                          aria-orientation="vertical"
-                          tabindex="0"
-                          @onclick:stopPropagation="true"
-                          @onmousedown:stopPropagation="true"
-                          @onmousedown="@((args) => BeginColumnResize(column.Key, args.ClientX))"
-                          @onkeydown:stopPropagation="true"
-                          @onkeydown="@((args) => ResizeColumnByKeyboard(column.Key, args))"></span>
-                </AppNativeButton>
-            }
-            else
-            {
-                <span class="@GetStaticHeaderClass(column.Key)"
-                      role="columnheader">
-                    <span>@column.Label</span>
-                    <span class="listen-song-table__resizer"
-                          role="separator"
-                          aria-label="@($"Resize {column.Label} column")"
-                          aria-orientation="vertical"
-                          tabindex="0"
-                          @onmousedown:stopPropagation="true"
-                          @onmousedown="@((args) => BeginColumnResize(column.Key, args.ClientX))"
-                          @onkeydown:stopPropagation="true"
-                          @onkeydown="@((args) => ResizeColumnByKeyboard(column.Key, args))"></span>
-                </span>
-            }
-        }
-    </AppCssElement>
-
-    <Virtualize Items="@DisplayTracks" Context="track" TItem="WorkViewModel" ItemSize="48" OverscanCount="8">
-        @{
-            var trackTitle = DisplayTrackTitle(track);
-        }
-        <AppCssElement Tag="div" Class="@(RowClass(track) + (track.IsUpdatingDetails ? " tl-enrichment-pending" : ""))" title="@(track.IsUpdatingDetails ? "Metadata is being updated; playback is available" : null)"
-             @key="track.Id"
-             Css="@($"grid-template-columns: {GridTemplate}")"
-             role="row"
-             data-listen-immediate-start="music"
-             data-listen-start-url="@(track.AssetId is { } sourceId ? $"/engine-stream/{sourceId:D}" : null)"
-             tabindex="0"
-             draggable="@EnableDrag"
-             @ondragstart="@(() => StartDragAsync(track.Id))"
-             @ondragend="EndDragAsync"
-             @onclick="@(() => PlayAsync(track.Id, false))"
-             @onkeydown="@((args) => HandleRowKeyDownAsync(args, track.Id))">
-            <div class="listen-song-table__song @(ShowArtwork ? null : "listen-song-table__song--play-only")" role="cell">
-                @if (ShowArtwork)
+                if (Sortable && IsSortableColumn(column.Key))
                 {
-                    <div class="listen-song-table__art">
-                        @if (!string.IsNullOrWhiteSpace(track.CoverUrl))
+                    <AppNativeButton Type="button" Class="@GetSortHeaderClass(column.Key)" role="columnheader" aria-sort="@AriaSort(column.Key)" OnClick="@(() => ToggleSort(column.Key))">
+                        <span>@column.Label</span>
+                        @if (!string.IsNullOrWhiteSpace(SortIndicator(column.Key)))
                         {
-                            <img src="@track.CoverUrl" alt="" />
+                            <AppMaterialIcon Icon="@SortIndicator(column.Key)" Size="AppSize.Small" />
                         }
-                        else
+                        @if (!DeviceContext.IsTouch)
                         {
-                            <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.MusicNote" Size="AppSize.Small" />
+                            <span class="listen-song-table__resizer"
+                                  role="separator"
+                                  aria-label="@($"Resize {column.Label} column")"
+                                  aria-orientation="vertical"
+                                  tabindex="0"
+                                  @onclick:stopPropagation="true"
+                                  @onmousedown:stopPropagation="true"
+                                  @onmousedown="@((args) => BeginColumnResize(column.Key, args.ClientX))"
+                                  @onkeydown:stopPropagation="true"
+                                  @onkeydown="@((args) => ResizeColumnByKeyboard(column.Key, args))"></span>
                         }
-                        <AppNativeButton Type="button" Class="listen-song-table__art-play" data-listen-row-play="true" Title="Play song" AriaLabel="@($" Play {trackTitle}")" StopPropagation="true" OnClick="@(() => PlayAsync(track.Id, false))">
-                            <AppMaterialIcon Icon="@AppMaterialIcons.Filled.PlayArrow" Size="AppSize.Small" />
-                        </AppNativeButton>
-                    </div>
+                    </AppNativeButton>
                 }
                 else
                 {
-                    <AppNativeButton Type="button" Class="listen-song-table__play-only" data-listen-row-play="true" Title="Play song" AriaLabel="@($" Play {trackTitle}")" StopPropagation="true" OnClick="@(() => PlayAsync(track.Id, false))">
-                        <AppMaterialIcon Icon="@AppMaterialIcons.Filled.PlayArrow" Size="AppSize.Small" />
-                    </AppNativeButton>
-                }
-                <span class="listen-song-table__title">@trackTitle</span>
-
-            </div>
-
-            @foreach (var column in VisibleDataColumns)
-            {
-                @switch (column.Key)
-                {
-                    case "favorite":
-                        <div class="listen-song-table__favorite" role="cell">
-                            <AppNativeButton Type="button" Class='@($"listen-song-table__favorite-button {(FavoriteIds.Contains(track.Id) ? " is-active" : null)}")' AriaLabel="Toggle favorite" Title="Toggle favorite" StopPropagation="true" OnClick="@(() => ToggleFavoriteAsync(track))">
-                                <AppMaterialIcon Icon="@(FavoriteIds.Contains(track.Id) ? AppMaterialIcons.Filled.Favorite : AppMaterialIcons.Outlined.FavoriteBorder)" Size="AppSize.Small" />
-                            </AppNativeButton>
-                        </div>
-                        break;
-                    case "time":
-                        <span class="listen-song-table__time" role="cell">@GetTrackDuration(track)</span>
-                        break;
-                    case "artist":
-                        <span class="listen-song-table__meta" role="cell">
-                            @if (track.ArtistPersonId is { } artistId)
-                            {
-                                <a href="@($"/details/person/{artistId:D}")" @onclick:stopPropagation="true" @onkeydown:stopPropagation="true">@StringHelpers.FirstNonBlankOr("-", track.Artist, track.Author)</a>
-                            }
-                            else { @StringHelpers.FirstNonBlankOr("-", track.Artist, track.Author) }
-                        </span>
-                        break;
-                    case "album":
-                        <span class="listen-song-table__meta" role="cell">
-                            @if (track.RootWorkId is { } albumId && albumId != track.Id)
-                            {
-                                <a href="@($"/details/musicalbum/{albumId:D}?context=listen")" @onclick:stopPropagation="true" @onkeydown:stopPropagation="true">@StringHelpers.FirstNonBlankOr("-", track.Album)</a>
-                            }
-                            else { @StringHelpers.FirstNonBlankOr("-", track.Album) }
-                        </span>
-                        break;
-                    case "genre":
-                        <span class="listen-song-table__meta" role="cell">@StringHelpers.FirstNonBlankOr("-", track.Genres.FirstOrDefault(), track.Genre)</span>
-                        break;
-                    case "plays":
-                        <span class="listen-song-table__time" role="cell">@GetPlayCountDisplay(track)</span>
-                        break;
-                    case "dateAdded":
-                        <span class="listen-song-table__meta" role="cell">@FormatDateAdded(track.CreatedAt)</span>
-                        break;
-                    case "queue":
-                        <div class="listen-song-table__queue" role="cell">
-                            <AppNativeButton Type="button" Class="listen-song-table__icon-button" Title="Add to queue" AriaLabel="@($" Add {trackTitle} to queue")" StopPropagation="true" OnClick="@(() => QueueAsync(track))">
-                                <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.PlaylistAdd" Size="AppSize.Small" />
-                            </AppNativeButton>
-                        </div>
-                        break;
-                    case "editDelete":
-                        <div class="listen-song-table__edit-delete" role="cell">
-                            @if (!DeviceContext.IsPhone)
-                            {
-                                <AppNativeButton Type="button" Class="listen-song-table__icon-button" Disabled="@track.IsUpdatingDetails" Title="@(track.IsUpdatingDetails ? "Updating details" : "Edit song")" AriaLabel="@($" Edit {trackTitle}")" StopPropagation="true" OnClick="@(() => EditAsync(track))">
-                                    <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Edit" Size="AppSize.Small" />
-                                </AppNativeButton>
-                            }
-                            <AppNativeButton Type="button" Class="listen-song-table__icon-button listen-song-table__icon-button--danger" Disabled="@track.IsUpdatingDetails" Title="Delete song" AriaLabel="@($" Delete {trackTitle}")" StopPropagation="true" OnClick="@(() => DeleteAsync(track))">
-                                <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Delete" Size="AppSize.Small" />
-                            </AppNativeButton>
-                        </div>
-                        break;
-                    case "options":
-                        <div class="listen-song-table__options" role="cell" @onclick:stopPropagation="true">
-                            <AppOverflowMenu Size="AppControlSize.Compact" Class="listen-song-table__overflow">
-                                <PersonalStatusMenuItems WorkId="track.Id" />
-                                <AppMenuItem Label="Open album"
-                                             Icon="@AppMaterialIcons.Outlined.Album"
-                                             Disabled="@(track.RootWorkId is null || track.RootWorkId == Guid.Empty)"
-                                             OnClick="@(() => OpenAlbumAsync(track))" />
-                            </AppOverflowMenu>
-                        </div>
-                        break;
+                    <span class="@GetStaticHeaderClass(column.Key)"
+                          role="columnheader">
+                        <span>@column.Label</span>
+                        @if (!DeviceContext.IsTouch)
+                        {
+                            <span class="listen-song-table__resizer"
+                                  role="separator"
+                                  aria-label="@($"Resize {column.Label} column")"
+                                  aria-orientation="vertical"
+                                  tabindex="0"
+                                  @onmousedown:stopPropagation="true"
+                                  @onmousedown="@((args) => BeginColumnResize(column.Key, args.ClientX))"
+                                  @onkeydown:stopPropagation="true"
+                                  @onkeydown="@((args) => ResizeColumnByKeyboard(column.Key, args))"></span>
+                        }
+                    </span>
                 }
             }
         </AppCssElement>
-    </Virtualize>
-</div>
+
+        <Virtualize Items="@DisplayTracks" Context="track" TItem="WorkViewModel" ItemSize="48" OverscanCount="8">
+            @{
+                var trackTitle = DisplayTrackTitle(track);
+            }
+            <AppCssElement Tag="div" Class="@(RowClass(track) + (track.IsUpdatingDetails ? " tl-enrichment-pending" : ""))" title="@(track.IsUpdatingDetails ? "Metadata is being updated; playback is available" : null)"
+                 @key="track.Id"
+                 Css="@($"grid-template-columns: {GridTemplate}")"
+                 role="row"
+                 data-listen-immediate-start="music"
+                 data-listen-start-url="@(track.AssetId is { } sourceId ? $"/engine-stream/{sourceId:D}" : null)"
+                 tabindex="0"
+                 draggable="@CanDrag"
+                 @ondragstart="@(() => StartDragAsync(track.Id))"
+                 @ondragend="EndDragAsync"
+                 @onclick="@(() => PlayAsync(track.Id, false))"
+                 @onkeydown="@((args) => HandleRowKeyDownAsync(args, track.Id))">
+                <div class="listen-song-table__song @(ShowArtwork ? null : "listen-song-table__song--play-only")" role="cell">
+                    @if (ShowArtwork)
+                    {
+                        <div class="listen-song-table__art">
+                            @if (!string.IsNullOrWhiteSpace(track.CoverUrl))
+                            {
+                                <img src="@track.CoverUrl" alt="" />
+                            }
+                            else
+                            {
+                                <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.MusicNote" Size="AppSize.Small" />
+                            }
+                            <AppNativeButton Type="button" Class="listen-song-table__art-play" data-listen-row-play="true" Title="Play song" AriaLabel="@($" Play {trackTitle}")" StopPropagation="true" OnClick="@(() => PlayAsync(track.Id, false))">
+                                <AppMaterialIcon Icon="@AppMaterialIcons.Filled.PlayArrow" Size="AppSize.Small" />
+                            </AppNativeButton>
+                        </div>
+                    }
+                    else
+                    {
+                        <AppNativeButton Type="button" Class="listen-song-table__play-only" data-listen-row-play="true" Title="Play song" AriaLabel="@($" Play {trackTitle}")" StopPropagation="true" OnClick="@(() => PlayAsync(track.Id, false))">
+                            <AppMaterialIcon Icon="@AppMaterialIcons.Filled.PlayArrow" Size="AppSize.Small" />
+                        </AppNativeButton>
+                    }
+                    <span class="listen-song-table__title">@trackTitle</span>
+
+                </div>
+
+                @foreach (var column in VisibleDataColumns)
+                {
+                    @switch (column.Key)
+                    {
+                        case "favorite":
+                            <div class="listen-song-table__favorite" role="cell">
+                                <AppNativeButton Type="button" Class='@($"listen-song-table__favorite-button {(FavoriteIds.Contains(track.Id) ? " is-active" : null)}")' AriaLabel="Toggle favorite" Title="Toggle favorite" StopPropagation="true" OnClick="@(() => ToggleFavoriteAsync(track))">
+                                    <AppMaterialIcon Icon="@(FavoriteIds.Contains(track.Id) ? AppMaterialIcons.Filled.Favorite : AppMaterialIcons.Outlined.FavoriteBorder)" Size="AppSize.Small" />
+                                </AppNativeButton>
+                            </div>
+                            break;
+                        case "time":
+                            <span class="listen-song-table__time" role="cell">@GetTrackDuration(track)</span>
+                            break;
+                        case "artist":
+                            <span class="listen-song-table__meta" role="cell">
+                                @if (track.ArtistPersonId is { } artistId)
+                                {
+                                    <a href="@($"/details/person/{artistId:D}")" @onclick:stopPropagation="true" @onkeydown:stopPropagation="true">@StringHelpers.FirstNonBlankOr("-", track.Artist, track.Author)</a>
+                                }
+                                else { @StringHelpers.FirstNonBlankOr("-", track.Artist, track.Author) }
+                            </span>
+                            break;
+                        case "album":
+                            <span class="listen-song-table__meta" role="cell">
+                                @if (track.RootWorkId is { } albumId && albumId != track.Id)
+                                {
+                                    <a href="@($"/details/musicalbum/{albumId:D}?context=listen")" @onclick:stopPropagation="true" @onkeydown:stopPropagation="true">@StringHelpers.FirstNonBlankOr("-", track.Album)</a>
+                                }
+                                else { @StringHelpers.FirstNonBlankOr("-", track.Album) }
+                            </span>
+                            break;
+                        case "genre":
+                            <span class="listen-song-table__meta" role="cell">@StringHelpers.FirstNonBlankOr("-", track.Genres.FirstOrDefault(), track.Genre)</span>
+                            break;
+                        case "plays":
+                            <span class="listen-song-table__time" role="cell">@GetPlayCountDisplay(track)</span>
+                            break;
+                        case "dateAdded":
+                            <span class="listen-song-table__meta" role="cell">@FormatDateAdded(track.CreatedAt)</span>
+                            break;
+                        case "queue":
+                            <div class="listen-song-table__queue" role="cell">
+                                <AppNativeButton Type="button" Class="listen-song-table__icon-button" Title="Add to queue" AriaLabel="@($" Add {trackTitle} to queue")" StopPropagation="true" OnClick="@(() => QueueAsync(track))">
+                                    <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.PlaylistAdd" Size="AppSize.Small" />
+                                </AppNativeButton>
+                            </div>
+                            break;
+                        case "editDelete":
+                            <div class="listen-song-table__edit-delete" role="cell">
+                                @if (!DeviceContext.IsPhone)
+                                {
+                                    <AppNativeButton Type="button" Class="listen-song-table__icon-button" Disabled="@track.IsUpdatingDetails" Title="@(track.IsUpdatingDetails ? "Updating details" : "Edit song")" AriaLabel="@($" Edit {trackTitle}")" StopPropagation="true" OnClick="@(() => EditAsync(track))">
+                                        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Edit" Size="AppSize.Small" />
+                                    </AppNativeButton>
+                                }
+                                <AppNativeButton Type="button" Class="listen-song-table__icon-button listen-song-table__icon-button--danger" Disabled="@track.IsUpdatingDetails" Title="Delete song" AriaLabel="@($" Delete {trackTitle}")" StopPropagation="true" OnClick="@(() => DeleteAsync(track))">
+                                    <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Delete" Size="AppSize.Small" />
+                                </AppNativeButton>
+                            </div>
+                            break;
+                        case "options":
+                            <div class="listen-song-table__options" role="cell" @onclick:stopPropagation="true">
+                                <AppOverflowMenu Size="AppControlSize.Compact" Class="listen-song-table__overflow">
+                                    <PersonalStatusMenuItems WorkId="track.Id" />
+                                    <AppMenuItem Label="Open album"
+                                                 Icon="@AppMaterialIcons.Outlined.Album"
+                                                 Disabled="@(track.RootWorkId is null || track.RootWorkId == Guid.Empty)"
+                                                 OnClick="@(() => OpenAlbumAsync(track))" />
+                                </AppOverflowMenu>
+                            </div>
+                            break;
+                    }
+                }
+            </AppCssElement>
+        </Virtualize>
+    </div>
+}
 
 @code {
     [Parameter] public IReadOnlyList<WorkViewModel> Tracks { get; set; } = [];
@@ -198,6 +250,7 @@
     [Parameter] public Func<WorkViewModel, Task>? OnFavoriteToggled { get; set; }
     [Parameter] public Func<WorkViewModel, Task>? OnQueueRequested { get; set; }
     [Parameter] public Func<WorkViewModel, Task>? OnAlbumRequested { get; set; }
+    [Parameter] public Func<WorkViewModel, Task>? OnPlayNextRequested { get; set; }
     [Parameter] public Func<WorkViewModel, Task>? OnEditRequested { get; set; }
     [Parameter] public Func<WorkViewModel, Task>? OnDeleteRequested { get; set; }
     [Parameter] public Func<Guid, Task>? OnDragStarted { get; set; }
@@ -230,6 +283,50 @@
         {
             _sortColumn = DefaultSortColumn;
             _sortDescending = DefaultSortDescending;
+        }
+    }
+
+    // Drag and column resize are mouse affordances; touch screens use the row menu instead.
+    private bool CanDrag => EnableDrag && !DeviceContext.IsTouch;
+
+    private static string CardSubtitle(WorkViewModel track)
+    {
+        var artist = StringHelpers.FirstNonBlank(track.Artist, track.Author);
+        var album = StringHelpers.FirstNonBlank(track.Album);
+        return string.Join(" · ", new[] { artist, album }.Where(value => !string.IsNullOrWhiteSpace(value)));
+    }
+
+    private IReadOnlyList<AppRowMenuItem> CardMenuItems(WorkViewModel track)
+    {
+        var items = new List<AppRowMenuItem>();
+        if (OnPlayNextRequested is not null)
+        {
+            items.Add(new AppRowMenuItem { Label = "Play next", Icon = AppMaterialIcons.Outlined.PlaylistPlay, OnClick = EventCallback.Factory.Create(this, () => OnPlayNextRequested(track)) });
+        }
+
+        items.Add(new AppRowMenuItem { Label = "Add to queue", Icon = AppMaterialIcons.Outlined.PlaylistAdd, OnClick = EventCallback.Factory.Create(this, () => QueueAsync(track)) });
+        items.Add(new AppRowMenuItem
+        {
+            Label = "Go to album",
+            Icon = AppMaterialIcons.Outlined.Album,
+            Disabled = track.RootWorkId is null || track.RootWorkId == Guid.Empty,
+            OnClick = EventCallback.Factory.Create(this, () => OpenAlbumAsync(track)),
+        });
+        items.Add(new AppRowMenuItem
+        {
+            Label = "Go to artist",
+            Icon = AppMaterialIcons.Outlined.Person,
+            Disabled = track.ArtistPersonId is null,
+            OnClick = EventCallback.Factory.Create(this, () => OpenArtist(track)),
+        });
+        return items;
+    }
+
+    private void OpenArtist(WorkViewModel track)
+    {
+        if (track.ArtistPersonId is { } artistId)
+        {
+            Navigation.NavigateTo($"/details/person/{artistId:D}");
         }
     }
 
@@ -424,10 +521,10 @@
         => OnDeleteRequested?.Invoke(track) ?? Task.CompletedTask;
 
     private Task StartDragAsync(Guid trackId)
-        => EnableDrag ? OnDragStarted?.Invoke(trackId) ?? Task.CompletedTask : Task.CompletedTask;
+        => CanDrag ? OnDragStarted?.Invoke(trackId) ?? Task.CompletedTask : Task.CompletedTask;
 
     private Task EndDragAsync()
-        => EnableDrag ? OnDragEnded?.Invoke() ?? Task.CompletedTask : Task.CompletedTask;
+        => CanDrag ? OnDragEnded?.Invoke() ?? Task.CompletedTask : Task.CompletedTask;
 
     private static string DisplayTrackTitle(WorkViewModel work)
         => StringHelpers.FirstNonBlank(

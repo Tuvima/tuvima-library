@@ -1039,3 +1039,16 @@
     }
 
 }
+
+.tl-audio-item-cards__toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    padding-bottom: 0.5rem;
+}
+
+.tl-audio-item-cards__leading {
+    min-width: 0;
+}
