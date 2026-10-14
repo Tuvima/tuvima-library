@@ -802,7 +802,7 @@ public sealed class ConfigurationDirectoryLoader : IConfigurationLoader, IDispos
             {
                 AppBarStyle = "compact",
                 LogoVariant = "icon",
-                IntentDockItems = ["Home", "Read", "Watch", "Listen", "View", "Collections"],
+                IntentDockItems = ["Home", "Libraries", "Search", "Downloads", "Settings"],
                 IntentDockStyle = "normal",
             },
             Pages = new UIPageSettings
@@ -849,7 +849,7 @@ public sealed class ConfigurationDirectoryLoader : IConfigurationLoader, IDispos
             {
                 AppBarStyle = "oversized",
                 LogoVariant = "wordmark-large",
-                IntentDockItems = ["Collections", "Watch", "Read", "Listen"],
+                IntentDockItems = ["Home", "Libraries", "Search", "Downloads", "Settings"],
                 IntentDockStyle = "oversized",
             },
             Pages = new UIPageSettings

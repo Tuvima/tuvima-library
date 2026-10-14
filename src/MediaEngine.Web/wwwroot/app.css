@@ -3720,6 +3720,11 @@ button.app-menu-item {
         min-height: var(--tl-tap-target-min);
     }
 
+    /* The Libraries switcher rows are larger than the minimum: 56 px. */
+    :root:root .library-switcher__row {
+        min-height: 56px;
+    }
+
     :root:root [role="option"],
     :root:root [role="menuitem"],
     :root:root [role="tab"],
@@ -4953,55 +4958,57 @@ input[type="reset"],
     cursor: pointer;
 }
 
-/* Phone hamburger menu: the 44 px top-bar button and the 48 px rows of its bottom sheet. */
-.shell-menu-button {
-    display: inline-grid;
-    flex: 0 0 auto;
-    place-items: center;
-    width: 44px;
-    min-width: 44px;
-    height: 44px;
-    min-height: 44px;
-    padding: 0;
-    border: 0;
-    border-radius: 50%;
-    background: transparent;
-    color: var(--tl-text-primary);
-    cursor: pointer;
+/* Dock Libraries tab: a small chevron beside the icon says the tab opens a switcher; the switcher sheet rows are 56 px. */
+:root:root .layout-shell__intent-dock .layout-shell__intent-dock-link .layout-shell__intent-dock-chevron {
+    position: absolute;
+    top: 6px;
+    left: calc(50% + 10px);
+    width: 14px;
+    height: 14px;
+    font-size: 14px;
+    color: var(--tl-text-muted);
+    pointer-events: none;
 }
 
-.shell-menu-sheet {
+.library-switcher {
     display: grid;
-    gap: 2px;
+    gap: var(--tl-space-1);
     padding-bottom: var(--tl-safe-area-bottom);
 }
 
-.shell-menu-sheet__form {
-    display: contents;
-}
-
-.shell-menu-sheet .shell-menu-sheet__row {
+.library-switcher__row {
     display: flex;
     align-items: center;
-    justify-content: flex-start;
-    gap: 16px;
-    width: 100%;
-    min-height: 48px;
-    padding: 0 12px;
-    border: 0;
-    border-radius: var(--tl-radius-md, 8px);
-    background: transparent;
+    gap: var(--tl-space-4);
+    min-height: 56px;
+    padding: 0 var(--tl-space-3);
+    border-radius: var(--tl-radius-md);
     color: var(--tl-text-primary);
     font: inherit;
-    text-align: left;
     text-decoration: none;
-    cursor: pointer;
 }
 
-.shell-menu-sheet .shell-menu-sheet__row:hover,
-.shell-menu-sheet .shell-menu-sheet__row:focus-visible {
+.library-switcher__row:hover,
+.library-switcher__row:focus-visible {
     background: var(--tl-accent-primary-soft);
-    outline: none;
+}
+
+.library-switcher__row:focus-visible {
+    outline: 2px solid var(--tl-focus-ring);
+    outline-offset: -2px;
+}
+
+.library-switcher__row.is-current {
+    color: var(--tl-accent-primary);
+    font-weight: 700;
+}
+
+/* /downloads: the page that points phones and TVs to the Tuvima app. */
+.downloads-page {
+    display: grid;
+    place-items: center;
+    min-height: 50dvh;
+    padding: var(--tl-space-4);
 }
 
 /* View > Documents: browse, search by contents, open and download documents. Tokens only; breakpoints 600 / 840 / 1180. */

@@ -26,6 +26,7 @@
 @using MediaEngine.Web.Components.Shared
 @using MediaEngine.Web.Components.Watch
 @using MediaEngine.Web.Models.ViewDTOs
+@using MediaEngine.Web.Services.Navigation
 @using MediaEngine.Web.Services.Playback
 @using MediaEngine.Contracts.Playback
 @using MediaEngine.Web.Resources
@@ -53,7 +54,6 @@
 <AppLayout Class="@LayoutShellClass">
     <AppAppBar Fixed="false" Elevation="0" Dense="true" Class="@AppBarClass">
         <AppStack Row="true" AlignItems="AppAlignItems.Center" Spacing="2" Class="layout-shell__left-rail">
-            <ShellMenuButton IsKids="@_isKids" OnSearch="@(() => OpenSearch())" />
             <AppLink Href="/" Underline="AppUnderline.None" Class="layout-shell__brand-link" aria-label="Tuvima Library">
                 <span class="layout-shell__brand-lockup-shell" aria-hidden="true">
                     <img src="/images/library.svg"
@@ -174,17 +174,54 @@
 @if (ShowIntentDock)
 {
     <nav class="@IntentDockClass" aria-label="Primary mobile navigation">
-        @foreach (var link in IntentDockLinks)
+        @foreach (var entry in IntentDockEntries)
         {
-            <a href="@link.Path"
-               @key="link.Path"
-               class="@GetIntentDockLinkClass(link.Path)"
-               aria-current="@(IsNavActive(link.Path) ? "page" : null)">
-                <AppMaterialIcon Icon="@link.Icon" />
-                <span>@L[link.LabelKey]</span>
-            </a>
+            @switch (entry.Kind)
+            {
+                case ShellDockKind.Libraries:
+                    @* Goes to the last library surface used; tapped while already on one, it opens the switcher instead. *@
+                    <a href="@_lastLibraryPath"
+                       @key="entry.Key"
+                       class="@GetIntentDockLinkClass(OnLibrarySurface)"
+                       aria-current="@(OnLibrarySurface ? "page" : null)"
+                       aria-haspopup="@(OnLibrarySurface ? "dialog" : null)"
+                       aria-expanded="@(OnLibrarySurface ? (_librariesOpen ? "true" : "false") : null)"
+                       @onclick="OpenLibrariesAsync"
+                       @onclick:preventDefault="@OnLibrarySurface">
+                        <AppMaterialIcon Icon="@entry.Icon" />
+                        <span>@L[entry.LabelKey]</span>
+                        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.KeyboardArrowDown" Class="layout-shell__intent-dock-chevron" aria-hidden="true" />
+                    </a>
+                    break;
+                case ShellDockKind.Search:
+                    <a href="@entry.Path"
+                       @key="entry.Key"
+                       class="@GetIntentDockLinkClass(IsNavActive(entry.Path))"
+                       aria-current="@(IsNavActive(entry.Path) ? "page" : null)"
+                       @onclick="OpenSearch"
+                       @onclick:preventDefault="true">
+                        <AppMaterialIcon Icon="@entry.Icon" />
+                        <span>@L[entry.LabelKey]</span>
+                    </a>
+                    break;
+                default:
+                    <a href="@entry.Path"
+                       @key="entry.Key"
+                       class="@GetIntentDockLinkClass(IsNavActive(entry.Path))"
+                       aria-current="@(IsNavActive(entry.Path) ? "page" : null)">
+                        <AppMaterialIcon Icon="@entry.Icon" />
+                        <span>@L[entry.LabelKey]</span>
+                    </a>
+                    break;
+            }
         }
     </nav>
+    @if (_librariesOpen)
+    {
+        <AppDialogFrame Open="true" Title="@L["Nav_Libraries"]" DialogOptions="LibrariesSheetOptions" Class="library-switcher-dialog" OnCancel="CloseLibraries">
+            <LibrarySwitcherSheet CurrentPath="@_currentPath" IsKids="@_isKids" OnNavigate="CloseLibraries" />
+        </AppDialogFrame>
+    }
 }
 </AppCssElement>
 </div>
@@ -229,20 +266,14 @@
         new("/collections", "Nav_Collections"),
     ];
 
-    private static readonly IReadOnlyDictionary<string, ShellNavLink> _intentDockCatalog =
-        new Dictionary<string, ShellNavLink>(StringComparer.OrdinalIgnoreCase)
-        {
-            ["Home"] = new("/", "Nav_Home", AppMaterialIcons.Outlined.Home),
-            ["Read"] = new("/read", "Nav_Read", AppMaterialIcons.Outlined.MenuBook),
-            ["Watch"] = new("/watch", "Nav_Watch", AppMaterialIcons.Outlined.LiveTv),
-            ["Listen"] = new("/listen", "Nav_Listen", AppMaterialIcons.Outlined.Headphones),
-            ["View"] = new("/view", "Nav_View", AppMaterialIcons.Outlined.PhotoLibrary),
-            ["Collections"] = new("/collections", "Nav_Collections", AppMaterialIcons.Outlined.CollectionsBookmark),
-        };
-
     // The Kids shell keeps only the lanes a child needs; "My List" stays in the top bar.
     private static readonly string[] _kidsNavPaths = ["/watch", "/listen", "/read"];
-    private static readonly string[] _kidsDockPaths = ["/", "/watch", "/listen", "/read"];
+
+    // A bottom sheet on phones; TV and automotive render the same dock, where the frame falls back to a centred dialog.
+    private static readonly AppDialogOptions LibrariesSheetOptions = new() { Sheet = AppDialogSheetMode.Phone, BackdropClick = true, CloseOnEscapeKey = true };
+
+    private bool _librariesOpen;
+    private string _lastLibraryPath = ShellDock.DefaultLibraryPath;
 
     private string AccentScopeClass => _isKids ? "layout-accent-scope layout-kids" : "layout-accent-scope";
 
@@ -266,14 +297,9 @@
     private bool CanManageProfiles => _session.HasAction("access.manage");
     private bool CanViewReview => _session.HasNavigation("settings.administration");
     private bool CanViewSystemActivity => _session.HasNavigation("settings.administration");
-    private IReadOnlyList<ShellNavLink> IntentDockLinks => DeviceContext.Settings.Shell.IntentDockItems
-        .Select(item => _intentDockCatalog.TryGetValue(item, out var link) ? link : (ShellNavLink?)null)
-        .Where(link => link.HasValue)
-        .Select(link => link!.Value)
-        .Where(link => !_isKids || _kidsDockPaths.Contains(link.Path, StringComparer.OrdinalIgnoreCase))
-        .DistinctBy(link => link.Path, StringComparer.OrdinalIgnoreCase)
-        .ToArray();
-    // The six-tab dock is the phone's navigation (tablets keep the top navigation); TV and automotive keep their own dock.
+    private IReadOnlyList<ShellDockEntry> IntentDockEntries => ShellDock.Resolve(DeviceContext.Settings.Shell.IntentDockItems, _isKids);
+    private bool OnLibrarySurface => ShellDock.IsLibrarySurface(_currentPath);
+    // The five-tab dock is the phone's navigation (tablets keep the top navigation); TV and automotive keep their own dock.
     private bool ShowIntentDock => DeviceContext.Settings.Shell.DockVisible
         && (DeviceContext.IsPhone || DeviceContext.IsTelevision || DeviceContext.IsAutomotive);
     private string IntentDockClass => string.Join(' ', new[]
@@ -390,6 +416,8 @@
             await SyncCultureAsync();
             if (ShouldStopStartup(startupToken)) return;
             await LoadActiveProfileAsync();
+            if (ShouldStopStartup(startupToken)) return;
+            await SyncLastLibraryAsync(load: true);
             if (ShouldStopStartup(startupToken)) return;
             await AudioSidebar.ReloadAsync();
             if (ShouldStopStartup(startupToken)) return;
@@ -530,8 +558,11 @@
     {
         if (_disposed) return;
         SyncLocationState();
+        _librariesOpen = false;
         _ = InvokeAsync(async () =>
         {
+            if (_disposed) return;
+            await SyncLastLibraryAsync(load: false);
             if (_disposed) return;
             await JS.InvokeVoidAsync("playbackTools.resetContentScroll");
             if (!_disposed) StateHasChanged();
@@ -541,6 +572,49 @@
     private void OpenForMe() => Nav.NavigateTo("/for-me?view=my-list");
 
     private void OpenSearch() => _searchOverlay?.Open();
+
+    private Task OpenLibrariesAsync(MouseEventArgs _)
+    {
+        // Off a library surface the tab is a plain link to the last library; on one, it opens the switcher.
+        if (OnLibrarySurface) _librariesOpen = true;
+        return Task.CompletedTask;
+    }
+
+    private void CloseLibraries() => _librariesOpen = false;
+
+    // Remembers the lane the person is on (per profile, in this browser) and, on load, brings back the last one used.
+    private async Task SyncLastLibraryAsync(bool load)
+    {
+        if (_disposed) return;
+        var lane = ShellDock.LaneForPath(_currentPath);
+        if (lane is not null) _lastLibraryPath = ShellDock.NormalizeLastLibrary(lane, _isKids);
+        if (_activeProfileId is null) return;
+
+        var key = ShellDock.LastLibraryStorageKey(_activeProfileId);
+        try
+        {
+            if (load && lane is null)
+            {
+                var stored = await JS.InvokeAsync<string?>("localStorage.getItem", key);
+                // A lane visited while the read was in flight is newer than the stored one.
+                if (_disposed || ShellDock.LaneForPath(_currentPath) is not null) return;
+                _lastLibraryPath = ShellDock.NormalizeLastLibrary(stored, _isKids);
+            }
+            else if (lane is not null)
+            {
+                await JS.InvokeVoidAsync("localStorage.setItem", key, _lastLibraryPath);
+            }
+        }
+        catch (JSDisconnectedException)
+        {
+            // The circuit is gone; there is nothing left to remember.
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or JSException)
+        {
+            // Browser storage can be blocked (private window); the tab falls back to Watch.
+            Logger.LogDebug(ex, "Could not read or write the last library surface.");
+        }
+    }
 
     private async Task RetryLiveUpdatesAsync(MouseEventArgs _)
     {
@@ -559,7 +633,7 @@
             ? "layout-shell__nav-link layout-shell__nav-link--active"
             : "layout-shell__nav-link";
 
-    private string GetIntentDockLinkClass(string path) => IsNavActive(path)
+    private string GetIntentDockLinkClass(bool active) => active
         ? "layout-shell__intent-dock-link is-active"
         : "layout-shell__intent-dock-link";
 
@@ -715,6 +789,8 @@
             }
             if (_disposed) return;
             await LoadActiveProfileAsync();
+            if (_disposed) return;
+            await SyncLastLibraryAsync(load: true);
             if (_disposed) return;
             await AudioSidebar.ReloadAsync();
             if (_disposed) return;

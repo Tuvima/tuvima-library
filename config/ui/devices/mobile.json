@@ -13,7 +13,7 @@
   "shell": {
     "appbar_style": "compact",
     "logo_variant": "icon",
-    "intent_dock_items": ["Home", "Read", "Watch", "Listen", "View", "Collections"],
+    "intent_dock_items": ["Home", "Libraries", "Search", "Downloads", "Settings"],
     "intent_dock_style": "normal"
   },
   "pages": {
