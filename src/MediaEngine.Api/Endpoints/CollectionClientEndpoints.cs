@@ -31,10 +31,6 @@ public static class CollectionClientEndpoints
 
     private const int MaxOffset = 100_000;
 
-    // Generated collections sort after they are cut to a length, so every page reads the same full, ordered list and
-    // slices it; asking for a shorter list per page would shift items between pages.
-    private const int MaxCollectionItems = 5_000;
-
     public static IEndpointRouteBuilder MapCollectionClientEndpoints(this IEndpointRouteBuilder app)
     {
         var collections = app.MapGroup("/api/v1/collections")
@@ -117,16 +113,16 @@ public static class CollectionClientEndpoints
             var allowedDisplayIds = allowedWorkIds
                 .Concat(await catalog.GetDisplayWorkIdsAsync(allowedWorkIds, ct))
                 .ToHashSet();
-            var result = await catalog.GetItemsAsync(
-                id, profile, MaxCollectionItems, ct, allowedDisplayIds);
-            // A collection with nothing this profile may see is answered like an unknown one.
-            if (!result.Found || result.Forbidden || (result.Items.Count == 0 && page.Offset == 0))
+            var result = await catalog.GetItemPageAsync(
+                id, profile, page.Offset, page.Limit, allowedDisplayIds, ct);
+            // A collection the catalogue would not list, or with nothing this profile may see, is answered like an
+            // unknown one at every offset; only a cursor past the end of a collection that has items gives an empty page.
+            if (!result.Found || result.Forbidden || result.TotalCount == 0)
             {
                 return ApiErrors.NotFound(NotFoundDetail);
             }
 
-            var window = result.Items.Skip(page.Offset).Take(page.Limit + 1).ToList();
-            return Results.Ok(PagedResponse<CollectionItemDto>.FromPage(window, page, result.Items.Count));
+            return Results.Ok(PagedResponse<CollectionItemDto>.FromPage(result.Items, page, result.TotalCount));
         })
             .WithName("GetClientCollectionItems")
             .WithSummary("Returns one page of the items of a collection visible to the paired profile.")

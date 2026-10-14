@@ -53,6 +53,11 @@ public sealed class CollectionClientEndpointsTests : IDisposable
     private readonly Guid _list = Guid.NewGuid();
     private readonly Guid _privateList = Guid.NewGuid();
     private readonly Guid _adultUniverse = Guid.NewGuid();
+    private readonly Guid _adultList = Guid.NewGuid();
+    private readonly Guid _disabledList = Guid.NewGuid();
+    private readonly Guid _sharedList = Guid.NewGuid();
+    private readonly Guid _sharedSeries = Guid.NewGuid();
+    private readonly Guid _hiddenSeries = Guid.NewGuid();
 
     public CollectionClientEndpointsTests()
     {
@@ -123,14 +128,15 @@ public sealed class CollectionClientEndpointsTests : IDisposable
         var page = await GetJsonAsync(app, "/api/v1/collections");
         var items = page["items"]!.AsArray();
 
-        Assert.Equal(3, items.Count);
-        Assert.Equal(3, page["total_count"]!.GetValue<int>());
+        // The universe rollup, the hand-picked list, the all-adult list and the list shared with this profile.
+        Assert.Equal(5, items.Count);
+        Assert.Equal(5, page["total_count"]!.GetValue<int>());
         Assert.False(page["has_more"]!.GetValue<bool>());
         var universe = items.Single(item => item!["id"]!.GetValue<Guid>() == _universe)!;
         var list = items.Single(item => item!["id"]!.GetValue<Guid>() == _list)!;
         Assert.Equal("collection", universe["group_type"]!.GetValue<string>());
         Assert.Equal("Test Universe", universe["name"]!.GetValue<string>());
-        Assert.Equal(6, universe["item_count"]!.GetValue<int>());
+        Assert.Equal(7, universe["item_count"]!.GetValue<int>());
         Assert.Equal("list", list["group_type"]!.GetValue<string>());
         Assert.Equal("Weekend picks", list["name"]!.GetValue<string>());
         Assert.Equal(3, list["item_count"]!.GetValue<int>());
@@ -146,6 +152,8 @@ public sealed class CollectionClientEndpointsTests : IDisposable
 
         // A private list that belongs to somebody else is not offered.
         Assert.DoesNotContain(items, item => item!["id"]!.GetValue<Guid>() == _privateList);
+        // A disabled collection is not in the catalogue.
+        Assert.DoesNotContain(items, item => item!["id"]!.GetValue<Guid>() == _disabledList);
     }
 
     [Fact]
@@ -153,19 +161,22 @@ public sealed class CollectionClientEndpointsTests : IDisposable
     {
         await using var app = await StartAsync();
 
-        var first = await GetJsonAsync(app, "/api/v1/collections?limit=2");
-        var next = first["next_cursor"]!.GetValue<string>();
-        var second = await GetJsonAsync(app, $"/api/v1/collections?limit=2&cursor={next}");
+        var ids = new List<Guid>();
+        string? cursor = null;
+        var pages = 0;
+        do
+        {
+            var page = await GetJsonAsync(app, "/api/v1/collections?limit=2" + (cursor is null ? "" : $"&cursor={cursor}"));
+            Assert.Equal(5, page["total_count"]!.GetValue<int>());
+            ids.AddRange(page["items"]!.AsArray().Select(item => item!["id"]!.GetValue<Guid>()));
+            cursor = page["next_cursor"]?.GetValue<string>();
+            Assert.Equal(cursor is not null, page["has_more"]!.GetValue<bool>());
+            pages++;
+        }
+        while (cursor is not null && pages < 10);
 
-        Assert.Equal(2, first["items"]!.AsArray().Count);
-        Assert.True(first["has_more"]!.GetValue<bool>());
-        Assert.Equal(3, first["total_count"]!.GetValue<int>());
-        Assert.Single(second["items"]!.AsArray());
-        Assert.False(second["has_more"]!.GetValue<bool>());
-        Assert.Null(second["next_cursor"]);
-        Assert.Equal(
-            3,
-            first["items"]!.AsArray().Concat(second["items"]!.AsArray()).Select(item => item!["id"]!.GetValue<Guid>()).Distinct().Count());
+        Assert.Equal(3, pages);
+        Assert.Equal(5, ids.Distinct().Count());
 
         using var bad = await app.Client.GetAsync("/api/v1/collections?cursor=not-a-number");
         using var negative = await app.Client.GetAsync("/api/v1/collections?cursor=-1");
@@ -194,6 +205,76 @@ public sealed class CollectionClientEndpointsTests : IDisposable
     }
 
     [Fact]
+    public async Task ACollectionWithNothingVisible_IsNotFoundAtEveryOffset_UnlikeAnOutOfRangeCursorOnOneWithItems()
+    {
+        SetContentLimit("PG");
+        await using var app = await StartAsync();
+        var unknown = await SnapshotAsync(app, $"/api/v1/collections/{Guid.NewGuid():D}/items");
+
+        // Only R-rated items: not in the catalogue, and /items answers like an unknown collection however far in the cursor is.
+        var catalogue = await GetJsonAsync(app, "/api/v1/collections");
+        Assert.DoesNotContain(catalogue["items"]!.AsArray(), item => item!["id"]!.GetValue<Guid>() == _adultList);
+        foreach (var query in new[] { "", "?cursor=0", "?cursor=1", "?cursor=24&limit=5" })
+        {
+            Assert.Equal(unknown, await SnapshotAsync(app, $"/api/v1/collections/{_adultList:D}/items{query}"));
+        }
+
+        // A collection that does have visible items may give an empty page past its end.
+        var pastEnd = await GetJsonAsync(app, $"/api/v1/collections/{_list:D}/items?cursor=50");
+        Assert.Empty(pastEnd["items"]!.AsArray());
+        Assert.False(pastEnd["has_more"]!.GetValue<bool>());
+        Assert.Equal(2, pastEnd["total_count"]!.GetValue<int>());
+
+        // The same list is real for an adult, so only the limit hides it.
+        SetContentLimit(null);
+        Assert.Single((await GetJsonAsync(app, $"/api/v1/collections/{_adultList:D}/items"))["items"]!.AsArray());
+    }
+
+    [Fact]
+    public async Task ADisabledCollection_IsNotFoundEverywhere_LikeAnUnknownOne()
+    {
+        await using var app = await StartAsync();
+        var unknown = await SnapshotAsync(app, $"/api/v1/collections/{Guid.NewGuid():D}");
+        var unknownItems = await SnapshotAsync(app, $"/api/v1/collections/{Guid.NewGuid():D}/items");
+
+        Assert.Equal(unknown, await SnapshotAsync(app, $"/api/v1/collections/{_disabledList:D}"));
+        Assert.Equal(unknownItems, await SnapshotAsync(app, $"/api/v1/collections/{_disabledList:D}/items"));
+        Assert.Equal(unknownItems, await SnapshotAsync(app, $"/api/v1/collections/{_disabledList:D}/items?cursor=1"));
+
+        // Enabled again, the very same list pages normally, so being disabled is the only difference.
+        using var connection = _database.CreateConnection();
+        connection.Execute("UPDATE collections SET is_enabled = 1 WHERE id = @id", new { id = _disabledList });
+        Assert.Single((await GetJsonAsync(app, $"/api/v1/collections/{_disabledList:D}/items"))["items"]!.AsArray());
+    }
+
+    [Fact]
+    public async Task APrivateListSharedWithThisProfile_IsVisible_WhileOneKeptPrivateStaysHidden()
+    {
+        await using var app = await StartAsync();
+
+        var catalogue = await GetJsonAsync(app, "/api/v1/collections");
+        var shared = catalogue["items"]!.AsArray().Single(item => item!["id"]!.GetValue<Guid>() == _sharedList)!;
+        var summary = await GetJsonAsync(app, $"/api/v1/collections/{_sharedList:D}");
+        var items = await GetJsonAsync(app, $"/api/v1/collections/{_sharedList:D}/items");
+
+        Assert.Equal("list", shared["group_type"]!.GetValue<string>());
+        Assert.Equal(1, shared["item_count"]!.GetValue<int>());
+        Assert.Equal("Shared with you", summary["name"]!.GetValue<string>());
+        Assert.Equal("Alpha One", Assert.Single(items["items"]!.AsArray())!["title"]!.GetValue<string>());
+        // The owner's profile id and the audience list are not shown to the person it was shared with.
+        Assert.Null(shared["profile_id"]);
+        Assert.Empty(shared["selected_profile_ids"]!.AsArray());
+        Assert.Equal(HttpStatusCode.NotFound, (await SnapshotAsync(app, $"/api/v1/collections/{_privateList:D}/items")).Status);
+
+        // Take the sharing away and it disappears like an unknown list.
+        using var connection = _database.CreateConnection();
+        connection.Execute("DELETE FROM collection_profile_audience WHERE collection_id = @id", new { id = _sharedList });
+        Assert.Equal(
+            await SnapshotAsync(app, $"/api/v1/collections/{Guid.NewGuid():D}/items"),
+            await SnapshotAsync(app, $"/api/v1/collections/{_sharedList:D}/items"));
+    }
+
+    [Fact]
     public async Task Items_PageInOrder_WithoutRepeatsOrGaps()
     {
         await using var app = await StartAsync();
@@ -215,8 +296,9 @@ public sealed class CollectionClientEndpointsTests : IDisposable
         var rollup = await GetJsonAsync(app, $"/api/v1/collections/{_universe:D}/items?limit=4");
         var rest = await GetJsonAsync(app, $"/api/v1/collections/{_universe:D}/items?limit=4&cursor={rollup["next_cursor"]!.GetValue<string>()}");
         var titles = rollup["items"]!.AsArray().Concat(rest["items"]!.AsArray()).Select(item => item!["title"]!.GetValue<string>()).ToArray();
-        Assert.Equal(6, titles.Length);
-        Assert.Equal(6, titles.Distinct().Count());
+        Assert.Equal(7, titles.Length);
+        Assert.Equal(7, titles.Distinct().Count());
+        Assert.DoesNotContain("Delta One", titles);
     }
 
     [Fact]
@@ -233,10 +315,10 @@ public sealed class CollectionClientEndpointsTests : IDisposable
 
         Assert.Equal(2, list["item_count"]!.GetValue<int>());
         Assert.Equal(2, items.Single(item => item!["id"]!.GetValue<Guid>() == _list)!["item_count"]!.GetValue<int>());
-        Assert.Equal(4, items.Single(item => item!["id"]!.GetValue<Guid>() == _universe)!["item_count"]!.GetValue<int>());
+        Assert.Equal(5, items.Single(item => item!["id"]!.GetValue<Guid>() == _universe)!["item_count"]!.GetValue<int>());
         Assert.Equal(["Alpha One", "Beta One"], listItems["items"]!.AsArray().Select(item => item!["title"]!.GetValue<string>()).Order());
         var rollupTitles = rollupItems["items"]!.AsArray().Select(item => item!["title"]!.GetValue<string>()).ToArray();
-        Assert.Equal(4, rollupTitles.Length);
+        Assert.Equal(5, rollupTitles.Length);
         Assert.DoesNotContain("Alpha Two", rollupTitles);
         Assert.DoesNotContain("Beta Three", rollupTitles);
 
@@ -294,9 +376,10 @@ public sealed class CollectionClientEndpointsTests : IDisposable
         Assert.Equal(UniverseQid, universe["qid"]!.GetValue<string>());
         Assert.Equal("Test Universe", universe["name"]!.GetValue<string>());
         Assert.Equal("universe", universe["group_type"]!.GetValue<string>());
-        Assert.Equal(6, universe["item_count"]!.GetValue<int>());
+        Assert.Equal(7, universe["item_count"]!.GetValue<int>());
         var shelves = universe["shelves"]!.AsArray();
-        Assert.Equal(["Series Alpha", "Series Beta"], shelves.Select(shelf => shelf!["shelf"]!["title"]!.GetValue<string>()).Order());
+        // Gamma is shared with exactly this profile so it is a member; Delta belongs to somebody else and is not.
+        Assert.Equal(["Series Alpha", "Series Beta", "Series Gamma"], shelves.Select(shelf => shelf!["shelf"]!["title"]!.GetValue<string>()).Order());
         var alpha = shelves.Single(shelf => shelf!["collection_id"]!.GetValue<Guid>() == _alpha)!;
         Assert.Equal("series", alpha["group_type"]!.GetValue<string>());
         Assert.Equal(3, alpha["item_count"]!.GetValue<int>());
@@ -325,11 +408,11 @@ public sealed class CollectionClientEndpointsTests : IDisposable
         var universe = await GetJsonAsync(app, $"/api/v1/universe/{UniverseQid}");
         var shelves = universe["shelves"]!.AsArray();
 
-        Assert.Equal(4, universe["item_count"]!.GetValue<int>());
+        Assert.Equal(5, universe["item_count"]!.GetValue<int>());
         Assert.Equal(2, shelves.Single(shelf => shelf!["collection_id"]!.GetValue<Guid>() == _alpha)!["item_count"]!.GetValue<int>());
         Assert.Equal(2, shelves.Single(shelf => shelf!["collection_id"]!.GetValue<Guid>() == _beta)!["item_count"]!.GetValue<int>());
         var titles = shelves.SelectMany(shelf => shelf!["shelf"]!["items"]!.AsArray()).Select(card => card!["title"]!.GetValue<string>()).ToArray();
-        Assert.Equal(4, titles.Length);
+        Assert.Equal(5, titles.Length);
         Assert.DoesNotContain("Alpha Two", titles);
         Assert.DoesNotContain("Beta Three", titles);
         Assert.DoesNotContain("Alpha Two", universe.ToJsonString(), StringComparison.Ordinal);
@@ -405,6 +488,8 @@ public sealed class CollectionClientEndpointsTests : IDisposable
             new { id = OtherProfile });
         connection.Execute(
             """
+            INSERT INTO collections (id, display_name, collection_type, scope, resolution, is_enabled, wikidata_qid, created_at)
+            VALUES (@shadow, 'Shadow series', 'Series', 'library', 'query', 1, @qid, '2000-01-01 00:00:00');
             INSERT INTO collections (id, display_name, collection_type, scope, resolution, is_enabled, wikidata_qid, parent_collection_id)
             VALUES (@universe, 'Test Universe', 'Universe', 'library', 'materialized', 1, @qid, NULL),
                    (@alpha, 'Series Alpha', 'Series', 'library', 'query', 1, 'Q4243', @universe),
@@ -413,9 +498,35 @@ public sealed class CollectionClientEndpointsTests : IDisposable
             INSERT INTO collections (id, display_name, collection_type, scope, resolution, is_enabled, membership_mode, owner_kind, audience)
             VALUES (@list, 'Weekend picks', 'Custom', 'library', 'materialized', 1, 'Manual', 'Library', 'Everyone');
             INSERT INTO collections (id, display_name, collection_type, scope, resolution, is_enabled, membership_mode, owner_kind, audience, profile_id)
-            VALUES (@privateList, 'Secret list', 'Custom', 'user', 'materialized', 1, 'Manual', 'Profile', 'Private', @other);
+            VALUES (@privateList, 'Secret list', 'Custom', 'user', 'materialized', 1, 'Manual', 'Profile', 'Private', @other),
+                   (@sharedList, 'Shared with you', 'Custom', 'user', 'materialized', 1, 'Manual', 'Profile', 'SelectedProfiles', @other);
+            INSERT INTO collections (id, display_name, collection_type, scope, resolution, is_enabled, membership_mode, owner_kind, audience)
+            VALUES (@adultList, 'Adults only', 'Custom', 'library', 'materialized', 1, 'Manual', 'Library', 'Everyone'),
+                   (@disabledList, 'Retired list', 'Custom', 'library', 'materialized', 0, 'Manual', 'Library', 'Everyone');
+            INSERT INTO collections (id, display_name, collection_type, scope, resolution, is_enabled, membership_mode, owner_kind, audience, profile_id, parent_collection_id)
+            VALUES (@sharedSeries, 'Series Gamma', 'Series', 'user', 'query', 1, 'Smart', 'Profile', 'SelectedProfiles', @other, @universe),
+                   (@hiddenSeries, 'Series Delta', 'Series', 'user', 'query', 1, 'Smart', 'Profile', 'Private', @other, @universe);
+            INSERT INTO collection_profile_audience (collection_id, profile_id)
+            VALUES (@sharedList, @me), (@sharedSeries, @me);
             """,
-            new { universe = _universe, alpha = _alpha, beta = _beta, adultUniverse = _adultUniverse, list = _list, privateList = _privateList, other = OtherProfile, qid = UniverseQid });
+            new
+            {
+                shadow = Guid.NewGuid(),
+                adultList = _adultList,
+                disabledList = _disabledList,
+                sharedList = _sharedList,
+                sharedSeries = _sharedSeries,
+                hiddenSeries = _hiddenSeries,
+                me = MediaEngine.Domain.Aggregates.Profile.SeedProfileId,
+                universe = _universe,
+                alpha = _alpha,
+                beta = _beta,
+                adultUniverse = _adultUniverse,
+                list = _list,
+                privateList = _privateList,
+                other = OtherProfile,
+                qid = UniverseQid
+            });
 
         var alphaOne = AddWork("Movies", "Alpha One", "PG", _alpha, ".mkv");
         var alphaTwo = AddWork("Movies", "Alpha Two", "R", _alpha, ".mkv");
@@ -423,6 +534,8 @@ public sealed class CollectionClientEndpointsTests : IDisposable
         var betaOne = AddWork("Books", "Beta One", "G", _beta, ".epub");
         AddWork("Books", "Beta Two", "G", _beta, ".epub");
         AddWork("Books", "Beta Three", "R", _beta, ".epub");
+        AddWork("Movies", "Gamma One", "G", _sharedSeries, ".mkv");
+        AddWork("Movies", "Delta One", "G", _hiddenSeries, ".mkv");
 
         // A second universe whose series holds only adult items, with its own series so it joins the catalogue.
         var adultSeries = Guid.NewGuid();
@@ -439,14 +552,15 @@ public sealed class CollectionClientEndpointsTests : IDisposable
         }
 
         AddWork("Movies", "Grown-up One", "R", adultSeries, ".mkv");
-        AddWork("Movies", "Grown-up Two", "R", adultSeriesTwo, ".mkv");
+        var grownUpTwo = AddWork("Movies", "Grown-up Two", "R", adultSeriesTwo, ".mkv");
 
         using var items = _database.CreateConnection();
         items.Execute(
             """
             INSERT INTO collection_items (id, collection_id, work_id, sort_order)
             VALUES (@i1, @list, @alphaOne, 0), (@i2, @list, @alphaTwo, 1), (@i3, @list, @betaOne, 2),
-                   (@i4, @privateList, @alphaOne, 0);
+                   (@i4, @privateList, @alphaOne, 0), (@i5, @sharedList, @alphaOne, 0),
+                   (@i6, @adultList, @grownUpTwo, 0), (@i7, @disabledList, @alphaOne, 0);
             """,
             new
             {
@@ -454,6 +568,13 @@ public sealed class CollectionClientEndpointsTests : IDisposable
                 i2 = Guid.NewGuid(),
                 i3 = Guid.NewGuid(),
                 i4 = Guid.NewGuid(),
+                i5 = Guid.NewGuid(),
+                i6 = Guid.NewGuid(),
+                i7 = Guid.NewGuid(),
+                sharedList = _sharedList,
+                adultList = _adultList,
+                disabledList = _disabledList,
+                grownUpTwo,
                 list = _list,
                 privateList = _privateList,
                 alphaOne,

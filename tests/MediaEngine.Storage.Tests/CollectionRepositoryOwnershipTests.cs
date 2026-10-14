@@ -1,5 +1,6 @@
 using Dapper;
 using MediaEngine.Domain.Aggregates;
+using MediaEngine.Domain.Constants;
 using MediaEngine.Domain.Enums;
 
 namespace MediaEngine.Storage.Tests;
@@ -97,6 +98,90 @@ public sealed class CollectionRepositoryOwnershipTests : IDisposable
         Assert.Equal(ContainerAudience.Private, privateList.Audience);
         Assert.Equal([Guest], shared!.AudienceProfileIds);
     }
+
+    [Fact]
+    public async Task FindUniverseByQidAsync_IsNotShadowedBySeriesWithTheSameQid_AndReturnsSharedProfiles()
+    {
+        var universe = Guid.NewGuid();
+        var shadow = Guid.NewGuid();
+        var child = Guid.NewGuid();
+        using (var connection = _db.CreateConnection())
+        {
+            // The Series is created first and inserted first, so a plain "first row with this QID" would return it.
+            connection.Execute(
+                """
+                INSERT INTO collections (id, display_name, collection_type, scope, resolution, wikidata_qid, created_at)
+                VALUES (@shadow, 'Shadow series', 'Series', 'library', 'query', 'Q777', '2000-01-01 00:00:00');
+                INSERT INTO collections (id, display_name, collection_type, scope, resolution, wikidata_qid, created_at)
+                VALUES (@universe, 'Real universe', 'Universe', 'library', 'materialized', 'Q777', '2001-01-01 00:00:00');
+                INSERT INTO collections (id, display_name, collection_type, scope, resolution, membership_mode, owner_kind, audience, profile_id, parent_collection_id)
+                VALUES (@child, 'Shared child', 'Series', 'user', 'query', 'Smart', 'Profile', 'SelectedProfiles', @owner, @universe);
+                INSERT INTO collection_profile_audience (collection_id, profile_id) VALUES (@child, @guest);
+                """,
+                new { shadow, universe, child, owner = Owner, guest = Guest });
+        }
+
+        var repository = new CollectionRepository(_db);
+
+        var found = await repository.FindUniverseByQidAsync("Q777");
+        var children = await repository.GetChildCollectionsAsync(universe);
+
+        Assert.Equal(universe, found!.Id);
+        var member = Assert.Single(children);
+        Assert.Equal(ContainerAudience.SelectedProfiles, member.Audience);
+        Assert.Equal([Guest], member.AudienceProfileIds);
+        // The general lookup still answers for any type, so its other callers are unchanged.
+        Assert.NotNull(await repository.FindByQidAsync("Q777"));
+        Assert.Null(await repository.FindUniverseByQidAsync("Q778"));
+        // A Series on its own never counts as a Universe.
+        using var second = _db.CreateConnection();
+        second.Execute(
+            "INSERT INTO collections (id, display_name, collection_type, scope, resolution, wikidata_qid) VALUES (@id, 'Lone series', 'Series', 'library', 'query', 'Q779');",
+            new { id = Guid.NewGuid() });
+        Assert.Null(await repository.FindUniverseByQidAsync("Q779"));
+    }
+
+    [Fact]
+    public async Task ReadingAnUnknownStoredOwnerOrAudience_FailsFastInsteadOfFallingBackToShared()
+    {
+        using (var connection = _db.CreateConnection())
+        {
+            connection.Execute("PRAGMA ignore_check_constraints = ON;");
+            connection.Execute("UPDATE collections SET audience = 'Everybody' WHERE id = @id;", new { id = _privateList });
+        }
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => new CollectionRepository(_db).GetAllAsync());
+    }
+
+    [Theory]
+    [InlineData("Library", ContainerOwnerKind.Library)]
+    [InlineData("profile", ContainerOwnerKind.Profile)]
+    public void StoredOwnerKind_ParsesTheKnownNames(string stored, ContainerOwnerKind expected) =>
+        Assert.Equal(expected, AggregateStateSerializer.ParseStoredContainerOwnerKind(stored));
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("   ")]
+    [InlineData("1")]
+    [InlineData("Owner")]
+    public void StoredOwnerKind_RejectsMissingUnknownAndNumericValues(string? stored) =>
+        Assert.Throws<InvalidOperationException>(() => AggregateStateSerializer.ParseStoredContainerOwnerKind(stored));
+
+    [Theory]
+    [InlineData("Everyone", ContainerAudience.Everyone)]
+    [InlineData("selectedprofiles", ContainerAudience.SelectedProfiles)]
+    [InlineData("Private", ContainerAudience.Private)]
+    public void StoredAudience_ParsesTheKnownNames(string stored, ContainerAudience expected) =>
+        Assert.Equal(expected, AggregateStateSerializer.ParseStoredContainerAudience(stored));
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("2")]
+    [InlineData("Everybody")]
+    public void StoredAudience_RejectsMissingUnknownAndNumericValues(string? stored) =>
+        Assert.Throws<InvalidOperationException>(() => AggregateStateSerializer.ParseStoredContainerAudience(stored));
 
     public void Dispose()
     {

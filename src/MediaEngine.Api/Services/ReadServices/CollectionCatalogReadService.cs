@@ -20,6 +20,9 @@ namespace MediaEngine.Api.Services.ReadServices;
 
 public sealed record CollectionItemReadResult(bool Found, bool Forbidden, List<CollectionItemDto> Items);
 
+/// <summary>One page of a collection's items for a paired app, with the number of items the profile may see in all.</summary>
+public sealed record CollectionItemPageResult(bool Found, bool Forbidden, int TotalCount, List<CollectionItemDto> Items);
+
 public sealed class CollectionCatalogReadService(
     ICollectionRepository collectionRepo,
     ISeriesManifestRepository manifestRepo,
@@ -279,6 +282,77 @@ public sealed class CollectionCatalogReadService(
         }
 
         return new CollectionItemReadResult(true, false, dtos);
+    }
+
+    /// <summary>The most items of one collection a paged read looks at.</summary>
+    public const int MaxPagedItems = 5000;
+
+    /// <summary>
+    /// One page of a collection's items for a paired app. The collection must be one the catalogue would list for the
+    /// profile (enabled, openable by the profile, a supported rule, not a playlist); anything else is reported as
+    /// forbidden so the caller answers it like an unknown collection. The ordered ids are resolved once and only the
+    /// page's items are then looked up, except for generated series, whose order comes from the lookup itself and are
+    /// resolved whole. Returns up to <paramref name="limit"/> + 1 items so the caller can tell whether more follow.
+    /// </summary>
+    public async Task<CollectionItemPageResult> GetItemPageAsync(
+        Guid collectionId,
+        Profile? activeProfile,
+        int offset,
+        int limit,
+        IReadOnlySet<Guid> allowedWorkIds,
+        CancellationToken ct = default)
+    {
+        var collection = await collectionRepo.GetByIdAsync(collectionId, ct).ConfigureAwait(false);
+        if (collection is null)
+        {
+            return new CollectionItemPageResult(false, false, 0, []);
+        }
+
+        if (!collection.IsEnabled
+            || !CollectionAccessPolicy.CanAccess(collection, activeProfile)
+            || !HasSupportedRuleDefinition(collection)
+            || IsPlaylistCatalogCollection(collection))
+        {
+            return new CollectionItemPageResult(true, true, 0, []);
+        }
+
+        var take = limit + 1;
+        if (IsGeneratedSeriesCollection(collection))
+        {
+            var generatedIds = (await GetAggregatedCollectionWorkIdsAsync(collectionId, activeProfile, ct).ConfigureAwait(false))
+                .Distinct()
+                .Where(allowedWorkIds.Contains)
+                .Take(MaxPagedItems)
+                .ToList();
+            var all = await ResolveCollectionWorkIdsToItemsAsync(
+                collectionId, generatedIds, preserveRequestedOrder: false, ct).ConfigureAwait(false);
+            return new CollectionItemPageResult(true, false, all.Count, all.Skip(offset).Take(take).ToList());
+        }
+
+        if (collection.Resolution == CollectionResolution.Materialized)
+        {
+            var items = (await collectionRepo.GetCollectionItemsAsync(collectionId, MaxPagedItems, ct).ConfigureAwait(false))
+                .Where(item => allowedWorkIds.Contains(item.WorkId))
+                .ToList();
+            var page = await mediaLookupReadService.ResolveItemsAsync(
+                collectionId, items.Skip(offset).Take(take).ToList(), ct).ConfigureAwait(false);
+            return new CollectionItemPageResult(true, false, items.Count, page);
+        }
+
+        var queryIds = (await GetCollectionWorkIdsAsync(collection, ct).ConfigureAwait(false))
+            .Distinct()
+            .Where(allowedWorkIds.Contains)
+            .Take(MaxPagedItems)
+            .ToList();
+        var resolved = await ResolveCollectionWorkIdsToItemsAsync(
+            collectionId, queryIds.Skip(offset).Take(take).ToList(), preserveRequestedOrder: true, ct).ConfigureAwait(false);
+        // The lookup numbers items from zero within the ids it was given; keep the position within the whole list.
+        foreach (var item in resolved)
+        {
+            item.SortOrder += offset;
+        }
+
+        return new CollectionItemPageResult(true, false, queryIds.Count, resolved);
     }
 
     private async Task<List<Collection>> GetAccessibleCollectionsAsync(Profile? activeProfile, CancellationToken ct)

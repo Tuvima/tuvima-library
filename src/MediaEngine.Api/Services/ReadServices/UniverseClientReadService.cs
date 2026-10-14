@@ -43,7 +43,7 @@ public sealed partial class UniverseClientReadService(
             return null;
         }
 
-        var universe = await collections.FindByQidAsync(normalized, ct).ConfigureAwait(false);
+        var universe = await collections.FindUniverseByQidAsync(normalized, ct).ConfigureAwait(false);
         if (universe is null
             || universe.CollectionType != CollectionType.Universe
             || universe.ParentCollectionId is not null
