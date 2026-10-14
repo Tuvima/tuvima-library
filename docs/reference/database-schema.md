@@ -274,10 +274,46 @@ kind, favorites, and active discovery.
 - `local_item_files` relates logical items to physical files with roles such as
   primary, original, Live Photo video, RAW, JPEG, sidecar, audio companion, or
   derivative. Only one primary is allowed per item.
-- `local_item_tags` stores case-insensitive user/local tags.
+- `tags` is the one global tag list for the install: BLOB `id`, `name` (unique,
+  case-insensitive), optional `colour`, `created_by_profile_id` (cleared if that
+  profile is removed) and `created_at`. `local_item_tag_links` joins it to
+  items (`item_id`, `tag_id`, `added_at`; one row per pair). The earlier free
+  text `local_item_tags` table no longer exists: the startup migration copies
+  each distinct name (ignoring case) into `tags`, credited to the owner of the
+  first item that carried it, links every item, then drops the old table. It
+  runs once and does nothing afterwards.
+- `doc_correspondents` (`id`, `name` unique ignoring case, `colour`,
+  `created_by_profile_id`, `created_at`) and `doc_types` (the same without a
+  colour) are the global correspondent and document-type lists.
+- `doc_item_details` holds one document's organising details: `item_id`
+  (primary key), `document_date` (a calendar day, `yyyy-MM-dd`),
+  `correspondent_id` and `doc_type_id` (cleared if that entry is deleted),
+  `archive_number`, `notes`, and `filing_state` (`inbox` or `filed`). A new
+  document gets an `inbox` row when it is first indexed; a document with no row
+  (added before filing existed) counts as filed.
+- `doc_field_definitions` (`id`, `name` unique ignoring case, `kind` of `text`,
+  `number`, `date`, `money`, `bool` or `choice`, `created_by_profile_id`) holds
+  the custom fields; `doc_field_choices` (`field_id`, `value`, `sort_order`) one
+  row per choice of a choice field; `doc_field_values` one row per document and
+  field (`text_value`, `number_value`, `date_value`, `bool_value`). Money keeps
+  the amount in `number_value` and the ISO 4217 code in `text_value`; a choice
+  keeps the chosen value in `text_value`.
+- Tags, correspondents, document types and custom fields are global, but who
+  sees a name is decided on every read, never stored: a person sees a name
+  only when it is used on an item in a library their request is approved for
+  (the same library test the item listings use) or they created it
+  themselves. Counts are the person's own. Deleting a name removes its links
+  and values, never the items. Only the creator or an administrator can rename
+  or delete one. Someone else's hidden items, and documents for a profile
+  without the Documents permission, never make a name visible. A name is the
+  same name whatever its letter case in any script ("Ärzte" and "ärzte").
 - `local_item_search_keys` maps BLOB item IDs to FTS rowids, while the
   `local_item_search` FTS5 table indexes title, filename, MIME/media kind, date,
-  device, location, document text, and tags.
+  device, location, document text (with the description and a document's
+  notes), and tags (with people, the correspondent, document type and archive
+  number, and the text of custom field values). Anything that changes one of
+  those rebuilds the item's search document, including a new read of the
+  document's words.
 - `local_item_annotations` is reserved for provenance-aware extracted/reviewed
   facts. It stores kind, value, confidence, source, model provenance, and review
   time; the table does not perform or imply face recognition, OCR, captions,

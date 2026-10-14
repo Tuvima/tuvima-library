@@ -14,7 +14,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace MediaEngine.Api.Endpoints;
 
-public static class ViewEndpoints
+public static partial class ViewEndpoints
 {
     public static IEndpointRouteBuilder MapViewEndpoints(this IEndpointRouteBuilder app)
     {
@@ -183,6 +183,8 @@ public static class ViewEndpoints
             int? limit, string? cursor, DateTimeOffset? anchorBefore, string? q, string[]? kind,
             bool? favorite, bool? hidden, Guid? galleryId, string? lifecycle,
             bool? withoutLocation, string? personKey, DateTimeOffset? from, DateTimeOffset? to,
+            Guid[]? tag, Guid? correspondent, Guid? docType, DateOnly? docFrom, DateOnly? docTo,
+            string? filing, string[]? field,
             IViewRequestProfileContext identity, IViewProfileRepository preferences,
             IViewResourceAuthorizationService authorization,
             IViewQueryOrchestrator queries, CancellationToken ct) =>
@@ -211,13 +213,14 @@ public static class ViewEndpoints
                     return DocumentsNotAllowed();
                 }
 
+                var documentFilter = BuildDocumentFilter(tag, correspondent, docType, docFrom, docTo, filing, field);
                 var result = await queries.QueryAsync(new ViewAssetQueryRequest(
                     requested, PagedRequest.From(0, limit, 120, 500).Limit, cursor, q, allowedKinds,
                     favorite == true, hidden == true, hidden == true, galleryId,
                     ParseLifecycle(lifecycle),
                     AllowStaleSelectionFallback: string.IsNullOrWhiteSpace(scope),
                     AnchorBefore: anchorBefore, WithoutLocation: withoutLocation == true,
-                    PersonKey: personKey, From: from, To: to), ct);
+                    PersonKey: personKey, From: from, To: to, DocumentFilter: documentFilter), ct);
                 return Access(result.Outcome, result.Page);
             }
             catch (ArgumentException exception) { return ApiErrors.BadRequest(exception.Message); }
@@ -602,35 +605,7 @@ public static class ViewEndpoints
             catch (ArgumentException exception) { return ApiErrors.BadRequest(exception.Message); }
         }).WithName("UpdateViewItemCapturedAt").Produces<LocalAssetDto>();
 
-        group.MapPut("/items/{id:guid}/tags", async (Guid id,
-            UpdateLocalAssetTagsRequest request, IViewRequestProfileContext identity,
-            IViewResourceAuthorizationService authorization, ILocalAssetRepository assets, CancellationToken ct) =>
-        {
-            var decision = await AuthorizeOwnedItemAsync(id, identity, authorization, ct);
-            if (!decision.IsAllowed)
-            {
-                return Access(decision.Outcome);
-            }
-            try
-            {
-                await assets.ReplaceTagsAsync(id, request.Tags ?? [], ct);
-                return Results.Ok(assets.Find(id, ct));
-            }
-            catch (ArgumentException exception) { return ApiErrors.BadRequest(exception.Message); }
-            catch (InvalidOperationException) { return Missing(); }
-        }).WithName("UpdateViewItemTags").Produces<LocalAssetDto>();
-
-        group.MapGet("/tag-suggestions", async (string? q, int? limit,
-            IViewRequestProfileContext identity, ILocalAssetRepository assets, CancellationToken ct) =>
-        {
-            var authority = await identity.ResolveAuthorityAsync(ct);
-            if (authority.ActiveProfileId is not { } profileId)
-            {
-                return Unauthenticated();
-            }
-            var take = PagedRequest.From(null, limit, defaultLimit: 20, maxLimit: 100).Limit;
-            return Results.Ok(assets.GetTagSuggestions(profileId, q, take, ct));
-        }).WithName("GetViewTagSuggestions").Produces<IReadOnlyList<string>>();
+        MapDocumentOrganisation(group);
 
         group.MapPut("/items/{id:guid}/people", async (Guid id,
             UpdateLocalAssetPeopleRequest request, IViewRequestProfileContext identity,

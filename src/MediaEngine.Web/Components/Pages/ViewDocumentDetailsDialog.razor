@@ -1,0 +1,284 @@
+@using MediaEngine.Contracts.LocalAssets
+@using MediaEngine.Domain.PersonalMedia
+@using MediaEngine.Web.Models.ViewDTOs
+@inject IEngineApiClient ApiClient
+@namespace MediaEngine.Web.Components.Pages
+
+@* A small panel over the document for filing it: title, tags, correspondent, type, date, archive number, notes and the person's own fields. One Save. *@
+<AppDialogShell Title="Document details" Subtitle="@ViewDocumentPresentation.DisplayTitle(Item)" Size="Medium" OnClose="@(() => Dialog.Cancel())">
+    <ChildContent>
+        @if (_loading)
+        {
+            <AppProgressBar Indeterminate="true" />
+        }
+        else
+        {
+            @if (!string.IsNullOrWhiteSpace(_error))
+            {
+                <AppAlert Tone="AppUiTone.Error">@_error</AppAlert>
+            }
+
+            <div class="view-document-details">
+                <AppTextField Label="Title" Value="@_title" ValueChanged="@(value => _title = value ?? string.Empty)" MaxLength="300" />
+
+                <section class="view-document-details__group" aria-label="Tags">
+                    <h3>Tags</h3>
+                    <AppTagInput Commit="CommitTagAsync" Search="SearchTagsAsync" />
+                    @if (_tags.Count > 0)
+                    {
+                        <ul class="view-document-details__chips" aria-label="Tags on this document">
+                            @foreach (var tag in _tags)
+                            {
+                                <li @key="tag"><AppChip Text="@tag" OnClose="@(() => RemoveTag(tag))" /></li>
+                            }
+                        </ul>
+                    }
+                </section>
+
+                <AppAutocomplete TItem="string" Label="Correspondent" Value="@_correspondent" ValueChanged="@(value => _correspondent = value ?? string.Empty)"
+                                 SearchFunc="SearchCorrespondentsAsync" CoerceValue="true" ResetValueOnEmptyText="true" Placeholder="Who sent or issued it" />
+                <AppAutocomplete TItem="string" Label="Document type" Value="@_type" ValueChanged="@(value => _type = value ?? string.Empty)"
+                                 SearchFunc="SearchTypesAsync" CoerceValue="true" ResetValueOnEmptyText="true" Placeholder="Invoice, letter, contract…" />
+
+                <div class="view-document-details__row">
+                    <label class="view-document-details__field"><span>Date</span><AppNativeInput Type="date" Class="view-document-details__input" AriaLabel="Document date" Value="@_date" ValueChanged="@(value => _date = value?.ToString() ?? string.Empty)" /></label>
+                    <AppTextField Label="Archive number" Value="@_archive" ValueChanged="@(value => _archive = value ?? string.Empty)" MaxLength="120" />
+                </div>
+
+                <AppTextarea Label="Notes" Value="@_notes" ValueChanged="@(value => _notes = value ?? string.Empty)" Lines="4" />
+
+                @if (_fields.Count > 0)
+                {
+                    <section class="view-document-details__group" aria-label="Custom fields">
+                        <h3>Custom fields</h3>
+                        @foreach (var field in _fields)
+                        {
+                            var draft = _drafts[field.Id];
+                            <div class="view-document-details__custom" @key="field.Id">
+                                @switch (field.Kind)
+                                {
+                                    case ViewDocumentFieldKinds.Choice:
+                                        <label class="view-document-details__field"><span>@field.Name</span>
+                                            <AppNativeSelect aria-label="@field.Name" Value="@(draft.Text ?? string.Empty)" OnChange="@(args => draft.Text = args.Value?.ToString())">
+                                                <option value="">Not set</option>
+                                                @foreach (var choice in field.Choices)
+                                                {
+                                                    <option value="@choice">@choice</option>
+                                                }
+                                            </AppNativeSelect>
+                                        </label>
+                                        break;
+                                    case ViewDocumentFieldKinds.Bool:
+                                        <label class="view-document-details__field"><span>@field.Name</span>
+                                            <AppNativeSelect aria-label="@field.Name" Value="@(draft.Flag is { } flag ? (flag ? "true" : "false") : string.Empty)" OnChange="@(args => draft.Flag = args.Value?.ToString() switch { "true" => true, "false" => false, _ => null })">
+                                                <option value="">Not set</option>
+                                                <option value="true">Yes</option>
+                                                <option value="false">No</option>
+                                            </AppNativeSelect>
+                                        </label>
+                                        break;
+                                    case ViewDocumentFieldKinds.Date:
+                                        <label class="view-document-details__field"><span>@field.Name</span>
+                                            <AppNativeInput Type="date" Class="view-document-details__input" AriaLabel="@field.Name" Value="@draft.Date" ValueChanged="@(value => draft.Date = value?.ToString())" />
+                                        </label>
+                                        break;
+                                    case ViewDocumentFieldKinds.Number:
+                                        <label class="view-document-details__field"><span>@field.Name</span>
+                                            <AppNativeInput Type="text" Class="view-document-details__input" inputmode="decimal" AriaLabel="@field.Name" Value="@draft.Number" ValueChanged="@(value => draft.Number = value?.ToString())" />
+                                        </label>
+                                        break;
+                                    case ViewDocumentFieldKinds.Money:
+                                        <div class="view-document-details__field"><span>@field.Name</span>
+                                            <div class="view-document-details__money">
+                                                <AppNativeInput Type="text" Class="view-document-details__input" inputmode="decimal" AriaLabel="@($"{field.Name} amount")" Placeholder="Amount" Value="@draft.Number" ValueChanged="@(value => draft.Number = value?.ToString())" />
+                                                <AppNativeInput Type="text" Class="view-document-details__input" AriaLabel="@($"{field.Name} currency")" Placeholder="USD" maxlength="3" Value="@draft.Currency" ValueChanged="@(value => draft.Currency = value?.ToString())" />
+                                            </div>
+                                        </div>
+                                        break;
+                                    default:
+                                        <AppTextField Label="@field.Name" Value="@draft.Text" ValueChanged="@(value => draft.Text = value)" MaxLength="1000" />
+                                        break;
+                                }
+                            </div>
+                        }
+                    </section>
+                }
+            </div>
+        }
+    </ChildContent>
+    <FooterContent>
+        <AppButton Label="Cancel" ButtonStyle="AppButtonStyle.Text" OnClick="@(() => Dialog.Cancel())" />
+        <AppButton Label="Save" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Disabled="@(_loading || _saving)" Loading="@_saving" OnClick="SaveAsync" />
+    </FooterContent>
+</AppDialogShell>
+
+@code {
+    [CascadingParameter] private IAppDialogContext Dialog { get; set; } = default!;
+    [Parameter, EditorRequired] public LocalAssetDto Item { get; set; } = default!;
+    [Parameter] public ViewScopeKind ScopeKind { get; set; } = ViewScopeKind.Mine;
+    [Parameter] public Guid? ScopeProfileId { get; set; }
+
+    private sealed class FieldDraft
+    {
+        public string? Text { get; set; }
+        public string? Number { get; set; }
+        public string? Date { get; set; }
+        public string? Currency { get; set; }
+        public bool? Flag { get; set; }
+    }
+
+    private readonly List<string> _tags = [];
+    private readonly Dictionary<Guid, FieldDraft> _drafts = [];
+    private IReadOnlyList<ViewDocumentFieldDto> _fields = [];
+    private ViewDocumentCatalogueDto? _catalogue;
+    private LocalAssetDocumentInfoDto? _info;
+    private string _title = string.Empty, _correspondent = string.Empty, _type = string.Empty, _date = string.Empty, _archive = string.Empty, _notes = string.Empty;
+    private string? _error;
+    private bool _loading = true, _saving, _fieldsLoaded;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var detailsTask = ApiClient.GetViewDocumentDetailsAsync(Item.Id, ScopeKind, ScopeProfileId);
+        var catalogueTask = ApiClient.GetViewCatalogueAsync();
+        await Task.WhenAll(detailsTask, catalogueTask);
+        var loadedInfo = await detailsTask;
+        _info = loadedInfo ?? Item.DocumentInfo;
+        _catalogue = await catalogueTask;
+        // Without both the field list and the document's own values, saving must not touch the custom fields.
+        _fieldsLoaded = _catalogue is not null && loadedInfo is not null;
+        if (!_fieldsLoaded)
+        {
+            _error = "Some of your details could not be loaded, so custom fields stay as they are. You can still edit the rest.";
+        }
+
+        _fields = _catalogue?.Fields ?? [];
+        _title = Item.Title ?? string.Empty;
+        _tags.AddRange(_info?.Tags?.Select(tag => tag.Name) ?? Item.Tags);
+        _correspondent = _info?.Correspondent?.Name ?? string.Empty;
+        _type = _info?.DocumentType?.Name ?? string.Empty;
+        _date = _info?.DocumentDate?.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture) ?? string.Empty;
+        _archive = _info?.ArchiveNumber ?? string.Empty;
+        _notes = _info?.Notes ?? string.Empty;
+        foreach (var field in _fields)
+        {
+            var draft = new FieldDraft();
+            if (_info?.FieldValues?.FirstOrDefault(value => value.FieldId == field.Id) is { } value)
+            {
+                draft.Text = field.Kind == ViewDocumentFieldKinds.Money ? null : value.TextValue;
+                draft.Currency = field.Kind == ViewDocumentFieldKinds.Money ? value.TextValue : null;
+                draft.Number = value.NumberValue?.ToString(System.Globalization.CultureInfo.InvariantCulture);
+                draft.Date = value.DateValue?.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture);
+                draft.Flag = value.BoolValue;
+            }
+
+            _drafts[field.Id] = draft;
+        }
+
+        _loading = false;
+    }
+
+    private async Task<IEnumerable<string>> SearchTagsAsync(string? search, CancellationToken ct) =>
+        (await ApiClient.GetViewTagSuggestionsAsync(search, 30, ct)).Where(tag => !_tags.Contains(tag, StringComparer.OrdinalIgnoreCase));
+
+    private Task<IEnumerable<string>> SearchCorrespondentsAsync(string? search, CancellationToken ct) =>
+        Task.FromResult(Matching(_catalogue?.Correspondents.Select(item => item.Name), search));
+
+    private Task<IEnumerable<string>> SearchTypesAsync(string? search, CancellationToken ct) =>
+        Task.FromResult(Matching(_catalogue?.DocumentTypes.Select(item => item.Name), search));
+
+    private static IEnumerable<string> Matching(IEnumerable<string>? names, string? search) =>
+        (names ?? []).Where(name => string.IsNullOrWhiteSpace(search) || name.Contains(search.Trim(), StringComparison.OrdinalIgnoreCase)).Take(20).ToList();
+
+    private Task<bool> CommitTagAsync(string tag)
+    {
+        tag = tag.Trim();
+        if (tag.Length > 0 && !_tags.Contains(tag, StringComparer.OrdinalIgnoreCase))
+        {
+            _tags.Add(tag);
+        }
+
+        return Task.FromResult(true);
+    }
+
+    private void RemoveTag(string tag) => _tags.RemoveAll(value => string.Equals(value, tag, StringComparison.OrdinalIgnoreCase));
+
+    private async Task SaveAsync()
+    {
+        if (_saving)
+        {
+            return;
+        }
+
+        if (!TryBuildFieldValues(out var values, out var problem))
+        {
+            _error = problem;
+            return;
+        }
+
+        _saving = true;
+        _error = null;
+        try
+        {
+            var request = new UpdateViewDocumentDetailsRequest(
+                string.IsNullOrWhiteSpace(_title) ? null : _title.Trim(),
+                DateOnly.TryParseExact(_date, "yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture,
+                    System.Globalization.DateTimeStyles.None, out var date) ? date : null,
+                Blank(_correspondent), Blank(_type), Blank(_archive), Blank(_notes),
+                FilingState: null, Tags: _tags.ToList(), TagIds: null, FieldValues: _fieldsLoaded ? values : null);
+            var result = await ApiClient.UpdateViewDocumentDetailsAsync(Item.Id, request);
+            if (result.Success)
+            {
+                Dialog.Close(AppDialogResult.Ok(result.Value));
+            }
+            else
+            {
+                _error = result.Error ?? "The details could not be saved. Try again.";
+            }
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+
+    private static string? Blank(string value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+
+    private bool TryBuildFieldValues(out List<ViewDocumentFieldValueRequest> values, out string? problem)
+    {
+        values = [];
+        problem = null;
+        foreach (var field in _fields)
+        {
+            var draft = _drafts[field.Id];
+            switch (field.Kind)
+            {
+                case ViewDocumentFieldKinds.Text or ViewDocumentFieldKinds.Choice when !string.IsNullOrWhiteSpace(draft.Text):
+                    values.Add(new ViewDocumentFieldValueRequest(field.Id, TextValue: draft.Text.Trim()));
+                    break;
+                case ViewDocumentFieldKinds.Number or ViewDocumentFieldKinds.Money when !string.IsNullOrWhiteSpace(draft.Number):
+                    if (!double.TryParse(draft.Number.Trim(), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var number))
+                    {
+                        problem = $"Enter {field.Name} as a number, such as 12.50.";
+                        return false;
+                    }
+
+                    if (field.Kind == ViewDocumentFieldKinds.Money && (draft.Currency?.Trim().Length != 3))
+                    {
+                        problem = $"Add a three-letter currency code for {field.Name}, such as USD.";
+                        return false;
+                    }
+
+                    values.Add(new ViewDocumentFieldValueRequest(field.Id, field.Kind == ViewDocumentFieldKinds.Money ? draft.Currency!.Trim().ToUpperInvariant() : null, number));
+                    break;
+                case ViewDocumentFieldKinds.Date when DateOnly.TryParseExact(draft.Date, "yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out var date):
+                    values.Add(new ViewDocumentFieldValueRequest(field.Id, DateValue: date));
+                    break;
+                case ViewDocumentFieldKinds.Bool when draft.Flag.HasValue:
+                    values.Add(new ViewDocumentFieldValueRequest(field.Id, BoolValue: draft.Flag));
+                    break;
+            }
+        }
+
+        return true;
+    }
+}

@@ -41,7 +41,42 @@ public static class ViewDocumentPresentation
     /// <summary>The date a document is dated by: the date in the file when known, otherwise the day it was added.</summary>
     public static DateTimeOffset DocumentDate(LocalAssetDto item) => item.CapturedAt ?? item.CreatedAt;
 
-    public static bool UsesAddedDate(LocalAssetDto item) => item.CapturedAt is null;
+    /// <summary>True when the card shows the day the file was added because no date is known.</summary>
+    public static bool UsesAddedDate(LocalAssetDto item) => item.DocumentInfo?.DocumentDate is null && item.CapturedAt is null;
+
+    /// <summary>
+    /// The date shown for a document: the date someone gave it, otherwise the date in the file, otherwise the day
+    /// it was added. A given date is a calendar day, so it is never shifted by the viewer's time zone.
+    /// </summary>
+    public static string DateLabel(LocalAssetDto item) => item.DocumentInfo?.DocumentDate is { } given
+        ? given.ToString("MMM d, yyyy", System.Globalization.CultureInfo.CurrentCulture)
+        : DocumentDate(item).LocalDateTime.ToString("MMM d, yyyy", System.Globalization.CultureInfo.CurrentCulture);
+
+    /// <summary>The machine-readable form of <see cref="DateLabel"/> for the time element.</summary>
+    public static string DateValue(LocalAssetDto item) => item.DocumentInfo?.DocumentDate is { } given
+        ? given.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture)
+        : DocumentDate(item).ToString("O", System.Globalization.CultureInfo.InvariantCulture);
+
+    /// <summary>The correspondent and document type chips a card or the viewer bar shows, most useful first.</summary>
+    public static IReadOnlyList<string> OrganisingChips(LocalAssetDto item)
+    {
+        var chips = new List<string>();
+        if (item.DocumentInfo?.Correspondent is { } correspondent)
+        {
+            chips.Add(correspondent.Name);
+        }
+
+        if (item.DocumentInfo?.DocumentType is { } type)
+        {
+            chips.Add(type.Name);
+        }
+
+        return chips;
+    }
+
+    /// <summary>True while a document is waiting to be filed.</summary>
+    public static bool IsInInbox(LocalAssetDto item) =>
+        string.Equals(item.DocumentInfo?.FilingState, ViewDocumentFilingStates.Inbox, StringComparison.Ordinal);
 
     /// <summary>Chips such as PDF, Word or Scan, in the order they are shown.</summary>
     public static IReadOnlyList<string> KindChips(LocalAssetDto item)

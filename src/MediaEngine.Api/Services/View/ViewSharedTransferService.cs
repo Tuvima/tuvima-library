@@ -174,8 +174,12 @@ public sealed class ViewSharedTransferService(
                         INSERT OR IGNORE INTO local_item_files(item_id,file_id,role,derivative_kind,position,added_at)
                         SELECT @sharedItemId,file_id,role,derivative_kind,position,@now
                           FROM local_item_files WHERE item_id=@itemId;
-                        INSERT OR IGNORE INTO local_item_tags(item_id,tag,added_at)
-                        SELECT @sharedItemId,tag,@now FROM local_item_tags WHERE item_id=@itemId;
+                        INSERT OR IGNORE INTO local_item_tag_links(item_id,tag_id,added_at)
+                        SELECT @sharedItemId,tag_id,@now FROM local_item_tag_links WHERE item_id=@itemId;
+                        INSERT OR IGNORE INTO doc_item_details
+                            (item_id,document_date,correspondent_id,doc_type_id,archive_number,notes,filing_state,updated_at)
+                        SELECT @sharedItemId,document_date,correspondent_id,doc_type_id,archive_number,NULL,'filed',@now
+                          FROM doc_item_details WHERE item_id=@itemId;
                         """, new { sharedItemId, sharedLibraryId, itemId, now }, transaction);
                     foreach (var file in planned)
                     {

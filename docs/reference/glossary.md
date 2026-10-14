@@ -47,6 +47,14 @@ One video file that holds several episodes of a show, such as `Show S01E01E02.mk
 
 ## D
 
+### Custom field
+
+A field a person defines for their documents, such as "Policy number" or "Amount due". Its kind is text, number, date, money (an amount with a currency code), yes/no, or one of a list of choices. Custom fields are one list for the whole server; each document stores its own value. Searching finds text values.
+
+### Correspondent
+
+The person or organisation a document came from or is about, such as a bank or a clinic. Correspondents are one list for the whole server. A person only sees the correspondents used on documents they can open, plus ones they added themselves.
+
 ### Dashboard
 
 The Blazor Server web UI (`MediaEngine.Web`) used to browse, search, read, play, configure, and review the library.
@@ -54,6 +62,10 @@ The Blazor Server web UI (`MediaEngine.Web`) used to browse, search, read, play,
 ### Detail Page
 
 The page for a work, collection, book, movie, TV show, episode, person, or other supported entity. Detail pages are the normal place to inspect an item and launch inline corrections.
+
+### Document type
+
+What kind of document it is, such as an invoice, letter or contract. Document types are one list for the whole server, shown to each person on the same terms as correspondents.
 
 ## E
 
@@ -197,6 +209,12 @@ modified/summarized status attached to text shown in the Dashboard.
 ### Staging
 
 The safe on-disk and database holding state between file discovery and final organization. Staging is not the same as browse visibility.
+
+## T
+
+### Tag
+
+A short label on a View photo, video or document, such as "Taxes" or "Holiday". Tags are one list for the whole server, matched without regard to letter case. A person only sees the tags used on items they can open, plus ones they created; deleting a tag removes it from items and never removes an item.
 
 ## U
 

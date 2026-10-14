@@ -61,14 +61,25 @@ public sealed record LocalAssetDto(
     [property: JsonPropertyName("document_info")] LocalAssetDocumentInfoDto? DocumentInfo = null);
 
 /// <summary>
-/// What is known about the words read from a document. <c>text_source</c> is embedded, ocr, mixed, none or null
-/// (not read yet). The flags come from the same read and are false when nothing was recorded.
+/// What is known about the words read from a document, and how it has been organised. <c>text_source</c> is
+/// embedded, ocr, mixed, none or null (not read yet). The flags come from the same read and are false when nothing
+/// was recorded. The organising details are empty until someone fills them in; <c>filing_state</c> is inbox or
+/// filed, and a document added before filing existed reads as filed. List results carry everything except
+/// <c>field_values</c>, which only a single document read (the editor) fills.
 /// </summary>
 public sealed record LocalAssetDocumentInfoDto(
     [property: JsonPropertyName("text_source")] string? TextSource,
     [property: JsonPropertyName("text_truncated")] bool TextTruncated,
     [property: JsonPropertyName("encrypted")] bool Encrypted,
-    [property: JsonPropertyName("has_text")] bool HasText);
+    [property: JsonPropertyName("has_text")] bool HasText,
+    [property: JsonPropertyName("document_date")] DateOnly? DocumentDate = null,
+    [property: JsonPropertyName("correspondent")] ViewCatalogueRefDto? Correspondent = null,
+    [property: JsonPropertyName("document_type")] ViewCatalogueRefDto? DocumentType = null,
+    [property: JsonPropertyName("archive_number")] string? ArchiveNumber = null,
+    [property: JsonPropertyName("notes")] string? Notes = null,
+    [property: JsonPropertyName("filing_state")] string FilingState = ViewDocumentFilingStates.Filed,
+    [property: JsonPropertyName("tags")] IReadOnlyList<ViewCatalogueRefDto>? Tags = null,
+    [property: JsonPropertyName("field_values")] IReadOnlyList<ViewDocumentFieldValueDto>? FieldValues = null);
 
 /// <summary>The readable text of one document, for the Documents viewer's text panel.</summary>
 public sealed record ViewDocumentTextDto(
@@ -160,8 +171,13 @@ public sealed record LibraryCapacityDto(
 public sealed record UpdateLocalAssetDescriptionRequest(
     [property: JsonPropertyName("description")] string? Description);
 
+/// <summary>
+/// Replaces an item's tags. <c>tags</c> are names (an existing name is reused, a new one is added to the list);
+/// <c>tag_ids</c> are tags the person can already see.
+/// </summary>
 public sealed record UpdateLocalAssetTagsRequest(
-    [property: JsonPropertyName("tags")] IReadOnlyCollection<string> Tags);
+    [property: JsonPropertyName("tags")] IReadOnlyCollection<string> Tags,
+    [property: JsonPropertyName("tag_ids")] IReadOnlyCollection<Guid>? TagIds = null);
 
 public sealed record UpdateLocalAssetLocationRequest(
     [property: JsonPropertyName("latitude")] double? Latitude,

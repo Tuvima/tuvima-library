@@ -58,6 +58,15 @@ public sealed class LocalAssetRepository(IDatabaseConnection database) : ILocalA
         public long TextTruncated { get; init; }
         public long TextEncrypted { get; init; }
         public long HasText { get; init; }
+        public string? DocumentDate { get; init; }
+        public Guid? CorrespondentId { get; init; }
+        public string? CorrespondentName { get; init; }
+        public string? CorrespondentColour { get; init; }
+        public Guid? DocumentTypeId { get; init; }
+        public string? DocumentTypeName { get; init; }
+        public string? ArchiveNumber { get; init; }
+        public string? Notes { get; init; }
+        public string? FilingState { get; init; }
         public long Favorite { get; init; }
         public long Hidden { get; init; }
         public DateTimeOffset? ArchivedAt { get; init; }
@@ -93,7 +102,20 @@ public sealed class LocalAssetRepository(IDatabaseConnection database) : ILocalA
     private sealed class ItemTagRow
     {
         public Guid ItemId { get; init; }
+        public Guid TagId { get; init; }
         public string Tag { get; init; } = string.Empty;
+        public string? Colour { get; init; }
+    }
+
+    private sealed class FieldValueRow
+    {
+        public Guid FieldId { get; init; }
+        public string Name { get; init; } = string.Empty;
+        public string Kind { get; init; } = string.Empty;
+        public string? TextValue { get; init; }
+        public double? NumberValue { get; init; }
+        public string? DateValue { get; init; }
+        public long? BoolValue { get; init; }
     }
 
     private sealed class ContentRow
@@ -124,6 +146,9 @@ public sealed class LocalAssetRepository(IDatabaseConnection database) : ILocalA
         public string? DocumentText { get; init; }
         public string? Tags { get; init; }
         public string? People { get; init; }
+        public string? Filing { get; init; }
+        public string? Notes { get; init; }
+        public string? FieldText { get; init; }
     }
 
     public LocalAssetPageDto Query(LocalAssetQuery query, CancellationToken ct = default)
@@ -170,6 +195,10 @@ public sealed class LocalAssetRepository(IDatabaseConnection database) : ILocalA
                    lm.exposure_time AS ExposureTime, lm.aperture AS Aperture, lm.iso AS Iso,
                    lm.focal_length_mm AS FocalLengthMm, lm.video_codec AS VideoCodec, lm.frame_rate AS FrameRate,
                    lm.text_source AS TextSource,
+                   dd.document_date AS DocumentDate,
+                   dd.correspondent_id AS CorrespondentId, dc.name AS CorrespondentName, dc.colour AS CorrespondentColour,
+                   dd.doc_type_id AS DocumentTypeId, dt.name AS DocumentTypeName,
+                   dd.archive_number AS ArchiveNumber, dd.notes AS Notes, dd.filing_state AS FilingState,
                    CASE WHEN lm.metadata_json IS NOT NULL AND json_valid(lm.metadata_json) THEN COALESCE(json_extract(lm.metadata_json, '$.document_text_truncated'), 0) ELSE 0 END AS TextTruncated,
                    CASE WHEN lm.metadata_json IS NOT NULL AND json_valid(lm.metadata_json) THEN COALESCE(json_extract(lm.metadata_json, '$.document_encrypted'), 0) ELSE 0 END AS TextEncrypted,
                    CASE WHEN lm.document_text IS NOT NULL AND lm.document_text <> '' THEN 1 ELSE 0 END AS HasText,
@@ -186,6 +215,9 @@ public sealed class LocalAssetRepository(IDatabaseConnection database) : ILocalA
                    COUNT(*) OVER() AS TotalCount
               FROM local_items li
               LEFT JOIN local_item_metadata lm ON lm.item_id = li.id
+              LEFT JOIN doc_item_details dd ON dd.item_id = li.id
+              LEFT JOIN doc_correspondents dc ON dc.id = dd.correspondent_id
+              LEFT JOIN doc_types dt ON dt.id = dd.doc_type_id
              WHERE li.library_id = @LibraryId
                AND ((@HiddenOnly = 1 AND li.hidden = 1)
                     OR (@HiddenOnly = 0 AND (@IncludeHidden = 1 OR li.hidden = 0)))
@@ -268,16 +300,15 @@ public sealed class LocalAssetRepository(IDatabaseConnection database) : ILocalA
             .Distinct(StringComparer.Ordinal)
             .ToArray() ?? [];
         var searchExpression = BuildSearchExpression(query.Search);
-        var libraryPredicate = libraryIds.Length == 0
-            ? "0 = 1"
-            : string.Join(" OR ", libraryIds.Select((_, index) => $"li.library_id = @LibraryId{index}"));
         // The Shared scope reads only the libraries the resolver authorized (the caller's household's), never every
         // household's shared assets.
+        var parameters = new DynamicParameters();
+        var libraryPredicate = ViewCatalogueSql.LibraryPredicate("li", libraryIds, parameters);
 
         var smartRule = query.SmartRule is null
             ? new LocalAssetSmartRuleSql("1 = 1", new DynamicParameters())
             : LocalAssetSmartRuleSqlCompiler.Compile(query.SmartRule);
-        var parameters = new DynamicParameters(new
+        parameters.AddDynamicParams(new
         {
             query.IncludeHidden,
             query.HiddenOnly,
@@ -301,10 +332,7 @@ public sealed class LocalAssetRepository(IDatabaseConnection database) : ILocalA
             Take = query.Limit + 1,
         });
         parameters.AddDynamicParams(smartRule.Parameters);
-        for (var index = 0; index < libraryIds.Length; index++)
-        {
-            parameters.Add($"LibraryId{index}", GuidSql.ToBlob(libraryIds[index]), System.Data.DbType.Binary);
-        }
+        var documentFilterPredicate = BuildDocumentFilter(query.DocumentFilter, parameters);
 
         var effectiveAtSql = query.SortByAddedAt ? "li.created_at" : "COALESCE(li.captured_at, li.created_at)";
         var orderSql = query.SortByAddedAt ? "li.created_at DESC, lower(hex(li.id)) ASC" : "COALESCE(li.captured_at, li.created_at) DESC, li.id DESC";
@@ -329,6 +357,10 @@ public sealed class LocalAssetRepository(IDatabaseConnection database) : ILocalA
                    lm.exposure_time AS ExposureTime, lm.aperture AS Aperture, lm.iso AS Iso,
                    lm.focal_length_mm AS FocalLengthMm, lm.video_codec AS VideoCodec, lm.frame_rate AS FrameRate,
                    lm.text_source AS TextSource,
+                   dd.document_date AS DocumentDate,
+                   dd.correspondent_id AS CorrespondentId, dc.name AS CorrespondentName, dc.colour AS CorrespondentColour,
+                   dd.doc_type_id AS DocumentTypeId, dt.name AS DocumentTypeName,
+                   dd.archive_number AS ArchiveNumber, dd.notes AS Notes, dd.filing_state AS FilingState,
                    CASE WHEN lm.metadata_json IS NOT NULL AND json_valid(lm.metadata_json) THEN COALESCE(json_extract(lm.metadata_json, '$.document_text_truncated'), 0) ELSE 0 END AS TextTruncated,
                    CASE WHEN lm.metadata_json IS NOT NULL AND json_valid(lm.metadata_json) THEN COALESCE(json_extract(lm.metadata_json, '$.document_encrypted'), 0) ELSE 0 END AS TextEncrypted,
                    CASE WHEN lm.document_text IS NOT NULL AND lm.document_text <> '' THEN 1 ELSE 0 END AS HasText,
@@ -343,6 +375,9 @@ public sealed class LocalAssetRepository(IDatabaseConnection database) : ILocalA
                    0 AS TotalCount
               FROM local_items li
               LEFT JOIN local_item_metadata lm ON lm.item_id = li.id
+              LEFT JOIN doc_item_details dd ON dd.item_id = li.id
+              LEFT JOIN doc_correspondents dc ON dc.id = dd.correspondent_id
+              LEFT JOIN doc_types dt ON dt.id = dd.doc_type_id
               LEFT JOIN view_shared_assets vsa ON vsa.item_id = li.id
              WHERE ({{libraryPredicate}})
                AND ((@HiddenOnly = 1 AND li.hidden = 1)
@@ -375,6 +410,7 @@ public sealed class LocalAssetRepository(IDatabaseConnection database) : ILocalA
                            CASE WHEN tvs.source_type = 'browser_upload' THEN 1 ELSE 0 END) = 1))
                )
                AND ({{smartRule.Predicate}})
+               AND ({{documentFilterPredicate}})
                AND (@SearchExpression IS NULL OR EXISTS (
                     SELECT 1 FROM local_item_search lis
                       JOIN local_item_search_keys lsk ON lsk.rowid = lis.rowid
@@ -453,16 +489,15 @@ public sealed class LocalAssetRepository(IDatabaseConnection database) : ILocalA
             .Distinct(StringComparer.Ordinal)
             .ToArray() ?? [];
         var searchExpression = BuildSearchExpression(query.Search);
-        var libraryPredicate = libraryIds.Length == 0
-            ? "0 = 1"
-            : string.Join(" OR ", libraryIds.Select((_, index) => $"li.library_id = @LibraryId{index}"));
         // The Shared scope reads only the libraries the resolver authorized (the caller's household's), never every
         // household's shared assets.
+        var parameters = new DynamicParameters();
+        var libraryPredicate = ViewCatalogueSql.LibraryPredicate("li", libraryIds, parameters);
 
         var smartRule = query.SmartRule is null
             ? new LocalAssetSmartRuleSql("1 = 1", new DynamicParameters())
             : LocalAssetSmartRuleSqlCompiler.Compile(query.SmartRule);
-        var parameters = new DynamicParameters(new
+        parameters.AddDynamicParams(new
         {
             query.IncludeHidden,
             query.HiddenOnly,
@@ -479,10 +514,6 @@ public sealed class LocalAssetRepository(IDatabaseConnection database) : ILocalA
             parameters.Add("SearchExpression", null);
         }
         parameters.AddDynamicParams(smartRule.Parameters);
-        for (var index = 0; index < libraryIds.Length; index++)
-        {
-            parameters.Add($"LibraryId{index}", GuidSql.ToBlob(libraryIds[index]), System.Data.DbType.Binary);
-        }
 
         using var connection = database.CreateConnection();
         var rows = connection.Query<TimelineBucketRow>(new CommandDefinition($$"""
@@ -599,6 +630,10 @@ public sealed class LocalAssetRepository(IDatabaseConnection database) : ILocalA
                    lm.exposure_time AS ExposureTime, lm.aperture AS Aperture, lm.iso AS Iso,
                    lm.focal_length_mm AS FocalLengthMm, lm.video_codec AS VideoCodec, lm.frame_rate AS FrameRate,
                    lm.text_source AS TextSource,
+                   dd.document_date AS DocumentDate,
+                   dd.correspondent_id AS CorrespondentId, dc.name AS CorrespondentName, dc.colour AS CorrespondentColour,
+                   dd.doc_type_id AS DocumentTypeId, dt.name AS DocumentTypeName,
+                   dd.archive_number AS ArchiveNumber, dd.notes AS Notes, dd.filing_state AS FilingState,
                    CASE WHEN lm.metadata_json IS NOT NULL AND json_valid(lm.metadata_json) THEN COALESCE(json_extract(lm.metadata_json, '$.document_text_truncated'), 0) ELSE 0 END AS TextTruncated,
                    CASE WHEN lm.metadata_json IS NOT NULL AND json_valid(lm.metadata_json) THEN COALESCE(json_extract(lm.metadata_json, '$.document_encrypted'), 0) ELSE 0 END AS TextEncrypted,
                    CASE WHEN lm.document_text IS NOT NULL AND lm.document_text <> '' THEN 1 ELSE 0 END AS HasText,
@@ -614,6 +649,9 @@ public sealed class LocalAssetRepository(IDatabaseConnection database) : ILocalA
                    1 AS TotalCount
               FROM local_items li
               LEFT JOIN local_item_metadata lm ON lm.item_id = li.id
+              LEFT JOIN doc_item_details dd ON dd.item_id = li.id
+              LEFT JOIN doc_correspondents dc ON dc.id = dd.correspondent_id
+              LEFT JOIN doc_types dt ON dt.id = dd.doc_type_id
              WHERE li.id = @itemId;
             """, new { itemId });
         return row is null ? null : MapItem(connection, row);
@@ -786,6 +824,14 @@ public sealed class LocalAssetRepository(IDatabaseConnection database) : ILocalA
                     registration.CapturedAt,
                     now,
                 }, transaction);
+                if (normalizedKind == LocalAssetMediaKinds.Document)
+                {
+                    // A new document waits in the Inbox until someone files it. Documents with no row count as filed.
+                    connection.Execute("""
+                        INSERT OR IGNORE INTO doc_item_details (item_id, filing_state, updated_at)
+                        VALUES (@itemId, 'inbox', @now);
+                        """, new { itemId, now }, transaction);
+                }
             }
             else
             {
@@ -1207,41 +1253,6 @@ public sealed class LocalAssetRepository(IDatabaseConnection database) : ILocalA
         }, ct);
     }
 
-    public IReadOnlyList<string> GetTagSuggestions(
-        Guid profileId,
-        string? search,
-        int limit,
-        CancellationToken ct = default)
-    {
-        if (profileId == Guid.Empty)
-        {
-            throw new ArgumentException("Profile ID is required.", nameof(profileId));
-        }
-        var take = Math.Clamp(limit, 1, 100);
-        var searchPattern = string.IsNullOrWhiteSpace(search) ? null : $"%{search.Trim()}%";
-        using var connection = database.CreateConnection();
-        return connection.Query<string>(new CommandDefinition("""
-            WITH terms(value) AS (
-                SELECT lit.tag
-                  FROM local_item_tags lit
-                  JOIN local_items li ON li.id=lit.item_id
-                 WHERE li.owner_profile_id=@profileId
-                UNION ALL
-                SELECT json.value FROM profile_work_preferences pref, json_each(pref.local_tags_json) json
-                 WHERE pref.profile_id=@profileId AND json_valid(pref.local_tags_json)
-                UNION ALL
-                SELECT json.value FROM profile_person_preferences pref, json_each(pref.local_tags_json) json
-                 WHERE pref.profile_id=@profileId AND json_valid(pref.local_tags_json)
-            )
-            SELECT TRIM(value)
-              FROM terms
-             WHERE TRIM(value) <> '' AND (@searchPattern IS NULL OR value LIKE @searchPattern COLLATE NOCASE)
-             GROUP BY LOWER(TRIM(value))
-             ORDER BY COUNT(*) DESC, value COLLATE NOCASE
-             LIMIT @take;
-            """, new { profileId, searchPattern, take }, cancellationToken: ct)).ToList();
-    }
-
     public Task<bool> UpdateDescriptionAsync(Guid itemId, string? description, CancellationToken ct = default)
     {
         if (itemId == Guid.Empty)
@@ -1472,11 +1483,28 @@ public sealed class LocalAssetRepository(IDatabaseConnection database) : ILocalA
                 checked((int)file.SourceCount),
                 string.IsNullOrWhiteSpace(file.FileName) ? null : Path.GetFileName(file.FileName)))
             .ToList();
-        var tags = connection.Query<string>("""
-            SELECT tag FROM local_item_tags
-             WHERE item_id = @itemId
-             ORDER BY tag COLLATE NOCASE;
-            """, new { itemId = row.Id }).ToList();
+        var tags = connection.Query<ItemTagRow>("""
+            SELECT tl.item_id AS ItemId, tl.tag_id AS TagId, tg.name AS Tag, tg.colour AS Colour
+              FROM local_item_tag_links tl
+              JOIN tags tg ON tg.id = tl.tag_id
+             WHERE tl.item_id = @itemId
+             ORDER BY tg.name COLLATE NOCASE;
+            """, new { itemId = row.Id })
+            .Select(tag => new ViewCatalogueRefDto(tag.TagId, tag.Tag, tag.Colour)).ToList();
+        var fieldValues = row.MediaKind == LocalAssetMediaKinds.Document
+            ? connection.Query<FieldValueRow>("""
+                SELECT fv.field_id AS FieldId, fd.name AS Name, fd.kind AS Kind, fv.text_value AS TextValue,
+                       fv.number_value AS NumberValue, fv.date_value AS DateValue, fv.bool_value AS BoolValue
+                  FROM doc_field_values fv
+                  JOIN doc_field_definitions fd ON fd.id = fv.field_id
+                 WHERE fv.item_id = @itemId
+                 ORDER BY fd.name COLLATE NOCASE;
+                """, new { itemId = row.Id })
+                .Select(value => new ViewDocumentFieldValueDto(
+                    value.FieldId, value.Name, value.Kind, value.TextValue, value.NumberValue,
+                    DateOnly.TryParse(value.DateValue, System.Globalization.CultureInfo.InvariantCulture, out var date) ? date : null,
+                    value.BoolValue is { } flag ? flag != 0 : null)).ToList()
+            : null;
         var people = connection.Query<string>("""
             SELECT DISTINCT TRIM(annotation_value)
               FROM local_item_annotations
@@ -1485,7 +1513,7 @@ public sealed class LocalAssetRepository(IDatabaseConnection database) : ILocalA
                     OR (annotation_kind IN ('person_identity','face_identity') AND reviewed_at IS NOT NULL))
              ORDER BY annotation_value COLLATE NOCASE;
             """, new { itemId = row.Id }).ToList();
-        return MapItem(row, files, tags, people);
+        return MapItem(row, files, tags, people, fieldValues);
     }
 
     private static List<LocalAssetDto> MapItems(SqliteConnection connection, IReadOnlyList<ItemRow> rows)
@@ -1517,10 +1545,11 @@ public sealed class LocalAssetRepository(IDatabaseConnection database) : ILocalA
             """, parameters).ToLookup(file => file.ItemId);
         var tagPredicate = itemPredicate.Replace("lif.item_id", "lit.item_id", StringComparison.Ordinal);
         var tags = connection.Query<ItemTagRow>($$"""
-            SELECT lit.item_id AS ItemId, lit.tag AS Tag
-              FROM local_item_tags lit
+            SELECT lit.item_id AS ItemId, lit.tag_id AS TagId, tg.name AS Tag, tg.colour AS Colour
+              FROM local_item_tag_links lit
+              JOIN tags tg ON tg.id = lit.tag_id
              WHERE ({{tagPredicate}})
-             ORDER BY lit.item_id, lit.tag COLLATE NOCASE;
+             ORDER BY lit.item_id, tg.name COLLATE NOCASE;
             """, parameters).ToLookup(tag => tag.ItemId);
         var personPredicate = itemPredicate.Replace("lif.item_id", "lia.item_id", StringComparison.Ordinal);
         var people = connection.Query<ItemPersonRow>($$"""
@@ -1539,15 +1568,16 @@ public sealed class LocalAssetRepository(IDatabaseConnection database) : ILocalA
                 file.Id, file.Role, file.DerivativeKind, file.MimeType,
                 file.ByteSize, checked((int)file.SourceCount),
                 string.IsNullOrWhiteSpace(file.FileName) ? null : Path.GetFileName(file.FileName))).ToList(),
-            tags[row.Id].Select(tag => tag.Tag).ToList(),
+            tags[row.Id].Select(tag => new ViewCatalogueRefDto(tag.TagId, tag.Tag, tag.Colour)).ToList(),
             people[row.Id].Select(person => person.Person).ToList())).ToList();
     }
 
     private static LocalAssetDto MapItem(
         ItemRow row,
         IReadOnlyList<LocalAssetFileDto> files,
-        IReadOnlyList<string> tags,
-        IReadOnlyList<string>? people = null) => new(
+        IReadOnlyList<ViewCatalogueRefDto> tags,
+        IReadOnlyList<string>? people = null,
+        IReadOnlyList<ViewDocumentFieldValueDto>? fieldValues = null) => new(
             row.Id,
             row.LibraryId,
             row.PersonalSpaceId,
@@ -1573,7 +1603,7 @@ public sealed class LocalAssetRepository(IDatabaseConnection database) : ILocalA
             row.TrashedAt,
             checked((int)row.SourceCount),
             files,
-            tags,
+            tags.Select(tag => tag.Name).ToList(),
             $"/view/items/{row.Id:D}/thumbnail",
             $"/view/items/{row.Id:D}/content",
             row.ScopeKind,
@@ -1596,11 +1626,26 @@ public sealed class LocalAssetRepository(IDatabaseConnection database) : ILocalA
             row.EmbeddedCapturedAt,
             row.CapturedAtUserOverride != 0,
             people ?? [],
-            DocumentInfo: MapDocumentInfo(row));
+            DocumentInfo: MapDocumentInfo(row, tags, fieldValues));
 
-    private static LocalAssetDocumentInfoDto? MapDocumentInfo(ItemRow row) =>
+    private static LocalAssetDocumentInfoDto? MapDocumentInfo(
+        ItemRow row,
+        IReadOnlyList<ViewCatalogueRefDto> tags,
+        IReadOnlyList<ViewDocumentFieldValueDto>? fieldValues) =>
         row.MediaKind == LocalAssetMediaKinds.Document || row.TextSource is not null || row.HasText != 0
-            ? new LocalAssetDocumentInfoDto(row.TextSource, row.TextTruncated != 0, row.TextEncrypted != 0, row.HasText != 0)
+            ? new LocalAssetDocumentInfoDto(
+                row.TextSource, row.TextTruncated != 0, row.TextEncrypted != 0, row.HasText != 0,
+                DateOnly.TryParse(row.DocumentDate, System.Globalization.CultureInfo.InvariantCulture, out var documentDate)
+                    ? documentDate : null,
+                row.CorrespondentId is { } correspondentId && row.CorrespondentName is not null
+                    ? new ViewCatalogueRefDto(correspondentId, row.CorrespondentName, row.CorrespondentColour) : null,
+                row.DocumentTypeId is { } typeId && row.DocumentTypeName is not null
+                    ? new ViewCatalogueRefDto(typeId, row.DocumentTypeName) : null,
+                row.ArchiveNumber,
+                row.Notes,
+                row.FilingState ?? ViewDocumentFilingStates.Filed,
+                tags,
+                fieldValues)
             : null;
 
     private static void ReplaceTags(
@@ -1608,24 +1653,18 @@ public sealed class LocalAssetRepository(IDatabaseConnection database) : ILocalA
         SqliteTransaction transaction,
         Guid itemId,
         IReadOnlyCollection<string> tags,
-        DateTimeOffset now)
-    {
-        connection.Execute(
-            "DELETE FROM local_item_tags WHERE item_id = @itemId;",
-            new { itemId }, transaction);
-        foreach (var tag in tags
-                     .Where(tag => !string.IsNullOrWhiteSpace(tag))
-                     .Select(tag => tag.Trim())
-                     .Distinct(StringComparer.OrdinalIgnoreCase))
-        {
-            connection.Execute("""
-                INSERT INTO local_item_tags (item_id, tag, added_at)
-                VALUES (@itemId, @tag, @now);
-                """, new { itemId, tag, now }, transaction);
-        }
-    }
+        DateTimeOffset now) =>
+        // No viewer here (ingest, imports, tests): names that are new join the global list with no creator.
+        ViewCatalogueSql.ReplaceTagLinks(
+            connection, transaction, itemId,
+            ViewCatalogueSql.ResolveTagIds(connection, transaction, tags, null, now), now);
 
-    private static void RebuildSearchDocument(
+    /// <summary>
+    /// Rebuilds one item's search words from everything searchable about it: the file, device and place, the words
+    /// read from the document, its notes, and its tags, people, correspondent, type, archive number and text field
+    /// values. Call after anything that changes any of them.
+    /// </summary>
+    internal static void RebuildSearchDocument(
         SqliteConnection connection,
         SqliteTransaction transaction,
         Guid itemId)
@@ -1639,7 +1678,16 @@ public sealed class LocalAssetRepository(IDatabaseConnection database) : ILocalA
                         || COALESCE(lm.location_region, '') || ' ' || COALESCE(lm.location_country, '') || ' '
                         || COALESCE(lm.location_country_code, '')) AS Location,
                    trim(COALESCE(lm.description, '') || ' ' || COALESCE(lm.document_text, '')) AS DocumentText,
-                   (SELECT group_concat(tag, ' ') FROM local_item_tags WHERE item_id = li.id) AS Tags,
+                   (SELECT group_concat(tg.name, ' ') FROM local_item_tag_links tl
+                      JOIN tags tg ON tg.id = tl.tag_id WHERE tl.item_id = li.id) AS Tags,
+                   (SELECT trim(COALESCE(dc.name, '') || ' ' || COALESCE(dt.name, '') || ' ' || COALESCE(dd.archive_number, ''))
+                      FROM doc_item_details dd
+                      LEFT JOIN doc_correspondents dc ON dc.id = dd.correspondent_id
+                      LEFT JOIN doc_types dt ON dt.id = dd.doc_type_id
+                     WHERE dd.item_id = li.id) AS Filing,
+                   (SELECT dd.notes FROM doc_item_details dd WHERE dd.item_id = li.id) AS Notes,
+                   (SELECT group_concat(fv.text_value, ' ') FROM doc_field_values fv
+                     WHERE fv.item_id = li.id AND fv.text_value IS NOT NULL AND TRIM(fv.text_value) <> '') AS FieldText,
                    (SELECT group_concat(annotation_value, ' ') FROM local_item_annotations
                      WHERE item_id=li.id AND TRIM(annotation_value) <> ''
                        AND (annotation_kind IN ('person_name','named_person','face_name')
@@ -1676,9 +1724,92 @@ public sealed class LocalAssetRepository(IDatabaseConnection database) : ILocalA
             row.CapturedAt,
             row.Device,
             row.Location,
-            row.DocumentText,
-            Tags = string.Join(' ', new[] { row.Tags, row.People }.Where(value => !string.IsNullOrWhiteSpace(value))),
+            DocumentText = string.Join(' ', new[] { row.DocumentText, row.Notes }.Where(value => !string.IsNullOrWhiteSpace(value))),
+            Tags = string.Join(' ', new[] { row.Tags, row.People, row.Filing, row.FieldText }.Where(value => !string.IsNullOrWhiteSpace(value))),
         }, transaction);
+    }
+
+    /// <summary>
+    /// The SQL for a document listing's organising conditions, with their values added to <paramref name="parameters"/>.
+    /// Always a complete predicate (<c>1 = 1</c> when there is no filter) so it can be dropped into the item query.
+    /// </summary>
+    private static string BuildDocumentFilter(LocalAssetDocumentFilter? filter, DynamicParameters parameters)
+    {
+        if (filter is null)
+        {
+            return "1 = 1";
+        }
+
+        var clauses = new List<string>();
+        var tagIndex = 0;
+        foreach (var tagId in (filter.TagIds ?? []).Distinct())
+        {
+            parameters.Add($"DocTag{tagIndex}", GuidSql.ToBlob(tagId), System.Data.DbType.Binary);
+            clauses.Add($"EXISTS (SELECT 1 FROM local_item_tag_links dtl WHERE dtl.item_id = li.id AND dtl.tag_id = @DocTag{tagIndex})");
+            tagIndex++;
+        }
+
+        if (filter.CorrespondentId is { } correspondentId)
+        {
+            parameters.Add("DocCorrespondent", GuidSql.ToBlob(correspondentId), System.Data.DbType.Binary);
+            clauses.Add("EXISTS (SELECT 1 FROM doc_item_details dcd WHERE dcd.item_id = li.id AND dcd.correspondent_id = @DocCorrespondent)");
+        }
+
+        if (filter.DocumentTypeId is { } typeId)
+        {
+            parameters.Add("DocType", GuidSql.ToBlob(typeId), System.Data.DbType.Binary);
+            clauses.Add("EXISTS (SELECT 1 FROM doc_item_details dtd WHERE dtd.item_id = li.id AND dtd.doc_type_id = @DocType)");
+        }
+
+        if (!string.IsNullOrWhiteSpace(filter.FilingState))
+        {
+            var state = filter.FilingState.Trim().ToLowerInvariant();
+            if (state is not (ViewDocumentFilingStates.Inbox or ViewDocumentFilingStates.Filed))
+            {
+                throw new ArgumentException("Filing state must be inbox or filed.", nameof(filter));
+            }
+
+            parameters.Add("DocFiling", state);
+            clauses.Add("COALESCE((SELECT dfd.filing_state FROM doc_item_details dfd WHERE dfd.item_id = li.id), 'filed') = @DocFiling");
+        }
+
+        const string documentDay = "COALESCE((SELECT ddd.document_date FROM doc_item_details ddd WHERE ddd.item_id = li.id), substr(COALESCE(li.captured_at, li.created_at), 1, 10))";
+        if (filter.DateFrom is { } from)
+        {
+            parameters.Add("DocFrom", from.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture));
+            clauses.Add($"{documentDay} >= @DocFrom");
+        }
+
+        if (filter.DateTo is { } to)
+        {
+            parameters.Add("DocTo", to.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture));
+            clauses.Add($"{documentDay} <= @DocTo");
+        }
+
+        var fieldIndex = 0;
+        foreach (var field in filter.Fields ?? [])
+        {
+            parameters.Add($"DocField{fieldIndex}", GuidSql.ToBlob(field.FieldId), System.Data.DbType.Binary);
+            parameters.Add($"DocFieldValue{fieldIndex}", field.Value.Trim());
+            parameters.Add($"DocFieldLike{fieldIndex}", "%" + ViewCatalogueSql.EscapeLike(field.Value.Trim()) + "%");
+            clauses.Add($"""
+                EXISTS (SELECT 1 FROM doc_field_values dfv
+                          JOIN doc_field_definitions dfn ON dfn.id = dfv.field_id
+                         WHERE dfv.item_id = li.id AND dfv.field_id = @DocField{fieldIndex}
+                           AND CASE dfn.kind
+                                 WHEN 'text' THEN dfv.text_value LIKE @DocFieldLike{fieldIndex} ESCAPE '~'
+                                 WHEN 'choice' THEN dfv.text_value = @DocFieldValue{fieldIndex} COLLATE NOCASE
+                                 WHEN 'number' THEN dfv.number_value = CAST(@DocFieldValue{fieldIndex} AS REAL)
+                                 WHEN 'money' THEN dfv.number_value = CAST(@DocFieldValue{fieldIndex} AS REAL)
+                                 WHEN 'date' THEN dfv.date_value = @DocFieldValue{fieldIndex}
+                                 WHEN 'bool' THEN dfv.bool_value = CASE lower(@DocFieldValue{fieldIndex}) WHEN 'true' THEN 1 WHEN '1' THEN 1 WHEN 'yes' THEN 1 ELSE 0 END
+                                 ELSE 0
+                               END)
+                """);
+            fieldIndex++;
+        }
+
+        return clauses.Count == 0 ? "1 = 1" : string.Join(" AND ", clauses);
     }
 
     private static void ValidateQuery(LocalAssetQuery query)

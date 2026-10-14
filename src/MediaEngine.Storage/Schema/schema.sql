@@ -1019,11 +1019,75 @@ CREATE TABLE IF NOT EXISTS local_item_files (
     PRIMARY KEY (item_id, file_id, role)
 );
 
-CREATE TABLE IF NOT EXISTS local_item_tags (
+-- Tags, correspondents, document types and custom fields are global: one list per install. Who may see a name is
+-- decided at read time from the items the viewer can reach (plus names they made themselves), never stored here.
+CREATE TABLE IF NOT EXISTS tags (
+    id                  BLOB NOT NULL PRIMARY KEY,
+    name                TEXT NOT NULL UNIQUE COLLATE NOCASE,
+    colour              TEXT,
+    created_by_profile_id BLOB REFERENCES profiles(id) ON DELETE SET NULL,
+    created_at          TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS local_item_tag_links (
     item_id             BLOB NOT NULL REFERENCES local_items(id) ON DELETE CASCADE,
-    tag                 TEXT NOT NULL COLLATE NOCASE,
+    tag_id              BLOB NOT NULL REFERENCES tags(id) ON DELETE CASCADE,
     added_at            TEXT NOT NULL,
-    PRIMARY KEY (item_id, tag)
+    PRIMARY KEY (item_id, tag_id)
+);
+
+CREATE TABLE IF NOT EXISTS doc_correspondents (
+    id                  BLOB NOT NULL PRIMARY KEY,
+    name                TEXT NOT NULL UNIQUE COLLATE NOCASE,
+    colour              TEXT,
+    created_by_profile_id BLOB REFERENCES profiles(id) ON DELETE SET NULL,
+    created_at          TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS doc_types (
+    id                  BLOB NOT NULL PRIMARY KEY,
+    name                TEXT NOT NULL UNIQUE COLLATE NOCASE,
+    created_by_profile_id BLOB REFERENCES profiles(id) ON DELETE SET NULL,
+    created_at          TEXT NOT NULL
+);
+
+-- Organising details of one document. A document with no row here was added before filing existed and counts as filed.
+CREATE TABLE IF NOT EXISTS doc_item_details (
+    item_id             BLOB NOT NULL PRIMARY KEY REFERENCES local_items(id) ON DELETE CASCADE,
+    document_date       TEXT,
+    correspondent_id    BLOB REFERENCES doc_correspondents(id) ON DELETE SET NULL,
+    doc_type_id         BLOB REFERENCES doc_types(id) ON DELETE SET NULL,
+    archive_number      TEXT,
+    notes               TEXT,
+    filing_state        TEXT NOT NULL DEFAULT 'filed' CHECK (filing_state IN ('inbox', 'filed')),
+    updated_at          TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS doc_field_definitions (
+    id                  BLOB NOT NULL PRIMARY KEY,
+    name                TEXT NOT NULL UNIQUE COLLATE NOCASE,
+    kind                TEXT NOT NULL CHECK (kind IN ('text', 'number', 'date', 'money', 'bool', 'choice')),
+    created_by_profile_id BLOB REFERENCES profiles(id) ON DELETE SET NULL,
+    created_at          TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS doc_field_choices (
+    field_id            BLOB NOT NULL REFERENCES doc_field_definitions(id) ON DELETE CASCADE,
+    value               TEXT NOT NULL COLLATE NOCASE,
+    sort_order          INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (field_id, value)
+);
+
+-- One row per document and field. Money keeps the amount in number_value and the ISO 4217 code in text_value;
+-- a choice keeps the chosen value in text_value.
+CREATE TABLE IF NOT EXISTS doc_field_values (
+    item_id             BLOB NOT NULL REFERENCES local_items(id) ON DELETE CASCADE,
+    field_id            BLOB NOT NULL REFERENCES doc_field_definitions(id) ON DELETE CASCADE,
+    text_value          TEXT,
+    number_value        REAL,
+    date_value          TEXT,
+    bool_value          INTEGER CHECK (bool_value IS NULL OR bool_value IN (0, 1)),
+    PRIMARY KEY (item_id, field_id)
 );
 
 CREATE TABLE IF NOT EXISTS view_galleries (
@@ -1182,8 +1246,16 @@ CREATE INDEX IF NOT EXISTS ix_view_gallery_items_item
     ON view_gallery_items(item_id, gallery_id);
 CREATE INDEX IF NOT EXISTS ix_view_gallery_shares_profile
     ON view_gallery_shares(profile_id, shared_at DESC, gallery_id);
-CREATE INDEX IF NOT EXISTS ix_local_item_tags_tag
-    ON local_item_tags(tag, item_id);
+CREATE INDEX IF NOT EXISTS ix_local_item_tag_links_tag
+    ON local_item_tag_links(tag_id, item_id);
+CREATE INDEX IF NOT EXISTS ix_doc_item_details_correspondent
+    ON doc_item_details(correspondent_id, item_id);
+CREATE INDEX IF NOT EXISTS ix_doc_item_details_type
+    ON doc_item_details(doc_type_id, item_id);
+CREATE INDEX IF NOT EXISTS ix_doc_item_details_state
+    ON doc_item_details(filing_state, document_date);
+CREATE INDEX IF NOT EXISTS ix_doc_field_values_field
+    ON doc_field_values(field_id, item_id);
 CREATE INDEX IF NOT EXISTS ix_collection_view_sources_collection
     ON collection_view_sources(collection_id, position, id);
 CREATE INDEX IF NOT EXISTS ix_collection_view_sources_owner

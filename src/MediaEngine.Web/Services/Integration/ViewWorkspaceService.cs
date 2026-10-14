@@ -7,6 +7,11 @@ public sealed class ViewWorkspaceService(IEngineApiClient api)
 {
     private bool _initialized;
     private bool _galleriesLoaded;
+    private Task? _initializing;
+    private int _generation;
+    private TaskCompletionSource _ready = NewReady();
+
+    private static TaskCompletionSource NewReady() => new(TaskCreationOptions.RunContinuationsAsynchronously);
 
     public ViewScopeResolutionDto? Scopes { get; private set; }
     public ViewPreferencesDto? Preferences { get; private set; }
@@ -34,6 +39,9 @@ public sealed class ViewWorkspaceService(IEngineApiClient api)
     public void Reset()
     {
         _initialized = false;
+        _initializing = null;
+        _generation++;
+        _ready = NewReady();
         _galleriesLoaded = false;
         Scopes = null;
         Preferences = null;
@@ -43,23 +51,68 @@ public sealed class ViewWorkspaceService(IEngineApiClient api)
         PendingNewGalleryItems = [];
     }
 
-    public async Task InitializeAsync(CancellationToken ct = default)
+    /// <summary>
+    /// Loads the View settings (preferences, scopes, other people) once. Callers that arrive while the load is
+    /// running share it instead of asking the Engine again. The View shell owns this call; a page inside the shell
+    /// waits for <see cref="WhenReadyAsync"/> instead of starting its own.
+    /// </summary>
+    public Task InitializeAsync(CancellationToken ct = default)
     {
         if (_initialized)
         {
-            return;
+            return Task.CompletedTask;
         }
 
-        var preferencesTask = api.GetViewPreferencesAsync(ct);
-        var scopesTask = api.GetViewScopesAsync(ct: ct);
-        await Task.WhenAll(preferencesTask, scopesTask);
-        Preferences = await preferencesTask;
-        Scopes = await scopesTask;
-        if (Scopes?.CanBrowseOtherPeople == true)
+        if (_initializing is { } running)
         {
-            OtherPeople = await api.GetViewOtherPeopleAsync(ct);
+            return running;
         }
-        _initialized = true;
+
+        var load = LoadAsync(_ready, _generation, ct);
+        // A load that already ended (even by failing) is not kept, so the next call tries again.
+        if (!load.IsCompleted)
+        {
+            _initializing = load;
+        }
+
+        return load;
+    }
+
+    /// <summary>
+    /// Completes when the View settings have been loaded by <see cref="InitializeAsync"/>, whether or not the load
+    /// found anything, so a page can wait for the shell without asking the Engine itself.
+    /// </summary>
+    public Task WhenReadyAsync() => _initialized ? Task.CompletedTask : _ready.Task;
+
+    private async Task LoadAsync(TaskCompletionSource ready, int generation, CancellationToken ct)
+    {
+        try
+        {
+            var preferencesTask = api.GetViewPreferencesAsync(ct);
+            var scopesTask = api.GetViewScopesAsync(ct: ct);
+            await Task.WhenAll(preferencesTask, scopesTask);
+            var preferences = await preferencesTask;
+            var scopes = await scopesTask;
+            var otherPeople = scopes?.CanBrowseOtherPeople == true ? await api.GetViewOtherPeopleAsync(ct) : null;
+            // Settings that arrive after a reset (a different profile) belong to nobody now.
+            if (generation == _generation)
+            {
+                Preferences = preferences;
+                Scopes = scopes;
+                OtherPeople = otherPeople;
+                _initialized = true;
+            }
+        }
+        finally
+        {
+            // A failed or cancelled load must not leave a waiting page spinning forever, and the next call may retry.
+            if (generation == _generation)
+            {
+                _initializing = null;
+            }
+
+            ready.TrySetResult();
+        }
     }
 
     public async Task<bool> SelectScopeAsync(ViewScopeKind kind, Guid? profileId, CancellationToken ct = default)
