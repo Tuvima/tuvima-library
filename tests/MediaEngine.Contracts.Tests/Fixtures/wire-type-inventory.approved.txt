@@ -3,7 +3,7 @@
 # Compatibility is enforced separately by wire-compatibility.approved.txt.
 # Serializer: System.Text.Json JsonSerializerDefaults.Web; DefaultIgnoreCondition=Never
 # Regenerate intentionally with TUVIMA_UPDATE_WIRE_SNAPSHOT=1.
-# scopes: contracts=1010; api=0; web-client=83
+# scopes: contracts=1013; api=0; web-client=83
 
 [contracts] MediaEngine.Contracts.Activity.ActivityBatchInsightsDto
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -1123,6 +1123,21 @@
   Interval: System.Int32 | json=interval | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   sample={"device_code":"sample","user_code":"sample","verification_uri":"sample","verification_uri_complete":"sample","expires_in":7,"interval":7}
 
+[contracts] MediaEngine.Contracts.Authentication.DeviceProfileDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  ProfileId: System.Guid | json=profile_id | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  DisplayName: System.String | json=display_name | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  AvatarUrl: System.String | json=avatar_url | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  IsKids: System.Boolean | json=is_kids | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  RequiresPin: System.Boolean | json=requires_pin | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  IsActive: System.Boolean | json=is_active | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"profile_id":"11111111-2222-3333-4444-555555555555","display_name":"sample","avatar_url":"sample","is_kids":true,"requires_pin":true,"is_active":true}
+
+[contracts] MediaEngine.Contracts.Authentication.DeviceProfileListDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Profiles: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Authentication.DeviceProfileDto> | json=profiles | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"profiles":[]}
+
 [contracts] MediaEngine.Contracts.Authentication.DeviceProfilePreferenceResponse
   kind=class | converter=default | number-handling=default | unmapped=default
   ProfileId: System.Guid? | json=profile_id | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
@@ -1468,6 +1483,12 @@
   Passkey: System.Boolean | json=passkey | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   ExternalProviders: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Authentication.AccountExternalProviderResponse> | json=external_providers | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   InvitationCode: System.Boolean | json=invitation_code | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+
+[contracts] MediaEngine.Contracts.Authentication.SwitchDeviceProfileRequest
+  kind=class | converter=default | number-handling=default | unmapped=default
+  ProfileId: System.Guid | json=profile_id | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Pin: System.String | json=pin | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"profile_id":"11111111-2222-3333-4444-555555555555","pin":"sample"}
 
 [contracts] MediaEngine.Contracts.Authentication.SwitchProfileRequest
   kind=class | converter=default | number-handling=default | unmapped=default

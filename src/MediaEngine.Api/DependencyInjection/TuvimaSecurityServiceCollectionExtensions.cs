@@ -14,7 +14,9 @@ public static class TuvimaSecurityServiceCollectionExtensions
         services.AddScoped<RecentSignInGuard>();
         services.AddScoped<ManagedClientDeviceService>();
         services.AddScoped<ManagedSessionService>();
+        services.AddSingleton<ClientAuthorizationService>();
         services.AddScoped<PhoneBackupProfileService>();
+        services.AddScoped<DeviceProfileSwitchService>();
         services.AddSingleton<IContainerProbe, EnvironmentContainerProbe>();
         return services;
     }

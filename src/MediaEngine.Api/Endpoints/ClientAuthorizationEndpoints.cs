@@ -200,6 +200,52 @@ public static class ClientAuthorizationEndpoints
         .ProducesProblem(StatusCodes.Status403Forbidden)
         .ProducesProblem(StatusCodes.Status404NotFound);
 
+        // A paired app lists the people it may switch to. Only the paired app itself (not a browser session) may ask.
+        devices.MapGet("/current/profiles", async (
+            HttpContext http,
+            [FromServices] IRequestAuthorityResolver resolver,
+            [FromServices] DeviceProfileSwitchService switcher,
+            CancellationToken ct) =>
+        {
+            var authority = await resolver.ResolveAsync(http, ct);
+            return await switcher.ListAsync(authority, ct) is { } list
+                ? Results.Ok(list)
+                : DeviceSwitchError(DeviceProfileSwitchOutcome.Forbidden, "Only the paired app of a live device can list its profiles.");
+        })
+        .WithName("ListCurrentDeviceProfiles")
+        .WithSummary("Lists the profiles a paired app may switch to without re-pairing.")
+        .Produces<DeviceProfileListDto>()
+        .Produces<OAuthErrorResponse>(StatusCodes.Status403Forbidden)
+        .RequireRateLimiting("authentication-device");
+
+        // Switching person needs no re-pairing: the same device, a new token pair for the chosen profile, the old pair revoked.
+        // The person's PIN is checked at every switch through the same check and lockout the Dashboard uses.
+        devices.MapPost("/current/switch-profile", async (
+            SwitchDeviceProfileRequest request,
+            HttpContext http,
+            [FromServices] IRequestAuthorityResolver resolver,
+            [FromServices] DeviceProfileSwitchService switcher,
+            CancellationToken ct) =>
+        {
+            var authority = await resolver.ResolveAsync(http, ct);
+            http.Response.Headers.CacheControl = "no-store";
+            http.Response.Headers.Pragma = "no-cache";
+            // The caller's own access token (set only by the bearer handler); the switch needs it to still be live.
+            _ = Guid.TryParse(http.User.FindFirstValue(TuvimaClaimTypes.TokenId), out var callerTokenId);
+            var result = await switcher.SwitchAsync(authority, callerTokenId, request.ProfileId, request.Pin, ct);
+            return result.Tokens is { } tokens
+                ? Results.Ok(tokens)
+                : DeviceSwitchError(result.Outcome, result.Description);
+        })
+        .WithName("SwitchCurrentDeviceProfile")
+        .WithSummary("Switches the paired app to another profile of its account and returns a fresh token pair bound to it.")
+        .Produces<OAuthTokenResponse>()
+        .Produces<OAuthErrorResponse>(StatusCodes.Status401Unauthorized)
+        .Produces<OAuthErrorResponse>(StatusCodes.Status403Forbidden)
+        .Produces<OAuthErrorResponse>(StatusCodes.Status428PreconditionRequired)
+        .Produces<OAuthErrorResponse>(StatusCodes.Status429TooManyRequests)
+        .RequireRateLimiting("authentication-device");
+
         devices.MapDelete("/{deviceId:guid}", async (
             Guid deviceId,
             ClaimsPrincipal user,
@@ -276,6 +322,20 @@ public static class ClientAuthorizationEndpoints
 
     private static IResult OAuthError(string error, string description) =>
         Results.Json(new OAuthErrorResponse { Error = error, ErrorDescription = description }, statusCode: StatusCodes.Status400BadRequest);
+
+    /// <summary>The profile-switch failures, as OAuth-style errors: a missing or wrong PIN is 428 (so a retrying client does not replay it), a profile this account cannot use, or that does not exist, is 403.</summary>
+    private static IResult DeviceSwitchError(DeviceProfileSwitchOutcome outcome, string? description)
+    {
+        var (status, error) = outcome switch
+        {
+            DeviceProfileSwitchOutcome.PinRequired => (StatusCodes.Status428PreconditionRequired, "pin_required"),
+            DeviceProfileSwitchOutcome.ProfileNotAllowed => (StatusCodes.Status403Forbidden, ClientAuthorizationService.ProfileNotAllowedError),
+            DeviceProfileSwitchOutcome.Locked => (StatusCodes.Status429TooManyRequests, "pin_locked"),
+            DeviceProfileSwitchOutcome.DeviceUnavailable => (StatusCodes.Status401Unauthorized, "invalid_grant"),
+            _ => (StatusCodes.Status403Forbidden, "forbidden"),
+        };
+        return Results.Json(new OAuthErrorResponse { Error = error, ErrorDescription = description }, statusCode: status);
+    }
 
     private static Guid RequiredGuidClaim(ClaimsPrincipal user, string type) =>
         Guid.TryParse(user.FindFirstValue(type), out var value)

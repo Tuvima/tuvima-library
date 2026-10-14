@@ -12,6 +12,8 @@ public interface IIdentityRepository
     Task<ProfileCredential?> GetCredentialAsync(Guid profileId, ProfileCredentialKind kind, CancellationToken ct = default);
     Task UpsertCredentialAsync(ProfileCredential credential, CancellationToken ct = default);
     Task DeleteCredentialAsync(Guid profileId, ProfileCredentialKind kind, CancellationToken ct = default);
+    /// <summary>Adds one failed profile-credential attempt in a single statement (so parallel bad guesses all count), locking at the threshold. Returns the new count.</summary>
+    Task<int> IncrementCredentialFailureAsync(Guid credentialId, int lockoutThreshold, DateTimeOffset lockedUntil, CancellationToken ct = default);
     Task UpdateCredentialAttemptAsync(Guid credentialId, int failedAttemptCount, DateTimeOffset? lockedUntil, DateTimeOffset? lastUsedAt, CancellationToken ct = default);
     Task<bool> IsAdministratorBootstrapCompletedAsync(CancellationToken ct = default);
 

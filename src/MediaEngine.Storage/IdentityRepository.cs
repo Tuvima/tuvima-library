@@ -88,6 +88,21 @@ public sealed class IdentityRepository(IDatabaseConnection db) : IIdentityReposi
         return Task.CompletedTask;
     }
 
+    public Task<int> IncrementCredentialFailureAsync(Guid credentialId, int lockoutThreshold, DateTimeOffset lockedUntil, CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+        using var conn = db.CreateConnection();
+        return Task.FromResult(conn.ExecuteScalar<int>(
+            """
+            UPDATE profile_credentials
+            SET failed_attempt_count = failed_attempt_count + 1,
+                locked_until = CASE WHEN failed_attempt_count + 1 >= @lockoutThreshold THEN @lockedUntil ELSE locked_until END,
+                updated_at = @updated
+            WHERE id = @credentialId
+            RETURNING failed_attempt_count;
+            """, new { credentialId, lockoutThreshold, lockedUntil = lockedUntil.ToString("O"), updated = DateTimeOffset.UtcNow.ToString("O") }));
+    }
+
     public Task UpdateCredentialAttemptAsync(Guid credentialId, int failedAttemptCount, DateTimeOffset? lockedUntil, DateTimeOffset? lastUsedAt, CancellationToken ct = default) =>
         UpdateAttemptAsync("profile_credentials", credentialId, failedAttemptCount, lockedUntil, lastUsedAt, ct);
 

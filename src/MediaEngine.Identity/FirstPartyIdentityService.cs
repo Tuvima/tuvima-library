@@ -938,10 +938,9 @@ public sealed class FirstPartyIdentityService(
             {
                 if (countsTowardLockout)
                 {
-                    var failures = credential.FailedAttemptCount + 1;
-                    DateTimeOffset? locked = failures >= MaxFailedAttempts ? now.Add(LockoutDuration) : null;
-                    await identities.UpdateCredentialAttemptAsync(credential.Id, failures, locked, null, ct).ConfigureAwait(false);
-                    if (locked is not null)
+                    // Counted in the data store in one step so parallel wrong PINs cannot slip under the limit.
+                    var failures = await identities.IncrementCredentialFailureAsync(credential.Id, MaxFailedAttempts, now.Add(LockoutDuration), ct).ConfigureAwait(false);
+                    if (failures >= MaxFailedAttempts)
                     {
                         throw new ProfilePinLockedException();
                     }
