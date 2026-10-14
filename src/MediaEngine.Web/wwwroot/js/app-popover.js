@@ -3,8 +3,8 @@ const opened = [];
 let removalObserver;
 const edge = 8;
 function discoverAnchor(marker) {
-    const parent = marker.parentElement;
-    return parent?.querySelector('.tl-select-trigger,.tl-input-slot input,.tl-input-slot,.app-overflow-menu__trigger,[role="combobox"],button:not([hidden]),input') || parent;
+    const parent = marker?.parentElement;
+    return parent?.querySelector('.tl-select-trigger,.tl-input-slot input,.tl-input-slot,.app-overflow-menu__trigger,[role="combobox"],button:not([hidden]),input') || parent || null;
 }
 function factors(origin) {
     const text = String(origin).toLowerCase();
@@ -38,6 +38,12 @@ function close(state, restoreFocus) {
     if (restoreFocus && state.anchor instanceof HTMLElement && state.anchor.isConnected) state.anchor.focus({ preventScroll: true });
 }
 export function update(marker, surface, anchor, dotnet, open, anchorOrigin, transformOrigin, matchWidth, focusOnOpen, hostId) {
+    // Blazor resolves an element reference to null once its element has left the page. A render that was replaced
+    // while this module was still loading arrives here with nothing to position, so there is nothing to do.
+    if (!surface?.isConnected) {
+        if (surface) detach(surface);
+        return;
+    }
     let state = states.get(surface);
     if (!state) {
         state = { marker, surface, anchor: anchor || discoverAnchor(marker), dotnet, open: false };
@@ -45,7 +51,7 @@ export function update(marker, surface, anchor, dotnet, open, anchorOrigin, tran
         state.pointer = event => {
             if (opened.at(-1) !== state || surface.contains(event.target) || state.anchor?.contains(event.target)) return;
             // Descendant dialogs belong to this popup's journey and must not dismiss its ancestor accidentally.
-            if (event.target.closest?.('dialog[open]') && !state.anchor.closest('dialog[open]')?.contains(event.target)) return;
+            if (event.target.closest?.('dialog[open]') && !state.anchor?.closest('dialog[open]')?.contains(event.target)) return;
             close(state, false);
         };
         state.key = event => {

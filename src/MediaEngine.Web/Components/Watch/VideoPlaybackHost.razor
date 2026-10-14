@@ -390,20 +390,50 @@
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
+        // A reload can replace this host while its first render is still waiting on the browser. Once disposed it
+        // must not register anything new, because nothing would ever unregister it.
+        if (_disposed) return;
+        try
+        {
+            await RunAfterRenderAsync(firstRender);
+        }
+        catch (JSDisconnectedException)
+        {
+            // The browser connection is gone, so there is nothing left to synchronise.
+        }
+        catch (Exception exception) when (_disposed && exception is ObjectDisposedException or JSException or TaskCanceledException or InvalidOperationException)
+        {
+            Logger.LogDebug(exception, "The video playback host was disposed while its browser calls were still running.");
+        }
+    }
+
+    private async Task RunAfterRenderAsync(bool firstRender)
+    {
         if (firstRender)
         {
             _canPictureInPicture = await JS.InvokeAsync<bool>("listenPlayback.canPictureInPicture", _videoRef);
+            if (_disposed) return;
             _selfReference = DotNetObjectReference.Create(this);
+            _observerRegistered = true;
             await JS.InvokeVoidAsync(
                 "listenPlayback.registerAudioStateObserver",
                 _videoRef,
                 _selfReference,
                 Playback.ClientSettings.AudioObserverIntervalMilliseconds);
-            _observerRegistered = true;
+            if (_disposed)
+            {
+                await ReleaseBrowserClientAsync();
+                return;
+            }
         }
 
         _chromeModule ??= await JS.InvokeAsync<IJSObjectReference>("import", "./js/playback-chrome.js");
         _presentationModule ??= await JS.InvokeAsync<IJSObjectReference>("import", "./js/video-presentation.js");
+        if (_disposed)
+        {
+            await ReleaseBrowserClientAsync();
+            return;
+        }
         if (_chromeModule is not null)
         {
             await _chromeModule.InvokeVoidAsync("attach", _hostRef, _videoRef);
@@ -1074,29 +1104,49 @@
         Playback.PlaybackRequestChanged -= HandleRequestChanged;
         Playback.TransportCommandRequested -= HandleTransportCommandAsync;
         Nav.LocationChanged -= HandleLocationChanged;
+        await ReleaseBrowserClientAsync();
+        _lifetimeCancellation.Dispose();
+    }
+
+    // Safe to call more than once and before the browser client was ever registered.
+    private async Task ReleaseBrowserClientAsync()
+    {
         if (_observerRegistered)
         {
+            _observerRegistered = false;
             try
             {
                 await JS.InvokeVoidAsync("listenPlayback.unregisterAudioStateObserver", _videoRef);
             }
             catch (JSDisconnectedException)
             {
+                // The browser connection is gone, so the observer went with it.
             }
-            catch (InvalidOperationException ex)
+            catch (Exception ex) when (ex is InvalidOperationException or ObjectDisposedException or JSException or TaskCanceledException)
             {
                 Logger.LogDebug(ex, "Could not unregister the video playback observer.");
             }
         }
 
-        foreach (var module in new[] { _chromeModule, _presentationModule })
+        var chrome = _chromeModule;
+        var presentation = _presentationModule;
+        _chromeModule = null;
+        _presentationModule = null;
+        foreach (var module in new[] { chrome, presentation })
         {
             if (module is null) continue;
             try { await module.InvokeVoidAsync("detach", _hostRef); await module.DisposeAsync(); }
-            catch (JSDisconnectedException) { }
+            catch (JSDisconnectedException)
+            {
+                // The browser connection is gone, so the module is already released.
+            }
+            catch (Exception ex) when (ex is ObjectDisposedException or JSException or TaskCanceledException)
+            {
+                Logger.LogDebug(ex, "Could not detach a video playback module.");
+            }
         }
         _selfReference?.Dispose();
-        _lifetimeCancellation.Dispose();
+        _selfReference = null;
     }
 
     public sealed class VideoMetrics

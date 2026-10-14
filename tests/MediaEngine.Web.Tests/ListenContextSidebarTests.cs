@@ -142,6 +142,46 @@ public sealed class ListenContextSidebarTests : AsyncBunitContext
     }
 
     [Fact]
+    public async Task BarRemovedWhileItsScriptsAreLoadingRegistersNothingAndReleasesWhatItHad()
+    {
+        // A reload that swaps the shell can remove the bar while its first render still waits on the browser.
+        var api = EngineApiClientStub.CreateDefault();
+        var playback = new PlaybackSessionController(null!, null!, preferences: new TestPlaybackPreferencesAccessor(Guid.NewGuid()));
+        AddBarServices(playback, api, new ListenContextSidebarState(new MemorySidebarPreferences()));
+        var gate = new GatedJsRuntime(JSInterop.JSRuntime, (identifier, args) =>
+            identifier == "import" && args?.FirstOrDefault() as string == "./js/playback-audio-presentation.js");
+        Services.AddSingleton<IJSRuntime>(gate);
+
+        var host = Render<BarToggle>(parameters => parameters.Add(p => p.Show, true));
+        await gate.Reached.WaitAsync(TimeSpan.FromSeconds(5));
+
+        host.Render(parameters => parameters.Add(p => p.Show, false));
+        gate.Release();
+        await Task.Delay(150);
+
+        Assert.DoesNotContain(JSInterop.Invocations, i => i.Identifier == "listenPlayback.registerCommandHandler");
+        Assert.DoesNotContain(JSInterop.Invocations, i => i.Identifier == "listenPlayback.registerAudioStateObserver");
+        Assert.Empty(host.FindAll(".listen-player"));
+    }
+
+    [Fact]
+    public async Task BarRendersAndDisposesImmediatelyWithoutThrowing()
+    {
+        var api = EngineApiClientStub.CreateDefault();
+        var playback = new PlaybackSessionController(null!, null!, preferences: new TestPlaybackPreferencesAccessor(Guid.NewGuid()));
+        AddBarServices(playback, api, new ListenContextSidebarState(new MemorySidebarPreferences()));
+
+        var host = Render<BarToggle>(parameters => parameters.Add(p => p.Show, true));
+        host.Render(parameters => parameters.Add(p => p.Show, false));
+        host.Render(parameters => parameters.Add(p => p.Show, true));
+        await host.InvokeAsync(() => playback.SetPresentationSurface(PlaybackPresentationSurface.NowPlaying));
+        host.Render(parameters => parameters.Add(p => p.Show, false));
+        await Task.Delay(100);
+
+        Assert.Empty(host.FindAll(".listen-player"));
+    }
+
+    [Fact]
     public async Task MobileClassKeepsTabletDockControlsAvailableAndExpandingKeepsTheCurrentRequest()
     {
         var api = EngineApiClientStub.CreateDefault();
@@ -788,6 +828,18 @@ public sealed class ListenContextSidebarTests : AsyncBunitContext
         Subtitle = artist,
         Duration = "3:24",
     };
+
+    private sealed class BarToggle : ComponentBase
+    {
+        [Parameter] public bool Show { get; set; }
+
+        protected override void BuildRenderTree(Microsoft.AspNetCore.Components.Rendering.RenderTreeBuilder builder)
+        {
+            if (!Show) return;
+            builder.OpenComponent<ListenNowPlayingBar>(0);
+            builder.CloseComponent();
+        }
+    }
 
     private sealed class MemorySidebarPreferences : IContextSidebarPreferences
     {
