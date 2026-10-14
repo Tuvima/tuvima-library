@@ -155,7 +155,7 @@ public sealed class FolderOrganiseRunner
         }
 
         // 2. See what the folder holds now: files on disk, and which of them the library already knows.
-        var disk = FolderMediaEnumerator.Enumerate(context.SourceRoot, context.Source.IncludeSubdirectories, MediaExtensions);
+        var disk = FolderMediaEnumerator.Enumerate(context.SourceRoot, context.Source.IncludeSubdirectories, MediaExtensions, skipLinks: true);
         var catalogued = await CataloguedByPathAsync(context, ct).ConfigureAwait(false);
         var finished = await _ledger.GetFinishedPathsAsync(job.OperationId, ct).ConfigureAwait(false);
         var work = disk.Where(path => !finished.Contains(path)).ToList();

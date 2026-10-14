@@ -7392,6 +7392,7 @@ MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.FolderConversionPr
   NeedsReview: System.Int32 | nullability=not-null | accessors=get,set
   NameCollisions: System.Int32 | nullability=not-null | accessors=get,set
   Skipped: System.Int32 | nullability=not-null | accessors=get,set
+  SkippedLinks: System.Int32 | nullability=not-null | accessors=get,set
   SkipReasons: System.Collections.Generic.List<MediaEngine.Contracts.Settings.FolderConversionSkipDto> | nullability=not-null | accessors=get,set
   Samples: System.Collections.Generic.List<MediaEngine.Contracts.Settings.FolderConversionSampleDto> | nullability=not-null | accessors=get,set
   EstimatedSeconds: System.Int32 | nullability=not-null | accessors=get,set

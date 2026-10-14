@@ -111,6 +111,7 @@ public sealed class FolderJobService
             NeedsReview = preview.NeedsReview,
             NameCollisions = preview.NameCollisions,
             Skipped = preview.Skipped,
+            SkippedLinks = preview.SkippedLinks,
             SkipReasons = preview.SkipReasons.Select(group => new FolderConversionSkipDto { Reason = group.Reason, Count = group.Count }).ToList(),
             Samples = preview.Samples.Select(sample => new FolderConversionSampleDto { OldPath = sample.OldPath, NewPath = sample.NewPath }).ToList(),
             DuplicatePolicy = preview.DuplicatePolicy,

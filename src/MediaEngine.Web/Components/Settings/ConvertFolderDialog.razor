@@ -42,6 +42,10 @@
                         }
                     </ul>
                 }
+                @if (_preview.SkippedLinks > 0)
+                {
+                    <p class="convert-folder__links">Shortcuts inside this folder were skipped.</p>
+                }
                 @if (_preview.Samples.Count > 0)
                 {
                     <h4>Examples</h4>

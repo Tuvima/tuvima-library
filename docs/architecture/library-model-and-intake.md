@@ -135,6 +135,13 @@ media files in path order:
   the type has them on, and an old folder is removed only once it is empty (the
   converted folder itself never is). A file waiting in Review, or without a confirmed
   title, is not renamed (`needs_review`).
+- **Shortcuts.** Symbolic links and Windows junctions inside the folder are never
+  followed: the walk (`FolderMediaEnumerator`, `skipLinks`) leaves them out, so a link to
+  an As-is folder or another drive is not touched and a link that points back up the tree
+  cannot loop. Anything still reached through one (a link made mid-run) is refused by the
+  same check the merge uses (`IsReachedThroughLink`), so it is never moved, renamed or
+  deleted. The preview counts the shortcuts it passed over (`skipped_links`) and says
+  "Shortcuts inside this folder were skipped."
 - **Sidecars.** Files that share the media file's base name travel with it, keeping a
   language suffix (`Movie.en.srt`, `Movie.pt-BR.forced.srt`): subtitles
   (`.srt .ass .ssa .sub .idx .vtt .sup`), `.nfo`, artwork (`.jpg .jpeg .png .webp`),
