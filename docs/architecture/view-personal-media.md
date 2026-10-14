@@ -298,8 +298,11 @@ same readable calendar convention as personal uploads.
 ## People, Places, and AI
 
 Places works from extracted GPS metadata and does not require AI. Map rendering
-must have an accessible list fallback and must not make an unconfigured
-third-party tile request.
+must have an accessible list fallback. The Places client first attempts
+OpenFreeMap's dark map style (`https://tiles.openfreemap.org/styles/dark`), an
+explicit external request that can load remote map resources; if it fails, the
+map falls back to locally served country data (`/maps/world-countries.geojson`).
+See [privacy and network access](../explanation/privacy-local-first.md).
 
 People consumes provenance-aware local annotations when a real processor has
 produced them. When processing is unavailable or incomplete, the UI presents a
@@ -310,12 +313,12 @@ must never block ingestion or asset availability.
 
 Current implementation truth: the Engine and Dashboard expose authorized Places
 and People queries. Places aggregates only real GPS/place metadata and renders a
-local, privacy-safe coordinate cluster plus an accessible list; no third-party
-map tiles are loaded. People returns only named or reviewed provenance-aware
+map (OpenFreeMap tiles when reachable, otherwise locally served country data)
+plus an accessible list. People returns only named or reviewed provenance-aware
 annotations and presents a truthful capability state when no capable producer
 has created them. Face recognition, object/scene detection, captions,
-embeddings, semantic search, mobile backup/sync, public-link sharing, and
-third-party map rendering are not implemented features.
+embeddings, semantic search, mobile backup/sync and public-link sharing are not
+implemented features.
 
 ## Scale and safety
 
