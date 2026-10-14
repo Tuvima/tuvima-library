@@ -1,4 +1,5 @@
 using System.Text.Json;
+using MediaEngine.Contracts.Playback;
 using MediaEngine.Contracts.Progress;
 using MediaEngine.Contracts.Reading;
 using MediaEngine.Domain.Services;
@@ -130,5 +131,44 @@ public sealed class ReadingPlaybackContractTests
 
         return directory?.FullName
             ?? throw new DirectoryNotFoundException("Could not locate the repository root.");
+    }
+
+    [Fact]
+    public void ReadingSettingsContract_DefaultsAndWireNamesAreStable()
+    {
+        var reading = new ReadingSettingsDto();
+
+        Assert.Equal("system", reading.Theme);
+        Assert.Equal("book", reading.Font);
+        Assert.Equal(18, reading.FontSizePx);
+        Assert.Equal(1.5m, reading.LineHeight);
+        Assert.Equal("standard", reading.PageWidth);
+        Assert.Equal(PlaybackPreferenceValues.Paginated, reading.ReadingMode);
+
+        var json = JsonSerializer.Serialize(reading, MediaEngineJson.Web);
+        Assert.Contains("\"theme\":\"system\"", json, StringComparison.Ordinal);
+        Assert.Contains("\"font\":\"book\"", json, StringComparison.Ordinal);
+        Assert.Contains("\"fontSizePx\":18", json, StringComparison.Ordinal);
+        Assert.Contains("\"lineHeight\":1.5", json, StringComparison.Ordinal);
+        Assert.Contains("\"pageWidth\":\"standard\"", json, StringComparison.Ordinal);
+        // The older fields stay on the wire unchanged.
+        Assert.Contains("\"readingMode\":\"Paginated\"", json, StringComparison.Ordinal);
+        Assert.Contains("\"fontSizePercent\":100", json, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ReadingSettingsContract_FillsTheReaderDefaultsWhenOlderJsonLacksThem()
+    {
+        var older = JsonSerializer.Deserialize<ReadingSettingsDto>(
+            "{\"readingMode\":\"Scroll\",\"fontSizePercent\":120}", MediaEngineJson.Web);
+
+        Assert.NotNull(older);
+        Assert.Equal(PlaybackPreferenceValues.Scroll, older!.ReadingMode);
+        Assert.Equal(120, older.FontSizePercent);
+        Assert.Equal("system", older.Theme);
+        Assert.Equal("book", older.Font);
+        Assert.Equal(18, older.FontSizePx);
+        Assert.Equal(1.5m, older.LineHeight);
+        Assert.Equal("standard", older.PageWidth);
     }
 }

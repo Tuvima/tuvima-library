@@ -1,3 +1,4 @@
+using Dapper;
 using MediaEngine.Api.Services.Playback;
 using MediaEngine.Contracts.Playback;
 using MediaEngine.Domain.Aggregates;
@@ -155,6 +156,118 @@ public sealed class UserPlaybackSettingsServiceTests : IDisposable
         settings.Listening.AudiobookListenQualificationSeconds = 10;
         await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() => _service.UpdateAsync(_profileId, settings));
 
+    }
+
+    [Fact]
+    public async Task GetAsync_ReturnsReaderDefaults_WhenSettingsDoNotExist()
+    {
+        var reading = (await _service.GetAsync(_profileId)).Reading;
+
+        Assert.Equal("system", reading.Theme);
+        Assert.Equal("book", reading.Font);
+        Assert.Equal(18, reading.FontSizePx);
+        Assert.Equal(1.5m, reading.LineHeight);
+        Assert.Equal("standard", reading.PageWidth);
+        Assert.Equal(PlaybackPreferenceValues.Paginated, reading.ReadingMode);
+    }
+
+    [Fact]
+    public async Task GetAsync_FillsReaderDefaults_WhenStoredJsonPredatesTheReaderFields()
+    {
+        // The first read creates the table; the row is then written the way an older build stored it.
+        await _service.GetAsync(_profileId);
+        using (var conn = _db.CreateConnection())
+        {
+            conn.Execute(
+                "INSERT INTO user_playback_settings (profile_id, settings_json, updated_at) VALUES (@profileId, @json, @updatedAt);",
+                new
+                {
+                    profileId = _profileId,
+                    json = "{\"reading\":{\"readingMode\":\"Scroll\",\"fontSizePercent\":120}}",
+                    updatedAt = DateTimeOffset.UtcNow.ToString("O"),
+                });
+        }
+
+        var reading = (await _service.GetAsync(_profileId)).Reading;
+
+        Assert.Equal(PlaybackPreferenceValues.Scroll, reading.ReadingMode);
+        Assert.Equal(120, reading.FontSizePercent);
+        Assert.Equal("system", reading.Theme);
+        Assert.Equal("book", reading.Font);
+        Assert.Equal(18, reading.FontSizePx);
+        Assert.Equal(1.5m, reading.LineHeight);
+        Assert.Equal("standard", reading.PageWidth);
+    }
+
+    [Fact]
+    public async Task UpdateAsync_PersistsReaderDefaultsAndNormalizesCase()
+    {
+        var settings = await _service.GetAsync(_profileId);
+        settings.Reading.Theme = " Sepia ";
+        settings.Reading.Font = "SERIF";
+        settings.Reading.FontSizePx = 24;
+        settings.Reading.LineHeight = 1.8m;
+        settings.Reading.PageWidth = "Wide";
+        settings.Reading.ReadingMode = PlaybackPreferenceValues.Scroll;
+
+        await _service.UpdateAsync(_profileId, settings);
+        var saved = (await _service.GetAsync(_profileId)).Reading;
+        var other = (await _service.GetAsync(_otherProfileId)).Reading;
+
+        Assert.Equal("sepia", saved.Theme);
+        Assert.Equal("serif", saved.Font);
+        Assert.Equal(24, saved.FontSizePx);
+        Assert.Equal(1.8m, saved.LineHeight);
+        Assert.Equal("wide", saved.PageWidth);
+        Assert.Equal(PlaybackPreferenceValues.Scroll, saved.ReadingMode);
+        Assert.Equal("system", other.Theme);
+        Assert.Equal(18, other.FontSizePx);
+    }
+
+    [Theory]
+    [InlineData(2, 12)]
+    [InlineData(11, 12)]
+    [InlineData(33, 32)]
+    [InlineData(500, 32)]
+    public async Task UpdateAsync_ClampsReaderTextSize(int sent, int expected)
+    {
+        var settings = await _service.GetAsync(_profileId);
+        settings.Reading.FontSizePx = sent;
+
+        await _service.UpdateAsync(_profileId, settings);
+
+        Assert.Equal(expected, (await _service.GetAsync(_profileId)).Reading.FontSizePx);
+    }
+
+    [Theory]
+    [InlineData(0.5, 1.2)]
+    [InlineData(1.1, 1.2)]
+    [InlineData(2.5, 2.4)]
+    [InlineData(9, 2.4)]
+    public async Task UpdateAsync_ClampsReaderLineHeight(double sent, double expected)
+    {
+        var settings = await _service.GetAsync(_profileId);
+        settings.Reading.LineHeight = (decimal)sent;
+
+        await _service.UpdateAsync(_profileId, settings);
+
+        Assert.Equal((decimal)expected, (await _service.GetAsync(_profileId)).Reading.LineHeight);
+    }
+
+    [Fact]
+    public async Task UpdateAsync_RejectsUnknownReaderThemeTypefaceAndPageWidth()
+    {
+        var settings = await _service.GetAsync(_profileId);
+        settings.Reading.Theme = "neon";
+        await Assert.ThrowsAsync<ArgumentException>(() => _service.UpdateAsync(_profileId, settings));
+
+        settings = await _service.GetAsync(_profileId);
+        settings.Reading.Font = "comic";
+        await Assert.ThrowsAsync<ArgumentException>(() => _service.UpdateAsync(_profileId, settings));
+
+        settings = await _service.GetAsync(_profileId);
+        settings.Reading.PageWidth = "huge";
+        await Assert.ThrowsAsync<ArgumentException>(() => _service.UpdateAsync(_profileId, settings));
     }
 
     [Fact]

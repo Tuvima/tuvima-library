@@ -19,6 +19,7 @@ import { configure, ZipReader, BlobReader, BlobWriter, TextWriter } from '../lib
 import { EPUB } from '../lib/foliate-js/epub.js';
 import '../lib/foliate-js/view.js'; // registers <foliate-view>
 import { Overlayer } from '../lib/foliate-js/overlayer.js';
+import { mergeSettings, readDeviceSettings, writeDeviceSettings, clearDeviceSettings } from './book-reader-settings.js';
 
 configure({ useWebWorkers: false });
 
@@ -701,32 +702,13 @@ function applyAppearance(state, options) {
 }
 
 /**
- * The reading appearance this device saved (the same per-device key the current reader uses), as
- * { theme, fontSize, lineHeight }. Anything missing or unreadable is left out so the page's defaults apply.
+ * The reading appearance to start with, as { theme, fontSize, lineHeight, font, pageWidth, flow }: the profile's
+ * values (handed over by the page as `profile`) with whatever this device saved under the per-device key on top
+ * (the same key the current reader uses). The device wins per key; a key it never saved uses the profile value;
+ * anything missing or unreadable is left out so the page's defaults apply. See book-reader-settings.js.
  */
-export function loadSettings() {
-    try {
-        const stored = JSON.parse(globalThis.localStorage?.getItem('tuvima-reader-settings') ?? 'null');
-        if (!stored || typeof stored !== 'object') return {};
-        const pick = name => stored[name] ?? stored[name[0].toLowerCase() + name.slice(1)];
-        const out = {};
-        const theme = pick('Theme');
-        if (typeof theme === 'string') out.theme = theme;
-        const size = Number(pick('FontSize'));
-        if (Number.isFinite(size) && size > 0) out.fontSize = size;
-        const spacing = Number(pick('LineHeight'));
-        if (Number.isFinite(spacing) && spacing > 0) out.lineHeight = spacing;
-        const font = pick('ReaderFont');
-        if (typeof font === 'string' && (font === 'book' || FONT_STACKS[font])) out.font = font;
-        const pageWidth = pick('PageWidth');
-        if (typeof pageWidth === 'string' && PAGE_WIDTHS[pageWidth]) out.pageWidth = pageWidth;
-        const flow = pick('Flow');
-        if (flow === 'paginated' || flow === 'scrolled') out.flow = flow;
-        return out;
-    } catch (e) {
-        console.debug('Reader settings could not be read; using the defaults.', e);
-        return {};
-    }
+export function loadSettings(profile) {
+    return mergeSettings(profile, readDeviceSettings(globalThis.localStorage));
 }
 
 /**
@@ -734,20 +716,12 @@ export function loadSettings() {
  * current reader's), so everything else already stored under the key survives.
  */
 export function saveSettings(options) {
-    try {
-        const stored = JSON.parse(globalThis.localStorage?.getItem('tuvima-reader-settings') ?? 'null');
-        const merged = stored && typeof stored === 'object' ? stored : {};
-        const o = options ?? {};
-        if (typeof o.theme === 'string') merged.Theme = o.theme;
-        if (Number.isFinite(o.fontSize)) merged.FontSize = o.fontSize;
-        if (Number.isFinite(o.lineHeight)) merged.LineHeight = o.lineHeight;
-        if (typeof o.font === 'string') merged.ReaderFont = o.font;
-        if (typeof o.pageWidth === 'string') merged.PageWidth = o.pageWidth;
-        if (typeof o.flow === 'string') merged.Flow = o.flow;
-        globalThis.localStorage?.setItem('tuvima-reader-settings', JSON.stringify(merged));
-    } catch (e) {
-        console.debug('Reader settings could not be saved on this device.', e);
-    }
+    writeDeviceSettings(globalThis.localStorage, options);
+}
+
+/** Forgets this device's reader choices, so the profile's values apply again the next time the reader opens. */
+export function clearSettings() {
+    clearDeviceSettings(globalThis.localStorage);
 }
 
 export function setAppearance(options) {

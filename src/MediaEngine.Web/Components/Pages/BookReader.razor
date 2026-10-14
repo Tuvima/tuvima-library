@@ -5,11 +5,14 @@
 @using MediaEngine.Domain.Constants
 @using MediaEngine.Web.Models.ViewDTOs
 @using MediaEngine.Web.Services.Integration
+@using MediaEngine.Web.Services.Playback
 
 @inject IEngineApiClient Api
 @inject NavigationManager Nav
 @inject IJSRuntime JS
 @inject ILogger<BookReader> Logger
+@inject UIOrchestratorService Orchestrator
+@inject IUserPlaybackPreferencesAccessor PreferencesAccessor
 
 @implements IAsyncDisposable
 
@@ -206,7 +209,10 @@
                         <div class="br-field-label">Layout</div>
                         <AppSegmentedControl Options="FlowOptions" Value="@_settings.Flow" ValueChanged="SetFlowAsync" AriaLabel="Layout" />
                     </div>
-                    <p class="br-hint">These choices are remembered on this device.</p>
+                    <AppButton ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Primary" OnClick="ResetToProfileDefaultsAsync">
+                        Reset to my defaults
+                    </AppButton>
+                    <p class="br-hint">These choices are remembered on this device and saved to your reading defaults.</p>
                 }
             </div>
         </aside>
@@ -248,6 +254,7 @@
 
 @code {
     private static readonly TimeSpan SaveInterval = TimeSpan.FromSeconds(5);
+    private static readonly TimeSpan ProfileSaveDelay = TimeSpan.FromMilliseconds(600);
 
     [Parameter] public Guid AssetId { get; set; }
     [Parameter] public Guid? ReturnCollectionId { get; set; }
@@ -261,6 +268,11 @@
     private readonly Stopwatch _reading = new();
     private readonly string _readerSessionId = Guid.NewGuid().ToString("D");
     private BookReaderOpenOptions _settings = new();
+    private BookReaderOpenOptions _profileBase = new();   // the profile's reading defaults; device choices are merged on top
+    private CancellationTokenSource? _profileSaveCts;
+    private readonly HashSet<string> _pendingProfileKeys = new(StringComparer.Ordinal);   // settings changed in the reader and not yet saved to the profile
+    private readonly object _pendingProfileLock = new();
+    private readonly SemaphoreSlim _profileSaveGate = new(1, 1);   // one profile write at a time, so an older save never lands after a newer one
 
     private string _state = "loading";          // loading | ready | error
     private string _title = string.Empty;
@@ -629,27 +641,179 @@
         }
     }
 
-    // ---- Settings (same per-device key as the current reader) ----------------------------------------------------
+    // ---- Settings (the profile's defaults, with this device's choices on top) -----------------------------------
 
     private async Task LoadSettingsAsync()
     {
+        // The profile's reading defaults are the base. Without them (not signed in, Engine unreachable) the reader's own defaults apply.
         try
         {
-            // The script reads the per-device key itself, so no stored-JSON shape is parsed on this side.
-            _settings = await _module!.InvokeAsync<BookReaderOpenOptions>("loadSettings");
+            var profile = await PreferencesAccessor.GetAsync();
+            _profileBase = ReaderProfileSettings.ToOpenOptions(profile?.Reading);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "The profile's reading defaults could not be loaded; the reader's own defaults apply.");
+            _profileBase = new BookReaderOpenOptions();
+        }
+
+        try
+        {
+            // The script merges this device's saved choices onto the profile base (device wins per key) and validates
+            // them, so no stored-JSON shape is parsed on this side.
+            _settings = await _module!.InvokeAsync<BookReaderOpenOptions>("loadSettings", _profileBase);
         }
         catch (Exception ex) when (ex is JSException or InvalidOperationException)
         {
             Logger.LogDebug(ex, "Failed to load reader settings from local storage.");
+            _settings = _profileBase;
         }
     }
 
     private async Task ApplySettingsAsync(BookReaderOpenOptions next)
     {
+        // Only the setting(s) the person just changed are remembered on this device and saved to the profile; every
+        // other setting stays with whichever of the two owns it, so the profile's values keep reaching this device.
+        var changed = ReaderProfileSettings.ChangedKeys(_settings, next);
+        await ShowSettingsAsync(next);
+        if (changed.Count == 0)
+        {
+            return;
+        }
+
+        await CallScriptAsync("saveSettings", ReaderProfileSettings.SelectKeys(next, changed));
+        QueueProfileSave(changed);
+    }
+
+    private async Task ShowSettingsAsync(BookReaderOpenOptions next)
+    {
         _settings = next;
-        var options = new { theme = next.Theme, fontSize = next.FontSize, lineHeight = next.LineHeight, font = next.Font, pageWidth = next.PageWidth, flow = next.Flow };
-        await CallScriptAsync("setAppearance", options);
-        await CallScriptAsync("saveSettings", options);
+        await CallScriptAsync("setAppearance", SettingsArgument(next));
+    }
+
+    private static object SettingsArgument(BookReaderOpenOptions next) =>
+        new { theme = next.Theme, fontSize = next.FontSize, lineHeight = next.LineHeight, font = next.Font, pageWidth = next.PageWidth, flow = next.Flow };
+
+    /// <summary>Forgets this device's choices and shows the profile's reading defaults again.</summary>
+    private async Task ResetToProfileDefaultsAsync()
+    {
+        CancelProfileSaveDelay();
+        lock (_pendingProfileLock)
+        {
+            _pendingProfileKeys.Clear();
+        }
+
+        await CallScriptAsync("clearSettings");
+
+        // Pick up what the profile holds now (it may have been changed on another device or in Settings). A save that is
+        // already on its way finishes first, so what is shown is what the profile ends up holding.
+        await _profileSaveGate.WaitAsync();
+        try
+        {
+            PreferencesAccessor.Invalidate();
+            var profile = await PreferencesAccessor.GetAsync();
+            if (profile is not null)
+            {
+                _profileBase = ReaderProfileSettings.ToOpenOptions(profile.Reading);
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "The profile's reading defaults could not be refreshed; the last known defaults are used.");
+        }
+        finally
+        {
+            _profileSaveGate.Release();
+        }
+
+        await ShowSettingsAsync(_profileBase);
+    }
+
+    // ---- Saving the reader's choices to the profile (debounced, one at a time, in the background) ----------------
+
+    private void QueueProfileSave(IEnumerable<string> changedKeys)
+    {
+        lock (_pendingProfileLock)
+        {
+            _pendingProfileKeys.UnionWith(changedKeys);
+        }
+
+        CancelProfileSaveDelay();
+        var cts = _profileSaveCts = new CancellationTokenSource();
+        _ = SaveProfileAfterDelayAsync(cts.Token);
+    }
+
+    private void CancelProfileSaveDelay()
+    {
+        if (_profileSaveCts is { } cts)
+        {
+            _profileSaveCts = null;
+            cts.Cancel();
+            cts.Dispose();
+        }
+    }
+
+    private async Task SaveProfileAfterDelayAsync(CancellationToken ct)
+    {
+        try
+        {
+            await Task.Delay(ProfileSaveDelay, ct);
+        }
+        catch (OperationCanceledException)
+        {
+            // A newer change (or a reset, or closing the reader) replaced this wait; it is not a failure.
+            return;
+        }
+
+        await SavePendingToProfileAsync();
+    }
+
+    private async Task SavePendingToProfileAsync()
+    {
+        // Saves run one at a time. What is pending is taken only once this save has its turn, so a save that waited
+        // writes the newest values of everything changed so far and an older save can never overwrite a newer one.
+        await _profileSaveGate.WaitAsync();
+        try
+        {
+            string[] keys;
+            lock (_pendingProfileLock)
+            {
+                keys = [.. _pendingProfileKeys];
+                _pendingProfileKeys.Clear();
+            }
+
+            if (keys.Length == 0)
+            {
+                return;
+            }
+
+            // Read the profile's current settings and change only the reader settings the person changed, so nothing else is overwritten.
+            var current = await Orchestrator.GetPlaybackSettingsAsync();
+            if (current is null)
+            {
+                Logger.LogWarning("The reader's choices could not be saved to the profile: the profile's settings were unavailable.");
+                return;
+            }
+
+            ReaderProfileSettings.ApplyTo(current.Reading, _settings, keys);
+            var saved = await Orchestrator.SavePlaybackSettingsAsync(current);
+            if (saved is null)
+            {
+                Logger.LogWarning("The reader's choices could not be saved to the profile.");
+                return;
+            }
+
+            PreferencesAccessor.UpdateCache(saved);
+            _profileBase = ReaderProfileSettings.ToOpenOptions(saved.Reading);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "The reader's choices could not be saved to the profile.");
+        }
+        finally
+        {
+            _profileSaveGate.Release();
+        }
     }
 
     private Task SetThemeAsync(string value) => ApplySettingsAsync(_settings with { Theme = value });
@@ -1022,6 +1186,10 @@
         {
             await noticeTimer.DisposeAsync();
         }
+
+        // A choice made in the last moments is saved now rather than lost with the debounce (after any save already under way).
+        CancelProfileSaveDelay();
+        await SavePendingToProfileAsync();
 
         if (!_exited)
         {
