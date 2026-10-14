@@ -944,7 +944,8 @@ public sealed class FirstPartyIdentityService(
                 if (attempt is null)
                 {
                     // Also turns "limit used up but the lock was never written" (a guess that never finished) into a real, expiring lock.
-                    await identities.LockExhaustedCredentialAsync(credential.Id, MaxFailedAttempts, now.Add(LockoutDuration), ct).ConfigureAwait(false);
+                    // Not tied to the request: a dropped connection must not leave the limit used up with no lock.
+                    await identities.LockExhaustedCredentialAsync(credential.Id, MaxFailedAttempts, now.Add(LockoutDuration), CancellationToken.None).ConfigureAwait(false);
                     throw new ProfilePinLockedException();
                 }
             }
@@ -953,7 +954,9 @@ public sealed class FirstPartyIdentityService(
             {
                 if (attempt is { } counted && counted >= MaxFailedAttempts)
                 {
-                    await identities.LockExhaustedCredentialAsync(credential.Id, MaxFailedAttempts, now.Add(LockoutDuration), ct).ConfigureAwait(false);
+                    // From here on the attempt is already counted, so finishing it (the lock, or the reset below) is
+                    // not tied to the request: cancelling the call must not leave a counted guess half done.
+                    await identities.LockExhaustedCredentialAsync(credential.Id, MaxFailedAttempts, now.Add(LockoutDuration), CancellationToken.None).ConfigureAwait(false);
                     throw new ProfilePinLockedException();
                 }
 
@@ -961,7 +964,7 @@ public sealed class FirstPartyIdentityService(
             }
 
             // A right guess clears the count only while no lock is running; a lock a parallel burst just set is never undone by it.
-            if (countsTowardLockout && !await identities.ResetCredentialAttemptsIfUnlockedAsync(credential.Id, now, ct).ConfigureAwait(false))
+            if (countsTowardLockout && !await identities.ResetCredentialAttemptsIfUnlockedAsync(credential.Id, now, CancellationToken.None).ConfigureAwait(false))
             {
                 throw new ProfilePinLockedException();
             }

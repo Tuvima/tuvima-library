@@ -1,3 +1,4 @@
+using System.Reflection;
 using System.Security.Claims;
 using Dapper;
 using MediaEngine.Api.Endpoints;
@@ -525,12 +526,23 @@ public sealed class DeviceProfileSwitchTests : IAsyncLifetime
         var burst = Enumerable.Range(0, 20).Select(index => VerifyAsync(_jim.Id, index == 7 ? Pin : "0000")).ToArray();
         var outcomes = await Task.WhenAll(burst);
 
-        Assert.True(outcomes.Count(outcome => outcome == "ok") <= 1);
-        Assert.InRange(FailedPinCount(_jim.Id), 0, 5);
-        if (!outcomes.Contains("ok"))
+        var successes = outcomes.Count(outcome => outcome == "ok");
+        var count = FailedPinCount(_jim.Id);
+        var lockedUntilAfterBurst = PinLockedUntil(_jim.Id);
+        Assert.True(successes <= 1);
+        Assert.InRange(count, 0, 5);
+        // Count and lock always agree: a lock exists exactly when the limit's worth of attempts is used up.
+        Assert.Equal(count == 5, lockedUntilAfterBurst is not null);
+        if (successes == 0)
         {
-            Assert.Equal(5, FailedPinCount(_jim.Id));
-            Assert.NotNull(PinLockedUntil(_jim.Id));
+            // Five attempts were reserved in all: the fifth wrong one locked, the rest of the burst was refused. When the
+            // right guess held one of the five, its reset found the lock already set and was refused, so only three
+            // wrong guesses were told "wrong PIN"; otherwise four were.
+            var required = outcomes.Count(outcome => outcome == "required");
+            Assert.InRange(required, 3, 4);
+            Assert.Equal(20 - required, outcomes.Count(outcome => outcome == "locked"));
+            Assert.Equal(5, count);
+            Assert.NotNull(lockedUntilAfterBurst);
         }
 
         // Bring Mary to the limit one guess at a time: the fifth wrong guess locks her.
@@ -550,6 +562,64 @@ public sealed class DeviceProfileSwitchTests : IAsyncLifetime
         Assert.All(locked, outcome => Assert.Equal("locked", outcome));
         Assert.Equal(lockedUntil, PinLockedUntil(_mary.Id));
         Assert.Equal(5, FailedPinCount(_mary.Id));
+    }
+
+    [Fact]
+    public async Task AnExhaustedPerson_WithNoLockWritten_IsRefusedEvenForTheRightPin_AndLockedAtOnce()
+    {
+        await _identity.SetProfilePinAsync(_jim.Id, Pin);
+        using (var connection = _database.CreateConnection())
+        {
+            // The state a guess that never finished leaves behind: the limit's worth of attempts used, no lock.
+            connection.Execute(
+                "UPDATE profile_credentials SET failed_attempt_count = 5, locked_until = NULL WHERE profile_id = @profileId;",
+                new { profileId = _jim.Id });
+        }
+
+        Assert.Equal("locked", await VerifyAsync(_jim.Id, Pin));
+
+        Assert.NotNull(PinLockedUntil(_jim.Id));
+        Assert.Equal(5, FailedPinCount(_jim.Id));
+        Assert.Equal("locked", await VerifyAsync(_jim.Id, Pin));
+    }
+
+    [Fact]
+    public async Task CancellingAfterTheAttemptIsCounted_StillFinishesIt()
+    {
+        await _identity.SetProfilePinAsync(_jim.Id, Pin);
+        var profiles = new ProfileRepository(_database);
+        using var cancel = new CancellationTokenSource();
+        var cancellingIdentities = CancelAfterReserve.Wrap(new IdentityRepository(_database), cancel);
+        var identity = new FirstPartyIdentityService(
+            cancellingIdentities, _accounts, profiles,
+            new PasswordHasher<AccountCredential>(), new PasswordHasher<ProfileCredential>(),
+            TimeProvider.System, new ConfigurationAuthenticationPolicyProvider(_configuration));
+
+        // A right guess whose request is cancelled once the attempt is counted still clears the count.
+        for (var attempt = 1; attempt <= 3; attempt++)
+        {
+            await Assert.ThrowsAsync<ProfilePinRequiredException>(() => _identity.VerifyProfilePinAsync(_jim.Id, "0000", true));
+        }
+
+        await identity.VerifyProfilePinAsync(_jim.Id, Pin, true, cancel.Token);
+        Assert.True(cancel.IsCancellationRequested);
+        Assert.Equal(0, FailedPinCount(_jim.Id));
+
+        // A wrong fifth guess whose request is cancelled once the attempt is counted still writes the lock.
+        for (var attempt = 1; attempt <= 4; attempt++)
+        {
+            await Assert.ThrowsAsync<ProfilePinRequiredException>(() => _identity.VerifyProfilePinAsync(_jim.Id, "0000", true));
+        }
+
+        using var second = new CancellationTokenSource();
+        var secondIdentity = new FirstPartyIdentityService(
+            CancelAfterReserve.Wrap(new IdentityRepository(_database), second), _accounts, profiles,
+            new PasswordHasher<AccountCredential>(), new PasswordHasher<ProfileCredential>(),
+            TimeProvider.System, new ConfigurationAuthenticationPolicyProvider(_configuration));
+        await Assert.ThrowsAsync<ProfilePinLockedException>(() => secondIdentity.VerifyProfilePinAsync(_jim.Id, "0000", true, second.Token));
+        Assert.True(second.IsCancellationRequested);
+        Assert.Equal(5, FailedPinCount(_jim.Id));
+        Assert.NotNull(PinLockedUntil(_jim.Id));
     }
 
     [Fact]
@@ -793,6 +863,41 @@ public sealed class DeviceProfileSwitchTests : IAsyncLifetime
         await endpoint.RequestDelegate!(context);
         body.Position = 0;
         return (context.Response.StatusCode, await new StreamReader(body).ReadToEndAsync());
+    }
+
+    /// <summary>Forwards to the real repository and cancels the request right after an attempt has been counted.</summary>
+    public class CancelAfterReserve : DispatchProxy
+    {
+        private IIdentityRepository _inner = null!;
+        private CancellationTokenSource _cancel = null!;
+
+        public static IIdentityRepository Wrap(IIdentityRepository inner, CancellationTokenSource cancel)
+        {
+            var proxy = Create<IIdentityRepository, CancelAfterReserve>();
+            var self = (CancelAfterReserve)(object)proxy;
+            self._inner = inner;
+            self._cancel = cancel;
+            return proxy;
+        }
+
+        protected override object? Invoke(MethodInfo? targetMethod, object?[]? args)
+        {
+            try
+            {
+                return targetMethod!.Invoke(_inner, args);
+            }
+            catch (TargetInvocationException ex) when (ex.InnerException is not null)
+            {
+                throw ex.InnerException;
+            }
+            finally
+            {
+                if (targetMethod!.Name == nameof(IIdentityRepository.ReserveCredentialAttemptAsync))
+                {
+                    _cancel.Cancel();
+                }
+            }
+        }
     }
 
     private sealed class TestClock(DateTimeOffset start) : TimeProvider

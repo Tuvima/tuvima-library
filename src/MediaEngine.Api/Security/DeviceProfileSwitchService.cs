@@ -70,7 +70,7 @@ public sealed class DeviceProfileSwitchService(
         }
 
         // Only a verified live device of the caller's own account is ever counted, so nothing a caller makes up allocates an entry.
-        if (!throttle.TryAcquire(device.Id, out var retryAfter))
+        if (!throttle.TryAcquire(device.AccountId, device.Id, out var retryAfter))
         {
             return new(null, DeviceProfileSwitchOutcome.RateLimited, retryAfter);
         }
@@ -110,7 +110,7 @@ public sealed class DeviceProfileSwitchService(
         }
 
         // The allowance follows the device across token rotation, so switching again and again cannot buy a fresh one.
-        if (!throttle.TryAcquire(device.Id, out var retryAfter))
+        if (!throttle.TryAcquire(device.AccountId, device.Id, out var retryAfter))
         {
             return new(DeviceProfileSwitchOutcome.RateLimited, Description: "Too many requests. Try again shortly.", RetryAfterSeconds: retryAfter);
         }
