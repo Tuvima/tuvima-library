@@ -458,6 +458,23 @@ public sealed class FolderConversionOrganiser
         var oldExists = File.Exists(entry.OldPath);
         var newExists = !string.IsNullOrEmpty(entry.NewPath) && File.Exists(entry.NewPath);
 
+        // A letter-case rename stopped between its two steps leaves the file under its temporary name: finish the second step.
+        if (!oldExists && !newExists && !string.IsNullOrEmpty(entry.NewPath)
+            && CaseSafeRename.IsCaseOnlyChange(entry.OldPath, entry.NewPath)
+            && File.Exists(CaseSafeRename.TemporaryName(entry.OldPath)))
+        {
+            try
+            {
+                _mover.Move(CaseSafeRename.TemporaryName(entry.OldPath), entry.NewPath);
+                newExists = true;
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                _logger.LogWarning(ex, "Could not finish the interrupted rename of {Old} to {New} yet", entry.OldPath, entry.NewPath);
+                return;
+            }
+        }
+
         if (!oldExists && newExists)
         {
             var asset = await _assets.FindByPathRootAsync(entry.OldPath, ct).ConfigureAwait(false)

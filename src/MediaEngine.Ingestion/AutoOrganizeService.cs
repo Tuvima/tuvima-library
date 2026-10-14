@@ -630,6 +630,21 @@ public sealed class AutoOrganizeService : IAutoOrganizeService
             return;
         }
 
+        // A file still waiting for a person to confirm what it is is not renamed in place: the name would come from an
+        // unconfirmed match. (A name clash or a merge arrival is not a question about identity and does not hold it back.)
+        var pendingReviews = await _reviewRepo.GetPendingByEntityAsync(assetId, ct).ConfigureAwait(false);
+        var blockingReview = pendingReviews.FirstOrDefault(review =>
+            review.ReviewReadyAt is not null
+            && !string.Equals(review.Trigger, nameof(ReviewTrigger.WritebackFailed), StringComparison.OrdinalIgnoreCase)
+            && !string.Equals(review.Trigger, ReviewTrigger.NameCollision, StringComparison.OrdinalIgnoreCase)
+            && !string.Equals(review.Trigger, ReviewTrigger.FromMerge, StringComparison.OrdinalIgnoreCase));
+        if (blockingReview is not null)
+        {
+            _logger.LogDebug(
+                "Re-organization held for {Id}: review '{Trigger}' must be resolved first", assetId, blockingReview.Trigger);
+            return;
+        }
+
         // Path changed (QID now available) — move file to new location.
         var oldPath = asset.FilePathRoot;
         var oldFolder = Path.GetDirectoryName(oldPath) ?? string.Empty;

@@ -160,4 +160,44 @@ public sealed class CaseOnlyRenameSafetyTests : IDisposable
 
         Assert.True(FileIdentity.AreSameFile(original, link));
     }
+
+    [Fact]
+    public void On_Windows_the_same_file_under_a_folder_name_of_another_letter_case_is_the_same_file()
+    {
+        if (!OperatingSystem.IsWindows())
+        {
+            return; // Other systems keep different letter case apart unless the drive ignores it.
+        }
+
+        var folder = Path.Combine(_scratch, "dune (2021)");
+        Directory.CreateDirectory(folder);
+        var file = Path.Combine(folder, "Dune (2021).mkv");
+        File.WriteAllText(file, "dune");
+
+        Assert.True(FileIdentity.AreSameFile(file, Path.Combine(_scratch, "DUNE (2021)", "Dune (2021).mkv")));
+    }
+
+    [Fact]
+    public async Task A_letter_case_rename_stopped_between_its_two_steps_is_finished_when_the_job_resumes()
+    {
+        var h = NewHarness(LibraryDuplicatePolicies.KeepOne);
+        h.Mover.SameFile = (first, second) => string.Equals(first, second, StringComparison.OrdinalIgnoreCase);
+        var path = h.Write(Path.Combine("Movies", "Dune (2021)", "dune (2021).mkv"), "the only copy");
+        var id = await h.RegisterAsync(path, "Dune", "2021");
+        h.Mover.AfterMove = (_, _) => throw new SimulatedCrashException();
+        await Assert.ThrowsAsync<SimulatedCrashException>(() => h.RunAsync());
+
+        // The file now sits under its temporary name: neither the old nor the new name exists.
+        Assert.Single(Directory.EnumerateFiles(Path.Combine(h.SourceDir, "Movies", "Dune (2021)")));
+        Assert.EndsWith(CaseSafeRename.TemporarySuffix, Directory.EnumerateFiles(Path.Combine(h.SourceDir, "Movies", "Dune (2021)")).Single(), StringComparison.Ordinal);
+
+        h.Mover.AfterMove = null;
+        var result = await h.RunAsync();
+
+        Assert.Equal(0, result.Failed);
+        var survivor = Directory.EnumerateFiles(Path.Combine(h.SourceDir, "Movies", "Dune (2021)")).Single();
+        Assert.Equal("Dune (2021).mkv", Path.GetFileName(survivor));
+        Assert.Equal("the only copy", File.ReadAllText(survivor));
+        Assert.Equal(survivor, (await h.Assets.FindByIdAsync(id))!.FilePathRoot);
+    }
 }

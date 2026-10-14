@@ -131,4 +131,29 @@ public sealed class ManagedFolderTidyInPlaceTests : IDisposable
         Assert.False(AutoOrganizeService.StaysInsideRoot(inside, parentTraversal, root));
         Assert.False(AutoOrganizeService.StaysInsideRoot(sibling, insideNew, root));
     }
+
+    [Fact]
+    public async Task A_file_already_in_the_New_media_folder_outside_staging_is_still_renamed_in_place()
+    {
+        var source = Write(_h.MoviesDir, Path.Combine("downloads", "Dune.2021.mkv"), "dune bytes");
+        var assetId = await _h.RegisterAsync(source, MediaType.Movies, "Dune", "2021");
+
+        await _h.Organizer.TryAutoOrganizeAsync(assetId);
+
+        Assert.True(File.Exists(Path.Combine(_h.MoviesDir, "Movies", "Dune (2021)", "Dune (2021).mkv")));
+        Assert.Empty(_h.FilesUnder(_h.ElsewhereDir));
+    }
+
+    [Fact]
+    public async Task A_file_waiting_in_Review_is_not_renamed_in_place_until_a_person_confirms_it()
+    {
+        var source = Write(_h.ElsewhereDir, Path.Combine("downloads", "Dune.2021.mkv"), "dune bytes");
+        var assetId = await _h.RegisterAsync(source, MediaType.Movies, "Dune", "2021");
+        await _h.AddPendingReviewAsync(assetId);
+
+        await _h.Organizer.TryAutoOrganizeAsync(assetId);
+
+        Assert.True(File.Exists(source));
+        Assert.Equal(source, (await _h.Assets.FindByIdAsync(assetId))!.FilePathRoot);
+    }
 }

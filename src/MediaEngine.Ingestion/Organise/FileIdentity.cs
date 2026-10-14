@@ -11,8 +11,9 @@ namespace MediaEngine.Ingestion.Organise;
 public static class FileIdentity
 {
     /// <summary>
-    /// True when <paramref name="first"/> and <paramref name="second"/> are the same file, or when that cannot be told. The
-    /// answer errs towards "same" on purpose: callers only use it to refuse a delete, so a doubt keeps both names.
+    /// True when <paramref name="first"/> and <paramref name="second"/> are the same file, or when that cannot be told for
+    /// two files that both exist. The answer errs towards "same" on purpose: callers only use it to refuse a delete, so a
+    /// doubt keeps both names. A path that does not exist is a different file (there is nothing there to be the same).
     /// </summary>
     public static bool AreSameFile(string first, string second)
     {
@@ -31,9 +32,13 @@ public static class FileIdentity
             return false;
         }
 
-        // Names that differ only in letter case are one file unless the drive keeps them apart and holds both. The folder
-        // listing shows the names exactly as they are stored, so two exact entries mean two files.
-        if (string.Equals(left, right, StringComparison.OrdinalIgnoreCase))
+        // File names that differ only in letter case, in one folder, are one file unless the drive keeps them apart and holds
+        // both. The folder listing shows the names exactly as they are stored, so two exact entries mean two files. When the
+        // file names are the same and only a folder's letter case differs, the listing cannot tell, so the file itself is
+        // compared below.
+        if (string.Equals(Path.GetDirectoryName(left), Path.GetDirectoryName(right), StringComparison.Ordinal)
+            && !string.Equals(Path.GetFileName(left), Path.GetFileName(right), StringComparison.Ordinal)
+            && string.Equals(Path.GetFileName(left), Path.GetFileName(right), StringComparison.OrdinalIgnoreCase))
         {
             return !BothStoredSeparately(left, right);
         }
@@ -77,6 +82,7 @@ public static class FileIdentity
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
+            // A folder that cannot be listed cannot show two stored names; the caller then compares the file itself.
             _ = ex;
         }
 
@@ -113,6 +119,19 @@ public static class FileIdentity
     private static bool SameOnUnix(string left, string right)
     {
         using var first = new FileStream(left, FileMode.Open, FileAccess.Read, FileShare.None);
+
+        // The probe only counts when locking really works on this drive: the same file opened twice must be refused. If it
+        // is not (locking switched off, or a network drive that does not lock), the answer is "cannot tell", which is "same".
+        try
+        {
+            using var again = new FileStream(left, FileMode.Open, FileAccess.Read, FileShare.None);
+            return true;
+        }
+        catch (IOException)
+        {
+            // Refused, as it should be: locking works here.
+        }
+
         try
         {
             using var second = new FileStream(right, FileMode.Open, FileAccess.Read, FileShare.None);

@@ -13,6 +13,13 @@ public static class CaseSafeRename
     /// <summary>The ending of the short-lived name used in the middle of a letter-case rename.</summary>
     public const string TemporarySuffix = ".case-rename";
 
+    /// <summary>
+    /// The short-lived name a file has between the two steps. It is derived from the file's own name, so a restart can find a
+    /// file a stopped rename left under it. A leftover with that name makes the first step fail rather than overwrite anything.
+    /// </summary>
+    public static string TemporaryName(string from) =>
+        Path.Combine(Path.GetDirectoryName(from)!, $".{Path.GetFileName(from)}{TemporarySuffix}");
+
     /// <summary>True when the two paths are the same except for letter case.</summary>
     public static bool IsCaseOnlyChange(string from, string to) =>
         !string.Equals(from, to, StringComparison.Ordinal)
@@ -33,8 +40,7 @@ public static class CaseSafeRename
             return;
         }
 
-        var temporary = Path.Combine(
-            Path.GetDirectoryName(from)!, $".{Guid.NewGuid():N}{TemporarySuffix}");
+        var temporary = TemporaryName(from);
         mover.Move(from, temporary);
         try
         {
