@@ -1,11 +1,11 @@
 using System.Reflection;
-using Microsoft.Data.Sqlite;
 using MediaEngine.Api.Services;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Models;
 using MediaEngine.Domain.Services;
 using MediaEngine.Storage;
 using MediaEngine.Storage.Contracts;
+using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Logging;
 
 namespace MediaEngine.Api.Tests;
