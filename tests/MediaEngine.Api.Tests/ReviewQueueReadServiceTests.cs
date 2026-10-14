@@ -119,7 +119,7 @@ public sealed class ReviewQueueReadServiceTests : IDisposable
     [Fact]
     public async Task PendingReviews_MarkFilesInAManagedFoldersFromMergeFolder()
     {
-        var fixture = new FromMergeFixture(_db);
+        using var fixture = new FromMergeFixture(_db);
         var unidentified = fixture.SeedReviewed(
             Path.Combine(fixture.ManagedRoot, FolderMergeFolders.HoldingFolderName, "Old drive", "Movies", "mystery.mkv"),
             ReviewTrigger.StagedUnidentifiable);
@@ -154,7 +154,7 @@ public sealed class ReviewQueueReadServiceTests : IDisposable
     [Fact]
     public async Task TheFromMergeBadge_FollowsTheFolderTheMergeOrganiserPutsFilesIn()
     {
-        var fixture = new FromMergeFixture(_db);
+        using var fixture = new FromMergeFixture(_db);
         var libraries = fixture.Config.LoadLibraries();
         var context = FolderMergeContext.TryCreateForPlan(
             libraries, Guid.Parse(fixture.SourceId), fixture.TargetId, LibraryMergeModes.Copy, out var check);
@@ -195,11 +195,23 @@ public sealed class ReviewQueueReadServiceTests : IDisposable
     }
 
     /// <summary>Two managed folders and one as-is folder saved through the real settings loader, with a way to seed reviewed files.</summary>
-    private sealed class FromMergeFixture
+    private sealed class FromMergeFixture : IDisposable
     {
         private readonly DatabaseConnection _db;
         private readonly ReviewQueueRepository _reviews;
         private readonly string _root = Path.Combine(Path.GetTempPath(), "tuvima-review-from-merge", Guid.NewGuid().ToString("N"));
+
+        public void Dispose()
+        {
+            try
+            {
+                Directory.Delete(_root, recursive: true);
+            }
+            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+            {
+                // Test cleanup is best effort; the folder lives under the temp directory.
+            }
+        }
 
         public FromMergeFixture(DatabaseConnection db)
         {
