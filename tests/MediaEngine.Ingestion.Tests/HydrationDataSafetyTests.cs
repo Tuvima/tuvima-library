@@ -108,6 +108,65 @@ public sealed class HydrationDataSafetyTests : IDisposable
         Assert.False(Directory.Exists(Path.Combine(h.SourceDir, "downloads")));
     }
 
+    // ── Artwork takes the name its new folder expects ────────────────────────
+
+    [Fact]
+    public async Task A_poster_moving_from_its_own_folder_into_a_shared_folder_is_named_after_the_file_and_leaves_the_folders_poster_alone()
+    {
+        var h = NewConversionHarness();
+        var source = h.Write(Path.Combine("downloads", "Dune.2021.mkv"), "dune");
+        var sourcePoster = h.Write(Path.Combine("downloads", "poster.jpg"), "dune poster");
+        h.Write(Path.Combine("Movies", "Dune (2021)", "Dune Extras.mkv"), "extras");
+        var folderPoster = h.Write(Path.Combine("Movies", "Dune (2021)", "poster.jpg"), "extras poster");
+        var id = await h.RegisterAsync(source, "Dune", "2021");
+
+        await h.Auto.TryAutoOrganizeAsync(id);
+
+        var folder = Path.GetDirectoryName(StandardMovie(h))!;
+        Assert.True(File.Exists(StandardMovie(h)));
+        Assert.Equal("dune poster", File.ReadAllText(Path.Combine(folder, "Dune (2021)-poster.jpg")));
+        Assert.Equal("extras poster", File.ReadAllText(folderPoster));
+        Assert.False(File.Exists(sourcePoster));
+    }
+
+    [Fact]
+    public async Task A_poster_named_after_the_file_becomes_the_folder_poster_when_the_file_moves_to_a_folder_of_its_own()
+    {
+        var h = NewConversionHarness();
+        var source = h.Write(Path.Combine("downloads", "Dune.2021.mkv"), "dune");
+        var sourcePoster = h.Write(Path.Combine("downloads", "Dune.2021-poster.jpg"), "dune poster");
+        h.Write(Path.Combine("downloads", "Alien.1979.mkv"), "alien");
+        var neighbourPoster = h.Write(Path.Combine("downloads", "Alien.1979-poster.jpg"), "alien poster");
+        var id = await h.RegisterAsync(source, "Dune", "2021");
+
+        await h.Auto.TryAutoOrganizeAsync(id);
+
+        var folder = Path.GetDirectoryName(StandardMovie(h))!;
+        Assert.Equal("dune poster", File.ReadAllText(Path.Combine(folder, "poster.jpg")));
+        Assert.False(File.Exists(Path.Combine(folder, "Dune (2021)-poster.jpg")));
+        Assert.False(File.Exists(sourcePoster));
+        Assert.Equal("alien poster", File.ReadAllText(neighbourPoster));
+    }
+
+    [Fact]
+    public async Task A_poster_whose_new_name_is_taken_stays_where_it_is()
+    {
+        var h = NewConversionHarness();
+        var source = h.Write(Path.Combine("downloads", "Dune.2021.mkv"), "dune");
+        var sourcePoster = h.Write(Path.Combine("downloads", "poster.jpg"), "dune poster");
+        h.Write(Path.Combine("Movies", "Dune (2021)", "Dune Extras.mkv"), "extras");
+        var taken = h.Write(Path.Combine("Movies", "Dune (2021)", "Dune (2021)-poster.jpg"), "someone else's poster");
+        var id = await h.RegisterAsync(source, "Dune", "2021");
+
+        await h.Auto.TryAutoOrganizeAsync(id);
+
+        var folder = Path.GetDirectoryName(StandardMovie(h))!;
+        Assert.True(File.Exists(StandardMovie(h)));
+        Assert.Equal("dune poster", File.ReadAllText(sourcePoster));
+        Assert.Equal("someone else's poster", File.ReadAllText(taken));
+        Assert.False(File.Exists(Path.Combine(folder, "poster.jpg")), "it never becomes the shared folder's poster");
+    }
+
     // ── HIGH 2: the data store follows the file that really moved ────────────
 
     [Fact]

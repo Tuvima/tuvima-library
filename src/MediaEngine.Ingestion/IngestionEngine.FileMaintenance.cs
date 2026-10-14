@@ -160,6 +160,12 @@ public sealed partial class IngestionEngine
                 return false;
             }
 
+            // A different size can never be the same bytes, so a changed copy is refused without reading it all.
+            if (new FileInfo(keptPath).Length != new FileInfo(duplicatePath).Length)
+            {
+                return false;
+            }
+
             var fresh = await _hasher.ComputeAsync(keptPath, ct).ConfigureAwait(false);
             return string.Equals(fresh.Hex, expectedHash, StringComparison.OrdinalIgnoreCase);
         }

@@ -776,7 +776,9 @@ public sealed class AutoOrganizeService : IAutoOrganizeService
     /// <summary>
     /// Subtitles, notes, artwork, cue sheets, lyrics and playlists that share the media file's name travel with it
     /// (keeping a language suffix such as <c>.en.srt</c>). The folder-wide files (cover, poster, metadata.json, metadata.opf)
-    /// travel only once no other media file is left in the old folder. Nothing is ever overwritten or deleted: a file whose
+    /// travel only once no other media file is left in the old folder. Poster, fanart and logo pictures take the name the new
+    /// folder expects: <c>poster.jpg</c> when the media file is alone in its folder, <c>{name}-poster.jpg</c> when the folder is
+    /// shared (so a picture never becomes another file's folder-wide one). Nothing is ever overwritten or deleted: a file whose
     /// new name is already taken (even by an identical file) stays where it is. Anything else in the folder is left alone.
     /// </summary>
     private void MoveSidecarFiles(string oldMediaPath, string newMediaPath, ImportDestination? importDestination = null)
@@ -792,7 +794,7 @@ public sealed class AutoOrganizeService : IAutoOrganizeService
         try
         {
             var results = _sidecars.Move(
-                oldMediaPath, newMediaPath, (from, to) => CanMoveBetween(from, to, importDestination), mayDelete: null, includeArtwork: true);
+                oldMediaPath, newMediaPath, (from, to) => CanMoveBetween(from, to, importDestination), mayDelete: null, includeArtwork: true, renameArtworkToFolder: true);
             foreach (var result in results.Where(result => result.Outcome is FolderOrganiseOutcomes.NotMoved or FolderOrganiseOutcomes.Failed))
             {
                 _logger.LogInformation("Left {Sidecar} where it is: {Reason}", result.From, result.Detail);
