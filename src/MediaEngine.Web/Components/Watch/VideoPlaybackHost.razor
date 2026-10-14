@@ -18,12 +18,14 @@
 @implements IAsyncDisposable
 
 <section @ref="_hostRef" class="@StageClass"
+         data-subtitle-size="@SubtitleSizeValue" data-subtitle-background="@SubtitleBackgroundValue"
          aria-label="@(Playback.IsVideoMode ? "Video player" : null)"
          aria-hidden="@(Playback.IsVideoMode ? "false" : "true")"
          tabindex="-1" @onkeydown="HandleVideoKeyDown">
     <video @ref="_videoRef" id="tuvima-video-engine"
            data-playback-asset-id="@Playback.CurrentItem?.AssetId"
            data-playback-request-version="@Playback.PlaybackRequestVersion"
+           data-playback-caption-default="@TrackDefaults.CaptionAttribute"
            class="video-playback-host__media" playsinline preload="metadata"
            poster="@Playback.CurrentItem?.CoverUrl" @onclick="TogglePlayPauseAsync"
            @onloadedmetadata="HandleMetricsChangedAsync" @ondurationchange="HandleMetricsChangedAsync"
@@ -267,6 +269,48 @@
             .Where(track => !string.IsNullOrWhiteSpace(track.DeliveryUrl))
             .ToList();
     private IReadOnlyList<PlaybackTrackDto> AudioTracks => Playback.CurrentManifest?.AudioTracks ?? [];
+    // Profile defaults (Settings > Playback > Subtitles & audio). The size and background reach the cues through
+    // --tl-subtitle-size / --tl-subtitle-bg, which wwwroot/app.css derives from these two attributes.
+    private SubtitleLanguageSettingsDto? _profileSubtitles;
+    private string? _profileAudioAppliedFor;
+    private Guid? _profileSubtitlesProfile;
+    private string SubtitleSizeValue => (_profileSubtitles?.SubtitleSize) switch
+    {
+        var size when string.Equals(size, PlaybackPreferenceValues.Small, StringComparison.OrdinalIgnoreCase) => PlaybackPreferenceValues.Small,
+        var size when string.Equals(size, PlaybackPreferenceValues.Large, StringComparison.OrdinalIgnoreCase)
+            || string.Equals(size, PlaybackPreferenceValues.ExtraLarge, StringComparison.OrdinalIgnoreCase) => PlaybackPreferenceValues.Large,
+        _ => PlaybackPreferenceValues.Medium,
+    };
+    private string SubtitleBackgroundValue => _profileSubtitles?.SubtitleBackground == false ? "false" : "true";
+    // The audio track can be changed only when the player reports every track (HLS, or a browser with audioTracks). Direct play in
+    // Chrome or Firefox reports none, so the profile's audio language must not be assumed to play there.
+    private bool CanSwitchAudio => AudioTracks.Count > 1 && _availableAudioTrackCount == AudioTracks.Count;
+    // Recomputed only when one of its inputs is replaced, not on every render (the transport clock re-renders this host constantly).
+    private VideoTrackDefaults _trackDefaults = VideoTrackDefaults.Unchanged;
+    private SubtitleLanguageSettingsDto? _trackDefaultsSettings;
+    private PlaybackManifestDto? _trackDefaultsManifest;
+    private IReadOnlyList<TextTrackDto>? _trackDefaultsManaged;
+    private bool _trackDefaultsCanSwitch;
+    private bool _trackDefaultsComputed;
+    private VideoTrackDefaults TrackDefaults
+    {
+        get
+        {
+            var manifest = Playback.CurrentManifest;
+            var canSwitch = CanSwitchAudio;
+            if (_trackDefaultsComputed && ReferenceEquals(_trackDefaultsSettings, _profileSubtitles) && ReferenceEquals(_trackDefaultsManifest, manifest)
+                && ReferenceEquals(_trackDefaultsManaged, _managedSubtitleTracks) && _trackDefaultsCanSwitch == canSwitch)
+            {
+                return _trackDefaults;
+            }
+            _trackDefaultsSettings = _profileSubtitles; _trackDefaultsManifest = manifest; _trackDefaultsManaged = _managedSubtitleTracks;
+            _trackDefaultsCanSwitch = canSwitch; _trackDefaultsComputed = true;
+            return _trackDefaults = VideoPresentationResolver.ChooseTrackDefaults(_profileSubtitles, AudioTracks,
+                SubtitleTracks.Select(track => new VideoSubtitleCandidate($"manifest:{track.Index}", track.Language, track.DisplayName, IsForced: track.IsForced))
+                    .Concat(ManagedSubtitleTracks.Select(track => new VideoSubtitleCandidate($"managed:{track.Id:D}", track.Language, null, track.IsPreferred)))
+                    .ToList(), canSwitch);
+        }
+    }
     private IReadOnlyList<PlaybackChapterDto> VideoChapters => Playback.CurrentItem?.Chapters ?? [];
     private IReadOnlyList<TextTrackDto> ManagedSubtitleTracks => _managedSubtitleTracks
         .Where(track => track.Kind.Equals("Subtitle", StringComparison.OrdinalIgnoreCase) || track.Kind.Equals("Subtitles", StringComparison.OrdinalIgnoreCase))
@@ -347,12 +391,44 @@
         _loadedSubtitleAssetId = null;
         _managedSubtitleTracks = []; _captionTracks = []; _selectedCaptionKey = null;
         _selectedAudioTrackIndex = null; _textTrackStatus = null; _textTrackLoading = false;
+        _profileAudioAppliedFor = null;
+        if (identity?.ProfileId != _profileSubtitlesProfile) { _profileSubtitles = null; _profileSubtitlesProfile = identity?.ProfileId; }
         Tools.Close(); _rateMenuOpen = false;
         if (identity is null) return;
         var request = _metadataCancellation = new();
         _presentationResolution = ResolvePresentationAsync(identity, request.Token);
+        _profileSubtitlesLoad = LoadProfileSubtitlesAsync(identity, request.Token);
     }
     private Task? _presentationResolution;
+    private Task? _profileSubtitlesLoad;
+    private async Task LoadProfileSubtitlesAsync(VideoPlaybackIdentity identity, CancellationToken ct)
+    {
+        try
+        {
+            var settings = await Presentation.GetSubtitleSettingsAsync(ct);
+            if (_disposed || ct.IsCancellationRequested || !identity.IsCurrent(Playback)) return;
+            _profileSubtitles = settings;
+            await InvokeAsync(StateHasChanged);
+        }
+        catch (OperationCanceledException) { }
+        catch (Exception ex) { Logger.LogWarning(ex, "The profile's subtitle and audio defaults could not be loaded; the player keeps its own choices."); }
+    }
+    private async Task ApplyProfileAudioDefaultAsync()
+    {
+        // Once per playback, and never over a track the viewer already picked in the Audio sheet.
+        if (_profileSubtitles is null || _selectedAudioTrackIndex is not null || !CanSwitchAudio
+            || _profileAudioAppliedFor == VideoInstanceKey) return;
+        _profileAudioAppliedFor = VideoInstanceKey;
+        var identity = VideoPlaybackIdentity.Capture(Playback);
+        var wanted = TrackDefaults.AudioTrackIndex;
+        var defaultIndex = Math.Max(0, AudioTracks.ToList().FindIndex(track => track.IsDefault));
+        if (identity is null || wanted is not int index || index == defaultIndex) return;
+        if (await JS.InvokeAsync<bool>("listenPlayback.selectAudioTrack", _videoRef, index) && identity.IsCurrent(Playback) && _selectedAudioTrackIndex is null)
+        {
+            _selectedAudioTrackIndex = index;
+            await InvokeAsync(StateHasChanged);
+        }
+    }
     private async Task ResolvePresentationAsync(VideoPlaybackIdentity identity, CancellationToken ct)
     {
         try
@@ -615,6 +691,7 @@
             _availableAudioTrackCount = state.AudioTrackCount;
             await InvokeAsync(StateHasChanged);
         }
+        await ApplyProfileAudioDefaultAsync();
         Playback.UpdateTransportState(
             currentTimeSeconds: state.CurrentTime,
             durationSeconds: state.Duration,

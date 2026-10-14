@@ -1,5 +1,6 @@
 using MediaEngine.Contracts.Details;
 using MediaEngine.Contracts.Playback;
+using MediaEngine.Domain.Services;
 using MediaEngine.Web.Components.Watch;
 using MediaEngine.Web.Services.Integration;
 
@@ -23,10 +24,123 @@ public sealed record VideoPresentationContext(VideoPlaybackIdentity Identity, st
     public static VideoPresentationContext Empty(VideoPlaybackIdentity identity) => new(identity, null, [], null);
 }
 
+/// <summary>A subtitle the player could show, reduced to what the profile defaults need. <paramref name="Key"/> is the player's caption key.</summary>
+public sealed record VideoSubtitleCandidate(string Key, string? Language, string? Label, bool IsPreferred = false, bool IsForced = false);
+
+public enum VideoCaptionDecision
+{
+    /// <summary>The profile has no opinion: the player keeps its own choice.</summary>
+    Unchanged,
+    /// <summary>Start with subtitles off.</summary>
+    Off,
+    /// <summary>Start with <see cref="VideoTrackDefaults.CaptionKey"/> showing.</summary>
+    Show,
+}
+
+/// <summary>The audio track (position in the audio list) and subtitle a title starts with.</summary>
+public sealed record VideoTrackDefaults(int? AudioTrackIndex, VideoCaptionDecision Captions, string? CaptionKey)
+{
+    public static VideoTrackDefaults Unchanged { get; } = new(null, VideoCaptionDecision.Unchanged, null);
+
+    /// <summary>The player attribute value: "off", a caption key, or null for no opinion.</summary>
+    public string? CaptionAttribute => Captions switch
+    {
+        VideoCaptionDecision.Off => "off",
+        VideoCaptionDecision.Show => CaptionKey,
+        _ => null,
+    };
+}
+
 /// <summary>Reads authorized presentation metadata. Starts still belong to the existing controller.</summary>
 public sealed class VideoPresentationResolver(IEngineApiClient api, UIOrchestratorService orchestrator,
-    PlaybackSessionController playback)
+    PlaybackSessionController playback, IUserPlaybackPreferencesAccessor? preferences = null)
 {
+    /// <summary>The active profile's subtitle and audio defaults, or null when they are not available.</summary>
+    public async Task<SubtitleLanguageSettingsDto?> GetSubtitleSettingsAsync(CancellationToken ct) =>
+        preferences is null ? null : (await preferences.GetAsync(ct))?.Subtitles;
+
+    /// <summary>
+    /// Picks the audio track and subtitle a title starts with from the profile's defaults. A per-title preferred subtitle
+    /// ("Set preferred version") always wins. Show subtitles: Never = off; Always = the subtitle language when present;
+    /// Auto = the subtitle language, but only when the audio that actually plays is not already in it (otherwise the
+    /// player's own default stays, so forced or default tracks still show).
+    /// <paramref name="canSwitchAudio"/> is true only when the player can really change the audio track (it reports every
+    /// track); when it cannot, the profile's audio language is never assumed to play and the judgement uses the track that does.
+    /// A track with no known language (und, blank) is taken to be in the profile's audio language.
+    /// </summary>
+    public static VideoTrackDefaults ChooseTrackDefaults(SubtitleLanguageSettingsDto? settings,
+        IReadOnlyList<PlaybackTrackDto> audioTracks, IReadOnlyList<VideoSubtitleCandidate> subtitles, bool canSwitchAudio)
+    {
+        if (settings is null)
+        {
+            return VideoTrackDefaults.Unchanged;
+        }
+        int? audioIndex = null;
+        if (canSwitchAudio && audioTracks.Count > 1)
+        {
+            for (var index = 0; index < audioTracks.Count && audioIndex is null; index++)
+            {
+                if (LanguageMatches(settings.AudioLanguage, audioTracks[index].Language, audioTracks[index].DisplayName))
+                {
+                    audioIndex = index;
+                }
+            }
+        }
+        var playing = audioIndex is int chosen ? audioTracks[chosen]
+            : audioTracks.Count == 0 ? null : audioTracks.FirstOrDefault(track => track.IsDefault) ?? audioTracks[0];
+        var heardCode = playing is null ? null : LanguageCode(playing.Language) ?? LanguageCode(playing.DisplayName);
+        var heardInSubtitleLanguage = heardCode is null
+            ? LanguageMatches(settings.DefaultSubtitleLanguage, settings.AudioLanguage, null)
+            : LanguageMatches(settings.DefaultSubtitleLanguage, heardCode, null);
+        if (subtitles.FirstOrDefault(candidate => candidate.IsPreferred) is { } preferred)
+        {
+            return new(audioIndex, VideoCaptionDecision.Show, preferred.Key);
+        }
+        if (string.Equals(settings.ForcedSubtitlesMode, PlaybackPreferenceValues.Never, StringComparison.OrdinalIgnoreCase))
+        {
+            return new(audioIndex, VideoCaptionDecision.Off, null);
+        }
+        var always = string.Equals(settings.ForcedSubtitlesMode, PlaybackPreferenceValues.Always, StringComparison.OrdinalIgnoreCase);
+        var wanted = subtitles.Where(candidate => LanguageMatches(settings.DefaultSubtitleLanguage, candidate.Language, candidate.Label))
+            .OrderBy(candidate => candidate.IsForced).FirstOrDefault();
+        return wanted is null || (!always && heardInSubtitleLanguage)
+            ? new(audioIndex, VideoCaptionDecision.Unchanged, null)
+            : new(audioIndex, VideoCaptionDecision.Show, wanted.Key);
+    }
+
+    /// <summary>True when a track's language (code, name or label such as "English 5.1") is the language the profile named.</summary>
+    public static bool LanguageMatches(string? wanted, string? trackLanguage, string? trackLabel)
+    {
+        if (string.IsNullOrWhiteSpace(wanted))
+        {
+            return false;
+        }
+        var wantedCode = LanguageCode(wanted);
+        var trackCode = LanguageCode(trackLanguage) ?? LanguageCode(trackLabel);
+        if (wantedCode is not null && trackCode is not null)
+        {
+            return wantedCode == trackCode;
+        }
+        return string.Equals(wanted.Trim(), trackLanguage?.Trim(), StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static string? LanguageCode(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return null;
+        }
+        var code = LanguageCodeNormalizer.ToIso6391(value);
+        if (code is null)
+        {
+            // A label such as "English 5.1": try its first word. A label of only separators has no word.
+            var words = value.Split([' ', '(', '/', ',', '\u00b7'], StringSplitOptions.RemoveEmptyEntries);
+            code = words.Length == 0 ? null : LanguageCodeNormalizer.ToIso6391(words[0]);
+        }
+        // Norwegian is one language to a viewer: the file may say nb or nn, the profile says Norwegian (no).
+        return code is "nb" or "nn" ? "no" : code;
+    }
+
     public async Task<VideoPresentationContext> ResolveAsync(VideoPlaybackIdentity identity, CancellationToken ct)
     {
         void Check()
