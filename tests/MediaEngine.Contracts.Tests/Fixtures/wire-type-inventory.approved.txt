@@ -3,7 +3,7 @@
 # Compatibility is enforced separately by wire-compatibility.approved.txt.
 # Serializer: System.Text.Json JsonSerializerDefaults.Web; DefaultIgnoreCondition=Never
 # Regenerate intentionally with TUVIMA_UPDATE_WIRE_SNAPSHOT=1.
-# scopes: contracts=1010; api=0; web-client=86
+# scopes: contracts=1010; api=0; web-client=83
 
 [contracts] MediaEngine.Contracts.Activity.ActivityBatchInsightsDto
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -10682,14 +10682,6 @@
   EarliestYear: System.Int32? | json=earliest_year | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   LatestYear: System.Int32? | json=latest_year | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
 
-[web-client] MediaEngine.Web.Models.ViewDTOs.DeepEnrichResponse
-  kind=class | converter=default | number-handling=default | unmapped=default
-  EntityQid: System.String | json=entity_qid | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  NeighborsFound: System.Int32 | json=neighbors_found | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  EnrichmentEnqueued: System.Int32 | json=enrichment_enqueued | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  Message: System.String | json=message | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  sample={"entity_qid":"sample","neighbors_found":7,"enrichment_enqueued":7,"message":"sample"}
-
 [web-client] MediaEngine.Web.Models.ViewDTOs.DevHarnessRunResult
   kind=class | converter=default | number-handling=default | unmapped=default
   Succeeded: System.Boolean | json=succeeded | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
@@ -11075,22 +11067,6 @@
   CanEdit: System.Boolean | json=can_edit | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   CanShare: System.Boolean | json=can_share | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
 
-[web-client] MediaEngine.Web.Models.ViewDTOs.NarrativeRootDto
-  kind=class | converter=default | number-handling=default | unmapped=default
-  Qid: System.String | json=qid | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  Label: System.String | json=label | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  Level: System.String | json=level | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  ParentQid: System.String | json=parent_qid | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  EntityCount: System.Int32 | json=entity_count | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  CharacterCount: System.Int32 | json=character_count | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  LocationCount: System.Int32 | json=location_count | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  OrganizationCount: System.Int32 | json=organization_count | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  EventCount: System.Int32 | json=event_count | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  RelationshipCount: System.Int32 | json=relationship_count | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  HasGraph: System.Boolean | json=has_graph | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  EnrichmentStatus: System.String | json=enrichment_status | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  sample={"qid":"sample","label":"sample","level":"sample","parent_qid":"sample","entity_count":7,"character_count":7,"location_count":7,"organization_count":7,"event_count":7,"relationship_count":7,"has_graph":true,"enrichment_status":"sample"}
-
 [web-client] MediaEngine.Web.Models.ViewDTOs.PathHopDto
   kind=class | converter=default | number-handling=default | unmapped=default
   EntityQid: System.String | json=entity_qid | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
@@ -11461,16 +11437,6 @@
   UniverseQid: System.String | json=universe_qid | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Characters: System.Collections.Generic.List<MediaEngine.Web.Models.ViewDTOs.CastCharacterDto> | json=characters | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   sample={"universe_qid":"sample","characters":[]}
-
-[web-client] MediaEngine.Web.Models.ViewDTOs.UniverseCharacterDto
-  kind=class | converter=default | number-handling=default | unmapped=default
-  FictionalEntityId: System.Guid | json=fictionalEntityId | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  CharacterName: System.String | json=characterName | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  DefaultActorName: System.String | json=defaultActorName | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  DefaultActorId: System.Guid? | json=defaultActorId | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  PortraitUrl: System.String | json=portraitUrl | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  ActorCount: System.Int32 | json=actorCount | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  sample={"fictionalEntityId":"11111111-2222-3333-4444-555555555555","characterName":"sample","defaultActorName":"sample","defaultActorId":"11111111-2222-3333-4444-555555555555","portraitUrl":"sample","actorCount":7}
 
 [web-client] MediaEngine.Web.Models.ViewDTOs.UniverseFieldMatchScoresDto
   kind=class | converter=default | number-handling=default | unmapped=default

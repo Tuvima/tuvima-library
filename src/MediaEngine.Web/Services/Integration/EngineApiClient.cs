@@ -648,45 +648,6 @@ public sealed partial class EngineApiClient : IEngineApiClient, IDisposable
         }
     }
 
-    public async Task<IReadOnlyList<NarrativeRootDto>> GetUniversesAsync(CancellationToken ct = default)
-    {
-        try
-        {
-            var raw = await _http.GetFromJsonAsync<List<NarrativeRootDto>>("universes", ct);
-            return raw ?? [];
-        }
-        catch (OperationCanceledException) { return []; }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "GET /universes failed");
-            LastError = ex.Message;
-            return [];
-        }
-    }
-
-    public async Task<DeepEnrichResponse?> TriggerDeepEnrichAsync(string entityQid, int depth = 2, CancellationToken ct = default)
-    {
-        try
-        {
-            var response = await _http.PostAsync(
-                $"universe/entity/{Uri.EscapeDataString(entityQid)}/deep-enrich?depth={depth}",
-                null, ct);
-            if (!response.IsSuccessStatusCode)
-            {
-                return null;
-            }
-
-            return await response.Content.ReadFromJsonAsync<DeepEnrichResponse>(cancellationToken: ct);
-        }
-        catch (OperationCanceledException) { return null; }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "POST /universe/entity/{Qid}/deep-enrich failed", entityQid);
-            LastError = ex.Message;
-            return null;
-        }
-    }
-
     // -- Universe Explorer (Phase 2 modes) ------------------------------------
 
     public async Task<UniverseCastResponse?> GetUniverseCastAsync(string qid, CancellationToken ct = default)
@@ -2268,35 +2229,6 @@ public sealed partial class EngineApiClient : IEngineApiClient, IDisposable
         }
     }
 
-    public async Task<IReadOnlyList<UniverseCharacterDto>> GetUniverseCharactersAsync(string universeQid, CancellationToken ct = default)
-    {
-        try
-        {
-            var raw = await _http.GetFromJsonAsync<List<UniverseCharacterRaw>>(
-                $"/library/universes/{Uri.EscapeDataString(universeQid)}/characters", ct);
-            if (raw is null)
-            {
-                return [];
-            }
-
-            return raw.Select(r => new UniverseCharacterDto
-            {
-                FictionalEntityId = r.FictionalEntityId,
-                CharacterName = r.CharacterName ?? string.Empty,
-                DefaultActorName = r.DefaultActorName,
-                DefaultActorId = r.DefaultActorId,
-                PortraitUrl = r.PortraitUrl,
-                ActorCount = r.ActorCount,
-            }).ToList();
-        }
-        catch (OperationCanceledException) { return []; }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "GET /library/universes/{Qid}/characters failed", universeQid);
-            return [];
-        }
-    }
-
     public async Task<IReadOnlyList<CharacterRoleDto>> GetPersonCharacterRolesAsync(Guid personId, CancellationToken ct = default)
     {
         try
@@ -2425,18 +2357,6 @@ public sealed partial class EngineApiClient : IEngineApiClient, IDisposable
         return result;
     }
 
-    public async Task TriggerUniverseEnrichmentAsync(CancellationToken ct = default)
-    {
-        try
-        {
-            await _http.PostAsJsonAsync("/library/enrichment/universe/trigger", new { }, ct);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "POST /library/enrichment/universe/trigger failed");
-        }
-    }
-
     // -- Raw deserialization models (character/universe health) ----------------
 
     private sealed class UniverseHealthRaw
@@ -2448,16 +2368,6 @@ public sealed partial class EngineApiClient : IEngineApiClient, IDisposable
         [JsonPropertyName("entities_with_images")] public int EntitiesWithImages { get; set; }
         [JsonPropertyName("relationships_total")] public int RelationshipsTotal { get; set; }
         [JsonPropertyName("health_percent")] public double HealthPercent { get; set; }
-    }
-
-    private sealed class UniverseCharacterRaw
-    {
-        [JsonPropertyName("fictional_entity_id")] public Guid FictionalEntityId { get; set; }
-        [JsonPropertyName("character_name")] public string? CharacterName { get; set; }
-        [JsonPropertyName("default_actor_name")] public string? DefaultActorName { get; set; }
-        [JsonPropertyName("default_actor_id")] public Guid? DefaultActorId { get; set; }
-        [JsonPropertyName("portrait_url")] public string? PortraitUrl { get; set; }
-        [JsonPropertyName("actor_count")] public int ActorCount { get; set; }
     }
 
 }
