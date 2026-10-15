@@ -12,6 +12,7 @@
 @inject IAppToastService Snackbar
 @inject NavigationManager Navigation
 @inject IJSRuntime JS
+@inject ILogger<PlaybackSettingsPage> Logger
 
 @if (_loading)
 {
@@ -28,7 +29,9 @@ else if (_forbidden)
 }
 else if (!string.IsNullOrWhiteSpace(_loadError))
 {
-    <AppAlert Severity="AppSeverity.Error" Variant="AppVariant.Outlined">@_loadError</AppAlert>
+    <AppErrorState Title="Playback preferences are unavailable"
+                   Message="@_loadError"
+                   Retry="@RetryLoadAsync" />
 }
 else if (_settings is not null)
 {
@@ -57,7 +60,7 @@ else if (_settings is not null)
                     "Autoplay next episode",
                     "Start the next episode after a short countdown. Turn off to choose it yourself.",
                     _settings.Watching.AutoplayNextEpisode,
-                    value => UpdateAndSaveAsync(() => _settings.Watching.AutoplayNextEpisode = value))
+                    value => UpdateAndSaveAsync(s => s.Watching.AutoplayNextEpisode = value))
             </SettingsSectionPanel>
 
             <SettingsSectionPanel Title="Resume"
@@ -67,7 +70,7 @@ else if (_settings is not null)
                     "Resume where you left off",
                     "Continue from your last saved position.",
                     _settings.General.ResumePlayback,
-                    value => UpdateAndSaveAsync(() => _settings.General.ResumePlayback = value))
+                    value => UpdateAndSaveAsync(s => s.General.ResumePlayback = value))
             </SettingsSectionPanel>
 
             <SettingsSectionPanel Title="Skip"
@@ -78,13 +81,13 @@ else if (_settings is not null)
                     "The amount used by the rewind control.",
                     _settings.Watching.SkipBackSeconds,
                     WatchingSkipBackOptions,
-                    value => UpdateAndSaveAsync(() => _settings.Watching.SkipBackSeconds = value))
+                    value => UpdateAndSaveAsync(s => s.Watching.SkipBackSeconds = value))
                 @IntSelectRow(
                     "Skip forward",
                     "The amount used by the forward control.",
                     _settings.Watching.SkipForwardSeconds,
                     WatchingSkipForwardOptions,
-                    value => UpdateAndSaveAsync(() => _settings.Watching.SkipForwardSeconds = value))
+                    value => UpdateAndSaveAsync(s => s.Watching.SkipForwardSeconds = value))
             </SettingsSectionPanel>
 
             <div id="subtitles" class="playback-subtitles-group" data-playback-section="subtitles">
@@ -96,19 +99,19 @@ else if (_settings is not null)
                         "The audio track the player starts with when a title has more than one.",
                         LanguageValue(Subtitles.AudioLanguage),
                         LanguageOptionsFor(Subtitles.AudioLanguage),
-                        value => UpdateAndSaveAsync(() => Subtitles.AudioLanguage = value))
+                        value => UpdateAndSaveAsync(s => s.Subtitles.AudioLanguage = value))
                     @StringSelectRow(
                         "Subtitle language",
                         "The subtitles the player picks when it shows them.",
                         LanguageValue(Subtitles.DefaultSubtitleLanguage),
                         LanguageOptionsFor(Subtitles.DefaultSubtitleLanguage),
-                        value => UpdateAndSaveAsync(() => Subtitles.DefaultSubtitleLanguage = value))
+                        value => UpdateAndSaveAsync(s => s.Subtitles.DefaultSubtitleLanguage = value))
                     @StringSelectRow(
                         "Show subtitles",
                         "Auto shows them only when the audio is not in your subtitle language.",
                         ShowSubtitlesValue,
                         ShowSubtitlesOptions,
-                        value => UpdateAndSaveAsync(() => Subtitles.ForcedSubtitlesMode = value),
+                        value => UpdateAndSaveAsync(s => s.Subtitles.ForcedSubtitlesMode = value),
                         wide: true)
                 </SettingsSectionPanel>
 
@@ -129,7 +132,7 @@ else if (_settings is not null)
                         </div>
                         <AppSegmentedControl Options="SubtitleSizeOptions"
                                              Value="@NormalizedSubtitleSize"
-                                             ValueChanged="@(value => UpdateAndSaveAsync(() => Subtitles.SubtitleSize = value))"
+                                             ValueChanged="@(value => UpdateAndSaveAsync(s => s.Subtitles.SubtitleSize = value))"
                                              AriaLabel="Text size"
                                              Class="playback-preference-row__control" />
                     </div>
@@ -137,7 +140,7 @@ else if (_settings is not null)
                         "Background",
                         "Put a dark box behind subtitles. Turn off to show the text with a soft shadow only.",
                         Subtitles.SubtitleBackground,
-                        value => UpdateAndSaveAsync(() => Subtitles.SubtitleBackground = value))
+                        value => UpdateAndSaveAsync(s => s.Subtitles.SubtitleBackground = value))
                 </SettingsSectionPanel>
             </div>
         </div>
@@ -159,6 +162,7 @@ else if (_settings is not null)
     private bool _loading = true;
     private string? _loadError;
     private string? _saveError;
+    private readonly SemaphoreSlim _saveGate = new(1, 1);
 
     private bool IsOtherProfile => ProfileId is { } id && id != Guid.Empty && id != _activeProfile?.Id;
 
@@ -201,8 +205,16 @@ else if (_settings is not null)
         PlaybackLanguageOptions.WithCurrent(language).FirstOrDefault(option => string.Equals(option, language?.Trim(), StringComparison.OrdinalIgnoreCase))
         ?? PlaybackLanguageOptions.Common[0];
 
-    protected override async Task OnInitializedAsync()
+    protected override Task OnInitializedAsync() => LoadAsync();
+
+    private Task RetryLoadAsync() => LoadAsync();
+
+    private async Task LoadAsync()
     {
+        _loading = true;
+        _loadError = null;
+        _forbidden = false;
+        _settings = null;
         try
         {
             _activeProfile = await Orchestrator.GetActiveProfileAsync();
@@ -217,17 +229,34 @@ else if (_settings is not null)
                     return;
                 }
 
+                if (loaded.ProfileId != ProfileId)
+                {
+                    Logger.LogWarning("Playback settings could not be loaded: the Engine answered for a different profile.");
+                    _loadError = "Playback settings could not be loaded.";
+                    return;
+                }
+
                 _settings = Clone(loaded);
                 await TargetNameChanged.InvokeAsync(_target.DisplayName);
             }
             else
             {
+                // A missing answer means the Engine could not be reached, not that nothing is saved. Showing defaults here would
+                // let the first change write them over the profile's real choices, so the page shows an error and no controls.
                 var loaded = await PreferencesAccessor.GetAsync();
-                _settings = Clone(loaded ?? UserPlaybackSettingsDto.CreateDefaults(_activeProfile?.Id ?? Guid.Empty));
+                if (loaded is null)
+                {
+                    Logger.LogWarning("Playback settings could not be loaded: the Engine returned no settings for the active profile.");
+                    _loadError = "Playback settings could not be loaded.";
+                    return;
+                }
+
+                _settings = Clone(loaded);
             }
         }
-        catch
+        catch (Exception ex)
         {
+            Logger.LogWarning(ex, "Playback settings could not be loaded.");
             _loadError = "Playback settings could not be loaded.";
         }
         finally
@@ -318,26 +347,50 @@ else if (_settings is not null)
         }
     }
 
-    private async Task UpdateAndSaveAsync(Action update)
+    private async Task UpdateAndSaveAsync(Action<UserPlaybackSettingsDto> change)
     {
-        update();
         _saveError = null;
-        await SaveAsync();
+        await SaveAsync(change);
     }
 
-    private async Task SaveAsync()
+    // Reads the profile's current settings and applies only the changed field to that copy, so a change made in another tab
+    // or on another device since this page opened is kept. If the current settings cannot be read, nothing is saved.
+    private async Task SaveAsync(Action<UserPlaybackSettingsDto> change)
     {
         if (_settings is null)
             return;
 
+        await _saveGate.WaitAsync();
         try
         {
             var other = IsOtherProfile;
+            var fresh = other
+                ? await ApiClient.GetPlaybackSettingsAsync(ProfileId!.Value)
+                : await Orchestrator.GetPlaybackSettingsAsync();
+            if (fresh is null)
+            {
+                Logger.LogWarning("Playback settings were not saved: the profile's current settings could not be read.");
+                _saveError = "Playback settings could not be saved.";
+                Snackbar.Add(_saveError, AppSeverity.Error);
+                return;
+            }
+
+            if (fresh.ProfileId != _settings.ProfileId)
+            {
+                // These settings belong to a different person than this page shows (for example the active profile changed),
+                // so nothing is saved; the page starts again from what the Engine holds.
+                Logger.LogWarning("Playback settings were not saved: the current settings belong to a different profile than the page shows.");
+                await LoadAsync();
+                return;
+            }
+
+            change(fresh);
             var saved = other
-                ? await ApiClient.UpdatePlaybackSettingsAsync(ProfileId!.Value, _settings)
-                : await Orchestrator.SavePlaybackSettingsAsync(_settings);
+                ? await ApiClient.UpdatePlaybackSettingsAsync(ProfileId!.Value, fresh)
+                : await Orchestrator.SavePlaybackSettingsAsync(fresh);
             if (saved is null)
             {
+                Logger.LogWarning("Playback settings could not be saved: the Engine did not accept the update.");
                 _saveError = "Playback settings could not be saved.";
                 Snackbar.Add(_saveError, AppSeverity.Error);
                 return;
@@ -347,13 +400,15 @@ else if (_settings is not null)
             if (!other)
                 PreferencesAccessor.UpdateCache(saved);
         }
-        catch
+        catch (Exception ex)
         {
+            Logger.LogWarning(ex, "Playback settings could not be saved.");
             _saveError = "Playback settings could not be saved.";
             Snackbar.Add(_saveError, AppSeverity.Error);
         }
         finally
         {
+            _saveGate.Release();
             StateHasChanged();
         }
     }

@@ -19,7 +19,11 @@
 
 <PageTitle>@BrowserTitle</PageTitle>
 
-@if (!_profileRoleLoaded)
+@if (_kidsBlocked)
+{
+    @* A Kids profile never reaches Settings. The move to Home is already under way, so nothing is drawn meanwhile. *@
+}
+else if (!_profileRoleLoaded)
 {
     @* Neutral loading state: the section, navigation and permissions are unknown until the session resolves. *@
     <MediaSectionShell Title="Settings"
@@ -241,6 +245,7 @@ else
     private string _activeSubsection = string.Empty;
     private ProfileViewModel? _activeProfile;
     private bool _profileRoleLoaded;
+    private bool _kidsBlocked;
 
     private int _reviewCount;
     private bool _legacyRedirectIssued;
@@ -324,6 +329,11 @@ else
 
         await LoadAuthorityAsync();
         ResolveSectionAndNormalize();
+        if (_kidsBlocked)
+        {
+            return;
+        }
+
         await LoadShellStateAsync();
 
         Orchestrator.OnReviewCountChanged += OnReviewCountChanged;
@@ -442,6 +452,8 @@ else
         finally
         {
             _profileRoleLoaded = true;
+            // The links to Settings are hidden for a Kids profile, but a typed address or old link must not reach it either.
+            _kidsBlocked = _activeProfile?.IsRestricted == true;
         }
     }
 
@@ -462,6 +474,12 @@ else
 
     private void ResolveSectionAndNormalize()
     {
+        if (_kidsBlocked)
+        {
+            Nav.NavigateTo("/", replace: true);
+            return;
+        }
+
         if (!_legacyRedirectIssued
             && Section is not null
             && (Section.Equals("review", StringComparison.OrdinalIgnoreCase)

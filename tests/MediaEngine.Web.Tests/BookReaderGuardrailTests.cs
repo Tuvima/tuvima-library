@@ -224,8 +224,10 @@ public sealed class BookReaderGuardrailTests
         Assert.DoesNotContain("style=\"", page);
         Assert.DoesNotContain("<input", page);
         Assert.DoesNotContain("<button", page);
-        Assert.Contains("ApiClient.UpdatePlaybackSettingsAsync(ProfileId!.Value, _settings)", page);
-        Assert.Contains("Orchestrator.SavePlaybackSettingsAsync(_settings)", page);
+        Assert.Contains("ApiClient.UpdatePlaybackSettingsAsync(ProfileId!.Value, fresh)", page);
+        Assert.Contains("Orchestrator.SavePlaybackSettingsAsync(fresh)", page);
+        // Changes are merged into a fresh read of the profile's settings, never saved from the copy loaded when the page opened.
+        Assert.Contains("Orchestrator.GetPlaybackSettingsAsync()", page);
         Assert.Contains("<ReadingSettingsPage ", settings);
         Assert.DoesNotContain("PlaybackSettingsMode.Reading", settings);
     }

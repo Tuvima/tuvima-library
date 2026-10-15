@@ -155,6 +155,26 @@ public sealed class AccessRepositoryTests : IDisposable
     }
 
     [Fact]
+    public async Task DeletingAProfile_ThatASignInOpensOnly_TellsTheAdministratorToRemoveOrMoveTheSignInFirst()
+    {
+        var personId = Guid.NewGuid();
+        InsertProfile(NewProfile(personId, "Mary"));
+        var signIn = NewAdministrator("mary@example.com");
+        signIn.IsAdministrator = false;
+        await _accounts.CreateAccountAsync(
+            signIn,
+            Grant(signIn.Id, personId, isDefault: true),
+            new HashSet<AccountFeatureId>(),
+            new HashSet<Guid>());
+
+        var refused = await Assert.ThrowsAsync<InvalidOperationException>(() => _accounts.DeleteManagedProfileAsync(personId));
+
+        Assert.Contains("Remove or move this person's sign-in", refused.Message, StringComparison.Ordinal);
+        Assert.DoesNotContain("Move accounts", refused.Message, StringComparison.Ordinal);
+        Assert.NotNull(await _profiles.GetByIdAsync(personId));
+    }
+
+    [Fact]
     public async Task InvitationAccount_CreatesAllGrantsAndHashOnlyInvitationAtomically()
     {
         var secondProfileId = Guid.NewGuid();

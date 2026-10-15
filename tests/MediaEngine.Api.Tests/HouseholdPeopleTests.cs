@@ -1,3 +1,5 @@
+using System.Reflection;
+using System.Runtime.ExceptionServices;
 using MediaEngine.Api.Security;
 using MediaEngine.Domain.Aggregates;
 using MediaEngine.Domain.Authorization;
@@ -407,7 +409,9 @@ public sealed class HouseholdPeopleTests
         }
 
         // A link mailed to the old address (or issued before the password was set) must not still work.
-        await Assert.ThrowsAnyAsync<Exception>(() => fixture.Identity.ResetPasswordWithTokenAsync(token, "a thief chosen password"));
+        var refused = await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
+            fixture.Identity.ResetPasswordWithTokenAsync(token, "a thief chosen password"));
+        Assert.Equal("The recovery information is invalid.", refused.Message);
     }
 
     [Fact]
@@ -418,6 +422,156 @@ public sealed class HouseholdPeopleTests
         var self = fixture.Actor with { AccountId = owner.Id };
 
         await Assert.ThrowsAsync<InvalidOperationException>(() => fixture.Mutations.ChangeEmailAsync(self, owner.Id, "elsewhere@example.com"));
+    }
+
+    [Fact]
+    public async Task ResetLink_WithoutAnEmailChange_StillWorks_EvenAfterAnUpdateThatKeepsTheEmail()
+    {
+        await using var fixture = await Fixture.CreateAsync();
+        var (mutations, actor) = (fixture.Mutations, fixture.Actor);
+        var given = await fixture.CreateSignedInPersonAsync("Mary", "mary@example.com");
+        var token = await fixture.Identity.BeginPasswordResetAsync("mary@example.com");
+        Assert.NotNull(token);
+
+        // The same address in another case is not a change, so the link sent to it must survive.
+        await mutations.UpdateAsync(actor, given.Id, new UpdateAccountAccessCommand("MARY@example.com", true, IsAdministrator: false));
+
+        await fixture.Identity.ResetPasswordWithTokenAsync(token, "a newly chosen long password");
+    }
+
+    [Fact]
+    public async Task UpdateAsync_ChangingTheEmail_EndsPasswordResetLinksAndTwoStepChallengesAlreadySent()
+    {
+        await using var fixture = await Fixture.CreateAsync();
+        var (mutations, accounts, actor) = (fixture.Mutations, fixture.Accounts, fixture.Actor);
+        var given = await fixture.CreateSignedInPersonAsync("Mary", "mary@example.com");
+        var token = await fixture.Identity.BeginPasswordResetAsync("mary@example.com");
+        Assert.NotNull(token);
+        await fixture.Identities.InsertTwoStepChallengeAsync(new TwoStepChallenge
+        {
+            Id = Guid.NewGuid(),
+            AccountId = given.Id,
+            TokenHash = "two-step-hash",
+            Ingress = "web",
+            DeviceId = "device",
+            CreatedAt = DateTimeOffset.UtcNow,
+            ExpiresAt = DateTimeOffset.UtcNow.AddMinutes(10),
+        });
+        Assert.NotNull(await fixture.Identities.GetActiveTwoStepChallengeAsync("two-step-hash", DateTimeOffset.UtcNow));
+
+        var updated = await mutations.UpdateAsync(actor, given.Id,
+            new UpdateAccountAccessCommand("  Mary.New@Example.com ", true, IsAdministrator: false));
+
+        Assert.Equal("Mary.New@Example.com", updated.Email);
+        Assert.Equal(given.Id, (await accounts.GetByNormalizedEmailAsync("MARY.NEW@EXAMPLE.COM"))!.Id);
+        // A link mailed to the old address, and a sign-in step started for it, must not still work.
+        var refused = await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
+            fixture.Identity.ResetPasswordWithTokenAsync(token, "a thief chosen password"));
+        Assert.Equal("The recovery information is invalid.", refused.Message);
+        Assert.Null(await fixture.Identities.GetActiveTwoStepChallengeAsync("two-step-hash", DateTimeOffset.UtcNow));
+    }
+
+    [Fact]
+    public async Task UpdateAsync_ToAnotherAccountsEmail_IsAConflictNotAStorageError()
+    {
+        await using var fixture = await Fixture.CreateAsync();
+        var (mutations, accounts, actor) = (fixture.Mutations, fixture.Accounts, fixture.Actor);
+        await fixture.CreateOwnerAsync();
+        var given = await fixture.CreateSignedInPersonAsync("Mary", "mary@example.com");
+
+        // The Engine door turns InvalidOperationException into 409; a storage error would surface as 500.
+        var conflict = await Assert.ThrowsAsync<InvalidOperationException>(() => mutations.UpdateAsync(actor, given.Id,
+            new UpdateAccountAccessCommand("OWNER@example.com", true, IsAdministrator: false)));
+
+        Assert.Equal("That email already has a sign-in.", conflict.Message);
+        Assert.Equal("mary@example.com", (await accounts.GetByIdAsync(given.Id))!.Email);
+    }
+
+    [Fact]
+    public async Task EmailChange_LosingTheRaceForTheAddress_IsTheSameConflict_ThroughBothRoutes()
+    {
+        await using var fixture = await Fixture.CreateAsync();
+        await fixture.CreateOwnerAsync();
+        var given = await fixture.CreateSignedInPersonAsync("Mary", "mary@example.com");
+        // Hides the other account from the availability check, as if it took the address just after the check: only the
+        // unique index (SQLite error 19) is left to refuse the write.
+        var blind = DispatchProxy.Create<IAccountRepository, HidesEmailOwners>();
+        ((HidesEmailOwners)(object)blind).Inner = fixture.Accounts;
+        var racing = fixture.MutationsOver(blind);
+
+        var viaUpdate = await Assert.ThrowsAsync<InvalidOperationException>(() => racing.UpdateAsync(fixture.Actor, given.Id,
+            new UpdateAccountAccessCommand("owner@example.com", true, IsAdministrator: false)));
+        var viaChange = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            racing.ChangeEmailAsync(fixture.Actor, given.Id, "owner@example.com"));
+
+        Assert.Equal("That email already has a sign-in.", viaUpdate.Message);
+        Assert.Equal(viaChange.Message, viaUpdate.Message);
+        Assert.Equal("mary@example.com", (await fixture.Accounts.GetByIdAsync(given.Id))!.Email);
+    }
+
+    [Fact]
+    public async Task UpdateAsync_ByAnApplication_CannotChangeAnAdministratorsEmail_ButAnUnlockedAdministratorCan()
+    {
+        await using var fixture = await Fixture.CreateAsync();
+        var (mutations, accounts, actor) = (fixture.Mutations, fixture.Accounts, fixture.Actor);
+        var admin = await mutations.CreateAsync(actor, new CreateAccountAccessCommand(
+            "admin@example.com", IsAdministrator: true, ProfileId: null,
+            NewProfile: new NewAccountProfileCommand("Admin", "#7C4DFF"),
+            Features: new HashSet<AccountFeatureId>(), Libraries: new HashSet<Guid>()));
+        var application = actor with { PrincipalKind = PrincipalKind.ServiceApplication, AccountIsAdministrator = false, GrantAdminEnabled = false };
+
+        // A trusted application with identity.users.write could otherwise move the address and then reset the password to it.
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() => mutations.UpdateAsync(application, admin.Id,
+            new UpdateAccountAccessCommand("attacker@example.com", true, IsAdministrator: true)));
+        Assert.Equal("admin@example.com", (await accounts.GetByIdAsync(admin.Id))!.Email);
+        // Turning the account on or off, with its address unchanged, is still allowed.
+        await mutations.UpdateAsync(application, admin.Id, new UpdateAccountAccessCommand("admin@example.com", true, IsAdministrator: true));
+
+        var changed = await mutations.UpdateAsync(actor, admin.Id,
+            new UpdateAccountAccessCommand("admin.new@example.com", true, IsAdministrator: true));
+        Assert.Equal("admin.new@example.com", changed.Email);
+    }
+
+    [Fact]
+    public async Task UpdateAsync_ChangingYourOwnEmail_IsRefusedLikeTheEmailRoute()
+    {
+        await using var fixture = await Fixture.CreateAsync();
+        var owner = await fixture.CreateOwnerAsync();
+        var self = fixture.Actor with { AccountId = owner.Id };
+
+        var viaUpdate = await Assert.ThrowsAsync<InvalidOperationException>(() => fixture.Mutations.UpdateAsync(self, owner.Id,
+            new UpdateAccountAccessCommand("elsewhere@example.com", true, IsAdministrator: false)));
+        var viaChange = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            fixture.Mutations.ChangeEmailAsync(self, owner.Id, "elsewhere@example.com"));
+
+        Assert.Equal(viaChange.Message, viaUpdate.Message);
+        Assert.Equal("owner@example.com", (await fixture.Accounts.GetByIdAsync(owner.Id))!.Email);
+        // An update that keeps the address is not an email change.
+        await fixture.Mutations.UpdateAsync(self, owner.Id, new UpdateAccountAccessCommand("owner@example.com", true, IsAdministrator: false));
+    }
+
+    /// <summary>Forwards everything to the real repository except the email lookup, which finds no one.</summary>
+    public class HidesEmailOwners : DispatchProxy
+    {
+        public IAccountRepository Inner { get; set; } = null!;
+
+        protected override object? Invoke(MethodInfo? targetMethod, object?[]? args)
+        {
+            if (targetMethod!.Name == nameof(IAccountRepository.GetByNormalizedEmailAsync))
+            {
+                return Task.FromResult<Account?>(null);
+            }
+
+            try
+            {
+                return targetMethod.Invoke(Inner, args);
+            }
+            catch (TargetInvocationException ex) when (ex.InnerException is not null)
+            {
+                ExceptionDispatchInfo.Capture(ex.InnerException).Throw();
+                throw;
+            }
+        }
     }
 
     private sealed class Fixture : IAsyncDisposable
@@ -477,6 +631,30 @@ public sealed class HouseholdPeopleTests
                 new NoProfilePhotos(), TimeProvider.System);
             return Task.FromResult(fixture);
         }
+
+        /// <summary>A household person who has their own sign-in with the given address and a starting password.</summary>
+        public async Task<Account> CreateSignedInPersonAsync(string name, string email)
+        {
+            var household = (await Households.GetForAccountAsync(((await Accounts.GetAllAsync()).FirstOrDefault() ?? await CreateOwnerAsync()).Id))!;
+            var person = await Mutations.AddHouseholdPersonAsync(Actor,
+                new AddHouseholdPersonCommand(household.Id, name, null, false, null));
+            return (await Mutations.GiveOwnSignInAsync(Actor,
+                new GiveOwnSignInCommand(person.Id, email, "a long starting password"))).Account;
+        }
+
+        /// <summary>The same service over another view of the accounts, to stage a race the real repository would not allow.</summary>
+        public AccountAccessMutationService MutationsOver(IAccountRepository accountRepository) => new(
+            accountRepository,
+            Identities,
+            Profiles,
+            _configuration,
+            new AllowAdministratorDecisions(),
+            new AllowEvaluator(),
+            new PasswordHasher<GrantAdminProtection>(),
+            new NoOpInvalidation(),
+            Audit,
+            Identity,
+            new NoProfilePhotos(), TimeProvider.System);
 
         public Task<Account> CreateOwnerAsync(params AccountFeatureId[] features) => Mutations.CreateAsync(Actor,
             new CreateAccountAccessCommand(
