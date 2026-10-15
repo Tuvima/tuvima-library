@@ -148,6 +148,12 @@ class TuvimaClient(
                 )
             }.orEmpty(),
             warnings = json.optJSONArray("warnings")?.strings().orEmpty(),
+            audioTracks = parseAudioTracks(json.optJSONArray("audioTracks")),
+            subtitleTracks = parseSubtitleTracks(json.optJSONArray("subtitleTracks"), ::absolute),
+            chapters = parseChapters(json.optJSONArray("chapters")),
+            segments = parsePlaybackSegments(json.optJSONArray("segments")),
+            sourceExtension = json.optionalString("sourceExtension")?.takeIf(String::isNotBlank),
+            conversionReason = json.optionalString("conversionReason")?.takeIf(String::isNotBlank),
         )
     }
 

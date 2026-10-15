@@ -1,5 +1,6 @@
 package com.tuvima.library.core
 
+import org.json.JSONArray
 import org.json.JSONObject
 
 // Parsers for the API v1 wire shapes the app screens read. JSON names are the Engine's own: snake_case for the
@@ -191,3 +192,46 @@ internal fun parseServerProgress(json: JSONObject): ServerProgress = ServerProgr
     lastAccessedMs = OfflineLogic.parseIsoMillis(json.optionalString("last_accessed")),
     positionSeconds = json.optJSONObject("extended_properties")?.optionalString("position_seconds")?.toDoubleOrNull(),
 )
+
+// Playback manifest track lists. Camel-case names from the Engine's PlaybackDtos; a missing or null list is empty.
+
+internal fun parseAudioTracks(array: JSONArray?): List<AudioTrack> = array?.objects { track ->
+    AudioTrack(
+        index = track.optInt("index"),
+        language = track.optionalString("language"),
+        codec = track.optionalString("codec"),
+        displayName = track.optionalString("displayName"),
+        isDefault = track.optBoolean("isDefault"),
+        channels = track.optionalInt("channels"),
+    )
+}.orEmpty()
+
+internal fun parseSubtitleTracks(array: JSONArray?, absolute: (String?) -> String?): List<SubtitleTrack> =
+    array?.objects { track ->
+        SubtitleTrack(
+            index = track.optInt("index"),
+            language = track.optionalString("language"),
+            codec = track.optionalString("codec"),
+            displayName = track.optionalString("displayName"),
+            isDefault = track.optBoolean("isDefault"),
+            isForced = track.optBoolean("isForced"),
+            deliveryUrl = absolute(track.optionalString("deliveryUrl")),
+        )
+    }.orEmpty()
+
+internal fun parseChapters(array: JSONArray?): List<Chapter> = array?.objects { chapter ->
+    Chapter(
+        index = chapter.optInt("index"),
+        title = chapter.optString("title", ""),
+        startSeconds = chapter.optDouble("startSeconds", 0.0),
+        endSeconds = chapter.optionalDouble("endSeconds"),
+    )
+}.orEmpty()
+
+internal fun parsePlaybackSegments(array: JSONArray?): List<PlaybackSegment> = array?.objects { segment ->
+    PlaybackSegment(
+        kind = segment.optString("kind", ""),
+        startSeconds = segment.optDouble("startSeconds", 0.0),
+        endSeconds = segment.optionalDouble("endSeconds"),
+    )
+}.orEmpty()

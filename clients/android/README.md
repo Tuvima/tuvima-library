@@ -12,11 +12,14 @@ Never place signing keys, service credentials, bearer tokens, or signed media
 URLs in this repository.
 
 Orientation: the phone app is locked to portrait (`screenOrientation="portrait"` on
-`MainActivity`); TV is landscape by nature. Only video playback may rotate. The rule
-lives in `core` `OrientationPolicy`. The phone app has no on-device video surface yet
-(playback is audio-only through the media service), so nothing currently unlocks; a
-future video screen must request a sensor orientation while shown and restore portrait
-on leaving.
+`MainActivity`); TV is landscape by nature. Movies and episodes rotate to landscape, Photos clips follow
+the phone, and everything else stays portrait. The rule lives in `core` `OrientationPolicy`. The phone app
+has no on-device video surface yet, so nothing currently unlocks; the video screen must apply the rule
+while shown and restore portrait on leaving.
+
+Video: the phone app declares MKV and M4V containers and SRT subtitles, and the playback manifest now
+carries audio tracks, subtitle tracks, chapters and skip segments (`PlaybackTrackPicker` chooses the
+starting tracks from the profile's language preferences).
 
 Unit tests for the shared client (API v1 paths, typed profile-switch results, photo consent, photo grid layout,
 and the offline download rules: server-won detection, replay order, the storage cap, expiry and report results,

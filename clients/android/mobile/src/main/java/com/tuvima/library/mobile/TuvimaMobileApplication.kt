@@ -30,7 +30,8 @@ class TuvimaMobileApplication : Application() {
             deviceName = Build.MODEL,
             deviceClass = "mobile",
             capabilities = ClientCapabilities(
-                containers = listOf("mp4", "m4a", "mp3", "ogg", "webm", "mpegts"),
+                containers = listOf("mp4", "m4a", "mp3", "ogg", "webm", "mpegts", "mkv", "m4v"),
+                subtitleFormats = listOf("webvtt", "vtt", "srt"),
                 videoCodecs = listOf("h264", "hevc", "vp9", "av1"),
                 audioCodecs = listOf("aac", "mp3", "flac", "opus", "vorbis", "ac3", "eac3"),
                 maxWidth = 3840,

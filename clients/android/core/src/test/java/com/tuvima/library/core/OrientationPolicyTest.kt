@@ -5,8 +5,13 @@ import org.junit.Test
 
 class OrientationPolicyTest {
     @Test
-    fun onlyVideoMayRotate() {
-        assertEquals(OrientationRule.Sensor, OrientationPolicy.ruleFor(ScreenKind.Video))
+    fun moviesAndEpisodesRotateToLandscape() {
+        assertEquals(OrientationRule.SensorLandscape, OrientationPolicy.ruleFor(ScreenKind.Video))
+    }
+
+    @Test
+    fun photoClipsFollowThePhone() {
+        assertEquals(OrientationRule.Sensor, OrientationPolicy.ruleFor(ScreenKind.VideoClip))
     }
 
     @Test
