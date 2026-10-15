@@ -135,6 +135,13 @@ public class CollectionManagementCatalogDto : ManagedCollectionDto
     [JsonPropertyName("group_type")]
     public string GroupType { get; init; } = "collection";
 
+    /// <summary>
+    /// The Wikidata QID of the Universe this entry is, or null when the entry is not a Universe. Only a well-formed
+    /// QID is ever set; paired apps use it to open <c>GET /api/v1/universe/{qid}</c>.
+    /// </summary>
+    [JsonPropertyName("universe_qid")]
+    public string? UniverseQid { get; init; }
+
     [JsonPropertyName("primary_lane")]
     public string PrimaryLane { get; init; } = "CrossMedia";
 

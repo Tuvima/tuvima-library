@@ -3,7 +3,8 @@
     {
       "family": "Global",
       "system_key": null,
-      "group_type": "collection",
+      "group_type": "universe",
+      "universe_qid": "Q5000",
       "primary_lane": "Watch",
       "is_global": true,
       "is_system": false,
@@ -122,7 +123,8 @@
     {
       "family": "Global",
       "system_key": null,
-      "group_type": "collection",
+      "group_type": "universe",
+      "universe_qid": "Q4242",
       "primary_lane": "CrossMedia",
       "is_global": true,
       "is_system": false,

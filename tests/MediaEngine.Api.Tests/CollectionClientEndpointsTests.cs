@@ -134,7 +134,8 @@ public sealed class CollectionClientEndpointsTests : IDisposable
         Assert.False(page["has_more"]!.GetValue<bool>());
         var universe = items.Single(item => item!["id"]!.GetValue<Guid>() == _universe)!;
         var list = items.Single(item => item!["id"]!.GetValue<Guid>() == _list)!;
-        Assert.Equal("collection", universe["group_type"]!.GetValue<string>());
+        Assert.Equal("universe", universe["group_type"]!.GetValue<string>());
+        Assert.Equal(UniverseQid, universe["universe_qid"]!.GetValue<string>());
         Assert.Equal("Test Universe", universe["name"]!.GetValue<string>());
         Assert.Equal(7, universe["item_count"]!.GetValue<int>());
         Assert.Equal("list", list["group_type"]!.GetValue<string>());
@@ -154,6 +155,82 @@ public sealed class CollectionClientEndpointsTests : IDisposable
         Assert.DoesNotContain(items, item => item!["id"]!.GetValue<Guid>() == _privateList);
         // A disabled collection is not in the catalogue.
         Assert.DoesNotContain(items, item => item!["id"]!.GetValue<Guid>() == _disabledList);
+    }
+
+    [Fact]
+    public async Task Catalogue_UniverseQid_OpensTheUniverseRoute_AndOnlyUniversesCarryOne()
+    {
+        await using var app = await StartAsync();
+
+        var page = await GetJsonAsync(app, "/api/v1/collections");
+        var items = page["items"]!.AsArray();
+        var universeEntries = items.Where(item => item!["universe_qid"] is not null).ToList();
+
+        // Only Universe entries carry a QID (and the "universe" group type); lists, shows and series never do.
+        Assert.Contains(universeEntries, item => item!["id"]!.GetValue<Guid>() == _universe);
+        Assert.All(universeEntries, item => Assert.Equal("universe", item!["group_type"]!.GetValue<string>()));
+        Assert.All(items.Where(item => item!["universe_qid"] is null), item =>
+            Assert.NotEqual("universe", item!["group_type"]!.GetValue<string>()));
+        Assert.Null(items.Single(item => item!["id"]!.GetValue<Guid>() == _list)!["universe_qid"]);
+
+        // Every QID the catalogue hands out opens through the Universe route for the same profile.
+        foreach (var entry in universeEntries)
+        {
+            var qid = entry!["universe_qid"]!.GetValue<string>();
+            Assert.Matches("^Q[0-9]+$", qid);
+            using var response = await app.Client.GetAsync($"/api/v1/universe/{qid}");
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        }
+
+        // The single-entry route agrees with the list.
+        var single = await GetJsonAsync(app, $"/api/v1/collections/{_universe:D}");
+        Assert.Equal(UniverseQid, single["universe_qid"]!.GetValue<string>());
+        Assert.Equal("universe", single["group_type"]!.GetValue<string>());
+    }
+
+    [Fact]
+    public async Task Catalogue_NeverOffersAUniverseQidTheProfileCannotOpen()
+    {
+        await using var app = await StartAsync();
+        SetContentLimit("PG");
+
+        var page = await GetJsonAsync(app, "/api/v1/collections");
+
+        // The all-adult Universe is hidden from the limited profile, so neither its entry nor its QID appears.
+        Assert.DoesNotContain("Q5000", page.ToJsonString(), StringComparison.Ordinal);
+        foreach (var item in page["items"]!.AsArray().Where(item => item!["universe_qid"] is not null))
+        {
+            using var response = await app.Client.GetAsync($"/api/v1/universe/{item!["universe_qid"]!.GetValue<string>()}");
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        }
+    }
+
+    [Theory]
+    [InlineData("Q4242", "Q4242")]
+    [InlineData(" Q4242 ", "Q4242")]
+    [InlineData("q4242", null)]
+    [InlineData("Q42x", null)]
+    [InlineData("Q", null)]
+    [InlineData("P31", null)]
+    [InlineData("", null)]
+    [InlineData(null, null)]
+    public void NormalizeQid_OnlyAcceptsWellFormedQids(string? input, string? expected) =>
+        Assert.Equal(expected, UniverseClientReadService.NormalizeQid(input));
+
+    [Fact]
+    public void NativeCopy_OnlyCarriesAUniverseQidTheCallerVerified_AndSeriesHaveNone()
+    {
+        var series = new MediaEngine.Contracts.Collections.CollectionManagementCatalogDto { GroupType = "series" };
+        var unverified = new MediaEngine.Contracts.Collections.CollectionManagementCatalogDto { GroupType = "collection", UniverseQid = "Q1" };
+
+        Assert.Null(ManagedCollectionMapper.ForNativeClient(series).UniverseQid);
+        Assert.Equal("series", ManagedCollectionMapper.ForNativeClient(series).GroupType);
+        var withheld = ManagedCollectionMapper.ForNativeClient(unverified);
+        Assert.Null(withheld.UniverseQid);
+        Assert.Equal("collection", withheld.GroupType);
+        var verified = ManagedCollectionMapper.ForNativeClient(unverified, "Q1");
+        Assert.Equal("Q1", verified.UniverseQid);
+        Assert.Equal("universe", verified.GroupType);
     }
 
     [Fact]

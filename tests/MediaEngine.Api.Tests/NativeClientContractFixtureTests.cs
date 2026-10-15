@@ -45,7 +45,9 @@ public sealed class NativeClientContractFixtureTests
         Assert.Equal(3, collections.TotalCount);
         Assert.All(collections.Items, entry =>
         {
-            Assert.Equal(CollectionGroupTypes.Collection, entry.GroupType);
+            // Both entries in the fixture are Universes: they carry the QID that opens /api/v1/universe/{qid}.
+            Assert.Equal(CollectionGroupTypes.Universe, entry.GroupType);
+            Assert.Matches("^Q[0-9]+$", entry.UniverseQid);
             Assert.True(entry.ItemCount > 0);
             // Apps only read: authoring fields never reach them.
             Assert.Null(entry.RuleJson);
