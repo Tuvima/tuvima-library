@@ -65,6 +65,34 @@ public sealed class NativeClientContractFixtureTests
     }
 
     [Fact]
+    public void ProfileSwitchFixtures_MatchThePublishedContractTypes()
+    {
+        var profiles = Read<DeviceProfileListDto>("device-profiles.json");
+        var paired = Read<OAuthTokenResponse>("oauth-token.json");
+        var switched = Read<OAuthTokenResponse>("switch-profile.json");
+
+        Assert.Equal(2, profiles.Profiles.Count);
+        Assert.Single(profiles.Profiles, profile => profile.IsActive);
+        Assert.Contains(profiles.Profiles, profile => profile.IsKids && profile.RequiresPin && profile.AvatarUrl is null);
+        Assert.Equal(profiles.Profiles.Single(profile => profile.IsActive).ProfileId, paired.ProfileId);
+
+        // A switch keeps the device and changes only the profile; the response is the ordinary token response.
+        Assert.Equal(paired.DeviceId, switched.DeviceId);
+        Assert.NotEqual(paired.ProfileId, switched.ProfileId);
+        Assert.Contains(profiles.Profiles, profile => profile.ProfileId == switched.ProfileId);
+        Assert.NotEqual(paired.RefreshToken, switched.RefreshToken);
+    }
+
+    [Fact]
+    public void ProfileSwitchRequest_UsesSnakeCaseWireNames()
+    {
+        var json = JsonSerializer.Serialize(new SwitchDeviceProfileRequest { ProfileId = Guid.Empty, Pin = "1234" }, JsonOptions);
+
+        Assert.Contains("\"profile_id\"", json);
+        Assert.Contains("\"pin\"", json);
+    }
+
+    [Fact]
     public void CheckedInV1Fixtures_NeverContainSecretsOrServerPaths()
     {
         foreach (var path in Directory.EnumerateFiles(FixtureDirectory(), "*.json"))

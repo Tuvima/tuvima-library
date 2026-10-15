@@ -12,7 +12,18 @@ public interface IIdentityRepository
     Task<ProfileCredential?> GetCredentialAsync(Guid profileId, ProfileCredentialKind kind, CancellationToken ct = default);
     Task UpsertCredentialAsync(ProfileCredential credential, CancellationToken ct = default);
     Task DeleteCredentialAsync(Guid profileId, ProfileCredentialKind kind, CancellationToken ct = default);
-    Task UpdateCredentialAttemptAsync(Guid credentialId, int failedAttemptCount, DateTimeOffset? lockedUntil, DateTimeOffset? lastUsedAt, CancellationToken ct = default);
+    /// <summary>
+    /// Reserves one attempt on a profile credential before the guess is checked, in a single conditional statement, and
+    /// returns the attempt's number (1 for the first). Returns <see langword="null"/>, reserving nothing, while the
+    /// credential is locked or already has <paramref name="lockoutThreshold"/> attempts outstanding, so parallel guesses
+    /// can never exceed the limit. A lock that has expired starts the count again at 1. No lock is set here: the fifth
+    /// guess must still be able to succeed.
+    /// </summary>
+    Task<int?> ReserveCredentialAttemptAsync(Guid credentialId, int lockoutThreshold, DateTimeOffset now, CancellationToken ct = default);
+    /// <summary>Locks a credential that has used up its attempts and is not locked yet. A lock that is already running is never extended.</summary>
+    Task LockExhaustedCredentialAsync(Guid credentialId, int lockoutThreshold, DateTimeOffset lockedUntil, CancellationToken ct = default);
+    /// <summary>Clears the attempts after a right guess, unless a lock is running. Returns false (leaving the lock in place) while one is.</summary>
+    Task<bool> ResetCredentialAttemptsIfUnlockedAsync(Guid credentialId, DateTimeOffset now, CancellationToken ct = default);
     Task<bool> IsAdministratorBootstrapCompletedAsync(CancellationToken ct = default);
 
     Task InsertSessionAsync(AuthSession session, CancellationToken ct = default);

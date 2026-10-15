@@ -1,0 +1,20 @@
+{
+  "profiles": [
+    {
+      "profile_id": "33333333-3333-3333-3333-333333333333",
+      "display_name": "Mary",
+      "avatar_url": null,
+      "is_kids": false,
+      "requires_pin": false,
+      "is_active": true
+    },
+    {
+      "profile_id": "44444444-4444-4444-4444-444444444444",
+      "display_name": "Jim",
+      "avatar_url": null,
+      "is_kids": true,
+      "requires_pin": true,
+      "is_active": false
+    }
+  ]
+}

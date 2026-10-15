@@ -43,6 +43,9 @@ public static class NativeApiForwardPolicy
         // Devices: list, current, report capabilities, revoke.
         Of([..Read, "PUT", "DELETE"], "devices(?:/.*)?"),
 
+        // Switch person without re-pairing: this one POST on the device's own record only. The Engine re-checks the PIN at every switch.
+        Of(["POST"], "devices/current/switch-profile"),
+
         // Browse, details, people and artwork: read-only for apps.
         Of(Read, "display/.*"),
         Of(Read, "details/.*"),

@@ -958,6 +958,17 @@ MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.Device
   ExpiresIn: System.Int32 | nullability=not-null | accessors=get,init
   Interval: System.Int32 | nullability=not-null | accessors=get,init
 
+MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.DeviceProfileDto
+  ProfileId: System.Guid | nullability=not-null | accessors=get,init
+  DisplayName: System.String | nullability=not-null | accessors=get,init
+  AvatarUrl: System.String | nullability=nullable | accessors=get,init
+  IsKids: System.Boolean | nullability=not-null | accessors=get,init
+  RequiresPin: System.Boolean | nullability=not-null | accessors=get,init
+  IsActive: System.Boolean | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.DeviceProfileListDto
+  Profiles: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Authentication.DeviceProfileDto> | nullability=not-null | accessors=get,init
+
 MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.DeviceProfilePreferenceResponse
   ProfileId: System.Guid? | nullability=nullable | accessors=get,init
 
@@ -1237,6 +1248,10 @@ MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.SignIn
   Passkey: System.Boolean | nullability=not-null | accessors=get,init
   ExternalProviders: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Authentication.AccountExternalProviderResponse> | nullability=not-null | accessors=get,init
   InvitationCode: System.Boolean | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.SwitchDeviceProfileRequest
+  ProfileId: System.Guid | nullability=not-null | accessors=get,init
+  Pin: System.String | nullability=nullable | accessors=get,init
 
 MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.SwitchProfileRequest
   ProfileId: System.Guid | nullability=not-null | accessors=get,init

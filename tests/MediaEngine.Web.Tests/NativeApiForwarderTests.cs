@@ -39,6 +39,13 @@ public sealed class NativeApiForwarderTests
     [InlineData("PUT", "profile-state/saved/work/6f0c2a3e-0000-0000-0000-000000000000", true, NativeApiForwardDecision.Forward)]
     [InlineData("POST", "player/command", true, NativeApiForwardDecision.Forward)]
     [InlineData("PUT", "devices/current/capabilities", true, NativeApiForwardDecision.Forward)]
+    [InlineData("GET", "devices/current/profiles", true, NativeApiForwardDecision.Forward)]
+    [InlineData("POST", "devices/current/switch-profile", true, NativeApiForwardDecision.Forward)]
+    [InlineData("POST", "devices/current/switch-profile", false, NativeApiForwardDecision.Unauthorized)]
+    // Only that one POST on devices is open; no other device write goes through.
+    [InlineData("POST", "devices/current/capabilities", true, NativeApiForwardDecision.NotFound)]
+    [InlineData("POST", "devices/current/switch-profile/x", true, NativeApiForwardDecision.NotFound)]
+    [InlineData("POST", "devices", true, NativeApiForwardDecision.NotFound)]
     [InlineData("POST", "stream/6f0c2a3e-0000-0000-0000-000000000000/text-tracks/6f0c2a3e-0000-0000-0000-000000000000/preferred", true, NativeApiForwardDecision.Forward)]
     [InlineData("POST", "playback/6f0c2a3e-0000-0000-0000-000000000000/encode", true, NativeApiForwardDecision.Forward)]
     [InlineData("GET", "player/audiobooks/6f0c2a3e-0000-0000-0000-000000000000/chapter-overrides", true, NativeApiForwardDecision.Forward)]

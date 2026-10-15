@@ -1,4 +1,5 @@
 using Dapper;
+using MediaEngine.Domain.Authorization;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Entities;
 using MediaEngine.Storage.Contracts;
@@ -237,6 +238,56 @@ public sealed class ClientAuthorizationRepository(IDatabaseConnection db) : ICli
 
     public Task<bool> RevokeDeviceAsync(Guid deviceId, Guid profileId, DateTimeOffset now, string reason, CancellationToken ct = default) =>
         RevokeDeviceCoreAsync(deviceId, profileId, now, reason, ct);
+
+    public Task<bool> SwitchDeviceProfileAsync(
+        Guid deviceId,
+        Guid accountId,
+        Guid expectedProfileId,
+        Guid callerTokenId,
+        Guid newProfileId,
+        ClientToken accessToken,
+        ClientToken refreshToken,
+        DateTimeOffset now,
+        string reason,
+        AuthorizationAuditEvent audit,
+        CancellationToken ct = default) =>
+        db.ExecuteWriteAsync((conn, tx, token) =>
+        {
+            token.ThrowIfCancellationRequested();
+            // The write lock is held, so this check and the changes below cannot interleave with another switch or a revoke.
+            var callerLive = conn.ExecuteScalar<int>("""
+                SELECT COUNT(1) FROM client_tokens
+                WHERE id = @callerTokenId AND device_id = @deviceId AND token_kind = 'access' AND revoked_at IS NULL;
+                """, new { callerTokenId, deviceId }, tx);
+            if (callerLive != 1)
+            {
+                return false;
+            }
+
+            var moved = conn.Execute("""
+                UPDATE client_devices
+                SET profile_id = @newProfileId, last_seen_at = @now
+                WHERE id = @deviceId
+                  AND account_id = @accountId
+                  AND profile_id = @expectedProfileId
+                  AND revoked_at IS NULL;
+                """, new { deviceId, accountId, expectedProfileId, newProfileId, now = Iso(now) }, tx);
+            if (moved != 1)
+            {
+                return false;
+            }
+
+            // One active profile per device: every earlier token (access, refresh, consumed or not) stops working.
+            conn.Execute("""
+                UPDATE client_tokens
+                SET revoked_at = COALESCE(revoked_at, @now), revoked_reason = COALESCE(revoked_reason, @reason)
+                WHERE device_id = @deviceId;
+                """, new { deviceId, now = Iso(now), reason }, tx);
+            InsertToken(conn, tx, accessToken);
+            InsertToken(conn, tx, refreshToken);
+            AccountRepository.InsertAuthorizationAudit(conn, tx, audit);
+            return true;
+        }, ct);
 
     public Task<bool> SetBackupProfileAsync(Guid deviceId, Guid? profileId, CancellationToken ct = default) =>
         db.ExecuteWriteAsync((conn, tx, token) =>
