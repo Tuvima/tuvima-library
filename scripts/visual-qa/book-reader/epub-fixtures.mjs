@@ -298,6 +298,42 @@ export function buildBigEpub(file, sizeMB) {
     return { chapters: count };
 }
 
+/**
+ * Pictures as real publishers ship them: no width/height attributes, percentage sizes, a full-page cover SVG and a
+ * picture inside a figure. Every page is one pattern (`PICTURE_PAGES`), so a check can tell which pattern collapses.
+ * WebKit (iPhone) lost these inside the paginator's columns while the explicitly sized pictures in the regression
+ * fixture still showed.
+ */
+export const PICTURE_PAGES = ['bare', 'full-width', 'max-width', 'figure', 'cover-svg', 'cover-img', 'inline'];
+export function buildPictureEpub(file) {
+    const zip = new ZipFile(file);
+    zip.add('mimetype', 'application/epub+zip', { store: true });
+    zip.add('META-INF/container.xml', CONTAINER);
+    const extra = '<item id="pic" href="images/pic.png" media-type="image/png"/><item id="css" href="css/style.css" media-type="text/css"/>';
+    zip.add('OEBPS/content.opf', opf({ title: 'Picture Fixture', chapters: PICTURE_PAGES, extraManifest: extra }));
+    zip.add('OEBPS/nav.xhtml', nav(PICTURE_PAGES));
+    zip.add('OEBPS/images/pic.png', makePng(300, 450, [120, 70, 200]), { store: true });
+    zip.add('OEBPS/css/style.css', [
+        'html, body { height: 100%; margin: 0; padding: 0; }',
+        '.cover-img { height: 100%; width: 100%; }',
+        'figure { margin: 1em 0; }',
+        'figure img { width: 100%; height: auto; }',
+    ].join('\n'));
+    const link = '<link rel="stylesheet" type="text/css" href="../css/style.css"/>';
+    const img = attrs => `<img class="pic" src="../images/pic.png" alt="picture" ${attrs}/>`;
+    const pages = {
+        'bare': `<h1>Bare</h1><p>${paragraph(7, 2)}</p>${img('')}<p>${paragraph(8, 2)}</p>`,
+        'full-width': `<h1>Full width</h1>${img('style="width:100%"')}<p>${paragraph(9, 2)}</p>`,
+        'max-width': `<h1>Max width</h1>${img('style="max-width:100%;height:auto"')}<p>${paragraph(10, 2)}</p>`,
+        'figure': `<h1>Figure</h1><figure>${img('')}<figcaption>A caption</figcaption></figure><p>${paragraph(11, 2)}</p>`,
+        'cover-svg': '<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" width="100%" height="100%" viewBox="0 0 300 450" preserveAspectRatio="xMidYMid meet"><image width="300" height="450" xlink:href="../images/pic.png"/></svg>',
+        'cover-img': '<div style="height:100%;text-align:center"><img class="pic cover-img" src="../images/pic.png" alt="cover" style="height:100%"/></div>',
+        'inline': `<p>Some text ${img('style="height:1em"')} with a small inline picture, then text again. ${paragraph(12, 3)}</p>`,
+    };
+    for (const name of PICTURE_PAGES) zip.add(`OEBPS/text/${name}.xhtml`, xhtml(name, pages[name], link));
+    zip.close();
+}
+
 /** An image-heavy fixed-layout (pre-paginated) book: every page is one large picture. */
 export function buildFixedLayoutEpub(file, pages = 40) {
     const zip = new ZipFile(file);
