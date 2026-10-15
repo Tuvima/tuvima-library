@@ -67,6 +67,16 @@
                     }
                 </ul>
             </section>
+
+            @* Read-only: who (a server administrator) has opened this person's photos. The Engine answers only about the signed-in person's own photos. *@
+            <section class="security-settings__group" aria-labelledby="security-photos">
+                <h3 id="security-photos" class="security-settings__group-title">Your photos</h3>
+                <ul class="security-settings__list" role="list">
+                    <li class="security-settings__item">
+                        <SettingsNavRow Key="photo-views" Icon="@AppMaterialIcons.Outlined.Visibility" Title="Who viewed your photos" Status="Server administrators who opened them, newest first" OnClick="@(() => OpenSheet(SecuritySheet.PhotoViews))" />
+                    </li>
+                </ul>
+            </section>
         </div>
 
         @if (_sheet != SecuritySheet.None)
@@ -92,6 +102,9 @@
                         case SecuritySheet.ExtraProtection:
                             @ExtraProtectionSheetContent
                             break;
+                        case SecuritySheet.PhotoViews:
+                            <PhotoViewsList />
+                            break;
                     }
                     <div class="security-sheet__actions">
                         <AppButton Label="Done" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Disabled="@_busy" OnClick="CloseSheet" />
@@ -103,7 +116,7 @@
 </div>
 
 @code {
-    private enum SecuritySheet { None, Password, Email, ExtraProtection }
+    private enum SecuritySheet { None, Password, Email, ExtraProtection, PhotoViews }
 
     private RenderFragment PasswordSheetContent => __builder =>
     {
@@ -395,6 +408,7 @@
         SecuritySheet.Password => Capabilities.HasPassword ? "Change password" : "Secure your account",
         SecuritySheet.Email => "Email",
         SecuritySheet.ExtraProtection => "Extra protection",
+        SecuritySheet.PhotoViews => "Who viewed your photos",
         _ => string.Empty,
     };
 

@@ -77,7 +77,7 @@ Open the scope picker at the top of Photos, Places or Folders. Your own space st
 
 Server administrators have an **Other people** group in the scope picker. It lists every other household, each person in it, and the household's Shared Library. Everything there is read-only: you cannot edit, hide, move, delete or send anything, hidden photos stay hidden, and household administrators and members never see the group. When the administrator screens are locked with a PIN, unlock them first.
 
-Every time you open someone's space or a household's Shared Library, Tuvima records it. The Engine keeps the date, your name and what you opened for the household's owner; it is no longer listed on the Security page. The same space is recorded at most once an hour.
+Every time you open someone's space or a household's Shared Library, Tuvima records it. The person whose photos you opened sees the date, your name and what you opened under **Settings > Security > Who viewed your photos**, read-only (for a household's Shared Library, the household's own administrator sees it). No one else can see it, and it cannot be deleted from there. The same space is recorded at most once an hour.
 
 ## Switch View on for a person
 

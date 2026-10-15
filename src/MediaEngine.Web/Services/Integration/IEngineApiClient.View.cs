@@ -9,6 +9,8 @@ public partial interface IEngineApiClient
     Task<ViewPreferencesDto?> GetViewPreferencesAsync(CancellationToken ct = default);
     /// <summary>Other households a server administrator can open, read-only. Refused (null) for everyone else.</summary>
     Task<ViewOtherPeopleDto?> GetViewOtherPeopleAsync(CancellationToken ct = default);
+    /// <summary>Who opened the caller's own photos, newest first (read-only). Never lists views of anyone else's photos.</summary>
+    Task<ViewPhotoViewsPageDto?> GetViewPhotoViewsAsync(int offset = 0, int limit = 25, CancellationToken ct = default);
     Task<LibraryCapacityDto?> GetLibraryCapacityAsync(string area, CancellationToken ct = default);
     Task<ViewPreferencesDto?> UpdateViewPreferencesAsync(ViewScopeKind scope, Guid? scopeProfileId, ViewTimelineDensity timelineDensity, bool viewerInfoOpen = true, CancellationToken ct = default);
     Task<ViewAssetTimelinePageDto?> GetViewAssetsAsync(ViewAssetQueryOptions options, CancellationToken ct = default);

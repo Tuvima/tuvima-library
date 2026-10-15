@@ -22,7 +22,10 @@ public sealed record ViewOtherPersonDto(
     [property: JsonPropertyName("avatar_color")] string? AvatarColor,
     [property: JsonPropertyName("has_personal_space")] bool HasPersonalSpace);
 
-/// <summary>One time a server administrator opened someone's photos, shown to the household they belong to.</summary>
+/// <summary>
+/// One time a server administrator opened photos, shown only to the person whose photos they were (<c>space</c> is
+/// <c>personal</c>) or, for the household's Shared Library (<c>space</c> is <c>shared</c>), to the household's own administrator.
+/// </summary>
 public sealed record ViewPhotoViewDto(
     [property: JsonPropertyName("id")] long Id,
     [property: JsonPropertyName("viewed_at")] DateTimeOffset ViewedAt,
@@ -30,6 +33,7 @@ public sealed record ViewPhotoViewDto(
     [property: JsonPropertyName("opened")] string Opened,
     [property: JsonPropertyName("space")] string Space);
 
+/// <param name="HouseholdWide">True when the caller also sees views of the household's Shared Library (the household's own administrator). Never means other people's personal photos.</param>
 public sealed record ViewPhotoViewsPageDto(
     [property: JsonPropertyName("page")] PagedResponse<ViewPhotoViewDto> Page,
     [property: JsonPropertyName("household_wide")] bool HouseholdWide);

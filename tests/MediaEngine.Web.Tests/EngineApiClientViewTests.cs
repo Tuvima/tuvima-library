@@ -67,6 +67,7 @@ public sealed class EngineApiClientViewTests
             var json = request.RequestUri.AbsolutePath switch
             {
                 "/view/other-people" => "{\"households\":[]}",
+                "/view/photo-views" => "{\"page\":{\"items\":[],\"offset\":0,\"limit\":25,\"has_more\":false},\"household_wide\":false}",
                 "/view/assets" => "{\"items\":[],\"next_cursor\":null,\"has_more\":false}",
                 _ => "",
             };
@@ -76,9 +77,14 @@ public sealed class EngineApiClientViewTests
 
         await client.GetViewAssetsAsync(new(ViewScopeKind.OtherShared, personId));
         Assert.NotNull(await client.GetViewOtherPeopleAsync());
+        var views = await client.GetViewPhotoViewsAsync(25, 25);
+
+        Assert.False(views!.HouseholdWide);
         Assert.Contains(requests, r => r.Path.Contains("scope=othershared", StringComparison.Ordinal)
             && r.Path.Contains($"scopeProfileId={personId:D}", StringComparison.Ordinal));
         Assert.Contains(requests, r => r.Method == HttpMethod.Get && r.Path == "/view/other-people");
+        // The caller never names whose photos: the Engine answers only for the signed-in person.
+        Assert.Contains(requests, r => r.Method == HttpMethod.Get && r.Path == "/view/photo-views?offset=25&limit=25");
     }
 
     [Fact]

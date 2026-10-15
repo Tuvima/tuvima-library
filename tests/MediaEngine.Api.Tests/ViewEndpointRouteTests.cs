@@ -34,6 +34,23 @@ public sealed class ViewEndpointRouteTests
     }
 
     [Fact]
+    public void PhotoViewsRouteIsReadOnlyAndAnswersOnlyForTheSignedInPersonAboutTheirOwnPhotos()
+    {
+        var endpoint = File.ReadAllText(Path.Combine(FindRepoRoot(), "src", "MediaEngine.Api", "Endpoints", "ViewEndpoints.cs"));
+        var routeStart = endpoint.IndexOf("group.MapGet(\"/photo-views\"", StringComparison.Ordinal);
+        var routeEnd = endpoint.IndexOf("group.MapGet(\"/share-targets\"", routeStart, StringComparison.Ordinal);
+        var route = endpoint[routeStart..routeEnd];
+
+        // The caller's own authority is the only input: no profile or household id arrives from the request.
+        Assert.Contains("HasHumanContext", route, StringComparison.Ordinal);
+        Assert.Contains("ListViewsAsync(authority", route, StringComparison.Ordinal);
+        Assert.DoesNotContain("profileId", route, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("householdId", route, StringComparison.OrdinalIgnoreCase);
+        // Read-only: nothing can edit or clear the audit trail.
+        Assert.DoesNotContain("\"/photo-views\"", endpoint.Replace("group.MapGet(\"/photo-views\"", string.Empty), StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void PreferenceScopeProfileId_PreservesExplicitProfileTarget()
     {
         var profileId = Guid.NewGuid();

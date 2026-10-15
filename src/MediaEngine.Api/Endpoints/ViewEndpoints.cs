@@ -849,7 +849,8 @@ public static partial class ViewEndpoints
             .RequireEffectiveAdministrator()
             .Produces<ViewOtherPeopleDto>();
 
-        // "Who viewed your photos": the audit trail of server administrators opening this household's photos.
+        // "Who viewed your photos": read-only audit trail of server administrators opening the CALLER's own photos (plus, for
+        // the household's own administrator, its Shared Library). Never another person's personal-space views.
         group.MapGet("/photo-views", async (int? offset, int? limit, IViewRequestProfileContext identity,
             IViewOtherPeopleService otherPeople, CancellationToken ct) =>
         {
@@ -862,7 +863,7 @@ public static partial class ViewEndpoints
             return Results.Ok(await otherPeople.ListViewsAsync(authority,
                 PagedRequest.From(offset, limit, defaultLimit: 25, maxLimit: 100), ct));
         }).WithName("GetViewPhotoViews")
-            .WithSummary("Page who opened the caller's photos (the whole household for a household administrator).")
+            .WithSummary("Page who opened the caller's own photos (and the household's Shared Library for its administrator), newest first.")
             .Produces<ViewPhotoViewsPageDto>();
 
         group.MapGet("/share-targets", async (IViewRequestProfileContext identity,
