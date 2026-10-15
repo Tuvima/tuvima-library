@@ -51,6 +51,18 @@ jobs:
         shell: pwsh
         run: ./tests/native/Test-NativeClientSources.ps1
 
+  tv-web:
+    name: TV web client (Tizen and webOS shell)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: TV web static contract gate
+        shell: pwsh
+        run: ./tests/native/Test-TvWebClient.ps1
+
   android:
     name: Android TV, mobile, and Auto
     runs-on: ubuntu-latest
