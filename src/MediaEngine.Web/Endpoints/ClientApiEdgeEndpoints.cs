@@ -79,7 +79,7 @@ public static class ClientApiEdgeEndpoints
             var form = await context.Request.ReadFormAsync(ct);
             var code = form["user_code"].ToString();
             var approved = string.Equals(form["decision"], "approve", StringComparison.Ordinal);
-            var scopes = form["scope"].Where(value => !string.IsNullOrWhiteSpace(value)).Select(value => value!).ToArray();
+            var scopes = ApprovedScopes(form["scope"], form["photos"]);
             using var response = await clients.CreateClient("EngineIdentity").PostAsJsonAsync(
                 "/api/v1/pairing/decision",
                 new PairingDecisionRequest { UserCode = code, Approved = approved, Scopes = scopes },
@@ -415,9 +415,39 @@ public static class ClientApiEdgeEndpoints
         }
     }
 
+    /// <summary>The form field of the one "Photos and personal videos" consent item; the three photo scopes never travel as their own fields.</summary>
+    internal const string PhotosField = "photos";
+
+    /// <summary>
+    /// The scopes the person approved: the ticked ordinary scopes, plus the three photo scopes only when the separate
+    /// photo item was ticked. A photo scope posted as an ordinary <c>scope</c> field is dropped, so photo access can only
+    /// come from that one explicit tick.
+    /// </summary>
+    internal static string[] ApprovedScopes(IEnumerable<string?> ticked, string? photosTick)
+    {
+        var scopes = ticked
+            .Where(value => !string.IsNullOrWhiteSpace(value) && !ClientApiScopes.Photos.Contains(value, StringComparer.Ordinal))
+            .Select(value => value!)
+            .ToList();
+        if (string.Equals(photosTick, "allow", StringComparison.Ordinal))
+        {
+            scopes.AddRange(ClientApiScopes.Photos);
+        }
+
+        return [.. scopes];
+    }
+
     private static string PairingPage(string code, PairingReviewResponse? review, string? antiforgeryToken)
     {
         var html = HtmlEncoder.Default;
+        var photoScopes = review?.RequestedScopes.Where(scope => ClientApiScopes.Photos.Contains(scope, StringComparer.Ordinal)).ToArray() ?? [];
+        var photoItem = photoScopes.Length == 0
+            ? string.Empty
+            : $"""
+                <div class="photos"><label><input type=checkbox name="{PhotosField}" value="allow"> <strong>Allow access to my photos and videos</strong></label>
+                <p>Photos and personal videos: browse your own photos and videos, view and download originals, and your galleries (including galleries shared with you).</p>
+                <p class="note">Leave this unticked and the device cannot see any of them. Asked for: {string.Join(", ", photoScopes.Select(scope => html.Encode(scope)))}.</p></div>
+                """;
         var body = review is null
             ? $"""
                 <h1>Pair a device</h1>
@@ -432,7 +462,8 @@ public static class ClientApiEdgeEndpoints
                 <form method="post">
                   <input type="hidden" name="__RequestVerificationToken" value="{html.Encode(antiforgeryToken ?? string.Empty)}">
                   <input type="hidden" name="user_code" value="{html.Encode(code)}">
-                  <ul>{string.Join(string.Empty, review.RequestedScopes.Select(scope => $"<li><label><input type=checkbox name=scope value=\"{html.Encode(scope)}\" checked> {html.Encode(scope)}</label></li>"))}</ul>
+                  <ul>{string.Join(string.Empty, review.RequestedScopes.Where(scope => !ClientApiScopes.Photos.Contains(scope, StringComparer.Ordinal)).Select(scope => $"<li><label><input type=checkbox name=scope value=\"{html.Encode(scope)}\" checked> {html.Encode(scope)}</label></li>"))}</ul>
+                  {photoItem}
                   <button name="decision" value="approve">Approve device</button>
                   <button class="secondary" name="decision" value="deny">Deny</button>
                 </form>
@@ -446,7 +477,7 @@ public static class ClientApiEdgeEndpoints
     private static string Layout(string body) => """
         <!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width">
         <title>Tuvima Library device pairing</title>
-        <style>body{font:16px system-ui;background:#0e0b17;color:#f7f3ff;max-width:42rem;margin:10vh auto;padding:2rem}form{display:grid;gap:1rem}input{font:inherit;padding:.7rem}button{font:inherit;padding:.8rem 1rem;background:#8852FC;color:white;border:0;border-radius:.5rem}button.secondary{background:#40384f}li{margin:.5rem 0}.error{color:#fca5a5}</style>
+        <style>body{font:16px system-ui;background:#0e0b17;color:#f7f3ff;max-width:42rem;margin:10vh auto;padding:2rem}form{display:grid;gap:1rem}input{font:inherit;padding:.7rem}button{font:inherit;padding:.8rem 1rem;background:#8852FC;color:white;border:0;border-radius:.5rem}button.secondary{background:#40384f}li{margin:.5rem 0}.error{color:#fca5a5}.photos{border:1px solid #40384f;border-radius:.5rem;padding:1rem}.photos p{margin:.5rem 0 0}.note{color:#b9b0cc;font-size:.9rem}</style>
         <main>
         """ + body + """
         </main></html>

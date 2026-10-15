@@ -96,9 +96,23 @@ id that does not exist, so a profile without Documents cannot tell one is there.
 The routes and wire types are in the [API reference](../reference/api-endpoints.md)
 and the executable fixtures `view-timeline.json`, `view-item.json` and
 `view-galleries.json` under `tests/fixtures/native-client-v1`. Client impact is
-`client-required`: no released app has a Photos screen, and the feature stays
-unreachable from apps until the `view.*` pairing scopes and the Dashboard app
-door are approved for it.
+`client-required`: no released app has a Photos screen yet.
+
+An app only sees a person's photos and personal videos when that person allows
+it on the pairing screen. The screen shows one separate item, **Allow access to
+my photos and videos**, unticked by default and explained in plain words
+("browse your own photos and videos, view and download originals, and your
+galleries, including galleries shared with you"). It stands for three scopes
+(`view.personal.read`, `view.originals.read` and `view.galleries.read`), which
+an app may request at pairing but which are never part of the default scopes.
+Leaving the item unticked, approving without choosing, or pairing before this
+change gives the device none of them, and every `/api/v1/view` route answers
+`403`. Ticking it grants all three scopes the app asked for, to that device only.
+Removing the device (Settings, Devices) revokes its tokens, so its photo access
+ends at once (`401`); there is no separate switch for photos. To change the
+choice, remove the device and pair it again. The Dashboard's app door forwards
+only the eleven read-only `GET` routes of `/api/v1/view` (no write, no other
+`view/` path).
 
 ## Release and update behavior
 
