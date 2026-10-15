@@ -1579,6 +1579,7 @@ MediaEngine.Contracts.Collections.MediaEngine.Contracts.Collections.CollectionMa
   Family: System.String | nullability=not-null | accessors=get,init
   SystemKey: System.String | nullability=nullable | accessors=get,init
   GroupType: System.String | nullability=not-null | accessors=get,init
+  UniverseQid: System.String | nullability=nullable | accessors=get,init
   PrimaryLane: System.String | nullability=not-null | accessors=get,init
   IsGlobal: System.Boolean | nullability=not-null | accessors=get,init
   IsSystem: System.Boolean | nullability=not-null | accessors=get,init

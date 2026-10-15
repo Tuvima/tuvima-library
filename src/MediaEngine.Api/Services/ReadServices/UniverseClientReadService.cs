@@ -31,6 +31,13 @@ public sealed partial class UniverseClientReadService(
     [GeneratedRegex("^Q[0-9]{1,15}$", RegexOptions.CultureInvariant)]
     private static partial Regex QidPattern();
 
+    /// <summary>Returns the trimmed QID when it is well formed (<c>Q</c> and digits), otherwise null.</summary>
+    public static string? NormalizeQid(string? qid)
+    {
+        var trimmed = qid?.Trim();
+        return trimmed is not null && QidPattern().IsMatch(trimmed) ? trimmed : null;
+    }
+
     /// <summary>
     /// Returns null when the QID is malformed, names no Universe, the profile may not open it, or none of its shelves
     /// holds an item the profile may see. The caller answers all of those the same way.

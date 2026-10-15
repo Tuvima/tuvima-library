@@ -306,7 +306,8 @@ public sealed class CollectionMediaLookupReadService(IDatabaseConnection db) : I
     public async Task<List<CollectionItemDto>> ResolveItemsAsync(
         Guid collectionId,
         IReadOnlyList<CollectionItem> items,
-        CancellationToken ct)
+        CancellationToken ct,
+        IReadOnlySet<Guid>? allowedWorkIds = null)
     {
         if (items.Count == 0)
         {
@@ -354,6 +355,7 @@ public sealed class CollectionMediaLookupReadService(IDatabaseConnection db) : I
                 INNER JOIN work_owned_assets woa ON woa.work_id = work_tree.WorkId
                 INNER JOIN media_assets ma ON ma.id = woa.asset_id
                 WHERE {visibleAssetPredicate}
+                  {CollectionAssetAllowList.Clause("work_tree.WorkId", allowedWorkIds)}
                 GROUP BY work_tree.RootWorkId
             )
             SELECT CAST(display_work.ItemId AS TEXT) AS ItemId,
@@ -391,6 +393,7 @@ public sealed class CollectionMediaLookupReadService(IDatabaseConnection db) : I
             new
             {
                 CollectionId = collectionId,
+                AllowedHex = CollectionAssetAllowList.ToJson(allowedWorkIds),
                 ItemsJson = System.Text.Json.JsonSerializer.Serialize(items.Select(item => new
                 {
                     id = item.Id.ToString("D"),

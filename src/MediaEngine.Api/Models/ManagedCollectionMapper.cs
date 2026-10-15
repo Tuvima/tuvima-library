@@ -67,7 +67,8 @@ internal static class ManagedCollectionMapper
         string? displayNameOverride = null,
         CollectionCatalogPersonDto? person = null,
         bool hasCollectionsWrite = false,
-        string groupType = CollectionGroupTypes.Collection)
+        string groupType = CollectionGroupTypes.Collection,
+        string? universeQid = null)
     {
         var baseDto = FromDomain(collection, itemCount, activeProfile, hasCollectionsWrite);
         var isGlobal = string.Equals(baseDto.Visibility, CollectionAccessPolicy.SharedVisibility, StringComparison.OrdinalIgnoreCase);
@@ -114,6 +115,7 @@ internal static class ManagedCollectionMapper
             Family = classification.Family,
             SystemKey = classification.SystemKey,
             GroupType = groupType,
+            UniverseQid = universeQid,
             PrimaryLane = classification.PrimaryLaneOverride ?? mediaCounts.PrimaryLane,
             IsGlobal = isGlobal,
             IsSystem = classification.IsSystem,
@@ -143,8 +145,13 @@ internal static class ManagedCollectionMapper
     /// Copies a catalogue entry for a paired app. Apps only read: the authoring fields (rule definition, who a list
     /// is shared with, edit rights) are left out, and the collection's own uploaded artwork is not offered because its
     /// route is not part of the app surface. Member artwork in <c>artwork_items</c> is unchanged.
+    /// <paramref name="verifiedUniverseQid"/> is the QID of a Universe the caller has confirmed the paired profile can
+    /// open through <c>/api/v1/universe/{qid}</c>; only then is <c>universe_qid</c> set and the entry's group type
+    /// <c>universe</c>. Otherwise <c>universe_qid</c> is null and the group type is the catalogue's own.
     /// </summary>
-    public static CollectionManagementCatalogDto ForNativeClient(CollectionManagementCatalogDto source) =>
+    public static CollectionManagementCatalogDto ForNativeClient(
+        CollectionManagementCatalogDto source,
+        string? verifiedUniverseQid = null) =>
         new()
         {
             Id = source.Id,
@@ -184,7 +191,8 @@ internal static class ManagedCollectionMapper
             CanShare = false,
             Family = source.Family,
             SystemKey = source.SystemKey,
-            GroupType = source.GroupType,
+            GroupType = verifiedUniverseQid is null ? source.GroupType : CollectionGroupTypes.Universe,
+            UniverseQid = verifiedUniverseQid,
             PrimaryLane = source.PrimaryLane,
             IsGlobal = source.IsGlobal,
             IsSystem = source.IsSystem,
