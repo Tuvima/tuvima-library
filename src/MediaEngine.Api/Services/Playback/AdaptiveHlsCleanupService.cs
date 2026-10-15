@@ -94,6 +94,58 @@ public sealed class AdaptiveHlsCleanupService(
         }
 
         await CleanupExpiredOfflineVariantsAsync(root, ct).ConfigureAwait(false);
+        await SweepOrphanJobFoldersAsync(root, ct).ConfigureAwait(false);
+    }
+
+    /// <summary>How old a job folder must be before the sweep may remove it when nothing owns it.</summary>
+    internal static readonly TimeSpan OrphanJobFolderAge = TimeSpan.FromHours(24);
+
+    /// <summary>
+    /// Removes <c>&lt;cache&gt;/&lt;asset&gt;/&lt;profile&gt;/&lt;jobId&gt;</c> folders that a failed or interrupted encode left behind:
+    /// the name is a job id, no offline variant keeps a file inside it, no waiting or running job owns it, and it has not been
+    /// written to for <see cref="OrphanJobFolderAge"/>. Any other folder is left alone.
+    /// </summary>
+    private async Task SweepOrphanJobFoldersAsync(string root, CancellationToken ct)
+    {
+        var activeJobs = await playbackState.ListActiveEncodeJobIdsAsync(ct).ConfigureAwait(false);
+        var variantFolders = (await playbackState.ListOfflineVariantOutputPathsAsync(ct).ConfigureAwait(false))
+            .Select(path => Path.TrimEndingDirectorySeparator(Path.GetFullPath(path)))
+            .ToList();
+        var oldest = DateTime.UtcNow - OrphanJobFolderAge;
+        var hlsRoot = Path.Combine(root, "hls");
+
+        foreach (var assetFolder in Directory.EnumerateDirectories(root))
+        {
+            if (string.Equals(assetFolder, hlsRoot, StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            foreach (var profileFolder in Directory.EnumerateDirectories(assetFolder))
+            {
+                foreach (var jobFolder in Directory.EnumerateDirectories(profileFolder))
+                {
+                    ct.ThrowIfCancellationRequested();
+                    if (!Guid.TryParseExact(Path.GetFileName(jobFolder), "N", out var jobId)
+                        || activeJobs.Contains(jobId)
+                        || Directory.GetLastWriteTimeUtc(jobFolder) > oldest
+                        || variantFolders.Any(path => path.StartsWith(jobFolder + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase)))
+                    {
+                        continue;
+                    }
+
+                    try
+                    {
+                        Directory.Delete(jobFolder, recursive: true);
+                        logger.LogInformation("Removed leftover encode folder for job {JobId}", jobId);
+                    }
+                    catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                    {
+                        logger.LogWarning(ex, "Could not remove leftover encode folder for job {JobId}", jobId);
+                    }
+                }
+            }
+        }
     }
 
     /// <summary>

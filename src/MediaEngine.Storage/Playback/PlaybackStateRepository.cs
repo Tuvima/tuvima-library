@@ -173,7 +173,9 @@ public sealed class PlaybackStateRepository
                 WHERE status = 'complete'
                   AND output_path IS NOT NULL
                   AND EXISTS (SELECT 1 FROM offline_variants v
-                              WHERE v.id = @variantId AND v.asset_id = encode_jobs.asset_id AND v.output_path = encode_jobs.output_path);
+                              WHERE v.id = @variantId AND v.asset_id = encode_jobs.asset_id AND v.output_path = encode_jobs.output_path
+                                AND encode_jobs.owner_profile_id IS v.owner_profile_id
+                                AND (encode_jobs.owner_device_id IS NULL OR encode_jobs.owner_device_id = v.owner_device_id));
                 DELETE FROM offline_variants WHERE id = @variantId;
                 """, new { variantId }, tx);
         }, ct);
@@ -195,6 +197,24 @@ public sealed class PlaybackStateRepository
             "SELECT expires_at FROM offline_variants WHERE id <> @variantId AND output_path = @outputPath COLLATE NOCASE;",
             new { variantId, outputPath }).AsList();
         return Task.FromResult(others.Any(expiresAt => !IsExpired(expiresAt, now)));
+    }
+
+    /// <summary>Where every offline variant's file lives, for the pass that sweeps leftover job folders.</summary>
+    public Task<IReadOnlyList<string>> ListOfflineVariantOutputPathsAsync(CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+        using var conn = _db.CreateConnection();
+        IReadOnlyList<string> paths = conn.Query<string>("SELECT output_path FROM offline_variants WHERE output_path IS NOT NULL;").AsList();
+        return Task.FromResult(paths);
+    }
+
+    /// <summary>The ids of encode jobs that are waiting or running, whose output folder must not be swept.</summary>
+    public Task<IReadOnlySet<Guid>> ListActiveEncodeJobIdsAsync(CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+        using var conn = _db.CreateConnection();
+        IReadOnlySet<Guid> ids = conn.Query<Guid>("SELECT id FROM encode_jobs WHERE status IN ('queued', 'scheduled', 'running');").ToHashSet();
+        return Task.FromResult(ids);
     }
 
     private static bool IsExpired(string? expiresAt, DateTimeOffset now) =>
@@ -237,11 +257,12 @@ public sealed class PlaybackStateRepository
                AND (status IN ('queued', 'scheduled', 'running')
                     OR (status = 'complete' AND EXISTS (
                         SELECT 1 FROM offline_variants v
-                        WHERE v.asset_id = encode_jobs.asset_id AND v.output_path = encode_jobs.output_path)))
+                        WHERE v.asset_id = encode_jobs.asset_id AND v.output_path = encode_jobs.output_path
+                          AND (v.expires_at IS NULL OR v.expires_at > @now))))
             ORDER BY created_at DESC
             LIMIT 1;
             """,
-            new { assetId, profileKey, sourceHash, ownerProfileId, ownerDeviceId });
+            new { assetId, profileKey, sourceHash, ownerProfileId, ownerDeviceId, now = DateTimeOffset.UtcNow.ToString("O", CultureInfo.InvariantCulture) });
 
         if (existing is not null)
         {
@@ -470,7 +491,7 @@ public sealed class PlaybackStateRepository
                 height,
                 bitrateKbps,
                 createdAt = now,
-                expiresAt = expiresAt?.ToString("O", CultureInfo.InvariantCulture),
+                expiresAt = expiresAt?.ToUniversalTime().ToString("O", CultureInfo.InvariantCulture),
                 jobId = job.Id,
             });
 

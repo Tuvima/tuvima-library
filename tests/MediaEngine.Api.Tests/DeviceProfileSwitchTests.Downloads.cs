@@ -296,6 +296,49 @@ public sealed partial class DeviceProfileSwitchTests
     }
 
     [Fact]
+    public async Task ExpiredEntries_NeitherHideLiveOnesBehindTheLimit_NorUseItUp()
+    {
+        var film = await InsertOwnedMovieAsync("Family film", "PG");
+        var past = DateTimeOffset.UtcNow.AddHours(-1).ToString("O");
+        var future = DateTimeOffset.UtcNow.AddDays(1).ToString("O");
+        var live = new List<Guid>();
+        using (var connection = _database.CreateConnection())
+        using (var transaction = connection.BeginTransaction())
+        {
+            // 500 expired entries stored first, then 5 live ones: a limit applied before the expiry filter would show none of the live ones.
+            for (var index = 0; index < DeviceDownloadRepository.MaxRowsPerDevice + 5; index++)
+            {
+                var id = Guid.NewGuid();
+                var isLive = index >= DeviceDownloadRepository.MaxRowsPerDevice;
+                if (isLive)
+                {
+                    live.Add(id);
+                }
+
+                connection.Execute(
+                    """
+                    INSERT INTO offline_variants (id, asset_id, owner_profile_id, owner_device_id, profile_key, source_hash, display_name, status, file_size, created_at, expires_at)
+                    VALUES (@id, @asset, @profile, @device, 'mobile-small', 'hash', 'Phone', 'ready', 100, @past, @expires);
+                    INSERT INTO device_downloads (device_id, profile_id, asset_id, variant_id, stored_bytes, stored_at, updated_at)
+                    VALUES (@device, @profile, @asset, @id, 1, @storedAt, @past);
+                    """,
+                    new { id, asset = film.AssetId, profile = _mary.Id, device = _phoneId, past, expires = isLive ? future : past, storedAt = DateTimeOffset.UtcNow.AddDays(-30).AddSeconds(index).ToString("O") },
+                    transaction);
+            }
+
+            transaction.Commit();
+        }
+
+        var service = Downloads();
+        Assert.Equal(live.Order(), (await service.ListAsync(PhoneAuthority(_mary.Id))).Downloads!.Downloads.Select(download => download.VariantId).Order());
+
+        // The device is at 505 rows but only 5 are on its list, so a new download still fits.
+        var extra = InsertVariant(film.AssetId, _mary.Id, _phoneId);
+        Assert.Equal(DeviceDownloadOutcome.Ok, await service.UpsertAsync(PhoneAuthority(_mary.Id), Report(film.AssetId, extra, 1), MayDownload()));
+        Assert.Equal(6, (await service.ListAsync(PhoneAuthority(_mary.Id))).Downloads!.Downloads.Count);
+    }
+
+    [Fact]
     public async Task OverHttp_OnlyThePairedApp_UsesTheThreeRoutes_AndAForeignVariantIs404()
     {
         var film = await InsertOwnedMovieAsync("Family film", "PG");

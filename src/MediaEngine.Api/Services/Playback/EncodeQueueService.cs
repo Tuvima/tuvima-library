@@ -46,7 +46,7 @@ public sealed class EncodeQueueService : BackgroundService
         }
     }
 
-    private async Task ProcessNextJobAsync(CancellationToken ct)
+    internal async Task ProcessNextJobAsync(CancellationToken ct)
     {
         var job = await _state.LeaseNextEncodeJobAsync(ct);
         if (job is null)
@@ -73,32 +73,66 @@ public sealed class EncodeQueueService : BackgroundService
         var args = BuildArguments(asset.FilePathRoot, outputPath, job.ProfileKey);
         _logger.LogInformation("Starting encode job {JobId} for asset {AssetId} with profile {ProfileKey}", job.Id, job.AssetId, job.ProfileKey);
 
-        var result = await _ffmpeg.RunAsync(args, ct);
-        if (result.ExitCode != 0 || !File.Exists(outputPath))
+        try
         {
-            await _state.FailEncodeJobAsync(job.Id, string.IsNullOrWhiteSpace(result.Error) ? "FFmpeg failed." : result.Error, ct);
-            return;
-        }
+            var result = await _ffmpeg.RunAsync(args, ct);
+            if (result.ExitCode != 0 || !File.Exists(outputPath))
+            {
+                await _state.FailEncodeJobAsync(job.Id, string.IsNullOrWhiteSpace(result.Error) ? "FFmpeg failed." : result.Error, ct);
+                DeleteJobFolder(job, outputPath);
+                return;
+            }
 
-        var metadata = MetadataFor(job.ProfileKey, outputPath);
-        await _state.CompleteEncodeJobAsync(
-            job,
-            outputPath,
-            metadata.DisplayName,
-            metadata.Container,
-            metadata.VideoCodec,
-            metadata.AudioCodec,
-            metadata.Width,
-            metadata.Height,
-            metadata.BitrateKbps,
-            // A prepared variant lives for variant_retention_days; the cleanup service removes it once this passes.
-            DateTimeOffset.UtcNow.AddDays(Math.Max(1, _config.LoadTranscoding().VariantRetentionDays)),
-            ct);
+            var metadata = MetadataFor(job.ProfileKey, outputPath);
+            await _state.CompleteEncodeJobAsync(
+                job,
+                outputPath,
+                metadata.DisplayName,
+                metadata.Container,
+                metadata.VideoCodec,
+                metadata.AudioCodec,
+                metadata.Width,
+                metadata.Height,
+                metadata.BitrateKbps,
+                // A prepared variant lives for variant_retention_days; the cleanup service removes it once this passes.
+                DateTimeOffset.UtcNow.AddDays(Math.Max(1, _config.LoadTranscoding().VariantRetentionDays)),
+                ct);
+        }
+        catch
+        {
+            // Interrupted or crashed mid-encode: nothing owns the half-written folder, so remove it before the error moves on.
+            DeleteJobFolder(job, outputPath);
+            throw;
+        }
 
         _logger.LogInformation("Completed encode job {JobId} at {OutputPath}", job.Id, outputPath);
     }
 
-    private string BuildOutputPath(LeasedEncodeJob job, string sourcePath)
+    /// <summary>
+    /// Removes the job's own output folder (<c>.../&lt;asset&gt;/&lt;profile&gt;/&lt;jobId&gt;</c>) after a failed or interrupted
+    /// encode. Guarded: only a folder named for this job, inside the variant cache, is ever deleted.
+    /// </summary>
+    private void DeleteJobFolder(LeasedEncodeJob job, string outputPath)
+    {
+        try
+        {
+            var folder = Path.TrimEndingDirectorySeparator(Path.GetFullPath(Path.GetDirectoryName(outputPath)!));
+            var root = Path.TrimEndingDirectorySeparator(Path.GetFullPath(ResolveVariantRoot()));
+            if (string.Equals(Path.GetFileName(folder), job.Id.ToString("N"), StringComparison.OrdinalIgnoreCase)
+                && folder.StartsWith(root + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase)
+                && Directory.Exists(folder))
+            {
+                Directory.Delete(folder, recursive: true);
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            // Best effort: the cleanup pass also sweeps job folders that nothing owns once they are old enough.
+            _logger.LogWarning(ex, "Could not remove the output folder of failed encode job {JobId}", job.Id);
+        }
+    }
+
+    private string ResolveVariantRoot()
     {
         var transcoding = _config.LoadTranscoding();
         var root = _config.LoadCore().LibraryRoot;
@@ -107,6 +141,15 @@ public sealed class EncodeQueueService : BackgroundService
             root = AppContext.BaseDirectory;
         }
 
+        return string.IsNullOrWhiteSpace(transcoding.VariantCachePath)
+            ? Path.Combine(root, ".data", "variants")
+            : Path.IsPathRooted(transcoding.VariantCachePath)
+                ? transcoding.VariantCachePath
+                : Path.Combine(root, transcoding.VariantCachePath);
+    }
+
+    private string BuildOutputPath(LeasedEncodeJob job, string sourcePath)
+    {
         var profile = SanitizeSegment(job.ProfileKey);
         var extension = job.ProfileKey.Equals("audio-mobile", StringComparison.OrdinalIgnoreCase)
             ? ".m4a"
@@ -115,11 +158,7 @@ public sealed class EncodeQueueService : BackgroundService
                 : ".mp4";
 
         var fileName = $"{Path.GetFileNameWithoutExtension(sourcePath)}.{profile}{extension}";
-        var variantRoot = string.IsNullOrWhiteSpace(transcoding.VariantCachePath)
-            ? Path.Combine(root, ".data", "variants")
-            : Path.IsPathRooted(transcoding.VariantCachePath)
-                ? transcoding.VariantCachePath
-                : Path.Combine(root, transcoding.VariantCachePath);
+        var variantRoot = ResolveVariantRoot();
 
         // The job id keeps two people's variants of the same file (same asset and profile key) from sharing one path.
         return Path.Combine(variantRoot, job.AssetId.ToString("N"), profile, job.Id.ToString("N"), fileName);

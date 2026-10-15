@@ -287,4 +287,50 @@ public sealed class AdaptiveHlsCleanupServiceTests : IDisposable
 
         Assert.False(File.Exists(free));
     }
+
+    [Fact]
+    public async Task CleanupAsync_SweepsOnlyOldJobFoldersThatNothingOwns()
+    {
+        var assetId = SeedAsset();
+        var profileFolder = Path.Combine(_root, "variants", assetId.ToString("N"), "mobile-small");
+        var old = DateTime.UtcNow.AddDays(-2);
+
+        string Folder(Guid id, DateTime writtenAt, string file = "partial.mp4")
+        {
+            var path = Path.Combine(profileFolder, id.ToString("N"));
+            Directory.CreateDirectory(path);
+            File.WriteAllText(Path.Combine(path, file), "partial");
+            Directory.SetLastWriteTimeUtc(path, writtenAt);
+            return path;
+        }
+
+        var orphan = Folder(Guid.NewGuid(), old);
+        var fresh = Folder(Guid.NewGuid(), DateTime.UtcNow.AddHours(-1));
+        var runningJob = Guid.NewGuid();
+        var running = Folder(runningJob, old);
+        var ownedJob = Guid.NewGuid();
+        var owned = Folder(ownedJob, old, "done.mp4");
+        var notAJob = Path.Combine(profileFolder, "keep-me");
+        Directory.CreateDirectory(notAJob);
+        Directory.SetLastWriteTimeUtc(notAJob, old);
+        using (var connection = _database.CreateConnection())
+        {
+            connection.Execute(
+                """
+                INSERT INTO encode_jobs (id, asset_id, profile_key, source_hash, status, created_at, progress_pct)
+                VALUES (@runningJob, @assetId, 'mobile-small', 'source-hash', 'running', @now, 1);
+                """,
+                new { runningJob, assetId, now = DateTimeOffset.UtcNow.ToString("O") });
+        }
+
+        SeedVariant(assetId, Path.Combine(owned, "done.mp4"), DateTimeOffset.UtcNow.AddDays(1));
+
+        await CreateCleanup(new AdaptiveHlsPackageRepository(_database)).CleanupAsync();
+
+        Assert.False(Directory.Exists(orphan));
+        Assert.True(Directory.Exists(fresh));
+        Assert.True(Directory.Exists(running));
+        Assert.True(Directory.Exists(owned));
+        Assert.True(Directory.Exists(notAJob));
+    }
 }

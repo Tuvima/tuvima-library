@@ -273,7 +273,11 @@ public sealed class PlayerService
         var deviceId = NormalizeDeviceId(heartbeat.DeviceId);
         var client = NormalizeClient(heartbeat.Client);
         var activeSession = await _sessions.GetStateAsync(profileId, StaleSessionWindow, ct);
-        if (heartbeat.SessionId.HasValue && activeSession is not null && activeSession.SessionId != heartbeat.SessionId.Value)
+        // A replayed offline heartbeat describes a past session and queue that no longer exist, so their ids are not checked
+        // against the live ones (the asset check below still applies).
+        var recordedAt = OfflineProgressSyncPolicy.ResolveClientTimestamp(
+            heartbeat.Offline, heartbeat.ClientTimestamp, DateTimeOffset.UtcNow);
+        if (recordedAt is null && heartbeat.SessionId.HasValue && activeSession is not null && activeSession.SessionId != heartbeat.SessionId.Value)
         {
             return await GetStateAsync(profileId, deviceId, client, ct);
         }
@@ -285,7 +289,7 @@ public sealed class PlayerService
             await _scope.RequireAssetAsync(heartbeatAsset.Value, ct);
         }
 
-        if (heartbeat.QueueItemId.HasValue && activeSession?.Queue.Any(item =>
+        if (recordedAt is null && heartbeat.QueueItemId.HasValue && activeSession?.Queue.Any(item =>
                 item.QueueItemId == heartbeat.QueueItemId && item.AssetId == heartbeatAsset) != true)
         {
             throw new PlayerResourceDeniedException();
@@ -294,8 +298,6 @@ public sealed class PlayerService
         // A replayed offline heartbeat describes the past, so it only ever touches the saved resume position: later wins
         // per asset, and it never writes the live session, the transport, listening history or telemetry at the time
         // it happens to arrive.
-        var recordedAt = OfflineProgressSyncPolicy.ResolveClientTimestamp(
-            heartbeat.Offline, heartbeat.ClientTimestamp, DateTimeOffset.UtcNow);
         if (recordedAt is { } offlineRecordedAt)
         {
             if (heartbeatAsset.HasValue)

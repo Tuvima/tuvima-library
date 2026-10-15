@@ -197,4 +197,24 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
 
         Assert.Null(await new PlayerSessionRepository(_database).GetStateAsync(profile, TimeSpan.FromMinutes(5)));
     }
+
+    [Fact]
+    public async Task OfflineHeartbeat_WithAnOldSessionAndQueueItem_IsStillApplied_ButALiveOneIsNot()
+    {
+        var (account, asset) = await SeedHeartbeatAssetAsync();
+        var (player, profile, states) = BuildHeartbeatPlayer(account);
+        var sessions = new PlayerSessionRepository(_database);
+        await sessions.EnsureSessionAsync(profile, Guid.NewGuid(), "tv", "living-room");
+        await SeedProgressAsync(states, profile, asset, 70, DateTimeOffset.UtcNow.AddHours(-3));
+        var staleIds = OfflineBeat(profile, asset, offline: true, DateTimeOffset.UtcNow.AddMinutes(-10))
+            with
+        { SessionId = Guid.NewGuid(), QueueItemId = Guid.NewGuid() };
+
+        // A replay names the session and queue item of a past run; neither exists now, and that must not drop or refuse it.
+        await player.HeartbeatAsync(staleIds);
+        Assert.Equal(10, (await states.GetAsync(profile, asset))!.ProgressPct);
+
+        // An ordinary heartbeat naming that queue item is still refused: the check is unchanged.
+        await Assert.ThrowsAsync<PlayerResourceDeniedException>(() => player.HeartbeatAsync(staleIds with { Offline = false, ClientTimestamp = null, SessionId = null }));
+    }
 }

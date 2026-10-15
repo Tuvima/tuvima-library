@@ -213,12 +213,18 @@ public sealed class PlaybackStateRepositoryTests : IDisposable
         var device = Guid.NewGuid();
         var first = await repository.QueueEncodeJobAsync(assetId, "mobile-standard", "source", null, profile, device);
         var lease = Assert.IsType<LeasedEncodeJob>(await repository.LeaseNextEncodeJobAsync());
-        await repository.CompleteEncodeJobAsync(lease, _dbPath + ".again.media", "Phone", "mp4", "h264", "aac", 1280, 720, 2500, DateTimeOffset.UtcNow.AddMinutes(-1));
-        // While the variant exists, asking again returns the finished job.
+        await repository.CompleteEncodeJobAsync(lease, _dbPath + ".again.media", "Phone", "mp4", "h264", "aac", 1280, 720, 2500, DateTimeOffset.UtcNow.AddDays(30));
+        // While the variant is current, asking again returns the finished job.
         Assert.Equal(first.Id, (await repository.QueueEncodeJobAsync(assetId, "mobile-standard", "source", null, profile, device)).Id);
-        var expired = Assert.Single(await repository.ListExpiredOfflineVariantsAsync(DateTimeOffset.UtcNow));
+        var expired = Assert.Single(await repository.ListOfflineVariantsAsync(assetId, "source", profile, device));
 
-        await repository.DeleteOfflineVariantAsync(expired.Id);
+        // It expires, and no cleanup pass has run (or cleanup is off): asking again prepares it afresh, not the old job.
+        using (var conn = _db.CreateConnection())
+        {
+            await conn.ExecuteAsync(
+                "UPDATE offline_variants SET expires_at = @past WHERE id = @id;",
+                new { id = expired.Id, past = DateTimeOffset.UtcNow.AddSeconds(-1).ToString("O") });
+        }
 
         var second = await repository.QueueEncodeJobAsync(assetId, "mobile-standard", "source", null, profile, device);
         Assert.NotEqual(first.Id, second.Id);
@@ -281,5 +287,50 @@ public sealed class PlaybackStateRepositoryTests : IDisposable
             """,
             new { id, assetId, outputPath, now = DateTimeOffset.UtcNow.ToString("O"), expires = expiresAt.ToString("O") });
         return id;
+    }
+
+    [Fact]
+    public async Task AfterCleanupRemovesAnExpiredVariant_AskingAgainAlsoPreparesItAfresh()
+    {
+        var assetId = await CreateAssetAsync();
+        var repository = new PlaybackStateRepository(_db);
+        var profile = Guid.NewGuid();
+        var device = Guid.NewGuid();
+        var first = await repository.QueueEncodeJobAsync(assetId, "mobile-standard", "source", null, profile, device);
+        var lease = Assert.IsType<LeasedEncodeJob>(await repository.LeaseNextEncodeJobAsync());
+        await repository.CompleteEncodeJobAsync(lease, _dbPath + ".removed.media", "Phone", "mp4", "h264", "aac", 1280, 720, 2500, DateTimeOffset.UtcNow.AddMinutes(-1));
+
+        await repository.DeleteOfflineVariantAsync(Assert.Single(await repository.ListExpiredOfflineVariantsAsync(DateTimeOffset.UtcNow)).Id);
+
+        Assert.NotEqual(first.Id, (await repository.QueueEncodeJobAsync(assetId, "mobile-standard", "source", null, profile, device)).Id);
+    }
+
+    [Fact]
+    public async Task RemovingOneVariant_NeverDeletesAnotherProfilesJobOnTheSameOldLayoutPath()
+    {
+        var assetId = await CreateAssetAsync();
+        var repository = new PlaybackStateRepository(_db);
+        var shared = _dbPath + ".old-layout.media";
+        var profileA = Guid.NewGuid();
+        var profileB = Guid.NewGuid();
+        var deviceA = Guid.NewGuid();
+        var deviceB = Guid.NewGuid();
+        var jobA = await repository.QueueEncodeJobAsync(assetId, "mobile-standard", "source", null, profileA, deviceA);
+        var jobB = await repository.QueueEncodeJobAsync(assetId, "mobile-standard", "source", null, profileB, deviceB);
+        // The old layout let two people's jobs for the same asset and profile key write one path.
+        foreach (var _ in new[] { 0, 1 })
+        {
+            var lease = Assert.IsType<LeasedEncodeJob>(await repository.LeaseNextEncodeJobAsync());
+            await repository.CompleteEncodeJobAsync(lease, shared, "Phone", "mp4", "h264", "aac", 1280, 720, 2500, DateTimeOffset.UtcNow.AddDays(30));
+        }
+
+        var variantA = Assert.Single(await repository.ListOfflineVariantsAsync(assetId, "source", profileA, deviceA));
+
+        await repository.DeleteOfflineVariantAsync(variantA.Id);
+
+        using var conn = _db.CreateConnection();
+        Assert.Equal(new[] { jobB.Id }, (await conn.QueryAsync<Guid>("SELECT id FROM encode_jobs WHERE status = 'complete';")).ToArray());
+        Assert.Equal(jobB.Id, (await repository.QueueEncodeJobAsync(assetId, "mobile-standard", "source", null, profileB, deviceB)).Id);
+        Assert.NotEqual(jobA.Id, (await repository.QueueEncodeJobAsync(assetId, "mobile-standard", "source", null, profileA, deviceA)).Id);
     }
 }

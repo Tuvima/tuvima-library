@@ -41,9 +41,10 @@ public sealed class DeviceDownloadRepository
             JOIN offline_variants v ON v.id = d.variant_id
             WHERE d.device_id = @deviceId
               AND d.profile_id = @profileId
+              AND (v.expires_at IS NULL OR v.expires_at > @now)
             ORDER BY d.stored_at, d.variant_id
             LIMIT @limit;
-            """, new { deviceId, profileId, limit = MaxRowsPerDevice }).AsList();
+            """, new { deviceId, profileId, limit = MaxRowsPerDevice, now = now.ToUniversalTime().ToString("O", CultureInfo.InvariantCulture) }).AsList();
 
         IReadOnlyList<DeviceDownloadDto> list = rows
             .Where(row => ParseDate(row.ExpiresAt) is not { } expiresAt || expiresAt > now)
@@ -111,9 +112,14 @@ public sealed class DeviceDownloadRepository
                 new { deviceId, variantId }, tx);
             if (existing == 0)
             {
+                // Entries whose variant has expired are not on the list any more, so they do not use up the limit.
                 var total = conn.ExecuteScalar<long>(
-                    "SELECT COUNT(*) FROM device_downloads WHERE device_id = @deviceId;",
-                    new { deviceId }, tx);
+                    """
+                    SELECT COUNT(*) FROM device_downloads d
+                    JOIN offline_variants v ON v.id = d.variant_id
+                    WHERE d.device_id = @deviceId AND (v.expires_at IS NULL OR v.expires_at > @now);
+                    """,
+                    new { deviceId, now = now.ToUniversalTime().ToString("O", CultureInfo.InvariantCulture) }, tx);
                 if (total >= MaxRowsPerDevice)
                 {
                     return false;
