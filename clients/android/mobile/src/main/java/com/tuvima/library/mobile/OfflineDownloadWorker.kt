@@ -13,7 +13,10 @@ class OfflineDownloadWorker(context: Context, parameters: WorkerParameters) : Co
         val app = applicationContext as TuvimaMobileApplication
         val client = app.client ?: app.savedServer()?.let(app::connect) ?: return Result.failure()
         return runCatching {
-            client.requestOfflineVariant(assetId)
+            client.requestOfflineVariant(
+                assetId,
+                inputData.getString(KEY_PROFILE_KEY) ?: TuvimaMobileApplication.DEFAULT_DOWNLOAD_QUALITY,
+            )
             var readyUrl: String? = null
             for (attempt in 0 until 180) {
                 val manifest = client.playbackManifest(assetId, "local")
@@ -32,5 +35,8 @@ class OfflineDownloadWorker(context: Context, parameters: WorkerParameters) : Co
         }.getOrElse { if (runAttemptCount < 3) Result.retry() else Result.failure() }
     }
 
-    companion object { const val KEY_ASSET_ID = "asset_id" }
+    companion object {
+        const val KEY_ASSET_ID = "asset_id"
+        const val KEY_PROFILE_KEY = "profile_key"
+    }
 }

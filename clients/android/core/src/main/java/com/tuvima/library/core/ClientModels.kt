@@ -92,6 +92,8 @@ data class DisplayCard(
     val artworkUrl: String?,
     val actions: List<DisplayAction>,
     val progressPercent: Double?,
+    /** Portrait-first artwork for poster grids; [artworkUrl] stays landscape-first for hero tiles. */
+    val posterUrl: String? = null,
 )
 
 data class DisplayAction(
@@ -144,6 +146,13 @@ class TuvimaHttpException(
 
 internal fun JSONObject.optionalString(name: String): String? =
     if (isNull(name)) null else optString(name).takeIf { it.isNotBlank() }
+
+internal fun JSONObject.optionalInt(name: String): Int? = if (isNull(name)) null else optInt(name)
+
+internal fun JSONObject.optionalLong(name: String): Long? = if (isNull(name)) null else optLong(name)
+
+internal fun JSONObject.optionalDouble(name: String): Double? =
+    if (isNull(name)) null else optDouble(name).takeUnless(Double::isNaN)
 
 internal fun JSONArray.strings(): List<String> = buildList {
     for (index in 0 until length()) optString(index).takeIf(String::isNotBlank)?.let(::add)
