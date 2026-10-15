@@ -9,6 +9,12 @@ The app consumes only the Dashboard `/api/v1` contract. Tokens are stored in
 Keychain, downloaded files are excluded from backup, and signed HLS URLs are
 never persisted.
 
+Orientation: the iPhone app is portrait only (`UISupportedInterfaceOrientations` in
+`project.yml`); iPad keeps all orientations. Only video playback may rotate: the video
+player (currently the video item in the photo viewer) calls `allowsVideoRotation`, and
+`TuvimaAppDelegate` then allows landscape via `OrientationPolicy` until the screen goes
+away, when the app is turned back to portrait.
+
 ## Screens
 
 The iPhone app is a tab bar over API v1 only (no Engine port, no service key):
