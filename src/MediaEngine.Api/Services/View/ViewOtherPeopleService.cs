@@ -117,7 +117,7 @@ public sealed class ViewOtherPeopleService(
     public Task<ViewPhotoViewsPageDto> ListViewsAsync(RequestAuthority caller, PagedRequest page, CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested();
-        if (caller.ActiveProfileId is not { } activeProfile)
+        if (caller.PrincipalKind != PrincipalKind.Human || caller.ActiveProfileId is not { } activeProfile)
         {
             throw new UnauthorizedAccessException();
         }
@@ -125,59 +125,48 @@ public sealed class ViewOtherPeopleService(
         using var connection = database.CreateConnection();
         var household = connection.ExecuteScalar<Guid?>(new CommandDefinition(
             "SELECT household_id FROM profiles WHERE id = @activeProfile;", new { activeProfile }, cancellationToken: ct));
-        var householdWide = (caller.IsEffectiveHouseholdAdministrator || caller.IsEffectiveAdministrator)
+        // Personal-space views are only ever shown to the person whose photos were opened. The household's Shared
+        // Library belongs to the household, so its views are also shown to the household's own administrator
+        // (a household administrator of another household has a different AccountHouseholdId, and a server
+        // administrator is not one unless they also look after that household).
+        var includesSharedLibrary = caller.IsEffectiveHouseholdAdministrator
             && household is not null && caller.AccountHouseholdId == household;
         // json_extract compares the household stored on the row, so an event is only ever shown to its own household.
         var rows = connection.Query<ViewRow>(new CommandDefinition("""
-            SELECT e.id AS Id, e.occurred_at AS ViewedAt, e.subject_type AS SubjectType, e.subject_id AS SubjectId,
+            SELECT e.id AS Id, e.occurred_at AS ViewedAt, e.subject_type AS SubjectType,
                    vp.display_name AS ViewerName
               FROM authorization_audit_events e
               LEFT JOIN profiles vp ON vp.id = e.actor_profile_id
              WHERE e.event_type = @OpenedEventType
                AND json_extract(e.changes_json, '$.household_id') = @household
-               AND (@householdWide = 1 OR (e.subject_type = @personal AND e.subject_id = @own))
+               AND ((e.subject_type = @personal AND e.subject_id = @own)
+                    OR (@includesSharedLibrary = 1 AND e.subject_type = @shared AND e.subject_id = @household))
              ORDER BY e.occurred_at DESC, e.id DESC
              LIMIT @limit OFFSET @offset;
             """, new
         {
             OpenedEventType,
             personal = PersonalSubject,
+            shared = SharedSubject,
             household = household?.ToString("D"),
-            householdWide = householdWide ? 1 : 0,
+            includesSharedLibrary = includesSharedLibrary ? 1 : 0,
             own = activeProfile.ToString("D"),
             limit = page.Limit + 1,
             offset = page.Offset
         }, cancellationToken: ct)).ToList();
 
-        var names = new Dictionary<string, string>();
         var items = new List<ViewPhotoViewDto>(rows.Count);
         foreach (var row in rows)
         {
             var shared = row.SubjectType == SharedSubject;
-            string opened = "Shared Library";
-            if (!shared)
-            {
-                if (!names.TryGetValue(row.SubjectId, out var name))
-                {
-                    name = Guid.TryParse(row.SubjectId, out var subjectProfile)
-                        ? connection.ExecuteScalar<string?>(new CommandDefinition(
-                            "SELECT display_name FROM profiles WHERE id = @subjectProfile;",
-                            new { subjectProfile }, cancellationToken: ct)) ?? "Someone"
-                        : "Someone";
-                    names[row.SubjectId] = name;
-                }
-
-                opened = $"{name}'s photos";
-            }
-
             items.Add(new ViewPhotoViewDto(row.Id,
                 DateTimeOffset.Parse(row.ViewedAt, System.Globalization.CultureInfo.InvariantCulture),
                 string.IsNullOrWhiteSpace(row.ViewerName) ? "A server administrator" : row.ViewerName,
-                opened, shared ? "shared" : "personal"));
+                shared ? "Shared Library" : "Your photos", shared ? "shared" : "personal"));
         }
 
         return Task.FromResult(new ViewPhotoViewsPageDto(
-            PagedResponse<ViewPhotoViewDto>.FromPage(items, page), householdWide));
+            PagedResponse<ViewPhotoViewDto>.FromPage(items, page), includesSharedLibrary));
     }
 
     private sealed class PersonRow

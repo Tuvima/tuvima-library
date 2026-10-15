@@ -1,0 +1,119 @@
+@namespace MediaEngine.Web.Components.Settings
+@using MediaEngine.Contracts.LocalAssets
+@using MediaEngine.Web.Services.Integration
+@inject IEngineApiClient ApiClient
+@* Settings > Security > Who viewed your photos (the sheet body). A server administrator can open another household's
+   photos through "Other people"; every look is recorded and listed here for the person whose photos were opened (and
+   the household's Shared Library for the household's own administrator). The Engine answers only for the signed-in
+   person, newest first; this list has no delete or clear control by design. *@
+@if (_loading)
+{
+    <AppSkeleton Size="AppControlSize.Compact" aria-label="Loading who viewed your photos" />
+}
+else if (_loadFailed)
+{
+    <AppAlert Tone="AppUiTone.Error">This list could not be loaded. Try again in a moment.</AppAlert>
+}
+else
+{
+    <p class="security-sheet__hint">@Description</p>
+    @if (_items.Count == 0)
+    {
+        <AppEmptyState Class="app-page-state--compact" Title="Nobody else has looked at your photos"
+                       Message="If a server administrator ever does, it appears here with the date." />
+    }
+    else
+    {
+        <AppTable CardsOn="AppTableCardsMode.Phone">
+            <caption class="sr-only">Who viewed your photos, newest first</caption>
+            <thead>
+                <tr>
+                    <th data-card-role="title">Who</th>
+                    <th data-card-role="subtitle">Opened</th>
+                    <th data-card-role="value">When</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var view in _items)
+                {
+                    <tr @key="view.Id">
+                        <td data-card-role="title">@view.ViewerName</td>
+                        <td data-card-role="subtitle">@view.Opened</td>
+                        <td data-card-role="value">@FormatWhen(view.ViewedAt)</td>
+                    </tr>
+                }
+            </tbody>
+        </AppTable>
+        @if (_loadMoreFailed)
+        {
+            <AppAlert Tone="AppUiTone.Error">Couldn't load more. Try again in a moment.</AppAlert>
+        }
+        @if (_hasMore && _items.Count < MaxItems)
+        {
+            <AppButton Label="Show more" Loading="@_loadingMore" Disabled="@_loadingMore" OnClick="LoadMoreAsync" />
+        }
+        else if (_items.Count >= MaxItems)
+        {
+            <p class="security-sheet__hint">Showing the latest @MaxItems.</p>
+        }
+    }
+}
+
+@code {
+    private const int PageSize = 25;
+    private const int MaxItems = 100;
+    private readonly List<ViewPhotoViewDto> _items = [];
+    private bool _loading = true;
+    private bool _loadingMore;
+    private bool _loadFailed;
+    private bool _loadMoreFailed;
+    private bool _hasMore;
+    private bool _includesSharedLibrary;
+
+    private string Description => _includesSharedLibrary
+        ? "Times a server administrator opened your photos or your household's Shared Library, newest first. They can look but never change anything."
+        : "Times a server administrator opened your photos, newest first. They can look but never change anything.";
+
+    protected override async Task OnInitializedAsync()
+    {
+        var page = await ApiClient.GetViewPhotoViewsAsync(0, PageSize);
+        if (page is null)
+        {
+            _loadFailed = true;
+        }
+        else
+        {
+            Add(page);
+        }
+
+        _loading = false;
+    }
+
+    private async Task LoadMoreAsync()
+    {
+        _loadingMore = true;
+        _loadMoreFailed = false;
+        var page = await ApiClient.GetViewPhotoViewsAsync(_items.Count, Math.Min(PageSize, MaxItems - _items.Count));
+        if (page is null)
+        {
+            _loadMoreFailed = true;
+        }
+        else
+        {
+            Add(page);
+        }
+
+        _loadingMore = false;
+    }
+
+    // The Dashboard has no browser time zone of its own, and the audit trail should read the same on every device: UTC, labelled.
+    private static string FormatWhen(DateTimeOffset when) =>
+        when.UtcDateTime.ToString("g", System.Globalization.CultureInfo.CurrentCulture) + " UTC";
+
+    private void Add(ViewPhotoViewsPageDto page)
+    {
+        _items.AddRange(page.Page.Items);
+        _hasMore = page.Page.HasMore;
+        _includesSharedLibrary = page.HouseholdWide;
+    }
+}

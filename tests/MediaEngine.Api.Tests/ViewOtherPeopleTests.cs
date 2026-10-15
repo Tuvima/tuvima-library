@@ -186,21 +186,89 @@ public sealed class ViewOtherPeopleTests
         await fixture.Service.RecordOpenAsync(fixture.ServerAdmin, scope);
         Assert.Equal(2, fixture.OpenedRows());
 
-        // The household administrator of the household that was opened sees both, newest first.
-        var owner = await fixture.Service.ListViewsAsync(fixture.OtherHouseholdAdmin, PagedRequest.From(0, 10));
-        Assert.True(owner.HouseholdWide);
+        // The person whose photos they were sees both, newest first, described as their own.
+        var owner = await fixture.Service.ListViewsAsync(fixture.OtherMember, PagedRequest.From(0, 10));
+        Assert.False(owner.HouseholdWide);
         Assert.Equal(2, owner.Page.Items.Count);
         Assert.All(owner.Page.Items, view =>
         {
             Assert.Equal("Server admin", view.ViewerName);
-            Assert.Equal("Casey's photos", view.Opened);
+            Assert.Equal("Your photos", view.Opened);
+            Assert.Equal("personal", view.Space);
         });
         Assert.True(owner.Page.Items[0].ViewedAt > owner.Page.Items[1].ViewedAt);
 
-        // The person whose photos they were sees it; their housemate and the viewer's own household do not.
-        Assert.Equal(2, (await fixture.Service.ListViewsAsync(fixture.OtherMember, PagedRequest.From(0, 10))).Page.Items.Count);
+        // Nobody else sees them: not the household administrator, not a housemate, not the viewer's own household.
+        Assert.Empty((await fixture.Service.ListViewsAsync(fixture.OtherHouseholdAdmin, PagedRequest.From(0, 10))).Page.Items);
         Assert.Empty((await fixture.Service.ListViewsAsync(fixture.OtherHousemate, PagedRequest.From(0, 10))).Page.Items);
         Assert.Empty((await fixture.Service.ListViewsAsync(fixture.HomeMember, PagedRequest.From(0, 10))).Page.Items);
+        Assert.Empty((await fixture.Service.ListViewsAsync(fixture.ServerAdmin, PagedRequest.From(0, 10))).Page.Items);
+    }
+
+    [Fact]
+    public async Task EachPersonSeesOnlyViewsOfTheirOwnPhotos_NeverAnotherPersonsInTheSameHousehold()
+    {
+        using var fixture = new Fixture();
+
+        await fixture.Service.RecordOpenAsync(fixture.ServerAdmin, fixture.OtherPersonalScope);
+        await fixture.Service.RecordOpenAsync(fixture.ServerAdmin, fixture.OtherHousematePersonalScope);
+
+        var casey = await fixture.Service.ListViewsAsync(fixture.OtherMember, PagedRequest.From(0, 10));
+        var housemate = await fixture.Service.ListViewsAsync(fixture.OtherHousemate, PagedRequest.From(0, 10));
+        Assert.NotEqual(casey.Page.Items.Single().Id, housemate.Page.Items.Single().Id);
+        Assert.Equal(fixture.OpenedRowIds(fixture.CaseyId), new[] { casey.Page.Items.Single().Id });
+        Assert.Equal(fixture.OpenedRowIds(fixture.HousemateId), new[] { housemate.Page.Items.Single().Id });
+        // A household administrator is not the owner of anyone's personal photos.
+        Assert.Empty((await fixture.Service.ListViewsAsync(fixture.OtherHouseholdAdmin, PagedRequest.From(0, 10))).Page.Items);
+    }
+
+    [Fact]
+    public async Task AppDeviceTokenForThePersonWhoseViewsWereRecorded_IsRefused()
+    {
+        using var fixture = new Fixture();
+        await fixture.Service.RecordOpenAsync(fixture.ServerAdmin, fixture.OtherPersonalScope);
+
+        // The same person and profile, but acting through a paired app's device token.
+        var app = fixture.OtherMember with { PrincipalKind = PrincipalKind.DelegatedUserClient };
+
+        Assert.True(app.HasHumanContext);
+        Assert.Throws<UnauthorizedAccessException>(() => { _ = fixture.Service.ListViewsAsync(app, PagedRequest.From(0, 10)); });
+        Assert.Single((await fixture.Service.ListViewsAsync(fixture.OtherMember, PagedRequest.From(0, 10))).Page.Items);
+    }
+
+    [Fact]
+    public async Task ServerAdministratorWhoIsNotTheirHouseholdsAdministrator_DoesNotSeeTheSharedLibraryViews()
+    {
+        using var fixture = new Fixture();
+        await fixture.Service.RecordOpenAsync(fixture.ServerAdmin, fixture.OtherSharedScope);
+
+        var otherHouseholdServerAdmin = fixture.OtherHousemate with { AccountIsAdministrator = true, GrantAdminEnabled = true };
+        var page = await fixture.Service.ListViewsAsync(otherHouseholdServerAdmin, PagedRequest.From(0, 10));
+
+        Assert.False(page.HouseholdWide);
+        Assert.Empty(page.Page.Items);
+    }
+
+    [Fact]
+    public async Task PagingReturnsNewestFirstAndOnlyTheCallersOwnRows()
+    {
+        using var fixture = new Fixture();
+        for (var i = 0; i < 3; i++)
+        {
+            await fixture.Service.RecordOpenAsync(fixture.ServerAdmin, fixture.OtherPersonalScope);
+            fixture.Clock.Advance(TimeSpan.FromMinutes(61));
+        }
+
+        await fixture.Service.RecordOpenAsync(fixture.ServerAdmin, fixture.OtherHousematePersonalScope);
+
+        var first = await fixture.Service.ListViewsAsync(fixture.OtherMember, PagedRequest.From(0, 2));
+        var second = await fixture.Service.ListViewsAsync(fixture.OtherMember, PagedRequest.From(2, 2));
+        Assert.Equal(2, first.Page.Items.Count);
+        Assert.True(first.Page.HasMore);
+        Assert.Single(second.Page.Items);
+        Assert.False(second.Page.HasMore);
+        Assert.True(first.Page.Items[0].ViewedAt > first.Page.Items[1].ViewedAt);
+        Assert.True(first.Page.Items[1].ViewedAt > second.Page.Items[0].ViewedAt);
     }
 
     [Fact]
@@ -209,10 +277,16 @@ public sealed class ViewOtherPeopleTests
         using var fixture = new Fixture();
 
         await fixture.Service.RecordOpenAsync(fixture.ServerAdmin, fixture.OtherSharedScope);
+        await fixture.Service.RecordOpenAsync(fixture.ServerAdmin, fixture.OtherPersonalScope);
 
         var owner = await fixture.Service.ListViewsAsync(fixture.OtherHouseholdAdmin, PagedRequest.From(0, 10));
+        Assert.True(owner.HouseholdWide);
         Assert.Equal("Shared Library", Assert.Single(owner.Page.Items).Opened);
-        Assert.Empty((await fixture.Service.ListViewsAsync(fixture.OtherMember, PagedRequest.From(0, 10))).Page.Items);
+        Assert.Empty((await fixture.Service.ListViewsAsync(fixture.ServerAdmin, PagedRequest.From(0, 10))).Page.Items);
+        // A member sees only the views of their own photos, not the household's Shared Library views.
+        var member = await fixture.Service.ListViewsAsync(fixture.OtherMember, PagedRequest.From(0, 10));
+        Assert.False(member.HouseholdWide);
+        Assert.Equal("Your photos", Assert.Single(member.Page.Items).Opened);
     }
 
     [Fact]
@@ -310,12 +384,14 @@ public sealed class ViewOtherPeopleTests
             OtherMember = Member(casey, OtherHouseholdId);
             OtherHousemate = Member(housemate, OtherHouseholdId);
             CaseyId = casey;
+            HousemateId = housemate;
         }
 
         public Guid HomeHouseholdId { get; } = Guid.NewGuid();
         public Guid OtherHouseholdId { get; } = Guid.NewGuid();
         public Guid ServerAdminAccount { get; }
         public Guid CaseyId { get; }
+        public Guid HousemateId { get; }
         public MovableClock Clock { get; }
         public ViewOtherPeopleService Service { get; }
         public RequestAuthority ServerAdmin { get; }
@@ -327,6 +403,9 @@ public sealed class ViewOtherPeopleTests
         public ResolvedViewScope OtherPersonalScope => new(ViewScopeKind.Profile, CaseyId,
             new HashSet<Guid> { Guid.NewGuid() }, OtherHouseholdId: OtherHouseholdId, OtherViaProfileId: CaseyId);
 
+        public ResolvedViewScope OtherHousematePersonalScope => new(ViewScopeKind.Profile, HousemateId,
+            new HashSet<Guid> { Guid.NewGuid() }, OtherHouseholdId: OtherHouseholdId, OtherViaProfileId: HousemateId);
+
         public ResolvedViewScope OtherSharedScope => new(ViewScopeKind.Shared, null,
             new HashSet<Guid> { Guid.NewGuid() }, OtherHouseholdId: OtherHouseholdId, OtherViaProfileId: CaseyId);
 
@@ -335,6 +414,14 @@ public sealed class ViewOtherPeopleTests
             using var connection = _database.CreateConnection();
             return connection.ExecuteScalar<int>(
                 "SELECT COUNT(*) FROM authorization_audit_events WHERE event_type = 'view.other_household_opened';");
+        }
+
+        public long[] OpenedRowIds(Guid subjectProfile)
+        {
+            using var connection = _database.CreateConnection();
+            return connection.Query<long>(
+                "SELECT id FROM authorization_audit_events WHERE event_type = 'view.other_household_opened' AND subject_id = @subject;",
+                new { subject = subjectProfile.ToString("D") }).ToArray();
         }
 
         private RequestAuthority Member(Guid profile, Guid household) =>

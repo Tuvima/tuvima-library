@@ -76,7 +76,8 @@ public sealed class AuthenticationSettingsUiTests
         Assert.DoesNotContain("Administrator access", account, StringComparison.Ordinal);
         Assert.DoesNotContain("Account security overview", account, StringComparison.Ordinal);
         Assert.DoesNotContain("Devices & sessions", account, StringComparison.Ordinal);
-        Assert.DoesNotContain("Who viewed your photos", account, StringComparison.Ordinal);
+        Assert.Contains("Key=\"photo-views\"", account, StringComparison.Ordinal);
+        Assert.Contains("Who viewed your photos", account, StringComparison.Ordinal);
         Assert.DoesNotContain("::deep", accountCss, StringComparison.Ordinal);
         Assert.Contains("max-width: none", accountCss, StringComparison.Ordinal);
         Assert.Contains("/settings/account", endpoints, StringComparison.Ordinal);

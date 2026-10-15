@@ -69,7 +69,7 @@ The PIN lock protects settings after sign-in. It is separate from the account pa
 
 ## Manage your sign-in methods
 
-Open **Settings → Security**. **Password** changes your password. Once you have a password, **Extra protection** opens one sheet for passkeys, two-step codes, linked sign-ins and recovery codes. Everyone sees **Sign out everywhere else** under *Access*, which signs out your other sessions (for example a lost phone) and keeps the one you are using; administrators also see **Devices** there.
+Open **Settings → Security**. **Password** changes your password. Once you have a password, **Extra protection** opens one sheet for passkeys, two-step codes, linked sign-ins and recovery codes. Everyone sees **Sign out everywhere else** under *Access*, which signs out your other sessions (for example a lost phone) and keeps the one you are using; administrators also see **Devices** there. Under *Your photos*, **Who viewed your photos** lists, read-only and newest first, each time a server administrator opened your photos (the household's own administrator also sees views of the household's Shared Library); the times are shown in UTC and nothing there can be deleted.
 
 Password resets revoke existing sessions. Tuvima prevents removal of the final usable authenticator.
 
