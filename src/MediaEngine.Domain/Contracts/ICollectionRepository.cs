@@ -1,5 +1,6 @@
 using MediaEngine.Domain.Aggregates;
 using MediaEngine.Domain.Entities;
+using MediaEngine.Domain.Enums;
 
 namespace MediaEngine.Domain.Contracts;
 
@@ -168,6 +169,17 @@ public interface ICollectionRepository
     /// Finds a Collection by its Wikidata QID. Returns null if no Collection has this QID.
     /// </summary>
     Task<Collection?> FindByQidAsync(string qid, CancellationToken ct = default);
+
+    /// <summary>
+    /// Finds the Universe (a parentless Collection of type Universe) with this Wikidata QID. A Series or other
+    /// Collection that shares the QID never stands in for it. The default only filters
+    /// <see cref="FindByQidAsync"/>; the data store implementation looks the Universe up directly.
+    /// </summary>
+    async Task<Collection?> FindUniverseByQidAsync(string qid, CancellationToken ct = default)
+    {
+        var found = await FindByQidAsync(qid, ct).ConfigureAwait(false);
+        return found is { CollectionType: CollectionType.Universe, ParentCollectionId: null } ? found : null;
+    }
 
     /// <summary>Finds an Edition by its Wikidata QID. Returns null when no match exists.</summary>
     Task<Edition?> FindEditionByQidAsync(string wikidataQid, CancellationToken ct = default);

@@ -135,6 +135,31 @@ public static class AggregateStateSerializer
     public static ContainerAudience ParseContainerAudience(string? value) =>
         Enum.TryParse<ContainerAudience>(value, true, out var parsed) ? parsed : ContainerAudience.Everyone;
 
+    /// <summary>
+    /// Reads a persisted owner kind. Unlike <see cref="ParseContainerOwnerKind"/> (which tolerates a missing request
+    /// value), an unknown, empty or numeric stored value fails fast, because who owns a collection decides who may see it.
+    /// </summary>
+    public static ContainerOwnerKind ParseStoredContainerOwnerKind(string? value) =>
+        ParseStrict<ContainerOwnerKind>(nameof(ContainerOwnerKind), value);
+
+    /// <summary>Reads a persisted audience; unknown, empty or numeric values fail fast (see <see cref="ParseStoredContainerOwnerKind"/>).</summary>
+    public static ContainerAudience ParseStoredContainerAudience(string? value) =>
+        ParseStrict<ContainerAudience>(nameof(ContainerAudience), value);
+
+    private static TEnum ParseStrict<TEnum>(string stateType, string? value) where TEnum : struct, Enum
+    {
+        var text = value?.Trim();
+        foreach (var name in Enum.GetNames<TEnum>())
+        {
+            if (string.Equals(name, text, StringComparison.OrdinalIgnoreCase))
+            {
+                return Enum.Parse<TEnum>(name);
+            }
+        }
+
+        throw Unknown(stateType, value ?? "<null>");
+    }
+
     public static string ToStorageValue(this CollectionScope value) => value switch
     {
         CollectionScope.Library => "library",

@@ -1482,6 +1482,8 @@ MediaEngine.Contracts.Collections.MediaEngine.Contracts.Collections.CollectionGr
   Year: System.String | nullability=nullable | accessors=get,init
   Episodes: System.Collections.Generic.List<MediaEngine.Contracts.Collections.CollectionGroupWorkDto> | nullability=not-null | accessors=get,init
 
+MediaEngine.Contracts.Collections.MediaEngine.Contracts.Collections.CollectionGroupTypes
+
 MediaEngine.Contracts.Collections.MediaEngine.Contracts.Collections.CollectionGroupWorkDto
   WorkId: System.Guid | nullability=not-null | accessors=get,init
   AssetId: System.Guid? | nullability=nullable | accessors=get,init
@@ -1575,6 +1577,7 @@ MediaEngine.Contracts.Collections.MediaEngine.Contracts.Collections.CollectionMa
   CanShare: System.Boolean | nullability=not-null | accessors=get,init
   Family: System.String | nullability=not-null | accessors=get,init
   SystemKey: System.String | nullability=nullable | accessors=get,init
+  GroupType: System.String | nullability=not-null | accessors=get,init
   PrimaryLane: System.String | nullability=not-null | accessors=get,init
   IsGlobal: System.Boolean | nullability=not-null | accessors=get,init
   IsSystem: System.Boolean | nullability=not-null | accessors=get,init
@@ -8708,6 +8711,14 @@ MediaEngine.Contracts.Universe.MediaEngine.Contracts.Universe.UniverseCastRespon
   universe_qid: System.String | nullability=not-null | accessors=get,init
   characters: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Universe.UniverseCastCharacterDto> | nullability=not-null | accessors=get,init
 
+MediaEngine.Contracts.Universe.MediaEngine.Contracts.Universe.UniverseClientDetailDto
+  Qid: System.String | nullability=not-null | accessors=get,init
+  Name: System.String | nullability=not-null | accessors=get,init
+  Description: System.String | nullability=nullable | accessors=get,init
+  GroupType: System.String | nullability=not-null | accessors=get,init
+  ItemCount: System.Int32 | nullability=not-null | accessors=get,init
+  Shelves: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Universe.UniverseMemberShelfDto> | nullability=not-null | accessors=get,init
+
 MediaEngine.Contracts.Universe.MediaEngine.Contracts.Universe.UniverseCrossMediaResponse
   universe_qid: System.String | nullability=not-null | accessors=get,init
   cross_media_entities: System.Collections.Generic.IReadOnlyList<System.String> | nullability=not-null | accessors=get,init
@@ -8848,6 +8859,12 @@ MediaEngine.Contracts.Universe.MediaEngine.Contracts.Universe.UniverseLoreSource
   last_enriched_at: System.DateTimeOffset? | nullability=nullable | accessors=get,init
   created_at: System.DateTimeOffset | nullability=not-null | accessors=get,init
   updated_at: System.DateTimeOffset | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Universe.MediaEngine.Contracts.Universe.UniverseMemberShelfDto
+  CollectionId: System.Guid | nullability=not-null | accessors=get,init
+  GroupType: System.String | nullability=not-null | accessors=get,init
+  ItemCount: System.Int32 | nullability=not-null | accessors=get,init
+  Shelf: MediaEngine.Contracts.Display.DisplayShelfDto | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.Universe.MediaEngine.Contracts.Universe.UniversePathsResponse
   universe_qid: System.String | nullability=not-null | accessors=get,init
