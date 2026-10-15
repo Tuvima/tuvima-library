@@ -4,6 +4,7 @@ import android.app.Application
 import android.os.Build
 import com.tuvima.library.core.ClientCapabilities
 import com.tuvima.library.core.SecureTokenStore
+import com.tuvima.library.core.StorageCap
 import com.tuvima.library.core.TuvimaClient
 
 class TuvimaMobileApplication : Application() {
@@ -55,6 +56,17 @@ class TuvimaMobileApplication : Application() {
     fun setDownloadQuality(profileKey: String) {
         getSharedPreferences("tuvima_mobile", MODE_PRIVATE).edit().putString("download_quality", profileKey).apply()
     }
+
+    /** How many bytes offline downloads may use on this phone; new downloads are blocked once it is reached. */
+    fun storageCapBytes(): Long =
+        getSharedPreferences("tuvima_mobile", MODE_PRIVATE).getLong("storage_cap_bytes", StorageCap.DEFAULT_BYTES)
+
+    fun setStorageCapBytes(bytes: Long) {
+        getSharedPreferences("tuvima_mobile", MODE_PRIVATE).edit().putLong("storage_cap_bytes", bytes).apply()
+    }
+
+    /** Offline downloads: the queue, the local files and the reports back to the Engine. */
+    internal val offline: OfflineDownloads by lazy { OfflineDownloads(this) }
 
     companion object {
         const val DEFAULT_DOWNLOAD_QUALITY = "mobile-standard"

@@ -11,6 +11,7 @@ Build from this directory with `gradle :tv:assembleDebug :mobile:assembleDebug`.
 Never place signing keys, service credentials, bearer tokens, or signed media
 URLs in this repository.
 
-Unit tests for the shared client (API v1 paths, typed profile-switch results, photo consent, photo grid layout)
+Unit tests for the shared client (API v1 paths, typed profile-switch results, photo consent, photo grid layout,
+and the offline download rules: server-won detection, replay order, the storage cap, expiry and report results)
 run with `gradle :core:testDebugUnitTest`. They use plain JUnit and cover logic that needs no Android
 framework; wire-shape parsing needs the Android JSON classes and is not yet covered by JVM unit tests.

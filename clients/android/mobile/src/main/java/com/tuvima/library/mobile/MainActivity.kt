@@ -2,7 +2,6 @@ package com.tuvima.library.mobile
 
 import android.content.Intent
 import android.os.Bundle
-import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.Arrangement
@@ -32,9 +31,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
-import androidx.work.OneTimeWorkRequestBuilder
-import androidx.work.WorkManager
-import androidx.work.workDataOf
 import com.tuvima.library.core.PairingPollResult
 import com.tuvima.library.core.PairingSession
 import com.tuvima.library.core.PhotoScopes
@@ -52,7 +48,7 @@ class MainActivity : ComponentActivity() {
         }
         setContent {
             MaterialTheme(colorScheme = darkColorScheme()) {
-                MobileRoot(application as TuvimaMobileApplication, initialDetail, ::play, ::download)
+                MobileRoot(application as TuvimaMobileApplication, initialDetail, ::play)
             }
         }
     }
@@ -64,23 +60,6 @@ class MainActivity : ComponentActivity() {
                 .setAction(TuvimaMediaLibraryService.ACTION_PLAY_ASSET)
                 .putExtra(TuvimaMediaLibraryService.EXTRA_ASSET_ID, assetId),
         )
-    }
-
-    // The existing offline worker already asks the Engine for the offline copy (POST /api/v1/playback/{id}/encode)
-    // and downloads it when ready; this only hands it the person's default quality.
-    private fun download(assetId: String) {
-        val quality = (application as TuvimaMobileApplication).downloadQuality()
-        WorkManager.getInstance(this).enqueue(
-            OneTimeWorkRequestBuilder<OfflineDownloadWorker>()
-                .setInputData(
-                    workDataOf(
-                        OfflineDownloadWorker.KEY_ASSET_ID to assetId,
-                        OfflineDownloadWorker.KEY_PROFILE_KEY to quality,
-                    ),
-                )
-                .build(),
-        )
-        Toast.makeText(this, "Preparing your offline copy. Downloads will list it in a later update.", Toast.LENGTH_LONG).show()
     }
 }
 
@@ -96,7 +75,6 @@ private fun MobileRoot(
     application: TuvimaMobileApplication,
     initialDetail: Pair<String, String>?,
     play: (String) -> Unit,
-    download: (String) -> Unit,
 ) {
     val scope = rememberCoroutineScope()
     var stage: MobileStage by remember { mutableStateOf(MobileStage.Server) }
@@ -112,7 +90,14 @@ private fun MobileRoot(
                     stage = if (it.isPaired()) MobileStage.Ready
                     else MobileStage.Pairing(it.beginPairing(PhotoScopes.requested(MOBILE_SCOPES, application.photosOptIn())))
                 }
-            }.onFailure { stage = MobileStage.Message(it.message ?: "Connection failed.") }
+            }.onFailure { failure ->
+                // A paired phone with no connection still opens, so Downloads can play what is saved on it.
+                stage = if (failure is java.io.IOException && application.client?.isPaired() == true) {
+                    MobileStage.Ready
+                } else {
+                    MobileStage.Message(failure.message ?: "Connection failed.")
+                }
+            }
         }
     }
 
@@ -140,7 +125,6 @@ private fun MobileRoot(
                     client = signedIn,
                     initialDetail = initialDetail,
                     play = play,
-                    download = download,
                     onChangeServer = { stage = MobileStage.Server },
                     onSignedOut = { note -> stage = if (note == null) MobileStage.Server else MobileStage.Message(note) },
                 )
