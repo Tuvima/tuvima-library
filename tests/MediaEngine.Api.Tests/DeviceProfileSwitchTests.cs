@@ -1063,8 +1063,9 @@ public sealed partial class DeviceProfileSwitchTests : IAsyncLifetime
     }
 
     /// <summary>Pairs one more device with the permissions and client already in place (changing them would invalidate earlier tokens).</summary>
-    private async Task<OAuthTokenResponse> PairAnotherDeviceAsync()
+    private async Task<OAuthTokenResponse> PairAnotherDeviceAsync(IReadOnlyList<string>? scopes = null)
     {
+        scopes ??= ["library.read", "playback.read", "downloads.read", "downloads.write"];
         var started = await _authorization.BeginAsync(new DeviceAuthorizationRequest
         {
             ClientId = ClientId,
@@ -1072,11 +1073,11 @@ public sealed partial class DeviceProfileSwitchTests : IAsyncLifetime
             ClientVersion = "1.0.0",
             DeviceName = "Mary's phone",
             DeviceClass = "mobile",
-            Scope = "library.read playback.read downloads.read downloads.write",
+            Scope = string.Join(' ', scopes),
             Capabilities = new ClientCapabilitiesDto { Containers = ["mp4"], VideoCodecs = ["h264"], AudioCodecs = ["aac"] },
         }, "https://library.example");
         Assert.True(await _authorization.DecideAsync(
-            new PairingDecisionRequest { UserCode = started.UserCode, Approved = true, Scopes = ["library.read", "playback.read", "downloads.read", "downloads.write"] },
+            new PairingDecisionRequest { UserCode = started.UserCode, Approved = true, Scopes = scopes.ToArray() },
             _homeOwner.Id, _mary.Id, _mary.Id));
         var issued = await _authorization.ExchangeAsync(new OAuthTokenRequest
         {

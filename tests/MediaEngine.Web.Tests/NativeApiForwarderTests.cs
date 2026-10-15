@@ -126,6 +126,9 @@ public sealed class NativeApiForwarderTests
     [InlineData("POST", "display/artwork/assets", true, NativeApiForwardDecision.NotFound)]
     [InlineData("PUT", "display/artwork/assets", true, NativeApiForwardDecision.NotFound)]
     [InlineData("DELETE", "display/artwork/assets", true, NativeApiForwardDecision.NotFound)]
+    // Linked person and entity art is served as /stream/artwork/{id} (catalogue-checked), which the door passes; the admin-only content route it replaced is not.
+    [InlineData("GET", "stream/artwork/6f0c2a3e-0000-0000-0000-000000000000", true, NativeApiForwardDecision.Forward)]
+    [InlineData("GET", "stream/entity/person/6f0c2a3e-0000-0000-0000-000000000000/cover", true, NativeApiForwardDecision.Forward)]
     // Devices: only the anchored routes the apps call. A device can list itself, sign itself out, report capabilities, list and
     // switch profiles, and keep its download list; nothing else under devices/ goes through.
     [InlineData("GET", "devices", true, NativeApiForwardDecision.Forward)]

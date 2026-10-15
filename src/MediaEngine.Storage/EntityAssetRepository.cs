@@ -19,6 +19,21 @@ public sealed class EntityAssetRepository : IEntityAssetRepository
 {
     private readonly IDatabaseConnection _db;
 
+    // The artwork workspace used to store a linked image as /api/v1/display/artwork/assets/{id}/content, a route that is now
+    // administrator-only. Every reader gets the catalogue-checked /stream/artwork/{entity asset id} form instead (the link row's
+    // own id, which serves its local image), so rows stored the old way keep working for paired apps and non-administrators.
+    private const string LinkedArtworkImageUrlProjection = """
+        CASE
+            WHEN image_url LIKE '/api/v1/display/artwork/assets/%/content' THEN '/stream/artwork/' || lower(
+                substr(hex(id), 1, 8) || '-' ||
+                substr(hex(id), 9, 4) || '-' ||
+                substr(hex(id), 13, 4) || '-' ||
+                substr(hex(id), 17, 4) || '-' ||
+                substr(hex(id), 21, 12))
+            ELSE image_url
+        END
+        """;
+
     // Reusable SELECT list with aliases matching EntityAsset property names.
     private const string SelectColumns = """
         id               AS Id,
@@ -26,7 +41,8 @@ public sealed class EntityAssetRepository : IEntityAssetRepository
                          AS EntityId,
         entity_type      AS EntityType,
         asset_type       AS AssetTypeValue,
-        image_url        AS ImageUrl,
+        """ + LinkedArtworkImageUrlProjection + """
+                         AS ImageUrl,
         local_image_path AS LocalImagePath,
         local_image_path_s AS LocalImagePathSmall,
         local_image_path_m AS LocalImagePathMedium,

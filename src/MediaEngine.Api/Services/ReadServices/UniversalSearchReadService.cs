@@ -260,12 +260,17 @@ public sealed class UniversalSearchReadService(
         using var conn = db.CreateConnection();
         var members = await conn.QueryAsync<CollectionMemberRow>(new CommandDefinition(
             """
-            SELECT c.id AS CollectionId, member.id AS WorkId
-            FROM collections c
-            LEFT JOIN collection_items ci ON ci.collection_id = c.id
-            INNER JOIN works member ON member.id = ci.work_id OR member.collection_id = c.id
-            WHERE c.id IN @CollectionIds
-            ORDER BY c.id, ci.sort_order, member.id
+            SELECT membership.collection_id AS CollectionId, membership.work_id AS WorkId
+            FROM (
+                SELECT ci.collection_id AS collection_id, ci.work_id AS work_id, ci.sort_order AS sort_order
+                FROM collection_items ci
+                WHERE ci.collection_id IN @CollectionIds
+                UNION ALL
+                SELECT w.collection_id AS collection_id, w.id AS work_id, 2147483647 AS sort_order
+                FROM works w
+                WHERE w.collection_id IN @CollectionIds
+            ) membership
+            ORDER BY membership.collection_id, membership.sort_order, membership.work_id
             """,
             new { CollectionIds = collectionIds.Select(GuidSql.ToBlob).ToArray() },
             cancellationToken: ct)).ConfigureAwait(false);

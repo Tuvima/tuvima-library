@@ -51,7 +51,7 @@ Tokens are opaque bearer credentials and must be stored in the platform secure c
 |---|---|---|
 | Discovery | `GET /.well-known/tuvima` | None |
 | Browse/home | `GET /api/v1/display/home`, `/browse`, `/shelves/{key}`, `/groups/{id}` | `library.read` |
-| Artwork workspace (Dashboard only) | `GET /api/v1/display/artwork`, `/artwork/assets`, `/artwork/assets/{id}/content`, `/artwork/entities/{type}/{id}`, `/artwork/universes/{id}/entities`, `/artwork/works/{id}/effective` | An administrator or a service Application holding `artwork.read`; a paired app token (Kids or adult) answers `403` even with `artwork.read`, and the app door never forwards these |
+| Artwork workspace (Dashboard only) | `GET /api/v1/display/artwork`, `/artwork/assets`, `/artwork/assets/{id}/content`, `/artwork/entities/{type}/{id}`, `/artwork/universes/{id}/entities`, `/artwork/works/{id}/effective` | An administrator or a service Application holding `artwork.read`. A paired Kids or adult (non-administrator) app token answers `403` even though it holds `artwork.read`; a paired administrator's phone would pass the Engine policy, so the app door (which never forwards these routes) is what keeps it out. Art linked to a person, Work or Universe is read as `/stream/artwork/{id}`, a catalogue-checked route open to paired apps |
 | Search | `GET /api/v1/display/search?q=` | `library.read`. For a paired app a Collection or Series result carries the cover of a member the profile may see (or none); it never carries the collection's own cover, so a restricted item's poster cannot show through a mixed collection |
 | Details | `GET /api/v1/details/{entityType}/{id}` | `library.read` |
 | Next episodes | `GET /api/v1/details/show/{id}/next-episodes?after={assetId}&count=3` | `library.read` |

@@ -526,6 +526,55 @@ public sealed class UniversalSearchReadServiceTests : IDisposable
         Assert.Equal($"/collections/{shelf.CollectionId:D}/artwork/poster", collection.ArtworkUrl);
     }
 
+    [Fact]
+    public async Task SearchAsync_ForAPairedApp_PicksTheFirstAllowedMemberInCollectionOrder()
+    {
+        var collectionId = Guid.NewGuid();
+        // The member that is first in collection order has the higher id, so picking the lowest id would choose the wrong one.
+        var ids = new[] { Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid() }.OrderBy(id => GuidSql.ToBlob(id), Comparer<byte[]>.Create(
+            (left, right) => left.AsSpan().SequenceCompareTo(right))).ToArray();
+        var (lowestId, middleId, firstInOrder) = (ids[0], ids[1], ids[2]);
+        var unlinked = Guid.NewGuid();
+        using (var connection = _db.CreateConnection())
+        {
+            await connection.ExecuteAsync(
+                """
+                INSERT INTO collections (id, display_name, collection_type, created_at)
+                VALUES (@collectionId, 'Ordered Shelf', 'Custom', CURRENT_TIMESTAMP);
+                INSERT INTO works (id, collection_id, media_type, work_kind)
+                VALUES (@lowestId, NULL, 'Movies', 'standalone'),
+                       (@middleId, @collectionId, 'Movies', 'standalone'),
+                       (@firstInOrder, NULL, 'Movies', 'standalone'),
+                       (@unlinked, @collectionId, 'Movies', 'standalone');
+                INSERT INTO collection_items (id, collection_id, work_id, sort_order)
+                VALUES (@item1, @collectionId, @lowestId, 5),
+                       (@item2, @collectionId, @middleId, 3),
+                       (@item3, @collectionId, @firstInOrder, 1);
+                """,
+                new { collectionId, lowestId, middleId, firstInOrder, unlinked, item1 = Guid.NewGuid(), item2 = Guid.NewGuid(), item3 = Guid.NewGuid() });
+        }
+
+        DisplayWorkRow Row(Guid id, string name) => new()
+        {
+            WorkId = id,
+            AssetId = Guid.NewGuid(),
+            MediaType = "Movies",
+            Title = name,
+            CoverUrl = $"/stream/artwork/{name}",
+        };
+        var service = CreateAppService(new StubDisplayProjection(
+        [
+            Row(lowestId, "last"), Row(middleId, "second"), Row(firstInOrder, "first"), Row(unlinked, "unordered"),
+        ]));
+
+        var response = await service.SearchAsync("Ordered Shelf", 20, CancellationToken.None);
+
+        var collection = Assert.Single(response.Sections.Single(section => section.Key == "series-collections").Results);
+        Assert.Equal("/stream/artwork/first", collection.ArtworkUrl);
+        // The one reached only through the work's own collection link counts, but sorts after every ordered item.
+        Assert.Equal("4 items", collection.Subtitle);
+    }
+
     // One collection with a raw cover and three members: a restricted one (absent from the authorized projection, first in order),
     // an allowed one without a cover, and an allowed one with a cover.
     private async Task<(Guid CollectionId, StubDisplayProjection Projection, string AllowedCover)> SeedMixedCollectionAsync()
