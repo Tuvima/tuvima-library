@@ -90,7 +90,7 @@ public sealed class ClientAuthorizationServiceFlowTests : IDisposable
                 "SELECT application_id FROM device_pairing_requests WHERE id=@id;", new { id = review.RequestId }));
         }
         Assert.True(await _authorization.DecideAsync(
-            new PairingDecisionRequest { UserCode = started.UserCode, Approved = true },
+            new PairingDecisionRequest { UserCode = started.UserCode, Approved = true, Scopes = ["library.read", "progress.read", "progress.write", "playback.read", "playback.write", "queue.read", "queue.write"] },
             Account.SeedAccountId,
             Profile.SeedProfileId,
             Profile.SeedProfileId));
@@ -153,7 +153,7 @@ public sealed class ClientAuthorizationServiceFlowTests : IDisposable
             Capabilities = new ClientCapabilitiesDto(),
         }, "https://library.example");
         Assert.True(await _authorization.DecideAsync(
-            new PairingDecisionRequest { UserCode = started.UserCode, Approved = true },
+            new PairingDecisionRequest { UserCode = started.UserCode, Approved = true, Scopes = ["library.read"] },
             Account.SeedAccountId,
             Profile.SeedProfileId,
             Profile.SeedProfileId));
@@ -260,7 +260,7 @@ public sealed class ClientAuthorizationServiceFlowTests : IDisposable
             Capabilities = new ClientCapabilitiesDto(),
         }, "https://library.example");
         Assert.True(await _authorization.DecideAsync(
-            new PairingDecisionRequest { UserCode = started.UserCode, Approved = true },
+            new PairingDecisionRequest { UserCode = started.UserCode, Approved = true, Scopes = ["library.read"] },
             Account.SeedAccountId,
             Profile.SeedProfileId,
             Profile.SeedProfileId));

@@ -97,6 +97,13 @@ public sealed class ClientAuthorizationService(
             return null;
         }
 
+        // The photo item is only worth offering when the Application can actually carry the photo scopes to a token.
+        var application = await applications.GetApplicationByClientIdAsync(pairing.ClientId, ct).ConfigureAwait(false);
+        var offersPhotoScopes = application?.IsEnabled == true
+            && application.Id == pairing.ApplicationId
+            && application.ApplicationType == ApplicationType.UserClient
+            && await HasEffectivePermissionsAsync(application, ClientApiScopes.Photos, ct).ConfigureAwait(false);
+
         return new PairingReviewResponse
         {
             RequestId = pairing.Id,
@@ -107,9 +114,18 @@ public sealed class ClientAuthorizationService(
             DeviceClass = pairing.DeviceClass,
             RequestedScopes = SplitScopes(pairing.RequestedScopes),
             ExpiresAt = pairing.ExpiresAt,
+            OffersPhotoScopes = offersPhotoScopes,
         };
     }
 
+    /// <summary>
+    /// Records the person's decision. Approving grants exactly what the decision lists, within what the app asked for,
+    /// and photo scopes are only ever granted when listed. An approval must name its scopes: omitted (null), empty, or
+    /// naming nothing the app asked for leaves nothing to grant. Approving with nothing to grant, or granting photo scopes
+    /// the Application does not hold, throws <see cref="ArgumentException"/> before anything is stored, so no useless or
+    /// half-working device is created. A denial needs no scopes. An unknown, expired or already decided code returns false
+    /// before any of that is checked.
+    /// </summary>
     public async Task<bool> DecideAsync(
         PairingDecisionRequest request,
         Guid accountId,
@@ -123,12 +139,19 @@ public sealed class ClientAuthorizationService(
             return false;
         }
 
+        // An expired or already decided code answers exactly as it always has, before any scope is looked at.
+        if (pairing.Status != "pending" || pairing.ExpiresAt <= timeProvider.GetUtcNow())
+        {
+            return false;
+        }
+
         var requested = SplitScopes(pairing.RequestedScopes);
 
-        // An approval that names no scopes keeps meaning "everything asked for", except the photo scopes: those are
-        // granted only when the person's decision lists them, so they can never be granted silently.
-        var approved = request.Scopes.Count == 0
-            ? requested.Where(scope => !ClientApiScopes.Photos.Contains(scope, StringComparer.Ordinal)).ToArray()
+        // Nothing is granted that the decision does not name: an omitted list grants nothing, so there is no path that
+        // silently grants everything the app asked for (photo scopes included), and unticking everything on the pairing
+        // screen grants nothing.
+        var approved = request.Scopes is null
+            ? []
             : NormalizeScopes(request.Scopes).Where(requested.Contains).ToArray();
         var account = await accounts.GetByIdAsync(accountId, ct).ConfigureAwait(false);
         var grant = await accounts.GetGrantAsync(accountId, profileId, ct).ConfigureAwait(false);
@@ -140,13 +163,30 @@ public sealed class ClientAuthorizationService(
             return false;
         }
 
+        if (request.Approved)
+        {
+            if (approved.Length == 0)
+            {
+                throw new ArgumentException("Choose at least one thing this device may do, or deny the request.");
+            }
+
+            // Photo access needs the Application to hold the photo permissions too; otherwise the device would show as paired
+            // and then fail at token exchange.
+            var photoScopes = approved.Where(scope => ClientApiScopes.Photos.Contains(scope, StringComparer.Ordinal)).ToArray();
+            if (photoScopes.Length > 0
+                && !await HasEffectivePermissionsAsync(boundApplication, photoScopes, ct).ConfigureAwait(false))
+            {
+                throw new ArgumentException("This app is not allowed to use photos and videos, so that option cannot be approved.");
+            }
+        }
+
         return await repository.DecidePairingAsync(
             pairing.Id,
             request.Approved,
             accountId,
             profileId,
             approvedByProfileId,
-            JoinScopes(approved),
+            JoinScopes(request.Approved ? approved : []),
             timeProvider.GetUtcNow(),
             ct).ConfigureAwait(false);
     }

@@ -120,7 +120,7 @@ public sealed class ManagedClientDeviceServiceTests : IDisposable
             Capabilities = new ClientCapabilitiesDto { Containers = ["mp4"], VideoCodecs = ["h264"], AudioCodecs = ["aac"] },
         }, "https://library.example");
         Assert.True(await _authorization.DecideAsync(
-            new PairingDecisionRequest { UserCode = started.UserCode, Approved = true },
+            new PairingDecisionRequest { UserCode = started.UserCode, Approved = true, Scopes = ["library.read"] },
             accountId, Profile.SeedProfileId, Profile.SeedProfileId));
         var issued = await _authorization.ExchangeAsync(new OAuthTokenRequest
         {

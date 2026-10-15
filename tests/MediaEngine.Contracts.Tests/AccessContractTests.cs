@@ -38,6 +38,27 @@ public sealed class AccessContractTests
     }
 
     [Fact]
+    public void ADecisionThatOmitsScopesIsDistinguishableFromOneThatListsNone()
+    {
+        var omitted = JsonSerializer.Deserialize<PairingDecisionRequest>("{\"user_code\":\"ABCD-EFGH\",\"approved\":true}")!;
+        var none = JsonSerializer.Deserialize<PairingDecisionRequest>("{\"user_code\":\"ABCD-EFGH\",\"approved\":true,\"scopes\":[]}")!;
+
+        Assert.Null(omitted.Scopes);
+        Assert.NotNull(none.Scopes);
+        Assert.Empty(none.Scopes);
+    }
+
+    [Fact]
+    public void ThePairingReviewSaysWhetherPhotoScopesCanBeOfferedAndDefaultsToNo()
+    {
+        var absent = JsonSerializer.Deserialize<PairingReviewResponse>("{\"client_id\":\"tuvima-mobile\"}")!;
+        Assert.False(absent.OffersPhotoScopes);
+
+        var offered = JsonSerializer.Serialize(new PairingReviewResponse { OffersPhotoScopes = true });
+        Assert.Contains("\"offers_photo_scopes\":true", offered, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void SignInRequestsDefaultToATemporaryPasswordAndNoInvite()
     {
         var give = JsonSerializer.Deserialize<GiveOwnSignInRequest>("{\"email\":\"sam@home.test\"}")!;
