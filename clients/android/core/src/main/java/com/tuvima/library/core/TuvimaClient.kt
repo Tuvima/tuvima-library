@@ -157,6 +157,20 @@ class TuvimaClient(
         )
     }
 
+    /**
+     * The watching and subtitle preferences of the profile this device is using. Read-only. The route may not exist on an
+     * older Engine, and playback must never wait on it, so a 404 or any other failure gives the defaults.
+     */
+    suspend fun playbackPreferences(): PlaybackPreferences =
+        try {
+            parsePlaybackPreferences(requestJson("GET", "/api/v1/devices/current/playback-preferences"))
+        } catch (error: kotlin.coroutines.cancellation.CancellationException) {
+            throw error
+        } catch (error: Exception) {
+            // Preferences are a convenience: defaults are the documented answer to a missing route or a failed call.
+            PlaybackPreferences.Default
+        }
+
     suspend fun heartbeat(payload: JSONObject): JSONObject =
         requestJson("POST", "/api/v1/player/heartbeat", payload)
 

@@ -233,5 +233,28 @@ internal fun parsePlaybackSegments(array: JSONArray?): List<PlaybackSegment> = a
         kind = segment.optString("kind", ""),
         startSeconds = segment.optDouble("startSeconds", 0.0),
         endSeconds = segment.optionalDouble("endSeconds"),
+        isSkippable = segment.optBoolean("isSkippable", true),
+        reviewStatus = segment.optionalString("reviewStatus"),
     )
 }.orEmpty()
+
+/** Reads the device route's body; any field that is missing or out of range falls back to the safe default. */
+internal fun parsePlaybackPreferences(json: JSONObject): PlaybackPreferences {
+    val defaults = PlaybackPreferences.Default
+    val skipBack = json.optInt("skipBackSeconds", defaults.skipBackSeconds)
+    val skipForward = json.optInt("skipForwardSeconds", defaults.skipForwardSeconds)
+    val speed = json.optDouble("defaultPlaybackSpeed", defaults.defaultPlaybackSpeed)
+    return PlaybackPreferences(
+        audioLanguage = json.optionalString("audioLanguage") ?: defaults.audioLanguage,
+        subtitleLanguage = json.optionalString("subtitleLanguage") ?: defaults.subtitleLanguage,
+        subtitleMode = PlaybackPreferences.modeFrom(json.optionalString("subtitleMode")),
+        subtitleSize = json.optionalString("subtitleSize") ?: defaults.subtitleSize,
+        subtitleBackground = json.optBoolean("subtitleBackground", defaults.subtitleBackground),
+        skipBackSeconds = skipBack.takeIf { it in 1..PlaybackPreferences.MAX_SKIP_SECONDS } ?: defaults.skipBackSeconds,
+        skipForwardSeconds = skipForward.takeIf { it in 1..PlaybackPreferences.MAX_SKIP_SECONDS } ?: defaults.skipForwardSeconds,
+        autoplayNextEpisode = json.optBoolean("autoplayNextEpisode", defaults.autoplayNextEpisode),
+        resumePlayback = json.optBoolean("resumePlayback", defaults.resumePlayback),
+        defaultPlaybackSpeed = speed.takeIf { !it.isNaN() && it in PlaybackPreferences.MIN_SPEED..PlaybackPreferences.MAX_SPEED }
+            ?: defaults.defaultPlaybackSpeed,
+    )
+}

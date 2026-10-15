@@ -162,6 +162,8 @@ data class PlaybackSegment(
     val kind: String,
     val startSeconds: Double,
     val endSeconds: Double?,
+    val isSkippable: Boolean = true,
+    val reviewStatus: String? = null,
 )
 
 data class OfflineVariant(
