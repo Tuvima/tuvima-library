@@ -181,7 +181,7 @@ public sealed class ApplicationEventNativeAuthorityTests : IDisposable
             Capabilities = new ClientCapabilitiesDto(),
         }, "https://library.example");
         Assert.True(await clientAuthorization.DecideAsync(
-            new PairingDecisionRequest { UserCode = started.UserCode, Approved = true },
+            new PairingDecisionRequest { UserCode = started.UserCode, Approved = true, Scopes = Scopes.Select(permission => permission.Value).ToArray() },
             _accountId,
             Profile.SeedProfileId,
             Profile.SeedProfileId));

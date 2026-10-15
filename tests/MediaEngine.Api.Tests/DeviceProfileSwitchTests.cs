@@ -1076,7 +1076,7 @@ public sealed partial class DeviceProfileSwitchTests : IAsyncLifetime
             Capabilities = new ClientCapabilitiesDto { Containers = ["mp4"], VideoCodecs = ["h264"], AudioCodecs = ["aac"] },
         }, "https://library.example");
         Assert.True(await _authorization.DecideAsync(
-            new PairingDecisionRequest { UserCode = started.UserCode, Approved = true },
+            new PairingDecisionRequest { UserCode = started.UserCode, Approved = true, Scopes = ["library.read", "playback.read", "downloads.read", "downloads.write"] },
             _homeOwner.Id, _mary.Id, _mary.Id));
         var issued = await _authorization.ExchangeAsync(new OAuthTokenRequest
         {

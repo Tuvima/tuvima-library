@@ -101,13 +101,25 @@ public sealed class PairingReviewResponse
     [JsonPropertyName("device_class")] public string DeviceClass { get; init; } = string.Empty;
     [JsonPropertyName("requested_scopes")] public IReadOnlyList<string> RequestedScopes { get; init; } = [];
     [JsonPropertyName("expires_at")] public DateTimeOffset ExpiresAt { get; init; }
+
+    /// <summary>
+    /// True when the requesting Application holds the effective photo permissions, so ticking photos on the pairing screen
+    /// can work. The Dashboard shows the photo item only when this is true and the app asked for photo scopes.
+    /// </summary>
+    [JsonPropertyName("offers_photo_scopes")] public bool OffersPhotoScopes { get; init; }
 }
 
 public sealed class PairingDecisionRequest
 {
     [JsonPropertyName("user_code")] public string UserCode { get; init; } = string.Empty;
     [JsonPropertyName("approved")] public bool Approved { get; init; }
-    [JsonPropertyName("scopes")] public IReadOnlyList<string> Scopes { get; init; } = [];
+
+    /// <summary>
+    /// The access the person approves: exactly the listed scopes, within what the app requested (photo scopes only if
+    /// listed, requested and held by the Application). An approval must name its scopes: omitted (null), an empty list, or
+    /// a list that leaves nothing after the app's request is applied approves nothing and is refused. A denial needs none.
+    /// </summary>
+    [JsonPropertyName("scopes")] public IReadOnlyList<string>? Scopes { get; init; }
 }
 
 public sealed class ClientDeviceDto

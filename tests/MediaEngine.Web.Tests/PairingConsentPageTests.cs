@@ -82,6 +82,115 @@ public sealed class PairingConsentPageTests
     }
 
     [Fact]
+    public async Task ThePairingScreen_HidesThePhotoItemWhenTheApplicationLacksThePhotoPermissions()
+    {
+        // The app asked for photos, but the Engine says its Application cannot carry them.
+        await using var host = await PairingHost.StartAsync(["library.read", .. PhotoScopes], offersPhotoScopes: false);
+        using var client = host.NewClient();
+
+        var html = await client.GetStringAsync("/pair?user_code=ABCD-EFGH");
+
+        Assert.DoesNotContain("photos and videos", html, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("name=\"photos\"", html, StringComparison.Ordinal);
+        foreach (var scope in PhotoScopes)
+        {
+            Assert.DoesNotContain(scope, html, StringComparison.Ordinal);
+        }
+
+        Assert.Contains("name=scope value=\"library.read\" checked", html, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task ThePairingScreen_WarnsThatApprovingWithNothingTickedIsRefused()
+    {
+        await using var host = await PairingHost.StartAsync(["library.read"]);
+        using var client = host.NewClient();
+
+        var html = await client.GetStringAsync("/pair?user_code=ABCD-EFGH");
+
+        // A visible hint tied to the Approve button, with no script involved.
+        Assert.Contains("id=\"approve-hint\"", html, StringComparison.Ordinal);
+        Assert.Contains("aria-describedby=\"approve-hint\"", html, StringComparison.Ordinal);
+        Assert.Contains("Choose at least one thing this device may do, or deny the request.", html, StringComparison.Ordinal);
+        Assert.DoesNotContain("<script", html, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task ApprovingWithNothingTickedIsRefusedOnTheScreenAndNeverReachesTheEngine()
+    {
+        await using var host = await PairingHost.StartAsync(["library.read", "playback.read", .. PhotoScopes]);
+        using var client = host.NewClient();
+
+        var (status, html) = await host.TryDecideAsync(client, []);
+
+        Assert.Equal(HttpStatusCode.BadRequest, status);
+        Assert.Equal(0, host.DecisionCalls);
+        Assert.Contains("role=alert tabindex=-1 autofocus", html, StringComparison.Ordinal);
+        Assert.Contains("Choose at least one thing this device may do, or deny the request.", html, StringComparison.Ordinal);
+        Assert.DoesNotContain("Device paired", html, StringComparison.Ordinal);
+        // The choices are shown again, with a fresh token, so the person can fix it.
+        Assert.Contains("name=scope value=\"library.read\" checked", html, StringComparison.Ordinal);
+        Assert.Contains("name=\"__RequestVerificationToken\"", html, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task ApprovingWithOnlyAPhotoScopePostedAsAnOrdinaryScopeIsAlsoRefused()
+    {
+        await using var host = await PairingHost.StartAsync(["library.read", .. PhotoScopes]);
+        using var client = host.NewClient();
+
+        // The photo scope is dropped, which leaves nothing ticked.
+        var (status, _) = await host.TryDecideAsync(client, [("scope", "view.personal.read")]);
+
+        Assert.Equal(HttpStatusCode.BadRequest, status);
+        Assert.Equal(0, host.DecisionCalls);
+    }
+
+    [Fact]
+    public async Task DenyingWithNothingTickedIsStillAccepted()
+    {
+        await using var host = await PairingHost.StartAsync(["library.read"]);
+        using var client = host.NewClient();
+
+        var (status, html) = await host.TryDecideAsync(client, [], decision: "deny");
+
+        Assert.Equal(HttpStatusCode.OK, status);
+        Assert.Contains("Pairing denied", html, StringComparison.Ordinal);
+        Assert.False(host.LastApproved);
+    }
+
+    [Fact]
+    public async Task WhenTheEngineRefusesTheApprovalItsReasonIsShownAndNothingIsPaired()
+    {
+        await using var host = await PairingHost.StartAsync(
+            ["library.read", .. PhotoScopes], decisionStatus: StatusCodes.Status400BadRequest,
+            decisionDetail: "This app is not allowed to use photos and videos, so that option cannot be approved.");
+        using var client = host.NewClient();
+
+        var (status, html) = await host.TryDecideAsync(client, [("scope", "library.read"), ("photos", "allow")]);
+
+        Assert.Equal(HttpStatusCode.BadRequest, status);
+        Assert.Contains("This app is not allowed to use photos and videos, so that option cannot be approved.", html, StringComparison.Ordinal);
+        Assert.DoesNotContain("Device paired", html, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task TheDashboardAlwaysSendsAnExplicitScopeList()
+    {
+        await using var host = await PairingHost.StartAsync(["library.read", .. PhotoScopes]);
+        using var client = host.NewClient();
+
+        await host.DecideAsync(client, [("scope", "library.read")]);
+        Assert.Contains("\"scopes\":[", host.LastBody, StringComparison.Ordinal);
+        Assert.Contains("\"approved\":true", host.LastBody, StringComparison.Ordinal);
+
+        // A denial with nothing ticked still carries an explicit (empty) list rather than leaving the field out.
+        await host.DecideAsync(client, [], decision: "deny");
+        Assert.Contains("\"scopes\":[]", host.LastBody, StringComparison.Ordinal);
+        Assert.Contains("\"approved\":false", host.LastBody, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task ApprovingWithThePhotoItemTickedSendsAllThreePhotoScopes()
     {
         await using var host = await PairingHost.StartAsync(["library.read", "playback.read", .. PhotoScopes]);
@@ -131,6 +240,8 @@ public sealed class PairingConsentPageTests
         private readonly WebApplication _engine;
         private readonly Uri _address;
         private (string[] Scopes, bool Approved) _received = ([], false);
+        private int _decisionCalls;
+        private string _lastBody = string.Empty;
 
         private PairingHost(WebApplication dashboard, WebApplication engine, Uri address)
         {
@@ -141,9 +252,17 @@ public sealed class PairingConsentPageTests
 
         public bool LastApproved => _received.Approved;
 
+        public string LastBody => _lastBody;
+
+        public int DecisionCalls => Volatile.Read(ref _decisionCalls);
+
         public HttpClient NewClient() => new(new HttpClientHandler { UseCookies = true }) { BaseAddress = _address };
 
-        public static async Task<PairingHost> StartAsync(string[] requested)
+        public static async Task<PairingHost> StartAsync(
+            string[] requested,
+            bool offersPhotoScopes = true,
+            int decisionStatus = StatusCodes.Status200OK,
+            string? decisionDetail = null)
         {
             PairingHost? host = null;
             var engineBuilder = WebApplication.CreateBuilder();
@@ -162,14 +281,22 @@ public sealed class PairingConsentPageTests
                         DeviceName = "Mary's phone",
                         DeviceClass = "mobile",
                         RequestedScopes = requested,
+                        OffersPhotoScopes = offersPhotoScopes,
                         ExpiresAt = DateTimeOffset.UtcNow.AddMinutes(5),
                     });
                     return;
                 }
 
-                var body = await context.Request.ReadFromJsonAsync<PairingDecisionRequest>();
-                host!._received = (body!.Scopes.ToArray(), body.Approved);
-                context.Response.StatusCode = StatusCodes.Status200OK;
+                var raw = await new StreamReader(context.Request.Body).ReadToEndAsync();
+                host!._lastBody = raw;
+                var body = System.Text.Json.JsonSerializer.Deserialize<PairingDecisionRequest>(raw);
+                Interlocked.Increment(ref host._decisionCalls);
+                host._received = (body!.Scopes?.ToArray() ?? [], body.Approved);
+                context.Response.StatusCode = decisionStatus;
+                if (decisionDetail is not null)
+                {
+                    await context.Response.WriteAsJsonAsync(new { detail = decisionDetail });
+                }
             });
             await engine.StartAsync();
             var engineAddress = AddressOf(engine);
@@ -192,6 +319,14 @@ public sealed class PairingConsentPageTests
         /// <summary>Opens the screen, posts the decision with the screen's own anti-forgery token, and returns the scopes the Engine received.</summary>
         public async Task<string[]> DecideAsync(HttpClient client, (string Name, string Value)[] fields, string decision = "approve")
         {
+            var (status, _) = await TryDecideAsync(client, fields, decision);
+            Assert.Equal(HttpStatusCode.OK, status);
+            return _received.Scopes;
+        }
+
+        /// <summary>Posts the decision the same way and returns the Dashboard's status and page.</summary>
+        public async Task<(HttpStatusCode Status, string Html)> TryDecideAsync(HttpClient client, (string Name, string Value)[] fields, string decision = "approve")
+        {
             var html = await client.GetStringAsync("/pair?user_code=ABCD-EFGH");
             var token = Regex.Match(html, "name=\"__RequestVerificationToken\" value=\"([^\"]+)\"").Groups[1].Value;
             var form = new List<KeyValuePair<string, string>>
@@ -202,8 +337,7 @@ public sealed class PairingConsentPageTests
             };
             form.AddRange(fields.Select(field => new KeyValuePair<string, string>(field.Name, field.Value)));
             using var response = await client.PostAsync("/pair", new FormUrlEncodedContent(form));
-            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-            return _received.Scopes;
+            return (response.StatusCode, await response.Content.ReadAsStringAsync());
         }
 
         public async ValueTask DisposeAsync()

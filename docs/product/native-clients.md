@@ -26,7 +26,7 @@ credential. The executable wire fixtures are under
 | --- | --- | --- | --- |
 | 0 | API v1 entry gate | Implemented and covered by executable discovery, pairing, token, playback, ownership, and wire-contract tests | Run against the same candidate server build used for device certification |
 | 1 | Android TV pilot | Shared Kotlin client, television UI, D-pad navigation foundation, pairing, browse, artwork, HLS/direct playback, captions, progress, and resume implemented. The Home screen now leads with Continue, every row is focusable with a visible focus border, and Collections and View (photos, when the person allowed them at pairing) rows are added; the shared client gained the View, Collections, Universe and profile-switch calls with unit tests for their routes and typed results | Android CI build, low/current hardware matrix, remote-control and adaptive-HLS sign-off |
-| 2 | Android and iOS | Secure credentials, background/system playback, downloads, network recovery, deep links, and resume implemented. The Android phone app now has Dashboard-parity screens on API v1 only: bottom navigation (Home, Libraries, Search, Downloads, Settings); Home with Continue first; Libraries switching between Watch, Read, Listen (the Dashboard's sort and filter in a bottom sheet), View (month-grouped timeline, galleries and a pinch-to-zoom full-screen viewer) and Collections (catalogue, items and Universe shelves); Details with Play or Resume, Download, cast and editions; Settings with server address, profile switch with PIN prompt, default download quality and sign out. Downloads is a placeholder until the offline list is built, and the photo scopes are requested only when the person ticks the optional photos and videos box before pairing The iPhone app now has Dashboard-parity screens on API v1 only: a tab bar (Home, Libraries, Search, Downloads, Settings); Home with Continue first, then the Home shelves in order; Libraries switching between Watch, Read, Listen (the Dashboard's sort and filter in a sheet), View (month-grouped timeline, galleries and a pinch-to-zoom full-screen viewer) and Collections (catalogue, items and Universe shelves); Details with Play or Resume, Download, cast and editions; and Settings with server address, profile switch with PIN prompt, default download quality and sign out. Downloads is a placeholder until the offline list is built, and the photo scopes are requested only when the person ticks the optional photos and videos box on the connect screen. Apple TV and CarPlay are unchanged | Android and Apple CI builds, phone/tablet device matrix, interruption/Bluetooth/download sign-off, store metadata |
+| 2 | Android and iOS | Secure credentials, background/system playback, downloads, network recovery, deep links, and resume implemented. The Android phone app now has Dashboard-parity screens on API v1 only: bottom navigation (Home, Libraries, Search, Downloads, Settings); Home with Continue first; Libraries switching between Watch, Read, Listen (the Dashboard's sort and filter in a bottom sheet), View (month-grouped timeline, galleries and a pinch-to-zoom full-screen viewer) and Collections (catalogue, items and Universe shelves); Details with Play or Resume, a Download button that asks for a quality (Small, Standard or Audio), Download next episodes on a show, cast and editions; Settings with server address, profile switch with PIN prompt, default download quality, an offline storage limit (default 10 GB; new downloads are blocked once it is reached) and sign out. Downloads lists each saved copy with artwork, title, size, quality and expiry, with pause, resume (HTTP range) and delete; the queue is a WorkManager job, a finished copy plays from the local file, progress recorded on the phone is replayed oldest first with `offline: true` and `client_timestamp` (the app adopts the Engine's record when the Engine kept its own), every store and delete is reported to `/api/v1/devices/current/downloads` and retried when offline, and a copy missing from that list on the next read is treated as expired and removed. Books and photos are not downloaded by this app yet. The offline paths are written but not yet run on a device or emulator. The photo scopes are requested only when the person ticks the optional photos and videos box before pairing The iPhone app now has Dashboard-parity screens on API v1 only: a tab bar (Home, Libraries, Search, Downloads, Settings); Home with Continue first, then the Home shelves in order; Libraries switching between Watch, Read, Listen (the Dashboard's sort and filter in a sheet), View (month-grouped timeline, galleries and a pinch-to-zoom full-screen viewer) and Collections (catalogue, items and Universe shelves); Details with Play or Resume, Download, cast and editions; and Settings with server address, profile switch with PIN prompt, default download quality and sign out. Downloads is a placeholder until the offline list is built, and the photo scopes are requested only when the person ticks the optional photos and videos box on the connect screen. Apple TV and CarPlay are unchanged | Android and Apple CI builds, phone/tablet device matrix, interruption/Bluetooth/download sign-off, store metadata |
 | 3 | Roku | SceneGraph/BrightScript pairing, browse, search, detail, playback, captions, progress, and resume implemented | Sideload matrix, pairing-policy confirmation, artwork/localization, Roku certification |
 | 4 | Android Auto and CarPlay | Listen-only music, audiobooks, playlists, recent items, queue-compatible media sessions, and native Now Playing surfaces implemented | Desktop Head Unit/vehicle tests, Apple managed CarPlay entitlement, both platform reviews |
 | 5 | Release train | Cross-client CI and API/source boundary gates implemented | Signing credentials, store records, privacy/support declarations, phased rollout, telemetry review, and rollback ownership |
@@ -131,14 +131,32 @@ my photos and videos**, unticked by default and explained in plain words
 galleries, including galleries shared with you"). It stands for three scopes
 (`view.personal.read`, `view.originals.read` and `view.galleries.read`), which
 an app may request at pairing but which are never part of the default scopes.
-Leaving the item unticked, approving without choosing, or pairing before this
-change gives the device none of them, and every `/api/v1/view` route answers
-`403`. Ticking it grants all three scopes the app asked for, to that device only.
-Removing the device (Settings, Devices) revokes its tokens, so its photo access
-ends at once (`401`); there is no separate switch for photos. To change the
-choice, remove the device and pair it again. The Dashboard's app door forwards
-only the eleven read-only `GET` routes of `/api/v1/view` (no write, no other
-`view/` path).
+Leaving the item unticked or pairing before this change gives the device none
+of them, and every `/api/v1/view` route answers `403`. Ticking it grants all
+three scopes the app asked for, to that device only.
+
+An app gets only what the person approves. If every ordinary item and the photo
+item are unticked, the pairing screen refuses the approval with "Choose at least
+one thing this device may do, or deny the request." and nothing is paired; a
+visible note beside **Approve device** says so beforehand, and the check is made
+on the Dashboard's server, so it does not depend on scripts. The photo item is
+shown only when the app asked for photos and its Application holds the three photo
+permissions. A Media Player preset app, or the built-in app after an administrator
+removed the permissions, does not show it, and a decision that ticks photos for
+such an app is refused with a clear message instead of creating a device that
+could not sign in.
+
+Re-pairing is the only way to change the photo choice: there is no separate
+switch for photos on a paired device. Removing the device (Settings, Devices)
+revokes its tokens, so its photo access ends at once (`401`). Removing even one of
+the three photo permissions from the built-in app later (an administrator action in Settings)
+signs out every device that opted in, because a token is only valid while its
+Application holds every scope the token carries; those devices must be paired
+again. On an existing data store, a one-time startup step added the three photo
+permissions to the built-in app even when an administrator had trimmed its
+permissions earlier; they do nothing for a device until its person ticks the photo
+item. The Dashboard's app door forwards only the eleven read-only `GET` routes of
+`/api/v1/view` (no write, no other `view/` path).
 
 ## Release and update behavior
 
