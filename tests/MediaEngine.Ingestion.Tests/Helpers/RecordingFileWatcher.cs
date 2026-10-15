@@ -58,11 +58,26 @@ internal sealed class RecordingFileWatcher : IFileWatcher
         }
     }
 
+    public bool? GetIncludeSubdirectories(string path) => IsRecursive(path);
+
     public int CountEntries(string path, string kind)
         => Log.Count(entry => entry.StartsWith(kind + ":" + path, StringComparison.OrdinalIgnoreCase));
 
+    /// <summary>Makes <see cref="AddDirectory"/> for one folder wait (as a slow or unreachable share would) until released.</summary>
+    public void BlockAddsFor(string path) => _blockedPath = path;
+
+    public ManualResetEventSlim AddEntered { get; } = new(false);
+    public ManualResetEventSlim ReleaseAdd { get; } = new(false);
+    private volatile string? _blockedPath;
+
     public void AddDirectory(string path, bool includeSubdirectories = true)
     {
+        if (_blockedPath is { } blocked && SamePath(blocked, path))
+        {
+            AddEntered.Set();
+            ReleaseAdd.Wait(TimeSpan.FromSeconds(30));
+        }
+
         lock (_gate)
         {
             _watched.Add((path, includeSubdirectories));

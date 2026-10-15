@@ -44,6 +44,7 @@ internal sealed class StubFileWatcher : IFileWatcher
 
     public void AddDirectory(string path, bool includeSubdirectories = true) { }
     public bool RemoveDirectory(string path) => false;
+    public bool? GetIncludeSubdirectories(string path) => null;
     public void Start() { }
     public void Stop() { }
     public void UpdateDirectory(string path, bool includeSubdirectories = true) { }

@@ -23,34 +23,48 @@ public sealed partial class IngestionEngine
     // Every start/stop (including the late import-folder watch) happens under this lock, so rapid saves cannot race.
     private readonly object _watchedFoldersLock = new();
     private readonly Dictionary<string, bool> _watchedFolders = new(StringComparer.OrdinalIgnoreCase);
-    private IDisposable? _folderChangeSubscription;
+    private IDisposable? _folderChangeSubscription; // swapped with Interlocked only
 
     private bool IsStopping => Volatile.Read(ref _disposeState) != 0 || _shutdownCts.IsCancellationRequested;
 
     private void SubscribeToFolderChanges()
     {
-        if (_optionsMonitor is null)
+        if (_optionsMonitor is null || IsStopping)
         {
             return;
         }
 
-        lock (_watchedFoldersLock)
+        // Subscribe first, then read the current value: a save made before this point (for example while the engine waited
+        // for first-run setup to finish) is picked up here, and one made after it arrives through the listener.
+        var subscription = _optionsMonitor.OnChange(OnLibraryOptionsChanged);
+        if (Interlocked.CompareExchange(ref _folderChangeSubscription, subscription, null) is not null)
         {
-            _folderChangeSubscription ??= _optionsMonitor.OnChange(OnLibraryOptionsChanged);
+            subscription?.Dispose();
+            return;
+        }
+
+        if (IsStopping)
+        {
+            UnsubscribeFromFolderChanges();
+            return;
+        }
+
+        try
+        {
+            _folderOptions = _optionsMonitor.CurrentValue;
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or OptionsValidationException)
+        {
+            // The saved folder settings cannot be turned into options (for example two folders overlap): keep the folders the
+            // engine started with until a valid save arrives.
+            _logger.LogWarning(ex,
+                "The saved library folders could not be read - the watched folders stay as they were until the next valid save");
         }
     }
 
+    /// <summary>Lock-free on purpose: a rebuild may be inside a slow file-system call and shutdown must never wait for it.</summary>
     private void UnsubscribeFromFolderChanges()
-    {
-        IDisposable? subscription;
-        lock (_watchedFoldersLock)
-        {
-            subscription = _folderChangeSubscription;
-            _folderChangeSubscription = null;
-        }
-
-        subscription?.Dispose();
-    }
+        => Interlocked.Exchange(ref _folderChangeSubscription, null)?.Dispose();
 
     /// <summary>Runs on the thread that saved the settings: swap in the new options and hand the real work to an owned task.</summary>
     private void OnLibraryOptionsChanged(IngestionOptions updated, string? name)
@@ -60,7 +74,7 @@ public sealed partial class IngestionEngine
             return;
         }
 
-        _options = updated;
+        _folderOptions = updated;
         TrackBackgroundTask(ApplyChangedFoldersAsync(), "library folder change");
     }
 
@@ -152,9 +166,10 @@ public sealed partial class IngestionEngine
     private Dictionary<string, WatchFolderSpec> BuildDesiredWatchFolders()
     {
         var desired = new Dictionary<string, WatchFolderSpec>(StringComparer.OrdinalIgnoreCase);
-        var importPath = _importFolders?.GetImportPath() ?? _options.ImportFolderPath;
+        var folderOptions = _folderOptions;
+        var importPath = _importFolders?.GetImportPath() ?? folderOptions.ImportFolderPath;
 
-        foreach (var target in GetConfiguredScanTargets())
+        foreach (var target in GetConfiguredScanTargets(folderOptions))
         {
             string path;
             try
@@ -170,7 +185,7 @@ public sealed partial class IngestionEngine
             // Only a Tuvima-managed writable folder (or the Import folder) may be created when it is missing; a read-only
             // or as-is folder that is not there (an offline drive, a mistyped path) is left alone and not watched.
             var mayCreate = IsSamePath(path, importPath)
-                || _options.LibraryFolders.Any(library => library.Sources.Any(source =>
+                || folderOptions.LibraryFolders.Any(library => library.Sources.Any(source =>
                     source.AllowsFileMutation && IsSamePath(path, source.Path)));
 
             desired[path] = new WatchFolderSpec(target.IncludeSubdirectories, mayCreate);
@@ -203,11 +218,17 @@ public sealed partial class IngestionEngine
     {
         try
         {
-            // Another path (the late Import-folder watch) may already have it: adopt that watcher rather than doubling it up.
-            if (_watcher.WatchedPaths.Any(watched => IsSamePath(path, watched)))
+            // A watcher for this folder that this code did not start: keep it when it already matches, otherwise start it again.
+            var existing = _watcher.GetIncludeSubdirectories(path);
+            if (existing is not null)
             {
-                _watchedFolders[path] = includeSubdirectories;
-                return false;
+                if (existing == includeSubdirectories)
+                {
+                    _watchedFolders[path] = existing.Value;
+                    return false;
+                }
+
+                _watcher.RemoveDirectory(path);
             }
 
             if (!mayCreateIfMissing && !Directory.Exists(path))
@@ -269,7 +290,7 @@ public sealed partial class IngestionEngine
     /// <summary>Drops the polling fallback's remembered file states for a folder that is no longer watched.</summary>
     private void ForgetPollFingerprintsUnder(string folder)
     {
-        var prefix = folder + Path.DirectorySeparatorChar;
+        var prefix = folder.EndsWith(Path.DirectorySeparatorChar) ? folder : folder + Path.DirectorySeparatorChar;
         lock (_fswBufferLock)
         {
             foreach (var path in _pollFingerprints.Keys.ToList())

@@ -15,6 +15,7 @@ using MediaEngine.Providers.Helpers;
 using MediaEngine.Providers.Services;
 using MediaEngine.Storage;
 using MediaEngine.Storage.Services;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 
 namespace MediaEngine.Ingestion.Tests;
@@ -57,22 +58,86 @@ public sealed class LiveLibraryFolderWatchingTests : IDisposable
     }
 
     [Fact]
-    public async Task A_folder_removed_and_added_back_does_not_duplicate_its_already_ingested_files()
+    public async Task A_folder_removed_and_added_back_skips_files_the_known_path_filter_already_knows()
     {
         var h = NewHarness();
         var watcher = new RecordingFileWatcher();
+        var logger = new CapturingLogger<IngestionEngine>();
         var bookPath = WriteFile(h.AsIsDir, "Dune.epub", "dune book");
-        var run = await StartAsync(h, watcher, BooksProcessor(bookPath), BuildOptions(h, BooksLibrary(AsIsSource(h.AsIsDir))));
+        var run = await StartAsync(
+            h, watcher, BooksProcessor(bookPath), BuildOptions(h, BooksLibrary(AsIsSource(h.AsIsDir))),
+            logger: logger, withHashCache: true);
         await WaitUntilAsync(async () => await h.Assets.FindByPathRootAsync(bookPath) is not null);
         Assert.Equal(1, await AssetCountAsync(h));
 
         run.Monitor.Publish(BuildOptions(h));
         await WaitUntilAsync(() => Task.FromResult(!watcher.IsWatching(h.AsIsDir)));
+        var logLinesBefore = logger.Messages.Count;
         run.Monitor.Publish(BuildOptions(h, BooksLibrary(AsIsSource(h.AsIsDir))));
         await WaitUntilAsync(() => Task.FromResult(watcher.IsWatching(h.AsIsDir)));
-        await Task.Delay(500);
 
+        // The re-added folder's scan finds the file already catalogued and queues nothing (not even for hash dedup).
+        await WaitUntilAsync(() => Task.FromResult(logger.Messages.Skip(logLinesBefore)
+            .Any(message => message.StartsWith("Initial scan: skipped 1 already-known", StringComparison.Ordinal))));
+        await Task.Delay(1500);
+        Assert.DoesNotContain(
+            logger.Messages.Skip(logLinesBefore),
+            message => message.StartsWith("Initial scan: enqueued", StringComparison.Ordinal));
         Assert.Equal(1, await AssetCountAsync(h));
+    }
+
+    [Fact]
+    public async Task A_save_made_before_the_engine_started_listening_is_not_lost()
+    {
+        var h = NewHarness();
+        var watcher = new RecordingFileWatcher();
+        var bookPath = WriteFile(h.AsIsDir, "Dune.epub", "dune book");
+
+        // The Books folder is saved while the engine is still waiting (for example for first-run setup to finish).
+        await StartAsync(
+            h, watcher, BooksProcessor(bookPath), BuildOptions(h),
+            beforeStart: monitor => monitor.Publish(BuildOptions(h, BooksLibrary(AsIsSource(h.AsIsDir)))));
+
+        Assert.True(watcher.IsWatching(h.AsIsDir));
+        await WaitUntilAsync(async () => await h.Assets.FindByPathRootAsync(bookPath) is not null);
+        Assert.Equal(1, watcher.CountEntries(h.AsIsDir, "add"));
+    }
+
+    [Fact]
+    public async Task Stopping_never_waits_for_a_rebuild_stuck_on_a_slow_folder()
+    {
+        var h = NewHarness();
+        var watcher = new RecordingFileWatcher();
+        var run = await StartAsync(h, watcher, new TestProcessorLibraryItem(), BuildOptions(h));
+        watcher.BlockAddsFor(h.AsIsDir);
+
+        run.Monitor.Publish(BuildOptions(h, BooksLibrary(AsIsSource(h.AsIsDir))));
+        Assert.True(watcher.AddEntered.Wait(TimeSpan.FromSeconds(10)), "the rebuild should reach the slow folder");
+
+        // The rebuild now holds its lock inside the slow call; unsubscribing must not need that lock.
+        var stopping = Task.Run(run.Stop);
+        await WaitUntilAsync(() => Task.FromResult(run.Monitor.ListenerCount == 0), TimeSpan.FromSeconds(5));
+
+        watcher.ReleaseAdd.Set();
+        await stopping;
+    }
+
+    [Fact]
+    public async Task A_watcher_that_already_matches_is_kept_and_one_with_another_sub_folder_setting_is_restarted()
+    {
+        var h = NewHarness();
+        var matching = new RecordingFileWatcher();
+        matching.AddDirectory(h.AsIsDir, includeSubdirectories: true);
+        await StartAsync(h, matching, new TestProcessorLibraryItem(), BuildOptions(h, BooksLibrary(AsIsSource(h.AsIsDir))));
+        Assert.Equal(1, matching.CountEntries(h.AsIsDir, "add"));
+        Assert.Equal(0, matching.CountEntries(h.AsIsDir, "remove"));
+
+        var h2 = NewHarness();
+        var mismatched = new RecordingFileWatcher();
+        mismatched.AddDirectory(h2.AsIsDir, includeSubdirectories: false);
+        await StartAsync(h2, mismatched, new TestProcessorLibraryItem(), BuildOptions(h2, BooksLibrary(AsIsSource(h2.AsIsDir))));
+        Assert.Equal(1, mismatched.CountEntries(h2.AsIsDir, "remove"));
+        Assert.True(mismatched.IsRecursive(h2.AsIsDir));
     }
 
     [Fact]
@@ -253,6 +318,21 @@ public sealed class LiveLibraryFolderWatchingTests : IDisposable
         Assert.False(watcher.IsWatching(h.AsIsDir));
     }
 
+    [Fact]
+    public void A_drive_or_filesystem_root_keeps_its_separator_when_normalised_and_other_folders_lose_theirs()
+    {
+        var normalise = typeof(IngestionEngine).GetMethod(
+            "NormalizeDirectoryPath",
+            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
+        Assert.NotNull(normalise);
+
+        var root = Path.GetPathRoot(Path.GetTempPath())!;
+        Assert.Equal(root, (string)normalise.Invoke(null, [root])!);
+
+        var folder = Path.Combine(Path.GetTempPath(), "tuvima_normalise_check");
+        Assert.Equal(folder, (string)normalise.Invoke(null, [folder + Path.DirectorySeparatorChar])!);
+    }
+
     // -- Harness -----------------------------------------------------------
 
     private ImportFolderHarness NewHarness()
@@ -381,7 +461,10 @@ public sealed class LiveLibraryFolderWatchingTests : IDisposable
         ImportFolderHarness h,
         IFileWatcher watcher,
         TestProcessorLibraryItem processors,
-        IngestionOptions options)
+        IngestionOptions options,
+        ILogger<IngestionEngine>? logger = null,
+        bool withHashCache = false,
+        Action<ReloadableOptionsMonitor<IngestionOptions>>? beforeStart = null)
     {
         var db = h.Db.Connection;
         var publisher = new StubEventPublisher();
@@ -414,7 +497,7 @@ public sealed class LiveLibraryFolderWatchingTests : IDisposable
             new InlineBackgroundWorker(),
             publisher,
             Microsoft.Extensions.Options.Options.Create(options),
-            NullLogger<IngestionEngine>.Instance,
+            logger ?? NullLogger<IngestionEngine>.Instance,
             new MetadataClaimRepository(db),
             h.Canonicals,
             new StubRecursiveIdentity(),
@@ -439,7 +522,7 @@ public sealed class LiveLibraryFolderWatchingTests : IDisposable
                 h.Importer),
             new DuplicateResolver(h.Assets),
             new IngestionLogScribe(new IngestionLogRepository(db), publisher, NullLogger<IngestionLogScribe>.Instance),
-            new HashDedupeStageDependencies(null),
+            new HashDedupeStageDependencies(withHashCache ? new FileHashCacheRepository(db) : null),
             new ScoreIdentifyStageDependencies(null),
             new OrganizeStageDependencies(null),
             new WriteBackStageDependencies(new EntityAssetRepository(db), new AssetPathService(h.LibraryRoot), workRepo, null),
@@ -455,6 +538,7 @@ public sealed class LiveLibraryFolderWatchingTests : IDisposable
         var run = new RunningEngine(engine, debounce, monitor);
         _disposables.Add(run);
 
+        beforeStart?.Invoke(monitor);
         await engine.StartAsync(CancellationToken.None);
 
         // The engine subscribes and starts its first watchers on its own thread; wait until it has.

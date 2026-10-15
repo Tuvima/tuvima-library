@@ -279,9 +279,18 @@ public sealed partial class IngestionEngine
             || name.EndsWith(".crdownload", StringComparison.OrdinalIgnoreCase);
     }
 
+    /// <summary>
+    /// The full path without a trailing separator. A root (<c>D:\</c> or <c>/</c>) keeps its separator, because trimming it
+    /// would give a drive-relative or empty path.
+    /// </summary>
     private static string NormalizeDirectoryPath(string path)
-        => Path.GetFullPath(path)
-            .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+    {
+        var full = Path.GetFullPath(path);
+        var root = Path.GetPathRoot(full);
+        return string.Equals(full, root, StringComparison.OrdinalIgnoreCase)
+            ? full
+            : full.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+    }
 
     private static string ResolveScanBatchSourcePath(IReadOnlyList<IngestionScanTarget> targets)
         => targets.Count == 1
@@ -827,7 +836,7 @@ public sealed partial class IngestionEngine
 
         return roots.Count switch
         {
-            0 => _options.EffectiveWatchDirectories.FirstOrDefault() ?? "Unknown source folder",
+            0 => _folderOptions.EffectiveWatchDirectories.FirstOrDefault() ?? "Unknown source folder",
             1 => roots[0]!,
             _ => "Multiple source folders",
         };
@@ -837,7 +846,7 @@ public sealed partial class IngestionEngine
     {
         var normalizedFile = Path.GetFullPath(filePath).Replace('\\', '/').TrimEnd('/');
 
-        return _options.EffectiveWatchDirectories
+        return _folderOptions.EffectiveWatchDirectories
             .Where(path => !string.IsNullOrWhiteSpace(path))
             .OrderByDescending(path => path.Length)
             .FirstOrDefault(path =>

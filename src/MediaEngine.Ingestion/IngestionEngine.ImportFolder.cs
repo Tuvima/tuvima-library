@@ -14,13 +14,13 @@ namespace MediaEngine.Ingestion;
 /// </summary>
 public sealed partial class IngestionEngine
 {
-    private IReadOnlyList<IngestionScanTarget> GetConfiguredScanTargets() =>
-        _options.LibraryFolders
+    private IReadOnlyList<IngestionScanTarget> GetConfiguredScanTargets(IngestionOptions? folderOptions = null) =>
+        (folderOptions ?? _folderOptions).LibraryFolders
             .Where(library => string.Equals(library.Kind, LibraryKinds.Catalogued, StringComparison.OrdinalIgnoreCase))
             // A folder that was merged into another one is no longer scanned: its files are catalogued as the copies in the target.
             .SelectMany(library => library.Sources.Where(source => !source.IsMergedAway).Select(source =>
                 new IngestionScanTarget(source.Path, source.IncludeSubdirectories)))
-            .Concat(GetImportScanTargets())
+            .Concat(GetImportScanTargets(folderOptions))
             .Where(target => !string.IsNullOrWhiteSpace(target.Path))
             .GroupBy(target => target.Path, StringComparer.OrdinalIgnoreCase)
             .Select(group => new IngestionScanTarget(
@@ -29,9 +29,9 @@ public sealed partial class IngestionEngine
             .ToList();
 
     /// <summary>The import folder as configured now (so one set after startup is included), or nothing when none is set.</summary>
-    private IEnumerable<IngestionScanTarget> GetImportScanTargets()
+    private IEnumerable<IngestionScanTarget> GetImportScanTargets(IngestionOptions? folderOptions = null)
     {
-        var path = _importFolders?.GetImportPath() ?? _options.ImportFolderPath;
+        var path = _importFolders?.GetImportPath() ?? (folderOptions ?? _folderOptions).ImportFolderPath;
         return string.IsNullOrWhiteSpace(path) ? [] : [new IngestionScanTarget(path)];
     }
 

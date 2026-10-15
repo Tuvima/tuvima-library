@@ -60,6 +60,12 @@ public interface IFileWatcher : IDisposable
     /// </summary>
     bool RemoveDirectory(string path);
 
+    /// <summary>
+    /// Whether the watched directory <paramref name="path"/> includes its subdirectories, or <see langword="null"/> when the
+    /// directory is not being watched.
+    /// </summary>
+    bool? GetIncludeSubdirectories(string path);
+
     /// <summary>Begins raising <see cref="FileDetected"/> events.</summary>
     void Start();
 

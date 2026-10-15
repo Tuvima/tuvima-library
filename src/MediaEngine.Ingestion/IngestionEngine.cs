@@ -77,9 +77,12 @@ public sealed partial class IngestionEngine : BackgroundService, IIngestionEngin
     private readonly IMediaAssetRepository _assetRepo;
     private readonly IBackgroundWorker _worker;
     private readonly IEventPublisher _publisher;
-    // Replaced (never mutated) when the libraries configuration is saved, so the folder list, import folder and policy
-    // the engine reads are always the current ones. See IngestionEngine.WatchedFolders.cs.
-    private volatile IngestionOptions _options;
+    private readonly IngestionOptions _options;
+
+    // The folder list and import folder the engine watches and scans. Starts as the same object as _options and is replaced
+    // (never mutated) when the libraries configuration is saved; every other setting stays as read at startup.
+    // See IngestionEngine.WatchedFolders.cs.
+    private volatile IngestionOptions _folderOptions;
     private readonly IOptionsMonitor<IngestionOptions>? _optionsMonitor;
     private readonly ILogger<IngestionEngine> _logger;
     private readonly OnboardingActivationGate? _onboardingGate;
@@ -224,6 +227,7 @@ public sealed partial class IngestionEngine : BackgroundService, IIngestionEngin
         _worker = worker;
         _publisher = publisher;
         _options = options.Value;
+        _folderOptions = _options;
         _logger = logger;
         _claimRepo = claimRepo;
         _canonicalRepo = canonicalRepo;

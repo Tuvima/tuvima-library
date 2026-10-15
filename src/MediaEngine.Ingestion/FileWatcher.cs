@@ -30,6 +30,10 @@ public sealed class FileWatcher : IFileWatcher
 
     // Guards _watchers: folders can now be added and removed while OS events, status reads and recovery run.
     private readonly object _gate = new();
+
+    // Lock-free snapshot of _watchers for the OS callbacks: an event from a watcher that was just removed (or replaced)
+    // may already be in flight, and must be dropped rather than reported for a folder that is no longer watched.
+    private volatile System.IO.FileSystemWatcher[] _active = [];
     private bool _running;
     private bool _disposed;
 
@@ -126,6 +130,7 @@ public sealed class FileWatcher : IFileWatcher
             }
 
             _watchers.Add(watcher);
+            PublishActive();
 
             // A folder added while the watcher is already running starts raising events straight away.
             if (_running)
@@ -152,9 +157,25 @@ public sealed class FileWatcher : IFileWatcher
 
             var watcher = _watchers[index];
             _watchers.RemoveAt(index);
+            PublishActive();
             watcher.EnableRaisingEvents = false;
             DetachAndDispose(watcher);
             return true;
+        }
+    }
+
+    /// <inheritdoc/>
+    public bool? GetIncludeSubdirectories(string path)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(path);
+
+        var target = NormalizeForComparison(path);
+        lock (_gate)
+        {
+            return _watchers
+                .Where(w => string.Equals(NormalizeForComparison(w.Path), target, StringComparison.OrdinalIgnoreCase))
+                .Select(w => (bool?)w.IncludeSubdirectories)
+                .FirstOrDefault();
         }
     }
 
@@ -204,6 +225,7 @@ public sealed class FileWatcher : IFileWatcher
                 DetachAndDispose(w);
             }
             _watchers.Clear();
+            PublishActive();
 
             foreach (var path in paths
                 .Where(path => !string.IsNullOrWhiteSpace(path))
@@ -231,6 +253,7 @@ public sealed class FileWatcher : IFileWatcher
 
             _disposed = true;
             _running = false;
+            _active = [];
 
             foreach (var w in _watchers)
             {
@@ -252,15 +275,31 @@ public sealed class FileWatcher : IFileWatcher
         watcher.Dispose();
     }
 
+    private void PublishActive() => _active = [.. _watchers];
+
+    private bool IsActive(object? sender)
+        => sender is System.IO.FileSystemWatcher watcher && Array.IndexOf(_active, watcher) >= 0;
+
+    // A root (D:\ or /) keeps its separator; trimming it would give a drive-relative or empty path.
     private static string NormalizeForComparison(string path)
-        => Path.GetFullPath(path).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+    {
+        var full = Path.GetFullPath(path);
+        return string.Equals(full, Path.GetPathRoot(full), StringComparison.OrdinalIgnoreCase)
+            ? full
+            : full.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+    }
 
     // -------------------------------------------------------------------------
     // OS event handlers (called on the OS thread pool)
     // -------------------------------------------------------------------------
 
-    private void OnCreated(object _, System.IO.FileSystemEventArgs e)
+    private void OnCreated(object? sender, System.IO.FileSystemEventArgs e)
     {
+        if (!IsActive(sender))
+        {
+            return;
+        }
+
         // Directories are not media files — skip immediately.
         if (Directory.Exists(e.FullPath))
         {
@@ -276,8 +315,13 @@ public sealed class FileWatcher : IFileWatcher
         });
     }
 
-    private void OnChanged(object _, System.IO.FileSystemEventArgs e)
+    private void OnChanged(object? sender, System.IO.FileSystemEventArgs e)
     {
+        if (!IsActive(sender))
+        {
+            return;
+        }
+
         // Directory writes (e.g. file added under a folder) fire Changed on the
         // folder itself — we only ingest files, so skip them here. Without this
         // guard the lock probe later opens the directory path as a file, fails
@@ -296,8 +340,13 @@ public sealed class FileWatcher : IFileWatcher
         });
     }
 
-    private void OnDeleted(object _, System.IO.FileSystemEventArgs e)
+    private void OnDeleted(object? sender, System.IO.FileSystemEventArgs e)
     {
+        if (!IsActive(sender))
+        {
+            return;
+        }
+
         RecordOsEvent();
         Raise(new FileEvent
         {
@@ -307,8 +356,13 @@ public sealed class FileWatcher : IFileWatcher
         });
     }
 
-    private void OnRenamed(object _, System.IO.RenamedEventArgs e)
+    private void OnRenamed(object? sender, System.IO.RenamedEventArgs e)
     {
+        if (!IsActive(sender))
+        {
+            return;
+        }
+
         // Directory renames are not ingestion events. Skip them so the lock
         // probe doesn't try to open the directory as a file.
         if (Directory.Exists(e.FullPath))
@@ -326,8 +380,14 @@ public sealed class FileWatcher : IFileWatcher
         });
     }
 
-    private void OnError(object _, System.IO.ErrorEventArgs e)
+    private void OnError(object? sender, System.IO.ErrorEventArgs e)
     {
+        // An error from a watcher that was just removed says nothing about the folders still watched.
+        if (sender is System.IO.FileSystemWatcher && !IsActive(sender))
+        {
+            return;
+        }
+
         var ex = e.GetException();
         var isOverflow = ex is System.IO.InternalBufferOverflowException;
         var kind = isOverflow ? "buffer_overflow" : ex.GetType().Name;
