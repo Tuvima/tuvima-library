@@ -297,6 +297,27 @@ public sealed class ReadingSettingsPageTests : AsyncBunitContext
         Assert.Contains(_logs.Entries, entry => entry.Level == LogLevel.Warning && entry.Exception is HttpRequestException);
     }
 
+    [Fact]
+    public void OtherProfile_Save_WhenTheCurrentSettingsBelongToAnotherProfile_SavesNothingAndStartsAgain()
+    {
+        var cut = Render<ReadingSettingsPage>(parameters => parameters.Add(page => page.ProfileId, OtherId));
+        cut.WaitForAssertion(() => Assert.Contains("Match app", cut.Markup));
+        var readsBefore = _apiCalls.Count(call => call.Call == "get");
+        _otherSettings = UserPlaybackSettingsDto.CreateDefaults(Guid.NewGuid());
+
+        cut.FindAll(".app-segmented-control button")
+            .Single(button => button.TextContent.Trim() == "Dark")
+            .Click();
+
+        cut.WaitForAssertion(() =>
+        {
+            // One read to merge into, one to start again; the second is refused because it is not Mira's either.
+            Assert.True(_apiCalls.Count(call => call.Call == "get") >= readsBefore + 2);
+            Assert.Contains("Reading settings could not be loaded.", cut.Markup);
+        });
+        Assert.DoesNotContain(_apiCalls, call => call.Call == "put");
+    }
+
     private sealed class CountingAccessor(UserPlaybackSettingsDto settings) : IUserPlaybackPreferencesAccessor
     {
         public UserPlaybackSettingsDto Settings => settings;

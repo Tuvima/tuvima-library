@@ -374,6 +374,25 @@ public sealed class PlaybackSettingsPageTests : AsyncBunitContext
         Assert.Contains(_logs.Entries, entry => entry.Level == LogLevel.Warning && entry.Exception is HttpRequestException);
     }
 
+    [Fact]
+    public void OtherProfile_Save_WhenTheCurrentSettingsBelongToAnotherProfile_SavesNothingAndStartsAgain()
+    {
+        var cut = Render<PlaybackSettingsPage>(parameters => parameters.Add(page => page.ProfileId, OtherId));
+        cut.WaitForAssertion(() => Assert.Contains("How Mira watches.", cut.Markup));
+        var readsBefore = _apiCalls.Count(call => call.Call == "get");
+        _otherSettings = UserPlaybackSettingsDto.CreateDefaults(Guid.NewGuid());
+
+        cut.Find("input[aria-label='Autoplay next episode']").Change(false);
+
+        cut.WaitForAssertion(() =>
+        {
+            // One read to merge into, one to start again; the second is refused because it is not Mira's either.
+            Assert.True(_apiCalls.Count(call => call.Call == "get") >= readsBefore + 2);
+            Assert.Contains("Playback settings could not be loaded.", cut.Markup);
+        });
+        Assert.DoesNotContain(_apiCalls, call => call.Call == "put");
+    }
+
     private sealed class CountingAccessor(UserPlaybackSettingsDto settings) : IUserPlaybackPreferencesAccessor
     {
         public UserPlaybackSettingsDto Settings => settings;

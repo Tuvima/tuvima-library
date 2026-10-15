@@ -154,19 +154,7 @@ public sealed class AccountAccessMutationService(
         {
             throw new KeyNotFoundException("Account not found.");
         }
-        if (actor.AccountId == accountId)
-        {
-            throw new InvalidOperationException("Email changes are made by an administrator, not for your own sign-in.");
-        }
-
-        RequireNotAdministratorTarget(target, householdOnly);
-
-        // Taking over an administrator's sign-in address would let its password reset reach someone else.
-        if (target.IsAdministrator
-            && (actor.PrincipalKind != PrincipalKind.Human || !actor.AccountIsAdministrator || !actor.GrantAdminEnabled))
-        {
-            throw new UnauthorizedAccessException("Only an unlocked administrator can change an administrator's email.");
-        }
+        RequireMayChangeEmail(actor, target, householdOnly);
 
         var normalized = NormalizeEmail(email);
         var normalizedKey = normalized.ToUpperInvariant();
@@ -180,6 +168,27 @@ public sealed class AccountAccessMutationService(
         await ChangedAsync(actor, "account.email_changed", "account", accountId.ToString("D"),
             accountId, null, ct).ConfigureAwait(false);
         return (await accounts.GetByIdAsync(accountId, ct).ConfigureAwait(false))!;
+    }
+
+    /// <summary>
+    /// The rules for moving someone's sign-in address, shared by <see cref="ChangeEmailAsync"/> and the email part of
+    /// <see cref="UpdateAsync"/> so neither route can do what the other refuses.
+    /// </summary>
+    private static void RequireMayChangeEmail(RequestAuthority actor, Account target, bool householdOnly)
+    {
+        if (actor.AccountId == target.Id)
+        {
+            throw new InvalidOperationException("Email changes are made by an administrator, not for your own sign-in.");
+        }
+
+        RequireNotAdministratorTarget(target, householdOnly);
+
+        // Taking over an administrator's sign-in address would let its password reset reach someone else.
+        if (target.IsAdministrator
+            && (actor.PrincipalKind != PrincipalKind.Human || !actor.AccountIsAdministrator || !actor.GrantAdminEnabled))
+        {
+            throw new UnauthorizedAccessException("Only an unlocked administrator can change an administrator's email.");
+        }
     }
 
     private async Task RequireEmailAvailableAsync(Guid accountId, string normalizedKey, CancellationToken ct)
@@ -283,6 +292,8 @@ public sealed class AccountAccessMutationService(
             emailChanged = !string.Equals(account.NormalizedEmail, emailKey, StringComparison.Ordinal);
             if (emailChanged)
             {
+                // RequireWriteAsync above already limits this route to an unlocked server administrator or a trusted application.
+                RequireMayChangeEmail(actor, account, householdOnly: false);
                 await RequireEmailAvailableAsync(accountId, emailKey, ct).ConfigureAwait(false);
             }
 

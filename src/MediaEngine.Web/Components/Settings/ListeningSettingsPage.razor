@@ -177,6 +177,13 @@ else if (_settings is not null)
                     return;
                 }
 
+                if (loaded.ProfileId != ProfileId)
+                {
+                    Logger.LogWarning("Listening settings could not be loaded: the Engine answered for a different profile.");
+                    _loadError = "Listening settings could not be loaded.";
+                    return;
+                }
+
                 _settings = Clone(loaded);
                 await TargetNameChanged.InvokeAsync(_target.DisplayName);
             }
@@ -256,6 +263,15 @@ else if (_settings is not null)
                 Logger.LogWarning("Listening settings were not saved: the profile's current settings could not be read.");
                 _saveError = "Listening settings could not be saved.";
                 Snackbar.Add(_saveError, AppSeverity.Error);
+                return;
+            }
+
+            if (fresh.ProfileId != _settings.ProfileId)
+            {
+                // These settings belong to a different person than this page shows (for example the active profile changed),
+                // so nothing is saved; the page starts again from what the Engine holds.
+                Logger.LogWarning("Listening settings were not saved: the current settings belong to a different profile than the page shows.");
+                await LoadAsync();
                 return;
             }
 
