@@ -46,6 +46,13 @@ public static class NativeApiForwardPolicy
         // Switch person without re-pairing: this one POST on the device's own record only. The Engine re-checks the PIN at every switch.
         Of(["POST"], "devices/current/switch-profile"),
 
+        // The offline downloads this device reports as stored: list and report (GET, POST on the collection), forget one (DELETE).
+        // The broad devices rule above already passes the read and delete; they are repeated here so the app surface is explicit,
+        // and the POST exists only for this exact path (the Engine decides which device from the token alone).
+        Of(Read, "devices/current/downloads"),
+        Of(["POST"], "devices/current/downloads"),
+        Of(["DELETE"], $"devices/current/downloads/{Guid}"),
+
         // Browse, details, people and artwork: read-only for apps.
         Of(Read, "display/.*"),
         Of(Read, "details/.*"),

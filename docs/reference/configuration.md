@@ -430,7 +430,7 @@ Controls FFmpeg discovery, adaptive playback packages, offline variants, concurr
 | `max_concurrent_transcodes` | int | `1` | Shared upper bound for adaptive package preparation. Clamped to 1-8. |
 | `shadow_storage_limit_gb` | int | `500` | Maximum prepared-variant storage. Cleanup evicts least-recently-used ready packages when this bound is exceeded. |
 | `variant_cache_path` | string | `".data/variants"` | Absolute path or path relative to `library_root`. Adaptive packages live below its `hls/` directory. |
-| `variant_retention_days` | int | `30` | Packages not accessed within this period are reclaimed. |
+| `variant_retention_days` | int | `30` | Adaptive packages not accessed within this period are reclaimed. A prepared offline variant is also stamped with `expires_at` (when it is prepared: now plus this many days, minimum 1) and removed with its file once that time passes, even when a paired app's download list still marks it as stored. The same background pass does both, so `cleanup_lru_enabled` switches both off. |
 | `cleanup_lru_enabled` | bool | `true` | Enables retention, failed-package, staging, and storage-bound cleanup. |
 | `adaptive_hls.profile_name` | string | `"tv-adaptive-hls"` | Human-readable cache profile prefix. The Engine automatically fingerprints the full adaptive profile, so segment or ladder changes prepare a new package. |
 | `adaptive_hls.segment_seconds` | int | `6` | Target HLS segment duration and keyframe alignment interval. |

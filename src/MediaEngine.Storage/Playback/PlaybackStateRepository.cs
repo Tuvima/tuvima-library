@@ -131,6 +131,39 @@ public sealed class PlaybackStateRepository
         return Task.FromResult(row);
     }
 
+    /// <summary>Every offline variant whose <c>expires_at</c> is at or before <paramref name="now"/>, whatever its status.</summary>
+    public Task<IReadOnlyList<ExpiredOfflineVariant>> ListExpiredOfflineVariantsAsync(
+        DateTimeOffset now,
+        CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+        using var conn = _db.CreateConnection();
+        var rows = conn.Query<ExpiredOfflineVariantRow>("""
+            SELECT id AS Id, output_path AS OutputPath, file_size AS FileSizeBytes, expires_at AS ExpiresAt
+            FROM offline_variants
+            WHERE expires_at IS NOT NULL;
+            """).AsList();
+
+        // Parsed here rather than compared as text so every stored offset format is judged on the same clock.
+        IReadOnlyList<ExpiredOfflineVariant> expired = rows
+            .Where(row => ParseDate(row.ExpiresAt) is { } at && at <= now)
+            .Select(row => new ExpiredOfflineVariant(row.Id, row.OutputPath, row.FileSizeBytes))
+            .ToList();
+        return Task.FromResult(expired);
+    }
+
+    /// <summary>Removes the variant row and, explicitly, any device list entry that still marks it as stored.</summary>
+    public Task DeleteOfflineVariantAsync(Guid variantId, CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+        using var conn = _db.CreateConnection();
+        conn.Execute("""
+            DELETE FROM device_downloads WHERE variant_id = @variantId;
+            DELETE FROM offline_variants WHERE id = @variantId;
+            """, new { variantId });
+        return Task.CompletedTask;
+    }
+
     public Task<EncodeJobDto> QueueEncodeJobAsync(
         Guid assetId,
         string profileKey,
@@ -232,7 +265,10 @@ public sealed class PlaybackStateRepository
                    output_path AS OutputPath,
                    output_bytes AS OutputBytes,
                    last_error AS LastError,
-                   retry_count AS RetryCount
+                   retry_count AS RetryCount,
+                   (SELECT v.expires_at FROM offline_variants v
+                    WHERE v.asset_id = encode_jobs.asset_id AND v.output_path = encode_jobs.output_path
+                    LIMIT 1) AS ExpiresAt
             FROM encode_jobs
             WHERE (@ownerProfileId IS NULL OR owner_profile_id = @ownerProfileId)
               AND (@ownerDeviceId IS NULL OR owner_device_id = @ownerDeviceId)
@@ -351,6 +387,7 @@ public sealed class PlaybackStateRepository
         int? width,
         int? height,
         int? bitrateKbps,
+        DateTimeOffset? expiresAt = null,
         CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested();
@@ -362,10 +399,10 @@ public sealed class PlaybackStateRepository
         conn.Execute("""
             INSERT INTO offline_variants
                 (id, asset_id, owner_profile_id, owner_device_id, profile_key, source_hash, display_name, status, output_path, file_size,
-                 container, video_codec, audio_codec, width, height, bitrate_kbps, created_at)
+                 container, video_codec, audio_codec, width, height, bitrate_kbps, created_at, expires_at)
             VALUES
                 (@id, @assetId, @ownerProfileId, @ownerDeviceId, @profileKey, @sourceHash, @displayName, 'ready', @outputPath, @fileSize,
-                 @container, @videoCodec, @audioCodec, @width, @height, @bitrateKbps, @createdAt);
+                 @container, @videoCodec, @audioCodec, @width, @height, @bitrateKbps, @createdAt, @expiresAt);
 
             UPDATE encode_jobs
             SET status = 'complete',
@@ -394,6 +431,7 @@ public sealed class PlaybackStateRepository
                 height,
                 bitrateKbps,
                 createdAt = now,
+                expiresAt = expiresAt?.ToString("O", CultureInfo.InvariantCulture),
                 jobId = job.Id,
             });
 
@@ -465,6 +503,7 @@ public sealed class PlaybackStateRepository
         OutputBytes = row.OutputBytes,
         LastError = row.LastError,
         RetryCount = row.RetryCount,
+        ExpiresAt = ParseDate(row.ExpiresAt),
     };
 
     private static DateTimeOffset? ParseDate(string? value) =>
@@ -492,6 +531,14 @@ public sealed class PlaybackStateRepository
         public string? ExpiresAt { get; set; }
     }
 
+    private sealed class ExpiredOfflineVariantRow
+    {
+        public Guid Id { get; set; }
+        public string? OutputPath { get; set; }
+        public long? FileSizeBytes { get; set; }
+        public string? ExpiresAt { get; set; }
+    }
+
     private sealed class EncodeJobRow
     {
         public Guid Id { get; set; }
@@ -507,6 +554,7 @@ public sealed class PlaybackStateRepository
         public long? OutputBytes { get; set; }
         public string? LastError { get; set; }
         public int RetryCount { get; set; }
+        public string? ExpiresAt { get; set; }
     }
 
     private sealed class LeasedEncodeJobRow
@@ -521,6 +569,8 @@ public sealed class PlaybackStateRepository
 }
 
 public sealed record OfflineVariantFile(string? OutputPath, string Status, long? FileSizeBytes);
+
+public sealed record ExpiredOfflineVariant(Guid Id, string? OutputPath, long? FileSizeBytes);
 
 public sealed record LeasedEncodeJob(
     Guid Id,

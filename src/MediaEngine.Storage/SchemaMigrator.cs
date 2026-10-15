@@ -25,6 +25,7 @@ internal sealed class SchemaMigrator
         EnsureOnboardingSchema(conn);
         EnsureProviderConnectionCheckSchema(conn);
         EnsureAdaptiveDeliverySchema(conn);
+        EnsureDeviceDownloadSchema(conn);
         EnsureExpandedArtworkAssetTypes(conn);
         EnsureEditionArtworkOwnerSchema(conn);
         EnsureCanonicalArtworkSchema(conn);
@@ -1407,6 +1408,28 @@ internal sealed class SchemaMigrator
             );
             CREATE INDEX IF NOT EXISTS idx_adaptive_hls_packages_eviction
                 ON adaptive_hls_packages(status, last_accessed);
+            """;
+        cmd.ExecuteNonQuery();
+    }
+
+    private static void EnsureDeviceDownloadSchema(SqliteConnection conn)
+    {
+        using var cmd = conn.CreateCommand();
+        cmd.CommandText = """
+            CREATE TABLE IF NOT EXISTS device_downloads (
+                device_id    BLOB NOT NULL REFERENCES client_devices(id) ON DELETE CASCADE,
+                profile_id   BLOB NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+                asset_id     BLOB NOT NULL REFERENCES media_assets(id) ON DELETE CASCADE,
+                variant_id   BLOB NOT NULL REFERENCES offline_variants(id) ON DELETE CASCADE,
+                stored_bytes INTEGER NOT NULL CHECK (stored_bytes >= 0),
+                stored_at    TEXT NOT NULL,
+                updated_at   TEXT NOT NULL,
+                PRIMARY KEY (device_id, variant_id)
+            );
+            CREATE INDEX IF NOT EXISTS idx_device_downloads_device_profile
+                ON device_downloads(device_id, profile_id, stored_at);
+            CREATE INDEX IF NOT EXISTS idx_device_downloads_variant
+                ON device_downloads(variant_id);
             """;
         cmd.ExecuteNonQuery();
     }

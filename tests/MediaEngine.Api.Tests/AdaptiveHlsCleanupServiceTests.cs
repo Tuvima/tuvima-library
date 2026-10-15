@@ -50,6 +50,16 @@ public sealed class AdaptiveHlsCleanupServiceTests : IDisposable
                 new { id = package.Id, lastAccessed = DateTimeOffset.UtcNow.AddDays(-2).ToString("O") });
         }
 
+        var cleanup = CreateCleanup(packages);
+
+        await cleanup.CleanupAsync();
+
+        Assert.False(Directory.Exists(packageRoot));
+        Assert.Null(await packages.FindByIdAsync(package.Id));
+    }
+
+    private AdaptiveHlsCleanupService CreateCleanup(AdaptiveHlsPackageRepository packages)
+    {
         var hls = new AdaptiveHlsService(
             packages,
             new MediaAssetRepository(_database),
@@ -58,16 +68,91 @@ public sealed class AdaptiveHlsCleanupServiceTests : IDisposable
             _configuration,
             new TestHostApplicationLifetime(),
             NullLogger<AdaptiveHlsService>.Instance);
-        var cleanup = new AdaptiveHlsCleanupService(
+        return new AdaptiveHlsCleanupService(
             packages,
+            new PlaybackStateRepository(_database),
             hls,
             _configuration,
             NullLogger<AdaptiveHlsCleanupService>.Instance);
+    }
 
-        await cleanup.CleanupAsync();
+    [Fact]
+    public async Task CleanupAsync_RemovesExpiredOfflineVariantsWithTheirFiles_AndKeepsCurrentOnes()
+    {
+        var assetId = SeedAsset();
+        var variantDirectory = Path.Combine(_root, "variants", assetId.ToString("N"), "mobile-small");
+        Directory.CreateDirectory(variantDirectory);
+        var expiredFile = Path.Combine(variantDirectory, "expired.mp4");
+        var currentFile = Path.Combine(variantDirectory, "current.mp4");
+        var foreverFile = Path.Combine(variantDirectory, "forever.mp4");
+        foreach (var file in new[] { expiredFile, currentFile, foreverFile })
+        {
+            await File.WriteAllTextAsync(file, "media");
+        }
 
-        Assert.False(Directory.Exists(packageRoot));
-        Assert.Null(await packages.FindByIdAsync(package.Id));
+        var expired = SeedVariant(assetId, expiredFile, DateTimeOffset.UtcNow.AddMinutes(-1));
+        var current = SeedVariant(assetId, currentFile, DateTimeOffset.UtcNow.AddDays(1));
+        var forever = SeedVariant(assetId, foreverFile, null);
+
+        await CreateCleanup(new AdaptiveHlsPackageRepository(_database)).CleanupAsync();
+
+        Assert.False(File.Exists(expiredFile));
+        Assert.True(File.Exists(currentFile));
+        Assert.True(File.Exists(foreverFile));
+        Assert.Equal(new[] { current, forever }.Order(), VariantIds().Order());
+        Assert.DoesNotContain(expired, VariantIds());
+    }
+
+    [Fact]
+    public async Task CleanupAsync_RemovesTheLastFileAndItsEmptyFolders_ButNeverTheCacheRoot()
+    {
+        var assetId = SeedAsset();
+        var variantDirectory = Path.Combine(_root, "variants", assetId.ToString("N"), "mobile-small");
+        Directory.CreateDirectory(variantDirectory);
+        var file = Path.Combine(variantDirectory, "only.mp4");
+        await File.WriteAllTextAsync(file, "media");
+        SeedVariant(assetId, file, DateTimeOffset.UtcNow.AddSeconds(-5));
+
+        await CreateCleanup(new AdaptiveHlsPackageRepository(_database)).CleanupAsync();
+
+        Assert.False(Directory.Exists(variantDirectory));
+        Assert.False(Directory.Exists(Path.GetDirectoryName(variantDirectory)));
+        Assert.True(Directory.Exists(Path.Combine(_root, "variants")));
+        Assert.Empty(VariantIds());
+    }
+
+    [Fact]
+    public async Task CleanupAsync_NeverDeletesAFileOutsideTheVariantCache_ButDropsTheStaleRow()
+    {
+        var assetId = SeedAsset();
+        var outside = Path.Combine(_root, "not-the-cache.mp4");
+        await File.WriteAllTextAsync(outside, "precious");
+        SeedVariant(assetId, outside, DateTimeOffset.UtcNow.AddMinutes(-1));
+
+        await CreateCleanup(new AdaptiveHlsPackageRepository(_database)).CleanupAsync();
+
+        Assert.True(File.Exists(outside));
+        Assert.Empty(VariantIds());
+    }
+
+    private Guid SeedVariant(Guid assetId, string outputPath, DateTimeOffset? expiresAt)
+    {
+        var id = Guid.NewGuid();
+        using var connection = _database.CreateConnection();
+        connection.Execute(
+            """
+            INSERT INTO offline_variants
+                (id, asset_id, profile_key, source_hash, display_name, status, output_path, file_size, created_at, expires_at)
+            VALUES (@id, @assetId, 'mobile-small', 'source-hash', 'Phone', 'ready', @outputPath, 5, @now, @expires);
+            """,
+            new { id, assetId, outputPath, now = DateTimeOffset.UtcNow.ToString("O"), expires = expiresAt?.ToString("O") });
+        return id;
+    }
+
+    private List<Guid> VariantIds()
+    {
+        using var connection = _database.CreateConnection();
+        return connection.Query<Guid>("SELECT id FROM offline_variants;").AsList();
     }
 
     private Guid SeedAsset()

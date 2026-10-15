@@ -101,6 +101,55 @@ public sealed class PlaybackStateRepositoryTests : IDisposable
     }
 
     [Fact]
+    public async Task CompletedVariant_RecordsItsExpiry_AndTheJobListShowsIt()
+    {
+        var assetId = await CreateAssetAsync();
+        var repository = new PlaybackStateRepository(_db);
+        var profile = Guid.NewGuid();
+        var device = Guid.NewGuid();
+        var expiresAt = DateTimeOffset.UtcNow.AddDays(30);
+        await repository.QueueEncodeJobAsync(assetId, "mobile-standard", "source", null, profile, device);
+        var lease = Assert.IsType<LeasedEncodeJob>(await repository.LeaseNextEncodeJobAsync());
+
+        await repository.CompleteEncodeJobAsync(lease, _dbPath + ".expiring.media", "Phone", "mp4", "h264", "aac", 1280, 720, 2500, expiresAt);
+
+        var variant = Assert.Single(await repository.ListOfflineVariantsAsync(assetId, "source", profile, device));
+        Assert.Equal(expiresAt, variant.ExpiresAt);
+        var job = Assert.Single(await repository.ListEncodeJobsAsync(profile, device));
+        Assert.Equal(expiresAt, job.ExpiresAt);
+    }
+
+    [Fact]
+    public async Task ExpiredVariants_AreListedAndRemovedWhileCurrentOnesStay()
+    {
+        var assetId = await CreateAssetAsync();
+        var repository = new PlaybackStateRepository(_db);
+        var now = DateTimeOffset.UtcNow;
+        var expired = await CompleteVariantAsync(repository, assetId, "expired", now.AddMinutes(-1));
+        var current = await CompleteVariantAsync(repository, assetId, "current", now.AddDays(1));
+        var forever = await CompleteVariantAsync(repository, assetId, "forever", null);
+
+        var listed = await repository.ListExpiredOfflineVariantsAsync(now);
+
+        Assert.Equal([expired], listed.Select(variant => variant.Id));
+        await repository.DeleteOfflineVariantAsync(expired);
+        Assert.Empty(await repository.ListExpiredOfflineVariantsAsync(now));
+        using var conn = _db.CreateConnection();
+        Assert.Equal(
+            new[] { current, forever }.Order(),
+            (await conn.QueryAsync<Guid>("SELECT id FROM offline_variants;")).Order());
+    }
+
+    private async Task<Guid> CompleteVariantAsync(PlaybackStateRepository repository, Guid assetId, string source, DateTimeOffset? expiresAt)
+    {
+        await repository.QueueEncodeJobAsync(assetId, "mobile-standard", source, null, Guid.NewGuid(), Guid.NewGuid());
+        var lease = Assert.IsType<LeasedEncodeJob>(await repository.LeaseNextEncodeJobAsync());
+        await repository.CompleteEncodeJobAsync(lease, $"{_dbPath}.{source}.media", source, "mp4", "h264", "aac", 1280, 720, 2500, expiresAt);
+        using var conn = _db.CreateConnection();
+        return await conn.ExecuteScalarAsync<Guid>("SELECT id FROM offline_variants WHERE source_hash = @source;", new { source });
+    }
+
+    [Fact]
     public async Task EncodeJobWireContract_PreservesFieldWithoutExposingServerOutputPath()
     {
         var assetId = await CreateAssetAsync();

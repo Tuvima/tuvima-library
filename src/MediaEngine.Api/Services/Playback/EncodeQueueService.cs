@@ -91,6 +91,8 @@ public sealed class EncodeQueueService : BackgroundService
             metadata.Width,
             metadata.Height,
             metadata.BitrateKbps,
+            // A prepared variant lives for variant_retention_days; the cleanup service removes it once this passes.
+            DateTimeOffset.UtcNow.AddDays(Math.Max(1, _config.LoadTranscoding().VariantRetentionDays)),
             ct);
 
         _logger.LogInformation("Completed encode job {JobId} at {OutputPath}", job.Id, outputPath);

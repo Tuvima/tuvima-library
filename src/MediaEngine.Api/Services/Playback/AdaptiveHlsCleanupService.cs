@@ -7,6 +7,7 @@ namespace MediaEngine.Api.Services.Playback;
 
 public sealed class AdaptiveHlsCleanupService(
     AdaptiveHlsPackageRepository packages,
+    PlaybackStateRepository playbackState,
     AdaptiveHlsService hls,
     IConfigurationLoader configuration,
     ILogger<AdaptiveHlsCleanupService> logger) : BackgroundService
@@ -90,6 +91,63 @@ public sealed class AdaptiveHlsCleanupService(
             await packages.DeleteAsync(row.Id, ct).ConfigureAwait(false);
             totalBytes -= Math.Max(0, row.TotalBytes);
             logger.LogInformation("Reclaimed adaptive HLS package {PackageId} ({Bytes} bytes)", row.Id, row.TotalBytes);
+        }
+
+        await CleanupExpiredOfflineVariantsAsync(root, ct).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Offline variants are removed with their files once <c>expires_at</c> (written from
+    /// <c>variant_retention_days</c> when the variant was prepared) has passed. Expiry wins: a variant that a device's
+    /// download list still marks as stored is removed too, and its list entry goes with it.
+    /// Files outside the variant cache are never deleted; only the stale row is dropped.
+    /// </summary>
+    private async Task CleanupExpiredOfflineVariantsAsync(string root, CancellationToken ct)
+    {
+        var expired = await playbackState.ListExpiredOfflineVariantsAsync(DateTimeOffset.UtcNow, ct).ConfigureAwait(false);
+        foreach (var variant in expired)
+        {
+            if (!string.IsNullOrWhiteSpace(variant.OutputPath))
+            {
+                var file = Path.GetFullPath(variant.OutputPath);
+                if (file.StartsWith(root + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
+                {
+                    try
+                    {
+                        if (File.Exists(file))
+                        {
+                            File.Delete(file);
+                        }
+
+                        RemoveEmptyParents(Path.GetDirectoryName(file), root);
+                    }
+                    catch (IOException ex)
+                    {
+                        // A file still in use (for example mid-download) keeps its row; the next pass tries again.
+                        logger.LogWarning(ex, "Could not remove expired offline variant file for {VariantId}", variant.Id);
+                        continue;
+                    }
+                }
+                else
+                {
+                    logger.LogWarning("Expired offline variant {VariantId} points outside the variant cache; its file was left alone", variant.Id);
+                }
+            }
+
+            await playbackState.DeleteOfflineVariantAsync(variant.Id, ct).ConfigureAwait(false);
+            logger.LogInformation("Reclaimed expired offline variant {VariantId} ({Bytes} bytes)", variant.Id, variant.FileSizeBytes ?? 0);
+        }
+    }
+
+    private static void RemoveEmptyParents(string? directory, string root)
+    {
+        while (directory is not null
+            && directory.StartsWith(root + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase)
+            && Directory.Exists(directory)
+            && !Directory.EnumerateFileSystemEntries(directory).Any())
+        {
+            Directory.Delete(directory);
+            directory = Path.GetDirectoryName(directory);
         }
     }
 

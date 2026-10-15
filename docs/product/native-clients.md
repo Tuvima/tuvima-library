@@ -64,6 +64,24 @@ granted can be listed or chosen, and a Kids profile keeps its content limit
 after the switch. Choosing the profile already in use is refused (`409`), and
 each device may list or switch at most 30 times a minute.
 
+Offline media works in three small, additive pieces on API v1. First, an app
+that watched or listened offline syncs back with `offline: true` and a
+`client_timestamp` on its progress and heartbeat requests; the later of the
+Engine's and the device's record wins for each item, a stale update from an
+ordinary request is still refused, and a device clock in the future is treated
+as "now". Second, the app can report which downloads it holds
+(`GET/POST /api/v1/devices/current/downloads`, `DELETE .../{variantId}`) so a
+second launch or a profile switch shows the right list; the list belongs to that
+device and profile only, a download the profile may not access answers like one
+that does not exist, and the Engine removes a download (and its list entry) when
+it expires after `variant_retention_days`. Third,
+`GET /api/v1/details/show/{id}/next-episodes?after={assetId}&count=3` gives the
+next owned episodes in watch order for an Up Next row, respecting a Kids
+profile's limit. Client impact is `client-optional`: released apps keep working
+unchanged, and newer apps add offline sync and the download list. Executable
+fixtures are `device-downloads.json` and `next-episodes.json` under
+`tests/fixtures/native-client-v1`.
+
 Automotive clients expose only Listen content and native media controls. They
 do not expose Watch, Read, View, administration, metadata correction, or the
 general Dashboard.

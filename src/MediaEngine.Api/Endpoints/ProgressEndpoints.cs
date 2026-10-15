@@ -2,6 +2,7 @@ using System.Security.Claims;
 using MediaEngine.Api.Http;
 using MediaEngine.Api.Security;
 using MediaEngine.Api.Services.Details;
+using MediaEngine.Api.Services.Playback;
 using MediaEngine.Api.Services.ReadServices;
 using MediaEngine.Application.ReadModels;
 using MediaEngine.Application.Services;
@@ -41,35 +42,14 @@ public static class ProgressEndpoints
         .RequireCatalogueAssetAccess(ApplicationPermissionIds.ProgressRead)
         .RequireClientScope(ClientApiScopes.ProgressRead);
 
-        group.MapPut("/{assetId:guid}", async (
+        group.MapPut("/{assetId:guid}", (
             Guid assetId,
             ProgressUpdateRequest body,
             ClaimsPrincipal user,
             IUserStateStore stateStore,
             IMediaAssetRepository assetRepo,
             CancellationToken ct) =>
-        {
-            var asset = await assetRepo.FindByIdAsync(assetId, ct);
-            if (asset is null)
-            {
-                return ApiErrors.NotFound($"Asset '{assetId}' not found.");
-            }
-
-            var state = new UserState
-            {
-                Revision = body.ExpectedRevision,
-                UserId = ResolveUserId(user),
-                AssetId = assetId,
-                ContentHash = asset.ContentHash,
-                ProgressPct = Math.Clamp(body.ProgressPct, 0.0, 100.0),
-                LastAccessed = DateTimeOffset.UtcNow,
-                ExtendedProperties = body.ExtendedProperties ?? [],
-            };
-
-            try { await stateStore.SaveAsync(state, ct); }
-            catch (StateRevisionConflictException ex) { return ApiErrors.Conflict(ex.Message); }
-            return Results.Ok(MapStateResponse(state));
-        })
+            PutProgressAsync(assetId, body, ResolveUserId(user), DateTimeOffset.UtcNow, stateStore, assetRepo, ct))
         .Produces<UserStateResponse>(StatusCodes.Status200OK)
         .RequireCatalogueAssetAccess(ApplicationPermissionIds.ProgressWrite)
         .RequireClientScope(ClientApiScopes.ProgressWrite);
@@ -160,6 +140,84 @@ public static class ProgressEndpoints
           .RequireClientScope(ClientApiScopes.ProgressRead);
 
         return app;
+    }
+
+    /// <summary>The progress write behind <c>PUT /api/v1/progress/{assetId}</c>, including the offline later-wins rule.</summary>
+    internal static async Task<IResult> PutProgressAsync(
+        Guid assetId,
+        ProgressUpdateRequest body,
+        Guid userId,
+        DateTimeOffset now,
+        IUserStateStore stateStore,
+        IMediaAssetRepository assetRepo,
+        CancellationToken ct)
+    {
+        var asset = await assetRepo.FindByIdAsync(assetId, ct);
+        if (asset is null)
+        {
+            return ApiErrors.NotFound($"Asset '{assetId}' not found.");
+        }
+
+        // Only a paired app replaying offline progress gets the later-wins rule; the time is clamped to the server clock.
+        var recordedAt = OfflineProgressSyncPolicy.ResolveClientTimestamp(body.Offline, body.ClientTimestamp, now);
+        var state = new UserState
+        {
+            Revision = body.ExpectedRevision,
+            UserId = userId,
+            AssetId = assetId,
+            ContentHash = asset.ContentHash,
+            ProgressPct = Math.Clamp(body.ProgressPct, 0.0, 100.0),
+            LastAccessed = recordedAt ?? now,
+            ExtendedProperties = body.ExtendedProperties ?? [],
+        };
+
+        try { await stateStore.SaveAsync(state, ct); }
+        catch (StateRevisionConflictException ex)
+        {
+            if (recordedAt is not { } offlineRecordedAt)
+            {
+                return ApiErrors.Conflict(ex.Message);
+            }
+
+            return await ResolveOfflineConflictAsync(stateStore, state, offlineRecordedAt, ex, ct);
+        }
+        return Results.Ok(MapStateResponse(state));
+    }
+
+    /// <summary>
+    /// The client's revision is stale and it is replaying offline progress: keep whichever record is later for this asset.
+    /// A later client record replaces the server's (written against the server's current revision); an earlier one
+    /// leaves the server state untouched. Either way the response carries the state that now stands.
+    /// </summary>
+    private static async Task<IResult> ResolveOfflineConflictAsync(
+        IUserStateStore stateStore,
+        UserState attempted,
+        DateTimeOffset recordedAt,
+        StateRevisionConflictException conflict,
+        CancellationToken ct)
+    {
+        // A concurrent writer can move the revision again; a few reads are enough before reporting the conflict.
+        for (var attempt = 0; attempt < 3; attempt++)
+        {
+            var current = await stateStore.GetAsync(attempted.UserId, attempted.AssetId, ct);
+            if (current is not null && !OfflineProgressSyncPolicy.ClientWins(current.LastAccessed, recordedAt))
+            {
+                return Results.Ok(MapStateResponse(current));
+            }
+
+            attempted.Revision = current?.Revision ?? 0;
+            try
+            {
+                await stateStore.SaveAsync(attempted, ct);
+                return Results.Ok(MapStateResponse(attempted));
+            }
+            catch (StateRevisionConflictException)
+            {
+                // Lost a race; read the winner and decide again.
+            }
+        }
+
+        return ApiErrors.Conflict(conflict.Message);
     }
 
     private static Guid ResolveUserId(ClaimsPrincipal user) =>

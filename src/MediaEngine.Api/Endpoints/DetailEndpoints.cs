@@ -93,6 +93,33 @@ public static class DetailEndpoints
         .RequireClientScope(ClientApiScopes.LibraryRead)
         .WithMetadata(new CatalogueEntityAccessMetadata(ApplicationPermissionIds.LibraryRead.Value));
 
+        // The owned episodes after a given episode file, in the show's watch order, for a native app's Up Next.
+        // Library grants and the profile's content limit are applied by the projection; unknown and not-allowed both read as 404.
+        group.MapGet("/show/{id:guid}/next-episodes", async (
+            Guid id,
+            Guid? after,
+            int? count,
+            IDisplayProjectionReadService display,
+            CancellationToken ct) =>
+        {
+            if (after is not { } afterAssetId || afterAssetId == Guid.Empty)
+            {
+                return ApiErrors.BadRequest("The 'after' episode file is required.");
+            }
+
+            var next = NextEpisodesPlanner.Plan(id, afterAssetId, NextEpisodesPlanner.ClampCount(count), await display.LoadWorksAsync(ct));
+            return next is null
+                ? ApiErrors.NotFound($"No episodes found after '{afterAssetId}' in show '{id}'.")
+                : Results.Ok(next);
+        })
+        .WithName("GetShowNextEpisodes")
+        .WithSummary("Returns up to 10 owned episodes that follow an episode file in a show's watch order.")
+        .Produces<NextEpisodesDto>(StatusCodes.Status200OK)
+        .ProducesProblem(StatusCodes.Status400BadRequest)
+        .ProducesProblem(StatusCodes.Status404NotFound)
+        .RequireClientScope(ClientApiScopes.LibraryRead)
+        .WithMetadata(new CatalogueEntityAccessMetadata(ApplicationPermissionIds.LibraryRead.Value));
+
         group.MapPut("/{entityType}/{id:guid}/sequence-default", async (
             string entityType,
             Guid id,

@@ -2034,6 +2034,23 @@ CREATE TABLE IF NOT EXISTS client_devices (
 CREATE INDEX IF NOT EXISTS idx_client_devices_profile_active
     ON client_devices(profile_id, revoked_at, last_seen_at DESC);
 
+-- What a paired app reports it has stored for offline use, one row per device and offline variant.
+-- A row follows its variant, asset, device and profile: removing any of them (including an expired variant) removes it.
+CREATE TABLE IF NOT EXISTS device_downloads (
+    device_id    BLOB NOT NULL REFERENCES client_devices(id) ON DELETE CASCADE,
+    profile_id   BLOB NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+    asset_id     BLOB NOT NULL REFERENCES media_assets(id) ON DELETE CASCADE,
+    variant_id   BLOB NOT NULL REFERENCES offline_variants(id) ON DELETE CASCADE,
+    stored_bytes INTEGER NOT NULL CHECK (stored_bytes >= 0),
+    stored_at    TEXT NOT NULL,
+    updated_at   TEXT NOT NULL,
+    PRIMARY KEY (device_id, variant_id)
+);
+CREATE INDEX IF NOT EXISTS idx_device_downloads_device_profile
+    ON device_downloads(device_id, profile_id, stored_at);
+CREATE INDEX IF NOT EXISTS idx_device_downloads_variant
+    ON device_downloads(variant_id);
+
 CREATE TABLE IF NOT EXISTS device_pairing_requests (
     id                     BLOB NOT NULL PRIMARY KEY,
     application_id         BLOB NOT NULL REFERENCES applications(id) ON DELETE CASCADE,

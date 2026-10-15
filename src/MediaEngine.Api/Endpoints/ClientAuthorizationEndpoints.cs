@@ -2,11 +2,15 @@ using System.Security.Claims;
 using System.Text.Json;
 using MediaEngine.Api.Http;
 using MediaEngine.Api.Security;
+using MediaEngine.Api.Services.Playback;
 using MediaEngine.Api.Services.Security;
 using MediaEngine.Contracts.Authentication;
+using MediaEngine.Contracts.Playback;
+using MediaEngine.Domain.Authorization;
 using MediaEngine.Domain.Configuration;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Entities;
+using MediaEngine.Storage.Playback;
 using Microsoft.AspNetCore.Mvc;
 
 namespace MediaEngine.Api.Endpoints;
@@ -247,6 +251,69 @@ public static class ClientAuthorizationEndpoints
         .Produces<OAuthErrorResponse>(StatusCodes.Status428PreconditionRequired)
         .Produces<OAuthErrorResponse>(StatusCodes.Status429TooManyRequests);
 
+        // What this paired app says it has stored for offline use. Only the paired app's own token may use these
+        // routes, the device comes from that token alone, and the list is limited to the token's active profile.
+        devices.MapGet("/current/downloads", async (
+            HttpContext http,
+            [FromServices] IRequestAuthorityResolver resolver,
+            [FromServices] DeviceDownloadService downloads,
+            CancellationToken ct) =>
+        {
+            var authority = await resolver.ResolveAsync(http, ct);
+            http.Response.Headers.CacheControl = "no-store";
+            var result = await downloads.ListAsync(authority, ct);
+            return result.Downloads is { } list ? Results.Ok(list) : DeviceDownloadFailure(result.Outcome);
+        })
+        .WithName("ListCurrentDeviceDownloads")
+        .WithSummary("Lists the offline variants the paired app reports as stored on its device, for its active profile.")
+        .Produces<DeviceDownloadListDto>()
+        .ProducesProblem(StatusCodes.Status403Forbidden)
+        .RequireClientScope(ClientApiScopes.DownloadsRead);
+
+        devices.MapPost("/current/downloads", async (
+            UpsertDeviceDownloadRequest request,
+            HttpContext http,
+            [FromServices] IRequestAuthorityResolver resolver,
+            [FromServices] DeviceDownloadService downloads,
+            [FromServices] CatalogueResourceAuthorizationService catalogue,
+            CancellationToken ct) =>
+        {
+            var authority = await resolver.ResolveAsync(http, ct);
+            // The same catalogue access the offline download route applies; anything but Allowed reads as not found.
+            var outcome = await downloads.UpsertAsync(
+                authority,
+                request,
+                async (assetId, token) => await catalogue.EvaluateAssetAsync(
+                    http, assetId, ApplicationPermissionIds.DownloadsRead, token) == CatalogueResourceAccess.Allowed,
+                ct);
+            return outcome == DeviceDownloadOutcome.Ok ? Results.NoContent() : DeviceDownloadFailure(outcome);
+        })
+        .WithName("UpsertCurrentDeviceDownload")
+        .WithSummary("Reports (or updates) one offline variant stored on the paired app's device.")
+        .Produces(StatusCodes.Status204NoContent)
+        .ProducesProblem(StatusCodes.Status403Forbidden)
+        .ProducesProblem(StatusCodes.Status404NotFound)
+        .ProducesProblem(StatusCodes.Status409Conflict)
+        .RequireClientScope(ClientApiScopes.DownloadsWrite);
+
+        devices.MapDelete("/current/downloads/{variantId:guid}", async (
+            Guid variantId,
+            HttpContext http,
+            [FromServices] IRequestAuthorityResolver resolver,
+            [FromServices] DeviceDownloadService downloads,
+            CancellationToken ct) =>
+        {
+            var authority = await resolver.ResolveAsync(http, ct);
+            var outcome = await downloads.RemoveAsync(authority, variantId, ct);
+            return outcome == DeviceDownloadOutcome.Ok ? Results.NoContent() : DeviceDownloadFailure(outcome);
+        })
+        .WithName("RemoveCurrentDeviceDownload")
+        .WithSummary("Removes one offline variant from the paired app's reported list.")
+        .Produces(StatusCodes.Status204NoContent)
+        .ProducesProblem(StatusCodes.Status403Forbidden)
+        .ProducesProblem(StatusCodes.Status404NotFound)
+        .RequireClientScope(ClientApiScopes.DownloadsWrite);
+
         devices.MapDelete("/{deviceId:guid}", async (
             Guid deviceId,
             ClaimsPrincipal user,
@@ -323,6 +390,13 @@ public static class ClientAuthorizationEndpoints
 
     private static IResult OAuthError(string error, string description) =>
         Results.Json(new OAuthErrorResponse { Error = error, ErrorDescription = description }, statusCode: StatusCodes.Status400BadRequest);
+
+    private static IResult DeviceDownloadFailure(DeviceDownloadOutcome outcome) => outcome switch
+    {
+        DeviceDownloadOutcome.NotFound => ApiErrors.NotFound("Download not found."),
+        DeviceDownloadOutcome.TooMany => ApiErrors.Conflict($"A device can list at most {DeviceDownloadRepository.MaxRowsPerDevice} downloads."),
+        _ => ApiErrors.Forbidden("Only the paired app of a live device can use its download list."),
+    };
 
     /// <summary>The profile-switch failures, as OAuth-style errors: a missing or wrong PIN is 428 (so a retrying client does not replay it), a profile this account cannot use, or that does not exist, is 403, the profile already in use is 409.</summary>
     private static IResult DeviceSwitchError(DeviceProfileSwitchOutcome outcome, string? description, HttpContext http, int retryAfterSeconds = 0)

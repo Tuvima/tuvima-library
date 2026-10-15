@@ -32,6 +32,7 @@
                             <th data-card-role="value">Status</th>
                             <th>Progress</th>
                             <th>Scheduled</th>
+                            <th>Expires</th>
                             <th data-card-role="actions"><span class="sr-only">Actions</span></th>
                         </tr>
                     </thead>
@@ -44,6 +45,7 @@
                                 <td data-card-role="value"><AppChip Text="@job.Status" Tone="@StatusTone(job.Status)" /></td>
                                 <td data-label="Progress">@job.ProgressPct.ToString("0.#")%</td>
                                 <td data-label="Scheduled">@(job.ScheduledFor?.LocalDateTime.ToString("g") ?? "Immediate")</td>
+                                <td data-label="Expires">@(job.ExpiresAt?.LocalDateTime.ToString("g") ?? "None")</td>
                                 <td data-card-role="actions">
                                     <AppButton Label="Cancel"
                                                ButtonStyle="AppButtonStyle.Text"

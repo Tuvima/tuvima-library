@@ -291,6 +291,18 @@ public sealed class PlayerService
             throw new PlayerResourceDeniedException();
         }
 
+        // An offline replay older than what the server already holds for this asset changes nothing (later wins per asset).
+        var recordedAt = OfflineProgressSyncPolicy.ResolveClientTimestamp(
+            heartbeat.Offline, heartbeat.ClientTimestamp, DateTimeOffset.UtcNow);
+        if (recordedAt is { } offlineRecordedAt && heartbeatAsset.HasValue)
+        {
+            var current = await _userStates.GetAsync(profileId, heartbeatAsset.Value, ct);
+            if (current is not null && !OfflineProgressSyncPolicy.ClientWins(current.LastAccessed, offlineRecordedAt))
+            {
+                return await GetStateAsync(profileId, deviceId, client, ct);
+            }
+        }
+
         if (heartbeat.Connection is not null)
         {
             _connectionContexts[profileId] = NormalizeConnection(heartbeat.Connection);
@@ -340,6 +352,7 @@ public sealed class PlayerService
                 client,
                 settings.Listening,
                 heartbeat.AudiobookStartKind,
+                recordedAt,
                 ct);
         }
 
@@ -837,8 +850,10 @@ public sealed class PlayerService
         string client,
         ListeningSettingsDto listeningSettings,
         string? audiobookStartKind,
+        DateTimeOffset? recordedAt,
         CancellationToken ct)
     {
+        var savedAt = recordedAt ?? DateTimeOffset.UtcNow;
         var asset = await _assets.FindByIdAsync(assetId, ct);
         if (asset is null)
         {
@@ -868,7 +883,7 @@ public sealed class PlayerService
             ["playback_state"] = playbackState,
             ["player_device_id"] = deviceId,
             ["player_client"] = client,
-            ["updated_at"] = DateTimeOffset.UtcNow.ToString("O", CultureInfo.InvariantCulture),
+            ["updated_at"] = savedAt.ToString("O", CultureInfo.InvariantCulture),
         };
 
         if (!string.IsNullOrWhiteSpace(audiobookStartKind))
@@ -901,7 +916,7 @@ public sealed class PlayerService
             AssetId = assetId,
             ContentHash = asset.ContentHash,
             ProgressPct = Math.Clamp(progressPct, 0, 100),
-            LastAccessed = DateTimeOffset.UtcNow,
+            LastAccessed = savedAt,
             ExtendedProperties = extended,
         }, ct);
     }

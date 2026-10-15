@@ -1,7 +1,9 @@
 using System.Text.Json;
 using MediaEngine.Contracts.Authentication;
+using MediaEngine.Contracts.Details;
 using MediaEngine.Contracts.LocalAssets;
 using MediaEngine.Contracts.Playback;
+using MediaEngine.Contracts.Progress;
 
 namespace MediaEngine.Api.Tests;
 
@@ -85,6 +87,62 @@ public sealed class NativeClientContractFixtureTests
 
         Assert.Contains("\"profile_id\"", json);
         Assert.Contains("\"pin\"", json);
+    }
+
+    [Fact]
+    public void OfflineFixtures_MatchThePublishedContractTypes()
+    {
+        var downloads = Read<DeviceDownloadListDto>("device-downloads.json");
+        var next = Read<NextEpisodesDto>("next-episodes.json");
+
+        Assert.Equal(2, downloads.Downloads.Count);
+        Assert.All(downloads.Downloads, download =>
+        {
+            Assert.NotEqual(Guid.Empty, download.AssetId);
+            Assert.NotEqual(Guid.Empty, download.VariantId);
+            Assert.True(download.StoredBytes > 0);
+        });
+        Assert.NotNull(downloads.Downloads[0].ExpiresAt);
+        Assert.Null(downloads.Downloads[1].ExpiresAt);
+
+        Assert.Equal(2, next.Episodes.Count);
+        Assert.Equal([4, 5], next.Episodes.Select(episode => episode.EpisodeNumber!.Value));
+        Assert.DoesNotContain(next.Episodes, episode => episode.AssetId == next.AfterAssetId);
+
+        AssertSameWireNames("device-downloads.json", downloads);
+        AssertSameWireNames("next-episodes.json", next);
+    }
+
+    [Fact]
+    public void OfflineRequests_UseSnakeCaseWireNames()
+    {
+        var upsert = JsonSerializer.Serialize(new UpsertDeviceDownloadRequest
+        {
+            AssetId = Guid.Empty,
+            VariantId = Guid.Empty,
+            StoredBytes = 1,
+            StoredAt = DateTimeOffset.UnixEpoch,
+        }, JsonOptions);
+        Assert.Contains("\"asset_id\"", upsert);
+        Assert.Contains("\"variant_id\"", upsert);
+        Assert.Contains("\"stored_bytes\"", upsert);
+        Assert.Contains("\"stored_at\"", upsert);
+
+        var progress = JsonSerializer.Serialize(
+            new ProgressUpdateRequest(null, 50, null) { Offline = true, ClientTimestamp = DateTimeOffset.UnixEpoch }, JsonOptions);
+        Assert.Contains("\"offline\":true", progress);
+        Assert.Contains("\"client_timestamp\"", progress);
+        Assert.Contains("\"expected_revision\"", progress);
+
+        var heartbeat = JsonSerializer.Serialize(
+            new PlayerHeartbeatDto { Offline = true, ClientTimestamp = DateTimeOffset.UnixEpoch }, JsonOptions);
+        Assert.Contains("\"offline\":true", heartbeat);
+        Assert.Contains("\"client_timestamp\"", heartbeat);
+
+        // The new fields are optional: a body without them still reads, as a normal (non-offline) request.
+        var plain = JsonSerializer.Deserialize<ProgressUpdateRequest>("{\"progress_pct\":10,\"expected_revision\":3}", JsonOptions)!;
+        Assert.False(plain.Offline);
+        Assert.Null(plain.ClientTimestamp);
     }
 
     [Fact]
