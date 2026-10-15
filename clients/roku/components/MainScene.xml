@@ -19,16 +19,22 @@
         </Group>
 
         <Group id="libraryGroup" visible="false">
-            <LayoutGroup translation="[80,120]" layoutDirection="horiz" itemSpacings="[18]">
+            <ButtonGroup id="navButtons" translation="[80,120]" layoutDirection="horiz" horizAlignment="left" itemSpacings="[18]">
                 <Button id="homeButton" text="Home" />
                 <Button id="watchButton" text="Watch" />
                 <Button id="readButton" text="Read" />
                 <Button id="listenButton" text="Listen" />
                 <Button id="searchButton" text="Search" />
-            </LayoutGroup>
+                <Button id="profilesButton" text="Profiles" />
+            </ButtonGroup>
             <RowList id="libraryRows" translation="[80,220]" itemSize="[1760,330]" rowItemSize="[[260,300]]" rowItemSpacing="[[24,0]]" numRows="2" showRowLabel="true" />
             <Label id="detailTitle" translation="[80,900]" color="#FFFFFF" width="1760" height="50" />
             <Label id="detailText" translation="[80,958]" color="#CFC3F8" width="1760" height="70" numLines="2" wrap="true" />
+        </Group>
+
+        <Group id="profileGroup" visible="false">
+            <Label translation="[160,190]" text="Who is watching?" color="#F6F2FF" width="1200" height="60" />
+            <LabelList id="profileList" translation="[160,280]" itemSize="[900,64]" numRows="8" />
         </Group>
 
         <Group id="searchGroup" visible="false">
@@ -37,6 +43,10 @@
             <Button id="submitSearchButton" translation="[160,750]" text="Search" minWidth="260" />
         </Group>
 
+        <Group id="photoGroup" visible="false">
+            <Rectangle width="1920" height="1080" color="#000000" />
+            <Poster id="photoViewer" width="1920" height="1080" loadDisplayMode="scaleToFit" />
+        </Group>
         <Video id="video" width="1920" height="1080" visible="false" enableUI="true" />
         <Label id="status" translation="[80,1010]" color="#FFCC80" width="1760" height="44" />
         <Timer id="pairingTimer" duration="5" repeat="true" />
