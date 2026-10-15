@@ -117,6 +117,12 @@ data class PlaybackManifest(
     val durationSeconds: Double?,
     val offlineVariants: List<OfflineVariant>,
     val warnings: List<String>,
+    val audioTracks: List<AudioTrack> = emptyList(),
+    val subtitleTracks: List<SubtitleTrack> = emptyList(),
+    val chapters: List<Chapter> = emptyList(),
+    val segments: List<PlaybackSegment> = emptyList(),
+    val sourceExtension: String? = null,
+    val conversionReason: String? = null,
 ) {
     fun playablePath(): String? = when (recommendedDelivery) {
         "hls" -> if (hlsStatus == "ready") hlsUrl else null
@@ -124,6 +130,39 @@ data class PlaybackManifest(
         else -> null
     }
 }
+
+data class AudioTrack(
+    val index: Int,
+    val language: String?,
+    val codec: String?,
+    val displayName: String?,
+    val isDefault: Boolean,
+    val channels: Int?,
+)
+
+data class SubtitleTrack(
+    val index: Int,
+    val language: String?,
+    val codec: String?,
+    val displayName: String?,
+    val isDefault: Boolean,
+    val isForced: Boolean,
+    val deliveryUrl: String?,
+)
+
+data class Chapter(
+    val index: Int,
+    val title: String,
+    val startSeconds: Double,
+    val endSeconds: Double?,
+)
+
+/** A skippable span such as an intro or credits; [kind] is the Engine's own label. */
+data class PlaybackSegment(
+    val kind: String,
+    val startSeconds: Double,
+    val endSeconds: Double?,
+)
 
 data class OfflineVariant(
     val id: String,
