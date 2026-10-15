@@ -29,16 +29,21 @@ jobs:
           set -uo pipefail
           default_branch=$(gh api "repos/$GITHUB_REPOSITORY" --jq .default_branch)
           deleted=0; kept=0
-          for branch in $(gh api "repos/$GITHUB_REPOSITORY/branches" --paginate --jq '.[] | select(.protected == false) | .name'); do
+          branches=$(gh api "repos/$GITHUB_REPOSITORY/branches" --paginate --jq '.[] | select(.protected == false) | "\(.name) \(.commit.sha)"')
+          while read -r branch tip; do
+            if [ -z "$branch" ]; then continue; fi
+            case "$branch" in claude/*) ;; *) continue ;; esac
             if [ "$branch" = "$default_branch" ]; then continue; fi
             open_head=$(gh pr list --repo "$GITHUB_REPOSITORY" --state open --head "$branch" --json number --jq 'length')
             open_base=$(gh pr list --repo "$GITHUB_REPOSITORY" --state open --base "$branch" --json number --jq 'length')
             if [ "$open_head" != "0" ] || [ "$open_base" != "0" ]; then
               echo "KEEP $branch: an open pull request uses it"; kept=$((kept+1)); continue
             fi
-            finished=$(gh pr list --repo "$GITHUB_REPOSITORY" --state all --head "$branch" --json number,state --jq '[.[] | select(.state == "MERGED" or .state == "CLOSED")] | sort_by(.number) | last | .number // empty')
+            # Only a finished pull request of THIS repository whose last commit is exactly the branch tip counts:
+            # a branch with newer commits since the merge, or a same-named branch from a fork, is kept.
+            finished=$(gh pr list --repo "$GITHUB_REPOSITORY" --state all --head "$branch" --json number,state,headRefOid,isCrossRepository | jq -r --arg tip "$tip" '[.[] | select((.state == "MERGED" or .state == "CLOSED") and .isCrossRepository == false and .headRefOid == $tip)] | sort_by(.number) | last | .number // empty')
             if [ -z "$finished" ]; then
-              echo "KEEP $branch: no merged or closed pull request"; kept=$((kept+1)); continue
+              echo "KEEP $branch: no finished pull request ends at the branch tip"; kept=$((kept+1)); continue
             fi
             if [ "$DRY_RUN" = "true" ]; then
               echo "WOULD DELETE $branch (pull request #$finished)"; continue
@@ -48,5 +53,5 @@ jobs:
             else
               echo "FAILED to delete $branch (pull request #$finished)"; kept=$((kept+1))
             fi
-          done
+          done <<< "$branches"
           echo "Deleted $deleted branch(es); kept $kept."
