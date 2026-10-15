@@ -40,9 +40,17 @@ public sealed class UniversalSearchReadService(
         var profileId = AuthorityValidity.ValidateHuman(authority) is null
             ? authority.ActiveProfileId
             : null;
+        // A paired app never gets a collection's own cover: it can show a restricted child's poster in a mixed collection and
+        // /collections/{id}/artwork/poster is not a route the app door serves. The app tile is the cover of an allowed member.
+        var safeCovers = authority.PrincipalKind == PrincipalKind.DelegatedUserClient
+            ? visibleWorks
+                .Where(row => row.WorkId != Guid.Empty && !string.IsNullOrWhiteSpace(row.CoverUrl))
+                .GroupBy(row => row.WorkId)
+                .ToDictionary(group => group.Key, group => group.First().CoverUrl!)
+            : null;
         var peopleTask = SearchPeopleAsync(trimmed, Math.Min(8, take), allowedAssetIds, ct);
         var collectionsTask = SearchCollectionsAsync(
-            trimmed, Math.Min(10, take), allowedWorkIds, profileId, ct);
+            trimmed, Math.Min(10, take), allowedWorkIds, profileId, safeCovers, ct);
         await Task.WhenAll(peopleTask, collectionsTask).ConfigureAwait(false);
 
         var results = new List<UniversalSearchResultDto>();
@@ -165,6 +173,7 @@ public sealed class UniversalSearchReadService(
         int limit,
         IReadOnlyCollection<Guid> allowedWorkIds,
         Guid? profileId,
+        IReadOnlyDictionary<Guid, string>? safeCovers,
         CancellationToken ct)
     {
         var workIds = allowedWorkIds.Count > 0
@@ -208,6 +217,10 @@ public sealed class UniversalSearchReadService(
             },
             cancellationToken: ct)).ConfigureAwait(false)).AsList();
 
+        var memberCovers = safeCovers is null || rows.Count == 0
+            ? new Dictionary<Guid, string>()
+            : await LoadSafeCollectionCoversAsync(rows.Select(row => row.Id).ToArray(), safeCovers, ct).ConfigureAwait(false);
+
         return rows.Select(row =>
         {
             var entityType = CollectionEntityType(row.CollectionType);
@@ -224,7 +237,9 @@ public sealed class UniversalSearchReadService(
                 $"{row.ItemCount} {(row.ItemCount == 1 ? "item" : "items")}",
                 null,
                 null,
-                string.IsNullOrWhiteSpace(row.CoverArtworkPath) ? null : $"/collections/{row.Id:D}/artwork/poster",
+                safeCovers is not null
+                    ? memberCovers.GetValueOrDefault(row.Id)
+                    : string.IsNullOrWhiteSpace(row.CoverArtworkPath) ? null : $"/collections/{row.Id:D}/artwork/poster",
                 row.Description,
                 route,
                 isPlaylist ? "Open Playlist" : entityType == "series" ? "View Series" : "Open Collection",
@@ -234,6 +249,42 @@ public sealed class UniversalSearchReadService(
                 Facts = [typeLabel, $"{row.ItemCount} owned"],
             };
         }).ToList();
+    }
+
+    // The cover of the first member the profile may see (in collection order) that has one; a collection with none gets no artwork.
+    private async Task<Dictionary<Guid, string>> LoadSafeCollectionCoversAsync(
+        IReadOnlyCollection<Guid> collectionIds,
+        IReadOnlyDictionary<Guid, string> safeCovers,
+        CancellationToken ct)
+    {
+        using var conn = db.CreateConnection();
+        var members = await conn.QueryAsync<CollectionMemberRow>(new CommandDefinition(
+            """
+            SELECT membership.collection_id AS CollectionId, membership.work_id AS WorkId
+            FROM (
+                SELECT ci.collection_id AS collection_id, ci.work_id AS work_id, ci.sort_order AS sort_order
+                FROM collection_items ci
+                WHERE ci.collection_id IN @CollectionIds
+                UNION ALL
+                SELECT w.collection_id AS collection_id, w.id AS work_id, 2147483647 AS sort_order
+                FROM works w
+                WHERE w.collection_id IN @CollectionIds
+            ) membership
+            ORDER BY membership.collection_id, membership.sort_order, membership.work_id
+            """,
+            new { CollectionIds = collectionIds.Select(GuidSql.ToBlob).ToArray() },
+            cancellationToken: ct)).ConfigureAwait(false);
+
+        var covers = new Dictionary<Guid, string>();
+        foreach (var member in members)
+        {
+            if (!covers.ContainsKey(member.CollectionId) && safeCovers.TryGetValue(member.WorkId, out var cover))
+            {
+                covers[member.CollectionId] = cover;
+            }
+        }
+
+        return covers;
     }
 
     private static UniversalSearchResultDto FromWork(DisplayWorkRow result, string query)
@@ -513,6 +564,12 @@ public sealed class UniversalSearchReadService(
         public string? Description { get; init; }
         public string? CoverArtworkPath { get; init; }
         public int ItemCount { get; init; }
+    }
+
+    private sealed class CollectionMemberRow
+    {
+        public Guid CollectionId { get; init; }
+        public Guid WorkId { get; init; }
     }
 
     private sealed record SectionDefinition(

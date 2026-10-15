@@ -3,6 +3,7 @@ using MediaEngine.Api.Services.Display;
 using MediaEngine.Api.Services.ReadServices;
 using MediaEngine.Contracts.Search;
 using MediaEngine.Domain.Aggregates;
+using MediaEngine.Domain.Authorization;
 using MediaEngine.Storage;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Data.Sqlite;
@@ -481,6 +482,152 @@ public sealed class UniversalSearchReadServiceTests : IDisposable
         Assert.StartsWith("A desert world", result.Description, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public async Task SearchAsync_ForAPairedApp_ShowsAnAllowedMembersCover_NeverTheCollectionsOwnCover()
+    {
+        var shelf = await SeedMixedCollectionAsync();
+        var service = CreateAppService(shelf.Projection);
+
+        var response = await service.SearchAsync("Mixed Shelf", 20, CancellationToken.None);
+
+        var collection = Assert.Single(response.Sections.Single(section => section.Key == "series-collections").Results);
+        // A Kids token gets the cover of the first member it may see that has one (the restricted member is first in order and
+        // the next allowed one has no cover), not the collection's raw cover and not a route the app door does not serve.
+        Assert.Equal(shelf.AllowedCover, collection.ArtworkUrl);
+        Assert.DoesNotContain("/collections/", collection.ArtworkUrl, StringComparison.Ordinal);
+        // Only the two members the profile may see are counted; the restricted member is neither counted nor used for the tile.
+        Assert.Equal("2 items", collection.Subtitle);
+    }
+
+    [Fact]
+    public async Task SearchAsync_ForAPairedApp_OmitsCollectionArtworkWhenNoAllowedMemberHasACover()
+    {
+        var shelf = await SeedMixedCollectionAsync();
+        var withoutCovers = shelf.Projection.Rows
+            .Select(row => new DisplayWorkRow { WorkId = row.WorkId, AssetId = row.AssetId, MediaType = row.MediaType, Title = row.Title })
+            .ToArray();
+        var service = CreateAppService(new StubDisplayProjection(withoutCovers));
+
+        var response = await service.SearchAsync("Mixed Shelf", 20, CancellationToken.None);
+
+        var collection = Assert.Single(response.Sections.Single(section => section.Key == "series-collections").Results);
+        Assert.Null(collection.ArtworkUrl);
+    }
+
+    [Fact]
+    public async Task SearchAsync_ForASignedInPerson_KeepsTheCollectionsOwnCoverRoute()
+    {
+        var shelf = await SeedMixedCollectionAsync();
+        var service = CreateService(shelf.Projection);
+
+        var response = await service.SearchAsync("Mixed Shelf", 20, CancellationToken.None);
+
+        var collection = Assert.Single(response.Sections.Single(section => section.Key == "series-collections").Results);
+        Assert.Equal($"/collections/{shelf.CollectionId:D}/artwork/poster", collection.ArtworkUrl);
+    }
+
+    [Fact]
+    public async Task SearchAsync_ForAPairedApp_PicksTheFirstAllowedMemberInCollectionOrder()
+    {
+        var collectionId = Guid.NewGuid();
+        // The member that is first in collection order has the higher id, so picking the lowest id would choose the wrong one.
+        var ids = new[] { Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid() }.OrderBy(id => GuidSql.ToBlob(id), Comparer<byte[]>.Create(
+            (left, right) => left.AsSpan().SequenceCompareTo(right))).ToArray();
+        var (lowestId, middleId, firstInOrder) = (ids[0], ids[1], ids[2]);
+        var unlinked = Guid.NewGuid();
+        using (var connection = _db.CreateConnection())
+        {
+            await connection.ExecuteAsync(
+                """
+                INSERT INTO collections (id, display_name, collection_type, created_at)
+                VALUES (@collectionId, 'Ordered Shelf', 'Custom', CURRENT_TIMESTAMP);
+                INSERT INTO works (id, collection_id, media_type, work_kind)
+                VALUES (@lowestId, NULL, 'Movies', 'standalone'),
+                       (@middleId, @collectionId, 'Movies', 'standalone'),
+                       (@firstInOrder, NULL, 'Movies', 'standalone'),
+                       (@unlinked, @collectionId, 'Movies', 'standalone');
+                INSERT INTO collection_items (id, collection_id, work_id, sort_order)
+                VALUES (@item1, @collectionId, @lowestId, 5),
+                       (@item2, @collectionId, @middleId, 3),
+                       (@item3, @collectionId, @firstInOrder, 1);
+                """,
+                new { collectionId, lowestId, middleId, firstInOrder, unlinked, item1 = Guid.NewGuid(), item2 = Guid.NewGuid(), item3 = Guid.NewGuid() });
+        }
+
+        DisplayWorkRow Row(Guid id, string name) => new()
+        {
+            WorkId = id,
+            AssetId = Guid.NewGuid(),
+            MediaType = "Movies",
+            Title = name,
+            CoverUrl = $"/stream/artwork/{name}",
+        };
+        var service = CreateAppService(new StubDisplayProjection(
+        [
+            Row(lowestId, "last"), Row(middleId, "second"), Row(firstInOrder, "first"), Row(unlinked, "unordered"),
+        ]));
+
+        var response = await service.SearchAsync("Ordered Shelf", 20, CancellationToken.None);
+
+        var collection = Assert.Single(response.Sections.Single(section => section.Key == "series-collections").Results);
+        Assert.Equal("/stream/artwork/first", collection.ArtworkUrl);
+        // The one reached only through the work's own collection link counts, but sorts after every ordered item.
+        Assert.Equal("4 items", collection.Subtitle);
+    }
+
+    // One collection with a raw cover and three members: a restricted one (absent from the authorized projection, first in order),
+    // an allowed one without a cover, and an allowed one with a cover.
+    private async Task<(Guid CollectionId, StubDisplayProjection Projection, string AllowedCover)> SeedMixedCollectionAsync()
+    {
+        var collectionId = Guid.NewGuid();
+        var firstAllowed = Guid.NewGuid();
+        var secondAllowed = Guid.NewGuid();
+        var restricted = Guid.NewGuid();
+        var allowedCover = $"/stream/artwork/{Guid.NewGuid():D}";
+        using (var connection = _db.CreateConnection())
+        {
+            await connection.ExecuteAsync(
+                """
+                INSERT INTO collections (id, display_name, collection_type, cover_artwork_path, created_at)
+                VALUES (@collectionId, 'Mixed Shelf', 'Custom', 'C:/covers/restricted-poster.jpg', CURRENT_TIMESTAMP);
+                INSERT INTO works (id, collection_id, media_type, work_kind)
+                VALUES (@firstAllowed, @collectionId, 'Movies', 'standalone'),
+                       (@secondAllowed, @collectionId, 'Movies', 'standalone'),
+                       (@restricted, @collectionId, 'Movies', 'standalone');
+                INSERT INTO collection_items (id, collection_id, work_id, sort_order)
+                VALUES (@item1, @collectionId, @restricted, 0),
+                       (@item2, @collectionId, @firstAllowed, 1),
+                       (@item3, @collectionId, @secondAllowed, 2);
+                """,
+                new
+                {
+                    collectionId,
+                    firstAllowed,
+                    secondAllowed,
+                    restricted,
+                    item1 = Guid.NewGuid(),
+                    item2 = Guid.NewGuid(),
+                    item3 = Guid.NewGuid(),
+                });
+        }
+
+        var projection = new StubDisplayProjection(
+        [
+            new DisplayWorkRow { WorkId = firstAllowed, AssetId = Guid.NewGuid(), CollectionId = collectionId, MediaType = "Movies", Title = "Allowed One" },
+            new DisplayWorkRow { WorkId = secondAllowed, AssetId = Guid.NewGuid(), CollectionId = collectionId, MediaType = "Movies", Title = "Allowed Two", CoverUrl = allowedCover },
+        ]);
+        return (collectionId, projection, allowedCover);
+    }
+
+    // A paired Kids TV: a delegated device token on a restricted profile (never a signed-in person).
+    private UniversalSearchReadService CreateAppService(IDisplayProjectionReadService display) => new(
+        _db,
+        display,
+        new HttpContextAccessor { HttpContext = new DefaultHttpContext() },
+        new TestViewAuthorityResolver(new RequestAuthority(
+            PrincipalKind.DelegatedUserClient, true, Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), null, Guid.NewGuid(),
+            AccountEnabled: true, GrantEnabled: true, ApplicationEnabled: true, ActiveProfileIsRestricted: true)));
+
     private UniversalSearchReadService CreateService(IDisplayProjectionReadService display)
     {
         var context = new DefaultHttpContext();
@@ -494,6 +641,8 @@ public sealed class UniversalSearchReadServiceTests : IDisposable
     private sealed class StubDisplayProjection : IDisplayProjectionReadService
     {
         private readonly IReadOnlyList<DisplayWorkRow> _rows;
+
+        public IReadOnlyList<DisplayWorkRow> Rows => _rows;
 
         public StubDisplayProjection(IReadOnlyList<DisplayWorkRow> rows) => _rows = rows;
 

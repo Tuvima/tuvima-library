@@ -120,6 +120,10 @@ public static class DisplayEndpoints
             .Produces<UniversalSearchResponseDto>(StatusCodes.Status200OK)
             .RequireClientScope(ClientApiScopes.LibraryRead);
 
+        // The artwork workspace routes (everything under /artwork except media-assets/{id}/effective-cover) browse raw
+        // artwork over every Work and Collection with no profile or content-limit filter, so they are the Dashboard's
+        // artwork-management reads: an administrator, or a service Application with artwork.read. A paired app's
+        // artwork.read scope is not enough, and the app door never forwards them.
         group.MapGet("/artwork", async (
             string? entityKind,
             string? artworkType,
@@ -149,7 +153,7 @@ public static class DisplayEndpoints
             .WithName("GetArtworkLibrary")
             .WithSummary("Returns the pageable virtual artwork galleries for owned media and library people.")
             .Produces<ArtworkBrowsePageDto>(StatusCodes.Status200OK)
-            .RequireClientScope(ClientApiScopes.ArtworkRead);
+            .RequireAdministratorOrApplication(ApplicationPermissionIds.ArtworkRead);
 
         group.MapGet("/artwork/assets", async (
             string? search,
@@ -201,7 +205,7 @@ public static class DisplayEndpoints
             .WithName("GetArtworkAssets")
             .WithSummary("Searches the bounded canonical artwork asset library for galleries and pickers.")
             .Produces<ArtworkAssetPageDto>(StatusCodes.Status200OK)
-            .RequireClientScope(ClientApiScopes.ArtworkRead);
+            .RequireAdministratorOrApplication(ApplicationPermissionIds.ArtworkRead);
 
         group.MapGet("/artwork/universes/{collectionId:guid}/entities", (
             Guid collectionId,
@@ -211,7 +215,7 @@ public static class DisplayEndpoints
             .WithName("GetUniverseArtworkHierarchy")
             .WithSummary("Returns the canonical characters, places, organizations, events, and objects for one Universe artwork workspace.")
             .Produces<IReadOnlyList<ArtworkLibraryItemDto>>(StatusCodes.Status200OK)
-            .RequireClientScope(ClientApiScopes.ArtworkRead);
+            .RequireAdministratorOrApplication(ApplicationPermissionIds.ArtworkRead);
 
         group.MapGet("/artwork/entities/{entityType}/{entityId:guid}", async (
             string entityType,
@@ -225,7 +229,7 @@ public static class DisplayEndpoints
             .WithName("GetEntityArtworkWorkspace")
             .WithSummary("Returns lazy-loaded artwork variants for one entity workspace.")
             .Produces<ArtworkEntityWorkspaceDto>(StatusCodes.Status200OK)
-            .RequireClientScope(ClientApiScopes.ArtworkRead);
+            .RequireAdministratorOrApplication(ApplicationPermissionIds.ArtworkRead);
 
         group.MapGet("/artwork/works/{workId:guid}/effective", async (
             Guid workId,
@@ -241,7 +245,7 @@ public static class DisplayEndpoints
             .WithSummary("Returns preferred artwork and its verified owner through a work's canonical parent chain.")
             .Produces<EffectiveArtworkSelection>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status404NotFound)
-            .RequireClientScope(ClientApiScopes.ArtworkRead);
+            .RequireAdministratorOrApplication(ApplicationPermissionIds.ArtworkRead);
 
         group.MapGet("/artwork/media-assets/{assetId:guid}/effective-cover", async (
             Guid assetId,
@@ -287,7 +291,7 @@ public static class DisplayEndpoints
             .WithName("GetArtworkAssetContent")
             .WithSummary("Streams one canonical artwork asset rendition.")
             .Produces<byte[]>(StatusCodes.Status200OK, "image/jpeg")
-            .RequireClientScope(ClientApiScopes.ArtworkRead);
+            .RequireAdministratorOrApplication(ApplicationPermissionIds.ArtworkRead);
 
         group.MapPost("/artwork/entities/{entityType}/{entityId:guid}/links", async (
             string entityType,
