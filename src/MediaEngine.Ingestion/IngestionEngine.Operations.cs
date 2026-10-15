@@ -412,6 +412,7 @@ public sealed partial class IngestionEngine
         }
 
         _shutdownCts.Cancel();
+        UnsubscribeFromFolderChanges();
         _watcher.FileDetected -= OnFileDetected;
         _watcher.WatcherError -= OnWatcherError;
         lock (_fswBufferLock)

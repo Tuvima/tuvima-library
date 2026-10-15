@@ -54,6 +54,12 @@ public interface IFileWatcher : IDisposable
     /// </summary>
     void AddDirectory(string path, bool includeSubdirectories = true);
 
+    /// <summary>
+    /// Stops observing one directory and releases its OS resources, leaving every other watched directory running
+    /// untouched. Returns <see langword="false"/> when the directory was not being watched. Never touches the directory.
+    /// </summary>
+    bool RemoveDirectory(string path);
+
     /// <summary>Begins raising <see cref="FileDetected"/> events.</summary>
     void Start();
 

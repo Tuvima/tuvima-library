@@ -43,6 +43,7 @@ internal sealed class StubFileWatcher : IFileWatcher
     public IReadOnlyList<string> WatchedPaths => [];
 
     public void AddDirectory(string path, bool includeSubdirectories = true) { }
+    public bool RemoveDirectory(string path) => false;
     public void Start() { }
     public void Stop() { }
     public void UpdateDirectory(string path, bool includeSubdirectories = true) { }

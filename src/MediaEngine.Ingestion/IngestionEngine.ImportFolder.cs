@@ -76,14 +76,15 @@ public sealed partial class IngestionEngine
         try
         {
             var normalized = NormalizeDirectoryPath(importPath);
-            if (_watcher.WatchedPaths.Any(path => string.Equals(
-                    NormalizeDirectoryPath(path), normalized, StringComparison.OrdinalIgnoreCase)))
+            lock (_watchedFoldersLock)
             {
-                return;
+                // Watched already (by startup or a folder-settings change): nothing to do. Otherwise start it with the
+                // same tracking as every other folder, so a later settings change stops or keeps it correctly.
+                if (!_watchedFolders.ContainsKey(normalized))
+                {
+                    TryStartWatching(normalized, includeSubdirectories: true, mayCreateIfMissing: true);
+                }
             }
-
-            _watcher.AddDirectory(normalized, includeSubdirectories: true);
-            _logger.LogInformation("Watching: {Path} (recursive=True)", normalized);
         }
         catch (Exception ex) when (ex is DirectoryNotFoundException or IOException or UnauthorizedAccessException)
         {

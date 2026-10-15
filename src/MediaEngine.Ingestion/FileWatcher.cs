@@ -27,6 +27,9 @@ namespace MediaEngine.Ingestion;
 public sealed class FileWatcher : IFileWatcher
 {
     private readonly List<System.IO.FileSystemWatcher> _watchers = [];
+
+    // Guards _watchers: folders can now be added and removed while OS events, status reads and recovery run.
+    private readonly object _gate = new();
     private bool _running;
     private bool _disposed;
 
@@ -60,8 +63,16 @@ public sealed class FileWatcher : IFileWatcher
     public bool IsRunning => _running && !_disposed;
 
     /// <summary>Paths currently being watched.</summary>
-    public IReadOnlyList<string> WatchedPaths =>
-        _watchers.Select(w => w.Path).ToList();
+    public IReadOnlyList<string> WatchedPaths
+    {
+        get
+        {
+            lock (_gate)
+            {
+                return _watchers.Select(w => w.Path).ToList();
+            }
+        }
+    }
 
     // -------------------------------------------------------------------------
     // IFileWatcher
@@ -106,7 +117,45 @@ public sealed class FileWatcher : IFileWatcher
         watcher.Renamed += OnRenamed;
         watcher.Error += OnError;
 
-        _watchers.Add(watcher);
+        lock (_gate)
+        {
+            if (_disposed)
+            {
+                DetachAndDispose(watcher);
+                throw new ObjectDisposedException(nameof(FileWatcher));
+            }
+
+            _watchers.Add(watcher);
+
+            // A folder added while the watcher is already running starts raising events straight away.
+            if (_running)
+            {
+                watcher.EnableRaisingEvents = true;
+            }
+        }
+    }
+
+    /// <inheritdoc/>
+    public bool RemoveDirectory(string path)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(path);
+
+        var target = NormalizeForComparison(path);
+        lock (_gate)
+        {
+            var index = _watchers.FindIndex(w =>
+                string.Equals(NormalizeForComparison(w.Path), target, StringComparison.OrdinalIgnoreCase));
+            if (index < 0)
+            {
+                return false;
+            }
+
+            var watcher = _watchers[index];
+            _watchers.RemoveAt(index);
+            watcher.EnableRaisingEvents = false;
+            DetachAndDispose(watcher);
+            return true;
+        }
     }
 
     /// <inheritdoc/>
@@ -114,20 +163,26 @@ public sealed class FileWatcher : IFileWatcher
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
 
-        _running = true;
-        foreach (var w in _watchers)
+        lock (_gate)
         {
-            w.EnableRaisingEvents = true;
+            _running = true;
+            foreach (var w in _watchers)
+            {
+                w.EnableRaisingEvents = true;
+            }
         }
     }
 
     /// <inheritdoc/>
     public void Stop()
     {
-        _running = false;
-        foreach (var w in _watchers)
+        lock (_gate)
         {
-            w.EnableRaisingEvents = false;
+            _running = false;
+            foreach (var w in _watchers)
+            {
+                w.EnableRaisingEvents = false;
+            }
         }
     }
 
@@ -140,39 +195,23 @@ public sealed class FileWatcher : IFileWatcher
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
 
-        // Pause all existing watchers so no new events arrive while we swap.
-        foreach (var w in _watchers)
+        lock (_gate)
         {
-            w.EnableRaisingEvents = false;
-        }
-
-        // Unsubscribe and fully release every FileSystemWatcher.
-        foreach (var w in _watchers)
-        {
-            w.Created -= OnCreated;
-            w.Changed -= OnChanged;
-            w.Deleted -= OnDeleted;
-            w.Renamed -= OnRenamed;
-            w.Error -= OnError;
-            w.Dispose();
-        }
-        _watchers.Clear();
-
-        foreach (var path in paths
-            .Where(path => !string.IsNullOrWhiteSpace(path))
-            .Distinct(StringComparer.OrdinalIgnoreCase))
-        {
-            // Wire the new directory. AddDirectory() subscribes the same handlers
-            // and appends the new watcher to _watchers.
-            AddDirectory(path, includeSubdirectories);
-        }
-
-        // Resume immediately if the watcher was running before the swap.
-        if (_running)
-        {
+            // Unsubscribe and fully release every FileSystemWatcher so no new events arrive while we swap.
             foreach (var w in _watchers)
             {
-                w.EnableRaisingEvents = true;
+                w.EnableRaisingEvents = false;
+                DetachAndDispose(w);
+            }
+            _watchers.Clear();
+
+            foreach (var path in paths
+                .Where(path => !string.IsNullOrWhiteSpace(path))
+                .Distinct(StringComparer.OrdinalIgnoreCase))
+            {
+                // AddDirectory() subscribes the same handlers, appends the new watcher to _watchers
+                // and, because _running is honoured there, resumes it immediately if we were running.
+                AddDirectory(path, includeSubdirectories);
             }
         }
     }
@@ -183,27 +222,38 @@ public sealed class FileWatcher : IFileWatcher
 
     public void Dispose()
     {
-        if (_disposed)
+        lock (_gate)
         {
-            return;
+            if (_disposed)
+            {
+                return;
+            }
+
+            _disposed = true;
+            _running = false;
+
+            foreach (var w in _watchers)
+            {
+                w.EnableRaisingEvents = false;
+                DetachAndDispose(w);
+            }
+
+            _watchers.Clear();
         }
-
-        _disposed = true;
-
-        Stop();
-
-        foreach (var w in _watchers)
-        {
-            w.Created -= OnCreated;
-            w.Changed -= OnChanged;
-            w.Deleted -= OnDeleted;
-            w.Renamed -= OnRenamed;
-            w.Error -= OnError;
-            w.Dispose();
-        }
-
-        _watchers.Clear();
     }
+
+    private void DetachAndDispose(System.IO.FileSystemWatcher watcher)
+    {
+        watcher.Created -= OnCreated;
+        watcher.Changed -= OnChanged;
+        watcher.Deleted -= OnDeleted;
+        watcher.Renamed -= OnRenamed;
+        watcher.Error -= OnError;
+        watcher.Dispose();
+    }
+
+    private static string NormalizeForComparison(string path)
+        => Path.GetFullPath(path).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
 
     // -------------------------------------------------------------------------
     // OS event handlers (called on the OS thread pool)
