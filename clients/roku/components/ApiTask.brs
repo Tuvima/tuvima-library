@@ -22,6 +22,24 @@ sub execute()
         response = request("GET", "/api/v1/display/search?q=" + encode(payload.query), invalid, true)
     else if m.top.operation = "details"
         response = request("GET", "/api/v1/details/" + encode(payload.entityType) + "/" + encode(payload.id), invalid, true)
+    else if m.top.operation = "continue"
+        response = request("GET", "/api/v1/display/continue", invalid, true)
+    else if m.top.operation = "collections"
+        response = request("GET", "/api/v1/collections?limit=24", invalid, true)
+    else if m.top.operation = "collectionItems"
+        response = request("GET", "/api/v1/collections/" + encode(payload.id) + "/items?limit=100", invalid, true)
+    else if m.top.operation = "photos"
+        response = request("GET", "/api/v1/view/timeline?limit=60", invalid, true)
+    else if m.top.operation = "photoFile"
+        ' Poster cannot send an Authorization header, so the preview JPEG is fetched here with the bearer token and saved to tmp:/.
+        m.downloadTarget = payload.target
+        response = request("GET", "/api/v1/view/items/" + encode(payload.id) + "/preview?size=1280", invalid, true)
+        m.downloadTarget = invalid
+        if response.ok then response.body = FormatJson({ path: payload.target })
+    else if m.top.operation = "profiles"
+        response = request("GET", "/api/v1/devices/current/profiles", invalid, true)
+    else if m.top.operation = "switchProfile"
+        response = request("POST", "/api/v1/devices/current/switch-profile", payload, true)
     else if m.top.operation = "manifest"
         response = request("GET", "/api/v1/playback/" + encode(payload.assetId) + "/manifest?connectionPath=local", invalid, true)
     else if m.top.operation = "heartbeat"
@@ -34,6 +52,12 @@ sub execute()
     if response.body <> invalid and response.body <> "" then parsed = ParseJson(response.body)
     if response.ok
         if parsed = invalid then parsed = {}
+        if m.top.operation = "switchProfile" and parsed.access_token <> invalid
+            ' The switch revokes the old tokens at once, so adopt the new pair before anything else runs.
+            m.top.accessToken = parsed.access_token
+            m.top.refreshToken = parsed.refresh_token
+            m.top.tokenUpdate = { accessToken: parsed.access_token, refreshToken: parsed.refresh_token }
+        end if
         m.top.result = { operation: m.top.operation, value: parsed }
     else
         code = "request_failed"
@@ -82,7 +106,12 @@ function performRequest(method as String, path as String, body as Dynamic, authe
         transfer.AddHeader("Content-Type", "application/json")
         text = transfer.PostFromString(FormatJson(body))
     else
-        text = transfer.GetToString()
+        if m.downloadTarget <> invalid
+            transfer.GetToFile(m.downloadTarget)
+            text = ""
+        else
+            text = transfer.GetToString()
+        end if
     end if
     status = transfer.GetResponseCode()
     return { ok: status >= 200 and status < 300, status: status, body: text }
