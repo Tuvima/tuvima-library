@@ -101,13 +101,25 @@ public sealed class PairingReviewResponse
     [JsonPropertyName("device_class")] public string DeviceClass { get; init; } = string.Empty;
     [JsonPropertyName("requested_scopes")] public IReadOnlyList<string> RequestedScopes { get; init; } = [];
     [JsonPropertyName("expires_at")] public DateTimeOffset ExpiresAt { get; init; }
+
+    /// <summary>
+    /// True when the requesting Application holds the effective photo permissions, so ticking photos on the pairing screen
+    /// can work. The Dashboard shows the photo item only when this is true and the app asked for photo scopes.
+    /// </summary>
+    [JsonPropertyName("offers_photo_scopes")] public bool OffersPhotoScopes { get; init; }
 }
 
 public sealed class PairingDecisionRequest
 {
     [JsonPropertyName("user_code")] public string UserCode { get; init; } = string.Empty;
     [JsonPropertyName("approved")] public bool Approved { get; init; }
-    [JsonPropertyName("scopes")] public IReadOnlyList<string> Scopes { get; init; } = [];
+
+    /// <summary>
+    /// The access the person approves. Omitted (null) means every requested scope except the photo scopes; an explicit
+    /// list means exactly those scopes (photo scopes only if listed, requested and held by the Application). An explicit
+    /// empty list, or one that leaves nothing after the app's request is applied, approves nothing and is refused.
+    /// </summary>
+    [JsonPropertyName("scopes")] public IReadOnlyList<string>? Scopes { get; init; }
 }
 
 public sealed class ClientDeviceDto

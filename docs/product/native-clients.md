@@ -105,14 +105,32 @@ my photos and videos**, unticked by default and explained in plain words
 galleries, including galleries shared with you"). It stands for three scopes
 (`view.personal.read`, `view.originals.read` and `view.galleries.read`), which
 an app may request at pairing but which are never part of the default scopes.
-Leaving the item unticked, approving without choosing, or pairing before this
-change gives the device none of them, and every `/api/v1/view` route answers
-`403`. Ticking it grants all three scopes the app asked for, to that device only.
-Removing the device (Settings, Devices) revokes its tokens, so its photo access
-ends at once (`401`); there is no separate switch for photos. To change the
-choice, remove the device and pair it again. The Dashboard's app door forwards
-only the eleven read-only `GET` routes of `/api/v1/view` (no write, no other
-`view/` path).
+Leaving the item unticked or pairing before this change gives the device none
+of them, and every `/api/v1/view` route answers `403`. Ticking it grants all
+three scopes the app asked for, to that device only.
+
+An app gets only what the person approves. If every ordinary item and the photo
+item are unticked, the pairing screen refuses the approval with "Choose at least
+one thing this device may do, or deny the request." and nothing is paired; a
+visible note beside **Approve device** says so beforehand, and the check is made
+on the Dashboard's server, so it does not depend on scripts. The photo item is
+shown only when the app asked for photos and its Application holds the three photo
+permissions. A Media Player preset app, or the built-in app after an administrator
+removed the permissions, does not show it, and a decision that ticks photos for
+such an app is refused with a clear message instead of creating a device that
+could not sign in.
+
+Re-pairing is the only way to change the photo choice: there is no separate
+switch for photos on a paired device. Removing the device (Settings, Devices)
+revokes its tokens, so its photo access ends at once (`401`). Removing even one of
+the three photo permissions from the built-in app later (an administrator action in Settings)
+signs out every device that opted in, because a token is only valid while its
+Application holds every scope the token carries; those devices must be paired
+again. On an existing data store, a one-time startup step added the three photo
+permissions to the built-in app even when an administrator had trimmed its
+permissions earlier; they do nothing for a device until its person ticks the photo
+item. The Dashboard's app door forwards only the eleven read-only `GET` routes of
+`/api/v1/view` (no write, no other `view/` path).
 
 ## Release and update behavior
 

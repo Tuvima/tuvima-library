@@ -43,20 +43,10 @@ public static class ClientApiEdgeEndpoints
             }
 
             var code = user_code?.Trim() ?? string.Empty;
-            PairingReviewResponse? review = null;
-            if (!string.IsNullOrWhiteSpace(code))
+            var (review, signedOut) = await ReviewPairingAsync(clients, code, ct);
+            if (signedOut)
             {
-                using var response = await clients.CreateClient("EngineIdentity")
-                    .GetAsync($"/api/v1/pairing/review/{Uri.EscapeDataString(code)}", ct);
-                if (response.StatusCode == HttpStatusCode.Unauthorized)
-                {
-                    return Results.Challenge();
-                }
-
-                if (response.IsSuccessStatusCode)
-                {
-                    review = await response.Content.ReadFromJsonAsync<PairingReviewResponse>(cancellationToken: ct);
-                }
+                return Results.Challenge();
             }
 
             var tokens = antiforgery.GetAndStoreTokens(context);
@@ -80,6 +70,14 @@ public static class ClientApiEdgeEndpoints
             var code = form["user_code"].ToString();
             var approved = string.Equals(form["decision"], "approve", StringComparison.Ordinal);
             var scopes = ApprovedScopes(form["scope"], form["photos"]);
+
+            // Approving with nothing ticked would pair a device that can do nothing, so it is refused here, before the Engine
+            // is asked, and the person is shown the screen again. This is the authority; the screen's warning is only a hint.
+            if (approved && scopes.Length == 0)
+            {
+                return await RefusedApprovalAsync(context, clients, antiforgery, code, NothingTickedMessage, ct);
+            }
+
             using var response = await clients.CreateClient("EngineIdentity").PostAsJsonAsync(
                 "/api/v1/pairing/decision",
                 new PairingDecisionRequest { UserCode = code, Approved = approved, Scopes = scopes },
@@ -87,6 +85,14 @@ public static class ClientApiEdgeEndpoints
             if (response.StatusCode == HttpStatusCode.Unauthorized)
             {
                 return Results.Challenge();
+            }
+
+            // The Engine refuses an approval it cannot honour (for example photos for an app that may not use them) with a 400
+            // and a plain-language reason; show that on the screen so the person can change the choice or deny.
+            if (approved && response.StatusCode == HttpStatusCode.BadRequest
+                && await ReadProblemDetailAsync(response, ct) is { } refusal)
+            {
+                return await RefusedApprovalAsync(context, clients, antiforgery, code, refusal, ct);
             }
 
             if (!response.IsSuccessStatusCode)
@@ -113,6 +119,69 @@ public static class ClientApiEdgeEndpoints
         .AllowAnonymous();
 
         return app;
+    }
+
+    /// <summary>What the person sees when they approve with nothing ticked.</summary>
+    internal const string NothingTickedMessage = "Choose at least one thing this device may do, or deny the request.";
+
+    private static async Task<(PairingReviewResponse? Review, bool SignedOut)> ReviewPairingAsync(
+        IHttpClientFactory clients,
+        string code,
+        CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(code))
+        {
+            return (null, false);
+        }
+
+        using var response = await clients.CreateClient("EngineIdentity")
+            .GetAsync($"/api/v1/pairing/review/{Uri.EscapeDataString(code)}", ct);
+        if (response.StatusCode == HttpStatusCode.Unauthorized)
+        {
+            return (null, true);
+        }
+
+        return response.IsSuccessStatusCode
+            ? (await response.Content.ReadFromJsonAsync<PairingReviewResponse>(cancellationToken: ct), false)
+            : (null, false);
+    }
+
+    /// <summary>Shows the pairing screen again with <paramref name="message"/> above the choices; nothing was approved.</summary>
+    private static async Task<IResult> RefusedApprovalAsync(
+        HttpContext context,
+        IHttpClientFactory clients,
+        IAntiforgery antiforgery,
+        string code,
+        string message,
+        CancellationToken ct)
+    {
+        var (review, signedOut) = await ReviewPairingAsync(clients, code, ct);
+        if (signedOut)
+        {
+            return Results.Challenge();
+        }
+
+        if (review is null)
+        {
+            return Results.Content(PairingResultPage("Pairing failed", "The code expired or was already used."), "text/html; charset=utf-8", statusCode: 400);
+        }
+
+        var tokens = antiforgery.GetAndStoreTokens(context);
+        return Results.Content(PairingPage(code, review, tokens.RequestToken, message), "text/html; charset=utf-8", statusCode: 400);
+    }
+
+    private static async Task<string?> ReadProblemDetailAsync(HttpResponseMessage response, CancellationToken ct)
+    {
+        try
+        {
+            var body = JsonNode.Parse(await response.Content.ReadAsStringAsync(ct));
+            return body?["detail"]?.GetValue<string>() is { Length: > 0 } detail ? detail : null;
+        }
+        catch (Exception ex) when (ex is JsonException or InvalidOperationException)
+        {
+            // Not a problem body: the generic "pairing failed" page is the fallback.
+            return null;
+        }
     }
 
     private static async Task ProxyApplicationEventsAsync(
@@ -437,10 +506,15 @@ public static class ClientApiEdgeEndpoints
         return [.. scopes];
     }
 
-    private static string PairingPage(string code, PairingReviewResponse? review, string? antiforgeryToken)
+    private static string PairingPage(string code, PairingReviewResponse? review, string? antiforgeryToken, string? refusal = null)
     {
         var html = HtmlEncoder.Default;
-        var photoScopes = review?.RequestedScopes.Where(scope => ClientApiScopes.Photos.Contains(scope, StringComparer.Ordinal)).ToArray() ?? [];
+
+        // The photo item only appears when the app asked for photos and its Application may use them; otherwise ticking it
+        // would show "Device paired" and the device would then fail to sign in.
+        var photoScopes = review is { OffersPhotoScopes: true }
+            ? review.RequestedScopes.Where(scope => ClientApiScopes.Photos.Contains(scope, StringComparer.Ordinal)).ToArray()
+            : [];
         var photoItem = photoScopes.Length == 0
             ? string.Empty
             : $"""
@@ -459,12 +533,14 @@ public static class ClientApiEdgeEndpoints
                 <h1>Pair {html.Encode(review.DeviceName)}</h1>
                 <p><strong>{html.Encode(review.ClientName)}</strong> {html.Encode(review.ClientVersion)} identifies as a {html.Encode(review.DeviceClass)} device.</p>
                 <p>Grant only the access you expect:</p>
+                {(refusal is null ? string.Empty : $"<p class=error role=alert>{html.Encode(refusal)}</p>")}
                 <form method="post">
                   <input type="hidden" name="__RequestVerificationToken" value="{html.Encode(antiforgeryToken ?? string.Empty)}">
                   <input type="hidden" name="user_code" value="{html.Encode(code)}">
                   <ul>{string.Join(string.Empty, review.RequestedScopes.Where(scope => !ClientApiScopes.Photos.Contains(scope, StringComparer.Ordinal)).Select(scope => $"<li><label><input type=checkbox name=scope value=\"{html.Encode(scope)}\" checked> {html.Encode(scope)}</label></li>"))}</ul>
                   {photoItem}
-                  <button name="decision" value="approve">Approve device</button>
+                  <p class="note" id="approve-hint">{html.Encode(NothingTickedMessage)} Approving with nothing ticked is refused.</p>
+                  <button name="decision" value="approve" aria-describedby="approve-hint">Approve device</button>
                   <button class="secondary" name="decision" value="deny">Deny</button>
                 </form>
                 """;

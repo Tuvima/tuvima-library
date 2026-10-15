@@ -189,16 +189,60 @@ public sealed class PhotoConsentPairingTests : IAsyncLifetime
     [Fact]
     public async Task AnApprovalThatNamesNoScopesNeverGrantsThePhotoScopes()
     {
-        var token = await PairAsync(Everything, []);
+        // Scopes omitted (null) keeps meaning "every requested scope except photos"; an explicit empty list does not.
+        var token = await PairAsync(Everything, null);
 
         Assert.Equal("artwork.read library.read", token.Scope);
         await AssertEveryRouteAsync(token.AccessToken, HttpStatusCode.Forbidden);
     }
 
     [Fact]
+    public async Task AnExplicitDecisionThatGrantsNothingIsRefusedAndTheRequestStaysPending()
+    {
+        var started = await BeginAsync(Everything);
+
+        var empty = await Assert.ThrowsAsync<ArgumentException>(() => DecideAsync(started.UserCode, []));
+        Assert.Contains("Choose at least one thing this device may do", empty.Message, StringComparison.Ordinal);
+
+        // A list that names only what the app never asked for also leaves nothing to grant.
+        await Assert.ThrowsAsync<ArgumentException>(() => DecideAsync(started.UserCode, ["progress.read"]));
+
+        // Nothing was stored: the request is still waiting and no device exists.
+        var waiting = await _authorization.ExchangeAsync(new OAuthTokenRequest
+        {
+            GrantType = ClientAuthorizationService.DeviceGrantType,
+            ClientId = ClientId,
+            DeviceCode = started.DeviceCode,
+        });
+        Assert.Equal("authorization_pending", waiting.Error?.Error);
+        Assert.Empty(await _authorization.GetDevicesAsync(Profile.SeedProfileId));
+
+        // The person can still make a real choice afterwards.
+        Assert.True(await DecideAsync(started.UserCode, ["library.read"]));
+    }
+
+    [Fact]
+    public async Task DenyingNeverNeedsAScopeAndGrantsNone()
+    {
+        var started = await BeginAsync(Everything);
+
+        Assert.True(await _authorization.DecideAsync(
+            new PairingDecisionRequest { UserCode = started.UserCode, Approved = false, Scopes = [] },
+            Account.SeedAccountId, Profile.SeedProfileId, Profile.SeedProfileId));
+
+        var result = await _authorization.ExchangeAsync(new OAuthTokenRequest
+        {
+            GrantType = ClientAuthorizationService.DeviceGrantType,
+            ClientId = ClientId,
+            DeviceCode = started.DeviceCode,
+        });
+        Assert.Equal("access_denied", result.Error?.Error);
+    }
+
+    [Fact]
     public async Task AnAppThatNeverAskedForPhotosGets403OnEveryViewRoute()
     {
-        var token = await PairAsync("library.read progress.read", []);
+        var token = await PairAsync("library.read progress.read", null);
 
         await AssertEveryRouteAsync(token.AccessToken, HttpStatusCode.Forbidden);
     }
@@ -267,17 +311,62 @@ public sealed class PhotoConsentPairingTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task WhenTheApplicationDoesNotHoldThePhotoScopesTheConsentIsRefusedAtPairing()
+    public async Task ThePairingReviewOffersPhotoScopesOnlyWhileTheApplicationHoldsThem()
     {
+        var before = await BeginAsync(Everything);
+        Assert.True((await _authorization.ReviewAsync(before.UserCode))!.OffersPhotoScopes);
+
+        await RemovePhotoGrantsAsync();
+
+        var after = await BeginAsync(Everything);
+        Assert.False((await _authorization.ReviewAsync(after.UserCode))!.OffersPhotoScopes);
+    }
+
+    [Fact]
+    public async Task ThePairingReviewOffersNoPhotoScopesWhenJustOneIsMissing()
+    {
+        var held = await _applications.GetApplicationPermissionsAsync(BuiltInApplicationIds.NativeClient);
         await _applications.ReplacePermissionsAsync(
             BuiltInApplicationIds.NativeClient,
-            new HashSet<ApplicationPermissionId> { ApplicationPermissionIds.LibraryRead, ApplicationPermissionIds.ArtworkRead },
+            held.Where(id => id != ApplicationPermissionIds.ViewOriginalsRead).ToHashSet(),
             DateTimeOffset.UtcNow);
 
-        var result = await TryPairAsync(Everything, ["library.read", .. AllPhotoScopes]);
+        var started = await BeginAsync(Everything);
 
-        Assert.Null(result.Success);
-        Assert.Equal("access_denied", result.Error?.Error);
+        Assert.False((await _authorization.ReviewAsync(started.UserCode))!.OffersPhotoScopes);
+    }
+
+    [Fact]
+    public async Task WhenTheApplicationDoesNotHoldThePhotoScopesTheConsentIsRefusedAtTheDecisionAndNoDeviceIsCreated()
+    {
+        await RemovePhotoGrantsAsync();
+        var started = await BeginAsync(Everything);
+
+        // A crafted decision that ticks photos is refused with a clear reason, not paired and failed later.
+        var refusal = await Assert.ThrowsAsync<ArgumentException>(() => DecideAsync(started.UserCode, ["library.read", .. AllPhotoScopes]));
+        Assert.Contains("not allowed to use photos and videos", refusal.Message, StringComparison.Ordinal);
+
+        var waiting = await _authorization.ExchangeAsync(new OAuthTokenRequest
+        {
+            GrantType = ClientAuthorizationService.DeviceGrantType,
+            ClientId = ClientId,
+            DeviceCode = started.DeviceCode,
+        });
+        Assert.Equal("authorization_pending", waiting.Error?.Error);
+        Assert.Empty(await _authorization.GetDevicesAsync(Profile.SeedProfileId));
+
+        // Ordinary access can still be approved for that app, without photos.
+        Assert.True(await DecideAsync(started.UserCode, ["library.read"]));
+    }
+
+    [Fact]
+    public async Task WhenTheApplicationDoesNotHoldThePhotoScopesAnOmittedDecisionStillPairsWithoutThem()
+    {
+        await RemovePhotoGrantsAsync();
+
+        var token = await PairAsync(Everything, null);
+
+        Assert.Equal("artwork.read library.read", token.Scope);
     }
 
     [Fact]
@@ -392,12 +481,14 @@ public sealed class PhotoConsentPairingTests : IAsyncLifetime
         return client;
     }
 
-    private async Task<OAuthTokenResponse> PairAsync(string requestedScope, string[] decisionScopes) =>
-        Assert.IsType<OAuthTokenResponse>((await TryPairAsync(requestedScope, decisionScopes)).Success);
+    private Task RemovePhotoGrantsAsync() =>
+        _applications.ReplacePermissionsAsync(
+            BuiltInApplicationIds.NativeClient,
+            new HashSet<ApplicationPermissionId> { ApplicationPermissionIds.LibraryRead, ApplicationPermissionIds.ArtworkRead },
+            DateTimeOffset.UtcNow);
 
-    private async Task<ClientTokenResult> TryPairAsync(string requestedScope, string[] decisionScopes)
-    {
-        var started = await _authorization.BeginAsync(new DeviceAuthorizationRequest
+    private Task<DeviceAuthorizationResponse> BeginAsync(string requestedScope) =>
+        _authorization.BeginAsync(new DeviceAuthorizationRequest
         {
             ClientId = ClientId,
             ClientName = "Tuvima",
@@ -407,9 +498,19 @@ public sealed class PhotoConsentPairingTests : IAsyncLifetime
             Scope = requestedScope,
             Capabilities = new ClientCapabilitiesDto(),
         }, "https://library.example");
-        Assert.True(await _authorization.DecideAsync(
-            new PairingDecisionRequest { UserCode = started.UserCode, Approved = true, Scopes = decisionScopes },
-            Account.SeedAccountId, Profile.SeedProfileId, Profile.SeedProfileId));
+
+    private Task<bool> DecideAsync(string userCode, string[]? decisionScopes) =>
+        _authorization.DecideAsync(
+            new PairingDecisionRequest { UserCode = userCode, Approved = true, Scopes = decisionScopes },
+            Account.SeedAccountId, Profile.SeedProfileId, Profile.SeedProfileId);
+
+    private async Task<OAuthTokenResponse> PairAsync(string requestedScope, string[]? decisionScopes) =>
+        Assert.IsType<OAuthTokenResponse>((await TryPairAsync(requestedScope, decisionScopes)).Success);
+
+    private async Task<ClientTokenResult> TryPairAsync(string requestedScope, string[]? decisionScopes)
+    {
+        var started = await BeginAsync(requestedScope);
+        Assert.True(await DecideAsync(started.UserCode, decisionScopes));
         return await _authorization.ExchangeAsync(new OAuthTokenRequest
         {
             GrantType = ClientAuthorizationService.DeviceGrantType,

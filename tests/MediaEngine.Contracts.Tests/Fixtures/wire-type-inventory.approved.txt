@@ -1324,7 +1324,7 @@
   kind=class | converter=default | number-handling=default | unmapped=default
   UserCode: System.String | json=user_code | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Approved: System.Boolean | json=approved | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  Scopes: System.Collections.Generic.IReadOnlyList<System.String> | json=scopes | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Scopes: System.Collections.Generic.IReadOnlyList<System.String> | json=scopes | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   sample={"user_code":"sample","approved":true,"scopes":[]}
 
 [contracts] MediaEngine.Contracts.Authentication.PairingReviewResponse
@@ -1337,7 +1337,8 @@
   DeviceClass: System.String | json=device_class | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   RequestedScopes: System.Collections.Generic.IReadOnlyList<System.String> | json=requested_scopes | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   ExpiresAt: System.DateTimeOffset | json=expires_at | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  sample={"request_id":"11111111-2222-3333-4444-555555555555","client_id":"sample","client_name":"sample","client_version":"sample","device_name":"sample","device_class":"sample","requested_scopes":[],"expires_at":"2025-01-02T03:04:05+00:00"}
+  OffersPhotoScopes: System.Boolean | json=offers_photo_scopes | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"request_id":"11111111-2222-3333-4444-555555555555","client_id":"sample","client_name":"sample","client_version":"sample","device_name":"sample","device_class":"sample","requested_scopes":[],"expires_at":"2025-01-02T03:04:05+00:00","offers_photo_scopes":true}
 
 [contracts] MediaEngine.Contracts.Authentication.PasskeyCredentialResponse
   kind=class | converter=default | number-handling=default | unmapped=default
