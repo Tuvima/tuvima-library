@@ -23,6 +23,7 @@ public sealed class ProfileDetailPageTests : AsyncBunitContext
     private static readonly Guid KidId = Guid.NewGuid();
     private static readonly Guid SamId = Guid.NewGuid();
     private static readonly Guid SamAccountId = Guid.NewGuid();
+    private static readonly Guid MainAccountId = Guid.NewGuid();
 
     private readonly List<RecordedRequest> _requests = [];
 
@@ -71,18 +72,55 @@ public sealed class ProfileDetailPageTests : AsyncBunitContext
         }
     }
 
-    private static AccountAccessResponse SamAccess(bool twoStep = true, string[]? lanes = null, Guid[]? libraries = null) =>
+    // An own sign-in the Engine creates always follows the household's main sign-in (grants_inherit_from_account_id is set); the plain
+    // account here keeps its own access, which is the only kind whose access is edited from the page.
+    private static AccountAccessResponse SamAccess(bool twoStep = true, string[]? lanes = null, Guid[]? libraries = null, bool inherits = false) =>
         new(SamAccountId, "sam@home.test", true, false, 1,
             (lanes ?? ["read", "watch"]).Select(lane => new AccountFeatureGrantDto(lane, true)).ToList(),
             (libraries ?? [LibraryA]).Select(id => new AccountLibraryGrantDto(id, id == LibraryA ? "Books" : "Films", true)).ToList(),
-            [], DateTimeOffset.UtcNow, DateTimeOffset.UtcNow, null, HouseholdId, HasTwoStep: twoStep);
+            [], DateTimeOffset.UtcNow, DateTimeOffset.UtcNow, null, HouseholdId, HasTwoStep: twoStep,
+            GrantsInheritFromAccountId: inherits ? MainAccountId : null);
 
-    private void SamWithSignIn(bool twoStep = true)
+    private void SamWithSignIn(bool twoStep = true, bool inherits = false, string[]? navigation = null)
     {
-        Setup(actions: ["household.manage"], navigation: []);
+        Setup(actions: ["household.manage"], navigation: navigation ?? []);
         _managed.AddRange([Person(OwnId, "Test User", false), Person(SamId, "Sam", false, new ManagedProfileSignInDto(SamAccountId, "sam@home.test", false, true))]);
-        _accounts.Add(SamAccess(twoStep));
+        _accounts.Add(SamAccess(twoStep, inherits: inherits));
         _libraries.AddRange([new AccessLibraryOptionDto(LibraryA, "Books", null, "Read")]);
+    }
+
+    [Fact]
+    public void LibrariesAndLanes_ForAnInheritingOwnSignIn_IsReadOnly_WithALinkToTheHouseholdAndNoSave()
+    {
+        SamWithSignIn(inherits: true, navigation: ["settings.administration"]);
+
+        var cut = RenderFor(SamId);
+
+        cut.WaitForAssertion(() => Assert.Contains("Read, Watch · 1 library", Row(cut, "access").TextContent));
+        var row = Row(cut, "access");
+        Assert.Contains("Follows the household's access", row.TextContent);
+        Assert.Equal("/settings/access/users", row.GetAttribute("href"));
+        Assert.Equal("a", row.TagName.ToLowerInvariant());
+
+        // A plain link: no sheet to open and nothing to save.
+        Assert.Empty(cut.FindAll(".profile-access-sheet"));
+        Assert.DoesNotContain(cut.FindAll("button"), button => button.TextContent.Trim() == "Save");
+        Assert.DoesNotContain(_requests, request => request.Method == HttpMethod.Put && request.Path.EndsWith("/access", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void LibrariesAndLanes_ForAnInheritingOwnSignIn_IsPlainTextForAHouseholdAdministrator()
+    {
+        // Users & Access is a server-administrator page, so a household administrator is told where it changes but not linked to it.
+        SamWithSignIn(inherits: true);
+
+        var cut = RenderFor(SamId);
+
+        cut.WaitForAssertion(() => Assert.Contains("Follows the household's access", Row(cut, "access").TextContent));
+        var row = Row(cut, "access");
+        Assert.Equal("true", row.GetAttribute("aria-disabled"));
+        Assert.Null(row.GetAttribute("href"));
+        Assert.Contains("Read, Watch · 1 library", row.TextContent);
     }
 
     [Fact]
@@ -117,7 +155,7 @@ public sealed class ProfileDetailPageTests : AsyncBunitContext
 
         var cut = RenderFor(OwnId);
 
-        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-nav-row='details']")));
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-nav-row='playback']")));
         Assert.Empty(cut.FindAll("[data-profile-section='household-access']"));
     }
 
@@ -223,7 +261,9 @@ public sealed class ProfileDetailPageTests : AsyncBunitContext
 
         cut.WaitForAssertion(() => Assert.Equal("Test User", cut.Find(".profile-detail__name").TextContent));
         Assert.Equal("Profile", cut.Find(".profile-detail__role").TextContent);
-        Assert.Equal("details,sign-in,playback,listening,reading,subtitles",
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-nav-row='playback']")));
+        // A member's own page has no Profile details row: the editor saves through administrator-only Engine actions.
+        Assert.Equal("sign-in,playback,listening,reading,subtitles",
             string.Join(",", cut.FindAll("[data-nav-row]").Select(row => row.GetAttribute("data-nav-row"))));
         Assert.Equal("/settings/playback", Row(cut, "playback").GetAttribute("href"));
         Assert.Equal("/settings/listening", Row(cut, "listening").GetAttribute("href"));
@@ -246,7 +286,39 @@ public sealed class ProfileDetailPageTests : AsyncBunitContext
         Assert.Contains("Skip 15 s / 15 s · Sleep 30 min", Row(cut, "listening").TextContent);
         Assert.Contains("Paginated", Row(cut, "reading").TextContent);
         Assert.Contains("English · Medium", Row(cut, "subtitles").TextContent);
-        Assert.Contains("Everything", Row(cut, "details").TextContent);
+    }
+
+    [Fact]
+    public void ProfileDetailsRow_IsHiddenFromAMember_OnTheirOwnProfile()
+    {
+        Setup(actions: [], navigation: []);
+
+        var cut = RenderFor(OwnId);
+
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-nav-row='playback']")));
+        Assert.Empty(cut.FindAll("[data-nav-row='details']"));
+    }
+
+    [Fact]
+    public void ProfileDetailsRow_IsShownToAHouseholdAdministrator_OnTheirOwnProfile()
+    {
+        Setup(actions: ["household.manage"], navigation: []);
+        _managed.AddRange([Person(OwnId, "Test User", false), Person(SamId, "Sam", false)]);
+
+        var cut = RenderFor(OwnId);
+
+        cut.WaitForAssertion(() => Assert.Contains("Everything", Row(cut, "details").TextContent));
+    }
+
+    [Fact]
+    public void ProfileDetailsRow_IsShownToAServerAdministrator()
+    {
+        Setup(actions: [], navigation: ["settings.administration"]);
+        _managed.AddRange([Person(OwnId, "Test User", false), Person(SamId, "Sam", false)]);
+
+        var cut = RenderFor(SamId);
+
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-nav-row='details']")));
     }
 
     [Fact]
