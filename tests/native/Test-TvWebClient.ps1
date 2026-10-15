@@ -143,4 +143,41 @@ foreach ($test in @('tv-web-api.test.js', 'tv-web-input.test.js')) {
     if ($LASTEXITCODE -ne 0) { throw "$test failed." }
 }
 
+# 9. Samsung Tizen package (clients/tv-web/platforms/tizen): config.xml, icon, key map, no hard-coded servers.
+$tizen = Join-Path $client 'platforms/tizen'
+foreach ($relative in @('config.xml', 'tizen-keys.js', 'package.ps1', 'README.md')) {
+    if (-not (Test-Path -LiteralPath (Join-Path $tizen $relative) -PathType Leaf)) { throw "Tizen package is missing $relative." }
+}
+$configText = Get-Content -LiteralPath (Join-Path $tizen 'config.xml') -Raw
+try { $config = [xml]$configText } catch { throw "Tizen config.xml is not well-formed XML: $($_.Exception.Message)" }
+if ($config.widget.NamespaceURI -ne 'http://www.w3.org/ns/widgets') { throw 'Tizen config.xml must use the W3C widget namespace.' }
+if ($config.widget.version -ne '0.1.0') { throw 'Tizen config.xml version must be 0.1.0.' }
+$privileges = @($config.widget.ChildNodes | Where-Object { $_.LocalName -eq 'privilege' } | ForEach-Object { $_.GetAttribute('name') })
+foreach ($privilege in @('http://tizen.org/privilege/internet', 'http://tizen.org/privilege/tv.inputdevice')) {
+    if ($privileges -notcontains $privilege) { throw "Tizen config.xml lacks privilege $privilege." }
+}
+$profile = $config.widget.ChildNodes | Where-Object { $_.LocalName -eq 'profile' }
+if (-not $profile -or $profile.GetAttribute('name') -ne 'tv') { throw 'Tizen config.xml must declare profile tv.' }
+# The package root holds the shared client files next to config.xml, so content src must be a shared file.
+$contentSrc = $config.widget.content.src
+if (-not $contentSrc -or -not (Test-Path -LiteralPath (Join-Path $client $contentSrc) -PathType Leaf)) {
+    throw "Tizen config.xml content src '$contentSrc' does not resolve to a shared client file."
+}
+# Icon: present, or explicitly owed in the README.
+$iconSrc = $config.widget.icon.src
+$tizenReadme = Get-Content -LiteralPath (Join-Path $tizen 'README.md') -Raw
+if (-not $iconSrc -or -not (Test-Path -LiteralPath (Join-Path $tizen $iconSrc) -PathType Leaf)) {
+    if ($tizenReadme -notmatch '(?i)icon.*\bowed\b') { throw 'Tizen icon is missing and the README does not mark it owed.' }
+}
+& node --check (Join-Path $tizen 'tizen-keys.js')
+if ($LASTEXITCODE -ne 0) { throw 'node --check failed for tizen-keys.js.' }
+$keyText = Get-Content -LiteralPath (Join-Path $tizen 'tizen-keys.js') -Raw
+foreach ($key in @('MediaPlayPause', 'MediaPlay', 'MediaPause', 'MediaStop', 'MediaFastForward', 'MediaRewind', 'registerKey')) {
+    if (-not $keyText.Contains($key, [StringComparison]::Ordinal)) { throw "tizen-keys.js does not register $key." }
+}
+$tizenText = $configText + "`n" + $keyText + "`n" + (Get-Content -LiteralPath (Join-Path $tizen 'package.ps1') -Raw)
+foreach ($pattern in @('localhost', '127\.0\.0\.1', '0\.0\.0\.0', ':61495', ':61494', ':5016', ':7062', '[A-Za-z]:\\', '/Users/')) {
+    if ($tizenText -match "(?i)$pattern") { throw "Tizen package files contain forbidden text matching '$pattern'." }
+}
+
 Write-Host 'TV web client static gate passed.' -ForegroundColor Green
