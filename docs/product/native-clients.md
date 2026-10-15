@@ -251,3 +251,7 @@ paths are release blockers.
 - [Check product status](status.md).
 - [Set up development](../tutorials/dev-setup.md).
 - [Understand network and remote access](../architecture/network-and-remote-access.md).
+
+## Orientation
+
+The phone apps (Android phone, iPhone) are locked to portrait everywhere except actual video playback, which may rotate to landscape. Audio, books and photos stay portrait. Android TV, Apple TV, CarPlay and Android Auto are unaffected.

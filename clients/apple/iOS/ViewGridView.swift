@@ -601,6 +601,7 @@ struct PhotoViewerPage: View {
             }
         }
         .task(id: item.id) { await loadPreview() }
+        .allowsVideoRotation(player != nil)
         .onDisappear { player?.pause() }
     }
 

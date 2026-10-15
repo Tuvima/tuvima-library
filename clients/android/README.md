@@ -11,6 +11,13 @@ Build from this directory with `gradle :tv:assembleDebug :mobile:assembleDebug`.
 Never place signing keys, service credentials, bearer tokens, or signed media
 URLs in this repository.
 
+Orientation: the phone app is locked to portrait (`screenOrientation="portrait"` on
+`MainActivity`); TV is landscape by nature. Only video playback may rotate. The rule
+lives in `core` `OrientationPolicy`. The phone app has no on-device video surface yet
+(playback is audio-only through the media service), so nothing currently unlocks; a
+future video screen must request a sensor orientation while shown and restore portrait
+on leaving.
+
 Unit tests for the shared client (API v1 paths, typed profile-switch results, photo consent, photo grid layout,
 and the offline download rules: server-won detection, replay order, the storage cap, expiry and report results,
 plus kept photos: the cap with photos, the purge rule, kinds and the gallery plan)
