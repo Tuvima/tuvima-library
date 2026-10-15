@@ -69,7 +69,7 @@ The PIN lock protects settings after sign-in. It is separate from the account pa
 
 ## Manage your sign-in methods
 
-Open **Settings → Security**. **Password** changes your password. Once you have a password, **Extra protection** opens one sheet for passkeys, two-step codes, linked sign-ins and recovery codes. Administrators also see **Sign out everywhere else** and **Devices** under *Access*.
+Open **Settings → Security**. **Password** changes your password. Once you have a password, **Extra protection** opens one sheet for passkeys, two-step codes, linked sign-ins and recovery codes. Everyone sees **Sign out everywhere else** under *Access*, which signs out your other sessions (for example a lost phone) and keeps the one you are using; administrators also see **Devices** there.
 
 Password resets revoke existing sessions. Tuvima prevents removal of the final usable authenticator.
 

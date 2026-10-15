@@ -51,22 +51,22 @@
                 </ul>
             </section>
 
-            @* Signing out other sessions and the Devices page (paired phones and TVs, everyone's sessions) are for administrators, server or household. *@
-            @if (IsAdministrator)
-            {
-                <section class="security-settings__group" aria-labelledby="security-access">
-                    <h3 id="security-access" class="security-settings__group-title">Access</h3>
-                    <ul class="security-settings__list" role="list">
-                        <li class="security-settings__item">
-                            <SettingsNavRow Key="sign-out-others" Icon="@AppMaterialIcons.Outlined.Logout" Title="Sign out everywhere else" Status="@OtherSessionsStatus"
-                                            Disabled="@(!_sessionsLoading && _sessionsError is null && !OtherSessions.Any())" ShowChevron="false" OnClick="RevokeOtherSessionsAsync" />
-                        </li>
+            @* Everyone may sign out their own other sessions (a lost phone). The Devices page (paired phones and TVs, everyone's sessions) is for administrators, server or household. *@
+            <section class="security-settings__group" aria-labelledby="security-access">
+                <h3 id="security-access" class="security-settings__group-title">Access</h3>
+                <ul class="security-settings__list" role="list">
+                    <li class="security-settings__item">
+                        <SettingsNavRow Key="sign-out-others" Icon="@AppMaterialIcons.Outlined.Logout" Title="Sign out everywhere else" Status="@OtherSessionsStatus"
+                                        Disabled="@(!_sessionsLoading && _sessionsError is null && !OtherSessions.Any())" ShowChevron="false" OnClick="RevokeOtherSessionsAsync" />
+                    </li>
+                    @if (IsAdministrator)
+                    {
                         <li class="security-settings__item">
                             <SettingsNavRow Key="devices" Icon="@AppMaterialIcons.Outlined.Devices" Title="Devices" Status="Paired phones and TVs, signed-in sessions" Href="/settings/devices" />
                         </li>
-                    </ul>
-                </section>
-            }
+                    }
+                </ul>
+            </section>
         </div>
 
         @if (_sheet != SecuritySheet.None)
