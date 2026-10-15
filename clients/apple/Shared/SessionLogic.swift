@@ -49,6 +49,34 @@ public enum RefreshFailureKind: Equatable, Sendable {
     case transient
 }
 
+/// Tracks profile switches so a refresh refusal caused by one is not mistaken for a revocation. The Engine's switch revokes
+/// every token of the device, so a refresh sent with the previous profile's refresh token just before or after a switch is
+/// refused with `invalid_grant` even though the device is fine. While a switch is pending, or when one started or finished
+/// during a refresh attempt (the generation changed), the refusal is transient.
+public struct SwitchTracker: Equatable, Sendable {
+    public private(set) var pending = 0
+    public private(set) var generation = 0
+
+    public init() {}
+
+    /// A profile switch request is about to be sent.
+    public mutating func begin() {
+        pending += 1
+        generation += 1
+    }
+
+    /// The switch ended (stored, refused or failed).
+    public mutating func finish() {
+        pending = max(0, pending - 1)
+        generation += 1
+    }
+
+    /// True when a refusal of a refresh that began at `capturedGeneration` may be a real revocation (no switch involved).
+    public func mayTreatRefusalAsRevoked(capturedGeneration: Int) -> Bool {
+        pending == 0 && generation == capturedGeneration
+    }
+}
+
 public enum SessionLogic {
     /// Sorts a failed token refresh. The Engine answers every failure at the token endpoint with 400, and every real
     /// revocation carries the OAuth error `invalid_grant`, so only that exact code (parsed from the answer's JSON body)

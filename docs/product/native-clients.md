@@ -140,7 +140,9 @@ drops the sign-in, deletes its downloads and unsent records like a sign-out, and
 returns to pairing. Any other failure, including a 400 without that code, a 401
 or 403 from a proxy, an HTML page, a network error or a server error, never
 signs the person out. Refreshes are single-flight and a refreshed token is stored
-only for the profile it was requested for. These paths are covered by unit tests
+only for the profile it was requested for. Because the Engine's profile switch
+revokes the device's old tokens, a refresh refused while a switch is pending, or
+one that overlapped a switch, is treated as a bad moment and not a revocation. These paths are covered by unit tests
 on Android; the iPhone tests are written but not yet run in CI.
 
 Automotive clients expose only Listen content and native media controls. They

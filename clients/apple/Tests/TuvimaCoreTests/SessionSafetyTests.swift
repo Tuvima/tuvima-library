@@ -62,4 +62,40 @@ final class SessionSafetyTests: XCTestCase {
         XCTAssertEqual(SessionLogic.classifyRefreshFailure(statusCode: 503, errorCode: "temporarily_unavailable"), .transient)
         XCTAssertEqual(SessionLogic.classifyRefreshFailure(statusCode: 400, errorCode: "INVALID_GRANT"), .transient)
     }
+
+    func testARefusalWithNoSwitchAroundIsARealRevocation() {
+        var tracker = SwitchTracker()
+        let captured = tracker.generation
+        XCTAssertTrue(tracker.mayTreatRefusalAsRevoked(capturedGeneration: captured))
+        // A switch that ended before the attempt began leaves a newer generation, which a later attempt captures.
+        tracker.begin()
+        tracker.finish()
+        XCTAssertTrue(tracker.mayTreatRefusalAsRevoked(capturedGeneration: tracker.generation))
+    }
+
+    func testARefusalWhileASwitchIsPendingIsTransient() {
+        var tracker = SwitchTracker()
+        let captured = tracker.generation
+        tracker.begin()
+        XCTAssertEqual(tracker.pending, 1)
+        XCTAssertFalse(tracker.mayTreatRefusalAsRevoked(capturedGeneration: captured))
+        // Even an attempt that began after the switch started is held back until the switch ends.
+        XCTAssertFalse(tracker.mayTreatRefusalAsRevoked(capturedGeneration: tracker.generation))
+    }
+
+    func testARefusalAfterASwitchStartedDuringTheAttemptIsTransient() {
+        var tracker = SwitchTracker()
+        let captured = tracker.generation
+        tracker.begin()
+        tracker.finish()
+        // The switch is over, but it happened during this attempt: A's refresh token was revoked by it.
+        XCTAssertEqual(tracker.pending, 0)
+        XCTAssertFalse(tracker.mayTreatRefusalAsRevoked(capturedGeneration: captured))
+    }
+
+    func testFinishWithoutBeginNeverGoesNegative() {
+        var tracker = SwitchTracker()
+        tracker.finish()
+        XCTAssertEqual(tracker.pending, 0)
+    }
 }
