@@ -19,6 +19,17 @@ enum EnqueueResult {
     case overCap(committed: Int64, cap: Int64)
     case notOffered
     case notPaired
+    /// The Engine lists at most 500 entries per device, of any kind.
+    case listFull
+}
+
+/// What came of keeping a whole gallery on the device.
+struct KeepGalleryResult {
+    let found: Int
+    let queued: Int
+    let alreadyKept: Int
+    let skippedVideos: Int
+    let stop: PhotoKeepStop
 }
 
 /// Names the files an offline copy uses. Each person has their own folder, so switching profile never shows or
@@ -103,8 +114,9 @@ struct DownloadTaskInfo: Sendable {
 /// The offline downloads of the person using this device. It owns the queue (a background URLSession does the
 /// transfers, so they continue with the app closed and pause and resume), the storage cap, the reports back to
 /// the Engine's device download list, and the progress recorded while playing downloads without a connection.
-/// Books and photos are not offered here. The app never writes History: the Engine does that when it applies a
-/// replayed play.
+/// Photos kept on the device share the same list, storage limit and reports (see `keepPhoto` and `keepGallery`), and
+/// are fetched in the foreground, one after another; books are not offered here yet (`LocalBookFiles` is the unwired
+/// hook for them). The app never writes History: the Engine does that when it applies a replayed play.
 final class OfflineDownloadManager: NSObject, ObservableObject, URLSessionDownloadDelegate {
     static let capKey = "tuvima.downloadCapGB"
     static let qualityKey = "tuvima.downloadQuality"
@@ -120,6 +132,9 @@ final class OfflineDownloadManager: NSObject, ObservableObject, URLSessionDownlo
     fileprivate var activeProfile: UUID?
     fileprivate var states: [UUID: OfflineState] = [:]
     fileprivate var preparing: [UUID: Task<Void, Never>] = [:]
+    fileprivate var photoQueue: Task<Void, Never>?
+    /// How many entries the Engine's list showed on the last read, used to plan against the device's limit. Nil until read.
+    fileprivate var knownEngineListCount: Int?
     fileprivate var isSyncing = false
     fileprivate var syncAgain = false
     private var monitorStarted = false
@@ -263,6 +278,26 @@ extension OfflineDownloadManager {
         return url
     }
 
+    /// The saved preview of a photo kept on this device, when it is finished and its file is still there.
+    func localPhotoFile(itemID: UUID) -> URL? {
+        guard let profile = activeProfile else { return nil }
+        let name = OfflineLogic.localPhotoFileName(record(profile, itemID)) { candidate in
+            guard let url = try? OfflineFiles.file(profile: profile, name: candidate) else { return false }
+            return FileManager.default.fileExists(atPath: url.path)
+        }
+        guard let name else { return nil }
+        return try? OfflineFiles.file(profile: profile, name: name)
+    }
+
+    /// The photos kept on this device as viewer items, newest first, so they can be browsed with no connection. The
+    /// date shown is the one recorded when the photo was kept (the day it was taken).
+    func keptPhotoItems() -> [ViewItem] {
+        records
+            .filter { $0.isPhoto && $0.isComplete }
+            .sorted { ($0.subtitle ?? "") > ($1.subtitle ?? "") }
+            .map { ViewItem(id: $0.assetId, mediaKind: "image", title: $0.title, capturedAt: $0.subtitle) }
+    }
+
     /// Where a downloaded file starts: where the person left off, or the beginning once it was finished.
     func resumeSeconds(assetID: UUID) -> Double {
         guard let profile = activeProfile else { return 0 }
@@ -282,6 +317,8 @@ extension OfflineDownloadManager {
             // Another person (or nobody) is using the app: stop preparing the previous person's downloads.
             for task in preparing.values { task.cancel() }
             preparing = [:]
+            photoQueue?.cancel()
+            photoQueue = nil
         }
         guard let profile = signedIn else {
             activeProfile = nil
@@ -291,9 +328,11 @@ extension OfflineDownloadManager {
         activeProfile = profile
         records = state(profile).records
         purgeLocallyExpired()
-        for held in state(profile).records where held.isActive && preparing[held.assetId] == nil {
+        for held in state(profile).records where held.isActive && !held.isPhoto && preparing[held.assetId] == nil {
             startPreparing(profile: profile, assetID: held.assetId)
         }
+        // Kept photos share one queue that takes them in turn.
+        if state(profile).records.contains(where: { $0.isPhoto && $0.isActive }) { startPhotoQueue(profile: profile) }
         scheduleSync()
     }
 
@@ -358,6 +397,10 @@ extension OfflineDownloadManager {
                     overCap = true
                     break
                 }
+                if case .listFull = result {
+                    overCap = true
+                    break
+                }
             }
             notice = OfflineLogic.nextEpisodesMessage(found: next.episodes.count, queued: queued, overCap: overCap)
         } catch {
@@ -390,7 +433,18 @@ extension OfflineDownloadManager {
     func delete(_ assetID: UUID) {
         guard let profile = activeProfile, let held = record(profile, assetID) else { return }
         removeLocalCopy(profile, held)
-        if let variantId = held.variantId {
+        if held.isPhoto {
+            // A kept photo is listed under its View item id; a delete the Engine does not know is already done.
+            let report = PendingReport(
+                kind: .delete,
+                assetId: assetID,
+                variantId: assetID,
+                storedBytes: 0,
+                storedAt: Date(),
+                itemKind: .photo
+            )
+            mutate(profile) { $0.reports = OfflineLogic.queueReport($0.reports, report) }
+        } else if let variantId = held.variantId {
             let report = PendingReport(kind: .delete, assetId: assetID, variantId: variantId, storedBytes: 0, storedAt: Date())
             mutate(profile) { $0.reports = OfflineLogic.queueReport($0.reports, report) }
         }
@@ -407,6 +461,8 @@ extension OfflineDownloadManager {
     func clearAll() {
         for task in preparing.values { task.cancel() }
         preparing = [:]
+        photoQueue?.cancel()
+        photoQueue = nil
         Task {
             let tasks = await session.allTasks
             for task in tasks { task.cancel() }
@@ -431,9 +487,25 @@ extension OfflineDownloadManager {
             return "Storage limit reached (\(OfflineLogic.formatBytes(committed)) of \(OfflineLogic.formatBytes(cap))). "
                 + "Delete a download or raise the limit in Settings."
         case .notOffered:
-            return "Books and photos are not downloaded by this app yet."
+            return "Books and comics are not downloaded by this app yet."
         case .notPaired:
             return "Connect this device to a server first."
+        case .listFull:
+            return "This device already lists as many downloads as the server keeps track of. Delete one first."
+        }
+    }
+
+    /// The words shown after a photo was asked to be kept on the device.
+    static func photoMessage(for result: EnqueueResult) -> String {
+        switch result {
+        case .queued:
+            return "Keeping a 2048 px preview of this photo on this device to save space. Track it under Downloads."
+        case .alreadyHeld:
+            return "This photo is already kept on this device."
+        case .notOffered:
+            return "Only photos can be kept on this device, not videos."
+        case .overCap, .notPaired, .listFull:
+            return message(for: result) ?? ""
         }
     }
 }
@@ -541,6 +613,11 @@ extension OfflineDownloadManager {
 @MainActor
 extension OfflineDownloadManager {
     fileprivate func startPreparing(profile: UUID, assetID: UUID) {
+        // A kept photo is not prepared by the Engine; the photo queue fetches it.
+        if record(profile, assetID)?.isPhoto == true {
+            startPhotoQueue(profile: profile)
+            return
+        }
         preparing[assetID]?.cancel()
         preparing[assetID] = Task {
             await self.prepareAndStart(profile: profile, assetID: assetID)
@@ -762,6 +839,8 @@ extension OfflineDownloadManager {
         // Only the person using the app is synced, and only while the app's sign-in is still theirs.
         let signedIn = await api.currentProfileID
         guard signedIn == profile else { return }
+        // Photos that could not be fetched earlier (no connection) are tried again now that there is one.
+        if state(profile).records.contains(where: { $0.isPhoto && $0.state == .queued }) { startPhotoQueue(profile: profile) }
         _ = await flushReports(api, profile)
         _ = await purgeExpired(api, profile)
         _ = await replayProgress(api, profile)
@@ -773,15 +852,23 @@ extension OfflineDownloadManager {
         for report in state(profile).reports {
             var status = 0
             do {
-                switch report.kind {
-                case .store:
+                switch (report.item, report.kind) {
+                case (.photo, .store):
+                    status = try await api.reportPhotoStored(
+                        itemID: report.assetId,
+                        storedBytes: report.storedBytes,
+                        storedAt: report.storedAt
+                    )
+                case (.photo, .delete):
+                    status = try await api.reportPhotoDeleted(itemID: report.assetId)
+                case (_, .store):
                     status = try await api.reportDownloadStored(
                         assetID: report.assetId,
                         variantID: report.variantId,
                         storedBytes: report.storedBytes,
                         storedAt: report.storedAt
                     )
-                case .delete:
+                case (_, .delete):
                     status = try await api.reportDownloadDeleted(variantID: report.variantId)
                 }
             } catch {
@@ -794,9 +881,13 @@ extension OfflineDownloadManager {
                 if report.kind == .store { markReported(profile, report) }
             case .drop:
                 removeReport(profile, report)
-                // 404: the Engine no longer knows this copy, so its list will not show it and the next list read
-                // removes the local copy.
+                // 404: the Engine no longer knows this copy (or this person can no longer see the photo), so its list
+                // will not show it and the next list read removes the local copy.
                 if report.kind == .store && status == 404 { markReported(profile, report) }
+                // 409 for a photo: this device already lists as many entries as it may, so stop keeping and drop the copy.
+                if report.item == .photo && OfflineLogic.isDeviceLimitRefusal(kind: report.kind, statusCode: status) {
+                    deviceLimitReached(profile, itemID: report.assetId)
+                }
             case .retry:
                 return false
             }
@@ -806,13 +897,13 @@ extension OfflineDownloadManager {
 
     fileprivate func removeReport(_ profile: UUID, _ report: PendingReport) {
         mutate(profile) { current in
-            current.reports.removeAll { $0.variantId == report.variantId && $0.kind == report.kind }
+            current.reports.removeAll { $0.variantId == report.variantId && $0.kind == report.kind && $0.item == report.item }
         }
     }
 
     fileprivate func markReported(_ profile: UUID, _ report: PendingReport) {
         update(profile, report.assetId) { held in
-            if held.variantId == report.variantId { held.reportedToServer = true }
+            if OfflineLogic.reportMatches(report, held) { held.reportedToServer = true }
         }
     }
 
@@ -828,11 +919,21 @@ extension OfflineDownloadManager {
             // Offline: judge again at the next sync.
             return false
         }
+        knownEngineListCount = listing.count
         let result = OfflineLogic.reconcileWithServer(local: local, server: listing, now: Date())
         for gone in result.purge {
             if let current = record(profile, gone.assetId), current.variantId == gone.variantId, current.isComplete {
                 removeLocalCopy(profile, current)
             }
+        }
+        // A kept photo the Engine's list no longer shows is purged here; tell the Engine to forget any hidden row it still
+        // holds (it would keep counting towards the device's limit). Tolerates 404; a report that cannot be sent waits.
+        let deletes = OfflineLogic.purgeDeleteReports(result.purge, now: Date())
+        if !deletes.isEmpty {
+            mutate(profile) { current in
+                for report in deletes { current.reports = OfflineLogic.queueReport(current.reports, report) }
+            }
+            if !(await flushReports(api, profile)) { return false }
         }
         for kept in result.keep {
             let before = local.first { $0.assetId == kept.assetId }
@@ -885,7 +986,7 @@ extension OfflineDownloadManager {
     /// Takes the Engine's progress for finished downloads that were not played offline since, so a title watched
     /// elsewhere resumes from the right place. Progress waiting to be replayed is never replaced.
     fileprivate func refreshProgress(_ api: TuvimaAPIClient, _ profile: UUID) async {
-        for held in state(profile).records where held.isComplete {
+        for held in state(profile).records where held.isComplete && !held.isPhoto {
             let existing = state(profile).progress.first { $0.assetId == held.assetId }
             if existing?.pending == true { continue }
             let server: ServerProgress?
@@ -904,6 +1005,226 @@ extension OfflineDownloadManager {
                     OfflineLogic.entryFromServer(assetId: held.assetId, existing: latest, server: server, now: Date())
                 )
             }
+        }
+    }
+}
+
+// MARK: Photos kept on the device
+
+private enum PhotoKeepOutcome { case stored, retry, failed, gone }
+
+@MainActor
+extension OfflineDownloadManager {
+    /// Keeps one photo on the device (its 2048 px preview, not the original, to save space) unless it is already held
+    /// or the storage limit or the Engine's list limit is reached. Videos are not kept.
+    func keepPhoto(_ item: ViewItem) -> EnqueueResult {
+        guard let profile = activeProfile else { return .notPaired }
+        if item.isVideo { return .notOffered }
+        let plan = queuePhotos(profile, [item])
+        if !plan.toKeep.isEmpty { return .queued }
+        switch plan.stop {
+        case .listFull:
+            return .listFull
+        case .storageCap:
+            return .overCap(committed: OfflineLogic.committedBytes(state(profile).records), cap: Self.capBytes)
+        case .finished:
+            return .alreadyHeld(record(profile, item.id)?.state ?? .queued)
+        }
+    }
+
+    /// Keeps every photo of a gallery (newest first, previews only) until the storage limit or the Engine's list limit
+    /// is reached. The gallery is read a page at a time, so a large gallery is queued as it is read.
+    func keepGallery(galleryID: UUID) async throws -> KeepGalleryResult {
+        guard let api, let profile = activeProfile else {
+            return KeepGalleryResult(found: 0, queued: 0, alreadyKept: 0, skippedVideos: 0, stop: .finished)
+        }
+        var found = 0
+        var queued = 0
+        var alreadyKept = 0
+        var skippedVideos = 0
+        var stop = PhotoKeepStop.finished
+        var cursor: String?
+        var pages = 0
+        // Plan against what the Engine lists now, when it can be asked; the device's own records may be fewer.
+        if let listing = try? await api.deviceDownloads() { knownEngineListCount = listing.count }
+        repeat {
+            let page = try await api.viewGalleryItems(galleryID: galleryID, cursor: cursor, limit: 200)
+            let plan = queuePhotos(profile, page.items)
+            found += page.items.count
+            queued += plan.toKeep.count
+            alreadyKept += plan.alreadyKept
+            skippedVideos += plan.skippedVideos
+            stop = plan.stop
+            cursor = (page.hasMore ?? false) ? page.nextCursor : nil
+            pages += 1
+        } while stop == .finished && cursor != nil && pages < 50
+        return KeepGalleryResult(found: found, queued: queued, alreadyKept: alreadyKept, skippedVideos: skippedVideos, stop: stop)
+    }
+
+    /// Records the photos the plan chooses as queued (reserving the size one preview is expected to take) and starts
+    /// the photo queue. A photo whose earlier attempt failed is tried again.
+    fileprivate func queuePhotos(_ profile: UUID, _ items: [ViewItem]) -> PhotoKeepPlan {
+        let snapshot = state(profile).records
+        let held = Set(snapshot.filter { !($0.isPhoto && $0.state == .failed) }.map { $0.assetId })
+        let plan = OfflineLogic.planPhotoKeep(
+            candidates: items.map { PhotoCandidate(id: $0.id, isVideo: $0.isVideo) },
+            heldIds: held,
+            committedBytes: OfflineLogic.committedBytes(snapshot),
+            capBytes: Self.capBytes,
+            listedCount: OfflineLogic.effectiveListedCount(localCount: snapshot.count, engineListCount: knownEngineListCount)
+        )
+        guard !plan.toKeep.isEmpty else { return plan }
+        var byID: [UUID: ViewItem] = [:]
+        for item in items where byID[item.id] == nil { byID[item.id] = item }
+        let now = Date()
+        for (index, itemID) in plan.toKeep.enumerated() {
+            guard let item = byID[itemID] else { continue }
+            if let earlier = record(profile, itemID) { removeLocalCopy(profile, earlier) }
+            let added = DownloadRecord(
+                assetId: itemID,
+                title: item.displayTitle,
+                subtitle: item.capturedAt.map { String($0.prefix(10)) },
+                entityType: OfflineLogic.photoEntityType,
+                profileKey: OfflineLogic.photoProfileKey,
+                state: .queued,
+                totalBytes: OfflineLogic.photoEstimateBytes,
+                queuedAt: now.addingTimeInterval(Double(index) * 0.001),
+                kind: .photo
+            )
+            mutate(profile) { $0.records.append(added) }
+        }
+        startPhotoQueue(profile: profile)
+        return plan
+    }
+
+    /// Starts the one queue that fetches kept photos in turn, unless it is already running.
+    fileprivate func startPhotoQueue(profile: UUID) {
+        guard photoQueue == nil else { return }
+        // A photo a closed app left "downloading" is not running now.
+        for held in state(profile).records where held.isPhoto && held.state == .downloading {
+            update(profile, held.assetId) { $0.state = .queued }
+        }
+        photoQueue = Task {
+            // Run until nothing is left to fetch, looking again after each pass, so a photo queued while the last one
+            // was finishing is not left waiting. Photos set aside after a connection problem wait for the next sync.
+            var deferred = Set<UUID>()
+            repeat {
+                await self.runPhotoQueue(profile: profile, deferred: &deferred)
+            } while !Task.isCancelled && self.hasQueuedPhotos(profile, excluding: deferred)
+            if !Task.isCancelled { self.photoQueue = nil }
+        }
+    }
+
+    fileprivate func hasQueuedPhotos(_ profile: UUID, excluding deferred: Set<UUID>) -> Bool {
+        state(profile).records.contains { $0.isPhoto && $0.state == .queued && !deferred.contains($0.assetId) }
+    }
+
+    /// The Engine refused to list the kept photo `itemID` because this device already lists as many entries as it may
+    /// (across every person who used it). Its unreported copy is removed, the photos still waiting stop here, and the
+    /// person is told.
+    fileprivate func deviceLimitReached(_ profile: UUID, itemID: UUID) {
+        let plan = OfflineLogic.planDeviceLimitReached(records: state(profile).records, itemID: itemID)
+        if let dropped = plan.drop { removeLocalCopy(profile, dropped) }
+        for waiting in plan.stop {
+            update(profile, waiting.assetId) {
+                $0.state = .failed
+                $0.error = OfflineLogic.deviceLimitMessage
+            }
+        }
+        notice = OfflineLogic.deviceLimitMessage
+    }
+
+    fileprivate func runPhotoQueue(profile: UUID, deferred: inout Set<UUID>) async {
+        var stored = false
+        while !Task.isCancelled {
+            guard let api, activeProfile == profile else { return }
+            let waiting = state(profile).records.filter { $0.isPhoto && $0.state == .queued && !deferred.contains($0.assetId) }
+            guard let next = waiting.min(by: { $0.queuedAt < $1.queuedAt }) else { break }
+            switch await keepOne(api: api, profile: profile, assetID: next.assetId) {
+            case .stored: stored = true
+            case .retry: deferred.insert(next.assetId)
+            case .failed, .gone: break
+            }
+        }
+        if stored { scheduleSync() }
+    }
+
+    /// Fetches one 2048 px preview with the device's own credentials and saves it under the person's own folder.
+    fileprivate func keepOne(api: TuvimaAPIClient, profile: UUID, assetID: UUID) async -> PhotoKeepOutcome {
+        guard update(profile, assetID, { $0.state = .downloading; $0.error = nil }) != nil else { return .gone }
+        var data: Data?
+        var failure: Error?
+        // The Engine limits how many image requests run at once, so this shares the app's own limit.
+        await ImageGate.shared.acquire()
+        do {
+            data = try await api.fetchPhotoData(path: ClientRoutes.viewPreview(assetID, size: OfflineLogic.photoPreviewEdge))
+        } catch {
+            failure = error
+        }
+        await ImageGate.shared.release()
+
+        if let failure {
+            if isCancellation(failure) {
+                // Stopped (the person switched, or signed out): the photo goes back in the queue.
+                update(profile, assetID) { if $0.state == .downloading { $0.state = .queued } }
+                return .gone
+            }
+            if isPermanentPhotoFailure(failure) {
+                fail(profile, assetID, failure.localizedDescription)
+                return .failed
+            }
+            update(profile, assetID) {
+                $0.state = .queued
+                $0.error = "Waiting to retry: \(failure.localizedDescription)"
+            }
+            return .retry
+        }
+        guard let data, !data.isEmpty else {
+            update(profile, assetID) { $0.state = .queued; $0.error = "Waiting to retry: empty answer." }
+            return .retry
+        }
+        // Paused or deleted while it was being fetched: nothing is kept.
+        guard let live = record(profile, assetID), live.state == .downloading else { return .gone }
+
+        // The storage limit: what the other downloads hold or have reserved, plus this finished preview.
+        let others = state(profile).records.filter { $0.assetId != assetID }
+        if OfflineLogic.committedBytes(others) + Int64(data.count) > Self.capBytes {
+            fail(profile, assetID, "Storage limit reached. Delete a download or raise the limit in Settings.")
+            return .failed
+        }
+        let name = OfflineLogic.photoFileName(assetID)
+        do {
+            let url = try OfflineFiles.file(profile: profile, name: name)
+            try data.write(to: url, options: .atomic)
+        } catch {
+            fail(profile, assetID, error.localizedDescription)
+            return .failed
+        }
+        let now = Date()
+        let size = Int64(data.count)
+        let report = PendingReport(kind: .store, assetId: assetID, variantId: assetID, storedBytes: size, storedAt: now, itemKind: .photo)
+        mutate(profile) { current in
+            if let index = current.records.firstIndex(where: { $0.assetId == assetID }) {
+                current.records[index].state = .complete
+                current.records[index].fileName = name
+                current.records[index].bytesDone = size
+                current.records[index].totalBytes = size
+                current.records[index].storedAt = now
+                current.records[index].reportedToServer = false
+                current.records[index].error = nil
+            }
+            current.reports = OfflineLogic.queueReport(current.reports, report)
+        }
+        return .stored
+    }
+
+    /// True for an answer that will not change on a retry: a refusal (the photo is gone, or this person cannot see it).
+    fileprivate func isPermanentPhotoFailure(_ error: Error) -> Bool {
+        guard let known = error as? TuvimaClientError else { return false }
+        switch known {
+        case .http(let status, _): return OfflineLogic.isPermanentHttpFailure(status)
+        case .photoAccessDenied: return true
+        default: return false
         }
     }
 }

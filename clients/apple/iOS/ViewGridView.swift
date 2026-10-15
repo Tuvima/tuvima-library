@@ -148,12 +148,29 @@ struct ViewGridView: View {
     }
 }
 
-/// A grid cell: the thumbnail, with a duration badge on a video.
+/// A grid cell: the thumbnail, with a duration badge on a video. A photo kept on this device is read from the device,
+/// with no network; every other photo asks the server.
 struct PhotoCell: View {
+    @EnvironmentObject private var environment: AppEnvironment
     let item: ViewItem
+    @State private var local: UIImage?
+
+    @ViewBuilder
+    private var thumbnail: some View {
+        if let local {
+            Color.secondary.opacity(0.18)
+                .overlay {
+                    Image(uiImage: local)
+                        .resizable()
+                        .scaledToFill()
+                }
+        } else {
+            ArtworkImage(path: ClientRoutes.viewThumbnail(item.id, size: 320), photo: true)
+        }
+    }
 
     var body: some View {
-        ArtworkImage(path: ClientRoutes.viewThumbnail(item.id, size: 320), photo: true)
+        thumbnail
             .aspectRatio(1, contentMode: .fit)
             .overlay(alignment: .bottomTrailing) {
                 if item.isVideo {
@@ -170,6 +187,7 @@ struct PhotoCell: View {
             }
             .clipped()
             .accessibilityLabel(item.isVideo ? "Video \(item.displayTitle)" : "Photo \(item.displayTitle)")
+            .task(id: item.id) { local = environment.downloads.localPhotoImage(itemID: item.id, maxEdge: 320) }
     }
 }
 
@@ -204,7 +222,12 @@ struct PhotoTimelineView: View {
     var body: some View {
         Group {
             if let message = model.errorMessage, model.months.isEmpty {
-                PhotoErrorView(message: message) { model.reload(api: environment.api) }
+                if message != photoAccessDeniedMessage, !environment.downloads.keptPhotoItems().isEmpty {
+                    // The server cannot be reached, but photos were kept on this device: show those.
+                    KeptPhotosView(manager: environment.downloads, message: message) { model.reload(api: environment.api) }
+                } else {
+                    PhotoErrorView(message: message) { model.reload(api: environment.api) }
+                }
             } else if model.months.isEmpty && model.isLoading {
                 ProgressView("Loading photos…")
             } else if model.months.isEmpty {
@@ -335,6 +358,8 @@ struct GalleryItemsView: View {
     let route: GalleryRoute
     @StateObject private var model = GalleryItemsModel()
     @State private var viewer: ViewerSelection?
+    @State private var keepMessage: String?
+    @State private var isKeeping = false
 
     var body: some View {
         Group {
@@ -346,6 +371,12 @@ struct GalleryItemsView: View {
                 ContentUnavailableView("Empty gallery", systemImage: "photo", description: Text("This gallery has no photos yet."))
             } else {
                 ScrollView {
+                    Text("Keeping a gallery saves 2048 px previews, not the originals, to save space.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.horizontal)
+                        .padding(.bottom, 4)
                     LazyVGrid(columns: photoColumns, spacing: 2) {
                         ForEach(model.items) { item in
                             Button { open(item) } label: { PhotoCell(item: item) }
@@ -361,10 +392,41 @@ struct GalleryItemsView: View {
         }
         .navigationTitle(route.name)
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button { Task { await keepGallery() } } label: {
+                    Label("Keep on this device", systemImage: "arrow.down.circle")
+                }
+                .disabled(isKeeping)
+            }
+        }
+        .alert(
+            "Keep on this device",
+            isPresented: Binding(
+                get: { keepMessage != nil },
+                set: { shown in if !shown { keepMessage = nil } }
+            )
+        ) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(keepMessage ?? "")
+        }
         .fullScreenCover(item: $viewer) { selection in
             PhotoViewer(items: selection.items, startIndex: selection.index)
         }
         .task { model.loadIfNeeded(api: environment.api, galleryID: route.id) }
+    }
+
+    /// Keeps every photo of this gallery on the device as a 2048 px preview, under the same storage limit as downloads.
+    private func keepGallery() async {
+        isKeeping = true
+        defer { isKeeping = false }
+        do {
+            let result = try await environment.downloads.keepGallery(galleryID: route.id)
+            keepMessage = OfflineLogic.keepGalleryMessage(found: result.found, queued: result.queued, stop: result.stop)
+        } catch {
+            if !isCancellation(error) { keepMessage = error.localizedDescription }
+        }
     }
 
     private func open(_ item: ViewItem) {
@@ -375,9 +437,11 @@ struct GalleryItemsView: View {
 
 // MARK: Full-screen viewer
 
-/// Full-screen photo viewer: swipe between photos, pinch to zoom, double-tap to zoom in or out.
+/// Full-screen photo viewer: swipe between photos, pinch to zoom, double-tap to zoom in or out. A photo kept on this
+/// device is read from the device first (no network), and the photo on screen can be kept or removed from here.
 struct PhotoViewer: View {
     @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject private var environment: AppEnvironment
     let items: [ViewItem]
     @State private var selection: Int
 
@@ -407,6 +471,100 @@ struct PhotoViewer: View {
             }
             .accessibilityLabel("Close")
         }
+        .overlay(alignment: .bottom) {
+            if items.indices.contains(selection) {
+                PhotoKeepButton(manager: environment.downloads, item: items[selection])
+            }
+        }
+    }
+}
+
+/// Keeps the photo on screen on this device (its 2048 px preview, to save space), or removes the kept copy.
+struct PhotoKeepButton: View {
+    @ObservedObject var manager: OfflineDownloadManager
+    let item: ViewItem
+    @State private var message: String?
+
+    var body: some View {
+        if !item.isVideo {
+            action
+                .font(.subheadline.bold())
+                .padding(.horizontal, 16)
+                .padding(.vertical, 8)
+                .background(.ultraThinMaterial, in: Capsule())
+                .padding(.bottom, 24)
+                .alert(
+                    "Keep on this device",
+                    isPresented: Binding(
+                        get: { message != nil },
+                        set: { shown in if !shown { message = nil } }
+                    )
+                ) {
+                    Button("OK", role: .cancel) {}
+                } message: {
+                    Text(message ?? "")
+                }
+        }
+    }
+
+    @ViewBuilder
+    private var action: some View {
+        if let held = manager.record(for: item.id) {
+            switch held.state {
+            case .complete:
+                Button(role: .destructive) {
+                    manager.delete(item.id)
+                } label: {
+                    Label("Remove from device", systemImage: "trash")
+                }
+            case .failed:
+                Button { keep() } label: { Label("Try keeping again", systemImage: "arrow.clockwise") }
+            default:
+                Label("Keeping...", systemImage: "arrow.down.circle")
+            }
+        } else {
+            Button { keep() } label: { Label("Keep on device", systemImage: "arrow.down.circle") }
+        }
+    }
+
+    private func keep() {
+        message = OfflineDownloadManager.photoMessage(for: manager.keepPhoto(item))
+    }
+}
+
+/// What View shows when the server cannot be reached but photos were kept on this device: those photos.
+struct KeptPhotosView: View {
+    @ObservedObject var manager: OfflineDownloadManager
+    let message: String
+    let retry: () -> Void
+    @State private var viewer: ViewerSelection?
+
+    var body: some View {
+        let items = manager.keptPhotoItems()
+        ScrollView {
+            VStack(alignment: .leading, spacing: 8) {
+                Text("\(message) Showing the photos kept on this device.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal)
+                Button("Try again", action: retry)
+                    .padding(.horizontal)
+                LazyVGrid(columns: photoColumns, spacing: 2) {
+                    ForEach(items) { item in
+                        Button { open(item, in: items) } label: { PhotoCell(item: item) }
+                            .buttonStyle(.plain)
+                    }
+                }
+            }
+        }
+        .fullScreenCover(item: $viewer) { selection in
+            PhotoViewer(items: selection.items, startIndex: selection.index)
+        }
+    }
+
+    private func open(_ item: ViewItem, in items: [ViewItem]) {
+        guard let index = items.firstIndex(where: { $0.id == item.id }) else { return }
+        viewer = ViewerSelection(items: items, index: index)
     }
 }
 
@@ -447,6 +605,11 @@ struct PhotoViewerPage: View {
     }
 
     private func loadPreview() async {
+        // A photo kept on this device is read from the device first; only others ask the server.
+        if let local = environment.downloads.localPhotoImage(itemID: item.id, maxEdge: 2048) {
+            image = local
+            return
+        }
         let path = ClientRoutes.viewPreview(item.id, size: 2048)
         if let loaded = await loadArtwork(path: path, api: environment.api, photo: true) {
             image = loaded

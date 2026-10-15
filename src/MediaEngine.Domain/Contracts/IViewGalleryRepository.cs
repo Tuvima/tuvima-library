@@ -48,4 +48,23 @@ public interface IViewGalleryRepository
     /// share, including dynamic membership in a shared Smart Gallery.
     /// </summary>
     Task<bool> IsItemSharedWithProfileAsync(Guid itemId, Guid profileId, CancellationToken ct = default);
+
+    /// <summary>
+    /// The items among <paramref name="itemIds"/> that <see cref="IsItemSharedWithProfileAsync"/> would answer true for, found
+    /// for the whole list at once. The default asks one item at a time.
+    /// </summary>
+    async Task<IReadOnlySet<Guid>> GetItemsSharedWithProfileAsync(
+        IReadOnlyCollection<Guid> itemIds, Guid profileId, CancellationToken ct = default)
+    {
+        var shared = new HashSet<Guid>();
+        foreach (var id in itemIds.Where(id => id != Guid.Empty).Distinct())
+        {
+            if (await IsItemSharedWithProfileAsync(id, profileId, ct).ConfigureAwait(false))
+            {
+                shared.Add(id);
+            }
+        }
+
+        return shared;
+    }
 }

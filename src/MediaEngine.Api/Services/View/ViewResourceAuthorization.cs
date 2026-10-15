@@ -149,15 +149,28 @@ public sealed class ViewResourceAuthorizationService(
             resourceId,
             caller.ActiveProfileId ?? Guid.Empty,
             ct).ConfigureAwait(false);
+        return DecideResource(caller, request, resolution.Scope, resource);
+    }
+
+    /// <summary>
+    /// The rules that decide one found resource for one caller in an already resolved scope. Shared by the single-item path
+    /// and the bulk path so both give the same answer.
+    /// </summary>
+    private static ViewAccessDecision DecideResource(
+        RequestAuthority caller,
+        ViewResourceRequest request,
+        ResolvedViewScope scope,
+        ViewResourceDescriptor? resource)
+    {
         if (resource is null || resource.Kind != request.Kind)
         {
-            return ViewAccessDecision.NotFound(resolution.Scope);
+            return ViewAccessDecision.NotFound(scope);
         }
 
         // Hidden photos stay hidden from a server administrator browsing another household, even by direct link.
-        if (resolution.Scope.IsOtherHousehold && resource.Hidden)
+        if (scope.IsOtherHousehold && resource.Hidden)
         {
-            return ViewAccessDecision.NotFound(resolution.Scope);
+            return ViewAccessDecision.NotFound(scope);
         }
 
         // Explicit shares are independent of Shared View access and inclusion.
@@ -170,11 +183,11 @@ public sealed class ViewResourceAuthorizationService(
             && resource.ContributingProfileIds?.Contains(contributorId) == true;
         if (request.Action == ViewResourceAction.Read
             && resource.IsSharedLibraryAsset
-            && resolution.Scope.Kind == ViewScopeKind.Shared
+            && scope.Kind == ViewScopeKind.Shared
             && resource.LibraryId is { } sharedLibraryId
-            && resolution.Scope.ContainsLibrary(sharedLibraryId))
+            && scope.ContainsLibrary(sharedLibraryId))
         {
-            return ViewAccessDecision.Allowed(resolution.Scope);
+            return ViewAccessDecision.Allowed(scope);
         }
 
         if ((request.Action == ViewResourceAction.Read
@@ -186,45 +199,105 @@ public sealed class ViewResourceAuthorizationService(
                 && mayContribute))
         {
             var exactScope = resource.LibraryId is { } grantedLibrary
-                && !resolution.Scope.ContainsLibrary(grantedLibrary)
+                && !scope.ContainsLibrary(grantedLibrary)
                     ? new ResolvedViewScope(
                         ViewScopeKind.Profile,
                         resource.OwnerProfileId,
                         new HashSet<Guid> { grantedLibrary })
-                    : resolution.Scope;
+                    : scope;
             return ViewAccessDecision.Allowed(exactScope);
         }
 
         if (resource.LibraryId is not { } libraryId
-            || !resolution.Scope.ContainsLibrary(libraryId))
+            || !scope.ContainsLibrary(libraryId))
         {
-            return ViewAccessDecision.NotFound(resolution.Scope);
+            return ViewAccessDecision.NotFound(scope);
         }
 
         // Someone else's hidden photo stays hidden from the rest of the household, even by direct link.
-        if (resolution.Scope.Kind == ViewScopeKind.Profile && resource.Hidden
+        if (scope.Kind == ViewScopeKind.Profile && resource.Hidden
             && resource.OwnerProfileId != caller.ActiveProfileId)
         {
-            return ViewAccessDecision.NotFound(resolution.Scope);
+            return ViewAccessDecision.NotFound(scope);
         }
 
         if (request.Action is ViewResourceAction.Contribute or ViewResourceAction.Manage)
         {
             var ownsResource = resource.OwnerProfileId == caller.ActiveProfileId;
-            var isMine = resolution.Scope.Kind == ViewScopeKind.Mine;
+            var isMine = scope.Kind == ViewScopeKind.Mine;
             return ownsResource && isMine
-                ? ViewAccessDecision.Allowed(resolution.Scope)
-                : ViewAccessDecision.NotFound(resolution.Scope);
+                ? ViewAccessDecision.Allowed(scope)
+                : ViewAccessDecision.NotFound(scope);
         }
 
         // A person reads (never edits) a household member's Galleries too; Galleries stay private to everyone
         // outside the Personal Space's household because the scope itself is only resolved inside the household.
         var householdGallery = caller.HasHumanContext
-            && resolution.Scope.Kind == ViewScopeKind.Profile
-            && resource.OwnerProfileId == resolution.Scope.ProfileId;
+            && scope.Kind == ViewScopeKind.Profile
+            && resource.OwnerProfileId == scope.ProfileId;
         return request.Kind != ViewResourceKind.Gallery || householdGallery
-            ? ViewAccessDecision.Allowed(resolution.Scope)
-            : ViewAccessDecision.NotFound(resolution.Scope);
+            ? ViewAccessDecision.Allowed(scope)
+            : ViewAccessDecision.NotFound(scope);
+    }
+
+    /// <summary>
+    /// Authorizes many items of one kind for the <see cref="ViewScopeRequest.Mine"/> scope in one pass: the capability and the
+    /// scope are resolved once and the items are looked up in bulk, then each is decided by the same rules as
+    /// <see cref="AuthorizeAsync"/>. An unreadable id is simply not in the allowed set.
+    /// </summary>
+    public async Task<ViewBulkAccessDecision> AuthorizeManyAsync(
+        RequestAuthority caller,
+        ViewResourceKind kind,
+        IReadOnlyCollection<Guid> resourceIds,
+        CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(resourceIds);
+        if (!caller.IsAuthenticated)
+        {
+            return new(ViewAccessOutcome.Unauthenticated, new HashSet<Guid>());
+        }
+
+        var request = new ViewResourceRequest(ViewScopeRequest.Mine, kind, null);
+        if (!await AuthorizePermissionAsync(caller, request, ct).ConfigureAwait(false))
+        {
+            return new(ViewAccessOutcome.Forbidden, new HashSet<Guid>());
+        }
+
+        var resolution = await scopeResolver.ResolveAsync(
+            caller, request.Scope, request.AllowStaleSelectionFallback, ct).ConfigureAwait(false);
+        if (resolution is null)
+        {
+            return new(ViewAccessOutcome.Allowed, new HashSet<Guid>());
+        }
+
+        var ids = resourceIds.Where(id => id != Guid.Empty).Distinct().ToList();
+        var allowed = new HashSet<Guid>();
+        if (resolution.Scope.IsOtherHousehold)
+        {
+            // Browsing another household is audited per look, so it keeps the one-by-one path.
+            foreach (var id in ids)
+            {
+                if ((await AuthorizeAsync(caller, request with { ResourceId = id }, ct).ConfigureAwait(false)).IsAllowed)
+                {
+                    allowed.Add(id);
+                }
+            }
+
+            return new(ViewAccessOutcome.Allowed, allowed);
+        }
+
+        var found = await resourceStore.FindManyAsync(kind, ids, caller.ActiveProfileId ?? Guid.Empty, ct)
+            .ConfigureAwait(false);
+        foreach (var id in ids)
+        {
+            if (found.TryGetValue(id, out var resource)
+                && DecideResource(caller, request with { ResourceId = id }, resolution.Scope, resource).IsAllowed)
+            {
+                allowed.Add(id);
+            }
+        }
+
+        return new(ViewAccessOutcome.Allowed, allowed);
     }
 
     private async Task<ViewAccessDecision?> AuthorizeOtherPeopleAsync(

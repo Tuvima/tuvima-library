@@ -376,7 +376,7 @@ public sealed partial class DeviceProfileSwitchTests
     }
 
     private static async Task<(int Status, string Body)> SendAsync(
-        WebApplication app, string method, string route, ClaimsPrincipal user, object? body = null, Guid? variantId = null)
+        WebApplication app, string method, string route, ClaimsPrincipal user, object? body = null, Guid? variantId = null, Guid? itemId = null)
     {
         var endpoint = Assert.Single(EndpointsFor(app), candidate =>
             candidate.RoutePattern.RawText == route &&
@@ -393,6 +393,11 @@ public sealed partial class DeviceProfileSwitchTests
         if (variantId is { } id)
         {
             context.Request.RouteValues = new RouteValueDictionary { ["variantId"] = id.ToString("D") };
+        }
+
+        if (itemId is { } photoId)
+        {
+            context.Request.RouteValues = new RouteValueDictionary { ["itemId"] = photoId.ToString("D") };
         }
 
         context.Features.Set<IHttpRequestBodyDetectionFeature>(new RequestBodyDetectionFeature());

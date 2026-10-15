@@ -30,8 +30,15 @@ The app never writes History: playing a downloaded file records progress on the 
 back the progress is replayed oldest first to `PUT /api/v1/progress/{assetId}` with `offline: true` and
 `client_timestamp` (when the Engine kept a newer record the app adopts it). Stored and deleted copies are
 reported to `/api/v1/devices/current/downloads` (204 is success; a failed report is retried later), and a copy
-that the Engine's list no longer shows has expired and is removed from the device. Books, comics and photos are
-not downloaded by this app yet. The pure rules are in `Shared/OfflineLogic.swift`.
+that the Engine's list no longer shows has expired and is removed from the device. Photos from View can be kept on
+the device too (a gallery's **Keep on this device**, or **Keep on device** on the photo being viewed): the app saves
+the 2048 px preview, not the original, to save space, under the same storage limit and in the same Downloads list
+(View opens it from the device). Kept photos are fetched in the foreground, one after another, reported with
+`kind: "photo"` and a `photo_item_id`, and removed when the Engine's list no longer shows them (the photo was deleted
+or this person can no longer see it, and the app then sends the Engine a delete so a hidden row stops counting); a refusal (409) because the device's list is full stops the keeping and says "This device has reached its offline limit."; the photo viewer and the timeline read the device's copy first, and the
+timeline falls back to the kept photos when the server cannot be reached. Videos are not kept. Books and comics are
+not downloaded by this app yet; `LocalBookFiles` in `Shared/OfflineModels.swift` is the unwired hook for a future
+reader. The pure rules are in `Shared/OfflineLogic.swift`.
 
 Photos and videos are opt-in. The connect screen has a separate toggle, **Allow access to my photos
 and videos**, off by default; only when it is on does the app add the three `view.*` scopes to the
@@ -46,7 +53,8 @@ profile-switch results) so it can be tested without a device.
 
 `Tests/TuvimaCoreTests` holds XCTest sources (route building, wire-fixture decoding against
 `tests/fixtures/native-client-v1`, and a test that the Listen root loads and the queue follows a profile
-switch), and `OfflineLogicTests.swift` (the offline rules above and the device-downloads and next-episodes fixtures). No test target is declared in `project.yml` yet, so CI does not run them. To enable them, add
+switch), and `OfflineLogicTests.swift` (the offline rules above and the device-downloads and next-episodes fixtures) and
+`PhotoOfflineLogicTests.swift` (kept photos: the storage limit, the purge rule, kinds and reports). No test target is declared in `project.yml` yet, so CI does not run them. To enable them, add
 this target and list it under the scheme's `test.targets`, then run
 `xcodebuild test -project TuvimaApple.xcodeproj -scheme Tuvima -destination 'platform=iOS Simulator,name=iPhone 16'`:
 

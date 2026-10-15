@@ -110,7 +110,12 @@ internal fun MobileShell(
                         MobileTab.Search -> SearchScreen(client) { entityType, id ->
                             stack.add(Overlay.Detail(entityType, id, null))
                         }
-                        MobileTab.Downloads -> DownloadsScreen(application, client, play)
+                        MobileTab.Downloads -> DownloadsScreen(
+                            application = application,
+                            client = client,
+                            play = play,
+                            openPhotos = { items, index -> stack.add(Overlay.ViewerOpen(items, index)) },
+                        )
                         MobileTab.Settings -> SettingsScreen(
                             application = application,
                             client = client,

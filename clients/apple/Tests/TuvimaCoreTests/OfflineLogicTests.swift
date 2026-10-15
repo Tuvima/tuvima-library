@@ -385,13 +385,20 @@ final class OfflineLogicTests: XCTestCase {
     func testDeviceDownloadsFixtureDecodes() throws {
         let response = try decode(DeviceDownloadsResponse.self, fixture: "device-downloads")
         let entries = response.downloads.map { $0.entry }
-        XCTAssertEqual(entries.count, 2)
+        XCTAssertEqual(entries.count, 3)
         XCTAssertEqual(entries[0].assetId, assetA)
         XCTAssertEqual(entries[0].variantId, variantA)
         XCTAssertEqual(entries[0].storedBytes, 734_003_200)
         XCTAssertNotNil(entries[0].storedAt)
         XCTAssertNotNil(entries[0].expiresAt)
         XCTAssertNil(entries[1].expiresAt)
+        XCTAssertEqual(entries[0].kind, .variant)
+        XCTAssertNil(entries[0].photoItemId)
+        // The kept photo names its View item, carries the empty ids and never expires.
+        XCTAssertEqual(entries[2].kind, .photo)
+        XCTAssertEqual(entries[2].photoItemId, UUID(uuidString: "88888888-8888-8888-8888-888888888888"))
+        XCTAssertEqual(entries[2].assetId, UUID(uuidString: "00000000-0000-0000-0000-000000000000"))
+        XCTAssertNil(entries[2].expiresAt)
     }
 
     func testNextEpisodesFixtureDecodes() throws {

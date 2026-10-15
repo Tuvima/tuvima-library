@@ -163,6 +163,8 @@ internal fun parseDeviceDownloads(json: JSONObject): List<ServerDownloadEntry> =
             storedBytes = entry.optLong("stored_bytes"),
             storedAtMs = OfflineLogic.parseIsoMillis(entry.optionalString("stored_at")),
             expiresAtMs = OfflineLogic.parseIsoMillis(entry.optionalString("expires_at")),
+            kind = OfflineKind.fromWire(entry.optionalString("kind")),
+            photoItemId = entry.optionalString("photo_item_id"),
         )
     }.orEmpty()
 

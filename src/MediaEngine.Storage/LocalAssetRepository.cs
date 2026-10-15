@@ -588,6 +588,31 @@ public sealed class LocalAssetRepository(IDatabaseConnection database) : ILocalA
             new { itemId }, cancellationToken: ct)) != 0;
     }
 
+    public IReadOnlyDictionary<Guid, string> GetMediaKinds(IReadOnlyCollection<Guid> itemIds, CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(itemIds);
+        var kinds = new Dictionary<Guid, string>();
+        using var connection = database.CreateConnection();
+        foreach (var chunk in itemIds.Where(id => id != Guid.Empty).Distinct().Chunk(500))
+        {
+            ct.ThrowIfCancellationRequested();
+            foreach (var row in connection.Query<MediaKindRow>(new CommandDefinition(
+                         "SELECT id AS Id, media_kind AS MediaKind FROM local_items WHERE id IN @ids;",
+                         new { ids = chunk.Select(GuidSql.ToBlob).ToArray() }, cancellationToken: ct)))
+            {
+                kinds[row.Id] = row.MediaKind;
+            }
+        }
+
+        return kinds;
+    }
+
+    private sealed class MediaKindRow
+    {
+        public Guid Id { get; init; }
+        public string MediaKind { get; init; } = string.Empty;
+    }
+
     public (string Text, bool Cut)? GetDocumentText(Guid itemId, int maxCharacters, CancellationToken ct = default)
     {
         if (itemId == Guid.Empty)

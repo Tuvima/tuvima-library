@@ -68,6 +68,32 @@ public struct ViewItem: Decodable, Identifiable, Hashable, Sendable {
     public let favorite: Bool?
     public let locationName: String?
 
+    public init(
+        id: UUID,
+        mediaKind: String,
+        title: String? = nil,
+        fileName: String? = nil,
+        mimeType: String? = nil,
+        capturedAt: String? = nil,
+        width: Int? = nil,
+        height: Int? = nil,
+        durationSeconds: Double? = nil,
+        favorite: Bool? = nil,
+        locationName: String? = nil
+    ) {
+        self.id = id
+        self.mediaKind = mediaKind
+        self.title = title
+        self.fileName = fileName
+        self.mimeType = mimeType
+        self.capturedAt = capturedAt
+        self.width = width
+        self.height = height
+        self.durationSeconds = durationSeconds
+        self.favorite = favorite
+        self.locationName = locationName
+    }
+
     public var isVideo: Bool { mediaKind.lowercased() == "video" }
 
     /// The title if there is one, otherwise the file name.

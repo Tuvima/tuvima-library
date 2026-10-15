@@ -128,6 +128,75 @@ public sealed class ViewResourcePersistenceService(
             Hidden: item.Hidden);
     }
 
+    public async Task<IReadOnlyDictionary<Guid, ViewResourceDescriptor>> FindManyAsync(
+        ViewResourceKind kind,
+        IReadOnlyCollection<Guid> resourceIds,
+        Guid requestingProfileId,
+        CancellationToken ct = default)
+    {
+        var ids = resourceIds.Where(id => id != Guid.Empty).Distinct().ToList();
+        var found = new Dictionary<Guid, ViewResourceDescriptor>();
+        if (kind == ViewResourceKind.Gallery)
+        {
+            foreach (var id in ids)
+            {
+                if (await FindAsync(kind, id, requestingProfileId, ct).ConfigureAwait(false) is { } descriptor)
+                {
+                    found[id] = descriptor;
+                }
+            }
+
+            return found;
+        }
+
+        // Items: the same facts FindAsync reads (owner, library, hidden, shared-library membership, explicit shares),
+        // read for a whole list at a time.
+        var rows = new List<ItemOwnerRow>();
+        var sharedLibraryAssets = new HashSet<Guid>();
+        foreach (var chunk in ids.Chunk(BulkChunkSize))
+        {
+            ct.ThrowIfCancellationRequested();
+            var chunkIds = chunk.Select(MediaEngine.Storage.GuidSql.ToBlob).ToArray();
+            using var connection = database.CreateConnection();
+            rows.AddRange(connection.Query<ItemOwnerRow>(new Dapper.CommandDefinition(
+                """
+                SELECT id AS Id, owner_profile_id AS OwnerProfileId, library_id AS LibraryId, hidden AS Hidden
+                  FROM local_items WHERE id IN @ids;
+                """, new { ids = chunkIds }, cancellationToken: ct)));
+            sharedLibraryAssets.UnionWith(connection.Query<Guid>(new Dapper.CommandDefinition(
+                "SELECT item_id FROM view_shared_assets WHERE item_id IN @ids;",
+                new { ids = chunkIds }, cancellationToken: ct)));
+        }
+
+        IReadOnlySet<Guid> explicitlyShared = requestingProfileId == Guid.Empty || rows.Count == 0
+            ? new HashSet<Guid>()
+            : await galleries.GetItemsSharedWithProfileAsync(rows.Select(row => row.Id).ToList(), requestingProfileId, ct)
+                .ConfigureAwait(false);
+        foreach (var row in rows)
+        {
+            found[row.Id] = new ViewResourceDescriptor(
+                kind,
+                row.Id,
+                row.OwnerProfileId,
+                row.LibraryId,
+                explicitlyShared.Contains(row.Id) ? new HashSet<Guid> { requestingProfileId } : new HashSet<Guid>(),
+                IsSharedLibraryAsset: sharedLibraryAssets.Contains(row.Id),
+                Hidden: row.Hidden);
+        }
+
+        return found;
+    }
+
+    private const int BulkChunkSize = 500;
+
+    private sealed class ItemOwnerRow
+    {
+        public Guid Id { get; init; }
+        public Guid? OwnerProfileId { get; init; }
+        public Guid LibraryId { get; init; }
+        public bool Hidden { get; init; }
+    }
+
     private async Task<IReadOnlySet<Guid>> GetExplicitAssetRecipientsAsync(
         Guid itemId,
         Guid requestingProfileId,
@@ -137,6 +206,32 @@ public sealed class ViewResourcePersistenceService(
             .ConfigureAwait(false)
             ? new HashSet<Guid> { requestingProfileId }
             : new HashSet<Guid>();
+    }
+
+    public Task<IReadOnlySet<Guid>> FindItemsWithContentAsync(
+        IReadOnlyCollection<Guid> itemIds, string role, CancellationToken ct = default)
+    {
+        // The same joins and source rules as ResolveContentAsync, for a list of items at once and without the disk.
+        var withContent = new HashSet<Guid>();
+        using var connection = database.CreateConnection();
+        foreach (var chunk in itemIds.Where(id => id != Guid.Empty).Distinct().Chunk(BulkChunkSize))
+        {
+            ct.ThrowIfCancellationRequested();
+            withContent.UnionWith(connection.Query<Guid>(new CommandDefinition("""
+                SELECT DISTINCT li.id
+                  FROM local_items li
+                  JOIN local_item_files lif ON lif.item_id=li.id AND lif.role=@role
+                  JOIN local_files lf ON lf.id=lif.file_id
+                  JOIN local_file_sources lfs ON lfs.file_id=lf.id AND lfs.library_id=li.library_id
+                  JOIN view_sources vs ON vs.id=lfs.source_id AND vs.library_id=li.library_id
+                 WHERE li.id IN @ids
+                   AND ((li.scope_kind='shared' AND vs.scope_kind='shared' AND vs.personal_space_id IS NULL)
+                     OR (li.scope_kind='personal' AND vs.scope_kind='personal'
+                         AND vs.personal_space_id=li.personal_space_id));
+                """, new { role, ids = chunk.Select(MediaEngine.Storage.GuidSql.ToBlob).ToArray() }, cancellationToken: ct)));
+        }
+
+        return Task.FromResult<IReadOnlySet<Guid>>(withContent);
     }
 
     public Task<LocalAssetContentLocation?> ResolveContentAsync(Guid itemId, string role,

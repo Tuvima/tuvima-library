@@ -216,6 +216,7 @@ public sealed class ViewPersistenceRepositoryTests : IDisposable
             Assert.Single(await _galleries.GetSharesAsync(manual.Id)).Permission);
         Assert.True(await _galleries.IsItemSharedWithProfileAsync(first.ItemId, sharedProfileId));
         Assert.False(await _galleries.IsItemSharedWithProfileAsync(second.ItemId, sharedProfileId));
+        await AssertBulkSharingMatchesSingle(sharedProfileId, first.ItemId, second.ItemId, foreign.ItemId, Guid.NewGuid());
 
         var smart = await _galleries.CreateAsync(new CreateViewGalleryCommand(
             owner.ProfileId, owner.SpaceId, "Favorites", ViewGalleryKind.Smart,
@@ -229,6 +230,13 @@ public sealed class ViewPersistenceRepositoryTests : IDisposable
         await _assets.SetFlagsAsync(first.ItemId, favorite: true, hidden: null);
         Assert.True(await _galleries.IsItemSharedWithProfileAsync(first.ItemId, smartRecipient));
         Assert.False(await _galleries.IsItemSharedWithProfileAsync(foreign.ItemId, smartRecipient));
+        await AssertBulkSharingMatchesSingle(smartRecipient, first.ItemId, second.ItemId, foreign.ItemId, Guid.NewGuid());
+        // The media kinds are read in bulk too: unknown ids are absent, the rest match the single read.
+        var kinds = _assets.GetMediaKinds([first.ItemId, foreign.ItemId, Guid.NewGuid(), Guid.Empty]);
+        Assert.Equal(2, kinds.Count);
+        Assert.Equal(_assets.Find(first.ItemId)!.MediaKind, kinds[first.ItemId]);
+        Assert.Equal(_assets.Find(foreign.ItemId)!.MediaKind, kinds[foreign.ItemId]);
+        Assert.Empty(_assets.GetMediaKinds([]));
         Assert.Equal(1, Assert.Single(await _galleries.GetOwnedAsync(owner.ProfileId),
             gallery => gallery.Id == smart.Id).ItemCount);
         Assert.Equal(1, Assert.Single(await _galleries.GetSharedWithAsync(smartRecipient)).ItemCount);
@@ -282,6 +290,16 @@ public sealed class ViewPersistenceRepositoryTests : IDisposable
             [firstOwner.LibraryId, secondOwner.LibraryId], Lifecycle: LocalAssetLifecycleFilter.Archived)).Items).Id);
         Assert.Equal(second.ItemId, Assert.Single(_assets.QueryTimeline(new LocalAssetTimelineQuery(
             [firstOwner.LibraryId, secondOwner.LibraryId], Lifecycle: LocalAssetLifecycleFilter.Trashed)).Items).Id);
+    }
+
+    /// <summary>The bulk share lookup gives exactly the answer the one-item check gives for each id.</summary>
+    private async Task AssertBulkSharingMatchesSingle(Guid profileId, params Guid[] itemIds)
+    {
+        var bulk = await _galleries.GetItemsSharedWithProfileAsync(itemIds, profileId);
+        foreach (var id in itemIds)
+        {
+            Assert.Equal(await _galleries.IsItemSharedWithProfileAsync(id, profileId), bulk.Contains(id));
+        }
     }
 
     private static readonly Guid TestHousehold = new("7e57a000-0000-0000-0000-000000000002");
