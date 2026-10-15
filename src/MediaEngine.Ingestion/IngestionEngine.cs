@@ -78,6 +78,12 @@ public sealed partial class IngestionEngine : BackgroundService, IIngestionEngin
     private readonly IBackgroundWorker _worker;
     private readonly IEventPublisher _publisher;
     private readonly IngestionOptions _options;
+
+    // The folder list and import folder the engine watches and scans. Starts as the same object as _options and is replaced
+    // (never mutated) when the libraries configuration is saved; every other setting stays as read at startup.
+    // See IngestionEngine.WatchedFolders.cs.
+    private volatile IngestionOptions _folderOptions;
+    private readonly IOptionsMonitor<IngestionOptions>? _optionsMonitor;
     private readonly ILogger<IngestionEngine> _logger;
     private readonly OnboardingActivationGate? _onboardingGate;
 
@@ -202,8 +208,10 @@ public sealed partial class IngestionEngine : BackgroundService, IIngestionEngin
         PlaybackInspectionWriter? playbackInspection = null,
         ICanonicalValueArrayRepository? arrayRepo = null,
         IImportFolderService? importFolders = null,
-        IImportFolderFiler? importFiler = null)
+        IImportFolderFiler? importFiler = null,
+        IOptionsMonitor<IngestionOptions>? optionsMonitor = null)
     {
+        _optionsMonitor = optionsMonitor;
         _importFolders = importFolders;
         _importFiler = importFiler;
         _playbackInspection = playbackInspection;
@@ -219,6 +227,7 @@ public sealed partial class IngestionEngine : BackgroundService, IIngestionEngin
         _worker = worker;
         _publisher = publisher;
         _options = options.Value;
+        _folderOptions = _options;
         _logger = logger;
         _claimRepo = claimRepo;
         _canonicalRepo = canonicalRepo;
@@ -311,39 +320,10 @@ public sealed partial class IngestionEngine : BackgroundService, IIngestionEngin
         // -- Step 3: Start watching + initial scan ------------------------
         // The import folder, when one is set, gets its per-type folders (never the folder itself, so an offline drive stays offline).
         _importFolders?.EnsureSubfolders();
-        var scanTargets = GetConfiguredScanTargets();
-        if (scanTargets.Count > 0)
-        {
-            foreach (var target in scanTargets)
-            {
-                try
-                {
-                    _watcher.AddDirectory(target.Path, target.IncludeSubdirectories);
-                    _logger.LogInformation(
-                        "Watching: {Path} (recursive={Recursive})",
-                        target.Path,
-                        target.IncludeSubdirectories);
-                }
-                catch (DirectoryNotFoundException)
-                {
-                    _logger.LogWarning(
-                        "IngestionEngine: Watch directory does not exist: {Path}. " +
-                        "Create the directory or update the path in Settings.",
-                        target.Path);
-                }
-            }
-        }
-        else
-        {
-            _logger.LogInformation(
-                "IngestionEngine: No WatchDirectory configured. " +
-                "Set a Watch Folder in Settings to begin file ingestion.");
-        }
 
-        // Mark the watcher as "running" so that a later UpdateDirectory() call
-        // immediately activates the new watcher.
-        // Safe to call with zero directories — Start() is a no-op on an empty list.
-        _watcher.Start();
+        // From here on a saved change to the library folders starts or stops watching straight away.
+        SubscribeToFolderChanges();
+        var startupScanTargets = ReconcileWatchedFolders(startup: true);
 
         // Initial scan: FileSystemWatcher only detects NEW filesystem events — files
         // that are already present in the Watch Folder at startup are invisible to it.
@@ -351,9 +331,6 @@ public sealed partial class IngestionEngine : BackgroundService, IIngestionEngin
         // them through the normal debounce ? hash ? duplicate-check ? process flow.
         // After reconciliation, orphaned records are cleaned, so files in the
         // watch folder are treated as genuinely new — no false duplicate skips.
-        var startupScanTargets = scanTargets
-            .Where(target => Directory.Exists(target.Path))
-            .ToList();
         await ScanExistingFilesAsync(startupScanTargets, stoppingToken).ConfigureAwait(false);
 
         // Start the polling fallback in the background.
@@ -382,6 +359,7 @@ public sealed partial class IngestionEngine : BackgroundService, IIngestionEngin
     public override async Task StopAsync(CancellationToken cancellationToken)
     {
         _shutdownCts.Cancel();
+        UnsubscribeFromFolderChanges();
         _watcher.FileDetected -= OnFileDetected;
         _watcher.WatcherError -= OnWatcherError;
         _watcher.Stop();

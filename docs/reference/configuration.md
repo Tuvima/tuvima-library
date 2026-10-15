@@ -287,6 +287,8 @@ Each source owns `id`, `path`, `management_mode`, `source_type`, `include_subdir
 
 The Engine reads the folder settings again for every filing decision, so setting the Import folder, adding a managed folder, or marking a different New media folder applies without a restart.
 
+Adding, removing or changing a library folder (its path or its **Include subfolders** setting) in Settings also starts or stops watching it straight away, and a new folder is scanned once for the files already in it. No Engine restart is needed. A read-only (As-is) folder is only read, and one that is not reachable, such as an offline drive, is logged and not created. See [Ingestion pipeline](../architecture/ingestion-pipeline.md).
+
 Each enabled profile resolves one View Personal Space, backed by one internal
 `personal` library bridge and any number of sources/devices. It indexes mixed
 local assets and local metadata without entering catalogue matching, canonical
