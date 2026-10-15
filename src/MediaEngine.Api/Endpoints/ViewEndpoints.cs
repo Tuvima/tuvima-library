@@ -1570,7 +1570,7 @@ public static partial class ViewEndpoints
         }).WithName($"{char.ToUpperInvariant(name[0])}{name[1..]}ViewItem")
             .Produces<Microsoft.AspNetCore.Http.HttpResults.NoContent>(StatusCodes.Status204NoContent);
 
-    private static bool IsDocumentView(ViewGallery gallery) =>
+    internal static bool IsDocumentView(ViewGallery gallery) =>
         gallery.Kind == ViewGalleryKind.Smart && ViewSmartGalleryRules.IsDocumentView(gallery.SmartRuleJson);
 
     /// <summary>The longest stretch of document text the viewer text panel is sent.</summary>
@@ -1740,7 +1740,7 @@ public static partial class ViewEndpoints
     /// A Gallery's cover is an item id. A profile that may not use Documents is never handed the id of a document
     /// (the Dashboard would fall back to the Gallery's first photo).
     /// </summary>
-    private static ViewGalleryDto ToContract(ViewGallery value, bool documents, ILocalAssetRepository assets) =>
+    internal static ViewGalleryDto ToContract(ViewGallery value, bool documents, ILocalAssetRepository assets) =>
         new(value.Id, value.OwnerProfileId, value.PersonalSpaceId, value.Name,
             value.Description, value.Kind, value.SmartRuleJson,
             !documents && value.CoverItemId is { } cover && assets.IsDocument(cover) ? null : value.CoverItemId,

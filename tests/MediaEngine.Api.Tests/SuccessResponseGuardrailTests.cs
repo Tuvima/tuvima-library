@@ -51,6 +51,10 @@ public sealed partial class SuccessResponseGuardrailTests
         "ExportViewDocumentsCsv",
         "GetViewItemContent",
         "GetViewItemThumbnail",
+        // The paired-app Photos routes that return JPEG or the original photo or video file, not JSON.
+        "GetViewClientItemThumbnail",
+        "GetViewClientItemPreview",
+        "GetViewClientItemOriginal",
         "GetProviderIcon",
         "HidePlaybackSegment",
         "RemoveCollectionItem",
