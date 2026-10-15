@@ -157,4 +157,44 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
         Assert.Equal(10, stored.ProgressPct);
         Assert.Equal(recordedAt, stored.LastAccessed);
     }
+
+    [Fact]
+    public async Task OfflineHeartbeat_ThatWins_LeavesTheLiveSessionAndTelemetryAlone()
+    {
+        var (account, asset) = await SeedHeartbeatAssetAsync();
+        var (player, profile, states) = BuildHeartbeatPlayer(account);
+        var sessions = new PlayerSessionRepository(_database);
+        var live = Guid.NewGuid();
+        await sessions.EnsureSessionAsync(profile, live, "tv", "living-room");
+        await sessions.UpdateTransportAsync(profile, playbackState: PlayerPlaybackStates.Playing, positionSeconds: 500, durationSeconds: 1000, progressPct: 50);
+        await SeedProgressAsync(states, profile, asset, 70, DateTimeOffset.UtcNow.AddHours(-2));
+        var recordedAt = DateTimeOffset.UtcNow.AddMinutes(-10);
+
+        await player.HeartbeatAsync(OfflineBeat(profile, asset, offline: true, recordedAt));
+
+        // The saved resume position took the replay...
+        var stored = (await states.GetAsync(profile, asset))!;
+        Assert.Equal(10, stored.ProgressPct);
+        Assert.Equal(recordedAt, stored.LastAccessed);
+        // ...but the live session still shows what the TV is doing right now, and nothing was recorded as happening now.
+        var session = (await sessions.GetStateAsync(profile, TimeSpan.FromMinutes(5)))!;
+        Assert.Equal(live, session.SessionId);
+        Assert.Equal(PlayerPlaybackStates.Playing, session.PlaybackState);
+        Assert.Equal(500, session.PositionSeconds);
+        using var connection = _database.CreateConnection();
+        Assert.Equal(0, connection.ExecuteScalar<int>("SELECT COUNT(*) FROM playback_telemetry_sessions;"));
+        Assert.Equal(0, connection.ExecuteScalar<int>("SELECT COUNT(*) FROM consumption_history WHERE asset_id = @asset;", new { asset }));
+        Assert.DoesNotContain("player_session_id", stored.ExtendedProperties.Keys);
+    }
+
+    [Fact]
+    public async Task OfflineHeartbeat_WithNoSessionAtAll_CreatesNoSession()
+    {
+        var (account, asset) = await SeedHeartbeatAssetAsync();
+        var (player, profile, _) = BuildHeartbeatPlayer(account);
+
+        await player.HeartbeatAsync(OfflineBeat(profile, asset, offline: true, DateTimeOffset.UtcNow.AddMinutes(-3)));
+
+        Assert.Null(await new PlayerSessionRepository(_database).GetStateAsync(profile, TimeSpan.FromMinutes(5)));
+    }
 }

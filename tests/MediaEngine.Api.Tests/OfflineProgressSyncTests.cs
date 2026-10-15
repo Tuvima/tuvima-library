@@ -47,6 +47,9 @@ public sealed class OfflineProgressSyncTests : IDisposable
         Assert.Equal(Now, OfflineProgressSyncPolicy.ResolveClientTimestamp(true, Now, Now));
         Assert.Equal(Now, OfflineProgressSyncPolicy.ResolveClientTimestamp(true, Now.AddMinutes(1), Now));
         Assert.Equal(Now, OfflineProgressSyncPolicy.ResolveClientTimestamp(true, Now.AddYears(5), Now));
+        // Always UTC, so a client's offset never reaches storage.
+        Assert.Equal(TimeSpan.Zero, OfflineProgressSyncPolicy.ResolveClientTimestamp(true, new DateTimeOffset(2030, 6, 1, 9, 0, 0, TimeSpan.FromHours(5)), Now)!.Value.Offset);
+        Assert.Equal(TimeSpan.Zero, OfflineProgressSyncPolicy.ResolveClientTimestamp(true, Now.ToOffset(TimeSpan.FromHours(-7)).AddYears(1), Now)!.Value.Offset);
 
         Assert.True(OfflineProgressSyncPolicy.ClientWins(Now.AddMinutes(-1), Now));
         Assert.False(OfflineProgressSyncPolicy.ClientWins(Now, Now));
@@ -150,8 +153,8 @@ public sealed class OfflineProgressSyncTests : IDisposable
         Assert.Equal(recordedAt, (await _states.GetAsync(ProfileId, _assetId))!.LastAccessed);
     }
 
-    private Task<IResult> PutAsync(ProgressUpdateRequest body) =>
-        ProgressEndpoints.PutProgressAsync(_assetId, body, ProfileId, Now, _states, _assets, default);
+    private Task<IResult> PutAsync(ProgressUpdateRequest body, bool pairedApp = true, Guid? asset = null) =>
+        ProgressEndpoints.PutProgressAsync(asset ?? _assetId, body, ProfileId, Now, pairedApp, _states, _assets, default);
 
     private static ProgressUpdateRequest Request(double progress, long expectedRevision, bool offline, DateTimeOffset? clientTimestamp) =>
         new(null, progress, null) { ExpectedRevision = expectedRevision, Offline = offline, ClientTimestamp = clientTimestamp };
@@ -181,8 +184,8 @@ public sealed class OfflineProgressSyncTests : IDisposable
         connection.Execute("INSERT INTO editions (id, work_id) VALUES (@editionId, @workId);", new { editionId, workId });
         connection.Execute("""
             INSERT INTO media_assets (id, edition_id, content_hash, file_path_root, status)
-            VALUES (@assetId, @editionId, 'hash', @path, 'Normal');
-            """, new { assetId, editionId, path = Path.Combine(Path.GetTempPath(), "offline-source.mp4") });
+            VALUES (@assetId, @editionId, @hash, @path, 'Normal');
+            """, new { assetId, editionId, hash = assetId.ToString("N"), path = Path.Combine(Path.GetTempPath(), "offline-source.mp4") });
         return assetId;
     }
 
@@ -193,5 +196,68 @@ public sealed class OfflineProgressSyncTests : IDisposable
         {
             try { File.Delete(path); } catch (IOException) { /* a pooled handle may still be closing; the temp file is disposable */ }
         }
+    }
+
+    [Fact]
+    public async Task PutProgress_OfflineFromAnyoneButAPairedApp_IsAnOrdinaryRequest()
+    {
+        await SeedServerStateAsync(progress: 40, updatedAt: Now.AddHours(-1));
+
+        // A stale revision is rejected as before, even with a later timestamp: the offline flag is not honoured.
+        var stale = Unpack(await PutAsync(Request(80, expectedRevision: 0, offline: true, Now.AddMinutes(-10)), pairedApp: false));
+        Assert.Equal(StatusCodes.Status409Conflict, stale.Status);
+        Assert.Equal(40, (await _states.GetAsync(ProfileId, _assetId))!.ProgressPct);
+
+        // A current revision is an ordinary write stamped with the server clock, not the supplied time.
+        var current = Unpack(await PutAsync(Request(55, expectedRevision: 1, offline: true, Now.AddDays(-2)), pairedApp: false));
+        Assert.Equal(StatusCodes.Status200OK, current.Status);
+        Assert.Equal(Now, (await _states.GetAsync(ProfileId, _assetId))!.LastAccessed);
+    }
+
+    [Fact]
+    public void Heartbeat_OfflineFieldsCountOnlyForAPairedApp()
+    {
+        var beat = new MediaEngine.Contracts.Playback.PlayerHeartbeatDto { Offline = true, ClientTimestamp = Now };
+        var paired = new MediaEngine.Domain.Authorization.RequestAuthority(
+            MediaEngine.Domain.Authorization.PrincipalKind.DelegatedUserClient, true, Guid.NewGuid(), ProfileId, DeviceId: Guid.NewGuid());
+        var browser = new MediaEngine.Domain.Authorization.RequestAuthority(
+            MediaEngine.Domain.Authorization.PrincipalKind.Human, true, Guid.NewGuid(), ProfileId, DeviceId: Guid.NewGuid());
+        var service = new MediaEngine.Domain.Authorization.RequestAuthority(
+            MediaEngine.Domain.Authorization.PrincipalKind.ServiceApplication, true);
+
+        Assert.Equal(beat, OfflineProgressSyncPolicy.ForCaller(beat, paired));
+        foreach (var caller in new[] { browser, service })
+        {
+            var treated = OfflineProgressSyncPolicy.ForCaller(beat, caller);
+            Assert.False(treated.Offline);
+            Assert.Null(treated.ClientTimestamp);
+        }
+    }
+
+    [Fact]
+    public async Task PutProgress_AClientOffset_IsStoredAsUtc_AndSortsByTheInstant()
+    {
+        var other = SeedAsset();
+        // 11:00 at +05:00 is 06:00Z, earlier than the 08:00Z record on the other asset, though "11:00" sorts after "08:00" as text.
+        var earlier = new DateTimeOffset(2030, 6, 1, 11, 0, 0, TimeSpan.FromHours(5));
+        await PutAsync(Request(30, expectedRevision: 0, offline: true, earlier));
+        await _states.SaveAsync(new UserState
+        {
+            Revision = 0,
+            UserId = ProfileId,
+            AssetId = other,
+            ContentHash = "hash",
+            ProgressPct = 10,
+            LastAccessed = new DateTimeOffset(2030, 6, 1, 8, 0, 0, TimeSpan.Zero),
+            ExtendedProperties = [],
+        });
+
+        using var connection = _database.CreateConnection();
+        var stored = connection.Query<string>("SELECT last_accessed FROM user_states ORDER BY last_accessed;").AsList();
+
+        Assert.All(stored, text => Assert.EndsWith("+00:00", text));
+        Assert.StartsWith("2030-06-01T06:00:00", stored[0]);
+        Assert.StartsWith("2030-06-01T08:00:00", stored[1]);
+        Assert.Equal(earlier, (await _states.GetAsync(ProfileId, _assetId))!.LastAccessed);
     }
 }

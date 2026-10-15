@@ -203,4 +203,83 @@ public sealed class PlaybackStateRepositoryTests : IDisposable
             }
         }
     }
+
+    [Fact]
+    public async Task AnExpiredVariant_CanBePreparedAgain_WithANewJobAndANewVariant()
+    {
+        var assetId = await CreateAssetAsync();
+        var repository = new PlaybackStateRepository(_db);
+        var profile = Guid.NewGuid();
+        var device = Guid.NewGuid();
+        var first = await repository.QueueEncodeJobAsync(assetId, "mobile-standard", "source", null, profile, device);
+        var lease = Assert.IsType<LeasedEncodeJob>(await repository.LeaseNextEncodeJobAsync());
+        await repository.CompleteEncodeJobAsync(lease, _dbPath + ".again.media", "Phone", "mp4", "h264", "aac", 1280, 720, 2500, DateTimeOffset.UtcNow.AddMinutes(-1));
+        // While the variant exists, asking again returns the finished job.
+        Assert.Equal(first.Id, (await repository.QueueEncodeJobAsync(assetId, "mobile-standard", "source", null, profile, device)).Id);
+        var expired = Assert.Single(await repository.ListExpiredOfflineVariantsAsync(DateTimeOffset.UtcNow));
+
+        await repository.DeleteOfflineVariantAsync(expired.Id);
+
+        var second = await repository.QueueEncodeJobAsync(assetId, "mobile-standard", "source", null, profile, device);
+        Assert.NotEqual(first.Id, second.Id);
+        Assert.Equal(EncodeJobStatuses.Queued, second.Status);
+        var newLease = Assert.IsType<LeasedEncodeJob>(await repository.LeaseNextEncodeJobAsync());
+        Assert.Equal(second.Id, newLease.Id);
+        await repository.CompleteEncodeJobAsync(newLease, _dbPath + ".again2.media", "Phone", "mp4", "h264", "aac", 1280, 720, 2500, DateTimeOffset.UtcNow.AddDays(30));
+        var variant = Assert.Single(await repository.ListOfflineVariantsAsync(assetId, "source", profile, device));
+        Assert.NotEqual(expired.Id, variant.Id);
+    }
+
+    [Fact]
+    public async Task AnExpiredVariant_IsNotDownloadableOrListed_EvenBeforeCleanupRuns()
+    {
+        var assetId = await CreateAssetAsync();
+        var repository = new PlaybackStateRepository(_db);
+        var profile = Guid.NewGuid();
+        var device = Guid.NewGuid();
+        await repository.QueueEncodeJobAsync(assetId, "mobile-standard", "source", null, profile, device);
+        var lease = Assert.IsType<LeasedEncodeJob>(await repository.LeaseNextEncodeJobAsync());
+        await repository.CompleteEncodeJobAsync(lease, _dbPath + ".live.media", "Phone", "mp4", "h264", "aac", 1280, 720, 2500, DateTimeOffset.UtcNow.AddDays(1));
+        var variant = Assert.Single(await repository.ListOfflineVariantsAsync(assetId, "source", profile, device));
+        Assert.NotNull(await repository.GetOfflineVariantFileAsync(assetId, variant.Id, profile, device));
+
+        using (var conn = _db.CreateConnection())
+        {
+            await conn.ExecuteAsync(
+                "UPDATE offline_variants SET expires_at = @past WHERE id = @id;",
+                new { id = variant.Id, past = DateTimeOffset.UtcNow.AddSeconds(-1).ToString("O") });
+        }
+
+        Assert.Null(await repository.GetOfflineVariantFileAsync(assetId, variant.Id, profile, device));
+        Assert.Empty(await repository.ListOfflineVariantsAsync(assetId, "source", profile, device));
+    }
+
+    [Fact]
+    public async Task ASharedFile_IsInUseOnlyWhileAnotherUnexpiredVariantPointsAtIt()
+    {
+        var assetId = await CreateAssetAsync();
+        var repository = new PlaybackStateRepository(_db);
+        var shared = _dbPath + ".shared.media";
+        var now = DateTimeOffset.UtcNow;
+        var a = InsertVariant(assetId, shared, now.AddMinutes(-1));
+        var b = InsertVariant(assetId, shared.ToUpperInvariant(), now.AddDays(1));
+        var c = InsertVariant(assetId, _dbPath + ".other.media", now.AddDays(1));
+
+        Assert.True(await repository.IsFileUsedByAnotherLiveVariantAsync(a, shared, now));
+        Assert.False(await repository.IsFileUsedByAnotherLiveVariantAsync(c, _dbPath + ".other.media", now));
+        Assert.False(await repository.IsFileUsedByAnotherLiveVariantAsync(b, shared.ToUpperInvariant(), now.AddDays(2)));
+    }
+
+    private Guid InsertVariant(Guid assetId, string outputPath, DateTimeOffset expiresAt)
+    {
+        var id = Guid.NewGuid();
+        using var conn = _db.CreateConnection();
+        conn.Execute(
+            """
+            INSERT INTO offline_variants (id, asset_id, profile_key, source_hash, display_name, status, output_path, created_at, expires_at)
+            VALUES (@id, @assetId, 'mobile-small', 'source', 'Phone', 'ready', @outputPath, @now, @expires);
+            """,
+            new { id, assetId, outputPath, now = DateTimeOffset.UtcNow.ToString("O"), expires = expiresAt.ToString("O") });
+        return id;
+    }
 }

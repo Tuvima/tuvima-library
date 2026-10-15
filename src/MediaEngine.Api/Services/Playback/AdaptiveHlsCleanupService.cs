@@ -100,30 +100,38 @@ public sealed class AdaptiveHlsCleanupService(
     /// Offline variants are removed with their files once <c>expires_at</c> (written from
     /// <c>variant_retention_days</c> when the variant was prepared) has passed. Expiry wins: a variant that a device's
     /// download list still marks as stored is removed too, and its list entry goes with it.
-    /// Files outside the variant cache are never deleted; only the stale row is dropped.
+    /// Files outside the variant cache are never deleted; only the stale row is dropped. A file that another
+    /// variant (any profile or device) that has not expired still points at is kept, so one person's expiry cannot
+    /// delete another person's download.
     /// </summary>
     private async Task CleanupExpiredOfflineVariantsAsync(string root, CancellationToken ct)
     {
-        var expired = await playbackState.ListExpiredOfflineVariantsAsync(DateTimeOffset.UtcNow, ct).ConfigureAwait(false);
+        root = Path.TrimEndingDirectorySeparator(Path.GetFullPath(root));
+        var now = DateTimeOffset.UtcNow;
+        var expired = await playbackState.ListExpiredOfflineVariantsAsync(now, ct).ConfigureAwait(false);
         foreach (var variant in expired)
         {
             if (!string.IsNullOrWhiteSpace(variant.OutputPath))
             {
-                var file = Path.GetFullPath(variant.OutputPath);
+                var file = Path.TrimEndingDirectorySeparator(Path.GetFullPath(variant.OutputPath));
                 if (file.StartsWith(root + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
                 {
                     try
                     {
-                        if (File.Exists(file))
+                        if (!await playbackState.IsFileUsedByAnotherLiveVariantAsync(variant.Id, variant.OutputPath, now, ct).ConfigureAwait(false))
                         {
-                            File.Delete(file);
-                        }
+                            if (File.Exists(file))
+                            {
+                                File.Delete(file);
+                            }
 
-                        RemoveEmptyParents(Path.GetDirectoryName(file), root);
+                            RemoveEmptyParents(Path.GetDirectoryName(file), root);
+                        }
                     }
-                    catch (IOException ex)
+                    catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
                     {
-                        // A file still in use (for example mid-download) keeps its row; the next pass tries again.
+                        // A file still in use (for example mid-download) or locked keeps its row; the next pass tries again,
+                        // and one such file never stops the rest of the pass.
                         logger.LogWarning(ex, "Could not remove expired offline variant file for {VariantId}", variant.Id);
                         continue;
                     }
@@ -176,6 +184,7 @@ public sealed class AdaptiveHlsCleanupService(
             libraryRoot = AppContext.BaseDirectory;
         }
 
-        return Path.GetFullPath(Path.IsPathRooted(path) ? path : Path.Combine(libraryRoot, path));
+        // No trailing separator, so the "inside the cache" checks compare like with like.
+        return Path.TrimEndingDirectorySeparator(Path.GetFullPath(Path.IsPathRooted(path) ? path : Path.Combine(libraryRoot, path)));
     }
 }

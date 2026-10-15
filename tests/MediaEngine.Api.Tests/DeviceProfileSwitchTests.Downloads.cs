@@ -274,6 +274,28 @@ public sealed partial class DeviceProfileSwitchTests
     }
 
     [Fact]
+    public async Task AnExpiredVariant_DropsOutOfTheList_AndCannotBeReportedAgain_BeforeCleanupRuns()
+    {
+        var film = await InsertOwnedMovieAsync("Family film", "PG");
+        var variant = InsertVariant(film.AssetId, _mary.Id, _phoneId, expiresAt: DateTimeOffset.UtcNow.AddDays(1));
+        var service = Downloads();
+        Assert.Equal(DeviceDownloadOutcome.Ok, await service.UpsertAsync(PhoneAuthority(_mary.Id), Report(film.AssetId, variant, 10), MayDownload()));
+        Assert.Single((await service.ListAsync(PhoneAuthority(_mary.Id))).Downloads!.Downloads);
+
+        using (var connection = _database.CreateConnection())
+        {
+            connection.Execute(
+                "UPDATE offline_variants SET expires_at = @past WHERE id = @variant;",
+                new { variant, past = DateTimeOffset.UtcNow.AddSeconds(-1).ToString("O") });
+        }
+
+        Assert.Empty((await service.ListAsync(PhoneAuthority(_mary.Id))).Downloads!.Downloads);
+        Assert.Equal(DeviceDownloadOutcome.NotFound, await service.UpsertAsync(PhoneAuthority(_mary.Id), Report(film.AssetId, variant, 10), MayDownload()));
+        // The expired variant's file route answers as if it is gone, with cleanup never having run.
+        Assert.Null(await new PlaybackStateRepository(_database).GetOfflineVariantFileAsync(film.AssetId, variant, _mary.Id, _phoneId));
+    }
+
+    [Fact]
     public async Task OverHttp_OnlyThePairedApp_UsesTheThreeRoutes_AndAForeignVariantIs404()
     {
         var film = await InsertOwnedMovieAsync("Family film", "PG");

@@ -291,16 +291,39 @@ public sealed class PlayerService
             throw new PlayerResourceDeniedException();
         }
 
-        // An offline replay older than what the server already holds for this asset changes nothing (later wins per asset).
+        // A replayed offline heartbeat describes the past, so it only ever touches the saved resume position: later wins
+        // per asset, and it never writes the live session, the transport, listening history or telemetry at the time
+        // it happens to arrive.
         var recordedAt = OfflineProgressSyncPolicy.ResolveClientTimestamp(
             heartbeat.Offline, heartbeat.ClientTimestamp, DateTimeOffset.UtcNow);
-        if (recordedAt is { } offlineRecordedAt && heartbeatAsset.HasValue)
+        if (recordedAt is { } offlineRecordedAt)
         {
-            var current = await _userStates.GetAsync(profileId, heartbeatAsset.Value, ct);
-            if (current is not null && !OfflineProgressSyncPolicy.ClientWins(current.LastAccessed, offlineRecordedAt))
+            if (heartbeatAsset.HasValue)
             {
-                return await GetStateAsync(profileId, deviceId, client, ct);
+                var current = await _userStates.GetAsync(profileId, heartbeatAsset.Value, ct);
+                if (current is null || OfflineProgressSyncPolicy.ClientWins(current.LastAccessed, offlineRecordedAt))
+                {
+                    var replayedPosition = Math.Max(0, heartbeat.PositionSeconds);
+                    var replayedSettings = await GetPlaybackSettingsOrDefaultAsync(profileId, ct);
+                    await SaveResumeAsync(
+                        profileId,
+                        heartbeatAsset.Value,
+                        replayedPosition,
+                        heartbeat.DurationSeconds,
+                        heartbeat.ProgressPct ?? CalculateProgress(replayedPosition, heartbeat.DurationSeconds),
+                        PlayerPlaybackStates.Paused,
+                        null,
+                        deviceId,
+                        client,
+                        replayedSettings.Listening,
+                        heartbeat.AudiobookStartKind,
+                        offlineRecordedAt,
+                        ct);
+                }
             }
+
+            return await EnrichStateAsync(
+                await _sessions.GetStateAsync(profileId, StaleSessionWindow, ct) ?? EmptyState(profileId, deviceId, client), ct);
         }
 
         if (heartbeat.Connection is not null)
@@ -352,7 +375,7 @@ public sealed class PlayerService
                 client,
                 settings.Listening,
                 heartbeat.AudiobookStartKind,
-                recordedAt,
+                null,
                 ct);
         }
 

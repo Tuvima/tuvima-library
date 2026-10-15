@@ -121,7 +121,8 @@ public sealed class EncodeQueueService : BackgroundService
                 ? transcoding.VariantCachePath
                 : Path.Combine(root, transcoding.VariantCachePath);
 
-        return Path.Combine(variantRoot, job.AssetId.ToString("N"), profile, fileName);
+        // The job id keeps two people's variants of the same file (same asset and profile key) from sharing one path.
+        return Path.Combine(variantRoot, job.AssetId.ToString("N"), profile, job.Id.ToString("N"), fileName);
     }
 
     private static string BuildArguments(string inputPath, string outputPath, string profileKey)

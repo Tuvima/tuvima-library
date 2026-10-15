@@ -196,4 +196,95 @@ public sealed class AdaptiveHlsCleanupServiceTests : IDisposable
         public CancellationToken ApplicationStopped => CancellationToken.None;
         public void StopApplication() { }
     }
+
+    [Fact]
+    public async Task CleanupAsync_KeepsAFileAnotherLiveVariantStillUses_AndDeletesItOnceNoneDo()
+    {
+        var assetId = SeedAsset();
+        var directory = Path.Combine(_root, "variants", assetId.ToString("N"), "mobile-small");
+        Directory.CreateDirectory(directory);
+        var shared = Path.Combine(directory, "shared.mp4");
+        await File.WriteAllTextAsync(shared, "media");
+        var expired = SeedVariant(assetId, shared, DateTimeOffset.UtcNow.AddMinutes(-1));
+        var live = SeedVariant(assetId, shared, DateTimeOffset.UtcNow.AddDays(1));
+        var cleanup = CreateCleanup(new AdaptiveHlsPackageRepository(_database));
+
+        // One person's variant expired; the other's still points at the same file, which therefore stays.
+        await cleanup.CleanupAsync();
+        Assert.True(File.Exists(shared));
+        Assert.Equal(new[] { live }, VariantIds());
+
+        // Once the other one expires too, nothing needs the file and it goes.
+        using (var connection = _database.CreateConnection())
+        {
+            connection.Execute("UPDATE offline_variants SET expires_at = @past WHERE id = @live;",
+                new { live, past = DateTimeOffset.UtcNow.AddSeconds(-1).ToString("O") });
+        }
+
+        await cleanup.CleanupAsync();
+        Assert.False(File.Exists(shared));
+        Assert.Empty(VariantIds());
+        Assert.DoesNotContain(expired, VariantIds());
+    }
+
+    [Fact]
+    public async Task CleanupAsync_DeletesTheFileWhenEveryVariantUsingItHasExpired_InOnePass()
+    {
+        var assetId = SeedAsset();
+        var directory = Path.Combine(_root, "variants", assetId.ToString("N"), "mobile-small");
+        Directory.CreateDirectory(directory);
+        var shared = Path.Combine(directory, "shared.mp4");
+        await File.WriteAllTextAsync(shared, "media");
+        SeedVariant(assetId, shared, DateTimeOffset.UtcNow.AddMinutes(-2));
+        SeedVariant(assetId, shared, DateTimeOffset.UtcNow.AddMinutes(-1));
+
+        await CreateCleanup(new AdaptiveHlsPackageRepository(_database)).CleanupAsync();
+
+        Assert.False(File.Exists(shared));
+        Assert.Empty(VariantIds());
+    }
+
+    [Fact]
+    public async Task CleanupAsync_StillRemovesFiles_WhenTheCachePathEndsWithASeparator()
+    {
+        _configuration.SaveTranscoding(new TranscodingSettings
+        {
+            VariantCachePath = "variants" + Path.DirectorySeparatorChar,
+            VariantRetentionDays = 1,
+            ShadowStorageLimitGb = 1,
+            CleanupLruEnabled = true,
+        });
+        var assetId = SeedAsset();
+        var directory = Path.Combine(_root, "variants", assetId.ToString("N"));
+        Directory.CreateDirectory(directory);
+        var file = Path.Combine(directory, "expired.mp4");
+        await File.WriteAllTextAsync(file, "media");
+        SeedVariant(assetId, file, DateTimeOffset.UtcNow.AddMinutes(-1));
+
+        await CreateCleanup(new AdaptiveHlsPackageRepository(_database)).CleanupAsync();
+
+        Assert.False(File.Exists(file));
+        Assert.Empty(VariantIds());
+    }
+
+    [Fact]
+    public async Task CleanupAsync_ALockedFileDoesNotStopTheRestOfThePass()
+    {
+        var assetId = SeedAsset();
+        var directory = Path.Combine(_root, "variants", assetId.ToString("N"));
+        Directory.CreateDirectory(directory);
+        var locked = Path.Combine(directory, "locked.mp4");
+        var free = Path.Combine(directory, "free.mp4");
+        await File.WriteAllTextAsync(locked, "media");
+        await File.WriteAllTextAsync(free, "media");
+        SeedVariant(assetId, locked, DateTimeOffset.UtcNow.AddMinutes(-2));
+        SeedVariant(assetId, free, DateTimeOffset.UtcNow.AddMinutes(-1));
+
+        using (new FileStream(locked, FileMode.Open, FileAccess.Read, FileShare.None))
+        {
+            await CreateCleanup(new AdaptiveHlsPackageRepository(_database)).CleanupAsync();
+        }
+
+        Assert.False(File.Exists(free));
+    }
 }

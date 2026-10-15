@@ -103,7 +103,10 @@ public sealed class PlaybackStateRepository
             """,
             new { assetId, sourceHash, ownerProfileId, ownerDeviceId }).AsList();
 
-        return Task.FromResult<IReadOnlyList<OfflineVariantDto>>(rows.Select(ToDto).ToList());
+        // An expired variant is gone as far as a client is concerned, whether or not the cleanup pass has removed it yet.
+        var now = DateTimeOffset.UtcNow;
+        return Task.FromResult<IReadOnlyList<OfflineVariantDto>>(
+            rows.Where(row => !IsExpired(row.ExpiresAt, now)).Select(ToDto).ToList());
     }
 
     public Task<OfflineVariantFile?> GetOfflineVariantFileAsync(
@@ -115,10 +118,11 @@ public sealed class PlaybackStateRepository
     {
         ct.ThrowIfCancellationRequested();
         using var conn = _db.CreateConnection();
-        var row = conn.QueryFirstOrDefault<OfflineVariantFile>("""
+        var row = conn.QueryFirstOrDefault<VariantFileRow>("""
             SELECT output_path AS OutputPath,
                    status AS Status,
-                   file_size AS FileSizeBytes
+                   file_size AS FileSizeBytes,
+                   expires_at AS ExpiresAt
             FROM offline_variants
             WHERE id = @variantId
               AND asset_id = @assetId
@@ -128,7 +132,10 @@ public sealed class PlaybackStateRepository
             """,
             new { assetId, variantId, ownerProfileId, ownerDeviceId });
 
-        return Task.FromResult(row);
+        // Expiry is enforced here too, so a download stops at expires_at even when cleanup is switched off or has not run yet.
+        return Task.FromResult<OfflineVariantFile?>(row is null || IsExpired(row.ExpiresAt, DateTimeOffset.UtcNow)
+            ? null
+            : new OfflineVariantFile(row.OutputPath, row.Status, row.FileSizeBytes));
     }
 
     /// <summary>Every offline variant whose <c>expires_at</c> is at or before <paramref name="now"/>, whatever its status.</summary>
@@ -152,17 +159,46 @@ public sealed class PlaybackStateRepository
         return Task.FromResult(expired);
     }
 
-    /// <summary>Removes the variant row and, explicitly, any device list entry that still marks it as stored.</summary>
-    public Task DeleteOfflineVariantAsync(Guid variantId, CancellationToken ct = default)
+    /// <summary>
+    /// Removes the variant row, any device list entry that still marks it as stored, and the completed encode job that
+    /// produced it, in one transaction. Without the job a later request for the same variant would be answered with the
+    /// finished job (queueing reuses completed jobs) and the variant could never be prepared again.
+    /// </summary>
+    public Task DeleteOfflineVariantAsync(Guid variantId, CancellationToken ct = default) =>
+        _db.ExecuteWriteAsync((conn, tx, _) =>
+        {
+            conn.Execute("""
+                DELETE FROM device_downloads WHERE variant_id = @variantId;
+                DELETE FROM encode_jobs
+                WHERE status = 'complete'
+                  AND output_path IS NOT NULL
+                  AND EXISTS (SELECT 1 FROM offline_variants v
+                              WHERE v.id = @variantId AND v.asset_id = encode_jobs.asset_id AND v.output_path = encode_jobs.output_path);
+                DELETE FROM offline_variants WHERE id = @variantId;
+                """, new { variantId }, tx);
+        }, ct);
+
+    /// <summary>
+    /// True when another offline variant that has not expired (any profile or device) points at the same file, so the
+    /// file must stay when this variant is removed. Paths are compared without regard to case: a false "shared" only
+    /// keeps a file a little longer, never deletes one that is in use.
+    /// </summary>
+    public Task<bool> IsFileUsedByAnotherLiveVariantAsync(
+        Guid variantId,
+        string outputPath,
+        DateTimeOffset now,
+        CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested();
         using var conn = _db.CreateConnection();
-        conn.Execute("""
-            DELETE FROM device_downloads WHERE variant_id = @variantId;
-            DELETE FROM offline_variants WHERE id = @variantId;
-            """, new { variantId });
-        return Task.CompletedTask;
+        var others = conn.Query<string?>(
+            "SELECT expires_at FROM offline_variants WHERE id <> @variantId AND output_path = @outputPath COLLATE NOCASE;",
+            new { variantId, outputPath }).AsList();
+        return Task.FromResult(others.Any(expiresAt => !IsExpired(expiresAt, now)));
     }
+
+    private static bool IsExpired(string? expiresAt, DateTimeOffset now) =>
+        ParseDate(expiresAt) is { } at && at <= now;
 
     public Task<EncodeJobDto> QueueEncodeJobAsync(
         Guid assetId,
@@ -198,7 +234,10 @@ public sealed class PlaybackStateRepository
                AND source_hash = @sourceHash
                AND (@ownerProfileId IS NULL OR owner_profile_id = @ownerProfileId)
                AND (@ownerDeviceId IS NULL OR owner_device_id = @ownerDeviceId)
-               AND status IN ('queued', 'scheduled', 'running', 'complete')
+               AND (status IN ('queued', 'scheduled', 'running')
+                    OR (status = 'complete' AND EXISTS (
+                        SELECT 1 FROM offline_variants v
+                        WHERE v.asset_id = encode_jobs.asset_id AND v.output_path = encode_jobs.output_path)))
             ORDER BY created_at DESC
             LIMIT 1;
             """,
@@ -528,6 +567,14 @@ public sealed class PlaybackStateRepository
         public int? Height { get; set; }
         public int? BitrateKbps { get; set; }
         public string CreatedAt { get; set; } = string.Empty;
+        public string? ExpiresAt { get; set; }
+    }
+
+    private sealed class VariantFileRow
+    {
+        public string? OutputPath { get; set; }
+        public string Status { get; set; } = string.Empty;
+        public long? FileSizeBytes { get; set; }
         public string? ExpiresAt { get; set; }
     }
 

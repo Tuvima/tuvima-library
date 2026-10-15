@@ -74,7 +74,7 @@ public sealed class UserStateRepository : IUserStateStore
                 state.ContentHash,
                 state.ProgressPct,
                 state.Revision,
-                accessed = state.LastAccessed.ToString("O"),
+                accessed = state.LastAccessed.ToUniversalTime().ToString("O"),
                 properties = JsonSerializer.Serialize(state.ExtendedProperties)
             }, tx);
             if (changed != 1)
@@ -99,7 +99,7 @@ public sealed class UserStateRepository : IUserStateStore
                     sessionKey,
                     state.ProgressPct,
                     experience = state.ExtendedProperties.ContainsKey("reader_session_id") ? "Read" : "Played",
-                    date = state.LastAccessed.ToString("O")
+                    date = state.LastAccessed.ToUniversalTime().ToString("O")
                 }, tx);
             }
         }, ct);

@@ -40,7 +40,7 @@ public sealed class DeviceDownloadService(
             return new(null);
         }
 
-        var list = await downloads.ListAsync(owner.DeviceId, owner.ProfileId, ct).ConfigureAwait(false);
+        var list = await downloads.ListAsync(owner.DeviceId, owner.ProfileId, clock.GetUtcNow(), ct).ConfigureAwait(false);
         return new(new DeviceDownloadListDto { Downloads = list }, DeviceDownloadOutcome.Ok);
     }
 

@@ -42,14 +42,21 @@ public static class ProgressEndpoints
         .RequireCatalogueAssetAccess(ApplicationPermissionIds.ProgressRead)
         .RequireClientScope(ClientApiScopes.ProgressRead);
 
-        group.MapPut("/{assetId:guid}", (
+        group.MapPut("/{assetId:guid}", async (
             Guid assetId,
             ProgressUpdateRequest body,
             ClaimsPrincipal user,
+            HttpContext http,
+            IRequestAuthorityResolver authorities,
             IUserStateStore stateStore,
             IMediaAssetRepository assetRepo,
             CancellationToken ct) =>
-            PutProgressAsync(assetId, body, ResolveUserId(user), DateTimeOffset.UtcNow, stateStore, assetRepo, ct))
+        {
+            var authority = await authorities.ResolveAsync(http, ct);
+            return await PutProgressAsync(
+                assetId, body, ResolveUserId(user), DateTimeOffset.UtcNow,
+                OfflineProgressSyncPolicy.MayReplayOffline(authority), stateStore, assetRepo, ct);
+        })
         .Produces<UserStateResponse>(StatusCodes.Status200OK)
         .RequireCatalogueAssetAccess(ApplicationPermissionIds.ProgressWrite)
         .RequireClientScope(ClientApiScopes.ProgressWrite);
@@ -148,6 +155,7 @@ public static class ProgressEndpoints
         ProgressUpdateRequest body,
         Guid userId,
         DateTimeOffset now,
+        bool pairedApp,
         IUserStateStore stateStore,
         IMediaAssetRepository assetRepo,
         CancellationToken ct)
@@ -158,8 +166,9 @@ public static class ProgressEndpoints
             return ApiErrors.NotFound($"Asset '{assetId}' not found.");
         }
 
-        // Only a paired app replaying offline progress gets the later-wins rule; the time is clamped to the server clock.
-        var recordedAt = OfflineProgressSyncPolicy.ResolveClientTimestamp(body.Offline, body.ClientTimestamp, now);
+        // Only a paired app replaying offline progress gets the later-wins rule (anyone else's offline flag is ignored,
+        // so a stale revision is rejected as before); the time is clamped to the server clock and kept in UTC.
+        var recordedAt = OfflineProgressSyncPolicy.ResolveClientTimestamp(pairedApp && body.Offline, body.ClientTimestamp, now);
         var state = new UserState
         {
             Revision = body.ExpectedRevision,

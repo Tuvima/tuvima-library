@@ -23,8 +23,11 @@ public sealed class DeviceDownloadRepository
         _db = db;
     }
 
-    /// <summary>The device's list for one profile, oldest stored first, with each variant's current expiry.</summary>
-    public Task<IReadOnlyList<DeviceDownloadDto>> ListAsync(Guid deviceId, Guid profileId, CancellationToken ct = default)
+    /// <summary>
+    /// The device's list for one profile, oldest stored first, with each variant's current expiry. A variant whose
+    /// expiry has passed is left out at once, without waiting for the cleanup pass.
+    /// </summary>
+    public Task<IReadOnlyList<DeviceDownloadDto>> ListAsync(Guid deviceId, Guid profileId, DateTimeOffset now, CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested();
         using var conn = _db.CreateConnection();
@@ -42,14 +45,16 @@ public sealed class DeviceDownloadRepository
             LIMIT @limit;
             """, new { deviceId, profileId, limit = MaxRowsPerDevice }).AsList();
 
-        IReadOnlyList<DeviceDownloadDto> list = rows.Select(row => new DeviceDownloadDto
-        {
-            AssetId = row.AssetId,
-            VariantId = row.VariantId,
-            StoredBytes = row.StoredBytes,
-            StoredAt = ParseDate(row.StoredAt) ?? DateTimeOffset.MinValue,
-            ExpiresAt = ParseDate(row.ExpiresAt),
-        }).ToList();
+        IReadOnlyList<DeviceDownloadDto> list = rows
+            .Where(row => ParseDate(row.ExpiresAt) is not { } expiresAt || expiresAt > now)
+            .Select(row => new DeviceDownloadDto
+            {
+                AssetId = row.AssetId,
+                VariantId = row.VariantId,
+                StoredBytes = row.StoredBytes,
+                StoredAt = ParseDate(row.StoredAt) ?? DateTimeOffset.MinValue,
+                ExpiresAt = ParseDate(row.ExpiresAt),
+            }).ToList();
         return Task.FromResult(list);
     }
 

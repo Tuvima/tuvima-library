@@ -210,6 +210,8 @@ public static class PlayerEndpoints
         group.MapPost("/heartbeat", async (
             PlayerHeartbeatDto request,
             ClaimsPrincipal user,
+            HttpContext http,
+            IRequestAuthorityResolver authorities,
             PlayerService player,
             CancellationToken ct) =>
         {
@@ -225,7 +227,9 @@ public static class PlayerEndpoints
 
             try
             {
-                var state = await player.HeartbeatAsync(Bind(user, request), ct);
+                // The offline replay fields count only for a paired app's own token.
+                var authority = await authorities.ResolveAsync(http, ct);
+                var state = await player.HeartbeatAsync(OfflineProgressSyncPolicy.ForCaller(Bind(user, request), authority), ct);
                 return Results.Ok(state);
             }
             catch (ArgumentOutOfRangeException ex)
