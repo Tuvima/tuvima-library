@@ -142,6 +142,112 @@ public sealed class OfflineProgressSyncTests : IDisposable
     }
 
     [Fact]
+    public async Task PutProgress_AnAppliedOfflineReplay_WritesOneHistoryEntryAtTheClientTime()
+    {
+        var recordedAt = Now.AddHours(-2);
+
+        await PutAsync(Request(25, expectedRevision: 0, offline: true, recordedAt));
+
+        var entry = Assert.Single(History());
+        Assert.Equal("Played", entry.Experience);
+        Assert.Equal(25, entry.Progress);
+        Assert.Equal(recordedAt, DateTimeOffset.Parse(entry.UpdatedAt));
+        Assert.Equal(recordedAt, DateTimeOffset.Parse(entry.StartedAt));
+        Assert.EndsWith("+00:00", entry.UpdatedAt);
+        Assert.StartsWith("offline:", entry.Key);
+    }
+
+    [Fact]
+    public async Task PutProgress_ReplayingTheIdenticalOfflineRequestThreeTimes_KeepsOneHistoryEntry()
+    {
+        await SeedServerStateAsync(progress: 40, updatedAt: Now.AddHours(-1));
+        var request = Request(80, expectedRevision: 0, offline: true, Now.AddMinutes(-10));
+
+        foreach (var _ in Enumerable.Range(0, 3))
+        {
+            Assert.Equal(StatusCodes.Status200OK, Unpack(await PutAsync(request)).Status);
+        }
+
+        Assert.Single(History());
+        Assert.Equal(80, (await _states.GetAsync(ProfileId, _assetId))!.ProgressPct);
+    }
+
+    [Fact]
+    public async Task PutProgress_ARetryWithTheRevisionTheFirstWriteProduced_StillKeepsOneHistoryEntry()
+    {
+        var request = Request(30, expectedRevision: 0, offline: true, Now.AddMinutes(-30));
+        await PutAsync(request);
+
+        // A lost response: the app retries, then sends the revision the first write produced.
+        await PutAsync(request);
+        await PutAsync(request with { ExpectedRevision = 1 });
+
+        Assert.Single(History());
+    }
+
+    [Fact]
+    public async Task PutProgress_AFutureClientTimestamp_IsHistoryAtTheServerClock_AndARetryStaysOneEntry()
+    {
+        var request = Request(90, expectedRevision: 0, offline: true, Now.AddDays(3));
+
+        await PutAsync(request);
+        await PutAsync(request);
+
+        var entry = Assert.Single(History());
+        Assert.Equal(Now, DateTimeOffset.Parse(entry.UpdatedAt));
+    }
+
+    [Fact]
+    public async Task PutProgress_DifferentDevicesOrSeconds_AreDifferentPlays()
+    {
+        var at = Now.AddMinutes(-20);
+        await PutAsync(Request(10, 0, offline: true, at), device: Device);
+        await PutAsync(Request(20, 0, offline: true, at.AddMilliseconds(400)), device: Device); // same second, same play
+        await PutAsync(Request(30, 0, offline: true, at.AddMilliseconds(500)), device: Guid.NewGuid()); // another device
+        await PutAsync(Request(40, 0, offline: true, at.AddMilliseconds(1500)), device: Device); // a later play
+
+        Assert.Equal(3, History().Count);
+    }
+
+    [Fact]
+    public async Task PutProgress_AnIgnoredOlderReplay_WritesNoHistory()
+    {
+        await SeedServerStateAsync(progress: 40, updatedAt: Now.AddMinutes(-10));
+
+        await PutAsync(Request(80, expectedRevision: 0, offline: true, Now.AddHours(-1)));
+        await PutAsync(Request(80, expectedRevision: 0, offline: true, Now.AddMinutes(-10)));
+
+        Assert.Empty(History());
+    }
+
+    [Fact]
+    public async Task PutProgress_OrdinaryWrites_AndAnOfflineReplayWithoutProgress_WriteNoOfflineHistory()
+    {
+        await PutAsync(Request(25, expectedRevision: 0, offline: false, Now.AddHours(-2)));
+        await PutAsync(Request(25, expectedRevision: 1, offline: true, Now.AddHours(-2)), pairedApp: false);
+        await PutAsync(Request(25, expectedRevision: 2, offline: true, null));
+        var other = SeedAsset();
+        await PutAsync(Request(0, expectedRevision: 0, offline: true, Now.AddHours(-1)), asset: other);
+
+        Assert.Empty(History());
+        Assert.Empty(History(other));
+    }
+
+    [Fact]
+    public async Task PutProgress_AnOfflineReplayThatNamesItsOwnSession_UsesThatSessionAsTheKey()
+    {
+        var body = new ProgressUpdateRequest(null, 55, new Dictionary<string, string> { ["reader_session_id"] = "device-session-1" })
+        { ExpectedRevision = 0, Offline = true, ClientTimestamp = Now.AddHours(-1) };
+
+        await PutAsync(body);
+        await PutAsync(body);
+
+        var entry = Assert.Single(History());
+        Assert.Equal("device-session-1", entry.Key);
+        Assert.Equal("Read", entry.Experience);
+    }
+
+    [Fact]
     public async Task PutProgress_AFirstOfflineWrite_CreatesTheRecordAtTheDevicesTime()
     {
         var recordedAt = Now.AddHours(-2);
@@ -153,8 +259,18 @@ public sealed class OfflineProgressSyncTests : IDisposable
         Assert.Equal(recordedAt, (await _states.GetAsync(ProfileId, _assetId))!.LastAccessed);
     }
 
-    private Task<IResult> PutAsync(ProgressUpdateRequest body, bool pairedApp = true, Guid? asset = null) =>
-        ProgressEndpoints.PutProgressAsync(asset ?? _assetId, body, ProfileId, Now, pairedApp, _states, _assets, default);
+    private Task<IResult> PutAsync(ProgressUpdateRequest body, bool pairedApp = true, Guid? asset = null, Guid? device = null) =>
+        ProgressEndpoints.PutProgressAsync(asset ?? _assetId, body, ProfileId, Now, pairedApp, device ?? Device, _states, _assets, default);
+
+    private static readonly Guid Device = Guid.Parse("00000000-0000-0000-0000-0000000000d1");
+
+    private List<(string Key, string Experience, string StartedAt, string UpdatedAt, double Progress)> History(Guid? asset = null)
+    {
+        using var connection = _database.CreateConnection();
+        return connection.Query<(string, string, string, string, double)>(
+            "SELECT session_key, experience, started_at, updated_at, progress_pct FROM consumption_history WHERE asset_id = @asset ORDER BY updated_at;",
+            new { asset = asset ?? _assetId }).AsList();
+    }
 
     private static ProgressUpdateRequest Request(double progress, long expectedRevision, bool offline, DateTimeOffset? clientTimestamp) =>
         new(null, progress, null) { ExpectedRevision = expectedRevision, Offline = offline, ClientTimestamp = clientTimestamp };

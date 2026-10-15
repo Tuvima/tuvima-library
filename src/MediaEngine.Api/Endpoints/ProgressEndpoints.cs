@@ -55,7 +55,7 @@ public static class ProgressEndpoints
             var authority = await authorities.ResolveAsync(http, ct);
             return await PutProgressAsync(
                 assetId, body, ResolveUserId(user), DateTimeOffset.UtcNow,
-                OfflineProgressSyncPolicy.MayReplayOffline(authority), stateStore, assetRepo, ct);
+                OfflineProgressSyncPolicy.MayReplayOffline(authority), authority.DeviceId, stateStore, assetRepo, ct);
         })
         .Produces<UserStateResponse>(StatusCodes.Status200OK)
         .RequireCatalogueAssetAccess(ApplicationPermissionIds.ProgressWrite)
@@ -156,6 +156,7 @@ public static class ProgressEndpoints
         Guid userId,
         DateTimeOffset now,
         bool pairedApp,
+        Guid? deviceId,
         IUserStateStore stateStore,
         IMediaAssetRepository assetRepo,
         CancellationToken ct)
@@ -178,6 +179,11 @@ public static class ProgressEndpoints
             ProgressPct = Math.Clamp(body.ProgressPct, 0.0, 100.0),
             LastAccessed = recordedAt ?? now,
             ExtendedProperties = body.ExtendedProperties ?? [],
+            // An applied offline replay also lands in the profile's history at the device's time, once: the key is the
+            // device plus the device's own second, so a retry or repeat of this request updates the same entry.
+            HistorySessionKey = recordedAt is null || body.ClientTimestamp is not { } deviceTime
+                ? null
+                : OfflineProgressSyncPolicy.HistorySessionKey(deviceId?.ToString("N") ?? "app", deviceTime),
         };
 
         try { await stateStore.SaveAsync(state, ct); }

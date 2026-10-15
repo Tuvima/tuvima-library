@@ -157,6 +157,139 @@ class TuvimaClient(
 
     suspend fun encodeJobs(): JSONArray = requestArray("GET", "/api/v1/playback/encode/jobs")
 
+    // ---- App screens: Home, Libraries, Details, View, Collections, profiles (all under /api/v1) ----
+
+    /** The Home shelves without the full catalogue, which a phone does not need. */
+    suspend fun homeShelves(): DisplayPage =
+        parseDisplayPage(requestJson("GET", ClientRoutes.home(includeCatalog = false)))
+
+    /** Continue across every lane, most recent first. */
+    suspend fun continueAll(limit: Int = 24): DisplayPage =
+        parseDisplayPage(requestJson("GET", ClientRoutes.continueAll(limit)))
+
+    /** The cards of one group or collection; they carry the asset ids that a collection item list does not. */
+    suspend fun groupCards(collectionId: String): DisplayPage =
+        parseDisplayPage(requestJson("GET", ClientRoutes.group(collectionId)))
+
+    /**
+     * Work id to the file that plays it, for the works of one collection. A collection's own item list names works
+     * but not files; the group's cards carry both. Empty when the group cannot be read.
+     */
+    suspend fun playableAssetsByWork(collectionId: String): Map<String, String> {
+        val page = runCatching { groupCards(collectionId) }.getOrNull() ?: return emptyMap()
+        return mapPlayableAssets(page.shelves.flatMap { it.items })
+    }
+
+    /** One page of a library lane with the Dashboard's sort and filters applied by the Engine. */
+    suspend fun browsePage(query: BrowseQuery): BrowsePage {
+        val json = requestJson("GET", ClientRoutes.browse(query))
+        val catalog = json.optJSONArray("catalog")?.objects(::parseCard).orEmpty()
+        val cards = catalog.ifEmpty {
+            json.optJSONArray("shelves")?.objects(::parseShelf).orEmpty().flatMap { it.items }
+        }
+        val facets = json.optJSONObject("facets")
+        return BrowsePage(
+            cards = cards,
+            totalCount = json.optInt("totalCount", cards.size),
+            genres = facets?.optJSONArray("genres")?.strings().orEmpty(),
+            creators = facets?.optJSONArray("creators")?.strings().orEmpty(),
+            years = facets?.optJSONArray("years")?.strings().orEmpty(),
+        )
+    }
+
+    suspend fun detailPage(entityType: String, id: String): DetailModel =
+        parseDetailModel(requestJson("GET", ClientRoutes.details(entityType, id)), ::absolute)
+
+    /** The newest-first photo and video timeline. Throws [PhotoAccessDeniedException] when photos were not allowed. */
+    suspend fun viewTimeline(cursor: String? = null, limit: Int = 100): ViewTimelinePage =
+        photoCall { parseViewTimelinePage(requestJson("GET", ClientRoutes.viewTimeline(cursor, limit))) }
+
+    suspend fun viewGalleries(): ViewGalleries =
+        photoCall { parseViewGalleries(requestJson("GET", ClientRoutes.VIEW_GALLERIES)) }
+
+    suspend fun viewGalleryItems(galleryId: String, cursor: String? = null, limit: Int = 100): ViewItemPage =
+        photoCall { parseViewItemPage(requestJson("GET", ClientRoutes.viewGalleryItems(galleryId, cursor, limit))) }
+
+    suspend fun viewItem(id: String): ViewItem =
+        photoCall { parseViewItem(requestJson("GET", ClientRoutes.viewItem(id))) }
+
+    /** JPEG bytes of a thumbnail; [size] snaps to 160, 320 or 640. */
+    suspend fun viewThumbnail(id: String, size: Int = 320): ByteArray =
+        photoCall { authenticatedBytes(ClientRoutes.viewThumbnail(id, size)) }
+
+    /** JPEG bytes of a larger preview; [size] snaps to 1280 or 2048. */
+    suspend fun viewPreview(id: String, size: Int = 2048): ByteArray =
+        photoCall { authenticatedBytes(ClientRoutes.viewPreview(id, size)) }
+
+    /** The Collections catalogue the Dashboard shows, one page at a time. */
+    suspend fun collectionsPage(cursor: String? = null, limit: Int = 24): CollectionsPage =
+        parseCollectionsPage(requestJson("GET", ClientRoutes.collections(cursor, limit)), ::absolute)
+
+    suspend fun collectionItems(collectionId: String, cursor: String? = null, limit: Int = 24): CollectionItemsPage =
+        parseCollectionItemsPage(
+            requestJson("GET", ClientRoutes.collectionItems(collectionId, cursor, limit)),
+            ::absolute,
+        )
+
+    /** A Universe by Wikidata QID, with its member shelves. */
+    suspend fun universe(qid: String): UniverseDetail {
+        val json = requestJson("GET", ClientRoutes.universe(qid))
+        return UniverseDetail(
+            qid = json.optString("qid", qid),
+            name = json.optString("name", qid),
+            description = json.optionalString("description"),
+            itemCount = json.optInt("item_count"),
+            shelves = json.optJSONArray("shelves")?.objects { shelf ->
+                UniverseShelf(
+                    collectionId = shelf.optString("collection_id"),
+                    groupType = shelf.optString("group_type", "series"),
+                    itemCount = shelf.optInt("item_count"),
+                    shelf = parseShelf(shelf.optJSONObject("shelf") ?: JSONObject()),
+                )
+            }.orEmpty(),
+        )
+    }
+
+    /** The people this paired app may switch to. */
+    suspend fun deviceProfiles(): List<DeviceProfile> =
+        parseDeviceProfiles(requestJson("GET", ClientRoutes.DEVICE_PROFILES))
+
+    /**
+     * Switches this app to another person without re-pairing. On success the client holds and stores the new
+     * tokens; each refusal (PIN needed 428, not allowed 403, already active 409, locked 429) is a typed result.
+     */
+    suspend fun switchProfile(profileId: String, pin: String? = null): SwitchProfileResult {
+        val body = JSONObject().put("profile_id", profileId)
+        if (!pin.isNullOrBlank()) body.put("pin", pin)
+        return try {
+            SwitchProfileResult.Switched(acceptToken(requestJson("POST", ClientRoutes.SWITCH_PROFILE, body)))
+        } catch (error: TuvimaHttpException) {
+            val json = runCatching { JSONObject(error.responseBody) }.getOrDefault(JSONObject())
+            classifySwitchFailure(
+                error.statusCode,
+                json.optionalString("error"),
+                json.optionalString("error_description"),
+            )
+        }
+    }
+
+    /** Removes this device on the server (all its tokens stop working at once). Call [signOut] afterwards. */
+    suspend fun revokeCurrentDevice() {
+        val deviceId = token?.deviceId ?: error("This device is not paired.")
+        requestText("DELETE", ClientRoutes.revokeDevice(deviceId), null, authenticated = true)
+    }
+
+    fun currentProfileId(): String? = token?.profileId
+
+    /** True when the device was given the photo scopes at pairing. */
+    fun hasPhotoAccess(): Boolean = token?.let { PhotoScopes.grantedIn(it.scope) } ?: false
+
+    private suspend fun <T> photoCall(block: suspend () -> T): T = try {
+        block()
+    } catch (error: TuvimaHttpException) {
+        throw if (error.statusCode == 403) PhotoAccessDeniedException() else error
+    }
+
     suspend fun authenticatedBytes(path: String): ByteArray = withContext(Dispatchers.IO) {
         val connection = openConnection(path, "GET", authenticatedToken())
         try {
@@ -350,6 +483,12 @@ class TuvimaClient(
                 )
             }.orEmpty(),
             progressPercent = progress?.optDouble("percent")?.takeUnless(Double::isNaN),
+            posterUrl = absolute(
+                artwork.optionalString("coverLargeUrl")
+                    ?: artwork.optionalString("coverUrl")
+                    ?: artwork.optionalString("squareLargeUrl")
+                    ?: artwork.optionalString("squareUrl"),
+            ),
         )
     }
 
@@ -381,6 +520,6 @@ class TuvimaClient(
     }
 }
 
-private fun <T> JSONArray.objects(mapper: (JSONObject) -> T): List<T> = buildList {
+internal fun <T> JSONArray.objects(mapper: (JSONObject) -> T): List<T> = buildList {
     for (index in 0 until length()) optJSONObject(index)?.let { add(mapper(it)) }
 }

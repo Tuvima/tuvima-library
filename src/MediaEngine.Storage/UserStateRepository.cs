@@ -84,7 +84,8 @@ public sealed class UserStateRepository : IUserStateStore
 
             state.Revision++;
             var sessionKey = state.ExtendedProperties.GetValueOrDefault("player_session_id")
-                ?? state.ExtendedProperties.GetValueOrDefault("reader_session_id");
+                ?? state.ExtendedProperties.GetValueOrDefault("reader_session_id")
+                ?? state.HistorySessionKey;
             if (state.ProgressPct > 0 && !string.IsNullOrWhiteSpace(sessionKey))
             {
                 conn.Execute("""

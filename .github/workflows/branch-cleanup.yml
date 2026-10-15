@@ -1,0 +1,52 @@
+name: Branch cleanup
+
+# Removes remote branches whose pull request is merged or closed and that have no open pull request (as head or base).
+# Never touches the default branch or a protected branch. Each deleted branch is logged with its pull request number,
+# so it can be restored from that pull request ("Restore branch"). Branches with no pull request at all are kept.
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: List what would be deleted without deleting
+        type: boolean
+        default: false
+  schedule:
+    - cron: '17 4 * * *'
+
+permissions:
+  contents: write
+  pull-requests: read
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Delete finished branches
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DRY_RUN: ${{ inputs.dry_run }}
+        run: |
+          set -uo pipefail
+          default_branch=$(gh api "repos/$GITHUB_REPOSITORY" --jq .default_branch)
+          deleted=0; kept=0
+          for branch in $(gh api "repos/$GITHUB_REPOSITORY/branches" --paginate --jq '.[] | select(.protected == false) | .name'); do
+            if [ "$branch" = "$default_branch" ]; then continue; fi
+            open_head=$(gh pr list --repo "$GITHUB_REPOSITORY" --state open --head "$branch" --json number --jq 'length')
+            open_base=$(gh pr list --repo "$GITHUB_REPOSITORY" --state open --base "$branch" --json number --jq 'length')
+            if [ "$open_head" != "0" ] || [ "$open_base" != "0" ]; then
+              echo "KEEP $branch: an open pull request uses it"; kept=$((kept+1)); continue
+            fi
+            finished=$(gh pr list --repo "$GITHUB_REPOSITORY" --state all --head "$branch" --json number,state --jq '[.[] | select(.state == "MERGED" or .state == "CLOSED")] | sort_by(.number) | last | .number // empty')
+            if [ -z "$finished" ]; then
+              echo "KEEP $branch: no merged or closed pull request"; kept=$((kept+1)); continue
+            fi
+            if [ "$DRY_RUN" = "true" ]; then
+              echo "WOULD DELETE $branch (pull request #$finished)"; continue
+            fi
+            if gh api -X DELETE "repos/$GITHUB_REPOSITORY/git/refs/heads/$branch" --silent; then
+              echo "DELETED $branch (pull request #$finished)"; deleted=$((deleted+1))
+            else
+              echo "FAILED to delete $branch (pull request #$finished)"; kept=$((kept+1))
+            fi
+          done
+          echo "Deleted $deleted branch(es); kept $kept."
