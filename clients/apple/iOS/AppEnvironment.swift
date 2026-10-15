@@ -19,6 +19,7 @@ final class AppEnvironment: ObservableObject {
     let downloads = OfflineDownloadManager()
 
     private init() {
+        playback.attachOffline(downloads)
         if let address = UserDefaults.standard.string(forKey: "tuvima.server") {
             try? connect(address)
         }
@@ -45,6 +46,7 @@ final class AppEnvironment: ObservableObject {
     func disconnect() {
         let current = api
         Task { await current?.signOut() }
+        downloads.clearAll()
         api = nil
         UserDefaults.standard.removeObject(forKey: "tuvima.server")
     }
@@ -58,6 +60,7 @@ final class AppEnvironment: ObservableObject {
             try? await current.revokeCurrentDevice()
             await current.signOut()
         }
+        downloads.clearAll()
         api = nil
         UserDefaults.standard.removeObject(forKey: "tuvima.server")
     }
@@ -65,6 +68,7 @@ final class AppEnvironment: ObservableObject {
     /// Called after the app switched to another person: stops playback and reloads the screens.
     func profileSwitched() {
         playback.pause()
+        downloads.profileChanged()
         sessionRevision += 1
     }
 

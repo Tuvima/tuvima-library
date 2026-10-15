@@ -32,7 +32,12 @@ struct MainTabView: View {
                 .tabItem { Label("Settings", systemImage: "gearshape") }
                 .tag(MainTab.settings)
         }
-        .task { openPendingDetail() }
+        .task {
+            openPendingDetail()
+            // The person is paired by now: load their downloads and bring the Engine's list up to date.
+            await environment.downloads.activate()
+        }
+        .modifier(DownloadNoticeModifier(manager: environment.downloads))
         .onChange(of: environment.pendingDetail) { _, _ in openPendingDetail() }
     }
 
