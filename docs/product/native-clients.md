@@ -133,10 +133,14 @@ using the app when it started. The Android and iPhone apps check that the
 signed-in profile is unchanged before each request and before applying an
 answer; if the profile is switched mid-sync the run stops without reporting,
 replaying or removing anything, and the new profile gets its own run. When the
-Engine refuses to refresh a device's sign-in (`invalid_grant`, or a 400, 401 or
-403 answer to the refresh) the app drops the sign-in, deletes its downloads and
-unsent records like a sign-out, and returns to pairing; a network error or a
-server error never signs the person out. These paths are covered by unit tests
+Engine refuses to refresh a device's sign-in with the OAuth error
+`invalid_grant` (read from the answer's JSON body; the Engine answers every
+token failure with 400 and every real revocation carries that code) the app
+drops the sign-in, deletes its downloads and unsent records like a sign-out, and
+returns to pairing. Any other failure, including a 400 without that code, a 401
+or 403 from a proxy, an HTML page, a network error or a server error, never
+signs the person out. Refreshes are single-flight and a refreshed token is stored
+only for the profile it was requested for. These paths are covered by unit tests
 on Android; the iPhone tests are written but not yet run in CI.
 
 Automotive clients expose only Listen content and native media controls. They

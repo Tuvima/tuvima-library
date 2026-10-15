@@ -45,20 +45,21 @@ final class SessionSafetyTests: XCTestCase {
 
     func testInvalidGrantIsRevoked() {
         XCTAssertEqual(SessionLogic.classifyRefreshFailure(statusCode: 400, errorCode: "invalid_grant"), .revoked)
-        XCTAssertEqual(SessionLogic.classifyRefreshFailure(statusCode: nil, errorCode: "INVALID_GRANT"), .revoked)
     }
 
-    func testClientErrorsOnRefreshAreRevoked() {
-        for status in [400, 401, 403] {
-            XCTAssertEqual(SessionLogic.classifyRefreshFailure(statusCode: status, errorCode: nil), .revoked)
-        }
-    }
-
-    func testNetworkAndServerProblemsAreTransient() {
-        XCTAssertEqual(SessionLogic.classifyRefreshFailure(statusCode: nil, errorCode: nil), .transient)
-        for status in [408, 429, 500, 502, 503, 504] {
+    func testAnythingWithoutTheExactCodeIsTransient() {
+        // A proxy's HTML 401 or 403, a host filter's 400 and a bare 400 carry no OAuth code and must not sign anyone out.
+        for status in [400, 401, 403, 404, 408, 429, 500, 502, 503, 504] {
             XCTAssertEqual(SessionLogic.classifyRefreshFailure(statusCode: status, errorCode: nil), .transient)
+            XCTAssertEqual(SessionLogic.classifyRefreshFailure(statusCode: status, errorCode: ""), .transient)
         }
+        XCTAssertEqual(SessionLogic.classifyRefreshFailure(statusCode: nil, errorCode: nil), .transient)
+    }
+
+    func testOtherOAuthCodesAreTransient() {
+        XCTAssertEqual(SessionLogic.classifyRefreshFailure(statusCode: 400, errorCode: "invalid_request"), .transient)
+        XCTAssertEqual(SessionLogic.classifyRefreshFailure(statusCode: 400, errorCode: "invalid_client"), .transient)
         XCTAssertEqual(SessionLogic.classifyRefreshFailure(statusCode: 503, errorCode: "temporarily_unavailable"), .transient)
+        XCTAssertEqual(SessionLogic.classifyRefreshFailure(statusCode: 400, errorCode: "INVALID_GRANT"), .transient)
     }
 }

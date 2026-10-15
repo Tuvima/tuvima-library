@@ -14,6 +14,8 @@ public actor TuvimaAPIClient {
     private var token: ClientToken?
     /// Counts profile changes and sign-outs, so background work bound to a profile can tell a switch (even a switch back).
     private var profileEpoch = 0
+    /// The refresh being sent now, if any; every other caller that needs a fresh token waits for it.
+    private var refreshTask: Task<ClientToken, Error>?
     /// Called after the Engine refused to refresh this device's sign-in and the tokens were cleared; the app then clears
     /// its offline data and returns to pairing.
     private let onSessionRevoked: (@Sendable () -> Void)?
@@ -397,8 +399,33 @@ public actor TuvimaAPIClient {
         try requireBoundProfile()
         guard let current = token else { throw TuvimaClientError.notPaired }
         if !forceRefresh && !current.expiresSoon { return current.accessToken }
-        let endpoints = try await endpoints()
+        return try await refreshedToken(replacing: current).accessToken
+    }
+
+    /// One refresh at a time. Refresh tokens rotate, so a second concurrent use of the same refresh token looks like a
+    /// replay to the Engine, which then revokes the whole token family. A caller that arrives while a refresh is in
+    /// flight waits for it instead of sending its own, and one that finds the token already replaced uses that.
+    private func refreshedToken(replacing current: ClientToken) async throws -> ClientToken {
+        if let inFlight = refreshTask {
+            let joined = try await inFlight.value
+            try requireBoundProfile()
+            return joined
+        }
+        // The token was replaced (by another refresh or a profile switch) since this caller read it: do not refresh again.
+        if let latest = token, latest.refreshToken != current.refreshToken {
+            try requireBoundProfile()
+            return latest
+        }
         let before = profileBinding
+        // Unstructured on purpose: a refresh that has been sent must finish and be stored even if its caller is cancelled.
+        let task = Task<ClientToken, Error> { try await self.performRefresh(current, before: before) }
+        refreshTask = task
+        defer { refreshTask = nil }
+        return try await task.value
+    }
+
+    private func performRefresh(_ current: ClientToken, before: ProfileBinding?) async throws -> ClientToken {
+        let endpoints = try await endpoints()
         let response: TokenResponse
         do {
             response = try await post(endpoints.tokenEndpoint, json: [
@@ -421,7 +448,7 @@ public actor TuvimaAPIClient {
         }
         // The actor can run other calls while the answer was awaited: never store a refresh for a profile that was left.
         guard profileBinding == before else { throw TuvimaClientError.profileChanged }
-        return try accept(response).accessToken
+        return try accept(response)
     }
 
     private func accept(_ response: TokenResponse) throws -> ClientToken {

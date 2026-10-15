@@ -10,13 +10,12 @@ enum class RefreshFailureKind {
 
 object SessionLogic {
     /**
-     * Sorts a failed token refresh. [statusCode] is null when no answer arrived (no connection, timeout). `invalid_grant`, or a
-     * 400, 401 or 403 answer to the refresh, means the device was revoked or its grant changed. Anything else (no answer,
-     * 408, 429, 5xx) is transient and must never sign the person out.
+     * Sorts a failed token refresh. The Engine answers every failure at the token endpoint with 400, and every real
+     * revocation carries the OAuth error `invalid_grant`, so only that exact code (parsed from the answer's JSON body) means
+     * the device was revoked or its grant changed. Any other answer (a 400 without the code, a 401 or 403 from a proxy or
+     * host filter, an HTML page, 408, 429, 5xx) and no answer at all ([statusCode] null) is transient and must never sign
+     * the person out or delete their downloads.
      */
-    fun classifyRefreshFailure(statusCode: Int?, errorCode: String?): RefreshFailureKind = when {
-        errorCode.equals("invalid_grant", ignoreCase = true) -> RefreshFailureKind.Revoked
-        statusCode == 400 || statusCode == 401 || statusCode == 403 -> RefreshFailureKind.Revoked
-        else -> RefreshFailureKind.Transient
-    }
+    fun classifyRefreshFailure(statusCode: Int?, errorCode: String?): RefreshFailureKind =
+        if (errorCode == "invalid_grant") RefreshFailureKind.Revoked else RefreshFailureKind.Transient
 }
