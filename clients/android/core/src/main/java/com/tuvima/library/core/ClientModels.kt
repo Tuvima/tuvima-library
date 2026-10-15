@@ -131,6 +131,8 @@ data class OfflineVariant(
     val status: String,
     val downloadUrl: String?,
     val fileSizeBytes: Long?,
+    val profileKey: String? = null,
+    val expiresAtMs: Long? = null,
 )
 
 sealed interface PairingPollResult {

@@ -76,6 +76,21 @@ object ClientRoutes {
 
     fun revokeDevice(deviceId: String): String = "$API/devices/${encode(deviceId)}"
 
+    /** The paired app's own list of what it stores offline: GET lists, POST adds or updates, DELETE `/{variantId}` removes. */
+    const val DEVICE_DOWNLOADS = "$API/devices/current/downloads"
+
+    fun deviceDownload(variantId: String): String = "$DEVICE_DOWNLOADS/${encode(variantId)}"
+
+    /** The offline file of a prepared variant (bearer token, `downloads.read`, supports ranges). */
+    fun offlineFile(assetId: String, variantId: String): String =
+        "$API/playback/${encode(assetId)}/offline/${encode(variantId)}"
+
+    fun progress(assetId: String): String = "$API/progress/${encode(assetId)}"
+
+    /** The owned episodes after the episode file [afterAssetId]; the Engine clamps [count] to 1-10. */
+    fun nextEpisodes(showId: String, afterAssetId: String, count: Int = 3): String =
+        "$API/details/show/${encode(showId)}/next-episodes?after=${encode(afterAssetId)}&count=${count.coerceIn(1, 10)}"
+
     const val DEVICE_PROFILES = "$API/devices/current/profiles"
     const val SWITCH_PROFILE = "$API/devices/current/switch-profile"
     const val VIEW_GALLERIES = "$API/view/galleries"
