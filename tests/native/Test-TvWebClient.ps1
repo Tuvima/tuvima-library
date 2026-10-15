@@ -143,4 +143,36 @@ foreach ($test in @('tv-web-api.test.js', 'tv-web-input.test.js')) {
     if ($LASTEXITCODE -ne 0) { throw "$test failed." }
 }
 
-Write-Host 'TV web client static gate passed.' -ForegroundColor Green
+# 9. webOS package (clients/tv-web/platforms/webos): appinfo parses and is complete, its files exist or are owed in the
+# README, the key map parses and agrees with the shared client, and platform files hold no server addresses.
+$webos = Join-Path $client 'platforms/webos'
+$info = Get-Content -LiteralPath (Join-Path $webos 'appinfo.json') -Raw | ConvertFrom-Json
+foreach ($field in @('id', 'version', 'vendor', 'type', 'main', 'title', 'icon', 'largeIcon', 'resolution')) {
+    if (-not $info.$field) { throw "webOS appinfo.json lacks '$field'." }
+}
+if ($info.type -ne 'web') { throw "webOS appinfo.json type must be 'web'." }
+$webosReadme = Get-Content -LiteralPath (Join-Path $webos 'README.md') -Raw
+# main is the shared client entry, copied into the package folder by package.ps1.
+if (-not (Test-Path -LiteralPath (Join-Path $client $info.main) -PathType Leaf)) { throw "webOS main '$($info.main)' is not in the shared client." }
+foreach ($icon in @($info.icon, $info.largeIcon)) {
+    if (-not (Test-Path -LiteralPath (Join-Path $webos $icon) -PathType Leaf) -and -not $webosReadme.Contains($icon)) {
+        throw "webOS icon $icon is missing and not marked owed in the README."
+    }
+}
+foreach ($name in @('package.ps1', 'webos-keys.js', 'README.md')) {
+    if (-not (Test-Path -LiteralPath (Join-Path $webos $name) -PathType Leaf)) { throw "webOS package lacks $name." }
+}
+& node --check (Join-Path $webos 'webos-keys.js')
+if ($LASTEXITCODE -ne 0) { throw 'node --check failed for webos-keys.js.' }
+foreach ($code in @('461', '415', '19', '413', '412', '417')) {
+    if (-not (Get-Content -LiteralPath (Join-Path $webos 'webos-keys.js') -Raw).Contains($code)) { throw "webos-keys.js lacks key code $code." }
+}
+foreach ($file in Get-ChildItem -LiteralPath $webos -File | Where-Object { $_.Extension -in @('.js', '.json', '.ps1', '.sh') }) {
+    $text = Get-Content -LiteralPath $file.FullName -Raw
+    foreach ($pattern in @('localhost', '127\.0\.0\.1', ':61495', ':61494', ':5016', ':7062', 'https?://')) {
+        if ($text -match "(?i)$pattern") { throw "webOS file $($file.Name) contains forbidden text matching '$pattern'." }
+    }
+}
+if (-not $webosReadme.Contains('native_app_access.allow_browser_apps')) { throw 'webOS README must tell the reader to turn on native_app_access.allow_browser_apps.' }
+
+Write-Host 'TV web client static gate passed.'
