@@ -53,6 +53,7 @@ Tokens are opaque bearer credentials and must be stored in the platform secure c
 | Browse/home | `GET /api/v1/display/home`, `/browse`, `/shelves/{key}`, `/groups/{id}` | `library.read` |
 | Search | `GET /api/v1/display/search?q=` | `library.read` |
 | Details | `GET /api/v1/details/{entityType}/{id}` | `library.read` |
+| Next episodes | `GET /api/v1/details/show/{id}/next-episodes?after={assetId}&count=3` | `library.read` |
 | Collections and Universes | `GET /api/v1/collections`, `/collections/{id}`, `/collections/{id}/items`, `GET /api/v1/universe/{qid}` | `library.read` |
 | Artwork/media bytes | URLs returned by display/detail/manifest models; `/api/v1/stream/{assetId}` supports ranges and signed `/api/v1/stream/hls/...` paths serve adaptive packages | `artwork.read` or `playback.read` as applicable |
 | Progress | `GET/PUT /api/v1/progress/{assetId}`, `GET /recent`, `GET /journey` | `progress.read` / `progress.write` |
@@ -60,6 +61,7 @@ Tokens are opaque bearer credentials and must be stored in the platform secure c
 | Playback session | `/api/v1/player/command`, `/heartbeat`, `/session/takeover` | `playback.write` or `progress.write` |
 | Playback decision | `GET /api/v1/playback/{assetId}/manifest` | `playback.read` |
 | Downloads | encode/offline routes under `/api/v1/playback` | `downloads.read` / `downloads.write` |
+| Device download list | `GET/POST /api/v1/devices/current/downloads`, `DELETE /api/v1/devices/current/downloads/{variantId}` | `downloads.read` (GET) / `downloads.write` (POST, DELETE) |
 | Photos | `GET /api/v1/view/timeline`, `/places`, `/people`, `/people/{key}/items`, `/items/{id}`, `/items/{id}/thumbnail`, `/items/{id}/preview` | `view.personal.read` |
 | Photo Galleries | `GET /api/v1/view/galleries`, `/galleries/{id}/items` | `view.galleries.read` |
 | Photo originals and video | `GET /api/v1/view/items/{id}/original`, `/items/{id}/playback` | `view.originals.read` |
@@ -84,6 +86,26 @@ The `/api/v1/view` routes give a paired app the active person's own photos and v
 These routes show photos and videos only. A document, someone else's item and an id nobody has all answer with the same `404`, on every route and for every profile, so a profile without Documents cannot learn that a document exists from the timeline, Galleries, counts, people, places, items or files, and nobody can tell a foreign id from an unknown one. Hidden, archived and trashed items stay out of the timeline. A photo or Gallery that reached the caller through a share carries nothing from its owner's space: no owner or space ids, no Smart Gallery rule, no embedded location or date, and no people or tags. Thumbnail, preview and original responses are `Cache-Control: private, no-cache`.
 
 **Consent.** `view.personal.read`, `view.originals.read` and `view.galleries.read` are scopes a paired app may request in `scope` at `POST /api/v1/oauth/device_authorization`, but they are never part of the default scopes. The pairing screen shows them as one separate, unticked item (**Allow access to my photos and videos**); they reach the token only when the person ticks it (`PairingDecisionRequest.scopes` then lists them) and the app asked for them. A decision that names no scopes grants the other requested scopes but never these three. A scope the app did not request cannot be added by the decision. The token's `scope` shows what was granted, and refreshing or switching profile never adds or removes any. The built-in native-client Application also has to hold them (it does, on a new data store and once on an existing one, and an administrator can remove them in Settings, which makes a pairing that asks for them fail with `access_denied` and stops existing devices). Without them every route above answers `403` `insufficient_scope`; a revoked or unknown device token answers `401`. The Dashboard's app door forwards exactly these eleven `GET` routes, with their query string, and nothing else under `view/`.
+
+#### Offline media for paired apps
+
+**Syncing progress recorded offline.** `PUT /api/v1/progress/{assetId}` and `POST /api/v1/player/heartbeat` accept two optional, additive fields: `offline` (boolean, default `false`) and `client_timestamp` (ISO 8601, UTC, when the device recorded the progress). A request without them behaves exactly as before. With `offline: true` and a `client_timestamp`, the later of the server's last update for that asset and the client timestamp wins:
+
+- `PUT /progress`: when `expected_revision` is stale, the Engine does not answer `409`. A later client timestamp replaces the server record (written against the current revision, `last_accessed` set to the client timestamp). An equal or earlier timestamp leaves the server record untouched and the `200` response carries the server's state, so the app compares `revision`, `progress_pct` and `last_accessed` to see which one stands. A non-offline request, or an offline one with no timestamp, still gets `409` on a stale revision.
+- `POST /player/heartbeat` has no revision to go stale, so the rule decides whether the heartbeat is applied at all: an offline heartbeat whose timestamp is not later than the server's last update for that asset is ignored (the answer is the current player state), and a later one is applied with the client timestamp as the update time. `offline` and `client_timestamp` are read on this route under those exact snake_case names (the rest of the heartbeat body keeps its camelCase names).
+- A `client_timestamp` later than the Engine's clock is clamped to the Engine's clock, so a device with a fast clock cannot make its record win over every later write.
+
+**Device download list.** The paired app reports what it has stored for offline use. Only the paired app's own bearer token may call these routes: a Dashboard session, another account's token or a service credential is refused with `403`, the device always comes from the token (never from the body), and a device sees only its own rows, for the profile it is using now.
+
+| Route | Body / answer |
+|---|---|
+| `GET /api/v1/devices/current/downloads` | `200` `{"downloads":[{asset_id, variant_id, stored_bytes, stored_at, expires_at}]}`, oldest stored first, at most 500. `expires_at` is when the Engine will remove the variant (null when it never does). |
+| `POST /api/v1/devices/current/downloads` | Body `{asset_id, variant_id, stored_bytes, stored_at}`. Adds or updates the row for that variant: `204`. `404` when the variant is unknown, belongs to another profile or device, is not ready, has expired, or the profile may not download the asset (the same catalogue check as `GET /api/v1/playback/{assetId}/offline/{variantId}`, so these all look identical). `stored_bytes` is clamped to 0 through the variant's size, and a `stored_at` later than the Engine's clock becomes the Engine's clock. `409` once the device already lists 500 variants (updating a listed one still works). |
+| `DELETE /api/v1/devices/current/downloads/{variantId}` | Forgets the row: `204`, or `404` when it is not listed. |
+
+Removal of an expired variant also removes its list row, so a device that still believes it holds the file finds the row gone on its next `GET`. The Dashboard's app door forwards exactly these three route shapes.
+
+**Next episodes.** `GET /api/v1/details/show/{id}/next-episodes?after={assetId}&count=3` returns `{"show_id", "after_asset_id", "episodes":[{work_id, asset_id, title, season_number, episode_number, still_url}]}`: the owned episodes that follow the episode file `after` in the show's watch order (seasons ascending with specials last, then episodes ascending). A combined file that covers several episodes counts once and is skipped when it is the file in play. `count` defaults to 3 and is clamped to 1-10. Library grants and the profile's content limit (Kids) apply exactly as on the other details routes, and an unknown show, an `after` file that is not one of the show's episodes, and one the profile may not see all answer `404`; the last episode answers `200` with an empty list. `after` is required (`400` when missing). The first path segment after `details` is the literal `show` on this route.
 
 #### Long TV episode lists
 
@@ -618,7 +640,7 @@ presentation types must not narrow that payload.
 | POST | `/player/queue/replace` | Replace the active playback queue | Required |
 | POST | `/player/queue/items` | Add items to the active playback queue | Required |
 | POST | `/player/command` | Apply transport commands such as play, pause, seek, volume, or speed | Required |
-| POST | `/player/heartbeat` | Persist current playback timing and resume progress | Required |
+| POST | `/player/heartbeat` | Persist current playback timing and resume progress. Optional `offline` and `client_timestamp` mark a replayed offline heartbeat; one older than the server's record for the asset is ignored | Required |
 | GET | `/player/audiobooks/{workId}/history` | Recent audiobook listening checkpoints | Required |
 | GET | `/player/audiobooks/{workId}/bookmarks` | Saved audiobook playback bookmarks | Required |
 | POST | `/player/audiobooks/{workId}/bookmarks` | Save an audiobook playback bookmark at a position in seconds | Required |
@@ -641,7 +663,7 @@ timing mode, ownership/preference/export flags, confidence, and URL.
 | Method | Path | Description | Auth |
 |---|---|---|---|
 | GET | `/progress/{assetId}` | Playback or reading progress for an asset | Required |
-| PUT | `/progress/{assetId}` | Update progress | Required |
+| PUT | `/progress/{assetId}` | Update progress. A paired app replaying progress it recorded offline sends `offline: true` and `client_timestamp`; the later of the server's and the client's record wins instead of a stale revision being rejected (see Offline media for paired apps) | Required |
 | GET | `/progress/recent` | Recently accessed assets with progress | Required |
 | GET | `/progress/journey` | Full reading/watching journey across all assets for the current profile | Required |
 

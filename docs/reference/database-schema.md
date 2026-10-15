@@ -891,6 +891,10 @@ Paired phones and TVs, listed under **Settings > Administration > Devices**. `id
 
 An app's request to pair, waiting for approval or already decided. `id`, `application_id`, `device_code_hash` and `user_code_hash` (both unique; only hashes are stored), `client_id`, `client_name`, `client_version`, `device_name`, `device_class`, `requested_scopes`, `approved_scopes`, `capabilities_json`, `status` (`pending`, `approved`, `denied`, `consumed` or `expired`), `poll_interval_seconds`, `last_polled_at`, `profile_id`, `account_id`, `approved_by_profile_id`, `created_at`, `expires_at`, `decided_at` and `consumed_at`.
 
+### device_downloads
+
+What a paired app reports it has stored on the device for offline use (`GET/POST /api/v1/devices/current/downloads`). One row per device and offline variant. `device_id` (references `client_devices`), `profile_id` (the profile the app was using when it reported; a device switching profile does not show the earlier person's rows), `asset_id` (references `media_assets`), `variant_id` (references `offline_variants`), `stored_bytes` (never negative; the Engine clamps it to the variant's size), `stored_at` (the device's time, never later than the Engine's clock) and `updated_at`. The primary key is (`device_id`, `variant_id`), so reporting the same variant again updates its row. A device holds at most 500 rows. Rows are removed with their device, profile, asset or variant. `offline_variants.expires_at` is written when a variant is prepared (`variant_retention_days`), and the cleanup service removes an expired variant, its file and any `device_downloads` row that still marks it as stored. Indexes: `idx_device_downloads_device_profile` (`device_id`, `profile_id`, `stored_at`) for the list and `idx_device_downloads_variant` (`variant_id`) for removal. The table is created by `schema.sql` and by an idempotent startup migration (`SchemaMigrator.EnsureDeviceDownloadSchema`).
+
 ### setup_codes
 
 One-time codes that let a person on the home network start first-run setup (`tuvima-admin setup code`). Only a hash is stored. At most one code is active; creating a new one invalidates the others.

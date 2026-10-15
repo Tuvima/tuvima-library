@@ -24,7 +24,7 @@ public sealed class OfflineDownloadsTabTests : AsyncBunitContext
         Services.AddSingleton(api);
     }
 
-    private static EncodeJobDto Job(string profile, string status, double progress = 0) => new()
+    private static EncodeJobDto Job(string profile, string status, double progress = 0, DateTimeOffset? expiresAt = null) => new()
     {
         Id = Guid.NewGuid(),
         AssetId = Guid.NewGuid(),
@@ -32,6 +32,7 @@ public sealed class OfflineDownloadsTabTests : AsyncBunitContext
         Status = status,
         CreatedAt = DateTimeOffset.UtcNow,
         ProgressPct = progress,
+        ExpiresAt = expiresAt,
     };
 
     [Fact]
@@ -53,6 +54,9 @@ public sealed class OfflineDownloadsTabTests : AsyncBunitContext
         Assert.Equal("phone-720p", cut.FindAll("tbody td[data-card-role='subtitle']")[0].TextContent.Trim());
         Assert.Equal(2, cut.FindAll("tbody td[data-label='Progress']").Count);
         Assert.Empty(cut.FindAll("tbody td[data-label='Progress'][data-card-role]"));
+        // Expires follows the Progress/Scheduled pattern: a labelled value row on the card, with no card role of its own.
+        Assert.Equal(2, cut.FindAll("tbody td[data-label='Expires']").Count);
+        Assert.Empty(cut.FindAll("tbody td[data-label='Expires'][data-card-role]"));
 
         var cancelButtons = cut.FindAll("tbody td[data-card-role='actions'] button").Where(button => button.TextContent.Contains("Cancel")).ToList();
         Assert.Equal(jobs.Length, cancelButtons.Count);
@@ -60,7 +64,7 @@ public sealed class OfflineDownloadsTabTests : AsyncBunitContext
     }
 
     [Fact]
-    public void DesktopKeepsTheSixColumnTableAndCancelIsDisabledForFinishedJobs()
+    public void DesktopKeepsTheSevenColumnTableAndCancelIsDisabledForFinishedJobs()
     {
         UseJobs(Job("desktop-4k", EncodeJobStatuses.Complete, 100));
 
@@ -68,10 +72,26 @@ public sealed class OfflineDownloadsTabTests : AsyncBunitContext
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("tbody tr")));
 
         var headers = cut.FindAll("thead th").Select(header => header.TextContent.Trim()).ToList();
-        Assert.Equal(new[] { "Asset", "Profile", "Status", "Progress", "Scheduled", "Actions" }, headers);
+        Assert.Equal(new[] { "Asset", "Profile", "Status", "Progress", "Scheduled", "Expires", "Actions" }, headers);
         Assert.Single(cut.FindAll("tbody tr"));
 
         var cancel = cut.FindAll("tbody button").Single(button => button.TextContent.Contains("Cancel"));
         Assert.True(cancel.HasAttribute("disabled"));
+    }
+
+    [Fact]
+    public void ExpiresShowsTheVariantExpiryOrNoneWhenThereIsNoExpiry()
+    {
+        var expires = new DateTimeOffset(2030, 5, 6, 14, 30, 0, TimeSpan.Zero);
+        UseJobs(
+            Job("with-expiry", EncodeJobStatuses.Complete, 100, expires),
+            Job("without-expiry", EncodeJobStatuses.Queued));
+
+        var cut = Render<OfflineDownloadsTab>();
+        cut.WaitForAssertion(() => Assert.Equal(2, cut.FindAll("tbody tr").Count));
+
+        var cells = cut.FindAll("tbody td[data-label='Expires']").Select(cell => cell.TextContent.Trim()).ToList();
+        Assert.Equal(expires.LocalDateTime.ToString("g"), cells[0]);
+        Assert.Equal("None", cells[1]);
     }
 }

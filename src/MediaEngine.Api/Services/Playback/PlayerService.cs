@@ -273,7 +273,11 @@ public sealed class PlayerService
         var deviceId = NormalizeDeviceId(heartbeat.DeviceId);
         var client = NormalizeClient(heartbeat.Client);
         var activeSession = await _sessions.GetStateAsync(profileId, StaleSessionWindow, ct);
-        if (heartbeat.SessionId.HasValue && activeSession is not null && activeSession.SessionId != heartbeat.SessionId.Value)
+        // A replayed offline heartbeat describes a past session and queue that no longer exist, so their ids are not checked
+        // against the live ones (the asset check below still applies).
+        var recordedAt = OfflineProgressSyncPolicy.ResolveClientTimestamp(
+            heartbeat.Offline, heartbeat.ClientTimestamp, DateTimeOffset.UtcNow);
+        if (recordedAt is null && heartbeat.SessionId.HasValue && activeSession is not null && activeSession.SessionId != heartbeat.SessionId.Value)
         {
             return await GetStateAsync(profileId, deviceId, client, ct);
         }
@@ -285,10 +289,43 @@ public sealed class PlayerService
             await _scope.RequireAssetAsync(heartbeatAsset.Value, ct);
         }
 
-        if (heartbeat.QueueItemId.HasValue && activeSession?.Queue.Any(item =>
+        if (recordedAt is null && heartbeat.QueueItemId.HasValue && activeSession?.Queue.Any(item =>
                 item.QueueItemId == heartbeat.QueueItemId && item.AssetId == heartbeatAsset) != true)
         {
             throw new PlayerResourceDeniedException();
+        }
+
+        // A replayed offline heartbeat describes the past, so it only ever touches the saved resume position: later wins
+        // per asset, and it never writes the live session, the transport, listening history or telemetry at the time
+        // it happens to arrive.
+        if (recordedAt is { } offlineRecordedAt)
+        {
+            if (heartbeatAsset.HasValue)
+            {
+                var current = await _userStates.GetAsync(profileId, heartbeatAsset.Value, ct);
+                if (current is null || OfflineProgressSyncPolicy.ClientWins(current.LastAccessed, offlineRecordedAt))
+                {
+                    var replayedPosition = Math.Max(0, heartbeat.PositionSeconds);
+                    var replayedSettings = await GetPlaybackSettingsOrDefaultAsync(profileId, ct);
+                    await SaveResumeAsync(
+                        profileId,
+                        heartbeatAsset.Value,
+                        replayedPosition,
+                        heartbeat.DurationSeconds,
+                        heartbeat.ProgressPct ?? CalculateProgress(replayedPosition, heartbeat.DurationSeconds),
+                        PlayerPlaybackStates.Paused,
+                        null,
+                        deviceId,
+                        client,
+                        replayedSettings.Listening,
+                        heartbeat.AudiobookStartKind,
+                        offlineRecordedAt,
+                        ct);
+                }
+            }
+
+            return await EnrichStateAsync(
+                await _sessions.GetStateAsync(profileId, StaleSessionWindow, ct) ?? EmptyState(profileId, deviceId, client), ct);
         }
 
         if (heartbeat.Connection is not null)
@@ -340,6 +377,7 @@ public sealed class PlayerService
                 client,
                 settings.Listening,
                 heartbeat.AudiobookStartKind,
+                null,
                 ct);
         }
 
@@ -837,8 +875,10 @@ public sealed class PlayerService
         string client,
         ListeningSettingsDto listeningSettings,
         string? audiobookStartKind,
+        DateTimeOffset? recordedAt,
         CancellationToken ct)
     {
+        var savedAt = recordedAt ?? DateTimeOffset.UtcNow;
         var asset = await _assets.FindByIdAsync(assetId, ct);
         if (asset is null)
         {
@@ -868,7 +908,7 @@ public sealed class PlayerService
             ["playback_state"] = playbackState,
             ["player_device_id"] = deviceId,
             ["player_client"] = client,
-            ["updated_at"] = DateTimeOffset.UtcNow.ToString("O", CultureInfo.InvariantCulture),
+            ["updated_at"] = savedAt.ToString("O", CultureInfo.InvariantCulture),
         };
 
         if (!string.IsNullOrWhiteSpace(audiobookStartKind))
@@ -901,7 +941,7 @@ public sealed class PlayerService
             AssetId = assetId,
             ContentHash = asset.ContentHash,
             ProgressPct = Math.Clamp(progressPct, 0, 100),
-            LastAccessed = DateTimeOffset.UtcNow,
+            LastAccessed = savedAt,
             ExtendedProperties = extended,
         }, ct);
     }
