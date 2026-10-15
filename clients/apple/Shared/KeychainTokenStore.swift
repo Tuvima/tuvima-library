@@ -1,7 +1,14 @@
 import Foundation
 import Security
 
-public final class KeychainTokenStore: @unchecked Sendable {
+/// Where a paired device's tokens live. The Keychain is the real store; tests use an in-memory one.
+public protocol TokenStoring: AnyObject, Sendable {
+    func save(_ token: ClientToken, for origin: URL) throws
+    func load(for origin: URL) -> ClientToken?
+    func clear(for origin: URL)
+}
+
+public final class KeychainTokenStore: TokenStoring, @unchecked Sendable {
     private let service = "com.tuvima.library.native.credentials.v1"
 
     public init() {}
