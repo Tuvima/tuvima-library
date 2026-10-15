@@ -44,4 +44,11 @@ public sealed class UserState
     /// Spec: "MUST allow for extended properties."
     /// </summary>
     public Dictionary<string, string> ExtendedProperties { get; set; } = [];
+
+    /// <summary>
+    /// Not stored on <c>user_states</c>. A deterministic key for the consumption-history entry an offline replay writes
+    /// when the state carries no player or reader session of its own: replaying the same play again finds the same
+    /// key, so the history keeps one entry.
+    /// </summary>
+    public string? HistorySessionKey { get; set; }
 }
