@@ -18,8 +18,20 @@ The iPhone app is a tab bar over API v1 only (no Engine port, no service key):
 | Home | Continue first, then the `/display/home` shelves in the order the server gives them. |
 | Libraries | Chips for Watch, Read, Listen, View and Collections. Watch, Read and Listen page `/display/browse?lane=` with the Dashboard's sort and filter in a sheet. View is the person's own photos and videos (month-grouped timeline, galleries, pinch-to-zoom viewer). Collections is the catalogue, one collection's items and a Universe's shelves. |
 | Search | `/display/search`, each result opens its details. |
-| Downloads | A placeholder; the offline list is a later step. Starting a download from a title's details already works and uses the default quality from Settings. |
+| Downloads | The offline library: artwork, title, size, quality and expiry for each download, Play from the device's own file (no connection needed), Pause and Resume, Delete, and "Download next episodes" for a show. Quality (Small, Standard, Audio) is picked each time a download is started from a poster or a details page. |
 | Settings | Server address, profile switch (PIN prompt on a `428`), photo access state, default download quality and sign out (removes the device on the server). |
+
+### Offline downloads
+
+Downloads exist only on the device; the Dashboard never stores media. Each person has their own folder (excluded
+from backups), and a background `URLSession` does the transfers so they continue with the app closed. Settings
+holds the storage limit (2 to 50 GB, default 10 GB); new downloads are blocked once downloads use the whole limit.
+The app never writes History: playing a downloaded file records progress on the device, and when a connection is
+back the progress is replayed oldest first to `PUT /api/v1/progress/{assetId}` with `offline: true` and
+`client_timestamp` (when the Engine kept a newer record the app adopts it). Stored and deleted copies are
+reported to `/api/v1/devices/current/downloads` (204 is success; a failed report is retried later), and a copy
+that the Engine's list no longer shows has expired and is removed from the device. Books, comics and photos are
+not downloaded by this app yet. The pure rules are in `Shared/OfflineLogic.swift`.
 
 Photos and videos are opt-in. The connect screen has a separate toggle, **Allow access to my photos
 and videos**, off by default; only when it is on does the app add the three `view.*` scopes to the
@@ -34,7 +46,7 @@ profile-switch results) so it can be tested without a device.
 
 `Tests/TuvimaCoreTests` holds XCTest sources (route building, wire-fixture decoding against
 `tests/fixtures/native-client-v1`, and a test that the Listen root loads and the queue follows a profile
-switch). No test target is declared in `project.yml` yet, so CI does not run them. To enable them, add
+switch), and `OfflineLogicTests.swift` (the offline rules above and the device-downloads and next-episodes fixtures). No test target is declared in `project.yml` yet, so CI does not run them. To enable them, add
 this target and list it under the scheme's `test.targets`, then run
 `xcodebuild test -project TuvimaApple.xcodeproj -scheme Tuvima -destination 'platform=iOS Simulator,name=iPhone 16'`:
 

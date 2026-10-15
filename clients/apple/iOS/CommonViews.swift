@@ -133,17 +133,22 @@ struct PosterTile: View {
             if let asset = card.playAssetID {
                 HStack(spacing: 18) {
                     Button {
-                        playback.play(assetID: asset, title: card.title)
+                        playback.play(assetID: asset, title: card.title, preferLocal: true)
                     } label: {
                         Image(systemName: "play.fill")
                     }
                     .accessibilityLabel("Play \(card.title)")
-                    Button {
-                        environment.downloads.download(assetID: asset)
-                    } label: {
-                        Image(systemName: "arrow.down.circle")
-                    }
-                    .accessibilityLabel("Download \(card.title)")
+                    DownloadControl(
+                        item: DownloadItem(
+                            assetID: asset,
+                            title: card.title,
+                            subtitle: card.subtitle,
+                            artworkPath: card.artworkPath,
+                            entityType: detailEntityType(forMediaType: card.mediaType),
+                            showID: nil
+                        ),
+                        compact: true
+                    )
                 }
                 .buttonStyle(.borderless)
             }

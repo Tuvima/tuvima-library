@@ -56,6 +56,7 @@ struct SettingsView: View {
     @EnvironmentObject private var environment: AppEnvironment
     @StateObject private var model = ProfileSwitchModel()
     @AppStorage("tuvima.downloadQuality") private var downloadQuality = "mobile-standard"
+    @AppStorage("tuvima.downloadCapGB") private var downloadCapGB = 10
     @State private var pin = ""
     @State private var showingPin = false
     @State private var photoAccess = false
@@ -83,10 +84,20 @@ struct SettingsView: View {
                 } footer: {
                     Text("Photo access is chosen when this device is paired. To change it, sign out, tick Allow access to my photos and videos on the connect screen, and pair again.")
                 }
-                Section("Downloads") {
+                Section {
                     Picker("Default quality", selection: $downloadQuality) {
                         ForEach(qualityChoices, id: \.key) { choice in Text(choice.label).tag(choice.key) }
                     }
+                    Picker("Storage limit", selection: $downloadCapGB) {
+                        ForEach(OfflineLogic.capOptionsGB, id: \.self) { gigabytes in
+                            Text("\(gigabytes) GB").tag(gigabytes)
+                        }
+                    }
+                    StorageUsageRow(manager: environment.downloads, capGB: downloadCapGB)
+                } header: {
+                    Text("Downloads")
+                } footer: {
+                    Text("You choose the quality each time you download. New downloads are blocked once downloads use the whole limit; delete a download to make room.")
                 }
                 Section {
                     Button("Sign out", role: .destructive) { confirmingSignOut = true }
@@ -171,5 +182,18 @@ struct SettingsView: View {
             // The PIN is missing or was wrong: ask again.
             showingPin = true
         }
+    }
+}
+
+/// How much of the storage limit the downloads use.
+private struct StorageUsageRow: View {
+    @ObservedObject var manager: OfflineDownloadManager
+    let capGB: Int
+
+    var body: some View {
+        LabeledContent(
+            "Used",
+            value: "\(OfflineLogic.formatBytes(manager.usedBytes)) of \(OfflineLogic.formatBytes(OfflineLogic.capBytes(forGB: capGB)))"
+        )
     }
 }

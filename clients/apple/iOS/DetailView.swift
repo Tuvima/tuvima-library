@@ -70,12 +70,36 @@ struct DetailView: View {
         if let asset = route.assetID {
             HStack {
                 Button {
-                    playback.play(assetID: asset, title: detail.title)
+                    playback.play(assetID: asset, title: detail.title, preferLocal: true)
                 } label: {
                     Label(detail.isInProgress ? "Resume" : "Play", systemImage: "play.fill")
                 }
                 .buttonStyle(.borderedProminent)
-                DownloadButton(assetID: asset)
+                DownloadControl(
+                    item: DownloadItem(
+                        assetID: asset,
+                        title: detail.title,
+                        subtitle: detail.subtitle,
+                        artworkPath: detail.posterPath,
+                        entityType: route.entityType,
+                        showID: OfflineLogic.isShowEntity(route.entityType) ? route.id : nil
+                    )
+                )
+                .buttonStyle(.bordered)
+            }
+            if OfflineLogic.isShowEntity(route.entityType) {
+                Button {
+                    Task {
+                        await environment.downloads.downloadNextEpisodes(
+                            showID: route.id,
+                            afterAssetID: asset,
+                            profileKey: OfflineDownloadManager.defaultProfileKey
+                        )
+                    }
+                } label: {
+                    Label("Download next episodes", systemImage: "arrow.down.circle")
+                }
+                .buttonStyle(.bordered)
             }
         } else {
             Text("Play and Download appear when you open a title from Home, a Library or a Collection.")
@@ -133,40 +157,6 @@ struct DetailView: View {
         } catch {
             if isCancellation(error) { return }
             state = .failed(error.localizedDescription)
-        }
-    }
-}
-
-/// Starts an offline download at the default quality chosen in Settings and shows its progress.
-struct DownloadButton: View {
-    @EnvironmentObject private var environment: AppEnvironment
-    let assetID: UUID
-
-    var body: some View {
-        DownloadProgressButton(manager: environment.downloads, assetID: assetID)
-    }
-}
-
-private struct DownloadProgressButton: View {
-    @ObservedObject var manager: OfflineDownloadManager
-    let assetID: UUID
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Button {
-                manager.download(assetID: assetID)
-            } label: {
-                Label("Download", systemImage: "arrow.down.circle")
-            }
-            .buttonStyle(.bordered)
-            .disabled(manager.progress[assetID] != nil)
-            if let value = manager.progress[assetID] {
-                ProgressView(value: value)
-                    .frame(maxWidth: 120)
-            }
-            if let message = manager.lastError {
-                Text(message).font(.caption2).foregroundStyle(.red)
-            }
         }
     }
 }

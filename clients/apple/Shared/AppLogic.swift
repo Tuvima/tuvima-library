@@ -125,6 +125,27 @@ public enum ClientRoutes {
         "\(api)/devices/\(deviceID.uuidString.lowercased())"
     }
 
+    // MARK: Offline downloads
+
+    public static let deviceDownloads = "\(api)/devices/current/downloads"
+
+    public static func deviceDownload(_ variantID: UUID) -> String {
+        "\(deviceDownloads)/\(variantID.uuidString.lowercased())"
+    }
+
+    /// The prepared file of an offline variant (bearer token, `downloads.read`, supports ranges).
+    public static func offlineFile(_ assetID: UUID, _ variantID: UUID) -> String {
+        "\(api)/playback/\(assetID.uuidString.lowercased())/offline/\(variantID.uuidString.lowercased())"
+    }
+
+    public static func progress(_ assetID: UUID) -> String { "\(api)/progress/\(assetID.uuidString.lowercased())" }
+
+    /// The owned episodes after the episode file `afterAssetID`; the Engine clamps `count` to 1-10.
+    public static func nextEpisodes(showID: UUID, afterAssetID: UUID, count: Int = 3) -> String {
+        "\(api)/details/show/\(showID.uuidString.lowercased())/next-episodes"
+            + "?after=\(afterAssetID.uuidString.lowercased())&count=\(clamp(count, 1, 10))"
+    }
+
     public static func viewTimeline(cursor: String? = nil, limit: Int = 100) -> String {
         paged("\(api)/view/timeline", cursor: cursor, limit: clamp(limit, 1, 200))
     }
