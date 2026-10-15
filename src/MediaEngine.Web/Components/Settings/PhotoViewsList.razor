@@ -39,11 +39,15 @@ else
                     <tr @key="view.Id">
                         <td data-card-role="title">@view.ViewerName</td>
                         <td data-card-role="subtitle">@view.Opened</td>
-                        <td data-card-role="value">@view.ViewedAt.LocalDateTime.ToString("g")</td>
+                        <td data-card-role="value">@FormatWhen(view.ViewedAt)</td>
                     </tr>
                 }
             </tbody>
         </AppTable>
+        @if (_loadMoreFailed)
+        {
+            <AppAlert Tone="AppUiTone.Error">Couldn't load more. Try again in a moment.</AppAlert>
+        }
         @if (_hasMore && _items.Count < MaxItems)
         {
             <AppButton Label="Show more" Loading="@_loadingMore" Disabled="@_loadingMore" OnClick="LoadMoreAsync" />
@@ -62,6 +66,7 @@ else
     private bool _loading = true;
     private bool _loadingMore;
     private bool _loadFailed;
+    private bool _loadMoreFailed;
     private bool _hasMore;
     private bool _includesSharedLibrary;
 
@@ -87,14 +92,23 @@ else
     private async Task LoadMoreAsync()
     {
         _loadingMore = true;
+        _loadMoreFailed = false;
         var page = await ApiClient.GetViewPhotoViewsAsync(_items.Count, Math.Min(PageSize, MaxItems - _items.Count));
-        if (page is not null)
+        if (page is null)
+        {
+            _loadMoreFailed = true;
+        }
+        else
         {
             Add(page);
         }
 
         _loadingMore = false;
     }
+
+    // The Dashboard has no browser time zone of its own, and the audit trail should read the same on every device: UTC, labelled.
+    private static string FormatWhen(DateTimeOffset when) =>
+        when.UtcDateTime.ToString("g", System.Globalization.CultureInfo.CurrentCulture) + " UTC";
 
     private void Add(ViewPhotoViewsPageDto page)
     {

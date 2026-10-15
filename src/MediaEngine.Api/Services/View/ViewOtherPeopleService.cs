@@ -117,7 +117,7 @@ public sealed class ViewOtherPeopleService(
     public Task<ViewPhotoViewsPageDto> ListViewsAsync(RequestAuthority caller, PagedRequest page, CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested();
-        if (caller.ActiveProfileId is not { } activeProfile)
+        if (caller.PrincipalKind != PrincipalKind.Human || caller.ActiveProfileId is not { } activeProfile)
         {
             throw new UnauthorizedAccessException();
         }
@@ -127,8 +127,9 @@ public sealed class ViewOtherPeopleService(
             "SELECT household_id FROM profiles WHERE id = @activeProfile;", new { activeProfile }, cancellationToken: ct));
         // Personal-space views are only ever shown to the person whose photos were opened. The household's Shared
         // Library belongs to the household, so its views are also shown to the household's own administrator
-        // (never to a server administrator of another household, whose AccountHouseholdId differs).
-        var includesSharedLibrary = (caller.IsEffectiveHouseholdAdministrator || caller.IsEffectiveAdministrator)
+        // (a household administrator of another household has a different AccountHouseholdId, and a server
+        // administrator is not one unless they also look after that household).
+        var includesSharedLibrary = caller.IsEffectiveHouseholdAdministrator
             && household is not null && caller.AccountHouseholdId == household;
         // json_extract compares the household stored on the row, so an event is only ever shown to its own household.
         var rows = connection.Query<ViewRow>(new CommandDefinition("""

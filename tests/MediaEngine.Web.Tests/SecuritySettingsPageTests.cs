@@ -227,6 +227,9 @@ public sealed class SecuritySettingsPageTests : AsyncBunitContext
         Assert.Contains("Server admin", rows[0].TextContent, StringComparison.Ordinal);
         Assert.Contains("Guest admin", rows[1].TextContent, StringComparison.Ordinal);
         Assert.Contains("Your photos", rows[0].TextContent, StringComparison.Ordinal);
+        // Times are labelled UTC: the Dashboard has no per-person time zone for an audit trail.
+        Assert.Contains("UTC", rows[0].TextContent, StringComparison.Ordinal);
+        Assert.Contains("9:00", rows[0].TextContent, StringComparison.Ordinal);
         Assert.NotNull(cut.Find("[role='dialog']").QuerySelector(".app-table-shell--cards"));
         // Read-only: the only control in the sheet is Done.
         Assert.Equal(["Done"], cut.FindAll("[role='dialog'] button").Select(button => button.TextContent.Trim()).ToArray());
@@ -280,6 +283,24 @@ public sealed class SecuritySettingsPageTests : AsyncBunitContext
         Assert.DoesNotContain(cut.FindAll("[role='dialog'] button"), b => b.TextContent.Trim() == "Show more");
         Assert.Contains("Showing the latest 100", cut.Find("[role='dialog']").TextContent, StringComparison.Ordinal);
         Assert.Equal([(0, 25), (25, 25), (50, 25), (75, 25)], Views.Requests);
+    }
+
+    [Fact]
+    public async Task PhotoViewsRow_ShowsAnInlineError_WhenLoadingMoreFails_AndKeepsWhatWasLoaded()
+    {
+        Views.PageFor = (offset, limit) => offset > 0
+            ? null
+            : Page(limit, hasMore: true, View(1, "Server admin", "Your photos", new DateTimeOffset(2026, 10, 12, 9, 0, 0, TimeSpan.Zero)));
+        var cut = Render<SecuritySettingsPage>();
+        cut.WaitForElement("[data-nav-row='photo-views']");
+        await cut.InvokeAsync(() => cut.Find("[data-nav-row='photo-views']").Click());
+        cut.WaitForAssertion(() => Assert.Single(cut.FindAll("[role='dialog'] tbody tr")));
+
+        await cut.InvokeAsync(() => cut.FindAll("[role='dialog'] button").Single(b => b.TextContent.Trim() == "Show more").Click());
+
+        cut.WaitForAssertion(() => Assert.Contains("Couldn't load more", cut.Find("[role='dialog']").TextContent, StringComparison.Ordinal));
+        Assert.Single(cut.FindAll("[role='dialog'] tbody tr"));
+        Assert.Contains(cut.FindAll("[role='dialog'] button"), b => b.TextContent.Trim() == "Show more");
     }
 
     private static ViewPhotoViewDto View(long id, string viewer, string opened, DateTimeOffset when) =>

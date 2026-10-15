@@ -860,6 +860,12 @@ public static partial class ViewEndpoints
                 return Unauthenticated();
             }
 
+            // A person signed in as themselves only: a paired app's device token (DelegatedUserClient) is refused.
+            if (authority.PrincipalKind != PrincipalKind.Human)
+            {
+                return ApiErrors.Forbidden("Only a signed-in person can see who viewed their photos.");
+            }
+
             return Results.Ok(await otherPeople.ListViewsAsync(authority,
                 PagedRequest.From(offset, limit, defaultLimit: 25, maxLimit: 100), ct));
         }).WithName("GetViewPhotoViews")

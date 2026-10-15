@@ -223,6 +223,33 @@ public sealed class ViewOtherPeopleTests
     }
 
     [Fact]
+    public async Task AppDeviceTokenForThePersonWhoseViewsWereRecorded_IsRefused()
+    {
+        using var fixture = new Fixture();
+        await fixture.Service.RecordOpenAsync(fixture.ServerAdmin, fixture.OtherPersonalScope);
+
+        // The same person and profile, but acting through a paired app's device token.
+        var app = fixture.OtherMember with { PrincipalKind = PrincipalKind.DelegatedUserClient };
+
+        Assert.True(app.HasHumanContext);
+        Assert.Throws<UnauthorizedAccessException>(() => { _ = fixture.Service.ListViewsAsync(app, PagedRequest.From(0, 10)); });
+        Assert.Single((await fixture.Service.ListViewsAsync(fixture.OtherMember, PagedRequest.From(0, 10))).Page.Items);
+    }
+
+    [Fact]
+    public async Task ServerAdministratorWhoIsNotTheirHouseholdsAdministrator_DoesNotSeeTheSharedLibraryViews()
+    {
+        using var fixture = new Fixture();
+        await fixture.Service.RecordOpenAsync(fixture.ServerAdmin, fixture.OtherSharedScope);
+
+        var otherHouseholdServerAdmin = fixture.OtherHousemate with { AccountIsAdministrator = true, GrantAdminEnabled = true };
+        var page = await fixture.Service.ListViewsAsync(otherHouseholdServerAdmin, PagedRequest.From(0, 10));
+
+        Assert.False(page.HouseholdWide);
+        Assert.Empty(page.Page.Items);
+    }
+
+    [Fact]
     public async Task PagingReturnsNewestFirstAndOnlyTheCallersOwnRows()
     {
         using var fixture = new Fixture();

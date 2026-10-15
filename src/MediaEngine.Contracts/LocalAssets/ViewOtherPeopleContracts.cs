@@ -33,7 +33,7 @@ public sealed record ViewPhotoViewDto(
     [property: JsonPropertyName("opened")] string Opened,
     [property: JsonPropertyName("space")] string Space);
 
-/// <param name="HouseholdWide">True when the caller also sees views of the household's Shared Library (the household's own administrator). Never means other people's personal photos.</param>
+/// <param name="HouseholdWide">True when the caller also sees views of the household's Shared Library (the household's own administrator only). Never means other people's personal photos.</param>
 public sealed record ViewPhotoViewsPageDto(
     [property: JsonPropertyName("page")] PagedResponse<ViewPhotoViewDto> Page,
     [property: JsonPropertyName("household_wide")] bool HouseholdWide);

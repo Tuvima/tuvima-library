@@ -43,6 +43,9 @@ public sealed class ViewEndpointRouteTests
 
         // The caller's own authority is the only input: no profile or household id arrives from the request.
         Assert.Contains("HasHumanContext", route, StringComparison.Ordinal);
+        // A paired app's device token (DelegatedUserClient) also has a human context, so the route insists on a person.
+        Assert.Contains("authority.PrincipalKind != PrincipalKind.Human", route, StringComparison.Ordinal);
+        Assert.Contains("ApiErrors.Forbidden", route, StringComparison.Ordinal);
         Assert.Contains("ListViewsAsync(authority", route, StringComparison.Ordinal);
         Assert.DoesNotContain("profileId", route, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("householdId", route, StringComparison.OrdinalIgnoreCase);
