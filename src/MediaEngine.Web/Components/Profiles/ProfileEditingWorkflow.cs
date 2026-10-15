@@ -17,6 +17,13 @@ public sealed record ProfileEditOutcome(bool Done, string? Error = null, bool Ne
 /// </summary>
 public sealed class ProfileEditingWorkflow(DashboardIdentityClient identity, ConfirmedActionRunner confirmed)
 {
+    /// <summary>
+    /// Shown when the Engine refuses a removal with a conflict. The usual cause is a person who still has their own sign-in,
+    /// so the message points there first; the Engine also refuses to remove the person in use and the Owner.
+    /// </summary>
+    public const string RemoveBlockedMessage =
+        "This person can't be removed yet. Remove or move their sign-in first. You also can't remove the person you are using, or the Owner.";
+
     public async Task<ProfileEditOutcome> SaveAsync(ProfileViewModel? editing, Guid? householdId, ProfileEditorResult result, bool afterUnlock = false)
     {
         return editing is null
@@ -27,7 +34,14 @@ public sealed class ProfileEditingWorkflow(DashboardIdentityClient identity, Con
     public async Task<ProfileEditOutcome> RemoveAsync(ProfileViewModel profile, bool keepPhotos, bool afterUnlock = false)
     {
         var removed = await confirmed.RunAsync(() => identity.DeleteManagedProfileResultAsync(profile.Id, keepPhotos)).ConfigureAwait(false);
-        return removed.Succeeded ? new ProfileEditOutcome(true) : Fail(removed.Failure, afterUnlock);
+        if (removed.Succeeded)
+        {
+            return new ProfileEditOutcome(true);
+        }
+
+        return removed.Failure == DashboardAccessMutationFailure.Conflict
+            ? new ProfileEditOutcome(false, RemoveBlockedMessage)
+            : Fail(removed.Failure, afterUnlock);
     }
 
     private async Task<ProfileEditOutcome> AddAsync(Guid? householdId, ProfileEditorResult result, bool afterUnlock)

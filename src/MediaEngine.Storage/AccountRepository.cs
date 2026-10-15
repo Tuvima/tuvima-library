@@ -595,7 +595,7 @@ public sealed class AccountRepository(IDatabaseConnection db) : IAccountReposito
                        WHERE other.account_id=a.id AND other.is_enabled=1)=1;
                 """, new { profileId }, transaction) > 0)
         {
-            throw new InvalidOperationException("Move accounts to another profile before deleting this profile.");
+            throw new InvalidOperationException("Remove or move this person's sign-in before deleting them. A sign-in that opens only this profile must be removed, or moved to another profile, first.");
         }
 
         var removesAdministrator = connection.ExecuteScalar<int>("""
