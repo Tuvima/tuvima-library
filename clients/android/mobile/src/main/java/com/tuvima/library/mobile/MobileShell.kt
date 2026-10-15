@@ -45,7 +45,6 @@ internal fun MobileShell(
     client: TuvimaClient,
     initialDetail: Pair<String, String>?,
     play: (String) -> Unit,
-    download: (String) -> Unit,
     onChangeServer: () -> Unit,
     onSignedOut: (String?) -> Unit,
 ) {
@@ -58,6 +57,10 @@ internal fun MobileShell(
     LaunchedEffect(initialDetail) {
         initialDetail?.let { stack.add(Overlay.Detail(it.first, it.second, null)) }
     }
+    // Offline downloads: resume what a restart interrupted, drop expired copies, and bring the Engine in step.
+    LaunchedEffect(client) {
+        application.offline.onProfileActivated()
+    }
     BackHandler(enabled = stack.isNotEmpty()) { stack.removeAt(stack.lastIndex) }
 
     fun openCard(card: DisplayCard) {
@@ -68,6 +71,8 @@ internal fun MobileShell(
     fun profileSwitched(name: String) {
         stack.clear()
         epoch += 1
+        // The new person has their own downloads; start their queue and sync their offline progress.
+        application.offline.onProfileActivated()
         // The system media service holds the previous person's access; stopping it makes the next play start fresh.
         context.stopService(Intent(context, TuvimaMediaLibraryService::class.java))
         Toast.makeText(context, "Switched to $name", Toast.LENGTH_SHORT).show()
@@ -105,7 +110,7 @@ internal fun MobileShell(
                         MobileTab.Search -> SearchScreen(client) { entityType, id ->
                             stack.add(Overlay.Detail(entityType, id, null))
                         }
-                        MobileTab.Downloads -> DownloadsScreen()
+                        MobileTab.Downloads -> DownloadsScreen(application, client, play)
                         MobileTab.Settings -> SettingsScreen(
                             application = application,
                             client = client,
@@ -124,13 +129,13 @@ internal fun MobileShell(
                 key(stack.size, top) {
                     when (top) {
                         is Overlay.Detail -> DetailScreen(
+                            application = application,
                             client = client,
                             entityType = top.entityType,
                             id = top.id,
                             assetId = top.assetId,
                             onBack = { stack.removeAt(stack.lastIndex) },
                             play = play,
-                            download = download,
                         )
                         is Overlay.CollectionOpen -> CollectionDetailScreen(
                             client = client,

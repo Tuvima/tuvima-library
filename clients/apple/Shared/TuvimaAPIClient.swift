@@ -8,7 +8,7 @@ public actor TuvimaAPIClient {
     private let clientVersion: String
     private let deviceName: String
     private let capabilities: [String: Any]
-    private let store: KeychainTokenStore
+    private let store: any TokenStoring
     private let session: URLSession
     private var discovery: Discovery?
     private var token: ClientToken?
@@ -19,7 +19,8 @@ public actor TuvimaAPIClient {
         clientName: String = "Tuvima for iOS",
         clientVersion: String,
         deviceName: String,
-        store: KeychainTokenStore = KeychainTokenStore()
+        store: any TokenStoring = KeychainTokenStore(),
+        session: URLSession? = nil
     ) throws {
         guard var components = URLComponents(string: serverAddress.contains("://") ? serverAddress : "https://\(serverAddress)"),
               let host = components.host else { throw TuvimaClientError.invalidServer }
@@ -52,7 +53,7 @@ public actor TuvimaAPIClient {
         let configuration = URLSessionConfiguration.default
         configuration.waitsForConnectivity = true
         configuration.timeoutIntervalForRequest = 30
-        self.session = URLSession(configuration: configuration)
+        self.session = session ?? URLSession(configuration: configuration)
     }
 
     public var isPaired: Bool { token != nil }
@@ -115,17 +116,115 @@ public actor TuvimaAPIClient {
     }
 
     public func details(entityType: String, id: UUID) async throws -> DetailPage {
-        try await get("/api/v1/details/\(entityType)/\(id.uuidString)")
+        try await get(ClientRoutes.details(entityType: entityType, id: id))
+    }
+
+    // MARK: App screens (Home, Libraries, View, Collections, profiles)
+
+    /// The Home shelves without the full catalogue, which a phone does not need.
+    public func homeShelves() async throws -> DisplayPage { try await get(ClientRoutes.home()) }
+
+    /// Continue across every lane, most recent first.
+    public func continueAll(limit: Int = 24) async throws -> DisplayPage {
+        try await get(ClientRoutes.continueAll(limit: limit))
+    }
+
+    /// The cards of one group or collection; they carry the asset ids that a collection item list does not.
+    public func groupCards(collectionID: UUID) async throws -> DisplayPage {
+        try await get(ClientRoutes.group(collectionID))
+    }
+
+    /// One page of a library lane with the Dashboard's sort and filters applied by the Engine.
+    public func browsePage(_ query: BrowseQuery) async throws -> BrowsePage {
+        let response: BrowseResponse = try await get(ClientRoutes.browse(query))
+        return response.page
+    }
+
+    /// The newest-first photo and video timeline. Throws `photoAccessDenied` when photos were not allowed.
+    public func viewTimeline(cursor: String? = nil, limit: Int = 100) async throws -> ViewTimelinePage {
+        try await getPhoto(ClientRoutes.viewTimeline(cursor: cursor, limit: limit))
+    }
+
+    public func viewGalleries() async throws -> ViewGalleries { try await getPhoto(ClientRoutes.viewGalleries) }
+
+    public func viewGalleryItems(galleryID: UUID, cursor: String? = nil, limit: Int = 100) async throws -> ViewItemPage {
+        try await getPhoto(ClientRoutes.viewGalleryItems(galleryID, cursor: cursor, limit: limit))
+    }
+
+    public func viewItem(id: UUID) async throws -> ViewItem { try await getPhoto(ClientRoutes.viewItem(id)) }
+
+    /// A Collections catalogue page, the same list the Dashboard shows.
+    public func collections(cursor: String? = nil, limit: Int = 24) async throws -> PagedList<CollectionEntry> {
+        try await get(ClientRoutes.collections(cursor: cursor, limit: limit), keys: .convertFromSnakeCase)
+    }
+
+    public func collectionItems(id: UUID, cursor: String? = nil, limit: Int = 24) async throws -> PagedList<CollectionItem> {
+        try await get(ClientRoutes.collectionItems(id, cursor: cursor, limit: limit), keys: .convertFromSnakeCase)
+    }
+
+    /// A Universe by Wikidata QID, with its member shelves.
+    public func universe(qid: String) async throws -> UniverseDetail {
+        guard let path = ClientRoutes.universe(qid) else { throw TuvimaClientError.invalidIdentifier }
+        return try await get(path, keys: .convertFromSnakeCase)
+    }
+
+    /// Bytes of an artwork or photo path (relative to the server), fetched with the device's own credentials.
+    public func fetchData(path: String) async throws -> Data {
+        var request = URLRequest(url: try resolve(path))
+        request.httpMethod = "GET"
+        return try await sendRaw(request, authenticated: true)
+    }
+
+    /// Like `fetchData` for photo routes: a 403 becomes `photoAccessDenied`.
+    public func fetchPhotoData(path: String) async throws -> Data {
+        do { return try await fetchData(path: path) }
+        catch let error as TuvimaClientError { throw Self.photoError(error) }
+    }
+
+    /// The people this paired app may switch to.
+    public func deviceProfiles() async throws -> [DeviceProfile] {
+        let response: DeviceProfilesResponse = try await get(ClientRoutes.deviceProfiles, keys: .convertFromSnakeCase)
+        return response.profiles
+    }
+
+    /// Switches this app to another person without re-pairing. On success the client holds and stores the new
+    /// tokens; each refusal (PIN needed 428, not allowed 403, already active 409, locked 429) is a typed result.
+    public func switchProfile(profileID: UUID, pin: String? = nil) async -> SwitchProfileResult {
+        var body: [String: Any] = ["profile_id": profileID.uuidString.lowercased()]
+        if let pin, !pin.isEmpty { body["pin"] = pin }
+        do {
+            let response: TokenResponse = try await post(ClientRoutes.switchProfile, json: body)
+            return .switched(try accept(response))
+        } catch TuvimaClientError.http(let status, let text) {
+            let error = try? JSONDecoder().decode(OAuthError.self, from: Data(text.utf8))
+            return classifySwitchFailure(statusCode: status, code: error?.error, description: error?.errorDescription)
+        } catch {
+            return .failed(statusCode: 0, code: "request_failed", message: error.localizedDescription)
+        }
+    }
+
+    /// The paired device's current token, for screens that show its scopes or profile.
+    public var currentToken: ClientToken? { token }
+
+    /// True when the device was given the photo scopes at pairing.
+    public var hasPhotoAccess: Bool { token.map { PhotoScopes.grantedIn($0.scope) } ?? false }
+
+    /// Removes this device on the server (all its tokens stop working at once). Call `signOut()` afterwards.
+    public func revokeCurrentDevice() async throws {
+        guard let deviceID = token?.deviceID else { throw TuvimaClientError.notPaired }
+        var request = URLRequest(url: try resolve(ClientRoutes.revokeDevice(deviceID)))
+        request.httpMethod = "DELETE"
+        _ = try await sendRaw(request, authenticated: true)
     }
 
     public func playbackManifest(assetID: UUID, connectionPath: String = "local") async throws -> PlaybackManifest {
         try await get("/api/v1/playback/\(assetID.uuidString)/manifest?connectionPath=\(connectionPath)")
     }
 
-    public func requestOfflineVariant(assetID: UUID) async throws {
+    public func requestOfflineVariant(assetID: UUID, profileKey: String = "mobile-standard") async throws {
         let _: EncodeJobResponse = try await post(
-            "/api/v1/playback/\(assetID.uuidString)/encode",
-            json: ["profileKey": "mobile-standard"]
+            ClientRoutes.encodeJob(assetID),
+            json: ["profileKey": profileKey]
         )
     }
 
@@ -192,10 +291,25 @@ public actor TuvimaAPIClient {
         return try await discoverServer()
     }
 
-    private func get<T: Decodable>(_ path: String, authenticated: Bool = true) async throws -> T {
+    private func get<T: Decodable>(
+        _ path: String,
+        authenticated: Bool = true,
+        keys: JSONDecoder.KeyDecodingStrategy = .useDefaultKeys
+    ) async throws -> T {
         var request = URLRequest(url: try resolve(path))
         request.httpMethod = "GET"
-        return try await send(request, authenticated: authenticated)
+        return try await send(request, authenticated: authenticated, keys: keys)
+    }
+
+    /// A GET on a photo route (snake_case): a 403 becomes `photoAccessDenied` so a screen can explain it.
+    private func getPhoto<T: Decodable>(_ path: String) async throws -> T {
+        do { return try await get(path, keys: .convertFromSnakeCase) }
+        catch let error as TuvimaClientError { throw Self.photoError(error) }
+    }
+
+    private static func photoError(_ error: TuvimaClientError) -> TuvimaClientError {
+        if case .http(let status, _) = error, status == 403 { return .photoAccessDenied }
+        return error
     }
 
     private func post<T: Decodable>(_ path: String, json: [String: Any], authenticated: Bool = true) async throws -> T {
@@ -206,7 +320,18 @@ public actor TuvimaAPIClient {
         return try await send(request, authenticated: authenticated)
     }
 
-    private func send<T: Decodable>(_ original: URLRequest, authenticated: Bool) async throws -> T {
+    private func send<T: Decodable>(
+        _ original: URLRequest,
+        authenticated: Bool,
+        keys: JSONDecoder.KeyDecodingStrategy = .useDefaultKeys
+    ) async throws -> T {
+        let data = try await sendRaw(original, authenticated: authenticated)
+        let decoder = JSONDecoder()
+        decoder.keyDecodingStrategy = keys
+        return try decoder.decode(T.self, from: data)
+    }
+
+    private func sendRaw(_ original: URLRequest, authenticated: Bool) async throws -> Data {
         var request = original
         if authenticated { request.setValue("Bearer \(try await accessToken())", forHTTPHeaderField: "Authorization") }
         var (data, response) = try await session.data(for: request)
@@ -217,8 +342,7 @@ public actor TuvimaAPIClient {
         guard let http = response as? HTTPURLResponse, (200...299).contains(http.statusCode) else {
             throw TuvimaClientError.http((response as? HTTPURLResponse)?.statusCode ?? 0, String(decoding: data, as: UTF8.self))
         }
-        let decoder = JSONDecoder()
-        return try decoder.decode(T.self, from: data)
+        return data
     }
 
     private func resolve(_ path: String) throws -> URL {

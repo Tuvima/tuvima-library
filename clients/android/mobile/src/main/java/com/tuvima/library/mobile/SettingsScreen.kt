@@ -21,6 +21,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -31,6 +32,8 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import com.tuvima.library.core.DeviceProfile
+import com.tuvima.library.core.OfflineLogic
+import com.tuvima.library.core.StorageCap
 import com.tuvima.library.core.SwitchProfileResult
 import com.tuvima.library.core.TuvimaClient
 import kotlinx.coroutines.CancellationException
@@ -56,6 +59,8 @@ internal fun SettingsScreen(
     val scope = rememberCoroutineScope()
     var activeName by remember { mutableStateOf<String?>(null) }
     var quality by remember { mutableStateOf(application.downloadQuality()) }
+    var capBytes by remember { mutableStateOf(application.storageCapBytes()) }
+    val downloads by application.offline.store().records.collectAsState()
     var showProfiles by remember { mutableStateOf(false) }
     var profiles by remember { mutableStateOf<Load<List<DeviceProfile>>>(Load.Loading) }
     var pending by remember { mutableStateOf<DeviceProfile?>(null) }
@@ -141,6 +146,8 @@ internal fun SettingsScreen(
                 false
             }
             client.signOut()
+            // The device is gone from the Engine, so its downloads and unsent records go with it.
+            application.offline.clearAll()
             busy = false
             onSignedOut(
                 if (revoked) null
@@ -186,6 +193,28 @@ internal fun SettingsScreen(
                     },
                     label = { Text(label) },
                 )
+            }
+        }
+
+        Spacer(Modifier.height(8.dp))
+        Text("Offline storage limit", style = MaterialTheme.typography.titleMedium)
+        Text(
+            "Using ${OfflineLogic.formatBytes(OfflineLogic.committedBytes(downloads))} of " +
+                "${OfflineLogic.formatBytes(capBytes)}. New downloads are blocked once the limit is reached.",
+            style = MaterialTheme.typography.bodySmall,
+        )
+        StorageCap.optionsGb.chunked(3).forEach { options ->
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                options.forEach { gb ->
+                    FilterChip(
+                        selected = StorageCap.gbFor(capBytes) == gb,
+                        onClick = {
+                            capBytes = StorageCap.bytesForGb(gb)
+                            application.setStorageCapBytes(capBytes)
+                        },
+                        label = { Text("$gb GB") },
+                    )
+                }
             }
         }
 
