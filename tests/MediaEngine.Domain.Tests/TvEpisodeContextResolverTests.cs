@@ -33,4 +33,15 @@ public sealed class TvEpisodeContextResolverTests
         var result = TvEpisodeContextResolver.Resolve([new("one", 1, 1, 100, "2026-01-01"), new("two", 1, 2, 100, "2026-01-02")]);
         Assert.Equal(TvEpisodeSelectionReason.AllOwnedCompleted, result.Reason); Assert.False(result.UsesEpisodeArtwork);
     }
+    [Fact]
+    public void OrderPutsSpecialsLast_ThenUnnumberedAfterNumbered_AndBreaksTiesById()
+    {
+        var ordered = TvEpisodeContextResolver.Order(
+        [
+            new("b-tie", 1, 2, 0, null), new("special", 0, 1, 0, null), new("two-one", 2, 1, 0, null),
+            new("no-episode", 1, null, 0, null), new("a-tie", 1, 2, 0, null), new("no-season", null, 1, 0, null), new("one-one", 1, 1, 0, null),
+        ]);
+
+        Assert.Equal(["one-one", "a-tie", "b-tie", "no-episode", "two-one", "no-season", "special"], ordered.Select(e => e.Id));
+    }
 }

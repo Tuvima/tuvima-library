@@ -7,6 +7,7 @@ namespace MediaEngine.Api.Services.Playback;
 
 public sealed class AdaptiveHlsCleanupService(
     AdaptiveHlsPackageRepository packages,
+    PlaybackStateRepository playbackState,
     AdaptiveHlsService hls,
     IConfigurationLoader configuration,
     ILogger<AdaptiveHlsCleanupService> logger) : BackgroundService
@@ -91,6 +92,123 @@ public sealed class AdaptiveHlsCleanupService(
             totalBytes -= Math.Max(0, row.TotalBytes);
             logger.LogInformation("Reclaimed adaptive HLS package {PackageId} ({Bytes} bytes)", row.Id, row.TotalBytes);
         }
+
+        await CleanupExpiredOfflineVariantsAsync(root, ct).ConfigureAwait(false);
+        await SweepOrphanJobFoldersAsync(root, ct).ConfigureAwait(false);
+    }
+
+    /// <summary>How old a job folder must be before the sweep may remove it when nothing owns it.</summary>
+    internal static readonly TimeSpan OrphanJobFolderAge = TimeSpan.FromHours(24);
+
+    /// <summary>
+    /// Removes <c>&lt;cache&gt;/&lt;asset&gt;/&lt;profile&gt;/&lt;jobId&gt;</c> folders that a failed or interrupted encode left behind:
+    /// the name is a job id, no offline variant keeps a file inside it, no waiting or running job owns it, and it has not been
+    /// written to for <see cref="OrphanJobFolderAge"/>. Any other folder is left alone.
+    /// </summary>
+    private async Task SweepOrphanJobFoldersAsync(string root, CancellationToken ct)
+    {
+        var activeJobs = await playbackState.ListActiveEncodeJobIdsAsync(ct).ConfigureAwait(false);
+        var variantFolders = (await playbackState.ListOfflineVariantOutputPathsAsync(ct).ConfigureAwait(false))
+            .Select(path => Path.TrimEndingDirectorySeparator(Path.GetFullPath(path)))
+            .ToList();
+        var oldest = DateTime.UtcNow - OrphanJobFolderAge;
+        var hlsRoot = Path.Combine(root, "hls");
+
+        foreach (var assetFolder in Directory.EnumerateDirectories(root))
+        {
+            if (string.Equals(assetFolder, hlsRoot, StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            foreach (var profileFolder in Directory.EnumerateDirectories(assetFolder))
+            {
+                foreach (var jobFolder in Directory.EnumerateDirectories(profileFolder))
+                {
+                    ct.ThrowIfCancellationRequested();
+                    if (!Guid.TryParseExact(Path.GetFileName(jobFolder), "N", out var jobId)
+                        || activeJobs.Contains(jobId)
+                        || Directory.GetLastWriteTimeUtc(jobFolder) > oldest
+                        || variantFolders.Any(path => path.StartsWith(jobFolder + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase)))
+                    {
+                        continue;
+                    }
+
+                    try
+                    {
+                        Directory.Delete(jobFolder, recursive: true);
+                        logger.LogInformation("Removed leftover encode folder for job {JobId}", jobId);
+                    }
+                    catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                    {
+                        logger.LogWarning(ex, "Could not remove leftover encode folder for job {JobId}", jobId);
+                    }
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Offline variants are removed with their files once <c>expires_at</c> (written from
+    /// <c>variant_retention_days</c> when the variant was prepared) has passed. Expiry wins: a variant that a device's
+    /// download list still marks as stored is removed too, and its list entry goes with it.
+    /// Files outside the variant cache are never deleted; only the stale row is dropped. A file that another
+    /// variant (any profile or device) that has not expired still points at is kept, so one person's expiry cannot
+    /// delete another person's download.
+    /// </summary>
+    private async Task CleanupExpiredOfflineVariantsAsync(string root, CancellationToken ct)
+    {
+        root = Path.TrimEndingDirectorySeparator(Path.GetFullPath(root));
+        var now = DateTimeOffset.UtcNow;
+        var expired = await playbackState.ListExpiredOfflineVariantsAsync(now, ct).ConfigureAwait(false);
+        foreach (var variant in expired)
+        {
+            if (!string.IsNullOrWhiteSpace(variant.OutputPath))
+            {
+                var file = Path.TrimEndingDirectorySeparator(Path.GetFullPath(variant.OutputPath));
+                if (file.StartsWith(root + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
+                {
+                    try
+                    {
+                        if (!await playbackState.IsFileUsedByAnotherLiveVariantAsync(variant.Id, variant.OutputPath, now, ct).ConfigureAwait(false))
+                        {
+                            if (File.Exists(file))
+                            {
+                                File.Delete(file);
+                            }
+
+                            RemoveEmptyParents(Path.GetDirectoryName(file), root);
+                        }
+                    }
+                    catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                    {
+                        // A file still in use (for example mid-download) or locked keeps its row; the next pass tries again,
+                        // and one such file never stops the rest of the pass.
+                        logger.LogWarning(ex, "Could not remove expired offline variant file for {VariantId}", variant.Id);
+                        continue;
+                    }
+                }
+                else
+                {
+                    logger.LogWarning("Expired offline variant {VariantId} points outside the variant cache; its file was left alone", variant.Id);
+                }
+            }
+
+            await playbackState.DeleteOfflineVariantAsync(variant.Id, ct).ConfigureAwait(false);
+            logger.LogInformation("Reclaimed expired offline variant {VariantId} ({Bytes} bytes)", variant.Id, variant.FileSizeBytes ?? 0);
+        }
+    }
+
+    private static void RemoveEmptyParents(string? directory, string root)
+    {
+        while (directory is not null
+            && directory.StartsWith(root + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase)
+            && Directory.Exists(directory)
+            && !Directory.EnumerateFileSystemEntries(directory).Any())
+        {
+            Directory.Delete(directory);
+            directory = Path.GetDirectoryName(directory);
+        }
     }
 
     private static void CleanupStagingDirectories(string root)
@@ -118,6 +236,7 @@ public sealed class AdaptiveHlsCleanupService(
             libraryRoot = AppContext.BaseDirectory;
         }
 
-        return Path.GetFullPath(Path.IsPathRooted(path) ? path : Path.Combine(libraryRoot, path));
+        // No trailing separator, so the "inside the cache" checks compare like with like.
+        return Path.TrimEndingDirectorySeparator(Path.GetFullPath(Path.IsPathRooted(path) ? path : Path.Combine(libraryRoot, path)));
     }
 }

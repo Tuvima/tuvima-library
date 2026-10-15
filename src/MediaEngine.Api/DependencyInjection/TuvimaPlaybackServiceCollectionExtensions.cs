@@ -14,6 +14,8 @@ public static class TuvimaPlaybackServiceCollectionExtensions
     {
         services.AddSingleton<IFFmpegService, FFmpegService>();
         services.AddSingleton<PlaybackStateRepository>();
+        services.AddSingleton<DeviceDownloadRepository>();
+        services.AddScoped<DeviceDownloadService>();
         services.AddSingleton<AdaptiveHlsPackageRepository>();
         services.AddSingleton<PlaybackCapabilitiesService>();
         services.AddSingleton<AdaptiveHlsService>();

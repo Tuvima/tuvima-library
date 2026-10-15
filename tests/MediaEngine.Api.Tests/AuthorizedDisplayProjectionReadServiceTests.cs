@@ -22,7 +22,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 
 namespace MediaEngine.Api.Tests;
 
-public sealed class AuthorizedDisplayProjectionReadServiceTests : IDisposable
+public sealed partial class AuthorizedDisplayProjectionReadServiceTests : IDisposable
 {
     [Fact]
     public async Task JourneyAndAllStateReadsScopeSqlAndReflectCommittedWrites()

@@ -50,6 +50,16 @@ public sealed class AdaptiveHlsCleanupServiceTests : IDisposable
                 new { id = package.Id, lastAccessed = DateTimeOffset.UtcNow.AddDays(-2).ToString("O") });
         }
 
+        var cleanup = CreateCleanup(packages);
+
+        await cleanup.CleanupAsync();
+
+        Assert.False(Directory.Exists(packageRoot));
+        Assert.Null(await packages.FindByIdAsync(package.Id));
+    }
+
+    private AdaptiveHlsCleanupService CreateCleanup(AdaptiveHlsPackageRepository packages)
+    {
         var hls = new AdaptiveHlsService(
             packages,
             new MediaAssetRepository(_database),
@@ -58,16 +68,91 @@ public sealed class AdaptiveHlsCleanupServiceTests : IDisposable
             _configuration,
             new TestHostApplicationLifetime(),
             NullLogger<AdaptiveHlsService>.Instance);
-        var cleanup = new AdaptiveHlsCleanupService(
+        return new AdaptiveHlsCleanupService(
             packages,
+            new PlaybackStateRepository(_database),
             hls,
             _configuration,
             NullLogger<AdaptiveHlsCleanupService>.Instance);
+    }
 
-        await cleanup.CleanupAsync();
+    [Fact]
+    public async Task CleanupAsync_RemovesExpiredOfflineVariantsWithTheirFiles_AndKeepsCurrentOnes()
+    {
+        var assetId = SeedAsset();
+        var variantDirectory = Path.Combine(_root, "variants", assetId.ToString("N"), "mobile-small");
+        Directory.CreateDirectory(variantDirectory);
+        var expiredFile = Path.Combine(variantDirectory, "expired.mp4");
+        var currentFile = Path.Combine(variantDirectory, "current.mp4");
+        var foreverFile = Path.Combine(variantDirectory, "forever.mp4");
+        foreach (var file in new[] { expiredFile, currentFile, foreverFile })
+        {
+            await File.WriteAllTextAsync(file, "media");
+        }
 
-        Assert.False(Directory.Exists(packageRoot));
-        Assert.Null(await packages.FindByIdAsync(package.Id));
+        var expired = SeedVariant(assetId, expiredFile, DateTimeOffset.UtcNow.AddMinutes(-1));
+        var current = SeedVariant(assetId, currentFile, DateTimeOffset.UtcNow.AddDays(1));
+        var forever = SeedVariant(assetId, foreverFile, null);
+
+        await CreateCleanup(new AdaptiveHlsPackageRepository(_database)).CleanupAsync();
+
+        Assert.False(File.Exists(expiredFile));
+        Assert.True(File.Exists(currentFile));
+        Assert.True(File.Exists(foreverFile));
+        Assert.Equal(new[] { current, forever }.Order(), VariantIds().Order());
+        Assert.DoesNotContain(expired, VariantIds());
+    }
+
+    [Fact]
+    public async Task CleanupAsync_RemovesTheLastFileAndItsEmptyFolders_ButNeverTheCacheRoot()
+    {
+        var assetId = SeedAsset();
+        var variantDirectory = Path.Combine(_root, "variants", assetId.ToString("N"), "mobile-small");
+        Directory.CreateDirectory(variantDirectory);
+        var file = Path.Combine(variantDirectory, "only.mp4");
+        await File.WriteAllTextAsync(file, "media");
+        SeedVariant(assetId, file, DateTimeOffset.UtcNow.AddSeconds(-5));
+
+        await CreateCleanup(new AdaptiveHlsPackageRepository(_database)).CleanupAsync();
+
+        Assert.False(Directory.Exists(variantDirectory));
+        Assert.False(Directory.Exists(Path.GetDirectoryName(variantDirectory)));
+        Assert.True(Directory.Exists(Path.Combine(_root, "variants")));
+        Assert.Empty(VariantIds());
+    }
+
+    [Fact]
+    public async Task CleanupAsync_NeverDeletesAFileOutsideTheVariantCache_ButDropsTheStaleRow()
+    {
+        var assetId = SeedAsset();
+        var outside = Path.Combine(_root, "not-the-cache.mp4");
+        await File.WriteAllTextAsync(outside, "precious");
+        SeedVariant(assetId, outside, DateTimeOffset.UtcNow.AddMinutes(-1));
+
+        await CreateCleanup(new AdaptiveHlsPackageRepository(_database)).CleanupAsync();
+
+        Assert.True(File.Exists(outside));
+        Assert.Empty(VariantIds());
+    }
+
+    private Guid SeedVariant(Guid assetId, string outputPath, DateTimeOffset? expiresAt)
+    {
+        var id = Guid.NewGuid();
+        using var connection = _database.CreateConnection();
+        connection.Execute(
+            """
+            INSERT INTO offline_variants
+                (id, asset_id, profile_key, source_hash, display_name, status, output_path, file_size, created_at, expires_at)
+            VALUES (@id, @assetId, 'mobile-small', 'source-hash', 'Phone', 'ready', @outputPath, 5, @now, @expires);
+            """,
+            new { id, assetId, outputPath, now = DateTimeOffset.UtcNow.ToString("O"), expires = expiresAt?.ToString("O") });
+        return id;
+    }
+
+    private List<Guid> VariantIds()
+    {
+        using var connection = _database.CreateConnection();
+        return connection.Query<Guid>("SELECT id FROM offline_variants;").AsList();
     }
 
     private Guid SeedAsset()
@@ -110,5 +195,142 @@ public sealed class AdaptiveHlsCleanupServiceTests : IDisposable
         public CancellationToken ApplicationStopping => CancellationToken.None;
         public CancellationToken ApplicationStopped => CancellationToken.None;
         public void StopApplication() { }
+    }
+
+    [Fact]
+    public async Task CleanupAsync_KeepsAFileAnotherLiveVariantStillUses_AndDeletesItOnceNoneDo()
+    {
+        var assetId = SeedAsset();
+        var directory = Path.Combine(_root, "variants", assetId.ToString("N"), "mobile-small");
+        Directory.CreateDirectory(directory);
+        var shared = Path.Combine(directory, "shared.mp4");
+        await File.WriteAllTextAsync(shared, "media");
+        var expired = SeedVariant(assetId, shared, DateTimeOffset.UtcNow.AddMinutes(-1));
+        var live = SeedVariant(assetId, shared, DateTimeOffset.UtcNow.AddDays(1));
+        var cleanup = CreateCleanup(new AdaptiveHlsPackageRepository(_database));
+
+        // One person's variant expired; the other's still points at the same file, which therefore stays.
+        await cleanup.CleanupAsync();
+        Assert.True(File.Exists(shared));
+        Assert.Equal(new[] { live }, VariantIds());
+
+        // Once the other one expires too, nothing needs the file and it goes.
+        using (var connection = _database.CreateConnection())
+        {
+            connection.Execute("UPDATE offline_variants SET expires_at = @past WHERE id = @live;",
+                new { live, past = DateTimeOffset.UtcNow.AddSeconds(-1).ToString("O") });
+        }
+
+        await cleanup.CleanupAsync();
+        Assert.False(File.Exists(shared));
+        Assert.Empty(VariantIds());
+        Assert.DoesNotContain(expired, VariantIds());
+    }
+
+    [Fact]
+    public async Task CleanupAsync_DeletesTheFileWhenEveryVariantUsingItHasExpired_InOnePass()
+    {
+        var assetId = SeedAsset();
+        var directory = Path.Combine(_root, "variants", assetId.ToString("N"), "mobile-small");
+        Directory.CreateDirectory(directory);
+        var shared = Path.Combine(directory, "shared.mp4");
+        await File.WriteAllTextAsync(shared, "media");
+        SeedVariant(assetId, shared, DateTimeOffset.UtcNow.AddMinutes(-2));
+        SeedVariant(assetId, shared, DateTimeOffset.UtcNow.AddMinutes(-1));
+
+        await CreateCleanup(new AdaptiveHlsPackageRepository(_database)).CleanupAsync();
+
+        Assert.False(File.Exists(shared));
+        Assert.Empty(VariantIds());
+    }
+
+    [Fact]
+    public async Task CleanupAsync_StillRemovesFiles_WhenTheCachePathEndsWithASeparator()
+    {
+        _configuration.SaveTranscoding(new TranscodingSettings
+        {
+            VariantCachePath = "variants" + Path.DirectorySeparatorChar,
+            VariantRetentionDays = 1,
+            ShadowStorageLimitGb = 1,
+            CleanupLruEnabled = true,
+        });
+        var assetId = SeedAsset();
+        var directory = Path.Combine(_root, "variants", assetId.ToString("N"));
+        Directory.CreateDirectory(directory);
+        var file = Path.Combine(directory, "expired.mp4");
+        await File.WriteAllTextAsync(file, "media");
+        SeedVariant(assetId, file, DateTimeOffset.UtcNow.AddMinutes(-1));
+
+        await CreateCleanup(new AdaptiveHlsPackageRepository(_database)).CleanupAsync();
+
+        Assert.False(File.Exists(file));
+        Assert.Empty(VariantIds());
+    }
+
+    [Fact]
+    public async Task CleanupAsync_ALockedFileDoesNotStopTheRestOfThePass()
+    {
+        var assetId = SeedAsset();
+        var directory = Path.Combine(_root, "variants", assetId.ToString("N"));
+        Directory.CreateDirectory(directory);
+        var locked = Path.Combine(directory, "locked.mp4");
+        var free = Path.Combine(directory, "free.mp4");
+        await File.WriteAllTextAsync(locked, "media");
+        await File.WriteAllTextAsync(free, "media");
+        SeedVariant(assetId, locked, DateTimeOffset.UtcNow.AddMinutes(-2));
+        SeedVariant(assetId, free, DateTimeOffset.UtcNow.AddMinutes(-1));
+
+        using (new FileStream(locked, FileMode.Open, FileAccess.Read, FileShare.None))
+        {
+            await CreateCleanup(new AdaptiveHlsPackageRepository(_database)).CleanupAsync();
+        }
+
+        Assert.False(File.Exists(free));
+    }
+
+    [Fact]
+    public async Task CleanupAsync_SweepsOnlyOldJobFoldersThatNothingOwns()
+    {
+        var assetId = SeedAsset();
+        var profileFolder = Path.Combine(_root, "variants", assetId.ToString("N"), "mobile-small");
+        var old = DateTime.UtcNow.AddDays(-2);
+
+        string Folder(Guid id, DateTime writtenAt, string file = "partial.mp4")
+        {
+            var path = Path.Combine(profileFolder, id.ToString("N"));
+            Directory.CreateDirectory(path);
+            File.WriteAllText(Path.Combine(path, file), "partial");
+            Directory.SetLastWriteTimeUtc(path, writtenAt);
+            return path;
+        }
+
+        var orphan = Folder(Guid.NewGuid(), old);
+        var fresh = Folder(Guid.NewGuid(), DateTime.UtcNow.AddHours(-1));
+        var runningJob = Guid.NewGuid();
+        var running = Folder(runningJob, old);
+        var ownedJob = Guid.NewGuid();
+        var owned = Folder(ownedJob, old, "done.mp4");
+        var notAJob = Path.Combine(profileFolder, "keep-me");
+        Directory.CreateDirectory(notAJob);
+        Directory.SetLastWriteTimeUtc(notAJob, old);
+        using (var connection = _database.CreateConnection())
+        {
+            connection.Execute(
+                """
+                INSERT INTO encode_jobs (id, asset_id, profile_key, source_hash, status, created_at, progress_pct)
+                VALUES (@runningJob, @assetId, 'mobile-small', 'source-hash', 'running', @now, 1);
+                """,
+                new { runningJob, assetId, now = DateTimeOffset.UtcNow.ToString("O") });
+        }
+
+        SeedVariant(assetId, Path.Combine(owned, "done.mp4"), DateTimeOffset.UtcNow.AddDays(1));
+
+        await CreateCleanup(new AdaptiveHlsPackageRepository(_database)).CleanupAsync();
+
+        Assert.False(Directory.Exists(orphan));
+        Assert.True(Directory.Exists(fresh));
+        Assert.True(Directory.Exists(running));
+        Assert.True(Directory.Exists(owned));
+        Assert.True(Directory.Exists(notAJob));
     }
 }

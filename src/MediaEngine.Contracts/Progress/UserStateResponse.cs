@@ -24,4 +24,19 @@ public sealed record ProgressUpdateRequest(
 {
     [global::System.Text.Json.Serialization.JsonPropertyName("expected_revision")]
     public long ExpectedRevision { get; init; }
+
+    /// <summary>
+    /// True when a paired app is syncing progress it recorded while offline. With a <see cref="ClientTimestamp"/>,
+    /// a stale <see cref="ExpectedRevision"/> no longer rejects the write: the later of the server's last update and
+    /// the client's timestamp wins for that asset. Without a timestamp the flag changes nothing.
+    /// </summary>
+    [global::System.Text.Json.Serialization.JsonPropertyName("offline")]
+    public bool Offline { get; init; }
+
+    /// <summary>
+    /// When the progress was recorded on the device (ISO 8601, UTC). Only read when <see cref="Offline"/> is true.
+    /// The Engine treats a time later than its own clock as its own current time.
+    /// </summary>
+    [global::System.Text.Json.Serialization.JsonPropertyName("client_timestamp")]
+    public DateTimeOffset? ClientTimestamp { get; init; }
 }

@@ -8,10 +8,18 @@ public sealed record TvEpisodePlaybackContext(TvEpisodePlaybackCandidate? Target
 public static class TvEpisodeContextResolver
 {
     public const double CompletionPercent = 99.5;
+
+    /// <summary>
+    /// The show's watch order: seasons ascending with specials (season 0) last, then episodes ascending, with an
+    /// unnumbered season or episode after the numbered ones and the id as the final tie-break.
+    /// </summary>
+    public static IReadOnlyList<TvEpisodePlaybackCandidate> Order(IEnumerable<TvEpisodePlaybackCandidate> candidates)
+        => candidates.OrderBy(e => e.Season == 0 ? int.MaxValue : e.Season ?? int.MaxValue - 1)
+            .ThenBy(e => e.Episode ?? int.MaxValue).ThenBy(e => e.Id, StringComparer.Ordinal).ToList();
+
     public static TvEpisodePlaybackContext Resolve(IEnumerable<TvEpisodePlaybackCandidate> candidates)
     {
-        var owned = candidates.OrderBy(e => e.Season == 0 ? int.MaxValue : e.Season ?? int.MaxValue - 1)
-            .ThenBy(e => e.Episode ?? int.MaxValue).ThenBy(e => e.Id, StringComparer.Ordinal).ToList();
+        var owned = Order(candidates).ToList();
         if (owned.Count == 0)
         {
             return new(null, TvEpisodeSelectionReason.Empty, false, false);

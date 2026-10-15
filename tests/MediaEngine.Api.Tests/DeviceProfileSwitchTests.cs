@@ -26,7 +26,7 @@ namespace MediaEngine.Api.Tests;
 /// In-app profile switch for paired devices: the same device moves to another person of its account without
 /// re-pairing, the PIN is checked at every switch, and only one token pair per device is ever live.
 /// </summary>
-public sealed class DeviceProfileSwitchTests : IAsyncLifetime
+public sealed partial class DeviceProfileSwitchTests : IAsyncLifetime
 {
     private const string ClientId = "tuvima-phone";
     private const string Pin = "4821";
@@ -814,6 +814,23 @@ public sealed class DeviceProfileSwitchTests : IAsyncLifetime
         builder.Services.AddSingleton<MediaEngine.Api.Services.Security.SecureAccountGate>(_ => null!);
         builder.Services.AddSingleton<MediaEngine.Api.Services.Security.RecentSignInGuard>(_ => null!);
         builder.Services.AddSingleton<PhoneBackupProfileService>(_ => null!);
+        // The offline download routes: the real access checks, so a Kids profile and a foreign variant are judged for real.
+        var downloadAccessor = new HttpContextAccessor();
+        var downloadDecisions = new AccountAccessDecisionService(
+            _accounts,
+            new GrantAdminUnlockService(_accounts, new PasswordHasher<GrantAdminProtection>(), TimeProvider.System));
+        var downloadApplications = new ApplicationRepository(_database);
+        var downloadEvaluator = new AuthorizationEvaluator(
+            downloadDecisions, downloadApplications, new PermissionRegistry(), new AuthorizationAuditWriter(_accounts), downloadAccessor);
+        builder.Services.AddSingleton<IHttpContextAccessor>(downloadAccessor);
+        builder.Services.AddSingleton<IAuthorizationEvaluator>(downloadEvaluator);
+        builder.Services.AddSingleton(new CatalogueResourceAuthorizationService(
+            _database,
+            new RequestAuthorityResolver(_accounts, downloadApplications, new ProfileRepository(_database)),
+            downloadDecisions,
+            downloadEvaluator));
+        builder.Services.AddSingleton(new MediaEngine.Api.Services.Playback.DeviceDownloadService(
+            _devices, new MediaEngine.Storage.Playback.DeviceDownloadRepository(_database), TimeProvider.System));
         var app = builder.Build();
         app.MapClientAuthorizationEndpoints();
         return app;
@@ -1032,12 +1049,22 @@ public sealed class DeviceProfileSwitchTests : IAsyncLifetime
     {
         await applications.ReplacePermissionsAsync(
             BuiltInApplicationIds.NativeClient,
-            new HashSet<ApplicationPermissionId> { ApplicationPermissionIds.LibraryRead, ApplicationPermissionIds.PlaybackRead },
+            new HashSet<ApplicationPermissionId>
+            {
+                ApplicationPermissionIds.LibraryRead, ApplicationPermissionIds.PlaybackRead,
+                ApplicationPermissionIds.DownloadsRead, ApplicationPermissionIds.DownloadsWrite,
+            },
             DateTimeOffset.UtcNow);
         await applications.ReplaceClientBindingsAsync(
             BuiltInApplicationIds.NativeClient,
             new HashSet<string>(StringComparer.Ordinal) { ClientId },
             DateTimeOffset.UtcNow);
+        return await PairAnotherDeviceAsync();
+    }
+
+    /// <summary>Pairs one more device with the permissions and client already in place (changing them would invalidate earlier tokens).</summary>
+    private async Task<OAuthTokenResponse> PairAnotherDeviceAsync()
+    {
         var started = await _authorization.BeginAsync(new DeviceAuthorizationRequest
         {
             ClientId = ClientId,
@@ -1045,7 +1072,7 @@ public sealed class DeviceProfileSwitchTests : IAsyncLifetime
             ClientVersion = "1.0.0",
             DeviceName = "Mary's phone",
             DeviceClass = "mobile",
-            Scope = "library.read playback.read",
+            Scope = "library.read playback.read downloads.read downloads.write",
             Capabilities = new ClientCapabilitiesDto { Containers = ["mp4"], VideoCodecs = ["h264"], AudioCodecs = ["aac"] },
         }, "https://library.example");
         Assert.True(await _authorization.DecideAsync(

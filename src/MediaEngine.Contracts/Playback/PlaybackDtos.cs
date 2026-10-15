@@ -372,6 +372,20 @@ public sealed record PlayerHeartbeatDto
     public string? ChapterTitle { get; init; }
     public string? AudiobookStartKind { get; init; }
     public PlaybackConnectionContextDto? Connection { get; init; }
+
+    /// <summary>
+    /// True when a paired app is replaying a heartbeat recorded while offline. With a <see cref="ClientTimestamp"/>,
+    /// the heartbeat is ignored when the server already holds a later update for the asset (later wins per asset).
+    /// </summary>
+    [global::System.Text.Json.Serialization.JsonPropertyName("offline")]
+    public bool Offline { get; init; }
+
+    /// <summary>
+    /// When the heartbeat was recorded on the device (ISO 8601, UTC). Only read when <see cref="Offline"/> is true.
+    /// The Engine treats a time later than its own clock as its own current time.
+    /// </summary>
+    [global::System.Text.Json.Serialization.JsonPropertyName("client_timestamp")]
+    public DateTimeOffset? ClientTimestamp { get; init; }
 }
 
 /// <summary>
@@ -448,6 +462,9 @@ public sealed record EncodeJobDto
     public long? OutputBytes { get; init; }
     public string? LastError { get; init; }
     public int RetryCount { get; init; }
+
+    /// <summary>When the Engine will remove the prepared variant this job produced; null until it completes or when it never expires.</summary>
+    public DateTimeOffset? ExpiresAt { get; init; }
 }
 
 public sealed record OfflineVariantDto

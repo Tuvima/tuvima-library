@@ -2279,6 +2279,19 @@ MediaEngine.Contracts.Details.MediaEngine.Contracts.Details.MusicAlbumPreviewVie
   ArtworkUrl: System.String | nullability=nullable | accessors=get,init
   Route: System.String | nullability=not-null | accessors=get,init
 
+MediaEngine.Contracts.Details.MediaEngine.Contracts.Details.NextEpisodeDto
+  WorkId: System.Guid | nullability=not-null | accessors=get,init
+  AssetId: System.Guid | nullability=not-null | accessors=get,init
+  Title: System.String | nullability=not-null | accessors=get,init
+  SeasonNumber: System.Int32? | nullability=nullable | accessors=get,init
+  EpisodeNumber: System.Int32? | nullability=nullable | accessors=get,init
+  StillUrl: System.String | nullability=nullable | accessors=get,init
+
+MediaEngine.Contracts.Details.MediaEngine.Contracts.Details.NextEpisodesDto
+  ShowId: System.Guid | nullability=not-null | accessors=get,init
+  AfterAssetId: System.Guid | nullability=not-null | accessors=get,init
+  Episodes: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Details.NextEpisodeDto> | nullability=not-null | accessors=get,init
+
 MediaEngine.Contracts.Details.MediaEngine.Contracts.Details.OwnedFormatViewModel
   Id: System.String | nullability=not-null | accessors=get,init
   FormatType: MediaEngine.Contracts.Details.MediaFormatType | nullability=not-null | accessors=get,init
@@ -5859,6 +5872,16 @@ MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.CreateAudiobookBoo
   Label: System.String | nullability=nullable | accessors=get,init
   Note: System.String | nullability=nullable | accessors=get,init
 
+MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.DeviceDownloadDto
+  AssetId: System.Guid | nullability=not-null | accessors=get,init
+  VariantId: System.Guid | nullability=not-null | accessors=get,init
+  StoredBytes: System.Int64 | nullability=not-null | accessors=get,init
+  StoredAt: System.DateTimeOffset | nullability=not-null | accessors=get,init
+  ExpiresAt: System.DateTimeOffset? | nullability=nullable | accessors=get,init
+
+MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.DeviceDownloadListDto
+  Downloads: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Playback.DeviceDownloadDto> | nullability=not-null | accessors=get,init
+
 MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.EncodeJobDto
   Id: System.Guid | nullability=not-null | accessors=get,init
   AssetId: System.Guid | nullability=not-null | accessors=get,init
@@ -5873,6 +5896,7 @@ MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.EncodeJobDto
   OutputBytes: System.Int64? | nullability=nullable | accessors=get,init
   LastError: System.String | nullability=nullable | accessors=get,init
   RetryCount: System.Int32 | nullability=not-null | accessors=get,init
+  ExpiresAt: System.DateTimeOffset? | nullability=nullable | accessors=get,init
 
 MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.EncodeJobStatuses
 
@@ -6228,6 +6252,8 @@ MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.PlayerHeartbeatDto
   ChapterTitle: System.String | nullability=nullable | accessors=get,init
   AudiobookStartKind: System.String | nullability=nullable | accessors=get,init
   Connection: MediaEngine.Contracts.Playback.PlaybackConnectionContextDto | nullability=nullable | accessors=get,init
+  Offline: System.Boolean | nullability=not-null | accessors=get,init
+  ClientTimestamp: System.DateTimeOffset? | nullability=nullable | accessors=get,init
 
 MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.PlayerPlaybackStates
 
@@ -6427,6 +6453,12 @@ MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.UpsertAudiobookCha
   ChapterIndex: System.Int32 | nullability=not-null | accessors=get,init
   Title: System.String | nullability=not-null | accessors=get,init
   TitleSource: System.String | nullability=nullable | accessors=get,init
+
+MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.UpsertDeviceDownloadRequest
+  AssetId: System.Guid | nullability=not-null | accessors=get,init
+  VariantId: System.Guid | nullability=not-null | accessors=get,init
+  StoredBytes: System.Int64 | nullability=not-null | accessors=get,init
+  StoredAt: System.DateTimeOffset | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.UserPlaybackSettingsDto
   ProfileId: System.Guid | nullability=not-null | accessors=get,set
@@ -6754,6 +6786,8 @@ MediaEngine.Contracts.Progress.MediaEngine.Contracts.Progress.ProgressUpdateRequ
   ProgressPct: System.Double | nullability=not-null | accessors=get,init
   ExtendedProperties: System.Collections.Generic.Dictionary<System.String, System.String> | nullability=nullable | accessors=get,init
   ExpectedRevision: System.Int64 | nullability=not-null | accessors=get,init
+  Offline: System.Boolean | nullability=not-null | accessors=get,init
+  ClientTimestamp: System.DateTimeOffset? | nullability=nullable | accessors=get,init
 
 MediaEngine.Contracts.Progress.MediaEngine.Contracts.Progress.UserStateResponse
   UserId: System.Guid | nullability=not-null | accessors=get,init
