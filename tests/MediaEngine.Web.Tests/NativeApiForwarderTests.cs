@@ -19,7 +19,6 @@ public sealed class NativeApiForwarderTests
 {
     [Theory]
     [InlineData("GET", "display/home", true, NativeApiForwardDecision.Forward)]
-    [InlineData("GET", "devices/current", true, NativeApiForwardDecision.Forward)]
     [InlineData("DELETE", "devices/6f0c2a3e-0000-0000-0000-000000000000", true, NativeApiForwardDecision.Forward)]
     [InlineData("GET", "playback/6f0c2a3e-0000-0000-0000-000000000000/manifest", true, NativeApiForwardDecision.Forward)]
     [InlineData("GET", "stream/6f0c2a3e-0000-0000-0000-000000000000", true, NativeApiForwardDecision.Forward)]
@@ -65,6 +64,114 @@ public sealed class NativeApiForwarderTests
     [InlineData("POST", "stream/6f0c2a3e-0000-0000-0000-000000000000/text-tracks/6f0c2a3e-0000-0000-0000-000000000000/preferred", true, NativeApiForwardDecision.Forward)]
     [InlineData("POST", "playback/6f0c2a3e-0000-0000-0000-000000000000/encode", true, NativeApiForwardDecision.Forward)]
     [InlineData("GET", "player/audiobooks/6f0c2a3e-0000-0000-0000-000000000000/chapter-overrides", true, NativeApiForwardDecision.Forward)]
+    // The app door passes only the browse routes of display/. The artwork workspace (raw artwork over every Work and Collection) and every other
+    // display/ shape is answered locally as not found.
+    [InlineData("GET", "display/browse", true, NativeApiForwardDecision.Forward)]
+    [InlineData("GET", "display/browse", false, NativeApiForwardDecision.Unauthorized)]
+    [InlineData("GET", "display/continue", true, NativeApiForwardDecision.Forward)]
+    [InlineData("GET", "display/continue", false, NativeApiForwardDecision.Unauthorized)]
+    [InlineData("GET", "display/recent", true, NativeApiForwardDecision.Forward)]
+    [InlineData("GET", "display/recent", false, NativeApiForwardDecision.Unauthorized)]
+    [InlineData("GET", "display/search", true, NativeApiForwardDecision.Forward)]
+    [InlineData("GET", "display/search", false, NativeApiForwardDecision.Unauthorized)]
+    [InlineData("GET", "display/contributor-shelves", true, NativeApiForwardDecision.Forward)]
+    [InlineData("GET", "display/contributor-shelves", false, NativeApiForwardDecision.Unauthorized)]
+    [InlineData("GET", "display/shelves/continue", true, NativeApiForwardDecision.Forward)]
+    [InlineData("GET", "display/shelves/continue", false, NativeApiForwardDecision.Unauthorized)]
+    [InlineData("GET", "display/shelves/recently-added", true, NativeApiForwardDecision.Forward)]
+    [InlineData("GET", "display/shelves/recently-added", false, NativeApiForwardDecision.Unauthorized)]
+    [InlineData("GET", "display/groups/6f0c2a3e-0000-0000-0000-000000000000", true, NativeApiForwardDecision.Forward)]
+    [InlineData("GET", "display/groups/6f0c2a3e-0000-0000-0000-000000000000", false, NativeApiForwardDecision.Unauthorized)]
+    [InlineData("GET", "display/artwork/media-assets/6f0c2a3e-0000-0000-0000-000000000000/effective-cover", true, NativeApiForwardDecision.Forward)]
+    [InlineData("GET", "display/artwork/media-assets/6f0c2a3e-0000-0000-0000-000000000000/effective-cover", false, NativeApiForwardDecision.Unauthorized)]
+    [InlineData("GET", "display/artwork", true, NativeApiForwardDecision.NotFound)]
+    [InlineData("GET", "display/artwork/", true, NativeApiForwardDecision.NotFound)]
+    [InlineData("GET", "display/artwork/assets", true, NativeApiForwardDecision.NotFound)]
+    [InlineData("GET", "display/artwork/assets/", true, NativeApiForwardDecision.NotFound)]
+    [InlineData("GET", "display/artwork/assets/6f0c2a3e-0000-0000-0000-000000000000/content", true, NativeApiForwardDecision.NotFound)]
+    [InlineData("GET", "display/artwork/assets/6f0c2a3e-0000-0000-0000-000000000000/content/x", true, NativeApiForwardDecision.NotFound)]
+    [InlineData("GET", "display/artwork/universes/6f0c2a3e-0000-0000-0000-000000000000/entities", true, NativeApiForwardDecision.NotFound)]
+    [InlineData("GET", "display/artwork/entities/work/6f0c2a3e-0000-0000-0000-000000000000", true, NativeApiForwardDecision.NotFound)]
+    [InlineData("GET", "display/artwork/works/6f0c2a3e-0000-0000-0000-000000000000/effective", true, NativeApiForwardDecision.NotFound)]
+    [InlineData("GET", "display/artwork/media-assets/6f0c2a3e-0000-0000-0000-000000000000", true, NativeApiForwardDecision.NotFound)]
+    [InlineData("GET", "display/artwork/media-assets/6f0c2a3e-0000-0000-0000-000000000000/effective-cover/x", true, NativeApiForwardDecision.NotFound)]
+    [InlineData("GET", "display/artwork/media-assets/6f0c2a3e-0000-0000-0000-000000000000/effective-cover/", true, NativeApiForwardDecision.NotFound)]
+    [InlineData("GET", "display/artwork/media-assets/notaguid/effective-cover", true, NativeApiForwardDecision.NotFound)]
+    [InlineData("GET", "display/artwork/media-assets/6f0c2a3e000000000000000000000000/effective-cover", true, NativeApiForwardDecision.NotFound)]
+    [InlineData("GET", "display/home/", true, NativeApiForwardDecision.NotFound)]
+    [InlineData("GET", "display/home/x", true, NativeApiForwardDecision.NotFound)]
+    [InlineData("GET", "display/browse/extra", true, NativeApiForwardDecision.NotFound)]
+    [InlineData("GET", "display/shelves", true, NativeApiForwardDecision.NotFound)]
+    [InlineData("GET", "display/shelves/", true, NativeApiForwardDecision.NotFound)]
+    [InlineData("GET", "display/shelves/a/b", true, NativeApiForwardDecision.NotFound)]
+    [InlineData("GET", "display/groups", true, NativeApiForwardDecision.NotFound)]
+    [InlineData("GET", "display/groups/notaguid", true, NativeApiForwardDecision.NotFound)]
+    [InlineData("GET", "display/groups/6f0c2a3e-0000-0000-0000-000000000000/x", true, NativeApiForwardDecision.NotFound)]
+    [InlineData("GET", "display/", true, NativeApiForwardDecision.NotFound)]
+    [InlineData("GET", "display", true, NativeApiForwardDecision.NotFound)]
+    [InlineData("GET", "display/unknown", true, NativeApiForwardDecision.NotFound)]
+    [InlineData("GET", "display/artwork/%2e%2e/home", true, NativeApiForwardDecision.NotFound)]
+    [InlineData("GET", "display/%2e%2e/artwork", true, NativeApiForwardDecision.NotFound)]
+    [InlineData("GET", "display/artwork/assets%2fx", true, NativeApiForwardDecision.NotFound)]
+    [InlineData("GET", "display/artwork/./assets", true, NativeApiForwardDecision.NotFound)]
+    [InlineData("GET", "display/artwork/../home", true, NativeApiForwardDecision.NotFound)]
+    [InlineData("GET", "display/home/../artwork/assets", true, NativeApiForwardDecision.NotFound)]
+    [InlineData("GET", "display/artwork/assets/6f0c2a3e-0000-0000-0000-000000000000/%2e%2e/content", true, NativeApiForwardDecision.NotFound)]
+    [InlineData("GET", "display/artwork?entityKind=media&search=a", true, NativeApiForwardDecision.NotFound)]
+    [InlineData("GET", "display/Artwork", true, NativeApiForwardDecision.NotFound)]
+    [InlineData("GET", "display/ARTWORK/assets", true, NativeApiForwardDecision.NotFound)]
+    [InlineData("GET", "display/artwork/assets", false, NativeApiForwardDecision.NotFound)]
+    [InlineData("HEAD", "display/artwork/assets/6f0c2a3e-0000-0000-0000-000000000000/content", true, NativeApiForwardDecision.NotFound)]
+    [InlineData("HEAD", "display/artwork", true, NativeApiForwardDecision.NotFound)]
+    [InlineData("POST", "display/artwork/assets", true, NativeApiForwardDecision.NotFound)]
+    [InlineData("PUT", "display/artwork/assets", true, NativeApiForwardDecision.NotFound)]
+    [InlineData("DELETE", "display/artwork/assets", true, NativeApiForwardDecision.NotFound)]
+    // Devices: only the anchored routes the apps call. A device can list itself, sign itself out, report capabilities, list and
+    // switch profiles, and keep its download list; nothing else under devices/ goes through.
+    [InlineData("GET", "devices", true, NativeApiForwardDecision.Forward)]
+    [InlineData("DELETE", "devices/6f0c2a3e-0000-0000-0000-000000000000", false, NativeApiForwardDecision.Unauthorized)]
+    [InlineData("PUT", "devices/current/capabilities", false, NativeApiForwardDecision.Unauthorized)]
+    [InlineData("GET", "devices/current/profiles", false, NativeApiForwardDecision.Unauthorized)]
+    [InlineData("GET", "devices/current", true, NativeApiForwardDecision.NotFound)]
+    [InlineData("GET", "devices/6f0c2a3e-0000-0000-0000-000000000000", true, NativeApiForwardDecision.NotFound)]
+    [InlineData("PUT", "devices/current/backup-profile", true, NativeApiForwardDecision.NotFound)]
+    [InlineData("GET", "devices/current/backup-profile", true, NativeApiForwardDecision.NotFound)]
+    [InlineData("DELETE", "devices/current/backup-profile", true, NativeApiForwardDecision.NotFound)]
+    [InlineData("DELETE", "devices/current", true, NativeApiForwardDecision.NotFound)]
+    [InlineData("DELETE", "devices", true, NativeApiForwardDecision.NotFound)]
+    [InlineData("DELETE", "devices/", true, NativeApiForwardDecision.NotFound)]
+    [InlineData("DELETE", "devices/notaguid", true, NativeApiForwardDecision.NotFound)]
+    [InlineData("DELETE", "devices/6f0c2a3e000000000000000000000000", true, NativeApiForwardDecision.NotFound)]
+    [InlineData("DELETE", "devices/{6f0c2a3e-0000-0000-0000-000000000000}", true, NativeApiForwardDecision.NotFound)]
+    [InlineData("DELETE", "devices/6f0c2a3e-0000-0000-0000-000000000000/x", true, NativeApiForwardDecision.NotFound)]
+    [InlineData("DELETE", "devices/6f0c2a3e-0000-0000-0000-000000000000/", true, NativeApiForwardDecision.NotFound)]
+    [InlineData("DELETE", "devices/current/downloads", true, NativeApiForwardDecision.NotFound)]
+    [InlineData("DELETE", "devices/current/downloads/notaguid", true, NativeApiForwardDecision.NotFound)]
+    [InlineData("PUT", "devices/6f0c2a3e-0000-0000-0000-000000000000", true, NativeApiForwardDecision.NotFound)]
+    [InlineData("PUT", "devices", true, NativeApiForwardDecision.NotFound)]
+    [InlineData("PUT", "devices/current", true, NativeApiForwardDecision.NotFound)]
+    [InlineData("PUT", "devices/current/profiles", true, NativeApiForwardDecision.NotFound)]
+    [InlineData("POST", "devices/current/profiles", true, NativeApiForwardDecision.NotFound)]
+    [InlineData("GET", "devices/current/capabilities", true, NativeApiForwardDecision.NotFound)]
+    [InlineData("PUT", "devices/current/capabilities/x", true, NativeApiForwardDecision.NotFound)]
+    [InlineData("GET", "devices/current/profiles/x", true, NativeApiForwardDecision.NotFound)]
+    [InlineData("GET", "devices/", true, NativeApiForwardDecision.NotFound)]
+    [InlineData("GET", "devices/current/", true, NativeApiForwardDecision.NotFound)]
+    [InlineData("GET", "devices/current/downloads/x", true, NativeApiForwardDecision.NotFound)]
+    [InlineData("GET", "devices/current/downloads/6f0c2a3e-0000-0000-0000-000000000000", true, NativeApiForwardDecision.NotFound)]
+    [InlineData("GET", "devices/current/downloads/photos", true, NativeApiForwardDecision.NotFound)]
+    [InlineData("PUT", "devices/current/downloads", true, NativeApiForwardDecision.NotFound)]
+    [InlineData("PUT", "devices/current/switch-profile", true, NativeApiForwardDecision.NotFound)]
+    [InlineData("GET", "devices/%2e%2e/health/ready", true, NativeApiForwardDecision.NotFound)]
+    [InlineData("GET", "devices/../health/ready", true, NativeApiForwardDecision.NotFound)]
+    [InlineData("GET", "devices/./current/profiles", true, NativeApiForwardDecision.NotFound)]
+    [InlineData("DELETE", "devices/6f0c2a3e-0000-0000-0000-000000000000/../6f0c2a3e-0000-0000-0000-000000000000", true, NativeApiForwardDecision.NotFound)]
+    [InlineData("GET", "devicesx", true, NativeApiForwardDecision.NotFound)]
+    [InlineData("GET", "xdevices", true, NativeApiForwardDecision.NotFound)]
+    [InlineData("HEAD", "devices", true, NativeApiForwardDecision.NotFound)]
+    [InlineData("HEAD", "devices/current/profiles", true, NativeApiForwardDecision.NotFound)]
+    [InlineData("PATCH", "devices/current/capabilities", true, NativeApiForwardDecision.NotFound)]
+    [InlineData("GET", "devices/current/profiles?x=1", true, NativeApiForwardDecision.NotFound)]
     // Administrator-level edits stay out of reach, even for a paired administrator's phone.
     [InlineData("GET", "persons/6f0c2a3e-0000-0000-0000-000000000000/editor", true, NativeApiForwardDecision.NotFound)]
     [InlineData("PUT", "persons/6f0c2a3e-0000-0000-0000-000000000000/editor", true, NativeApiForwardDecision.NotFound)]
@@ -339,6 +446,46 @@ public sealed class NativeApiForwarderTests
                  ("GET", "/api/v1/view/items/6f0c2a3e-0000-0000-0000-000000000000/original", "")],
                 seen.Select(entry => (entry.Method, entry.Path, entry.Query)).ToArray());
             Assert.All(seen, entry => Assert.Equal("Bearer app-token", entry.Authorization));
+        }
+    }
+
+    [Fact]
+    public async Task DisplayAndDevicesDoor_NeverForwardsTheArtworkWorkspaceOrOtherDevicesRoutes()
+    {
+        var seen = new List<(string Method, string Path)>();
+        await using var engine = await TestApplication.StartEngineAsync(record: context =>
+        {
+            lock (seen)
+            {
+                seen.Add((context.Request.Method, context.Request.Path));
+            }
+        });
+        await using var dashboard = await TestApplication.StartDashboardAsync(engine.Address, enabled: true);
+        using var client = new HttpClient { BaseAddress = dashboard.Address };
+        const string id = "6f0c2a3e-0000-0000-0000-000000000000";
+
+        using var browse = await client.SendAsync(Bearer(HttpMethod.Get, "/api/v1/display/browse?lane=watch"));
+        using var selfRevoke = await client.SendAsync(Bearer(HttpMethod.Delete, $"/api/v1/devices/{id}"));
+        using var artwork = await client.SendAsync(Bearer(HttpMethod.Get, "/api/v1/display/artwork?entityKind=media&search=a"));
+        using var assets = await client.SendAsync(Bearer(HttpMethod.Get, "/api/v1/display/artwork/assets?search=a"));
+        using var content = await client.SendAsync(Bearer(HttpMethod.Get, $"/api/v1/display/artwork/assets/{id}/content"));
+        using var encoded = await client.SendAsync(Bearer(HttpMethod.Get, "/api/v1/display/home/%2e%2e/artwork/assets"));
+        using var current = await client.SendAsync(Bearer(HttpMethod.Get, "/api/v1/devices/current"));
+        using var backup = await client.SendAsync(Bearer(HttpMethod.Put, "/api/v1/devices/current/backup-profile"));
+
+        Assert.Equal(HttpStatusCode.OK, browse.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, selfRevoke.StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, artwork.StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, assets.StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, content.StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, encoded.StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, current.StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, backup.StatusCode);
+        lock (seen)
+        {
+            Assert.Equal(
+                [("GET", "/api/v1/display/browse"), ("DELETE", $"/api/v1/devices/{id}")],
+                seen.ToArray());
         }
     }
 

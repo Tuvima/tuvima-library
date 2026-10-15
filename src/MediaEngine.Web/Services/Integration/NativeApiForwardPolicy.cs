@@ -40,23 +40,35 @@ public static class NativeApiForwardPolicy
         Of(["POST"], "oauth/device_authorization", needsToken: false),
         Of(["POST"], "oauth/token", needsToken: false),
 
-        // Devices: list, current, report capabilities, revoke.
-        Of([..Read, "PUT", "DELETE"], "devices(?:/.*)?"),
+        // Devices: exactly what the apps call, each anchored. The Engine scopes them to the calling device: the list holds only
+        // this device and a revoke is accepted only for this device's own id (the apps use it to sign out). Managing other devices
+        // is the Dashboard's /access/devices. No other devices/ route (including devices/current and backup-profile) is forwarded.
+        Of(["GET"], "devices"),
+        Of(["DELETE"], $"devices/{Guid}"),
 
-        // Switch person without re-pairing: this one POST on the device's own record only. The Engine re-checks the PIN at every switch.
+        // Report capabilities (the TV's HEVC toggle).
+        Of(["PUT"], "devices/current/capabilities"),
+
+        // Whose profile this device uses: the people it may switch to, and the switch itself. The Engine re-checks the PIN at every switch.
+        Of(["GET"], "devices/current/profiles"),
         Of(["POST"], "devices/current/switch-profile"),
 
         // The offline downloads this device reports as stored: list and report (GET, POST on the collection), forget a variant
-        // (DELETE by id) or a kept photo (DELETE .../photos/{itemId}). The broad devices rule above also passes the reads and
-        // DELETEs (and, for any other path under devices/, the PUT); these exact rules are repeated so the app surface is explicit,
-        // and the POST exists only for this exact collection path (the Engine decides which device from the token alone).
-        Of(Read, "devices/current/downloads"),
+        // (DELETE by id) or a kept photo (DELETE .../photos/{itemId}). The Engine decides which device from the token alone.
+        Of(["GET"], "devices/current/downloads"),
         Of(["POST"], "devices/current/downloads"),
         Of(["DELETE"], $"devices/current/downloads/{Guid}"),
         Of(["DELETE"], $"devices/current/downloads/photos/{Guid}"),
 
-        // Browse, details, people and artwork: read-only for apps.
-        Of(Read, "display/.*"),
+        // Browse and artwork: read-only for apps, and only the routes the apps use. The artwork workspace under display/artwork
+        // (library browse, asset search, entity and Universe workspaces, effective work artwork, raw asset content) is the Dashboard's
+        // artwork management and is never forwarded; only the one profile-checked effective-cover route is.
+        Of(Read, "display/(?:home|browse|continue|recent|search|contributor-shelves)"),
+        Of(Read, "display/shelves/[^/]+"),
+        Of(Read, $"display/groups/{Guid}"),
+        Of(Read, $"display/artwork/media-assets/{Guid}/effective-cover"),
+
+        // Details, people and artwork: read-only for apps.
         Of(Read, "details/.*"),
 
         // Collections and Universes: the catalogue page, one collection and its item pages, and one Universe by QID. Read only.

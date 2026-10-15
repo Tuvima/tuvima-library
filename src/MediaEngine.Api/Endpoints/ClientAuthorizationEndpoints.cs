@@ -137,10 +137,23 @@ public static class ClientAuthorizationEndpoints
             .WithTags("Devices")
             .RequireAuthorization(AuthPolicies.Authenticated);
 
-        devices.MapGet("/", async (ClaimsPrincipal user, ClientAuthorizationService authorization, CancellationToken ct) =>
+        // A paired app sees only its own device (a TV switched to another person's profile must not list that person's
+        // other devices); a signed-in person keeps the whole profile list. Managing other devices is /access/devices.
+        devices.MapGet("/", async (
+            HttpContext http,
+            [FromServices] IRequestAuthorityResolver resolver,
+            ClientAuthorizationService authorization,
+            CancellationToken ct) =>
         {
-            var profileId = RequiredGuidClaim(user, TuvimaClaimTypes.ActiveProfileId);
+            var profileId = RequiredGuidClaim(http.User, TuvimaClaimTypes.ActiveProfileId);
+            var authority = await resolver.ResolveAsync(http, ct);
             var values = await authorization.GetDevicesAsync(profileId, ct);
+            if (authority.PrincipalKind != PrincipalKind.Human)
+            {
+                var ownDeviceId = authority.DeviceId;
+                values = values.Where(device => ownDeviceId is not null && device.Id == ownDeviceId).ToList();
+            }
+
             return Results.Ok(values.Select(ToDto));
         })
         .WithName("ListClientDevices")
@@ -333,13 +346,22 @@ public static class ClientAuthorizationEndpoints
         .ProducesProblem(StatusCodes.Status404NotFound)
         .RequireClientScope(ClientApiScopes.DownloadsWrite);
 
+        // A paired app can only sign itself out (the apps call this with their own device id). Any other id answers exactly
+        // like an unknown device, so a token cannot probe or remove another device of the same profile.
         devices.MapDelete("/{deviceId:guid}", async (
             Guid deviceId,
-            ClaimsPrincipal user,
+            HttpContext http,
+            [FromServices] IRequestAuthorityResolver resolver,
             ClientAuthorizationService authorization,
             CancellationToken ct) =>
         {
-            var profileId = RequiredGuidClaim(user, TuvimaClaimTypes.ActiveProfileId);
+            var profileId = RequiredGuidClaim(http.User, TuvimaClaimTypes.ActiveProfileId);
+            var authority = await resolver.ResolveAsync(http, ct);
+            if (authority.PrincipalKind != PrincipalKind.Human && authority.DeviceId != deviceId)
+            {
+                return ApiErrors.NotFound("Device not found or already revoked.");
+            }
+
             return await authorization.RevokeDeviceAsync(deviceId, profileId, ct)
                 ? Results.NoContent()
                 : ApiErrors.NotFound("Device not found or already revoked.");
