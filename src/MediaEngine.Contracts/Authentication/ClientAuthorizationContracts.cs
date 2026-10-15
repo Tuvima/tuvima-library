@@ -16,8 +16,20 @@ public static class ClientApiScopes
     public static readonly string DownloadsRead = ApplicationPermissionIds.DownloadsRead.Value;
     public static readonly string DownloadsWrite = ApplicationPermissionIds.DownloadsWrite.Value;
 
+    public static readonly string ViewPersonalRead = ApplicationPermissionIds.ViewPersonalRead.Value;
+    public static readonly string ViewOriginalsRead = ApplicationPermissionIds.ViewOriginalsRead.Value;
+    public static readonly string ViewGalleriesRead = ApplicationPermissionIds.ViewGalleriesRead.Value;
+
+    /// <summary>
+    /// The three scopes the pairing screen offers as the single "Photos and personal videos" item. Apps may request
+    /// them, but they are never defaults and are granted only when the person ticks that item.
+    /// </summary>
+    public static readonly IReadOnlyList<string> Photos = Array.AsReadOnly(
+        ApplicationPermissionIds.NativeClientPhotos.Select(id => id.Value).ToArray());
+
+    /// <summary>Every scope a paired app may request: the player scopes, then the opt-in <see cref="Photos"/> scopes.</summary>
     public static readonly IReadOnlyList<string> Consumer = Array.AsReadOnly(
-        ApplicationPermissionIds.NativeClient.Select(id => id.Value).ToArray());
+        ApplicationPermissionIds.NativeClient.Concat(ApplicationPermissionIds.NativeClientPhotos).Select(id => id.Value).ToArray());
 
     public static readonly IReadOnlyList<string> Default = Array.AsReadOnly<string>(
     [

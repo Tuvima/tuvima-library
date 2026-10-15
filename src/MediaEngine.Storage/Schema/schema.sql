@@ -2432,6 +2432,21 @@ FROM pending CROSS JOIN clients;
 
 INSERT OR IGNORE INTO storage_metadata(key,value) VALUES ('access_native_seeded','1');
 
+-- Photos and personal videos: let the built-in native-client Application hold the three view scopes once, so a paired
+-- app can be given them. Holding them is not consent: a device token carries them only when the person ticks the
+-- photo consent on the pairing screen. Like the seed above, the marker preserves later administrative edits, and an
+-- Application an administrator deleted is not recreated.
+WITH pending AS (
+    SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM storage_metadata WHERE key='access_native_photos_seeded')
+      AND EXISTS (SELECT 1 FROM applications WHERE id=X'00000000000000000000000000000004')
+), permissions(permission_id) AS (VALUES
+    ('view.personal.read'),('view.originals.read'),('view.galleries.read'))
+INSERT OR IGNORE INTO application_permission_grants(application_id,permission_id,granted_at)
+SELECT X'00000000000000000000000000000004',permission_id,strftime('%Y-%m-%dT%H:%M:%fZ','now')
+FROM pending CROSS JOIN permissions;
+
+INSERT OR IGNORE INTO storage_metadata(key,value) VALUES ('access_native_photos_seeded','1');
+
 CREATE TABLE IF NOT EXISTS system_activity (
     id           INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
     occurred_at  TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),

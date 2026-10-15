@@ -10,14 +10,19 @@ public sealed class AccessContractTests
     [Fact]
     public void NativeClientScopesAddExplicitEventConsentWithoutChangingDefaultPlaybackConsent()
     {
-        var expected = ApplicationPermissionIds.NativeClient.Select(id => id.Value).ToArray();
+        var expected = ApplicationPermissionIds.NativeClient.Concat(ApplicationPermissionIds.NativeClientPhotos)
+            .Select(id => id.Value).ToArray();
 
         Assert.Equal(expected, ClientApiScopes.Consumer);
         Assert.Equal(new[]
         {
             "library.read", "artwork.read", "library.changes.read", "progress.read", "progress.write", "queue.read",
             "queue.write", "playback.read", "playback.write", "downloads.read", "downloads.write", "events.subscribe",
+            "view.personal.read", "view.originals.read", "view.galleries.read",
         }, ClientApiScopes.Consumer);
+        Assert.Equal(new[] { "view.personal.read", "view.originals.read", "view.galleries.read" }, ClientApiScopes.Photos);
+        // Photo access is opt-in on the pairing screen: never a default scope.
+        Assert.Empty(ClientApiScopes.Default.Intersect(ClientApiScopes.Photos));
         Assert.Equal(new[] { "library.read", "artwork.read", "progress.read", "progress.write",
             "queue.read", "queue.write", "playback.read", "playback.write" }, ClientApiScopes.Default);
 

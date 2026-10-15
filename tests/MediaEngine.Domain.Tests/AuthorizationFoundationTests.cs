@@ -72,6 +72,23 @@ public sealed class AuthorizationFoundationTests
     }
 
     [Fact]
+    public void PhotoScopesAreOptInForNativeClientsAndNotInTheMediaPlayerPreset()
+    {
+        Assert.Equal(
+            ["view.personal.read", "view.originals.read", "view.galleries.read"],
+            ApplicationPermissionIds.NativeClientPhotos.Select(id => id.Value));
+        var registry = new PermissionRegistry();
+        Assert.All(ApplicationPermissionIds.NativeClientPhotos, id =>
+        {
+            Assert.True(registry.TryGet(id, out var definition) && definition.IsAvailable);
+            Assert.True(definition.RequiresUserContext);
+            Assert.Contains(ApplicationType.UserClient, definition.ApplicationTypes);
+            Assert.DoesNotContain(id, ApplicationPermissionIds.NativeClient);
+            Assert.DoesNotContain(id, ApplicationPermissionPresets.MediaPlayer.Permissions);
+        });
+    }
+
+    [Fact]
     public void MutatingAndInferenceOperationsHaveTruthfulRiskLevels()
     {
         var definitions = new PermissionRegistry().GetAll().ToDictionary(value => value.Id);
