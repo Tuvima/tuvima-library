@@ -3,6 +3,7 @@ import TuvimaCore
 
 final class OfflineDownloadManager: NSObject, ObservableObject, URLSessionDownloadDelegate {
     @Published private(set) var progress: [UUID: Double] = [:]
+    @Published private(set) var lastError: String?
     private var api: TuvimaAPIClient?
     private lazy var session: URLSession = {
         let configuration = URLSessionConfiguration.background(withIdentifier: "com.tuvima.library.offline.v1")
@@ -13,22 +14,32 @@ final class OfflineDownloadManager: NSObject, ObservableObject, URLSessionDownlo
 
     func attach(_ api: TuvimaAPIClient) { self.api = api }
 
-    func download(assetID: UUID) {
+    /// The default download quality chosen in Settings; a transcoding profile key such as `mobile-standard`.
+    static var defaultProfileKey: String {
+        UserDefaults.standard.string(forKey: "tuvima.downloadQuality") ?? "mobile-standard"
+    }
+
+    func download(assetID: UUID, profileKey: String = OfflineDownloadManager.defaultProfileKey) {
         Task {
-            guard let api else { return }
-            try await api.requestOfflineVariant(assetID: assetID)
-            for _ in 0..<180 {
-                let manifest = try await api.playbackManifest(assetID: assetID)
-                if let path = manifest.offlineVariants.first(where: { $0.status == "ready" })?.downloadUrl {
-                    var request = try await api.authorizedRequest(path: path)
-                    request.setValue("no-store", forHTTPHeaderField: "Cache-Control")
-                    let task = session.downloadTask(with: request)
-                    task.taskDescription = assetID.uuidString
-                    task.resume()
-                    return
-                }
-                try await Task.sleep(for: .seconds(2))
+            do { try await requestAndStart(assetID: assetID, profileKey: profileKey) }
+            catch { await MainActor.run { self.lastError = error.localizedDescription } }
+        }
+    }
+
+    private func requestAndStart(assetID: UUID, profileKey: String) async throws {
+        guard let api else { return }
+        try await api.requestOfflineVariant(assetID: assetID, profileKey: profileKey)
+        for _ in 0..<180 {
+            let manifest = try await api.playbackManifest(assetID: assetID)
+            if let path = manifest.offlineVariants.first(where: { $0.status == "ready" })?.downloadUrl {
+                var request = try await api.authorizedRequest(path: path)
+                request.setValue("no-store", forHTTPHeaderField: "Cache-Control")
+                let task = session.downloadTask(with: request)
+                task.taskDescription = assetID.uuidString
+                task.resume()
+                return
             }
+            try await Task.sleep(for: .seconds(2))
         }
     }
 

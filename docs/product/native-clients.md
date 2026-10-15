@@ -26,7 +26,7 @@ credential. The executable wire fixtures are under
 | --- | --- | --- | --- |
 | 0 | API v1 entry gate | Implemented and covered by executable discovery, pairing, token, playback, ownership, and wire-contract tests | Run against the same candidate server build used for device certification |
 | 1 | Android TV pilot | Shared Kotlin client, television UI, D-pad navigation foundation, pairing, browse, artwork, HLS/direct playback, captions, progress, and resume implemented | Android CI build, low/current hardware matrix, remote-control and adaptive-HLS sign-off |
-| 2 | Android and iOS | Secure credentials, background/system playback, downloads, network recovery, deep links, and resume implemented | Android and Apple CI builds, phone/tablet device matrix, interruption/Bluetooth/download sign-off, store metadata |
+| 2 | Android and iOS | Secure credentials, background/system playback, downloads, network recovery, deep links, and resume implemented. The iPhone app now has Dashboard-parity screens on API v1 only: a tab bar (Home, Libraries, Search, Downloads, Settings); Home with Continue first, then the Home shelves in order; Libraries switching between Watch, Read, Listen (the Dashboard's sort and filter in a sheet), View (month-grouped timeline, galleries and a pinch-to-zoom full-screen viewer) and Collections (catalogue, items and Universe shelves); Details with Play or Resume, Download, cast and editions; and Settings with server address, profile switch with PIN prompt, default download quality and sign out. Downloads is a placeholder until the offline list is built, and the photo scopes are requested only when the person ticks the optional photos and videos box on the connect screen. Apple TV and CarPlay are unchanged | Android and Apple CI builds, phone/tablet device matrix, interruption/Bluetooth/download sign-off, store metadata |
 | 3 | Roku | SceneGraph/BrightScript pairing, browse, search, detail, playback, captions, progress, and resume implemented | Sideload matrix, pairing-policy confirmation, artwork/localization, Roku certification |
 | 4 | Android Auto and CarPlay | Listen-only music, audiobooks, playlists, recent items, queue-compatible media sessions, and native Now Playing surfaces implemented | Desktop Head Unit/vehicle tests, Apple managed CarPlay entitlement, both platform reviews |
 | 5 | Release train | Cross-client CI and API/source boundary gates implemented | Signing credentials, store records, privacy/support declarations, phased rollout, telemetry review, and rollback ownership |
@@ -43,7 +43,8 @@ when all evidence in its final column is attached to the release candidate.
 - Android phone Compose surface, background `MediaLibraryService`, system
   media session, Android Auto browse tree, and private resumable downloads.
 - iOS SwiftUI client, Keychain credentials, AVPlayer background transport,
-  system controls, network switching, background downloads, and deep links.
+  system controls, network switching, background downloads, and deep links, plus
+  the Home, Libraries, Search, Downloads and Settings tabs described in stage 2.
 - CarPlay audio-only Listen templates for music, audiobooks, playlists, recent
   items, and Now Playing.
 - Roku SceneGraph client for pairing, browse, search, details, playback,
