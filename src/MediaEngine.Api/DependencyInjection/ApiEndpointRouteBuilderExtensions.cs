@@ -33,6 +33,7 @@ public static class ApiEndpointRouteBuilderExtensions
         app.MapHlsStreamEndpoints();
         app.MapViewEndpoints();
         app.MapViewDiscoveryEndpoints();
+        app.MapViewClientEndpoints();
         app.MapPlaybackEndpoints();
         app.MapPlayerEndpoints();
         app.MapPlaybackTelemetryEndpoints();

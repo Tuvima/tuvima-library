@@ -59,6 +59,30 @@ Tokens are opaque bearer credentials and must be stored in the platform secure c
 | Playback session | `/api/v1/player/command`, `/heartbeat`, `/session/takeover` | `playback.write` or `progress.write` |
 | Playback decision | `GET /api/v1/playback/{assetId}/manifest` | `playback.read` |
 | Downloads | encode/offline routes under `/api/v1/playback` | `downloads.read` / `downloads.write` |
+| Photos | `GET /api/v1/view/timeline`, `/places`, `/people`, `/people/{key}/items`, `/items/{id}`, `/items/{id}/thumbnail`, `/items/{id}/preview` | `view.personal.read` |
+| Photo Galleries | `GET /api/v1/view/galleries`, `/galleries/{id}/items` | `view.galleries.read` |
+| Photo originals and video | `GET /api/v1/view/items/{id}/original`, `/items/{id}/playback` | `view.originals.read` |
+
+#### Photos (View) for paired apps
+
+The `/api/v1/view` routes give a paired app the active person's own photos and videos, read-only. Every route takes who is asking from the device token's active profile and asks the View authorization service for the **Mine** scope; there is no `scope`, `scopeProfileId` or profile parameter, and sending one changes nothing. Only a paired app may call them (a Dashboard session or service application is refused with `403`, no token with `401`), and the token and the Application must both hold the scope named above (`403` with `insufficient_scope` otherwise). The Dashboard's own `/view` routes are unchanged.
+
+| Route | Answer |
+|---|---|
+| `GET /timeline?cursor&limit` | `ViewClientTimelinePageDto`: `months` (each `year`, `month` in UTC, and `items`), `next_cursor`, `has_more`. Newest first; `limit` defaults to 100 (maximum 200). A month can continue on the next page, so merge buckets with the same `year` and `month`. An invalid cursor is `400`. |
+| `GET /galleries` | `ViewGalleryListResponse` (`owned`, `shared_with_you`). Counts leave documents out. |
+| `GET /galleries/{id}/items?cursor&limit` | `ViewClientItemPageDto` (`items`, `next_cursor`, `has_more`), newest first. |
+| `GET /people?cursor&limit`, `GET /places?cursor&limit` | The existing `ViewPeoplePageDto` and `ViewPlacesPageDto` (places carry `latitude` and `longitude`). |
+| `GET /people/{key}/items?cursor&limit` | `ViewClientItemPageDto` for one person's `key`. |
+| `GET /items/{id}` | The existing `LocalAssetDto`: `media_kind` (`image` or `video`), size (`width`, `height`, `duration_seconds`, file `byte_size`), `captured_at`, camera, location. `thumbnail_url` and `content_url` point at the routes below. |
+| `GET /items/{id}/thumbnail?size=` | JPEG; `size` is the longest edge: `160`, `320` or `640` (default). Any other value is `400`. |
+| `GET /items/{id}/preview?size=` | JPEG; `size` is `1280` or `2048` (default). |
+| `GET /items/{id}/original` | The original file with HTTP range support, only for a token that holds `view.originals.read` and may read the item. No address works without the bearer token. |
+| `GET /items/{id}/playback` | For a video: a `PlaybackManifestDto` with one `direct-stream` delivery of `/api/v1/view/items/{id}/original`. Personal videos have no catalogue asset, probe or adaptive package, so the catalogue playback is not involved. |
+
+These routes show photos and videos only. A document, someone else's item and an id nobody has all answer with the same `404`, on every route and for every profile, so a profile without Documents cannot learn that a document exists from the timeline, Galleries, counts, people, places, items or files, and nobody can tell a foreign id from an unknown one. Hidden, archived and trashed items stay out of the timeline. A photo or Gallery that reached the caller through a share carries nothing from its owner's space: no owner or space ids, no Smart Gallery rule, no embedded location or date, and no people or tags. Thumbnail, preview and original responses are `Cache-Control: private, no-cache`.
+
+The `view.*` scopes are not yet in the scopes a native app can be paired with, and the Dashboard's app door does not yet forward `/api/v1/view`, so no installed app can reach these routes until both are decided.
 
 #### Long TV episode lists
 
