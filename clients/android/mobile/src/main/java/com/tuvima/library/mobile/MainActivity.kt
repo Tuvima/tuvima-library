@@ -2,9 +2,9 @@ package com.tuvima.library.mobile
 
 import android.content.Intent
 import android.os.Bundle
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -13,10 +13,10 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -28,19 +28,19 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.workDataOf
-import com.tuvima.library.core.DisplayPage
 import com.tuvima.library.core.PairingPollResult
 import com.tuvima.library.core.PairingSession
+import com.tuvima.library.core.PhotoScopes
 import com.tuvima.library.core.TuvimaClient
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import org.json.JSONObject
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -66,26 +66,30 @@ class MainActivity : ComponentActivity() {
         )
     }
 
+    // The existing offline worker already asks the Engine for the offline copy (POST /api/v1/playback/{id}/encode)
+    // and downloads it when ready; this only hands it the person's default quality.
     private fun download(assetId: String) {
+        val quality = (application as TuvimaMobileApplication).downloadQuality()
         WorkManager.getInstance(this).enqueue(
             OneTimeWorkRequestBuilder<OfflineDownloadWorker>()
-                .setInputData(workDataOf(OfflineDownloadWorker.KEY_ASSET_ID to assetId))
+                .setInputData(
+                    workDataOf(
+                        OfflineDownloadWorker.KEY_ASSET_ID to assetId,
+                        OfflineDownloadWorker.KEY_PROFILE_KEY to quality,
+                    ),
+                )
                 .build(),
         )
+        Toast.makeText(this, "Preparing your offline copy. Downloads will list it in a later update.", Toast.LENGTH_LONG).show()
     }
 }
 
-private sealed interface MobileState {
-    data object Server : MobileState
-    data class Pairing(val session: PairingSession) : MobileState
-    data class Library(val page: DisplayPage) : MobileState
-    data class Search(val query: String, val results: List<MobileSearchResult>) : MobileState
-    data class Detail(val detail: MobileDetail, val playableAssetId: String?) : MobileState
-    data class Message(val text: String) : MobileState
+private sealed interface MobileStage {
+    data object Server : MobileStage
+    data class Pairing(val session: PairingSession) : MobileStage
+    data object Ready : MobileStage
+    data class Message(val text: String) : MobileStage
 }
-
-private data class MobileSearchResult(val id: String, val entityType: String, val title: String, val subtitle: String?)
-private data class MobileDetail(val title: String, val subtitle: String?, val description: String?, val facts: String)
 
 @Composable
 private fun MobileRoot(
@@ -95,46 +99,20 @@ private fun MobileRoot(
     download: (String) -> Unit,
 ) {
     val scope = rememberCoroutineScope()
-    var state: MobileState by remember { mutableStateOf(MobileState.Server) }
-    var returnState: MobileState by remember { mutableStateOf(MobileState.Server) }
+    var stage: MobileStage by remember { mutableStateOf(MobileStage.Server) }
     var client: TuvimaClient? by remember { mutableStateOf(application.client) }
 
-    suspend fun libraryOrDeepLink(value: TuvimaClient): MobileState = initialDetail?.let { (entityType, id) ->
-        MobileState.Detail(parseMobileDetail(value.details(entityType, id)), null)
-    } ?: MobileState.Library(value.home())
-
-    fun openDetail(entityType: String, id: String, assetId: String?) {
-        val api = client ?: return
-        returnState = state
-        state = MobileState.Message("Loading details…")
-        scope.launch {
-            state = runCatching { MobileState.Detail(parseMobileDetail(api.details(entityType, id)), assetId) }
-                .getOrElse { MobileState.Message(it.message ?: "Details could not be loaded.") }
-        }
-    }
-
-    fun search(query: String) {
-        val api = client ?: return
-        if (query.isBlank()) return
-        returnState = state
-        state = MobileState.Message("Searching…")
-        scope.launch {
-            state = runCatching { MobileState.Search(query, parseMobileSearch(api.search(query))) }
-                .getOrElse { MobileState.Message(it.message ?: "Search could not be loaded.") }
-        }
-    }
-
     fun connect(address: String) {
-        state = MobileState.Message("Connecting…")
+        stage = MobileStage.Message("Connecting…")
         scope.launch {
             runCatching {
                 application.connect(address).also {
                     client = it
                     it.discover()
-                    state = if (it.isPaired()) libraryOrDeepLink(it)
-                    else MobileState.Pairing(it.beginPairing(MOBILE_SCOPES))
+                    stage = if (it.isPaired()) MobileStage.Ready
+                    else MobileStage.Pairing(it.beginPairing(PhotoScopes.requested(MOBILE_SCOPES, application.photosOptIn())))
                 }
-            }.onFailure { state = MobileState.Message(it.message ?: "Connection failed.") }
+            }.onFailure { stage = MobileStage.Message(it.message ?: "Connection failed.") }
         }
     }
 
@@ -142,92 +120,67 @@ private fun MobileRoot(
         application.savedServer()?.let(::connect)
     }
 
-    when (val current = state) {
-        MobileState.Server -> {
-            var address by remember { mutableStateOf("") }
-            Column(Modifier.fillMaxSize().padding(24.dp), verticalArrangement = Arrangement.Center) {
-                Text("Tuvima Library", style = MaterialTheme.typography.displaySmall)
-                Spacer(Modifier.height(20.dp))
-                OutlinedTextField(address, { address = it }, label = { Text("Dashboard address") }, modifier = Modifier.fillMaxWidth())
-                Spacer(Modifier.height(16.dp))
-                Button(onClick = { connect(address) }) { Text("Connect") }
-            }
+    when (val current = stage) {
+        MobileStage.Server -> ServerEntry(application.savedServer().orEmpty(), application.photosOptIn()) { address, photos ->
+            application.setPhotosOptIn(photos)
+            connect(address)
         }
-        is MobileState.Pairing -> MobilePairing(client!!, current.session) { result ->
+        is MobileStage.Pairing -> MobilePairing(client!!, current.session) { result ->
             when (result) {
-                is PairingPollResult.Authorized -> scope.launch { state = libraryOrDeepLink(client!!) }
-                is PairingPollResult.Failed -> state = MobileState.Message(result.description ?: result.code)
+                is PairingPollResult.Authorized -> stage = MobileStage.Ready
+                is PairingPollResult.Failed -> stage = MobileStage.Message(result.description ?: result.code)
                 is PairingPollResult.Pending -> Unit
             }
         }
-        is MobileState.Library -> LazyColumn(Modifier.fillMaxSize().padding(horizontal = 16.dp)) {
-            item {
-                Text(current.page.title, style = MaterialTheme.typography.displaySmall, modifier = Modifier.padding(vertical = 24.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    listOf("watch", "read", "listen").forEach { lane ->
-                        Button(onClick = { scope.launch { state = MobileState.Library(client!!.browse(lane)) } }) { Text(lane) }
-                    }
-                }
-                var query by remember { mutableStateOf("") }
-                Row(Modifier.padding(top = 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedTextField(query, { query = it }, label = { Text("Search") }, modifier = Modifier.weight(1f))
-                    Button(onClick = { search(query) }) { Text("Search") }
-                }
-            }
-            current.page.shelves.forEach { shelf ->
-                item { Text(shelf.title, style = MaterialTheme.typography.headlineSmall, modifier = Modifier.padding(top = 24.dp, bottom = 8.dp)) }
-                items(shelf.items, key = { it.id }) { card ->
-                    val asset = card.actions.firstNotNullOfOrNull { it.assetId } ?: card.assetId
-                    Card(Modifier.fillMaxWidth().padding(vertical = 6.dp).clickable {
-                        val target = mobileCardDetailTarget(card)
-                        openDetail(target.first, target.second, asset)
-                    }) {
-                        Column(Modifier.padding(16.dp)) {
-                            Text(card.title)
-                            card.subtitle?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
-                        }
-                    }
-                }
+        MobileStage.Ready -> {
+            val signedIn = client
+            if (signedIn != null) {
+                MobileShell(
+                    application = application,
+                    client = signedIn,
+                    initialDetail = initialDetail,
+                    play = play,
+                    download = download,
+                    onChangeServer = { stage = MobileStage.Server },
+                    onSignedOut = { note -> stage = if (note == null) MobileStage.Server else MobileStage.Message(note) },
+                )
+            } else {
+                Text("This phone is not connected to a server.", modifier = Modifier.padding(24.dp))
             }
         }
-        is MobileState.Search -> {
-            var query by remember(current.query) { mutableStateOf(current.query) }
-            LazyColumn(Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                item {
-                    Text("Search", style = MaterialTheme.typography.displaySmall)
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        OutlinedTextField(query, { query = it }, modifier = Modifier.weight(1f))
-                        Button(onClick = { search(query) }) { Text("Search") }
-                    }
-                }
-                items(current.results, key = { "${it.entityType}:${it.id}" }) { result ->
-                    Card(Modifier.fillMaxWidth().clickable { openDetail(result.entityType, result.id, null) }) {
-                        Column(Modifier.padding(16.dp)) {
-                            Text(result.title)
-                            result.subtitle?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
-                        }
-                    }
-                }
-            }
-        }
-        is MobileState.Detail -> Column(Modifier.fillMaxSize().padding(24.dp), verticalArrangement = Arrangement.Center) {
-            Text(current.detail.title, style = MaterialTheme.typography.displaySmall)
-            current.detail.subtitle?.let { Text(it, style = MaterialTheme.typography.titleLarge) }
-            if (current.detail.facts.isNotBlank()) Text(current.detail.facts, modifier = Modifier.padding(top = 8.dp))
-            current.detail.description?.let { Text(it, modifier = Modifier.padding(top = 16.dp)) }
-            Row(Modifier.padding(top = 20.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                current.playableAssetId?.let { asset ->
-                    Button(onClick = { play(asset) }) { Text("Play") }
-                    Button(onClick = { download(asset) }) { Text("Download") }
-                }
-                Button(onClick = { state = returnState }) { Text("Back") }
-            }
-        }
-        is MobileState.Message -> Column(Modifier.fillMaxSize().padding(24.dp), verticalArrangement = Arrangement.Center) {
+        is MobileStage.Message -> Column(Modifier.fillMaxSize().padding(24.dp), verticalArrangement = Arrangement.Center) {
             Text(current.text)
             Spacer(Modifier.height(16.dp))
-            Button(onClick = { state = MobileState.Server }) { Text("Try another server") }
+            Button(onClick = { stage = MobileStage.Server }) { Text("Try another server") }
         }
+    }
+}
+
+@Composable
+private fun ServerEntry(savedAddress: String, savedPhotos: Boolean, connect: (String, Boolean) -> Unit) {
+    var address by remember { mutableStateOf(savedAddress) }
+    var photos by remember { mutableStateOf(savedPhotos) }
+    Column(
+        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp),
+        verticalArrangement = Arrangement.Center,
+    ) {
+        Text("Tuvima Library", style = MaterialTheme.typography.displaySmall)
+        Spacer(Modifier.height(20.dp))
+        OutlinedTextField(address, { address = it }, label = { Text("Dashboard address") }, modifier = Modifier.fillMaxWidth())
+        Spacer(Modifier.height(16.dp))
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Checkbox(checked = photos, onCheckedChange = { photos = it })
+            Column(Modifier.padding(start = 8.dp)) {
+                Text("Allow access to my photos and videos")
+                Text(
+                    "Optional. Browse your own photos and videos, view and download originals, and your galleries, " +
+                        "including galleries shared with you. You also approve this when you pair.",
+                    style = MaterialTheme.typography.bodySmall,
+                )
+            }
+        }
+        Spacer(Modifier.height(16.dp))
+        Button(onClick = { connect(address, photos) }) { Text("Connect") }
     }
 }
 
@@ -254,54 +207,3 @@ private fun MobilePairing(client: TuvimaClient, session: PairingSession, result:
 
 private const val MOBILE_SCOPES =
     "library.read artwork.read progress.read progress.write queue.read queue.write playback.read playback.write downloads.read downloads.write"
-
-private fun parseMobileSearch(json: JSONObject): List<MobileSearchResult> = buildList {
-    val seen = mutableSetOf<String>()
-    val sections = json.optJSONArray("sections") ?: return@buildList
-    for (sectionIndex in 0 until sections.length()) {
-        val results = sections.optJSONObject(sectionIndex)?.optJSONArray("results") ?: continue
-        for (resultIndex in 0 until results.length()) {
-            val value = results.optJSONObject(resultIndex) ?: continue
-            val route = value.optString("detailRoute").split('/').filter(String::isNotBlank)
-            val id = route.lastOrNull() ?: value.optString("id")
-            val entityType = route.dropLast(1).lastOrNull() ?: value.optString("entityType", "work")
-            if (id.isBlank() || !seen.add("$entityType:$id")) continue
-            add(MobileSearchResult(id, entityType, value.optString("title"), value.optString("subtitle").takeIf(String::isNotBlank)))
-        }
-    }
-}
-
-private fun parseMobileDetail(json: JSONObject): MobileDetail {
-    val facts = json.optJSONObject("facts")
-    return MobileDetail(
-        title = json.optString("title", "Tuvima Library"),
-        subtitle = json.optString("subtitle").takeIf(String::isNotBlank),
-        description = json.optString("description").takeIf(String::isNotBlank),
-        facts = listOf("year", "rating", "contentRating", "runtime", "duration")
-            .mapNotNull { facts?.optString(it)?.takeIf(String::isNotBlank) }
-            .distinct().joinToString(" · "),
-    )
-}
-
-private fun mobileDetailEntityType(mediaType: String): String {
-    val value = mediaType.lowercase()
-    return when {
-        "movie" in value -> "movie"
-        "episode" in value -> "tvEpisode"
-        "tv" in value -> "tvShow"
-        "audiobook" in value -> "audiobook"
-        "book" in value -> "book"
-        "comic" in value -> "comicIssue"
-        "music" in value -> "musicAlbum"
-        else -> "work"
-    }
-}
-
-private fun mobileCardDetailTarget(card: com.tuvima.library.core.DisplayCard): Pair<String, String> {
-    card.actions.firstNotNullOfOrNull { action ->
-        action.webUrl?.takeIf { "/details/" in it }?.split('/')?.filter(String::isNotBlank)?.takeIf { it.size >= 2 }
-            ?.let { it[it.size - 2] to it.last() }
-    }?.let { return it }
-    card.collectionId?.let { return "collection" to it }
-    return mobileDetailEntityType(card.mediaType) to (card.workId ?: card.id)
-}

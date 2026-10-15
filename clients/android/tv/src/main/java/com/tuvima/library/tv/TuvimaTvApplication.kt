@@ -33,4 +33,11 @@ class TuvimaTvApplication : Application() {
     }
 
     fun savedServer(): String? = getSharedPreferences("tuvima_tv", MODE_PRIVATE).getString("server", null)
+
+    /** Whether the person ticked "photos and videos" before pairing. Off unless they opt in. */
+    fun photosOptIn(): Boolean = getSharedPreferences("tuvima_tv", MODE_PRIVATE).getBoolean("photos_opt_in", false)
+
+    fun setPhotosOptIn(value: Boolean) {
+        getSharedPreferences("tuvima_tv", MODE_PRIVATE).edit().putBoolean("photos_opt_in", value).apply()
+    }
 }

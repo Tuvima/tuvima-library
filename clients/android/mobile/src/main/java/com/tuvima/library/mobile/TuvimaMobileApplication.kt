@@ -40,4 +40,23 @@ class TuvimaMobileApplication : Application() {
     }
 
     fun savedServer(): String? = getSharedPreferences("tuvima_mobile", MODE_PRIVATE).getString("server", null)
+
+    /** Whether the person ticked "photos and videos" before pairing. Off unless they opt in. */
+    fun photosOptIn(): Boolean = getSharedPreferences("tuvima_mobile", MODE_PRIVATE).getBoolean("photos_opt_in", false)
+
+    fun setPhotosOptIn(value: Boolean) {
+        getSharedPreferences("tuvima_mobile", MODE_PRIVATE).edit().putBoolean("photos_opt_in", value).apply()
+    }
+
+    /** The quality profile key a new download asks for. */
+    fun downloadQuality(): String =
+        getSharedPreferences("tuvima_mobile", MODE_PRIVATE).getString("download_quality", null) ?: DEFAULT_DOWNLOAD_QUALITY
+
+    fun setDownloadQuality(profileKey: String) {
+        getSharedPreferences("tuvima_mobile", MODE_PRIVATE).edit().putString("download_quality", profileKey).apply()
+    }
+
+    companion object {
+        const val DEFAULT_DOWNLOAD_QUALITY = "mobile-standard"
+    }
 }
