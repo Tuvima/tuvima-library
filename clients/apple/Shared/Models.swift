@@ -242,7 +242,7 @@ public struct DetailFacts: Decodable, Sendable {
         [year, rating, contentRating, runtime, duration]
             .compactMap { $0?.isEmpty == false ? $0 : nil }
             .reduce(into: [String]()) { if !$0.contains($1) { $0.append($1) } }
-            .joined(separator: " · ")
+            .joined(separator: " Â· ")
     }
 }
 
@@ -284,7 +284,7 @@ public struct DetailEdition: Decodable, Sendable {
     public var title: String { editionTitle ?? displayName ?? "Edition" }
 
     public var details: String? {
-        let line = [fileFormat, runtime, publisher].compactMap { $0 }.filter { !$0.isEmpty }.joined(separator: " · ")
+        let line = [fileFormat, runtime, publisher].compactMap { $0 }.filter { !$0.isEmpty }.joined(separator: " Â· ")
         return line.isEmpty ? nil : line
     }
 }
