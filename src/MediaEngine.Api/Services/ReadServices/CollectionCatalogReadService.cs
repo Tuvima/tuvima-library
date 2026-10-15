@@ -238,48 +238,9 @@ public sealed class CollectionCatalogReadService(
         }
 
         var take = Math.Max(1, limit);
-        List<CollectionItemDto> dtos;
-        if (IsGeneratedSeriesCollection(collection))
-        {
-            var workIds = (await GetAggregatedCollectionWorkIdsAsync(collectionId, activeProfile, ct).ConfigureAwait(false))
-                .Distinct()
-                .Where(workId => allowedWorkIds is null || allowedWorkIds.Contains(workId))
-                .Take(take)
-                .ToList();
-            dtos = await ResolveCollectionWorkIdsToItemsAsync(
-                collectionId,
-                workIds,
-                preserveRequestedOrder: false,
-                ct).ConfigureAwait(false);
-        }
-        else if (collection.Resolution == CollectionResolution.Materialized)
-        {
-            var items = await collectionRepo.GetCollectionItemsAsync(
-                collectionId,
-                allowedWorkIds is null ? take : 5000,
-                ct).ConfigureAwait(false);
-            if (allowedWorkIds is not null)
-            {
-                items = items
-                    .Where(item => allowedWorkIds.Contains(item.WorkId))
-                    .Take(take)
-                    .ToList();
-            }
-            dtos = await mediaLookupReadService.ResolveItemsAsync(collectionId, items, ct).ConfigureAwait(false);
-        }
-        else
-        {
-            var workIds = (await GetCollectionWorkIdsAsync(collection, ct).ConfigureAwait(false))
-                .Distinct()
-                .Where(workId => allowedWorkIds is null || allowedWorkIds.Contains(workId))
-                .Take(take)
-                .ToList();
-            dtos = await ResolveCollectionWorkIdsToItemsAsync(
-                collectionId,
-                workIds,
-                preserveRequestedOrder: true,
-                ct).ConfigureAwait(false);
-        }
+        var allowedDisplayIds = await ExpandAllowedToDisplayRootsAsync(allowedWorkIds, ct).ConfigureAwait(false);
+        var dtos = await ResolveRootItemsAsync(collection, activeProfile, allowedDisplayIds, take, ct).ConfigureAwait(false);
+        dtos = dtos.Take(take).ToList();
 
         return new CollectionItemReadResult(true, false, dtos);
     }
@@ -317,35 +278,25 @@ public sealed class CollectionCatalogReadService(
         }
 
         var take = limit + 1;
-        if (IsGeneratedSeriesCollection(collection))
+        var allowedDisplayIds = await ExpandAllowedToDisplayRootsAsync(allowedWorkIds, ct).ConfigureAwait(false);
+        var rootMembers = await GetRootMembersAsync(collection, activeProfile, allowedDisplayIds, MaxPagedItems, ct).ConfigureAwait(false);
+        if (rootMembers.RootIds is not { } rootIds)
         {
-            var generatedIds = (await GetAggregatedCollectionWorkIdsAsync(collectionId, activeProfile, ct).ConfigureAwait(false))
-                .Distinct()
-                .Where(allowedWorkIds.Contains)
-                .Take(MaxPagedItems)
-                .ToList();
+            var manual = await ResolveManualRootItemsAsync(collection, rootMembers.Items, allowedDisplayIds, ct).ConfigureAwait(false);
+            return new CollectionItemPageResult(true, false, manual.Count, manual.Skip(offset).Take(take).ToList());
+        }
+
+        if (!rootMembers.PreserveOrder)
+        {
+            // The order of a generated series comes from the lookup itself, so the whole set is resolved.
             var all = await ResolveCollectionWorkIdsToItemsAsync(
-                collectionId, generatedIds, preserveRequestedOrder: false, ct).ConfigureAwait(false);
+                collection.Id, rootIds.Take(MaxPagedItems).ToList(), preserveRequestedOrder: false, ct).ConfigureAwait(false);
             return new CollectionItemPageResult(true, false, all.Count, all.Skip(offset).Take(take).ToList());
         }
 
-        if (collection.Resolution == CollectionResolution.Materialized)
-        {
-            var items = (await collectionRepo.GetCollectionItemsAsync(collectionId, MaxPagedItems, ct).ConfigureAwait(false))
-                .Where(item => allowedWorkIds.Contains(item.WorkId))
-                .ToList();
-            var page = await mediaLookupReadService.ResolveItemsAsync(
-                collectionId, items.Skip(offset).Take(take).ToList(), ct).ConfigureAwait(false);
-            return new CollectionItemPageResult(true, false, items.Count, page);
-        }
-
-        var queryIds = (await GetCollectionWorkIdsAsync(collection, ct).ConfigureAwait(false))
-            .Distinct()
-            .Where(allowedWorkIds.Contains)
-            .Take(MaxPagedItems)
-            .ToList();
+        var queryIds = rootIds.Take(MaxPagedItems).ToList();
         var resolved = await ResolveCollectionWorkIdsToItemsAsync(
-            collectionId, queryIds.Skip(offset).Take(take).ToList(), preserveRequestedOrder: true, ct).ConfigureAwait(false);
+            collection.Id, queryIds.Skip(offset).Take(take).ToList(), preserveRequestedOrder: true, ct).ConfigureAwait(false);
         // The lookup numbers items from zero within the ids it was given; keep the position within the whole list.
         foreach (var item in resolved)
         {
@@ -353,6 +304,120 @@ public sealed class CollectionCatalogReadService(
         }
 
         return new CollectionItemPageResult(true, false, queryIds.Count, resolved);
+    }
+
+    /// <summary>
+    /// The one read behind every collection item list: members resolve to their display roots (a show, a comic series
+    /// or an album rather than each episode, issue or track), are listed once each in the collection's order, and are
+    /// limited to what the caller may see. The catalogue count uses the same root resolution, so the two agree.
+    /// </summary>
+    private async Task<List<CollectionItemDto>> ResolveRootItemsAsync(
+        Collection collection,
+        Profile? activeProfile,
+        IReadOnlySet<Guid>? allowedDisplayIds,
+        int take,
+        CancellationToken ct)
+    {
+        var rootMembers = await GetRootMembersAsync(collection, activeProfile, allowedDisplayIds, take, ct).ConfigureAwait(false);
+        return rootMembers.RootIds is { } rootIds
+            ? await ResolveCollectionWorkIdsToItemsAsync(
+                collection.Id,
+                rootMembers.PreserveOrder ? rootIds.Take(take).ToList() : rootIds,
+                rootMembers.PreserveOrder,
+                ct).ConfigureAwait(false)
+            : await ResolveManualRootItemsAsync(collection, rootMembers.Items, allowedDisplayIds, ct).ConfigureAwait(false);
+    }
+
+    private sealed record CollectionRootMembers(
+        IReadOnlyList<Guid>? RootIds,
+        bool PreserveOrder,
+        IReadOnlyList<CollectionItem> Items);
+
+    /// <summary>
+    /// The members a collection lists, before they are looked up. Generated and rule-built collections give their
+    /// display root ids (owned, unique, in member order); a hand-picked collection gives its item rows so each keeps its
+    /// own id and position.
+    /// </summary>
+    private async Task<CollectionRootMembers> GetRootMembersAsync(
+        Collection collection,
+        Profile? activeProfile,
+        IReadOnlySet<Guid>? allowedDisplayIds,
+        int take,
+        CancellationToken ct)
+    {
+        if (IsGeneratedSeriesCollection(collection))
+        {
+            var rootIds = (await GetAggregatedCollectionWorkIdsAsync(collection.Id, activeProfile, ct).ConfigureAwait(false))
+                .Distinct()
+                .Where(workId => allowedDisplayIds is null || allowedDisplayIds.Contains(workId))
+                .ToList();
+            return new CollectionRootMembers(rootIds, PreserveOrder: false, []);
+        }
+
+        if (collection.Resolution == CollectionResolution.Materialized)
+        {
+            IReadOnlyList<CollectionItem> items = await collectionRepo.GetCollectionItemsAsync(
+                collection.Id,
+                Math.Max(take, MaxPagedItems),
+                ct).ConfigureAwait(false);
+            if (allowedDisplayIds is not null)
+            {
+                items = items.Where(item => allowedDisplayIds.Contains(item.WorkId)).ToList();
+            }
+
+            return new CollectionRootMembers(null, PreserveOrder: true, items);
+        }
+
+        var sourceIds = await GetCollectionWorkIdsAsync(collection, ct).ConfigureAwait(false);
+        var queryRootIds = (await GetOwnedCollectionCatalogDisplayWorkIdsAsync(sourceIds, ct).ConfigureAwait(false))
+            .Distinct()
+            .Where(workId => allowedDisplayIds is null || allowedDisplayIds.Contains(workId))
+            .ToList();
+        return new CollectionRootMembers(queryRootIds, PreserveOrder: true, []);
+    }
+
+    /// <summary>
+    /// Resolves a hand-picked collection's items to display roots. The lookup already folds several episodes, issues or
+    /// tracks of one root into one row; this keeps only owned roots the caller may see, so the list matches the count.
+    /// </summary>
+    private async Task<List<CollectionItemDto>> ResolveManualRootItemsAsync(
+        Collection collection,
+        IReadOnlyList<CollectionItem> items,
+        IReadOnlySet<Guid>? allowedDisplayIds,
+        CancellationToken ct)
+    {
+        var resolved = await mediaLookupReadService.ResolveItemsAsync(collection.Id, items, ct).ConfigureAwait(false);
+        if (resolved.Count == 0)
+        {
+            return resolved;
+        }
+
+        var ownedRootIds = (await GetOwnedCollectionCatalogDisplayWorkIdsAsync(
+                resolved.Select(item => item.WorkId),
+                ct).ConfigureAwait(false))
+            .ToHashSet();
+        return resolved
+            .Where(item => ownedRootIds.Contains(item.WorkId)
+                && (allowedDisplayIds is null || allowedDisplayIds.Contains(item.WorkId)))
+            .ToList();
+    }
+
+    /// <summary>
+    /// The projection lists episodes, issues and tracks but never their shows, comic series or albums, so the roots
+    /// those members collapse to are authorised along with the individual works (the catalogue count does the same).
+    /// </summary>
+    private async Task<IReadOnlySet<Guid>?> ExpandAllowedToDisplayRootsAsync(
+        IReadOnlySet<Guid>? allowedWorkIds,
+        CancellationToken ct)
+    {
+        if (allowedWorkIds is null)
+        {
+            return null;
+        }
+
+        var expanded = new HashSet<Guid>(allowedWorkIds);
+        expanded.UnionWith(await GetCollectionCatalogDisplayWorkIdsAsync(allowedWorkIds, ct).ConfigureAwait(false));
+        return expanded;
     }
 
     private async Task<List<Collection>> GetAccessibleCollectionsAsync(Profile? activeProfile, CancellationToken ct)
@@ -1308,7 +1373,7 @@ public sealed class CollectionCatalogReadService(
             .Select(group => group.OrderBy(row => row.SortOrder).ThenBy(row => row.Title, StringComparer.OrdinalIgnoreCase).First());
         selectedRows = preserveRequestedOrder
             ? selectedRows.OrderBy(row => requestedPosition.GetValueOrDefault(row.WorkId, int.MaxValue))
-            : selectedRows.OrderBy(row => row.SortOrder).ThenBy(row => row.Title, StringComparer.OrdinalIgnoreCase);
+            : selectedRows.OrderBy(row => row.SortOrder).ThenBy(row => requestedPosition.GetValueOrDefault(row.WorkId, int.MaxValue));
 
         return selectedRows
             .Select((row, index) => new CollectionItemDto
