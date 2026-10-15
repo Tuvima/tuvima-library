@@ -93,10 +93,7 @@ public sealed class CollectionCatalogReadService(
         IReadOnlySet<Guid>? allowedWorkIds = null)
     {
         var collections = await GetAccessibleCollectionsAsync(activeProfile, ct).ConfigureAwait(false);
-        var allowedDisplayWorkIds = allowedWorkIds is null
-            ? null
-            : (await GetCollectionCatalogDisplayWorkIdsAsync(allowedWorkIds, ct).ConfigureAwait(false))
-                .ToHashSet();
+        var allowedMemberIds = await ExpandAllowedMembersAsync(allowedWorkIds, ct).ConfigureAwait(false);
         var candidates = new List<CollectionManagementCatalogCandidate>();
         foreach (var collection in collections)
         {
@@ -111,15 +108,14 @@ public sealed class CollectionCatalogReadService(
 
             var classification = ClassifyCollectionForCatalog(collection);
             var sourceWorkIds = await GetCollectionCatalogSourceWorkIdsAsync(collection, collections, ct).ConfigureAwait(false);
-            var workIds = await GetOwnedCollectionCatalogDisplayWorkIdsAsync(sourceWorkIds, ct).ConfigureAwait(false);
-            if (allowedDisplayWorkIds is not null)
+            // Only members the profile may see count; TV, comic and music members are then collapsed to their display
+            // root, so an owned episode keeps its show tile, but a restricted episode never lends its show to the count.
+            if (allowedMemberIds is not null)
             {
-                // TV, comic, and music members are deliberately collapsed to their
-                // display root. Authorize against the same collapsed identity so an
-                // owned episode does not lose its show tile and artwork merely because
-                // the raw authorized projection contains the episode ID.
-                workIds = workIds.Where(allowedDisplayWorkIds.Contains).ToList();
+                sourceWorkIds = sourceWorkIds.Where(allowedMemberIds.Contains).ToList();
             }
+
+            var workIds = await GetOwnedCollectionCatalogDisplayWorkIdsAsync(sourceWorkIds, ct).ConfigureAwait(false);
 
             var itemCount = workIds.Count;
             var mediaCounts = await GetCollectionMediaCountsAsync(workIds, ct).ConfigureAwait(false);
@@ -238,8 +234,8 @@ public sealed class CollectionCatalogReadService(
         }
 
         var take = Math.Max(1, limit);
-        var allowedDisplayIds = await ExpandAllowedToDisplayRootsAsync(allowedWorkIds, ct).ConfigureAwait(false);
-        var dtos = await ResolveRootItemsAsync(collection, activeProfile, allowedDisplayIds, take, ct).ConfigureAwait(false);
+        var allowedMemberIds = await ExpandAllowedMembersAsync(allowedWorkIds, ct).ConfigureAwait(false);
+        var dtos = await ResolveRootItemsAsync(collection, activeProfile, allowedMemberIds, take, ct).ConfigureAwait(false);
         dtos = dtos.Take(take).ToList();
 
         return new CollectionItemReadResult(true, false, dtos);
@@ -278,12 +274,14 @@ public sealed class CollectionCatalogReadService(
         }
 
         var take = limit + 1;
-        var allowedDisplayIds = await ExpandAllowedToDisplayRootsAsync(allowedWorkIds, ct).ConfigureAwait(false);
-        var rootMembers = await GetRootMembersAsync(collection, activeProfile, allowedDisplayIds, MaxPagedItems, ct).ConfigureAwait(false);
+        var allowedMemberIds = await ExpandAllowedMembersAsync(allowedWorkIds, ct).ConfigureAwait(false);
+        var rootMembers = await GetRootMembersAsync(collection, activeProfile, allowedMemberIds, MaxPagedItems, ct).ConfigureAwait(false);
         if (rootMembers.RootIds is not { } rootIds)
         {
-            var manual = await ResolveManualRootItemsAsync(collection, rootMembers.Items, allowedDisplayIds, ct).ConfigureAwait(false);
-            return new CollectionItemPageResult(true, false, manual.Count, manual.Skip(offset).Take(take).ToList());
+            // Hand-picked: the members are already owned, allowed and unique per root, so only the page is looked up.
+            var page = await mediaLookupReadService.ResolveItemsAsync(
+                collection.Id, rootMembers.Items.Skip(offset).Take(take).ToList(), ct).ConfigureAwait(false);
+            return new CollectionItemPageResult(true, false, rootMembers.Items.Count, page);
         }
 
         if (!rootMembers.PreserveOrder)
@@ -307,25 +305,29 @@ public sealed class CollectionCatalogReadService(
     }
 
     /// <summary>
-    /// The one read behind every collection item list: members resolve to their display roots (a show, a comic series
-    /// or an album rather than each episode, issue or track), are listed once each in the collection's order, and are
-    /// limited to what the caller may see. The catalogue count uses the same root resolution, so the two agree.
+    /// The one read behind every collection item list: members the caller may see resolve to their display roots (a
+    /// show, a comic series or an album rather than each episode, issue or track) and are listed once each in the
+    /// collection's order. A restricted member never lends its root to the list. The catalogue count uses the same
+    /// member authorisation and root resolution for TV, comic and music members, so those counts and lists agree; a
+    /// series of books counts each owned book in the catalogue but is listed as its one series tile, and the
+    /// catalogue also counts members of nested child collections that a hand-picked list does not hold.
     /// </summary>
     private async Task<List<CollectionItemDto>> ResolveRootItemsAsync(
         Collection collection,
         Profile? activeProfile,
-        IReadOnlySet<Guid>? allowedDisplayIds,
+        IReadOnlySet<Guid>? allowedMemberIds,
         int take,
         CancellationToken ct)
     {
-        var rootMembers = await GetRootMembersAsync(collection, activeProfile, allowedDisplayIds, take, ct).ConfigureAwait(false);
+        var rootMembers = await GetRootMembersAsync(collection, activeProfile, allowedMemberIds, take, ct).ConfigureAwait(false);
         return rootMembers.RootIds is { } rootIds
             ? await ResolveCollectionWorkIdsToItemsAsync(
                 collection.Id,
                 rootMembers.PreserveOrder ? rootIds.Take(take).ToList() : rootIds,
                 rootMembers.PreserveOrder,
                 ct).ConfigureAwait(false)
-            : await ResolveManualRootItemsAsync(collection, rootMembers.Items, allowedDisplayIds, ct).ConfigureAwait(false);
+            : await mediaLookupReadService.ResolveItemsAsync(
+                collection.Id, rootMembers.Items.Take(take).ToList(), ct).ConfigureAwait(false);
     }
 
     private sealed record CollectionRootMembers(
@@ -335,22 +337,21 @@ public sealed class CollectionCatalogReadService(
 
     /// <summary>
     /// The members a collection lists, before they are looked up. Generated and rule-built collections give their
-    /// display root ids (owned, unique, in member order); a hand-picked collection gives its item rows so each keeps its
-    /// own id and position.
+    /// display root ids (owned, unique, in member order). A hand-picked collection gives one item row per root (the
+    /// first), so each keeps its own id and position and a page can be looked up without the rest. In every case a
+    /// member is checked for ownership and for the caller's authorisation as itself, before it is collapsed to a root.
     /// </summary>
     private async Task<CollectionRootMembers> GetRootMembersAsync(
         Collection collection,
         Profile? activeProfile,
-        IReadOnlySet<Guid>? allowedDisplayIds,
+        IReadOnlySet<Guid>? allowedMemberIds,
         int take,
         CancellationToken ct)
     {
         if (IsGeneratedSeriesCollection(collection))
         {
-            var rootIds = (await GetAggregatedCollectionWorkIdsAsync(collection.Id, activeProfile, ct).ConfigureAwait(false))
-                .Distinct()
-                .Where(workId => allowedDisplayIds is null || allowedDisplayIds.Contains(workId))
-                .ToList();
+            var sourceIds = await GetAggregatedCollectionWorkIdsAsync(collection.Id, activeProfile, ct).ConfigureAwait(false);
+            var rootIds = await CollapseToOwnedRootsAsync(sourceIds, allowedMemberIds, ct).ConfigureAwait(false);
             return new CollectionRootMembers(rootIds, PreserveOrder: false, []);
         }
 
@@ -360,53 +361,46 @@ public sealed class CollectionCatalogReadService(
                 collection.Id,
                 Math.Max(take, MaxPagedItems),
                 ct).ConfigureAwait(false);
-            if (allowedDisplayIds is not null)
-            {
-                items = items.Where(item => allowedDisplayIds.Contains(item.WorkId)).ToList();
-            }
-
-            return new CollectionRootMembers(null, PreserveOrder: true, items);
+            var members = items
+                .Where(item => allowedMemberIds is null || allowedMemberIds.Contains(item.WorkId))
+                .ToList();
+            var ownedIds = await GetOwnedSourceWorkIdsAsync(members.Select(item => item.WorkId), ct).ConfigureAwait(false);
+            members = members.Where(item => ownedIds.Contains(item.WorkId)).ToList();
+            var foldedRoots = await GetFoldedItemRootsAsync(members.Select(item => item.WorkId), ct).ConfigureAwait(false);
+            var seenRoots = new HashSet<Guid>();
+            var onePerRoot = members
+                .Where(item => seenRoots.Add(foldedRoots.GetValueOrDefault(item.WorkId, item.WorkId)))
+                .ToList();
+            return new CollectionRootMembers(null, PreserveOrder: true, onePerRoot);
         }
 
-        var sourceIds = await GetCollectionWorkIdsAsync(collection, ct).ConfigureAwait(false);
-        var queryRootIds = (await GetOwnedCollectionCatalogDisplayWorkIdsAsync(sourceIds, ct).ConfigureAwait(false))
-            .Distinct()
-            .Where(workId => allowedDisplayIds is null || allowedDisplayIds.Contains(workId))
-            .ToList();
+        var queryIds = await GetCollectionWorkIdsAsync(collection, ct).ConfigureAwait(false);
+        var queryRootIds = await CollapseToOwnedRootsAsync(queryIds, allowedMemberIds, ct).ConfigureAwait(false);
         return new CollectionRootMembers(queryRootIds, PreserveOrder: true, []);
     }
 
-    /// <summary>
-    /// Resolves a hand-picked collection's items to display roots. The lookup already folds several episodes, issues or
-    /// tracks of one root into one row; this keeps only owned roots the caller may see, so the list matches the count.
-    /// </summary>
-    private async Task<List<CollectionItemDto>> ResolveManualRootItemsAsync(
-        Collection collection,
-        IReadOnlyList<CollectionItem> items,
-        IReadOnlySet<Guid>? allowedDisplayIds,
+    /// <summary>Keeps the members the caller may see, then collapses them to owned, unique display roots in order.</summary>
+    private async Task<List<Guid>> CollapseToOwnedRootsAsync(
+        IEnumerable<Guid> sourceWorkIds,
+        IReadOnlySet<Guid>? allowedMemberIds,
         CancellationToken ct)
     {
-        var resolved = await mediaLookupReadService.ResolveItemsAsync(collection.Id, items, ct).ConfigureAwait(false);
-        if (resolved.Count == 0)
-        {
-            return resolved;
-        }
-
-        var ownedRootIds = (await GetOwnedCollectionCatalogDisplayWorkIdsAsync(
-                resolved.Select(item => item.WorkId),
-                ct).ConfigureAwait(false))
-            .ToHashSet();
-        return resolved
-            .Where(item => ownedRootIds.Contains(item.WorkId)
-                && (allowedDisplayIds is null || allowedDisplayIds.Contains(item.WorkId)))
+        var members = sourceWorkIds
+            .Distinct()
+            .Where(workId => allowedMemberIds is null || allowedMemberIds.Contains(workId))
+            .ToList();
+        return (await GetOwnedCollectionCatalogDisplayWorkIdsAsync(members, ct).ConfigureAwait(false))
+            .Distinct()
             .ToList();
     }
 
     /// <summary>
-    /// The projection lists episodes, issues and tracks but never their shows, comic series or albums, so the roots
-    /// those members collapse to are authorised along with the individual works (the catalogue count does the same).
+    /// A member is authorised when the work is itself in the caller's projection, or is a show, season, comic series,
+    /// album or book series that holds a work in it. The projection lists episodes, issues, tracks and books but never
+    /// their parents, and a restricted sibling does not become authorised just because another child of the same parent
+    /// is.
     /// </summary>
-    private async Task<IReadOnlySet<Guid>?> ExpandAllowedToDisplayRootsAsync(
+    private async Task<IReadOnlySet<Guid>?> ExpandAllowedMembersAsync(
         IReadOnlySet<Guid>? allowedWorkIds,
         CancellationToken ct)
     {
@@ -416,9 +410,123 @@ public sealed class CollectionCatalogReadService(
         }
 
         var expanded = new HashSet<Guid>(allowedWorkIds);
-        expanded.UnionWith(await GetCollectionCatalogDisplayWorkIdsAsync(allowedWorkIds, ct).ConfigureAwait(false));
+        if (allowedWorkIds.Count == 0)
+        {
+            return expanded;
+        }
+
+        using var conn = db.CreateConnection();
+        foreach (var chunk in allowedWorkIds.Chunk(MaxSqlIdsPerQuery))
+        {
+            var rows = await conn.QueryAsync<CollectionDisplayWorkRow>(new CommandDefinition(
+                """
+                WITH RECURSIVE ancestors(WorkId, ParentId) AS (
+                    SELECT w.id, w.parent_work_id
+                    FROM works w
+                    WHERE w.id IN @WorkIds
+                    UNION
+                    SELECT parent.id, parent.parent_work_id
+                    FROM works parent
+                    INNER JOIN ancestors ON parent.id = ancestors.ParentId
+                )
+                SELECT WorkId FROM ancestors;
+                """,
+                new { WorkIds = chunk.Select(GuidSql.ToBlob).ToArray() },
+                cancellationToken: ct)).ConfigureAwait(false);
+            expanded.UnionWith(rows.Select(row => row.WorkId));
+        }
+
         return expanded;
     }
+
+    /// <summary>
+    /// Maps hand-picked members to the root the media lookup folds them into: any child to its parent or grandparent,
+    /// and a nested parent to its top. Keep in step with the <c>display_work</c> rule in
+    /// <c>CollectionMediaLookupReadService.ResolveItemsAsync</c>.
+    /// </summary>
+    private async Task<Dictionary<Guid, Guid>> GetFoldedItemRootsAsync(
+        IEnumerable<Guid> workIds,
+        CancellationToken ct)
+    {
+        var ids = workIds.Distinct().ToList();
+        var roots = new Dictionary<Guid, Guid>();
+        if (ids.Count == 0)
+        {
+            return roots;
+        }
+
+        using var conn = db.CreateConnection();
+        foreach (var chunk in ids.Chunk(MaxSqlIdsPerQuery))
+        {
+            var rows = await conn.QueryAsync<CollectionDisplayWorkRow>(new CommandDefinition(
+                """
+                SELECT w.id AS SourceWorkId,
+                       CASE
+                           WHEN w.work_kind = 'child' THEN COALESCE(gp.id, p.id, w.id)
+                           WHEN w.work_kind = 'parent' AND p.id IS NOT NULL THEN COALESCE(gp.id, p.id, w.id)
+                           ELSE w.id
+                       END AS WorkId
+                FROM works w
+                LEFT JOIN works p ON p.id = w.parent_work_id
+                LEFT JOIN works gp ON gp.id = p.parent_work_id
+                WHERE w.id IN @WorkIds;
+                """,
+                new { WorkIds = chunk.Select(GuidSql.ToBlob).ToArray() },
+                cancellationToken: ct)).ConfigureAwait(false);
+            foreach (var row in rows)
+            {
+                roots[row.SourceWorkId ?? row.WorkId] = row.WorkId;
+            }
+        }
+
+        return roots;
+    }
+
+    /// <summary>The members that are owned: the work itself or something below it has a visible file.</summary>
+    private async Task<HashSet<Guid>> GetOwnedSourceWorkIdsAsync(
+        IEnumerable<Guid> workIds,
+        CancellationToken ct)
+    {
+        var ids = workIds.Distinct().ToList();
+        var owned = new HashSet<Guid>();
+        if (ids.Count == 0)
+        {
+            return owned;
+        }
+
+        using var conn = db.CreateConnection();
+        var visibleAssetPredicate = HomeVisibilitySql.VisibleAssetPathPredicate("ma.file_path_root");
+        foreach (var chunk in ids.Chunk(MaxSqlIdsPerQuery))
+        {
+            var rows = await conn.QueryAsync<CollectionDisplayWorkRow>(new CommandDefinition(
+                $"""
+                WITH RECURSIVE work_tree(RootWorkId, WorkId) AS (
+                    SELECT w.id AS RootWorkId,
+                           w.id AS WorkId
+                    FROM works w
+                    WHERE w.id IN @WorkIds
+                    UNION
+                    SELECT work_tree.RootWorkId,
+                           child.id AS WorkId
+                    FROM works child
+                    INNER JOIN work_tree ON child.parent_work_id = work_tree.WorkId
+                )
+                SELECT DISTINCT work_tree.RootWorkId AS WorkId
+                FROM work_tree
+                INNER JOIN editions e ON e.work_id = work_tree.WorkId
+                INNER JOIN media_assets ma ON ma.edition_id = e.id
+                WHERE {visibleAssetPredicate};
+                """,
+                new { WorkIds = chunk.Select(GuidSql.ToBlob).ToArray() },
+                cancellationToken: ct)).ConfigureAwait(false);
+            owned.UnionWith(rows.Select(row => row.WorkId));
+        }
+
+        return owned;
+    }
+
+    /// <summary>The most ids sent to the data store in one statement, well under its parameter limit.</summary>
+    private const int MaxSqlIdsPerQuery = 5000;
 
     private async Task<List<Collection>> GetAccessibleCollectionsAsync(Profile? activeProfile, CancellationToken ct)
     {
@@ -1095,7 +1203,7 @@ public sealed class CollectionCatalogReadService(
             workIds.AddRange(await GetCollectionWorkIdsAsync(collection, ct).ConfigureAwait(false));
         }
 
-        return await GetOwnedCollectionCatalogDisplayWorkIdsAsync(workIds, ct).ConfigureAwait(false);
+        return workIds;
     }
 
     private async Task<IReadOnlyList<Guid>> GetCollectionCatalogSourceWorkIdsAsync(
@@ -1148,7 +1256,10 @@ public sealed class CollectionCatalogReadService(
         }
 
         using var conn = db.CreateConnection();
-        var rows = await conn.QueryAsync<CollectionDisplayWorkRow>(new CommandDefinition(
+        var rows = new List<CollectionDisplayWorkRow>();
+        foreach (var chunk in workIds.Chunk(MaxSqlIdsPerQuery))
+        {
+            rows.AddRange(await conn.QueryAsync<CollectionDisplayWorkRow>(new CommandDefinition(
             """
             WITH RECURSIVE source_roots(SourceWorkId, RootWorkId, RootMediaType) AS (
                 SELECT DISTINCT
@@ -1198,8 +1309,9 @@ public sealed class CollectionCatalogReadService(
                    WHERE e.work_id = work_tree.WorkId
                );
             """,
-            new { WorkIds = workIds.Select(GuidSql.ToBlob).ToArray() },
-            cancellationToken: ct)).ConfigureAwait(false);
+            new { WorkIds = chunk.Select(GuidSql.ToBlob).ToArray() },
+            cancellationToken: ct)).ConfigureAwait(false));
+        }
 
         var rowsBySource = rows
             .GroupBy(row => row.SourceWorkId ?? row.WorkId)
@@ -1220,31 +1332,7 @@ public sealed class CollectionCatalogReadService(
             return [];
         }
 
-        using var conn = db.CreateConnection();
-        var visibleAssetPredicate = HomeVisibilitySql.VisibleAssetPathPredicate("ma.file_path_root");
-        var rows = await conn.QueryAsync<CollectionDisplayWorkRow>(new CommandDefinition(
-            $"""
-            WITH RECURSIVE work_tree(RootWorkId, WorkId) AS (
-                SELECT w.id AS RootWorkId,
-                       w.id AS WorkId
-                FROM works w
-                WHERE w.id IN @WorkIds
-                UNION
-                SELECT work_tree.RootWorkId,
-                       child.id AS WorkId
-                FROM works child
-                INNER JOIN work_tree ON child.parent_work_id = work_tree.WorkId
-            )
-            SELECT DISTINCT work_tree.RootWorkId AS WorkId
-            FROM work_tree
-            INNER JOIN editions e ON e.work_id = work_tree.WorkId
-            INNER JOIN media_assets ma ON ma.edition_id = e.id
-            WHERE {visibleAssetPredicate};
-            """,
-            new { WorkIds = displayWorkIds.Select(GuidSql.ToBlob).ToArray() },
-            cancellationToken: ct)).ConfigureAwait(false);
-
-        var ownedIds = rows.Select(row => row.WorkId).ToHashSet();
+        var ownedIds = await GetOwnedSourceWorkIdsAsync(displayWorkIds, ct).ConfigureAwait(false);
         return displayWorkIds.Where(ownedIds.Contains).ToList();
     }
 

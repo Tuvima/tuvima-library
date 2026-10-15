@@ -48,6 +48,14 @@ public sealed class CollectionItemRootsTests : IDisposable
     private readonly Guid _mixedSeriesOne = Guid.NewGuid();
     private readonly Guid _mixedSeriesTwo = Guid.NewGuid();
     private readonly Guid _episodeList = Guid.NewGuid();
+    private readonly Guid _restrictedUniverse = Guid.NewGuid();
+    private readonly Guid _restrictedSeriesOne = Guid.NewGuid();
+    private readonly Guid _restrictedSeriesTwo = Guid.NewGuid();
+    private readonly Guid _siblingUniverse = Guid.NewGuid();
+    private readonly Guid _siblingSeriesOne = Guid.NewGuid();
+    private readonly Guid _siblingSeriesTwo = Guid.NewGuid();
+    private readonly Guid _bookList = Guid.NewGuid();
+    private readonly Guid _unownedList = Guid.NewGuid();
 
     private Guid _movie;
     private Guid _show;
@@ -55,6 +63,12 @@ public sealed class CollectionItemRootsTests : IDisposable
     private Guid _album;
     private Guid _otherMovie;
     private Guid _mixedMovie;
+    private Guid _kidsShow;
+    private Guid _ratedMovie;
+    private Guid _familyMovie;
+    private Guid _secondFamilyMovie;
+    private Guid _bookSeries;
+    private Guid _unownedMovie;
     private List<Guid> _episodes = [];
     private List<Guid> _issues = [];
     private List<Guid> _tracks = [];
@@ -152,6 +166,83 @@ public sealed class CollectionItemRootsTests : IDisposable
         Assert.False(second["has_more"]!.GetValue<bool>());
     }
 
+    [Fact]
+    public async Task KidsProfile_ARestrictedEpisodeAsTheOnlyMember_IsNotFoundOnBothRoutes_AndNeverCounted()
+    {
+        await using var app = await StartAsync();
+
+        // Without the limit the collection lists the show and the movie, and the catalogue counts both.
+        var unrestricted = await GetJsonAsync(app, $"/api/v1/collections/{_restrictedUniverse:D}/items?limit=10");
+        Assert.Equal(
+            [_kidsShow, _ratedMovie],
+            unrestricted["items"]!.AsArray().Select(item => item!["work_id"]!.GetValue<Guid>()));
+        Assert.Equal(2, (await GetJsonAsync(app, $"/api/v1/collections/{_restrictedUniverse:D}"))["item_count"]!.GetValue<int>());
+
+        // Every member is R rated: a sibling episode the profile may see must not lend the show.
+        SetContentLimit("PG");
+        var unknown = await SnapshotAsync(app, $"/api/v1/collections/{Guid.NewGuid():D}/items?limit=10");
+        var restricted = await SnapshotAsync(app, $"/api/v1/collections/{_restrictedUniverse:D}/items?limit=10");
+        Assert.Equal(HttpStatusCode.NotFound, restricted.Status);
+        Assert.Equal(unknown, restricted);
+        Assert.Equal(HttpStatusCode.NotFound, (await SnapshotAsync(app, $"/api/v1/collections/{_restrictedUniverse:D}/items?limit=10&cursor=3")).Status);
+        Assert.Equal(HttpStatusCode.NotFound, (await SnapshotAsync(app, $"/api/v1/collections/{_restrictedUniverse:D}")).Status);
+        Assert.Equal(HttpStatusCode.NotFound, (await SnapshotAsync(app, $"/collections/{_restrictedUniverse:D}/summary")).Status);
+        Assert.Equal(HttpStatusCode.NotFound, (await SnapshotAsync(app, $"/collections/{_restrictedUniverse:D}/items?limit=50")).Status);
+        var catalogue = await GetJsonAsync(app, "/api/v1/collections?limit=50");
+        Assert.DoesNotContain(
+            catalogue["items"]!.AsArray(),
+            item => item!["id"]!.GetValue<Guid>() == _restrictedUniverse);
+    }
+
+    [Fact]
+    public async Task KidsProfile_AnAllowedEpisodeWithARestrictedSibling_ListsTheShowOnce_CountedOnce()
+    {
+        SetContentLimit("PG");
+        await using var app = await StartAsync();
+
+        var dashboard = await GetArrayAsync(app, $"/collections/{_siblingUniverse:D}/items?limit=50");
+        var client = await GetJsonAsync(app, $"/api/v1/collections/{_siblingUniverse:D}/items?limit=50");
+        var summary = await GetJsonAsync(app, $"/api/v1/collections/{_siblingUniverse:D}");
+
+        // The PG episode brings the show once; the R episodes bring nothing, and each PG movie is its own row.
+        Guid[] expected = [_kidsShow, _familyMovie, _secondFamilyMovie];
+        Assert.Equal(expected, dashboard.Select(row => row!["work_id"]!.GetValue<Guid>()));
+        Assert.Equal(expected, client["items"]!.AsArray().Select(row => row!["work_id"]!.GetValue<Guid>()));
+        Assert.Equal(3, client["total_count"]!.GetValue<int>());
+        Assert.Equal(3, summary["item_count"]!.GetValue<int>());
+    }
+
+    [Fact]
+    public async Task AHandPickedListOfSeriesBooks_ListsTheSeriesTileOnce_OnBothRoutes()
+    {
+        await using var app = await StartAsync();
+
+        var dashboard = await GetArrayAsync(app, $"/collections/{_bookList:D}/items?limit=50");
+        var client = await GetJsonAsync(app, $"/api/v1/collections/{_bookList:D}/items?limit=50");
+
+        var row = Assert.Single(dashboard);
+        Assert.Equal(_bookSeries, row!["work_id"]!.GetValue<Guid>());
+        Assert.Equal("Dune Saga", row["title"]!.GetValue<string>());
+        Assert.Equal(_bookSeries, Assert.Single(client["items"]!.AsArray())!["work_id"]!.GetValue<Guid>());
+        Assert.Equal(1, client["total_count"]!.GetValue<int>());
+    }
+
+    [Fact]
+    public async Task AnUnownedMemberOfAHandPickedList_IsNotListed()
+    {
+        await using var app = await StartAsync();
+        var catalog = app.Services.GetRequiredService<CollectionCatalogReadService>();
+
+        // No authorised set at all (as the detail page reads it): ownership alone keeps the file-less member out.
+        var items = await catalog.GetItemsAsync(_unownedList, null, 50);
+        var page = await catalog.GetItemPageAsync(
+            _unownedList, null, 0, 50, new HashSet<Guid> { _movie, _unownedMovie });
+
+        Assert.Equal([_movie], items.Items.Select(item => item.WorkId));
+        Assert.Equal([_movie], page.Items.Select(item => item.WorkId));
+        Assert.Equal(1, page.TotalCount);
+    }
+
     // Seeds ------------------------------------------------------------------------------------------------------
 
     private void SeedLibrary()
@@ -179,6 +270,34 @@ public sealed class CollectionItemRootsTests : IDisposable
                     mixedSeriesOne = _mixedSeriesOne,
                     mixedSeriesTwo = _mixedSeriesTwo,
                     episodeList = _episodeList,
+                });
+        }
+
+        using (var extra = _database.CreateConnection())
+        {
+            extra.Execute(
+                """
+                INSERT INTO collections (id, display_name, collection_type, scope, resolution, is_enabled, wikidata_qid, parent_collection_id)
+                VALUES (@restrictedUniverse, 'A Restricted Universe', 'Universe', 'library', 'materialized', 1, 'Q7010', NULL),
+                       (@restrictedSeriesOne, 'Restricted Series One', 'Series', 'library', 'query', 1, 'Q7011', @restrictedUniverse),
+                       (@restrictedSeriesTwo, 'Restricted Series Two', 'Series', 'library', 'query', 1, NULL, @restrictedUniverse),
+                       (@siblingUniverse, 'A Sibling Universe', 'Universe', 'library', 'materialized', 1, 'Q7020', NULL),
+                       (@siblingSeriesOne, 'Sibling Series One', 'Series', 'library', 'query', 1, 'Q7021', @siblingUniverse),
+                       (@siblingSeriesTwo, 'Sibling Series Two', 'Series', 'library', 'query', 1, NULL, @siblingUniverse);
+                INSERT INTO collections (id, display_name, collection_type, scope, resolution, is_enabled, membership_mode, owner_kind, audience)
+                VALUES (@bookList, 'Book list', 'Custom', 'library', 'materialized', 1, 'Manual', 'Library', 'Everyone'),
+                       (@unownedList, 'Unowned list', 'Custom', 'library', 'materialized', 1, 'Manual', 'Library', 'Everyone');
+                """,
+                new
+                {
+                    restrictedUniverse = _restrictedUniverse,
+                    restrictedSeriesOne = _restrictedSeriesOne,
+                    restrictedSeriesTwo = _restrictedSeriesTwo,
+                    siblingUniverse = _siblingUniverse,
+                    siblingSeriesOne = _siblingSeriesOne,
+                    siblingSeriesTwo = _siblingSeriesTwo,
+                    bookList = _bookList,
+                    unownedList = _unownedList,
                 });
         }
 
@@ -218,6 +337,33 @@ public sealed class CollectionItemRootsTests : IDisposable
         var members = new List<Guid> { _movie, _episodes[0], _issues[0], _tracks[0], _episodes[1], _issues[1], _tracks[1], _episodes[2], _issues[2], _tracks[2], _episodes[3] };
         AddItems(_universe, members);
 
+        // A show whose episodes carry different ratings: one PG, three R.
+        _kidsShow = AddRoot("TV", "Kids Show");
+        var kidsSeason = AddWork("TV", "parent", _kidsShow, null, "Kids Season", null, null);
+        var kidsPg = AddWork("TV", "child", kidsSeason, _siblingSeriesOne, "Kids PG Episode", ".mkv", 1, "PG");
+        var kidsRatedOne = AddWork("TV", "child", kidsSeason, _restrictedSeriesOne, "Kids R Episode 1", ".mkv", 2, "R");
+        var kidsRatedTwo = AddWork("TV", "child", kidsSeason, _restrictedSeriesTwo, "Kids R Episode 2", ".mkv", 3, "R");
+        var kidsRatedThree = AddWork("TV", "child", kidsSeason, _siblingSeriesTwo, "Kids R Episode 3", ".mkv", 4, "R");
+        // A generated group of only TV shows is not a collection, so each also holds a movie.
+        var ratedMovie = AddWork("Movies", "standalone", null, _restrictedSeriesTwo, "Rated Movie", ".mkv", null, "R");
+        var familyMovie = AddWork("Movies", "standalone", null, _siblingSeriesOne, "Family Movie", ".mkv", null, "PG");
+        AddItems(_restrictedUniverse, [kidsRatedOne, ratedMovie]);
+        var secondFamilyMovie = AddWork("Movies", "standalone", null, _siblingSeriesTwo, "Second Family Movie", ".mkv", null, "PG");
+        AddItems(_siblingUniverse, [kidsPg, kidsRatedThree, familyMovie, secondFamilyMovie]);
+        _ratedMovie = ratedMovie;
+        _familyMovie = familyMovie;
+        _secondFamilyMovie = secondFamilyMovie;
+
+        // A book series: the books are children of the series work, and a list can hold the books themselves.
+        _bookSeries = AddRoot("Books", "Dune Saga");
+        var bookOne = AddWork("Books", "child", _bookSeries, null, "Dune #1", ".epub", 1);
+        var bookTwo = AddWork("Books", "child", _bookSeries, null, "Dune #2", ".epub", 2);
+        AddItems(_bookList, [bookOne, bookTwo]);
+
+        // A list holding one owned movie and one work with no file at all.
+        _unownedMovie = AddWork("Movies", "standalone", null, null, "Unowned Movie", null, null);
+        AddItems(_unownedList, [_movie, _unownedMovie]);
+
         // A second collection that holds the show root itself and also one of its episodes.
         AddItems(_mixedUniverse, [_show, _episodes[1], _otherMovie, _mixedMovie]);
         AddItems(_episodeList, [_episodes[0], _episodes[1], _episodes[2], _otherMovie]);
@@ -239,7 +385,7 @@ public sealed class CollectionItemRootsTests : IDisposable
     private Guid AddStandalone(string mediaType, string title, string extension, Guid collection) =>
         AddWork(mediaType, "standalone", null, collection, title, extension, null);
 
-    private Guid AddWork(string mediaType, string kind, Guid? parent, Guid? collection, string title, string? extension, int? ordinal)
+    private Guid AddWork(string mediaType, string kind, Guid? parent, Guid? collection, string title, string? extension, int? ordinal, string rating = "G")
     {
         var work = Guid.NewGuid();
         using var connection = _database.CreateConnection();
@@ -249,9 +395,9 @@ public sealed class CollectionItemRootsTests : IDisposable
             VALUES (@work, @mediaType, @kind, @parent, 'accepted', @collection, @ordinal);
             INSERT INTO canonical_values (entity_id, key, value, last_scored_at)
             VALUES (@work, 'title', @title, CURRENT_TIMESTAMP),
-                   (@work, 'content_rating', 'G', CURRENT_TIMESTAMP);
+                   (@work, 'content_rating', @rating, CURRENT_TIMESTAMP);
             """,
-            new { work, mediaType, kind, parent, collection, title, ordinal });
+            new { work, mediaType, kind, parent, collection, title, ordinal, rating });
 
         if (extension is not null)
         {
@@ -307,6 +453,14 @@ public sealed class CollectionItemRootsTests : IDisposable
             new HashSet<Guid> { _library }).GetAwaiter().GetResult();
     }
 
+    private void SetContentLimit(string? limit)
+    {
+        using var connection = _database.CreateConnection();
+        connection.Execute(
+            "UPDATE profiles SET content_limit=@limit, content_limit_allow_unrated=0 WHERE id=@id",
+            new { limit, id = MediaEngine.Domain.Aggregates.Profile.SeedProfileId });
+    }
+
     // Requests ---------------------------------------------------------------------------------------------------
 
     private static async Task<JsonNode> GetNodeAsync(TestApplication app, string path)
@@ -315,6 +469,20 @@ public sealed class CollectionItemRootsTests : IDisposable
         var body = await response.Content.ReadAsStringAsync();
         Assert.True(response.StatusCode == HttpStatusCode.OK, $"{path} returned {(int)response.StatusCode}: {body}");
         return JsonNode.Parse(body)!;
+    }
+
+    // The trace id is the one part of a problem answer that is different on every request.
+    private static async Task<(HttpStatusCode Status, string Body)> SnapshotAsync(TestApplication app, string path)
+    {
+        using var response = await app.Client.GetAsync(path);
+        var body = await response.Content.ReadAsStringAsync();
+        if (body.Length > 0 && JsonNode.Parse(body) is JsonObject problem)
+        {
+            problem.Remove("traceId");
+            body = problem.ToJsonString();
+        }
+
+        return (response.StatusCode, body);
     }
 
     private static async Task<JsonObject> GetJsonAsync(TestApplication app, string path) =>
@@ -473,6 +641,8 @@ public sealed class CollectionItemRootsTests : IDisposable
     private sealed class TestApplication(WebApplication app, Uri address) : IAsyncDisposable
     {
         public HttpClient Client { get; } = new() { BaseAddress = address };
+
+        public IServiceProvider Services => app.Services;
 
         public async ValueTask DisposeAsync()
         {
