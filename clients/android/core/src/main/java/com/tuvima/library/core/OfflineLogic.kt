@@ -15,9 +15,28 @@ import kotlin.math.abs
 enum class DownloadState { Queued, Preparing, Downloading, Paused, Complete, Failed }
 
 /**
+ * What a stored item is, as the Engine's device download list names it (`kind`). A [Variant] is a prepared video or audio
+ * copy, a [Photo] is a 2048 px preview of a View photo. [Book] is reserved: the Engine refuses it until books reach the
+ * native apps, and nothing in this app creates one yet.
+ */
+enum class OfflineKind(val wire: String) {
+    Variant("variant"),
+    Photo("photo"),
+    Book("book"),
+    ;
+
+    companion object {
+        /** The kind a list row names; a row without one (an older Engine) or with one this app does not know reads as a variant. */
+        fun fromWire(value: String?): OfflineKind =
+            entries.firstOrNull { it.wire.equals(value?.trim(), ignoreCase = true) } ?: Variant
+    }
+}
+
+/**
  * One title the phone holds, or is getting, for offline use.
  * [bytesDone] is what is on disk now; [totalBytes] is the expected final size (0 until the Engine has said).
  * [reportedToServer] turns true once the Engine's device download list has been told about this variant.
+ * For a [OfflineKind.Photo] [assetId] is the View item id, [variantId] stays null and [filePath] is the preview image.
  */
 data class DownloadRecord(
     val assetId: String,
@@ -39,21 +58,28 @@ data class DownloadRecord(
     val variantRequested: Boolean,
     val error: String?,
     val queuedAtMs: Long,
+    val kind: OfflineKind = OfflineKind.Variant,
 ) {
     val isComplete: Boolean get() = state == DownloadState.Complete
+    val isPhoto: Boolean get() = kind == OfflineKind.Photo
 
     /** 0.0 to 1.0, or null while the size is unknown. */
     fun fraction(): Float? =
         if (totalBytes > 0) (bytesDone.toDouble() / totalBytes.toDouble()).toFloat().coerceIn(0f, 1f) else null
 }
 
-/** One row of the Engine's device download list (`GET /api/v1/devices/current/downloads`). */
+/**
+ * One row of the Engine's device download list (`GET /api/v1/devices/current/downloads`). A photo row names its View item
+ * in [photoItemId] and carries the empty id in [assetId] and [variantId]; a variant row has no [photoItemId].
+ */
 data class ServerDownloadEntry(
     val assetId: String,
     val variantId: String,
     val storedBytes: Long,
     val storedAtMs: Long?,
     val expiresAtMs: Long?,
+    val kind: OfflineKind = OfflineKind.Variant,
+    val photoItemId: String? = null,
 )
 
 /** One owned episode that follows the one in play (`GET /api/v1/details/show/{id}/next-episodes`). */
@@ -90,15 +116,20 @@ data class ServerProgress(
     val positionSeconds: Double?,
 )
 
-/** What the phone must tell the Engine's download list about a variant. */
+/** What the phone must tell the Engine's download list about a variant or photo. */
 enum class ReportKind { Store, Delete }
 
+/**
+ * One report waiting for the Engine. For a photo ([itemKind] is [OfflineKind.Photo]) both [assetId] and [variantId] hold the
+ * View item id, so a newer report about the same photo replaces an older one just as it does for a variant.
+ */
 data class PendingReport(
     val kind: ReportKind,
     val assetId: String,
     val variantId: String,
     val storedBytes: Long,
     val storedAtMs: Long,
+    val itemKind: OfflineKind = OfflineKind.Variant,
 )
 
 /** What to do with a queued report after the Engine answered: finished, try again later, or give up on it. */
@@ -111,10 +142,48 @@ data class QualityChoice(val key: String, val label: String)
 
 data class ExpiryResult(val keep: List<DownloadRecord>, val purge: List<DownloadRecord>)
 
+/** One photo or video of a gallery that a person may keep on the phone. */
+data class PhotoCandidate(val id: String, val isVideo: Boolean)
+
+/** Why [OfflineLogic.planPhotoKeep] stopped before the end of the list. */
+enum class PhotoKeepStop { None, StorageCap, ListFull }
+
+/**
+ * What to keep from a gallery: the [toKeep] ids (oldest request first), how many were [alreadyKept] or skipped as videos,
+ * and why it [stop]ped early, if it did.
+ */
+data class PhotoKeepPlan(
+    val toKeep: List<String>,
+    val alreadyKept: Int,
+    val skippedVideos: Int,
+    val stop: PhotoKeepStop,
+)
+
+/**
+ * The extension point for books kept on the phone, so a reader can open a local file first. It is deliberately not wired:
+ * books are not offered in the native apps yet, nothing creates an [OfflineKind.Book] record, and no reader calls this.
+ * When books arrive, a reader should ask [localBookFile] before it goes to the network, and use the file when it answers.
+ */
+interface LocalBookFiles {
+    /** The absolute path of the finished local copy of this book asset on this phone for the person using it, or null when there is none. */
+    fun localBookFile(assetId: String): String?
+}
+
 object OfflineLogic {
     const val QUALITY_SMALL = "mobile-small"
     const val QUALITY_STANDARD = "mobile-standard"
     const val QUALITY_AUDIO = "audio-mobile"
+
+    /** Kept photos are the 2048 px preview (a fraction of the original's size); originals are not kept. */
+    const val PHOTO_PROFILE_KEY = "photo-preview-2048"
+    const val PHOTO_ENTITY_TYPE = "photo"
+    const val PHOTO_PREVIEW_EDGE = 2048
+
+    /** What one 2048 px preview is assumed to weigh until it is on disk; only used to plan how many to queue. */
+    const val PHOTO_ESTIMATE_BYTES = 600L * 1024L
+
+    /** The Engine lists at most this many entries of any kind per device. */
+    const val MAX_LISTED = 500
 
     /** Times this close are treated as the same moment, to allow for the Engine rounding a stored time. */
     private const val TIME_TOLERANCE_MS = 1_000L
@@ -163,11 +232,12 @@ object OfflineLogic {
         val keep = mutableListOf<DownloadRecord>()
         val purge = mutableListOf<DownloadRecord>()
         for (record in local) {
-            if (!record.isComplete) {
+            // Downloads still in progress are never judged, and neither is a kind this app does not keep yet (books).
+            if (!record.isComplete || record.kind == OfflineKind.Book) {
                 keep.add(record)
                 continue
             }
-            val listed = server.firstOrNull { it.assetId == record.assetId && it.variantId == record.variantId }
+            val listed = server.firstOrNull { serverEntryMatches(it, record) }
             when {
                 record.reportedToServer && listed == null -> purge.add(record)
                 listed != null && listed.expiresAtMs != null && listed.expiresAtMs <= nowMs -> purge.add(record)
@@ -177,6 +247,14 @@ object OfflineLogic {
             }
         }
         return ExpiryResult(keep, purge)
+    }
+
+    /** True when this row of the Engine's list is the one for this local record: same kind, then the photo item or the asset and variant. */
+    fun serverEntryMatches(entry: ServerDownloadEntry, record: DownloadRecord): Boolean = when (record.kind) {
+        OfflineKind.Photo -> entry.kind == OfflineKind.Photo && entry.photoItemId == record.assetId
+        OfflineKind.Variant -> entry.kind == OfflineKind.Variant &&
+            entry.assetId == record.assetId && entry.variantId == record.variantId
+        OfflineKind.Book -> false
     }
 
     /** True when a finished download should no longer be played because its expiry has passed. */
@@ -198,9 +276,70 @@ object OfflineLogic {
         else -> ReportOutcome.Retry
     }
 
-    /** Adds a report to the queue; a newer report for the same variant replaces the older one (store then delete = delete). */
+    /** Adds a report to the queue; a newer report for the same variant or photo replaces the older one (store then delete = delete). */
     fun queueReport(queue: List<PendingReport>, report: PendingReport): List<PendingReport> =
-        queue.filterNot { it.variantId == report.variantId } + report
+        queue.filterNot { it.variantId == report.variantId && it.itemKind == report.itemKind } + report
+
+    /** True when this report is about this local record (the photo item for a photo, the variant for a variant). */
+    fun reportMatches(report: PendingReport, record: DownloadRecord): Boolean = when (report.itemKind) {
+        OfflineKind.Photo -> record.kind == OfflineKind.Photo && record.assetId == report.assetId
+        OfflineKind.Variant -> record.kind == OfflineKind.Variant && record.variantId == report.variantId
+        OfflineKind.Book -> false
+    }
+
+    // ---- Keeping photos ----
+
+    /**
+     * Chooses which photos of a gallery to keep. Videos are skipped (only a still frame is kept for a photo, which is not a
+     * useful copy of a video), as are photos already held and repeats in the list. It stops at the storage cap, counting
+     * [estimatePerPhoto] for each photo already chosen, and at the Engine's list limit ([maxListed] entries of any kind,
+     * of which [listedCount] are already used). The gallery is read in order, so the newest photos are kept first.
+     */
+    fun planPhotoKeep(
+        candidates: List<PhotoCandidate>,
+        heldIds: Set<String>,
+        committedBytes: Long,
+        capBytes: Long,
+        listedCount: Int,
+        estimatePerPhoto: Long = PHOTO_ESTIMATE_BYTES,
+        maxListed: Int = MAX_LISTED,
+    ): PhotoKeepPlan {
+        val chosen = LinkedHashSet<String>()
+        var alreadyKept = 0
+        var skippedVideos = 0
+        var stop = PhotoKeepStop.None
+        for (candidate in candidates) {
+            if (candidate.isVideo) {
+                skippedVideos += 1
+                continue
+            }
+            if (candidate.id in heldIds) {
+                alreadyKept += 1
+                continue
+            }
+            if (candidate.id in chosen) continue
+            if (listedCount + chosen.size >= maxListed) {
+                stop = PhotoKeepStop.ListFull
+                break
+            }
+            if (!canQueue(committedBytes + chosen.size * estimatePerPhoto.coerceAtLeast(0L), capBytes, estimatePerPhoto)) {
+                stop = PhotoKeepStop.StorageCap
+                break
+            }
+            chosen.add(candidate.id)
+        }
+        return PhotoKeepPlan(chosen.toList(), alreadyKept, skippedVideos, stop)
+    }
+
+    /**
+     * True when a finished photo copy may be read straight from the phone: a complete record of a photo whose file is
+     * [fileExists]. The viewer asks this before it goes to the network.
+     */
+    fun localPhotoPath(record: DownloadRecord?, fileExists: (String) -> Boolean): String? {
+        if (record == null || record.kind != OfflineKind.Photo || !record.isComplete) return null
+        val path = record.filePath ?: return null
+        return if (fileExists(path)) path else null
+    }
 
     // ---- Offline progress replay ----
 
@@ -294,7 +433,8 @@ object OfflineLogic {
     }
 
     fun qualityLabel(profileKey: String): String =
-        allQualities.firstOrNull { it.key == profileKey }?.label ?: profileKey
+        if (profileKey == PHOTO_PROFILE_KEY) "Preview (2048 px)"
+        else allQualities.firstOrNull { it.key == profileKey }?.label ?: profileKey
 
     /**
      * The offline variant to download: the known one when resuming, otherwise the best ready variant for the profile

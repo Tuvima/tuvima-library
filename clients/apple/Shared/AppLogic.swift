@@ -133,6 +133,11 @@ public enum ClientRoutes {
         "\(deviceDownloads)/\(variantID.uuidString.lowercased())"
     }
 
+    /// Forgets a kept photo (by its View item id) on the paired app's list: 204, or 404 when it was not listed.
+    public static func devicePhotoDownload(_ itemID: UUID) -> String {
+        "\(deviceDownloads)/photos/\(itemID.uuidString.lowercased())"
+    }
+
     /// The prepared file of an offline variant (bearer token, `downloads.read`, supports ranges).
     public static func offlineFile(_ assetID: UUID, _ variantID: UUID) -> String {
         "\(api)/playback/\(assetID.uuidString.lowercased())/offline/\(variantID.uuidString.lowercased())"

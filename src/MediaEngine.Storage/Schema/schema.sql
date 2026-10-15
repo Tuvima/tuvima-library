@@ -2051,6 +2051,22 @@ CREATE INDEX IF NOT EXISTS idx_device_downloads_device_profile
 CREATE INDEX IF NOT EXISTS idx_device_downloads_variant
     ON device_downloads(variant_id);
 
+-- Photos a paired app reports as kept on the device (kind "photo"), one row per device, person and View item.
+-- A row follows its item, device and profile: removing any of them removes it. Photos never expire.
+CREATE TABLE IF NOT EXISTS device_photo_downloads (
+    device_id    BLOB NOT NULL REFERENCES client_devices(id) ON DELETE CASCADE,
+    profile_id   BLOB NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+    item_id      BLOB NOT NULL REFERENCES local_items(id) ON DELETE CASCADE,
+    stored_bytes INTEGER NOT NULL CHECK (stored_bytes >= 0),
+    stored_at    TEXT NOT NULL,
+    updated_at   TEXT NOT NULL,
+    PRIMARY KEY (device_id, profile_id, item_id)
+);
+CREATE INDEX IF NOT EXISTS idx_device_photo_downloads_device_profile
+    ON device_photo_downloads(device_id, profile_id, stored_at);
+CREATE INDEX IF NOT EXISTS idx_device_photo_downloads_item
+    ON device_photo_downloads(item_id);
+
 CREATE TABLE IF NOT EXISTS device_pairing_requests (
     id                     BLOB NOT NULL PRIMARY KEY,
     application_id         BLOB NOT NULL REFERENCES applications(id) ON DELETE CASCADE,

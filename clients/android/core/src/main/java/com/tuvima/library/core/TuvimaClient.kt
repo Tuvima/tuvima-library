@@ -182,6 +182,25 @@ class TuvimaClient(
     suspend fun reportDownloadDeleted(variantId: String): Int =
         requestStatus("DELETE", ClientRoutes.deviceDownload(variantId), null)
 
+    /**
+     * Tells the Engine this device keeps a photo (its 2048 px preview). Returns the HTTP status; 204 is success, 404 means
+     * the photo is gone or this person cannot see it, 403 means the token has no photo access, 409 the list is full.
+     */
+    suspend fun reportPhotoStored(itemId: String, storedBytes: Long, storedAtMs: Long): Int =
+        requestStatus(
+            "POST",
+            ClientRoutes.DEVICE_DOWNLOADS,
+            JSONObject()
+                .put("kind", OfflineKind.Photo.wire)
+                .put("photo_item_id", itemId)
+                .put("stored_bytes", storedBytes)
+                .put("stored_at", OfflineLogic.formatIsoUtc(storedAtMs)),
+        )
+
+    /** Tells the Engine this device no longer keeps a photo. Returns the HTTP status; 204 is success, 404 means it was not listed. */
+    suspend fun reportPhotoDeleted(itemId: String): Int =
+        requestStatus("DELETE", ClientRoutes.devicePhotoDownload(itemId), null)
+
     /** The owned episodes that follow [afterAssetId] in the show's watch order. */
     suspend fun nextEpisodes(showId: String, afterAssetId: String, count: Int = 3): NextEpisodes =
         parseNextEpisodes(requestJson("GET", ClientRoutes.nextEpisodes(showId, afterAssetId, count)), ::absolute)

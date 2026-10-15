@@ -40,6 +40,46 @@ class OfflineLogicTest {
         queuedAtMs = now,
     )
 
+    /** A kept photo: the item id is the asset id, there is no variant, and the file is the 2048 px preview. */
+    private fun photo(
+        itemId: String,
+        state: DownloadState = DownloadState.Complete,
+        bytesDone: Long = 500L,
+        totalBytes: Long = 500L,
+        reported: Boolean = true,
+    ) = DownloadRecord(
+        assetId = itemId,
+        variantId = null,
+        title = "Photo $itemId",
+        subtitle = "2026-03-02",
+        artworkUrl = null,
+        artworkPath = null,
+        entityType = OfflineLogic.PHOTO_ENTITY_TYPE,
+        showId = null,
+        profileKey = OfflineLogic.PHOTO_PROFILE_KEY,
+        state = state,
+        bytesDone = bytesDone,
+        totalBytes = totalBytes,
+        storedAtMs = now,
+        expiresAtMs = null,
+        filePath = "/files/photos/$itemId.jpg",
+        reportedToServer = reported,
+        variantRequested = false,
+        error = null,
+        queuedAtMs = now,
+        kind = OfflineKind.Photo,
+    )
+
+    private fun photoRow(itemId: String) = ServerDownloadEntry(
+        assetId = EMPTY_ID,
+        variantId = EMPTY_ID,
+        storedBytes = 500L,
+        storedAtMs = now,
+        expiresAtMs = null,
+        kind = OfflineKind.Photo,
+        photoItemId = itemId,
+    )
+
     private fun progress(
         assetId: String,
         recordedAtMs: Long,
@@ -328,6 +368,198 @@ class OfflineLogicTest {
         assertEquals("12.500", OfflineLogic.formatSeconds(12.5))
     }
 
+    // ---- photos kept on the phone ----
+
+    @Test
+    fun theKindReadsItsWireNameAndAnythingElseIsAVariant() {
+        assertEquals(OfflineKind.Photo, OfflineKind.fromWire("photo"))
+        assertEquals(OfflineKind.Photo, OfflineKind.fromWire(" Photo "))
+        assertEquals(OfflineKind.Book, OfflineKind.fromWire("book"))
+        assertEquals(OfflineKind.Variant, OfflineKind.fromWire("variant"))
+        // An older Engine sends no kind, and a kind this app does not know is not a photo or a book.
+        assertEquals(OfflineKind.Variant, OfflineKind.fromWire(null))
+        assertEquals(OfflineKind.Variant, OfflineKind.fromWire("hologram"))
+        assertEquals("photo", OfflineKind.Photo.wire)
+    }
+
+    @Test
+    fun aKeptPhotoIsJudgedByItsOwnRowOfTheEnginesList() {
+        val local = listOf(photo("p1"), photo("p2"), photo("p3", reported = false), photo("p4", state = DownloadState.Downloading))
+        val result = OfflineLogic.reconcileWithServer(local, listOf(photoRow("p1")), now)
+
+        // p1 is still listed, p2 was reported but its row is gone (deleted, or access removed), so it is purged.
+        // p3 was never reported and p4 is not finished, so the list cannot judge them.
+        assertEquals(listOf("p2"), result.purge.map { it.assetId })
+        assertEquals(listOf("p1", "p3", "p4"), result.keep.map { it.assetId })
+        // A photo has no expiry, so listing it leaves it without one.
+        assertNull(result.keep.first { it.assetId == "p1" }.expiresAtMs)
+    }
+
+    @Test
+    fun aPhotoRowAndAVariantRowNeverStandInForEachOther() {
+        val variantRow = ServerDownloadEntry("p1", "variant-p1", 100L, now, null)
+        // A photo record is not kept alive by a variant row that happens to share its id.
+        val photoResult = OfflineLogic.reconcileWithServer(listOf(photo("p1")), listOf(variantRow), now)
+        assertEquals(listOf("p1"), photoResult.purge.map { it.assetId })
+
+        // And a variant record is not kept alive by a photo row for the same id.
+        val variantResult = OfflineLogic.reconcileWithServer(listOf(record("p1")), listOf(photoRow("p1")), now)
+        assertEquals(listOf("p1"), variantResult.purge.map { it.assetId })
+
+        assertTrue(OfflineLogic.serverEntryMatches(photoRow("p1"), photo("p1")))
+        assertFalse(OfflineLogic.serverEntryMatches(photoRow("p2"), photo("p1")))
+        assertTrue(OfflineLogic.serverEntryMatches(variantRow, record("p1")))
+    }
+
+    @Test
+    fun aMixedListKeepsVariantsAndPhotosIndependently() {
+        val local = listOf(record("a"), record("b"), photo("p1"), photo("p2"))
+        val server = listOf(
+            ServerDownloadEntry("a", "variant-a", 100L, now, now + 86_400_000L),
+            photoRow("p2"),
+        )
+        val result = OfflineLogic.reconcileWithServer(local, server, now)
+        assertEquals(listOf("b", "p1"), result.purge.map { it.assetId })
+        assertEquals(listOf("a", "p2"), result.keep.map { it.assetId })
+    }
+
+    @Test
+    fun aBookCopyIsNeverPurgedByTheListBecauseBooksAreNotWiredYet() {
+        val book = photo("b1").copy(kind = OfflineKind.Book, entityType = "book")
+        val result = OfflineLogic.reconcileWithServer(listOf(book), emptyList(), now)
+        assertTrue(result.purge.isEmpty())
+        assertEquals(listOf("b1"), result.keep.map { it.assetId })
+        assertFalse(OfflineLogic.serverEntryMatches(photoRow("b1"), book))
+    }
+
+    @Test
+    fun reportsForAPhotoAndAVariantWithTheSameIdAreKeptApart() {
+        val variantStore = PendingReport(ReportKind.Store, "x", "x", 10L, now)
+        val photoStore = PendingReport(ReportKind.Store, "x", "x", 20L, now, OfflineKind.Photo)
+        val queue = OfflineLogic.queueReport(OfflineLogic.queueReport(emptyList(), variantStore), photoStore)
+        assertEquals(2, queue.size)
+
+        // Store then delete of the same photo leaves just the delete, and the variant report is untouched.
+        val photoDelete = PendingReport(ReportKind.Delete, "x", "x", 0L, now + 1, OfflineKind.Photo)
+        val after = OfflineLogic.queueReport(queue, photoDelete)
+        assertEquals(listOf(variantStore, photoDelete), after)
+    }
+
+    @Test
+    fun aReportMatchesTheRecordOfItsOwnKind() {
+        val photoReport = PendingReport(ReportKind.Store, "p1", "p1", 500L, now, OfflineKind.Photo)
+        val variantReport = PendingReport(ReportKind.Store, "a", "variant-a", 100L, now)
+        assertTrue(OfflineLogic.reportMatches(photoReport, photo("p1")))
+        assertFalse(OfflineLogic.reportMatches(photoReport, photo("p2")))
+        assertFalse(OfflineLogic.reportMatches(photoReport, record("p1", variantId = "p1")))
+        assertTrue(OfflineLogic.reportMatches(variantReport, record("a")))
+        assertFalse(OfflineLogic.reportMatches(variantReport, photo("a")))
+    }
+
+    @Test
+    fun aPhotoReportIsDoneOn204AndWhenADeleteFindsNothing() {
+        // 204 is what the Engine really answers for a stored or forgotten photo.
+        assertEquals(ReportOutcome.Done, OfflineLogic.classifyReport(ReportKind.Store, 204))
+        assertEquals(ReportOutcome.Done, OfflineLogic.classifyReport(ReportKind.Delete, 204))
+        assertEquals(ReportOutcome.Done, OfflineLogic.classifyReport(ReportKind.Delete, 404))
+        // A photo the Engine will not take (gone or not visible, list full, no photo access, bad request) is dropped.
+        for (status in listOf(400, 403, 404, 409)) {
+            assertEquals(ReportOutcome.Drop, OfflineLogic.classifyReport(ReportKind.Store, status))
+        }
+        // Connection and credential problems are tried again.
+        for (status in listOf(401, 408, 429, 500, 503)) {
+            assertEquals(ReportOutcome.Retry, OfflineLogic.classifyReport(ReportKind.Store, status))
+        }
+    }
+
+    @Test
+    fun keptPhotosCountUnderTheSameStorageCapAsEveryOtherDownload() {
+        val cap = 10_000L
+        val held = listOf(record("a", bytesDone = 6_000L, totalBytes = 6_000L), photo("p1", bytesDone = 1_000L, totalBytes = 1_000L))
+        assertEquals(7_000L, OfflineLogic.committedBytes(held))
+        assertTrue(OfflineLogic.canQueue(OfflineLogic.committedBytes(held), cap, 3_000L))
+        assertFalse(OfflineLogic.canQueue(OfflineLogic.committedBytes(held), cap, 3_001L))
+
+        // A photo still being fetched holds the larger of what is on disk and what was reserved for it.
+        val inFlight = held + photo("p2", state = DownloadState.Downloading, bytesDone = 100L, totalBytes = 600L)
+        assertEquals(7_600L, OfflineLogic.committedBytes(inFlight))
+    }
+
+    @Test
+    fun aGalleryIsKeptNewestFirstUpToTheCap() {
+        val candidates = (1..10).map { PhotoCandidate("p$it", isVideo = false) }
+        // Room for exactly four more previews of 1000 bytes under the cap.
+        val plan = OfflineLogic.planPhotoKeep(
+            candidates, emptySet(), committedBytes = 6_000L, capBytes = 10_000L, listedCount = 0, estimatePerPhoto = 1_000L,
+        )
+        assertEquals(listOf("p1", "p2", "p3", "p4"), plan.toKeep)
+        assertEquals(PhotoKeepStop.StorageCap, plan.stop)
+        assertEquals(0, plan.alreadyKept)
+    }
+
+    @Test
+    fun aGalleryKeepSkipsVideosPhotosAlreadyHeldAndRepeats() {
+        val candidates = listOf(
+            PhotoCandidate("p1", false),
+            PhotoCandidate("v1", true),
+            PhotoCandidate("p2", false),
+            PhotoCandidate("p1", false),
+            PhotoCandidate("p3", false),
+        )
+        val plan = OfflineLogic.planPhotoKeep(
+            candidates, heldIds = setOf("p2"), committedBytes = 0L, capBytes = 1_000_000_000L, listedCount = 3, estimatePerPhoto = 1_000L,
+        )
+        assertEquals(listOf("p1", "p3"), plan.toKeep)
+        assertEquals(1, plan.alreadyKept)
+        assertEquals(1, plan.skippedVideos)
+        assertEquals(PhotoKeepStop.None, plan.stop)
+    }
+
+    @Test
+    fun aGalleryKeepStopsAtTheEnginesListLimitAndAFullCapKeepsNothing() {
+        val candidates = (1..5).map { PhotoCandidate("p$it", false) }
+        val listFull = OfflineLogic.planPhotoKeep(
+            candidates, emptySet(), committedBytes = 0L, capBytes = 1_000_000L, listedCount = 498, estimatePerPhoto = 10L,
+        )
+        assertEquals(listOf("p1", "p2"), listFull.toKeep)
+        assertEquals(PhotoKeepStop.ListFull, listFull.stop)
+
+        val capReached = OfflineLogic.planPhotoKeep(
+            candidates, emptySet(), committedBytes = 5_000L, capBytes = 5_000L, listedCount = 0, estimatePerPhoto = 10L,
+        )
+        assertTrue(capReached.toKeep.isEmpty())
+        assertEquals(PhotoKeepStop.StorageCap, capReached.stop)
+
+        // A cap of zero (or less) blocks everything, as it does for other downloads.
+        val noCap = OfflineLogic.planPhotoKeep(candidates, emptySet(), 0L, 0L, 0)
+        assertTrue(noCap.toKeep.isEmpty())
+        assertEquals(PhotoKeepStop.StorageCap, noCap.stop)
+    }
+
+    @Test
+    fun theViewerReadsAFinishedLocalCopyFirstAndNeverAnUnfinishedOrMissingOne() {
+        val present = { path: String -> path.endsWith("p1.jpg") }
+        assertEquals("/files/photos/p1.jpg", OfflineLogic.localPhotoPath(photo("p1"), present))
+        // The file is gone from the phone, the copy is unfinished, there is no record, or it is a video copy.
+        assertNull(OfflineLogic.localPhotoPath(photo("p2"), present))
+        assertNull(OfflineLogic.localPhotoPath(photo("p1", state = DownloadState.Downloading), present))
+        assertNull(OfflineLogic.localPhotoPath(null, present))
+        assertNull(OfflineLogic.localPhotoPath(record("p1"), { true }))
+    }
+
+    @Test
+    fun aKeptPhotoReadsAsAPreviewAndHasItsOwnRoute() {
+        assertEquals("Preview (2048 px)", OfflineLogic.qualityLabel(OfflineLogic.PHOTO_PROFILE_KEY))
+        assertEquals("Standard (720p)", OfflineLogic.qualityLabel(OfflineLogic.QUALITY_STANDARD))
+        assertEquals(2048, OfflineLogic.PHOTO_PREVIEW_EDGE)
+        assertEquals("/api/v1/devices/current/downloads/photos/i1", ClientRoutes.devicePhotoDownload("i1"))
+        assertEquals("/api/v1/view/items/i1/preview?size=2048", ClientRoutes.viewPreview("i1", OfflineLogic.PHOTO_PREVIEW_EDGE))
+        assertTrue(photo("p1").isPhoto)
+        assertFalse(record("a").isPhoto)
+        // Photos still never get a video or audio quality choice.
+        assertTrue(OfflineLogic.qualityChoicesFor(OfflineLogic.downloadKindFor("photo")).isEmpty())
+    }
+
     // ---- paths ----
 
     @Test
@@ -341,5 +573,9 @@ class OfflineLogicTest {
             ClientRoutes.nextEpisodes("s1", "a1"),
         )
         assertTrue(ClientRoutes.nextEpisodes("s1", "a1", 99).endsWith("count=10"))
+    }
+
+    private companion object {
+        const val EMPTY_ID = "00000000-0000-0000-0000-000000000000"
     }
 }

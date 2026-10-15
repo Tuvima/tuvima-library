@@ -6955,10 +6955,12 @@
   kind=class | converter=default | number-handling=default | unmapped=default
   AssetId: System.Guid | json=asset_id | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   VariantId: System.Guid | json=variant_id | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Kind: System.String | json=kind | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  PhotoItemId: System.Guid? | json=photo_item_id | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   StoredBytes: System.Int64 | json=stored_bytes | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   StoredAt: System.DateTimeOffset | json=stored_at | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   ExpiresAt: System.DateTimeOffset? | json=expires_at | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  sample={"asset_id":"11111111-2222-3333-4444-555555555555","variant_id":"11111111-2222-3333-4444-555555555555","stored_bytes":7,"stored_at":"2025-01-02T03:04:05+00:00","expires_at":"2025-01-02T03:04:05+00:00"}
+  sample={"asset_id":"11111111-2222-3333-4444-555555555555","variant_id":"11111111-2222-3333-4444-555555555555","kind":"sample","photo_item_id":"11111111-2222-3333-4444-555555555555","stored_bytes":7,"stored_at":"2025-01-02T03:04:05+00:00","expires_at":"2025-01-02T03:04:05+00:00"}
 
 [contracts] MediaEngine.Contracts.Playback.DeviceDownloadListDto
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -7585,9 +7587,11 @@
   kind=class | converter=default | number-handling=default | unmapped=default
   AssetId: System.Guid | json=asset_id | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   VariantId: System.Guid | json=variant_id | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Kind: System.String | json=kind | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  PhotoItemId: System.Guid? | json=photo_item_id | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   StoredBytes: System.Int64 | json=stored_bytes | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   StoredAt: System.DateTimeOffset | json=stored_at | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  sample={"asset_id":"11111111-2222-3333-4444-555555555555","variant_id":"11111111-2222-3333-4444-555555555555","stored_bytes":7,"stored_at":"2025-01-02T03:04:05+00:00"}
+  sample={"asset_id":"11111111-2222-3333-4444-555555555555","variant_id":"11111111-2222-3333-4444-555555555555","kind":"sample","photo_item_id":"11111111-2222-3333-4444-555555555555","stored_bytes":7,"stored_at":"2025-01-02T03:04:05+00:00"}
 
 [contracts] MediaEngine.Contracts.Playback.UserPlaybackSettingsDto
   kind=class | converter=default | number-handling=default | unmapped=Disallow

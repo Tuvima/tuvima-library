@@ -134,15 +134,25 @@ public sealed class NativeClientContractFixtureTests
         var downloads = Read<DeviceDownloadListDto>("device-downloads.json");
         var next = Read<NextEpisodesDto>("next-episodes.json");
 
-        Assert.Equal(2, downloads.Downloads.Count);
-        Assert.All(downloads.Downloads, download =>
+        Assert.Equal(3, downloads.Downloads.Count);
+        Assert.All(downloads.Downloads, download => Assert.True(download.StoredBytes > 0));
+        Assert.All(downloads.Downloads.Take(2), download =>
         {
+            Assert.Equal(DeviceDownloadKinds.Variant, download.Kind);
+            Assert.Null(download.PhotoItemId);
             Assert.NotEqual(Guid.Empty, download.AssetId);
             Assert.NotEqual(Guid.Empty, download.VariantId);
-            Assert.True(download.StoredBytes > 0);
         });
         Assert.NotNull(downloads.Downloads[0].ExpiresAt);
         Assert.Null(downloads.Downloads[1].ExpiresAt);
+
+        // A kept photo names its View item and carries the empty asset and variant ids; it never expires.
+        var photo = downloads.Downloads[2];
+        Assert.Equal(DeviceDownloadKinds.Photo, photo.Kind);
+        Assert.Equal(Guid.Parse("88888888-8888-8888-8888-888888888888"), photo.PhotoItemId);
+        Assert.Equal(Guid.Empty, photo.AssetId);
+        Assert.Equal(Guid.Empty, photo.VariantId);
+        Assert.Null(photo.ExpiresAt);
 
         Assert.Equal(2, next.Episodes.Count);
         Assert.Equal([4, 5], next.Episodes.Select(episode => episode.EpisodeNumber!.Value));
@@ -166,6 +176,15 @@ public sealed class NativeClientContractFixtureTests
         Assert.Contains("\"variant_id\"", upsert);
         Assert.Contains("\"stored_bytes\"", upsert);
         Assert.Contains("\"stored_at\"", upsert);
+        Assert.Contains("\"kind\"", upsert);
+        Assert.Contains("\"photo_item_id\"", upsert);
+
+        // The new fields are optional: a report without them still reads, as a variant.
+        var variantOnly = JsonSerializer.Deserialize<UpsertDeviceDownloadRequest>(
+            "{\"asset_id\":\"44444444-4444-4444-4444-444444444444\",\"variant_id\":\"55555555-5555-5555-5555-555555555555\",\"stored_bytes\":5,\"stored_at\":\"2030-01-01T00:00:00+00:00\"}",
+            JsonOptions)!;
+        Assert.Null(variantOnly.Kind);
+        Assert.Null(variantOnly.PhotoItemId);
 
         var progress = JsonSerializer.Serialize(
             new ProgressUpdateRequest(null, 50, null) { Offline = true, ClientTimestamp = DateTimeOffset.UnixEpoch }, JsonOptions);

@@ -45,6 +45,7 @@ import com.tuvima.library.core.DownloadRecord
 import com.tuvima.library.core.DownloadState
 import com.tuvima.library.core.OfflineLogic
 import com.tuvima.library.core.TuvimaClient
+import com.tuvima.library.core.ViewItem
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -53,10 +54,16 @@ import kotlinx.coroutines.withContext
 /**
  * What this phone holds for offline use: artwork, title, size, quality and expiry for each copy, with pause,
  * resume and delete, and a total against the storage limit set in Settings. The list is read from the phone, so it
- * opens without a connection. Tapping Play uses the downloaded file.
+ * opens without a connection. Tapping Play uses the downloaded file. Photos kept on the phone are in the same list,
+ * with the same limit; View opens them in the photo viewer, which reads the local copy.
  */
 @Composable
-internal fun DownloadsScreen(application: TuvimaMobileApplication, client: TuvimaClient, play: (String) -> Unit) {
+internal fun DownloadsScreen(
+    application: TuvimaMobileApplication,
+    client: TuvimaClient,
+    play: (String) -> Unit,
+    openPhotos: (List<ViewItem>, Int) -> Unit,
+) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val offline = application.offline
@@ -96,7 +103,7 @@ internal fun DownloadsScreen(application: TuvimaMobileApplication, client: Tuvim
         if (records.isEmpty()) {
             Text(
                 "Nothing is downloaded yet. Open a movie, episode, audiobook or album and choose Download to watch " +
-                    "or listen without a connection.",
+                    "or listen without a connection, or keep a photo or gallery from View on this phone.",
                 modifier = Modifier.padding(top = 16.dp),
             )
         } else {
@@ -110,6 +117,10 @@ internal fun DownloadsScreen(application: TuvimaMobileApplication, client: Tuvim
                         record = record,
                         nowMs = now,
                         onPlay = { play(record.assetId) },
+                        onView = {
+                            val kept = keptPhotoItems(records)
+                            openPhotos(kept, kept.indexOfFirst { it.id == record.assetId }.coerceAtLeast(0))
+                        },
                         onPause = { offline.pause(record.assetId) },
                         onResume = { offline.resume(record.assetId) },
                         onDelete = { confirmDelete = record },
@@ -158,6 +169,7 @@ private fun DownloadRow(
     record: DownloadRecord,
     nowMs: Long,
     onPlay: () -> Unit,
+    onView: () -> Unit,
     onPause: () -> Unit,
     onResume: () -> Unit,
     onDelete: () -> Unit,
@@ -165,7 +177,11 @@ private fun DownloadRow(
 ) {
     Card(Modifier.fillMaxWidth()) {
         Row(Modifier.padding(12.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            DownloadArtwork(client, record, Modifier.width(72.dp).aspectRatio(2f / 3f).clip(RoundedCornerShape(8.dp)))
+            DownloadArtwork(
+                client,
+                record,
+                Modifier.width(72.dp).aspectRatio(if (record.isPhoto) 1f else 2f / 3f).clip(RoundedCornerShape(8.dp)),
+            )
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text(
                     record.title,
@@ -186,7 +202,11 @@ private fun DownloadRow(
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     when (record.state) {
                         DownloadState.Complete ->
-                            if (!OfflineLogic.isExpired(record, nowMs)) Button(onClick = onPlay) { Text("Play") }
+                            if (record.isPhoto) {
+                                Button(onClick = onView) { Text("View") }
+                            } else if (!OfflineLogic.isExpired(record, nowMs)) {
+                                Button(onClick = onPlay) { Text("Play") }
+                            }
                         DownloadState.Queued, DownloadState.Preparing, DownloadState.Downloading ->
                             OutlinedButton(onClick = onPause) { Text("Pause") }
                         DownloadState.Paused -> Button(onClick = onResume) { Text("Resume") }
@@ -205,6 +225,12 @@ private fun DownloadRow(
 /** The saved artwork when the phone has it; otherwise the Engine's, which needs a connection. */
 @Composable
 private fun DownloadArtwork(client: TuvimaClient, record: DownloadRecord, modifier: Modifier) {
+    // A kept photo is its own picture: read from the phone, never from the Engine.
+    val photoPath = record.filePath?.takeIf { record.isPhoto && record.isComplete }
+    if (photoPath != null) {
+        LocalImage(photoPath, 256, modifier)
+        return
+    }
     val path = record.artworkPath
     val bitmap by produceState<Bitmap?>(initialValue = null, key1 = path) {
         value = if (path == null) null else withContext(Dispatchers.IO) { BitmapFactory.decodeFile(path) }

@@ -9,6 +9,17 @@ public enum OfflineLogic {
     public static let qualityStandard = "mobile-standard"
     public static let qualityAudio = "audio-mobile"
 
+    /// Kept photos are the 2048 px preview (a fraction of the original's size); originals are not kept.
+    public static let photoProfileKey = "photo-preview-2048"
+    public static let photoEntityType = "photo"
+    public static let photoPreviewEdge = 2048
+
+    /// What one 2048 px preview is assumed to weigh until it is on disk; only used to plan how many to queue.
+    public static let photoEstimateBytes: Int64 = 600 * 1024
+
+    /// The Engine lists at most this many entries of any kind per device.
+    public static let maxListedDownloads = 500
+
     /// Storage limit choices shown in Settings, in gigabytes, and the default.
     public static let capOptionsGB: [Int] = [2, 5, 10, 20, 50]
     public static let defaultCapGB = 10
@@ -58,11 +69,12 @@ public enum OfflineLogic {
         var keep: [DownloadRecord] = []
         var purge: [DownloadRecord] = []
         for record in local {
-            if !record.isComplete {
+            // Downloads still in progress are never judged, and neither is a kind this app does not keep yet (books).
+            if !record.isComplete || record.itemKind == .book {
                 keep.append(record)
                 continue
             }
-            let listed = server.first { $0.assetId == record.assetId && $0.variantId == record.variantId }
+            let listed = server.first { serverEntryMatches($0, record) }
             if record.reportedToServer && listed == nil {
                 purge.append(record)
             } else if let expiry = listed?.expiresAt, expiry <= now {
@@ -78,6 +90,19 @@ public enum OfflineLogic {
             }
         }
         return ExpiryResult(keep: keep, purge: purge)
+    }
+
+    /// True when this row of the Engine's list is the one for this local record: same kind, then the photo item or the
+    /// asset and variant.
+    public static func serverEntryMatches(_ entry: ServerDownloadEntry, _ record: DownloadRecord) -> Bool {
+        switch record.itemKind {
+        case .photo:
+            return entry.kind == .photo && entry.photoItemId == record.assetId
+        case .variant:
+            return entry.kind == .variant && entry.assetId == record.assetId && entry.variantId == record.variantId
+        case .book:
+            return false
+        }
     }
 
     /// True when a finished download should no longer be played because its expiry has passed.
@@ -104,9 +129,89 @@ public enum OfflineLogic {
         (400...499).contains(statusCode) && statusCode != 401 && statusCode != 408 && statusCode != 429
     }
 
-    /// Adds a report to the queue; a newer report for the same variant replaces the older one (store then delete = delete).
+    /// Adds a report to the queue; a newer report for the same variant or photo replaces the older one (store then
+    /// delete = delete).
     public static func queueReport(_ queue: [PendingReport], _ report: PendingReport) -> [PendingReport] {
-        queue.filter { $0.variantId != report.variantId } + [report]
+        queue.filter { !($0.variantId == report.variantId && $0.item == report.item) } + [report]
+    }
+
+    /// True when this report is about this local record (the photo item for a photo, the variant for a variant).
+    public static func reportMatches(_ report: PendingReport, _ record: DownloadRecord) -> Bool {
+        switch report.item {
+        case .photo: return record.itemKind == .photo && record.assetId == report.assetId
+        case .variant: return record.itemKind == .variant && record.variantId == report.variantId
+        case .book: return false
+        }
+    }
+
+    // MARK: Keeping photos
+
+    /// The file a kept photo's preview is saved under, in the person's offline folder.
+    public static func photoFileName(_ itemID: UUID) -> String { "\(itemID.uuidString.lowercased()).jpg" }
+
+    /// Chooses which photos of a gallery to keep. Videos are skipped (only a still frame is kept for a photo, which is
+    /// not a useful copy of a video), as are photos already held and repeats in the list. It stops at the storage cap,
+    /// counting `estimatePerPhoto` for each photo already chosen, and at the Engine's list limit (`maxListed` entries
+    /// of any kind, of which `listedCount` are already used). The gallery is read in order, so the newest photos come
+    /// first.
+    public static func planPhotoKeep(
+        candidates: [PhotoCandidate],
+        heldIds: Set<UUID>,
+        committedBytes: Int64,
+        capBytes: Int64,
+        listedCount: Int,
+        estimatePerPhoto: Int64 = OfflineLogic.photoEstimateBytes,
+        maxListed: Int = OfflineLogic.maxListedDownloads
+    ) -> PhotoKeepPlan {
+        var chosen: [UUID] = []
+        var chosenSet = Set<UUID>()
+        var alreadyKept = 0
+        var skippedVideos = 0
+        var stop = PhotoKeepStop.finished
+        for candidate in candidates {
+            if candidate.isVideo {
+                skippedVideos += 1
+                continue
+            }
+            if heldIds.contains(candidate.id) {
+                alreadyKept += 1
+                continue
+            }
+            if chosenSet.contains(candidate.id) { continue }
+            if listedCount + chosen.count >= maxListed {
+                stop = .listFull
+                break
+            }
+            let reserved = Int64(chosen.count) * max(estimatePerPhoto, 0)
+            if !canQueue(committedBytes: committedBytes + reserved, capBytes: capBytes, estimatedBytes: estimatePerPhoto) {
+                stop = .storageCap
+                break
+            }
+            chosen.append(candidate.id)
+            chosenSet.insert(candidate.id)
+        }
+        return PhotoKeepPlan(toKeep: chosen, alreadyKept: alreadyKept, skippedVideos: skippedVideos, stop: stop)
+    }
+
+    /// The saved file name of a finished photo copy that may be read straight from the phone: a complete record of a
+    /// photo whose file `fileExists`. The viewer asks this before it goes to the network.
+    public static func localPhotoFileName(_ record: DownloadRecord?, fileExists: (String) -> Bool) -> String? {
+        guard let record, record.itemKind == .photo, record.isComplete, let name = record.fileName else { return nil }
+        return fileExists(name) ? name : nil
+    }
+
+    /// What the person is told after asking to keep a whole gallery.
+    public static func keepGalleryMessage(found: Int, queued: Int, stop: PhotoKeepStop) -> String {
+        var limit = ""
+        switch stop {
+        case .storageCap: limit = " Stopped at the storage limit; raise it in Settings to keep more."
+        case .listFull: limit = " Stopped because the server tracks no more downloads for this device."
+        case .finished: break
+        }
+        if found == 0 { return "This gallery has no photos to keep." }
+        if queued == 0 && stop == .finished { return "These photos are already kept on this device." }
+        if queued == 0 { return "No photos were kept." + limit }
+        return "Keeping \(queued) photo(s) as 2048 px previews to save space. Track them under Downloads." + limit
     }
 
     // MARK: Offline progress replay
@@ -242,7 +347,8 @@ public enum OfflineLogic {
     }
 
     public static func qualityLabel(_ profileKey: String) -> String {
-        allQualities.first { $0.key == profileKey }?.label ?? profileKey
+        if profileKey == photoProfileKey { return "Preview (2048 px)" }
+        return allQualities.first { $0.key == profileKey }?.label ?? profileKey
     }
 
     /// The file extension a downloaded copy is saved with: the player needs a real one to recognise the container.

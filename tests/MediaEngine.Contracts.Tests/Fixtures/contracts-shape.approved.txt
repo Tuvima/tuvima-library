@@ -5876,9 +5876,13 @@ MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.CreateAudiobookBoo
 MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.DeviceDownloadDto
   AssetId: System.Guid | nullability=not-null | accessors=get,init
   VariantId: System.Guid | nullability=not-null | accessors=get,init
+  Kind: System.String | nullability=not-null | accessors=get,init
+  PhotoItemId: System.Guid? | nullability=nullable | accessors=get,init
   StoredBytes: System.Int64 | nullability=not-null | accessors=get,init
   StoredAt: System.DateTimeOffset | nullability=not-null | accessors=get,init
   ExpiresAt: System.DateTimeOffset? | nullability=nullable | accessors=get,init
+
+MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.DeviceDownloadKinds
 
 MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.DeviceDownloadListDto
   Downloads: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Playback.DeviceDownloadDto> | nullability=not-null | accessors=get,init
@@ -6458,6 +6462,8 @@ MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.UpsertAudiobookCha
 MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.UpsertDeviceDownloadRequest
   AssetId: System.Guid | nullability=not-null | accessors=get,init
   VariantId: System.Guid | nullability=not-null | accessors=get,init
+  Kind: System.String | nullability=nullable | accessors=get,init
+  PhotoItemId: System.Guid? | nullability=nullable | accessors=get,init
   StoredBytes: System.Int64 | nullability=not-null | accessors=get,init
   StoredAt: System.DateTimeOffset | nullability=not-null | accessors=get,init
 

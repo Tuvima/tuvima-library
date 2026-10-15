@@ -2,6 +2,7 @@ package com.tuvima.library.mobile
 
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.widget.Toast
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -28,6 +29,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
@@ -45,8 +47,12 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.tuvima.library.core.ClientRoutes
+import com.tuvima.library.core.DownloadRecord
+import com.tuvima.library.core.DownloadState
+import com.tuvima.library.core.OfflineLogic
 import com.tuvima.library.core.PHOTO_ACCESS_DENIED_MESSAGE
 import com.tuvima.library.core.TimelineRow
 import com.tuvima.library.core.TuvimaClient
@@ -59,7 +65,21 @@ import com.tuvima.library.core.buildTimelineRows
 import com.tuvima.library.core.mergeTimelineMonths
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.io.File
+
+/** The offline downloads of this phone: kept photos are read from here before the network is asked. */
+@Composable
+private fun offlineDownloads(): OfflineDownloads =
+    (LocalContext.current.applicationContext as TuvimaMobileApplication).offline
+
+/** The kept photos that are finished and on disk, by View item id, as the file to read. */
+private fun keptPhotoPaths(records: List<DownloadRecord>): Map<String, String> =
+    records.filter { it.isPhoto && it.isComplete }
+        .mapNotNull { record -> record.filePath?.let { record.assetId to it } }
+        .toMap()
 
 /** View in Libraries: the photo and video timeline (month by month) and the person's galleries. */
 @Composable
@@ -132,8 +152,14 @@ private fun TimelineGrid(client: TuvimaClient, openViewer: (List<ViewItem>, Int)
     // A photo-access refusal cannot be fixed by trying again; the person has to re-pair.
     val retry: () -> Unit = { controller.retry() }
     val retryAction: (() -> Unit)? = if (failure == PHOTO_ACCESS_DENIED_MESSAGE) null else retry
+    // Photos kept on this phone are read from it first, and still browsable when the server cannot be reached.
+    val kept by offlineDownloads().store().records.collectAsState()
+    val keptPaths = remember(kept) { keptPhotoPaths(kept) }
+    val keptItems = remember(kept) { keptPhotoItems(kept) }
 
     when {
+        failure != null && flat.isEmpty() && keptItems.isNotEmpty() && failure != PHOTO_ACCESS_DENIED_MESSAGE ->
+            KeptOnThisPhone(client, keptItems, keptPaths, columns, failure, retry, openViewer)
         failure != null && flat.isEmpty() -> ErrorBlock(failure, retryAction)
         flat.isEmpty() && !controller.loaded -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             CircularProgressIndicator()
@@ -143,6 +169,7 @@ private fun TimelineGrid(client: TuvimaClient, openViewer: (List<ViewItem>, Int)
             client = client,
             rows = rows,
             columns = columns,
+            keptPaths = keptPaths,
             onNearEnd = { if (controller.error == null) controller.loadMore() },
             onOpen = { item -> openViewer(flat, flat.indexOfFirst { it.id == item.id }.coerceAtLeast(0)) },
             footer = {
@@ -159,12 +186,44 @@ private fun TimelineGrid(client: TuvimaClient, openViewer: (List<ViewItem>, Int)
 @Composable
 private fun photoColumns(): Int = (LocalConfiguration.current.screenWidthDp / 110).coerceIn(3, 8)
 
+/** What View shows when the server cannot be reached but photos were kept on this phone: those photos, from the phone. */
+@Composable
+private fun KeptOnThisPhone(
+    client: TuvimaClient,
+    items: List<ViewItem>,
+    keptPaths: Map<String, String>,
+    columns: Int,
+    failure: String,
+    retry: () -> Unit,
+    openViewer: (List<ViewItem>, Int) -> Unit,
+) {
+    val rows = remember(items, columns) { buildFlatRows(items, columns) }
+    Column(Modifier.fillMaxSize()) {
+        Text(
+            "$failure Showing the photos kept on this phone.",
+            style = MaterialTheme.typography.bodySmall,
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
+        )
+        TextButton(onClick = retry) { Text("Try again") }
+        PhotoRows(
+            client = client,
+            rows = rows,
+            columns = columns,
+            keptPaths = keptPaths,
+            onNearEnd = {},
+            onOpen = { item -> openViewer(items, items.indexOfFirst { it.id == item.id }.coerceAtLeast(0)) },
+            footer = {},
+        )
+    }
+}
+
 /** Month headings and rows of square thumbnails, as one scrolling list. */
 @Composable
 private fun PhotoRows(
     client: TuvimaClient,
     rows: List<TimelineRow>,
     columns: Int,
+    keptPaths: Map<String, String>,
     onNearEnd: () -> Unit,
     onOpen: (ViewItem) -> Unit,
     footer: @Composable () -> Unit,
@@ -182,7 +241,9 @@ private fun PhotoRows(
                 )
                 is TimelineRow.Cells -> Row(Modifier.fillMaxWidth().padding(horizontal = 1.dp)) {
                     row.items.forEach { item ->
-                        PhotoThumb(client, item, Modifier.weight(1f).aspectRatio(1f).padding(1.dp)) { onOpen(item) }
+                        PhotoThumb(client, item, keptPaths[item.id], Modifier.weight(1f).aspectRatio(1f).padding(1.dp)) {
+                            onOpen(item)
+                        }
                     }
                     repeat(columns - row.items.size) { Spacer(Modifier.weight(1f)) }
                 }
@@ -197,9 +258,14 @@ private fun PhotoRows(
 }
 
 @Composable
-private fun PhotoThumb(client: TuvimaClient, item: ViewItem, modifier: Modifier, onClick: () -> Unit) {
+private fun PhotoThumb(client: TuvimaClient, item: ViewItem, localPath: String?, modifier: Modifier, onClick: () -> Unit) {
     Box(modifier.clickable(onClick = onClick)) {
-        RemoteImage(client, ClientRoutes.viewThumbnail(item.id, 320), Modifier.fillMaxSize())
+        // A photo kept on this phone is read from the phone; only the others ask the server.
+        if (localPath != null) {
+            LocalImage(localPath, 320, Modifier.fillMaxSize())
+        } else {
+            RemoteImage(client, ClientRoutes.viewThumbnail(item.id, 320), Modifier.fillMaxSize())
+        }
         if (item.isVideo) {
             Text(
                 "▶ " + formatDuration(item.durationSeconds),
@@ -281,11 +347,32 @@ internal fun GalleryScreen(
     val items = controller.items
     val rows = remember(items, columns) { buildFlatRows(items, columns) }
     val failure = controller.error
+    val context = LocalContext.current
+    val offline = offlineDownloads()
+    val kept by offline.store().records.collectAsState()
+    val keptPaths = remember(kept) { keptPhotoPaths(kept) }
     Column(Modifier.fillMaxSize()) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             TextButton(onClick = onBack) { Text("Back") }
-            Text(gallery.name, style = MaterialTheme.typography.titleLarge)
+            Text(gallery.name, style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
+            TextButton(onClick = {
+                scope.launch {
+                    val message = try {
+                        keepGalleryMessage(offline.keepGallery(client, gallery.id))
+                    } catch (cancelled: CancellationException) {
+                        throw cancelled
+                    } catch (problem: Exception) {
+                        userMessage(problem)
+                    }
+                    Toast.makeText(context, message, Toast.LENGTH_LONG).show()
+                }
+            }) { Text("Keep on this device") }
         }
+        Text(
+            "Keeping a gallery saves 2048 px previews, not the originals, to save space.",
+            style = MaterialTheme.typography.bodySmall,
+            modifier = Modifier.padding(horizontal = 12.dp),
+        )
         when {
             failure != null && items.isEmpty() -> ErrorBlock(failure, null)
             items.isEmpty() && controller.loading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -296,6 +383,7 @@ internal fun GalleryScreen(
                 client = client,
                 rows = rows,
                 columns = columns,
+                keptPaths = keptPaths,
                 onNearEnd = { if (controller.error == null) controller.loadMore() },
                 onOpen = { item -> openViewer(items, items.indexOfFirst { it.id == item.id }.coerceAtLeast(0)) },
                 footer = { if (controller.loading) CircularProgressIndicator() },
@@ -344,6 +432,8 @@ private class GalleryController(
 /**
  * Full-screen photo viewer: pinch to zoom, drag to move a zoomed photo, double-tap to reset, and previous and
  * next buttons. A video shows its still frame with its length; playing personal video is not part of this screen.
+ * A photo kept on this phone is read from the phone first (no network); Keep on device saves the 2048 px preview of
+ * the photo being viewed, and Remove deletes that copy.
  */
 @Composable
 internal fun PhotoViewerScreen(client: TuvimaClient, items: List<ViewItem>, startIndex: Int, onClose: () -> Unit) {
@@ -355,8 +445,15 @@ internal fun PhotoViewerScreen(client: TuvimaClient, items: List<ViewItem>, star
     val item = items[index]
     var scale by remember(index) { mutableFloatStateOf(1f) }
     var offset by remember(index) { mutableStateOf(Offset.Zero) }
-    val bitmap by produceState<Bitmap?>(initialValue = null, key1 = item.id) {
-        value = runCatching {
+    val context = LocalContext.current
+    val offline = offlineDownloads()
+    val keptRecords by offline.store().records.collectAsState()
+    val keptRecord = keptRecords.firstOrNull { it.isPhoto && it.assetId == item.id }
+    // The local copy is used first when it is finished and its file is there; otherwise the server is asked.
+    val localPath = OfflineLogic.localPhotoPath(keptRecord) { File(it).isFile }
+    val bitmap by produceState<Bitmap?>(initialValue = null, key1 = item.id, key2 = localPath) {
+        val local = localPath?.let { path -> withContext(Dispatchers.IO) { decodeLocalImage(path, 2048) } }
+        value = local ?: runCatching {
             val bytes = client.viewPreview(item.id, 2048)
             BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
         }.getOrNull()
@@ -407,6 +504,21 @@ internal fun PhotoViewerScreen(client: TuvimaClient, items: List<ViewItem>, star
                 ).joinToString(" · ")
                 if (caption.isNotBlank()) {
                     Text(caption, color = Color.White, style = MaterialTheme.typography.bodySmall)
+                }
+            }
+            if (!item.isVideo) {
+                when {
+                    keptRecord == null -> TextButton(onClick = {
+                        Toast.makeText(context, photoKeepMessage(offline.keepPhoto(item)), Toast.LENGTH_LONG).show()
+                    }) { Text("Keep on device", color = Color.White) }
+                    keptRecord.state == DownloadState.Complete -> TextButton(onClick = {
+                        offline.delete(item.id)
+                        Toast.makeText(context, "Removed from this phone.", Toast.LENGTH_SHORT).show()
+                    }) { Text("Remove from device", color = Color.White) }
+                    keptRecord.state == DownloadState.Failed -> TextButton(onClick = {
+                        Toast.makeText(context, photoKeepMessage(offline.keepPhoto(item)), Toast.LENGTH_LONG).show()
+                    }) { Text("Try keeping again", color = Color.White) }
+                    else -> Text("Keeping...", color = Color.White, style = MaterialTheme.typography.bodySmall)
                 }
             }
         }

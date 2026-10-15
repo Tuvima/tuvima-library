@@ -7,6 +7,7 @@ using System.Text.Json;
 using Dapper;
 using MediaEngine.Api.Endpoints;
 using MediaEngine.Api.Security;
+using MediaEngine.Api.Services.Playback;
 using MediaEngine.Api.Services.View;
 using MediaEngine.Contracts.LocalAssets;
 using MediaEngine.Contracts.Playback;
@@ -749,6 +750,57 @@ public sealed class ViewClientEndpointTests : IAsyncLifetime
             || endpoint.RoutePattern.RawText.EndsWith("/playback", StringComparison.Ordinal));
         Assert.All(originals, endpoint => Assert.Equal(ApplicationPermissionIds.ViewOriginalsRead.Value,
             endpoint.Metadata.GetMetadata<ClientScopeRequirementMetadata>()!.Scope));
+    }
+
+    // ------------------------------------------------------------------ keeping photos on the device
+
+    [Fact]
+    public async Task KeepingAPhotoOnTheDevice_IsJudgedLikeThePreviewRoute_AndForeignOrDocumentIdsAnswerLikeUnknownOnes()
+    {
+        using var scope = _app.Services.CreateScope();
+        var access = new ViewPhotoDownloadAccess(
+            scope.ServiceProvider.GetRequiredService<IViewResourceAuthorizationService>(),
+            scope.ServiceProvider.GetRequiredService<IViewResourceStore>(),
+            _assets);
+
+        // Ana's own photos and video may be kept.
+        Assert.Equal(PhotoKeepAccess.Allowed, await access.EvaluateAsync(_ana.Authority, _anaTimeline[0]));
+        Assert.Equal(PhotoKeepAccess.Allowed, await access.EvaluateAsync(_ana.Authority, _anaVideo));
+
+        // Ben's photo and document, her own document and an unknown id are one and the same answer.
+        foreach (var id in new[] { _ben.Photos[0], _ben.Document, _ana.Document, Guid.NewGuid() })
+        {
+            Assert.Equal(PhotoKeepAccess.NotFound, await access.EvaluateAsync(_ana.Authority, id));
+        }
+
+        // A person without Documents cannot learn that a document exists: it reads as unknown, like for everyone.
+        Assert.Equal(PhotoKeepAccess.NotFound, await access.EvaluateAsync(_noDocuments.Authority, _noDocuments.Document));
+        Assert.Equal(PhotoKeepAccess.Allowed, await access.EvaluateAsync(_noDocuments.Authority, _noDocuments.Photos[0]));
+
+        // Ben's own device follows the same rules for Ana's items.
+        Assert.Equal(PhotoKeepAccess.NotFound, await access.EvaluateAsync(_ben.Authority, _anaTimeline[0]));
+    }
+
+    [Fact]
+    public async Task KeepingAPhotoOnTheDevice_NeedsTheViewPersonalReadScopeOnTheToken()
+    {
+        using var scope = _app.Services.CreateScope();
+        var access = new ViewPhotoDownloadAccess(
+            scope.ServiceProvider.GetRequiredService<IViewResourceAuthorizationService>(),
+            scope.ServiceProvider.GetRequiredService<IViewResourceStore>(),
+            _assets);
+
+        _actor.Consents = [ApplicationPermissionIds.LibraryRead.Value];
+        foreach (var id in new[] { _anaTimeline[0], _ben.Photos[0], Guid.NewGuid() })
+        {
+            Assert.Equal(PhotoKeepAccess.ScopeMissing, await access.EvaluateAsync(_ana.Authority, id));
+        }
+
+        // Originals consent alone is not photo consent, and thumbnails need only the personal scope.
+        _actor.Consents = [ApplicationPermissionIds.ViewPersonalRead.Value];
+        Assert.Equal(PhotoKeepAccess.Allowed, await access.EvaluateAsync(_ana.Authority, _anaTimeline[0]));
+
+        Assert.Equal(PhotoKeepAccess.ScopeMissing, await access.EvaluateAsync(new RequestAuthority(PrincipalKind.Anonymous, false), _anaTimeline[0]));
     }
 
     // ------------------------------------------------------------------ helpers

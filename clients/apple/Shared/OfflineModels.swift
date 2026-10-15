@@ -10,8 +10,21 @@ public enum DownloadState: String, Codable, Sendable {
     case queued, preparing, downloading, paused, complete, failed
 }
 
+/// What a stored item is, as the Engine's device download list names it (`kind`). A `variant` is a prepared video or
+/// audio copy, a `photo` is a 2048 px preview of a View photo. `book` is reserved: the Engine refuses it until books
+/// reach the native apps, and nothing in this app creates one yet.
+public enum OfflineKind: String, Codable, Sendable {
+    case variant, photo, book
+
+    /// The kind a list row names; a row without one (an older Engine) or one this app does not know reads as a variant.
+    public init(wire: String?) {
+        self = OfflineKind(rawValue: (wire ?? "").trimmingCharacters(in: .whitespaces).lowercased()) ?? .variant
+    }
+}
+
 /// One title the phone holds, or is getting, for offline use. `fileName` is relative to the person's offline folder
-/// (an absolute path would go stale when the app is updated).
+/// (an absolute path would go stale when the app is updated). For a `photo`, `assetId` is the View item id,
+/// `variantId` stays nil and `fileName` is the preview image.
 public struct DownloadRecord: Codable, Identifiable, Equatable, Sendable {
     public var id: UUID { assetId }
     public var assetId: UUID
@@ -33,6 +46,8 @@ public struct DownloadRecord: Codable, Identifiable, Equatable, Sendable {
     public var variantRequested: Bool
     public var error: String?
     public var queuedAt: Date
+    /// Nil for a record saved before photos were kept, which reads as a variant (see `itemKind`).
+    public var kind: OfflineKind?
 
     public init(
         assetId: UUID,
@@ -53,7 +68,8 @@ public struct DownloadRecord: Codable, Identifiable, Equatable, Sendable {
         reportedToServer: Bool = false,
         variantRequested: Bool = false,
         error: String? = nil,
-        queuedAt: Date = Date()
+        queuedAt: Date = Date(),
+        kind: OfflineKind? = nil
     ) {
         self.assetId = assetId
         self.variantId = variantId
@@ -74,34 +90,55 @@ public struct DownloadRecord: Codable, Identifiable, Equatable, Sendable {
         self.variantRequested = variantRequested
         self.error = error
         self.queuedAt = queuedAt
+        self.kind = kind
     }
 
     public var isComplete: Bool { state == .complete }
+
+    /// What this record is: a photo kept from View, or (the default) a prepared video or audio copy.
+    public var itemKind: OfflineKind { kind ?? .variant }
+
+    public var isPhoto: Bool { itemKind == .photo }
 
     /// True while the download is waiting, preparing or transferring (not paused, failed or finished).
     public var isActive: Bool { state == .queued || state == .preparing || state == .downloading }
 }
 
-/// One row of the Engine's device download list (`GET /api/v1/devices/current/downloads`).
+/// One row of the Engine's device download list (`GET /api/v1/devices/current/downloads`). A photo row names its View
+/// item in `photoItemId` and carries the empty id in `assetId` and `variantId`; a variant row has no `photoItemId`.
 public struct ServerDownloadEntry: Equatable, Sendable {
     public let assetId: UUID
     public let variantId: UUID
     public let storedBytes: Int64
     public let storedAt: Date?
     public let expiresAt: Date?
+    public let kind: OfflineKind
+    public let photoItemId: UUID?
 
-    public init(assetId: UUID, variantId: UUID, storedBytes: Int64, storedAt: Date?, expiresAt: Date?) {
+    public init(
+        assetId: UUID,
+        variantId: UUID,
+        storedBytes: Int64,
+        storedAt: Date?,
+        expiresAt: Date?,
+        kind: OfflineKind = .variant,
+        photoItemId: UUID? = nil
+    ) {
         self.assetId = assetId
         self.variantId = variantId
         self.storedBytes = storedBytes
         self.storedAt = storedAt
         self.expiresAt = expiresAt
+        self.kind = kind
+        self.photoItemId = photoItemId
     }
 }
 
 struct DeviceDownloadWire: Decodable {
     let assetId: UUID
     let variantId: UUID
+    let kind: String?
+    let photoItemId: UUID?
     let storedBytes: Int64?
     let storedAt: String?
     let expiresAt: String?
@@ -112,7 +149,9 @@ struct DeviceDownloadWire: Decodable {
             variantId: variantId,
             storedBytes: storedBytes ?? 0,
             storedAt: OfflineLogic.parseIso(storedAt),
-            expiresAt: OfflineLogic.parseIso(expiresAt)
+            expiresAt: OfflineLogic.parseIso(expiresAt),
+            kind: OfflineKind(wire: kind),
+            photoItemId: photoItemId
         )
     }
 }
@@ -201,23 +240,38 @@ struct ServerProgressWire: Decodable {
     }
 }
 
-/// What the phone must tell the Engine's download list about a variant.
+/// What the phone must tell the Engine's download list about a variant or photo.
 public enum ReportKind: String, Codable, Sendable { case store, delete }
 
+/// One report waiting for the Engine. For a photo (`itemKind` is `.photo`) both `assetId` and `variantId` hold the View
+/// item id, so a newer report about the same photo replaces an older one just as it does for a variant.
 public struct PendingReport: Codable, Equatable, Sendable {
     public let kind: ReportKind
     public let assetId: UUID
     public let variantId: UUID
     public let storedBytes: Int64
     public let storedAt: Date
+    /// Nil for a report saved before photos were kept, which reads as a variant (see `item`).
+    public let itemKind: OfflineKind?
 
-    public init(kind: ReportKind, assetId: UUID, variantId: UUID, storedBytes: Int64, storedAt: Date) {
+    public init(
+        kind: ReportKind,
+        assetId: UUID,
+        variantId: UUID,
+        storedBytes: Int64,
+        storedAt: Date,
+        itemKind: OfflineKind? = nil
+    ) {
         self.kind = kind
         self.assetId = assetId
         self.variantId = variantId
         self.storedBytes = storedBytes
         self.storedAt = storedAt
+        self.itemKind = itemKind
     }
+
+    /// What the report is about: a kept photo, or (the default) a variant.
+    public var item: OfflineKind { itemKind ?? .variant }
 }
 
 /// What to do with a queued report after the Engine answered: finished, try again later, or give up on it.
@@ -246,6 +300,45 @@ public struct ExpiryResult: Equatable, Sendable {
         self.keep = keep
         self.purge = purge
     }
+}
+
+/// One photo or video of a gallery that a person may keep on the phone.
+public struct PhotoCandidate: Equatable, Sendable {
+    public let id: UUID
+    public let isVideo: Bool
+
+    public init(id: UUID, isVideo: Bool) {
+        self.id = id
+        self.isVideo = isVideo
+    }
+}
+
+/// Why `OfflineLogic.planPhotoKeep` stopped: it reached the end of the list, the storage cap or the Engine's list limit.
+public enum PhotoKeepStop: Equatable, Sendable { case finished, storageCap, listFull }
+
+/// What to keep from a gallery: the `toKeep` ids (in order), how many were `alreadyKept` or skipped as videos, and why
+/// it stopped.
+public struct PhotoKeepPlan: Equatable, Sendable {
+    public let toKeep: [UUID]
+    public let alreadyKept: Int
+    public let skippedVideos: Int
+    public let stop: PhotoKeepStop
+
+    public init(toKeep: [UUID], alreadyKept: Int, skippedVideos: Int, stop: PhotoKeepStop) {
+        self.toKeep = toKeep
+        self.alreadyKept = alreadyKept
+        self.skippedVideos = skippedVideos
+        self.stop = stop
+    }
+}
+
+/// The extension point for books kept on the phone, so a reader can open a local file first. It is deliberately not
+/// wired: books are not offered in the native apps yet, nothing creates a `.book` record and no reader calls this.
+/// When books arrive, a reader should ask `localBookFile(assetID:)` before it goes to the network and use the file
+/// when it answers.
+public protocol LocalBookFiles {
+    /// The finished local copy of this book asset on this device for the person using it, or nil when there is none.
+    func localBookFile(assetID: UUID) -> URL?
 }
 
 /// Everything the phone keeps for one person: their downloads, the reports still owed to the Engine and the

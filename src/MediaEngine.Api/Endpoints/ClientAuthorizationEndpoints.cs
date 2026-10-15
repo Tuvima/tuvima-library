@@ -265,7 +265,7 @@ public static class ClientAuthorizationEndpoints
             return result.Downloads is { } list ? Results.Ok(list) : DeviceDownloadFailure(result.Outcome);
         })
         .WithName("ListCurrentDeviceDownloads")
-        .WithSummary("Lists the offline variants the paired app reports as stored on its device, for its active profile.")
+        .WithSummary("Lists the offline variants and kept photos the paired app reports as stored on its device, for its active profile.")
         .Produces<DeviceDownloadListDto>()
         .ProducesProblem(StatusCodes.Status403Forbidden)
         .RequireClientScope(ClientApiScopes.DownloadsRead);
@@ -289,8 +289,9 @@ public static class ClientAuthorizationEndpoints
             return outcome == DeviceDownloadOutcome.Ok ? Results.NoContent() : DeviceDownloadFailure(outcome);
         })
         .WithName("UpsertCurrentDeviceDownload")
-        .WithSummary("Reports (or updates) one offline variant stored on the paired app's device.")
+        .WithSummary("Reports (or updates) one offline variant or kept photo stored on the paired app's device.")
         .Produces(StatusCodes.Status204NoContent)
+        .ProducesProblem(StatusCodes.Status400BadRequest)
         .ProducesProblem(StatusCodes.Status403Forbidden)
         .ProducesProblem(StatusCodes.Status404NotFound)
         .ProducesProblem(StatusCodes.Status409Conflict)
@@ -309,6 +310,24 @@ public static class ClientAuthorizationEndpoints
         })
         .WithName("RemoveCurrentDeviceDownload")
         .WithSummary("Removes one offline variant from the paired app's reported list.")
+        .Produces(StatusCodes.Status204NoContent)
+        .ProducesProblem(StatusCodes.Status403Forbidden)
+        .ProducesProblem(StatusCodes.Status404NotFound)
+        .RequireClientScope(ClientApiScopes.DownloadsWrite);
+
+        devices.MapDelete("/current/downloads/photos/{itemId:guid}", async (
+            Guid itemId,
+            HttpContext http,
+            [FromServices] IRequestAuthorityResolver resolver,
+            [FromServices] DeviceDownloadService downloads,
+            CancellationToken ct) =>
+        {
+            var authority = await resolver.ResolveAsync(http, ct);
+            var outcome = await downloads.RemovePhotoAsync(authority, itemId, ct);
+            return outcome == DeviceDownloadOutcome.Ok ? Results.NoContent() : DeviceDownloadFailure(outcome);
+        })
+        .WithName("RemoveCurrentDevicePhotoDownload")
+        .WithSummary("Removes one kept photo (by its View item id) from the paired app's reported list.")
         .Produces(StatusCodes.Status204NoContent)
         .ProducesProblem(StatusCodes.Status403Forbidden)
         .ProducesProblem(StatusCodes.Status404NotFound)
@@ -394,6 +413,8 @@ public static class ClientAuthorizationEndpoints
     private static IResult DeviceDownloadFailure(DeviceDownloadOutcome outcome) => outcome switch
     {
         DeviceDownloadOutcome.NotFound => ApiErrors.NotFound("Download not found."),
+        DeviceDownloadOutcome.BadRequest => ApiErrors.BadRequest("The download kind must be 'variant' (with asset_id and variant_id) or 'photo' (with photo_item_id)."),
+        DeviceDownloadOutcome.PhotoScopeMissing => ApiErrors.Forbidden("Keeping photos on this device needs access to your photos."),
         DeviceDownloadOutcome.TooMany => ApiErrors.Conflict($"A device can list at most {DeviceDownloadRepository.MaxRowsPerDevice} downloads."),
         _ => ApiErrors.Forbidden("Only the paired app of a live device can use its download list."),
     };

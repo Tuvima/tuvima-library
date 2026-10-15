@@ -81,6 +81,9 @@ object ClientRoutes {
 
     fun deviceDownload(variantId: String): String = "$DEVICE_DOWNLOADS/${encode(variantId)}"
 
+    /** Forgets a kept photo (by its View item id) on the paired app's list: `204`, or `404` when it was not listed. */
+    fun devicePhotoDownload(itemId: String): String = "$DEVICE_DOWNLOADS/photos/${encode(itemId)}"
+
     /** The offline file of a prepared variant (bearer token, `downloads.read`, supports ranges). */
     fun offlineFile(assetId: String, variantId: String): String =
         "$API/playback/${encode(assetId)}/offline/${encode(variantId)}"

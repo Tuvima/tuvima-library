@@ -2,6 +2,7 @@ package com.tuvima.library.mobile
 
 import com.tuvima.library.core.DownloadRecord
 import com.tuvima.library.core.DownloadState
+import com.tuvima.library.core.OfflineKind
 import com.tuvima.library.core.OfflineLogic
 import com.tuvima.library.core.OfflineProgressEntry
 import com.tuvima.library.core.PendingReport
@@ -33,6 +34,9 @@ internal class OfflineStore(val root: File) {
     fun snapshot(): List<DownloadRecord> = recordState.value
 
     fun record(assetId: String): DownloadRecord? = recordState.value.firstOrNull { it.assetId == assetId }
+
+    /** The finished local copy of a kept photo (its View item id), or null when this phone has none to read. */
+    fun localPhotoPath(itemId: String): String? = OfflineLogic.localPhotoPath(record(itemId)) { File(it).isFile }
 
     fun upsert(record: DownloadRecord) {
         synchronized(lock) {
@@ -133,6 +137,9 @@ internal class OfflineStore(val root: File) {
 
     fun artworkFile(assetId: String): File = File(File(root, "art"), "$assetId.img")
 
+    /** Where the 2048 px preview of a kept photo is stored. */
+    fun photoFile(itemId: String): File = File(File(root, "photos"), "$itemId.jpg")
+
     /** Deletes the media (finished or partial) and the saved artwork of a download. */
     fun deleteFiles(record: DownloadRecord) {
         record.filePath?.let { File(it).delete() }
@@ -196,6 +203,7 @@ internal class OfflineStore(val root: File) {
             variantRequested = json.optBoolean("variant_requested"),
             error = json.readString("error"),
             queuedAtMs = json.optLong("queued_at_ms"),
+            kind = OfflineKind.fromWire(json.readString("kind")),
         )
     }
 
@@ -218,6 +226,7 @@ internal class OfflineStore(val root: File) {
             variantId = json.getString("variant_id"),
             storedBytes = json.optLong("stored_bytes"),
             storedAtMs = json.optLong("stored_at_ms"),
+            itemKind = OfflineKind.fromWire(json.readString("item_kind")),
         )
     }
 
@@ -249,6 +258,7 @@ internal class OfflineStore(val root: File) {
         .put("variant_requested", record.variantRequested)
         .putOpt("error", record.error)
         .put("queued_at_ms", record.queuedAtMs)
+        .put("kind", record.kind.wire)
 
     private fun progressToJson(entry: OfflineProgressEntry): JSONObject = JSONObject()
         .put("asset_id", entry.assetId)
@@ -265,6 +275,7 @@ internal class OfflineStore(val root: File) {
         .put("variant_id", report.variantId)
         .put("stored_bytes", report.storedBytes)
         .put("stored_at_ms", report.storedAtMs)
+        .put("item_kind", report.itemKind.wire)
 }
 
 private fun JSONObject.readString(name: String): String? = if (has(name) && !isNull(name)) getString(name) else null

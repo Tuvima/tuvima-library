@@ -257,6 +257,28 @@ public actor TuvimaAPIClient {
         return try await sendForStatus(request).status
     }
 
+    /// Tells the Engine this device keeps a photo (its 2048 px preview). Returns the HTTP status; 204 is success, 404
+    /// means the photo is gone or this person cannot see it, 403 that the token has no photo access, 409 a full list.
+    public func reportPhotoStored(itemID: UUID, storedBytes: Int64, storedAt: Date) async throws -> Int {
+        var request = URLRequest(url: try resolve(ClientRoutes.deviceDownloads))
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = try JSONSerialization.data(withJSONObject: [
+            "kind": OfflineKind.photo.rawValue,
+            "photo_item_id": itemID.uuidString.lowercased(),
+            "stored_bytes": storedBytes,
+            "stored_at": OfflineLogic.formatIsoUtc(storedAt),
+        ] as [String: Any])
+        return try await sendForStatus(request).status
+    }
+
+    /// Tells the Engine this device no longer keeps a photo. Returns the HTTP status; 204 is success, 404 = not listed.
+    public func reportPhotoDeleted(itemID: UUID) async throws -> Int {
+        var request = URLRequest(url: try resolve(ClientRoutes.devicePhotoDownload(itemID)))
+        request.httpMethod = "DELETE"
+        return try await sendForStatus(request).status
+    }
+
     /// The owned episodes that follow `afterAssetID` in the show's watch order.
     public func nextEpisodes(showID: UUID, afterAssetID: UUID, count: Int = 3) async throws -> NextEpisodesResponse {
         try await get(

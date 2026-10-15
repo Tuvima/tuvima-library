@@ -1430,6 +1430,19 @@ internal sealed class SchemaMigrator
                 ON device_downloads(device_id, profile_id, stored_at);
             CREATE INDEX IF NOT EXISTS idx_device_downloads_variant
                 ON device_downloads(variant_id);
+            CREATE TABLE IF NOT EXISTS device_photo_downloads (
+                device_id    BLOB NOT NULL REFERENCES client_devices(id) ON DELETE CASCADE,
+                profile_id   BLOB NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+                item_id      BLOB NOT NULL REFERENCES local_items(id) ON DELETE CASCADE,
+                stored_bytes INTEGER NOT NULL CHECK (stored_bytes >= 0),
+                stored_at    TEXT NOT NULL,
+                updated_at   TEXT NOT NULL,
+                PRIMARY KEY (device_id, profile_id, item_id)
+            );
+            CREATE INDEX IF NOT EXISTS idx_device_photo_downloads_device_profile
+                ON device_photo_downloads(device_id, profile_id, stored_at);
+            CREATE INDEX IF NOT EXISTS idx_device_photo_downloads_item
+                ON device_photo_downloads(item_id);
             """;
         cmd.ExecuteNonQuery();
     }
