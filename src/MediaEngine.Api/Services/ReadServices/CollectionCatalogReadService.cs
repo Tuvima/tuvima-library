@@ -165,7 +165,7 @@ public sealed class CollectionCatalogReadService(
                 continue;
             }
 
-            var artworkItems = await GetCollectionArtworkItemsAsync(workIds, 12, ct).ConfigureAwait(false);
+            var artworkItems = await GetCollectionArtworkItemsAsync(workIds, 12, allowedMemberIds, ct).ConfigureAwait(false);
             var person = await ResolveCatalogPersonAsync(
                 entries.Select(entry => entry.Collection),
                 ct).ConfigureAwait(false);
@@ -286,7 +286,7 @@ public sealed class CollectionCatalogReadService(
         {
             // Hand-picked: the members are already owned, allowed and unique per root, so only the page is looked up.
             var page = await mediaLookupReadService.ResolveItemsAsync(
-                collection.Id, rootMembers.Items.Skip(offset).Take(take).ToList(), ct).ConfigureAwait(false);
+                collection.Id, rootMembers.Items.Skip(offset).Take(take).ToList(), ct, allowedMemberIds).ConfigureAwait(false);
             return new CollectionItemPageResult(true, false, rootMembers.Items.Count, page);
         }
 
@@ -294,13 +294,13 @@ public sealed class CollectionCatalogReadService(
         {
             // The order of a generated series comes from the lookup itself, so the whole set is resolved.
             var all = await ResolveCollectionWorkIdsToItemsAsync(
-                collection.Id, rootIds.Take(MaxPagedItems).ToList(), preserveRequestedOrder: false, ct).ConfigureAwait(false);
+                collection.Id, rootIds.Take(MaxPagedItems).ToList(), preserveRequestedOrder: false, allowedMemberIds, ct).ConfigureAwait(false);
             return new CollectionItemPageResult(true, false, all.Count, all.Skip(offset).Take(take).ToList());
         }
 
         var queryIds = rootIds.Take(MaxPagedItems).ToList();
         var resolved = await ResolveCollectionWorkIdsToItemsAsync(
-            collection.Id, queryIds.Skip(offset).Take(take).ToList(), preserveRequestedOrder: true, ct).ConfigureAwait(false);
+            collection.Id, queryIds.Skip(offset).Take(take).ToList(), preserveRequestedOrder: true, allowedMemberIds, ct).ConfigureAwait(false);
         // The lookup numbers items from zero within the ids it was given; keep the position within the whole list.
         foreach (var item in resolved)
         {
@@ -331,9 +331,10 @@ public sealed class CollectionCatalogReadService(
                 collection.Id,
                 rootMembers.PreserveOrder ? rootIds.Take(take).ToList() : rootIds,
                 rootMembers.PreserveOrder,
+                allowedMemberIds,
                 ct).ConfigureAwait(false)
             : await mediaLookupReadService.ResolveItemsAsync(
-                collection.Id, rootMembers.Items.Take(take).ToList(), ct).ConfigureAwait(false);
+                collection.Id, rootMembers.Items.Take(take).ToList(), ct, allowedMemberIds).ConfigureAwait(false);
     }
 
     private sealed record CollectionRootMembers(
@@ -1350,13 +1351,16 @@ public sealed class CollectionCatalogReadService(
         return displayWorkIds.Where(ownedIds.Contains).ToList();
     }
 
+    /// <param name="workIds">Display root ids that are already owned and allowed; they are not expanded again.</param>
+    /// <param name="allowedMemberIds">Limits the file that stands in for each root; null leaves every work eligible.</param>
     private async Task<List<CollectionItemDto>> ResolveCollectionWorkIdsToItemsAsync(
         Guid collectionId,
         IReadOnlyList<Guid> workIds,
         bool preserveRequestedOrder,
+        IReadOnlySet<Guid>? allowedMemberIds,
         CancellationToken ct)
     {
-        var displayWorkIds = await GetCollectionCatalogDisplayWorkIdsAsync(workIds, ct).ConfigureAwait(false);
+        var displayWorkIds = workIds.Distinct().ToList();
         if (displayWorkIds.Count == 0)
         {
             return [];
@@ -1388,6 +1392,7 @@ public sealed class CollectionCatalogReadService(
                 INNER JOIN editions e ON e.work_id = work_tree.WorkId
                 INNER JOIN media_assets ma ON ma.edition_id = e.id
                 WHERE {visibleAssetPredicate}
+                  {CollectionAssetAllowList.Clause("work_tree.WorkId", allowedMemberIds)}
                 GROUP BY work_tree.RootWorkId
             )
             SELECT w.id AS WorkId,
@@ -1466,6 +1471,7 @@ public sealed class CollectionCatalogReadService(
             new
             {
                 CollectionId = collectionId,
+                AllowedHex = CollectionAssetAllowList.ToJson(allowedMemberIds),
                 WorkIds = chunk.Select(GuidSql.ToBlob).ToArray(),
             },
             cancellationToken: ct)).ConfigureAwait(false));
@@ -1566,11 +1572,14 @@ public sealed class CollectionCatalogReadService(
     }
 
     private async Task<IReadOnlyList<CollectionArtworkItemDto>> GetCollectionArtworkItemsAsync(
-        IReadOnlyList<Guid> sourceWorkIds,
+        IReadOnlyList<Guid> displayWorkIds,
         int limit,
+        IReadOnlySet<Guid>? allowedMemberIds,
         CancellationToken ct)
     {
-        var workIds = (await GetCollectionCatalogDisplayWorkIdsAsync(sourceWorkIds, ct).ConfigureAwait(false))
+        // The ids are already owned and allowed display roots; expanding them again would bring back restricted children.
+        var workIds = displayWorkIds
+            .Distinct()
             .Take(Math.Clamp(limit, 1, 8))
             .ToList();
         if (workIds.Count == 0)
@@ -1601,6 +1610,7 @@ public sealed class CollectionCatalogReadService(
                 INNER JOIN editions e ON e.work_id = work_tree.WorkId
                 INNER JOIN media_assets ma ON ma.edition_id = e.id
                 WHERE {visibleAssetPredicate}
+                  {CollectionAssetAllowList.Clause("work_tree.WorkId", allowedMemberIds)}
                 GROUP BY work_tree.RootWorkId
             )
             SELECT w.id AS WorkId,
@@ -1609,7 +1619,7 @@ public sealed class CollectionCatalogReadService(
                    ra.AssetId AS MediaAssetId,
                    preferred_cover.id AS CoverAssetId,
                    preferred_cover.asset_type AS ArtworkType,
-                   COALESCE(NULLIF(cover_asset.value, ''), NULLIF(cover_work.value, '')) AS CoverUrl,
+                   COALESCE(NULLIF(cover_work.value, ''), NULLIF(cover_asset.value, '')) AS CoverUrl,
                    COALESCE(
                        (SELECT NULLIF(cv.value, '') FROM canonical_values cv WHERE cv.entity_id = w.id AND cv.key = 'short_description' LIMIT 1),
                        (SELECT NULLIF(cv.value, '') FROM canonical_values cv WHERE cv.entity_id = w.id AND cv.key = 'description' LIMIT 1)) AS Description,
@@ -1665,7 +1675,11 @@ public sealed class CollectionCatalogReadService(
             WHERE w.id IN @WorkIds
               AND ({visibleWorkPredicate} OR ra.AssetId IS NOT NULL)
             """,
-            new { WorkIds = workIds.Select(GuidSql.ToBlob).ToArray() },
+            new
+            {
+                WorkIds = workIds.Select(GuidSql.ToBlob).ToArray(),
+                AllowedHex = CollectionAssetAllowList.ToJson(allowedMemberIds),
+            },
             cancellationToken: ct))).ToList();
 
         var rowById = rows

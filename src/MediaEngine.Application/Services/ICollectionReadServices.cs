@@ -61,10 +61,15 @@ public interface ICollectionMediaLookupReadService
         int? limit,
         CancellationToken ct);
 
+    /// <param name="allowedWorkIds">
+    /// When given, the file that stands in for a root (its cover, title and creator fallbacks) comes only from works in
+    /// this set, so a restricted child never shows through its parent's tile. Null leaves every work eligible.
+    /// </param>
     Task<List<CollectionItemDto>> ResolveItemsAsync(
         Guid collectionId,
         IReadOnlyList<CollectionItem> items,
-        CancellationToken ct);
+        CancellationToken ct,
+        IReadOnlySet<Guid>? allowedWorkIds = null);
 
     Task<List<CollectionResolvedItemDto>> ResolveMetadataAsync(
         IReadOnlyList<Guid> workIds,

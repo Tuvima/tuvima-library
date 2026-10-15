@@ -78,6 +78,12 @@ public sealed class CollectionItemRootsTests : IDisposable
     private Guid _bookUniverseMovie;
     private Guid _combinedShow;
     private Guid _combinedEpisodeTwo;
+    private Guid _comicUniverse;
+    private Guid _comicRoot;
+    private Guid _handPickedBooks;
+    private Guid _handSaga;
+    private Guid _movieSeriesUniverse;
+    private Guid _audiobookUniverse;
     private List<Guid> _episodes = [];
     private List<Guid> _issues = [];
     private List<Guid> _tracks = [];
@@ -299,6 +305,74 @@ public sealed class CollectionItemRootsTests : IDisposable
         Assert.Equal(1, entry.ItemCount);
     }
 
+    // A file that stands in for a series tile must never be a restricted child's: the cover, asset id, title and
+    // creator the tile shows all come from that file. The restricted file always sorts first, so a tile that simply
+    // takes the lowest file would pick it.
+
+    [Fact]
+    public async Task KidsProfile_ASeriesTileNeverTakesItsFileFromARestrictedChild_ComicRun()
+    {
+        await using var app = await StartAsync();
+
+        // Without the limit the lowest file is the restricted issue's, which proves the markers can show through.
+        var unrestricted = await GetJsonAsync(app, $"/api/v1/collections/{_comicUniverse:D}/items?limit=10");
+        Assert.Contains("restricted-cover-1", unrestricted.ToJsonString(), StringComparison.Ordinal);
+
+        SetContentLimit("PG");
+        var client = await AssertKidsSeesNoRestrictedAsync(
+            app, _comicUniverse, RestrictedAsset(1), "restricted-cover-1", "Restricted Issue", "Restricted Creator");
+
+        // The tile still has a picture and a title, taken from the issue the profile may see.
+        var comic = client["items"]!.AsArray().Single(item => item!["work_id"]!.GetValue<Guid>() == _comicRoot)!;
+        Assert.Equal("allowed-cover-1", comic["cover_url"]!.GetValue<string>());
+        Assert.Equal("Allowed Issue", comic["title"]!.GetValue<string>());
+    }
+
+    [Fact]
+    public async Task KidsProfile_AHandPickedSeriesTileNeverTakesItsFileFromARestrictedBook()
+    {
+        await using var app = await StartAsync();
+
+        var unrestricted = await GetJsonAsync(app, $"/api/v1/collections/{_handPickedBooks:D}/items?limit=10");
+        Assert.Contains(RestrictedAsset(2).ToString("D"), unrestricted.ToJsonString(), StringComparison.OrdinalIgnoreCase);
+
+        SetContentLimit("PG");
+        var dashboard = await GetArrayAsync(app, $"/collections/{_handPickedBooks:D}/items?limit=50");
+        var client = await GetJsonAsync(app, $"/api/v1/collections/{_handPickedBooks:D}/items?limit=50");
+
+        var tile = Assert.Single(client["items"]!.AsArray())!;
+        Assert.Equal(_handSaga, tile["work_id"]!.GetValue<Guid>());
+        Assert.Equal($"/stream/{AllowedAsset(2):D}/cover", tile["cover_url"]!.GetValue<string>());
+        foreach (var text in new[] { dashboard.ToJsonString(), client.ToJsonString() })
+        {
+            AssertNoRestrictedMarkers(text, RestrictedAsset(2), "restricted-cover-2", "Hand Book Two", "Restricted Hand Creator");
+        }
+    }
+
+    [Fact]
+    public async Task KidsProfile_ARestrictedMovieUnderAMovieSeries_NeverShowsItsFileTitleCreatorOrCount()
+    {
+        await using var app = await StartAsync();
+
+        SetContentLimit("PG");
+        var client = await AssertKidsSeesNoRestrictedAsync(
+            app, _movieSeriesUniverse, RestrictedAsset(3), "restricted-cover-3", "Restricted Movie", "Restricted Director");
+
+        Assert.Equal(2, client["total_count"]!.GetValue<int>());
+    }
+
+    [Fact]
+    public async Task KidsProfile_ARestrictedRecordingUnderAnAudiobookSeries_NeverShowsItsFileTitleCreatorOrCount()
+    {
+        await using var app = await StartAsync();
+
+        SetContentLimit("PG");
+        var client = await AssertKidsSeesNoRestrictedAsync(
+            app, _audiobookUniverse, RestrictedAsset(4), "restricted-cover-4", "Restricted Recording", "Restricted Narrator");
+
+        Assert.Equal(2, client["total_count"]!.GetValue<int>());
+    }
+
     // Seeds ------------------------------------------------------------------------------------------------------
 
     private void SeedLibrary()
@@ -453,6 +527,50 @@ public sealed class CollectionItemRootsTests : IDisposable
         _combinedEpisodeTwo = combinedTwo;
         AddItems(_coveredList, [combinedTwo]);
 
+        // A comic run with no title of its own: its tile borrows the title, picture and creator of one of its issues.
+        var (comicUniverse, comicSeriesOne, comicSeriesTwo) = AddUniverse("A Comic Universe", "Q7040");
+        _comicUniverse = comicUniverse;
+        _comicRoot = AddRoot("Comics", "Untitled comic");
+        RemoveTitle(_comicRoot);
+        AddMarkedWork("Comics", "child", _comicRoot, comicSeriesOne, "Allowed Issue", ".cbz", 1, "PG", AllowedAsset(1), "allowed-cover-1");
+        AddMarkedWork("Comics", "child", _comicRoot, null, "Restricted Issue", ".cbz", 2, "R", RestrictedAsset(1), "restricted-cover-1", "Restricted Creator");
+        AddWork("Movies", "standalone", null, comicSeriesTwo, "Comic Filler", ".mkv", null);
+        AddItems(comicUniverse, [_comicRoot]);
+
+        // A book series picked by hand, one PG book and one R book.
+        _handSaga = AddRoot("Books", "Hand Saga");
+        var handOne = AddMarkedWork("Books", "child", _handSaga, null, "Hand Book One", ".epub", 1, "PG", AllowedAsset(2), "allowed-cover-2");
+        var handTwo = AddMarkedWork("Books", "child", _handSaga, null, "Hand Book Two", ".epub", 2, "R", RestrictedAsset(2), "restricted-cover-2", "Restricted Hand Creator");
+        _handPickedBooks = Guid.NewGuid();
+        using (var handConnection = _database.CreateConnection())
+        {
+            handConnection.Execute(
+                """
+                INSERT INTO collections (id, display_name, collection_type, scope, resolution, is_enabled, membership_mode, owner_kind, audience)
+                VALUES (@id, 'Hand list', 'Custom', 'library', 'materialized', 1, 'Manual', 'Library', 'Everyone');
+                """,
+                new { id = _handPickedBooks });
+        }
+
+        AddItems(_handPickedBooks, [handOne, handTwo]);
+
+        // A movie series and an audiobook series, each with one restricted work under the series parent.
+        var (movieUniverse, movieSeriesOne, movieSeriesTwo) = AddUniverse("A Movie Series Universe", "Q7050");
+        _movieSeriesUniverse = movieUniverse;
+        var movieSeries = AddRoot("Movies", "Movie Saga");
+        AddMarkedWork("Movies", "child", movieSeries, movieSeriesOne, "Allowed Movie", ".mkv", 1, "PG", AllowedAsset(3), "allowed-cover-3");
+        AddMarkedWork("Movies", "child", movieSeries, null, "Restricted Movie", ".mkv", 2, "R", RestrictedAsset(3), "restricted-cover-3", "Restricted Director");
+        AddWork("Books", "standalone", null, movieSeriesTwo, "Movie Series Filler", ".epub", null);
+        AddItems(movieUniverse, [movieSeries]);
+
+        var (audioUniverse, audioSeriesOne, audioSeriesTwo) = AddUniverse("A Audiobook Universe", "Q7060");
+        _audiobookUniverse = audioUniverse;
+        var audioSeries = AddRoot("Audiobooks", "Audio Saga");
+        AddMarkedWork("Audiobooks", "child", audioSeries, audioSeriesOne, "Allowed Recording", ".m4b", 1, "PG", AllowedAsset(4), "allowed-cover-4");
+        AddMarkedWork("Audiobooks", "child", audioSeries, null, "Restricted Recording", ".m4b", 2, "R", RestrictedAsset(4), "restricted-cover-4", "Restricted Narrator");
+        AddWork("Movies", "standalone", null, audioSeriesTwo, "Audio Series Filler", ".mkv", null);
+        AddItems(audioUniverse, [audioSeries]);
+
         // A list holding one owned movie and one work with no file at all.
         _unownedMovie = AddWork("Movies", "standalone", null, null, "Unowned Movie", null, null);
         AddItems(_unownedList, [_movie, _unownedMovie]);
@@ -470,6 +588,101 @@ public sealed class CollectionItemRootsTests : IDisposable
             connection.Execute(
                 "INSERT INTO collection_items (id, collection_id, work_id, sort_order) VALUES (@id, @collection, @work, @order);",
                 new { id = Guid.NewGuid(), collection, work = works[index], order = index });
+        }
+    }
+
+    // The restricted file of each scenario sorts before the allowed one, byte for byte, so "lowest file" picks it.
+    private static Guid RestrictedAsset(int scenario) => Guid.Parse($"00000000-0000-0000-0000-{scenario:D12}");
+
+    private static Guid AllowedAsset(int scenario) => Guid.Parse($"ffffffff-0000-0000-0000-{scenario:D12}");
+
+    private (Guid Universe, Guid SeriesOne, Guid SeriesTwo) AddUniverse(string name, string qid)
+    {
+        var universe = Guid.NewGuid();
+        var one = Guid.NewGuid();
+        var two = Guid.NewGuid();
+        using var connection = _database.CreateConnection();
+        connection.Execute(
+            """
+            INSERT INTO collections (id, display_name, collection_type, scope, resolution, is_enabled, wikidata_qid, parent_collection_id)
+            VALUES (@universe, @name, 'Universe', 'library', 'materialized', 1, @qid, NULL),
+                   (@one, @oneName, 'Series', 'library', 'query', 1, @oneQid, @universe),
+                   (@two, @twoName, 'Series', 'library', 'query', 1, NULL, @universe);
+            """,
+            new { universe, one, two, name, qid, oneName = $"{name} One", twoName = $"{name} Two", oneQid = qid + "1" });
+        return (universe, one, two);
+    }
+
+    private void RemoveTitle(Guid work)
+    {
+        using var connection = _database.CreateConnection();
+        connection.Execute("DELETE FROM canonical_values WHERE entity_id = @work AND key = 'title'", new { work });
+    }
+
+    /// <summary>A work whose file has a fixed id and its own cover, title and (optionally) creator.</summary>
+    private Guid AddMarkedWork(
+        string mediaType, string kind, Guid? parent, Guid? collection, string title, string extension, int ordinal,
+        string rating, Guid assetId, string cover, string? creator = null)
+    {
+        var work = AddWork(mediaType, kind, parent, collection, title, null, ordinal, rating);
+        var edition = Guid.NewGuid();
+        using var connection = _database.CreateConnection();
+        connection.Execute(
+            """
+            INSERT INTO editions (id, work_id) VALUES (@edition, @work);
+            INSERT INTO media_assets (id, edition_id, content_hash, file_path_root, presented_at, library_id)
+            VALUES (@assetId, @edition, @hash, @path, CURRENT_TIMESTAMP, @library);
+            INSERT INTO canonical_values (entity_id, key, value, last_scored_at)
+            VALUES (@assetId, 'title', @title, CURRENT_TIMESTAMP),
+                   (@assetId, 'cover_url', @cover, CURRENT_TIMESTAMP);
+            """,
+            new
+            {
+                edition,
+                work,
+                assetId,
+                title,
+                cover,
+                hash = assetId.ToString("N"),
+                path = $"C:/library/{assetId:N}{extension}",
+                library = _library.ToString("D"),
+            });
+        if (creator is not null)
+        {
+            connection.Execute(
+                "INSERT INTO canonical_value_arrays (entity_id, key, ordinal, value) VALUES (@assetId, 'author', 0, @creator);",
+                new { assetId, creator });
+        }
+
+        return work;
+    }
+
+    private async Task<JsonObject> AssertKidsSeesNoRestrictedAsync(
+        TestApplication app, Guid universe, Guid restrictedAsset, params string[] markers)
+    {
+        var dashboard = await GetArrayAsync(app, $"/collections/{universe:D}/items?limit=50");
+        var client = await GetJsonAsync(app, $"/api/v1/collections/{universe:D}/items?limit=50");
+        var summary = await GetJsonAsync(app, $"/api/v1/collections/{universe:D}");
+        var catalogue = await GetJsonAsync(app, "/api/v1/collections?limit=50");
+
+        Assert.NotEmpty(dashboard);
+        Assert.NotEmpty(client["items"]!.AsArray());
+        Assert.Contains(catalogue["items"]!.AsArray(), item => item!["id"]!.GetValue<Guid>() == universe);
+        foreach (var text in new[] { dashboard.ToJsonString(), client.ToJsonString(), summary.ToJsonString(), catalogue.ToJsonString() })
+        {
+            AssertNoRestrictedMarkers(text, restrictedAsset, markers);
+        }
+
+        return client;
+    }
+
+    private static void AssertNoRestrictedMarkers(string text, Guid restrictedAsset, params string[] markers)
+    {
+        Assert.DoesNotContain(restrictedAsset.ToString("D"), text, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain(restrictedAsset.ToString("N"), text, StringComparison.OrdinalIgnoreCase);
+        foreach (var marker in markers)
+        {
+            Assert.DoesNotContain(marker, text, StringComparison.Ordinal);
         }
     }
 
