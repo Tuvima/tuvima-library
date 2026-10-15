@@ -754,8 +754,8 @@ These routes belong to the Access replacement under final integration. Inbound c
 | PUT | `/auth/device-profile` | Signed-in caller. Body: `{ "profile_id" }`. Saves "always open as" for this device. `403` when the account has no access to that profile. |
 | DELETE | `/auth/device-profile` | Signed-in caller. Clears "always open as" for this device. `204` whether or not one was set. |
 | GET | `/auth/sessions` | Signed-in person. Lists the sessions of their own account for **Settings > Security**, with the current one marked. |
-| DELETE | `/auth/sessions/others` | Signed-in person, recent sign-in required. Signs out every other session of their own account; the current session stays. |
-| DELETE | `/auth/sessions/{sessionId}` | Signed-in person, recent sign-in required. Signs out one of their own sessions. Someone else's session uses `/access/sessions/{sessionId}`. |
+| DELETE | `/auth/sessions/others` | Signed-in person, recent sign-in required. Open to any signed-in person, a member included, never only administrators. Signs out every other session of their own account (the account and current session come from the caller's own sign-in, never the request); the current session stays. |
+| DELETE | `/auth/sessions/{sessionId}` | Signed-in person, recent sign-in required. Signs out one of their own sessions; `403` for a session that is not theirs, including from an administrator. Someone else's session uses `/access/sessions/{sessionId}`. |
 | POST | `/auth/password/change` | Signed-in person, recent sign-in required. Body: `current_password`, `new_password`. Rate limited. |
 | POST | `/auth/password/recovery-codes` | Signed-in person, recent sign-in required. Creates a new set of recovery codes, returned once; the earlier set is replaced. |
 | POST | `/auth/password/recover` | Dashboard-only (service credential, rate limited). Recovers the account with a saved one-time recovery code and returns a new set of recovery codes. |
