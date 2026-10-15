@@ -42,6 +42,8 @@ public static class NetworkEndpoints
 
             var current = configuration.LoadNetwork();
             var proposed = NetworkContractMapper.ToStorage(request);
+            // allow_browser_apps is edited in the config file only; saving from the settings page must not reset it.
+            proposed.NativeAppAccess.AllowBrowserApps = current.NativeAppAccess.AllowBrowserApps;
             // Until the account has a password or passkey, Tuvima stays on this computer: no wider door, no app access.
             if ((SecureAccountGate.Raises(current.WhoCanConnect, proposed.WhoCanConnect)
                     || (proposed.NativeAppAccess.Enabled && !current.NativeAppAccess.Enabled))

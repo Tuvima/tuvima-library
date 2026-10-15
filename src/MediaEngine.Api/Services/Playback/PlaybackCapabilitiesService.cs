@@ -88,9 +88,7 @@ public sealed class PlaybackCapabilitiesService
         }
 
         var normalizedClient = NormalizeClient(client);
-        var profile = negotiatedCapabilities is null
-            ? ProfileFor(normalizedClient)
-            : ProfileForCapabilities(normalizedClient, negotiatedCapabilities);
+        var profile = ResolveProfile(normalizedClient, negotiatedCapabilities);
         var extension = Path.GetExtension(asset.FilePathRoot);
         var mediaType = await ResolveMediaTypeAsync(asset, extension, ct);
         var warnings = new List<string>();
@@ -219,6 +217,15 @@ public sealed class PlaybackCapabilitiesService
         Guid.TryParse(principal.FindFirstValue(claimType), out var value) && value != Guid.Empty
             ? value
             : null;
+
+    /// <summary>
+    /// A paired device's stored capabilities decide its profile; the keyed profiles in <see cref="ProfileFor"/> are only
+    /// for callers with no stored capabilities (unpaired or legacy callers).
+    /// </summary>
+    internal static PlaybackProfileDto ResolveProfile(string normalizedClient, ClientCapabilitiesDto? negotiatedCapabilities) =>
+        negotiatedCapabilities is null
+            ? ProfileFor(normalizedClient)
+            : ProfileForCapabilities(normalizedClient, negotiatedCapabilities);
 
     private static PlaybackProfileDto ProfileForCapabilities(string client, ClientCapabilitiesDto capabilities) => new()
     {
@@ -820,7 +827,7 @@ public sealed class PlaybackCapabilitiesService
         ReviewStatus = segment.ReviewStatus,
     };
 
-    private static PlaybackProfileDto ProfileFor(string client) => client switch
+    internal static PlaybackProfileDto ProfileFor(string client) => client switch
     {
         "android" => new PlaybackProfileDto
         {
@@ -892,6 +899,13 @@ public sealed class PlaybackCapabilitiesService
             SupportsAlternateAudio = true,
             SupportsSubtitles = true,
         },
+        // The shared TV web client (Tizen, webOS and any TV browser). These keyed profiles apply to unpaired or legacy
+        // callers only: a paired TV's token carries its client id (tuvima-tv), which overrides ?client=, and its stored
+        // capabilities (containers [], h264, plus hevc when the HEVC setting is on) then pick the profile instead. A browser's video element cannot send the app's
+        // bearer token, so every title is served as adaptive HLS (H.264/AAC) that the client plays through hls.js,
+        // which does send it. No direct-play containers are listed on purpose: that forces HLS for every title.
+        "tv-web" => TvWebProfile("tv-web", "TV web", ["h264"]),
+        "tv-web-hevc" => TvWebProfile("tv-web-hevc", "TV web (HEVC)", ["h264", "hevc"]),
         "mobile-download" => new PlaybackProfileDto
         {
             Key = "mobile-download",
@@ -921,6 +935,20 @@ public sealed class PlaybackCapabilitiesService
             SupportsSubtitles = true,
             SupportsOfflineDownloads = true,
         },
+    };
+
+    private static PlaybackProfileDto TvWebProfile(string key, string displayName, IReadOnlyList<string> videoCodecs) => new()
+    {
+        Key = key,
+        DisplayName = displayName,
+        PreferredDelivery = PlaybackDeliveryModes.Hls,
+        SupportedContainers = [],
+        SupportedVideoCodecs = videoCodecs,
+        SupportedAudioCodecs = ["aac"],
+        SupportedSubtitleFormats = ["vtt"],
+        MaxHeight = 1080,
+        SupportsAlternateAudio = false,
+        SupportsSubtitles = true,
     };
 
     private sealed record ResumeRow(double ProgressPct, string? LastAccessed, string? ExtendedProperties);

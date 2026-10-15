@@ -1,6 +1,6 @@
 ---
 title: "Native Client Delivery"
-description: "Implementation and release gates for Android TV, Android, iOS, Roku, CarPlay, and Android Auto."
+description: "Implementation and release gates for Android TV, Android, iOS, Roku, TV web (Tizen and webOS), CarPlay, and Android Auto."
 audience: administrator
 category: "reference"
 product_area: "native-clients"
@@ -28,6 +28,7 @@ credential. The executable wire fixtures are under
 | 1 | Android TV pilot | Shared Kotlin client, television UI, D-pad navigation foundation, pairing, browse, artwork, HLS/direct playback, captions, progress, and resume implemented. The Home screen now leads with Continue, every row is focusable with a visible focus border, and Collections and View (photos, when the person allowed them at pairing) rows are added; the shared client gained the View, Collections, Universe and profile-switch calls with unit tests for their routes and typed results | Android CI build, low/current hardware matrix, remote-control and adaptive-HLS sign-off |
 | 2 | Android and iOS | Secure credentials, background/system playback, downloads, network recovery, deep links, and resume implemented. The Android phone app now has Dashboard-parity screens on API v1 only: bottom navigation (Home, Libraries, Search, Downloads, Settings); Home with Continue first; Libraries switching between Watch, Read, Listen (the Dashboard's sort and filter in a bottom sheet), View (month-grouped timeline, galleries and a pinch-to-zoom full-screen viewer) and Collections (catalogue, items and Universe shelves); Details with Play or Resume, a Download button that asks for a quality (Small, Standard or Audio), Download next episodes on a show, cast and editions; Settings with server address, profile switch with PIN prompt, default download quality, an offline storage limit (default 10 GB; new downloads are blocked once it is reached) and sign out. Downloads lists each saved copy with artwork, title, size, quality and expiry, with pause, resume (HTTP range) and delete; the queue is a WorkManager job, a finished copy plays from the local file, progress recorded on the phone is replayed oldest first with `offline: true` and `client_timestamp` (the app adopts the Engine's record when the Engine kept its own), every store and delete is reported to `/api/v1/devices/current/downloads` and retried when offline, and a copy missing from that list on the next read is treated as expired and removed. Books and photos are not downloaded by this app yet. The offline paths are written but not yet run on a device or emulator. The photo scopes are requested only when the person ticks the optional photos and videos box before pairing The iPhone app now has Dashboard-parity screens on API v1 only: a tab bar (Home, Libraries, Search, Downloads, Settings); Home with Continue first, then the Home shelves in order; Libraries switching between Watch, Read, Listen (the Dashboard's sort and filter in a sheet), View (month-grouped timeline, galleries and a pinch-to-zoom full-screen viewer) and Collections (catalogue, items and Universe shelves); Details with Play or Resume, Download, cast and editions; and Settings with server address, profile switch with PIN prompt, default download quality and sign out. Downloads is a placeholder until the offline list is built, and the photo scopes are requested only when the person ticks the optional photos and videos box on the connect screen. Apple TV and CarPlay are unchanged | Android and Apple CI builds, phone/tablet device matrix, interruption/Bluetooth/download sign-off, store metadata |
 | 3 | Roku | SceneGraph/BrightScript pairing, browse, search, detail, playback, captions, progress, and resume implemented; Continue, Collections, and Photos rows, a full-screen photo viewer, and a profile picker with PIN dialog added (no device test yet, no downloads) | Sideload matrix, pairing-policy confirmation, artwork/localization, Roku certification |
+| 3b | TV web shell (shared by Samsung Tizen and LG webOS) | Plain JavaScript client in `clients/tv-web` on API v1 only: server address, device-code pairing, Home with Continue, Watch, Read (browse only), Listen and Collections rows, Universes, search, details with seasons and episodes, HLS playback through hls.js with captions, resume and progress, profile switch (initials when there is no picture, PIN pad on 428), and settings (quality, HEVC, sign out). It has its own TV interface, D-pad navigation with Tizen and webOS keys, and a visible focus ring. The Dashboard answers the cross-origin request a packaged app makes, for app origins only and only while app access is on | Tizen packaging and Samsung device sign-off (N7b), webOS packaging and LG device sign-off (N7c), hardware matrix for HEVC and captions |
 | 4 | Android Auto and CarPlay | Listen-only music, audiobooks, playlists, recent items, queue-compatible media sessions, and native Now Playing surfaces implemented | Desktop Head Unit/vehicle tests, Apple managed CarPlay entitlement, both platform reviews |
 | 5 | Release train | Cross-client CI and API/source boundary gates implemented | Signing credentials, store records, privacy/support declarations, phased rollout, telemetry review, and rollback ownership |
 
@@ -50,6 +51,10 @@ when all evidence in its final column is attached to the release candidate.
 - Roku SceneGraph client for pairing, browse, search, details, playback,
   captions supplied through native playback, progress, token rotation, and
   resume.
+- TV web client (`clients/tv-web`) for Samsung and LG televisions: pairing,
+  browse, collections, search, details, hls.js playback with captions, resume,
+  progress, token rotation, profile switch, and settings. It is checked by
+  `tests/native/Test-TvWebClient.ps1` and the `tv-web` CI job.
 
 ## Collections and Universes in apps
 
@@ -83,6 +88,18 @@ profile, with the same lockout as the Dashboard. Only people the account is
 granted can be listed or chosen, and a Kids profile keeps its content limit
 after the switch. Choosing the profile already in use is refused (`409`), and
 each device may list or switch at most 30 times a minute.
+
+A TV app packaged for Tizen or webOS is not served from the Dashboard's address.
+When an administrator turns on `native_app_access.allow_browser_apps` in
+`config/network.json` (off by default, in addition to app access), the Dashboard
+gives it a narrow cross-origin permission: only app origins (`file:`, `app:`,
+`tizen:`, `webos:` and the `null` origin), only `/api/v1` and `/.well-known/tuvima`,
+no credentials. Because any website can claim those origins, turn it on only for a
+TV web app; a person must still approve each pairing on the pairing page. See
+[Configuration](../reference/configuration.md). The TV
+web client plays video as adaptive HLS (H.264 and AAC; HEVC optional) through the
+`tv-web` playback profile, because a browser video element cannot send the app's
+token.
 
 Offline media works in three small, additive pieces on API v1. First, an app
 that watched or listened offline syncs back with `offline: true` and a
