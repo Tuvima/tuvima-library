@@ -44,7 +44,7 @@ internal fun MobileShell(
     application: TuvimaMobileApplication,
     client: TuvimaClient,
     initialDetail: Pair<String, String>?,
-    play: (String) -> Unit,
+    play: (PlayRequest) -> Unit,
     onChangeServer: () -> Unit,
     onSignedOut: (String?) -> Unit,
 ) {

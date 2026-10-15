@@ -4,6 +4,7 @@ import android.content.Intent
 import android.net.ConnectivityManager
 import android.net.Network
 import android.net.Uri
+import android.os.Bundle
 import androidx.annotation.OptIn
 import androidx.concurrent.futures.CallbackToFutureAdapter
 import androidx.media3.common.C
@@ -18,14 +19,26 @@ import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.session.LibraryResult
 import androidx.media3.session.MediaLibraryService
 import androidx.media3.session.MediaSession
+import androidx.media3.session.SessionCommand
+import androidx.media3.session.SessionCommands
+import androidx.media3.session.SessionResult
 import com.google.common.collect.ImmutableList
 import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
+import com.google.common.util.concurrent.SettableFuture
+import com.tuvima.library.core.HeartbeatRules
+import com.tuvima.library.core.PreparingPoll
+import com.tuvima.library.core.PreparingStep
+import com.tuvima.library.core.StreamResume
+import com.tuvima.library.core.VideoErrors
+import com.tuvima.library.core.VideoFailure
+import com.tuvima.library.core.VideoMessages
 import com.tuvima.library.core.DisplayCard
 import com.tuvima.library.core.OfflineLogic
 import com.tuvima.library.core.OfflineProgressEntry
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
@@ -43,6 +56,9 @@ class TuvimaMediaLibraryService : MediaLibraryService() {
     private val children = mutableMapOf<String, List<MediaItem>>()
     private var activeAssetId: String? = null
     private var progressJob: Job? = null
+    private var heartbeatJob: Job? = null
+    private var videoJob: Job? = null
+    private var streamedResumeMs = 0L
     private val offline get() = (application as TuvimaMobileApplication).offline
     private val networkCallback = object : ConnectivityManager.NetworkCallback() {
         override fun onAvailable(network: Network) {
@@ -53,10 +69,19 @@ class TuvimaMediaLibraryService : MediaLibraryService() {
                 // A downloaded file keeps playing as it is; only a streamed item is re-resolved when a network returns.
                 if (isLocalItem(player.currentMediaItem)) return@launch
                 val position = player.currentPosition
-                resolvePlayable(assetId)?.let {
-                    player.setMediaItem(it, position)
+                val current = player.currentMediaItem
+                val wasPlaying = player.playWhenReady
+                resolvePlayable(assetId)?.let { resolved ->
+                    // A video keeps its type and title so the video screen and the notification stay as they were.
+                    val item = if (current?.mediaMetadata?.mediaType == MediaMetadata.MEDIA_TYPE_VIDEO) {
+                        resolved.buildUpon().setMediaMetadata(current.mediaMetadata).build()
+                    } else {
+                        resolved
+                    }
+                    player.setMediaItem(item, position)
                     player.prepare()
-                    player.play()
+                    // A video the person paused or left stays paused; it must not start playing in the background.
+                    if (wasPlaying || item.mediaMetadata.mediaType != MediaMetadata.MEDIA_TYPE_VIDEO) player.play()
                 }
             }
         }
@@ -77,14 +102,20 @@ class TuvimaMediaLibraryService : MediaLibraryService() {
             override fun onIsPlayingChanged(isPlaying: Boolean) {
                 if (isPlaying) {
                     startProgressLoop()
+                    startHeartbeatLoop()
                 } else {
                     progressJob?.cancel()
+                    heartbeatJob?.cancel()
                     saveLocalProgress(ended = false, sync = true)
+                    sendHeartbeat(ended = false)
                 }
             }
 
             override fun onPlaybackStateChanged(playbackState: Int) {
-                if (playbackState == Player.STATE_ENDED) saveLocalProgress(ended = true, sync = true)
+                if (playbackState == Player.STATE_ENDED) {
+                    saveLocalProgress(ended = true, sync = true)
+                    sendHeartbeat(ended = true)
+                }
             }
         })
         session = MediaLibrarySession.Builder(this, player, LibraryCallback()).build()
@@ -102,7 +133,8 @@ class TuvimaMediaLibraryService : MediaLibraryService() {
                 scope.launch {
                     resolvePlayable(assetId)?.let {
                         // A downloaded copy resumes where this phone (or the Engine, once synced) left off.
-                        val start = if (isLocalItem(it)) OfflineLogic.resumeStartMs(offline.store().progress(assetId)) else 0L
+                        val start = if (isLocalItem(it)) OfflineLogic.resumeStartMs(offline.store().progress(assetId)) else streamedResumeMs
+                        streamedResumeMs = 0L
                         player.setMediaItem(it, start)
                         player.prepare()
                         player.play()
@@ -165,6 +197,37 @@ class TuvimaMediaLibraryService : MediaLibraryService() {
             val start = (page * pageSize).coerceAtMost(source.size)
             val end = (start + pageSize).coerceAtMost(source.size)
             return Futures.immediateFuture(LibraryResult.ofItemList(source.subList(start, end), params))
+        }
+
+        override fun onConnect(
+            session: MediaSession,
+            controller: MediaSession.ControllerInfo,
+        ): MediaSession.ConnectionResult {
+            val commands: SessionCommands = MediaSession.ConnectionResult.DEFAULT_SESSION_AND_LIBRARY_COMMANDS.buildUpon()
+                .add(SessionCommand(COMMAND_PLAY_VIDEO, Bundle.EMPTY))
+                .add(SessionCommand(COMMAND_CANCEL_VIDEO, Bundle.EMPTY))
+                .build()
+            return MediaSession.ConnectionResult.AcceptedResultBuilder(session)
+                .setAvailableSessionCommands(commands)
+                .build()
+        }
+
+        override fun onCustomCommand(
+            session: MediaSession,
+            controller: MediaSession.ControllerInfo,
+            customCommand: SessionCommand,
+            args: Bundle,
+        ): ListenableFuture<SessionResult> = when (customCommand.customAction) {
+            COMMAND_PLAY_VIDEO -> playVideo(
+                assetId = args.getString(EXTRA_ASSET_ID).orEmpty(),
+                title = args.getString(EXTRA_TITLE),
+                subtitle = args.getString(EXTRA_SUBTITLE),
+            )
+            COMMAND_CANCEL_VIDEO -> {
+                videoJob?.cancel()
+                Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
+            }
+            else -> Futures.immediateFuture(SessionResult(SessionResult.RESULT_ERROR_NOT_SUPPORTED))
         }
 
         override fun onAddMediaItems(
@@ -238,11 +301,135 @@ class TuvimaMediaLibraryService : MediaLibraryService() {
         if (sync) offline.scheduleSync()
     }
 
+    /**
+     * Starts a movie or episode for the video screen. The returned result completes when playback has started, or with
+     * a reason: `failure` is a [VideoFailure] name and `message` the plain words to show. Waiting for the Engine to
+     * prepare a stream keeps the result pending (the screen shows its preparing state with Cancel); cancelling
+     * completes it with `cancelled`.
+     */
+    private fun playVideo(assetId: String, title: String?, subtitle: String?): ListenableFuture<SessionResult> {
+        val result = SettableFuture.create<SessionResult>()
+        videoJob?.cancel()
+        if (assetId.isBlank()) {
+            result.set(failureResult(VideoFailure.Other, VideoMessages.OTHER))
+            return result
+        }
+        val job = scope.launch {
+            try {
+                startVideo(assetId, title, subtitle)
+                result.set(SessionResult(SessionResult.RESULT_SUCCESS))
+            } catch (error: CancellationException) {
+                result.set(SessionResult(SessionResult.RESULT_ERROR_UNKNOWN, Bundle().apply { putBoolean(RESULT_CANCELLED, true) }))
+                throw error
+            } catch (error: VideoStartException) {
+                result.set(failureResult(VideoFailure.Other, error.message))
+            } catch (error: Exception) {
+                // Anything else from the Engine call is classified for the screen's words; nothing is logged with a token.
+                val failure = VideoErrors.classify(error)
+                result.set(failureResult(failure, VideoMessages.forFailure(failure)))
+            }
+        }
+        videoJob = job
+        return result
+    }
+
+    private fun failureResult(failure: VideoFailure, message: String?): SessionResult =
+        SessionResult(
+            SessionResult.RESULT_ERROR_UNKNOWN,
+            Bundle().apply {
+                putString(RESULT_FAILURE, failure.name)
+                putString(RESULT_MESSAGE, message ?: VideoMessages.forFailure(failure))
+            },
+        )
+
+    private class VideoStartException(message: String) : Exception(message)
+
+    private suspend fun startVideo(assetId: String, title: String?, subtitle: String?) {
+        activeAssetId = assetId
+        val metadata = MediaMetadata.Builder()
+            .setTitle(title)
+            .setSubtitle(subtitle)
+            .setIsPlayable(true)
+            .setIsBrowsable(false)
+            .setMediaType(MediaMetadata.MEDIA_TYPE_VIDEO)
+            .build()
+        val local = localItem(assetId)
+        if (local != null) {
+            // A downloaded copy plays from the file and keeps its on-phone progress.
+            val item = local.buildUpon().setMediaMetadata(metadata).build()
+            player.setMediaItem(item, OfflineLogic.resumeStartMs(offline.store().progress(assetId)))
+            player.prepare()
+            player.play()
+            return
+        }
+        val api = client ?: throw VideoStartException(VideoMessages.OTHER)
+        var attempt = 0
+        while (true) {
+            attempt += 1
+            val manifest = api.playbackManifest(assetId, "local")
+            when (val step = PreparingPoll.next(manifest, attempt)) {
+                is PreparingStep.Play -> {
+                    val item = MediaItem.Builder().setMediaId(assetId).setUri(step.path).setMediaMetadata(metadata).build()
+                    player.setMediaItem(item, StreamResume.startMs(manifest.resumeSeconds, manifest.durationSeconds))
+                    player.prepare()
+                    player.play()
+                    return
+                }
+                PreparingStep.Wait -> delay(PreparingPoll.INTERVAL_MS)
+                is PreparingStep.Failed -> throw VideoStartException(step.message)
+                PreparingStep.TimedOut -> throw VideoStartException(VideoMessages.TIMED_OUT)
+            }
+        }
+    }
+
+    private fun startHeartbeatLoop() {
+        heartbeatJob?.cancel()
+        heartbeatJob = scope.launch {
+            while (true) {
+                delay(HeartbeatRules.INTERVAL_MS)
+                sendHeartbeat(ended = false)
+            }
+        }
+    }
+
+    /** Tells the Engine where a streamed item is up to. A downloaded item never sends; a failed send never stops playback. */
+    private fun sendHeartbeat(ended: Boolean) {
+        if (!::player.isInitialized) return
+        val item = player.currentMediaItem ?: return
+        if (!HeartbeatRules.shouldSend(isLocalItem(item), item.mediaId)) return
+        val api = client ?: return
+        val report = HeartbeatRules.report(
+            assetId = item.mediaId,
+            isPlaying = player.isPlaying,
+            positionMs = player.currentPosition,
+            durationMs = player.duration.takeIf { it != C.TIME_UNSET },
+            playbackRate = player.playbackParameters.speed.toDouble(),
+            ended = ended,
+        )
+        scope.launch {
+            try {
+                api.heartbeat(
+                    JSONObject()
+                        .put("assetId", report.assetId)
+                        .put("isPlaying", report.isPlaying)
+                        .put("positionSeconds", report.positionSeconds)
+                        .put("durationSeconds", report.durationSeconds ?: JSONObject.NULL)
+                        .put("playbackRate", report.playbackRate),
+                )
+            } catch (error: CancellationException) {
+                throw error
+            } catch (error: Exception) {
+                // Best effort: progress is re-sent on the next beat, and playback must never wait on it.
+            }
+        }
+    }
+
     private suspend fun resolvePlayable(assetId: String): MediaItem? {
         localItem(assetId)?.let { return it }
         val api = client ?: return null
         val manifest = api.playbackManifest(assetId, "local")
         val path = manifest.playablePath() ?: return null
+        streamedResumeMs = StreamResume.startMs(manifest.resumeSeconds, manifest.durationSeconds)
         return MediaItem.Builder().setMediaId(assetId).setUri(path).build()
     }
 
@@ -302,6 +489,8 @@ class TuvimaMediaLibraryService : MediaLibraryService() {
 
     override fun onDestroy() {
         progressJob?.cancel()
+        heartbeatJob?.cancel()
+        videoJob?.cancel()
         saveLocalProgress(ended = false, sync = true)
         getSystemService(ConnectivityManager::class.java).unregisterNetworkCallback(networkCallback)
         session.release()
@@ -313,6 +502,15 @@ class TuvimaMediaLibraryService : MediaLibraryService() {
     companion object {
         const val ACTION_PLAY_ASSET = "com.tuvima.library.PLAY_ASSET"
         const val EXTRA_ASSET_ID = "asset_id"
+        const val EXTRA_TITLE = "title"
+        const val EXTRA_SUBTITLE = "subtitle"
+
+        /** Custom session commands the video screen sends through its media controller. */
+        const val COMMAND_PLAY_VIDEO = "com.tuvima.library.PLAY_VIDEO"
+        const val COMMAND_CANCEL_VIDEO = "com.tuvima.library.CANCEL_VIDEO"
+        const val RESULT_FAILURE = "failure"
+        const val RESULT_MESSAGE = "message"
+        const val RESULT_CANCELLED = "cancelled"
         private const val ROOT = "tuvima-root"
         private const val PROGRESS_SAVE_MS = 10_000L
         private const val MIN_RECORDED_SECONDS = 5.0

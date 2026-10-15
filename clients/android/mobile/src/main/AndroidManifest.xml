@@ -43,5 +43,12 @@
                 <data android:scheme="tuvima" android:host="play" />
             </intent-filter>
         </activity>
+
+        <!-- Full-screen video. It sets its own landscape orientation from OrientationPolicy and handles rotation itself. -->
+        <activity
+            android:name=".VideoPlayerActivity"
+            android:exported="false"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden|uiMode|density"
+            android:theme="@style/Theme.Tuvima" />
     </application>
 </manifest>

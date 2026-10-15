@@ -13,6 +13,14 @@ internal data class MobileSearchResult(
     val subtitle: String?,
 )
 
+/** What a Play button asks for. The type decides whether the video screen or the audio service handles it. */
+internal data class PlayRequest(
+    val assetId: String,
+    val entityType: String?,
+    val title: String?,
+    val subtitle: String?,
+)
+
 /** A full-screen page shown over the tabs. The back button or gesture removes the top one. */
 internal sealed interface Overlay {
     data class Detail(val entityType: String, val id: String, val assetId: String?) : Overlay
