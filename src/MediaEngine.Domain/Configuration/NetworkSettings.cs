@@ -51,6 +51,14 @@ public sealed class NativeAppAccessSettings
 {
     [JsonPropertyName("enabled")]
     public bool Enabled { get; set; }
+
+    /// <summary>
+    /// Separate opt-in, config file only, off by default: lets packaged TV web apps (origin <c>null</c> or an app scheme)
+    /// call the app door cross-origin. Only meaningful while <see cref="Enabled"/> is on. Any web page can claim those
+    /// origins, so leave it off unless a Tizen or webOS TV web app is in use.
+    /// </summary>
+    [JsonPropertyName("allow_browser_apps")]
+    public bool AllowBrowserApps { get; set; }
 }
 
 public sealed class LocalNetworkSettings

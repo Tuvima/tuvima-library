@@ -27,6 +27,7 @@
     "concurrent_remote_streams": "automatic"
   },
   "native_app_access": {
-    "enabled": false
+    "enabled": false,
+    "allow_browser_apps": false
   }
 }

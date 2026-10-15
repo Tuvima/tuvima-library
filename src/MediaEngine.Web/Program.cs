@@ -426,6 +426,8 @@ if (proxyPort is null
 app.UseForwardedHeadersOnProxyPort(proxyPort);
 app.UseHostAllowList();
 app.UseExposurePolicy();
+// Packaged TV apps (null or app-scheme origin) may call the app door cross-origin; nothing else gets CORS.
+app.UseNativeAppCors();
 app.UseWebSockets();
 app.UseResponseCompression();
 if (app.Environment.IsDevelopment() && !string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("TUVIMA_HOME_MEDIA_QA")))

@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>Tuvima Library</title>
+  <link rel="icon" href="assets/tuvima-icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header id="topnav" class="topnav" hidden></header>
+  <main id="screen" class="screen"></main>
+  <div id="dialog" class="dialog" hidden></div>
+  <div id="toast" class="toast" role="status" hidden></div>
+  <noscript>Tuvima Library needs JavaScript.</noscript>
+  <!-- Classic scripts, in order, so the app also runs from file:// inside a packaged TV app. hls.js loads on first playback. -->
+  <script src="api.js"></script>
+  <script src="nav.js"></script>
+  <script src="player.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

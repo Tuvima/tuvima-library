@@ -55,6 +55,7 @@ The authoritative package version list is `Directory.Packages.props`; the projec
 | SkiaSharp | Image processing, thumbnailing, and generated artwork support |
 | SharpCompress | Archive reading for comic formats such as CBZ/CBR |
 | PDF.js | Draws PDFs, page navigation, zoom and find in the View Documents viewer (Apache-2.0). Bundled unmodified under `wwwroot/vendor/pdfjs/` and loaded locally, never from a CDN |
+| hls.js | Plays adaptive HLS in the Dashboard player and in the TV web client (Apache-2.0). Version 1.7.3, bundled unmodified under `src/MediaEngine.Web/wwwroot/vendor/hls/` and `clients/tv-web/vendor/` and loaded locally, never from a CDN |
 | PdfPig | Reads the embedded text layer of PDFs so View documents are searchable (Apache-2.0) |
 | PDFtoImage | Draws PDF pages as images for text recognition (MIT); uses PDFium (BSD-3-Clause) through the bblanchon.PDFium packages |
 | Tesseract OCR | Reads scanned pages and photos of paper on the Engine host (Apache-2.0). Windows installers use the checksum-pinned UB Mannheim build recorded in `tools/tesseract/README.md`; containers install the distribution package |

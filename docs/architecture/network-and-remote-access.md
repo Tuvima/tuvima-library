@@ -40,6 +40,7 @@ door on or off. It can only be saved as `true` while `who_can_connect` is `anywh
 and turning remote access off or resetting network settings turns it off too.
 The Dashboard re-reads the file when it changes and treats a missing or
 unreadable file as off.
+`native_app_access.allow_browser_apps` (default `false`, config file only) is a second, separate switch for packaged TV web apps, whose page origin is `null` or an app scheme. Only with both switches on does the Dashboard give those origins cross-origin permission for `/api/v1/**` and `/.well-known/tuvima`. Because any web page can claim the `null` origin, it also lets a website reach the anonymous pairing surface; pairing still needs a person to approve the code on `/pair`. See [Configuration](../reference/configuration.md).
 While the door is off, its addresses (`/.well-known/tuvima`, `/pair`, `/api/v1/*` and `/application-events/*`) answer a plain 404 to every visitor, not a sign-in redirect.
 
 Observed state stays in memory: usable interfaces, topology, current
