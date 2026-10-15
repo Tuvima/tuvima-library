@@ -43,6 +43,7 @@ public static class CollectionClientEndpoints
             IProfileRepository profiles,
             CollectionCatalogReadService catalog,
             IDisplayProjectionReadService display,
+            UniverseClientReadService universes,
             CancellationToken ct) =>
         {
             if (!TryParseCursor(cursor, out var offset))
@@ -56,11 +57,12 @@ public static class CollectionClientEndpoints
             var visible = (await catalog.GetCatalogAsync(profile, ct, allowedWorkIds))
                 .Where(collection => collection.ItemCount > 0)
                 .ToList();
-            var window = visible
-                .Skip(page.Offset)
-                .Take(page.Limit + 1)
-                .Select(ManagedCollectionMapper.ForNativeClient)
-                .ToList();
+            var window = new List<CollectionManagementCatalogDto>();
+            foreach (var entry in visible.Skip(page.Offset).Take(page.Limit + 1))
+            {
+                window.Add(await ToNativeAsync(entry, universes, profile, ct));
+            }
+
             return Results.Ok(PagedResponse<CollectionManagementCatalogDto>.FromPage(window, page, visible.Count));
         })
             .WithName("GetClientCollections")
@@ -75,6 +77,7 @@ public static class CollectionClientEndpoints
             IProfileRepository profiles,
             CollectionCatalogReadService catalog,
             IDisplayProjectionReadService display,
+            UniverseClientReadService universes,
             CancellationToken ct) =>
         {
             var profile = await ResolveActiveProfileAsync(http, profiles, ct);
@@ -82,7 +85,7 @@ public static class CollectionClientEndpoints
             var summary = await catalog.GetSummaryAsync(id, profile, ct, allowedWorkIds);
             return summary is null || summary.ItemCount == 0
                 ? ApiErrors.NotFound(NotFoundDetail)
-                : Results.Ok(ManagedCollectionMapper.ForNativeClient(summary));
+                : Results.Ok(await ToNativeAsync(summary, universes, profile, ct));
         })
             .WithName("GetClientCollection")
             .WithSummary("Returns the summary of one collection visible to the paired profile.")
@@ -148,6 +151,23 @@ public static class CollectionClientEndpoints
             .RequireClientScope(ClientApiScopes.LibraryRead);
 
         return app;
+    }
+
+    // A Universe entry exposes its QID (and the "universe" group type) only when /api/v1/universe/{qid} would serve it to
+    // this same profile, so a QID an app is handed always opens.
+    private static async Task<CollectionManagementCatalogDto> ToNativeAsync(
+        CollectionManagementCatalogDto entry,
+        UniverseClientReadService universes,
+        Profile? profile,
+        CancellationToken ct)
+    {
+        var qid = UniverseClientReadService.NormalizeQid(entry.UniverseQid);
+        if (qid is not null && await universes.LoadAsync(qid, profile, ct) is null)
+        {
+            qid = null;
+        }
+
+        return ManagedCollectionMapper.ForNativeClient(entry, qid);
     }
 
     // The cursor is the offset the previous page handed back (never beyond MaxOffset). Anything else is a client error.

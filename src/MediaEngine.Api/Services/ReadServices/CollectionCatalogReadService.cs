@@ -201,7 +201,8 @@ public sealed class CollectionCatalogReadService(
                     representative.Collection,
                     representative.Classification,
                     mediaCounts,
-                    entries.Count > 1 || IsBroadRollupKey(representative.Grouping?.Key))));
+                    entries.Count > 1 || IsBroadRollupKey(representative.Grouping?.Key)),
+                universeQid: ResolveUniverseQid(representative.Collection)));
         }
 
         return dtos
@@ -1013,6 +1014,13 @@ public sealed class CollectionCatalogReadService(
             ? CollectionGroupTypes.Show
             : CollectionGroupTypes.Series;
     }
+
+    // A root Universe with a well-formed Wikidata QID: the same identity /api/v1/universe/{qid} resolves. Everything
+    // else (series, shows, lists, malformed QIDs) has none. The native routes confirm the profile can open it.
+    private static string? ResolveUniverseQid(Collection collection) =>
+        collection.CollectionType == CollectionType.Universe && collection.ParentCollectionId is null
+            ? UniverseClientReadService.NormalizeQid(collection.WikidataQid)
+            : null;
 
     private static bool IsGeneratedSeriesCollection(Collection collection)
         => collection.CollectionType is CollectionType.Universe

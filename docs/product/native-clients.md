@@ -58,6 +58,9 @@ its member shelves. Apps name and route each group by its `group_type`: a TV
 show is a *show*, a book or movie sequence is a *series*, a rollup across
 shelves or a rule-built group is a *collection*, a hand-picked or system group
 is a *list*, and a franchise rollup opened by its identifier is a *universe*.
+A Universe in the collections list carries its `universe_qid`, which an app uses to
+open the Universe; other entries have none, and an app is never handed an
+identifier its profile cannot open.
 The content limit (Kids and maturity) of the paired profile applies to every
 item, count and preview, so a Kids phone never shows, or counts, an item over its
 limit; a collection that is unknown, someone else's, or empty for that profile
