@@ -39,12 +39,18 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           BRANCH: ${{ github.event.pull_request.head.ref }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
           set -euo pipefail
           open_head=$(gh pr list --repo "$GITHUB_REPOSITORY" --state open --head "$BRANCH" --json number --jq 'length')
           open_base=$(gh pr list --repo "$GITHUB_REPOSITORY" --state open --base "$BRANCH" --json number --jq 'length')
           if [ "$open_head" != "0" ] || [ "$open_base" != "0" ]; then
             echo "Keeping $BRANCH: another open pull request still uses it."
+            exit 0
+          fi
+          tip=$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/$BRANCH" --jq .object.sha 2>/dev/null || true)
+          if [ -n "$tip" ] && [ "$tip" != "$HEAD_SHA" ]; then
+            echo "Keeping $BRANCH: it has commits newer than the merged pull request."
             exit 0
           fi
           gh api -X DELETE "repos/$GITHUB_REPOSITORY/git/refs/heads/$BRANCH" || echo "Branch $BRANCH was already gone."
