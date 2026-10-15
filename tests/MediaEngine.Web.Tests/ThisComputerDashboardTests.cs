@@ -7,7 +7,7 @@ using MediaEngine.Contracts.Setup;
 using MediaEngine.Web.Components.Navigation;
 using MediaEngine.Web.Components.Setup;
 using MediaEngine.Web.Services.Integration;
-using Microsoft.AspNetCore.Components.Authorization;
+using MediaEngine.Web.Services.Navigation;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace MediaEngine.Web.Tests;
@@ -121,74 +121,70 @@ public sealed class ThisComputerDashboardTests : AsyncBunitContext
             "11111111-2222-3333-4444-555555555555", "/", atPublicOrigin: false, thisComputerName: name);
 
     [Fact]
-    public void Banner_ShowsForAThisComputerOnlyAccount()
+    public void SecureAccountPrompt_IsOnlyForAThisComputerOnlyAccount()
     {
-        JSInterop.Mode = JSRuntimeMode.Loose;
-        Services.AddSingleton<AuthenticationStateProvider>(new FixedState(ThisComputerRequests.AuthenticationMethod));
+        Assert.True(SecureAccountPrompt.IsThisComputerOnly(PrincipalWith(ThisComputerRequests.AuthenticationMethod)));
 
-        var banner = Render<ThisComputerOnlyBanner>();
-
-        Assert.Contains("No password set. Anyone on your home network can open Tuvima. Add one to secure it.", banner.Markup);
-        Assert.Contains("Secure account", banner.Markup);
-        Assert.Contains("href=\"/settings/security\"", banner.Markup);
-    }
-
-    [Theory]
-    [InlineData("Password")]
-    [InlineData("Passkey")]
-    [InlineData("")]
-    public void Banner_IsAbsentForEveryOtherSignIn(string method)
-    {
-        JSInterop.Mode = JSRuntimeMode.Loose;
-        Services.AddSingleton<AuthenticationStateProvider>(new FixedState(method));
-
-        var banner = Render<ThisComputerOnlyBanner>();
-
-        Assert.DoesNotContain("No password set", banner.Markup);
+        Assert.False(SecureAccountPrompt.IsThisComputerOnly(PrincipalWith("Password")));
+        Assert.False(SecureAccountPrompt.IsThisComputerOnly(PrincipalWith("Passkey")));
+        Assert.False(SecureAccountPrompt.IsThisComputerOnly(PrincipalWith("")));
+        Assert.False(SecureAccountPrompt.IsThisComputerOnly(new ClaimsPrincipal(new ClaimsIdentity())));
     }
 
     [Fact]
-    public void Banner_DismissHidesItAndRemembersItForThisAccount()
+    public void AccountMenu_OffersSecureAccountOnlyWhileTheAccountIsThisComputerOnly()
     {
-        JSInterop.Mode = JSRuntimeMode.Loose;
-        var accountId = Guid.NewGuid().ToString("D");
-        Services.AddSingleton<AuthenticationStateProvider>(new FixedState(ThisComputerRequests.AuthenticationMethod, accountId));
-        var visible = new List<bool>();
-        var thisComputerOnly = new List<bool>();
+        Services.AddLocalization();
+        var offered = Render<TopNavAccountMenu>(parameters => parameters
+            .Add(menu => menu.DisplayName, "Owner")
+            .Add(menu => menu.ShowSecureAccount, true));
+        offered.Find(".top-nav-account-menu__trigger").Click();
 
-        var banner = Render<ThisComputerOnlyBanner>(parameters => parameters
-            .Add(component => component.VisibleChanged, new Microsoft.AspNetCore.Components.EventCallbackFactory().Create<bool>(this, value => visible.Add(value)))
-            .Add(component => component.ThisComputerOnlyChanged, new Microsoft.AspNetCore.Components.EventCallbackFactory().Create<bool>(this, value => thisComputerOnly.Add(value))));
+        Assert.Single(offered.FindAll(".top-nav-account-menu__trigger .top-nav-account-menu__attention-dot"));
+        Assert.Contains(offered.FindAll("a[role=menuitem]"), link => link.GetAttribute("href") == SecureAccountPrompt.SecureAccountHref);
 
-        var dismiss = banner.Find("button[aria-label='Dismiss secure account reminder']");
-        dismiss.Click();
+        var secured = Render<TopNavAccountMenu>(parameters => parameters
+            .Add(menu => menu.DisplayName, "Owner"));
+        secured.Find(".top-nav-account-menu__trigger").Click();
 
-        Assert.DoesNotContain("No password set", banner.Markup);
-        Assert.False(visible.Last());
-        Assert.True(thisComputerOnly.Last());
-        var stored = JSInterop.Invocations.Single(call => call.Identifier == "localStorage.setItem");
-        Assert.Contains(accountId, (string)stored.Arguments[0]!, StringComparison.Ordinal);
+        Assert.Empty(secured.FindAll(".top-nav-account-menu__attention-dot"));
+        Assert.DoesNotContain(secured.FindAll("a[role=menuitem]"), link => link.GetAttribute("href") == SecureAccountPrompt.SecureAccountHref);
     }
 
     [Fact]
-    public void Banner_StaysHiddenWhenThisAccountDismissedItBefore()
+    public void ThisComputerBar_IsGoneFromTheDashboardSource()
     {
-        JSInterop.Mode = JSRuntimeMode.Loose;
-        var accountId = Guid.NewGuid().ToString("D");
-        JSInterop.Setup<string?>("localStorage.getItem", "tuvima.secure-account-banner.dismissed.v1." + accountId).SetResult("true");
-        Services.AddSingleton<AuthenticationStateProvider>(new FixedState(ThisComputerRequests.AuthenticationMethod, accountId));
+        var webRoot = Path.GetDirectoryName(Path.GetDirectoryName(RepoPath("src/MediaEngine.Web/Shared/MainLayout.razor")))!;
 
-        var banner = Render<ThisComputerOnlyBanner>();
+        Assert.False(File.Exists(Path.Combine(webRoot, "Components", "Navigation", "ThisComputerOnlyBanner.razor")));
+        Assert.False(File.Exists(Path.Combine(webRoot, "Components", "Navigation", "ThisComputerOnlyBanner.razor.css")));
 
-        Assert.DoesNotContain("No password set", banner.Markup);
+        var offenders = Directory.EnumerateFiles(webRoot, "*.*", SearchOption.AllDirectories)
+            .Where(path => path.EndsWith(".razor", StringComparison.Ordinal) || path.EndsWith(".css", StringComparison.Ordinal) || path.EndsWith(".cs", StringComparison.Ordinal))
+            .Where(path => !path.Split(Path.DirectorySeparatorChar).Any(segment => segment is "obj" or "bin"))
+            .Where(path =>
+            {
+                var source = File.ReadAllText(path);
+                return source.Contains("No password set", StringComparison.Ordinal)
+                    || source.Contains("ThisComputerOnlyBanner", StringComparison.Ordinal)
+                    || source.Contains("this-computer-banner", StringComparison.Ordinal);
+            })
+            .ToList();
+
+        Assert.Empty(offenders);
     }
 
     [Fact]
-    public void Banner_IsMountedInTheMainLayout()
+    public void MainLayout_ShowsTheAccountPromptInsteadOfABar()
     {
         var layout = File.ReadAllText(RepoPath("src/MediaEngine.Web/Shared/MainLayout.razor"));
+        var css = File.ReadAllText(RepoPath("src/MediaEngine.Web/Shared/MainLayout.razor.css"));
 
-        Assert.Contains("<ThisComputerOnlyBanner", layout, StringComparison.Ordinal);
+        // No top bar, so no padding or engine-banner offset for one.
+        Assert.DoesNotContain("tl-this-computer-banner", layout + css, StringComparison.Ordinal);
+        Assert.DoesNotContain("with-banner", layout + css, StringComparison.Ordinal);
+        Assert.Contains("_thisComputerOnly = SecureAccountPrompt.IsThisComputerOnly(", layout, StringComparison.Ordinal);
+        Assert.Contains("ShowSecureAccount=\"@_thisComputerOnly\"", layout, StringComparison.Ordinal);
         Assert.Contains("OnSecureAccountRequired", layout, StringComparison.Ordinal);
     }
 
@@ -295,10 +291,6 @@ public sealed class ThisComputerDashboardTests : AsyncBunitContext
             Task.FromResult(respond(request));
     }
 
-    private sealed class FixedState(string method, string? accountId = null) : AuthenticationStateProvider
-    {
-        public override Task<AuthenticationState> GetAuthenticationStateAsync() => Task.FromResult(new AuthenticationState(
-            new ClaimsPrincipal(new ClaimsIdentity(
-                [new Claim("tuvima:authentication_method", method), new Claim("tuvima:account_id", accountId ?? Guid.Empty.ToString("D"))], "Test"))));
-    }
+    private static ClaimsPrincipal PrincipalWith(string method) =>
+        new(new ClaimsIdentity([new Claim("tuvima:authentication_method", method)], "Test"));
 }

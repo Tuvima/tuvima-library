@@ -11,7 +11,8 @@ public sealed record MediaSectionNavigationItem(
     MediaSectionNavigationItemManagement? Management = null,
     bool SectionBreakBefore = false,
     bool MetaIsNotification = false,
-    string? MetaAriaLabel = null);
+    string? MetaAriaLabel = null,
+    bool AttentionDot = false);
 
 public sealed record MediaSectionNavigationGroup(
     string Label,

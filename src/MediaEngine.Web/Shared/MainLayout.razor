@@ -39,7 +39,6 @@
 <AppDialogHost />
 <AppToastHost />
 <ActivityNotificationHost Enabled="@CanViewSystemActivity" />
-<ThisComputerOnlyBanner VisibleChanged="OnThisComputerBannerChanged" ThisComputerOnlyChanged="OnThisComputerOnlyChanged" />
 
 @if (!DeviceContext.IsFeatureDisabled("command_palette"))
 {
@@ -49,7 +48,7 @@
 <a class="skip-to-content" href="#main-content">@L["Layout_SkipToContent"]</a>
 
 <AppCssElement Tag="div" Class="@AccentScopeClass" @onclick="CloseOpenShellMenus">
-<div class="@(_thisComputerBanner ? "playback-app-frame playback-app-frame--with-banner" : "playback-app-frame")">
+<div class="playback-app-frame">
 <AppCssElement Tag="div" Class="playback-app-frame__variables">
 <AppLayout Class="@LayoutShellClass">
     <AppAppBar Fixed="false" Elevation="0" Dense="true" Class="@AppBarClass">
@@ -311,7 +310,7 @@
 
     [Inject] private IJSRuntime JS { get; set; } = default!;
 
-    protected override void OnInitialized()
+    protected override async Task OnInitializedAsync()
     {
         BookmarkCommandOwner.NavigateIdentityAsync = async (command, route) =>
         {
@@ -353,6 +352,8 @@
         ContextSidebar.Changed += OnContextSidebarChanged;
         _session.OnAuthorityChanged += OnAuthorityChanged;
         _session.OnSecureAccountRequired += OnSecureAccountRequired;
+        _thisComputerOnly = SecureAccountPrompt.IsThisComputerOnly((await AuthenticationStateProvider.GetAuthenticationStateAsync()).User);
+        AuthenticationStateProvider.AuthenticationStateChanged += OnAuthenticationStateChanged;
         SyncLocationState();
     }
 
@@ -814,6 +815,7 @@
         Orchestrator.OnEngineConnectionStateChanged -= OnEngineConnectionStateChanged;
         _session.OnAuthorityChanged -= OnAuthorityChanged;
         _session.OnSecureAccountRequired -= OnSecureAccountRequired;
+        AuthenticationStateProvider.AuthenticationStateChanged -= OnAuthenticationStateChanged;
         _authorityRefreshCancellation.Cancel();
         try
         {
@@ -847,10 +849,15 @@
         _dotNetRef?.Dispose();
     }
 
-    private bool _thisComputerBanner;
+    // True while the account works only on this computer (no password): the account menu offers Secure account.
     private bool _thisComputerOnly;
-    private void OnThisComputerOnlyChanged(bool thisComputerOnly) { _thisComputerOnly = thisComputerOnly; StateHasChanged(); }
-    private void OnThisComputerBannerChanged(bool visible) { _thisComputerBanner = visible; StateHasChanged(); }
+
+    private void OnAuthenticationStateChanged(Task<AuthenticationState> state) => _ = InvokeAsync(async () =>
+    {
+        if (_disposed) return;
+        _thisComputerOnly = SecureAccountPrompt.IsThisComputerOnly((await state).User);
+        StateHasChanged();
+    });
 
     // The Engine says an action waits until the account has a password: say so plainly and point to Secure account.
     private void OnSecureAccountRequired()
@@ -859,7 +866,7 @@
         _ = InvokeAsync(() => Toasts.Add("Add a password to your account first.", AppSeverity.Warning, options =>
         {
             options.Action = "Secure account";
-            options.OnClick = _ => { Nav.NavigateTo(ThisComputerOnlyBanner.SecureAccountHref); return Task.CompletedTask; };
+            options.OnClick = _ => { Nav.NavigateTo(SecureAccountPrompt.SecureAccountHref); return Task.CompletedTask; };
         }));
     }
 
@@ -979,7 +986,7 @@
 
     .layout-shell__engine-banner {
         position: fixed;
-        top: calc(56px + var(--tl-this-computer-banner-offset, 0px));
+        top: 56px;
         left: 0;
         right: 0;
         z-index: 1100;

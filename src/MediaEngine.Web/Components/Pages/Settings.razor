@@ -258,6 +258,8 @@ else
     private ElementReference _contentElement;
     private bool _scrollToTopPending;
     private bool _wasAdministrationRoute;
+    // A this-computer-only account has no password yet: its Security entry carries the attention dot.
+    private bool _thisComputerOnly;
     private Guid? _loadedBreadcrumbBatchId;
     private string? _batchBreadcrumbLabel;
     private int _breadcrumbLoadRevision;
@@ -440,6 +442,7 @@ else
         try
         {
             var principal = (await AuthenticationStateProvider.GetAuthenticationStateAsync()).User;
+            _thisComputerOnly = SecureAccountPrompt.IsThisComputerOnly(principal);
             Session.InitializeFromPrincipal(principal);
             await Identity.EnsureInitialAuthorityAsync(Session);
             _activeProfile = await Orchestrator.GetActiveProfileAsync();
@@ -683,7 +686,8 @@ else
             MetaIsNotification: showReviewNotification,
             MetaAriaLabel: showReviewNotification
                 ? $"{DisplayFormat.FormatCount(_reviewCount)} item{(_reviewCount == 1 ? "" : "s")} need review"
-                : null);
+                : null,
+            AttentionDot: item.Value == SettingsSection.Security && _thisComputerOnly);
     }
 
     private bool IsItemEnabledByUiSettings(SettingsItemDef item) => item.Value switch
