@@ -116,6 +116,12 @@ public sealed class CollectionCatalogReadService(
             }
 
             var workIds = await GetOwnedCollectionCatalogDisplayWorkIdsAsync(sourceWorkIds, ct).ConfigureAwait(false);
+            if (allowedMemberIds is not null)
+            {
+                // A series parent expands to every book or film below it; only the ones the profile may see stay.
+                workIds = workIds.Where(allowedMemberIds.Contains).ToList();
+            }
+
 
             var itemCount = workIds.Count;
             var mediaCounts = await GetCollectionMediaCountsAsync(workIds, ct).ConfigureAwait(false);
@@ -391,6 +397,7 @@ public sealed class CollectionCatalogReadService(
             .ToList();
         return (await GetOwnedCollectionCatalogDisplayWorkIdsAsync(members, ct).ConfigureAwait(false))
             .Distinct()
+            .Where(workId => allowedMemberIds is null || allowedMemberIds.Contains(workId))
             .ToList();
     }
 
@@ -398,7 +405,8 @@ public sealed class CollectionCatalogReadService(
     /// A member is authorised when the work is itself in the caller's projection, or is a show, season, comic series,
     /// album or book series that holds a work in it. The projection lists episodes, issues, tracks and books but never
     /// their parents, and a restricted sibling does not become authorised just because another child of the same parent
-    /// is.
+    /// is. The same set also limits the display ids a member expands to, because a book or movie series parent expands
+    /// to every owned work below it, not to a root.
     /// </summary>
     private async Task<IReadOnlySet<Guid>?> ExpandAllowedMembersAsync(
         IReadOnlySet<Guid>? allowedWorkIds,
@@ -482,7 +490,10 @@ public sealed class CollectionCatalogReadService(
         return roots;
     }
 
-    /// <summary>The members that are owned: the work itself or something below it has a visible file.</summary>
+    /// <summary>
+    /// The members that are owned: the work itself or something below it has a visible file, including a file that
+    /// covers it together with other works (the combined episode file), exactly as the display projection counts it.
+    /// </summary>
     private async Task<HashSet<Guid>> GetOwnedSourceWorkIdsAsync(
         IEnumerable<Guid> workIds,
         CancellationToken ct)
@@ -513,8 +524,8 @@ public sealed class CollectionCatalogReadService(
                 )
                 SELECT DISTINCT work_tree.RootWorkId AS WorkId
                 FROM work_tree
-                INNER JOIN editions e ON e.work_id = work_tree.WorkId
-                INNER JOIN media_assets ma ON ma.edition_id = e.id
+                INNER JOIN work_owned_assets woa ON woa.work_id = work_tree.WorkId
+                INNER JOIN media_assets ma ON ma.id = woa.asset_id
                 WHERE {visibleAssetPredicate};
                 """,
                 new { WorkIds = chunk.Select(GuidSql.ToBlob).ToArray() },
@@ -1025,7 +1036,10 @@ public sealed class CollectionCatalogReadService(
         }
 
         using var conn = db.CreateConnection();
-        var rows = await conn.QueryAsync<CollectionMediaMetadataRow>(new CommandDefinition(
+        var rows = new List<CollectionMediaMetadataRow>();
+        foreach (var chunk in workIds.Chunk(MaxSqlIdsPerQuery))
+        {
+            rows.AddRange(await conn.QueryAsync<CollectionMediaMetadataRow>(new CommandDefinition(
             """
             SELECT w.media_type AS MediaType,
                    COALESCE(
@@ -1040,8 +1054,9 @@ public sealed class CollectionCatalogReadService(
             FROM works w
             WHERE w.id IN @WorkIds
             """,
-            new { WorkIds = workIds.Select(GuidSql.ToBlob).ToArray() },
-            cancellationToken: ct)).ConfigureAwait(false);
+            new { WorkIds = chunk.Select(GuidSql.ToBlob).ToArray() },
+            cancellationToken: ct)).ConfigureAwait(false));
+        }
 
         var watch = 0;
         var listen = 0;
@@ -1304,9 +1319,8 @@ public sealed class CollectionCatalogReadService(
                OR LOWER(RootMediaType) LIKE '%music%'
                OR EXISTS (
                    SELECT 1
-                   FROM editions e
-                   INNER JOIN media_assets ma ON ma.edition_id = e.id
-                   WHERE e.work_id = work_tree.WorkId
+                   FROM work_owned_assets woa
+                   WHERE woa.work_id = work_tree.WorkId
                );
             """,
             new { WorkIds = chunk.Select(GuidSql.ToBlob).ToArray() },
@@ -1351,7 +1365,10 @@ public sealed class CollectionCatalogReadService(
         using var conn = db.CreateConnection();
         var visibleWorkPredicate = HomeVisibilitySql.VisibleWorkPredicate("w.id", "w.curator_state", "w.is_catalog_only");
         var visibleAssetPredicate = HomeVisibilitySql.VisibleAssetPathPredicate("ma.file_path_root");
-        var rows = (await conn.QueryAsync<GeneratedCollectionItemRow>(new CommandDefinition(
+        var rows = new List<GeneratedCollectionItemRow>();
+        foreach (var chunk in displayWorkIds.Chunk(MaxSqlIdsPerQuery))
+        {
+            rows.AddRange(await conn.QueryAsync<GeneratedCollectionItemRow>(new CommandDefinition(
             $"""
             WITH RECURSIVE work_tree(RootWorkId, WorkId) AS (
                 SELECT w.id AS RootWorkId,
@@ -1449,9 +1466,10 @@ public sealed class CollectionCatalogReadService(
             new
             {
                 CollectionId = collectionId,
-                WorkIds = displayWorkIds.Select(GuidSql.ToBlob).ToArray(),
+                WorkIds = chunk.Select(GuidSql.ToBlob).ToArray(),
             },
-            cancellationToken: ct))).ToList();
+            cancellationToken: ct)).ConfigureAwait(false));
+        }
 
         var requestedPosition = displayWorkIds
             .Select((workId, index) => (workId, index))

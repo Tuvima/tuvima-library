@@ -56,6 +56,10 @@ public sealed class CollectionItemRootsTests : IDisposable
     private readonly Guid _siblingSeriesTwo = Guid.NewGuid();
     private readonly Guid _bookList = Guid.NewGuid();
     private readonly Guid _unownedList = Guid.NewGuid();
+    private readonly Guid _bookUniverse = Guid.NewGuid();
+    private readonly Guid _bookSeriesOne = Guid.NewGuid();
+    private readonly Guid _bookSeriesTwo = Guid.NewGuid();
+    private readonly Guid _coveredList = Guid.NewGuid();
 
     private Guid _movie;
     private Guid _show;
@@ -69,6 +73,11 @@ public sealed class CollectionItemRootsTests : IDisposable
     private Guid _secondFamilyMovie;
     private Guid _bookSeries;
     private Guid _unownedMovie;
+    private Guid _kidsBookSeries;
+    private Guid _kidsBookOne;
+    private Guid _bookUniverseMovie;
+    private Guid _combinedShow;
+    private Guid _combinedEpisodeTwo;
     private List<Guid> _episodes = [];
     private List<Guid> _issues = [];
     private List<Guid> _tracks = [];
@@ -243,6 +252,53 @@ public sealed class CollectionItemRootsTests : IDisposable
         Assert.Equal(1, page.TotalCount);
     }
 
+    [Fact]
+    public async Task KidsProfile_ABookSeriesMemberWithARestrictedBook_ListsAndCountsOnlyTheAllowedBook()
+    {
+        await using var app = await StartAsync();
+
+        // Without the limit the series parent stands for both books.
+        var unrestricted = await GetJsonAsync(app, $"/api/v1/collections/{_bookUniverse:D}/items?limit=10");
+        Assert.Equal(3, unrestricted["items"]!.AsArray().Count);
+        Assert.Equal(3, (await GetJsonAsync(app, $"/api/v1/collections/{_bookUniverse:D}"))["item_count"]!.GetValue<int>());
+
+        SetContentLimit("PG");
+        var dashboard = await GetArrayAsync(app, $"/collections/{_bookUniverse:D}/items?limit=50");
+        var client = await GetJsonAsync(app, $"/api/v1/collections/{_bookUniverse:D}/items?limit=50");
+        var summary = await GetJsonAsync(app, $"/api/v1/collections/{_bookUniverse:D}");
+        var catalogue = await GetJsonAsync(app, "/api/v1/collections?limit=50");
+
+        Guid[] expected = [_kidsBookOne, _bookUniverseMovie];
+        Assert.Equal(expected, dashboard.Select(row => row!["work_id"]!.GetValue<Guid>()));
+        Assert.Equal(expected, client["items"]!.AsArray().Select(row => row!["work_id"]!.GetValue<Guid>()));
+        Assert.Equal(2, client["total_count"]!.GetValue<int>());
+        Assert.Equal(2, summary["item_count"]!.GetValue<int>());
+        Assert.Equal(1, summary["book_count"]!.GetValue<int>());
+        foreach (var text in new[] { dashboard.ToJsonString(), client.ToJsonString(), summary.ToJsonString(), catalogue.ToJsonString() })
+        {
+            Assert.DoesNotContain("Restricted Book Two", text, StringComparison.Ordinal);
+        }
+    }
+
+    [Fact]
+    public async Task AHandPickedEpisodeCoveredByACombinedFile_IsOwnedAndListedAsItsShow()
+    {
+        await using var app = await StartAsync();
+        var catalog = app.Services.GetRequiredService<CollectionCatalogReadService>();
+
+        // Ownership follows work_owned_assets, so the second episode of a combined file counts as owned. (The live
+        // projection still asks for a file of the work's own, so the routes are exercised with the service directly.)
+        var items = await catalog.GetItemsAsync(_coveredList, null, 50);
+        var page = await catalog.GetItemPageAsync(
+            _coveredList, null, 0, 50, new HashSet<Guid> { _combinedEpisodeTwo });
+        var entry = (await catalog.GetCatalogAsync(null)).Single(collection => collection.Id == _coveredList);
+
+        Assert.Equal(_combinedShow, Assert.Single(items.Items).WorkId);
+        Assert.Equal(_combinedShow, Assert.Single(page.Items).WorkId);
+        Assert.Equal(1, page.TotalCount);
+        Assert.Equal(1, entry.ItemCount);
+    }
+
     // Seeds ------------------------------------------------------------------------------------------------------
 
     private void SeedLibrary()
@@ -286,7 +342,12 @@ public sealed class CollectionItemRootsTests : IDisposable
                        (@siblingSeriesTwo, 'Sibling Series Two', 'Series', 'library', 'query', 1, NULL, @siblingUniverse);
                 INSERT INTO collections (id, display_name, collection_type, scope, resolution, is_enabled, membership_mode, owner_kind, audience)
                 VALUES (@bookList, 'Book list', 'Custom', 'library', 'materialized', 1, 'Manual', 'Library', 'Everyone'),
-                       (@unownedList, 'Unowned list', 'Custom', 'library', 'materialized', 1, 'Manual', 'Library', 'Everyone');
+                       (@unownedList, 'Unowned list', 'Custom', 'library', 'materialized', 1, 'Manual', 'Library', 'Everyone'),
+                       (@coveredList, 'Covered list', 'Custom', 'library', 'materialized', 1, 'Manual', 'Library', 'Everyone');
+                INSERT INTO collections (id, display_name, collection_type, scope, resolution, is_enabled, wikidata_qid, parent_collection_id)
+                VALUES (@bookUniverse, 'A Book Universe', 'Universe', 'library', 'materialized', 1, 'Q7030', NULL),
+                       (@bookSeriesOne, 'Book Series One', 'Series', 'library', 'query', 1, 'Q7031', @bookUniverse),
+                       (@bookSeriesTwo, 'Book Series Two', 'Series', 'library', 'query', 1, NULL, @bookUniverse);
                 """,
                 new
                 {
@@ -298,6 +359,10 @@ public sealed class CollectionItemRootsTests : IDisposable
                     siblingSeriesTwo = _siblingSeriesTwo,
                     bookList = _bookList,
                     unownedList = _unownedList,
+                    coveredList = _coveredList,
+                    bookUniverse = _bookUniverse,
+                    bookSeriesOne = _bookSeriesOne,
+                    bookSeriesTwo = _bookSeriesTwo,
                 });
         }
 
@@ -359,6 +424,34 @@ public sealed class CollectionItemRootsTests : IDisposable
         var bookOne = AddWork("Books", "child", _bookSeries, null, "Dune #1", ".epub", 1);
         var bookTwo = AddWork("Books", "child", _bookSeries, null, "Dune #2", ".epub", 2);
         AddItems(_bookList, [bookOne, bookTwo]);
+
+        // A series of two books, one PG and one R, held by a generated collection through the series parent.
+        _kidsBookSeries = AddRoot("Books", "Kids Saga");
+        _kidsBookOne = AddWork("Books", "child", _kidsBookSeries, _bookSeriesOne, "Kids Book One", ".epub", 1, "PG");
+        AddWork("Books", "child", _kidsBookSeries, null, "Restricted Book Two", ".epub", 2, "R");
+        _bookUniverseMovie = AddWork("Movies", "standalone", null, _bookSeriesTwo, "Book Universe Movie", ".mkv", null, "PG");
+        AddItems(_bookUniverse, [_kidsBookSeries]);
+
+        // Two episodes in one file: the second has no file of its own, only a coverage row on the first's file.
+        _combinedShow = AddRoot("TV", "Combined Show");
+        var combinedSeason = AddWork("TV", "parent", _combinedShow, null, "Combined Season", null, null);
+        var combinedOne = AddWork("TV", "child", combinedSeason, null, "Combined E01", ".mkv", 1);
+        var combinedTwo = AddWork("TV", "child", combinedSeason, null, "Combined E02", null, 2);
+        using (var coverage = _database.CreateConnection())
+        {
+            coverage.Execute(
+                """
+                INSERT INTO media_asset_coverage (asset_id, work_id, position, source)
+                SELECT ma.id, @covered, 2, 'filename'
+                FROM media_assets ma
+                INNER JOIN editions e ON e.id = ma.edition_id
+                WHERE e.work_id = @first;
+                """,
+                new { covered = combinedTwo, first = combinedOne });
+        }
+
+        _combinedEpisodeTwo = combinedTwo;
+        AddItems(_coveredList, [combinedTwo]);
 
         // A list holding one owned movie and one work with no file at all.
         _unownedMovie = AddWork("Movies", "standalone", null, null, "Unowned Movie", null, null);
