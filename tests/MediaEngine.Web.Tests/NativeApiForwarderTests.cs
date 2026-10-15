@@ -85,6 +85,64 @@ public sealed class NativeApiForwarderTests
     [InlineData("POST", "player/audiobooks/6f0c2a3e000000000000000000000000/chapter-overrides", true, NativeApiForwardDecision.NotFound)]
     [InlineData("DELETE", "player/audiobooks/{6f0c2a3e-0000-0000-0000-000000000000}/chapter-overrides/6f0c2a3e000000000000000000000001/3", true, NativeApiForwardDecision.NotFound)]
     [InlineData("GET", "player/audiobooks/6f0c2a3e000000000000000000000000/chapter-overrides", true, NativeApiForwardDecision.Forward)]
+    // Photos and personal videos: exactly the eleven GET routes of /api/v1/view, read-only.
+    [InlineData("GET", "view/timeline", true, NativeApiForwardDecision.Forward)]
+    [InlineData("GET", "view/galleries", true, NativeApiForwardDecision.Forward)]
+    [InlineData("GET", "view/galleries/6f0c2a3e-0000-0000-0000-000000000000/items", true, NativeApiForwardDecision.Forward)]
+    [InlineData("GET", "view/people", true, NativeApiForwardDecision.Forward)]
+    [InlineData("GET", "view/people/ana/items", true, NativeApiForwardDecision.Forward)]
+    [InlineData("GET", "view/places", true, NativeApiForwardDecision.Forward)]
+    [InlineData("GET", "view/items/6f0c2a3e-0000-0000-0000-000000000000", true, NativeApiForwardDecision.Forward)]
+    [InlineData("GET", "view/items/6f0c2a3e-0000-0000-0000-000000000000/thumbnail", true, NativeApiForwardDecision.Forward)]
+    [InlineData("GET", "view/items/6f0c2a3e-0000-0000-0000-000000000000/preview", true, NativeApiForwardDecision.Forward)]
+    [InlineData("GET", "view/items/6f0c2a3e-0000-0000-0000-000000000000/original", true, NativeApiForwardDecision.Forward)]
+    [InlineData("GET", "view/items/6f0c2a3e-0000-0000-0000-000000000000/playback", true, NativeApiForwardDecision.Forward)]
+    [InlineData("GET", "view/timeline", false, NativeApiForwardDecision.Unauthorized)]
+    [InlineData("GET", "view/items/6f0c2a3e-0000-0000-0000-000000000000/original", false, NativeApiForwardDecision.Unauthorized)]
+    // No write verb and no HEAD on any of them.
+    [InlineData("POST", "view/timeline", true, NativeApiForwardDecision.NotFound)]
+    [InlineData("POST", "view/galleries", true, NativeApiForwardDecision.NotFound)]
+    [InlineData("PUT", "view/items/6f0c2a3e-0000-0000-0000-000000000000", true, NativeApiForwardDecision.NotFound)]
+    [InlineData("PATCH", "view/items/6f0c2a3e-0000-0000-0000-000000000000", true, NativeApiForwardDecision.NotFound)]
+    [InlineData("DELETE", "view/items/6f0c2a3e-0000-0000-0000-000000000000", true, NativeApiForwardDecision.NotFound)]
+    [InlineData("POST", "view/items/6f0c2a3e-0000-0000-0000-000000000000/original", true, NativeApiForwardDecision.NotFound)]
+    [InlineData("POST", "view/people/ana/items", true, NativeApiForwardDecision.NotFound)]
+    [InlineData("HEAD", "view/timeline", true, NativeApiForwardDecision.NotFound)]
+    [InlineData("HEAD", "view/items/6f0c2a3e-0000-0000-0000-000000000000/original", true, NativeApiForwardDecision.NotFound)]
+    // Nothing else under view/: other routes, trailing or extra segments, empty segments, odd IDs.
+    [InlineData("GET", "view", true, NativeApiForwardDecision.NotFound)]
+    [InlineData("GET", "view/", true, NativeApiForwardDecision.NotFound)]
+    [InlineData("GET", "view/timeline/", true, NativeApiForwardDecision.NotFound)]
+    [InlineData("GET", "view/timeline/x", true, NativeApiForwardDecision.NotFound)]
+    [InlineData("GET", "view/uploads", true, NativeApiForwardDecision.NotFound)]
+    [InlineData("GET", "view/profile", true, NativeApiForwardDecision.NotFound)]
+    [InlineData("GET", "view/galleries/6f0c2a3e-0000-0000-0000-000000000000", true, NativeApiForwardDecision.NotFound)]
+    [InlineData("GET", "view/galleries/notaguid/items", true, NativeApiForwardDecision.NotFound)]
+    [InlineData("GET", "view/galleries/6f0c2a3e-0000-0000-0000-000000000000/items/x", true, NativeApiForwardDecision.NotFound)]
+    [InlineData("GET", "view/items/6f0c2a3e-0000-0000-0000-000000000000/", true, NativeApiForwardDecision.NotFound)]
+    [InlineData("GET", "view/items/notaguid", true, NativeApiForwardDecision.NotFound)]
+    [InlineData("GET", "view/items/6f0c2a3e-0000-0000-0000-000000000000/original/x", true, NativeApiForwardDecision.NotFound)]
+    [InlineData("GET", "view/items/6f0c2a3e-0000-0000-0000-000000000000/delete", true, NativeApiForwardDecision.NotFound)]
+    [InlineData("GET", "view/items/6f0c2a3e000000000000000000000000", true, NativeApiForwardDecision.NotFound)]
+    [InlineData("GET", "view/people//items", true, NativeApiForwardDecision.NotFound)]
+    [InlineData("GET", "view/people/ana/items/x", true, NativeApiForwardDecision.NotFound)]
+    [InlineData("GET", "view/people/a/b/items", true, NativeApiForwardDecision.NotFound)]
+    [InlineData("GET", "view/people/items", true, NativeApiForwardDecision.NotFound)]
+    [InlineData("GET", "viewer/timeline", true, NativeApiForwardDecision.NotFound)]
+    [InlineData("GET", "view/timelines", true, NativeApiForwardDecision.NotFound)]
+    [InlineData("GET", "xview/timeline", true, NativeApiForwardDecision.NotFound)]
+    [InlineData("GET", "api/view/timeline", true, NativeApiForwardDecision.NotFound)]
+    // Climbing out of view/, encoded dots, backslashes and query or fragment characters in the path are refused.
+    [InlineData("GET", "view/../health/ready", true, NativeApiForwardDecision.NotFound)]
+    [InlineData("GET", "view/./timeline", true, NativeApiForwardDecision.NotFound)]
+    [InlineData("GET", "view/timeline/../../settings", true, NativeApiForwardDecision.NotFound)]
+    [InlineData("GET", "view/items/6f0c2a3e-0000-0000-0000-000000000000/../../../health", true, NativeApiForwardDecision.NotFound)]
+    [InlineData("GET", "view/%2e%2e/health", true, NativeApiForwardDecision.NotFound)]
+    [InlineData("GET", "view\timeline", true, NativeApiForwardDecision.NotFound)]
+    [InlineData("GET", "view/timeline?scope=shared", true, NativeApiForwardDecision.NotFound)]
+    [InlineData("GET", "view/timeline#x", true, NativeApiForwardDecision.NotFound)]
+    [InlineData("GET", "view/people/a%2Fb/items", true, NativeApiForwardDecision.NotFound)]
+    [InlineData("GET", "view/people/a?b/items", true, NativeApiForwardDecision.NotFound)]
     // Not part of the app surface.
     [InlineData("GET", "oauth/token", false, NativeApiForwardDecision.NotFound)]
     [InlineData("GET", "pairing/review/ABCD", true, NativeApiForwardDecision.NotFound)]
@@ -226,6 +284,45 @@ public sealed class NativeApiForwarderTests
                 Assert.True(string.IsNullOrEmpty(s.Cookie));
                 Assert.True(string.IsNullOrEmpty(s.ServiceKey));
             });
+        }
+    }
+
+    [Fact]
+    public async Task PhotosDoor_ForwardsOnlyTheEleven_GetRoutesWithTheirQueryAndNeverAWrite()
+    {
+        var seen = new List<(string Method, string Path, string Query, string? Authorization)>();
+        await using var engine = await TestApplication.StartEngineAsync(record: context =>
+        {
+            lock (seen)
+            {
+                seen.Add((context.Request.Method, context.Request.Path, context.Request.QueryString.Value ?? "", context.Request.Headers.Authorization));
+            }
+        });
+        await using var dashboard = await TestApplication.StartDashboardAsync(engine.Address, enabled: true);
+        using var client = new HttpClient { BaseAddress = dashboard.Address };
+
+        using var timeline = await client.SendAsync(Bearer(HttpMethod.Get, "/api/v1/view/timeline?limit=50&cursor=abc"));
+        using var original = await client.SendAsync(Bearer(HttpMethod.Get, "/api/v1/view/items/6f0c2a3e-0000-0000-0000-000000000000/original"));
+        using var write = await client.SendAsync(Bearer(HttpMethod.Post, "/api/v1/view/timeline"));
+        using var delete = await client.SendAsync(Bearer(HttpMethod.Delete, "/api/v1/view/items/6f0c2a3e-0000-0000-0000-000000000000"));
+        using var other = await client.SendAsync(Bearer(HttpMethod.Get, "/api/v1/view/uploads"));
+        using var traversal = await client.SendAsync(Bearer(HttpMethod.Get, "/api/v1/view/%2e%2e/%2e%2e/health/ready"));
+        using var noToken = await client.GetAsync("/api/v1/view/timeline");
+
+        Assert.Equal(HttpStatusCode.OK, timeline.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, original.StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, write.StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, delete.StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, other.StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, traversal.StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, noToken.StatusCode);
+        lock (seen)
+        {
+            Assert.Equal(
+                [("GET", "/api/v1/view/timeline", "?limit=50&cursor=abc"),
+                 ("GET", "/api/v1/view/items/6f0c2a3e-0000-0000-0000-000000000000/original", "")],
+                seen.Select(entry => (entry.Method, entry.Path, entry.Query)).ToArray());
+            Assert.All(seen, entry => Assert.Equal("Bearer app-token", entry.Authorization));
         }
     }
 
