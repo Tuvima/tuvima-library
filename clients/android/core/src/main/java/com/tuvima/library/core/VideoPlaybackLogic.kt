@@ -96,6 +96,17 @@ object HeartbeatRules {
     }
 }
 
+object StreamResume {
+    private const val FINISHED_FRACTION = 0.95
+
+    /** Where a streamed item starts: the Engine's saved position, or the beginning when it was already (nearly) finished. */
+    fun startMs(resumeSeconds: Double?, durationSeconds: Double?): Long {
+        if (resumeSeconds == null || resumeSeconds <= 0.0) return 0L
+        if (durationSeconds != null && durationSeconds > 0 && resumeSeconds >= durationSeconds * FINISHED_FRACTION) return 0L
+        return (resumeSeconds * 1000).toLong()
+    }
+}
+
 object ClockText {
     /** 83_000 becomes "1:23"; an hour or more reads "1:02:03". */
     fun format(ms: Long): String {

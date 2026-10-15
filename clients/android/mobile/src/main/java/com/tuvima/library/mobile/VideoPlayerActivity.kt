@@ -109,11 +109,22 @@ class VideoPlayerActivity : ComponentActivity() {
                 PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED,
                 PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_TIMEOUT,
                 -> VideoUiState.Failed(VideoMessages.NETWORK, canRetry = true)
-                PlaybackException.ERROR_CODE_IO_BAD_HTTP_STATUS,
                 PlaybackException.ERROR_CODE_IO_FILE_NOT_FOUND,
                 PlaybackException.ERROR_CODE_IO_NO_PERMISSION,
                 -> VideoUiState.Failed(VideoMessages.UNAVAILABLE, canRetry = false)
                 else -> VideoUiState.Failed(VideoMessages.OTHER, canRetry = true)
+            }
+        }
+    }
+
+    // If the media service goes away, forget the controller so Retry connects again instead of talking to nothing.
+    private val disconnectListener = object : MediaController.Listener {
+        override fun onDisconnected(controller: MediaController) {
+            if (this@VideoPlayerActivity.controller === controller) {
+                this@VideoPlayerActivity.controller = null
+                controllerFuture = null
+                isPlaying = false
+                uiState = VideoUiState.Failed(VideoMessages.OTHER, canRetry = true)
             }
         }
     }
@@ -168,7 +179,7 @@ class VideoPlayerActivity : ComponentActivity() {
         if (controllerFuture != null || assetId.isBlank()) return
         uiState = VideoUiState.Connecting
         val token = SessionToken(this, ComponentName(this, TuvimaMediaLibraryService::class.java))
-        val future = MediaController.Builder(this, token).buildAsync()
+        val future = MediaController.Builder(this, token).setListener(disconnectListener).buildAsync()
         controllerFuture = future
         future.addListener({
             val connected = try {

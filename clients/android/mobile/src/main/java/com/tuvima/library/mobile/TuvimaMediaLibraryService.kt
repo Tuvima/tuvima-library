@@ -29,6 +29,7 @@ import com.google.common.util.concurrent.SettableFuture
 import com.tuvima.library.core.HeartbeatRules
 import com.tuvima.library.core.PreparingPoll
 import com.tuvima.library.core.PreparingStep
+import com.tuvima.library.core.StreamResume
 import com.tuvima.library.core.VideoErrors
 import com.tuvima.library.core.VideoFailure
 import com.tuvima.library.core.VideoMessages
@@ -69,6 +70,7 @@ class TuvimaMediaLibraryService : MediaLibraryService() {
                 if (isLocalItem(player.currentMediaItem)) return@launch
                 val position = player.currentPosition
                 val current = player.currentMediaItem
+                val wasPlaying = player.playWhenReady
                 resolvePlayable(assetId)?.let { resolved ->
                     // A video keeps its type and title so the video screen and the notification stay as they were.
                     val item = if (current?.mediaMetadata?.mediaType == MediaMetadata.MEDIA_TYPE_VIDEO) {
@@ -78,7 +80,8 @@ class TuvimaMediaLibraryService : MediaLibraryService() {
                     }
                     player.setMediaItem(item, position)
                     player.prepare()
-                    player.play()
+                    // A video the person paused or left stays paused; it must not start playing in the background.
+                    if (wasPlaying || item.mediaMetadata.mediaType != MediaMetadata.MEDIA_TYPE_VIDEO) player.play()
                 }
             }
         }
@@ -367,7 +370,7 @@ class TuvimaMediaLibraryService : MediaLibraryService() {
             when (val step = PreparingPoll.next(manifest, attempt)) {
                 is PreparingStep.Play -> {
                     val item = MediaItem.Builder().setMediaId(assetId).setUri(step.path).setMediaMetadata(metadata).build()
-                    player.setMediaItem(item, ((manifest.resumeSeconds ?: 0.0) * 1000).toLong().coerceAtLeast(0))
+                    player.setMediaItem(item, StreamResume.startMs(manifest.resumeSeconds, manifest.durationSeconds))
                     player.prepare()
                     player.play()
                     return
@@ -426,7 +429,7 @@ class TuvimaMediaLibraryService : MediaLibraryService() {
         val api = client ?: return null
         val manifest = api.playbackManifest(assetId, "local")
         val path = manifest.playablePath() ?: return null
-        streamedResumeMs = ((manifest.resumeSeconds ?: 0.0) * 1000).toLong().coerceAtLeast(0)
+        streamedResumeMs = StreamResume.startMs(manifest.resumeSeconds, manifest.durationSeconds)
         return MediaItem.Builder().setMediaId(assetId).setUri(path).build()
     }
 

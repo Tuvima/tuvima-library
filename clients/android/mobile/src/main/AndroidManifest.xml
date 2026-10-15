@@ -48,7 +48,7 @@
         <activity
             android:name=".VideoPlayerActivity"
             android:exported="false"
-            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden|uiMode|density"
             android:theme="@style/Theme.Tuvima" />
     </application>
 </manifest>

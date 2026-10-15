@@ -51,7 +51,7 @@ class VideoPlaybackLogicTest {
         val failed = manifest(hlsStatus = "failed", hlsUrl = null)
         val step = PreparingPoll.next(failed.copy(warnings = listOf("No audio.")), 1) as PreparingStep.Failed
         assertEquals("No audio.", step.message)
-        assertEquals("Needs conversion", PreparingPoll.failureText(failed.copy(reason = "Needs conversion")))
+        assertEquals("Needs conversion", PreparingPoll.failureText(failed.copy(conversionReason = "Needs conversion")))
         assertEquals(VideoMessages.NOT_READY, PreparingPoll.failureText(failed))
     }
 
@@ -96,6 +96,16 @@ class VideoPlaybackLogicTest {
     fun unknownDurationIsNull() {
         assertNull(HeartbeatRules.report("a", true, 1_000, null, 1.0, false).durationSeconds)
         assertNull(HeartbeatRules.report("a", true, 1_000, -9_223_372_036_854_775_807L, 1.0, false).durationSeconds)
+    }
+
+    @Test
+    fun streamedResumeSkipsNearTheEnd() {
+        assertEquals(0L, StreamResume.startMs(null, 100.0))
+        assertEquals(0L, StreamResume.startMs(-3.0, 100.0))
+        assertEquals(42_500L, StreamResume.startMs(42.5, 100.0))
+        assertEquals(42_500L, StreamResume.startMs(42.5, null))
+        assertEquals(0L, StreamResume.startMs(96.0, 100.0))
+        assertEquals(0L, StreamResume.startMs(100.0, 100.0))
     }
 
     @Test
