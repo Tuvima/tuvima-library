@@ -18,6 +18,9 @@ public interface ILocalAssetRepository
     /// <summary>True when the item is a document (PDF, Office or text file) rather than a photo, video or audio.</summary>
     bool IsDocument(Guid itemId, CancellationToken ct = default);
 
+    /// <summary>The media kind (<c>image</c>, <c>video</c>, <c>document</c>, ...) of each id that exists; unknown ids are absent. Read in chunks, a few queries for any number of ids.</summary>
+    IReadOnlyDictionary<Guid, string> GetMediaKinds(IReadOnlyCollection<Guid> itemIds, CancellationToken ct = default);
+
     /// <summary>
     /// Reads at most <paramref name="maxCharacters"/> characters of an item's extracted document text; the second value
     /// says whether more existed. Returns null when no text is stored.

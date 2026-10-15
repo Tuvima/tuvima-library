@@ -68,6 +68,7 @@ internal fun DownloadsScreen(
     val scope = rememberCoroutineScope()
     val offline = application.offline
     val records by offline.store().records.collectAsState()
+    val limitNotice by offline.limitNotice.collectAsState()
     var confirmDelete by remember { mutableStateOf<DownloadRecord?>(null) }
     val now = System.currentTimeMillis()
 
@@ -92,6 +93,17 @@ internal fun DownloadsScreen(
                 progress = { (committed.toDouble() / cap.toDouble()).toFloat().coerceIn(0f, 1f) },
                 modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
             )
+        }
+        limitNotice?.let { notice ->
+            Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                Text(
+                    notice,
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.weight(1f),
+                )
+                TextButton(onClick = { offline.limitNotice.value = null }) { Text("OK") }
+            }
         }
         if (!OfflineLogic.canQueue(committed, cap)) {
             Text(

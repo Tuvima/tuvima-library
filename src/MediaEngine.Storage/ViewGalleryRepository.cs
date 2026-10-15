@@ -551,6 +551,87 @@ public sealed class ViewGalleryRepository(IDatabaseConnection database) : IViewG
         return Task.FromResult(false);
     }
 
+    public Task<IReadOnlySet<Guid>> GetItemsSharedWithProfileAsync(
+        IReadOnlyCollection<Guid> itemIds,
+        Guid profileId,
+        CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(itemIds);
+        ValidateId(profileId, nameof(profileId));
+        var remaining = itemIds.Where(id => id != Guid.Empty).Distinct().ToList();
+        var shared = new HashSet<Guid>();
+        if (remaining.Count == 0)
+        {
+            return Task.FromResult<IReadOnlySet<Guid>>(shared);
+        }
+
+        using var connection = database.CreateConnection();
+        // Exact shares of a manual Gallery.
+        foreach (var chunk in remaining.Chunk(BulkChunkSize))
+        {
+            ct.ThrowIfCancellationRequested();
+            shared.UnionWith(connection.Query<Guid>(new CommandDefinition("""
+                SELECT DISTINCT vgi.item_id
+                  FROM view_gallery_items vgi
+                  JOIN view_galleries vg ON vg.id = vgi.gallery_id AND vg.gallery_kind = 'manual'
+                  JOIN view_gallery_shares vgs ON vgs.gallery_id = vg.id
+                 WHERE vgs.profile_id = @profileId AND vgi.item_id IN @itemIds;
+                """, new { profileId, itemIds = chunk.Select(GuidSql.ToBlob).ToArray() }, cancellationToken: ct)));
+        }
+
+        remaining.RemoveAll(shared.Contains);
+        if (remaining.Count == 0)
+        {
+            return Task.FromResult<IReadOnlySet<Guid>>(shared);
+        }
+
+        // Dynamic membership in a shared Smart Gallery: one query per Gallery and chunk, the same rule the single-item
+        // check applies. The ids are written as BLOB literals (they are Guids, so there is nothing to escape).
+        var smartGalleries = connection.Query<SharedSmartGalleryRow>(new CommandDefinition("""
+            SELECT vg.personal_space_id AS PersonalSpaceId, vg.smart_rule_json AS SmartRuleJson
+              FROM view_galleries vg
+              JOIN view_gallery_shares vgs ON vgs.gallery_id = vg.id
+             WHERE vgs.profile_id = @profileId
+               AND vg.gallery_kind = 'smart'
+               AND vg.smart_rule_json IS NOT NULL;
+            """, new { profileId }, cancellationToken: ct)).ToList();
+        foreach (var gallery in smartGalleries)
+        {
+            LocalAssetSmartRuleSql compiled;
+            try
+            {
+                compiled = LocalAssetSmartRuleSqlCompiler.Compile(
+                    ViewSmartGalleryRules.Parse(gallery.SmartRuleJson));
+            }
+            catch (ArgumentException)
+            {
+                // Obsolete or corrupt rules fail closed and never grant asset access.
+                continue;
+            }
+
+            foreach (var chunk in remaining.Where(id => !shared.Contains(id)).Chunk(BulkChunkSize))
+            {
+                ct.ThrowIfCancellationRequested();
+                var literals = string.Join(",", chunk.Select(id => $"X'{Convert.ToHexString(GuidSql.ToBlob(id))}'"));
+                var parameters = new DynamicParameters();
+                parameters.Add("SharedSpaceId", GuidSql.ToBlob(gallery.PersonalSpaceId), System.Data.DbType.Binary);
+                parameters.AddDynamicParams(compiled.Parameters);
+                shared.UnionWith(connection.Query<Guid>(new CommandDefinition($$"""
+                    SELECT li.id
+                      FROM local_items li
+                      LEFT JOIN local_item_metadata lm ON lm.item_id = li.id
+                     WHERE li.id IN ({{literals}})
+                       AND li.personal_space_id = @SharedSpaceId
+                       AND ({{compiled.Predicate}});
+                    """, parameters, cancellationToken: ct)));
+            }
+        }
+
+        return Task.FromResult<IReadOnlySet<Guid>>(shared);
+    }
+
+    private const int BulkChunkSize = 500;
+
     private static ViewGallery Map(GalleryRow row) => new(row.Id, row.OwnerProfileId, row.PersonalSpaceId,
         row.Name, row.Description, row.GalleryKind == "manual" ? ViewGalleryKind.Manual : ViewGalleryKind.Smart,
         row.SmartRuleJson, row.CoverItemId, row.SortOrder, row.ItemCount,

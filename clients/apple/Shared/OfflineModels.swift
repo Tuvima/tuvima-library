@@ -332,6 +332,19 @@ public struct PhotoKeepPlan: Equatable, Sendable {
     }
 }
 
+/// What to do when the Engine refused to list a kept photo because the device already lists as many entries as it allows
+/// (409): `drop` is the unreported local copy to remove, and `stop` the photos still waiting or downloading, which stop
+/// here (the same refusal would meet each of them).
+public struct DeviceLimitPlan: Equatable, Sendable {
+    public let drop: DownloadRecord?
+    public let stop: [DownloadRecord]
+
+    public init(drop: DownloadRecord?, stop: [DownloadRecord]) {
+        self.drop = drop
+        self.stop = stop
+    }
+}
+
 /// The extension point for books kept on the phone, so a reader can open a local file first. It is deliberately not
 /// wired: books are not offered in the native apps yet, nothing creates a `.book` record and no reader calls this.
 /// When books arrive, a reader should ask `localBookFile(assetID:)` before it goes to the network and use the file

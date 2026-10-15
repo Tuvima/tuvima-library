@@ -203,6 +203,32 @@ public sealed class DeviceDownloadRepository
             return true;
         }, ct);
 
+    /// <summary>The View item ids of every photo this device lists for this profile (listed or not), oldest stored first.</summary>
+    public Task<IReadOnlyList<Guid>> ListPhotoItemIdsAsync(Guid deviceId, Guid profileId, CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+        using var conn = _db.CreateConnection();
+        IReadOnlyList<Guid> ids = conn.Query<Guid>(
+            "SELECT item_id FROM device_photo_downloads WHERE device_id = @deviceId AND profile_id = @profileId ORDER BY stored_at, item_id;",
+            new { deviceId, profileId }).AsList();
+        return Task.FromResult(ids);
+    }
+
+    /// <summary>Removes this device's entries for these photos under this profile. Returns how many were removed.</summary>
+    public Task<int> DeletePhotosAsync(Guid deviceId, Guid profileId, IReadOnlyCollection<Guid> itemIds, CancellationToken ct = default) =>
+        _db.ExecuteWriteAsync((conn, tx, _) =>
+        {
+            var removed = 0;
+            foreach (var chunk in itemIds.Chunk(500))
+            {
+                removed += conn.Execute(
+                    "DELETE FROM device_photo_downloads WHERE device_id = @deviceId AND profile_id = @profileId AND item_id IN @itemIds;",
+                    new { deviceId, profileId, itemIds = chunk.Select(GuidSql.ToBlob).ToArray() }, tx);
+            }
+
+            return removed;
+        }, ct);
+
     /// <summary>Removes the device's entry for a kept photo, for the profile it was reported under. False when there was none.</summary>
     public Task<bool> DeletePhotoAsync(Guid deviceId, Guid profileId, Guid itemId, CancellationToken ct = default) =>
         _db.ExecuteWriteAsync((conn, tx, _) => conn.Execute(

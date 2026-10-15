@@ -803,6 +803,77 @@ public sealed class ViewClientEndpointTests : IAsyncLifetime
         Assert.Equal(PhotoKeepAccess.ScopeMissing, await access.EvaluateAsync(new RequestAuthority(PrincipalKind.Anonymous, false), _anaTimeline[0]));
     }
 
+    [Fact]
+    public async Task TheBulkPhotoCheck_GivesTheSameVisibilityAsTheOneByOneCheck_AndAMissingFileDoesNotHideAPhoto()
+    {
+        // Ben shares one of his photos with Ana through a Gallery, so Ana's reach includes a photo that is not hers.
+        var benSpace = (await _spaces.GetByOwnerAsync(_ben.ProfileId))!;
+        var shared = await _galleries.CreateAsync(new CreateViewGalleryCommand(_ben.ProfileId, benSpace.Id, "For Ana", ViewGalleryKind.Manual));
+        await _galleries.AddItemsAsync(shared.Id, [_ben.Photos[1]], false);
+        await _galleries.ReplaceSharesAsync(shared.Id, [(_ana.ProfileId, ViewGallerySharePermission.View)]);
+
+        // The volume holding one of Ana's photos is unmounted for now.
+        var unmounted = _anaTimeline[1];
+        File.Delete(_assets.ResolveContent(unmounted)!.FilePath);
+
+        using var scope = _app.Services.CreateScope();
+        var access = new ViewPhotoDownloadAccess(
+            scope.ServiceProvider.GetRequiredService<IViewResourceAuthorizationService>(),
+            scope.ServiceProvider.GetRequiredService<IViewResourceStore>(),
+            _assets);
+        var ids = _anaTimeline
+            .Concat(_ben.Photos)
+            .Concat(_noDocuments.Photos)
+            .Concat([_ana.Document, _ben.Document, _noDocuments.Document, Guid.NewGuid(), Guid.NewGuid()])
+            .ToList();
+
+        foreach (var caller in new[] { _ana, _ben, _noDocuments })
+        {
+            var bulk = await access.EvaluateManyAsync(caller.Authority, ids);
+            Assert.False(bulk.ScopeMissing);
+            foreach (var id in ids)
+            {
+                var single = await access.EvaluateAsync(caller.Authority, id);
+                Assert.Equal(single is PhotoKeepAccess.Allowed or PhotoKeepAccess.FileMissing, bulk.Visible.Contains(id));
+            }
+        }
+
+        var ana = await access.EvaluateManyAsync(_ana.Authority, ids);
+        Assert.Contains(unmounted, ana.Visible);
+        Assert.Equal(PhotoKeepAccess.FileMissing, await access.EvaluateAsync(_ana.Authority, unmounted));
+        // Her own photos and video, and the one Ben shared; not his others, nor any document, nor an unknown id.
+        Assert.Equal(_anaTimeline.Append(_ben.Photos[1]).Order(), ana.Visible.Order());
+
+        // Withdrawing the share hides it again; the missing file never did.
+        await _galleries.ReplaceSharesAsync(shared.Id, []);
+        var withdrawn = await access.EvaluateManyAsync(_ana.Authority, ids);
+        Assert.DoesNotContain(_ben.Photos[1], withdrawn.Visible);
+        Assert.Contains(unmounted, withdrawn.Visible);
+    }
+
+    [Fact]
+    public async Task TheBulkPhotoCheck_NeedsThePersonalReadScopeAndAnAuthenticatedCaller()
+    {
+        using var scope = _app.Services.CreateScope();
+        var access = new ViewPhotoDownloadAccess(
+            scope.ServiceProvider.GetRequiredService<IViewResourceAuthorizationService>(),
+            scope.ServiceProvider.GetRequiredService<IViewResourceStore>(),
+            _assets);
+
+        _actor.Consents = [ApplicationPermissionIds.LibraryRead.Value];
+        Assert.True((await access.EvaluateManyAsync(_ana.Authority, _anaTimeline)).ScopeMissing);
+        Assert.Empty((await access.EvaluateManyAsync(_ana.Authority, _anaTimeline)).Visible);
+
+        _actor.Consents = [ApplicationPermissionIds.ViewPersonalRead.Value];
+        Assert.Equal(_anaTimeline.Order(), (await access.EvaluateManyAsync(_ana.Authority, _anaTimeline)).Visible.Order());
+        Assert.True((await access.EvaluateManyAsync(new RequestAuthority(PrincipalKind.Anonymous, false), _anaTimeline)).ScopeMissing);
+
+        // Nothing asked about is nothing visible.
+        var none = await access.EvaluateManyAsync(_ana.Authority, []);
+        Assert.False(none.ScopeMissing);
+        Assert.Empty(none.Visible);
+    }
+
     // ------------------------------------------------------------------ helpers
 
     private static string[] AllViewConsents() =>

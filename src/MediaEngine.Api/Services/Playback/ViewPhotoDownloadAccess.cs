@@ -10,7 +10,8 @@ namespace MediaEngine.Api.Services.Playback;
 /// photo preview route asks: the View authorization service for the <see cref="ViewScopeRequest.Mine"/> scope (which also
 /// requires <c>view.personal.read</c> on the token and its Application), then that the item is not a document (so a
 /// profile without Documents learns nothing) and is a photo or video with a file on disk. Every reason there is nothing
-/// to keep is the same <see cref="PhotoKeepAccess.NotFound"/>, so ids cannot be probed.
+/// to keep is the same <see cref="PhotoKeepAccess.NotFound"/>, so ids cannot be probed. A photo the person may read whose
+/// file is not on disk right now is <see cref="PhotoKeepAccess.FileMissing"/>, kept apart so a brief gap does not hide it.
 /// </summary>
 public sealed class ViewPhotoDownloadAccess(
     IViewResourceAuthorizationService authorization,
@@ -34,6 +35,23 @@ public sealed class ViewPhotoDownloadAccess(
         }
 
         var file = await resources.ResolveContentAsync(itemId, LocalAssetFileRoles.Primary, decision.Scope, ct).ConfigureAwait(false);
-        return file is not null && File.Exists(file.FilePath) ? PhotoKeepAccess.Allowed : PhotoKeepAccess.NotFound;
+        return file is not null && File.Exists(file.FilePath) ? PhotoKeepAccess.Allowed : PhotoKeepAccess.FileMissing;
+    }
+
+    public async ValueTask<PhotoKeepBulkResult> EvaluateManyAsync(
+        RequestAuthority authority, IReadOnlyCollection<Guid> itemIds, CancellationToken ct = default)
+    {
+        var decision = await authorization.AuthorizeManyAsync(authority, ViewResourceKind.Thumbnail, itemIds, ct).ConfigureAwait(false);
+        if (decision.Outcome is ViewAccessOutcome.Forbidden or ViewAccessOutcome.Unauthenticated)
+        {
+            return new(true, new HashSet<Guid>());
+        }
+
+        // Readable and a photo or video; the file is deliberately not checked here (see FileMissing).
+        var kinds = assets.GetMediaKinds(decision.AllowedIds.ToList(), ct);
+        var visible = decision.AllowedIds
+            .Where(id => kinds.TryGetValue(id, out var kind) && kind is LocalAssetMediaKinds.Image or LocalAssetMediaKinds.Video)
+            .ToHashSet();
+        return new(false, visible);
     }
 }

@@ -20,6 +20,7 @@ import com.tuvima.library.core.PhotoKeepStop
 import com.tuvima.library.core.ReportKind
 import com.tuvima.library.core.TuvimaClient
 import com.tuvima.library.core.ViewItem
+import kotlinx.coroutines.flow.MutableStateFlow
 import java.io.File
 import java.util.concurrent.TimeUnit
 
@@ -71,6 +72,13 @@ internal data class NextEpisodesResult(
 internal class OfflineDownloads(private val app: TuvimaMobileApplication) {
     private val stores = mutableMapOf<String, OfflineStore>()
     private val workManager: WorkManager get() = WorkManager.getInstance(app)
+
+    /** How many entries the Engine's list showed on the last read, used to plan against the device's limit. Null until read. */
+    @Volatile
+    internal var knownEngineListCount: Int? = null
+
+    /** Set when the Engine refused to list a kept photo because the device is full; the Downloads screen shows it. */
+    internal val limitNotice = MutableStateFlow<String?>(null)
 
     private fun activeProfileId(): String? = app.client?.currentProfileId()
 
@@ -162,6 +170,8 @@ internal class OfflineDownloads(private val app: TuvimaMobileApplication) {
         var stop = PhotoKeepStop.None
         var cursor: String? = null
         var pages = 0
+        // Plan against what the Engine lists now, when it can be asked; the phone's own records may be fewer.
+        tryOrNull { client.deviceDownloads().size }?.let { knownEngineListCount = it }
         do {
             val page = client.viewGalleryItems(galleryId, cursor, PAGE_SIZE)
             val plan = queuePhotos(profileId, page.items)
@@ -191,7 +201,7 @@ internal class OfflineDownloads(private val app: TuvimaMobileApplication) {
                 heldIds = held,
                 committedBytes = OfflineLogic.committedBytes(snapshot),
                 capBytes = app.storageCapBytes(),
-                listedCount = snapshot.size,
+                listedCount = OfflineLogic.effectiveListedCount(snapshot.size, knownEngineListCount),
             )
             plan.toKeep.forEachIndexed { index, itemId ->
                 val item = items.first { it.id == itemId }
@@ -315,6 +325,21 @@ internal class OfflineDownloads(private val app: TuvimaMobileApplication) {
             store.addReport(PendingReport(ReportKind.Delete, assetId, variantId, 0L, System.currentTimeMillis()))
         }
         scheduleSync()
+    }
+
+    /**
+     * The Engine refused to list the kept photo [itemId] because this device already lists as many entries as it may (across
+     * every person who used it). Its unreported copy is removed, the photos still waiting stop here, and the person is told.
+     */
+    fun onDeviceLimitReached(store: OfflineStore, itemId: String) {
+        val plan = OfflineLogic.planDeviceLimitReached(store.snapshot(), itemId)
+        plan.drop?.let { purge(store, it) }
+        plan.stop.forEach { waiting ->
+            store.update(waiting.assetId) {
+                it.copy(state = DownloadState.Failed, error = OfflineLogic.DEVICE_LIMIT_MESSAGE)
+            }
+        }
+        limitNotice.value = OfflineLogic.DEVICE_LIMIT_MESSAGE
     }
 
     /** Removes a finished download that has expired. The Engine already dropped it, so there is nothing to report. */

@@ -31,14 +31,14 @@ class OfflineSyncWorker(context: Context, parameters: WorkerParameters) : Corout
         val client = app.client ?: app.savedServer()?.let(app::connect) ?: return Result.success()
         if (!client.isPaired()) return Result.success()
         val store = app.offline.store()
-        val reported = flushReports(client, store)
+        val reported = flushReports(client, app.offline, store)
         val expiryChecked = purgeExpired(client, app.offline, store)
         val replayed = replayProgress(client, store)
         return if (reported && expiryChecked && replayed) Result.success() else Result.retry()
     }
 
     /** True when every queued report was answered. */
-    private suspend fun flushReports(client: TuvimaClient, store: OfflineStore): Boolean {
+    private suspend fun flushReports(client: TuvimaClient, offline: OfflineDownloads, store: OfflineStore): Boolean {
         for (report in store.reports()) {
             val status = try {
                 when {
@@ -65,6 +65,10 @@ class OfflineSyncWorker(context: Context, parameters: WorkerParameters) : Corout
                     // 404: the Engine no longer knows this variant or photo (it expired, was deleted or is no longer
                     // visible to this person), so the Engine's list will not show it and the check below removes the local copy.
                     if (report.kind == ReportKind.Store && status == 404) markReported(store, report)
+                    // 409 for a photo: this device already lists as many entries as it may, so stop keeping and drop the copy.
+                    if (report.itemKind == OfflineKind.Photo && OfflineLogic.isDeviceLimitRefusal(report.kind, status)) {
+                        offline.onDeviceLimitReached(store, report.assetId)
+                    }
                 }
                 ReportOutcome.Retry -> return false
             }
@@ -87,8 +91,16 @@ class OfflineSyncWorker(context: Context, parameters: WorkerParameters) : Corout
         } catch (failure: Exception) {
             return false
         }
+        offline.knownEngineListCount = listing.size
         val result = OfflineLogic.reconcileWithServer(local, listing, System.currentTimeMillis())
         result.purge.forEach { offline.purge(store, it) }
+        // A kept photo the Engine's list no longer shows is purged here; tell the Engine to forget any hidden row it still holds
+        // (it would keep counting towards the device's limit). Tolerates 404, and a report that cannot be sent waits for the next sync.
+        val deletes = OfflineLogic.purgeDeleteReports(result.purge, System.currentTimeMillis())
+        if (deletes.isNotEmpty()) {
+            deletes.forEach { store.addReport(it) }
+            if (!flushReports(client, offline, store)) return false
+        }
         for (kept in result.keep) {
             val before = local.firstOrNull { it.assetId == kept.assetId }
             if (before != null && before.expiresAtMs != kept.expiresAtMs) {

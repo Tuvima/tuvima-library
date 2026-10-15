@@ -52,23 +52,46 @@ public sealed class DeviceDownloadService(
         var list = await downloads.ListAsync(owner.DeviceId, owner.ProfileId, clock.GetUtcNow(), ct).ConfigureAwait(false);
         if (list.Any(entry => entry.PhotoItemId is not null))
         {
-            // A photo whose access is gone (shared Gallery withdrawn, document rules, deleted file) is not on the list, so the
-            // app purges its local copy. Without the photo scope nothing is judged readable.
-            var visible = new List<DeviceDownloadDto>(list.Count);
-            foreach (var entry in list)
-            {
-                if (entry.PhotoItemId is not { } itemId
-                    || photoAccess is not null
-                    && await photoAccess.EvaluateAsync(authority, itemId, ct).ConfigureAwait(false) == PhotoKeepAccess.Allowed)
-                {
-                    visible.Add(entry);
-                }
-            }
-
-            list = visible;
+            // A photo whose access is gone (shared Gallery withdrawn, document rules, removed from the index) is not on the
+            // list, so the app purges its local copy. A file that is only missing from disk for now does not hide a photo.
+            // Without the photo scope nothing is judged readable. All kept photos are decided in one bulk pass.
+            var visibleIds = await VisiblePhotosAsync(
+                authority, list.Where(entry => entry.PhotoItemId is not null).Select(entry => entry.PhotoItemId!.Value).ToList(), ct)
+                .ConfigureAwait(false);
+            list = list.Where(entry => entry.PhotoItemId is not { } itemId || visibleIds.Contains(itemId)).ToList();
         }
 
         return new(new DeviceDownloadListDto { Downloads = list }, DeviceDownloadOutcome.Ok);
+    }
+
+    private async Task<IReadOnlySet<Guid>> VisiblePhotosAsync(
+        RequestAuthority authority, IReadOnlyCollection<Guid> itemIds, CancellationToken ct)
+    {
+        if (photoAccess is null || itemIds.Count == 0)
+        {
+            return new HashSet<Guid>();
+        }
+
+        var result = await photoAccess.EvaluateManyAsync(authority, itemIds, ct).ConfigureAwait(false);
+        return result.ScopeMissing ? new HashSet<Guid>() : result.Visible;
+    }
+
+    /// <summary>
+    /// Makes room on a full device: removes this person's kept photos that the list no longer shows them (so they do not
+    /// count towards the limit any more). Returns whether anything was removed.
+    /// </summary>
+    private async Task<bool> PruneHiddenPhotosAsync(RequestAuthority authority, DeviceOwner owner, CancellationToken ct)
+    {
+        var kept = await downloads.ListPhotoItemIdsAsync(owner.DeviceId, owner.ProfileId, ct).ConfigureAwait(false);
+        if (kept.Count == 0)
+        {
+            return false;
+        }
+
+        var visible = await VisiblePhotosAsync(authority, kept, ct).ConfigureAwait(false);
+        var hidden = kept.Where(id => !visible.Contains(id)).ToList();
+        return hidden.Count > 0
+            && await downloads.DeletePhotosAsync(owner.DeviceId, owner.ProfileId, hidden, ct).ConfigureAwait(false) > 0;
     }
 
     /// <param name="mayDownloadAsset">The catalogue check for the asset (the download route's access check); false reads as not found.</param>
@@ -112,7 +135,16 @@ public sealed class DeviceDownloadService(
         }
 
         var storedAt = request.StoredAt > now ? now : request.StoredAt;
-        return await downloads.UpsertAsync(
+        if (await downloads.UpsertAsync(
+                owner.DeviceId, owner.ProfileId, request.AssetId, request.VariantId, storedBytes, storedAt, now, ct)
+            .ConfigureAwait(false))
+        {
+            return DeviceDownloadOutcome.Ok;
+        }
+
+        // Full: kept photos the list no longer shows do not count, so clear those and try once more.
+        return await PruneHiddenPhotosAsync(authority, owner, ct).ConfigureAwait(false)
+            && await downloads.UpsertAsync(
                 owner.DeviceId, owner.ProfileId, request.AssetId, request.VariantId, storedBytes, storedAt, now, ct)
             .ConfigureAwait(false)
             ? DeviceDownloadOutcome.Ok
@@ -133,17 +165,30 @@ public sealed class DeviceDownloadService(
             : await photoAccess.EvaluateAsync(authority, itemId, ct).ConfigureAwait(false);
         if (access != PhotoKeepAccess.Allowed)
         {
+            // A file that is not on disk right now cannot have been downloaded (the preview route answers 404 too).
             return access == PhotoKeepAccess.ScopeMissing ? DeviceDownloadOutcome.PhotoScopeMissing : DeviceDownloadOutcome.NotFound;
         }
 
         var now = clock.GetUtcNow();
         var storedAt = request.StoredAt > now ? now : request.StoredAt;
-        return await downloads.UpsertPhotoAsync(
-                owner.DeviceId, owner.ProfileId, itemId, Math.Max(0, request.StoredBytes), storedAt, now, ct)
+        // A preview is a few hundred kilobytes; a device cannot claim an absurd size.
+        var storedBytes = Math.Clamp(request.StoredBytes, 0, MaxPhotoStoredBytes);
+        if (await downloads.UpsertPhotoAsync(owner.DeviceId, owner.ProfileId, itemId, storedBytes, storedAt, now, ct)
+            .ConfigureAwait(false))
+        {
+            return DeviceDownloadOutcome.Ok;
+        }
+
+        // Full: kept photos the list no longer shows do not count, so clear those and try once more.
+        return await PruneHiddenPhotosAsync(authority, owner, ct).ConfigureAwait(false)
+            && await downloads.UpsertPhotoAsync(owner.DeviceId, owner.ProfileId, itemId, storedBytes, storedAt, now, ct)
             .ConfigureAwait(false)
             ? DeviceDownloadOutcome.Ok
             : DeviceDownloadOutcome.TooMany;
     }
+
+    /// <summary>The most a device may report for one kept photo (256 MB; a 2048 px preview is well under 10 MB).</summary>
+    public const long MaxPhotoStoredBytes = 256L * 1024 * 1024;
 
     public async Task<DeviceDownloadOutcome> RemovePhotoAsync(RequestAuthority authority, Guid itemId, CancellationToken ct = default)
     {

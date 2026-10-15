@@ -560,6 +560,71 @@ class OfflineLogicTest {
         assertTrue(OfflineLogic.qualityChoicesFor(OfflineLogic.downloadKindFor("photo")).isEmpty())
     }
 
+    @Test
+    fun aPurgedKeptPhotoOwesTheEngineADeleteSoItsHiddenRowStopsCounting() {
+        val purged = listOf(photo("p1"), record("a"), photo("p2"))
+        val reports = OfflineLogic.purgeDeleteReports(purged, now)
+
+        // Only photos, each as a photo delete under its item id; a variant purge owes nothing (the Engine removed it).
+        assertEquals(listOf("p1", "p2"), reports.map { it.assetId })
+        assertTrue(reports.all { it.kind == ReportKind.Delete && it.itemKind == OfflineKind.Photo && it.variantId == it.assetId })
+        assertTrue(reports.all { it.storedAtMs == now })
+        assertTrue(OfflineLogic.purgeDeleteReports(emptyList(), now).isEmpty())
+
+        // Queued next to a store report of the same photo it replaces it, and a 404 on the delete is already done.
+        val queue = OfflineLogic.queueReport(
+            listOf(PendingReport(ReportKind.Store, "p1", "p1", 10L, now, OfflineKind.Photo)),
+            reports.first(),
+        )
+        assertEquals(listOf(reports.first()), queue)
+        assertEquals(ReportOutcome.Done, OfflineLogic.classifyReport(ReportKind.Delete, 404))
+        assertEquals(ReportOutcome.Done, OfflineLogic.classifyReport(ReportKind.Delete, 204))
+        assertEquals(ReportOutcome.Retry, OfflineLogic.classifyReport(ReportKind.Delete, 503))
+    }
+
+    @Test
+    fun theDevicesLimitIsPlannedFromTheLargerOfTheLocalAndTheEnginesCount() {
+        assertEquals(40, OfflineLogic.effectiveListedCount(40, null))
+        assertEquals(40, OfflineLogic.effectiveListedCount(40, 12))
+        assertEquals(480, OfflineLogic.effectiveListedCount(40, 480))
+
+        // A gallery then stops where the Engine's list would be full, not where this phone's records would be.
+        val candidates = (1..30).map { PhotoCandidate("p$it", isVideo = false) }
+        val plan = OfflineLogic.planPhotoKeep(
+            candidates, emptySet(), committedBytes = 0L, capBytes = 1_000_000_000L,
+            listedCount = OfflineLogic.effectiveListedCount(40, 490), estimatePerPhoto = 10L,
+        )
+        assertEquals(10, plan.toKeep.size)
+        assertEquals(PhotoKeepStop.ListFull, plan.stop)
+    }
+
+    @Test
+    fun aFullListRefusalDropsTheUnreportedCopyAndStopsTheWaitingPhotos() {
+        assertTrue(OfflineLogic.isDeviceLimitRefusal(ReportKind.Store, 409))
+        assertFalse(OfflineLogic.isDeviceLimitRefusal(ReportKind.Store, 404))
+        assertFalse(OfflineLogic.isDeviceLimitRefusal(ReportKind.Delete, 409))
+        assertEquals("This device has reached its offline limit.", OfflineLogic.DEVICE_LIMIT_MESSAGE)
+        // The report is dropped for good, never retried.
+        assertEquals(ReportOutcome.Drop, OfflineLogic.classifyReport(ReportKind.Store, 409))
+
+        val records = listOf(
+            photo("full", reported = false),
+            photo("waiting", state = DownloadState.Queued, reported = false),
+            photo("busy", state = DownloadState.Downloading, reported = false),
+            photo("failed", state = DownloadState.Failed, reported = false),
+            photo("kept", reported = true),
+            record("film"),
+        )
+        val plan = OfflineLogic.planDeviceLimitReached(records, "full")
+        assertEquals("full", plan.drop?.assetId)
+        assertEquals(listOf("waiting", "busy"), plan.stop.map { it.assetId })
+
+        // A copy the Engine already lists is never dropped by a refusal about something else, and a video copy never is.
+        assertNull(OfflineLogic.planDeviceLimitReached(records, "kept").drop)
+        assertNull(OfflineLogic.planDeviceLimitReached(records, "film").drop)
+        assertNull(OfflineLogic.planDeviceLimitReached(records, "unknown").drop)
+    }
+
     // ---- paths ----
 
     @Test

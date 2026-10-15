@@ -261,6 +261,128 @@ public sealed partial class DeviceProfileSwitchTests
     }
 
     [Fact]
+    public async Task AKeptPhotoWhoseFileIsMissingForNow_StaysListed_ButCannotBeKeptAgain()
+    {
+        var present = InsertSharedPhoto();
+        var unmounted = InsertSharedPhoto();
+        var access = new SpyPhotoAccess().Allow(present).Allow(unmounted);
+        var service = PhotoDownloads(access);
+        var phone = PhoneAuthority(_mary.Id);
+        Assert.Equal(DeviceDownloadOutcome.Ok, await service.UpsertAsync(phone, KeepPhoto(present), NoVariants));
+        Assert.Equal(DeviceDownloadOutcome.Ok, await service.UpsertAsync(phone, KeepPhoto(unmounted), NoVariants));
+
+        // The library volume is unmounted for a while: the photo is still the person's, so the device keeps its copy.
+        access.Revoke(unmounted);
+        access.MissingFile(unmounted);
+        Assert.Equal(2, (await service.ListAsync(phone)).Downloads!.Downloads.Count);
+        // It cannot be kept anew while there is nothing to download (the preview route answers 404 too).
+        Assert.Equal(DeviceDownloadOutcome.NotFound, await service.UpsertAsync(phone, KeepPhoto(Guid.NewGuid()), NoVariants));
+        using (var connection = _database.CreateConnection())
+        {
+            Assert.Equal(2, connection.ExecuteScalar<int>("SELECT COUNT(*) FROM device_photo_downloads;"));
+        }
+
+        // Only a real loss of access (not a missing file) hides it.
+        access.Revoke(unmounted);
+        Assert.Equal(present, Assert.Single((await service.ListAsync(phone)).Downloads!.Downloads).PhotoItemId);
+    }
+
+    [Fact]
+    public async Task TheListChecksAllKeptPhotosInOneBulkPass_NotOneByOne()
+    {
+        var photos = Enumerable.Range(0, 12).Select(_ => InsertSharedPhoto()).ToList();
+        var access = new SpyPhotoAccess();
+        photos.ForEach(photo => access.Allow(photo));
+        var service = PhotoDownloads(access);
+        var phone = PhoneAuthority(_mary.Id);
+        foreach (var photo in photos)
+        {
+            Assert.Equal(DeviceDownloadOutcome.Ok, await service.UpsertAsync(phone, KeepPhoto(photo), NoVariants));
+        }
+
+        var singleBefore = access.SingleCalls;
+        Assert.Equal(12, (await service.ListAsync(phone)).Downloads!.Downloads.Count);
+        Assert.Equal(singleBefore, access.SingleCalls);
+        Assert.Equal(1, access.ManyCalls);
+    }
+
+    [Fact]
+    public async Task KeptPhotosTheListHides_DoNotCountTowardsTheCap_ForAVariantOrAPhoto()
+    {
+        var film = await InsertOwnedMovieAsync("Family film", "PG");
+        var photos = new List<Guid>();
+        var now = DateTimeOffset.UtcNow.ToString("O");
+        InsertSharedPhoto();
+        Guid sharedLibrary;
+        using (var connection = _database.CreateConnection())
+        {
+            sharedLibrary = connection.ExecuteScalar<Guid>("SELECT library_id FROM view_shared_library LIMIT 1;");
+        }
+
+        using (var connection = _database.CreateConnection())
+        using (var transaction = connection.BeginTransaction())
+        {
+            for (var index = 0; index < DeviceDownloadRepository.MaxRowsPerDevice; index++)
+            {
+                var id = Guid.NewGuid();
+                photos.Add(id);
+                connection.Execute(
+                    """
+                    INSERT INTO local_items (id, scope_kind, library_id, media_kind, primary_file_name, primary_mime_type, created_at, updated_at)
+                    VALUES (@id, 'shared', @library, 'image', 'photo.jpg', 'image/jpeg', @now, @now);
+                    INSERT INTO device_photo_downloads (device_id, profile_id, item_id, stored_bytes, stored_at, updated_at)
+                    VALUES (@device, @profile, @id, 1, @now, @now);
+                    """,
+                    new { id, library = sharedLibrary, device = _phoneId, profile = _mary.Id, now }, transaction);
+            }
+
+            transaction.Commit();
+        }
+
+        var access = new SpyPhotoAccess();
+        photos.ForEach(photo => access.Allow(photo));
+        var service = PhotoDownloads(access);
+        var phone = PhoneAuthority(_mary.Id);
+        var variant = InsertVariant(film.AssetId, _mary.Id, _phoneId);
+        var newPhoto = InsertSharedPhoto();
+        access.Allow(newPhoto);
+
+        // Everything listed is still readable: the device is full, and nothing is removed.
+        Assert.Equal(DeviceDownloadOutcome.TooMany, await service.UpsertAsync(phone, Report(film.AssetId, variant, 1), MayDownload()));
+        Assert.Equal(DeviceDownloadOutcome.TooMany, await service.UpsertAsync(phone, KeepPhoto(newPhoto), NoVariants));
+        using (var connection = _database.CreateConnection())
+        {
+            Assert.Equal(DeviceDownloadRepository.MaxRowsPerDevice, connection.ExecuteScalar<int>("SELECT COUNT(*) FROM device_photo_downloads WHERE device_id = @device;", new { device = _phoneId }));
+        }
+
+        // Access to ten of them is withdrawn: the list hides them, so they no longer use up the limit.
+        photos.Take(10).ToList().ForEach(access.Revoke);
+        Assert.Equal(DeviceDownloadRepository.MaxRowsPerDevice - 10, (await service.ListAsync(phone)).Downloads!.Downloads.Count);
+        Assert.Equal(DeviceDownloadOutcome.Ok, await service.UpsertAsync(phone, Report(film.AssetId, variant, 1), MayDownload()));
+        using (var connection = _database.CreateConnection())
+        {
+            Assert.Equal(DeviceDownloadRepository.MaxRowsPerDevice - 10, connection.ExecuteScalar<int>("SELECT COUNT(*) FROM device_photo_downloads WHERE device_id = @device;", new { device = _phoneId }));
+        }
+
+        // The hidden rows were cleared, and room for nine more remains.
+        Assert.Equal(DeviceDownloadOutcome.Ok, await service.UpsertAsync(phone, KeepPhoto(newPhoto), NoVariants));
+        Assert.Equal(DeviceDownloadRepository.MaxRowsPerDevice - 10 + 2, (await service.ListAsync(phone)).Downloads!.Downloads.Count);
+    }
+
+    [Fact]
+    public async Task APhotosReportedSizeIsClampedToASaneMaximum()
+    {
+        var photo = InsertSharedPhoto();
+        var service = PhotoDownloads(new SpyPhotoAccess().Allow(photo));
+        var phone = PhoneAuthority(_mary.Id);
+
+        Assert.Equal(DeviceDownloadOutcome.Ok, await service.UpsertAsync(phone, KeepPhoto(photo, long.MaxValue), NoVariants));
+        Assert.Equal(DeviceDownloadService.MaxPhotoStoredBytes, Assert.Single((await service.ListAsync(phone)).Downloads!.Downloads).StoredBytes);
+        Assert.Equal(DeviceDownloadOutcome.Ok, await service.UpsertAsync(phone, KeepPhoto(photo, 1_234), NoVariants));
+        Assert.Equal(1_234, Assert.Single((await service.ListAsync(phone)).Downloads!.Downloads).StoredBytes);
+    }
+
+    [Fact]
     public async Task OverHttp_ABookKindIs400_APhotoWithoutPhotoRulesIs404_AndForgettingAPhotoIsOnTheItsOwnRoute()
     {
         var photo = InsertSharedPhoto();
@@ -294,8 +416,14 @@ public sealed partial class DeviceProfileSwitchTests
     private sealed class SpyPhotoAccess : IPhotoDownloadAccess
     {
         private readonly HashSet<Guid> _allowed = [];
+        private readonly HashSet<Guid> _fileMissing = [];
 
         public bool ScopeMissing { get; set; }
+
+        /// <summary>How many times each way of asking was used; the list must use the bulk way only.</summary>
+        public int SingleCalls { get; private set; }
+
+        public int ManyCalls { get; private set; }
 
         public SpyPhotoAccess Allow(Guid itemId)
         {
@@ -303,11 +431,35 @@ public sealed partial class DeviceProfileSwitchTests
             return this;
         }
 
-        public void Revoke(Guid itemId) => _allowed.Remove(itemId);
+        /// <summary>The person may read it, but its file is not on disk right now.</summary>
+        public SpyPhotoAccess MissingFile(Guid itemId)
+        {
+            _fileMissing.Add(itemId);
+            return this;
+        }
 
-        public ValueTask<PhotoKeepAccess> EvaluateAsync(RequestAuthority authority, Guid itemId, CancellationToken ct = default) =>
-            ValueTask.FromResult(ScopeMissing
+        public void Revoke(Guid itemId)
+        {
+            _allowed.Remove(itemId);
+            _fileMissing.Remove(itemId);
+        }
+
+        public ValueTask<PhotoKeepAccess> EvaluateAsync(RequestAuthority authority, Guid itemId, CancellationToken ct = default)
+        {
+            SingleCalls++;
+            return ValueTask.FromResult(ScopeMissing
                 ? PhotoKeepAccess.ScopeMissing
-                : _allowed.Contains(itemId) ? PhotoKeepAccess.Allowed : PhotoKeepAccess.NotFound);
+                : _allowed.Contains(itemId) ? PhotoKeepAccess.Allowed
+                : _fileMissing.Contains(itemId) ? PhotoKeepAccess.FileMissing : PhotoKeepAccess.NotFound);
+        }
+
+        public ValueTask<PhotoKeepBulkResult> EvaluateManyAsync(
+            RequestAuthority authority, IReadOnlyCollection<Guid> itemIds, CancellationToken ct = default)
+        {
+            ManyCalls++;
+            return ValueTask.FromResult(ScopeMissing
+                ? new PhotoKeepBulkResult(true, new HashSet<Guid>())
+                : new PhotoKeepBulkResult(false, itemIds.Where(id => _allowed.Contains(id) || _fileMissing.Contains(id)).ToHashSet()));
+        }
     }
 }

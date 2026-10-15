@@ -20,6 +20,8 @@ public enum OfflineLogic {
     /// The Engine lists at most this many entries of any kind per device.
     public static let maxListedDownloads = 500
 
+    public static let deviceLimitMessage = "This device has reached its offline limit."
+
     /// Storage limit choices shown in Settings, in gigabytes, and the default.
     public static let capOptionsGB: [Int] = [2, 5, 10, 20, 50]
     public static let defaultCapGB = 10
@@ -133,6 +135,36 @@ public enum OfflineLogic {
     /// delete = delete).
     public static func queueReport(_ queue: [PendingReport], _ report: PendingReport) -> [PendingReport] {
         queue.filter { !($0.variantId == report.variantId && $0.item == report.item) } + [report]
+    }
+
+    /// How many entries to plan against: the device's own records, or what the Engine's list showed on the last read if
+    /// that is more. The Engine's limit is per device across every person who used it and its list shows only the current
+    /// person's rows, so this is still a lower bound; a refusal (409) is the final word.
+    public static func effectiveListedCount(localCount: Int, engineListCount: Int?) -> Int {
+        max(localCount, engineListCount ?? 0)
+    }
+
+    /// True when the Engine refused a store report because the device's list is full (409).
+    public static func isDeviceLimitRefusal(kind: ReportKind, statusCode: Int) -> Bool {
+        kind == .store && statusCode == 409
+    }
+
+    /// What follows a full-list refusal for the kept photo `itemID`; only an unreported photo copy is dropped.
+    public static func planDeviceLimitReached(records: [DownloadRecord], itemID: UUID) -> DeviceLimitPlan {
+        let drop = records.first { $0.itemKind == .photo && $0.assetId == itemID && !$0.reportedToServer }
+        let stop = records.filter {
+            $0.itemKind == .photo && $0.assetId != itemID && ($0.state == .queued || $0.state == .downloading)
+        }
+        return DeviceLimitPlan(drop: drop, stop: stop)
+    }
+
+    /// The delete reports owed for kept photos that were purged because the Engine's list no longer shows them. The Engine
+    /// may still hold a hidden row for such a photo (it only hides what the person cannot read), and a row left there
+    /// would keep counting towards the device's limit; a delete the Engine does not know (404) is already done.
+    public static func purgeDeleteReports(_ purged: [DownloadRecord], now: Date) -> [PendingReport] {
+        purged.filter { $0.itemKind == .photo }.map {
+            PendingReport(kind: .delete, assetId: $0.assetId, variantId: $0.assetId, storedBytes: 0, storedAt: now, itemKind: .photo)
+        }
     }
 
     /// True when this report is about this local record (the photo item for a photo, the variant for a variant).

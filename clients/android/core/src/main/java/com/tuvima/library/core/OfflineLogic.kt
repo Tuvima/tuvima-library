@@ -160,6 +160,13 @@ data class PhotoKeepPlan(
 )
 
 /**
+ * What to do when the Engine refused to list a kept photo because the device already lists as many entries as it allows
+ * (409): [drop] is the unreported local copy to remove, and [stop] the photos still waiting or downloading, which stop here
+ * (the same refusal would meet each of them).
+ */
+data class DeviceLimitPlan(val drop: DownloadRecord?, val stop: List<DownloadRecord>)
+
+/**
  * The extension point for books kept on the phone, so a reader can open a local file first. It is deliberately not wired:
  * books are not offered in the native apps yet, nothing creates an [OfflineKind.Book] record, and no reader calls this.
  * When books arrive, a reader should ask [localBookFile] before it goes to the network, and use the file when it answers.
@@ -184,6 +191,8 @@ object OfflineLogic {
 
     /** The Engine lists at most this many entries of any kind per device. */
     const val MAX_LISTED = 500
+
+    const val DEVICE_LIMIT_MESSAGE = "This device has reached its offline limit."
 
     /** Times this close are treated as the same moment, to allow for the Engine rounding a stored time. */
     private const val TIME_TOLERANCE_MS = 1_000L
@@ -279,6 +288,38 @@ object OfflineLogic {
     /** Adds a report to the queue; a newer report for the same variant or photo replaces the older one (store then delete = delete). */
     fun queueReport(queue: List<PendingReport>, report: PendingReport): List<PendingReport> =
         queue.filterNot { it.variantId == report.variantId && it.itemKind == report.itemKind } + report
+
+    /**
+     * How many entries to plan against: the phone's own records, or what the Engine's list showed on the last read if that
+     * is more. The Engine's limit is per device across every person who used it and its list shows only the current
+     * person's rows, so this is still a lower bound; a refusal (409) is the final word.
+     */
+    fun effectiveListedCount(localCount: Int, engineListCount: Int?): Int =
+        maxOf(localCount, engineListCount ?: 0)
+
+    /** True when the Engine refused a store report because the device's list is full (409). */
+    fun isDeviceLimitRefusal(kind: ReportKind, statusCode: Int): Boolean =
+        kind == ReportKind.Store && statusCode == 409
+
+    /** What follows a full-list refusal for the kept photo [itemId]; only an unreported photo copy is dropped. */
+    fun planDeviceLimitReached(records: List<DownloadRecord>, itemId: String): DeviceLimitPlan {
+        val drop = records.firstOrNull { it.kind == OfflineKind.Photo && it.assetId == itemId && !it.reportedToServer }
+        val stop = records.filter {
+            it.kind == OfflineKind.Photo && it.assetId != itemId &&
+                (it.state == DownloadState.Queued || it.state == DownloadState.Downloading)
+        }
+        return DeviceLimitPlan(drop, stop)
+    }
+
+    /**
+     * The delete reports owed for kept photos that were purged because the Engine's list no longer shows them. The Engine may
+     * still hold a hidden row for such a photo (it only hides what the person cannot read), and a row left there would keep
+     * counting towards the device's limit; a delete the Engine does not know (404) is already done.
+     */
+    fun purgeDeleteReports(purged: List<DownloadRecord>, nowMs: Long): List<PendingReport> =
+        purged.filter { it.kind == OfflineKind.Photo }.map {
+            PendingReport(ReportKind.Delete, it.assetId, it.assetId, 0L, nowMs, OfflineKind.Photo)
+        }
 
     /** True when this report is about this local record (the photo item for a photo, the variant for a variant). */
     fun reportMatches(report: PendingReport, record: DownloadRecord): Boolean = when (report.itemKind) {

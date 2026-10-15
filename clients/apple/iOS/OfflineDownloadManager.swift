@@ -133,6 +133,8 @@ final class OfflineDownloadManager: NSObject, ObservableObject, URLSessionDownlo
     fileprivate var states: [UUID: OfflineState] = [:]
     fileprivate var preparing: [UUID: Task<Void, Never>] = [:]
     fileprivate var photoQueue: Task<Void, Never>?
+    /// How many entries the Engine's list showed on the last read, used to plan against the device's limit. Nil until read.
+    fileprivate var knownEngineListCount: Int?
     fileprivate var isSyncing = false
     fileprivate var syncAgain = false
     private var monitorStarted = false
@@ -882,6 +884,10 @@ extension OfflineDownloadManager {
                 // 404: the Engine no longer knows this copy (or this person can no longer see the photo), so its list
                 // will not show it and the next list read removes the local copy.
                 if report.kind == .store && status == 404 { markReported(profile, report) }
+                // 409 for a photo: this device already lists as many entries as it may, so stop keeping and drop the copy.
+                if report.item == .photo && OfflineLogic.isDeviceLimitRefusal(kind: report.kind, statusCode: status) {
+                    deviceLimitReached(profile, itemID: report.assetId)
+                }
             case .retry:
                 return false
             }
@@ -913,11 +919,21 @@ extension OfflineDownloadManager {
             // Offline: judge again at the next sync.
             return false
         }
+        knownEngineListCount = listing.count
         let result = OfflineLogic.reconcileWithServer(local: local, server: listing, now: Date())
         for gone in result.purge {
             if let current = record(profile, gone.assetId), current.variantId == gone.variantId, current.isComplete {
                 removeLocalCopy(profile, current)
             }
+        }
+        // A kept photo the Engine's list no longer shows is purged here; tell the Engine to forget any hidden row it still
+        // holds (it would keep counting towards the device's limit). Tolerates 404; a report that cannot be sent waits.
+        let deletes = OfflineLogic.purgeDeleteReports(result.purge, now: Date())
+        if !deletes.isEmpty {
+            mutate(profile) { current in
+                for report in deletes { current.reports = OfflineLogic.queueReport(current.reports, report) }
+            }
+            if !(await flushReports(api, profile)) { return false }
         }
         for kept in result.keep {
             let before = local.first { $0.assetId == kept.assetId }
@@ -1029,6 +1045,8 @@ extension OfflineDownloadManager {
         var stop = PhotoKeepStop.finished
         var cursor: String?
         var pages = 0
+        // Plan against what the Engine lists now, when it can be asked; the device's own records may be fewer.
+        if let listing = try? await api.deviceDownloads() { knownEngineListCount = listing.count }
         repeat {
             let page = try await api.viewGalleryItems(galleryID: galleryID, cursor: cursor, limit: 200)
             let plan = queuePhotos(profile, page.items)
@@ -1053,7 +1071,7 @@ extension OfflineDownloadManager {
             heldIds: held,
             committedBytes: OfflineLogic.committedBytes(snapshot),
             capBytes: Self.capBytes,
-            listedCount: snapshot.count
+            listedCount: OfflineLogic.effectiveListedCount(localCount: snapshot.count, engineListCount: knownEngineListCount)
         )
         guard !plan.toKeep.isEmpty else { return plan }
         var byID: [UUID: ViewItem] = [:]
@@ -1087,13 +1105,36 @@ extension OfflineDownloadManager {
             update(profile, held.assetId) { $0.state = .queued }
         }
         photoQueue = Task {
-            await self.runPhotoQueue(profile: profile)
+            // Run until nothing is left to fetch, looking again after each pass, so a photo queued while the last one
+            // was finishing is not left waiting. Photos set aside after a connection problem wait for the next sync.
+            var deferred = Set<UUID>()
+            repeat {
+                await self.runPhotoQueue(profile: profile, deferred: &deferred)
+            } while !Task.isCancelled && self.hasQueuedPhotos(profile, excluding: deferred)
             if !Task.isCancelled { self.photoQueue = nil }
         }
     }
 
-    fileprivate func runPhotoQueue(profile: UUID) async {
-        var deferred = Set<UUID>()
+    fileprivate func hasQueuedPhotos(_ profile: UUID, excluding deferred: Set<UUID>) -> Bool {
+        state(profile).records.contains { $0.isPhoto && $0.state == .queued && !deferred.contains($0.assetId) }
+    }
+
+    /// The Engine refused to list the kept photo `itemID` because this device already lists as many entries as it may
+    /// (across every person who used it). Its unreported copy is removed, the photos still waiting stop here, and the
+    /// person is told.
+    fileprivate func deviceLimitReached(_ profile: UUID, itemID: UUID) {
+        let plan = OfflineLogic.planDeviceLimitReached(records: state(profile).records, itemID: itemID)
+        if let dropped = plan.drop { removeLocalCopy(profile, dropped) }
+        for waiting in plan.stop {
+            update(profile, waiting.assetId) {
+                $0.state = .failed
+                $0.error = OfflineLogic.deviceLimitMessage
+            }
+        }
+        notice = OfflineLogic.deviceLimitMessage
+    }
+
+    fileprivate func runPhotoQueue(profile: UUID, deferred: inout Set<UUID>) async {
         var stored = false
         while !Task.isCancelled {
             guard let api, activeProfile == profile else { return }

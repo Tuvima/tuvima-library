@@ -309,6 +309,72 @@ final class PhotoOfflineLogicTests: XCTestCase {
         XCTAssertTrue(OfflineLogic.qualityChoices(for: OfflineLogic.downloadKind(forEntityType: "photo")).isEmpty)
     }
 
+    // MARK: The device's limit and the Engine's list
+
+    func testAPurgedKeptPhotoOwesTheEngineADeleteSoItsHiddenRowStopsCounting() {
+        let reports = OfflineLogic.purgeDeleteReports(
+            [photo(photoA), variant(assetA, variantID: variantA), photo(photoB)],
+            now: now
+        )
+        // Only photos, each as a photo delete under its item id; a variant purge owes nothing (the Engine removed it).
+        XCTAssertEqual(reports.map { $0.assetId }, [photoA, photoB])
+        XCTAssertTrue(reports.allSatisfy { $0.kind == .delete && $0.item == .photo && $0.variantId == $0.assetId })
+        XCTAssertTrue(OfflineLogic.purgeDeleteReports([], now: now).isEmpty())
+
+        // Queued next to a store report of the same photo it replaces it, and a 404 on the delete is already done.
+        let store = PendingReport(kind: .store, assetId: photoA, variantId: photoA, storedBytes: 10, storedAt: now, itemKind: .photo)
+        XCTAssertEqual(OfflineLogic.queueReport([store], reports[0]), [reports[0]])
+        XCTAssertEqual(OfflineLogic.classifyReport(kind: .delete, statusCode: 404), .done)
+        XCTAssertEqual(OfflineLogic.classifyReport(kind: .delete, statusCode: 204), .done)
+        XCTAssertEqual(OfflineLogic.classifyReport(kind: .delete, statusCode: 503), .retry)
+    }
+
+    func testTheDevicesLimitIsPlannedFromTheLargerOfTheLocalAndTheEnginesCount() {
+        XCTAssertEqual(OfflineLogic.effectiveListedCount(localCount: 40, engineListCount: nil), 40)
+        XCTAssertEqual(OfflineLogic.effectiveListedCount(localCount: 40, engineListCount: 12), 40)
+        XCTAssertEqual(OfflineLogic.effectiveListedCount(localCount: 40, engineListCount: 480), 480)
+
+        // A gallery then stops where the Engine's list would be full, not where this device's records would be.
+        let candidates = (0..<30).map { _ in PhotoCandidate(id: UUID(), isVideo: false) }
+        let plan = OfflineLogic.planPhotoKeep(
+            candidates: candidates,
+            heldIds: [],
+            committedBytes: 0,
+            capBytes: 1_000_000_000,
+            listedCount: OfflineLogic.effectiveListedCount(localCount: 40, engineListCount: 490),
+            estimatePerPhoto: 10
+        )
+        XCTAssertEqual(plan.toKeep.count, 10)
+        XCTAssertEqual(plan.stop, .listFull)
+    }
+
+    func testAFullListRefusalDropsTheUnreportedCopyAndStopsTheWaitingPhotos() {
+        XCTAssertTrue(OfflineLogic.isDeviceLimitRefusal(kind: .store, statusCode: 409))
+        XCTAssertFalse(OfflineLogic.isDeviceLimitRefusal(kind: .store, statusCode: 404))
+        XCTAssertFalse(OfflineLogic.isDeviceLimitRefusal(kind: .delete, statusCode: 409))
+        XCTAssertEqual(OfflineLogic.deviceLimitMessage, "This device has reached its offline limit.")
+        // The report is dropped for good, never retried.
+        XCTAssertEqual(OfflineLogic.classifyReport(kind: .store, statusCode: 409), .drop)
+
+        let full = UUID(), waiting = UUID(), busy = UUID(), failed = UUID(), kept = UUID()
+        let records = [
+            photo(full, reported: false),
+            photo(waiting, state: .queued, reported: false),
+            photo(busy, state: .downloading, reported: false),
+            photo(failed, state: .failed, reported: false),
+            photo(kept, reported: true),
+            variant(assetA, variantID: variantA),
+        ]
+        let plan = OfflineLogic.planDeviceLimitReached(records: records, itemID: full)
+        XCTAssertEqual(plan.drop?.assetId, full)
+        XCTAssertEqual(plan.stop.map { $0.assetId }, [waiting, busy])
+
+        // A copy the Engine already lists is never dropped by a refusal about something else, and a video copy never is.
+        XCTAssertNil(OfflineLogic.planDeviceLimitReached(records: records, itemID: kept).drop)
+        XCTAssertNil(OfflineLogic.planDeviceLimitReached(records: records, itemID: assetA).drop)
+        XCTAssertNil(OfflineLogic.planDeviceLimitReached(records: records, itemID: UUID()).drop)
+    }
+
     func testTheGalleryMessagesNameTheLimitThatStoppedIt() {
         XCTAssertEqual(OfflineLogic.keepGalleryMessage(found: 0, queued: 0, stop: .finished), "This gallery has no photos to keep.")
         XCTAssertEqual(

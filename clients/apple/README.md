@@ -35,7 +35,7 @@ the device too (a gallery's **Keep on this device**, or **Keep on device** on th
 the 2048 px preview, not the original, to save space, under the same storage limit and in the same Downloads list
 (View opens it from the device). Kept photos are fetched in the foreground, one after another, reported with
 `kind: "photo"` and a `photo_item_id`, and removed when the Engine's list no longer shows them (the photo was deleted
-or this person can no longer see it); the photo viewer and the timeline read the device's copy first, and the
+or this person can no longer see it, and the app then sends the Engine a delete so a hidden row stops counting); a refusal (409) because the device's list is full stops the keeping and says "This device has reached its offline limit."; the photo viewer and the timeline read the device's copy first, and the
 timeline falls back to the kept photos when the server cannot be reached. Videos are not kept. Books and comics are
 not downloaded by this app yet; `LocalBookFiles` in `Shared/OfflineModels.swift` is the unwired hook for a future
 reader. The pure rules are in `Shared/OfflineLogic.swift`.
