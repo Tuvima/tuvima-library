@@ -154,3 +154,38 @@ internal fun parseDetailModel(json: JSONObject, absolute: (String?) -> String?):
         progressPercent = json.optJSONObject("progress")?.optionalDouble("percent"),
     )
 }
+
+internal fun parseDeviceDownloads(json: JSONObject): List<ServerDownloadEntry> =
+    json.optJSONArray("downloads")?.objects { entry ->
+        ServerDownloadEntry(
+            assetId = entry.getString("asset_id"),
+            variantId = entry.getString("variant_id"),
+            storedBytes = entry.optLong("stored_bytes"),
+            storedAtMs = OfflineLogic.parseIsoMillis(entry.optionalString("stored_at")),
+            expiresAtMs = OfflineLogic.parseIsoMillis(entry.optionalString("expires_at")),
+        )
+    }.orEmpty()
+
+internal fun parseNextEpisodes(json: JSONObject, absolute: (String?) -> String?): NextEpisodes =
+    NextEpisodes(
+        showId = json.optString("show_id"),
+        afterAssetId = json.optString("after_asset_id"),
+        episodes = json.optJSONArray("episodes")?.objects { episode ->
+            NextEpisode(
+                workId = episode.optionalString("work_id"),
+                assetId = episode.getString("asset_id"),
+                title = episode.optString("title"),
+                seasonNumber = episode.optionalInt("season_number"),
+                episodeNumber = episode.optionalInt("episode_number"),
+                stillUrl = absolute(episode.optionalString("still_url")),
+            )
+        }.orEmpty(),
+    )
+
+/** The Engine's progress state (`/progress/{assetId}`): the revision and time, plus the position kept in its extra properties. */
+internal fun parseServerProgress(json: JSONObject): ServerProgress = ServerProgress(
+    revision = json.optLong("revision"),
+    progressPct = json.optDouble("progress_pct", 0.0),
+    lastAccessedMs = OfflineLogic.parseIsoMillis(json.optionalString("last_accessed")),
+    positionSeconds = json.optJSONObject("extended_properties")?.optionalString("position_seconds")?.toDoubleOrNull(),
+)

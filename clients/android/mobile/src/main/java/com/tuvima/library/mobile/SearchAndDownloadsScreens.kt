@@ -93,16 +93,3 @@ internal fun SearchScreen(client: TuvimaClient, openDetail: (entityType: String,
         }
     }
 }
-
-/** Downloads: a placeholder until the offline downloads screen is built. */
-@Composable
-internal fun DownloadsScreen() {
-    Column(Modifier.fillMaxSize().padding(24.dp), verticalArrangement = Arrangement.Center) {
-        Text("Downloads", style = MaterialTheme.typography.headlineMedium)
-        Spacer(Modifier.height(12.dp))
-        Text(
-            "Offline downloads will appear here. You can already tap Download on a title to prepare an offline copy; " +
-                "the list of what is saved on this phone arrives in a later update.",
-        )
-    }
-}
