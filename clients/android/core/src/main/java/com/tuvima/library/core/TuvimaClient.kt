@@ -1,6 +1,7 @@
 package com.tuvima.library.core
 
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -28,7 +29,17 @@ class TuvimaClient(
 ) {
     val serverOrigin: String = normalizeOrigin(serverAddress)
     private val refreshMutex = Mutex()
+    private val bindingLock = Any()
+    @Volatile
     private var token: ClientToken? = tokenStore.load()?.takeIf { it.first == serverOrigin }?.second
+    private var profileEpoch = 0
+
+    /**
+     * Called (on a background thread) after the Engine refused to refresh this device's sign-in and the tokens were cleared.
+     * The app clears its per-profile offline data and returns to pairing.
+     */
+    @Volatile
+    var onSessionRevoked: (() -> Unit)? = null
     private var discovery: Discovery? = null
 
     suspend fun discover(): Discovery {
@@ -357,6 +368,11 @@ class TuvimaClient(
 
     fun currentProfileId(): String? = token?.profileId
 
+    /** The signed-in profile plus a change counter; background work binds to this (see [SyncGuard]) and compares it later. */
+    fun profileBinding(): ProfileBinding? = synchronized(bindingLock) {
+        token?.let { ProfileBinding(it.profileId, profileEpoch) }
+    }
+
     /** True when the device was given the photo scopes at pairing. */
     fun hasPhotoAccess(): Boolean = token?.let { PhotoScopes.grantedIn(it.scope) } ?: false
 
@@ -423,7 +439,10 @@ class TuvimaClient(
         }
 
     fun signOut() {
-        token = null
+        synchronized(bindingLock) {
+            token = null
+            profileEpoch++
+        }
         tokenStore.clear()
     }
 
@@ -472,24 +491,46 @@ class TuvimaClient(
         }
     }
 
+    /** Refuses to go on when the calling work is bound to a profile that is no longer the one signed in. */
+    private suspend fun requireBoundProfile() {
+        val bound = currentCoroutineContext()[BoundProfile] ?: return
+        if (profileBinding() != bound.binding) throw ProfileChangedException()
+    }
+
     private suspend fun authenticatedToken(): String {
+        requireBoundProfile()
         val current = token ?: error("This device is not paired.")
         return if (current.expiresSoon()) refreshToken() else current.accessToken
     }
 
     private suspend fun refreshToken(force: Boolean = false): String = refreshMutex.withLock {
+        requireBoundProfile()
         val current = token ?: error("This device is not paired.")
         if (!force && !current.expiresSoon()) return@withLock current.accessToken
         val endpoint = (discovery ?: discover()).tokenEndpoint
-        val json = requestJson(
-            "POST",
-            endpoint,
-            JSONObject()
-                .put("grant_type", "refresh_token")
-                .put("client_id", clientId)
-                .put("refresh_token", current.refreshToken),
-            authenticated = false,
-        )
+        val json = try {
+            requestJson(
+                "POST",
+                endpoint,
+                JSONObject()
+                    .put("grant_type", "refresh_token")
+                    .put("client_id", clientId)
+                    .put("refresh_token", current.refreshToken),
+                authenticated = false,
+            )
+        } catch (error: TuvimaHttpException) {
+            val code = runCatching { JSONObject(error.responseBody).optString("error") }.getOrNull()?.takeIf { it.isNotEmpty() }
+            if (SessionLogic.classifyRefreshFailure(error.statusCode, code) == RefreshFailureKind.Revoked) {
+                // The device was revoked or its grant changed: drop the sign-in and tell the app, which clears the offline data.
+                // Only when this is still the token that was refused (a profile switch may have replaced it meanwhile).
+                if (token === current) {
+                    signOut()
+                    onSessionRevoked?.invoke()
+                }
+                throw SessionRevokedException()
+            }
+            throw error
+        }
         acceptToken(json).accessToken
     }
 
@@ -502,7 +543,10 @@ class TuvimaClient(
             deviceId = json.getString("device_id"),
             profileId = json.getString("profile_id"),
         )
-        token = value
+        synchronized(bindingLock) {
+            if (token?.profileId != value.profileId) profileEpoch++
+            token = value
+        }
         tokenStore.save(serverOrigin, value)
         return value
     }

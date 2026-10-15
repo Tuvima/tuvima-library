@@ -359,6 +359,10 @@ public enum TuvimaClientError: LocalizedError {
     case noPlayableDelivery
     case invalidIdentifier
     case photoAccessDenied
+    /// Work bound to one profile found another profile (or nobody) signed in.
+    case profileChanged
+    /// The Engine refused to refresh the sign-in because the device was revoked or its grant changed.
+    case sessionRevoked
 
     public var errorDescription: String? {
         switch self {
@@ -370,6 +374,8 @@ public enum TuvimaClientError: LocalizedError {
         case .noPlayableDelivery: "The server did not provide a playable delivery."
         case .invalidIdentifier: "That item could not be opened."
         case .photoAccessDenied: photoAccessDeniedMessage
+        case .profileChanged: "The profile in use changed while this was running."
+        case .sessionRevoked: "This device was signed out by the server. Connect it again."
         }
     }
 }

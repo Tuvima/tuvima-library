@@ -620,7 +620,7 @@ extension OfflineDownloadManager {
         }
         preparing[assetID]?.cancel()
         preparing[assetID] = Task {
-            await self.prepareAndStart(profile: profile, assetID: assetID)
+            await self.runBound(profile: profile) { await self.prepareAndStart(profile: profile, assetID: assetID) }
             if !Task.isCancelled { self.preparing[assetID] = nil }
         }
     }
@@ -713,7 +713,7 @@ extension OfflineDownloadManager {
             ).description
             task.resume()
         } catch {
-            if isCancellation(error) {
+            if isCancellation(error) || isProfileChanged(error) {
                 // Paused, deleted or the person switched: leave it queued so it starts again when it is wanted.
                 update(profile, assetID) { if $0.state == .preparing { $0.state = .queued } }
                 return
@@ -837,19 +837,47 @@ extension OfflineDownloadManager {
     fileprivate func runSync() async {
         guard let api, let profile = activeProfile else { return }
         // Only the person using the app is synced, and only while the app's sign-in is still theirs.
-        let signedIn = await api.currentProfileID
-        guard signedIn == profile else { return }
+        // The run is bound to that one person: every step checks again before it sends and before it applies an answer, and
+        // a profile switch mid-run stops it without marking, replaying or purging anything for the new person.
+        let current = await api.profileBinding
+        guard let syncGuard = SyncGuard.start(expectedProfile: profile, current: current) else { return }
         // Photos that could not be fetched earlier (no connection) are tried again now that there is one.
         if state(profile).records.contains(where: { $0.isPhoto && $0.state == .queued }) { startPhotoQueue(profile: profile) }
-        _ = await flushReports(api, profile)
-        _ = await purgeExpired(api, profile)
-        _ = await replayProgress(api, profile)
-        await refreshProgress(api, profile)
+        await ProfileScope.$bound.withValue(syncGuard.binding) {
+            _ = await self.flushReports(api, profile, syncGuard)
+            if !(await self.stillBound(api, syncGuard)) { return }
+            _ = await self.purgeExpired(api, profile, syncGuard)
+            if !(await self.stillBound(api, syncGuard)) { return }
+            _ = await self.replayProgress(api, profile, syncGuard)
+            if !(await self.stillBound(api, syncGuard)) { return }
+            await self.refreshProgress(api, profile, syncGuard)
+        }
+    }
+
+    /// True while the person who started the run is still the one signed in, in the same session.
+    fileprivate func stillBound(_ api: TuvimaAPIClient, _ syncGuard: SyncGuard) async -> Bool {
+        let current = await api.profileBinding
+        return syncGuard.isBound(current: current)
+    }
+
+    /// True for the error a client call throws when work bound to one profile finds another signed in.
+    fileprivate func isProfileChanged(_ error: Error) -> Bool {
+        if case .profileChanged? = error as? TuvimaClientError { return true }
+        return false
+    }
+
+    /// Runs `work` bound to `profile`'s current session (see `ProfileScope`); does nothing when someone else is signed in.
+    fileprivate func runBound(profile: UUID, _ work: () async -> Void) async {
+        guard let api else { return }
+        let current = await api.profileBinding
+        guard let bound = SyncGuard.start(expectedProfile: profile, current: current) else { return }
+        await ProfileScope.$bound.withValue(bound.binding) { await work() }
     }
 
     /// True when every queued report was answered.
-    fileprivate func flushReports(_ api: TuvimaAPIClient, _ profile: UUID) async -> Bool {
+    fileprivate func flushReports(_ api: TuvimaAPIClient, _ profile: UUID, _ syncGuard: SyncGuard) async -> Bool {
         for report in state(profile).reports {
+            if !(await stillBound(api, syncGuard)) { return false }
             var status = 0
             do {
                 switch (report.item, report.kind) {
@@ -875,6 +903,8 @@ extension OfflineDownloadManager {
                 // No connection, or the Engine could not be reached: keep the report and try again later.
                 return false
             }
+            // The answer belongs to the person who was signed in when it was sent; if that changed, mark and purge nothing.
+            if !(await stillBound(api, syncGuard)) { return false }
             switch OfflineLogic.classifyReport(kind: report.kind, statusCode: status) {
             case .done:
                 removeReport(profile, report)
@@ -909,7 +939,8 @@ extension OfflineDownloadManager {
 
     /// True when the Engine's list was read and applied. A copy that was reported but is no longer listed has
     /// expired on the Engine, so the local copy goes too.
-    fileprivate func purgeExpired(_ api: TuvimaAPIClient, _ profile: UUID) async -> Bool {
+    fileprivate func purgeExpired(_ api: TuvimaAPIClient, _ profile: UUID, _ syncGuard: SyncGuard) async -> Bool {
+        if !(await stillBound(api, syncGuard)) { return false }
         // Take this device's side first: a copy reported after this point cannot be mistaken for a missing row.
         let local = state(profile).records
         let listing: [ServerDownloadEntry]
@@ -919,6 +950,8 @@ extension OfflineDownloadManager {
             // Offline: judge again at the next sync.
             return false
         }
+        // Another person's list must never be used to purge this person's downloads.
+        if !(await stillBound(api, syncGuard)) { return false }
         knownEngineListCount = listing.count
         let result = OfflineLogic.reconcileWithServer(local: local, server: listing, now: Date())
         for gone in result.purge {
@@ -933,7 +966,7 @@ extension OfflineDownloadManager {
             mutate(profile) { current in
                 for report in deletes { current.reports = OfflineLogic.queueReport(current.reports, report) }
             }
-            if !(await flushReports(api, profile)) { return false }
+            if !(await flushReports(api, profile, syncGuard)) { return false }
         }
         for kept in result.keep {
             let before = local.first { $0.assetId == kept.assetId }
@@ -945,12 +978,14 @@ extension OfflineDownloadManager {
     }
 
     /// True when every pending entry was answered. Oldest first, so the Engine sees them in the order they happened.
-    fileprivate func replayProgress(_ api: TuvimaAPIClient, _ profile: UUID) async -> Bool {
+    fileprivate func replayProgress(_ api: TuvimaAPIClient, _ profile: UUID, _ syncGuard: SyncGuard) async -> Bool {
         for entry in OfflineLogic.replayOrder(state(profile).progress) {
+            if !(await stillBound(api, syncGuard)) { return false }
             let answer: ServerProgress
             do {
                 answer = try await api.replayOfflineProgress(entry, expectedRevision: entry.revision)
             } catch TuvimaClientError.http(let status, _) {
+                if !(await stillBound(api, syncGuard)) { return false }
                 if !OfflineLogic.isPermanentHttpFailure(status) { return false }
                 // The Engine refuses this title for good (gone, or not allowed for this person): stop retrying it.
                 var settled = entry
@@ -960,6 +995,7 @@ extension OfflineDownloadManager {
             } catch {
                 return false
             }
+            if !(await stillBound(api, syncGuard)) { return false }
             let updated: OfflineProgressEntry
             if OfflineLogic.isServerWon(sent: entry, expectedRevision: entry.revision, server: answer) {
                 updated = OfflineLogic.adoptServerState(entry, server: answer, now: Date())
@@ -985,8 +1021,9 @@ extension OfflineDownloadManager {
 
     /// Takes the Engine's progress for finished downloads that were not played offline since, so a title watched
     /// elsewhere resumes from the right place. Progress waiting to be replayed is never replaced.
-    fileprivate func refreshProgress(_ api: TuvimaAPIClient, _ profile: UUID) async {
+    fileprivate func refreshProgress(_ api: TuvimaAPIClient, _ profile: UUID, _ syncGuard: SyncGuard) async {
         for held in state(profile).records where held.isComplete && !held.isPhoto {
+            if !(await stillBound(api, syncGuard)) { return }
             let existing = state(profile).progress.first { $0.assetId == held.assetId }
             if existing?.pending == true { continue }
             let server: ServerProgress?
@@ -996,6 +1033,7 @@ extension OfflineDownloadManager {
                 // Offline: try again at the next sync.
                 return
             }
+            if !(await stillBound(api, syncGuard)) { return }
             guard let server, OfflineLogic.shouldAdoptServerProgress(entry: existing, server: server) else { continue }
             mutate(profile) { current in
                 let latest = current.progress.first { $0.assetId == held.assetId }
@@ -1109,7 +1147,7 @@ extension OfflineDownloadManager {
             // was finishing is not left waiting. Photos set aside after a connection problem wait for the next sync.
             var deferred = Set<UUID>()
             repeat {
-                await self.runPhotoQueue(profile: profile, deferred: &deferred)
+                await self.runBound(profile: profile) { await self.runPhotoQueue(profile: profile, deferred: &deferred) }
             } while !Task.isCancelled && self.hasQueuedPhotos(profile, excluding: deferred)
             if !Task.isCancelled { self.photoQueue = nil }
         }
@@ -1164,6 +1202,11 @@ extension OfflineDownloadManager {
         await ImageGate.shared.release()
 
         if let failure {
+            if isProfileChanged(failure) {
+                // Another person is using the app now: keep nothing; this photo waits in the queue for its owner.
+                update(profile, assetID) { if $0.state == .downloading { $0.state = .queued } }
+                return .retry
+            }
             if isCancellation(failure) {
                 // Stopped (the person switched, or signed out): the photo goes back in the queue.
                 update(profile, assetID) { if $0.state == .downloading { $0.state = .queued } }

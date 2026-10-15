@@ -8,9 +8,12 @@ import com.tuvima.library.core.OfflineLogic
 import com.tuvima.library.core.ReportKind
 import com.tuvima.library.core.PendingReport
 import com.tuvima.library.core.ReportOutcome
+import com.tuvima.library.core.BoundProfile
+import com.tuvima.library.core.SyncGuard
 import com.tuvima.library.core.TuvimaClient
 import com.tuvima.library.core.TuvimaHttpException
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.withContext
 
 /**
  * Brings the Engine and this phone back in step once there is a connection, in three parts:
@@ -22,24 +25,45 @@ import kotlinx.coroutines.CancellationException
  * 3. Replays progress recorded while playing downloads offline, oldest first, with `offline: true` and the time it
  *    was recorded. When the Engine kept its own newer record, the phone adopts it.
  *
- * Only the person using the phone is synced; another person's records wait until they are back. The phone never
- * writes History; the Engine does that when it applies a replayed play.
+ * Only the person using the phone is synced; another person's records wait until they are back. One run is bound to the
+ * person who was using the phone when it started: if the profile changes mid-run, the run stops (and is scheduled again for
+ * whoever is using the phone now) without reporting, marking, replaying or purging anything for the new person. The phone
+ * never writes History; the Engine does that when it applies a replayed play.
  */
 class OfflineSyncWorker(context: Context, parameters: WorkerParameters) : CoroutineWorker(context, parameters) {
     override suspend fun doWork(): Result {
         val app = applicationContext as TuvimaMobileApplication
         val client = app.client ?: app.savedServer()?.let(app::connect) ?: return Result.success()
         if (!client.isPaired()) return Result.success()
-        val store = app.offline.store()
-        val reported = flushReports(client, app.offline, store)
-        val expiryChecked = purgeExpired(client, app.offline, store)
-        val replayed = replayProgress(client, store)
-        return if (reported && expiryChecked && replayed) Result.success() else Result.retry()
+        // Bind this run to one profile; every client call below also refuses to run once another profile is signed in.
+        val guard = SyncGuard.start(client::profileBinding) ?: return Result.success()
+        val store = app.offline.storeFor(guard.profileId)
+        return withContext(BoundProfile(guard.binding)) {
+            val reported = flushReports(client, app.offline, store, guard)
+            if (!guard.isBound()) return@withContext switched(app)
+            val expiryChecked = purgeExpired(client, app.offline, store, guard)
+            if (!guard.isBound()) return@withContext switched(app)
+            val replayed = replayProgress(client, store, guard)
+            if (!guard.isBound()) return@withContext switched(app)
+            if (reported && expiryChecked && replayed) Result.success() else Result.retry()
+        }
+    }
+
+    /** The profile changed mid-run: nothing more is sent for the old one, and the new one gets its own run. */
+    private fun switched(app: TuvimaMobileApplication): Result {
+        app.offline.scheduleSync()
+        return Result.success()
     }
 
     /** True when every queued report was answered. */
-    private suspend fun flushReports(client: TuvimaClient, offline: OfflineDownloads, store: OfflineStore): Boolean {
+    private suspend fun flushReports(
+        client: TuvimaClient,
+        offline: OfflineDownloads,
+        store: OfflineStore,
+        guard: SyncGuard,
+    ): Boolean {
         for (report in store.reports()) {
+            if (!guard.isBound()) return false
             val status = try {
                 when {
                     report.itemKind == OfflineKind.Photo && report.kind == ReportKind.Store ->
@@ -55,6 +79,8 @@ class OfflineSyncWorker(context: Context, parameters: WorkerParameters) : Corout
                 // No connection, or the Engine could not be reached: keep the report and try again later.
                 return false
             }
+            // The answer belongs to the person who was signed in when it was sent; if that changed, mark and purge nothing.
+            if (!guard.isBound()) return false
             when (OfflineLogic.classifyReport(report.kind, status)) {
                 ReportOutcome.Done -> {
                     store.removeReport(report)
@@ -81,7 +107,13 @@ class OfflineSyncWorker(context: Context, parameters: WorkerParameters) : Corout
     }
 
     /** True when the Engine's list was read and applied. */
-    private suspend fun purgeExpired(client: TuvimaClient, offline: OfflineDownloads, store: OfflineStore): Boolean {
+    private suspend fun purgeExpired(
+        client: TuvimaClient,
+        offline: OfflineDownloads,
+        store: OfflineStore,
+        guard: SyncGuard,
+    ): Boolean {
+        if (!guard.isBound()) return false
         // Take the phone's side first: a download reported after this point cannot be mistaken for a missing row.
         val local = store.snapshot()
         val listing = try {
@@ -91,6 +123,8 @@ class OfflineSyncWorker(context: Context, parameters: WorkerParameters) : Corout
         } catch (failure: Exception) {
             return false
         }
+        // Another person's list must never be used to purge this person's downloads.
+        if (!guard.isBound()) return false
         offline.knownEngineListCount = listing.size
         val result = OfflineLogic.reconcileWithServer(local, listing, System.currentTimeMillis())
         result.purge.forEach { offline.purge(store, it) }
@@ -99,7 +133,7 @@ class OfflineSyncWorker(context: Context, parameters: WorkerParameters) : Corout
         val deletes = OfflineLogic.purgeDeleteReports(result.purge, System.currentTimeMillis())
         if (deletes.isNotEmpty()) {
             deletes.forEach { store.addReport(it) }
-            if (!flushReports(client, offline, store)) return false
+            if (!flushReports(client, offline, store, guard)) return false
         }
         for (kept in result.keep) {
             val before = local.firstOrNull { it.assetId == kept.assetId }
@@ -111,13 +145,15 @@ class OfflineSyncWorker(context: Context, parameters: WorkerParameters) : Corout
     }
 
     /** True when every pending entry was answered. */
-    private suspend fun replayProgress(client: TuvimaClient, store: OfflineStore): Boolean {
+    private suspend fun replayProgress(client: TuvimaClient, store: OfflineStore, guard: SyncGuard): Boolean {
         for (entry in OfflineLogic.replayOrder(store.progress())) {
+            if (!guard.isBound()) return false
             val answer = try {
                 client.replayOfflineProgress(entry, entry.revision)
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (failure: TuvimaHttpException) {
+                if (!guard.isBound()) return false
                 val permanent = failure.statusCode in 400..499 && failure.statusCode != 401 &&
                     failure.statusCode != 408 && failure.statusCode != 429
                 if (!permanent) return false
@@ -127,6 +163,7 @@ class OfflineSyncWorker(context: Context, parameters: WorkerParameters) : Corout
             } catch (failure: Exception) {
                 return false
             }
+            if (!guard.isBound()) return false
             val now = System.currentTimeMillis()
             val updated = if (OfflineLogic.isServerWon(entry, entry.revision, answer)) {
                 OfflineLogic.adoptServerState(entry, answer, now)

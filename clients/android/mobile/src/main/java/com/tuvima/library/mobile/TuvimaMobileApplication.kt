@@ -6,6 +6,7 @@ import com.tuvima.library.core.ClientCapabilities
 import com.tuvima.library.core.SecureTokenStore
 import com.tuvima.library.core.StorageCap
 import com.tuvima.library.core.TuvimaClient
+import kotlinx.coroutines.flow.MutableStateFlow
 
 class TuvimaMobileApplication : Application() {
     var client: TuvimaClient? = null
@@ -15,6 +16,9 @@ class TuvimaMobileApplication : Application() {
         super.onCreate()
         savedServer()?.let(::connect)
     }
+
+    /** Set when the Engine revoked this device's sign-in; the shell then returns to pairing and clears the flag. */
+    internal val sessionRevoked = MutableStateFlow(false)
 
     fun connect(serverAddress: String): TuvimaClient {
         getSharedPreferences("tuvima_mobile", MODE_PRIVATE).edit().putString("server", serverAddress).apply()
@@ -37,7 +41,15 @@ class TuvimaMobileApplication : Application() {
                 supportsOfflineDownloads = true,
             ),
             tokenStore = SecureTokenStore(this),
-        ).also { client = it }
+        ).also { created ->
+            // A revoked device behaves like a sign-out: the client has already cleared its tokens; the downloads and
+            // unsent records of every person on this phone go with it, then the app returns to pairing.
+            created.onSessionRevoked = {
+                offline.clearAll()
+                sessionRevoked.value = true
+            }
+            client = created
+        }
     }
 
     fun savedServer(): String? = getSharedPreferences("tuvima_mobile", MODE_PRIVATE).getString("server", null)

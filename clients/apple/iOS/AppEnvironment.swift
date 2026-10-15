@@ -33,7 +33,10 @@ final class AppEnvironment: ObservableObject {
         let value = try TuvimaAPIClient(
             serverAddress: address,
             clientVersion: version,
-            deviceName: UIDevice.current.name
+            deviceName: UIDevice.current.name,
+            onSessionRevoked: { [weak self] in
+                Task { @MainActor in self?.sessionRevoked() }
+            }
         )
         UserDefaults.standard.set(address, forKey: "tuvima.server")
         api = value
@@ -60,6 +63,16 @@ final class AppEnvironment: ObservableObject {
             try? await current.revokeCurrentDevice()
             await current.signOut()
         }
+        downloads.clearAll()
+        api = nil
+        UserDefaults.standard.removeObject(forKey: "tuvima.server")
+    }
+
+    /// The Engine refused to refresh this device's sign-in (the device was revoked or its grant changed). The client has
+    /// already cleared its tokens; like a sign-out, this removes every download and unsent record and returns to pairing.
+    func sessionRevoked() {
+        guard api != nil else { return }
+        playback.pause()
         downloads.clearAll()
         api = nil
         UserDefaults.standard.removeObject(forKey: "tuvima.server")

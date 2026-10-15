@@ -12,6 +12,11 @@ public actor TuvimaAPIClient {
     private let session: URLSession
     private var discovery: Discovery?
     private var token: ClientToken?
+    /// Counts profile changes and sign-outs, so background work bound to a profile can tell a switch (even a switch back).
+    private var profileEpoch = 0
+    /// Called after the Engine refused to refresh this device's sign-in and the tokens were cleared; the app then clears
+    /// its offline data and returns to pairing.
+    private let onSessionRevoked: (@Sendable () -> Void)?
 
     public init(
         serverAddress: String,
@@ -20,7 +25,8 @@ public actor TuvimaAPIClient {
         clientVersion: String,
         deviceName: String,
         store: any TokenStoring = KeychainTokenStore(),
-        session: URLSession? = nil
+        session: URLSession? = nil,
+        onSessionRevoked: (@Sendable () -> Void)? = nil
     ) throws {
         guard var components = URLComponents(string: serverAddress.contains("://") ? serverAddress : "https://\(serverAddress)"),
               let host = components.host else { throw TuvimaClientError.invalidServer }
@@ -35,6 +41,7 @@ public actor TuvimaAPIClient {
         self.clientVersion = clientVersion
         self.deviceName = deviceName
         self.store = store
+        self.onSessionRevoked = onSessionRevoked
         self.token = store.load(for: origin)
         self.capabilities = [
             "schema_version": 1,
@@ -329,6 +336,17 @@ public actor TuvimaAPIClient {
     /// The device's own sign-in profile, or nil before pairing. Offline records are kept per person.
     public var currentProfileID: UUID? { token?.profileID }
 
+    /// The signed-in profile plus a change counter; background work binds to this (see `SyncGuard`) and compares it later.
+    public var profileBinding: ProfileBinding? {
+        token.map { ProfileBinding(profileID: $0.profileID, epoch: profileEpoch) }
+    }
+
+    /// Refuses to go on when the calling work is bound (see `ProfileScope`) to a profile that is no longer signed in.
+    private func requireBoundProfile() throws {
+        guard let bound = ProfileScope.bound else { return }
+        if profileBinding != bound { throw TuvimaClientError.profileChanged }
+    }
+
     /// Sends an authenticated request and returns the status and body without treating a non-2xx answer as an error,
     /// so a caller can read 204, 404 and 409 for what they mean.
     private func sendForStatus(_ original: URLRequest) async throws -> (status: Int, data: Data) {
@@ -371,18 +389,38 @@ public actor TuvimaAPIClient {
 
     public func signOut() {
         token = nil
+        profileEpoch += 1
         store.clear(for: origin)
     }
 
     private func accessToken(forceRefresh: Bool = false) async throws -> String {
+        try requireBoundProfile()
         guard let current = token else { throw TuvimaClientError.notPaired }
         if !forceRefresh && !current.expiresSoon { return current.accessToken }
         let endpoints = try await endpoints()
-        let response: TokenResponse = try await post(endpoints.tokenEndpoint, json: [
-            "grant_type": "refresh_token",
-            "client_id": clientID,
-            "refresh_token": current.refreshToken,
-        ], authenticated: false)
+        let before = profileBinding
+        let response: TokenResponse
+        do {
+            response = try await post(endpoints.tokenEndpoint, json: [
+                "grant_type": "refresh_token",
+                "client_id": clientID,
+                "refresh_token": current.refreshToken,
+            ], authenticated: false)
+        } catch TuvimaClientError.http(let status, let body) {
+            let code = (try? JSONDecoder().decode(OAuthError.self, from: Data(body.utf8)))?.error
+            if SessionLogic.classifyRefreshFailure(statusCode: status, errorCode: code) == .revoked {
+                // The device was revoked or its grant changed: drop the sign-in and tell the app, which clears the offline
+                // data. Only when this is still the sign-in that was refused (a profile switch may have replaced it).
+                if token?.refreshToken == current.refreshToken {
+                    signOut()
+                    onSessionRevoked?()
+                }
+                throw TuvimaClientError.sessionRevoked
+            }
+            throw TuvimaClientError.http(status, body)
+        }
+        // The actor can run other calls while the answer was awaited: never store a refresh for a profile that was left.
+        guard profileBinding == before else { throw TuvimaClientError.profileChanged }
         return try accept(response).accessToken
     }
 
@@ -395,6 +433,7 @@ public actor TuvimaAPIClient {
             deviceID: response.deviceID,
             profileID: response.profileID
         )
+        if token?.profileID != value.profileID { profileEpoch += 1 }
         token = value
         try store.save(value, for: origin)
         return value
