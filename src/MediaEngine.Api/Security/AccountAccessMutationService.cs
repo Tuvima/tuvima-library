@@ -170,31 +170,45 @@ public sealed class AccountAccessMutationService(
 
         var normalized = NormalizeEmail(email);
         var normalizedKey = normalized.ToUpperInvariant();
+        await RequireEmailAvailableAsync(accountId, normalizedKey, ct).ConfigureAwait(false);
+
+        target.Email = normalized;
+        target.NormalizedEmail = normalizedKey;
+        target.UpdatedAt = clock.GetUtcNow();
+        await UpdateAccountWithEmailGuardAsync(target, emailChanged: true, ct).ConfigureAwait(false);
+        await InvalidateChallengesForOldEmailAsync(accountId, ct).ConfigureAwait(false);
+        await ChangedAsync(actor, "account.email_changed", "account", accountId.ToString("D"),
+            accountId, null, ct).ConfigureAwait(false);
+        return (await accounts.GetByIdAsync(accountId, ct).ConfigureAwait(false))!;
+    }
+
+    private async Task RequireEmailAvailableAsync(Guid accountId, string normalizedKey, CancellationToken ct)
+    {
         if (await accounts.GetByNormalizedEmailAsync(normalizedKey, ct).ConfigureAwait(false) is { } existing
             && existing.Id != accountId)
         {
             throw new InvalidOperationException("That email already has a sign-in.");
         }
+    }
 
-        target.Email = normalized;
-        target.NormalizedEmail = normalizedKey;
-        target.UpdatedAt = clock.GetUtcNow();
+    private async Task UpdateAccountWithEmailGuardAsync(Account account, bool emailChanged, CancellationToken ct)
+    {
         try
         {
-            await accounts.UpdateAccountAsync(target, ct).ConfigureAwait(false);
+            await accounts.UpdateAccountAsync(account, ct).ConfigureAwait(false);
         }
-        catch (Microsoft.Data.Sqlite.SqliteException ex) when (ex.SqliteErrorCode == 19)
+        catch (Microsoft.Data.Sqlite.SqliteException ex) when (emailChanged && ex.SqliteErrorCode == 19)
         {
-            // Another change took the address between the check above and this write: the unique index decides.
+            // Another change took the address between the check before this write and the write itself: the unique index decides.
             throw new InvalidOperationException("That email already has a sign-in.");
         }
+    }
 
-        // A password-reset link or two-step challenge sent for the old address must not outlive the move to the new one.
+    // A password-reset link or two-step challenge sent for the old address must not outlive the move to the new one.
+    private async Task InvalidateChallengesForOldEmailAsync(Guid accountId, CancellationToken ct)
+    {
         await identities.InvalidatePasswordResetChallengesAsync(accountId, ct).ConfigureAwait(false);
         await identities.InvalidateTwoStepChallengesAsync(accountId, ct).ConfigureAwait(false);
-        await ChangedAsync(actor, "account.email_changed", "account", accountId.ToString("D"),
-            accountId, null, ct).ConfigureAwait(false);
-        return (await accounts.GetByIdAsync(accountId, ct).ConfigureAwait(false))!;
     }
 
     public async Task ResetTwoStepAsync(
@@ -261,18 +275,31 @@ public sealed class AccountAccessMutationService(
         }
 
         // An account made on this computer has no email yet; turning it on or off must not demand one.
+        var emailChanged = false;
         if (!string.IsNullOrWhiteSpace(command.Email) || account.HasEmail)
         {
             var email = NormalizeEmail(command.Email);
+            var emailKey = email.ToUpperInvariant();
+            emailChanged = !string.Equals(account.NormalizedEmail, emailKey, StringComparison.Ordinal);
+            if (emailChanged)
+            {
+                await RequireEmailAvailableAsync(accountId, emailKey, ct).ConfigureAwait(false);
+            }
+
             account.Email = email;
-            account.NormalizedEmail = email.ToUpperInvariant();
+            account.NormalizedEmail = emailKey;
         }
 
         account.IsEnabled = command.IsEnabled;
         account.IsAdministrator = command.IsAdministrator;
         account.UpdatedAt = clock.GetUtcNow();
 
-        await accounts.UpdateAccountAsync(account, ct).ConfigureAwait(false);
+        await UpdateAccountWithEmailGuardAsync(account, emailChanged, ct).ConfigureAwait(false);
+        if (emailChanged)
+        {
+            await InvalidateChallengesForOldEmailAsync(accountId, ct).ConfigureAwait(false);
+        }
+
         await ChangedAsync(actor, "account.updated", "account", accountId.ToString("D"),
             accountId, null, ct).ConfigureAwait(false);
         return (await accounts.GetByIdAsync(accountId, ct).ConfigureAwait(false))!;

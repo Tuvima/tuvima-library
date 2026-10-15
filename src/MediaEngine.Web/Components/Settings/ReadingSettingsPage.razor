@@ -27,7 +27,9 @@ else if (_forbidden)
 }
 else if (!string.IsNullOrWhiteSpace(_loadError))
 {
-    <AppAlert Severity="AppSeverity.Error" Variant="AppVariant.Outlined">@_loadError</AppAlert>
+    <AppErrorState Title="Reading preferences are unavailable"
+                   Message="@_loadError"
+                   Retry="@RetryLoadAsync" />
 }
 else if (_settings is not null)
 {
@@ -69,7 +71,7 @@ else if (_settings is not null)
                     </div>
                     <AppSegmentedControl Options="ThemeOptions"
                                          Value="@Reading.Theme"
-                                         ValueChanged="@(value => UpdateAndSaveAsync(() => Reading.Theme = value))"
+                                         ValueChanged="@(value => UpdateAndSaveAsync(s => s.Reading.Theme = value))"
                                          AriaLabel="Theme"
                                          Class="reading-preference-row__control" />
                 </div>
@@ -80,7 +82,7 @@ else if (_settings is not null)
                     </div>
                     <AppSegmentedControl Options="FontOptions"
                                          Value="@Reading.Font"
-                                         ValueChanged="@(value => UpdateAndSaveAsync(() => Reading.Font = value))"
+                                         ValueChanged="@(value => UpdateAndSaveAsync(s => s.Reading.Font = value))"
                                          AriaLabel="Typeface"
                                          Class="reading-preference-row__control" />
                 </div>
@@ -91,7 +93,7 @@ else if (_settings is not null)
                     </div>
                     <AppRangeSlider Class="reading-preference-row__control"
                                     Value="@((double)Reading.FontSizePx)"
-                                    ValueChanged="@(value => UpdateAndSaveAsync(() => Reading.FontSizePx = Math.Clamp((int)Math.Round(value), ReadingPreferenceValues.MinFontSizePx, ReadingPreferenceValues.MaxFontSizePx)))"
+                                    ValueChanged="@(value => UpdateAndSaveAsync(s => s.Reading.FontSizePx = Math.Clamp((int)Math.Round(value), ReadingPreferenceValues.MinFontSizePx, ReadingPreferenceValues.MaxFontSizePx)))"
                                     Min="@((double)ReadingPreferenceValues.MinFontSizePx)"
                                     Max="@((double)ReadingPreferenceValues.MaxFontSizePx)"
                                     Step="1d"
@@ -107,7 +109,7 @@ else if (_settings is not null)
                     </div>
                     <AppRangeSlider Class="reading-preference-row__control"
                                     Value="@((double)Reading.LineHeight)"
-                                    ValueChanged="@(value => UpdateAndSaveAsync(() => Reading.LineHeight = Math.Clamp(Math.Round((decimal)value, 1), ReadingPreferenceValues.MinLineHeight, ReadingPreferenceValues.MaxLineHeight)))"
+                                    ValueChanged="@(value => UpdateAndSaveAsync(s => s.Reading.LineHeight = Math.Clamp(Math.Round((decimal)value, 1), ReadingPreferenceValues.MinLineHeight, ReadingPreferenceValues.MaxLineHeight)))"
                                     Min="@((double)ReadingPreferenceValues.MinLineHeight)"
                                     Max="@((double)ReadingPreferenceValues.MaxLineHeight)"
                                     Step="0.1d"
@@ -128,7 +130,7 @@ else if (_settings is not null)
                     </div>
                     <AppSegmentedControl Options="WidthOptions"
                                          Value="@Reading.PageWidth"
-                                         ValueChanged="@(value => UpdateAndSaveAsync(() => Reading.PageWidth = value))"
+                                         ValueChanged="@(value => UpdateAndSaveAsync(s => s.Reading.PageWidth = value))"
                                          AriaLabel="Page width"
                                          Class="reading-preference-row__control" />
                 </div>
@@ -139,7 +141,7 @@ else if (_settings is not null)
                     </div>
                     <AppSegmentedControl Options="LayoutOptions"
                                          Value="@Reading.ReadingMode"
-                                         ValueChanged="@(value => UpdateAndSaveAsync(() => Reading.ReadingMode = value))"
+                                         ValueChanged="@(value => UpdateAndSaveAsync(s => s.Reading.ReadingMode = value))"
                                          AriaLabel="Layout"
                                          Class="reading-preference-row__control" />
                 </div>
@@ -163,6 +165,7 @@ else if (_settings is not null)
     private bool _loading = true;
     private string? _loadError;
     private string? _saveError;
+    private readonly SemaphoreSlim _saveGate = new(1, 1);
 
     private static readonly IReadOnlyList<AppSelectOption> ThemeOptions =
     [
@@ -202,8 +205,16 @@ else if (_settings is not null)
 
     private static string FormatLineHeight(decimal value) => value.ToString("0.0", CultureInfo.InvariantCulture);
 
-    protected override async Task OnInitializedAsync()
+    protected override Task OnInitializedAsync() => LoadAsync();
+
+    private Task RetryLoadAsync() => LoadAsync();
+
+    private async Task LoadAsync()
     {
+        _loading = true;
+        _loadError = null;
+        _forbidden = false;
+        _settings = null;
         try
         {
             _activeProfile = await Orchestrator.GetActiveProfileAsync();
@@ -223,8 +234,17 @@ else if (_settings is not null)
             }
             else
             {
+                // A missing answer means the Engine could not be reached, not that nothing is saved. Showing defaults here would
+                // let the first change write them over the profile's real choices, so the page shows an error and no controls.
                 var loaded = await PreferencesAccessor.GetAsync();
-                _settings = Clone(loaded ?? UserPlaybackSettingsDto.CreateDefaults(_activeProfile?.Id ?? Guid.Empty));
+                if (loaded is null)
+                {
+                    Logger.LogWarning("Reading settings could not be loaded: the Engine returned no settings for the active profile.");
+                    _loadError = "Reading settings could not be loaded.";
+                    return;
+                }
+
+                _settings = Clone(loaded);
             }
         }
         catch (Exception ex)
@@ -238,26 +258,41 @@ else if (_settings is not null)
         }
     }
 
-    private async Task UpdateAndSaveAsync(Action update)
+    private async Task UpdateAndSaveAsync(Action<UserPlaybackSettingsDto> change)
     {
-        update();
         _saveError = null;
-        await SaveAsync();
+        await SaveAsync(change);
     }
 
-    private async Task SaveAsync()
+    // Reads the profile's current settings and applies only the changed field to that copy, so a change made in another tab
+    // or on another device since this page opened is kept. If the current settings cannot be read, nothing is saved.
+    private async Task SaveAsync(Action<UserPlaybackSettingsDto> change)
     {
         if (_settings is null)
             return;
 
+        await _saveGate.WaitAsync();
         try
         {
             var other = IsOtherProfile;
+            var fresh = other
+                ? await ApiClient.GetPlaybackSettingsAsync(ProfileId!.Value)
+                : await Orchestrator.GetPlaybackSettingsAsync();
+            if (fresh is null)
+            {
+                Logger.LogWarning("Reading settings were not saved: the profile's current settings could not be read.");
+                _saveError = "Reading settings could not be saved.";
+                Snackbar.Add(_saveError, AppSeverity.Error);
+                return;
+            }
+
+            change(fresh);
             var saved = other
-                ? await ApiClient.UpdatePlaybackSettingsAsync(ProfileId!.Value, _settings)
-                : await Orchestrator.SavePlaybackSettingsAsync(_settings);
+                ? await ApiClient.UpdatePlaybackSettingsAsync(ProfileId!.Value, fresh)
+                : await Orchestrator.SavePlaybackSettingsAsync(fresh);
             if (saved is null)
             {
+                Logger.LogWarning("Reading settings could not be saved: the Engine did not accept the update.");
                 _saveError = "Reading settings could not be saved.";
                 Snackbar.Add(_saveError, AppSeverity.Error);
                 return;
@@ -275,6 +310,7 @@ else if (_settings is not null)
         }
         finally
         {
+            _saveGate.Release();
             StateHasChanged();
         }
     }

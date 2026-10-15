@@ -420,6 +420,49 @@ public sealed class HouseholdPeopleTests
         await Assert.ThrowsAsync<InvalidOperationException>(() => fixture.Mutations.ChangeEmailAsync(self, owner.Id, "elsewhere@example.com"));
     }
 
+    [Fact]
+    public async Task UpdateAsync_ChangingTheEmail_EndsPasswordResetLinksAlreadySent()
+    {
+        await using var fixture = await Fixture.CreateAsync();
+        var (mutations, accounts, households, actor) = (fixture.Mutations, fixture.Accounts, fixture.Households, fixture.Actor);
+        var owner = await fixture.CreateOwnerAsync();
+        var household = (await households.GetForAccountAsync(owner.Id))!;
+        var mary = await mutations.AddHouseholdPersonAsync(actor,
+            new AddHouseholdPersonCommand(household.Id, "Mary", null, false, null));
+        var given = (await mutations.GiveOwnSignInAsync(actor,
+            new GiveOwnSignInCommand(mary.Id, "mary@example.com", "a long starting password"))).Account;
+        var token = await fixture.Identity.BeginPasswordResetAsync("mary@example.com");
+        Assert.NotNull(token);
+
+        var updated = await mutations.UpdateAsync(actor, given.Id,
+            new UpdateAccountAccessCommand("  Mary.New@Example.com ", true, IsAdministrator: false));
+
+        Assert.Equal("Mary.New@Example.com", updated.Email);
+        Assert.Equal(given.Id, (await accounts.GetByNormalizedEmailAsync("MARY.NEW@EXAMPLE.COM"))!.Id);
+        // A link mailed to the old address must not still work after the address moved.
+        await Assert.ThrowsAnyAsync<Exception>(() => fixture.Identity.ResetPasswordWithTokenAsync(token, "a thief chosen password"));
+    }
+
+    [Fact]
+    public async Task UpdateAsync_ToAnotherAccountsEmail_IsAConflictNotAStorageError()
+    {
+        await using var fixture = await Fixture.CreateAsync();
+        var (mutations, accounts, households, actor) = (fixture.Mutations, fixture.Accounts, fixture.Households, fixture.Actor);
+        var owner = await fixture.CreateOwnerAsync();
+        var household = (await households.GetForAccountAsync(owner.Id))!;
+        var mary = await mutations.AddHouseholdPersonAsync(actor,
+            new AddHouseholdPersonCommand(household.Id, "Mary", null, false, null));
+        var given = (await mutations.GiveOwnSignInAsync(actor,
+            new GiveOwnSignInCommand(mary.Id, "mary@example.com", "a long starting password"))).Account;
+
+        // The Engine door turns InvalidOperationException into 409; a storage error would surface as 500.
+        var conflict = await Assert.ThrowsAsync<InvalidOperationException>(() => mutations.UpdateAsync(actor, given.Id,
+            new UpdateAccountAccessCommand("OWNER@example.com", true, IsAdministrator: false)));
+
+        Assert.Equal("That email already has a sign-in.", conflict.Message);
+        Assert.Equal("mary@example.com", (await accounts.GetByIdAsync(given.Id))!.Email);
+    }
+
     private sealed class Fixture : IAsyncDisposable
     {
         private readonly string _databasePath = Path.Combine(Path.GetTempPath(), $"tuvima-household-people-{Guid.NewGuid():N}.db");

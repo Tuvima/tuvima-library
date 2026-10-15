@@ -714,6 +714,35 @@ public sealed class UiShellRenderTests : AsyncBunitContext
         });
     }
 
+    [Theory]
+    [InlineData("/settings", null)]
+    [InlineData("/settings/playback", "playback")]
+    [InlineData("/settings/profiles", "profiles")]
+    public void SettingsPage_ForAKidsProfile_RedirectsToHomeAndDrawsNothing(string typedAddress, string? section)
+    {
+        var kidsApi = EngineApiClientStub.Create(stub =>
+            stub.SetHandler(nameof(IEngineApiClient.GetProfilesAsync), _ => Task.FromResult(new List<ProfileViewModel>
+            {
+                new(Guid.Parse("00000000-0000-0000-0000-000000000001"), "Robin", "#2E8BC9", "RestrictedProfile", DateTimeOffset.UtcNow),
+            })));
+        Services.AddSingleton<IEngineApiClient>(kidsApi);
+        var navigation = Services.GetRequiredService<NavigationManager>();
+        navigation.NavigateTo(typedAddress);
+
+        var cut = Render<Settings>(parameters =>
+        {
+            if (section is not null)
+            {
+                parameters.Add(page => page.Section, section);
+            }
+        });
+
+        cut.WaitForAssertion(() => Assert.Equal("http://localhost/", navigation.Uri));
+        Assert.Empty(cut.FindAll(".settings-shell-content"));
+        Assert.Empty(cut.FindAll(".profiles-tab__card"));
+        Assert.Empty(cut.FindAll(".settings-playback-page"));
+    }
+
     [Fact]
     public void LegacySettingsReviewPage_RedirectsToRecentlyAddedReviewSection()
     {

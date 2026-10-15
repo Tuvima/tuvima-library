@@ -611,6 +611,12 @@
             var removed = await Confirmed.RunAsync(() => Identity.DeleteManagedProfileResultAsync(profile.Id, keepPhotos));
             if (!removed.Succeeded)
             {
+                if (removed.Failure == DashboardAccessMutationFailure.Conflict)
+                {
+                    _editorError = ProfileEditingWorkflow.RemoveBlockedMessage;
+                    return;
+                }
+
                 Fail(removed.Failure, () => RemoveAsync(keepPhotos));
                 return;
             }

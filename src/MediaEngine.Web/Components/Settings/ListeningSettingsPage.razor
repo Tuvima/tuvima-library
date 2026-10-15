@@ -9,6 +9,7 @@
 @inject IEngineApiClient ApiClient
 @inject IUserPlaybackPreferencesAccessor PreferencesAccessor
 @inject IAppToastService Snackbar
+@inject ILogger<ListeningSettingsPage> Logger
 
 @if (_loading)
 {
@@ -25,7 +26,9 @@ else if (_forbidden)
 }
 else if (!string.IsNullOrWhiteSpace(_loadError))
 {
-    <AppAlert Severity="AppSeverity.Error" Variant="AppVariant.Outlined">@_loadError</AppAlert>
+    <AppErrorState Title="Listening preferences are unavailable"
+                   Message="@_loadError"
+                   Retry="@RetryLoadAsync" />
 }
 else if (_settings is not null)
 {
@@ -55,19 +58,19 @@ else if (_settings is not null)
                     "The amount used by the rewind control.",
                     _settings.Listening.SkipBackSeconds,
                     SkipBackOptions,
-                    value => UpdateAndSaveAsync(() => _settings.Listening.SkipBackSeconds = value))
+                    value => UpdateAndSaveAsync(s => s.Listening.SkipBackSeconds = value))
                 @IntSelectRow(
                     "Skip forward",
                     "The amount used by the forward control.",
                     _settings.Listening.SkipForwardSeconds,
                     SkipForwardOptions,
-                    value => UpdateAndSaveAsync(() => _settings.Listening.SkipForwardSeconds = value))
+                    value => UpdateAndSaveAsync(s => s.Listening.SkipForwardSeconds = value))
                 @IntSelectRow(
                     "Resume rewind",
                     "Rewind slightly when resuming so spoken context is not lost.",
                     _settings.Listening.ResumeRewindSeconds,
                     ResumeRewindOptions,
-                    value => UpdateAndSaveAsync(() => _settings.Listening.ResumeRewindSeconds = value))
+                    value => UpdateAndSaveAsync(s => s.Listening.ResumeRewindSeconds = value))
             </SettingsSectionPanel>
 
             <SettingsSectionPanel Title="Sleep timer"
@@ -79,7 +82,7 @@ else if (_settings is not null)
                         <AppText Typo="AppTypo.body2" Color="AppColor.Secondary">The length shown first when you open the sleep timer.</AppText>
                     </div>
                     <AppSelect Value="@SleepTimerValue"
-                               ValueChanged="@(value => UpdateAndSaveAsync(() => _settings.Listening.DefaultSleepTimer = value ?? PlaybackPreferenceValues.Off))"
+                               ValueChanged="@(value => UpdateAndSaveAsync(s => s.Listening.DefaultSleepTimer = value ?? PlaybackPreferenceValues.Off))"
                                Variant="AppVariant.Outlined"
                                Margin="AppMargin.Dense"
                                Dense="true"
@@ -100,7 +103,7 @@ else if (_settings is not null)
                     </div>
                     <AppSwitchRow T="bool"
                                   Value="@_settings.Listening.AllowEndOfChapterSleepTimer"
-                                  ValueChanged="@(value => UpdateAndSaveAsync(() => _settings.Listening.AllowEndOfChapterSleepTimer = value))"
+                                  ValueChanged="@(value => UpdateAndSaveAsync(s => s.Listening.AllowEndOfChapterSleepTimer = value))"
                                   Color="AppColor.Primary"
                                   AriaLabel="Offer end of chapter" />
                 </div>
@@ -124,6 +127,7 @@ else if (_settings is not null)
     private bool _loading = true;
     private string? _loadError;
     private string? _saveError;
+    private readonly SemaphoreSlim _saveGate = new(1, 1);
 
     private bool IsOtherProfile => ProfileId is { } id && id != Guid.Empty && id != _activeProfile?.Id;
 
@@ -149,8 +153,16 @@ else if (_settings is not null)
         }
     }
 
-    protected override async Task OnInitializedAsync()
+    protected override Task OnInitializedAsync() => LoadAsync();
+
+    private Task RetryLoadAsync() => LoadAsync();
+
+    private async Task LoadAsync()
     {
+        _loading = true;
+        _loadError = null;
+        _forbidden = false;
+        _settings = null;
         try
         {
             _activeProfile = await Orchestrator.GetActiveProfileAsync();
@@ -170,12 +182,22 @@ else if (_settings is not null)
             }
             else
             {
+                // A missing answer means the Engine could not be reached, not that nothing is saved. Showing defaults here would
+                // let the first change write them over the profile's real choices, so the page shows an error and no controls.
                 var loaded = await PreferencesAccessor.GetAsync();
-                _settings = Clone(loaded ?? UserPlaybackSettingsDto.CreateDefaults(_activeProfile?.Id ?? Guid.Empty));
+                if (loaded is null)
+                {
+                    Logger.LogWarning("Listening settings could not be loaded: the Engine returned no settings for the active profile.");
+                    _loadError = "Listening settings could not be loaded.";
+                    return;
+                }
+
+                _settings = Clone(loaded);
             }
         }
-        catch
+        catch (Exception ex)
         {
+            Logger.LogWarning(ex, "Listening settings could not be loaded.");
             _loadError = "Listening settings could not be loaded.";
         }
         finally
@@ -209,26 +231,41 @@ else if (_settings is not null)
         </AppIntSelect>
     </div>;
 
-    private async Task UpdateAndSaveAsync(Action update)
+    private async Task UpdateAndSaveAsync(Action<UserPlaybackSettingsDto> change)
     {
-        update();
         _saveError = null;
-        await SaveAsync();
+        await SaveAsync(change);
     }
 
-    private async Task SaveAsync()
+    // Reads the profile's current settings and applies only the changed field to that copy, so a change made in another tab
+    // or on another device since this page opened is kept. If the current settings cannot be read, nothing is saved.
+    private async Task SaveAsync(Action<UserPlaybackSettingsDto> change)
     {
         if (_settings is null)
             return;
 
+        await _saveGate.WaitAsync();
         try
         {
             var other = IsOtherProfile;
+            var fresh = other
+                ? await ApiClient.GetPlaybackSettingsAsync(ProfileId!.Value)
+                : await Orchestrator.GetPlaybackSettingsAsync();
+            if (fresh is null)
+            {
+                Logger.LogWarning("Listening settings were not saved: the profile's current settings could not be read.");
+                _saveError = "Listening settings could not be saved.";
+                Snackbar.Add(_saveError, AppSeverity.Error);
+                return;
+            }
+
+            change(fresh);
             var saved = other
-                ? await ApiClient.UpdatePlaybackSettingsAsync(ProfileId!.Value, _settings)
-                : await Orchestrator.SavePlaybackSettingsAsync(_settings);
+                ? await ApiClient.UpdatePlaybackSettingsAsync(ProfileId!.Value, fresh)
+                : await Orchestrator.SavePlaybackSettingsAsync(fresh);
             if (saved is null)
             {
+                Logger.LogWarning("Listening settings could not be saved: the Engine did not accept the update.");
                 _saveError = "Listening settings could not be saved.";
                 Snackbar.Add(_saveError, AppSeverity.Error);
                 return;
@@ -238,13 +275,15 @@ else if (_settings is not null)
             if (!other)
                 PreferencesAccessor.UpdateCache(saved);
         }
-        catch
+        catch (Exception ex)
         {
+            Logger.LogWarning(ex, "Listening settings could not be saved.");
             _saveError = "Listening settings could not be saved.";
             Snackbar.Add(_saveError, AppSeverity.Error);
         }
         finally
         {
+            _saveGate.Release();
             StateHasChanged();
         }
     }

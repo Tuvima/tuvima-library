@@ -32,6 +32,7 @@ public sealed class ProfileDetailPageTests : AsyncBunitContext
     private readonly List<AccountAccessResponse> _accounts = [];
     private readonly List<AccessLibraryOptionDto> _libraries = [];
     private HttpStatusCode _accessSaveStatus = HttpStatusCode.OK;
+    private HttpStatusCode _profileDeleteStatus = HttpStatusCode.NoContent;
     private bool _confirmTwoStepOff = true;
     private int _confirmCount;
     private static readonly Guid LibraryA = Guid.Parse("00000000-0000-0000-0000-00000000000a");
@@ -546,6 +547,26 @@ public sealed class ProfileDetailPageTests : AsyncBunitContext
     }
 
     [Fact]
+    public void DeleteRefusedWithAConflict_TellsTheAdministratorToRemoveOrMoveTheSignInFirst()
+    {
+        Setup(actions: ["household.manage"], navigation: []);
+        _managed.AddRange([Person(OwnId, "Test User", false), Person(SamId, "Sam", false)]);
+        _profileDeleteStatus = HttpStatusCode.Conflict;
+
+        var cut = RenderFor(SamId);
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-nav-row='delete']")));
+        Row(cut, "delete").Click();
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".profile-editor__confirm")));
+        cut.Find(".profile-editor__confirm .who-button--danger").Click();
+
+        cut.WaitForAssertion(() =>
+        {
+            Assert.Contains(_requests, request => request.Method == HttpMethod.Delete && request.Path == $"/access/profiles/{SamId:D}");
+            Assert.Contains("Remove or move their sign-in first", cut.Find(".who-page__error").TextContent);
+        });
+    }
+
+    [Fact]
     public void ProfileDetailsRow_OpensTheEditorWithoutTheDeleteConfirmation()
     {
         Setup(actions: ["household.manage"], navigation: []);
@@ -647,6 +668,11 @@ public sealed class ProfileDetailPageTests : AsyncBunitContext
                         invite ? new AccountInvitationResponse(Guid.NewGuid(), "KQ7M4-XH2TA", DateTimeOffset.UtcNow.AddDays(1), null) : null,
                         null)),
                 };
+            }
+
+            if (request.Method == HttpMethod.Delete && path.StartsWith("/access/profiles/", StringComparison.Ordinal))
+            {
+                return new HttpResponseMessage(owner._profileDeleteStatus);
             }
 
             if (request.Method == HttpMethod.Delete || request.Method == HttpMethod.Put)
