@@ -256,7 +256,7 @@ public sealed class PhoneBackupProfileTests : IAsyncLifetime
             Capabilities = new ClientCapabilitiesDto { Containers = ["mp4"], VideoCodecs = ["h264"], AudioCodecs = ["aac"] },
         }, "https://library.example");
         Assert.True(await authorization.DecideAsync(
-            new PairingDecisionRequest { UserCode = started.UserCode, Approved = true },
+            new PairingDecisionRequest { UserCode = started.UserCode, Approved = true, Scopes = ["library.read"] },
             _homeOwner.Id, _mary.Id, _mary.Id));
         var issued = await authorization.ExchangeAsync(new OAuthTokenRequest
         {

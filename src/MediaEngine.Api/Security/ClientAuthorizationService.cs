@@ -119,11 +119,12 @@ public sealed class ClientAuthorizationService(
     }
 
     /// <summary>
-    /// Records the person's decision. Approving grants exactly what the decision lists, within what the app asked for:
-    /// <c>Scopes</c> omitted (null) means every requested scope except the photo scopes, an explicit list means those scopes,
-    /// and photo scopes are only ever granted when listed. Approving with nothing left to grant, or granting photo scopes the
-    /// Application does not hold, throws <see cref="ArgumentException"/> before anything is stored, so no useless or
-    /// half-working device is created.
+    /// Records the person's decision. Approving grants exactly what the decision lists, within what the app asked for,
+    /// and photo scopes are only ever granted when listed. An approval must name its scopes: omitted (null), empty, or
+    /// naming nothing the app asked for leaves nothing to grant. Approving with nothing to grant, or granting photo scopes
+    /// the Application does not hold, throws <see cref="ArgumentException"/> before anything is stored, so no useless or
+    /// half-working device is created. A denial needs no scopes. An unknown, expired or already decided code returns false
+    /// before any of that is checked.
     /// </summary>
     public async Task<bool> DecideAsync(
         PairingDecisionRequest request,
@@ -138,13 +139,19 @@ public sealed class ClientAuthorizationService(
             return false;
         }
 
+        // An expired or already decided code answers exactly as it always has, before any scope is looked at.
+        if (pairing.Status != "pending" || pairing.ExpiresAt <= timeProvider.GetUtcNow())
+        {
+            return false;
+        }
+
         var requested = SplitScopes(pairing.RequestedScopes);
 
-        // A decision that omits the scopes keeps meaning "everything asked for", except the photo scopes: those are
-        // granted only when the person's decision lists them, so they can never be granted silently. An explicit list
-        // (even an empty one) means exactly what it names, so unticking everything on the pairing screen grants nothing.
+        // Nothing is granted that the decision does not name: an omitted list grants nothing, so there is no path that
+        // silently grants everything the app asked for (photo scopes included), and unticking everything on the pairing
+        // screen grants nothing.
         var approved = request.Scopes is null
-            ? requested.Where(scope => !ClientApiScopes.Photos.Contains(scope, StringComparer.Ordinal)).ToArray()
+            ? []
             : NormalizeScopes(request.Scopes).Where(requested.Contains).ToArray();
         var account = await accounts.GetByIdAsync(accountId, ct).ConfigureAwait(false);
         var grant = await accounts.GetGrantAsync(accountId, profileId, ct).ConfigureAwait(false);

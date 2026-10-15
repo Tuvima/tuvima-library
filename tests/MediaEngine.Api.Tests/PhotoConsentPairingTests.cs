@@ -187,13 +187,35 @@ public sealed class PhotoConsentPairingTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task AnApprovalThatNamesNoScopesNeverGrantsThePhotoScopes()
+    public async Task AnApprovalThatOmitsTheScopesIsRefusedAndGrantsNothing()
     {
-        // Scopes omitted (null) keeps meaning "every requested scope except photos"; an explicit empty list does not.
-        var token = await PairAsync(Everything, null);
+        // An approval must name its scopes: omitting them is refused exactly like an empty list, not read as "everything".
+        var started = await BeginAsync(Everything);
 
-        Assert.Equal("artwork.read library.read", token.Scope);
-        await AssertEveryRouteAsync(token.AccessToken, HttpStatusCode.Forbidden);
+        var refusal = await Assert.ThrowsAsync<ArgumentException>(() => DecideAsync(started.UserCode, null));
+        Assert.Contains("Choose at least one thing this device may do", refusal.Message, StringComparison.Ordinal);
+
+        var waiting = await _authorization.ExchangeAsync(new OAuthTokenRequest
+        {
+            GrantType = ClientAuthorizationService.DeviceGrantType,
+            ClientId = ClientId,
+            DeviceCode = started.DeviceCode,
+        });
+        Assert.Equal("authorization_pending", waiting.Error?.Error);
+        Assert.Empty(await _authorization.GetDevicesAsync(Profile.SeedProfileId));
+    }
+
+    [Fact]
+    public async Task ADecidedCodeAnswersNotFoundBeforeTheNothingToGrantRefusal()
+    {
+        var started = await BeginAsync(Everything);
+        Assert.True(await DecideAsync(started.UserCode, ["library.read"]));
+
+        // Already decided: same "false" (404) as ever, not a 400 about scopes, for an empty, omitted or real list.
+        Assert.False(await DecideAsync(started.UserCode, []));
+        Assert.False(await DecideAsync(started.UserCode, null));
+        Assert.False(await DecideAsync(started.UserCode, ["library.read"]));
+        Assert.False(await DecideAsync("ZZZZ-ZZZZ", []));
     }
 
     [Fact]
@@ -242,7 +264,7 @@ public sealed class PhotoConsentPairingTests : IAsyncLifetime
     [Fact]
     public async Task AnAppThatNeverAskedForPhotosGets403OnEveryViewRoute()
     {
-        var token = await PairAsync("library.read progress.read", null);
+        var token = await PairAsync("library.read progress.read", ["library.read", "progress.read"]);
 
         await AssertEveryRouteAsync(token.AccessToken, HttpStatusCode.Forbidden);
     }
@@ -360,11 +382,11 @@ public sealed class PhotoConsentPairingTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task WhenTheApplicationDoesNotHoldThePhotoScopesAnOmittedDecisionStillPairsWithoutThem()
+    public async Task WhenTheApplicationDoesNotHoldThePhotoScopesAnOrdinaryDecisionStillPairsWithoutThem()
     {
         await RemovePhotoGrantsAsync();
 
-        var token = await PairAsync(Everything, null);
+        var token = await PairAsync(Everything, ["library.read", "artwork.read"]);
 
         Assert.Equal("artwork.read library.read", token.Scope);
     }

@@ -115,9 +115,9 @@ public sealed class PairingDecisionRequest
     [JsonPropertyName("approved")] public bool Approved { get; init; }
 
     /// <summary>
-    /// The access the person approves. Omitted (null) means every requested scope except the photo scopes; an explicit
-    /// list means exactly those scopes (photo scopes only if listed, requested and held by the Application). An explicit
-    /// empty list, or one that leaves nothing after the app's request is applied, approves nothing and is refused.
+    /// The access the person approves: exactly the listed scopes, within what the app requested (photo scopes only if
+    /// listed, requested and held by the Application). An approval must name its scopes: omitted (null), an empty list, or
+    /// a list that leaves nothing after the app's request is applied approves nothing and is refused. A denial needs none.
     /// </summary>
     [JsonPropertyName("scopes")] public IReadOnlyList<string>? Scopes { get; init; }
 }

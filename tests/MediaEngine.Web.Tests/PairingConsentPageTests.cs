@@ -125,7 +125,7 @@ public sealed class PairingConsentPageTests
 
         Assert.Equal(HttpStatusCode.BadRequest, status);
         Assert.Equal(0, host.DecisionCalls);
-        Assert.Contains("role=alert", html, StringComparison.Ordinal);
+        Assert.Contains("role=alert tabindex=-1 autofocus", html, StringComparison.Ordinal);
         Assert.Contains("Choose at least one thing this device may do, or deny the request.", html, StringComparison.Ordinal);
         Assert.DoesNotContain("Device paired", html, StringComparison.Ordinal);
         // The choices are shown again, with a fresh token, so the person can fix it.
@@ -172,6 +172,22 @@ public sealed class PairingConsentPageTests
         Assert.Equal(HttpStatusCode.BadRequest, status);
         Assert.Contains("This app is not allowed to use photos and videos, so that option cannot be approved.", html, StringComparison.Ordinal);
         Assert.DoesNotContain("Device paired", html, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task TheDashboardAlwaysSendsAnExplicitScopeList()
+    {
+        await using var host = await PairingHost.StartAsync(["library.read", .. PhotoScopes]);
+        using var client = host.NewClient();
+
+        await host.DecideAsync(client, [("scope", "library.read")]);
+        Assert.Contains("\"scopes\":[", host.LastBody, StringComparison.Ordinal);
+        Assert.Contains("\"approved\":true", host.LastBody, StringComparison.Ordinal);
+
+        // A denial with nothing ticked still carries an explicit (empty) list rather than leaving the field out.
+        await host.DecideAsync(client, [], decision: "deny");
+        Assert.Contains("\"scopes\":[]", host.LastBody, StringComparison.Ordinal);
+        Assert.Contains("\"approved\":false", host.LastBody, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -225,6 +241,7 @@ public sealed class PairingConsentPageTests
         private readonly Uri _address;
         private (string[] Scopes, bool Approved) _received = ([], false);
         private int _decisionCalls;
+        private string _lastBody = string.Empty;
 
         private PairingHost(WebApplication dashboard, WebApplication engine, Uri address)
         {
@@ -234,6 +251,8 @@ public sealed class PairingConsentPageTests
         }
 
         public bool LastApproved => _received.Approved;
+
+        public string LastBody => _lastBody;
 
         public int DecisionCalls => Volatile.Read(ref _decisionCalls);
 
@@ -268,8 +287,10 @@ public sealed class PairingConsentPageTests
                     return;
                 }
 
-                var body = await context.Request.ReadFromJsonAsync<PairingDecisionRequest>();
-                Interlocked.Increment(ref host!._decisionCalls);
+                var raw = await new StreamReader(context.Request.Body).ReadToEndAsync();
+                host!._lastBody = raw;
+                var body = System.Text.Json.JsonSerializer.Deserialize<PairingDecisionRequest>(raw);
+                Interlocked.Increment(ref host._decisionCalls);
                 host._received = (body!.Scopes?.ToArray() ?? [], body.Approved);
                 context.Response.StatusCode = decisionStatus;
                 if (decisionDetail is not null)

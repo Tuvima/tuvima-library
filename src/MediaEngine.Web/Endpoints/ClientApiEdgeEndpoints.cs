@@ -533,7 +533,7 @@ public static class ClientApiEdgeEndpoints
                 <h1>Pair {html.Encode(review.DeviceName)}</h1>
                 <p><strong>{html.Encode(review.ClientName)}</strong> {html.Encode(review.ClientVersion)} identifies as a {html.Encode(review.DeviceClass)} device.</p>
                 <p>Grant only the access you expect:</p>
-                {(refusal is null ? string.Empty : $"<p class=error role=alert>{html.Encode(refusal)}</p>")}
+                {(refusal is null ? string.Empty : $"<p class=error role=alert tabindex=-1 autofocus>{html.Encode(refusal)}</p>")}
                 <form method="post">
                   <input type="hidden" name="__RequestVerificationToken" value="{html.Encode(antiforgeryToken ?? string.Empty)}">
                   <input type="hidden" name="user_code" value="{html.Encode(code)}">
