@@ -49,6 +49,10 @@ public static class NativeApiForwardPolicy
         // Browse, details, people and artwork: read-only for apps.
         Of(Read, "display/.*"),
         Of(Read, "details/.*"),
+
+        // Collections and Universes: the catalogue page, one collection and its item pages, and one Universe by QID. Read only.
+        Of(Read, $"collections(?:/{Guid}(?:/items)?)?"),
+        Of(Read, "universe/Q[0-9]{1,15}"),
         // Blocked paths match on "any single segment", not GUID shape, so a dash-less or braced ID can't slip by.
         Of(Read, "persons/(?![^/]+/editor$).*"),
         Of(Read, "library/portraits/.*"),

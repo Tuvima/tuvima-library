@@ -50,6 +50,22 @@ when all evidence in its final column is attached to the release candidate.
   captions supplied through native playback, progress, token rotation, and
   resume.
 
+## Collections and Universes in apps
+
+API v1 gives paired apps a read-only view of Collections: the same catalogue the
+Dashboard Collections page shows, one collection's items, and a Universe with
+its member shelves. Apps name and route each group by its `group_type`: a TV
+show is a *show*, a book or movie sequence is a *series*, a rollup across
+shelves or a rule-built group is a *collection*, a hand-picked or system group
+is a *list*, and a franchise rollup opened by its identifier is a *universe*.
+The content limit (Kids and maturity) of the paired profile applies to every
+item, count and preview, so a Kids phone never shows, or counts, an item over its
+limit; a collection that is unknown, someone else's, or empty for that profile
+looks the same to the app. Apps cannot create, edit, reorder or share
+collections, cannot read a Universe's relationship graph or lore, and never see
+personal-media sources or Documents through collections. Routes and fields are in the
+[API reference](../reference/api-endpoints.md#collections-and-universes-read-only).
+
 ## Product boundaries
 
 A paired phone or television switches profile inside the app without

@@ -66,7 +66,8 @@ internal static class ManagedCollectionMapper
         ArtworkPalette? artworkPalette = null,
         string? displayNameOverride = null,
         CollectionCatalogPersonDto? person = null,
-        bool hasCollectionsWrite = false)
+        bool hasCollectionsWrite = false,
+        string groupType = CollectionGroupTypes.Collection)
     {
         var baseDto = FromDomain(collection, itemCount, activeProfile, hasCollectionsWrite);
         var isGlobal = string.Equals(baseDto.Visibility, CollectionAccessPolicy.SharedVisibility, StringComparison.OrdinalIgnoreCase);
@@ -112,6 +113,7 @@ internal static class ManagedCollectionMapper
             CanShare = canManageGlobal,
             Family = classification.Family,
             SystemKey = classification.SystemKey,
+            GroupType = groupType,
             PrimaryLane = classification.PrimaryLaneOverride ?? mediaCounts.PrimaryLane,
             IsGlobal = isGlobal,
             IsSystem = classification.IsSystem,
@@ -136,4 +138,74 @@ internal static class ManagedCollectionMapper
             Person = person,
         };
     }
+
+    /// <summary>
+    /// Copies a catalogue entry for a paired app. Apps only read: the authoring fields (rule definition, who a list
+    /// is shared with, edit rights) are left out, and the collection's own uploaded artwork is not offered because its
+    /// route is not part of the app surface. Member artwork in <c>artwork_items</c> is unchanged.
+    /// </summary>
+    public static CollectionManagementCatalogDto ForNativeClient(CollectionManagementCatalogDto source) =>
+        new()
+        {
+            Id = source.Id,
+            Name = source.Name,
+            Description = source.Description,
+            IconName = source.IconName,
+            CoverArtworkUrl = null,
+            BackgroundArtworkUrl = null,
+            BannerArtworkUrl = null,
+            LogoArtworkUrl = null,
+            CollectionType = source.CollectionType,
+            Scope = source.Scope,
+            ProfileId = null,
+            Visibility = source.Visibility,
+            MembershipMode = source.MembershipMode,
+            PrimaryArea = source.PrimaryArea,
+            OwnerKind = source.OwnerKind,
+            Audience = source.Audience,
+            SelectedProfileIds = [],
+            IsEnabled = source.IsEnabled,
+            IsFeatured = source.IsFeatured,
+            MinItems = source.MinItems,
+            RuleJson = null,
+            Resolution = source.Resolution,
+            RuleHash = null,
+            MatchMode = source.MatchMode,
+            SortField = source.SortField,
+            SortDirection = source.SortDirection,
+            SecondarySortField = source.SecondarySortField,
+            SecondarySortDirection = source.SecondarySortDirection,
+            RefreshSchedule = null,
+            ItemCount = source.ItemCount,
+            Status = source.Status,
+            CreatedAt = source.CreatedAt,
+            ModifiedAt = source.ModifiedAt,
+            CanEdit = false,
+            CanShare = false,
+            Family = source.Family,
+            SystemKey = source.SystemKey,
+            GroupType = source.GroupType,
+            PrimaryLane = source.PrimaryLane,
+            IsGlobal = source.IsGlobal,
+            IsSystem = source.IsSystem,
+            IsCrossMedia = source.IsCrossMedia,
+            WatchCount = source.WatchCount,
+            ListenCount = source.ListenCount,
+            ReadCount = source.ReadCount,
+            OtherCount = source.OtherCount,
+            MovieCount = source.MovieCount,
+            TvCount = source.TvCount,
+            BookCount = source.BookCount,
+            ComicCount = source.ComicCount,
+            MusicCount = source.MusicCount,
+            AudiobookCount = source.AudiobookCount,
+            EarliestYear = source.EarliestYear,
+            LatestYear = source.LatestYear,
+            CanDelete = false,
+            CanRename = false,
+            CanToggleGlobal = false,
+            ArtworkItems = source.ArtworkItems,
+            ArtworkPalette = source.ArtworkPalette,
+            Person = source.Person,
+        };
 }

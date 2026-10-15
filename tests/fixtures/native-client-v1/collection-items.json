@@ -1,0 +1,29 @@
+{
+  "items": [
+    {
+      "id": "6f0c2a3e-0000-0000-0000-000000000001",
+      "work_id": "6f0c2a3e-0000-0000-0000-000000000002",
+      "title": "Alpha One",
+      "creator": null,
+      "media_type": "Movies",
+      "cover_url": "/stream/6f0c2a3e-0000-0000-0000-000000000003/cover",
+      "sort_order": 0,
+      "detail_route": "/details/work/6f0c2a3e-0000-0000-0000-000000000002?context=watch"
+    },
+    {
+      "id": "6f0c2a3e-0000-0000-0000-000000000004",
+      "work_id": "6f0c2a3e-0000-0000-0000-000000000005",
+      "title": "Alpha Two",
+      "creator": null,
+      "media_type": "Movies",
+      "cover_url": "/stream/6f0c2a3e-0000-0000-0000-000000000006/cover",
+      "sort_order": 1,
+      "detail_route": "/details/work/6f0c2a3e-0000-0000-0000-000000000005?context=watch"
+    }
+  ],
+  "offset": 0,
+  "limit": 2,
+  "has_more": true,
+  "total_count": 3,
+  "next_cursor": "2"
+}
