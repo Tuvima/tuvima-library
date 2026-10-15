@@ -90,6 +90,15 @@ granted can be listed or chosen, and a Kids profile keeps its content limit
 after the switch. Choosing the profile already in use is refused (`409`), and
 each device may list or switch at most 30 times a minute.
 
+A paired app can read, but never change, the watching and subtitle preferences of
+the person its device is using now (`GET /api/v1/devices/current/playback-preferences`,
+scope `playback.read`): audio and subtitle language names, when subtitles show
+(`Auto`, `Always` or `Off`), subtitle size and background, skip back and forward
+seconds, autoplay of the next episode, resume, and the default speed. They are
+the values saved in Settings > Playback, or the defaults when none are saved.
+The person is taken from the token alone, so an app never sees another person's
+settings, and changing them stays a Dashboard task.
+
 A TV app packaged for Tizen or webOS is not served from the Dashboard's address.
 When an administrator turns on `native_app_access.allow_browser_apps` in
 `config/network.json` (off by default, in addition to app access), the Dashboard
