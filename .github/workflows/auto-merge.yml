@@ -2,7 +2,7 @@ name: Auto-merge
 
 on:
   pull_request:
-    types: [labeled, synchronize, reopened]
+    types: [labeled, synchronize, reopened, closed]
 
 permissions:
   contents: write
@@ -11,6 +11,7 @@ permissions:
 jobs:
   auto-merge:
     if: >-
+      github.event.action != 'closed' &&
       contains(github.event.pull_request.labels.*.name, 'ready-to-merge') &&
       startsWith(github.event.pull_request.head.ref, 'claude/') &&
       github.event.pull_request.head.repo.full_name == github.repository
@@ -21,3 +22,30 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_URL: ${{ github.event.pull_request.html_url }}
         run: gh pr merge --auto --merge "$PR_URL"
+
+  # A merged claude/ branch of this repository is removed once its pull request is merged, unless another open pull
+  # request still uses it as its head or its base. The nightly Branch cleanup workflow covers merges that do not raise
+  # this event (a merge completed by auto-merge is not always delivered as a pull_request event).
+  delete-merged-branch:
+    if: >-
+      github.event.action == 'closed' &&
+      github.event.pull_request.merged == true &&
+      startsWith(github.event.pull_request.head.ref, 'claude/') &&
+      github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    steps:
+      - name: Delete the merged head branch
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BRANCH: ${{ github.event.pull_request.head.ref }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+          open_head=$(gh pr list --repo "$GITHUB_REPOSITORY" --state open --head "$BRANCH" --json number --jq 'length')
+          open_base=$(gh pr list --repo "$GITHUB_REPOSITORY" --state open --base "$BRANCH" --json number --jq 'length')
+          if [ "$open_head" != "0" ] || [ "$open_base" != "0" ]; then
+            echo "Keeping $BRANCH: another open pull request still uses it."
+            exit 0
+          fi
+          gh api -X DELETE "repos/$GITHUB_REPOSITORY/git/refs/heads/$BRANCH" || echo "Branch $BRANCH was already gone."
+          echo "Deleted $BRANCH (pull request #$PR_NUMBER)."
