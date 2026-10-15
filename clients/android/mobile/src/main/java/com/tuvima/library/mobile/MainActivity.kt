@@ -22,6 +22,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -103,6 +104,16 @@ private fun MobileRoot(
 
     LaunchedEffect(Unit) {
         application.savedServer()?.let(::connect)
+    }
+
+    // The Engine revoked this device: its sign-in and offline data are already cleared, so go back to pairing.
+    val revoked by application.sessionRevoked.collectAsState()
+    LaunchedEffect(revoked) {
+        if (revoked) {
+            application.sessionRevoked.value = false
+            val address = application.savedServer()
+            if (address != null) connect(address) else stage = MobileStage.Server
+        }
     }
 
     when (val current = stage) {

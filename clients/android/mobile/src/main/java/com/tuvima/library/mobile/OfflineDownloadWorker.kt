@@ -3,17 +3,21 @@ package com.tuvima.library.mobile
 import android.content.Context
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
+import com.tuvima.library.core.BoundProfile
 import com.tuvima.library.core.ClientRoutes
 import com.tuvima.library.core.DownloadRecord
 import com.tuvima.library.core.DownloadState
 import com.tuvima.library.core.OfflineLogic
 import com.tuvima.library.core.OfflineProgressEntry
 import com.tuvima.library.core.PendingReport
+import com.tuvima.library.core.ProfileChangedException
 import com.tuvima.library.core.ReportKind
+import com.tuvima.library.core.SyncGuard
 import com.tuvima.library.core.TuvimaClient
 import com.tuvima.library.core.TuvimaHttpException
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.withContext
 import java.io.File
 
 /**
@@ -32,12 +36,15 @@ class OfflineDownloadWorker(context: Context, parameters: WorkerParameters) : Co
         val record = store.record(assetId) ?: return Result.success()
         if (record.state == DownloadState.Paused) return Result.success()
         // A download belongs to the person who asked for it; it waits until they are using the phone again.
-        if (client.currentProfileId() != profileId) {
+        val guard = SyncGuard.startFor(profileId, client::profileBinding)
+        if (guard == null) {
             store.update(assetId) { it.copy(state = DownloadState.Paused, error = "Switch back to this profile to continue.") }
             return Result.success()
         }
         return try {
-            download(app, client, store, record)
+            // Bound to this person: a profile switch mid-download stops every further request instead of sending it with
+            // the next person's sign-in. What is on disk stays in this person's own store.
+            withContext(BoundProfile(guard.binding)) { download(app, client, store, record) }
         } catch (cancelled: CancellationException) {
             // Stopped by Pause, Delete or the system (for example the connection dropped). Keep the partial file.
             val current = store.record(assetId)
@@ -48,6 +55,9 @@ class OfflineDownloadWorker(context: Context, parameters: WorkerParameters) : Co
                 store.update(assetId) { it.copy(state = DownloadState.Queued) }
             }
             throw cancelled
+        } catch (switched: ProfileChangedException) {
+            store.update(assetId) { it.copy(state = DownloadState.Paused, error = "Switch back to this profile to continue.") }
+            Result.success()
         } catch (failure: Exception) {
             val permanent = failure is TuvimaHttpException && failure.statusCode in 400..499 &&
                 failure.statusCode != 401 && failure.statusCode != 408 && failure.statusCode != 429

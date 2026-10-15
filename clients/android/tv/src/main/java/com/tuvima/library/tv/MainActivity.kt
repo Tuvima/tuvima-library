@@ -138,6 +138,8 @@ private fun TuvimaTvRoot(application: TuvimaTvApplication, play: (String) -> Uni
     var state: TvState by remember { mutableStateOf(TvState.Server) }
     val history = remember { mutableListOf<TvState>() }
     var activeClient: TuvimaClient? by remember { mutableStateOf(null) }
+    // Set (from the client's background thread) when the Engine revokes this device's sign-in.
+    var sessionLost by remember { mutableStateOf(false) }
 
     // Shows a loading page, then the result; the page the person came from is kept so Back returns to it.
     fun navigate(message: String, replaceCurrent: Boolean = false, block: suspend () -> TvState) {
@@ -218,6 +220,7 @@ private fun TuvimaTvRoot(application: TuvimaTvApplication, play: (String) -> Uni
             runCatching {
                 application.connect(address).also { client ->
                     activeClient = client
+                    client.onSessionRevoked = { sessionLost = true }
                     client.discover()
                     if (client.isPaired()) {
                         state = loadHome(client)
@@ -232,6 +235,14 @@ private fun TuvimaTvRoot(application: TuvimaTvApplication, play: (String) -> Uni
     }
 
     LaunchedEffect(Unit) { application.savedServer()?.let(::connect) }
+    // The Engine revoked this device: its tokens are already cleared, so connect again, which lands on the pairing screen.
+    LaunchedEffect(sessionLost) {
+        if (sessionLost) {
+            sessionLost = false
+            val address = application.savedServer()
+            if (address != null) connect(address) else state = TvState.Server
+        }
+    }
     BackHandler(enabled = history.isNotEmpty() && state !is TvState.Loading) { back() }
 
     Box(Modifier.fillMaxSize().background(Color(0xFF09080D))) {

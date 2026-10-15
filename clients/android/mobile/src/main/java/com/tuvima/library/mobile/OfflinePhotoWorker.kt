@@ -3,16 +3,20 @@ package com.tuvima.library.mobile
 import android.content.Context
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
+import com.tuvima.library.core.BoundProfile
 import com.tuvima.library.core.ClientRoutes
 import com.tuvima.library.core.DownloadRecord
 import com.tuvima.library.core.DownloadState
 import com.tuvima.library.core.OfflineKind
 import com.tuvima.library.core.OfflineLogic
 import com.tuvima.library.core.PendingReport
+import com.tuvima.library.core.ProfileChangedException
 import com.tuvima.library.core.ReportKind
+import com.tuvima.library.core.SyncGuard
 import com.tuvima.library.core.TuvimaClient
 import com.tuvima.library.core.TuvimaHttpException
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.withContext
 
 /**
  * Keeps the queued photos of one person on the phone, one after another. Each is the 2048 px preview downloaded from
@@ -22,7 +26,7 @@ import kotlinx.coroutines.CancellationException
  * connection problems are retried.
  */
 class OfflinePhotoWorker(context: Context, parameters: WorkerParameters) : CoroutineWorker(context, parameters) {
-    private enum class Outcome { Stored, Retry, Failed, Gone }
+    private enum class Outcome { Stored, Retry, Failed, Gone, Switched }
 
     override suspend fun doWork(): Result {
         val profileId = inputData.getString(KEY_PROFILE_ID) ?: return Result.failure()
@@ -30,15 +34,25 @@ class OfflinePhotoWorker(context: Context, parameters: WorkerParameters) : Corou
         val client = app.client ?: app.savedServer()?.let(app::connect) ?: return Result.success()
         val store = app.offline.storeFor(profileId)
         // A photo belongs to the person who asked for it; it waits until they are using the phone again.
-        if (client.currentProfileId() != profileId) {
-            store.snapshot().filter { it.isPhoto && it.state == DownloadState.Queued }.forEach { waiting ->
-                store.update(waiting.assetId) {
-                    it.copy(state = DownloadState.Paused, error = "Switch back to this profile to continue.")
-                }
-            }
+        val guard = SyncGuard.startFor(profileId, client::profileBinding)
+        if (guard == null) {
+            pauseWaiting(store)
             return Result.success()
         }
+        // Bound to this person: a profile switch mid-run stops every further request instead of sending it with the next
+        // person's sign-in, and the photos still waiting are held for them.
+        return withContext(BoundProfile(guard.binding)) { keepQueued(app, client, store) }
+    }
 
+    private fun pauseWaiting(store: OfflineStore) {
+        store.snapshot().filter { it.isPhoto && it.state == DownloadState.Queued }.forEach { waiting ->
+            store.update(waiting.assetId) {
+                it.copy(state = DownloadState.Paused, error = "Switch back to this profile to continue.")
+            }
+        }
+    }
+
+    private suspend fun keepQueued(app: TuvimaMobileApplication, client: TuvimaClient, store: OfflineStore): Result {
         val deferred = mutableSetOf<String>()
         var stored = false
         while (true) {
@@ -49,6 +63,11 @@ class OfflinePhotoWorker(context: Context, parameters: WorkerParameters) : Corou
                 Outcome.Stored -> stored = true
                 Outcome.Retry -> deferred.add(next.assetId)
                 Outcome.Failed, Outcome.Gone -> Unit
+                Outcome.Switched -> {
+                    pauseWaiting(store)
+                    if (stored) app.offline.scheduleSync()
+                    return Result.success()
+                }
             }
         }
         if (stored) app.offline.scheduleSync()
@@ -78,6 +97,11 @@ class OfflinePhotoWorker(context: Context, parameters: WorkerParameters) : Corou
             file.delete()
             store.update(id) { if (it.state == DownloadState.Downloading) it.copy(state = DownloadState.Queued) else it }
             throw cancelled
+        } catch (switched: ProfileChangedException) {
+            // Another person is using the phone now: keep nothing partial; this photo waits in the queue for its owner.
+            file.delete()
+            store.update(id) { if (it.state == DownloadState.Downloading) it.copy(state = DownloadState.Queued) else it }
+            return Outcome.Switched
         } catch (failure: Exception) {
             file.delete()
             val permanent = failure is TuvimaHttpException && failure.statusCode in 400..499 &&

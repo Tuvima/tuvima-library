@@ -12,6 +12,15 @@ public actor TuvimaAPIClient {
     private let session: URLSession
     private var discovery: Discovery?
     private var token: ClientToken?
+    /// Counts profile changes and sign-outs, so background work bound to a profile can tell a switch (even a switch back).
+    private var profileEpoch = 0
+    /// The refresh being sent now, if any; every other caller that needs a fresh token waits for it.
+    private var refreshTask: Task<ClientToken, Error>?
+    /// Profile switches pending or done, so a refresh refused because of one is not taken for a revocation.
+    private var switches = SwitchTracker()
+    /// Called after the Engine refused to refresh this device's sign-in and the tokens were cleared; the app then clears
+    /// its offline data and returns to pairing.
+    private let onSessionRevoked: (@Sendable () -> Void)?
 
     public init(
         serverAddress: String,
@@ -20,7 +29,8 @@ public actor TuvimaAPIClient {
         clientVersion: String,
         deviceName: String,
         store: any TokenStoring = KeychainTokenStore(),
-        session: URLSession? = nil
+        session: URLSession? = nil,
+        onSessionRevoked: (@Sendable () -> Void)? = nil
     ) throws {
         guard var components = URLComponents(string: serverAddress.contains("://") ? serverAddress : "https://\(serverAddress)"),
               let host = components.host else { throw TuvimaClientError.invalidServer }
@@ -35,6 +45,7 @@ public actor TuvimaAPIClient {
         self.clientVersion = clientVersion
         self.deviceName = deviceName
         self.store = store
+        self.onSessionRevoked = onSessionRevoked
         self.token = store.load(for: origin)
         self.capabilities = [
             "schema_version": 1,
@@ -192,8 +203,19 @@ public actor TuvimaAPIClient {
     public func switchProfile(profileID: UUID, pin: String? = nil) async -> SwitchProfileResult {
         var body: [String: Any] = ["profile_id": profileID.uuidString.lowercased()]
         if let pin, !pin.isEmpty { body["pin"] = pin }
+        // While the switch is pending, a refused refresh is never taken for a revocation (see `SwitchTracker`).
+        switches.begin()
+        defer { switches.finish() }
         do {
             let response: TokenResponse = try await post(ClientRoutes.switchProfile, json: body)
+            // Nothing is stored when the device was signed out while the switch was in flight.
+            guard token != nil else {
+                return .failed(
+                    statusCode: 0,
+                    code: "signed_out",
+                    message: "This device was signed out while the profile was being switched."
+                )
+            }
             return .switched(try accept(response))
         } catch TuvimaClientError.http(let status, let text) {
             let error = try? JSONDecoder().decode(OAuthError.self, from: Data(text.utf8))
@@ -329,14 +351,29 @@ public actor TuvimaAPIClient {
     /// The device's own sign-in profile, or nil before pairing. Offline records are kept per person.
     public var currentProfileID: UUID? { token?.profileID }
 
+    /// The signed-in profile plus a change counter; background work binds to this (see `SyncGuard`) and compares it later.
+    public var profileBinding: ProfileBinding? {
+        token.map { ProfileBinding(profileID: $0.profileID, epoch: profileEpoch) }
+    }
+
+    /// Refuses to go on when the calling work is bound (see `ProfileScope`) to a profile that is no longer signed in.
+    private func requireBoundProfile() throws {
+        guard let bound = ProfileScope.bound else { return }
+        if profileBinding != bound { throw TuvimaClientError.profileChanged }
+    }
+
     /// Sends an authenticated request and returns the status and body without treating a non-2xx answer as an error,
     /// so a caller can read 204, 404 and 409 for what they mean.
     private func sendForStatus(_ original: URLRequest) async throws -> (status: Int, data: Data) {
         var request = original
-        request.setValue("Bearer \(try await accessToken())", forHTTPHeaderField: "Authorization")
+        let used = try await accessToken()
+        request.setValue("Bearer \(used)", forHTTPHeaderField: "Authorization")
         var (data, response) = try await session.data(for: request)
         if (response as? HTTPURLResponse)?.statusCode == 401 {
-            request.setValue("Bearer \(try await accessToken(forceRefresh: true))", forHTTPHeaderField: "Authorization")
+            request.setValue(
+                "Bearer \(try await accessToken(forceRefresh: true, rejecting: used))",
+                forHTTPHeaderField: "Authorization"
+            )
             (data, response) = try await session.data(for: request)
         }
         return ((response as? HTTPURLResponse)?.statusCode ?? 0, data)
@@ -371,19 +408,73 @@ public actor TuvimaAPIClient {
 
     public func signOut() {
         token = nil
+        profileEpoch += 1
         store.clear(for: origin)
     }
 
-    private func accessToken(forceRefresh: Bool = false) async throws -> String {
+    /// `rejected` is the access token a request just used and the Engine refused with 401: when the current token is no
+    /// longer that one (another call already refreshed, or the profile was switched), it is used as is and nothing is sent.
+    private func accessToken(forceRefresh: Bool = false, rejecting rejected: String? = nil) async throws -> String {
+        try requireBoundProfile()
         guard let current = token else { throw TuvimaClientError.notPaired }
+        if let rejected, current.accessToken != rejected { return current.accessToken }
         if !forceRefresh && !current.expiresSoon { return current.accessToken }
+        return try await refreshedToken(replacing: current).accessToken
+    }
+
+    /// One refresh at a time. Refresh tokens rotate, so a second concurrent use of the same refresh token looks like a
+    /// replay to the Engine, which then revokes the whole token family. A caller that arrives while a refresh is in
+    /// flight waits for it instead of sending its own. (A caller whose request was refused with a token that has since been
+    /// replaced never gets here: `accessToken(rejecting:)` returns the newer token first.)
+    private func refreshedToken(replacing current: ClientToken) async throws -> ClientToken {
+        if let inFlight = refreshTask {
+            let joined = try await inFlight.value
+            try requireBoundProfile()
+            return joined
+        }
+        let before = profileBinding
+        let generation = switches.generation
+        // Unstructured on purpose: a refresh that has been sent must finish and be stored even if its caller is cancelled.
+        let task = Task<ClientToken, Error> {
+            try await self.performRefresh(current, before: before, switchGeneration: generation)
+        }
+        refreshTask = task
+        defer { refreshTask = nil }
+        return try await task.value
+    }
+
+    private func performRefresh(
+        _ current: ClientToken,
+        before: ProfileBinding?,
+        switchGeneration: Int
+    ) async throws -> ClientToken {
         let endpoints = try await endpoints()
-        let response: TokenResponse = try await post(endpoints.tokenEndpoint, json: [
-            "grant_type": "refresh_token",
-            "client_id": clientID,
-            "refresh_token": current.refreshToken,
-        ], authenticated: false)
-        return try accept(response).accessToken
+        let response: TokenResponse
+        do {
+            response = try await post(endpoints.tokenEndpoint, json: [
+                "grant_type": "refresh_token",
+                "client_id": clientID,
+                "refresh_token": current.refreshToken,
+            ], authenticated: false)
+        } catch TuvimaClientError.http(let status, let body) {
+            let code = (try? JSONDecoder().decode(OAuthError.self, from: Data(body.utf8)))?.error
+            if SessionLogic.classifyRefreshFailure(statusCode: status, errorCode: code) == .revoked {
+                // The device was revoked or its grant changed: drop the sign-in and tell the app, which clears the offline
+                // data. Not when a profile switch is pending or happened since this attempt began (the Engine's switch
+                // revokes the old tokens, so the refusal is expected and transient: the next refresh uses the new
+                // profile's token), and only when this is still the sign-in that was refused.
+                if switches.mayTreatRefusalAsRevoked(capturedGeneration: switchGeneration),
+                   token?.refreshToken == current.refreshToken {
+                    signOut()
+                    onSessionRevoked?()
+                    throw TuvimaClientError.sessionRevoked
+                }
+            }
+            throw TuvimaClientError.http(status, body)
+        }
+        // The actor can run other calls while the answer was awaited: never store a refresh for a profile that was left.
+        guard profileBinding == before else { throw TuvimaClientError.profileChanged }
+        return try accept(response)
     }
 
     private func accept(_ response: TokenResponse) throws -> ClientToken {
@@ -395,6 +486,7 @@ public actor TuvimaAPIClient {
             deviceID: response.deviceID,
             profileID: response.profileID
         )
+        if token?.profileID != value.profileID { profileEpoch += 1 }
         token = value
         try store.save(value, for: origin)
         return value
@@ -447,10 +539,18 @@ public actor TuvimaAPIClient {
 
     private func sendRaw(_ original: URLRequest, authenticated: Bool) async throws -> Data {
         var request = original
-        if authenticated { request.setValue("Bearer \(try await accessToken())", forHTTPHeaderField: "Authorization") }
+        var used: String?
+        if authenticated {
+            let bearer = try await accessToken()
+            used = bearer
+            request.setValue("Bearer \(bearer)", forHTTPHeaderField: "Authorization")
+        }
         var (data, response) = try await session.data(for: request)
         if authenticated, (response as? HTTPURLResponse)?.statusCode == 401 {
-            request.setValue("Bearer \(try await accessToken(forceRefresh: true))", forHTTPHeaderField: "Authorization")
+            request.setValue(
+                "Bearer \(try await accessToken(forceRefresh: true, rejecting: used))",
+                forHTTPHeaderField: "Authorization"
+            )
             (data, response) = try await session.data(for: request)
         }
         guard let http = response as? HTTPURLResponse, (200...299).contains(http.statusCode) else {

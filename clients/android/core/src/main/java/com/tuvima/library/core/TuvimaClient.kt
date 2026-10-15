@@ -1,6 +1,7 @@
 package com.tuvima.library.core
 
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -28,7 +29,14 @@ class TuvimaClient(
 ) {
     val serverOrigin: String = normalizeOrigin(serverAddress)
     private val refreshMutex = Mutex()
-    private var token: ClientToken? = tokenStore.load()?.takeIf { it.first == serverOrigin }?.second
+    private val session = SessionHolder(tokenStore.load()?.takeIf { it.first == serverOrigin }?.second)
+
+    /**
+     * Called (on a background thread) after the Engine refused to refresh this device's sign-in and the tokens were cleared.
+     * The app clears its per-profile offline data and returns to pairing.
+     */
+    @Volatile
+    var onSessionRevoked: (() -> Unit)? = null
     private var discovery: Discovery? = null
 
     suspend fun discover(): Discovery {
@@ -337,8 +345,25 @@ class TuvimaClient(
     suspend fun switchProfile(profileId: String, pin: String? = null): SwitchProfileResult {
         val body = JSONObject().put("profile_id", profileId)
         if (!pin.isNullOrBlank()) body.put("pin", pin)
+        // While the switch is pending, a refused refresh is never taken for a revocation: the Engine's switch revokes every
+        // token of the device, so a refresh sent with the previous profile's refresh token is refused with invalid_grant.
+        session.beginSwitch()
+        var finished = false
         return try {
-            SwitchProfileResult.Switched(acceptToken(requestJson("POST", ClientRoutes.SWITCH_PROFILE, body)))
+            val answer = requestJson("POST", ClientRoutes.SWITCH_PROFILE, body)
+            val value = parseToken(answer)
+            // Taken under the refresh lock (not held during the request, which may itself refresh): a refresh in flight
+            // for the previous profile finishes first, so its result can never overwrite the new profile's token. Nothing
+            // is stored when the device was signed out while the switch was in flight.
+            val stored = refreshMutex.withLock {
+                finished = true
+                session.finishSwitch(value) { tokenStore.save(serverOrigin, it) }
+            }
+            if (stored) {
+                SwitchProfileResult.Switched(value)
+            } else {
+                SwitchProfileResult.Failed(0, "signed_out", "This device was signed out while the profile was being switched.")
+            }
         } catch (error: TuvimaHttpException) {
             val json = runCatching { JSONObject(error.responseBody) }.getOrDefault(JSONObject())
             classifySwitchFailure(
@@ -346,19 +371,24 @@ class TuvimaClient(
                 json.optionalString("error"),
                 json.optionalString("error_description"),
             )
+        } finally {
+            if (!finished) session.finishSwitch(null)
         }
     }
 
     /** Removes this device on the server (all its tokens stop working at once). Call [signOut] afterwards. */
     suspend fun revokeCurrentDevice() {
-        val deviceId = token?.deviceId ?: error("This device is not paired.")
+        val deviceId = session.current()?.deviceId ?: error("This device is not paired.")
         requestText("DELETE", ClientRoutes.revokeDevice(deviceId), null, authenticated = true)
     }
 
-    fun currentProfileId(): String? = token?.profileId
+    fun currentProfileId(): String? = session.current()?.profileId
+
+    /** The signed-in profile plus a change counter; background work binds to this (see [SyncGuard]) and compares it later. */
+    fun profileBinding(): ProfileBinding? = session.binding()
 
     /** True when the device was given the photo scopes at pairing. */
-    fun hasPhotoAccess(): Boolean = token?.let { PhotoScopes.grantedIn(it.scope) } ?: false
+    fun hasPhotoAccess(): Boolean = session.current()?.let { PhotoScopes.grantedIn(it.scope) } ?: false
 
     private suspend fun <T> photoCall(block: suspend () -> T): T = try {
         block()
@@ -378,7 +408,7 @@ class TuvimaClient(
 
     suspend fun currentAccessToken(): String = authenticatedToken()
 
-    fun isPaired(): Boolean = token != null
+    fun isPaired(): Boolean = session.current() != null
 
     suspend fun downloadToFile(path: String, destination: File, onProgress: (Long, Long?) -> Unit = { _, _ -> }): Unit =
         withContext(Dispatchers.IO) {
@@ -423,8 +453,8 @@ class TuvimaClient(
         }
 
     fun signOut() {
-        token = null
-        tokenStore.clear()
+        // The token store is cleared in the same critical section, so a late save cannot bring the sign-in back.
+        session.clear { tokenStore.clear() }
     }
 
     /** Sends a request and returns only the HTTP status (no body is read); a 401 is retried once with a fresh token. */
@@ -472,29 +502,62 @@ class TuvimaClient(
         }
     }
 
+    /** Refuses to go on when the calling work is bound to a profile that is no longer the one signed in. */
+    private suspend fun requireBoundProfile() {
+        val bound = currentCoroutineContext()[BoundProfile] ?: return
+        if (profileBinding() != bound.binding) throw ProfileChangedException()
+    }
+
     private suspend fun authenticatedToken(): String {
-        val current = token ?: error("This device is not paired.")
+        requireBoundProfile()
+        val current = session.current() ?: error("This device is not paired.")
         return if (current.expiresSoon()) refreshToken() else current.accessToken
     }
 
     private suspend fun refreshToken(force: Boolean = false): String = refreshMutex.withLock {
-        val current = token ?: error("This device is not paired.")
+        requireBoundProfile()
+        // The token, its binding and the switch generation in one atomic read: the refresh result is stored only if the
+        // session still matches, and a refusal is judged against the switch generation seen here.
+        val snapshot = session.snapshot() ?: error("This device is not paired.")
+        val current = snapshot.token
         if (!force && !current.expiresSoon()) return@withLock current.accessToken
         val endpoint = (discovery ?: discover()).tokenEndpoint
-        val json = requestJson(
-            "POST",
-            endpoint,
-            JSONObject()
-                .put("grant_type", "refresh_token")
-                .put("client_id", clientId)
-                .put("refresh_token", current.refreshToken),
-            authenticated = false,
-        )
-        acceptToken(json).accessToken
+        val json = try {
+            requestJson(
+                "POST",
+                endpoint,
+                JSONObject()
+                    .put("grant_type", "refresh_token")
+                    .put("client_id", clientId)
+                    .put("refresh_token", current.refreshToken),
+                authenticated = false,
+            )
+        } catch (error: TuvimaHttpException) {
+            val code = runCatching { JSONObject(error.responseBody).optString("error") }.getOrNull()?.takeIf { it.isNotEmpty() }
+            if (SessionLogic.classifyRefreshFailure(error.statusCode, code) == RefreshFailureKind.Revoked) {
+                // The device was revoked or its grant changed: drop the sign-in and tell the app, which clears the offline data.
+                // Not when a profile switch is pending or happened since this attempt began (the Engine's switch revokes the
+                // old tokens, so the refusal is expected and transient: the next refresh uses the new profile's token), and
+                // only when this is still the token that was refused. The check and the drop are one step under the lock.
+                if (session.clearIfRevoked(snapshot) { tokenStore.clear() }) {
+                    onSessionRevoked?.invoke()
+                    throw SessionRevokedException()
+                }
+            }
+            throw error
+        }
+        acceptToken(json, snapshot.binding).accessToken
     }
 
-    private fun acceptToken(json: JSONObject): ClientToken {
-        val value = ClientToken(
+    private fun acceptToken(json: JSONObject, expected: ProfileBinding? = null): ClientToken {
+        val value = parseToken(json)
+        // Stored and saved in one critical section, so a sign-out can never be undone by a late save.
+        session.accept(value, expected) { tokenStore.save(serverOrigin, it) }
+        return value
+    }
+
+    private fun parseToken(json: JSONObject): ClientToken {
+        return ClientToken(
             accessToken = json.getString("access_token"),
             refreshToken = json.getString("refresh_token"),
             expiresAtEpochSeconds = System.currentTimeMillis() / 1000 + json.getLong("expires_in"),
@@ -502,9 +565,6 @@ class TuvimaClient(
             deviceId = json.getString("device_id"),
             profileId = json.getString("profile_id"),
         )
-        token = value
-        tokenStore.save(serverOrigin, value)
-        return value
     }
 
     private fun openConnection(

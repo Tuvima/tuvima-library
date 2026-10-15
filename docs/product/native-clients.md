@@ -128,6 +128,23 @@ unchanged, and newer apps add offline sync and the download list. Executable
 fixtures are `device-downloads.json` and `next-episodes.json` under
 `tests/fixtures/native-client-v1`.
 
+Offline records belong to one person, and a sync is tied to the person who was
+using the app when it started. The Android and iPhone apps check that the
+signed-in profile is unchanged before each request and before applying an
+answer; if the profile is switched mid-sync the run stops without reporting,
+replaying or removing anything, and the new profile gets its own run. When the
+Engine refuses to refresh a device's sign-in with the OAuth error
+`invalid_grant` (read from the answer's JSON body; the Engine answers every
+token failure with 400 and every real revocation carries that code) the app
+drops the sign-in, deletes its downloads and unsent records like a sign-out, and
+returns to pairing. Any other failure, including a 400 without that code, a 401
+or 403 from a proxy, an HTML page, a network error or a server error, never
+signs the person out. Refreshes are single-flight and a refreshed token is stored
+only for the profile it was requested for. Because the Engine's profile switch
+revokes the device's old tokens, a refresh refused while a switch is pending, or
+one that overlapped a switch, is treated as a bad moment and not a revocation. These paths are covered by unit tests
+on Android; the iPhone tests are written but not yet run in CI.
+
 Automotive clients expose only Listen content and native media controls. They
 do not expose Watch, Read, View, administration, metadata correction, or the
 general Dashboard.
