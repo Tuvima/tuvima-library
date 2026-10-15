@@ -25,8 +25,8 @@ credential. The executable wire fixtures are under
 | Stage | Deliverable | Repository status | Release evidence still required |
 | --- | --- | --- | --- |
 | 0 | API v1 entry gate | Implemented and covered by executable discovery, pairing, token, playback, ownership, and wire-contract tests | Run against the same candidate server build used for device certification |
-| 1 | Android TV pilot | Shared Kotlin client, television UI, D-pad navigation foundation, pairing, browse, artwork, HLS/direct playback, captions, progress, and resume implemented | Android CI build, low/current hardware matrix, remote-control and adaptive-HLS sign-off |
-| 2 | Android and iOS | Secure credentials, background/system playback, downloads, network recovery, deep links, and resume implemented | Android and Apple CI builds, phone/tablet device matrix, interruption/Bluetooth/download sign-off, store metadata |
+| 1 | Android TV pilot | Shared Kotlin client, television UI, D-pad navigation foundation, pairing, browse, artwork, HLS/direct playback, captions, progress, and resume implemented. The Home screen now leads with Continue, every row is focusable with a visible focus border, and Collections and View (photos, when the person allowed them at pairing) rows are added; the shared client gained the View, Collections, Universe and profile-switch calls with unit tests for their routes and typed results | Android CI build, low/current hardware matrix, remote-control and adaptive-HLS sign-off |
+| 2 | Android and iOS | Secure credentials, background/system playback, downloads, network recovery, deep links, and resume implemented. The Android phone app now has Dashboard-parity screens on API v1 only: bottom navigation (Home, Libraries, Search, Downloads, Settings); Home with Continue first; Libraries switching between Watch, Read, Listen (the Dashboard's sort and filter in a bottom sheet), View (month-grouped timeline, galleries and a pinch-to-zoom full-screen viewer) and Collections (catalogue, items and Universe shelves); Details with Play or Resume, Download, cast and editions; Settings with server address, profile switch with PIN prompt, default download quality and sign out. Downloads is a placeholder until the offline list is built, and the photo scopes are requested only when the person ticks the optional photos and videos box before pairing | Android and Apple CI builds, phone/tablet device matrix, interruption/Bluetooth/download sign-off, store metadata |
 | 3 | Roku | SceneGraph/BrightScript pairing, browse, search, detail, playback, captions, progress, and resume implemented; Continue, Collections, and Photos rows, a full-screen photo viewer, and a profile picker with PIN dialog added (no device test yet, no downloads) | Sideload matrix, pairing-policy confirmation, artwork/localization, Roku certification |
 | 4 | Android Auto and CarPlay | Listen-only music, audiobooks, playlists, recent items, queue-compatible media sessions, and native Now Playing surfaces implemented | Desktop Head Unit/vehicle tests, Apple managed CarPlay entitlement, both platform reviews |
 | 5 | Release train | Cross-client CI and API/source boundary gates implemented | Signing credentials, store records, privacy/support declarations, phased rollout, telemetry review, and rollback ownership |
@@ -88,7 +88,11 @@ that watched or listened offline syncs back with `offline: true` and a
 `client_timestamp` on its progress and heartbeat requests; the later of the
 Engine's and the device's record wins for each item, a stale update from an
 ordinary request is still refused, and a device clock in the future is treated
-as "now". Second, the app can report which downloads it holds
+as "now". An offline play that is applied also appears in the profile's History
+once the app reconnects, stamped with the time the device recorded (never a
+future time), and syncing the same play again never adds a second entry; a play
+the profile may not access, or one the Engine already has something newer for,
+adds nothing. Second, the app can report which downloads it holds
 (`GET/POST /api/v1/devices/current/downloads`, `DELETE .../{variantId}`) so a
 second launch or a profile switch shows the right list; the list belongs to that
 device and profile only, a download the profile may not access answers like one

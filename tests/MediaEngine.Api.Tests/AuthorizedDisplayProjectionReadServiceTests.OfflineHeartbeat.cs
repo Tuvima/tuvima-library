@@ -183,8 +183,141 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
         Assert.Equal(500, session.PositionSeconds);
         using var connection = _database.CreateConnection();
         Assert.Equal(0, connection.ExecuteScalar<int>("SELECT COUNT(*) FROM playback_telemetry_sessions;"));
-        Assert.Equal(0, connection.ExecuteScalar<int>("SELECT COUNT(*) FROM consumption_history WHERE asset_id = @asset;", new { asset }));
+        // The replay is history at the client's time (one entry), but it is not a live session.
+        Assert.Equal(1, connection.ExecuteScalar<int>("SELECT COUNT(*) FROM consumption_history WHERE asset_id = @asset;", new { asset }));
         Assert.DoesNotContain("player_session_id", stored.ExtendedProperties.Keys);
+    }
+
+    private List<(string Key, string UpdatedAt)> HistoryOf(Guid asset)
+    {
+        using var connection = _database.CreateConnection();
+        return connection.Query<(string, string)>(
+            "SELECT session_key, updated_at FROM consumption_history WHERE asset_id = @asset;", new { asset }).AsList();
+    }
+
+    [Fact]
+    public async Task OfflineHeartbeat_Applied_WritesOneHistoryEntryAtTheClientTime_AndReplaysNeverDoubleIt()
+    {
+        var (account, asset) = await SeedHeartbeatAssetAsync();
+        var (player, profile, states) = BuildHeartbeatPlayer(account);
+        await SeedProgressAsync(states, profile, asset, 70, DateTimeOffset.UtcNow.AddHours(-2));
+        var recordedAt = DateTimeOffset.UtcNow.AddMinutes(-10);
+        var beat = OfflineBeat(profile, asset, offline: true, recordedAt) with { DeviceId = "Phone-1" };
+
+        await player.HeartbeatAsync(beat);
+        await player.HeartbeatAsync(beat);
+        await player.HeartbeatAsync(beat);
+
+        var entry = Assert.Single(HistoryOf(asset));
+        Assert.StartsWith("offline:phone-1:", entry.Key);
+        var stamped = DateTimeOffset.Parse(entry.UpdatedAt);
+        Assert.Equal(recordedAt, stamped);
+        Assert.Equal(TimeSpan.Zero, stamped.Offset);
+        // The two later copies were ignored as not newer, so the resume record was written once by the replay.
+        Assert.Equal(2, (await states.GetAsync(profile, asset))!.Revision);
+    }
+
+    [Fact]
+    public async Task OfflineHeartbeat_Ignored_WritesNoHistory()
+    {
+        var (account, asset) = await SeedHeartbeatAssetAsync();
+        var (player, profile, states) = BuildHeartbeatPlayer(account);
+        await SeedProgressAsync(states, profile, asset, 70, DateTimeOffset.UtcNow.AddMinutes(-5));
+
+        await player.HeartbeatAsync(OfflineBeat(profile, asset, offline: true, DateTimeOffset.UtcNow.AddHours(-3)));
+
+        Assert.Empty(HistoryOf(asset));
+    }
+
+    [Fact]
+    public async Task OfflineHeartbeat_FutureTimestamp_IsHistoryAtTheServerClock_NotInTheFuture()
+    {
+        var (account, asset) = await SeedHeartbeatAssetAsync();
+        var (player, profile, _) = BuildHeartbeatPlayer(account);
+        var before = DateTimeOffset.UtcNow;
+
+        await player.HeartbeatAsync(OfflineBeat(profile, asset, offline: true, DateTimeOffset.UtcNow.AddDays(30)));
+
+        var entry = Assert.Single(HistoryOf(asset));
+        Assert.InRange(DateTimeOffset.Parse(entry.UpdatedAt), before, DateTimeOffset.UtcNow);
+    }
+
+    [Fact]
+    public async Task OfflineHeartbeat_ForAnAssetOverTheProfilesContentLimit_WritesNothing()
+    {
+        var (account, asset) = await SeedHeartbeatAssetAsync();
+        var (player, profile, states) = BuildHeartbeatPlayer(account);
+        SetAssetRating(asset, "R");
+        var beat = OfflineBeat(profile, asset, offline: true, DateTimeOffset.UtcNow.AddMinutes(-10));
+
+        SetContentLimit("PG");
+        await Assert.ThrowsAsync<PlayerResourceDeniedException>(() => player.HeartbeatAsync(beat));
+        Assert.Empty(HistoryOf(asset));
+        Assert.Null(await states.GetAsync(profile, asset));
+
+        // The same replay is applied once the limit allows the asset (a new request, so a new catalogue scope).
+        SetContentLimit("R");
+        var (allowedPlayer, _, _) = BuildHeartbeatPlayer(account);
+        await allowedPlayer.HeartbeatAsync(beat);
+        Assert.Single(HistoryOf(asset));
+    }
+
+    [Fact]
+    public async Task OfflineHeartbeat_ForAnotherLibrarysAsset_WritesNothing()
+    {
+        var (account, _) = await SeedHeartbeatAssetAsync();
+        var (player, profile, states) = BuildHeartbeatPlayer(account);
+        var foreign = await InsertOwnedWorkWithIdAsync(Guid.NewGuid(), "Elsewhere", "Movie");
+
+        await Assert.ThrowsAsync<PlayerResourceDeniedException>(() => player.HeartbeatAsync(
+            OfflineBeat(profile, foreign.AssetId, offline: true, DateTimeOffset.UtcNow.AddMinutes(-10))));
+
+        Assert.Empty(HistoryOf(foreign.AssetId));
+        Assert.Null(await states.GetAsync(profile, foreign.AssetId));
+    }
+
+    [Fact]
+    public async Task OfflinePutProgress_ForAnAssetOverTheContentLimit_IsDeniedByTheRouteBeforeAnyHistoryCanBeWritten()
+    {
+        var (account, asset) = await SeedHeartbeatAssetAsync();
+        var context = HumanContext(account, MediaEngine.Domain.Aggregates.Profile.SeedProfileId);
+        SetAssetRating(asset, "R");
+
+        SetContentLimit("PG");
+        Assert.Equal(CatalogueResourceAccess.Denied,
+            await CreateResourceService(context).EvaluateAssetAsync(context, asset, ApplicationPermissionIds.ProgressWrite));
+        Assert.Empty(HistoryOf(asset));
+
+        SetContentLimit("R");
+        Assert.Equal(CatalogueResourceAccess.Allowed,
+            await CreateResourceService(context).EvaluateAssetAsync(context, asset, ApplicationPermissionIds.ProgressWrite));
+    }
+
+    [Fact]
+    public async Task Heartbeat_Online_IsKeyedByItsPlayerSession_AsBefore()
+    {
+        var (account, asset) = await SeedHeartbeatAssetAsync();
+        var (player, profile, states) = BuildHeartbeatPlayer(account);
+        var before = DateTimeOffset.UtcNow;
+
+        await player.HeartbeatAsync(OfflineBeat(profile, asset, offline: false, null));
+
+        var stored = (await states.GetAsync(profile, asset))!;
+        Assert.Equal(10, stored.ProgressPct);
+        Assert.InRange(stored.LastAccessed, before, DateTimeOffset.UtcNow);
+        var entry = Assert.Single(HistoryOf(asset));
+        Assert.True(Guid.TryParse(entry.Key, out _));
+        Assert.Equal(stored.ExtendedProperties["player_session_id"], entry.Key);
+    }
+
+    private void SetAssetRating(Guid asset, string rating)
+    {
+        using var connection = _database.CreateConnection();
+        var work = connection.ExecuteScalar<Guid>(
+            "SELECT e.work_id FROM media_assets ma JOIN editions e ON e.id = ma.edition_id WHERE ma.id = @asset;", new { asset });
+        connection.Execute(
+            "INSERT INTO canonical_values (entity_id, key, value, last_scored_at) VALUES (@work, 'content_rating', @rating, CURRENT_TIMESTAMP);",
+            new { work, rating });
     }
 
     [Fact]
