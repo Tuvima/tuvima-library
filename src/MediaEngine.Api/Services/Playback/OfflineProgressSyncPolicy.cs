@@ -39,6 +39,17 @@ public static class OfflineProgressSyncPolicy
             ? heartbeat with { Offline = false, ClientTimestamp = null }
             : heartbeat;
 
+    /// <summary>
+    /// The history key for an offline replay: device plus the device's own timestamp (UTC, to the second). Together
+    /// with the profile and asset columns it is unique per play, so a retry or a second replay of the same request finds
+    /// the entry it already wrote. The device's timestamp is used as sent (not as clamped to the server clock), so a
+    /// retry of a request with a future timestamp is still the same entry.
+    /// </summary>
+    public static string HistorySessionKey(string deviceId, DateTimeOffset clientTimestamp) =>
+        string.Create(
+            System.Globalization.CultureInfo.InvariantCulture,
+            $"offline:{deviceId.Trim().ToLowerInvariant()}:{clientTimestamp.UtcDateTime:yyyyMMdd'T'HHmmss}Z");
+
     /// <summary>True when the device's record is strictly later than the server's. A tie keeps the server's record.</summary>
     public static bool ClientWins(DateTimeOffset serverUpdatedAt, DateTimeOffset clientTimestamp) =>
         clientTimestamp > serverUpdatedAt;

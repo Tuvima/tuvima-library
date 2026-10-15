@@ -297,7 +297,8 @@ public sealed class PlayerService
 
         // A replayed offline heartbeat describes the past, so it only ever touches the saved resume position: later wins
         // per asset, and it never writes the live session, the transport, listening history or telemetry at the time
-        // it happens to arrive.
+        // it happens to arrive. When it is applied, the same save writes one consumption-history entry stamped with the
+        // client time (keyed by device and client second, so a replay never doubles it); an ignored replay writes none.
         if (recordedAt is { } offlineRecordedAt)
         {
             if (heartbeatAsset.HasValue)
@@ -320,6 +321,7 @@ public sealed class PlayerService
                         replayedSettings.Listening,
                         heartbeat.AudiobookStartKind,
                         offlineRecordedAt,
+                        OfflineProgressSyncPolicy.HistorySessionKey(deviceId, heartbeat.ClientTimestamp ?? offlineRecordedAt),
                         ct);
                 }
             }
@@ -377,6 +379,7 @@ public sealed class PlayerService
                 client,
                 settings.Listening,
                 heartbeat.AudiobookStartKind,
+                null,
                 null,
                 ct);
         }
@@ -876,6 +879,7 @@ public sealed class PlayerService
         ListeningSettingsDto listeningSettings,
         string? audiobookStartKind,
         DateTimeOffset? recordedAt,
+        string? historySessionKey,
         CancellationToken ct)
     {
         var savedAt = recordedAt ?? DateTimeOffset.UtcNow;
@@ -943,6 +947,7 @@ public sealed class PlayerService
             ProgressPct = Math.Clamp(progressPct, 0, 100),
             LastAccessed = savedAt,
             ExtendedProperties = extended,
+            HistorySessionKey = historySessionKey,
         }, ct);
     }
 
