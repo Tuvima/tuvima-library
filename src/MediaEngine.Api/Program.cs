@@ -385,7 +385,6 @@ builder.Services.AddScoped<MediaEngine.Domain.Contracts.IAuthorizationEvaluator,
 builder.Services.AddScoped<CatalogueResourceAuthorizationService>();
 builder.Services.AddSingleton<IAuthorizationInvalidationService, AuthorizationInvalidationService>();
 builder.Services.AddSingleton<IAuthorizationAuditWriter, AuthorizationAuditWriter>();
-builder.Services.AddSingleton<ClientAuthorizationService>();
 builder.Services.AddSingleton(new DashboardServiceCredentialOptions(configDirectory));
 builder.Services.AddSingleton<DashboardServiceCredentialRecognizer>();
 builder.Services.AddSingleton<DashboardServiceCredentialBootstrapper>();

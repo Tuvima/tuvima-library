@@ -88,8 +88,49 @@ public sealed class IdentityRepository(IDatabaseConnection db) : IIdentityReposi
         return Task.CompletedTask;
     }
 
-    public Task UpdateCredentialAttemptAsync(Guid credentialId, int failedAttemptCount, DateTimeOffset? lockedUntil, DateTimeOffset? lastUsedAt, CancellationToken ct = default) =>
-        UpdateAttemptAsync("profile_credentials", credentialId, failedAttemptCount, lockedUntil, lastUsedAt, ct);
+    public Task<int?> ReserveCredentialAttemptAsync(Guid credentialId, int lockoutThreshold, DateTimeOffset now, CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+        using var conn = db.CreateConnection();
+        // One statement decides everything: a running lock or a full set of outstanding attempts matches no row. A lock that
+        // has run out starts the count again, so the first miss after it counts as 1.
+        return Task.FromResult(conn.ExecuteScalar<int?>(
+            """
+            UPDATE profile_credentials
+            SET failed_attempt_count = (CASE WHEN locked_until IS NULL THEN failed_attempt_count ELSE 0 END) + 1,
+                locked_until = NULL,
+                updated_at = @updated
+            WHERE id = @credentialId
+              AND (locked_until IS NULL OR locked_until <= @now)
+              AND (CASE WHEN locked_until IS NULL THEN failed_attempt_count ELSE 0 END) < @lockoutThreshold
+            RETURNING failed_attempt_count;
+            """, new { credentialId, lockoutThreshold, now = now.ToString("O"), updated = DateTimeOffset.UtcNow.ToString("O") }));
+    }
+
+    public Task LockExhaustedCredentialAsync(Guid credentialId, int lockoutThreshold, DateTimeOffset lockedUntil, CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+        using var conn = db.CreateConnection();
+        conn.Execute(
+            """
+            UPDATE profile_credentials
+            SET locked_until = @lockedUntil, updated_at = @updated
+            WHERE id = @credentialId AND locked_until IS NULL AND failed_attempt_count >= @lockoutThreshold;
+            """, new { credentialId, lockoutThreshold, lockedUntil = lockedUntil.ToString("O"), updated = DateTimeOffset.UtcNow.ToString("O") });
+        return Task.CompletedTask;
+    }
+
+    public Task<bool> ResetCredentialAttemptsIfUnlockedAsync(Guid credentialId, DateTimeOffset now, CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+        using var conn = db.CreateConnection();
+        return Task.FromResult(conn.Execute(
+            """
+            UPDATE profile_credentials
+            SET failed_attempt_count = 0, locked_until = NULL, last_used_at = @now, updated_at = @now
+            WHERE id = @credentialId AND (locked_until IS NULL OR locked_until <= @now);
+            """, new { credentialId, now = now.ToString("O") }) == 1);
+    }
 
     public Task<bool> IsAdministratorBootstrapCompletedAsync(CancellationToken ct = default)
     {

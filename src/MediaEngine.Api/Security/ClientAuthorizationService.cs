@@ -28,6 +28,7 @@ public sealed class ClientAuthorizationService(
     public static readonly TimeSpan DeviceCodeLifetime = TimeSpan.FromMinutes(10);
     public static readonly TimeSpan AccessTokenLifetime = TimeSpan.FromMinutes(10);
     public static readonly TimeSpan RefreshTokenLifetime = TimeSpan.FromDays(30);
+    public const string ProfileNotAllowedError = "profile_not_allowed";
     private const int InitialPollIntervalSeconds = 5;
     private const string UserCodeAlphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
     private static readonly HashSet<string> ValidDeviceClasses = new(StringComparer.OrdinalIgnoreCase)
@@ -187,6 +188,63 @@ public sealed class ClientAuthorizationService(
 
     public Task<bool> RevokeDeviceAsync(Guid deviceId, Guid profileId, CancellationToken ct = default) =>
         repository.RevokeDeviceAsync(deviceId, profileId, timeProvider.GetUtcNow(), "user_revoked", ct);
+
+    /// <summary>
+    /// Re-binds a paired device to another profile of the same account and issues a fresh token pair for it. The caller
+    /// has already decided the person may use the profile and has checked its PIN; this re-checks everything a refresh
+    /// checks (account, the new profile's grant, Application and its scopes), revokes every earlier token of the device,
+    /// and keeps the device id and approved scopes. Only the profile changes.
+    /// <paramref name="expectedProfileId"/> is the profile the caller authenticated as and <paramref name="callerTokenId"/>
+    /// its access token: the switch only happens if the device is still on that profile and that token is still live, so
+    /// of two switches made at once only one succeeds. <paramref name="audit"/> is stored in the same transaction.
+    /// </summary>
+    public async Task<ClientTokenResult> SwitchDeviceProfileAsync(
+        Guid deviceId,
+        Guid accountId,
+        Guid expectedProfileId,
+        Guid callerTokenId,
+        Guid targetProfileId,
+        AuthorizationAuditEvent audit,
+        CancellationToken ct = default)
+    {
+        var device = await repository.GetDeviceAsync(deviceId, ct).ConfigureAwait(false);
+        if (device is null || !device.IsActive || device.AccountId != accountId || device.ProfileId != expectedProfileId)
+        {
+            return ClientTokenResult.Failed("invalid_grant", "The device is no longer paired or has already switched profile.");
+        }
+
+        var account = await accounts.GetByIdAsync(accountId, ct).ConfigureAwait(false);
+        var grant = await accounts.GetGrantAsync(accountId, targetProfileId, ct).ConfigureAwait(false);
+        var application = await applications.GetApplicationAsync(device.ApplicationId, ct).ConfigureAwait(false);
+        var boundApplication = await applications.GetApplicationByClientIdAsync(device.ClientId, ct).ConfigureAwait(false);
+        if (account?.IsEnabled != true || application?.IsEnabled != true ||
+            boundApplication?.Id != application.Id || boundApplication.ApplicationType != ApplicationType.UserClient)
+        {
+            return ClientTokenResult.Failed("invalid_grant", "The account or Application is unavailable.");
+        }
+
+        if (grant?.IsEnabled != true)
+        {
+            return ClientTokenResult.Failed(ProfileNotAllowedError, "This account cannot use that profile.");
+        }
+
+        if (!await HasEffectivePermissionsAsync(application, SplitScopes(device.Scopes), ct).ConfigureAwait(false))
+        {
+            return ClientTokenResult.Failed("invalid_grant", "The device's scopes are no longer granted to the Application.");
+        }
+
+        var now = timeProvider.GetUtcNow();
+        var familyId = Guid.NewGuid();
+        var access = NewToken(application.Id, accountId, deviceId, targetProfileId, familyId, "access", device.Scopes, account.AuthorizationVersion, grant.AuthorizationVersion, application.AuthorizationVersion, 0, AccessTokenLifetime, now);
+        var refresh = NewToken(application.Id, accountId, deviceId, targetProfileId, familyId, "refresh", device.Scopes, account.AuthorizationVersion, grant.AuthorizationVersion, application.AuthorizationVersion, 0, RefreshTokenLifetime, now);
+        if (!await repository.SwitchDeviceProfileAsync(
+                deviceId, accountId, expectedProfileId, callerTokenId, targetProfileId, access.Entity, refresh.Entity, now, "profile_switched", audit, ct).ConfigureAwait(false))
+        {
+            return ClientTokenResult.Failed("invalid_grant", "The device is no longer paired or has already switched profile.");
+        }
+
+        return Success(access.Plaintext, refresh.Plaintext, deviceId, targetProfileId, device.Scopes);
+    }
 
     private async Task<ClientTokenResult> ExchangeDeviceCodeAsync(OAuthTokenRequest request, CancellationToken ct)
     {

@@ -57,7 +57,7 @@ public sealed class PhoneBackupProfileService(
     }
 
     /// <summary>A paired app's own bearer token, as opposed to a signed-in browser.</summary>
-    private static bool IsPairedApp(RequestAuthority authority) =>
+    internal static bool IsPairedApp(RequestAuthority authority) =>
         authority.PrincipalKind == PrincipalKind.DelegatedUserClient && authority.DeviceId is not null && authority.AccountId is not null;
 
     /// <summary>The phone itself chooses. The person must be in the phone's household, and their PIN is needed when they have one.</summary>

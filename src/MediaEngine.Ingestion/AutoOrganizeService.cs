@@ -311,7 +311,8 @@ public sealed class AutoOrganizeService : IAutoOrganizeService
         // CoverArtWorker writes poster.jpg next to the media file (even in staging) via
         // AssetPathService.GetMediaFilePosterPath, so companion files must always be moved
         // on promotion. Nothing is overwritten or removed: a name that is already taken stays where it is.
-        MoveSidecarFiles(sourcePath, promotedPath);
+        var keptBehind = MoveSidecarFiles(sourcePath, promotedPath);
+        await LogKeptBehindAsync(assetId, mediaType, keptBehind, ct).ConfigureAwait(false);
 
         // Clean up any .tuvima.bak files left behind by metadata taggers.
         // These backups are normally deleted on success, but can persist when the
@@ -514,7 +515,8 @@ public sealed class AutoOrganizeService : IAutoOrganizeService
 
         await MarkPresentedAndPublishAsync(assetId, metadata, mediaType, ct).ConfigureAwait(false);
 
-        MoveSidecarFiles(sourcePath, finalPath, destination);
+        var keptBehind = MoveSidecarFiles(sourcePath, finalPath, destination);
+        await LogKeptBehindAsync(assetId, mediaType, keptBehind, ct).ConfigureAwait(false);
         var sourceFolder = Path.GetDirectoryName(sourcePath) ?? string.Empty;
         CleanStagingBakFiles(sourceFolder);
         if (CanMutate(sourceFolder, SourceMutationKind.Delete, allowDelete: true))
@@ -698,7 +700,8 @@ public sealed class AutoOrganizeService : IAutoOrganizeService
             await _assetRepo.UpdateFilePathAsync(assetId, relocatedPath, ct).ConfigureAwait(false);
             await MarkPresentedAndPublishAsync(assetId, metadata, mediaType, ct).ConfigureAwait(false);
 
-            MoveSidecarFiles(oldPath, relocatedPath);
+            var keptBehind = MoveSidecarFiles(oldPath, relocatedPath);
+            await LogKeptBehindAsync(assetId, mediaType, keptBehind, ct).ConfigureAwait(false);
 
             var sourceRoot = _libraryResolver?.ResolveSourceForPath(oldPath)?.Source.Path;
             CleanEmptyParents(oldFolder, sourceRoot ?? oldFolder);
@@ -781,28 +784,64 @@ public sealed class AutoOrganizeService : IAutoOrganizeService
     /// shared (so a picture never becomes another file's folder-wide one). Nothing is ever overwritten or deleted: a file whose
     /// new name is already taken (even by an identical file) stays where it is. Anything else in the folder is left alone.
     /// </summary>
-    private void MoveSidecarFiles(string oldMediaPath, string newMediaPath, ImportDestination? importDestination = null)
+    private IReadOnlyList<SidecarMoveResult> MoveSidecarFiles(string oldMediaPath, string newMediaPath, ImportDestination? importDestination = null)
     {
         if (_sidecars is null
             || string.IsNullOrWhiteSpace(oldMediaPath)
             || string.IsNullOrWhiteSpace(newMediaPath)
             || string.Equals(oldMediaPath, newMediaPath, StringComparison.OrdinalIgnoreCase))
         {
-            return;
+            return [];
         }
 
         try
         {
             var results = _sidecars.Move(
                 oldMediaPath, newMediaPath, (from, to) => CanMoveBetween(from, to, importDestination), mayDelete: null, includeArtwork: true, renameArtworkToFolder: true);
-            foreach (var result in results.Where(result => result.Outcome is FolderOrganiseOutcomes.NotMoved or FolderOrganiseOutcomes.Failed))
+            var keptBehind = results
+                .Where(result => result.Outcome is FolderOrganiseOutcomes.NotMoved or FolderOrganiseOutcomes.Failed)
+                .ToList();
+            foreach (var result in keptBehind)
             {
                 _logger.LogInformation("Left {Sidecar} where it is: {Reason}", result.From, result.Detail);
             }
+
+            return keptBehind;
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             _logger.LogDebug(ex, "Sidecar files beside {Path} were not moved", oldMediaPath);
+            return [];
+        }
+    }
+
+    /// <summary>
+    /// A file that stays in the old folder (its new name was taken, even by an identical copy) keeps that folder from
+    /// being tidied away, so say so in History where the user can find and clear it.
+    /// </summary>
+    private async Task LogKeptBehindAsync(
+        Guid assetId, MediaType? mediaType, IReadOnlyList<SidecarMoveResult> keptBehind, CancellationToken ct)
+    {
+        if (keptBehind.Count == 0)
+        {
+            return;
+        }
+
+        var folder = Path.GetDirectoryName(keptBehind[0].From) ?? string.Empty;
+        var names = string.Join(", ", keptBehind.Select(result => Path.GetFileName(result.From)).Take(3));
+        try
+        {
+            await _activityRepo.LogAsync(new SystemActivityEntry
+            {
+                ActionType = SystemActionType.PathUpdated,
+                EntityId = assetId,
+                EntityType = mediaType?.ToString() ?? "MediaAsset",
+                Detail = $"Kept folder: {keptBehind.Count} file(s) left in place ({names}) because the same name already exists in the new folder.",
+            }, ct).ConfigureAwait(false);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _logger.LogDebug(ex, "Failed to log kept-folder history for {Id} ({Folder})", assetId, folder);
         }
     }
 
