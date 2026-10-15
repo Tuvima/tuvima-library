@@ -1,14 +1,19 @@
-// Browser checks for the book reader (BR2). Runs the real adapter in headless Chromium against a stand-in
+// Browser checks for the book reader (BR2). Runs the real adapter in a headless browser against a stand-in
 // Dashboard that mimics /engine-book/{id}/file, using the regression EPUB built by epub-fixtures.mjs.
 //
-//   node scripts/visual-qa/book-reader/run-checks.mjs
+//   node scripts/visual-qa/book-reader/run-checks.mjs [chromium|webkit]
+//   BOOK_READER_BROWSER=webkit node scripts/visual-qa/book-reader/run-checks.mjs
 //
-// Needs Playwright with a Chromium (PLAYWRIGHT_MODULE=<path to playwright> if it is not installed globally).
+// The browser is the first argument or BOOK_READER_BROWSER; the default is chromium. WebKit stands in for iPhone
+// Safari (every iOS browser uses it). Needs Playwright (PLAYWRIGHT_MODULE=<path to playwright> if it is not
+// installed globally) and the browser itself: Chromium may be preinstalled, WebKit usually needs
+// `npx playwright install webkit` once (it downloads the browser into the Playwright browsers folder, which is
+// %LOCALAPPDATA%\ms-playwright on Windows).
 
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
-import { buildBigEpub, buildHostileEpub, buildRegressionEpub } from './epub-fixtures.mjs';
+import { buildBigEpub, buildHostileEpub, buildPictureEpub, buildRegressionEpub, PICTURE_PAGES } from './epub-fixtures.mjs';
 import { startServer } from './serve.mjs';
 import {
     GUIDS, bookFrames, bookUrl, ensureDir, fixturesDir, frameWith, lastRelocation, loadPlaywright,
@@ -27,23 +32,31 @@ const check = async (name, fn) => {
     }
 };
 const assert = (condition, message) => { if (!condition) throw new Error(message); };
+const sortedKeys = object => Object.fromEntries(Object.entries(object).sort(([a], [b]) => a.localeCompare(b)));
 
 const dir = ensureDir(fixturesDir());
 const epub = path.join(dir, 'regression.epub');
 const hostile = path.join(dir, 'hostile.epub');
 const big = path.join(dir, 'big-3mb.epub');
+const pictures = path.join(dir, 'pictures.epub');
 const textFile = path.join(dir, 'not-a-book.epub');
 fs.writeFileSync(textFile, 'This is plain text, not a zip file. '.repeat(40));
 
-const { chromium } = loadPlaywright();
-const browser = await chromium.launch();
+const browserName = (process.argv[2] ?? process.env.BOOK_READER_BROWSER ?? 'chromium').toLowerCase();
+if (!['chromium', 'webkit'].includes(browserName)) {
+    console.error(`Unknown browser "${browserName}": use chromium or webkit.`);
+    process.exit(2);
+}
+const browser = await loadPlaywright()[browserName].launch();
+console.log(`Browser: ${browserName} ${browser.version()}`);
 
 // The "web" (an outside tracker) is a second server so we can see whether the book ever reaches out.
 const outside = await startServer();
-const server = await startServer({ books: { [GUIDS.regression]: epub, [GUIDS.notABook]: textFile, [GUIDS.hostile]: hostile, [GUIDS.big5]: big } });
+const server = await startServer({ books: { [GUIDS.regression]: epub, [GUIDS.notABook]: textFile, [GUIDS.hostile]: hostile, [GUIDS.big5]: big, [GUIDS.pictures]: pictures } });
 buildRegressionEpub(epub, { trackerOrigin: outside.origin });
 buildHostileEpub(hostile);
 buildBigEpub(big, 3);
+buildPictureEpub(pictures);
 
 const phone = { viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true, deviceScaleFactor: 2 };
 const desktop = { viewport: { width: 1280, height: 800 } };
@@ -116,6 +129,39 @@ await check('pictures, stylesheets, url() and SVG <image> all show (old reader: 
     const sheetLinked = await frame.evaluate(() => getComputedStyle(document.querySelector('.hero')).color);
     assert(sheetLinked === 'rgb(18, 52, 86)', `linked stylesheet not applied (${sheetLinked})`);
 }));
+
+await check('pictures without sizes, at 100%, in figures and as full-page covers keep a visible size on every page', async () => {
+    const context = await browser.newContext(phone);
+    const { page } = await openCheckPage(context, server.origin);
+    try {
+        const opened = await openBook(page, bookUrl(GUIDS.pictures), {});
+        assert(opened.ok, `open failed: ${opened.code} ${opened.message}`);
+        const sizes = [];
+        for (const [index, name] of PICTURE_PAGES.entries()) {
+            await page.evaluate(i => window.br.goTo(i), index);
+            // A picture is "there" when it has loaded AND still has a real box: WebKit can load one and lay it out 0px high.
+            const size = await waitFor(async () => {
+                for (const frame of bookFrames(page)) {
+                    try {
+                        const found = await frame.evaluate(() => {
+                            const el = document.querySelector('img, svg');
+                            if (!el) return null;
+                            const box = el.getBoundingClientRect();
+                            return { w: Math.round(box.width), h: Math.round(box.height), loaded: el.tagName === 'IMG' ? el.complete && el.naturalWidth > 0 : true };
+                        });
+                        if (found?.loaded) return found;
+                    } catch { /* frame navigating */ }
+                }
+                return null;
+            }, { label: `the ${name} picture` });
+            assert(size.w >= 10 && size.h >= 10, `${name} picture collapsed to ${size.w}x${size.h}`);
+            sizes.push(`${name} ${size.w}x${size.h}`);
+        }
+        return sizes.join(', ');
+    } finally {
+        await context.close();
+    }
+});
 
 await check('an outside image is never fetched and the layout survives', () => withBook(phone, {}, async ({ page }) => {
     outside.clearLog();
@@ -622,7 +668,7 @@ await check('settings are remembered per device, other stored keys survive, and 
         return { stored: JSON.parse(localStorage.getItem('tuvima-reader-settings')), loaded: window.br.loadSettings() };
     });
     assert(saved.stored.Margins === 48 && saved.stored.FontFamily === 'Merriweather', 'the current reader\'s keys were lost');
-    assert(JSON.stringify(saved.loaded) === JSON.stringify({ theme: 'sepia', fontSize: 22, lineHeight: 1.8, font: 'serif', pageWidth: 'wide', flow: 'scrolled' }), `loaded ${JSON.stringify(saved.loaded)}`);
+    assert(JSON.stringify(sortedKeys(saved.loaded)) === JSON.stringify(sortedKeys({ theme: 'sepia', fontSize: 22, lineHeight: 1.8, font: 'serif', pageWidth: 'wide', flow: 'scrolled' })), `loaded ${JSON.stringify(saved.loaded)}`);
     await page.evaluate(() => window.br.setAppearance({ theme: 'dark', fontSize: 20, lineHeight: 1.6, font: 'sans', pageWidth: 'narrow', flow: 'scrolled' }));
     const attrs = await page.evaluate(() => {
         const r = document.querySelector('foliate-view').renderer;
