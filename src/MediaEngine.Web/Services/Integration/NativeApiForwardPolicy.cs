@@ -53,6 +53,10 @@ public static class NativeApiForwardPolicy
         Of(Read, "persons/(?![^/]+/editor$).*"),
         Of(Read, "library/portraits/.*"),
 
+        // Photos and personal videos (the person's own, read-only; the Engine still needs the photo consent on the device token).
+        // Exactly the eleven GET routes of /api/v1/view, nothing else under view/ and no write verb, no HEAD. The person key is any one segment.
+        Of(["GET"], $"view/(?:timeline|galleries|people|places|galleries/{Guid}/items|people/[^/]+/items|items/{Guid}(?:/(?:thumbnail|preview|original|playback))?)"),
+
         // Streaming and subtitles: read, plus choosing the preferred subtitle track.
         Of(Read, "stream/.*"),
         Of(["POST"], $"stream/{Guid}/text-tracks/{Guid}/preferred"),

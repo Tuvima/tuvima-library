@@ -124,8 +124,11 @@ public sealed class ClientAuthorizationService(
         }
 
         var requested = SplitScopes(pairing.RequestedScopes);
+
+        // An approval that names no scopes keeps meaning "everything asked for", except the photo scopes: those are
+        // granted only when the person's decision lists them, so they can never be granted silently.
         var approved = request.Scopes.Count == 0
-            ? requested
+            ? requested.Where(scope => !ClientApiScopes.Photos.Contains(scope, StringComparer.Ordinal)).ToArray()
             : NormalizeScopes(request.Scopes).Where(requested.Contains).ToArray();
         var account = await accounts.GetByIdAsync(accountId, ct).ConfigureAwait(false);
         var grant = await accounts.GetGrantAsync(accountId, profileId, ct).ConfigureAwait(false);

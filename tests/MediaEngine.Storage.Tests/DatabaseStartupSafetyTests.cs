@@ -731,6 +731,55 @@ public sealed class DatabaseStartupSafetyTests
     }
 
     [Fact]
+    public void NativeApplicationSeed_HoldsThePhotoScopesOnceAndNeverRestoresARemovedGrant()
+    {
+        const string photoGrants = """
+            SELECT COUNT(*) FROM application_permission_grants
+            WHERE application_id=X'00000000000000000000000000000004'
+              AND permission_id IN ('view.personal.read','view.originals.read','view.galleries.read');
+            """;
+        using var fixture = TempDatabase.Create();
+        fixture.Database.InitializeSchema();
+        fixture.Database.RunStartupChecks();
+        using (var conn = fixture.Database.CreateConnection())
+        {
+            // The Application may be given the photo scopes; a person still has to consent on the pairing screen.
+            Assert.Equal("3", Scalar(conn, photoGrants));
+            using var command = conn.CreateCommand();
+            command.CommandText = "DELETE FROM application_permission_grants WHERE permission_id='view.originals.read';";
+            command.ExecuteNonQuery();
+        }
+
+        fixture.Database.InitializeSchema();
+        fixture.Database.RunStartupChecks();
+        using var restarted = fixture.Database.CreateConnection();
+        Assert.Equal("2", Scalar(restarted, photoGrants));
+    }
+
+    [Fact]
+    public void ExistingNativeApplication_GainsThePhotoScopesOnceWhenItPredatesThem()
+    {
+        using var fixture = TempDatabase.Create();
+        fixture.Database.InitializeSchema();
+        fixture.Database.RunStartupChecks();
+        using (var conn = fixture.Database.CreateConnection())
+        {
+            using var command = conn.CreateCommand();
+            command.CommandText = """
+                DELETE FROM application_permission_grants WHERE permission_id LIKE 'view.%';
+                DELETE FROM storage_metadata WHERE key='access_native_photos_seeded';
+                """;
+            command.ExecuteNonQuery();
+        }
+
+        fixture.Database.InitializeSchema();
+        fixture.Database.RunStartupChecks();
+        using var conn2 = fixture.Database.CreateConnection();
+        Assert.Equal("3", Scalar(conn2, "SELECT COUNT(*) FROM application_permission_grants WHERE application_id=X'00000000000000000000000000000004' AND permission_id LIKE 'view.%';"));
+        Assert.Equal("1", Scalar(conn2, "SELECT COUNT(*) FROM storage_metadata WHERE key='access_native_photos_seeded';"));
+    }
+
+    [Fact]
     public void FreshDatabase_ViewOwnershipAndGalleryForeignKeysTargetCurrentTables()
     {
         using var fixture = TempDatabase.Create();

@@ -72,4 +72,12 @@ public static class ApplicationPermissionIds
     public static readonly IReadOnlyList<ApplicationPermissionId> NativeClient = Array.AsReadOnly<ApplicationPermissionId>(
         [LibraryRead, ArtworkRead, LibraryChangesRead, ProgressRead, ProgressWrite, QueueRead, QueueWrite,
             PlaybackRead, PlaybackWrite, DownloadsRead, DownloadsWrite, EventsSubscribe]);
+
+    /// <summary>
+    /// The three scopes behind the one "Photos and personal videos" consent item. A paired app may request them, but they are
+    /// never part of the default scopes or the Media Player preset, and are granted only when the person ticks the separate
+    /// photo consent on the pairing screen.
+    /// </summary>
+    public static readonly IReadOnlyList<ApplicationPermissionId> NativeClientPhotos = Array.AsReadOnly<ApplicationPermissionId>(
+        [ViewPersonalRead, ViewOriginalsRead, ViewGalleriesRead]);
 }
