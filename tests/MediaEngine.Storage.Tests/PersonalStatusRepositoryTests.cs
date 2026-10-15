@@ -69,6 +69,50 @@ public sealed class PersonalStatusRepositoryTests : IDisposable
         Assert.Single(await repo.HistoryAsync(profile, target));
     }
     [Fact]
+    public async Task OfflineReplayHistoryKey_WritesOneEntryAtTheClientTime_AndRepeatsNeverDoubleIt()
+    {
+        var (work, asset) = Add(MediaType.Movies);
+        var store = new UserStateRepository(db);
+        var repo = new PersonalStatusRepository(db);
+        var playedAt = new DateTimeOffset(2030, 1, 2, 3, 4, 5, TimeSpan.FromHours(2));
+        UserState Replay(long revision) => new()
+        {
+            Revision = revision,
+            UserId = profile,
+            AssetId = asset,
+            ProgressPct = 40,
+            LastAccessed = playedAt,
+            HistorySessionKey = "offline:phone:20300102T010405Z",
+            ExtendedProperties = [],
+        };
+
+        await store.SaveAsync(Replay(0));
+        await store.SaveAsync(Replay(1));
+        await store.SaveAsync(Replay(2));
+
+        using (var conn = db.CreateConnection())
+        {
+            var row = conn.QuerySingle<(string Key, string Experience, string StartedAt, string UpdatedAt)>(
+                "SELECT session_key, experience, started_at, updated_at FROM consumption_history WHERE asset_id=@asset", new { asset });
+            Assert.Equal("offline:phone:20300102T010405Z", row.Key);
+            Assert.Equal("Played", row.Experience);
+            Assert.Equal(playedAt, DateTimeOffset.Parse(row.UpdatedAt));
+            Assert.EndsWith("+00:00", row.UpdatedAt);
+        }
+
+        var history = Assert.Single(await repo.HistoryAsync(profile, new PersonalStatusTarget(work, MediaType.Movies)));
+        Assert.Equal(playedAt, history.ChangedAt);
+        Assert.Equal("Played", history.Command);
+
+        // The key is not stored on the resume record, and a state without a key or session writes no history at all.
+        Assert.False((await store.GetAsync(profile, asset))!.ExtendedProperties.ContainsKey("history_session_key"));
+        var (_, quiet) = Add(MediaType.Movies);
+        await store.SaveAsync(new UserState { UserId = profile, AssetId = quiet, ProgressPct = 40, LastAccessed = playedAt });
+        using var check = db.CreateConnection();
+        Assert.Equal(0, check.ExecuteScalar<int>("SELECT COUNT(*) FROM consumption_history WHERE asset_id=@quiet", new { quiet }));
+    }
+
+    [Fact]
     public async Task CombinedFile_StatusIsOneStatePerFile_AndReachesEveryCoveredEpisode()
     {
         var show = Guid.NewGuid();

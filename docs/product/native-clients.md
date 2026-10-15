@@ -85,7 +85,11 @@ that watched or listened offline syncs back with `offline: true` and a
 `client_timestamp` on its progress and heartbeat requests; the later of the
 Engine's and the device's record wins for each item, a stale update from an
 ordinary request is still refused, and a device clock in the future is treated
-as "now". Second, the app can report which downloads it holds
+as "now". An offline play that is applied also appears in the profile's History
+once the app reconnects, stamped with the time the device recorded (never a
+future time), and syncing the same play again never adds a second entry; a play
+the profile may not access, or one the Engine already has something newer for,
+adds nothing. Second, the app can report which downloads it holds
 (`GET/POST /api/v1/devices/current/downloads`, `DELETE .../{variantId}`) so a
 second launch or a profile switch shows the right list; the list belongs to that
 device and profile only, a download the profile may not access answers like one
