@@ -159,3 +159,7 @@ website/external-links-report.json
 # Config backups written by ConfigurationDirectoryLoader on save (local runtime state)
 *.bak
 .scratch/
+
+# webOS package build output
+clients/tv-web/platforms/webos/build/
+clients/tv-web/platforms/webos/dist/
