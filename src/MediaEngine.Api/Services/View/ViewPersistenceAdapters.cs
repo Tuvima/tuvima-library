@@ -208,6 +208,32 @@ public sealed class ViewResourcePersistenceService(
             : new HashSet<Guid>();
     }
 
+    public Task<IReadOnlySet<Guid>> FindItemsWithContentAsync(
+        IReadOnlyCollection<Guid> itemIds, string role, CancellationToken ct = default)
+    {
+        // The same joins and source rules as ResolveContentAsync, for a list of items at once and without the disk.
+        var withContent = new HashSet<Guid>();
+        using var connection = database.CreateConnection();
+        foreach (var chunk in itemIds.Where(id => id != Guid.Empty).Distinct().Chunk(BulkChunkSize))
+        {
+            ct.ThrowIfCancellationRequested();
+            withContent.UnionWith(connection.Query<Guid>(new CommandDefinition("""
+                SELECT DISTINCT li.id
+                  FROM local_items li
+                  JOIN local_item_files lif ON lif.item_id=li.id AND lif.role=@role
+                  JOIN local_files lf ON lf.id=lif.file_id
+                  JOIN local_file_sources lfs ON lfs.file_id=lf.id AND lfs.library_id=li.library_id
+                  JOIN view_sources vs ON vs.id=lfs.source_id AND vs.library_id=li.library_id
+                 WHERE li.id IN @ids
+                   AND ((li.scope_kind='shared' AND vs.scope_kind='shared' AND vs.personal_space_id IS NULL)
+                     OR (li.scope_kind='personal' AND vs.scope_kind='personal'
+                         AND vs.personal_space_id=li.personal_space_id));
+                """, new { role, ids = chunk.Select(MediaEngine.Storage.GuidSql.ToBlob).ToArray() }, cancellationToken: ct)));
+        }
+
+        return Task.FromResult<IReadOnlySet<Guid>>(withContent);
+    }
+
     public Task<LocalAssetContentLocation?> ResolveContentAsync(Guid itemId, string role,
         ResolvedViewScope scope, CancellationToken ct = default)
     {

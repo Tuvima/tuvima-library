@@ -852,6 +852,96 @@ public sealed class ViewClientEndpointTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task APhotoWhoseFileSourceIsGoneForGood_IsHiddenByBothChecks_WhileAMissingFileIsOnlyAGap()
+    {
+        var gone = _anaTimeline[2];
+        var unmounted = _anaTimeline[3];
+        File.Delete(_assets.ResolveContent(unmounted)!.FilePath);
+        using (var connection = _database.CreateConnection())
+        {
+            // The index no longer has any source for the photo's primary file: not a gap, the photo is lost.
+            connection.Execute(
+                "DELETE FROM local_file_sources WHERE file_id IN (SELECT file_id FROM local_item_files WHERE item_id = @gone);",
+                new { gone });
+        }
+
+        using var scope = _app.Services.CreateScope();
+        var access = PhotoAccess(scope);
+        Assert.Equal(PhotoKeepAccess.NotFound, await access.EvaluateAsync(_ana.Authority, gone));
+        Assert.Equal(PhotoKeepAccess.FileMissing, await access.EvaluateAsync(_ana.Authority, unmounted));
+
+        var bulk = await access.EvaluateManyAsync(_ana.Authority, _anaTimeline);
+        Assert.DoesNotContain(gone, bulk.Visible);
+        Assert.Contains(unmounted, bulk.Visible);
+        Assert.Equal(_anaTimeline.Count - 1, bulk.Visible.Count);
+    }
+
+    [Fact]
+    public async Task TheBulkPhotoCheck_HandlesMoreThanOneChunkWithRepeatedIds()
+    {
+        using var scope = _app.Services.CreateScope();
+        var access = PhotoAccess(scope);
+
+        // 1,300 ids: real ones placed before, across and after the 500-id chunk boundaries, each repeated, among unknown ids.
+        var ids = new List<Guid>();
+        ids.AddRange(_anaTimeline.Take(3));
+        ids.AddRange(Enumerable.Range(0, 497).Select(_ => Guid.NewGuid()));
+        ids.AddRange(_anaTimeline.Skip(3).Take(3));
+        ids.AddRange(Enumerable.Range(0, 500).Select(_ => Guid.NewGuid()));
+        ids.AddRange(_anaTimeline);
+        ids.AddRange(_ben.Photos);
+        ids.AddRange(_anaTimeline);
+        ids.AddRange(Enumerable.Range(0, 100).Select(_ => Guid.NewGuid()));
+        ids.Add(Guid.Empty);
+        Assert.True(ids.Count > 1_000);
+
+        var bulk = await access.EvaluateManyAsync(_ana.Authority, ids);
+        Assert.False(bulk.ScopeMissing);
+        Assert.Equal(_anaTimeline.Order(), bulk.Visible.Order());
+        foreach (var id in _anaTimeline.Concat(_ben.Photos).Concat(ids.Skip(3).Take(5)))
+        {
+            Assert.Equal(
+                await access.EvaluateAsync(_ana.Authority, id) is PhotoKeepAccess.Allowed or PhotoKeepAccess.FileMissing,
+                bulk.Visible.Contains(id));
+        }
+    }
+
+    [Fact]
+    public async Task ArchivedTrashedAndHiddenPhotos_AreJudgedTheSameByTheBulkAndTheSingleCheck()
+    {
+        var archived = _anaTimeline[0];
+        var trashed = _anaTimeline[1];
+        var hidden = _anaTimeline[2];
+        using (var connection = _database.CreateConnection())
+        {
+            var now = DateTimeOffset.UtcNow.ToString("O");
+            connection.Execute("UPDATE local_items SET archived_at = @now WHERE id = @archived;", new { now, archived });
+            connection.Execute("UPDATE local_items SET trashed_at = @now WHERE id = @trashed;", new { now, trashed });
+            connection.Execute("UPDATE local_items SET hidden = 1 WHERE id = @hidden;", new { hidden });
+        }
+
+        using var scope = _app.Services.CreateScope();
+        var access = PhotoAccess(scope);
+        var bulk = await access.EvaluateManyAsync(_ana.Authority, _anaTimeline);
+        foreach (var id in _anaTimeline)
+        {
+            Assert.Equal(
+                await access.EvaluateAsync(_ana.Authority, id) is PhotoKeepAccess.Allowed or PhotoKeepAccess.FileMissing,
+                bulk.Visible.Contains(id));
+        }
+
+        // Both paths agree that such a photo the person still owns is theirs to keep (the timeline's own filters do not apply).
+        Assert.Contains(archived, bulk.Visible);
+        Assert.Contains(trashed, bulk.Visible);
+        Assert.Contains(hidden, bulk.Visible);
+    }
+
+    private ViewPhotoDownloadAccess PhotoAccess(IServiceScope scope) => new(
+        scope.ServiceProvider.GetRequiredService<IViewResourceAuthorizationService>(),
+        scope.ServiceProvider.GetRequiredService<IViewResourceStore>(),
+        _assets);
+
+    [Fact]
     public async Task TheBulkPhotoCheck_NeedsThePersonalReadScopeAndAnAuthenticatedCaller()
     {
         using var scope = _app.Services.CreateScope();

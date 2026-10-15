@@ -38,6 +38,15 @@ public interface IViewResourceStore
         return found;
     }
 
+    /// <summary>
+    /// The items among <paramref name="itemIds"/> that still have a file row for <paramref name="role"/> in an indexed source
+    /// of their own library, that is, the ones <see cref="ResolveContentAsync"/> would find a location for. Nothing is
+    /// checked on disk. The default says every item has one (a store that cannot tell).
+    /// </summary>
+    Task<IReadOnlySet<Guid>> FindItemsWithContentAsync(
+        IReadOnlyCollection<Guid> itemIds, string role, CancellationToken ct = default) =>
+        Task.FromResult<IReadOnlySet<Guid>>(itemIds.ToHashSet());
+
     Task<LocalAssetContentLocation?> ResolveContentAsync(Guid itemId, string role,
         ResolvedViewScope scope, CancellationToken ct = default) =>
         Task.FromResult<LocalAssetContentLocation?>(null);

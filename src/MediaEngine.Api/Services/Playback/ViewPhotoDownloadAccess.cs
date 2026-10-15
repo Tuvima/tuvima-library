@@ -34,8 +34,15 @@ public sealed class ViewPhotoDownloadAccess(
             return PhotoKeepAccess.NotFound;
         }
 
+        // No primary file row at all (the file source is gone for good) is not a photo to keep; a row whose file is not on
+        // disk right now is only a gap (an unmounted volume), see FileMissing.
         var file = await resources.ResolveContentAsync(itemId, LocalAssetFileRoles.Primary, decision.Scope, ct).ConfigureAwait(false);
-        return file is not null && File.Exists(file.FilePath) ? PhotoKeepAccess.Allowed : PhotoKeepAccess.FileMissing;
+        if (file is null)
+        {
+            return PhotoKeepAccess.NotFound;
+        }
+
+        return File.Exists(file.FilePath) ? PhotoKeepAccess.Allowed : PhotoKeepAccess.FileMissing;
     }
 
     public async ValueTask<PhotoKeepBulkResult> EvaluateManyAsync(
@@ -47,11 +54,13 @@ public sealed class ViewPhotoDownloadAccess(
             return new(true, new HashSet<Guid>());
         }
 
-        // Readable and a photo or video; the file is deliberately not checked here (see FileMissing).
+        // Readable and a photo or video, and still backed by a primary file row (a source that is gone for good ends the
+        // photo). The file itself is deliberately not checked on disk here (see FileMissing).
         var kinds = assets.GetMediaKinds(decision.AllowedIds.ToList(), ct);
-        var visible = decision.AllowedIds
+        var photos = decision.AllowedIds
             .Where(id => kinds.TryGetValue(id, out var kind) && kind is LocalAssetMediaKinds.Image or LocalAssetMediaKinds.Video)
-            .ToHashSet();
-        return new(false, visible);
+            .ToList();
+        var backed = await resources.FindItemsWithContentAsync(photos, LocalAssetFileRoles.Primary, ct).ConfigureAwait(false);
+        return new(false, photos.Where(backed.Contains).ToHashSet());
     }
 }
