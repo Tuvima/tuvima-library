@@ -268,11 +268,16 @@ public static class ClientAuthorizationEndpoints
         // the token's active-profile claim alone (never the URL), so an app cannot read, or ask for, another person's settings.
         devices.MapGet("/current/playback-preferences", async (
             ClaimsPrincipal user,
-            [FromServices] IUserPlaybackSettingsService settings,
             HttpContext http,
+            [FromServices] IRequestAuthorityResolver resolver,
+            [FromServices] IUserPlaybackSettingsService settings,
             CancellationToken ct) =>
         {
-            if (!Guid.TryParse(user.FindFirstValue(TuvimaClaimTypes.ActiveProfileId), out var profileId) || profileId == Guid.Empty
+            // Only a paired app's own token: a signed-in Dashboard session (which also carries profile and device claims)
+            // and a service Application are refused before any data is read.
+            var authority = await resolver.ResolveAsync(http, ct);
+            if (authority.PrincipalKind != PrincipalKind.DelegatedUserClient
+                || !Guid.TryParse(user.FindFirstValue(TuvimaClaimTypes.ActiveProfileId), out var profileId) || profileId == Guid.Empty
                 || !Guid.TryParse(user.FindFirstValue(TuvimaClaimTypes.DeviceId), out var deviceId) || deviceId == Guid.Empty)
             {
                 return ApiErrors.Forbidden("Only the paired app of a live device can read its playback preferences.");

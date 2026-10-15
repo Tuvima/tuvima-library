@@ -240,6 +240,47 @@ public sealed class NativePlaybackPreferencesEndpointTests : IAsyncLifetime
     }
 
     [Theory]
+    [InlineData(PrincipalKind.Human)]
+    [InlineData(PrincipalKind.ServiceApplication)]
+    public async Task OnlyAPairedApp_ASignedInDashboardSessionOrAServiceApplicationIsRefused(PrincipalKind kind)
+    {
+        // Both carry the profile and device claims (a browser supplies its own device id) and pass the scope check.
+        var saved = await _settings.GetAsync(_mary);
+        saved.Subtitles.AudioLanguage = "Japanese";
+        await _settings.UpdateAsync(_mary, saved);
+        _actor.Kind = kind;
+
+        using var response = await _client.GetAsync(Route);
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+        Assert.DoesNotContain("Japanese", await response.Content.ReadAsStringAsync(), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task TheSubtitleSizeIsOneOfTheFixedValues_WhateverCaseWasSaved()
+    {
+        var saved = await _settings.GetAsync(_mary);
+        saved.Subtitles.SubtitleSize = "large";
+        await _settings.UpdateAsync(_mary, saved);
+
+        var dto = await _client.GetFromJsonAsync<NativePlaybackPreferencesDto>(Route);
+
+        Assert.Equal("Large", dto!.SubtitleSize);
+    }
+
+    [Theory]
+    [InlineData("Small", "Small")]
+    [InlineData("medium", "Medium")]
+    [InlineData("LARGE", "Large")]
+    [InlineData("extralarge", "ExtraLarge")]
+    [InlineData("ExtraLarge", "ExtraLarge")]
+    [InlineData("", "Medium")]
+    [InlineData(null, "Medium")]
+    [InlineData("Huge", "Medium")]
+    public void SubtitleSizeIsMappedToTheFixedValues(string? stored, string expected) =>
+        Assert.Equal(expected, NativePlaybackPreferencesMapper.ToSubtitleSize(stored));
+
+    [Theory]
     [InlineData("Auto", "Auto")]
     [InlineData("Always", "Always")]
     [InlineData("Never", "Off")]
@@ -284,13 +325,14 @@ public sealed class NativePlaybackPreferencesEndpointTests : IAsyncLifetime
         public Guid? ProfileId { get; set; }
         public Guid? DeviceId { get; set; }
         public bool PlaybackRead { get; set; } = true;
+        public PrincipalKind Kind { get; set; } = PrincipalKind.DelegatedUserClient;
     }
 
     private sealed class ActorAuthorityResolver(Actor actor) : IRequestAuthorityResolver
     {
         public ValueTask<RequestAuthority> ResolveAsync(HttpContext context, CancellationToken ct = default) =>
             ValueTask.FromResult(new RequestAuthority(
-                PrincipalKind.DelegatedUserClient, true, Guid.NewGuid(), actor.ProfileId,
+                actor.Kind, true, Guid.NewGuid(), actor.ProfileId,
                 ApplicationId: BuiltInApplicationIds.NativeClient, DeviceId: actor.DeviceId));
     }
 

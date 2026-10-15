@@ -16,7 +16,7 @@ public static class NativePlaybackPreferencesMapper
             AudioLanguage = settings.Subtitles.AudioLanguage,
             SubtitleLanguage = settings.Subtitles.DefaultSubtitleLanguage,
             SubtitleMode = ToSubtitleMode(settings.Subtitles.ForcedSubtitlesMode),
-            SubtitleSize = settings.Subtitles.SubtitleSize,
+            SubtitleSize = ToSubtitleSize(settings.Subtitles.SubtitleSize),
             SubtitleBackground = settings.Subtitles.SubtitleBackground,
             SkipBackSeconds = settings.Watching.SkipBackSeconds,
             SkipForwardSeconds = settings.Watching.SkipForwardSeconds,
@@ -24,6 +24,20 @@ public static class NativePlaybackPreferencesMapper
             ResumePlayback = settings.General.ResumePlayback,
             DefaultPlaybackSpeed = settings.Watching.DefaultPlaybackSpeed,
         };
+    }
+
+    /// <summary>The subtitle size as one of the fixed values Small, Medium, Large or ExtraLarge (any case); anything else is Medium.</summary>
+    public static string ToSubtitleSize(string? stored)
+    {
+        foreach (var size in new[] { PlaybackPreferenceValues.Small, PlaybackPreferenceValues.Medium, PlaybackPreferenceValues.Large, PlaybackPreferenceValues.ExtraLarge })
+        {
+            if (string.Equals(stored?.Trim(), size, StringComparison.OrdinalIgnoreCase))
+            {
+                return size;
+            }
+        }
+
+        return PlaybackPreferenceValues.Medium;
     }
 
     /// <summary>The "Show subtitles" setting is stored as Auto, Always or Never; Never is shown to the person (and the apps) as Off.</summary>
