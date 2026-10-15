@@ -314,6 +314,11 @@ public struct OfflineVariant: Decodable, Sendable {
     public let status: String
     public let downloadUrl: String?
     public let fileSizeBytes: Int64?
+    public let profileKey: String?
+    public let expiresAt: String?
+
+    /// When the Engine will remove this prepared copy; nil when it never does.
+    public var expiresAtDate: Date? { OfflineLogic.parseIso(expiresAt) }
 }
 
 public struct PlayerQueueItem: Decodable, Sendable {

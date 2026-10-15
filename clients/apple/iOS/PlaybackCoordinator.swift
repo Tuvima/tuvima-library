@@ -11,8 +11,13 @@ final class PlaybackCoordinator: ObservableObject {
     @Published private(set) var error: String?
 
     private var api: TuvimaAPIClient?
+    private var offline: OfflineDownloadManager?
     private var player: AVPlayer?
     private var activeAssetID: UUID?
+    /// The file being played from this device's own storage, when it is not streaming. Local plays record their
+    /// progress on the device and the Engine receives it later; they send no live heartbeats.
+    private var localAssetID: UUID?
+    private var endObserver: NSObjectProtocol?
     private var heartbeatTask: Task<Void, Never>?
     private var timeObserver: Any?
     private let pathMonitor = NWPathMonitor()
@@ -27,10 +32,20 @@ final class PlaybackCoordinator: ObservableObject {
 
     func attach(_ api: TuvimaAPIClient) { self.api = api }
 
-    func play(assetID: UUID, title: String) {
+    func attachOffline(_ manager: OfflineDownloadManager) { offline = manager }
+
+    /// Plays an asset. With `preferLocal`, a finished download on this device plays from its file (no connection
+    /// needed); otherwise, and for everything not downloaded, it streams from the server.
+    func play(assetID: UUID, title: String, preferLocal: Bool = false) {
         self.title = title
         activeAssetID = assetID
         error = nil
+        recordLocalProgress()
+        if preferLocal, let file = offline?.playableLocalFile(assetID: assetID) {
+            playLocal(assetID: assetID, file: file)
+            return
+        }
+        localAssetID = nil
         Task {
             do {
                 let manifest = try await playableManifest(assetID)
@@ -41,8 +56,90 @@ final class PlaybackCoordinator: ObservableObject {
         }
     }
 
-    func pause() { player?.pause(); isPlaying = false; updateNowPlaying() }
+    func pause() {
+        player?.pause()
+        isPlaying = false
+        updateNowPlaying()
+        if localAssetID != nil {
+            recordLocalProgress()
+            offline?.scheduleSync()
+        }
+    }
+
     func resume() { player?.play(); isPlaying = true; updateNowPlaying() }
+
+    // MARK: Playing a downloaded file
+
+    private func playLocal(assetID: UUID, file: URL) {
+        heartbeatTask?.cancel()
+        localAssetID = assetID
+        do {
+            try AVAudioSession.sharedInstance().setCategory(.playback, mode: .default, options: [.allowAirPlay, .allowBluetoothA2DP])
+            try AVAudioSession.sharedInstance().setActive(true)
+        } catch {
+            self.error = error.localizedDescription
+            return
+        }
+        if let observer = timeObserver {
+            player?.removeTimeObserver(observer)
+            timeObserver = nil
+        }
+        if let ended = endObserver {
+            NotificationCenter.default.removeObserver(ended)
+            endObserver = nil
+        }
+        player?.pause()
+        let item = AVPlayerItem(url: file)
+        let local = AVPlayer(playerItem: item)
+        player = local
+        let start = offline?.resumeSeconds(assetID: assetID) ?? 0
+        if start > 0 { local.seek(to: CMTime(seconds: start, preferredTimescale: 600)) }
+        local.play()
+        isPlaying = true
+        timeObserver = local.addPeriodicTimeObserver(
+            forInterval: CMTime(seconds: 1, preferredTimescale: 1),
+            queue: .main
+        ) { [weak self] _ in Task { @MainActor in self?.updateNowPlaying() } }
+        endObserver = NotificationCenter.default.addObserver(
+            forName: .AVPlayerItemDidPlayToEndTime,
+            object: item,
+            queue: .main
+        ) { [weak self] _ in Task { @MainActor in self?.localPlaybackEnded() } }
+        beginLocalProgress()
+        updateNowPlaying()
+    }
+
+    /// Saves where the person is in the downloaded file; the Engine gets it when the device is back online.
+    private func recordLocalProgress(finished: Bool = false) {
+        guard let assetID = localAssetID, let player, let manager = offline else { return }
+        let seconds = player.currentTime().seconds
+        guard seconds.isFinite else { return }
+        let duration = player.currentItem?.duration.seconds
+        manager.recordProgress(
+            assetID: assetID,
+            position: seconds,
+            duration: duration?.isFinite == true ? duration : nil,
+            finished: finished
+        )
+    }
+
+    private func beginLocalProgress() {
+        heartbeatTask?.cancel()
+        heartbeatTask = Task { [weak self] in
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(10))
+                guard let self else { return }
+                if self.isPlaying { self.recordLocalProgress() }
+            }
+        }
+    }
+
+    private func localPlaybackEnded() {
+        recordLocalProgress(finished: true)
+        isPlaying = false
+        updateNowPlaying()
+        offline?.scheduleSync()
+    }
 
     private func playableManifest(_ assetID: UUID) async throws -> PlaybackManifest {
         guard let api else { throw TuvimaClientError.notPaired }
@@ -72,6 +169,10 @@ final class PlaybackCoordinator: ObservableObject {
         try AVAudioSession.sharedInstance().setActive(true)
         let item = AVPlayerItem(asset: AVURLAsset(url: url, options: options))
         if let observer = timeObserver { player?.removeTimeObserver(observer) }
+        if let ended = endObserver {
+            NotificationCenter.default.removeObserver(ended)
+            endObserver = nil
+        }
         player = AVPlayer(playerItem: item)
         if let resume = manifest.resume, !resume.completed {
             await player?.seek(to: CMTime(seconds: resume.positionSeconds, preferredTimescale: 600))
@@ -105,7 +206,7 @@ final class PlaybackCoordinator: ObservableObject {
     }
 
     private func recoverAfterNetworkChange() async {
-        guard isPlaying, let assetID = activeAssetID, let current = player?.currentTime().seconds else { return }
+        guard isPlaying, localAssetID == nil, let assetID = activeAssetID, let current = player?.currentTime().seconds else { return }
         do {
             let manifest = try await playableManifest(assetID)
             try await start(manifest)

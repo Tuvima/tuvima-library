@@ -228,6 +228,98 @@ public actor TuvimaAPIClient {
         )
     }
 
+    // MARK: Offline downloads: the device download list, next episodes and offline progress replay
+
+    /// What the Engine believes this device stores. A variant missing from it has expired on the Engine.
+    public func deviceDownloads() async throws -> [ServerDownloadEntry] {
+        let response: DeviceDownloadsResponse = try await get(ClientRoutes.deviceDownloads, keys: .convertFromSnakeCase)
+        return response.downloads.map { $0.entry }
+    }
+
+    /// Tells the Engine this device now stores a variant. Returns the HTTP status; 204 is success.
+    public func reportDownloadStored(assetID: UUID, variantID: UUID, storedBytes: Int64, storedAt: Date) async throws -> Int {
+        var request = URLRequest(url: try resolve(ClientRoutes.deviceDownloads))
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = try JSONSerialization.data(withJSONObject: [
+            "asset_id": assetID.uuidString.lowercased(),
+            "variant_id": variantID.uuidString.lowercased(),
+            "stored_bytes": storedBytes,
+            "stored_at": OfflineLogic.formatIsoUtc(storedAt),
+        ] as [String: Any])
+        return try await sendForStatus(request).status
+    }
+
+    /// Tells the Engine this device no longer stores a variant. Returns the HTTP status; 204 is success.
+    public func reportDownloadDeleted(variantID: UUID) async throws -> Int {
+        var request = URLRequest(url: try resolve(ClientRoutes.deviceDownload(variantID)))
+        request.httpMethod = "DELETE"
+        return try await sendForStatus(request).status
+    }
+
+    /// The owned episodes that follow `afterAssetID` in the show's watch order.
+    public func nextEpisodes(showID: UUID, afterAssetID: UUID, count: Int = 3) async throws -> NextEpisodesResponse {
+        try await get(
+            ClientRoutes.nextEpisodes(showID: showID, afterAssetID: afterAssetID, count: count),
+            keys: .convertFromSnakeCase
+        )
+    }
+
+    /// The Engine's progress for an asset, or nil when it has none (HTTP 404).
+    public func serverProgress(assetID: UUID) async throws -> ServerProgress? {
+        var request = URLRequest(url: try resolve(ClientRoutes.progress(assetID)))
+        request.httpMethod = "GET"
+        let answer = try await sendForStatus(request)
+        if answer.status == 404 { return nil }
+        guard (200...299).contains(answer.status) else {
+            throw TuvimaClientError.http(answer.status, String(decoding: answer.data, as: UTF8.self))
+        }
+        let decoder = JSONDecoder()
+        decoder.keyDecodingStrategy = .convertFromSnakeCase
+        return try decoder.decode(ServerProgressWire.self, from: answer.data).progress
+    }
+
+    /// Replays progress recorded offline (`offline: true` with `client_timestamp`). The Engine keeps the later of its
+    /// own record and this one and answers 200 with the state that stands; `OfflineLogic.isServerWon` tells which.
+    public func replayOfflineProgress(_ entry: OfflineProgressEntry, expectedRevision: Int64) async throws -> ServerProgress {
+        let recordedAt = OfflineLogic.formatIsoUtc(entry.recordedAt)
+        var extended: [String: String] = [
+            "position_seconds": OfflineLogic.formatSeconds(entry.positionSeconds),
+            "playback_state": "paused",
+            "player_client": clientID,
+            "updated_at": recordedAt,
+        ]
+        if let duration = entry.durationSeconds { extended["duration_seconds"] = OfflineLogic.formatSeconds(duration) }
+        var request = URLRequest(url: try resolve(ClientRoutes.progress(entry.assetId)))
+        request.httpMethod = "PUT"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = try JSONSerialization.data(withJSONObject: [
+            "progress_pct": entry.progressPct,
+            "expected_revision": expectedRevision,
+            "offline": true,
+            "client_timestamp": recordedAt,
+            "extended_properties": extended,
+        ] as [String: Any])
+        let wire: ServerProgressWire = try await send(request, authenticated: true, keys: .convertFromSnakeCase)
+        return wire.progress
+    }
+
+    /// The device's own sign-in profile, or nil before pairing. Offline records are kept per person.
+    public var currentProfileID: UUID? { token?.profileID }
+
+    /// Sends an authenticated request and returns the status and body without treating a non-2xx answer as an error,
+    /// so a caller can read 204, 404 and 409 for what they mean.
+    private func sendForStatus(_ original: URLRequest) async throws -> (status: Int, data: Data) {
+        var request = original
+        request.setValue("Bearer \(try await accessToken())", forHTTPHeaderField: "Authorization")
+        var (data, response) = try await session.data(for: request)
+        if (response as? HTTPURLResponse)?.statusCode == 401 {
+            request.setValue("Bearer \(try await accessToken(forceRefresh: true))", forHTTPHeaderField: "Authorization")
+            (data, response) = try await session.data(for: request)
+        }
+        return ((response as? HTTPURLResponse)?.statusCode ?? 0, data)
+    }
+
     public func playerQueue() async throws -> [PlayerQueueItem] {
         let state: PlayerState = try await get("/api/v1/player/state")
         return state.queue.filter {
