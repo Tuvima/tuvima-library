@@ -38,7 +38,7 @@ object PlaybackTrackPicker {
 
     // Tracks usually carry three-letter codes (eng, jpn) while profiles store two-letter ones (en, ja).
     private fun normalise(code: String): String {
-        val base = code.substringBefore('-').substringBefore('_').lowercase()
+        val base = code.trim().substringBefore('-').substringBefore('_').substringBefore(' ').lowercase()
         return TWO_TO_THREE[base] ?: base
     }
 
@@ -49,5 +49,12 @@ object PlaybackTrackPicker {
         "pl" to "pol", "tr" to "tur", "he" to "heb", "el" to "ell", "gre" to "ell", "da" to "dan",
         "fi" to "fin", "no" to "nor", "cs" to "ces", "cze" to "ces", "uk" to "ukr", "th" to "tha",
         "vi" to "vie", "id" to "ind", "hu" to "hun", "ro" to "ron", "rum" to "ron",
+        // The profile stores language names such as English.
+        "english" to "eng", "japanese" to "jpn", "french" to "fra", "german" to "deu", "spanish" to "spa",
+        "italian" to "ita", "portuguese" to "por", "russian" to "rus", "chinese" to "zho", "korean" to "kor",
+        "arabic" to "ara", "hindi" to "hin", "dutch" to "nld", "swedish" to "swe", "polish" to "pol",
+        "turkish" to "tur", "hebrew" to "heb", "greek" to "ell", "danish" to "dan", "finnish" to "fin",
+        "norwegian" to "nor", "czech" to "ces", "ukrainian" to "ukr", "thai" to "tha", "vietnamese" to "vie",
+        "indonesian" to "ind", "hungarian" to "hun", "romanian" to "ron",
     )
 }

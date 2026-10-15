@@ -26,7 +26,19 @@ pauses (no background audio for video). A refused title (403 or 404, such as a K
 not available for this profile."; a lost connection reads "Can't reach your Tuvima server" with Retry. While a
 streamed item (audio or video) plays, the service sends a heartbeat every 15 seconds and on pause, stop and end;
 downloaded items keep their on-phone progress path. The choice between the video screen and the audio service is
-`PlaybackRouting` in `core`. No gestures, track pickers, speed or chapter lists yet.
+`PlaybackRouting` in `core`.
+
+Tracks, skips and gestures: the video screen has Audio and Subtitles bottom sheets (Subtitles has Off), a speed sheet
+(0.5x to 2x) and, when the Engine sends chapters, a Chapters sheet. The starting audio and subtitles come from the
+profile's watching preferences (`GET /api/v1/devices/current/playback-preferences`, read-only; defaults are used
+if the route is missing or slow, and playback never waits more than about 2 seconds for it) through
+`PlaybackTrackPicker`, applied with Media3 track overrides. Sidecar subtitles (WebVTT or SRT at `deliveryUrl`) ride on
+the media item and are fetched with the same bearer token as the video. Skip Intro and Skip Credits appear only while the
+position is inside that segment (`segmentToOffer`) and never skip on their own. Skip back and forward use the
+preference seconds. Double-tap the left or right half to seek, slide up or down on the right half for volume and on the
+left half for brightness, tap once to show or hide the controls. Video never plays in the background: Home pauses it,
+closing the screen or reaching the end stops the player and clears the video from the media session, and a leftover
+paused video cannot be started from the notification or a headset button while no video screen is open.
 
 Video: the phone app declares MKV and M4V containers and SRT subtitles, and the playback manifest now
 carries audio tracks, subtitle tracks, chapters and skip segments (`PlaybackTrackPicker` chooses the

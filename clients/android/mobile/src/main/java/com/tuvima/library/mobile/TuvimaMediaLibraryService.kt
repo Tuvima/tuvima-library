@@ -30,6 +30,8 @@ import com.tuvima.library.core.HeartbeatRules
 import com.tuvima.library.core.PreparingPoll
 import com.tuvima.library.core.PreparingStep
 import com.tuvima.library.core.StreamResume
+import com.tuvima.library.core.SubtitleStyleRules
+import com.tuvima.library.core.VideoSessionPolicy
 import com.tuvima.library.core.VideoErrors
 import com.tuvima.library.core.VideoFailure
 import com.tuvima.library.core.VideoMessages
@@ -58,6 +60,8 @@ class TuvimaMediaLibraryService : MediaLibraryService() {
     private var progressJob: Job? = null
     private var heartbeatJob: Job? = null
     private var videoJob: Job? = null
+    // Controllers that belong to an open video screen; with none attached a paused video can never be started from outside.
+    private val videoScreens = mutableSetOf<MediaSession.ControllerInfo>()
     private var streamedResumeMs = 0L
     private val offline get() = (application as TuvimaMobileApplication).offline
     private val networkCallback = object : ConnectivityManager.NetworkCallback() {
@@ -115,6 +119,8 @@ class TuvimaMediaLibraryService : MediaLibraryService() {
                 if (playbackState == Player.STATE_ENDED) {
                     saveLocalProgress(ended = true, sync = true)
                     sendHeartbeat(ended = true)
+                    // A finished video leaves nothing behind for the notification or a headset button to restart.
+                    if (VideoSessionPolicy.clearAfterEnd(isVideoItem(player.currentMediaItem))) clearVideo()
                 }
             }
         })
@@ -206,10 +212,31 @@ class TuvimaMediaLibraryService : MediaLibraryService() {
             val commands: SessionCommands = MediaSession.ConnectionResult.DEFAULT_SESSION_AND_LIBRARY_COMMANDS.buildUpon()
                 .add(SessionCommand(COMMAND_PLAY_VIDEO, Bundle.EMPTY))
                 .add(SessionCommand(COMMAND_CANCEL_VIDEO, Bundle.EMPTY))
+                .add(SessionCommand(COMMAND_CLOSE_VIDEO, Bundle.EMPTY))
                 .build()
+            if (controller.connectionHints.getBoolean(HINT_VIDEO_SCREEN)) videoScreens.add(controller)
             return MediaSession.ConnectionResult.AcceptedResultBuilder(session)
                 .setAvailableSessionCommands(commands)
                 .build()
+        }
+
+        override fun onDisconnected(session: MediaSession, controller: MediaSession.ControllerInfo) {
+            videoScreens.remove(controller)
+        }
+
+        override fun onPlayerCommandRequest(
+            session: MediaSession,
+            controller: MediaSession.ControllerInfo,
+            playerCommand: Int,
+        ): Int {
+            val blocked = playerCommand == Player.COMMAND_PLAY_PAUSE &&
+                !controller.connectionHints.getBoolean(HINT_VIDEO_SCREEN) &&
+                VideoSessionPolicy.shouldBlockPlay(
+                    currentIsVideo = isVideoItem(player.currentMediaItem),
+                    videoScreenAttached = videoScreens.isNotEmpty(),
+                    alreadyPlaying = player.playWhenReady,
+                )
+            return if (blocked) SessionResult.RESULT_ERROR_PERMISSION_DENIED else SessionResult.RESULT_SUCCESS
         }
 
         override fun onCustomCommand(
@@ -227,6 +254,11 @@ class TuvimaMediaLibraryService : MediaLibraryService() {
                 videoJob?.cancel()
                 Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
             }
+            COMMAND_CLOSE_VIDEO -> {
+                videoJob?.cancel()
+                closeVideo()
+                Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
+            }
             else -> Futures.immediateFuture(SessionResult(SessionResult.RESULT_ERROR_NOT_SUPPORTED))
         }
 
@@ -242,6 +274,29 @@ class TuvimaMediaLibraryService : MediaLibraryService() {
             }
             "Resolve Tuvima playback manifests"
         }
+    }
+
+    private fun isVideoItem(item: MediaItem?): Boolean = item?.mediaMetadata?.mediaType == MediaMetadata.MEDIA_TYPE_VIDEO
+
+    /**
+     * The video screen was closed. Progress is saved and reported once more, then the player is stopped and the video is
+     * removed from the session, so the notification, a headset button and the lock screen have nothing to start.
+     */
+    private fun closeVideo() {
+        if (!::player.isInitialized || !isVideoItem(player.currentMediaItem)) return
+        player.pause()
+        saveLocalProgress(ended = false, sync = true)
+        sendHeartbeat(ended = false)
+        clearVideo()
+    }
+
+    private fun clearVideo() {
+        player.clearMediaItems()
+        player.stop()
+        // Speed and track choices belong to the video that was open, not to whatever plays next.
+        player.setPlaybackSpeed(1f)
+        player.trackSelectionParameters = player.trackSelectionParameters.buildUpon().clearOverrides()
+            .setTrackTypeDisabled(C.TRACK_TYPE_TEXT, false).build()
     }
 
     private fun isLocalItem(item: MediaItem?): Boolean = item?.localConfiguration?.uri?.scheme == "file"
@@ -369,7 +424,18 @@ class TuvimaMediaLibraryService : MediaLibraryService() {
             val manifest = api.playbackManifest(assetId, "local")
             when (val step = PreparingPoll.next(manifest, attempt)) {
                 is PreparingStep.Play -> {
-                    val item = MediaItem.Builder().setMediaId(assetId).setUri(step.path).setMediaMetadata(metadata).build()
+                    // Sidecar subtitles are fetched through the same data source as the video, so they carry the same bearer token.
+                    val sidecars = manifest.subtitleTracks.mapNotNull { track ->
+                        val url = track.deliveryUrl ?: return@mapNotNull null
+                        MediaItem.SubtitleConfiguration.Builder(Uri.parse(url))
+                            .setMimeType(SubtitleStyleRules.mimeFor(track.codec, url))
+                            .setLanguage(track.language)
+                            .setLabel(track.displayName ?: track.language)
+                            .setSelectionFlags(if (track.isForced) C.SELECTION_FLAG_FORCED else 0)
+                            .build()
+                    }
+                    val item = MediaItem.Builder().setMediaId(assetId).setUri(step.path).setMediaMetadata(metadata)
+                        .setSubtitleConfigurations(sidecars).build()
                     player.setMediaItem(item, StreamResume.startMs(manifest.resumeSeconds, manifest.durationSeconds))
                     player.prepare()
                     player.play()
@@ -508,6 +574,10 @@ class TuvimaMediaLibraryService : MediaLibraryService() {
         /** Custom session commands the video screen sends through its media controller. */
         const val COMMAND_PLAY_VIDEO = "com.tuvima.library.PLAY_VIDEO"
         const val COMMAND_CANCEL_VIDEO = "com.tuvima.library.CANCEL_VIDEO"
+        const val COMMAND_CLOSE_VIDEO = "com.tuvima.library.CLOSE_VIDEO"
+
+        /** Connection hint set by the video screen's media controller, so the service knows a video screen is open. */
+        const val HINT_VIDEO_SCREEN = "video_screen"
         const val RESULT_FAILURE = "failure"
         const val RESULT_MESSAGE = "message"
         const val RESULT_CANCELLED = "cancelled"
