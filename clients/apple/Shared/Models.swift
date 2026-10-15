@@ -89,6 +89,7 @@ public struct DisplayShelf: Decodable, Identifiable, Sendable {
     public let title: String
     public let subtitle: String?
     public let items: [DisplayCard]
+    public let seeAllRoute: String?
 }
 
 public struct DisplayCard: Decodable, Identifiable, Sendable {
@@ -101,8 +102,49 @@ public struct DisplayCard: Decodable, Identifiable, Sendable {
     public let subtitle: String?
     public let facts: [String]
     public let actions: [DisplayAction]
+    public let description: String?
+    public let continuationState: String?
+    public let preferredShape: String?
+    public let artwork: DisplayArtwork?
+    public let progress: DisplayProgress?
+    public let flags: DisplayCardFlags?
 
     public var playableAssetID: UUID? { actions.compactMap(\.assetId).first ?? assetId }
+
+    /// True when the card plays as audio or video (a readable book or comic is not played).
+    public var isPlayable: Bool { flags?.isPlayable ?? actions.contains { $0.type == "playAsset" } }
+
+    /// The file to play, or nil for a card that cannot be played.
+    public var playAssetID: UUID? { isPlayable ? playableAssetID : nil }
+
+    /// Artwork path (relative to the server) suited to the card's preferred shape.
+    public var artworkPath: String? {
+        if preferredShape == "square" {
+            return artwork?.squareMediumUrl ?? artwork?.squareUrl ?? artwork?.coverMediumUrl ?? artwork?.coverUrl
+        }
+        return artwork?.coverMediumUrl ?? artwork?.coverUrl ?? artwork?.coverLargeUrl
+            ?? artwork?.squareMediumUrl ?? artwork?.squareUrl
+    }
+}
+
+public struct DisplayCardFlags: Decodable, Sendable {
+    public let isPlayable: Bool?
+    public let isReadable: Bool?
+}
+
+public struct DisplayArtwork: Decodable, Sendable {
+    public let coverUrl: String?
+    public let coverMediumUrl: String?
+    public let coverLargeUrl: String?
+    public let squareUrl: String?
+    public let squareMediumUrl: String?
+    public let squareLargeUrl: String?
+    public let backgroundUrl: String?
+}
+
+public struct DisplayProgress: Decodable, Sendable {
+    public let percent: Double
+    public let label: String?
 }
 
 public struct DisplayAction: Decodable, Sendable {
@@ -135,20 +177,56 @@ public struct SearchResult: Decodable, Identifiable, Sendable {
     public let description: String?
     public let detailRoute: String
 
-    public var detailTarget: (entityType: String, id: UUID)? {
-        let parts = detailRoute.split(separator: "/")
-        guard parts.count >= 2, let id = UUID(uuidString: String(parts[parts.count - 1])) else { return nil }
-        return (String(parts[parts.count - 2]), id)
+    public var detailTarget: (entityType: String, id: UUID)? { detailTargetFromRoute(detailRoute) }
+}
+
+public struct DetailPage: Decodable, Sendable {
+    public let id: String?
+    public let title: String
+    public let subtitle: String?
+    public let tagline: String?
+    public let description: String?
+    public let facts: DetailFacts?
+    public let artwork: DetailArtwork?
+    public let progress: DetailProgress?
+    public let previewContributors: [DetailCredit]?
+    public let ownedFormats: [DetailEdition]?
+
+    /// Portrait-first artwork path, relative to the server.
+    public var posterPath: String? {
+        artwork?.posterUrl ?? artwork?.coverUrl ?? artwork?.heroArtwork?.largeUrl
+            ?? artwork?.heroArtwork?.url ?? artwork?.backdropUrl
+    }
+
+    /// True when the person has started this work and has not finished it.
+    public var isInProgress: Bool {
+        guard let percent = progress?.percent else { return false }
+        return percent > 0 && percent < 99.5
+    }
+
+    /// Cast for the page: the credited contributors when there are any, otherwise the plain actor names.
+    public var cast: [DetailCastMember] {
+        var seen = Set<String>()
+        var people: [DetailCastMember] = []
+        for credit in previewContributors ?? [] where !credit.displayName.isEmpty {
+            if seen.insert(credit.displayName).inserted {
+                let role = (credit.characterName?.isEmpty == false) ? credit.characterName : credit.primaryRole
+                people.append(DetailCastMember(name: credit.displayName, role: role))
+            }
+        }
+        if people.isEmpty {
+            for name in facts?.actors ?? [] where seen.insert(name).inserted {
+                people.append(DetailCastMember(name: name, role: nil))
+            }
+        }
+        return Array(people.prefix(24))
     }
 }
 
-public struct DetailPage: Decodable, Identifiable, Sendable {
-    public let id: String
-    public let entityType: String
-    public let title: String
-    public let subtitle: String?
-    public let description: String?
-    public let facts: DetailFacts?
+public struct DetailCastMember: Identifiable, Sendable {
+    public var id: String { name }
+    public let name: String
+    public let role: String?
 }
 
 public struct DetailFacts: Decodable, Sendable {
@@ -157,12 +235,57 @@ public struct DetailFacts: Decodable, Sendable {
     public let contentRating: String?
     public let runtime: String?
     public let duration: String?
+    public let genres: [String]?
+    public let actors: [String]?
 
     public var summary: String {
         [year, rating, contentRating, runtime, duration]
             .compactMap { $0?.isEmpty == false ? $0 : nil }
             .reduce(into: [String]()) { if !$0.contains($1) { $0.append($1) } }
             .joined(separator: " · ")
+    }
+}
+
+public struct DetailArtwork: Decodable, Sendable {
+    public let posterUrl: String?
+    public let coverUrl: String?
+    public let backdropUrl: String?
+    public let heroArtwork: DetailHeroArtwork?
+}
+
+public struct DetailHeroArtwork: Decodable, Sendable {
+    public let url: String?
+    public let largeUrl: String?
+}
+
+public struct DetailProgress: Decodable, Sendable {
+    public let percent: Double?
+}
+
+public struct DetailCredit: Decodable, Sendable {
+    public let displayName: String
+    public let characterName: String?
+    public let primaryRole: String?
+}
+
+public struct DetailEdition: Decodable, Sendable {
+    public let editionID: String?
+    public let editionTitle: String?
+    public let displayName: String?
+    public let fileFormat: String?
+    public let runtime: String?
+    public let publisher: String?
+
+    enum CodingKeys: String, CodingKey {
+        case editionID = "id"
+        case editionTitle, displayName, fileFormat, runtime, publisher
+    }
+
+    public var title: String { editionTitle ?? displayName ?? "Edition" }
+
+    public var details: String? {
+        let line = [fileFormat, runtime, publisher].compactMap { $0 }.filter { !$0.isEmpty }.joined(separator: " · ")
+        return line.isEmpty ? nil : line
     }
 }
 
@@ -229,6 +352,8 @@ public enum TuvimaClientError: LocalizedError {
     case notPaired
     case http(Int, String)
     case noPlayableDelivery
+    case invalidIdentifier
+    case photoAccessDenied
 
     public var errorDescription: String? {
         switch self {
@@ -238,6 +363,8 @@ public enum TuvimaClientError: LocalizedError {
         case .notPaired: "This device has not been paired."
         case let .http(status, _): "Tuvima returned HTTP \(status)."
         case .noPlayableDelivery: "The server did not provide a playable delivery."
+        case .invalidIdentifier: "That item could not be opened."
+        case .photoAccessDenied: photoAccessDeniedMessage
         }
     }
 }
