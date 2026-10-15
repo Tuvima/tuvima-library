@@ -264,6 +264,43 @@ public static class ClientAuthorizationEndpoints
         .Produces<OAuthErrorResponse>(StatusCodes.Status428PreconditionRequired)
         .Produces<OAuthErrorResponse>(StatusCodes.Status429TooManyRequests);
 
+        // The watching and subtitle preferences of the profile this paired app is using now. Read-only: the profile comes from
+        // the token's active-profile claim alone (never the URL), so an app cannot read, or ask for, another person's settings.
+        devices.MapGet("/current/playback-preferences", async (
+            ClaimsPrincipal user,
+            HttpContext http,
+            [FromServices] IRequestAuthorityResolver resolver,
+            [FromServices] IUserPlaybackSettingsService settings,
+            CancellationToken ct) =>
+        {
+            // Only a paired app's own token: a signed-in Dashboard session (which also carries profile and device claims)
+            // and a service Application are refused before any data is read.
+            var authority = await resolver.ResolveAsync(http, ct);
+            if (authority.PrincipalKind != PrincipalKind.DelegatedUserClient
+                || !Guid.TryParse(user.FindFirstValue(TuvimaClaimTypes.ActiveProfileId), out var profileId) || profileId == Guid.Empty
+                || !Guid.TryParse(user.FindFirstValue(TuvimaClaimTypes.DeviceId), out var deviceId) || deviceId == Guid.Empty)
+            {
+                return ApiErrors.Forbidden("Only the paired app of a live device can read its playback preferences.");
+            }
+
+            http.Response.Headers.CacheControl = "no-store";
+            try
+            {
+                // With nothing saved this answers the defaults, and it never writes.
+                return Results.Ok(NativePlaybackPreferencesMapper.From(await settings.GetAsync(profileId, ct)));
+            }
+            catch (KeyNotFoundException)
+            {
+                return ApiErrors.NotFound("Profile not found.");
+            }
+        })
+        .WithName("GetCurrentDevicePlaybackPreferences")
+        .WithSummary("Reads the watching and subtitle preferences of the profile the paired app is using now. Read-only.")
+        .Produces<NativePlaybackPreferencesDto>()
+        .ProducesProblem(StatusCodes.Status403Forbidden)
+        .ProducesProblem(StatusCodes.Status404NotFound)
+        .RequireClientScope(ClientApiScopes.PlaybackRead);
+
         // What this paired app says it has stored for offline use. Only the paired app's own token may use these
         // routes, the device comes from that token alone, and the list is limited to the token's active profile.
         devices.MapGet("/current/downloads", async (

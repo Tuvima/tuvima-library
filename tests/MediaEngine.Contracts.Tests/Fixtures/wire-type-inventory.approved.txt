@@ -3,7 +3,7 @@
 # Compatibility is enforced separately by wire-compatibility.approved.txt.
 # Serializer: System.Text.Json JsonSerializerDefaults.Web; DefaultIgnoreCondition=Never
 # Regenerate intentionally with TUVIMA_UPDATE_WIRE_SNAPSHOT=1.
-# scopes: contracts=1023; api=0; web-client=83
+# scopes: contracts=1024; api=0; web-client=83
 
 [contracts] MediaEngine.Contracts.Activity.ActivityBatchInsightsDto
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -7056,6 +7056,20 @@
   RememberPerTitlePlaybackSpeed: System.Boolean | json=rememberPerTitlePlaybackSpeed | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   OutputPreference: System.String | json=outputPreference | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   sample={"audiobookDefaultSpeed":7,"skipBackSeconds":7,"skipForwardSeconds":7,"resumeRewindSeconds":7,"audiobookListenQualificationSeconds":7,"audiobookHistoryLimit":7,"audiobookResumeRegressionGuardSeconds":7,"audiobookNearStartGuardSeconds":7,"audiobookHistoryActiveSegmentGapSeconds":7,"audiobookHistoryPositionJumpToleranceSeconds":7,"audiobookScanRates":[],"sleepTimerOptionsMinutes":[],"allowEndOfChapterSleepTimer":true,"musicCrossfade":true,"crossfadeSeconds":7,"defaultSleepTimer":"sample","skipSilence":true,"rememberPerTitlePlaybackSpeed":true,"outputPreference":"sample"}
+
+[contracts] MediaEngine.Contracts.Playback.NativePlaybackPreferencesDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  AudioLanguage: System.String | json=audioLanguage | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  SubtitleLanguage: System.String | json=subtitleLanguage | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  SubtitleMode: System.String | json=subtitleMode | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  SubtitleSize: System.String | json=subtitleSize | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  SubtitleBackground: System.Boolean | json=subtitleBackground | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  SkipBackSeconds: System.Int32 | json=skipBackSeconds | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  SkipForwardSeconds: System.Int32 | json=skipForwardSeconds | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  AutoplayNextEpisode: System.Boolean | json=autoplayNextEpisode | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  ResumePlayback: System.Boolean | json=resumePlayback | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  DefaultPlaybackSpeed: System.Decimal | json=defaultPlaybackSpeed | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"audioLanguage":"sample","subtitleLanguage":"sample","subtitleMode":"sample","subtitleSize":"sample","subtitleBackground":true,"skipBackSeconds":7,"skipForwardSeconds":7,"autoplayNextEpisode":true,"resumePlayback":true,"defaultPlaybackSpeed":7}
 
 [contracts] MediaEngine.Contracts.Playback.OfflineVariantDto
   kind=class | converter=default | number-handling=default | unmapped=default
