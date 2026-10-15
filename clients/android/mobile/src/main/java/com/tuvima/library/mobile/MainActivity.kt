@@ -35,6 +35,7 @@ import androidx.core.content.ContextCompat
 import com.tuvima.library.core.PairingPollResult
 import com.tuvima.library.core.PairingSession
 import com.tuvima.library.core.PhotoScopes
+import com.tuvima.library.core.PlaybackRouting
 import com.tuvima.library.core.TuvimaClient
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -45,7 +46,7 @@ class MainActivity : ComponentActivity() {
         val initialDetail = intent.data?.takeIf { it.scheme == "tuvima" && it.host == "details" }
             ?.pathSegments?.takeIf { it.size >= 2 }?.let { it[0] to it[1] }
         if (intent.data?.scheme == "tuvima" && intent.data?.host == "play") {
-            intent.data?.pathSegments?.firstOrNull()?.let(::play)
+            intent.data?.pathSegments?.firstOrNull()?.let { play(PlayRequest(it, null, null, null)) }
         }
         setContent {
             MaterialTheme(colorScheme = darkColorScheme()) {
@@ -54,12 +55,16 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    private fun play(assetId: String) {
+    private fun play(request: PlayRequest) {
+        if (PlaybackRouting.opensVideoScreen(request.entityType)) {
+            startActivity(VideoPlayerActivity.intent(this, request.assetId, request.title, request.subtitle))
+            return
+        }
         ContextCompat.startForegroundService(
             this,
             Intent(this, TuvimaMediaLibraryService::class.java)
                 .setAction(TuvimaMediaLibraryService.ACTION_PLAY_ASSET)
-                .putExtra(TuvimaMediaLibraryService.EXTRA_ASSET_ID, assetId),
+                .putExtra(TuvimaMediaLibraryService.EXTRA_ASSET_ID, request.assetId),
         )
     }
 }
@@ -75,7 +80,7 @@ private sealed interface MobileStage {
 private fun MobileRoot(
     application: TuvimaMobileApplication,
     initialDetail: Pair<String, String>?,
-    play: (String) -> Unit,
+    play: (PlayRequest) -> Unit,
 ) {
     val scope = rememberCoroutineScope()
     var stage: MobileStage by remember { mutableStateOf(MobileStage.Server) }

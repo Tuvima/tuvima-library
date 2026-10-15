@@ -56,7 +56,7 @@ internal fun DetailScreen(
     id: String,
     assetId: String?,
     onBack: () -> Unit,
-    play: (String) -> Unit,
+    play: (PlayRequest) -> Unit,
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -142,7 +142,7 @@ internal fun DetailScreen(
                       Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             val held = downloads.firstOrNull { it.assetId == assetId }
-                            Button(onClick = { play(assetId) }) { Text(if (detail.isInProgress) "Resume" else "Play") }
+                            Button(onClick = { play(PlayRequest(assetId, entityType, detail.title, detail.subtitle)) }) { Text(if (detail.isInProgress) "Resume" else "Play") }
                             if (kind != DownloadKind.Excluded) {
                                 OutlinedButton(
                                     onClick = { showQualityPicker = true },
