@@ -108,13 +108,9 @@ public static class CollectionClientEndpoints
             var page = PagedRequest.From(offset, limit, defaultLimit: 24);
             var profile = await ResolveActiveProfileAsync(http, profiles, ct);
             var allowedWorkIds = await LoadAllowedWorkIdsAsync(display, ct);
-            // Shows, comic series and albums are listed as their root work, so the authorised set must carry
-            // those roots as well as the individual files the projection lists.
-            var allowedDisplayIds = allowedWorkIds
-                .Concat(await catalog.GetDisplayWorkIdsAsync(allowedWorkIds, ct))
-                .ToHashSet();
+            // The read lists shows, comic series and albums as their root work and authorises those roots itself.
             var result = await catalog.GetItemPageAsync(
-                id, profile, page.Offset, page.Limit, allowedDisplayIds, ct);
+                id, profile, page.Offset, page.Limit, allowedWorkIds, ct);
             // A collection the catalogue would not list, or with nothing this profile may see, is answered like an
             // unknown one at every offset; only a cursor past the end of a collection that has items gives an empty page.
             if (!result.Found || result.Forbidden || result.TotalCount == 0)
