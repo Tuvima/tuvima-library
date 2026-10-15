@@ -1,6 +1,7 @@
 package com.tuvima.library.core
 
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
@@ -134,6 +135,8 @@ class TuvimaClient(
                     status = variant.getString("status"),
                     downloadUrl = absolute(variant.optionalString("downloadUrl")),
                     fileSizeBytes = variant.optLong("fileSizeBytes").takeIf { it > 0 },
+                    profileKey = variant.optionalString("profileKey"),
+                    expiresAtMs = OfflineLogic.parseIsoMillis(variant.optionalString("expiresAt")),
                 )
             }.orEmpty(),
             warnings = json.optJSONArray("warnings")?.strings().orEmpty(),
@@ -156,6 +159,60 @@ class TuvimaClient(
         )
 
     suspend fun encodeJobs(): JSONArray = requestArray("GET", "/api/v1/playback/encode/jobs")
+
+    // ---- Offline downloads: the device download list, next episodes and offline progress replay ----
+
+    /** What the Engine believes this device stores. A variant missing from it has expired on the Engine. */
+    suspend fun deviceDownloads(): List<ServerDownloadEntry> =
+        parseDeviceDownloads(requestJson("GET", ClientRoutes.DEVICE_DOWNLOADS))
+
+    /** Tells the Engine this device now stores a variant. Returns the HTTP status; 204 is success. */
+    suspend fun reportDownloadStored(assetId: String, variantId: String, storedBytes: Long, storedAtMs: Long): Int =
+        requestStatus(
+            "POST",
+            ClientRoutes.DEVICE_DOWNLOADS,
+            JSONObject()
+                .put("asset_id", assetId)
+                .put("variant_id", variantId)
+                .put("stored_bytes", storedBytes)
+                .put("stored_at", OfflineLogic.formatIsoUtc(storedAtMs)),
+        )
+
+    /** Tells the Engine this device no longer stores a variant. Returns the HTTP status; 204 is success. */
+    suspend fun reportDownloadDeleted(variantId: String): Int =
+        requestStatus("DELETE", ClientRoutes.deviceDownload(variantId), null)
+
+    /** The owned episodes that follow [afterAssetId] in the show's watch order. */
+    suspend fun nextEpisodes(showId: String, afterAssetId: String, count: Int = 3): NextEpisodes =
+        parseNextEpisodes(requestJson("GET", ClientRoutes.nextEpisodes(showId, afterAssetId, count)), ::absolute)
+
+    /** The Engine's progress for an asset, or null when it has none (HTTP 404). */
+    suspend fun serverProgress(assetId: String): ServerProgress? = try {
+        parseServerProgress(requestJson("GET", ClientRoutes.progress(assetId)))
+    } catch (error: TuvimaHttpException) {
+        if (error.statusCode == 404) null else throw error
+    }
+
+    /**
+     * Replays progress recorded offline (`offline: true` with `client_timestamp`). The Engine keeps the later of its own
+     * record and this one and answers 200 with the state that stands; [OfflineLogic.isServerWon] tells which it was.
+     */
+    suspend fun replayOfflineProgress(entry: OfflineProgressEntry, expectedRevision: Long): ServerProgress {
+        val recordedAt = OfflineLogic.formatIsoUtc(entry.recordedAtMs)
+        val extended = JSONObject()
+            .put("position_seconds", OfflineLogic.formatSeconds(entry.positionSeconds))
+            .put("playback_state", "paused")
+            .put("player_client", "tuvima-android")
+            .put("updated_at", recordedAt)
+        entry.durationSeconds?.let { extended.put("duration_seconds", OfflineLogic.formatSeconds(it)) }
+        val body = JSONObject()
+            .put("progress_pct", entry.progressPct)
+            .put("expected_revision", expectedRevision)
+            .put("offline", true)
+            .put("client_timestamp", recordedAt)
+            .put("extended_properties", extended)
+        return parseServerProgress(requestJson("PUT", ClientRoutes.progress(entry.assetId), body))
+    }
 
     // ---- App screens: Home, Libraries, Details, View, Collections, profiles (all under /api/v1) ----
 
@@ -304,7 +361,7 @@ class TuvimaClient(
 
     fun isPaired(): Boolean = token != null
 
-    suspend fun downloadToFile(path: String, destination: File, onProgress: (Long, Long?) -> Unit = { _, _ -> }) =
+    suspend fun downloadToFile(path: String, destination: File, onProgress: (Long, Long?) -> Unit = { _, _ -> }): Unit =
         withContext(Dispatchers.IO) {
             destination.parentFile?.mkdirs()
             val existing = destination.takeIf(File::exists)?.length() ?: 0L
@@ -318,6 +375,8 @@ class TuvimaClient(
                         if (existing > 0) setRequestProperty("Range", "bytes=$existing-")
                     }
                 }
+                // 416: the file on disk already holds every byte the Engine has.
+                if (existing > 0 && connection.responseCode == HTTP_RANGE_NOT_SATISFIABLE) return@withContext
                 checkResponse(connection)
                 val append = existing > 0 && connection.responseCode == HttpURLConnection.HTTP_PARTIAL
                 val initial = if (append) existing else 0L
@@ -331,6 +390,8 @@ class TuvimaClient(
                         while (true) {
                             val count = input.read(buffer)
                             if (count < 0) break
+                            // A paused or stopped download must stop at once, not after the file ends.
+                            ensureActive()
                             output.write(buffer, 0, count)
                             copied += count
                             onProgress(copied, total)
@@ -346,6 +407,21 @@ class TuvimaClient(
         token = null
         tokenStore.clear()
     }
+
+    /** Sends a request and returns only the HTTP status (no body is read); a 401 is retried once with a fresh token. */
+    private suspend fun requestStatus(method: String, path: String, body: JSONObject?): Int =
+        withContext(Dispatchers.IO) {
+            var connection = openConnection(path, method, authenticatedToken(), body)
+            try {
+                if (connection.responseCode == HttpURLConnection.HTTP_UNAUTHORIZED) {
+                    connection.disconnect()
+                    connection = openConnection(path, method, refreshToken(force = true), body)
+                }
+                connection.responseCode
+            } finally {
+                connection.disconnect()
+            }
+        }
 
     private suspend fun requestJson(
         method: String,
@@ -500,6 +576,7 @@ class TuvimaClient(
 
     private companion object {
         const val DEVICE_GRANT = "urn:ietf:params:oauth:grant-type:device_code"
+        const val HTTP_RANGE_NOT_SATISFIABLE = 416
 
         fun normalizeOrigin(address: String): String {
             val withScheme = address.trim().let { if (it.contains("://")) it else "https://$it" }

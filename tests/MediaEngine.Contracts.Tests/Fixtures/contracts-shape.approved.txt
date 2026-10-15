@@ -1122,7 +1122,7 @@ MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.OAuthT
 MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.PairingDecisionRequest
   UserCode: System.String | nullability=not-null | accessors=get,init
   Approved: System.Boolean | nullability=not-null | accessors=get,init
-  Scopes: System.Collections.Generic.IReadOnlyList<System.String> | nullability=not-null | accessors=get,init
+  Scopes: System.Collections.Generic.IReadOnlyList<System.String> | nullability=nullable | accessors=get,init
 
 MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.PairingReviewResponse
   RequestId: System.Guid | nullability=not-null | accessors=get,init
@@ -1133,6 +1133,7 @@ MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.Pairin
   DeviceClass: System.String | nullability=not-null | accessors=get,init
   RequestedScopes: System.Collections.Generic.IReadOnlyList<System.String> | nullability=not-null | accessors=get,init
   ExpiresAt: System.DateTimeOffset | nullability=not-null | accessors=get,init
+  OffersPhotoScopes: System.Boolean | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.Authentication.MediaEngine.Contracts.Authentication.PasskeyCredentialResponse
   CredentialId: System.String | nullability=not-null | accessors=get,init
