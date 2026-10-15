@@ -152,6 +152,29 @@ public sealed class HouseholdPeopleTests
     }
 
     [Fact]
+    public async Task ReplaceAccess_ForAnOwnSignIn_IsStillRefusedAsAConflict_AndLeavesTheHouseholdsAccessAlone()
+    {
+        // The Dashboard shows an own sign-in's access read-only because this rule stays: only the main sign-in's access is edited.
+        await using var fixture = await Fixture.CreateAsync();
+        var (mutations, accounts, households, actor) = (fixture.Mutations, fixture.Accounts, fixture.Households, fixture.Actor);
+        var owner = await fixture.CreateOwnerAsync(AccountFeatureId.Read, AccountFeatureId.Watch);
+        var household = (await households.GetForAccountAsync(owner.Id))!;
+        var mary = await mutations.AddHouseholdPersonAsync(actor,
+            new AddHouseholdPersonCommand(household.Id, "Mary", null, false, null));
+        var maryAccount = (await mutations.GiveOwnSignInAsync(actor,
+            new GiveOwnSignInCommand(mary.Id, "mary@example.com", "a long temporary password"))).Account;
+        Assert.Equal(owner.Id, maryAccount.GrantsInheritFromAccountId);
+
+        var refused = await Assert.ThrowsAsync<InvalidOperationException>(() => mutations.ReplaceAccessAsync(actor, maryAccount.Id,
+            new HashSet<AccountFeatureId> { AccountFeatureId.Listen }, new HashSet<Guid>()));
+
+        // The endpoint maps InvalidOperationException to 409 Conflict.
+        Assert.Contains("follows the household", refused.Message, StringComparison.Ordinal);
+        Assert.Equal(new[] { "read", "watch" }, (await accounts.GetFeatureGrantsAsync(maryAccount.Id)).Select(feature => feature.Value).Order());
+        Assert.Equal(new[] { "read", "watch" }, (await accounts.GetFeatureGrantsAsync(owner.Id)).Select(feature => feature.Value).Order());
+    }
+
+    [Fact]
     public async Task OwnSignIn_StaysInThePersonsOwnHousehold()
     {
         await using var fixture = await Fixture.CreateAsync();

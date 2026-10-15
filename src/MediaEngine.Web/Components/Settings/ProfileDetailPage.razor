@@ -72,9 +72,13 @@
         <section class="profile-detail__group" aria-labelledby="profile-detail-profile">
             <h3 id="profile-detail-profile" class="profile-detail__group-title">Profile</h3>
             <ul class="profile-detail__list" role="list">
-                <li class="profile-detail__item">
-                    <SettingsNavRow Key="details" Icon="@AppMaterialIcons.Outlined.Person" Title="Profile details" Status="@DetailsStatus" OnClick="OpenEditor" />
-                </li>
+                @if (CanEditDetails)
+                {
+                    @* The editor saves through administrator-only Engine actions, so a member does not see a row that could not save. *@
+                    <li class="profile-detail__item">
+                        <SettingsNavRow Key="details" Icon="@AppMaterialIcons.Outlined.Person" Title="Profile details" Status="@DetailsStatus" OnClick="OpenEditor" />
+                    </li>
+                }
                 <li class="profile-detail__item">
                     @if (IsSelf)
                     {
@@ -124,7 +128,17 @@
                 }
                 <ul class="profile-detail__list" role="list">
                     <li class="profile-detail__item">
-                        <SettingsNavRow Key="access" Icon="@AppMaterialIcons.Outlined.LibraryBooks" Title="Libraries and lanes" Status="@AccessStatus" OnClick="OpenAccess" />
+                        @if (AccessFollowsHousehold)
+                        {
+                            @* An own sign-in follows the household's main sign-in, so this is shown, not edited; the Engine refuses to change it here. *@
+                            <SettingsNavRow Key="access" Icon="@AppMaterialIcons.Outlined.LibraryBooks" Title="Libraries and lanes" Status="@AccessStatus"
+                                            Note="Follows the household's access. Change it on the household's main sign-in."
+                                            Href="@(CanOpenHouseholdSettings ? HouseholdAccessRoute : null)" Disabled="@(!CanOpenHouseholdSettings)" />
+                        }
+                        else
+                        {
+                            <SettingsNavRow Key="access" Icon="@AppMaterialIcons.Outlined.LibraryBooks" Title="Libraries and lanes" Status="@AccessStatus" OnClick="OpenAccess" />
+                        }
                     </li>
                     <li class="profile-detail__item">
                         @if (_access is { HasTwoStep: false })
@@ -247,6 +261,18 @@
 
     // Their access is only theirs to manage when they have a sign-in of their own; your own access is never edited from here.
     private bool ShowHouseholdAccess => IsAdministrator && !IsSelf && OwnSignIn is not null;
+
+    // A person's own sign-in follows the household's main sign-in (the Engine reads its access from there and refuses to change it
+    // on the own sign-in), so the access is shown read-only. Only an account that keeps its own access gets the editable sheet.
+    private bool AccessFollowsHousehold => _access is { GrantsInheritFromAccountId: not null };
+
+    private const string HouseholdAccessRoute = "/settings/access/users";
+
+    // Users & Access (where the main sign-in's access is changed) is a server-administrator page.
+    private bool CanOpenHouseholdSettings => Session.HasNavigation("settings.administration");
+
+    // The profile editor saves through administrator-only Engine actions; a member's rename/avatar route may come later.
+    private bool CanEditDetails => IsAdministrator;
 
     private string? AccessStatus
     {
@@ -472,6 +498,11 @@
             var libraries = Identity.GetAccessLibrariesAsync();
             await LoadAccessAsync();
             _accessLibraries = await libraries;
+            if (AccessFollowsHousehold)
+            {
+                // Found out only now that this access follows the household: there is nothing to edit here.
+                _accessOpen = false;
+            }
         }
         catch (Exception exception) when (exception is HttpRequestException or TaskCanceledException or System.Text.Json.JsonException)
         {
@@ -495,7 +526,7 @@
 
     private async Task SaveAccessAsync(ReplaceAccountAccessRequest request)
     {
-        if (_accessSaving || OwnSignIn is not { } signIn)
+        if (_accessSaving || AccessFollowsHousehold || OwnSignIn is not { } signIn)
         {
             return;
         }
