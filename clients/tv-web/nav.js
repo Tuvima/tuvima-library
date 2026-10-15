@@ -183,6 +183,28 @@
 
   global.document.addEventListener('keydown', onKeyDown, true);
 
+  // Leaves the app through the platform when there is one (Tizen, webOS). In a desktop browser nothing exists to
+  // call, so this does nothing and returns false.
+  function exitApp() {
+    try {
+      if (global.tizen && global.tizen.application && typeof global.tizen.application.getCurrentApplication === 'function') {
+        global.tizen.application.getCurrentApplication().exit();
+        return true;
+      }
+      if (global.webOS && typeof global.webOS.platformBack === 'function') {
+        global.webOS.platformBack();
+        return true;
+      }
+      if (global.webOSSystem && typeof global.close === 'function') {
+        global.close();
+        return true;
+      }
+    } catch (e) {
+      // The platform refused to exit; leave the key to the platform's own handling.
+    }
+    return false;
+  }
+
   /** Small element builder shared by the screens: tag, class names, optional text. Text is always set as text, never as HTML. */
   TV.el = function (tag, className, text) {
     var element = document.createElement(tag);
@@ -228,6 +250,7 @@
     clearBack: function () { backStack = []; },
     keyActions: KEY_ACTIONS,
     keyNames: KEY_NAMES,
-    actionFor: actionFor
+    actionFor: actionFor,
+    exitApp: exitApp
   };
 })(window);

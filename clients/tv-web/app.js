@@ -1204,7 +1204,8 @@
 
   nav.pushBack(function () {
     if (goBack()) { return true; }
-    // From the first screen: Back goes to the top bar first; from the top bar it is left to the TV.
+    // From the first screen: Back goes to the top bar first; from the top bar it leaves the app through the
+    // platform (Tizen, webOS), or is left to the browser when there is no platform to call.
     if (currentScreen && isMain(currentScreen.name)) {
       var focused = nav.current();
       if (focused && !topNav.contains(focused)) {
@@ -1212,7 +1213,7 @@
         if (tab) { nav.focus(tab); return true; }
       }
     }
-    return false;
+    return nav.exitApp();
   });
 
   api.on('auth-lost', function () {

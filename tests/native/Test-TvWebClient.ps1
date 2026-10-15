@@ -97,7 +97,9 @@ foreach ($behavior in @(
     'TV.player.open(',
     'autoLevelCapping',            # the quality setting
     'xhr.setRequestHeader(',       # bearer token on stream requests through hls.js
-    'vendor/hls.min.js')) {
+    'vendor/hls.min.js',
+    'isServerUrl(',                # the bearer token goes only to the paired server
+    'nav.exitApp()')) {            # Back on the first screen leaves through the platform
     if (-not $js.Contains($behavior, [StringComparison]::Ordinal)) { throw "TV web client is missing '$behavior'." }
 }
 foreach ($code in @('10009', '461', '415', '10252')) {

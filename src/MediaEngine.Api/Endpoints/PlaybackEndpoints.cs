@@ -27,6 +27,10 @@ public static class PlaybackEndpoints
         [".wav"] = "audio/wav",
     };
 
+    /// <summary>The client id bound to a paired device's token wins over the caller-supplied <c>client</c> query value.</summary>
+    internal static string? TrustedClient(ClaimsPrincipal user, string? client) =>
+        user.FindFirstValue(TuvimaClaimTypes.ClientId) ?? client;
+
     public static IEndpointRouteBuilder MapPlaybackEndpoints(this IEndpointRouteBuilder app)
     {
         var group = app.MapGroup("/api/v1/playback")
@@ -65,7 +69,7 @@ public static class PlaybackEndpoints
                     capabilities = JsonSerializer.Deserialize<ClientCapabilitiesDto>(device.CapabilitiesJson);
                 }
             }
-            var trustedClient = user.FindFirstValue(TuvimaClaimTypes.ClientId) ?? client;
+            var trustedClient = TrustedClient(user, client);
             var manifest = await playback.BuildManifestAsync(assetId, trustedClient, profileId, ct, connection, capabilities, deviceId);
             if (manifest?.DirectStreamUrl is { } streamUrl)
             {

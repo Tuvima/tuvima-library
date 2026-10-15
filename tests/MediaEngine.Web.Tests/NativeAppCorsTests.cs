@@ -115,6 +115,56 @@ public sealed class NativeAppCorsTests
     }
 
     [Fact]
+    public async Task NoCorsAtAll_WhenAllowBrowserAppsIsOff_EvenWithAppAccessOn()
+    {
+        await using var host = await TestHost.StartAsync(enabled: true, allowBrowserApps: false);
+
+        using var preflight = await host.PreflightAsync("null", "/api/v1/oauth/token", "POST", "Content-Type");
+        using var discovery = await host.GetAsync("null", "/.well-known/tuvima");
+        using var api = await host.GetAsync("file://", "/api/v1/display/home");
+
+        AssertNoCors(preflight);
+        AssertNoCors(discovery);
+        AssertNoCors(api);
+        Assert.DoesNotContain("Origin", api.Headers.Vary);
+    }
+
+    [Fact]
+    public async Task NoCorsAtAll_WhenAllowBrowserAppsIsOn_ButAppAccessIsOff()
+    {
+        await using var host = await TestHost.StartAsync(enabled: false, allowBrowserApps: true);
+
+        using var preflight = await host.PreflightAsync("null", "/api/v1/display/home", "GET", "authorization");
+
+        AssertNoCors(preflight);
+    }
+
+    [Fact]
+    public void NetworkSettingsGate_NeedsBothSwitches_AndTheDefaultIsOff()
+    {
+        var dir = Path.Combine(Path.GetTempPath(), "tuvima-cors-gate-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(dir);
+        try
+        {
+            (bool Enabled, bool Browser) Read(string json)
+            {
+                File.WriteAllText(Path.Combine(dir, "network.json"), json);
+                var gate = new NetworkSettingsNativeAppAccessGate(new MediaEngine.Web.Services.Configuration.DashboardConfigurationReader(dir), dir);
+                return (gate.IsEnabled, gate.AllowBrowserApps);
+            }
+
+            Assert.Equal((true, false), Read("{\"native_app_access\":{\"enabled\":true}}"));
+            Assert.Equal((true, true), Read("{\"native_app_access\":{\"enabled\":true,\"allow_browser_apps\":true}}"));
+            Assert.Equal((false, false), Read("{\"native_app_access\":{\"enabled\":false,\"allow_browser_apps\":true}}"));
+            Assert.Equal((false, false), Read("{ not json"));
+        }
+        finally
+        {
+            Directory.Delete(dir, recursive: true);
+        }
+    }
+
+    [Fact]
     public async Task Preflight_FailsClosed_WhenNoGateIsRegistered()
     {
         await using var host = await TestHost.StartAsync(enabled: null);
@@ -155,6 +205,8 @@ public sealed class NativeAppCorsTests
         Assert.Equal("Retry-After", Single(response, "Access-Control-Expose-Headers"));
         Assert.False(response.Headers.Contains("Access-Control-Allow-Credentials"));
         Assert.Contains("Origin", response.Headers.Vary);
+        // The app door's headers (here Vary: Accept-Encoding) are kept, not overwritten.
+        Assert.Contains("Accept-Encoding", response.Headers.Vary);
         Assert.Equal(1, host.TerminalHits);
     }
 
@@ -195,9 +247,10 @@ public sealed class NativeAppCorsTests
         Assert.False(response.Headers.Contains("Access-Control-Expose-Headers"));
     }
 
-    private sealed class FixedGate(bool enabled) : INativeAppAccessGate
+    private sealed class FixedGate(bool enabled, bool allowBrowserApps) : INativeAppAccessGate
     {
         public bool IsEnabled => enabled;
+        public bool AllowBrowserApps => allowBrowserApps;
     }
 
     private sealed class TestHost(WebApplication app, Uri address, TestHost.Counter counter) : IAsyncDisposable
@@ -209,13 +262,13 @@ public sealed class NativeAppCorsTests
 
         public int TerminalHits => counter.Hits;
 
-        public static async Task<TestHost> StartAsync(bool? enabled)
+        public static async Task<TestHost> StartAsync(bool? enabled, bool allowBrowserApps = true)
         {
             var builder = WebApplication.CreateBuilder();
             builder.WebHost.UseUrls("http://127.0.0.1:0");
             if (enabled is { } value)
             {
-                builder.Services.AddSingleton<INativeAppAccessGate>(new FixedGate(value));
+                builder.Services.AddSingleton<INativeAppAccessGate>(new FixedGate(value, allowBrowserApps));
             }
 
             var app = builder.Build();
@@ -224,6 +277,8 @@ public sealed class NativeAppCorsTests
             app.Run(context =>
             {
                 Interlocked.Increment(ref counter.Hits);
+                // Like the app door copying the Engine's headers: this replaces any Vary set earlier.
+                context.Response.Headers["Vary"] = "Accept-Encoding";
                 context.Response.StatusCode = StatusCodes.Status200OK;
                 return Task.CompletedTask;
             });

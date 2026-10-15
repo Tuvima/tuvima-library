@@ -58,7 +58,10 @@ video through hls.js, whose request hook adds `Authorization: Bearer ...`, and
 it declares adaptive HLS only: `containers: []`, `video_codecs: ["h264"]`
 (plus `"hevc"` when the setting is on), `audio_codecs: ["aac"]`,
 `subtitle_formats: ["vtt"]`. The manifest is requested with `client=tv-web`
-(or `tv-web-hevc`), which maps to the Engine's `tv-web` playback profile.
+(or `tv-web-hevc`). The Engine's keyed `tv-web` and `tv-web-hevc` profiles apply
+to unpaired or legacy callers only: a paired TV's token carries its client id
+(`tuvima-tv`), which overrides `?client=`, and the capabilities stored at pairing
+(updated by the HEVC setting) choose the profile instead.
 Artwork and subtitles are fetched with the token and shown from blob URLs.
 
 If hls.js is not supported the player falls back to the platform's native HLS,
@@ -79,11 +82,21 @@ license in `vendor/LICENSE-hls.js.txt`. It loads on first playback.
 
 Served from the Dashboard origin, the client needs nothing special. A packaged
 Tizen or webOS app runs from `file://`, `app://`, `tizen://` or `webos://` (or the
-`null` origin), so the Dashboard answers cross-origin requests for exactly that
-case: `/api/v1/**` and `/.well-known/tuvima`, only while `native_app_access` is
-on, GET, POST, PUT, DELETE and the preflight, the `Authorization` and
-`Content-Type` headers, no credentials, and only for routes the app door allows.
-See `docs/reference/configuration.md`.
+`null` origin), so the Dashboard must answer cross-origin requests for exactly that
+case. That is **off by default**: set `native_app_access.allow_browser_apps` to
+`true` in `config/network.json` (and keep `native_app_access.enabled` on). Any
+website can claim the `null` origin, so with it on a website could reach the
+pairing surface; each pairing still needs a person to approve the code on the
+pairing page. Turn it on only for a TV web app. The permission covers
+`/api/v1/**` and `/.well-known/tuvima`, GET, POST, PUT, DELETE and the preflight,
+the `Authorization` and `Content-Type` headers, no credentials, and only routes
+the app door allows. See `docs/reference/configuration.md`.
+
+The client sends its bearer token only to the paired server's address (artwork
+and caption addresses on other hosts get no token). Back on the first screen
+leaves the app through the platform (`tizen.application...exit()`, or
+`webOS.platformBack()` / `window.close()` on webOS); in a desktop browser it does
+nothing.
 
 ## Remote control and layout
 

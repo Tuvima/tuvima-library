@@ -36,6 +36,12 @@
     return hlsLoading;
   }
 
+  // hls.js request hook: the bearer token goes only to the paired server, never to another host.
+  function authorize(xhr, url) {
+    var token = TV.api.accessToken();
+    if (token && TV.api.isServerUrl(url)) { xhr.setRequestHeader('Authorization', 'Bearer ' + token); }
+  }
+
   function formatTime(seconds) {
     if (!isFinite(seconds) || seconds < 0) { seconds = 0; }
     var total = Math.floor(seconds);
@@ -289,10 +295,7 @@
       if (Hls && Hls.isSupported()) {
         var hls = new Hls({
           startPosition: startAt > 0 ? startAt : -1,
-          xhrSetup: function (xhr) {
-            var token = TV.api.accessToken();
-            if (token) { xhr.setRequestHeader('Authorization', 'Bearer ' + token); }
-          }
+          xhrSetup: authorize
         });
         state.hls = hls;
         hls.on(Hls.Events.MANIFEST_PARSED, function () {
@@ -514,5 +517,5 @@
     return 0;
   }
 
-  TV.player = { open: open, formatTime: formatTime, toVtt: toVtt };
+  TV.player = { open: open, formatTime: formatTime, toVtt: toVtt, authorize: authorize };
 })(window);

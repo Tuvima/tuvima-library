@@ -3,12 +3,20 @@ namespace MediaEngine.Web.Services.Integration;
 /// <summary>
 /// The narrowest cross-origin allowance for packaged TV apps (Tizen, webOS) that are not served from the Dashboard's
 /// own origin. A packaged app's page origin is <c>null</c> or an app scheme (<c>file:</c>, <c>app:</c>, <c>tizen:</c>,
-/// <c>webos:</c>), so the browser asks permission before it calls the app door. The allowance is: only those origins,
-/// only while <c>native_app_access</c> is on, only <c>/api/v1/**</c> and <c>/.well-known/tuvima</c>, only the methods
-/// GET, POST, PUT, DELETE (and the OPTIONS preflight), only the <c>Authorization</c> and <c>Content-Type</c> request
-/// headers, and never credentials (apps send their bearer token in a header, not a cookie). A preflight for a route the
-/// app door would refuse anyway is not approved. Web pages on other origins get nothing, so the Dashboard's own
-/// sign-in cookie can never be used from another site.
+/// <c>webos:</c>), so the browser asks permission before it calls the app door.
+/// <para>
+/// Off by default. Any web page (a sandboxed frame, a local file) can present the <c>null</c> origin, so while this is on
+/// a website could reach the anonymous pairing surface; a person must still approve the code on <c>/pair</c>. It is
+/// therefore a separate opt-in (<c>native_app_access.allow_browser_apps</c>, config file only) that must be on together
+/// with <c>native_app_access.enabled</c>, and should be on only for TV web apps.
+/// </para>
+/// <para>
+/// When on, the allowance is: only those origins, only <c>/api/v1/**</c> and <c>/.well-known/tuvima</c>, only the
+/// methods GET, POST, PUT, DELETE (and the OPTIONS preflight), only the <c>Authorization</c> and <c>Content-Type</c>
+/// request headers, and never credentials (apps send their bearer token in a header, not a cookie, so the Dashboard's
+/// own sign-in cookie is never usable from another site). A preflight for a route the app door would refuse anyway is
+/// not approved. Origins that are ordinary web addresses get nothing.
+/// </para>
 /// </summary>
 public static class NativeAppCors
 {
@@ -78,13 +86,11 @@ public static class NativeAppCors
         if (origin.Length == 0
             || !IsCorsPath(context.Request.Path)
             || !IsAppOrigin(origin)
-            || context.RequestServices.GetService<INativeAppAccessGate>()?.IsEnabled != true)
+            || context.RequestServices.GetService<INativeAppAccessGate>() is not { IsEnabled: true, AllowBrowserApps: true })
         {
             await next(context);
             return;
         }
-
-        context.Response.Headers.Append("Vary", "Origin");
 
         var requestedMethod = context.Request.Headers.AccessControlRequestMethod.ToString();
         if (HttpMethods.IsOptions(context.Request.Method) && requestedMethod.Length > 0)
@@ -100,18 +106,32 @@ public static class NativeAppCors
                 headers.AccessControlMaxAge = PreflightMaxAgeSeconds;
             }
 
+            AppendVaryOrigin(context.Response);
+
             // A refused preflight carries no allow headers, which makes the browser block the real request.
             context.Response.StatusCode = StatusCodes.Status204NoContent;
             return;
         }
 
+        // Set when the response starts, after the app door has copied the Engine's headers (which can replace Vary).
         context.Response.OnStarting(() =>
         {
+            AppendVaryOrigin(context.Response);
             context.Response.Headers.AccessControlAllowOrigin = origin;
             context.Response.Headers.AccessControlExposeHeaders = ExposedHeaders;
             return Task.CompletedTask;
         });
         await next(context);
+    }
+
+    private static void AppendVaryOrigin(HttpResponse response)
+    {
+        var vary = response.Headers.Vary;
+        if (!vary.Any(value => value is not null && value.Split(',', StringSplitOptions.TrimEntries)
+                .Contains("Origin", StringComparer.OrdinalIgnoreCase)))
+        {
+            response.Headers.Append("Vary", "Origin");
+        }
     }
 
     private static bool RequestedHeadersAllowed(string requested) =>

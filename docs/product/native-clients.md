@@ -89,11 +89,14 @@ granted can be listed or chosen, and a Kids profile keeps its content limit
 after the switch. Choosing the profile already in use is refused (`409`), and
 each device may list or switch at most 30 times a minute.
 
-A TV app packaged for Tizen or webOS is not served from the Dashboard's address, so
-the Dashboard gives it a narrow cross-origin permission: only app origins
-(`file:`, `app:`, `tizen:`, `webos:` and the `null` origin), only `/api/v1` and
-`/.well-known/tuvima`, only while app access is on, with no credentials. Other
-websites get nothing. See [Configuration](../reference/configuration.md). The TV
+A TV app packaged for Tizen or webOS is not served from the Dashboard's address.
+When an administrator turns on `native_app_access.allow_browser_apps` in
+`config/network.json` (off by default, in addition to app access), the Dashboard
+gives it a narrow cross-origin permission: only app origins (`file:`, `app:`,
+`tizen:`, `webos:` and the `null` origin), only `/api/v1` and `/.well-known/tuvima`,
+no credentials. Because any website can claim those origins, turn it on only for a
+TV web app; a person must still approve each pairing on the pairing page. See
+[Configuration](../reference/configuration.md). The TV
 web client plays video as adaptive HLS (H.264 and AAC; HEVC optional) through the
 `tv-web` playback profile, because a browser video element cannot send the app's
 token.

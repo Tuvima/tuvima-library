@@ -178,6 +178,32 @@ test('manifest asks for the tv-web profile, and tv-web-hevc once HEVC is switche
   api.settings.setHevc(false);
 });
 
+test('the bearer token goes only to the paired server, never to another host', async () => {
+  await reset();
+  script = [reply(200, tokenBody(7))];
+  await api.pollPairing({ device_code: 'dc7' });
+  assert.ok(api.isServerUrl('/api/v1/stream/x'));
+  assert.ok(api.isServerUrl('http://nas.local/api/v1/stream/x'));
+  assert.ok(api.isServerUrl('HTTP://NAS.LOCAL/x'));
+  assert.ok(!api.isServerUrl('http://nas.local.evil.example/x'));
+  assert.ok(!api.isServerUrl('http://nas.local@evil.example/x'));
+  assert.ok(!api.isServerUrl('https://nas.local/x'), 'a different scheme is a different origin');
+  assert.ok(!api.isServerUrl('https://cdn.example/cover.jpg'));
+
+  const seen = [];
+  script = [
+    (c) => { seen.push(c); return reply(200, 'WEBVTT'); },
+    (c) => { seen.push(c); return reply(200, 'WEBVTT'); },
+    (c) => { seen.push(c); return reply(200, 'WEBVTT'); }
+  ];
+  await api.fetchText('https://cdn.example/captions.vtt');
+  await api.fetchText('http://nas.local/api/v1/stream/a/subtitles');
+  await api.fetchText('/api/v1/stream/a/subtitles');
+  assert.strictEqual(seen[0].headers.Authorization, undefined);
+  assert.ok(seen[1].headers.Authorization.startsWith('Bearer '));
+  assert.ok(seen[2].headers.Authorization.startsWith('Bearer '));
+});
+
 test('switchProfile: 428 means a PIN is needed, success replaces the tokens', async () => {
   await reset();
   script = [reply(428, { error: 'pin_required', error_description: 'PIN needed' })];

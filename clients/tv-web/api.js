@@ -108,6 +108,15 @@
     return origin + (path.charAt(0) === '/' ? path : '/' + path);
   }
 
+  // True only for addresses on the paired server. The bearer token is never sent anywhere else
+  // (artwork and caption addresses from the server can point to other hosts).
+  function isServerUrl(url) {
+    if (!origin) { return false; }
+    var target = absolute(String(url || ''));
+    var match = /^(https?:\/\/[^\/?#]+)/i.exec(target);
+    return !!match && match[1].toLowerCase() === origin.toLowerCase();
+  }
+
   function withTimeout(init) {
     var out = init || {};
     if (typeof global.AbortController === 'function') {
@@ -221,7 +230,7 @@
 
   async function send(method, path, body, authenticated) {
     var headers = { Accept: 'application/json' };
-    if (authenticated && tokens && tokens.access) { headers.Authorization = 'Bearer ' + tokens.access; }
+    if (authenticated && tokens && tokens.access && isServerUrl(path)) { headers.Authorization = 'Bearer ' + tokens.access; }
     var init = { method: method, headers: headers };
     if (body !== undefined && body !== null) {
       headers['Content-Type'] = 'application/json';
@@ -499,6 +508,7 @@
     hasServer: function () { return !!origin; },
     normalizeServer: normalizeServer,
     absolute: absolute,
+    isServerUrl: isServerUrl,
     connect: connect,
     isSignedIn: isSignedIn,
     accessToken: accessToken,
