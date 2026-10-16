@@ -1047,7 +1047,7 @@
 }
 
 /* Editing Mode: the hero drops its reserved headroom above the title so open field editors still fit. */
-.tl-detail-hero__inner--editing.tl-detail-hero__inner--editing .tl-detail-hero__identity.tl-detail-hero__identity {
+.tl-detail-hero__inner--editing .tl-detail-hero__identity:not(#a) {
     height: auto;
     min-height: 0;
 }

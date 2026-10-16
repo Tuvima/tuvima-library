@@ -29,8 +29,12 @@
     outline-offset: var(--tl-focus-ring-offset);
 }
 
-.tl-editing-field {
+.tl-editing-field,
+.tl-editing-field__error {
     width: min(100%, 34rem);
+}
+
+.tl-editing-field {
     margin-block: var(--tl-space-2);
     padding: var(--tl-space-2) var(--tl-space-3);
     border: 1px solid var(--tl-border-default);
@@ -47,7 +51,6 @@
 }
 
 .tl-editing-field__error {
-    width: min(100%, 34rem);
     margin: 0 0 var(--tl-space-2);
     color: var(--tl-status-danger);
     font-size: var(--tl-font-size-sm);

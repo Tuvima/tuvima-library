@@ -183,7 +183,7 @@
 
 ::deep .sme-section-nav__item {
     flex: var(--sme-nav-flex, 0 1 auto);
-    width: var(--sme-nav-width, 100%);
+    width: 100%;
     min-height: var(--sme-nav-min-height, 46px);
     justify-content: flex-start;
     border-radius: 10px;
@@ -1969,7 +1969,6 @@
 
 .sme-shell--drawer .sme-section-nav {
     --sme-nav-flex: 1 1 0;
-    --sme-nav-width: auto;
     --sme-nav-min-height: 3.5rem;
     --sme-nav-direction: column;
     --sme-nav-justify: center;
