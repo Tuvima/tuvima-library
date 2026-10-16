@@ -29,9 +29,17 @@ public static partial class PhoneHeroPresentation
     /// <summary>"101" becomes "1h 41m", "58" becomes "58m", "120" becomes "2h". Nothing for zero or less.</summary>
     public static string? FormatRuntime(double minutes)
     {
-        if (double.IsNaN(minutes) || double.IsInfinity(minutes)) return null;
+        if (double.IsNaN(minutes) || double.IsInfinity(minutes))
+        {
+            return null;
+        }
+
         var total = (int)Math.Round(minutes, MidpointRounding.AwayFromZero);
-        if (total <= 0) return null;
+        if (total <= 0)
+        {
+            return null;
+        }
+
         var hours = total / 60;
         var rest = total % 60;
         return hours == 0 ? $"{rest}m" : rest == 0 ? $"{hours}h" : $"{hours}h {rest}m";
@@ -111,7 +119,9 @@ public static partial class PhoneHeroPresentation
         var coverUsable = !string.IsNullOrWhiteSpace(hero.PreviewImageUrl)
             && (hero.CoverWidthPx is null || hero.CoverWidthPx >= MinUsableCoverWidthPx);
         if (coverUsable)
+        {
             return new PhoneHeroArtwork(PhoneHeroArt.Cover, MediaTileArtworkUrl.Sized(hero.PreviewImageUrl, "m") ?? hero.PreviewImageUrl, null);
+        }
 
         return new PhoneHeroArtwork(PhoneHeroArt.Placeholder, null, null);
     }
@@ -138,7 +148,9 @@ public static partial class PhoneHeroPresentation
             {
                 var value = raw.TrimStart('★').Trim();
                 if (value.Length > 0 && double.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out var stars) && stars > 0)
+                {
                     rating ??= $"★ {value}";
+                }
             }
             else if (raw.Length == 4 && int.TryParse(raw, out var y) && y is >= 1800 and <= 2200)
             {
@@ -147,9 +159,18 @@ public static partial class PhoneHeroPresentation
             else if (CountRegex().Match(raw) is { Success: true } count && int.TryParse(count.Groups[1].Value, out var n))
             {
                 var noun = count.Groups[2].Value.ToLowerInvariant();
-                if (noun.StartsWith("season")) seasons ??= Count(n, "season");
-                else if (noun.StartsWith("track")) tracks ??= Count(n, "track");
-                else if (noun.StartsWith("page")) pages ??= Count(n, "page");
+                if (noun.StartsWith("season"))
+                {
+                    seasons ??= Count(n, "season");
+                }
+                else if (noun.StartsWith("track"))
+                {
+                    tracks ??= Count(n, "track");
+                }
+                else if (noun.StartsWith("page"))
+                {
+                    pages ??= Count(n, "page");
+                }
             }
             else if (MinutesRegex().Match(raw) is { Success: true } minutes
                 && double.TryParse(minutes.Groups[1].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out var m))
