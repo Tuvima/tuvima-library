@@ -1,8 +1,12 @@
-/* Phone Home hero. One card, one fixed height: about 55% of what is visible between the top bar and the bottom bar, so the
-   first shelf header always sits above the bottom bar and never moves between slides. */
+/* Phone Home hero. One card, one fixed height: about 55% of what is visible between the top chrome and the dock, so the
+   first shelf header always sits above the dock and never moves between slides. --app-topbar-height is the whole top chrome
+   (56 px bar row + 48 px chips row) and --tl-bottom-dock-height the floating dock's footprint. --phone-hero-trim is the one
+   number that sets the card height against them: 10.3px keeps the first shelf header at the same y as before the chips row
+   was added at 390x844, 360x740 and 430x932; change it here, nowhere else, to move the header. */
 .phone-hero {
-    --phone-hero-bottom-bar: 3.6rem;
-    --phone-hero-visible: calc(100svh - var(--app-topbar-height, 65px) - var(--tl-safe-area-top, 0px) - var(--phone-hero-bottom-bar) - var(--tl-safe-area-bottom, 0px));
+    --phone-hero-trim: 10.3px;
+    --phone-hero-bottom-bar: calc(var(--tl-bottom-dock-height) + var(--phone-hero-trim));
+    --phone-hero-visible: calc(100svh - var(--app-topbar-height, 65px) - var(--tl-safe-area-top, 0px) - var(--phone-hero-bottom-bar));
     --phone-hero-card-height: calc(var(--phone-hero-visible) * 0.55);
     --phone-hero-tap: var(--tl-touch-target-min, 48px);
     box-sizing: border-box;

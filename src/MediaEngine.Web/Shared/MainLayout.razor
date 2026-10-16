@@ -53,17 +53,41 @@
 <AppLayout Class="@LayoutShellClass">
     <AppAppBar Fixed="false" Elevation="0" Dense="true" Class="@AppBarClass">
         <AppStack Row="true" AlignItems="AppAlignItems.Center" Spacing="2" Class="layout-shell__left-rail">
+            @if (IsPhoneShell)
+            {
+                @* Phone only: the hamburger opens the full-screen menu, generated from the same catalogue as the desktop top bar. *@
+                <AppNativeButton Type="button"
+                                 Class="layout-shell__menu-button"
+                                 AriaLabel="@L["Nav_OpenNavigation"]"
+                                 aria-haspopup="dialog"
+                                 aria-expanded="@(_menuOpen ? "true" : "false")"
+                                 OnClick="OpenMenu">
+                    <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Menu" />
+                </AppNativeButton>
+            }
             <AppLink Href="/" Underline="AppUnderline.None" Class="layout-shell__brand-link" aria-label="Tuvima Library">
-                <span class="layout-shell__brand-lockup-shell" aria-hidden="true">
-                    <img src="/images/library.svg"
-                         alt=""
-                         class="layout-shell__brand-lockup" />
-                </span>
+                @if (IsPhoneShell)
+                {
+                    @* Phone: the icon only, no wordmark. *@
+                    <span class="layout-shell__brand-icon-shell" aria-hidden="true">
+                        <img src="/images/tuvima-icon.svg"
+                             alt=""
+                             class="layout-shell__brand-icon" />
+                    </span>
+                }
+                else
+                {
+                    <span class="layout-shell__brand-lockup-shell" aria-hidden="true">
+                        <img src="/images/library.svg"
+                             alt=""
+                             class="layout-shell__brand-lockup" />
+                    </span>
+                }
             </AppLink>
         </AppStack>
 
         <nav class="layout-shell__desktop-nav" aria-label="Primary">
-            @foreach (var link in VisibleNavLinks)
+            @foreach (var link in ShellNavigation.TopBarLinks(_isKids))
             {
                 <a href="@link.Path"
                    @key="link.Path"
@@ -77,18 +101,26 @@
         </nav>
 
         <AppStack Row="true" AlignItems="AppAlignItems.Center" Spacing="1" Class="layout-shell__actions">
-            <span class="layout-shell__search-action-slot">
-                <AppTooltip Text="@L["Nav_Search"]" Placement="AppPlacement.Bottom">
-                    <AppNativeButton Type="button"
-                                     @ref="_searchButton"
-                                     Class="layout-shell__search-action"
-                                     AriaLabel="@L["Nav_Search"]"
-                                     OnClick="@(_ => OpenSearch())">
-                        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Search"
-                                 Class="layout-shell__search-action-icon" />
-                    </AppNativeButton>
-                </AppTooltip>
-            </span>
+            @if (IsPhoneShell)
+            {
+                @* Phone: one Search (the dock tab), so no search icon here. Downloads shows only where downloads work. *@
+                <PhoneDownloadsAction />
+            }
+            else
+            {
+                <span class="layout-shell__search-action-slot">
+                    <AppTooltip Text="@L["Nav_Search"]" Placement="AppPlacement.Bottom">
+                        <AppNativeButton Type="button"
+                                         @ref="_searchButton"
+                                         Class="layout-shell__search-action"
+                                         AriaLabel="@L["Nav_Search"]"
+                                         OnClick="@(_ => OpenSearch())">
+                            <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Search"
+                                     Class="layout-shell__search-action-icon" />
+                        </AppNativeButton>
+                    </AppTooltip>
+                </span>
+            }
 
             <span class="layout-shell__my-list-slot">
                 <AppTooltip Text="@L["TopBar_MyList"]" Placement="AppPlacement.Bottom">
@@ -125,6 +157,13 @@
                                    ShowSignOut="true" />
             </span>
         </AppStack>
+
+        @if (IsPhoneShell)
+        {
+            <div class="layout-shell__chips-slot">
+                <PhoneSectionChips Links="@ShellNavigation.SectionChips(_isKids)" CurrentPath="@_currentPath" />
+            </div>
+        }
     </AppAppBar>
 
     @if (ShouldShowEngineStatusBanner)
@@ -206,8 +245,8 @@
                 default:
                     <a href="@entry.Path"
                        @key="entry.Key"
-                       class="@GetIntentDockLinkClass(IsNavActive(entry.Path))"
-                       aria-current="@(IsNavActive(entry.Path) ? "page" : null)">
+                       class="@GetIntentDockLinkClass(IsNavActive(ShellDock.PathOnly(entry.Path)))"
+                       aria-current="@(IsNavActive(ShellDock.PathOnly(entry.Path)) ? "page" : null)">
                         <AppMaterialIcon Icon="@entry.Icon" />
                         <span>@L[entry.LabelKey]</span>
                     </a>
@@ -221,6 +260,15 @@
             <LibrarySwitcherSheet CurrentPath="@_currentPath" IsKids="@_isKids" OnNavigate="CloseLibraries" />
         </AppDialogFrame>
     }
+}
+
+@if (_menuOpen && IsPhoneShell)
+{
+    <PhoneNavigationMenu Links="@ShellNavigation.MenuLinks(_isKids)"
+                         CurrentPath="@_currentPath"
+                         ShowSettings="@ShellNavigation.ShowsSettings(_isKids)"
+                         ShowSwitchProfile="@ShellNavigation.ShowsSwitchProfile(_profiles.Count)"
+                         OnClose="CloseMenu" />
 }
 </AppCssElement>
 </div>
@@ -254,31 +302,17 @@
     private Task SetContextSidebarWidthAsync(int width) => _contextSidebar?.WidthChanged?.Invoke(width) ?? Task.CompletedTask;
     private Task CloseContextSidebarAsync() => CloseCurrentContextSidebarAsync();
 
-    private readonly record struct ShellNavLink(string Path, string LabelKey, string Icon = "");
-
-    private static readonly ShellNavLink[] _navLinks =
-    [
-        new("/read", "Nav_Read"),
-        new("/watch", "Nav_Watch"),
-        new("/listen", "Nav_Listen"),
-        new("/view", "Nav_View"),
-        new("/collections", "Nav_Collections"),
-    ];
-
+    // The top bar's destinations come from ShellNavigation (the catalogue the phone menu and chips are generated from).
     // The Kids shell keeps only the lanes a child needs; "My List" stays in the top bar.
-    private static readonly string[] _kidsNavPaths = ["/watch", "/listen", "/read"];
 
     // A bottom sheet on phones; TV renders the same dock, where the frame falls back to a centred dialog.
     private static readonly AppDialogOptions LibrariesSheetOptions = new() { Sheet = AppDialogSheetMode.Phone, BackdropClick = true, CloseOnEscapeKey = true };
 
     private bool _librariesOpen;
+    private bool _menuOpen;
     private string _lastLibraryPath = ShellDock.DefaultLibraryPath;
 
     private string AccentScopeClass => _isKids ? "layout-accent-scope layout-kids" : "layout-accent-scope";
-
-    private IEnumerable<ShellNavLink> VisibleNavLinks => _isKids
-        ? _kidsNavPaths.Select(path => _navLinks.First(link => link.Path == path))
-        : _navLinks;
 
     private bool IsDetailShell => IsDetailPath(_currentPath);
     private bool IsLaneScrollRoute => new[] { "/read", "/watch", "/listen", "/collections", "/view", "/settings" }.Any(path =>
@@ -296,9 +330,13 @@
     private bool CanManageProfiles => _session.HasAction("access.manage");
     private bool CanViewReview => _session.HasNavigation("settings.administration");
     private bool CanViewSystemActivity => _session.HasNavigation("settings.administration");
-    private IReadOnlyList<ShellDockEntry> IntentDockEntries => ShellDock.Resolve(DeviceContext.Settings.Shell.IntentDockItems, _isKids);
+    // The phone dock is fixed (Home, Search, My Library); the configured list drives the TV dock.
+    private IReadOnlyList<ShellDockEntry> IntentDockEntries => IsPhoneShell
+        ? ShellDock.ResolvePhone(_isKids)
+        : ShellDock.Resolve(DeviceContext.Settings.Shell.IntentDockItems, _isKids);
+    private bool IsPhoneShell => DeviceContext.IsPhone;
     private bool OnLibrarySurface => ShellDock.IsLibrarySurface(_currentPath);
-    // The five-tab dock is the phone's navigation (tablets keep the top navigation); TV keeps its own dock.
+    // The phone's navigation is the three-tab floating dock plus the menu and chips (tablets keep the top navigation); TV keeps its own dock.
     private bool ShowIntentDock => DeviceContext.Settings.Shell.DockVisible
         && (DeviceContext.IsPhone || DeviceContext.IsTelevision);
     private string IntentDockClass => string.Join(' ', new[]
@@ -492,6 +530,8 @@
 
     private void OnDeviceContextChanged()
     {
+        // The menu belongs to the phone shell; a rotation or resize to another form factor closes it.
+        if (!DeviceContext.IsPhone) _menuOpen = false;
         RequestRenderIfAlive();
     }
 
@@ -560,6 +600,7 @@
         if (_disposed) return;
         SyncLocationState();
         _librariesOpen = false;
+        _menuOpen = false;
         _ = InvokeAsync(async () =>
         {
             if (_disposed) return;
@@ -582,6 +623,10 @@
     }
 
     private void CloseLibraries() => _librariesOpen = false;
+
+    private void OpenMenu() => _menuOpen = true;
+
+    private void CloseMenu() => _menuOpen = false;
 
     // Remembers the lane the person is on (per profile, in this browser) and, on load, brings back the last one used.
     private async Task SyncLastLibraryAsync(bool load)
@@ -625,7 +670,7 @@
 
     private async Task RestoreSearchFocusAsync()
     {
-        if (!_disposed && _searchButton is not null)
+        if (!_disposed && !IsPhoneShell && _searchButton is not null)
             await _searchButton.FocusAsync();
     }
 

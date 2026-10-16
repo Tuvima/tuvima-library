@@ -16,9 +16,8 @@ public sealed class ResponsivePwaGuardrailTests
 
         Assert.Contains("grid-template-columns: minmax(0, 1fr) 0 auto;", phone, StringComparison.Ordinal);
         Assert.Contains("grid-template-columns: minmax(0, 1fr) 0 auto !important;", global, StringComparison.Ordinal);
-        Assert.Contains("width: 114px;", phone, StringComparison.Ordinal);
-        Assert.Contains("height: 28px;", phone, StringComparison.Ordinal);
-        Assert.Contains("flex: 1 1 auto;", phone, StringComparison.Ordinal);
+        // The three dock tabs share the pill equally, each a 48 px target; labels wrap rather than clip.
+        Assert.Contains("flex: 1 1 0;", phone, StringComparison.Ordinal);
         Assert.Contains("min-width: 48px;", phone, StringComparison.Ordinal);
         Assert.Contains("min-height: 48px;", phone, StringComparison.Ordinal);
         Assert.Contains("grid-template-rows: 22px auto;", phone, StringComparison.Ordinal);
@@ -26,13 +25,86 @@ public sealed class ResponsivePwaGuardrailTests
         Assert.Contains("overflow-wrap: anywhere;", phone, StringComparison.Ordinal);
         Assert.Contains("width: 24px;", phone, StringComparison.Ordinal);
         Assert.Contains("width: 22px;\n    height: 22px;\n    font-size: 22px;", phone, StringComparison.Ordinal);
-        Assert.Contains(".layout-shell__search-action-slot ::deep .layout-shell__search-action-icon,", phone, StringComparison.Ordinal);
+        // The phone top bar has no search icon (Search is a dock tab) and no wordmark (the icon only).
+        Assert.DoesNotContain("layout-shell__search-action", phone, StringComparison.Ordinal);
+        Assert.DoesNotContain("layout-shell__brand-lockup", phone, StringComparison.Ordinal);
         Assert.Contains(".layout-shell__my-list-slot ::deep .layout-shell__my-list-icon,", phone, StringComparison.Ordinal);
         Assert.Contains(".system-activity-indicator__ring .tl-progress-circular {\n    width: 32px !important;\n    height: 32px !important;", phone, StringComparison.Ordinal);
         var accountPhone = account[account.IndexOf("@media (max-width: 640px)", StringComparison.Ordinal)..];
         Assert.Contains("width: 48px;", accountPhone, StringComparison.Ordinal);
         Assert.Contains("height: 48px;", accountPhone, StringComparison.Ordinal);
         Assert.Contains("width: 32px !important;", accountPhone, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void PhoneChrome_HasFixedRowsAFloatingDockAndOneHeroVariable()
+    {
+        var tokens = Read("src/MediaEngine.Web/wwwroot/tuvima.tokens.css").Replace("\r\n", "\n", StringComparison.Ordinal);
+        var layout = Read("src/MediaEngine.Web/Shared/MainLayout.razor.css").Replace("\r\n", "\n", StringComparison.Ordinal);
+        var hero = Read("src/MediaEngine.Web/Components/Cinematic/PhoneHeroCard.razor.css");
+        var global = Read("src/MediaEngine.Web/wwwroot/app.css");
+
+        // The top chrome is a fixed 56 px bar row plus a fixed 48 px chips row; --app-topbar-height is their sum, so every
+        // hero offset and sticky top keeps working from the one variable.
+        var phoneTokens = tokens[tokens.IndexOf("html[data-form-factor=\"phone\"] {", StringComparison.Ordinal)..];
+        Assert.Contains("--tl-appbar-row-height: 56px;", phoneTokens, StringComparison.Ordinal);
+        Assert.Contains("--tl-phone-chips-height: 48px;", phoneTokens, StringComparison.Ordinal);
+        Assert.Contains("--app-topbar-height: calc(var(--tl-appbar-row-height) + var(--tl-phone-chips-height));", phoneTokens, StringComparison.Ordinal);
+        Assert.Contains("--tl-phone-dock-height: 56px;", phoneTokens, StringComparison.Ordinal);
+        Assert.Contains("max(var(--tl-phone-dock-gap), var(--tl-safe-area-bottom))", phoneTokens, StringComparison.Ordinal);
+        Assert.Contains("grid-template-rows: var(--tl-appbar-row-height) var(--tl-phone-chips-height);", layout, StringComparison.Ordinal);
+
+        // The dock is a floating pill that keeps its own grid row, so it never covers the last row of the page.
+        var dock = layout[layout.IndexOf("html[data-form-factor=\"phone\"] .layout-shell__intent-dock {\n    display: flex;", StringComparison.Ordinal)..];
+        dock = dock[..dock.IndexOf('}', StringComparison.Ordinal)];
+        Assert.Contains("border-radius: 999px;", dock, StringComparison.Ordinal);
+        Assert.Contains("var(--tl-safe-area-bottom)", dock, StringComparison.Ordinal);
+        Assert.Contains("height: var(--tl-phone-dock-height);", dock, StringComparison.Ordinal);
+        Assert.Contains("grid-row: 4;", layout, StringComparison.Ordinal);
+
+        // The Home hero measures from the whole chrome and has one reserve variable for the bottom bar.
+        Assert.Single(System.Text.RegularExpressions.Regex.Matches(hero, @"--phone-hero-bottom-bar:\s*[^;]+;"));
+        Assert.Contains("var(--app-topbar-height, 65px)", hero, StringComparison.Ordinal);
+        Assert.Contains("var(--phone-hero-bottom-bar)", hero, StringComparison.Ordinal);
+
+        // The menu frame respects reduced motion: it only animates for people who have not asked for less.
+        var menuMotion = global[global.IndexOf(".phone-nav-menu-dialog[open]", StringComparison.Ordinal)..];
+        Assert.Contains("prefers-reduced-motion: no-preference", global[(global.LastIndexOf("@media", global.IndexOf(".phone-nav-menu-dialog[open]", StringComparison.Ordinal), StringComparison.Ordinal))..], StringComparison.Ordinal);
+        Assert.Contains("animation: phone-nav-menu-in", menuMotion, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("PhoneNavigationMenu")]
+    [InlineData("PhoneSectionChips")]
+    [InlineData("PhoneDownloadsAction")]
+    public void PhoneNavigationComponents_FollowTheDashboardStyleRules(string component)
+    {
+        var markup = Read($"src/MediaEngine.Web/Components/Navigation/{component}.razor");
+        var styles = Read($"src/MediaEngine.Web/Components/Navigation/{component}.razor.css");
+
+        // No inline styles, no ::deep, no raw form inputs; colours and spacing come from the CSS tokens.
+        Assert.DoesNotContain(" style=", markup, StringComparison.Ordinal);
+        Assert.DoesNotContain("<input", markup, StringComparison.Ordinal);
+        Assert.DoesNotContain("::deep", styles, StringComparison.Ordinal);
+        Assert.DoesNotContain("!important", styles, StringComparison.Ordinal);
+        Assert.DoesNotContain("@media (max-width", styles, StringComparison.Ordinal);
+        Assert.DoesNotMatch(@"#[0-9a-fA-F]{3,8}\b", styles);
+    }
+
+    [Fact]
+    public void PhoneNavigationScripts_ArePlainModulesThatCleanUpAfterThemselves()
+    {
+        var menu = Read("src/MediaEngine.Web/wwwroot/js/phone-nav-menu.js");
+        var roving = Read("src/MediaEngine.Web/wwwroot/js/roving-focus.js");
+
+        // Back closes the menu through a history entry the menu owns; the entry is removed when the menu closes another way.
+        Assert.Contains("history.pushState", menu, StringComparison.Ordinal);
+        Assert.Contains("popstate", menu, StringComparison.Ordinal);
+        Assert.Contains("stopImmediatePropagation", menu, StringComparison.Ordinal);
+        Assert.Contains("history.back()", menu, StringComparison.Ordinal);
+        Assert.Contains("removeEventListener('popstate'", menu, StringComparison.Ordinal);
+        Assert.Contains("ArrowRight", roving, StringComparison.Ordinal);
+        Assert.Contains("removeEventListener('keydown'", roving, StringComparison.Ordinal);
     }
 
     [Fact]
