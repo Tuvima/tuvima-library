@@ -79,9 +79,9 @@ public sealed partial class UiShellRenderTests
 
         cut.WaitForAssertion(() =>
         {
-            // Dock: exactly Home, Search, My Library; My Library opens the existing My List page.
+            // Dock: exactly Home, Search, My Library; My Library opens the personal page.
             var links = cut.FindAll(".layout-shell__intent-dock-link");
-            Assert.Equal(["/", "/search", "/for-me?view=my-list"], Hrefs(links));
+            Assert.Equal(["/", "/search", "/my-library"], Hrefs(links));
             Assert.Equal(["Home", "Search", "My Library"], Labels(links));
 
             // Top bar: hamburger on the left, icon-only logo, one Search (the dock tab), no Downloads in the browser.
@@ -131,10 +131,10 @@ public sealed partial class UiShellRenderTests
         cut.WaitForAssertion(() => Assert.Single(cut.FindAll(".phone-nav-menu")));
         var destinations = cut.FindAll(".phone-nav-menu__nav ul:first-of-type a");
         var desktop = cut.FindAll(".layout-shell__nav-link");
-        // Home and Recently added lead; then the very lanes, in the very order, the desktop top bar renders.
-        Assert.Equal(["/", "/recently-added", .. Hrefs(desktop)], Hrefs(destinations));
-        Assert.Equal(["Home", "Recently added", .. Labels(desktop).Select(label => label.ToUpperInvariant())],
-            Labels(destinations).Select((label, index) => index < 2 ? label : label.ToUpperInvariant()).ToArray());
+        // Home, My Library and Recently added lead; then the very lanes, in the very order, the desktop top bar renders.
+        Assert.Equal(["/", "/my-library", "/recently-added", .. Hrefs(desktop)], Hrefs(destinations));
+        Assert.Equal(["Home", "My Library", "Recently added", .. Labels(desktop).Select(label => label.ToUpperInvariant())],
+            Labels(destinations).Select((label, index) => index < 3 ? label : label.ToUpperInvariant()).ToArray());
         Assert.All(destinations, link => Assert.NotEmpty(link.QuerySelectorAll("svg")));
 
         // Below the divider: Settings and Sign out (Switch profile only appears with more than one profile).
@@ -160,14 +160,14 @@ public sealed partial class UiShellRenderTests
         cut.WaitForAssertion(() => Assert.Equal(["Watch", "Listen", "Read"], Labels(cut.FindAll(".phone-section-chips__chip"))));
 
         var links = cut.FindAll(".layout-shell__intent-dock-link");
-        Assert.Equal(["/", "/search", "/for-me?view=my-list"], Hrefs(links));
+        Assert.Equal(["/", "/search", "/my-library"], Hrefs(links));
         Assert.Equal(["Home", "Search", "My Library"], Labels(links));
 
         cut.Find(".layout-shell__menu-button").Click();
 
         cut.WaitForAssertion(() =>
         {
-            Assert.Equal(["Home", "Watch", "Listen", "Read"], Labels(cut.FindAll(".phone-nav-menu__nav ul:first-of-type a")));
+            Assert.Equal(["Home", "My Library", "Watch", "Listen", "Read"], Labels(cut.FindAll(".phone-nav-menu__nav ul:first-of-type a")));
             Assert.Equal(["Sign out"], AccountRows(cut));
             Assert.DoesNotContain("Settings", cut.Find(".phone-nav-menu").TextContent, StringComparison.Ordinal);
             Assert.DoesNotContain("Recently added", cut.Find(".phone-nav-menu").TextContent, StringComparison.Ordinal);
@@ -242,9 +242,39 @@ public sealed partial class UiShellRenderTests
 
         // Choosing an entry navigates and closes.
         Open();
-        cut.FindAll(".phone-nav-menu__nav ul:first-of-type a")[4].Click();
+        cut.FindAll(".phone-nav-menu__nav ul:first-of-type a")[5].Click();
         AssertClosed();
         Assert.EndsWith("/listen", nav.Uri);
+    }
+
+    [Fact]
+    public async Task PhoneMenu_LinksToMyLibraryAndTheDockTabIsSelectedThereAndOnItsGrids()
+    {
+        var cut = await RenderLayoutAsync(PhoneDevice);
+        var nav = Services.GetRequiredService<NavigationManager>();
+
+        cut.Find(".layout-shell__menu-button").Click();
+        cut.WaitForAssertion(() => Assert.Single(cut.FindAll(".phone-nav-menu")));
+        var myLibrary = cut.FindAll(".phone-nav-menu__nav ul:first-of-type a")[1];
+        Assert.Equal("/my-library", myLibrary.GetAttribute("href"));
+        myLibrary.Click();
+        cut.WaitForAssertion(() => Assert.Empty(cut.FindAll(".phone-nav-menu")));
+        Assert.EndsWith("/my-library", nav.Uri);
+
+        // The dock's My Library tab is the selected one on the page, and stays selected on the personal grids behind See All.
+        foreach (var path in new[] { "/my-library", "/for-me?view=liked" })
+        {
+            await cut.InvokeAsync(() => nav.NavigateTo(path));
+            cut.WaitForAssertion(() =>
+            {
+                var selected = cut.FindAll(".layout-shell__intent-dock-link.is-active");
+                Assert.Equal("My Library", Assert.Single(selected).TextContent.Trim());
+                Assert.Equal("page", selected[0].GetAttribute("aria-current"));
+            });
+        }
+
+        await cut.InvokeAsync(() => nav.NavigateTo("/"));
+        cut.WaitForAssertion(() => Assert.Equal("Home", Assert.Single(cut.FindAll(".layout-shell__intent-dock-link.is-active")).TextContent.Trim()));
     }
 
     [Fact]

@@ -13,6 +13,8 @@ Use For Me in Tuvima Library to return to saved items and work in progress. This
 
 ## Find your shelves
 
+On a phone, the **My Library** tab opens your personal page: your profile, Continue, My List, History (what you finished) and Liked in one column. See All on My List or Liked opens the full list in For Me.
+
 Open **For Me**. Overview shows Continue, My List, Favorites, Your Collections, Your Playlists, and Your Galleries when they have items.
 
 Continue follows reading or playback progress. My List saves items for later. For Me's Favorites shelf currently shows songs you have marked with a heart. You can save, favorite, or start an item on its own. One choice does not make the others.

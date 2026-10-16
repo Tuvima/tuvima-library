@@ -5,6 +5,7 @@
 @using MediaEngine.Contracts.ProfileState
 @using MediaEngine.Domain.Enums
 @using MediaEngine.Web.Services.MediaTiles
+@using MediaEngine.Web.Services.Navigation
 @using MediaEngine.Web.Services.Playback
 @implements IDisposable
 
@@ -69,13 +70,13 @@
                 <h2>@ViewTitle</h2>
                 <p>@ViewDescription</p>
             </div>
-            @if (ActiveView is "my-list" or "favorites")
+            @if (ActiveView is "my-list" or "favorites" or "liked")
             {
                 <span class="for-me-page__count">@CountLabel</span>
             }
         </div>
 
-        @if (ActiveView is "my-list" or "favorites")
+        @if (ActiveView is "my-list" or "favorites" or "liked")
         {
             <div class="for-me-page__controls">
                 <div class="for-me-page__areas" role="group" aria-label="Media area">
@@ -127,7 +128,7 @@
 
     private readonly List<ProfileSavedItemDto> _saved = [];
     private readonly List<ProfileReactionDto> _reactions = [];
-    private readonly List<MediaTileViewModel> _media = [];
+    private PersonalTileIndex _index = new([], [], []);
     private readonly List<MediaTileViewModel> _continue = [];
     private readonly List<MediaTileViewModel> _collections = [];
     private readonly List<MediaTileViewModel> _playlists = [];
@@ -140,6 +141,7 @@
     {
         "my-list" => "my-list",
         "favorites" => "favorites",
+        "liked" => "liked",
         "collections" => "collections",
         "playlists" => "playlists",
         "galleries" => "galleries",
@@ -160,6 +162,7 @@
         new("overview", "Overview", AppMaterialIcons.Outlined.SpaceDashboard),
         new("my-list", "My List", AppMaterialIcons.Filled.Bookmark, _saved.Count),
         new("favorites", "Favorites", AppMaterialIcons.Outlined.FavoriteBorder, FavoriteStates.Count),
+        new("liked", "Liked", AppMaterialIcons.Outlined.ThumbUp, LikedStates.Count),
         new("collections", "Collections", AppMaterialIcons.Outlined.CollectionsBookmark, _collections.Count),
         new("playlists", "Playlists", AppMaterialIcons.Outlined.QueueMusic, _playlists.Count),
         new("galleries", "Galleries", AppMaterialIcons.Outlined.PhotoLibrary, _galleries.Count),
@@ -179,17 +182,25 @@
         .ToList();
 
     private IReadOnlyList<MediaTileViewModel> SavedItems => SortItems(FilterArea(
-        _saved.Where(saved => saved.EntityKind != ProfileEntityKind.Song).Select(saved => FindSavedTile(saved)).Where(tile => tile is not null).Cast<MediaTileViewModel>()),
+        _saved.Where(saved => saved.EntityKind != ProfileEntityKind.Song).Select(saved => _index.FindSaved(saved)).Where(tile => tile is not null).Cast<MediaTileViewModel>()),
         _saved.ToDictionary(item => (item.EntityKind, item.EntityId), item => item.SavedAt));
 
+    private IReadOnlyList<ProfileReactionDto> LikedStates => _reactions
+        .Where(item => item.Reaction is ProfileReactionKind.Like or ProfileReactionKind.Love)
+        .ToList();
+
+    private IReadOnlyList<MediaTileViewModel> LikedItems => SortItems(FilterArea(_index.Liked(_reactions, documentsAllowed: true)),
+        LikedStates.GroupBy(item => (item.EntityKind, item.EntityId)).ToDictionary(group => group.Key, group => group.Max(item => item.UpdatedAt)));
+
     private IReadOnlyList<MediaTileViewModel> FavoriteItems => SortItems(FilterArea(
-        FavoriteStates.Select(FindReactionTile).Where(tile => tile is not null).Cast<MediaTileViewModel>()),
+        FavoriteStates.Select(_index.FindReaction).Where(tile => tile is not null).Cast<MediaTileViewModel>()),
         FavoriteStates.ToDictionary(item => (item.EntityKind, item.EntityId), item => item.UpdatedAt));
 
     private IReadOnlyList<MediaTileViewModel> ActiveItems => ActiveView switch
     {
         "my-list" => SavedItems,
         "favorites" => FavoriteItems,
+        "liked" => LikedItems,
         "collections" => _collections,
         "playlists" => _playlists,
         "galleries" => _galleries,
@@ -202,7 +213,7 @@
         {
             var shelves = new List<MediaTileShelfViewModel>();
             AddShelf(shelves, "continue", "Continue", "Pick up where you left off", _continue, "/?shelf=continue");
-            AddShelf(shelves, "my-list", "My List", "Saved for later", SavedItems, "/for-me?view=my-list");
+            AddShelf(shelves, "my-list", "My List", "Saved for later", SavedItems, MyListGridRoute);
             AddShelf(shelves, "favorites", "Favorites", "Songs you added to Favorites", FavoriteItems, "/for-me?view=favorites");
             AddShelf(shelves, "collections", "Your Collections", "Collections owned by this profile", _collections, "/for-me?view=collections");
             AddShelf(shelves, "playlists", "Your Playlists", "Listening queues owned by this profile", _playlists, "/for-me?view=playlists");
@@ -215,6 +226,7 @@
     {
         "my-list" => "My List",
         "favorites" => "Favorites",
+        "liked" => "Liked",
         "collections" => "Your Collections",
         "playlists" => "Your Playlists",
         "galleries" => "Your Galleries",
@@ -224,6 +236,7 @@
     {
         "my-list" => "Movies, shows, books, albums, Collections, and shared Playlists you saved for later.",
         "favorites" => "Media and songs you marked as something you like or love.",
+        "liked" => "Everything you marked Like or Love, across movies, shows, books, audiobooks, albums and songs.",
         "collections" => "Collections owned by this profile. Library-wide Collections remain in Collections unless you save one.",
         "playlists" => "Manual and Smart Playlists owned by this profile.",
         "galleries" => "Galleries from this profile's Personal Space.",
@@ -234,6 +247,7 @@
     {
         "my-list" => "Your list is empty",
         "favorites" => "No favorites yet",
+        "liked" => "Nothing liked yet",
         "collections" => "No personal Collections yet",
         "playlists" => "No Playlists yet",
         "galleries" => "No Galleries yet",
@@ -243,15 +257,34 @@
     {
         "my-list" => "Use Add to My List on a media or Collection detail page to save it here.",
         "favorites" => "Use the heart on a song to add it to Favorites.",
+        "liked" => "Use Like or Love on a title to see it here.",
         "collections" => "Create a personal Collection to organize media for this profile.",
         "playlists" => "Create a Playlist from Listen or add songs to a new Playlist.",
         "galleries" => "Create a Gallery from View to organize personal photos and videos.",
         _ => "There are no items in this view.",
     };
 
+    /// <summary>The route of the My List grid (area and sort controls). A bare My List link opens the My Library page instead.</summary>
+    internal const string MyListGridRoute = "/for-me?view=my-list&area=all";
+
+    // Old /for-me?view=my-list links (the desktop top bar, saved bookmarks) land on the My Library page. Links that carry an
+    // area or sort, such as the lane sub-navigation's My List, still open the filtered grid.
+    private bool OpensMyLibrary => ActiveView == "my-list" && RequestedArea is null && RequestedSort is null;
+
+    protected override void OnParametersSet()
+    {
+        if (OpensMyLibrary)
+            Nav.NavigateTo(ShellDock.MyLibraryPath, replace: true);
+    }
+
     protected override async Task OnInitializedAsync()
     {
         Orchestrator.OnProfileChanged += OnProfileChanged;
+        if (OpensMyLibrary)
+        {
+            return;
+        }
+
         await LoadAsync();
     }
 
@@ -285,16 +318,9 @@
             _reactions.Clear();
             _reactions.AddRange(await reactionsTask);
 
-            _media.Clear();
-            _media.AddRange(new[] { await readTask, await watchTask, await listenTask, await songsTask }
-                .Where(page => page is not null)
-                .SelectMany(FlattenCards)
-                .GroupBy(card => card.Id)
-                .Select(group => MediaTileComposerService.FromDisplayCard(group.First())));
-
             _continue.Clear();
             if (await continueTask is { } continuePage)
-                _continue.AddRange(FlattenCards(continuePage).Select(MediaTileComposerService.FromDisplayCard).Take(18));
+                _continue.AddRange(PersonalTileIndex.FlattenCards(continuePage).Select(MediaTileComposerService.FromDisplayCard).Take(18));
 
             var catalog = await catalogTask;
             _collections.Clear();
@@ -315,8 +341,7 @@
 
             // Keep accessible library Collections and shared Playlists available to
             // My List resolution without promoting them into the owned shelves.
-            _accessibleCollections = catalog.ToDictionary(item => item.Id);
-            _accessiblePlaylists = managed.ToDictionary(item => item.Id);
+            _index = new PersonalTileIndex(new[] { await readTask, await watchTask, await listenTask, await songsTask }, catalog, managed);
         }
         catch (Exception ex)
         {
@@ -328,31 +353,6 @@
             _loading = false;
             await InvokeAsync(StateHasChanged);
         }
-    }
-
-    private Dictionary<Guid, CollectionManagementCatalogViewModel> _accessibleCollections = [];
-    private Dictionary<Guid, ManagedCollectionViewModel> _accessiblePlaylists = [];
-
-    private MediaTileViewModel? FindSavedTile(ProfileSavedItemDto saved)
-    {
-        if (saved.EntityKind == ProfileEntityKind.Collection
-            && _accessibleCollections.TryGetValue(saved.EntityId, out var collection))
-            return CollectionSurfaceTileComposer.FromCollection(collection);
-        if (saved.EntityKind == ProfileEntityKind.Playlist
-            && _accessiblePlaylists.TryGetValue(saved.EntityId, out var playlist))
-            return MediaTileComposerService.FromPlaylist(playlist);
-        return FindMediaTile(saved.EntityId);
-    }
-
-    private MediaTileViewModel? FindMediaTile(Guid id) =>
-        _media.FirstOrDefault(item => item.Id == id || item.WorkId == id || item.RepresentativeEntityId == id);
-
-    private MediaTileViewModel? FindReactionTile(ProfileReactionDto reaction)
-    {
-        if (reaction.EntityKind == ProfileEntityKind.Collection
-            && _accessibleCollections.TryGetValue(reaction.EntityId, out var collection))
-            return CollectionSurfaceTileComposer.FromCollection(collection);
-        return FindMediaTile(reaction.EntityId);
     }
 
     private IEnumerable<MediaTileViewModel> FilterArea(IEnumerable<MediaTileViewModel> items) => Area switch
@@ -378,10 +378,6 @@
             .DefaultIfEmpty(item.SortTimestamp)
             .Max()).ToList();
     }
-
-    private static IEnumerable<DisplayCardDto> FlattenCards(DisplayPageDto? page) => page is null
-        ? []
-        : page.Catalog.Concat(page.Shelves.SelectMany(shelf => shelf.Items)).DistinctBy(card => card.Id);
 
     private static void AddShelf(
         ICollection<MediaTileShelfViewModel> shelves,
@@ -427,7 +423,12 @@
 
     private Task NavigateViewAsync(string view)
     {
-        Nav.NavigateTo(view == "overview" ? "/for-me" : $"/for-me?view={Uri.EscapeDataString(view)}");
+        Nav.NavigateTo(view switch
+        {
+            "overview" => "/for-me",
+            "my-list" => MyListGridRoute,
+            _ => $"/for-me?view={Uri.EscapeDataString(view)}",
+        });
         return Task.CompletedTask;
     }
 
