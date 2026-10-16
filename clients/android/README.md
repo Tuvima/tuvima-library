@@ -19,7 +19,7 @@ Next episode: when Play starts from a show (its detail page, or a download that 
 next ten episodes once playback is 30 seconds in. At the start of a Credits segment (or the last 15 seconds, and always at the end) a card offers the
 next one: with autoplay on an 8 second countdown with Play now and Cancel, otherwise Play next. Episodes opens a list to pick another. Both reuse the
 same PLAY_VIDEO path, so resume, heartbeats and on-phone progress are not duplicated; the finished episode is reported as ended first. A movie or
-the last episode closes back to the details page. Without a show id (an episode's own detail page) these features stay hidden. A download keeps only
+the last episode closes back to the details page. The show id comes from the card's details route (`/details/tvshow/{showId}?...&episode={id}`, with the query string removed, so Home, Continue Watching, Libraries, Collections and Search all open the show correctly), from a download that knows its show, or from an episode detail answer that names its show (`showId` or `episodeContext.showWorkId`); without one (the `tuvima://play/{assetId}` link) these features stay hidden and nothing is guessed. A download keeps only
 its first video and audio track (no subtitles), so its Subtitles list says "Not included in this download"; an expired download that cannot stream
 says it expired. "Resume where I left off" off starts every video at 0, streamed or downloaded. Rules live in `core` `NextEpisodeLogic`.
 

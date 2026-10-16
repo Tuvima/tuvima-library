@@ -4,6 +4,7 @@ import com.tuvima.library.core.CollectionEntry
 import com.tuvima.library.core.DisplayCard
 import com.tuvima.library.core.ViewGallery
 import com.tuvima.library.core.ViewItem
+import com.tuvima.library.core.detailTargetFromRoute
 import org.json.JSONObject
 
 internal data class MobileSearchResult(
@@ -39,9 +40,9 @@ internal fun parseMobileSearch(json: JSONObject): List<MobileSearchResult> = bui
         val results = sections.optJSONObject(sectionIndex)?.optJSONArray("results") ?: continue
         for (resultIndex in 0 until results.length()) {
             val value = results.optJSONObject(resultIndex) ?: continue
-            val route = value.optString("detailRoute").split('/').filter(String::isNotBlank)
-            val id = route.lastOrNull() ?: value.optString("id")
-            val entityType = route.dropLast(1).lastOrNull() ?: value.optString("entityType", "work")
+            val target = detailTargetFromRoute(value.optString("detailRoute").takeIf(String::isNotBlank))
+            val id = target?.second ?: value.optString("id")
+            val entityType = target?.first ?: value.optString("entityType", "work")
             if (id.isBlank() || !seen.add("$entityType:$id")) continue
             add(MobileSearchResult(id, entityType, value.optString("title"), value.optString("subtitle").takeIf(String::isNotBlank)))
         }
@@ -63,10 +64,9 @@ internal fun mobileDetailEntityType(mediaType: String): String {
 }
 
 internal fun mobileCardDetailTarget(card: DisplayCard): Pair<String, String> {
-    card.actions.firstNotNullOfOrNull { action ->
-        action.webUrl?.takeIf { "/details/" in it }?.split('/')?.filter(String::isNotBlank)?.takeIf { it.size >= 2 }
-            ?.let { it[it.size - 2] to it.last() }
-    }?.let { return it }
+    // The route's query and fragment are never part of the id (an episode route is /details/tvshow/{showId}?...&episode={id}).
+    card.actions.firstNotNullOfOrNull { action -> action.webUrl?.takeIf { "/details/" in it }?.let(::detailTargetFromRoute) }
+        ?.let { return it }
     card.collectionId?.let { return "collection" to it }
     return mobileDetailEntityType(card.mediaType) to (card.workId ?: card.id)
 }
