@@ -10,9 +10,15 @@ public sealed record DetailTabRouteResolution(
 
 public static class DetailTabNavigation
 {
-    public static DetailTabRouteResolution Resolve(DetailPageViewModel model, string? requestedTab)
+    public static DetailTabRouteResolution Resolve(DetailPageViewModel model, string? requestedTab) =>
+        Resolve(model, requestedTab, DetailTabVisibility.ShowUniverseAndRelatedTabs);
+
+    public static DetailTabRouteResolution Resolve(
+        DetailPageViewModel model,
+        string? requestedTab,
+        bool showUniverseAndRelated)
     {
-        var visibleTabs = GetVisibleTabs(model).ToList();
+        var visibleTabs = GetVisibleTabs(model, showUniverseAndRelated).ToList();
         var fallback = visibleTabs.FirstOrDefault()?.Key ?? "overview";
         var hasRequested = !string.IsNullOrWhiteSpace(requestedTab);
 
@@ -33,7 +39,15 @@ public static class DetailTabNavigation
     }
 
     public static IReadOnlyList<DetailTab> GetVisibleTabs(DetailPageViewModel model) =>
+        GetVisibleTabs(model, DetailTabVisibility.ShowUniverseAndRelatedTabs);
+
+    /// <summary>
+    /// The Universe and Related tabs follow the one shared switch, so a tab list the Dashboard
+    /// built itself is held to the same rule as one the Engine built.
+    /// </summary>
+    public static IReadOnlyList<DetailTab> GetVisibleTabs(DetailPageViewModel model, bool showUniverseAndRelated) =>
         model.Tabs
+            .Where(tab => DetailTabVisibility.IsTabAllowed(tab.Key, showUniverseAndRelated))
             .Where(tab => !tab.IsAdminOnly || model.IsAdminView)
             .Where(tab => HasRenderableContent(model, tab.Key))
             .ToList();
