@@ -25,6 +25,8 @@ public sealed class MyLibrarySectionTests : AsyncBunitContext
     private static readonly DateTimeOffset Now = new(2026, 10, 16, 12, 0, 0, TimeSpan.Zero);
 
     private IEngineApiClient? _api;
+    private readonly List<(string? Lane, string? MediaType, int? Limit)> _browseCalls = [];
+    private int _catalogCalls, _managedCalls;
 
     public MyLibrarySectionTests()
     {
@@ -92,7 +94,12 @@ public sealed class MyLibrarySectionTests : AsyncBunitContext
         stub.SetHandler(nameof(IEngineApiClient.GetProfileReactionsAsync), _ => Task.FromResult<IReadOnlyList<ProfileReactionDto>>(data.Reactions));
         stub.SetHandler(nameof(IEngineApiClient.GetDisplayContinueAsync), _ => After(data.HoldContinue, data.Continue));
         stub.SetHandler(nameof(IEngineApiClient.GetDisplayBrowseAsync), args =>
-            Task.FromResult<DisplayPageDto?>(args?[0] as string == "watch" ? data.Watch : null));
+        {
+            _browseCalls.Add((args?[0] as string, args?[1] as string, args?[5] as int?));
+            return Task.FromResult<DisplayPageDto?>(args?[0] as string == "watch" ? data.Watch : null);
+        });
+        stub.SetHandler(nameof(IEngineApiClient.GetCollectionCatalogAsync), _ => { _catalogCalls++; return Task.FromResult(new List<CollectionManagementCatalogViewModel>()); });
+        stub.SetHandler(nameof(IEngineApiClient.GetManagedCollectionsAsync), _ => { _managedCalls++; return Task.FromResult(new List<ManagedCollectionViewModel>()); });
         if (data.CanViewDocuments is { } canView)
         {
             stub.SetHandler(nameof(IEngineApiClient.GetViewScopesAsync), _ =>
@@ -296,6 +303,48 @@ public sealed class MyLibrarySectionTests : AsyncBunitContext
     {
         var cut = await RenderAsync(WithDocument(true));
         Assert.Contains("Tax Return", cut.Markup);
+    }
+
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(null, false)]
+    [InlineData(true, true)]
+    public void TheLikedGridHidesDocumentItemsFromProfilesThatMayNotSeeThem(bool? canView, bool documentShown)
+    {
+        var document = Guid.Parse("d0000000-0000-0000-0000-000000000001");
+        var film = Guid.Parse("d0000000-0000-0000-0000-000000000002");
+        UseData(new Data
+        {
+            CanViewDocuments = canView,
+            Watch = Page(Card(document, "Document", "Tax Return"), Card(film, "Movie", "Liked Film")),
+            Reactions =
+            [
+                new(ProfileEntityKind.Movie, document, ProfileReactionKind.Like, Now),
+                new(ProfileEntityKind.Movie, film, ProfileReactionKind.Like, Now.AddMinutes(-1)),
+            ],
+        });
+        Services.AddSupplyValueFromQueryProvider();
+        Services.GetRequiredService<NavigationManager>().NavigateTo("/for-me?view=liked");
+
+        var cut = Render<ForMe>();
+
+        cut.WaitForAssertion(() => Assert.Contains("Liked Film", cut.Markup), TimeSpan.FromSeconds(10));
+        Assert.Equal(documentShown, cut.Markup.Contains("Tax Return", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task TheTileIndexIsBuiltFromFourLaneReadsPlusTheCatalogueAndPlaylistsAndNothingElse()
+    {
+        // Performance note for the PR: one read per lane plus the songs read, each asking for 500 cards (the Engine caps a page at 250),
+        // one Collection catalogue read and one Playlist read, however many items the profile saved or liked.
+        await RenderAsync(Everything());
+
+        Assert.Equal(4, _browseCalls.Count);
+        Assert.All(_browseCalls, call => Assert.Equal(500, call.Limit));
+        Assert.Equal(["listen", "listen:Music", "read", "watch"],
+            _browseCalls.Select(call => call.MediaType is null ? call.Lane! : $"{call.Lane}:{call.MediaType}").Order().ToArray());
+        Assert.Equal(1, _catalogCalls);
+        Assert.Equal(1, _managedCalls);
     }
 
     [Fact]

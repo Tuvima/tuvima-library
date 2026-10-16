@@ -11,6 +11,7 @@
 
 @inject IEngineApiClient ApiClient
 @inject UIOrchestratorService Orchestrator
+@inject ViewWorkspaceService Workspace
 @inject NavigationManager Nav
 @inject ILogger<ForMe> Logger
 
@@ -129,6 +130,8 @@
     private readonly List<ProfileSavedItemDto> _saved = [];
     private readonly List<ProfileReactionDto> _reactions = [];
     private PersonalTileIndex _index = new([], [], []);
+    // Same rule as My Library: Document items stay hidden until the View settings say this profile may see Documents.
+    private bool _documentsAllowed;
     private readonly List<MediaTileViewModel> _continue = [];
     private readonly List<MediaTileViewModel> _collections = [];
     private readonly List<MediaTileViewModel> _playlists = [];
@@ -185,11 +188,25 @@
         _saved.Where(saved => saved.EntityKind != ProfileEntityKind.Song).Select(saved => _index.FindSaved(saved)).Where(tile => tile is not null).Cast<MediaTileViewModel>()),
         _saved.ToDictionary(item => (item.EntityKind, item.EntityId), item => item.SavedAt));
 
+    private async Task<bool> LoadDocumentsAllowedAsync()
+    {
+        try
+        {
+            await Workspace.InitializeAsync();
+            return Workspace.Scopes?.CanViewDocuments == true;
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "Could not read whether this profile may see Documents; Document items stay hidden.");
+            return false;
+        }
+    }
+
     private IReadOnlyList<ProfileReactionDto> LikedStates => _reactions
         .Where(item => item.Reaction is ProfileReactionKind.Like or ProfileReactionKind.Love)
         .ToList();
 
-    private IReadOnlyList<MediaTileViewModel> LikedItems => SortItems(FilterArea(_index.Liked(_reactions, documentsAllowed: true)),
+    private IReadOnlyList<MediaTileViewModel> LikedItems => SortItems(FilterArea(_index.Liked(_reactions, _documentsAllowed)),
         LikedStates.GroupBy(item => (item.EntityKind, item.EntityId)).ToDictionary(group => group.Key, group => group.Max(item => item.UpdatedAt)));
 
     private IReadOnlyList<MediaTileViewModel> FavoriteItems => SortItems(FilterArea(
@@ -309,9 +326,11 @@
             var catalogTask = ApiClient.GetCollectionCatalogAsync(_activeProfileId);
             var managedTask = ApiClient.GetManagedCollectionsAsync(_activeProfileId);
             var galleriesTask = ApiClient.GetViewGalleriesAsync();
+            var documentsTask = LoadDocumentsAllowedAsync();
 
             await Task.WhenAll(savedTask, reactionsTask, readTask, watchTask, listenTask, songsTask,
-                continueTask, catalogTask, managedTask, galleriesTask);
+                continueTask, catalogTask, managedTask, galleriesTask, documentsTask);
+            _documentsAllowed = await documentsTask;
 
             _saved.Clear();
             _saved.AddRange(await savedTask);
