@@ -183,7 +183,7 @@ public sealed class PlaybackCapabilitiesService
             }
         }
 
-        var resume = NormalizeResumePosition(await LoadResumeAsync(assetId, ct), durationSeconds);
+        var resume = NormalizeResumePosition(await LoadResumeAsync(assetId, profileId, ct), durationSeconds);
 
         return new PlaybackManifestDto
         {
@@ -223,7 +223,7 @@ public sealed class PlaybackCapabilitiesService
     /// grant): whether the file can be sent as it is to the cast receiver, its audio tracks (for the HLS package), its length
     /// and where the person left off. The caller decides what to do with it; this never mints a grant of any kind.
     /// </summary>
-    public async Task<CastMediaPlan?> PlanCastAsync(Guid assetId, CancellationToken ct = default)
+    public async Task<CastMediaPlan?> PlanCastAsync(Guid assetId, Guid? profileId, CancellationToken ct = default)
     {
         var asset = await _assets.FindByIdAsync(assetId, ct).ConfigureAwait(false);
         if (asset is null)
@@ -244,7 +244,7 @@ public sealed class PlaybackCapabilitiesService
 
         var directPlay = probe is not null && IsDirectPlaySupported(extension, ProfileFor("cast"), probe);
         var duration = probe?.Duration.TotalSeconds is > 0 ? probe.Duration.TotalSeconds : (double?)null;
-        var resume = NormalizeResumePosition(await LoadResumeAsync(assetId, ct).ConfigureAwait(false), duration);
+        var resume = NormalizeResumePosition(await LoadResumeAsync(assetId, profileId, ct).ConfigureAwait(false), duration);
         return new CastMediaPlan(
             asset,
             mediaType,
@@ -469,20 +469,30 @@ public sealed class PlaybackCapabilitiesService
         return _extensionCatalog.ResolveMediaTypeFromExtension(extension).ToString();
     }
 
-    private async Task<PlaybackResumeDto?> LoadResumeAsync(Guid assetId, CancellationToken ct)
+    /// <summary>
+    /// Resume is per profile: <c>user_states</c> is keyed by (profile, asset), so a shared asset never resumes from another
+    /// profile's position. With no active profile there is nothing to resume.
+    /// </summary>
+    private async Task<PlaybackResumeDto?> LoadResumeAsync(Guid assetId, Guid? profileId, CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
+        if (profileId is not { } activeProfileId || activeProfileId == Guid.Empty)
+        {
+            return null;
+        }
+
         using var conn = _db.CreateConnection();
         var row = conn.QueryFirstOrDefault<ResumeRow>("""
             SELECT progress_pct AS ProgressPct,
                    last_accessed AS LastAccessed,
                    extended_properties AS ExtendedProperties
             FROM user_states
-            WHERE asset_id = @assetId
+            WHERE user_id = @profileId
+              AND asset_id = @assetId
             ORDER BY last_accessed DESC
             LIMIT 1;
             """,
-            new { assetId });
+            new { profileId = activeProfileId, assetId });
 
         await Task.CompletedTask;
         if (row is null)

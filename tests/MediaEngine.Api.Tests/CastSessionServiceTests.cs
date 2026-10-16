@@ -25,6 +25,7 @@ public sealed class CastSessionServiceTests : IAsyncLifetime
     private readonly string _root = Path.Combine(Path.GetTempPath(), $"tuvima_cast_sessions_{Guid.NewGuid():N}");
     private DatabaseConnection _database = null!;
     private CastSessionService _sessions = null!;
+    private PlaybackCapabilitiesService _playback = null!;
     private CastAccessGrantService _grants = null!;
     private PlaybackStateRepository _state = null!;
     private PairedDevice _paired = null!;
@@ -55,12 +56,12 @@ public sealed class CastSessionServiceTests : IAsyncLifetime
             new AdaptiveHlsPackageRepository(_database), assets, tracks, ffmpeg, configuration,
             new TestHostApplicationLifetime(), NullLogger<AdaptiveHlsService>.Instance);
         _state = new PlaybackStateRepository(_database);
-        var playback = new PlaybackCapabilitiesService(
+        _playback = new PlaybackCapabilitiesService(
             assets, ffmpeg, _database, _state, new PlaybackSegmentRepository(_database), tracks,
             new AudiobookChapterTitleOverrideRepository(_database), new MediaTypeExtensionCatalog(), configuration, hls,
             new HlsAccessGrantService(protection, configuration, accounts, applications, identities, clients, new PermissionRegistry()),
             new HttpContextAccessor(), NullLogger<PlaybackCapabilitiesService>.Instance);
-        _sessions = new CastSessionService(playback, hls, _grants, tracks, ffmpeg);
+        _sessions = new CastSessionService(_playback, hls, _grants, tracks, ffmpeg);
     }
 
     public Task DisposeAsync()
@@ -156,8 +157,107 @@ public sealed class CastSessionServiceTests : IAsyncLifetime
             document.RootElement.EnumerateObject().Select(property => property.Name).Order(StringComparer.Ordinal).ToArray());
     }
 
+    [Fact]
+    public async Task EachProfileResumesFromItsOwnPositionOnASharedTitle()
+    {
+        var assetId = await SeedVideoAsync("shared.mp4", "h264", "aac", 1080, durationSeconds: 7200);
+        var watchedFor40Minutes = Guid.NewGuid();
+        var watchedFor5Minutes = Guid.NewGuid();
+        var neverWatched = Guid.NewGuid();
+        SeedProgress(watchedFor40Minutes, assetId, positionSeconds: 2400, progressPct: 33.3, lastAccessed: "2026-10-01 10:00:00");
+        // The other profile touched the title more recently: asset-only lookup would pick this row for everybody.
+        SeedProgress(watchedFor5Minutes, assetId, positionSeconds: 300, progressPct: 4.2, lastAccessed: "2026-10-02 10:00:00");
+
+        var first = await _playback.BuildManifestAsync(assetId, "web", watchedFor40Minutes);
+        var second = await _playback.BuildManifestAsync(assetId, "web", watchedFor5Minutes);
+        var third = await _playback.BuildManifestAsync(assetId, "web", neverWatched);
+
+        Assert.Equal(2400, first!.Resume!.PositionSeconds);
+        Assert.Equal(300, second!.Resume!.PositionSeconds);
+        Assert.Null(third!.Resume);
+    }
+
+    [Fact]
+    public async Task ManifestWithNoActiveProfileHasNoResumeEvenWhenOthersHaveProgress()
+    {
+        var assetId = await SeedVideoAsync("anon.mp4", "h264", "aac", 1080, durationSeconds: 7200);
+        SeedProgress(Guid.NewGuid(), assetId, positionSeconds: 2400, progressPct: 33.3, lastAccessed: "2026-10-01 10:00:00");
+
+        var withoutProfile = await _playback.BuildManifestAsync(assetId, "web", profileId: null);
+        var emptyProfile = await _playback.BuildManifestAsync(assetId, "web", Guid.Empty);
+
+        Assert.Null(withoutProfile!.Resume);
+        Assert.Null(emptyProfile!.Resume);
+    }
+
+    [Fact]
+    public async Task ACastSessionResumesFromThePairedDevicesProfileNotAnotherOne()
+    {
+        var assetId = await SeedVideoAsync("cast-shared.mp4", "h264", "aac", 1080, durationSeconds: 7200);
+        var otherProfile = Guid.NewGuid();
+        SeedProgress(_paired.Authority.ActiveProfileId!.Value, assetId, positionSeconds: 2400, progressPct: 33.3, lastAccessed: "2026-10-01 10:00:00");
+        // The other profile touched the title more recently: asset-only lookup would pick this row for everybody.
+        SeedProgress(otherProfile, assetId, positionSeconds: 300, progressPct: 4.2, lastAccessed: "2026-10-02 10:00:00");
+
+        var session = await CreateAsync(assetId);
+
+        Assert.Equal(2400, session!.ResumeSeconds);
+    }
+
+    [Fact]
+    public async Task ACastSessionHasNoResumeWhenOnlyAnotherProfileWatchedTheTitle()
+    {
+        var assetId = await SeedVideoAsync("cast-unseen.mp4", "h264", "aac", 1080, durationSeconds: 7200);
+        SeedProgress(Guid.NewGuid(), assetId, positionSeconds: 300, progressPct: 4.2, lastAccessed: "2026-10-02 10:00:00");
+
+        var session = await CreateAsync(assetId);
+
+        Assert.Equal(CastSessionStatuses.Ready, session!.Status);
+        Assert.Null(session.ResumeSeconds);
+    }
+
+    [Fact]
+    public async Task ACastPlanResumesPerProfileAndNotAtAllWithoutOne()
+    {
+        var assetId = await SeedVideoAsync("cast-plan.mp4", "h264", "aac", 1080, durationSeconds: 7200);
+        var watchedFor40Minutes = Guid.NewGuid();
+        var watchedFor5Minutes = Guid.NewGuid();
+        SeedProgress(watchedFor40Minutes, assetId, positionSeconds: 2400, progressPct: 33.3, lastAccessed: "2026-10-01 10:00:00");
+        SeedProgress(watchedFor5Minutes, assetId, positionSeconds: 300, progressPct: 4.2, lastAccessed: "2026-10-02 10:00:00");
+
+        var first = await _playback.PlanCastAsync(assetId, watchedFor40Minutes);
+        var second = await _playback.PlanCastAsync(assetId, watchedFor5Minutes);
+        var unseen = await _playback.PlanCastAsync(assetId, Guid.NewGuid());
+        var none = await _playback.PlanCastAsync(assetId, profileId: null);
+
+        Assert.Equal(2400, first!.ResumeSeconds);
+        Assert.Equal(300, second!.ResumeSeconds);
+        Assert.Null(unseen!.ResumeSeconds);
+        Assert.Null(none!.ResumeSeconds);
+    }
+
     private Task<CastSessionDto?> CreateAsync(Guid assetId) =>
         _sessions.CreateAsync(assetId, _paired.Authority, _paired.Token.Id, PlaybackRead);
+
+    private void SeedProgress(Guid profileId, Guid assetId, double positionSeconds, double progressPct, string lastAccessed)
+    {
+        using var connection = _database.CreateConnection();
+        connection.Execute("""
+            INSERT INTO user_states (user_id, asset_id, progress_pct, last_accessed, extended_properties)
+            VALUES (@profileId, @assetId, @progressPct, @lastAccessed, @extended);
+            """,
+            new
+            {
+                profileId,
+                assetId,
+                progressPct,
+                lastAccessed,
+                extended = JsonSerializer.Serialize(new Dictionary<string, string>
+                {
+                    ["position_seconds"] = positionSeconds.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                }),
+            });
+    }
 
     private async Task<Guid> SeedVideoAsync(string fileName, string? video, string? audio, int height, double durationSeconds)
     {
