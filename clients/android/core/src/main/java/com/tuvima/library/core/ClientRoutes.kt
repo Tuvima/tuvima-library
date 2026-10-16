@@ -114,6 +114,9 @@ object ClientRoutes {
 
     fun viewOriginal(id: String): String = "$API/view/items/${encode(id)}/original"
 
+    /** The playback manifest of a personal video, by its View item id (not a catalogue asset id). */
+    fun viewPlayback(id: String): String = "$API/view/items/${encode(id)}/playback"
+
     fun collections(cursor: String? = null, limit: Int = 24): String =
         paged("$API/collections", cursor, limit.coerceIn(1, 250))
 

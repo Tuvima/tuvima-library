@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -228,6 +229,11 @@ private fun PhotoRows(
     onOpen: (ViewItem) -> Unit,
     footer: @Composable () -> Unit,
 ) {
+    val context = LocalContext.current
+    // A video plays on its own screen; a photo opens the viewer.
+    val open: (ViewItem) -> Unit = { item ->
+        if (item.isVideo) context.startActivity(ClipPlayerActivity.intent(context, item.id, item.displayTitle())) else onOpen(item)
+    }
     LazyColumn(Modifier.fillMaxSize()) {
         itemsIndexed(rows) { index, row ->
             if (index >= rows.size - 3) {
@@ -242,7 +248,7 @@ private fun PhotoRows(
                 is TimelineRow.Cells -> Row(Modifier.fillMaxWidth().padding(horizontal = 1.dp)) {
                     row.items.forEach { item ->
                         PhotoThumb(client, item, keptPaths[item.id], Modifier.weight(1f).aspectRatio(1f).padding(1.dp)) {
-                            onOpen(item)
+                            open(item)
                         }
                     }
                     repeat(columns - row.items.size) { Spacer(Modifier.weight(1f)) }
@@ -489,6 +495,13 @@ internal fun PhotoViewerScreen(client: TuvimaClient, items: List<ViewItem>, star
             )
         } else {
             CircularProgressIndicator(Modifier.align(Alignment.Center))
+        }
+        // A video page shows its still with a clear Play button; swiping to it never starts it.
+        if (item.isVideo) {
+            Button(
+                onClick = { context.startActivity(ClipPlayerActivity.intent(context, item.id, item.displayTitle())) },
+                modifier = Modifier.align(Alignment.Center).defaultMinSize(minWidth = 160.dp, minHeight = 56.dp),
+            ) { Text("Play video") }
         }
         Row(
             Modifier.fillMaxWidth().align(Alignment.TopStart).background(Color(0x66000000)).padding(8.dp),
