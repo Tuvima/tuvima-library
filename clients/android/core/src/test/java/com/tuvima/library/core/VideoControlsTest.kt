@@ -128,4 +128,18 @@ class VideoControlsTest {
         assertNull(PlaybackTrackPicker.pick(audio, subs, "English", "English", ShowSubtitles.Auto).subtitleIndex)
         assertEquals(0, PlaybackTrackPicker.pick(audio, subs, "en", "eng", ShowSubtitles.Always).subtitleIndex)
     }
+
+    @Test
+    fun screenStopInTheFloatingWindowKeepsPlayingButHomeWithoutOneStillPauses() {
+        assertEquals(CloseAction.KeepPlaying, VideoSessionPolicy.onScreenStop(isFinishing = false, inPictureInPicture = true))
+        assertEquals(CloseAction.Pause, VideoSessionPolicy.onScreenStop(isFinishing = false, inPictureInPicture = false))
+        // Closing for good always wins.
+        assertEquals(CloseAction.StopAndClear, VideoSessionPolicy.onScreenStop(isFinishing = true, inPictureInPicture = true))
+    }
+
+    @Test
+    fun closingTheFloatingWindowStopsAndClearsButExpandingItDoesNot() {
+        assertEquals(CloseAction.StopAndClear, VideoSessionPolicy.onPictureInPictureGone(screenIsStarted = false))
+        assertEquals(null, VideoSessionPolicy.onPictureInPictureGone(screenIsStarted = true))
+    }
 }

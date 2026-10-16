@@ -80,12 +80,25 @@ object VideoGestures {
     const val MIN_BRIGHTNESS = 0.02f
 }
 
-enum class CloseAction { Pause, StopAndClear }
+/** [KeepPlaying] is only for a video in its floating Picture-in-Picture window, which is visible and so allowed to play on. */
+enum class CloseAction { Pause, StopAndClear, KeepPlaying }
 
 /** Video never plays in the background: leaving for good ends it, leaving for the moment pauses it. */
 object VideoSessionPolicy {
     /** Closing the screen (finishing) stops the player and clears the video; going to Home only pauses. */
-    fun onScreenStop(isFinishing: Boolean): CloseAction = if (isFinishing) CloseAction.StopAndClear else CloseAction.Pause
+    fun onScreenStop(isFinishing: Boolean, inPictureInPicture: Boolean = false): CloseAction = when {
+        isFinishing -> CloseAction.StopAndClear
+        // The floating window is on screen, so the video keeps playing in it; this is the one visible exception to "no background video".
+        inPictureInPicture -> CloseAction.KeepPlaying
+        else -> CloseAction.Pause
+    }
+
+    /**
+     * The Picture-in-Picture window went away. Expanding it back to the full screen changes nothing (the screen is started
+     * again); closing or dismissing it, with the screen not coming back, stops and clears the video exactly like Close.
+     */
+    fun onPictureInPictureGone(screenIsStarted: Boolean): CloseAction? =
+        if (screenIsStarted) null else CloseAction.StopAndClear
 
     /** A paused video is never started by the notification, a headset button or the lock screen while no video screen is open. */
     fun shouldBlockPlay(currentIsVideo: Boolean, videoScreenAttached: Boolean, alreadyPlaying: Boolean): Boolean =

@@ -48,14 +48,17 @@
         <activity
             android:name=".VideoPlayerActivity"
             android:exported="false"
-            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden|uiMode|density"
+            android:resizeableActivity="true"
+            android:supportsPictureInPicture="true"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden|uiMode|density|layoutDirection|fontScale"
             android:theme="@style/Theme.Tuvima" />
 
         <!-- A video from Photos. Own player, follows the phone's rotation, never writes progress or History. -->
         <activity
             android:name=".ClipPlayerActivity"
             android:exported="false"
-            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden|uiMode|density"
+            android:resizeableActivity="true"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden|uiMode|density|layoutDirection|fontScale"
             android:theme="@style/Theme.Tuvima" />
     </application>
 </manifest>

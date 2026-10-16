@@ -1,13 +1,27 @@
 package com.tuvima.library.mobile
 
+import android.app.PendingIntent
+import android.app.PictureInPictureParams
+import android.app.RemoteAction
+import android.content.BroadcastReceiver
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
+import android.content.pm.PackageManager
+import android.content.res.Configuration
 import android.content.pm.ActivityInfo
 import android.graphics.Color as AndroidColor
 import android.graphics.drawable.ColorDrawable
+import android.graphics.drawable.Icon
 import android.media.AudioManager
 import android.os.Bundle
+import android.os.PowerManager
+import android.util.Rational
+import android.view.KeyEvent
+import android.view.accessibility.AccessibilityManager
+import android.view.accessibility.CaptioningManager
+import androidx.activity.OnBackPressedCallback
 import android.provider.Settings
 import android.view.ViewGroup
 import android.view.WindowManager
@@ -57,7 +71,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.semantics.CustomAccessibilityAction
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.customActions
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -67,6 +87,7 @@ import androidx.core.content.ContextCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.media3.common.C
 import androidx.media3.common.Format
@@ -92,7 +113,12 @@ import com.tuvima.library.core.NextEpisode
 import com.tuvima.library.core.NextEpisodeLogic
 import com.tuvima.library.core.NextEpisodeMessages
 import com.tuvima.library.core.NextEpisodeOffer
+import com.tuvima.library.core.CloseStep
 import com.tuvima.library.core.OrientationPolicy
+import com.tuvima.library.core.PictureInPicturePolicy
+import com.tuvima.library.core.VideoAccessibility
+import com.tuvima.library.core.VideoKeyCommand
+import com.tuvima.library.core.VideoKeys
 import com.tuvima.library.core.OrientationRule
 import com.tuvima.library.core.PlaybackPreferences
 import com.tuvima.library.core.PlaybackSegment
@@ -171,6 +197,12 @@ class VideoPlayerActivity : ComponentActivity() {
     private var cancelledFor by mutableStateOf<String?>(null)
     private var finished by mutableStateOf(false)
     private var advancing = false
+    // The controls' visibility lives here (not in the screen) so Back and Escape can close them before leaving.
+    private var controlsVisible by mutableStateOf(true)
+    // Picture-in-Picture: the floating window is the one visible exception to "video never plays in the background".
+    private var inPip by mutableStateOf(false)
+    private var countdownShowing by mutableStateOf(false)
+    private var pipReceiver: BroadcastReceiver? = null
     // True between onStart and onStop. The next-episode countdown only runs while the screen is showing.
     private var started by mutableStateOf(false)
 
@@ -252,6 +284,12 @@ class VideoPlayerActivity : ComponentActivity() {
             systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
             hide(WindowInsetsCompat.Type.systemBars())
         }
+        // Back closes the controls first, then the screen (a screen reader or keyboard user is never trapped behind hidden controls).
+        onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
+            override fun handleOnBackPressed() {
+                if (VideoKeys.closeAction(controlsVisible) == CloseStep.HideControls) controlsVisible = false else finish()
+            }
+        })
         // Preferences never hold playback up: wait a moment, then carry on with the defaults.
         lifecycleScope.launch {
             val client = (application as TuvimaMobileApplication).client
@@ -275,11 +313,90 @@ class VideoPlayerActivity : ComponentActivity() {
 
     override fun onStop() {
         started = false
-        releaseController(VideoSessionPolicy.onScreenStop(isFinishing))
+        // A window on screen keeps playing; with the screen off nothing does.
+        val interactive = getSystemService(PowerManager::class.java)?.isInteractive != false
+        releaseController(VideoSessionPolicy.onScreenStop(isFinishing, inPictureInPicture = inPip && interactive))
         super.onStop()
     }
 
+    // Home while a video plays shrinks it to a floating window instead of pausing, where the phone supports that.
+    override fun onUserLeaveHint() {
+        super.onUserLeaveHint()
+        val enter = PictureInPicturePolicy.shouldEnter(
+            supported = packageManager.hasSystemFeature(PackageManager.FEATURE_PICTURE_IN_PICTURE),
+            isPlaying = isPlaying,
+            isPreparing = uiState == VideoUiState.Connecting,
+            hasError = uiState is VideoUiState.Failed,
+            countdownAboutToAdvance = countdownShowing,
+        )
+        if (!enter) return
+        try {
+            enterPictureInPictureMode(pipParams())
+        } catch (unsupported: IllegalStateException) {
+            // The system refused (feature off for this window); the ordinary pause-on-Home rule applies.
+        } catch (unsupported: IllegalArgumentException) {
+            // A bad parameter must never crash the screen; the ordinary pause-on-Home rule applies.
+        }
+    }
+
+    private fun pipParams(): PictureInPictureParams {
+        val size = controller?.videoSize
+        val (width, height) = PictureInPicturePolicy.aspectRatio(size?.width ?: 0, size?.height ?: 0)
+        val toggle = RemoteAction(
+            Icon.createWithResource(this, if (isPlaying) android.R.drawable.ic_media_pause else android.R.drawable.ic_media_play),
+            if (isPlaying) "Pause" else "Play",
+            if (isPlaying) "Pause video" else "Play video",
+            PendingIntent.getBroadcast(this, 0, Intent(ACTION_PIP_TOGGLE).setPackage(packageName), PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT),
+        )
+        return PictureInPictureParams.Builder().setAspectRatio(Rational(width, height)).setActions(listOf(toggle)).build()
+    }
+
+    override fun onPictureInPictureModeChanged(isInPictureInPictureMode: Boolean, newConfig: Configuration) {
+        super.onPictureInPictureModeChanged(isInPictureInPictureMode, newConfig)
+        inPip = isInPictureInPictureMode
+        if (isInPictureInPictureMode) {
+            controlsVisible = false
+            val receiver = object : BroadcastReceiver() {
+                override fun onReceive(context: android.content.Context?, intent: Intent?) {
+                    controller?.let { if (it.isPlaying) it.pause() else it.play() }
+                    if (inPip) setPictureInPictureParams(pipParams())
+                }
+            }
+            pipReceiver = receiver
+            ContextCompat.registerReceiver(this, receiver, IntentFilter(ACTION_PIP_TOGGLE), ContextCompat.RECEIVER_NOT_EXPORTED)
+        } else {
+            pipReceiver?.let { unregisterReceiver(it) }
+            pipReceiver = null
+            // Expanding brings the screen back (started); closing the window leaves it stopped and ends the video like Close.
+            if (VideoSessionPolicy.onPictureInPictureGone(lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) != null) {
+                releaseController(CloseAction.StopAndClear)
+                finish()
+            }
+        }
+    }
+
+    // A keyboard, D-pad or remote: Space and Play/Pause toggle, the arrows seek, Escape or Back closes the controls and then the screen.
+    override fun onKeyDown(keyCode: Int, event: KeyEvent): Boolean {
+        val duration = controller?.duration?.takeIf { it > 0 && it != C.TIME_UNSET } ?: 0L
+        return when (VideoKeys.commandFor(keyCode)) {
+            VideoKeyCommand.TogglePlay -> { controller?.let { if (it.isPlaying) it.pause() else it.play() }; true }
+            VideoKeyCommand.SeekBack -> { seekBy(-prefs.skipBackSeconds * 1000L, duration); true }
+            VideoKeyCommand.SeekForward -> { seekBy(prefs.skipForwardSeconds * 1000L, duration); true }
+            VideoKeyCommand.Close ->
+                // Back is also handled by the back dispatcher; Escape comes here.
+                if (keyCode == VideoKeys.KEYCODE_ESCAPE) {
+                    if (VideoKeys.closeAction(controlsVisible) == CloseStep.HideControls) controlsVisible = false else finish()
+                    true
+                } else {
+                    super.onKeyDown(keyCode, event)
+                }
+            VideoKeyCommand.None -> super.onKeyDown(keyCode, event)
+        }
+    }
+
     override fun onDestroy() {
+        pipReceiver?.let { runCatching { unregisterReceiver(it) } }
+        pipReceiver = null
         releaseController(VideoSessionPolicy.onScreenStop(isFinishing))
         super.onDestroy()
     }
@@ -529,10 +646,12 @@ class VideoPlayerActivity : ComponentActivity() {
      * (and cancels any wait for the Engine), so a video never keeps playing in the background.
      */
     private fun releaseController(action: CloseAction) {
+        if (action == CloseAction.KeepPlaying) return
         val active = controller
         if (active != null) {
             active.removeListener(playerListener)
             when (action) {
+                CloseAction.KeepPlaying -> Unit
                 CloseAction.StopAndClear -> active.sendCustomCommand(
                     SessionCommand(TuvimaMediaLibraryService.COMMAND_CLOSE_VIDEO, Bundle.EMPTY),
                     Bundle.EMPTY,
@@ -566,7 +685,6 @@ class VideoPlayerActivity : ComponentActivity() {
     @Composable
     private fun VideoScreen() {
         val active = controller
-        var controlsVisible by remember { mutableStateOf(true) }
         // Bumped on every touch of a control so the 3 second hide timer starts over.
         var touch by remember { mutableIntStateOf(0) }
         var positionMs by remember { mutableLongStateOf(0L) }
@@ -592,8 +710,11 @@ class VideoPlayerActivity : ComponentActivity() {
                 delay(500)
             }
         }
+        val accessibilityManager = remember { getSystemService(AccessibilityManager::class.java) }
         LaunchedEffect(controlsVisible, isPlaying, touch, sheet) {
-            if (controlsVisible && isPlaying && sheet == Sheet.None) {
+            // Controls that hide themselves would trap TalkBack and switch access, so they stay while those are on.
+            val mayHide = VideoAccessibility.controlsMayAutoHide(accessibilityManager?.isTouchExplorationEnabled == true)
+            if (mayHide && controlsVisible && isPlaying && sheet == Sheet.None) {
                 delay(CONTROLS_HIDE_MS)
                 controlsVisible = false
             }
@@ -615,6 +736,7 @@ class VideoPlayerActivity : ComponentActivity() {
             ended = finished,
             cancelled = cancelledFor == assetId,
         )
+        androidx.compose.runtime.SideEffect { countdownShowing = nextOffer == NextEpisodeOffer.Countdown }
         // The card replaces the skip button while it is showing.
         val offer = if (nextOffer == NextEpisodeOffer.None) segmentToOffer(positionMs / 1000.0, segments, durationSeconds) else null
 
@@ -631,6 +753,13 @@ class VideoPlayerActivity : ComponentActivity() {
                 update = { view ->
                     view.player = active
                     val background = prefs.subtitleBackground
+                    val systemCaptions = view.context.getSystemService(CaptioningManager::class.java)
+                    if (systemCaptions?.isEnabled == true) {
+                        // The system's own caption style and size win over the profile's when the person turned them on.
+                        view.subtitleView?.setUserDefaultStyle()
+                        view.subtitleView?.setUserDefaultTextSize()
+                        return@AndroidView
+                    }
                     view.subtitleView?.apply {
                         setFractionalTextSize(SubtitleStyleRules.sizeFraction(prefs.subtitleSize))
                         setStyle(
@@ -646,6 +775,7 @@ class VideoPlayerActivity : ComponentActivity() {
                     }
                 },
             )
+            if (!inPip) {
             // One tap shows or hides the controls; a double tap on a half seeks; a vertical slide changes brightness or volume.
             Box(
                 Modifier.fillMaxSize()
@@ -821,6 +951,7 @@ class VideoPlayerActivity : ComponentActivity() {
                     }
                 }
             }
+            }
         }
     }
 
@@ -898,7 +1029,8 @@ class VideoPlayerActivity : ComponentActivity() {
         onTogglePlay: () -> Unit,
         onOpenSheet: (Sheet) -> Unit,
     ) {
-        val scrim = Color(0x99000000)
+        // 70% black behind white text keeps at least 4.5:1 contrast over any picture.
+        val scrim = Color(0xB3000000)
         Box(Modifier.fillMaxSize().safeDrawingPadding()) {
             Row(
                 Modifier.fillMaxWidth().background(scrim).align(Alignment.TopStart).padding(horizontal = 8.dp, vertical = 4.dp),
@@ -951,7 +1083,14 @@ class VideoPlayerActivity : ComponentActivity() {
                     valueRange = 0f..durationMs.coerceAtLeast(1L).toFloat(),
                     enabled = durationMs > 0,
                     colors = SliderDefaults.colors(thumbColor = Color.White, activeTrackColor = Color.White),
-                    modifier = Modifier.fillMaxWidth().semantics { contentDescription = "Seek bar" },
+                    modifier = Modifier.fillMaxWidth().semantics {
+                        contentDescription = "Seek bar"
+                        stateDescription = VideoAccessibility.positionAnnouncement(shown.toLong(), durationMs)
+                        customActions = listOf(
+                            CustomAccessibilityAction("Back ${prefs.skipBackSeconds} seconds") { onSeekBy(-prefs.skipBackSeconds * 1000L); true },
+                            CustomAccessibilityAction("Forward ${prefs.skipForwardSeconds} seconds") { onSeekBy(prefs.skipForwardSeconds * 1000L); true },
+                        )
+                    },
                 )
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                     Text(ClockText.format(shown.toLong()), color = Color.White, style = MaterialTheme.typography.bodySmall)
@@ -978,17 +1117,20 @@ class VideoPlayerActivity : ComponentActivity() {
             onPlay()
         }
         val scrim = Color(0xCC000000)
+        // Announced once and politely when the card appears; the countdown number changes are not read out second by second.
+        val announcement = VideoAccessibility.nextEpisodeAnnouncement(NextEpisodeLogic.cardLine(next), if (countdown) NextEpisodeLogic.COUNTDOWN_SECONDS else null)
         Box(Modifier.fillMaxSize().safeDrawingPadding()) {
             Column(
                 Modifier.align(Alignment.BottomEnd).padding(end = 16.dp, bottom = if (raised) 150.dp else 24.dp)
-                    .background(scrim, androidx.compose.foundation.shape.RoundedCornerShape(12.dp)).padding(16.dp),
+                    .background(scrim, androidx.compose.foundation.shape.RoundedCornerShape(12.dp)).padding(16.dp)
+                    .semantics { liveRegion = LiveRegionMode.Polite; contentDescription = announcement },
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 Text("Next episode", color = Color.White, style = MaterialTheme.typography.labelMedium)
                 Text(NextEpisodeLogic.cardLine(next), color = Color.White, style = MaterialTheme.typography.titleSmall, maxLines = 2)
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Button(onClick = onPlay, modifier = Modifier.sizeMinimum()) {
-                        Text(if (countdown) "Play now (${NextEpisodeLogic.secondsLeft(elapsed)})" else "Play next")
+                    Button(onClick = onPlay, modifier = Modifier.sizeMinimum().semantics { contentDescription = if (countdown) "Play now" else "Play next" }) {
+                        Text(if (countdown) "Play now (${NextEpisodeLogic.secondsLeft(elapsed)})" else "Play next", modifier = Modifier.clearAndSetSemantics { })
                     }
                     if (countdown) OutlinedButton(onClick = onCancel, modifier = Modifier.sizeMinimum()) { Text("Cancel") }
                 }
@@ -1008,6 +1150,7 @@ class VideoPlayerActivity : ComponentActivity() {
         private const val CONTROLS_HIDE_MS = 3_000L
         private const val HINT_MS = 800L
         private const val PREFS_WAIT_MS = 2_000L
+        private const val ACTION_PIP_TOGGLE = "com.tuvima.library.PIP_TOGGLE"
         private const val NEXT_FETCH_AFTER_MS = 30_000L
         private const val NEXT_EPISODES_COUNT = 10
         private const val EXTRA_SHOW_ID = "show_id"
