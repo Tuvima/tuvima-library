@@ -7,6 +7,7 @@ import android.net.Uri
 import android.os.Bundle
 import androidx.annotation.OptIn
 import androidx.concurrent.futures.CallbackToFutureAdapter
+import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
@@ -113,6 +114,9 @@ class TuvimaMediaLibraryService : MediaLibraryService() {
         }
         player = ExoPlayer.Builder(this)
             .setMediaSourceFactory(DefaultMediaSourceFactory(this).setDataSourceFactory(dataSource))
+            // A call or another app pauses playback (and gives it back), and unplugging headphones pauses instead of playing aloud.
+            .setAudioAttributes(mediaAudioAttributes(C.AUDIO_CONTENT_TYPE_MUSIC), true)
+            .setHandleAudioBecomingNoisy(true)
             .build()
         player.addListener(object : Player.Listener {
             override fun onIsPlayingChanged(isPlaying: Boolean) {
@@ -351,7 +355,11 @@ class TuvimaMediaLibraryService : MediaLibraryService() {
         clearVideo()
     }
 
+    private fun mediaAudioAttributes(contentType: Int): AudioAttributes =
+        AudioAttributes.Builder().setUsage(C.USAGE_MEDIA).setContentType(contentType).build()
+
     private fun clearVideo() {
+        player.setAudioAttributes(mediaAudioAttributes(C.AUDIO_CONTENT_TYPE_MUSIC), true)
         player.clearMediaItems()
         player.stop()
         // Speed and track choices belong to the video that was open, not to whatever plays next.
@@ -475,6 +483,8 @@ class TuvimaMediaLibraryService : MediaLibraryService() {
 
     private suspend fun startVideo(assetId: String, title: String?, subtitle: String?, previousEnded: Boolean) {
         leavePreviousVideo(assetId, previousEnded)
+        // Video is film audio, not music, for the system's mixing and focus rules; clearVideo puts the music setting back.
+        player.setAudioAttributes(mediaAudioAttributes(C.AUDIO_CONTENT_TYPE_MOVIE), true)
         activeAssetId = assetId
         // "Resume where I left off" off means every start is from the beginning, streamed or downloaded.
         val resume = kotlinx.coroutines.withTimeoutOrNull(PREFS_WAIT_MS) { client?.playbackPreferences() }?.resumePlayback ?: true
