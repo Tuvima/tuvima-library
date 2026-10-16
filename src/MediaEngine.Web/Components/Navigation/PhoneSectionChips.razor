@@ -1,0 +1,96 @@
+@namespace MediaEngine.Web.Components.Navigation
+@implements IAsyncDisposable
+@inject IJSRuntime JS
+@inject IStringLocalizer<SharedStrings> L
+
+@* The phone chips row under the top bar: the lanes in the desktop top bar's order, scrolling sideways. One chip is
+   a tab stop (the current section, else the first); the arrow keys, Home and End move between chips. *@
+<nav class="phone-section-chips" aria-label="@L["Nav_Sections"]">
+    <div class="phone-section-chips__strip" @ref="_strip">
+        @foreach (var link in Links)
+        {
+            var current = ShellNavigation.IsCurrent(link.Path, CurrentPath);
+            <a href="@link.Path"
+               @key="link.Key"
+               class="@(current ? "phone-section-chips__chip is-selected" : "phone-section-chips__chip")"
+               tabindex="@(IsTabStop(link) ? 0 : -1)"
+               aria-current="@(current ? "page" : null)">
+                <AppMaterialIcon Icon="@link.Icon" Size="AppSize.Small" />
+                <span>@L[link.LabelKey]</span>
+            </a>
+        }
+    </div>
+</nav>
+
+@code {
+    /// <summary>The sections, from <see cref="ShellNavigation.SectionChips"/>.</summary>
+    [Parameter] public IReadOnlyList<ShellNavLink> Links { get; set; } = [];
+
+    /// <summary>The current location, so the chip for the section the person is in is selected.</summary>
+    [Parameter] public string CurrentPath { get; set; } = "/";
+
+    private ElementReference _strip;
+    private IJSObjectReference? _edgeModule;
+    private IJSObjectReference? _rovingModule;
+    private string? _shownSection;
+
+    // Exactly one chip is a tab stop: the selected one, or the first when no section is selected (Home, search, settings).
+    private bool IsTabStop(ShellNavLink link)
+    {
+        var selected = Links.FirstOrDefault(candidate => ShellNavigation.IsCurrent(candidate.Path, CurrentPath));
+        var stop = string.IsNullOrEmpty(selected.Path) ? Links.FirstOrDefault() : selected;
+        return stop.Key == link.Key;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        try
+        {
+            _edgeModule ??= await JS.InvokeAsync<IJSObjectReference>("import", "./js/scroll-edge-hint.js");
+            _rovingModule ??= await JS.InvokeAsync<IJSObjectReference>("import", "./js/roving-focus.js");
+            if (firstRender)
+            {
+                await _edgeModule.InvokeVoidAsync("attach", _strip);
+                await _rovingModule.InvokeVoidAsync("attach", _strip, ".phone-section-chips__chip");
+            }
+
+            // The selected chip scrolls into view when the section changes.
+            var section = Links.FirstOrDefault(candidate => ShellNavigation.IsCurrent(candidate.Path, CurrentPath)).Key;
+            if (!string.Equals(_shownSection, section, StringComparison.Ordinal))
+            {
+                _shownSection = section;
+                await _edgeModule.InvokeVoidAsync("showActive", _strip, ".phone-section-chips__chip.is-selected");
+            }
+        }
+        catch (JSDisconnectedException)
+        {
+            // The circuit closed while the row was rendering; there is nothing left to hint.
+        }
+        catch (JSException)
+        {
+            // The edge fade and arrow keys are a nicety (for example a stale cached module); the chips are plain links without them.
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        try
+        {
+            if (_edgeModule is not null)
+            {
+                await _edgeModule.InvokeVoidAsync("detach", _strip);
+                await _edgeModule.DisposeAsync();
+            }
+
+            if (_rovingModule is not null)
+            {
+                await _rovingModule.InvokeVoidAsync("detach", _strip);
+                await _rovingModule.DisposeAsync();
+            }
+        }
+        catch (JSDisconnectedException)
+        {
+            // The circuit is already gone, so the browser has dropped the listeners with the page.
+        }
+    }
+}

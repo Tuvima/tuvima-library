@@ -293,3 +293,23 @@
         --tl-bottom-dock-height: calc(3.65rem + var(--tl-safe-area-bottom));
     }
 }
+
+/* Phone shell chrome (form factor phone, under 600 px): a 56 px top bar row, a 48 px section chips row under it, and a
+   floating 56 px dock pill. --app-topbar-height is the whole fixed top chrome (bar + chips), so hero offsets and sticky
+   tops stay correct; --tl-appbar-row-height is the bar row alone. --tl-bottom-dock-height is the dock's footprint (pill,
+   gap above and the larger of the gap or the bottom safe area below). */
+html[data-form-factor="phone"] {
+    --tl-appbar-row-height: 56px;
+    --tl-phone-chips-height: 48px;
+    --app-topbar-height: calc(var(--tl-appbar-row-height) + var(--tl-phone-chips-height));
+    --tl-phone-dock-height: 56px;
+    --tl-phone-dock-gap: 8px;
+    --tl-bottom-dock-height: calc(var(--tl-phone-dock-height) + var(--tl-phone-dock-gap) + max(var(--tl-phone-dock-gap), var(--tl-safe-area-bottom)));
+}
+
+/* A phone held sideways has no room for the chips row; the menu still lists every section. */
+@media (max-height: 480px) {
+    html[data-form-factor="phone"] {
+        --tl-phone-chips-height: 0px;
+    }
+}

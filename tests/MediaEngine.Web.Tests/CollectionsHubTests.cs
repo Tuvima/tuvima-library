@@ -9,19 +9,13 @@ public sealed class CollectionsHubTests
     [Fact]
     public void MainLayout_OrdersPrimaryNavigationByMediaThenCollections()
     {
+        // The top bar renders the one navigation catalogue (the phone menu and chips are generated from it too).
         var source = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Web/Shared/MainLayout.razor"));
+        Assert.Contains("ShellNavigation.TopBarLinks(_isKids)", source, StringComparison.Ordinal);
 
-        var readIndex = source.IndexOf("new(\"/read\", \"Nav_Read\")", StringComparison.Ordinal);
-        var watchIndex = source.IndexOf("new(\"/watch\", \"Nav_Watch\")", StringComparison.Ordinal);
-        var listenIndex = source.IndexOf("new(\"/listen\", \"Nav_Listen\")", StringComparison.Ordinal);
-        var viewIndex = source.IndexOf("new(\"/view\", \"Nav_View\")", StringComparison.Ordinal);
-        var collectionsIndex = source.IndexOf("new(\"/collections\", \"Nav_Collections\")", StringComparison.Ordinal);
-
-        Assert.True(readIndex >= 0);
-        Assert.True(watchIndex > readIndex);
-        Assert.True(listenIndex > watchIndex);
-        Assert.True(viewIndex > listenIndex);
-        Assert.True(collectionsIndex > viewIndex);
+        Assert.Equal(
+            [("/read", "Nav_Read"), ("/watch", "Nav_Watch"), ("/listen", "Nav_Listen"), ("/view", "Nav_View"), ("/collections", "Nav_Collections")],
+            MediaEngine.Web.Services.Navigation.ShellNavigation.TopBarLinks(isKids: false).Select(link => (link.Path, link.LabelKey)).ToArray());
     }
 
     [Fact]

@@ -2,7 +2,10 @@ using MediaEngine.Web.Services.Navigation;
 
 namespace MediaEngine.Web.Tests;
 
-/// <summary>The five-tab dock catalog: defaults, Kids, the Downloads switch, old saved settings and the last library.</summary>
+/// <summary>
+/// The dock catalog: the fixed three-tab phone dock, the five-tab TV dock (defaults, Kids, the Downloads switch), old
+/// saved settings and the last library.
+/// </summary>
 public sealed class ShellDockTests
 {
     private static readonly string[] FiveTabs = ["Home", "Libraries", "Search", "Downloads", "Settings"];
@@ -49,6 +52,43 @@ public sealed class ShellDockTests
         Assert.Equal(["Home", "Read", "Watch", "Listen"], Keys(ShellDock.Resolve(LegacySixTabs, isKids: true)));
         Assert.Equal(["Home", "Watch"], Keys(ShellDock.Resolve(["Home", "Unknown", "Watch", "watch"], isKids: false)));
     }
+
+    [Fact]
+    public void ThePhoneDockIsAlwaysHomeSearchAndMyLibraryForEveryProfile()
+    {
+        foreach (var isKids in new[] { false, true })
+        {
+            var entries = ShellDock.ResolvePhone(isKids);
+            Assert.Equal(["Home", "Search", "MyLibrary"], Keys(entries));
+            Assert.Equal(["/", "/search", "/for-me?view=my-list"], entries.Select(entry => entry.Path).ToArray());
+            Assert.Equal(["Nav_Home", "Nav_Search", "Nav_MyLibrary"], entries.Select(entry => entry.LabelKey).ToArray());
+            Assert.Equal([ShellDockKind.Link, ShellDockKind.Search, ShellDockKind.Link], entries.Select(entry => entry.Kind).ToArray());
+        }
+    }
+
+    [Theory]
+    [InlineData(DownloadsTabMode.ExplainNativeApp)]
+    [InlineData(DownloadsTabMode.Hidden)]
+    public void ThePhoneDockHasNoDownloadsOrSettingsTabWhateverTheDownloadsSwitchSays(DownloadsTabMode mode)
+    {
+        Assert.Equal(["Home", "Search", "MyLibrary"], Keys(ShellDock.Resolve(ShellDock.PhoneDockItems, isKids: false, mode)));
+    }
+
+    [Fact]
+    public void TheDownloadsIconInThePhoneTopBarShowsOnlyWhereDownloadsWork()
+    {
+        Assert.False(ShellDock.ShowsDownloadsInTopBar(ShellDock.DownloadsMode));
+        Assert.False(ShellDock.ShowsDownloadsInTopBar(DownloadsTabMode.ExplainNativeApp));
+        Assert.False(ShellDock.ShowsDownloadsInTopBar(DownloadsTabMode.Hidden));
+        Assert.True(ShellDock.ShowsDownloadsInTopBar(DownloadsTabMode.Available));
+    }
+
+    [Theory]
+    [InlineData("/for-me?view=my-list", "/for-me")]
+    [InlineData("/search", "/search")]
+    [InlineData("/watch#top", "/watch")]
+    public void PathOnlyDropsTheQueryAndFragment(string path, string expected) =>
+        Assert.Equal(expected, ShellDock.PathOnly(path));
 
     [Fact]
     public void LibrariesAndWatchAreDifferentTabsEvenThoughLibrariesStartsAtWatch()

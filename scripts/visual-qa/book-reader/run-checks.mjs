@@ -13,7 +13,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
-import { buildBigEpub, buildHostileEpub, buildFrontMatterEpub, buildLinkEpub, buildPictureEpub, buildRegressionEpub, FRONT_MATTER_PAGES, LINK_PAGES, PICTURE_PAGES, linkPageText } from './epub-fixtures.mjs';
+import { buildBigEpub, buildHostileEpub, buildFrontMatterEpub, buildLinkEpub, buildPictureEpub, buildRegressionEpub, FORM_PAGES, FRONT_MATTER_PAGES, LINK_PAGES, PICTURE_PAGES, linkPageText } from './epub-fixtures.mjs';
 import { startServer } from './serve.mjs';
 import {
     GUIDS, bookFrames, bookUrl, ensureDir, fixturesDir, frameWith, lastRelocation, loadPlaywright,
@@ -41,6 +41,7 @@ const big = path.join(dir, 'big-3mb.epub');
 const pictures = path.join(dir, 'pictures.epub');
 const frontMatter = path.join(dir, 'front-matter.epub');
 const links = path.join(dir, 'links.epub');
+const forms = path.join(dir, 'forms.epub');
 const textFile = path.join(dir, 'not-a-book.epub');
 fs.writeFileSync(textFile, 'This is plain text, not a zip file. '.repeat(40));
 
@@ -54,13 +55,14 @@ console.log(`Browser: ${browserName} ${browser.version()}`);
 
 // The "web" (an outside tracker) is a second server so we can see whether the book ever reaches out.
 const outside = await startServer();
-const server = await startServer({ books: { [GUIDS.regression]: epub, [GUIDS.notABook]: textFile, [GUIDS.hostile]: hostile, [GUIDS.big5]: big, [GUIDS.pictures]: pictures, [GUIDS.frontMatter]: frontMatter, [GUIDS.links]: links } });
+const server = await startServer({ books: { [GUIDS.regression]: epub, [GUIDS.notABook]: textFile, [GUIDS.hostile]: hostile, [GUIDS.big5]: big, [GUIDS.pictures]: pictures, [GUIDS.frontMatter]: frontMatter, [GUIDS.links]: links, [GUIDS.forms]: forms } });
 buildRegressionEpub(epub, { trackerOrigin: outside.origin });
 buildHostileEpub(hostile);
 buildBigEpub(big, 3);
 buildPictureEpub(pictures);
 buildFrontMatterEpub(frontMatter);
 buildLinkEpub(links);
+buildLinkEpub(forms, FORM_PAGES, 'Form Fixture');
 
 const phone = { viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true, deviceScaleFactor: 2 };
 const desktop = { viewport: { width: 1280, height: 800 } };
@@ -960,13 +962,17 @@ async function linkContext() {
     // A frame like a book frame (same sandbox choice), holding one page, optionally cleaned and/or watched by the click handler.
     await page.evaluate(() => {
         window.probe = { loads: 0, opened: [], seen: [] };
-        window.mountProbe = async ({ text, type, clean, guard }) => {
+        // `forms` adds allow-forms to the frame's sandbox and `noPolicy` takes the CSP out of a cleaned page: the form fixtures use
+        // them so that neither of the frame's own refusals (sandbox, form-action 'none') is what stops a submission.
+        window.mountProbe = async ({ text, type, clean, guard, forms = false, noPolicy = false }) => {
             document.getElementById('probe')?.remove();
             Object.assign(window.probe, { loads: 0, opened: [], seen: [] });
             if (clean) ({ text, type } = window.br.hardenPageDetailed(text, type));
+            if (noPolicy) text = text.replace(/<meta[^>]*Content-Security-Policy[^>]*>/gi, '');
+            const policy = /Content-Security-Policy/i.test(text);
             const iframe = document.createElement('iframe');
             iframe.id = 'probe';
-            iframe.setAttribute('sandbox', window.br.bookFrameSandbox());
+            iframe.setAttribute('sandbox', window.br.bookFrameSandbox() + (forms ? ' allow-forms' : ''));
             iframe.style.cssText = 'position:fixed;left:0;top:0;width:480px;height:360px;border:0;background:#fff';
             iframe.addEventListener('load', () => { window.probe.loads++; });
             const first = new Promise(resolve => iframe.addEventListener('load', resolve, { once: true }));
@@ -978,7 +984,7 @@ async function linkContext() {
             if (guard) window.br.guardLinks(doc, href => window.probe.opened.push(href));
             // Stands in for the library's own listener: it only sees clicks the click handler lets through.
             doc.addEventListener('click', e => window.probe.seen.push(e.composedPath()[0]?.id || '?'));
-            return { type, shadowRoots: Array.from(doc.querySelectorAll('*')).filter(el => el.shadowRoot).length };
+            return { type, policy, shadowRoots: Array.from(doc.querySelectorAll('*')).filter(el => el.shadowRoot).length };
         };
     });
     return { context, page, evil };
@@ -990,7 +996,7 @@ const linkPages = LINK_PAGES.map(link => ({ ...link, text: linkPageText(link) })
 /** Mounts one page, taps `link.click` (or the first paragraph when the clean-up removed it), and reports whether the frame left its page. */
 async function tapProbe(page, evil, link, mode) {
     const before = evil.length;
-    const mounted = await page.evaluate(options => window.mountProbe(options), { text: link.text, type: link.type, clean: mode.clean, guard: mode.guard });
+    const mounted = await page.evaluate(options => window.mountProbe(options), { text: link.text, type: link.type, clean: mode.clean, guard: mode.guard, forms: !!mode.forms, noPolicy: !!mode.noPolicy });
     const frame = await probeFrame(page);
     await frame.click((await frame.locator(link.click).count()) > 0 ? link.click : '#top', { timeout: 5000 });
     await sleep(600);
@@ -998,14 +1004,19 @@ async function tapProbe(page, evil, link, mode) {
     return { ...state, mounted, evilRequests: evil.length - before, navigated: state.loads !== 1 || !frame.url().startsWith('blob:') || evil.length > before };
 }
 
-await check('link fixtures are live: with neither layer, an image map and a shadow DOM link take the frame to the outside page', async () => {
+await check('link fixtures are live: with neither layer, an image map, a MathML link (WebKit only) and a shadow DOM link take the frame to the outside page', async () => {
     const { context, page, evil } = await linkContext();
     const seen = [];
     for (const link of linkPages) {
         const r = await tapProbe(page, evil, link, { clean: false, guard: false });
         seen.push(`${link.name}: ${r.navigated ? 'navigated' : 'stayed'}`);
-        // MathML links are live in WebKit only (Chromium ignores href there), so only the other two are required to move.
-        if (link.name !== 'mathml') assert(r.navigated, `${link.name}: the fixture does not take the frame anywhere, so it proves nothing (${JSON.stringify(r)})`);
+        // A MathML href is a live link in WebKit and nowhere else (Chromium's MathML ignores it), so it must move the frame in WebKit,
+        // where the click-handler and clean-up cases for it are real, and is only allowed to stay put on an engine without MathML links.
+        if (link.name === 'mathml' && browserName !== 'webkit') {
+            seen[seen.length - 1] += ` (${browserName} ignores href on MathML, so this fixture is only asserted live in WebKit)`;
+            continue;
+        }
+        assert(r.navigated, `${link.name}: the fixture does not take the frame anywhere, so it proves nothing (${JSON.stringify(r)})`);
         if (link.name === 'shadow-dom') assert(r.mounted.shadowRoots === 1, 'the declarative shadow root was not attached, so the fixture is not testing it');
     }
     await context.close();
@@ -1099,14 +1110,15 @@ await check('clean-up alone (click handler off): the frame stays on its page aft
     return seen.join(', ');
 });
 
-await check('in a real book (both layers): the frame never navigates and only web and mail links open, on image map, MathML and shadow DOM pages', async () => {
+/** Opens a book made of `pages`, taps each page's `click` control and then every anchor, and checks the frame never moved. */
+async function inARealBook(guid, pages) {
     const { context, page, evil } = await linkContext();
     await page.evaluate(() => { window.__opened = []; window.open = (...args) => { window.__opened.push(args[0]); return null; }; });
-    const result = await openBook(page, bookUrl(GUIDS.links), {});
+    const result = await openBook(page, bookUrl(guid), {});
     assert(result.ok, `open failed: ${result.message}`);
     await page.evaluate(() => window.br.setInputPaused(true));   // a tap on plain text would turn the page and replace the frame under the test
     const seen = [];
-    for (const [index, link] of linkPages.entries()) {
+    for (const [index, link] of pages.entries()) {
         await page.evaluate(i => window.br.goTo(i), index);
         const frame = await waitFor(async () => {
             for (const f of bookFrames(page)) {
@@ -1130,7 +1142,123 @@ await check('in a real book (both layers): the frame never navigates and only we
     }
     await context.close();
     return seen.join(', ');
+}
+
+await check('in a real book (both layers): the frame never navigates and only web and mail links open, on image map, MathML and shadow DOM pages', () => inARealBook(GUIDS.links, linkPages));
+
+console.log('Forms a tap could submit out of the book frame');
+
+// Forms are already refused by the page's policy (`form-action 'none'`) and by the frame's sandbox (no `allow-forms`). The clean-up
+// and the submit handler are the layers behind those two, so each is tried alone: the frame is given `allow-forms`, the policy is
+// taken out of a cleaned page, and a tap on the control must still not take the frame anywhere.
+const formPages = FORM_PAGES.map(form => ({ ...form, text: linkPageText(form) }));
+const formMode = { forms: true, noPolicy: true };
+
+await check('form fixtures are live: with no layer (and no sandbox or page policy against forms), a tap submits the frame to the outside page', async () => {
+    const { context, page, evil } = await linkContext();
+    const seen = [];
+    for (const form of formPages) {
+        const r = await tapProbe(page, evil, form, { clean: false, guard: false, ...formMode });
+        assert(r.navigated, `${form.name}: the fixture does not take the frame anywhere, so it proves nothing (${JSON.stringify(r)})`);
+        seen.push(`${form.name}: navigated`);
+    }
+    await context.close();
+    return seen.join(', ');
 });
+
+await check('form vectors (form action, button formaction, image button): the clean-up removes them (hardenPageDetailed, hardenResource, SVG)', async () => {
+    const { context, page } = await linkContext();
+    const extra = [
+        { name: 'detached-owner', type: 'application/xhtml+xml', body: '<p><button id="vector" type="submit" form="f" formaction="https://evil.test/owner">send</button></p><form id="f" action="https://evil.test/far"></form>' },
+        { name: 'image-formaction', type: 'application/xhtml+xml', body: '<p><input id="vector" type="image" src="data:image/png;base64,AAAA" formaction="https://evil.test/img" alt="go"/></p>' },
+        { name: 'nested-forms', type: 'application/xhtml+xml', body: '<form action="https://evil.test/outer"><div><form action="https://evil.test/inner"><button id="vector">send</button></form></div></form>' },
+    ].map(form => ({ ...form, text: linkPageText(form) }));
+    const report = await page.evaluate(async pages => {
+        const out = {};
+        for (const page of pages) {
+            const results = [];
+            const viaPage = window.br.hardenPageDetailed(page.text, page.type);
+            results.push(['hardenPageDetailed', viaPage.text, viaPage.type]);
+            for (const [how, data] of [['text', page.text], ['blob', new Blob([page.text])], ['bytes', new TextEncoder().encode(page.text)]]) {
+                const r = await window.br.hardenResource(data, page.type, true);
+                results.push([`hardenResource(${how})`, r.data, r.type]);
+            }
+            out[page.name] = results.map(([how, data, type]) => {
+                const doc = new DOMParser().parseFromString(data, type);
+                return {
+                    how,
+                    mentionsEvil: /evil\.test/.test(data),
+                    forms: doc.querySelectorAll('form').length,
+                    submitters: Array.from(doc.querySelectorAll('[action], [formaction]')).map(el => el.localName),
+                    webAnchor: doc.getElementById('web')?.getAttribute('href') ?? null,
+                    kept: doc.querySelectorAll('#vector').length,
+                };
+            });
+        }
+        // An SVG, as a picture and as a page of the book, can carry the same two attributes on anything.
+        const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10"><rect id="vector" width="10" height="10" formaction="https://evil.test/svg" action="https://evil.test/svg2"/></svg>';
+        const picture = window.br.hardenSvg(svg);
+        const asPage = window.br.hardenSvgAsPage(svg);
+        out.svg = [['hardenSvg', picture], ['hardenSvgAsPage', asPage.text]].map(([how, data]) => ({
+            how, mentionsEvil: /evil\.test/.test(data), forms: 0, submitters: /formaction|\saction=/.test(data) ? ['rect'] : [],
+            webAnchor: 'https://example.org/ok', kept: /id="vector"/.test(data) ? 1 : 0,
+        }));
+        return out;
+    }, [...formPages, ...extra].map(({ name, type, text }) => ({ name, type, text })));
+    for (const [name, results] of Object.entries(report)) {
+        for (const r of results) {
+            const where = `${name} via ${r.how}`;
+            assert(!r.mentionsEvil, `${where}: the outside address is still in the page`);
+            assert(r.forms === 0, `${where}: a form survived`);
+            assert(r.submitters.length === 0, `${where}: an action or formaction survived on ${r.submitters.join(' ')}`);
+            // What a person reads stays: the control itself is kept (inert), and the links beside it are untouched.
+            assert(r.kept >= 1, `${where}: the control was removed along with the form, not just made inert`);
+            assert(r.webAnchor === 'https://example.org/ok', `${where}: a normal link was lost`);
+        }
+    }
+    await context.close();
+    return Object.keys(report).join(', ');
+});
+
+await check('submit handler alone (clean-up off): a tap on a form control never leaves the page and nothing is opened', async () => {
+    const { context, page, evil } = await linkContext();
+    const seen = [];
+    for (const form of formPages) {
+        const r = await tapProbe(page, evil, form, { clean: false, guard: true, ...formMode });
+        assert(r.opened.length === 0, `${form.name}: a form control opened an address: ${r.opened}`);
+        seen.push(form.name + (r.navigated ? ' (frame left its page)' : ''));
+    }
+    await context.close();
+    assert(!seen.some(name => name.includes('left')), `the frame was submitted away on: ${seen.filter(name => name.includes('left')).join(', ')}`);
+    return seen.join(', ');
+});
+
+await check('clean-up alone (submit handler off, no page policy, forms allowed): the frame stays on its page after a tap on a form control', async () => {
+    const { context, page, evil } = await linkContext();
+    const seen = [];
+    for (const form of formPages) {
+        const r = await tapProbe(page, evil, form, { clean: true, guard: false, ...formMode });
+        assert(r.mounted.policy === false, `${form.name}: the page still carries a policy, so the clean-up is not what is being tested`);
+        seen.push(form.name + (r.navigated ? ' (frame left its page)' : ''));
+    }
+    await context.close();
+    assert(!seen.some(name => name.includes('left')), `the frame was submitted away on: ${seen.filter(name => name.includes('left')).join(', ')}`);
+    return seen.join(', ');
+});
+
+await check('both layers with the frame\'s own refusals left on (the shipped setup): a tap on a form control never leaves the page', async () => {
+    const { context, page, evil } = await linkContext();
+    const seen = [];
+    for (const form of formPages) {
+        const r = await tapProbe(page, evil, form, { clean: true, guard: true });
+        assert(!r.navigated, `${form.name}: the frame left its page (${JSON.stringify(r)})`);
+        seen.push(form.name);
+    }
+    await context.close();
+    return seen.join(', ');
+});
+
+await check('in a real book (both layers): the frame never navigates on a form action, button formaction, image button or a form in an HTML page', () => inARealBook(GUIDS.forms, formPages));
 
 await browser.close();
 await server.close();

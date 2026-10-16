@@ -371,9 +371,10 @@ function stripInstructions(doc) {
     doc.doctype?.remove();
 }
 
-/** Shared: scripts, handlers and script URLs go in every kind of document. */
+/** Shared: scripts, handlers, forms and script URLs go in every kind of document. */
 function stripActiveContent(doc) {
     stripInstructions(doc);
+    stripForms(doc);
     for (const el of Array.from(doc.querySelectorAll('script'))) el.remove();
     // Animation elements can set an href or src to a script address a moment after load, so they go everywhere (inline SVG too).
     for (const el of Array.from(doc.querySelectorAll('*'))) {
@@ -383,8 +384,22 @@ function stripActiveContent(doc) {
         for (const attr of Array.from(el.attributes)) {
             const local = attr.localName.toLowerCase();
             if (/^on/.test(local) || /^on/i.test(attr.name)) el.removeAttributeNode(attr);
+            else if (local === 'action' || local === 'formaction') el.removeAttributeNode(attr);   // where a submission would go: a book never submits anything
             else if (URL_ATTRS.has(local) && (isScriptUrl(attr.value) || /[;,]\s*(javascript|vbscript|livescript):/i.test(attr.value))) el.removeAttributeNode(attr);
         }
+    }
+}
+
+/**
+ * A book has nowhere to send a form to. The page policy (`form-action 'none'`) and the frame's sandbox (no `allow-forms`) already
+ * refuse a submission, and this is the layer behind them: every `<form>` is unwrapped (its contents stay, so no text is lost) and
+ * the attributes that name a destination (`action`, `formaction`) are removed in `stripActiveContent`. A button, a text box or an
+ * image button (`<input type="image">`) with no form around it submits nothing, and `guardLinks` cancels a submit regardless.
+ */
+function stripForms(doc) {
+    // Document order, so a form inside another form (which XML allows) is unwrapped as well once its parent has gone.
+    for (const el of Array.from(doc.querySelectorAll('*'))) {
+        if (el.localName.toLowerCase() === 'form') el.replaceWith(...Array.from(el.childNodes));
     }
 }
 
@@ -986,6 +1001,7 @@ function onExternalLink(e) {
  * shadow roots included) and its default action is always cancelled. Only a plain `a[href]` in the page without a scheme (a
  * chapter or note link) is left to the library; an `a` to http, https or mailto is opened by `openExternal` here and never
  * reaches the library; every other address (ftp, tel, data, javascript, a link inside a shadow root) is simply dead.
+ * It also cancels every form submission on the page (the same destination rule as the clean-up's removal of forms).
  * It runs before the library's own listener (capture phase) and is safe to run on a page that was not cleaned. A closed shadow root hides
  * its inside from every listener outside it, so that case is covered by the clean-up (which removes templates), not by this.
  */
@@ -1008,6 +1024,8 @@ export function guardLinks(doc, openExternal) {
     };
     doc.addEventListener('click', onClick, true);
     doc.addEventListener('auxclick', onClick, true);              // a middle click would open the link in a new tab
+    // A form on a page that was not cleaned (an action, a button's formaction, an image button) must not send the frame anywhere either.
+    doc.addEventListener('submit', e => { e.preventDefault(); e.stopImmediatePropagation(); }, true);
 }
 
 function onRelocate(state, detail) {

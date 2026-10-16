@@ -158,6 +158,15 @@
   <data name="Nav_Downloads" xml:space="preserve">
     <value>Descargas</value>
   </data>
+  <data name="Nav_MyLibrary" xml:space="preserve">
+    <value>Mi biblioteca</value>
+  </data>
+  <data name="Nav_Menu" xml:space="preserve">
+    <value>Menú</value>
+  </data>
+  <data name="Nav_Sections" xml:space="preserve">
+    <value>Secciones</value>
+  </data>
   <data name="Downloads_NativeAppTitle" xml:space="preserve">
     <value>Las descargas están en la app de Tuvima</value>
   </data>
