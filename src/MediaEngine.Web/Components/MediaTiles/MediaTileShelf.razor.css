@@ -113,3 +113,6 @@
             flex-direction: column;
         }
     }
+
+/* Phones: "See All" on the right of every shelf header is a full 48px touch target. */
+:root[data-form-factor="phone"] .media-tile-shelf-link { display:inline-flex; align-items:center; justify-content:flex-end; min-height:48px; min-width:48px; }

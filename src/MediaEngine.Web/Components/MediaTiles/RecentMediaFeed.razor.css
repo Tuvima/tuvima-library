@@ -19,3 +19,6 @@
     --home-shelf-height: calc((100vw - 32px) / 2.6 * 1.5);
     --phone-shelf-height: var(--home-shelf-height);
 }
+
+/* Phones: an item still being matched is a smaller, quieter tile that sits after the matched ones. */
+:root[data-form-factor="phone"] .recent-item--settling { --home-shelf-height: calc((100vw - 32px) / 2.6 * 1.5 * .8); opacity:.78; }

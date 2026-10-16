@@ -5,3 +5,7 @@
 .recent-filters ::deep .recent-filter.is-active { color:white; }
 .recent-filters ::deep .recent-filter.is-active::before { background:var(--tl-accent-primary); border-color:var(--tl-accent-primary); box-shadow:0 0 14px rgba(136, 82, 252,.3); }
 .recent-filters ::deep .recent-filter:hover::before { border-color:rgba(136, 82, 252,.6); }
+
+/* Phones: the filter chips stay on one line and scroll sideways instead of wrapping onto a second row. */
+:root[data-form-factor="phone"] .recent-filters { flex-wrap:nowrap; overflow-x:auto; overscroll-behavior-inline:contain; scrollbar-width:none; -webkit-overflow-scrolling:touch; }
+:root[data-form-factor="phone"] .recent-filters::-webkit-scrollbar { display:none; }

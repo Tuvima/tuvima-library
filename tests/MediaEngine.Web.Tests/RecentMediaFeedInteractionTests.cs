@@ -6,6 +6,7 @@ using MediaEngine.Web.Components.MediaTiles;
 using MediaEngine.Web.Models.ViewDTOs;
 using MediaEngine.Web.Services.Integration;
 using MediaEngine.Web.Tests.Support;
+using MediaEngine.Web.Services.Theming;
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -17,10 +18,12 @@ public sealed class RecentMediaFeedInteractionTests : AsyncBunitContext
     private readonly Guid _profile = Guid.NewGuid();
     private readonly Guid _secondProfile = Guid.NewGuid();
     private readonly List<string> _requests = [];
+    private readonly DeviceContextService _device = new(EngineApiClientStub.CreateDefault());
     private Func<string, Task<DisplayRecentPageDto?>> _read = type => Task.FromResult<DisplayRecentPageDto?>(new(type, [], null, false));
     public RecentMediaFeedInteractionTests()
     {
         JSInterop.Mode = JSRuntimeMode.Loose; Services.AddLogging();
+        Services.AddSingleton(_device);
         Services.AddSingleton<IConfiguration>(new ConfigurationBuilder().Build());
         Services.AddSingleton<AuthenticationStateProvider>(new ProfileAuth(_profile));
         Services.AddSingleton(EngineApiClientStub.Create(stub =>
@@ -128,6 +131,51 @@ public sealed class RecentMediaFeedInteractionTests : AsyncBunitContext
         Assert.DoesNotContain("Old scope", cut.Markup);
         Assert.Contains("Loading recent additions", cut.Markup);
     }
+    private static DisplayCardDto Card(string title, bool settling)
+    {
+        var asset = Guid.NewGuid(); var added = DateTimeOffset.UtcNow;
+        var fields = typeof(DisplayArtworkDto).GetProperties().Where(p => p.Name.EndsWith("Url", StringComparison.Ordinal)).ToDictionary(p => p.Name, p => $"/stream/artwork/{asset:D}?variant={p.Name}");
+        var artwork = System.Text.Json.JsonSerializer.Deserialize<DisplayArtworkDto>(System.Text.Json.JsonSerializer.Serialize(fields))!;
+        return new DisplayCardDto(asset, asset, asset, null, "Book", "work", title, null, [], artwork, "portrait", "default", "caption", "bottom", null, [], new(false, true, false, false), added) { IsSettling = settling };
+    }
+
+    [Fact]
+    public async Task PhoneHeaderHasSeeAllAndItemsStillBeingMatchedComeAfterMatchedOnes()
+    {
+        await _device.InitialiseAsync(new DeviceContextSnapshot("mobile", "phone", true));
+        _read = type =>
+        {
+            var added = DateTimeOffset.UtcNow;
+            return Task.FromResult<DisplayRecentPageDto?>(new(type,
+            [
+                new("catalogue:a", added, Card("Unsettled First", true), null),
+                new("catalogue:b", added, Card("Matched Second", false), null),
+                new("catalogue:c", added, Card("Unsettled Third", true), null),
+                new("catalogue:d", added, Card("Matched Fourth", false), null),
+            ], null, false));
+        };
+        var cut = Render<RecentMediaFeed>();
+        cut.WaitForAssertion(() => Assert.Equal(4, cut.FindAll(".recent-item").Count));
+        var order = cut.FindAll(".recent-item").Select(item => item.QuerySelector(".media-tile-caption__title, .media-tile-caption__title *")?.TextContent ?? item.TextContent).ToList();
+        Assert.Contains("Matched Second", order[0]);
+        Assert.Contains("Matched Fourth", order[1]);
+        Assert.Contains("Unsettled First", order[2]);
+        Assert.Contains("Unsettled Third", order[3]);
+        Assert.Equal(2, cut.FindAll(".recent-item--settling").Count);
+        var heading = cut.Find(".recent-feed-heading");
+        Assert.Equal("H2", heading.Children[0].TagName);
+        Assert.Equal("See All", cut.Find(".recent-view-all").TextContent.Trim());
+    }
+
+    [Fact]
+    public void DesktopHeaderKeepsViewAllAndTheEngineOrder()
+    {
+        _read = type => Task.FromResult<DisplayRecentPageDto?>(new(type, [new("catalogue:a", DateTimeOffset.UtcNow, Card("Settling", true), null)], null, false));
+        var cut = Render<RecentMediaFeed>();
+        cut.WaitForAssertion(() => Assert.Single(cut.FindAll(".recent-item")));
+        Assert.Equal("View all", cut.Find(".recent-view-all").TextContent.Trim());
+    }
+
     private static DisplayRecentPageDto Page(string type, string title) { var id = Guid.NewGuid(); var added = DateTimeOffset.UtcNow; return new(type, [new("view:" + id.ToString("N"), added, null, new(id, Guid.NewGuid(), title, "photo.jpg", "image", 800, 600, null, added))], null, false); }
     private sealed class ProfileAuth(Guid profile) : AuthenticationStateProvider
     {
