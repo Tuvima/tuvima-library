@@ -34,10 +34,10 @@ public sealed class MediaEditorLauncherService
     {
         ArgumentNullException.ThrowIfNull(request);
 
-        // Phones are consumption devices: the editor shell never opens there.
-        if (EditorPhoneRule.TryRefuse(_device, _toasts))
+        // Editing is desktop-only (fine, hover-capable pointer): the editor shell never opens anywhere else.
+        if (EditorDeviceRule.TryRefuse(_device, _toasts))
         {
-            return EditorLaunchResult.NotAvailableOnPhone;
+            return EditorLaunchResult.NotAvailableOnThisDevice;
         }
 
         var sharedTarget = request.SharedEntityTarget;

@@ -104,6 +104,42 @@ public sealed class DeviceContextServiceTests
     }
 
     [Fact]
+    public async Task SnapshotCarriesTheTwoPointerSignalsAndPublishesWhenOnlyThePointerChanges()
+    {
+        var service = new DeviceContextService(EngineApiClientStub.CreateDefault());
+        await service.InitialiseAsync(new DeviceContextSnapshot("web", "desktop", false, FinePointer: true, Hover: true));
+        var changes = 0;
+        service.OnChanged += () => changes++;
+
+        Assert.True(service.HasFinePointer);
+        Assert.True(service.CanHover);
+        Assert.True(service.CanEdit);
+
+        await service.SwitchDeviceAsync(new DeviceContextSnapshot("web", "desktop", true, FinePointer: false, Hover: false));
+
+        Assert.False(service.HasFinePointer);
+        Assert.False(service.CanHover);
+        Assert.False(service.CanEdit);
+        Assert.True(changes >= 1);
+    }
+
+    [Theory]
+    [InlineData("native-app")]
+    [InlineData("kiosk")]
+    public async Task UnrecognisedFormFactorStaysUnknownInsteadOfBecomingADesktop(string formFactor)
+    {
+        var service = new DeviceContextService(EngineApiClientStub.CreateDefault());
+
+        await service.InitialiseAsync(new DeviceContextSnapshot("web", formFactor, false, FinePointer: true, Hover: true));
+
+        Assert.Equal("unknown", service.FormFactor);
+        Assert.False(service.IsDesktop);
+        Assert.False(service.IsPhone);
+        Assert.False(service.IsTablet);
+        Assert.False(service.CanEdit);
+    }
+
+    [Fact]
     public async Task TvSnapshotKeepsTelevisionClass()
     {
         var service = new DeviceContextService(EngineApiClientStub.CreateDefault());

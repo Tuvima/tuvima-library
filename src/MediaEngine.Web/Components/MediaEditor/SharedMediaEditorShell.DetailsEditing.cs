@@ -273,27 +273,8 @@ public partial class SharedMediaEditorShell
     private static bool IsInheritedDetailsField(MediaEditorDetailsFieldPresentation field) =>
         string.Equals(field.Provenance, "Inherited", StringComparison.OrdinalIgnoreCase);
 
-    private static string NormalizeLibraryTagsForInlineSave(string value, out string? error)
-    {
-        var tags = string.IsNullOrWhiteSpace(value)
-            ? Array.Empty<string>()
-            : value.Split([',', ';', '|'], StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries)
-                .Where(tag => !string.IsNullOrWhiteSpace(tag))
-                .Distinct(StringComparer.OrdinalIgnoreCase)
-                .ToArray();
-        if (tags.Length > 30)
-        {
-            error = "Library tags are limited to 30 values.";
-            return string.Empty;
-        }
-        if (tags.Any(tag => tag.Length > 64))
-        {
-            error = "Each library tag must be 64 characters or fewer.";
-            return string.Empty;
-        }
-        error = null;
-        return string.Join("; ", tags);
-    }
+    private static string NormalizeLibraryTagsForInlineSave(string value, out string? error) =>
+        MediaEditorTagRules.NormalizeLibraryTags(value, out error);
 
     private void ClearDetailsInlineEdit()
     {

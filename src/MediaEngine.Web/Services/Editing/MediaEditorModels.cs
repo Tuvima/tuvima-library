@@ -40,6 +40,8 @@ public sealed class MediaEditorLaunchRequest
     public MediaEditorIdentityIntent IdentityIntent { get; init; } = MediaEditorIdentityIntent.None;
     public string? InitialScope { get; init; }
     public string? InitialTab { get; init; }
+    /// <summary>The artwork asset type (CoverArt, Background, Logo) the Artwork tab opens on, when it opens on one.</summary>
+    public string? InitialArtworkSlot { get; init; }
     public string? InitialCanonicalTargetGroup { get; init; }
     public Guid? ReviewItemId { get; init; }
     public string? ReviewTrigger { get; init; }

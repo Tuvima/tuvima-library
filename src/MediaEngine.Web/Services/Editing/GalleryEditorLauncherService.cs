@@ -16,10 +16,10 @@ public sealed class GalleryEditorLauncherService(
 
     public async Task<EditorLaunchResult> TryOpenAsync(GalleryEditorLaunchRequest request)
     {
-        // Phones are consumption devices: the editor shell never opens there.
-        if (EditorPhoneRule.TryRefuse(device, toasts))
+        // Editing is desktop-only (fine, hover-capable pointer): the editor shell never opens anywhere else.
+        if (EditorDeviceRule.TryRefuse(device, toasts))
         {
-            return EditorLaunchResult.NotAvailableOnPhone;
+            return EditorLaunchResult.NotAvailableOnThisDevice;
         }
 
         var dialog = await dialogService.ShowAsync<GalleryEditorShell>(

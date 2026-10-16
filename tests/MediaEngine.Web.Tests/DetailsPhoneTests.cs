@@ -23,7 +23,12 @@ public sealed class DetailsPhoneTests : AsyncBunitContext
     }
 
     private Task UseAsync(string formFactor) =>
-        _device.InitialiseAsync(new DeviceContextSnapshot(formFactor == "phone" ? "mobile" : "web", formFactor, formFactor != "desktop"));
+        _device.InitialiseAsync(new DeviceContextSnapshot(
+            formFactor == "phone" ? "mobile" : "web",
+            formFactor,
+            formFactor != "desktop",
+            FinePointer: formFactor == "desktop",
+            Hover: formFactor == "desktop"));
 
     private static DetailAction Action(string key, string label, string icon, bool primary = false) => new()
     {
@@ -126,8 +131,8 @@ public sealed class DetailsPhoneTests : AsyncBunitContext
 
         var labels = menu.FindAll("[role='menuitem']").Select(item => item.TextContent.Trim()).ToList();
         Assert.DoesNotContain("Edit details", labels);
-        Assert.Equal(1, labels.Count(label => label == "Edit on a computer or tablet"));
-        var note = menu.FindAll("[role='menuitem']").Single(item => item.TextContent.Contains("Edit on a computer or tablet"));
+        Assert.Equal(1, labels.Count(label => label == "Edit on a computer"));
+        var note = menu.FindAll("[role='menuitem']").Single(item => item.TextContent.Contains("Edit on a computer"));
         Assert.True(note.HasAttribute("disabled") || note.GetAttribute("aria-disabled") == "true");
     }
 
@@ -141,18 +146,33 @@ public sealed class DetailsPhoneTests : AsyncBunitContext
         Assert.Empty(menu.FindAll("button"));
     }
 
-    [Theory]
-    [InlineData("tablet")]
-    [InlineData("desktop")]
-    public async Task TabletAndDesktopMoreMenuKeepsTheEditItem(string formFactor)
+    [Fact]
+    public async Task DesktopWithAMouseKeepsTheEditItemInTheMoreMenu()
     {
-        await UseAsync(formFactor);
+        await UseAsync("desktop");
         var menu = Render<OverflowActionMenu>(parameters => parameters
             .Add(component => component.Actions, [Action("edit", "Edit details", "edit")]));
 
         menu.Find("button[aria-label='More actions']").Click();
 
         Assert.Contains(menu.FindAll("[role='menuitem']"), item => item.TextContent.Contains("Edit details"));
+    }
+
+    [Fact]
+    public async Task TabletShowsNothingAboutEditingInTheMoreMenu()
+    {
+        await UseAsync("tablet");
+        var onlyEdit = Render<OverflowActionMenu>(parameters => parameters
+            .Add(component => component.Actions, [Action("edit", "Edit details", "edit")]));
+        Assert.Empty(onlyEdit.FindAll("button"));
+
+        var mixed = Render<OverflowActionMenu>(parameters => parameters
+            .Add(component => component.Actions, [.. OverflowActions, Action("edit", "Edit details", "edit")]));
+        mixed.Find("button[aria-label='More actions']").Click();
+
+        var labels = mixed.FindAll("[role='menuitem']").Select(item => item.TextContent.Trim()).ToList();
+        Assert.Equal(OverflowActions.Select(action => action.Label), labels);
+        Assert.DoesNotContain("Edit on a computer", mixed.Markup, StringComparison.Ordinal);
     }
 
     [Fact]

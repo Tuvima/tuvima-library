@@ -479,6 +479,19 @@
         if (!_disposed) _searchOverlay?.Open();
     }
 
+    /// <summary>
+    /// Called by the browser observer (which registers with the full snapshot) when the form factor or the primary
+    /// pointer changes, so the editing rule always follows the live device.
+    /// </summary>
+    [JSInvokable]
+    public async Task HandleViewportChanged(DeviceContextSnapshot snapshot)
+    {
+        if (_disposed || DeviceContext.IsTelevision)
+            return;
+
+        await DeviceContext.SwitchDeviceAsync(snapshot, _activeProfileId?.ToString());
+    }
+
     [JSInvokable]
     public async Task HandleViewportDeviceClassChanged(string deviceClass)
     {

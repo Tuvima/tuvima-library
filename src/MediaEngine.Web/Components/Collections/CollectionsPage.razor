@@ -29,7 +29,7 @@
         <Actions>
             @if (CanManageCuratedCollections)
             {
-                @if (!DeviceContext.IsPhone)
+                @if (DeviceContext.CanEdit)
                 {
                     <AppButton ButtonStyle="AppButtonStyle.Filled"
                                Tone="AppUiTone.Primary"

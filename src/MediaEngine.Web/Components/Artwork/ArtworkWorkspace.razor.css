@@ -322,3 +322,13 @@
 }
 .artwork-workspace-core__preview { --preview-height:clamp(20rem,46vh,34rem); box-sizing:border-box; position:relative; display:grid; place-items:center; height:var(--preview-height); min-height:0; padding:1rem; overflow:hidden; border:1px solid var(--playback-border); border-radius:var(--tl-radius-md); background:transparent; }
 .artwork-workspace-core__preview img,.artwork-workspace-core__preview .artwork-workspace-core__image img { display:block; width:auto; height:auto; max-width:100%; max-height:calc(var(--preview-height) - 2rem); object-fit:contain; object-position:center; }
+
+/* Editing Mode drawer: the workspace in one narrow column, at the compact phone sizes. */
+.sme-shell--drawer .artwork-workspace-core__toolbar { flex-wrap: wrap; gap: .5rem; padding: .75rem .75rem .15rem; }
+.sme-shell--drawer .artwork-workspace-core__role-overview { flex-basis: 100%; gap: .45rem; }
+.sme-shell--drawer .artwork-workspace-core__layout { grid-template-columns: minmax(0, 1fr); gap: 1rem; padding: .75rem; }
+.sme-shell--drawer .artwork-workspace-core__details { order: initial; }
+.sme-shell--drawer .artwork-workspace-core__variants { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .5rem; max-height: none; }
+.sme-shell--drawer .artwork-workspace-core__variant-tile { height: 8rem; }
+.sme-shell--drawer .artwork-workspace-core__preview { --preview-height: 15rem; }
+.sme-shell--drawer .artwork-workspace-core__role-preview { width: 2.8rem; height: 2.8rem; }

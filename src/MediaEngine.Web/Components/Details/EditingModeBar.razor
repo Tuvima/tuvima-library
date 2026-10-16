@@ -1,0 +1,182 @@
+@namespace MediaEngine.Web.Components.Details
+@using MediaEngine.Contracts.Details
+@implements IDisposable
+@inject NavigationManager Nav
+
+@* The Editing Mode controls on the details hero: Edit / Done, and while the mode is on Manage Artwork, Match and
+   Identity and the shared More list. It also owns the "unsaved input" question for Done and for leaving the page. *@
+@if (Mode is { CanEdit: true })
+{
+    <NavigationLock ConfirmExternalNavigation="@Mode.HasUnsavedField"
+                    OnBeforeInternalNavigation="ConfirmNavigationAsync" />
+
+    <div class="tl-editing-bar" role="group" aria-label="Editing">
+        <EditingModeToggle Mode="Mode" OnToggle="ToggleAsync" />
+
+        @if (Mode.IsOn)
+        {
+            <AppButton ButtonStyle="AppButtonStyle.Outlined"
+                       Tone="AppUiTone.Neutral"
+                       Size="AppControlSize.Large"
+                       Class="tl-editing-bar__action"
+                       StartIcon="@AppMaterialIcons.Outlined.PhotoLibrary"
+                       Disabled="@Mode.Fields.HasOpenDraft"
+                       OnClick="@(() => Mode.OpenDrawer(EditingDrawerTab.Artwork))">
+                Manage Artwork
+            </AppButton>
+            <AppButton ButtonStyle="AppButtonStyle.Outlined"
+                       Tone="AppUiTone.Neutral"
+                       Size="AppControlSize.Large"
+                       Class="tl-editing-bar__action"
+                       StartIcon="@AppMaterialIcons.Outlined.TravelExplore"
+                       Disabled="@Mode.Fields.HasOpenDraft"
+                       OnClick="@(() => Mode.OpenDrawer(EditingDrawerTab.Match))">
+                Match and Identity
+            </AppButton>
+            <OverflowActionMenu Actions="MoreActions"
+                                Label="More"
+                                ButtonClass="tl-editing-bar__more"
+                                OnActionSelected="OnActionSelected" />
+        }
+    </div>
+
+    @if (Mode.IsOn && !string.IsNullOrWhiteSpace(Mode.Fields.LoadError))
+    {
+        <div class="tl-editing-decision" role="alert">
+            <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ErrorOutline" />
+            <div class="tl-editing-decision__copy">
+                <strong>Editing is not ready</strong>
+                <span>@Mode.Fields.LoadError You can still use Manage Artwork and Match and Identity.</span>
+            </div>
+        </div>
+    }
+
+    @if (Confirming)
+    {
+        <div class="tl-editing-decision" role="alert">
+            <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.WarningAmber" />
+            <div class="tl-editing-decision__copy">
+                <strong>@DecisionHeading</strong>
+                <span>@DecisionDetail</span>
+            </div>
+            <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" OnClick="KeepEditing">Keep editing</AppButton>
+            <AppButton ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Error" OnClick="DiscardAsync">@DiscardLabel</AppButton>
+            @if (Mode.HasUnsavedField)
+            {
+                <AppButton ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Disabled="@Mode.Fields.Saving" OnClick="SaveAndContinueAsync">
+                    @(Mode.Fields.Saving ? "Saving..." : _guard.PendingLocation is null ? "Save and finish" : "Save and leave")
+                </AppButton>
+            }
+        </div>
+    }
+}
+
+@code {
+    private readonly MediaEditorNavigationGuard _guard = new();
+    private EditingModeContext? _subscribed;
+    private bool _navigationPrompt;
+
+    private bool Confirming => Mode is { LeavePromptRequested: true } || _navigationPrompt;
+
+    [Parameter, EditorRequired] public EditingModeContext? Mode { get; set; }
+
+    /// <summary>The shared More list (the hero's own overflow actions, without Edit, which is this bar's job).</summary>
+    [Parameter] public IReadOnlyList<DetailAction> MoreActions { get; set; } = [];
+
+    [Parameter] public EventCallback<DetailAction> OnActionSelected { get; set; }
+
+    private string DecisionHeading => _guard.PendingLocation is null ? "Finish editing with unsaved input?" : "Save changes before leaving?";
+
+    private string DecisionDetail => Mode?.HasUnsavedField == true
+        ? "You typed into a field that is not saved yet."
+        : "The editor drawer still has changes that are not saved.";
+
+    private string DiscardLabel => _guard.PendingLocation is null ? "Discard and finish" : "Discard and leave";
+
+    protected override void OnParametersSet()
+    {
+        if (ReferenceEquals(_subscribed, Mode))
+        {
+            return;
+        }
+
+        if (_subscribed is not null)
+        {
+            _subscribed.Changed -= OnModeChanged;
+        }
+
+        _subscribed = Mode;
+        if (_subscribed is not null)
+        {
+            _subscribed.Changed += OnModeChanged;
+        }
+    }
+
+    public void Dispose()
+    {
+        if (_subscribed is not null)
+        {
+            _subscribed.Changed -= OnModeChanged;
+        }
+    }
+
+    private void OnModeChanged() => _ = InvokeAsync(StateHasChanged);
+
+    // Done: the context asks first when anything typed is still unsaved, otherwise it just ends the mode.
+    private Task ToggleAsync() => Mode is null ? Task.CompletedTask : Mode.ToggleAsync();
+
+    private Task ConfirmNavigationAsync(LocationChangingContext context)
+    {
+        // The drawer's editor guards its own unsaved input; this lock covers a field typed into on the page.
+        if (Mode is { IsOn: true } && _guard.Intercept(context.TargetLocation, Mode.HasUnsavedField))
+        {
+            context.PreventNavigation();
+            _navigationPrompt = true;
+            StateHasChanged();
+        }
+
+        return Task.CompletedTask;
+    }
+
+    private void KeepEditing()
+    {
+        _guard.Stay();
+        _navigationPrompt = false;
+        Mode?.DismissLeavePrompt();
+    }
+
+    private Task DiscardAsync()
+    {
+        var target = _guard.Approve();
+        _navigationPrompt = false;
+        Mode?.Leave();
+        if (target is not null)
+        {
+            Nav.NavigateTo(target);
+        }
+
+        return Task.CompletedTask;
+    }
+
+    private async Task SaveAndContinueAsync()
+    {
+        if (Mode is null)
+        {
+            return;
+        }
+
+        if (!await Mode.Fields.SaveAsync())
+        {
+            // The field stays open with its typed value and an inline error; keep asking.
+            return;
+        }
+
+        var target = _guard.Approve();
+        _navigationPrompt = false;
+        Mode.Leave();
+        if (target is not null)
+        {
+            Nav.NavigateTo(target);
+        }
+    }
+}

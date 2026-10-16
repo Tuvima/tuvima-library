@@ -1,0 +1,24 @@
+@namespace MediaEngine.Web.Components.Details
+
+@* The Edit / Done switch on the details hero. It renders only for a person who may edit this item on a device that
+   may edit (the context decides both), and it is the same control in both states: Edit when off, Done when on. *@
+@if (Mode is { CanEdit: true })
+{
+    <AppButton ButtonStyle="@(Mode.IsOn ? AppButtonStyle.Filled : AppButtonStyle.Outlined)"
+               Tone="AppUiTone.Primary"
+               Size="AppControlSize.Large"
+               Class="tl-editing-toggle"
+               StartIcon="@(Mode.IsOn ? AppMaterialIcons.Outlined.Check : AppMaterialIcons.Outlined.Edit)"
+               Disabled="@(!string.IsNullOrWhiteSpace(Mode.UnavailableReason))"
+               aria-pressed="@(Mode.IsOn ? "true" : "false")"
+               title="@Mode.UnavailableReason"
+               OnClick="OnToggle">
+        @(Mode.IsOn ? "Done" : "Edit")
+    </AppButton>
+}
+
+@code {
+    [Parameter, EditorRequired] public EditingModeContext? Mode { get; set; }
+
+    [Parameter] public EventCallback OnToggle { get; set; }
+}

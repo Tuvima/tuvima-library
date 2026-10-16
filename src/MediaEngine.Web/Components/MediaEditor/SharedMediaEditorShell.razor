@@ -13,9 +13,11 @@
 <NavigationLock ConfirmExternalNavigation="@HasPendingNavigationChanges"
                 OnBeforeInternalNavigation="ConfirmNavigationWithUnsavedChanges" />
 
-<MediaEditorSurface Inline="@Inline" HeroConstrained="@HeroConstrained">
-        <div class="sme-shell @(HeroConstrained ? "sme-shell--hero" : string.Empty)">
+<MediaEditorSurface Inline="@Inline" HeroConstrained="@(HeroConstrained || Drawer)">
+        <div class="sme-shell @(HeroConstrained ? "sme-shell--hero" : string.Empty) @(Drawer ? "sme-shell--drawer" : string.Empty)">
 
+                    @if (!Drawer)
+                    {
                     <EditorHeaderSection
                         SmallEditorArtworkUrl="@((string? url) => SmallEditorArtworkUrl(url))"
                         EditorArtworkSrcSet="@((string? url) => EditorArtworkSrcSet(url))"
@@ -47,6 +49,7 @@
                         Saving="@(_saving)"
                         PreviewItems="@(Request.PreviewItems)"
                         WikidataUrl="@(StaticHeaderIdentity?.WikidataQid is { } qid && !string.IsNullOrWhiteSpace(qid) ? ProviderCatalogue.GetExternalUrl("wikidata_qid", qid, EditorMediaType)?.Url : null)" />
+                    }
                             @if (!IsSharedEntityMode && HasContextNavigator && EditorContextLevels.Count > 0)
             {
                 <div class="sme-context-band">
@@ -107,7 +110,7 @@
                 </div>
             }
 
-            @if (Inline && _confirmDiscard)
+            @if (Inline && !Drawer && _confirmDiscard)
             {
                 <div class="sme-inline-decision" role="alert">
                     <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.WarningAmber" />
@@ -146,7 +149,7 @@
                 </div>
             }
 
-            @if (Inline && _pendingMembershipPreview is not null)
+            @if (Inline && !Drawer && _pendingMembershipPreview is not null)
             {
                 <div class="sme-inline-decision" role="status">
                     <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.AccountTree" />
@@ -201,7 +204,7 @@
             else
             {
             <div class="sme-workspace">
-                <nav class="sme-section-nav" aria-label="Editor sections">
+                <nav class="sme-section-nav @(Drawer ? "sme-section-nav--drawer" : string.Empty)" aria-label="@(Drawer ? "Editing sections" : "Editor sections")">
                     @for (var index = 0; index < Tabs.Count; index++)
                     {
                         var tabIndex = index;
@@ -217,7 +220,7 @@
                         </AppButton>
                     }
 
-                    @if (IsSingleItem && _activeTab != "details")
+                    @if (IsSingleItem && _activeTab != "details" && !Drawer)
                     {
                         <div class="sme-section-nav__footer">
                             <AppTooltip Text="@WritebackPolicyExplanation">

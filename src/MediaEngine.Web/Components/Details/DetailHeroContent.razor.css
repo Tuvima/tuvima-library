@@ -1045,3 +1045,22 @@
         text-wrap: balance;
     }
 }
+
+/* Editing Mode: the hero drops its reserved headroom above the title so open field editors still fit. */
+.tl-detail-hero__inner--editing.tl-detail-hero__inner--editing .tl-detail-hero__identity.tl-detail-hero__identity {
+    height: auto;
+    min-height: 0;
+}
+
+/* Editing Mode: an open field editor adds height, so the copy scrolls inside the hero instead of being clipped by it. */
+.tl-detail-hero__inner--editing .tl-detail-hero__copy {
+    max-height: calc(95svh - 12rem);
+    overflow-y: auto;
+    padding-inline-end: var(--tl-space-2);
+    scrollbar-width: thin;
+}
+
+/* Editing Mode: the title pencil sits under the title or logo, and the slot disappears when there is no pencil. */
+.tl-detail-hero__edit-slot:empty {
+    display: none;
+}

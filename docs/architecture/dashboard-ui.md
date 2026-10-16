@@ -367,7 +367,9 @@ Shared `App*` controls render native HTML and SVG. `Services/Ui` holds the scope
 `AppPopoverService`; Main, Popup, Reader and SetupWizard layouts mount their
 hosts. Native modal dialogs preserve focus return, typed parameters/results,
 configured close behavior and editor close interception. The media editor remains
-a modal over the current detail URL. Toasts retain severity, stacking, dismissal
+a modal for Review, browse shells and Recently Added; on a single item's detail page
+it is re-housed as the Editing Mode drawer beside the unchanged detail URL (see
+[Inline media editing](inline-media-editing.md)). Toasts retain severity, stacking, dismissal
 and asynchronous actions such as Undo. Popup ownership follows the active dialog
 or fullscreen container; popup geometry remains a client presentation concern.
 

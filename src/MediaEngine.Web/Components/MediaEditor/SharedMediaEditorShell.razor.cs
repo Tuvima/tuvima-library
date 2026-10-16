@@ -81,10 +81,11 @@ public partial class SharedMediaEditorShell
             });
         }
         await SynchronizeDetailsDialogEscapeAsync();
-        if (firstRender && Inline)
+        if (firstRender && Inline && !Drawer)
         {
             await JS.InvokeVoidAsync("tuvimaEditorFocus", ".sme-title");
         }
+        await ReportDrawerStateAsync();
         if (_scrollToEpisodePlacement)
         {
             _scrollToEpisodePlacement = false;
@@ -219,7 +220,13 @@ public partial class SharedMediaEditorShell
     private string _lastNonFileTab => _tabState.LastNonFileTab;
     private bool _showArtworkUrlInput;
     private bool _matchActionPending;
-    private bool _hasCommittedChanges;
+    // Counts commits so a host (the Editing Mode drawer) can refresh whatever it shows after each one.
+    private int _commitVersion;
+    private bool _hasCommittedChanges
+    {
+        get => _commitVersion > 0;
+        set => _commitVersion = value ? _commitVersion + 1 : 0;
+    }
     private string? _matchActionStatus;
     private Guid? _matchIdentityJobId;
     private MediaEditorMembershipPreviewDto? _pendingMembershipPreview;
@@ -396,7 +403,7 @@ public partial class SharedMediaEditorShell
         || (HasStagedEditorChanges && !HasPendingDetailsInlineEdit)
         || Request.Mode == SharedMediaEditorMode.Review;
     protected bool ShouldShowNonInlineEditorFooter =>
-        !Inline && (_confirmDiscard || (ShouldShowEditorFooter && _activeTab != "links"));
+        (!Inline || Drawer) && (_confirmDiscard || (ShouldShowEditorFooter && _activeTab != "links"));
     private bool _automaticArtworkRestoring;
     protected bool IsArtworkBusy => _automaticArtworkRestoring || _artworkUrlSubmitting || _providerArtworkRefreshing
                                     || _artworkApplyingKeys.Count > 0 || _editionCoverReviewing || _editionCoverSaving;
@@ -892,6 +899,11 @@ public partial class SharedMediaEditorShell
             if (IsFileScope)
             {
                 _tabState.Activate("details");
+            }
+
+            if (resetEditorState && HasArtworkSlot(Request.InitialArtworkSlot))
+            {
+                ApplyArtworkSlotSelection(Request.InitialArtworkSlot!);
             }
 
             EnsureActiveTabVisible();
@@ -5941,6 +5953,7 @@ public partial class SharedMediaEditorShell
         }
 
         return TabDisplayOrder
+            .Where(tabId => !(Drawer && tabId == "history"))
             .Where(IsTabVisible)
             .Select(tabId => (tabId, GetTabLabel(tabId), GetTabIcon(tabId)))
             .ToList();
@@ -6131,7 +6144,7 @@ public partial class SharedMediaEditorShell
         {
             "details" => "Details",
             "artwork" => "Artwork",
-            "links" => "Match & Identity",
+            "links" => Drawer ? "Match and Identity" : "Match & Identity",
             "history" => "History",
             _ => CultureInfo.CurrentCulture.TextInfo.ToTitleCase(tabId.Replace('_', ' ')),
         };
@@ -7475,6 +7488,7 @@ public partial class SharedMediaEditorShell
             return;
         }
         _tabState.Activate(normalized);
+        await NotifyDrawerTabAsync(normalized);
         Task? scopedMatchTask = null;
         if (string.Equals(normalized, "links", StringComparison.OrdinalIgnoreCase))
         {

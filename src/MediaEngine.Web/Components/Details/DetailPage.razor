@@ -24,10 +24,13 @@
 @inject IAppToastService Snackbar
 @inject IJSRuntime Js
 @inject IAppDialogService Dialogs
+@inject ILogger<DetailPage> Logger
+@implements IDisposable
 
 @if (Model is not null)
 {
-    <article class="tl-detail-page">
+    <CascadingValue Value="_editing" IsFixed="true">
+    <article class="@ArticleClass">
         <section class="@DetailStageClass">
             <DetailHero Model="Model"
                         OnActionSelected="HandleDetailActionAsync"
@@ -155,7 +158,13 @@
                 <DetailsTab Model="Model" />
             }
         </section>
+
+        <EditingDrawer Mode="_editing"
+                       BuildRequest="BuildDrawerRequest"
+                       ItemTitle="@Model.Title"
+                       OnCommitted="RefreshAfterDrawerCommitAsync" />
     </article>
+    </CascadingValue>
 }
 
 @code {
@@ -180,8 +189,121 @@
         || MediaKindClassifier.IsAudiobook(Model?.Facts?.MediaKind)
         || Model?.OwnedFormats.Any(format => format.FormatType == MediaFormatType.Audiobook) == true;
     private bool ShowDetailNavigation => Model?.EntityType != DetailEntityType.Person;
-    private bool CanEditMedia => !DeviceContext.IsPhone && Model?.OverflowActions.Any(action =>
+    // The Engine only offers "edit" to a person who may edit; the device rule is checked here again at the handler.
+    private bool CanEditMedia => DeviceContext.CanEdit && Model?.OverflowActions.Any(action =>
         !action.IsDisabled && action.Key is "edit" or "edit-media") == true;
+
+    // Editing Mode (the in-page drawer) is for single items. Collections, series shelves and people keep their own editors.
+    private EditingModeContext? _editing;
+    private Guid? _editingProfileId;
+
+    private string ArticleClass => _editing is { DrawerOpen: true } ? "tl-detail-page tl-detail-page--editing-drawer" : "tl-detail-page";
+
+    protected override void OnInitialized()
+    {
+        _editing = new EditingModeContext(DeviceContext, new ItemFieldEditSession(ApiClient, DeviceContext, Logger))
+        {
+            Loader = LoadEditingFieldsAsync,
+        };
+        _editing.Changed += OnEditingChanged;
+        _editing.Fields.Saved += RefreshAfterFieldSavedAsync;
+        UpdateEditingEligibility();
+    }
+
+    protected override void OnParametersSet() => UpdateEditingEligibility();
+
+    public void Dispose()
+    {
+        if (_editing is null)
+        {
+            return;
+        }
+
+        _editing.Changed -= OnEditingChanged;
+        _editing.Fields.Saved -= RefreshAfterFieldSavedAsync;
+        _editing.Dispose();
+    }
+
+    private void OnEditingChanged() => _ = InvokeAsync(StateHasChanged);
+
+    private void UpdateEditingEligibility()
+    {
+        if (_editing is null)
+        {
+            return;
+        }
+
+        var editAction = Model?.OverflowActions.FirstOrDefault(action => action.Key is "edit" or "edit-media");
+        _editing.HasPermission = editAction is not null && SupportsEditingMode;
+        _editing.UnavailableReason = editAction is { IsDisabled: true }
+            ? editAction.Tooltip ?? "Editing is not available right now."
+            : null;
+    }
+
+    private bool SupportsEditingMode =>
+        Model is not null
+        && Model.EntityType != DetailEntityType.Person
+        && Guid.TryParse(Model.Id, out var entityId)
+        && ResolveEditorTarget(entityId).EntityKind is not ("Person" or "StructuralCollection" or "Collection");
+
+    private async Task LoadEditingFieldsAsync()
+    {
+        if (_editing is null || Model is null || !Guid.TryParse(Model.Id, out var entityId))
+        {
+            return;
+        }
+
+        var target = ResolveEditorTarget(entityId);
+        var profile = await Orchestrator.GetActiveProfileAsync();
+        _editingProfileId = profile?.Id;
+        await _editing.Fields.LoadAsync(
+            target.EntityId,
+            ResolveEditorMediaType(Model.EntityType, Model.PresentationContext),
+            target.InitialScope,
+            _editingProfileId);
+    }
+
+    private MediaEditorLaunchRequest? BuildDrawerRequest(string tab, string? artworkSlot)
+    {
+        if (Model is null || !Guid.TryParse(Model.Id, out var entityId))
+        {
+            return null;
+        }
+
+        return BuildMediaEditorRequest(entityId, ResolveEditorTarget(entityId), _editingProfileId, tab, artworkSlot);
+    }
+
+    // A field saved from a pencil: the item is already updated, so refresh what the page shows. A failed refresh
+    // never undoes the save; the page simply keeps what it had until the next load.
+    private async Task RefreshAfterFieldSavedAsync(string fieldKey)
+    {
+        try
+        {
+            await RefreshCurrentDetailAsync();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "The detail page could not refresh after {Field} was saved", fieldKey);
+            Snackbar.Add("Saved, but the page could not refresh. Reload to see the change.", AppSeverity.Warning);
+        }
+    }
+
+    private async Task RefreshAfterDrawerCommitAsync()
+    {
+        try
+        {
+            await RefreshCurrentDetailAsync();
+            if (_editing is { Fields.HasOpenDraft: false })
+            {
+                await LoadEditingFieldsAsync();
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "The detail page could not refresh after the editor drawer saved a change");
+            Snackbar.Add("Saved, but the page could not refresh. Reload to see the change.", AppSeverity.Warning);
+        }
+    }
 
     private bool HasPrimaryModuleBeforeNavigation => false;
 
@@ -264,7 +386,17 @@
         }
         if (action.Key is "edit-media" or "edit")
         {
-            if (action.IsDisabled || !CanEditMedia) return;
+            if (action.IsDisabled) return;
+            if (EditorDeviceRule.TryRefuse(DeviceContext, Snackbar)) return;
+            if (!CanEditMedia) return;
+
+            // Single items edit in place; shelves, collections and people keep their own editor dialogs.
+            if (_editing is { HasPermission: true })
+            {
+                await _editing.ToggleAsync();
+                return;
+            }
+
             await OpenMediaEditorAsync();
             return;
         }
@@ -416,34 +548,7 @@
                 return;
             }
 
-            var request = new MediaEditorLaunchRequest
-            {
-                EntityIds = [target.EntityId],
-                LaunchEntityId = target.EntityId,
-                LaunchEntityKind = target.EntityKind,
-                ContainerMode = target.ContainerMode,
-                ActiveProfileId = activeProfile?.Id,
-                InitialMediaGroups = Model.MediaGroups,
-                InitialSequencePlacement = Model.SequencePlacement,
-                Mode = SharedMediaEditorMode.Normal,
-                InitialTab = target.InitialTab ?? "details",
-                InitialScope = target.InitialScope,
-                MediaType = ResolveEditorMediaType(Model.EntityType, Model.PresentationContext),
-                HeaderTitle = Model.Title,
-                HeaderSubtitle = Model.Subtitle,
-                CoverUrl = Model.Artwork.CoverUrl ?? Model.Artwork.PosterUrl ?? Model.Artwork.PortraitUrl,
-                OnArtworkChanged = RefreshAfterEditorArtworkChangeAsync,
-                PreviewItems =
-                [
-                    new MediaEditorPreviewItem
-                    {
-                        EntityId = entityId,
-                        Title = Model.Title,
-                        CoverUrl = Model.Artwork.CoverUrl ?? Model.Artwork.PosterUrl ?? Model.Artwork.PortraitUrl,
-                        MediaType = ResolveEditorMediaType(Model.EntityType, Model.PresentationContext),
-                    },
-                ],
-            };
+            var request = BuildMediaEditorRequest(entityId, target, activeProfile?.Id, target.InitialTab ?? "details", null)!;
 
             var applied = await MediaEditorLauncher.OpenAsync(request);
             if (applied)
@@ -456,6 +561,52 @@
         {
             Snackbar.Add($"Media editor could not open: {ex.Message}", AppSeverity.Error);
         }
+    }
+
+    // One request shape for the modal (people, and any caller outside Editing Mode) and for the Editing Mode drawer.
+    private MediaEditorLaunchRequest? BuildMediaEditorRequest(
+        Guid entityId,
+        (Guid EntityId, string EntityKind, string ContainerMode, string? InitialTab, string? InitialScope) target,
+        Guid? activeProfileId,
+        string initialTab,
+        string? initialArtworkSlot)
+    {
+        if (Model is null)
+        {
+            return null;
+        }
+
+        var coverUrl = Model.Artwork.CoverUrl ?? Model.Artwork.PosterUrl ?? Model.Artwork.PortraitUrl;
+        var mediaType = ResolveEditorMediaType(Model.EntityType, Model.PresentationContext);
+        return new MediaEditorLaunchRequest
+        {
+            EntityIds = [target.EntityId],
+            LaunchEntityId = target.EntityId,
+            LaunchEntityKind = target.EntityKind,
+            ContainerMode = target.ContainerMode,
+            ActiveProfileId = activeProfileId,
+            InitialMediaGroups = Model.MediaGroups,
+            InitialSequencePlacement = Model.SequencePlacement,
+            Mode = SharedMediaEditorMode.Normal,
+            InitialTab = initialTab,
+            InitialArtworkSlot = initialArtworkSlot,
+            InitialScope = target.InitialScope,
+            MediaType = mediaType,
+            HeaderTitle = Model.Title,
+            HeaderSubtitle = Model.Subtitle,
+            CoverUrl = coverUrl,
+            OnArtworkChanged = RefreshAfterEditorArtworkChangeAsync,
+            PreviewItems =
+            [
+                new MediaEditorPreviewItem
+                {
+                    EntityId = entityId,
+                    Title = Model.Title,
+                    CoverUrl = coverUrl,
+                    MediaType = mediaType,
+                },
+            ],
+        };
     }
 
     private async Task OpenEpisodeEditorAsync(SequenceItemViewModel item)
