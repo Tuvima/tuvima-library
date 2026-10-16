@@ -304,6 +304,31 @@ export const LINK_PAGES = [
         body: `<div id="host"><template shadowrootmode="open"><a id="vector" href="${LINK_EVIL}shadow">shadow link</a></template></div>`,
     },
 ];
+/**
+ * Forms (FIX-5b). The frame's policy already refuses a submission (`form-action 'none'` in the page, no `allow-forms` in the
+ * sandbox), so these pages are what the clean-up and the submit handler must also stop when neither of those is there. Each is
+ * one way of sending the frame to an outside address on a tap: a form whose `action` is outside, a submit button with its own
+ * `formaction`, and an image button (`<input type="image">`, which submits at the point it was tapped). The last page is the
+ * same attack in a page read as text/html. `click` is always the control a tap should reach.
+ */
+export const FORM_PAGES = [
+    {
+        name: 'form-action', type: XHTML_PAGE, click: '#vector',
+        body: `<form id="f" action="${LINK_EVIL}form" method="get"><p><input type="text" name="q" value="x"/><button id="vector" type="submit">send</button></p></form>`,
+    },
+    {
+        name: 'button-formaction', type: XHTML_PAGE, click: '#vector',
+        body: `<form id="f" method="get"><p><button id="vector" type="submit" formaction="${LINK_EVIL}button">send</button></p></form>`,
+    },
+    {
+        name: 'image-input', type: XHTML_PAGE, click: '#vector',
+        body: `<form id="f" action="${LINK_EVIL}image" method="get"><p><input id="vector" type="image" src="${LINK_PIXEL}" width="200" height="120" alt="go"/></p></form>`,
+    },
+    {
+        name: 'form-action-html', type: HTML_PAGE, click: '#vector',
+        body: `<table><tr><td><form id="f" action="${LINK_EVIL}table" method="get"><input type="text" name="q" value="x"><input id="vector" type="submit" value="send" formaction="${LINK_EVIL}table-button"></form></td></tr></table>`,
+    },
+];
 /** Anchors every link page also carries: only the first two may ever be opened, and the last is a link inside the book. */
 export const LINK_ANCHORS = '<p><a id="web" href="https://example.org/ok">web</a> <a id="mail" href="mailto:reader@example.org">mail</a> <a id="ftp" href="ftp://example.org/file">ftp</a> <a id="tel" href="tel:+15550100">tel</a> <a id="js" href="javascript:window.__x=1">js</a> <a id="local" href="#after">local</a></p>';
 /** One page as the book would ship it, in the type the manifest gives it. */
@@ -311,18 +336,18 @@ export const linkPageText = page => page.type === HTML_PAGE
     ? `<!DOCTYPE html><html><head><title>${page.name}</title></head><body><p id="top">${page.name}</p>${page.body}${LINK_ANCHORS}<p id="after">after</p></body></html>`
     : `<?xml version="1.0" encoding="utf-8"?>\n<html xmlns="http://www.w3.org/1999/xhtml"><head><title>${page.name}</title></head><body><p id="top">${page.name}</p>${page.body}${LINK_ANCHORS}<p id="after">after</p></body></html>`;
 
-export function buildLinkEpub(file) {
+export function buildLinkEpub(file, pages = LINK_PAGES, title = 'Link Fixture') {
     const zip = new ZipFile(file);
     zip.add('mimetype', 'application/epub+zip', { store: true });
     zip.add('META-INF/container.xml', CONTAINER);
-    const manifest = LINK_PAGES.map((page, i) => `<item id="p${i}" href="text/${page.name}.${page.type === HTML_PAGE ? 'html' : 'xhtml'}" media-type="${page.type}"/>`).join('');
-    const spine = LINK_PAGES.map((_, i) => `<itemref idref="p${i}"/>`).join('');
+    const manifest = pages.map((page, i) => `<item id="p${i}" href="text/${page.name}.${page.type === HTML_PAGE ? 'html' : 'xhtml'}" media-type="${page.type}"/>`).join('');
+    const spine = pages.map((_, i) => `<itemref idref="p${i}"/>`).join('');
     zip.add('OEBPS/content.opf', `<?xml version="1.0" encoding="utf-8"?>
 <package xmlns="http://www.idpf.org/2007/opf" version="3.0" unique-identifier="bookid">
-<metadata xmlns:dc="http://purl.org/dc/elements/1.1/"><dc:identifier id="bookid">urn:uuid:88888888-2222-3333-4444-555555555555</dc:identifier><dc:title>Link Fixture</dc:title><dc:creator>Test Author</dc:creator><dc:language>en</dc:language><meta property="dcterms:modified">2026-10-16T00:00:00Z</meta></metadata>
+<metadata xmlns:dc="http://purl.org/dc/elements/1.1/"><dc:identifier id="bookid">urn:uuid:88888888-2222-3333-4444-555555555555</dc:identifier><dc:title>${title}</dc:title><dc:creator>Test Author</dc:creator><dc:language>en</dc:language><meta property="dcterms:modified">2026-10-16T00:00:00Z</meta></metadata>
 <manifest><item id="nav" href="nav.xhtml" media-type="application/xhtml+xml" properties="nav"/>${manifest}</manifest><spine>${spine}</spine></package>`);
-    zip.add('OEBPS/nav.xhtml', nav(['image-map']));
-    for (const page of LINK_PAGES) zip.add(`OEBPS/text/${page.name}.${page.type === HTML_PAGE ? 'html' : 'xhtml'}`, linkPageText(page));
+    zip.add('OEBPS/nav.xhtml', nav([pages[0].name]));
+    for (const page of pages) zip.add(`OEBPS/text/${page.name}.${page.type === HTML_PAGE ? 'html' : 'xhtml'}`, linkPageText(page));
     zip.close();
 }
 
