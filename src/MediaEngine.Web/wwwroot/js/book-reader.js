@@ -572,7 +572,11 @@ export function bookCss({ theme, fontSize, lineHeight, font }) {
         p, li, blockquote, dd { line-height: ${spacing}; widows: 2; orphans: 2; }
         [align="left"] { text-align: left; } [align="right"] { text-align: right; }
         [align="center"] { text-align: center; } [align="justify"] { text-align: justify; }
-        pre { white-space: pre-wrap !important; }
+        pre, code { white-space: pre-wrap !important; }
+        /* Reflowable pages only (fixed-layout books never get this sheet): nothing may be wider than its page column,
+           so printed contents lists, wide tables and fixed-width blocks wrap instead of spilling onto the next page. */
+        body * { max-width: 100% !important; box-sizing: border-box; overflow-wrap: anywhere; }
+        table { table-layout: fixed; width: 100% !important; }
         aside[epub|type~="endnote"], aside[epub|type~="footnote"], aside[epub|type~="note"], aside[epub|type~="rearnote"] { display: none; }
     `;
 }
@@ -760,10 +764,29 @@ function bindInput(state) {
     });
 }
 
+/**
+ * A reflowable page must wrap inside its column. A stylesheet that says `white-space: nowrap` (printed contents lists
+ * with dotted leaders are the usual case) cannot be undone from the shared sheet without also breaking `pre-wrap` /
+ * `pre-line` poetry, so only the elements that really compute to nowrap are set back to normal.
+ */
+export function unwrapNoWrap(doc) {
+    const view = doc?.defaultView;
+    if (!view || !doc.body) return 0;
+    let changed = 0;
+    for (const el of doc.body.querySelectorAll('*')) {
+        if (view.getComputedStyle(el).whiteSpace === 'nowrap') {
+            el.style.setProperty('white-space', 'normal', 'important');
+            changed++;
+        }
+    }
+    return changed;
+}
+
 function onSectionLoad(state, doc, index) {
     if (state.disposed) return;
     const win = doc.defaultView;
     const frame = win?.frameElement;
+    if (!state.view?.isFixedLayout) unwrapNoWrap(doc);
     doc.addEventListener('keydown', e => onKey(state, e));
     // A tap that only dismisses a text selection is not a page turn.
     doc.addEventListener('pointerdown', () => { state.suppressTap = state.selection !== null; }, true);

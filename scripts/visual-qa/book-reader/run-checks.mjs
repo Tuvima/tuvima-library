@@ -13,7 +13,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
-import { buildBigEpub, buildHostileEpub, buildPictureEpub, buildRegressionEpub, PICTURE_PAGES } from './epub-fixtures.mjs';
+import { buildBigEpub, buildHostileEpub, buildFrontMatterEpub, buildPictureEpub, buildRegressionEpub, FRONT_MATTER_PAGES, PICTURE_PAGES } from './epub-fixtures.mjs';
 import { startServer } from './serve.mjs';
 import {
     GUIDS, bookFrames, bookUrl, ensureDir, fixturesDir, frameWith, lastRelocation, loadPlaywright,
@@ -39,6 +39,7 @@ const epub = path.join(dir, 'regression.epub');
 const hostile = path.join(dir, 'hostile.epub');
 const big = path.join(dir, 'big-3mb.epub');
 const pictures = path.join(dir, 'pictures.epub');
+const frontMatter = path.join(dir, 'front-matter.epub');
 const textFile = path.join(dir, 'not-a-book.epub');
 fs.writeFileSync(textFile, 'This is plain text, not a zip file. '.repeat(40));
 
@@ -52,11 +53,12 @@ console.log(`Browser: ${browserName} ${browser.version()}`);
 
 // The "web" (an outside tracker) is a second server so we can see whether the book ever reaches out.
 const outside = await startServer();
-const server = await startServer({ books: { [GUIDS.regression]: epub, [GUIDS.notABook]: textFile, [GUIDS.hostile]: hostile, [GUIDS.big5]: big, [GUIDS.pictures]: pictures } });
+const server = await startServer({ books: { [GUIDS.regression]: epub, [GUIDS.notABook]: textFile, [GUIDS.hostile]: hostile, [GUIDS.big5]: big, [GUIDS.pictures]: pictures, [GUIDS.frontMatter]: frontMatter } });
 buildRegressionEpub(epub, { trackerOrigin: outside.origin });
 buildHostileEpub(hostile);
 buildBigEpub(big, 3);
 buildPictureEpub(pictures);
+buildFrontMatterEpub(frontMatter);
 
 const phone = { viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true, deviceScaleFactor: 2 };
 const desktop = { viewport: { width: 1280, height: 800 } };
@@ -223,6 +225,57 @@ await check('the page rules alone stop scripts and outside requests, even if the
     assert(out.ran === null, `a script ran: ${out.ran}`);
     assert(outside.log.length === 0, `the page reached the outside: ${JSON.stringify(outside.log)}`);
     await context.close();
+});
+
+await check('front matter (printed contents, wide table, pre, fixed width, oversize picture) never spills past its page column at 390, 820, 1280 and 1920', async () => {
+    const report = [];
+    for (const width of [390, 820, 1280, 1920]) {
+        const context = await browser.newContext({ viewport: { width, height: width < 600 ? 844 : 900 }, hasTouch: width < 600, isMobile: width < 600, deviceScaleFactor: 1 });
+        const { page } = await openCheckPage(context, server.origin);
+        try {
+            const opened = await openBook(page, bookUrl(GUIDS.frontMatter), {});
+            assert(opened.ok, `open failed at ${width}: ${opened.code} ${opened.message}`);
+            for (const [index, name] of FRONT_MATTER_PAGES.entries()) {
+                await page.evaluate(i => window.br.goTo(i), index);
+                await sleep(600);
+                const found = await waitFor(async () => {
+                    for (const frame of bookFrames(page)) {
+                        try {
+                            const text = await frame.evaluate(() => document.body?.textContent ?? '');
+                            if (text.length > 20) {
+                                return await frame.evaluate(() => {
+                                    const root = document.documentElement;
+                                    const columnWidth = parseFloat(getComputedStyle(root).columnWidth) || root.clientWidth;
+                                    const gap = parseFloat(getComputedStyle(root).columnGap) || 0;
+                                    const stride = columnWidth + gap;
+                                    const offenders = [];
+                                    for (const el of document.body.querySelectorAll('*')) {
+                                        // A block that runs across columns has one rectangle per column; judge each piece.
+                                        for (const box of el.getClientRects()) {
+                                            if (box.width === 0 || box.height === 0) continue;
+                                            const column = Math.floor((box.left - gap / 2 + 0.5) / stride);
+                                            const columnEnd = gap / 2 + column * stride + columnWidth;
+                                            if (box.right > columnEnd + 4 || box.width > columnWidth + 4) {
+                                                offenders.push(`${el.tagName.toLowerCase()}${el.className ? '.' + String(el.className).split(' ')[0] : ''} +${Math.round(Math.max(box.right - columnEnd, box.width - columnWidth))}px`);
+                                                break;
+                                            }
+                                        }
+                                    }
+                                    return { columnWidth: Math.round(columnWidth), offenders: offenders.slice(0, 6), count: offenders.length, title: document.title };
+                                });
+                            }
+                        } catch { /* frame navigating */ }
+                    }
+                    return null;
+                }, { label: `the ${name} page at ${width}` });
+                assert(found.count === 0, `${name} at ${width}px (column ${found.columnWidth}px): ${found.count} element(s) spill: ${found.offenders.join(', ')}`);
+            }
+            report.push(String(width));
+        } finally {
+            await context.close();
+        }
+    }
+    return `no spill at ${report.join(', ')}`;
 });
 
 await check('book links: outside links open safely, chapter links navigate', () => withBook(desktop, {}, async ({ page, context }) => {

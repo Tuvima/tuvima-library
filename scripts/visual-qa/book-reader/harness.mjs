@@ -21,6 +21,7 @@ export const GUIDS = {
     notABook: '00000000-0000-4000-8000-0000000000aa',
     hostile: '00000000-0000-4000-8000-0000000000bb',
     pictures: '00000000-0000-4000-8000-0000000000cc',
+    frontMatter: '00000000-0000-4000-8000-0000000000dd',
 };
 
 export const bookUrl = id => `/engine-book/${id}/file`;
