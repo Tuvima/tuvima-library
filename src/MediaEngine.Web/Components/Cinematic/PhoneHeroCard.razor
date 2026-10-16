@@ -36,11 +36,14 @@
                         <span class="phone-hero__tag">Still being matched</span>
                     }
                 </div>
-                @if (!string.IsNullOrWhiteSpace(Art.LogoUrl))
-                {
-                    <img class="phone-hero__logo" src="@Art.LogoUrl" alt="" decoding="async" />
-                }
-                <h1 class="@(string.IsNullOrWhiteSpace(Art.LogoUrl) ? "phone-hero__title" : "phone-hero__title sr-only")">@Hero.Title</h1>
+                @* The logo zone is a fixed two-line box: a logo scales to fit inside it, and a title with no logo is drawn as text in it. *@
+                <div class="phone-hero__title-zone">
+                    @if (!string.IsNullOrWhiteSpace(Art.LogoUrl))
+                    {
+                        <img class="phone-hero__logo" src="@Art.LogoUrl" alt="" decoding="async" />
+                    }
+                    <h1 class="@(string.IsNullOrWhiteSpace(Art.LogoUrl) ? "phone-hero__title" : "phone-hero__title sr-only")">@Hero.Title</h1>
+                </div>
                 <p class="phone-hero__meta">@PhoneHeroPresentation.MetaLine(Hero)</p>
                 <div class="phone-hero__progress-slot">
                     @if (ProgressPercent is > 0 and < 99.5)
@@ -53,12 +56,17 @@
                     {
                         <AppNativeButton Type="button"
                                          Class="phone-hero__primary"
+                                         AriaLabel="@PrimaryText.Full"
                                          OnClick="@(_ => OnAction.InvokeAsync(Primary))">
                             @if (PrimaryIcon is not null)
                             {
                                 <AppMaterialIcon Icon="@PrimaryIcon" Class="phone-hero__primary-icon" />
                             }
-                            <span class="phone-hero__primary-label">@Primary.Label</span>
+                            <span class="phone-hero__primary-label">@PrimaryText.Text</span>
+                            @if (!string.IsNullOrWhiteSpace(PrimaryText.Detail))
+                            {
+                                <span class="phone-hero__primary-detail">@PrimaryText.Detail</span>
+                            }
                         </AppNativeButton>
                     }
                     @if (MyList is not null)
@@ -146,6 +154,7 @@
 
     private DiscoveryHeroViewModel? Hero => Slides.Count == 0 ? null : Slides[Math.Clamp(ActiveIndex, 0, Slides.Count - 1)];
     private PhoneHeroArtwork Art => Hero is null ? new(PhoneHeroArt.Placeholder, null, null) : PhoneHeroPresentation.ResolveArt(Hero);
+    private PhoneHeroPrimaryLabel PrimaryText => Hero is null ? new(Primary?.Label ?? string.Empty, null) : PhoneHeroPresentation.PrimaryLabel(Hero);
     private string CardClass => $"phone-hero__card phone-hero__card--{Art.Mode.ToString().ToLowerInvariant()}";
 
     private string? PrimaryIcon => Primary?.Icon switch

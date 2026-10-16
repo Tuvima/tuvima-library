@@ -5582,7 +5582,9 @@ html[data-form-factor="tv"] .tl-detail-hero__synopsis {
     align-items: center;
     justify-content: center;
     gap: var(--tl-space-2, 0.5rem);
+    min-width: 0;
     min-height: var(--phone-hero-tap);
+    max-height: var(--phone-hero-tap);
     padding: 0 var(--tl-space-4, 1rem);
     border: 0;
     border-radius: var(--tl-radius-pill, 999px);
