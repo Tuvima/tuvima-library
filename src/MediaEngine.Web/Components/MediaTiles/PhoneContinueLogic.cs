@@ -74,7 +74,11 @@ public static class PhoneContinueLogic
 
     private static string? RemainingText(double? seconds)
     {
-        if (seconds is not > 0 || !double.IsFinite(seconds.Value)) return null;
+        if (seconds is not > 0 || !double.IsFinite(seconds.Value))
+        {
+            return null;
+        }
+
         var minutes = (int)Math.Ceiling(seconds.Value / 60);
         return minutes >= 60
             ? $"{minutes / 60} hr{(minutes % 60 == 0 ? string.Empty : $" {minutes % 60} min")} left"
