@@ -1,0 +1,76 @@
+/* The phone chips row sits under the top bar at a fixed height (--tl-phone-chips-height), so the page below never shifts. */
+.phone-section-chips {
+    display: block;
+    box-sizing: border-box;
+    width: 100%;
+    min-width: 0;
+    height: var(--tl-phone-chips-height, 48px);
+}
+
+.phone-section-chips__strip {
+    display: flex;
+    align-items: center;
+    gap: var(--tl-space-2);
+    box-sizing: border-box;
+    width: 100%;
+    height: 100%;
+    padding-inline: max(var(--tl-space-3), var(--tl-safe-area-left)) max(var(--tl-space-3), var(--tl-safe-area-right));
+    overflow-x: auto;
+    overflow-y: hidden;
+    overscroll-behavior-x: contain;
+    scrollbar-width: none;
+}
+
+.phone-section-chips__strip::-webkit-scrollbar {
+    display: none;
+}
+
+/* Edge fade: the edge that still has chips beyond it fades out (set by scroll-edge-hint.js). */
+.phone-section-chips__strip[data-scroll-more-end="true"] {
+    mask-image: linear-gradient(to right, black calc(100% - 2.5rem), transparent);
+}
+
+.phone-section-chips__strip[data-scroll-more-start="true"] {
+    mask-image: linear-gradient(to left, black calc(100% - 2.5rem), transparent);
+}
+
+.phone-section-chips__strip[data-scroll-more-start="true"][data-scroll-more-end="true"] {
+    mask-image: linear-gradient(to right, transparent, black 2.5rem, black calc(100% - 2.5rem), transparent);
+}
+
+.phone-section-chips__chip {
+    display: inline-flex;
+    flex: 0 0 auto;
+    align-items: center;
+    gap: var(--tl-space-2);
+    box-sizing: border-box;
+    min-height: var(--tl-tap-target-min, 44px);
+    padding: 0 var(--tl-space-4);
+    border: 1px solid var(--tl-border-default);
+    border-radius: var(--tl-radius-pill, 999px);
+    color: var(--tl-text-secondary);
+    background: color-mix(in srgb, var(--tl-bg-surface) 72%, transparent);
+    font-size: var(--tl-font-size-sm);
+    font-weight: 600;
+    line-height: 1;
+    text-decoration: none;
+    white-space: nowrap;
+    touch-action: manipulation;
+}
+
+.phone-section-chips__chip:hover {
+    color: var(--tl-text-primary);
+    background: var(--tl-bg-surface-hover);
+}
+
+.phone-section-chips__chip:focus-visible {
+    outline: var(--tl-focus-ring-width, 2px) solid var(--tl-focus-ring);
+    outline-offset: -2px;
+}
+
+/* Selected is the section the person is in. */
+.phone-section-chips__chip.is-selected {
+    border-color: var(--tl-accent-primary);
+    color: var(--tl-text-primary);
+    background: var(--tl-accent-primary-soft);
+}
