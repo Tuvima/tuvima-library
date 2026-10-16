@@ -1,4 +1,3 @@
-using System.Globalization;
 using MediaEngine.Contracts.Details;
 using MediaEngine.Contracts.Metadata;
 using MediaEngine.Web.Models.ViewDTOs;
@@ -199,7 +198,7 @@ public static class DetailFileFacts
     private static void AddTracks(List<DetailFileFactRow> rows, MediaEditorAssetSelectorDto asset, bool isPrimary)
     {
         var audio = asset.AudioTracks
-            .Select(track => TrackLabel(LanguageName(track.Language), NullIfBlank(track.Codec)))
+            .Select(track => TrackLabel(DisplayFormat.FormatLanguageName(track.Language), NullIfBlank(track.Codec)))
             .Where(label => label is not null)
             .Select(label => label!)
             .ToList();
@@ -209,7 +208,7 @@ public static class DetailFileFacts
         }
 
         var subtitles = asset.SubtitleLanguages
-            .Select(LanguageName)
+            .Select(DisplayFormat.FormatLanguageName)
             .Where(label => !string.IsNullOrWhiteSpace(label))
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
@@ -227,38 +226,6 @@ public static class DetailFileFacts
             (null, { } only) => only,
             ({ } name, { } format) => $"{name} ({format})",
         };
-
-    private static readonly Lazy<Dictionary<string, string>> LanguageNames = new(() =>
-    {
-        var names = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var culture in CultureInfo.GetCultures(CultureTypes.NeutralCultures))
-        {
-            if (culture.TwoLetterISOLanguageName.Length == 2 && !names.ContainsKey(culture.TwoLetterISOLanguageName))
-            {
-                names[culture.TwoLetterISOLanguageName] = culture.EnglishName;
-            }
-
-            if (culture.ThreeLetterISOLanguageName.Length == 3 && !names.ContainsKey(culture.ThreeLetterISOLanguageName))
-            {
-                names[culture.ThreeLetterISOLanguageName] = culture.EnglishName;
-            }
-        }
-
-        return names;
-    });
-
-    /// <summary>"eng" and "en" read as English; anything unrecognised is shown as stored. Never throws.</summary>
-    private static string? LanguageName(string? code)
-    {
-        var trimmed = NullIfBlank(code);
-        if (trimmed is null)
-        {
-            return null;
-        }
-
-        var key = trimmed.Split('-', '_')[0];
-        return LanguageNames.Value.TryGetValue(key, out var name) ? name : trimmed;
-    }
 
     /// <summary>The stored container is only worth a row when it says something the Format row does not.</summary>
     private static List<DetailFileFactRow> DropRepeatedContainer(List<DetailFileFactRow> rows)

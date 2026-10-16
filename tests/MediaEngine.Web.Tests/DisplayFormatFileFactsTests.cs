@@ -43,4 +43,48 @@ public sealed class DisplayFormatFileFactsTests
         Assert.Equal("2026-10-16", DisplayFormat.FormatPlainDate(late));
         Assert.Equal("2026-10-16", DisplayFormat.FormatPlainDate(sameInstantElsewhere));
     }
+
+    [Theory]
+    [InlineData("eng", "English")]
+    [InlineData("en", "English")]
+    [InlineData("pt-BR", "Portuguese")]
+    [InlineData("jpn", "Japanese")]
+    [InlineData("fre", "French")]
+    [InlineData("fra", "French")]
+    [InlineData("ger", "German")]
+    [InlineData("chi", "Chinese")]
+    [InlineData("dut", "Dutch")]
+    [InlineData("cze", "Czech")]
+    [InlineData("gre", "Greek")]
+    [InlineData("rum", "Romanian")]
+    [InlineData("slo", "Slovak")]
+    [InlineData("wel", "Welsh")]
+    [InlineData("baq", "Basque")]
+    [InlineData("per", "Persian")]
+    [InlineData("mac", "Macedonian")]
+    [InlineData("mao", "Maori")]
+    [InlineData("tib", "Tibetan")]
+    [InlineData("alb", "Albanian")]
+    [InlineData("arm", "Armenian")]
+    [InlineData("geo", "Georgian")]
+    [InlineData("bur", "Burmese")]
+    [InlineData("ice", "Icelandic")]
+    [InlineData("GER", "German")]
+    [InlineData("xyz", "xyz")]
+    public void LanguageCodesReadAsNamesIncludingTheBibliographicOnesFfmpegWrites(string code, string expected)
+    {
+        var name = DisplayFormat.FormatLanguageName(code);
+
+        // Portuguese and Japanese depend on the host knowing them; the explicit map must never depend on it.
+        Assert.StartsWith(expected, name, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("und")]
+    [InlineData("UND")]
+    [InlineData("zxx")]
+    [InlineData("")]
+    [InlineData("  ")]
+    [InlineData(null)]
+    public void UndeterminedOrMissingLanguageShowsNothing(string? code) => Assert.Null(DisplayFormat.FormatLanguageName(code));
 }
