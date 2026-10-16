@@ -279,6 +279,53 @@ export function buildHostileEpub(file) {
     zip.close();
 }
 
+/**
+ * Links a tap could follow out of the book's frame (the 2026-10-16 review). Each page is one way of writing a link that is
+ * not a plain `<a href>` in the page, so the clean-up and the click handler must both know it: an image map (`<area>`), a
+ * MathML element with an `href` (a live link in WebKit) and an anchor hidden in a declarative shadow root (`<template
+ * shadowrootmode>`, only live in a page the browser reads as text/html). `LINK_PAGES` is also used by run-checks.mjs to
+ * test the clean-up and the click handler one at a time, so `click` is always the element a tap should reach.
+ */
+export const LINK_EVIL = 'https://evil.test/';
+const LINK_PIXEL = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
+const XHTML_PAGE = 'application/xhtml+xml';
+const HTML_PAGE = 'text/html';
+export const LINK_PAGES = [
+    {
+        name: 'image-map', type: XHTML_PAGE, click: '#vector',
+        body: `<p><img id="vector" usemap="#m" src="${LINK_PIXEL}" width="200" height="120" alt="map"/><map name="m"><area shape="default" href="${LINK_EVIL}area" alt="area"/></map></p>`,
+    },
+    {
+        name: 'mathml', type: XHTML_PAGE, click: '#vector',
+        body: `<p><math xmlns="http://www.w3.org/1998/Math/MathML"><mtext id="vector" href="${LINK_EVIL}math">math link</mtext></math></p>`,
+    },
+    {
+        name: 'shadow-dom', type: HTML_PAGE, click: '#vector',
+        body: `<div id="host"><template shadowrootmode="open"><a id="vector" href="${LINK_EVIL}shadow">shadow link</a></template></div>`,
+    },
+];
+/** Anchors every link page also carries: only the first two may ever be opened, and the last is a link inside the book. */
+export const LINK_ANCHORS = '<p><a id="web" href="https://example.org/ok">web</a> <a id="mail" href="mailto:reader@example.org">mail</a> <a id="ftp" href="ftp://example.org/file">ftp</a> <a id="tel" href="tel:+15550100">tel</a> <a id="js" href="javascript:window.__x=1">js</a> <a id="local" href="#after">local</a></p>';
+/** One page as the book would ship it, in the type the manifest gives it. */
+export const linkPageText = page => page.type === HTML_PAGE
+    ? `<!DOCTYPE html><html><head><title>${page.name}</title></head><body><p id="top">${page.name}</p>${page.body}${LINK_ANCHORS}<p id="after">after</p></body></html>`
+    : `<?xml version="1.0" encoding="utf-8"?>\n<html xmlns="http://www.w3.org/1999/xhtml"><head><title>${page.name}</title></head><body><p id="top">${page.name}</p>${page.body}${LINK_ANCHORS}<p id="after">after</p></body></html>`;
+
+export function buildLinkEpub(file) {
+    const zip = new ZipFile(file);
+    zip.add('mimetype', 'application/epub+zip', { store: true });
+    zip.add('META-INF/container.xml', CONTAINER);
+    const manifest = LINK_PAGES.map((page, i) => `<item id="p${i}" href="text/${page.name}.${page.type === HTML_PAGE ? 'html' : 'xhtml'}" media-type="${page.type}"/>`).join('');
+    const spine = LINK_PAGES.map((_, i) => `<itemref idref="p${i}"/>`).join('');
+    zip.add('OEBPS/content.opf', `<?xml version="1.0" encoding="utf-8"?>
+<package xmlns="http://www.idpf.org/2007/opf" version="3.0" unique-identifier="bookid">
+<metadata xmlns:dc="http://purl.org/dc/elements/1.1/"><dc:identifier id="bookid">urn:uuid:88888888-2222-3333-4444-555555555555</dc:identifier><dc:title>Link Fixture</dc:title><dc:creator>Test Author</dc:creator><dc:language>en</dc:language><meta property="dcterms:modified">2026-10-16T00:00:00Z</meta></metadata>
+<manifest><item id="nav" href="nav.xhtml" media-type="application/xhtml+xml" properties="nav"/>${manifest}</manifest><spine>${spine}</spine></package>`);
+    zip.add('OEBPS/nav.xhtml', nav(['image-map']));
+    for (const page of LINK_PAGES) zip.add(`OEBPS/text/${page.name}.${page.type === HTML_PAGE ? 'html' : 'xhtml'}`, linkPageText(page));
+    zip.close();
+}
+
 /** A plain book of roughly `sizeMB` megabytes: many chapters, each with a valid PNG padded by an ignorable chunk. */
 export function buildBigEpub(file, sizeMB) {
     const zip = new ZipFile(file);

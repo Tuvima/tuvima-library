@@ -13,7 +13,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
-import { buildBigEpub, buildHostileEpub, buildFrontMatterEpub, buildPictureEpub, buildRegressionEpub, FRONT_MATTER_PAGES, PICTURE_PAGES } from './epub-fixtures.mjs';
+import { buildBigEpub, buildHostileEpub, buildFrontMatterEpub, buildLinkEpub, buildPictureEpub, buildRegressionEpub, FRONT_MATTER_PAGES, LINK_PAGES, PICTURE_PAGES, linkPageText } from './epub-fixtures.mjs';
 import { startServer } from './serve.mjs';
 import {
     GUIDS, bookFrames, bookUrl, ensureDir, fixturesDir, frameWith, lastRelocation, loadPlaywright,
@@ -40,6 +40,7 @@ const hostile = path.join(dir, 'hostile.epub');
 const big = path.join(dir, 'big-3mb.epub');
 const pictures = path.join(dir, 'pictures.epub');
 const frontMatter = path.join(dir, 'front-matter.epub');
+const links = path.join(dir, 'links.epub');
 const textFile = path.join(dir, 'not-a-book.epub');
 fs.writeFileSync(textFile, 'This is plain text, not a zip file. '.repeat(40));
 
@@ -53,12 +54,13 @@ console.log(`Browser: ${browserName} ${browser.version()}`);
 
 // The "web" (an outside tracker) is a second server so we can see whether the book ever reaches out.
 const outside = await startServer();
-const server = await startServer({ books: { [GUIDS.regression]: epub, [GUIDS.notABook]: textFile, [GUIDS.hostile]: hostile, [GUIDS.big5]: big, [GUIDS.pictures]: pictures, [GUIDS.frontMatter]: frontMatter } });
+const server = await startServer({ books: { [GUIDS.regression]: epub, [GUIDS.notABook]: textFile, [GUIDS.hostile]: hostile, [GUIDS.big5]: big, [GUIDS.pictures]: pictures, [GUIDS.frontMatter]: frontMatter, [GUIDS.links]: links } });
 buildRegressionEpub(epub, { trackerOrigin: outside.origin });
 buildHostileEpub(hostile);
 buildBigEpub(big, 3);
 buildPictureEpub(pictures);
 buildFrontMatterEpub(frontMatter);
+buildLinkEpub(links);
 
 const phone = { viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true, deviceScaleFactor: 2 };
 const desktop = { viewport: { width: 1280, height: 800 } };
@@ -941,6 +943,193 @@ await check('hardenPage strips scripts and handlers and blocks outside addresses
     assert(/Content-Security-Policy/.test(out), 'no CSP meta');
     assert(!/<object/.test(out), 'object remains');
     await context.close();
+});
+
+
+console.log('Links a tap could follow out of the book frame');
+
+// The clean-up (restrictHrefs, template/map/area removal) and the click handler (guardLinks) must agree on what a link is, and
+// each must hold with the other one switched off. Every page in LINK_PAGES is one way of writing a link that is not a plain
+// <a href> in the page; a tap on it must never load an outside page in the frame, in any browser.
+async function linkContext() {
+    const context = await browser.newContext(desktop);
+    const evil = [];
+    await context.route(/evil\.test/, route => { evil.push(route.request().url()); return route.fulfill({ contentType: 'text/html', body: '<p>an outside page</p>' }); });
+    await context.route(/example\.org/, route => route.fulfill({ contentType: 'text/html', body: '<p>outside page</p>' }));
+    const { page } = await openCheckPage(context, server.origin);
+    // A frame like a book frame (same sandbox choice), holding one page, optionally cleaned and/or watched by the click handler.
+    await page.evaluate(() => {
+        window.probe = { loads: 0, opened: [], seen: [] };
+        window.mountProbe = async ({ text, type, clean, guard }) => {
+            document.getElementById('probe')?.remove();
+            Object.assign(window.probe, { loads: 0, opened: [], seen: [] });
+            if (clean) ({ text, type } = window.br.hardenPageDetailed(text, type));
+            const iframe = document.createElement('iframe');
+            iframe.id = 'probe';
+            iframe.setAttribute('sandbox', window.br.bookFrameSandbox());
+            iframe.style.cssText = 'position:fixed;left:0;top:0;width:480px;height:360px;border:0;background:#fff';
+            iframe.addEventListener('load', () => { window.probe.loads++; });
+            const first = new Promise(resolve => iframe.addEventListener('load', resolve, { once: true }));
+            // The address is set before the frame is inserted, so the only load events are the page's own (not the empty first document's).
+            iframe.src = URL.createObjectURL(new Blob([text], { type }));
+            document.body.append(iframe);
+            await first;
+            const doc = iframe.contentDocument;
+            if (guard) window.br.guardLinks(doc, href => window.probe.opened.push(href));
+            // Stands in for the library's own listener: it only sees clicks the click handler lets through.
+            doc.addEventListener('click', e => window.probe.seen.push(e.composedPath()[0]?.id || '?'));
+            return { type, shadowRoots: Array.from(doc.querySelectorAll('*')).filter(el => el.shadowRoot).length };
+        };
+    });
+    return { context, page, evil };
+}
+const probeFrame = async page => (await page.$('#probe')).contentFrame();
+const probeState = page => page.evaluate(() => ({ ...window.probe }));
+const linkPages = LINK_PAGES.map(link => ({ ...link, text: linkPageText(link) }));
+
+/** Mounts one page, taps `link.click` (or the first paragraph when the clean-up removed it), and reports whether the frame left its page. */
+async function tapProbe(page, evil, link, mode) {
+    const before = evil.length;
+    const mounted = await page.evaluate(options => window.mountProbe(options), { text: link.text, type: link.type, clean: mode.clean, guard: mode.guard });
+    const frame = await probeFrame(page);
+    await frame.click((await frame.locator(link.click).count()) > 0 ? link.click : '#top', { timeout: 5000 });
+    await sleep(600);
+    const state = await probeState(page);
+    return { ...state, mounted, evilRequests: evil.length - before, navigated: state.loads !== 1 || !frame.url().startsWith('blob:') || evil.length > before };
+}
+
+await check('link fixtures are live: with neither layer, an image map and a shadow DOM link take the frame to the outside page', async () => {
+    const { context, page, evil } = await linkContext();
+    const seen = [];
+    for (const link of linkPages) {
+        const r = await tapProbe(page, evil, link, { clean: false, guard: false });
+        seen.push(`${link.name}: ${r.navigated ? 'navigated' : 'stayed'}`);
+        // MathML links are live in WebKit only (Chromium ignores href there), so only the other two are required to move.
+        if (link.name !== 'mathml') assert(r.navigated, `${link.name}: the fixture does not take the frame anywhere, so it proves nothing (${JSON.stringify(r)})`);
+        if (link.name === 'shadow-dom') assert(r.mounted.shadowRoots === 1, 'the declarative shadow root was not attached, so the fixture is not testing it');
+    }
+    await context.close();
+    return seen.join(', ');
+});
+
+await check('link vectors (image map, MathML, declarative shadow DOM, odd schemes): the clean-up removes them (hardenPageDetailed and hardenResource)', async () => {
+    const { context, page } = await linkContext();
+    const extra = [
+        { name: 'obfuscated', type: 'application/xhtml+xml', body: '<math xmlns="http://www.w3.org/1998/Math/MathML"><mtext id="v1" href="ht&#9;tps://evil.test/tab">a</mtext><mtext id="v2" href="&#1;https://evil.test/ctl">b</mtext><mtext id="v3" href="&#10;  javascript:window.__x=1">c</mtext></math>' },
+        { name: 'shadow-closed', type: 'text/html', body: '<div id="host"><template shadowrootmode="closed"><a href="https://evil.test/closed">x</a></template></div><div><template shadowroot="open"><a href="https://evil.test/legacy">y</a></template></div>' },
+    ].map(link => ({ ...link, text: linkPageText(link) }));
+    const report = await page.evaluate(async pages => {
+        const out = {};
+        for (const page of pages) {
+            const results = [];
+            const viaPage = window.br.hardenPageDetailed(page.text, page.type);
+            results.push(['hardenPageDetailed', viaPage.text, viaPage.type]);
+            for (const [how, data] of [['text', page.text], ['blob', new Blob([page.text])], ['bytes', new TextEncoder().encode(page.text)]]) {
+                const r = await window.br.hardenResource(data, page.type, true);
+                results.push([`hardenResource(${how})`, r.data, r.type]);
+            }
+            out[page.name] = results.map(([how, data, type]) => {
+                const doc = new DOMParser().parseFromString(data, type);
+                const anchors = Object.fromEntries(['web', 'mail', 'ftp', 'tel', 'js', 'local'].map(id => [id, doc.getElementById(id)?.getAttribute('href') ?? null]));
+                return {
+                    how,
+                    mentionsEvil: /evil\.test/.test(data),
+                    templates: doc.querySelectorAll('template').length,
+                    shadowAttrs: /shadowroot/i.test(data),
+                    mapsAndAreas: doc.querySelectorAll('map, area').length,
+                    foreignHrefs: Array.from(doc.querySelectorAll('[href]')).filter(el => el.localName !== 'a' && !/^(#|blob:|data:image\/)/i.test(el.getAttribute('href'))).map(el => `${el.localName}=${el.getAttribute('href')}`),
+                    anchors,
+                };
+            });
+        }
+        return out;
+    }, [...linkPages, ...extra].map(({ name, type, text }) => ({ name, type, text })));
+    for (const [name, results] of Object.entries(report)) {
+        for (const r of results) {
+            const where = `${name} via ${r.how}`;
+            assert(!r.mentionsEvil, `${where}: the outside address is still in the page`);
+            assert(r.templates === 0 && !r.shadowAttrs, `${where}: a template or shadow root attribute survived`);
+            assert(r.mapsAndAreas === 0, `${where}: an image map survived`);
+            assert(r.foreignHrefs.length === 0, `${where}: a link survived on something that is not an anchor: ${r.foreignHrefs.join(' ')}`);
+            // The harmless parts stay: web, mail and in-book links; ftp, tel and javascript: links are dead.
+            assert(r.anchors.web === 'https://example.org/ok' && r.anchors.mail === 'mailto:reader@example.org' && r.anchors.local === '#after', `${where}: a normal link was lost: ${JSON.stringify(r.anchors)}`);
+            assert(r.anchors.ftp === null && r.anchors.tel === null && r.anchors.js === null, `${where}: a link to something the reader does not open survived: ${JSON.stringify(r.anchors)}`);
+        }
+    }
+    await context.close();
+    return Object.keys(report).join(', ');
+});
+
+await check('click handler alone (clean-up off): a tap on an image map, MathML or shadow DOM link never leaves the page, and only web and mail anchors open', async () => {
+    const { context, page, evil } = await linkContext();
+    const seen = [];
+    for (const link of linkPages) {
+        const r = await tapProbe(page, evil, link, { clean: false, guard: true });
+        assert(!r.navigated, `${link.name}: the frame left its page (${JSON.stringify(r)})`);
+        assert(r.opened.length === 0, `${link.name}: a link that is not an anchor was opened: ${r.opened}`);
+        seen.push(link.name);
+    }
+    // Real anchors on a page that was not cleaned: only http, https and mailto are handed over; none moves the frame.
+    const link = linkPages[0];
+    await page.evaluate(options => window.mountProbe(options), { text: link.text, type: link.type, clean: false, guard: true });
+    const frame = await probeFrame(page);
+    for (const id of ['web', 'mail', 'ftp', 'tel', 'js', 'local']) {
+        await frame.click(`#${id}`, { timeout: 5000 });
+        await sleep(150);
+    }
+    await sleep(500);
+    const state = await probeState(page);
+    assert(JSON.stringify(state.opened) === JSON.stringify(['https://example.org/ok', 'mailto:reader@example.org']), `opened ${JSON.stringify(state.opened)}`);
+    assert(JSON.stringify(state.seen) === JSON.stringify(['local']), `the library saw ${JSON.stringify(state.seen)}; only the link inside the book may reach it`);
+    assert(state.loads === 1 && evil.length === 0, `an anchor took the frame away (loads=${state.loads}, outside requests=${evil.length})`);
+    await context.close();
+    return seen.join(', ') + ', anchors';
+});
+
+await check('clean-up alone (click handler off): the frame stays on its page after a tap on an image map, MathML or shadow DOM link', async () => {
+    const { context, page, evil } = await linkContext();
+    const seen = [];
+    for (const link of linkPages) {
+        const r = await tapProbe(page, evil, link, { clean: true, guard: false });
+        assert(!r.navigated, `${link.name}: the frame left its page (${JSON.stringify(r)})`);
+        assert(r.mounted.shadowRoots === 0, `${link.name}: the cleaned page still has a live shadow root`);
+        seen.push(link.name);
+    }
+    await context.close();
+    return seen.join(', ');
+});
+
+await check('in a real book (both layers): the frame never navigates and only web and mail links open, on image map, MathML and shadow DOM pages', async () => {
+    const { context, page, evil } = await linkContext();
+    await page.evaluate(() => { window.__opened = []; window.open = (...args) => { window.__opened.push(args[0]); return null; }; });
+    const result = await openBook(page, bookUrl(GUIDS.links), {});
+    assert(result.ok, `open failed: ${result.message}`);
+    await page.evaluate(() => window.br.setInputPaused(true));   // a tap on plain text would turn the page and replace the frame under the test
+    const seen = [];
+    for (const [index, link] of linkPages.entries()) {
+        await page.evaluate(i => window.br.goTo(i), index);
+        const frame = await waitFor(async () => {
+            for (const f of bookFrames(page)) {
+                try { if ((await f.locator('#top').count()) > 0 && (await f.locator('#top').textContent()) === link.name) return f; } catch { /* frame is changing */ }
+            }
+            return null;
+        }, { label: `the ${link.name} page` });
+        const url = frame.url();
+        await page.evaluate(() => { window.__opened.length = 0; });
+        await frame.click((await frame.locator(link.click).count()) > 0 ? link.click : '#top', { timeout: 5000 });
+        for (const id of ['web', 'mail', 'ftp', 'tel', 'js']) {
+            if ((await frame.locator(`#${id}`).count()) > 0) await frame.click(`#${id}`, { timeout: 5000 });
+            await sleep(150);
+        }
+        await sleep(600);
+        const opened = await page.evaluate(() => window.__opened.slice());
+        assert(frame.url() === url, `${link.name}: the frame moved from ${url} to ${frame.url()}`);
+        assert(evil.length === 0, `${link.name}: the outside page was requested: ${evil}`);
+        assert(JSON.stringify(opened) === JSON.stringify(['https://example.org/ok', 'mailto:reader@example.org']), `${link.name}: opened ${JSON.stringify(opened)}`);
+        seen.push(link.name);
+    }
+    await context.close();
+    return seen.join(', ');
 });
 
 await browser.close();
