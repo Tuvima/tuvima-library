@@ -45,7 +45,7 @@ public sealed class CastSessionService
         IReadOnlyCollection<string> scopes,
         CancellationToken ct = default)
     {
-        var plan = await _playback.PlanCastAsync(assetId, ct).ConfigureAwait(false);
+        var plan = await _playback.PlanCastAsync(assetId, authority.ActiveProfileId, ct).ConfigureAwait(false);
         if (plan is null)
         {
             return null;
