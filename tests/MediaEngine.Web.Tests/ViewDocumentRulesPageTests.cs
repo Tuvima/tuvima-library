@@ -27,7 +27,7 @@ public sealed class ViewDocumentRulesPageTests
         Assert.Contains("@if (!Device.IsTv)", page, StringComparison.Ordinal);
         var rules = File.ReadAllText(Path.Combine(root, "src", "MediaEngine.Web", "Components", "Pages", "ViewDocumentRulesPage.razor"));
         Assert.Contains("Device.IsTv", rules, StringComparison.Ordinal);
-        Assert.Contains("ReadOnly=\"@Device.IsPhone\"", rules, StringComparison.Ordinal);
+        Assert.Contains("ReadOnly=\"@(!Device.CanEdit)\"", rules, StringComparison.Ordinal);
         Assert.Contains("CanViewDocuments == false", rules, StringComparison.Ordinal);
     }
 

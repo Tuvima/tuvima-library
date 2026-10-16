@@ -69,16 +69,16 @@ public sealed class ViewDocumentRulesUiTests : AsyncBunitContext
         Assert.True(cut.Find("button[aria-label='Move Water bills up']").HasAttribute("disabled"));
         Assert.True(cut.Find("button[aria-label='Move Scans down']").HasAttribute("disabled"));
         Assert.NotEmpty(cut.FindAll("button:contains('Add rule')"));
-        Assert.DoesNotContain("Edit on a computer or tablet", cut.Markup, StringComparison.Ordinal);
+        Assert.DoesNotContain("Edit on a computer", cut.Markup, StringComparison.Ordinal);
     }
 
     [Fact]
-    public void OnAPhoneTheRulesAreReadOnlyWithANoteToUseAComputer()
+    public void OffTheDesktopTheRulesAreReadOnlyWithANoteToUseAComputer()
     {
         var cut = Render<DocumentRulesSettings>(parameters => parameters.Add(component => component.ReadOnly, true));
 
         cut.WaitForAssertion(() => Assert.Contains("Water bills", cut.Markup, StringComparison.Ordinal));
-        Assert.Contains("Edit on a computer or tablet", cut.Markup, StringComparison.Ordinal);
+        Assert.Contains("Edit on a computer", cut.Markup, StringComparison.Ordinal);
         Assert.Empty(cut.FindAll("button[aria-label^='Edit ']"));
         Assert.Empty(cut.FindAll("button[aria-label^='Delete ']"));
         Assert.Empty(cut.FindAll("button[aria-label^='Move ']"));

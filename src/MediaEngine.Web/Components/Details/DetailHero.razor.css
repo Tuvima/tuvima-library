@@ -414,7 +414,8 @@
 /* Editing Mode: the Edit / Done controls float at the top right of the hero, above the hero content. */
 .tl-editing-hero-controls {
     position: absolute;
-    top: clamp(0.75rem, 2svh, 1.25rem);
+    /* The detail hero runs full-bleed behind the fixed top bar, so the controls start below it. */
+    top: calc(var(--app-topbar-height, 65px) + var(--tl-space-3));
     right: clamp(1rem, 3vw, 2.5rem);
     z-index: 7;
     display: grid;

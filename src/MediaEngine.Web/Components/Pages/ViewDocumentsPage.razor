@@ -299,8 +299,8 @@
     private bool CanBrowse => Workspace.Scopes?.CanViewDocuments != false;
     // Choosing and favoriting documents is for your own space on a pointer or touch screen, never on a television.
     private bool CanSelect => !Device.IsTv && Workspace.ScopeKind == ViewScopeKind.Mine;
-    // Filing a document is for your own space on a pointer screen: phones and televisions only read and filter.
-    private bool CanEditDetails => !Device.IsPhone && !Device.IsTv && Workspace.ScopeKind == ViewScopeKind.Mine;
+    // Editing a document's details is for your own space on a desktop with a mouse (EditorDeviceRule); other devices only read and filter.
+    private bool CanEditDetails => Device.CanEdit && Workspace.ScopeKind == ViewScopeKind.Mine;
     // Filing from the Inbox is for your own space on a phone, tablet or desktop; a television only reads. The Shared Library
     // Inbox is filed by a household or server administrator; everyone else reads it.
     private bool CanFileInbox => !Device.IsTv

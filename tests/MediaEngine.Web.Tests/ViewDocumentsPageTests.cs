@@ -25,7 +25,10 @@ public sealed class ViewDocumentsPageTests : AsyncBunitContext
         var http = new HttpClient(_handler) { BaseAddress = new Uri("http://localhost/") };
         var api = new EngineApiClient(http, NullLogger<EngineApiClient>.Instance);
         Services.AddSingleton<IEngineApiClient>(api);
-        Services.AddSingleton(new DeviceContextService(api));
+        // A desktop with a mouse: editing a document's details is desktop-only.
+        var device = new DeviceContextService(api);
+        device.InitialiseAsync(new DeviceContextSnapshot("web", "desktop", false, FinePointer: true, Hover: true)).GetAwaiter().GetResult();
+        Services.AddSingleton(device);
         Services.AddScoped<ActiveProfileAccessor>();
         Services.AddScoped<ActiveProfileSessionService>();
         Services.AddSingleton<ViewWorkspaceService>();

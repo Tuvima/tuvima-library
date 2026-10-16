@@ -61,7 +61,7 @@ Tuvima Library does not keep a record of tags you take off. If an auto-filing ru
 - **Select and bulk edit.** Choose several documents to add or remove tags, set a correspondent, type or date, mark them filed, or move them to the trash, up to 500 at a time. Moving to the trash can be undone, and no file is deleted.
 - **Export.** Download the list you are looking at as a spreadsheet (CSV). It holds titles, dates, correspondents, types, tags and custom fields, never the words inside the documents or your notes.
 
-You can search, filter and file from the Inbox on a phone. Editing every detail of a document and editing rules need a computer or tablet. A television can browse and open documents but not change them.
+You can search, filter and file from the Inbox on a phone. Editing every detail of a document and editing rules need a computer with a mouse or trackpad. A television can browse and open documents but not change them.
 
 ## The Shared Library
 
