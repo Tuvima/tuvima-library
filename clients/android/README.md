@@ -15,6 +15,14 @@ Orientation: the phone app is locked to portrait (`screenOrientation="portrait"`
 `MainActivity`); TV is landscape by nature. Movies and episodes rotate to landscape, Photos clips follow
 the phone, and everything else stays portrait. The rule lives in `core` `OrientationPolicy`.
 
+Next episode: when Play starts from a show (its detail page, or a download that knows its show), the video screen asks the Engine for the
+next ten episodes once playback is 30 seconds in. At the start of a Credits segment (or the last 15 seconds, and always at the end) a card offers the
+next one: with autoplay on an 8 second countdown with Play now and Cancel, otherwise Play next. Episodes opens a list to pick another. Both reuse the
+same PLAY_VIDEO path, so resume, heartbeats and on-phone progress are not duplicated; the finished episode is reported as ended first. A movie or
+the last episode closes back to the details page. Without a show id (an episode's own detail page) these features stay hidden. A download keeps only
+its first video and audio track (no subtitles), so its Subtitles list says "Not included in this download"; an expired download that cannot stream
+says it expired. "Resume where I left off" off starts every video at 0, streamed or downloaded. Rules live in `core` `NextEpisodeLogic`.
+
 Video: Play on a movie or episode (and on a downloaded one in Downloads) opens `VideoPlayerActivity`, a
 full-screen landscape player. It shows the same ExoPlayer the media service owns through a Media3
 `MediaController`, so the lock screen, headset buttons, offline progress and the audio notification stay in one

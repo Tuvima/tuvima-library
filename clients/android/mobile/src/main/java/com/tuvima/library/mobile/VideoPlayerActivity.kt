@@ -88,6 +88,10 @@ import com.tuvima.library.core.AudioTrack
 import com.tuvima.library.core.Chapter
 import com.tuvima.library.core.ClockText
 import com.tuvima.library.core.CloseAction
+import com.tuvima.library.core.NextEpisode
+import com.tuvima.library.core.NextEpisodeLogic
+import com.tuvima.library.core.NextEpisodeMessages
+import com.tuvima.library.core.NextEpisodeOffer
 import com.tuvima.library.core.OrientationPolicy
 import com.tuvima.library.core.OrientationRule
 import com.tuvima.library.core.PlaybackPreferences
@@ -116,7 +120,7 @@ private sealed interface VideoUiState {
     data class Failed(val message: String, val canRetry: Boolean) : VideoUiState
 }
 
-private enum class Sheet { None, Audio, Subtitles, Speed, Chapters }
+private enum class Sheet { None, Audio, Subtitles, Speed, Chapters, Episodes }
 
 /** One selectable audio or subtitle track the player reports. */
 private data class TrackOption(
@@ -159,6 +163,14 @@ class VideoPlayerActivity : ComponentActivity() {
     private var assetId = ""
     private var title: String? = null
     private var subtitle: String? = null
+    private var showId: String? = null
+
+    // Next episode: the list is asked for once, part way in, and kept for this screen. A failure just hides the feature.
+    private var nextEpisodes by mutableStateOf<List<NextEpisode>>(emptyList())
+    private var nextRequested = false
+    private var cancelledFor by mutableStateOf<String?>(null)
+    private var finished by mutableStateOf(false)
+    private var advancing = false
 
     private val playerListener = object : Player.Listener {
         override fun onIsPlayingChanged(isPlaying: Boolean) {
@@ -167,8 +179,12 @@ class VideoPlayerActivity : ComponentActivity() {
 
         override fun onPlaybackStateChanged(playbackState: Int) {
             buffering = playbackState == Player.STATE_BUFFERING
-            // The service clears a finished video; the screen closes with it.
-            if (playbackState == Player.STATE_ENDED) finish()
+            // The service clears a finished video. With a next episode to offer the screen stays for the card; otherwise it closes
+            // (a movie or the last episode returns to the details page).
+            if (playbackState == Player.STATE_ENDED) {
+                finished = true
+                if (NextEpisodeLogic.nextOf(nextEpisodes, assetId) == null) finish()
+            }
         }
 
         override fun onTracksChanged(tracks: Tracks) {
@@ -214,6 +230,7 @@ class VideoPlayerActivity : ComponentActivity() {
         assetId = intent.getStringExtra(TuvimaMediaLibraryService.EXTRA_ASSET_ID).orEmpty()
         title = intent.getStringExtra(TuvimaMediaLibraryService.EXTRA_TITLE)
         subtitle = intent.getStringExtra(TuvimaMediaLibraryService.EXTRA_SUBTITLE)
+        showId = intent.getStringExtra(EXTRA_SHOW_ID)?.takeIf(String::isNotBlank)
         if (assetId.isBlank()) {
             finish()
             return
@@ -307,7 +324,7 @@ class VideoPlayerActivity : ComponentActivity() {
         }, ContextCompat.getMainExecutor(this))
     }
 
-    private fun requestPlay() {
+    private fun requestPlay(previousEnded: Boolean = false, isNextEpisode: Boolean = false) {
         val active = controller
         if (active == null) {
             controllerFuture = null
@@ -320,6 +337,7 @@ class VideoPlayerActivity : ComponentActivity() {
             putString(TuvimaMediaLibraryService.EXTRA_ASSET_ID, assetId)
             putString(TuvimaMediaLibraryService.EXTRA_TITLE, title)
             putString(TuvimaMediaLibraryService.EXTRA_SUBTITLE, subtitle)
+            putBoolean(TuvimaMediaLibraryService.EXTRA_PREVIOUS_ENDED, previousEnded)
         }
         val pending = active.sendCustomCommand(SessionCommand(TuvimaMediaLibraryService.COMMAND_PLAY_VIDEO, Bundle.EMPTY), args)
         pending.addListener({
@@ -337,6 +355,7 @@ class VideoPlayerActivity : ComponentActivity() {
             val extras = result.extras
             if (result.resultCode == SessionResult.RESULT_SUCCESS) {
                 uiState = VideoUiState.Ready
+                advancing = false
                 loadManifestExtras()
                 applyInitialSelection()
                 applyInitialSpeed()
@@ -344,12 +363,61 @@ class VideoPlayerActivity : ComponentActivity() {
                 val failure = runCatching {
                     VideoFailure.valueOf(extras.getString(TuvimaMediaLibraryService.RESULT_FAILURE).orEmpty())
                 }.getOrDefault(VideoFailure.Other)
-                uiState = VideoUiState.Failed(
-                    extras.getString(TuvimaMediaLibraryService.RESULT_MESSAGE) ?: VideoMessages.forFailure(failure),
-                    canRetry = failure != VideoFailure.Unavailable,
-                )
+                advancing = false
+                // No connection while moving to the next episode means it is not on this phone.
+                val message = if (isNextEpisode && failure == VideoFailure.Network) NextEpisodeMessages.NOT_DOWNLOADED
+                else extras.getString(TuvimaMediaLibraryService.RESULT_MESSAGE) ?: VideoMessages.forFailure(failure)
+                uiState = VideoUiState.Failed(message, canRetry = failure != VideoFailure.Unavailable)
             }
         }, ContextCompat.getMainExecutor(this))
+    }
+
+    /** Asks which episodes follow this one, once. Offline or refused just means no next-episode card and no Episodes panel. */
+    private fun loadNextEpisodes() {
+        val show = showId ?: return
+        if (nextRequested) return
+        nextRequested = true
+        val client = (application as TuvimaMobileApplication).client ?: return
+        val current = assetId
+        lifecycleScope.launch {
+            try {
+                val result = client.nextEpisodes(show, current, NEXT_EPISODES_COUNT)
+                if (assetId == current) nextEpisodes = result.episodes
+            } catch (error: CancellationException) {
+                throw error
+            } catch (error: Exception) {
+                // Optional extra: the video keeps playing without it.
+            }
+        }
+    }
+
+    /**
+     * Moves to another episode through the same PLAY_VIDEO path, so resume, heartbeats and on-phone progress are not
+     * duplicated. [previousEnded] is true from the next-episode card (the one leaving was finished) and false from the
+     * Episodes panel (it just keeps where it was).
+     */
+    private fun playEpisode(episode: NextEpisode, previousEnded: Boolean) {
+        if (advancing) return
+        advancing = true
+        assetId = episode.assetId
+        title = episode.title.ifBlank { title }
+        subtitle = com.tuvima.library.core.OfflineLogic.episodeLabel(episode.seasonNumber, episode.episodeNumber)
+        chapters = emptyList()
+        segments = emptyList()
+        manifestDurationSeconds = null
+        manifestRequested = false
+        speedApplied = false
+        nextEpisodes = emptyList()
+        nextRequested = false
+        cancelledFor = null
+        finished = false
+        requestPlay(previousEnded = previousEnded, isNextEpisode = true)
+    }
+
+    /** True when this phone holds a finished, unexpired copy of the episode in play (so it has only that file's own tracks). */
+    private fun playingDownload(): Boolean {
+        val record = (application as TuvimaMobileApplication).offline.store().record(assetId) ?: return false
+        return record.isComplete && !com.tuvima.library.core.OfflineLogic.isExpired(record, System.currentTimeMillis())
     }
 
     /** Chapters and skip segments come from the manifest; without them the buttons simply do not appear. */
@@ -514,6 +582,7 @@ class VideoPlayerActivity : ComponentActivity() {
                 if (active != null && dragging == null) {
                     positionMs = active.currentPosition.coerceAtLeast(0L)
                     durationMs = active.duration.takeIf { it > 0 && it != C.TIME_UNSET } ?: 0L
+                    if (positionMs >= NEXT_FETCH_AFTER_MS) loadNextEpisodes()
                 }
                 delay(500)
             }
@@ -532,7 +601,17 @@ class VideoPlayerActivity : ComponentActivity() {
         }
 
         val durationSeconds = if (durationMs > 0) durationMs / 1000.0 else manifestDurationSeconds
-        val offer = segmentToOffer(positionMs / 1000.0, segments, durationSeconds)
+        val next = NextEpisodeLogic.nextOf(nextEpisodes, assetId)
+        val nextOffer = if (next == null) NextEpisodeOffer.None else NextEpisodeLogic.nextEpisodeOffer(
+            positionSeconds = positionMs / 1000.0,
+            durationSeconds = durationSeconds,
+            segments = segments,
+            autoplay = prefs.autoplayNextEpisode,
+            ended = finished,
+            cancelled = cancelledFor == assetId,
+        )
+        // The card replaces the skip button while it is showing.
+        val offer = if (nextOffer == NextEpisodeOffer.None) segmentToOffer(positionMs / 1000.0, segments, durationSeconds) else null
 
         Box(Modifier.fillMaxSize().background(Color.Black)) {
             AndroidView(
@@ -635,12 +714,22 @@ class VideoPlayerActivity : ComponentActivity() {
                             ) { Text(skip.label) }
                         }
                     }
+                    if (next != null && nextOffer != NextEpisodeOffer.None) {
+                        NextEpisodeCard(
+                            next = next,
+                            countdown = nextOffer == NextEpisodeOffer.Countdown,
+                            raised = controlsVisible,
+                            onPlay = { playEpisode(next, previousEnded = true) },
+                            onCancel = { cancelledFor = assetId },
+                        )
+                    }
                     if (controlsVisible) {
                         Controls(
                             positionMs = positionMs,
                             durationMs = durationMs,
                             dragging = dragging,
                             hasChapters = chapters.isNotEmpty(),
+                            hasEpisodes = nextEpisodes.isNotEmpty(),
                             onDrag = { dragging = it; touch += 1 },
                             onDragEnd = {
                                 dragging?.let { active?.seekTo(it.toLong()) }
@@ -679,6 +768,12 @@ class VideoPlayerActivity : ComponentActivity() {
                 Sheet.Subtitles -> {
                     val options = optionsFor(C.TRACK_TYPE_TEXT)
                     PickerSheet("Subtitles", onDismiss = { sheet = Sheet.None }) {
+                        // A downloaded copy keeps its first video and audio only (no sidecar or embedded subtitles): say so
+                        // rather than offer a picker that cannot work.
+                        if (options.isEmpty() && playingDownload()) {
+                            Text("Not included in this download.", color = Color.White, modifier = Modifier.padding(16.dp))
+                            return@PickerSheet
+                        }
                         OptionRow("Off", textDisabled || options.none { it.selected }) {
                             select(audio = null, subtitle = null, subtitlesOff = true)
                             sheet = Sheet.None
@@ -696,6 +791,15 @@ class VideoPlayerActivity : ComponentActivity() {
                         OptionRow(speedLabel(value), kotlin.math.abs(speed - value) < 0.01f) {
                             controller?.setPlaybackSpeed(value)
                             sheet = Sheet.None
+                        }
+                    }
+                }
+                Sheet.Episodes -> PickerSheet("Episodes", onDismiss = { sheet = Sheet.None }) {
+                    OptionRow("Now playing: " + listOfNotNull(subtitle, title).joinToString(" · "), true) { sheet = Sheet.None }
+                    nextEpisodes.forEach { episode ->
+                        OptionRow(NextEpisodeLogic.cardLine(episode), false) {
+                            sheet = Sheet.None
+                            playEpisode(episode, previousEnded = false)
                         }
                     }
                 }
@@ -782,6 +886,7 @@ class VideoPlayerActivity : ComponentActivity() {
         durationMs: Long,
         dragging: Float?,
         hasChapters: Boolean,
+        hasEpisodes: Boolean,
         onDrag: (Float) -> Unit,
         onDragEnd: () -> Unit,
         onSeekBy: (Long) -> Unit,
@@ -831,6 +936,7 @@ class VideoPlayerActivity : ComponentActivity() {
                     SheetButton("Subtitles", "Choose subtitles") { onOpenSheet(Sheet.Subtitles) }
                     SheetButton(speedLabel(speed), "Playback speed") { onOpenSheet(Sheet.Speed) }
                     if (hasChapters) SheetButton("Chapters", "Chapters") { onOpenSheet(Sheet.Chapters) }
+                    if (hasEpisodes) SheetButton("Episodes", "Episodes") { onOpenSheet(Sheet.Episodes) }
                 }
                 val shown = dragging ?: positionMs.toFloat()
                 Slider(
@@ -850,6 +956,40 @@ class VideoPlayerActivity : ComponentActivity() {
         }
     }
 
+    /**
+     * The next-episode card: the next title with its season and episode label. With autoplay on it counts down
+     * ([NextEpisodeLogic.COUNTDOWN_SECONDS] seconds) with Play now and Cancel; with it off, or after Cancel, just Play next.
+     */
+    @Composable
+    private fun NextEpisodeCard(next: NextEpisode, countdown: Boolean, raised: Boolean, onPlay: () -> Unit, onCancel: () -> Unit) {
+        var elapsed by remember(next.assetId, countdown) { mutableIntStateOf(0) }
+        LaunchedEffect(next.assetId, countdown) {
+            if (!countdown) return@LaunchedEffect
+            while (NextEpisodeLogic.secondsLeft(elapsed) > 0) {
+                delay(1_000L)
+                elapsed += 1
+            }
+            onPlay()
+        }
+        val scrim = Color(0xCC000000)
+        Box(Modifier.fillMaxSize().safeDrawingPadding()) {
+            Column(
+                Modifier.align(Alignment.BottomEnd).padding(end = 16.dp, bottom = if (raised) 150.dp else 24.dp)
+                    .background(scrim, androidx.compose.foundation.shape.RoundedCornerShape(12.dp)).padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Text("Next episode", color = Color.White, style = MaterialTheme.typography.labelMedium)
+                Text(NextEpisodeLogic.cardLine(next), color = Color.White, style = MaterialTheme.typography.titleSmall, maxLines = 2)
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Button(onClick = onPlay, modifier = Modifier.sizeMinimum()) {
+                        Text(if (countdown) "Play now (${NextEpisodeLogic.secondsLeft(elapsed)})" else "Play next")
+                    }
+                    if (countdown) OutlinedButton(onClick = onCancel, modifier = Modifier.sizeMinimum()) { Text("Cancel") }
+                }
+            }
+        }
+    }
+
     @Composable
     private fun SheetButton(label: String, description: String, onClick: () -> Unit) {
         TextButton(
@@ -862,16 +1002,20 @@ class VideoPlayerActivity : ComponentActivity() {
         private const val CONTROLS_HIDE_MS = 3_000L
         private const val HINT_MS = 800L
         private const val PREFS_WAIT_MS = 2_000L
+        private const val NEXT_FETCH_AFTER_MS = 30_000L
+        private const val NEXT_EPISODES_COUNT = 10
+        private const val EXTRA_SHOW_ID = "show_id"
         private val SPEEDS = listOf(0.5f, 0.75f, 1f, 1.25f, 1.5f, 2f)
 
         private fun speedLabel(value: Float): String =
             if (value == Math.round(value).toFloat()) "${Math.round(value)}x" else "${value}x"
 
-        fun intent(context: Context, assetId: String, title: String?, subtitle: String?): Intent =
+        fun intent(context: Context, assetId: String, title: String?, subtitle: String?, showId: String? = null): Intent =
             Intent(context, VideoPlayerActivity::class.java)
                 .putExtra(TuvimaMediaLibraryService.EXTRA_ASSET_ID, assetId)
                 .putExtra(TuvimaMediaLibraryService.EXTRA_TITLE, title)
                 .putExtra(TuvimaMediaLibraryService.EXTRA_SUBTITLE, subtitle)
+                .putExtra(EXTRA_SHOW_ID, showId)
     }
 }
 

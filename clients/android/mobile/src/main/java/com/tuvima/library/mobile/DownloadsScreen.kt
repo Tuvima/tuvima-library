@@ -128,7 +128,7 @@ internal fun DownloadsScreen(
                         client = client,
                         record = record,
                         nowMs = now,
-                        onPlay = { play(PlayRequest(record.assetId, record.entityType, record.title, record.subtitle)) },
+                        onPlay = { play(PlayRequest(record.assetId, record.entityType, record.title, record.subtitle, showId = record.showId)) },
                         onView = {
                             val kept = keptPhotoItems(records)
                             openPhotos(kept, kept.indexOfFirst { it.id == record.assetId }.coerceAtLeast(0))

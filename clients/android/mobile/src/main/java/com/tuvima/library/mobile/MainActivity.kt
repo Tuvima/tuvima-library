@@ -57,7 +57,7 @@ class MainActivity : ComponentActivity() {
 
     private fun play(request: PlayRequest) {
         if (PlaybackRouting.opensVideoScreen(request.entityType)) {
-            startActivity(VideoPlayerActivity.intent(this, request.assetId, request.title, request.subtitle))
+            startActivity(VideoPlayerActivity.intent(this, request.assetId, request.title, request.subtitle, request.showId))
             return
         }
         ContextCompat.startForegroundService(
