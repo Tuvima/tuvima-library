@@ -83,7 +83,11 @@ public sealed class MyLibrarySectionTests : AsyncBunitContext
     // Hands the answer back once the gate (if any) is released, so a test can hold one read while the others finish.
     private static async Task<T> After<T>(Task? gate, T value)
     {
-        if (gate is not null) await gate;
+        if (gate is not null)
+        {
+            await gate;
+        }
+
         return value;
     }
 
@@ -115,7 +119,10 @@ public sealed class MyLibrarySectionTests : AsyncBunitContext
         await device.InitialiseAsync(new DeviceContextSnapshot(formFactor == "phone" ? "mobile" : "web", formFactor, formFactor != "desktop"));
         var cut = Render<MyLibrary>(p =>
         {
-            if (downloads is { } mode) p.Add(c => c.DownloadsMode, mode);
+            if (downloads is { } mode)
+            {
+                p.Add(c => c.DownloadsMode, mode);
+            }
         });
         cut.WaitForAssertion(() => Assert.Empty(cut.FindAll(".my-library-skeleton")), TimeSpan.FromSeconds(10));
         return cut;
@@ -399,9 +406,13 @@ public sealed class MyLibrarySectionTests : AsyncBunitContext
         Render<ForMe>();
 
         if (landsOnMyLibrary)
+        {
             Assert.EndsWith("/my-library", nav.Uri);
+        }
         else
+        {
             Assert.EndsWith(url, nav.Uri);
+        }
     }
 
     [Fact]

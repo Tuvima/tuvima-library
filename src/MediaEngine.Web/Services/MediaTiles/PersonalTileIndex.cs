@@ -51,16 +51,25 @@ public sealed class PersonalTileIndex
     public MediaTileViewModel? FindSaved(ProfileSavedItemDto saved)
     {
         if (saved.EntityKind == ProfileEntityKind.Collection && _collections.TryGetValue(saved.EntityId, out var collection))
+        {
             return CollectionSurfaceTileComposer.FromCollection(collection);
+        }
+
         if (saved.EntityKind == ProfileEntityKind.Playlist && _playlists.TryGetValue(saved.EntityId, out var playlist))
+        {
             return MediaTileComposerService.FromPlaylist(playlist);
+        }
+
         return FindMedia(saved.EntityId);
     }
 
     public MediaTileViewModel? FindReaction(ProfileReactionDto reaction)
     {
         if (reaction.EntityKind == ProfileEntityKind.Collection && _collections.TryGetValue(reaction.EntityId, out var collection))
+        {
             return CollectionSurfaceTileComposer.FromCollection(collection);
+        }
+
         return FindMedia(reaction.EntityId);
     }
 
