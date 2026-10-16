@@ -10,10 +10,13 @@ import androidx.concurrent.futures.CallbackToFutureAdapter
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
+import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.datasource.DefaultHttpDataSource
+import androidx.media3.datasource.HttpDataSource
+import androidx.media3.datasource.ResolvingDataSource
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.session.LibraryResult
@@ -29,6 +32,8 @@ import com.google.common.util.concurrent.SettableFuture
 import com.tuvima.library.core.HeartbeatRules
 import com.tuvima.library.core.PreparingPoll
 import com.tuvima.library.core.PreparingStep
+import com.tuvima.library.core.StreamRecovery
+import com.tuvima.library.core.StreamRecoveryDecision
 import com.tuvima.library.core.StreamResume
 import com.tuvima.library.core.SubtitleStyleRules
 import com.tuvima.library.core.VideoSessionPolicy
@@ -46,6 +51,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import org.json.JSONObject
 import java.io.File
 
@@ -93,12 +99,18 @@ class TuvimaMediaLibraryService : MediaLibraryService() {
 
     override fun onCreate() {
         super.onCreate()
-        val token = com.tuvima.library.core.SecureTokenStore(this).load()?.second?.accessToken
-        val httpSource = DefaultHttpDataSource.Factory().apply {
-            token?.let { setDefaultRequestProperties(mapOf("Authorization" to "Bearer $it")) }
+        // The access token lives about ten minutes, so it is read when each request is made (never kept in the factory) and
+        // refreshed by the client when it has expired. That covers streams, seeks, reconnects, the next item and sidecar subtitles.
+        // The default source also reads file:// URIs, which is how a downloaded copy plays without a connection; those carry no header.
+        val dataSource = ResolvingDataSource.Factory(DefaultDataSource.Factory(this, DefaultHttpDataSource.Factory())) { dataSpec ->
+            if (dataSpec.uri.scheme.equals("file", ignoreCase = true)) {
+                dataSpec
+            } else {
+                val api = client
+                val token = if (api == null) null else runBlocking { api.streamBearerToken() }
+                if (token == null) dataSpec else dataSpec.withAdditionalHeaders(mapOf("Authorization" to "Bearer $token"))
+            }
         }
-        // The default source also reads file:// URIs, which is how a downloaded copy plays without a connection.
-        val dataSource = DefaultDataSource.Factory(this, httpSource)
         player = ExoPlayer.Builder(this)
             .setMediaSourceFactory(DefaultMediaSourceFactory(this).setDataSourceFactory(dataSource))
             .build()
@@ -115,7 +127,11 @@ class TuvimaMediaLibraryService : MediaLibraryService() {
                 }
             }
 
+            override fun onPlayerError(error: PlaybackException) = onStreamError(error)
+
             override fun onPlaybackStateChanged(playbackState: Int) {
+                // Playing again: the next failure of this item (if any) gets its own recovery attempt.
+                if (playbackState == Player.STATE_READY) recoveryAttempts.clear()
                 if (playbackState == Player.STATE_ENDED) {
                     saveLocalProgress(ended = true, sync = true)
                     sendHeartbeat(ended = true)
@@ -127,6 +143,50 @@ class TuvimaMediaLibraryService : MediaLibraryService() {
         session = MediaLibrarySession.Builder(this, player, LibraryCallback()).build()
         getSystemService(ConnectivityManager::class.java).registerDefaultNetworkCallback(networkCallback)
         refreshLibrary()
+    }
+
+    // Recovery attempts per item id since it last reached the ready state; cleared when playback is ready again.
+    private val recoveryAttempts = mutableMapOf<String, Int>()
+
+    /**
+     * A streamed item failed. When it was a 401 or 403 (the short-lived token, or the stream grant tied to it, ran out) and
+     * this item has not already been retried, ask the Engine for a fresh playback manifest and swap the item in at the same
+     * place and play state. Anything else, and a second failure, is left for the screen to show with Retry.
+     */
+    private fun onStreamError(error: PlaybackException) {
+        val item = player.currentMediaItem ?: return
+        val status = httpStatusOf(error)
+        val attempts = recoveryAttempts[item.mediaId] ?: 0
+        if (StreamRecovery.decide(status, isLocalItem(item), attempts) != StreamRecoveryDecision.Recover) return
+        recoveryAttempts[item.mediaId] = attempts + 1
+        scope.launch {
+            val api = client ?: return@launch
+            try {
+                val manifest = api.playbackManifest(item.mediaId, "local")
+                val path = manifest.playablePath() ?: return@launch
+                val position = player.currentPosition
+                val wasPlaying = player.playWhenReady
+                // The title, type and subtitle configurations stay as they were; only the stream address is new.
+                val swapped = item.buildUpon().setUri(Uri.parse(path)).build()
+                player.setMediaItem(swapped, position)
+                player.prepare()
+                player.playWhenReady = StreamRecovery.resumePlaying(wasPlaying, isVideoItem(item))
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (failure: Exception) {
+                // No fresh stream could be had: the original error stays on screen with Retry, which is the same as before.
+            }
+        }
+    }
+
+    /** The HTTP status behind a stream error, when the failure was a refused request. */
+    private fun httpStatusOf(error: Throwable?): Int? {
+        var current: Throwable? = error
+        while (current != null) {
+            if (current is HttpDataSource.InvalidResponseCodeException) return current.responseCode
+            current = current.cause
+        }
+        return null
     }
 
     override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaLibrarySession = session

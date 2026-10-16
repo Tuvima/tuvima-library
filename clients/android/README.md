@@ -15,6 +15,8 @@ Orientation: the phone app is locked to portrait (`screenOrientation="portrait"`
 `MainActivity`); TV is landscape by nature. Movies and episodes rotate to landscape, Photos clips follow
 the phone, and everything else stays portrait. The rule lives in `core` `OrientationPolicy`.
 
+Streaming and the short-lived token: the media service adds the bearer token to every request when the request is made (a fresh one, refreshed by `TuvimaClient` when it has expired), never once at start-up, so seeks, reconnects, the next item and sidecar subtitles keep working after the token's roughly ten minutes. If a streamed item still gets a 401 or 403 (for example the stream grant tied to the old token), the service asks for a fresh playback manifest, swaps the item in at the same position and play state, and tries once more; a second failure shows the normal error with Retry. Downloaded files read from the phone and never do this. Rules live in `core` `StreamRecovery`.
+
 Next episode: when Play starts from a show (its detail page, or a download that knows its show), the video screen asks the Engine for the
 next ten episodes once playback is 30 seconds in. At the start of a Credits segment (or the last 15 seconds, and always at the end) a card offers the
 next one: with autoplay on an 8 second countdown with Play now and Cancel, otherwise Play next. Episodes opens a list to pick another. Both reuse the
