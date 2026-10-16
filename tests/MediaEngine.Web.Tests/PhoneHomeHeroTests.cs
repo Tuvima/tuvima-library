@@ -209,21 +209,21 @@ public sealed class PhoneHomeHeroTests : AsyncBunitContext
         double? remaining = null,
         DisplayEpisodeContextDto? episode = null,
         string engineLabel = "Play") => new()
-    {
-        WorkId = Guid.NewGuid(),
-        Title = title,
-        MediaKind = kind,
-        PreviewImageUrl = "/engine-image/stream/artwork/x",
-        CoverWidthPx = coverWidth,
-        CoverHeightPx = 1800,
-        SurfaceKind = MediaTileSurfaceKind.CoverPortrait,
-        ContinuationState = state,
-        ProgressPct = progress,
-        RemainingSeconds = remaining,
-        EpisodeContext = episode,
-        PrimaryActionLabel = engineLabel,
-        PrimaryNavigationUrl = "/x",
-    };
+        {
+            WorkId = Guid.NewGuid(),
+            Title = title,
+            MediaKind = kind,
+            PreviewImageUrl = "/engine-image/stream/artwork/x",
+            CoverWidthPx = coverWidth,
+            CoverHeightPx = 1800,
+            SurfaceKind = MediaTileSurfaceKind.CoverPortrait,
+            ContinuationState = state,
+            ProgressPct = progress,
+            RemainingSeconds = remaining,
+            EpisodeContext = episode,
+            PrimaryActionLabel = engineLabel,
+            PrimaryNavigationUrl = "/x",
+        };
 
     private static readonly DisplayEpisodeContextDto UnstartedEpisode =
         new(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), "Show", "Episode", 1, 1, DisplayContinuationState.Unstarted, null, null);
