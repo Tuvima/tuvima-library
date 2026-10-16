@@ -1,4 +1,6 @@
 @namespace MediaEngine.Web.Components.MediaTiles
+@using MediaEngine.Web.Services.Theming
+@inject DeviceContextService DeviceContext
 
 @if (Shelf.Items.Count > 0)
 {
@@ -16,7 +18,7 @@
 
                 @if (!string.IsNullOrWhiteSpace(Shelf.SeeAllRoute))
                 {
-                    <a href="@Shelf.SeeAllRoute" class="media-tile-shelf-link">View all</a>
+                    <a href="@Shelf.SeeAllRoute" class="media-tile-shelf-link">@(DeviceContext.IsPhone ? "See All" : "View all")</a>
                 }
             </div>
         }

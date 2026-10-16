@@ -337,7 +337,10 @@ const compact = value => String(value ?? '').replace(COMPACT_CHARS, '').toLowerC
 const isLocalUrl = value => !value || !/^[a-z][a-z0-9+.-]*:/i.test(value.trim()) || /^(blob|data):/i.test(value.trim());
 const isScriptUrl = value => /^(javascript|vbscript|livescript):/.test(compact(value)) || /^data:(text|application)\//.test(compact(value));
 const LINK_SCHEMES = /^(https?:|mailto:)/i;
-const URL_ATTRS = ['href', 'src', 'data', 'poster', 'action', 'formaction', 'xlink:href', 'from', 'to', 'values', 'srcset'];
+// Compared by LOCAL name, whatever the namespace prefix is: q:href in the XLink namespace is a link like href is.
+const URL_ATTRS = new Set(['href', 'src', 'data', 'poster', 'action', 'formaction', 'from', 'to', 'by', 'values', 'srcset']);
+const ANIMATION_ELEMENTS = new Set(['animate', 'set', 'animatemotion', 'animatetransform', 'animatecolor', 'handler', 'listener']);
+const XHTML_NS = 'http://www.w3.org/1999/xhtml';
 
 /** Blocks anything in CSS that would load from outside the book. */
 function cleanCss(css) {
@@ -364,10 +367,32 @@ function stripInstructions(doc) {
 function stripActiveContent(doc) {
     stripInstructions(doc);
     for (const el of Array.from(doc.querySelectorAll('script'))) el.remove();
+    // Animation elements can set an href or src to a script address a moment after load, so they go everywhere (inline SVG too).
+    for (const el of Array.from(doc.querySelectorAll('*'))) {
+        if (ANIMATION_ELEMENTS.has(el.localName.toLowerCase())) el.remove();
+    }
     for (const el of doc.querySelectorAll('*')) {
         for (const attr of Array.from(el.attributes)) {
-            if (/^on/i.test(attr.name)) el.removeAttribute(attr.name);
-            else if (URL_ATTRS.includes(attr.name.toLowerCase()) && isScriptUrl(attr.value)) el.removeAttribute(attr.name);
+            const local = attr.localName.toLowerCase();
+            if (/^on/.test(local) || /^on/i.test(attr.name)) el.removeAttributeNode(attr);
+            else if (URL_ATTRS.has(local) && (isScriptUrl(attr.value) || /[;,]\s*(javascript|vbscript|livescript):/i.test(attr.value))) el.removeAttributeNode(attr);
+        }
+    }
+}
+
+/**
+ * A link can be written with any prefix (`q:href` in the XLink namespace). The reader only intercepts and opens plain `href`
+ * links safely, so every such attribute is turned into a plain `href` when it is a book-local or web link on an `<a>`, and
+ * removed otherwise. Nothing is left that a browser would follow but the reader does not see.
+ */
+function normalizeLinkAttributes(root) {
+    for (const el of Array.from(root.querySelectorAll('*'))) {
+        for (const attr of Array.from(el.attributes)) {
+            if (attr.localName.toLowerCase() !== 'href' || (attr.namespaceURI === null && attr.name === 'href')) continue;
+            const value = attr.value;
+            el.removeAttributeNode(attr);
+            const allowed = el.localName.toLowerCase() === 'a' ? (isLocalUrl(value) || LINK_SCHEMES.test(value.trim())) : isLocalUrl(value);
+            if (allowed && !isScriptUrl(value) && !el.hasAttribute('href')) el.setAttribute('href', value);
         }
     }
 }
@@ -387,8 +412,11 @@ export function hardenPageDetailed(text, mediaType) {
         doc = new DOMParser().parseFromString(text, type);
     }
     if (!doc.documentElement || doc.querySelector('parsererror')) return { text: BLOCKED_PAGE, type: XHTML_TYPE };
+    // A page whose root is not the XHTML html element (another namespace, another name) cannot carry a policy WebKit would apply.
+    if (doc.documentElement.namespaceURI !== XHTML_NS || doc.documentElement.localName !== 'html') return { text: BLOCKED_PAGE, type: XHTML_TYPE };
 
     stripActiveContent(doc);
+    normalizeLinkAttributes(doc);
     // No nested documents, plug-ins or redirects: a frame would be a document this clean-up never sees.
     // (noscript, noembed, noframes and xmp are raw text in HTML, which can hide markup from this clean-up.)
     for (const el of Array.from(doc.querySelectorAll('iframe, frame, frameset, object, embed, applet, base, noscript, noembed, noframes, xmp, plaintext'))) el.remove();
@@ -409,15 +437,21 @@ export function hardenPageDetailed(text, mediaType) {
     for (const el of doc.querySelectorAll('style')) el.textContent = cleanCss(el.textContent);
     for (const el of doc.querySelectorAll('[style]')) el.setAttribute('style', cleanCss(el.getAttribute('style')));
 
-    let head = doc.querySelector('head');
+    // The policy only counts in a <head> that is a direct child of the XHTML root: a head inside an SVG, nested in the body or
+    // in another namespace is not the document's head. Use the real one or make one, and refuse the page if that is not so.
+    const html = doc.documentElement;
+    let head = Array.from(html.children).find(child => child.namespaceURI === XHTML_NS && child.localName === 'head') ?? null;
     if (!head) {
-        head = doc.createElementNS(doc.documentElement.namespaceURI, 'head');
-        doc.documentElement.prepend(head);
+        head = doc.createElementNS(XHTML_NS, 'head');
+        html.prepend(head);
     }
-    const meta = doc.createElementNS(doc.documentElement.namespaceURI, 'meta');
+    const meta = doc.createElementNS(XHTML_NS, 'meta');
     meta.setAttribute('http-equiv', 'Content-Security-Policy');
     meta.setAttribute('content', BOOK_CSP);
     head.prepend(meta);
+    if (meta.parentNode !== head || head.parentNode !== html || html.firstElementChild !== head || head.firstElementChild !== meta) {
+        return { text: BLOCKED_PAGE, type: XHTML_TYPE };
+    }
     return { text: new XMLSerializer().serializeToString(doc), type };
 }
 
@@ -426,7 +460,7 @@ export function hardenPage(text, mediaType) {
     return hardenPageDetailed(text, mediaType).text;
 }
 
-const SVG_REMOVE = new Set(['script', 'foreignobject', 'iframe', 'frame', 'embed', 'object', 'applet', 'animate', 'set', 'handler', 'listener', 'meta', 'base', 'audio', 'video', 'canvas']);
+const SVG_REMOVE = new Set(['script', 'foreignobject', 'iframe', 'frame', 'embed', 'object', 'applet', 'animate', 'set', 'animatemotion', 'animatetransform', 'animatecolor', 'handler', 'listener', 'meta', 'base', 'audio', 'video', 'canvas']);
 
 /**
  * Pure: harden one SVG document, which a browser would run scripts in if it were opened as a page, and which cannot
@@ -442,13 +476,12 @@ export function hardenSvg(text) {
         if (el.namespaceURI !== SVG_NS || SVG_REMOVE.has(el.localName.toLowerCase())) el.remove();
     }
     stripActiveContent(doc);
+    normalizeLinkAttributes(doc);
     for (const el of root.querySelectorAll('*')) {
-        for (const name of ['href', 'xlink:href']) {
-            const value = el.getAttribute(name);
-            if (value === null) continue;
-            const allowed = el.localName === 'a' ? (isLocalUrl(value) || LINK_SCHEMES.test(value.trim())) : isLocalUrl(value);
-            if (!allowed) el.removeAttribute(name);
-        }
+        const value = el.getAttribute('href');
+        if (value === null) continue;
+        const allowed = el.localName === 'a' ? (isLocalUrl(value) || LINK_SCHEMES.test(value.trim())) : isLocalUrl(value);
+        if (!allowed) el.removeAttribute('href');
     }
     for (const el of doc.querySelectorAll('style')) el.textContent = cleanCss(el.textContent);
     for (const el of doc.querySelectorAll('[style]')) el.setAttribute('style', cleanCss(el.getAttribute('style')));
@@ -596,6 +629,30 @@ function emptyStats() {
     return { requests: 0, bytes: 0, openMs: 0, entries: 0, fileSize: 0 };
 }
 
+const SANDBOX_NO_SCRIPTS = 'allow-same-origin';
+const SANDBOX_WITH_SCRIPTS = 'allow-same-origin allow-scripts';
+
+/**
+ * True on Apple WebKit (iPhone, iPad, Safari). There the book frame must be allowed to run scripts, because WebKit does not
+ * deliver events from a script-less sandboxed frame to the page around it (WebKit bug 218086), which breaks taps, swipes,
+ * selection and links. Every iOS browser is WebKit, and iPadOS asks for the desktop site and reports as a Mac, so it is told
+ * apart by its touch screen. Chromium, Firefox and Android never match. `env` is a navigator-like object so this is testable.
+ */
+export function needsScriptSandbox(env = globalThis.navigator ?? {}) {
+    const ua = String(env.userAgent ?? '');
+    const vendor = String(env.vendor ?? '');
+    const touchPoints = Number(env.maxTouchPoints ?? 0);
+    if (/Android/i.test(ua)) return false;
+    if (/iP(hone|ad|od)/.test(ua)) return true;
+    if (/Macintosh/.test(ua) && touchPoints > 1) return true;
+    return vendor === 'Apple Computer, Inc.' && !/Chrome|Chromium|Edg\/|OPR\/|Firefox/.test(ua);
+}
+
+/** The `sandbox` value for book frames: scripts are allowed only where WebKit needs them (see needsScriptSandbox). */
+export function bookFrameSandbox(env) {
+    return needsScriptSandbox(env) ? SANDBOX_WITH_SCRIPTS : SANDBOX_NO_SCRIPTS;
+}
+
 /**
  * Opens a book into `host`. Never throws across interop: returns
  * { ok: true, title, author, language, dir, layout, fraction, stats } or { ok: false, code, message }.
@@ -633,6 +690,8 @@ export async function open(host, url, options, dotNet) {
         state.book = book;
         if (state.disposed) return { ok: false, code: 'cancelled', message: 'Closed.' };
 
+        // The pinned foliate-js reads this when it builds a page frame; the book never chooses it.
+        globalThis.TUVIMA_BOOK_FRAME_SANDBOX = bookFrameSandbox();
         const view = document.createElement('foliate-view');
         state.view = view;
         host.replaceChildren(view);

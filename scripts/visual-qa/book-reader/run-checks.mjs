@@ -278,6 +278,166 @@ await check('front matter (printed contents, wide table, pre, fixed width, overs
     return `no spill at ${report.join(', ')}`;
 });
 
+await check('review findings: odd heads, foreign roots, prefixed links and animation values are all hardened (through hardenPageDetailed and hardenResource)', async () => {
+    const context = await browser.newContext(desktop);
+    const { page } = await openCheckPage(context, server.origin);
+    const report = await page.evaluate(async () => {
+        const X = 'http://www.w3.org/1999/xhtml';
+        const S = 'http://www.w3.org/2000/svg';
+        const L = 'http://www.w3.org/1999/xlink';
+        const pages = {
+            foreignHead: `<html xmlns="${X}"><body><svg xmlns="${S}"><head/></svg><p>x</p></body></html>`,
+            nestedHead: `<html xmlns="${X}"><body><div><head><title>t</title></head></div><p>x</p></body></html>`,
+            missingHead: `<html xmlns="${X}"><body><p>x</p></body></html>`,
+            foreignRoot: `<root xmlns="urn:example:other"><head/><body><p>x</p></body></root>`,
+            prefixedJsLink: `<html xmlns="${X}"><body><svg xmlns="${S}" xmlns:q="${L}"><a id="a" q:href="javascript:window.__x=1"><text>t</text></a></svg></body></html>`,
+            prefixedWebLink: `<html xmlns="${X}"><body><svg xmlns="${S}" xmlns:q="${L}"><a id="a" q:href="https://example.org/out"><text>t</text></a></svg></body></html>`,
+            animateValues: `<html xmlns="${X}"><body><svg xmlns="${S}" xmlns:q="${L}"><a id="a" href="#x"><animate attributeName="href" values="#x;javascript:window.__x=1" dur="1s" repeatCount="indefinite"/><animateMotion/><set attributeName="href" to="javascript:window.__x=1"/><text>t</text></a></svg></body></html>`,
+            weirdNamespaceHref: `<html xmlns="${X}"><body><p xmlns:z="urn:z" z:href="javascript:window.__x=1">x</p></body></html>`,
+        };
+        const out = {};
+        for (const [name, text] of Object.entries(pages)) {
+            const result = window.br.hardenPageDetailed(text, 'application/xhtml+xml');
+            const doc = new DOMParser().parseFromString(result.text, 'application/xhtml+xml');
+            const root = doc.documentElement;
+            const head = root.firstElementChild;
+            const meta = head?.firstElementChild;
+            const hrefs = Array.from(doc.querySelectorAll('*')).flatMap(el => Array.from(el.attributes).filter(a => a.localName === 'href').map(a => ({ name: a.name, value: a.value, ns: a.namespaceURI })));
+            out[name] = {
+                rootIsXhtml: root.namespaceURI === X && root.localName === 'html',
+                blocked: /could not be shown safely/.test(result.text),
+                headIsDirectChild: head?.localName === 'head' && head.namespaceURI === X && head.parentNode === root,
+                cspIsFirstInHead: meta?.localName === 'meta' && meta.getAttribute('http-equiv') === 'Content-Security-Policy' && meta.parentNode === head,
+                cspCount: doc.querySelectorAll('meta[http-equiv]').length,
+                animations: doc.querySelectorAll('animate, animateMotion, set').length,
+                hrefs,
+            };
+        }
+        return out;
+    });
+    for (const name of ['foreignHead', 'nestedHead', 'missingHead', 'prefixedJsLink', 'prefixedWebLink', 'animateValues', 'weirdNamespaceHref']) {
+        const r = report[name];
+        assert(r.rootIsXhtml && !r.blocked, `${name}: root is not the XHTML html element, or it was blocked`);
+        assert(r.headIsDirectChild, `${name}: the document has no XHTML head as a direct child of the root`);
+        assert(r.cspIsFirstInHead, `${name}: the policy meta is not the first thing in that head`);
+        assert(r.cspCount === 1, `${name}: ${r.cspCount} policy meta elements`);
+        assert(r.animations === 0, `${name}: ${r.animations} animation element(s) survived`);
+        assert(r.hrefs.every(h => h.ns === null && !/^javascript:/i.test(h.value)), `${name}: an unsafe or prefixed href survived: ${JSON.stringify(r.hrefs)}`);
+    }
+    assert(report.foreignRoot.blocked && report.foreignRoot.cspIsFirstInHead, 'a root in another namespace was shown instead of refused');
+
+    // The real entry point for every page (hardenResource, as a page, as text and as bytes) gives the same result.
+    const viaResource = await page.evaluate(async () => {
+        const X = 'http://www.w3.org/1999/xhtml';
+        const text = `<html xmlns="${X}"><body><svg xmlns="http://www.w3.org/2000/svg"><head/></svg><p>x</p></body></html>`;
+        const results = [];
+        for (const data of [text, new Blob([text]), new TextEncoder().encode(text)]) {
+            const { data: out, type } = await window.br.hardenResource(data, 'application/xhtml+xml', true);
+            const doc = new DOMParser().parseFromString(out, type);
+            const head = doc.documentElement.firstElementChild;
+            results.push(head?.localName === 'head' && head.namespaceURI === X && head.parentNode === doc.documentElement && head.firstElementChild?.getAttribute('http-equiv') === 'Content-Security-Policy');
+        }
+        const refused = await window.br.hardenResource('<root xmlns="urn:example:other"><body/></root>', 'application/xhtml+xml', true);
+        results.push(/could not be shown safely/.test(refused.data));
+        return results;
+    });
+    assert(viaResource.every(Boolean), `hardenResource did not apply the head and root rules: ${JSON.stringify(viaResource)}`);
+    assert(report.prefixedWebLink.hrefs.some(h => h.name === 'href' && h.value === 'https://example.org/out'), 'a prefixed web link was not turned into a plain href the reader can intercept');
+    assert(!report.prefixedJsLink.hrefs.some(h => /javascript/i.test(h.value)), 'a prefixed javascript: link survived');
+
+    // The same hardened pages, shown the way a book page is, in a frame that is allowed scripts: no link click runs anything.
+    const ran = await page.evaluate(async () => {
+        const X = 'http://www.w3.org/1999/xhtml';
+        const text = `<html xmlns="${X}"><body><svg xmlns="http://www.w3.org/2000/svg" xmlns:q="http://www.w3.org/1999/xlink" width="100" height="100"><a id="a" q:href="javascript:window.__x='prefixed'"><rect width="100" height="100"/></a></svg></body></html>`;
+        const hardened = window.br.hardenPageDetailed(text, 'application/xhtml+xml');
+        const url = URL.createObjectURL(new Blob([hardened.text], { type: 'application/xhtml+xml' }));
+        const iframe = document.createElement('iframe');
+        iframe.setAttribute('sandbox', 'allow-same-origin allow-scripts');
+        document.body.append(iframe);
+        await new Promise(resolve => { iframe.onload = resolve; iframe.src = url; });
+        const a = iframe.contentDocument.getElementById('a');
+        a?.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+        await new Promise(r => setTimeout(r, 400));
+        const result = iframe.contentWindow.__x ?? null;
+        iframe.remove();
+        return result;
+    });
+    assert(ran === null, `a prefixed javascript: link ran: ${ran}`);
+    await context.close();
+    return Object.keys(report).length + ' odd documents';
+});
+
+console.log('Script sandbox on Apple devices');
+
+await check('needsScriptSandbox is true only for Apple WebKit (iPhone, iPad, iPadOS as a Mac, Safari)', async () => {
+    const context = await browser.newContext(desktop);
+    const { page } = await openCheckPage(context, server.origin);
+    const apple = 'Apple Computer, Inc.';
+    const cases = [
+        ['iPhone Safari', { userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1', vendor: apple, maxTouchPoints: 5 }, true],
+        ['iPhone Chrome (CriOS)', { userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) CriOS/126.0 Mobile/15E148 Safari/604.1', vendor: apple, maxTouchPoints: 5 }, true],
+        ['iPad as iPad', { userAgent: 'Mozilla/5.0 (iPad; CPU OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1', vendor: apple, maxTouchPoints: 5 }, true],
+        ['iPadOS reporting as a Mac', { userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Safari/605.1.15', vendor: apple, maxTouchPoints: 5 }, true],
+        ['Mac Safari', { userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Safari/605.1.15', vendor: apple, maxTouchPoints: 0 }, true],
+        ['Mac Chrome', { userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36', vendor: 'Google Inc.', maxTouchPoints: 0 }, false],
+        ['Windows Chrome', { userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36', vendor: 'Google Inc.', maxTouchPoints: 0 }, false],
+        ['Windows Edge touch', { userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36 Edg/126.0.0.0', vendor: 'Google Inc.', maxTouchPoints: 10 }, false],
+        ['Firefox', { userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:127.0) Gecko/20100101 Firefox/127.0', vendor: '', maxTouchPoints: 0 }, false],
+        ['Android Chrome', { userAgent: 'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Mobile Safari/537.36', vendor: 'Google Inc.', maxTouchPoints: 5 }, false],
+        ['Android WebView', { userAgent: 'Mozilla/5.0 (Linux; Android 14; Pixel 8; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/126.0.0.0 Mobile Safari/537.36', vendor: 'Google Inc.', maxTouchPoints: 5 }, false],
+        ['no navigator', {}, false],
+    ];
+    for (const [name, env, expected] of cases) {
+        const got = await page.evaluate(e => window.br.needsScriptSandbox(e), env);
+        assert(got === expected, `${name}: expected ${expected}, got ${got}`);
+    }
+    assert(await page.evaluate(() => window.br.bookFrameSandbox({ userAgent: 'iPhone', maxTouchPoints: 5 }) === 'allow-same-origin allow-scripts'), 'an iPhone frame is not allowed scripts');
+    assert(await page.evaluate(() => window.br.bookFrameSandbox({ userAgent: 'Windows Chrome', vendor: 'Google Inc.' }) === 'allow-same-origin'), 'a Chrome frame is allowed scripts');
+    await context.close();
+    return `${cases.length} environments`;
+});
+
+await check('even with scripts allowed in the frame, a page that tries every trick runs nothing and reaches nothing outside', async () => {
+    const context = await browser.newContext(desktop);
+    const { page } = await openCheckPage(context, server.origin);
+    outside.clearLog();
+    const out = await page.evaluate(async trackerOrigin => {
+        const tricks = `
+            <script>window.__raw = 'inline';</script>
+            <p id="click" onclick="window.__raw='onclick'">x</p>
+            <img src="x:y" onerror="window.__raw='onerror'"/>
+            <a id="jslink" href="javascript:window.__raw='jslink'">link</a>
+            <iframe id="jsframe" src="javascript:window.__raw='jsframe'"></iframe>
+            <iframe id="nested" src="${trackerOrigin}/frame.html"></iframe>
+            <object id="obj" data="${trackerOrigin}/object.html"></object>
+            <svg xmlns="http://www.w3.org/2000/svg"><script>window.__raw='svgscript'</script></svg>
+            <script>
+              // A page that deletes its own policy first, then tries to run and fetch.
+              document.querySelector('meta[http-equiv="Content-Security-Policy"]')?.remove();
+              window.__raw = 'after-csp-delete';
+              fetch('${trackerOrigin}/fetch').catch(() => {});
+              new Image().src = '${trackerOrigin}/image.png';
+            </script>`;
+        const html = `<html xmlns="http://www.w3.org/1999/xhtml"><head><meta http-equiv="Content-Security-Policy" content="${window.br.BOOK_CSP}"/></head><body>${tricks}</body></html>`;
+        const url = URL.createObjectURL(new Blob([html], { type: 'text/html' }));
+        const iframe = document.createElement('iframe');
+        // The Apple value: scripts allowed in the frame, so the page's own policy is the only barrier.
+        iframe.setAttribute('sandbox', 'allow-same-origin allow-scripts');
+        document.body.append(iframe);
+        await new Promise(resolve => { iframe.onload = resolve; iframe.src = url; });
+        iframe.contentDocument.getElementById('click')?.dispatchEvent(new MouseEvent('click'));
+        iframe.contentDocument.getElementById('jslink')?.click();
+        await new Promise(r => setTimeout(r, 700));
+        const result = { ran: iframe.contentWindow.__raw ?? null };
+        iframe.remove();
+        return result;
+    }, outside.origin);
+    assert(out.ran === null, `a script ran: ${out.ran}`);
+    assert(outside.log.length === 0, `the page reached the outside: ${JSON.stringify(outside.log)}`);
+    await context.close();
+    return 'nothing ran, nothing left the page';
+});
+
 await check('book links: outside links open safely, chapter links navigate', () => withBook(desktop, {}, async ({ page, context }) => {
     await page.evaluate(() => window.br.goTo(1));
     const frame = await frameWith(page, '#external-link');
@@ -335,9 +495,19 @@ await check('tap zones, keys and swipe turn pages; the centre toggles the bars',
         const win = el.contentWindow;
         const target = win.document.body;
         const fire = (type, x) => {
-            const touch = new win.Touch({ identifier: 1, target, clientX: x, clientY: 420, screenX: x, screenY: 420 });
+            const init = { identifier: 1, target, clientX: x, clientY: 420, screenX: x, screenY: 420 };
+            // Desktop WebKit has no Touch constructor, so a plain event carrying the same touch lists stands in for it there.
+            let touch = init;
+            let real = false;
+            try { touch = new win.Touch(init); real = typeof win.TouchEvent === 'function'; } catch { /* no usable Touch constructor */ }
             const list = type === 'touchend' ? [] : [touch];
-            target.dispatchEvent(new win.TouchEvent(type, { bubbles: true, cancelable: true, touches: list, targetTouches: list, changedTouches: [touch] }));
+            if (real) {
+                target.dispatchEvent(new win.TouchEvent(type, { bubbles: true, cancelable: true, touches: list, targetTouches: list, changedTouches: [touch] }));
+            } else {
+                const event = new win.Event(type, { bubbles: true, cancelable: true });
+                Object.assign(event, { touches: list, targetTouches: list, changedTouches: [touch] });
+                target.dispatchEvent(event);
+            }
         };
         fire('touchstart', 320);
         for (let x = 320; x >= 80; x -= 40) { fire('touchmove', x); await new Promise(r => setTimeout(r, 16)); }
@@ -458,10 +628,14 @@ await check('hostile SVG pages, SVG frames, odd page types: nothing runs, harmle
     seen.push('chapter');
 
     // The frame itself must not be allowed to run scripts, whatever the clean-up did (defence in depth).
+    // The frame's sandbox is chosen by the adapter: scripts are allowed only on Apple WebKit, where the page CSP and the clean-up are the barrier.
     const sandbox = await (await frame.frameElement()).getAttribute('sandbox');
-    assert(sandbox !== null && !/allow-scripts/.test(sandbox), `book frames may run scripts: sandbox="${sandbox}"`);
+    const expectedSandbox = browserName === 'webkit' ? 'allow-same-origin allow-scripts' : 'allow-same-origin';
+    assert(sandbox === expectedSandbox, `${browserName} book frames use sandbox="${sandbox}", expected "${expectedSandbox}"`);
     const ran = await page.evaluate(async sandbox => {
-        const html = '<html xmlns="http://www.w3.org/1999/xhtml"><body><p id="p" onclick="window.__raw=\'handler\'">x</p><script>window.__raw=\'inline\';</script><img src="x:y" onerror="window.__raw=\'onerror\'"/></body></html>';
+        // Where scripts are allowed the page carries the book CSP, as every real book page does; without scripts the sandbox alone must stop it.
+        const csp = /allow-scripts/.test(sandbox) ? `<head><meta http-equiv="Content-Security-Policy" content="${window.br.BOOK_CSP}"/></head>` : '';
+        const html = `<html xmlns="http://www.w3.org/1999/xhtml">${csp}<body><p id="p" onclick="window.__raw='handler'">x</p><script>window.__raw='inline';</script><img src="x:y" onerror="window.__raw='onerror'"/></body></html>`;
         const url = URL.createObjectURL(new Blob([html], { type: 'application/xhtml+xml' }));
         const iframe = document.createElement('iframe');
         iframe.setAttribute('sandbox', sandbox);

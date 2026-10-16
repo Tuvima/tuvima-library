@@ -23,6 +23,8 @@ data class DetailModel(
     val cast: List<DetailCredit>,
     val editions: List<DetailEdition>,
     val progressPercent: Double?,
+    /** The show an episode belongs to, when the Engine's answer names it; next-episode features need it. */
+    val showId: String? = null,
 ) {
     /** True when the person has started this work and has not finished it. */
     val isInProgress: Boolean
@@ -207,6 +209,20 @@ fun groupTypeLabel(groupType: String): String = when (groupType.lowercase()) {
     "universe" -> "Universe"
     else -> "Collection"
 }
+
+/**
+ * The show id to give the video screen: the details id itself when this is a show (query string and fragment removed, as in
+ * `/details/tvshow/{showId}?context=watch&episode={episodeId}`), else the show the episode's own detail answer named.
+ * Null when neither is known: the next-episode features then stay hidden and nothing is guessed.
+ */
+fun playShowId(entityType: String, id: String, detailShowId: String?): String? {
+    if (OfflineLogic.isShowEntity(entityType)) return id.substringBefore('?').substringBefore('#').takeIf { it.isNotBlank() }
+    return detailShowId?.trim()?.takeIf { it.isNotEmpty() }
+}
+
+/** The parent show named by an episode's detail answer: an explicit show id first, then the episode context's show work. */
+fun parentShowId(explicitShowId: String?, episodeContextShowWorkId: String?): String? =
+    explicitShowId?.trim()?.takeIf { it.isNotEmpty() } ?: episodeContextShowWorkId?.trim()?.takeIf { it.isNotEmpty() }
 
 /** `/details/work/{id}?context=watch` becomes ("work", id); null when the route is not a details route. */
 fun detailTargetFromRoute(route: String?): Pair<String, String>? {

@@ -81,9 +81,11 @@ export class FixedLayout extends HTMLElement {
             display: 'none',
             overflow: 'hidden',
         })
-        // TUVIMA LOCAL PATCH (see PINNED.md): `allow-scripts` removed so a script in a book can never run.
-        // Upstream keeps it for WebKit bug https://bugs.webkit.org/show_bug.cgi?id=218086 (events in sandboxed frames).
-        iframe.setAttribute('sandbox', 'allow-same-origin')
+        // TUVIMA LOCAL PATCH (see PINNED.md): the frame's sandbox is chosen by the Tuvima adapter (js/book-reader.js), never by
+        // the book. Upstream always uses `allow-same-origin allow-scripts`. Tuvima uses `allow-same-origin` only, except on Apple
+        // WebKit (iPhone, iPad, Safari), which needs `allow-scripts` for events in frames (WebKit bug 218086). Anything other than
+        // those two exact values falls back to the stricter one.
+        iframe.setAttribute('sandbox', globalThis.TUVIMA_BOOK_FRAME_SANDBOX === 'allow-same-origin allow-scripts' ? 'allow-same-origin allow-scripts' : 'allow-same-origin')
         iframe.setAttribute('scrolling', 'no')
         iframe.setAttribute('part', 'filter')
         this.#root.append(element)

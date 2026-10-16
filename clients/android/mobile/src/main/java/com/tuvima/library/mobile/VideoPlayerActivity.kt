@@ -132,7 +132,9 @@ import com.tuvima.library.core.VideoGestures
 import com.tuvima.library.core.VideoMessages
 import com.tuvima.library.core.VideoSessionPolicy
 import com.tuvima.library.core.segmentToOffer
+import com.tuvima.library.core.StreamRecovery
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
@@ -203,6 +205,7 @@ class VideoPlayerActivity : ComponentActivity() {
     private var inPip by mutableStateOf(false)
     private var countdownShowing by mutableStateOf(false)
     private var pipReceiver: BroadcastReceiver? = null
+    private var errorGraceJob: Job? = null
     // True between onStart and onStop. The next-episode countdown only runs while the screen is showing.
     private var started by mutableStateOf(false)
 
@@ -213,6 +216,8 @@ class VideoPlayerActivity : ComponentActivity() {
 
         override fun onPlaybackStateChanged(playbackState: Int) {
             buffering = playbackState == Player.STATE_BUFFERING
+            // The service is swapping in a fresh stream (or playback is back): a held-back stream error is not shown.
+            if (playbackState == Player.STATE_BUFFERING || playbackState == Player.STATE_READY) errorGraceJob?.cancel()
             // The service clears a finished video. With a next episode to offer the screen stays for the card; otherwise it closes
             // (a movie or the last episode returns to the details page).
             if (playbackState == Player.STATE_ENDED) {
@@ -235,6 +240,16 @@ class VideoPlayerActivity : ComponentActivity() {
         }
 
         override fun onPlayerError(error: PlaybackException) {
+            // An expired token shows up as a bad HTTP status. The media service recovers from that once, so the message waits
+            // a few seconds and is dropped if playback starts again.
+            if (StreamRecovery.defersErrorScreen(error.errorCode == PlaybackException.ERROR_CODE_IO_BAD_HTTP_STATUS)) {
+                errorGraceJob?.cancel()
+                errorGraceJob = lifecycleScope.launch {
+                    delay(StreamRecovery.ERROR_GRACE_MS)
+                    uiState = VideoUiState.Failed(VideoMessages.OTHER, canRetry = true)
+                }
+                return
+            }
             uiState = when (error.errorCode) {
                 PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED,
                 PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_TIMEOUT,
