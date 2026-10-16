@@ -48,7 +48,7 @@ Reusable visual components, organised by feature slice.
 | `Library/` | Reusable legacy-named library helpers still used by current browse/list surfaces, such as configurable tables, column definitions, batch bars, and status pills. Do not add all-in-one management workflow components here. |
 | `Listen/` | `ListenNowPlayingBar`, `ListenSongTable`, `ListenTransportControls`, `ListenNavigationItem`, `ListenNavigationSection` |
 | `MediaEditor/` | `SharedMediaEditorShell`, `SharedMediaBatchConfirmDialog` |
-| `Navigation/` | `SystemActivityIndicator`, `TopNavAccountMenu`, `LibrarySwitcherSheet` (the Libraries dock tab's phone sheet; catalog and rules in `Services/Navigation/ShellDock.cs`) |
+| `Navigation/` | `SystemActivityIndicator`, `TopNavAccountMenu`, `LibrarySwitcherSheet` (the TV dock's Libraries sheet), and the phone shell: `PhoneNavigationMenu` (the full-screen hamburger sheet), `PhoneSectionChips` (the chips row under the top bar) and `PhoneDownloadsAction` (the top-bar Downloads icon, native app only). The primary destinations are one catalogue in `Services/Navigation/ShellNavigation.cs` that the desktop top bar, the phone menu and the chips all render; dock tabs and Downloads rules are in `ShellDock.cs`. See *Phone navigation* in `docs/product/presentation-rules.md` |
 | `Pages/` | All routed pages — see §6.4 |
 | `LibraryItems/` | Internal building blocks used by Library + Universe: `LibraryItemHelpers`, `ReportProblemDialog` |
 | `Profiles/` | `ProfileEditorSheet`, `ProfileAvatarPicker`, `ProfileEditingWorkflow` (sends sheet choices to the Engine), `ProfileSignInWorkflow` (the same for the profile page's Sign-in sheet), `AdminUnlockDialog`, `ProfileManageRules` — shared by the picker and Settings > Profiles |
@@ -87,7 +87,7 @@ Reusable visual components, organised by feature slice.
 | `/detail/{Type}/{Id}` (and similar) | `UnifiedDetailPage.razor` | Unified detail surface (work / edition / collection / person) — uses `Components/Details/` slice |
 | `/universe/{Qid}/explore` | `ChronicleExplorer.razor` | Universe graph explorer |
 | `/search` | `SearchPage.razor` | Global search |
-| `/downloads` | `DownloadsPage.razor` | Says downloads live in the Tuvima app (the dock's Downloads tab; `ShellDock.DownloadsMode` can hide the tab) |
+| `/downloads` | `DownloadsPage.razor` | Says downloads live in the Tuvima app (the TV dock's Downloads tab; `ShellDock.DownloadsMode` can hide the tab or, in the app, show the phone top-bar icon) |
 | `/settings`, `/settings/{Section}` | `Settings.razor` | Settings shell (`/settings/profiles/{profileId}` shows `ProfileDetailPage`; review queue at `/settings/review`, ingestion at `/settings/ingestion`, temporary harness at `/settings/dev-harness`) |
 | `/not-found`, `/Error` | `NotFound.razor`, `Error.razor` | Error pages |
 

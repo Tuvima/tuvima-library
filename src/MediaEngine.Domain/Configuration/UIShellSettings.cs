@@ -27,7 +27,8 @@ public sealed class UIShellSettings
     public string LogoVariant { get; set; } = "wordmark";
 
     /// <summary>
-    /// Tab names displayed on the dock (phone and TV). Default: Home, Libraries, Search, Downloads and Settings. Read, Watch, Listen, View and Collections remain valid names.
+    /// Tab names displayed on the TV dock. Default: Home, Libraries, Search, Downloads and Settings. Read, Watch, Listen, View and Collections remain valid names.
+    /// The phone dock does not read this list: it is always Home, Search and My Library.
     /// Automotive restricts this to <c>["Collections", "Listen"]</c>.
     /// </summary>
     [JsonPropertyName("intent_dock_items")]

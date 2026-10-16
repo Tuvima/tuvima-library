@@ -2172,6 +2172,8 @@ MediaEngine.Contracts.Details.MediaEngine.Contracts.Details.DetailTab
   Label: System.String | nullability=not-null | accessors=get,init
   IsAdminOnly: System.Boolean | nullability=not-null | accessors=get,init
 
+MediaEngine.Contracts.Details.MediaEngine.Contracts.Details.DetailTabVisibility
+
 MediaEngine.Contracts.Details.MediaEngine.Contracts.Details.EntityCreditViewModel
   IsUpdatingDetails: System.Boolean | nullability=not-null | accessors=get,set
   Seasons: System.Collections.Generic.IReadOnlyList<System.Int32> | nullability=not-null | accessors=get,init

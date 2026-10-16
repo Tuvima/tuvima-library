@@ -1020,6 +1020,7 @@ code,
     --app-shadow-md: var(--tl-shadow-md);
     --app-shadow-lg: var(--tl-shadow-lg);
     --app-topbar-height: 65px;
+    --tl-appbar-row-height: var(--app-topbar-height);
     --app-hover-overlay: rgba(255, 255, 255, 0.04);
     --app-active-overlay: var(--tl-accent-primary-soft);
     --app-glass-bg: var(--app-surface);
@@ -1522,7 +1523,7 @@ body,
 .layout-shell__desktop-nav,
 .layout-shell__actions,
 .layout-shell__left-rail {
-    height: var(--app-topbar-height) !important;
+    height: var(--tl-appbar-row-height) !important;
     align-items: center !important;
 }
 
@@ -5051,6 +5052,100 @@ input[type="reset"],
     .layout-kids .media-tile {
         transition: none;
     }
+}
+
+/* Phone navigation shell (form factor phone). The hamburger and the menu's buttons are emitted by AppNativeButton, a child
+   component, so their rules are global. The rest of the menu (header, lists, divider) is in PhoneNavigationMenu.razor.css. */
+.layout-shell__menu-button,
+.phone-nav-menu__close {
+    display: inline-grid;
+    flex: 0 0 auto;
+    place-items: center;
+    box-sizing: border-box;
+    width: var(--tl-touch-target-min);
+    min-width: var(--tl-touch-target-min);
+    height: var(--tl-touch-target-min);
+    padding: 0;
+    border: 0;
+    border-radius: 999px;
+    color: var(--app-text-primary, var(--tl-text-primary));
+    background: transparent;
+    cursor: pointer;
+    touch-action: manipulation;
+}
+
+.layout-shell__menu-button:hover,
+.layout-shell__menu-button:focus-visible,
+.phone-nav-menu__close:hover,
+.phone-nav-menu__close:focus-visible {
+    background: var(--app-hover-overlay, var(--tl-bg-surface-hover));
+}
+
+.layout-shell__menu-button:focus-visible,
+.phone-nav-menu__close:focus-visible {
+    outline: 2px solid var(--tl-focus-ring);
+    outline-offset: 2px;
+}
+
+/* A menu row: a link, or the Sign out button inside its form. 56 px tall. */
+.phone-nav-menu__item {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: var(--tl-space-4);
+    box-sizing: border-box;
+    width: 100%;
+    min-height: 56px;
+    padding: 0 var(--tl-space-3);
+    border: 0;
+    border-radius: var(--tl-radius-md);
+    color: var(--tl-text-primary);
+    background: transparent;
+    font: inherit;
+    font-size: var(--tl-font-size-md);
+    text-align: start;
+    text-decoration: none;
+    cursor: pointer;
+    touch-action: manipulation;
+}
+
+.phone-nav-menu__item:hover,
+.phone-nav-menu__item:focus-visible {
+    background: var(--tl-accent-primary-soft);
+}
+
+.phone-nav-menu__item:focus-visible {
+    outline: var(--tl-focus-ring-width, 2px) solid var(--tl-focus-ring);
+    outline-offset: -2px;
+}
+
+.phone-nav-menu__item.is-current {
+    color: var(--tl-accent-primary);
+    font-weight: 700;
+}
+
+/* The menu sheet's dialog frame comes from AppDialogFrame. The shared dialog surface, border, radius and max-height are
+   all forced on .tl-dialog, so the sheet overrides them to fill the screen edge to edge. */
+.app-native-dialog.phone-nav-menu-dialog.tl-dialog {
+    height: 100dvh;
+    max-height: none !important;
+    overflow-y: auto;
+    color: var(--tl-text-primary) !important;
+    background: var(--tl-bg-root) !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+    .app-native-dialog.phone-nav-menu-dialog[open] {
+        animation: phone-nav-menu-in var(--tl-motion-duration-medium) var(--tl-motion-ease-standard);
+    }
+}
+
+@keyframes phone-nav-menu-in {
+    from { opacity: 0; transform: translateY(-8px); }
+    to { opacity: 1; transform: none; }
 }
 
 /* Editor "This file covers" picker (global so it stays out of the scoped-CSS bundle ceiling). */

@@ -8,6 +8,16 @@ window.setThemeClass = function () {
     document.body.classList.add('app-dark');
 };
 
+/**
+ * Pop hook for an overlay that owns one history entry (the phone navigation menu, js/phone-nav-menu.js). app.js loads
+ * before blazor.web.js, so this listener is registered before Blazor's own popstate listener and can swallow the pop that
+ * removes the overlay's entry (stopImmediatePropagation); Blazor then never treats it as a navigation.
+ */
+window.tuvimaPopHook = null;
+window.addEventListener('popstate', function (event) {
+    if (window.tuvimaPopHook) window.tuvimaPopHook(event);
+});
+
 window.tuvimaPrefersReducedMotion = function () {
     return !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
 };

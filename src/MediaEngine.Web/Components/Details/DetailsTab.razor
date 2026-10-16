@@ -1,7 +1,100 @@
 @namespace MediaEngine.Web.Components.Details
 @using MediaEngine.Contracts.Details
+@using MediaEngine.Contracts.Metadata
+@using MediaEngine.Web.Models.ViewDTOs
+@using MediaEngine.Web.Services.Integration
+@using MediaEngine.Web.Services.Theming
+@inject IEngineApiClient ApiClient
+@inject DeviceContextService DeviceContext
+@inject ILogger<DetailsTab> Logger
 
 <div class="tl-detail-tab-panel">
+    @if (ShowFileFacts)
+    {
+        <section class="tl-detail-panel tl-file-facts" aria-label="File facts">
+            <div class="tl-section-heading"><h2>@(_blocks.Count > 1 ? "Files" : "File")</h2></div>
+            @if (_loading)
+            {
+                <p class="tl-file-facts__note" role="status">Loading file details...</p>
+            }
+            else if (!string.IsNullOrWhiteSpace(_fileFactsError))
+            {
+                <p class="tl-file-facts__note" role="alert">@_fileFactsError</p>
+            }
+            else if (_blocks.Count == 0)
+            {
+                <p class="tl-file-facts__note">No file details are stored for this item yet.</p>
+            }
+            else
+            {
+                @foreach (var block in _blocks)
+                {
+                    <div class="tl-file-facts__block">
+                        @if (_blocks.Count > 1)
+                        {
+                            <h3 class="tl-file-facts__title">@block.Title</h3>
+                        }
+                        <dl class="tl-file-facts__list">
+                            @if (_blocks.Count == 1)
+                            {
+                                <dt>File name</dt>
+                                <dd>@block.Title</dd>
+                            }
+                            @foreach (var row in block.Rows)
+                            {
+                                <dt>@row.Label</dt>
+                                <dd>@row.Value</dd>
+                            }
+                        </dl>
+                    </div>
+                }
+            }
+        </section>
+    }
+    else if (DetailFileFacts.IsGrouping(Model.EntityType))
+    {
+        <section class="tl-detail-panel tl-file-facts" aria-label="File facts">
+            <div class="tl-section-heading"><h2>Files</h2></div>
+            <p class="tl-file-facts__note">This is a grouping. Open an item inside it to see its file details.</p>
+        </section>
+    }
+
+    @if (ShowHistory)
+    {
+        <section class="tl-detail-panel tl-item-history" aria-label="History">
+            <div class="tl-section-heading"><h2>History</h2></div>
+            @if (_historyLoading)
+            {
+                <p class="tl-file-facts__note" role="status">Loading history...</p>
+            }
+            else if (!string.IsNullOrWhiteSpace(_historyError))
+            {
+                <p class="tl-file-facts__note" role="alert">@_historyError</p>
+            }
+            else if (_history.Count == 0)
+            {
+                <p class="tl-file-facts__note">Nothing has been recorded for this item yet.</p>
+            }
+            else
+            {
+                <ol class="tl-item-history__list">
+                    @foreach (var entry in _history)
+                    {
+                        <li class="tl-item-history__entry">
+                            <span class="tl-item-history__when">@entry.OccurredAt.ToLocalTime().ToString("yyyy-MM-dd HH:mm")</span>
+                            <span class="tl-item-history__what">@entry.Label</span>
+                            @if (!string.IsNullOrWhiteSpace(entry.Detail))
+                            {
+                                <span class="tl-item-history__detail">@entry.Detail</span>
+                            }
+                            <span class="tl-item-history__who">@entry.ActorLabel</span>
+                        </li>
+                    }
+                </ol>
+            }
+        </section>
+    }
+
     <section class="tl-detail-panel">
         <div class="tl-section-heading"><h2>Details</h2></div>
         <dl class="tl-detail-dl">
@@ -56,6 +149,83 @@
 
 @code {
     [Parameter, EditorRequired] public DetailPageViewModel Model { get; set; } = default!;
+
+    private string? _loadedFor;
+    private bool _loading;
+    private bool _historyLoading;
+    private string? _historyError;
+    private string? _fileFactsError;
+    private IReadOnlyList<DetailFileBlock> _blocks = [];
+    private IReadOnlyList<LibraryItemHistoryDto> _history = [];
+
+    /// <summary>
+    /// The people who may already see the file path and the item's history: those who are offered
+    /// the Edit action on this page (the Engine decides, and still enforces it on every request).
+    /// </summary>
+    private bool CanSeeAdminFacts => Model.OverflowActions.Any(action => action.Key is "edit" or "edit-media");
+
+    /// <summary>The path, like the editor's File view, is not offered on phones (no editing there).</summary>
+    private bool ShowPath => CanSeeAdminFacts && !DeviceContext.IsPhone;
+
+    private bool ShowFileFacts => DetailFileFacts.IsFileBearing(Model.EntityType);
+
+    /// <summary>History is read-only and shown on desktop-class screens only.</summary>
+    private bool ShowHistory => ShowFileFacts && CanSeeAdminFacts && DeviceContext.IsDesktop;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        var key = $"{Model.Id}|{Model.EntityType}|{CanSeeAdminFacts}|{DeviceContext.IsDesktop}|{DeviceContext.IsPhone}";
+        if (key == _loadedFor)
+        {
+            return;
+        }
+
+        _loadedFor = key;
+        _blocks = [];
+        _history = [];
+        _historyError = null;
+        _fileFactsError = null;
+        if (!ShowFileFacts || !Guid.TryParse(Model.Id, out var id))
+        {
+            return;
+        }
+
+        _loading = true;
+        _historyLoading = ShowHistory;
+        try
+        {
+            var versionsTask = ApiClient.GetMediaEditorWorkVersionsAsync(id);
+            var detailTask = ApiClient.GetLibraryItemDetailAsync(id);
+            Task<(List<LibraryItemHistoryDto> Items, string? Error)>? historyTask = ShowHistory
+                ? ApiClient.GetItemHistoryWithStatusAsync(id)
+                : null;
+
+            var versions = await versionsTask;
+            var detail = await detailTask;
+            _blocks = DetailFileFacts.Build(Model, versions, detail, includePath: ShowPath);
+            _loading = false;
+
+            if (historyTask is not null)
+            {
+                var (items, error) = await historyTask;
+                _history = items.OrderByDescending(entry => entry.OccurredAt).ToList();
+                _historyError = error;
+            }
+        }
+        catch (Exception ex)
+        {
+            // The client methods report their own failures and return empty, so this only guards an
+            // unexpected throw: log it and show a degraded panel rather than failing the whole tab.
+            Logger.LogWarning(ex, "Details tab could not load file facts for {EntityId}", id);
+            _blocks = [];
+            _fileFactsError = "File details could not be loaded.";
+        }
+        finally
+        {
+            _loading = false;
+            _historyLoading = false;
+        }
+    }
 
     private static string SourceIcon(string key) => key switch
     {
