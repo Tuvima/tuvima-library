@@ -65,6 +65,13 @@ public sealed class NativeApiForwarderTests
     [InlineData("POST", "details/show/6f0c2a3e-0000-0000-0000-000000000000/next-episodes", true, NativeApiForwardDecision.NotFound)]
     [InlineData("POST", "stream/6f0c2a3e-0000-0000-0000-000000000000/text-tracks/6f0c2a3e-0000-0000-0000-000000000000/preferred", true, NativeApiForwardDecision.Forward)]
     [InlineData("POST", "playback/6f0c2a3e-0000-0000-0000-000000000000/encode", true, NativeApiForwardDecision.Forward)]
+    // Casting: only the phone's POST to start a session. The TV's secret-link routes are not part of /api/v1, and no GET or other write exists.
+    [InlineData("POST", "playback/6f0c2a3e-0000-0000-0000-000000000000/cast", true, NativeApiForwardDecision.Forward)]
+    [InlineData("POST", "playback/6f0c2a3e-0000-0000-0000-000000000000/cast", false, NativeApiForwardDecision.Unauthorized)]
+    [InlineData("GET", "playback/6f0c2a3e-0000-0000-0000-000000000000/cast", true, NativeApiForwardDecision.NotFound)]
+    [InlineData("PUT", "playback/6f0c2a3e-0000-0000-0000-000000000000/cast", true, NativeApiForwardDecision.NotFound)]
+    [InlineData("POST", "playback/6f0c2a3e-0000-0000-0000-000000000000/cast/extra", true, NativeApiForwardDecision.NotFound)]
+    [InlineData("POST", "playback/notaguid/cast", true, NativeApiForwardDecision.NotFound)]
     [InlineData("GET", "player/audiobooks/6f0c2a3e-0000-0000-0000-000000000000/chapter-overrides", true, NativeApiForwardDecision.Forward)]
     // The app door passes only the browse routes of display/. The artwork workspace (raw artwork over every Work and Collection) and every other
     // display/ shape is answered locally as not found.

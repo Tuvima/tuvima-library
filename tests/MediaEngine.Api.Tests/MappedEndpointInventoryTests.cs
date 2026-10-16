@@ -198,6 +198,15 @@ public sealed class MappedEndpointInventoryTests
         inventory.Require("/api/v1/oauth/token", HttpMethods.Post).AllowsAnonymous();
         inventory.Require("/stream/hls/{grant}/{packageId:guid}/{**resourcePath}", HttpMethods.Get).AllowsAnonymous();
         inventory.Require("/stream/hls/{grant}/{packageId:guid}/{**resourcePath}", HttpMethods.Head).AllowsAnonymous();
+        // Cast receivers (a TV) cannot send a bearer token: each route is a secret link carrying its own signed grant, read-only.
+        foreach (var method in new[] { HttpMethods.Get, HttpMethods.Head, HttpMethods.Options })
+        {
+            inventory.Require("/cast/v1/{grant}/media", method).AllowsAnonymous();
+            inventory.Require("/cast/v1/{grant}/hls/{packageId:guid}/{**resourcePath}", method).AllowsAnonymous();
+            inventory.Require("/cast/v1/{grant}/text/{trackId:guid}", method).AllowsAnonymous();
+            inventory.Require("/cast/v1/{grant}/poster", method).AllowsAnonymous();
+        }
+
         inventory.Require("/intercom").AllowsAnonymous();
         inventory.Require("/intercom/negotiate").AllowsAnonymous();
 
@@ -208,6 +217,10 @@ public sealed class MappedEndpointInventoryTests
         Assert.Equal([
             "/api/v1/oauth/device_authorization",
             "/api/v1/oauth/token",
+            "/cast/v1/{grant}/hls/{packageId:guid}/{**resourcePath}",
+            "/cast/v1/{grant}/media",
+            "/cast/v1/{grant}/poster",
+            "/cast/v1/{grant}/text/{trackId:guid}",
             "/intercom",
             "/intercom/negotiate",
             "/stream/hls/{grant}/{packageId:guid}/{**resourcePath}",

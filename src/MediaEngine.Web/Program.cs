@@ -537,6 +537,7 @@ app.MapViewMediaProxy();
 
 app.MapDashboardAuthenticationEndpoints(registeredExternalProviders);
 app.MapClientApiEdge();
+app.MapCastReceiverRelay();
 
 if (registeredExternalProviders.Count > 0)
 {

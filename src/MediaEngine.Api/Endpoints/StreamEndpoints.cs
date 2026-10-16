@@ -84,34 +84,8 @@ public static class StreamEndpoints
             var ext = Path.GetExtension(asset.FilePathRoot);
             var mimeType = MimeMap.GetValueOrDefault(ext, "application/octet-stream");
 
-            ctx.Response.Headers.AcceptRanges = "bytes";
-            long totalSize = await streamer.GetFileSizeAsync(asset.FilePathRoot, ct);
-
-            if (ctx.Request.Headers.TryGetValue("Range", out var rangeHeader)
-                && TryParseRange(rangeHeader.ToString(), totalSize,
-                                 out long rangeStart, out long rangeEnd))
-            {
-                long length = rangeEnd - rangeStart + 1;
-                using var result = await streamer.GetRangeAsync(
-                    asset.FilePathRoot, rangeStart, length, ct);
-
-                ctx.Response.StatusCode = StatusCodes.Status206PartialContent;
-                ctx.Response.ContentType = mimeType;
-                ctx.Response.Headers.ContentRange = result.ContentRangeHeader;
-                ctx.Response.Headers.ContentLength = result.ContentLength;
-                await result.Content.CopyToAsync(ctx.Response.Body, ct);
-                return Results.Empty;
-            }
-            else
-            {
-                using var result = await streamer.GetRangeAsync(
-                    asset.FilePathRoot, 0, null, ct);
-
-                ctx.Response.ContentType = mimeType;
-                ctx.Response.Headers.ContentLength = totalSize;
-                await result.Content.CopyToAsync(ctx.Response.Body, ct);
-                return Results.Empty;
-            }
+            await ByteRangeResponder.WriteFileAsync(ctx, streamer, asset.FilePathRoot, mimeType, headOnly: false, ct);
+            return Results.Empty;
         })
         .WithName("StreamAsset")
         .WithSummary("Stream a media asset with HTTP 206 byte-range support.")
@@ -676,7 +650,7 @@ public static class StreamEndpoints
         return app;
     }
 
-    private static async Task<Guid> ResolveArtworkOwnerEntityIdAsync(
+    internal static async Task<Guid> ResolveArtworkOwnerEntityIdAsync(
         Guid assetId,
         IWorkRepository workRepo,
         CancellationToken ct,
@@ -733,7 +707,7 @@ public static class StreamEndpoints
         return new CacheableArtworkFileResult(path, GetArtworkContentType(path));
     }
 
-    private static bool HasRecognizedImageSignature(string path)
+    internal static bool HasRecognizedImageSignature(string path)
     {
         try
         {
@@ -758,7 +732,7 @@ public static class StreamEndpoints
         }
     }
 
-    private static string GetArtworkContentType(string path) =>
+    internal static string GetArtworkContentType(string path) =>
         Path.GetExtension(path).ToLowerInvariant() switch
         {
             ".png" => "image/png",
@@ -791,61 +765,5 @@ public static class StreamEndpoints
                     enableRangeProcessing: false)
                 .ExecuteAsync(httpContext);
         }
-    }
-
-    /// <summary>
-    /// Parses the RFC 7233 Range header value "bytes=start-end".
-    /// Both start and end may be absent. Returns false if the header cannot be
-    /// parsed or the range is unsatisfiable.
-    /// </summary>
-    private static bool TryParseRange(
-        string rangeHeader,
-        long totalSize,
-        out long start,
-        out long end)
-    {
-        start = 0;
-        end = totalSize > 0 ? totalSize - 1 : 0;
-
-        if (!rangeHeader.StartsWith("bytes=", StringComparison.OrdinalIgnoreCase))
-        {
-            return false;
-        }
-
-        var rangePart = rangeHeader["bytes=".Length..];
-        var dashIdx = rangePart.IndexOf('-');
-        if (dashIdx < 0)
-        {
-            return false;
-        }
-
-        var startStr = rangePart[..dashIdx].Trim();
-        var endStr = rangePart[(dashIdx + 1)..].Trim();
-
-        // "bytes=-500" → last 500 bytes (suffix range).
-        if (startStr.Length == 0 && long.TryParse(endStr, out long suffixLength))
-        {
-            start = Math.Max(0, totalSize - suffixLength);
-            end = totalSize - 1;
-            return totalSize > 0;
-        }
-
-        if (!long.TryParse(startStr, out start))
-        {
-            return false;
-        }
-
-        if (endStr.Length == 0)
-        {
-            end = totalSize - 1;
-        }
-        else if (!long.TryParse(endStr, out end))
-        {
-            return false;
-        }
-
-        start = Math.Max(0, start);
-        end = Math.Min(end, totalSize - 1);
-        return start <= end && totalSize > 0;
     }
 }

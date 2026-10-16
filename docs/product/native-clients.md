@@ -57,6 +57,8 @@ when all evidence in its final column is attached to the release candidate.
   progress, token rotation, profile switch, and settings. It is checked by
   `tests/native/Test-TvWebClient.ps1` and the `tv-web` CI job.
 
+**Casting (Engine and Dashboard ready, apps to follow).** A paired phone can ask the Engine to prepare a cast session for one video (`POST /api/v1/playback/{assetId}/cast`). The answer is a secret link for that one title, valid for the length of the film plus 90 minutes (2 to 6 hours), that a Chromecast or Google TV on the home network can play with no sign-in. It stops working as soon as the phone signs out, the device or profile changes, or the profile may no longer watch the title. The Android app will use it once it is built against this contract; nothing changes for existing apps.
+
 ## Collections and Universes in apps
 
 API v1 gives paired apps a read-only view of Collections: the same catalogue the
