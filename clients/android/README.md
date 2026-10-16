@@ -15,6 +15,10 @@ Orientation: the phone app is locked to portrait (`screenOrientation="portrait"`
 `MainActivity`); TV is landscape by nature. Movies and episodes rotate to landscape, Photos clips follow
 the phone, and everything else stays portrait. The rule lives in `core` `OrientationPolicy`.
 
+Photos videos: tapping a video in the Photos gallery or timeline (or Play in the viewer) opens `ClipPlayerActivity`, which plays
+`GET /api/v1/view/items/{id}/playback` (the original, by byte ranges) on its own player. It has no media service, History, progress or
+lock-screen session, adds the bearer token to each request rather than the URL, and follows the phone's rotation.
+
 Video: Play on a movie or episode (and on a downloaded one in Downloads) opens `VideoPlayerActivity`, a
 full-screen landscape player. It shows the same ExoPlayer the media service owns through a Media3
 `MediaController`, so the lock screen, headset buttons, offline progress and the audio notification stay in one
