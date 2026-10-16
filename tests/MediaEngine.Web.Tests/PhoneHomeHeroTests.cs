@@ -191,6 +191,28 @@ public sealed class PhoneHomeHeroTests : AsyncBunitContext
     }
 
     [Fact]
+    public async Task SwipingAndTouchHoldWorkOnThePhoneCardThroughTheCarouselsOwnHandler()
+    {
+        await UseAsync("phone");
+        var cut = RenderPhone(Book(), Movie(), Tv());
+        // The swipe handler is registered on the carousel section that wraps the card, so it covers the card.
+        JSInterop.VerifyInvoke("registerHeroSwipe");
+        await cut.InvokeAsync(() => cut.Instance.OnHeroSwipe("next"));
+        Assert.Equal("Dune: Part Two", cut.Find("h1").TextContent.Trim());
+        await cut.InvokeAsync(() => cut.Instance.OnHeroSwipe("next"));
+        Assert.Equal("The Continental", cut.Find("h1").TextContent.Trim());
+        await cut.InvokeAsync(() => cut.Instance.OnHeroSwipe("previous"));
+        await cut.InvokeAsync(() => cut.Instance.OnHeroSwipe("previous"));
+        Assert.Equal("Leviathan Wakes", cut.Find("h1").TextContent.Trim());
+        // Swiping backwards from the first slide wraps to the last, like the dots.
+        await cut.InvokeAsync(() => cut.Instance.OnHeroSwipe("previous"));
+        Assert.Equal("The Continental", cut.Find("h1").TextContent.Trim());
+        await cut.InvokeAsync(() => cut.Instance.OnHeroTouchHold(true));
+        await cut.InvokeAsync(() => cut.Instance.OnHeroTouchHold(false));
+        Assert.Equal("true", cut.FindAll(".phone-hero__dot")[2].GetAttribute("aria-current"));
+    }
+
+    [Fact]
     public void PhoneHeroCssUsesOnlyExistingTokensAndNoForbiddenPatterns()
     {
         var root = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", ".."));
