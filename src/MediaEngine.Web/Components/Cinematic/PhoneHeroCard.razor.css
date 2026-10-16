@@ -1,0 +1,219 @@
+/* Phone Home hero. One card, one fixed height: about 55% of what is visible between the top bar and the bottom bar, so the
+   first shelf header always sits above the bottom bar and never moves between slides. */
+.phone-hero {
+    --phone-hero-bottom-bar: 3.6rem;
+    --phone-hero-visible: calc(100svh - var(--app-topbar-height, 65px) - var(--tl-safe-area-top, 0px) - var(--phone-hero-bottom-bar) - var(--tl-safe-area-bottom, 0px));
+    --phone-hero-card-height: calc(var(--phone-hero-visible) * 0.55);
+    --phone-hero-tap: var(--tl-touch-target-min, 48px);
+    box-sizing: border-box;
+    width: 100%;
+    padding:
+        calc(var(--app-topbar-height, 65px) + var(--tl-safe-area-top, 0px) + var(--tl-space-2, 0.5rem))
+        max(var(--tl-space-4, 1rem), var(--tl-safe-area-right, 0px))
+        0
+        max(var(--tl-space-4, 1rem), var(--tl-safe-area-left, 0px));
+}
+
+.phone-hero__card {
+    position: relative;
+    isolation: isolate;
+    overflow: hidden;
+    height: var(--phone-hero-card-height);
+    border-radius: var(--tl-radius-lg, 1.25rem);
+    background: #0b0f19;
+    color: var(--tl-text-primary, #f8fafc);
+}
+
+.phone-hero__link {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+}
+
+.phone-hero__link:focus-visible {
+    outline: 3px solid var(--tl-accent-primary, #8852fc);
+    outline-offset: -4px;
+}
+
+.phone-hero__art {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    display: grid;
+    place-items: center;
+}
+
+.phone-hero__backdrop {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center top;
+}
+
+/* A cover keeps its own shape and is never stretched to fill: it only ever shrinks to fit. */
+.phone-hero__cover {
+    align-self: start;
+    max-width: 62%;
+    max-height: 58%;
+    width: auto;
+    height: auto;
+    margin-top: var(--tl-space-4, 1rem);
+    border-radius: var(--tl-radius-md, 0.75rem);
+    box-shadow: 0 0.75rem 2rem rgba(0, 0, 0, 0.45);
+}
+
+.phone-hero__card--cover .phone-hero__art {
+    background: linear-gradient(160deg, rgba(136, 82, 252, 0.28), rgba(5, 7, 12, 0.9));
+}
+
+/* No usable picture: a quiet tinted tile that says what it is, never a blurred fake cover. */
+.phone-hero__card--placeholder .phone-hero__art {
+    background: linear-gradient(160deg, rgba(136, 82, 252, 0.22), rgba(5, 7, 12, 0.92));
+}
+
+.phone-hero__placeholder {
+    display: grid;
+    justify-items: center;
+    gap: var(--tl-space-2, 0.5rem);
+    margin-bottom: 35%;
+    color: var(--tl-text-secondary, rgba(248, 250, 252, 0.72));
+}
+
+.phone-hero__placeholder-icon {
+    width: 3.5rem;
+    height: 3.5rem;
+    opacity: 0.8;
+}
+
+.phone-hero__placeholder-word {
+    font-size: var(--tl-font-size-sm, 0.9rem);
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.phone-hero__content {
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    gap: var(--tl-space-1, 0.25rem);
+    box-sizing: border-box;
+    padding: var(--tl-space-4, 1rem);
+    background: linear-gradient(to top, rgba(5, 7, 12, 0.94) 0%, rgba(5, 7, 12, 0.78) 42%, rgba(5, 7, 12, 0) 78%);
+    pointer-events: none;
+}
+
+.phone-hero__content a,
+.phone-hero__content button {
+    pointer-events: auto;
+}
+
+.phone-hero__tag-slot {
+    min-height: 1.25rem;
+}
+
+.phone-hero__tag {
+    display: inline-block;
+    padding: 0.1rem 0.55rem;
+    border-radius: var(--tl-radius-pill, 999px);
+    background: rgba(255, 255, 255, 0.12);
+    color: var(--tl-text-secondary, rgba(248, 250, 252, 0.78));
+    font-size: var(--tl-font-size-xs, 0.75rem);
+}
+
+.phone-hero__logo {
+    max-width: 70%;
+    max-height: 3.5rem;
+    object-fit: contain;
+    object-position: left center;
+    align-self: flex-start;
+}
+
+.phone-hero__title {
+    margin: 0;
+    font-size: var(--tl-font-size-xl, 1.5rem);
+    line-height: 1.2;
+    /* Two lines, always reserved, so every slide's text block is the same height. */
+    min-height: 2.4em;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    overflow: hidden;
+    overflow-wrap: anywhere;
+}
+
+.phone-hero__meta {
+    margin: 0;
+    min-height: 1.4em;
+    color: var(--tl-text-secondary, rgba(248, 250, 252, 0.78));
+    font-size: var(--tl-font-size-sm, 0.9rem);
+    line-height: 1.4;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.phone-hero__progress-slot {
+    min-height: 0.25rem;
+}
+
+.phone-hero__progress {
+    display: block;
+    width: 100%;
+    height: 0.25rem;
+    border: 0;
+    border-radius: var(--tl-radius-pill, 999px);
+    appearance: none;
+    background: rgba(255, 255, 255, 0.2);
+    color: var(--tl-accent-primary, #8852fc);
+    overflow: hidden;
+}
+
+.phone-hero__progress::-webkit-progress-bar {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+.phone-hero__progress::-webkit-progress-value {
+    background: var(--tl-accent-primary, #8852fc);
+}
+
+.phone-hero__progress::-moz-progress-bar {
+    background: var(--tl-accent-primary, #8852fc);
+}
+
+.phone-hero__actions {
+    display: flex;
+    align-items: center;
+    gap: var(--tl-space-2, 0.5rem);
+    margin-top: var(--tl-space-2, 0.5rem);
+}
+
+.phone-hero__primary-label {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.phone-hero__dots {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: var(--phone-hero-tap);
+}
+
+.phone-hero__dot-mark {
+    display: block;
+    width: 0.5rem;
+    height: 0.5rem;
+    border-radius: var(--tl-radius-pill, 999px);
+    background: rgba(255, 255, 255, 0.38);
+}
+
+.phone-hero__dot.is-active .phone-hero__dot-mark {
+    width: 1.5rem;
+    background: var(--tl-accent-primary, #8852fc);
+}

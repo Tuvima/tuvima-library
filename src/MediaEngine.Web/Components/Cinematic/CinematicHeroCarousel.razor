@@ -10,15 +10,35 @@
 @using MediaEngine.Web.Components.Details
 @using MediaEngine.Web.Services.Integration
 @using MediaEngine.Web.Services.Playback
+@using MediaEngine.Web.Services.Theming
 @inject IServiceProvider Services
 @inject IEngineApiClient ApiClient
 @inject NavigationManager Nav
 @inject IJSRuntime JS
 @inject ILogger<CinematicHeroCarousel> Logger
 @inject PlaybackSessionController Playback
+@inject DeviceContextService DeviceContext
 @implements IAsyncDisposable
 
-@if (Slides.Count > 0)
+@if (Slides.Count > 0 && DeviceContext.IsPhone)
+{
+    @* Phones get one fixed-height card, no rotation timer, no arrows and no pause button: swipe and the dots change slides. *@
+    <section class="cinematic-hero-carousel cinematic-hero-carousel--phone"
+             @ref="_carouselRef"
+             aria-roledescription="carousel"
+             aria-label="@AriaLabel">
+        <PhoneHeroCard Slides="@Slides"
+                       ActiveIndex="@_activeIndex"
+                       DetailsUrl="@ActiveDetailsUrl"
+                       Primary="@LandingPrimaryActions.FirstOrDefault()"
+                       MyList="@LandingSecondaryActions.FirstOrDefault(action => action.Key == "my-list")"
+                       MoreActions="@PhoneMoreActions"
+                       ProgressPercent="@LandingProgress?.Percent"
+                       OnAction="OpenLandingActionAsync"
+                       OnSelectSlide="SelectSlideAsync" />
+    </section>
+}
+else if (Slides.Count > 0)
 {
     <section class="@CarouselClass"
              @ref="_carouselRef"
@@ -194,7 +214,7 @@
         .ToList();
 
     private DiscoveryHeroViewModel ActiveHero => Slides[Math.Clamp(_activeIndex, 0, Slides.Count - 1)];
-    private bool IsPaused => _prefersReducedMotion || _userPaused || _hoverPaused || _focusPaused || _touchPaused || Slides.Count < 2;
+    private bool IsPaused => DeviceContext.IsPhone || _prefersReducedMotion || _userPaused || _hoverPaused || _focusPaused || _touchPaused || Slides.Count < 2;
     private bool UsesLandscapeArtwork => ActiveHero.SurfaceKind == MediaTileSurfaceKind.BannerLandscape;
     private bool UsesLandscapeBackground => UsesLandscapeArtwork
         && !string.IsNullOrWhiteSpace(StringHelpers.FirstNonBlank(ActiveHero.HeroBackgroundImageUrl, ActiveHero.BackgroundImageUrl, ActiveHero.BannerImageUrl));
@@ -405,7 +425,8 @@
 
         // The page may have been left while the browser answered; a disposed hero starts no rotation.
         if (_disposeCts.IsCancellationRequested) return;
-        _rotationTask = RunRotationAsync(_disposeCts.Token);
+        // Phones never rotate by themselves, so no timer is started there.
+        if (!DeviceContext.IsPhone) _rotationTask = RunRotationAsync(_disposeCts.Token);
         await NotifyActiveItemAsync();
         await InvokeAsync(StateHasChanged);
     }
@@ -717,6 +738,12 @@
     private IReadOnlyList<DetailAction> LandingSecondaryActions => LandingIdentity.Id == Guid.Empty ? [] : [
         new() { Key="my-list", Label=Personal.Saved ? "Remove from My List" : "Add to My List", Icon=Personal.Saved ? "check" : "add", IsSelected=Personal.Saved },
         new() { Key="reaction-menu", Label="Rate", Icon="thumb_up", IsSelected=Personal.Reaction is MediaReaction.Like or MediaReaction.Love, Children=[new() { Key="reaction-dislike",Label="Not for me",Icon="thumb_down",IsSelected=Personal.Reaction==MediaReaction.Dislike },new() { Key="reaction-like",Label="I like this",Icon="thumb_up",IsSelected=Personal.Reaction is MediaReaction.Like or MediaReaction.Love }] } ];
+    // On a phone Rate and the thumbs live in More instead of taking room under the primary button.
+    private IReadOnlyList<DetailAction> PhoneMoreActions => LandingSecondaryActions
+        .Where(action => action.Key == "reaction-menu")
+        .SelectMany(action => action.Children)
+        .Concat(LandingOverflowActions)
+        .ToList();
     private IReadOnlyList<DetailAction> LandingOverflowActions => (IsContinuation ? new[] { new DetailAction { Key="play-from-beginning",Label="Restart from beginning",Icon="restart_alt",Route=RestartRoute(ActiveHero.PrimaryNavigationUrl) } } : []).Concat(Personal.Menu.Where(action => action.Key != "edit" && action.Key != "play-from-beginning")).Concat([new DetailAction { Key="go-details",Label="Go to details",Icon="info",Route=ActiveDetailsUrl }]).ToList();
     private async Task LoadPersonalAsync() {
         if (Slides.Count == 0) return;
