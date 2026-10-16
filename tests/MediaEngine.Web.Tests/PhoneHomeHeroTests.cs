@@ -178,6 +178,203 @@ public sealed class PhoneHomeHeroTests : AsyncBunitContext
     }
 
     [Fact]
+    public async Task AStandInCoverShowsTheTintedTileAndARealCoverShowsTheCover()
+    {
+        await UseAsync("phone");
+        var cut = RenderPhone(
+            Album(),
+            Book(),
+            Made("Book", title: "Small but real", coverWidth: 300),
+            Made("Book", title: "Unmeasured", coverWidth: null));
+        // The Engine stand-in is a 100 x 150 picture: it is never drawn at its natural size.
+        Assert.Empty(cut.FindAll(".phone-hero__cover"));
+        Assert.Equal("Album", cut.Find(".phone-hero__placeholder-word").TextContent.Trim());
+        Assert.Contains("phone-hero__card--placeholder", cut.Find(".phone-hero__card").ClassName);
+        cut.FindAll(".phone-hero__dot")[1].Click();
+        Assert.NotEmpty(cut.FindAll(".phone-hero__cover"));
+        Assert.Empty(cut.FindAll(".phone-hero__placeholder"));
+        cut.FindAll(".phone-hero__dot")[2].Click();
+        Assert.NotEmpty(cut.FindAll(".phone-hero__cover"));
+        cut.FindAll(".phone-hero__dot")[3].Click();
+        Assert.Empty(cut.FindAll(".phone-hero__cover"));
+        Assert.Equal("Book", cut.Find(".phone-hero__placeholder-word").TextContent.Trim());
+    }
+
+    private static DiscoveryHeroViewModel Made(
+        string kind,
+        string title = "A title",
+        int? coverWidth = 1200,
+        DisplayContinuationState state = DisplayContinuationState.Unstarted,
+        double? progress = null,
+        double? remaining = null,
+        DisplayEpisodeContextDto? episode = null,
+        string engineLabel = "Play") => new()
+        {
+            WorkId = Guid.NewGuid(),
+            Title = title,
+            MediaKind = kind,
+            PreviewImageUrl = "/engine-image/stream/artwork/x",
+            CoverWidthPx = coverWidth,
+            CoverHeightPx = 1800,
+            SurfaceKind = MediaTileSurfaceKind.CoverPortrait,
+            ContinuationState = state,
+            ProgressPct = progress,
+            RemainingSeconds = remaining,
+            EpisodeContext = episode,
+            PrimaryActionLabel = engineLabel,
+            PrimaryNavigationUrl = "/x",
+        };
+
+    private static readonly DisplayEpisodeContextDto UnstartedEpisode =
+        new(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), "Show", "Episode", 1, 1, DisplayContinuationState.Unstarted, null, null);
+
+    private static readonly DisplayEpisodeContextDto StartedEpisode =
+        new(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), "Show", "Episode", 5, 1, DisplayContinuationState.InProgress, 2400, 3780);
+
+    public static TheoryData<string, string, string> PrimaryLabels() => new()
+    {
+        { "book-unstarted", "Start Reading", "" },
+        { "book-started", "Continue Reading", "32% read" },
+        { "comic-unstarted", "Start Reading", "" },
+        { "comic-started", "Continue Reading", "32% read" },
+        { "movie-unstarted", "Play", "" },
+        { "movie-started", "Resume", "23 min left" },
+        { "tv-unstarted", "Watch S1 E1", "" },
+        { "tv-started", "Resume S5 E1", "23 min left" },
+        { "episode-unstarted", "Watch S1 E1", "" },
+        { "episode-started", "Resume S5 E1", "23 min left" },
+        { "audiobook-unstarted", "Listen", "" },
+        { "audiobook-started", "Continue Listening", "1h 5m left" },
+        { "album-unstarted", "Play album", "" },
+        { "album-started", "Play album", "" },
+    };
+
+    private static DiscoveryHeroViewModel ForLabel(string key)
+    {
+        var started = key.EndsWith("-started", StringComparison.Ordinal);
+        var state = started ? DisplayContinuationState.InProgress : DisplayContinuationState.Unstarted;
+        var pct = started ? 32d : (double?)null;
+        return key.Split('-')[0] switch
+        {
+            "book" => Made("Book", state: state, progress: pct, engineLabel: started ? "Continue Reading" : "Read"),
+            "comic" => Made("Comic", state: state, progress: pct, engineLabel: started ? "Continue Reading" : "Read"),
+            "movie" => Made("Movie", state: state, progress: pct, remaining: started ? 1380 : null, engineLabel: started ? "Continue" : "Play"),
+            // A show with no episode context takes its position from the label the Engine sent.
+            "tv" => Made("TV", state: state, progress: pct, remaining: started ? 1380 : null, engineLabel: started ? "Resume S5 E1" : "Watch S1 E1"),
+            "episode" => Made("TV", state: state, progress: pct, episode: started ? StartedEpisode : UnstartedEpisode, engineLabel: "Watch"),
+            "audiobook" => Made("Audiobook", state: state, progress: pct, remaining: started ? 3900 : null, engineLabel: started ? "Continue" : "Play"),
+            _ => Made("Music", state: state, progress: pct, engineLabel: started ? "Continue" : "Play"),
+        };
+    }
+
+    [Theory]
+    [MemberData(nameof(PrimaryLabels))]
+    public async Task ThePrimaryButtonSaysTheRightThingForEachTypeStartedOrNot(string key, string label, string detail)
+    {
+        await UseAsync("phone");
+        var cut = RenderPhone(ForLabel(key));
+        Assert.Equal(label, cut.Find(".phone-hero__primary-label").TextContent.Trim());
+        var details = cut.FindAll(".phone-hero__primary-detail");
+        if (detail.Length == 0)
+        {
+            Assert.Empty(details);
+        }
+        else
+        {
+            Assert.Equal(detail, Assert.Single(details).TextContent.Trim());
+        }
+
+        if (key.EndsWith("-unstarted", StringComparison.Ordinal))
+        {
+            // An unstarted item never says Continue or Resume and never shows a 0 percent.
+            var text = cut.Find(".phone-hero__primary").TextContent;
+            Assert.DoesNotContain("Continue", text);
+            Assert.DoesNotContain("Resume", text);
+            Assert.DoesNotContain("0%", text);
+        }
+    }
+
+    [Fact]
+    public async Task StartedWithoutANumberDropsTheSuffixInsteadOfInventingOne()
+    {
+        await UseAsync("phone");
+        var cut = RenderPhone(Made("Movie", state: DisplayContinuationState.InProgress));
+        Assert.Equal("Resume", cut.Find(".phone-hero__primary-label").TextContent.Trim());
+        Assert.Empty(cut.FindAll(".phone-hero__primary-detail"));
+        Assert.Equal("Resume", cut.Find(".phone-hero__primary").GetAttribute("aria-label"));
+    }
+
+    [Fact]
+    public async Task AnOpenActionKeepsTheEngineWording()
+    {
+        await UseAsync("phone");
+        var cut = RenderPhone(Made("Book", engineLabel: "Open Series"));
+        Assert.Equal("Open Series", cut.Find(".phone-hero__primary-label").TextContent.Trim());
+    }
+
+    [Fact]
+    public async Task ATitleWithNoLogoIsDrawnAsTextInTheLogoZoneAndALogoSitsInTheSameZone()
+    {
+        await UseAsync("phone");
+        var cut = RenderPhone(Made("Book", title: "No Logo Here"), Movie());
+        var zone = cut.Find(".phone-hero__title-zone");
+        Assert.Empty(zone.QuerySelectorAll(".phone-hero__logo"));
+        var title = zone.QuerySelector("h1.phone-hero__title");
+        Assert.NotNull(title);
+        Assert.Equal("No Logo Here", title!.TextContent.Trim());
+        Assert.DoesNotContain("sr-only", title.ClassName);
+
+        cut.FindAll(".phone-hero__dot")[1].Click();
+        zone = cut.Find(".phone-hero__title-zone");
+        Assert.Single(zone.QuerySelectorAll("img.phone-hero__logo"));
+        // The title stays in the page for screen readers while the logo is drawn.
+        Assert.Contains("sr-only", zone.QuerySelector("h1")!.ClassName);
+    }
+
+    [Fact]
+    public void LogoAndButtonsAreBoundedSoTheCardHeightNeverChanges()
+    {
+        var root = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", ".."));
+        var css = File.ReadAllText(Path.Combine(root, "src", "MediaEngine.Web", "Components", "Cinematic", "PhoneHeroCard.razor.css"));
+        var zone = Rule(css, ".phone-hero__title-zone");
+        Assert.Contains("height: calc(var(--tl-font-size-xl, 1.5rem) * 2.4)", zone);
+        Assert.Contains("overflow: hidden", zone);
+        // A very wide logo is held by the width cap and a very tall one by the height cap; both keep their shape.
+        var logo = Rule(css, ".phone-hero__logo");
+        Assert.Contains("max-width: 70%", logo);
+        Assert.Contains("max-height: 100%", logo);
+        Assert.Contains("object-fit: contain", logo);
+        // The card keeps one height formula and its content is positioned inside it, so nothing the text does can resize it.
+        Assert.Contains("--phone-hero-card-height: calc(var(--phone-hero-visible) * 0.55)", css);
+        Assert.Contains("height: var(--phone-hero-card-height)", Rule(css, ".phone-hero__card"));
+        Assert.Contains("position: absolute", Rule(css, ".phone-hero__content"));
+        var appCss = File.ReadAllText(Path.Combine(root, "src", "MediaEngine.Web", "wwwroot", "app.css"));
+        Assert.Contains("max-height: var(--phone-hero-tap)", Rule(appCss, ".phone-hero__primary"));
+    }
+
+    private static string Rule(string css, string selector)
+    {
+        var start = css.IndexOf(selector + " {", StringComparison.Ordinal);
+        Assert.True(start >= 0, $"{selector} rule not found");
+        return css[start..css.IndexOf('}', start)];
+    }
+
+    [Fact]
+    public async Task EveryTypeKeepsTheSameFixedSlotsWhateverTheLabelSays()
+    {
+        await UseAsync("phone");
+        var items = new[] { ForLabel("book-started"), ForLabel("movie-started"), ForLabel("tv-unstarted"), ForLabel("album-started"), ForLabel("audiobook-started") };
+        var cut = RenderPhone(items);
+        for (var index = 0; index < items.Length; index++)
+        {
+            cut.FindAll(".phone-hero__dot")[index].Click();
+            Assert.Equal("phone-hero__card", cut.Find(".phone-hero__card").ClassList.First());
+            Assert.Single(cut.FindAll(".phone-hero__primary"));
+            Assert.Single(cut.FindAll(".phone-hero__title-zone"));
+        }
+    }
+
+    [Fact]
     public async Task RateAndThumbsMoveIntoMoreAndTheMetaLineIsReadable()
     {
         await UseAsync("phone");
@@ -268,6 +465,28 @@ public sealed class PhoneHeroPresentationTests
         Assert.Equal("Radiohead", PhoneHeroPresentation.MetaLine(Hero("Music", "Radiohead", "0 tracks", "0 min")));
         Assert.Equal(string.Empty, PhoneHeroPresentation.MetaLine(Hero("Movie", null)));
     }
+
+    private static DiscoveryHeroViewModel WithCover(int? width) => new()
+    {
+        MediaKind = "Book",
+        PreviewImageUrl = "/engine-image/stream/artwork/c1",
+        CoverWidthPx = width,
+        SurfaceKind = MediaTileSurfaceKind.CoverPortrait,
+    };
+
+    [Theory]
+    [InlineData(100, PhoneHeroArt.Placeholder)]
+    [InlineData(null, PhoneHeroArt.Placeholder)]
+    [InlineData(239, PhoneHeroArt.Placeholder)]
+    [InlineData(240, PhoneHeroArt.Cover)]
+    [InlineData(300, PhoneHeroArt.Cover)]
+    [InlineData(1691, PhoneHeroArt.Cover)]
+    public void OnlyARealCoverIsDrawnAndAStandInOrUnmeasuredOneGetsTheTile(int? width, PhoneHeroArt expected)
+        => Assert.Equal(expected, PhoneHeroPresentation.ResolveArt(WithCover(width)).Mode);
+
+    [Fact]
+    public void ACoverUrlIsNeverUsedForAPlaceholder()
+        => Assert.Null(PhoneHeroPresentation.ResolveArt(WithCover(100)).ImageUrl);
 
     [Fact]
     public void AnEpisodeReadsSeasonAndEpisodeThenYear()

@@ -147,6 +147,7 @@ public sealed class MediaTileComposerService
             MetaText = string.Join(" / ", hero.Facts),
             MetaPills = hero.Facts,
             ProgressPct = hero.Progress?.Percent,
+            RemainingSeconds = hero.Progress?.RemainingSeconds,
             StatusText = hero.Progress?.Label,
             RepresentativeEntityId = hero.Id,
             WorkId = hero.WorkId,

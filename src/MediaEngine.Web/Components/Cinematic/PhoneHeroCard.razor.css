@@ -124,12 +124,22 @@
     font-size: var(--tl-font-size-xs, 0.75rem);
 }
 
+/* The logo zone: always two title lines tall, so a logo (however wide or tall) and a plain-text title take the same room and nothing moves. */
+.phone-hero__title-zone {
+    display: flex;
+    align-items: flex-end;
+    height: calc(var(--tl-font-size-xl, 1.5rem) * 2.4);
+    overflow: hidden;
+}
+
 .phone-hero__logo {
+    display: block;
+    width: auto;
+    height: auto;
     max-width: 70%;
-    max-height: 3.5rem;
+    max-height: 100%;
     object-fit: contain;
     object-position: left center;
-    align-self: flex-start;
 }
 
 .phone-hero__title {
@@ -192,10 +202,20 @@
     margin-top: var(--tl-space-2, 0.5rem);
 }
 
-.phone-hero__primary-label {
+.phone-hero__primary-label,
+.phone-hero__primary-detail {
+    min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+}
+
+/* The time or percent after the action word: quieter and allowed to shrink first, so the button is one line and never taller than the tap size. */
+.phone-hero__primary-detail {
+    flex: 0 1 auto;
+    font-size: var(--tl-font-size-sm, 0.9rem);
+    font-weight: 500;
+    opacity: 0.88;
 }
 
 .phone-hero__dots {
