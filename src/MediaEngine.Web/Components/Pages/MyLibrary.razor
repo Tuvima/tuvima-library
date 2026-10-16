@@ -1,0 +1,374 @@
+@page "/my-library"
+@namespace MediaEngine.Web.Components.Pages
+@using MediaEngine.Web.Components.MediaTiles
+@using MediaEngine.Web.Models.ViewDTOs
+@using MediaEngine.Web.Services.Integration
+@using MediaEngine.Web.Services.MediaTiles
+@using MediaEngine.Web.Services.Navigation
+@implements IDisposable
+
+@inject IEngineApiClient ApiClient
+@inject UIOrchestratorService Orchestrator
+@inject ViewWorkspaceService Workspace
+@inject ILogger<MyLibrary> Logger
+
+<PageTitle>My Library - Tuvima Library</PageTitle>
+
+@* My Library: the personal page. One column, phones first. Profile header, Downloads (the Tuvima app only), Continue, My List,
+   History and Liked. The header loads first, then every section loads in parallel from reads the Engine has already filtered for
+   this profile. Each section holds a fixed-height skeleton until its turn, and sections reveal top to bottom, so content that is
+   already on screen never moves. A section with nothing to show is hidden, except My List, which keeps its helper text. *@
+<div class="my-library-page">
+    <header class="my-library-header">
+        <div class="my-library-header__identity">
+            @if (_profile is { } profile)
+            {
+                <span class="my-library-header__avatar">
+                    <ProfileAvatar DisplayName="@profile.DisplayName" ImageUrl="@profile.AvatarImageUrl" Color="@profile.AvatarColor" Icon="@profile.AvatarIcon" />
+                </span>
+                <div class="my-library-header__copy">
+                    <h1 class="my-library-header__title">My Library</h1>
+                    <p class="my-library-header__name">@ProfileName</p>
+                </div>
+            }
+            else
+            {
+                <AppSkeleton Class="my-library-header__avatar" Shape="AppSkeletonShape.Circle" />
+                <div class="my-library-header__copy">
+                    <h1 class="my-library-header__title">My Library</h1>
+                    <AppSkeleton Class="my-library-header__name-skeleton" />
+                </div>
+            }
+        </div>
+
+        @if (_headerFailed)
+        {
+            <AppErrorState Title="My Library could not load"
+                           Message="The Dashboard could not read this profile."
+                           Compact="true"
+                           Retry="LoadAsync" />
+        }
+        else if (_profile is null)
+        {
+            <div class="my-library-header__actions" aria-hidden="true">
+                <AppSkeleton Class="my-library-header__action-skeleton" />
+                <AppSkeleton Class="my-library-header__action-skeleton" />
+            </div>
+        }
+        else if (ShowsSwitchProfile || ShowsSettings)
+        {
+            <nav class="my-library-header__actions" aria-label="Profile">
+                @if (ShowsSwitchProfile)
+                {
+                    <a class="my-library-action" href="@ProfilePickerRoute.Path">
+                        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.People" />
+                        <span>Switch profile</span>
+                    </a>
+                }
+                @if (ShowsSettings)
+                {
+                    <a class="my-library-action" href="@ShellDock.SettingsPath">
+                        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Settings" />
+                        <span>Settings</span>
+                    </a>
+                }
+            </nav>
+        }
+    </header>
+
+    @if (_profile is not null)
+    {
+        @if (ShowsDownloads)
+        {
+            <a class="my-library-downloads" href="@ShellDock.DownloadsPath">
+                <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Download" />
+                <span class="my-library-downloads__copy">
+                    <strong>Downloads</strong>
+                    <span>Watch and listen offline</span>
+                </span>
+                <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ChevronRight" />
+            </a>
+        }
+
+        @if (IsLoading(MyLibrarySection.Continue))
+        {
+            @SectionSkeleton("continue")
+        }
+        else if (_continueShelf.Items.Count > 0)
+        {
+            <div class="my-library-slot my-library-slot--continue">
+                <ContinueAcrossMediaSection Shelf="@_continueShelf" Heading="Continue" />
+            </div>
+        }
+
+        @if (IsLoading(MyLibrarySection.MyList))
+        {
+            @SectionSkeleton("shelf")
+        }
+        else if (_myListShelf.Items.Count > 0)
+        {
+            <div class="my-library-slot my-library-slot--shelf">
+                <MediaTileShelf Shelf="@_myListShelf" HoverMode="MediaTileHoverMode.GlowOnly" HideMediaKindBadges="true" HideSourceBadges="true" ShowCompactCaptions="true" />
+            </div>
+        }
+        else if (!_failed.Contains(MyLibrarySection.MyList))
+        {
+            <div class="my-library-slot my-library-slot--empty">
+                <MediaTileShelf Shelf="@_myListShelf" EmptyMessage="Add titles with the + My List button" />
+            </div>
+        }
+
+        @if (IsLoading(MyLibrarySection.History))
+        {
+            @SectionSkeleton("shelf")
+        }
+        else if (_historyShelf.Items.Count > 0)
+        {
+            <div class="my-library-slot my-library-slot--shelf">
+                <MediaTileShelf Shelf="@_historyShelf" HoverMode="MediaTileHoverMode.GlowOnly" HideMediaKindBadges="true" HideSourceBadges="true" ShowCompactCaptions="true" />
+            </div>
+        }
+
+        @if (IsLoading(MyLibrarySection.Liked))
+        {
+            @SectionSkeleton("shelf")
+        }
+        else if (_likedShelf.Items.Count > 0)
+        {
+            <div class="my-library-slot my-library-slot--shelf">
+                <MediaTileShelf Shelf="@_likedShelf" HoverMode="MediaTileHoverMode.GlowOnly" HideMediaKindBadges="true" HideSourceBadges="true" ShowCompactCaptions="true" />
+            </div>
+        }
+
+        @if (_committed == SectionCount && _failed.Count > 0)
+        {
+            <AppErrorState Title="Some of My Library could not load"
+                           Message="The rest is shown. Try again to fill in the missing rows."
+                           Compact="true"
+                           Retry="LoadAsync" />
+        }
+    }
+</div>
+
+@code {
+    private enum MyLibrarySection { Continue, MyList, History, Liked }
+
+    private const int SectionCount = 4;
+    private const int ShelfLimit = 12;
+    private const int ContinueLimit = 24;
+
+    /// <summary>What Downloads does on this client; the card shows only where downloads work (the Tuvima app), never in the browser.</summary>
+    [Parameter] public DownloadsTabMode DownloadsMode { get; set; } = ShellDock.DownloadsMode;
+
+    private readonly bool[] _resolved = new bool[SectionCount];
+    private readonly HashSet<MyLibrarySection> _failed = [];
+    private ProfileViewModel? _profile;
+    private int _profileCount;
+    private bool _headerFailed;
+    // Sections [0, _committed) show their result; the rest still show a skeleton.
+    private int _committed;
+    private int _loadVersion;
+    private MediaTileShelfViewModel _continueShelf = EmptyShelf("continue", "Continue");
+    private MediaTileShelfViewModel _myListShelf = EmptyShelf("my-list", "My List");
+    private MediaTileShelfViewModel _historyShelf = EmptyShelf("history", "History");
+    private MediaTileShelfViewModel _likedShelf = EmptyShelf("liked", "Liked");
+
+    private string ProfileName => string.IsNullOrWhiteSpace(_profile?.DisplayName) ? "Profile" : _profile!.DisplayName.Trim();
+    private bool IsKids => _profile?.IsRestricted == true;
+    private bool ShowsSettings => ShellNavigation.ShowsSettings(IsKids);
+    private bool ShowsSwitchProfile => ShellNavigation.ShowsSwitchProfile(_profileCount);
+    private bool ShowsDownloads => ShellDock.ShowsDownloadsInTopBar(DownloadsMode);
+
+    private bool IsLoading(MyLibrarySection section) => (int)section >= _committed;
+
+    protected override async Task OnInitializedAsync()
+    {
+        Orchestrator.OnProfileChanged += OnProfileChanged;
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        var version = ++_loadVersion;
+        _profile = null;
+        _headerFailed = false;
+        _committed = 0;
+        _failed.Clear();
+        Array.Clear(_resolved);
+        _continueShelf = EmptyShelf("continue", "Continue");
+        _myListShelf = EmptyShelf("my-list", "My List");
+        _historyShelf = EmptyShelf("history", "History");
+        _likedShelf = EmptyShelf("liked", "Liked");
+
+        // The header and My List start first; the other reads start straight after, all in parallel.
+        var headerTask = LoadHeaderAsync(version);
+        var documentsTask = LoadDocumentsAllowedAsync();
+        var savedTask = ApiClient.GetSavedItemsAsync();
+        var indexTask = LoadIndexAsync(headerTask);
+        var reactionsTask = ApiClient.GetProfileReactionsAsync();
+        var continueTask = ApiClient.GetDisplayContinueAsync(limit: ContinueLimit);
+
+        await headerTask;
+        if (version != _loadVersion || _profile is null)
+        {
+            return;
+        }
+
+        await Task.WhenAll(
+            RunSectionAsync(version, MyLibrarySection.Continue, async () =>
+            {
+                var documentsAllowed = await documentsTask;
+                var page = await continueTask;
+                var started = PhoneContinueLogic.Select(PersonalTileIndex.FlattenCards(page).Select(MediaTileComposerService.FromDisplayCard));
+                _continueShelf = Shelf("continue", "Continue", PersonalTileIndex.Visible(started, documentsAllowed).Take(ContinueLimit).ToList(), null);
+            }),
+            RunSectionAsync(version, MyLibrarySection.MyList, async () =>
+            {
+                var saved = await savedTask;
+                var index = await indexTask;
+                var documentsAllowed = await documentsTask;
+                _myListShelf = Shelf("my-list", "My List", index.Saved(saved, documentsAllowed).Take(ShelfLimit).ToList(), ForMe.MyListGridRoute);
+            }),
+            RunSectionAsync(version, MyLibrarySection.History, async () =>
+            {
+                var index = await indexTask;
+                var documentsAllowed = await documentsTask;
+                _historyShelf = Shelf("history", "History", index.History(documentsAllowed).Take(ShelfLimit).ToList(), null);
+            }),
+            RunSectionAsync(version, MyLibrarySection.Liked, async () =>
+            {
+                var reactions = await reactionsTask;
+                var index = await indexTask;
+                var documentsAllowed = await documentsTask;
+                _likedShelf = Shelf("liked", "Liked", index.Liked(reactions, documentsAllowed).Take(ShelfLimit).ToList(), "/for-me?view=liked");
+            }));
+    }
+
+    private async Task<Guid?> LoadHeaderAsync(int version)
+    {
+        try
+        {
+            var profile = await Orchestrator.GetActiveProfileAsync();
+            var profiles = await Orchestrator.GetProfilesAsync();
+            if (version != _loadVersion)
+            {
+                return null;
+            }
+
+            _profile = profile;
+            _profileCount = profiles.Count;
+            _headerFailed = profile is null;
+            return profile?.Id;
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "Failed to load the My Library header.");
+            if (version == _loadVersion)
+            {
+                _profile = null;
+                _headerFailed = true;
+            }
+
+            return null;
+        }
+        finally
+        {
+            if (version == _loadVersion)
+            {
+                await InvokeAsync(StateHasChanged);
+            }
+        }
+    }
+
+    // The lane reads that turn saved, liked and finished ids into tiles. They need the profile id, so they follow the header.
+    private async Task<PersonalTileIndex> LoadIndexAsync(Task<Guid?> headerTask)
+    {
+        if (await headerTask is not { } profileId)
+        {
+            return new PersonalTileIndex([], [], []);
+        }
+
+        var read = ApiClient.GetDisplayBrowseAsync(lane: "read", grouping: "all", limit: 500, profileId: profileId);
+        var watch = ApiClient.GetDisplayBrowseAsync(lane: "watch", grouping: "all", limit: 500, profileId: profileId);
+        var listen = ApiClient.GetDisplayBrowseAsync(lane: "listen", grouping: "all", limit: 500, profileId: profileId);
+        var songs = ApiClient.GetDisplayBrowseAsync(lane: "listen", mediaType: "Music", grouping: "tracks", limit: 500, profileId: profileId);
+        var catalog = ApiClient.GetCollectionCatalogAsync(profileId);
+        var managed = ApiClient.GetManagedCollectionsAsync(profileId);
+        await Task.WhenAll(read, watch, listen, songs, catalog, managed);
+        return new PersonalTileIndex([await read, await watch, await listen, await songs], await catalog, await managed);
+    }
+
+    // Documents are never part of the lane reads, but a profile that may not see them must not meet one here either.
+    // Until the View settings say Documents are allowed they stay hidden.
+    private async Task<bool> LoadDocumentsAllowedAsync()
+    {
+        try
+        {
+            await Workspace.InitializeAsync();
+            return Workspace.Scopes?.CanViewDocuments == true;
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "Could not read whether this profile may see Documents; Document items stay hidden.");
+            return false;
+        }
+    }
+
+    private async Task RunSectionAsync(int version, MyLibrarySection section, Func<Task> load)
+    {
+        try
+        {
+            await load();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "Failed to load the {Section} section of My Library.", section);
+            if (version == _loadVersion)
+            {
+                _failed.Add(section);
+            }
+        }
+        finally
+        {
+            if (version == _loadVersion)
+            {
+                _resolved[(int)section] = true;
+                // Reveal in page order, so a section that turns out empty can only move skeletons below it.
+                while (_committed < SectionCount && _resolved[_committed])
+                {
+                    _committed++;
+                }
+
+                await InvokeAsync(StateHasChanged);
+            }
+        }
+    }
+
+    private RenderFragment SectionSkeleton(string kind) => @<div class="@($"my-library-slot my-library-slot--{kind} my-library-skeleton")" role="status" aria-label="Loading">
+        <AppSkeleton Class="my-library-skeleton__title" />
+        <div class="my-library-skeleton__row">
+            <AppSkeleton Class="my-library-skeleton__tile" />
+            <AppSkeleton Class="my-library-skeleton__tile" />
+            <AppSkeleton Class="my-library-skeleton__tile" />
+        </div>
+    </div>;
+
+    private static MediaTileShelfViewModel EmptyShelf(string key, string title) => new() { Key = key, Title = title };
+
+    private static MediaTileShelfViewModel Shelf(string key, string title, IReadOnlyList<MediaTileViewModel> items, string? seeAllRoute) => new()
+    {
+        Key = key,
+        Title = title,
+        Items = items,
+        // A row with nothing in it has nothing to see all of.
+        SeeAllRoute = items.Count > 0 ? seeAllRoute : null,
+    };
+
+    private void OnProfileChanged() => _ = InvokeAsync(LoadAsync);
+
+    public void Dispose()
+    {
+        Orchestrator.OnProfileChanged -= OnProfileChanged;
+        _loadVersion++;
+    }
+}

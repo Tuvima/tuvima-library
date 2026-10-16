@@ -46,8 +46,10 @@ public static class ShellDock
     public const DownloadsTabMode DownloadsMode = DownloadsTabMode.ExplainNativeApp;
 
     public const string DownloadsPath = "/downloads";
-    /// <summary>My Library opens the existing My List personal page for now.</summary>
-    public const string MyLibraryPath = "/for-me?view=my-list";
+    /// <summary>My Library is the personal page: profile, Downloads, Continue, My List, History and Liked. Old /for-me?view=my-list links land here.</summary>
+    public const string MyLibraryPath = "/my-library";
+    /// <summary>The personal grids that sit behind My Library's See All links (My List, Liked, Favorites and the rest) keep the My Library tab selected.</summary>
+    public const string PersonalGridsPath = "/for-me";
     public const string SettingsPath = "/settings";
     public const string DefaultLibraryPath = "/watch";
 

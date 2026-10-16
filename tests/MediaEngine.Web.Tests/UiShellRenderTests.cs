@@ -1832,7 +1832,7 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
         typeof(MainLayout).GetField("_isKids", BindingFlags.Instance | BindingFlags.NonPublic)!.SetValue(cut.Instance, true);
         cut.Render();
 
-        cut.WaitForAssertion(() => Assert.Equal(["/", "/search", "/for-me?view=my-list"],
+        cut.WaitForAssertion(() => Assert.Equal(["/", "/search", "/my-library"],
             cut.FindAll(".layout-shell__intent-dock-link").Select(link => link.GetAttribute("href")!).ToArray()));
     }
 

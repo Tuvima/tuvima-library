@@ -24,13 +24,15 @@ public sealed class ShellNavigationTests
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
-    public void TheMenuIsHomeAndRecentlyAddedThenExactlyTheTopBarLinks(bool isKids)
+    public void TheMenuIsHomeMyLibraryAndRecentlyAddedThenExactlyTheTopBarLinks(bool isKids)
     {
         var menu = ShellNavigation.MenuLinks(isKids);
         var topBar = ShellNavigation.TopBarLinks(isKids);
-        var lead = isKids ? 1 : 2;
+        var lead = isKids ? 2 : 3;
 
-        Assert.Equal(isKids ? ["Home"] : ["Home", "RecentlyAdded"], menu.Take(lead).Select(link => link.Key).ToArray());
+        Assert.Equal(isKids ? ["Home", "MyLibrary"] : ["Home", "MyLibrary", "RecentlyAdded"], menu.Take(lead).Select(link => link.Key).ToArray());
+        // The menu's My Library is the dock's My Library: one destination.
+        Assert.Equal(ShellDock.MyLibraryPath, menu[1].Path);
         Assert.Equal(topBar, menu.Skip(lead).ToArray());
     }
 

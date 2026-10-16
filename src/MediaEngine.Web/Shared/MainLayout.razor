@@ -245,8 +245,8 @@
                 default:
                     <a href="@entry.Path"
                        @key="entry.Key"
-                       class="@GetIntentDockLinkClass(IsNavActive(ShellDock.PathOnly(entry.Path)))"
-                       aria-current="@(IsNavActive(ShellDock.PathOnly(entry.Path)) ? "page" : null)">
+                       class="@GetIntentDockLinkClass(IsDockEntryActive(entry))"
+                       aria-current="@(IsDockEntryActive(entry) ? "page" : null)">
                         <AppMaterialIcon Icon="@entry.Icon" />
                         <span>@L[entry.LabelKey]</span>
                     </a>
@@ -943,6 +943,11 @@
     private string GetEngineStatusIcon() => Orchestrator.EngineConnectionState == EngineConnectionState.Reconnecting
         ? AppMaterialIcons.Outlined.Sync
         : AppMaterialIcons.Filled.ErrorOutline;
+
+    // My Library stays selected on the personal grids behind its See All links (/for-me).
+    private bool IsDockEntryActive(ShellDockEntry entry) =>
+        IsNavActive(ShellDock.PathOnly(entry.Path))
+        || (entry.Key == "MyLibrary" && IsNavActive(ShellDock.PersonalGridsPath));
 
     private bool IsNavActive(string path) =>
         _currentPath.Equals(path, StringComparison.OrdinalIgnoreCase)
