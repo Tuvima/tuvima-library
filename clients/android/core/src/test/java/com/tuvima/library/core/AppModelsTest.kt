@@ -117,6 +117,35 @@ class AppModelsTest {
     }
 
     @Test
+    fun anEpisodeRouteKeepsTheShowIdWithoutItsQueryString() {
+        val route = "/details/tvshow/6f0c2a3e-0000-0000-0000-000000000002?context=watch&episode=11111111-0000-0000-0000-000000000009"
+        assertEquals("tvshow" to "6f0c2a3e-0000-0000-0000-000000000002", detailTargetFromRoute(route))
+        assertEquals("tvshow" to "abc", detailTargetFromRoute("/details/tvshow/abc#top"))
+        assertEquals("tvshow" to "abc", detailTargetFromRoute("https://server/details/tvshow/abc?context=watch"))
+    }
+
+    @Test
+    fun theShowIdForPlayingComesFromTheShowRouteOrTheEpisodeAnswer() {
+        // A show page (or an episode card that opens its show): the id itself, query removed.
+        assertEquals("show-1", playShowId("tvshow", "show-1", null))
+        assertEquals("show-1", playShowId("tvShow", "show-1?context=watch&episode=e1", null))
+        // An episode page: the show its own answer named; nothing is guessed.
+        assertEquals("show-9", playShowId("tvEpisode", "ep-1", "show-9"))
+        assertEquals("show-9", playShowId("tvEpisode", "ep-1", " show-9 "))
+        assertNull(playShowId("tvEpisode", "ep-1", null))
+        assertNull(playShowId("tvEpisode", "ep-1", "  "))
+    }
+
+    @Test
+    fun theParentShowPrefersAnExplicitIdThenTheEpisodeContext() {
+        assertEquals("a", parentShowId("a", "b"))
+        assertEquals("b", parentShowId(null, "b"))
+        assertEquals("b", parentShowId("  ", "b"))
+        assertNull(parentShowId(null, null))
+        assertNull(parentShowId("", ""))
+    }
+
+    @Test
     fun collectionItemFallsBackToItsWorkWhenTheRouteIsMissing() {
         val withRoute = CollectionItem("1", "w1", "Alpha One", null, "Movies", null, "/details/movie/w1?context=watch")
         assertEquals("movie" to "w1", withRoute.detailTarget())
