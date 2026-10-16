@@ -120,11 +120,35 @@ class TuvimaClient(
     suspend fun details(entityType: String, id: String): JSONObject =
         requestJson("GET", "/api/v1/details/${encode(entityType)}/${encode(id)}")
 
-    suspend fun playbackManifest(assetId: String, connectionPath: String): PlaybackManifest {
-        val json = requestJson(
-            "GET",
-            "/api/v1/playback/${encode(assetId)}/manifest?connectionPath=${encode(connectionPath)}",
+    suspend fun playbackManifest(assetId: String, connectionPath: String): PlaybackManifest =
+        parseManifest(
+            requestJson(
+                "GET",
+                "/api/v1/playback/${encode(assetId)}/manifest?connectionPath=${encode(connectionPath)}",
+            ),
         )
+
+    /**
+     * The manifest of a personal video (a Photos clip) by its View item id. It names one direct stream of the original
+     * and carries no resume point, tracks or segments. A 403 means the device was not given the photo scopes.
+     */
+    suspend fun viewItemPlayback(id: String): PlaybackManifest {
+        val json = try {
+            requestJson("GET", ClientRoutes.viewPlayback(id))
+        } catch (error: TuvimaHttpException) {
+            if (error.statusCode == 403) throw PhotoAccessDeniedException()
+            throw error
+        }
+        return parseManifest(json)
+    }
+
+    /**
+     * A bearer token that is valid right now, refreshed when it is about to expire. A stream that outlives one token (a
+     * long clip, a seek hours later) asks again for every request so the token never goes into a URL or goes stale.
+     */
+    suspend fun streamBearerToken(): String = authenticatedToken()
+
+    private fun parseManifest(json: JSONObject): PlaybackManifest {
         val resume = json.optJSONObject("resume")
         return PlaybackManifest(
             assetId = json.getString("assetId"),

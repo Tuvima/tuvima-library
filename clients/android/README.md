@@ -23,6 +23,10 @@ the last episode closes back to the details page. Without a show id (an episode'
 its first video and audio track (no subtitles), so its Subtitles list says "Not included in this download"; an expired download that cannot stream
 says it expired. "Resume where I left off" off starts every video at 0, streamed or downloaded. Rules live in `core` `NextEpisodeLogic`.
 
+Photos videos: tapping a video in the Photos gallery or timeline (or Play in the viewer) opens `ClipPlayerActivity`, which plays
+`GET /api/v1/view/items/{id}/playback` (the original, by byte ranges) on its own player. It has no media service, History, progress or
+lock-screen session, adds the bearer token to each request rather than the URL, and follows the phone's rotation.
+
 Video: Play on a movie or episode (and on a downloaded one in Downloads) opens `VideoPlayerActivity`, a
 full-screen landscape player. It shows the same ExoPlayer the media service owns through a Media3
 `MediaController`, so the lock screen, headset buttons, offline progress and the audio notification stay in one
