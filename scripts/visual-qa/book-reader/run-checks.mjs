@@ -278,6 +278,95 @@ await check('front matter (printed contents, wide table, pre, fixed width, overs
     return `no spill at ${report.join(', ')}`;
 });
 
+await check('review findings: odd heads, foreign roots, prefixed links and animation values are all hardened (through hardenPageDetailed and hardenResource)', async () => {
+    const context = await browser.newContext(desktop);
+    const { page } = await openCheckPage(context, server.origin);
+    const report = await page.evaluate(async () => {
+        const X = 'http://www.w3.org/1999/xhtml';
+        const S = 'http://www.w3.org/2000/svg';
+        const L = 'http://www.w3.org/1999/xlink';
+        const pages = {
+            foreignHead: `<html xmlns="${X}"><body><svg xmlns="${S}"><head/></svg><p>x</p></body></html>`,
+            nestedHead: `<html xmlns="${X}"><body><div><head><title>t</title></head></div><p>x</p></body></html>`,
+            missingHead: `<html xmlns="${X}"><body><p>x</p></body></html>`,
+            foreignRoot: `<root xmlns="urn:example:other"><head/><body><p>x</p></body></root>`,
+            prefixedJsLink: `<html xmlns="${X}"><body><svg xmlns="${S}" xmlns:q="${L}"><a id="a" q:href="javascript:window.__x=1"><text>t</text></a></svg></body></html>`,
+            prefixedWebLink: `<html xmlns="${X}"><body><svg xmlns="${S}" xmlns:q="${L}"><a id="a" q:href="https://example.org/out"><text>t</text></a></svg></body></html>`,
+            animateValues: `<html xmlns="${X}"><body><svg xmlns="${S}" xmlns:q="${L}"><a id="a" href="#x"><animate attributeName="href" values="#x;javascript:window.__x=1" dur="1s" repeatCount="indefinite"/><animateMotion/><set attributeName="href" to="javascript:window.__x=1"/><text>t</text></a></svg></body></html>`,
+            weirdNamespaceHref: `<html xmlns="${X}"><body><p xmlns:z="urn:z" z:href="javascript:window.__x=1">x</p></body></html>`,
+        };
+        const out = {};
+        for (const [name, text] of Object.entries(pages)) {
+            const result = window.br.hardenPageDetailed(text, 'application/xhtml+xml');
+            const doc = new DOMParser().parseFromString(result.text, 'application/xhtml+xml');
+            const root = doc.documentElement;
+            const head = root.firstElementChild;
+            const meta = head?.firstElementChild;
+            const hrefs = Array.from(doc.querySelectorAll('*')).flatMap(el => Array.from(el.attributes).filter(a => a.localName === 'href').map(a => ({ name: a.name, value: a.value, ns: a.namespaceURI })));
+            out[name] = {
+                rootIsXhtml: root.namespaceURI === X && root.localName === 'html',
+                blocked: /could not be shown safely/.test(result.text),
+                headIsDirectChild: head?.localName === 'head' && head.namespaceURI === X && head.parentNode === root,
+                cspIsFirstInHead: meta?.localName === 'meta' && meta.getAttribute('http-equiv') === 'Content-Security-Policy' && meta.parentNode === head,
+                cspCount: doc.querySelectorAll('meta[http-equiv]').length,
+                animations: doc.querySelectorAll('animate, animateMotion, set').length,
+                hrefs,
+            };
+        }
+        return out;
+    });
+    for (const name of ['foreignHead', 'nestedHead', 'missingHead', 'prefixedJsLink', 'prefixedWebLink', 'animateValues', 'weirdNamespaceHref']) {
+        const r = report[name];
+        assert(r.rootIsXhtml && !r.blocked, `${name}: root is not the XHTML html element, or it was blocked`);
+        assert(r.headIsDirectChild, `${name}: the document has no XHTML head as a direct child of the root`);
+        assert(r.cspIsFirstInHead, `${name}: the policy meta is not the first thing in that head`);
+        assert(r.cspCount === 1, `${name}: ${r.cspCount} policy meta elements`);
+        assert(r.animations === 0, `${name}: ${r.animations} animation element(s) survived`);
+        assert(r.hrefs.every(h => h.ns === null && !/^javascript:/i.test(h.value)), `${name}: an unsafe or prefixed href survived: ${JSON.stringify(r.hrefs)}`);
+    }
+    assert(report.foreignRoot.blocked && report.foreignRoot.cspIsFirstInHead, 'a root in another namespace was shown instead of refused');
+
+    // The real entry point for every page (hardenResource, as a page, as text and as bytes) gives the same result.
+    const viaResource = await page.evaluate(async () => {
+        const X = 'http://www.w3.org/1999/xhtml';
+        const text = `<html xmlns="${X}"><body><svg xmlns="http://www.w3.org/2000/svg"><head/></svg><p>x</p></body></html>`;
+        const results = [];
+        for (const data of [text, new Blob([text]), new TextEncoder().encode(text)]) {
+            const { data: out, type } = await window.br.hardenResource(data, 'application/xhtml+xml', true);
+            const doc = new DOMParser().parseFromString(out, type);
+            const head = doc.documentElement.firstElementChild;
+            results.push(head?.localName === 'head' && head.namespaceURI === X && head.parentNode === doc.documentElement && head.firstElementChild?.getAttribute('http-equiv') === 'Content-Security-Policy');
+        }
+        const refused = await window.br.hardenResource('<root xmlns="urn:example:other"><body/></root>', 'application/xhtml+xml', true);
+        results.push(/could not be shown safely/.test(refused.data));
+        return results;
+    });
+    assert(viaResource.every(Boolean), `hardenResource did not apply the head and root rules: ${JSON.stringify(viaResource)}`);
+    assert(report.prefixedWebLink.hrefs.some(h => h.name === 'href' && h.value === 'https://example.org/out'), 'a prefixed web link was not turned into a plain href the reader can intercept');
+    assert(!report.prefixedJsLink.hrefs.some(h => /javascript/i.test(h.value)), 'a prefixed javascript: link survived');
+
+    // The same hardened pages, shown the way a book page is, in a frame that is allowed scripts: no link click runs anything.
+    const ran = await page.evaluate(async () => {
+        const X = 'http://www.w3.org/1999/xhtml';
+        const text = `<html xmlns="${X}"><body><svg xmlns="http://www.w3.org/2000/svg" xmlns:q="http://www.w3.org/1999/xlink" width="100" height="100"><a id="a" q:href="javascript:window.__x='prefixed'"><rect width="100" height="100"/></a></svg></body></html>`;
+        const hardened = window.br.hardenPageDetailed(text, 'application/xhtml+xml');
+        const url = URL.createObjectURL(new Blob([hardened.text], { type: 'application/xhtml+xml' }));
+        const iframe = document.createElement('iframe');
+        iframe.setAttribute('sandbox', 'allow-same-origin allow-scripts');
+        document.body.append(iframe);
+        await new Promise(resolve => { iframe.onload = resolve; iframe.src = url; });
+        const a = iframe.contentDocument.getElementById('a');
+        a?.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+        await new Promise(r => setTimeout(r, 400));
+        const result = iframe.contentWindow.__x ?? null;
+        iframe.remove();
+        return result;
+    });
+    assert(ran === null, `a prefixed javascript: link ran: ${ran}`);
+    await context.close();
+    return Object.keys(report).length + ' odd documents';
+});
+
 console.log('Script sandbox on Apple devices');
 
 await check('needsScriptSandbox is true only for Apple WebKit (iPhone, iPad, iPadOS as a Mac, Safari)', async () => {
