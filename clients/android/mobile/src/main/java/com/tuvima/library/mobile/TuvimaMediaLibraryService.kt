@@ -249,6 +249,7 @@ class TuvimaMediaLibraryService : MediaLibraryService() {
                 assetId = args.getString(EXTRA_ASSET_ID).orEmpty(),
                 title = args.getString(EXTRA_TITLE),
                 subtitle = args.getString(EXTRA_SUBTITLE),
+                previousEnded = args.getBoolean(EXTRA_PREVIOUS_ENDED),
             )
             COMMAND_CANCEL_VIDEO -> {
                 videoJob?.cancel()
@@ -362,7 +363,7 @@ class TuvimaMediaLibraryService : MediaLibraryService() {
      * prepare a stream keeps the result pending (the screen shows its preparing state with Cancel); cancelling
      * completes it with `cancelled`.
      */
-    private fun playVideo(assetId: String, title: String?, subtitle: String?): ListenableFuture<SessionResult> {
+    private fun playVideo(assetId: String, title: String?, subtitle: String?, previousEnded: Boolean): ListenableFuture<SessionResult> {
         val result = SettableFuture.create<SessionResult>()
         videoJob?.cancel()
         if (assetId.isBlank()) {
@@ -371,7 +372,7 @@ class TuvimaMediaLibraryService : MediaLibraryService() {
         }
         val job = scope.launch {
             try {
-                startVideo(assetId, title, subtitle)
+                startVideo(assetId, title, subtitle, previousEnded)
                 result.set(SessionResult(SessionResult.RESULT_SUCCESS))
             } catch (error: CancellationException) {
                 result.set(SessionResult(SessionResult.RESULT_ERROR_UNKNOWN, Bundle().apply { putBoolean(RESULT_CANCELLED, true) }))
@@ -399,8 +400,24 @@ class TuvimaMediaLibraryService : MediaLibraryService() {
 
     private class VideoStartException(message: String) : Exception(message)
 
-    private suspend fun startVideo(assetId: String, title: String?, subtitle: String?) {
+    /**
+     * A different video is starting while one is loaded (the next episode, or one picked from the Episodes panel): the one
+     * leaving is saved and reported first. [ended] is true only when it was finished (the next-episode card), so History
+     * marks it watched before the next one begins; picking another episode midway just keeps where it was.
+     */
+    private fun leavePreviousVideo(newAssetId: String, ended: Boolean) {
+        if (!::player.isInitialized) return
+        val item = player.currentMediaItem ?: return
+        if (!isVideoItem(item) || item.mediaId == newAssetId) return
+        saveLocalProgress(ended = ended, sync = true)
+        sendHeartbeat(ended = ended)
+    }
+
+    private suspend fun startVideo(assetId: String, title: String?, subtitle: String?, previousEnded: Boolean) {
+        leavePreviousVideo(assetId, previousEnded)
         activeAssetId = assetId
+        // "Resume where I left off" off means every start is from the beginning, streamed or downloaded.
+        val resume = kotlinx.coroutines.withTimeoutOrNull(PREFS_WAIT_MS) { client?.playbackPreferences() }?.resumePlayback ?: true
         val metadata = MediaMetadata.Builder()
             .setTitle(title)
             .setSubtitle(subtitle)
@@ -412,7 +429,7 @@ class TuvimaMediaLibraryService : MediaLibraryService() {
         if (local != null) {
             // A downloaded copy plays from the file and keeps its on-phone progress.
             val item = local.buildUpon().setMediaMetadata(metadata).build()
-            player.setMediaItem(item, OfflineLogic.resumeStartMs(offline.store().progress(assetId)))
+            player.setMediaItem(item, if (resume) OfflineLogic.resumeStartMs(offline.store().progress(assetId)) else 0L)
             player.prepare()
             player.play()
             return
@@ -421,7 +438,18 @@ class TuvimaMediaLibraryService : MediaLibraryService() {
         var attempt = 0
         while (true) {
             attempt += 1
-            val manifest = api.playbackManifest(assetId, "local")
+            val manifest = try {
+                api.playbackManifest(assetId, "local")
+            } catch (error: CancellationException) {
+                throw error
+            } catch (error: Exception) {
+                // An expired download that cannot stream (no connection) is explained instead of shown as a bare network error.
+                val held = offline.store().record(assetId)
+                if (held != null && OfflineLogic.isExpired(held, System.currentTimeMillis())) {
+                    throw VideoStartException(VideoMessages.DOWNLOAD_EXPIRED)
+                }
+                throw error
+            }
             when (val step = PreparingPoll.next(manifest, attempt)) {
                 is PreparingStep.Play -> {
                     // Sidecar subtitles are fetched through the same data source as the video, so they carry the same bearer token.
@@ -436,7 +464,7 @@ class TuvimaMediaLibraryService : MediaLibraryService() {
                     }
                     val item = MediaItem.Builder().setMediaId(assetId).setUri(step.path).setMediaMetadata(metadata)
                         .setSubtitleConfigurations(sidecars).build()
-                    player.setMediaItem(item, StreamResume.startMs(manifest.resumeSeconds, manifest.durationSeconds))
+                    player.setMediaItem(item, if (resume) StreamResume.startMs(manifest.resumeSeconds, manifest.durationSeconds) else 0L)
                     player.prepare()
                     player.play()
                     return
@@ -571,6 +599,9 @@ class TuvimaMediaLibraryService : MediaLibraryService() {
         const val EXTRA_TITLE = "title"
         const val EXTRA_SUBTITLE = "subtitle"
 
+        /** Sent with PLAY_VIDEO when the video being left was finished (the next-episode card), so it is reported as ended first. */
+        const val EXTRA_PREVIOUS_ENDED = "previous_ended"
+
         /** Custom session commands the video screen sends through its media controller. */
         const val COMMAND_PLAY_VIDEO = "com.tuvima.library.PLAY_VIDEO"
         const val COMMAND_CANCEL_VIDEO = "com.tuvima.library.CANCEL_VIDEO"
@@ -584,5 +615,6 @@ class TuvimaMediaLibraryService : MediaLibraryService() {
         private const val ROOT = "tuvima-root"
         private const val PROGRESS_SAVE_MS = 10_000L
         private const val MIN_RECORDED_SECONDS = 5.0
+        private const val PREFS_WAIT_MS = 2_000L
     }
 }

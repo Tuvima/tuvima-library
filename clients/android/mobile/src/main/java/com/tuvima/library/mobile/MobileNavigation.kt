@@ -19,6 +19,8 @@ internal data class PlayRequest(
     val entityType: String?,
     val title: String?,
     val subtitle: String?,
+    /** The show this episode belongs to, when the screen it came from knows it; next-episode features need it. */
+    val showId: String? = null,
 )
 
 /** A full-screen page shown over the tabs. The back button or gesture removes the top one. */

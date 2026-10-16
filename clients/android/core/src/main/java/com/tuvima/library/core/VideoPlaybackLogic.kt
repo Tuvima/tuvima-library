@@ -21,6 +21,7 @@ object VideoMessages {
     const val OTHER = "This title could not be played."
     const val NOT_READY = "This title could not be prepared for playback."
     const val TIMED_OUT = "Preparing this title is taking too long. Try again in a moment."
+    const val DOWNLOAD_EXPIRED = "This download has expired. Connect to your Tuvima server to keep watching."
 
     fun forFailure(failure: VideoFailure, detail: String? = null): String = when (failure) {
         VideoFailure.Unavailable -> UNAVAILABLE
