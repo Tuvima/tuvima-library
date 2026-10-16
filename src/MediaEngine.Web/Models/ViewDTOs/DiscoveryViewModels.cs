@@ -44,6 +44,9 @@ public sealed class DiscoveryHeroViewModel
     public string PrimaryNavigationUrl { get; init; } = "/";
     public string SecondaryActionLabel { get; init; } = "Details";
     public string? SecondaryNavigationUrl { get; init; }
+
+    /// <summary>True while the item is still being matched; the phone hero shows a small "Still being matched" tag.</summary>
+    public bool IsSettling { get; init; }
 }
 
 public sealed class DiscoveryHubViewModel

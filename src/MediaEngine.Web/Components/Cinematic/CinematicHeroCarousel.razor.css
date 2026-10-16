@@ -401,3 +401,10 @@
         touch-action: pan-y;
     }
 }
+
+/* Phone: the inset card owns its own size, so the section takes none of the full-bleed stage. */
+.cinematic-hero-carousel--phone {
+    --cinematic-hero-min-height: 0;
+    min-height: 0;
+    background: transparent;
+}

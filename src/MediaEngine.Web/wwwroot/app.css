@@ -5574,6 +5574,59 @@ html[data-form-factor="tv"] .tl-detail-hero__synopsis {
     max-width: 60ch;
 }
 
+/* Phone Home hero buttons. They are app buttons (child components), which a component's isolated CSS cannot reach, so their rules live here;
+   everything else of the hero is in PhoneHeroCard.razor.css. */
+.phone-hero__primary {
+    flex: 1 1 auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--tl-space-2, 0.5rem);
+    min-height: var(--phone-hero-tap);
+    padding: 0 var(--tl-space-4, 1rem);
+    border: 0;
+    border-radius: var(--tl-radius-pill, 999px);
+    background: var(--tl-accent-primary, #8852fc);
+    color: var(--tl-text-on-accent, #ffffff);
+    font: inherit;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.phone-hero__icon-button {
+    flex: 0 0 var(--phone-hero-tap);
+    display: inline-grid;
+    place-items: center;
+    width: var(--phone-hero-tap);
+    min-width: var(--phone-hero-tap);
+    min-height: var(--phone-hero-tap);
+    padding: 0;
+    border: 1px solid rgba(255, 255, 255, 0.24);
+    border-radius: 50%;
+    background: rgba(5, 7, 12, 0.55);
+    color: var(--tl-text-primary, #f8fafc);
+    cursor: pointer;
+}
+
+.phone-hero__primary:focus-visible,
+.phone-hero__icon-button:focus-visible,
+.phone-hero__dot:focus-visible {
+    outline: 3px solid var(--tl-focus-ring, #ffffff);
+    outline-offset: 2px;
+}
+
+.phone-hero__dot {
+    display: grid;
+    place-items: center;
+    width: var(--phone-hero-tap);
+    min-width: var(--phone-hero-tap);
+    min-height: var(--phone-hero-tap);
+    padding: 0;
+    border: 0;
+    background: transparent;
+    cursor: pointer;
+}
+
 /* Details page, phone pass. Everything here is scoped to the phone form factor; tablet and desktop keep the
    existing hero, tab and list rules. Phones never carry an editor entry point, and nothing relies on hover. */
 
