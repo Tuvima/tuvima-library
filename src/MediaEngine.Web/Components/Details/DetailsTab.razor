@@ -6,6 +6,7 @@
 @using MediaEngine.Web.Services.Theming
 @inject IEngineApiClient ApiClient
 @inject DeviceContextService DeviceContext
+@inject ILogger<DetailsTab> Logger
 
 <div class="tl-detail-tab-panel">
     @if (ShowFileFacts)
@@ -15,6 +16,10 @@
             @if (_loading)
             {
                 <p class="tl-file-facts__note" role="status">Loading file details...</p>
+            }
+            else if (!string.IsNullOrWhiteSpace(_fileFactsError))
+            {
+                <p class="tl-file-facts__note" role="alert">@_fileFactsError</p>
             }
             else if (_blocks.Count == 0)
             {
@@ -149,6 +154,7 @@
     private bool _loading;
     private bool _historyLoading;
     private string? _historyError;
+    private string? _fileFactsError;
     private IReadOnlyList<DetailFileBlock> _blocks = [];
     private IReadOnlyList<LibraryItemHistoryDto> _history = [];
 
@@ -158,6 +164,9 @@
     /// </summary>
     private bool CanSeeAdminFacts => Model.OverflowActions.Any(action => action.Key is "edit" or "edit-media");
 
+    /// <summary>The path, like the editor's File view, is not offered on phones (no editing there).</summary>
+    private bool ShowPath => CanSeeAdminFacts && !DeviceContext.IsPhone;
+
     private bool ShowFileFacts => DetailFileFacts.IsFileBearing(Model.EntityType);
 
     /// <summary>History is read-only and shown on desktop-class screens only.</summary>
@@ -165,7 +174,7 @@
 
     protected override async Task OnParametersSetAsync()
     {
-        var key = $"{Model.Id}|{Model.EntityType}|{CanSeeAdminFacts}|{DeviceContext.IsDesktop}";
+        var key = $"{Model.Id}|{Model.EntityType}|{CanSeeAdminFacts}|{DeviceContext.IsDesktop}|{DeviceContext.IsPhone}";
         if (key == _loadedFor)
         {
             return;
@@ -175,6 +184,7 @@
         _blocks = [];
         _history = [];
         _historyError = null;
+        _fileFactsError = null;
         if (!ShowFileFacts || !Guid.TryParse(Model.Id, out var id))
         {
             return;
@@ -192,7 +202,7 @@
 
             var versions = await versionsTask;
             var detail = await detailTask;
-            _blocks = DetailFileFacts.Build(Model, versions, detail, includePath: CanSeeAdminFacts);
+            _blocks = DetailFileFacts.Build(Model, versions, detail, includePath: ShowPath);
             _loading = false;
 
             if (historyTask is not null)
@@ -201,6 +211,14 @@
                 _history = items.OrderByDescending(entry => entry.OccurredAt).ToList();
                 _historyError = error;
             }
+        }
+        catch (Exception ex)
+        {
+            // The client methods report their own failures and return empty, so this only guards an
+            // unexpected throw: log it and show a degraded panel rather than failing the whole tab.
+            Logger.LogWarning(ex, "Details tab could not load file facts for {EntityId}", id);
+            _blocks = [];
+            _fileFactsError = "File details could not be loaded.";
         }
         finally
         {

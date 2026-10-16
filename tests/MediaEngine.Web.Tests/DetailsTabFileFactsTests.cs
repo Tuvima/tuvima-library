@@ -22,6 +22,7 @@ public sealed class DetailsTabFileFactsTests : AsyncBunitContext
     private readonly DeviceContextService _device;
     private int _historyCalls;
     private int _detailCalls;
+    private bool _throwOnDetail;
     private MediaEditorWorkVersionSelectorDto? _versions;
     private LibraryItemDetailViewModel? _detail;
 
@@ -35,6 +36,11 @@ public sealed class DetailsTabFileFactsTests : AsyncBunitContext
             stub.SetHandler(nameof(IEngineApiClient.GetLibraryItemDetailAsync), _ =>
             {
                 _detailCalls++;
+                if (_throwOnDetail)
+                {
+                    throw new InvalidOperationException("engine unavailable");
+                }
+
                 return Task.FromResult(_detail);
             });
             stub.SetHandler(nameof(IEngineApiClient.GetItemHistoryWithStatusAsync), _ =>
@@ -139,6 +145,20 @@ public sealed class DetailsTabFileFactsTests : AsyncBunitContext
     }
 
     [Fact]
+    public async Task AFailedLoadShowsADegradedNoteInTheSamePanelAndKeepsTheRestOfTheTab()
+    {
+        _versions = OneFile("movie.mkv", "MKV");
+        _throwOnDetail = true;
+        await UseAsync("desktop");
+
+        var cut = RenderTab(Model(DetailEntityType.Movie, canEdit: true));
+
+        Assert.Contains("File details could not be loaded.", cut.Find(".tl-file-facts [role='alert']").TextContent);
+        Assert.Empty(cut.FindAll(".tl-file-facts__list"));
+        Assert.Contains("Library Status", cut.Markup);
+    }
+
+    [Fact]
     public async Task SeveralFilesGetOneBlockEach()
     {
         _versions = new MediaEditorWorkVersionSelectorDto
@@ -214,9 +234,9 @@ public sealed class DetailsTabFileFactsTests : AsyncBunitContext
     }
 
     [Theory]
-    [InlineData("tablet")]
-    [InlineData("phone")]
-    public async Task HistoryNeverShowsOutsideDesktopButFileFactsAndPathStillDo(string formFactor)
+    [InlineData("tablet", true)]
+    [InlineData("phone", false)]
+    public async Task HistoryNeverShowsOutsideDesktopAndPhonesNeverShowThePath(string formFactor, bool pathShown)
     {
         _versions = OneFile("movie.mkv", "MKV");
         _detail = Detail("movie.mkv");
@@ -226,7 +246,56 @@ public sealed class DetailsTabFileFactsTests : AsyncBunitContext
 
         Assert.Empty(cut.FindAll(".tl-item-history"));
         Assert.Equal(0, _historyCalls);
-        Assert.Contains("movie.mkv", cut.Find(".tl-file-facts__list").TextContent);
+        var facts = cut.Find(".tl-file-facts__list").TextContent;
+        Assert.Contains("movie.mkv", facts);
+        Assert.Equal(pathShown, facts.Contains("/library/media/movie.mkv", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task AStoredContainerShowsOnlyWhenItAddsToTheFormat()
+    {
+        _versions = OneFile("movie.mkv", "MKV");
+        _detail = Detail("movie.mkv");
+        _detail.CanonicalValues = [new LibraryItemCanonicalValueDto { Key = "container", Value = "Matroska" }];
+        await UseAsync("desktop");
+        var different = RenderTab(Model(DetailEntityType.Movie)).Find(".tl-file-facts__list").TextContent;
+        Assert.Contains("Matroska", different);
+
+        _detail.CanonicalValues = [new LibraryItemCanonicalValueDto { Key = "container", Value = "mkv" }];
+        var same = RenderTab(Model(DetailEntityType.Movie)).Find(".tl-file-facts__list").TextContent;
+        Assert.DoesNotContain("Container", same);
+    }
+
+    [Fact]
+    public async Task ThePathLandsOnTheFileItBelongsToNotOnItsSibling()
+    {
+        _versions = new MediaEditorWorkVersionSelectorDto
+        {
+            WorkId = ItemId,
+            Editions =
+            [
+                new MediaEditorEditionSelectorDto
+                {
+                    EditionId = Guid.NewGuid(),
+                    AssetCount = 2,
+                    Assets =
+                    [
+                        new MediaEditorAssetSelectorDto { AssetId = Guid.NewGuid(), FileName = "a.mp4", TechnicalLabel = "MP4" },
+                        new MediaEditorAssetSelectorDto { AssetId = Guid.NewGuid(), FileName = "b.mkv", TechnicalLabel = "MKV" },
+                    ],
+                },
+            ],
+        };
+        _detail = Detail("b.mkv");
+        await UseAsync("desktop");
+
+        var cut = RenderTab(Model(DetailEntityType.Movie, canEdit: true));
+
+        var blocks = cut.FindAll(".tl-file-facts__block");
+        Assert.DoesNotContain("/library/media/b.mkv", blocks[0].TextContent);
+        Assert.DoesNotContain("1080p (HEVC)", blocks[0].TextContent);
+        Assert.Contains("/library/media/b.mkv", blocks[1].TextContent);
+        Assert.Contains("1080p (HEVC)", blocks[1].TextContent);
     }
 
     [Theory]

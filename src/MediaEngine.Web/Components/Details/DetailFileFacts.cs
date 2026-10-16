@@ -65,8 +65,11 @@ public static class DetailFileFacts
             return BuildFromDetailOrFormats(model, detail, itemRows, path);
         }
 
+        // The item detail describes one file. Match it by name so its facts (and path) never land on another file.
+        var pathFileName = NullIfBlank(Path.GetFileName((detail?.FilePath ?? string.Empty).Replace('\\', '/')));
+        var primaryName = NullIfBlank(detail?.FileName) ?? pathFileName;
         var primaryIndex = files.FindIndex(file => string.Equals(
-            file.Asset.FileName, detail?.FileName, StringComparison.OrdinalIgnoreCase));
+            file.Asset.FileName, primaryName, StringComparison.OrdinalIgnoreCase));
         if (primaryIndex < 0)
         {
             primaryIndex = 0;
@@ -86,10 +89,15 @@ public static class DetailFileFacts
             if (index == primaryIndex)
             {
                 rows.AddRange(itemRows);
+            }
+
+            if (path is not null && (files.Count == 1
+                || string.Equals(asset.FileName, pathFileName, StringComparison.OrdinalIgnoreCase)))
+            {
                 Add(rows, "Path", path);
             }
 
-            blocks.Add(new DetailFileBlock(asset.FileName, rows));
+            blocks.Add(new DetailFileBlock(asset.FileName, DropRepeatedContainer(rows)));
         }
 
         return blocks;
@@ -107,7 +115,7 @@ public static class DetailFileFacts
             Add(rows, "Format", FormatFromFileName(detail!.FileName));
             rows.AddRange(itemRows);
             Add(rows, "Path", path);
-            return [new DetailFileBlock(detail.FileName!, rows)];
+            return [new DetailFileBlock(detail.FileName!, DropRepeatedContainer(rows))];
         }
 
         // No file list: fall back to the owned formats the page already carries (one block each).
@@ -146,6 +154,8 @@ public static class DetailFileFacts
     {
         var rows = new List<DetailFileFactRow>();
         var facts = model.Facts;
+        Add(rows, "Container", detail?.CanonicalValues
+            .FirstOrDefault(value => string.Equals(value.Key, "container", StringComparison.OrdinalIgnoreCase))?.Value);
         Add(rows, "Length", facts?.Runtime ?? facts?.Duration ?? detail?.Runtime);
         Add(rows, "Video", PlaybackTechnicalSummaryDisplay.VideoChip(detail?.PlaybackSummary));
         Add(rows, "Audio", PlaybackTechnicalSummaryDisplay.AudioChip(detail?.PlaybackSummary));
@@ -158,6 +168,15 @@ public static class DetailFileFacts
         }
 
         return rows;
+    }
+
+    /// <summary>The stored container is only worth a row when it says something the Format row does not.</summary>
+    private static List<DetailFileFactRow> DropRepeatedContainer(List<DetailFileFactRow> rows)
+    {
+        var format = rows.FirstOrDefault(row => row.Label == "Format")?.Value;
+        return format is null
+            ? rows
+            : rows.Where(row => !(row.Label == "Container" && string.Equals(row.Value, format, StringComparison.OrdinalIgnoreCase))).ToList();
     }
 
     private static string? FormatFromFileName(string? fileName)
