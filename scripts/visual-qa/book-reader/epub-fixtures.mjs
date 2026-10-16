@@ -334,6 +334,48 @@ export function buildPictureEpub(file) {
     zip.close();
 }
 
+/**
+ * Front matter as publishers ship it: a printed contents list with dotted leaders made of tables, floats and
+ * `white-space: nowrap`, a wide table, a `pre` block, a fixed-width div and an oversize picture. Used to measure that
+ * nothing on a reflowable page spills past its column (and so shows as a clipped continuation on the next page).
+ */
+export const FRONT_MATTER_PAGES = ['title', 'copyright', 'contents-table', 'contents-float', 'wide-table', 'pre-block', 'fixed-width', 'oversize-image'];
+export function buildFrontMatterEpub(file) {
+    const zip = new ZipFile(file);
+    zip.add('mimetype', 'application/epub+zip', { store: true });
+    zip.add('META-INF/container.xml', CONTAINER);
+    const extra = '<item id="wide" href="images/wide.png" media-type="image/png"/><item id="css" href="css/style.css" media-type="text/css"/>';
+    zip.add('OEBPS/content.opf', opf({ title: 'Front Matter Fixture', chapters: FRONT_MATTER_PAGES, extraManifest: extra }));
+    zip.add('OEBPS/nav.xhtml', nav(FRONT_MATTER_PAGES));
+    zip.add('OEBPS/images/wide.png', makePng(1600, 400, [200, 90, 60]), { store: true });
+    zip.add('OEBPS/css/style.css', [
+        '.leader { white-space: nowrap; }',
+        '.toc-row { width: 100%; white-space: nowrap; overflow: visible; }',
+        '.toc-row .title { float: left; white-space: nowrap; }',
+        '.toc-row .page { float: right; white-space: nowrap; }',
+        '.dots { white-space: nowrap; letter-spacing: 2px; }',
+        'table.toc { width: 900px; }',
+        '.fixed { width: 700px; border: 1px solid #888; }',
+        'pre { margin: 1em 0; }',
+    ].join('\n'));
+    const link = '<link rel="stylesheet" type="text/css" href="../css/style.css"/>';
+    const dots = '. '.repeat(120);
+    const tocRows = n => Array.from({ length: n }, (_, i) => `<tr><td>Chapter ${i + 1}: A title that is long enough to matter</td><td class="dots">${dots}</td><td>${i * 12 + 7}</td></tr>`).join('');
+    const floatRows = n => Array.from({ length: n }, (_, i) => `<div class="toc-row"><span class="title">Chapter ${i + 1}: A title that is long enough to matter ${dots}</span><span class="page">${i * 12 + 7}</span></div>`).join('');
+    const pages = {
+        'title': `<h1>The Front Matter Book</h1><p class="leader">${'A very long unbreakable subtitle line for the title page '.repeat(4)}</p><p>by Test Author</p>`,
+        'copyright': `<p class="leader">Copyright (c) 2026 Test Author. All rights reserved. ${'No part of this publication may be reproduced '.repeat(3)}</p><p>ISBN 978-0-00-000000-0</p><p>${paragraph(21, 2)}</p>`,
+        'contents-table': `<h1>Contents</h1><table class="toc">${tocRows(18)}</table>`,
+        'contents-float': `<h1>Contents</h1>${floatRows(18)}<p>${paragraph(22, 2)}</p>`,
+        'wide-table': `<h1>Wide table</h1><table style="width:1200px"><tr>${Array.from({ length: 8 }, (_, i) => `<th>Column ${i + 1}</th>`).join('')}</tr><tr>${Array.from({ length: 8 }, (_, i) => `<td>Cell ${i + 1} text</td>`).join('')}</tr></table><p>${paragraph(23, 2)}</p>`,
+        'pre-block': `<h1>Pre</h1><pre>${'0123456789 abcdefghij '.repeat(12)}\n${'x'.repeat(220)}</pre><p>${paragraph(24, 2)}</p>`,
+        'fixed-width': `<h1>Fixed width</h1><div class="fixed"><p>${paragraph(25, 3)}</p></div><div style="width:900px">${paragraph(26, 1)}</div>`,
+        'oversize-image': `<h1>Oversize picture</h1><img src="../images/wide.png" width="1600" height="400" alt="wide"/><p>${paragraph(27, 2)}</p>`,
+    };
+    for (const name of FRONT_MATTER_PAGES) zip.add(`OEBPS/text/${name}.xhtml`, xhtml(name, pages[name], link));
+    zip.close();
+}
+
 /** An image-heavy fixed-layout (pre-paginated) book: every page is one large picture. */
 export function buildFixedLayoutEpub(file, pages = 40) {
     const zip = new ZipFile(file);
