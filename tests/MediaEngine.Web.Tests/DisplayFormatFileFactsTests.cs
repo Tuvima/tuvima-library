@@ -1,0 +1,46 @@
+using MediaEngine.Web.Services.Formatting;
+
+namespace MediaEngine.Web.Tests;
+
+/// <summary>The size, bitrate and date wording on the Details tab file facts.</summary>
+public sealed class DisplayFormatFileFactsTests
+{
+    [Theory]
+    [InlineData(512L, "512 B")]
+    [InlineData(1_536L, "1.5 KB")]
+    [InlineData(327_155_712L, "312 MB")]
+    [InlineData(1_503_238_554L, "1.4 GB")]
+    [InlineData(3_221_225_472L, "3 GB")]
+    [InlineData(1_099_511_627_776L, "1 TB")]
+    public void FileSizeReadsLikeAPersonWouldSayIt(long bytes, string expected) =>
+        Assert.Equal(expected, DisplayFormat.FormatFileSize(bytes));
+
+    [Theory]
+    [InlineData(0L)]
+    [InlineData(-5L)]
+    public void NoSizeMeansNothingToShow(long bytes) => Assert.Null(DisplayFormat.FormatFileSize(bytes));
+
+    [Theory]
+    [InlineData(6_200_000L, "6.2 Mbps")]
+    [InlineData(1_000_000L, "1 Mbps")]
+    [InlineData(256_000L, "256 kbps")]
+    [InlineData(64_400L, "64 kbps")]
+    [InlineData(300L, "1 kbps")]
+    public void BitrateUsesMbpsFromOneMegabitAndKbpsBelow(long bitsPerSecond, string expected) =>
+        Assert.Equal(expected, DisplayFormat.FormatBitrate(bitsPerSecond));
+
+    [Theory]
+    [InlineData(0L)]
+    [InlineData(-1L)]
+    public void NoBitrateMeansNothingToShow(long bitsPerSecond) => Assert.Null(DisplayFormat.FormatBitrate(bitsPerSecond));
+
+    [Fact]
+    public void TheAddedDateIsAPlainUtcDateSoItNeverShiftsWithTheViewersClock()
+    {
+        var late = new DateTimeOffset(2026, 10, 16, 23, 30, 0, TimeSpan.Zero);
+        var sameInstantElsewhere = new DateTimeOffset(2026, 10, 17, 9, 30, 0, TimeSpan.FromHours(10));
+
+        Assert.Equal("2026-10-16", DisplayFormat.FormatPlainDate(late));
+        Assert.Equal("2026-10-16", DisplayFormat.FormatPlainDate(sameInstantElsewhere));
+    }
+}

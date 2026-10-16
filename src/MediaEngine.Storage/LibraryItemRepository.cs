@@ -475,6 +475,20 @@ public sealed class LibraryItemRepository : ILibraryItemRepository
             LIMIT 1;
             """, new { entityId });
 
+        // File size comes from rows the Engine already stores (the playback inspection cache, then the hash
+        // cache matched by content hash). One indexed read; the file itself is never opened.
+        var fileSizeBytes = assetId is null
+            ? null
+            : conn.QueryFirstOrDefault<long?>("""
+                SELECT COALESCE(
+                    (SELECT pic.file_size FROM playback_inspection_cache pic
+                      WHERE pic.asset_id = ma.id AND pic.source_hash = ma.content_hash AND pic.file_size > 0),
+                    (SELECT fhc.size_bytes FROM file_hash_cache fhc
+                      WHERE fhc.sha256 = ma.content_hash AND fhc.size_bytes > 0 LIMIT 1))
+                FROM media_assets ma
+                WHERE ma.id = @assetId;
+                """, new { assetId });
+
         var workIdentity = conn.QueryFirstOrDefault<(string? MatchLevel, string? WorkKind)>(
             "SELECT match_level AS MatchLevel, work_kind AS WorkKind FROM works WHERE id = @entityId;",
             new { entityId });
@@ -695,6 +709,7 @@ public sealed class LibraryItemRepository : ILibraryItemRepository
             WikidataQid = projection?.WikidataQid ?? Canonical(BridgeIdKeys.WikidataQid),
             PlaybackSummary = playbackSummary,
             WikidataStatus = projection?.WikidataStatus,
+            FileSizeBytes = fileSizeBytes,
             FileName = projection?.FileName ?? (maRow == default ? null : Path.GetFileName(maRow.FilePath)),
             FilePath = projection?.FilePath ?? maRow.FilePath,
             ContentHash = maRow.ContentHash,

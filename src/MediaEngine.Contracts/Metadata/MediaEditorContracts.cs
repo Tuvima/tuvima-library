@@ -482,6 +482,23 @@ public sealed class MediaEditorAssetSelectorDto
     [JsonPropertyName("edition_id")] public Guid EditionId { get; set; }
     [JsonPropertyName("file_name")] public string FileName { get; set; } = string.Empty;
     [JsonPropertyName("technical_label")] public string TechnicalLabel { get; set; } = string.Empty;
+
+    // Stored file facts for the Details tab. All of them come from rows the Engine already holds
+    // (asset row, hash cache, playback inspection cache); none of them is probed on request.
+    [JsonPropertyName("file_size_bytes")] public long? FileSizeBytes { get; set; }
+    [JsonPropertyName("added_at")] public DateTimeOffset? AddedAt { get; set; }
+    [JsonPropertyName("bitrate_bps")] public long? BitrateBps { get; set; }
+    [JsonPropertyName("container")] public string? Container { get; set; }
+    [JsonPropertyName("audio_tracks")] public List<MediaEditorAssetAudioTrackDto> AudioTracks { get; set; } = [];
+    [JsonPropertyName("subtitle_languages")] public List<string> SubtitleLanguages { get; set; } = [];
+}
+
+/// <summary>One audio track stored for a file, as recorded by its last playback inspection.</summary>
+public sealed class MediaEditorAssetAudioTrackDto
+{
+    [JsonPropertyName("language")] public string? Language { get; set; }
+    [JsonPropertyName("codec")] public string? Codec { get; set; }
+    [JsonPropertyName("is_default")] public bool IsDefault { get; set; }
 }
 
 public sealed class MediaEditorOwnedChildSelectionSnapshotDto

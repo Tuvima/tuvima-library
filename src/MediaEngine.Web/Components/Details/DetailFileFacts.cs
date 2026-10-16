@@ -1,6 +1,8 @@
+using System.Globalization;
 using MediaEngine.Contracts.Details;
 using MediaEngine.Contracts.Metadata;
 using MediaEngine.Web.Models.ViewDTOs;
+using MediaEngine.Web.Services.Formatting;
 
 namespace MediaEngine.Web.Components.Details;
 
@@ -12,8 +14,9 @@ public sealed record DetailFileBlock(string Title, IReadOnlyList<DetailFileFactR
 
 /// <summary>
 /// Builds the file facts shown on the Details tab from data the Engine already stores:
-/// the page model, the work's asset list, and the library item detail. Nothing here asks
-/// the Engine for new fields; facts that are not stored are simply left out.
+/// the page model, the work's asset list (which carries each file's stored size, added date,
+/// bitrate and tracks), and the library item detail. Nothing here probes a file or asks the Engine
+/// to; facts that are not stored are simply left out.
 /// </summary>
 public static class DetailFileFacts
 {
@@ -57,7 +60,7 @@ public static class DetailFileFacts
             .Where(file => !string.IsNullOrWhiteSpace(file.Asset.FileName))
             .ToList() ?? [];
 
-        var itemRows = BuildItemRows(model, detail);
+        var itemRows = BuildItemRows(model, detail, includeFileLevel: files.Count == 0);
         var path = includePath ? NullIfBlank(detail?.FilePath) : null;
 
         if (files.Count == 0)
@@ -80,16 +83,25 @@ public static class DetailFileFacts
         {
             var (edition, asset) = files[index];
             var rows = new List<DetailFileFactRow>();
+            var isPrimary = index == primaryIndex;
             Add(rows, "Format", asset.TechnicalLabel);
             if (files.Count > 1)
             {
                 Add(rows, "Edition", edition.Label);
             }
 
-            if (index == primaryIndex)
+            // Each file shows its own stored container; only the file the item detail names borrows the item's.
+            Add(rows, "Container", NullIfBlank(asset.Container) ?? (isPrimary ? ItemContainer(detail) : null));
+            if (isPrimary)
             {
                 rows.AddRange(itemRows);
             }
+
+            var size = asset.FileSizeBytes is > 0 ? asset.FileSizeBytes : isPrimary ? detail?.FileSizeBytes : null;
+            Add(rows, "Size", size is > 0 ? DisplayFormat.FormatFileSize(size.Value) : null);
+            Add(rows, "Bitrate", asset.BitrateBps is > 0 ? DisplayFormat.FormatBitrate(asset.BitrateBps.Value) : null);
+            Add(rows, "Added", asset.AddedAt is { } added ? DisplayFormat.FormatPlainDate(added) : null);
+            AddTracks(rows, asset, isPrimary);
 
             if (path is not null && (files.Count == 1
                 || string.Equals(asset.FileName, pathFileName, StringComparison.OrdinalIgnoreCase)))
@@ -150,24 +162,102 @@ public static class DetailFileFacts
         return blocks;
     }
 
-    private static List<DetailFileFactRow> BuildItemRows(DetailPageViewModel model, LibraryItemDetailViewModel? detail)
+    private static string? ItemContainer(LibraryItemDetailViewModel? detail) => detail?.CanonicalValues
+        .FirstOrDefault(value => string.Equals(value.Key, "container", StringComparison.OrdinalIgnoreCase))?.Value;
+
+    /// <param name="includeFileLevel">
+    /// True when there is no file list, so the item detail also supplies the container and size
+    /// that the per-file path takes from each file's own stored facts.
+    /// </param>
+    private static List<DetailFileFactRow> BuildItemRows(DetailPageViewModel model, LibraryItemDetailViewModel? detail, bool includeFileLevel)
     {
         var rows = new List<DetailFileFactRow>();
         var facts = model.Facts;
-        Add(rows, "Container", detail?.CanonicalValues
-            .FirstOrDefault(value => string.Equals(value.Key, "container", StringComparison.OrdinalIgnoreCase))?.Value);
+        if (includeFileLevel)
+        {
+            Add(rows, "Container", ItemContainer(detail));
+        }
+
         Add(rows, "Length", facts?.Runtime ?? facts?.Duration ?? detail?.Runtime);
         Add(rows, "Video", PlaybackTechnicalSummaryDisplay.VideoChip(detail?.PlaybackSummary));
         Add(rows, "Audio", PlaybackTechnicalSummaryDisplay.AudioChip(detail?.PlaybackSummary));
         Add(rows, "Subtitles", PlaybackTechnicalSummaryDisplay.SubtitleChip(detail?.PlaybackSummary));
         Add(rows, "Pages", facts?.PageCount);
         Add(rows, "Language", facts?.Language ?? detail?.Language);
-        if (detail?.FileSizeBytes is > 0)
+        if (includeFileLevel && detail?.FileSizeBytes is > 0)
         {
-            Add(rows, "Size", FormatSize(detail.FileSizeBytes.Value));
+            Add(rows, "Size", DisplayFormat.FormatFileSize(detail.FileSizeBytes.Value));
         }
 
         return rows;
+    }
+
+    /// <summary>
+    /// The stored audio and subtitle tracks of one file. The item summary already covers the file it
+    /// describes when that file has a single track, so the lists only appear when they say more.
+    /// </summary>
+    private static void AddTracks(List<DetailFileFactRow> rows, MediaEditorAssetSelectorDto asset, bool isPrimary)
+    {
+        var audio = asset.AudioTracks
+            .Select(track => TrackLabel(LanguageName(track.Language), NullIfBlank(track.Codec)))
+            .Where(label => label is not null)
+            .Select(label => label!)
+            .ToList();
+        if (audio.Count > (isPrimary ? 1 : 0))
+        {
+            Add(rows, "Audio tracks", string.Join(", ", audio));
+        }
+
+        var subtitles = asset.SubtitleLanguages
+            .Select(LanguageName)
+            .Where(label => !string.IsNullOrWhiteSpace(label))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        if (subtitles.Count > (isPrimary ? 1 : 0))
+        {
+            Add(rows, "Subtitle tracks", string.Join(", ", subtitles));
+        }
+    }
+
+    private static string? TrackLabel(string? language, string? codec) =>
+        (language, codec) switch
+        {
+            (null, null) => null,
+            ({ } only, null) => only,
+            (null, { } only) => only,
+            ({ } name, { } format) => $"{name} ({format})",
+        };
+
+    private static readonly Lazy<Dictionary<string, string>> LanguageNames = new(() =>
+    {
+        var names = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var culture in CultureInfo.GetCultures(CultureTypes.NeutralCultures))
+        {
+            if (culture.TwoLetterISOLanguageName.Length == 2 && !names.ContainsKey(culture.TwoLetterISOLanguageName))
+            {
+                names[culture.TwoLetterISOLanguageName] = culture.EnglishName;
+            }
+
+            if (culture.ThreeLetterISOLanguageName.Length == 3 && !names.ContainsKey(culture.ThreeLetterISOLanguageName))
+            {
+                names[culture.ThreeLetterISOLanguageName] = culture.EnglishName;
+            }
+        }
+
+        return names;
+    });
+
+    /// <summary>"eng" and "en" read as English; anything unrecognised is shown as stored. Never throws.</summary>
+    private static string? LanguageName(string? code)
+    {
+        var trimmed = NullIfBlank(code);
+        if (trimmed is null)
+        {
+            return null;
+        }
+
+        var key = trimmed.Split('-', '_')[0];
+        return LanguageNames.Value.TryGetValue(key, out var name) ? name : trimmed;
     }
 
     /// <summary>The stored container is only worth a row when it says something the Format row does not.</summary>
@@ -183,20 +273,6 @@ public static class DetailFileFacts
     {
         var extension = Path.GetExtension(fileName ?? string.Empty).TrimStart('.');
         return string.IsNullOrWhiteSpace(extension) ? null : extension.ToUpperInvariant();
-    }
-
-    private static string FormatSize(long bytes)
-    {
-        string[] units = ["B", "KB", "MB", "GB", "TB"];
-        var size = (double)bytes;
-        var unit = 0;
-        while (size >= 1024 && unit < units.Length - 1)
-        {
-            size /= 1024;
-            unit++;
-        }
-
-        return string.Create(System.Globalization.CultureInfo.InvariantCulture, $"{size:0.#} {units[unit]}");
     }
 
     private static string? NullIfBlank(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();

@@ -178,6 +178,52 @@ public static class DisplayFormat
     }
 
     /// <summary>
+    // ---- File facts ---------------------------------------------------------
+
+    /// <summary>
+    /// File size in binary units with invariant digits: "312 MB", "1.4 GB". One decimal below 100 of a
+    /// unit, none above it. Zero or negative input has no size to show and returns null.
+    /// </summary>
+    public static string? FormatFileSize(long bytes)
+    {
+        if (bytes <= 0)
+        {
+            return null;
+        }
+
+        string[] units = ["B", "KB", "MB", "GB", "TB"];
+        var size = (double)bytes;
+        var unit = 0;
+        while (size >= 1024 && unit < units.Length - 1)
+        {
+            size /= 1024;
+            unit++;
+        }
+
+        var format = size >= 100 ? "0" : "0.#";
+        return $"{size.ToString(format, CultureInfo.InvariantCulture)} {units[unit]}";
+    }
+
+    /// <summary>
+    /// Bitrate from bits per second in decimal units: "6.2 Mbps" from one megabit, otherwise "256 kbps".
+    /// Zero or negative input returns null.
+    /// </summary>
+    public static string? FormatBitrate(long bitsPerSecond)
+    {
+        if (bitsPerSecond <= 0)
+        {
+            return null;
+        }
+
+        return bitsPerSecond >= 1_000_000
+            ? $"{(bitsPerSecond / 1_000_000d).ToString("0.#", CultureInfo.InvariantCulture)} Mbps"
+            : $"{Math.Max(1, (long)Math.Round(bitsPerSecond / 1000d)).ToString(CultureInfo.InvariantCulture)} kbps";
+    }
+
+    /// <summary>A plain calendar date such as 2026-10-16 (UTC, so it never shifts with the viewer's clock).</summary>
+    public static string FormatPlainDate(DateTimeOffset value)
+        => value.UtcDateTime.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+
     // ---- Text shaping -------------------------------------------------------
 
     /// <summary>
