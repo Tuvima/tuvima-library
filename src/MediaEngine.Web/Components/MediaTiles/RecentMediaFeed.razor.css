@@ -21,4 +21,7 @@
 }
 
 /* Phones: an item still being matched is a smaller, quieter tile that sits after the matched ones. */
-:root[data-form-factor="phone"] .recent-item--settling { --home-shelf-height: calc((100vw - 32px) / 2.6 * 1.5 * .8); opacity:.78; }
+:root[data-form-factor="phone"] .recent-item--settling { --home-shelf-height: calc((100vw - 32px) / 2.6 * 1.5 * .8); }
+
+/* Phones: "See All" is a full 48px target on the right of the heading row; the filter chips drop to their own scrolling row below. */
+:root[data-form-factor="phone"] .recent-view-all { display:inline-flex; align-items:center; justify-content:flex-end; min-height:48px; min-width:48px; margin-left:auto; }

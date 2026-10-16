@@ -76,7 +76,11 @@ public sealed class PhoneContinueShelfTests : AsyncBunitContext
         Assert.Contains("Chapter 4", Text(0));
         Assert.Contains("Audiobook", Text(0));
         Assert.Contains("S1 E2 · Night 1", Text(1));
-        Assert.Contains("S1 E2 · 23 min left", Text(1));
+        Assert.Contains("23 min left", Text(1));
+        // The episode label is in the title line only; the sub line is just the time left.
+        var subLabel = cards[1].QuerySelector(".continue-sublabel")!.TextContent;
+        Assert.Contains("23 min left", subLabel);
+        Assert.DoesNotContain("S1 E2", subLabel);
         Assert.Contains("Jagged Little Pill", Text(2));
         Assert.Contains("S1 E1 · Pilot", Text(3));
         Assert.Contains("Leviathan Wakes", Text(4));
@@ -141,6 +145,16 @@ public sealed class PhoneContinueShelfTests : AsyncBunitContext
         var css = File.ReadAllText(Path.Combine(root, "src", "MediaEngine.Web", "Components", "MediaTiles", "MediaTileShelf.razor.css"));
         Assert.Contains("data-form-factor=\"phone\"] .media-tile-shelf-link", css);
         Assert.Contains("min-height:48px", css.Replace(" ", string.Empty));
+
+        // Recently Added: its See All link has the same phone rule, and stays right of the heading while the chips drop to their own row.
+        var feedCss = File.ReadAllText(Path.Combine(root, "src", "MediaEngine.Web", "Components", "MediaTiles", "RecentMediaFeed.razor.css"));
+        var linkRule = feedCss[feedCss.IndexOf(":root[data-form-factor=\"phone\"] .recent-view-all {", StringComparison.Ordinal)..];
+        linkRule = linkRule[..linkRule.IndexOf('}')].Replace(" ", string.Empty);
+        Assert.Contains("min-height:48px", linkRule);
+        Assert.Contains("min-width:48px", linkRule);
+        Assert.Contains("justify-content:flex-end", linkRule);
+        Assert.Contains("margin-left:auto", linkRule);
+        Assert.Contains(".recent-feed-heading::deep.recent-filters{order:3;flex-basis:100%;}", feedCss.Replace(" ", string.Empty));
     }
 
     [Fact]

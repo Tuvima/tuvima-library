@@ -26,19 +26,15 @@ public static class PhoneContinueLogic
     /// <summary>A thin bar is drawn only for real progress, never at zero.</summary>
     public static bool ShowsProgressBar(MediaTileViewModel item) => item.ProgressPct is > 0 and < 99.5;
 
-    /// <summary>The line under the title: S1 E2 and time left for video, the saved place for books and audio.</summary>
+    /// <summary>The line under the title: time left for video, the saved place for books and audio.</summary>
     public static string SubLabel(MediaTileViewModel item)
     {
         var remaining = RemainingText(item.RemainingSeconds);
         switch (item.MediaKind)
         {
             case "TV":
-                {
-                    var identity = item.EpisodeContext is { } episode && episode.SeasonNumber is > 0 && episode.EpisodeNumber is > 0
-                        ? $"S{episode.SeasonNumber} E{episode.EpisodeNumber}"
-                        : null;
-                    return Join(identity, remaining) ?? PercentLabel(item, "watched");
-                }
+                // The title line already says S1 E2, so this line is only the time left (or the percent).
+                return remaining ?? PercentLabel(item, "watched");
             case "Movie":
                 return remaining ?? PercentLabel(item, "watched");
             case "Book":
