@@ -22,6 +22,7 @@ export const GUIDS = {
     hostile: '00000000-0000-4000-8000-0000000000bb',
     pictures: '00000000-0000-4000-8000-0000000000cc',
     frontMatter: '00000000-0000-4000-8000-0000000000dd',
+    links: '00000000-0000-4000-8000-0000000000ee',
 };
 
 export const bookUrl = id => `/engine-book/${id}/file`;

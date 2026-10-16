@@ -79,6 +79,12 @@ public sealed class BookReaderGuardrailTests
         Assert.Contains("application/octet-stream", adapter);
         Assert.Contains("stripInstructions", adapter);
         Assert.Contains("iframe, frame, frameset, object, embed, applet, base", adapter);
+        // Image maps and templates (declarative shadow roots) go, other elements keep only local hrefs, and the click handler
+        // that runs on every section agrees with the clean-up on what a link is.
+        Assert.Contains("plaintext, map, area, template", adapter);
+        Assert.Contains("restrictHrefs(doc);", adapter);
+        Assert.Contains("export function guardLinks", adapter);
+        Assert.Contains("guardLinks(doc, openExternalLink);", adapter);
         // A page that cannot be parsed is replaced, never passed through as it was.
         Assert.Contains("BLOCKED_PAGE", adapter);
         Assert.DoesNotContain("return text;", adapter);

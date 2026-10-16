@@ -334,9 +334,17 @@ const isSafeResourceType = type => SAFE_TYPES.test(type) || SAFE_APPLICATION_TYP
 
 const COMPACT_CHARS = new RegExp('[\\u0000-\\u0020\\u007f-\\u009f\\u2028\\u2029]+', 'g');
 const compact = value => String(value ?? '').replace(COMPACT_CHARS, '').toLowerCase();
-const isLocalUrl = value => !value || !/^[a-z][a-z0-9+.-]*:/i.test(value.trim()) || /^(blob|data):/i.test(value.trim());
+// What the browser's URL parser sees: leading and trailing control characters and spaces go, and tabs and newlines inside go
+// ("ht<TAB>tps://x" is "https://x" to a browser), so every address test below reads this form and not the raw attribute.
+const urlText = value => String(value ?? '').replace(/^[\u0000-\u0020]+|[\u0000-\u0020]+$/g, '').replace(/[\t\n\r]/g, '');
+const hasScheme = value => /^[a-z][a-z0-9+.-]*:/i.test(urlText(value));
+const isLocalUrl = value => !hasScheme(value) || /^(blob|data):/i.test(urlText(value));
+// The only addresses an element other than a link may keep in `href`: a place in this page or a picture the book carries.
+const isLocalTarget = value => /^(#|blob:|data:image\/)/i.test(urlText(value));
 const isScriptUrl = value => /^(javascript|vbscript|livescript):/.test(compact(value)) || /^data:(text|application)\//.test(compact(value));
 const LINK_SCHEMES = /^(https?:|mailto:)/i;
+const XLINK_NS = 'http://www.w3.org/1999/xlink';
+const isAnchor = el => el.localName.toLowerCase() === 'a';
 // Compared by LOCAL name, whatever the namespace prefix is: q:href in the XLink namespace is a link like href is.
 const URL_ATTRS = new Set(['href', 'src', 'data', 'poster', 'action', 'formaction', 'from', 'to', 'by', 'values', 'srcset']);
 const ANIMATION_ELEMENTS = new Set(['animate', 'set', 'animatemotion', 'animatetransform', 'animatecolor', 'handler', 'listener']);
@@ -391,9 +399,22 @@ function normalizeLinkAttributes(root) {
             if (attr.localName.toLowerCase() !== 'href' || (attr.namespaceURI === null && attr.name === 'href')) continue;
             const value = attr.value;
             el.removeAttributeNode(attr);
-            const allowed = el.localName.toLowerCase() === 'a' ? (isLocalUrl(value) || LINK_SCHEMES.test(value.trim())) : isLocalUrl(value);
+            const allowed = isAnchor(el) ? (isLocalUrl(value) || LINK_SCHEMES.test(urlText(value))) : isLocalUrl(value);
             if (allowed && !isScriptUrl(value) && !el.hasAttribute('href')) el.setAttribute('href', value);
         }
+    }
+}
+
+/**
+ * Only an `<a>` is a link the reader knows how to follow (and only to a place in the book or to http, https or mailto).
+ * Every other element loses its `href` unless it points inside the page or at a book picture: MathML elements are live links
+ * in WebKit, and an `<area>` in an image map is a link in every browser.
+ */
+function restrictHrefs(root) {
+    for (const el of Array.from(root.querySelectorAll('[href]'))) {
+        const value = el.getAttribute('href');
+        const allowed = isAnchor(el) ? (isLocalUrl(value) || LINK_SCHEMES.test(urlText(value))) : isLocalTarget(value);
+        if (!allowed) el.removeAttribute('href');
     }
 }
 
@@ -419,7 +440,10 @@ export function hardenPageDetailed(text, mediaType) {
     normalizeLinkAttributes(doc);
     // No nested documents, plug-ins or redirects: a frame would be a document this clean-up never sees.
     // (noscript, noembed, noframes and xmp are raw text in HTML, which can hide markup from this clean-up.)
-    for (const el of Array.from(doc.querySelectorAll('iframe, frame, frameset, object, embed, applet, base, noscript, noembed, noframes, xmp, plaintext'))) el.remove();
+    // Image maps are links the tap handler would not recognise, and a template with a shadowrootmode becomes a live shadow root
+    // when the frame reads the page again, holding markup this clean-up cannot reach (nothing in a book shows a template).
+    for (const el of Array.from(doc.querySelectorAll('iframe, frame, frameset, object, embed, applet, base, noscript, noembed, noframes, xmp, plaintext, map, area, template'))) el.remove();
+    restrictHrefs(doc);
     for (const el of Array.from(doc.querySelectorAll('meta[http-equiv]'))) {
         if (/^(refresh|set-cookie|content-security-policy|x-frame-options)$/i.test(el.getAttribute('http-equiv'))) el.remove();
     }
@@ -477,12 +501,7 @@ export function hardenSvg(text) {
     }
     stripActiveContent(doc);
     normalizeLinkAttributes(doc);
-    for (const el of root.querySelectorAll('*')) {
-        const value = el.getAttribute('href');
-        if (value === null) continue;
-        const allowed = el.localName === 'a' ? (isLocalUrl(value) || LINK_SCHEMES.test(value.trim())) : isLocalUrl(value);
-        if (!allowed) el.removeAttribute('href');
-    }
+    restrictHrefs(root);
     for (const el of doc.querySelectorAll('style')) el.textContent = cleanCss(el.textContent);
     for (const el of doc.querySelectorAll('[style]')) el.setAttribute('style', cleanCss(el.getAttribute('style')));
     return new XMLSerializer().serializeToString(doc);
@@ -843,6 +862,7 @@ export function unwrapNoWrap(doc) {
 
 function onSectionLoad(state, doc, index) {
     if (state.disposed) return;
+    guardLinks(doc, openExternalLink);
     const win = doc.defaultView;
     const frame = win?.frameElement;
     if (!state.view?.isFixedLayout) unwrapNoWrap(doc);
@@ -947,12 +967,47 @@ function onKey(state, e) {
     e.preventDefault();
 }
 
-function onExternalLink(e) {
-    e.preventDefault();                                        // the library would open anything; we decide
-    const href = e.detail?.a?.href ?? e.detail?.href_;
+function openExternalLink(href) {
     if (typeof href === 'string' && /^(https?:|mailto:)/i.test(href)) {
         globalThis.open(href, '_blank', 'noopener,noreferrer');
     }
+}
+
+function onExternalLink(e) {
+    e.preventDefault();                                        // the library would open anything; we decide
+    openExternalLink(e.detail?.a?.href ?? e.detail?.href_);
+}
+
+/**
+ * The click interceptor for one book page, and the other half of the clean-up in `restrictHrefs`: it must agree with it on
+ * what a link is. The library only follows `a[href]` in the page itself, so a tap on an `<area>`, on a MathML element with an
+ * `href` (a live link in WebKit) or on an anchor inside a shadow root would be followed by the frame. Here the nearest element
+ * in the click's whole path that the browser would treat as a link is found (`<a>`, and anything outside SVG that has an `href`,
+ * shadow roots included) and its default action is always cancelled. Only a plain `a[href]` in the page without a scheme (a
+ * chapter or note link) is left to the library; an `a` to http, https or mailto is opened by `openExternal` here and never
+ * reaches the library; every other address (ftp, tel, data, javascript, a link inside a shadow root) is simply dead.
+ * It runs before the library's own listener (capture phase) and is safe to run on a page that was not cleaned. A closed shadow root hides
+ * its inside from every listener outside it, so that case is covered by the clean-up (which removes templates), not by this.
+ */
+export function guardLinks(doc, openExternal) {
+    const hrefOf = el => el.getAttribute('href') ?? el.getAttributeNS(XLINK_NS, 'href');
+    // In SVG only `<a>` links (image, use and the like point at pictures and shapes); anywhere else an href is a link.
+    const isLink = el => el.nodeType === 1 && hrefOf(el) !== null && (isAnchor(el) || el.namespaceURI !== SVG_NS);
+    const onClick = e => {
+        const link = e.composedPath().find(isLink);
+        if (!link) return;
+        e.preventDefault();
+        const inPage = isAnchor(link) && link.getRootNode() === doc && link.hasAttribute('href');
+        const value = hrefOf(link);
+        if (e.type === 'click' && inPage && !hasScheme(value)) return;    // a link inside the book: the library follows it
+        e.stopImmediatePropagation();
+        if (e.type !== 'click' || !inPage || !LINK_SCHEMES.test(urlText(value))) return;
+        let href = null;
+        try { href = new URL(urlText(value)).href; } catch { /* not an address the browser can read, so it opens nothing */ }
+        if (href) openExternal(href);
+    };
+    doc.addEventListener('click', onClick, true);
+    doc.addEventListener('auxclick', onClick, true);              // a middle click would open the link in a new tab
 }
 
 function onRelocate(state, detail) {
