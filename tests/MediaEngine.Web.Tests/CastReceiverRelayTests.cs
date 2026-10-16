@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.Hosting.Server;
 using Microsoft.AspNetCore.Hosting.Server.Features;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 
 namespace MediaEngine.Web.Tests;
 
@@ -170,6 +171,22 @@ public sealed class CastReceiverRelayTests
     }
 
     [Fact]
+    public async Task TheRelaysHttpClientLogsNothingThatSpellsTheGrant()
+    {
+        var logs = new List<string>();
+        await using var engine = await Host.StartEngineAsync(context => context.Response.StatusCode = StatusCodes.Status200OK);
+        await using var dashboard = await Host.StartDashboardAsync(engine.Address, enabled: true, logs: logs);
+
+        using var response = await dashboard.Client.GetAsync($"/cast/v1/{Grant}/media");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.DoesNotContain(logs, line => line.Contains(Grant, StringComparison.Ordinal));
+        // Program.cs applies the same category filter.
+        var program = File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", "src", "MediaEngine.Web", "Program.cs"));
+        Assert.Contains("CastReceiverRelayEndpoints.ProxyLogCategory, LogLevel.None", program, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void OnlyTheListedHeadersTravelInEitherDirection()
     {
         Assert.Equal(["Range", "If-Range"], CastReceiverRelayEndpoints.ForwardedRequestHeaders);
@@ -196,12 +213,20 @@ public sealed class CastReceiverRelayTests
         public static Task<Host> StartEngineAsync(Action<HttpContext> handle) =>
             StartEngineAsync(context => { handle(context); return Task.CompletedTask; });
 
-        public static Task<Host> StartDashboardAsync(Uri engine, bool? enabled, bool classifier = true) =>
-            StartAsync(engine, enabled, classifier, application => application.MapCastReceiverRelay());
+        public static Task<Host> StartDashboardAsync(Uri engine, bool? enabled, bool classifier = true, List<string>? logs = null) =>
+            StartAsync(engine, enabled, classifier, application => application.MapCastReceiverRelay(), logs);
 
-        private static async Task<Host> StartAsync(Uri? engine, bool? enabled, bool classifier, Action<WebApplication> configure)
+        private static async Task<Host> StartAsync(Uri? engine, bool? enabled, bool classifier, Action<WebApplication> configure, List<string>? logs = null)
         {
             var builder = WebApplication.CreateBuilder();
+            if (logs is not null)
+            {
+                builder.Logging.ClearProviders();
+                builder.Logging.SetMinimumLevel(LogLevel.Trace);
+                builder.Logging.AddProvider(new ListLoggerProvider(logs));
+                builder.Logging.AddFilter(CastReceiverRelayEndpoints.ProxyLogCategory, LogLevel.None);
+            }
+
             builder.WebHost.UseUrls("http://127.0.0.1:0");
             if (enabled is { } value)
             {
@@ -230,6 +255,23 @@ public sealed class CastReceiverRelayTests
             Client.Dispose();
             await app.StopAsync();
             await app.DisposeAsync();
+        }
+    }
+
+    private sealed class ListLoggerProvider(List<string> lines) : ILoggerProvider
+    {
+        public ILogger CreateLogger(string categoryName) => new ListLogger(lines);
+        public void Dispose() { }
+
+        private sealed class ListLogger(List<string> lines) : ILogger
+        {
+            public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
+            public bool IsEnabled(LogLevel logLevel) => true;
+
+            public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter)
+            {
+                lock (lines) { lines.Add(formatter(state, exception)); }
+            }
         }
     }
 

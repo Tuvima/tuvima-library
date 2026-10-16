@@ -18,6 +18,9 @@ public static class CastReceiverRelayEndpoints
 {
     private static readonly Regex GrantShape = new("^[A-Za-z0-9_-]{16,4096}$", RegexOptions.Compiled | RegexOptions.CultureInvariant);
 
+    /// <summary>The HTTP client factory's log category for the relay's client; it must stay silent because it prints request addresses.</summary>
+    public const string ProxyLogCategory = "System.Net.Http.HttpClient.ClientApiProxy";
+
     /// <summary>The only request headers passed to the Engine.</summary>
     internal static readonly string[] ForwardedRequestHeaders = ["Range", "If-Range"];
 

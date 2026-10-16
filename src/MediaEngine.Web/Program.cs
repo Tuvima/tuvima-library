@@ -55,6 +55,9 @@ if (!WindowsServiceHelpers.IsWindowsService())
     builder.Logging.AddDebug();
 }
 
+// The cast grant is a secret that sits in the URL path, and the HTTP client factory prints every request address.
+builder.Logging.AddFilter(MediaEngine.Web.Endpoints.CastReceiverRelayEndpoints.ProxyLogCategory, LogLevel.None);
+
 // ── Blazor ────────────────────────────────────────────────────────────────────
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
