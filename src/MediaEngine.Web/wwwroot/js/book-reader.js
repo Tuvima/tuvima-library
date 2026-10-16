@@ -596,6 +596,30 @@ function emptyStats() {
     return { requests: 0, bytes: 0, openMs: 0, entries: 0, fileSize: 0 };
 }
 
+const SANDBOX_NO_SCRIPTS = 'allow-same-origin';
+const SANDBOX_WITH_SCRIPTS = 'allow-same-origin allow-scripts';
+
+/**
+ * True on Apple WebKit (iPhone, iPad, Safari). There the book frame must be allowed to run scripts, because WebKit does not
+ * deliver events from a script-less sandboxed frame to the page around it (WebKit bug 218086), which breaks taps, swipes,
+ * selection and links. Every iOS browser is WebKit, and iPadOS asks for the desktop site and reports as a Mac, so it is told
+ * apart by its touch screen. Chromium, Firefox and Android never match. `env` is a navigator-like object so this is testable.
+ */
+export function needsScriptSandbox(env = globalThis.navigator ?? {}) {
+    const ua = String(env.userAgent ?? '');
+    const vendor = String(env.vendor ?? '');
+    const touchPoints = Number(env.maxTouchPoints ?? 0);
+    if (/Android/i.test(ua)) return false;
+    if (/iP(hone|ad|od)/.test(ua)) return true;
+    if (/Macintosh/.test(ua) && touchPoints > 1) return true;
+    return vendor === 'Apple Computer, Inc.' && !/Chrome|Chromium|Edg\/|OPR\/|Firefox/.test(ua);
+}
+
+/** The `sandbox` value for book frames: scripts are allowed only where WebKit needs them (see needsScriptSandbox). */
+export function bookFrameSandbox(env) {
+    return needsScriptSandbox(env) ? SANDBOX_WITH_SCRIPTS : SANDBOX_NO_SCRIPTS;
+}
+
 /**
  * Opens a book into `host`. Never throws across interop: returns
  * { ok: true, title, author, language, dir, layout, fraction, stats } or { ok: false, code, message }.
@@ -633,6 +657,8 @@ export async function open(host, url, options, dotNet) {
         state.book = book;
         if (state.disposed) return { ok: false, code: 'cancelled', message: 'Closed.' };
 
+        // The pinned foliate-js reads this when it builds a page frame; the book never chooses it.
+        globalThis.TUVIMA_BOOK_FRAME_SANDBOX = bookFrameSandbox();
         const view = document.createElement('foliate-view');
         state.view = view;
         host.replaceChildren(view);
