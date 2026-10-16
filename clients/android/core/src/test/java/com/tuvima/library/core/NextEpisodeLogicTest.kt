@@ -91,4 +91,13 @@ class NextEpisodeLogicTest {
         assertEquals(0, NextEpisodeLogic.secondsLeft(8))
         assertEquals(0, NextEpisodeLogic.secondsLeft(20))
     }
+
+    @Test
+    fun theCountdownOnlyTicksWhileTheScreenIsShowingAndPlayingOrEnded() {
+        assertEquals(true, NextEpisodeLogic.shouldTick(started = true, playing = true, ended = false))
+        assertEquals(true, NextEpisodeLogic.shouldTick(started = true, playing = false, ended = true))
+        assertEquals(false, NextEpisodeLogic.shouldTick(started = true, playing = false, ended = false))
+        assertEquals(false, NextEpisodeLogic.shouldTick(started = false, playing = true, ended = false))
+        assertEquals(false, NextEpisodeLogic.shouldTick(started = false, playing = false, ended = true))
+    }
 }

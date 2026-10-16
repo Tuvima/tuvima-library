@@ -66,6 +66,13 @@ object NextEpisodeLogic {
         }
     }
 
+    /**
+     * Whether the countdown may count down right now. Video never plays in the background, so the next episode must not
+     * start while the screen is stopped (Home, screen off) or while the person has paused; an ended episode counts only
+     * while the screen is showing.
+     */
+    fun shouldTick(started: Boolean, playing: Boolean, ended: Boolean): Boolean = started && (playing || ended)
+
     /** Seconds left on the countdown given how many whole seconds have passed; never below zero. */
     fun secondsLeft(elapsedSeconds: Int): Int = (COUNTDOWN_SECONDS - elapsedSeconds).coerceAtLeast(0)
 }

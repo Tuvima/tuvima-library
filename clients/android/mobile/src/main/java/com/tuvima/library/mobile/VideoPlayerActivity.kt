@@ -171,6 +171,8 @@ class VideoPlayerActivity : ComponentActivity() {
     private var cancelledFor by mutableStateOf<String?>(null)
     private var finished by mutableStateOf(false)
     private var advancing = false
+    // True between onStart and onStop. The next-episode countdown only runs while the screen is showing.
+    private var started by mutableStateOf(false)
 
     private val playerListener = object : Player.Listener {
         override fun onIsPlayingChanged(isPlaying: Boolean) {
@@ -267,10 +269,12 @@ class VideoPlayerActivity : ComponentActivity() {
 
     override fun onStart() {
         super.onStart()
+        started = true
         connect()
     }
 
     override fun onStop() {
+        started = false
         releaseController(VideoSessionPolicy.onScreenStop(isFinishing))
         super.onStop()
     }
@@ -397,7 +401,8 @@ class VideoPlayerActivity : ComponentActivity() {
      * Episodes panel (it just keeps where it was).
      */
     private fun playEpisode(episode: NextEpisode, previousEnded: Boolean) {
-        if (advancing) return
+        // Video never plays in the background: a countdown that ends while the screen is stopped does nothing.
+        if (advancing || !started) return
         advancing = true
         assetId = episode.assetId
         title = episode.title.ifBlank { title }
@@ -967,7 +972,8 @@ class VideoPlayerActivity : ComponentActivity() {
             if (!countdown) return@LaunchedEffect
             while (NextEpisodeLogic.secondsLeft(elapsed) > 0) {
                 delay(1_000L)
-                elapsed += 1
+                // Waits (without resetting) while the screen is stopped or the person has paused; carries on when they come back.
+                if (NextEpisodeLogic.shouldTick(started, isPlaying, finished)) elapsed += 1
             }
             onPlay()
         }
