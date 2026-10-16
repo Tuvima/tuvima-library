@@ -95,6 +95,9 @@ public static class NativeApiForwardPolicy
         Of(Read, $"playback/{Guid}/offline/{Guid}"),
         Of(Read, "playback/encode/jobs"),
         Of(["POST"], $"playback/{Guid}/encode"),
+
+        // Start a cast session for one title: the Engine answers with a one-title secret link for the TV. POST only, no GET.
+        Of(["POST"], $"playback/{Guid}/cast"),
         Of(["POST"], $"playback/encode/jobs/{Guid}/cancel"),
 
         // The player session, progress, saved items and reactions belong to the device's own profile.

@@ -189,6 +189,21 @@ public sealed class ClientAuthorizationRepository(IDatabaseConnection db) : ICli
                 """, new { tokenFamilyId, now = Iso(now), reason }, tx);
         }, ct);
 
+    public Task<bool> IsTokenFamilyLiveAsync(Guid tokenFamilyId, DateTimeOffset now, CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+        using var conn = db.CreateConnection();
+        var live = conn.ExecuteScalar<long>(
+            """
+            SELECT COUNT(1) FROM client_tokens
+            WHERE token_family_id = @tokenFamilyId
+              AND revoked_at IS NULL
+              AND expires_at > @now;
+            """,
+            new { tokenFamilyId, now = Iso(now) });
+        return Task.FromResult(live > 0);
+    }
+
     public Task<IReadOnlyList<ClientDevice>> GetDevicesAsync(Guid profileId, CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested();

@@ -219,6 +219,46 @@ public sealed class PlaybackCapabilitiesService
             : null;
 
     /// <summary>
+    /// What a cast session needs to know about a title, from the durable inspection facts only (no request authority, no HLS
+    /// grant): whether the file can be sent as it is to the cast receiver, its audio tracks (for the HLS package), its length
+    /// and where the person left off. The caller decides what to do with it; this never mints a grant of any kind.
+    /// </summary>
+    public async Task<CastMediaPlan?> PlanCastAsync(Guid assetId, CancellationToken ct = default)
+    {
+        var asset = await _assets.FindByIdAsync(assetId, ct).ConfigureAwait(false);
+        if (asset is null)
+        {
+            return null;
+        }
+
+        var extension = Path.GetExtension(asset.FilePathRoot);
+        var mediaType = await ResolveMediaTypeAsync(asset, extension, ct).ConfigureAwait(false);
+        var sourceHash = BuildSourceHash(asset);
+        MediaProbeResult? probe = null;
+        var stored = await _playbackState.GetInspectionMetadataAsync(assetId, sourceHash, ct).ConfigureAwait(false);
+        if (!string.IsNullOrWhiteSpace(stored))
+        {
+            try { probe = JsonSerializer.Deserialize<MediaProbeResult>(stored); }
+            catch (JsonException) { probe = null; }
+        }
+
+        var directPlay = probe is not null && IsDirectPlaySupported(extension, ProfileFor("cast"), probe);
+        var duration = probe?.Duration.TotalSeconds is > 0 ? probe.Duration.TotalSeconds : (double?)null;
+        var resume = NormalizeResumePosition(await LoadResumeAsync(assetId, ct).ConfigureAwait(false), duration);
+        return new CastMediaPlan(
+            asset,
+            mediaType,
+            extension,
+            sourceHash,
+            VideoExtensions.Contains(extension),
+            probe is not null,
+            directPlay,
+            BuildAudioTracks(probe),
+            duration,
+            resume?.PositionSeconds);
+    }
+
+    /// <summary>
     /// A paired device's stored capabilities decide its profile; the keyed profiles in <see cref="ProfileFor"/> are only
     /// for callers with no stored capabilities (unpaired or legacy callers).
     /// </summary>
@@ -906,6 +946,22 @@ public sealed class PlaybackCapabilitiesService
         // which does send it. No direct-play containers are listed on purpose: that forces HLS for every title.
         "tv-web" => TvWebProfile("tv-web", "TV web", ["h264"]),
         "tv-web-hevc" => TvWebProfile("tv-web-hevc", "TV web (HEVC)", ["h264", "hevc"]),
+        // A conservative profile for the Google Cast Default Media Receiver (a Chromecast or Google TV): what every cast
+        // device plays without conversion. Everything else (MKV, HEVC, AC3/DTS, 4K) is served as the prepared HLS package.
+        "cast" => new PlaybackProfileDto
+        {
+            Key = "cast",
+            DisplayName = "Cast",
+            PreferredDelivery = PlaybackDeliveryModes.DirectStream,
+            SupportedContainers = ["mp4", "m4v", "webm"],
+            SupportedVideoCodecs = ["h264", "vp8"],
+            SupportedAudioCodecs = ["aac", "mp3", "opus"],
+            SupportedSubtitleFormats = ["vtt"],
+            MaxHeight = 1080,
+            SupportsPlaybackSpeed = false,
+            SupportsAlternateAudio = false,
+            SupportsSubtitles = true,
+        },
         "mobile-download" => new PlaybackProfileDto
         {
             Key = "mobile-download",
@@ -953,3 +1009,16 @@ public sealed class PlaybackCapabilitiesService
 
     private sealed record ResumeRow(double ProgressPct, string? LastAccessed, string? ExtendedProperties);
 }
+
+/// <summary>The durable facts about a title that a cast session is built from.</summary>
+public sealed record CastMediaPlan(
+    MediaAsset Asset,
+    string MediaType,
+    string Extension,
+    string SourceHash,
+    bool IsVideo,
+    bool Inspected,
+    bool DirectPlay,
+    IReadOnlyList<PlaybackTrackDto> AudioTracks,
+    double? DurationSeconds,
+    double? ResumeSeconds);

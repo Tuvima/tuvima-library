@@ -21,6 +21,10 @@ public static class TuvimaPlaybackServiceCollectionExtensions
         services.AddSingleton<PlaybackCapabilitiesService>();
         services.AddSingleton<AdaptiveHlsService>();
         services.AddSingleton<HlsAccessGrantService>();
+        // Casting: a separate grant kind (its own Data Protection purpose) so HLS and cast grants can never be swapped.
+        services.AddSingleton<CastAccessGrantService>();
+        services.AddSingleton<CastSessionService>();
+        services.AddScoped<ICastAssetAuthorizer, CatalogueCastAssetAuthorizer>();
         services.AddSingleton<AdaptiveHlsCleanupService>();
         services.AddSingleton<PlayerSessionRepository>();
         services.AddSingleton<AudiobookListenHistoryRepository>();

@@ -16,6 +16,9 @@ public interface IClientAuthorizationRepository
     Task<ClientToken?> GetTokenByIdAsync(Guid tokenId, CancellationToken ct = default);
     Task<bool> RotateRefreshTokenAsync(ClientToken current, ClientToken nextAccess, ClientToken nextRefresh, DateTimeOffset now, CancellationToken ct = default);
     Task RevokeTokenFamilyAsync(Guid tokenFamilyId, DateTimeOffset now, string reason, CancellationToken ct = default);
+
+    /// <summary>True when any token of the family is unrevoked and unexpired (a profile switch or sign-out revokes them all).</summary>
+    Task<bool> IsTokenFamilyLiveAsync(Guid tokenFamilyId, DateTimeOffset now, CancellationToken ct = default);
     Task<IReadOnlyList<ClientDevice>> GetDevicesAsync(Guid profileId, CancellationToken ct = default);
     Task<ClientDevice?> GetDeviceAsync(Guid deviceId, CancellationToken ct = default);
     Task<bool> UpdateCapabilitiesAsync(Guid deviceId, string capabilitiesJson, DateTimeOffset now, CancellationToken ct = default);

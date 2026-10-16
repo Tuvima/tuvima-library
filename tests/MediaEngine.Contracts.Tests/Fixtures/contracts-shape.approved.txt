@@ -5858,6 +5858,35 @@ MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.AudiobookSleepTime
 
 MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.AudiobookStartKinds
 
+MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.CastReceivers
+
+MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.CastSessionDto
+  AssetId: System.Guid | nullability=not-null | accessors=get,init
+  Status: System.String | nullability=not-null | accessors=get,init
+  Delivery: System.String | nullability=not-null | accessors=get,init
+  MediaPath: System.String | nullability=nullable | accessors=get,init
+  ContentType: System.String | nullability=nullable | accessors=get,init
+  PosterPath: System.String | nullability=nullable | accessors=get,init
+  TextTracks: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Playback.CastTextTrackDto> | nullability=not-null | accessors=get,init
+  DurationSeconds: System.Double? | nullability=nullable | accessors=get,init
+  ResumeSeconds: System.Double? | nullability=nullable | accessors=get,init
+  ExpiresAt: System.DateTimeOffset? | nullability=nullable | accessors=get,init
+  Message: System.String | nullability=nullable | accessors=get,init
+
+MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.CastSessionRequestDto
+  Receiver: System.String | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.CastSessionStatuses
+
+MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.CastTextTrackDto
+  Id: System.Guid | nullability=not-null | accessors=get,init
+  Language: System.String | nullability=not-null | accessors=get,init
+  Label: System.String | nullability=not-null | accessors=get,init
+  IsForced: System.Boolean | nullability=not-null | accessors=get,init
+  IsDefault: System.Boolean | nullability=not-null | accessors=get,init
+  Path: System.String | nullability=not-null | accessors=get,init
+  ContentType: System.String | nullability=not-null | accessors=get,init
+
 MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.ContextSidebarLayoutDto
   Open: System.Boolean | nullability=not-null | accessors=get,set
   Width: System.Int32 | nullability=not-null | accessors=get,set
