@@ -82,6 +82,8 @@ docker exec "$CONTAINER" sh -exc '
             *MediaEngine.Api.dll*|*MediaEngine.Web.dll*)
                 process_uid="$(grep "^Uid:" "$process/status" | tr -s " \\t" " " | cut -d " " -f 2)"
                 test "$process_uid" = "10001"
+                # .NET keeps named mutexes (the single-instance lease) under $HOME/.dotnet; gosu resets HOME to /.
+                tr "\\000" "\\n" < "$process/environ" | grep -qx "HOME=/config/.home"
                 process_count=$((process_count + 1))
                 ;;
         esac
