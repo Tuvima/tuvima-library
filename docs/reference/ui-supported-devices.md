@@ -18,11 +18,13 @@ The Dashboard tells four form factors apart. The browser reports them as `data-f
 | Form factor | Width | Notes |
 |---|---|---|
 | `phone` | under 600 px | Bottom dock navigation. Phones never open an editor. |
-| `tablet` | 600 to 1023 px | Desktop layout with touch sizing. |
-| `desktop` | 1024 px and wider | Top navigation, hover and keyboard. |
+| `tablet` | 600 to 1023 px | Desktop layout with touch sizing. Tablets never open an editor. |
+| `desktop` | 1024 px and wider | Top navigation, hover and keyboard. The only form factor that can edit, and only with a fine, hover-capable pointer. |
 | `tv` | opt-in | Opened with `?device=tv` (remembered for the browser session) or a TV user agent (Android TV, BRAVIA, SMART-TV, Tizen, Web0S). Remote-driven; 56 px targets. |
 
 `data-touch="true"` is set on `<html>` when the primary input is touch (`(hover: none), (pointer: coarse)`), whatever the form factor. `DeviceContextService.IsTouch` mirrors it.
+
+`DeviceContextService.HasFinePointer` and `CanHover` mirror `(pointer: fine)` and `(hover: hover)`, and `DeviceContextService.CanEdit` applies the one editing rule (`EditorDeviceRule.CanEdit`): desktop form factor AND a fine pointer AND hover. Phone, tablet, TV, a native shell, an unknown form factor or a browser that cannot report its pointer cannot edit, so an iPad asking for the desktop site (a coarse pointer) cannot edit while a touch laptop whose primary pointer is a mouse can.
 
 The Engine's UI-settings key is unchanged: phone uses `mobile`, tablet and desktop use `web`, tv uses `television`.
 

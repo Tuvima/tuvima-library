@@ -920,3 +920,18 @@
 .sme-match-comparison-row .is-negative { color: var(--tl-status-error); }
 
 .sme-match-verdict { display: block; color: inherit; font-size: var(--tl-font-size-caption); }
+
+/* Editing Mode drawer: the one-column match flow the narrow-screen layout uses. */
+.sme-shell--drawer .sme-match-columns { grid-template-columns: minmax(0, 1fr); }
+.sme-shell--drawer .sme-match-current-column,
+.sme-shell--drawer .sme-match-search-panel,
+.sme-shell--drawer .sme-match-selected-column { grid-column: 1; padding: .8rem; position: static; max-height: none; }
+.sme-shell--drawer .sme-match-current-column { display: block; }
+.sme-shell--drawer .sme-match-current-column .sme-match-linked-identity,
+.sme-shell--drawer .sme-match-current-column .sme-match-parent-context { margin-top: .7rem; }
+.sme-shell--drawer .sme-match-result-list { max-height: 26rem; }
+.sme-shell--drawer .sme-match-selected-hero { grid-template-columns: 4.3rem minmax(0, 1fr); }
+.sme-shell--drawer .sme-match-selected-art { width: 4.3rem; }
+.sme-shell--drawer .sme-match-selected-actions { position: sticky; bottom: 0; padding: .7rem 0 .15rem; background: var(--tl-bg-surface); }
+.sme-shell--drawer .sme-match-parent-move-confirm { grid-template-columns: auto minmax(0, 1fr); }
+.sme-shell--drawer .sme-match-parent-move-confirm button { grid-row: 2; }

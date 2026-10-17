@@ -34,7 +34,8 @@ public sealed class ViewPhotosTouchTests : AsyncBunitContext
     }
 
     private Task UseAsync(string formFactor, bool touch) =>
-        _device.InitialiseAsync(new DeviceContextSnapshot(formFactor == "phone" ? "mobile" : "web", formFactor, touch));
+        _device.InitialiseAsync(new DeviceContextSnapshot(
+            formFactor == "phone" ? "mobile" : "web", formFactor, touch, FinePointer: formFactor == "desktop" && !touch, Hover: formFactor == "desktop" && !touch));
 
     private static LocalAssetDto Photo(string name)
     {

@@ -28,7 +28,7 @@
             else
             {
                 @* Everyone with Documents reaches their own rules here; Settings > Libraries > View shows the same list to administrators. *@
-                <DocumentRulesSettings ReadOnly="@Device.IsPhone" />
+                <DocumentRulesSettings ReadOnly="@(!Device.CanEdit)" />
             }
         </ChildContent>
     </ViewContentPage>

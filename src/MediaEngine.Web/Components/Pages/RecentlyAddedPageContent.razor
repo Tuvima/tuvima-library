@@ -129,7 +129,7 @@
                             <span class="history-row__result"><strong>Added to library</strong><small>@ResultSummary(item)</small></span>
                             <span class="history-row__status"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.CheckCircle" /><span><strong>@item.StatusLabel</strong><small>@RelativeAge(item.UpdatedAt) ago</small></span></span>
                             <AppOverflowMenu AriaLabel="@($"More actions for {item.Title}")" Size="AppControlSize.Compact">
-                                @if (!DeviceContext.IsPhone)
+                                @if (DeviceContext.CanEdit)
                                 {
                                     <AppMenuItem Label="Edit" Icon="@AppMaterialIcons.Outlined.Edit" OnClick="@(() => OpenMediaEditorAsync(item))" />
                                 }

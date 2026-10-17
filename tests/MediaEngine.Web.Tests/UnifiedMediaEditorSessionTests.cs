@@ -24,6 +24,36 @@ public sealed class UnifiedMediaEditorSessionTests
     }
 
     [Fact]
+    public void EditingDrawer_RehousesTheSameShellAndSectionsInsteadOfRewritingThem()
+    {
+        var drawer = Read("src/MediaEngine.Web/Components/Details/EditingDrawer.razor");
+        var shell = Read("src/MediaEngine.Web/Components/MediaEditor/SharedMediaEditorShell.razor");
+        var drawerPartial = Read("src/MediaEngine.Web/Components/MediaEditor/SharedMediaEditorShell.Drawer.cs");
+        var code = Read("src/MediaEngine.Web/Components/MediaEditor/SharedMediaEditorShell.razor.cs");
+
+        // The drawer hosts the one editor shell; the three sections are the existing section components.
+        Assert.Contains("<SharedMediaEditorShell", drawer, StringComparison.Ordinal);
+        Assert.Contains("Drawer=\"true\"", drawer, StringComparison.Ordinal);
+        Assert.Contains("<EditorDetailsSection", shell, StringComparison.Ordinal);
+        Assert.Contains("<EditorArtworkSection", shell, StringComparison.Ordinal);
+        Assert.Contains("<EditorMatchSection", shell, StringComparison.Ordinal);
+        Assert.Contains("<EditorHeaderSection", shell, StringComparison.Ordinal);
+        Assert.Contains("sme-shell--drawer", shell, StringComparison.Ordinal);
+
+        // The drawer swaps the header and the section rail for a tab strip, drops History, and keeps one save path.
+        Assert.Contains("@if (!Drawer)", shell, StringComparison.Ordinal);
+        Assert.Contains("!(Drawer && tabId == \"history\")", code, StringComparison.Ordinal);
+        Assert.Contains("(!Inline || Drawer) && (_confirmDiscard", code, StringComparison.Ordinal);
+        Assert.Contains("public async Task RequestCloseAsync()", drawerPartial, StringComparison.Ordinal);
+        Assert.Contains("DirtyChanged.InvokeAsync(dirty)", drawerPartial, StringComparison.Ordinal);
+        Assert.Contains("HasPendingNavigationChanges", drawerPartial, StringComparison.Ordinal);
+
+        // No second editor, route or all-in-one workbench appears.
+        Assert.DoesNotContain("@page", drawer, StringComparison.Ordinal);
+        Assert.DoesNotContain("Workbench", drawer, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public void ArtworkWorkspace_DefersSupportedMutationsAndDiscardClearsTheDraft()
     {
         var workspace = Read("src/MediaEngine.Web/Components/Artwork/ArtworkWorkspace.razor");

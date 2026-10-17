@@ -521,3 +521,7 @@
         border-top: 0;
     }
 }
+
+.tl-overview-section__edit:empty {
+    display: none;
+}

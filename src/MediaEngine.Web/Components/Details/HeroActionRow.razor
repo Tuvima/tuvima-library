@@ -41,7 +41,11 @@
     [Parameter] public Func<DetailAction, IReadOnlyDictionary<string, object>?>? ActionAttributes { get; set; }
 
     private IReadOnlyList<DetailAction> VisibleSecondaryActions => PrimaryActions.Skip(1).Where(action => action.Key == "shuffle").Concat(SecondaryActions).ToList();
-    private IReadOnlyList<DetailAction> OverflowMenuActions => OverflowActions.Concat(PrimaryActions.Skip(1).Where(action => action.Key is not ("restart" or "shuffle"))).ToList();
+    private IReadOnlyList<DetailAction> OverflowMenuActions => OverflowMenu(PrimaryActions, OverflowActions);
+
+    /// <summary>The shared More list: the overflow actions plus the primary actions that do not fit in the row.</summary>
+    public static IReadOnlyList<DetailAction> OverflowMenu(IReadOnlyList<DetailAction> primaryActions, IReadOnlyList<DetailAction> overflowActions) =>
+        overflowActions.Concat(primaryActions.Skip(1).Where(action => action.Key is not ("restart" or "shuffle"))).ToList();
     private bool HasEmbeddedProgress => Progress?.Percent is > 0 && PrimaryActions.Count > 0;
     private int EmbeddedProgressPercent => Progress is null
         ? 0

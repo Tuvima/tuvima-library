@@ -223,8 +223,8 @@ else
         }
     }
     private void CancelSelection() { ClearSelection(); _selectMode = false; }
-    // Phones never open the Gallery editor, so the bar's "New Gallery" item is withheld there; adding to an existing Gallery stays.
-    private EventCallback CreateGalleryCallback => DeviceContext.IsPhone ? default : EventCallback.Factory.Create(this, CreateGalleryFromSelectionAsync);
+    // Only computers open the Gallery editor, so the bar's "New Gallery" item is withheld elsewhere; adding to an existing Gallery stays.
+    private EventCallback CreateGalleryCallback => DeviceContext.CanEdit ? EventCallback.Factory.Create(this, CreateGalleryFromSelectionAsync) : default;
     // Download is part of the phone bar only; desktop and tablet bars keep their existing actions.
     private EventCallback DownloadCallback => DeviceContext.IsPhone ? EventCallback.Factory.Create(this, DownloadSelectionAsync) : default;
     private async Task DownloadSelectionAsync()

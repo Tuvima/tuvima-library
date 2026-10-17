@@ -1,0 +1,231 @@
+@namespace MediaEngine.Web.Components.Details
+@using MediaEngine.Contracts.Metadata
+@using MediaEngine.Web.Components.MediaEditor
+@implements IDisposable
+
+@* One small pencil beside an editable single-item field, only while Editing Mode is on. Provider-owned facts that
+   cannot be changed here show a lock and one short reason instead. Pressing the pencil opens the editor's own inline
+   field (or the tag editor for genres and tags) in place; Enter or the check saves that one field, Esc cancels. *@
+@if (Mode is { IsOn: true } mode && mode.Fields.Loaded && ResolveField(mode) is { } field)
+{
+    var fields = mode.Fields;
+    @if (fields.IsEditing(field.Key, Owner))
+    {
+        @if (field.IsChips)
+        {
+            <div class="tl-editing-field tl-editing-field--tags" data-app-escape-owner="field"
+                 @onkeydown="HandleTagKeyDown" @onkeydown:stopPropagation="true">
+                <MediaEditorTagEditor Label="@field.Label"
+                                      AddLabel="@(IsTags(field) ? "Add tag" : "Add genre")"
+                                      HelpText="@(IsTags(field) ? "Tags are private library organization and are not replaced by provider refreshes." : "Genres you set replace the provider's genres on this item only.")"
+                                      Value="@fields.Draft"
+                                      ValueChanged="OnDraftChanged"
+                                      Suggestions="@(IsTags(field) ? fields.TagSuggestions : fields.GenreSuggestions)" />
+                <div class="tl-editing-field__actions">
+                    <AppIconButton Icon="@AppMaterialIcons.Outlined.Check" Size="AppControlSize.Compact"
+                                   Tone="AppUiTone.Primary" Tooltip="Save this field"
+                                   AriaLabel="@($"Save {field.Label}")" Disabled="@fields.Saving" OnClick="SaveAsync" />
+                    <AppIconButton Icon="@AppMaterialIcons.Outlined.Close" Size="AppControlSize.Compact"
+                                   Tone="AppUiTone.Neutral" Tooltip="Cancel this field"
+                                   AriaLabel="@($"Cancel editing {field.Label}")" Disabled="@fields.Saving" OnClick="CancelAsync" />
+                </div>
+            </div>
+        }
+        else
+        {
+            <div class="tl-editing-field">
+                <EditorDetailsInlineField Field="@field"
+                                          IsEditing="true"
+                                          Busy="@fields.Saving"
+                                          DraftValue="@fields.Draft"
+                                          DraftValueChanged="OnDraftChanged"
+                                          OnSave="SaveAsync"
+                                          OnCancel="CancelAsync" />
+            </div>
+        }
+
+        @if (!string.IsNullOrWhiteSpace(fields.Error))
+        {
+            <p class="tl-editing-field__error" role="alert">@fields.Error</p>
+        }
+    }
+    else if (CanEditField(mode, field))
+    {
+        <span class="tl-editing-pencil">
+            <AppIconButton @ref="_pencil"
+                           Icon="@AppMaterialIcons.Outlined.Edit"
+                           Size="AppControlSize.Compact"
+                           Tone="AppUiTone.Neutral"
+                           Tooltip="@($"Edit {field.Label.ToLowerInvariant()}")"
+                           AriaLabel="@($"Edit {field.Label.ToLowerInvariant()}")"
+                           Disabled="@(fields.HasOpenDraft || fields.Saving || mode.DrawerDirty)"
+                           OnClick="BeginAsync" />
+            @if (string.Equals(fields.LastSavedKey, field.Key, StringComparison.OrdinalIgnoreCase))
+            {
+                <span class="tl-editing-pencil__saved" role="status">Saved</span>
+            }
+        </span>
+    }
+    else
+    {
+        var why = WhyLocked(field);
+        <AppTooltip Text="@why">
+            <span class="tl-editing-lock" tabindex="0" role="img" aria-label="@($"{field.Label} is locked. {why}")">
+                <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Lock" Size="AppSize.Small" />
+            </span>
+        </AppTooltip>
+    }
+}
+
+@code {
+    [CascadingParameter] public EditingModeContext? Mode { get; set; }
+
+    /// <summary>The editor field keys this control stands for; the first one the item presents is used.</summary>
+    [Parameter] public string[]? Keys { get; set; }
+
+    /// <summary>True to use the editor's title field for this scope instead of <see cref="Keys"/>.</summary>
+    [Parameter] public bool Heading { get; set; }
+
+    /// <summary>When set, the pencil appears only if the field currently shows this text (so it never edits something else).</summary>
+    [Parameter] public string? ExpectedText { get; set; }
+
+    /// <summary>Names the surface the pencil sits on so one field shown twice opens one editor, in the place it was opened.</summary>
+    [Parameter] public string Owner { get; set; } = "hero";
+
+    private AppIconButton? _pencil;
+    private EditingModeContext? _subscribed;
+    private bool _restoreFocus;
+
+    protected override void OnParametersSet()
+    {
+        if (ReferenceEquals(_subscribed, Mode))
+        {
+            return;
+        }
+
+        if (_subscribed is not null)
+        {
+            _subscribed.Changed -= OnModeChanged;
+        }
+
+        _subscribed = Mode;
+        if (_subscribed is not null)
+        {
+            _subscribed.Changed += OnModeChanged;
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (_restoreFocus && _pencil is not null)
+        {
+            _restoreFocus = false;
+            await _pencil.FocusAsync();
+        }
+    }
+
+    public void Dispose()
+    {
+        if (_subscribed is not null)
+        {
+            _subscribed.Changed -= OnModeChanged;
+        }
+    }
+
+    private void OnModeChanged() => _ = InvokeAsync(StateHasChanged);
+
+    private MediaEditorDetailsFieldPresentation? ResolveField(EditingModeContext mode)
+    {
+        var fields = mode.Fields;
+        MediaEditorDetailsFieldPresentation? field;
+        if (Heading)
+        {
+            field = fields.Presentation.Heading;
+        }
+        else if (Keys is { Length: > 0 })
+        {
+            field = fields.Find(Keys);
+            if (field is null && Keys.Any(MediaEditorTagRules.IsLibraryTagsKey))
+            {
+                field = fields.EmptyTagsField;
+            }
+        }
+        else
+        {
+            return null;
+        }
+
+        if (field is null)
+        {
+            return null;
+        }
+
+        return string.IsNullOrWhiteSpace(ExpectedText)
+            || string.Equals(Collapse(field.DisplayValue ?? field.Value), Collapse(ExpectedText), StringComparison.OrdinalIgnoreCase)
+            ? field
+            : null;
+    }
+
+    private static string Collapse(string? value) =>
+        string.Join(' ', (value ?? string.Empty).Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
+
+    private static bool IsTags(MediaEditorDetailsFieldPresentation field) =>
+        MediaEditorTagRules.IsLibraryTagsKey(field.OverrideKey) || MediaEditorTagRules.IsLibraryTagsKey(field.Key);
+
+    private static bool CanEditField(EditingModeContext mode, MediaEditorDetailsFieldPresentation field) =>
+        mode.CanEdit
+        && field.CanOverride
+        && !string.Equals(field.Provenance, "Inherited", StringComparison.OrdinalIgnoreCase);
+
+    private static string WhyLocked(MediaEditorDetailsFieldPresentation field)
+    {
+        if (string.Equals(field.Provenance, "Inherited", StringComparison.OrdinalIgnoreCase))
+        {
+            return $"Inherited from {field.SourceLabel ?? "its parent"}. Change it there.";
+        }
+
+        var source = string.IsNullOrWhiteSpace(field.ProviderName)
+            ? "the metadata provider"
+            : ProviderCatalogueService.FormatProviderLabel(field.ProviderName);
+        return $"Set by {source}. Change it in Match and Identity.";
+    }
+
+    private Task BeginAsync()
+    {
+        if (Mode is { } mode && ResolveField(mode) is { } field)
+        {
+            mode.Fields.Begin(field, Owner);
+        }
+
+        return Task.CompletedTask;
+    }
+
+    private Task OnDraftChanged(string? value)
+    {
+        Mode?.Fields.UpdateDraft(value);
+        return Task.CompletedTask;
+    }
+
+    private async Task SaveAsync()
+    {
+        if (Mode is null)
+        {
+            return;
+        }
+
+        if (await Mode.Fields.SaveAsync())
+        {
+            _restoreFocus = true;
+        }
+    }
+
+    private Task CancelAsync()
+    {
+        Mode?.Fields.Cancel();
+        _restoreFocus = true;
+        return Task.CompletedTask;
+    }
+
+    private Task HandleTagKeyDown(KeyboardEventArgs args) =>
+        string.Equals(args.Key, "Escape", StringComparison.Ordinal) ? CancelAsync() : Task.CompletedTask;
+}

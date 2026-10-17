@@ -69,9 +69,9 @@
                     $"/view/galleries/{gallery.Id:D}",
                     gallery.Kind == ViewGalleryKind.Smart ? AppMaterialIcons.Outlined.AutoAwesome : AppMaterialIcons.Outlined.PhotoAlbum,
                     gallery.ItemCount.ToString(System.Globalization.CultureInfo.InvariantCulture),
-                    // Dragging, renaming, reordering and deleting Galleries are Gallery editing, which phones never offer.
-                    DropTarget: gallery.Kind == ViewGalleryKind.Manual && !DeviceContext.IsPhone ? new ManualGalleryNavigationDropTarget(gallery.Id) : null,
-                    Management: DeviceContext.IsPhone ? null : new MediaSectionNavigationItemManagement(gallery.Id, "gallery", IsSmart: gallery.Kind == ViewGalleryKind.Smart)))
+                    // Dragging, renaming, reordering and deleting Galleries are Gallery editing, which only computers offer.
+                    DropTarget: gallery.Kind == ViewGalleryKind.Manual && DeviceContext.CanEdit ? new ManualGalleryNavigationDropTarget(gallery.Id) : null,
+                    Management: DeviceContext.CanEdit ? new MediaSectionNavigationItemManagement(gallery.Id, "gallery", IsSmart: gallery.Kind == ViewGalleryKind.Smart) : null))
                 .ToList();
             return items;
         }
@@ -120,7 +120,7 @@
         [
             new("Artwork Library", "/view/artwork", AppMaterialIcons.Outlined.PhotoLibrary, Exact: false),
         ]),
-        new("Galleries", GalleryShortcuts, DeviceContext.IsPhone ? null : GalleryCreateOptions),
+        new("Galleries", GalleryShortcuts, DeviceContext.CanEdit ? GalleryCreateOptions : null),
     ];
 
     private async Task HandleNavigationDropAsync(MediaSectionNavigationDropEvent dropEvent)

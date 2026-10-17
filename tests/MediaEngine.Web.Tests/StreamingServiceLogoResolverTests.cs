@@ -250,15 +250,15 @@ public sealed class StreamingServiceHeroRenderTests : AsyncBunitContext
     }
 
     [Fact]
-    public async Task OverflowActionMenu_InvokesEditAndClosesTheMenu()
+    public async Task OverflowActionMenu_InvokesTheChosenActionAndClosesTheMenu()
     {
         var popovers = Render<AppPopoverHost>();
         DetailAction? selected = null;
         var edit = new DetailAction
         {
-            Key = "edit",
-            Label = "Edit",
-            Icon = "edit",
+            Key = "copy-link",
+            Label = "Copy library link",
+            Icon = "link",
         };
 
         using var cut = Render<OverflowActionMenu>(parameters => parameters

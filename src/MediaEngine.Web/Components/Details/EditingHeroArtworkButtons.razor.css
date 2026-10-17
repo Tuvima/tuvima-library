@@ -1,0 +1,9 @@
+/* Edit Background / Edit Logo / Edit Cover, floated over the hero art while Editing Mode is on. */
+
+.tl-editing-art {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: var(--tl-space-2);
+}
+

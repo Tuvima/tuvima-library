@@ -52,7 +52,7 @@ Tests: one `tests/MediaEngine.<X>.Tests` project per source project, plus `Perfo
 - **Real-time:** two SignalR hubs (`Api/Realtime/Intercom.cs`, `ApplicationEventsHub.cs`) push progress and changes to the Dashboard and apps.
 - **Dashboard state:** scoped state services registered in `Web/Program.cs` (for example `UniverseStateContainer`, `IngestionLiveDashboardState`, `ShellActivityState`, `ListenPageState`, `PlaybackStateMachine`, `EngineApiFailureState`). All Engine calls go through the typed `EngineApiClient`.
 - **UI components:** first-party `App*` components (no MudBlazor; ADR 0002), feature-sliced folders, component-scoped CSS, design tokens in `wwwroot/tuvima.tokens.css`.
-- **Editing:** one shared editor (`SharedMediaEditorShell`) opened through `MediaEditorLauncherService.OpenAsync` from detail pages and Needs Review (ADR 0006).
+- **Editing:** one shared editor (`SharedMediaEditorShell`). A single item's detail page hosts it in Editing Mode (`EditingModeContext`, per-field pencils, `EditingDrawer`); Needs Review and the other non-detail callers open it modally through `MediaEditorLauncherService.OpenAsync` (ADR 0006). Editing is desktop-only through `EditorDeviceRule.CanEdit`.
 - **Configuration:** `config/*.json` loaded by `ConfigurationDirectoryLoader`; provider behaviour is JSON-driven in `config/providers/`; secrets in gitignored `config/secrets/`.
 - **Guardrail tests:** ~50 `*GuardrailTests.cs` suites enforce architecture boundaries, data-store usage, route authorization, wire contracts, UI composition, CSS ownership and breakpoints.
 

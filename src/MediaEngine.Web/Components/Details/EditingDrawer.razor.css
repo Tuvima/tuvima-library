@@ -1,0 +1,66 @@
+/* The Editing Mode drawer: about 380px, fixed to the right edge below the top bar, beside the unchanged page. */
+
+.tl-editing-drawer {
+    position: fixed;
+    inset-block: var(--app-topbar-height, 4rem) 0;
+    inset-inline-end: 0;
+    z-index: var(--tl-z-sticky);
+    display: flex;
+    flex-direction: column;
+    width: var(--tl-editing-drawer-width, 23.75rem);
+    border-inline-start: 1px solid var(--tl-border-strong);
+    background: var(--tl-bg-surface);
+    color: var(--tl-text-primary);
+    box-shadow: var(--tl-shadow-lg);
+    animation: tl-editing-drawer-in var(--tl-motion-duration-medium) var(--tl-motion-ease-emphasized);
+}
+
+.tl-editing-drawer__header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: var(--tl-space-3);
+    padding: var(--tl-space-4) var(--tl-space-4) var(--tl-space-3);
+    border-bottom: 1px solid var(--tl-divider);
+}
+
+.tl-editing-drawer__heading {
+    min-width: 0;
+}
+
+.tl-editing-drawer__heading h2 {
+    margin: 0;
+    overflow: hidden;
+    font-size: var(--tl-font-size-lg);
+    font-weight: var(--tl-font-weight-semibold);
+    line-height: var(--tl-line-height-tight);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.tl-editing-drawer__heading h2:focus-visible {
+    outline: var(--tl-focus-ring-width) solid var(--tl-focus-ring);
+    outline-offset: var(--tl-focus-ring-offset);
+}
+
+.tl-editing-drawer__heading p {
+    margin: var(--tl-space-1) 0 0;
+    color: var(--tl-text-muted);
+    font-size: var(--tl-font-size-sm);
+}
+
+.tl-editing-drawer__body {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: hidden;
+}
+
+@keyframes tl-editing-drawer-in {
+    from { transform: translateX(100%); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .tl-editing-drawer {
+        animation: none;
+    }
+}

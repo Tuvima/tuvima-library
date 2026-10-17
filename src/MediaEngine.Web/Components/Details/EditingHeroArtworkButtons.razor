@@ -1,0 +1,83 @@
+@namespace MediaEngine.Web.Components.Details
+@implements IDisposable
+
+@* Edit Background / Edit Logo / Edit Cover over the hero art while Editing Mode is on. Each opens the drawer on
+   Artwork for that slot and reuses the editor's own choose, upload and remove behaviour. Only the slots this item
+   can actually hold are offered. *@
+@if (Mode is { IsOn: true } mode && mode.Fields.Loaded && mode.Fields.CanEditArtwork && Slots.Count > 0)
+{
+    <div class="tl-editing-art" role="group" aria-label="Edit hero artwork">
+        @foreach (var slot in Slots)
+        {
+            var assetType = slot.AssetType;
+            <AppButton ButtonStyle="AppButtonStyle.Filled"
+                       Tone="AppUiTone.Neutral"
+                       Size="AppControlSize.Large"
+                       Class="tl-editing-art__button"
+                       StartIcon="@slot.Icon"
+                       Disabled="@mode.Fields.HasOpenDraft"
+                       OnClick="@(() => mode.OpenDrawer(EditingDrawerTab.Artwork, assetType))">
+                @slot.Label
+            </AppButton>
+        }
+    </div>
+}
+
+@code {
+    private sealed record ArtSlot(string AssetType, string Label, string Icon);
+
+    private EditingModeContext? _subscribed;
+
+    [CascadingParameter] public EditingModeContext? Mode { get; set; }
+
+    private IReadOnlyList<ArtSlot> Slots
+    {
+        get
+        {
+            var offered = Mode?.Fields.ArtworkSlots ?? [];
+            var slots = new List<ArtSlot>();
+            if (offered.FirstOrDefault(IsBackground) is { } background) slots.Add(new(background, "Edit Background", AppMaterialIcons.Outlined.Panorama));
+            if (offered.FirstOrDefault(IsLogo) is { } logo) slots.Add(new(logo, "Edit Logo", AppMaterialIcons.Outlined.BrandingWatermark));
+            if (offered.FirstOrDefault(IsCover) is { } cover) slots.Add(new(cover, "Edit Cover", AppMaterialIcons.Outlined.Photo));
+            return slots;
+        }
+    }
+
+    // Wide art: the backdrop, a season thumbnail or an episode still.
+    private static bool IsBackground(string assetType) =>
+        assetType.ToLowerInvariant() is "background" or "seasonthumb" or "episodestill";
+
+    private static bool IsLogo(string assetType) => string.Equals(assetType, "Logo", StringComparison.OrdinalIgnoreCase);
+
+    private static bool IsCover(string assetType) =>
+        assetType.ToLowerInvariant() is "coverart" or "poster" or "seasonposter";
+
+    protected override void OnParametersSet()
+    {
+        if (ReferenceEquals(_subscribed, Mode))
+        {
+            return;
+        }
+
+        if (_subscribed is not null)
+        {
+            _subscribed.Changed -= OnModeChanged;
+        }
+
+        _subscribed = Mode;
+        if (_subscribed is not null)
+        {
+            _subscribed.Changed += OnModeChanged;
+        }
+    }
+
+    public void Dispose()
+    {
+        if (_subscribed is not null)
+        {
+            _subscribed.Changed -= OnModeChanged;
+        }
+    }
+
+    private void OnModeChanged() => _ = InvokeAsync(StateHasChanged);
+}

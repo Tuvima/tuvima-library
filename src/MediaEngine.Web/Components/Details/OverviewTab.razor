@@ -75,6 +75,9 @@
                 </div>
                 <DescriptionAttribution Attribution="Model.DescriptionAttribution" Compact="true" />
             }
+            <div class="tl-overview-section__edit">
+                <EditableFieldPencil Keys="DescriptionKeys" Owner="overview" />
+            </div>
         </section>
 
         @if (ShowOverviewCredits)
@@ -82,6 +85,7 @@
             <aside class="tl-overview-section tl-overview-section--secondary tl-overview-section--credits">
                 <header class="tl-overview-section__heading">
                     <span>@CreditPanelTitle</span>
+                    <EditableFieldPencil Keys="CreditKeys" Owner="overview" />
                     @if (OverviewCreditRows.Count > 0 && HasCreditTab)
                     {
                         <AppNativeButton Type="button"
@@ -115,6 +119,8 @@
                 }
             </aside>
         }
+
+        <EditingLibraryFields />
     }
 </div>
 
@@ -124,6 +130,10 @@
     [Parameter] public EventCallback<SequenceContainerOptionViewModel> OnContainerSelected { get; set; }
 
     private bool _creditsExpanded;
+
+    // Editing Mode: the description is editable; the credits are provider facts and show a lock with the reason.
+    private static readonly string[] DescriptionKeys = ["description", "episode_description", "issue_description"];
+    private static readonly string[] CreditKeys = ["director", "author", "narrator", "creator", "artist", "album_artist", "cast_member"];
     private bool ShowOverviewCredits => Model.EntityType is not (
         DetailEntityType.Collection
         or DetailEntityType.BookSeries

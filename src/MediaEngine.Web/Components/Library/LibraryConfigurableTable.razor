@@ -639,7 +639,7 @@ else
 
                                     case ColumnRenderType.ManageActions:
                                         <div class="vmt-manage-actions">
-                                            @if (OnEditClicked.HasDelegate && !DeviceContext.IsPhone)
+                                            @if (OnEditClicked.HasDelegate && DeviceContext.CanEdit)
                                             {
                                                 <span @onclick:stopPropagation="true">
                                                     <AppIconButton Icon="@AppMaterialIcons.Outlined.Edit"
