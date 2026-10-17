@@ -8,7 +8,7 @@
     "min_touch_target_px": 48,
     "force_dark_mode": false
   },
-  "content_padding": "pa-2",
+  "content_padding": "tl-sp-pa-2",
   "content_max_width": "Full",
   "shell": {
     "appbar_style": "compact",

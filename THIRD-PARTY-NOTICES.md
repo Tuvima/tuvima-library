@@ -2,20 +2,15 @@
 
 ## Google Material Icons
 
-The first-party Material icon catalog contains the used, unmodified SVG path data from Google Material Icons, distributed under the Apache License 2.0. Copyright Google LLC. The pinned extraction is from MudBlazor 9.0.0's Material icon constants; MudBlazor source is MIT licensed, copyright MudBlazor contributors.
+The first-party Material icon catalog contains the used, unmodified SVG path data from Google Material Icons, distributed under the Apache License 2.0. Copyright Google LLC.
 
 Original artwork and license: <https://github.com/google/material-design-icons/blob/master/LICENSE>.
-MudBlazor source and license: <https://github.com/MudBlazor/MudBlazor/blob/v9.0.0/LICENSE>.
 
-The icon snapshot in `scripts/icons/material-icon-paths.json` supports deterministic generation after removal of the UI package. The SVG artwork is not modified.
+The icon snapshot in `scripts/icons/material-icon-paths.json` supports deterministic generation of the catalog. The SVG artwork is not modified.
 
 ## Font Awesome Free
 
 Font Awesome Free SVG artwork under `src/MediaEngine.Web/wwwroot/icons/fontawesome` remains governed by the Creative Commons Attribution 4.0 International license for icons. Copyright Fonticons, Inc. Attribution: <https://fontawesome.com/>. License: <https://creativecommons.org/licenses/by/4.0/>.
-
-## Native CSS utilities
-
-The used base and spacing/display utilities in `native-utilities.css` retain snippets from MudBlazor 9.0.0 under its MIT license, with class ownership now in Tuvima Library. See the full retained MIT notice in `licenses/MudBlazor-MIT.txt`.
 
 ## NUglify (build only)
 
