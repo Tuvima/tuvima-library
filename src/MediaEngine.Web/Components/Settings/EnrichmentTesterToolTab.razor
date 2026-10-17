@@ -12,11 +12,11 @@
              Class="tl-u-color-tl-text-primary tl-u-font-family-app-font-sans tl-u-font-weight-700">
         Enrichment Tester
     </AppText>
-    <AppText Typo="AppTypo.body2" Class="mb-6 tl-u-color-tl-text-secondary"
+    <AppText Typo="AppTypo.body2" Class="tl-sp-mb-6 tl-u-color-tl-text-secondary"
              >
         Enter a title, ISBN, or identifier to search Wikidata. Select a result to see full enrichment data.
     </AppText>
-<AppPanel Class="pa-4 mb-6 tl-u-background-tl-divider tl-u-border-1px-solid-tl-border-subtle tl-u-border-radius-12px"
+<AppPanel Class="tl-sp-pa-4 tl-sp-mb-6 tl-u-background-tl-divider tl-u-border-1px-solid-tl-border-subtle tl-u-border-radius-12px"
               >
         <AppGrid>
             <AppItem xs="12" sm="5">
@@ -44,7 +44,7 @@
                     }
                 </AppSelect>
             </AppItem>
-            <AppItem xs="12" sm="2" Class="d-flex align-center">
+            <AppItem xs="12" sm="2" Class="tl-flex tl-items-center">
                 <AppButton ButtonStyle="AppButtonStyle.Filled"
                            Tone="AppUiTone.Primary"
                            FullWidth="true"
@@ -58,27 +58,27 @@
     </AppPanel>
 @if (_loading)
     {
-        <AppProgressBar Indeterminate="true" Color="AppColor.Primary" Class="mb-4 tl-u-border-radius-4px"
+        <AppProgressBar Indeterminate="true" Color="AppColor.Primary" Class="tl-sp-mb-4 tl-u-border-radius-4px"
                             />
-        <AppText Typo="AppTypo.body2" Class="mb-4 tl-u-color-tl-text-secondary" >
+        <AppText Typo="AppTypo.body2" Class="tl-sp-mb-4 tl-u-color-tl-text-secondary" >
             Searching Wikidata...
         </AppText>
     }
 @if (_enriching)
     {
-        <AppProgressBar Indeterminate="true" Color="AppColor.Secondary" Class="mb-4 tl-u-border-radius-4px"
+        <AppProgressBar Indeterminate="true" Color="AppColor.Secondary" Class="tl-sp-mb-4 tl-u-border-radius-4px"
                             />
-        <AppText Typo="AppTypo.body2" Class="mb-4 tl-u-color-tl-text-secondary" >
+        <AppText Typo="AppTypo.body2" Class="tl-sp-mb-4 tl-u-color-tl-text-secondary" >
             Running full enrichment...
         </AppText>
     }
 @if (_error is not null)
     {
-        <AppAlert Severity="AppSeverity.Error" Class="mb-4" Dense="true">@_error</AppAlert>
+        <AppAlert Severity="AppSeverity.Error" Class="tl-sp-mb-4" Dense="true">@_error</AppAlert>
     }
 @if (_enrichUniverseMessage is not null)
     {
-        <AppAlert Severity="AppSeverity.Success" Class="mb-4" Dense="true"
+        <AppAlert Severity="AppSeverity.Success" Class="tl-sp-mb-4" Dense="true"
                   Icon="@AppMaterialIcons.Filled.Collections"
                   ShowCloseIcon="true"
                   CloseIconClicked="@(() => _enrichUniverseMessage = null)">
@@ -89,7 +89,7 @@
     {
         @if (_candidates.Count == 0)
         {
-            <AppPanel Class="pa-4 mb-4 tl-u-background-rgba-255-255-255-0-03 tl-u-border-1px-solid-tl-border-subtle tl-u-border-radius-10px"
+            <AppPanel Class="tl-sp-pa-4 tl-sp-mb-4 tl-u-background-rgba-255-255-255-0-03 tl-u-border-1px-solid-tl-border-subtle tl-u-border-radius-10px"
                       >
                 <AppText Typo="AppTypo.body2" Class="tl-u-color-tl-text-muted">
                     No candidates found. Try a different title or media type.
@@ -98,18 +98,18 @@
         }
         else
         {
-            <AppText Typo="AppTypo.body2" Class="mb-3 tl-u-color-tl-text-secondary" >
+            <AppText Typo="AppTypo.body2" Class="tl-sp-mb-3 tl-u-color-tl-text-secondary" >
                 @_candidates.Count candidate(s) found - click one to run full enrichment.
             </AppText>
 
-            <AppGrid Class="mb-4">
+            <AppGrid Class="tl-sp-mb-4">
                 @foreach (var candidate in _candidates)
                 {
                     <AppItem xs="12" sm="6" md="4">
-                        <AppPanel Class="pa-3 cursor-pointer tl-u-background-tl-divider tl-u-border-1px-solid-tl-border-subtle tl-u-border-radius-10px tl-u-transition-border-color-0-2s"
+                        <AppPanel Class="tl-sp-pa-3 tl-pointer tl-u-background-tl-divider tl-u-border-1px-solid-tl-border-subtle tl-u-border-radius-10px tl-u-transition-border-color-0-2s"
                                   
                                   @onclick="() => SelectCandidate(candidate)">
-                            <div class="d-flex align-center gap-2 mb-2">
+                            <div class="tl-flex tl-items-center tl-gap-2 tl-sp-mb-2">
                                 <AppChip T="string" Size="AppSize.Small" Color="AppColor.Primary"
                                          Class="tl-u-height-20px tl-u-font-size-xs">
                                     @candidate.Qid
@@ -127,7 +127,7 @@
                             </AppText>
                             @if (!string.IsNullOrEmpty(candidate.Description))
                             {
-                                <AppText Typo="AppTypo.body2"  Class="mt-1 tl-u-color-tl-text-secondary tl-u-font-size-0-8rem">
+                                <AppText Typo="AppTypo.body2"  Class="tl-sp-mt-1 tl-u-color-tl-text-secondary tl-u-font-size-0-8rem">
                                     @candidate.Description
                                 </AppText>
                             }
@@ -140,8 +140,8 @@
                                 </a>
                             }
                             <AppProgressBar Value="@(candidate.Score * 100)" Color="AppColor.Primary"
-                                               Class="mt-2 tl-u-border-radius-4px tl-u-height-4px"  />
-                            <AppText Typo="AppTypo.caption"  Class="mt-1 tl-u-color-tl-text-muted">
+                                               Class="tl-sp-mt-2 tl-u-border-radius-4px tl-u-height-4px"  />
+                            <AppText Typo="AppTypo.caption"  Class="tl-sp-mt-1 tl-u-color-tl-text-muted">
                                 Score: @candidate.Score.ToString("P0")
                             </AppText>
                         </AppPanel>
@@ -153,7 +153,7 @@
 @if (_selectedCandidate is not null && !_enriching)
     {
         @* Back button + selected candidate header + Enrich Universe *@
-        <div class="d-flex align-center gap-3 mb-4">
+        <div class="tl-flex tl-items-center tl-gap-3 tl-sp-mb-4">
             <AppIconButton Icon="@AppMaterialIcons.Outlined.ArrowBack"
                            Tone="AppUiTone.Neutral"
                            OnClick="@BackToSearch" />
@@ -172,7 +172,7 @@
                        Size="AppControlSize.Compact">
                 @if (_enrichingUniverse)
                 {
-                    <AppSpinner Size="AppSize.Small" Indeterminate="true" Class="mr-2" />
+                    <AppSpinner Size="AppSize.Small" Indeterminate="true" Class="tl-sp-mr-2" />
                     @:Enriching...
                 }
                 else
@@ -183,13 +183,13 @@
         </div>
 @if (_result is not null)
         {
-<AppText Typo="AppTypo.h6" Class="mb-2 tl-u-color-tl-accent-primary tl-u-font-family-app-font-sans tl-u-font-weight-600"
+<AppText Typo="AppTypo.h6" Class="tl-sp-mb-2 tl-u-color-tl-accent-primary tl-u-font-family-app-font-sans tl-u-font-weight-600"
                      >
                 Identity
             </AppText>
-            <AppPanel Class="pa-4 mb-4 tl-u-background-tl-divider tl-u-border-1px-solid-tl-border-subtle tl-u-border-radius-10px"
+            <AppPanel Class="tl-sp-pa-4 tl-sp-mb-4 tl-u-background-tl-divider tl-u-border-1px-solid-tl-border-subtle tl-u-border-radius-10px"
                       >
-                <div class="d-flex align-center gap-4 mb-3">
+                <div class="tl-flex tl-items-center tl-gap-4 tl-sp-mb-3">
                     @* Cover art *@
                     @{
                         var coverUrl = _result.ClaimGroups
@@ -207,14 +207,14 @@
                         @if (_result.ResolvedQid is not null)
                         {
                             <AppChip T="string" Icon="@AppMaterialIcons.Outlined.Link"
-                                     Color="AppColor.Primary" Size="AppSize.Small" Class="mb-1">
+                                     Color="AppColor.Primary" Size="AppSize.Small" Class="tl-sp-mb-1">
                                 QID: @_result.ResolvedQid
                             </AppChip>
                         }
                         else
                         {
                             <AppChip T="string" Icon="@AppMaterialIcons.Outlined.HelpOutline"
-                                     Color="AppColor.Warning" Size="AppSize.Small" Class="mb-1">
+                                     Color="AppColor.Warning" Size="AppSize.Small" Class="tl-sp-mb-1">
                                 No QID resolved
                             </AppChip>
                         }
@@ -288,11 +288,11 @@
             </AppPanel>
 @if (GetBridgeClaims(_result).Count > 0)
             {
-                <AppText Typo="AppTypo.h6" Class="mb-2 tl-u-color-tl-accent-primary tl-u-font-family-app-font-sans tl-u-font-weight-600"
+                <AppText Typo="AppTypo.h6" Class="tl-sp-mb-2 tl-u-color-tl-accent-primary tl-u-font-family-app-font-sans tl-u-font-weight-600"
                          >
                     Bridge IDs (@GetBridgeClaims(_result).Count)
                 </AppText>
-                <AppPanel Class="pa-4 mb-4 tl-u-background-tl-divider tl-u-border-1px-solid-tl-border-subtle tl-u-border-radius-10px"
+                <AppPanel Class="tl-sp-pa-4 tl-sp-mb-4 tl-u-background-tl-divider tl-u-border-1px-solid-tl-border-subtle tl-u-border-radius-10px"
                           >
                     <AppGrid>
                         @foreach (var group in GetBridgeClaims(_result))
@@ -316,15 +316,15 @@
                     </AppGrid>
                 </AppPanel>
             }
-<AppText Typo="AppTypo.h6" Class="mb-2 tl-u-color-tl-accent-primary tl-u-font-family-app-font-sans tl-u-font-weight-600"
+<AppText Typo="AppTypo.h6" Class="tl-sp-mb-2 tl-u-color-tl-accent-primary tl-u-font-family-app-font-sans tl-u-font-weight-600"
                      >
                 Bridge Hint Preview (@(_result.BridgeHintPreview?.Count ?? 0))
             </AppText>
             @if (_result.BridgeHintPreview is { Count: > 0 })
             {
-                <AppPanel Class="pa-4 mb-4 tl-u-background-tl-divider tl-u-border-1px-solid-tl-border-subtle tl-u-border-radius-10px"
+                <AppPanel Class="tl-sp-pa-4 tl-sp-mb-4 tl-u-background-tl-divider tl-u-border-1px-solid-tl-border-subtle tl-u-border-radius-10px"
                           >
-                    <AppText Typo="AppTypo.caption" Class="mb-3 tl-u-color-tl-text-muted tl-u-font-size-xs"
+                    <AppText Typo="AppTypo.caption" Class="tl-sp-mb-3 tl-u-color-tl-text-muted tl-u-font-size-xs"
                              >
                         These bridge IDs would flow to Stage 2 retail providers for precise lookups (cover art, ratings).
                     </AppText>
@@ -368,9 +368,9 @@
             }
             else
             {
-                <AppPanel Class="pa-3 mb-4 tl-u-background-rgba-249-115-22-0-08 tl-u-border-1px-solid-rgba-249-115-22-0-25 tl-u-border-radius-10px"
+                <AppPanel Class="tl-sp-pa-3 tl-sp-mb-4 tl-u-background-rgba-249-115-22-0-08 tl-u-border-1px-solid-rgba-249-115-22-0-25 tl-u-border-radius-10px"
                           >
-                    <div class="d-flex align-center gap-2">
+                    <div class="tl-flex tl-items-center tl-gap-2">
                         <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Warning" Size="AppSize.Small"
                                  Class="tl-u-color-hex-f97316" />
                         <AppText Typo="AppTypo.body2" Class="tl-u-color-rgba-248-248-248-0-65 tl-u-font-size-0-8rem">
@@ -379,19 +379,19 @@
                     </div>
                 </AppPanel>
             }
-<AppText Typo="AppTypo.h6" Class="mb-2 tl-u-color-tl-accent-primary tl-u-font-family-app-font-sans tl-u-font-weight-600"
+<AppText Typo="AppTypo.h6" Class="tl-sp-mb-2 tl-u-color-tl-accent-primary tl-u-font-family-app-font-sans tl-u-font-weight-600"
                      >
                 People (@_result.Persons.Count)
             </AppText>
 
             @if (_result.Persons.Count > 0)
             {
-                <AppExpansionPanels Class="mb-4" Elevation="0">
+                <AppExpansionPanels Class="tl-sp-mb-4" Elevation="0">
                     @foreach (var person in _result.Persons)
                     {
                         <AppExpansionPanel Class="tl-u-background-tl-divider tl-u-border-1px-solid-tl-border-subtle tl-u-border-radius-8px tl-u-margin-bottom-4px">
                             <TitleContent>
-                                <div class="d-flex align-center gap-3">
+                                <div class="tl-flex tl-items-center tl-gap-3">
                                     @if (!string.IsNullOrEmpty(person.HeadshotUrl))
                                     {
                                         <AppAvatar Class="tl-u-width-36px tl-u-height-36px tl-u-flex-shrink-0">
@@ -409,7 +409,7 @@
                                         <AppText Typo="AppTypo.body1" Class="tl-u-color-tl-text-primary tl-u-font-weight-600 tl-u-line-height-1-2">
                                             @person.Name
                                         </AppText>
-                                        <div class="d-flex gap-2">
+                                        <div class="tl-flex tl-gap-2">
                                             <AppChip T="string" Size="AppSize.Small" Color="AppColor.Default"
                                                      Class="tl-u-height-18px tl-u-font-size-xs">
                                                 @person.Role
@@ -433,10 +433,10 @@
                                 </div>
                             </TitleContent>
                             <ChildContent>
-                                <div class="pa-2">
+                                <div class="tl-sp-pa-2">
                                     @if (!string.IsNullOrEmpty(person.HeadshotUrl))
                                     {
-                                        <div class="mb-3">
+                                        <div class="tl-sp-mb-3">
                                             <AppText Typo="AppTypo.caption" Class="tl-u-color-tl-text-muted">HEADSHOT URL</AppText>
                                             <a href="@person.HeadshotUrl" target="_blank"
                                                class="tl-u-color-tl-status-info tl-u-font-size-0-75rem tl-u-word-break-break-all tl-u-text-decoration-none">
@@ -446,7 +446,7 @@
                                     }
                                     @if (!string.IsNullOrEmpty(person.Biography))
                                     {
-                                        <div class="mb-2">
+                                        <div class="tl-sp-mb-2">
                                             <AppText Typo="AppTypo.caption" Class="tl-u-color-tl-text-muted">BIOGRAPHY</AppText>
                                             <AppText Typo="AppTypo.body2" Class="tl-u-color-rgba-248-248-248-0-80">
                                                 @person.Biography
@@ -467,19 +467,19 @@
             }
             else
             {
-                <AppPanel Class="pa-3 mb-4 tl-u-background-rgba-255-255-255-0-03 tl-u-border-1px-solid-tl-border-subtle tl-u-border-radius-10px"
+                <AppPanel Class="tl-sp-pa-3 tl-sp-mb-4 tl-u-background-rgba-255-255-255-0-03 tl-u-border-1px-solid-tl-border-subtle tl-u-border-radius-10px"
                           >
                     <AppText Typo="AppTypo.body2" Class="tl-u-color-tl-text-muted">No people returned.</AppText>
                 </AppPanel>
             }
-<AppText Typo="AppTypo.h6" Class="mb-2 tl-u-color-tl-accent-primary tl-u-font-family-app-font-sans tl-u-font-weight-600"
+<AppText Typo="AppTypo.h6" Class="tl-sp-mb-2 tl-u-color-tl-accent-primary tl-u-font-family-app-font-sans tl-u-font-weight-600"
                      >
                 Fictional Entities (@_result.FictionalEntities.Count)
             </AppText>
 
             @if (_result.FictionalEntities.Count > 0)
             {
-                <AppPanel Class="pa-3 mb-4 tl-u-background-tl-divider tl-u-border-1px-solid-tl-border-subtle tl-u-border-radius-10px"
+                <AppPanel Class="tl-sp-pa-3 tl-sp-mb-4 tl-u-background-tl-divider tl-u-border-1px-solid-tl-border-subtle tl-u-border-radius-10px"
                           >
                     <AppTable Dense="true" Striped="true" Hover="true"
                                     Class="tl-u-background-transparent tl-u-font-size-0-8rem">
@@ -514,19 +514,19 @@
             }
             else
             {
-                <AppPanel Class="pa-3 mb-4 tl-u-background-rgba-255-255-255-0-03 tl-u-border-1px-solid-tl-border-subtle tl-u-border-radius-10px"
+                <AppPanel Class="tl-sp-pa-3 tl-sp-mb-4 tl-u-background-rgba-255-255-255-0-03 tl-u-border-1px-solid-tl-border-subtle tl-u-border-radius-10px"
                           >
                     <AppText Typo="AppTypo.body2" Class="tl-u-color-tl-text-muted">No fictional entities returned.</AppText>
                 </AppPanel>
             }
-<AppText Typo="AppTypo.h6" Class="mb-2 tl-u-color-tl-accent-primary tl-u-font-family-app-font-sans tl-u-font-weight-600"
+<AppText Typo="AppTypo.h6" Class="tl-sp-mb-2 tl-u-color-tl-accent-primary tl-u-font-family-app-font-sans tl-u-font-weight-600"
                      >
                 Relationships (@_result.Relationships.Count)
             </AppText>
 
             @if (_result.Relationships.Count > 0)
             {
-                <AppPanel Class="pa-3 mb-4 tl-u-background-tl-divider tl-u-border-1px-solid-tl-border-subtle tl-u-border-radius-10px"
+                <AppPanel Class="tl-sp-pa-3 tl-sp-mb-4 tl-u-background-tl-divider tl-u-border-1px-solid-tl-border-subtle tl-u-border-radius-10px"
                           >
                     <AppTable Dense="true" Striped="true" Hover="true"
                                     Class="tl-u-background-transparent tl-u-font-size-0-8rem">
@@ -581,12 +581,12 @@
             }
             else
             {
-                <AppPanel Class="pa-3 mb-4 tl-u-background-rgba-255-255-255-0-03 tl-u-border-1px-solid-tl-border-subtle tl-u-border-radius-10px"
+                <AppPanel Class="tl-sp-pa-3 tl-sp-mb-4 tl-u-background-rgba-255-255-255-0-03 tl-u-border-1px-solid-tl-border-subtle tl-u-border-radius-10px"
                           >
                     <AppText Typo="AppTypo.body2" Class="tl-u-color-tl-text-muted">No relationships returned.</AppText>
                 </AppPanel>
             }
-<AppExpansionPanels Class="mb-6" Elevation="0">
+<AppExpansionPanels Class="tl-sp-mb-6" Elevation="0">
                 <AppExpansionPanel Class="tl-u-background-tl-divider tl-u-border-1px-solid-tl-border-subtle tl-u-border-radius-10px">
                     <TitleContent>
                         <AppText Typo="AppTypo.h6"

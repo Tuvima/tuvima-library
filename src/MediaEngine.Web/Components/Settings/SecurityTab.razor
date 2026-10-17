@@ -48,8 +48,8 @@
                               HelpText="1 to 720 hours. New invitations use this lifetime." />
             </div>
 
-            <h3 class="mt-5">Who can connect and sessions</h3>
-            <AppAlert Tone="AppUiTone.Info" Class="mb-3">
+            <h3 class="tl-sp-mt-5">Who can connect and sessions</h3>
+            <AppAlert Tone="AppUiTone.Info" Class="tl-sp-mb-3">
                 Who can connect is set under Settings &gt; Network.
             </AppAlert>
             <div class="security-settings__controls">
@@ -60,21 +60,21 @@
                               Label="Maximum active sessions per account"
                               HelpText="1 to 100. Creating another session revokes the oldest active session." />
             </div>
-            <AppAlert Tone="AppUiTone.Info" Class="mt-4">
+            <AppAlert Tone="AppUiTone.Info" Class="tl-sp-mt-4">
                 Active sessions keep their existing expiry. New sessions use the saved policy.
             </AppAlert>
-            <AppAlert Tone="AppUiTone.Info" Class="mt-3">
+            <AppAlert Tone="AppUiTone.Info" Class="tl-sp-mt-3">
                 Administrator surface protection is optional and configured per account profile grant in Users. It adds a lock around protected settings after sign-in.
             </AppAlert>
 
-            <dl class="security-settings__facts mt-5">
+            <dl class="security-settings__facts tl-sp-mt-5">
                 <div><dt>Public address</dt><dd>@CanonicalOriginStatus <a href="/settings/network/remote">Change it in Network settings</a></dd></div>
                 <div><dt>Passkeys</dt><dd>@PasskeyStatus</dd></div>
                 <div><dt>Recovery delivery</dt><dd>@RecoveryStatus</dd></div>
             </dl>
             @if (_authSettings.PasswordReset.Configured)
             {
-                <dl class="security-settings__facts mt-5">
+                <dl class="security-settings__facts tl-sp-mt-5">
                     <div><dt>SMTP server</dt><dd>@_authSettings.PasswordReset.SmtpHost:@_authSettings.PasswordReset.SmtpPort</dd></div>
                     <div><dt>From</dt><dd>@_authSettings.PasswordReset.FromAddress</dd></div>
                     <div><dt>SMTP state</dt><dd>@(_authSettings.PasswordReset.Ready ? "Ready" : "Configured, not ready")</dd></div>
@@ -82,13 +82,13 @@
                 <AppButton Label="Send test email to my account"
                            StartIcon="@AppMaterialIcons.Outlined.MarkEmailRead"
                            Disabled="@(_saving || !_authSettings.PasswordReset.Ready)"
-                           OnClick="SendTestEmailAsync" Class="mt-3" />
-                <div class="app-field__help mt-2">Sends only to the email address on your current signed-in account.</div>
+                           OnClick="SendTestEmailAsync" Class="tl-sp-mt-3" />
+                <div class="app-field__help tl-sp-mt-2">Sends only to the email address on your current signed-in account.</div>
             }
-            <h3 class="mt-5">External providers</h3>
+            <h3 class="tl-sp-mt-5">External providers</h3>
             @if (ProvidersNeedRestart)
             {
-                <AppAlert Tone="AppUiTone.Warning" Class="mb-3" aria-live="polite">
+                <AppAlert Tone="AppUiTone.Warning" Class="tl-sp-mb-3" aria-live="polite">
                     Restart Tuvima Library to apply sign-in provider changes.
                 </AppAlert>
             }
@@ -146,11 +146,11 @@
                 </div>
             }
             <AppButton Label="Add provider" StartIcon="@AppMaterialIcons.Outlined.Add"
-                       OnClick="AddProvider" Class="mt-4" />
-            <AppAlert Tone="AppUiTone.Info" Class="mt-4">
+                       OnClick="AddProvider" Class="tl-sp-mt-4" />
+            <AppAlert Tone="AppUiTone.Info" Class="tl-sp-mt-4">
                 Provider secrets stay in the server's private authentication secret file and are never returned here.
             </AppAlert>
-            <div class="security-settings__actions mt-5">
+            <div class="security-settings__actions tl-sp-mt-5">
                 <AppButton Label="@(_saving ? "Saving…" : "Save authentication settings")"
                            Disabled="@_saving" Tone="AppUiTone.Primary" ButtonStyle="AppButtonStyle.Filled" Loading="@_saving" OnClick="SaveAsync" />
             </div>

@@ -791,7 +791,7 @@ public sealed class ConfigurationDirectoryLoader : IConfigurationLoader, IDispos
         {
             DeviceClass = "mobile",
             DisplayName = "Mobile",
-            ContentPadding = "pa-2",
+            ContentPadding = "tl-sp-pa-2",
             ContentMaxWidth = "Full",
             Constraints = new UIDeviceConstraints
             {
@@ -831,7 +831,7 @@ public sealed class ConfigurationDirectoryLoader : IConfigurationLoader, IDispos
         {
             DeviceClass = "television",
             DisplayName = "Television",
-            ContentPadding = "pa-6",
+            ContentPadding = "tl-sp-pa-6",
             ContentMaxWidth = "Full",
             BorderRadius = 40,
             Constraints = new UIDeviceConstraints

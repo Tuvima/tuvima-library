@@ -29,7 +29,7 @@ public sealed class ResolvedUISettings
     // ── Layout ─────────────────────────────────────────────────────────
 
     [JsonPropertyName("content_padding")]
-    public string ContentPadding { get; set; } = "pa-4";
+    public string ContentPadding { get; set; } = "tl-sp-pa-4";
 
     [JsonPropertyName("content_max_width")]
     public string ContentMaxWidth { get; set; } = "Full";

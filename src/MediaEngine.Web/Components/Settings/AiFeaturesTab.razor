@@ -2,7 +2,7 @@
 @inject UIOrchestratorService Orchestrator
 
 <div class="tl-page">
-    <AppActionBar Align="AppHorizontalAlignment.End" Class="mb-3">
+    <AppActionBar Align="AppHorizontalAlignment.End" Class="tl-sp-mb-3">
         <AppButton Label="Save feature flags"
                    ButtonStyle="AppButtonStyle.Filled"
                    Tone="AppUiTone.Primary"
@@ -16,13 +16,13 @@
     }
     else
     {
-        <AppAlert Tone="AppUiTone.Info" Class="mb-3">
+        <AppAlert Tone="AppUiTone.Info" Class="tl-sp-mb-3">
             Local AI is partial while any launch feature lacks an end-to-end result. Feature toggles take effect in running workers and stop work before library scans or model loads.
         </AppAlert>
 
         @if (!string.IsNullOrWhiteSpace(_message))
         {
-            <AppAlert Tone="@MessageTone" Class="mb-3">@_message</AppAlert>
+            <AppAlert Tone="@MessageTone" Class="tl-sp-mb-3">@_message</AppAlert>
         }
 
         <AppTable Class="ai-feature-table">

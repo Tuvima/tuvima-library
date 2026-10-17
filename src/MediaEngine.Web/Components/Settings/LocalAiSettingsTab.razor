@@ -25,7 +25,7 @@
                             <AppNumericField T="int" @bind-Value="_config.EnrichmentBatchSize" Label="Enrichment batch size" Min="1" />
                         </div>
                         <AppButton Label="Save runtime settings" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary"
-                                   Class="mt-3" Disabled="@_savingConfig" OnClick="@SaveConfig" />
+                                   Class="tl-sp-mt-3" Disabled="@_savingConfig" OnClick="@SaveConfig" />
                     }
                 </AppCard>
                 @if (_profile is not null || _resources is not null)
@@ -163,7 +163,7 @@
                 {
                     @if (!string.IsNullOrWhiteSpace(_featureMessage))
                     {
-                        <AppAlert Tone="AppUiTone.Info" Class="mb-3">@_featureMessage</AppAlert>
+                        <AppAlert Tone="AppUiTone.Info" Class="tl-sp-mb-3">@_featureMessage</AppAlert>
                     }
                     <div class="local-ai-settings__feature-grid">
                         @foreach (var feature in FeatureDefinitions())
@@ -176,7 +176,7 @@
                         }
                     </div>
                     <AppButton Label="Save features" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary"
-                               Class="mt-3" Disabled="@_savingFeatures" OnClick="@SaveFeaturesAsync" />
+                               Class="tl-sp-mt-3" Disabled="@_savingFeatures" OnClick="@SaveFeaturesAsync" />
                 }
             </AppCard>
             }

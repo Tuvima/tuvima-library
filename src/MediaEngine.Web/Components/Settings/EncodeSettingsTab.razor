@@ -32,7 +32,7 @@
 
                 @if (_diagnostics.Warnings.Count > 0)
                 {
-                    <AppAlert Tone="AppUiTone.Warning" Class="mt-4">
+                    <AppAlert Tone="AppUiTone.Warning" Class="tl-sp-mt-4">
                         <strong>Engine warnings</strong>
                         <ul class="encode-settings__warnings">
                             @foreach (var warning in _diagnostics.Warnings)
@@ -44,7 +44,7 @@
                 }
                 else
                 {
-                    <AppAlert Tone="AppUiTone.Success" Class="mt-4">
+                    <AppAlert Tone="AppUiTone.Success" Class="tl-sp-mt-4">
                         The Engine reported no playback delivery warnings.
                     </AppAlert>
                 }
