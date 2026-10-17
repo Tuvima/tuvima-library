@@ -2,7 +2,7 @@
 @inject UIOrchestratorService Orchestrator
 
 <div class="tl-page">
-    <AppActionBar Align="AppHorizontalAlignment.End" Class="mb-3">
+    <AppActionBar Align="AppHorizontalAlignment.End" Class="tl-sp-mb-3">
         <AppButton Label="Save schedules"
                    ButtonStyle="AppButtonStyle.Filled"
                    Tone="AppUiTone.Primary"
@@ -10,7 +10,7 @@
                    Disabled="@(_config is null || _saving)" />
     </AppActionBar>
 
-    <AppAlert Tone="AppUiTone.Info" Class="mb-3">
+    <AppAlert Tone="AppUiTone.Info" Class="tl-sp-mb-3">
         These values are the schedules used by the running AI workers. Saving wakes waiting workers so they immediately recompute their next run.
     </AppAlert>
 
@@ -18,14 +18,14 @@
     {
         <AppCard Title="Enrichment progress"
                  Description="@($"{_progress.PendingCount} pending, {_progress.CompletedCount} completed, {_progress.Total} total.")"
-                 Class="mb-3">
+                 Class="tl-sp-mb-3">
             <AppProgressBar Value="@ProgressPercent" ShowValue="true" />
         </AppCard>
     }
 
     @if (!string.IsNullOrWhiteSpace(_message))
     {
-        <AppAlert Tone="@MessageTone" Class="mb-3">@_message</AppAlert>
+        <AppAlert Tone="@MessageTone" Class="tl-sp-mb-3">@_message</AppAlert>
     }
 
     @if (_config is null)

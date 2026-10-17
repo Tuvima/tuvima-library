@@ -1,3 +1,22 @@
+# Auto-merge enables GitHub's auto-merge on labelled claude/ pull requests.
+#
+# Why an App token: a merge done with the built-in GITHUB_TOKEN is attributed to github-actions[bot], and GitHub
+# never starts new workflow runs for events caused by that token. Before this change every auto-merged pull request
+# landed on main without CI, Docs or Docker publish ever running. The merge now happens as the "Tuvima Auto-merge"
+# GitHub App, which GitHub treats like a normal contributor, so push-triggered workflows run again.
+#
+# One-time setup (organisation admin), before this workflow is merged:
+#   1. Org settings -> Developer settings -> GitHub Apps -> New GitHub App, named "Tuvima Auto-merge".
+#      Webhook: off. Repository permissions: Contents = Read and write, Pull requests = Read and write.
+#      Install on: only Tuvima/tuvima-library.
+#   2. Generate a private key on the App page (downloads a .pem).
+#   3. Repository settings -> Secrets and variables -> Actions:
+#        Variable  AUTO_MERGE_APP_ID           = the App ID
+#        Secret    AUTO_MERGE_APP_PRIVATE_KEY  = the full contents of the .pem
+#
+# Without that setup the "Create App token" step fails and auto-merge does nothing (the pull request stays open for a
+# manual merge).
+
 name: Auto-merge
 
 on:
@@ -17,9 +36,16 @@ jobs:
       github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     steps:
+      - name: Create App token
+        id: app-token
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ vars.AUTO_MERGE_APP_ID }}
+          private-key: ${{ secrets.AUTO_MERGE_APP_PRIVATE_KEY }}
+
       - name: Enable auto-merge
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
           PR_URL: ${{ github.event.pull_request.html_url }}
         run: gh pr merge --auto --merge "$PR_URL"
 

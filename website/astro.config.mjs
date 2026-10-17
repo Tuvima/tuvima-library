@@ -4,7 +4,7 @@ import sidebarTopics from 'starlight-sidebar-topics';
 import { unified } from '@astrojs/markdown-remark';
 import fs from 'node:fs';
 import rewriteLinks from './scripts/rewrite-links.mjs';
-import { base, origin } from './scripts/content-contract.mjs';
+import { base, origin, repoUrl } from './scripts/content-contract.mjs';
 
 const manifest = JSON.parse(fs.readFileSync(new URL('./publication.json', import.meta.url), 'utf8'));
 const topics = ['Guides', 'Develop', 'Reference'].map((group) => {
@@ -32,8 +32,8 @@ export default defineConfig({
     description: 'Use, administer, and extend your local-first Tuvima Library.',
     logo: { light: './src/assets/tuvima-logo.svg', dark: './src/assets/tuvima-logo-dark.svg', replacesTitle: true, alt: 'Tuvima Library' },
     favicon: '/favicon.svg',
-    social: [{ icon: 'github', label: 'GitHub', href: 'https://github.com/Tuvima/tuvima_library' }],
-    editLink: { baseUrl: 'https://github.com/Tuvima/tuvima_library/edit/main/docs/' },
+    social: [{ icon: 'github', label: 'GitHub', href: repoUrl }],
+    editLink: { baseUrl: `${repoUrl}/edit/main/docs/` },
     lastUpdated: true,
     locales: { root: { label: 'English', lang: 'en' } },
     customCss: ['./src/styles/tuvima.css'],

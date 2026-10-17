@@ -1,12 +1,12 @@
 @namespace MediaEngine.Web.Components.Universe
 @inject IEngineApiClient ApiClient
 <div class="family-tree-panel">
-    <AppText Typo="AppTypo.subtitle1" Class="mb-3 tl-u-color-tl-accent-primary tl-u-font-weight-600" >
+    <AppText Typo="AppTypo.subtitle1" Class="tl-sp-mb-3 tl-u-color-tl-accent-primary tl-u-font-weight-600" >
         Family Tree
     </AppText>
 
     @* Character selector *@
-    <AppStack Row="true" AlignItems="AppAlignItems.Center" Spacing="2" Class="mb-4">
+    <AppStack Row="true" AlignItems="AppAlignItems.Center" Spacing="2" Class="tl-sp-mb-4">
         <AppSelect T="string" Value="@_selectedCharQid" ValueChanged="OnCharacterSelected"
                    Label="Character" Variant="AppVariant.Outlined" Margin="AppMargin.Dense"
                    Class="tl-u-flex-1 tl-u-min-width-200px"
@@ -60,7 +60,7 @@
                                         @(member.Label.Length > 0 ? member.Label[0].ToString() : "?")
                                     </AppAvatar>
                                 }
-                                <AppText Typo="AppTypo.caption" Class="mt-1 tl-u-text-align-center tl-u-max-width-80px tl-u-overflow-hidden tl-u-text-overflow-ellipsis tl-u-white-space-nowrap" >
+                                <AppText Typo="AppTypo.caption" Class="tl-sp-mt-1 tl-u-text-align-center tl-u-max-width-80px tl-u-overflow-hidden tl-u-text-overflow-ellipsis tl-u-white-space-nowrap" >
                                     @member.Label
                                 </AppText>
                                 @if (!string.IsNullOrWhiteSpace(member.Relationship))

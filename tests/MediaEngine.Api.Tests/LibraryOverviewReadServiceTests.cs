@@ -12,7 +12,7 @@ public sealed class LibraryOverviewReadServiceTests : IDisposable
     public LibraryOverviewReadServiceTests()
     {
         DapperConfiguration.Configure();
-        _dbPath = Path.Combine(Path.GetTempPath(), $"tuvima_library_overview_{Guid.NewGuid():N}.db");
+        _dbPath = Path.Combine(Path.GetTempPath(), $"tuvima-library-overview-{Guid.NewGuid():N}.db");
         _db = new DatabaseConnection(_dbPath);
         _db.InitializeSchema();
         _db.RunStartupChecks();

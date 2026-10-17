@@ -15,14 +15,14 @@
              Class="tl-u-color-tl-text-primary tl-u-font-family-app-font-sans tl-u-font-weight-700">
         Provider Tester
     </AppText>
-    <AppText Typo="AppTypo.body2" Class="mb-6 tl-u-color-tl-text-secondary"
+    <AppText Typo="AppTypo.body2" Class="tl-sp-mb-6 tl-u-color-tl-text-secondary"
              >
         Search retail providers and Wikidata using the same attribute-targeted methodology as the library editor.
         Select a media type and optionally filter to a specific provider.
     </AppText>
 
     @* -- Filters -- *@
-    <AppPanel Class="pa-4 mb-4 tl-u-background-tl-divider tl-u-border-1px-solid-tl-border-subtle tl-u-border-radius-12px"
+    <AppPanel Class="tl-sp-pa-4 tl-sp-mb-4 tl-u-background-tl-divider tl-u-border-1px-solid-tl-border-subtle tl-u-border-radius-12px"
               >
         <AppGrid>
             <AppItem xs="12" sm="4">
@@ -44,7 +44,7 @@
                            T="string">
                     <AppSelectItem Value="@("all")">All Providers</AppSelectItem>
                     <AppSelectItem Value="@("wikidata")">
-                        <div class="d-flex align-center gap-2">
+                        <div class="tl-flex tl-items-center tl-gap-2">
                             <span class="tl-u-width-8px tl-u-height-8px tl-u-border-radius-50pct tl-u-background-tl-status-success tl-u-display-inline-block"></span>
                             Wikidata
                         </div>
@@ -52,7 +52,7 @@
                     @foreach (var p in _filteredProviders)
                     {
                         <AppSelectItem Value="@p.Name">
-                            <div class="d-flex align-center gap-2">
+                            <div class="tl-flex tl-items-center tl-gap-2">
                                 <AppCssElement Tag="span" Css="@($"width: 8px; height: 8px; border-radius: 50%; background: {p.AccentColor}; display: inline-block;")"></AppCssElement>
                                 @p.DisplayName
                                 @if (!p.Enabled)
@@ -64,7 +64,7 @@
                     }
                 </AppSelect>
             </AppItem>
-            <AppItem xs="12" sm="4" Class="d-flex align-center">
+            <AppItem xs="12" sm="4" Class="tl-flex tl-items-center">
                 <AppButton ButtonStyle="AppButtonStyle.Filled"
                            Tone="AppUiTone.Primary"
                            FullWidth="true"
@@ -78,15 +78,15 @@
     </AppPanel>
 
     @* -- Search Fields -- *@
-    <AppPanel Class="pa-4 mb-4 tl-u-background-tl-divider tl-u-border-1px-solid-tl-border-subtle tl-u-border-radius-12px"
+    <AppPanel Class="tl-sp-pa-4 tl-sp-mb-4 tl-u-background-tl-divider tl-u-border-1px-solid-tl-border-subtle tl-u-border-radius-12px"
               >
 
         @* Field picker chips *@
-        <AppText Typo="AppTypo.caption" Class="mb-2 tl-u-color-tl-text-muted tl-u-text-transform-uppercase tl-u-letter-spacing-1px"
+        <AppText Typo="AppTypo.caption" Class="tl-sp-mb-2 tl-u-color-tl-text-muted tl-u-text-transform-uppercase tl-u-letter-spacing-1px"
                  >
             Search Fields
         </AppText>
-        <div class="d-flex flex-wrap gap-2 mb-4">
+        <div class="tl-flex tl-flex-wrap tl-gap-2 tl-sp-mb-4">
             @foreach (var field in _searchableFields)
             {
                 var isActive = _activeFields.Contains(field.FieldKey);
@@ -121,9 +121,9 @@
     @* -- Loading -- *@
     @if (_loading)
     {
-        <AppProgressBar Indeterminate="true" Color="AppColor.Primary" Class="mb-4 tl-u-border-radius-4px"
+        <AppProgressBar Indeterminate="true" Color="AppColor.Primary" Class="tl-sp-mb-4 tl-u-border-radius-4px"
                             />
-        <AppText Typo="AppTypo.body2" Class="mb-4 tl-u-color-tl-text-secondary" >
+        <AppText Typo="AppTypo.body2" Class="tl-sp-mb-4 tl-u-color-tl-text-secondary" >
             Searching @(_selectedProvider == "wikidata" ? "Wikidata" : "providers")...
         </AppText>
     }
@@ -131,13 +131,13 @@
     @* -- Error -- *@
     @if (!string.IsNullOrEmpty(_error))
     {
-        <AppAlert Severity="AppSeverity.Error" Class="mb-4" Variant="AppVariant.Outlined">@_error</AppAlert>
+        <AppAlert Severity="AppSeverity.Error" Class="tl-sp-mb-4" Variant="AppVariant.Outlined">@_error</AppAlert>
     }
 
     @* -- Wikidata Results -- *@
     @if (_universeResults is { Count: > 0 })
     {
-        <div class="d-flex align-center gap-4 mb-4 tl-u-color-tl-text-secondary" >
+        <div class="tl-flex tl-items-center tl-gap-4 tl-sp-mb-4 tl-u-color-tl-text-secondary" >
             <AppText Typo="AppTypo.body2">
                 <strong class="tl-u-color-tl-text-primary">@_universeResults.Count</strong> Wikidata result@(_universeResults.Count == 1 ? "" : "s")
             </AppText>
@@ -149,9 +149,9 @@
             }
         </div>
 
-        <AppPanel Class="tl-card tl-card--flush mb-4 tl-u-background-rgba-255-255-255-0-03 tl-u-border-1px-solid-tl-border-subtle tl-u-border-radius-12px tl-u-overflow-hidden"
+        <AppPanel Class="tl-card tl-card--flush tl-sp-mb-4 tl-u-background-rgba-255-255-255-0-03 tl-u-border-1px-solid-tl-border-subtle tl-u-border-radius-12px tl-u-overflow-hidden"
                   >
-            <div class="pa-3 d-flex align-center gap-2 tl-u-background-tl-status-success-soft tl-u-border-bottom-1px-solid-tl-border-subtle"
+            <div class="tl-sp-pa-3 tl-flex tl-items-center tl-gap-2 tl-u-background-tl-status-success-soft tl-u-border-bottom-1px-solid-tl-border-subtle"
                  >
                 <span class="tl-u-width-10px tl-u-height-10px tl-u-border-radius-50pct tl-u-background-tl-status-success"></span>
                 <AppText Typo="AppTypo.subtitle2" Class="tl-u-color-tl-text-primary tl-u-font-weight-600">Wikidata</AppText>
@@ -166,7 +166,7 @@
                 <div @key="result.Qid"
                      class="pt-result-row @(isExpanded ? "pt-result-expanded" : "")"
                      @onclick="() => ToggleUniverseExpand(result.Qid)">
-                    <div class="d-flex gap-3 pa-3 tl-u-cursor-pointer" >
+                    <div class="tl-flex tl-gap-3 tl-sp-pa-3 tl-u-cursor-pointer" >
                         <div class="tl-u-width-60px tl-u-height-60px tl-u-border-radius-8px tl-u-overflow-hidden tl-u-flex-shrink-0 tl-u-background-tl-divider">
                             @if (!string.IsNullOrEmpty(result.CoverUrl))
                             {
@@ -174,7 +174,7 @@
                             }
                             else
                             {
-                                <div class="d-flex align-center justify-center tl-u-width-100pct tl-u-height-100pct" >
+                                <div class="tl-flex tl-items-center tl-justify-center tl-u-width-100pct tl-u-height-100pct" >
                                     <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Public" Class="tl-u-font-size-24px tl-u-color-rgba-255-255-255-0-1" />
                                 </div>
                             }
@@ -187,7 +187,7 @@
                                 @result.Description
                             </AppText>
                         </div>
-                        <div class="d-flex flex-column align-end tl-u-flex-shrink-0" >
+                        <div class="tl-flex tl-flex-col tl-items-end tl-u-flex-shrink-0" >
                             <AppChip T="string" Size="AppSize.Small"
                                      Color="@GetScoreColor(result.Confidence)"
                                      Variant="AppVariant.Outlined"
@@ -203,14 +203,14 @@
                     @* -- Expanded details -- *@
                     @if (isExpanded)
                     {
-                        <div class="px-3 pb-3 tl-u-padding-left-75px"  @onclick:stopPropagation="true">
+                        <div class="tl-sp-px-3 tl-sp-pb-3 tl-u-padding-left-75px"  @onclick:stopPropagation="true">
                             @if (!string.IsNullOrEmpty(result.WikipediaExtract))
                             {
-                                <AppText Typo="AppTypo.body2" Class="mb-2 tl-u-color-tl-text-secondary tl-u-font-size-0-8rem tl-u-line-height-1-5" >
+                                <AppText Typo="AppTypo.body2" Class="tl-sp-mb-2 tl-u-color-tl-text-secondary tl-u-font-size-0-8rem tl-u-line-height-1-5" >
                                     @(result.WikipediaExtract.Length > 500 ? result.WikipediaExtract[..497] + "..." : result.WikipediaExtract)
                                 </AppText>
                             }
-                            <div class="d-flex flex-wrap gap-3 mb-2">
+                            <div class="tl-flex tl-flex-wrap tl-gap-3 tl-sp-mb-2">
                                 @if (!string.IsNullOrEmpty(result.Author))
                                 {
                                     <span class="tl-u-font-size-0-75rem">
@@ -242,7 +242,7 @@
                             </div>
                             @if (result.BridgeIds.Count > 0)
                             {
-                                <div class="d-flex flex-wrap gap-1 mb-2">
+                                <div class="tl-flex tl-flex-wrap tl-gap-1 tl-sp-mb-2">
                                     @foreach (var (key, val) in result.BridgeIds)
                                     {
                                         <AppChip T="string" Size="AppSize.Small" Variant="AppVariant.Outlined"
@@ -255,7 +255,7 @@
                             }
                             @if (result.MatchScores is not null)
                             {
-                                <div class="d-flex flex-wrap gap-3">
+                                <div class="tl-flex tl-flex-wrap tl-gap-3">
                                     <span class="tl-u-font-size-xs">
                                         <span class="tl-u-color-tl-text-muted">Title:</span>
                                         <span class="tl-u-color-tl-text-secondary">@result.MatchScores.TitleScore.ToString("F2")</span>
@@ -285,7 +285,7 @@
     @if (_results is { Count: > 0 })
     {
         @* Stats bar *@
-        <div class="d-flex align-center gap-4 mb-4 tl-u-color-tl-text-secondary" >
+        <div class="tl-flex tl-items-center tl-gap-4 tl-sp-mb-4 tl-u-color-tl-text-secondary" >
             <AppText Typo="AppTypo.body2">
                 <strong class="tl-u-color-tl-text-primary">@_results.Count</strong> retail result@(_results.Count == 1 ? "" : "s")
                 from <strong class="tl-u-color-tl-text-primary">@_results.Select(r => r.ProviderName).Distinct().Count()</strong> provider@(_results.Select(r => r.ProviderName).Distinct().Count() == 1 ? "" : "s")
@@ -304,11 +304,11 @@
             var providerColor = Catalogue.GetAccentColor(providerGroup.Key);
             var providerDisplay = Catalogue.GetDisplayName(providerGroup.Key);
 
-            <AppPanel @key="providerGroup.Key" Class="tl-card tl-card--flush mb-4 tl-u-background-rgba-255-255-255-0-03 tl-u-border-1px-solid-tl-border-subtle tl-u-border-radius-12px tl-u-overflow-hidden"
+            <AppPanel @key="providerGroup.Key" Class="tl-card tl-card--flush tl-sp-mb-4 tl-u-background-rgba-255-255-255-0-03 tl-u-border-1px-solid-tl-border-subtle tl-u-border-radius-12px tl-u-overflow-hidden"
                       >
 
                 @* Provider header *@
-                <AppCssElement Tag="div" Class="pa-3 d-flex align-center gap-2"
+                <AppCssElement Tag="div" Class="tl-sp-pa-3 tl-flex tl-items-center tl-gap-2"
                      Css="@($"background: {providerColor}18; border-bottom: 1px solid var(--tl-border-subtle);")">
                     <AppCssElement Tag="span" Css="@($"width: 10px; height: 10px; border-radius: 50%; background: {providerColor};")"></AppCssElement>
                     <AppText Typo="AppTypo.subtitle2" Class="tl-u-color-tl-text-primary tl-u-font-weight-600">
@@ -330,7 +330,7 @@
                          @onclick="() => ToggleExpand(resultKey)">
 
                         @* Cover + main info *@
-                        <div class="d-flex gap-3 pa-3 tl-u-cursor-pointer" >
+                        <div class="tl-flex tl-gap-3 tl-sp-pa-3 tl-u-cursor-pointer" >
                             @* Cover thumbnail *@
                             <div class="tl-u-width-60px tl-u-height-60px tl-u-border-radius-8px tl-u-overflow-hidden tl-u-flex-shrink-0 tl-u-background-tl-divider">
                                 @if (!string.IsNullOrEmpty(result.CoverUrl))
@@ -339,7 +339,7 @@
                                 }
                                 else
                                 {
-                                    <div class="d-flex align-center justify-center tl-u-width-100pct tl-u-height-100pct" >
+                                    <div class="tl-flex tl-items-center tl-justify-center tl-u-width-100pct tl-u-height-100pct" >
                                         <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Image" Class="tl-u-font-size-24px tl-u-color-rgba-255-255-255-0-1" />
                                     </div>
                                 }
@@ -374,7 +374,7 @@
                             </div>
 
                             @* Score badges *@
-                            <div class="d-flex flex-column align-end tl-u-flex-shrink-0" >
+                            <div class="tl-flex tl-flex-col tl-items-end tl-u-flex-shrink-0" >
                                 <AppChip T="string"
                                          Size="AppSize.Small"
                                          Color="@GetScoreColor(result.CompositeScore)"
@@ -407,7 +407,7 @@
                                 @* Full description *@
                                 @if (!string.IsNullOrEmpty(result.Description))
                                 {
-                                    <div class="mb-3">
+                                    <div class="tl-sp-mb-3">
                                         <AppText Typo="AppTypo.caption" Class="tl-u-color-tl-text-muted tl-u-text-transform-uppercase tl-u-letter-spacing-0-5px tl-u-font-size-xs tl-u-margin-bottom-4px">
                                             Description
                                         </AppText>
@@ -418,11 +418,11 @@
                                 }
 
                                 @* Scores breakdown *@
-                                <div class="mb-3">
+                                <div class="tl-sp-mb-3">
                                     <AppText Typo="AppTypo.caption" Class="tl-u-color-tl-text-muted tl-u-text-transform-uppercase tl-u-letter-spacing-0-5px tl-u-font-size-xs tl-u-margin-bottom-4px">
                                         Scores
                                     </AppText>
-                                    <div class="d-flex flex-wrap gap-3">
+                                    <div class="tl-flex tl-flex-wrap tl-gap-3">
                                         <span class="tl-u-font-size-0-75rem">
                                             <span class="tl-u-color-tl-text-muted">Composite:</span>
                                             <AppCssElement Tag="span" Css="@($"color: {GetScoreHex(result.CompositeScore)}; font-family: 'JetBrains Mono', monospace;")">@result.CompositeScore.ToString("F3")</AppCssElement>
@@ -441,7 +441,7 @@
                                     </div>
                                     @if (result.MatchScores is not null)
                                     {
-                                        <div class="d-flex flex-wrap gap-3 mt-1">
+                                        <div class="tl-flex tl-flex-wrap tl-gap-3 tl-sp-mt-1">
                                             <span class="tl-u-font-size-xs">
                                                 <span class="tl-u-color-tl-text-muted">Title:</span>
                                                 <span class="tl-u-color-tl-text-secondary tl-u-font-family-jetbrains-mono-monospace">@result.MatchScores.TitleScore.ToString("F2")</span>
@@ -464,11 +464,11 @@
                                 }
                                 @if (details.Count > 0)
                                 {
-                                    <div class="mb-3">
+                                    <div class="tl-sp-mb-3">
                                         <AppText Typo="AppTypo.caption" Class="tl-u-color-tl-text-muted tl-u-text-transform-uppercase tl-u-letter-spacing-0-5px tl-u-font-size-xs tl-u-margin-bottom-4px">
                                             Metadata
                                         </AppText>
-                                        <div class="d-flex flex-wrap gap-3">
+                                        <div class="tl-flex tl-flex-wrap tl-gap-3">
                                             @foreach (var (label, val) in details)
                                             {
                                                 <span class="tl-u-font-size-0-75rem">
@@ -486,11 +486,11 @@
                                 }
                                 @if (bridges.Count > 0)
                                 {
-                                    <div class="mb-3">
+                                    <div class="tl-sp-mb-3">
                                         <AppText Typo="AppTypo.caption" Class="tl-u-color-tl-text-muted tl-u-text-transform-uppercase tl-u-letter-spacing-0-5px tl-u-font-size-xs tl-u-margin-bottom-4px">
                                             Bridge IDs
                                         </AppText>
-                                        <div class="d-flex flex-wrap gap-1">
+                                        <div class="tl-flex tl-flex-wrap tl-gap-1">
                                             @foreach (var (label, val) in bridges)
                                             {
                                                 <AppChip T="string"
@@ -508,11 +508,11 @@
                                 @* Extra fields *@
                                 @if (result.ExtraFields.Count > 0)
                                 {
-                                    <div class="mb-2">
+                                    <div class="tl-sp-mb-2">
                                         <AppText Typo="AppTypo.caption" Class="tl-u-color-tl-text-muted tl-u-text-transform-uppercase tl-u-letter-spacing-0-5px tl-u-font-size-xs tl-u-margin-bottom-4px">
                                             Extra Fields
                                         </AppText>
-                                        <div class="d-flex flex-wrap gap-3">
+                                        <div class="tl-flex tl-flex-wrap tl-gap-3">
                                             @foreach (var (key, val) in result.ExtraFields.OrderBy(kv => kv.Key))
                                             {
                                                 <span class="tl-u-font-size-xs">
@@ -531,7 +531,7 @@
                                         <AppText Typo="AppTypo.caption" Class="tl-u-color-tl-text-muted tl-u-text-transform-uppercase tl-u-letter-spacing-0-5px tl-u-font-size-xs tl-u-margin-bottom-4px">
                                             Description Field Matches
                                         </AppText>
-                                        <div class="d-flex flex-wrap gap-2">
+                                        <div class="tl-flex tl-flex-wrap tl-gap-2">
                                             @foreach (var fm in result.DescriptionFieldMatches)
                                             {
                                                 <AppChip T="string"
@@ -554,7 +554,7 @@
     }
     else if (!_loading && _hasSearched && _universeResults is not { Count: > 0 })
     {
-        <AppAlert Severity="AppSeverity.Info" Variant="AppVariant.Outlined" Class="mb-4">
+        <AppAlert Severity="AppSeverity.Info" Variant="AppVariant.Outlined" Class="tl-sp-mb-4">
             No results found. Try broadening your search or changing the media type.
         </AppAlert>
     }

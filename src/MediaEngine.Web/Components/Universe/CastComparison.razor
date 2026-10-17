@@ -2,7 +2,7 @@
 @inject IEngineApiClient ApiClient
 @inject IJSRuntime JS
 <div class="cast-panel">
-    <AppStack Row="true" AlignItems="AppAlignItems.Center" Spacing="2" Class="mb-4">
+    <AppStack Row="true" AlignItems="AppAlignItems.Center" Spacing="2" Class="tl-sp-mb-4">
         <AppText Typo="AppTypo.subtitle1" Class="tl-u-color-tl-accent-primary tl-u-font-weight-600 tl-u-flex-1">
             Cast Comparison
         </AppText>
@@ -17,7 +17,7 @@
 
     @if (_loading)
     {
-        <div class="d-flex justify-center pa-8">
+        <div class="tl-flex tl-justify-center tl-sp-pa-8">
             <AppSpinner Indeterminate="true" Color="AppColor.Warning" />
         </div>
     }
@@ -42,7 +42,7 @@
                     </div>
 
                     @* Character name *@
-                    <AppText Typo="AppTypo.subtitle2" Class="mt-2 mb-1 tl-u-font-weight-600 tl-u-white-space-nowrap tl-u-overflow-hidden tl-u-text-overflow-ellipsis tl-u-max-width-160px"
+                    <AppText Typo="AppTypo.subtitle2" Class="tl-sp-mt-2 tl-sp-mb-1 tl-u-font-weight-600 tl-u-white-space-nowrap tl-u-overflow-hidden tl-u-text-overflow-ellipsis tl-u-max-width-160px"
                              >
                         @character.Label
                     </AppText>

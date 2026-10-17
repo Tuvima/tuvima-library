@@ -12,7 +12,7 @@ test('source-relative pages, query fragments, nested assets, HTML and MDX keep t
     await fs.mkdir(path.join(root, '.generated/content/guides'), { recursive: true });
     await fs.mkdir(path.join(sandbox, 'docs/assets/nested'), { recursive: true });
     await fs.writeFile(path.join(sandbox, 'docs/assets/nested/diagram.svg'), '<svg/>');
-    await fs.writeFile(path.join(root, '.generated/routes.json'), JSON.stringify({ sourceRoutes: { 'reference/test.md': '/tuvima_library/reference/test/' } }));
+    await fs.writeFile(path.join(root, '.generated/routes.json'), JSON.stringify({ sourceRoutes: { 'reference/test.md': '/tuvima-library/reference/test/' } }));
     const tree = { type: 'root', children: [
       { type: 'link', url: '../reference/test.md?mode=all#heading' },
       { type: 'definition', url: '/reference/test.md#heading' },
@@ -24,11 +24,11 @@ test('source-relative pages, query fragments, nested assets, HTML and MDX keep t
     const transform = rewriteLinks({ root });
     const file = { path: path.join(root, '.generated/content/guides/test.mdx') };
     transform(tree, file);
-    assert.equal(tree.children[0].url, '/tuvima_library/reference/test/?mode=all#heading');
-    assert.equal(tree.children[1].url, '/tuvima_library/reference/test/#heading');
-    assert.equal(tree.children[2].url, '/tuvima_library/repo-assets/docs/assets/nested/diagram.svg');
-    assert.equal(tree.children[3].attributes[0].value, '/tuvima_library/reference/test/#heading');
-    assert.match(tree.children[4].value, /href="\/tuvima_library\/reference\/test\/#heading"/);
+    assert.equal(tree.children[0].url, '/tuvima-library/reference/test/?mode=all#heading');
+    assert.equal(tree.children[1].url, '/tuvima-library/reference/test/#heading');
+    assert.equal(tree.children[2].url, '/tuvima-library/repo-assets/docs/assets/nested/diagram.svg');
+    assert.equal(tree.children[3].attributes[0].value, '/tuvima-library/reference/test/#heading');
+    assert.match(tree.children[4].value, /href="\/tuvima-library\/reference\/test\/#heading"/);
     assert.equal(tree.children[5].value, '[example](missing.md)');
     assert.equal(await fs.readFile(path.join(root, '.generated/public/repo-assets/docs/assets/nested/diagram.svg'), 'utf8'), '<svg/>');
     assert.throws(() => transform({ type: 'link', url: 'missing.md' }, file), /local target does not exist/);
