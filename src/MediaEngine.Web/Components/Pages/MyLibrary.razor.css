@@ -1,0 +1,181 @@
+/* My Library: one column, phones first. The same page grows wider on tablets and desktops without a second layout. */
+.my-library-page {
+    --home-shelf-height: clamp(200px, 15vw, 260px);
+    /* Artwork height of a My List, History or Liked row (the compact shelf size on tablets and desktops). */
+    --my-library-media-height: clamp(176px, 16.1vw, 240px);
+    /* Every section holds this much room while it loads, so nothing below it moves when it fills in: a 48px header,
+       an 18px gap, the artwork and up to three caption lines (68px). Continue is its heading, the artwork at .8 and a 44px caption. */
+    --my-library-shelf-min-height: calc(var(--my-library-media-height) + 134px);
+    --my-library-continue-min-height: calc(var(--home-shelf-height) * .8 + 120px);
+    display: flex;
+    flex-direction: column;
+    gap: var(--tl-space-6);
+    box-sizing: border-box;
+    min-width: 0;
+    max-width: 80rem;
+    margin-inline: auto;
+    padding: var(--tl-space-4) var(--tl-space-6) var(--tl-space-6);
+    color: var(--tl-text-primary);
+}
+
+:root[data-form-factor="phone"] .my-library-page {
+    --home-shelf-height: calc((100vw - 32px) / 2.6 * 1.5);
+    --my-library-media-height: var(--home-shelf-height);
+    --phone-shelf-height: var(--home-shelf-height);
+    padding-inline: var(--tl-space-4);
+}
+
+/* Header: avatar, name, then the two profile links on their own row. */
+.my-library-header {
+    display: flex;
+    flex-direction: column;
+    gap: var(--tl-space-3);
+    min-height: 136px;
+}
+
+.my-library-header__identity {
+    display: flex;
+    align-items: center;
+    gap: var(--tl-space-4);
+}
+
+.my-library-header__avatar {
+    display: block;
+    flex: 0 0 auto;
+    width: 64px;
+    height: 64px;
+    border-radius: var(--tl-radius-pill);
+    overflow: hidden;
+}
+
+.my-library-header__copy {
+    display: grid;
+    gap: var(--tl-space-1);
+    min-width: 0;
+}
+
+.my-library-header__title {
+    margin: 0;
+    font-size: var(--tl-font-size-xl);
+    font-weight: var(--tl-font-weight-bold);
+    line-height: var(--tl-line-height-tight);
+}
+
+.my-library-header__name {
+    margin: 0;
+    overflow: hidden;
+    color: var(--tl-text-secondary);
+    font-size: var(--tl-font-size-body);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.my-library-header__name-skeleton {
+    width: 8rem;
+    min-height: 1.25rem;
+}
+
+.my-library-header__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--tl-space-2);
+}
+
+.my-library-header__action-skeleton {
+    width: 9rem;
+    min-height: var(--tl-touch-target-min);
+    border-radius: var(--tl-radius-pill);
+}
+
+.my-library-action {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--tl-space-2);
+    box-sizing: border-box;
+    min-width: var(--tl-touch-target-min);
+    min-height: var(--tl-touch-target-min);
+    padding: 0 var(--tl-space-4);
+    border: 1px solid var(--tl-border-default);
+    border-radius: var(--tl-radius-pill);
+    color: var(--tl-text-primary);
+    font-size: var(--tl-font-size-body);
+    font-weight: var(--tl-font-weight-semibold);
+    text-decoration: none;
+    background: var(--tl-bg-surface);
+}
+
+.my-library-action:hover {
+    background: var(--tl-bg-surface-hover);
+}
+
+.my-library-action:focus-visible,
+.my-library-downloads:focus-visible {
+    outline: var(--tl-focus-ring-width) solid var(--tl-focus-ring);
+    outline-offset: var(--tl-focus-ring-offset);
+}
+
+/* Downloads card (the Tuvima app only). */
+.my-library-downloads {
+    display: flex;
+    align-items: center;
+    gap: var(--tl-space-3);
+    box-sizing: border-box;
+    min-height: 72px;
+    padding: var(--tl-space-3) var(--tl-space-4);
+    border: 1px solid var(--tl-border-default);
+    border-radius: var(--tl-radius-lg);
+    color: var(--tl-text-primary);
+    text-decoration: none;
+    background: var(--tl-bg-surface);
+}
+
+.my-library-downloads__copy {
+    display: grid;
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.my-library-downloads__copy span {
+    color: var(--tl-text-secondary);
+    font-size: var(--tl-font-size-secondary);
+}
+
+/* Sections. Loading and loaded share one slot height. */
+.my-library-slot {
+    box-sizing: border-box;
+    min-width: 0;
+}
+
+.my-library-slot--shelf {
+    min-height: var(--my-library-shelf-min-height);
+}
+
+.my-library-slot--continue {
+    min-height: var(--my-library-continue-min-height);
+}
+
+.my-library-skeleton {
+    display: flex;
+    flex-direction: column;
+    gap: var(--tl-space-4);
+}
+
+.my-library-skeleton__title {
+    width: 10rem;
+    min-height: 1.5rem;
+}
+
+.my-library-skeleton__row {
+    display: flex;
+    gap: var(--tl-space-3);
+    overflow: hidden;
+}
+
+.my-library-skeleton__tile {
+    flex: 0 0 auto;
+    width: calc(var(--my-library-media-height) * 2 / 3);
+    height: var(--my-library-media-height);
+    min-height: 0;
+    border-radius: var(--tl-radius-md);
+}

@@ -81,6 +81,7 @@ Reusable visual components, organised by feature slice.
 | `/details/musicalbum/{Id:guid}`, `/details/musictrack/{Id:guid}`, `/details/audiobook/{Id:guid}`, `/details/person/{Id:guid}` | `UnifiedDetailPage.razor` | Canonical full-width Listen and person details |
 | `/listen/music/playlists/{CollectionId:guid}`, `/listen/music/playlists/system/{PlaylistKey}` | `ListenPage.razor` (+ `.razor.cs` code-behind) | Specialized playlist queue and editing surfaces |
 | `/listen/player-popup` | `ListenPlayerPopupPage.razor` | Detached listen window |
+| `/my-library` | `MyLibrary.razor` | The personal page: profile header, Downloads (app only), Continue, My List, History, Liked. The phone dock's My Library tab and the old `/for-me?view=my-list` links land here; `/for-me` keeps the See All grids |
 | `/collections` | `Collections.razor` | Browse / create / manage collections |
 | `/details/collection/{Id:guid}` | `UnifiedDetailPage.razor` | Standard collection detail |
 | `/book/{Id:guid}` | `BookDetail.razor` | Book detail |

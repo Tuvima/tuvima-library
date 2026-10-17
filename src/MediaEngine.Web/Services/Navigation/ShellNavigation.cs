@@ -29,10 +29,13 @@ public static class ShellNavigation
         ? [.. ShellDock.SwitcherRows(isKids: true).Select(ToLink)]
         : [.. AdultTopBarPaths.Select(path => ToLink(ShellDock.LibrarySurfaces.First(surface => surface.Path == path)))];
 
-    /// <summary>The phone menu's destinations: Home, Recently added (adults), then the top bar lanes in the top bar's order.</summary>
+    /// <summary>My Library, the phone menu's link to the personal page (the same page as the dock's My Library tab).</summary>
+    public static readonly ShellNavLink MyLibrary = new("MyLibrary", ShellDock.MyLibraryPath, "Nav_MyLibrary", AppMaterialIcons.Outlined.LibraryBooks);
+
+    /// <summary>The phone menu's destinations: Home, My Library, Recently added (adults), then the top bar lanes in the top bar's order.</summary>
     public static IReadOnlyList<ShellNavLink> MenuLinks(bool isKids)
     {
-        var links = new List<ShellNavLink> { Home };
+        var links = new List<ShellNavLink> { Home, MyLibrary };
         if (!isKids)
         {
             links.Add(ToLink(ShellDock.RecentlyAdded));

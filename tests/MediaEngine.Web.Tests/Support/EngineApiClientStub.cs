@@ -41,6 +41,9 @@ internal class EngineApiClientStub : DispatchProxy
         return proxy;
     }
 
+    /// <summary>Every client method the code under test called, in order.</summary>
+    public List<string> Calls { get; } = [];
+
     public void SetHandler(string methodName, Func<object?[]?, object?> handler)
     {
         _handlers[methodName] = handler;
@@ -49,6 +52,7 @@ internal class EngineApiClientStub : DispatchProxy
     protected override object? Invoke(MethodInfo? targetMethod, object?[]? args)
     {
         ArgumentNullException.ThrowIfNull(targetMethod);
+        Calls.Add(targetMethod.Name);
 
         if (_handlers.TryGetValue(targetMethod.Name, out var handler))
         {

@@ -8,11 +8,11 @@
     var phoneItems = PhoneContinueLogic.Select(Shelf.Items);
     @if (phoneItems.Count > 0)
     {
-        <section class="continue-across-media continue-across-media--phone" aria-label="Continue Across Media">
-            <h2>Continue Across Media</h2>
+        <section class="continue-across-media continue-across-media--phone" aria-label="@Heading">
+            <h2>@Heading</h2>
             <div class="continue-groups">
-                <AppCssElement Tag="section" Class="continue-group continue-mixed" aria-label="Continue Across Media">
-                    <MediaShelfScroller ItemCount="@phoneItems.Count" AriaLabel="Continue Across Media">
+                <AppCssElement Tag="section" Class="continue-group continue-mixed" aria-label="@Heading">
+                    <MediaShelfScroller ItemCount="@phoneItems.Count" AriaLabel="@Heading">
                         @foreach (var item in phoneItems)
                         {
                             <MediaTile Item="@item" IsHomeSurface="true" IsContinueCard="true" HideMediaKindBadge="true" HideSourceBadge="true" HideGroupIndicators="true" HoverMode="@MediaTileHoverPolicy.ForContinue(item)" @key="item.RenderKey">
@@ -30,8 +30,8 @@
 }
 else
 {
-<section class="continue-across-media" aria-label="Continue Across Media">
-    <h2>Continue Across Media</h2>
+<section class="continue-across-media" aria-label="@Heading">
+    <h2>@Heading</h2>
     <div class="continue-groups">
         @foreach (var group in Groups.Where(group => group.Items.Count > 0))
         {
@@ -52,6 +52,8 @@ else
 }
 @code {
     [Parameter, EditorRequired] public MediaTileShelfViewModel Shelf { get; set; } = default!;
+    /// <summary>The section heading. Home keeps "Continue Across Media"; My Library calls it "Continue".</summary>
+    [Parameter] public string Heading { get; set; } = "Continue Across Media";
     private IReadOnlyList<ContinueGroup> Groups => [
         new("Continue Watching", "continue-watching", AppMaterialIcons.Outlined.PlayArrow, Shelf.Items.Where(item => item.MediaKind is "TV" or "Movie").ToList()),
         new("Continue Reading", "continue-reading", AppMaterialIcons.Outlined.MenuBook, Shelf.Items.Where(item => item.MediaKind is "Book" or "Comic").ToList()),

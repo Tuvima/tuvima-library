@@ -20,6 +20,7 @@ public sealed class DetailsTabFileFactsTests : AsyncBunitContext
     private static readonly Guid ItemId = Guid.Parse("11111111-2222-3333-4444-555555555555");
 
     private readonly DeviceContextService _device;
+    private EngineApiClientStub? _stub;
     private int _historyCalls;
     private int _detailCalls;
     private bool _throwOnDetail;
@@ -31,6 +32,7 @@ public sealed class DetailsTabFileFactsTests : AsyncBunitContext
         JSInterop.Mode = JSRuntimeMode.Loose;
         var api = EngineApiClientStub.Create(stub =>
         {
+            _stub = stub;
             stub.SetHandler(nameof(IEngineApiClient.GetMediaEditorWorkVersionsAsync),
                 _ => Task.FromResult(_versions));
             stub.SetHandler(nameof(IEngineApiClient.GetLibraryItemDetailAsync), _ =>
@@ -296,6 +298,117 @@ public sealed class DetailsTabFileFactsTests : AsyncBunitContext
         Assert.DoesNotContain("1080p (HEVC)", blocks[0].TextContent);
         Assert.Contains("/library/media/b.mkv", blocks[1].TextContent);
         Assert.Contains("1080p (HEVC)", blocks[1].TextContent);
+    }
+
+    [Fact]
+    public async Task EachFileShowsItsOwnStoredSizeAddedDateBitrateContainerAndTracks()
+    {
+        _versions = new MediaEditorWorkVersionSelectorDto
+        {
+            WorkId = ItemId,
+            Editions =
+            [
+                new MediaEditorEditionSelectorDto
+                {
+                    EditionId = Guid.NewGuid(),
+                    Label = "Theatrical",
+                    AssetCount = 1,
+                    Assets =
+                    [
+                        new MediaEditorAssetSelectorDto
+                        {
+                            AssetId = Guid.NewGuid(),
+                            FileName = "movie.mkv",
+                            TechnicalLabel = "MKV",
+                            Container = "Matroska",
+                            FileSizeBytes = 1_503_238_554,
+                            AddedAt = new DateTimeOffset(2026, 10, 16, 23, 30, 0, TimeSpan.Zero),
+                            BitrateBps = 6_200_000,
+                            AudioTracks =
+                            [
+                                new MediaEditorAssetAudioTrackDto { Language = "eng", Codec = "ac3", IsDefault = true },
+                                new MediaEditorAssetAudioTrackDto { Language = "jpn", Codec = "aac" },
+                            ],
+                            SubtitleLanguages = ["eng", "fra"],
+                        },
+                    ],
+                },
+                new MediaEditorEditionSelectorDto
+                {
+                    EditionId = Guid.NewGuid(),
+                    Label = "Extended",
+                    AssetCount = 1,
+                    Assets =
+                    [
+                        new MediaEditorAssetSelectorDto
+                        {
+                            AssetId = Guid.NewGuid(),
+                            FileName = "movie-extended.mp4",
+                            TechnicalLabel = "MP4",
+                            FileSizeBytes = 327_155_712,
+                            AddedAt = new DateTimeOffset(2026, 3, 2, 8, 0, 0, TimeSpan.Zero),
+                            BitrateBps = 256_000,
+                            AudioTracks = [new MediaEditorAssetAudioTrackDto { Language = "eng", Codec = "aac" }],
+                        },
+                    ],
+                },
+            ],
+        };
+        _detail = Detail("movie.mkv");
+        await UseAsync("desktop");
+
+        var blocks = RenderTab(Model(DetailEntityType.Movie)).FindAll(".tl-file-facts__block");
+
+        var first = blocks[0].TextContent;
+        Assert.Contains("Matroska", first);
+        Assert.Contains("1.4 GB", first);
+        Assert.Contains("6.2 Mbps", first);
+        Assert.Contains("2026-10-16", first);
+        Assert.Contains("English (ac3), Japanese (aac)", first);
+        Assert.Contains("English, French", first);
+        var second = blocks[1].TextContent;
+        Assert.Contains("312 MB", second);
+        Assert.Contains("256 kbps", second);
+        Assert.Contains("2026-03-02", second);
+        Assert.Contains("English (aac)", second);
+        // Nothing from the first file leaks into the second.
+        Assert.DoesNotContain("1.4 GB", second);
+        Assert.DoesNotContain("Matroska", second);
+        Assert.DoesNotContain("Subtitle tracks", second);
+    }
+
+    [Fact]
+    public async Task RowsWithNothingStoredAreHiddenInsteadOfShownEmpty()
+    {
+        _versions = OneFile("movie.mkv", "MKV");
+        _detail = new LibraryItemDetailViewModel { EntityId = ItemId, FileName = "movie.mkv" };
+        await UseAsync("desktop");
+
+        var labels = RenderTab(Model(DetailEntityType.Movie)).FindAll(".tl-file-facts__list dt").Select(label => label.TextContent).ToList();
+
+        foreach (var hidden in new[] { "Size", "Bitrate", "Added", "Audio tracks", "Subtitle tracks", "Container" })
+        {
+            Assert.DoesNotContain(hidden, labels);
+        }
+
+        Assert.Contains("Format", labels);
+    }
+
+    [Fact]
+    public async Task OpeningTheTabOnlyReadsStoredFactsAndNeverAsksForPlaybackOrProbing()
+    {
+        _versions = OneFile("movie.mkv", "MKV");
+        _detail = Detail("movie.mkv");
+        await UseAsync("desktop");
+
+        RenderTab(Model(DetailEntityType.Movie, canEdit: true));
+
+        Assert.NotNull(_stub);
+        string[] probing = ["Playback", "Manifest", "Inspect", "Probe", "Capabilit"];
+        Assert.DoesNotContain(_stub!.Calls, call => probing.Any(word => call.Contains(word, StringComparison.Ordinal)));
+        Assert.Contains(nameof(IEngineApiClient.GetMediaEditorWorkVersionsAsync), _stub.Calls);
+        // One detail read for the page, however many files the item has.
+        Assert.Equal(1, _stub.Calls.Count(call => call == nameof(IEngineApiClient.GetLibraryItemDetailAsync)));
     }
 
     [Theory]
