@@ -39,7 +39,7 @@ else
                     <AppCard Title="@($"Configure {ConfiguredPlugin.Name}")" Description="@ConfiguredPlugin.Description" Class="settings-plugin-configure-panel">
                         @if (!string.IsNullOrWhiteSpace(ConfiguredPlugin.LoadError))
                         {
-                            <AppAlert Tone="AppUiTone.Warning" Class="mb-3">@ConfiguredPlugin.LoadError</AppAlert>
+                            <AppAlert Tone="AppUiTone.Warning" Class="tl-sp-mb-3">@ConfiguredPlugin.LoadError</AppAlert>
                         }
                         @PluginSettingsPanel(ConfiguredPlugin)
                     </AppCard>
@@ -176,7 +176,7 @@ else
         <SettingsAdvancedLinkRow Title="Approved Catalog" Description="View extensions approved by the configured catalog." Href="/settings/plugins/catalog" ActionLabel="Open" />
         <SettingsAdvancedLinkRow Title="Capabilities & AI permissions" Description="Review declared capabilities, tools, and AI access." Href="/settings/plugins/capabilities" ActionLabel="Review" />
         <SettingsAdvancedLinkRow Title="Danger Zone" Description="Delete removable plugins; built-in plugins cannot be deleted." Href="/settings/plugins/danger" ActionLabel="Open" />
-        <AppAlert Tone="AppUiTone.Info" Class="mt-3">
+        <AppAlert Tone="AppUiTone.Info" Class="tl-sp-mt-3">
             Installed plugin controls and plugin-provided settings use Engine APIs where available. Install and update marketplace flows are planned and are not shown as live controls.
         </AppAlert>
     </AppCard>;
@@ -256,7 +256,7 @@ else
             @foreach (var setting in primarySettings) { @SettingEditor(plugin, setting) }
             @if (advancedSettings.Count > 0)
             {
-                <AppExpansionPanels Elevation="0" Dense="true" Class="mb-2">
+                <AppExpansionPanels Elevation="0" Dense="true" Class="tl-sp-mb-2">
                     <AppExpansionPanel Text="Advanced settings">
                         @foreach (var setting in advancedSettings) { @SettingEditor(plugin, setting) }
                     </AppExpansionPanel>

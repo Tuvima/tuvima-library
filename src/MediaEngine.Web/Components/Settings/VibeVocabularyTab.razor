@@ -2,7 +2,7 @@
 @inject UIOrchestratorService Orchestrator
 
 <div class="tl-page">
-    <AppActionBar Align="AppHorizontalAlignment.End" Class="mb-3">
+    <AppActionBar Align="AppHorizontalAlignment.End" Class="tl-sp-mb-3">
         <AppButton Label="Save vocabulary"
                    ButtonStyle="AppButtonStyle.Filled"
                    Tone="AppUiTone.Primary"
@@ -10,13 +10,13 @@
                    Disabled="@(_config is null || _saving)" />
     </AppActionBar>
 
-    <AppAlert Tone="AppUiTone.Info" Class="mb-3">
+    <AppAlert Tone="AppUiTone.Info" Class="tl-sp-mb-3">
         Vocabulary is loaded from AI config and affects AI tagging only when the vibe tags feature is enabled. Existing items are not retagged immediately because no Local AI retag endpoint exists.
     </AppAlert>
 
     @if (!string.IsNullOrWhiteSpace(_message))
     {
-        <AppAlert Tone="@MessageTone" Class="mb-3">@_message</AppAlert>
+        <AppAlert Tone="@MessageTone" Class="tl-sp-mb-3">@_message</AppAlert>
     }
 
     @if (_config is null)

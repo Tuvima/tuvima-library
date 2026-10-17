@@ -12,7 +12,7 @@
     "min_touch_target_px": 64,
     "force_dark_mode": false
   },
-  "content_padding": "pa-6",
+  "content_padding": "tl-sp-pa-6",
   "content_max_width": "Full",
   "border_radius": 40,
   "shell": {

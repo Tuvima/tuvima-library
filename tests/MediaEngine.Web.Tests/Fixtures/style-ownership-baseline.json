@@ -23,7 +23,7 @@
     "deep": 3639
   },
   "totals": {
-    "important": 1780,
+    "important": 1774,
     "deep": 2865
   },
   "initialFiles": {
@@ -982,7 +982,7 @@
       "deep": 0
     },
     "src/MediaEngine.Web/wwwroot/native-utilities.css": {
-      "important": 40,
+      "important": 34,
       "deep": 0
     },
     "src/MediaEngine.Web/wwwroot/tuvima.tokens.css": {
