@@ -25,7 +25,7 @@ Every documentation file in the repository, one line each, with its status. Two 
 |---|---|
 | [Plan: First-run ingestion fixes (2026-10-10)](specs/first-run-ingestion-fixes.md) | In progress |
 | [Spec: Item Detail page](specs/item-detail.md) | Locked (v5, 2026-10-17) |
-| [Plan (draft): One file covering several TV episodes (2026-10-10)](specs/multi-episode-files.md) | Draft |
+| [Spec: One file covering several TV episodes](specs/multi-episode-files.md) | Locked (v2: one build packet left) |
 | [Plan (draft): Setup and profiles redesign, Netflix/Disney+ style (2026-10-10)](specs/profiles-setup-redesign.md) | Draft |
 | [Spec: Registry retirement — Needs Review is the home for exceptions](specs/registry-retirement.md) | Draft (as-built) |
 | [Archive](specs/archive/README.md) | Built specs move here (none yet) |
