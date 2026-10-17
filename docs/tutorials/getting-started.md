@@ -26,13 +26,13 @@ Get Tuvima Library running, create your administrator account, and open the Dash
 2. Download the maintained configuration in a new deployment folder:
 
    ```bash
-   curl -fsSL https://raw.githubusercontent.com/Tuvima/tuvima_library/main/docker-compose.yml -o docker-compose.yml
+   curl -fsSL https://raw.githubusercontent.com/Tuvima/tuvima-library/main/docker-compose.yml -o docker-compose.yml
    ```
 
    In PowerShell:
 
    ```powershell
-   Invoke-WebRequest https://raw.githubusercontent.com/Tuvima/tuvima_library/main/docker-compose.yml -OutFile docker-compose.yml
+   Invoke-WebRequest https://raw.githubusercontent.com/Tuvima/tuvima-library/main/docker-compose.yml -OutFile docker-compose.yml
    ```
 
 3. Edit every host folder under `volumes`, then set your user/group IDs and timezone. The [Docker guide](../install/docker.md) explains permissions and origins.

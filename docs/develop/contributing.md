@@ -19,21 +19,21 @@ Follow the [Contributor Covenant Code of Conduct](../../CODE_OF_CONDUCT.md) in p
 
 ## Before you start
 
-Open an [issue](https://github.com/Tuvima/tuvima_library/issues) to discuss substantial changes before implementing them. Check existing issues so related work can be coordinated.
+Open an [issue](https://github.com/Tuvima/tuvima-library/issues) to discuss substantial changes before implementing them. Check existing issues so related work can be coordinated.
 
-The project uses the [AGPLv3](../../LICENSE). Contributions use those terms. New tools must have compatible licenses, and new assets must retain their notices. Record added dependencies in the relevant package manifest and [attributions](https://tuvima.github.io/tuvima_library/reference/attributions/).
+The project uses the [AGPLv3](../../LICENSE). Contributions use those terms. New tools must have compatible licenses, and new assets must retain their notices. Record added dependencies in the relevant package manifest and [attributions](https://tuvima.github.io/tuvima-library/reference/attributions/).
 
 ## Set up development
 
 Install a .NET 10 SDK compatible with `global.json` (10.0.100 with feature-band roll-forward). Node 24 is needed for documentation and Release CSS verification; the application itself does not start through npm. Docker is optional unless your change affects container deployment.
 
 ```sh
-git clone https://github.com/Tuvima/tuvima_library.git
-cd tuvima_library
+git clone https://github.com/Tuvima/tuvima-library.git
+cd tuvima-library
 dotnet restore MediaEngine.slnx
 ```
 
-Keep provider credentials in ignored `config/secrets/`, never in tracked examples. Before a build, stop running Engine and Dashboard processes to avoid locked outputs. Read [AGENTS.md](../../AGENTS.md) for project rules and [shared AI storage](https://tuvima.github.io/tuvima_library/guides/shared-ai-storage/) before enabling local AI.
+Keep provider credentials in ignored `config/secrets/`, never in tracked examples. Before a build, stop running Engine and Dashboard processes to avoid locked outputs. Read [AGENTS.md](../../AGENTS.md) for project rules and [shared AI storage](https://tuvima.github.io/tuvima-library/guides/shared-ai-storage/) before enabling local AI.
 
 Run the Engine first, from the repository root:
 
@@ -47,7 +47,7 @@ After it listens on `http://localhost:61495`, run the Dashboard in another termi
 dotnet run --project src/MediaEngine.Web
 ```
 
-Open `http://localhost:5016`. The [developer setup guide](https://tuvima.github.io/tuvima_library/tutorials/dev-setup/) explains prerequisites, settings and recovery from setup problems.
+Open `http://localhost:5016`. The [developer setup guide](https://tuvima.github.io/tuvima-library/tutorials/dev-setup/) explains prerequisites, settings and recovery from setup problems.
 
 ## Make a focused change
 
@@ -92,7 +92,7 @@ Do not change native runtime filtering just to make local verification pass. Kee
 
 ## Change documentation
 
-Read [Writing documentation](https://tuvima.github.io/tuvima_library/develop/writing-docs/). Author pages in `docs/`; `website/` contains the Astro Starlight site and explicit publication/navigation manifest.
+Read [Writing documentation](https://tuvima.github.io/tuvima-library/develop/writing-docs/). Author pages in `docs/`; `website/` contains the Astro Starlight site and explicit publication/navigation manifest.
 
 ```powershell
 pwsh -File scripts/docs/build-docs.ps1 -InstallDependencies
@@ -126,11 +126,11 @@ The application is Early Access; avoid claiming that code presence alone proves 
 
 The Engine is `src/MediaEngine.Api`; the Dashboard is `src/MediaEngine.Web`. Domain owns core models, Contracts owns wire types, Storage owns SQLite persistence, and Providers, Processors, Ingestion and Intelligence own the media pipeline. Intelligence uses the Priority Cascade. Identity owns accounts and access, while Plugins defines in-process extension contracts.
 
-Start with [AGENTS.md](../../AGENTS.md) and the [technical overview](https://tuvima.github.io/tuvima_library/architecture/technical-overview/). Do not add direct data access to Dashboard components.
+Start with [AGENTS.md](../../AGENTS.md) and the [technical overview](https://tuvima.github.io/tuvima-library/architecture/technical-overview/). Do not add direct data access to Dashboard components.
 
 ## Report bugs
 
-Use [Issues](https://github.com/Tuvima/tuvima_library/issues) for non-security bugs. Include the commit, deployment type, reproduction steps and relevant logs with private data removed.
+Use [Issues](https://github.com/Tuvima/tuvima-library/issues) for non-security bugs. Include the commit, deployment type, reproduction steps and relevant logs with private data removed.
 
 ## Security issues
 
@@ -138,4 +138,4 @@ Follow [SECURITY.md](../../SECURITY.md). Report possible vulnerabilities private
 
 ## Questions
 
-Ask in [Issues](https://github.com/Tuvima/tuvima_library/issues). For installation help, include the platform and the exact failed step without posting credentials or private media.
+Ask in [Issues](https://github.com/Tuvima/tuvima-library/issues). For installation help, include the platform and the exact failed step without posting credentials or private media.

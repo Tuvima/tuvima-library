@@ -2,6 +2,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { load } from 'cheerio';
+import { base, origin } from './content-contract.mjs';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 const urls = new Set();
@@ -22,7 +23,7 @@ async function collect(dir) {
         const url = new URL(raw);
         // Reserved instructional hosts are examples, never availability claims.
         if (['localhost', '127.0.0.1', '[::1]', 'example.com', 'example.org', 'example.net'].includes(url.hostname) || url.hostname.endsWith('.example')) continue;
-        if (url.origin === 'https://tuvima.github.io' && url.pathname.startsWith('/tuvima_library/')) continue;
+        if (url.origin === origin && url.pathname.startsWith(`${base}/`)) continue;
         url.hash = ''; urls.add(url.href);
       }
     }

@@ -1,14 +1,13 @@
 # Dashboard (MediaEngine.Web) — Working Rules
 
-> Loaded automatically when Claude works on files under `src/MediaEngine.Web/`. Root `CLAUDE.md` still applies. Detailed product behaviour per surface (cards, Home, details, TV, Collections, player panels) lives in [`docs/product/presentation-rules.md`](../../docs/product/presentation-rules.md) — read the relevant section before changing a surface.
+> Loaded automatically when Claude works on files under `src/MediaEngine.Web/`. Root `CLAUDE.md` and `.claude/rules/` still apply (Dashboard product-surface rules: [`.claude/rules/dashboard-surfaces.md`](../../.claude/rules/dashboard-surfaces.md)). Per-surface product behaviour (cards, Home, details, TV, Collections, player panels) lives in [`docs/product/presentation-rules.md`](../../docs/product/presentation-rules.md) — read the relevant section before changing a surface.
 
 ## Dashboard quality gates
 
-- Listen playback stays under `PlaybackSessionController` and the persistent native audio host. Snapshot controls use direct/broadcast command sinks against the same main owner. Shared bare 22px outline utilities keep 44px targets. The flush dock centers transport, places seek inside the dock above the controls and exposes desktop/tablet Close outside utility overflow. Close saves guarded paused resume before stopping; phone Collapse preserves playback and phone players have no session-stop Close. PlaybackFullPlayer supplies shared phone/popout UI from the captured snapshot; only the phone supplies Collapse. The popout defaults to 420 by 780, fills its window, has no in-player exit, and sends canonical identity navigation to the authorized main owner without reloading audio. Audio popovers/sheets do not resize the page; Ingestion retains its layout-sidebar lease and resize behavior. Speed uses the shared slider popover; Sleep uses the central flat select with one scroller. The main owner holds selected sleep minutes, the absolute deadline or verified captured chapter boundary separately from bookmark drafts. One captured Add/Saved bookmark dialog uses its local desktop opener or bounded phone sheet. Follow [playback architecture](docs/architecture/playback.md) and [current verification evidence](engineering/reports/player-update-2026-10-03.md), which supersedes the October 2 dock/sidebar layout; do not infer runtime acceptance from source-only checks.
-- Avoid silent `catch { }` blocks. Best-effort failures need a justification comment or an explicit guardrail allowlist entry; user-visible failures need logging and degraded/error UI.
-- Domain aggregates expose child collections, property bags, and lifecycle state as read-only views. Mutate them through explicit aggregate methods (`Work.LinkToWikidata`, `Collection.SetVisibility`, `Collection.ChangeResolution`, and the named child methods), and keep repository hydration explicit instead of making aggregate internals public again. Persisted aggregate enums convert only through `AggregateStateSerializer`; unknown values fail fast.
-- When product concepts, navigation, editing flows, database lifecycle, Docker startup, or CI checks change, update README/docs/AGENTS/CLAUDE and relevant `.agent` guidance in the same change.
+- Listen playback stays under `PlaybackSessionController` and the persistent native audio host. Snapshot controls use direct/broadcast command sinks against the same main owner. Shared bare 22px outline utilities keep 44px targets. The flush dock centers transport, places seek inside the dock above the controls and exposes desktop/tablet Close outside utility overflow. Close saves guarded paused resume before stopping; phone Collapse preserves playback and phone players have no session-stop Close. PlaybackFullPlayer supplies shared phone/popout UI from the captured snapshot; only the phone supplies Collapse. The popout defaults to 420 by 780, fills its window, has no in-player exit, and sends canonical identity navigation to the authorized main owner without reloading audio. Audio popovers/sheets do not resize the page; Ingestion retains its layout-sidebar lease and resize behavior. Speed uses the shared slider popover; Sleep uses the central flat select with one scroller. The main owner holds selected sleep minutes, the absolute deadline or verified captured chapter boundary separately from bookmark drafts. One captured Add/Saved bookmark dialog uses its local desktop opener or bounded phone sheet. Follow [playback architecture](../../docs/architecture/playback.md) and [current verification evidence](../../engineering/reports/player-update-2026-10-03.md), which supersedes the October 2 dock/sidebar layout; do not infer runtime acceptance from source-only checks.
+- When product concepts, navigation, editing flows, data-store lifecycle, Docker startup, or CI checks change, update README/docs/AGENTS/CLAUDE in the same change (trigger table: `.claude/rules/docs.md`).
 - Verification cost control: while iterating, check structure and computed styles with text tools (page text, accessibility tree, computed CSS). Take screenshots only for before/after proof at the required sizes, and keep them in ignored `.tmp/`.
+- Visual checks target the four form factors (phone under 600, tablet 600–1023, desktop, TV) at the supported widths; new CSS breakpoints only 600 / 840 / 1180 (`docs/reference/ui-supported-devices.md`). Known exception to clean up, not copy: Details CSS still has off-standard 720/721, 900, 960 and 1100 px breakpoints.
 
 ## Feature-sliced layout
 
@@ -16,119 +15,111 @@ All Dashboard code follows the **Feature-Sliced** pattern. Every new piece of UI
 
 ### Services (`src/MediaEngine.Web/Services/`)
 
-Non-UI logic the Dashboard needs, organised by concern.
-
 | Subfolder | Key files | Purpose |
 |---|---|---|
-| `Branding/` | `StreamingServiceLogoResolver.cs` | Resolves streaming-service logos for display chips |
+| `Branding/` | `StreamingServiceLogoResolver.cs` | Streaming-service logos for display chips |
 | `Configuration/` | `DashboardConfigurationReader.cs`, `DashboardPaletteReloadService.cs` | Dashboard-side config read + palette hot-reload |
-| `MediaTiles/` | `MediaTileComposerService.cs`, `MediaTileArtworkResolver.cs` | Builds shared browse tile shelves and resolves sized artwork for Home, Read, Watch, Listen, and Collections |
-| `Editing/` | `MediaEditorLauncherService.cs`, `CollectionEditorLauncherService.cs`, `*Models.cs` | Editor open/close state and presentation models; wire DTOs remain in Contracts |
-| `Integration/` | `EngineApiClient.cs` + `IEngineApiClient.cs`, `UIOrchestratorService.cs`, `UniverseStateContainer.cs`, `UniverseMapper.cs`, `ProviderCatalogueService.cs`, `IntercomEvents.cs` | All HTTP + SignalR communication with the Engine and explicit mapping into Dashboard presentation state |
-| `Formatting/` | `DisplayFormat.cs` | Single home for UI duration/count/speed formatting and word-splitting helpers (each divergent output format is a distinct method) |
+| `MediaTiles/` | `MediaTileComposerService.cs`, `MediaTileArtworkResolver.cs` | Shared browse tile shelves and sized artwork for Home, Read, Watch, Listen, Collections |
+| `Editing/` | `MediaEditorLauncherService.cs`, `CollectionEditorLauncherService.cs`, `*Models.cs` | Editor open/close state and presentation models; wire DTOs remain in Contracts. Batch launches are refused today. |
+| `Integration/` | `EngineApiClient*.cs` + `IEngineApiClient.cs`, `UIOrchestratorService.cs`, `UniverseStateContainer.cs`, `UniverseMapper.cs`, `ProviderCatalogueService.cs`, `IntercomEvents.cs` | All HTTP + SignalR communication with the Engine and explicit mapping into Dashboard presentation state |
+| `Formatting/` | `DisplayFormat.cs` | Single home for UI duration/count/speed formatting |
 | `Narration/` | `PhraseTemplateService.cs` + interface | Narrated-copy phrase templates |
-| `Navigation/` | `MediaNavigation.cs`, `ListenNavigation.cs` | Route-building helpers |
-| `Playback/` | `PlaybackSessionController.cs`, `PlaybackModels.cs`, `MediaKindClassifier.cs`, `PlaybackQueue.cs`, `PlaybackStateMachine.cs`, `ReadingProgressService.cs`, `ReaderSettingsService.cs`, `MediaReactionService.cs`, `WatchlistService.cs` | Playback session state, typed commands, queue/session primitives |
+| `Navigation/` | `MediaNavigation.cs`, `ListenNavigation.cs`, `DetailTabNavigation.cs`, `ShellDock.cs` | Route-building and shell navigation helpers |
+| `Playback/` | `PlaybackSessionController*.cs`, `PlaybackStateMachine.cs`, `PlaybackModels.cs`, `MediaKindClassifier.cs`, `MediaReactionService.cs`, `SavedItemService.cs`, `ListenPageState.cs`, `Audiobook*` | Playback session state, typed commands, queue, bookmarks, lyrics, reactions and saved items |
 | `Ui/` | `AppDialogService.cs`, `AppToastService.cs`, `AppPopoverService.cs` | Scoped native dialog/result, toast/action and popup coordination |
-| `Theming/` | `ThemeService.cs`, `DeviceContextService.cs`, `PaletteProvider.cs`, `SocialUriHelper.cs` | Dark-mode theme, device cascade, palette, Actionable-URI helpers |
+| `Theming/` | `ThemeService.cs`, `DeviceContextService.cs`, `PaletteProvider.cs`, `AppThemeStyles.cs` | Dark-mode theme, device cascade, palette |
 
 ### Components (`src/MediaEngine.Web/Components/`)
 
-Reusable visual components, organised by feature slice.
-
 | Subfolder | What lives here |
 |---|---|
-| `Browse/` | `MediaBrowseShell`, `BrowseQueryBuilder`, `BrowseState`, `BrowseArtworkRules` — focused browse shell and extracted query/state/artwork helpers used by Read / Watch / Listen subroutes |
-| `Cinematic/` | `CinematicHeroCarousel`, `CinematicHeroSurface`, `SurfaceNavigationBar` — shared rotating hero shell and lane/detail navigation |
-| `Collections/` | `CollectionsPage`, `CollectionsSectionConfiguration`, `CollectionsSectionLayout`, `PeopleCatalogList`, `CollectionEditorShell` |
-| `Details/` | Detail-page composition extracted from Pages. `DetailPage`, `DetailHero` (+ `DetailHeroPresentation`), shared `DetailHeroContent`, `DetailTabs`, `DetailPrimaryModule`, `OverviewTab`, `DetailsTab`, `PeopleAndCharactersTab`, `ChildrenListTab`, `SyncTab`, `RelatedTab`, `UniverseTab`, `AudioItemTable`, `MusicAlbumOverviewContent`, `MusicAlbumSeriesRail`, `MusicTrackList`, `CharactersSection`, `ContributorsSection`, `CreditGroupSection`, `CastCharacterPairCard`, `CharacterCreditCard`, `OptionalSyncPanel`, `PersonAvatar`, `PersonCreditCard`, `RelatedEntityChip`, `SequencePlacementPanel`, `HeroBackdrop`, `HeroActionRow`, `HeroMetadataPills`, `HeroProgressBlock`, `ManageActionsMenu`, `OverflowActionMenu`, `GeneratedIdentity`, `DescriptionAttribution` |
-| `MediaHub/` | `MediaHubPage`, `LibrarySectionHeader`, `MediaSectionShell`, `MediaShelf`, `ShelfHeader`, `EmptyShelfState` — shared section scaffolding used by Read, Watch, Listen, and Collections |
+| `Artwork/` | Artwork browser, picker and workspace dialogs |
+| `Browse/` | `MediaBrowseShell`, `BrowseQueryBuilder`, `BrowseState`, `BrowseArtworkRules` — browse shell for Read / Watch / Listen subroutes |
+| `Cinematic/` | `CinematicHeroCarousel`, `CinematicHeroSurface`, `SurfaceNavigationBar` |
+| `Collections/` | `CollectionsPage`, section configuration/layout, `PeopleCatalogList`, `CollectionEditorShell` |
+| `Details/` | Detail-page composition: `DetailPage`, `DetailHero*`, `DetailTabs`, tab panels (`OverviewTab`, `DetailsTab`, `PeopleAndCharactersTab`, `RelatedTab`, `UniverseTab`, …), `AudioItemTable`, music album pieces, credit cards, `HeroActionRow`, `OverflowActionMenu`. `RegistryTab` is scheduled for removal — see `engineering/specs/registry-retirement.md`. |
+| `Layout/` | `MainLayout`, `ReconnectModal` |
+| `Library/` | Legacy-named shared helpers still used by browse/list surfaces (configurable tables, status pills). Do not add all-in-one management workflow components here. |
+| `LibraryItems/` | Small helpers used by Library + Universe surfaces |
+| `Listen/` | Now-playing bar, song table, transport controls, navigation items |
+| `MediaEditor/` | `SharedMediaEditorShell` and its sections |
+| `MediaHub/` | Shared section scaffolding for Read, Watch, Listen, Collections |
 | `MediaTiles/` | `MediaTile`, `MediaGroupTile`, `MediaTileGrid`, `MediaTileShelf` |
-| `Layout/` | `MainLayout`, `ReconnectModal` — the routed app shell |
-| `Library/` | Reusable legacy-named library helpers still used by current browse/list surfaces, such as configurable tables, column definitions, batch bars, and status pills. Do not add all-in-one management workflow components here. |
-| `Listen/` | `ListenNowPlayingBar`, `ListenSongTable`, `ListenTransportControls`, `ListenNavigationItem`, `ListenNavigationSection` |
-| `MediaEditor/` | `SharedMediaEditorShell`, `SharedMediaBatchConfirmDialog` |
-| `Navigation/` | `SystemActivityIndicator`, `TopNavAccountMenu`, `LibrarySwitcherSheet` (the Libraries dock tab's phone sheet; catalog and rules in `Services/Navigation/ShellDock.cs`) |
-| `Pages/` | All routed pages — see §6.4 |
-| `LibraryItems/` | Internal building blocks used by Library + Universe: `LibraryItemHelpers`, `ReportProblemDialog` |
-| `Profiles/` | `ProfileEditorSheet`, `ProfileAvatarPicker`, `ProfileEditingWorkflow` (sends sheet choices to the Engine), `ProfileSignInWorkflow` (the same for the profile page's Sign-in sheet), `AdminUnlockDialog`, `ProfileManageRules` — shared by the picker and Settings > Profiles |
-| `Settings/` | Settings shell tabs — `ProfilesTab` is the Profiles page (open-profile card plus the household list for administrators). `ProfileDetailPage` is `/settings/profiles/{profileId}` (one page per person: header, Profile and Preferences row lists, Delete; the Profile details row is administrators-only; its Sign-in row opens `ProfileSignInSheet`, which gives, looks after or removes a person's own sign-in and shows a starting password or invitation once); for a person with their own sign-in, administrators also get a Household access group: **Libraries and lanes** is read-only (a link to `/settings/access/users` for server administrators, no sheet or Save) while `AccountAccessResponse.GrantsInheritFromAccountId` is set, which is always true for an own sign-in, and otherwise opens `ProfileAccessSheet` (hosts `ManagedAccessUserPermissions`; saves through `ReplaceManagedAccountAccessResultAsync`) and **Two-step codes** confirms then calls `ResetAccountTwoStepResultAsync`; it is built from `SettingsNavRow`, the shared 56 px icon/title/status/chevron row (link, button or disabled; styles in `wwwroot/app.css` because the button root is a child component) that the Security page (`SecuritySettingsPage`, rows that open sheets) also uses. `PlaybackSettingsPage`, `ListeningSettingsPage` and `ReadingSettingsPage` are `/settings/playback`, `/settings/listening` and `/settings/reading` (each takes `?profile={id}` for an administrator editing another person). `DevicesTab` is `/settings/devices` (Administration, after Network; visible to server and household administrators through `SettingsItemDef.HouseholdAdminAccess` and the `householdAdministrator` argument of the `SettingsNav` filters): `AppsAndDevicesPanel` (self-loading, server administrators only), `PairedDevicesSection` and `SignedInSessionsSection` (everyone's sessions grouped by person, from `DashboardIdentityClient.GetManagedSessionsAsync` / `RevokeManagedSessionAsync`); `/settings/network/apps` redirects there through `SettingsNav.LegacyRedirect`. |
-| `Shared/` | The first-party native `App*` design-system primitives (`AppPageState`, `AppErrorState`, `AppEmptyState`, `AppSkeleton`, `AppIcon`, `AppIconCatalog`, `AppTable`, `AppDialog`, form/field/button primitives, …) plus the `Playback*` control primitives (`PlaybackControlStrip`, `PlaybackPrimaryButton`, `PlaybackSpeedControl`, `PlaybackSleepTimerControl`, `PlaybackToolSheet`, …) and `TuvimaArtworkStack` |
-| `Universe/` | Universe surface components: `GlobalBackground`, `AdaptationTree` + node, `FamilyTreeView`, `CastComparison`, `PathFinderPanel` |
+| `Navigation/` | `SystemActivityIndicator`, `TopNavAccountMenu` (incl. Needs Review link), `LibrarySwitcherSheet` |
+| `Pages/` | All routed pages — see the table below |
+| `Profiles/` | Profile editor/avatar/sign-in sheets, `AdminUnlockDialog`, `ProfileManageRules` |
+| `Rules/` | Shared rule builder for Collections and View |
+| `Search/` | `UniversalSearchOverlay`, results |
+| `Settings/` | Settings shell tabs and pages (Profiles, Security, Playback/Listening/Reading, Devices, Recently Added with Needs Review, Ingestion, Libraries…); rows built from `SettingsNavRow`; register sections in `SettingsNav` |
+| `Setup/` | First-run setup stages |
+| `Shared/` | First-party `App*` design-system primitives (`AppPageState`, `AppErrorState`, `AppEmptyState`, `AppSkeleton`, `AppIcon`, `AppTable`, `AppDialog`, `AppSelect`, `AppTooltip`, …), `Playback*` control primitives, `TuvimaArtworkStack` |
+| `Universe/` | Universe surface components |
+| `View/` | Places map and timeline pieces |
 | `Watch/` | `VideoPlaybackHost`, `VideoContextPanel`, `OwnedEpisodeQueuePlanner` |
 
-### Other top-level folders under `src/MediaEngine.Web/`
+### Other top-level folders
 
 | Folder | Purpose |
 |---|---|
-| `Models/ViewDTOs/` | Dashboard-only presentation shapes. They may wrap or compose Contracts types through explicit mappers, but they never own or mirror Engine↔Dashboard JSON. |
-| `Resources/` | `SharedStrings.resx` (+ `.fr` / `.de` / `.es`) plus generated `SharedStrings.cs` |
-| `Shared/` | Blazor app-host layout wrappers: `MainLayout`, `PopupLayout`, `ReaderLayout`, `_Imports` |
-| `wwwroot/` | Static assets: images, CSS, JS (`cytoscape-interop.js`, `epub-reader.js`, `cover-popup.js`, `app.js`) |
+| `Models/ViewDTOs/` | Dashboard-only presentation shapes; may wrap Contracts through explicit mappers, never own or mirror Engine↔Dashboard JSON |
+| `Resources/` | `SharedStrings.resx` (+ `.fr` / `.de` / `.es`) and generated `SharedStrings.cs` |
+| `Shared/` | Blazor host layouts: `MainLayout`, `PopupLayout`, `ReaderLayout`, `_Imports` |
+| `wwwroot/` | Static assets: CSS (`tuvima.tokens.css`, `app.css`, `native-*.css`), JS, vendored libraries |
+| `Build/` | `DashboardCss.targets` (Release CSS minification) |
 
-### Routed Pages (`Components/Pages/`)
+### Routed pages (`Components/Pages/`)
 
 | Route | Page | Purpose |
 |---|---|---|
-| `/` | `LibraryBrowsePage.razor` | Home — discovery landing |
-| `/read`, `/read/{Tab}` | `ReadPage.razor` | Books + comics browse |
-| `/read/{AssetId:guid}` | `EpubReader.razor` | In-browser EPUB reader. `?reader=new` shows the foliate-js reader (`BookReader.razor` + `wwwroot/js/book-reader.js`, the only importer of `wwwroot/lib/foliate-js/`); it replaces this page at cutover |
-| `/watch`, `/watch/{Tab}` | `WatchPage.razor` | Movies + TV browse |
-| `/watch/movie/{WorkId:guid}` | `WatchMoviePage.razor` | Movie detail |
-| `/watch/tv/show/{CollectionId:guid}` | `WatchTvShowPage.razor` | TV show detail |
-| `/watch/player/{AssetId:guid}` | `WatchPlayerPage.razor` | Video player |
-| `/listen`, `/listen/music`, `/listen/audiobooks` | `ListenBrowsePage.razor` + `ListenBrowseConfiguration.cs` | Shared-shell Listen discovery and query-backed Music/Audiobook browse |
-| `/details/musicalbum/{Id:guid}`, `/details/musictrack/{Id:guid}`, `/details/audiobook/{Id:guid}`, `/details/person/{Id:guid}` | `UnifiedDetailPage.razor` | Canonical full-width Listen and person details |
-| `/listen/music/playlists/{CollectionId:guid}`, `/listen/music/playlists/system/{PlaylistKey}` | `ListenPage.razor` (+ `.razor.cs` code-behind) | Specialized playlist queue and editing surfaces |
-| `/listen/player-popup` | `ListenPlayerPopupPage.razor` | Detached listen window |
-| `/collections` | `Collections.razor` | Browse / create / manage collections |
-| `/details/collection/{Id:guid}` | `UnifiedDetailPage.razor` | Standard collection detail |
-| `/book/{Id:guid}` | `BookDetail.razor` | Book detail |
-| `/detail/{Type}/{Id}` (and similar) | `UnifiedDetailPage.razor` | Unified detail surface (work / edition / collection / person) — uses `Components/Details/` slice |
-| `/universe/{Qid}/explore` | `ChronicleExplorer.razor` | Universe graph explorer |
-| `/search` | `SearchPage.razor` | Global search |
-| `/downloads` | `DownloadsPage.razor` | Says downloads live in the Tuvima app (the dock's Downloads tab; `ShellDock.DownloadsMode` can hide the tab) |
-| `/settings`, `/settings/{Section}` | `Settings.razor` | Settings shell (`/settings/profiles/{profileId}` shows `ProfileDetailPage`; review queue at `/settings/review`, ingestion at `/settings/ingestion`, temporary harness at `/settings/dev-harness`) |
-| `/not-found`, `/Error` | `NotFound.razor`, `Error.razor` | Error pages |
-
-> **Note.** Earlier drafts referenced `PersonDetail.razor`, `Home.razor`, and `ReviewRedirect.razor`. Those files no longer exist on disk; person detail is served by `UnifiedDetailPage` via `Components/Details/`, and the `/review` redirect has been replaced by direct `/settings/review` navigation.
+| `/` | `LibraryBrowsePage` | Home |
+| `/read`, `/read/{Tab}` | `ReadPage` | Books + comics browse |
+| `/read/{AssetId:guid}` | `EpubReader` | EPUB reader (`?reader=new` → foliate-js `BookReader`) |
+| `/watch`, `/watch/{Tab}` | `WatchPage` | Movies + TV browse |
+| `/watch/player/{WorkId:guid}` | `WatchPlayerPage` | Video player |
+| `/listen`, `/listen/{Tab}` | `ListenBrowsePage` | Listen discovery, Music / Audiobook browse |
+| `/listen/music/playlists/{CollectionId:guid}`, `/listen/music/playlists/system/{PlaylistKey}` | `ListenPage` | Playlist queue and editing |
+| `/listen/player-popup` | `ListenPlayerPopupPage` | Detached listen window |
+| `/details/{EntityType}/{Id:guid}` | `UnifiedDetailPage` | The one detail page for every entity type (`Components/Details/`); TV episodes open via their show with `?episode=` |
+| `/collections`, `/collections/{Section}` | `Collections` | Collections and universes |
+| `/universe/{Qid}/explore` | `ChronicleExplorer` | Universe graph explorer |
+| `/for-me` | `ForMe` | Personal shelves |
+| `/who` | `ProfilePickerPage` | Profile picker |
+| `/setup` | `SetupPage` | First-run setup |
+| `/recently-added` | `RecentlyAddedPage` | Recently added |
+| `/search` | `SearchPage` | Global search |
+| `/view`, `/view/*` (artwork, contributions, documents, folders, galleries, people, places) | `View*Page` | Personal and shared View library |
+| `/downloads` | `DownloadsPage` | Explains downloads live in the Tuvima app |
+| `/settings`, `/settings/{Section}[/{Subsection}[/{Detail}]]` | `Settings` | Settings shell. Needs Review lives in `/settings/recently-added`; `/settings/review` redirects there |
+| `/operations/*` | `Operations` | Redirects only (to `/settings/ingestion` or `/settings/recently-added`) |
+| `/design-system/components` | `DesignSystemPreview` | Component preview |
+| `/not-found`, `/Error` | `NotFound`, `Error` | Error pages |
 
 ### Rules for adding new code
 
 | New code type | Where it goes |
 |---|---|
-| Engine HTTP call | `Services/Integration/EngineApiClient.cs` + `IEngineApiClient` |
-| Engine↔Dashboard HTTP or SignalR type (crosses the boundary) | `src/MediaEngine.Contracts/<Concern>/`; preserve exact JSON names/defaults and add boundary/shape coverage |
-| Internal model exposed through an endpoint | Keep it internal and add an explicit API boundary mapper into Contracts |
-| Dashboard-only view model or presentation wrapper | `Models/ViewDTOs/`; map explicitly from Contracts and do not duplicate the wire shape |
+| Engine HTTP call | `Services/Integration/EngineApiClient*.cs` + `IEngineApiClient` |
+| Engine↔Dashboard HTTP or SignalR type | `src/MediaEngine.Contracts/<Concern>/`; preserve exact JSON names/defaults and add boundary/shape coverage |
+| Internal model exposed through an endpoint | Keep it internal; add an explicit API boundary mapper into Contracts |
+| Dashboard-only view model | `Models/ViewDTOs/`; map explicitly from Contracts |
 | Reusable visual component | `Components/<FeatureSlice>/` |
 | Detail-page tab or hero piece | `Components/Details/` |
 | Full routable page | `Components/Pages/` |
 | Settings section | `Components/Settings/<Name>Tab.razor` + register in `SettingsNav` |
-| Review-queue surface component | `Components/Library/` |
-| Inspector / cards reused by Library or Universe | `Components/LibraryItems/` |
-| Reader-player component | `Components/Pages/BookReader.razor` (new book reader chrome; book access stays in `wwwroot/js/book-reader.js`), `Components/Pages/EpubReader.razor` (current reader, retired at cutover) or `Components/Shared/Playback*` primitives |
-| Listen/player transport controls | `Components/Listen/ListenTransportControls.razor` |
-| Media-playback session controller or primitives | `Services/Playback/` |
+| Reader-player component | `Components/Pages/BookReader.razor` (book access stays in `wwwroot/js/book-reader.js`), `EpubReader.razor` (retired at cutover) or `Components/Shared/Playback*` |
+| Listen transport controls | `Components/Listen/ListenTransportControls.razor` |
+| Playback session controller or primitives | `Services/Playback/` |
 | Route-building helper | `Services/Navigation/` |
 | Editor launcher or state | `Services/Editing/` |
 | Theme or device setting | `Services/Theming/` |
-| Streaming-service logo / brand asset resolver | `Services/Branding/` |
-| Dashboard-side configuration reader or palette plumbing | `Services/Configuration/` |
 | Cross-cutting primitive | `Components/Shared/` |
 | Blazor host layout wrapper | `Shared/` |
-| Application-layer read-model DTO | `src/MediaEngine.Application/ReadModels/` |
-| Application-layer query service contract | `src/MediaEngine.Application/Services/IReadServices.cs` |
-| Shared configuration shape or inward-facing infrastructure port | `src/MediaEngine.Domain/Configuration/` or `src/MediaEngine.Domain/Contracts/` |
-| Concrete SQLite/Dapper repository | `src/MediaEngine.Storage/`; use the `Repository` suffix |
-| API implementation without persistence ownership | `src/MediaEngine.Api/Services/`; use a purpose-specific `Service` suffix and keep its interface separate |
-| Engine service registration | A focused `src/MediaEngine.Api/DependencyInjection/Tuvima*ServiceCollectionExtensions.cs` module |
-| New plugin | New project `src/MediaEngine.Plugin.<Name>/` implementing `ITuvimaPlugin` from `MediaEngine.Plugins` |
+
+Non-Dashboard placement (Application, Domain, Storage, Api, plugins) is in root `CLAUDE.md`.
 
 ---
 
-
-## Icon rows and player typography (October 5 2026)
+## Icon rows and player typography
 
 Validate icons together whenever they share a row or area. Peer actions must use the same icon family, view box, stroke treatment, rendered glyph size, target size, shape, border, and alignment. Do not mix filled Material and outline playback icons within one peer row. Selected states may change color; intentionally dominant transport Play/Pause may have a larger target and must be documented as a separate role. Icon-only controls require a tooltip and accessible name, plus keyboard focus and selected/expanded semantics.
 
@@ -138,16 +129,15 @@ Lyrics use the shared UI sans-serif family, bold container-sized text and a larg
 
 The shared seek rail shows elapsed time on the left and total/remaining time on the right on every player surface, including phone, popout and video. The right label retains its total/remaining toggle.
 
-
-## Dashboard CSS ownership maintenance
+## Dashboard CSS ownership
 
 Component styles follow emitted HTML ownership, with documented contextual boundaries for shared controls, C# renderers, render fragments and portals. DetailPage retains page/stage/tab containers; its presentation owners and SequenceEntryContent own their markup styling. The editor's Details, Artwork, Match, History and Header sections take explicit values and callbacks; the shell retains mutable state, permissions, data access and save/cancel/navigation guards. State-changing EventCallbacks keep the shell as receiver. Settings owns canvas descendant rules; AppSwitchRow owns row layout; ListenNavigationSection owns native rail links while inline playlist and dormant audiobook styles stay with ListenPage.
 
-All isolated CSS has a 2,000-line cap. The CSS audit and StyleOwnershipGuardrailTests enforce explicit ownership, line limits, and transfer-aware per-file/aggregate override budgets. Compare actual generated selectors, DOM scopes, computed styles and paired desktop/phone images. Global popup/vendor bridges remain when ancestry requires them. See `engineering/reports/css-ownership-2026-10-06.md` for the acceptance state and measured limits; do not infer bundle reduction from extraction alone. Native controls and Release minification now have first-party ownership; verify their current evidence separately from that historical report. Broader per-render interop work remains a separate follow-up.
+All isolated CSS has a 2,000-line cap. The CSS audit and StyleOwnershipGuardrailTests enforce explicit ownership, line limits, and transfer-aware per-file/aggregate override budgets. Compare actual generated selectors, DOM scopes, computed styles and paired desktop/phone images. Global popup/vendor bridges remain when ancestry requires them. See `engineering/reports/css-ownership-2026-10-06.md` for the acceptance state and measured limits; do not infer bundle reduction from extraction alone.
 
 ## Native Dashboard controls and release styling
 
-The Dashboard uses first-party `Components/Shared/App*` primitives and scoped `Services/Ui/` services. `AppPopoverHost`, `AppDialogHost`, `AppToastHost` and `AppThemeProvider` are mounted by Main, Popup, Reader and SetupWizard layouts. Dialog and toast callers use `IAppDialogService` and `IAppToastService`; popup coordination belongs to `AppPopoverService`. Native dialogs preserve the editor's unchanged URL, typed results and unsaved-change interception. Toast actions retain asynchronous Undo behavior. Popup ownership follows the active modal or fullscreen container so a select remains usable inside an editor or player.
+The Dashboard uses first-party `Components/Shared/App*` primitives and scoped `Services/Ui/` services. `AppPopoverHost`, `AppDialogHost`, `AppToastHost` and `AppThemeProvider` are mounted by Main, Popup, Reader and SetupWizard layouts. Dialog and toast callers use `IAppDialogService` and `IAppToastService`; popup coordination belongs to `AppPopoverService`. Native dialogs preserve the editor's unchanged URL, typed results and unsaved-change interception. Toast actions retain asynchronous Undo behavior. Popup ownership follows the active modal or fullscreen container so a select remains usable inside an editor or player. Pages use the shared components rather than reimplementing their controls; selectors size to the selected label, then ellipsize with a full-label tooltip.
 
 Phone primitives (shared, opt-in, desktop unchanged): `AppDialogOptions.Sheet = AppDialogSheetMode.Phone|PhoneAndTablet` presents a dialog as a bottom sheet (grip, swipe down, backdrop tap, Escape); `<AppTable CardsOn="AppTableCardsMode.Phone|PhoneAndTablet">` stacks rows as cards and needs `data-card-role="title|subtitle|value|actions|hidden"` on the header cell and every body cell of the column (CSS in `wwwroot/app.css`); `<AppRowMenu Items=... />` is the 44 px row "more" button (sheet on phones, `AppOverflowMenu` popover elsewhere). Use these instead of hover-only or drag-only row actions.
 
@@ -155,6 +145,4 @@ Phone primitives (shared, opt-in, desktop unchanged): `AppDialogOptions.Sheet = 
 
 Release builds use build-only NUglify through `src/MediaEngine.Web/Build/DashboardCss.targets`. Global CSS is copied/minified into `obj/`; scoped bundles are minified after `BundleScopedCssFiles`, before static-asset fingerprinting and gzip/brotli compression. Source CSS stays editable and Debug stays unminified. Minifier errors fail the build. Verify actual Release assets and compressed content; a successful build or smaller source file alone does not establish visual parity or download savings.
 
-Dashboard CI publishes Release and runs scripts/build/verify-dashboard-css.mjs to verify minification, gzip/brotli content, fingerprints and the finalized scoped bundle ceiling. Docker copies src/MediaEngine.Web/Build/ before restore; DockerfileGuardrailTests protects explicit project imports. ComponentParameterGuardrailTests checks direct Razor component parameters, including captured HTML attributes, without accepting arbitrary retired parameter names.
-
-Visual checks target the four form factors (phone under 600, tablet 600-1023, desktop, tv) at the supported widths; new CSS breakpoints only 600 / 840 / 1180: `docs/reference/ui-supported-devices.md`.
+Dashboard CI publishes Release and runs `scripts/build/verify-dashboard-css.mjs` to verify minification, gzip/brotli content, fingerprints and the finalized scoped bundle ceiling. Docker copies `src/MediaEngine.Web/Build/` before restore; DockerfileGuardrailTests protects explicit project imports. ComponentParameterGuardrailTests checks direct Razor component parameters, including captured HTML attributes, without accepting arbitrary retired parameter names.

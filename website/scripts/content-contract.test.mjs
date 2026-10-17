@@ -21,9 +21,9 @@ test('finished HTML rejects missing pages, anchors, assets and wrong base paths'
   const dist = await fs.mkdtemp(path.join(os.tmpdir(), 'tuvima-docs-validation-'));
   try {
     for (const [markup, expected] of [
-      ['<a href="/tuvima_library/missing/">Bad page</a>', /missing local target/],
+      ['<a href="/tuvima-library/missing/">Bad page</a>', /missing local target/],
       ['<a href="#missing">Bad anchor</a>', /missing anchor/],
-      ['<img src="/tuvima_library/missing.svg">', /missing local target/],
+      ['<img src="/tuvima-library/missing.svg">', /missing local target/],
       ['<a href="/guide/">Bad base</a>', /wrong base path/],
     ]) {
       await fs.writeFile(path.join(dist, 'index.html'), markup);

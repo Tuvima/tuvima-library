@@ -36,16 +36,16 @@ Keep user-owned originals separate from `/library` if Tuvima must not change the
 ## Start Tuvima
 
 1. Create a deployment folder and open a terminal there.
-2. Download the [maintained Compose file](https://raw.githubusercontent.com/Tuvima/tuvima_library/main/docker-compose.yml):
+2. Download the [maintained Compose file](https://raw.githubusercontent.com/Tuvima/tuvima-library/main/docker-compose.yml):
 
    ```bash
-   curl -fsSL https://raw.githubusercontent.com/Tuvima/tuvima_library/main/docker-compose.yml -o docker-compose.yml
+   curl -fsSL https://raw.githubusercontent.com/Tuvima/tuvima-library/main/docker-compose.yml -o docker-compose.yml
    ```
 
    In PowerShell, use:
 
    ```powershell
-   Invoke-WebRequest https://raw.githubusercontent.com/Tuvima/tuvima_library/main/docker-compose.yml -OutFile docker-compose.yml
+   Invoke-WebRequest https://raw.githubusercontent.com/Tuvima/tuvima-library/main/docker-compose.yml -OutFile docker-compose.yml
    ```
 
 3. Edit every host path under `volumes`. The supplied `/mnt/user/...` paths are Unraid examples.
@@ -70,8 +70,8 @@ Use this path if you prefer to build locally or your host cannot download the pu
 1. Clone a clean checkout and build from its root:
 
    ```bash
-   git clone https://github.com/Tuvima/tuvima_library.git
-   cd tuvima_library
+   git clone https://github.com/Tuvima/tuvima-library.git
+   cd tuvima-library
    docker build -t tuvima-library:local .
    ```
 

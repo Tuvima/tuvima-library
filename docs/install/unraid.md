@@ -29,7 +29,7 @@ Tuvima Library uses the published `ghcr.io/tuvima/tuvima_library:latest` image. 
    docker compose ps
    ```
 
-The repository also contains an [Unraid template](https://raw.githubusercontent.com/Tuvima/tuvima_library/main/unraid-template.xml). Import it through a compatible template workflow if you prefer that approach. Its presence in the repository does not guarantee listing in Community Applications.
+The repository also contains an [Unraid template](https://raw.githubusercontent.com/Tuvima/tuvima-library/main/unraid-template.xml). Import it through a compatible template workflow if you prefer that approach. Its presence in the repository does not guarantee listing in Community Applications.
 
 ## Check share permissions
 

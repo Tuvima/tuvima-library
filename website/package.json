@@ -6,7 +6,7 @@
   "scripts": {
     "prepare:content": "node scripts/prepare-content.mjs",
     "dev": "npm run prepare:content && node scripts/astro.mjs dev",
-    "check": "node ../scripts/docs/sync-community-docs.mjs --check && npm run prepare:content && node scripts/astro.mjs check",
+    "check": "node ../scripts/docs/sync-community-docs.mjs --check && node scripts/check-project-urls.mjs && npm run prepare:content && node scripts/astro.mjs check",
     "build": "npm run prepare:content && node scripts/astro.mjs build && node scripts/finalize-redirects.mjs && node scripts/validate-site.mjs",
     "preview": "node scripts/astro.mjs preview",
     "test": "node --test scripts/*.test.mjs"
