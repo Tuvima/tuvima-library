@@ -8,7 +8,7 @@
 #define AppName       "Tuvima Library"
 #define AppVersion    "1.0.0"
 #define AppPublisher  "Tuvima"
-#define AppURL        "https://github.com/Tuvima/tuvima_library"
+#define AppURL        "https://github.com/Tuvima/tuvima-library"
 #define EnginePort    "61495"
 #define DashboardPort "5016"
 #define EngineSvc     "TuvimaEngine"

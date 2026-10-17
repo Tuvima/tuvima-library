@@ -25,8 +25,8 @@ Review `nuget.config` before restore. This checkout uses nuget.org. Some local d
 ## Get the code
 
 ```powershell
-git clone https://github.com/Tuvima/tuvima_library.git
-cd tuvima_library
+git clone https://github.com/Tuvima/tuvima-library.git
+cd tuvima-library
 dotnet restore MediaEngine.slnx
 ```
 

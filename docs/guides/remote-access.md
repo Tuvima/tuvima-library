@@ -31,7 +31,7 @@ Open **Settings → Network & Remote Access → Remote Access**, select
 are detected, then enable remote access. Do not use Tailscale Funnel; this
 deployment is tailnet-private.
 
-For Docker, follow the [complete Tailscale deployment instructions](https://github.com/Tuvima/tuvima_library/blob/main/deploy/tailscale/README.md). Download the overlay and its configuration files together; the base Compose file alone is not enough. The auth key is supplied as a
+For Docker, follow the [complete Tailscale deployment instructions](https://github.com/Tuvima/tuvima-library/blob/main/deploy/tailscale/README.md). Download the overlay and its configuration files together; the base Compose file alone is not enough. The auth key is supplied as a
 deployment secret outside `/config` and `/backups`.
 
 ## Option 2: Caddy or another HTTPS reverse proxy

@@ -11,7 +11,7 @@ Tuvima Library is Early Access. No installer releases are currently published. T
 
 ## Report a vulnerability privately
 
-Use [GitHub private vulnerability reporting](https://github.com/Tuvima/tuvima_library/security/advisories/new), also available under **Security → Advisories → Report a vulnerability**.
+Use [GitHub private vulnerability reporting](https://github.com/Tuvima/tuvima-library/security/advisories/new), also available under **Security → Advisories → Report a vulnerability**.
 
 Do not post vulnerability details in a public issue. Do not include passwords, API keys, recovery codes or private media in a report. Use a minimal example with sensitive values removed.
 
@@ -32,6 +32,6 @@ Fixes are developed on the active branch and included in a subsequent release wh
 
 ## Deployment guidance
 
-Follow the [remote-access guide](https://tuvima.github.io/tuvima_library/guides/remote-access/). Do not expose the Engine port directly as a public entry point. Plugins run in the Engine process, so install only plugins you trust.
+Follow the [remote-access guide](https://tuvima.github.io/tuvima-library/guides/remote-access/). Do not expose the Engine port directly as a public entry point. Plugins run in the Engine process, so install only plugins you trust.
 
-Read the [security architecture](https://tuvima.github.io/tuvima_library/architecture/security/) for the account, profile, library and application access model.
+Read the [security architecture](https://tuvima.github.io/tuvima-library/architecture/security/) for the account, profile, library and application access model.

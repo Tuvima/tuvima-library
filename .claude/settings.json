@@ -45,5 +45,29 @@
       "Bash(rmdir /s:*)",
       "Bash(del /s:*)"
     ]
+  },
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "pwsh -NoProfile -ExecutionPolicy Bypass -File \"$CLAUDE_PROJECT_DIR/.claude/hooks/build-check.ps1\"",
+            "timeout": 360
+          }
+        ]
+      }
+    ],
+    "SubagentStop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "pwsh -NoProfile -ExecutionPolicy Bypass -File \"$CLAUDE_PROJECT_DIR/.claude/hooks/build-check.ps1\"",
+            "timeout": 360
+          }
+        ]
+      }
+    ]
   }
 }

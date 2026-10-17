@@ -41,7 +41,7 @@ The same foundation can support cross-format position mapping: stop reading an e
 
 Wikidata supplies canonical identities and relationships; Wikipedia supplies readable context; Tuvima Library's local analysis can align positions, chapters, scenes, and playback time. Today, the foundations include shared identities, progress, media relationships, people and character links, and sourced Universe Graph data. Automatic cross-format position matching, scene mapping, and the real-time companion are still in development.
 
-Learn more in [How Universes and Series Work](https://tuvima.github.io/tuvima_library/explanation/how-universes-work/) and the technical [Universe Graph](https://tuvima.github.io/tuvima_library/architecture/universe-graph/) documentation.
+Learn more in [How Universes and Series Work](https://tuvima.github.io/tuvima-library/explanation/how-universes-work/) and the technical [Universe Graph](https://tuvima.github.io/tuvima-library/architecture/universe-graph/) documentation.
 
 ## Next steps
 

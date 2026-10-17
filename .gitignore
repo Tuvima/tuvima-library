@@ -42,6 +42,9 @@ publish/
 # Claude Code local settings
 .claude/*
 !.claude/agents/
+!.claude/rules/
+!.claude/hooks/
+!.claude/settings.json
 
 # OS artefacts
 .DS_Store

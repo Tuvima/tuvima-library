@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # Tuvima Library - Build & Publish Docker image to GitHub Packages
 #
-# Image name:  ghcr.io/tuvima/tuvima_library
+# Image name:  ghcr.io/tuvima/tuvima-library
 # Push rules:
 #   - Push to main      -> :latest
 #   - Push tag v1.2.3   -> :v1.2.3  :1.2  :1
@@ -19,7 +19,7 @@ on:
 
 env:
   IMAGE_HOST:  ghcr.io
-  IMAGE_NAME: ${{ github.repository }}   # -> tuvima/tuvima_library
+  IMAGE_NAME: ${{ github.repository }}   # -> Tuvima/tuvima-library (lower-cased for tags)
 
 jobs:
   smoke:
@@ -91,10 +91,10 @@ jobs:
         run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
 
       # -- 4. Compute image tags ------------------------------------------------
-      # main branch  -> ghcr.io/tuvima/tuvima_library:latest
-      # v1.2.3 tag   -> ghcr.io/tuvima/tuvima_library:v1.2.3
-      #                ghcr.io/tuvima/tuvima_library:1.2
-      #                ghcr.io/tuvima/tuvima_library:1
+      # main branch  -> ghcr.io/tuvima/tuvima-library:latest
+      # v1.2.3 tag   -> ghcr.io/tuvima/tuvima-library:v1.2.3
+      #                ghcr.io/tuvima/tuvima-library:1.2
+      #                ghcr.io/tuvima/tuvima-library:1
       - name: Extract Docker metadata
         id: meta
         uses: docker/metadata-action@v5
