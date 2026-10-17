@@ -131,7 +131,7 @@ Install Cosign separately, replace the digest below, and verify the workflow ide
 
 ```bash
 cosign verify \
-  --certificate-identity-regexp='https://github.com/Tuvima/tuvima_library/.github/workflows/docker-publish.yml@refs/(heads/main|tags/v.*)' \
+  --certificate-identity-regexp='https://github.com/Tuvima/tuvima-library/.github/workflows/docker-publish.yml@refs/(heads/main|tags/v.*)' \
   --certificate-oidc-issuer=https://token.actions.githubusercontent.com \
   ghcr.io/tuvima/tuvima_library@sha256:DIGEST
 ```

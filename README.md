@@ -11,11 +11,11 @@
 Your books, films, shows, music, audiobooks, comics and personal media, together in one private library that understands how they connect.
 
 [![License: AGPLv3](https://img.shields.io/badge/License-AGPLv3-blue.svg)](LICENSE)
-[![Status: Early Access](https://img.shields.io/badge/status-Early%20Access-8852FC.svg)](https://tuvima.github.io/tuvima_library/product/status/)
-[![Docs](https://img.shields.io/badge/docs-tuvima.github.io-8852FC.svg)](https://tuvima.github.io/tuvima_library/)
-[![Docker](https://img.shields.io/badge/docker-ghcr.io-2496ED.svg)](https://tuvima.github.io/tuvima_library/install/docker/)
+[![Status: Early Access](https://img.shields.io/badge/status-Early%20Access-8852FC.svg)](https://tuvima.github.io/tuvima-library/product/status/)
+[![Docs](https://img.shields.io/badge/docs-tuvima.github.io-8852FC.svg)](https://tuvima.github.io/tuvima-library/)
+[![Docker](https://img.shields.io/badge/docker-ghcr.io-2496ED.svg)](https://tuvima.github.io/tuvima-library/install/docker/)
 
-**[Install](https://tuvima.github.io/tuvima_library/tutorials/getting-started/)** · **[Documentation](https://tuvima.github.io/tuvima_library/)** · **[What's ready](https://tuvima.github.io/tuvima_library/product/status/)** · **[Report an issue](https://github.com/Tuvima/tuvima_library/issues)**
+**[Install](https://tuvima.github.io/tuvima-library/tutorials/getting-started/)** · **[Documentation](https://tuvima.github.io/tuvima-library/)** · **[What's ready](https://tuvima.github.io/tuvima-library/product/status/)** · **[Report an issue](https://github.com/Tuvima/tuvima-library/issues)**
 
 </div>
 
@@ -66,14 +66,14 @@ A **Universe** is the map of a creative world. It connects the works you own (bo
 
 Owning a film trilogy gives you a tidy shelf in Watch. Owning the novels, the films, the audiobooks and the score gives you a Universe that brings them all together. Tuvima builds these connections only from trusted evidence, such as shared identifiers in Wikidata, never from similar titles alone.
 
-Learn more in [How Universes and Series work](https://tuvima.github.io/tuvima_library/explanation/how-universes-work/).
+Learn more in [How Universes and Series work](https://tuvima.github.io/tuvima-library/explanation/how-universes-work/).
 
 ## Quick start
 
 The recommended way to run Tuvima Library is Docker Compose. Download the maintained configuration:
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/Tuvima/tuvima_library/main/docker-compose.yml -o docker-compose.yml
+curl -fsSL https://raw.githubusercontent.com/Tuvima/tuvima-library/main/docker-compose.yml -o docker-compose.yml
 ```
 
 Edit the folder paths under `volumes` to point at your media and app-data folders, set your timezone and user/group IDs, then start it:
@@ -82,13 +82,13 @@ Edit the folder paths under `volumes` to point at your media and app-data folder
 docker compose up -d
 ```
 
-Open **http://YOUR-SERVER:5016**, work through the six setup steps (name your server, create your administrator account and save your recovery codes, add your media folders, choose your language, optionally enhance your library), and you are in. Libraries can be skipped and added later. The [Docker guide](https://tuvima.github.io/tuvima_library/install/docker/) explains every setting, and what to do if your host can't download the image.
+Open **http://YOUR-SERVER:5016**, work through the six setup steps (name your server, create your administrator account and save your recovery codes, add your media folders, choose your language, optionally enhance your library), and you are in. Libraries can be skipped and added later. The [Docker guide](https://tuvima.github.io/tuvima-library/install/docker/) explains every setting, and what to do if your host can't download the image.
 
 Other ways to install:
 
-- **Windows 10 or 11:** the [Windows installer](https://tuvima.github.io/tuvima_library/install/windows/) (Early Access) runs Tuvima as Windows services.
-- **NAS:** step-by-step guides for [Unraid](https://tuvima.github.io/tuvima_library/install/unraid/), [Synology](https://tuvima.github.io/tuvima_library/install/synology/), [QNAP](https://tuvima.github.io/tuvima_library/install/qnap/) and [TrueNAS SCALE](https://tuvima.github.io/tuvima_library/install/truenas-scale/).
-- **From source:** for developers and evaluators, see [Run from source](https://tuvima.github.io/tuvima_library/install/from-source/).
+- **Windows 10 or 11:** the [Windows installer](https://tuvima.github.io/tuvima-library/install/windows/) (Early Access) runs Tuvima as Windows services.
+- **NAS:** step-by-step guides for [Unraid](https://tuvima.github.io/tuvima-library/install/unraid/), [Synology](https://tuvima.github.io/tuvima-library/install/synology/), [QNAP](https://tuvima.github.io/tuvima-library/install/qnap/) and [TrueNAS SCALE](https://tuvima.github.io/tuvima-library/install/truenas-scale/).
+- **From source:** for developers and evaluators, see [Run from source](https://tuvima.github.io/tuvima-library/install/from-source/).
 
 ## Private by design
 
@@ -98,7 +98,7 @@ Other ways to install:
 - Optional local AI improves matching and descriptions entirely on your hardware.
 - Uncertain matches are shown to you, never silently treated as correct.
 
-Some features, such as maps in View, can load data from the internet. [Privacy and local-first behavior](https://tuvima.github.io/tuvima_library/explanation/privacy-local-first/) explains exactly what connects where.
+Some features, such as maps in View, can load data from the internet. [Privacy and local-first behavior](https://tuvima.github.io/tuvima-library/explanation/privacy-local-first/) explains exactly what connects where.
 
 ## Powered by open knowledge
 
@@ -112,20 +112,20 @@ I loved Plex, Audiobookshelf and the other tools in my setup, but I was still th
 
 That grew into a bigger idea: a library that understands the story, not just the files. The name comes from **túvima**, a word in Tolkien's Quenya recorded as meaning "discoverable". Tuvima Library is the library I wanted for myself, built in the hope that it becomes that library for you too.
 
-[Read the full story and where it's heading](https://tuvima.github.io/tuvima_library/product/story/).
+[Read the full story and where it's heading](https://tuvima.github.io/tuvima-library/product/story/).
 
 ## Project status
 
-Tuvima Library is in **Early Access** and under active development. Browsing, reading, playback, editing, personal media, profiles and library management work today. Cross-format position syncing between ebooks and audiobooks, native device apps and richer recommendations are on the way. See [Product Status](https://tuvima.github.io/tuvima_library/product/status/) and the [Beta Roadmap](https://tuvima.github.io/tuvima_library/product/beta-roadmap/) for details.
+Tuvima Library is in **Early Access** and under active development. Browsing, reading, playback, editing, personal media, profiles and library management work today. Cross-format position syncing between ebooks and audiobooks, native device apps and richer recommendations are on the way. See [Product Status](https://tuvima.github.io/tuvima-library/product/status/) and the [Beta Roadmap](https://tuvima.github.io/tuvima-library/product/beta-roadmap/) for details.
 
 ## Documentation
 
 | I want to… | Start here |
 | --- | --- |
-| Use Tuvima Library | [Getting started](https://tuvima.github.io/tuvima_library/tutorials/getting-started/) · [Find your way around](https://tuvima.github.io/tuvima_library/guides/dashboard-tour/) |
-| Run a server | [Install with Docker](https://tuvima.github.io/tuvima_library/install/docker/) · [Manage libraries](https://tuvima.github.io/tuvima_library/guides/library-settings/) · [Troubleshooting](https://tuvima.github.io/tuvima_library/guides/troubleshooting/) |
-| Build plugins or providers | [Build a plugin](https://tuvima.github.io/tuvima_library/guides/building-a-plugin/) · [Add a provider](https://tuvima.github.io/tuvima_library/guides/adding-a-provider/) |
-| Contribute code or docs | [Contributing](CONTRIBUTING.md) · [Developer setup](https://tuvima.github.io/tuvima_library/tutorials/dev-setup/) · [Technical overview](https://tuvima.github.io/tuvima_library/architecture/technical-overview/) |
+| Use Tuvima Library | [Getting started](https://tuvima.github.io/tuvima-library/tutorials/getting-started/) · [Find your way around](https://tuvima.github.io/tuvima-library/guides/dashboard-tour/) |
+| Run a server | [Install with Docker](https://tuvima.github.io/tuvima-library/install/docker/) · [Manage libraries](https://tuvima.github.io/tuvima-library/guides/library-settings/) · [Troubleshooting](https://tuvima.github.io/tuvima-library/guides/troubleshooting/) |
+| Build plugins or providers | [Build a plugin](https://tuvima.github.io/tuvima-library/guides/building-a-plugin/) · [Add a provider](https://tuvima.github.io/tuvima-library/guides/adding-a-provider/) |
+| Contribute code or docs | [Contributing](CONTRIBUTING.md) · [Developer setup](https://tuvima.github.io/tuvima-library/tutorials/dev-setup/) · [Technical overview](https://tuvima.github.io/tuvima-library/architecture/technical-overview/) |
 
 ## Contributing
 
@@ -137,11 +137,11 @@ Please report vulnerabilities privately, as described in [SECURITY.md](SECURITY.
 
 ## Community
 
-Use [Issues](https://github.com/Tuvima/tuvima_library/issues) for questions, ideas and bug reports.
+Use [Issues](https://github.com/Tuvima/tuvima-library/issues) for questions, ideas and bug reports.
 
 ## License
 
-Tuvima Library is free and open-source software under the [GNU AGPLv3](LICENSE). Anyone can run, study, improve and share it, and anyone who offers a modified version over a network must share their changes too. See [what the license means for you](https://tuvima.github.io/tuvima_library/product/license/) and the [third-party notices](THIRD-PARTY-NOTICES.md).
+Tuvima Library is free and open-source software under the [GNU AGPLv3](LICENSE). Anyone can run, study, improve and share it, and anyone who offers a modified version over a network must share their changes too. See [what the license means for you](https://tuvima.github.io/tuvima-library/product/license/) and the [third-party notices](THIRD-PARTY-NOTICES.md).
 
 ---
 

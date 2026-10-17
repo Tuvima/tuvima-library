@@ -118,7 +118,7 @@ pwsh -File scripts/docs/build-docs.ps1 -InstallDependencies
 pwsh -File scripts/docs/serve-docs.ps1 -Address 127.0.0.1:8000
 ```
 
-Open `http://127.0.0.1:8000/tuvima_library/`. See the [site tooling guide](../../website/README.md) for direct npm commands, staging, route validation, and deployment. Broader code changes should run the relevant restore/build/test gate.
+Open `http://127.0.0.1:8000/tuvima-library/`. See the [site tooling guide](../../website/README.md) for direct npm commands, staging, route validation, and deployment. Broader code changes should run the relevant restore/build/test gate.
 
 ## Related
 
