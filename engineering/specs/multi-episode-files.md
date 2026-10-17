@@ -1,54 +1,76 @@
-# Plan (draft): One file covering several TV episodes (2026-10-10)
+# Spec: One file covering several TV episodes
 
-> **Status:** Draft · **Version:** 1 · **Last updated:** 2026-10-10 · **Related docs:** [First-run ingestion fixes](first-run-ingestion-fixes.md)
-> _Moved from engineering/plans/ on 2026-10-17. Written before the spec template existed; content unchanged._
+> **Status:** Locked · **Version:** 2 · **Last updated:** 2026-10-17 · **Related docs:** [Product overview](../product/overview.md) · [First-run ingestion fixes](first-run-ingestion-fixes.md) · [Presentation rules](../../docs/product/presentation-rules.md) · [Playback architecture](../../docs/architecture/playback.md)
 
-Status: **draft. Pick up in its own session.** Split out of `first-run-ingestion-fixes-2026-10-10.md` (former WP13). Needs the PO's answers to §5 before implementation.
+> Replaces Version 1 (a 2026-10-10 draft). Most of Version 1 is already built; this version records what was built and specifies the one piece still missing (the Dr. Horrible case). Locked by Shy on 2026-10-17.
 
-## 1. Why
-Some TV files cover more than one episode:
-- double-length pilots and finales (`S01E01-E02`);
-- two-part episodes ripped as one file;
-- cartoons that pair two 11-minute episodes per file (often most of a show);
-- anime OVAs and arcs;
-- occasionally a whole miniseries in one file (Dr. Horrible's Sing-Along Blog).
+## 1. Goal
 
-Today an asset belongs to exactly one Work (asset → edition → work). Such a file therefore counts as a single episode, the other episodes show as missing, and progress and "next episode" go wrong. Plex, Jellyfin, Kodi and Sonarr all support multi-episode files.
+A video file that holds more than one TV episode (a double-length pilot, two cartoon episodes in one file, a whole miniseries) counts as owned for every episode it covers, plays correctly, and keeps watch progress honest. Finish the last gap: a whole miniseries moved to TV should cover its real episodes, not sit as a one-off special.
 
-Interim behaviour from the first-run fixes plan: Dr. Horrible's whole-series file is attached as Season 0 Episode 1 (Specials).
+## 2. Scope
 
-## 2. Proposed experience
-1. A file named `Show - S01E01-E02 - Title.mkv` (also the `S01E01E02` and `S01E01-02` forms) ingests as **two owned episodes** that share one file.
-2. The show and season pages count both as owned. Each episode row plays the same file from the start; no chapter seeking in v1.
-3. Continue Watching and progress: watching the shared file marks **all covered episodes** watched when it finishes. "Next episode" skips past the covered range.
-4. The details page for a covered episode says "Plays with E02 (same file)".
-5. Review Queue "Move to TV" (from the first-run fixes) can attach a whole-series file to the full episode range, replacing the interim special.
-6. The editor can set or adjust the range ("This file covers episodes 1–3").
+**In scope**
+- Record, as decisions, how combined files already behave.
+- Make "Move to TV" attach a whole-miniseries file to all of the show's real episodes when the provider lists them.
+- Keep the existing safety rules (limit, same season, Needs Review for unclear cases).
 
-## 3. Likely technical shape (to confirm with a scout pass)
-- **New data structure:** an `asset_episode_coverage` table linking `asset_id` to `work_id` (episode), with ordinal. This is an idempotent startup migration owned by `SchemaMigrator`, and is documented in `docs/reference/database-schema.md`.
-- **Alternative:** one Edition per covered episode, all pointing at the same media asset path. Probably conflicts with the asset uniqueness and hash rules. To evaluate.
-- **Domain:** an explicit aggregate method for episode coverage (no public setters).
-- **Read services:** TV season/show owned counts, episode lists, the display projection (tiles), and detail composition for TV.
-- **Playback:** resolve episode → asset through the coverage table, and write watch state for every covered episode.
-- **Ingestion:** filename parser for ranges; the identity pipeline creates/links the episode Works for the range.
-- **Wire contracts:** any new fields go through `src/MediaEngine.Contracts/` with snapshot updates.
+**Out of scope**
+- Jumping to an episode's start inside a file (see Q1, a separate future spec).
+- Splitting or re-encoding files. Original files are never altered.
+- Per-episode progress inside one file, and per-episode skip-intro markers.
 
-## 4. Agents
-- Scout (Haiku): map every asset→work assumption (owned counts, playback resolution, progress, display projection).
-- Opus: decide the data structure and write briefs.
-- Implementer (Sonnet, high: data store, playback state, identity pipeline) in 3 pieces: data structure + migration; ingestion/parser + identity; read models + playback + Dashboard.
-- Verifier (Haiku); reviewer (Opus, high).
-- Fable only with PO approval after two failed attempts.
+## 3. Decisions made
 
-## 5. Questions for the PO
-1. Should finishing a shared file mark all covered episodes watched, or only once each episode's portion has played? (v1 has no chapter data.)
-2. In episode lists, show each covered episode as its own row, or one combined row "E01–E02"?
-3. Should the editor allow setting a range by hand in v1?
-4. Is chapter-aware seeking (jump to E02's start inside the file) wanted later?
+- **D1. Finishing the file marks every covered episode watched.** Without chapter data this is the only honest rule. Marking one covered episode watched or unwatched changes the file, so its siblings follow. Why: Reliability, matches Plex and Jellyfin.
+- **D2. Each covered episode keeps its own row** in episode lists, with a quiet "Same file as Episode N" chip. Why: counts, ratings and next-episode logic stay per episode.
+- **D3. Shy can set the range by hand** in the editor (Matching tab, "This file covers" picker).
+- **D4. The record is the `media_asset_coverage` table.** The file stays attached to its first episode; the other covered episodes are listed against it. The "one Edition per episode" alternative was rejected: it would make one file look like several and break duplicate checks. Why: Maintenance.
+- **D5. Safety rules for automatic linking:** a file covers at most 6 episodes, all in one season, in an unbroken run. A gap (E01 and E03), an oversized run or a typo (E01E200) goes to Needs Review instead of guessing. Shy confirmed keeping 6 on 2026-10-17. Why: Reliability; a typo must never mark a season as owned.
+- **D6. Whole-miniseries files cover the real episodes.** When Move to TV is used and the provider lists the show's parts in one season, the file is linked to all of them (for Dr. Horrible: S01E01 to E03). One rule for every combined file; no permanent special-case. If the parts cannot be listed clearly, or exceed D5, the existing Season 0 Episode 1 (Specials) placement stays as the fallback and the item says so.
+- **D7. Jumping to an episode inside a file is a separate future spec** (read chapter markers when present, else estimate from episode lengths). The data structure already has room for start and end times.
+- **D8. Names:** the organiser names a combined file with its episode run (for example `s01e01-e02`).
 
-## 6. Acceptance criteria (draft)
-- A double-episode filename ingests as two owned episodes sharing one asset; the season count is correct.
-- Playing E02 opens the shared file; finishing it updates both episodes' watch state per Q1.
-- Dr. Horrible can be re-attached from S00E01 to S01E01–E03.
-- The migration is idempotent; existing single-episode data is unchanged; 0 warnings, all tests passing.
+## 4. UI behaviour
+
+| Situation | What the person sees |
+|---|---|
+| Normal | Show and season pages count every covered episode as owned. Each row plays the shared file. A "Same file as Episode N" chip appears under covered episodes (tappable, 44px, wraps on phone; plain text if the other episode is off screen). |
+| Playing a covered episode | The shared file opens. It starts at the episode's recorded start time only if there is nothing to resume. |
+| Finished | Every covered episode shows watched. Continue Watching lists the file once; Next Up skips the covered range. |
+| Move to TV on a miniseries file | The review card still reads "TMDB lists this as the miniseries ... (3 parts). Use it for this film?". After **Move to TV**, the show appears under TV with the file covering all listed episodes. |
+| Move to TV, parts unclear | The file is filed as Season 0 Episode 1 (Specials) with a plain message saying why, and the other episodes show as not owned. |
+| Empty / Loading / Error | Unchanged from single-episode files. |
+| Partly ready | Episode details fill in as enrichment finishes; ownership is correct from the start. |
+| Phone / tablet / desktop / TV | Same behaviour. The editor picker is desktop-only, like all editing. |
+
+## 5. Data / model changes
+
+None for D1 to D5 (built). D6 reuses `media_asset_coverage` with its existing sources; no new stored information. Pre-release: a reset and re-ingest is acceptable.
+
+## 6. Work packets
+
+### WP1 — Move to TV links the whole episode range
+- **What it does:** when a Movies item is moved to TV as a miniseries and the provider lists its parts in a single season (within D5), place the file on the first episode and record coverage for all parts. Otherwise keep the Season 0 placement and show the reason.
+- **Files likely touched:** `src/MediaEngine.Api/Services/Review/ReviewMoveToTvService.cs`, the TV reassignment repository, `src/MediaEngine.Providers/Services/TvEpisodeRangeCoverage.cs`, `src/MediaEngine.Web/Services/Editing/MovieTvSuggestionReader.cs`, matching tests (to be confirmed by Claude Code).
+- **Depends on:** none
+- **Size:** Standard
+- **Done when:** a test moves a file for a 3-part miniseries and the file covers S01E01 to E03 with all three owned; a test with an unclear or over-limit part list still produces the Season 0 placement with a visible reason; existing coverage tests pass.
+
+### WP2 — Docs
+- **What it does:** update the product rules, glossary and the first-run fixes spec so none still describes the Season 0 placement as the normal outcome.
+- **Files likely touched:** `docs/product/presentation-rules.md`, `docs/reference/glossary.md`, `engineering/specs/first-run-ingestion-fixes.md` (cross-reference only) (to be confirmed by Claude Code).
+- **Depends on:** WP1
+- **Size:** Mechanical
+- **Done when:** a search for "Season 0" in those docs finds only the fallback description.
+
+## 7. Risks and open questions
+
+- **Risks:** a provider listing the wrong number of parts links the wrong range; mitigated by D5 and Needs Review. Someone may later loosen the 6-episode limit; D5 records why it exists.
+- **Q1 (not blocking).** Jumping to an episode inside a file: proposed as its own spec, not part of this one.
+
+## 8. Gaps and drift
+
+- **Built and matches Version 1:** filename ranges (`S01E01E02`, `S01E01-E02`, `S01E01-02`, `1x01-02`); all covered episodes owned; shared-file playback; watched state across episodes; editor range picker; Needs Review for unclear cases.
+- **Built differently:** table is `media_asset_coverage`, not `asset_episode_coverage` (D4). The "Plays with E02" line on the details page became the "Same file as Episode N" chip in the episode strip. The details page itself was not checked (Claude Code to confirm).
+- **Not built yet:** the Dr. Horrible re-attach (D6, WP1) and chapter-aware jumping (D7, future spec).
