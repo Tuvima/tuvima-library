@@ -8,8 +8,8 @@
            Overlay="true"
            Variant="AppDrawerVariant.Temporary"
            Class="curators-drawer">
-<AppStack Row="true" AlignItems="AppAlignItems.Center" Class="pa-4">
-        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.EditNote" Color="AppColor.Primary" Class="mr-2" />
+<AppStack Row="true" AlignItems="AppAlignItems.Center" Class="tl-sp-pa-4">
+        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.EditNote" Color="AppColor.Primary" Class="tl-sp-mr-2" />
         <AppText Typo="AppTypo.h6" Class="tl-u-flex-1">Correct Metadata</AppText>
         <AppIconButton Icon="@AppMaterialIcons.Filled.Close"
                        Tone="AppUiTone.Neutral"
@@ -17,15 +17,15 @@
                        OnClick="@CloseDrawer" />
     </AppStack>
 
-    <AppDivider Class="mb-2" />
+    <AppDivider Class="tl-sp-mb-2" />
 @if (EntityId != Guid.Empty)
     {
-        <AppPanel Class="tl-card mx-4 mb-4">
+        <AppPanel Class="tl-card tl-sp-mx-4 tl-sp-mb-4">
             <AppText Typo="AppTypo.caption" Color="AppColor.Secondary">Currently editing</AppText>
             <AppText Typo="AppTypo.subtitle1" Class="tl-u-font-weight-600">@CurrentTitle</AppText>
         </AppPanel>
     }
-<div class="px-4 mb-4">
+<div class="tl-sp-px-4 tl-sp-mb-4">
         <AppTextField @bind-Value="_query"
                       Label="Search by title, ISBN, or Wikidata ID"
                       Variant="AppVariant.Outlined"
@@ -39,16 +39,16 @@
     </div>
 @if (_searching)
     {
-        <AppProgressBar Indeterminate="true" Color="AppColor.Primary" Class="mx-4 mb-2" />
+        <AppProgressBar Indeterminate="true" Color="AppColor.Primary" Class="tl-sp-mx-4 tl-sp-mb-2" />
     }
     else if (_results.Count > 0)
     {
-        <div class="px-4 tl-u-overflow-y-auto tl-u-max-height-calc-100vh---400px" >
+        <div class="tl-sp-px-4 tl-u-overflow-y-auto tl-u-max-height-calc-100vh---400px" >
             @foreach (var r in _results)
             {
                 bool isSelected = _selectedResult?.WorkId == r.WorkId;
                 <AppPanel
-                          Class="@($"mb-2 cursor-pointer curator-result-card {(isSelected ? "curator-result-card--selected" : null)}")"
+                          Class="@($"tl-sp-mb-2 tl-pointer curator-result-card {(isSelected ? "curator-result-card--selected" : null)}")"
                           OnClick="@(() => SelectResult(r))">
                     <AppStack Row="true" AlignItems="AppAlignItems.Center" Spacing="2">
                         <AppMaterialIcon Icon="@AppMaterialIcons.Filled.MenuBook"
@@ -70,7 +70,7 @@
                     </AppStack>
                     @if (!string.IsNullOrEmpty(r.CollectionDisplayName))
                     {
-                        <AppText Typo="AppTypo.caption" Color="AppColor.Secondary" Class="mt-1">
+                        <AppText Typo="AppTypo.caption" Color="AppColor.Secondary" Class="tl-sp-mt-1">
                             Collection: @r.CollectionDisplayName
                         </AppText>
                     }
@@ -80,15 +80,15 @@
     }
     else if (!string.IsNullOrWhiteSpace(_query) && _query.Length >= 2 && !_searching)
     {
-        <AppText Typo="AppTypo.body2" Color="AppColor.Secondary" Class="px-4">
+        <AppText Typo="AppTypo.body2" Color="AppColor.Secondary" Class="tl-sp-px-4">
             No results found for "@_query".
         </AppText>
     }
 @if (_selectedResult is not null)
     {
-        <AppDivider Class="my-3" />
-        <AppPanel Class="tl-card mx-4 mb-2">
-            <AppText Typo="AppTypo.caption" Color="AppColor.Secondary" Class="mb-1">
+        <AppDivider Class="tl-sp-my-3" />
+        <AppPanel Class="tl-card tl-sp-mx-4 tl-sp-mb-2">
+            <AppText Typo="AppTypo.caption" Color="AppColor.Secondary" Class="tl-sp-mb-1">
                 New values from selected candidate:
             </AppText>
             <AppStack Spacing="1">
@@ -114,7 +114,7 @@
             </AppStack>
         </AppPanel>
 
-        <div class="px-4 mb-4">
+        <div class="tl-sp-px-4 tl-sp-mb-4">
             <AppButton ButtonStyle="AppButtonStyle.Filled"
                        Tone="AppUiTone.Primary"
                        FullWidth="true"
@@ -127,14 +127,14 @@
     }
 @if (EntityId != Guid.Empty)
     {
-        <AppDivider Class="my-2" />
-        <AppExpansionPanels Elevation="0" Class="px-4 mb-4">
+        <AppDivider Class="tl-sp-my-2" />
+        <AppExpansionPanels Elevation="0" Class="tl-sp-px-4 tl-sp-mb-4">
             <AppExpansionPanel Text="Claim History"
                                Class="tl-u-background-transparent"
                                Expanded="false">
                 @if (_claimsLoading)
                 {
-                    <AppProgressBar Indeterminate="true" Color="AppColor.Primary" Class="mb-2" />
+                    <AppProgressBar Indeterminate="true" Color="AppColor.Primary" Class="tl-sp-mb-2" />
                 }
                 else if (_claims.Count == 0)
                 {
@@ -146,7 +146,7 @@
                 {
                     @foreach (var claim in _claims)
                     {
-                        <AppPanel Class="tl-card tl-card--compact mb-1">
+                        <AppPanel Class="tl-card tl-card--compact tl-sp-mb-1">
                             <AppStack Row="true" AlignItems="AppAlignItems.Center" Spacing="2">
                                 <AppChip T="string" Size="AppSize.Small"
                                          Color="@(claim.IsUserLocked ? AppColor.Warning : AppColor.Default)"

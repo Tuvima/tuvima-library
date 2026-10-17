@@ -27,7 +27,7 @@ public class UISettingsCascadeTests
         Assert.True(result.DarkMode);
         Assert.Equal("#8852FC", result.AccentColor);
         Assert.Equal(12, result.BorderRadius);
-        Assert.Equal("pa-4", result.ContentPadding);
+        Assert.Equal("tl-sp-pa-4", result.ContentPadding);
         Assert.True(result.Features.CommandPalette);
         Assert.True(result.Features.ViewToggle);
     }
@@ -47,7 +47,7 @@ public class UISettingsCascadeTests
                 {
                     DeviceClass = "mobile",
                     BorderRadius = 16,
-                    ContentPadding = "pa-2",
+                    ContentPadding = "tl-sp-pa-2",
                     Features = new UIFeatureFlags { ViewToggle = false },
                 },
             },
@@ -58,7 +58,7 @@ public class UISettingsCascadeTests
 
         Assert.Equal("mobile", result.DeviceClass);
         Assert.Equal(16, result.BorderRadius);
-        Assert.Equal("pa-2", result.ContentPadding);
+        Assert.Equal("tl-sp-pa-2", result.ContentPadding);
         Assert.False(result.Features.ViewToggle);
         // Global defaults preserved where not overridden
         Assert.True(result.DarkMode);
@@ -157,7 +157,7 @@ public class UISettingsCascadeTests
         Assert.Equal(8, result.BorderRadius);
         // Global defaults where profile doesn't override
         Assert.True(result.DarkMode);
-        Assert.Equal("pa-4", result.ContentPadding);
+        Assert.Equal("tl-sp-pa-4", result.ContentPadding);
     }
 
     // ════════════════════════════════════════════════════════════════════════

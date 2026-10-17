@@ -31,7 +31,7 @@ public sealed class UIGlobalSettings
 
     /// <summary>First-party native-utilities.css spacing class for the main content area.</summary>
     [JsonPropertyName("content_padding")]
-    public string ContentPadding { get; set; } = "pa-4";
+    public string ContentPadding { get; set; } = "tl-sp-pa-4";
 
     /// <summary>
     /// First-party <c>AppMaxWidth</c> enum name for the content container.
