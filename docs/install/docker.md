@@ -15,7 +15,11 @@ Run Tuvima Library on a Docker host and keep your catalogue through container up
 
 Use Docker Engine with the Compose plugin, or Docker Desktop with Linux containers. The image workflow targets Linux AMD64 and ARM64.
 
-Tuvima Library is published as `ghcr.io/tuvima/tuvima_library:latest`, built from the main code line. If your host cannot download it, [build the image from source](#build-the-image-from-source) instead.
+Tuvima Library is published as `ghcr.io/tuvima/tuvima-library:latest`, built from the main code line. If your host cannot download it, [build the image from source](#build-the-image-from-source) instead.
+
+:::note[Image renamed]
+Older Compose files and NAS app templates used `ghcr.io/tuvima/tuvima_library` (with an underscore). New images are published only under `ghcr.io/tuvima/tuvima-library`. If your Compose file or app editor still shows the old name, change the image line, then run `docker compose pull` and `docker compose up -d` (or update the app in your NAS editor). Your mounted folders, settings and catalogue are unchanged.
+:::
 
 Choose a managed media folder and six application folders. Give the container's user access to them before starting.
 
@@ -36,16 +40,16 @@ Keep user-owned originals separate from `/library` if Tuvima must not change the
 ## Start Tuvima
 
 1. Create a deployment folder and open a terminal there.
-2. Download the [maintained Compose file](https://raw.githubusercontent.com/Tuvima/tuvima_library/main/docker-compose.yml):
+2. Download the [maintained Compose file](https://raw.githubusercontent.com/Tuvima/tuvima-library/main/docker-compose.yml):
 
    ```bash
-   curl -fsSL https://raw.githubusercontent.com/Tuvima/tuvima_library/main/docker-compose.yml -o docker-compose.yml
+   curl -fsSL https://raw.githubusercontent.com/Tuvima/tuvima-library/main/docker-compose.yml -o docker-compose.yml
    ```
 
    In PowerShell, use:
 
    ```powershell
-   Invoke-WebRequest https://raw.githubusercontent.com/Tuvima/tuvima_library/main/docker-compose.yml -OutFile docker-compose.yml
+   Invoke-WebRequest https://raw.githubusercontent.com/Tuvima/tuvima-library/main/docker-compose.yml -OutFile docker-compose.yml
    ```
 
 3. Edit every host path under `volumes`. The supplied `/mnt/user/...` paths are Unraid examples.
@@ -70,8 +74,8 @@ Use this path if you prefer to build locally or your host cannot download the pu
 1. Clone a clean checkout and build from its root:
 
    ```bash
-   git clone https://github.com/Tuvima/tuvima_library.git
-   cd tuvima_library
+   git clone https://github.com/Tuvima/tuvima-library.git
+   cd tuvima-library
    docker build -t tuvima-library:local .
    ```
 

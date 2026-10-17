@@ -9,7 +9,7 @@ pwsh -File scripts/docs/build-docs.ps1 -InstallDependencies
 pwsh -File scripts/docs/serve-docs.ps1 -Address 127.0.0.1:8000
 ```
 
-Open `http://127.0.0.1:8000/tuvima_library/`. The build wrapper runs the same regression tests, Astro diagnostics, static build, and finished-site validation as CI. Native command failures propagate to its exit code. `npm ci` is optional after the first installation; rerun it after changing the lockfile.
+Open `http://127.0.0.1:8000/tuvima-library/`. The build wrapper runs the same regression tests, Astro diagnostics, static build, and finished-site validation as CI. Native command failures propagate to its exit code. `npm ci` is optional after the first installation; rerun it after changing the lockfile.
 
 ## Source and navigation contract
 
@@ -23,7 +23,7 @@ Plain Markdown pages stay `.md`. Use `.mdx` with explicit component imports only
 
 ## Links, assets, and redirects
 
-Author links as source-relative Markdown paths, including heading fragments. They continue to work when read on GitHub. The Markdown processor rewrites published page destinations to `/tuvima_library/` routes, existing repository-file destinations to GitHub, and local assets to a same-origin generated asset path. It also handles literal MDX `href`/`src`, HTML links/images, reference-style Markdown links, and root-relative documentation URLs. Root-relative hero action links receive the base during staging. Dynamic MDX expressions must construct the correct base themselves; the finished-site validator checks their rendered results.
+Author links as source-relative Markdown paths, including heading fragments. They continue to work when read on GitHub. The Markdown processor rewrites published page destinations to `/tuvima-library/` routes, existing repository-file destinations to GitHub, and local assets to a same-origin generated asset path. It also handles literal MDX `href`/`src`, HTML links/images, reference-style Markdown links, and root-relative documentation URLs. Root-relative hero action links receive the base during staging. Dynamic MDX expressions must construct the correct base themselves; the finished-site validator checks their rendered results.
 
 Do not put documentation screenshots in the source or site. Existing screenshots are retired by the approved overhaul. Logos, icons, fonts, and useful diagrams remain supported. Local image/asset targets must exist. Original brand SVGs are reused; fonts and their OFL license notices are included locally. Pagefind is Starlight's local, same-origin search. Search requires the site assets to have loaded; this is not a PWA or a guarantee that uncached pages work offline.
 

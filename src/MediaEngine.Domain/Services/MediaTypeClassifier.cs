@@ -114,8 +114,8 @@ public static class MediaTypeClassifier
 
     /// <summary>
     /// Returns a Material Design icon name string for a media type.
-    /// These are icon NAME strings (not MudBlazor constants) since
-    /// the Domain layer does not reference MudBlazor.
+    /// These are plain icon NAME strings since the Domain layer
+    /// does not reference any UI library.
     /// </summary>
     public static string GetIconName(MediaType type) => type switch
     {

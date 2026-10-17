@@ -16,7 +16,7 @@ public sealed class AssetPathService
         string? dataRoot = null)
     {
         LibraryRoot = string.IsNullOrWhiteSpace(libraryRoot)
-            ? Path.Combine(Path.GetTempPath(), "tuvima_library_unset")
+            ? Path.Combine(Path.GetTempPath(), "tuvima-library-unset")
             : Path.GetFullPath(libraryRoot);
 
         DataRoot = string.IsNullOrWhiteSpace(dataRoot)

@@ -24,7 +24,7 @@
   "language_strategy": "localized",
   "http_client": {
     "timeout_seconds": 20,
-    "user_agent": "Tuvima Library/1.0 (https://github.com/Tuvima/tuvima_library)",
+    "user_agent": "Tuvima Library/1.0 (https://github.com/Tuvima/tuvima-library)",
     "api_key_delivery": "bearer"
   },
   "can_handle": {

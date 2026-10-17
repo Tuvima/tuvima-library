@@ -27,8 +27,8 @@ The Engine and Dashboard use .NET startup commands. The documentation website ha
 ## Clone and prepare a branch
 
 ```powershell
-git clone https://github.com/Tuvima/tuvima_library.git
-cd tuvima_library
+git clone https://github.com/Tuvima/tuvima-library.git
+cd tuvima-library
 git checkout -b codex/your-change
 ```
 

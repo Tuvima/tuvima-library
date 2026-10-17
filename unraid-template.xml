@@ -4,17 +4,17 @@
   Users install this via the CA (Community Applications) plugin:
     Apps → Search "Tuvima" → Install
   Template source URL must be added to CA's template repositories list:
-    https://raw.githubusercontent.com/Tuvima/tuvima_library/main/unraid-template.xml
+    https://raw.githubusercontent.com/Tuvima/tuvima-library/main/unraid-template.xml
 -->
 <Container version="2">
   <Name>tuvima-library</Name>
-  <Repository>ghcr.io/tuvima/tuvima_library:latest</Repository>
+  <Repository>ghcr.io/tuvima/tuvima-library:latest</Repository>
   <Network>bridge</Network>
   <Shell>bash</Shell>
   <Privileged>false</Privileged>
 
-  <Support>https://github.com/Tuvima/tuvima_library/issues</Support>
-  <Project>https://github.com/Tuvima/tuvima_library</Project>
+  <Support>https://github.com/Tuvima/tuvima-library/issues</Support>
+  <Project>https://github.com/Tuvima/tuvima-library</Project>
   <Overview>
     Tuvima Library is a self-hosted, zero-cloud media intelligence platform.
     Drop your books, audiobooks, comics, movies, and TV episodes into the Watch
@@ -29,8 +29,8 @@
 
   <Category>MediaApp:</Category>
   <WebUI>http://[IP]:[PORT:5016]/</WebUI>
-  <Icon>https://raw.githubusercontent.com/Tuvima/tuvima_library/main/assets/images/tuvima-icon.svg</Icon>
-  <TemplateURL>https://raw.githubusercontent.com/Tuvima/tuvima_library/main/unraid-template.xml</TemplateURL>
+  <Icon>https://raw.githubusercontent.com/Tuvima/tuvima-library/main/assets/images/tuvima-icon.svg</Icon>
+  <TemplateURL>https://raw.githubusercontent.com/Tuvima/tuvima-library/main/unraid-template.xml</TemplateURL>
 
   <!-- ── Ports ──────────────────────────────────────────────────────────── -->
 

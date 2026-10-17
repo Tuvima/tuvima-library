@@ -13,7 +13,7 @@ public sealed class LibraryReadServicesTests : IDisposable
     public LibraryReadServicesTests()
     {
         DapperConfiguration.Configure();
-        _dbPath = Path.Combine(Path.GetTempPath(), $"tuvima_library_reads_{Guid.NewGuid():N}.db");
+        _dbPath = Path.Combine(Path.GetTempPath(), $"tuvima-library-reads-{Guid.NewGuid():N}.db");
         _db = new DatabaseConnection(_dbPath);
         _db.InitializeSchema();
         _db.RunStartupChecks();

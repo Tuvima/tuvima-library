@@ -25,7 +25,7 @@ You need:
 
 ## Download the installer
 
-Installers are attached to tagged releases on the [GitHub Releases page](https://github.com/Tuvima/tuvima_library/releases). Download the newest `TuvimaLibrary-Setup-<version>.exe` and read that release's notes.
+Installers are attached to tagged releases on the [GitHub Releases page](https://github.com/Tuvima/tuvima-library/releases). Download the newest `TuvimaLibrary-Setup-<version>.exe` and read that release's notes.
 
 If no release is listed yet, use [Docker Compose](docker.md), or build the installer yourself (see **Technical details** at the end of this page).
 

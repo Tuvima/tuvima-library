@@ -1,8 +1,8 @@
 import path from 'node:path';
 
-export const base = '/tuvima_library';
+export const base = '/tuvima-library';
 export const origin = 'https://tuvima.github.io';
-export const repoUrl = 'https://github.com/Tuvima/tuvima_library';
+export const repoUrl = 'https://github.com/Tuvima/tuvima-library';
 export const requiredEnums = {
   audience: ['user', 'administrator', 'developer', 'designer'],
   category: ['landing', 'tutorial', 'installation', 'guide', 'explanation', 'reference', 'architecture', 'policy'],
