@@ -13,15 +13,14 @@ const repoOwner = new URL(repoUrl).pathname.split('/')[1];
 const repoName = new URL(repoUrl).pathname.split('/')[2];
 
 // Paths are repo-relative and use forward slashes.
-const roots = ['README.md', 'CONTRIBUTING.md', 'SECURITY.md', 'CLAUDE.md', 'AGENTS.md', 'docs', 'engineering', '.claude', 'src/MediaEngine.Web/CLAUDE.md', 'website/README.md'];
-const textExtensions = new Set(['.md', '.mdx', '.json']);
+// Code and deployment files are scanned too, so an in-app link (such as Help) cannot drift silently.
+const roots = ['README.md', 'CONTRIBUTING.md', 'SECURITY.md', 'CLAUDE.md', 'AGENTS.md', 'docs', 'engineering', '.claude', 'website/README.md', 'src', 'config', 'docker', '.github', 'docker-compose.yml', 'unraid-template.xml', 'installer.iss'];
+const textExtensions = new Set(['.md', '.mdx', '.json', '.cs', '.razor', '.yml', '.yaml', '.xml', '.iss']);
+const skippedFolders = new Set(['node_modules', 'bin', 'obj']);
 // Historical records keep the addresses they were written with.
 const historicalPrefixes = ['engineering/plans/', 'engineering/proposals/', 'engineering/reports/', 'engineering/docs-overhaul/', 'engineering/reference/', 'engineering/ui/', 'engineering/architecture/archive/', 'engineering/design/mockups/'];
 // Known exceptions, each with the follow-up that removes it.
-const allowed = new Map([
-  ['docs/reference/plugin-catalog.md', 'Plugin catalogue address changes together with config/core.json in the Docker/name follow-up.'],
-  ['docs/reference/approved-plugins.json', 'Plugin catalogue address changes together with config/core.json in the Docker/name follow-up.'],
-]);
+const allowed = new Map();
 
 // Only spellings of *this* project count as stale (tuvima_library vs tuvima-library);
 // sibling repositories and sites such as tuvima-wikidata are left alone.
@@ -48,7 +47,7 @@ async function* walk(relative) {
   try { stat = await fs.stat(full); } catch { return; } // optional root (e.g. no .claude folder in a checkout)
   if (stat.isFile()) { yield relative; return; }
   for (const entry of await fs.readdir(full, { withFileTypes: true })) {
-    if (entry.name === 'node_modules' || entry.name.startsWith('.generated')) continue;
+    if (skippedFolders.has(entry.name) || entry.name.startsWith('.generated')) continue;
     yield* walk(path.posix.join(relative, entry.name));
   }
 }

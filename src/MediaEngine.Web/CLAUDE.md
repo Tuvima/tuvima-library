@@ -24,7 +24,7 @@ All Dashboard code follows the **Feature-Sliced** pattern. Every new piece of UI
 | `Integration/` | `EngineApiClient*.cs` + `IEngineApiClient.cs`, `UIOrchestratorService.cs`, `UniverseStateContainer.cs`, `UniverseMapper.cs`, `ProviderCatalogueService.cs`, `IntercomEvents.cs` | All HTTP + SignalR communication with the Engine and explicit mapping into Dashboard presentation state |
 | `Formatting/` | `DisplayFormat.cs` | Single home for UI duration/count/speed formatting |
 | `Narration/` | `PhraseTemplateService.cs` + interface | Narrated-copy phrase templates |
-| `Navigation/` | `MediaNavigation.cs`, `ListenNavigation.cs`, `DetailTabNavigation.cs`, `ShellDock.cs` | Route-building and shell navigation helpers |
+| `Navigation/` | `MediaNavigation.cs`, `ListenNavigation.cs`, `DetailTabNavigation.cs`, `ShellDock.cs`, `ProjectLinks.cs` | Route-building and shell navigation helpers; `ProjectLinks` holds the public docs address used by Help |
 | `Playback/` | `PlaybackSessionController*.cs`, `PlaybackStateMachine.cs`, `PlaybackModels.cs`, `MediaKindClassifier.cs`, `MediaReactionService.cs`, `SavedItemService.cs`, `ListenPageState.cs`, `Audiobook*` | Playback session state, typed commands, queue, bookmarks, lyrics, reactions and saved items |
 | `Ui/` | `AppDialogService.cs`, `AppToastService.cs`, `AppPopoverService.cs` | Scoped native dialog/result, toast/action and popup coordination |
 | `Theming/` | `ThemeService.cs`, `DeviceContextService.cs`, `PaletteProvider.cs`, `AppThemeStyles.cs` | Dark-mode theme, device cascade, palette |

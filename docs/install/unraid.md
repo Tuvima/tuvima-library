@@ -11,7 +11,7 @@ status: current
 
 Run Tuvima Library with persistent Unraid shares and a browser Dashboard. Allow 10–20 minutes for configuration, plus image and optional model downloads.
 
-Tuvima Library uses the published `ghcr.io/tuvima/tuvima_library:latest` image. If the NAS cannot download it, use the [local source-build path](docker.md#build-the-image-from-source), including its local image tag and no-pull start command.
+Tuvima Library uses the published `ghcr.io/tuvima/tuvima-library:latest` image. If the NAS cannot download it, use the [local source-build path](docker.md#build-the-image-from-source), including its local image tag and no-pull start command.
 
 ## Use the maintained Compose file
 

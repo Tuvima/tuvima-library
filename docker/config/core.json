@@ -64,6 +64,6 @@
   },
   "plugin_catalog": {
     "enabled": true,
-    "approved_plugins_url": "https://raw.githubusercontent.com/Tuvima/tuvima_library/main/docs/reference/approved-plugins.json"
+    "approved_plugins_url": "https://raw.githubusercontent.com/Tuvima/tuvima-library/main/docs/reference/approved-plugins.json"
   }
 }

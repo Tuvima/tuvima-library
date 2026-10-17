@@ -35,7 +35,7 @@ The source URL is configured in `config/core.json`:
 {
   "plugin_catalog": {
     "enabled": true,
-    "approved_plugins_url": "https://raw.githubusercontent.com/Tuvima/tuvima_library/main/docs/reference/approved-plugins.json"
+    "approved_plugins_url": "https://raw.githubusercontent.com/Tuvima/tuvima-library/main/docs/reference/approved-plugins.json"
   }
 }
 ```
@@ -47,7 +47,7 @@ The Engine only accepts HTTPS URLs hosted by `raw.githubusercontent.com` or `git
 ```json
 {
   "schema_version": "1.0",
-  "source_url": "https://raw.githubusercontent.com/Tuvima/tuvima_library/main/docs/reference/approved-plugins.json",
+  "source_url": "https://raw.githubusercontent.com/Tuvima/tuvima-library/main/docs/reference/approved-plugins.json",
   "last_updated": "2026-05-15T00:00:00Z",
   "status": "ok",
   "plugins": [
