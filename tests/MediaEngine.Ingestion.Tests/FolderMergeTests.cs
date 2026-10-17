@@ -226,16 +226,28 @@ public sealed class FolderMergeTests : IDisposable
         var h = NewHarness(heartbeat: TimeSpan.FromMilliseconds(20));
         var dune = h.WriteSource("Dune.2021.mkv", "dune");
         await h.RegisterAsync(dune, "Dune", "2021");
+        // The copy stays "in progress" until two heartbeats for it have arrived, so a slow machine cannot miss them.
+        using var twoBeats = new ManualResetEventSlim();
+        var beats = 0;
+        var host = new TestHost
+        {
+            Reported = progress =>
+            {
+                if (progress.Completed == 0 && progress.CurrentPath == dune && Interlocked.Increment(ref beats) >= 2)
+                {
+                    twoBeats.Set();
+                }
+            },
+        };
         h.Hasher.Override = path =>
         {
             if (path.EndsWith(MergeFileTransfer.PartSuffix, StringComparison.Ordinal))
             {
-                Thread.Sleep(250);
+                twoBeats.Wait(TimeSpan.FromSeconds(30));
             }
 
             return null;
         };
-        var host = new TestHost();
 
         await h.RunAsync(host);
 

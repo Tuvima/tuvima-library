@@ -297,13 +297,22 @@ internal sealed class TestHost : IFolderOrganiseHost
 
     public List<FolderOrganiseProgress> Progress { get; } = [];
 
+    /// <summary>Called after each report is recorded; heartbeats arrive on another thread.</summary>
+    public Action<FolderOrganiseProgress>? Reported { get; set; }
+
+    private readonly Lock _progressLock = new();
     private int _asked;
 
     public Task<FolderJobSignal> GetSignalAsync(CancellationToken ct) => Task.FromResult(Signal(_asked++));
 
     public Task ReportProgressAsync(FolderOrganiseProgress progress, CancellationToken ct)
     {
-        Progress.Add(progress);
+        lock (_progressLock)
+        {
+            Progress.Add(progress);
+        }
+
+        Reported?.Invoke(progress);
         return Task.CompletedTask;
     }
 }
