@@ -48,6 +48,8 @@ async function* walk(relative) {
   if (stat.isFile()) { yield relative; return; }
   for (const entry of await fs.readdir(full, { withFileTypes: true })) {
     if (skippedFolders.has(entry.name) || entry.name.startsWith('.generated')) continue;
+    // Claude Code keeps temporary checkouts of other branches here; they are not this tree's docs.
+    if (relative === '.claude' && entry.name === 'worktrees') continue;
     yield* walk(path.posix.join(relative, entry.name));
   }
 }

@@ -4,7 +4,7 @@
 
 ## What
 - `docs/` is the public documentation website (Astro Starlight in `website/`, served by GitHub Pages at https://tuvima.github.io/tuvima-library/). Pages are listed in `website/publication.json` and their front matter is validated.
-- `engineering/` is internal: the index (`engineering/README.md`), product and architecture overviews, decisions, design system, mockups and **specs** (`engineering/specs/`, statuses Draft / Locked / In progress / Built). The claude.ai planning Project reads selected files from here (`engineering/planning-project.md`).
+- `engineering/` is internal: the index (`engineering/README.md`), product and architecture overviews, decisions, design system, mockups and **specs** (`engineering/specs/`, statuses Draft / Locked / In progress / Built). The claude.ai planning project reads the code history directly and plans specs here (`engineering/planning-project.md`).
 - The site address and repo URL live once in `website/scripts/content-contract.mjs`; a check fails the docs build if any doc links to another address.
 
 ## Why
