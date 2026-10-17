@@ -715,10 +715,15 @@
   input lane | default=null | shape=5f8e496050a6b44f36ce0029250d28a6669af25673d426cd41838f3f7808990c
   input mediaType | default=null | shape=5f8e496050a6b44f36ce0029250d28a6669af25673d426cd41838f3f7808990c
   input limit | default=null | shape=70f95875cf8a2fce242b5edb8ca2b2236d25c4f300e756df3c165a50b6b98351
+  input finished | default=null | shape=3f6d9badbf3cab35c37c41dfbfa8ea9f49b716db983fff10c8d3b66b7d03abbf
   response | shape=01edd56ab01937b795a895c59b57f55c0c98a995cfeb9e89c6e57aa60de4721a
 
 [method] GetDisplayHomeAsync
   input profileId | default=null | shape=1cc7cad302ebf04503481215740acd66365a6458785e51466ebcca79d1b00b6c
+  response | shape=01edd56ab01937b795a895c59b57f55c0c98a995cfeb9e89c6e57aa60de4721a
+
+[method] GetDisplayItemsAsync
+  input ids | default=required | shape=669627897819297c582cb890d507da27054999f0d4457da67b6f05bcde168c72
   response | shape=01edd56ab01937b795a895c59b57f55c0c98a995cfeb9e89c6e57aa60de4721a
 
 [method] GetDisplayRecentAsync

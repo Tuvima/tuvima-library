@@ -113,8 +113,8 @@ public sealed class ArtworkWorkspaceRouteAccessTests
                 !(candidate.RoutePattern.RawText ?? "").StartsWith("/api/v1/display/artwork", StringComparison.Ordinal))
             .ToArray();
 
-        // Home, browse, continue, recent, contributor shelves, search, shelves and groups: a paired app is served (the profile limit is applied inside).
-        Assert.Equal(8, browse.Length);
+        // Home, browse, continue, item lookup, recent, contributor shelves, search, shelves and groups: a paired app is served (the profile limit is applied inside).
+        Assert.Equal(9, browse.Length);
         foreach (var route in browse)
         {
             Assert.Contains(route.Metadata.OfType<ClientScopeRequirementMetadata>(),

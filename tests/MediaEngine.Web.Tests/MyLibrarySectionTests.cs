@@ -26,6 +26,7 @@ public sealed class MyLibrarySectionTests : AsyncBunitContext
 
     private IEngineApiClient? _api;
     private readonly List<(string? Lane, string? MediaType, int? Limit)> _browseCalls = [];
+    private readonly List<IReadOnlyList<Guid>> _itemCalls = [];
     private int _catalogCalls, _managedCalls;
 
     public MyLibrarySectionTests()
@@ -72,7 +73,9 @@ public sealed class MyLibrarySectionTests : AsyncBunitContext
     {
         public List<ProfileViewModel> Profiles { get; init; } = [Adult()];
         public DisplayPageDto? Continue { get; init; }
-        public DisplayPageDto? Watch { get; init; }
+        /// <summary>What the Engine's item lookup can find: any saved or liked id that has a card here comes back, whatever the library size.</summary>
+        public DisplayPageDto? Library { get; init; }
+        public DisplayPageDto? Finished { get; init; }
         public List<ProfileSavedItemDto> Saved { get; init; } = [];
         public List<ProfileReactionDto> Reactions { get; init; } = [];
         public bool? CanViewDocuments { get; init; }
@@ -96,11 +99,22 @@ public sealed class MyLibrarySectionTests : AsyncBunitContext
         stub.SetHandler(nameof(IEngineApiClient.GetProfilesAsync), _ => After(data.HoldProfiles, data.Profiles));
         stub.SetHandler(nameof(IEngineApiClient.GetSavedItemsAsync), _ => Task.FromResult<IReadOnlyList<ProfileSavedItemDto>>(data.Saved));
         stub.SetHandler(nameof(IEngineApiClient.GetProfileReactionsAsync), _ => Task.FromResult<IReadOnlyList<ProfileReactionDto>>(data.Reactions));
-        stub.SetHandler(nameof(IEngineApiClient.GetDisplayContinueAsync), _ => After(data.HoldContinue, data.Continue));
+        // args: lane, mediaType, limit, ct, finished. finished=true is History's read; the rest is Continue.
+        stub.SetHandler(nameof(IEngineApiClient.GetDisplayContinueAsync), args =>
+            args?[4] as bool? == true ? Task.FromResult<DisplayPageDto?>(data.Finished ?? Page()) : After(data.HoldContinue, data.Continue));
+        // The lane pages are no longer read by the personal pages; any call is recorded so a test can prove it.
         stub.SetHandler(nameof(IEngineApiClient.GetDisplayBrowseAsync), args =>
         {
             _browseCalls.Add((args?[0] as string, args?[1] as string, args?[5] as int?));
-            return Task.FromResult<DisplayPageDto?>(args?[0] as string == "watch" ? data.Watch : null);
+            return Task.FromResult<DisplayPageDto?>(null);
+        });
+        // The Engine's item lookup: the cards for the asked ids that exist in the seeded library; the rest are simply absent.
+        stub.SetHandler(nameof(IEngineApiClient.GetDisplayItemsAsync), args =>
+        {
+            var ids = (IReadOnlyList<Guid>)args![0]!;
+            _itemCalls.Add(ids);
+            var found = (data.Library?.Catalog ?? []).Where(card => ids.Contains(card.Id)).ToArray();
+            return Task.FromResult<DisplayPageDto?>(Page(found));
         });
         stub.SetHandler(nameof(IEngineApiClient.GetCollectionCatalogAsync), _ => { _catalogCalls++; return Task.FromResult(new List<CollectionManagementCatalogViewModel>()); });
         stub.SetHandler(nameof(IEngineApiClient.GetManagedCollectionsAsync), _ => { _managedCalls++; return Task.FromResult(new List<ManagedCollectionViewModel>()); });
@@ -135,10 +149,10 @@ public sealed class MyLibrarySectionTests : AsyncBunitContext
     private static Data Everything() => new()
     {
         Continue = Page(Card(Guid.Parse("a0000000-0000-0000-0000-000000000001"), "Movie", "Arrival", 40, DisplayContinuationState.InProgress, 5)),
-        Watch = Page(
+        Library = Page(
             Card(Guid.Parse("b0000000-0000-0000-0000-000000000001"), "Movie", "Saved Film"),
-            Card(Guid.Parse("b0000000-0000-0000-0000-000000000002"), "Movie", "Liked Film"),
-            Card(Guid.Parse("b0000000-0000-0000-0000-000000000003"), "Movie", "Finished Film", 100, DisplayContinuationState.Completed, 60)),
+            Card(Guid.Parse("b0000000-0000-0000-0000-000000000002"), "Movie", "Liked Film")),
+        Finished = Page(Card(Guid.Parse("b0000000-0000-0000-0000-000000000003"), "Movie", "Finished Film", 100, DisplayContinuationState.Completed, 60)),
         Saved = [new(ProfileEntityKind.Movie, Guid.Parse("b0000000-0000-0000-0000-000000000001"), Now, null)],
         Reactions = [new(ProfileEntityKind.Movie, Guid.Parse("b0000000-0000-0000-0000-000000000002"), ProfileReactionKind.Like, Now)],
     };
@@ -171,7 +185,7 @@ public sealed class MyLibrarySectionTests : AsyncBunitContext
     [Fact]
     public async Task ASectionWithNoDataIsHiddenNotLeftAsAnEmptyHeader()
     {
-        var data = Everything() with { Reactions = [], Watch = Page(Card(Guid.Parse("b0000000-0000-0000-0000-000000000001"), "Movie", "Saved Film")) };
+        var data = Everything() with { Reactions = [], Finished = Page(), Library = Page(Card(Guid.Parse("b0000000-0000-0000-0000-000000000001"), "Movie", "Saved Film")) };
         var cut = await RenderAsync(data);
 
         // No finished item and no like: History and Liked are gone, Continue and My List stay.
@@ -264,7 +278,7 @@ public sealed class MyLibrarySectionTests : AsyncBunitContext
     [Fact]
     public async Task KidsNeverSeeSettingsYetStillSwitchProfilesAndGetNoEditingControls()
     {
-        var cut = await RenderAsync(new Data { Profiles = [Kid(), Adult(SecondId, "Parent")], Watch = Everything().Watch, Saved = Everything().Saved });
+        var cut = await RenderAsync(new Data { Profiles = [Kid(), Adult(SecondId, "Parent")], Library = Everything().Library, Saved = Everything().Saved });
         var action = Assert.Single(cut.FindAll("a.my-library-action"));
         Assert.Equal("/who", action.GetAttribute("href"));
         Assert.Empty(cut.FindAll("a[href='/settings']"));
@@ -285,7 +299,7 @@ public sealed class MyLibrarySectionTests : AsyncBunitContext
     private static Data WithDocument(bool? canView) => new()
     {
         CanViewDocuments = canView,
-        Watch = Page(
+        Library = Page(
             Card(Guid.Parse("c0000000-0000-0000-0000-000000000001"), "Document", "Tax Return"),
             Card(Guid.Parse("c0000000-0000-0000-0000-000000000002"), "Movie", "Saved Film")),
         Saved =
@@ -323,7 +337,7 @@ public sealed class MyLibrarySectionTests : AsyncBunitContext
         UseData(new Data
         {
             CanViewDocuments = canView,
-            Watch = Page(Card(document, "Document", "Tax Return"), Card(film, "Movie", "Liked Film")),
+            Library = Page(Card(document, "Document", "Tax Return"), Card(film, "Movie", "Liked Film")),
             Reactions =
             [
                 new(ProfileEntityKind.Movie, document, ProfileReactionKind.Like, Now),
@@ -340,18 +354,58 @@ public sealed class MyLibrarySectionTests : AsyncBunitContext
     }
 
     [Fact]
-    public async Task TheTileIndexIsBuiltFromFourLaneReadsPlusTheCatalogueAndPlaylistsAndNothingElse()
+    public async Task TheTileIndexIsBuiltFromDirectReadsAndNoLanePageIsRead()
     {
-        // Performance note for the PR: one read per lane plus the songs read, each asking for 500 cards (the Engine caps a page at 250),
-        // one Collection catalogue read and one Playlist read, however many items the profile saved or liked.
+        // Performance note for the PR: one item lookup for the saved ids and one for the liked ids (each a single call while the list is under
+        // 200 ids), one finished-items read, one Collection catalogue read and one Playlist read, however many items the profile saved or liked.
+        // No lane page is read, so nothing is cut off at a lane page's size.
         await RenderAsync(Everything());
 
-        Assert.Equal(4, _browseCalls.Count);
-        Assert.All(_browseCalls, call => Assert.Equal(500, call.Limit));
-        Assert.Equal(["listen", "listen:Music", "read", "watch"],
-            _browseCalls.Select(call => call.MediaType is null ? call.Lane! : $"{call.Lane}:{call.MediaType}").Order().ToArray());
+        Assert.Empty(_browseCalls);
+        Assert.Equal(2, _itemCalls.Count);
+        Assert.Equal([Guid.Parse("b0000000-0000-0000-0000-000000000001")], _itemCalls[0]);
+        Assert.Equal([Guid.Parse("b0000000-0000-0000-0000-000000000002")], _itemCalls[1]);
         Assert.Equal(1, _catalogCalls);
         Assert.Equal(1, _managedCalls);
+    }
+
+    [Fact]
+    public async Task ASavedItemFarBeyondTheFirstTwoHundredFiftyOfALaneStillAppearsInMyList()
+    {
+        // 300 titles in the library; the profile saved the one at position 270 most recently. A lane page of 250 would have dropped it.
+        var cards = Enumerable.Range(0, 300)
+            .Select(i => Card(Guid.Parse($"e0000000-0000-0000-0000-{i:000000000000}"), "Movie", $"Title {i:000}"))
+            .ToArray();
+        var saved = new List<ProfileSavedItemDto>
+        {
+            new(ProfileEntityKind.Movie, cards[270].Id, Now, null),
+            new(ProfileEntityKind.Movie, cards[3].Id, Now.AddHours(-1), null),
+        };
+        var liked = new List<ProfileReactionDto>
+        {
+            new(ProfileEntityKind.Movie, cards[299].Id, ProfileReactionKind.Love, Now),
+        };
+
+        var cut = await RenderAsync(new Data { Library = Page(cards), Saved = saved, Reactions = liked });
+
+        Assert.Equal(["My List", "Liked"], Headings(cut));
+        Assert.Contains("Title 270", cut.Markup);
+        Assert.Contains("Title 003", cut.Markup);
+        Assert.Contains("Title 299", cut.Markup);
+        Assert.Empty(_browseCalls);
+    }
+
+    [Fact]
+    public async Task HistoryComesFromTheFinishedReadNewestFirst()
+    {
+        var older = Card(Guid.Parse("f0000000-0000-0000-0000-000000000001"), "Movie", "Older Finish", 100, DisplayContinuationState.Completed, 600);
+        var newer = Card(Guid.Parse("f0000000-0000-0000-0000-000000000002"), "Movie", "Newer Finish", 100, DisplayContinuationState.Completed, 5);
+        var cut = await RenderAsync(new Data { Finished = Page(older, newer) });
+
+        Assert.Equal(["My List", "History"], Headings(cut));
+        Assert.True(cut.Markup.IndexOf("Newer Finish", StringComparison.Ordinal) < cut.Markup.IndexOf("Older Finish", StringComparison.Ordinal));
+        Assert.Empty(_browseCalls);
+        Assert.Empty(_itemCalls);
     }
 
     [Fact]
