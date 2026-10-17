@@ -17,7 +17,7 @@ Every documentation file in the repository, one line each, with its status. Two 
 | [How Tuvima is built](architecture/overview.md) | Current |
 | [Tuvima design system](design/design-system.md) | Current |
 | [Spec template](specs/_template.md) | Current |
-| [Setting up the Tuvima planning Project (claude.ai)](planning-project.md) | Current |
+| [The Tuvima planning project (claude.ai)](planning-project.md) | Current |
 
 ## Specs
 
