@@ -4863,11 +4863,22 @@ MediaEngine.Contracts.Metadata.MediaEngine.Contracts.Metadata.MediaAssetRenditio
   GeneratedAt: System.DateTimeOffset? | nullability=nullable | accessors=get,init
   SourceFingerprint: System.String | nullability=nullable | accessors=get,init
 
+MediaEngine.Contracts.Metadata.MediaEngine.Contracts.Metadata.MediaEditorAssetAudioTrackDto
+  Language: System.String | nullability=nullable | accessors=get,set
+  Codec: System.String | nullability=nullable | accessors=get,set
+  IsDefault: System.Boolean | nullability=not-null | accessors=get,set
+
 MediaEngine.Contracts.Metadata.MediaEngine.Contracts.Metadata.MediaEditorAssetSelectorDto
   AssetId: System.Guid | nullability=not-null | accessors=get,set
   EditionId: System.Guid | nullability=not-null | accessors=get,set
   FileName: System.String | nullability=not-null | accessors=get,set
   TechnicalLabel: System.String | nullability=not-null | accessors=get,set
+  FileSizeBytes: System.Int64? | nullability=nullable | accessors=get,set
+  AddedAt: System.DateTimeOffset? | nullability=nullable | accessors=get,set
+  BitrateBps: System.Int64? | nullability=nullable | accessors=get,set
+  Container: System.String | nullability=nullable | accessors=get,set
+  AudioTracks: System.Collections.Generic.List<MediaEngine.Contracts.Metadata.MediaEditorAssetAudioTrackDto> | nullability=not-null | accessors=get,set
+  SubtitleLanguages: System.Collections.Generic.List<System.String> | nullability=not-null | accessors=get,set
 
 MediaEngine.Contracts.Metadata.MediaEngine.Contracts.Metadata.MediaEditorContextDto
   LaunchEntityId: System.Guid | nullability=not-null | accessors=get,set
