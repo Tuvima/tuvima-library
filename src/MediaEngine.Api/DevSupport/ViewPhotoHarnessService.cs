@@ -41,7 +41,7 @@ public sealed class ViewPhotoHarnessService(
         var space = await viewStorage.EnsurePersonalSpaceAsync(ProfileId, ct);
         var client = httpClientFactory.CreateClient();
         client.DefaultRequestHeaders.UserAgent.ParseAdd(
-            "TuvimaLibraryPhotoHarness/1.0 (development fixture; https://github.com/Tuvima/tuvima_library)");
+            "TuvimaLibraryPhotoHarness/1.0 (development fixture; https://github.com/Tuvima/tuvima-library)");
         var results = new List<ViewPhotoFixtureResult>();
         var density = ViewDensityFixtures.Create();
         var densityByName = density.ToDictionary(sample => sample.FileName);

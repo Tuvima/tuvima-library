@@ -151,7 +151,7 @@ public sealed class PluginCatalogSettings
 
     [JsonPropertyName("approved_plugins_url")]
     public string ApprovedPluginsUrl { get; set; } =
-        "https://raw.githubusercontent.com/Tuvima/tuvima_library/main/docs/reference/approved-plugins.json";
+        "https://raw.githubusercontent.com/Tuvima/tuvima-library/main/docs/reference/approved-plugins.json";
 }
 
 /// <summary>

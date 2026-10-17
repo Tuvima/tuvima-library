@@ -2,7 +2,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { load } from 'cheerio';
-import { repoUrl } from './content-contract.mjs';
+import { base, origin, repoUrl } from './content-contract.mjs';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 const urls = new Set();
@@ -29,7 +29,7 @@ async function collect(dir) {
         // Per-page "Edit page" links open GitHub's sign-in-gated editor, which answers bots with 429.
         // validate-site.mjs already proves each page carries the exact edit link for its source file.
         if (url.href.startsWith(`${repoUrl}/edit/main/docs/`)) continue;
-        if (url.origin === 'https://tuvima.github.io' && url.pathname.startsWith('/tuvima-library/')) continue;
+        if (url.origin === origin && url.pathname.startsWith(`${base}/`)) continue;
         url.hash = ''; urls.add(url.href);
       }
     }

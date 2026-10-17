@@ -17,7 +17,7 @@ public sealed class LibraryItemCurationRepositoryTests : IDisposable
     public LibraryItemCurationRepositoryTests()
     {
         DapperConfiguration.Configure();
-        _databasePath = Path.Combine(Path.GetTempPath(), $"tuvima_library_item_store_{Guid.NewGuid():N}.db");
+        _databasePath = Path.Combine(Path.GetTempPath(), $"tuvima-library-item-store-{Guid.NewGuid():N}.db");
         _database = new DatabaseConnection(_databasePath);
         _database.InitializeSchema();
         _database.RunStartupChecks();

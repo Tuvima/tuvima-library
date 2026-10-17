@@ -102,7 +102,7 @@ A digest identifies the exact image. Tags such as `latest` are moving update cha
 Set the Compose image to the digest recorded before the update:
 
 ```yaml
-image: ghcr.io/tuvima/tuvima_library@sha256:RECORDED_DIGEST
+image: ghcr.io/tuvima/tuvima-library@sha256:RECORDED_DIGEST
 ```
 
 Then recreate it with the same persistent folders:
@@ -133,7 +133,7 @@ Install Cosign separately, replace the digest below, and verify the workflow ide
 cosign verify \
   --certificate-identity-regexp='https://github.com/Tuvima/tuvima-library/.github/workflows/docker-publish.yml@refs/(heads/main|tags/v.*)' \
   --certificate-oidc-issuer=https://token.actions.githubusercontent.com \
-  ghcr.io/tuvima/tuvima_library@sha256:DIGEST
+  ghcr.io/tuvima/tuvima-library@sha256:DIGEST
 ```
 
 Do not treat a tag alone as signature or provenance verification.

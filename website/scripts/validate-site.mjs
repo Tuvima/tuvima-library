@@ -2,7 +2,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { load } from 'cheerio';
-import { base, origin } from './content-contract.mjs';
+import { base, origin, repoUrl } from './content-contract.mjs';
 
 const website = fileURLToPath(new URL('../', import.meta.url));
 export async function validateSite(dist, records) {
@@ -69,7 +69,7 @@ export async function validateSite(dist, records) {
       if (!$('title').text().includes(page.title)) errors.push(`${page.route}: page identity does not match ${page.title}`);
       const canonical = $('link[rel="canonical"]').attr('href');
       if (page.slug !== '404' && canonical !== `${origin}${page.route}`) errors.push(`${page.route}: incorrect canonical ${canonical}`);
-      if (page.slug !== '404' && !$(`a[href="https://github.com/Tuvima/tuvima-library/edit/main/docs/${page.source}"]`).length) errors.push(`${page.route}: original-source edit link is missing`);
+      if (page.slug !== '404' && !$(`a[href="${repoUrl}/edit/main/docs/${page.source}"]`).length) errors.push(`${page.route}: original-source edit link is missing`);
     } catch (error) { errors.push(`${page.route}: page was not emitted (${error.message})`); }
   }
   for (const [from, to] of Object.entries(records.redirects ?? {})) {

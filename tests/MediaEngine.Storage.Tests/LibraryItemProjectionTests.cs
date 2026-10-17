@@ -15,7 +15,7 @@ public sealed class LibraryItemProjectionTests : IDisposable
     public LibraryItemProjectionTests()
     {
         DapperConfiguration.Configure();
-        _dbPath = Path.Combine(Path.GetTempPath(), $"tuvima_libraryItem_projection_{Guid.NewGuid():N}.db");
+        _dbPath = Path.Combine(Path.GetTempPath(), $"tuvima-library-item-projection-{Guid.NewGuid():N}.db");
         _db = new DatabaseConnection(_dbPath);
         _db.InitializeSchema();
         _db.RunStartupChecks();

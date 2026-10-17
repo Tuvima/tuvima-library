@@ -120,12 +120,19 @@ Tuvima Library is in **Early Access** and under active development. Browsing, re
 
 ## Documentation
 
+The full documentation lives at **[tuvima.github.io/tuvima-library](https://tuvima.github.io/tuvima-library/)**, organised into Guides, Develop and Reference.
+
 | I want to… | Start here |
 | --- | --- |
-| Use Tuvima Library | [Getting started](https://tuvima.github.io/tuvima-library/tutorials/getting-started/) · [Find your way around](https://tuvima.github.io/tuvima-library/guides/dashboard-tour/) |
-| Run a server | [Install with Docker](https://tuvima.github.io/tuvima-library/install/docker/) · [Manage libraries](https://tuvima.github.io/tuvima-library/guides/library-settings/) · [Troubleshooting](https://tuvima.github.io/tuvima-library/guides/troubleshooting/) |
-| Build plugins or providers | [Build a plugin](https://tuvima.github.io/tuvima-library/guides/building-a-plugin/) · [Add a provider](https://tuvima.github.io/tuvima-library/guides/adding-a-provider/) |
-| Contribute code or docs | [Contributing](CONTRIBUTING.md) · [Developer setup](https://tuvima.github.io/tuvima-library/tutorials/dev-setup/) · [Technical overview](https://tuvima.github.io/tuvima-library/architecture/technical-overview/) |
+| Get started | [What is Tuvima Library?](https://tuvima.github.io/tuvima-library/explanation/what-is-tuvima/) · [Getting started](https://tuvima.github.io/tuvima-library/tutorials/getting-started/) · [Your first library](https://tuvima.github.io/tuvima-library/tutorials/first-library/) |
+| Install a server | [Docker](https://tuvima.github.io/tuvima-library/install/docker/) · [Windows](https://tuvima.github.io/tuvima-library/install/windows/) · [Unraid](https://tuvima.github.io/tuvima-library/install/unraid/) · [Synology](https://tuvima.github.io/tuvima-library/install/synology/) · [QNAP](https://tuvima.github.io/tuvima-library/install/qnap/) · [TrueNAS SCALE](https://tuvima.github.io/tuvima-library/install/truenas-scale/) |
+| Use Tuvima Library | [Find your way around](https://tuvima.github.io/tuvima-library/guides/dashboard-tour/) · [Play, read and listen](https://tuvima.github.io/tuvima-library/guides/playback-and-reading/) · [Fix an item](https://tuvima.github.io/tuvima-library/guides/editing-items/) |
+| Set up and manage | [Libraries](https://tuvima.github.io/tuvima-library/guides/library-settings/) · [Metadata providers](https://tuvima.github.io/tuvima-library/guides/configuring-providers/) · [Remote access](https://tuvima.github.io/tuvima-library/guides/remote-access/) · [Troubleshooting](https://tuvima.github.io/tuvima-library/guides/troubleshooting/) |
+| Understand how it works | [The pipeline](https://tuvima.github.io/tuvima-library/explanation/how-the-pipeline-works/) · [Universes and Series](https://tuvima.github.io/tuvima-library/explanation/how-universes-work/) · [Privacy](https://tuvima.github.io/tuvima-library/explanation/privacy-local-first/) |
+| Contribute or extend | [Contributing](https://tuvima.github.io/tuvima-library/develop/contributing/) · [Developer setup](https://tuvima.github.io/tuvima-library/tutorials/dev-setup/) · [Build a plugin](https://tuvima.github.io/tuvima-library/guides/building-a-plugin/) · [Add a provider](https://tuvima.github.io/tuvima-library/guides/adding-a-provider/) · [Architecture](https://tuvima.github.io/tuvima-library/architecture/technical-overview/) |
+| Look something up | [Configuration](https://tuvima.github.io/tuvima-library/reference/configuration/) · [Media types](https://tuvima.github.io/tuvima-library/reference/media-types/) · [Engine actions (API)](https://tuvima.github.io/tuvima-library/reference/api-endpoints/) · [Feature status](https://tuvima.github.io/tuvima-library/product/status/) |
+
+Internal planning documents (product overview, architecture decisions, design system and feature specs) are indexed in [engineering/README.md](engineering/README.md).
 
 ## Contributing
 
