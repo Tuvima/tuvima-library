@@ -575,6 +575,7 @@ public static class DoorStatusCodePagesExtensions
     public static bool IsDoorPath(PathString path) =>
         path.StartsWithSegments("/.well-known/tuvima", StringComparison.OrdinalIgnoreCase)
         || path.StartsWithSegments("/pair", StringComparison.OrdinalIgnoreCase)
+        || path.StartsWithSegments("/cast", StringComparison.OrdinalIgnoreCase)
         || path.StartsWithSegments("/api/v1", StringComparison.OrdinalIgnoreCase)
         || path.StartsWithSegments(ApplicationEventClientMethods.HubPath, StringComparison.OrdinalIgnoreCase);
 }

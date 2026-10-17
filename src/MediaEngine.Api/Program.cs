@@ -129,6 +129,8 @@ builder.Host.UseSerilog((context, services, loggerConfig) => loggerConfig
     .ReadFrom.Configuration(context.Configuration)
     .ReadFrom.Services(services)
     .Enrich.FromLogContext()
+    // A cast grant is a secret that sits in the URL path: no log event that spells a cast address is ever written anywhere.
+    .Filter.ByExcluding(logEvent => logEvent.RenderMessage().Contains("/cast/v1/", StringComparison.Ordinal))
     .WriteTo.Console(outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}")
     .WriteTo.File(
         path: Path.Combine(logDirectory, "tuvima-.log"),
@@ -300,6 +302,17 @@ builder.Services.AddSingleton<IConfigurationLoader>(configLoader);
         options.AddPolicy("intercom", context =>
             RateLimitPartition.GetFixedWindowLimiter(
                 context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+                _ => new FixedWindowRateLimiterOptions
+                {
+                    PermitLimit = 20,
+                    Window = TimeSpan.FromMinutes(1),
+                    QueueLimit = 0,
+                }));
+        // Starting a cast session mints a secret link, so it is limited per paired device (else per address).
+        options.AddPolicy("cast_grants", context =>
+            RateLimitPartition.GetFixedWindowLimiter(
+                context.User.FindFirst(MediaEngine.Api.Security.TuvimaClaimTypes.DeviceId)?.Value
+                    ?? context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
                 _ => new FixedWindowRateLimiterOptions
                 {
                     PermitLimit = 20,

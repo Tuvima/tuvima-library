@@ -1,5 +1,6 @@
 using Bunit;
 using MediaEngine.Web.Components.Navigation;
+using MediaEngine.Web.Services.Navigation;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace MediaEngine.Web.Tests;
@@ -50,7 +51,9 @@ public sealed class KidsShellTests : AsyncBunitContext
 
         Assert.Contains("_isKids = profile.IsRestricted;", layout);
         Assert.Contains("CanViewReview=\"@(CanViewReview && !_isKids)\"", layout);
-        Assert.Contains("_kidsNavPaths = [\"/watch\", \"/listen\", \"/read\"]", layout);
-        Assert.DoesNotContain("/view\", \"/collections\"", layout.Split("_kidsNavPaths")[1].Split(';')[0]);
+        // The top bar's links, and so the phone menu and chips, come from the one catalogue; Kids keep Watch, Listen and Read.
+        Assert.Contains("ShellNavigation.TopBarLinks(_isKids)", layout);
+        Assert.Equal(["/watch", "/listen", "/read"], ShellNavigation.TopBarLinks(isKids: true).Select(link => link.Path).ToArray());
+        Assert.DoesNotContain(ShellNavigation.TopBarLinks(isKids: true), link => link.Path is "/view" or "/collections");
     }
 }

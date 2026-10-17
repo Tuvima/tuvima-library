@@ -287,6 +287,8 @@ Each source owns `id`, `path`, `management_mode`, `source_type`, `include_subdir
 
 The Engine reads the folder settings again for every filing decision, so setting the Import folder, adding a managed folder, or marking a different New media folder applies without a restart.
 
+Adding, removing or changing a library folder (its path or its **Include subfolders** setting) in Settings also starts or stops watching it straight away, and a new folder is scanned once for the files already in it. No Engine restart is needed. A read-only (As-is) folder is only read, and one that is not reachable, such as an offline drive, is logged and not created. See [Ingestion pipeline](../architecture/ingestion-pipeline.md).
+
 Each enabled profile resolves one View Personal Space, backed by one internal
 `personal` library bridge and any number of sources/devices. It indexes mixed
 local assets and local metadata without entering catalogue matching, canonical
@@ -495,7 +497,7 @@ One file per device profile: `web.json`, `mobile.json`, `television.json`, `auto
 
 Each file defines constraints appropriate for the device class: navigation style, poster size limits, swimlane behaviour, topbar variant, and SignalR reconnect policy.
 
-The `shell` block of each file (and of `global.json`) holds `appbar_style`, `logo_variant`, `intent_dock_style` and `intent_dock_items`, the tab names shown on the phone and TV dock. The default is `["Home", "Libraries", "Search", "Downloads", "Settings"]`. Libraries opens the last library surface used (a switcher sheet when tapped on one), Search opens the search overlay, and Downloads opens a page that says downloads live in the Tuvima app. Read, Watch, Listen, View and Collections remain valid names so settings saved before the five-tab dock still resolve; unknown names are ignored. A Kids profile always drops Settings. The Downloads tab itself is switched in code by `ShellDock.DownloadsMode` (`ExplainNativeApp` or `Hidden`).
+The `shell` block of each file (and of `global.json`) holds `appbar_style`, `logo_variant`, `intent_dock_style` and `intent_dock_items`, the tab names shown on the TV dock. The default is `["Home", "Libraries", "Search", "Downloads", "Settings"]`. Libraries opens the last library surface used (a switcher sheet when tapped on one), Search opens the search overlay, and Downloads opens a page that says downloads live in the Tuvima app. Read, Watch, Listen, View and Collections remain valid names so settings saved before the five-tab dock still resolve; unknown names are ignored. A Kids profile always drops Settings. The Downloads tab itself is switched in code by `ShellDock.DownloadsMode` (`ExplainNativeApp`, `Hidden` or `Available`). The phone dock does not read this list: it is always Home, Search and My Library (`ShellDock.PhoneDockItems`), for every profile, and the phone top bar shows its Downloads icon only when `ShellDock.DownloadsMode` is `Available`. See *Phone navigation* in [presentation rules](../product/presentation-rules.md).
 
 ### config/ui/profiles/*.json
 

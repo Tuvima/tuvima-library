@@ -1,0 +1,19 @@
+@namespace MediaEngine.Web.Components.Navigation
+@inject IStringLocalizer<SharedStrings> L
+
+@* The phone top bar's Downloads icon, on the right. It shows only where downloads work (the Tuvima app): the
+   browser Dashboard ships with ShellDock.DownloadsMode = ExplainNativeApp, so there it renders nothing. *@
+@if (ShellDock.ShowsDownloadsInTopBar(Mode))
+{
+    <a class="phone-downloads-action"
+       href="@ShellDock.DownloadsPath"
+       aria-label="@L["Nav_Downloads"]"
+       title="@L["Nav_Downloads"]">
+        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Download" />
+    </a>
+}
+
+@code {
+    /// <summary>What Downloads does on this client. Defaults to the shipped switch in <see cref="ShellDock.DownloadsMode"/>.</summary>
+    [Parameter] public DownloadsTabMode Mode { get; set; } = ShellDock.DownloadsMode;
+}

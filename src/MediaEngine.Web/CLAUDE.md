@@ -24,7 +24,7 @@ All Dashboard code follows the **Feature-Sliced** pattern. Every new piece of UI
 | `Integration/` | `EngineApiClient*.cs` + `IEngineApiClient.cs`, `UIOrchestratorService.cs`, `UniverseStateContainer.cs`, `UniverseMapper.cs`, `ProviderCatalogueService.cs`, `IntercomEvents.cs` | All HTTP + SignalR communication with the Engine and explicit mapping into Dashboard presentation state |
 | `Formatting/` | `DisplayFormat.cs` | Single home for UI duration/count/speed formatting |
 | `Narration/` | `PhraseTemplateService.cs` + interface | Narrated-copy phrase templates |
-| `Navigation/` | `MediaNavigation.cs`, `ListenNavigation.cs`, `DetailTabNavigation.cs`, `ShellDock.cs`, `ProjectLinks.cs` | Route-building and shell navigation helpers; `ProjectLinks` holds the public docs address used by Help |
+| `Navigation/` | `MediaNavigation.cs`, `ListenNavigation.cs`, `DetailTabNavigation.cs`, `ShellNavigation.cs`, `ShellDock.cs`, `ProjectLinks.cs` | Route-building and shell navigation helpers; `ShellNavigation` is the one catalogue of primary destinations rendered by the desktop top bar, phone menu and chips; `ShellDock` holds the dock tabs and Downloads rules; `ProjectLinks` holds the public docs address used by Help |
 | `Playback/` | `PlaybackSessionController*.cs`, `PlaybackStateMachine.cs`, `PlaybackModels.cs`, `MediaKindClassifier.cs`, `MediaReactionService.cs`, `SavedItemService.cs`, `ListenPageState.cs`, `Audiobook*` | Playback session state, typed commands, queue, bookmarks, lyrics, reactions and saved items |
 | `Ui/` | `AppDialogService.cs`, `AppToastService.cs`, `AppPopoverService.cs` | Scoped native dialog/result, toast/action and popup coordination |
 | `Theming/` | `ThemeService.cs`, `DeviceContextService.cs`, `PaletteProvider.cs`, `AppThemeStyles.cs` | Dark-mode theme, device cascade, palette |
@@ -45,9 +45,9 @@ All Dashboard code follows the **Feature-Sliced** pattern. Every new piece of UI
 | `MediaEditor/` | `SharedMediaEditorShell` and its sections |
 | `MediaHub/` | Shared section scaffolding for Read, Watch, Listen, Collections |
 | `MediaTiles/` | `MediaTile`, `MediaGroupTile`, `MediaTileGrid`, `MediaTileShelf` |
-| `Navigation/` | `SystemActivityIndicator`, `TopNavAccountMenu` (incl. Needs Review link), `LibrarySwitcherSheet` |
+| `Navigation/` | `SystemActivityIndicator`, `TopNavAccountMenu` (incl. Needs Review link), `LibrarySwitcherSheet`, and the phone shell (`PhoneNavigationMenu`, `PhoneSectionChips`, `PhoneDownloadsAction`) — see *Phone navigation* in `docs/product/presentation-rules.md` |
 | `Pages/` | All routed pages — see the table below |
-| `Profiles/` | Profile editor/avatar/sign-in sheets, `AdminUnlockDialog`, `ProfileManageRules` |
+| `Profiles/` | Profile editor/avatar/sign-in sheets with their `ProfileEditingWorkflow` / `ProfileSignInWorkflow`, `AdminUnlockDialog`, `ProfileManageRules` |
 | `Rules/` | Shared rule builder for Collections and View |
 | `Search/` | `UniversalSearchOverlay`, results |
 | `Settings/` | Settings shell tabs and pages (Profiles, Security, Playback/Listening/Reading, Devices, Recently Added with Needs Review, Ingestion, Libraries…); rows built from `SettingsNavRow`; register sections in `SettingsNav` |
@@ -82,7 +82,8 @@ All Dashboard code follows the **Feature-Sliced** pattern. Every new piece of UI
 | `/details/{EntityType}/{Id:guid}` | `UnifiedDetailPage` | The one detail page for every entity type (`Components/Details/`); TV episodes open via their show with `?episode=` |
 | `/collections`, `/collections/{Section}` | `Collections` | Collections and universes |
 | `/universe/{Qid}/explore` | `ChronicleExplorer` | Universe graph explorer |
-| `/for-me` | `ForMe` | Personal shelves |
+| `/my-library` | `MyLibrary` | The personal page (Continue, My List, History, Liked; Downloads in the app); the phone dock's My Library tab |
+| `/for-me` | `ForMe` | Personal shelves and See All grids |
 | `/who` | `ProfilePickerPage` | Profile picker |
 | `/setup` | `SetupPage` | First-run setup |
 | `/recently-added` | `RecentlyAddedPage` | Recently added |

@@ -31,6 +31,9 @@ public sealed class DiscoveryHeroViewModel
     public string? MetaText { get; init; }
     public IReadOnlyList<string> MetaPills { get; init; } = [];
     public double? ProgressPct { get; init; }
+
+    /// <summary>Seconds left in the item, from the Engine's progress (movies, episodes, audiobooks); null when not known.</summary>
+    public double? RemainingSeconds { get; init; }
     public Guid? RepresentativeEntityId { get; init; }
     public Guid? WorkId { get; init; }
     public Guid? CollectionId { get; init; }
@@ -44,6 +47,9 @@ public sealed class DiscoveryHeroViewModel
     public string PrimaryNavigationUrl { get; init; } = "/";
     public string SecondaryActionLabel { get; init; } = "Details";
     public string? SecondaryNavigationUrl { get; init; }
+
+    /// <summary>True while the item is still being matched; the phone hero shows a small "Still being matched" tag.</summary>
+    public bool IsSettling { get; init; }
 }
 
 public sealed class DiscoveryHubViewModel

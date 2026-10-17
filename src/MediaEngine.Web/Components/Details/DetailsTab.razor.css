@@ -33,3 +33,95 @@
     color: rgba(246, 240, 232, 0.52);
     font-size: 0.76rem;
 }
+
+/* File facts: a compact two-column list on every device. Long values wrap
+   (never scroll sideways) so phones keep the page at viewport width. */
+:where(.tl-detail-page) .tl-file-facts,
+:where(.tl-detail-page) .tl-item-history {
+    min-width: 0;
+    margin-bottom: clamp(0.9rem, 2vw, 1.4rem);
+}
+
+:where(.tl-detail-page) .tl-file-facts__note {
+    margin: 0;
+    color: rgba(246, 240, 232, 0.62);
+    font-size: 0.85rem;
+    overflow-wrap: anywhere;
+}
+
+:where(.tl-detail-page) .tl-file-facts__block {
+    min-width: 0;
+    padding: 0.6rem 0;
+}
+
+:where(.tl-detail-page) .tl-file-facts__block + .tl-file-facts__block {
+    border-top: 1px solid rgba(246, 240, 232, 0.1);
+}
+
+:where(.tl-detail-page) .tl-file-facts__title {
+    margin: 0 0 0.35rem;
+    font-size: 0.9rem;
+    font-weight: 700;
+    overflow-wrap: anywhere;
+}
+
+:where(.tl-detail-page) .tl-file-facts__list {
+    display: grid;
+    grid-template-columns: minmax(5rem, 9rem) minmax(0, 1fr);
+    gap: 0.3rem 0.9rem;
+    margin: 0;
+    min-width: 0;
+}
+
+:where(.tl-detail-page) .tl-file-facts__list dt {
+    color: rgba(246, 240, 232, 0.55);
+    font-size: 0.8rem;
+    overflow-wrap: anywhere;
+}
+
+:where(.tl-detail-page) .tl-file-facts__list dd {
+    margin: 0;
+    min-width: 0;
+    font-size: 0.85rem;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+}
+
+:where(.tl-detail-page) .tl-item-history__list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: grid;
+    gap: 0.55rem;
+}
+
+:where(.tl-detail-page) .tl-item-history__entry {
+    display: grid;
+    grid-template-columns: 9.5rem minmax(0, 1fr) auto;
+    gap: 0.15rem 0.9rem;
+    min-width: 0;
+    font-size: 0.85rem;
+}
+
+:where(.tl-detail-page) .tl-item-history__when,
+:where(.tl-detail-page) .tl-item-history__who {
+    color: rgba(246, 240, 232, 0.55);
+    font-size: 0.8rem;
+}
+
+:where(.tl-detail-page) .tl-item-history__detail {
+    grid-column: 2;
+    color: rgba(246, 240, 232, 0.7);
+    overflow-wrap: anywhere;
+}
+
+:where(.tl-detail-page) .tl-item-history__what {
+    overflow-wrap: anywhere;
+}
+
+@media (max-width: 600px) {
+    :where(.tl-detail-page) .tl-file-facts__list {
+        grid-template-columns: minmax(4.5rem, 32%) minmax(0, 1fr);
+        gap: 0.3rem 0.7rem;
+    }
+}

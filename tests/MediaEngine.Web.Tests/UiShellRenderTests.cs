@@ -28,7 +28,7 @@ using Microsoft.Extensions.FileProviders;
 
 namespace MediaEngine.Web.Tests;
 
-public sealed class UiShellRenderTests : AsyncBunitContext
+public sealed partial class UiShellRenderTests : AsyncBunitContext
 {
     public UiShellRenderTests()
     {
@@ -1646,41 +1646,39 @@ public sealed class UiShellRenderTests : AsyncBunitContext
     }
 
     [Fact]
-    public async Task MainLayout_ShowsFiveTabDockOnPhonesWithoutAHamburger()
+    public async Task MainLayout_PhoneThenTabletSwapsTheDockAndHamburgerForTheTopNavigation()
     {
         var cut = Render<MainLayout>(parameters => parameters
             .Add(layout => layout.Body, builder => builder.AddMarkupContent(0, "<section>Body</section>")));
         cut.WaitForAssertion(() => Assert.Single(cut.FindAll(".tl-appbar")));
         var device = Services.GetRequiredService<DeviceContextService>();
 
-        await cut.InvokeAsync(() => device.SwitchDeviceAsync(new DeviceContextSnapshot("mobile", "phone", true)));
+        await cut.InvokeAsync(() => device.SwitchDeviceAsync(PhoneDevice));
         cut.WaitForAssertion(() =>
         {
-            var links = cut.FindAll(".layout-shell__intent-dock-link");
-            Assert.Equal(["/", "/watch", "/search", "/downloads", "/settings"], links.Select(link => link.GetAttribute("href")!).ToArray());
-            Assert.Equal(["Home", "Libraries", "Search", "Downloads", "Settings"], links.Select(link => link.TextContent.Trim()).ToArray());
-            Assert.Empty(cut.FindAll(".shell-menu-button"));
-            Assert.Single(cut.FindAll(".top-nav-account-menu__trigger"));
+            Assert.Equal(3, cut.FindAll(".layout-shell__intent-dock-link").Count);
+            Assert.Single(cut.FindAll(".layout-shell__menu-button"));
         });
 
         await cut.InvokeAsync(() => device.SwitchDeviceAsync(new DeviceContextSnapshot("web", "tablet", true)));
         cut.WaitForAssertion(() =>
         {
             Assert.Empty(cut.FindAll(".layout-shell__intent-dock-link"));
-            Assert.Empty(cut.FindAll(".shell-menu-button"));
+            Assert.Empty(cut.FindAll(".layout-shell__menu-button"));
             Assert.Equal(5, cut.FindAll(".layout-shell__nav-link").Count);
         });
     }
 
     [Fact]
-    public async Task MainLayout_LibrariesTabLinksToTheLastLibraryAndOpensTheSwitcherOnALibrarySurface()
+    public async Task MainLayout_TvLibrariesTabLinksToTheLastLibraryAndOpensTheSwitcherOnALibrarySurface()
     {
+        // The Libraries tab belongs to the TV dock now; the phone dock is Home, Search and My Library.
         var cut = Render<MainLayout>(parameters => parameters
             .Add(layout => layout.Body, builder => builder.AddMarkupContent(0, "<section>Body</section>")));
         cut.WaitForAssertion(() => Assert.Single(cut.FindAll(".tl-appbar")));
         var device = Services.GetRequiredService<DeviceContextService>();
         var nav = Services.GetRequiredService<NavigationManager>();
-        await cut.InvokeAsync(() => device.SwitchDeviceAsync(new DeviceContextSnapshot("mobile", "phone", true)));
+        await cut.InvokeAsync(() => device.SwitchDeviceAsync(TvDevice));
 
         AngleSharp.Dom.IElement Libraries() => cut.FindAll(".layout-shell__intent-dock-link")[1];
 
@@ -1729,25 +1727,25 @@ public sealed class UiShellRenderTests : AsyncBunitContext
         cut.WaitForAssertion(() => Assert.Single(cut.FindAll(".tl-appbar")));
         var device = Services.GetRequiredService<DeviceContextService>();
         var nav = Services.GetRequiredService<NavigationManager>();
-        await cut.InvokeAsync(() => device.SwitchDeviceAsync(new DeviceContextSnapshot("mobile", "phone", true)));
+        await cut.InvokeAsync(() => device.SwitchDeviceAsync(PhoneDevice));
         var before = nav.Uri;
 
-        cut.WaitForAssertion(() => Assert.Equal(5, cut.FindAll(".layout-shell__intent-dock-link").Count));
-        cut.FindAll(".layout-shell__intent-dock-link")[2].Click();
+        cut.WaitForAssertion(() => Assert.Equal(3, cut.FindAll(".layout-shell__intent-dock-link").Count));
+        cut.FindAll(".layout-shell__intent-dock-link")[1].Click();
 
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".universal-search-overlay")));
         Assert.Equal(before, nav.Uri);
     }
 
     [Fact]
-    public async Task MainLayout_KidsLibrariesSwitcherListsOnlyWatchListenAndRead()
+    public async Task MainLayout_TvKidsLibrariesSwitcherListsOnlyWatchListenAndRead()
     {
         var cut = Render<MainLayout>(parameters => parameters
             .Add(layout => layout.Body, builder => builder.AddMarkupContent(0, "<section>Body</section>")));
         cut.WaitForAssertion(() => Assert.Single(cut.FindAll(".tl-appbar")));
         var device = Services.GetRequiredService<DeviceContextService>();
         var nav = Services.GetRequiredService<NavigationManager>();
-        await cut.InvokeAsync(() => device.SwitchDeviceAsync(new DeviceContextSnapshot("mobile", "phone", true)));
+        await cut.InvokeAsync(() => device.SwitchDeviceAsync(TvDevice));
         typeof(MainLayout).GetField("_isKids", BindingFlags.Instance | BindingFlags.NonPublic)!.SetValue(cut.Instance, true);
         await cut.InvokeAsync(() => nav.NavigateTo("/watch"));
 
@@ -1823,7 +1821,7 @@ public sealed class UiShellRenderTests : AsyncBunitContext
     }
 
     [Fact]
-    public async Task MainLayout_KidsPhoneDockHasFourTabs()
+    public async Task MainLayout_KidsPhoneDockHasTheSameThreeTabs()
     {
         var cut = Render<MainLayout>(parameters => parameters
             .Add(layout => layout.Body, builder => builder.AddMarkupContent(0, "<section>Body</section>")));
@@ -1834,7 +1832,7 @@ public sealed class UiShellRenderTests : AsyncBunitContext
         typeof(MainLayout).GetField("_isKids", BindingFlags.Instance | BindingFlags.NonPublic)!.SetValue(cut.Instance, true);
         cut.Render();
 
-        cut.WaitForAssertion(() => Assert.Equal(["/", "/watch", "/search", "/downloads"],
+        cut.WaitForAssertion(() => Assert.Equal(["/", "/search", "/my-library"],
             cut.FindAll(".layout-shell__intent-dock-link").Select(link => link.GetAttribute("href")!).ToArray()));
     }
 

@@ -43,6 +43,14 @@
         color: rgba(148, 163, 184, 0.88);
     }
 
+    .media-tile-shelf-empty {
+        margin: 0;
+        font-family: var(--font-ui);
+        font-size: var(--tl-font-size-body);
+        line-height: var(--tl-line-height-body);
+        color: var(--tl-text-secondary);
+    }
+
     .media-tile-shelf-link {
         color: rgba(248, 250, 252, 0.8);
         text-decoration: none;
@@ -113,3 +121,10 @@
             flex-direction: column;
         }
     }
+
+/* Phones: "See All" on the right of every shelf header is a full 48px touch target. */
+:root[data-form-factor="phone"] .media-tile-shelf-link { display:inline-flex; align-items:center; justify-content:flex-end; min-height:48px; min-width:48px; }
+
+/* Phones: the header is one 48px row, title on the left and See All on the right (the 640px stacking above is for tablets and small windows),
+   so a shelf with no See All is exactly as tall as one that has it. */
+:root[data-form-factor="phone"] .media-tile-shelf-header { flex-direction:row; align-items:center; min-height:48px; }

@@ -363,6 +363,10 @@
                                 <span class="media-section-shell__rail-meta @(item.MetaIsNotification ? "media-section-shell__rail-meta--notification" : null)"
                                       aria-label="@item.MetaAriaLabel">@item.Meta</span>
                             }
+                            @if (item.AttentionDot)
+                            {
+                                <span class="media-section-shell__attention-dot" aria-hidden="true"></span>
+                            }
                         </a>
                     }
                 }

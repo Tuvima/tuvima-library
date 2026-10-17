@@ -53,6 +53,10 @@ public static class NativeApiForwardPolicy
         Of(["GET"], "devices/current/profiles"),
         Of(["POST"], "devices/current/switch-profile"),
 
+        // The watching and subtitle preferences of the profile this device is using now. Read-only and GET only: the Engine takes the
+        // profile from the token, there is no profile id in the path, and nothing here can change a setting.
+        Of(["GET"], "devices/current/playback-preferences"),
+
         // The offline downloads this device reports as stored: list and report (GET, POST on the collection), forget a variant
         // (DELETE by id) or a kept photo (DELETE .../photos/{itemId}). The Engine decides which device from the token alone.
         Of(["GET"], "devices/current/downloads"),
@@ -91,6 +95,9 @@ public static class NativeApiForwardPolicy
         Of(Read, $"playback/{Guid}/offline/{Guid}"),
         Of(Read, "playback/encode/jobs"),
         Of(["POST"], $"playback/{Guid}/encode"),
+
+        // Start a cast session for one title: the Engine answers with a one-title secret link for the TV. POST only, no GET.
+        Of(["POST"], $"playback/{Guid}/cast"),
         Of(["POST"], $"playback/encode/jobs/{Guid}/cancel"),
 
         // The player session, progress, saved items and reactions belong to the device's own profile.

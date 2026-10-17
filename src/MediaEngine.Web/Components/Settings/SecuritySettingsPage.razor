@@ -36,6 +36,12 @@
             <section class="security-settings__group" aria-labelledby="security-account-details">
                 <h3 id="security-account-details" class="security-settings__group-title">Account details</h3>
                 <ul class="security-settings__list" role="list">
+                    @if (_thisComputerOnly && !Capabilities.HasPassword)
+                    {
+                        <li class="security-settings__item">
+                            <SettingsNavRow Key="add-password" Icon="@AppMaterialIcons.Outlined.Password" Title="Add a password" Status="Needed to use Tuvima on your phone or TV" OnClick="@(() => OpenSheet(SecuritySheet.Password))" />
+                        </li>
+                    }
                     <li class="security-settings__item">
                         <SettingsNavRow Key="password" Icon="@AppMaterialIcons.Outlined.Password" Title="Password" Status="@PasswordStatus" OnClick="@(() => OpenSheet(SecuritySheet.Password))" />
                     </li>
@@ -476,7 +482,7 @@
 
     protected override async Task OnInitializedAsync()
     {
-        _thisComputerOnly = ThisComputerOnlyBanner.IsThisComputerOnly((await AuthenticationState.GetAuthenticationStateAsync()).User);
+        _thisComputerOnly = SecureAccountPrompt.IsThisComputerOnly((await AuthenticationState.GetAuthenticationStateAsync()).User);
         await LoadAccountAsync();
         if (_account is null || _disposed) return;
         StateHasChanged();

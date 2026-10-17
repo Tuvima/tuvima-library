@@ -3,6 +3,8 @@
 @using MediaEngine.Contracts.LocalAssets
 @using MediaEngine.Contracts.Realtime
 @using MediaEngine.Web.Components.Pages
+@using MediaEngine.Web.Services.Theming
+@inject DeviceContextService DeviceContext
 @inject IEngineApiClient Api
 @inject RecentViewAssetAdapter ViewAdapter
 @inject UIOrchestratorService Orchestrator
@@ -13,7 +15,7 @@
 @if (Browse || _loading || _error is not null || _items.Count > 0 || Type != "all")
 {
 <section class="recent-feed" aria-label="Recently Added">
-    <div class="recent-feed-heading"><h2>Recently Added</h2><RecentMediaFilters Selected="@Type" SelectedChanged="ChangeTypeAsync" />@if (!Browse) { <a class="recent-view-all" href="@($"/recently-added?type={Type}")">View all</a> }</div>
+    <div class="recent-feed-heading"><h2>Recently Added</h2><RecentMediaFilters Selected="@Type" SelectedChanged="ChangeTypeAsync" />@if (!Browse) { <a class="recent-view-all" href="@($"/recently-added?type={Type}")">@(DeviceContext.IsPhone ? "See All" : "View all")</a> }</div>
     @if (_error is not null) { <p role="status">@_error</p> }
     else if (_items.Count == 0 && !_loading) { <p role="status">No accessible recent additions in this scope.</p> }
     @if (Browse) { <div class="recent-items recent-items--browse" aria-busy="@_loading">@RecentItems</div> }
@@ -33,9 +35,9 @@
     [Parameter] public long RefreshKey { get; set; }
     [Parameter] public EventCallback<bool> HasItemsChanged { get; set; }
     private RenderFragment RecentItems => @<text>
-        @foreach (var item in _items)
+        @foreach (var item in OrderedItems)
         {
-            <div class="recent-item" @key="item.Key">
+            <div class="@(IsSettling(item) ? "recent-item recent-item--settling" : "recent-item")" @key="item.Key">
                 @if (item.Catalogue is { } card) { <MediaTile IsHomeSurface="@(!Browse)" ShowCompactCaption="true" HideMediaKindBadge="@(!Browse)" HideSourceBadge="@(!Browse)" HideGroupIndicators="@(!Browse)" Item="@_tiles[item.Key]" HoverMode="@(Browse ? MediaTileHoverMode.GlowOnly : MediaTileHoverPolicy.ForShelf(_tiles[item.Key]))" /> }
                 else if (item.ViewAsset is { } asset && _profileId is { } profile)
                 {
@@ -47,6 +49,11 @@
             </div>
         }
     </text>;
+    // On a phone, items still being matched go after the matched ones (and look quieter), so the first screen is the finished library.
+    private IEnumerable<DisplayRecentItemDto> OrderedItems => DeviceContext.IsPhone && !Browse
+        ? _items.Where(item => !IsSettling(item)).Concat(_items.Where(IsSettling))
+        : _items;
+    private static bool IsSettling(DisplayRecentItemDto item) => item.Catalogue?.IsSettling == true;
     private readonly Dictionary<string, MediaTileViewModel> _tiles = [];
     private long _loadedRefreshKey;
     private readonly List<DisplayRecentItemDto> _items = [];

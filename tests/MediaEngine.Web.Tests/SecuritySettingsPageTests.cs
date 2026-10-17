@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
+using System.Security.Claims;
 using Bunit;
 using MediaEngine.Contracts.Authentication;
 using MediaEngine.Contracts.LocalAssets;
@@ -8,6 +9,7 @@ using MediaEngine.Web.Components.Settings;
 using MediaEngine.Web.Components.Shared;
 using MediaEngine.Web.Services.Integration;
 using MediaEngine.Web.Tests.Support;
+using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace MediaEngine.Web.Tests;
@@ -17,6 +19,7 @@ public sealed class SecuritySettingsPageTests : AsyncBunitContext
     private readonly SecurityHandler _handler = new();
     private readonly DashboardSessionAccessor _session = new();
     private readonly IEngineApiClient _photoViews;
+    private readonly SwitchableAccountState _accountState = new();
 
     private PhotoViewsApiClient Views => (PhotoViewsApiClient)(object)_photoViews;
 
@@ -29,12 +32,35 @@ public sealed class SecuritySettingsPageTests : AsyncBunitContext
         Services.AddSingleton<IHttpClientFactory>(new SecurityClientFactory(_handler));
         Services.AddScoped<DashboardIdentityClient>();
         Services.AddSingleton(_session);
+        Services.AddSingleton<AuthenticationStateProvider>(_accountState);
         _photoViews = System.Reflection.DispatchProxy.Create<IEngineApiClient, PhotoViewsApiClient>();
         Services.AddSingleton(_photoViews);
         Services.AddScoped<IItsYouConfirmer>(_ => new ConfirmedActionRunnerTests.SpyConfirmer(confirmed: false));
         Services.AddScoped<ConfirmedActionRunner>();
         Services.AddSingleton<IReadOnlyList<RegisteredExternalAuthProvider>>([]);
         Render<AppPopoverHost>();
+    }
+
+    [Fact]
+    public void ThisComputerOnlyAccount_StartsWithAnAddAPasswordRow()
+    {
+        _handler.HasPassword = false;
+        _accountState.ThisComputerOnly = true;
+        var cut = Render<SecuritySettingsPage>();
+
+        cut.WaitForAssertion(() => Assert.Equal(["add-password", "password", "email", "sign-out-others", "photo-views"], RowKeys(cut)));
+        Assert.Contains("Needed to use Tuvima on your phone or TV", cut.Find("[data-nav-row='add-password']").TextContent, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ThisComputerOnlyAccount_DropsAddAPasswordOnceAPasswordExists()
+    {
+        _handler.HasPassword = true;
+        _accountState.ThisComputerOnly = true;
+        _session.Set("session", _handler.Account, _handler.Profile, _handler.CurrentSession, _handler.MemberAuthority());
+        var cut = Render<SecuritySettingsPage>();
+
+        cut.WaitForAssertion(() => Assert.Equal(["password", "email", "extra-protection", "sign-out-others", "photo-views"], RowKeys(cut)));
     }
 
     [Fact]
@@ -331,6 +357,16 @@ public sealed class SecuritySettingsPageTests : AsyncBunitContext
 
     private static string[] RowKeys(IRenderedComponent<SecuritySettingsPage> cut) =>
         cut.FindAll("[data-nav-row]").Select(row => row.GetAttribute("data-nav-row")!).ToArray();
+
+    // The signed-in account is an ordinary password account unless a test marks it as this-computer-only.
+    private sealed class SwitchableAccountState : AuthenticationStateProvider
+    {
+        public bool ThisComputerOnly { get; set; }
+
+        public override Task<AuthenticationState> GetAuthenticationStateAsync() => Task.FromResult(new AuthenticationState(
+            new ClaimsPrincipal(new ClaimsIdentity(
+                [new Claim(ClaimTypes.Name, "Owner"), new Claim("tuvima:authentication_method", ThisComputerOnly ? ThisComputerRequests.AuthenticationMethod : "Password")], "Test"))));
+    }
 
     private sealed class SecurityClientFactory(HttpMessageHandler handler) : IHttpClientFactory
     {

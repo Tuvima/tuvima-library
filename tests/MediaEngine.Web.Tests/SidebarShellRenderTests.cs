@@ -54,6 +54,27 @@ public sealed class SidebarShellRenderTests : AsyncBunitContext
     }
 
     [Fact]
+    public void MediaSectionShell_AttentionDotMarksOnlyTheFlaggedRow()
+    {
+        var navigation = new[]
+        {
+            new MediaSectionNavigationGroup("Personal",
+            [
+                new("Profiles", "/settings/profiles", AppMaterialIcons.Outlined.Group, Exact: true),
+                new("Security", "/settings/security", AppMaterialIcons.Outlined.Lock, Exact: true, AttentionDot: true),
+            ]),
+        };
+
+        var cut = Render<MediaSectionShell>(parameters => parameters
+            .Add(component => component.Title, "Settings")
+            .Add(component => component.NavigationGroups, navigation)
+            .AddChildContent("<section>Settings content</section>"));
+
+        Assert.Single(cut.Find("a.media-section-shell__rail-item[href='/settings/security']").QuerySelectorAll(".media-section-shell__attention-dot"));
+        Assert.Empty(cut.Find("a.media-section-shell__rail-item[href='/settings/profiles']").QuerySelectorAll(".media-section-shell__attention-dot"));
+    }
+
+    [Fact]
     public void MediaSectionShell_ProvidesCompactMobileNavigationWithCurrentRoute()
     {
         Services.GetRequiredService<NavigationManager>().NavigateTo("/watch/tv");

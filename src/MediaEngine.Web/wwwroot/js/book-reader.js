@@ -334,10 +334,21 @@ const isSafeResourceType = type => SAFE_TYPES.test(type) || SAFE_APPLICATION_TYP
 
 const COMPACT_CHARS = new RegExp('[\\u0000-\\u0020\\u007f-\\u009f\\u2028\\u2029]+', 'g');
 const compact = value => String(value ?? '').replace(COMPACT_CHARS, '').toLowerCase();
-const isLocalUrl = value => !value || !/^[a-z][a-z0-9+.-]*:/i.test(value.trim()) || /^(blob|data):/i.test(value.trim());
+// What the browser's URL parser sees: leading and trailing control characters and spaces go, and tabs and newlines inside go
+// ("ht<TAB>tps://x" is "https://x" to a browser), so every address test below reads this form and not the raw attribute.
+const urlText = value => String(value ?? '').replace(/^[\u0000-\u0020]+|[\u0000-\u0020]+$/g, '').replace(/[\t\n\r]/g, '');
+const hasScheme = value => /^[a-z][a-z0-9+.-]*:/i.test(urlText(value));
+const isLocalUrl = value => !hasScheme(value) || /^(blob|data):/i.test(urlText(value));
+// The only addresses an element other than a link may keep in `href`: a place in this page or a picture the book carries.
+const isLocalTarget = value => /^(#|blob:|data:image\/)/i.test(urlText(value));
 const isScriptUrl = value => /^(javascript|vbscript|livescript):/.test(compact(value)) || /^data:(text|application)\//.test(compact(value));
 const LINK_SCHEMES = /^(https?:|mailto:)/i;
-const URL_ATTRS = ['href', 'src', 'data', 'poster', 'action', 'formaction', 'xlink:href', 'from', 'to', 'values', 'srcset'];
+const XLINK_NS = 'http://www.w3.org/1999/xlink';
+const isAnchor = el => el.localName.toLowerCase() === 'a';
+// Compared by LOCAL name, whatever the namespace prefix is: q:href in the XLink namespace is a link like href is.
+const URL_ATTRS = new Set(['href', 'src', 'data', 'poster', 'action', 'formaction', 'from', 'to', 'by', 'values', 'srcset']);
+const ANIMATION_ELEMENTS = new Set(['animate', 'set', 'animatemotion', 'animatetransform', 'animatecolor', 'handler', 'listener']);
+const XHTML_NS = 'http://www.w3.org/1999/xhtml';
 
 /** Blocks anything in CSS that would load from outside the book. */
 function cleanCss(css) {
@@ -360,15 +371,65 @@ function stripInstructions(doc) {
     doc.doctype?.remove();
 }
 
-/** Shared: scripts, handlers and script URLs go in every kind of document. */
+/** Shared: scripts, handlers, forms and script URLs go in every kind of document. */
 function stripActiveContent(doc) {
     stripInstructions(doc);
+    stripForms(doc);
     for (const el of Array.from(doc.querySelectorAll('script'))) el.remove();
+    // Animation elements can set an href or src to a script address a moment after load, so they go everywhere (inline SVG too).
+    for (const el of Array.from(doc.querySelectorAll('*'))) {
+        if (ANIMATION_ELEMENTS.has(el.localName.toLowerCase())) el.remove();
+    }
     for (const el of doc.querySelectorAll('*')) {
         for (const attr of Array.from(el.attributes)) {
-            if (/^on/i.test(attr.name)) el.removeAttribute(attr.name);
-            else if (URL_ATTRS.includes(attr.name.toLowerCase()) && isScriptUrl(attr.value)) el.removeAttribute(attr.name);
+            const local = attr.localName.toLowerCase();
+            if (/^on/.test(local) || /^on/i.test(attr.name)) el.removeAttributeNode(attr);
+            else if (local === 'action' || local === 'formaction') el.removeAttributeNode(attr);   // where a submission would go: a book never submits anything
+            else if (URL_ATTRS.has(local) && (isScriptUrl(attr.value) || /[;,]\s*(javascript|vbscript|livescript):/i.test(attr.value))) el.removeAttributeNode(attr);
         }
+    }
+}
+
+/**
+ * A book has nowhere to send a form to. The page policy (`form-action 'none'`) and the frame's sandbox (no `allow-forms`) already
+ * refuse a submission, and this is the layer behind them: every `<form>` is unwrapped (its contents stay, so no text is lost) and
+ * the attributes that name a destination (`action`, `formaction`) are removed in `stripActiveContent`. A button, a text box or an
+ * image button (`<input type="image">`) with no form around it submits nothing, and `guardLinks` cancels a submit regardless.
+ */
+function stripForms(doc) {
+    // Document order, so a form inside another form (which XML allows) is unwrapped as well once its parent has gone.
+    for (const el of Array.from(doc.querySelectorAll('*'))) {
+        if (el.localName.toLowerCase() === 'form') el.replaceWith(...Array.from(el.childNodes));
+    }
+}
+
+/**
+ * A link can be written with any prefix (`q:href` in the XLink namespace). The reader only intercepts and opens plain `href`
+ * links safely, so every such attribute is turned into a plain `href` when it is a book-local or web link on an `<a>`, and
+ * removed otherwise. Nothing is left that a browser would follow but the reader does not see.
+ */
+function normalizeLinkAttributes(root) {
+    for (const el of Array.from(root.querySelectorAll('*'))) {
+        for (const attr of Array.from(el.attributes)) {
+            if (attr.localName.toLowerCase() !== 'href' || (attr.namespaceURI === null && attr.name === 'href')) continue;
+            const value = attr.value;
+            el.removeAttributeNode(attr);
+            const allowed = isAnchor(el) ? (isLocalUrl(value) || LINK_SCHEMES.test(urlText(value))) : isLocalUrl(value);
+            if (allowed && !isScriptUrl(value) && !el.hasAttribute('href')) el.setAttribute('href', value);
+        }
+    }
+}
+
+/**
+ * Only an `<a>` is a link the reader knows how to follow (and only to a place in the book or to http, https or mailto).
+ * Every other element loses its `href` unless it points inside the page or at a book picture: MathML elements are live links
+ * in WebKit, and an `<area>` in an image map is a link in every browser.
+ */
+function restrictHrefs(root) {
+    for (const el of Array.from(root.querySelectorAll('[href]'))) {
+        const value = el.getAttribute('href');
+        const allowed = isAnchor(el) ? (isLocalUrl(value) || LINK_SCHEMES.test(urlText(value))) : isLocalTarget(value);
+        if (!allowed) el.removeAttribute('href');
     }
 }
 
@@ -387,11 +448,17 @@ export function hardenPageDetailed(text, mediaType) {
         doc = new DOMParser().parseFromString(text, type);
     }
     if (!doc.documentElement || doc.querySelector('parsererror')) return { text: BLOCKED_PAGE, type: XHTML_TYPE };
+    // A page whose root is not the XHTML html element (another namespace, another name) cannot carry a policy WebKit would apply.
+    if (doc.documentElement.namespaceURI !== XHTML_NS || doc.documentElement.localName !== 'html') return { text: BLOCKED_PAGE, type: XHTML_TYPE };
 
     stripActiveContent(doc);
+    normalizeLinkAttributes(doc);
     // No nested documents, plug-ins or redirects: a frame would be a document this clean-up never sees.
     // (noscript, noembed, noframes and xmp are raw text in HTML, which can hide markup from this clean-up.)
-    for (const el of Array.from(doc.querySelectorAll('iframe, frame, frameset, object, embed, applet, base, noscript, noembed, noframes, xmp, plaintext'))) el.remove();
+    // Image maps are links the tap handler would not recognise, and a template with a shadowrootmode becomes a live shadow root
+    // when the frame reads the page again, holding markup this clean-up cannot reach (nothing in a book shows a template).
+    for (const el of Array.from(doc.querySelectorAll('iframe, frame, frameset, object, embed, applet, base, noscript, noembed, noframes, xmp, plaintext, map, area, template'))) el.remove();
+    restrictHrefs(doc);
     for (const el of Array.from(doc.querySelectorAll('meta[http-equiv]'))) {
         if (/^(refresh|set-cookie|content-security-policy|x-frame-options)$/i.test(el.getAttribute('http-equiv'))) el.remove();
     }
@@ -409,15 +476,21 @@ export function hardenPageDetailed(text, mediaType) {
     for (const el of doc.querySelectorAll('style')) el.textContent = cleanCss(el.textContent);
     for (const el of doc.querySelectorAll('[style]')) el.setAttribute('style', cleanCss(el.getAttribute('style')));
 
-    let head = doc.querySelector('head');
+    // The policy only counts in a <head> that is a direct child of the XHTML root: a head inside an SVG, nested in the body or
+    // in another namespace is not the document's head. Use the real one or make one, and refuse the page if that is not so.
+    const html = doc.documentElement;
+    let head = Array.from(html.children).find(child => child.namespaceURI === XHTML_NS && child.localName === 'head') ?? null;
     if (!head) {
-        head = doc.createElementNS(doc.documentElement.namespaceURI, 'head');
-        doc.documentElement.prepend(head);
+        head = doc.createElementNS(XHTML_NS, 'head');
+        html.prepend(head);
     }
-    const meta = doc.createElementNS(doc.documentElement.namespaceURI, 'meta');
+    const meta = doc.createElementNS(XHTML_NS, 'meta');
     meta.setAttribute('http-equiv', 'Content-Security-Policy');
     meta.setAttribute('content', BOOK_CSP);
     head.prepend(meta);
+    if (meta.parentNode !== head || head.parentNode !== html || html.firstElementChild !== head || head.firstElementChild !== meta) {
+        return { text: BLOCKED_PAGE, type: XHTML_TYPE };
+    }
     return { text: new XMLSerializer().serializeToString(doc), type };
 }
 
@@ -426,7 +499,7 @@ export function hardenPage(text, mediaType) {
     return hardenPageDetailed(text, mediaType).text;
 }
 
-const SVG_REMOVE = new Set(['script', 'foreignobject', 'iframe', 'frame', 'embed', 'object', 'applet', 'animate', 'set', 'handler', 'listener', 'meta', 'base', 'audio', 'video', 'canvas']);
+const SVG_REMOVE = new Set(['script', 'foreignobject', 'iframe', 'frame', 'embed', 'object', 'applet', 'animate', 'set', 'animatemotion', 'animatetransform', 'animatecolor', 'handler', 'listener', 'meta', 'base', 'audio', 'video', 'canvas']);
 
 /**
  * Pure: harden one SVG document, which a browser would run scripts in if it were opened as a page, and which cannot
@@ -442,14 +515,8 @@ export function hardenSvg(text) {
         if (el.namespaceURI !== SVG_NS || SVG_REMOVE.has(el.localName.toLowerCase())) el.remove();
     }
     stripActiveContent(doc);
-    for (const el of root.querySelectorAll('*')) {
-        for (const name of ['href', 'xlink:href']) {
-            const value = el.getAttribute(name);
-            if (value === null) continue;
-            const allowed = el.localName === 'a' ? (isLocalUrl(value) || LINK_SCHEMES.test(value.trim())) : isLocalUrl(value);
-            if (!allowed) el.removeAttribute(name);
-        }
-    }
+    normalizeLinkAttributes(doc);
+    restrictHrefs(root);
     for (const el of doc.querySelectorAll('style')) el.textContent = cleanCss(el.textContent);
     for (const el of doc.querySelectorAll('[style]')) el.setAttribute('style', cleanCss(el.getAttribute('style')));
     return new XMLSerializer().serializeToString(doc);
@@ -572,7 +639,11 @@ export function bookCss({ theme, fontSize, lineHeight, font }) {
         p, li, blockquote, dd { line-height: ${spacing}; widows: 2; orphans: 2; }
         [align="left"] { text-align: left; } [align="right"] { text-align: right; }
         [align="center"] { text-align: center; } [align="justify"] { text-align: justify; }
-        pre { white-space: pre-wrap !important; }
+        pre, code { white-space: pre-wrap !important; }
+        /* Reflowable pages only (fixed-layout books never get this sheet): nothing may be wider than its page column,
+           so printed contents lists, wide tables and fixed-width blocks wrap instead of spilling onto the next page. */
+        body * { max-width: 100% !important; box-sizing: border-box; overflow-wrap: anywhere; }
+        table { table-layout: fixed; width: 100% !important; }
         aside[epub|type~="endnote"], aside[epub|type~="footnote"], aside[epub|type~="note"], aside[epub|type~="rearnote"] { display: none; }
     `;
 }
@@ -590,6 +661,30 @@ let session = null;
 
 function emptyStats() {
     return { requests: 0, bytes: 0, openMs: 0, entries: 0, fileSize: 0 };
+}
+
+const SANDBOX_NO_SCRIPTS = 'allow-same-origin';
+const SANDBOX_WITH_SCRIPTS = 'allow-same-origin allow-scripts';
+
+/**
+ * True on Apple WebKit (iPhone, iPad, Safari). There the book frame must be allowed to run scripts, because WebKit does not
+ * deliver events from a script-less sandboxed frame to the page around it (WebKit bug 218086), which breaks taps, swipes,
+ * selection and links. Every iOS browser is WebKit, and iPadOS asks for the desktop site and reports as a Mac, so it is told
+ * apart by its touch screen. Chromium, Firefox and Android never match. `env` is a navigator-like object so this is testable.
+ */
+export function needsScriptSandbox(env = globalThis.navigator ?? {}) {
+    const ua = String(env.userAgent ?? '');
+    const vendor = String(env.vendor ?? '');
+    const touchPoints = Number(env.maxTouchPoints ?? 0);
+    if (/Android/i.test(ua)) return false;
+    if (/iP(hone|ad|od)/.test(ua)) return true;
+    if (/Macintosh/.test(ua) && touchPoints > 1) return true;
+    return vendor === 'Apple Computer, Inc.' && !/Chrome|Chromium|Edg\/|OPR\/|Firefox/.test(ua);
+}
+
+/** The `sandbox` value for book frames: scripts are allowed only where WebKit needs them (see needsScriptSandbox). */
+export function bookFrameSandbox(env) {
+    return needsScriptSandbox(env) ? SANDBOX_WITH_SCRIPTS : SANDBOX_NO_SCRIPTS;
 }
 
 /**
@@ -629,6 +724,8 @@ export async function open(host, url, options, dotNet) {
         state.book = book;
         if (state.disposed) return { ok: false, code: 'cancelled', message: 'Closed.' };
 
+        // The pinned foliate-js reads this when it builds a page frame; the book never chooses it.
+        globalThis.TUVIMA_BOOK_FRAME_SANDBOX = bookFrameSandbox();
         const view = document.createElement('foliate-view');
         state.view = view;
         host.replaceChildren(view);
@@ -760,10 +857,30 @@ function bindInput(state) {
     });
 }
 
+/**
+ * A reflowable page must wrap inside its column. A stylesheet that says `white-space: nowrap` (printed contents lists
+ * with dotted leaders are the usual case) cannot be undone from the shared sheet without also breaking `pre-wrap` /
+ * `pre-line` poetry, so only the elements that really compute to nowrap are set back to normal.
+ */
+export function unwrapNoWrap(doc) {
+    const view = doc?.defaultView;
+    if (!view || !doc.body) return 0;
+    let changed = 0;
+    for (const el of doc.body.querySelectorAll('*')) {
+        if (view.getComputedStyle(el).whiteSpace === 'nowrap') {
+            el.style.setProperty('white-space', 'normal', 'important');
+            changed++;
+        }
+    }
+    return changed;
+}
+
 function onSectionLoad(state, doc, index) {
     if (state.disposed) return;
+    guardLinks(doc, openExternalLink);
     const win = doc.defaultView;
     const frame = win?.frameElement;
+    if (!state.view?.isFixedLayout) unwrapNoWrap(doc);
     doc.addEventListener('keydown', e => onKey(state, e));
     // A tap that only dismisses a text selection is not a page turn.
     doc.addEventListener('pointerdown', () => { state.suppressTap = state.selection !== null; }, true);
@@ -865,12 +982,50 @@ function onKey(state, e) {
     e.preventDefault();
 }
 
-function onExternalLink(e) {
-    e.preventDefault();                                        // the library would open anything; we decide
-    const href = e.detail?.a?.href ?? e.detail?.href_;
+function openExternalLink(href) {
     if (typeof href === 'string' && /^(https?:|mailto:)/i.test(href)) {
         globalThis.open(href, '_blank', 'noopener,noreferrer');
     }
+}
+
+function onExternalLink(e) {
+    e.preventDefault();                                        // the library would open anything; we decide
+    openExternalLink(e.detail?.a?.href ?? e.detail?.href_);
+}
+
+/**
+ * The click interceptor for one book page, and the other half of the clean-up in `restrictHrefs`: it must agree with it on
+ * what a link is. The library only follows `a[href]` in the page itself, so a tap on an `<area>`, on a MathML element with an
+ * `href` (a live link in WebKit) or on an anchor inside a shadow root would be followed by the frame. Here the nearest element
+ * in the click's whole path that the browser would treat as a link is found (`<a>`, and anything outside SVG that has an `href`,
+ * shadow roots included) and its default action is always cancelled. Only a plain `a[href]` in the page without a scheme (a
+ * chapter or note link) is left to the library; an `a` to http, https or mailto is opened by `openExternal` here and never
+ * reaches the library; every other address (ftp, tel, data, javascript, a link inside a shadow root) is simply dead.
+ * It also cancels every form submission on the page (the same destination rule as the clean-up's removal of forms).
+ * It runs before the library's own listener (capture phase) and is safe to run on a page that was not cleaned. A closed shadow root hides
+ * its inside from every listener outside it, so that case is covered by the clean-up (which removes templates), not by this.
+ */
+export function guardLinks(doc, openExternal) {
+    const hrefOf = el => el.getAttribute('href') ?? el.getAttributeNS(XLINK_NS, 'href');
+    // In SVG only `<a>` links (image, use and the like point at pictures and shapes); anywhere else an href is a link.
+    const isLink = el => el.nodeType === 1 && hrefOf(el) !== null && (isAnchor(el) || el.namespaceURI !== SVG_NS);
+    const onClick = e => {
+        const link = e.composedPath().find(isLink);
+        if (!link) return;
+        e.preventDefault();
+        const inPage = isAnchor(link) && link.getRootNode() === doc && link.hasAttribute('href');
+        const value = hrefOf(link);
+        if (e.type === 'click' && inPage && !hasScheme(value)) return;    // a link inside the book: the library follows it
+        e.stopImmediatePropagation();
+        if (e.type !== 'click' || !inPage || !LINK_SCHEMES.test(urlText(value))) return;
+        let href = null;
+        try { href = new URL(urlText(value)).href; } catch { /* not an address the browser can read, so it opens nothing */ }
+        if (href) openExternal(href);
+    };
+    doc.addEventListener('click', onClick, true);
+    doc.addEventListener('auxclick', onClick, true);              // a middle click would open the link in a new tab
+    // A form on a page that was not cleaned (an action, a button's formaction, an image button) must not send the frame anywhere either.
+    doc.addEventListener('submit', e => { e.preventDefault(); e.stopImmediatePropagation(); }, true);
 }
 
 function onRelocate(state, detail) {

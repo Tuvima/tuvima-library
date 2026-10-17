@@ -57,6 +57,8 @@ when all evidence in its final column is attached to the release candidate.
   progress, token rotation, profile switch, and settings. It is checked by
   `tests/native/Test-TvWebClient.ps1` and the `tv-web` CI job.
 
+**Casting (Engine and Dashboard ready, apps to follow).** A paired phone can ask the Engine to prepare a cast session for one video (`POST /api/v1/playback/{assetId}/cast`). The answer is a secret link for that one title, valid for the length of the film plus 90 minutes (2 to 6 hours), that a Chromecast or Google TV on the home network can play with no sign-in. It stops working as soon as the phone signs out, the device or profile changes, or the profile may no longer watch the title. The Android app will use it once it is built against this contract; nothing changes for existing apps.
+
 ## Collections and Universes in apps
 
 API v1 gives paired apps a read-only view of Collections: the same catalogue the
@@ -89,6 +91,15 @@ profile, with the same lockout as the Dashboard. Only people the account is
 granted can be listed or chosen, and a Kids profile keeps its content limit
 after the switch. Choosing the profile already in use is refused (`409`), and
 each device may list or switch at most 30 times a minute.
+
+A paired app can read, but never change, the watching and subtitle preferences of
+the person its device is using now (`GET /api/v1/devices/current/playback-preferences`,
+scope `playback.read`): audio and subtitle language names, when subtitles show
+(`Auto`, `Always` or `Off`), subtitle size and background, skip back and forward
+seconds, autoplay of the next episode, resume, and the default speed. They are
+the values saved in Settings > Playback, or the defaults when none are saved.
+The person is taken from the token alone, so an app never sees another person's
+settings, and changing them stays a Dashboard task.
 
 A TV app packaged for Tizen or webOS is not served from the Dashboard's address.
 When an administrator turns on `native_app_access.allow_browser_apps` in

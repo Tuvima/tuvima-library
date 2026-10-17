@@ -279,6 +279,78 @@ export function buildHostileEpub(file) {
     zip.close();
 }
 
+/**
+ * Links a tap could follow out of the book's frame (the 2026-10-16 review). Each page is one way of writing a link that is
+ * not a plain `<a href>` in the page, so the clean-up and the click handler must both know it: an image map (`<area>`), a
+ * MathML element with an `href` (a live link in WebKit) and an anchor hidden in a declarative shadow root (`<template
+ * shadowrootmode>`, only live in a page the browser reads as text/html). `LINK_PAGES` is also used by run-checks.mjs to
+ * test the clean-up and the click handler one at a time, so `click` is always the element a tap should reach.
+ */
+export const LINK_EVIL = 'https://evil.test/';
+const LINK_PIXEL = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
+const XHTML_PAGE = 'application/xhtml+xml';
+const HTML_PAGE = 'text/html';
+export const LINK_PAGES = [
+    {
+        name: 'image-map', type: XHTML_PAGE, click: '#vector',
+        body: `<p><img id="vector" usemap="#m" src="${LINK_PIXEL}" width="200" height="120" alt="map"/><map name="m"><area shape="default" href="${LINK_EVIL}area" alt="area"/></map></p>`,
+    },
+    {
+        name: 'mathml', type: XHTML_PAGE, click: '#vector',
+        body: `<p><math xmlns="http://www.w3.org/1998/Math/MathML"><mtext id="vector" href="${LINK_EVIL}math">math link</mtext></math></p>`,
+    },
+    {
+        name: 'shadow-dom', type: HTML_PAGE, click: '#vector',
+        body: `<div id="host"><template shadowrootmode="open"><a id="vector" href="${LINK_EVIL}shadow">shadow link</a></template></div>`,
+    },
+];
+/**
+ * Forms (FIX-5b). The frame's policy already refuses a submission (`form-action 'none'` in the page, no `allow-forms` in the
+ * sandbox), so these pages are what the clean-up and the submit handler must also stop when neither of those is there. Each is
+ * one way of sending the frame to an outside address on a tap: a form whose `action` is outside, a submit button with its own
+ * `formaction`, and an image button (`<input type="image">`, which submits at the point it was tapped). The last page is the
+ * same attack in a page read as text/html. `click` is always the control a tap should reach.
+ */
+export const FORM_PAGES = [
+    {
+        name: 'form-action', type: XHTML_PAGE, click: '#vector',
+        body: `<form id="f" action="${LINK_EVIL}form" method="get"><p><input type="text" name="q" value="x"/><button id="vector" type="submit">send</button></p></form>`,
+    },
+    {
+        name: 'button-formaction', type: XHTML_PAGE, click: '#vector',
+        body: `<form id="f" method="get"><p><button id="vector" type="submit" formaction="${LINK_EVIL}button">send</button></p></form>`,
+    },
+    {
+        name: 'image-input', type: XHTML_PAGE, click: '#vector',
+        body: `<form id="f" action="${LINK_EVIL}image" method="get"><p><input id="vector" type="image" src="${LINK_PIXEL}" width="200" height="120" alt="go"/></p></form>`,
+    },
+    {
+        name: 'form-action-html', type: HTML_PAGE, click: '#vector',
+        body: `<table><tr><td><form id="f" action="${LINK_EVIL}table" method="get"><input type="text" name="q" value="x"><input id="vector" type="submit" value="send" formaction="${LINK_EVIL}table-button"></form></td></tr></table>`,
+    },
+];
+/** Anchors every link page also carries: only the first two may ever be opened, and the last is a link inside the book. */
+export const LINK_ANCHORS = '<p><a id="web" href="https://example.org/ok">web</a> <a id="mail" href="mailto:reader@example.org">mail</a> <a id="ftp" href="ftp://example.org/file">ftp</a> <a id="tel" href="tel:+15550100">tel</a> <a id="js" href="javascript:window.__x=1">js</a> <a id="local" href="#after">local</a></p>';
+/** One page as the book would ship it, in the type the manifest gives it. */
+export const linkPageText = page => page.type === HTML_PAGE
+    ? `<!DOCTYPE html><html><head><title>${page.name}</title></head><body><p id="top">${page.name}</p>${page.body}${LINK_ANCHORS}<p id="after">after</p></body></html>`
+    : `<?xml version="1.0" encoding="utf-8"?>\n<html xmlns="http://www.w3.org/1999/xhtml"><head><title>${page.name}</title></head><body><p id="top">${page.name}</p>${page.body}${LINK_ANCHORS}<p id="after">after</p></body></html>`;
+
+export function buildLinkEpub(file, pages = LINK_PAGES, title = 'Link Fixture') {
+    const zip = new ZipFile(file);
+    zip.add('mimetype', 'application/epub+zip', { store: true });
+    zip.add('META-INF/container.xml', CONTAINER);
+    const manifest = pages.map((page, i) => `<item id="p${i}" href="text/${page.name}.${page.type === HTML_PAGE ? 'html' : 'xhtml'}" media-type="${page.type}"/>`).join('');
+    const spine = pages.map((_, i) => `<itemref idref="p${i}"/>`).join('');
+    zip.add('OEBPS/content.opf', `<?xml version="1.0" encoding="utf-8"?>
+<package xmlns="http://www.idpf.org/2007/opf" version="3.0" unique-identifier="bookid">
+<metadata xmlns:dc="http://purl.org/dc/elements/1.1/"><dc:identifier id="bookid">urn:uuid:88888888-2222-3333-4444-555555555555</dc:identifier><dc:title>${title}</dc:title><dc:creator>Test Author</dc:creator><dc:language>en</dc:language><meta property="dcterms:modified">2026-10-16T00:00:00Z</meta></metadata>
+<manifest><item id="nav" href="nav.xhtml" media-type="application/xhtml+xml" properties="nav"/>${manifest}</manifest><spine>${spine}</spine></package>`);
+    zip.add('OEBPS/nav.xhtml', nav([pages[0].name]));
+    for (const page of pages) zip.add(`OEBPS/text/${page.name}.${page.type === HTML_PAGE ? 'html' : 'xhtml'}`, linkPageText(page));
+    zip.close();
+}
+
 /** A plain book of roughly `sizeMB` megabytes: many chapters, each with a valid PNG padded by an ignorable chunk. */
 export function buildBigEpub(file, sizeMB) {
     const zip = new ZipFile(file);
@@ -296,6 +368,84 @@ export function buildBigEpub(file, sizeMB) {
     });
     zip.close();
     return { chapters: count };
+}
+
+/**
+ * Pictures as real publishers ship them: no width/height attributes, percentage sizes, a full-page cover SVG and a
+ * picture inside a figure. Every page is one pattern (`PICTURE_PAGES`), so a check can tell which pattern collapses.
+ * WebKit (iPhone) lost these inside the paginator's columns while the explicitly sized pictures in the regression
+ * fixture still showed.
+ */
+export const PICTURE_PAGES = ['bare', 'full-width', 'max-width', 'figure', 'cover-svg', 'cover-img', 'inline'];
+export function buildPictureEpub(file) {
+    const zip = new ZipFile(file);
+    zip.add('mimetype', 'application/epub+zip', { store: true });
+    zip.add('META-INF/container.xml', CONTAINER);
+    const extra = '<item id="pic" href="images/pic.png" media-type="image/png"/><item id="css" href="css/style.css" media-type="text/css"/>';
+    zip.add('OEBPS/content.opf', opf({ title: 'Picture Fixture', chapters: PICTURE_PAGES, extraManifest: extra }));
+    zip.add('OEBPS/nav.xhtml', nav(PICTURE_PAGES));
+    zip.add('OEBPS/images/pic.png', makePng(300, 450, [120, 70, 200]), { store: true });
+    zip.add('OEBPS/css/style.css', [
+        'html, body { height: 100%; margin: 0; padding: 0; }',
+        '.cover-img { height: 100%; width: 100%; }',
+        'figure { margin: 1em 0; }',
+        'figure img { width: 100%; height: auto; }',
+    ].join('\n'));
+    const link = '<link rel="stylesheet" type="text/css" href="../css/style.css"/>';
+    const img = attrs => `<img class="pic" src="../images/pic.png" alt="picture" ${attrs}/>`;
+    const pages = {
+        'bare': `<h1>Bare</h1><p>${paragraph(7, 2)}</p>${img('')}<p>${paragraph(8, 2)}</p>`,
+        'full-width': `<h1>Full width</h1>${img('style="width:100%"')}<p>${paragraph(9, 2)}</p>`,
+        'max-width': `<h1>Max width</h1>${img('style="max-width:100%;height:auto"')}<p>${paragraph(10, 2)}</p>`,
+        'figure': `<h1>Figure</h1><figure>${img('')}<figcaption>A caption</figcaption></figure><p>${paragraph(11, 2)}</p>`,
+        'cover-svg': '<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" width="100%" height="100%" viewBox="0 0 300 450" preserveAspectRatio="xMidYMid meet"><image width="300" height="450" xlink:href="../images/pic.png"/></svg>',
+        'cover-img': '<div style="height:100%;text-align:center"><img class="pic cover-img" src="../images/pic.png" alt="cover" style="height:100%"/></div>',
+        'inline': `<p>Some text ${img('style="height:1em"')} with a small inline picture, then text again. ${paragraph(12, 3)}</p>`,
+    };
+    for (const name of PICTURE_PAGES) zip.add(`OEBPS/text/${name}.xhtml`, xhtml(name, pages[name], link));
+    zip.close();
+}
+
+/**
+ * Front matter as publishers ship it: a printed contents list with dotted leaders made of tables, floats and
+ * `white-space: nowrap`, a wide table, a `pre` block, a fixed-width div and an oversize picture. Used to measure that
+ * nothing on a reflowable page spills past its column (and so shows as a clipped continuation on the next page).
+ */
+export const FRONT_MATTER_PAGES = ['title', 'copyright', 'contents-table', 'contents-float', 'wide-table', 'pre-block', 'fixed-width', 'oversize-image'];
+export function buildFrontMatterEpub(file) {
+    const zip = new ZipFile(file);
+    zip.add('mimetype', 'application/epub+zip', { store: true });
+    zip.add('META-INF/container.xml', CONTAINER);
+    const extra = '<item id="wide" href="images/wide.png" media-type="image/png"/><item id="css" href="css/style.css" media-type="text/css"/>';
+    zip.add('OEBPS/content.opf', opf({ title: 'Front Matter Fixture', chapters: FRONT_MATTER_PAGES, extraManifest: extra }));
+    zip.add('OEBPS/nav.xhtml', nav(FRONT_MATTER_PAGES));
+    zip.add('OEBPS/images/wide.png', makePng(1600, 400, [200, 90, 60]), { store: true });
+    zip.add('OEBPS/css/style.css', [
+        '.leader { white-space: nowrap; }',
+        '.toc-row { width: 100%; white-space: nowrap; overflow: visible; }',
+        '.toc-row .title { float: left; white-space: nowrap; }',
+        '.toc-row .page { float: right; white-space: nowrap; }',
+        '.dots { white-space: nowrap; letter-spacing: 2px; }',
+        'table.toc { width: 900px; }',
+        '.fixed { width: 700px; border: 1px solid #888; }',
+        'pre { margin: 1em 0; }',
+    ].join('\n'));
+    const link = '<link rel="stylesheet" type="text/css" href="../css/style.css"/>';
+    const dots = '. '.repeat(120);
+    const tocRows = n => Array.from({ length: n }, (_, i) => `<tr><td>Chapter ${i + 1}: A title that is long enough to matter</td><td class="dots">${dots}</td><td>${i * 12 + 7}</td></tr>`).join('');
+    const floatRows = n => Array.from({ length: n }, (_, i) => `<div class="toc-row"><span class="title">Chapter ${i + 1}: A title that is long enough to matter ${dots}</span><span class="page">${i * 12 + 7}</span></div>`).join('');
+    const pages = {
+        'title': `<h1>The Front Matter Book</h1><p class="leader">${'A very long unbreakable subtitle line for the title page '.repeat(4)}</p><p>by Test Author</p>`,
+        'copyright': `<p class="leader">Copyright (c) 2026 Test Author. All rights reserved. ${'No part of this publication may be reproduced '.repeat(3)}</p><p>ISBN 978-0-00-000000-0</p><p>${paragraph(21, 2)}</p>`,
+        'contents-table': `<h1>Contents</h1><table class="toc">${tocRows(18)}</table>`,
+        'contents-float': `<h1>Contents</h1>${floatRows(18)}<p>${paragraph(22, 2)}</p>`,
+        'wide-table': `<h1>Wide table</h1><table style="width:1200px"><tr>${Array.from({ length: 8 }, (_, i) => `<th>Column ${i + 1}</th>`).join('')}</tr><tr>${Array.from({ length: 8 }, (_, i) => `<td>Cell ${i + 1} text</td>`).join('')}</tr></table><p>${paragraph(23, 2)}</p>`,
+        'pre-block': `<h1>Pre</h1><pre>${'0123456789 abcdefghij '.repeat(12)}\n${'x'.repeat(220)}</pre><p>${paragraph(24, 2)}</p>`,
+        'fixed-width': `<h1>Fixed width</h1><div class="fixed"><p>${paragraph(25, 3)}</p></div><div style="width:900px">${paragraph(26, 1)}</div>`,
+        'oversize-image': `<h1>Oversize picture</h1><img src="../images/wide.png" width="1600" height="400" alt="wide"/><p>${paragraph(27, 2)}</p>`,
+    };
+    for (const name of FRONT_MATTER_PAGES) zip.add(`OEBPS/text/${name}.xhtml`, xhtml(name, pages[name], link));
+    zip.close();
 }
 
 /** An image-heavy fixed-layout (pre-paginated) book: every page is one large picture. */

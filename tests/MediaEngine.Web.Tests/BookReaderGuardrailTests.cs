@@ -79,21 +79,38 @@ public sealed class BookReaderGuardrailTests
         Assert.Contains("application/octet-stream", adapter);
         Assert.Contains("stripInstructions", adapter);
         Assert.Contains("iframe, frame, frameset, object, embed, applet, base", adapter);
+        // Image maps and templates (declarative shadow roots) go, other elements keep only local hrefs, and the click handler
+        // that runs on every section agrees with the clean-up on what a link is.
+        Assert.Contains("plaintext, map, area, template", adapter);
+        Assert.Contains("restrictHrefs(doc);", adapter);
+        Assert.Contains("export function guardLinks", adapter);
+        Assert.Contains("guardLinks(doc, openExternalLink);", adapter);
         // A page that cannot be parsed is replaced, never passed through as it was.
         Assert.Contains("BLOCKED_PAGE", adapter);
         Assert.DoesNotContain("return text;", adapter);
     }
 
     [Fact]
-    public void BookFrames_AreNotAllowedToRunScripts()
+    public void BookFrames_AreNotAllowedToRunScripts_ExceptOnAppleWebKitWhereTheAdapterSaysSo()
     {
         foreach (var file in new[] { "paginator.js", "fixed-layout.js" })
         {
             var source = Read($"{Web}/wwwroot/lib/foliate-js/{file}");
-            Assert.Contains("setAttribute('sandbox', 'allow-same-origin')", source);
-            Assert.DoesNotContain("allow-scripts')", source);
+            // The value comes from the adapter and can only be one of two exact strings; anything else falls back to no scripts.
+            Assert.Contains("globalThis.TUVIMA_BOOK_FRAME_SANDBOX === 'allow-same-origin allow-scripts' ? 'allow-same-origin allow-scripts' : 'allow-same-origin'", source);
+            Assert.DoesNotContain("setAttribute('sandbox', 'allow-same-origin allow-scripts')", source);
+            Assert.DoesNotContain("setAttribute('sandbox', 'allow-same-origin')", source);
             Assert.Contains("TUVIMA LOCAL PATCH", source);
         }
+
+        // The adapter allows scripts only where needsScriptSandbox says Apple WebKit, and sets the value before it builds a frame.
+        var adapter = Read($"{Web}/wwwroot/js/book-reader.js");
+        Assert.Contains("export function needsScriptSandbox", adapter);
+        Assert.Contains("const SANDBOX_NO_SCRIPTS = 'allow-same-origin';", adapter);
+        Assert.Contains("const SANDBOX_WITH_SCRIPTS = 'allow-same-origin allow-scripts';", adapter);
+        Assert.Contains("return needsScriptSandbox(env) ? SANDBOX_WITH_SCRIPTS : SANDBOX_NO_SCRIPTS;", adapter);
+        Assert.Contains("globalThis.TUVIMA_BOOK_FRAME_SANDBOX = bookFrameSandbox();", adapter);
+        Assert.True(adapter.IndexOf("TUVIMA_BOOK_FRAME_SANDBOX = ", StringComparison.Ordinal) < adapter.IndexOf("createElement('foliate-view')", StringComparison.Ordinal));
 
         // The patch is recorded where the next person upgrading the library will look.
         var pinned = Read($"{Web}/wwwroot/lib/foliate-js/PINNED.md");

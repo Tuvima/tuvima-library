@@ -1,4 +1,6 @@
 @namespace MediaEngine.Web.Components.MediaTiles
+@using MediaEngine.Web.Services.Theming
+@inject DeviceContextService DeviceContext
 
 @if (Shelf.Items.Count > 0)
 {
@@ -16,7 +18,7 @@
 
                 @if (!string.IsNullOrWhiteSpace(Shelf.SeeAllRoute))
                 {
-                    <a href="@Shelf.SeeAllRoute" class="media-tile-shelf-link">View all</a>
+                    <a href="@Shelf.SeeAllRoute" class="media-tile-shelf-link">@(DeviceContext.IsPhone ? "See All" : "View all")</a>
                 }
             </div>
         }
@@ -54,6 +56,18 @@
         </MediaShelfScroller>
     </section>
 }
+else if (ShowHeader && !string.IsNullOrWhiteSpace(EmptyMessage))
+{
+    @* An empty shelf normally disappears; with EmptyMessage it keeps its title and says how to fill it. No buttons. *@
+    <section class="media-tile-shelf media-tile-shelf--empty">
+        <div class="media-tile-shelf-header">
+            <div class="media-tile-shelf-copy">
+                <h2 class="media-tile-shelf-title">@Shelf.Title</h2>
+            </div>
+        </div>
+        <p class="media-tile-shelf-empty">@EmptyMessage</p>
+    </section>
+}
 
 @code {
     [Parameter, EditorRequired] public MediaTileShelfViewModel Shelf { get; set; } = default!;
@@ -68,6 +82,8 @@
     [Parameter] public bool UseContinueWatchingOrListeningTiles { get; set; }
     [Parameter] public bool KeepCurrentTileSize { get; set; }
     [Parameter] public int EagerItemCount { get; set; }
+    /// <summary>When set, an empty shelf keeps its header and shows this helper text instead of disappearing.</summary>
+    [Parameter] public string? EmptyMessage { get; set; }
 
     private string RowClass => Shelf.Items.FirstOrDefault()?.Shape switch
     {

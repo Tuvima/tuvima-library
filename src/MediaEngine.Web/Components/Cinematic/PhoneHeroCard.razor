@@ -1,0 +1,176 @@
+@namespace MediaEngine.Web.Components.Cinematic
+@using MediaEngine.Contracts.Details
+@using MediaEngine.Web.Components.Details
+@using MediaEngine.Web.Models.ViewDTOs
+@using MediaEngine.Web.Services.Ui
+
+@* The phone Home hero: one rounded card of fixed height, identical for every slide and media type, so nothing below it
+   moves when the slide changes. Fixed slots: picture, title (two lines at most), one meta line, one full-width primary
+   button and at most two compact icon buttons (My List, More). Swipe and the dots change slides; nothing rotates by itself. *@
+@if (Hero is not null)
+{
+    <div class="phone-hero">
+        <div class="@CardClass">
+            <a class="phone-hero__link" href="@DetailsUrl" aria-label="@($"Open details for {Hero.Title}")"></a>
+            <div class="phone-hero__art" aria-hidden="true">
+                @switch (Art.Mode)
+                {
+                    case PhoneHeroArt.Backdrop:
+                        <img class="phone-hero__backdrop" src="@Art.ImageUrl" alt="" decoding="async" fetchpriority="high" />
+                        break;
+                    case PhoneHeroArt.Cover:
+                        <img class="phone-hero__cover" src="@Art.ImageUrl" alt="" decoding="async" fetchpriority="high" />
+                        break;
+                    default:
+                        <div class="phone-hero__placeholder">
+                            <AppMaterialIcon Icon="@PlaceholderIcon" Class="phone-hero__placeholder-icon" />
+                            <span class="phone-hero__placeholder-word">@PhoneHeroPresentation.PlaceholderLabel(Hero.MediaKind)</span>
+                        </div>
+                        break;
+                }
+            </div>
+            <div class="phone-hero__content">
+                <div class="phone-hero__tag-slot">
+                    @if (Hero.IsSettling)
+                    {
+                        <span class="phone-hero__tag">Still being matched</span>
+                    }
+                </div>
+                @* The logo zone is a fixed two-line box: a logo scales to fit inside it, and a title with no logo is drawn as text in it. *@
+                <div class="phone-hero__title-zone">
+                    @if (!string.IsNullOrWhiteSpace(Art.LogoUrl))
+                    {
+                        <img class="phone-hero__logo" src="@Art.LogoUrl" alt="" decoding="async" />
+                    }
+                    <h1 class="@(string.IsNullOrWhiteSpace(Art.LogoUrl) ? "phone-hero__title" : "phone-hero__title sr-only")">@Hero.Title</h1>
+                </div>
+                <p class="phone-hero__meta">@PhoneHeroPresentation.MetaLine(Hero)</p>
+                <div class="phone-hero__progress-slot">
+                    @if (ProgressPercent is > 0 and < 99.5)
+                    {
+                        <progress class="phone-hero__progress" max="100" value="@((int)Math.Round(ProgressPercent.Value))" aria-label="Progress"></progress>
+                    }
+                </div>
+                <div class="phone-hero__actions">
+                    @if (Primary is not null)
+                    {
+                        <AppNativeButton Type="button"
+                                         Class="phone-hero__primary"
+                                         AriaLabel="@PrimaryText.Full"
+                                         OnClick="@(_ => OnAction.InvokeAsync(Primary))">
+                            @if (PrimaryIcon is not null)
+                            {
+                                <AppMaterialIcon Icon="@PrimaryIcon" Class="phone-hero__primary-icon" />
+                            }
+                            <span class="phone-hero__primary-label">@PrimaryText.Text</span>
+                            @if (!string.IsNullOrWhiteSpace(PrimaryText.Detail))
+                            {
+                                <span class="phone-hero__primary-detail">@PrimaryText.Detail</span>
+                            }
+                        </AppNativeButton>
+                    }
+                    @if (MyList is not null)
+                    {
+                        <AppNativeButton Type="button"
+                                         Class="phone-hero__icon-button"
+                                         AriaLabel="@MyList.Label"
+                                         Title="@MyList.Label"
+                                         aria-pressed="@(MyList.IsSelected ? "true" : "false")"
+                                         OnClick="@(_ => OnAction.InvokeAsync(MyList))">
+                            <AppMaterialIcon Icon="@(MyList.IsSelected ? AppMaterialIcons.Outlined.Check : AppMaterialIcons.Outlined.Add)" />
+                        </AppNativeButton>
+                    }
+                    @if (MoreActions.Count > 0)
+                    {
+                        <AppNativeButton Type="button"
+                                         Class="phone-hero__icon-button"
+                                         AriaLabel="More actions"
+                                         Title="More actions"
+                                         aria-haspopup="dialog"
+                                         aria-expanded="@(_sheetOpen ? "true" : "false")"
+                                         OnClick="@(_ => OpenSheet())">
+                            <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.MoreHoriz" />
+                        </AppNativeButton>
+                    }
+                </div>
+            </div>
+        </div>
+
+        @if (Slides.Count > 1)
+        {
+            <div class="phone-hero__dots" role="group" aria-label="Choose featured item">
+                @for (var index = 0; index < Slides.Count; index++)
+                {
+                    var slideIndex = index;
+                    var isActive = slideIndex == ActiveIndex;
+                    <AppNativeButton Type="button"
+                                     Class="@(isActive ? "phone-hero__dot is-active" : "phone-hero__dot")"
+                                     AriaLabel="@($"Show featured item {slideIndex + 1} of {Slides.Count}: {Slides[slideIndex].Title}")"
+                                     aria-current="@(isActive ? "true" : null)"
+                                     OnClick="@(_ => OnSelectSlide.InvokeAsync(slideIndex))">
+                        <span class="phone-hero__dot-mark" aria-hidden="true"></span>
+                    </AppNativeButton>
+                }
+                <span class="sr-only" aria-live="polite">@($"Featured item {ActiveIndex + 1} of {Slides.Count}")</span>
+            </div>
+        }
+
+        @if (_sheetOpen)
+        {
+            <AppDialogFrame Open="true" Title="More" DialogOptions="SheetOptions" Class="tl-detail-more-sheet" OnCancel="CloseSheet">
+                <div class="tl-detail-more-sheet__items" role="menu" aria-label="More actions">
+                    <ManageActionsMenu Actions="MoreActions" OnActionSelected="SelectFromSheetAsync" />
+                </div>
+            </AppDialogFrame>
+        }
+    </div>
+}
+
+@code {
+    private static readonly AppDialogOptions SheetOptions = new() { Sheet = AppDialogSheetMode.Phone, BackdropClick = true, CloseOnEscapeKey = true };
+    private bool _sheetOpen;
+
+    private void OpenSheet() => _sheetOpen = true;
+    private void CloseSheet() => _sheetOpen = false;
+
+    private async Task SelectFromSheetAsync(DetailAction action)
+    {
+        // Close the sheet and let it leave the DOM before the action runs, so an action that opens another dialog is not stacked under it.
+        _sheetOpen = false;
+        await InvokeAsync(StateHasChanged);
+        await Task.Yield();
+        await OnAction.InvokeAsync(action);
+    }
+
+    [Parameter] public IReadOnlyList<DiscoveryHeroViewModel> Slides { get; set; } = [];
+    [Parameter] public int ActiveIndex { get; set; }
+    [Parameter] public string DetailsUrl { get; set; } = "/";
+    [Parameter] public DetailAction? Primary { get; set; }
+    [Parameter] public DetailAction? MyList { get; set; }
+    [Parameter] public IReadOnlyList<DetailAction> MoreActions { get; set; } = [];
+    [Parameter] public double? ProgressPercent { get; set; }
+    [Parameter] public EventCallback<DetailAction> OnAction { get; set; }
+    [Parameter] public EventCallback<int> OnSelectSlide { get; set; }
+
+    private DiscoveryHeroViewModel? Hero => Slides.Count == 0 ? null : Slides[Math.Clamp(ActiveIndex, 0, Slides.Count - 1)];
+    private PhoneHeroArtwork Art => Hero is null ? new(PhoneHeroArt.Placeholder, null, null) : PhoneHeroPresentation.ResolveArt(Hero);
+    private PhoneHeroPrimaryLabel PrimaryText => Hero is null ? new(Primary?.Label ?? string.Empty, null) : PhoneHeroPresentation.PrimaryLabel(Hero);
+    private string CardClass => $"phone-hero__card phone-hero__card--{Art.Mode.ToString().ToLowerInvariant()}";
+
+    private string? PrimaryIcon => Primary?.Icon switch
+    {
+        "play_arrow" => AppMaterialIcons.Filled.PlayArrow,
+        "auto_stories" => AppMaterialIcons.Outlined.AutoStories,
+        "headphones" => AppMaterialIcons.Outlined.Headphones,
+        _ => null,
+    };
+
+    private string PlaceholderIcon => (Hero?.MediaKind ?? string.Empty).Trim().ToLowerInvariant() switch
+    {
+        "movie" => AppMaterialIcons.Outlined.Movie,
+        "tv" => AppMaterialIcons.Outlined.Tv,
+        "music" => AppMaterialIcons.Outlined.Album,
+        "audiobook" => AppMaterialIcons.Outlined.Headphones,
+        _ => AppMaterialIcons.Outlined.MenuBook,
+    };
+}

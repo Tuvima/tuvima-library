@@ -43,5 +43,22 @@
                 <data android:scheme="tuvima" android:host="play" />
             </intent-filter>
         </activity>
+
+        <!-- Full-screen video. It sets its own landscape orientation from OrientationPolicy and handles rotation itself. -->
+        <activity
+            android:name=".VideoPlayerActivity"
+            android:exported="false"
+            android:resizeableActivity="true"
+            android:supportsPictureInPicture="true"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden|uiMode|density|layoutDirection|fontScale"
+            android:theme="@style/Theme.Tuvima" />
+
+        <!-- A video from Photos. Own player, follows the phone's rotation, never writes progress or History. -->
+        <activity
+            android:name=".ClipPlayerActivity"
+            android:exported="false"
+            android:resizeableActivity="true"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden|uiMode|density|layoutDirection|fontScale"
+            android:theme="@style/Theme.Tuvima" />
     </application>
 </manifest>

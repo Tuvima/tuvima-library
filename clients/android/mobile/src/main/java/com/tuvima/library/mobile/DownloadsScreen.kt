@@ -61,7 +61,7 @@ import kotlinx.coroutines.withContext
 internal fun DownloadsScreen(
     application: TuvimaMobileApplication,
     client: TuvimaClient,
-    play: (String) -> Unit,
+    play: (PlayRequest) -> Unit,
     openPhotos: (List<ViewItem>, Int) -> Unit,
 ) {
     val context = LocalContext.current
@@ -128,7 +128,7 @@ internal fun DownloadsScreen(
                         client = client,
                         record = record,
                         nowMs = now,
-                        onPlay = { play(record.assetId) },
+                        onPlay = { play(PlayRequest(record.assetId, record.entityType, record.title, record.subtitle, showId = record.showId)) },
                         onView = {
                             val kept = keptPhotoItems(records)
                             openPhotos(kept, kept.indexOfFirst { it.id == record.assetId }.coerceAtLeast(0))

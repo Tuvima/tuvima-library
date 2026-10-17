@@ -93,14 +93,21 @@ public sealed class MediaTileComposerService
             })
             .ToList();
 
-        var hero = page.Hero is null ? null : FromDisplayHero(page.Hero);
+        // The hero comes from a different Engine call than the shelves; an item the shelves already mark as still being matched is marked here too.
+        var settling = page.Shelves.SelectMany(shelf => shelf.Items)
+            .Where(card => card.IsSettling)
+            .SelectMany(card => new[] { (Guid?)card.Id, card.WorkId })
+            .Where(id => id.HasValue)
+            .Select(id => id!.Value)
+            .ToHashSet();
+        var hero = page.Hero is null ? null : FromDisplayHero(page.Hero, settling);
 
         return new DiscoveryPageViewModel
         {
             Key = page.Key,
             AccentColor = "var(--tl-accent-primary)",
             Hero = hero,
-            Spotlights = page.Key == "home" ? page.Spotlights.Select(FromDisplayHero).ToList() : BuildSpotlights(page, hero),
+            Spotlights = page.Key == "home" ? page.Spotlights.Select(spotlight => FromDisplayHero(spotlight, settling)).ToList() : BuildSpotlights(page, hero),
             Shelves = shelves,
             Catalog = page.Catalog.Select(FromDisplayCard).ToList(),
             EmptyTitle = "Your home screen is waiting for its first story",
@@ -108,7 +115,7 @@ public sealed class MediaTileComposerService
         };
     }
 
-    private static DiscoveryHeroViewModel FromDisplayHero(DisplayHeroDto hero)
+    private static DiscoveryHeroViewModel FromDisplayHero(DisplayHeroDto hero, ISet<Guid>? settling = null)
     {
         var heroSurfaceKind = ResolveHeroSurfaceKind(hero.Artwork);
         var heroPreviewSurfaceKind = ResolvePreviewSurfaceKind(hero.Artwork);
@@ -140,6 +147,7 @@ public sealed class MediaTileComposerService
             MetaText = string.Join(" / ", hero.Facts),
             MetaPills = hero.Facts,
             ProgressPct = hero.Progress?.Percent,
+            RemainingSeconds = hero.Progress?.RemainingSeconds,
             StatusText = hero.Progress?.Label,
             RepresentativeEntityId = hero.Id,
             WorkId = hero.WorkId,
@@ -153,6 +161,8 @@ public sealed class MediaTileComposerService
             PrimaryNavigationUrl = primaryAction?.WebUrl ?? "/",
             SecondaryActionLabel = "Details",
             SecondaryNavigationUrl = secondaryAction?.WebUrl,
+            IsSettling = settling is not null
+                && ((hero.WorkId is { } workId && settling.Contains(workId)) || (hero.Id is { } heroId && settling.Contains(heroId))),
         };
     }
 

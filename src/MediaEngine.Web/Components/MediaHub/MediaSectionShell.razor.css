@@ -358,6 +358,15 @@
     font-size: var(--tl-font-size-xs);
 }
 
+/* Attention dot for a row that needs a look (for example Security before a password exists); the row name carries the meaning. */
+.media-section-shell__attention-dot {
+    justify-self: end;
+    width: 0.5rem;
+    height: 0.5rem;
+    border-radius: 999px;
+    background: var(--tl-accent-primary);
+}
+
 .media-section-shell__rail-meta--notification {
     display: inline-grid;
     min-width: 20px;

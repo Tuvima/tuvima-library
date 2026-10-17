@@ -79,6 +79,7 @@ class ClientRoutesTest {
         assertEquals("/api/v1/view/galleries/$id/items?cursor=c1&limit=50", ClientRoutes.viewGalleryItems(id, "c1", 50))
         assertEquals("/api/v1/view/items/$id", ClientRoutes.viewItem(id))
         assertEquals("/api/v1/view/items/$id/original", ClientRoutes.viewOriginal(id))
+        assertEquals("/api/v1/view/items/$id/playback", ClientRoutes.viewPlayback(id))
     }
 
     @Test
@@ -132,7 +133,7 @@ class ClientRoutesTest {
             ClientRoutes.browse(BrowseQuery(lane = "watch")), ClientRoutes.details("work", id),
             ClientRoutes.viewTimeline(), ClientRoutes.VIEW_GALLERIES, ClientRoutes.viewGalleryItems(id),
             ClientRoutes.viewItem(id), ClientRoutes.viewThumbnail(id), ClientRoutes.viewPreview(id),
-            ClientRoutes.viewOriginal(id), ClientRoutes.collections(), ClientRoutes.collection(id),
+            ClientRoutes.viewOriginal(id), ClientRoutes.viewPlayback(id), ClientRoutes.collections(), ClientRoutes.collection(id),
             ClientRoutes.collectionItems(id), ClientRoutes.universe("Q1"), ClientRoutes.DEVICE_PROFILES,
             ClientRoutes.SWITCH_PROFILE, ClientRoutes.encodeJob(id), ClientRoutes.revokeDevice(id),
         )
