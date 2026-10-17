@@ -9,15 +9,12 @@ const root = fileURLToPath(new URL('../', import.meta.url));
 const repoRoot = path.resolve(root, '..');
 const urls = new Set();
 const repoLinks = new Set();
-// This setup destination deliberately requires the reader to sign in. Accept
-// only its documented authentication response, not other errors or host paths.
+// These destinations answer automated checkers with a known non-success status
+// even though they work for readers. Accept only that exact status for that exact
+// URL, not other errors or other paths on the same host.
 const authenticatedDestinations = new Map([
-  ['https://www.themoviedb.org/settings/api', { status: 401, reason: 'TMDB API settings requires a signed-in account.' }],
-]);
-// These hosts refuse automated requests with a fixed status even though the page
-// works in a browser. Accept only that status from that host; anything else still fails.
-const botBlockedHosts = new Map([
-  ['subdl.com', { status: 403, reason: 'SubDL rejects automated requests; the developer page opens normally in a browser.' }],
+  ['https://www.themoviedb.org/settings/api', { status: 401, outcome: 'authentication-required', reason: 'TMDB API settings requires a signed-in account.' }],
+  ['https://subdl.com/developers', { status: 403, outcome: 'bot-blocked', reason: 'SubDL refuses automated link checkers; the page opens normally in a browser.' }],
 ]);
 // Links into this repository (edit links, repository files, issue and advisory pages)
 // are checked against the checkout instead of over the network: every page has
@@ -43,6 +40,9 @@ async function collect(dir) {
         const url = new URL(raw);
         // Reserved instructional hosts are examples, never availability claims.
         if (['localhost', '127.0.0.1', '[::1]', 'example.com', 'example.org', 'example.net'].includes(url.hostname) || url.hostname.endsWith('.example')) continue;
+        // Per-page "Edit page" links open GitHub's sign-in-gated editor, which answers bots with 429.
+        // validate-site.mjs already proves each page carries the exact edit link for its source file.
+        if (url.href.startsWith(`${repoUrl}/edit/main/docs/`)) continue;
         if (url.origin === origin && url.pathname.startsWith(`${base}/`)) continue;
         url.hash = '';
         if (url.href === repoUrl || url.href.startsWith(`${repoUrl}/`)) { repoLinks.add(url.href.split('?')[0]); continue; }
@@ -60,10 +60,7 @@ async function check(url) {
       const response = await fetch(url, { signal: AbortSignal.timeout(15000), redirect: 'follow', headers: { 'user-agent': 'Tuvima-Documentation-Link-Check/1.0' } });
       await response.body?.cancel();
       const auth = authenticatedDestinations.get(url);
-      const blocked = botBlockedHosts.get(new URL(url).hostname.replace(/^www./, ''));
-      const expected = auth?.status === response.status ? { outcome: 'authentication-required', reason: auth.reason }
-        : blocked?.status === response.status ? { outcome: 'bot-blocked', reason: blocked.reason } : null;
-      result = { url, status: response.status, outcome: response.ok ? 'verified' : expected ? expected.outcome : response.status === 429 ? 'rate-limited-unknown' : 'failed', ...(expected ? { reason: expected.reason } : {}) };
+      result = { url, status: response.status, outcome: response.ok ? 'verified' : auth?.status === response.status ? auth.outcome : response.status === 429 ? 'rate-limited-unknown' : 'failed', ...(auth?.status === response.status ? { reason: auth.reason } : {}) };
       if (response.ok || (response.status < 500 && response.status !== 429)) break;
     } catch (error) { result = { url, outcome: 'unavailable', error: error.message }; }
     if (attempt < 2) await new Promise(resolve => setTimeout(resolve, 1000 * (attempt + 1)));
