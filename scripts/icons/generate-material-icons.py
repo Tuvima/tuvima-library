@@ -1,8 +1,7 @@
 """Generate the exact used SVG path catalog from the pinned, attributed source snapshot.
 
-Snapshot extracted from MudBlazor 9.0.0 public Material icon constants (MIT);
-the original Google Material Icons artwork is Apache-2.0. See THIRD-PARTY-NOTICES.md.
-The snapshot makes regeneration independent of the removed runtime package.
+The original Google Material Icons artwork is Apache-2.0. See THIRD-PARTY-NOTICES.md.
+The snapshot keeps regeneration deterministic.
 """
 import json
 from pathlib import Path

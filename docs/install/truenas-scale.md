@@ -11,7 +11,7 @@ status: current
 
 Use a TrueNAS SCALE version with Compose-based Custom Apps to run Tuvima Library. Allow 10–20 minutes for configuration, plus downloads. Create storage datasets before opening the app editor.
 
-Tuvima Library uses the published `ghcr.io/tuvima/tuvima_library:latest` image. If the NAS cannot download it, use the [local source-build path](docker.md#build-the-image-from-source) and load that image on the NAS before deploying the app.
+Tuvima Library uses the published `ghcr.io/tuvima/tuvima-library:latest` image. If the NAS cannot download it, use the [local source-build path](docker.md#build-the-image-from-source) and load that image on the NAS before deploying the app.
 
 ## Prepare datasets
 

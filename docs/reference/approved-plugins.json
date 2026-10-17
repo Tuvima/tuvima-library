@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "source_url": "https://raw.githubusercontent.com/Tuvima/tuvima_library/main/docs/reference/approved-plugins.json",
+  "source_url": "https://raw.githubusercontent.com/Tuvima/tuvima-library/main/docs/reference/approved-plugins.json",
   "last_updated": "2026-05-15T00:00:00Z",
   "status": "ok",
   "message": "Initial catalog. Built-in plugins ship with Tuvima Library and are not listed as third-party downloads.",

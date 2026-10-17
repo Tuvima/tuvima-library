@@ -150,7 +150,7 @@ Use native `<details><summary>Technical details</summary>…</details>` only for
 
 ## Keep links and assets working
 
-Prefer source-relative links such as `../guides/adding-media.md#add-a-source`. The build resolves them through the publication manifest and adds `/tuvima_library/`. Component links and front matter actions need the same base-path checks.
+Prefer source-relative links such as `../guides/adding-media.md#add-a-source`. The build resolves them through the publication manifest and adds `/tuvima-library/`. Component links and front matter actions need the same base-path checks.
 
 For a move, update source references and add the old public route to `publication.json` redirects. Preserve important heading IDs or document an intentional retirement. Static redirects use an HTML refresh, so a 200 response alone does not prove they work.
 

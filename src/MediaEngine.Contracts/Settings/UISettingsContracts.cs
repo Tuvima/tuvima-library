@@ -14,7 +14,7 @@ public sealed class ResolvedUISettingsDto
     public string AccentColor { get; set; } = "#8852FC";
 
     [JsonPropertyName("content_padding")]
-    public string ContentPadding { get; set; } = "pa-4";
+    public string ContentPadding { get; set; } = "tl-sp-pa-4";
 
     [JsonPropertyName("content_max_width")]
     public string ContentMaxWidth { get; set; } = "Full";
@@ -47,7 +47,7 @@ public sealed class UIGlobalSettingsDto
     public string AccentColor { get; set; } = "#8852FC";
 
     [JsonPropertyName("content_padding")]
-    public string ContentPadding { get; set; } = "pa-4";
+    public string ContentPadding { get; set; } = "tl-sp-pa-4";
 
     [JsonPropertyName("content_max_width")]
     public string ContentMaxWidth { get; set; } = "Full";

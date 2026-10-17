@@ -18,17 +18,17 @@
 
 <PageTitle>Chronicle Explorer - @(_graph?.Universe.Label ?? Qid)</PageTitle>
 
-<AppContainer MaxWidth="AppMaxWidth.False" Class="pa-4">
+<AppContainer MaxWidth="AppMaxWidth.False" Class="tl-sp-pa-4">
 @if (_loading)
 {
-    <AppPanel Class="chronicle-explorer-empty pa-6">
+    <AppPanel Class="chronicle-explorer-empty tl-sp-pa-6">
         <AppSpinner Indeterminate="true" Color="AppColor.Primary" />
         <AppText Typo="AppTypo.body2" Color="AppColor.Secondary">Loading Universe Graph data...</AppText>
     </AppPanel>
 }
 else if (_graph is null)
 {
-    <AppPanel Class="chronicle-explorer-empty pa-6">
+    <AppPanel Class="chronicle-explorer-empty tl-sp-pa-6">
         <AppMaterialIcon Icon="@AppMaterialIcons.Filled.Hub" Size="AppSize.Large" Color="AppColor.Default" />
         <AppText Typo="AppTypo.h5">Universe Graph unavailable</AppText>
         <AppText Typo="AppTypo.body2" Color="AppColor.Secondary">
@@ -39,7 +39,7 @@ else if (_graph is null)
 else
 {
 <div class="chronicle-heading">
-<AppText Typo="AppTypo.h4" Class="chronicle-explorer-title mb-2">
+<AppText Typo="AppTypo.h4" Class="chronicle-explorer-title tl-sp-mb-2">
         @(_graph?.Universe.Label ?? "Loading...")
     </AppText>
     @if (_canEditUniverse && DeviceContext.CanEdit)
@@ -47,7 +47,7 @@ else
         <AppButton ButtonStyle="AppButtonStyle.Outlined" StartIcon="@AppMaterialIcons.Outlined.Edit" Disabled="@_openingEditor" OnClick="@(() => EditUniverseAsync(null))">Edit Universe</AppButton>
     }
 </div>
-    <AppStack Row="true" AlignItems="AppAlignItems.Center" Spacing="2" Class="mb-3">
+    <AppStack Row="true" AlignItems="AppAlignItems.Center" Spacing="2" Class="tl-sp-mb-3">
         <AppChip T="string" Color="AppColor.Primary" Size="AppSize.Small">
             @(_graph?.Nodes.Count ?? 0) entities
         </AppChip>
@@ -75,12 +75,12 @@ else
     </AppStack>
 @if (_loreDeltaChanges > 0)
     {
-        <AppAlert Severity="AppSeverity.Warning" Class="mb-3"
+        <AppAlert Severity="AppSeverity.Warning" Class="tl-sp-mb-3"
                   CloseIconClicked="@(() => _loreDeltaChanges = 0)">
             New Lore Discovered: @_loreDeltaChanges entities have been updated on Wikidata since last enrichment.
         </AppAlert>
     }
-<AppTabs @bind-ActivePanelIndex="_activeMode" Class="chronicle-explorer-tabs mb-3"
+<AppTabs @bind-ActivePanelIndex="_activeMode" Class="chronicle-explorer-tabs tl-sp-mb-3"
              ApplyEffectsToContainer="false"
              SliderColor="AppColor.Warning"
              Rounded="false">
@@ -101,7 +101,7 @@ else
     {
 @if (!_hasGraphData)
         {
-            <AppPanel Class="chronicle-explorer-empty pa-6">
+            <AppPanel Class="chronicle-explorer-empty tl-sp-pa-6">
                 <AppMaterialIcon Icon="@AppMaterialIcons.Filled.Hub" Size="AppSize.Large" Color="AppColor.Default" />
                 <AppText Typo="AppTypo.h5">Universe Graph unavailable</AppText>
                 <AppText Typo="AppTypo.body2" Color="AppColor.Secondary">
@@ -113,7 +113,7 @@ else
         {
 @if (_activeMode == 0)
         {
-            <AppStack Row="true" AlignItems="AppAlignItems.Center" Spacing="3" Class="chronicle-explorer-controls mb-3">
+            <AppStack Row="true" AlignItems="AppAlignItems.Center" Spacing="3" Class="chronicle-explorer-controls tl-sp-mb-3">
                 @if (_hasTemporalData && !DeviceContext.IsTelevision)
                 {
                     <div class="chronicle-explorer-timeline">
@@ -173,7 +173,7 @@ else
                 </div>
             </AppItem>
             <AppItem xs="12" md="@(_activeMode == 0 ? 5 : 4)">
-                <AppPanel Class="chronicle-explorer-panel pa-3">
+                <AppPanel Class="chronicle-explorer-panel tl-sp-pa-3">
                     @if (_activeMode == 0)
                     {
                         @* Mode 1: entity list *@
@@ -181,7 +181,7 @@ else
                                       Variant="AppVariant.Outlined"
                                       Adornment="AppAdornment.Start"
                                       AdornmentIcon="@AppMaterialIcons.Filled.Search"
-                                      Immediate="true" Class="chronicle-explorer-search mb-3" />
+                                      Immediate="true" Class="chronicle-explorer-search tl-sp-mb-3" />
                         @* Keyboard, remote and screen-reader path to every node: each row is a real button. *@
                         <AppList T="GraphNodeDto" Dense="true" Class="chronicle-node-list" aria-label="Entities in this Universe">
                             @foreach (var entry in NodeListEntries)
@@ -221,19 +221,19 @@ else
     }
     else if (_activeMode == 3)
     {
-<AppPanel Class="chronicle-explorer-full-panel pa-4">
+<AppPanel Class="chronicle-explorer-full-panel tl-sp-pa-4">
             <CastComparison UniverseQid="@Qid" />
         </AppPanel>
     }
     else if (_activeMode == 4)
     {
-<AppPanel Class="chronicle-explorer-full-panel pa-4">
+<AppPanel Class="chronicle-explorer-full-panel tl-sp-pa-4">
             <AdaptationTree UniverseQid="@Qid" />
         </AppPanel>
     }
     else if (_activeMode == 5)
     {
-<AppPanel Class="chronicle-explorer-full-panel pa-4">
+<AppPanel Class="chronicle-explorer-full-panel tl-sp-pa-4">
             <AppStack Spacing="3">
                 <AppStack Row="true" AlignItems="AppAlignItems.Center" Spacing="2">
                     <AppText Typo="AppTypo.h6">Supplemental lore sources</AppText>
@@ -254,7 +254,7 @@ else
 
                 @if (!string.IsNullOrWhiteSpace(_loreMessage))
                 {
-                    <AppAlert Severity="@_loreMessageSeverity" Class="mb-1"
+                    <AppAlert Severity="@_loreMessageSeverity" Class="tl-sp-mb-1"
                               CloseIconClicked="@(() => _loreMessage = string.Empty)">
                         @_loreMessage
                     </AppAlert>
@@ -273,7 +273,7 @@ else
                                       Variant="AppVariant.Outlined"
                                       Margin="AppMargin.Dense" />
                     </AppItem>
-                    <AppItem xs="12" md="2" Class="d-flex align-center">
+                    <AppItem xs="12" md="2" Class="tl-flex tl-items-center">
                         <AppButton Label="Add"
                                    ButtonStyle="AppButtonStyle.Outlined"
                                    Tone="AppUiTone.Primary"
@@ -369,8 +369,8 @@ else
                 <AppText Typo="AppTypo.h6">@_selectedEntity.Label</AppText>
             </AppStack>
         </AppDrawerHeader>
-        <div class="pa-4">
-            <AppText Typo="AppTypo.body2" Class="mb-3">
+        <div class="tl-sp-pa-4">
+            <AppText Typo="AppTypo.body2" Class="tl-sp-mb-3">
                 @(_selectedEntity.Description ?? "No description available.")
             </AppText>
             <AppText Typo="AppTypo.caption" Class="chronicle-explorer-qid">
@@ -384,7 +384,7 @@ else
 
             @if (_selectedEntity.Works?.Count > 0)
             {
-                <AppText Typo="AppTypo.subtitle2" Class="mt-4 mb-2">Appears in</AppText>
+                <AppText Typo="AppTypo.subtitle2" Class="tl-sp-mt-4 tl-sp-mb-2">Appears in</AppText>
                 @foreach (var work in _selectedEntity.Works)
                 {
                     <AppChip T="string" Size="AppSize.Small" Variant="AppVariant.Outlined">
@@ -395,10 +395,10 @@ else
 
             @if (_selectedEntityEdges.Count > 0)
             {
-                <AppText Typo="AppTypo.subtitle2" Class="mt-4 mb-2">Relationships</AppText>
+                <AppText Typo="AppTypo.subtitle2" Class="tl-sp-mt-4 tl-sp-mb-2">Relationships</AppText>
                 @foreach (var edge in _selectedEntityEdges)
                 {
-                    <AppText Typo="AppTypo.body2" Class="mb-1">
+                    <AppText Typo="AppTypo.body2" Class="tl-sp-mb-1">
                         @edge.Label
                         @GetNodeLabel(edge.Source == _selectedEntity.Id ? edge.Target : edge.Source)
                     </AppText>

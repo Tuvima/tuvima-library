@@ -326,7 +326,7 @@
     private string MainContentClass => IsCinematicShell
         ? "main-content-with-topbar main-content-with-topbar--cinematic"
         : "main-content-with-topbar";
-    private string MainContainerClass => IsCinematicShell || IsLaneScrollRoute ? "px-0 py-0" : "py-6 px-0";
+    private string MainContainerClass => IsCinematicShell || IsLaneScrollRoute ? "tl-sp-px-0 tl-sp-py-0" : "tl-sp-py-6 tl-sp-px-0";
     private bool CanManageProfiles => _session.HasAction("access.manage");
     private bool CanViewReview => _session.HasNavigation("settings.administration");
     private bool CanViewSystemActivity => _session.HasNavigation("settings.administration");
