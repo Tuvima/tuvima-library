@@ -42,12 +42,18 @@ if [ "$(id -u)" -eq 0 ] && [ "${TUVIMA_PRIVILEGES_DROPPED:-0}" != "1" ]; then
     prepare_media_directory /library
 
     export TUVIMA_PRIVILEGES_DROPPED=1
-    export HOME=/config/.home
     exec gosu "$TUVIMA_UID_VALUE:$TUVIMA_GID_VALUE" "$0" "$@"
 fi
 
 [ "$(id -u)" -ne 0 ] || fail "Application startup refused to continue as root."
 umask "$TUVIMA_UMASK_VALUE"
+
+# The application user has no /etc/passwd entry, so gosu resets HOME to / (and a direct `--user` start leaves it
+# unset). Set it here, after privileges are dropped, to a directory the user owns on the /config volume. Since
+# .NET 10.0.13 (CVE-2026-96225/96231) a named mutex lives in a per-user directory under $XDG_RUNTIME_DIR or
+# $HOME/.dotnet instead of a shared /tmp/.dotnet, so the single-instance lease of the Engine and Dashboard cannot
+# start without a writable home. The directory is created below with the other config folders.
+export HOME=/config/.home
 
 if [ -z "$(find /config -mindepth 1 -maxdepth 1 -print -quit 2>/dev/null)" ]; then
     echo "[Tuvima] /config is empty; seeding distributable defaults."

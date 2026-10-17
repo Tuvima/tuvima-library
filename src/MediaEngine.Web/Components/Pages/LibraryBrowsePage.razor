@@ -14,7 +14,7 @@
 
 <PageTitle>Tuvima Library</PageTitle>
 
-@if (_loading) { <AppProgressBar Indeterminate="true" Color="AppColor.Primary" Class="home-discovery-loading mb-4" Rounded="false" /> }
+@if (_loading) { <AppProgressBar Indeterminate="true" Color="AppColor.Primary" Class="home-discovery-loading tl-sp-mb-4" Rounded="false" /> }
 @if (!_loading || _hasLoadedOnce)
 {
     <GlobalBackground Color="#05070C" />
@@ -72,7 +72,7 @@
                            Class="home-discovery-seed-button">
                     @if (_seeding)
                     {
-                        <AppSpinner Size="AppSize.Small" Indeterminate="true" Class="mr-2" />
+                        <AppSpinner Size="AppSize.Small" Indeterminate="true" Class="tl-sp-mr-2" />
                         <text>@L["Home_Seeding"]</text>
                     }
                     else

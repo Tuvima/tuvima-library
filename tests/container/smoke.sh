@@ -92,6 +92,9 @@ docker exec "$CONTAINER" sh -exc '
 docker exec --user 10001:10001 "$CONTAINER" sh -exc '
     test "$(id -u)" = "10001"
     test "$(id -g)" = "10001"
+    # .NET keeps named mutexes (the single-instance lease) under $HOME/.dotnet; gosu resets HOME to /, so the
+    # entrypoint sets it again. The folder only appears if both hosts started with a usable home.
+    test -d /config/.home/.dotnet
     test -x /usr/bin/ffmpeg
     test -x /usr/bin/ffprobe
     ffmpeg -version >/dev/null
