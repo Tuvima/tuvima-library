@@ -3,7 +3,7 @@
 # Compatibility is enforced separately by wire-compatibility.approved.txt.
 # Serializer: System.Text.Json JsonSerializerDefaults.Web; DefaultIgnoreCondition=Never
 # Regenerate intentionally with TUVIMA_UPDATE_WIRE_SNAPSHOT=1.
-# scopes: contracts=1028; api=0; web-client=83
+# scopes: contracts=1029; api=0; web-client=83
 
 [contracts] MediaEngine.Contracts.Activity.ActivityBatchInsightsDto
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -3336,6 +3336,10 @@
   Genres: System.Collections.Generic.IReadOnlyList<System.String> | json=genres | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   PreviewItems: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Display.DisplayCardPreviewItemDto> | json=previewItems | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   PreviewTotalCount: System.Int32? | json=previewTotalCount | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+
+[contracts] MediaEngine.Contracts.Display.DisplayItemsRequest
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Ids: System.Collections.Generic.IReadOnlyList<System.Guid> | json=ids | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
 
 [contracts] MediaEngine.Contracts.Display.DisplayPageDto
   kind=class | converter=default | number-handling=default | unmapped=default

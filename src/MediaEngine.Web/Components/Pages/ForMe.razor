@@ -129,7 +129,7 @@
 
     private readonly List<ProfileSavedItemDto> _saved = [];
     private readonly List<ProfileReactionDto> _reactions = [];
-    private PersonalTileIndex _index = new([], [], []);
+    private PersonalTileIndex _index = new([], [], [], []);
     // Same rule as My Library: Document items stay hidden until the View settings say this profile may see Documents.
     private bool _documentsAllowed;
     private readonly List<MediaTileViewModel> _continue = [];
@@ -318,17 +318,20 @@
 
             var savedTask = ApiClient.GetSavedItemsAsync();
             var reactionsTask = ApiClient.GetProfileReactionsAsync();
-            var readTask = ApiClient.GetDisplayBrowseAsync(lane: "read", grouping: "all", limit: 500, profileId: _activeProfileId);
-            var watchTask = ApiClient.GetDisplayBrowseAsync(lane: "watch", grouping: "all", limit: 500, profileId: _activeProfileId);
-            var listenTask = ApiClient.GetDisplayBrowseAsync(lane: "listen", grouping: "all", limit: 500, profileId: _activeProfileId);
-            var songsTask = ApiClient.GetDisplayBrowseAsync(lane: "listen", mediaType: "Music", grouping: "tracks", limit: 500, profileId: _activeProfileId);
             var continueTask = ApiClient.GetDisplayContinueAsync(limit: 18);
             var catalogTask = ApiClient.GetCollectionCatalogAsync(_activeProfileId);
             var managedTask = ApiClient.GetManagedCollectionsAsync(_activeProfileId);
             var galleriesTask = ApiClient.GetViewGalleriesAsync();
             var documentsTask = LoadDocumentsAllowedAsync();
 
-            await Task.WhenAll(savedTask, reactionsTask, readTask, watchTask, listenTask, songsTask,
+            // Saved, liked and favorite ids resolve through the Engine's direct item lookup, not through lane pages, which stop at a fixed size.
+            var mediaIds = PersonalTileIndex.SavedMediaIds(await savedTask)
+                .Concat(PersonalTileIndex.ReactionMediaIds(await reactionsTask))
+                .Distinct()
+                .ToList();
+            var cardsTask = PersonalTileIndex.LookupAsync(ApiClient, mediaIds);
+
+            await Task.WhenAll(savedTask, reactionsTask, cardsTask,
                 continueTask, catalogTask, managedTask, galleriesTask, documentsTask);
             _documentsAllowed = await documentsTask;
 
@@ -360,7 +363,7 @@
 
             // Keep accessible library Collections and shared Playlists available to
             // My List resolution without promoting them into the owned shelves.
-            _index = new PersonalTileIndex(new[] { await readTask, await watchTask, await listenTask, await songsTask }, catalog, managed);
+            _index = new PersonalTileIndex(await cardsTask, [], catalog, managed);
         }
         catch (Exception ex)
         {

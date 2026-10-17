@@ -226,24 +226,15 @@ public sealed class FolderMergeTests : IDisposable
         var h = NewHarness(heartbeat: TimeSpan.FromMilliseconds(20));
         var dune = h.WriteSource("Dune.2021.mkv", "dune");
         await h.RegisterAsync(dune, "Dune", "2021");
-        // The copy stays "in progress" until two heartbeats for it have arrived, so a slow machine cannot miss them.
-        using var twoBeats = new ManualResetEventSlim();
-        var beats = 0;
-        var host = new TestHost
-        {
-            Reported = progress =>
-            {
-                if (progress.Completed == 0 && progress.CurrentPath == dune && Interlocked.Increment(ref beats) >= 2)
-                {
-                    twoBeats.Set();
-                }
-            },
-        };
+        var host = new TestHost();
+        bool MidCopy(FolderOrganiseProgress progress) => progress.Completed == 0 && progress.CurrentPath == dune;
+
+        // The copy stays busy until the heartbeat has reported in twice, so a slow machine can't end it first.
         h.Hasher.Override = path =>
         {
             if (path.EndsWith(MergeFileTransfer.PartSuffix, StringComparison.Ordinal))
             {
-                twoBeats.Wait(TimeSpan.FromSeconds(30));
+                SpinWait.SpinUntil(() => host.CountProgress(MidCopy) >= 2, TimeSpan.FromSeconds(10));
             }
 
             return null;
@@ -251,7 +242,7 @@ public sealed class FolderMergeTests : IDisposable
 
         await h.RunAsync(host);
 
-        Assert.True(host.Progress.Count(progress => progress.Completed == 0 && progress.CurrentPath == dune) >= 2);
+        Assert.True(host.CountProgress(MidCopy) >= 2);
     }
 
     // ── Duplicates follow the global rule ────────────────────────────────────────────────────────────────────────

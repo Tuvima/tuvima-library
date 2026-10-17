@@ -108,7 +108,8 @@ public sealed partial class EngineApiClient
         string? lane = null,
         string? mediaType = null,
         int? limit = null,
-        CancellationToken ct = default)
+        CancellationToken ct = default,
+        bool? finished = null)
     {
         const string endpoint = "GET /api/v1/display/continue";
         try
@@ -117,6 +118,7 @@ public sealed partial class EngineApiClient
             AddQuery(query, "lane", lane);
             AddQuery(query, "mediaType", mediaType);
             AddQuery(query, "limit", limit?.ToString(System.Globalization.CultureInfo.InvariantCulture));
+            AddQuery(query, "finished", finished?.ToString().ToLowerInvariant());
             var url = "/api/v1/display/continue" + (query.Count == 0 ? string.Empty : "?" + string.Join("&", query));
             var response = await _http.GetAsync(url, ct);
             if (!response.IsSuccessStatusCode)
@@ -139,6 +141,44 @@ public sealed partial class EngineApiClient
             RecordExceptionFailure(endpoint, ex);
             return null;
         }
+    }
+
+    public async Task<DisplayPageDto?> GetDisplayItemsAsync(IReadOnlyList<Guid> ids, CancellationToken ct = default)
+    {
+        const string endpoint = "POST /api/v1/display/items";
+        var distinct = ids.Where(id => id != Guid.Empty).Distinct().ToList();
+        try
+        {
+            // The Engine answers at most MaxIds ids per call, so a longer list goes out as several calls and comes back as one page.
+            var chunks = distinct.Chunk(DisplayItemsRequest.MaxIds).Select(chunk => LoadItemsChunkAsync(chunk, endpoint, ct)).ToList();
+            var pages = await Task.WhenAll(chunks);
+            if (pages.Any(page => page is null))
+            {
+                return null;
+            }
+
+            ClearFailure(endpoint);
+            return new DisplayPageDto("items", "Items", null, null, [], pages.SelectMany(page => page!.Catalog).DistinctBy(card => card.Id).ToList());
+        }
+        catch (OperationCanceledException) { return null; }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "POST /api/v1/display/items failed");
+            RecordExceptionFailure(endpoint, ex);
+            return null;
+        }
+    }
+
+    private async Task<DisplayPageDto?> LoadItemsChunkAsync(Guid[] chunk, string endpoint, CancellationToken ct)
+    {
+        var response = await _http.PostAsJsonAsync("/api/v1/display/items", new DisplayItemsRequest(chunk), ct);
+        if (!response.IsSuccessStatusCode)
+        {
+            await RecordHttpFailureAsync(endpoint, response, ct);
+            return null;
+        }
+
+        return NormalizeDisplayPage(await response.Content.ReadFromJsonAsync<DisplayPageDto>(cancellationToken: ct));
     }
 
     public async Task<IReadOnlyList<ContributorShelfDto>> GetContributorShelvesAsync(CancellationToken ct = default)

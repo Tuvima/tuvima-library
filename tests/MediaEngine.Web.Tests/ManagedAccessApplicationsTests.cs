@@ -7,6 +7,7 @@ using MediaEngine.Web.Components.Settings;
 using MediaEngine.Web.Services.Integration;
 using MediaEngine.Web.Services.Theming;
 using MediaEngine.Web.Tests.Support;
+using Microsoft.AspNetCore.Components;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace MediaEngine.Web.Tests;
@@ -22,6 +23,8 @@ public sealed class ManagedAccessApplicationsTests : AsyncBunitContext
         Services.AddSingleton<IHttpClientFactory>(new ClientFactory(_handler));
         Services.AddScoped<DashboardIdentityClient>();
         Services.AddScoped(_ => AdministratorSession());
+        // bUnit's one-second default is shorter than a cold-start render on a busy CI runner.
+        DefaultWaitTimeout = TimeSpan.FromSeconds(10);
     }
 
     [Fact]
@@ -31,7 +34,7 @@ public sealed class ManagedAccessApplicationsTests : AsyncBunitContext
         OpenEdit(cut);
 
         PermissionCheckbox(cut, "Write playback progress").Change(true);
-        cut.FindAll("button").Single(button => button.TextContent.Trim() == "Save application").Click();
+        ButtonNamed(cut, "Save application").Click();
 
         cut.WaitForAssertion(() => Assert.Contains("Living room was saved.", cut.Markup));
         var update = Assert.Single(_handler.Requests,
@@ -46,13 +49,13 @@ public sealed class ManagedAccessApplicationsTests : AsyncBunitContext
     public void PresetAndManualPermissionSelection_ExposeCustomAndUnavailableStates()
     {
         var cut = RenderApplications();
-        cut.FindAll("button").Single(button => button.TextContent.Trim() == "New application").Click();
+        ButtonNamed(cut, "New application").Click();
 
         Assert.True(PermissionCheckbox(cut, "Unavailable camera access").HasAttribute("disabled"));
-        cut.Find("select[aria-label='Permission preset']").Change("media-player");
+        cut.WaitForElement("select[aria-label='Permission preset']").Change("media-player");
         PermissionCheckbox(cut, "Write playback progress").Change(false);
 
-        cut.WaitForAssertion(() => Assert.Equal("custom", cut.Find("select[aria-label='Permission preset']").GetAttribute("value")));
+        cut.WaitForAssertion(() => Assert.Equal("custom", cut.WaitForElement("select[aria-label='Permission preset']").GetAttribute("value")));
         Assert.Single(cut.FindAll("select[aria-label='Permission preset'] option"), option => option.TextContent == "Custom");
     }
 
@@ -62,9 +65,9 @@ public sealed class ManagedAccessApplicationsTests : AsyncBunitContext
         var cut = RenderApplications();
         OpenEdit(cut);
 
-        cut.Find("select[aria-label='Application type']").Change(nameof(ApplicationTypeDto.Automation));
+        cut.WaitForElement("select[aria-label='Application type']").Change(nameof(ApplicationTypeDto.Automation));
         cut.WaitForAssertion(() => Assert.Contains("permission(s) incompatible with Automation were removed", cut.Markup));
-        cut.FindAll("button").Single(button => button.TextContent.Trim() == "Save application").Click();
+        ButtonNamed(cut, "Save application").Click();
 
         cut.WaitForAssertion(() => Assert.Contains("Living room was saved.", cut.Markup));
         var requests = _handler.Requests.Where(request => request.Method == HttpMethod.Put).ToList();
@@ -78,10 +81,10 @@ public sealed class ManagedAccessApplicationsTests : AsyncBunitContext
     {
         var cut = RenderApplications();
         OpenEdit(cut);
-        cut.FindAll("button").Single(button => button.TextContent.Trim() == "Generate credential").Click();
+        ButtonNamed(cut, "Generate credential").Click();
 
         cut.WaitForAssertion(() => Assert.Contains(ApplicationsHandler.Secret, cut.Markup));
-        cut.Find("button[aria-label='Close application drawer']").Click();
+        cut.WaitForElement("button[aria-label='Close application drawer']").Click();
         cut.WaitForAssertion(() =>
         {
             Assert.DoesNotContain(ApplicationsHandler.Secret, cut.Markup);
@@ -93,11 +96,9 @@ public sealed class ManagedAccessApplicationsTests : AsyncBunitContext
     public void CreateApplication_UsesSelectedPresetAndContinuesToCredentialSetup()
     {
         var cut = RenderApplications();
-        cut.FindAll("button").Single(button => button.TextContent.Trim() == "New application").Click();
-        var applicationSection = cut.FindAll(".access-form-section")
-            .Single(section => section.TextContent.Contains("Application type", StringComparison.Ordinal));
-        applicationSection.QuerySelector("input[type='text']")!.Input("Kitchen display");
-        cut.FindAll("button").Single(button => button.TextContent.Trim() == "Create application").Click();
+        ButtonNamed(cut, "New application").Click();
+        ApplicationNameField(cut).Input("Kitchen display");
+        ButtonNamed(cut, "Create application").Click();
 
         cut.WaitForAssertion(() =>
         {
@@ -115,15 +116,17 @@ public sealed class ManagedAccessApplicationsTests : AsyncBunitContext
     {
         _handler.BindingStatus = HttpStatusCode.Conflict;
         var cut = RenderApplications();
-        await cut.InvokeAsync(() => cut.FindAll("button").Single(button => button.TextContent.Trim() == "New application").Click());
-        await cut.InvokeAsync(() => cut.FindAll(".access-form-section")
-            .Single(value => value.TextContent.Contains("Application type", StringComparison.Ordinal))
-            .QuerySelector("input[type='text']")!.Input("Kitchen display"));
-        await cut.InvokeAsync(() => cut.FindAll("button").Single(button => button.TextContent.Trim() == "Create application").Click());
+        var newApplication = ButtonNamed(cut, "New application");
+        await cut.InvokeAsync(() => newApplication.Click());
+        var nameField = ApplicationNameField(cut);
+        await cut.InvokeAsync(() => nameField.Input("Kitchen display"));
+        var createApplication = ButtonNamed(cut, "Create application");
+        await cut.InvokeAsync(() => createApplication.Click());
 
         cut.WaitForAssertion(() => Assert.Contains("native client bindings were not", cut.Markup));
         _handler.BindingStatus = HttpStatusCode.OK;
-        await cut.InvokeAsync(() => cut.FindAll("button").Single(button => button.TextContent.Trim() == "Save application").Click());
+        var saveApplication = ButtonNamed(cut, "Save application");
+        await cut.InvokeAsync(() => saveApplication.Click());
 
         cut.WaitForAssertion(() => Assert.Contains("Kitchen display was saved.", cut.Markup));
         Assert.Single(_handler.Requests,
@@ -138,14 +141,14 @@ public sealed class ManagedAccessApplicationsTests : AsyncBunitContext
         var cut = RenderApplications();
         OpenEdit(cut);
 
-        var pending = cut.FindAll("button").Single(button => button.TextContent.Trim() == "Generate credential")
+        var pending = ButtonNamed(cut, "Generate credential")
             .ClickAsync(new());
         await _handler.CredentialStarted.Task.WaitAsync(TimeSpan.FromSeconds(2));
         cut.WaitForAssertion(() => Assert.True(cut.FindAll("button")
             .Single(button => button.TextContent.Trim() == "Generate credential").HasAttribute("disabled")));
 
-        cut.Find("button[aria-label='Close application drawer']").Click();
-        cut.FindAll("button").Single(button => button.TextContent.Trim() == "New application").Click();
+        cut.WaitForElement("button[aria-label='Close application drawer']").Click();
+        ButtonNamed(cut, "New application").Click();
         _handler.CredentialGate.SetResult();
         await pending;
 
@@ -164,7 +167,7 @@ public sealed class ManagedAccessApplicationsTests : AsyncBunitContext
         _handler.UpdateStatus = HttpStatusCode.Conflict;
         var cut = RenderApplications();
         OpenEdit(cut);
-        cut.FindAll("button").Single(button => button.TextContent.Trim() == "Save application").Click();
+        ButtonNamed(cut, "Save application").Click();
 
         cut.WaitForAssertion(() =>
         {
@@ -198,14 +201,14 @@ public sealed class ManagedAccessApplicationsTests : AsyncBunitContext
         OpenEdit(cut);
         cut.WaitForAssertion(() => Assert.Contains("Add webhook", cut.Markup));
 
-        cut.FindAll("button").Single(button => button.TextContent.Trim() == "Add webhook").Click();
-        var editor = cut.Find(".application-webhook-editor");
+        ButtonNamed(cut, "Add webhook").Click();
+        var editor = cut.WaitForElement(".application-webhook-editor");
         editor.QuerySelector("input[type='text']")!.Input("https://receiver.example/events");
         editor.QuerySelector(".application-webhook-events input[type='checkbox']")!.Change(true);
         editor.QuerySelectorAll(".app-switch-row")
             .Single(row => row.TextContent.Contains("Allow private LAN receiver", StringComparison.Ordinal))
             .QuerySelector("input")!.Change(true);
-        cut.FindAll("button").Single(button => button.TextContent.Trim() == "Save webhook").Click();
+        ButtonNamed(cut, "Save webhook").Click();
 
         cut.WaitForAssertion(() => Assert.Contains(ApplicationsHandler.WebhookSecret, cut.Markup));
         var create = Assert.Single(_handler.Requests, request =>
@@ -216,7 +219,7 @@ public sealed class ManagedAccessApplicationsTests : AsyncBunitContext
         Assert.True(payload.AllowLocalNetwork);
         Assert.Equal([ApplicationsHandler.EventType], payload.EventTypes);
 
-        cut.Find("button[aria-label='Close application drawer']").Click();
+        cut.WaitForElement("button[aria-label='Close application drawer']").Click();
         cut.WaitForAssertion(() => Assert.DoesNotContain(ApplicationsHandler.WebhookSecret, cut.Markup));
     }
 
@@ -228,11 +231,11 @@ public sealed class ManagedAccessApplicationsTests : AsyncBunitContext
         OpenEdit(cut);
         cut.WaitForAssertion(() => Assert.Contains("Rotate signing secret", cut.Markup));
 
-        cut.FindAll("button").Single(button => button.TextContent.Trim() == "Rotate signing secret").Click();
+        ButtonNamed(cut, "Rotate signing secret").Click();
         cut.WaitForAssertion(() => Assert.Contains(ApplicationsHandler.WebhookSecret, cut.Markup));
 
         _handler.WebhookDeleteStatus = HttpStatusCode.Conflict;
-        cut.FindAll("button").Single(button => button.TextContent.Trim() == "Delete").Click();
+        ButtonNamed(cut, "Delete").Click();
         cut.WaitForAssertion(() =>
         {
             Assert.DoesNotContain(ApplicationsHandler.WebhookSecret, cut.Markup);
@@ -248,9 +251,9 @@ public sealed class ManagedAccessApplicationsTests : AsyncBunitContext
         OpenEdit(cut);
         cut.WaitForAssertion(() => Assert.Contains(ApplicationsHandler.WebhookUrl, cut.Markup));
 
-        cut.FindAll("button").Single(button => button.TextContent.Trim() == "Edit").Click();
-        cut.Find(".application-webhook-editor input[type='text']").Input("https://receiver.example/updated");
-        cut.FindAll("button").Single(button => button.TextContent.Trim() == "Save webhook").Click();
+        ButtonNamed(cut, "Edit").Click();
+        cut.WaitForElement(".application-webhook-editor input[type='text']").Input("https://receiver.example/updated");
+        ButtonNamed(cut, "Save webhook").Click();
 
         cut.WaitForAssertion(() => Assert.Contains("https://receiver.example/updated", cut.Markup));
         var update = Assert.Single(_handler.Requests, request =>
@@ -258,7 +261,7 @@ public sealed class ManagedAccessApplicationsTests : AsyncBunitContext
             && request.Path.EndsWith($"/webhooks/{_handler.WebhookId:D}", StringComparison.Ordinal));
         Assert.Equal(3, JsonSerializer.Deserialize<SaveApplicationWebhookRequest>(update.Body, JsonOptions)!.ExpectedVersion);
 
-        cut.FindAll("button").Single(button => button.TextContent.Trim() == "Delete").Click();
+        ButtonNamed(cut, "Delete").Click();
         cut.WaitForAssertion(() => Assert.DoesNotContain("https://receiver.example/updated", cut.Markup));
         Assert.Contains(_handler.Requests, request =>
             request.Method == HttpMethod.Delete
@@ -276,11 +279,10 @@ public sealed class ManagedAccessApplicationsTests : AsyncBunitContext
         OpenEdit(cut);
         cut.WaitForAssertion(() => Assert.Contains("Rotate signing secret", cut.Markup));
 
-        var pending = cut.FindAll("button")
-            .Single(button => button.TextContent.Trim() == "Rotate signing secret")
+        var pending = ButtonNamed(cut, "Rotate signing secret")
             .ClickAsync(new());
         await _handler.WebhookRotateStarted.Task.WaitAsync(TimeSpan.FromSeconds(2));
-        cut.Find("button[aria-label='Close application drawer']").Click();
+        cut.WaitForElement("button[aria-label='Close application drawer']").Click();
         _handler.WebhookRotateGate.SetResult();
         await pending;
 
@@ -304,7 +306,7 @@ public sealed class ManagedAccessApplicationsTests : AsyncBunitContext
 
         var cut = Render<ManagedApplicationWebhooks>(parameters => parameters.Add(component => component.Application, initial));
         cut.WaitForAssertion(() => Assert.Contains("Rotate signing secret", cut.Markup));
-        cut.FindAll("button").Single(button => button.TextContent.Trim() == "Rotate signing secret").Click();
+        ButtonNamed(cut, "Rotate signing secret").Click();
         cut.WaitForAssertion(() => Assert.Contains(ApplicationsHandler.WebhookSecret, cut.Markup));
 
         cut.Render(parameters => parameters.Add(component => component.Application, first));
@@ -340,8 +342,7 @@ public sealed class ManagedAccessApplicationsTests : AsyncBunitContext
         var cut = Render<ManagedApplicationWebhooks>(parameters => parameters.Add(component => component.Application, application));
         cut.WaitForAssertion(() => Assert.Contains("Rotate signing secret", cut.Markup));
 
-        var pending = cut.FindAll("button")
-            .Single(button => button.TextContent.Trim() == "Rotate signing secret")
+        var pending = ButtonNamed(cut, "Rotate signing secret")
             .ClickAsync(new());
         await _handler.WebhookRotateStarted.Task.WaitAsync(TimeSpan.FromSeconds(2));
         var instance = cut.Instance;
@@ -364,10 +365,10 @@ public sealed class ManagedAccessApplicationsTests : AsyncBunitContext
         var cut = RenderApplications();
 
         Assert.NotEmpty(cut.FindAll(".app-table-shell--cards"));
-        Assert.Equal("Living room", cut.Find("td[data-card-role='title']").TextContent.Trim());
-        Assert.Equal("User Client", cut.Find("td[data-card-role='subtitle']").TextContent.Trim());
-        Assert.Contains("Disabled", cut.Find("td[data-card-role='value']").TextContent);
-        Assert.Contains("Manage on a computer or tablet", cut.Find("p[role='note']").TextContent);
+        Assert.Equal("Living room", cut.WaitForElement("td[data-card-role='title']").TextContent.Trim());
+        Assert.Equal("User Client", cut.WaitForElement("td[data-card-role='subtitle']").TextContent.Trim());
+        Assert.Contains("Disabled", cut.WaitForElement("td[data-card-role='value']").TextContent);
+        Assert.Contains("Manage on a computer or tablet", cut.WaitForElement("p[role='note']").TextContent);
         Assert.Empty(cut.FindAll("button[aria-label^='Actions for']"));
         Assert.DoesNotContain(cut.FindAll("button"), button => button.TextContent.Contains("New application"));
     }
@@ -398,18 +399,40 @@ public sealed class ManagedAccessApplicationsTests : AsyncBunitContext
 
     private static void OpenEdit(IRenderedComponent<ManagedAccessApplications> cut)
     {
-        cut.Find("button[aria-label='Actions for Living room']").Click();
+        cut.WaitForElement("button[aria-label='Actions for Living room']").Click();
         cut.WaitForAssertion(() => cut.FindAll("button")
             .Single(button => button.TextContent.Trim() == "Edit application")
             .Click());
         cut.WaitForAssertion(() => Assert.Contains("Credentials", cut.Markup));
     }
 
+    // Rows and buttons appear after a render, so lookups wait for the element instead of assuming the render already happened.
     private static AngleSharp.Dom.IElement PermissionCheckbox(
         IRenderedComponent<ManagedAccessApplications> cut,
-        string label) => cut.FindAll(".access-permission-row")
+        string label)
+    {
+        cut.WaitForState(() => cut.FindAll(".access-permission-row")
+            .Any(row => row.TextContent.Contains(label, StringComparison.Ordinal)));
+        return cut.FindAll(".access-permission-row")
             .Single(row => row.TextContent.Contains(label, StringComparison.Ordinal))
             .QuerySelector("input[type='checkbox']")!;
+    }
+
+    private static AngleSharp.Dom.IElement ButtonNamed<TComponent>(IRenderedComponent<TComponent> cut, string label)
+        where TComponent : IComponent
+    {
+        cut.WaitForState(() => cut.FindAll("button").Any(button => button.TextContent.Trim() == label));
+        return cut.FindAll("button").Single(button => button.TextContent.Trim() == label);
+    }
+
+    private static AngleSharp.Dom.IElement ApplicationNameField(IRenderedComponent<ManagedAccessApplications> cut)
+    {
+        cut.WaitForState(() => cut.FindAll(".access-form-section")
+            .Any(section => section.TextContent.Contains("Application type", StringComparison.Ordinal)));
+        return cut.FindAll(".access-form-section")
+            .Single(section => section.TextContent.Contains("Application type", StringComparison.Ordinal))
+            .QuerySelector("input[type='text']")!;
+    }
 
     private static DashboardSessionAccessor AdministratorSession()
     {
@@ -454,9 +477,20 @@ public sealed class ManagedAccessApplicationsTests : AsyncBunitContext
         public TaskCompletionSource? SecondWebhookLoadStarted { get; set; }
         public bool FirstWebhookLoadFails { get; set; }
         public bool IgnoreWebhookRotateCancellation { get; set; }
-        public List<RequestRecord> Requests { get; } = [];
+        public IReadOnlyList<RequestRecord> Requests
+        {
+            get
+            {
+                lock (_requestLock)
+                {
+                    return [.. _requests];
+                }
+            }
+        }
         public ApplicationTypeDto ApplicationType { get => _type; set => _type = value; }
 
+        private readonly object _requestLock = new();
+        private readonly List<RequestRecord> _requests = [];
         private string _name = "Living room";
         private ApplicationTypeDto _type = ApplicationTypeDto.UserClient;
         private bool _enabled;
@@ -469,7 +503,11 @@ public sealed class ManagedAccessApplicationsTests : AsyncBunitContext
         {
             var path = request.RequestUri!.AbsolutePath;
             var body = request.Content is null ? "" : await request.Content.ReadAsStringAsync(cancellationToken);
-            Requests.Add(new(request.Method, path, body));
+            lock (_requestLock)
+            {
+                _requests.Add(new(request.Method, path, body));
+            }
+
 
             if (request.Method == HttpMethod.Get && path == "/access/applications")
             {
