@@ -2,15 +2,15 @@
 @inject IEngineApiClient ApiClient
 @inject IJSRuntime JS
 <div class="pathfinder-panel">
-    <AppText Typo="AppTypo.subtitle1" Class="mb-3 tl-u-color-tl-accent-primary tl-u-font-weight-600" >
+    <AppText Typo="AppTypo.subtitle1" Class="tl-sp-mb-3 tl-u-color-tl-accent-primary tl-u-font-weight-600" >
         Six Degrees
     </AppText>
-    <AppText Typo="AppTypo.body2" Class="mb-4 tl-u-color-hex-888" >
+    <AppText Typo="AppTypo.body2" Class="tl-sp-mb-4 tl-u-color-hex-888" >
         Click nodes in the graph to set start and end, then find the shortest path between them.
     </AppText>
 
     @* Slot pair *@
-    <AppStack Row="true" AlignItems="AppAlignItems.Center" Spacing="3" Class="mb-4">
+    <AppStack Row="true" AlignItems="AppAlignItems.Center" Spacing="3" Class="tl-sp-mb-4">
         <div class="slot @(_startQid is null ? "slot-empty" : "slot-filled")">
             @if (_startQid is null)
             {
@@ -49,7 +49,7 @@
     </AppStack>
 
     @* Controls *@
-    <AppStack Row="true" Spacing="2" Class="mb-4">
+    <AppStack Row="true" Spacing="2" Class="tl-sp-mb-4">
         <AppButton ButtonStyle="AppButtonStyle.Filled"
                    Tone="AppUiTone.Warning"
                    Disabled="@(_startQid is null || _endQid is null || _loading)"
@@ -75,7 +75,7 @@
     }
     else if (_paths?.Count > 0)
     {
-        <AppText Typo="AppTypo.caption"  Class="mb-2 tl-u-color-hex-888">
+        <AppText Typo="AppTypo.caption"  Class="tl-sp-mb-2 tl-u-color-hex-888">
             @_paths.Count path(s) found - shortest: @(_paths[0].Count - 1) hop(s)
         </AppText>
 
@@ -89,7 +89,7 @@
                  aria-pressed="@(pathIndex == _selectedPath ? "true" : "false")"
                  @onkeydown="@(args => HandlePathKeyDownAsync(args, pathIndex))"
                  @onclick="@(() => SelectPath(pathIndex))">
-                <AppText Typo="AppTypo.caption"  Class="mb-1 tl-u-color-hex-888">
+                <AppText Typo="AppTypo.caption"  Class="tl-sp-mb-1 tl-u-color-hex-888">
                     Path @(pathIndex + 1) - @(path.Count - 1) hop(s)
                 </AppText>
                 <div class="hop-chain">
