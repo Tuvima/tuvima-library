@@ -177,7 +177,125 @@ public static class DisplayFormat
         return $"{exact}x";
     }
 
+    // ---- File facts ---------------------------------------------------------
+
     /// <summary>
+    /// File size in binary units with invariant digits: "312 MB", "1.4 GB". One decimal below 100 of a
+    /// unit, none above it. Zero or negative input has no size to show and returns null.
+    /// </summary>
+    public static string? FormatFileSize(long bytes)
+    {
+        if (bytes <= 0)
+        {
+            return null;
+        }
+
+        string[] units = ["B", "KB", "MB", "GB", "TB"];
+        var size = (double)bytes;
+        var unit = 0;
+        while (size >= 1024 && unit < units.Length - 1)
+        {
+            size /= 1024;
+            unit++;
+        }
+
+        var format = size >= 100 ? "0" : "0.#";
+        return $"{size.ToString(format, CultureInfo.InvariantCulture)} {units[unit]}";
+    }
+
+    /// <summary>
+    /// Bitrate from bits per second in decimal units: "6.2 Mbps" from one megabit, otherwise "256 kbps".
+    /// Zero or negative input returns null.
+    /// </summary>
+    public static string? FormatBitrate(long bitsPerSecond)
+    {
+        if (bitsPerSecond <= 0)
+        {
+            return null;
+        }
+
+        return bitsPerSecond >= 1_000_000
+            ? $"{(bitsPerSecond / 1_000_000d).ToString("0.#", CultureInfo.InvariantCulture)} Mbps"
+            : $"{Math.Max(1, (long)Math.Round(bitsPerSecond / 1000d)).ToString(CultureInfo.InvariantCulture)} kbps";
+    }
+
+    /// <summary>A plain calendar date such as 2026-10-16 (UTC, so it never shifts with the viewer's clock).</summary>
+    public static string FormatPlainDate(DateTimeOffset value)
+        => value.UtcDateTime.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+
+    /// <summary>
+    /// An English language name for a stored language code ("eng", "en", "fre", "pt-BR" read as English,
+    /// French, Portuguese). Handles the bibliographic three-letter codes ffmpeg writes (fre, ger, chi, ...)
+    /// as well as ISO 639-1 and 639-2/T. "und" (undetermined) and "zxx" (no language) return null so the
+    /// caller shows nothing; an unrecognised code is shown as stored. Never throws.
+    /// </summary>
+    public static string? FormatLanguageName(string? code)
+    {
+        if (string.IsNullOrWhiteSpace(code))
+        {
+            return null;
+        }
+
+        var trimmed = code.Trim();
+        var key = trimmed.Split('-', '_')[0];
+        if (key.Equals("und", StringComparison.OrdinalIgnoreCase) || key.Equals("zxx", StringComparison.OrdinalIgnoreCase))
+        {
+            return null;
+        }
+
+        if (BibliographicLanguageNames.TryGetValue(key, out var bibliographic))
+        {
+            return bibliographic;
+        }
+
+        return CultureLanguageNames.Value.TryGetValue(key, out var name) ? name : trimmed;
+    }
+
+    // ISO 639-2/B codes that differ from the 639-2/T code (or that .NET cultures do not know).
+    private static readonly Dictionary<string, string> BibliographicLanguageNames = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["alb"] = "Albanian",
+        ["arm"] = "Armenian",
+        ["baq"] = "Basque",
+        ["bur"] = "Burmese",
+        ["chi"] = "Chinese",
+        ["cze"] = "Czech",
+        ["dut"] = "Dutch",
+        ["fre"] = "French",
+        ["geo"] = "Georgian",
+        ["ger"] = "German",
+        ["gre"] = "Greek",
+        ["ice"] = "Icelandic",
+        ["mac"] = "Macedonian",
+        ["mao"] = "Maori",
+        ["may"] = "Malay",
+        ["mul"] = "Multiple languages",
+        ["per"] = "Persian",
+        ["rum"] = "Romanian",
+        ["slo"] = "Slovak",
+        ["tib"] = "Tibetan",
+        ["wel"] = "Welsh",
+    };
+
+    private static readonly Lazy<Dictionary<string, string>> CultureLanguageNames = new(() =>
+    {
+        var names = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var culture in CultureInfo.GetCultures(CultureTypes.NeutralCultures))
+        {
+            if (culture.TwoLetterISOLanguageName.Length == 2)
+            {
+                names.TryAdd(culture.TwoLetterISOLanguageName, culture.EnglishName);
+            }
+
+            if (culture.ThreeLetterISOLanguageName.Length == 3)
+            {
+                names.TryAdd(culture.ThreeLetterISOLanguageName, culture.EnglishName);
+            }
+        }
+
+        return names;
+    });
+
     // ---- Text shaping -------------------------------------------------------
 
     /// <summary>
