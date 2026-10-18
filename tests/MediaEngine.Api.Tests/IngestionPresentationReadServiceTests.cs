@@ -486,7 +486,7 @@ public sealed class IngestionPresentationReadServiceTests : IDisposable
         Assert.Equal("Failed", everything.Items.Single(item => item.GroupId == failedFile).StatusLabel);
 
         var onlyAdded = await service.GetRecentAdditionsAsync(null, null, null, null, 0, 50, status: "added");
-        Assert.Equal([added, alsoAdded], onlyAdded.Items.Select(item => item.GroupId).Order());
+        Assert.Equal(new[] { added, alsoAdded }.Order(), onlyAdded.Items.Select(item => item.GroupId).Order());
         Assert.All(onlyAdded.Items, item => Assert.NotEqual("Needs review", item.StatusLabel));
         Assert.All(onlyAdded.Items, item => Assert.NotEqual("Failed", item.StatusLabel));
         Assert.Equal(2, onlyAdded.TotalCount);

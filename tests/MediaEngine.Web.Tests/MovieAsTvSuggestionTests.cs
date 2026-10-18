@@ -85,6 +85,14 @@ public sealed class MovieAsTvSuggestionTests : AsyncBunitContext
                 return Task.FromResult(true);
             });
         });
+        // Needs Review is for server administrators only, so the page needs a server administrator's session.
+        var accountId = Guid.Parse("44444444-4444-4444-8444-444444444444");
+        var session = new DashboardSessionAccessor();
+        session.Set("test-session-token", accountId, accountId, Guid.NewGuid(),
+            new MediaEngine.Contracts.Authentication.DashboardAuthorityResponse(
+                accountId, accountId, true, true, 1, 1, true, true, null, 1, [],
+                ["settings.administration"], ["access.manage"]));
+        Services.AddSingleton(session);
         Services.AddSingleton(api);
         Services.AddSingleton(provider => new UIOrchestratorService(
             api,

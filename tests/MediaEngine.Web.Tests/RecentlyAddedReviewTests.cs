@@ -1,4 +1,6 @@
+using System.Security.Claims;
 using Bunit;
+using MediaEngine.Contracts.Authentication;
 using MediaEngine.Contracts.Ingestion;
 using MediaEngine.Contracts.Paging;
 using MediaEngine.Web.Components.Pages;
@@ -8,6 +10,7 @@ using MediaEngine.Web.Services.Editing;
 using MediaEngine.Web.Services.Integration;
 using MediaEngine.Web.Services.Ui;
 using MediaEngine.Web.Tests.Support;
+using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -17,23 +20,51 @@ namespace MediaEngine.Web.Tests;
 /// <summary>
 /// Settings → Recently Added: the pinned Needs Review list reports a failed load instead of an empty queue,
 /// says so when Dismiss or Keep provider match is refused, shows the From merge / Import folder badges, and
-/// sends the Added status filter to the Engine.
+/// sends the Added status filter to the Engine. Only server administrators get the section at all.
 /// </summary>
 public sealed class RecentlyAddedReviewTests : AsyncBunitContext
 {
     private static readonly Guid FirstId = Guid.Parse("11111111-1111-4111-8111-111111111111");
     private static readonly Guid SecondId = Guid.Parse("22222222-2222-4222-8222-222222222222");
 
-    private sealed record Registered(List<string?> HistoryStatuses, List<Guid> Dismissed, List<Guid> Kept);
+    private sealed record Registered(List<string?> HistoryStatuses, List<Guid> Dismissed, List<Guid> Kept)
+    {
+        /// <summary>Every Engine client method the Dashboard called, in order.</summary>
+        public List<string> EngineCalls { get; set; } = [];
+    }
+
+    private static readonly Guid AccountId = Guid.Parse("44444444-4444-4444-8444-444444444444");
+    private static readonly Guid ProfileId = Guid.Parse("00000000-0000-0000-0000-000000000001");
+
+    private static AccountProfileGrantDto[] Grants(bool adminEnabled) =>
+    [
+        new(AccountId, ProfileId, "Test User", null, true, true, adminEnabled,
+            new GrantAdminProtectionDto(false, "None", null, 1, false, null), 1, DateTimeOffset.UtcNow),
+    ];
+
+    /// <summary>What the Engine tells the Dashboard about a server administrator.</summary>
+    private static DashboardAuthorityResponse ServerAdministrator() => new(
+        AccountId, ProfileId, true, true, 1, 1, true, true, null, 1, Grants(adminEnabled: true),
+        ["settings.administration"], ["access.manage"]);
+
+    /// <summary>What the Engine tells the Dashboard about a household administrator who is not a server administrator.</summary>
+    private static DashboardAuthorityResponse HouseholdAdministrator() => new(
+        AccountId, ProfileId, true, true, 1, 1, false, false, null, 1, Grants(adminEnabled: false),
+        [], ["household.manage"]);
 
     private Registered Register(
         Func<ReviewListAttempt> reviews,
         Func<Task<bool>>? dismiss = null,
-        Func<Task<bool>>? skipUniverse = null)
+        Func<Task<bool>>? skipUniverse = null,
+        DashboardAuthorityResponse? authority = null)
     {
         var result = new Registered([], [], []);
+        var session = new DashboardSessionAccessor();
+        session.Set("test-session-token", AccountId, ProfileId, Guid.NewGuid(), authority ?? ServerAdministrator());
+        Services.AddSingleton(session);
         var api = EngineApiClientStub.Create(stub =>
         {
+            result.EngineCalls = stub.Calls;
             stub.SetHandler(nameof(IEngineApiClient.GetPendingReviewsAttemptAsync), _ => Task.FromResult(reviews()));
             stub.SetHandler(nameof(IEngineApiClient.DismissReviewItemAsync), args =>
             {
@@ -56,9 +87,12 @@ public sealed class RecentlyAddedReviewTests : AsyncBunitContext
         Services.AddSingleton(provider => new UIOrchestratorService(
             api,
             new UniverseStateContainer(),
-            new ActiveProfileSessionService(provider.GetRequiredService<Microsoft.JSInterop.IJSRuntime>(), api),
+            new ActiveProfileSessionService(
+                provider.GetRequiredService<Microsoft.JSInterop.IJSRuntime>(), api,
+                authenticationStateProvider: new SessionOnlyAuthentication(), dashboardSession: session),
             new ConfigurationBuilder().Build(),
-            NullLogger<UIOrchestratorService>.Instance));
+            NullLogger<UIOrchestratorService>.Instance,
+            dashboardSession: session));
         Services.AddScoped<MediaEditorLauncherService>();
         JSInterop.Mode = JSRuntimeMode.Loose;
         return result;
@@ -79,6 +113,10 @@ public sealed class RecentlyAddedReviewTests : AsyncBunitContext
     private static ReviewListAttempt Loaded(params ReviewItemViewModel[] items) => new([.. items], null);
 
     private IReadOnlyList<AppToast> Toasts => Services.GetRequiredService<AppToastService>().Toasts;
+
+    private static IEnumerable<string> StatusFilterValues(IRenderedComponent<RecentlyAddedPageContent> cut) =>
+        (cut.FindComponents<AppSelect>().Single(select => select.Instance.Label == "Status").Instance.Options ?? [])
+            .Select(option => option.Value);
 
     private static void OpenMenuAndClick(IRenderedComponent<RecentlyAddedPageContent> cut, string label)
     {
@@ -213,5 +251,68 @@ public sealed class RecentlyAddedReviewTests : AsyncBunitContext
 
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("section.recent-history")));
         Assert.Equal([null, "added", null, null], registered.HistoryStatuses);
+    }
+
+    [Fact]
+    public void ServerAdministrator_SeesTheNeedsReviewSection_AndTheCountIsFetched()
+    {
+        var registered = Register(() => Loaded(Item(FirstId, "Pending Book")));
+
+        var cut = Render<RecentlyAddedPageContent>(p => p.Add(c => c.ReviewState, "expanded"));
+
+        cut.WaitForAssertion(() => Assert.Single(cut.FindAll("article.review-row")));
+        Assert.Contains("Needs Review", cut.Markup);
+        Assert.Contains(nameof(IEngineApiClient.GetPendingReviewsAttemptAsync), registered.EngineCalls);
+        Assert.Contains(nameof(IEngineApiClient.GetReviewCountAsync), registered.EngineCalls);
+        Assert.Contains(StatusFilterValues(cut), value => value == "review");
+    }
+
+    [Fact]
+    public void HouseholdAdministrator_GetsNoNeedsReviewSection_AndNoReviewRequestIsMade()
+    {
+        var registered = Register(() => Loaded(Item(FirstId, "Pending Book")), authority: HouseholdAdministrator());
+
+        var cut = Render<RecentlyAddedPageContent>(p => p.Add(c => c.ReviewState, "expanded"));
+
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("section.recent-history")));
+        Assert.DoesNotContain("Needs Review", cut.Markup);
+        Assert.DoesNotContain("No items need review", cut.Markup);
+        Assert.DoesNotContain("could not load", cut.Markup);
+        Assert.Empty(cut.FindAll("article.review-row"));
+        Assert.Empty(cut.FindAll(".review-pinned"));
+        Assert.DoesNotContain(nameof(IEngineApiClient.GetPendingReviewsAttemptAsync), registered.EngineCalls);
+        Assert.DoesNotContain(nameof(IEngineApiClient.GetPendingReviewsAsync), registered.EngineCalls);
+        Assert.DoesNotContain(nameof(IEngineApiClient.GetReviewCountAsync), registered.EngineCalls);
+        Assert.DoesNotContain(StatusFilterValues(cut), value => value == "review");
+        Assert.Contains(nameof(IEngineApiClient.GetRecentIngestionAdditionsAsync), registered.EngineCalls);
+    }
+
+    [Fact]
+    public async Task ReviewCount_ForAServerAdministrator_IsFetchedFromTheEngine()
+    {
+        var registered = Register(() => Loaded(), authority: ServerAdministrator());
+
+        var count = await Services.GetRequiredService<UIOrchestratorService>().RefreshReviewCountAsync();
+
+        Assert.Equal(3, count);
+        Assert.Contains(nameof(IEngineApiClient.GetReviewCountAsync), registered.EngineCalls);
+    }
+
+    [Fact]
+    public async Task ReviewCount_ForAHouseholdAdministrator_MakesNoEngineRequestAndStaysZero()
+    {
+        var registered = Register(() => Loaded(), authority: HouseholdAdministrator());
+
+        var count = await Services.GetRequiredService<UIOrchestratorService>().RefreshReviewCountAsync();
+
+        Assert.Equal(0, count);
+        Assert.DoesNotContain(nameof(IEngineApiClient.GetReviewCountAsync), registered.EngineCalls);
+    }
+
+    /// <summary>The active person comes from the Dashboard session; the cookie principal adds nothing.</summary>
+    private sealed class SessionOnlyAuthentication : AuthenticationStateProvider
+    {
+        public override Task<AuthenticationState> GetAuthenticationStateAsync() =>
+            Task.FromResult(new AuthenticationState(new ClaimsPrincipal(new ClaimsIdentity())));
     }
 }
