@@ -972,6 +972,33 @@ public sealed class DatabaseStartupSafetyTests
     }
 
     [Fact]
+    public void AfterAllUpgradeSteps_TheStoredEpochEqualsCurrentEpoch()
+    {
+        var path = System.IO.Path.Combine(System.IO.Path.GetTempPath(), $"tuvima_epoch_{Guid.NewGuid():N}.db");
+        try
+        {
+            // The steps alone, with no connection helper writing the row afterwards.
+            using (var conn = new SqliteConnection($"Data Source={path};Pooling=False"))
+            {
+                conn.Open();
+                new Schema.Upgrades.DataStoreUpgradeRunner().Run(
+                    conn,
+                    Schema.Upgrades.DataStoreUpgradeCatalog.ForProduct(),
+                    new Schema.Upgrades.DataStoreUpgradeOptions());
+
+                Assert.Equal(StorageEpochGuard.CurrentEpoch, Scalar(conn, "SELECT value FROM storage_metadata WHERE key = 'storage_epoch';"));
+            }
+        }
+        finally
+        {
+            SqliteConnection.ClearAllPools();
+            TryDelete(path);
+            TryDelete($"{path}-wal");
+            TryDelete($"{path}-shm");
+        }
+    }
+
+    [Fact]
     public void OpenedEmptyDatabase_InitializesAsCurrentSchema()
     {
         using var fixture = TempDatabase.Create();

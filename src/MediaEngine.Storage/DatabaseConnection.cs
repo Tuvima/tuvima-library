@@ -1,4 +1,3 @@
-using System.Globalization;
 using MediaEngine.Storage.Contracts;
 using MediaEngine.Storage.Schema;
 using MediaEngine.Storage.Schema.Upgrades;
@@ -100,7 +99,7 @@ public sealed class DatabaseConnection : IDatabaseConnection
         StorageEpochGuard.EnsureCurrentOrReset(_databasePath);
         var conn = Open();
         _integrityChecker.EnsureWritable(conn, _databasePath);
-        if (HasUserTables(conn))
+        if (StorageStructure.HasUserTables(conn))
         {
             // Before any step runs, so a damaged file is reported as damaged rather than as a failed step.
             _integrityChecker.EnsureIntact(conn, _databasePath);
@@ -113,24 +112,7 @@ public sealed class DatabaseConnection : IDatabaseConnection
                 : Path.GetFullPath(_startupOptions.BackupDirectory),
         };
 
-        DataStoreUpgradeResult result;
-        try
-        {
-            result = new DataStoreUpgradeRunner().Run(conn, DataStoreUpgradeCatalog.ForProduct(), upgradeOptions);
-        }
-        catch (DataStoreUpgradeException)
-        {
-            // A fresh data store whose later step failed still belongs to this epoch; without the row the next
-            // start would refuse it as a legacy database and hide the real failure.
-            if (TableExists(conn, "storage_metadata"))
-            {
-                WriteStorageEpoch(conn);
-            }
-
-            throw;
-        }
-
-        WriteStorageEpoch(conn);
+        var result = new DataStoreUpgradeRunner().Run(conn, DataStoreUpgradeCatalog.ForProduct(), upgradeOptions);
         _startupNotes.AddRange(result.DescribeForLog());
     }
 
@@ -227,33 +209,5 @@ public sealed class DatabaseConnection : IDatabaseConnection
         // Release pooled handles so the data file can be moved or deleted after shutdown.
         _connectionFactory.ClearPool();
         _writeLock.Dispose();
-    }
-
-    private static bool HasUserTables(SqliteConnection conn)
-        => ScalarCount(
-            conn,
-            "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' AND name <> 'data_store_upgrades';") > 0;
-
-    private static bool TableExists(SqliteConnection conn, string table)
-    {
-        using var cmd = conn.CreateCommand();
-        cmd.CommandText = "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = $name;";
-        cmd.Parameters.AddWithValue("$name", table);
-        return Convert.ToInt64(cmd.ExecuteScalar(), CultureInfo.InvariantCulture) > 0;
-    }
-
-    private static long ScalarCount(SqliteConnection conn, string sql)
-    {
-        using var cmd = conn.CreateCommand();
-        cmd.CommandText = sql;
-        return Convert.ToInt64(cmd.ExecuteScalar(), CultureInfo.InvariantCulture);
-    }
-
-    private static void WriteStorageEpoch(SqliteConnection conn)
-    {
-        using var cmd = conn.CreateCommand();
-        cmd.CommandText = "INSERT OR REPLACE INTO storage_metadata (key, value) VALUES ('storage_epoch', $epoch);";
-        cmd.Parameters.AddWithValue("$epoch", StorageEpochGuard.CurrentEpoch);
-        cmd.ExecuteNonQuery();
     }
 }

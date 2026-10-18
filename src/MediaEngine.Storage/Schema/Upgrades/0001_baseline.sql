@@ -3986,3 +3986,7 @@ WITH clients(client_id) AS (VALUES
 INSERT INTO application_client_bindings(application_id,client_id,created_at)
 SELECT X'00000000000000000000000000000004',client_id,strftime('%Y-%m-%dT%H:%M:%fZ','now')
 FROM clients;
+
+-- The storage epoch is committed with the structure, so a data store never exists without it.
+-- A later epoch bump is an ordinary numbered step that updates this row.
+INSERT INTO storage_metadata (key, value) VALUES ('storage_epoch', 'guid-blob-v11-upgrade-steps');
