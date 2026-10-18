@@ -372,8 +372,11 @@ public sealed class ViewResourceAuthorizationService(
             return false;
         }
 
+        // An app only changes what a write scope names: Galleries (view.galleries.write) and uploads (view.upload).
+        // Everything else, including an item's favourite, hidden, archive, trash and restore, stays read-only for
+        // apps, so a paired device holding the read-only photo scopes cannot change the person's photos.
         if (caller.HasApplicationContext && request.Action != ViewResourceAction.Read
-            && request.Kind is ViewResourceKind.Preference or ViewResourceKind.Folder or ViewResourceKind.FolderPolicy)
+            && request.Kind is not (ViewResourceKind.Gallery or ViewResourceKind.Upload))
         {
             return false;
         }

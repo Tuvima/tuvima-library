@@ -57,8 +57,8 @@ public static partial class ViewEndpoints
 
             try
             {
-                var (access, refusal) = await ResolveCatalogueAccessAsync(
-                    null, null, true, identity, preferences, resolver, authorization, ct);
+                var (access, refusal) = await ResolveCatalogueChangeAccessAsync(
+                    true, identity, preferences, resolver, authorization, ct);
                 if (access is null)
                 {
                     return refusal!;
@@ -84,21 +84,21 @@ public static partial class ViewEndpoints
         group.MapGet("/document-rules", async (
             IViewRequestProfileContext identity, IViewProfileRepository preferences, IViewScopeResolver resolver,
             IViewResourceAuthorizationService authorization, ViewDocumentRuleService service, CancellationToken ct) =>
-            await RunRuleAsync(identity, preferences, resolver, authorization,
+            await RunRuleAsync(identity, preferences, resolver, authorization, changes: false,
                 async (access, token) => Results.Ok(await service.ListAsync(access.Authority, access.Viewer, token)), ct))
             .WithName("GetViewDocumentRules").Produces<ViewDocumentRulesDto>();
 
         group.MapPost("/document-rules", async ([FromBody] SaveViewDocumentRuleRequest request,
             IViewRequestProfileContext identity, IViewProfileRepository preferences, IViewScopeResolver resolver,
             IViewResourceAuthorizationService authorization, ViewDocumentRuleService service, CancellationToken ct) =>
-            await RunRuleAsync(identity, preferences, resolver, authorization,
+            await RunRuleAsync(identity, preferences, resolver, authorization, changes: true,
                 async (access, token) => Results.Ok(await service.CreateAsync(access.Authority, access.Viewer, request, token)), ct))
             .WithName("CreateViewDocumentRule").Produces<ViewDocumentRuleDto>();
 
         group.MapPut("/document-rules/order", async ([FromBody] ReorderViewDocumentRulesRequest request,
             IViewRequestProfileContext identity, IViewProfileRepository preferences, IViewScopeResolver resolver,
             IViewResourceAuthorizationService authorization, ViewDocumentRuleService service, CancellationToken ct) =>
-            await RunRuleAsync(identity, preferences, resolver, authorization,
+            await RunRuleAsync(identity, preferences, resolver, authorization, changes: true,
                 async (access, token) => await service.ReorderAsync(access.Authority, request.RuleIds ?? [], token)
                     ? Results.NoContent() : Missing(), ct))
             .WithName("ReorderViewDocumentRules").Produces(StatusCodes.Status204NoContent);
@@ -106,7 +106,7 @@ public static partial class ViewEndpoints
         group.MapPut("/document-rules/{id:guid}", async (Guid id, [FromBody] SaveViewDocumentRuleRequest request,
             IViewRequestProfileContext identity, IViewProfileRepository preferences, IViewScopeResolver resolver,
             IViewResourceAuthorizationService authorization, ViewDocumentRuleService service, CancellationToken ct) =>
-            await RunRuleAsync(identity, preferences, resolver, authorization,
+            await RunRuleAsync(identity, preferences, resolver, authorization, changes: true,
                 async (access, token) => await service.UpdateAsync(access.Authority, access.Viewer, id, request, token)
                     is { } updated ? Results.Ok(updated) : Missing(), ct))
             .WithName("UpdateViewDocumentRule").Produces<ViewDocumentRuleDto>();
@@ -114,7 +114,7 @@ public static partial class ViewEndpoints
         group.MapDelete("/document-rules/{id:guid}", async (Guid id,
             IViewRequestProfileContext identity, IViewProfileRepository preferences, IViewScopeResolver resolver,
             IViewResourceAuthorizationService authorization, ViewDocumentRuleService service, CancellationToken ct) =>
-            await RunRuleAsync(identity, preferences, resolver, authorization,
+            await RunRuleAsync(identity, preferences, resolver, authorization, changes: true,
                 async (access, token) => await service.DeleteAsync(access.Authority, id, token)
                     ? Results.NoContent() : Missing(), ct))
             .WithName("DeleteViewDocumentRule").Produces(StatusCodes.Status204NoContent);
@@ -122,32 +122,34 @@ public static partial class ViewEndpoints
         group.MapPost("/document-rules/test", async ([FromBody] SaveViewDocumentRuleRequest request,
             IViewRequestProfileContext identity, IViewProfileRepository preferences, IViewScopeResolver resolver,
             IViewResourceAuthorizationService authorization, ViewDocumentRuleService service, CancellationToken ct) =>
-            await RunRuleAsync(identity, preferences, resolver, authorization,
+            await RunRuleAsync(identity, preferences, resolver, authorization, changes: false,
                 async (access, token) => Results.Ok(await service.TestAsync(access.Authority, access.Viewer, request, token)), ct))
             .WithName("TestViewDocumentRule").Produces<ViewDocumentRuleTestDto>();
 
         group.MapPost("/document-rules/apply", async (
             IViewRequestProfileContext identity, IViewProfileRepository preferences, IViewScopeResolver resolver,
             IViewResourceAuthorizationService authorization, ViewDocumentRuleService service, CancellationToken ct) =>
-            await RunRuleAsync(identity, preferences, resolver, authorization,
+            await RunRuleAsync(identity, preferences, resolver, authorization, changes: true,
                 async (access, token) => Results.Ok(
                     new ViewDocumentRulesApplyResultDto(await service.ApplyToExistingAsync(access.Authority, token))), ct))
             .WithName("ApplyViewDocumentRules").Produces<ViewDocumentRulesApplyResultDto>();
     }
 
     /// <summary>
-    /// Opens a rules route: refuses a profile that may not use Documents, then runs the work. A rule can only name
+    /// Opens a rules route: refuses a profile that may not use Documents, and an app when the route
+    /// <paramref name="changes"/> rules or documents, then runs the work. A rule can only name
     /// things the person can see, so a failure never says why a name was refused.
     /// </summary>
     private static async Task<IResult> RunRuleAsync(
         IViewRequestProfileContext identity, IViewProfileRepository preferences, IViewScopeResolver resolver,
-        IViewResourceAuthorizationService authorization,
+        IViewResourceAuthorizationService authorization, bool changes,
         Func<CatalogueAccess, CancellationToken, Task<IResult>> work, CancellationToken ct)
     {
         try
         {
-            var (access, refusal) = await ResolveCatalogueAccessAsync(
-                null, null, true, identity, preferences, resolver, authorization, ct);
+            var (access, refusal) = changes
+                ? await ResolveCatalogueChangeAccessAsync(true, identity, preferences, resolver, authorization, ct)
+                : await ResolveCatalogueAccessAsync(null, null, true, identity, preferences, resolver, authorization, ct);
             return access is null ? refusal! : await work(access, ct);
         }
         catch (ViewDocumentRuleForbiddenException exception)

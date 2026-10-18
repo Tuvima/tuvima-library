@@ -1153,6 +1153,134 @@ public sealed class ViewDocumentOrganisationEndpointTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task APairedAppWithThePhotoScopesCannotFavouriteHideArchiveTrashOrRestoreTheOwnersPhoto()
+    {
+        var owner = await CreatePerson("StandardUser");
+        var photo = await AddItem(owner, '7', LocalAssetMediaKinds.Image, "Beach");
+        // The owner's own phone. The evaluator allows every permission, as if it holds the photo scopes.
+        _actor.Current = PairedApp(owner);
+
+        var refused = new (HttpMethod Method, string Route, HttpContent? Body)[]
+        {
+            (HttpMethod.Put, $"/view/items/{photo:D}/favorite", JsonContent.Create(new SetLocalAssetFlagRequest(true))),
+            (HttpMethod.Put, $"/view/items/{photo:D}/hidden", JsonContent.Create(new SetLocalAssetFlagRequest(true))),
+            (HttpMethod.Post, $"/view/items/{photo:D}/archive", null),
+            (HttpMethod.Post, $"/view/items/{photo:D}/trash", null),
+            (HttpMethod.Post, $"/view/items/{photo:D}/restore", null),
+        };
+        foreach (var (method, route, content) in refused)
+        {
+            using var request = new HttpRequestMessage(method, route) { Content = content };
+            using var response = await _client.SendAsync(request);
+            Assert.True(response.StatusCode == HttpStatusCode.Forbidden, $"{method} {route} returned {(int)response.StatusCode}.");
+        }
+
+        var unchanged = _assets.Find(photo)!;
+        Assert.False(unchanged.Favorite);
+        Assert.False(unchanged.Hidden);
+        Assert.Null(unchanged.ArchivedAt);
+        Assert.Null(unchanged.TrashedAt);
+
+        // The owner signed in to the Dashboard still does all of it.
+        _actor.Current = owner.Authority;
+        using var favourite = await _client.PutAsJsonAsync($"/view/items/{photo:D}/favorite", new SetLocalAssetFlagRequest(true));
+        Assert.Equal(HttpStatusCode.NoContent, favourite.StatusCode);
+        using var hidden = await _client.PutAsJsonAsync($"/view/items/{photo:D}/hidden", new SetLocalAssetFlagRequest(true));
+        Assert.Equal(HttpStatusCode.NoContent, hidden.StatusCode);
+        using var archive = await _client.PostAsync($"/view/items/{photo:D}/archive", null);
+        Assert.Equal(HttpStatusCode.NoContent, archive.StatusCode);
+        using var trash = await _client.PostAsync($"/view/items/{photo:D}/trash", null);
+        Assert.Equal(HttpStatusCode.NoContent, trash.StatusCode);
+        Assert.NotNull(_assets.Find(photo)!.TrashedAt);
+        using var restore = await _client.PostAsync($"/view/items/{photo:D}/restore", null);
+        Assert.Equal(HttpStatusCode.NoContent, restore.StatusCode);
+        var changed = _assets.Find(photo)!;
+        Assert.True(changed.Favorite);
+        Assert.True(changed.Hidden);
+        Assert.Null(changed.TrashedAt);
+    }
+
+    [Fact]
+    public async Task APairedAppWithThePhotoScopesCannotChangeTheOwnersCatalogueRulesOrDocuments()
+    {
+        var owner = await CreatePerson("StandardUser");
+        var document = await AddDocument(owner, 'e');
+        _actor.Current = owner.Authority;
+        var tag = await PostAsync<ViewTagDto>("/view/tags", new ViewCatalogueEntryRequest("Invoices"));
+        var correspondent = await PostAsync<ViewCorrespondentDto>("/view/correspondents", new ViewCatalogueEntryRequest("Water Co"));
+        var type = await PostAsync<ViewDocumentTypeDto>("/view/document-types", new ViewCatalogueEntryRequest("Bill"));
+        var field = await PostAsync<ViewDocumentFieldDto>("/view/document-fields", new ViewDocumentFieldRequest("Status", "choice", ["Open", "Closed"]));
+        var rule = new SaveViewDocumentRuleRequest("Invoices", true, "all", true, ViewDocumentRuleScopes.Mine,
+            [new ViewDocumentRuleConditionDto(ViewDocumentRuleConditionKinds.FilenameContains, "e")],
+            [new ViewDocumentRuleActionDto(ViewDocumentRuleActionKinds.AddTag, tag.Id)]);
+        var created = await PostAsync<ViewDocumentRuleDto>("/view/document-rules", rule);
+        var itemRoute = $"/view/items/{document:D}";
+        // The owner's own phone, as if it holds view.personal.read and the other photo scopes.
+        _actor.Current = PairedApp(owner);
+
+        var refused = new (HttpMethod Method, string Route, HttpContent? Body)[]
+        {
+            (HttpMethod.Post, "/view/tags", JsonContent.Create(new ViewCatalogueEntryRequest("Sneaky"))),
+            (HttpMethod.Put, $"/view/tags/{tag.Id:D}", JsonContent.Create(new ViewCatalogueEntryRequest("Sneaky"))),
+            (HttpMethod.Delete, $"/view/tags/{tag.Id:D}", null),
+            (HttpMethod.Post, "/view/correspondents", JsonContent.Create(new ViewCatalogueEntryRequest("Sneaky"))),
+            (HttpMethod.Put, $"/view/correspondents/{correspondent.Id:D}", JsonContent.Create(new ViewCatalogueEntryRequest("Sneaky"))),
+            (HttpMethod.Delete, $"/view/correspondents/{correspondent.Id:D}", null),
+            (HttpMethod.Post, "/view/document-types", JsonContent.Create(new ViewCatalogueEntryRequest("Sneaky"))),
+            (HttpMethod.Put, $"/view/document-types/{type.Id:D}", JsonContent.Create(new ViewCatalogueEntryRequest("Sneaky"))),
+            (HttpMethod.Delete, $"/view/document-types/{type.Id:D}", null),
+            (HttpMethod.Post, "/view/document-fields", JsonContent.Create(new ViewDocumentFieldRequest("Sneaky", "text"))),
+            (HttpMethod.Put, $"/view/document-fields/{field.Id:D}", JsonContent.Create(new ViewDocumentFieldRequest("Sneaky", "choice", ["Open"]))),
+            (HttpMethod.Delete, $"/view/document-fields/{field.Id:D}", null),
+            (HttpMethod.Post, "/view/document-rules", JsonContent.Create(rule with { Name = "Sneaky" })),
+            (HttpMethod.Put, $"/view/document-rules/{created.Id:D}", JsonContent.Create(rule with { Name = "Sneaky" })),
+            (HttpMethod.Put, "/view/document-rules/order", JsonContent.Create(new ReorderViewDocumentRulesRequest([created.Id]))),
+            (HttpMethod.Post, "/view/document-rules/apply", JsonContent.Create(new { })),
+            (HttpMethod.Delete, $"/view/document-rules/{created.Id:D}", null),
+            (HttpMethod.Post, $"{itemRoute}/inbox/file", JsonContent.Create(new FileViewDocumentFromInboxRequest(AcceptSuggestions: true))),
+            (HttpMethod.Put, $"{itemRoute}/document-details", JsonContent.Create(new UpdateViewDocumentDetailsRequest(Title: "Sneaky"))),
+            (HttpMethod.Put, $"{itemRoute}/tags", JsonContent.Create(new UpdateLocalAssetTagsRequest(["Sneaky"]))),
+            (HttpMethod.Post, "/view/documents/bulk", JsonContent.Create(new ViewDocumentBulkRequest([document], ViewDocumentBulkOperations.AddTags, Tags: ["Sneaky"]))),
+            (HttpMethod.Post, "/view/documents/bulk", JsonContent.Create(new ViewDocumentBulkRequest([document], ViewDocumentBulkOperations.MoveToTrash))),
+        };
+        foreach (var (method, route, content) in refused)
+        {
+            using var request = new HttpRequestMessage(method, route) { Content = content };
+            using var response = await _client.SendAsync(request);
+            Assert.True(response.StatusCode == HttpStatusCode.Forbidden, $"{method} {route} returned {(int)response.StatusCode}.");
+        }
+
+        // Reading stays open to the app: the catalogue, the rules and a rule's try-out, which changes nothing.
+        using var catalogueRead = await _client.GetAsync("/view/catalogue");
+        Assert.Equal(HttpStatusCode.OK, catalogueRead.StatusCode);
+        using var rulesRead = await _client.GetAsync("/view/document-rules");
+        Assert.Equal(HttpStatusCode.OK, rulesRead.StatusCode);
+        using var tryOut = await _client.PostAsJsonAsync("/view/document-rules/test", rule);
+        Assert.Equal(HttpStatusCode.OK, tryOut.StatusCode);
+
+        // Nothing changed, and the owner on the Dashboard still manages all of it.
+        _actor.Current = owner.Authority;
+        var catalogue = await _client.GetFromJsonAsync<ViewDocumentCatalogueDto>("/view/catalogue");
+        Assert.Equal(["Invoices"], catalogue!.Tags.Select(entry => entry.Name).ToArray());
+        Assert.Equal(["Water Co"], catalogue.Correspondents.Select(entry => entry.Name).ToArray());
+        Assert.Equal(["Bill"], catalogue.DocumentTypes.Select(entry => entry.Name).ToArray());
+        Assert.Equal(["Status"], catalogue.Fields.Select(entry => entry.Name).ToArray());
+        var rules = await _client.GetFromJsonAsync<ViewDocumentRulesDto>("/view/document-rules");
+        Assert.Equal(["Invoices"], rules!.Rules.Select(item => item.Name).ToArray());
+        Assert.Null(_assets.Find(document)!.TrashedAt);
+        using var rename = await _client.PutAsJsonAsync($"/view/tags/{tag.Id:D}", new ViewCatalogueEntryRequest("Bills"));
+        Assert.Equal(HttpStatusCode.OK, rename.StatusCode);
+        using var deleteRule = await _client.DeleteAsync($"/view/document-rules/{created.Id:D}");
+        Assert.Equal(HttpStatusCode.NoContent, deleteRule.StatusCode);
+    }
+
+    /// <summary>The person's own paired phone: same account and profile, signed in as an app.</summary>
+    private static RequestAuthority PairedApp(Person owner) => new(
+        PrincipalKind.DelegatedUserClient, true, AccountId: owner.Authority.AccountId,
+        ActiveProfileId: owner.ProfileId, ApplicationId: Guid.NewGuid(),
+        AccountEnabled: true, GrantEnabled: true, ApplicationEnabled: true);
+
+    [Fact]
     public async Task TagTypeAheadNeverOffersATagThatOnlyDocumentsCarryToAProfileWithoutDocuments()
     {
         var household = Guid.NewGuid();

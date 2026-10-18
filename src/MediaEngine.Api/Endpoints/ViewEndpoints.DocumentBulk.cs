@@ -28,8 +28,8 @@ public static partial class ViewEndpoints
         {
             try
             {
-                var (access, refusal) = await ResolveCatalogueAccessAsync(
-                    null, null, true, identity, preferences, resolver, authorization, ct);
+                var (access, refusal) = await ResolveCatalogueChangeAccessAsync(
+                    true, identity, preferences, resolver, authorization, ct);
                 return access is null
                     ? refusal!
                     : Results.Ok(await service.RunAsync(access.Authority, access.Viewer, request, ct));
