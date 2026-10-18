@@ -11,7 +11,8 @@ public sealed class EngineApiClientEnvelopeGuardrailTests
     {
         var source = ReadClientSources();
 
-        AssertAtOrBelow(source, "_http.GetFromJsonAsync", 116);
+        // The detail-page read moved from GetFromJsonAsync to a manual GET (below), so this ceiling dropped by one.
+        AssertAtOrBelow(source, "_http.GetFromJsonAsync", 115);
         // SharedEntityEditor uses a manual status check so failed typed target loads retain HTTP
         // failure classification and LastStatusCode; its 404 behavior is covered explicitly.
         // The current checkout contains 25 raw GET calls: the added typed audiobook bookmark
@@ -19,7 +20,9 @@ public sealed class EngineApiClientEnvelopeGuardrailTests
         // text-track reader still shares its existing raw-text envelope.
         // The file-coverage read is one more manual GET: a 404 means "not a TV episode file" and keeps the picker hidden
         // without an error, while other failures set LastError; the picker tests cover both outcomes.
-        AssertAtOrBelow(source, "_http.GetAsync", 26);
+        // The detail-page load is one more manual GET: it tells not found (404/400), not allowed (401/403) and
+        // Engine unreachable apart so the page can show the right message; EngineApiClientDetailLoadTests cover each.
+        AssertAtOrBelow(source, "_http.GetAsync", 27);
         // One additional raw POST is the typed bookmark-create outcome path. Its focused tests
         // cover success classification, definite 4xx vs unknown 5xx/malformed results, and one
         // send per attempt with no automatic retry.

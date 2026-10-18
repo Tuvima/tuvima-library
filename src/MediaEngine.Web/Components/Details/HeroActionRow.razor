@@ -2,9 +2,10 @@
 @using System.Globalization
 @using MediaEngine.Contracts.Details
 <div class="tl-detail-actions">
-    <div class="tl-detail-primary-actions">
-        @foreach (var action in PrimaryActions.Where(action => action.Key != "restart").Take(1))
-        {
+    @* No main button when nothing is playable: the primary slot is not rendered at all, so the circles sit flush left. *@
+    @foreach (var action in PrimaryActions.Where(action => action.Key != "restart").Take(1))
+    {
+        <div class="tl-detail-primary-actions">
             <AppNativeButton Type="button" Class="@($"tl-detail-action--primary tl-detail-action--{ActionKeyClass(action)} {(HasEmbeddedProgress ? "tl-detail-action--has-progress" : "")}")" Disabled="@action.IsDisabled" AriaLabel="@action.Label" OnClick="@(() => Select(action))" @attributes="AttributesFor(action)">
                 <AppMaterialIcon Icon="@IconFor(action)" />
                 <span class="tl-detail-action-label">
@@ -13,8 +14,8 @@
                 </span>
                 @if (HasEmbeddedProgress) { <span class="tl-detail-action-progress__track" role="progressbar" aria-label="@EmbeddedProgressAriaLabel" aria-valuemin="0" aria-valuemax="100" aria-valuenow="@EmbeddedProgressPercent"><AppCssElement Tag="span" Class="tl-detail-action-progress__fill" Css="@EmbeddedProgressStyle" /></span> }
             </AppNativeButton>
-        }
-    </div>
+        </div>
+    }
     <div class="tl-detail-secondary-actions">
         @foreach (var action in VisibleSecondaryActions)
         {
@@ -89,7 +90,7 @@
         => action.Key == "my-list" ? "My List" : action.Label;
 
     private static string TooltipFor(DetailAction action)
-        => action.Tooltip ?? (action.IsStub ? $"{action.Label} (coming soon)" : action.Label);
+        => action.Tooltip ?? action.Label;
 
     private static string ActionKeyClass(DetailAction action)
         => new string(action.Key.Select(character => char.IsLetterOrDigit(character) ? char.ToLowerInvariant(character) : '-').ToArray()).Trim('-');
@@ -122,7 +123,6 @@
         "arrow_back" => AppMaterialIcons.Outlined.ArrowBack,
         "account_tree" => AppMaterialIcons.Outlined.AccountTree,
         "auto_stories" => AppMaterialIcons.Outlined.AutoStories,
-        "read_listen" => AppMaterialIcons.Outlined.Sync,
         "settings" => AppMaterialIcons.Outlined.Settings,
         _ => AppMaterialIcons.Outlined.OpenInNew,
     };

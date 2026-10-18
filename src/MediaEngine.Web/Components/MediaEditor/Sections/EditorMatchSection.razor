@@ -94,6 +94,14 @@
                         {
                             <div><span>Match status</span><strong class="sme-match-optional-status">@(CurrentMatchOptional && !HasCurrentRetailMatch ? "Optional · Not matched" : HasCurrentRetailMatch ? "Matched" : "Not matched")</strong></div>
                         }
+                        @if (!string.IsNullOrWhiteSpace(IdentityStatus))
+                        {
+                            <div><span>Identity status</span><strong>@IdentityStatusLabel</strong></div>
+                        }
+                        @if (!string.IsNullOrWhiteSpace(ArtworkSource))
+                        {
+                            <div><span>Artwork source</span><strong>@ArtworkSource</strong></div>
+                        }
                     </div>
                     @if (currentRetail.Links.Count > 0)
                     {
@@ -516,6 +524,20 @@
     [Parameter] public EventCallback CancelTvdbSelection { get; set; }
     [Parameter] public EventCallback<string> SelectMusicTrackMoveChoice { get; set; }
     [Parameter] public Func<MediaEngine.Contracts.Matching.ItemCanonicalRetailCandidateDto, string> GetRetailCandidateId { get; set; } = default!;
+    // Read-only technical facts from the editor-context response; the Engine only fills them for
+    // callers allowed to open the editor, and nothing is shown when they are absent.
+    [Parameter] public string? IdentityStatus { get; set; }
+    [Parameter] public string? ArtworkSource { get; set; }
+
+    private string IdentityStatusLabel => IdentityStatus switch
+    {
+        "WikidataLinked" => "Wikidata linked",
+        "ProviderMatched" => "Provider matched",
+        "NeedsReview" => "Needs review",
+        "LocalOnly" => "Local only",
+        "Unknown" => "Unknown",
+        _ => IdentityStatus ?? string.Empty,
+    };
 
     // EventCallbacks retain the shell as the state-changing event receiver.
     private Task SetTvdbLocalFilter(string? value) => SetTvdbLocalFilterRequested.InvokeAsync(value);

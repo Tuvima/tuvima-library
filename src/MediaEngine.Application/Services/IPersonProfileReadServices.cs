@@ -9,7 +9,6 @@ public interface IPersonCreditReadService
     Task<List<CastCreditDto>> BuildForCollectionRootAsync(Guid rootWorkId, string? rootWorkQid, CancellationToken ct);
     Task<List<PersonGroupMemberDto>> GetGroupMembersAsync(Guid personId, bool isGroup, CancellationToken ct);
     Task<List<PersonLibraryCreditDto>> GetLibraryCreditsAsync(Guid personId, CancellationToken ct);
-    Task<List<PersonCharacterRoleDto>> GetCharacterRolesAsync(Guid personId, CancellationToken ct);
 }
 
 public interface IProfileOverviewReadService

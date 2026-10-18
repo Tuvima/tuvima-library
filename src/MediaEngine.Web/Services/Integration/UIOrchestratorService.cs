@@ -908,11 +908,6 @@ public sealed class UIOrchestratorService : IAsyncDisposable
         Guid personId, CancellationToken ct = default)
         => _api.GetPersonLibraryCreditsAsync(personId, ct);
 
-    /// <summary>Returns work-scoped portrayed character credits for a person.</summary>
-    public Task<IReadOnlyList<CharacterRoleDto>> GetPersonCharacterRolesAsync(
-        Guid personId, CancellationToken ct = default)
-        => _api.GetPersonCharacterRolesAsync(personId, ct);
-
     /// <summary>Returns all collections linked to works by a person.</summary>
     public Task<List<CollectionViewModel>> GetWorksByPersonAsync(
         Guid personId, CancellationToken ct = default)

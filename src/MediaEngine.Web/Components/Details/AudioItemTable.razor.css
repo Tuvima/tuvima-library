@@ -175,7 +175,7 @@
     height: var(--tl-embedded-audio-more-size, 2rem) !important;
 }
 
-@media (max-width: 720px) {
+@media (width < 840px) {
     .tl-embedded-audio__table {
         min-width: 35rem;
     }
@@ -222,7 +222,7 @@
     background: linear-gradient(90deg, #7c5cff, #b25cff);
 }
 
-@media (max-width: 820px) {
+@media (width < 840px) {
 :where(.tl-detail-page) .tl-detail-chapter-row__progress {
         display: none;
     }
@@ -667,7 +667,7 @@
     font-size: 0.86rem;
 }
 
-@media (max-width: 840px) {
+@media (width < 840px) {
 :where(.tl-detail-page) .tl-detail-track-section {
         width: calc(100% - 2rem);
     }
@@ -692,7 +692,7 @@
 
 }
 
-@media (max-width: 840px) {
+@media (width < 840px) {
 :where(.tl-detail-page) .tl-detail-track-table {
         min-width: 36rem;
     }
@@ -930,40 +930,7 @@
     height: 2.85rem;
 }
 
-@media (min-width: 721px) {
-:where(.tl-detail-page) .tl-detail-stage--primary-before-navigation .tl-embedded-audio,
-:where(.tl-detail-page) .tl-detail-stage--primary-before-navigation .tl-embedded-audio__toolbar {
-
-        min-height: 3rem;
-        padding: 0.35rem 0;
-
-    }
-
-:where(.tl-detail-page) .tl-detail-stage--primary-before-navigation .tl-embedded-audio__scroller,
-:where(.tl-detail-page) .tl-detail-stage--primary-before-navigation .tl-embedded-audio__row {
-        background: transparent;
-    }
-
-}
-
-@media (min-width: 721px) {
-:where(.tl-detail-page) .tl-detail-stage--primary-before-navigation .tl-embedded-audio,
-:where(.tl-detail-page) .tl-detail-stage--primary-before-navigation .tl-embedded-audio__toolbar {
-        justify-content: flex-end;
-        padding-inline: 0;
-        border: 0;
-        background: transparent;
-        backdrop-filter: none;
-    }
-
-:where(.tl-detail-page) .tl-detail-stage--primary-before-navigation .tl-embedded-audio__tools {
-        justify-content: flex-end;
-        width: 100%;
-    }
-
-}
-
-@media (max-width: 720px) {
+@media (width < 840px) {
 :where(.tl-detail-page) .tl-detail-stage--with-primary .tl-embedded-audio__table {
         min-width: 0;
     }

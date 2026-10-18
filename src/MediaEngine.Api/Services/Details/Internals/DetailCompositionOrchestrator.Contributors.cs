@@ -581,27 +581,4 @@ internal sealed partial class DetailCompositionOrchestrator
 
         return DeduplicateContributorEntries(entries);
     }
-
-    private static IReadOnlyList<CharacterGroupViewModel> BuildCharacterGroupsFromCast(IReadOnlyList<CastCreditDto> cast)
-    {
-        var characters = cast
-            .SelectMany(c => c.Characters.Select(character => new EntityCreditViewModel
-            {
-                EntityId = character.FictionalEntityId.ToString("D"),
-                EntityType = RelatedEntityType.Character,
-                DisplayName = character.CharacterName ?? "Character",
-                ImageUrl = character.PortraitUrl,
-                FallbackInitials = Initials(character.CharacterName ?? "Character"),
-                PrimaryRole = "Character",
-                IsCanonical = !string.IsNullOrWhiteSpace(character.CharacterQid),
-            }))
-            .Where(c => !string.IsNullOrWhiteSpace(c.DisplayName))
-            .DistinctBy(c => c.EntityId)
-            .ToList();
-
-        return characters.Count == 0
-            ? []
-            : [new CharacterGroupViewModel { Title = "Characters", GroupType = CharacterGroupType.MainCharacters, Characters = characters }];
-    }
-
 }

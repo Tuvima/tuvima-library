@@ -22,7 +22,6 @@
 @inject UIOrchestratorService Orchestrator
 @inject NavigationManager Nav
 @inject IAppToastService Snackbar
-@inject IJSRuntime Js
 @inject IAppDialogService Dialogs
 @inject ILogger<DetailPage> Logger
 @implements IDisposable
@@ -36,14 +35,6 @@
                         OnActionSelected="HandleDetailActionAsync"
                         OnTabRequested="SetActiveTabAsync"
                         ActionAttributes="@(IsAudiobook ? AudiobookActionAttributes : null)" />
-
-            @if (HasPrimaryModuleBeforeNavigation)
-            {
-                <DetailPrimaryModule Model="Model"
-                                     Embedded="true"
-                                     OnContainerSelected="HandleContainerSelectedAsync"
-                                     OnEditItem="OpenEpisodeEditorAsync" />
-            }
 
             @if (ShowDetailNavigation)
             {
@@ -59,7 +50,8 @@
         {
             <section class="tl-detail-page__primary-content">
             <DetailPrimaryModule Model="Model"
-                                 Embedded="false"
+                                 SelectedSeasonId="SelectedSeasonId"
+                                 OnSeasonSelected="SelectedSeasonChanged"
                                  OnContainerSelected="HandleContainerSelectedAsync"
                                  OnEditItem="OpenEpisodeEditorAsync" />
             </section>
@@ -79,79 +71,15 @@
                                                                      OnContainerSelected="HandleContainerSelectedAsync" />
                 }
             }
-            else if (CurrentActiveTab is "episodes")
-            {
-                @if (Model.SequencePlacement is not null)
-                {
-                    <SequencePlacementPanel Placement="Model.SequencePlacement"
-                                            DetailSurface="true"
-                                            OnContainerSelected="HandleContainerSelectedAsync"
-                                            OnEditItem="OpenEpisodeEditorAsync" />
-                }
-                else
-                {
-                    <ChildrenListTab Groups="Model.MediaGroups" />
-                }
-            }
             else if (CurrentActiveTab is "tracks" && IsAudiobook)
             {
                 <AudiobookTracksContent Model="Model" />
             }
-            else if (CurrentActiveTab is "series")
+            else if (CurrentActiveTab is "people" or "credits" or "cast")
             {
-                @if (Model.SequencePlacement is not null)
-                {
-                    <SequencePlacementPanel Placement="Model.SequencePlacement"
-                                            DetailSurface="true"
-                                            OnContainerSelected="HandleContainerSelectedAsync"
-                                            OnEditItem="OpenEpisodeEditorAsync" />
-                }
-                else
-                {
-                    <ChildrenListTab Groups="Model.MediaGroups" />
-                }
-            }
-            else if (CurrentActiveTab is "items" or "issues" or "media" or "works" or "albums")
-            {
-                @if (Model.SequencePlacement is not null && CurrentActiveTab is "issues" or "media" or "works")
-                {
-                    <SequencePlacementPanel Placement="Model.SequencePlacement"
-                                            DetailSurface="true"
-                                            OnContainerSelected="HandleContainerSelectedAsync"
-                                            OnEditItem="OpenEpisodeEditorAsync" />
-                }
-                else
-                {
-                    <ChildrenListTab Groups="Model.MediaGroups" />
-                }
-            }
-            else if (CurrentActiveTab is "contributors" or "people" or "credits" or "cast")
-            {
-                <PeopleAndCharactersTab ContributorGroups="@(Model.FullContributorGroups.Count > 0 ? Model.FullContributorGroups : Model.ContributorGroups)"
+                <PeopleTab ContributorGroups="@(Model.FullContributorGroups.Count > 0 ? Model.FullContributorGroups : Model.ContributorGroups)"
                                         EpisodeId="@(Model.EntityType == DetailEntityType.TvEpisode ? Model.Id : null)"
-                                        EpisodeContributorGroups="@(Model.EntityType == DetailEntityType.TvEpisode ? Model.ContributorGroups : null)"
-                                        CharacterGroups="Model.CharacterGroups"
-                                        IncludeCharacters="IncludeCharactersInPeopleTab" />
-            }
-            else if (CurrentActiveTab is "characters" or "portrayals")
-            {
-                <CharactersSection Groups="Model.CharacterGroups" />
-            }
-            else if (CurrentActiveTab is "universe" or "timeline" or "relationships")
-            {
-                <UniverseTab Relationships="Model.RelationshipStrip" Groups="Model.MediaGroups" />
-            }
-            else if (CurrentActiveTab is "related")
-            {
-                <RelatedTab Model="Model" />
-            }
-            else if (CurrentActiveTab is "sync")
-            {
-                <SyncTab Sync="Model.ReadingListeningSync" Capability="Model.SyncCapability" />
-            }
-            else if (CurrentActiveTab is "registry")
-            {
-                <RegistryTab Model="Model" />
+                                        EpisodeContributorGroups="@(Model.EntityType == DetailEntityType.TvEpisode ? Model.ContributorGroups : null)" />
             }
             else
             {
@@ -171,6 +99,13 @@
     [Parameter, EditorRequired] public DetailPageViewModel? Model { get; set; }
     [Parameter] public string? ActiveTab { get; set; }
     [Parameter] public EventCallback<string> ActiveTabChanged { get; set; }
+
+    /// <summary>The season of a show the page address names; a refresh asks the Engine for the show on that season.</summary>
+    [Parameter] public Guid? SelectedSeasonId { get; set; }
+    [Parameter] public EventCallback<Guid> SelectedSeasonChanged { get; set; }
+
+    /// <summary>Raised with each payload this page fetches itself, so the host keeps the newest one.</summary>
+    [Parameter] public EventCallback<DetailPageViewModel> ModelRefreshed { get; set; }
     [Parameter] public EventCallback<DetailAction> OnActionSelected { get; set; }
     private IReadOnlyList<DetailTab> VisibleTabs =>
         Model is null ? [] : DetailTabNavigation.GetVisibleTabs(Model);
@@ -179,8 +114,6 @@
         VisibleTabs.Any(tab => string.Equals(tab.Key, ActiveTab, StringComparison.OrdinalIgnoreCase))
             ? VisibleTabs.First(tab => string.Equals(tab.Key, ActiveTab, StringComparison.OrdinalIgnoreCase)).Key
             : VisibleTabs.FirstOrDefault()?.Key ?? "overview";
-
-    private bool IncludeCharactersInPeopleTab => CurrentActiveTab is not "cast";
 
     private DetailPresentationCapabilities PresentationCapabilities =>
         DetailPresentationCapabilities.For(Model?.EntityType ?? DetailEntityType.Work);
@@ -212,8 +145,11 @@
 
     protected override void OnParametersSet() => UpdateEditingEligibility();
 
+    private bool _disposed;
+
     public void Dispose()
     {
+        _disposed = true;
         if (_editing is null)
         {
             return;
@@ -305,8 +241,6 @@
         }
     }
 
-    private bool HasPrimaryModuleBeforeNavigation => false;
-
     private bool HasPrimaryModuleAfterNavigation => Model?.PrimaryModule.Kind is not
         (DetailPrimaryModuleKind.None or DetailPrimaryModuleKind.Tracks or DetailPrimaryModuleKind.Chapters);
 
@@ -315,8 +249,7 @@
         && CurrentActiveTab == "overview";
 
     private string DetailStageClass =>
-        $"tl-detail-stage{(HasPrimaryModuleBeforeNavigation || HasPrimaryModuleAfterNavigation ? " tl-detail-stage--with-primary" : " tl-detail-stage--identity-only")}" +
-        $"{(HasPrimaryModuleBeforeNavigation ? " tl-detail-stage--primary-before-navigation" : string.Empty)}" +
+        $"tl-detail-stage{(HasPrimaryModuleAfterNavigation ? " tl-detail-stage--with-primary" : " tl-detail-stage--identity-only")}" +
         $"{(HasPrimaryModuleAfterNavigation ? " tl-detail-stage--primary-after-navigation" : string.Empty)}" +
         $"{(string.IsNullOrWhiteSpace(PresentationCapabilities.StageModifier) ? string.Empty : $" {PresentationCapabilities.StageModifier}")}" +
         $"{(Model?.EntityType == DetailEntityType.Person ? " tl-detail-stage--person" : string.Empty)}";
@@ -328,39 +261,41 @@
         if (Model is null || string.IsNullOrWhiteSpace(option.ContainerId) || !Guid.TryParse(Model.Id, out var id))
             return;
 
-        var profile = await Orchestrator.GetActiveProfileAsync();
-        var updated = await ApiClient.GetDetailPageAsync(Model.EntityType, id, Model.PresentationContext, option.ContainerId, profile?.Id, SequenceWindowQuery.Windowed);
-        if (updated is not null)
+        var updated = await ApiClient.GetDetailPageAsync(Model.EntityType, id, Model.PresentationContext, option.ContainerId, SequenceWindowQuery.Windowed);
+        if (updated is not null && IsStillShowing(id))
+        {
             Model = updated;
+            await ModelRefreshed.InvokeAsync(updated);
+        }
     }
 
     private async Task HandleDetailActionAsync(DetailAction action)
     {
         if (Model is null) return;
-        if (action.Key == "play-from-beginning")
+        if (action.Key == DetailActionKeys.PlayFromBeginning)
         {
             if (IsAudiobook) { await PlayAudiobookAsync(preferResume: false); return; }
             if (Model.EntityType == DetailEntityType.MusicAlbum) { await PlayAlbumAsync(shuffle: false); return; }
             if (Model.EntityType is DetailEntityType.Book or DetailEntityType.ComicIssue or DetailEntityType.Work)
             { await OpenReaderAsync(action, restart: true); return; }
         }
-        if (action.Key == "read")
+        if (action.Key == DetailActionKeys.Read)
         {
             await OpenReaderAsync(action);
             return;
         }
 
-        if (action.Key is "play-next" or "add-queue")
+        if (action.Key is DetailActionKeys.PlayNext or DetailActionKeys.AddQueue)
         {
             var tracks = Model.MediaGroups.SelectMany(g => g.Items)
                 .Where(item => item.EntityType == DetailEntityType.Work && item.IsOwned)
                 .OrderBy(TrackSortKey).Select(ToQueueItem).Where(item => item.WorkId != Guid.Empty).ToList();
-            if (action.Key == "play-next") tracks.Reverse();
-            foreach (var track in tracks) await Playback.AddQueueItemAsync(track, next: action.Key == "play-next");
+            if (action.Key == DetailActionKeys.PlayNext) tracks.Reverse();
+            foreach (var track in tracks) await Playback.AddQueueItemAsync(track, next: action.Key == DetailActionKeys.PlayNext);
             Snackbar.Add($"Added {tracks.Count} tracks to the queue.", AppSeverity.Success);
             return;
         }
-        if (action.Key == "add-playlist")
+        if (action.Key == DetailActionKeys.AddPlaylist)
         {
             IReadOnlyList<Guid> works = Model.MediaGroups.SelectMany(g => g.Items)
                 .Where(item => item.IsOwned && Guid.TryParse(item.Id, out _))
@@ -373,18 +308,12 @@
             });
             return;
         }
-        if (action.Key.StartsWith("status-", StringComparison.Ordinal))
+        if (DetailActionKeys.IsPersonalStatus(action.Key))
         {
             await HandlePersonalStatusAsync(action);
             return;
         }
-        if (action.Key == "copy-link")
-        {
-            try { await Js.InvokeVoidAsync("navigator.clipboard.writeText", Nav.Uri); Snackbar.Add("Library link copied.", AppSeverity.Success); }
-            catch { Snackbar.Add("The browser could not copy the link.", AppSeverity.Error); }
-            return;
-        }
-        if (action.Key is "edit-media" or "edit")
+        if (action.Key is DetailActionKeys.EditMedia or DetailActionKeys.Edit)
         {
             if (action.IsDisabled) return;
             if (EditorDeviceRule.TryRefuse(DeviceContext, Snackbar)) return;
@@ -401,45 +330,37 @@
             return;
         }
 
-        if (action.Key == "my-list")
+        if (action.Key == DetailActionKeys.MyList)
         {
             await ToggleFavoriteAsync(action);
             return;
         }
 
-        if (action.Key is "reaction-dislike" or "reaction-like" or "reaction-love")
+        if (action.Key is DetailActionKeys.ReactionDislike or DetailActionKeys.ReactionLike or DetailActionKeys.ReactionLove)
         {
             await SetReactionAsync(action);
             return;
         }
 
-        if (action.Key == "details")
+        if (action.Key == DetailActionKeys.Details)
         {
             await SetActiveTabAsync("details");
             return;
         }
 
-        if (action.Key == "sync-settings")
+        if (Model?.EntityType == DetailEntityType.MusicAlbum && action.Key is DetailActionKeys.PlayAlbum or DetailActionKeys.Shuffle)
         {
-            if (Model?.Tabs.Any(tab => tab.Key == "sync" && (!tab.IsAdminOnly || Model.IsAdminView)) == true)
-                await SetActiveTabAsync("sync");
-
+            await PlayAlbumAsync(shuffle: action.Key == DetailActionKeys.Shuffle);
             return;
         }
 
-        if (Model?.EntityType == DetailEntityType.MusicAlbum && action.Key is "play-album" or "shuffle")
-        {
-            await PlayAlbumAsync(shuffle: action.Key == "shuffle");
-            return;
-        }
-
-        if (action.Key == "shuffle-collection")
+        if (action.Key == DetailActionKeys.ShuffleCollection)
         {
             await ShuffleStructuralContainerAsync();
             return;
         }
 
-        var isAudiobookListenAction = string.Equals(action.Key, "listen", StringComparison.OrdinalIgnoreCase)
+        var isAudiobookListenAction = string.Equals(action.Key, DetailActionKeys.Listen, StringComparison.OrdinalIgnoreCase)
             || string.Equals(action.Label, "Listen", StringComparison.OrdinalIgnoreCase);
         if (Model is not null && IsAudiobook && !action.IsDisabled
             && (isAudiobookListenAction || IsContinueAction(action)))
@@ -464,7 +385,7 @@
         _changingPersonalStatus = true;
         try
         {
-            if (action.Key == "status-history")
+            if (action.Key == DetailActionKeys.StatusHistory)
             {
                 var items = await ApiClient.GetPersonalHistoryAsync(Model.EntityType, Guid.Parse(Model.Id));
                 await Dialogs.ShowAsync<PersonalHistoryDialog>(action.Label,
@@ -472,10 +393,10 @@
                 return;
             }
             var command = action.Key switch {
-                "status-complete" => PersonalStatusAction.Complete,
-                "status-reset" => PersonalStatusAction.Reset,
-                "status-hide" => PersonalStatusAction.HideContinue,
-                "status-show" => PersonalStatusAction.ShowContinue,
+                DetailActionKeys.StatusComplete => PersonalStatusAction.Complete,
+                DetailActionKeys.StatusReset => PersonalStatusAction.Reset,
+                DetailActionKeys.StatusHide => PersonalStatusAction.HideContinue,
+                DetailActionKeys.StatusShow => PersonalStatusAction.ShowContinue,
                 _ => throw new InvalidOperationException("Unknown personal status action."),
             };
             var status = await ApiClient.GetPersonalStatusAsync(Model.EntityType, Guid.Parse(Model.Id))
@@ -595,7 +516,7 @@
             HeaderTitle = Model.Title,
             HeaderSubtitle = Model.Subtitle,
             CoverUrl = coverUrl,
-            OnArtworkChanged = RefreshAfterEditorArtworkChangeAsync,
+            OnArtworkChanged = RefreshCurrentDetailAsync,
             PreviewItems =
             [
                 new MediaEditorPreviewItem
@@ -631,7 +552,7 @@
                 HeaderTitle = item.Title,
                 HeaderSubtitle = item.GroupTitle ?? item.PositionText ?? Model.Title,
                 CoverUrl = item.ArtworkUrl,
-                OnArtworkChanged = RefreshAfterEditorArtworkChangeAsync,
+                OnArtworkChanged = RefreshCurrentDetailAsync,
                 PreviewItems =
                 [
                     new MediaEditorPreviewItem
@@ -713,28 +634,22 @@
         if (Model is null || !Guid.TryParse(Model.Id, out var entityId))
             return;
 
-        var profile = await Orchestrator.GetActiveProfileAsync();
-        var updated = await ApiClient.GetDetailPageAsync(Model.EntityType, entityId, Model.PresentationContext, containerId: Model.EntityType == DetailEntityType.TvEpisode ? Model.SequencePlacement?.ContainerId : null, profileId: profile?.Id, sequence: SequenceWindowQuery.Windowed);
-        if (updated is not null)
+        // A show page the person moved to a season asks for that season again, so the refresh keeps it (D19).
+        var updated = SelectedSeasonId is { } seasonId && Model.EntityType == DetailEntityType.TvShow
+            ? await ApiClient.GetDetailPageAsync(DetailEntityType.TvSeason, seasonId, Model.PresentationContext, containerId: entityId.ToString("D"), sequence: SequenceWindowQuery.Windowed)
+            : await ApiClient.GetDetailPageAsync(Model.EntityType, entityId, Model.PresentationContext, containerId: Model.EntityType == DetailEntityType.TvEpisode ? Model.SequencePlacement?.ContainerId : null, sequence: SequenceWindowQuery.Windowed);
+        if (updated is not null && IsStillShowing(entityId))
         {
             Model = updated;
+            await ModelRefreshed.InvokeAsync(updated);
             StateHasChanged();
         }
     }
 
-    private async Task RefreshAfterEditorArtworkChangeAsync()
-    {
-        if (Model is null || !Guid.TryParse(Model.Id, out var entityId))
-            return;
-
-        var profile = await Orchestrator.GetActiveProfileAsync();
-        var updated = await ApiClient.GetDetailPageAsync(Model.EntityType, entityId, Model.PresentationContext, containerId: Model.EntityType == DetailEntityType.TvEpisode ? Model.SequencePlacement?.ContainerId : null, profileId: profile?.Id, sequence: SequenceWindowQuery.Windowed);
-        if (updated is not null)
-        {
-            Model = updated;
-            StateHasChanged();
-        }
-    }
+    // A refresh that lands after the person moved on (this page disposed, or a different item put in its place)
+    // must not replace what they are looking at now.
+    private bool IsStillShowing(Guid entityId) =>
+        !_disposed && Model is not null && Guid.TryParse(Model.Id, out var currentId) && currentId == entityId;
 
     private async Task OpenReaderAsync(DetailAction action, bool restart = false)
     {
@@ -911,7 +826,6 @@
             return;
 
         var candidates = Model.MediaGroups
-            .Where(group => group.Key is not ("related" or "recommendations" or "more-like-this"))
             .SelectMany(group => group.Items)
             .Where(item => item.IsOwned && Guid.TryParse(item.Id, out _))
             .DistinctBy(item => $"{item.EntityType}:{item.Id}", StringComparer.OrdinalIgnoreCase)

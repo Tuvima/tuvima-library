@@ -67,7 +67,6 @@ internal sealed partial class DetailCompositionOrchestrator
         Guid collectionId,
         DetailEntityType entityType,
         DetailPresentationContext context,
-        bool isAdminView,
         DetailActionAuthorizationContext actionAuthorization,
         IReadOnlySet<Guid> favoriteWorkIds,
         CancellationToken ct,
@@ -366,9 +365,6 @@ internal sealed partial class DetailCompositionOrchestrator
                 contributorGroups,
                 ct)
             : null;
-        var characterGroups = IsStructuralContainer(entityType) || placementOnly
-            ? []
-            : await BuildCollectionCharactersAsync(collectionId, row.WikidataQid, authorizedWorks, ct);
         var heroProgress = BuildCollectionHeroProgress(entityType, works);
         var manifest = await ResolveCollectionSequenceManifestAsync(
             collectionId,
@@ -389,8 +385,6 @@ internal sealed partial class DetailCompositionOrchestrator
             0,
             null,
             collectionLogo);
-        var relationshipOwner = rootWorkId.HasValue && !placementOnly ? await _libraryItems.GetDetailAsync(rootWorkId.Value, ct) : null;
-        var relationships = relationshipOwner is not null ? BuildRelationshipStrip(relationshipOwner, null) : [];
         var collectionTitle = ResolveDisplayOverride(displayOverrides, "title") ?? ResolveCollectionTitle(entityType, row.DisplayName, rootValues, values);
         var sequenceCollectionId = manifest?.CollectionId ?? collectionId;
         var seasonArtwork = entityType == DetailEntityType.TvShow
@@ -448,9 +442,17 @@ internal sealed partial class DetailCompositionOrchestrator
         var isAutomaticCollection = hasCollectionRow && entityType == DetailEntityType.Collection
             && !CollectionAccessPolicy.IsManagedCollectionType(row.CollectionType ?? string.Empty);
         var canEdit = (hasCollectionRow && entityType is DetailEntityType.Collection or DetailEntityType.BookSeries or DetailEntityType.ComicSeries or DetailEntityType.MovieSeries)
-                      || ((IsCanonicalContainerEntity(entityType) || audiobookSeriesGroup is not null) && rootWorkId.HasValue)
-                      || (isAdminView
-                          && string.Equals(row.CollectionType, CollectionTypeNames.Custom, StringComparison.OrdinalIgnoreCase));
+                      || ((IsCanonicalContainerEntity(entityType) || audiobookSeriesGroup is not null) && rootWorkId.HasValue);
+
+        // Only TV shows carry the line under the title; series, albums and collections keep none (D20).
+        var secondaryTitle = entityType == DetailEntityType.TvShow
+            ? ResolveSecondaryTitleText(
+                entityType,
+                values,
+                StringHelpers.FirstNonBlank(ResolveDisplayOverride(displayOverrides, "tagline"), GetValue(values, MetadataFieldConstants.Tagline)),
+                null,
+                longDescription)
+            : null;
 
         return new DetailPageViewModel
         {
@@ -475,6 +477,9 @@ internal sealed partial class DetailCompositionOrchestrator
             Tagline = entityType == DetailEntityType.TvShow
                 ? tvInProgressEpisode?.Description ?? heroSummary
                 : heroSummary,
+            SecondaryTitleText = secondaryTitle?.Text,
+            SecondaryTitleTextKind = secondaryTitle?.Kind,
+            SecondaryTitleTextHasMore = secondaryTitle?.HasMore ?? false,
             UsesEpisodeArtwork = tvInProgressEpisode is not null,
             Description = longDescription,
             DescriptionAttribution = displayDescription is not null ? BuildLocalDescriptionAttribution() : entityType == DetailEntityType.TvShow
@@ -498,16 +503,11 @@ internal sealed partial class DetailCompositionOrchestrator
             ContributorGroups = contributorGroups,
             FullContributorGroups = fullContributorGroups,
             PreviewContributors = BuildPreviewContributors(entityType, contributorGroups),
-            CharacterGroups = characterGroups,
-            PreviewCharacters = characterGroups.SelectMany(g => g.Characters).Take(12).ToList(),
-            RelationshipStrip = relationships,
-            Tabs = BuildTabs(entityType, context, isAdminView, hasUniverse: HasUniverseRelationship(relationships)),
+            Tabs = BuildTabs(entityType, context),
             MediaGroups = mediaGroups,
             PrimaryModule = BuildPrimaryModule(entityType, sequencePlacement, mediaGroups),
             MusicAlbumCompanion = musicAlbumCompanion,
-            IdentityStatus = ResolveIdentityStatus(row.WikidataQid, null, null),
             LibraryStatus = LibraryStatus.Owned,
-            IsAdminView = isAdminView,
         };
     }
 

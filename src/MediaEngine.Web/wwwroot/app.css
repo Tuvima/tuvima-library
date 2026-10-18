@@ -5932,7 +5932,6 @@ html[data-form-factor="phone"] .tl-detail-page .surface-tab-bar__items[data-scro
 }
 
 /* Details page, phone pass: the episode and sequence panel, credits, people and lists. */
-html[data-form-factor="phone"] .tl-detail-page .tl-detail-stage--primary-before-navigation .tl-detail-primary-module--embedded,
 html[data-form-factor="phone"] .tl-detail-page .tl-detail-primary-module {
     width: 100%;
     margin-inline: 0;
@@ -6135,12 +6134,6 @@ html[data-form-factor="phone"] .tl-detail-page .tl-source-link {
     display: inline-flex;
     align-items: center;
     min-height: var(--tl-tap-target-min, 44px);
-}
-
-/* Lists: a narrower number column in the child list and a 44px chip row in Related. */
-html[data-form-factor="phone"] .tl-detail-page .tl-child-card {
-    grid-template-columns: 3rem minmax(0, 1fr);
-    gap: 0.75rem;
 }
 
 /* Details page, phone pass: track lists fit the screen as two-line rows instead of a sideways-scrolling table. */

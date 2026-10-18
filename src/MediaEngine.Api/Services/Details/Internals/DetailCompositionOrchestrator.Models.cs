@@ -220,7 +220,6 @@ internal sealed partial class DetailCompositionOrchestrator
         public string ClaimValue { get; init; } = string.Empty;
     }
 
-    private sealed record CharacterDetailRow(Guid Id, string Label, string? WikidataQid, string? UniverseQid, string? UniverseLabel, string? ImageUrl, string? EntitySubType);
     private sealed class AudiobookResumeRow
     {
         public int SourceRank { get; init; }
@@ -229,48 +228,5 @@ internal sealed partial class DetailCompositionOrchestrator
         public double? ProgressPct { get; init; }
         public string? LastAccessed { get; init; }
         public string? ExtendedProperties { get; init; }
-    }
-
-    private sealed class CollectionCharacterRow
-    {
-        public Guid Id { get; init; }
-        public string Label { get; init; } = "";
-        public string? WikidataQid { get; init; }
-        public string? UniverseQid { get; init; }
-        public string? UniverseLabel { get; init; }
-        public string? ImageUrl { get; init; }
-        public string? EntitySubType { get; init; }
-        public Guid? PortraitId { get; init; }
-        public string? PortraitImageUrl { get; init; }
-        public string? PortraitLocalImagePath { get; init; }
-        public bool PortraitIsDefault { get; init; }
-    }
-
-    private sealed record CharacterPortraitRow(Guid Id, string? ImageUrl, string? LocalImagePath, bool IsDefault);
-    private sealed class UniversePerformerRow
-    {
-        public long LinkOrder { get; init; }
-        public Guid? PersonId { get; init; }
-        public string? PersonName { get; init; }
-        public string? PersonQid { get; init; }
-        public string? HeadshotUrl { get; init; }
-        public string? LocalHeadshotPath { get; init; }
-        public Guid CharacterId { get; init; }
-        public string? CharacterName { get; init; }
-        public Guid? PortraitId { get; init; }
-        public string? PortraitImageUrl { get; init; }
-        public string? PortraitLocalImagePath { get; init; }
-        public bool PortraitIsDefault { get; init; }
-    }
-
-    private sealed class UniverseRelationshipRow
-    {
-        public string RelationshipType { get; init; } = "";
-        public string SubjectQid { get; init; } = "";
-        public string ObjectQid { get; init; } = "";
-        public string SubjectLabel { get; init; } = "";
-        public string ObjectLabel { get; init; } = "";
-        public string? SubjectType { get; init; }
-        public string? ObjectType { get; init; }
     }
 }

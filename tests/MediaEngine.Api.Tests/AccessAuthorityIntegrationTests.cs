@@ -115,6 +115,38 @@ public sealed class AccessAuthorityIntegrationTests : IDisposable
     }
 
     [Fact]
+    public async Task MetadataReadRoute_RefusesAHouseholdAdministratorUnlessTheRouteAdmitsHouseholdAdministrators()
+    {
+        var householdAdmin = new RequestAuthority(
+            PrincipalKind.Human,
+            true,
+            AccountId: Guid.NewGuid(),
+            ActiveProfileId: Guid.NewGuid(),
+            SessionId: Guid.NewGuid(),
+            AccountEnabled: true,
+            GrantEnabled: true,
+            AccountAuthorizationVersion: 1,
+            GrantAuthorizationVersion: 1,
+            AccountHouseholdId: Guid.NewGuid(),
+            AccountIsHouseholdAdmin: true);
+        var handler = new AdministratorOrApplicationHandler(
+            new FixedAuthorityResolver(householdAdmin), CreateDecisions(), CreateEvaluator().Evaluator);
+        var http = ContextWithAuthority(PrincipalKind.Human, householdAdmin.AccountId!.Value, householdAdmin.ActiveProfileId!.Value);
+
+        async Task<bool> Allows(AdministratorOrApplicationRequirement requirement)
+        {
+            var authorization = new AuthorizationHandlerContext([requirement], http.User, http);
+            await handler.HandleAsync(authorization);
+            return authorization.HasSucceeded;
+        }
+
+        // The control proves this authority is a valid household administrator; only the route decides.
+        Assert.True(await Allows(new AdministratorOrApplicationRequirement(
+            ApplicationPermissionIds.MetadataRead, allowHouseholdAdministrator: true)));
+        Assert.False(await Allows(new AdministratorOrApplicationRequirement(ApplicationPermissionIds.MetadataRead)));
+    }
+
+    [Fact]
     public async Task Evaluator_UsesRegistryAvailabilityBeforeDynamicAdministratorApplicationGrant()
     {
         var application = await CreateApplicationAsync(ApplicationType.ServerIntegration, administrator: true);
@@ -578,6 +610,12 @@ public sealed class AccessAuthorityIntegrationTests : IDisposable
         _database.Dispose();
         SqliteConnection.ClearAllPools();
         try { File.Delete(_databasePath); } catch { }
+    }
+
+    private sealed class FixedAuthorityResolver(RequestAuthority authority) : IRequestAuthorityResolver
+    {
+        public ValueTask<RequestAuthority> ResolveAsync(HttpContext context, CancellationToken ct = default) =>
+            ValueTask.FromResult(authority);
     }
 
     private sealed class ManualTimeProvider(DateTimeOffset now) : TimeProvider

@@ -9,7 +9,7 @@ public sealed class PosterItemViewModelTests
     public void FromDisplayCard_MapsDisplayContractForUniverseCards()
     {
         var workId = Guid.Parse("11111111-1111-1111-1111-111111111111");
-        var action = new DisplayActionDto("openWork", "Open", WorkId: workId, WebUrl: $"/book/{workId:D}");
+        var action = new DisplayActionDto("openWork", "Open", WorkId: workId, WebUrl: $"/details/work/{workId:D}");
         var card = new DisplayCardDto(
             Id: workId,
             WorkId: workId,
@@ -63,7 +63,7 @@ public sealed class PosterItemViewModelTests
         Assert.Equal("1965", item.Year);
         Assert.Equal("/cover.jpg", item.CoverUrl);
         Assert.Equal(37, item.Progress);
-        Assert.Equal($"/book/{workId:D}", item.NavigationUrl);
+        Assert.Equal($"/details/work/{workId:D}", item.NavigationUrl);
         Assert.Equal("#123456", item.DominantHexColor);
         Assert.Equal(PosterSourceType.Work, item.SourceType);
     }

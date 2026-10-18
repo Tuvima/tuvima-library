@@ -25,6 +25,17 @@ public sealed class SystemActivityRepository : ISystemActivityRepository
         ArgumentNullException.ThrowIfNull(entry);
 
         using var conn = _db.CreateConnection();
+        Write(conn, transaction: null, entry);
+
+        return Task.CompletedTask;
+    }
+
+    /// <summary>
+    /// Appends one entry on a caller-owned connection so storage code that already runs inside a
+    /// transaction can record what it did atomically with the change itself.
+    /// </summary>
+    internal static void Write(System.Data.IDbConnection conn, System.Data.IDbTransaction? transaction, SystemActivityEntry entry)
+    {
         conn.Execute("""
             INSERT INTO system_activity
                 (occurred_at, action_type, collection_name, entity_id, entity_type, profile_id, changes_json, detail, ingestion_run_id)
@@ -42,9 +53,8 @@ public sealed class SystemActivityRepository : ISystemActivityRepository
                 entry.ChangesJson,
                 entry.Detail,
                 IngestionRunId = entry.IngestionRunId,
-            });
-
-        return Task.CompletedTask;
+            },
+            transaction);
     }
 
     /// <inheritdoc/>

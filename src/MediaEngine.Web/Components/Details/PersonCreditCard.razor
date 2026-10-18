@@ -70,7 +70,6 @@ else
             return Credit.EntityType switch
             {
                 RelatedEntityType.Person => $"/details/person/{id:D}",
-                RelatedEntityType.Character => $"/details/character/{id:D}?context=universe",
                 RelatedEntityType.Universe => $"/details/universe/{id:D}?context=universe",
                 RelatedEntityType.Series => RelatedWorkRoute(id),
                 _ => null,

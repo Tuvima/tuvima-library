@@ -26,8 +26,6 @@ public sealed class DetailPageViewModel
 
     public IReadOnlyList<OwnedFormatViewModel> OwnedFormats { get; init; } = [];
     public MultiFormatState MultiFormatState { get; init; } = MultiFormatState.SingleFormat;
-    public ReadingListeningSyncViewModel? ReadingListeningSync { get; init; }
-    public ReadingListeningSyncCapabilityViewModel? SyncCapability { get; init; }
     public SequencePlacementViewModel? SequencePlacement { get; init; }
 
     public IReadOnlyList<MetadataPill> Metadata { get; init; } = [];
@@ -39,18 +37,13 @@ public sealed class DetailPageViewModel
     public IReadOnlyList<CreditGroupViewModel> ContributorGroups { get; init; } = [];
     public IReadOnlyList<CreditGroupViewModel> FullContributorGroups { get; init; } = [];
     public IReadOnlyList<EntityCreditViewModel> PreviewContributors { get; init; } = [];
-    public IReadOnlyList<CharacterGroupViewModel> CharacterGroups { get; init; } = [];
-    public IReadOnlyList<EntityCreditViewModel> PreviewCharacters { get; init; } = [];
 
-    public IReadOnlyList<RelationshipGroup> RelationshipStrip { get; init; } = [];
     public IReadOnlyList<DetailTab> Tabs { get; init; } = [];
     public IReadOnlyList<MediaGroupingViewModel> MediaGroups { get; init; } = [];
     public DetailPrimaryModuleViewModel PrimaryModule { get; init; } = new();
     public MusicAlbumCompanionViewModel? MusicAlbumCompanion { get; init; }
 
-    public CanonicalIdentityStatus IdentityStatus { get; init; } = CanonicalIdentityStatus.Unknown;
     public LibraryStatus LibraryStatus { get; init; } = LibraryStatus.Unknown;
-    public bool IsAdminView { get; init; }
 }
 
 public sealed class MusicAlbumCompanionViewModel
@@ -165,7 +158,6 @@ public enum DetailEntityType
     ComicSeries,
     MusicAlbum,
     Person,
-    Character,
     Universe,
     Collection
 }
@@ -177,7 +169,6 @@ public enum DetailPresentationContext
     Watch,
     Read,
     Comics,
-    Admin,
     Search,
     Universe
 }
@@ -190,7 +181,6 @@ public sealed class ArtworkSet
     public string? CoverUrl { get; init; }
     public string? LogoUrl { get; init; }
     public string? PortraitUrl { get; init; }
-    public string? CharacterImageUrl { get; init; }
     public IReadOnlyList<string> RelatedArtworkUrls { get; init; } = [];
 
     public IReadOnlyList<string> DominantColors { get; init; } = [];
@@ -272,7 +262,6 @@ public sealed class DetailAction
     public bool IsDestructive { get; init; }
     public bool IsAdminOnly { get; init; }
     public bool IsDisabled { get; init; }
-    public bool IsStub { get; init; }
     public bool IsSelected { get; set; }
     public string? DisplayStyle { get; init; }
     public IReadOnlyList<DetailAction> Children { get; init; } = [];
@@ -282,7 +271,6 @@ public sealed class DetailTab
 {
     public string Key { get; init; } = string.Empty;
     public string Label { get; init; } = string.Empty;
-    public bool IsAdminOnly { get; init; }
 }
 
 public sealed class DetailPrimaryModuleViewModel
@@ -302,8 +290,7 @@ public enum DetailPrimaryModuleKind
     Chapters,
     Episodes,
     Works,
-    CollectionItems,
-    Appearances
+    CollectionItems
 }
 
 public sealed class PersonDetailFacts
@@ -504,46 +491,7 @@ public enum MediaFormatType
 public enum MultiFormatState
 {
     SingleFormat,
-    MultipleFormatsSeparateProgress,
-    MultipleFormatsSyncAvailable,
-    MultipleFormatsSyncEnabled,
-    MultipleFormatsSyncUnavailable
-}
-
-public enum SyncCapabilityState
-{
-    NotApplicable,
-    Unavailable,
-    AvailableNotEnabled,
-    Enabled,
-    NeedsReview,
-    Failed
-}
-
-public sealed class ReadingListeningSyncCapabilityViewModel
-{
-    public SyncCapabilityState State { get; init; } = SyncCapabilityState.NotApplicable;
-    public string? Reason { get; init; }
-    public double? EstimatedConfidence { get; init; }
-    public string? TextEditionId { get; init; }
-    public string? AudioEditionId { get; init; }
-    public DetailAction? EnableAction { get; init; }
-    public DetailAction? PreviewAction { get; init; }
-    public DetailAction? SettingsAction { get; init; }
-}
-
-public sealed class ReadingListeningSyncViewModel
-{
-    public string WorkId { get; init; } = string.Empty;
-    public string TextEditionId { get; init; } = string.Empty;
-    public string AudioEditionId { get; init; } = string.Empty;
-    public SyncCapabilityState Status { get; init; }
-    public double Confidence { get; init; }
-    public string? CurrentChapterTitle { get; init; }
-    public double PercentComplete { get; init; }
-    public TextPositionViewModel? TextPosition { get; init; }
-    public AudioPositionViewModel? AudioPosition { get; init; }
-    public IReadOnlyList<ChapterSyncRowViewModel> ChapterMap { get; init; } = [];
+    MultipleFormatsSeparateProgress
 }
 
 public sealed class ProgressViewModel
@@ -563,24 +511,6 @@ public enum DetailProgressKind
     Reading,
     Listening,
     Watching,
-}
-
-public sealed class TextPositionViewModel
-{
-    public string? Label { get; init; }
-}
-
-public sealed class AudioPositionViewModel
-{
-    public string? Label { get; init; }
-}
-
-public sealed class ChapterSyncRowViewModel
-{
-    public string Title { get; init; } = string.Empty;
-    public string? TextPosition { get; init; }
-    public string? AudioPosition { get; init; }
-    public string? Status { get; init; }
 }
 
 public sealed class EntityCreditViewModel
@@ -607,7 +537,6 @@ public sealed class EntityCreditViewModel
 public enum RelatedEntityType
 {
     Person,
-    Character,
     Organization,
     Group,
     Publisher,
@@ -648,38 +577,6 @@ public enum CreditGroupType
     FeaturedArtists,
     BandMembers,
     RelatedArtists
-}
-
-public sealed class CharacterGroupViewModel
-{
-    public string Title { get; init; } = string.Empty;
-    public CharacterGroupType GroupType { get; init; }
-    public IReadOnlyList<EntityCreditViewModel> Characters { get; init; } = [];
-}
-
-public enum CharacterGroupType
-{
-    MainCharacters,
-    SupportingCharacters,
-    Villains,
-    Teams,
-    Factions,
-    Houses,
-    Organizations
-}
-
-public sealed class RelationshipGroup
-{
-    public string Title { get; init; } = string.Empty;
-    public IReadOnlyList<RelatedEntityChip> Items { get; init; } = [];
-}
-
-public sealed class RelatedEntityChip
-{
-    public string Id { get; init; } = string.Empty;
-    public RelatedEntityType EntityType { get; init; }
-    public string Label { get; init; } = string.Empty;
-    public string? Route { get; init; }
 }
 
 public sealed class MediaGroupingViewModel

@@ -85,7 +85,6 @@ public sealed class AudiobookSeriesDetailTests : IDisposable
             new CanonicalValueArrayRepository(_db),
             new SeriesManifestRepository(_db),
             null!,
-            new DetailRecommendationService(_db),
             collectionBrowse: browse);
 
         var detail = await composer.BuildAsync(
@@ -132,7 +131,7 @@ public sealed class AudiobookSeriesDetailTests : IDisposable
         }
         var composer = new DetailComposerService(_db, new LibraryItemRepository(_db),
             new PersonRepository(_db), new EntityAssetRepository(_db), new CanonicalValueArrayRepository(_db),
-            new SeriesManifestRepository(_db), null!, new DetailRecommendationService(_db));
+            new SeriesManifestRepository(_db), null!);
         var before = await composer.BuildAsync(entityType, collectionId, DetailPresentationContext.Default);
         Assert.NotNull(before?.EditorTarget);
         Assert.Equal(collectionId.ToString("D"), before.EditorTarget.EntityId);

@@ -46,14 +46,8 @@ internal sealed partial class DetailCompositionOrchestrator
     private static string? BuildSubtitle(
         LibraryItemDetail detail,
         DetailEntityType entityType,
-        IReadOnlyDictionary<string, string> values,
-        MultiFormatState state)
+        IReadOnlyDictionary<string, string> values)
     {
-        if (state == (MultiFormatState)(-1))
-        {
-            return "Book + Audiobook • Separate Progress";
-        }
-
         return entityType switch
         {
             DetailEntityType.Book => detail.Author,
@@ -66,87 +60,6 @@ internal sealed partial class DetailCompositionOrchestrator
             _ => FormatEntityType(entityType),
         };
     }
-
-    private static IReadOnlyList<RelationshipGroup> BuildRelationshipStrip(LibraryItemDetail detail, SequencePlacementViewModel? sequence)
-    {
-        var groups = new List<RelationshipGroup>();
-        if (sequence is not null)
-        {
-            groups.Add(new RelationshipGroup
-            {
-                Title = sequence.ContainerLabel,
-                Items = [new RelatedEntityChip
-                {
-                    Id = sequence.ContainerId,
-                    EntityType = RelatedEntityType.Series,
-                    Label = sequence.ContainerTitle,
-                    Route = BuildSequenceContainerRoute(sequence),
-                }],
-            });
-        }
-
-        var universeQid = ExtractQid(detail.UniverseSummary?.UniverseQid);
-        if (!string.IsNullOrWhiteSpace(detail.UniverseSummary?.UniverseName))
-        {
-            groups.Add(new RelationshipGroup
-            {
-                Title = "Universe",
-                Items = [new RelatedEntityChip
-                {
-                    Id = universeQid ?? detail.UniverseSummary.UniverseName!,
-                    EntityType = RelatedEntityType.Universe,
-                    Label = detail.UniverseSummary.UniverseName!,
-                    Route = BuildUniverseExploreRoute(universeQid),
-                }],
-            });
-        }
-
-        return groups;
-    }
-
-    private static string? BuildSequenceContainerRoute(SequencePlacementViewModel sequence)
-    {
-        if (!Guid.TryParse(sequence.ContainerId, out var id))
-        {
-            return null;
-        }
-
-        var entityType = sequence.CurrentItem.EntityType switch
-        {
-            DetailEntityType.Movie => DetailEntityType.MovieSeries,
-            DetailEntityType.TvEpisode or DetailEntityType.TvSeason => DetailEntityType.TvShow,
-            DetailEntityType.ComicIssue => DetailEntityType.ComicSeries,
-            DetailEntityType.Audiobook => DetailEntityType.Collection,
-            DetailEntityType.Book or DetailEntityType.Work => DetailEntityType.BookSeries,
-            _ => (DetailEntityType?)null,
-        };
-
-        return entityType is null
-            ? null
-            : $"/details/{ToDetailRouteEntityType(entityType.Value)}/{id:D}?context={DetailContextKey(entityType.Value)}";
-    }
-
-    private static string? BuildUniverseExploreRoute(string? qid)
-    {
-        var normalizedQid = ExtractQid(qid);
-        return IsWikidataQid(normalizedQid) ? $"/universe/{normalizedQid}/explore" : null;
-    }
-
-    private static string ToDetailRouteEntityType(DetailEntityType entityType)
-        => entityType.ToString().Replace("Tv", "tv-", StringComparison.Ordinal).ToLowerInvariant();
-
-    private static string DetailContextKey(DetailEntityType entityType) => entityType switch
-    {
-        DetailEntityType.Movie or DetailEntityType.MovieSeries or DetailEntityType.TvShow or DetailEntityType.TvSeason or DetailEntityType.TvEpisode => "watch",
-        DetailEntityType.MusicAlbum or DetailEntityType.Audiobook => "listen",
-        DetailEntityType.Book or DetailEntityType.BookSeries or DetailEntityType.ComicIssue or DetailEntityType.ComicSeries or DetailEntityType.Work => "read",
-        _ => "default",
-    };
-
-    private static bool HasUniverseRelationship(IReadOnlyList<RelationshipGroup> relationships) =>
-        relationships.Any(group =>
-            string.Equals(group.Title, "Universe", StringComparison.OrdinalIgnoreCase) ||
-            group.Items.Any(item => item.EntityType == RelatedEntityType.Universe));
 
     private static HeroBrandViewModel? BuildHeroBrand(DetailEntityType entityType, string? label, string? imageUrl)
     {
@@ -680,10 +593,18 @@ internal sealed partial class DetailCompositionOrchestrator
         var selectedItem = currentWorkId.HasValue
             ? items.FirstOrDefault(item => item.IsCurrent)
             : null;
-        var selectedGroup = selectedItem is null
-            ? initialGroup
-            : groups.FirstOrDefault(group => string.Equals(group.Key, selectedItem.GroupKey, StringComparison.OrdinalIgnoreCase));
-        var representative = selectedItem
+        // A season opened on its own (D13) wins over the season being watched; a season id this show does not
+        // carry leaves the usual choice in place and the caller decides whether that is "not found".
+        var requestedGroup = entityType == DetailEntityType.TvShow && window?.SelectedSeasonId is { } requestedSeasonId
+            ? groups.FirstOrDefault(group => string.Equals(group.EntityId, requestedSeasonId.ToString("D"), StringComparison.OrdinalIgnoreCase))
+            : null;
+        var selectedGroup = requestedGroup
+            ?? (selectedItem is null
+                ? initialGroup
+                : groups.FirstOrDefault(group => string.Equals(group.Key, selectedItem.GroupKey, StringComparison.OrdinalIgnoreCase)));
+        var currentInSelectedGroup = selectedItem is not null
+            && (requestedGroup is null || string.Equals(selectedItem.GroupKey, requestedGroup.Key, StringComparison.OrdinalIgnoreCase));
+        var representative = (currentInSelectedGroup ? selectedItem : null)
             ?? selectedGroup?.Items.FirstOrDefault(item => item.IsOwned)
             ?? initialGroup?.Items.FirstOrDefault()
             ?? items.FirstOrDefault(item => item.IsOwned)
@@ -1228,7 +1149,8 @@ internal sealed partial class DetailCompositionOrchestrator
         var episode = SelectActiveTvEpisode(works) ?? SelectFirstOwnedTvEpisode(works);
         if (episode is null || !Guid.TryParse(episode.Id, out var episodeId))
         {
-            return BuildWatchActions(null, heroProgress);
+            // No owned episode to play, so no main button.
+            return [];
         }
 
         if (works.Where(work => work.IsOwned).All(work => work.ProgressPercent >= 99.5))

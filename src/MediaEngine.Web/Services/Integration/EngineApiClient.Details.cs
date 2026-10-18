@@ -118,10 +118,30 @@ public sealed partial class EngineApiClient
         Guid id,
         DetailPresentationContext context = DetailPresentationContext.Default,
         string? containerId = null,
-        Guid? profileId = null,
         SequenceWindowQuery? sequence = null,
-        CancellationToken ct = default)
+        CancellationToken ct = default) =>
+        // Background lookups (playback, sequence panels) must not leave a stale error in the shared failure state.
+        (await LoadDetailPageCoreAsync(entityType, id, context, containerId, sequence, recordFailure: false, ct).ConfigureAwait(false)).Detail;
+
+    public Task<DetailPageLoadResult> LoadDetailPageAsync(
+        DetailEntityType entityType,
+        Guid id,
+        DetailPresentationContext context = DetailPresentationContext.Default,
+        string? containerId = null,
+        SequenceWindowQuery? sequence = null,
+        CancellationToken ct = default) =>
+        LoadDetailPageCoreAsync(entityType, id, context, containerId, sequence, recordFailure: true, ct);
+
+    private async Task<DetailPageLoadResult> LoadDetailPageCoreAsync(
+        DetailEntityType entityType,
+        Guid id,
+        DetailPresentationContext context,
+        string? containerId,
+        SequenceWindowQuery? sequence,
+        bool recordFailure,
+        CancellationToken ct)
     {
+        const string endpoint = "GET /api/v1/details/{entityType}/{id}";
         try
         {
             var entity = Uri.EscapeDataString(entityType.ToString().ToLowerInvariant());
@@ -132,7 +152,6 @@ public sealed partial class EngineApiClient
                 query.Add($"containerId={Uri.EscapeDataString(containerId)}");
             }
 
-            AddQuery(query, "profileId", profileId?.ToString("D"));
             if (sequence is not null)
             {
                 AddQuery(query, "sequenceGroup", sequence.Group);
@@ -145,14 +164,54 @@ public sealed partial class EngineApiClient
                 }
             }
 
-            var detail = await _http.GetFromJsonAsync<DetailPageViewModel>($"/api/v1/details/{entity}/{id:D}?{string.Join('&', query)}", ct);
-            return detail is null ? null : NormalizeDetailArtwork(detail);
+            using var response = await _http.GetAsync(
+                $"/api/v1/details/{entity}/{id:D}?{string.Join('&', query)}", ct).ConfigureAwait(false);
+            if (!response.IsSuccessStatusCode)
+            {
+                var failure = response.StatusCode switch
+                {
+                    HttpStatusCode.NotFound or HttpStatusCode.BadRequest => DetailPageLoadFailure.NotFound,
+                    HttpStatusCode.Forbidden => DetailPageLoadFailure.NotAllowed,
+                    // 401 is an expired or invalid sign-in/service credential, not a refusal; Retry can recover it.
+                    _ => DetailPageLoadFailure.Unreachable,
+                };
+                if (recordFailure)
+                {
+                    await RecordHttpFailureAsync(endpoint, response, ct, logAsWarning: failure == DetailPageLoadFailure.Unreachable);
+                }
+                else
+                {
+                    _logger.LogWarning("GET /api/details/{EntityType}/{Id} returned {StatusCode}", entityType, id, (int)response.StatusCode);
+                }
+
+                return DetailPageLoadResult.Failed(failure);
+            }
+
+            var detail = await response.Content.ReadFromJsonAsync<DetailPageViewModel>(cancellationToken: ct).ConfigureAwait(false);
+            if (recordFailure)
+            {
+                ClearFailure(endpoint);
+            }
+
+            return detail is null
+                ? DetailPageLoadResult.Failed(DetailPageLoadFailure.NotFound)
+                : DetailPageLoadResult.Loaded(NormalizeDetailArtwork(detail));
         }
-        catch (OperationCanceledException) { return null; }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            // The caller superseded this load; it ignores the result.
+            return DetailPageLoadResult.Failed(DetailPageLoadFailure.NotFound);
+        }
         catch (Exception ex)
         {
+            // Includes timeouts (TaskCanceledException not caused by ct) and connection failures.
             _logger.LogWarning(ex, "GET /api/details/{EntityType}/{Id} failed", entityType, id);
-            return null;
+            if (recordFailure)
+            {
+                _failureState.RecordExceptionFailure(endpoint, ex);
+            }
+
+            return DetailPageLoadResult.Failed(DetailPageLoadFailure.Unreachable);
         }
     }
 

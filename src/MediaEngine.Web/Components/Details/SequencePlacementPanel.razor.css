@@ -140,7 +140,7 @@
     grid-template-rows: auto auto minmax(3.25rem, auto);
 }
 
-@media (max-width: 900px) {
+@media (width < 840px) {
 :where(.tl-detail-page) .tl-series-placement:not(.tl-series-placement--compact) .tl-series-header {
         border-right: 0;
         border-bottom: 1px solid rgba(255,255,255,0.09);
@@ -484,7 +484,7 @@
     font-size: 0.92rem;
 }
 
-@media (max-width: 840px) {
+@media (width < 840px) {
 :where(.tl-detail-page) .tl-series-control-row {
         grid-template-columns: minmax(0, 1fr);
     }
@@ -694,7 +694,7 @@
     align-content: start;
 }
 
-@media (max-width: 900px) {
+@media (width < 840px) {
 :where(.tl-detail-page) .tl-series-placement:not(.tl-series-placement--compact) .tl-series-layout {
         grid-template-columns: 1fr;
     }
@@ -960,7 +960,7 @@
     grid-auto-columns: clamp(12.5rem, 15vw, 16rem);
 }
 
-@media (min-width: 721px) and (max-height: 800px) {
+@media (min-width: 840px) and (max-height: 800px) {
 .tl-detail-page .tl-series-detail {
         gap: 0.25rem;
         padding-block: 0.35rem 0.2rem;
@@ -1118,7 +1118,7 @@
     text-align: left;
 }
 
-@media (min-width: 721px) and (max-height: 800px) {
+@media (min-width: 840px) and (max-height: 800px) {
 .tl-detail-page__primary-content :where(.tl-series-detail,.tl-series-placement) ::deep .tl-series-detail__strip {
         grid-auto-columns: clamp(8rem, 8.2vw, 9.25rem);
     }
@@ -1129,7 +1129,7 @@
 
 }
 
-@media (min-width: 721px) {
+@media (min-width: 840px) {
 .tl-detail-page .tl-series-detail__header {
         display: block;
     }
@@ -1190,14 +1190,14 @@
 
 }
 
-@media (min-width: 721px) and (max-height: 800px) {
+@media (min-width: 840px) and (max-height: 800px) {
 .tl-detail-page__primary-content :where(.tl-series-detail,.tl-series-placement) ::deep .tl-series-detail__strip {
         grid-auto-columns: clamp(9.5rem, 9vw, 10.75rem);
     }
 
 }
 
-@media (min-width: 721px) {
+@media (min-width: 840px) {
 .tl-detail-page__primary-content .tl-series-detail.tl-series-panel--landscape ::deep .tl-series-detail__strip {
         grid-auto-columns: clamp(18rem, 19vw, 22rem);
 
@@ -1207,7 +1207,7 @@
 
 }
 
-@media (min-width: 721px) {
+@media (min-width: 840px) {
 .tl-detail-page__primary-content .tl-series-detail.tl-series-panel--landscape ::deep .tl-series-detail__strip {
 
         height: auto;
@@ -1225,7 +1225,7 @@
 
 }
 
-@media (max-width: 960px) {
+@media (width < 840px) {
 .tl-detail-page .tl-series-detail__controls,
 .tl-detail-page .tl-series-detail__selectors {
         align-items: stretch;
@@ -1246,14 +1246,14 @@
 
 }
 
-@media (max-width: 720px), (max-height: 620px) {
+@media (width < 840px), (max-height: 620px) {
 .tl-detail-page__primary-content .tl-series-placement:not(.tl-series-placement--compact) {
         width: min(100% - 2rem, 106rem);
     }
 
 }
 
-@media (min-width: 721px) {
+@media (min-width: 840px) {
 .tl-detail-page__primary-content .tl-series-detail {
         grid-template-rows: auto auto auto;
         width: 100%;
@@ -1307,7 +1307,7 @@
 
 }
 
-@media (min-width: 721px) and (max-height: 800px) {
+@media (min-width: 840px) and (max-height: 800px) {
 .tl-detail-page__primary-content .tl-series-detail {
         min-height: 20rem;
         gap: 0.45rem;
@@ -1325,7 +1325,7 @@
 
 }
 
-@media (min-width: 721px) {
+@media (min-width: 840px) {
 .tl-detail-page__primary-content .tl-series-detail {
         gap: 0.8rem;
         padding-top: 0.25rem;
@@ -1353,7 +1353,7 @@
 
 }
 
-@media (min-width: 721px) and (max-height: 800px) {
+@media (min-width: 840px) and (max-height: 800px) {
 .tl-detail-page__primary-content :where(.tl-series-detail,.tl-series-placement) ::deep .tl-series-detail__strip {
         grid-auto-columns: clamp(12.6rem, 11.8vw, 14.4rem);
         gap: 1rem;
@@ -1365,7 +1365,7 @@
 
 }
 
-@media (min-width: 721px) {
+@media (min-width: 840px) {
 .tl-detail-page__primary-content .tl-series-detail {
         grid-template-rows: auto auto auto auto;
     }
@@ -1377,7 +1377,7 @@
 
 }
 
-@media (min-width: 721px) {
+@media (min-width: 840px) {
 
     .tl-series-detail.tl-series-panel--landscape ::deep .tl-series-detail__strip {
         grid-auto-columns: clamp(14rem, 16vw, 16rem);
@@ -1652,14 +1652,14 @@
     display: inline-flex;
 }
 
-@media (min-width: 721px) {
+@media (min-width: 840px) {
 
     .tl-series-detail.is-season-container .tl-series-detail__carousel {
         min-height: clamp(24rem, 58svh, 30rem);
     }
 }
 
-@media (max-width: 720px) {
+@media (width < 840px) {
 
     .tl-season-browser {
         grid-template-columns: minmax(0, 1fr);
@@ -1684,4 +1684,4 @@
 .tl-series-detail__footer-utilities { display:flex; align-items:center; margin-left:auto; }
 .tl-series-detail__ownership .tl-series-detail__missing { min-height:0; height:auto; }
 .tl-series-detail__footer-utilities .tl-series-detail__missing { font-size:inherit; line-height:inherit; }
-@media(max-width:840px) { .tl-series-detail__controls { flex-wrap:wrap; } .tl-series-detail__controls .tl-series-detail__jump { width:100%; } .tl-series-detail__footer-utilities { margin-left:0; } }
+@media(width < 840px) { .tl-series-detail__controls { flex-wrap:wrap; } .tl-series-detail__controls .tl-series-detail__jump { width:100%; } .tl-series-detail__footer-utilities { margin-left:0; } }

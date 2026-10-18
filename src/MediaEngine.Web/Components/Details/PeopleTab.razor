@@ -19,16 +19,11 @@
         }
         @if (FilteredGroups.Count == 0) { <p>No credits available for this selection.</p> }
         @if (ContributorGroups.SelectMany(g => g.Credits).Any(c => c.Seasons.Count > 0)) { <p>Season coverage reflects credits on episodes in your library.</p> }
-        @if (IncludeCharacters && CharacterGroups.Count > 0)
-        {
-            <CharactersSection Groups="CharacterGroups" />
-        }
     </section>
 </div>
 
 @code {
     [Parameter] public IReadOnlyList<CreditGroupViewModel> ContributorGroups { get; set; } = [];
-    [Parameter] public IReadOnlyList<CharacterGroupViewModel> CharacterGroups { get; set; } = [];
     [Parameter] public IReadOnlyList<CreditGroupViewModel>? EpisodeContributorGroups { get; set; }
     [Parameter] public string? EpisodeId { get; set; }
     private string? _loadedEpisode;
@@ -51,5 +46,4 @@
         Credits = g.Credits.Where(c => (_role is null || g.GroupType.ToString() == _role)
             && (_season is "all" or "episode" || c.Seasons.Any(s => s.ToString() == _season))).ToList(),
     }).Where(g => g.Credits.Count > 0).ToList();
-    [Parameter] public bool IncludeCharacters { get; set; } = true;
 }

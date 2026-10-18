@@ -9,7 +9,7 @@ public sealed class Phase5InlineEditingTests
         var source = ReadSource("src/MediaEngine.Web/Components/Details/DetailPage.razor");
 
         // A single item edits in place: the More entry toggles Editing Mode, and the device rule is checked at the handler.
-        Assert.Contains("action.Key is \"edit-media\" or \"edit\"", source, StringComparison.Ordinal);
+        Assert.Contains("action.Key is DetailActionKeys.EditMedia or DetailActionKeys.Edit", source, StringComparison.Ordinal);
         Assert.Contains("EditorDeviceRule.TryRefuse(DeviceContext, Snackbar)", source, StringComparison.Ordinal);
         Assert.Contains("await _editing.ToggleAsync()", source, StringComparison.Ordinal);
         Assert.Contains("<EditingDrawer", source, StringComparison.Ordinal);
@@ -30,14 +30,14 @@ public sealed class Phase5InlineEditingTests
     {
         var source = ReadSource("src/MediaEngine.Web/Components/Details/DetailPage.razor");
         var heroIndex = source.IndexOf("<DetailHero Model=\"Model\"", StringComparison.Ordinal);
-        var primaryIndex = source.IndexOf("<DetailPrimaryModule Model=\"Model\"", heroIndex, StringComparison.Ordinal);
-        var tabsIndex = source.IndexOf("<DetailTabs Tabs=\"VisibleTabs\"", primaryIndex, StringComparison.Ordinal);
-        var bodyIndex = source.IndexOf("<section id=\"@CurrentActiveTab\"", tabsIndex, StringComparison.Ordinal);
+        var tabsIndex = source.IndexOf("<DetailTabs Tabs=\"VisibleTabs\"", heroIndex, StringComparison.Ordinal);
+        var primaryIndex = source.IndexOf("<DetailPrimaryModule Model=\"Model\"", tabsIndex, StringComparison.Ordinal);
+        var bodyIndex = source.IndexOf("<section id=\"@CurrentActiveTab\"", primaryIndex, StringComparison.Ordinal);
 
         Assert.True(heroIndex >= 0);
-        Assert.True(primaryIndex > heroIndex);
-        Assert.True(tabsIndex > primaryIndex);
-        Assert.True(bodyIndex > tabsIndex);
+        Assert.True(tabsIndex > heroIndex);
+        Assert.True(primaryIndex > tabsIndex);
+        Assert.True(bodyIndex > primaryIndex);
         Assert.DoesNotContain("tl-detail-edit-stage", source, StringComparison.Ordinal);
     }
 

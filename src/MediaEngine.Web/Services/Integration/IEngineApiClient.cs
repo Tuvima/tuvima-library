@@ -59,9 +59,6 @@ public partial interface IEngineApiClient
     /// <summary>GET /universe/{qid}/health — health score for a fictional universe.</summary>
     Task<UniverseHealthDto?> GetUniverseHealthAsync(string qid, CancellationToken ct = default);
 
-    /// <summary>GET /library/persons/{personId}/character-roles - character roles with portraits for a person.</summary>
-    Task<IReadOnlyList<CharacterRoleDto>> GetPersonCharacterRolesAsync(Guid personId, CancellationToken ct = default);
-
     /// <summary>GET /works/{id}/cast — actor and character credits for a single work.</summary>
     Task<List<CastCreditDto>> GetWorkCastAsync(Guid workId, CancellationToken ct = default);
 

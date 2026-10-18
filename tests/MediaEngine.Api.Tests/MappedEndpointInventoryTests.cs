@@ -106,6 +106,22 @@ public sealed class MappedEndpointInventoryTests
     }
 
     [Fact]
+    public async Task MediaEditorContextRoute_DoesNotAdmitHouseholdAdministrators()
+    {
+        await using var app = BuildEndpointOnlyApplication();
+        var inventory = EndpointInventory.From(app);
+
+        var route = Assert.Single(
+            inventory.Endpoints,
+            endpoint => endpoint.Name == "GetMediaEditorContext");
+
+        route.RequiresAdministratorOrApplication(ApplicationPermissionIds.MetadataRead);
+        var requirement = Assert.Single(
+            Assert.Single(route.Policies).Requirements.OfType<AdministratorOrApplicationRequirement>());
+        Assert.False(requirement.AllowHouseholdAdministrator);
+    }
+
+    [Fact]
     public async Task MetadataEndpoints_SeparateReadMatchWriteAndEnrichmentPermissions()
     {
         await using var app = BuildEndpointOnlyApplication();

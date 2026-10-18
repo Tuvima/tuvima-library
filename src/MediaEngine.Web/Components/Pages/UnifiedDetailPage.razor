@@ -3,7 +3,9 @@
 
 @namespace MediaEngine.Web.Components.Pages
 
-<DetailRouteHost Request="@DetailRouteRequest.ForUnified(EntityType, Id, Context, EpisodeId)" />
+<DetailRouteHost Request="@(SelectionIsUnreadable
+                              ? DetailRouteRequest.ForUnreadableSelection(EntityType, Id, EpisodeIsUnreadable, Episode, Season)
+                              : DetailRouteRequest.ForUnified(EntityType, Id, Context, EpisodeId, SeasonId, Tab))" />
 
 @code {
     [Parameter] public string EntityType { get; set; } = string.Empty;
@@ -12,6 +14,18 @@
     [SupplyParameterFromQuery(Name = "context")]
     public string? Context { get; set; }
 
+    // Read as text and parsed here: a value that is not an id (?season=abc) shows "not found" instead of failing the page.
     [SupplyParameterFromQuery(Name = "episode")]
-    public Guid? EpisodeId { get; set; }
+    public string? Episode { get; set; }
+
+    [SupplyParameterFromQuery(Name = "season")]
+    public string? Season { get; set; }
+
+    private Guid? EpisodeId => Guid.TryParse(Episode, out var id) ? id : null;
+    private Guid? SeasonId => Guid.TryParse(Season, out var id) ? id : null;
+    private bool EpisodeIsUnreadable => !string.IsNullOrWhiteSpace(Episode) && EpisodeId is null;
+    private bool SelectionIsUnreadable => EpisodeIsUnreadable || (!string.IsNullOrWhiteSpace(Season) && SeasonId is null);
+
+    [SupplyParameterFromQuery(Name = "tab")]
+    public string? Tab { get; set; }
 }

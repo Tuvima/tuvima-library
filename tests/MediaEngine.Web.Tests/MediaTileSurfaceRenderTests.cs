@@ -148,8 +148,8 @@ public sealed class MediaTileSurfaceRenderTests : AsyncBunitContext
             HoverMode = MediaTileHoverMode.Expanded,
             TileImageUrl = "/art/leviathan-wakes.jpg",
             HoverImageUrl = "/art/leviathan-wakes.jpg",
-            NavigationUrl = "/book/1",
-            DetailsNavigationUrl = "/book/1",
+            NavigationUrl = "/details/work/1",
+            DetailsNavigationUrl = "/details/work/1",
             PrimaryNavigationUrl = "/read/1",
             PrimaryActionLabel = "Read",
             ProgressPct = 42,
@@ -330,8 +330,8 @@ public sealed class MediaTileSurfaceRenderTests : AsyncBunitContext
             Shape = MediaTileShape.Portrait,
             SurfaceKind = MediaTileSurfaceKind.CoverPortrait,
             TileImageUrl = "/art/dune.jpg",
-            NavigationUrl = "/book/dune",
-            DetailsNavigationUrl = "/book/dune",
+            NavigationUrl = "/details/work/dune",
+            DetailsNavigationUrl = "/details/work/dune",
             IsSettling = isSettling,
         };
 
@@ -417,7 +417,7 @@ public sealed class MediaTileSurfaceRenderTests : AsyncBunitContext
     [Fact]
     public void MediaTile_DetailsSurfaceIsSemanticLinkWithVisibleKeyboardFocus()
     {
-        const string details = "/book/semantic-card";
+        const string details = "/details/work/semantic-card";
         var item = new MediaTileViewModel
         {
             Id = Guid.NewGuid(),
@@ -530,7 +530,7 @@ public sealed class MediaTileSurfaceRenderTests : AsyncBunitContext
             Title = "Cross-media universe",
             IsCollection = true,
             Presentation = MediaTilePresentation.Default,
-            NavigationUrl = "/collection/cross-media",
+            NavigationUrl = "/details/collection/cross-media",
         };
         var tvShow = new MediaTileViewModel
         {
@@ -741,7 +741,7 @@ public sealed class MediaTileSurfaceRenderTests : AsyncBunitContext
             Presentation = MediaTilePresentation.Default,
             SurfaceKind = MediaTileSurfaceKind.BannerLandscape,
             HoverMode = MediaTileHoverMode.Expanded,
-            NavigationUrl = "/collection/cross-media",
+            NavigationUrl = "/details/collection/cross-media",
             IsCollection = true,
             UseLandscapeGroupTile = true,
             PreviewTotalCount = 6,
@@ -881,7 +881,7 @@ public sealed class MediaTileSurfaceRenderTests : AsyncBunitContext
                 Title = "Foundation",
                 ImageUrl = "/covers/1.jpg",
                 MediaType = "Book",
-                NavigationUrl = "/book/1?mode=read",
+                NavigationUrl = "/details/work/1?mode=read",
                 Shape = ArtworkShape.Portrait,
                 Position = "1",
                 Description = "The first Foundation novel.",
@@ -894,7 +894,7 @@ public sealed class MediaTileSurfaceRenderTests : AsyncBunitContext
                 Title = "Foundation and Empire",
                 ImageUrl = "/covers/2.jpg",
                 MediaType = "Book",
-                NavigationUrl = "/book/2?mode=read",
+                NavigationUrl = "/details/work/2?mode=read",
                 Shape = ArtworkShape.Portrait,
                 Position = "2",
                 Description = "The second Foundation novel.",
@@ -1142,7 +1142,7 @@ public sealed class MediaTileSurfaceRenderTests : AsyncBunitContext
     [Fact]
     public void MediaTile_CardClickAlwaysOpensDetails()
     {
-        var details = "/book/1";
+        var details = "/details/work/1";
         var item = new MediaTileViewModel
         {
             Id = Guid.NewGuid(),

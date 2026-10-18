@@ -163,6 +163,17 @@ public sealed class DetailComposerServiceTests
     }
 
     [Fact]
+    public void TryParseEntityType_DoesNotKnowCharacterPages()
+    {
+        // The detail action answers 400 for an unsupported type, which the Dashboard shows as "not found".
+        Assert.False(DetailComposerService.TryParseEntityType("character", out _));
+        Assert.False(DetailComposerService.TryParseEntityType("Character", out _));
+        Assert.DoesNotContain("Character", Enum.GetNames<DetailEntityType>());
+        var endpoint = File.ReadAllText(Path.Combine(FindRepoRoot(), "src/MediaEngine.Api/Endpoints/DetailEndpoints.cs"));
+        Assert.Contains("return ApiErrors.BadRequest($\"Unsupported detail entity type '{entityType}'.\");", endpoint);
+    }
+
+    [Fact]
     public void TryParseEntityType_ParsesSupportedKebabCaseTypes()
     {
         Assert.True(DetailComposerService.TryParseEntityType("tv-show", out var entityType));
@@ -174,6 +185,7 @@ public sealed class DetailComposerServiceTests
     [InlineData("watch", DetailPresentationContext.Watch)]
     [InlineData("read", DetailPresentationContext.Read)]
     [InlineData("unknown", DetailPresentationContext.Default)]
+    [InlineData("admin", DetailPresentationContext.Default)]
     public void ParseContext_UsesDefaultForUnknownValues(string value, DetailPresentationContext expected)
     {
         Assert.Equal(expected, DetailComposerService.ParseContext(value));
@@ -253,7 +265,6 @@ public sealed class DetailComposerServiceTests
             coverUrl: "/cover.jpg",
             posterUrl: null,
             portraitUrl: null,
-            characterImageUrl: null,
             relatedArtworkUrls: []);
 
         Assert.Equal(HeroArtworkMode.BackdropWithRenderedTitle, artwork.Mode);
@@ -271,7 +282,6 @@ public sealed class DetailComposerServiceTests
             coverUrl: "/cover.jpg",
             posterUrl: null,
             portraitUrl: null,
-            characterImageUrl: null,
             relatedArtworkUrls: []);
 
         Assert.Equal(HeroArtworkMode.ArtworkFallback, artwork.Mode);
@@ -289,7 +299,6 @@ public sealed class DetailComposerServiceTests
             coverUrl: null,
             posterUrl: null,
             portraitUrl: null,
-            characterImageUrl: null,
             relatedArtworkUrls: []);
 
         Assert.Equal(HeroArtworkMode.Placeholder, artwork.Mode);
@@ -302,25 +311,24 @@ public sealed class DetailComposerServiceTests
     {
         var source = ReadDetailComposerSource();
 
-        Assert.Contains("DetailEntityType.Movie when hasUniverse => [\"overview\", \"cast\", \"universe\", \"related\", \"details\"]", source);
-        Assert.Contains("DetailEntityType.Movie => [\"overview\", \"cast\", \"related\", \"details\"]", source);
+        Assert.Contains("DetailEntityType.Movie => [\"overview\", \"cast\", \"details\"]", source);
         Assert.DoesNotContain("DetailEntityType.Movie => [\"overview\", \"people\"", source);
-        Assert.Contains("DetailEntityType.TvShow => hasUniverse ? [\"overview\", \"cast\", \"universe\", \"related\", \"details\"] : [\"overview\", \"cast\", \"related\", \"details\"]", source);
-        Assert.Contains("DetailEntityType.TvSeason => [\"overview\", \"cast\", \"related\", \"details\"]", source);
-        Assert.Contains("DetailEntityType.Book when hasUniverse => [\"overview\", \"credits\", \"universe\", \"related\", \"details\"]", source);
-        Assert.Contains("DetailEntityType.Book => [\"overview\", \"credits\", \"related\", \"details\"]", source);
+        Assert.Contains("DetailEntityType.TvShow => [\"overview\", \"cast\", \"details\"]", source);
+        Assert.Contains("DetailEntityType.TvSeason => [\"overview\", \"cast\", \"details\"]", source);
+        Assert.Contains("DetailEntityType.Book => [\"overview\", \"credits\", \"details\"]", source);
         Assert.Contains("DetailEntityType.Audiobook => [\"overview\", \"tracks\", \"details\"]", source);
         Assert.DoesNotContain("DetailEntityType.Audiobook when hasChapters", source);
         Assert.DoesNotContain("DetailEntityType.Book or DetailEntityType.Audiobook => [\"overview\", \"credits\", \"chapters\", \"universe\", \"editions\", \"details\"]", source);
-        Assert.Contains("DetailEntityType.ComicIssue when hasUniverse => [\"overview\", \"credits\", \"universe\", \"related\", \"details\"]", source);
-        Assert.DoesNotContain("DetailEntityType.ComicIssue when hasUniverse => [\"overview\", \"credits\", \"universe\", \"editions\"", source);
+        Assert.Contains("DetailEntityType.ComicIssue => [\"overview\", \"credits\", \"details\"]", source);
+        Assert.DoesNotContain("\"universe\", \"related\"", source);
         Assert.Contains("DetailEntityType.Person => [\"overview\"]", source);
         Assert.Contains("DetailEntityType.Collection => [\"overview\", \"details\"]", source);
         Assert.Contains("entityType == DetailEntityType.Collection", source);
         Assert.Contains("? []", source);
         Assert.Contains("BuildStandardCollectionMetadata(works)", source);
         Assert.Contains("c.collection_type AS CollectionType", source);
-        Assert.Contains("CollectionTypeNames.Custom", source);
+        // A custom collection is editable by the same rules as every other: never by an address flag.
+        Assert.DoesNotContain("CollectionTypeNames.Custom", source);
         Assert.Contains("EditorTarget = canEdit", source);
         Assert.Contains("DetailEntityType.BookSeries or DetailEntityType.ComicSeries or DetailEntityType.MovieSeries", source);
         Assert.Contains("Kind = $\"{lane}_count\"", source);
@@ -328,7 +336,7 @@ public sealed class DetailComposerServiceTests
         Assert.DoesNotContain("Key = $\"collection-{lane}\"", source);
         Assert.Contains("DetailEntityType.MusicAlbum => [\"overview\", \"details\"]", source);
         Assert.DoesNotContain("DetailEntityType.MusicTrack", source);
-        Assert.Contains("HasUniverseRelationship(relationships)", source);
+        Assert.DoesNotContain("HasUniverseRelationship", source);
         Assert.DoesNotContain("sync-settings", source);
         Assert.Contains("BuildOverflowActions(workId, entityType, actionAuthorization,", source);
         Assert.Contains("authorization.Allows(action.Key)", source);
@@ -634,20 +642,19 @@ public sealed class DetailComposerServiceTests
     }
 
     [Fact]
-    public void DetailComposer_PopulatesCastCharactersAndRelationshipsForCollectionSurfaces()
+    public void DetailComposer_PopulatesCastForCollectionSurfacesAndNoCharacterOrRelationshipGroups()
     {
         var source = ReadDetailComposerSource();
         var creditSource = File.ReadAllText(Path.Combine(FindRepoRoot(), "src/MediaEngine.Api/Services/ReadServices/PersonCreditReadService.cs"));
 
         Assert.Contains("BuildCollectionCreditsAsync(collectionId, rootWorkId, works, entityType, values, ct)", source);
         Assert.Contains("IReadOnlyList<CreditGroupViewModel> contributorGroups = IsStructuralContainer(entityType)", source);
-        Assert.Contains("var characterGroups = IsStructuralContainer(entityType)", source);
-        Assert.Contains(": await BuildCollectionCharactersAsync(collectionId, row.WikidataQid, authorizedWorks, ct)", source);
-        Assert.Contains("BuildUniverseCastGroupsAsync(row.WikidataQid, authorizedWorks, ct)", source);
-        Assert.Contains("BuildUniverseRelationshipGroupsAsync(row.WikidataQid, ct)", source);
-        Assert.Contains("ApiImageUrls.BuildCharacterPortraitUrl(row.PortraitId", source);
-        Assert.Contains("private sealed class CollectionCharacterRow", source);
-        Assert.Contains("private sealed class UniversePerformerRow", source);
+        Assert.DoesNotContain("BuildCollectionCharactersAsync", source);
+        Assert.DoesNotContain("BuildUniverseCastGroupsAsync", source);
+        Assert.DoesNotContain("BuildUniverseRelationshipGroupsAsync", source);
+        Assert.DoesNotContain("BuildCharacterAsync", source);
+        Assert.DoesNotContain("CharacterGroups", source);
+        Assert.DoesNotContain("RelationshipStrip", source);
         Assert.Contains("DetailEntityType.Movie => directors.Take(1).Concat(cast.Take(5)).ToList()", source);
         Assert.Contains("DetailEntityType.TvShow or DetailEntityType.TvSeason or DetailEntityType.TvEpisode => cast.Take(5).ToList()", source);
         Assert.Contains("Title = \"Actors\"", source);
@@ -1366,28 +1373,6 @@ public sealed class DetailComposerServiceTests
     }
 
     [Fact]
-    public void DetailComposer_RelationshipChipRoutesOnlyUseKnownDestinations()
-    {
-        Assert.Equal("/universe/Q12345/explore", InvokePrivateString("BuildUniverseExploreRoute", "Q12345"));
-        Assert.Equal("/universe/Q12345/explore", InvokePrivateString("BuildUniverseExploreRoute", "https://www.wikidata.org/wiki/Q12345"));
-        Assert.Null(InvokePrivateString("BuildUniverseExploreRoute", "Sony Pictures"));
-
-        var containerId = Guid.NewGuid();
-        var sequence = new SequencePlacementViewModel
-        {
-            ContainerId = containerId.ToString("D"),
-            CurrentItem = new SequenceItemViewModel { EntityType = DetailEntityType.Movie },
-        };
-
-        Assert.Equal($"/details/movieseries/{containerId:D}?context=watch", InvokePrivateString("BuildSequenceContainerRoute", sequence));
-        Assert.Null(InvokePrivateString("BuildSequenceContainerRoute", new SequencePlacementViewModel
-        {
-            ContainerId = "Q999",
-            CurrentItem = new SequenceItemViewModel { EntityType = DetailEntityType.Movie },
-        }));
-    }
-
-    [Fact]
     public void PersonEndpoints_DownloadsRemotePortraitsButDoesNotRedirectToRemoteImages()
     {
         var source = File.ReadAllText(Path.Combine(FindRepoRoot(), "src/MediaEngine.Api/Endpoints/PersonEndpoints.cs"));
@@ -1409,11 +1394,7 @@ public sealed class DetailComposerServiceTests
         var tabs = InvokePrivate<List<DetailTab>>(
             "BuildTabs",
             entityType,
-            DetailPresentationContext.Default,
-            false,
-            true,
-            false,
-            true);
+            DetailPresentationContext.Default);
 
         Assert.Equal("overview", tabs[0].Key);
         Assert.DoesNotContain(tabs, tab => tab.Key == "series");
@@ -1426,11 +1407,7 @@ public sealed class DetailComposerServiceTests
         var tabs = InvokePrivate<List<DetailTab>>(
             "BuildTabs",
             DetailEntityType.MusicAlbum,
-            DetailPresentationContext.Listen,
-            false,
-            false,
-            false,
-            true);
+            DetailPresentationContext.Listen);
 
         Assert.Equal(["overview", "details"], tabs.Select(tab => tab.Key));
         Assert.DoesNotContain(tabs, tab => tab.Key == "tracks");
@@ -1443,11 +1420,7 @@ public sealed class DetailComposerServiceTests
         var tabs = InvokePrivate<List<DetailTab>>(
             "BuildTabs",
             DetailEntityType.Audiobook,
-            DetailPresentationContext.Listen,
-            false,
-            false,
-            false,
-            true);
+            DetailPresentationContext.Listen);
 
         Assert.Equal(["overview", "tracks", "details"], tabs.Select(tab => tab.Key));
         Assert.DoesNotContain(tabs, tab => tab.Key == "chapters");
@@ -1460,11 +1433,7 @@ public sealed class DetailComposerServiceTests
         var tabs = InvokePrivate<List<DetailTab>>(
             "BuildTabs",
             DetailEntityType.Work,
-            DetailPresentationContext.Default,
-            false,
-            false,
-            false,
-            true);
+            DetailPresentationContext.Default);
 
         Assert.DoesNotContain(tabs, tab => tab.Key == "formats");
     }
@@ -1521,57 +1490,6 @@ public sealed class DetailComposerServiceTests
 
         Assert.Equal(expectedKind, module.Kind);
         Assert.Equal(expectedKind == DetailPrimaryModuleKind.Works, module.SupportsRoleFilter);
-    }
-
-    [Fact]
-    public void BuildPrimaryModule_DoesNotTreatTrackRecommendationsAsAlbumTracks()
-    {
-        IReadOnlyList<MediaGroupingViewModel> groups =
-        [
-            new MediaGroupingViewModel
-            {
-                Key = "more-like-this",
-                Title = "More Like This",
-                Items = [new MediaGroupingItemViewModel { Id = "recommended-1", Title = "Recommended track" }],
-            },
-        ];
-
-        var module = InvokePrivate<DetailPrimaryModuleViewModel>(
-            "BuildPrimaryModule",
-            DetailEntityType.Work,
-            null,
-            groups);
-
-        Assert.Equal(DetailPrimaryModuleKind.None, module.Kind);
-    }
-
-    [Fact]
-    public void BuildPrimaryModule_AudiobookExcludesRelatedBooksFromItsTrackTable()
-    {
-        IReadOnlyList<MediaGroupingViewModel> groups =
-        [
-            new MediaGroupingViewModel
-            {
-                Key = "tracks",
-                Title = "Tracks",
-                Items = [new MediaGroupingItemViewModel { Id = "owned-track", Title = "001", IsOwned = true }],
-            },
-            new MediaGroupingViewModel
-            {
-                Key = "more-like-this",
-                Title = "More Like This",
-                Items = [new MediaGroupingItemViewModel { Id = "other-book", Title = "A related audiobook" }],
-            },
-        ];
-
-        var module = InvokePrivate<DetailPrimaryModuleViewModel>(
-            "BuildPrimaryModule",
-            DetailEntityType.Audiobook,
-            null,
-            groups);
-
-        Assert.Equal(DetailPrimaryModuleKind.Tracks, module.Kind);
-        Assert.Equal(["tracks"], module.GroupKeys);
     }
 
     [Fact]
@@ -1665,6 +1583,111 @@ public sealed class DetailComposerServiceTests
         var facadeSource = File.ReadAllText(facade);
         Assert.DoesNotContain("QueryAsync", facadeSource, StringComparison.Ordinal);
         Assert.DoesNotContain("CreateConnection", facadeSource, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void SecondaryTitleText_TvEpisodeWithShortDescriptionGetsNoLine()
+    {
+        var values = Values((MetadataFieldConstants.ShortDescription, "A short episode synopsis."));
+
+        var (text, kind, hasMore) = ResolveSecondaryTitle(DetailEntityType.TvEpisode, values, null, null, "A long episode synopsis.");
+
+        Assert.Null(text);
+        Assert.Null(kind);
+        Assert.False(hasMore);
+    }
+
+    [Fact]
+    public void SecondaryTitleText_TvShowWithATaglineShowsItAsATagline()
+    {
+        var values = Values((MetadataFieldConstants.ShortDescription, "A short series synopsis."));
+
+        var (text, kind, hasMore) = ResolveSecondaryTitle(DetailEntityType.TvShow, values, " Winter is coming. ", null, "A long series synopsis.");
+
+        Assert.Equal("Winter is coming.", text);
+        Assert.Equal("tagline", kind);
+        Assert.False(hasMore);
+    }
+
+    [Fact]
+    public void SecondaryTitleText_TvShowWithoutATaglineFallsBackToTheShortDescription()
+    {
+        var values = Values((MetadataFieldConstants.ShortDescription, "A short series synopsis."));
+
+        var (text, kind, hasMore) = ResolveSecondaryTitle(DetailEntityType.TvShow, values, null, null, "A short series synopsis. And a good deal more.");
+
+        Assert.Equal("A short series synopsis.", text);
+        Assert.Equal(MetadataFieldConstants.ShortDescription, kind);
+        Assert.True(hasMore);
+    }
+
+    [Fact]
+    public void SecondaryTitleText_MusicAlbumGetsNoLineEvenWithADescription()
+    {
+        var values = Values((MetadataFieldConstants.ShortDescription, "A short album note."));
+
+        var (text, kind, _) = ResolveSecondaryTitle(DetailEntityType.MusicAlbum, values, null, null, "A long album note.");
+
+        Assert.Null(text);
+        Assert.Null(kind);
+    }
+
+    [Fact]
+    public void SecondaryTitleText_MovieKeepsItsTaglineAndItsDescriptionFallback()
+    {
+        var values = Values((MetadataFieldConstants.ShortDescription, "A short film synopsis."));
+
+        var withTagline = ResolveSecondaryTitle(DetailEntityType.Movie, values, "The truth is closer.", null, "A long film synopsis.");
+        var withoutTagline = ResolveSecondaryTitle(DetailEntityType.Movie, values, null, null, "A long film synopsis.");
+
+        Assert.Equal(("The truth is closer.", "tagline"), (withTagline.Text, withTagline.Kind));
+        Assert.Equal(("A short film synopsis.", MetadataFieldConstants.ShortDescription), (withoutTagline.Text, withoutTagline.Kind));
+    }
+
+    [Fact]
+    public void SecondaryTitleText_BookKeepsItsSubtitleAndIgnoresTaglines()
+    {
+        var values = Values();
+
+        var (text, kind, _) = ResolveSecondaryTitle(DetailEntityType.Book, values, "Not a book line.", "A Novel of the Sea", null);
+
+        Assert.Equal("A Novel of the Sea", text);
+        Assert.Equal("subtitle", kind);
+    }
+
+    [Fact]
+    public void SecondaryTitleText_IsOnlyComposedForTvShowsOnCollectionPages()
+    {
+        var source = File.ReadAllText(Path.Combine(
+            FindRepoRoot(), "src", "MediaEngine.Api", "Services", "Details", "Internals",
+            "DetailCompositionOrchestrator.Collections.cs"));
+
+        Assert.Contains("var secondaryTitle = entityType == DetailEntityType.TvShow", source, StringComparison.Ordinal);
+        Assert.Contains("ResolveSecondaryTitleText(", source, StringComparison.Ordinal);
+        Assert.Equal(1, source.Split("ResolveSecondaryTitleText(").Length - 1);
+    }
+
+    private static Dictionary<string, string> Values(params (string Key, string Value)[] pairs)
+        => pairs.ToDictionary(pair => pair.Key, pair => pair.Value, StringComparer.OrdinalIgnoreCase);
+
+    private static (string? Text, string? Kind, bool HasMore) ResolveSecondaryTitle(
+        DetailEntityType entityType,
+        IReadOnlyDictionary<string, string> values,
+        string? explicitTagline,
+        string? explicitSubtitle,
+        string? longDescription)
+    {
+        var method = DetailComposerImplementationType.GetMethod(
+            "ResolveSecondaryTitleText",
+            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
+        Assert.NotNull(method);
+        var selection = method!.Invoke(null, [entityType, values, explicitTagline, explicitSubtitle, longDescription]);
+        Assert.NotNull(selection);
+        var type = selection!.GetType();
+        return (
+            (string?)type.GetProperty("Text")!.GetValue(selection),
+            (string?)type.GetProperty("Kind")!.GetValue(selection),
+            (bool)type.GetProperty("HasMore")!.GetValue(selection)!);
     }
 
     private static string? InvokePrivateString(string methodName, params object?[] args)

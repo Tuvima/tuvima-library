@@ -73,7 +73,7 @@ public sealed class PlaybackIdentityNavigationOwner(PlaybackSessionController pl
                 {
                     return null;
                 }
-                var detail = await api.GetDetailPageAsync(type.Value, id, DetailPresentationContext.Listen, profileId: command.ProfileId, ct: ct);
+                var detail = await api.GetDetailPageAsync(type.Value, id, DetailPresentationContext.Listen, ct: ct);
                 if (detail is null || !Guid.TryParse(detail.Id, out var returnedId) || returnedId != id || detail.EntityType != type)
                 {
                     return null;

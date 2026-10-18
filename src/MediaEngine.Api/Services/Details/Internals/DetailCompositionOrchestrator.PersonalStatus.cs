@@ -69,7 +69,6 @@ internal sealed partial class DetailCompositionOrchestrator
             actions.Add(new() { Key = "add-queue", Label = "Add to queue", Icon = "queue_music" });
             actions.Add(new() { Key = "add-playlist", Label = "Add to playlist", Icon = "playlist_add" });
         }
-        actions.Add(new() { Key = "copy-link", Label = "Copy library link", Icon = "link" });
         actions.AddRange(model.OverflowActions);
         model.OverflowActions = actions;
     }

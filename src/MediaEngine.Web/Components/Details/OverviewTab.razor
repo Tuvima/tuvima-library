@@ -303,7 +303,7 @@
     private string OverviewCreditsListClass => $"tl-media-overview-credits-list{(IsBookish ? " tl-media-overview-credits-list--bookish" : string.Empty)}{(IsVideo ? " tl-media-overview-credits-list--video" : string.Empty)}";
 
     private bool ShowCastTabLink => IsVideo
-        && (TotalCredits(CreditGroupType.Cast) > 0 || Model.CharacterGroups.Count > 0);
+        && TotalCredits(CreditGroupType.Cast) > 0;
 
     private bool ShowInlineCreditsToggle => !IsVideo && HiddenOverviewCreditCount > 0;
 

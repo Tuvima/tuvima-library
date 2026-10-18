@@ -8,6 +8,19 @@ public static class CollectionAccessPolicy
     public const string PrivateVisibility = "private";
     public const string SharedVisibility = "shared";
 
+    /// <summary>What the Engine says when a request would leave a manually curated collection with no items.</summary>
+    public const string CuratedCollectionNeedsItemMessage = "A collection needs at least one item. Delete the collection instead.";
+
+    /// <summary>
+    /// A manually curated collection: a <c>Custom</c> collection with manual membership whose members are stored with it.
+    /// It may never be empty (it is deleted when its last item leaves the library). Playlists,
+    /// playlist folders, rule-driven collections and system groupings are not curated collections.
+    /// </summary>
+    public static bool IsCuratedCollection(Collection collection) =>
+        collection.CollectionType == CollectionType.Custom
+        && collection.Resolution == CollectionResolution.Materialized
+        && collection.MembershipMode == ContainerMembershipMode.Manual;
+
     public static string NormalizeVisibility(string? visibility) =>
         string.Equals(visibility, SharedVisibility, StringComparison.OrdinalIgnoreCase)
             ? SharedVisibility

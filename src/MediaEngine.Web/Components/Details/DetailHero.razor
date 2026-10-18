@@ -154,12 +154,10 @@
             <MetadataContent>
                 <HeroMetadataPills Metadata="Model.Metadata"
                                    EntityType="Model.EntityType"
-                                   IdentityStatus="Model.IdentityStatus"
                                    IsWatchHero="Presentation.IsWatchHero"
                                    UsePrimaryHeroChrome="Presentation.UsePrimaryHeroChrome"
                                    HeroBrand="Model.HeroBrand"
-                                   RenderHeroBrandInMetadata="false"
-                                   IsAdminView="Model.IsAdminView" />
+                                   RenderHeroBrandInMetadata="false" />
             </MetadataContent>
             <CapabilityContent>
                 @if (Presentation.CapabilityPills.Count > 0)
@@ -486,7 +484,6 @@
             return [new ArtworkStackItem { Id = Model.Id, Title = Model.Title, ImageUrl = Model.Artwork.CoverUrl, Shape = ArtworkShape.Portrait }];
 
         return Model.MediaGroups
-            .Where(group => !IsRecommendationGroup(group))
             .SelectMany(group => group.Items)
             .Where(item => item.IsOwned && !string.IsNullOrWhiteSpace(item.ArtworkUrl))
             .DistinctBy(item => $"{item.EntityType}:{item.Id}", StringComparer.OrdinalIgnoreCase)
@@ -502,14 +499,6 @@
                 Shape = ArtworkShapeFor(item.EntityType),
             })
             .ToList();
-    }
-
-    private static bool IsRecommendationGroup(MediaGroupingViewModel group)
-    {
-        var key = group.Key ?? string.Empty;
-        return key.Equals("related", StringComparison.OrdinalIgnoreCase)
-               || key.Equals("recommendations", StringComparison.OrdinalIgnoreCase)
-               || key.Equals("more-like-this", StringComparison.OrdinalIgnoreCase);
     }
 
     private static ArtworkShape ArtworkShapeFor(DetailEntityType entityType) => entityType switch

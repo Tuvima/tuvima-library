@@ -314,11 +314,9 @@ public sealed class ArchitecturalHardeningTests
     public void PerformanceSourceGuardrails_RemainInPlace()
     {
         var appJs = File.ReadAllText(Path.Combine(RepoRoot, "src/MediaEngine.Web/wwwroot/app.js"));
-        var universeTab = File.ReadAllText(Path.Combine(RepoRoot, "src/MediaEngine.Web/Components/Details/UniverseTab.razor"));
 
         Assert.Contains("__mediaTileHoverFrame", appJs);
         Assert.Contains("cancelAnimationFrame", appJs);
-        Assert.Contains("ShouldRender", universeTab);
     }
 
     private static HttpClient CreateHttpClient(Func<HttpRequestMessage, HttpResponseMessage> responder) =>
